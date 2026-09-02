@@ -22,6 +22,9 @@ import { requireConnection } from '../net/remoteSync.js';
 import { notify } from '../utils.js';
 import { videoFrameDataUrl } from '../core/videoFrame.js';
 import { loadLlmSettings, saveLlmSettings, PROVIDERS, withProvider } from '../llm/llmSettings.js';
+import {
+  chatSide, setChatSide, applyChatSide, CHAT_SIDE_SWAPPED,
+} from '../ui/chatLayoutPrefs.js';
 
 // A layout argument may be an OBJECT or a raw JSON string — parse the latter so callers
 // can hand over clipboard/file text directly. A non-object (or bad JSON) throws, since
@@ -67,7 +70,7 @@ export const createStencil = (app) => {
   }));
   // On first boot, optionally re-establish the saved server set (the "auto-connect on
   // open" preference, default on). Connect each independently so one dead server doesn't
-  // block the rest, and report the unreachable count in the corner toast.
+  // block the rest, and report each unreachable address in its own corner toast.
   if (firstInit && getAutoConnect()) {
     const saved = loadSavedServers();
     // A credential the server ALREADY refused is never retried — it cannot start working.
@@ -81,18 +84,24 @@ export const createStencil = (app) => {
     }
     if (live.length) {
       Promise.allSettled(live.map((s) => connMgr.connect(s))).then((results) => {
-        const rejected = results.filter((r) => r.status === 'rejected').map((r) => r.reason);
+        // Results stay positional with `live`, so a failure can be traced back to the
+        // server it belongs to.
+        const rejected = results
+          .map((r, i) => ({ r, url: live[i].url }))
+          .filter(({ r }) => r.status === 'rejected');
         // A REFUSED credential is not an unreachable server: the server answered, this
         // session is simply over — say it needs a new token and open the Connections
         // modal on click, rather than sending the user hunting a server that is up.
-        const expired = rejected.filter((e) => e?.expired).length;
-        const unreachable = rejected.length - expired;
-        if (expired) {
-          console.warn(`stencil: ${expired} saved server session(s) expired — reconnect from Connections`);
-          notify(`Session expired on ${expired} saved server${expired === 1 ? '' : 's'} — reconnect`, 'fail',
+        const expired = rejected.filter(({ r }) => r.reason?.expired);
+        const unreachable = rejected.filter(({ r }) => !r.reason?.expired);
+        if (expired.length) {
+          console.warn(`stencil: ${expired.length} saved server session(s) expired — reconnect from Connections`);
+          notify(`Session expired on ${expired.length} saved server${expired.length === 1 ? '' : 's'} — reconnect`, 'fail',
             { onClick: () => document.getElementById('connect-btn')?.click() });
         }
-        if (unreachable) notify(`Couldn't reach ${unreachable} saved server${unreachable === 1 ? '' : 's'}`, 'info');
+        // One toast per address, not a count — a count says nothing about WHICH
+        // server to go check.
+        for (const { url } of unreachable) notify(`Couldn't reach ${url}`, 'info');
       });
     }
   }
@@ -570,6 +579,16 @@ export const createStencil = (app) => {
     return app.chat;
   };
 
+  // "Swap message sides" (chatLayoutPrefs.js) is deliberately NOT persisted across a
+  // reload/reopened tab — this setter is the one way to adjust it, live, for the rest
+  // of this tab's session. Both transcripts share the one preference, so restamp
+  // whichever is currently mounted (the panel, the ctx-assist flyout, or neither).
+  const applyChatSideEverywhere = (side) => {
+    if (typeof document === 'undefined') return;
+    applyChatSide(document.getElementById('chat-transcript'), side);
+    applyChatSide(document.getElementById('ctx-assist-transcript'), side);
+  };
+
   // loadImageFromFile decodes async with no promise; poll until the image is in place.
   // `previous` = the image loaded BEFORE the call: replacing must wait for the swap, not
   // for "some image exists", or ops chained after a load (a §2.1 `image` op's
@@ -705,6 +724,15 @@ export const createStencil = (app) => {
         // attachments, transcript, and the §12 persisted copy). Throws mid-turn.
         clear() { chatPanel().clear(); return stencil; },
         get isSending() { return !!app.chat && app.chat.isSending; },
+        // "Swap message sides" — which side user/assistant/error bubbles draw on.
+        // Scoped to THIS tab's session only: never persisted, so it resets on the
+        // next reload/reopen (chatLayoutPrefs.js) — this is the one way to adjust
+        // it outside the panel's own menu item.
+        get swapSides() { return chatSide() === CHAT_SIDE_SWAPPED; },
+        set swapSides(v) {
+          setChatSide(v ? CHAT_SIDE_SWAPPED : 'normal');
+          applyChatSideEverywhere();
+        },
       });
     },
 
@@ -798,10 +826,15 @@ export const createStencil = (app) => {
       else if (app.isDrawing) app.stopDrawingMode();
     },
     clearLines() { app.clearAllLines(); return stencil; },
-    downloadImage() { app.export.saveImage(); return stencil; },        // download image+lines (PNG)
+    // variant: 'current' (default — tint + lines/points) | 'original' (no tint, no
+    // lines/points) | 'tint' (tint only, no lines/points) | 'split' (download only,
+    // needs a split compare view — the composite WITH the divider baked in).
+    downloadImage(variant = 'current') { app.export.saveImage(variant); return stencil; },
     copyLayout() { app.export.copyLayoutToClipboard(); return stencil; },
-    copyImage() { app.export.copyImageToClipboard(); return stencil; }, // alias of copyImageToClipboard
-    copyImageToClipboard() { app.export.copyImageToClipboard(); return stencil; },
+    // variant: 'current' | 'original' | 'tint' — see downloadImage. 'current' during a
+    // split compare view copies the split composite shown on screen (no divider).
+    copyImage(variant = 'current') { app.export.copyImageToClipboard(variant); return stencil; }, // alias of copyImageToClipboard
+    copyImageToClipboard(variant = 'current') { app.export.copyImageToClipboard(variant); return stencil; },
     shareImage() { app.export.shareImage(); return stencil; },          // Web Share API (mobile/PWA)
     openIn() { document.getElementById('open-in-btn')?.click(); return stencil; },   // Open-in-another-app modal
     downloadLayout() { app.export.downloadJSON(); return stencil; },

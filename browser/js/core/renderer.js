@@ -106,7 +106,9 @@ export class Renderer {
 
   // Overlay the cropped+rotated original onto the "original" half of a split compare view
   // (left half for 'vertical', top half for 'horizontal') and draw the draggable divider.
-  drawCompareSplit(mode) {
+  // `withDivider: false` (the export path's clean split, e.g. Ctrl+C during a split
+  // compare) skips the divider bar/knob — just the two image halves, no UI chrome.
+  drawCompareSplit(mode, { withDivider = true } = {}) {
     const ctx = this.app.ctx;
     const w = this.app.canvas.width;
     const h = this.app.canvas.height;
@@ -120,6 +122,8 @@ export class Renderer {
     ctx.filter = 'none';
     ctx.drawImage(this.app.image, 0, 0);
     ctx.restore();
+
+    if (!withDivider) return;
 
     // Divider drawn in image space but kept a constant on-screen thickness by dividing by
     // the current zoom, so it neither vanishes when zoomed out nor bloats when zoomed in.

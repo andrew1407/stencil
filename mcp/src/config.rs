@@ -200,7 +200,7 @@ fn env_nonempty(key: &str) -> Option<String> {
 
 /// The default desktop binary location inside a repo checkout.
 fn default_desktop_path() -> Option<PathBuf> {
-    let candidate = crate::locate::repo_root()?.join("desktop/build/stencil_gui");
+    let candidate = crate::locate::repo_root()?.join("desktop/build/stencil");
     candidate.is_file().then_some(candidate)
 }
 

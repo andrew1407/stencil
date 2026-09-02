@@ -5,7 +5,8 @@ import { icon } from './icons.js';
 import { ACCENTS, DEFAULT_ACCENT, accentHex, normalizeHex } from '../core/accents.js';
 import { fillAccentMenu, markSelected } from './accentPicker.js';
 import { createModalOpenGesture } from './popover.js';
-import { surfaceIn, surfaceOut, settleSurface, wireHoverDust } from './motion.js';
+import { surfaceIn, surfaceOut, wireHoverDust, foldDust, rectCenter,
+         SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from './motion.js';
 import { isTypingTarget } from '../utils.js';
 import { pageFormatOptions } from '../core/units.js';
 // ── Component: toolbar (controls-wrapper + all control sections) ──────
@@ -66,8 +67,8 @@ export class StencilToolbar extends StencilElement {
                     <button id="load-image-btn" class="btn-icon-text" data-hk-title="loadImage" data-title="Open an image — local file, URL, or new blank" title="Open an image — local file, URL, or new blank">${icon('image')}<span>Open Image</span></button>
                     <!-- Image actions (shown only when an image is loaded). #save-image moved here from Data. -->
                     <span id="image-actions" style="display:none;align-items:center;gap:4px;">
-                        <button id="save-image" class="btn-icon" data-hk-title="saveImage" data-title="Download image" data-disabled-reason="Load an image to download it" title="Download image">${icon('download')}</button>
-                        <button id="copy-image" class="btn-icon" data-hk-title="copyImage" data-title="Copy image to clipboard" data-disabled-reason="Load an image to copy it" title="Copy image to clipboard">${icon('copy')}</button>
+                        <button id="save-image" class="btn-icon" data-hk-title="saveImage" data-title="Download image · Right-click for download options" data-disabled-reason="Load an image to download it" title="Download image — right-click for options">${icon('download')}</button>
+                        <button id="copy-image" class="btn-icon" data-hk-title="copyImage" data-title="Copy image to clipboard · Right-click for copy options" data-disabled-reason="Load an image to copy it" title="Copy image to clipboard — right-click for options">${icon('copy')}</button>
                         <button id="share-image" class="btn-icon" data-hk-title="shareImage" data-title="Share image" title="Share image" style="display:none;">${icon('share')}</button>
                         <button id="open-in-btn" class="btn-icon" data-hk-title="openIn" data-title="Open in another app" title="Open in another app">${icon('monitor')}</button>
                         <button id="open-image-btn" class="btn-icon" data-hk-title="openAnotherImage" data-title="Open another image — local file, URL, or new blank" title="Open another image — local file, URL, or new blank">${icon('external')}</button>
@@ -336,7 +337,10 @@ export class StencilToolbar extends StencilElement {
 
     btn.addEventListener('click', () => {
       hidden = !hidden;
-      body.classList.toggle('hidden', hidden);
+      // The shared fold-with-dust ritual (motion.js foldDust): the tool rows come apart
+      // into motes streaming up past the top edge and gather back out of it.
+      foldDust(body, body, 'hidden', hidden, 'top',
+        { toggle: () => body.classList.toggle('hidden', hidden) });
       // The fold is a body-level state: the info line hides with the rows (CSS), and the
       // "?" badge appears in its place (refresh, via the class observer below).
       document.body.classList.toggle('controls-collapsed', hidden);
@@ -406,21 +410,16 @@ export function wireLogoColorPicker(logo, app) {
   const onDocDown = (e) => { if (!wrap.contains(e.target)) closeMenu(); };
   const onMenuKey = (e) => { if (e.key === 'Escape') closeMenu(); };
   // The list is sand, like every other surface (js/ui/motion.js): it forms from motes
-  // streaming out of the logo and comes apart into motes pouring back into it. The
-  // `hidden` / `.dd-closing` hooks are unchanged — the dust simply replaces the scale
-  // those two used to drive, and its own animationend still ends the exit.
-  const MENU_IN_MS = 340;
-  const MENU_OUT_MS = 220;
-  const logoPoint = () => {
-    const r = wrap.getBoundingClientRect?.();
-    if (!r || !(r.width > 0 && r.height > 0)) return null;
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-  };
+  // streaming out of the logo and comes apart into motes pouring back into it, on the
+  // shared menu clock. The `hidden` / `.dd-closing` hooks are unchanged — the dust
+  // simply replaces the scale those two used to drive.
+  const MENU_IN_MS = SURFACE_MENU_IN_MS;
+  const MENU_OUT_MS = SURFACE_MENU_OUT_MS;
+  const logoPoint = () => rectCenter(wrap);
   const dustMenu = (enter) => {
     if (!menu) return;
     const point = reducedMotion() ? null : logoPoint();
-    if (point && (enter ? surfaceIn : surfaceOut)(menu, point, { ms: enter ? MENU_IN_MS : MENU_OUT_MS })) return;
-    settleSurface(menu);
+    (enter ? surfaceIn : surfaceOut)(menu, point, { ms: enter ? MENU_IN_MS : MENU_OUT_MS });
   };
   const openMenu = () => {
     if (!menu) return;

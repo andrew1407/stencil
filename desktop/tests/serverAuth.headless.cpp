@@ -12,9 +12,10 @@
 // parity): Admin when the credential PROVED it can mint a session, Session when
 // the supplied token passed the /projects probe, None when nothing was supplied —
 // persisted with the saved connections and shown as the row's golden band, its
-// Invite button, and the All / Admin / Non-admin filter — whose changes are a
-// symmetric, LIGHT transition (support/filterFade): excluded rows fade + collapse out,
-// included ones back in, no destructive dust, reduced motion straight to the end state.
+// Invite button, and the All / Admin / Non-admin filter — whose changes are a question
+// re-answered (support/filterFade): what it excludes is gone at once with nothing to
+// watch, the rows that are LEFT arrive, no destructive dust is spent either way, and
+// reduced motion goes straight to the end state.
 // A mock QTcpServer stands in for the collaboration server, so no Go server is
 // needed (same approach as connectRow.headless).
 #include "connectDialog.hpp"
@@ -638,33 +639,29 @@ int main(int argc, char** argv) {
       check(fullH > 0 && lw->item(plainRow)->sizeHint().height() == fullH,
             "a settled row occupies its whole slot");
 
-      // ── Leaving the filtered set is a TRANSITION, not a snap: the excluded row is
-      // still in the view, fading while its slot collapses, and only goes once played.
+      // ── A filter is a QUESTION re-answered, not a removal: the row it excludes was
+      // never disconnected, so there is no exit to watch — it is out of the view the
+      // moment the answer changes, and the surviving row keeps the slot it had.
       filter->setCurrentIndex(filter->findData(QStringLiteral("admin")));
-      check(!lw->item(plainRow)->isHidden(), "an excluded row stays up while it leaves");
-      check(!filteredIn(lw->item(plainRow)), "…though it has already left the filtered set");
-      check(filteredIn(lw->item(adminRow)), "…and the matching row is still in it");
-      pumpFor(kFilterFadeMs / 3);
-      check(lw->item(plainRow)->sizeHint().height() < fullH, "…its slot collapsing as it goes");
+      check(lw->item(plainRow)->isHidden() && lw->item(plainRow)->sizeHint().height() == 0,
+            "an excluded row is gone at once, slot closed");
+      check(!filteredIn(lw->item(plainRow)), "…and has left the filtered set");
+      check(filteredIn(lw->item(adminRow)), "…while the matching row is still in it");
+      check(!lw->item(adminRow)->isHidden() && lw->item(adminRow)->sizeHint().height() == fullH,
+            "Admin leaves the surviving row where it was, at full height");
       // The semantics: a filter-out is NOT a removal, so it never spends the dust.
       check(dlg.findChild<QWidget*>(DisintegrateOverlay::kObjectName) == nullptr,
             "…with none of the destructive scatter a disconnect uses");
-      pumpUntil([&] { return lw->item(plainRow)->isHidden(); });
-      check(!lw->item(adminRow)->isHidden() && lw->item(plainRow)->isHidden(),
-            "Admin hides the non-admin row");
-      check(lw->item(adminRow)->sizeHint().height() == fullH,
-            "…leaving the surviving row at full height");
 
-      // ── …and the way back in is the same motion reversed: up at once, still growing.
+      // ── …and a row the filter REVEALS opens its slot: up at once, still growing.
       filter->setCurrentIndex(filter->findData(QStringLiteral("nonadmin")));
       check(!lw->item(plainRow)->isHidden() && lw->item(plainRow)->sizeHint().height() < fullH,
-            "an entering row is in the view at once, still expanding");
+            "a revealed row is in the view at once, still expanding");
       check(filteredIn(lw->item(plainRow)), "…and already counted in the filtered set");
-      pumpUntil([&] { return lw->item(adminRow)->isHidden() && !lw->item(plainRow)->isHidden(); });
-      check(lw->item(adminRow)->isHidden() && !lw->item(plainRow)->isHidden(),
-            "Non-admin hides the admin row");
+      check(lw->item(adminRow)->isHidden(), "Non-admin hides the admin row, at once");
+      pumpUntil([&] { return lw->item(plainRow)->sizeHint().height() == fullH; });
       check(lw->item(plainRow)->sizeHint().height() == fullH,
-            "…with the arrived row back at its full slot");
+            "…with the arrived row landing on its full slot");
 
       // ── Rapid changes: whatever is mid-flight, the LAST pick decides the visible set.
       for (const char* mode : {"admin", "nonadmin", "admin", "all"}) {

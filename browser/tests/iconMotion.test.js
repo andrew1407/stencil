@@ -41,7 +41,7 @@ const isIdentity = (pose) => Object.entries(pose).every(([k, v]) =>
 test('every canonical icon has a motion design, and every design an icon', () => {
   assert.deepEqual(Object.keys(MOTION.icons), Object.keys(ICONS),
     'iconMotion.json must cover icons.json exactly, in the same order');
-  assert.equal(Object.keys(ICONS).length, 65);
+  assert.equal(Object.keys(ICONS).length, 66);
   // Non-canonical glyphs (the draw-mode pair lives inline in core/drawingApp.js) are
   // designed too, but kept OUT of `icons` so the 1:1 check above stays honest.
   assert.ok(MOTION.extras['draw-mode-icon'], 'the draw-mode faces are designed as an extra');
@@ -201,16 +201,28 @@ test('direction is the meaning: the pairs point opposite ways', () => {
     'both lenses and the bridge move as one');
 });
 
-test('plus grows and minus shrinks — each settling back to the default size', () => {
-  const peak = (name, hook) => MOTION.icons[name].parts
-    .find((p) => p.hook === hook).keyframes.find((k) => k.at > 0 && k.at < 100).scale;
-  assert.ok(peak('plus', null) > 1, 'plus GROWS');
-  assert.ok(peak('plus-circle', 'ic-cross') > 1);
-  assert.ok(peak('minus', null) < 1, 'a minus that swelled would read as "increase"');
-  for (const [name, hook] of [['plus', null], ['minus', null], ['plus-circle', 'ic-cross']])
-    assert.equal(MOTION.icons[name].parts.find((p) => p.hook === hook).keyframes.at(-1).scale, 1,
-      `${name} settles back to its default size`);
-  assert.match(SECTION, /\.ic-plus\s+\{[^}]*--ic-play: icmGrow;/);
+test('plus draws itself — the vertical stroke, then the horizontal; minus shrinks', () => {
+  // Both crosses are drawn the way you'd write one: markup order IS the sequence
+  // (the desktop staggers on it), so the vertical stroke must come first.
+  for (const [name, len] of [['plus', 14], ['plus-circle', 8]]) {
+    const part = MOTION.icons[name].parts[0];
+    assert.equal(part.hook, 'ic-stroke', `${name}: the strokes carry the hook`);
+    assert.equal((ICONS[name].match(/class="ic-stroke"/g) || []).length, 2);
+    assert.match(ICONS[name], /<line class="ic-stroke" x1="(\d+)" y1="\d+" x2="\1" /,
+      `${name}: the FIRST hooked stroke is the vertical one (x1 === x2)`);
+    assert.equal(part.dashArray, len, `${name}: one dash covers a whole ${len}-unit stroke`);
+    assert.equal(part.keyframes[0].dashOffset, len, `${name}: it starts undrawn`);
+    assert.equal(part.keyframes.at(-1).dashOffset, 0, `${name}: …and ends whole`);
+    assert.equal(part.stagger, part.durationMs,
+      `${name}: the horizontal starts exactly as the vertical lands`);
+  }
+  const peakM = MOTION.icons.minus.parts[0].keyframes.find((k) => k.at > 0 && k.at < 100).scale;
+  assert.ok(peakM < 1, 'a minus that swelled would read as "increase"');
+  assert.equal(MOTION.icons.minus.parts[0].keyframes.at(-1).scale, 1,
+    'minus settles back to its default size');
+  assert.match(SECTION, /\.ic-plus \.ic-stroke\s+\{[^}]*--ic-play: icmDrawPlus;/);
+  assert.match(SECTION, /\.ic-plus \.ic-stroke:nth-of-type\(2\) \{ --ic-delay: 0\.2s; \}/);
+  assert.match(SECTION, /\.ic-plus-circle \.ic-stroke:nth-of-type\(2\) \{ --ic-delay: 0\.2s; \}/);
   assert.match(SECTION, /\.ic-minus\s+\{[^}]*--ic-play: icmShrink;/);
 });
 
@@ -304,12 +316,12 @@ test('the close cross is struck out one stroke at a time', () => {
   assert.ok(part.dashArray >= 17 && part.dashArray < 18, 'the dash spans a whole stroke');
   assert.equal(part.keyframes[0].dashOffset, part.dashArray, 'it starts undrawn');
   assert.equal(part.keyframes.at(-1).dashOffset, 0, '…and ends whole');
-  // The second stroke starts exactly as the first lands, and the pair finish inside the
-  // range the other settles live in — a draw-on that dawdles reads as sluggish.
+  // The second stroke starts exactly as the first lands. The cross runs 1.5× the base
+  // draw-on speed of the other settle designs — deliberately slower, not a mistake.
   assert.equal(part.stagger, part.durationMs, 'the second starts as the first finishes');
   const total = part.durationMs + part.stagger;
-  assert.ok(total >= 300 && total <= 380, `${total}ms is out of the settle range`);
-  assert.match(SECTION, /\.ic-x \.ic-stroke:nth-of-type\(2\) \{ --ic-delay: 0\.18s; \}/);
+  assert.ok(total >= 450 && total <= 570, `${total}ms is out of the cross's slowed range`);
+  assert.match(SECTION, /\.ic-x \.ic-stroke:nth-of-type\(2\) \{ --ic-delay: 0\.27s; \}/);
 });
 
 test('the picture draws itself INSIDE its frame, which never moves', () => {
@@ -368,6 +380,34 @@ test('the trash lid opens on a hinge, and the folder tips open', () => {
   assert.match(SECTION, /overflow: visible;/);
   assert.equal(MOTION.icons.folder.parts[0].to.rotateX < 0, true, 'the folder opens towards you');
   assert.ok(MOTION.icons.folder.parts[0].qtFallback, 'with a flat fallback for Qt');
+});
+
+test('a greyed control still reacts: the trigger does not exclude :disabled', () => {
+  // It is still hovered, still shows its tooltip and its disabled reason (layout.css
+  // keeps pointer-events on it for that), and the glyph is what the pointer is on.
+  const trigger = SECTION.slice(SECTION.indexOf(':is(button, .btn-icon'));
+  const rule = trigger.slice(0, trigger.indexOf('{'));
+  assert.doesNotMatch(rule, /:not\(:disabled\)/, 'a disabled control animates like any other');
+  assert.match(rule, /:not\(\.is-loading\):not\(\.swapping\)/, 'the real opt-outs stay');
+  assert.match(MOTION.trigger.disabled, /^INCLUDED\./);
+  assert.ok(!MOTION.trigger.excluded.some((e) => /:disabled/.test(e)));
+  // …and the desktop port is told the same thing, since Qt gates on isEnabled() by hand.
+  assert.match(MOTION.trigger.disabled, /isEnabled/);
+});
+
+test('share lights every node it has, top to bottom', () => {
+  // Two of three circles pulsing read as one being broken, so all three play — top to
+  // bottom, a plain downward sweep.
+  assert.equal((ICONS.share.match(/class="ic-node"/g) || []).length, 3);
+  assert.equal((ICONS.share.match(/<circle /g) || []).length, 3, 'every circle is a node');
+  assert.match(ICONS.share, /^<circle class="ic-node" cx="18" cy="5"/, 'drawn top-to-bottom');
+  const part = MOTION.icons.share.parts[0];
+  assert.equal(part.hook, 'ic-node');
+  assert.ok(part.stagger > 0, 'they light in turn, not together');
+  // Markup order IS the sequence — the desktop staggers on it (support/iconMotion.hpp),
+  // so the sheet's nth-of-type delays have to be that same order.
+  assert.match(SECTION, /\.ic-share \.ic-node:nth-of-type\(2\) \{ --ic-delay: 0\.12s; \}/);
+  assert.match(SECTION, /\.ic-share \.ic-node:nth-of-type\(3\) \{ --ic-delay: 0\.24s; \}/);
 });
 
 test('the reduced-motion contract is recorded next to the design', () => {

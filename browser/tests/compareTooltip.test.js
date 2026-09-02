@@ -91,13 +91,20 @@ const hoverHarness = ({ mode = 'vertical', split = 0.5, point = null, lineIdx = 
   return { tip, calls, app };
 };
 const NO_MODS = { altKey: false, ctrlKey: false, metaKey: false, shiftKey: false };
+// A hover that WILL show now waits out tooltip.js SHOW_DELAY_MS before show()/showLine()
+// runs; a hover that hides still does so at once. `arm` must run BEFORE the delayed
+// applyHover() call schedules its timer, or `tick` has no mock timer to advance.
+const arm = (t) => t.mock.timers.enable({ apis: ['setTimeout'] });
+const tick = (t) => t.mock.timers.tick(StencilTooltip.SHOW_DELAY_MS);
 
-test('a point in the EDITED half is labelled; the same point behind the original is not', () => {
+test('a point in the EDITED half is labelled; the same point behind the original is not', (t) => {
+  arm(t);
   // 212,270 sits right of a centred vertical divider → shown, with the point's coords.
   const shown = hoverHarness({ point: { x: 212, y: 270 } });
   shown.tip.applyHover(500, 400, 210, 268, NO_MODS);
-  assert.deepEqual(shown.calls.show, [[212, 270]], 'the POINT is labelled, not the cursor');
   assert.equal(shown.calls.hide, 0);
+  tick(t);
+  assert.deepEqual(shown.calls.show, [[212, 270]], 'the POINT is labelled, not the cursor');
   // Move the divider past it and the very same hover shows nothing at all.
   const hidden = hoverHarness({ point: { x: 212, y: 270 }, split: 0.75 });
   hidden.tip.applyHover(500, 400, 210, 268, NO_MODS);
@@ -107,10 +114,12 @@ test('a point in the EDITED half is labelled; the same point behind the original
   // ever passes with the gate stubbed true, the test above proved nothing.
   const forced = hoverHarness({ point: { x: 212, y: 270 }, split: 0.75, gate: () => true });
   forced.tip.applyHover(500, 400, 210, 268, NO_MODS);
+  tick(t);
   assert.deepEqual(forced.calls.show, [[212, 270]], 'the gate is what decides');
 });
 
-test('the gate follows the POINT, not the cursor — a point across the divider stays dark', () => {
+test('the gate follows the POINT, not the cursor — a point across the divider stays dark', (t) => {
+  arm(t);
   // Cursor at 205 (edited side), point at 195 (original side): the point wins.
   const h = hoverHarness({ point: { x: 195, y: 100 } });
   h.tip.applyHover(500, 400, 205, 100, NO_MODS);
@@ -119,10 +128,12 @@ test('the gate follows the POINT, not the cursor — a point across the divider 
   // …and the mirror image: cursor on the original side, point on the edited side.
   const h2 = hoverHarness({ point: { x: 205, y: 100 } });
   h2.tip.applyHover(500, 400, 195, 100, NO_MODS);
+  tick(t);
   assert.deepEqual(h2.calls.show, [[205, 100]]);
 });
 
-test('original mode labels nothing; no comparison behaves exactly as before', () => {
+test('original mode labels nothing; no comparison behaves exactly as before', (t) => {
+  arm(t);
   const orig = hoverHarness({ mode: 'original', point: { x: 399, y: 299 } });
   orig.tip.applyHover(1, 1, 399, 299, NO_MODS);
   assert.deepEqual(orig.calls.show, []);
@@ -131,15 +142,18 @@ test('original mode labels nothing; no comparison behaves exactly as before', ()
   for (const p of [{ x: 0, y: 0 }, { x: 399, y: 299 }]) {
     const none = hoverHarness({ mode: 'none', point: p });
     none.tip.applyHover(1, 1, p.x, p.y, NO_MODS);
-    assert.deepEqual(none.calls.show, [[p.x, p.y]]);
     assert.equal(none.calls.hide, 0);
+    tick(t);
+    assert.deepEqual(none.calls.show, [[p.x, p.y]]);
   }
 });
 
-test('a LINE follows the same rule, judged where the cursor points at it', () => {
+test('a LINE follows the same rule, judged where the cursor points at it', (t) => {
+  arm(t);
   // Hovering the line's visible half → its info shows, exactly as outside compare mode.
   const seen = hoverHarness({ point: null, lineIdx: 0 });
   seen.tip.applyHover(1, 1, 260, 100, NO_MODS);
+  tick(t);
   assert.equal(seen.calls.line.length, 1);
   assert.equal(seen.calls.line[0][0], seen.app.lines[0]);
   assert.equal(seen.calls.line[0][1], false, 'Shift still selects the full point list');
@@ -151,12 +165,15 @@ test('a LINE follows the same rule, judged where the cursor points at it', () =>
   // Shift is passed through untouched on the visible side.
   const full = hoverHarness({ point: null, lineIdx: 0 });
   full.tip.applyHover(1, 1, 260, 100, { ...NO_MODS, shiftKey: true });
+  tick(t);
   assert.equal(full.calls.line[0][1], true);
 });
 
-test('the Ctrl cursor-coordinates tooltip obeys the same visibility', () => {
+test('the Ctrl cursor-coordinates tooltip obeys the same visibility', (t) => {
+  arm(t);
   const shown = hoverHarness({ point: null });
   shown.tip.applyHover(1, 1, 300, 100, { ...NO_MODS, ctrlKey: true });
+  tick(t);
   assert.deepEqual(shown.calls.show, [[300, 100]]);
   const hidden = hoverHarness({ point: null });
   hidden.tip.applyHover(1, 1, 100, 100, { ...NO_MODS, ctrlKey: true });
@@ -167,6 +184,31 @@ test('the Ctrl cursor-coordinates tooltip obeys the same visibility', () => {
   alt.tip.applyHover(1, 1, 300, 100, { ...NO_MODS, altKey: true });
   assert.deepEqual(alt.calls.show, []);
   assert.equal(alt.calls.hide, 1);
+});
+
+// ── The reveal delay itself ──────────────────────────────────────────────────
+// The line/point tooltip now waits out the same delay as the toolbar/menu tooltip
+// (controlTooltip.js SHOW_DELAY_MS) before it appears, so a sweep across the canvas
+// doesn't flash a tooltip per pixel. Sweeping onto a NEW target re-arms the wait; staying
+// on the SAME one (or a keyboard-triggered refresh) never does.
+test('the reveal waits out the toolbar tooltip\'s delay, but only for a genuinely new target', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const h = hoverHarness({ point: { x: 212, y: 270 } });
+  h.tip.applyHover(500, 400, 210, 268, NO_MODS);
+  assert.deepEqual(h.calls.show, [], 'nothing yet — the delay is still running');
+  assert.equal(h.calls.hide, 0, 'nothing was showing, so there is nothing to hide either');
+  t.mock.timers.tick(StencilTooltip.SHOW_DELAY_MS - 1);
+  assert.deepEqual(h.calls.show, [], 'not quite there');
+  t.mock.timers.tick(1);
+  assert.deepEqual(h.calls.show, [[212, 270]]);
+  // Still hovering the SAME point (a sub-pixel move, say) updates at once — no new wait.
+  h.tip.applyHover(501, 401, 210, 268, NO_MODS);
+  assert.equal(h.calls.show.length, 2, 'the same target answers immediately once shown');
+  // A keyboard-triggered refresh (Shift/Ctrl toggling what's shown for THIS hover) is
+  // the `immediate` path and skips the wait outright, exactly like tooltip.js refresh().
+  const fresh = hoverHarness({ mode: 'none', point: { x: 50, y: 60 } });
+  fresh.tip.applyHover(1, 1, 40, 55, NO_MODS, /* immediate */ true);
+  assert.deepEqual(fresh.calls.show, [[50, 60]], 'immediate=true never waits');
 });
 
 test('the tooltip formatting is the app\'s own — no second implementation', () => {

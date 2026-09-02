@@ -3,6 +3,7 @@
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
 #include "mediaLoader.hpp"
+#include "../support/modalChrome.hpp"
 #include <algorithm>
 #include <QPalette>
 #include <QAudioOutput>
@@ -46,58 +47,93 @@ namespace stencil::gui {
 
   LinksDialog::LinksDialog(const QString& source, const QString& resource,
                            bool hasImage, const QString& pageSeed,
-                           const QString& units, QWidget* parent)
+                           const QString& units, QWidget* parent,
+                           const QString& projectName)
       : QDialog(parent), pageSeed_(pageSeed) {
     setWindowTitle("Image links");
-    setMinimumWidth(480);
+    setMinimumWidth(540);
     const QColor txt = palette().color(QPalette::WindowText);
     // Theme muted tone for hint/secondary text (browser --text-muted).
     const QString mutedCss =
         QString("color: %1;").arg(palette().color(QPalette::PlaceholderText).name());
 
-    auto* layout = new QVBoxLayout(this);
+    // Browser linksModal.js parity: the shared modal shell + LINKS / ADD IMAGE BY URL
+    // sections instead of framed group boxes.
+    ModalChrome chrome = installModalChrome(this, "link", tr("Image links"));
+    QVBoxLayout* layout = chrome.body;
 
-    // ── Current links: edit / open / remove (only with an image loaded) ──
-    auto* linksBox = new QGroupBox("Links", this);
-    auto* linksForm = new QFormLayout(linksBox);
+    // ── Current project + links: edit / open / remove (only with an image loaded) ──
+    auto* linksBox = new QWidget(this);
+    auto* linksCol = new QVBoxLayout(linksBox);
+    linksCol->setContentsMargins(0, 0, 0, 0);
+    linksCol->setSpacing(8);
+    // PROJECT / Name (browser linksModal parity): rename the current project here.
+    linksCol->addWidget(modalSectionLabel(tr("Project"), this));
+    auto* nameForm = new QFormLayout;
+    nameForm->setContentsMargins(0, 0, 0, 0);
+    alignModalForm(nameForm, /*growFields=*/true);
+    nameEdit_ = new QLineEdit(projectName, this);
+    nameEdit_->setPlaceholderText(tr("Untitled"));
+    nameForm->addRow(tr("Name:"), nameEdit_);
+    linksCol->addLayout(nameForm);
+    linksCol->addWidget(modalSectionLabel(tr("Links"), this));
+    auto* linksForm = new QFormLayout;
+    linksForm->setContentsMargins(0, 0, 0, 0);
+    alignModalForm(linksForm, /*growFields=*/true);   // labels left, fields span the row
+    linksCol->addLayout(linksForm);
 
+    // One editable link row (Source / Resource): the field plus a compact open-in-
+    // browser chip (browser .btn-icon size) and a solid danger clear ✕
+    // (browser .links-clear.danger).
+    const auto addLinkRow = [&](QLineEdit* edit, const QString& label, const QString& labelTip,
+                                const QString& openTip, const QString& clearTip) {
+      const auto miniBtn = [](QPushButton* b) {
+        b->setProperty("miniChip", true);   // theme.cpp: tight padding, or the glyph clips
+        b->setFixedSize(34, 29);
+        b->setIconSize(QSize(14, 14));
+      };
+      auto* open = new QPushButton(this);
+      open->setIcon(themedIcon("external", txt, 14));
+      miniBtn(open);
+      open->setToolTip(openTip);
+      auto* clear = new QPushButton(this);
+      clear->setProperty("modalDangerGhost", true);
+      clear->setIcon(themedIcon("x", QColor("#ffffff"), 14));
+      miniBtn(clear);
+      clear->setToolTip(clearTip);
+      connect(open, &QPushButton::clicked, this, [this, edit] { openInBrowser(edit); });
+      connect(clear, &QPushButton::clicked, edit, &QLineEdit::clear);
+      auto* lbl = new QLabel(label, this);
+      lbl->setToolTip(labelTip);
+      linksForm->addRow(lbl, linkRow(edit, open, clear));
+    };
     sourceEdit_ = new QLineEdit(source, this);
     sourceEdit_->setPlaceholderText("(empty — local upload)");
-    sourceEdit_->setToolTip("Source URL the image came from");
-    auto* srcOpen = new QPushButton(this);
-    srcOpen->setIcon(themedIcon("external", txt, 15));
-    srcOpen->setToolTip("Open source in the default browser");
-    auto* srcClear = new QPushButton(this);
-    srcClear->setIcon(themedIcon("x", txt, 15));
-    srcClear->setToolTip("Remove source link");
-    connect(srcOpen, &QPushButton::clicked, this, [this] { openInBrowser(sourceEdit_); });
-    connect(srcClear, &QPushButton::clicked, this, [this] { sourceEdit_->clear(); });
-    linksForm->addRow("Source:", linkRow(sourceEdit_, srcOpen, srcClear));
+    addLinkRow(sourceEdit_, tr("Source:"), tr("The image/video’s own URL"),
+               "Open source in the default browser", "Remove source link");
 
     resourceEdit_ = new QLineEdit(resource, this);
     resourceEdit_->setPlaceholderText("(empty)");
-    resourceEdit_->setToolTip("Resource page URL associated with the image");
-    auto* resOpen = new QPushButton(this);
-    resOpen->setIcon(themedIcon("external", txt, 15));
-    resOpen->setToolTip("Open resource page in the default browser");
-    auto* resClear = new QPushButton(this);
-    resClear->setIcon(themedIcon("x", txt, 15));
-    resClear->setToolTip("Remove resource link");
-    connect(resOpen, &QPushButton::clicked, this, [this] { openInBrowser(resourceEdit_); });
-    connect(resClear, &QPushButton::clicked, this, [this] { resourceEdit_->clear(); });
-    linksForm->addRow("Resource:", linkRow(resourceEdit_, resOpen, resClear));
+    addLinkRow(resourceEdit_, tr("Resource:"), tr("The web page the image was found on"),
+               "Open resource page in the default browser", "Remove resource link");
     layout->addWidget(linksBox);
 
     // ── Add image by URL: preview first, then load the previewed pixels ──
-    auto* addBox = new QGroupBox("Add image by URL", this);
-    auto* addForm = new QFormLayout(addBox);
+    auto* addBox = new QWidget(this);
+    auto* addCol = new QVBoxLayout(addBox);
+    addCol->setContentsMargins(0, 0, 0, 0);
+    addCol->setSpacing(8);
+    addCol->addWidget(modalSectionLabel(tr("Add image by URL"), this));
+    auto* addForm = new QFormLayout;
+    addForm->setContentsMargins(0, 0, 0, 0);
+    alignModalForm(addForm, /*growFields=*/true);
+    addCol->addLayout(addForm);
 
     // URL + an inline Preview button (mirrors the browser modal's 👁 Preview).
     urlEdit_ = new QLineEdit(this);
     urlEdit_->setPlaceholderText("https://… (image or video)");
-    urlEdit_->setToolTip("Image or video URL to fetch and preview");
     auto* previewBtn = new QPushButton("Preview", this);
-    previewBtn->setIcon(themedIcon("eye", txt, 15));
+    makeModalCta(previewBtn, "eye");
     previewBtn->setToolTip("Fetch and show the image / first video frame");
     auto* urlRow = new QHBoxLayout;
     urlRow->addWidget(urlEdit_, 1);
@@ -106,7 +142,6 @@ namespace stencil::gui {
 
     urlResourceEdit_ = new QLineEdit(this);
     urlResourceEdit_->setPlaceholderText("(optional — page the image is on)");
-    urlResourceEdit_->setToolTip("Optional resource page URL to record with the loaded image");
     addForm->addRow("Resource URL:", urlResourceEdit_);
 
     previewLabel_ = new QLabel(this);
@@ -114,6 +149,9 @@ namespace stencil::gui {
     previewLabel_->setMinimumHeight(120);
     previewLabel_->setMaximumSize(kPreviewMaxW, kPreviewMaxH);
     previewLabel_->setFrameShape(QFrame::StyledPanel);
+    // Hidden until a preview lands (openImageDialog parity) — an empty bordered box
+    // held a 120px void open in the middle of the dialog.
+    previewLabel_->setVisible(false);
     addForm->addRow(previewLabel_);
 
     // "Video frame" controls, UNDER the preview like a player's scrubber; hidden
@@ -125,21 +163,16 @@ namespace stencil::gui {
     auto* frameH = new QHBoxLayout;
     frameSlider_ = new QSlider(Qt::Horizontal, frameRow_);
     frameSlider_->setRange(0, 0);
-    frameSlider_->setToolTip("Scrub to a frame");
     frameH->addWidget(frameSlider_, 1);
     frameH->addWidget(new QLabel("Frame", frameRow_));
     frame_ = new QSpinBox(frameRow_);
     frame_->setRange(0, 0);
-    frame_->setToolTip("Exact frame number (validated against the video length)");
     frameH->addWidget(frame_);
     frameTotal_ = new QLabel(frameRow_);
     frameTotal_->setStyleSheet(mutedCss);
     frameH->addWidget(frameTotal_);
     frameV->addLayout(frameH);
     usePreview_ = new QCheckBox("Use the video's preview image instead of a frame", frameRow_);
-    usePreview_->setToolTip(
-        "Some videos embed a preview/cover image, unrelated to their frames. "
-        "Enabled only when this video carries one.");
     usePreview_->setEnabled(false);  // off + disabled until a preview image is found
     frameV->addWidget(usePreview_);
     frameRow_->setVisible(false);  // shown only for videos
@@ -157,6 +190,7 @@ namespace stencil::gui {
     {
       auto* qc = new QHBoxLayout(quickcropRow_);
       qc->setContentsMargins(0, 0, 0, 0);
+      qc->addWidget(new QLabel("Quick edits:", quickcropRow_));
       cropPage_ = new QCheckBox("Crop to page", quickcropRow_);
       cropPage_->setChecked(true);
       cropPage_->setToolTip("Crop the image to the page aspect on load");
@@ -166,22 +200,20 @@ namespace stencil::gui {
       // Every named ISO format (labels with sizes, data = the canonical name).
       // No "custom" here — the quick crop needs a fixed page aspect.
       fillPageSizeCombo(cropPageSize_, /*includeCustom=*/false, units);
-      cropPageSize_->setToolTip("Page size to crop to");
       qc->addWidget(cropPage_);
       qc->addWidget(cropAlbum_);
       qc->addWidget(cropPageSize_);
       qc->addStretch(1);
     }
     quickcropRow_->setVisible(false);  // shown once a preview succeeds
-    addForm->addRow("Quick edits:", quickcropRow_);
+    addForm->addRow(quickcropRow_);
     // Album / page only matter when cropping to page; grey them out otherwise.
     connect(cropPage_, &QCheckBox::toggled, this, &LinksDialog::syncQuickcropEnabled);
 
     loadBtn_ = new QPushButton("Load into editor", this);
-    // The real call-to-action in add-by-URL mode → accent primary (white glyph on the
-    // accent gradient, like the Connect dialog's Connect button).
-    loadBtn_->setObjectName("primaryButton");
-    loadBtn_->setIcon(themedIcon("download", QColor("#ffffff"), 15));
+    // The real call-to-action in add-by-URL mode → accent CTA (white glyph on the
+    // accent fill, like the Connect dialog's Connect button).
+    makeModalCta(loadBtn_, "download");
     loadBtn_->setEnabled(false);  // enabled once a preview succeeds
     loadBtn_->setToolTip("Preview an image or video URL first");
     connect(loadBtn_, &QPushButton::clicked, this, &LinksDialog::requestLoad);
@@ -231,6 +263,7 @@ namespace stencil::gui {
       thumbImage_ = QImage();
       previewIsVideo_ = false;
       previewLabel_->clear();
+      previewLabel_->setVisible(false);
       frameRow_->setVisible(false);
       quickcropRow_->setVisible(false);
       usePreview_->setEnabled(false);
@@ -273,19 +306,13 @@ namespace stencil::gui {
     linksBox->setVisible(hasImage);
     addBox->setVisible(!hasImage);
     hint->setVisible(!hasImage);
+    layout->addStretch(1);
 
-    auto* box = makeButtonBox(this, QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    auto* okBtn = box->button(QDialogButtonBox::Ok);
-    okBtn->setText(hasImage ? "Save links" : "Close");
-    // In add-by-URL mode the accept button is really just "Close" (the CTA is "Load
-    // into editor"), so strip the accent-primary treatment makeButtonBox gave it.
-    if (!hasImage) {
-      okBtn->setObjectName(QString());
-      okBtn->setDefault(false);
-      okBtn->setAutoDefault(false);
-      okBtn->setIcon(themedIcon("x", txt, 15));
-    }
-    layout->addWidget(box);
+    // Footer (browser settings-footer) only in edit mode, and only the hint: like the
+    // browser, there is no Cancel/Save pair — edits apply when the dialog closes
+    // (the caller reads the fields whatever way it was dismissed). Add-by-URL's CTA
+    // is "Load into editor" up in the body, so that mode has no footer at all.
+    if (hasImage) addModalFooter(chrome, tr("Editing the current image’s links."));
   }
 
   bool LinksDialog::eventFilter(QObject* obj, QEvent* event) {
@@ -325,6 +352,7 @@ namespace stencil::gui {
     thumbImage_ = QImage();
     previewIsVideo_ = false;
     previewLabel_->clear();
+    previewLabel_->setVisible(false);
     previewHint_->clear();
     frameRow_->setVisible(false);
     quickcropRow_->setVisible(false);
@@ -436,11 +464,13 @@ namespace stencil::gui {
     previewImage_ = img;
     if (img.isNull()) {
       previewLabel_->clear();
+      previewLabel_->setVisible(false);
       loadBtn_->setEnabled(false);
       return;
     }
     previewLabel_->setPixmap(QPixmap::fromImage(img).scaled(
         kPreviewMaxW, kPreviewMaxH, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    previewLabel_->setVisible(true);
     previewHint_->setText(hint);
     loadBtn_->setEnabled(true);
     loadBtn_->setToolTip("Load the previewed image into the editor");
@@ -487,6 +517,9 @@ namespace stencil::gui {
   }
 
   QString LinksDialog::source() const { return sourceEdit_->text().trimmed(); }
+  QString LinksDialog::projectName() const {
+    return nameEdit_ ? nameEdit_->text().trimmed() : QString();
+  }
   QString LinksDialog::resource() const { return resourceEdit_->text().trimmed(); }
   QString LinksDialog::urlSource() const { return urlEdit_->text().trimmed(); }
   QString LinksDialog::urlResource() const { return urlResourceEdit_->text().trimmed(); }

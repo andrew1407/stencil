@@ -185,7 +185,7 @@ namespace stencil::gui {
         QColor("#f0b429"), QColor("#000000"), QColor("#888888"),
         QColor("#7a5c00"), QColor("#6d28d9"), QColor("#ffffff"),
         QColor("#000000"), QColor("#7c3aed"), QColor("#d6293e"),
-        QColor("#ffc800"), QColor("#7c3aed"),
+        QColor("#ffc800"), QColor("#7c3aed"), QColor("#e9ecef"),
     };
     static const Palette darkP{
         QColor("#1a1a1a"), QColor("#242424"), QColor("#2d2d2d"),
@@ -193,14 +193,14 @@ namespace stencil::gui {
         QColor("#b8860b"), QColor("#e0e0e0"), QColor("#aaaaaa"),
         QColor("#e0b84a"), QColor("#9b6cf2"), QColor("#333333"),
         QColor("#e0e0e0"), QColor("#6d28d9"), QColor("#f0697a"),
-        QColor("#ffc800"), QColor("#7c3aed"),
+        QColor("#ffc800"), QColor("#7c3aed"), QColor("#3a3a3a"),
     };
     Palette p = dark ? darkP : light;
     // Every token goes to the display's space, so reds/golds match the browser too.
     for (QColor* f : {&p.bgPage, &p.bgContainer, &p.bgControls, &p.bgSelPanel, &p.borderMain,
                       &p.borderCanvas, &p.borderSel, &p.textMain, &p.textMuted, &p.textSelLabel,
                       &p.textKey, &p.inputBg, &p.inputText, &p.accent, &p.danger, &p.selGlow,
-                      &p.hoverRing})
+                      &p.hoverRing, &p.bgCoordHover})
       *f = displayColor(*f);
     const QColor accent = accentPrimary(accentKey);   // already display-space
     p.accent = accent;
@@ -253,26 +253,45 @@ namespace stencil::gui {
           .arg(a, 0, 'f', 3);
     };
     const QColor accent2 = p.textKey;  // the derived hover/active accent shade
-    // Subtle vertical gradients give the toolbar/buttons depth without leaving
-    // the flat browser aesthetic; the ends are tiny value steps off the surface.
-    const QColor ctrlTop = dark ? p.bgControls.lighter(108) : p.bgControls.lighter(102);
-    const QColor ctrlBot = dark ? p.bgControls : p.bgControls.darker(104);
-    const QColor btnTop = dark ? p.bgContainer.lighter(118) : p.bgContainer;
-    const QColor btnBot = dark ? p.bgContainer : p.bgContainer.darker(106);
     // The dead-control surface (%DISABLED_BG%), and the caret drawn for one: muted pulled
     // halfway to that surface, so a disabled combo's arrow recedes with its text.
     const QColor disabledBg = dark ? p.bgControls : p.bgContainer.darker(108);
     const QColor caretDim = mixSrgb(p.textMuted, disabledBg, 0.55);
+    // Canvas scrollbar hover: a lighter/darker shade of the SAME grey, not an accent-colour
+    // swap (see the scrollbar QSS comment below).
+    const QColor sbThumbHover = dark ? p.borderMain.lighter(135) : p.borderMain.darker(118);
+    // Drag & drop hint strip (browser --bg-drop-hint/--border-hint, css/theme.css).
+    // NB argument order: CSS color-mix(accent P%, base) == mixSrgb(base, accent, P).
+    const QColor dropHintBg = dark ? mixSrgb(p.bgPage, p.accent, 0.16)
+                                    : mixSrgb(QColor(Qt::white), p.accent, 0.09);
+    const QColor dropHintBorder = dark ? mixSrgb(QColor("#2a2a2a"), p.accent, 0.50)
+                                        : mixSrgb(QColor(Qt::white), p.accent, 0.35);
+    // The coord-status readout's own border (browser --border-tooltip, css/theme.css) —
+    // a distinct, slightly blue-grey hairline neither borderMain nor borderCanvas carries.
+    const QColor borderTooltip = displayColor(dark ? QColor("#7f8fa6") : QColor("#2c3e50"));
+    // --bg-info (browser theme.css): the neutral info fill — the projects rows' hover
+    // wash and the inline-rename editor's chip/input surface.
+    const QColor bgInfo = displayColor(dark ? QColor("#2d2d2d") : QColor("#e9ecef"));
 
     // One stylesheet covering the widgets the app uses. Tracks browser/css —
     // page backdrop, gradient controls, the brand accent, rounded inputs/lists,
     // accent-tinted hovers + focus rings — so the desktop matches the web look.
     return QString(R"(
       QMainWindow, QWidget#centralBackdrop { background: %BG_PAGE%; }
+      /* Dock-area resize separators. `width` sizes the VERTICAL bars (left/right dock
+         resize — the points panel and a side-docked chat keep their drag handle) and
+         `height` the HORIZONTAL ones: 1px, effectively removing the draggable strip
+         that sat between the Image Size bar and the canvas (user report) — the docks
+         above the canvas are fixed chrome, not something to resize. Backdrop-
+         coloured, so the strip never reads as a solid band; the browser-parity
+         grip over the canvas ↔ panel separator (a slim bar that tints accent and
+         grows under the cursor, ANIMATED — QSS cannot animate) is painted by
+         support/dockGrip.hpp, positioned from MainWindow. */
+      QMainWindow::separator { background: %BG_PAGE%; width: %SEP_W%px; height: 1px; }
 
       /* ── Toolbars: gradient surface, hairline divider, rounded icon buttons ── */
       QToolBar {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %CTRL_TOP%, stop:1 %CTRL_BOT%);
+        background: %BG_CONTROLS%;
         border: 0; border-bottom: 1px solid %BORDER%;
         /* The browser's control rows sit on an 8px gap; 6 lands the icon buttons at the same
            visual rhythm once Qt's own button padding is counted. */
@@ -285,6 +304,75 @@ namespace stencil::gui {
       /* The header row carries only the logo, the Controls pill and the project name, so it
          gets a tighter band than the tool rows below it. */
       QToolBar#headerToolbar { padding: 1px 6px; }
+
+      /* Image Size bar, right above the canvas — a central-layout row now (see
+         MainWindow's centralLayout_), styled like the toolbar rows above it. */
+      QWidget#imageInfoBar {
+        background: %BG_CONTROLS%;
+        border: 0; border-bottom: 1px solid %BORDER%;
+      }
+
+      /* Canvas viewport border (browser parity: layout.css .canvas-viewport border: 2px
+         solid --border-canvas) — marks off the bg-page gutter around a zoomed-out/blank
+         page; the fill itself comes from MainWindow::applyTheme's viewport palette.
+         updateProjectTitle() flips [remoteEditing] for a server-backed project. */
+      QScrollArea#canvasViewport { border: 2px solid %BORDER_CANVAS%; }
+      QScrollArea#canvasViewport[remoteEditing="true"] { border: 2px solid #d4a017; }
+
+      /* Live cursor-coord readout, between the canvas and the drop-hint (browser parity:
+         layout.css .coord-status — its own --bg-tooltip/--border-tooltip box, not the
+         toolbar's bg-controls). */
+      QLabel#coordStatus {
+        background: %BG_CONTROLS%; border: 1px solid %BORDER_TOOLTIP%; border-radius: 4px;
+        color: %TEXT%; padding: 6px 10px;
+        /* Outer gap off the window edge, not inner padding — centralLayout_'s own left
+           margin is 0 here (drop-hint shares the row and wants none), so this box needs
+           its own small nudge instead. */
+        margin-left: 3px;
+      }
+
+      /* Drag & drop hint below the canvas (browser .drop-hint parity, mainContent.js):
+         a dashed, accent-tinted strip — never the plain window backdrop, or it read as
+         just another line of chrome rather than an actual drop target. */
+      QWidget#dropHintBar {
+        background: %BG_DROP_HINT%; border: 1px dashed %BORDER_HINT%; border-radius: 4px;
+      }
+      QLabel#dropHintLabel { color: %MUTED%; background: transparent; }
+
+      /* "Selected Line:" bar above the canvas — browser #selection-panel parity: a
+         rounded, amber-bordered BOX inset from the window edges (not a flush toolbar
+         strip), consistently-sized controls. Docked (selectedLineDock_ —
+         Qt::TopDockWidgetArea), not a toolbar: a QDockWidget stretches its one content
+         widget (selectedLineBar) to fill the whole dock, so `this` stays a plain, unstyled
+         strip and its "selectedLineCard" child (see selectedLineBar.cpp) — inset by
+         selectedLineBar's own outer-layout margins — is what actually carries the
+         border/radius/background, giving the border room to render on all four sides. */
+      QDockWidget#selectedLineDock { border: 0; }
+      QWidget#selectedLineBar { background: transparent; border: 0; }
+      QWidget#selectedLineCard {
+        background: %SEL_BG%; border: 2px solid %SEL_BORDER%; border-radius: 6px;
+      }
+      QLabel#selectedLineLabel { color: %SEL_LABEL%; font-weight: 700; background: transparent; }
+      QLabel#selectedLineFieldLabel { color: %TEXT%; font-weight: 600; background: transparent; }
+      QWidget#selectedLineCard QPushButton,
+      QWidget#selectedLineCard QComboBox,
+      QWidget#selectedLineCard QSpinBox {
+        min-height: 20px; padding: 3px 8px; border-radius: 4px;
+      }
+      QWidget#selectedLineCard QPushButton {
+        background: %BG_CONTROLS%; border: 1px solid %BORDER%; color: %TEXT%;
+      }
+      QWidget#selectedLineCard QPushButton:hover { background: %ACCENT_SOFT%; border-color: %ACCENT%; }
+      /* The Deselect CTA needs to outrank the generic button rule above despite sharing
+         its specificity class (both are one ID + N type selectors) — CSS/QSS breaks that
+         tie by SOURCE ORDER, not by which selector "looks" more specific, so this rule
+         must (a) come after the generic one and (b) carry the same ancestor qualifier
+         (QWidget#selectedLineCard) or the generic rule's extra type selector actually wins
+         instead and the button renders in the plain control style with no accent hover. */
+      QWidget#selectedLineCard QPushButton#selectedLineDeselect {
+        background: %DESELECT_BG%; color: white; border: none; font-weight: 600;
+      }
+      QWidget#selectedLineCard QPushButton#selectedLineDeselect:hover { background: %DESELECT_HOVER%; }
       /* Controls collapse pill: an outlined pill, not bare text — the browser's
          #toggle-controls (1px border, 16px radius, 12px label). */
       QToolButton#controlsPill {
@@ -299,6 +387,11 @@ namespace stencil::gui {
       }
       QToolButton:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
       QToolButton:pressed { background: %ACCENT_SOFT2%; }
+      /* The Resend/Retry icon under a failed turn: no fill at all on hover, just its
+         own muted glyph colour traced as a thin outline (browser .chat-retry-cta /
+         extension .chat-retry parity) — the generic accent-soft fill read as a stray
+         tinted square on the error card's danger wash (user report). */
+      QToolButton#chatRetry:hover { background: transparent; border-color: %MUTED%; }
       /* Active toggle → SOLID accent fill with white text, matching the browser's
          .active toolbar buttons (fullscreen while on, incognito while on) rather than
          a soft tint — so an enabled toggle clearly reads as active. */
@@ -374,10 +467,14 @@ namespace stencil::gui {
       QMenuBar::item:selected { background: %ACCENT_SOFT2%; color: %ACCENT2%; }
       QMenuBar::item:pressed { background: %ACCENT%; color: white; }
       QMenu { background: %BG_CONTAINER%; color: %TEXT%; border: 1px solid %BORDER%; border-radius: 8px; padding: 5px; }
-      QMenu::item { padding: 6px 26px 6px 24px; border-radius: 6px; margin: 1px 2px; }
-      QMenu::item:selected { background: %ACCENT%; color: white; }
+      QMenu::item { padding: 6px %MENU_PAD_R%px 6px 24px; border-radius: 6px; margin: 1px 2px; }
+      QMenu::item:selected { background: %BG_COORD_HOVER%; color: %TEXT%; }
       QMenu::item:disabled { color: %MUTED%; }
       QMenu::separator { height: 1px; background: %BORDER%; margin: 5px 10px; }
+      /* The project-colour menu (browser .project-menu-item: gap 8px, padding 6px 8px):
+         two short rows — the app-wide 24px/26px item padding read as a huge icon gap
+         and a slab of dead space right of the text there. */
+      QMenu#projectColorMenu::item { padding: 6px 12px 6px 6px; }
       QMenu::icon { padding-left: 6px; }
       QMenu::indicator { width: 16px; height: 16px; left: 6px; }
 
@@ -389,27 +486,30 @@ namespace stencil::gui {
 
       /* ── Push buttons: gradient face, accent lift on hover, gradient primary ── */
       QPushButton {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %BTN_TOP%, stop:1 %BTN_BOT%);
+        background: %BTN_FLAT%;
         color: %TEXT%; border: 1px solid %BORDER%; border-radius: 7px;
         padding: 6px 14px; min-height: 18px;
       }
       QPushButton:hover { border-color: %ACCENT%; background: %ACCENT_SOFT%; }
       QPushButton:pressed { background: %ACCENT_SOFT2%; }
-      /* Accent CTA — only the affirmative action button (objectName via makeButtonBox). */
-      QPushButton#primaryButton {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %ACCENT%, stop:1 %ACCENT2%);
-        color: white; border-color: %ACCENT2%;
+      /* Accent CTA — the affirmative action button (makeModalCta/makeButtonBox) and the
+         chat error cards' own CTAs (Configure provider / Reconnect to <host>): browser
+         parity — a plain <button> there is accent-filled by default (layout.css). One
+         dynamic-property selector, so the buttons' objectNames stay free for the tests. */
+      QPushButton[accentCta="true"] {
+        background: %ACCENT%; color: white; border: none;
       }
-      QPushButton#primaryButton:hover {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %ACCENT2%, stop:1 %ACCENT2%);
+      QPushButton[accentCta="true"]:hover {
+        background: %ACCENT2%;
       }
-      /* #primaryButton repeated: its id selector outranks QPushButton:disabled, so the disabled face needs its own rule. */
-      QPushButton:disabled, QPushButton#primaryButton:disabled { color: %MUTED%; background: %DISABLED_BG%; border-color: %BORDER%; }
+      /* The accent variant repeated: its selector ties QPushButton:disabled, so the disabled face needs its own rule. */
+      QPushButton:disabled, QPushButton[accentCta="true"]:disabled {
+        color: %MUTED%; background: %DISABLED_BG%; border-color: %BORDER%;
+      }
       /* Danger button (e.g. the selection panel's Delete Line) — the browser's
          --danger red treatment, tuned per theme. */
       QPushButton#dangerButton {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %DANGER%, stop:1 %DANGER2%);
-        color: white; border-color: %DANGER2%;
+        background: %DANGER%; color: white; border: none;
       }
       QPushButton#dangerButton:hover { background: %DANGER2%; }
       /* …and a DEAD one has to look it: the id selector outranks QPushButton:disabled above,
@@ -417,11 +517,13 @@ namespace stencil::gui {
       QPushButton#dangerButton:disabled {
         background: %DISABLED_BG%; color: %MUTED%; border-color: %BORDER%;
       }
-      /* Muted, spaced section caption (selection panel "POINTS"/"MEASUREMENTS"),
-         mirroring the browser's uppercased panel headers. */
+      /* Muted, spaced section caption (selection panel "POINTS"/"MEASUREMENTS", and
+         the context menu's own — mainWindowActions.cpp's makeSectionLabel), mirroring
+         the browser's uppercased .ctx-sub-label. No padding of its own: every caller
+         hosts it in a row whose OWN layout margins already place it (padding here
+         would double up with those). */
       QLabel#panelSectionHeader {
         color: %MUTED%; font-weight: bold; font-size: 11px; letter-spacing: 1px;
-        padding: 6px 0 2px 0;
       }
 
       /* ── Text inputs / combos / spinboxes: rounded, accent focus ring ── */
@@ -488,7 +590,7 @@ namespace stencil::gui {
          look in every state; checked fills with the accent + a tick. */
       QListWidget#projectsList::indicator {
         width: 16px; height: 16px; border-radius: 4px;
-        border: 1px solid #b8bcc6; background: #eef0f4;
+        border: 1px solid %ACCENT%; background: %INPUT_BG%;
       }
       QListWidget#projectsList::indicator:hover { border-color: %ACCENT%; }
       QListWidget#projectsList::indicator:checked {
@@ -498,7 +600,7 @@ namespace stencil::gui {
       /* ── Dock (selection panel) ── */
       QDockWidget { color: %TEXT%; titlebar-close-icon: none; }
       QDockWidget::title {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %CTRL_TOP%, stop:1 %CTRL_BOT%);
+        background: %BG_CONTROLS%;
         padding: 5px 10px; border-bottom: 1px solid %BORDER%; font-weight: 600;
       }
       /* The panel supplies its OWN title bar + body (plain QWidgets), which QDockWidget::title
@@ -506,7 +608,7 @@ namespace stencil::gui {
          hole punched in the page rather than a surface. Same surface as the toolbars, which is
          the browser's --bg-coord-panel in both themes. */
       QWidget#selPanelTitle {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %CTRL_TOP%, stop:1 %CTRL_BOT%);
+        background: %BG_CONTROLS%;
         border-bottom: 1px solid %BORDER%;
       }
       QWidget#selPanelBody { background: %BG_CONTROLS%; }
@@ -514,6 +616,23 @@ namespace stencil::gui {
         background: transparent; border: 1px solid %BORDER%; border-radius: 8px; padding: 0;
       }
       QToolButton#panelCollapseBtn:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
+      /* The Points | Lines strip sits in the panel HEADER, on that surface rather than the
+         body's — otherwise it painted its own container colour as a band across the header
+         (browser .coord-panel-header holds the tabs and the toggle and nothing else). */
+      QTabBar#selectionTabBar { background: transparent; }
+      /* …and the pages below it carry no frame of their own: the browser's table IS the
+         box (its own hairline border), so a QTabWidget pane around it read as a second,
+         rounded container nothing in the browser has. */
+      QTabWidget#selectionTabs::pane { border: 0; border-radius: 0; top: 0; }
+      /* Open-image dialog tabs (browser .oi-tabs): an underlined strip over plain
+         rows — the .vs-rows carry their own hairlines, so no pane box here either.
+         Only the strip's own full-width hairline survives, as the pane's top border
+         (the tab bar spans just its tabs; the browser line runs the whole body).
+         top: -1px tucks that border under the tab bar's last pixel row, so the
+         active tab's accent underline OVERLAPS it exactly as the browser's
+         margin-bottom: -1px does — instead of a grey line under the accent one.
+         The tabs themselves are painted by support/underlineTabBar.hpp, not QSS. */
+      QTabWidget#oiTabs::pane { border: 0; border-radius: 0; border-top: 1px solid %BORDER%; top: -1px; }
 
       /* ── Lists / tables ── */
       QListWidget, QTableWidget, QTreeWidget {
@@ -523,19 +642,51 @@ namespace stencil::gui {
       QListWidget::item, QTreeWidget::item { padding: 4px; border-radius: 6px; }
       QListWidget::item:hover, QTreeWidget::item:hover { background: %ACCENT_SOFT%; }
       QListWidget::item:selected, QTableWidget::item:selected, QTreeWidget::item:selected { background: %ACCENT%; color: white; }
+      /* Projects/Connect rows paint their own text and badges in fixed colours (not
+         HighlightedText), so the generic solid selected-fill above swallowed them —
+         same fix as #pointsTable below: kill it, keep only the hover wash. */
+      QListWidget#projectsList::item:selected, QListWidget#connList::item:selected {
+        background: transparent; color: %TEXT%;
+      }
+      QListWidget#projectsList::item:selected:hover, QListWidget#connList::item:selected:hover {
+        background: %ACCENT_SOFT%;
+      }
+      /* Projects rows are CARDS (browser .project-row: input-bg fill, 8px radius,
+         8px 10px padding, neutral --bg-info hover — not the accent wash) and the list
+         itself is frameless: the browser's list area is just a padded scroll body. */
+      QListWidget#projectsList { border: none; background: transparent; }
+      /* 3px tighter than the browser's 8px 10px (user decision): Qt's item metrics
+         already add their own slack, so the equal padding read wider here. */
+      QListWidget#projectsList::item {
+        background: %INPUT_BG%; border-radius: 8px; padding: 5px 7px;
+      }
+      QListWidget#projectsList::item:selected { background: %INPUT_BG%; color: %TEXT%; }
+      QListWidget#projectsList::item:hover,
+      QListWidget#projectsList::item:selected:hover { background: %BG_INFO%; }
+      /* Flat fill, no gradient — matches the browser's own coordinates-table th
+         (layout.css: background: var(--bg-coord-th), a single solid colour). */
       QHeaderView::section {
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 %ACCENT%, stop:1 %ACCENT2%);
+        background: %ACCENT%;
         color: white; border: 0; padding: 5px 6px;
       }
       QTableWidget { gridline-color: %BORDER%; }
       /* Points table (SelectionPanel): roomy cells, no grid clutter, hover tint, and an outline
          (not a fill) for the selected row — the delegate (PointRowDelegate) draws the outline. */
+      /* A hairline around every cell, header included — the browser draws one on each th
+         and td (layout.css .coordinates-table: border 1px solid --border-coord), which is
+         what makes its accent header read as five separate cells rather than one bar. */
       QTableWidget#pointsTable {
-        gridline-color: transparent;
+        gridline-color: %BORDER%;
         selection-background-color: transparent;  /* the delegate strokes an outline instead */
         selection-color: %TEXT%;
+        font-size: 12px;
       }
-      QTableWidget#pointsTable::item { padding: 5px 6px; }
+      QTableWidget#pointsTable QHeaderView::section {
+        border-right: 1px solid %BORDER%; border-bottom: 1px solid %BORDER%;
+        padding: 6px 5px; font-weight: bold;
+      }
+      /* The browser's own cell padding (layout.css .coordinates-table: 6px 5px). */
+      QTableWidget#pointsTable::item { padding: 6px 5px; }
       QTableWidget#pointsTable::item:hover { background: %ACCENT_SOFT%; }
       /* Kill BOTH selection fills (row panel via selection-background-color above + the per-item
          fill here, which would otherwise inherit the generic ::item:selected accent) so only the
@@ -548,11 +699,91 @@ namespace stencil::gui {
       QPushButton#pointDelBtn:hover { background: %ACCENT_SOFT%; }
 
       QDialog { background: %BG_CONTAINER%; color: %TEXT%; }
+      /* Chrome dialogs are frameless + translucent (modalChrome.cpp): the dialog face
+         is see-through and the #modalShell card carries the browser modal's rounded,
+         hairline-bordered surface (.app-modal: radius 10px on --bg-container). */
+      QDialog[modalChrome="true"] { background: transparent; }
+      QWidget#modalShell {
+        background: %BG_CONTAINER%; border: 1px solid %BORDER%; border-radius: 10px;
+      }
+      QWidget#modalHeader { background: transparent; }
+
+      /* ── Browser-modal chrome (support/modalChrome.hpp) — the .settings-header /
+         .vs-section / .settings-footer shell every app modal wears in the browser:
+         16px bold title beside its glyph, an outlined "✕ Close" pill, full-bleed
+         hairline dividers, tracked uppercase section captions, and a muted footer
+         hint. The pill deliberately keeps the browser's rounded-full 12px radius
+         and quiet transparent face rather than the app's gradient button. ── */
+      QLabel#modalTitle { font-size: 16px; font-weight: bold; background: transparent; }
+      QPushButton#modalClosePill {
+        background: transparent; border: 1px solid %BORDER%; border-radius: 13px;
+        color: %TEXT%; font-size: 13px; padding: 4px 12px; min-height: 0px;
+      }
+      QPushButton#modalClosePill:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
+      QPushButton#modalClosePill:pressed { background: %ACCENT_SOFT2%; }
+      QFrame#modalDivider {
+        background: %BORDER%; border: none; min-height: 1px; max-height: 1px;
+      }
+      QLabel#modalSection {
+        color: %MUTED%; font-weight: bold; font-size: 12px; letter-spacing: 1px;
+        background: transparent;
+      }
+      /* 11px, not the browser's 12: Qt's system font tracks a touch wider, and at the
+         shared 560px modal width the connect hint has to land on ONE line as it does
+         in the browser. */
+      QLabel#modalFooterHint { color: %MUTED%; font-size: 11px; background: transparent; }
+      /* Assistant modal extras (llmSettingsForm.cpp): the tinted help note
+         (browser .chat-cors-note — accent-tinted fill, solid hint border, muted
+         12px type) and the label-less status row's muted text
+         (.chat-server-status). */
+      QFrame#llmNoteBox {
+        background: %BG_DROP_HINT%; border: 1px solid %BORDER_HINT%; border-radius: 6px;
+      }
+      QFrame#llmNoteBox QLabel { color: %MUTED%; font-size: 12px; background: transparent; }
+      QLabel#llmStatus { color: %MUTED%; font-size: 12px; background: transparent; }
+      /* Inline project-rename editor (browser .project-name-edit + .name-edit-btn):
+         a bold input on the info fill, accent-rimmed while focused, with the ✓/✗ as
+         small outlined chips — their glyphs carry the green/red. */
+      QWidget#projectsRenameBox { background: transparent; }
+      QLineEdit#projectsRenameEdit {
+        background: %BG_INFO%; color: %TEXT%; border: 1px solid %BORDER%;
+        border-radius: 4px; padding: 1px 6px; font-weight: 600;
+      }
+      QLineEdit#projectsRenameEdit:focus { border-color: %ACCENT%; }
+      QToolButton#projectsRenameBtn {
+        background: %BG_INFO%; border: 1px solid %BORDER%; border-radius: 5px;
+        padding: 2px 7px;
+      }
+      QToolButton#projectsRenameBtn:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
+      /* Browser .vs-row form rows (open-image dialog): a hairline under each row and a
+         plain-weight 13px label column (components.css .vs-row / its label). */
+      QWidget[vsRow="true"] { background: transparent; border-bottom: 1px solid %BORDER%; }
+      QLabel[vsLabel="true"] { background: transparent; font-size: 13px; }
+      /* Browser .bi-preset blank-fill swatch buttons: real white/black chips. */
+      QPushButton#biPresetWhite, QPushButton#biPresetBlack {
+        min-width: 54px; max-width: 54px; min-height: 28px; max-height: 28px;
+        padding: 0px; font-size: 11px; border: 1px solid %BORDER%; border-radius: 4px;
+      }
+      QPushButton#biPresetWhite { background: #ffffff; color: #333333; }
+      QPushButton#biPresetBlack { background: #000000; color: #eeeeee; }
+      /* Compact icon-only row chips (the links ↗/✕): the global button padding
+         (6px 14px) leaves a 34px chip almost no content box, clipping the glyph —
+         these centre their icon in the whole chip instead. */
+      QPushButton[miniChip="true"] { padding: 2px; min-height: 0px; }
+      /* The browser's danger row chips (.links-clear.danger): a solid danger fill
+         with the white glyph — never a washed-out "inactive" tint. */
+      QPushButton[modalDangerGhost="true"] {
+        background: %DANGER%; border: none; border-radius: 6px;
+      }
+      QPushButton[modalDangerGhost="true"]:hover { background: %DANGER2%; }
+      QPushButton[modalDangerGhost="true"]:pressed { background: %DANGER2%; }
       QGroupBox {
         border: 1px solid %BORDER%; border-radius: 8px; margin-top: 8px; padding-top: 6px;
       }
       QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; color: %MUTED%; }
       QTabWidget::pane { border: 1px solid %BORDER%; border-radius: 8px; top: -1px; }
+      /* Left-aligned tab strip (browser parity) — the macOS style centres it otherwise. */
+      QTabWidget::tab-bar { alignment: left; left: 0; }
       QTabBar::tab {
         background: transparent; color: %MUTED%; padding: 6px 14px;
         border: 0; border-bottom: 2px solid transparent;
@@ -560,13 +791,18 @@ namespace stencil::gui {
       QTabBar::tab:hover { color: %TEXT%; }
       QTabBar::tab:selected { color: %ACCENT2%; border-bottom: 2px solid %ACCENT%; }
 
-      /* ── Scrollbars: slim, rounded, accent-tinted on hover ── */
+      /* ── Scrollbars: only the HANDLE takes colour, the track stays transparent. Use
+         `::handle:hover` (state on the sub-control itself) — `QScrollBar:hover::handle`
+         isn't a form Qt's QSS engine supports and paints the WHOLE groove solid instead.
+         Hover is a lighter/darker shade of the same grey (browser parity: --sb-thumb-hover),
+         not an accent swap. Bar visibility (hidden until an actual pan/zoom) is handled in
+         code, not QSS — see MainWindow::revealCanvasScrollbars. */
       QScrollBar:vertical { background: transparent; width: 12px; margin: 2px; }
       QScrollBar::handle:vertical { background: %BORDER%; border-radius: 5px; min-height: 28px; }
-      QScrollBar::handle:vertical:hover { background: %ACCENT_RING%; }
+      QScrollBar::handle:vertical:hover { background: %SB_THUMB_HOVER%; }
       QScrollBar:horizontal { background: transparent; height: 12px; margin: 2px; }
       QScrollBar::handle:horizontal { background: %BORDER%; border-radius: 5px; min-width: 28px; }
-      QScrollBar::handle:horizontal:hover { background: %ACCENT_RING%; }
+      QScrollBar::handle:horizontal:hover { background: %SB_THUMB_HOVER%; }
       QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
       QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
 
@@ -615,10 +851,10 @@ namespace stencil::gui {
       }
       QLabel#searchComboNoMatch { color: %MUTED%; padding: 6px 9px; }
     )")
-        .replace("%CTRL_TOP%", c(ctrlTop))
-        .replace("%CTRL_BOT%", c(ctrlBot))
-        .replace("%BTN_TOP%", c(btnTop))
-        .replace("%BTN_BOT%", c(btnBot))
+        .replace("%BTN_FLAT%", c(dark ? p.bgContainer.lighter(112) : p.bgContainer.darker(103)))
+        // Geometry the code measures against (theme.hpp) — interpolated, never retyped.
+        .replace("%MENU_PAD_R%", QString::number(kMenuItemRightPadPx))
+        .replace("%SEP_W%", QString::number(kDockSeparatorPx))
         // Dimmed accent fill for disabled accent buttons — still obviously part
         // of the accent group, just muted (see QToolButton[chatAccent]:disabled).
         .replace("%ACCENT_DIM%", rgba(p.accent, dark ? 0.38 : 0.30))
@@ -629,11 +865,31 @@ namespace stencil::gui {
         // Status reds mirror browser/css/theme.css --danger/--danger-2 (per theme).
         .replace("%DANGER2%", dark ? QStringLiteral("#e8455a") : QStringLiteral("#b71d30"))
         .replace("%DANGER%", dark ? QStringLiteral("#f0697a") : QStringLiteral("#d6293e"))
+        // "Selected Line:" bar amber, mirroring browser/css/components.css
+        // --bg-sel-panel / --border-sel / --text-sel-label (per theme). Routed through
+        // the Palette (already display-space converted above), not re-hardcoded here —
+        // a raw sRGB literal painted directly by Qt reads over-saturated on a wide-gamut
+        // (P3) Mac display, same reason every other palette token goes through displayColor().
+        .replace("%SEL_BG%", c(p.bgSelPanel))
+        .replace("%SEL_BORDER%", c(p.borderSel))
+        .replace("%SEL_LABEL%", c(p.textSelLabel))
+        // The Deselect CTA's browser-hardcoded orange (layout.css .deselect-btn, no
+        // light/dark variant) — same display-space conversion, or it reads noticeably
+        // more saturated/brighter here than the color-managed browser rendering.
+        .replace("%DESELECT_BG%", c(displayColor(QColor("#e67e22"))))
+        .replace("%DESELECT_HOVER%", c(displayColor(QColor("#ca6f1e"))))
         .replace("%DISABLED_BG%", c(disabledBg))
         .replace("%BG_PAGE%", c(p.bgPage))
         .replace("%BG_CONTAINER%", c(p.bgContainer))
         .replace("%BG_CONTROLS%", c(p.bgControls))
+        .replace("%BG_COORD_HOVER%", c(p.bgCoordHover))
+        .replace("%BG_INFO%", c(bgInfo))
+        .replace("%BG_DROP_HINT%", c(dropHintBg))
+        .replace("%BORDER_HINT%", c(dropHintBorder))
+        .replace("%BORDER_TOOLTIP%", c(borderTooltip))
+        .replace("%BORDER_CANVAS%", c(p.borderCanvas))
         .replace("%BORDER%", c(p.borderMain))
+        .replace("%SB_THUMB_HOVER%", c(sbThumbHover))
         .replace("%TEXT%", c(p.textMain))
         .replace("%CARET_HOVER%", caretImagePath(p.accent))
         .replace("%CARET_DIM%", caretImagePath(caretDim))

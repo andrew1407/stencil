@@ -20,6 +20,7 @@ const REQUIRED_IDS = [
   'chat-transcript', 'chat-tray', 'chat-input', 'chat-send',
   'chat-more-btn', 'chat-more-menu', 'chat-status-dot',
   'chat-attach-btn', 'chat-attach-input', 'chat-clear', 'chat-open-options',
+  'chat-jumps', 'chat-jump-top', 'chat-jump-bottom', 'chat-swap-sides',
 ];
 
 const html = Object.fromEntries(
@@ -181,6 +182,46 @@ test('clearing waits out the wipe before the empty state returns', () => {
   assert.match(motion, /export const wipeDurationMs = \(\) => \{[\s\S]*Math\.max\(LEAVE_MS, DISINTEGRATE_MS\)/);
 });
 
+// …and the mirror: an entry APPEARING had no particles at all, so the two directions
+// read as different surfaces. Every append now plays the gather (motion.js chatIn).
+test('every appended entry arrives as dust — armed only after the scroll', () => {
+  const src = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
+  const motion = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  assert.match(motion, /export const CHAT_ENTER_MS = DISINTEGRATE_MS;/);
+  assert.match(motion, /export function chatIn\(el, count = 1, index = 0, \{ host = null \} = \{\}\) \{/);
+  // Every route into the transcript — messages / notes / warnings (appendDiv), the
+  // attachment strip, a result-or-failure card, the §11 ask card — funnels through
+  // the single appendEntry ritual, whose one chatEnter covers them all.
+  assert.strictEqual(src.split('chatEnter(').length - 1, 1,
+    'every transcript append rides appendEntry — none is left silent');
+  for (const fn of ['appendDiv', 'addAttachments', 'addCard', 'renderAsk']) {
+    const body = src.slice(src.indexOf(`const ${fn}`));
+    assert.ok(body.slice(0, body.indexOf('\n  };')).includes('appendEntry('),
+      `${fn} must append through appendEntry`);
+  }
+  // …except the in-flight "…" placeholder, which opts OUT (browser chatView.js parity):
+  // it lives about as long as the gather itself, so dusting it in kept it veiled for
+  // almost its whole life and the bouncing dots were never seen.
+  assert.match(src, /const appendDiv = \(className, text, \{ arrive = true \} = \{\}\) => \{/);
+  assert.match(src, /appendDiv\('msg assistant typing-row', '', \{ arrive: false \}\)/);
+  // A failed turn's bubble STAYS on Retry, as it does in the browser and on the desktop —
+  // a retry is another attempt, not an undo. Deleting it also killed it mid-flight.
+  assert.match(src, /retry\.addEventListener\('click', \(\) => \{ if \(!busy\) send\(text, attachments\); \}\);/);
+  assert.ok(!/el\.remove\(\); send\(text, attachments\)/.test(src), 'no bare delete on retry');
+  // …and it is armed AFTER scrollDown(), never before. chatIn veils the entry
+  // synchronously (it keeps its height, so the transcript grows and scrolls to it as
+  // usual) then photographs it two frames later — a cloud measured before that scroll is
+  // stranded above the entry, or drawn over the composer.
+  for (const m of src.matchAll(/chatEnter\((\w+), sectionEl\)/g)) {
+    // `scrollDown();` immediately before, give or take appendEntry's `if (arrive)` guard.
+    const before = src.slice(Math.max(0, m.index - 120), m.index);
+    assert.match(before, /scrollDown\(\);\s*(if \(arrive\) )?$/,
+      `chatEnter(${m[1]}) must follow scrollDown(), not precede it`);
+  }
+  // The dust layers are position:fixed clouds owning their own alpha, not rows — the
+  // scroll curve masking them sanded the particles away.
+  assert.match(src, /observeReveal\(transcriptEl, ':scope > \*:not\(\.disintegrate-host\)'\);/);
+});
 // The … trigger's glyph is INSERTED, never assigned: the button already holds
 // #chat-status-dot (the reachability badge), and innerHTML= deleted it, so the dot
 // silently vanished and the rich provider tooltip lost its badge.

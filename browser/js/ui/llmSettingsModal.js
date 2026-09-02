@@ -3,6 +3,7 @@ import { icon } from './icons.js';
 import { loadLlmSettings, saveLlmSettings, serverBearerToken, withProvider } from '../llm/llmSettings.js';
 import { listModels, probeProvider } from '../llm/llmClient.js';
 import { loadSavedServers } from '../net/connectionStore.js';
+import { visibleChatMoreBtn } from './chatView.js';
 
 // ── Component: assistant (LLM) settings modal ───────────────────
 // Provider + endpoint configuration for the chat panel (llm-contract.md §5),
@@ -15,7 +16,7 @@ export class StencilLlmSettingsModal extends StencilElement {
         <div class="app-modal">
             <div class="settings-header">
                 <h2>${icon('sparkle', { size: 18 })} Assistant</h2>
-                <button class="app-modal-close btn-icon-text" id="chat-settings-close" title="Close (Esc)">${icon('x', { size: 14 })}<span>Close</span></button>
+                <button class="app-modal-close btn-icon-text" id="chat-settings-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="settings-body">
                 <div class="vs-section">Provider</div>
@@ -48,21 +49,22 @@ export class StencilLlmSettingsModal extends StencilElement {
                 <div class="vs-row vs-field"><label for="chat-save-chats" title="Save the conversation with the active project and restore it when the project is reopened. Off by default; incognito sessions never save.">Save chats with projects</label>
                     <input type="checkbox" id="chat-save-chats">
                 </div>
-                <div class="chat-cors-note" id="chat-save-chats-note">
-                    For a project on a server, the transcript is stored with it — so
-                    <strong>everyone that project is shared with can read it</strong>.
-                    Local projects stay on this machine.
-                </div>
-                <div class="chat-cors-note" id="chat-cors-note">
-                    Local providers must allow this app's origin: Ollama via <code>OLLAMA_ORIGINS</code>,
-                    LM Studio via its &quot;enable CORS&quot; switch.
+                <div class="chat-cors-note" id="chat-settings-note">
+                    <div id="chat-save-chats-note">
+                        Chats saved with a server project are <strong>readable by everyone
+                        the project is shared with</strong>; local projects stay on this machine.
+                    </div>
+                    <div id="chat-cors-note">
+                        Local providers must allow this app's origin — Ollama via
+                        <code>OLLAMA_ORIGINS</code>, LM Studio via its &quot;enable CORS&quot; switch.
+                    </div>
                 </div>
             </div>
             <div class="settings-footer">
-                <span class="footer-hint">The assistant plans Stencil operations only — it never edits pixels directly, and endpoints come only from this dialog.</span>
+                <span class="footer-hint">The assistant only plans Stencil operations — endpoints come from this dialog alone.</span>
                 <span class="chat-settings-actions">
-                    <button id="chat-settings-cancel" class="btn-icon-text">Cancel</button>
-                    <button id="chat-settings-save" class="btn-icon-text primary">Save</button>
+                    <button id="chat-settings-cancel" class="btn-icon-text">${icon('x', { size: 14 })}<span>Cancel</span></button>
+                    <button id="chat-settings-save" class="btn-icon-text primary">${icon('check', { size: 14 })}<span>Save</span></button>
                 </span>
             </div>
         </div>
@@ -219,6 +221,10 @@ export class StencilLlmSettingsModal extends StencilElement {
       // Reopening always starts from what is STORED — that is what makes every
       // close (Cancel, ×, Escape, click-outside) a discard.
       onOpen: () => { settings = loadLlmSettings(); render(); },
+      // The gear sits inside the composer's "…" menu, which closes as it is clicked —
+      // so the window flies to and from the "…" itself, and from above when no chat
+      // surface is on screen to hold one.
+      originEl: () => visibleChatMoreBtn(),
     });
     // Commit: the only path that writes storage and tells the panel to re-probe.
     $('chat-settings-save').addEventListener('click', () => {

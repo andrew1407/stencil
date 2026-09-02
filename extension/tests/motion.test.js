@@ -10,6 +10,7 @@ import {
   observeReveal, flashLanding, revealDissolve, revealGrain,
   createListHold, emptyStateVisible, tileMotion, materialize,
   MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, LEAVE_MS, DISINTEGRATE_MS,
+  chatIn, CHAT_ENTER_MS, CHAT_ENTERING_CLASS, dustFitsScroller,
   diffListKeys, createFilterTransition, filterLeave,
   FILTER_IN_CLASS, FILTER_OUT_CLASS, FILTER_ENTER_MS, FILTER_LEAVE_MS,
 } from '../src/lib/motion.js';
@@ -432,4 +433,122 @@ test('animations.css: a filter drop is lighter and quicker than a delete', () =>
   const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
   assert.match(reduced, /\.filter-out \{ display: none !important; \}/,
     'reduced motion shows the final set, never a half-faded row');
+});
+
+// ── A chat entry ARRIVES as dust too (browser motion.js chatIn twin) ────────
+// A removed message already had particles; an appearing one had none, which is what
+// made the two directions read as different surfaces.
+test('chatIn: veils at once, lifts only when the motes have landed', async () => {
+  // One number owns both directions — the gather rides the clock the scatter falls on.
+  assert.equal(CHAT_ENTER_MS, DISINTEGRATE_MS);
+  const row = el();
+  const p = chatIn(row);
+  // SYNCHRONOUSLY veiled — before the caller returns, so no frame ever paints the entry
+  // ahead of its own dust (fading it up underneath them showed the message first and
+  // played the animation over it, which is the bug this replaced).
+  assert.ok(row.has(CHAT_ENTERING_CLASS), 'veiled from the first frame');
+  await p;
+  // No DOM here, so no motes can fly — the veil must lift at once rather than hiding the
+  // entry behind a flight that never happened.
+  assert.ok(!row.has(CHAT_ENTERING_CLASS), 'never left stranded invisible');
+  // Decoration only: a missing element must never make an append throw.
+  await chatIn(null);
+
+  const src = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  // The arriving cloud is hosted in the CALLER's `host` (assistant.js passes its
+  // section), not in the transcript (its clones would read as live conversation to
+  // everything that walks it) and not on <body> (every bubble rule here is scoped
+  // `#sec-assistant .msg …`, so a body-level clone matched none of them and the motes
+  // arrived as bare text with no fill or border).
+  assert.match(src, /reintegrate\(el, \{ cols, rows, hostEl: host \|\| el\.parentElement \|\| null \}\)/);
+  // Two frames before the measure: frame one is the entry's layout, frame two the scroll
+  // that follows it (assistant.js scrollDown pins on a rAF of its own).
+  assert.match(src, /requestAnimationFrame\(\(\) => requestAnimationFrame\(fn\)\)/);
+  // …and the cloud is torn down as the veil lifts, not left to its own grace period — the
+  // layer holds its FINISHED state, an exact second copy over the real entry.
+  assert.match(src, /unveil\(\);\s*\n\s*cancelDust\(el\);\s*\n\s*resolve\(\);/);
+});
+
+test('dustFitsScroller: only a whole entry inside its scroller may fly', () => {
+  const at = (top, bottom) => ({ getBoundingClientRect: () => ({ top, bottom, width: 200, height: bottom - top }) });
+  const scroller = at(100, 400);
+  assert.ok(dustFitsScroller(at(120, 200), scroller), 'wholly inside');
+  // The cloud is position:fixed, so the transcript does NOT clip it — an entry still
+  // below the fold would scatter its motes across the composer under it.
+  assert.ok(!dustFitsScroller(at(350, 460), scroller), 'hanging past the bottom');
+  assert.ok(!dustFitsScroller(at(40, 150), scroller), 'hanging past the top');
+  assert.ok(!dustFitsScroller(at(0, 900), scroller), 'taller than the scroller');
+  assert.ok(!dustFitsScroller(null, scroller), 'no element');
+  assert.ok(!dustFitsScroller(at(120, 200), null), 'no scroller');
+});
+
+test('animations.css: an arriving entry is VEILED, never faded up under its own dust', () => {
+  const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
+  const rule = css.slice(css.indexOf('#sec-assistant .chat-transcript > .chat-entering'));
+  assert.match(rule.slice(0, 400), /opacity: 0 !important;/,
+    'a veil, not a keyframed fade — the entry is not seen until the motes land');
+  assert.match(rule.slice(0, 400), /animation: none !important;/,
+    'the dust is a photograph of where the entry IS — nothing may move under it');
+  assert.match(rule.slice(0, 400), /transition: none !important;/);
+  assert.match(css, /#chat-transcript > \.chat-entering/, 'the popup transcript too');
+  assert.ok(!/chatCardEnter/.test(css), 'no fade-up keyframes survive');
+  // The entry keeps its HEIGHT while veiled, so the transcript grows and scrolls to it.
+  assert.ok(!/\.chat-entering[\s\S]{0,200}?(display: none|height: 0)/.test(rule.slice(0, 400)));
+});
+
+test('a flying cloud is re-anchored to its entry, and dropped if the entry leaves', () => {
+  // The layer is position:fixed at the box measured when it launched, but a transcript
+  // SCROLLS under it — the bottom-pin fires again on a 220ms timer, and a later turn
+  // appends more rows. A cloud left where it started is drawn over whatever has since
+  // moved into those coordinates: the reported "text appears mid-animation, breaking the
+  // UI" (a user bubble's motes rendered on top of the error card below it).
+  const src = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  assert.match(src, /const trackDust = \(el, ms, onDrop = \(\) => \{\}\) => \{/);
+  // …and a subject that RESIZES mid-flight (a re-wrapped label, a font landing, the panel
+  // dragged wider) leaves a cloud that no longer matches what arrives — there is no
+  // re-photographing it, so the stale copy is dropped rather than shown at the wrong size.
+  assert.match(src, /const resized = !r \|\| !shot \|\|/);
+  assert.match(src, /if \(!rectInScroller\(r, s\) \|\| resized\) \{ cancelDust\(el\); live = false; onDrop\(\); return; \}/);
+  // Each box is measured ONCE per frame and the host writes are batched after the
+  // reads (skipping unchanged values) — the helpers re-measured per call, which forced
+  // a layout per frame per flying cloud.
+  assert.match(src, /const r = el\.getBoundingClientRect\?\.\(\);\s*\n\s*const s = el\.parentElement\?\.getBoundingClientRect\?\.\(\);/);
+  assert.match(src, /if \(next\.left !== last\.left\) host\.style\.left = next\.left;/);
+  assert.ok(/rectInScroller\(r, s\)/.test(src),
+    'and is dropped outright once the entry is no longer wholly in the scroller');
+  // …armed for the flight and stopped with it, so nothing keeps ticking after the cut.
+  assert.match(src, /const stop = trackDust\(el, CHAT_ENTER_MS, handOver\);/);
+  assert.match(src, /stop\(\);\s*\n\s*handOver\(\);/);
+  // An element torn out mid-flight (the transcript cleared, a row replaced) measures as
+  // a zero box, so the same check reaps its orphaned cloud within a frame.
+  assert.match(src, /export function retargetDust\(el\) \{/);
+});
+
+test('a flying cloud is clipped to its scroller, so no mote lands on the composer', () => {
+  // On the desktop the overlay is a real widget and paints only inside its own box, so a
+  // mote can never reach the composer. Here the tiles translate freely out of an
+  // `overflow: visible` host, and a gather next to the input rained motes across it
+  // (reported). The clip is against the host's OWN border box, so the insets are signed:
+  // negative EXPANDS it, letting a mote fly anywhere inside the transcript and nowhere
+  // outside it.
+  const src = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  assert.match(src, /const clipDustToScroller = \(el, scroller = el\?\.parentElement\) => \{/);
+  assert.match(src, /host\.style\.clipPath =/);
+  assert.match(src, /inset\(\$\{px\(s\.top - r\.top\)\} \$\{px\(r\.right - s\.right\)\} \$\{px\(r\.bottom - s\.bottom\)\} \$\{px\(s\.left - r\.left\)\}\)/);
+  // Applied before the first painted frame, then kept in step per frame (both boxes move).
+  assert.match(src, /clipDustToScroller\(el\);   \/\/ before the first frame paints, not after it/);
+  assert.match(src, /if \(next\.clip !== last\.clip\) host\.style\.clipPath = next\.clip;/,
+    'trackDust re-clips per frame from the rects it already read');
+});
+
+test('dropping the cloud hands the entry over in the SAME frame', () => {
+  // The veil is lifted by a timer at the end of the FULL flight. A cancel that only killed
+  // the motes therefore left the message invisible, with nothing standing in for it, until
+  // that timer fired — up to the whole gather. Found by resizing a live entry mid-flight.
+  const src = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  assert.match(src, /const trackDust = \(el, ms, onDrop = \(\) => \{\}\) => \{/);
+  assert.match(src, /cancelDust\(el\); live = false; onDrop\(\); return;/);
+  assert.match(src, /const stop = trackDust\(el, CHAT_ENTER_MS, handOver\);/);
+  // …and exactly once, whichever path gets there first (a drop, or the flight ending).
+  assert.match(src, /if \(handedOver\) return;/);
 });

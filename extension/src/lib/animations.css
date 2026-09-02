@@ -82,8 +82,11 @@ select:focus,
 .ic * { transform-box: view-box; transform-origin: 50% 50%; }
 /* Every control that holds a glyph on these surfaces is a <button>: the header
    icon-btns, the row "…" menu items and submenu heads, the logo drag-menu items, the
-   crop toolbar, the accent dropdown trigger and the chat composer. */
-button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
+   crop toolbar, the accent dropdown trigger and the chat composer.
+   A DISABLED control is deliberately not excluded (iconMotion.json trigger.disabled): it
+   is still hovered and still explains itself, and a frozen glyph read as a dead area of
+   the strip rather than a control that cannot act right now. */
+button:not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
     --ic-on: 1;
     animation-name: var(--ic-play, none);
 }
@@ -93,6 +96,9 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 /* ── HOLD: the pose is held while the pointer rests, and eases back on the way out ── */
 /* Direction is the meaning: a chevron goes the way it points. */
 .ic-chevron-down  { transform: translateY(calc(var(--ic-on) * 8.33%)); }
+.ic-chevron-up    { transform: translateY(calc(var(--ic-on) * -8.33%)); }
+.ic-swap .ic-arrow-top { transform: translateX(calc(var(--ic-on) * 1.4px)); }
+.ic-swap .ic-arrow-bot { transform: translateX(calc(var(--ic-on) * -1.4px)); }
 .ic-chevron-right { transform: translateX(calc(var(--ic-on) * 8.33%)); }
 .ic-send          { transform: translate(calc(var(--ic-on) * 7.5%), calc(var(--ic-on) * -7.5%)); }
 /* The gear turns exactly one tooth, the refresh wheel exactly half a revolution, and the
@@ -146,11 +152,12 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 .ic-rotate-cw,
 .ic-refresh-cw        { --ic-ms: 0.62s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); --ic-play: icmTurnCw; }
 /* Marks that draw themselves, the way you'd make them. */
-.ic-check .ic-tick    { --ic-ms: 0.32s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 26; --ic-play: icmTick; }
+.ic-check .ic-tick    { --ic-ms: 0.64s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 26; --ic-play: icmTick; }
 /* Close / clear / disconnect all mean "make this go away": the cross is struck out one
-   stroke at a time, the second starting as the first lands (12√2 ≈ 16.97 units each). */
-.ic-x .ic-stroke      { --ic-ms: 0.18s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 17; --ic-play: icmDrawSlash; }
-.ic-x .ic-stroke:nth-of-type(2) { --ic-delay: 0.18s; }
+   stroke at a time, the second starting as the first lands (12√2 ≈ 16.97 units each) —
+   1.5× the base 0.18s draw-on, deliberately slower than the other settle designs. */
+.ic-x .ic-stroke      { --ic-ms: 0.27s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 17; --ic-play: icmDrawSlash; }
+.ic-x .ic-stroke:nth-of-type(2) { --ic-delay: 0.27s; }
 .ic-file-text .ic-textline { --ic-ms: 0.3s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 8; --ic-play: icmInkLine; }
 .ic-file-text .ic-textline:nth-of-type(2) { --ic-delay: 0.09s; }
 .ic-pencil            { --ic-ms: 0.3s; --ic-play: icmPencilStroke; }   /* one short stroke */
@@ -166,12 +173,14 @@ button:not(:disabled):not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 .ic-sparkle .ic-dot, .ic-dots .ic-dot { --ic-ms: 0.3s; --ic-play: icmDotBounce; }
 .ic-sparkle .ic-dot:nth-of-type(2), .ic-dots .ic-dot:nth-of-type(2) { --ic-delay: 0.07s; }
 .ic-sparkle .ic-dot:nth-of-type(3), .ic-dots .ic-dot:nth-of-type(3) { --ic-delay: 0.14s; }
-/* Share: the two receiving nodes light up in turn, top then bottom — the copy reaching
-   one recipient and then the other. They SWELL rather than travel: each sits on the end
-   of a connecting line, and a move big enough to read pulled it off that end. */
+/* Share: all THREE nodes light up in turn, top to bottom — a plain downward sweep. They
+   SWELL rather than travel: each sits on the end of a connecting line, and a move big
+   enough to read pulled it off that end. The glyph is drawn top-to-bottom, so markup
+   order IS the sequence. */
 .ic-share .ic-node { --ic-ms: 0.38s; --ic-play: icmNodePulse;
                      transform-box: fill-box; transform-origin: center; }
-.ic-share .ic-node:nth-of-type(3) { --ic-delay: 0.12s; }
+.ic-share .ic-node:nth-of-type(2) { --ic-delay: 0.12s; }
+.ic-share .ic-node:nth-of-type(3) { --ic-delay: 0.24s; }
 /* Open in another app: the screen lifts clear off its stand and settles back. Held at
    1.2 units it was half a pixel at toolbar size — no motion at all, which is the very
    thing this table exists to prevent. */
@@ -387,10 +396,15 @@ html.theme-swapping *::before, html.theme-swapping *::after {
                         #000 calc(var(--vis-start, 0%) + 10%),
                         #000 calc(var(--vis-end, 100%) - 10%),
                         transparent var(--vis-end, 100%), transparent 100%);
-    -webkit-mask-size: 4px 4px, 7px 7px, 11px 11px, 100% 100%;
-    mask-size: 4px 4px, 7px 7px, 11px 11px, 100% 100%;
-    -webkit-mask-position: 0 0, 2px 3px, 5px 1px, 0 0;
-    mask-position: 0 0, 2px 3px, 5px 1px, 0 0;
+    /* The wipe is stretched to 3x the row's WIDTH and centred, so it also covers what a
+       row paints OUTSIDE its box — the chat "…" trigger sits beside the bubble, and with
+       the layer stopping at the box edge the mask erased it (and its hit-testing with it:
+       the row stayed hoverable, the control did not). Only the vertical mapping matters to
+       a `to bottom` gradient, and that is unchanged. Mirrors browser/css/animations.css. */
+    -webkit-mask-size: 4px 4px, 7px 7px, 11px 11px, 300% 100%;
+    mask-size: 4px 4px, 7px 7px, 11px 11px, 300% 100%;
+    -webkit-mask-position: 0 0, 2px 3px, 5px 1px, center top;
+    mask-position: 0 0, 2px 3px, 5px 1px, center top;
     /* The wipe layer is the STILL-VISIBLE span, kept solid; the grain only ever shows
        outside it. So a row you can read is untouched and the sanding happens on the
        edge the scroller is already cutting off. */
@@ -398,6 +412,11 @@ html.theme-swapping *::before, html.theme-swapping *::after {
     mask-repeat: repeat, repeat, repeat, no-repeat;
     -webkit-mask-composite: source-over;   /* legacy spelling of "union" */
     mask-composite: add;
+    /* …and the mask must not CLIP to the row's box either, or the "⋯" painted beside the
+       bubble is cut away wholesale — invisible AND un-clickable, which is how a partially
+       scrolled message lost its actions. */
+    -webkit-mask-clip: no-clip;
+    mask-clip: no-clip;
 }
 .reveal-item.reveal-entering {
     transition: --dissolve 0.7s ease, transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
@@ -641,6 +660,18 @@ html.theme-swapping *::before, html.theme-swapping *::after {
 @keyframes chatCardLeave {
     from { opacity: 1; transform: none; }
     to   { opacity: 0; transform: translateY(-8px) scale(0.95); }
+}
+/* …and it ARRIVES the same way, backwards (motion.js chatIn): its own motes gather over
+   it (reintegrate) and the entry appears as they land. A VEIL, not a fade — the entry
+   keeps its height, so the transcript grows and scrolls to it exactly as it always did,
+   but it is never seen ahead of its own dust. Browser css/animations.css twin. */
+#sec-assistant .chat-transcript > .chat-entering,
+#chat-transcript > .chat-entering {
+    opacity: 0 !important;
+    /* The dust is a photograph of where the entry IS — nothing may move under it. */
+    animation: none !important;
+    transition: none !important;
+    pointer-events: none;
 }
 
 /* ── Dropdown lists open and close like the app's (browser/css/animations.css

@@ -93,7 +93,7 @@ namespace {
   };
 
   // Tooltips at the default ~700ms wake-up delay read as "not showing"; this proxy makes them
-  // appear almost immediately on hover (matching the browser's instant control tooltips) while
+  // appear promptly on hover (matching browser/js/ui/controlTooltip.js's SHOW_DELAY_MS) while
   // deferring everything else to the wrapped base style (Fusion).
   class SnappyTooltipStyle : public QProxyStyle {
    public:
@@ -101,7 +101,7 @@ namespace {
     int styleHint(StyleHint hint, const QStyleOption* opt = nullptr,
                   const QWidget* w = nullptr,
                   QStyleHintReturn* ret = nullptr) const override {
-      if (hint == SH_ToolTip_WakeUpDelay) return 120;     // ms (was ~700)
+      if (hint == SH_ToolTip_WakeUpDelay) return 200;     // ms (was ~700, then 120)
       if (hint == SH_ToolTip_FallAsleepDelay) return 0;
       return QProxyStyle::styleHint(hint, opt, w, ret);
     }

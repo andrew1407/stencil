@@ -79,10 +79,13 @@ test('header buttons are chat-hbtn ghosts; composer is send + a … menu', () =>
   const more = markup.indexOf('id="chat-more-btn"');
   const menu = markup.indexOf('id="chat-more-menu"');
   assert.ok(send < more && more < menu, 'order: send, then the … trigger and its menu');
-  for (const id of ['chat-attach-btn', 'chat-clear', 'chat-settings-btn']) {
+  for (const id of ['chat-attach-btn', 'chat-clear', 'chat-swap-sides', 'chat-settings-btn']) {
     assert.ok(markup.indexOf(`id="${id}"`) > menu, `${id} sits inside the … menu`);
   }
-  assert.strictEqual(count('chat-more-item'), 3, 'add image + clear history + settings');
+  // …in that order: swap sides sits between Clear history and Settings.
+  assert.ok(markup.indexOf('id="chat-clear"') < markup.indexOf('id="chat-swap-sides"')
+    && markup.indexOf('id="chat-swap-sides"') < markup.indexOf('id="chat-settings-btn"'));
+  assert.strictEqual(count('chat-more-item'), 4, 'add image + clear history + swap sides + settings');
   assert.strictEqual(count('chat-title-text'), 1, 'truncatable title span present');
 });
 
@@ -109,7 +112,7 @@ test('send ships disabled (no text yet); empty state is a single subtle line', (
   // Empty state = clickable prompt suggestions (data-prompt prefills the input).
   assert.ok(count('chat-suggest"') >= 3, 'at least three suggestion chips');
   assert.ok(markup.includes('data-prompt="Make it sepia"'), 'suggestion carries its prompt');
-  assert.ok(markup.includes('data-prompt="Give me 3 variants: rotated, tinted, cropped"'), 'variants suggestion present');
+  assert.ok(markup.includes('data-prompt="3 variants: rotated · tinted · cropped"'), 'variants suggestion present');
   assert.strictEqual(count('chat-intro'), 0, 'the heavy intro card is gone');
 });
 

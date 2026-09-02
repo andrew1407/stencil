@@ -130,8 +130,8 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
     .bar button.tab:hover svg{--ic-on:1;}
     .bar button.tab svg .ic-arrow{transform:translate(calc(var(--ic-on)*1.4px),calc(var(--ic-on)*-1.4px));}
     .bar button.close svg .ic-stroke{stroke-dasharray:17;}
-    .bar button.close:hover svg .ic-stroke{animation:stencilDrawSlash .18s cubic-bezier(.33,1,.68,1) both;}
-    .bar button.close:hover svg .ic-stroke:nth-of-type(2){animation-delay:.18s;}
+    .bar button.close:hover svg .ic-stroke{animation:stencilDrawSlash .27s cubic-bezier(.33,1,.68,1) both;}
+    .bar button.close:hover svg .ic-stroke:nth-of-type(2){animation-delay:.27s;}
     @media (prefers-reduced-motion: reduce){
       .backdrop,.panel{animation-duration:.001ms;}
       /* A half-formed panel is a surprise, not motion — show it whole. */

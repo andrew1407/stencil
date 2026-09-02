@@ -12,8 +12,8 @@
     "note": "same desktop model:\"\" always-sent divergence (llmClient.cpp:396); maxTokens absence itself matches"
   },
   "providerWire/reply extraction: stopReason max_tokens is a typed truncation error, never a reply": {
-    "verdict": { "bodyPatch": { "model": "" }, "message": "response truncated (max tokens reached)" },
-    "note": "kind truncated matches; desktop phrases the message its own way and sends model:\"\" (llmClient.cpp:396,414)"
+    "verdict": { "bodyPatch": { "model": "" } },
+    "note": "kind truncated + message match browser exactly; only the desktop model:\"\" always-sent divergence (llmClient.cpp:396)"
   },
   "providerWire/reply extraction: stopReason refusal surfaces the reply text as a refusal error": {
     "verdict": { "bodyPatch": { "model": "" } },
@@ -25,7 +25,7 @@
   },
   "providerWire/server 503 llmDisabled maps to the typed \"disabled\" error": {
     "verdict": { "bodyPatch": { "model": "" } },
-    "note": "kind Disabled + message match (the message rides inside the endpoint-tagged error); only the desktop model:\"\" always-sent divergence"
+    "note": "kind Disabled + message match exactly (unwrapped, no endpoint tag — browser parity); only the desktop model:\"\" always-sent divergence"
   },
   "providerWire/server 502 llmUpstream renders the sanitized message with its code as plain http": {
     "verdict": { "bodyPatch": { "model": "" } },

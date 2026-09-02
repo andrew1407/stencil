@@ -378,8 +378,12 @@ await stencil.blank();                 // white, sized to the current page (any 
 stencil.crop({ x1: '10%', y1: '10%', x2: '-10%', y2: '-10%' });  // %, '3cm'/'-4in', px; '-' = from end
 stencil.crop({ scale: 1.2 });          // grow (>1) / shrink (<1) the crop about its centre (aspect kept)
 stencil.move({ x: 10, y: -5 });        // pan the view by px
-stencil.downloadImage();               // download image + lines (PNG)
-stencil.copyImage();                   // copy the rendered image to the clipboard
+stencil.downloadImage();               // download image + lines (PNG) — 'current' (during a split compare
+                                        // view, downloads the split composite shown instead, divider baked in)
+stencil.downloadImage('original');     // …or 'tint', or 'split' explicitly (split-compare view only)
+stencil.copyImage();                   // copy the rendered image to the clipboard — 'current' (during a split
+                                        // compare view, copies the split composite shown, with no divider)
+stencil.copyImage('original');         // …or 'tint', or 'split' explicitly (split-compare view only)
 stencil.copyLayout();                  // copy the layout JSON to the clipboard
 stencil.downloadLayout();              // download the layout JSON
 stencil.layout;                        // get the current layout object

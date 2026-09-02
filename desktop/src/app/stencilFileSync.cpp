@@ -1,11 +1,12 @@
 #include "mainWindow.hpp"
 #include "mainWindowHelpers.hpp"
 #include "canvasWidget.hpp"
+#include "guiHelpers.hpp"  // showSaveDialog
+#include "../support/modalChrome.hpp"  // confirmModalChoice — the browser-styled question
 #include "iconSet.hpp"
 #include "notifications.hpp"
 #include "theme.hpp"
 
-#include <QFileDialog>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
 #include <QJsonArray>
@@ -68,8 +69,8 @@ namespace stencil::gui {
       return;
     }
     const QString suggested = projectBaseName() + ".stencil";
-    const QString path = QFileDialog::getSaveFileName(
-        this, "Save project", suggested, "Stencil project (*.stencil)");
+    const QString path = showSaveDialog(this, "Save project", suggested,
+                                        "Stencil project (*.stencil)");
     if (path.isEmpty()) return;
     const QByteArray out = buildStencilBytes();
     if (!writeFileBytes(path, out)) {
@@ -90,18 +91,15 @@ namespace stencil::gui {
     }
     const QString path = stencilLink_;
     const QString shown = QFileInfo(path).fileName();
-    QMessageBox box(this);
-    box.setWindowTitle(tr("Delete project file"));
-    box.setText(tr("Delete “%1” from disk? This can’t be undone. The project stays open here.").arg(shown));
-    QPushButton* del = box.addButton(tr("Delete"), QMessageBox::AcceptRole);
-    QPushButton* cancel = box.addButton(tr("Cancel"), QMessageBox::RejectRole);
-    // Glyphs match the browser's dialog (exportService.js confirmIcon): a delete that
-    // can't be undone shows a bin, never the generic tick.
-    del->setIcon(themedIcon("trash", box.palette().color(QPalette::WindowText), 15));
-    cancel->setIcon(themedIcon("x", box.palette().color(QPalette::WindowText), 15));
-    box.setDefaultButton(cancel);   // default to the safe choice for a destructive action
-    box.exec();
-    if (box.clickedButton() != del) { notify_->info("Delete canceled"); return; }
+    // The browser's styled confirm (exportService.js confirmIcon): a delete that
+    // can't be undone shows a bin, never the generic tick — and it's red.
+    ConfirmSpec spec;
+    spec.title = tr("Delete project file");
+    spec.message = tr("Delete “%1” from disk? This can’t be undone. The project stays open here.").arg(shown);
+    spec.confirmLabel = tr("Delete");
+    spec.confirmIcon = QStringLiteral("trash");
+    spec.danger = true;
+    if (!confirmModal(this, spec)) { notify_->info("Delete canceled"); return; }
 
     if (!QFile::remove(path)) {
       notify_->error("Could not delete the project file");   // keep the link so live-sync survives
@@ -203,23 +201,22 @@ namespace stencil::gui {
       applyStencilExternal(ext);
       return;
     }
-    // Conflict: both changed since the baseline — prompt (mirrors the browser 3-way choice).
-    QMessageBox box(this);
-    box.setWindowTitle(tr("File changed"));
-    box.setText(tr("“%1” was changed outside the app and conflicts with your unsaved edits.")
-                    .arg(QFileInfo(stencilLink_).fileName()));
-    QPushButton* theirs = box.addButton(tr("Take file’s version"), QMessageBox::AcceptRole);
-    QPushButton* merge = box.addButton(tr("Merge lines"), QMessageBox::ActionRole);
-    QPushButton* mine = box.addButton(tr("Keep mine (overwrite file)"), QMessageBox::RejectRole);
-    // Same glyphs as the browser's two-step conflict prompt: pull the file's copy in,
-    // stack both sets of lines, or keep yours.
-    const QColor conflictTxt = box.palette().color(QPalette::WindowText);
-    theirs->setIcon(themedIcon("download", conflictTxt, 15));
-    merge->setIcon(themedIcon("layers", conflictTxt, 15));
-    mine->setIcon(themedIcon("x", conflictTxt, 15));
-    box.exec();
-    if (box.clickedButton() == theirs) applyStencilExternal(ext);
-    else if (box.clickedButton() == merge) applyStencilExternal(ext, /*merge=*/true);
+    // Conflict: both changed since the baseline — the browser's styled 3-way choice
+    // (confirmModalChoice): take the file's copy, stack both line sets, or keep
+    // yours. "Keep mine" rides the Cancel slot — it is the do-nothing-to-the-editor
+    // answer — with the browser's glyphs on the two real actions.
+    ConfirmSpec spec;
+    spec.title = tr("File changed");
+    spec.message = tr("“%1” was changed outside the app and conflicts with your unsaved edits.")
+                       .arg(QFileInfo(stencilLink_).fileName());
+    spec.confirmLabel = tr("Take file’s version");
+    spec.confirmIcon = QStringLiteral("download");
+    spec.altLabel = tr("Merge lines");
+    spec.altIcon = QStringLiteral("layers");
+    spec.cancelLabel = tr("Keep mine (overwrite file)");
+    const ConfirmChoice pick = confirmModalChoice(this, spec);
+    if (pick == ConfirmChoice::Confirm) applyStencilExternal(ext);
+    else if (pick == ConfirmChoice::Alt) applyStencilExternal(ext, /*merge=*/true);
     else writeStencilNow(cur);   // keep mine → overwrite the file (reuse the bytes we built)
   }
 

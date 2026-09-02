@@ -4,7 +4,10 @@
 // stub document, like the other DOM-adjacent extension suites.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AUTO_DISMISS_MS, SUGGESTIONS, makeDismissible, renderSuggestions } from '../src/lib/chatUi.js';
+import {
+  AUTO_DISMISS_MS, SUGGESTIONS, makeDismissible, renderSuggestions,
+  shrinkWrapWidth, applyShrinkWrap, bindShrinkWrapResize,
+} from '../src/lib/chatUi.js';
 
 // ── Stub DOM ──
 const stubEl = (tag = 'div') => {
@@ -109,8 +112,11 @@ test('clicking a chip PREFILLS the prompt and sends nothing', () => {
   const [first] = wrap.children;
   assert.equal(first.className, 'chat-suggest');
   assert.equal(first.textContent, SUGGESTIONS[0].label);
-  assert.equal(first.attrs['data-title'], SUGGESTIONS[0].prompt);   // data-title, never the native `title`
-  assert.equal(first.dataset.prompt, SUGGESTIONS[0].prompt);
+  // No tooltip on a chip (browser parity: chatEmptyState builds these bare) — hovering
+  // one popped a bubble restating the label in longer words, over its neighbours.
+  assert.equal(first.attrs['data-title'], undefined);
+  assert.equal(first.attrs.title, undefined, 'and certainly not the native tooltip');
+  assert.equal(first.dataset.prompt, SUGGESTIONS[0].prompt, 'the prompt still rides the chip');
 
   first.click();
   wrap.children[2].click();
@@ -122,4 +128,57 @@ test('renderSuggestions takes a custom chip list', () => {
   const wrap = renderSuggestions(doc, () => {}, [{ label: 'a', prompt: 'A?' }]);
   assert.equal(wrap.children.length, 1);
   assert.equal(wrap.children[0].textContent, 'a');
+});
+
+// ── shrinkWrapWidth / applyShrinkWrap / bindShrinkWrapResize ─────────────────
+// Browser js/ui/chatView.js parity: a wrapped bubble hugs its own longest line, not
+// the max-width cap it never searches a narrower box against (user report: "message
+// width is adjusted wrong").
+test('shrinkWrapWidth: one line already hugs its content — nothing to pin', () => {
+  assert.equal(shrinkWrapWidth([142.5]), null);
+  assert.equal(shrinkWrapWidth([]), null);
+  assert.equal(shrinkWrapWidth(null), null);
+});
+
+test('shrinkWrapWidth: two+ lines pin to the WIDEST one, rounded up', () => {
+  assert.equal(shrinkWrapWidth([142.5, 118.2]), 143);
+  assert.equal(shrinkWrapWidth([90, 210, 30]), 210);
+  assert.equal(shrinkWrapWidth([0, 0]), null);
+});
+
+test('applyShrinkWrap: a no-op without Range — never throws on the stub tree', () => {
+  const doc = stubDoc();   // no createRange, like node --test's real stub
+  const el = stubEl();
+  el.style = {};
+  el.firstChild = { nodeType: 3 };
+  assert.doesNotThrow(() => applyShrinkWrap(el, doc));
+  assert.equal(el.style.maxWidth, undefined);
+});
+
+test('applyShrinkWrap: pins to the widest line, floored up by a wider CTA sibling', () => {
+  const rectsFor = new Map();   // node -> array of {width} rects
+  const doc = {
+    createRange: () => ({
+      selectNodeContents(node) { this._node = node; },
+      getClientRects: function () { return rectsFor.get(this._node) || []; },
+    }),
+  };
+  const text = { nodeType: 3 };
+  rectsFor.set(text, [{ width: 142.4 }, { width: 118.9 }]);   // two wrapped lines
+  const cta = { getBoundingClientRect: () => ({ width: 210 }) };   // wider than either line
+  const el = { style: {}, firstChild: text, children: [cta] };
+  applyShrinkWrap(el, doc);
+  assert.equal(el.style.maxWidth, '210px', 'the CTA sets the floor, not the text');
+
+  // A narrower CTA never shrinks the pin below the text's own widest line.
+  const narrowCta = { getBoundingClientRect: () => ({ width: 60 }) };
+  const el2 = { style: {}, firstChild: text, children: [narrowCta] };
+  applyShrinkWrap(el2, doc);
+  assert.equal(el2.style.maxWidth, '143px');
+});
+
+test('bindShrinkWrapResize: binds once per transcript, no ResizeObserver global — a safe no-op', () => {
+  const transcript = { querySelectorAll: () => { throw new Error('must not run without RO'); } };
+  assert.doesNotThrow(() => bindShrinkWrapResize(transcript));
+  assert.equal(transcript._shrinkWrapBound, undefined, 'never marked bound if it never bound');
 });

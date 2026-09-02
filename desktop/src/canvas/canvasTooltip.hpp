@@ -1,10 +1,12 @@
 #pragma once
 #include <QFrame>
+#include <QPoint>
 #include <QString>
 #include <utility>
 #include <vector>
 
 class QLabel;
+class QVariantAnimation;
 
 // Floating, frameless tooltip shown over the canvas on hover. Port of
 // browser/js/ui/tooltip.js: it renders rows (label -> value pairs) and positions
@@ -18,7 +20,7 @@ namespace stencil::gui {
    public:
     explicit CanvasTooltip(QWidget* parent = nullptr);
 
-    // Replace the displayed rows. Empty -> hidden.
+    // Replace the displayed rows. Empty -> dust/fade out and hide.
     void setRows(const std::vector<std::pair<QString, QString>>& rows);
 
     // Show near a global cursor position, flipping to stay on screen (port of
@@ -26,7 +28,18 @@ namespace stencil::gui {
     void showAt(const QPoint& globalCursor);
 
    private:
+    // Fade/dust out then hide (idempotent). The way back in lives in showAt().
+    void hideTip();
+    // Fly the tip's own motes out of / back into the point it appeared at (the cursor,
+    // its only real "anchor" — it has no owning control the way a button's does).
+    // Measured in the top-level window's coords so escapeHost can carry the cloud past
+    // it. Returns whether the dust actually played (declines fall back to a plain fade).
+    bool dust(bool gather);
+
     QLabel* body_ = nullptr;
+    QVariantAnimation* fade_ = nullptr;
+    QPoint lastCursor_;      // where the dust flies out of / back into
+    bool closing_ = false;   // fade_ is mid fade-OUT; its finished handler should hide()
   };
 
 }

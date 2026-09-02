@@ -35,6 +35,11 @@ namespace stencil::gui {
   // tipping their row into QToolBar's "»".
   inline constexpr int kFormulaFieldW = 180;
   inline constexpr int kFormulaFieldMinW = 72;   // still shows a typical "x/2 + 10"
+  // centralLayout_'s RIGHT inset while the points panel is docked open (browser parity: the
+  // slim .main-content gap, css/layout.css). LEFT stays 0 — the canvas gets its own left inset
+  // instead (see MainWindow's ctor). Collapsed, updatePanelReopenButton swaps this for the
+  // wider kCanvasRightMarginCollapsed (mainWindow.cpp), sized for the floating re-open chevron.
+  inline constexpr int kCentralSideMargin = 14;
 
   inline long long nowMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
@@ -81,10 +86,11 @@ namespace stencil::gui {
   // release the constraint.
   inline QVariantAnimation* startExtentSlide(QObject* owner, int from, int to, int ms,
                                              std::function<void(int)> apply,
-                                             std::function<void()> done) {
+                                             std::function<void()> done,
+                                             QEasingCurve::Type easing = QEasingCurve::OutCubic) {
     auto* anim = new QVariantAnimation(owner);
     anim->setDuration(ms);
-    anim->setEasingCurve(QEasingCurve::OutCubic);  // fast start, soft landing
+    anim->setEasingCurve(easing);
     anim->setStartValue(from);
     anim->setEndValue(to);
     QObject::connect(anim, &QVariantAnimation::valueChanged, owner,

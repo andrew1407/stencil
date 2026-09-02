@@ -1,8 +1,8 @@
 #include "../support/searchCombo.hpp"
 #include "settingsDialog.hpp"
 #include "guiHelpers.hpp"
+#include "../support/modalChrome.hpp"   // modalSectionLabel
 #include "../support/modalReveal.hpp"
-#include "llmSettingsForm.hpp"
 #include "theme.hpp"
 #include <QCheckBox>
 #include <QComboBox>
@@ -19,14 +19,29 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 
+namespace {
+  // The shared modal section caption (browser .vs-section), with this form's own
+  // breathing room between sections.
+  QLabel* sectionHeader(QWidget* parent, const QString& text) {
+    QLabel* l = stencil::gui::modalSectionLabel(text, parent);
+    l->setContentsMargins(0, 10, 0, 2);
+    return l;
+  }
+}  // namespace
+
 namespace stencil::gui {
 
   SettingsDialog::SettingsDialog(const Settings& current, QWidget* parent)
-      : QDialog(parent), base_(current), colorHex_(current.defaultColor) {
+      : QDialog(parent), base_(current), colorHex_(current.defaultColor),
+        fillHex_(current.defaultFillColor), selGlowHex_(current.selGlowColor),
+        hoverRingHex_(current.hoverRingColor), focusRingHex_(current.focusRingColor) {
     setWindowTitle("Settings");
     setMinimumWidth(320);
 
     auto* form = new QFormLayout;
+
+    // ── App appearance (browser Default Visuals: "App appearance") ──
+    form->addRow(sectionHeader(this, "App appearance"));
 
     theme_ = new SearchComboBox(this, /*searchable=*/false);
     theme_->setToolTip("Light/dark appearance — System follows the OS scheme");
@@ -38,7 +53,10 @@ namespace stencil::gui {
       const int idx = theme_->findData(current.themeMode);
       theme_->setCurrentIndex(idx >= 0 ? idx : 0);
     }
-    form->addRow("Theme", theme_);
+    form->addRow("Appearance", theme_);
+    // activated(), not currentIndexChanged(): only a real user pick, not the
+    // setCurrentIndex() above (every combo row below follows the same rule).
+    connect(theme_, &QComboBox::activated, this, [this] { applyLive(); });
 
     accent_ = new SearchComboBox(this, /*searchable=*/false);
     accent_->setToolTip("Accent color used for highlights across the app");
@@ -76,6 +94,85 @@ namespace stencil::gui {
       }
     }
     form->addRow("Main theme", accent_);
+    connect(accent_, &QComboBox::activated, this, [this] { applyLive(); });
+
+    // ── Drawing defaults (applied to new lines) ──
+    form->addRow(sectionHeader(this, "Drawing defaults"));
+
+    color_ = new QPushButton(this);
+    setColorSwatch(color_, QColor(colorHex_));
+    color_->setToolTip("Default color for newly drawn lines — click to change");
+    connect(color_, &QPushButton::clicked, this,
+            [this] { pickColorInto(color_, colorHex_, "Default line color"); });
+    form->addRow("Line color", color_);
+
+    thickness_ = new QDoubleSpinBox(this);
+    thickness_->setRange(1, 20);  // LIMITS.thickMin/thickMax
+    thickness_->setValue(current.defaultThickness);
+    thickness_->setToolTip("Default stroke thickness for new lines (px)");
+    form->addRow("Line thickness", thickness_);
+    connect(thickness_, &QAbstractSpinBox::editingFinished, this, [this] { applyLive(); });
+
+    pointSize_ = new QDoubleSpinBox(this);
+    pointSize_->setRange(1, 30);  // LIMITS.pointMin/pointMax
+    pointSize_->setValue(current.defaultPointSize);
+    pointSize_->setToolTip("Default point size for new lines (px)");
+    form->addRow("Point size", pointSize_);
+    connect(pointSize_, &QAbstractSpinBox::editingFinished, this, [this] { applyLive(); });
+
+    style_ = new SearchComboBox(this, /*searchable=*/false);
+    style_->addItems({"solid", "dashed", "dotted"});
+    style_->setCurrentText(current.defaultStyle);
+    style_->setToolTip("Default stroke style for new lines");
+    form->addRow("Line style", style_);
+    connect(style_, &QComboBox::activated, this, [this] { applyLive(); });
+
+    fillColor_ = new QPushButton(this);
+    setColorSwatch(fillColor_, QColor(fillHex_));
+    fillColor_->setToolTip("Fill applied to newly locked areas — click to change");
+    connect(fillColor_, &QPushButton::clicked, this,
+            [this] { pickColorInto(fillColor_, fillHex_, "Area fill color"); });
+    form->addRow("Area fill (new locked areas)", fillColor_);
+
+    // ── Drawing behavior ──
+    form->addRow(sectionHeader(this, "Drawing behavior"));
+
+    holdDelay_ = new QSpinBox(this);
+    holdDelay_->setRange(100, 3000);  // clamp mirrors CanvasWidget::setHoldDrawDelay
+    holdDelay_->setSingleStep(50);
+    holdDelay_->setSuffix(" ms");
+    holdDelay_->setValue(current.holdDrawDelay);
+    holdDelay_->setToolTip(
+        "Press-and-hold delay before hold-to-draw places a point");
+    form->addRow("Hold-to-draw delay", holdDelay_);
+    connect(holdDelay_, &QAbstractSpinBox::editingFinished, this, [this] { applyLive(); });
+
+    // ── Highlight styles ──
+    form->addRow(sectionHeader(this, "Highlight styles"));
+
+    selGlow_ = new QPushButton(this);
+    setColorSwatch(selGlow_, QColor(selGlowHex_));
+    selGlow_->setToolTip("Selected line/point glow — click to change");
+    connect(selGlow_, &QPushButton::clicked, this,
+            [this] { pickColorInto(selGlow_, selGlowHex_, "Selection glow color"); });
+    form->addRow("Selected line/point glow", selGlow_);
+
+    hoverRing_ = new QPushButton(this);
+    setColorSwatch(hoverRing_, QColor(hoverRingHex_));
+    hoverRing_->setToolTip("Point hover ring — click to change");
+    connect(hoverRing_, &QPushButton::clicked, this,
+            [this] { pickColorInto(hoverRing_, hoverRingHex_, "Point hover ring color"); });
+    form->addRow("Point hover ring", hoverRing_);
+
+    focusRing_ = new QPushButton(this);
+    setColorSwatch(focusRing_, QColor(focusRingHex_));
+    focusRing_->setToolTip("Focused/clicked point ring — click to change");
+    connect(focusRing_, &QPushButton::clicked, this,
+            [this] { pickColorInto(focusRing_, focusRingHex_, "Point focus ring color"); });
+    form->addRow("Point focus ring", focusRing_);
+
+    // ── App preferences (desktop-only; browser has no home for these) ──
+    form->addRow(sectionHeader(this, "App preferences"));
 
     nativeMenuBar_ = new QCheckBox(this);
     nativeMenuBar_->setChecked(current.nativeMenuBar);
@@ -91,11 +188,13 @@ namespace stencil::gui {
         "no menus showing.");
 #endif
     form->addRow("Use the system menu bar", nativeMenuBar_);
+    connect(nativeMenuBar_, &QCheckBox::toggled, this, [this] { applyLive(); });
 
     autosave_ = new QCheckBox(this);
     autosave_->setChecked(current.autosave);
     autosave_->setToolTip("Automatically save the session as you edit");
     form->addRow("Autosave", autosave_);
+    connect(autosave_, &QCheckBox::toggled, this, [this] { applyLive(); });
 
     syncToServer_ = new QCheckBox(this);
     syncToServer_->setChecked(current.syncToServer);
@@ -103,6 +202,7 @@ namespace stencil::gui {
         "When off, edits to a fetched server project stay in this session only — "
         "never pushed to the server or saved locally (export or 'Make local copy' to keep them).");
     form->addRow("Sync changes to server", syncToServer_);
+    connect(syncToServer_, &QCheckBox::toggled, this, [this] { applyLive(); });
 
     // Note: "Auto-connect to servers on open" now lives in the Servers dialog
     // (it's a connection preference, persisted via net::connectionStore).
@@ -111,35 +211,13 @@ namespace stencil::gui {
     showPoints_->setChecked(current.showPoints);
     showPoints_->setToolTip("Show points on lines by default");
     form->addRow("Show points", showPoints_);
+    connect(showPoints_, &QCheckBox::toggled, this, [this] { applyLive(); });
 
     showLines_ = new QCheckBox(this);
     showLines_->setChecked(current.showLines);
     showLines_->setToolTip("Show line strokes by default");
     form->addRow("Show lines", showLines_);
-
-    color_ = new QPushButton(colorHex_, this);
-    color_->setStyleSheet(QString("background:%1").arg(colorHex_));
-    color_->setToolTip("Default color for newly drawn lines — click to change");
-    connect(color_, &QPushButton::clicked, this, &SettingsDialog::pickColor);
-    form->addRow("Default color", color_);
-
-    thickness_ = new QDoubleSpinBox(this);
-    thickness_->setRange(1, 20);  // LIMITS.thickMin/thickMax
-    thickness_->setValue(current.defaultThickness);
-    thickness_->setToolTip("Default stroke thickness for new lines (px)");
-    form->addRow("Default thickness", thickness_);
-
-    pointSize_ = new QDoubleSpinBox(this);
-    pointSize_->setRange(1, 30);  // LIMITS.pointMin/pointMax
-    pointSize_->setValue(current.defaultPointSize);
-    pointSize_->setToolTip("Default point size for new lines (px)");
-    form->addRow("Default point size", pointSize_);
-
-    style_ = new SearchComboBox(this, /*searchable=*/false);
-    style_->addItems({"solid", "dashed", "dotted"});
-    style_->setCurrentText(current.defaultStyle);
-    style_->setToolTip("Default stroke style for new lines");
-    form->addRow("Default style", style_);
+    connect(showLines_, &QCheckBox::toggled, this, [this] { applyLive(); });
 
     page_ = new SearchComboBox(this);
     // S10 — same options as the toolbar combo: Custom… + the full ISO A/B/C
@@ -152,6 +230,7 @@ namespace stencil::gui {
     }
     page_->setToolTip("Default page format for cm/inch measurements");
     form->addRow("Page size", page_);
+    connect(page_, &QComboBox::activated, this, [this] { applyLive(); });
 
     customW_ = new QDoubleSpinBox(this);
     customW_->setRange(1.0, 500.0);
@@ -160,6 +239,7 @@ namespace stencil::gui {
     customW_->setValue(current.customPageWidth);
     customW_->setToolTip("Custom page width in cm (used when page size is custom)");
     form->addRow("Custom width (cm)", customW_);
+    connect(customW_, &QAbstractSpinBox::editingFinished, this, [this] { applyLive(); });
 
     customH_ = new QDoubleSpinBox(this);
     customH_->setRange(1.0, 500.0);
@@ -168,15 +248,7 @@ namespace stencil::gui {
     customH_->setValue(current.customPageHeight);
     customH_->setToolTip("Custom page height in cm (used when page size is custom)");
     form->addRow("Custom height (cm)", customH_);
-
-    holdDelay_ = new QSpinBox(this);
-    holdDelay_->setRange(100, 3000);  // clamp mirrors CanvasWidget::setHoldDrawDelay
-    holdDelay_->setSingleStep(50);
-    holdDelay_->setSuffix(" ms");
-    holdDelay_->setValue(current.holdDrawDelay);
-    holdDelay_->setToolTip(
-        "Press-and-hold delay before hold-to-draw places a point");
-    form->addRow("Hold-to-draw delay", holdDelay_);
+    connect(customH_, &QAbstractSpinBox::editingFinished, this, [this] { applyLive(); });
 
     // "Open in…" targets (Project ▸ Open In…): where the browser app lives and
     // which Telegram bot to deep-link (empty hides the Telegram option).
@@ -184,6 +256,7 @@ namespace stencil::gui {
     browserUrl_->setToolTip(
         "Base URL of the Stencil browser app, used by \"Open In… → Browser app\"");
     form->addRow("Browser app URL", browserUrl_);
+    connect(browserUrl_, &QLineEdit::editingFinished, this, [this] { applyLive(); });
 
     botUsername_ = new QLineEdit(current.telegramBotUsername, this);
     botUsername_->setPlaceholderText("e.g. my_stencil_bot (empty = hidden)");
@@ -191,37 +264,39 @@ namespace stencil::gui {
         "Telegram bot username (without @) for \"Open In… → Telegram bot\"; "
         "leave empty to hide that option");
     form->addRow("Telegram bot", botUsername_);
+    connect(botUsername_, &QLineEdit::editingFinished, this, [this] { applyLive(); });
 
-    // ── AI assistant (llm-contract.md §5): the shared provider/config
-    // rows (llmSettingsForm); irrelevant rows are greyed out, not hidden, so
-    // this sheet's row grid stays stable.
-    {
-      auto* header = new QLabel("<b>AI assistant</b>", this);
-      form->addRow(header);
-    }
-    llmForm_ = new LlmSettingsForm(current, LlmSettingsForm::RowMode::DisableRows, this);
-    form->addRow(llmForm_);
+    // ── AI assistant (llm-contract.md §5) — its own commit/discard dialog ──
+    form->addRow(sectionHeader(this, "AI assistant"));
+    auto* openAssistant = new QPushButton("Open Assistant Settings…", this);
+    openAssistant->setToolTip(
+        "Provider, endpoint, model, and API key — its own dialog, saved on its own Save");
+    connect(openAssistant, &QPushButton::clicked, this,
+            [this] { emit openAssistantSettingsRequested(); });
+    form->addRow(openAssistant);
 
-    auto* buttons =
-        makeButtonBox(this, QDialogButtonBox::Save | QDialogButtonBox::Cancel);
+    auto* buttons = makeButtonBox(this, QDialogButtonBox::Close);
 
     auto* layout = new QVBoxLayout(this);
     layout->addLayout(form);
     layout->addWidget(buttons);
   }
 
-  void SettingsDialog::pickColor() {
+  void SettingsDialog::pickColorInto(QPushButton* btn, QString& hex, const QString& title) {
     // Anchored on the swatch button that was clicked.
-    const QColor c =
-        support::pickColorAnimated(QColor(colorHex_), this, "Default line color", color_);
+    const QColor c = support::pickColorAnimated(QColor(hex), this, title, btn);
     if (!c.isValid()) return;
-    colorHex_ = c.name().toUpper();
-    color_->setText(colorHex_);
-    color_->setStyleSheet(QString("background:%1").arg(colorHex_));
+    hex = c.name().toUpper();
+    setColorSwatch(btn, c);
+    applyLive();
+  }
+
+  void SettingsDialog::applyLive() {
+    if (onChange_) onChange_(result());
   }
 
   Settings SettingsDialog::result() const {
-    Settings s = base_;  // keep fields not exposed here (formulas, tooltip…)
+    Settings s = base_;  // keep fields not exposed here (formulas, tooltip, llm*…)
     s.themeMode = theme_->currentData().toString();
     s.accentColor = accent_->currentData().toString();
     s.nativeMenuBar = nativeMenuBar_->isChecked();
@@ -233,13 +308,16 @@ namespace stencil::gui {
     s.defaultThickness = thickness_->value();
     s.defaultPointSize = pointSize_->value();
     s.defaultStyle = style_->currentText();
+    s.defaultFillColor = fillHex_;
+    s.selGlowColor = selGlowHex_;
+    s.hoverRingColor = hoverRingHex_;
+    s.focusRingColor = focusRingHex_;
     s.pageSize = page_->currentData().toString();
     s.customPageWidth = customW_->value();
     s.customPageHeight = customH_->value();
     s.holdDrawDelay = holdDelay_->value();
     s.browserBaseUrl = browserUrl_->text().trimmed();
     s.telegramBotUsername = botUsername_->text().trimmed().remove(QLatin1Char('@'));
-    llmForm_->applyTo(s);
     return s;
   }
 

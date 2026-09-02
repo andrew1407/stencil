@@ -2,10 +2,15 @@
 #include "openImageDialog.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
+#include "../support/modalChrome.hpp"
 #include "../support/modalReveal.hpp"
+#include "../support/underlineTabBar.hpp"
 #include "mediaLoader.hpp"
 #include <algorithm>
 #include <QAudioOutput>
+#include <QGraphicsOpacityEffect>
+#include <QPointer>
+#include <QPropertyAnimation>
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
@@ -41,6 +46,39 @@ namespace stencil::gui {
     constexpr int kPreviewMaxW = 440;  // preview scaled to fit this box,
     constexpr int kPreviewMaxH = 300;  // keeping aspect ratio (browser parity).
 
+    // One browser .vs-row (components.css): a hairline-underlined form row with a
+    // fixed label column (stencil-open-image-modal label min-width: 88px, row
+    // padding 7px 4px). The QSS half ([vsRow]/[vsLabel]) lives in theme.cpp.
+    QWidget* vsRow(QWidget* parent, const QString& label, QLayout* content) {
+      auto* row = new QWidget(parent);
+      row->setProperty("vsRow", true);
+      row->setAttribute(Qt::WA_StyledBackground, true);
+      auto* h = new QHBoxLayout(row);
+      h->setContentsMargins(4, 7, 4, 7);
+      h->setSpacing(12);
+      auto* l = new QLabel(label, row);
+      l->setProperty("vsLabel", true);
+      l->setMinimumWidth(88);
+      h->addWidget(l);
+      h->addLayout(content, 1);
+      return row;
+    }
+    QWidget* vsRow(QWidget* parent, const QString& label, QWidget* field, int stretch = 1) {
+      auto* h = new QHBoxLayout;
+      h->setContentsMargins(0, 0, 0, 0);
+      h->addWidget(field, stretch);
+      if (!stretch) h->addStretch(1);
+      return vsRow(parent, label, h);
+    }
+
+    // QTabWidget::setTabBar is protected — this shim installs the browser-parity
+    // underline tab strip (support/underlineTabBar.hpp) before any tab is added.
+    struct OiTabWidget : QTabWidget {
+      explicit OiTabWidget(QWidget* parent) : QTabWidget(parent) {
+        setTabBar(new UnderlineTabBar(this));
+      }
+    };
+
     // Video extensions the loader (MediaLoader) can seek + grab a frame from. A
     // source with one of these — local or in a URL — reveals the frame control.
     bool looksLikeVideo(const QString& src) {
@@ -58,97 +96,123 @@ namespace stencil::gui {
                                    const QString& pageSeed, const QString& units)
       : QDialog(parent), pageSeed_(pageSeed), units_(units), canReplace_(canReplace) {
     setWindowTitle("Open Image");
-    setMinimumWidth(480);
+    // The browser's shared modal width. The four-button footer a replaceable project
+    // adds (Cancel / Replace image / Open here / Open in new window) paints tighter
+    // than the layout's minimum reports, so that shape gets a little more room.
+    setMinimumWidth(canReplace ? 610 : kModalWidth);
     const QString mutedCss = "color: gray; font-size: 11px;";
 
-    auto* layout = new QVBoxLayout(this);
+    // Browser openImageModal.js parity: the shared modal shell around the tabbed body.
+    ModalChrome chrome = installModalChrome(this, "image", tr("Open Image"));
+    QVBoxLayout* layout = chrome.body;
 
-    // ── Source tabs: Local file / URL link / Blank. ──
-    const QColor txt = palette().color(QPalette::WindowText);
-    tabs_ = new QTabWidget(this);
+    // ── Source tabs: Local file / URL link / Blank — the browser .oi-tab strip
+    // (underlineTabBar.hpp): animated hover, sliding accent underline, and the
+    // selected tab's GLYPH tinted accent along with its label. ──
+    tabs_ = new OiTabWidget(this);
+    // No pane box (browser .oi-tabs: an underlined tab strip over plain rows — the
+    // .vs-rows carry their own hairlines, so the generic rounded pane doubled up).
+    // The pane keeps only the strip's own full-width hairline (theme.cpp).
+    tabs_->setObjectName("oiTabs");
     // Hug the tab page. QTabWidget expands by default, so the pane stretched into a tall
     // empty box under a two-field form (the browser's tab panel is content-height).
     tabs_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
 
-    // Tab: Local file. A read-only field showing the chosen path + a Browse button
-    // (images AND videos, mirroring the browser modal).
+    // Tab: Local file (browser: one .vs-row "Choose" + the file input). A read-only
+    // field showing the chosen path + a Choose File button (images AND videos); the
+    // chosen file auto-previews, so this tab carries no Preview button of its own.
     auto* fileTab = new QWidget(this);
-    auto* fileForm = new QFormLayout(fileTab);
-    fileForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    auto* fileV = new QVBoxLayout(fileTab);
+    fileV->setContentsMargins(0, 14, 0, 0);   // browser .oi-tabs margin-bottom: 14px
+    fileV->setSpacing(0);
     auto* fileRow = new QHBoxLayout;
+    fileRow->setContentsMargins(0, 0, 0, 0);
     path_ = new QLineEdit(this);
     path_->setReadOnly(true);
     path_->setPlaceholderText("No file chosen");
-    path_->setToolTip("The chosen image or video file (use Choose File… to pick one)");
     auto* browse = new QPushButton("Choose File…", this);
-    browse->setToolTip("Browse for an image or video file to open");
+    makeModalCta(browse, "folder");
     connect(browse, &QPushButton::clicked, this, &OpenImageDialog::browse);
     fileRow->addWidget(path_, 1);
     fileRow->addWidget(browse);
-    fileForm->addRow("Image / video:", fileRow);
-    tabs_->addTab(fileTab, themedIcon("file-text", txt, 15), "Local file");   // browser tab glyphs
+    fileV->addWidget(vsRow(fileTab, tr("Choose"), fileRow));
+    tabs_->addTab(fileTab, "Local file");
 
-    // Tab: URL link. Load an image or video straight from the web (resolved via
-    // MediaLoader, which handles CORS-free fetch + video-frame grab).
+    // Tab: URL link (browser: one .vs-row "URL" with the field AND the Preview button
+    // inline — never on a row of its own). Resolved via MediaLoader (CORS-free fetch +
+    // video-frame grab); preview is explicit so a half-typed URL never spins a fetch.
     auto* urlTab = new QWidget(this);
-    auto* urlForm = new QFormLayout(urlTab);
-    urlForm->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);   // full-width, as in the browser
+    auto* urlV = new QVBoxLayout(urlTab);
+    urlV->setContentsMargins(0, 14, 0, 0);
+    urlV->setSpacing(0);
+    auto* urlRow = new QHBoxLayout;
+    urlRow->setContentsMargins(0, 0, 0, 0);
     url_ = new QLineEdit(this);
     url_->setPlaceholderText("https://… (image or video)");
-    url_->setToolTip("Load an image or video directly from a web URL");
-    urlForm->addRow("URL:", url_);
-    tabs_->addTab(urlTab, themedIcon("link", txt, 15), "URL link");   // browser tab glyphs
-
-    // Tab: Blank. Solid-color canvas (folded in from the retired blank-image dialog).
-    auto* blankTab = new QWidget(this);
-    auto* blankForm = new QFormLayout(blankTab);
-    auto* colorRow = new QHBoxLayout;
-    white_ = new QRadioButton("White", this);
-    white_->setToolTip("Fill the blank image with white");
-    black_ = new QRadioButton("Black", this);
-    black_->setToolTip("Fill the blank image with black");
-    customColorRadio_ = new QRadioButton("Custom:", this);
-    customColorRadio_->setToolTip("Fill the blank image with the picked custom color");
-    white_->setChecked(true);
-    auto* colorGroup = new QButtonGroup(this);
-    colorGroup->addButton(white_);
-    colorGroup->addButton(black_);
-    colorGroup->addButton(customColorRadio_);
-    customSwatch_ = new QToolButton(this);
-    customSwatch_->setToolTip("Pick a custom fill color");
-    setColorSwatch(customSwatch_, customColor_);
-    connect(customSwatch_, &QToolButton::clicked, this, &OpenImageDialog::pickCustomColor);
-    colorRow->addWidget(white_);
-    colorRow->addWidget(black_);
-    colorRow->addWidget(customColorRadio_);
-    colorRow->addWidget(customSwatch_);
-    colorRow->addStretch(1);
-    blankForm->addRow("Fill color:", colorRow);
-    blankWidth_ = new QSpinBox(this);
-    blankWidth_->setRange(1, 8192);
-    blankWidth_->setSuffix(" px");
-    blankWidth_->setValue(blankW);
-    blankWidth_->setToolTip("Blank image width in pixels (1–8192)");
-    blankHeight_ = new QSpinBox(this);
-    blankHeight_->setRange(1, 8192);
-    blankHeight_->setSuffix(" px");
-    blankHeight_->setValue(blankH);
-    blankHeight_->setToolTip("Blank image height in pixels (1–8192)");
-    blankForm->addRow("Width:", blankWidth_);
-    blankForm->addRow("Height:", blankHeight_);
-    tabs_->addTab(blankTab, themedIcon("plus-circle", txt, 15), "Blank");   // browser tab glyphs
-    layout->addWidget(tabs_);
-
-    // Preview button: fetch/decode the chosen source and show it before committing
-    // (mirrors the browser modal's 👁 Preview). A local file auto-previews on browse.
-    auto* previewRow = new QHBoxLayout;
-    previewRow->addStretch(1);
     previewBtn_ = new QPushButton("Preview", this);
-    previewBtn_->setIcon(themedIcon("image", txt, 15));   // the browser's Preview button
+    makeModalCta(previewBtn_, "image");   // the browser's inline Preview button
     previewBtn_->setToolTip("Show the image / first video frame before opening");
     connect(previewBtn_, &QPushButton::clicked, this, &OpenImageDialog::doPreview);
-    previewRow->addWidget(previewBtn_);
-    layout->addLayout(previewRow);
+    urlRow->addWidget(url_, 1);
+    urlRow->addWidget(previewBtn_);
+    urlV->addWidget(vsRow(urlTab, tr("URL"), urlRow));
+    tabs_->addTab(urlTab, "URL link");
+
+    // Tab: Blank (browser: FILL COLOR / SIZE (PX) sections of .vs-rows — the White and
+    // Black presets are swatch BUTTONS that pick the fill, the custom swatch beside
+    // them; plain px number fields, no radios and no unit suffix).
+    auto* blankTab = new QWidget(this);
+    auto* blankV = new QVBoxLayout(blankTab);
+    blankV->setContentsMargins(0, 14, 0, 0);
+    blankV->setSpacing(0);
+    // Browser .vs-section spacing: 14px above (none on the first), 6px below.
+    auto* fillSection = modalSectionLabel(tr("Fill color"), blankTab);
+    fillSection->setContentsMargins(0, 0, 0, 6);
+    blankV->addWidget(fillSection);
+    auto* presetRow = new QHBoxLayout;
+    presetRow->setContentsMargins(0, 0, 0, 0);
+    presetRow->setSpacing(8);
+    auto* whiteBtn = new QPushButton(tr("White"), this);
+    whiteBtn->setObjectName("biPresetWhite");
+    whiteBtn->setToolTip("Fill with white");   // browser bi-preset titles
+    auto* blackBtn = new QPushButton(tr("Black"), this);
+    blackBtn->setObjectName("biPresetBlack");
+    blackBtn->setToolTip("Fill with black");
+    customSwatch_ = new QToolButton(this);
+    setColorSwatch(customSwatch_, customColor_);
+    connect(customSwatch_, &QToolButton::clicked, this, &OpenImageDialog::pickCustomColor);
+    connect(whiteBtn, &QPushButton::clicked, this, [this] {
+      customColor_ = QColor(Qt::white);
+      setColorSwatch(customSwatch_, customColor_);
+    });
+    connect(blackBtn, &QPushButton::clicked, this, [this] {
+      customColor_ = QColor(Qt::black);
+      setColorSwatch(customSwatch_, customColor_);
+    });
+    presetRow->addWidget(whiteBtn);
+    presetRow->addWidget(blackBtn);
+    presetRow->addStretch(1);
+    blankV->addWidget(vsRow(blankTab, tr("Presets"), presetRow));
+    blankV->addWidget(vsRow(blankTab, tr("Custom color"), customSwatch_, /*stretch=*/0));
+    auto* sizeSection = modalSectionLabel(tr("Size (px)"), blankTab);
+    sizeSection->setContentsMargins(0, 14, 0, 6);
+    blankV->addWidget(sizeSection);
+    blankWidth_ = new QSpinBox(this);
+    blankWidth_->setRange(1, 8192);
+    blankWidth_->setValue(blankW);
+    blankHeight_ = new QSpinBox(this);
+    blankHeight_->setRange(1, 8192);
+    blankHeight_->setValue(blankH);
+    blankV->addWidget(vsRow(blankTab, tr("Width"), blankWidth_));
+    blankV->addWidget(vsRow(blankTab, tr("Height"), blankHeight_));
+    tabs_->addTab(blankTab, "Blank");
+    // Browser tab glyphs, named so the strip re-tints them per state (muted / hover /
+    // accent-selected) instead of a fixed-colour QIcon.
+    auto* tabStrip = static_cast<UnderlineTabBar*>(tabs_->tabBar());
+    tabStrip->setTabGlyph(TabFile, "file-text");
+    tabStrip->setTabGlyph(TabUrl, "link");
+    tabStrip->setTabGlyph(TabBlank, "plus-circle");
+    layout->addWidget(tabs_);
 
     // Rendered preview image / frame.
     previewLabel_ = new QLabel(this);
@@ -168,10 +232,8 @@ namespace stencil::gui {
     // player. A checkbox can switch to the container's embedded preview image instead.
     frame_ = new QSpinBox(this);
     frame_->setRange(0, 0);
-    frame_->setToolTip("Exact frame number (validated against the video length)");
     frameSlider_ = new QSlider(Qt::Horizontal, this);
     frameSlider_->setRange(0, 0);
-    frameSlider_->setToolTip("Scrub to a frame");
     frameTotal_ = new QLabel(this);
     frameTotal_->setStyleSheet(mutedCss);
     frameRow_ = new QWidget(this);
@@ -184,9 +246,6 @@ namespace stencil::gui {
     frameH->addWidget(frameTotal_);
     frameV->addLayout(frameH);
     usePreview_ = new QCheckBox("Use the video's preview image instead of a frame", frameRow_);
-    usePreview_->setToolTip(
-        "Some videos embed a preview/cover image, unrelated to their frames. "
-        "Enabled only when this video carries one.");
     usePreview_->setEnabled(false);
     frameV->addWidget(usePreview_);
     frameRow_->setVisible(false);  // shown only for videos
@@ -214,7 +273,6 @@ namespace stencil::gui {
       // Every named ISO format (labels with sizes, data = the canonical name). No
       // "custom" here — the crop needs a fixed page aspect.
       fillPageSizeCombo(cropPageSize_, /*includeCustom=*/false, units_);
-      cropPageSize_->setToolTip("Page size to crop to");
       qc->addWidget(cropPage_);
       qc->addWidget(cropAlbum_);
       qc->addWidget(cropPageSize_);
@@ -222,80 +280,64 @@ namespace stencil::gui {
     }
     quickcropRow_->setVisible(false);  // shown once a preview succeeds
     layout->addWidget(quickcropRow_);
-    // Slack goes here, not into the controls: without it a taller-than-needed dialog fed
-    // its spare height to the tab pane and the source row floated in an empty box.
-    layout->addStretch(1);
     // Album / page only matter when cropping to page; grey them out otherwise.
     connect(cropPage_, &QCheckBox::toggled, this, &OpenImageDialog::syncQuickcropEnabled);
 
-    // Incognito: edit without saving (mirrors the browser checkbox). Applies to a
-    // file/URL open; hidden on the Blank tab (blank creation never honored it).
-    commonForm_ = new QFormLayout;
-    commonForm_->setContentsMargins(0, 0, 0, 0);
-    incognito_ = new QCheckBox("Edit without saving", this);
-    incognito_->setToolTip("Open the image in incognito mode — edits are not saved");
-    commonForm_->addRow("Incognito:", incognito_);
-    layout->addLayout(commonForm_);
+    // Incognito: a .vs-row with the browser's full caption (openImageModal.js).
+    // Applies to a file/URL open; hidden on the Blank tab (never honored there).
+    incognito_ = new QCheckBox(
+        "Edit without saving — the image is never written to storage.", this);
+    incogRow_ = vsRow(this, tr("Incognito"), incognito_, /*stretch=*/0);
+    layout->addWidget(incogRow_);
 
     // Replace options: only shown on the Local file tab over a replaceable project.
+    // The two checks stack (browser .oi-replace wraps them onto their own lines).
     replaceRow_ = new QWidget(this);
     if (canReplace_) {
       rename_ = new QCheckBox("Rename project to the new image", this);
-      rename_->setToolTip("Adopt the new file's name for this project");
       keep_ = new QCheckBox("Keep existing annotations", this);
-      keep_->setToolTip("Keep the current lines over the replacement image");
       keep_->setChecked(true);
-      auto* opts = new QHBoxLayout(replaceRow_);
-      opts->setContentsMargins(0, 0, 0, 0);
-      opts->setSpacing(18);
-      opts->addWidget(new QLabel("Replace:", this));
-      opts->addWidget(rename_);
-      opts->addWidget(keep_);
-      opts->addStretch(1);
+      auto* checks = new QVBoxLayout;
+      checks->setContentsMargins(0, 0, 0, 0);
+      checks->setSpacing(7);
+      checks->addWidget(rename_);
+      checks->addWidget(keep_);
+      auto* wrap = new QVBoxLayout(replaceRow_);
+      wrap->setContentsMargins(0, 0, 0, 0);
+      wrap->addWidget(vsRow(replaceRow_, tr("Replace"), checks));
     }
     layout->addWidget(replaceRow_);
+    // Slack at the BOTTOM (browser: rows stack at the top of the body) — mid-body it
+    // split the URL row from the Incognito row with a band of empty space.
+    layout->addStretch(1);
 
-    auto* hint = new QLabel(
-        "“Open here” loads the source in this editor; “Open in new window” leaves it "
-        "untouched. A URL/video always makes a new project. “Blank” makes a solid-color "
-        "canvas.",
-        this);
-    hint->setWordWrap(true);
-    hint->setStyleSheet(mutedCss);
-    layout->addWidget(hint);
-
-    // ── Footer actions ── file/URL: Cancel / Replace? / Open here / Open in new window.
-    // blank: Cancel / Create blank.
-    auto* btnRow = new QHBoxLayout;
-    btnRow->addStretch(1);
+    // ── Footer actions (browser settings-footer: every enabled button accent-filled,
+    // Cancel included; a disabled one drops to the grey chip) ── file/URL: Cancel /
+    // Replace? / Open here / Open in new window. blank: Cancel / Create blank.
+    QHBoxLayout* btnRow = addModalFooter(chrome);
     auto* cancel = new QPushButton("Cancel", this);
-    cancel->setIcon(themedIcon("x", txt, 15));
+    makeModalCta(cancel, "x");
     cancel->setToolTip("Close without opening an image");
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
-    // The affirmative action wears the accent fill (#primaryButton) with a white glyph, as
-    // the browser modal's "Open here" does; the rest take the plain treatment.
     here_ = new QPushButton("Open here", this);
-    here_->setObjectName("primaryButton");
-    here_->setIcon(themedIcon("image", QColor("#ffffff"), 15));
+    makeModalCta(here_, "image");
     connect(here_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::Here; accept(); });
     newWindow_ = new QPushButton("Open in new window", this);
-    newWindow_->setIcon(themedIcon("external", txt, 15));
+    makeModalCta(newWindow_, "external");
     connect(newWindow_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::NewWindow; accept(); });
     createBlank_ = new QPushButton("Create blank", this);
-    createBlank_->setObjectName("primaryButton");
-    createBlank_->setIcon(themedIcon("plus-circle", QColor("#ffffff"), 15));
+    makeModalCta(createBlank_, "plus-circle");
     connect(createBlank_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::Blank; accept(); });
     btnRow->addWidget(cancel);
     if (canReplace_) {
       replace_ = new QPushButton("Replace image", this);
-      replace_->setIcon(themedIcon("refresh", txt, 15));
+      makeModalCta(replace_, "refresh");
       connect(replace_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::Replace; accept(); });
       btnRow->addWidget(replace_);
     }
     btnRow->addWidget(here_);
     btnRow->addWidget(newWindow_);
     btnRow->addWidget(createBlank_);
-    layout->addLayout(btnRow);
 
     // ── Preview wiring (mirrors LinksDialog) ──
     preview_ = new MediaLoader(this);
@@ -371,6 +413,57 @@ namespace stencil::gui {
     connect(tabs_, &QTabWidget::currentChanged, this, [this] { applyMode(); });
     tabs_->setCurrentIndex(startBlank ? TabBlank : TabFile);
     applyMode();
+    constructed_ = true;   // tab switches from here on are USER switches — they fade
+  }
+
+  // One dialog height across the source tabs (browser parity: the shell is sized for
+  // the tallest tab — Blank — and the shorter tabs keep the slack above the footer).
+  // Measured on FIRST SHOW, not in the constructor: updateGeometry() is a no-op on a
+  // hidden widget, so pre-show every tab reports the same stale sizeHint. A top-level
+  // window never shrinks on its own, so opening at the tallest keeps it constant; a
+  // preview landing later still grows it (no explicit minimum is pinned, which would
+  // override the layout's real minimum and let content squeeze).
+  void OpenImageDialog::showEvent(QShowEvent* event) {
+    QDialog::showEvent(event);
+    if (measured_) return;
+    measured_ = true;
+    measuring_ = true;   // silent switches — no cross-tab fade for a measurement
+    const int keep = tabs_->currentIndex();
+    int tallest = 0;
+    for (int i = 0; i < tabs_->count(); ++i) {
+      tabs_->setCurrentIndex(i);
+      if (QLayout* l = layout()) l->activate();
+      tallest = std::max(tallest, sizeHint().height());
+    }
+    tabs_->setCurrentIndex(keep);
+    measuring_ = false;
+    if (QLayout* l = layout()) l->activate();
+    if (tallest > height()) resize(width(), tallest);
+  }
+
+  // The arriving tab page eases in (the strip's underline slides in step — see
+  // underlineTabBar.hpp), so switching Local file / URL link / Blank is not a hard
+  // cut. The veil is dropped when the play ends, so nothing is ever left dimmed.
+  void OpenImageDialog::fadeInCurrentPage() {
+    if (!constructed_ || measuring_ || !isVisible() || support::motionReduced()) return;
+    QWidget* page = tabs_->currentWidget();
+    if (!page) return;
+    auto* veil = new QGraphicsOpacityEffect(page);
+    veil->setOpacity(0.0);
+    page->setGraphicsEffect(veil);
+    auto* fade = new QPropertyAnimation(veil, "opacity", veil);
+    fade->setDuration(180);
+    fade->setStartValue(0.0);
+    fade->setEndValue(1.0);
+    fade->setEasingCurve(QEasingCurve::OutCubic);
+    QPointer<QWidget> guard(page);
+    QPointer<QGraphicsOpacityEffect> veilGuard(veil);
+    connect(fade, &QPropertyAnimation::finished, page, [guard, veilGuard] {
+      // however it ended, never left dimmed — but only OUR veil is removed
+      if (guard && veilGuard && guard->graphicsEffect() == veilGuard)
+        guard->setGraphicsEffect(nullptr);
+    });
+    fade->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
   bool OpenImageDialog::eventFilter(QObject* obj, QEvent* event) {
@@ -402,7 +495,6 @@ namespace stencil::gui {
         support::pickColorAnimated(customColor_, this, "Fill color", customSwatch_);
     if (!c.isValid()) return;
     customColor_ = c;
-    customColorRadio_->setChecked(true);
     setColorSwatch(customSwatch_, customColor_);
   }
 
@@ -422,18 +514,18 @@ namespace stencil::gui {
   void OpenImageDialog::applyMode() {
     const bool blank = tabs_->currentIndex() == TabBlank;
     fitTabsToCurrentPage();
-    commonForm_->setRowVisible(incognito_, !blank);  // incognito has no effect on a blank
+    incogRow_->setVisible(!blank);  // incognito has no effect on a blank
     here_->setVisible(!blank);
     newWindow_->setVisible(!blank);
     if (replace_) replace_->setVisible(!blank && tabs_->currentIndex() == TabFile);
     replaceRow_->setVisible(!blank && canReplace_ && tabs_->currentIndex() == TabFile);
     createBlank_->setVisible(blank);
-    previewBtn_->setVisible(!blank);
     if (blank) clearPreviewImage();   // the blank tab has no source to preview
     // Switching source tabs invalidates any preview built for the other tab.
     resetPreviewState();
     if (!blank) refreshButtons();
     else frameRow_->setVisible(false);
+    fadeInCurrentPage();
   }
 
   // Action buttons stay disabled until a source (file or URL) is chosen; Replace is
@@ -680,11 +772,9 @@ namespace stencil::gui {
   bool OpenImageDialog::rename() const { return rename_ && rename_->isChecked(); }
   bool OpenImageDialog::keepAnnotations() const { return !keep_ || keep_->isChecked(); }
 
-  QColor OpenImageDialog::blankColor() const {
-    if (white_->isChecked()) return QColor(Qt::white);
-    if (black_->isChecked()) return QColor(Qt::black);
-    return customColor_;
-  }
+  // The White/Black presets and the picker all write customColor_ (browser parity:
+  // the presets set the same fill the custom swatch holds).
+  QColor OpenImageDialog::blankColor() const { return customColor_; }
   int OpenImageDialog::blankWidth() const { return blankWidth_->value(); }
   int OpenImageDialog::blankHeight() const { return blankHeight_->value(); }
 

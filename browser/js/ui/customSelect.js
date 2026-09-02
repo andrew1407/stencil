@@ -1,6 +1,7 @@
 import { icon } from './icons.js';
 import { rowMatches } from './base.js';
 import { showMenu, hideMenu } from './dropdownMenu.js';
+import { markSwap } from './motion.js';
 
 // Custom dropdown overlaying a native <select> (kept as the source of truth) — macOS
 // centers the native popup uncss-ably, so the compact toolbar selects look misplaced.
@@ -99,8 +100,17 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
     }
   };
 
+  // The chosen word is a MARK like any other (ui/motion.js markSwap): the outgoing value
+  // comes apart into motes and the incoming one forms out of them, in place, without the
+  // trigger's box moving. Only a real CHANGE flies — the first paint, a re-sync on open
+  // and a set to the value already shown write straight through, or every dropdown would
+  // deal itself in on open.
+  let shown = null;
   const sync = () => {
-    cur.textContent = labelOf(selectEl.value);
+    const label = labelOf(selectEl.value);
+    if (shown === null || label === shown) cur.textContent = label;
+    else markSwap(cur, () => { cur.textContent = label; });
+    shown = label;
     for (const li of menu.querySelectorAll('.accent-dd-opt'))
       li.setAttribute('aria-selected', li.dataset.value === selectEl.value ? 'true' : 'false');
   };

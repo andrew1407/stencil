@@ -1,7 +1,8 @@
 #include "openInDialog.hpp"
 #include "iconSet.hpp"
+#include "../support/modalChrome.hpp"
 #include <QCheckBox>
-#include <QFormLayout>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -13,39 +14,51 @@ namespace stencil::gui {
                              bool browserAvailable, bool telegramAvailable, bool startIncognito)
       : QDialog(parent) {
     setWindowTitle("Open In…");
-    setMinimumWidth(440);
+    setMinimumWidth(520);
 
-    auto* layout = new QVBoxLayout(this);
-    auto* form = new QFormLayout;
+    // Browser openInModal.js parity: shared modal shell, one .vs-section, and the
+    // label/value rows split by hairlines.
+    ModalChrome chrome = installModalChrome(this, "external", tr("Open In…"));
+    chrome.body->addWidget(modalSectionLabel(tr("Open the current project in another app"), this));
 
-    // Status line: what will be handed over (server reference vs inline bytes).
+    auto* rows = new QGridLayout;
+    rows->setHorizontalSpacing(16);
+    rows->setVerticalSpacing(0);
+    rows->setColumnStretch(1, 1);
+    const QString mutedCss =
+        QString("color: %1;").arg(palette().color(QPalette::PlaceholderText).name());
+
+    // Row: what will be handed over (server reference vs inline bytes).
+    auto* projectLbl = new QLabel(tr("Project"), this);
     auto* status = new QLabel(
         serverProject
             ? QString("Server project on %1 — the link carries only the server "
                       "reference (no token).").arg(serverUrl)
-            : QString("Local/incognito session — the image and layout are sent "
-                      "inline (no server involved)."),
+            : QString("Local project — the image and layout are sent inline "
+                      "(no server involved)."),
         this);
     status->setWordWrap(true);
-    form->addRow("Project:", status);
+    status->setStyleSheet(mutedCss);
+    rows->addWidget(projectLbl, 0, 0, Qt::AlignTop);
+    rows->addWidget(status, 0, 1);
+    rows->setRowMinimumHeight(1, 8);
+    rows->addWidget(modalDivider(this), 1, 0, 1, 2, Qt::AlignVCenter);
+    rows->setRowMinimumHeight(2, 8);
 
-    // Incognito on the RECEIVING side (Stencil's own never-persisted mode).
-    incognito_ = new QCheckBox("Open there without saving (incognito)", this);
+    // Row: incognito on the RECEIVING side (Stencil's own never-persisted mode).
+    auto* incogLbl = new QLabel(tr("Incognito"), this);
+    incognito_ = new QCheckBox(tr("Open it there without saving (Stencil incognito mode)."), this);
     incognito_->setChecked(startIncognito);
-    incognito_->setToolTip(
-        "The receiving app opens the project in Stencil incognito mode — nothing "
-        "is persisted there");
-    form->addRow("Incognito:", incognito_);
-    layout->addLayout(form);
+    rows->addWidget(incogLbl, 3, 0);
+    rows->addWidget(incognito_, 3, 1);
+    chrome.body->addLayout(rows);
+    chrome.body->addStretch(1);
 
-    auto* btnRow = new QHBoxLayout;
-    btnRow->addStretch(1);
-    auto* cancel = new QPushButton("Cancel", this);
-    cancel->setToolTip("Close without opening anything");
-    // Same glyphs as the browser's Open In… modal (openInModal.js): x to back out,
-    // message for the Telegram bot; the browser app is the "leave this app" target.
-    const QColor openInTxt = palette().color(QPalette::WindowText);
-    cancel->setIcon(themedIcon("x", openInTxt, 15));
+    // Footer (browser settings-footer): every enabled action wears the accent fill,
+    // Cancel included — the browser's default <button> treatment.
+    QHBoxLayout* btnRow = addModalFooter(chrome);
+    auto* cancel = new QPushButton(tr("Cancel"), this);
+    makeModalCta(cancel, "x");
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
     btnRow->addWidget(cancel);
 
@@ -53,10 +66,8 @@ namespace stencil::gui {
     // when not — matching the browser modal); the caller only opens the dialog when
     // at least one is available, so the footer is never empty.
     if (browserAvailable) {
-      browser_ = new QPushButton("Browser app", this);
-      browser_->setIcon(themedIcon("external", openInTxt, 15));
-      browser_->setToolTip("Open this project in the Stencil browser app "
-                           "(the base URL is set in Settings)");
+      browser_ = new QPushButton(tr("Browser app"), this);
+      makeModalCta(browser_, "external");
       connect(browser_, &QPushButton::clicked, this, [this] {
         outcome_ = Outcome::Browser;
         accept();
@@ -66,16 +77,14 @@ namespace stencil::gui {
     // Telegram needs a configured bot username AND a server project (a 64-char start
     // payload can't carry image bytes) — both folded into telegramAvailable.
     if (telegramAvailable) {
-      telegram_ = new QPushButton("Telegram bot", this);
-      telegram_->setIcon(themedIcon("message", openInTxt, 15));
-      telegram_->setToolTip("Open this server project in the Telegram bot");
+      telegram_ = new QPushButton(tr("Telegram bot"), this);
+      makeModalCta(telegram_, "message");
       connect(telegram_, &QPushButton::clicked, this, [this] {
         outcome_ = Outcome::Telegram;
         accept();
       });
       btnRow->addWidget(telegram_);
     }
-    layout->addLayout(btnRow);
   }
 
   bool OpenInDialog::incognito() const { return incognito_->isChecked(); }

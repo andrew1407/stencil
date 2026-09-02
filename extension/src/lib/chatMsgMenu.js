@@ -52,6 +52,34 @@ export const clampMenuPosition = ({ x, y, size, viewport, margin = 6 }) => {
   return { left: Math.max(margin, x), top: Math.max(margin, y) };
 };
 
+// ── Yielding to the jump pills (assistant.js wires these to the hovered bubble) ──
+// The pills win: a row's "…" that would sit under one rises clear of it, or hides
+// where there is no room to. Same "shift, else hide" as the desktop
+// (placeChatCardMore) and the browser (chatView.js).
+export const MSG_MENU_JUMP_GAP = 6;   // clearance once lifted clear of the pills
+
+// How far (px) `btn` must rise to clear every pill it currently overlaps — 0 when
+// none of them touch it. Pure geometry over DOMRect-shaped objects.
+export const msgMenuLiftPx = (btn, pills = [], gap = MSG_MENU_JUMP_GAP) => {
+  if (!btn || !(btn.width > 0)) return 0;
+  let lift = 0;
+  for (const p of pills) {
+    if (!p || !(p.width > 0 && p.height > 0)) continue;
+    const overlapsX = btn.left < p.right && btn.right > p.left;
+    const overlapsY = btn.bottom > p.top && btn.top < p.bottom;
+    if (overlapsX && overlapsY) lift = Math.max(lift, Math.ceil(btn.bottom - p.top) + gap);
+  }
+  return lift;
+};
+
+// Whether lifting `btn` by `lift` still keeps the WHOLE button over its own bubble —
+// a short bubble has nowhere to lift the trigger TO, and the caller hides it rather
+// than park it over the neighbouring message. Pure.
+export const msgMenuLiftFits = (bubble, btn, lift) => {
+  if (!bubble || !btn || !(lift > 0)) return true;
+  return btn.top - lift >= bubble.top;
+};
+
 // Where the open-pop animation grows FROM: the click point (x,y) expressed
 // relative to the menu's final clamped left/top, held inside the menu box so a
 // clamped-away menu still grows from its nearest edge. Shared by both menus.

@@ -199,7 +199,11 @@ button.active {
 button.danger {
     background: var(--danger);
 }
-button.danger:hover {
+/* :not(:disabled) — button.danger:disabled sits earlier above at the SAME specificity
+   (0,2,1), so plain button.danger:hover would win the tie on a disabled danger button
+   (Clear All Lines, Remove) by source order alone, painting it red on hover despite
+   being inactive. */
+button.danger:hover:not(:disabled) {
     background: var(--danger-2);
 }
 
@@ -275,10 +279,11 @@ button.danger:hover {
    prefers-reduced-motion. ── */
 button, .btn-icon, .btn-icon-text, .coord-tab, .pill-toggle, .idle-create-btn,
 .accent-dd-trigger, .name-edit-btn, .project-row, .connect-row, .accent-dd-opt,
-.project-menu-item, .lines-list-row, .shimmer { position: relative; overflow: hidden; }
+.project-menu-item, .lines-list-row, .ctx-item, .shimmer { position: relative; overflow: hidden; }
 button::after, .btn-icon::after, .btn-icon-text::after, .coord-tab::after, .pill-toggle::after,
 .idle-create-btn::after, .accent-dd-trigger::after, .name-edit-btn::after, .project-row::after,
-.connect-row::after, .accent-dd-opt::after, .project-menu-item::after, .lines-list-row::after, .shimmer::after {
+.connect-row::after, .accent-dd-opt::after, .project-menu-item::after, .lines-list-row::after,
+.ctx-item::after, .shimmer::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -294,7 +299,7 @@ button:hover:not(:disabled)::after, .btn-icon:hover:not(:disabled)::after,
 .btn-icon-text:hover:not(:disabled)::after, .coord-tab:hover::after, .pill-toggle:hover::after,
 .idle-create-btn:hover::after, .accent-dd-trigger:hover::after, .name-edit-btn:hover:not(:disabled)::after,
 .project-row:hover::after, .connect-row:hover::after, .accent-dd-opt:hover::after,
-.project-menu-item:hover::after, .lines-list-row:hover::after, .shimmer:hover::after {
+.project-menu-item:hover::after, .lines-list-row:hover::after, .ctx-item:hover::after, .shimmer:hover::after {
     animation: ui-shimmer 0.75s ease;
 }
 @keyframes ui-shimmer {
@@ -365,7 +370,8 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
 }
 .main-content {
     display: flex;
-    gap: 20px;
+    /* Canvas ↔ resizer ↔ panel: 10 + 8 (.panel-resizer) + 10 = 28px total. */
+    gap: 10px;
     align-items: flex-start;
     /* Takes the height the toolbar/info rows leave over (fill chain on body). */
     flex: 1 1 auto;
@@ -384,7 +390,7 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
 }
 .canvas-viewport {
     overflow: auto;
-    margin-top: 20px;
+    margin-top: 10px;
     border: 2px solid var(--border-canvas);
     max-width: 100%;
     /* The end of the fill chain — and the frame ALWAYS takes every remaining pixel, image or
@@ -489,6 +495,14 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     padding: 4px 0;
 }
 .zoom-menu[hidden] { display: none; }
+/* While open, the menu is moved to <body> (js/ui/dropdownMenu.js) — same portal contract
+   as .accent-dd-menu (components.css), which used to slice this list under the row below. */
+.zoom-menu.dd-portal {
+    position: fixed;
+    left: auto;
+    top: auto;
+    z-index: 100002;
+}
 .zoom-menu-item {
     padding: 5px 14px;
     font-size: 13px;
@@ -588,15 +602,15 @@ canvas.zoom-no-transition {
 /* Folded toolbar: the size line goes with it — the "?" beside the project name carries the
    same two facts in its bubble (toolbar.js), and leaving the line behind put a full-width
    band plus 27px of margin between the collapsed header and the canvas.
-   The margins that separated those rows go too: 8 (topbar) + 12 (toolbar card) + 20 (the
-   viewport's own gap under the info line) stacked to 40px of nothing under a header that is
+   The margins that separated those rows go too: 8 (topbar) + 12 (toolbar card) + 10 (the
+   viewport's own gap under the info line) stacked to 30px of nothing under a header that is
    itself only 33px tall. Collapsed, the canvas sits right under it. */
 body.controls-collapsed .info { display: none; }
 body.controls-collapsed .controls-topbar { margin-bottom: 0; }
 body.controls-collapsed .controls-wrapper { margin-bottom: 8px; }
 body.controls-collapsed .canvas-viewport { margin-top: 0; }
 .info {
-    margin-top: 15px;
+    margin-top: 0;
     padding: 10px;
     background: var(--bg-info);
     border-radius: 4px;
@@ -702,13 +716,15 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 /* ✎ rename affordance: hidden until you hover the field. JS sets display:none when the
    project can't be renamed (no project / incognito) or while editing, so this only
    reveals it when it's actually actionable. */
+/* Revealed by the .name-hover class (controlsBinder wires mouseenter/leave), not a bare
+   :hover — the flip plays markIn/markOut dust, which needs a JS hand on the switch. */
 .name-edit-pencil { visibility: hidden; }
-.project-name-field:hover .name-edit-pencil { visibility: visible; }
+.project-name-field.name-hover .name-edit-pencil { visibility: visible; }
 /* Palette (project-colour) button hover-reveals with the ✎ pencil — hidden until you hover
    the name field, so it doesn't sit in the bar permanently. JS still gates display: on a
    saved project; visibility (not display) keeps the row width stable so nothing shifts. */
 #project-color-btn { visibility: hidden; }
-.project-name-field:hover #project-color-btn { visibility: visible; }
+.project-name-field.name-hover #project-color-btn { visibility: visible; }
 /* Inline rename accept(✓)/cancel(✗) buttons (topbar + projects list). */
 .name-edit-btn { border: 1px solid var(--border-main); background: var(--bg-info); border-radius: 5px; padding: 2px 7px; font-size: 12px; line-height: 1; cursor: pointer; }
 .name-edit-btn:disabled { opacity: .4; cursor: not-allowed; }
@@ -790,11 +806,16 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 }
 
 /* ── Coordinates panel ── */
+/* What the panel is wide BEFORE the user has ever dragged it (--coord-panel-width is
+   written by the resizer, js/utils.js). One token, because the fullscreen points drawer
+   and its resizer rail fall back to the same number (components.css, animations.css) —
+   they read as one panel and must not drift apart. */
+:root { --coord-panel-default: 405px; }
 .coordinates-panel {
     /* Width is user-resizable via #panel-resizer (drag handle), persisted as --coord-panel-width;
        clamped to a sensible range. flex:0 0 auto so the canvas-section (flex:1) takes the rest. */
     flex: 0 0 auto;
-    width: var(--coord-panel-width, 360px);
+    width: var(--coord-panel-width, var(--coord-panel-default));
     min-width: 240px;
     max-width: 640px;
     background: var(--bg-coord-panel);
@@ -854,6 +875,11 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 /* No resizing while the panel is collapsed to its 36px rail. */
 .main-content:has(.coordinates-panel.coord-collapsed) .panel-resizer { display: none; }
 .coordinates-panel.coord-collapsed {
+    /* Collapsing is the slower half — see --fold-out-ms (animations.css). Declared HERE,
+       on the after-change style, so only the way out takes it. */
+    transition: width var(--fold-out-ms) var(--fold-ease),
+                min-width var(--fold-out-ms) var(--fold-ease),
+                padding var(--fold-out-ms) var(--fold-ease);
     /* 0, not `unset`: `min-width: auto` cannot be interpolated, and with `unset` the
        240px floor snapped back the instant the class came off — the panel jumped most of
        the way open before the width transition (animations.css) had anything left to do. */

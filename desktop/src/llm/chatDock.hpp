@@ -9,6 +9,7 @@
 
 #include "opPlan.hpp"
 #include "pillSplitter.hpp"   // the shared composer resize grip
+#include "../support/theme.hpp"   // Palette, cached for a swap-triggered re-style
 #include <functional>
 
 class QAction;
@@ -16,6 +17,7 @@ class QFrame;
 class QCloseEvent;
 class QHideEvent;
 class QLabel;
+class QLayout;
 class QMoveEvent;
 class QPalette;
 class QDragEnterEvent;
@@ -47,7 +49,9 @@ class QWidget;
 // attach images/videos (mediaLoader's suffix sniffers route them).
 namespace stencil::gui {
 
-  struct Palette;  // support/theme.hpp
+  // Palette (support/theme.hpp) is fully included above: ChatDock caches one by
+  // value (paletteCache_), so a swap-triggered re-style can rebuild its
+  // stylesheet without the caller re-supplying the theme.
 
   // Empty-state suggestion chips (browser parity): prompt pills in a wrapping
   // flow layout, SHARED by the dock and the context menu's assistant panel so
@@ -79,6 +83,33 @@ namespace stencil::gui {
   // label so the caller can extend the card (warnings, notes, thumbnails).
   QLabel* fillChatCard(QFrame* card, QVBoxLayout* lay, const QString& role,
                        const QString& text, ChatCardKind kind, const QColor& danger);
+  // ── "Swap message sides" (Settings::chatSwapSides; browser/extension
+  // chatLayoutPrefs.js parity) ─────────────────────────────────────────────
+  // Which side a bubble draws on given the CURRENT preference: `swapped` flips it,
+  // `user` alone decides it at rest (user right, everything else left — today's
+  // layout). Pure.
+  inline bool chatBubbleOnRight(bool user, bool swapped) { return swapped ? !user : user; }
+  // The tail's fill/border for a card's own objectName — OPAQUE, flattened over
+  // `pageBg` (browser --msg-fill/--msg-border parity). `pageBg` is the surface the
+  // cards sit ON (the dock's #chatBody / the ctx-assist QMenu), NOT `chip`, which is
+  // only the assistant bubble's own un-mixed fill. false ⇒ no tail (Muted notices).
+  bool chatBubbleColorsFor(const QString& objectName, const QColor& accent, const QColor& chip,
+                           const QColor& border, const QColor& danger, const QColor& pageBg,
+                           QColor& fillOut, QColor& borderOut);
+  // Put one already-built card on `right`: its alignment in `layout`, the
+  // kChatOnRightProperty placeChatCardMore reads back, and its tail (skipped for a
+  // tail-less card). Both surfaces run it on append AND on a swap-toggle re-skin.
+  void applyChatBubbleSide(QFrame* card, QLayout* layout, bool right, const QColor& accent,
+                           const QColor& chip, const QColor& border, const QColor& danger,
+                           const QColor& pageBg);
+  // Re-skin every card already under `transcript` for the swap preference — the
+  // shared body of both surfaces' setChatSwapSides re-skin loop.
+  void applyChatSwapToCards(QWidget* transcript, QLayout* layout, bool swapped,
+                            const QColor& accent, const QColor& chip, const QColor& border,
+                            const QColor& danger, const QColor& pageBg);
+  // `a` over `b` at `t` opacity, flattened opaque — for the places a translucent
+  // colour is not an option (a rasterised icon, a painted tail with no known backdrop).
+  QColor blendColors(const QColor& a, const QColor& b, double t);
   // ── Per-message row menu: the hover "…" plus the right-click menu, SHARED by
   // the dock and the context menu's assistant panel (browser chatView.js
   // chatRowMenuItems: EVERY settled row — errors included — offers Copy message /
@@ -95,17 +126,23 @@ namespace stencil::gui {
     // still visible for the length of its slide, and a menu opening out of a
     // shrinking panel has nowhere to live once it lands).
     std::function<bool()> leaving;
-    // Fired whenever a row's "…" is shown, hidden, moved or resized, so a
-    // surface with its own floating furniture (the dock's jump pills) can get
-    // out of its way. Null where there is nothing to move.
+    // Fired whenever a row's "…" is shown, hidden, moved or resized. Null where
+    // nothing needs telling.
     std::function<void()> moreMoved;
+    // Global-coords furniture the "…" must not sit under (the dock's jump pills) —
+    // it shifts clear, or hides if there is no room. Re-asked on every placement, so
+    // the caller's own furniture can move independently. Null ⇒ nothing to avoid.
+    std::function<QRect()> avoidRect;
     QColor text, chip, border, accent, muted;   // theme tones for menu + button
   };
   void installChatCardMenu(QFrame* card, const ChatCardMenuHooks& hooks);
   // Park a card's "…" against the VISIBLE SLICE of the card inside `scroll`'s
   // viewport (the intersection), so a row clipped by the viewport edge still
-  // shows a reachable button instead of one parked out of sight.
-  void placeChatCardMore(QFrame* card, QToolButton* more, QScrollArea* scroll);
+  // shows a reachable button instead of one parked out of sight. `avoidGlobal`:
+  // see ChatCardMenuHooks::avoidRect above. (Default arg lives on the one
+  // declaration in chatWidgets.hpp — redeclaring it here too is a redefinition.)
+  void placeChatCardMore(QFrame* card, QToolButton* more, QScrollArea* scroll,
+                         const QRect& avoidGlobal);
   // The three bouncing dots an in-flight turn shows. Shared so the context
   // menu's assistant panel animates exactly like the dock (its pending row used
   // to be a static "…", which read as a hung request).
@@ -114,6 +151,10 @@ namespace stencil::gui {
   // ghost glyph, added to the card's own layout. Shared so both surfaces offer it.
   QToolButton* addChatRetryButton(QVBoxLayout* lay, const QColor& glyph,
                                   std::function<void()> onClick);
+  // The unreachable-card "Configure provider" CTA (browser chatConfigureButton),
+  // shared by both surfaces; `onClick` gets the button as the reveal's anchor.
+  QPushButton* addChatConfigureCta(QVBoxLayout* lay, const QColor& accent,
+                                   std::function<void(QPushButton*)> onClick);
   // A muted note line INSIDE a message card (warnings, executor notes, the late
   // §3.2/§3.1 reports). Shared so a mirrored card carries them exactly as the
   // dock's does — one bubble per turn, notes inside it, never extra rows.
@@ -126,7 +167,12 @@ namespace stencil::gui {
   void applyChatBubbleWidths(QWidget* transcript, QScrollArea* scroll);
   // The QSS the card object names above resolve against — both hosts apply it
   // in their own restyle, so a bubble looks the same wherever it is rendered.
-  QString chatCardStyleSheet(const Palette& pal);
+  // `swapped` (Settings::chatSwapSides) picks which corner is flattened for the tail
+  // (browser border-bottom-*-radius:0 + the .chat-swapped mirror) — the base 10px
+  // radius left a notch against the tail's straight edges. Keyed on the whole sheet
+  // rather than per-card (a card's own local QSS shifts its wrapped label's height),
+  // so a swap toggle re-issues all of it — see ChatDock::paletteCache_.
+  QString chatCardStyleSheet(const Palette& pal, bool swapped);
 
   class ChatDock : public QDockWidget {
     Q_OBJECT
@@ -152,6 +198,11 @@ namespace stencil::gui {
     // ordinary failure, which offers only Resend.
     void appendExpiredSession(const QString& text, const QString& host,
                               const QString& retryText = QString());
+    // A transport/config failure the user can fix by picking a different provider
+    // (browser "unreachable" kind): the message plus a "Configure provider" action
+    // that opens the assistant settings dialog flying FROM this very button
+    // (configureProviderRequested), not the "…" trigger.
+    void appendUnreachable(const QString& text, const QString& retryText = QString());
     // Adds the shared one-click Retry to a card's layout (no-op without text).
     void addRetryButton(QVBoxLayout* lay, const QString& retryText);
     // A muted informational card (e.g. "text-only model — image not sent").
@@ -161,8 +212,7 @@ namespace stencil::gui {
     void appendLateNote(const QString& text);
     // One inline note when an attach attempt exceeds the §7 image cap (browser parity).
     void warnAttachmentCap();
-    // Muted informational card (e.g. "assistant turned off") — configure-style
-    // guidance, not an error row.
+    // Muted informational card — a general-purpose neutral note, not an error row.
     void appendNotice(const QString& text);
     // Pending "…" assistant card while a turn is in flight: shown on send,
     // removed when the real reply lands (clearPending) or converted in place
@@ -185,6 +235,12 @@ namespace stencil::gui {
     // ── state ──
     void setBusy(bool on);
     bool isBusy() const;
+    // "Swap message sides": re-skins every EXISTING card (alignment + tail side,
+    // never colour) and every card appended after. Idempotent — setting the
+    // current value is a no-op. MainWindow calls this from BOTH the dock's own
+    // toggle (via chatSwapSidesChanged) and the saved setting at boot/restore.
+    void setChatSwapSides(bool on);
+    bool chatSwapSides() const { return chatSwapSides_; }
     // The compact tear-off size every float adopts (kFloatingSize, floored by the
     // minimum) — public so the owner's popover gesture can pin the dock at this
     // size next to the toolbar icon (MainWindow::openChatCompact).
@@ -239,6 +295,12 @@ namespace stencil::gui {
     // sendRequested() — the same path typing the answer takes — and locks the card.
     void appendAsk(const stencil::llm::AskCard& ask, const QVector<QImage>& previews);
 
+    // The composer's "…" trigger — the control a window raised from inside that menu
+    // belongs to (the Settings item is gone by the time the window opens, so it is the
+    // "…" the dust flies to). Hidden with the dock, which is what makes such a window
+    // fall from above when the chat isn't on screen (modalReveal's anchor rule).
+    QToolButton* moreButton() const { return more_; }
+
    signals:
     void sendRequested(const QString& text);
     // A failed turn's Retry button: re-send exactly this text (owner guards busy).
@@ -263,8 +325,19 @@ namespace stencil::gui {
     // attachments; the owner drops the per-conversation model state (history,
     // video input, encoded working-image cache).
     void clearRequested();
+    // "Swap message sides" was toggled (the dock already re-skinned itself) — the
+    // owner persists Settings::chatSwapSides and propagates to the context menu's
+    // mirror panel, so a setting changed from either surface reaches both.
+    void chatSwapSidesChanged(bool swapped);
     // The expired card's CTA: open Connections for `host` so the user can sign in.
     void reconnectRequested(const QString& host);
+    // The unreachable-provider card's "Configure provider" CTA (browser parity):
+    // unlike settingsRequested (the gear, reached through the "…" menu — closed by
+    // the time the dialog opens, so IT flies from the "…" trigger), this button
+    // lives right in the transcript and stays on screen through the click, so the
+    // flight belongs to it. `anchor` is the CTA button itself, for the owner to
+    // hand to the reveal as the origin.
+    void configureProviderRequested(QWidget* anchor);
     // The title-bar X — and ANY close() on the dock (a native affordance, a
     // shortcut, a programmatic call). The owner answers by hiding it through the
     // ANIMATED path; the dock never hides itself, or the close blinks out.
@@ -274,6 +347,9 @@ namespace stencil::gui {
     // last cursor position. Canceled = the dock hid mid-drag (just dismiss).
     // A title-bar placement button asked for a side (MainWindow docks it).
     void dockRequested(Qt::DockWidgetArea area);
+    // The title bar's Float button asked to toggle dock↔float (MainWindow plays the
+    // animated transition — a raw setFloating() here would just teleport the panel).
+    void floatToggleRequested();
     void titleDragStarted();
     void titleDragMoved(const QPoint& globalPos);
     void titleDragFinished(const QPoint& globalPos);
@@ -323,11 +399,19 @@ namespace stencil::gui {
     // New framed transcript card (inserted above the bottom stretch, scroll
     // deferred); the caller populates the returned layout.
     QVBoxLayout* appendTranscriptCard(int spacing);
-    // Subtle appear motion for a freshly inserted card (browser parity): ~140 ms
-    // fade with a ~6 px upward slide. Each card owns its own animation (parented
-    // to it, DeleteWhenStopped), so overlapping appends never interfere and a
-    // card deleted mid-flight takes its animation with it.
+    // Appear motion for a freshly inserted card (browser parity): the card's own
+    // DUST gathers into place (Sweep::Gather — the Clear scatter played backwards)
+    // while the card comes up behind the motes, over a ~6 px upward slide. Under
+    // reduced motion — or when the grab cannot be taken — it is the plain ~140 ms
+    // fade + slide alone. Each card owns its own animation (parented to it,
+    // DeleteWhenStopped), so overlapping appends never interfere and a card deleted
+    // mid-flight takes its animation with it.
     void animateCardIn(QWidget* card, QVBoxLayout* lay);
+    // The second half of animateCardIn, run one event-loop turn later (the caller has
+    // populated the card by then): this dock's settle/slide around the SHARED
+    // gatherChatCardIn machinery (chatWidgets.hpp), which owns the layout waits, the
+    // viewport gate and the per-frame snapshot tracking.
+    void startCardEntrance(QWidget* card, QVBoxLayout* lay);
     // Card treatment: Bubble = user/assistant tone, Error = danger wash + danger
     // text (real turn failures only), Muted = quiet informational card.
     enum class CardKind { Bubble, Error, Muted };
@@ -342,14 +426,22 @@ namespace stencil::gui {
     // Is a real transcript card on screen (empty state / stretch excluded)? Gates the
     // deferred empty state after a clear.
     bool transcriptHasCards() const;
+    // Show a … menu item only while it can act — inapplicable ones hide, not grey out.
+    void syncMoreMenuItems();
     void refreshAttachmentTray();
     // Cap transcript bubbles to a share of the viewport (browser max-width).
     void applyBubbleWidths();
     // Jump pills over the transcript's bottom edge (browser .chat-jumps parity):
     // visibility from the scrollbar's position, geometry from the viewport's.
     void updateJumpButtons();
-    // True while a row's "…" overlaps the jump pills (they yield to it).
-    bool jumpPillsBlocked() const;
+    // The pills' own global-coords box (united, whichever are currently visible),
+    // or a null QRect while neither is shown. Fed to placeChatCardMore as the
+    // furniture a row's "…" must shift clear of, or hide rather than sit under.
+    QRect jumpPillsGlobalRect() const;
+    // Re-place every currently visible row "…" against the pills' CURRENT box —
+    // called after the pills themselves move, show or hide. Cheap while no "…" is
+    // shown (a direct-children lookup; placement runs only for visible buttons).
+    void revalidateMoreButtons();
 
    public:
     // Set by the owner while this dock is animating OUT: the row menu refuses to
@@ -379,6 +471,14 @@ namespace stencil::gui {
     QColor accentCache_, textCache_, dangerCache_, mutedCache_;  // for restyling placement state on the fly
     QColor chipCache_;   // active placement button's ground (browser --bg-container)
     QColor borderCache_; // themed hairline (browser --border-main)
+    // The last Palette restyleIcons() ran with — setChatSwapSides re-issues the
+    // shared card stylesheet (chatCardStyleSheet) against it, since the
+    // flattened tail corner is keyed off chatSwapSides_ too.
+    Palette paletteCache_;
+    // "Swap message sides" (Settings::chatSwapSides) — set at construction from the
+    // saved preference; setChatSwapSides re-skins every existing card.
+    bool chatSwapSides_ = false;
+    QAction* actSwapSides_ = nullptr;   // … menu item, between Clear and Settings
     // Highlight the button matching the CURRENT placement and make it inert
     // (browser .chat-dock-btn-active): you can't re-dock where you already are.
     void updatePlacementState();

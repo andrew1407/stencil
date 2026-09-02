@@ -157,7 +157,9 @@ export const parseTip = text => {
 
   // ── heading ──
   let head = lines[0];
-  // "a · b · c" on the heading line: the first piece titles the tooltip, the rest are bullets.
+  // "a · b · c" on the heading line: the first piece titles the tooltip, the rest are
+  // bullets — but a single trailing piece has nothing to enumerate against, so a bullet
+  // there would just be a list of one; it reads as a hint instead.
   const headParts = dotParts(head);
   const tail = headParts.slice(1);
   head = headParts[0] || head;
@@ -169,7 +171,8 @@ export const parseTip = text => {
   } else {
     tip.title = head;
   }
-  for (const t of tail) tip.blocks.push({ kind: 'bullet', text: t });
+  if (tail.length > 1) for (const t of tail) tip.blocks.push({ kind: 'bullet', text: t });
+  else if (tail.length === 1) tip.blocks.push({ kind: 'hint', text: tail[0] });
 
   // ── body ──
   for (const raw of lines.slice(1)) {

@@ -28,6 +28,13 @@
   --glyph-shadow: none;
   --glyph-text-shadow: none;
   --yellow: #a67c00;
+  /* Failure tone (browser/css/theme.css --danger). It was USED by the assistant's error
+     bubble and never defined here, so every one of those declarations was invalid at
+     computed-value time: the text fell back to the ordinary body colour, the border to
+     none and the wash to transparent — a failed turn read as a plain message. */
+  --danger: #d6293e;
+  /* Reachability green (browser --success) — the status dot and the status tip cells. */
+  --ok: #2e9e4f;
   --check-a: #e7eaf0;
   --check-b: #dfe2ea;
 }
@@ -42,6 +49,8 @@
   /* Same accent (from :root / data-accent); only the shade flips lighter. */
   --accent-2: color-mix(in srgb, var(--accent) 78%, white);
   --yellow: #ffd400;
+  --danger: #f0697a;   /* lighter on dark, like the browser's dark palette */
+  --ok: #4cc471;       /* browser dark --success */
   --check-a: #2a2e38;
   --check-b: #262a33;
 }

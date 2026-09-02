@@ -88,11 +88,14 @@ namespace stencil::gui {
    protected:
     // Enter in the URL field previews instead of accepting the dialog.
     bool eventFilter(QObject* obj, QEvent* event) override;
+    // First show measures every tab and opens at the tallest (one height across tabs).
+    void showEvent(QShowEvent* event) override;
 
    private:
     void browse();
     void pickCustomColor();
     void applyMode();       // swap the footer actions to match the active tab
+    void fadeInCurrentPage();  // ease the arriving tab page in (browser-parity soft swap)
     void refreshButtons();  // enable file/URL actions once a source is chosen
 
     // Preview + video scrub (ported from LinksDialog for behavioral parity).
@@ -126,7 +129,7 @@ namespace stencil::gui {
     QCheckBox* usePreview_ = nullptr; // "use the video's preview image" (video only)
     QWidget* frameRow_ = nullptr;     // video frame controls — shown only for video
     QCheckBox* incognito_ = nullptr;
-    QFormLayout* commonForm_ = nullptr;  // holds the Incognito row (hidden on the Blank tab)
+    QWidget* incogRow_ = nullptr;  // the Incognito .vs-row (hidden on the Blank tab)
     QCheckBox* rename_ = nullptr;
     QCheckBox* keep_ = nullptr;
     QWidget* replaceRow_ = nullptr;
@@ -145,10 +148,7 @@ namespace stencil::gui {
     QString pageSeed_ = "A3";  // canonical format name (findData miss ⇒ A3)
     QString units_ = "cm";
 
-    // Blank controls.
-    QRadioButton* white_ = nullptr;
-    QRadioButton* black_ = nullptr;
-    QRadioButton* customColorRadio_ = nullptr;
+    // Blank controls. The White/Black presets and the picker all write customColor_.
     QToolButton* customSwatch_ = nullptr;
     QSpinBox* blankWidth_ = nullptr;
     QSpinBox* blankHeight_ = nullptr;
@@ -177,6 +177,9 @@ namespace stencil::gui {
     bool previewIsVideo_ = false;       // last preview resolved as a video
 
     bool canReplace_ = false;
+    bool constructed_ = false;  // gates the tab-switch fade until the dialog is built
+    bool measured_ = false;     // first-show tallest-tab measurement ran (showEvent)
+    bool measuring_ = false;    // …and is running right now (no fade on its switches)
     Outcome outcome_ = Outcome::Here;
   };
 

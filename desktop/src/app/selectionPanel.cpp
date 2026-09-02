@@ -1,14 +1,8 @@
-#include "../support/searchCombo.hpp"
 #include "selectionPanel.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
-#include "numericInput.hpp"
 #include "../support/disintegrateOverlay.hpp"
 #include "../support/iconMotion.hpp"
-#include "../support/modalReveal.hpp"
-#include <QCheckBox>
-#include <QComboBox>
-#include <QFormLayout>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -25,17 +19,17 @@
 #include <QPushButton>
 #include <QToolButton>
 #include <QShowEvent>
-#include <QSpinBox>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <algorithm>
-#include <cmath>
 
 namespace stencil::gui {
 
   namespace {
-    // Points-table columns: index · X(px, editable) · Y(px, editable) · page(cm, read-only) · 🗑.
-    enum PointCol { ColIndex = 0, ColX, ColY, ColPage, ColDel, ColCount };
+    // Points-table columns, one for one with the browser's coordinates table
+    // (mainContent.js <thead>): index · X px (editable) · Y px (editable) · X page ·
+    // Y page (both read-only, in the app's current unit) · 🗑.
+    enum PointCol { ColIndex = 0, ColX, ColY, ColPageX, ColPageY, ColDel, ColCount };
 
     // The header chevron's box + glyph. Also the floating re-open chevron's, which has to
     // read as the same button (mainWindow kPanelToggleBox).
@@ -82,9 +76,19 @@ namespace stencil::gui {
     titleBar->setObjectName("selPanelTitle");
     titleBar->setAttribute(Qt::WA_StyledBackground, true);
     auto* titleRow = new QHBoxLayout(titleBar);
-    titleRow->setContentsMargins(10, 2, 5, 2);
-    auto* titleLbl = new QLabel("Points", titleBar);
-    titleLbl->setStyleSheet("font-weight:600;");
+    titleRow->setContentsMargins(8, 2, 5, 0);
+    // The Points | Lines tabs live IN the header, beside the chevron — the browser has no
+    // panel title above them (mainContent.js .coord-panel-header holds the tabs and the
+    // toggle and nothing else); a "Points" label here read as a second, redundant heading
+    // over a tab already called Points. The QTabWidget below keeps the PAGES and hides its
+    // own bar, so this one is the only tab strip on screen.
+    tabBar_ = new QTabBar(titleBar);
+    tabBar_->setObjectName("selectionTabBar");
+    tabBar_->setDrawBase(false);
+    tabBar_->setExpanding(false);
+    tabBar_->setFocusPolicy(Qt::NoFocus);
+    tabBar_->addTab("Points");
+    tabBar_->addTab("Lines");
     collapseBtn_ = new QToolButton(titleBar);
     collapseBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     collapseBtn_->setCursor(Qt::PointingHandCursor);
@@ -100,9 +104,10 @@ namespace stencil::gui {
     collapseBtn_->setFixedSize(kToggleBox, kToggleBox);
     collapseBtn_->setIconSize(QSize(kToggleGlyph, kToggleGlyph));
     connect(collapseBtn_, &QToolButton::clicked, this, [this] { emit collapseRequested(); });
-    titleRow->addWidget(titleLbl);
+    titleRow->addWidget(tabBar_);
     titleRow->addStretch(1);
-    titleRow->addWidget(collapseBtn_);
+    titleRow->addWidget(collapseBtn_, 0, Qt::AlignVCenter);
+
     setTitleBarWidget(titleBar);
 
     auto* body = new QWidget(this);
@@ -111,79 +116,9 @@ namespace stencil::gui {
     auto* layout = new QVBoxLayout(body);
     layout->setContentsMargins(8, 8, 8, 8);
 
-    // ── inline line editor (browser selectionPanel.js: selection-panel-inner) ──
-    // Sits above the points list; mirrors the browser top selection bar.
-    editor_ = new QWidget(body);
-    auto* form = new QFormLayout(editor_);
-    form->setContentsMargins(0, 0, 0, 8);
-
-    // selColor — drawingApp.js:1545 / :181
-    colorSwatch_ = new QPushButton(editor_);
-    colorSwatch_->setToolTip("Line color");
-    setSwatchColor(colorSwatch_, currentColor_);
-    form->addRow("Line Color:", colorSwatch_);
-
-    // selPointColor — the point colour, set independently of the stroke.
-    pointColorSwatch_ = new QPushButton(editor_);
-    pointColorSwatch_->setToolTip("Point color for this line");
-    setSwatchColor(pointColorSwatch_, currentPointColor_);
-    form->addRow("Point Color:", pointColorSwatch_);
-
-    // selThickness — drawingApp.js:1546 / :182 (min 1, max 20)
-    thickness_ = new ExprSpinBox(editor_);
-    thickness_->setRange(1, 20);
-    thickness_->setToolTip("Thickness of the selected line (px)");
-    form->addRow("Thickness:", thickness_);
-
-    // selPointSize — drawingApp.js:1547 / :183 (min 1, max 30)
-    pointSize_ = new ExprSpinBox(editor_);
-    pointSize_->setRange(1, 30);
-    pointSize_->setToolTip("Point size of the selected line (px)");
-    form->addRow("Point Size:", pointSize_);
-
-    // selStyle — drawingApp.js:1548 / :184
-    style_ = new SearchComboBox(editor_, /*searchable=*/false);
-    style_->addItem("Solid", "solid");
-    style_->addItem("Dashed", "dashed");
-    style_->addItem("Dotted", "dotted");
-    style_->setToolTip("Stroke style of the selected line (solid, dashed, dotted)");
-    form->addRow("Style:", style_);
-
-    // selFillGroup — locked-area fill, hidden unless line.locked
-    // (selectionPanel.js:29-33; drawingApp.js:1550-1560).
-    fillGroup_ = new QWidget(editor_);
-    auto* fillRow = new QHBoxLayout(fillGroup_);
-    fillRow->setContentsMargins(0, 0, 0, 0);
-    fillEnabled_ = new QCheckBox(fillGroup_);  // selFillEnabled
-    fillEnabled_->setToolTip("Locked area fill");
-    fillSwatch_ = new QPushButton(fillGroup_);  // selFill
-    fillSwatch_->setToolTip("Area fill color");
-    setSwatchColor(fillSwatch_, currentFill_);
-    fillClear_ = new QPushButton(fillGroup_);  // selFillClear (x icon)
-    fillClear_->setToolTip("Clear fill (make transparent)");
-    fillRow->addWidget(fillEnabled_);
-    fillRow->addWidget(fillSwatch_);
-    fillRow->addWidget(fillClear_);
-    fillRow->addStretch(1);
-    form->addRow("Fill:", fillGroup_);
-
-    // Delete line + selDeselect (drawingApp.js:195 deselectLine). Delete is the
-    // danger action — given the red treatment via objectName (styled in theme.cpp,
-    // matching the browser's --danger delete button); icons set in restyleIcons().
-    auto* btnRow = new QHBoxLayout();
-    deleteLine_ = new QPushButton("Delete Line", editor_);
-    deleteLine_->setObjectName("dangerButton");
-    deleteLine_->setToolTip("Delete the selected line");
-    deselectBtn_ = new QPushButton("Deselect", editor_);  // selDeselect
-    deselectBtn_->setToolTip("Clear the current selection");
-    btnRow->addWidget(deleteLine_);
-    btnRow->addWidget(deselectBtn_);
-    form->addRow(btnRow);
-
-    layout->addWidget(editor_);
-
-    // Shown instead of the inline editor while 2+ lines are multi-selected (Ctrl+Shift+click):
-    // the editor is ambiguous, so it's hidden and this explains the mode.
+    // Shown while 2+ lines are multi-selected (Ctrl+Shift+click): the "Selected Line:"
+    // bar above the canvas is ambiguous for a multi-selection, so it stays hidden and
+    // this note explains the mode instead.
     multiLabel_ = new QLabel(body);
     multiLabel_->setWordWrap(true);
     multiLabel_->setStyleSheet("color: palette(highlight); font-weight: 600;");
@@ -195,6 +130,7 @@ namespace stencil::gui {
     // every committed line for select/inspect/remove (browser renderLinesList / #lines-list).
     tabs_ = new QTabWidget(body);
     tabs_->setObjectName("selectionTabs");
+    tabs_->tabBar()->hide();   // the header's own strip drives it (see tabBar_ above)
     layout->addWidget(tabs_, 1);
 
     auto* ptsTab = new QWidget(tabs_);
@@ -203,7 +139,7 @@ namespace stencil::gui {
     points_ = new QTableWidget(0, ColCount, ptsTab);
     points_->setObjectName("pointsTable");
     points_->setItemDelegate(new PointRowDelegate(points_));  // outline-style selection
-    points_->setHorizontalHeaderLabels({"#", "X", "Y", "Page", QString()});
+    applyUnitHeaders();
     points_->verticalHeader()->setVisible(false);
     points_->setSelectionBehavior(QAbstractItemView::SelectRows);
     points_->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -222,12 +158,16 @@ namespace stencil::gui {
             [this](int row, int) { emit pointRowHovered(row); });
     auto* hh = points_->horizontalHeader();
     hh->setSectionResizeMode(ColIndex, QHeaderView::ResizeToContents);
-    hh->setSectionResizeMode(ColX, QHeaderView::Stretch);
-    hh->setSectionResizeMode(ColY, QHeaderView::Stretch);
-    hh->setSectionResizeMode(ColPage, QHeaderView::Stretch);
+    for (int c : {ColX, ColY, ColPageX, ColPageY}) hh->setSectionResizeMode(c, QHeaderView::Stretch);
     hh->setSectionResizeMode(ColDel, QHeaderView::Fixed);
-    points_->setColumnWidth(ColDel, 34);
+    // The browser's own trailing cell (mainContent.js: `width:28px;padding:4px`).
+    points_->setColumnWidth(ColDel, 28);
     hh->setHighlightSections(false);
+    // Left-aligned like every browser th (layout.css .coordinates-table th { text-align: left }).
+    hh->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    // The browser table draws a hairline around every cell (border: 1px solid
+    // --border-coord); the grid is how Qt says the same thing.
+    points_->setShowGrid(true);
     ptsLay->addWidget(points_, 1);
 
     tabs_->addTab(ptsTab, "Points");
@@ -254,6 +194,10 @@ namespace stencil::gui {
             [this](QListWidgetItem* it) { emit lineRowHovered(lines_->row(it)); });
     linesLay->addWidget(lines_, 1);
     tabs_->addTab(linesTab, "Lines");
+    // One selection, two widgets: the header strip is what the user clicks, the stack is
+    // what it shows. Bound both ways so a programmatic page change turns the strip too.
+    connect(tabBar_, &QTabBar::currentChanged, tabs_, &QTabWidget::setCurrentIndex);
+    connect(tabs_, &QTabWidget::currentChanged, tabBar_, &QTabBar::setCurrentIndex);
 
     // Row click → select that line (multi = Ctrl/⌘+Shift held, mirroring the canvas modifier).
     connect(lines_, &QListWidget::itemClicked, this, [this](QListWidgetItem* it) {
@@ -283,92 +227,7 @@ namespace stencil::gui {
       if (ok) emit pointCoordChanged(it->row(), col == ColX ? 0 : 1, v);
     });
 
-    // ── inline-editor wiring — each lambda early-returns while showLine is
-    // repopulating the controls (updating_), matching the browser which guards
-    // via selectedLineIdx and re-sets .value without firing change handlers. ──
-
-    // selColor: open a color dialog, repaint swatch, emit (drawingApp.js:181).
-    connect(colorSwatch_, &QPushButton::clicked, this, [this] {
-      if (updating_) return;
-      const QColor c =
-          support::pickColorAnimated(currentColor_, this, "Line color", colorSwatch_);
-      if (!c.isValid()) return;
-      currentColor_ = c;
-      setSwatchColor(colorSwatch_, c);
-      emit lineColorChanged(c.name());
-    });
-    // selPointColor: same flow as the line colour, emitting the point signal instead.
-    connect(pointColorSwatch_, &QPushButton::clicked, this, [this] {
-      if (updating_) return;
-      const QColor c = support::pickColorAnimated(currentPointColor_, this, "Point color",
-                                                  pointColorSwatch_);
-      if (!c.isValid()) return;
-      currentPointColor_ = c;
-      setSwatchColor(pointColorSwatch_, c);
-      emit linePointColorChanged(c.name());
-    });
-    // selThickness (drawingApp.js:182).
-    connect(thickness_, QOverload<int>::of(&QSpinBox::valueChanged), this,
-            [this](int v) {
-              if (updating_) return;
-              emit lineThicknessChanged(v);
-            });
-    // selPointSize (drawingApp.js:183).
-    connect(pointSize_, QOverload<int>::of(&QSpinBox::valueChanged), this,
-            [this](int v) {
-              if (updating_) return;
-              emit linePointSizeChanged(v);
-            });
-    // selStyle (drawingApp.js:184).
-    connect(style_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-            [this](int) {
-              if (updating_) return;
-              emit lineStyleChanged(style_->currentData().toString());
-            });
-
-    // selFillEnabled: emit chosen color when on, "transparent" when off
-    // (drawingApp.js:185 applyFill).
-    connect(fillEnabled_, &QCheckBox::toggled, this, [this](bool on) {
-      if (updating_) return;
-      emit lineFillChanged(on ? currentFill_.name() : QStringLiteral("transparent"));
-    });
-    // selFill: choosing a color implies enabled=true (drawingApp.js:186-189).
-    connect(fillSwatch_, &QPushButton::clicked, this, [this] {
-      if (updating_) return;
-      const QColor c =
-          support::pickColorAnimated(currentFill_, this, "Area fill color", fillSwatch_);
-      if (!c.isValid()) return;
-      currentFill_ = c;
-      setSwatchColor(fillSwatch_, c);
-      {
-        QSignalBlocker block(fillEnabled_);
-        fillEnabled_->setChecked(true);
-      }
-      emit lineFillChanged(c.name());
-    });
-    // selFillClear: clear fill → transparent (drawingApp.js:190-193).
-    connect(fillClear_, &QPushButton::clicked, this, [this] {
-      if (updating_) return;
-      {
-        QSignalBlocker block(fillEnabled_);
-        fillEnabled_->setChecked(false);
-      }
-      emit lineFillChanged(QStringLiteral("transparent"));
-    });
-
-    connect(deleteLine_, &QPushButton::clicked, this, [this] {
-      if (!updating_) emit lineDeleteRequested();
-    });
-    // selDeselect (drawingApp.js:195 deselectLine).
-    connect(deselectBtn_, &QPushButton::clicked, this, [this] {
-      if (!updating_) emit deselectRequested();
-    });
-
-    showLine(nullptr, nullptr, -1);
-  }
-
-  void SelectionPanel::setSwatchColor(QPushButton* btn, const QColor& color) {
-    setColorSwatch(btn, color);  // QPushButton derives from QAbstractButton
+    showLine(nullptr, -1);
   }
 
   void SelectionPanel::setMultiSelectCount(int n) {
@@ -509,11 +368,6 @@ namespace stencil::gui {
   }
 
   void SelectionPanel::restyleIcons(const QColor& iconColor) {
-    // Delete is a red danger button, so its glyph stays white for contrast; the
-    // others follow the theme text color (re-applied on each light/dark switch).
-    if (deleteLine_) deleteLine_->setIcon(themedIcon("trash", QColor("#ffffff"), 15));
-    if (deselectBtn_) deselectBtn_->setIcon(themedIcon("x", iconColor, 15));
-    if (fillClear_) fillClear_->setIcon(themedIcon("x", iconColor, 14));
     // Chevron points toward the edge to hide (›) the panel — back at 0°, since any spin
     // from the last click ended with the panel (and this button) hidden.
     if (collapseBtn_) collapseBtn_->setIcon(themedIcon("chevron-right", iconColor, kToggleGlyph));
@@ -541,48 +395,48 @@ namespace stencil::gui {
                                             : QStringLiteral("Hide panel (%1)").arg(hint));
   }
 
-  void SelectionPanel::showLine(const core::Line* line,
-                                const core::Line* editorLine, int selectedPoint,
-                                const std::vector<QString>& cmRows) {
+  // `#`, `X px`, `Y px`, `X <unit>`, `Y <unit>`, and the browser's own unnamed trailing
+  // cell for the row's 🗑 (mainContent.js <thead>). The unit rides the app's setting, the
+  // way drawingApp.js relabels ths[3]/ths[4] on every unit change.
+  void SelectionPanel::applyUnitHeaders() {
+    if (!points_) return;
+    points_->setHorizontalHeaderLabels({"#", "X px", "Y px",
+                                        QStringLiteral("X %1").arg(unitLabel_),
+                                        QStringLiteral("Y %1").arg(unitLabel_), QString()});
+  }
+
+  void SelectionPanel::setUnitLabel(const QString& label) {
+    if (label.isEmpty() || label == unitLabel_) return;
+    unitLabel_ = label;
+    applyUnitHeaders();
+  }
+
+  // The browser's `<td colspan="6" class="empty-message">No points yet.</td>`: one italic,
+  // muted row across the whole table, not a blank body that reads as a broken list.
+  void SelectionPanel::showEmptyPoints() {
+    points_->clearSpans();
+    points_->setRowCount(1);
+    auto* msg = new QTableWidgetItem(QStringLiteral("No points yet."));
+    msg->setFlags(Qt::ItemIsEnabled);
+    msg->setTextAlignment(Qt::AlignCenter);
+    QFont f = msg->font();
+    f.setItalic(true);
+    msg->setFont(f);
+    // PlaceholderText is the muted role theme.cpp maps to --text-muted (theme.cpp:
+    // setColor(QPalette::PlaceholderText, p.textMuted)) — Disabled/WindowText is near the
+    // background in the dark theme, which made this line invisible.
+    msg->setForeground(palette().color(QPalette::PlaceholderText));
+    points_->setItem(0, ColIndex, msg);
+    points_->setSpan(0, ColIndex, 1, ColCount);
+    points_->resizeRowsToContents();
+  }
+
+  void SelectionPanel::showLine(const core::Line* line, int selectedPoint,
+                                const std::vector<PageRow>& pageRows) {
+    points_->clearSpans();    // the empty-state row spans the table; a real one must not
     points_->setRowCount(0);  // clear rows (NOT clear() — that would drop the header labels)
 
-    // Populate the inline editor from the *selected* line only, suppressing the
-    // change handlers meanwhile (drawingApp.js:1544-1564). Gating on editorLine
-    // (null when nothing is explicitly selected) keeps the editor hidden for the
-    // fallback panelLine(), whose mutators all early-return.
-    updating_ = true;
-    editor_->setVisible(editorLine != nullptr);
-    if (editorLine) {
-      currentColor_ = QColor(QString::fromStdString(editorLine->color));
-      setSwatchColor(colorSwatch_, currentColor_);
-      // A line with no point colour of its own shows the colour it actually draws in (its
-      // stroke), via core::pointColorOr — not a blank or stale swatch.
-      currentPointColor_ =
-          QColor(QString::fromStdString(core::pointColorOr(*editorLine)));
-      setSwatchColor(pointColorSwatch_, currentPointColor_);
-      thickness_->setValue(
-          static_cast<int>(std::lround(editorLine->thickness)));
-      pointSize_->setValue(
-          static_cast<int>(std::lround(editorLine->pointSize)));
-      const int sidx =
-          style_->findData(QString::fromStdString(editorLine->style));
-      style_->setCurrentIndex(sidx >= 0 ? sidx : 0);
-
-      // Fill controls only for locked areas (drawingApp.js:1551-1560).
-      fillGroup_->setVisible(editorLine->locked);
-      if (editorLine->locked) {
-        const QString fc = QString::fromStdString(editorLine->fillColor);
-        const bool hasFill = !fc.isEmpty() && fc != "transparent";
-        fillEnabled_->setChecked(hasFill);
-        if (hasFill) {
-          currentFill_ = QColor(fc);
-          setSwatchColor(fillSwatch_, currentFill_);
-        }
-      }
-    }
-    updating_ = false;
-
-    if (!line || line->points.empty()) return;
+    if (!line || line->points.empty()) { showEmptyPoints(); return; }
 
     // Build the editable points table; `updating_` suppresses itemChanged while
     // cells are set (only a USER edit should fire pointCoordChanged). X/Y editable
@@ -604,9 +458,14 @@ namespace stencil::gui {
       yi->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
       yi->setToolTip("Double-click to edit Y (px)");
       points_->setItem(r, ColY, yi);
-      auto* pg = new QTableWidgetItem(i < cmRows.size() ? cmRows[i] : QString());
-      pg->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-      points_->setItem(r, ColPage, pg);
+      // Page coordinates as their OWN two columns, like the browser's `X cm` / `Y cm`
+      // (coordTable.js) — one "x, y unit" string per row was this panel's own invention.
+      const PageRow page = i < pageRows.size() ? pageRows[i] : PageRow{};
+      for (const auto& [col, text] : {std::pair{ColPageX, page.x}, std::pair{ColPageY, page.y}}) {
+        auto* pg = new QTableWidgetItem(text);
+        pg->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        points_->setItem(r, col, pg);
+      }
       auto* del = new QPushButton(points_);
       del->setObjectName("pointDelBtn");
       del->setFlat(true);

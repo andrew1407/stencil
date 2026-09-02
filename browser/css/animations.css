@@ -171,11 +171,20 @@ button:not(:disabled):active {
 .ic * { transform-box: view-box; transform-origin: 50% 50%; }
 /* The `[id^=toggle-]` opt-out is written as an ATTRIBUTE, not an id selector, on purpose:
    it keeps this rule at class specificity so the reduced-motion override below (and any
-   per-control rule) can still outrank it. */
+   per-control rule) can still outrank it.
+   A DISABLED control is deliberately NOT excluded. It is still hovered, still shows its
+   tooltip and its disabled reason (layout.css keeps `pointer-events: auto` on it for
+   exactly that), and the glyph is what the pointer is on — leaving it frozen made the
+   greyed control read as a dead area of the toolbar rather than a control that cannot
+   act right now. The motion says what it WOULD do; the grey says it cannot yet. */
+/* `.ctx-item` uses a child combinator (`> .ctx-icon`/`> .ctx-check`), not the plain
+   descendant list above: a submenu parent carries its flyout as a DOM child, so a plain
+   `.ctx-item:hover .ic` would fire every icon inside it just from hovering the parent row. */
 :is(button, .btn-icon, .btn-icon-text, .idle-create-btn, .coord-tab, .pill-toggle,
-    .accent-dd-trigger, .name-edit-btn, .project-menu-item,
-    .ctx-item):not(:disabled):not(.is-loading):not(.swapping):not([id^="toggle-"]):hover
-    :is(.ic, .draw-mode-icon, .ic *, .draw-mode-icon *) {
+    .accent-dd-trigger, .accent-dd-opt, .name-edit-btn, .project-menu-item):not(.is-loading):not(.swapping):not([id^="toggle-"]):hover
+    :is(.ic, .draw-mode-icon, .ic *, .draw-mode-icon *),
+.ctx-item:not(.is-loading):not(.swapping):not([id^="toggle-"]):hover
+    > :is(.ctx-icon, .ctx-check) :is(.ic, .draw-mode-icon, .ic *, .draw-mode-icon *) {
     --ic-on: 1;
     animation-name: var(--ic-play, none);
 }
@@ -198,7 +207,6 @@ button:not(:disabled):active {
 .ic-sun           { --ic-ms: 0.42s; transform: rotate(calc(var(--ic-on) * 45deg)); }
 .ic-refresh       { --ic-ms: 0.42s; transform: rotate(calc(var(--ic-on) * 180deg)); }
 .ic-stop          { transform: scale(calc(1 - var(--ic-on) * 0.15)); }   /* clamps down */
-.ic-function      { transform: skewX(calc(var(--ic-on) * -12deg)); }     /* ƒ leans italic */
 /* The folder's front panel tips open towards you, hinged on its bottom edge. */
 .ic-folder {
     transform-origin: 50% 100%;
@@ -270,20 +278,24 @@ button:not(:disabled):active {
 /* ── SETTLE: plays once on hover, then rests where it started ── */
 @keyframes icmTick        { from { stroke-dashoffset: 26; } to { stroke-dashoffset: 0; } }
 @keyframes icmDrawBox     { from { stroke-dashoffset: 58; } to { stroke-dashoffset: 0; } }
+@keyframes icmDrawFrame   { from { stroke-dashoffset: 68.5; } to { stroke-dashoffset: 0; } }
 @keyframes icmDrawLine    { from { stroke-dashoffset: 22; } to { stroke-dashoffset: 0; } }
 @keyframes icmHandlePop   { 0%, 100% { transform: scale(1); }  45% { transform: scale(1.28); } }
 @keyframes icmInkLine     { from { stroke-dashoffset: 8; }  to { stroke-dashoffset: 0; } }
 @keyframes icmDrawSlash   { from { stroke-dashoffset: 17; } to { stroke-dashoffset: 0; } }
 @keyframes icmDrawRidge   { from { stroke-dashoffset: 23; } to { stroke-dashoffset: 0; } }
-@keyframes icmGrow        { 0%, 100% { transform: scale(1); }  45% { transform: scale(1.32); } }
+@keyframes icmDrawBubble  { from { stroke-dashoffset: 67; } to { stroke-dashoffset: 0; } }
+@keyframes icmDrawCurve   { from { stroke-dashoffset: 17.5; } to { stroke-dashoffset: 0; } }
+@keyframes icmDrawBar     { from { stroke-dashoffset: 7; } to { stroke-dashoffset: 0; } }
+@keyframes icmDrawPlus    { from { stroke-dashoffset: 14; } to { stroke-dashoffset: 0; } }
 @keyframes icmShrink      { 0%, 100% { transform: scale(1); }  45% { transform: scale(0.68); } }
 @keyframes icmDotPulse    { 0%, 100% { transform: scale(1); }  45% { transform: scale(1.5); } }
 @keyframes icmLedBlink    { 0%, 100% { transform: scale(1); }  40% { transform: scale(2.1); } }
 @keyframes icmBulbGlow    { 0%, 100% { transform: scale(1); }  45% { transform: scale(1.12); } }
 @keyframes icmStamp       { 0% { transform: scale(0.55); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
-@keyframes icmBubblePop   { 0%, 100% { transform: scale(1); }  45% { transform: scale(1.09) translateY(-3.33%); } }
 @keyframes icmPencilStroke{ 0%, 100% { transform: none; }      45% { transform: translate(-4.17%, 4.17%) rotate(-8deg); } }
 @keyframes icmPressDown   { 0%, 100% { transform: none; }      45% { transform: translateY(6.67%); } }
+@keyframes icmRiseIn      { from { transform: translateY(25%); }              to { transform: none; } }
 @keyframes icmDotBounce   { 0%, 100% { transform: none; }      45% { transform: translateY(-2px); } }
 @keyframes icmBob         { 0%, 100% { transform: none; }      45% { transform: translateY(-1.6px); } }
 @keyframes icmGlance      { 0%, 100% { transform: none; }      30% { transform: translateX(-1.4px); } 65% { transform: translateX(1.4px); } }
@@ -306,9 +318,13 @@ button:not(:disabled):active {
 @keyframes icmLayerMid    { 0% { transform: translateY(3.5px); } 65% { transform: translateY(-0.4px); } 100% { transform: none; } }
 @keyframes icmLayerTop    { 0% { transform: translateY(-3px); }  65% { transform: translateY(0.4px); }  100% { transform: none; } }
 
-/* Grow / shrink: the direction IS the meaning, and both land back at the default size. */
-.ic-plus              { --ic-ms: 0.34s; --ic-play: icmGrow; }
-.ic-plus-circle .ic-cross { --ic-ms: 0.34s; --ic-play: icmGrow; }
+/* Plus DRAWS itself the way you'd write one — the vertical stroke first, then the
+   horizontal struck through it as the first lands (14 units each; plus-circle's inner
+   cross is 8). Minus still shrinks: the direction is the meaning. */
+.ic-plus .ic-stroke   { --ic-ms: 0.2s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 14; --ic-play: icmDrawPlus; }
+.ic-plus .ic-stroke:nth-of-type(2) { --ic-delay: 0.2s; }
+.ic-plus-circle .ic-stroke { --ic-ms: 0.2s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 8; --ic-play: icmInkLine; }
+.ic-plus-circle .ic-stroke:nth-of-type(2) { --ic-delay: 0.2s; }
 .ic-minus             { --ic-ms: 0.34s; --ic-play: icmShrink; }
 /* Undo / redo draw themselves slowly, tail to head: the shaft's ink advances backwards
    along its path (a NEGATIVE dash offset, so it starts at the far end and runs towards
@@ -329,15 +345,21 @@ button:not(:disabled):active {
 .ic-rotate-cw,
 .ic-refresh-cw        { --ic-ms: 0.62s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); --ic-play: icmTurnCw; }
 /* Marks that draw themselves, the way you'd make them. */
-.ic-check .ic-tick    { --ic-ms: 0.32s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 26; --ic-play: icmTick; }
+.ic-check .ic-tick    { --ic-ms: 0.64s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 26; --ic-play: icmTick; }
 /* Close / clear / disconnect all mean "make this go away": the cross is struck out one
-   stroke at a time, the second starting as the first lands (12√2 ≈ 16.97 units each). */
-.ic-x .ic-stroke      { --ic-ms: 0.18s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 17; --ic-play: icmDrawSlash; }
-.ic-x .ic-stroke:nth-of-type(2) { --ic-delay: 0.18s; }
+   stroke at a time, the second starting as the first lands (12√2 ≈ 16.97 units each) —
+   1.5× the base 0.18s draw-on, deliberately slower than the other settle designs. */
+.ic-x .ic-stroke      { --ic-ms: 0.27s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 17; --ic-play: icmDrawSlash; }
+.ic-x .ic-stroke:nth-of-type(2) { --ic-delay: 0.27s; }
 /* The draw-mode pair are siblings: both anchor the same two drag handles and only what
    joins them changes, so both draw that join between them and pop the handles after. */
 .ic-rect .ic-box      { --ic-ms: 0.34s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 58; --ic-play: icmDrawBox; }
 .ic-line .ic-stroke   { --ic-ms: 0.34s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 22; --ic-play: icmDrawLine; }
+/* "With Compare"'s own glyph: the frame draws first (a rounded square, its own
+   perimeter), then the divider rules through it top to bottom — the page has to be
+   there before you'd split it. */
+.ic-compare .ic-box    { --ic-ms: 0.34s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 68.5; --ic-play: icmDrawFrame; }
+.ic-compare .ic-stroke { --ic-ms: 0.2s; --ic-delay: 0.34s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 22; --ic-play: icmDrawLine; }
 .ic-line .ic-handle, .ic-rect .ic-handle {
     --ic-ms: 0.3s; --ic-delay: 0.09s; --ic-play: icmHandlePop;
     transform-box: fill-box; transform-origin: center;
@@ -345,6 +367,11 @@ button:not(:disabled):active {
 .ic-line .ic-handle:nth-of-type(2), .ic-rect .ic-handle:nth-of-type(2) { --ic-delay: 0.17s; }
 .ic-file-text .ic-textline { --ic-ms: 0.3s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 8; --ic-play: icmInkLine; }
 .ic-file-text .ic-textline:nth-of-type(2) { --ic-delay: 0.09s; }
+/* The tooltip bubble draws itself, tail to rim, the way you'd sketch one. */
+.ic-message .ic-outline { --ic-ms: 0.36s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 67; --ic-play: icmDrawBubble; }
+/* The ƒ writes itself: the curve draws top to bottom, then the crossbar strikes through it. */
+.ic-function .ic-curve { --ic-ms: 0.28s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 17.5; --ic-play: icmDrawCurve; }
+.ic-function .ic-bar   { --ic-ms: 0.14s; --ic-delay: 0.2s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 7; --ic-play: icmDrawBar; }
 .ic-pencil            { --ic-ms: 0.3s; --ic-play: icmPencilStroke; }   /* one short stroke */
 .ic-rect-filled       { --ic-ms: 0.32s; --ic-play: icmStamp; }         /* stamps in at once */
 /* The eraser ERASES: the pad sweeps right along the line under it, that line vanishes
@@ -353,8 +380,10 @@ button:not(:disabled):active {
 .ic-eraser .ic-body     { --ic-ms: 0.52s; --ic-ease: cubic-bezier(0.4, 0, 0.2, 1); --ic-play: icmRub; }
 .ic-eraser .ic-baseline { --ic-ms: 0.52s; --ic-ease: cubic-bezier(0.4, 0, 0.2, 1);
                           stroke-dasharray: 15; --ic-play: icmRubOut; }
-.ic-save, .ic-pin     { --ic-ms: 0.3s; --ic-play: icmPressDown; }      /* pressed home */
-.ic-message           { --ic-ms: 0.3s; --ic-play: icmBubblePop; }
+.ic-pin                { --ic-ms: 0.3s; --ic-play: icmPressDown; }      /* pressed home */
+/* Save writes UP into the project list — the disk rises into place from below rather
+   than pressing down, so the direction reads as "going up to be saved". */
+.ic-save                { --ic-ms: 0.3s; --ic-play: icmRiseIn; }
 .ic-alert             { --ic-ms: 0.3s; --ic-ease: cubic-bezier(0.4, 0, 0.2, 1); --ic-play: icmShake; }
 /* A quick tremor in place. TRANSLATION, not rotation: turning the mark about the icon
    centre swings it out of its own ring, which is the bug this replaced. */
@@ -378,12 +407,16 @@ button:not(:disabled):active {
 .ic-palette .ic-dot:nth-of-type(2) { --ic-delay: 0.055s; }
 .ic-palette .ic-dot:nth-of-type(3) { --ic-delay: 0.11s; }
 .ic-palette .ic-dot:nth-of-type(4) { --ic-delay: 0.165s; }
-/* Share: the two receiving nodes light up in turn, top then bottom — the copy reaching
-   one recipient and then the other. They SWELL rather than travel: each sits on the end
-   of a connecting line, and a move big enough to read pulled it off that end. */
+/* Share: all THREE nodes light up in turn, top to bottom — a plain downward sweep, the
+   same read as the server icon's LEDs and the layers icon's stack below. Lighting only
+   two of the three read as one being broken, so all three play. They SWELL rather than
+   travel: each sits on the end of a connecting line, and a move big enough to read
+   pulled it off that end. The glyph is drawn top-to-bottom, so markup order IS the
+   sequence — which is what the desktop port staggers on (support/iconMotion.hpp). */
 .ic-share .ic-node { --ic-ms: 0.38s; --ic-play: icmNodePulse;
                      transform-box: fill-box; transform-origin: center; }
-.ic-share .ic-node:nth-of-type(3) { --ic-delay: 0.12s; }
+.ic-share .ic-node:nth-of-type(2) { --ic-delay: 0.12s; }
+.ic-share .ic-node:nth-of-type(3) { --ic-delay: 0.24s; }
 /* Open in another app: the screen lifts clear off its stand and settles back. Held at
    1.2 units it was half a pixel at toolbar size — no motion at all, which is the very
    thing this table exists to prevent. */
@@ -553,7 +586,7 @@ button:not(:disabled):active {
    item's TOTAL width never changes — the menu is shrink-to-fit over nowrap
    items, and a left-only nudge on the widest row jittered the whole menu wider. */
 .ctx-item { transition: background 0.12s, padding-left 0.12s, padding-right 0.12s; }
-.ctx-item:not(.ctx-disabled):hover { padding-left: 17px; padding-right: 11px; }
+.ctx-item:hover { padding-left: 17px; padding-right: 11px; }
 
 /* ── Tooltip: fade/slide in (size-neutral so JS positioning stays exact) ─ */
 /* Tooltip stays display:block while tracking the cursor, so the entrance
@@ -803,7 +836,7 @@ select:focus {
     .info-key { flex: 0 0 130px; }
     /* The fullscreen points drawer follows the user's resized panel width (--coord-panel-width,
        set by the drag handle), clamped so it never exceeds the screen. */
-    #fs-points-panel { width: clamp(240px, var(--coord-panel-width, 360px), 86vw); }
+    #fs-points-panel { width: clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw); }
 }
 
 /* Phones (portrait): compact typography & full-bleed modals. */
@@ -948,6 +981,12 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    checkVisibility (see js/ui/motion.js). */
 :root {
     --fold-ms: 400ms;
+    /* Collapsing is the SLOWER half here, against the usual "going out is brisk" rule: a
+       fold has no icon to shrink into, so the only thing that reads as the menu leaving is
+       the fold itself — at the opening's pace it registered as a snap rather than a close.
+       Applied from the collapsed-state rules alone, which is the after-change style a
+       transition takes its timing from, so the way back in keeps --fold-ms. */
+    --fold-out-ms: 600ms;
     --fold-fade-ms: 250ms;
     /* A fold grows along ONE axis, so its area IS its height — it wants a plain ease-out
        and deliberately does not take the wipe's area-corrected curve. */
@@ -968,14 +1007,17 @@ html.theme-swapping *::before, html.theme-swapping *::after {
     overflow: hidden;
     transition: padding var(--fold-ms) var(--fold-ease);
 }
-#controls-body.hidden > * { padding-top: 0; padding-bottom: 0; }
+#controls-body.hidden > * {
+    padding-top: 0; padding-bottom: 0;
+    transition: padding var(--fold-out-ms) var(--fold-ease);
+}
 #controls-body.hidden {
     grid-template-rows: 0fr;
     opacity: 0;
     visibility: hidden;
-    transition: grid-template-rows var(--fold-ms) var(--fold-ease),
+    transition: grid-template-rows var(--fold-out-ms) var(--fold-ease),
                 opacity var(--fold-fade-ms) var(--fold-ease),
-                visibility 0s linear var(--fold-ms);   /* only once it has finished folding */
+                visibility 0s linear var(--fold-out-ms);   /* only once it has finished folding */
 }
 
 /* Both collapse toggles keep ONE chevron and turn it half a revolution (↑⇄↓, →⇄←) on the
@@ -1030,6 +1072,16 @@ html.theme-swapping *::before, html.theme-swapping *::after {
     .coordinates-panel, #coord-body, .coord-tabs,
     #toggle-controls .ic, #toggle-coord-panel .ic { transition: none !important; }
 }
+
+/* Both folds are dusted (js/ui/motion.js surfaceIn/surfaceOut): the tool rows stream up
+   past the top edge, the points table out past the right one, and gather back out of the
+   same point — the fold's own direction, made of sand like every other surface. The
+   flight needs the box the fold is ABOUT to reach, which is only readable with the
+   transitions off for one synchronous layout (motion.js foldBox). */
+#controls-body.fold-instant, #controls-body.fold-instant > *,
+.coordinates-panel.fold-instant,
+.coordinates-panel.fold-instant #coord-body,
+.coordinates-panel.fold-instant .coord-tabs { transition: none !important; }
 
 /* ── Scroll reveal (js/ui/motion.js) ─────────────────────────────────────────
    Rows in a long scroller fade + lift into place as they enter and dissolve again
@@ -1192,6 +1244,22 @@ html.theme-swapping *::before, html.theme-swapping *::after {
     from { opacity: 1; transform: none; }
     to   { opacity: 0; transform: translateY(-8px) scale(0.95); }
 }
+/* …and it ARRIVES the same way, backwards (js/ui/motion.js chatIn): its own motes gather
+   over it (reintegrate) and the entry appears as they land. A VEIL, not a fade — the entry
+   keeps its height, so the transcript grows and scrolls to it exactly as it always did,
+   but it is never seen ahead of its own dust. Fading it up underneath the cloud instead
+   showed the message first and played the animation over it, which is the one thing an
+   arrival must not do. motion.js lifts this the same frame it drops the cloud, so the
+   motes hand straight over to the real entry. !important: the entry's own row rules (and
+   the scroll reveal's) must not out-rank being held back. */
+.chat-transcript > .chat-entering, .ctx-assist-transcript > .chat-entering,
+.chat-results.chat-entering, .chat-attached.chat-entering {
+    opacity: 0 !important;
+    /* The dust is a photograph of where the entry IS — nothing may move under it. */
+    animation: none !important;
+    transition: none !important;
+    pointer-events: none;
+}
 /* A queued-attachment chip leaves a HORIZONTAL row: it melts like a chat card but
    ALSO collapses its width (frozen in --leave-w by motion.js), so the chips behind
    it slide over during the leave instead of jumping when the node is removed. The
@@ -1210,32 +1278,37 @@ html.theme-swapping *::before, html.theme-swapping *::after {
            margin-right: calc(0px - var(--chip-gap, 6px)); }
 }
 
-/* ── Filtering (js/ui/motion.js createFilterAnimator) ────────────────────────
-   A row a FILTER dropped was not destroyed, only hidden — so it must read differently
-   from a delete: a quick, light collapse with no dust, and the rows the filter reveals
-   fade back in with the same shape played the other way. Faster than .leaving above
-   on purpose; the two must never be mistaken for each other. */
-.filter-leaving {
-    pointer-events: none;
+/* ── A control group's own slot (js/ui/motion.js revealControls) ────────────
+   The f(x,y) fields and the custom page's W/H boxes open/close their slot in step with
+   the dust, so a neighbouring section slides instead of jumping. A transition, not
+   @keyframes, so it can't fight `.mark-forming`'s own `animation` for the same element. */
+.reveal-group-transition {
     overflow: hidden;
-    animation: rowFilterOut 0.15s ease-in both;
+    transition: max-width var(--reveal-ms, 320ms) cubic-bezier(0.16, 1, 0.3, 1),
+                max-height var(--reveal-ms, 320ms) cubic-bezier(0.16, 1, 0.3, 1);
 }
-@keyframes rowFilterOut {
-    from { opacity: 1; transform: none; max-height: var(--leave-h, 200px); }
-    to   { opacity: 0; transform: translateY(-4px);
-           max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+@media (prefers-reduced-motion: reduce) {
+    .reveal-group-transition { transition: none; }
 }
-/* The arrival is the same move reversed. Opacity + transform only — no height
-   animation: the revealed row is already laid out at its natural size. */
+
+/* ── Filtering (js/ui/motion.js createFilterAnimator) ────────────────────────
+   A filter is a QUESTION being re-answered, not a removal. What no longer matches was
+   never destroyed, so it does not play OUT at all — it is gone the moment the list
+   rebuilds, and there is deliberately no exit rule here to bring back. The whole effect
+   belongs to the rows that are LEFT: they arrive, as the new answer.
+   Each one waits at zero while its motes gather (motion.js filterDust) and comes up
+   behind them, on a clock slow enough to actually read and a fraction of a deletion's
+   throw, under one mesh budget shared by every row the change moves. Opacity + transform
+   only — no height animation: a listed row is already laid out at its natural size. */
 .filter-entering {
-    animation: rowFilterIn 0.2s cubic-bezier(0, 0, 0.6, 1) both;
+    animation: rowFilterIn 0.34s cubic-bezier(0, 0, 0.6, 1) both;
 }
 @keyframes rowFilterIn {
     from { opacity: 0; transform: translateY(-4px); }
     to   { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .filter-leaving, .filter-entering { animation: none; }
+    .filter-entering { animation: none; }
 }
 
 /* ── Disintegration (js/ui/motion.js disintegrate) ───────────────────────────
@@ -1380,6 +1453,25 @@ html.theme-swapping *::before, html.theme-swapping *::after {
     /* motion.js never adds these under reduced motion; this is the preference flipped
        mid-flight — the surface must land at its true opacity, not a keyframed one. */
     .dust-driven, .dust-driven.surface-forming, .dust-driven.surface-leaving { animation: none !important; }
+}
+
+/* ── A control's own mark, made of dust (js/ui/motion.js markIn / markOut) ───
+   A checkbox's tick, a select's chosen word and the input rows a toggle reveals come
+   and go as sand too — the same motes, the same keyframes, a shorter throw and a finer
+   grain (motion.js MARK_*). The element's BOX never moves: only what it displays does.
+   `.mark-forming` is the veil the arrival waits behind — the motes ARE the mark
+   forming, so the real thing is held back until they have very nearly landed. */
+.mark-forming { animation: markForm var(--mark-ms, 320ms) linear both; }
+@keyframes markForm { 0%, 62% { opacity: 0; } 100% { opacity: 1; } }
+/* A checkbox keeps its outline throughout — only the accent fill and the tick are the
+   mark, so the veil suppresses those rather than the whole control. */
+input[type=checkbox].mark-forming:checked, input[type=radio].mark-forming:checked {
+    animation: none;
+    background-color: transparent;
+    background-image: none;
+}
+@media (prefers-reduced-motion: reduce) {
+    .mark-forming { animation: none; }
 }
 
 /* While the dust falls, the freshly-emptied editor stays out of sight: the canvas is

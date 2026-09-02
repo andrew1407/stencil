@@ -1,5 +1,6 @@
 import { composeControlTitle } from '../utils.js';
 import { hotkeys } from '../core/hotkeys.js';
+import { revealControls, settleMark } from './motion.js';
 
 // ── App-wide control gating (extracted from drawingApp.js updateButtons) ──
 // One sweep that reflects the editor state (image loaded, drawing, history, read-only
@@ -88,10 +89,17 @@ export function updateButtons(app) {
   // State-aware Image section: the compact "Load Image" button shows only when
   // empty; the image-actions group (download/copy/share/open) shows only with an
   // image. (The file input itself stays hidden — it's just the picker target.)
-  const loadBtn = document.getElementById('load-image-btn');
-  if (loadBtn) loadBtn.style.display = hasImage ? 'none' : '';
-  const imgActions = document.getElementById('image-actions');
-  if (imgActions) imgActions.style.display = hasImage ? 'inline-flex' : 'none';
+  // The swap is HALF sand (user decision): the LEAVING side goes at once — no
+  // dust-out, no collapse — and only the ARRIVING side slides its slot open under
+  // gathering motes (motion.js revealControls; an unchanged state costs nothing).
+  const swapShown = (el, show) => {
+    if (!el) return;
+    if (show) { revealControls(el, true); return; }
+    settleMark(el);              // drop any in-flight gather before the hard hide
+    el.style.display = 'none';
+  };
+  swapShown(document.getElementById('load-image-btn'), !hasImage);
+  swapShown(document.getElementById('image-actions'), hasImage);
   // "Open in…" hides entirely when neither target is available (nothing to open into),
   // so it never shows a dead/greyed control. Availability tracks the loaded config +
   // whether this is a server project (see openInAvailable).

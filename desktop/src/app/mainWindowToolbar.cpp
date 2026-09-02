@@ -7,6 +7,7 @@
 #include "numericInput.hpp"
 #include "searchCombo.hpp"
 #include "theme.hpp"
+#include "../support/controlReveal.hpp"   // section buttons come and go as sand
 #include "../support/iconMotion.hpp"
 #include "../support/shimmerOverlay.hpp"
 
@@ -19,6 +20,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QScrollArea>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QTimer>
@@ -140,12 +142,32 @@ namespace stencil::gui {
     // 5 lands the icon buttons at the same rhythm once Qt's own button padding is counted, and
     // is as wide as the rows can go before the third one tips into QToolBar's "»" at 1200px.
     row->setSpacing(5);
+    // Dialog-opening buttons answer the popover gestures (Alt-peek / dblclick /
+    // right-click → the compact anchored shape). One wiring, shared by the action
+    // loop below AND leading widgets like the labelled Open Image button — which
+    // opens the same dialog as the icons and used to miss the gestures entirely.
+    const auto wirePopover = [this](QToolButton* btn, QAction* a) {
+      if (!a || !popoverDialogActions_.contains(a)) return;
+      popoverButtons_.insert(btn, a);
+      btn->installEventFilter(this);
+      btn->setContextMenuPolicy(Qt::CustomContextMenu);
+      connect(btn, &QToolButton::customContextMenuRequested, this, [this, a, btn] {
+        if (!a->isEnabled()) return;   // a disabled icon opens nothing — mini window included
+        if (popoverClickTimer_) popoverClickTimer_->stop();
+        altPeekAction_.clear();   // a deliberate open is sticky — Alt release keeps it
+        stopLingerPoll();         // a lingering window's poll must not close THIS open
+        popoverAnchor_ = btn;
+        a->trigger();
+      });
+    };
     // Widgets that come BEFORE the icons (the browser's EDIT starts with the filter combo).
     for (QWidget* w : leading) {
       if (!w) { qWarning("makeToolSection(%s): null leading widget skipped", qPrintable(title)); continue; }
       // The labelled Open Image button is a section button too (browser #load-image-btn).
-      if (auto* tb = qobject_cast<QToolButton*>(w); tb && tb->defaultAction())
+      if (auto* tb = qobject_cast<QToolButton*>(w); tb && tb->defaultAction()) {
         tb->setProperty("toolSection", title);
+        wirePopover(tb, tb->defaultAction());
+      }
       w->setParent(rowWidget);
       row->addWidget(w, 0, Qt::AlignVCenter);
     }
@@ -164,7 +186,11 @@ namespace stencil::gui {
       // action-widget), so mirror visibility explicitly for the gated ones (Open-in, Clear-project).
       btn->setVisible(a->isVisible());
       connect(a, &QAction::changed, btn, [this, a, btn] {
-        btn->setVisible(sectionButtonVisible(a, btn));
+        // ARRIVALS ride the sand — the slot slides open under gathering motes — while
+        // a leaving icon goes at once, no dust-out (user decision, refreshActions'
+        // swapShown twin); a no-change costs nothing.
+        const bool show = sectionButtonVisible(a, btn);
+        revealControls(btn, show, /*dust=*/show);
         btn->setCursor(a->isEnabled() ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
       });
       btn->setCursor(a->isEnabled() ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
@@ -179,19 +205,7 @@ namespace stencil::gui {
       }
       // Dialog-opening icons: the popover gestures (see the block above the toolbar
       // sections). The event filter owns click/dblclick; right-click arrives here.
-      if (popoverDialogActions_.contains(a)) {
-        popoverButtons_.insert(btn, a);
-        btn->installEventFilter(this);
-        btn->setContextMenuPolicy(Qt::CustomContextMenu);
-        connect(btn, &QToolButton::customContextMenuRequested, this, [this, a, btn] {
-          if (!a->isEnabled()) return;   // a disabled icon opens nothing — mini window included
-          if (popoverClickTimer_) popoverClickTimer_->stop();
-          altPeekAction_.clear();   // a deliberate open is sticky — Alt release keeps it
-          stopLingerPoll();         // a lingering window's poll must not close THIS open
-          popoverAnchor_ = btn;
-          a->trigger();
-        });
-      }
+      wirePopover(btn, a);
       row->addWidget(btn, 0, Qt::AlignVCenter);
     }
     for (QWidget* ex : extras) {
@@ -296,7 +310,12 @@ namespace stencil::gui {
     // BELOW the toolbars (see buildImageInfoBar) — browser parity with the #image-info bar,
     // left-aligned above the canvas rather than tucked in the top-right corner.
     imageSizeInfo_ = new QLabel(this);
-    imageSizeInfo_->setStyleSheet("color:#9aa0a8;padding:2px 10px;");
+    imageSizeInfo_->setStyleSheet("color:#9aa0a8;");
+    // contentsMargins, not stylesheet `padding` — QLabel's sizeHint()/paint don't reliably
+    // pick it up. 10px left/right (browser parity: css/layout.css .info padding: 10px);
+    // 6px top/bottom, tighter than parity since the row read taller than it needed to.
+    imageSizeInfo_->setContentsMargins(10, 6, 10, 6);
+    imageSizeInfo_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     addToolBarBreak();
 
     // Two rows so nothing is pushed into QToolBar's "»" overflow (which is what
@@ -331,8 +350,8 @@ namespace stencil::gui {
     // shape of their dialog (execMaybePopover). A plain click keeps the full dialog, but
     // deferred one double-click interval (the logo pattern): the dialog's exec() blocks,
     // so an instant open would swallow the second click of every double-click.
-    popoverDialogActions_ = {actOpen_, actOpenIn_, actProjects_, actConnect_, actLinks_, actChat_,
-                             actSettings_, actInfo_};
+    popoverDialogActions_ = {actOpen_, actOpenAnother_, actOpenIn_, actProjects_, actConnect_, actLinks_, actChat_,
+                             actShortcuts_, actSettings_, actInfo_};
     popoverClickTimer_ = new QTimer(this);
     popoverClickTimer_->setSingleShot(true);
     popoverClickTimer_->setInterval(250);
@@ -344,8 +363,10 @@ namespace stencil::gui {
     });
 
     // Image cluster (browser parity) + blank-fill swatch. Empty state: with no
-    // image the cluster collapses to ONE labelled "Open Image" button
-    // (refreshActions swaps the two; same action, so gestures/shortcut still work).
+    // image the cluster collapses to ONE labelled "Open Image" button; once an
+    // image loads, refreshActions swaps it for the icon row, whose trailing icon
+    // (actOpenAnother_) opens the same dialog as this button's actOpen_ — browser
+    // parity: #load-image-btn ↔ #open-image-btn, same handler, different button/icon.
     openImageBtn_ = new QToolButton(this);
     openImageBtn_->setDefaultAction(actOpen_);
     openImageBtn_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -361,7 +382,8 @@ namespace stencil::gui {
     // The padding is redistributed, not increased — same button width. Guarded by
     // openImageButtonLabelIsCentred() in the GUI tests.
     openImageBtn_->setStyleSheet("padding-left: 11px; padding-right: 3px;");
-    imageSection_ = makeToolSection("Image", {actOpen_, actSaveImage_, actCopyImage_, actOpenIn_},
+    imageSection_ = makeToolSection("Image",
+                                    {actSaveImage_, actCopyImage_, actShareImage_, actOpenIn_, actOpenAnother_},
                                     {}, {openImageBtn_});
     tb->addWidget(imageSection_);
     tb->addSeparator();
@@ -403,6 +425,10 @@ namespace stencil::gui {
     drawModeBtn_->setAutoRaise(true);
     drawModeBtn_->setIconSize(QSize(kToolIcon, kToolIcon));
     drawModeBtn_->setToolTip("Drawing mode: Line (click to switch to Rectangle)");
+    // Solid accent, permanently — it has no QAction for styleDangerToolButtons' own
+    // fill pass to reach (its click is a plain connect(), not a default action), and
+    // the browser's `#draw-mode-toggle` is a bare `<button>`, filled at rest too.
+    drawModeBtn_->setProperty("toolFill", QStringLiteral("accent"));
     // Zoom = the editable percent combo + a Fit-to-window button (browser parity — the browser's
     // zoom section ends with the fit icon). The combo replaces the browser's +/- steppers (type or
     // pick a preset). Fit button built here so it sits AFTER the combo, like the browser.
@@ -428,7 +454,15 @@ namespace stencil::gui {
   // Escape / click-away = ✗. Lives in the always-visible header row beside the "Controls" pill. ──
   void MainWindow::buildProjectNameGroup(QToolBar* tbName) {
     tbName->addWidget(new QLabel("Project: ", this));
-    projectName_ = new QLineEdit(this);
+    // ONE container for the field + its affordances (browser .project-name-field
+    // parity): hover is the container's own gap-free rect, so sweeping between the
+    // field and the ✎/🎨 buttons can never flicker the reveal (which replayed the
+    // dust and re-armed the tooltip — user report). RowCard (connectDialog) pattern.
+    nameGroup_ = new QWidget(this);
+    auto* nameLay = new QHBoxLayout(nameGroup_);
+    nameLay->setContentsMargins(0, 0, 0, 0);
+    nameLay->setSpacing(4);
+    projectName_ = new QLineEdit(nameGroup_);
     projectName_->setPlaceholderText("No project");
     projectName_->setToolTip(QString());   // no tooltip on the name field (the ✎ button has its own)
     projectName_->setMinimumWidth(150);
@@ -439,7 +473,7 @@ namespace stencil::gui {
     projectName_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     projectName_->setEnabled(false);
     projectName_->setReadOnly(true);  // browser-like: read-only until edit mode (✎ / double-click)
-    tbName->addWidget(projectName_);
+    nameLay->addWidget(projectName_);
     // "?" status hint on the never-collapsing header row — a LABEL (hover readout,
     // browser #hints-btn), round outline, added after ✎/🎨 (browser order).
     statusHint_ = new QLabel(this);
@@ -459,21 +493,21 @@ namespace stencil::gui {
       b->setFixedSize(26, 26);
       b->setIconSize(QSize(15, 15));
     };
-    projectNameEdit_ = new QToolButton(this);
+    projectNameEdit_ = new QToolButton(nameGroup_);
     projectNameEdit_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     sizeToRow(projectNameEdit_);
     projectNameEdit_->setAutoRaise(true);
     projectNameEdit_->setToolTip("Rename project");
     projectNameEdit_->setEnabled(false);
-    projectNameEditAction_ = tbName->addWidget(projectNameEdit_);
+    nameLay->addWidget(projectNameEdit_);
     connect(projectNameEdit_, &QToolButton::clicked, this, [this] { enterNameEdit(); });
-    projectColorBtn_ = new QToolButton(this);
+    projectColorBtn_ = new QToolButton(nameGroup_);
     projectColorBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     sizeToRow(projectColorBtn_);
     projectColorBtn_->setAutoRaise(true);
     projectColorBtn_->setToolTip("Project color — paints the project name");
     projectColorBtn_->setEnabled(false);
-    projectColorBtnAction_ = tbName->addWidget(projectColorBtn_);
+    nameLay->addWidget(projectColorBtn_);
     // Click opens a small menu (browser parity): "Choose colour…" + "Use theme default colour".
     // The menu runs its own loop and fully closes before we open the picker (deferred), so no stray
     // grab dismisses the dialog. Right-click still resets straight to the theme default.
@@ -488,20 +522,18 @@ namespace stencil::gui {
     // Inline-rename confirm/cancel: line-art check / x glyphs (themed in
     // styleActionIcons) instead of the bare ✓/✗ text, matching the browser's
     // icon buttons. Icon-only with a tooltip.
-    projectNameAccept_ = new QToolButton(this);
+    projectNameAccept_ = new QToolButton(nameGroup_);
     projectNameAccept_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     sizeToRow(projectNameAccept_);   // ✓/✗ replace ✎/🎨 in edit mode — same box, no jump
-    projectNameAccept_->setToolTip("Save name");
     projectNameAccept_->setVisible(false);
-    projectNameAcceptAction_ = tbName->addWidget(projectNameAccept_);
-    projectNameAcceptAction_->setVisible(false);
-    projectNameCancel_ = new QToolButton(this);
+    nameLay->addWidget(projectNameAccept_);
+    projectNameCancel_ = new QToolButton(nameGroup_);
     projectNameCancel_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     sizeToRow(projectNameCancel_);
-    projectNameCancel_->setToolTip("Cancel");
     projectNameCancel_->setVisible(false);
-    projectNameCancelAction_ = tbName->addWidget(projectNameCancel_);
-    projectNameCancelAction_->setVisible(false);
+    nameLay->addWidget(projectNameCancel_);
+    // The container goes on the toolbar as one action, AFTER its children exist.
+    tbName->addWidget(nameGroup_);
     // Trailing expanding spacer: absorbs the rest of the row so the label + name + ✎/🎨 stay packed
     // together on the LEFT (no huge gap), instead of the name field stretching across the whole row.
     { auto* sp = new QWidget(this); sp->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred); tbName->addWidget(sp); }
@@ -520,8 +552,11 @@ namespace stencil::gui {
     // Escape cancels the edit; clicking away (focus-out) reverts any uncommitted text — both via
     // the event filter below, so the user can always leave the field (Enter still commits).
     projectName_->installEventFilter(this);
-    // Hover-reveal the ✎/🎨 group: watch Enter/Leave on the field AND both buttons so moving between
-    // them counts as one hover region (handled in eventFilter → updateNameHover).
+    // Hover-reveal the ✎/🎨 group: the CONTAINER is the hover region; children still get
+    // their own Enter/Leave (Qt sends the parent a Leave when the cursor moves onto a
+    // child), so all four recompute the shared state (eventFilter → updateNameHover,
+    // which tests the container's gap-free rect).
+    nameGroup_->installEventFilter(this);
     projectNameEdit_->installEventFilter(this);
     projectColorBtn_->installEventFilter(this);
   }
@@ -638,10 +673,12 @@ namespace stencil::gui {
                                    {actDownloadJson_, actCopyLayout_, actUploadJson_, actClearProject_}));
     tb2->addSeparator();
     // Settings mirrors the browser's last cluster in order: theme · fullscreen ·
-    // incognito · gear · palette · info. Every button drives the existing QAction
-    // (keeps toolbar and menu bar in step; palette = the logo's actAccent_ popover).
+    // incognito · gear (Shortcuts) · palette (Visuals) · info (Help). Every button
+    // drives the existing QAction (keeps toolbar and menu bar in step). actAccent_
+    // is NOT in this row — it's the logo's own right-click/dblclick popover, with
+    // no toolbar icon of its own in the browser either.
     settingsSection_ = makeToolSection(
-        "Settings", {actTheme_, actFullscreen_, actIncognito_, actSettings_, actAccent_, actInfo_});
+        "Settings", {actTheme_, actFullscreen_, actIncognito_, actShortcuts_, actSettings_, actInfo_});
     tb2->addWidget(settingsSection_);
     formulaGroup_->setVisible(false);   // revealed by the pill (setFormulaFieldsVisible)
     // (Theme / Incognito / Settings / Info are NOT menu-bar-only any more: they
@@ -683,6 +720,16 @@ namespace stencil::gui {
         "• Vertical split — original left, edit right\n"
         "• Horizontal split — original top, edit bottom\n"
         "(hold Alt+Shift+O to peek) (Alt+O)");
+    // Compare view combo → route through the shared setter (syncs canvas + View
+    // submenu). Wired HERE, not alongside the toolbar's other combo connects
+    // (buildStyleToolbar) — that function runs BEFORE this one (buildToolbar's own
+    // call order), so a connect() there would target a still-null compareCombo_ and
+    // silently do nothing (Qt warns "invalid nullptr parameter" and drops it): every
+    // row in the popup looked selectable but never touched the canvas (reported).
+    connect(compareCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int) {
+              setCompareModeUi(compareCombo_->currentData().toString());
+            });
 
     // View cluster in the browser's order: ☑ Points · ☑ Lines · Compare · clear.
     // Points/Lines are real CHECKBOXES (persistent state, browser parity); the
@@ -717,14 +764,43 @@ namespace stencil::gui {
         showPointsCheck_, showLinesCheck_, compareLabel, compareCombo_, clearLinesBtn }));
   }
 
-  // Full-width "Image Size: W × H px" bar below the tool rows (browser parity with the
-  // #image-info strip above the canvas), replacing the old top-right header placement.
+  // "Image Size: W × H px" bar right above the canvas (browser parity: #image-info, a sibling
+  // of .main-content rather than nested in .canvas-section). A real Qt::TopDockWidgetArea
+  // dock, like selectedLineDock_ above it, so the row spans the full window width above both
+  // dock corners instead of staying narrowed by the panel dock — this also retires
+  // selectionPanel's setHeaderTopGap() hack, since both now sit below the same dock stack.
   void MainWindow::buildImageInfoBar() {
-    addToolBarBreak();
-    auto* bar = addToolBar("Image Size");
-    bar->setMovable(false);
-    bar->setObjectName("imageInfoBar");  // pre-existing name; also keys QMainWindow::saveState
-    bar->addWidget(imageSizeInfo_);   // left-aligned label; the bar spans the window width
+    auto* bar = new QWidget(this);
+    bar->setObjectName("imageInfoBar");
+    bar->setAttribute(Qt::WA_StyledBackground, true);
+    auto* lay = new QHBoxLayout(bar);
+    lay->setContentsMargins(0, 0, 0, 0);
+    lay->addWidget(imageSizeInfo_);   // left-aligned label; the bar spans the window width
+    lay->addStretch(1);
+    imageInfoBar_ = bar;
+
+    // The host carries the gaps around the styled bar so neither paints as part of its
+    // background/border: no left/right margin (full-bleed, unlike the canvas column), an
+    // adaptive top gap (0 while "Selected Line:" is shown, 8 otherwise — onSelectionChanged
+    // keeps this in sync) and a fixed 10px bottom gap (browser parity: .canvas-viewport
+    // margin-top: 10px).
+    imageInfoHost_ = new QWidget(this);
+    imageInfoHost_->setObjectName("imageInfoHost");
+    auto* hostLay = new QVBoxLayout(imageInfoHost_);
+    hostLay->setContentsMargins(0, 8, 0, 6);
+    hostLay->setSpacing(0);
+    hostLay->addWidget(bar);
+
+    imageInfoDock_ = new QDockWidget(this);
+    imageInfoDock_->setObjectName("imageInfoDock");
+    imageInfoDock_->setFeatures(QDockWidget::NoDockWidgetFeatures);
+    imageInfoDock_->setTitleBarWidget(new QWidget(imageInfoDock_));   // no title bar of its own
+    imageInfoDock_->setWidget(imageInfoHost_);
+    addDockWidget(Qt::TopDockWidgetArea, imageInfoDock_);
+    // Stacking below selectedLineDock_ (rather than Qt's default side-by-side tiling) needs
+    // splitDockWidget, but selectedLineDock_ is still hidden here (nothing selected yet), and
+    // splitting against a hidden dock doesn't register (same caveat as ensurePanelChatSplit).
+    // onSelectionChanged re-affirms the split once selectedLineDock_ actually shows.
   }
 
   void MainWindow::buildStyleToolbar() {
@@ -861,11 +937,6 @@ namespace stencil::gui {
     connect(imageFilter_, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this](int) {
               applyImageFilter(imageFilter_->currentData().toString());
-            });
-    // Compare view combo → route through the shared setter (syncs canvas + View submenu).
-    connect(compareCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, [this](int) {
-              setCompareModeUi(compareCombo_->currentData().toString());
             });
     // Tint color (drawingApp.js:240-249): pick the custom duotone tint.
     connect(filterColorBtn_, &QToolButton::clicked, this, [this] {

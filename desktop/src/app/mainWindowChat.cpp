@@ -17,6 +17,7 @@
 #include "serverClient.hpp"
 #include "connectionStore.hpp"
 #include "theme.hpp"
+#include "tipContent.hpp"   // currentPalette() — the colours rich tooltips are drawn in
 #include "../support/localPath.hpp"
 
 #include <QBuffer>
@@ -183,6 +184,14 @@ namespace stencil::gui {
       QTimer* timer_ = nullptr;
       std::function<void()> onClick_;
     };
+
+    // Every error card offers a Retry of the turn that failed: the most recent
+    // USER message (pushed to the history before the request went out).
+    QString lastUserTurn(const QVector<llm::ChatMessage>& history) {
+      for (auto it = history.crbegin(); it != history.crend(); ++it)
+        if (it->role == QLatin1String("user")) return it->text;
+      return QString();
+    }
   }  // namespace
 
 
@@ -235,6 +244,35 @@ namespace stencil::gui {
       return QStringLiteral("<font color=\"%1\">%2</font>")
           .arg(QLatin1String(color), text.toHtmlEscaped());
     }
+
+    // One .chat-status-tip table row (browser css/components.css): the label
+    // cell muted, the value cell pre-rendered by the caller — tipValue()'s
+    // accent shade, or the status cell's state colour.
+    QString tipRow(const QString& label, const QString& valueHtml) {
+      return QStringLiteral("<tr><td style=\"color:%1;\">%2&nbsp;&nbsp;&nbsp;</td><td>%3</td></tr>")
+          .arg(currentPalette().textMuted.name(), label.toHtmlEscaped(), valueHtml);
+    }
+    QString tipValue(const QString& text) {
+      return QStringLiteral("<span style=\"color:%1;\">%2</span>")
+          .arg(currentPalette().textKey.name(), text.toHtmlEscaped());
+    }
+
+    // The whole tooltip: the rows table over the footer lines, the foot under a
+    // hairline in smaller muted type — the browser .chat-status-tip /
+    // .chat-status-tip-foot rendering (no heading; the table opens the tip).
+    QString tipPanel(const QString& rows, const QStringList& foot) {
+      const Palette pal = currentPalette();
+      QString html =
+          QStringLiteral("<table cellspacing=\"0\" cellpadding=\"1\">%1</table>").arg(rows);
+      // style, not the color attribute: Qt ignores the attribute and otherwise
+      // draws the rule in the TEXT colour — glaring on the dark theme (the
+      // browser hairline is border-main). Verified: background-color is honoured.
+      html += QStringLiteral("<hr style=\"background-color:%1;\">").arg(pal.borderMain.name());
+      for (const QString& line : foot)
+        html += QStringLiteral("<div style=\"color:%1; font-size:small;\">%2</div>")
+                    .arg(pal.textMuted.name(), line.toHtmlEscaped());
+      return html;
+    }
   }  // namespace
 
   void MainWindow::refreshLlmStatus() {
@@ -245,17 +283,13 @@ namespace stencil::gui {
     // anywhere; the gear table shows only the Provider + Status rows (browser
     // gearStatusRows parity for the off state).
     if (cfg.provider == QLatin1String("none")) {
-      const QString html =
-          QStringLiteral("<b>AI assistant</b>"
-                         "<table cellspacing=\"0\" cellpadding=\"1\">"
-                         "<tr><td>Provider&nbsp;&nbsp;</td><td>None (turned off)</td></tr>"
-                         "<tr><td>Status&nbsp;&nbsp;</td><td>%1</td></tr>"
-                         "</table><div>%2</div>")
-              .arg(tipColored(kTipErrorColor,
-                              QStringLiteral(
-                                  "Assistant turned off — nothing is sent anywhere")),
-                   clickHint.toHtmlEscaped());
-      chatMirrorProviderStatus(html, ChatDock::ProviderStatus::Unreachable);
+      const QString rows =
+          tipRow(QStringLiteral("Provider"), tipValue(QStringLiteral("None (turned off)"))) +
+          tipRow(QStringLiteral("Status"),
+                 tipColored(kTipErrorColor,
+                            QStringLiteral("Assistant turned off — nothing is sent anywhere")));
+      chatMirrorProviderStatus(tipPanel(rows, {clickHint}),
+                               ChatDock::ProviderStatus::Unreachable);
       return;
     }
     const QString provider = cfg.provider == QLatin1String("openai-compat")
@@ -280,22 +314,12 @@ namespace stencil::gui {
     // gearStatusRows / gearTipFootText (chatPanel.js).
     const auto tooltip = [provider, endpoint](const QString& model, const QString& statusHtml,
                                               const QStringList& foot) {
-      QString rows;
-      const auto row = [&rows](const QString& label, const QString& valueHtml) {
-        rows += QStringLiteral("<tr><td>%1&nbsp;&nbsp;</td><td>%2</td></tr>")
-                    .arg(label, valueHtml);
-      };
-      row(QStringLiteral("Provider"), provider.toHtmlEscaped());
-      if (!endpoint.isEmpty()) row(QStringLiteral("Endpoint"), endpoint.toHtmlEscaped());
-      row(QStringLiteral("Model"),
-          (model.isEmpty() ? QStringLiteral("server default") : model).toHtmlEscaped());
-      row(QStringLiteral("Status"), statusHtml);
-      QString html = QStringLiteral("<b>AI assistant</b>"
-                                    "<table cellspacing=\"0\" cellpadding=\"1\">%1</table>")
-                         .arg(rows);
-      for (const QString& line : foot)
-        html += QStringLiteral("<div>%1</div>").arg(line.toHtmlEscaped());
-      return html;
+      QString rows = tipRow(QStringLiteral("Provider"), tipValue(provider));
+      if (!endpoint.isEmpty()) rows += tipRow(QStringLiteral("Endpoint"), tipValue(endpoint));
+      rows += tipRow(QStringLiteral("Model"),
+                     tipValue(model.isEmpty() ? QStringLiteral("server default") : model));
+      rows += tipRow(QStringLiteral("Status"), statusHtml);
+      return tipPanel(rows, foot);
     };
     const QString checking =
         tipColored(kTipConnectingColor, QStringLiteral("Checking the configured LLM…"));
@@ -394,13 +418,22 @@ namespace stencil::gui {
     // dock guards its own Enter/click paths; this covers programmatic sends.
     if (chatDock_->isBusy()) return;
     chatLastPrompt_ = text;   // a stopped turn offers this back as Retry
-    // Provider "none" = assistant off: render the configure hint instead of a
-    // raw error; nothing is encoded, recorded, or sent anywhere.
+    // Provider "none" = assistant off (browser "unreachable" kind — choosing a
+    // provider IS the fix): the same Configure-provider card + Retry a Transport/
+    // Http failure gets, just answered locally; nothing is encoded, recorded, or
+    // sent anywhere. Not routed through chatUnreachable() (it reads chatHistory_
+    // for the retry text, which this deliberately never touches) — `text` itself
+    // is the retry.
     if (currentLlmSettings().provider == QLatin1String("none")) {
       chatDock_->appendUser(text);
       chatMirror(QStringLiteral("You"), text, false);
-      chatNotice(
-          QStringLiteral("The assistant is turned off — choose a provider to enable it."));
+      const QString off =
+          QStringLiteral("The assistant is turned off — choose a provider to enable it.");
+      chatDock_->appendUnreachable(off, text);
+      chatMirror(QStringLiteral("Error"), off, true, text, {}, /*configure=*/true);
+      // This path never reaches onChatReply's own toast/unread handling (it
+      // returns before any reply is even requested) — mark it here instead.
+      if (chatSurfaceHidden()) setChatUnread(true);
       return;
     }
     ensureLlmClient();
@@ -651,9 +684,16 @@ namespace stencil::gui {
             }
           });
         },
-        [this] {
+        // `anchorRect` is the gear's (or a card's "Configure provider" CTA's)
+        // global rect, captured by ChatMenuPanel BEFORE this popup starts
+        // closing — closeOpenPopupMenus() would otherwise hide the button first,
+        // leaving the dialog to fall back to the dock's "…" trigger instead of
+        // the control that was actually clicked.
+        [this](QRect anchorRect) {
           closeOpenPopupMenus();
-          QTimer::singleShot(0, this, [this] { openAssistantSettings(); });
+          QTimer::singleShot(0, this, [this, anchorRect] {
+            openAssistantSettingsFrom(nullptr, anchorRect);
+          });
         },
         // Resend from an error/stopped card here runs the dock's retry path, so
         // the two surfaces requeue the same attachments and send one turn.
@@ -663,6 +703,7 @@ namespace stencil::gui {
     chatMenuAction_ = new QWidgetAction(this);
     chatMenuAction_->setDefaultWidget(panel);  // takes ownership of the panel
     panel->restyle(themePalette(resolveDark(settings_.themeMode), settings_.accentColor));
+    panel->setChatSwapSides(settings_.chatSwapSides);   // mirrors the dock's own preference
     // The panel is created LAZILY, so a conversation may already exist (chatted
     // in the dock, then opened the menu). It replays what the dock DISPLAYED —
     // never chatHistory_, which is the model's view: that carries the §7
@@ -701,33 +742,32 @@ namespace stencil::gui {
   }
 
   void MainWindow::chatMirror(const QString& role, const QString& text, bool muted,
-                              const QString& retryText, const QStringList& notes) {
+                              const QString& retryText, const QStringList& notes,
+                              bool configure) {
     // Recorded whether or not the panel exists yet: it is built lazily, and this
     // log is what it replays when it finally does. One append here per row the
     // dock displays — so the two surfaces cannot drift.
     chatMirrorLog_.append({role, text, retryText, notes, muted});
     while (chatMirrorLog_.size() > kChatHistoryBound) chatMirrorLog_.removeFirst();
     if (chatMenuPanel_)
-      asChatMenu(chatMenuPanel_)->appendRow(role, text, muted, retryText, false, notes);
+      asChatMenu(chatMenuPanel_)->appendRow(role, text, muted, retryText, false, notes,
+                                            configure);
   }
+  // A user-aborted turn never lands in chatError/chatUnreachable (it becomes
+  // "Stopped." instead).
   void MainWindow::chatError(const QString& text, const QString& toastError) {
-    // Every error card offers a Retry of the turn that failed: the most recent
-    // USER message (pushed to the history before the request went out). A
-    // user-aborted turn never lands here (it becomes "Stopped." instead).
-    QString retryText;
-    for (auto it = chatHistory_.crbegin(); it != chatHistory_.crend(); ++it)
-      if (it->role == QLatin1String("user")) { retryText = it->text; break; }
+    const QString retryText = lastUserTurn(chatHistory_);
     chatDock_->appendError(text, retryText);
     chatMirror(QStringLiteral("Error"), text, true, retryText);
     if (!toastError.isEmpty() && !chatDock_->isVisible())
       showChatToast(QStringLiteral("Assistant failed — %1").arg(toastError), false);
   }
-  // Deliberately NO toast (a configure hint is not a result), but the icon does
-  // carry the mark: it is cheap, silent, and answers "did anything happen?".
-  void MainWindow::chatNotice(const QString& text) {
-    if (chatSurfaceHidden()) setChatUnread(true);
-    chatDock_->appendNotice(text);
-    chatMirror(QStringLiteral("Assistant off"), text, true);
+  void MainWindow::chatUnreachable(const QString& text, const QString& toastError) {
+    const QString retryText = lastUserTurn(chatHistory_);
+    chatDock_->appendUnreachable(text, retryText);
+    chatMirror(QStringLiteral("Error"), text, true, retryText, {}, /*configure=*/true);
+    if (!toastError.isEmpty() && !chatDock_->isVisible())
+      showChatToast(QStringLiteral("Assistant failed — %1").arg(toastError), false);
   }
   void MainWindow::chatMirrorPending(bool show) {
     if (!chatMenuPanel_) return;
@@ -928,28 +968,34 @@ namespace stencil::gui {
     if (!reply.ok) {
       flushHeldChatReply();  // a failed continuation must not swallow round 1's reply
       // Truncation / refusal are typed errors — never parsed as plans (§6.3).
+      // Kinds mirror browser describeChatError: Off/Transport/Http are its
+      // "unreachable" (card + Configure-provider CTA, the config IS the fix);
+      // Disabled/Truncated are its "notice" (red + Retry, raw message, no CTA —
+      // the provider is fine, just not answering this way); Refusal/BadResponse
+      // are its "refusal"/generic "error" (red + Retry, "Refused: "/"Error: ").
       switch (reply.failure) {
+        case llm::LlmFailure::Off:
+        case llm::LlmFailure::Transport:
+        case llm::LlmFailure::Http:
+          chatUnreachable(reply.error);
+          break;
         case llm::LlmFailure::Truncated:
-          chatError(QStringLiteral("Response truncated (max tokens) — nothing was applied."));
+        case llm::LlmFailure::Disabled:
+          chatError(reply.error);
           break;
         case llm::LlmFailure::Refusal:
-          chatError(QStringLiteral("The model refused: %1").arg(reply.error));
-          break;
-        case llm::LlmFailure::Disabled:
-          chatNotice(reply.error);  // configure hint, not a raw error
+          chatError(QStringLiteral("Refused: %1").arg(reply.error));
           break;
         case llm::LlmFailure::Expired: {
           // A refused SESSION, not a broken assistant: say which server and give
           // the way back in. Mirrored to the menu panel like any other error.
-          QString retryText;
-          for (auto it = chatHistory_.crbegin(); it != chatHistory_.crend(); ++it)
-            if (it->role == QLatin1String("user")) { retryText = it->text; break; }
+          const QString retryText = lastUserTurn(chatHistory_);
           chatDock_->appendExpiredSession(reply.error, reply.expiredHost, retryText);
           chatMirror(QStringLiteral("Error"), reply.error, true, retryText);
           break;
         }
-        default:
-          chatError(reply.error);
+        default:  // BadResponse and anything untyped
+          chatError(QStringLiteral("Error: %1").arg(reply.error));
           break;
       }
       if (toastWanted)

@@ -33,9 +33,13 @@ namespace stencil::gui {
   public:
     // Whole-widget mode: sweeps the whole target on hover-enter. View mode (view != null): sweeps
     // the hovered ROW of an item view (points/lines panel), tracked via the viewport's mouse-move.
-    explicit ShimmerOverlay(QWidget* target, QAbstractItemView* view = nullptr)
+    // External-band mode (externalBands): the owner drives sweeps over arbitrary bands via
+    // sweepBand() — Enter starts nothing (menuShimmer.hpp's QMenu rows).
+    explicit ShimmerOverlay(QWidget* target, QAbstractItemView* view = nullptr,
+                            bool externalBands = false)
         : QWidget(view ? view->viewport() : target),
-          target_(view ? view->viewport() : target), view_(view) {
+          target_(view ? view->viewport() : target), view_(view),
+          externalBands_(externalBands) {
       // A child overlay that alpha-blends over the target. NO WA_TranslucentBackground (that's a
       // top-level-window attribute and stops a child from rendering); WA_NoSystemBackground so
       // Qt doesn't erase our area and the target shows through the un-painted (transparent) parts.
@@ -72,18 +76,21 @@ namespace stencil::gui {
             raise();
             break;
           case QEvent::Enter:
-            if (!view_ && target_->isEnabled()) startSweep(rect());
+            if (!view_ && !externalBands_ && target_->isEnabled()) startSweep(rect());
             break;
           case QEvent::Leave:
             // Cancel the sweep the instant the cursor leaves, so a fast pass over many items
             // doesn't leave a trail of animations still playing out on already-unhovered widgets.
           case QEvent::Hide:
+            cancelSweep();
+            break;
           case QEvent::EnabledChange:
           case QEvent::WindowDeactivate:
-            // …and whenever the target hides / disables / loses its window (a
-            // modal dialog opening mid-sweep): a suspended window would keep
-            // the half-painted band as a frozen streak otherwise.
-            cancelSweep();
+            // …and whenever the target disables / loses its window (a modal dialog
+            // opening mid-sweep): a suspended window would keep the half-painted band
+            // as a frozen streak otherwise. NOT in external-band mode — a popup menu's
+            // activation churn is not a hover-out (menuShimmer.hpp).
+            if (!externalBands_) cancelSweep();
             break;
           case QEvent::MouseMove:
             if (view_) {
@@ -123,6 +130,11 @@ namespace stencil::gui {
       p.fillRect(b, g);
     }
 
+  public:
+    // External-band mode's public drive: sweep an arbitrary band / cancel outright.
+    void sweepBand(const QRect& band) { startSweep(band); }
+    void cancel() { cancelSweep(); }
+
   private:
     // Reduced motion: no sweep at all. The sweep is pure feedback with no end state to
     // reach, so skipping it loses nothing (faceSwap / filterFade rule).
@@ -144,6 +156,7 @@ namespace stencil::gui {
     }
     QWidget* target_;
     QAbstractItemView* view_;
+    bool externalBands_ = false;
     QVariantAnimation* anim_ = nullptr;
     qreal progress_ = -1.0;
     QRect band_;

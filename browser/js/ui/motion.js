@@ -509,18 +509,31 @@ export const createListHold = ({ settle = () => {}, wait = wipeDurationMs, setTi
 };
 
 // ── Filtering a list ────────────────────────────────────────────────────────
-// A row a FILTER drops was not destroyed — it is only out of view — so it must not
-// play the delete's scatter (leaveThenRemove + scatterGridFor). It gets a lighter,
-// quicker collapse instead, and the rows the filter reveals fade back in on the same
-// short clock: enter and exit are the same shape, played opposite ways.
-export const FILTER_LEAVE_MS = 150;
-export const FILTER_ENTER_MS = 200;
+// A filter is a question re-answered, not a removal: dropped rows just vanish with the
+// rebuild, and the whole effect belongs to the rows that are LEFT, which assemble anew.
+export const FILTER_ENTER_MS = 340;
 // Small enough that a long list still settles in one beat.
-export const FILTER_STAGGER_MS = 16;
+export const FILTER_STAGGER_MS = 22;
 // Past this many rows the effect is noise (and a cost) — the rest simply appear.
 export const FILTER_MAX_ANIMATED = 16;
-export const FILTER_LEAVING_CLASS = 'filter-leaving';
 export const FILTER_ENTERING_CLASS = 'filter-entering';
+// The kept rows form from anonymous specks (speckPainter) on a shorter, non-destructive
+// throw — a filter is a view change, never mistakable for a deletion's scatter.
+export const FILTER_DUST_MS = 460;
+export const FILTER_DUST_DRIFT = 0.5;
+// `index`/`count` share ONE mesh budget across every row a change moves (scatterGridFor),
+// so a filter that leaves a dozen rows costs about what one deletion does. Past the
+// budget's row ceiling a row simply fades, as it always did.
+// `box` is an optional pre-measured rect, so a burst of rows can be measured in one
+// read pass before any cloud's writes start (createFilterAnimator's playEnter).
+export const filterDust = (el, index = 0, count = 1, box = null) => {
+  const { cols, rows } = scatterGridFor(count, index);
+  if (!cols || !el?.getBoundingClientRect || motionReduced()) return false;
+  return disintegrate(el, {
+    cols, rows, gather: true, ms: FILTER_DUST_MS, drift: FILTER_DUST_DRIFT, px: MOTE_PX,
+    toBody: true, hostClass: 'dust-forming', paintTile: speckPainter(el), box,
+  });
+};
 
 export const motionReduced = () =>
   typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -543,57 +556,44 @@ export const filterDelta = (before = [], after = []) => {
 // One filter animator per list. `keys()` is what the list shows RIGHT NOW, `next()`
 // what the pending state WILL show, `render()` rebuilds it, `find(key)` resolves a
 // rendered row. Returns a run() for every filter/sort/search handler to call.
-// render() ALWAYS runs exactly once per call — under reduced motion, with nothing to
-// play, or mid-animation. The rendered set never depends on the decoration.
+//
+// render() ALWAYS runs exactly once per call, FIRST and synchronously: the new answer is
+// on screen before any decoration starts, so nothing about what you can see waits on an
+// effect and a burst of keystrokes can never leave a stale set behind. What plays is the
+// arrival of the rows that are LEFT — every one of them, because the filtered set IS the
+// thing that changed, not just the rows that happen to be new to it.
 export const createFilterAnimator = ({
   keys = () => [], next = () => [], render = () => {}, find = () => null,
-  leaveMs = FILTER_LEAVE_MS, enterMs = FILTER_ENTER_MS, max = FILTER_MAX_ANIMATED,
+  enterMs = FILTER_ENTER_MS, max = FILTER_MAX_ANIMATED,
   setTimer = setTimeout, reduced = motionReduced,
 } = {}) => {
-  let seq = 0;
-  let flight = 0;   // generation of the leave in flight; 0 when idle
   const rowsFor = (keyList) => keyList.slice(0, max).map((k) => find(k)).filter((el) => el?.classList);
 
-  const playEnter = (rows) => rows.forEach((el, i) => {
-    const delay = i * FILTER_STAGGER_MS;
-    if (el.style) el.style.animationDelay = `${delay}ms`;
-    el.classList.add(FILTER_ENTERING_CLASS);
-    setTimer(() => {
-      el.classList.remove(FILTER_ENTERING_CLASS);
-      if (el.style) el.style.animationDelay = '';
-    }, enterMs + delay + 60);
-  });
+  const playEnter = (rows) => {
+    // Every rect in ONE read pass, then clouds/classes in a write pass — interleaving
+    // the two forced a layout per row on every keystroke.
+    const boxes = rows.map((el) => el.getBoundingClientRect?.() || null);
+    rows.forEach((el, i) => {
+      const delay = i * FILTER_STAGGER_MS;
+      if (el.style) el.style.animationDelay = `${delay}ms`;
+      filterDust(el, i, rows.length, boxes[i]);
+      el.classList.add(FILTER_ENTERING_CLASS);
+      setTimer(() => {
+        el.classList.remove(FILTER_ENTERING_CLASS);
+        if (el.style) el.style.animationDelay = '';
+      }, enterMs + delay + 60);
+    });
+  };
 
   return () => {
-    const gen = ++seq;
     const after = [...next()];
     const { leaving, entering, moved } = filterDelta(keys(), after);
-    // Same membership, new order (a sort switch): the whole list settles back in.
-    const arriving = (leaving.length || entering.length) ? entering : (moved ? after : []);
-    // Reduced motion, nothing to play, or a change landing mid-animation (fast typing
-    // in the search box): render straight away — a second overlapping leave would drop
-    // rows, and correctness of the rendered set is not negotiable.
-    if (flight || reduced() || (!leaving.length && !arriving.length)) {
-      render();
-      return Promise.resolve({ leaving, entering: arriving });
-    }
-    const doomed = rowsFor(leaving);
-    for (const el of doomed) {
-      // Freeze the height, like leaveThenRemove: `height: auto → 0` does not animate.
-      const r = el.getBoundingClientRect?.();
-      if (r?.height) el.style?.setProperty?.('--leave-h', `${r.height}px`);
-      el.classList.add(FILTER_LEAVING_CLASS);
-    }
-    const settle = () => { render(); playEnter(rowsFor(arriving)); };
-    if (!doomed.length) { settle(); return Promise.resolve({ leaving, entering: arriving }); }
-    flight = gen;
-    return new Promise((resolve) => setTimer(() => {
-      flight = 0;
-      // Superseded meanwhile? A newer change already rendered the current state; this
-      // enter would flash rows that have been on screen for a while.
-      if (gen === seq) settle();
-      resolve({ leaving, entering: arriving });
-    }, leaveMs));
+    render();
+    // A keystroke that narrows nothing must not flash the list: only a change that
+    // really moved the answer is worth replaying.
+    const arriving = (leaving.length || entering.length || moved) ? after : [];
+    if (!reduced()) playEnter(rowsFor(arriving));
+    return Promise.resolve({ leaving, entering: arriving });
   };
 };
 
@@ -723,7 +723,10 @@ export const tileInset = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_
 // Where a cell goes and when it starts. `reverse` inverts only the SWEEP (for the
 // gather — see reintegrate): the mote that leaves first is the last one home, the same
 // rule the canvas dust follows (dustDelay); the flight path is shared. Pure.
-export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS, reverse = false) => {
+// `drift` scales the throw: a list row flings its motes tens of pixels, and a 15px
+// checkbox indicator doing the same would read as the dialog exploding (the desktop's
+// controlSwap.hpp kCheckSwapSpread is this number).
+export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS, reverse = false, drift = 1) => {
   const n = tileNoise(cx, cy);
   // A second, decorrelated noise so a mote's SIDEWAYS drift is independent of its fall
   // and its spin — one hash drove all three, which made whole diagonals move as one and
@@ -737,8 +740,8 @@ export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
   // ways instead of all sliding one.
   return {
     delay,
-    dx: Math.round((m - 0.5) * 66),
-    dy: Math.round(26 + progress * 30 + n * 44),
+    dx: Math.round((m - 0.5) * 66 * drift),
+    dy: Math.round((26 + progress * 30 + n * 44) * drift),
     rot: +((m - 0.5) * 70).toFixed(2),
     scale: +(0.3 + n * 0.3).toFixed(2),
   };
@@ -788,14 +791,34 @@ export function cancelDust(el) {
   el.__dustHost = null;
 }
 
+// Re-anchor a still-flying cloud to `el`'s CURRENT box. The host's left/top are pinned
+// once, at creation (disintegrate below) — a layout change that moves `el` afterward (a
+// sibling toast pushing it up the stack) leaves the cloud stranded at the old spot while
+// the real element reappears somewhere else with no motes to show for it. A no-op when
+// `el` owns no live cloud.
+export function retargetDust(el, r = null) {
+  if (!el?.__dustHost || !el.getBoundingClientRect) return;
+  r = r || el.getBoundingClientRect();
+  if (!(r.width > 0 && r.height > 0)) return;
+  el.__dustHost.style.left = `${r.left}px`;
+  el.__dustHost.style.top = `${r.top}px`;
+}
+
 export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS,
                                    makeCopy = cloneForTile, perCell = false, gather = false,
                                    toward = null, ms = 0, px = MOTE_PX, spread = SURFACE_SPREAD,
-                                   toBody = false, hostClass = '', paintTile = null } = {}) {
+                                   drift = 1, toBody = false, hostClass = '', paintTile = null,
+                                   own = true, box = null } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
   try {
-    cancelDust(el);   // one cloud per element: the newest gesture owns it
-    const r = el.getBoundingClientRect();
+    // One cloud per element: the newest gesture owns it. `own: false` opts a flight out of
+    // that bookkeeping — an in-place VALUE swap plays two clouds over one element (the old
+    // mark leaving, the new one forming) and the second must not cancel the first.
+    if (own) cancelDust(el);
+    // `box` is for a surface that is not AT the box it dusts over: a folding one is still
+    // collapsed the moment its reveal is toggled, so the caller measures the box it is
+    // about to take (foldBox) and hands it in. Everything else measures live.
+    const r = box || el.getBoundingClientRect();
     if (r.width < 4 || r.height < 4) return false;
     ({ cols, rows } = reshapeGrid(cols, rows, r.width, r.height, px));
     const host = document.createElement('div');
@@ -812,9 +835,11 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
         // A row FALLS (tileMotion); a surface flies at the control that owns it.
+        // The scatter's own sweep is halved (delayScale) — see surfaceMotion.
         const m = toward
-          ? surfaceMotion(cx, cy, cols, rows, r, toward, { span: ms || DISINTEGRATE_MS, spread })
-          : tileMotion(cx, cy, cols, rows, gather);
+          ? surfaceMotion(cx, cy, cols, rows, r, toward,
+                          { span: ms || DISINTEGRATE_MS, spread, delayScale: gather ? 1 : 0.5 })
+          : tileMotion(cx, cy, cols, rows, gather, drift);
         const tile = document.createElement('div');
         // The gather class overrides the scatter's animation with tileGather (the same
         // flight, played home) while inheriting the tile's box/clip rules.
@@ -874,15 +899,21 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     // filter or backdrop-filter becomes the containing block for position:fixed and can
     // re-anchor or clip the layer. Detected by measuring, not by guessing which
     // properties are in play — if the layer did not land where told, re-home on <body>.
-    const got = host.getBoundingClientRect();
-    if (Math.abs(got.left - r.left) > 1 || Math.abs(got.top - r.top) > 1) {
-      document.body.appendChild(host);
+    // Skipped for a SURFACE cloud: `toBody` already put it straight on <body>, so
+    // there is no parent left to mis-anchor it — and the read alone forces a synchronous
+    // layout of the (thousands-of-nodes) cloud just appended, which on a full-height
+    // panel measured as tens of ms of hitch right as the close animation was starting.
+    if (!toBody) {
+      const got = host.getBoundingClientRect();
+      if (Math.abs(got.left - r.left) > 1 || Math.abs(got.top - r.top) > 1) {
+        document.body.appendChild(host);
+      }
     }
-    el.__dustHost = host;
-    el.__dustTimer = setTimeout(() => {
+    const life = setTimeout(() => {
       host.remove();
       if (el.__dustHost === host) { el.__dustHost = null; el.__dustTimer = null; }
     }, (ms || DISINTEGRATE_MS) + 400);
+    if (own) { el.__dustHost = host; el.__dustTimer = life; }
     return true;
   } catch {
     return false;   // decoration only — the removal carries on regardless
@@ -910,12 +941,12 @@ export const SURFACE_OUT_MS = 380;   // ui/base.js CLOSE_MS rides this
 // half a second forming. Its own, brisker clock — the flight is the same one.
 export const SURFACE_MENU_IN_MS = 340;
 export const SURFACE_MENU_OUT_MS = 220;
-// The grain a mote AIMS for, and the ceiling on how many of them a flight may cost.
-// A window is tens of times a row's area, so the budget is what actually sizes its
-// cells: at 1200 a settings window came apart into 20px slabs — a mosaic, not sand.
+// The grain a mote AIMS for, and the mote-budget ceiling: thousands of individually
+// animated compositor layers read as lag on a big surface, so the grid is capped and
+// the speck sized separately (SURFACE_SPECK_PX) — more air between grains, same sand.
 export const SURFACE_MOTE_PX = 6;
-export const SURFACE_COLS = 60;
-export const SURFACE_ROWS = 40;      // 2400 motes
+export const SURFACE_COLS = 32;
+export const SURFACE_ROWS = 21;      // 672 motes
 // …and past that ceiling the CELL is bigger than the grain we want, so the speck drawn
 // inside it is capped instead of filling it. What you see is the speck, not the cell.
 export const SURFACE_SPECK_PX = 7;
@@ -931,7 +962,13 @@ export const SURFACE_DRIVEN_CLASS = 'dust-driven';
 // there instead of falling; the two decorrelated noises only fan the arrival. The
 // delay rides the DISTANCE, so the edge nearest the point goes first and the far one
 // last — a window draining into its icon, and pouring back out of it. Pure.
-export const surfaceMotion = (cx, cy, cols, rows, box, point, { span = SURFACE_OUT_MS, spread = SURFACE_SPREAD } = {}) => {
+// `delayScale` halves that stagger for a SCATTER (disintegrate's own `gather: false`):
+// "going out is brisk" was already the rule for the span, but the sweep itself still
+// held every mote at its 0% pose (still, opaque — indistinguishable from the surface
+// not having reacted yet) for up to 45% of it. On a big surface that reads as nothing
+// moving at all until a sudden, late flick — a blink, not sand leaving.
+export const surfaceMotion = (cx, cy, cols, rows, box, point,
+                              { span = SURFACE_OUT_MS, spread = SURFACE_SPREAD, delayScale = 1 } = {}) => {
   const n = tileNoise(cx, cy);
   const m = tileNoise(cx + 41, cy + 17);
   const w = (box?.width || 0) / Math.max(1, cols);
@@ -945,7 +982,7 @@ export const surfaceMotion = (cx, cy, cols, rows, box, point, { span = SURFACE_O
   const far = Math.hypot(box?.width || 0, box?.height || 0) + Math.hypot(toX, toY);
   const progress = far > 0 ? Math.min(1, Math.hypot(toX, toY) / far) : 0;
   return {
-    delay: Math.round(progress * span * 0.45 + n * span * 0.12),
+    delay: Math.round((progress * span * 0.45 + n * span * 0.12) * delayScale),
     dx: Math.round(toX + (m - 0.5) * spread),
     dy: Math.round(toY + (n - 0.5) * spread),
     rot: +((m - 0.5) * 60).toFixed(2),
@@ -955,8 +992,11 @@ export const surfaceMotion = (cx, cy, cols, rows, box, point, { span = SURFACE_O
 
 // Where a DOCKED panel's dust comes from, and goes back to: far out past the edge it
 // is docked to, so the motes stream along the panel's own slide direction — the same
-// "where it comes from" the slide had. A float has an icon instead, so: null. Pure.
-export const dockAwayPoint = (rect, dock, reach = 2.2) => {
+// "where it comes from" the slide had. A float has an icon instead, so: null. `reach`
+// is measured from the panel's own CENTRE, not its edge — 1.7 lands the point 1.2
+// panel-widths past the edge itself, matching the desktop overlay's own reachPx
+// (mainWindow.cpp chatSurfaceFlight: `picture.width() * 1.2`). Pure.
+export const dockAwayPoint = (rect, dock, reach = 1.7) => {
   if (!rect) return null;
   const cx = rect.left + rect.width / 2;
   const cy = rect.top + rect.height / 2;
@@ -985,14 +1025,14 @@ export const MOTE_RIM_INK = 66;
 // ink keeps every mote the window's own colour and gives it something to read against,
 // and it flips with the theme for free — dark surfaces lighten, light ones darken,
 // because ink always contrasts with the background it is written on.
-const surfacePaint = (el) => {
+const surfacePaint = (el, inkOverride = null) => {
   const get = typeof getComputedStyle === 'function' ? getComputedStyle : null;
   const own = get ? get(el) : null;
   let bg = '';
   for (let node = el; get && node && node.nodeType === 1 && !bg; node = node.parentElement)
     if (!blankPaint(get(node).backgroundColor)) bg = get(node).backgroundColor;
   bg = bg || 'var(--bg-container)';
-  const ink = own && !blankPaint(own.color) ? own.color : 'var(--text-main)';
+  const ink = inkOverride || (own && !blankPaint(own.color) ? own.color : 'var(--text-main)');
   const grain = (pct) => `color-mix(in srgb, ${bg} ${pct}%, ${ink})`;
   // An element with `border-style: none` still COMPUTES a border colour, and its
   // initial value is `currentColor` — the TEXT colour. Reading it unguarded painted
@@ -1003,6 +1043,10 @@ const surfacePaint = (el) => {
   return { fill: grain(100 - MOTE_INK), edge: bordered ? own.borderTopColor : grain(100 - MOTE_RIM_INK) };
 };
 
+// The same walk, for a MARK: its own text colour is full contrast (near-black in
+// light, near-white in dark) and read as a hard white/black fleck. --text-muted instead.
+const markPaint = (el) => surfacePaint(el, 'var(--text-muted)');
+
 // Flat speck in the surface's own colours; the rim cells take its border instead, so
 // the cloud keeps the window's outline for the first frames. The speck is a GRAIN, not
 // the cell it sits in: past the mote budget a cell can be several times the grain we
@@ -1011,8 +1055,11 @@ const surfacePaint = (el) => {
 // Painted onto the TILE ITSELF rather than into a child of it — one node per mote, not
 // two. A window's cloud is thousands of them, and building (and then styling and
 // laying out) two nodes each is what turned an open into a visible hitch.
-const speckPainter = (el) => {
-  const { fill, edge } = surfacePaint(el);
+// `override` is for a mark whose colour is NOT on the box when the flight runs: a
+// checkbox that has just been UNticked no longer paints anything accent, so reading the
+// live element would dust the toolbar's own grey. The caller passes what left instead.
+const speckPainter = (el, override = null) => {
+  const { fill, edge } = override || surfacePaint(el);
   return (tile, { cx, cy, cols, rows, cellW, cellH }) => {
     const n = tileNoise(cx, cy);
     tile.classList.add('dust-mote');
@@ -1038,16 +1085,16 @@ const speckPainter = (el) => {
 // page — the app's own code, and every test that drives it — would have to know about a
 // decoration. Flat specks in the surface's own colours carry no identity at all, and at
 // a 6px grain that is very nearly all a clone would have shown anyway.
-const surfaceDust = (el, point, { ms, gather }) => {
+const surfaceDust = (el, point, { ms, gather, px = SURFACE_MOTE_PX, paint = null, box = null }) => {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect) return false;
   if (!(Number.isFinite(point?.x) && Number.isFinite(point?.y))) return false;
-  const r = el.getBoundingClientRect();
+  const r = box || el.getBoundingClientRect();
   if (!(r.width >= 8 && r.height >= 8)) return false;
-  const grid = reshapeGrid(SURFACE_COLS, SURFACE_ROWS, r.width, r.height, SURFACE_MOTE_PX);
+  const grid = reshapeGrid(SURFACE_COLS, SURFACE_ROWS, r.width, r.height, px);
   return disintegrate(el, {
-    ...grid, gather, toward: point, ms, px: SURFACE_MOTE_PX, toBody: true,
+    ...grid, gather, toward: point, ms, px, toBody: true, box,
     hostClass: gather ? 'dust-forming' : 'dust-leaving',
-    paintTile: speckPainter(el),
+    paintTile: speckPainter(el, paint),
   });
 };
 
@@ -1063,16 +1110,19 @@ export function settleSurface(el) {
   cancelDust(el);
 }
 
-const playSurface = (el, point, { ms, gather }) => {
+const playSurface = (el, point, { ms, gather, box = null }) => {
   if (!el?.classList) return false;
   settleSurface(el);
   if (motionReduced()) return false;
+  // No point to fly at ⇒ exactly settleSurface (already ran): callers never need their
+  // own `if (!point) settleSurface(el)` fallback around surfaceIn/surfaceOut.
+  if (!(Number.isFinite(point?.x) && Number.isFinite(point?.y))) return false;
   // The marker goes on BEFORE the measure: the element's own entrance (modalFromIcon,
   // chatSlide*, menuPop) FILLS an icon-sized from-state, so a box read under it is the
   // icon's box — the same trap `modal-measuring` dodges in ui/base.js. Off again if the
   // dust declines, so a surface that never plays it keeps its old CSS entrance.
   el.classList.add(SURFACE_DRIVEN_CLASS);
-  if (!surfaceDust(el, point, { ms, gather })) {
+  if (!surfaceDust(el, point, { ms, gather, box })) {
     el.classList.remove(SURFACE_DRIVEN_CLASS);
     return false;
   }
@@ -1087,12 +1137,65 @@ const playSurface = (el, point, { ms, gather }) => {
 };
 
 // The surface waits behind its own dust and fades up as the last motes land.
-export const surfaceIn = (el, point, { ms = SURFACE_IN_MS } = {}) =>
-  playSurface(el, point, { ms, gather: true });
+export const surfaceIn = (el, point, { ms = SURFACE_IN_MS, box = null } = {}) =>
+  playSurface(el, point, { ms, gather: true, box });
 // …and hands over to it at once on the way out. The caller still owns the real
 // hide/remove: like leaveThenRemove, the end state never depends on the animation.
-export const surfaceOut = (el, point, { ms = SURFACE_OUT_MS } = {}) =>
-  playSurface(el, point, { ms, gather: false });
+export const surfaceOut = (el, point, { ms = SURFACE_OUT_MS, box = null } = {}) =>
+  playSurface(el, point, { ms, gather: false, box });
+
+// ── Hover tips / preview popups: one shared clock and origin ────────────────
+// Every cursor-adjacent popup (the control tooltip, the Alt-hover export preview, the
+// chat gear tip, the projects thumb zoom) dusts in and out of the control it describes,
+// fast enough to be over before a sweep reaches the next one.
+export const TIP_DUST_IN_MS = 260;
+export const TIP_DUST_OUT_MS = 190;
+// …and wakes on one delay across surfaces (desktop SnappyTooltipStyle, main.cpp).
+export const TIP_SHOW_DELAY_MS = 200;
+
+// The centre of an element (or of a rect): the point a popup's dust belongs to.
+// Null for a detached/unmeasurable owner — the flight then settles instead.
+export const rectCenter = (elOrRect) => {
+  const r = typeof elOrRect?.getBoundingClientRect === 'function'
+    ? elOrRect.getBoundingClientRect() : elOrRect;
+  if (!r || !(r.width > 0 || r.height > 0)) return null;
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+};
+
+// ── Folding surfaces: the box one is ABOUT to take ─────────────────────────
+// A folding surface (tool rows, points panel) is still at its collapsed box when its
+// toggle flips, so this measures the box it will take: run the target state with the
+// fold's transitions off (`instant`), read the rect, revert. `scope` carries the state
+// class, `el` is measured. Null when there is nothing worth dusting.
+export function foldBox(el, scope, cls, on, instant) {
+  if (!el?.getBoundingClientRect || !scope?.classList) return null;
+  const had = scope.classList.contains(cls);
+  scope.classList.add(instant);
+  scope.classList.toggle(cls, on);
+  const r = el.getBoundingClientRect();
+  scope.classList.toggle(cls, had);
+  el.getBoundingClientRect();   // flush the revert while the transitions are still off
+  scope.classList.remove(instant);
+  return r.width >= 8 && r.height >= 8
+    ? { left: r.left, top: r.top, width: r.width, height: r.height } : null;
+}
+// The class that switches those transitions off for the read (css/animations.css).
+export const FOLD_INSTANT_CLASS = 'fold-instant';
+// A fold COLLAPSING is the slower half — the opposite of every other surface, and the
+// reason it has its own exit clock: with no icon to shrink into, the fold itself is the
+// only thing that reads as the menu leaving, so a brisk exit registered as a snap.
+// 1.5x SURFACE_OUT_MS, matching --fold-out-ms against --fold-ms in css/animations.css.
+export const FOLD_DUST_OUT_MS = 570;
+
+// The whole fold-with-dust ritual (toolbar rows, points panel): measure the SHOWN box
+// before the fold runs (foldBox), let `toggle` flip the fold class, then stream the
+// sand past the `dock` edge — collapsing rides the fold's own slower clock.
+export function foldDust(el, scope, cls, hiding, dock, { inMs = SURFACE_IN_MS, toggle = null } = {}) {
+  const box = motionReduced() ? null : foldBox(el, scope, cls, false, FOLD_INSTANT_CLASS);
+  toggle?.();
+  const away = box && dockAwayPoint(box, dock);
+  (hiding ? surfaceOut : surfaceIn)(el, away || null, { box, ms: hiding ? FOLD_DUST_OUT_MS : inMs });
+}
 
 // ── Hover popups: the two whose visibility is pure CSS ─────────────────────
 // The toolbar's hints bubble and the install menu are shown by a `:hover` rule alone,
@@ -1104,23 +1207,164 @@ export const HOVER_DUST_HOLD_CLASS = 'dust-hold';
 export const HOVER_DUST_HOLD_MS = 120;
 export function wireHoverDust(host, popup, { inMs = 300, outMs = 200 } = {}) {
   if (!host?.addEventListener || !popup?.classList) return;
-  const point = () => {
-    const r = host.getBoundingClientRect?.();
-    if (!r || !(r.width > 0 && r.height > 0) || motionReduced()) return null;
-    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-  };
-  host.addEventListener('pointerenter', () => {
-    const p = point();
-    if (!p || !surfaceIn(popup, p, { ms: inMs })) settleSurface(popup);
-  });
+  const point = () => (motionReduced() ? null : rectCenter(host));
+  host.addEventListener('pointerenter', () => surfaceIn(popup, point(), { ms: inMs }));
   host.addEventListener('pointerleave', () => {
     const p = point();
     if (!p) { settleSurface(popup); return; }
     popup.classList.add(HOVER_DUST_HOLD_CLASS);
     const played = surfaceOut(popup, p, { ms: outMs });
-    if (!played) settleSurface(popup);
     setTimeout(() => popup.classList.remove(HOVER_DUST_HOLD_CLASS), played ? HOVER_DUST_HOLD_MS : 0);
   });
+}
+
+// ── A control's own MARK: the same sand, at control scale ───────────────────
+// A tick, a select's chosen word, a toggle-revealed row: marks come and go inside a
+// control whose box stays put. A row's fall-and-fan flight (tileMotion; desktop
+// controlSwap.hpp parity) with the throw and grain scaled down — and no default veil,
+// since a checkbox keeps its outline while only its fill goes.
+export const MARK_IN_MS = 320;
+export const MARK_OUT_MS = 240;
+export const MARK_MOTE_PX = 3;
+export const MARK_DRIFT = 0.3;        // desktop kCheckSwapSpread
+// …under a ceiling of its own, well below a window's: a 15px indicator wants every mote
+// the grain gives it (25 of them), but the f(x,y) row is 380px wide and gridded at the
+// same 3px would have built over 1300 nodes for a 320ms decoration. Past the ceiling the
+// cell grows and the speck grows with it, which is what keeps the grain honest.
+export const MARK_COLS = 40;
+export const MARK_ROWS = 15;          // 600 motes
+export const MARK_FORMING_CLASS = 'mark-forming';
+
+const markDust = (el, { gather, ms, paint, px, drift, own = true }) => {
+  if (typeof document === 'undefined' || !el?.getBoundingClientRect) return false;
+  if (motionReduced()) return false;
+  const r = el.getBoundingClientRect();
+  if (!(r.width >= 8 && r.height >= 8)) return false;
+  const grid = reshapeGrid(MARK_COLS, MARK_ROWS, r.width, r.height, px);
+  return disintegrate(el, {
+    ...grid, gather, ms, px, drift, toBody: true, own,
+    // The SURFACE keyframes: a mark's motes are the mark, so they must be visible from
+    // the first frame — a row's own ramp spends its opening third near-transparent.
+    hostClass: gather ? 'dust-forming' : 'dust-leaving',
+    paintTile: speckPainter(el, paint || markPaint(el)),
+  });
+};
+
+// Drop whatever `el` has in flight, veil included, leaving the end state untouched.
+export function settleMark(el) {
+  if (!el?.classList) return;
+  if (typeof clearTimeout === 'function') clearTimeout(el.__markTimer);
+  el.__markTimer = null;
+  if (el.__markVeil) el.classList.remove(el.__markVeil);
+  el.__markVeil = null;
+  el.style?.removeProperty?.('--mark-ms');
+  cancelDust(el);
+}
+
+// The mark comes apart. The caller still owns the real state change — like surfaceOut,
+// the cloud is a copy on <body> and the end state never waits for it.
+export function markOut(el, { ms = MARK_OUT_MS, paint = null, px = MARK_MOTE_PX,
+                              drift = MARK_DRIFT, own = true } = {}) {
+  if (own) settleMark(el);
+  return markDust(el, { gather: false, ms, paint, px, drift, own });
+}
+
+// …and forms. `veil` is the class that holds the real mark back while the motes gather
+// (they ARE the mark forming); null for a mark that is already invisible on its own.
+export function markIn(el, { ms = MARK_IN_MS, paint = null, px = MARK_MOTE_PX,
+                             drift = MARK_DRIFT, veil = MARK_FORMING_CLASS } = {}) {
+  settleMark(el);
+  const played = markDust(el, { gather: true, ms, paint, px, drift });
+  if (!played || !veil || !el.classList) return played;
+  el.__markVeil = veil;
+  el.classList.add(veil);
+  el.style?.setProperty?.('--mark-ms', `${ms}ms`);
+  if (typeof setTimeout === 'function')
+    el.__markTimer = setTimeout(() => {
+      el.__markTimer = null;
+      el.classList.remove(veil);
+      el.__markVeil = null;
+      el.style?.removeProperty?.('--mark-ms');
+    }, ms + 40);
+  return true;
+}
+
+// Show or hide a group of controls another control governs — the f(x,y) inputs, the
+// custom page's W/H boxes — with that sand, WHILE the space it takes in the row also
+// opens or closes smoothly: a group appearing/disappearing at once made its neighbours
+// (Data, Settings) jump sideways the instant it toggled, disconnected from the dust
+// still flying over it. `display: 'block'` (the context-menu twin) collapses HEIGHT
+// instead of width — everything else is a horizontal flex row.
+export const REVEAL_GROUP_IN_MS = MARK_IN_MS;
+export const REVEAL_GROUP_OUT_MS = MARK_OUT_MS;
+// A transition, not @keyframes: markIn/markOut may also add `.mark-forming`
+// (an animation), and two `animation` rules on one element would fight over a winner.
+const REVEAL_GROUP_TRANSITION_CLASS = 'reveal-group-transition';
+
+// One slide of the space a revealed group reserves: commit `from` as the transition's
+// start, apply `to`, clean up after `ms` (+`slack`). `defer` waits two PAINTED frames
+// before `to` — set in the same (busy) turn, the box leapt to wherever the transition's
+// curve already was (user report; the desktop had the same bug from a stale width).
+const slideRevealSize = (el, sizeProp, from, to, ms, { defer = false, slack = 0, cleanup = null } = {}) => {
+  el.classList.add(REVEAL_GROUP_TRANSITION_CLASS);
+  el.style[sizeProp] = from;
+  void el.offsetWidth;   // commit FROM as the transition's start value
+  const go = () => {
+    el.style.setProperty('--reveal-ms', `${ms}ms`);
+    el.style[sizeProp] = to;
+    setTimeout(() => {
+      cleanup?.();
+      el.classList.remove(REVEAL_GROUP_TRANSITION_CLASS);
+      el.style[sizeProp] = '';
+      el.style.removeProperty('--reveal-ms');
+    }, ms + slack);
+  };
+  if (!defer) { go(); return; }
+  const raf = typeof requestAnimationFrame === 'function'
+    ? requestAnimationFrame
+    : (fn) => setTimeout(fn, 16);
+  raf(() => raf(go));
+};
+
+export function revealControls(el, show, display = 'inline-flex') {
+  if (!el?.style) return false;
+  const wasShown = el.style.display !== 'none';
+  if (wasShown === !!show) return false;   // already there: nothing comes or goes
+  const vertical = display === 'block';
+  const sizeProp = vertical ? 'maxHeight' : 'maxWidth';
+  if (show) {
+    el.style.display = display;
+    const r = el.getBoundingClientRect();   // now laid out at its natural size
+    const size = vertical ? r.height : r.width;
+    const played = markIn(el);   // grid sized off that same natural box
+    if (size && played)
+      slideRevealSize(el, sizeProp, '0px', `${size}px`, REVEAL_GROUP_IN_MS, { defer: true, slack: 40 });
+    return played;
+  }
+  // Measured while it is still laid out, so both the dust and the collapse start
+  // from the true box.
+  const r = el.getBoundingClientRect();
+  const size = vertical ? r.height : r.width;
+  const played = markOut(el);
+  if (size && played) {
+    slideRevealSize(el, sizeProp, `${size}px`, '0px', REVEAL_GROUP_OUT_MS,
+      { cleanup: () => { el.style.display = 'none'; } });
+  } else {
+    el.style.display = 'none';   // declined (reduced motion, too small): instant, as before
+  }
+  return played;
+}
+
+// Swap the TEXT a control displays, the mark coming apart and the new one forming out
+// of the motes. `apply` writes the new value; it runs between the two flights, so the
+// element is never blank and the DOM is never behind the state.
+export function markSwap(el, apply, { ms = MARK_IN_MS, outMs = MARK_OUT_MS, paint = null } = {}) {
+  if (typeof apply !== 'function') return false;
+  // The outgoing cloud is deliberately UNOWNED: the arrival below is the flight this
+  // element owns, and claiming both would have the second cancel the first.
+  const left = markOut(el, { ms: outMs, paint, own: false });
+  apply();
+  return markIn(el, { ms, paint }) || left;
 }
 
 // ── Materialize: leaveThenRemove reversed, for a freshly-ADDED row ──────────
@@ -1148,6 +1392,127 @@ export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
   }, dusted ? wipeDurationMs() : ms));
 }
 
+// ── A chat entry ARRIVES as dust (the mirror of chatLeave) ──────────────────
+// A message appearing is a message being deleted, played backwards: the same fine mesh
+// (scatterGridFor), the same flight, flown HOME (reintegrate). The entry itself is
+// HELD BACK for the whole flight — the motes ARE it forming, and fading it up underneath
+// them showed the message first and the animation after (the reported bug), which is the
+// one thing an arrival must not do.
+export const CHAT_ENTER_MS = DISINTEGRATE_MS;
+export const CHAT_ENTERING_CLASS = 'chat-entering';
+
+// Two frames, so the measure below happens on a SETTLED transcript: frame one is the new
+// entries' own layout, frame two is the scroll that follows it (chatView stickToBottom
+// pins on a rAF). No rAF (node) ⇒ a macrotask, which is still after the caller returns —
+// measuring synchronously would read the pre-scroll box every time.
+const afterLayout = (fn) => (typeof requestAnimationFrame === 'function'
+  ? requestAnimationFrame(() => requestAnimationFrame(fn))
+  : setTimeout(fn, 0));
+
+// Is `el` a whole entry sitting inside its scroller right now? The cloud is
+// position:fixed, so the transcript does NOT clip it: an entry still below the fold
+// would scatter its motes over the composer under it. Taller than the scroller ⇒ no
+// dust either, for the same reason. Pure enough to unit-test.
+// `r`/`s` are optional pre-measured rects (trackDust reads each box once per tick).
+export const dustFitsScroller = (el, scroller = el?.parentElement, r = null, s = null) => {
+  if (!el?.getBoundingClientRect || !scroller?.getBoundingClientRect) return false;
+  r = r || el.getBoundingClientRect();
+  s = s || scroller.getBoundingClientRect();
+  if (!(r.width > 0 && r.height > 0)) return false;
+  return r.top >= s.top - 1 && r.bottom <= s.bottom + 1;
+};
+
+// Confine a flying cloud to its SCROLLER: the tiles translate freely out of an
+// `overflow: visible` host, so a gather next to the input rained motes across it
+// (reported). Negative insets EXPAND, so motes roam the transcript, never outside it.
+const clipDustToScroller = (el, scroller = el?.parentElement, r = null, s = null) => {
+  const host = el?.__dustHost;
+  if (!host || !scroller?.getBoundingClientRect || !el.getBoundingClientRect) return;
+  r = r || el.getBoundingClientRect();
+  s = s || scroller.getBoundingClientRect();
+  const px = (n) => `${Math.round(n)}px`;
+  host.style.clipPath =
+    `inset(${px(s.top - r.top)} ${px(r.right - s.right)} ${px(r.bottom - s.bottom)} ${px(s.left - r.left)})`;
+};
+
+// Keep a flying cloud pinned to its entry until the motes land: the layer is
+// position:fixed but the transcript scrolls under it, so it is re-anchored and
+// re-clipped per frame — and dropped (with the entry handed over) if the entry leaves
+// the scroller or resizes, since a stale fixed-size cloud would visibly lie about what
+// lands. Returns a stop function.
+const trackDust = (el, ms, onDrop = () => {}) => {
+  if (typeof requestAnimationFrame !== 'function') return () => {};
+  let raf = 0;
+  let live = true;
+  const started = Date.now();
+  const shot = el.getBoundingClientRect?.();   // the box the cloud was photographed at
+  const step = () => {
+    if (!live) return;
+    if (Date.now() - started >= ms) return;
+    // BOTH rects read once per tick, up front, then handed to every check/helper —
+    // the helpers' own reads interleaved with style writes forced a layout per frame.
+    const r = el.getBoundingClientRect?.();
+    const s = el.parentElement?.getBoundingClientRect?.();
+    const resized = !r || !shot
+      || Math.abs(r.width - shot.width) > 1 || Math.abs(r.height - shot.height) > 1;
+    // Dropping the cloud must HAND THE ENTRY OVER in the same frame: the veil is lifted
+    // by a timer at the end of the full flight, so a cancel that only killed the motes
+    // left the message invisible with nothing standing in for it until that timer fired.
+    if (!dustFitsScroller(el, el.parentElement, r, s) || resized) {
+      cancelDust(el); live = false; onDrop(); return;
+    }
+    retargetDust(el, r);
+    clipDustToScroller(el, el.parentElement, r, s);
+    raf = requestAnimationFrame(step);
+  };
+  raf = requestAnimationFrame(step);
+  return () => { live = false; if (raf) cancelAnimationFrame(raf); };
+};
+
+export function chatIn(el, count = 1, index = 0) {
+  if (!el?.classList || motionReduced() || typeof setTimeout === 'undefined') return Promise.resolve();
+  const { cols, rows } = scatterGridFor(count, index);
+  // Veiled from the FIRST frame, before anything is painted: the entry keeps its height
+  // (so the transcript grows and scrolls to it as usual) but is never seen ahead of its
+  // own motes. Lifted below the moment they land — or at once if none can fly.
+  el.classList.add(CHAT_ENTERING_CLASS);
+  const unveil = () => el.classList.remove(CHAT_ENTERING_CLASS);
+  return new Promise((resolve) => {
+    // Fonts first, when the platform offers the promise: a webfont landing after the
+    // photograph re-wraps the entry and widens it, and the cloud is then visibly the
+    // wrong size for what arrives. Already-loaded fonts resolve this in the same tick,
+    // so only the very first arrival of a session ever waits on it.
+    const ready = globalThis.document?.fonts?.ready;
+    const go = () => afterLayout(() => {
+      // cols === 0 is the budget's "fade only" (scatterGridFor past SCATTER_MAX_ROWS).
+      // toBody, unlike the LEAVE's cloud: an arrival happens every turn, and for its whole
+      // life the clones are elements carrying `.chat-msg` and `[data-row]` — inside the
+      // scroller everything that walks the transcript reads them as live rows.
+      const flying = cols !== 0 && dustFitsScroller(el)
+        && reintegrate(el, { cols, rows, toBody: true });
+      if (!flying) { unveil(); resolve(); return; }
+      clipDustToScroller(el);   // before the first frame paints, not after it
+      let handedOver = false;
+      const handOver = () => {
+        if (handedOver) return;   // the cut happens once, whichever path gets there first
+        handedOver = true;
+        unveil();
+        cancelDust(el);
+        resolve();
+      };
+      const stop = trackDust(el, CHAT_ENTER_MS, handOver);
+      setTimeout(() => {
+        // The motes have landed, so the entry takes their place in the SAME frame the
+        // cloud goes. Left to its own grace period the layer holds its finished state —
+        // opaque, at identity — which is an exact second copy over the real entry.
+        stop();
+        handOver();
+      }, CHAT_ENTER_MS);
+    });
+    if (ready?.then) ready.then(go, go); else go();
+  });
+}
+
 // ── Ghosting a canvas out ───────────────────────────────────────────────────
 // Clearing the canvas is synchronous, so the pixels are copied into a throwaway canvas
 // laid over the real one and THAT is animated away. Call immediately BEFORE the clear;
@@ -1160,6 +1525,27 @@ export const DUST_CELL_PX = 6;
 // still exists: past this, a frame costs more than the effect is worth and the grid is
 // thinned back instead.
 export const DUST_MAX_PARTICLES = 7000;
+
+// The grid the ghost dust flies on: aim for DUST_CELL_PX per mote ON SCREEN, thinned
+// evenly once the particle ceiling bites. Pure — unit-tested.
+export const dustGrid = (w, h) => {
+  let cols = Math.max(1, Math.round(w / DUST_CELL_PX));
+  let rows = Math.max(1, Math.round(h / DUST_CELL_PX));
+  while (cols * rows > DUST_MAX_PARTICLES) { cols = Math.ceil(cols / 1.1); rows = Math.ceil(rows / 1.1); }
+  return { cols, rows };
+};
+
+// Clip the canvas box to the frame it is seen through. Zoom scales the canvas's CSS box
+// while the viewport stays put, so gridding the WHOLE box let the particle ceiling thin
+// a zoomed-in canvas back into big flakes — mote size followed the zoom level. Only the
+// slice inside the frame is visible (the viewport scrolls the rest away), so only it
+// plays, and the grid stays viewport-bounded at any zoom. Pure — unit-tested.
+export const dustVisibleBox = (r, frame) => {
+  const left = Math.max(r.left, frame.left), top = Math.max(r.top, frame.top);
+  return { left, top,
+           width: Math.min(r.left + r.width, frame.left + frame.width) - left,
+           height: Math.min(r.top + r.height, frame.top + frame.height) - top };
+};
 
 // The canvas disintegrates as DUST, downward — a particle system on ONE canvas, not
 // the DOM tiles a row uses: thousands of elements would not survive a frame. Each mote
@@ -1175,6 +1561,97 @@ export const dustDelay = (cy, rows, n, reverse = false) => {
 // place, rather than crawling the last few pixels. Pure.
 export const dustEase = (k) => 1 - (1 - k) ** 3;
 
+// Anchor to the VIEWPORT frame, not canvas.parentElement (.canvas-container): the
+// container sizes itself to the canvas and re-centers via `margin: auto`, so zeroing
+// canvas.width/height right after (the clear) collapses it to 0×0 and strands an
+// absolutely-positioned child at its new, recentred spot. The viewport never shrinks.
+const canvasDustHost = (canvas) => canvas.closest?.('.canvas-viewport') || canvas.parentElement;
+
+// Measure where the dust plays: the visible slice of the canvas, plus the stage's
+// offsets inside the host. clientLeft/Top step over the host's border, and the scroll
+// offsets are added because an absolutely-positioned stage scrolls WITH the content —
+// without them a panned, zoomed-in canvas got its cloud a scroll-offset away.
+const dustField = (canvas) => {
+  const r = canvas.getBoundingClientRect();
+  const host = canvasDustHost(canvas);
+  const hr = host.getBoundingClientRect();
+  const frame = { left: hr.left + (host.clientLeft || 0), top: hr.top + (host.clientTop || 0),
+                  width: host.clientWidth || hr.width, height: host.clientHeight || hr.height };
+  const vis = dustVisibleBox(r, frame);
+  if (vis.width < 8 || vis.height < 8) return null;
+  return { r, host, vis,
+           left: vis.left - frame.left + (host.scrollLeft || 0),
+           top: vis.top - frame.top + (host.scrollTop || 0) };
+};
+
+// Keep a flying stage over the frame: it is absolutely positioned inside a SCROLLING
+// host, so left alone it rides away with the content — a project restore jumps to its
+// saved scroll right after the arrival goes up, and at high zoom that carried the whole
+// cloud off-screen ("no animation at all"). Returns an unpin to call on removal.
+export const pinDustStage = (stage, host, baseLeft = 0, baseTop = 0) => {
+  const onScroll = () => {
+    stage.style.left = `${baseLeft + (host.scrollLeft || 0)}px`;
+    stage.style.top = `${baseTop + (host.scrollTop || 0)}px`;
+  };
+  host.addEventListener?.('scroll', onScroll, { passive: true });
+  return () => host.removeEventListener?.('scroll', onScroll);
+};
+
+// One dust stage over a canvas' visible slice, shared by ghostOut/ghostIn: the pixel
+// snapshot, the DPR-scaled stage canvas pinned to its scrolling host, the snapshot↔
+// screen mapping, and the per-frame clear/step/teardown loop. Null when there is
+// nothing to play over.
+const makeDustStage = (canvas) => {
+  const field = dustField(canvas);
+  if (!field) return null;
+  const { r, vis } = field;
+  const { cols, rows } = dustGrid(vis.width, vis.height);
+  // The source is snapshotted once — ghostOut clears the real canvas moments later.
+  const snap = document.createElement('canvas');
+  snap.width = canvas.width;
+  snap.height = canvas.height;
+  const snapCtx = snap.getContext('2d');
+  snapCtx.drawImage(canvas, 0, 0);
+  const dpr = window.devicePixelRatio || 1;
+  const stage = document.createElement('canvas');
+  stage.className = 'canvas-dust';
+  stage.width = Math.round(vis.width * dpr);
+  stage.height = Math.round(vis.height * dpr);
+  stage.style.left = `${field.left}px`;
+  stage.style.top = `${field.top}px`;
+  stage.style.width = `${vis.width}px`;
+  stage.style.height = `${vis.height}px`;
+  field.host.appendChild(stage);
+  const unpin = pinDustStage(stage, field.host,
+    field.left - (field.host.scrollLeft || 0), field.top - (field.host.scrollTop || 0));
+  const finish = () => { unpin(); stage.remove(); };
+  const ctx = stage.getContext('2d');
+  ctx.scale(dpr, dpr);
+  // Map the visible slice back into the snapshot: sources are bitmap pixels, the
+  // visible box is screen pixels — at zoom the two differ by the zoom factor.
+  const kx = snap.width / r.width, ky = snap.height / r.height;
+  return {
+    snap, snapCtx, ctx, finish, cols, rows,
+    sw: (vis.width / cols) * kx, sh: (vis.height / rows) * ky,
+    sox: (vis.left - r.left) * kx, soy: (vis.top - r.top) * ky,
+    dw: vis.width / cols, dh: vis.height / rows,
+    // Run `draw(t)` per rAF frame over `ms`, clearing the stage first each frame;
+    // the timeout is belt and braces in case rAF is throttled.
+    run(ms, draw) {
+      const started = performance.now();
+      const step = (now) => {
+        const t = (now - started) / ms;
+        if (t >= 1) { finish(); return; }
+        ctx.clearRect(0, 0, vis.width, vis.height);
+        draw(t);
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+      setTimeout(finish, ms + 400);
+    },
+  };
+};
+
 // Returns true when the dust is actually playing — the same contract as ghostIn, and
 // for the same reason: the caller hides the emptied editor only while there are motes
 // in front of it. Under reduced motion (or any other bail-out) it said nothing, and the
@@ -1184,37 +1661,9 @@ export function ghostOut(canvas, { ms = GHOST_MS } = {}) {
   if (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
   if (typeof requestAnimationFrame === 'undefined' || !canvas.parentElement) return false;
   try {
-    const r = canvas.getBoundingClientRect();
-    if (r.width < 8 || r.height < 8) return false;
-
-    // Grid sized so every mote is about DUST_CELL_PX on screen, then thinned if that
-    // would exceed the particle ceiling.
-    let cols = Math.max(1, Math.round(r.width / DUST_CELL_PX));
-    let rows = Math.max(1, Math.round(r.height / DUST_CELL_PX));
-    while (cols * rows > DUST_MAX_PARTICLES) { cols = Math.ceil(cols / 1.1); rows = Math.ceil(rows / 1.1); }
-
-    // The source is snapshotted once — the real canvas is cleared moments from now.
-    const snap = document.createElement('canvas');
-    snap.width = canvas.width;
-    snap.height = canvas.height;
-    snap.getContext('2d').drawImage(canvas, 0, 0);
-
-    const dpr = window.devicePixelRatio || 1;
-    const stage = document.createElement('canvas');
-    stage.className = 'canvas-dust';
-    stage.width = Math.round(r.width * dpr);
-    stage.height = Math.round(r.height * dpr);
-    const host = canvas.parentElement.getBoundingClientRect();
-    stage.style.left = `${r.left - host.left}px`;
-    stage.style.top = `${r.top - host.top}px`;
-    stage.style.width = `${r.width}px`;
-    stage.style.height = `${r.height}px`;
-    canvas.parentElement.appendChild(stage);
-
-    const ctx = stage.getContext('2d');
-    ctx.scale(dpr, dpr);
-    const sw = snap.width / cols, sh = snap.height / rows;
-    const dw = r.width / cols, dh = r.height / rows;
+    const st = makeDustStage(canvas);
+    if (!st) return false;
+    const { snap, ctx, cols, rows, sw, sh, sox, soy, dw, dh } = st;
     const parts = [];
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
@@ -1223,7 +1672,7 @@ export function ghostOut(canvas, { ms = GHOST_MS } = {}) {
         // in diagonal sheets; a separate hash for the x-axis is what makes it scatter.
         const m = tileNoise(cx + 41, cy + 17);
         parts.push({
-          sx: cx * sw, sy: cy * sh,
+          sx: sox + cx * sw, sy: soy + cy * sh,
           x: cx * dw, y: cy * dh,
           delay: dustDelay(cy, rows, n),
           dx: (m - 0.5) * 58,          // fan sideways — signed, so both ways
@@ -1232,12 +1681,7 @@ export function ghostOut(canvas, { ms = GHOST_MS } = {}) {
         });
       }
     }
-
-    const started = performance.now();
-    const step = (now) => {
-      const t = (now - started) / ms;
-      if (t >= 1) { stage.remove(); return; }
-      ctx.clearRect(0, 0, r.width, r.height);
+    st.run(ms, (t) => {
       for (const p of parts) {
         const pt = (t - p.delay) / Math.max(0.05, 1 - p.delay);
         if (pt >= 1) continue;                       // this mote is gone
@@ -1251,10 +1695,7 @@ export function ghostOut(canvas, { ms = GHOST_MS } = {}) {
                       (-dw / 2) * s, (-dh / 2) * s, dw * s + 0.6, dh * s + 0.6);
         ctx.restore();
       }
-      requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-    setTimeout(() => stage.remove(), ms + 400);   // belt and braces if rAF is throttled
+    });
     return true;
   } catch {
     return false;   // decoration only — the clear still happens
@@ -1283,58 +1724,25 @@ export function ghostIn(canvas, { ms = GHOST_MS } = {}) {
   if (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
   if (typeof requestAnimationFrame === 'undefined' || !canvas.parentElement) return false;
   try {
-    const r = canvas.getBoundingClientRect();
-    if (r.width < 8 || r.height < 8) return false;
-
-    let cols = Math.max(1, Math.round(r.width / DUST_CELL_PX));
-    let rows = Math.max(1, Math.round(r.height / DUST_CELL_PX));
-    while (cols * rows > DUST_MAX_PARTICLES) { cols = Math.ceil(cols / 1.1); rows = Math.ceil(rows / 1.1); }
-
-    // Snapshot what the motes are made of. Unlike ghostOut the original survives — it
-    // is merely hidden while the dust settles — but the stage still needs its own copy.
-    const snap = document.createElement('canvas');
-    snap.width = canvas.width;
-    snap.height = canvas.height;
-    const snapCtx = snap.getContext('2d');
-    snapCtx.drawImage(canvas, 0, 0);
-    // …and it has to HAVE something: snapshotted before the load has painted, the dust
+    const st = makeDustStage(canvas);
+    if (!st) return false;
+    // The snapshot has to HAVE something: taken before the load has painted, the dust
     // is invisible motes in front of a canvas the caller is holding hidden. Saying no
     // makes the caller fall back to the plain flight instead of animating nothing.
-    if (!hasPixels(snapCtx, snap.width, snap.height)) return false;
-
-    const dpr = window.devicePixelRatio || 1;
-    const stage = document.createElement('canvas');
-    stage.className = 'canvas-dust';
-    stage.width = Math.round(r.width * dpr);
-    stage.height = Math.round(r.height * dpr);
-    const host = canvas.parentElement.getBoundingClientRect();
-    stage.style.left = `${r.left - host.left}px`;
-    stage.style.top = `${r.top - host.top}px`;
-    stage.style.width = `${r.width}px`;
-    stage.style.height = `${r.height}px`;
-    canvas.parentElement.appendChild(stage);
-
-    const ctx = stage.getContext('2d');
-    ctx.scale(dpr, dpr);
-    const sw = snap.width / cols, sh = snap.height / rows;
-    const dw = r.width / cols, dh = r.height / rows;
+    if (!hasPixels(st.snapCtx, st.snap.width, st.snap.height)) { st.finish(); return false; }
+    const { snap, ctx, cols, rows, sw, sh, sox, soy, dw, dh } = st;
     const parts = [];
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
         const n = tileNoise(cx, cy);
         // The fall inverted: ghostOut carries a mote DOWN and away, so the arrival starts
         // it down there and lifts it home. Same fan sideways, same magnitudes.
-        parts.push({ sx: cx * sw, sy: cy * sh, x: cx * dw, y: cy * dh,
+        parts.push({ sx: sox + cx * sw, sy: soy + cy * sh, x: cx * dw, y: cy * dh,
                      delay: dustDelay(cy, rows, n, true),
                      dx: (n - 0.5) * 26, dy: 26 + n * 46, rot: (n - 0.5) * 0.9 });
       }
     }
-
-    const started = performance.now();
-    const step = (now) => {
-      const t = (now - started) / ms;
-      if (t >= 1) { stage.remove(); return; }
-      ctx.clearRect(0, 0, r.width, r.height);
+    st.run(ms, (t) => {
       for (const p of parts) {
         const pt = (t - p.delay) / Math.max(0.05, 1 - p.delay);
         if (pt <= 0) continue;                        // this mote has not set off yet
@@ -1349,10 +1757,7 @@ export function ghostIn(canvas, { ms = GHOST_MS } = {}) {
                       (-dw / 2) * s, (-dh / 2) * s, dw * s + 0.6, dh * s + 0.6);
         ctx.restore();
       }
-      requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-    setTimeout(() => stage.remove(), ms + 400);   // belt and braces if rAF is throttled
+    });
     return true;
   } catch {
     return false;   // decoration only — the image is already loaded either way

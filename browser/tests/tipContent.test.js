@@ -95,10 +95,16 @@ test('the compare button: heading, bulleted rows, and a parenthesised key hint',
   assert.match(html, /<kbd class="tip-key">Alt<\/kbd>/, 'the hint keeps its keycaps');
 });
 
-test('"·" on the heading line becomes bullets under the heading', () => {
+test('a single "·" piece on the heading line becomes a hint, not a bullet of one', () => {
   const tip = parseTip('Drag to reorder · drag out of the modal to disconnect');
   assert.equal(tip.title, 'Drag to reorder');
-  assert.deepEqual(tip.blocks, [{ kind: 'bullet', text: 'drag out of the modal to disconnect' }]);
+  assert.deepEqual(tip.blocks, [{ kind: 'hint', text: 'drag out of the modal to disconnect' }]);
+});
+
+test('two+ "·" pieces on the heading line become bullets under the heading', () => {
+  const tip = parseTip('a · b · c');
+  assert.equal(tip.title, 'a');
+  assert.deepEqual(tip.blocks, [{ kind: 'bullet', text: 'b' }, { kind: 'bullet', text: 'c' }]);
   const html = renderTip('a · b · c', false);
   assert.equal((html.match(/<ul class="tip-bullets">/g) || []).length, 1, 'one list, not one per bullet');
   assert.equal((html.match(/<li>/g) || []).length, 2);

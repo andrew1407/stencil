@@ -4,6 +4,7 @@
 #include "../support/dissolveEffect.hpp"       // scroll-edge grain dissolve
 #include "../support/filterFade.hpp"           // filtered-out rows fade + collapse
 #include "../support/guiHelpers.hpp"           // confirmYesNo()
+#include "../support/modalChrome.hpp"          // the browser modal shell
 #include "../support/modalReveal.hpp"          // motionReduced()
 
 #include "connectionStore.hpp"
@@ -121,13 +122,6 @@ namespace stencil::gui {
       return pm;
     }
 
-    // A muted, slightly-tracked uppercase section header (browser's .vs-section).
-    QLabel* sectionLabel(const QString& text) {
-      auto* l = new QLabel(text.toUpper());
-      l->setStyleSheet("color: palette(mid); font-weight: 600; letter-spacing: 1px;");
-      return l;
-    }
-
     // A label that elides to whatever width the row gives it (browser: CSS
     // text-overflow). Its size hint stays narrow so a long URL can never force a
     // horizontal scrollbar; the full text lives on the tooltip.
@@ -152,56 +146,34 @@ namespace stencil::gui {
       QString full_;
     };
 
-    QFrame* hLine() {
-      auto* line = new QFrame;
-      line->setFrameShape(QFrame::HLine);
-      line->setFrameShadow(QFrame::Sunken);
-      return line;
-    }
   }  // namespace
 
   ConnectDialog::ConnectDialog(stencil::net::ConnectionManager* manager, QWidget* parent)
       : QDialog(parent), manager_(manager) {
     setWindowTitle(tr("Servers"));
-    setMinimumWidth(480);
+    // The browser .app-modal width — also what fits the footer hint on one line.
+    setMinimumWidth(kModalWidth);
 
-    auto* root = new QVBoxLayout(this);
-    root->setSpacing(10);
-
-    // ── Header: server icon + title, Close at the right (mirrors the browser modal).
-    auto* header = new QHBoxLayout;
+    // Browser connectModal.js parity: shared modal shell (glyph + title + Close pill).
+    ModalChrome chrome = installModalChrome(this, "server", tr("Servers"));
+    QVBoxLayout* root = chrome.body;
     const QColor txt = palette().color(QPalette::WindowText);
-    auto* iconLbl = new QLabel;
-    iconLbl->setPixmap(themedIcon("server", txt, 22).pixmap(22, 22));
-    header->addWidget(iconLbl);
-    auto* titleLbl = new QLabel(tr("Servers"));
-    QFont tf = titleLbl->font();
-    tf.setPointSizeF(tf.pointSizeF() + 3);
-    tf.setBold(true);
-    titleLbl->setFont(tf);
-    header->addWidget(titleLbl);
-    header->addStretch(1);
-    auto* closeBtn = new QPushButton(tr("Close"));
-    closeBtn->setToolTip(tr("Close this dialog"));
-    closeBtn->setIcon(themedIcon("x", txt, 15));
-    header->addWidget(closeBtn);
-    root->addLayout(header);
-    root->addWidget(hLine());
 
-    root->addWidget(sectionLabel(tr("Connect a server")));
+    root->addWidget(modalSectionLabel(tr("Connect a server"), this));
     auto* form = new QGridLayout;
     form->setColumnStretch(1, 1);
     form->setHorizontalSpacing(10);
-    form->addWidget(new QLabel(tr("URL")), 0, 0);
+    auto* urlLbl = new QLabel(tr("URL"));
+    urlLbl->setToolTip(tr("Server URL, e.g. http://localhost:8090"));
+    form->addWidget(urlLbl, 0, 0);
     urlEdit_ = new QLineEdit;
     urlEdit_->setPlaceholderText("http://localhost:8090");
-    urlEdit_->setToolTip(tr("Collaboration server URL, e.g. http://localhost:8090 — "
-                            "an invite link (…#token=…) signs in with its token"));
     form->addWidget(urlEdit_, 0, 1);
-    form->addWidget(new QLabel(tr("Token")), 1, 0);
+    auto* tokenLbl = new QLabel(tr("Token"));
+    tokenLbl->setToolTip(tr("Optional access token (issued otherwise)"));
+    form->addWidget(tokenLbl, 1, 0);
     tokenEdit_ = new QLineEdit;
     tokenEdit_->setPlaceholderText(tr("(optional)"));
-    tokenEdit_->setToolTip(tr("Optional access token for a secured server"));
     form->addWidget(tokenEdit_, 1, 1);
     root->addLayout(form);
 
@@ -209,14 +181,14 @@ namespace stencil::gui {
     auto* actions = new QHBoxLayout;
     auto* connectBtn = new QPushButton(tr("Connect"));
     connectBtn->setToolTip(tr("Connect to the server at the URL above"));
-    // White glyph: Connect is the default button (accent-filled in the theme QSS).
-    connectBtn->setIcon(themedIcon("link", QColor("#ffffff"), 15));
+    // Accent CTA with a white glyph (browser default-button treatment).
+    makeModalCta(connectBtn, "plus-circle");
     connectBtn->setDefault(true);
     actions->addWidget(connectBtn);
     actions->addStretch(1);
     auto* reconnectAllBtn = new QPushButton(tr("Reconnect all"));
     reconnectAllBtn_ = reconnectAllBtn;
-    reconnectAllBtn->setIcon(themedIcon("refresh", txt, 15));
+    makeModalCta(reconnectAllBtn, "refresh");
     reconnectAllBtn->setToolTip(tr("Re-establish every connection (re-validate / reissue tokens)"));
     actions->addWidget(reconnectAllBtn);
     root->addLayout(actions);
@@ -229,14 +201,13 @@ namespace stencil::gui {
                      [](bool on) { net::connectionStore::setAutoConnect(on); });
     root->addWidget(autoConnect_);
 
-    root->addWidget(hLine());
+    root->addWidget(modalDivider(this));
 
     // Section header + the credential-kind view filter (projects dialog's "Show:" idiom).
     {
       auto* head = new QHBoxLayout;
-      head->addWidget(sectionLabel(tr("Connections")));
+      head->addWidget(modalSectionLabel(tr("Connections"), this));
       head->addStretch(1);
-      head->addWidget(new QLabel(tr("Show:")));
       auto* kind = new SearchComboBox(this, /*searchable=*/false);
       kindFilter_ = kind;
       kind->setObjectName(QStringLiteral("connKindFilter"));
@@ -331,13 +302,12 @@ namespace stencil::gui {
       confirmDisconnect(urls[rowIdx]);
     };
 
-    auto* hint = new QLabel(
-        tr("Connections are saved and (optionally) restored on open · "
-           "server projects show a golden outline — so do connections whose "
-           "credential can mint invite tokens."));
-    hint->setWordWrap(true);
-    hint->setStyleSheet("color: palette(mid); font-size: 11px;");
-    root->addWidget(hint);
+    // Footer (browser settings-footer): the saved-connections hint under a hairline.
+    // The browser footer's exact sentence (connectModal.js .footer-hint) — the longer
+    // invite-token clause made the desktop hint wrap to a second line (user report).
+    addModalFooter(chrome,
+                   tr("Connections are saved and (optionally) restored on open · "
+                      "server projects show a golden outline."));
 
     QObject::connect(reconnectAllBtn, &QPushButton::clicked, this, [this] {
       if (manager_) manager_->reconnectAllAsync();  // changed() → rebuildList() as each resolves
@@ -346,7 +316,6 @@ namespace stencil::gui {
     QObject::connect(connectBtn, &QPushButton::clicked, this, &ConnectDialog::doConnect);
     QObject::connect(urlEdit_, &QLineEdit::returnPressed, this, &ConnectDialog::doConnect);
     QObject::connect(tokenEdit_, &QLineEdit::returnPressed, this, &ConnectDialog::doConnect);
-    QObject::connect(closeBtn, &QPushButton::clicked, this, &QDialog::accept);
     if (manager_)
       QObject::connect(manager_, &stencil::net::ConnectionManager::changed, this,
                        &ConnectDialog::rebuildList);
@@ -504,9 +473,9 @@ namespace stencil::gui {
     });
   }
 
-  // The row transition: a filtered-out row fades and collapses its slot (support/
-  // filterFade) — deliberately quicker and quieter than the disconnect scatter, so
-  // "excluded by the picker" never reads as "forgotten".
+  // The row transition: a row the picker EXCLUDES is gone at once — it was never
+  // disconnected, so there is no exit to watch — and the rows that are LEFT arrive
+  // (support/filterFade), deliberately quieter than the disconnect scatter.
   ListFilterFade* ConnectDialog::filterFade() {
     if (filterFade_ || !list_) return filterFade_;
     filterFade_ = new ListFilterFade(list_);
@@ -515,7 +484,10 @@ namespace stencil::gui {
       if (full.isValid()) it->setSizeHint(QSize(rowWidth(), filterHeight(full.toInt(), p)));
       QWidget* w = list_->itemWidget(it);
       if (!w) return;
-      if (p >= 1.0) {   // settled in — hand the row back to the scroll-edge reveal
+      // Settled either way — landed in, or out and hidden — hand the row back to the
+      // scroll-edge reveal. A hidden row holding a graphics effect is bookkeeping nobody
+      // can see and everything downstream has to work around.
+      if (p >= 1.0 || p <= 0.0) {
         if (w->property(kFilterFadeProperty).toBool()) {
           w->setProperty(kFilterFadeProperty, false);
           w->setGraphicsEffect(nullptr);

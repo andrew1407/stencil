@@ -2,8 +2,9 @@
 // a long URL elides inside the viewport, each row is a projects-style card whose
 // outline is never clipped (and hovers as one), a row the viewport cuts dissolves at
 // the edge, removal retires-then-finalizes, and a new row gathers in. The kind
-// filter is symmetric and LIGHT: excluded rows fade + collapse out and included ones
-// back in, with none of the removal's dust, and reduced motion skips to the end. A mock
+// filter is a question re-answered: what it excludes is gone at once with nothing to
+// watch, the rows that are LEFT arrive, none of the removal's dust is spent, and reduced
+// motion skips to the end. A mock
 // QTcpServer stands in for the collaboration server, so no Go server is needed.
 #include "connectDialog.hpp"
 #include "disintegrateOverlay.hpp"
@@ -152,14 +153,17 @@ int main(int argc, char** argv) {
   QPushButton* disc = row->findChild<QPushButton*>(QStringLiteral("rowDisconnect"));
   check(disc != nullptr, "finds the row's disconnect button");
   if (disc) check(disc->toolTip() == QStringLiteral("Disconnect"), "…which says what it does");
-  auto* dismiss = new QTimer;  // answers the confirm box that blocks disc->click()
+  auto* dismiss = new QTimer;  // answers the styled confirm that blocks disc->click()
   dismiss->setInterval(20);
   QObject::connect(dismiss, &QTimer::timeout, [dismiss] {
-    if (auto* box = qobject_cast<QMessageBox*>(QApplication::activeModalWidget()))
-      if (auto* yes = box->button(QMessageBox::Yes)) {
-        yes->click();
+    QWidget* m = QApplication::activeModalWidget();
+    if (!m || m->objectName() != QLatin1String("stencilConfirmModal")) return;
+    for (QPushButton* b : m->findChildren<QPushButton*>())
+      if (b->text() == QLatin1String("Confirm")) {
+        b->click();
         dismiss->stop();
         dismiss->deleteLater();
+        return;
       }
   });
   dismiss->start();
@@ -252,7 +256,9 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 8; ++i)
       many.connectTo(QStringLiteral("http://row%1@127.0.0.1:%2").arg(i).arg(port), QString(), e);
     ConnectDialog tall(&many);
-    tall.resize(520, 430);   // shorter than eight rows: the list has to scroll
+    // Shorter than eight rows, so the list has to scroll — but tall enough that a few
+    // fit whole below the modal chrome (header pill + footer hint) the dialog now wears.
+    tall.resize(560, 540);
     tall.show();
     pumpFor(120);
     auto* tl = tall.findChild<QListWidget*>(QStringLiteral("connList"));
@@ -279,35 +285,28 @@ int main(int argc, char** argv) {
       }
     }
 
-    // ── The FILTER's own transition, over the same eight rows. Excluded rows fade and
-    // collapse (support/filterFade); included ones play that backwards. Deliberately not
-    // the disconnect's dust: a filtered-out row is hidden, not forgotten.
+    // ── The FILTER's own transition, over the same eight rows. What it excludes is gone
+    // at once (support/filterFade) — a filtered-out row was never disconnected, so there
+    // is no exit to play — and the rows that are LEFT arrive. Deliberately not the
+    // disconnect's dust either way: excluded is not forgotten.
     auto* kind = tall.findChild<QComboBox*>(QStringLiteral("connKindFilter"));
     check(kind != nullptr, "the tall list carries the kind filter");
     if (tl && kind && tl->count() == 8) {
       const int fullH = tl->item(0)->data(kFilterFullHeightRole).toInt();
-      check(fullH > 0, "rows record the slot height a filter collapses");
+      check(fullH > 0, "rows record the slot height a filter opens");
       // Every one of these is non-admin, so "Admin" empties the whole list.
       kind->setCurrentIndex(kind->findData(QStringLiteral("admin")));
-      pumpFor(kFilterFadeMs / 4);
       QWidget* w0 = tl->itemWidget(tl->item(0));
-      check(w0 && w0->property(kFilterFadeProperty).toBool(),
-            "a row leaving the filtered set owns its own fade");
-      check(w0 && dynamic_cast<QGraphicsOpacityEffect*>(w0->graphicsEffect()) != nullptr,
-            "…a plain opacity fade, not the scroll edge's grain");
-      check(w0 && dynamic_cast<DissolveEffect*>(w0->graphicsEffect()) == nullptr,
-            "…so the two motions never fight over one effect");
-      check(tall.findChild<QWidget*>(DisintegrateOverlay::kObjectName) == nullptr,
-            "…and it spends none of the removal's dust");
-      pumpUntil([&] {
-        for (int i = 0; i < 8; ++i)
-          if (!tl->item(i)->isHidden()) return false;
-        return true;
-      });
       bool allGone = true;
       for (int i = 0; i < 8; ++i)
         allGone = allGone && tl->item(i)->isHidden() && tl->item(i)->sizeHint().height() == 0;
-      check(allGone, "Admin empties a list of non-admin rows, every slot closed");
+      check(allGone, "Admin empties a list of non-admin rows at once, every slot closed");
+      check(w0 && !w0->property(kFilterFadeProperty).toBool(),
+            "…owning no fade: a row that is out of the answer has nothing to play");
+      check(w0 && w0->graphicsEffect() == nullptr,
+            "…and no stale effect either, so the scroll-edge reveal gets it back");
+      check(tall.findChild<QWidget*>(DisintegrateOverlay::kObjectName) == nullptr,
+            "…and it spends none of the removal's dust");
       check(tl->count() == 9 && tl->item(8)->text().contains(QStringLiteral("admin credential")),
             "…and the explanatory line sits after them");
 
@@ -323,7 +322,14 @@ int main(int argc, char** argv) {
       };
       kind->setCurrentIndex(kind->findData(QStringLiteral("all")));
       check(!tl->item(0)->isHidden() && tl->item(0)->sizeHint().height() < fullH,
-            "…and they are back in the view at once, still expanding");
+            "…and the rows that are left arrive, still expanding");
+      pumpFor(kFilterFadeMs / 4);
+      check(w0 && w0->property(kFilterFadeProperty).toBool(),
+            "an arriving row owns its own fade while it comes in");
+      check(w0 && dynamic_cast<QGraphicsOpacityEffect*>(w0->graphicsEffect()) != nullptr,
+            "…a plain opacity fade, not the scroll edge's grain");
+      check(w0 && dynamic_cast<DissolveEffect*>(w0->graphicsEffect()) == nullptr,
+            "…so the two motions never fight over one effect");
       pumpUntil(settled);
       check(settled(), "every row returns to its full slot");
       check(w0 && !w0->property(kFilterFadeProperty).toBool() &&

@@ -27,7 +27,7 @@ export class StencilConnectModal extends StencilElement {
         <div class="app-modal">
             <div class="settings-header">
                 <h2>${icon('server', { size: 18 })} Servers</h2>
-                <button class="app-modal-close btn-icon-text" id="connect-close" title="Close (Esc)">${icon('x', { size: 14 })}<span>Close</span></button>
+                <button class="app-modal-close btn-icon-text" id="connect-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="settings-body">
                 <div class="vs-section">Connect a server</div>

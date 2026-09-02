@@ -392,6 +392,7 @@ const hoverMock = (over = {}) => {
     image: {}, isPanning: false, isDraggingPoint: false,
     compareHoldOriginal: false, isDraggingCompareSplit: false, compareMode: 'horizontal',
     canvas: { style: {} },
+    input: { holdEngaged: false },
     tooltipMgr: { hide() {}, applyHover() {} },
     // The compare gate the tooltip consults (drawingApp.compareShowsPoint).
     compareShowsPoint: () => true,
@@ -453,6 +454,32 @@ test('hovering the canvas updates the coords readout in ALL four states', () => 
   const empty = hoverMock({ image: null });
   DrawingApp.prototype.canvasMouseMove.call(empty, ev(100));
   assert.deepEqual(empty.readout, [[]]);
+});
+
+// ── No tooltip while the mouse is down doing something else ──────────────────
+// Panning, dragging, sweeping a zoom/rect-draw box, or an armed/active press-and-hold
+// (InputController#holdDraw) all move the mouse without the tooltip caring — and any
+// tooltip already up must be dropped, not left lingering.
+test('a drag or hold in progress (any kind) never offers the tooltip a hover — and drops one already up', () => {
+  const ev = (x) => ({ clientX: x, clientY: 120, altKey: false, shiftKey: false, ctrlKey: false, metaKey: false });
+  const cases = [
+    ['isPanning', { isPanning: true }],
+    ['isDraggingPoint', { isDraggingPoint: true }],
+    ['isDraggingSegment', { isDraggingSegment: true }],
+    ['isDraggingLine', { isDraggingLine: true }],
+    ['isZoomRectDragging', { isZoomRectDragging: true }],
+    ['isRectDrawDragging', { isRectDrawDragging: true }],
+    ['input.holdEngaged (armed or drawing)', { input: { holdEngaged: true } }],
+  ];
+  for (const [name, over] of cases) {
+    const m = hoverMock({ compareMode: 'none', compareReadOnly: () => false, ...over });
+    let hidden = 0;
+    m.tooltipMgr = { hide: () => { hidden += 1; },
+      applyHover: () => assert.fail(`${name}: a drag/hold in progress must not pop a tooltip`) };
+    DrawingApp.prototype.canvasMouseMove.call(m, ev(100));
+    assert.equal(hidden, 1, `${name}: any tooltip already up is dropped`);
+    assert.deepEqual(m.readout, [], `${name}: the coord readout is not touched mid-gesture either`);
+  }
 });
 
 test('the on-canvas overlays never eat the pointer', () => {

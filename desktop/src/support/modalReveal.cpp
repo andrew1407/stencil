@@ -4,9 +4,13 @@
 
 #include <QAbstractAnimation>
 #include <QColorDialog>
+#include <QCoreApplication>
+#include <QCursor>
+#include <QGuiApplication>
 #include <QGraphicsOpacityEffect>
 #include <QDialog>
 #include <QEasingCurve>
+#include <QFileDialog>
 #include <QLabel>
 #include <QParallelAnimationGroup>
 #include <QPixmap>
@@ -19,6 +23,10 @@
 
 namespace stencil::support {
 
+  // Set on a dialog whose flight is already owned — by an explicit revealDialog() call,
+  // or by the watcher having taken it once.
+  static constexpr const char* kRevealedProperty = "stencilDialogRevealed";
+
   namespace {
     // Brisk, but not so brisk the flight from the icon is over before it registers.
     // Ease-OUT on the way in, so the growth visibly slows as it settles into place.
@@ -26,6 +34,11 @@ namespace stencil::support {
     // (DisintegrateOverlay::kSurfaceInMs / kSurfaceOutMs, the browser's numbers).
     constexpr int kOpenMs = 300;
     constexpr int kCloseMs = 240;
+    // Deliberate desktop divergence (user decision 2026-09-02): a dialog's OPEN gather
+    // runs 1.5× faster than the shared kSurfaceInMs — 620ms read as sluggish on a big
+    // modal. The close keeps the default clock, and the fade-up rides this one so the
+    // window still lands together with its dust.
+    constexpr int kDialogDustInMs = gui::DisintegrateOverlay::kSurfaceInMs * 2 / 3;   // ≈413
 
     // Where the motion starts/ends, in GLOBAL coords: the icon, else a small box above
     // the dialog (hidden widgets map to 0x0, which is the same "not on screen" case).
@@ -100,13 +113,29 @@ namespace stencil::support {
     // the flight is drawn as particles rather than as a moving rectangle. The ghost
     // stays as the fallback for anything the dust declines (an unmeasurable box, a
     // snapshot that failed), so a window never simply blinks.
+    //
+    // Unlike the browser (which never dusts its big `.app-modal` windows, only
+    // small popups), desktop dusts big dialogs too, on a raised-but-still-modest
+    // mote budget — coarser sand than a popup's, since kSurfaceMaxCells is kept
+    // low on purpose (a window-sized cloud gets laggy past a few thousand cells).
     bool flySurfaceDust(QWidget* host, const QPixmap& shot, const QRect& windowGlobal,
                         const QRect& iconGlobal, bool opening, const QColor& ink) {
       if (!host || shot.isNull() || !windowGlobal.isValid()) return false;
       const QRect box(host->mapFromGlobal(windowGlobal.topLeft()), windowGlobal.size());
       const QPoint point = host->mapFromGlobal(iconGlobal.center());
-      return gui::DisintegrateOverlay::overSurface(shot, box, host, point, opening, 0, ink)
-             != nullptr;
+      // escapeHost: a dialog can be dragged off the app, so its cloud must not be
+      // cropped to the host's rect.
+      auto* fx = gui::DisintegrateOverlay::overSurface(shot, box, host, point, opening,
+                                                       opening ? kDialogDustInMs : 0, ink,
+                                                       kDialogDustMaxCells,
+                                                       /*escapeHost=*/true);
+      // Painted NOW on a close, not on the next posted frame — the same synchronous
+      // first paint the ghost fallback does (CloseFlight's ghost->repaint()). The dialog
+      // window unmaps in this very turn; one deferred frame here is exactly the gap in
+      // which it blinked out bare before the cloud appeared (user report). At t=0 the
+      // overlay draws the full snapshot in place, so the hand-off is seamless.
+      if (fx && !opening) fx->repaint();
+      return fx != nullptr;
     }
 
     // The window's own text colour — what its motes are lifted towards, so a dark window
@@ -114,27 +143,15 @@ namespace stencil::support {
     QColor inkOf(const QWidget& w) { return w.palette().color(QPalette::WindowText); }
 
     // The window waits behind its own dust and fades up as the last motes land — the
-    // browser's `@keyframes surfaceForm`, which holds it invisible for the first 55% of
-    // the flight. Parented to the window, so it dies with it.
-    void fadeUpBehindDust(QWidget* w) {
-      auto* fade = new QPropertyAnimation(w, "windowOpacity", w);
-      fade->setDuration(gui::DisintegrateOverlay::kSurfaceInMs);
-      fade->setKeyValueAt(0.0, 0.0);
-      fade->setKeyValueAt(0.55, 0.0);
-      fade->setKeyValueAt(1.0, 1.0);
-      QPointer<QWidget> guard(w);
-      QObject::connect(fade, &QPropertyAnimation::finished, w, [guard] {
-        if (guard) guard->setWindowOpacity(1.0);   // however it ended, never left dimmed
-      });
-      fade->start(QAbstractAnimation::DeleteWhenStopped);
-    }
+    // shared surfaceForm ramp (disintegrateOverlay.hpp), on the dialog clock.
+    void fadeUpBehindDust(QWidget* w) { gui::fadeUpBehindDust(w, kDialogDustInMs); }
 
-    // The window the ghost lives in — the dialog's own top-level parent. Null only for an
-    // unparented dialog, which has nothing to fly inside of. Deliberately NOT also
-    // requiring the target to fit inside the host: that test rejected ordinary centred
-    // dialogs and silently turned the whole effect off. A dialog larger than its parent
-    // clips against the host edge in the last frames, which is a far smaller problem
-    // than no animation at all.
+    // The window the flight is measured against — the dialog's own top-level parent. Null
+    // only for an unparented dialog, which has nothing to fly out of. Deliberately NOT
+    // also requiring the target to fit inside the host: that test rejected ordinary
+    // centred dialogs and silently turned the whole effect off. Nor does it clip any
+    // more — the dust layer leaves the host when it has to (placeForSurface); only the
+    // ghost fallback below, still a child, can crop at the window edge.
     QWidget* hostFor(const QDialog& dlg) {
       QWidget* parent = dlg.parentWidget();
       if (!parent) return nullptr;
@@ -146,6 +163,11 @@ namespace stencil::support {
   // Qt has no portable reduce-motion hint; this env var is the opt-out (the browser
   // side uses prefers-reduced-motion).
   bool motionReduced() { return !qEnvironmentVariableIsEmpty("STENCIL_NO_ANIM"); }
+
+  bool dustMotionOk() {
+    return !motionReduced()
+           && QGuiApplication::platformName() != QLatin1String("offscreen");
+  }
 
   void revealDialog(QDialog& dlg, QWidget* anchor) { revealDialog(dlg, anchor, QRect()); }
 
@@ -258,7 +280,10 @@ namespace stencil::support {
     w.hide();
   }
 
-  void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect) {
+  // The flight itself. Split from the public entry point so the application-wide watcher
+  // below can play it WITHOUT claiming the dialog: a claim is what says "a call site owns
+  // this one", and a dialog the watcher flew must still fly the next time it is shown.
+  static void flyDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect) {
     if (motionReduced()) return;
     QPointer<QDialog> guard(&dlg);
     QPointer<QWidget> anchorGuard(anchor);
@@ -301,6 +326,70 @@ namespace stencil::support {
     // in where it had been, and only then did the flight start. Starting on Hide (and
     // painting the ghost synchronously) puts the ghost up in the same turn as the unmap.
     dlg.installEventFilter(new CloseFlight(&dlg, anchorGuard, anchorRect, shotWhileOpen));
+  }
+
+  void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect) {
+    // Claimed: this dialog has a call site that knows where it came from, so the
+    // application-wide watcher below leaves it alone.
+    dlg.setProperty(kRevealedProperty, true);
+    flyDialog(dlg, anchor, anchorRect);
+  }
+
+  namespace {
+    // A box this big around the point the user last pressed — the browser's
+    // GESTURE_ANCHOR_PX, so a question forms out of the gesture that raised it on both
+    // surfaces. It only has to be big enough for originRect() to accept it as real.
+    constexpr int kGestureAnchorPx = 26;
+    constexpr const char* kDialogRevealFilterName = "stencilDialogRevealFilter";
+
+    // The one application-wide watcher. Show is a once-per-dialog event, so this costs
+    // nothing at rest and needs no per-call-site installation — which is the whole point:
+    // `QMessageBox::question(this, …)` is built and exec'd in one expression and there is
+    // nowhere to hang a reveal off.
+    class DialogRevealFilter : public QObject {
+     public:
+      explicit DialogRevealFilter(QObject* parent) : QObject(parent) {
+        setObjectName(QString::fromLatin1(kDialogRevealFilterName));
+      }
+
+     protected:
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (e->type() != QEvent::Show) return QObject::eventFilter(o, e);
+        auto* dlg = qobject_cast<QDialog*>(o);
+        auto* fileDlg = qobject_cast<QFileDialog*>(dlg);
+        if (!dlg || dlg->property(kRevealedProperty).toBool()
+            || dlg->property(kNoDialogRevealProperty).toBool()
+            // A NATIVE save/open panel is positioned by the OS, not us — flying a
+            // ghost of its hidden Qt fallback UI just duplicated it off to one side.
+            // One built with DontUseNativeDialog opted OUT of that: it is real
+            // Qt-rendered content like any other dialog (dataExportController.cpp
+            // saveImageFile, stencilFileSync.cpp saveProjectFileAs), so it gets the
+            // same flight and the same parent-centered placement.
+            || (fileDlg && !fileDlg->testOption(QFileDialog::DontUseNativeDialog)))
+          return QObject::eventFilter(o, e);
+        // The press that provoked the question. A keyboard-raised one has no fresh point
+        // to use, and revealDialog's own fallback (from above the box) covers it — an
+        // anchor at a stale cursor would be a gesture that never happened.
+        const QPoint p = QCursor::pos();
+        const QRect gesture(p.x() - kGestureAnchorPx / 2, p.y() - kGestureAnchorPx / 2,
+                            kGestureAnchorPx, kGestureAnchorPx);
+        flyDialog(*dlg, nullptr, gesture);
+        return QObject::eventFilter(o, e);
+      }
+    };
+  }  // namespace
+
+  void installDialogReveal() {
+    QCoreApplication* app = QCoreApplication::instance();
+    // Offscreen has no compositor for windowOpacity and the tests answer dialogs the
+    // instant they land — both want the plain, immediate box (revealMenu does the same).
+    // Reduced motion is NOT checked here: revealDialog re-reads it per flight, so the
+    // preference can be turned on and off while the app runs.
+    if (!app || QGuiApplication::platformName() == QLatin1String("offscreen")) return;
+    if (app->findChild<QObject*>(QString::fromLatin1(kDialogRevealFilterName),
+                                 Qt::FindDirectChildrenOnly))
+      return;
+    app->installEventFilter(new DialogRevealFilter(app));
   }
 
 }  // namespace stencil::support

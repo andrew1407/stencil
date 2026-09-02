@@ -51,8 +51,10 @@ namespace stencil::gui {
   QString iconSvgDocument(const QString& inner, const QColor& color);
 
   // Rasterize (already posed) inner markup — themedIcon's back half, minus the cache.
+  // `withDisabled=false` skips compositing the faded Disabled variant — for per-frame
+  // posed icons on an ENABLED control, where that variant is built and never shown.
   QIcon iconFromMarkup(const QString& inner, const QColor& color, int size, bool shadow,
-                       qreal dpr);
+                       qreal dpr, bool withDisabled = true);
 
   // What themedIcon() was asked for, recovered from the QIcon it returned. A button
   // carries no glyph name, only a QIcon; QIcon::cacheKey() survives the copy Qt makes

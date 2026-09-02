@@ -4,7 +4,7 @@
 
 // Small Qt-coupled scaffolding helpers shared across the GUI dialogs/widgets.
 // Qt-only by design — must NOT live in core/ (which is GUI-free + compiled to
-// WebAssembly). Verified by the stencil_gui build, not doctest.
+// WebAssembly). Verified by the stencil build, not doctest.
 class QAbstractButton;
 class QColor;
 class QComboBox;
@@ -12,6 +12,17 @@ class QDialog;
 class QWidget;
 
 namespace stencil::gui {
+
+  // A real save panel, not the QFileDialog::getSaveFileName() convenience — that
+  // convenience runs the OS's own native panel, which can be neither dusted nor
+  // centered by us (modalReveal.cpp's DialogRevealFilter skips a still-native
+  // QFileDialog for exactly that reason). DontUseNativeDialog makes this one
+  // Qt-rendered content like every other dialog, so it gets the same reveal flight
+  // and the same parent-centered placement. Empty string on Cancel, same as
+  // getSaveFileName(). Shared by dataExportController's saveImageFile and
+  // mainWindow's saveProjectFileAs.
+  QString showSaveDialog(QWidget* parent, const QString& title,
+                         const QString& suggested, const QString& filter);
 
   // Create a standard QDialogButtonBox parented to `parent` and wire its
   // accepted()->accept() / rejected()->reject() to the dialog. Replaces the

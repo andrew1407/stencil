@@ -80,7 +80,7 @@ namespace stencil::gui {
   }
 
   QIcon iconFromMarkup(const QString& inner, const QColor& color, int size, bool shadow,
-                       qreal dprIn) {
+                       qreal dprIn, bool withDisabled) {
     if (inner.isEmpty() || size <= 0) return QIcon();
     const QString hex = color.name();
     const qreal dpr = dprIn > 0 ? dprIn : (qApp ? qApp->devicePixelRatio() : 1.0);
@@ -111,6 +111,7 @@ namespace stencil::gui {
     pm.setDevicePixelRatio(dpr);
 
     QIcon icon(pm);
+    if (!withDisabled) return icon;   // a posed frame on an enabled control never shows it
     // Disabled: the same glyph, faded. A rasterised icon never picks up the
     // stylesheet's `color: MUTED` (that reaches text only), unlike the browser's
     // currentColor `.ic`. Composited from a 1x-tagged copy — drawing `pm` with its

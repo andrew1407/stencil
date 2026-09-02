@@ -62,25 +62,23 @@ export const closeOpenModal = (except = null) => {
   return null;
 };
 
-export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, escapeClose = true } = {}) => {
-  // The modal box the popover positions: the shared class, or a shell with its own ids
-  // (settingsModal) falls back to the overlay's first element child.
-  const boxOf = () => overlay.querySelector('.app-modal') || overlay.firstElementChild;
-
-  // ── Grow-from-the-icon motion (js/ui/motion.js surfaceIn/surfaceOut) ──
-  // The window forms from motes streaming out of the icon that opened it, and comes
-  // apart into motes pouring back into it — same origin and direction the old scale
-  // had. The `--modal-*` vars stay: they are the flight modalFromIcon/modalToIcon still
-  // plays wherever the dust declines (an unmeasurable box, a stub, reduced motion).
-  const CLOSE_MS = SURFACE_OUT_MS;   // the dust's own clock (css/animations.css)
+// ── Grow-from-the-icon motion, on its own (js/ui/motion.js surfaceIn/surfaceOut) ──
+// A window forms from motes streaming out of the control that opened it, and comes
+// apart into motes pouring back into it. Extracted from the shell below because the
+// CONFIRM dialog needs the same flight and has no opener button to hang one off: it is
+// raised by whatever the user just did, so its origin is that gesture's own point.
+// The `--modal-*` vars stay — they are the flight modalFromIcon/modalToIcon plays
+// wherever the dust declines (an unmeasurable box, a stub, reduced motion).
+export const MODAL_CLOSE_MS = SURFACE_OUT_MS;   // the dust's own clock (css/animations.css)
+export const createModalFlight = (overlay, boxOf) => {
   let closeTimer = null;
-  let originPoint = null;   // the icon centre, in client coordinates
+  let originPoint = null;   // the origin centre, in client coordinates
   const reducedMotion = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-  // Which control the flight belongs to. Defaults to the shell's own opener, but a
-  // caller can pass another (the idle canvas's "＋ Blank image" card opens the SAME
-  // dialog and must grow out of itself, not out of the toolbar icon).
-  let originEl = openBtn;
-  const setOriginVars = () => {
+
+  // `anchor` is a client rect (an icon's, or a small box around a click) or null — a
+  // hidden opener measures 0x0 and a scrolled-away one sits outside the viewport, and
+  // both fall from above instead.
+  const setOrigin = (anchor) => {
     const box = boxOf();
     if (!box) return false;
     // Measure with the animation suppressed: `both` fill means the box already wears the
@@ -89,9 +87,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     const b = box.getBoundingClientRect();
     overlay.classList.remove('modal-measuring');
     if (!b.width || !b.height) return false;
-    const a = originEl?.getBoundingClientRect?.();
-    // A hidden opener (collapsed Controls panel) measures 0x0 and a scrolled-away one
-    // sits outside the viewport — both fall from above instead.
+    const a = anchor;
     const onScreen = !!a && a.width > 0 && a.height > 0 && a.bottom > 0 && a.top < window.innerHeight;
     const cx = onScreen ? a.left + a.width / 2 : b.left + b.width / 2;
     const cy = onScreen ? a.top + a.height / 2 : -Math.max(48, b.height * 0.3);
@@ -124,13 +120,50 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     if (reducedMotion()) { settleSurface(box); return; }
     (enter ? surfaceIn : surfaceOut)(box, originPoint);
   };
+  // The close half, as every caller plays it: measure while the window is still up,
+  // hand over to the cloud, and wear `modal-closing` for exactly the flight.
+  const playClosing = () => {
+    overlay.classList.add('modal-closing');
+    playDust(false);
+    if (closeTimer) clearTimeout(closeTimer);
+    closeTimer = setTimeout(() => { closeTimer = null; finishClose(); }, MODAL_CLOSE_MS);
+  };
+  return { reducedMotion, setOrigin, finishClose, playDust, playClosing,
+           settle: () => settleSurface(boxOf()) };
+};
+
+// `originEl` resolves the control the flight belongs to when it ISN'T the opener button:
+// a gear that lives inside a popup menu is already hidden by the time the window opens,
+// so its own rect is 0x0 and the dust would fall from above instead of returning to the
+// control the user can still see. Returning null is a valid answer — nothing on screen
+// owns the window, and falling from above is then correct.
+export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, escapeClose = true, originEl: originFor = null } = {}) => {
+  // The modal box the popover positions: the shared class, or a shell with its own ids
+  // (settingsModal) falls back to the overlay's first element child.
+  const boxOf = () => overlay.querySelector('.app-modal') || overlay.firstElementChild;
+
+  // The window's flight, shared with the confirm dialog (createModalFlight above).
+  // Which control it belongs to defaults to the shell's own opener, but a caller can
+  // pass another (the idle canvas's "＋ Blank image" card opens the SAME dialog and must
+  // grow out of itself, not out of the toolbar icon).
+  const flight = createModalFlight(overlay, boxOf);
+  const { reducedMotion, finishClose, playDust } = flight;
+  let originEl = openBtn;
+  const defaultOrigin = () => (originFor ? originFor() : openBtn);
+  // An anchor is an element OR a plain client rect — a caller whose control is about to
+  // hide (a gear inside a closing popup) captures the rect and passes it directly.
+  const anchorLike = (v) => !!v && (typeof v.getBoundingClientRect === 'function' || Number.isFinite(v.width));
+  const rectOf = (el) => (typeof el?.getBoundingClientRect === 'function'
+    ? el.getBoundingClientRect()
+    : (Number.isFinite(el?.width) ? el : null));
+  const setOriginVars = (el = originEl) => flight.setOrigin(rectOf(el));
 
   // `from` is the control the flight belongs to. An explicit `null` means there ISN'T
   // one: the window falls from above rather than claiming a gesture that never
   // happened. Omitting it still means "the shell's own opener".
   const open = (from) => {
-    originEl = (from && typeof from.getBoundingClientRect === 'function') ? from
-             : (from === null ? null : openBtn);
+    originEl = anchorLike(from) ? from
+             : (from === null ? null : defaultOrigin());
     closeOpenModal(api);   // one window at a time: the new one replaces whatever was showing
     finishClose();
     onOpen?.();
@@ -143,15 +176,15 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     onClose?.();
     // `modal-open` is what every caller tests, so it comes off now; the shrink runs under
     // `modal-closing`, which is purely visual. Measure first — display:none measures 0.
-    const animate = overlay.classList.contains('modal-open') && !reducedMotion() && setOriginVars();
+    // An open with no gesture behind it (originEl null — the projects modal's on-boot
+    // auto-chooser opens itself this way) still has a home to shrink BACK into: the
+    // control that would reopen it. Falls from above again only if that's off-screen too.
+    const animate = overlay.classList.contains('modal-open') && !reducedMotion() && setOriginVars(originEl || defaultOrigin());
     overlay.classList.remove('modal-open');
     if (animate) {
-      overlay.classList.add('modal-closing');
-      playDust(false);   // measured above, while it was still open
-      if (closeTimer) clearTimeout(closeTimer);
-      closeTimer = setTimeout(() => { closeTimer = null; finishClose(); }, CLOSE_MS);
+      flight.playClosing();   // measured above, while it was still open
     } else {
-      settleSurface(boxOf());   // nothing plays: drop anything an open left in the air
+      flight.settle();   // nothing plays: drop anything an open left in the air
       finishClose();
     }
     // However it closed (X button, Escape, outside click), the gesture machine
@@ -164,6 +197,10 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     closeOpenModal(api);
     finishClose();
     onOpen?.();
+    // A popover grows from what it is anchored to — unless that control is hidden (a
+    // gear inside the menu that just closed), when the shell's resolver knows better.
+    const ar = anchorEl?.getBoundingClientRect?.();
+    originEl = (ar && ar.width > 0 && ar.height > 0) ? anchorEl : defaultOrigin();
     overlay.classList.add('modal-open', 'modal-popover');
     const box = boxOf();
     if (box && anchorEl?.getBoundingClientRect) {

@@ -826,9 +826,11 @@ test('boot reports an expired session as such — one warning, one clickable toa
   // Settled, so a dead token can never surface as an unhandled rejection…
   assert.ok(boot.includes('Promise.allSettled('), 'boot never leaves a rejection loose');
   // …counted apart from unreachable servers, because the cures differ.
-  assert.ok(boot.includes('.filter((e) => e?.expired)'));
-  assert.match(boot, /Session expired on \$\{expired\} saved server/);
-  assert.match(boot, /Couldn't reach \$\{unreachable\} saved server/);
+  assert.ok(boot.includes('r.reason?.expired'));
+  assert.match(boot, /Session expired on \$\{expired\.length\} saved server/);
+  // A count says nothing about WHICH server to go check — one toast per address instead.
+  assert.ok(boot.includes("notify(`Couldn't reach ${url}`, 'info')"));
+  assert.ok(!/Couldn't reach \$\{unreachable\.length\}/.test(boot), 'not a count');
   // One diagnostic line PER CASE (a known-dead session adopted at boot, or one that
   // turns out dead now) — and both are warnings, never errors, never a raw rejection.
   assert.strictEqual(boot.split('console.').length - 1, 2, 'one line per case, no more');

@@ -4,7 +4,8 @@ import { PROJECT_ACTION } from '../worker/messages.js';
 import { getSyncToServer } from '../net/connectionStore.js';
 import { normalizePageSize, layoutLineLengthCm } from './units.js';
 import { serializeSession, normalizeCropRect } from './layout.js';
-import { ghostOut, flashLanding, playCanvasArrival, GHOST_MS } from '../ui/motion.js';
+import { ghostOut, flashLanding, playCanvasArrival, revealControls, GHOST_MS } from '../ui/motion.js';
+import { setChecked } from '../ui/controlSwap.js';
 
 // Projects-list thumbnail. It is ALSO the hover-zoom source (projectsModal magnifies it
 // ~1.67x), so it is sized for that, not for the 56px row — and it lives in the
@@ -204,13 +205,11 @@ export class Storage {
     this.app.history.reset(this.app.lines, this.app.lines.length ? 0 : -1);
     if (layout.showPoints !== undefined) {
       this.app.showPoints = layout.showPoints;
-      const cb = document.getElementById('show-points');
-      if (cb) cb.checked = layout.showPoints;
+      setChecked(document.getElementById('show-points'), layout.showPoints);
     }
     if (layout.showLines !== undefined) {
       this.app.showLines = layout.showLines;
-      const cb = document.getElementById('show-lines');
-      if (cb) cb.checked = layout.showLines;
+      setChecked(document.getElementById('show-lines'), layout.showLines);
     }
     this.app.selectedLineIdx = -1;
     this.app.coordLineIdx = -1;
@@ -411,8 +410,7 @@ export class Storage {
       if (pageSize) {
         this.app.pageSize = pageSize;
         document.getElementById('page-size').value = pageSize;
-        const cg = document.getElementById('custom-size-group');
-        if (cg) cg.style.display = pageSize === 'custom' ? 'inline-flex' : 'none';
+        revealControls(document.getElementById('custom-size-group'), pageSize === 'custom');
       }
       if (layout.customPageWidth) this.app.customPageWidth = layout.customPageWidth;
       if (layout.customPageHeight) this.app.customPageHeight = layout.customPageHeight;
@@ -451,8 +449,8 @@ export class Storage {
         const fp = document.getElementById('filter-color');
         if (fp) fp.value = this.app.filterColor;
       }
-      document.getElementById('show-points').checked = this.app.showPoints;
-      document.getElementById('show-lines').checked = this.app.showLines;
+      setChecked(document.getElementById('show-points'), this.app.showPoints);
+      setChecked(document.getElementById('show-lines'), this.app.showLines);
       document.getElementById('image-filter').value = this.app.imageFilter;
       const filterColorPicker = document.getElementById('filter-color');
       if (filterColorPicker) filterColorPicker.style.display = (this.app.imageFilter === 'custom') ? 'inline-block' : 'none';
@@ -464,27 +462,10 @@ export class Storage {
       if (layout.tooltipShowPage !== undefined) this.app.tooltipShowPage = layout.tooltipShowPage;
       if (layout.tooltipShowScreen !== undefined) this.app.tooltipShowScreen = layout.tooltipShowScreen;
       if (layout.tooltipShowCoords !== undefined) this.app.tooltipShowCoords = layout.tooltipShowCoords;
-      if (layout.allowFormulas !== undefined) {
-        this.app.allowFormulas = layout.allowFormulas;
-        const cb = document.getElementById('allow-formulas');
-        if (cb) cb.checked = this.app.allowFormulas;
-        const ctxCb = document.getElementById('ctx-allow-formulas');
-        if (ctxCb) ctxCb.checked = this.app.allowFormulas;
-        const fi = document.getElementById('formula-inputs');
-        const ctxFi = document.getElementById('ctx-formula-inputs');
-        if (fi) fi.style.display = this.app.allowFormulas ? 'inline-flex' : 'none';
-        if (ctxFi) ctxFi.style.display = this.app.allowFormulas ? 'block' : 'none';
-      } else {
-        this.app.allowFormulas = false;
-        const cb = document.getElementById('allow-formulas');
-        if (cb) cb.checked = false;
-        const ctxCb = document.getElementById('ctx-allow-formulas');
-        if (ctxCb) ctxCb.checked = false;
-        const fi = document.getElementById('formula-inputs');
-        const ctxFi = document.getElementById('ctx-formula-inputs');
-        if (fi) fi.style.display = 'none';
-        if (ctxFi) ctxFi.style.display = 'none';
-      }
+      // The shared sync (settingsController.js), so the toolbar pill's .on class stays
+      // in step here too.
+      this.app.allowFormulas = layout.allowFormulas !== undefined ? layout.allowFormulas : false;
+      this.app.settings.syncFormulaUI(this.app.allowFormulas);
       this.app.formulaX = layout.formulaX || '';
       this.app.formulaY = layout.formulaY || '';
       {
@@ -532,11 +513,12 @@ export class Storage {
             this.app.zoomPan.setZoom(layout.zoom);   // also sizes the viewport (syncViewportHeight)
             const vp = document.getElementById('canvas-viewport');
             if (vp) {
-              requestAnimationFrame(() => {
-                if (this.activeId !== targetId) return;
-                vp.scrollLeft = layout.scrollLeft || 0;
-                vp.scrollTop = layout.scrollTop || 0;
-              });
+              // Synchronously, BEFORE the arrival below — assigning scroll forces the
+              // reflow it needs, so the dust forms over the very slice the user will
+              // see. Deferred a frame, the restore jumped the viewport out from under
+              // the freshly-raised cloud.
+              vp.scrollLeft = layout.scrollLeft || 0;
+              vp.scrollTop = layout.scrollTop || 0;
             }
           } else {
             this.app.zoomPan.fitToWindow();
@@ -636,6 +618,20 @@ export class Storage {
       if (vp) flashLanding(vp, 'canvas-clearing', GHOST_MS);
     }
     if (ctx) ctx.clearRect(0, 0, this.app.canvas.width, this.app.canvas.height);
+    // Collapse the backing store + any inline CSS size left by the last zoom — otherwise
+    // the (now blank) canvas keeps its old footprint, .canvas-container (flex: none) stays
+    // that size, and the idle "+ Blank image" card (position: absolute; inset: 0, anchored
+    // to the viewport's SCROLLED content box) can render off past the visible edge instead
+    // of centred — a stale zoom/scroll left it invisible or above the fold (user report).
+    this.app.canvas.width = 0;
+    this.app.canvas.height = 0;
+    this.app.canvas.style.width = '';
+    this.app.canvas.style.height = '';
+    this.app.scale = 1;
+    this.app.renderedScale = null;
+    this.app.zoomPan?.setZoomInputValue(100);
+    const vp = document.getElementById('canvas-viewport');
+    if (vp) { vp.scrollLeft = 0; vp.scrollTop = 0; }
     const selPanel = document.getElementById('selection-panel');
     if (selPanel) selPanel.style.display = 'none';
     const fsPanel = document.getElementById('fs-selection-panel');

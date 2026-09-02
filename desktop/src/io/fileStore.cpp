@@ -382,6 +382,10 @@ namespace stencil::gui {
     s.defaultThickness = o.value("defaultThickness").toDouble(s.defaultThickness);
     s.defaultPointSize = o.value("defaultPointSize").toDouble(s.defaultPointSize);
     s.defaultStyle = o.value("defaultStyle").toString(s.defaultStyle);
+    s.defaultFillColor = o.value("defaultFillColor").toString(s.defaultFillColor);
+    s.selGlowColor = o.value("selGlowColor").toString(s.selGlowColor);
+    s.hoverRingColor = o.value("hoverRingColor").toString(s.hoverRingColor);
+    s.focusRingColor = o.value("focusRingColor").toString(s.focusRingColor);
     s.pageSize = o.value("pageSize").toString(s.pageSize);
     s.customPageWidth = o.value("customPageWidth").toDouble(s.customPageWidth);
     s.customPageHeight = o.value("customPageHeight").toDouble(s.customPageHeight);
@@ -406,6 +410,7 @@ namespace stencil::gui {
     s.llmApiKey = o.value("llmApiKey").toString(s.llmApiKey);
     s.llmServerUrl = o.value("llmServerUrl").toString(s.llmServerUrl);
     s.saveChatsWithProject = o.value("saveChatsWithProject").toBool(s.saveChatsWithProject);
+    s.chatSwapSides = o.value("chatSwapSides").toBool(s.chatSwapSides);
     s.nativeMenuBar = o.value("nativeMenuBar").toBool(s.nativeMenuBar);
     s.windowState = o.value("windowState").toString(s.windowState);
     return s;
@@ -429,6 +434,10 @@ namespace stencil::gui {
     o["defaultThickness"] = s.defaultThickness;
     o["defaultPointSize"] = s.defaultPointSize;
     o["defaultStyle"] = s.defaultStyle;
+    o["defaultFillColor"] = s.defaultFillColor;
+    o["selGlowColor"] = s.selGlowColor;
+    o["hoverRingColor"] = s.hoverRingColor;
+    o["focusRingColor"] = s.focusRingColor;
     o["pageSize"] = s.pageSize;
     o["customPageWidth"] = s.customPageWidth;
     o["customPageHeight"] = s.customPageHeight;
@@ -451,6 +460,7 @@ namespace stencil::gui {
     o["llmApiKey"] = s.llmApiKey;
     o["llmServerUrl"] = s.llmServerUrl;
     o["saveChatsWithProject"] = s.saveChatsWithProject;
+    o["chatSwapSides"] = s.chatSwapSides;
     o["nativeMenuBar"] = s.nativeMenuBar;
     o["windowState"] = s.windowState;
     return o;
@@ -543,6 +553,12 @@ namespace stencil::gui {
     pr.rotationQuarters = o.value("rotationQuarters").toInt(0);
     // Persisted chat (llm-contract.md §12); absent for most projects.
     pr.chat = o.value("chat").toObject();
+    // Pan/zoom position (browser parity: storage.js zoom/scrollLeft/scrollTop). Absent for
+    // projects saved before this existed — 0.0/0/0 is exactly "never saved" (see the field
+    // comments in fileStore.hpp).
+    pr.zoomScale = o.value("zoom").toDouble(0.0);
+    pr.scrollLeft = o.value("scrollLeft").toInt(0);
+    pr.scrollTop = o.value("scrollTop").toInt(0);
     return pr;
   }
 
@@ -609,6 +625,11 @@ namespace stencil::gui {
     if (pr.rotationQuarters) o["rotationQuarters"] = pr.rotationQuarters;
     // Persisted chat: omit when empty so a plain project's bytes stay unchanged.
     if (!pr.chat.isEmpty()) o["chat"] = pr.chat;
+    // Pan/zoom position: omit when never saved, so a plain project's bytes stay unchanged
+    // (and projectFromJson's 0.0/0/0 default keeps reading as "never saved").
+    if (pr.zoomScale > 0) o["zoom"] = pr.zoomScale;
+    if (pr.scrollLeft) o["scrollLeft"] = pr.scrollLeft;
+    if (pr.scrollTop) o["scrollTop"] = pr.scrollTop;
     return o;
   }
 

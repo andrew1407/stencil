@@ -70,7 +70,7 @@ namespace stencil::llm {
                     const QString& serverHost = QString()) {
       if (status == 0) {
         done(failReply(LlmFailure::Transport,
-                       QStringLiteral("Couldn't reach %1 — is it running? (%2)")
+                       QStringLiteral("Couldn't reach %1 (%2)")
                            .arg(endpoint,
                                 err.isEmpty() ? QStringLiteral("network error") : err)));
         return true;
@@ -94,10 +94,12 @@ namespace stencil::llm {
         // own message, and nothing restates it — no status, no second sentence.
         const QString why = clean.isEmpty() ? QStringLiteral("HTTP %1").arg(status) : clean;
         // The server's 503 llmDisabled is a typed Disabled (browser kind parity) —
-        // a configure hint, not a broken transport.
+        // a configure hint, not a broken transport. Its message IS the sentence
+        // (browser describeChatError's "notice" text is the raw err.message,
+        // never run through the "<provider> at <host>:" wrapper below).
         const bool disabled = o.value("code").toString() == QLatin1String("llmDisabled");
         done(failReply(disabled ? LlmFailure::Disabled : LlmFailure::Http,
-                       QStringLiteral("%1: %2").arg(endpoint, why)));
+                       disabled ? why : QStringLiteral("%1: %2").arg(endpoint, why)));
         return true;
       }
       return false;
@@ -175,9 +177,9 @@ namespace stencil::llm {
     // Local-only "assistant off" (contract §5 note): a typed config error,
     // never a transport call.
     if (cfg.provider == QLatin1String("none")) {
-      done(failReply(LlmFailure::Disabled,
+      done(failReply(LlmFailure::Off,
                      QStringLiteral("The assistant is turned off — choose a provider "
-                                    "in the settings to enable it")));
+                                    "to enable it.")));
       return;
     }
     const QString system = systemPrompt(systemSuffix);
@@ -189,7 +191,7 @@ namespace stencil::llm {
       chatOllama(cfg, messages, system, std::move(done));
     } else {
       done(failReply(LlmFailure::BadResponse,
-                     QStringLiteral("unknown LLM provider \"%1\"").arg(cfg.provider)));
+                     QStringLiteral("Unknown LLM provider \"%1\"").arg(cfg.provider)));
     }
   }
 
@@ -411,13 +413,14 @@ namespace stencil::llm {
           // Truncation / refusal are typed errors — never parsed as plans.
           if (r.stopReason == QLatin1String("max_tokens")) {
             r.failure = LlmFailure::Truncated;
-            r.error = QStringLiteral("response truncated (max tokens reached)");
+            r.error = QStringLiteral("Response truncated — the model hit its output "
+                                     "limit; try a shorter request");
             done(r);
             return;
           }
           if (r.stopReason == QLatin1String("refusal")) {
             r.failure = LlmFailure::Refusal;
-            r.error = r.text.isEmpty() ? QStringLiteral("the model refused this request")
+            r.error = r.text.isEmpty() ? QStringLiteral("The model refused this request")
                                        : r.text;
             done(r);
             return;

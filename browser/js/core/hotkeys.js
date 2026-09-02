@@ -3,7 +3,8 @@
 // globals). Defaults from hotkeysConfig.json, overrides merged from localStorage
 // 'drawingApp_hotkeys'. localStorage/DOM access guarded so importing in Node stays inert.
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
-import { platformizeCombo, isMacPlatform, formatCombo, composeControlTitle } from '../utils.js';
+import { platformizeCombo, isMacPlatform, formatCombo, composeControlTitle, setHtml } from '../utils.js';
+import { keysHtml } from '../ui/tipContent.js';
 
 const STORAGE_KEY = 'drawingApp_hotkeys';
 
@@ -83,13 +84,29 @@ class Hotkeys {
     return combo ? `${label} (${formatCombo(combo, this.#isMac)})` : label;
   }
 
+  // Keycap markup per combo, memoized: menus poll updateCtxHints every 120ms
+  // (contextMenu.js LIVE_SYNC_INTERVAL_MS), and the combos rarely change.
+  #hintHtml = new Map();
+  #comboHtml(combo) {
+    let html = this.#hintHtml.get(combo);
+    if (html === undefined) {
+      html = keysHtml(formatCombo(combo, this.#isMac), this.#isMac);
+      this.#hintHtml.set(combo, html);
+    }
+    return html;
+  }
+
   // Update every .ctx-hotkey[data-hk] element so context menus reflect current
-  // bindings. No-op-safe when there's no document (Node import).
+  // bindings — as bordered keycaps (tipContent.js keysHtml), the same markup the
+  // floating tooltip's shortcut uses. No-op-safe when there's no document (Node import).
+  // setHtml (utils.js) writes only on a real change, so a hovered row's keycaps are
+  // never rebuilt under the pointer (which would loop their once-per-hover shake).
   updateCtxHints() {
     if (typeof document === 'undefined') return;
     document.querySelectorAll('[data-hk]').forEach(el => {
       const id = el.dataset.hk;
-      if (this.#current[id]) el.textContent = formatCombo(this.#current[id], this.#isMac);
+      if (!this.#current[id]) return;
+      setHtml(el, this.#comboHtml(this.#current[id]));
     });
     this.updateHotkeyTitles();
   }

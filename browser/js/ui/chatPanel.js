@@ -12,12 +12,13 @@ import {
 import { rowsToMessages } from '../llm/chatStore.js';
 import { MAX_ATTACHMENTS } from '../llm/chatController.js';
 import { mediaFilesFromData, extractDraggedImageUrl, fetchDraggedMediaFile } from '../core/dragImageUrl.js';
-import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced } from './motion.js';
+import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced, rectCenter,
+         TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from './motion.js';
 import {
   renderChatLog, stickToBottom, chatAttachmentChips, wireInputSizer, trackPointer, wireChatSuggestions,
   chatSuggestionsHtml, chatDropCueHtml, chatComposerActionsHtml, syncComposerControls, wireChatComposer, wireChatMoreMenu,
-  notifyAttachmentsChanged, CHAT_ATTACHMENTS_EVENT, wireChatRowMenu, rowMenuHitsJumps,
-  chatPopupOpen, CHAT_POPUP_EVENT,
+  notifyAttachmentsChanged, CHAT_ATTACHMENTS_EVENT, wireChatRowMenu, rowMenuLiftPx, rowMenuLiftFits,
+  chatPopupOpen, CHAT_POPUP_EVENT, wireChatSideToggle,
 } from './chatView.js';
 
 // ── Component: AI assistant chat panel ──────────────────────────
@@ -189,7 +190,9 @@ export class StencilChatPanel extends StencilElement {
     // context-menu flyout and this panel always show the same messages in the same
     // order — including the history a surface missed while it was closed. ──
     const paint = () => renderChatLog(transcript, chatLog(), {
-      onConfigure: () => gearBtn.click(),
+      // No pre-open step needed here: the CTA lives right in this panel (unlike the
+      // context-menu flyout's copy) and opens the settings modal itself, flying from
+      // its own position rather than the gear's.
       // An expired collaboration-server session is fixed in Connections, not in the
       // provider settings — the card's CTA goes straight there.
       onReconnect: () => document.getElementById('connect-btn')?.click(),
@@ -212,38 +215,77 @@ export class StencilChatPanel extends StencilElement {
     // scrolled up from the latest message, ⌃ once it left the very beginning — both
     // mid-log, neither while the log fits (desktop chatDock parity). ──
     const jumps = $('chat-jumps');
-    // …and they yield to the hovered row's "…" when the two would overlap (the pills
-    // win the paint order). A displayed pill's rect is cached — a hidden one has none.
+    const jumpPills = [$('chat-jump-top'), $('chat-jump-bottom')];   // static markup, cached
+    // …and the hovered row's "…" yields to THEM when the two would overlap — it lifts
+    // clear of the pills, or (a bubble too short to lift it to) hides instead, rather
+    // than the pills standing down (desktop placeChatCardMore's "shift, else hide";
+    // the arrows are the higher-priority control and stay put either way).
     let hoverRow = null;
-    let pillRects = [];
+    const clearRowMenuLift = (row) => {
+      row?.style.removeProperty('--row-menu-lift');
+      row?.classList.remove('chat-row-menu-yield');
+    };
+    // The pills are anchored OUTSIDE the scroller, so their boxes survive a scroll tick:
+    // measured once and cached, invalidated when the pills show/hide (the can-up/down
+    // toggles in syncJumps), the window resizes, or the panel itself changes shape.
+    let pillRects = null;
+    const invalidatePillRects = () => { pillRects = null; };
+    window.addEventListener('resize', invalidatePillRects);
+    const syncRowMenuLift = () => {
+      if (!hoverRow) return;
+      const btn = hoverRow.querySelector('.chat-row-menu-btn')?.getBoundingClientRect?.();
+      if (!btn) return;
+      // A hidden pill (display:none) measures 0×0 and is filtered out here, so this
+      // self-clears whenever the pills themselves are not shown — no separate check.
+      const pills = pillRects ?? (pillRects = jumpPills
+        .map((b) => b?.getBoundingClientRect?.()).filter((r) => r && r.width > 0));
+      const lift = rowMenuLiftPx(btn, pills);
+      if (!lift) { clearRowMenuLift(hoverRow); return; }
+      if (rowMenuLiftFits(hoverRow.getBoundingClientRect(), btn, lift)) {
+        hoverRow.style.setProperty('--row-menu-lift', `${lift}px`);
+        hoverRow.classList.remove('chat-row-menu-yield');
+      } else {
+        hoverRow.style.removeProperty('--row-menu-lift');
+        hoverRow.classList.add('chat-row-menu-yield');
+      }
+    };
     const syncJumps = () => {
       const max = transcript.scrollHeight - transcript.clientHeight;
-      const shown = [$('chat-jump-top'), $('chat-jump-bottom')]
-        .map((b) => b?.getBoundingClientRect?.()).filter((r) => r && r.width > 0);
-      if (shown.length) pillRects = shown;
-      const btn = hoverRow?.querySelector?.('.chat-row-menu-btn')?.getBoundingClientRect?.();
-      // Two reasons to stand down, and they compose: the hovered row's "…" would touch
-      // a pill, OR ANY chat popup is open — both open into this very corner.
-      const standDown = chatPopupOpen() || rowMenuHitsJumps(btn, pillRects);
-      jumps.classList.toggle('can-up', transcript.scrollTop > 12 && !standDown);
-      jumps.classList.toggle('can-down', max - transcript.scrollTop > 12 && !standDown);
+      // The pills stand down for one reason now: any chat popup (a row menu / flyout)
+      // opens into this very corner too.
+      const standDown = chatPopupOpen();
+      const up = transcript.scrollTop > 12 && !standDown;
+      const down = max - transcript.scrollTop > 12 && !standDown;
+      if (up !== jumps.classList.contains('can-up') || down !== jumps.classList.contains('can-down'))
+        invalidatePillRects();   // a pill just appeared/disappeared — its box changed
+      jumps.classList.toggle('can-up', up);
+      jumps.classList.toggle('can-down', down);
+      syncRowMenuLift();
     };
     // The pills float OVER the transcript, so a cursor on one leaves no row hovered —
     // hovering a pill can never hide it.
     transcript.addEventListener('mouseover', (e) => {
       const row = e.target?.closest?.('.chat-msg');
-      if (row === hoverRow) return;
-      hoverRow = row && transcript.contains(row) ? row : null;
+      // A lifted trigger sits OUTSIDE its row's box, so reaching it crosses bare
+      // background — a mouseover with no row. Only an actual different row (or
+      // mouseleave, truly leaving) changes the hover, else the lift clears mid-reach.
+      if (!row || !transcript.contains(row) || row === hoverRow) return;
+      if (hoverRow) clearRowMenuLift(hoverRow);
+      hoverRow = row;
       syncJumps();
     });
-    transcript.addEventListener('mouseleave', () => { hoverRow = null; syncJumps(); });
+    transcript.addEventListener('mouseleave', () => {
+      if (hoverRow) clearRowMenuLift(hoverRow);
+      hoverRow = null;
+      syncJumps();
+    });
     // Both edges of any chat popup (chatView announces open AND close), from EITHER
     // surface: the flyout shares the one row menu and has a composer "…" of its own.
     window.addEventListener(CHAT_POPUP_EVENT, syncJumps);
     transcript.addEventListener('scroll', syncJumps, { passive: true });
     new MutationObserver(syncJumps).observe(transcript, { childList: true, subtree: true });
-    $('chat-jump-top').addEventListener('click', () => transcript.scrollTo({ top: 0, behavior: 'smooth' }));
-    $('chat-jump-bottom').addEventListener('click', () => transcript.scrollTo({ top: transcript.scrollHeight, behavior: 'smooth' }));
+    jumpPills[0].addEventListener('click', () => transcript.scrollTo({ top: 0, behavior: 'smooth' }));
+    jumpPills[1].addEventListener('click', () => transcript.scrollTo({ top: transcript.scrollHeight, behavior: 'smooth' }));
 
     // ── Provider status: a cheap probe on open / after settings change, surfaced as
     // the coloured dot ON the configure gear plus the gear's rich tooltip (rendered
@@ -289,13 +331,35 @@ export class StencilChatPanel extends StencilElement {
       gearTip.style.left = `${Math.round(x)}px`;
       gearTip.style.top = `${Math.round(above >= pad ? above : r.bottom + pad)}px`;
     };
-    const showGearTip = () => { renderGearTip(); gearTip.classList.add('visible'); placeGearTip(); };
-    const hideGearTip = () => gearTip.classList.remove('visible');
+    // Dust in/out of the trigger it hangs off, same as every other hover tooltip
+    // (the shared tip clock, motion.js) — only on the none↔visible edge, never on a
+    // live re-render. surfaceIn/surfaceOut settle the tip themselves when they can't fly.
+    const gearTipDustPoint = () => rectCenter(statusHost);
+    const showGearTip = () => {
+      const wasHidden = !gearTip.classList.contains('visible');
+      renderGearTip();
+      gearTip.classList.add('visible');
+      placeGearTip();
+      if (!wasHidden) return;
+      surfaceIn(gearTip, gearTipDustPoint(), { ms: TIP_DUST_IN_MS });
+    };
+    const hideGearTip = () => {
+      if (!gearTip.classList.contains('visible')) { settleSurface(gearTip); return; }
+      gearTip.classList.remove('visible');
+      surfaceOut(gearTip, gearTipDustPoint(), { ms: TIP_DUST_OUT_MS });
+    };
+    // A click both focuses the trigger and opens its menu, so the `focus` listener
+    // re-showed the tip milliseconds after `pointerdown` hid it — the menu then opened
+    // under a tip that looked stuck. Only on the first click; later ones re-focus nothing.
+    let suppressFocusTip = false;
     statusHost.addEventListener('pointerenter', showGearTip);
-    statusHost.addEventListener('focus', showGearTip);
+    statusHost.addEventListener('focus', () => {
+      if (suppressFocusTip) { suppressFocusTip = false; return; }
+      showGearTip();   // real keyboard-tab focus still discloses the tip
+    });
     statusHost.addEventListener('pointerleave', hideGearTip);
-    statusHost.addEventListener('blur', hideGearTip);
-    statusHost.addEventListener('pointerdown', hideGearTip);
+    statusHost.addEventListener('blur', () => { suppressFocusTip = false; hideGearTip(); });
+    statusHost.addEventListener('pointerdown', () => { suppressFocusTip = true; hideGearTip(); });
 
     const setDotState = (state, probe) => {
       statusDot.className = `conn-status conn-status-${state}`;
@@ -414,7 +478,10 @@ export class StencilChatPanel extends StencilElement {
       if (!res.ok) throw res.error;   // the scripting path gets the typed rejection
       return res.entry;
     };
-    wireChatMoreMenu('chat', document, { onOpen: updateControls });   // attach / clear / settings live behind the …
+    // hideGearTip alongside the focus guard above: the tip's 100003 tier sits over the
+    // menu's, so one left showing buries the menu the click just opened.
+    wireChatMoreMenu('chat', document, { onOpen: () => { updateControls(); hideGearTip(); } });
+    wireChatSideToggle('chat', transcript, document);
     wireChatComposer({ input, sendBtn, attachBtn, attachInput: $('chat-attach-input') }, {
       isSending: () => sending,
       abort: () => turnAbort?.abort(),
@@ -539,6 +606,7 @@ export class StencilChatPanel extends StencilElement {
     // ResizeObserver: the listeners resize the very elements such an observer would
     // watch. Toasts dodge a docked chat: the notify stack reads these vars.
     const updateNotifyInset = () => {
+      invalidatePillRects();   // runs on every panel resize/dock change — the pills moved
       const open = host.classList.contains('chat-open');
       const r = open ? host.getBoundingClientRect() : { width: 0, height: 0 };
       const left = open && host.classList.contains('chat-dock-left') ? Math.round(r.width) : 0;
@@ -582,11 +650,9 @@ export class StencilChatPanel extends StencilElement {
 
     // ── Open / close, toggled by the toolbar button ──
     const openBtn = $('chat-btn');
-    // Closing plays the reverse slide (.chat-closing in animations.css): keep
-    // .chat-open until it finishes, since display:none can't animate. A float
-    // plays the longer flight back into the icon (modalToIcon).
-    const CLOSE_ANIM_MS = 260;
-    const closeMs = () => (host.classList.contains('chat-dock-float') ? 340 : CLOSE_ANIM_MS);
+    // Closing plays the reverse dust flight (surfaceOut, motion.js): keep .chat-open
+    // until it finishes, since display:none can't animate. One clock for every dock.
+    const CLOSE_MS = 340;
     // Fullscreen shows a CLONE of the toolbar (ui/fullscreenLayer.js), so toggling
     // .active on the display:none original leaves the visible copy stuck — mirror onto
     // the clone. Scoped querySelectorAll, not getElementById: the clone carries the
@@ -638,8 +704,8 @@ export class StencilChatPanel extends StencilElement {
     // along the slide's own direction. Measured live; nothing is guessed.
     const dustPoint = () => {
       if (host.classList.contains('chat-dock-float')) {
-        const a = anchorBtn()?.getBoundingClientRect?.();
-        if (a && (a.width || a.height)) return { x: a.left + a.width / 2, y: a.top + a.height / 2 };
+        const p = rectCenter(anchorBtn());
+        if (p) return p;
       }
       const r = host.getBoundingClientRect();
       // No icon and no dock edge to lean on: from above, the modal shell's own fallback.
@@ -647,7 +713,7 @@ export class StencilChatPanel extends StencilElement {
     };
     const playDust = (enter) => {
       if (motionReduced()) { settleSurface(host); return; }
-      (enter ? surfaceIn : surfaceOut)(host, dustPoint(), { ms: enter ? 420 : closeMs() });
+      (enter ? surfaceIn : surfaceOut)(host, dustPoint(), { ms: enter ? 420 : CLOSE_MS });
     };
     let closeTimer = null;
     // A sequel queued to run once the CLOSE animation has finished (the float → compact
@@ -675,7 +741,7 @@ export class StencilChatPanel extends StencilElement {
           const next = afterClose;
           afterClose = null;
           next?.();   // the shape swap re-opens from here, never on top of the close
-        }, closeMs());
+        }, CLOSE_MS);
         return;
       }
       if (on) setFloatOriginVars();

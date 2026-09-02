@@ -3,9 +3,9 @@
   "about": "Canonical per-icon hover motion for the shared glyph set (icons.json). One design per icon, matched to what that icon's action DOES — never one generic tilt for everything. Every surface (browser CSS, desktop Qt, extension) implements THIS table rather than inventing its own; browser/tests/iconMotion.test.js pins it against icons.json and css/animations.css.",
   "units": "Lengths and origins are in the 24x24 viewBox user units every glyph is drawn on, so they scale with the rendered icon. Angles are degrees, positive = clockwise on screen (SVG y-down). Durations are milliseconds.",
   "trigger": {
-    "on": "pointer hover of the CONTROL that holds the glyph (button, .btn-icon, .btn-icon-text, .idle-create-btn, .coord-tab, .pill-toggle, .accent-dd-trigger, .name-edit-btn, .project-menu-item, .ctx-item)",
+    "on": "pointer hover of the CONTROL that holds the glyph (button, .btn-icon, .btn-icon-text, .idle-create-btn, .coord-tab, .pill-toggle, .accent-dd-trigger, .accent-dd-opt, .name-edit-btn, .project-menu-item, .ctx-item)",
+    "disabled": "INCLUDED. A greyed control still answers the pointer — it shows its tooltip and its disabled reason (browser layout.css keeps pointer-events on it for exactly that) — and the glyph is what the pointer is on. Freezing it made the control read as a dead area rather than as one that cannot act right now: the motion says what it WOULD do, the grey says it cannot yet. Qt: do not gate on isEnabled().",
     "excluded": [
-      ":disabled — a control that cannot act does not react",
       ".is-loading — the busy spinner already owns the glyph's transform",
       ".swapping — a face mid-swap already owns it",
       "[id^=\"toggle-\"] — the fold chevrons: their rotation is STATE (open/closed), not hover feedback"
@@ -71,9 +71,9 @@
     "check": {
       "action": "accept / confirm",
       "mode": "settle",
-      "note": "the tick draws itself, the way you'd write it",
+      "note": "the tick draws itself, the way you'd write it — unhurried (2× the old 320ms, user decision)",
       "parts": [{
-        "hook": "ic-tick", "durationMs": 320, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+        "hook": "ic-tick", "durationMs": 640, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
         "dashArray": 26,
         "keyframes": [{ "at": 0, "dashOffset": 26 }, { "at": 100, "dashOffset": 0 }]
       }]
@@ -81,9 +81,9 @@
     "x": {
       "action": "close / clear / disconnect — one motion for all three: they all mean “make this go away”",
       "mode": "settle",
-      "note": "the two strokes are drawn one after the other, the way you'd cross something out; each is 12√2 ≈ 16.97 units long",
+      "note": "the two strokes are drawn one after the other, the way you'd cross something out; each is 12√2 ≈ 16.97 units long. 1.5× the base 180ms draw-on, deliberately slower than the other settle designs",
       "parts": [{
-        "hook": "ic-stroke", "durationMs": 180, "stagger": 180,
+        "hook": "ic-stroke", "durationMs": 270, "stagger": 270,
         "easing": "cubic-bezier(0.33, 1, 0.68, 1)", "dashArray": 17,
         "keyframes": [{ "at": 0, "dashOffset": 17 }, { "at": 100, "dashOffset": 0 }]
       }]
@@ -269,10 +269,10 @@
     "save": {
       "action": "save project (.stencil)",
       "mode": "settle",
-      "note": "the disk is pressed home and springs back",
+      "note": "the disk slides up into place from below, the way a save writes UP into the project list",
       "parts": [{
         "hook": null, "durationMs": 300,
-        "keyframes": [{ "at": 0 }, { "at": 45, "translate": [0, 1.6] }, { "at": 100 }]
+        "keyframes": [{ "at": 0, "translate": [0, 6] }, { "at": 100 }]
       }]
     },
     "file-text": {
@@ -447,17 +447,29 @@
     },
     "function": {
       "action": "transformation formula",
-      "mode": "hold",
-      "note": "restrained: the ƒ leans into italic — a transform applied to the glyph itself",
-      "parts": [{ "hook": null, "to": { "skewX": -12 } }]
+      "mode": "settle",
+      "note": "the ƒ writes itself: the curve draws top to bottom, then the crossbar strikes through it, the way you'd write an f",
+      "parts": [
+        {
+          "hook": "ic-curve", "durationMs": 280, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 17.5,
+          "keyframes": [{ "at": 0, "dashOffset": 17.5 }, { "at": 100, "dashOffset": 0 }]
+        },
+        {
+          "hook": "ic-bar", "durationMs": 140, "delayMs": 200, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 7,
+          "keyframes": [{ "at": 0, "dashOffset": 7 }, { "at": 100, "dashOffset": 0 }]
+        }
+      ]
     },
     "message": {
       "action": "tooltip text / the Telegram bot",
       "mode": "settle",
-      "note": "restrained: the bubble pops the way one appears. The typing dots belong to `sparkle`, which is the glyph that HAS dots",
+      "note": "the bubble draws itself, tail to rim, the way you'd sketch one. The typing dots belong to `sparkle`, which is the glyph that HAS dots",
       "parts": [{
-        "hook": null, "durationMs": 300,
-        "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.09, "translate": [0, -0.8] }, { "at": 100, "scale": 1 }]
+        "hook": "ic-outline", "durationMs": 360, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+        "dashArray": 67,
+        "keyframes": [{ "at": 0, "dashOffset": 67 }, { "at": 100, "dashOffset": 0 }]
       }]
     },
     "eye": {
@@ -478,7 +490,7 @@
     "share": {
       "action": "share",
       "mode": "settle",
-      "note": "the two receiving nodes light up in turn, top then bottom — the copy reaching one recipient and then the other. They SWELL rather than travel: the nodes sit on the ends of the two connecting lines, and a move big enough to read pulled them off those ends",
+      "note": "all three nodes light up in turn, top to bottom — a plain downward sweep across the glyph, the same read as the server icon's LEDs and the layers icon's stack. Lighting only two of the three read as one being broken, so all three play. They SWELL rather than travel: each node sits on the end of a connecting line, and a move big enough to read pulled it off that end. The glyph is drawn top-to-bottom, so markup order IS the sequence.",
       "parts": [{
         "hook": "ic-node", "durationMs": 380, "stagger": 120, "originSelf": true,
         "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.45 }, { "at": 100, "scale": 1 }]
@@ -582,10 +594,11 @@
     "plus": {
       "action": "zoom in / add",
       "mode": "settle",
-      "note": "GROWS, then settles back to its default size — the direction is the meaning",
+      "note": "DRAWS itself the way you'd write one — the vertical stroke first, then the horizontal struck through it as the first lands (markup order IS the sequence); each stroke is 14 units",
       "parts": [{
-        "hook": null, "durationMs": 340,
-        "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.32 }, { "at": 100, "scale": 1 }]
+        "hook": "ic-stroke", "durationMs": 200, "stagger": 200,
+        "easing": "cubic-bezier(0.33, 1, 0.68, 1)", "dashArray": 14,
+        "keyframes": [{ "at": 0, "dashOffset": 14 }, { "at": 100, "dashOffset": 0 }]
       }]
     },
     "minus": {
@@ -600,10 +613,11 @@
     "plus-circle": {
       "action": "new editor / new connection / blank page",
       "mode": "settle",
-      "note": "the cross inside grows and settles; the ring stays put",
+      "note": "the cross inside draws itself — the vertical stroke, then the horizontal, 8 units each; the ring stays put",
       "parts": [{
-        "hook": "ic-cross", "durationMs": 340,
-        "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.32 }, { "at": 100, "scale": 1 }]
+        "hook": "ic-stroke", "durationMs": 200, "stagger": 200,
+        "easing": "cubic-bezier(0.33, 1, 0.68, 1)", "dashArray": 8,
+        "keyframes": [{ "at": 0, "dashOffset": 8 }, { "at": 100, "dashOffset": 0 }]
       }]
     },
     "swap": {
@@ -613,6 +627,23 @@
       "parts": [
         { "hook": "ic-arrow-top", "to": { "translate": [1.4, 0] } },
         { "hook": "ic-arrow-bot", "to": { "translate": [-1.4, 0] } }
+      ]
+    },
+    "compare": {
+      "action": "turn on the split compare view",
+      "mode": "settle",
+      "note": "the frame draws itself first (a rounded 18x18 square, rx=2: 4 straight 14-unit sides + a full circle's worth of corner ≈ 68.5 units), then the divider draws top to bottom through it, the way you'd rule a split AFTER the page is there to split",
+      "parts": [
+        {
+          "hook": "ic-box", "durationMs": 340, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 68.5,
+          "keyframes": [{ "at": 0, "dashOffset": 68.5 }, { "at": 100, "dashOffset": 0 }]
+        },
+        {
+          "hook": "ic-stroke", "durationMs": 200, "delayMs": 340, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 22,
+          "keyframes": [{ "at": 0, "dashOffset": 22 }, { "at": 100, "dashOffset": 0 }]
+        }
       ]
     }
   },

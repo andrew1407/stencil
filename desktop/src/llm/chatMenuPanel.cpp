@@ -1,8 +1,10 @@
 #include "chatMenuPanel.hpp"
 
+#include "chatWidgets.hpp"   // placeChatBubbleTail / ChatBubbleTail
 #include "../app/pillSplitter.hpp"
 #include "../support/disintegrateOverlay.hpp"
 #include "../support/iconSet.hpp"
+#include "../support/modalReveal.hpp"   // support::motionReduced()
 #include "../support/theme.hpp"
 
 #include <QEasingCurve>
@@ -14,6 +16,7 @@
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPointer>
+#include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
 #include <QScrollBar>
@@ -59,7 +62,7 @@ namespace stencil::gui {
 
   ChatMenuPanel::ChatMenuPanel(QWidget* parent, std::function<void(QString)> onSend,
                                std::function<void()> onStop, std::function<void()> onAttach,
-                               std::function<void()> onSettings,
+                               std::function<void(QRect)> onSettings,
                                std::function<void(QString)> onRetry)
       : QWidget(parent),
         onSend_(std::move(onSend)),
@@ -147,7 +150,10 @@ namespace stencil::gui {
     });
     gear_ = mkBtn("chatMenuGear", QStringLiteral("AI assistant settings"));
     QObject::connect(gear_, &QToolButton::clicked, this, [this] {
-      if (onSettings_) onSettings_();
+      // Captured NOW: the settings dialog opens after this popup closes (a
+      // modal fights the popup's own grab), which would hide gear_ first.
+      if (onSettings_)
+        onSettings_(QRect(gear_->mapToGlobal(QPoint(0, 0)), gear_->size()));
     });
     auto* btnWrap = new QWidget(composer);
     auto* btnCol = new QVBoxLayout(btnWrap);
@@ -193,7 +199,7 @@ namespace stencil::gui {
   // colour and side, and the same row menu / Resend affordances.
   void ChatMenuPanel::appendRow(const QString& role, const QString& text, bool muted,
                                 const QString& retryText, bool pending,
-                                const QStringList& notes) {
+                                const QStringList& notes, bool configure) {
     suggest_->hide();  // empty-state affordance only
     auto* card = new QFrame(body_);
     card->setFrameShape(QFrame::StyledPanel);
@@ -207,10 +213,14 @@ namespace stencil::gui {
     // Warnings / executor notes ride INSIDE the bubble, exactly as the dock
     // renders them — one card per turn, never extra rows.
     for (const QString& n : notes) addChatCardNote(lay, n);
+    if (configure) addConfigure(card);   // dock parity: CTA first, then Retry
     if (!retryText.isEmpty()) addRetry(card, retryText);
     rows_->insertWidget(rows_->count() - 1, card);
-    rows_->setAlignment(card, role == QLatin1String("You") ? Qt::AlignRight
-                                                           : Qt::AlignLeft);
+    const bool user = role == QLatin1String("You");
+    // pageBg=chip_: this panel sits straight on the QMenu background, with no
+    // separate #chatBody surface under it, so the fill colour IS the flatten base.
+    applyChatBubbleSide(card, rows_, chatBubbleOnRight(user, chatSwapSides_), accent_, chip_,
+                        border_, danger_, chip_);
     // Every SETTLED row carries the menu (browser chatRowMenuItems excludes
     // only the pending one).
     if (!pending) installChatCardMenu(card, menuHooks());
@@ -220,6 +230,11 @@ namespace stencil::gui {
     while (rowsAdded_.size() > kChatHistoryBound) dissolveRow(rowsAdded_.takeFirst());
     applyChatBubbleWidths(body_, scroll_);   // the dock's wrap/measure pass
     scrollToBottom();
+    // …and only THEN it arrives out of its own dust, the leave played backwards (the
+    // dock's animateCardIn / browser motion.js chatIn). Measured widths AND the scroll
+    // first: the gather is a photograph, and a row measured before either has landed is
+    // either the wrong size or in the wrong place.
+    gatherRow(card);
   }
 
   // A late note goes INTO the last ASSISTANT bubble, never into whatever row
@@ -253,6 +268,20 @@ namespace stencil::gui {
     std::function<void()> cb;
     if (onRetry_) cb = [this, retryText] { onRetry_(retryText); };
     addChatRetryButton(lay, muted_, cb);
+  }
+
+  // The shared unreachable-card CTA (chatDock.cpp addChatConfigureCta). Opening the
+  // dialog closes this popup first (a modal fights the popup's own grab) — so the
+  // CTA's global rect is captured HERE, while it is still on screen, and rides
+  // through onSettings_ as the reveal's fallback anchor.
+  void ChatMenuPanel::addConfigure(QFrame* card) {
+    auto* lay = qobject_cast<QVBoxLayout*>(card->layout());
+    if (!lay) return;
+    QPointer<ChatMenuPanel> self(this);
+    addChatConfigureCta(lay, accent_, [self](QPushButton* cta) {
+      if (self && self->onSettings_)
+        self->onSettings_(QRect(cta->mapToGlobal(QPoint(0, 0)), cta->size()));
+    });
   }
 
   // This surface's hooks for the shared row menu: its own composer, its own
@@ -322,14 +351,39 @@ namespace stencil::gui {
     pending_ = nullptr;
   }
 
+  // A mirrored row ARRIVES the way a dock card does — the SHARED gatherChatCardIn
+  // machinery (chatWidgets.hpp), deferred a frame: scrollToBottom() is itself a
+  // singleShot(0), so a 0ms hop would measure the row's box before the scroll landed.
+  void ChatMenuPanel::gatherRow(QFrame* card) {
+    if (!card || support::motionReduced()) return;
+    // Veiled from the first frame — the row keeps its height (so the panel grows and
+    // scrolls to it as usual) but is never seen ahead of its own motes.
+    if (!card->graphicsEffect()) {
+      auto* fx = new QGraphicsOpacityEffect(card);
+      fx->setOpacity(0.0);
+      card->setGraphicsEffect(fx);
+    }
+    QPointer<QFrame> cp(card);
+    QTimer::singleShot(kChatGatherSettleMs, card, [this, cp] {
+      if (!cp) return;
+      const auto settle = [cp] {
+        if (auto* e = qobject_cast<QGraphicsOpacityEffect*>(cp->graphicsEffect()))
+          e->setOpacity(1.0);
+      };
+      gatherChatCardIn(cp, rows_, scroll_, window(), kChatScatterCols, kChatScatterRows,
+                       settle);
+    });
+  }
+
   // A mirrored row leaves the way a dock card does: it scatters, then goes.
   // Returns whether anything is actually playing — over() declines when the
   // panel is off screen, and then there is nothing for the empty state to wait for.
   bool ChatMenuPanel::dissolveRow(QFrame* l) {
     if (!l) return false;
-    // The same finer grid the dock's cards use (chatDock.cpp kChatScatter*).
+    // The same finer grid the dock's cards use (chatWidgets.hpp kChatScatter*).
     const bool playing =
-        DisintegrateOverlay::over(l, window(), DisintegrateOverlay::Sweep::Fall, 32, 16)
+        DisintegrateOverlay::over(l, window(), DisintegrateOverlay::Sweep::Fall,
+                                  kChatScatterCols, kChatScatterRows)
         != nullptr;
     rows_->removeWidget(l);
     // Out of the layout, but painted while it fades under its own dust. Reuse
@@ -394,6 +448,7 @@ namespace stencil::gui {
   // Menu chrome tones: the transcript rows and the composer track the live
   // theme palette (the menu itself is styled app-wide).
   void ChatMenuPanel::restyle(const Palette& pal) {
+    paletteCache_ = pal;   // so a later swap toggle can re-issue this stylesheet
     danger_ = pal.danger;
     text_ = pal.textMain;
     chip_ = pal.bgContainer;
@@ -411,7 +466,7 @@ namespace stencil::gui {
                  pal.accent.name())
         // …plus the DOCK's bubble sheet, so a mirrored message wears the same
         // colours and hairlines as the one in the dock.
-        + chatCardStyleSheet(pal));
+        + chatCardStyleSheet(pal, chatSwapSides_));
     // White line-art on the accent fill — identical to the dock's, including
     // the dark halo a LIGHT accent needs to keep the mark readable.
     const QColor onAccent = Qt::white;
@@ -421,6 +476,17 @@ namespace stencil::gui {
     gear_->setIcon(themedIcon("gear", onAccent, kMenuChatIcon, halo));
     splitter_->setPillColors(pal.borderMain, pal.accent);
     styleSuggestionChips(suggest_, pal);
+  }
+
+  void ChatMenuPanel::setChatSwapSides(bool on) {
+    if (chatSwapSides_ == on) return;
+    chatSwapSides_ = on;
+    // The flattened tail corner rides the SHARED stylesheet (chatCardStyleSheet),
+    // keyed off chatSwapSides_ — re-issue it so every card's corner flips too,
+    // not just its alignment and tail.
+    restyle(paletteCache_);
+    applyChatSwapToCards(body_, rows_, chatSwapSides_, accent_, chip_, border_, danger_, chip_);
+    applyChatBubbleWidths(body_, scroll_);
   }
 
   void ChatMenuPanel::resizeEvent(QResizeEvent* e) {

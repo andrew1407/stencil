@@ -118,6 +118,50 @@ export const wireThumbPreview = (img, { doc = globalThis.document, caption = '',
   return { show, hide: hideThumbPreview };
 };
 
+// ── A wrapped bubble hugs its LONGEST LINE, not the max-width cap ───────────────────
+// Port of browser chatView.js shrinkWrapWidth/applyShrinkWrap: pinning a bubble at its
+// widest rendered line reproduces the identical break, minus the dead space. Pure:
+// per-line widths in, the width to pin at out; null for one line (already hugging).
+export const shrinkWrapWidth = (lineWidths) => {
+  if (!Array.isArray(lineWidths) || lineWidths.length < 2) return null;
+  const max = Math.max(...lineWidths);
+  return max > 0 ? Math.ceil(max) : null;
+};
+
+// A max-width, not a fixed width, measured from `el`'s FIRST child only (its text node);
+// element children (CTA buttons) instead floor the pin, and callers re-apply after
+// appending one. `doc` injected; no-ops without Range (the node --test stub tree).
+export const applyShrinkWrap = (el, doc = globalThis.document) => {
+  if (!el?.style || !doc?.createRange) return;
+  el.style.maxWidth = '';   // drop any earlier pin before re-measuring the natural wrap
+  const textNode = el.firstChild;
+  if (!textNode) return;
+  const range = doc.createRange();
+  range.selectNodeContents(textNode);
+  let width = shrinkWrapWidth([...range.getClientRects()].map((r) => r.width));
+  if (width == null) return;   // one line already hugs — nothing to freeze
+  for (const child of el.children || []) {
+    const w = child.getBoundingClientRect?.().width;
+    if (w > width) width = Math.ceil(w);
+  }
+  el.style.maxWidth = `${width}px`;
+};
+
+// A row rendered while the section was collapsed, or a turn that landed off-screen
+// (closedTurnToast exists for exactly that case), measures zero rects at paint time and
+// skips its pin; this re-measures every bubble the moment the transcript itself gains —
+// or changes — a real size. Bound once per transcript.
+export const bindShrinkWrapResize = (transcript, selector = '.msg', doc = globalThis.document) => {
+  if (!transcript || transcript._shrinkWrapBound || typeof ResizeObserver === 'undefined') return;
+  transcript._shrinkWrapBound = true;
+  let raf = 0;
+  const reapply = () => {
+    raf = 0;
+    for (const el of transcript.querySelectorAll(selector)) applyShrinkWrap(el, doc);
+  };
+  new ResizeObserver(() => { if (!raf) raf = requestAnimationFrame(reapply); }).observe(transcript);
+};
+
 // Empty-state prompt chips. `prompt` is what lands in the input (never sent — the
 // user edits/sends it); `label` is the short chip text.
 export const SUGGESTIONS = [
@@ -143,7 +187,10 @@ export const renderSuggestions = (doc, onPick, items = SUGGESTIONS) => {
     b.type = 'button';
     b.className = 'chat-suggest';
     b.textContent = s.label;
-    setTip(b, s.prompt);
+    // No tooltip (browser parity: chatView.js chatEmptyState builds these bare). The chip
+    // IS its own label, and hovering one popped a bubble restating it in slightly longer
+    // words — over the chips beside it, which is the opposite of helpful. The full prompt
+    // still rides `data-prompt`, which is what the click prefills.
     if (b.dataset) b.dataset.prompt = s.prompt;
     b.addEventListener('click', () => onPick(s.prompt));
     wrap.appendChild(b);

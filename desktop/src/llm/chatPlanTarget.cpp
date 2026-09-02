@@ -1,6 +1,7 @@
 #include "chatPlanTarget.hpp"
 
 #include "../app/mainWindow.hpp"
+#include "../support/modalChrome.hpp"  // confirmModal — the browser-styled question
 #include "../app/mainWindowHelpers.hpp"
 #include "../app/dataExportController.hpp"
 #include "../app/remoteSession.hpp"
@@ -303,12 +304,13 @@ namespace stencil::gui {
           *note = QStringLiteral("no saved project is open right now");
           return true;
         }
-        if (QMessageBox::question(
-                &w_, "Remove image",
-                QString("Nothing is saved here — remove this editor's image and "
-                        "its lines?"),
-                QMessageBox::Yes | QMessageBox::No,
-                QMessageBox::No) != QMessageBox::Yes) {
+        ConfirmSpec spec;
+        spec.title = "Remove image";
+        spec.message = QString("Nothing is saved here — remove this editor's image and "
+                               "its lines?");
+        spec.confirmIcon = QStringLiteral("trash");
+        spec.danger = true;
+        if (!confirmModal(&w_, spec)) {
           *note = QStringLiteral("removal canceled");
           return true;
         }
@@ -324,10 +326,12 @@ namespace stencil::gui {
       id = QString::fromStdString(pick->meta.id);
       nm = support::shortName(QString::fromStdString(pick->meta.name));
     }
-    if (QMessageBox::question(
-            &w_, "Remove project",
-            QString("Remove \"%1\"? This cannot be undone.").arg(nm),
-            QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes) {
+    ConfirmSpec spec;
+    spec.title = "Remove project";
+    spec.message = QString("Remove \"%1\"? This cannot be undone.").arg(nm);
+    spec.confirmIcon = QStringLiteral("trash");
+    spec.danger = true;
+    if (!confirmModal(&w_, spec)) {
       *note = QStringLiteral("removal canceled");
       return true;
     }
@@ -395,14 +399,14 @@ namespace stencil::gui {
     const QString nm = support::shortName(QString::fromStdString(pick->meta.name));
     const bool unsaved = w_.canvas_->hasImage() && w_.activeProjectId_.isEmpty() &&
                          w_.remoteSession_->link().id.isEmpty();
-    if (unsaved &&
-        QMessageBox::question(
-            &w_, "Open project",
-            QString("Open \"%1\"? Any unsaved changes in the current window will be "
-                    "replaced.")
-                .arg(nm),
-            QMessageBox::Open | QMessageBox::Cancel,
-            QMessageBox::Open) != QMessageBox::Open) {
+    ConfirmSpec openSpec;
+    openSpec.title = "Open project";
+    openSpec.message = QString("Open \"%1\"? Any unsaved changes in the current window will be "
+                               "replaced.")
+                           .arg(nm);
+    openSpec.confirmLabel = "Open";
+    openSpec.confirmIcon = QStringLiteral("folder");
+    if (unsaved && !confirmModal(&w_, openSpec)) {
       *note = QStringLiteral("open canceled");
       return true;
     }
@@ -439,12 +443,14 @@ namespace stencil::gui {
       *note = QStringLiteral("no saved projects to clear");
       return true;
     }
-    if (QMessageBox::question(
-            &w_, "Clear all projects",
-            QString("Are you sure? This removes all %1 local project(s) and cannot be undone. "
-                    "Server projects are not affected.")
-                .arg(n),
-            QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes) {
+    ConfirmSpec spec;
+    spec.title = "Clear all projects";
+    spec.message = QString("Are you sure? This removes all %1 local project(s) and cannot be undone. "
+                           "Server projects are not affected.")
+                       .arg(n);
+    spec.confirmIcon = QStringLiteral("trash");
+    spec.danger = true;
+    if (!confirmModal(&w_, spec)) {
       *note = QStringLiteral("clear canceled");
       return true;
     }

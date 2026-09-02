@@ -288,6 +288,14 @@ namespace stencil::gui {
     update();
   }
 
+  void CanvasWidget::setHighlightColors(const QColor& selGlow, const QColor& hoverRing,
+                                        const QColor& focusRing) {
+    if (selGlow.isValid()) selGlow_ = selGlow;
+    if (hoverRing.isValid()) hoverRing_ = hoverRing;
+    if (focusRing.isValid()) focusRing_ = focusRing;
+    update();
+  }
+
   // ── image filters (port of browser/js/core/renderer.js
   // drawImageWithFilter ~9 + #applyTintFilter ~164) ──
   void CanvasWidget::setFilter(const QString& mode) {
@@ -776,7 +784,11 @@ namespace stencil::gui {
     }
 
     const QColor stroke(QString::fromStdString(line.color));
-    const Palette pal = themePalette(dark_, accentKey_);
+    Palette pal = themePalette(dark_, accentKey_);
+    // The user's own highlight-style choices (Settings), not the theme's fixed
+    // defaults — setHighlightColors() is what actually moves these off DEFAULT_VISUALS.
+    pal.selGlow = selGlow_;
+    pal.hoverRing = hoverRing_;
 
     // Points take the line's own point colour, which core::pointColorOr resolves to the
     // stroke colour when unset — so a line without one paints exactly as it always did.
@@ -870,10 +882,11 @@ namespace stencil::gui {
     p.setPen(QPen(pal.textMain, 1));
     for (int i = 0; i < poly.size(); ++i) {
       const QPointF v = poly[i];
-      // Focused point: filled selection glow + bold ring (renderer.js state 2).
+      // Focused point: filled selection glow + bold ring (renderer.js state 2,
+      // focusRingColor — Settings-backed, browser DEFAULT_VISUALS.focusRingColor).
       if (isActive && i == selectedPoint_) {
         p.setBrush(pal.selGlow);
-        p.setPen(QPen(pal.borderSel, 2));
+        p.setPen(QPen(focusRing_, 2));
         p.drawEllipse(v, r + 3, r + 3);
         p.setPen(QPen(pal.textMain, 1));
       }
@@ -901,7 +914,11 @@ namespace stencil::gui {
   void CanvasWidget::paintEvent(QPaintEvent*) {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
-    const Palette pal = themePalette(dark_, accentKey_);
+    Palette pal = themePalette(dark_, accentKey_);
+    // The user's own highlight-style choices (Settings), not the theme's fixed
+    // defaults — setHighlightColors() is what actually moves these off DEFAULT_VISUALS.
+    pal.selGlow = selGlow_;
+    pal.hoverRing = hoverRing_;
     if (image_.isNull()) {
       p.fillRect(rect(), pal.bgPage);
       // The clear's dust is still falling: paint the bare page and nothing else, so the
@@ -1101,15 +1118,15 @@ namespace stencil::gui {
 
     // Split compare: overlay the untouched original on the original-side half (covering
     // the filtered pixels + annotations there) and draw the movable divider on top.
-    if (compare == "vertical" || compare == "horizontal") paintCompareSplit(p, compare);
+    if (compare == "vertical" || compare == "horizontal") paintCompareSplit(p, compare, scale_);
   }
 
   // Paint the original over the "original" half of a split compare view (left for
   // "vertical", top for "horizontal") and draw the draggable divider. Divider metrics are
   // in widget space, so the line keeps a constant on-screen thickness at any zoom.
-  void CanvasWidget::paintCompareSplit(QPainter& p, const QString& mode) const {
-    const double w = image_.width() * scale_;
-    const double h = image_.height() * scale_;
+  void CanvasWidget::paintCompareSplit(QPainter& p, const QString& mode, double scale, bool withDivider) const {
+    const double w = image_.width() * scale;
+    const double h = image_.height() * scale;
     const double f = std::clamp(compareSplit_, 0.0, 1.0);
 
     p.save();
@@ -1118,6 +1135,8 @@ namespace stencil::gui {
     // IS the page), a picture drops the filter too.
     p.drawImage(QRectF(0, 0, w, h), compareBaseImage());
     p.restore();
+
+    if (!withDivider) return;
 
     p.save();
     p.setClipping(false);
@@ -1428,6 +1447,7 @@ namespace stencil::gui {
                            ? event->pos().x() / (image_.width() * scale_)
                            : event->pos().y() / (image_.height() * scale_);
       setCompareSplit(f);   // clamps + repaints
+      emit hoverLeft();     // drop a tooltip left over from before the drag started
       return;
     }
 
@@ -1444,6 +1464,7 @@ namespace stencil::gui {
         holdHasPreview_ = true;
         update();
       }
+      emit hoverLeft();     // drop a tooltip left over from before the hold started
       return;
     }
 
@@ -1456,6 +1477,7 @@ namespace stencil::gui {
       dragMoved_ = true;
       updateDrag(ip, shift);
       update();
+      emit hoverLeft();     // drop a tooltip left over from before the drag started
       return;
     }
 
@@ -1467,12 +1489,14 @@ namespace stencil::gui {
       const QPoint d = gp - lastPanPos_;
       lastPanPos_ = gp;
       emit panBy(d.x(), d.y(), bool(event->modifiers() & Qt::ShiftModifier));
+      emit hoverLeft();     // drop a tooltip left over from before the pan started
       return;
     }
 
     if (zoomRectActive_) {
       zoomRectEnd_ = event->pos();
       update();
+      emit hoverLeft();     // drop a tooltip left over from before the drag started
       return;
     }
 
@@ -1480,6 +1504,7 @@ namespace stencil::gui {
     if (rectDrawActive_) {
       rectDrawEnd_ = event->pos();
       update();
+      emit hoverLeft();     // drop a tooltip left over from before the drag started
       return;
     }
 
@@ -1581,11 +1606,14 @@ namespace stencil::gui {
       }
       setCursor(overTarget ? Qt::SizeAllCursor : Qt::OpenHandCursor);
     } else if (!isDrawing_) {
+      // Crosshair says "click to place a point" (browser parity: layout.css's unconditional
+      // `cursor: crosshair` whenever the canvas is drawable) — a plain arrow gave no such
+      // affordance (user report). A line still gets its own pointing-hand hint.
       setCursor(core::findLineAt(lines_, ip.x, ip.y, hitRadius(8.0)) != -1
                     ? Qt::PointingHandCursor
-                    : Qt::ArrowCursor);
+                    : Qt::CrossCursor);
     } else {
-      unsetCursor();
+      setCursor(Qt::CrossCursor);   // actively drawing: the aim, not a plain arrow
     }
   }
 
@@ -1633,7 +1661,7 @@ namespace stencil::gui {
       applyHoverCursor(ip, mods);
     }
     emit hovered(ip.x, ip.y);
-    emit hoverDetail(ip.x, ip.y, QCursor::pos(), mods);
+    emit hoverDetail(ip.x, ip.y, QCursor::pos(), mods, /*immediate=*/true);
   }
 
   // Hover the idle card the way the browser does (.idle-create-btn transitions colour,
@@ -1678,6 +1706,7 @@ namespace stencil::gui {
 
   void CanvasWidget::leaveEvent(QEvent* event) {
     emit hoverLeft();
+    emit canvasLeft();
     if (hoverLineIdx_ != -1 || hoverPointIdx_ != -1 || hoverOverLineIdx_ != -1) {
       hoverLineIdx_ = -1;
       hoverPointIdx_ = -1;
@@ -1859,11 +1888,16 @@ namespace stencil::gui {
 
   // ── render-to-image + image accessors + loadFromImage ──
 
-  // Native-resolution render of the (filtered) image. With overlay, the lines are
-  // drawn at scale 1.0 honoring the current show flags — the export equivalent of
-  // the browser's offscreen-canvas snapshot.
-  QImage CanvasWidget::renderToImage(bool withOverlay) const {
+  // Native-resolution render of an export variant — see the header doc for what each
+  // variant means. Mirrors the browser's exportService.js renderExportCanvas /
+  // renderSplitExportCanvas op-for-op.
+  QImage CanvasWidget::renderToImage(const QString& variant, bool withDivider) const {
     if (image_.isNull()) return QImage();
+
+    if (variant == "original") {
+      // The cropped+rotated original alone — no filter, no annotations.
+      return image_.convertToFormat(QImage::Format_ARGB32);
+    }
 
     // Resolve the filtered pixels at native size (const-safe: we don't touch the
     // cached filteredImage_/filterDirty_ here, we recompute locally if needed).
@@ -1882,15 +1916,29 @@ namespace stencil::gui {
     }
 
     QImage out = base.convertToFormat(QImage::Format_ARGB32);
-    if (withOverlay) {
+    if (variant == "tint") return out;  // filtered, no annotations
+
+    // "current" and "split" both draw the visible lines/points at native scale — no
+    // hover/selection rings baked in (highlight = false) — honoring the show flags
+    // (drawLineScaled checks showLines_/showPoints_ itself).
+    {
       QPainter p(&out);
       p.setRenderHint(QPainter::Antialiasing, true);
-      // Export: no hover/selection rings baked in (highlight = false).
       for (int i = 0; i < static_cast<int>(lines_.size()); ++i)
         drawLineScaled(p, lines_[i], i, 1.0, /*highlight=*/false);
       drawLineScaled(p, currentLine_, -1, 1.0, /*highlight=*/false);
     }
+    if (variant == "split") {
+      QPainter p(&out);
+      p.setRenderHint(QPainter::Antialiasing, true);
+      const QString mode = compareMode_ == "horizontal" ? "horizontal" : "vertical";
+      paintCompareSplit(p, mode, /*scale=*/1.0, withDivider);
+    }
     return out;
+  }
+
+  QImage CanvasWidget::renderToImage(bool withOverlay) const {
+    return renderToImage(withOverlay ? QStringLiteral("current") : QStringLiteral("tint"));
   }
 
   QString CanvasWidget::imageBaseName() const {
@@ -1906,7 +1954,7 @@ namespace stencil::gui {
 
   // Adopt an in-memory image (clipboard paste / generated). Clears the file
   // path and resets lines/history/scale, mirroring a fresh load.
-  void CanvasWidget::loadFromImage(const QImage& img) {
+  void CanvasWidget::loadFromImage(const QImage& img, bool keepZoom) {
     if (img.isNull()) return;
     unsetCursor();   // drop the idle "pointing hand" (set while the empty-canvas hint was showing)
     blankPage_ = false;   // a fresh load is a picture until the owner marks it a blank
@@ -1921,7 +1969,7 @@ namespace stencil::gui {
     selectedPoint_ = -1;
     selectedLineIdx_ = -1;
     continueLineIdx_ = continueInsertIdx_ = -1;
-    scale_ = 1.0;
+    if (!keepZoom) scale_ = 1.0;
     filterDirty_ = true;
     history_.reset(lines_);
     setFixedSize(QSize(qRound(image_.width() * scale_),

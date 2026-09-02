@@ -51,7 +51,7 @@ jobs:
       # those). --parallel 3 caps concurrent links so they can't thrash the small macOS runner.
       - name: Build
         working-directory: desktop
-        run: cmake --build build --config Release --target stencil_gui --parallel 3
+        run: cmake --build build --config Release --target stencil --parallel 3
 
       - name: Package (deploy Qt + cpack)
         working-directory: desktop

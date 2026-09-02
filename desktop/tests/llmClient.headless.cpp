@@ -409,9 +409,12 @@ int main(int argc, char** argv) {
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
     check(!got.ok && got.failure == LlmFailure::Disabled,
           "503 llmDisabled -> typed Disabled failure");
-    // The server's message IS the sentence — the client no longer wraps it in one.
-    check(got.error == "Stencil server at s.example.com: no ANTHROPIC_API_KEY",
-          "llmDisabled surfaced as the server's own message, once");
+    // The server's message IS the sentence (browser describeChatError "notice" parity):
+    // raw, never wrapped in "<provider> at <host>:" — that wrapper is for actual
+    // transport/HTTP failures, not "the provider is configured but its own operator
+    // hasn't turned the LLM on".
+    check(got.error == "no ANTHROPIC_API_KEY",
+          "llmDisabled surfaced as the server's own message, unwrapped");
   }
   {
     // Browser unreachableText parity: the SAME server error reads the same on
@@ -577,9 +580,9 @@ int main(int argc, char** argv) {
     cfg.provider = "none";
     LlmReply got;
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
-    check(!got.ok && got.failure == LlmFailure::Disabled &&
+    check(!got.ok && got.failure == LlmFailure::Off &&
               got.error.contains("turned off"),
-          "chat with none -> typed Disabled config error");
+          "chat with none -> typed Off config error");
     check(t.url.isEmpty(), "chat with none never touches the transport");
 
     LlmProbeResult pr;
@@ -699,7 +702,7 @@ int main(int argc, char** argv) {
     cfg.provider = "something-else";
     LlmReply got;
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
-    check(!got.ok && got.error.contains("unknown LLM provider"), "unknown provider rejected");
+    check(!got.ok && got.error.contains("Unknown LLM provider"), "unknown provider rejected");
   }
 
   // ── §13 op registry: name set, flags, key phrases (instead of block bytes) ──

@@ -1,4 +1,5 @@
 #include "searchCombo.hpp"
+#include "menuReveal.hpp"   // support::revealPopup / dismissPopup — the shared surface dust
 
 #include <QEvent>
 #include <QKeyEvent>
@@ -98,6 +99,12 @@ namespace stencil::gui {
 
     list_ = new QListView(frame);
     list_->setObjectName("searchComboList");
+    // No QFrame chrome, and no scroll-area MINIMUM: QAbstractScrollArea's
+    // minimumSizeHint (~66px each way) outranked positionPopup()'s tight
+    // geometry through the popup layout, leaving a blank band under a short
+    // list's last option (the 2-row All/Local filter popup — user report).
+    list_->setFrameShape(QFrame::NoFrame);
+    list_->setMinimumSize(1, 1);
     list_->setModel(proxy_);
     list_->setUniformItemSizes(true);
     list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -194,18 +201,28 @@ namespace stencil::gui {
     list_->setCurrentIndex(cur);
     positionPopup();
     popup_->show();
+    // 1.5x the menu clock — a select reads slower next to the browser's.
+    support::revealPopup(*popup_, this, support::kSelectPopupDustMs);
     if (cur.isValid()) list_->scrollTo(cur, QAbstractItemView::PositionAtCenter);
     (search_ ? static_cast<QWidget*>(search_) : static_cast<QWidget*>(list_))
         ->setFocus(Qt::PopupFocusReason);
   }
 
   void SearchComboBox::hidePopup() {
+    // The dust plays off popup_'s own Hide event below — the one place every close path
+    // (a pick, Escape, or Qt's own Qt::Popup grab-loss on an outside click) funnels through.
     if (popup_) popup_->hide();
     QComboBox::hidePopup();
   }
 
   bool SearchComboBox::eventFilter(QObject* watched, QEvent* event) {
-    if (watched == popup_ && event->type() == QEvent::Hide) lastHide_.start();
+    if (watched == popup_ && event->type() == QEvent::Hide) {
+      lastHide_.start();
+      // grab() still renders a hidden widget: an outside click hides popup_ via Qt's own
+      // grab-loss handling, which never calls hidePopup() above, so the flight has to hang
+      // off this Hide event instead.
+      support::dismissPopup(*popup_, this, support::kSelectPopupDustMs);
+    }
     if ((watched == search_ || (!searchable_ && watched == list_)) &&
         event->type() == QEvent::KeyPress) {
       auto* ke = static_cast<QKeyEvent*>(event);

@@ -111,13 +111,23 @@
   },
   {
     "id": "copyImage",
-    "label": "Copy Image to Clipboard",
+    "label": "Copy Image to Clipboard (Current — tint + lines/points)",
     "default": "Ctrl+C"
+  },
+  {
+    "id": "copyImageOriginal",
+    "label": "Copy Original Image to Clipboard (no tint, no lines/points)",
+    "default": "Ctrl+Shift+C"
+  },
+  {
+    "id": "copyImageTint",
+    "label": "Copy Tinted Image to Clipboard (no lines/points)",
+    "default": "Ctrl+Alt+C"
   },
   {
     "id": "copyLayout",
     "label": "Copy Layout JSON",
-    "default": "Ctrl+Alt+C"
+    "default": "Ctrl+Shift+Alt+C"
   },
   {
     "id": "paste",
@@ -161,8 +171,18 @@
   },
   {
     "id": "saveImage",
-    "label": "Download Image",
+    "label": "Download Image (Current — tint + lines/points)",
     "default": "Ctrl+Shift+D"
+  },
+  {
+    "id": "saveImageOriginal",
+    "label": "Download Original Image (no tint, no lines/points)",
+    "default": "Ctrl+Alt+D"
+  },
+  {
+    "id": "saveImageTint",
+    "label": "Download Tinted Image (no lines/points)",
+    "default": "Ctrl+Shift+Alt+D"
   },
   {
     "id": "shareImage",

@@ -56,6 +56,8 @@ namespace stencil::gui {
     // Stale results are dropped via a generation counter, so rapid edits never
     // paint an older probe over a newer one.
     void refreshStatus();
+    // Paint the status row: state colour on the dot, plain muted text beside it.
+    void setStatus(const char* color, const QString& text);
 
     RowMode mode_;
     QFormLayout* form_ = nullptr;
@@ -66,8 +68,14 @@ namespace stencil::gui {
     QComboBox* server_ = nullptr;    // saved connections (stencil-server)
     QCheckBox* saveChats_ = nullptr; // §12 chat-persistence opt-in (default off)
     QLabel* note_ = nullptr;    // HideRows only: the local-provider hint
+    // HideRows only: the conditional rows' .vs-row hairlines, hidden with them.
+    QFrame* baseUrlDiv_ = nullptr;
+    QFrame* modelDiv_ = nullptr;
+    QFrame* apiKeyDiv_ = nullptr;
+    QFrame* serverDiv_ = nullptr;
     QFrame* noteBox_ = nullptr;  // HideRows only: its accent-tinted box (browser .chat-cors-note)
-    QLabel* status_ = nullptr;       // live reachability row (dot + text)
+    QLabel* statusDot_ = nullptr;    // live reachability row: the coloured dot…
+    QLabel* status_ = nullptr;       // …and its muted text (browser status row)
     QTimer* probeDebounce_ = nullptr;  // settles typing before re-probing
     int probeGen_ = 0;  // drops stale async probe results
     // The transport is a child of the form, so pending model fetches are
