@@ -736,7 +736,9 @@ body.fullscreen-mode #fs-points-panel {
     /* An unbreakable run (filename/URL) must WRAP inside the cap, never widen past it —
        belt to squeezeLongTokens' braces (notifications.js). */
     overflow-wrap: anywhere;
-    padding: 10px 14px;
+    /* One inner box on both surfaces: 12px beside the content, 10px above and below,
+       8px between glyph and text (desktop notifications.cpp mirrors it). */
+    padding: 10px 12px;
     border-radius: 8px;
     font-size: 13.5px;
     font-weight: 500;

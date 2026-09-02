@@ -1223,6 +1223,9 @@ namespace stencil::gui {
     // How wide the points panel is before the user has ever dragged the splitter — the
     // browser's --coord-panel-default (css/layout.css).
     static constexpr int kPanelDefaultWidth = 405;
+    // Never narrower than this: the coordinate columns turn into "…" below it, and the
+    // browser's .coordinates-panel holds the same floor (css min-width: 240px).
+    static constexpr int kPanelMinWidth = 240;
     // Remembered panel width for the expand animation; seeded at that default.
     int panelRestoreWidth_ = kPanelDefaultWidth;
     QVariantAnimation* panelAnim_ = nullptr;  // in-flight panel collapse/expand (min==max pinning)

@@ -594,7 +594,7 @@ test('the arrivals share ONE mesh budget with the wipe, and run after the scroll
   // carrying .chat-msg and [data-row] — everything that walks the transcript
   // (renderChatLog's own lookups, the reveal observer, a test counting rows) would read
   // them as live rows.
-  assert.match(motion, /reintegrate\(el, \{ cols, rows, toBody: true \}\)/);
+  assert.match(motion, /reintegrate\(el, \{ cols, rows, toBody: true, ms: CHAT_ENTER_MS \}\)/);
   // Two frames before the measure: frame one is the new entries' layout, frame two the
   // scroll that follows it (stickToBottom pins on a rAF of its own).
   assert.match(motion, /requestAnimationFrame\(\(\) => requestAnimationFrame\(fn\)\)/);
@@ -641,7 +641,9 @@ test('chatIn: veils at once, lifts only when the motes have landed', async () =>
   const { chatIn, CHAT_ENTER_MS, CHAT_ENTERING_CLASS, DISINTEGRATE_MS } = await import('../js/ui/motion.js');
   // The gather rides the SAME clock the scatter falls on — the two directions are one
   // motion, so one number owns both.
-  assert.strictEqual(CHAT_ENTER_MS, DISINTEGRATE_MS);
+  // Shorter than a row's flight on purpose: the motes carry no text, so a long answer is
+  // unreadable until the veil lifts. The gather's sweep and tile flight scale with it.
+  assert.ok(CHAT_ENTER_MS < DISINTEGRATE_MS && CHAT_ENTER_MS >= 400, `chat arrival ${CHAT_ENTER_MS}ms`);
   const classes = new Set();
   const el = { classList: {
     add: (...c) => c.forEach((x) => classes.add(x)),

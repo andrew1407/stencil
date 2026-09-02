@@ -323,15 +323,20 @@ export const createFilterTransition = ({
 };
 
 // ── Disintegration ("the snap") ─────────────────────────────────────────────
-// A removed element comes apart: cloned once per tile, each clone clipped to its own
-// grid cell, the cells drifting off in a staggered sweep. Mirror of browser
+// A removed element comes apart into MOTES: one round speck per grid cell, painted in
+// the element's own colours (speckPainter), drifting off in a staggered sweep. Never
+// clones of the element — a clone per cell was hundreds of copies of a row's whole
+// subtree, and at mote size it showed nothing a speck does not. Mirror of browser
 // motion.js; the tiles live in a FIXED layer because the row is collapsing under them.
 export const DISINTEGRATE_MS = 900;
 // A fine grid: at 8x4 the cells read as big rectangles sliding apart. Small cells are
-// what make it read as ash rather than a broken window. The cost is one clone per
+// what make it read as ash rather than a broken window. The cost is one node per
 // cell, so this is the practical ceiling for a list row.
 export const DISINTEGRATE_COLS = 22;
 export const DISINTEGRATE_ROWS = 11;
+// A gathering tile's flight as a share of the whole span — the CSS default's 0.48s of
+// 0.9s. The rest is the reversed sweep (tileMotion), so the two always add up.
+export const TILE_GATHER_SHARE = 480 / DISINTEGRATE_MS;
 
 // Deterministic per-tile jitter — a hash, not Math.random, so the scatter is varied
 // but reproducible (and unit-testable). Returns a 0..1 float.
@@ -340,56 +345,57 @@ export const tileNoise = (cx, cy) => {
   return h - Math.floor(h);
 };
 
-// The clip rectangle for one cell, as an inset() in percentages. Cells overlap by a
-// hair so the grid shows no seams while it is still assembled.
-export const tileInset = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS) => {
-  const w = 100 / cols, h = 100 / rows;
-  const top = cy * h, left = cx * w;
-  const bleed = 0.4;
-  return `inset(${Math.max(0, top - bleed)}% ${Math.max(0, 100 - left - w - bleed)}% `
-    + `${Math.max(0, 100 - top - h - bleed)}% ${Math.max(0, left - bleed)}%)`;
+// ── The waypoint: no mote flies a straight line (browser motion.js twin) ────
+// Part-way along its throw each mote is pushed off its line by its own amount, to its
+// own side — a bend, not a beam — so a cloud churns instead of radiating in spokes.
+// CSS plays it as the mid keyframe (--mx/--my; animations.css stTileScatter and kin).
+// The push is a share of the throw, capped. Pure — unit-tested.
+export const WAYPOINT_ALONG = 0.62;
+export const SWIRL_SHARE = 0.32;
+export const SWIRL_MAX_PX = 44;
+export const tileWaypoint = (dx, dy, q) => {
+  const len = Math.hypot(dx, dy);
+  if (!(len > 0.5)) return { mx: 0, my: 0 };
+  const amp = (q - 0.5) * 2 * Math.min(len * SWIRL_SHARE, SWIRL_MAX_PX);
+  return {
+    mx: Math.round(dx * WAYPOINT_ALONG - (dy / len) * amp),
+    my: Math.round(dy * WAYPOINT_ALONG + (dx / len) * amp),
+  };
 };
 
 // Where a cell goes and when it starts. The sweep erodes the element from one edge
 // (delay grows with progress) and every cell drifts, further the later it goes.
 // `reverse` inverts only the SWEEP (for the gather — see reintegrate): the flight
 // path itself is shared, merely played backwards. Pure.
-export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS, reverse = false) => {
+// `span` is the flight's own length: the sweep and its jitter are SHARES of it, so a
+// chat entry arriving on a shorter clock (CHAT_ENTER_MS) still lands every mote in time.
+export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS, reverse = false,
+                           span = DISINTEGRATE_MS) => {
   const n = tileNoise(cx, cy);
   // A second, decorrelated noise so a mote's SIDEWAYS drift is independent of its fall
   // and its spin — one hash drove all three, which made whole diagonals move as one and
-  // read as a sheet tearing rather than a thing coming apart. Browser motion.js twin.
+  // read as a sheet tearing rather than a thing coming apart. A third bends the path.
   const m = tileNoise(cx + 41, cy + 17);
+  const q = tileNoise(cx + 97, cy + 53);
   // 0 at the TOP row (goes first), 1 at the bottom (goes last): the row crumbles from
   // its top edge downward, the way the cleared image does.
   const progress = rows > 1 ? cy / (rows - 1) : 0;
-  const delay = Math.round((reverse ? 1 - progress : progress) * DISINTEGRATE_MS * 0.4 + n * 60);
+  // A SCATTER's sweep is half the gather's: the row itself is gone in LEAVE_MS, and a
+  // mote still at its 0% pose past that is a dot screen sitting where the row was, not
+  // sand leaving (the same halving surfaceMotion's delayScale does). The gather keeps
+  // the full sweep — its motes are the row forming, and there is nothing under them.
+  const sweep = span * (reverse ? 0.4 : 0.2);
+  const delay = Math.round((reverse ? 1 - progress : progress) * sweep + n * 60 * (span / DISINTEGRATE_MS));
   // …and the motes FALL, fanning out as they go. Signed drift, so they spread both
   // ways instead of all sliding one.
+  const dx = Math.round((m - 0.5) * 66);
+  const dy = Math.round(26 + progress * 30 + n * 44);
   return {
-    delay,
-    dx: Math.round((m - 0.5) * 66),
-    dy: Math.round(26 + progress * 30 + n * 44),
+    delay, dx, dy,
+    ...tileWaypoint(dx, dy, q),
     rot: +((m - 0.5) * 70).toFixed(2),
     scale: +(0.3 + n * 0.3).toFixed(2),
   };
-};
-
-// Scatter `el`. Returns true when tiles were actually built; never throws — a failed
-// scatter just means no particles. cloneNode is right for ordinary DOM but NOT for a
-// <canvas> (a clone is blank), so callers pass a maker that blits the pixels instead.
-export const cloneForTile = (el) => el.cloneNode(true);
-
-// A canvas maker CANNOT hand back a full-size copy per cell — at this grid that would
-// be hundreds of full-resolution bitmaps. Each cell gets only its own slice, drawn at
-// cell size, and the tile positions it instead of clipping a full copy.
-export const canvasCellForTile = (canvas, cell) => {
-  const c = document.createElement('canvas');
-  const sx = canvas.width / cell.cols, sy = canvas.height / cell.rows;
-  c.width = Math.max(1, Math.ceil(sx));
-  c.height = Math.max(1, Math.ceil(sy));
-  c.getContext('2d').drawImage(canvas, cell.cx * sx, cell.cy * sy, sx, sy, 0, 0, c.width, c.height);
-  return c;
 };
 
 // Motes sized in PIXELS, not as a share of the element — a fixed grid over a wide row
@@ -431,96 +437,61 @@ export function cancelDust(el) {
 }
 
 export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS,
-                                   makeCopy = cloneForTile, perCell = false, gather = false,
-                                   toward = null, ms = 0, px = MOTE_PX, spread = SURFACE_SPREAD,
-                                   toBody = false, hostEl = null, hostClass = '', paintTile = null } = {}) {
+                                   gather = false, toward = null, ms = 0, px = MOTE_PX,
+                                   spread = SURFACE_SPREAD, toBody = false, hostEl = null,
+                                   hostClass = '', paintTile = null } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
   try {
     cancelDust(el);   // one cloud per element: the newest gesture owns it
     const r = el.getBoundingClientRect();
     if (r.width < 4 || r.height < 4) return false;
     ({ cols, rows } = reshapeGrid(cols, rows, r.width, r.height, px));
+    // Specks in the element's own colours unless the caller brought a recipe.
+    const paint = paintTile || speckPainter(el);
     const host = document.createElement('div');
     host.className = hostClass ? `disintegrate-host ${hostClass}` : 'disintegrate-host';
-    // Decoration, and nothing but: the layer must never take a click or a Tab stop —
-    // a cloned menu is full of real <button>s.
+    // Decoration, and nothing but: the layer must never take a click or a Tab stop.
     host.setAttribute('aria-hidden', 'true');
     host.inert = true;
-    // A surface flies on its own (shorter) clock; a row keeps the CSS defaults.
+    // A surface flies on its own (shorter) clock; a row keeps the CSS defaults. A ROW
+    // gather on its own clock (a chat entry) keeps the default's proportions: the
+    // tile's flight is the span less the reversed sweep (0.48s of 0.9s), so the last
+    // mote to set off still lands before the veil lifts.
     if (ms) {
       host.style.setProperty('--dust-ms', `${ms}ms`);
-      host.style.setProperty('--gather-ms', `${ms}ms`);
+      host.style.setProperty('--gather-ms', `${toward || !gather ? ms : Math.round(ms * TILE_GATHER_SHARE)}ms`);
     }
     host.style.left = `${r.left}px`;
     host.style.top = `${r.top}px`;
     host.style.width = `${r.width}px`;
     host.style.height = `${r.height}px`;
+    const cellW = r.width / cols;
+    const cellH = r.height / rows;
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
         // A row FALLS (tileMotion); a surface flies at the control that owns it.
         const m = toward
           ? surfaceMotion(cx, cy, cols, rows, r, toward, { span: ms || DISINTEGRATE_MS, spread })
-          : tileMotion(cx, cy, cols, rows, gather);
+          : tileMotion(cx, cy, cols, rows, gather, ms || DISINTEGRATE_MS);
         const tile = document.createElement('div');
         // The gather class overrides the scatter's animation with stTileGather (the
-        // same flight, played home) while inheriting the tile's box/clip rules.
+        // same flight, played home) while inheriting the tile's box rules.
         tile.className = gather ? 'disintegrate-tile reintegrate-tile' : 'disintegrate-tile';
-        // A per-cell copy is already only its own slice, so it is POSITIONED; a full
-        // clone covers the whole box and is CLIPPED down to its cell instead.
-        if (!perCell && !paintTile) tile.style.clipPath = tileInset(cx, cy, cols, rows);
-        // A full-size tile clipped to its cell keeps the WHOLE box, so the default
-        // 50% 50% origin is the element's centre — scaling would shrink them all toward
-        // the middle, which reads as imploding rather than coming apart. Each mote turns
-        // about its own cell. A painted tile IS its own cell, so the default is right.
-        if (!paintTile)
-          tile.style.transformOrigin = `${((cx + 0.5) / cols) * 100}% ${((cy + 0.5) / rows) * 100}%`;
-        tile.style.setProperty('--dx', `${m.dx}px`);
-        tile.style.setProperty('--dy', `${m.dy}px`);
-        tile.style.setProperty('--rot', `${m.rot}deg`);
-        tile.style.setProperty('--tile-scale', String(m.scale));
-        tile.style.animationDelay = `${m.delay}ms`;
-        const cellW = r.width / cols;
-        const cellH = r.height / rows;
-        // A PAINTED tile is the mote itself — no copy, no child, one node per grain.
-        if (paintTile) {
-          paintTile(tile, { cx, cy, cols, rows, cellW, cellH });
-          host.appendChild(tile);
-          continue;
-        }
-        const copy = makeCopy(el, { cx, cy, cols, rows, cellW, cellH });
-        copy.style.margin = '0';
-        if (perCell) {
-          copy.style.position = 'absolute';
-          copy.style.left = `${cx * cellW}px`;
-          copy.style.top = `${cy * cellH}px`;
-          copy.style.width = `${cellW}px`;
-          copy.style.height = `${cellH}px`;
-        } else {
-          // The clone is out of its parent's layout, so its box has to be restated.
-          copy.style.width = `${r.width}px`;
-          copy.style.height = `${r.height}px`;
-          copy.classList.remove(LEAVING_CLASS, REVEAL_ITEM_CLASS, REVEAL_IN_CLASS);
-          // A clone REPLAYS its element's CSS entrance animation from t=0 — inside a tile
-          // that reads as the thing flashing back before the scatter. The tile owns all
-          // motion; the copy holds still.
-          copy.style.animation = 'none';
-        }
-        tile.appendChild(copy);
+        // A tile IS the mote — no copy, no child, one node per grain — and it gets ONE
+        // style write: a dialog's cloud is hundreds of them, built in the frame the open
+        // lands on, and a property at a time was most of that frame.
+        tile.style.cssText = `--dx:${m.dx}px;--dy:${m.dy}px;--mx:${m.mx}px;--my:${m.my}px;`
+          + `--rot:${m.rot}deg;--tile-scale:${m.scale};animation-delay:${m.delay}ms;`
+          + paint(tile, { cx, cy, cols, rows, cellW, cellH });
         host.appendChild(tile);
       }
     }
-    // Appended to the element's own PARENT, not <body>: most row styling is parent-
-    // scoped, and a body-level clone matches none of it (tiles come out unstyled).
-    // The host stays position:fixed, so it still escapes the scroller's clipping.
-    // A SURFACE goes on <body> outright: its own parent (a dialog backdrop) is about to
-    // be removed under it, and body is last in tree order, so a clone carrying duplicate
-    // ids can never shadow the real thing in getElementById.
-    // `hostEl` is the middle ground a chat entry needs: EVERY bubble rule here is scoped
-    // `#sec-assistant .msg …`, so a body-level clone matched none of them and the motes
-    // came out as bare text with no fill, border or radius — while hosting them in the
-    // transcript itself would put `.msg` clones where everything that walks it (the clear
-    // gate, the reveal observer) reads them as live conversation. The section is inside
-    // the one and outside the other.
+    // Appended to the element's own PARENT, not <body>: a row's cloud is torn down with
+    // the list it belongs to. The host stays position:fixed, so it still escapes the
+    // scroller's clipping. A SURFACE goes on <body> outright: its own parent (a dialog
+    // backdrop) is about to be removed under it. `hostEl` is the middle ground a chat
+    // entry asks for: outside the transcript, so nothing that walks it (the clear gate,
+    // the reveal observer) meets the layer, but still inside its section.
     (toBody ? document.body : (hostEl || el.parentElement || document.body)).appendChild(host);
     // …but only if that parent can actually host it: an ancestor with a transform /
     // filter / backdrop-filter becomes the containing block for position:fixed, which
@@ -580,7 +551,9 @@ export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
 // (reintegrate). The entry itself is HELD BACK for the whole flight — the motes ARE it
 // forming, and fading it up underneath them showed the message first and the animation
 // after, which is the one thing an arrival must not do.
-export const CHAT_ENTER_MS = DISINTEGRATE_MS;
+// On a clock of its own, well short of a row's 900ms (browser twin): the motes carry
+// no text, so a long answer is unreadable until the veil lifts.
+export const CHAT_ENTER_MS = 520;
 export const CHAT_ENTERING_CLASS = 'chat-entering';
 
 // Two frames, so the measure below happens on a SETTLED transcript: frame one is the new
@@ -689,7 +662,7 @@ export function chatIn(el, count = 1, index = 0, { host = null } = {}) {
       // Browser parity: there `.chat-msg` is styled standalone, so its cloud can sit on
       // <body> and still look like the bubble. No host given = the entry's own parent.
       const flying = cols !== 0 && dustFitsScroller(el)
-        && reintegrate(el, { cols, rows, hostEl: host || el.parentElement || null });
+        && reintegrate(el, { cols, rows, hostEl: host || el.parentElement || null, ms: CHAT_ENTER_MS });
       if (!flying) { unveil(); resolve(); return; }
       clipDustToScroller(el);   // before the first frame paints, not after it
       let handedOver = false;
@@ -771,20 +744,23 @@ export const SURFACE_DRIVEN_CLASS = 'dust-driven';
 export const surfaceMotion = (cx, cy, cols, rows, box, point, { span = SURFACE_OUT_MS, spread = SURFACE_SPREAD } = {}) => {
   const n = tileNoise(cx, cy);
   const m = tileNoise(cx + 41, cy + 17);
+  const q = tileNoise(cx + 97, cy + 53);
   const w = (box?.width || 0) / Math.max(1, cols);
   const h = (box?.height || 0) / Math.max(1, rows);
-  const mx = (box?.left || 0) + (cx + 0.5) * w;
-  const my = (box?.top || 0) + (cy + 0.5) * h;
-  const toX = (point?.x || 0) - mx;
-  const toY = (point?.y || 0) - my;
+  const homeX = (box?.left || 0) + (cx + 0.5) * w;
+  const homeY = (box?.top || 0) + (cy + 0.5) * h;
+  const toX = (point?.x || 0) - homeX;
+  const toY = (point?.y || 0) - homeY;
   // Normalised against the longest trip any cell in this box makes, so the sweep fills
   // the whole flight whatever the point's distance is.
   const far = Math.hypot(box?.width || 0, box?.height || 0) + Math.hypot(toX, toY);
   const progress = far > 0 ? Math.min(1, Math.hypot(toX, toY) / far) : 0;
+  const dx = Math.round(toX + (m - 0.5) * spread);
+  const dy = Math.round(toY + (n - 0.5) * spread);
   return {
     delay: Math.round(progress * span * 0.45 + n * span * 0.12),
-    dx: Math.round(toX + (m - 0.5) * spread),
-    dy: Math.round(toY + (n - 0.5) * spread),
+    dx, dy,
+    ...tileWaypoint(dx, dy, q),
     rot: +((m - 0.5) * 60).toFixed(2),
     scale: +(0.12 + n * 0.25).toFixed(2),
   };
@@ -834,31 +810,31 @@ const surfacePaint = (el) => {
   return { fill: grain(100 - MOTE_INK), edge: bordered ? own.borderTopColor : grain(100 - MOTE_RIM_INK) };
 };
 
-// Flat speck in the surface's own colours; the rim cells take its border instead, so the
-// cloud keeps the box's outline for the first frames. The speck is a GRAIN, not the cell
-// it sits in: past the mote budget a cell can be several times the grain we want, and a
-// cell-filling square is the "huge rectangles" a scatter must never show.
+// Round speck in the surface's own colours; the rim cells take its border instead, so
+// the cloud keeps the box's outline for the first frames, and a few inner grains take
+// the rim's stronger tone too, so the field glints rather than reading flat. The speck
+// is a GRAIN, not the cell it sits in: past the mote budget a cell can be several times
+// the grain we want, and a cell-filling square is the "huge rectangles" a scatter must
+// never show.
 //
-// Painted onto the TILE ITSELF rather than into a child of it — one node per mote, not
-// two. A dialog's cloud is thousands of them, and building (and then styling and laying
-// out) two nodes each is what turned an open into a visible hitch.
+// Painted onto the TILE ITSELF — one node per mote, not two — and returned as the
+// tile's style DECLARATIONS rather than written property by property: disintegrate
+// folds them into its one cssText write per mote.
 const speckPainter = (el) => {
   const { fill, edge } = surfacePaint(el);
   return (tile, { cx, cy, cols, rows, cellW, cellH }) => {
     const n = tileNoise(cx, cy);
     tile.classList.add('dust-mote');
-    tile.style.background = (cx === 0 || cy === 0 || cx === cols - 1 || cy === rows - 1) ? edge : fill;
-    // Never faint: a mote you can barely see is a flight you cannot follow.
-    tile.style.opacity = (0.78 + n * 0.22).toFixed(2);
+    const rim = cx === 0 || cy === 0 || cx === cols - 1 || cy === rows - 1 || n > 0.86;
     // Grains of ONE size read as a mosaic; the spread is what makes it sand…
     const grain = Math.min(cellW, cellH, SURFACE_SPECK_PX);
     const px = grain * (0.62 + n * 0.5);
     // …each centred in its own cell, so the field stays even however far the mote
-    // budget let the cell outgrow the grain.
-    tile.style.left = `${(cx * cellW + (cellW - px) / 2).toFixed(2)}px`;
-    tile.style.top = `${(cy * cellH + (cellH - px) / 2).toFixed(2)}px`;
-    tile.style.width = `${px.toFixed(2)}px`;
-    tile.style.height = `${px.toFixed(2)}px`;
+    // budget let the cell outgrow the grain. Never faint: a mote you can barely see is
+    // a flight you cannot follow.
+    return `background:${rim ? edge : fill};opacity:${(0.78 + n * 0.22).toFixed(2)};`
+      + `left:${(cx * cellW + (cellW - px) / 2).toFixed(2)}px;top:${(cy * cellH + (cellH - px) / 2).toFixed(2)}px;`
+      + `width:${px.toFixed(2)}px;height:${px.toFixed(2)}px`;
   };
 };
 

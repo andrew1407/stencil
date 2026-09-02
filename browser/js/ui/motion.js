@@ -869,15 +869,22 @@ export function pinWidestFace(el, faces, { doc = el?.ownerDocument, force = fals
 }
 
 // ── Disintegration ("the snap") ─────────────────────────────────────────────
-// A removed element comes apart: one clone per tile, clipped to its own cell, drifting
-// off in a staggered sweep. The tiles live in a FIXED layer over the page — the row is
-// collapsing to zero height at the same time and would clip anything inside it.
+// A removed element comes apart into MOTES: one round speck per grid cell, painted in
+// the element's own colours (speckPainter), drifting off in a staggered sweep. Never
+// clones of the element — a clone per cell was hundreds of copies of a row's whole
+// subtree, and at mote size it showed nothing a speck does not. The motes live in a
+// FIXED layer over the page: the row is collapsing to zero height at the same time and
+// would clip anything inside it. Every flight here — a row, a chat entry, a window, a
+// tick — is this one particle system (desktop twin: disintegrateOverlay.hpp).
 export const DISINTEGRATE_MS = 900;
-// A fine grid — small cells read as ash rather than a broken window; one clone per
+// A fine grid — small cells read as ash rather than a broken window; one node per
 // cell, so this is the practical ceiling for a list row. (Matched by the desktop's
 // DisintegrateOverlay::kDustCellPx, which sizes its motes in pixels instead.)
 export const DISINTEGRATE_COLS = 34;
 export const DISINTEGRATE_ROWS = 16;
+// A gathering tile's flight as a share of the whole span — the CSS default's 0.48s of
+// 0.9s. The rest is the reversed sweep (tileMotion), so the two always add up.
+export const TILE_GATHER_SHARE = 480 / DISINTEGRATE_MS;
 
 // Deterministic per-tile jitter — a hash, not Math.random, so the scatter is varied
 // but reproducible (and unit-testable). Returns a 0..1 float.
@@ -886,14 +893,24 @@ export const tileNoise = (cx, cy) => {
   return h - Math.floor(h);
 };
 
-// The clip rectangle for one cell, as an inset() in percentages. Cells overlap by a
-// hair so the grid shows no seams while it is still assembled.
-export const tileInset = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS) => {
-  const w = 100 / cols, h = 100 / rows;
-  const top = cy * h, left = cx * w;
-  const bleed = 0.4;
-  return `inset(${Math.max(0, top - bleed)}% ${Math.max(0, 100 - left - w - bleed)}% `
-    + `${Math.max(0, 100 - top - h - bleed)}% ${Math.max(0, left - bleed)}%)`;
+// ── The waypoint: no mote flies a straight line ─────────────────────────────
+// Part-way along its throw each mote is pushed off its line by its own amount, to its
+// own side — a bend, not a beam — so a cloud churns instead of radiating in spokes.
+// CSS plays it as the mid keyframe (--mx/--my; animations.css tileScatter and kin),
+// the desktop as a sine bulge on the same throw (disintegrateOverlay.hpp swirlAt).
+// The push is a share of the throw, capped: a window's 400px trip must not swing its
+// motes across half the page. Pure — unit-tested.
+export const WAYPOINT_ALONG = 0.62;
+export const SWIRL_SHARE = 0.32;
+export const SWIRL_MAX_PX = 44;
+export const tileWaypoint = (dx, dy, q) => {
+  const len = Math.hypot(dx, dy);
+  if (!(len > 0.5)) return { mx: 0, my: 0 };
+  const amp = (q - 0.5) * 2 * Math.min(len * SWIRL_SHARE, SWIRL_MAX_PX);
+  return {
+    mx: Math.round(dx * WAYPOINT_ALONG - (dy / len) * amp),
+    my: Math.round(dy * WAYPOINT_ALONG + (dx / len) * amp),
+  };
 };
 
 // Where a cell goes and when it starts. `reverse` inverts only the SWEEP (for the
@@ -902,42 +919,35 @@ export const tileInset = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_
 // `drift` scales the throw: a list row flings its motes tens of pixels, and a 15px
 // checkbox indicator doing the same would read as the dialog exploding (the desktop's
 // controlSwap.hpp kCheckSwapSpread is this number).
-export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS, reverse = false, drift = 1) => {
+// `span` is the flight's own length: the sweep and its jitter are SHARES of it, so a
+// chat entry arriving on a shorter clock (CHAT_ENTER_MS) still lands every mote in time.
+export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS, reverse = false, drift = 1,
+                           span = DISINTEGRATE_MS) => {
   const n = tileNoise(cx, cy);
   // A second, decorrelated noise so a mote's SIDEWAYS drift is independent of its fall
   // and its spin — one hash drove all three, which made whole diagonals move as one and
-  // read as a sheet tearing rather than a thing coming apart.
+  // read as a sheet tearing rather than a thing coming apart. A third bends the path.
   const m = tileNoise(cx + 41, cy + 17);
+  const q = tileNoise(cx + 97, cy + 53);
   // 0 at the TOP row (goes first), 1 at the bottom (goes last): the row crumbles from
   // its top edge downward, the way the cleared image does (ghostOut).
   const progress = rows > 1 ? cy / (rows - 1) : 0;
-  const delay = Math.round((reverse ? 1 - progress : progress) * DISINTEGRATE_MS * 0.4 + n * 60);
+  // A SCATTER's sweep is half the gather's: the row itself is gone in LEAVE_MS, and a
+  // mote still at its 0% pose past that is a dot screen sitting where the row was, not
+  // sand leaving (the same halving surfaceMotion's delayScale does). The gather keeps
+  // the full sweep — its motes are the row forming, and there is nothing under them.
+  const sweep = span * (reverse ? 0.4 : 0.2);
+  const delay = Math.round((reverse ? 1 - progress : progress) * sweep + n * 60 * (span / DISINTEGRATE_MS));
   // …and the motes FALL, fanning out as they go. Signed drift, so they spread both
   // ways instead of all sliding one.
+  const dx = Math.round((m - 0.5) * 66 * drift);
+  const dy = Math.round((26 + progress * 30 + n * 44) * drift);
   return {
-    delay,
-    dx: Math.round((m - 0.5) * 66 * drift),
-    dy: Math.round((26 + progress * 30 + n * 44) * drift),
+    delay, dx, dy,
+    ...tileWaypoint(dx, dy, q),
     rot: +((m - 0.5) * 70).toFixed(2),
     scale: +(0.3 + n * 0.3).toFixed(2),
   };
-};
-
-// How a tile gets its copy of the element. cloneNode is right for ordinary DOM, but
-// NOT for a <canvas>: cloning one yields a blank canvas (the bitmap isn't copied), so
-// the caller passes a maker that blits the pixels across instead.
-export const cloneForTile = (el) => el.cloneNode(true);
-
-// A canvas maker CANNOT hand back a full-size copy per cell — at this grid that would
-// be hundreds of full-resolution bitmaps. Each cell gets only its own slice, drawn at
-// cell size, and the tile positions it instead of clipping a full copy.
-export const canvasCellForTile = (canvas, cell) => {
-  const c = document.createElement('canvas');
-  const sx = canvas.width / cell.cols, sy = canvas.height / cell.rows;
-  c.width = Math.max(1, Math.ceil(sx));
-  c.height = Math.max(1, Math.ceil(sy));
-  c.getContext('2d').drawImage(canvas, cell.cx * sx, cell.cy * sy, sx, sy, 0, 0, c.width, c.height);
-  return c;
 };
 
 // Motes sized in PIXELS, not as a share of the element — a fixed grid over a wide row
@@ -981,10 +991,9 @@ export function retargetDust(el, r = null) {
 }
 
 export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS,
-                                   makeCopy = cloneForTile, perCell = false, gather = false,
-                                   toward = null, ms = 0, px = MOTE_PX, spread = SURFACE_SPREAD,
-                                   drift = 1, toBody = false, hostClass = '', paintTile = null,
-                                   own = true, box = null } = {}) {
+                                   gather = false, toward = null, ms = 0, px = MOTE_PX,
+                                   spread = SURFACE_SPREAD, drift = 1, toBody = false,
+                                   hostClass = '', paintTile = null, own = true, box = null } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
   try {
     // One cloud per element: the newest gesture owns it. `own: false` opts a flight out of
@@ -997,17 +1006,28 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     const r = box || el.getBoundingClientRect();
     if (r.width < 4 || r.height < 4) return false;
     ({ cols, rows } = reshapeGrid(cols, rows, r.width, r.height, px));
+    // Specks in the element's own colours unless the caller brought a recipe (a mark
+    // whose ink has already left it — markOut's `paint`).
+    const paint = paintTile || speckPainter(el);
     const host = document.createElement('div');
     host.className = hostClass ? `disintegrate-host ${hostClass}` : 'disintegrate-host';
-    // A surface flies on its own (shorter) clock; a row keeps the CSS defaults.
+    // Decoration, and nothing but: the layer must never take a click or a Tab stop.
+    host.setAttribute?.('aria-hidden', 'true');
+    host.inert = true;
+    // A surface flies on its own (shorter) clock; a row keeps the CSS defaults. A ROW
+    // gather on its own clock (a chat entry) keeps the default's proportions: the
+    // tile's flight is the span less the reversed sweep (0.48s of 0.9s), so the last
+    // mote to set off still lands before the veil lifts.
     if (ms) {
       host.style.setProperty('--dust-ms', `${ms}ms`);
-      host.style.setProperty('--gather-ms', `${ms}ms`);
+      host.style.setProperty('--gather-ms', `${toward || !gather ? ms : Math.round(ms * TILE_GATHER_SHARE)}ms`);
     }
     host.style.left = `${r.left}px`;
     host.style.top = `${r.top}px`;
     host.style.width = `${r.width}px`;
     host.style.height = `${r.height}px`;
+    const cellW = r.width / cols;
+    const cellH = r.height / rows;
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
         // A row FALLS (tileMotion); a surface flies at the control that owns it.
@@ -1015,61 +1035,24 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
         const m = toward
           ? surfaceMotion(cx, cy, cols, rows, r, toward,
                           { span: ms || DISINTEGRATE_MS, spread, delayScale: gather ? 1 : 0.5 })
-          : tileMotion(cx, cy, cols, rows, gather, drift);
+          : tileMotion(cx, cy, cols, rows, gather, drift, ms || DISINTEGRATE_MS);
         const tile = document.createElement('div');
         // The gather class overrides the scatter's animation with tileGather (the same
-        // flight, played home) while inheriting the tile's box/clip rules.
+        // flight, played home) while inheriting the tile's box rules.
         tile.className = gather ? 'disintegrate-tile reintegrate-tile' : 'disintegrate-tile';
-        // A per-cell copy is already only its own slice, so it is POSITIONED; a full
-        // clone covers the whole box and is CLIPPED down to its cell instead.
-        if (!perCell && !paintTile) tile.style.clipPath = tileInset(cx, cy, cols, rows);
-        // A full-size tile clipped to its cell keeps the WHOLE box, so the default
-        // 50% 50% origin is the row's centre — scaling shrank them all toward the middle,
-        // which read as the row imploding rather than coming apart. Each mote turns about
-        // its own cell. A painted tile IS its own cell, so the default is already right.
-        if (!paintTile)
-          tile.style.transformOrigin = `${((cx + 0.5) / cols) * 100}% ${((cy + 0.5) / rows) * 100}%`;
-        tile.style.setProperty('--dx', `${m.dx}px`);
-        tile.style.setProperty('--dy', `${m.dy}px`);
-        tile.style.setProperty('--rot', `${m.rot}deg`);
-        tile.style.setProperty('--tile-scale', String(m.scale));
-        tile.style.animationDelay = `${m.delay}ms`;
-        const cellW = r.width / cols;
-        const cellH = r.height / rows;
-        // A PAINTED tile is the mote itself — no copy, no child, one node per grain.
-        if (paintTile) {
-          paintTile(tile, { cx, cy, cols, rows, cellW, cellH });
-          host.appendChild(tile);
-          continue;
-        }
-        const copy = makeCopy(el, { cx, cy, cols, rows, cellW, cellH });
-        copy.style.margin = '0';
-        if (perCell) {
-          copy.style.position = 'absolute';
-          copy.style.left = `${cx * cellW}px`;
-          copy.style.top = `${cy * cellH}px`;
-          copy.style.width = `${cellW}px`;
-          copy.style.height = `${cellH}px`;
-        } else {
-          // The clone is out of its parent's layout, so its box has to be restated.
-          copy.style.width = `${r.width}px`;
-          copy.style.height = `${r.height}px`;
-          copy.classList.remove(LEAVING_CLASS, REVEAL_ITEM_CLASS, REVEAL_IN_CLASS);
-          // A clone REPLAYS its element's CSS entrance animation from t=0 — inside a
-          // tile that read as the removed thing flashing back before the scatter.
-          // The tile owns all motion; the copy holds still.
-          copy.style.animation = 'none';
-        }
-        tile.appendChild(copy);
+        // A tile IS the mote — no copy, no child, one node per grain — and it gets ONE
+        // style write: a window's cloud is hundreds of them, built in the frame the open
+        // lands on, and a property at a time was most of that frame.
+        tile.style.cssText = `--dx:${m.dx}px;--dy:${m.dy}px;--mx:${m.mx}px;--my:${m.my}px;`
+          + `--rot:${m.rot}deg;--tile-scale:${m.scale};animation-delay:${m.delay}ms;`
+          + paint(tile, { cx, cy, cols, rows, cellW, cellH });
         host.appendChild(tile);
       }
     }
-    // Appended to the element's own PARENT, not <body>: most row styling is
-    // parent-scoped and a body-level clone matches none of it (unstyled, invisible
-    // tiles). Still position:fixed, so viewport-anchored, clear of scroller clipping.
-    // A SURFACE goes on <body> outright: its own parent (a modal overlay) is about to
-    // go display:none under it, and body is last in tree order, so a clone carrying
-    // duplicate ids can never shadow the real thing in getElementById.
+    // Appended to the element's own PARENT, not <body>: a row's cloud is torn down with
+    // the list it belongs to. Still position:fixed, so viewport-anchored, clear of
+    // scroller clipping. A SURFACE goes on <body> outright: its own parent (a modal
+    // overlay) is about to go display:none under it.
     (toBody ? document.body : (el.parentElement || document.body)).appendChild(host);
     // …but only if the parent can actually host it: an ancestor with a transform,
     // filter or backdrop-filter becomes the containing block for position:fixed and can
@@ -1147,20 +1130,23 @@ export const surfaceMotion = (cx, cy, cols, rows, box, point,
                               { span = SURFACE_OUT_MS, spread = SURFACE_SPREAD, delayScale = 1 } = {}) => {
   const n = tileNoise(cx, cy);
   const m = tileNoise(cx + 41, cy + 17);
+  const q = tileNoise(cx + 97, cy + 53);
   const w = (box?.width || 0) / Math.max(1, cols);
   const h = (box?.height || 0) / Math.max(1, rows);
-  const mx = (box?.left || 0) + (cx + 0.5) * w;
-  const my = (box?.top || 0) + (cy + 0.5) * h;
-  const toX = (point?.x || 0) - mx;
-  const toY = (point?.y || 0) - my;
+  const homeX = (box?.left || 0) + (cx + 0.5) * w;
+  const homeY = (box?.top || 0) + (cy + 0.5) * h;
+  const toX = (point?.x || 0) - homeX;
+  const toY = (point?.y || 0) - homeY;
   // Normalised against the longest trip any cell in this box makes, so the sweep fills
   // the whole flight whatever the point's distance is.
   const far = Math.hypot(box?.width || 0, box?.height || 0) + Math.hypot(toX, toY);
   const progress = far > 0 ? Math.min(1, Math.hypot(toX, toY) / far) : 0;
+  const dx = Math.round(toX + (m - 0.5) * spread);
+  const dy = Math.round(toY + (n - 0.5) * spread);
   return {
     delay: Math.round((progress * span * 0.45 + n * span * 0.12) * delayScale),
-    dx: Math.round(toX + (m - 0.5) * spread),
-    dy: Math.round(toY + (n - 0.5) * spread),
+    dx, dy,
+    ...tileWaypoint(dx, dy, q),
     rot: +((m - 0.5) * 60).toFixed(2),
     scale: +(0.12 + n * 0.25).toFixed(2),
   };
@@ -1223,14 +1209,16 @@ const surfacePaint = (el, inkOverride = null) => {
 // light, near-white in dark) and read as a hard white/black fleck. --text-muted instead.
 const markPaint = (el) => surfacePaint(el, 'var(--text-muted)');
 
-// Flat speck in the surface's own colours; the rim cells take its border instead, so
-// the cloud keeps the window's outline for the first frames. The speck is a GRAIN, not
-// the cell it sits in: past the mote budget a cell can be several times the grain we
-// want, and a cell-filling square is the "huge rectangles" a scatter must never show.
+// Round speck in the surface's own colours; the rim cells take its border instead, so
+// the cloud keeps the window's outline for the first frames, and a few inner grains
+// take the rim's stronger tone too, so the field glints rather than reading flat. The
+// speck is a GRAIN, not the cell it sits in: past the mote budget a cell can be several
+// times the grain we want, and a cell-filling square is the "huge rectangles" a
+// scatter must never show.
 //
-// Painted onto the TILE ITSELF rather than into a child of it — one node per mote, not
-// two. A window's cloud is thousands of them, and building (and then styling and
-// laying out) two nodes each is what turned an open into a visible hitch.
+// Painted onto the TILE ITSELF — one node per mote, not two — and returned as the
+// tile's style DECLARATIONS rather than written property by property: disintegrate
+// folds them into its one cssText write per mote.
 // `override` is for a mark whose colour is NOT on the box when the flight runs: a
 // checkbox that has just been UNticked no longer paints anything accent, so reading the
 // live element would dust the toolbar's own grey. The caller passes what left instead.
@@ -1239,18 +1227,16 @@ const speckPainter = (el, override = null) => {
   return (tile, { cx, cy, cols, rows, cellW, cellH }) => {
     const n = tileNoise(cx, cy);
     tile.classList.add('dust-mote');
-    tile.style.background = (cx === 0 || cy === 0 || cx === cols - 1 || cy === rows - 1) ? edge : fill;
-    // Never faint: a mote you can barely see is a flight you cannot follow.
-    tile.style.opacity = (0.78 + n * 0.22).toFixed(2);
+    const rim = cx === 0 || cy === 0 || cx === cols - 1 || cy === rows - 1 || n > 0.86;
     // Grains of ONE size read as a mosaic; the spread is what makes it sand…
     const grain = Math.min(cellW, cellH, SURFACE_SPECK_PX);
     const px = grain * (0.62 + n * 0.5);
     // …each centred in its own cell, so the field stays even however far the mote
-    // budget let the cell outgrow the grain.
-    tile.style.left = `${(cx * cellW + (cellW - px) / 2).toFixed(2)}px`;
-    tile.style.top = `${(cy * cellH + (cellH - px) / 2).toFixed(2)}px`;
-    tile.style.width = `${px.toFixed(2)}px`;
-    tile.style.height = `${px.toFixed(2)}px`;
+    // budget let the cell outgrow the grain. Never faint: a mote you can barely see is
+    // a flight you cannot follow.
+    return `background:${rim ? edge : fill};opacity:${(0.78 + n * 0.22).toFixed(2)};`
+      + `left:${(cx * cellW + (cellW - px) / 2).toFixed(2)}px;top:${(cy * cellH + (cellH - px) / 2).toFixed(2)}px;`
+      + `width:${px.toFixed(2)}px;height:${px.toFixed(2)}px`;
   };
 };
 
@@ -1574,7 +1560,10 @@ export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
 // HELD BACK for the whole flight — the motes ARE it forming, and fading it up underneath
 // them showed the message first and the animation after (the reported bug), which is the
 // one thing an arrival must not do.
-export const CHAT_ENTER_MS = DISINTEGRATE_MS;
+// On a clock of its own, well short of a row's 900ms: the motes carry no text, so a
+// long answer is unreadable until the veil lifts — and waiting most of a second for a
+// reply you can already see arriving reads as the app being slow, not as sand settling.
+export const CHAT_ENTER_MS = 520;
 export const CHAT_ENTERING_CLASS = 'chat-entering';
 
 // Two frames, so the measure below happens on a SETTLED transcript: frame one is the new
@@ -1665,7 +1654,7 @@ export function chatIn(el, count = 1, index = 0) {
       // life the clones are elements carrying `.chat-msg` and `[data-row]` — inside the
       // scroller everything that walks the transcript reads them as live rows.
       const flying = cols !== 0 && dustFitsScroller(el)
-        && reintegrate(el, { cols, rows, toBody: true });
+        && reintegrate(el, { cols, rows, toBody: true, ms: CHAT_ENTER_MS });
       if (!flying) { unveil(); resolve(); return; }
       clipDustToScroller(el);   // before the first frame paints, not after it
       let handedOver = false;
@@ -1693,7 +1682,9 @@ export function chatIn(el, count = 1, index = 0) {
 // Clearing the canvas is synchronous, so the pixels are copied into a throwaway canvas
 // laid over the real one and THAT is animated away. Call immediately BEFORE the clear;
 // a failed ghost must never block the clear itself.
-export const GHOST_MS = 1100;
+// 1.5x brisker than the 1100ms it started at: the picture is the thing you came to
+// work on, and it must not keep you waiting on its own dust.
+export const GHOST_MS = 730;
 // Dust motes are sized on SCREEN, not as a share of the image: a fixed grid over a
 // big canvas gives big rectangles, which is what stopped it reading as dust.
 export const DUST_CELL_PX = 6;
@@ -1725,7 +1716,11 @@ export const dustVisibleBox = (r, frame) => {
 
 // The canvas disintegrates as DUST, downward — a particle system on ONE canvas, not
 // the DOM tiles a row uses: thousands of elements would not survive a frame. Each mote
-// is a small source rect blitted at an offset, so it carries real pixels.
+// is a round grain in the colour of the pixels it came from (sampled once, dustParts);
+// while a cell is still at home it is the picture itself — the visible slice is blitted
+// whole each frame and only the departed cells are cleared out of it — so the front
+// reads as the image grinding into grains of its own colour, not a dot screen popping
+// over it. Landing is the same run backwards: a cell that has settled is the picture.
 // When a mote's clock starts, as a fraction of the flight: OUT runs TOP-DOWN; IN is
 // the same sweep REVERSED, so the mote that left first is the last one home. Pure.
 export const dustDelay = (cy, rows, n, reverse = false) => {
@@ -1828,6 +1823,139 @@ const makeDustStage = (canvas) => {
   };
 };
 
+// The colour of every cell, in ONE read: the visible slice is drawn down to a
+// cols×rows canvas (the engine's own box filter) and read back once. A cell that holds
+// no paint (alpha ~0 — the transparent margin of a page) flies nothing. Pure over its
+// inputs, apart from the canvas it needs to sample with.
+const sampleDustColours = (st) => {
+  const { snap, cols, rows, sw, sh, sox, soy } = st;
+  const probe = document.createElement('canvas');
+  probe.width = cols;
+  probe.height = rows;
+  const pc = probe.getContext('2d', { willReadFrequently: true });
+  pc.imageSmoothingEnabled = true;
+  pc.imageSmoothingQuality = 'high';
+  pc.drawImage(snap, sox, soy, sw * cols, sh * rows, 0, 0, cols, rows);
+  return pc.getImageData(0, 0, cols, rows).data;
+};
+
+// How many alpha steps a fading grain is drawn in. The stage batches every grain of one
+// colour AND one alpha step into a single fill — thousands of tiny fills a frame was the
+// cost, not the arcs — and eight steps on a 3px grain are below what the eye resolves.
+export const DUST_ALPHA_LEVELS = 8;
+// Colours are bucketed to 4 bits a channel for the same batching; a grain's own colour
+// is what it is drawn in, the bucket only decides which fill it rides.
+const dustBucket = (r, g, b) => ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
+
+// Every grain of a flight, sorted by colour bucket so drawDust can batch them. `gather`
+// picks the arrival's sweep and throw; the fall is shared, the sideways fan differs
+// (the arrival fans less, so the picture visibly closes rather than sweeps in). Grains
+// are small source cells turned into discs: home cell, rounded clear box, radius,
+// colour, throw, and the sideways swirl (tileWaypoint's recipe, as a continuous bulge).
+const dustParts = (st, gather) => {
+  const { cols, rows, dw, dh } = st;
+  const px = sampleDustColours(st);
+  const parts = [];
+  for (let cy = 0; cy < rows; cy++) {
+    for (let cx = 0; cx < cols; cx++) {
+      const n = tileNoise(cx, cy);
+      // Decorrelated from `n`: one hash driving fall AND drift slid the picture apart
+      // in diagonal sheets; a separate hash for the x-axis is what makes it scatter.
+      const m = tileNoise(cx + 41, cy + 17);
+      const q = tileNoise(cx + 97, cy + 53);
+      const i = (cy * cols + cx) * 4;
+      const a = px[i + 3] / 255;
+      const dx = gather ? (n - 0.5) * 26 : (m - 0.5) * 58;
+      const dy = 26 + n * 46;
+      const len = Math.hypot(dx, dy);
+      const amp = (q - 0.5) * 2 * Math.min(len * SWIRL_SHARE, SWIRL_MAX_PX);
+      // Cell bounds are rounded so neighbours share an edge — but the picture is blitted
+      // at its fractional size, so the OUTER edge rounds up: rounding it down left a
+      // sliver of picture along the right/bottom that no clear ever reached (a hairline).
+      parts.push({
+        x0: Math.round(cx * dw), y0: Math.round(cy * dh),
+        x1: cx === cols - 1 ? Math.ceil(cols * dw) : Math.round((cx + 1) * dw),
+        y1: cy === rows - 1 ? Math.ceil(rows * dh) : Math.round((cy + 1) * dh),
+        hx: (cx + 0.5) * dw, hy: (cy + 0.5) * dh,
+        r: (Math.min(dw, dh) / 2) * (0.62 + n * 0.5),
+        delay: dustDelay(cy, rows, n, gather),
+        dx, dy,
+        swx: -(dy / len) * amp, swy: (dx / len) * amp,
+        a,
+        empty: a < 0.04,
+        color: `rgb(${px[i]},${px[i + 1]},${px[i + 2]})`,
+        bucket: dustBucket(px[i], px[i + 1], px[i + 2]),
+      });
+    }
+  }
+  parts.sort((p, o) => p.bucket - o.bucket);
+  return parts;
+};
+
+// One frame: the picture, minus every cell that has left it, plus the grains in the
+// air. `k` is how far from home a grain is (0 whole, 1 gone); a cell at k=0 is simply
+// the picture, and at k=1 nothing. Two passes — every clear first, then every grain —
+// or a clear would punch holes in grains already drawn. Grains are batched per colour
+// bucket and alpha step into one path each.
+const TAU = Math.PI * 2;
+const drawDust = (st, parts, t, gather, ks, lvl, lvlN) => {
+  const { ctx, snap, cols, rows, sw, sh, sox, soy, dw, dh } = st;
+  ctx.globalAlpha = 1;
+  ctx.drawImage(snap, sox, soy, sw * cols, sh * rows, 0, 0, dw * cols, dh * rows);
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i];
+    const pt = (t - p.delay) / Math.max(0.05, 1 - p.delay);
+    let k;
+    if (gather) { if (pt >= 1) { ks[i] = 0; continue; } k = pt <= 0 ? 1 : 1 - dustEase(pt); }
+    else { if (pt <= 0) { ks[i] = 0; continue; } k = Math.min(1, pt); }
+    ks[i] = k;
+    ctx.clearRect(p.x0, p.y0, p.x1 - p.x0, p.y1 - p.y0);
+  }
+  let bucket = -1;
+  const flush = () => {
+    for (let l = 0; l < DUST_ALPHA_LEVELS; l++) {
+      const n = lvlN[l];
+      if (!n) continue;
+      const buf = lvl[l];
+      ctx.globalAlpha = (l + 1) / DUST_ALPHA_LEVELS;
+      ctx.beginPath();
+      for (let j = 0; j < n; j++) {
+        const x = buf[j * 3], y = buf[j * 3 + 1], r = buf[j * 3 + 2];
+        ctx.moveTo(x + r, y);
+        ctx.arc(x, y, r, 0, TAU);
+      }
+      ctx.fill();
+      lvlN[l] = 0;
+    }
+  };
+  for (let i = 0; i < parts.length; i++) {
+    const k = ks[i];
+    if (k <= 0 || k >= 1) continue;
+    const p = parts[i];
+    if (p.empty) continue;
+    const l = Math.round((1 - k) * p.a * DUST_ALPHA_LEVELS) - 1;
+    if (l < 0) continue;
+    if (p.bucket !== bucket) { flush(); bucket = p.bucket; ctx.fillStyle = p.color; }
+    // A falling grain accelerates (k²); a landing one is eased by dustEase already.
+    const s = Math.sin(Math.PI * k);
+    const buf = lvl[l];
+    const j = lvlN[l]++ * 3;
+    buf[j] = p.hx + k * p.dx + s * p.swx;
+    buf[j + 1] = p.hy + (gather ? k : k * k) * p.dy + s * p.swy;
+    buf[j + 2] = p.r * (1 - k * 0.35);
+  }
+  flush();
+};
+
+// Play a whole flight over the stage: build the grains once, then draw per frame.
+const runDust = (st, ms, gather) => {
+  const parts = dustParts(st, gather);
+  const ks = new Float32Array(parts.length);
+  const lvl = Array.from({ length: DUST_ALPHA_LEVELS }, () => new Float32Array(parts.length * 3));
+  const lvlN = new Int32Array(DUST_ALPHA_LEVELS);
+  st.run(ms, (t) => drawDust(st, parts, t, gather, ks, lvl, lvlN));
+};
+
 // Returns true when the dust is actually playing — the same contract as ghostIn, and
 // for the same reason: the caller hides the emptied editor only while there are motes
 // in front of it. Under reduced motion (or any other bail-out) it said nothing, and the
@@ -1839,39 +1967,7 @@ export function ghostOut(canvas, { ms = GHOST_MS } = {}) {
   try {
     const st = makeDustStage(canvas);
     if (!st) return false;
-    const { snap, ctx, cols, rows, sw, sh, sox, soy, dw, dh } = st;
-    const parts = [];
-    for (let cy = 0; cy < rows; cy++) {
-      for (let cx = 0; cx < cols; cx++) {
-        const n = tileNoise(cx, cy);
-        // Decorrelated from `n`: one hash driving fall AND drift slid the picture apart
-        // in diagonal sheets; a separate hash for the x-axis is what makes it scatter.
-        const m = tileNoise(cx + 41, cy + 17);
-        parts.push({
-          sx: sox + cx * sw, sy: soy + cy * sh,
-          x: cx * dw, y: cy * dh,
-          delay: dustDelay(cy, rows, n),
-          dx: (m - 0.5) * 58,          // fan sideways — signed, so both ways
-          dy: 26 + n * 46,             // …and fall
-          rot: (m - 0.5) * 1.4,
-        });
-      }
-    }
-    st.run(ms, (t) => {
-      for (const p of parts) {
-        const pt = (t - p.delay) / Math.max(0.05, 1 - p.delay);
-        if (pt >= 1) continue;                       // this mote is gone
-        const k = pt <= 0 ? 0 : pt;
-        ctx.save();
-        ctx.globalAlpha = 1 - k;
-        ctx.translate(p.x + dw / 2 + k * p.dx, p.y + dh / 2 + k * k * p.dy);
-        ctx.rotate(k * p.rot);
-        const s = 1 - k * 0.35;
-        ctx.drawImage(snap, p.sx, p.sy, sw, sh,
-                      (-dw / 2) * s, (-dh / 2) * s, dw * s + 0.6, dh * s + 0.6);
-        ctx.restore();
-      }
-    });
+    runDust(st, ms, false);
     return true;
   } catch {
     return false;   // decoration only — the clear still happens
@@ -1906,34 +2002,9 @@ export function ghostIn(canvas, { ms = GHOST_MS } = {}) {
     // is invisible motes in front of a canvas the caller is holding hidden. Saying no
     // makes the caller fall back to the plain flight instead of animating nothing.
     if (!hasPixels(st.snapCtx, st.snap.width, st.snap.height)) { st.finish(); return false; }
-    const { snap, ctx, cols, rows, sw, sh, sox, soy, dw, dh } = st;
-    const parts = [];
-    for (let cy = 0; cy < rows; cy++) {
-      for (let cx = 0; cx < cols; cx++) {
-        const n = tileNoise(cx, cy);
-        // The fall inverted: ghostOut carries a mote DOWN and away, so the arrival starts
-        // it down there and lifts it home. Same fan sideways, same magnitudes.
-        parts.push({ sx: sox + cx * sw, sy: soy + cy * sh, x: cx * dw, y: cy * dh,
-                     delay: dustDelay(cy, rows, n, true),
-                     dx: (n - 0.5) * 26, dy: 26 + n * 46, rot: (n - 0.5) * 0.9 });
-      }
-    }
-    st.run(ms, (t) => {
-      for (const p of parts) {
-        const pt = (t - p.delay) / Math.max(0.05, 1 - p.delay);
-        if (pt <= 0) continue;                        // this mote has not set off yet
-        const e = dustEase(Math.min(1, pt));
-        const away = 1 - e;                           // 1 = still out there, 0 = home
-        ctx.save();
-        ctx.globalAlpha = e;
-        ctx.translate(p.x + dw / 2 + away * p.dx, p.y + dh / 2 + away * p.dy);
-        ctx.rotate(away * p.rot);
-        const s = 1 - away * 0.35;
-        ctx.drawImage(snap, p.sx, p.sy, sw, sh,
-                      (-dw / 2) * s, (-dh / 2) * s, dw * s + 0.6, dh * s + 0.6);
-        ctx.restore();
-      }
-    });
+    // The fall inverted: ghostOut carries a grain DOWN and away, so the arrival starts
+    // it down there and lifts it home (dustParts, gather).
+    runDust(st, ms, true);
     return true;
   } catch {
     return false;   // decoration only — the image is already loaded either way

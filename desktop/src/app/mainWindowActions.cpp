@@ -10,6 +10,7 @@
 #include "exportPreview.hpp"
 #include "menuReveal.hpp"
 #include "menuRowPolish.hpp"
+#include "../support/modalChrome.hpp"   // confirmModal — the browser-styled question
 
 #include <QAbstractSpinBox>
 #include <QCheckBox>
@@ -402,7 +403,20 @@ namespace stencil::gui {
     });
     connect(actDeletePoint_, &QAction::triggered, this,
             [this] { canvas_->deletePoint(canvas_->selectedPoint()); });
-    connect(actClearAll_, &QAction::triggered, canvas_, &CanvasWidget::clearAll);
+    // Browser parity (drawingApp.js clearAllLines): a wipe of every line asks first, in
+    // the same styled confirm the Clear-project trash uses, and says so when declined.
+    connect(actClearAll_, &QAction::triggered, this, [this] {
+      ConfirmSpec spec;
+      spec.title = tr("Clear all lines");
+      spec.message = tr("Wipe ALL lines from the canvas? This cannot be undone except via Undo.");
+      spec.confirmIcon = QStringLiteral("trash");
+      spec.danger = true;
+      if (!confirmModal(this, spec)) {
+        if (notify_) notify_->error(tr("Clear canceled"));
+        return;
+      }
+      canvas_->clearAll();
+    });
     connect(actDeselect_, &QAction::triggered, canvas_, &CanvasWidget::deselect);
     connect(actZoomIn_, &QAction::triggered, this, &MainWindow::zoomIn);
     connect(actZoomOut_, &QAction::triggered, this, &MainWindow::zoomOut);

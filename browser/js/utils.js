@@ -124,8 +124,10 @@ export const wireNameEditor = (input, acceptBtn, cancelBtn, { current, validate,
 
 // ── Coordinates-panel drag resizer ──────────────────────────────
 // Resizes the coordinates panel by writing the shared `--coord-panel-width` CSS var
-// (clamped, persisted); used by both the normal and fullscreen panels. Dragging LEFT
-// widens. `onStart`/`onEnd` hook a drag (fullscreen pauses its auto-hide).
+// (clamped); used by both the normal and fullscreen panels. Dragging LEFT widens.
+// `onStart`/`onEnd` hook a drag (fullscreen pauses its auto-hide).
+// The width is kept for THIS tab only (sessionStorage): a reload keeps it, a reopened
+// app starts at the default again — the desktop relaunches at its default too.
 const COORD_PANEL_WIDTH_KEY = 'drawingApp_coordPanelWidth';
 // Never squeeze the canvas below this; under it the layout overflows rather than shrinks.
 export const MIN_CANVAS_WIDTH = 320;
@@ -138,12 +140,12 @@ export const clampPanelWidth = (w, winW, maxFactor = 0.7) =>
 export const wirePanelResizer = (resizer, panel, { maxFactor = 0.7, onStart, onEnd, restore = false } = {}) => {
   const clamp = (w) => clampPanelWidth(w, window.innerWidth, maxFactor);
   const setWidth = (w) => document.documentElement.style.setProperty('--coord-panel-width', clamp(w) + 'px');
-  // The width is PERSISTED, so a panel dragged wide in a big window comes back into a small
-  // one — and a window can be narrowed after the fact. Re-clamp on both, against the live
-  // window, keeping the user's stored preference for when there is room for it again.
+  // The width survives a reload, so a panel dragged wide in a big window can come back
+  // into a small one — and a window can be narrowed after the fact. Re-clamp on both,
+  // against the live window, keeping the preference for when there is room for it again.
   const applyStored = () => {
     let saved = NaN;
-    try { saved = parseInt(localStorage.getItem(COORD_PANEL_WIDTH_KEY), 10); } catch { /* storage blocked */ }
+    try { saved = parseInt(sessionStorage.getItem(COORD_PANEL_WIDTH_KEY), 10); } catch { /* storage blocked */ }
     setWidth(Number.isFinite(saved) ? saved : panel.getBoundingClientRect().width);
   };
   if (restore) {
@@ -159,7 +161,7 @@ export const wirePanelResizer = (resizer, panel, { maxFactor = 0.7, onStart, onE
     document.body.style.userSelect = '';
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
-    try { localStorage.setItem(COORD_PANEL_WIDTH_KEY, String(Math.round(panel.getBoundingClientRect().width))); } catch { /* storage blocked */ }
+    try { sessionStorage.setItem(COORD_PANEL_WIDTH_KEY, String(Math.round(panel.getBoundingClientRect().width))); } catch { /* storage blocked */ }
     onEnd?.();
   };
   resizer.addEventListener('mousedown', (e) => {

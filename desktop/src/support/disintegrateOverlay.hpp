@@ -2,15 +2,19 @@
 // Disintegration ("the snap") — the desktop port of disintegrate() in
 // browser/js/ui/motion.js.
 //
-// The browser clones the element once per grid cell and lets CSS scatter the clones.
-// Qt has no cloning to do: the widget is grabbed ONCE and the snapshot is redrawn
-// cell by cell, each cell offset/rotated/faded by its own progress. One animation
-// drives the lot, so it stays a single repaint per frame however many cells there are.
+// The browser paints one round mote per grid cell in the element's own colours and
+// lets CSS fly them. Qt does the same off a photograph: the widget is grabbed ONCE,
+// its colour is sampled per cell (sampleCells), and every frame draws the snapshot
+// whole, cuts out the cells that have left it, and flies those as round grains of
+// their own colour — offset, bent, shrunk and faded by their own progress. One
+// animation drives the lot, so it stays a single repaint per frame however many cells
+// there are.
 //
 // Header-only and Q_OBJECT-free (no signals/slots), so it needs no MOC.
 #include <QColor>
 #include <QEasingCurve>
 #include <QGuiApplication>
+#include <QImage>
 #include <QPainter>
 #include <QPalette>
 #include <QPointF>
@@ -19,6 +23,7 @@
 #include <QPixmap>
 #include <QPropertyAnimation>
 #include <QRectF>
+#include <QRegion>
 #include <QScreen>
 #include <QSize>
 #include <QTimer>
@@ -27,6 +32,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace stencil::gui {
 
@@ -111,6 +117,19 @@ namespace stencil::gui {
     // keeps every mote the window's own colour and gives it something to read against,
     // and it flips with the theme for free — ink always contrasts with its background.
     static constexpr double kSurfaceInkMix = 0.42;
+    // The grain a mote is drawn at: the smaller of its cell and this, times 0.62..1.12
+    // by its own hash (browser motion.js SURFACE_SPECK_PX / speckPainter).
+    static constexpr int kSpeckPx = 7;
+    // ── The bend (browser motion.js tileWaypoint) ──
+    // No mote flies a straight line: each is pushed off its throw's own line, peaking
+    // mid-flight, by a share of the throw (capped) to the side its third hash picks —
+    // so a cloud churns instead of radiating in spokes.
+    static constexpr double kSwirlShare = 0.32;
+    static constexpr double kSwirlMaxPx = 44;
+    // A cell's alpha is its coverage, lifted: the strokes of a word cover a third of
+    // their cells, and a grain a third as strong as its ink is a flight nobody can
+    // follow (browser speckPainter: "never faint"). A painted picture is unaffected.
+    static constexpr double kCoverageLift = 2.5;
 
     // Which way the sweep runs. A ROW erodes upward off a list (Rows = bottom→top);
     // an IMAGE falls apart from its top edge and the pieces drop (Fall = top→bottom);
@@ -124,6 +143,51 @@ namespace stencil::gui {
     static double cellNoise(int cx, int cy) {
       const double h = std::sin(cx * 127.1 + cy * 311.7) * 43758.5453;
       return h - std::floor(h);
+    }
+
+    // The bend at `away` (0 home … 1 at the far end of the throw `tx, ty`): a push off
+    // the throw's own line, by `q`'s side and amount. Shared with the combo's word
+    // exchange (controlSwap.hpp), so the app's sand all bends alike.
+    static QPointF swirlAt(double away, double tx, double ty, double q) {
+      constexpr double kPi = 3.14159265358979323846;   // M_PI is not portable (MSVC)
+      const double len = std::hypot(tx, ty);
+      if (len < 0.5) return {};
+      const double amp = (q - 0.5) * 2.0 * std::min(len * kSwirlShare, kSwirlMaxPx);
+      const double s = std::sin(kPi * away) * amp;
+      return QPointF(-ty / len * s, tx / len * s);
+    }
+
+    // A grain's radius at home, for a `cw` x `ch` cell and its hash `n`.
+    static double moteRadius(double cw, double ch, double n) {
+      return std::min({cw, ch, double(kSpeckPx)}) * (0.62 + n * 0.5) * 0.5;
+    }
+
+    // A grain's alpha over its flight's TIME `k` (0..1) — the browser's tileScatter /
+    // tileGather keyframes evaluated by hand. On the clock, not on the eased distance:
+    // an ease-out covers most of the trip early, and a fade riding it was over before
+    // the grain had visibly gone anywhere.
+    static double scatterAlpha(double k) {
+      return k < 0.38 ? 1.0 - k * (0.15 / 0.38) : 0.85 * (1.0 - (k - 0.38) / 0.62);
+    }
+    static double gatherAlpha(double k) {
+      if (k < 0.22) return 0.75 * (k / 0.22);
+      if (k < 0.58) return 0.75 + 0.15 * ((k - 0.22) / 0.36);
+      return 0.9 + 0.1 * ((k - 0.58) / 0.42);
+    }
+
+    // The colour of every cell of `snap`, in one pass: the picture scaled down to the
+    // grid — Qt's smooth scale is an area average — premultiplied so transparent pixels
+    // weigh nothing. Read back with cellColour(), which lifts the coverage.
+    static QImage sampleCells(const QPixmap& snap, int cols, int rows) {
+      return snap.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied)
+          .scaled(std::max(1, cols), std::max(1, rows), Qt::IgnoreAspectRatio,
+                  Qt::SmoothTransformation);
+    }
+    static QColor cellColour(const QImage& cells, int cx, int cy) {
+      if (cells.isNull() || cx < 0 || cy < 0 || cx >= cells.width() || cy >= cells.height()) return {};
+      QColor c = cells.pixelColor(cx, cy);
+      c.setAlphaF(std::min(1.0, c.alphaF() * kCoverageLift));
+      return c;
     }
 
     // Motes sized on SCREEN (`cellPx` each), thinned back if that would exceed the
@@ -144,8 +208,10 @@ namespace stencil::gui {
     // `cols`/`rows` override the grid for a denser scatter (the chat surfaces ask for
     // one — a deleted message is a deliberate act and deserves more than a list row's
     // dust; browser motion.js CHAT_DISINTEGRATE_*). 0 keeps the defaults.
+    // `ms` shortens the flight for a caller on its own clock (a chat card arriving —
+    // llm/chatWidgets.cpp kChatArriveMs); 0 keeps the row default.
     static DisintegrateOverlay* over(QWidget* victim, QWidget* host, Sweep sweep = Sweep::Rows,
-                                     int cols = 0, int rows = 0) {
+                                     int cols = 0, int rows = 0, int ms = 0) {
       if (!victim || !host || !victim->isVisible()) return nullptr;
       if (victim->width() < 8 || victim->height() < 8) return nullptr;
       const QPixmap snap = victim->grab();
@@ -164,7 +230,7 @@ namespace stencil::gui {
       // …and again once the pending layout has settled: removing the victim relayouts
       // its container, which restacks the host's children and would bury the particles.
       QTimer::singleShot(0, fx, [fx] { fx->raise(); });
-      fx->start();
+      fx->start(ms > 0 ? ms : kMs);
       return fx;
     }
 
@@ -285,6 +351,16 @@ namespace stencil::gui {
     // new slot). Both the picture and the target move together, so every mote's path
     // (an offset RELATIVE to its home cell) still lands where it always would have,
     // just re-based on the corrected position.
+    // Confine the painting to `hostRect` (HOST coordinates): a toast beside a docked chat
+    // flies to a point behind the panel, and without this its motes streamed across the
+    // composer. Clipped, they pour out from behind the panel's edge instead.
+    void setPaintClip(const QRect& hostRect) { paintClip_ = hostRect; update(); }
+
+    // The curve a SURFACE flight rides (OutQuint by default: break away at once, drift to
+    // a stop). A toast leaving off the window's edge asks for a gentler one — with the
+    // default, every grain was past the edge within 150ms and the exit read as a cut.
+    void setSurfaceEasing(QEasingCurve::Type type) { surfaceEase_ = QEasingCurve(type); }
+
     void retarget(const QPoint& delta) {
       if (delta.isNull()) return;
       picture_.translate(delta);
@@ -293,17 +369,18 @@ namespace stencil::gui {
     }
 
    protected:
+    // One grain in the air: where, how big, what colour (alpha baked in).
+    struct Mote {
+      QPointF at;
+      double radius = 0;
+      QColor color;
+    };
+
     void paintEvent(QPaintEvent*) override {
       if (snap_.isNull()) return;
+      if (cells_.width() != cols_ || cells_.height() != rows_) cells_ = sampleCells(snap_, cols_, rows_);
       QPainter p(this);
-      // A SURFACE's cells are motes a few px across. Antialiasing (vector/rotation edge
-      // smoothing) is skippable there for perf. SmoothPixmapTransform is not: without it
-      // adjacent tiles blit with nearest-neighbour sampling, and float-rounded cell rects
-      // that don't land on exact device pixels show as hairline black seams between
-      // them — the "cracked glass" look instead of dust. Keep the bilinear filter, drop
-      // only the edge AA.
-      const bool surfaceSweep = sweep_ == Sweep::SurfaceIn || sweep_ == Sweep::SurfaceOut;
-      p.setRenderHint(QPainter::Antialiasing, !surfaceSweep);
+      if (paintClip_.isValid()) p.setClipRect(paintClip_.translated(shift_));
       p.setRenderHint(QPainter::SmoothPixmapTransform, true);
       // Where the picture itself sits — the whole overlay unless `pad` widened it, or a
       // SURFACE placed it somewhere inside a host-sized layer.
@@ -311,78 +388,124 @@ namespace stencil::gui {
       const QRectF box = picture_.isValid() ? QRectF(picture_.translated(shift_))
                                             : QRectF(rect()).adjusted(pad_, pad_, -pad_, -pad_);
       if (box.width() <= 0 || box.height() <= 0) return;
-      // The state left behind, under the particles.
-      if (!base_.isNull()) p.drawPixmap(box, base_, QRectF(base_.rect()));
+      // Every cell still at home IS the picture: the snapshot is blitted through a clip
+      // that leaves out the cells that have left it, so the front reads as the thing
+      // grinding into grains of its own colour rather than a dot screen popping over it.
+      // A gathering picture closes the same way, cell by landed cell. A CLIP, never a
+      // clear: this is usually a child widget painting into the window's own backing
+      // store, and a Source-mode clear there punched a black hole through the window.
       const double cw = box.width() / cols_;
       const double ch = box.height() / rows_;
-      const double sx = double(snap_.width()) / box.width();   // snapshot is DPR-scaled
-      const double sy = double(snap_.height()) / box.height();
       const bool surface = sweep_ == Sweep::SurfaceIn || sweep_ == Sweep::SurfaceOut;
+      motes_.clear();
+      cut_.clear();
       for (int cy = 0; cy < rows_; ++cy) {
-        for (int cx = 0; cx < cols_; ++cx) {
-          if (surface) { paintSurfaceCell(p, box, cx, cy, cw, ch, sx, sy); continue; }
-          // The sweep runs BOTTOM→TOP: a cell's clock starts later the higher it sits,
-          // so the silhouette erodes upward and the top is the last thing standing.
-          const double n = cellNoise(cx, cy);
-          // A second, decorrelated hash for the SIDEWAYS drift and the spin. With one
-          // hash driving all three, whole diagonals moved together and the thing tore
-          // like a sheet instead of coming apart (browser motion.js tileMotion twin).
-          const double m = cellNoise(cx + 41, cy + 17);
-          // Fall starts at the top; Rows and Gather start at the bottom — Gather because
-          // it is Fall rewound, so the cell that leaves first is the last one home.
-          const double progress = rows_ > 1
-              ? (sweep_ == Sweep::Fall ? double(cy) / (rows_ - 1)
-                                       : double(rows_ - 1 - cy) / (rows_ - 1))
-              : 0.0;
-          const double delay = progress * 0.45 + n * 0.08;
-          double t = (t_ - delay) / std::max(0.05, 1.0 - delay);
-          if (t <= 0.0) t = 0.0;
-          const bool gather = sweep_ == Sweep::Gather;
-          if (!gather && t >= 1.0) continue;         // this cell is already gone
-          if (gather && t <= 0.0) continue;          // …this one has not set off yet
-          if (t > 1.0) t = 1.0;
-          // How far from home the cell is: 1 = out there, 0 = in place. Scattering runs
-          // 0→1; gathering is the same journey read backwards, eased so a mote covers
-          // most of the distance early and settles (browser dustEase).
-          const double away = gather ? std::pow(1.0 - t, 3.0) : t;
-          const QRectF dst(box.x() + cx * cw, box.y() + cy * ch, cw, ch);
-          const QRectF src(cx * cw * sx, cy * ch * sy, cw * sx, ch * sy);
-          p.save();
-          p.setOpacity(1.0 - away);
-          // Fan out sideways rather than all sliding one way.
-          p.translate(dst.center());
-          // Rows rise off a list; a falling image drops (and accelerates, hence away²);
-          // a gathering one comes FROM below and rises home — the fall inverted.
-          const double drift = (22 + progress * 34 + n * 30) * spread_;
-          const double dy = sweep_ == Sweep::Fall ? away * away * drift * 1.6
-                          : gather               ? away * drift * 1.6
-                                                 : -away * drift;
-          p.translate(away * ((m - 0.5) * 66 * spread_), dy);
-          p.rotate(away * (m - 0.5) * 70);
-          const double scale = 1.0 - away * (0.65 - n * 0.3);
-          p.scale(scale, scale);
-          p.translate(-dst.center());
-          p.drawPixmap(dst, snap_, src);
-          p.restore();
+        // Cell edges are rounded so neighbours share one; the picture's OUTER edge
+        // rounds up, or a fractional box left an uncleared hairline of it down the side.
+        const int y0 = qRound(box.y() + cy * ch);
+        const int y1 = cy == rows_ - 1 ? int(std::ceil(box.bottom())) : qRound(box.y() + (cy + 1) * ch);
+        int runStart = -1;   // the run of departed cells being merged into one rect
+        for (int cx = 0; cx <= cols_; ++cx) {
+          Mote m;
+          const bool away = cx < cols_
+              && (surface ? surfaceMote(box, cx, cy, cw, ch, &m) : fallingMote(box, cx, cy, cw, ch, &m));
+          if (away) {
+            if (runStart < 0) runStart = cx;
+            if (m.radius > 0.25 && m.color.alphaF() > 0.01) motes_.push_back(m);
+          } else if (runStart >= 0) {
+            // QRegion::setRects wants Y-X sorted, non-abutting rects: one per run.
+            const int x1 = cx == cols_ ? int(std::ceil(box.right())) : qRound(box.x() + cx * cw);
+            cut_.push_back(QRect(QPoint(qRound(box.x() + runStart * cw), y0), QPoint(x1 - 1, y1 - 1)));
+            runStart = -1;
+          }
         }
+      }
+      // The state left behind, under the particles — it shows wherever a cell has gone.
+      if (!base_.isNull()) p.drawPixmap(box, base_, QRectF(base_.rect()));
+      QRegion keep(box.toAlignedRect());
+      if (!cut_.empty()) {
+        QRegion gone;
+        gone.setRects(cut_.data(), int(cut_.size()));
+        keep -= gone;
+      }
+      if (!keep.isEmpty()) {
+        p.save();
+        p.setClipRegion(keep, Qt::IntersectClip);
+        p.drawPixmap(box, snap_, QRectF(snap_.rect()));
+        p.restore();
+      }
+      p.setRenderHint(QPainter::Antialiasing, true);
+      p.setPen(Qt::NoPen);
+      for (const Mote& m : motes_) {
+        p.setBrush(m.color);
+        p.drawEllipse(m.at, m.radius, m.radius);
       }
     }
 
-    // One mote of a SURFACE flight — the Qt twin of browser motion.js surfaceMotion plus
+    // One grain of a ROW / FALL / GATHER flight (browser motion.js tileMotion + the
+    // tileScatter / tileGather keyframes). Returns false while the cell is at home —
+    // not yet left, or already landed — and is then simply the picture. True means the
+    // cell is cut out of it, with `out` the grain to draw (a radius of 0 once it is gone).
+    bool fallingMote(const QRectF& box, int cx, int cy, double cw, double ch, Mote* out) const {
+      // The sweep runs BOTTOM→TOP for a row: a cell's clock starts later the higher it
+      // sits, so the silhouette erodes upward and the top is the last thing standing.
+      const double n = cellNoise(cx, cy);
+      // A second, decorrelated hash for the SIDEWAYS drift, a third for the bend. With
+      // one hash driving everything, whole diagonals moved together and the thing tore
+      // like a sheet instead of coming apart (browser motion.js tileMotion twin).
+      const double m = cellNoise(cx + 41, cy + 17);
+      const double q = cellNoise(cx + 97, cy + 53);
+      // Fall starts at the top; Rows and Gather start at the bottom — Gather because
+      // it is Fall rewound, so the cell that leaves first is the last one home.
+      const double progress = rows_ > 1
+          ? (sweep_ == Sweep::Fall ? double(cy) / (rows_ - 1)
+                                   : double(rows_ - 1 - cy) / (rows_ - 1))
+          : 0.0;
+      const double delay = progress * 0.45 + n * 0.08;
+      const bool gather = sweep_ == Sweep::Gather;
+      double t = (t_ - delay) / std::max(0.05, 1.0 - delay);
+      if (!gather && t <= 0.0) return false;   // not yet left: the picture
+      if (gather && t >= 1.0) return false;    // landed: the picture
+      t = std::clamp(t, 0.0, 1.0);
+      // How far from home the cell is: 1 = out there, 0 = in place. Scattering runs
+      // 0→1; gathering is the same journey read backwards, eased so a mote covers most
+      // of the distance early and settles (browser dustEase).
+      const double away = gather ? std::pow(1.0 - t, 3.0) : t;
+      *out = Mote{};
+      if (away >= 1.0) return true;   // gone, or not yet set off: cut, nothing to draw
+      const QColor cell = cellColour(cells_, cx, cy);
+      if (cell.alphaF() <= 0.02) return true;   // nothing was painted here
+      // Rows rise off a list; a falling image drops (and accelerates, hence away²);
+      // a gathering one comes FROM below and rises home — the fall inverted. The
+      // sideways fan is signed, so the cloud spreads both ways.
+      const double drift = (22 + progress * 34 + n * 30) * spread_;
+      const double tx = (m - 0.5) * 66 * spread_;
+      const double ty = sweep_ == Sweep::Rows ? -drift : drift * 1.6;
+      const double fall = sweep_ == Sweep::Fall ? away * away : away;
+      const QPointF home(box.x() + (cx + 0.5) * cw, box.y() + (cy + 0.5) * ch);
+      out->at = home + QPointF(away * tx, fall * ty) + swirlAt(away, tx, ty, q);
+      out->radius = moteRadius(cw, ch, n) * (1.0 - away * (0.65 - n * 0.3));
+      out->color = cell;
+      out->color.setAlphaF(std::clamp(cell.alphaF() * (0.78 + n * 0.22)
+                                          * (gather ? gatherAlpha(t) : scatterAlpha(t)), 0.0, 1.0));
+      return true;
+    }
+
+    // One grain of a SURFACE flight — the Qt twin of browser motion.js surfaceMotion plus
     // the tileGatherSurface / tileScatterSurface keyframes. The path is the cell's own
     // offset to the target, so every mote converges there instead of falling; the two
-    // decorrelated hashes only fan the arrival. The delay rides the DISTANCE, so the edge
-    // nearest the point goes first and the far one last. Halved for a SCATTER (browser
-    // motion.js surfaceMotion delayScale): held at its 0% pose for up to 45% of the
-    // flight, a mote is indistinguishable from the surface not having reacted yet — on a
-    // big surface (a full-height docked chat panel) that read as nothing moving at all
-    // until a sudden, late flick, not sand leaving.
-    void paintSurfaceCell(QPainter& p, const QRectF& box, int cx, int cy,
-                          double cw, double ch, double sx, double sy) {
+    // decorrelated hashes only fan the arrival, the third bends it. The delay rides the
+    // DISTANCE, so the edge nearest the point goes first and the far one last. Halved
+    // for a SCATTER (browser motion.js surfaceMotion delayScale): held at its 0% pose
+    // for up to 45% of the flight, a mote is indistinguishable from the surface not
+    // having reacted yet — on a big surface (a full-height docked chat panel) that read
+    // as nothing moving at all until a sudden, late flick, not sand leaving.
+    // Same contract as fallingMote: false = the cell is the picture right now.
+    bool surfaceMote(const QRectF& box, int cx, int cy, double cw, double ch, Mote* out) const {
       const double n = cellNoise(cx, cy);
       const double m = cellNoise(cx + 41, cy + 17);
-      const QRectF dst(box.x() + cx * cw, box.y() + cy * ch, cw, ch);
-      const QPointF home = dst.center();
+      const double q = cellNoise(cx + 97, cy + 53);
+      const QPointF home(box.x() + (cx + 0.5) * cw, box.y() + (cy + 0.5) * ch);
       const QPointF tgt = target_ + QPointF(shift_);
       const double toX = tgt.x() - home.x();
       const double toY = tgt.y() - home.y();
@@ -394,31 +517,32 @@ namespace stencil::gui {
       const bool gather = sweep_ == Sweep::SurfaceIn;
       const double delay = (progress * 0.45 + n * 0.12) * (gather ? 1.0 : 0.5);
       double t = (t_ - delay) / std::max(0.05, 1.0 - delay);
+      if (!gather && t <= 0.0) return false;   // still the surface
       t = std::clamp(t, 0.0, 1.0);
       // Ease-out both ways: the motes break away (or arrive) at once and drift to a stop,
       // which is what sand does. `away` is 1 out at the point, 0 home. The curve is a
-      // file-static: building one per cell per frame is thousands of allocations a frame.
-      static const QEasingCurve kOut(QEasingCurve::OutQuint);
-      const double e = kOut.valueForProgress(t);
+      // member: building one per cell per frame is thousands of allocations a frame.
+      const double e = surfaceEase_.valueForProgress(t);
+      if (gather && e >= 1.0) return false;    // landed: the surface
       const double away = gather ? 1.0 - e : e;
+      *out = Mote{};
       // A scattered mote that has finished is simply gone; a gathering one waits at the
       // point until its delay is up, which is what makes the stream read as pouring out.
+      // The ramps ride the clock (browser tileGatherSurface / tileScatterSurface), not
+      // the eased distance — see scatterAlpha.
       double alpha;
-      if (gather) alpha = e < 0.45 ? 0.55 + 0.45 * (e / 0.45) : 1.0;
-      else if (e >= 1.0) return;
-      else alpha = e < 0.55 ? 1.0 - e * 0.18 : 0.9 * (1.0 - (e - 0.55) / 0.45);
-      const QRectF src(cx * cw * sx, cy * ch * sy, cw * sx, ch * sy);
-      p.save();
-      p.setOpacity(std::clamp(alpha, 0.0, 1.0));
-      p.translate(home);
-      p.translate(away * (toX + (m - 0.5) * kSurfaceSpreadPx),
-                  away * (toY + (n - 0.5) * kSurfaceSpreadPx));
-      p.rotate(away * (m - 0.5) * 60);
-      const double scale = 1.0 - away * (1.0 - (0.12 + n * 0.25));
-      p.scale(scale, scale);
-      p.translate(-home);
-      p.drawPixmap(dst, snap_, src);
-      p.restore();
+      if (gather) alpha = t < 0.45 ? 0.55 + 0.45 * (t / 0.45) : 1.0;
+      else if (e >= 1.0) return true;
+      else alpha = t < 0.55 ? 1.0 - t * 0.18 : 0.9 * (1.0 - (t - 0.55) / 0.45);
+      const QColor cell = cellColour(cells_, cx, cy);
+      if (cell.alphaF() <= 0.02) return true;
+      const double tx = toX + (m - 0.5) * kSurfaceSpreadPx;
+      const double ty = toY + (n - 0.5) * kSurfaceSpreadPx;
+      out->at = home + QPointF(away * tx, away * ty) + swirlAt(away, tx, ty, q);
+      out->radius = moteRadius(cw, ch, n) * (1.0 - away * (1.0 - (0.12 + n * 0.25)));
+      out->color = cell;
+      out->color.setAlphaF(std::clamp(cell.alphaF() * alpha * (0.78 + n * 0.22), 0.0, 1.0));
+      return true;
     }
 
    private:
@@ -501,6 +625,9 @@ namespace stencil::gui {
 
     QPixmap snap_;
     QPixmap base_;          // the state left behind (overPixmaps only); null = nothing
+    QImage cells_;          // snap_'s colour per grid cell (sampleCells); rebuilt when the grid changes
+    std::vector<Mote> motes_;   // per-frame scratch: the grains in the air…
+    std::vector<QRect> cut_;    // …and the cells cut out of the picture (runs, Y-X sorted)
     Sweep sweep_ = Sweep::Rows;
     int cols_ = kCols;
     int rows_ = kRows;
@@ -508,6 +635,8 @@ namespace stencil::gui {
     QRect picture_;         // where the snapshot sits (surfaces only); invalid = the whole box
     QPointF target_;        // the point a surface's motes stream out of / pour into
     QPoint shift_;          // host coords → this layer's, non-zero only when it escaped the host
+    QRect paintClip_;       // setPaintClip: the host area the cloud may paint in; invalid = all
+    QEasingCurve surfaceEase_{QEasingCurve::OutQuint};   // setSurfaceEasing
     double spread_ = 1.0;   // throw distance, as a share of a list row's
     double t_ = 0.0;
   };

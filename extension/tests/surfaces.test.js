@@ -239,13 +239,18 @@ test('with no element at all, nothing throws and nothing is claimed', () => {
   assert.doesNotThrow(() => { settleSurface(null); cancelDust(null); });
 });
 
-test('a clone is frozen and un-positioned — a mote is a STILL of the surface', () => {
+test('a mote is a painted speck, never a copy — one node per grain, styled in one write', () => {
   withDom((body) => {
     disintegrate(makeEl(), { cols: 4, rows: 4, toward: { x: 0, y: 0 }, ms: 200, toBody: true });
     const [host] = hosts(body);
-    const copy = host.children[0].children[0];
-    assert.equal(copy.props === undefined ? copy.style.animation : copy.style.animation, 'none',
-      'the tile owns all motion; the copy holds still');
+    const tile = host.children[0];
+    assert.equal(tile.children.length, 0, 'nothing is ever put inside a mote');
+    assert.ok(tile.classes.has('dust-mote'), 'the painter marked it');
+    // Everything a mote needs rides its one cssText: throw, waypoint, spin, size, delay
+    // and its speck's own box and colour.
+    for (const v of ['--dx:', '--dy:', '--mx:', '--my:', '--rot:', '--tile-scale:', 'animation-delay:',
+                     'background:', 'left:', 'top:', 'width:', 'height:'])
+      assert.ok(tile.style.cssText.includes(v), `${v} in the tile’s style`);
   });
 });
 
@@ -264,7 +269,7 @@ test("a surface's motes are visible from the FIRST frame, unlike a row's", () =>
   assert.match(ANIMS, /\.dust-forming \.disintegrate-tile \{\s*animation-name: stTileGatherSurface;/);
   assert.match(ANIMS, /\.dust-leaving \.disintegrate-tile \{\s*animation-name: stTileScatterSurface;/);
   assert.match(ANIMS, /@keyframes stTileGatherSurface \{\s*0%\s+\{ opacity: 0\.55;/);
-  assert.match(ANIMS, /@keyframes stTileScatterSurface \{\s*0%\s+\{ opacity: 1; transform: none; \}/);
+  assert.match(ANIMS, /@keyframes stTileScatterSurface \{\s*0%\s+\{ opacity: 1; transform: none;/);
   // Both flights ride the SAME per-mote variables the row snap sets — one particle system.
   for (const v of ['--dx', '--dy', '--rot', '--tile-scale'])
     assert.ok(ANIMS.includes(`var(${v}`), `${v} drives the surface tiles too`);

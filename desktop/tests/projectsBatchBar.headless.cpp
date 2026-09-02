@@ -291,7 +291,7 @@ int main(int argc, char** argv) {
         QWidget* m = QApplication::activeModalWidget();
         if (m && m->objectName() == QLatin1String("stencilConfirmModal")) {
           for (QPushButton* b : m->findChildren<QPushButton*>())
-            if (b->text() == QLatin1String("Confirm")) { b->click(); return; }
+            if (b->text() == QLatin1String("OK")) { b->click(); return; }
         }
         pumpFor(5);
       }

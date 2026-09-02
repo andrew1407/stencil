@@ -352,6 +352,7 @@ namespace stencil::gui {
     support::installDialogReveal();
 
     selPanel_ = new SelectionPanel(this);
+    selPanel_->setMinimumWidth(kPanelMinWidth);   // the dock's drag handle stops here
     // Named so QMainWindow::saveState() can persist/restore the dock layout
     // (unnamed docks are skipped with a warning).
     selPanel_->setObjectName("selectionPanelDock");
@@ -718,11 +719,13 @@ namespace stencil::gui {
     // NOTE: isHidden(), not isVisible() — the window isn't shown yet, so
     // isVisible() is false for every child and would desync the toggle (the
     // "Hide panel" chevron then no-ops because the action is already unchecked).
-    // No saved layout → the panel takes the browser's own default width rather than
-    // whatever Qt derives from its size hints, which left the six coordinate columns
+    // The panel ALWAYS reopens at the browser's own default width: a width dragged in
+    // one session is not carried into the next (user report) — the saved layout still
+    // brings back which docks are where — and with no saved layout at all it also beats
+    // whatever Qt derives from the size hints, which left the six coordinate columns
     // narrow enough to elide their digits. Deferred, because QMainWindow only honours
     // resizeDocks once its layout has run.
-    if (settings_.windowState.isEmpty()) {
+    {
       const QPointer<QDockWidget> panel(selPanel_);
       QTimer::singleShot(0, this, [this, panel] {
         if (panel && !panel->isHidden())
@@ -2706,7 +2709,7 @@ namespace stencil::gui {
     // above (bottom dock) it instead of overlapping the composer.
     if (chatDock_ && chatDock_->isVisible() && !chatDock_->isFloating()) {
       const Qt::DockWidgetArea area = dockWidgetArea(chatDock_);
-      if (area == Qt::LeftDockWidgetArea) left = chatDock_->width() + 8;
+      if (area == Qt::LeftDockWidgetArea) left = chatDock_->width();   // the gap is the stack's own
       else if (area == Qt::BottomDockWidgetArea) bottom += chatDock_->height() + 8;
     }
     notify_->setLeftInset(left);
@@ -3092,7 +3095,7 @@ namespace stencil::gui {
     else selPanel_->spinCollapseChevron(0, 180, spinMs);
     auto finish = [this, show] {
       releasePanelVeil();
-      selPanel_->setMinimumWidth(0);
+      selPanel_->setMinimumWidth(kPanelMinWidth);
       selPanel_->setMaximumWidth(QWIDGETSIZE_MAX);
       if (!show) selPanel_->hide();
       panelAnim_ = nullptr;
@@ -3171,7 +3174,7 @@ namespace stencil::gui {
     if (chatDock_) chatDock_->setClosing(false);
     // Always released, whether or not pinPanelWhileSharing actually pinned it —
     // harmless when it didn't, and it must never outlive an interrupted flight.
-    if (selPanel_) { selPanel_->setMinimumWidth(0); selPanel_->setMaximumWidth(QWIDGETSIZE_MAX); }
+    if (selPanel_) { selPanel_->setMinimumWidth(kPanelMinWidth); selPanel_->setMaximumWidth(QWIDGETSIZE_MAX); }
     // The dust veil (setChatShown) must never outlive its own flight — an interrupted
     // one (a second toggle mid-slide) hands the dock straight back instead of leaving
     // it invisible behind a cloud that has already stopped moving.
@@ -3776,7 +3779,6 @@ namespace stencil::gui {
     if (themeSwapping()) return;
     settings_.themeMode = resolveDark(settings_.themeMode) ? "light" : "dark";
     applySettings(settings_, true);
-    notify_->info(settings_.themeMode == "dark" ? "Dark theme" : "Light theme");
   }
 
   void MainWindow::applySettings(const Settings& s, bool persist) {

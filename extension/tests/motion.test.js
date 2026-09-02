@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import {
   observeReveal, flashLanding, revealDissolve, revealGrain,
   createListHold, emptyStateVisible, tileMotion, materialize,
+  tileWaypoint, WAYPOINT_ALONG, SWIRL_SHARE, SWIRL_MAX_PX,
   MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, LEAVE_MS, DISINTEGRATE_MS,
   chatIn, CHAT_ENTER_MS, CHAT_ENTERING_CLASS, dustFitsScroller,
   diffListKeys, createFilterTransition, filterLeave,
@@ -440,7 +441,9 @@ test('animations.css: a filter drop is lighter and quicker than a delete', () =>
 // made the two directions read as different surfaces.
 test('chatIn: veils at once, lifts only when the motes have landed', async () => {
   // One number owns both directions — the gather rides the clock the scatter falls on.
-  assert.equal(CHAT_ENTER_MS, DISINTEGRATE_MS);
+  // Shorter than a row's flight on purpose (browser twin): the motes carry no text, so a
+  // long answer is unreadable until the veil lifts. The gather scales with it.
+  assert.ok(CHAT_ENTER_MS < DISINTEGRATE_MS && CHAT_ENTER_MS >= 400, `chat arrival ${CHAT_ENTER_MS}ms`);
   const row = el();
   const p = chatIn(row);
   // SYNCHRONOUSLY veiled — before the caller returns, so no frame ever paints the entry
@@ -460,7 +463,7 @@ test('chatIn: veils at once, lifts only when the motes have landed', async () =>
   // everything that walks it) and not on <body> (every bubble rule here is scoped
   // `#sec-assistant .msg …`, so a body-level clone matched none of them and the motes
   // arrived as bare text with no fill or border).
-  assert.match(src, /reintegrate\(el, \{ cols, rows, hostEl: host \|\| el\.parentElement \|\| null \}\)/);
+  assert.match(src, /reintegrate\(el, \{ cols, rows, hostEl: host \|\| el\.parentElement \|\| null, ms: CHAT_ENTER_MS \}\)/);
   // Two frames before the measure: frame one is the entry's layout, frame two the scroll
   // that follows it (assistant.js scrollDown pins on a rAF of its own).
   assert.match(src, /requestAnimationFrame\(\(\) => requestAnimationFrame\(fn\)\)/);
@@ -551,4 +554,37 @@ test('dropping the cloud hands the entry over in the SAME frame', () => {
   assert.match(src, /const stop = trackDust\(el, CHAT_ENTER_MS, handOver\);/);
   // …and exactly once, whichever path gets there first (a drop, or the flight ending).
   assert.match(src, /if \(handedOver\) return;/);
+});
+
+// ── No mote flies a straight line (browser motion.test.js twin) ─────────────
+test('tileWaypoint sits part-way along the throw, pushed sideways by its own noise', () => {
+  const { mx, my } = tileWaypoint(100, 0, 0.9);
+  assert.equal(mx, Math.round(100 * WAYPOINT_ALONG), 'along the throw');
+  assert.ok(my > 0 && my <= SWIRL_MAX_PX, 'off the line, on the noise’s side');
+  const other = tileWaypoint(100, 0, 0.1);
+  assert.ok(other.my < 0, 'the other half of the noise bends the other way');
+  assert.equal(Math.abs(tileWaypoint(0, 40, 1).mx), Math.round(40 * SWIRL_SHARE), 'a share of a short throw');
+  assert.equal(Math.abs(tileWaypoint(0, 400, 1).mx), SWIRL_MAX_PX, 'capped on a long one');
+  assert.deepEqual(tileWaypoint(0, 0, 0.9), { mx: 0, my: 0 });
+});
+
+test('a row’s fall carries the waypoint, and the gather shares it', () => {
+  const out = tileMotion(5, 3, 22, 11);
+  const back = tileMotion(5, 3, 22, 11, true);
+  assert.ok(Number.isInteger(out.mx) && Number.isInteger(out.my));
+  assert.deepEqual([back.mx, back.my], [out.mx, out.my], 'the same bend, flown home');
+});
+
+test('animations.css: every flight bends through --mx/--my, and every tile is round', () => {
+  const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
+  for (const name of ['stTileScatter', 'stTileGather', 'stTileGatherSurface', 'stTileScatterSurface']) {
+    const frames = css.match(new RegExp(`@keyframes ${name} \\{([\\s\\S]*?)\\n\\}`))[1];
+    assert.match(frames, /translate\(var\(--mx, [^)]*\), var\(--my, [^)]*\)\)/, `${name} has a waypoint`);
+    assert.match(frames, /0%\s+\{[^}]*animation-timing-function: cubic-bezier/, `${name}: leg one eases on its own`);
+  }
+  const tile = css.match(/\.disintegrate-tile \{([\s\S]*?)\n\}/)[1];
+  assert.match(tile, /border-radius: 50%;/, 'a tile IS a round mote');
+  assert.ok(!/inset: 0/.test(tile) && !/filter/.test(tile.replace(/\/\*[\s\S]*?\*\//g, '')),
+    'no host-filling box, no per-tile blur');
+  assert.match(css.match(/\.swap-dust-mote \{([\s\S]*?)\n\}/)[1], /border-radius: 50%;/);
 });

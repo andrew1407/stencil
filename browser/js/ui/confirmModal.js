@@ -4,7 +4,7 @@ import { gestureAnchorRect } from './gesturePoint.js';
 
 // ── Component: generic confirm dialog ───────────────────────────
 // A single reusable yes/no modal replacing native confirm(). Call via the
-// instance method ask(message, opts) → Promise<boolean>; resolves true on Confirm,
+// instance method ask(message, opts) → Promise<boolean>; resolves true on OK,
 // false on Cancel / Close / overlay-click / Escape. opts: { title, confirmLabel,
 // cancelLabel, confirmIcon, danger }. app.confirm() (drawingApp) delegates here.
 // `confirmIcon` (and askAlt's `altIcon`) name a glyph from ui/icons.js — pass one
@@ -23,7 +23,7 @@ export class StencilConfirmModal extends StencilElement {
             <div class="settings-footer">
                 <span class="footer-hint"></span>
                 <button id="confirm-modal-cancel" class="btn-icon-text">${icon('x', { size: 14 })}<span id="confirm-modal-cancel-text">Cancel</span></button>
-                <button id="confirm-modal-confirm" class="btn-icon-text">${icon('check', { size: 14 })}<span id="confirm-modal-confirm-text">Confirm</span></button>
+                <button id="confirm-modal-confirm" class="btn-icon-text">${icon('check', { size: 14 })}<span id="confirm-modal-confirm-text">OK</span></button>
             </div>
         </div>
     `;
@@ -89,7 +89,7 @@ export class StencilConfirmModal extends StencilElement {
       // but a named action ("Replace") shows what it does instead of a generic tick.
       confirmBtn.innerHTML =
         icon(opts.confirmIcon || 'check', { size: 14 }) + '<span id="confirm-modal-confirm-text"></span>';
-      document.getElementById('confirm-modal-confirm-text').textContent = opts.confirmLabel || 'Confirm';
+      document.getElementById('confirm-modal-confirm-text').textContent = opts.confirmLabel || 'OK';
       document.getElementById('confirm-modal-cancel-text').textContent = opts.cancelLabel || 'Cancel';
       confirmBtn.classList.toggle('danger', !!opts.danger);
       flight.finishClose();   // a question asked while the last one is still leaving

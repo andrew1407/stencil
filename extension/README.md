@@ -221,7 +221,8 @@ the mirror of `browser/js/ui/motion.js`): rows fade and lift in as they scroll i
 and dissolve again at the top edge. Both collapse under `prefers-reduced-motion: reduce`,
 and neither runs at all without an `IntersectionObserver` — a row is never left dimmed. A row
 being **removed** comes apart instead of fading: `disintegrate()` (`src/lib/motion.js`, the
-mirror of the browser's) clones it per grid cell and scatters the cells. Changing the accent
+mirror of the browser's) paints one round mote per grid cell in the row's own colours and
+scatters them on bent paths. Changing the accent
 or the light/dark mode floods the new palette out of the CONTROL that changed it — the
 popup's moon button, the options page's Appearance / Main theme pickers — as a growing
 circle (`src/lib/accent.js`, native View Transitions with a colour cross-fade fallback).
