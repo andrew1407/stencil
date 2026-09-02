@@ -289,6 +289,165 @@ export function swapPercent(x, y, w, h) {
            r: pc((100 * Math.SQRT2 * swapRadius(x, y, w, h)) / Math.hypot(w, h)) };
 }
 
+// Where the ring IS at time-fraction t: the Y of the wipe's own cubic-bezier, solved the
+// same way the desktop evaluates these control points (themeSwapOverlay.hpp swapEase) —
+// bisection on the monotonic X, then read Y. The dust below is seeded off this curve, so
+// the motes ride the very ring the clip-path draws. Pure — unit-tested.
+export function swapEase(t) {
+  const x1 = 0.4, y1 = 0.25, x2 = 0.95, y2 = 1;
+  let lo = 0, hi = 1, u = t;
+  for (let i = 0; i < 24; i++) {
+    u = 0.5 * (lo + hi);
+    const x = 3 * (1 - u) * (1 - u) * u * x1 + 3 * (1 - u) * u * u * x2 + u * u * u;
+    if (x < t) lo = u; else hi = u;
+  }
+  return 3 * (1 - u) * (1 - u) * u * y1 + 3 * (1 - u) * u * u * y2 + u * u * u;
+}
+
+// ── The ragged front ────────────────────────────────────────────────────────
+// The wipe's edge is not a clean circle: it is a torn, dusty front. The clip is a
+// polygon ring whose vertices ride the same easing as the old circle did, each pushed
+// off the nominal radius by its own noise — low-frequency lobes plus per-vertex jag —
+// so the boundary reads as the theme crumbling forward, not a line sweeping. The dust
+// below then hugs this edge, which is what finishes the "dissolving" read.
+// (Desktop twin: themeSwapOverlay.hpp edgeRadiusAt.)
+export const SWAP_EDGE_POINTS = 240;
+// How far a tooth may reach off the nominal radius, as a share of it. Kept SMALL: big
+// teeth read as waves rolling, not dust — the raggedness is grain-scale, and the mote
+// field below carries the rest of the dissolving read.
+export const SWAP_EDGE_AMP = 0.022;
+// The base radius overshoots by the amp (plus slack) so even the deepest dip still
+// clears the furthest corner when the wipe ends — coverage is non-negotiable.
+export const SWAP_EDGE_BASE = 1 + SWAP_EDGE_AMP + 0.012;
+
+// The per-vertex reach multiplier: 1 ± amp. Mostly per-vertex jag (the hash), with a
+// faint fast ripple (the sin) so the tear stays organic — the same recipe at every k
+// on every surface. Pure.
+export const swapEdgeJitter = (k) =>
+  SWAP_EDGE_AMP * (0.35 * Math.sin(k * 0.73) + 0.65 * (tileNoise(k, 7) * 2 - 1));
+
+// One end state of the clip, as a polygon() string in viewport percentages (the same
+// device-pixel-engine trap swapPercent dodges). `grow` 0 is the collapsed start —
+// every vertex AT the origin — and 1 the full ragged ring; CSS interpolates the
+// vertices between the two on the wipe's own curve. Pure — unit-tested.
+export function swapEdgePolygon(x, y, w, h, grow) {
+  if (!(w > 0 && h > 0)) return '';   // no viewport to measure (a stub)
+  const pc = (v) => Math.round(v * 1000) / 1000;
+  const base = swapRadius(x, y, w, h) * SWAP_EDGE_BASE;
+  const pts = [];
+  for (let k = 0; k < SWAP_EDGE_POINTS; k++) {
+    const a = (k / SWAP_EDGE_POINTS) * 2 * Math.PI;
+    const r = grow ? base * (1 + swapEdgeJitter(k)) : 0;
+    pts.push(`${pc(((x + Math.cos(a) * r) / w) * 100)}% ${pc(((y + Math.sin(a) * r) / h) * 100)}%`);
+  }
+  return `polygon(${pts.join(', ')})`;
+}
+
+// ── Dust in the wipe's wake ─────────────────────────────────────────────────
+// The torn front kicks up dust as it passes: specks igniting along the edge and
+// settling just behind it, in the OLD palette's colours — the paint the front grinds
+// away. Always just INSIDE the clip: during a view transition the page renders through
+// ::view-transition-new(root), so a mote ahead of the front simply would not be seen —
+// they spawn behind even the deepest tooth (the 1 − amp band).
+// (Desktop twin: themeSwapOverlay.hpp dustMoteAt.)
+export const SWAP_DUST_MOTES = 900;
+export const SWAP_DUST_LIFE_MS = 340;
+// A mote never ignites at the very ends of the wipe: at t=0 the ring is a point (nothing
+// to ride), and the last ones still get their whole life before the layer is reaped.
+export const SWAP_DUST_MIN_T = 0.06;
+export const SWAP_DUST_MAX_T = 0.94;
+
+// The specs for one wipe's dust, all deterministic (tileNoise, like every other cloud
+// here). `x, y` is the origin in viewport px; motes whose home is off screen are dropped,
+// so the field naturally thins as the ring outgrows the viewport. Pure — unit-tested.
+export function swapDustSpecs(x, y, w, h, count = SWAP_DUST_MOTES) {
+  const R = swapRadius(x, y, w, h);
+  const specs = [];
+  if (!(R > 0)) return specs;
+  for (let i = 0; i < count; i++) {
+    const n = tileNoise(i, 3);
+    const m = tileNoise(i + 57, 11);
+    const q = tileNoise(i + 13, 29);
+    const angle = n * 2 * Math.PI;
+    const u = SWAP_DUST_MIN_T + m * (SWAP_DUST_MAX_T - SWAP_DUST_MIN_T);
+    // Hug the torn edge: just behind even its deepest tooth (1 − amp of the nominal
+    // radius), so the band of grains and the ragged clip read as one crumbling front.
+    const r = swapEase(u) * R * (1 - SWAP_EDGE_AMP) - q * 6;
+    if (r <= 0) continue;
+    const cx = x + Math.cos(angle) * r;
+    const cy = y + Math.sin(angle) * r;
+    if (cx < -16 || cy < -16 || cx > w + 16 || cy > h + 16) continue;
+    const size = +(2.5 + n * 3.5).toFixed(2);
+    // Chase the front outward, slower than it (the ring accelerates away), plus a
+    // sideways breath so the wake churns instead of radiating.
+    const d = 8 + q * 14;
+    specs.push({
+      left: +(cx - size / 2).toFixed(2),
+      top: +(cy - size / 2).toFixed(2),
+      size,
+      dx: Math.round(Math.cos(angle) * d + (m - 0.5) * 14),
+      dy: Math.round(Math.sin(angle) * d + (0.5 - q) * 14),
+      delay: Math.round(u * THEME_SWAP_MS),
+      alpha: +(0.75 + q * 0.25).toFixed(2),
+      // Every fourth grain is the departing accent; the rest are the old surface's own
+      // grain (bg lifted towards ink, the speckPainter recipe) — so a theme flip dusts
+      // in the old page's colour and an accent cycle still shows over an unchanged bg.
+      accent: i % 4 === 0,
+    });
+  }
+  return specs;
+}
+
+// What the wake is painted in — read BEFORE the palette flips, then baked as literals:
+// by the time a mote is on screen the variables already mean the NEW theme.
+const swapDustPaint = () => {
+  try {
+    const s = getComputedStyle(document.documentElement);
+    const v = (name) => (s.getPropertyValue(name) || '').trim();
+    const bg = v('--bg-page'), ink = v('--text-main'), accent = v('--accent');
+    if (!bg || !ink) return null;
+    return { fill: `color-mix(in srgb, ${bg} ${100 - MOTE_INK}%, ${ink})`, accent: accent || ink };
+  } catch { return null; }
+};
+
+// Build the layer. `px` is the origin/viewport the wipe was actually written with.
+// Decoration only: any stub environment bails inside the catch and the swap plays clean.
+function spawnSwapDust(px, paint) {
+  try {
+    if (!px || !paint || typeof document === 'undefined' || !document.body?.appendChild) return;
+    const root = document.documentElement;
+    // A second swap mid-wake starts a new wipe — the newest one owns the dust.
+    clearTimeout(root._swapDustTimer);
+    root._swapDustHost?.remove?.();
+    root._swapDustHost = null;
+    const specs = swapDustSpecs(px.x, px.y, px.w, px.h);
+    if (!specs.length) return;
+    const host = document.createElement('div');
+    host.className = 'swap-dust';
+    host.style.setProperty('--swap-dust-ms', `${SWAP_DUST_LIFE_MS}ms`);
+    for (const s of specs) {
+      const mote = document.createElement('div');
+      mote.className = 'swap-dust-mote';
+      mote.style.left = `${s.left}px`;
+      mote.style.top = `${s.top}px`;
+      mote.style.width = `${s.size}px`;
+      mote.style.height = `${s.size}px`;
+      mote.style.background = s.accent ? paint.accent : paint.fill;
+      mote.style.setProperty('--dx', `${s.dx}px`);
+      mote.style.setProperty('--dy', `${s.dy}px`);
+      mote.style.setProperty('--mote-o', String(s.alpha));
+      mote.style.animationDelay = `${s.delay}ms`;
+      host.appendChild(mote);
+    }
+    document.body.appendChild(host);
+    root._swapDustHost = host;
+    root._swapDustTimer = setTimeout(() => {
+      host.remove();
+      if (root._swapDustHost === host) { root._swapDustHost = null; root._swapDustTimer = null; }
+    }, THEME_SWAP_MS + SWAP_DUST_LIFE_MS + 200);
+  } catch { /* decoration only — the swap carries on regardless */ }
+}
+
 export function themeSwap(apply, origin = null) {
   if (typeof document === 'undefined') { apply(); return; }
   const root = document.documentElement;
@@ -309,19 +468,32 @@ export function themeSwap(apply, origin = null) {
   // `origin` may be a POINT or a function that resolves one. A function is re-asked after
   // the palette is written: the control can move between the two (label width changes,
   // toolbar reflow, scroll), and the circle is painted against the NEW page.
+  // `last` keeps the same answer in PIXELS — the dust is seeded off wherever the circle
+  // was really painted from, so the wake and the ring can never disagree.
+  let last = null;
   const at = () => {
     const w = window.innerWidth, h = window.innerHeight;
     const p = (typeof origin === 'function' ? origin() : origin) || { x: w / 2, y: h / 2 };
+    last = { x: p.x, y: p.y, w, h };
     return swapPercent(p.x, p.y, w, h);
   };
+  // The OLD palette, read before `apply` flips it — the wake is the paint coming off.
+  const paint = swapDustPaint();
   // Handed to the DECLARATIVE keyframes in animations.css. Scripting the animation from
   // ready.then() instead races the transition's own teardown — it ends as soon as its
   // pseudo-elements have no animations, so the wipe stopped half way.
+  // --swap-x/y/r stay the wipe's authoritative geometry record (and the keyframes'
+  // circle fallback); the clip the reveal actually plays is the ragged polygon pair.
   const write = ({ x, y, r }) => {
     root.style.setProperty('--swap-x', `${x}%`);
     root.style.setProperty('--swap-y', `${y}%`);
     root.style.setProperty('--swap-r', `${r}%`);
     root.style.setProperty('--swap-ms', `${THEME_SWAP_MS}ms`);
+    const from = last && swapEdgePolygon(last.x, last.y, last.w, last.h, 0);
+    if (from) {
+      root.style.setProperty('--swap-clip-from', from);
+      root.style.setProperty('--swap-clip-to', swapEdgePolygon(last.x, last.y, last.w, last.h, 1));
+    }
   };
   write(at());
   // Raised BEFORE startViewTransition: the browser drops :hover (synthetic
@@ -339,6 +511,10 @@ export function themeSwap(apply, origin = null) {
     settle(); apply(); return;   // a sync throw never ran the callback — the write still must happen
   }
   t.finished.then(settle, settle);   // also on a skipped/failed transition
+  // Dust rides in only once the wipe's own animation is running (ready), so a mote's
+  // delay and the ring's clock start on the same frame. An engine without `ready`
+  // (or a skipped transition) simply gets no dust — the wipe never depends on it.
+  t.ready?.then?.(() => spawnSwapDust(last, paint), () => {});
 }
 
 // Resolve an id to a swap origin, preferring the element that is actually ON SCREEN:

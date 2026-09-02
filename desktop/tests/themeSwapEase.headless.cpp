@@ -91,6 +91,75 @@ int main(int argc, char** argv) {
           "…and had nothing left to show over its last fifth");
   }
 
+  // ── The ragged front (edgeRadiusAt — browser motion.test.js pins swapEdgePolygon to
+  // the same contract). The hole's edge is torn, not a circle line — but coverage still
+  // rules: at full progress even the deepest tooth must clear the furthest corner.
+  {
+    const double R = fullRadius(90, 60, w, h);
+    double lo = 1e18, hi = 0;
+    bool collapsed = true;
+    for (int k = 0; k < ThemeSwapOverlay::kEdgePoints; k++) {
+      const double r = ThemeSwapOverlay::edgeRadiusAt(k, 1.0, R);
+      lo = std::min(lo, r);
+      hi = std::max(hi, r);
+      collapsed = collapsed && ThemeSwapOverlay::edgeRadiusAt(k, 0.0, R) == 0.0;
+    }
+    check(lo >= R, "every tooth of the finished front clears the furthest corner");
+    check(hi <= R * (1 + 2 * ThemeSwapOverlay::kEdgeAmp + 0.02), "no tooth overshoots wildly");
+    check(hi - lo > R * ThemeSwapOverlay::kEdgeAmp, "ragged, not a circle in disguise");
+    check(collapsed, "the front starts collapsed at the origin");
+  }
+
+  // ── Dust in the wipe's wake (dustMoteAt — browser motion.test.js pins swapDustSpecs
+  // to the same contract). A mote ignites where the ring's edge has just passed, so at
+  // any moment every visible mote must sit INSIDE the circle: the browser renders its
+  // page through a clip to it, and a mote the desktop painted ahead of the front would
+  // be one the browser could never show.
+  {
+    const QPointF o(90, 60);
+    const QSizeF bounds(w, h);
+    const double full = fullRadius(o.x(), o.y(), w, h);
+    ThemeSwapOverlay::DustMote mote;
+    bool none = true;
+    for (int i = 0; i < ThemeSwapOverlay::kDustMotes; i++)
+      none = none && !ThemeSwapOverlay::dustMoteAt(i, 0.0, o, full, bounds, &mote);
+    check(none, "no mote before the wipe's first tick (the snapshot grab must stay clean)");
+
+    bool inside = true, onScreen = true, sane = true, anyLate = false;
+    int seen = 0;
+    for (double ms = 20; ms <= ThemeSwapOverlay::kSwapMs + ThemeSwapOverlay::kDustLifeMs; ms += 20) {
+      const double ring =
+          full * ThemeSwapOverlay::swapEase(std::min(1.0, ms / ThemeSwapOverlay::kSwapMs));
+      for (int i = 0; i < ThemeSwapOverlay::kDustMotes; i++) {
+        if (!ThemeSwapOverlay::dustMoteAt(i, ms, o, full, bounds, &mote)) continue;
+        seen++;
+        anyLate = anyLate || ms > ThemeSwapOverlay::kSwapMs;
+        inside = inside && std::hypot(mote.x - o.x(), mote.y - o.y()) <= ring + 1;
+        // Homes are gated to ±16 of the screen; the drift can carry a mote ~29px
+        // further before it fades, where the edge clips it — that slack is the bound.
+        onScreen = onScreen && mote.x >= -48 && mote.y >= -48 && mote.x <= w + 48 && mote.y <= h + 48;
+        sane = sane && mote.alpha > 0 && mote.alpha <= 1 && mote.size > 0 && mote.size <= 6;
+      }
+    }
+    check(seen > 300, "a real field of motes across the wipe, not a sprinkle");
+    check(inside, "every mote stays in the ring's wake — never ahead of the front");
+    check(onScreen, "no mote is spent off screen");
+    check(sane, "alpha and grain stay in range");
+    check(anyLate, "the wake outlives the wipe — the last motes still get their whole life");
+    // …but not forever: past the tail the wake is spent, so deleteLater leaves nothing.
+    bool spent = true;
+    const double after = ThemeSwapOverlay::kSwapMs + ThemeSwapOverlay::kDustLifeMs + 1;
+    for (int i = 0; i < ThemeSwapOverlay::kDustMotes; i++)
+      spent = spent && !ThemeSwapOverlay::dustMoteAt(i, after, o, full, bounds, &mote);
+    check(spent, "every mote has burnt out by the overlay's own end");
+    // Deterministic — a hash, not qrand: the same index at the same time is the same mote.
+    ThemeSwapOverlay::DustMote a{}, b{};   // zero-init: the compare must hold even if not alive
+    check(ThemeSwapOverlay::dustMoteAt(7, 150, o, full, bounds, &a)
+              == ThemeSwapOverlay::dustMoteAt(7, 150, o, full, bounds, &b)
+          && a.x == b.x && a.y == b.y && a.size == b.size && a.alpha == b.alpha,
+          "the wake is deterministic");
+  }
+
   std::printf("%s\n", failures == 0 ? "RESULT: ALL PASS" : "RESULT: FAILURES");
   return failures == 0 ? 0 : 1;
 }

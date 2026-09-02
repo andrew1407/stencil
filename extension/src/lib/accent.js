@@ -157,6 +157,138 @@
     return null;
   };
 
+  // ── Dust in the wipe's wake (browser parity: motion.js swapDustSpecs) ──
+  // The growing circle kicks up specks that ignite on its edge and settle just behind it,
+  // in the OLD palette's colours — always INSIDE the ring, because during a view
+  // transition the page renders through ::view-transition-new(root), clipped to it.
+  // Same hash, curve and numbers as the browser (and desktop themeSwapOverlay.hpp).
+  // ── The ragged front (browser parity: motion.js swapEdgePolygon) ──
+  // The wipe's edge is not a clean circle: the clip is a polygon ring whose vertices
+  // ride the wipe's easing, each pushed off the nominal radius by its own noise (smooth
+  // lobes torn by per-vertex jag), so the boundary reads as the theme crumbling forward.
+  var EDGE_POINTS = 240;
+  // Kept SMALL: big teeth read as waves rolling, not dust — the raggedness is
+  // grain-scale, and the mote field carries the rest of the dissolving read.
+  var EDGE_AMP = 0.022;         // how far a tooth reaches, as a share of the radius
+  var EDGE_BASE = 1 + EDGE_AMP + 0.012;   // overshoot so the deepest dip still covers
+  var edgeJitter = function (k) {
+    // Mostly per-vertex jag, with a faint fast ripple so the tear stays organic.
+    return EDGE_AMP * (0.35 * Math.sin(k * 0.73) + 0.65 * (dustNoise(k, 7) * 2 - 1));
+  };
+  // One end state of the clip, in viewport percentages; grow 0 = collapsed at the
+  // origin, 1 = the full ragged ring. CSS interpolates the equal-count vertex pairs.
+  var edgePolygon = function (x, y, w, h, grow) {
+    if (!(w > 0 && h > 0)) return '';
+    var pc = function (v) { return Math.round(v * 1000) / 1000; };
+    var base = Math.sqrt(Math.pow(Math.max(x, w - x), 2) + Math.pow(Math.max(y, h - y), 2)) * EDGE_BASE;
+    var pts = [];
+    for (var k = 0; k < EDGE_POINTS; k++) {
+      var a = (k / EDGE_POINTS) * 2 * Math.PI;
+      var r = grow ? base * (1 + edgeJitter(k)) : 0;
+      pts.push(pc(((x + Math.cos(a) * r) / w) * 100) + '% ' + pc(((y + Math.sin(a) * r) / h) * 100) + '%');
+    }
+    return 'polygon(' + pts.join(', ') + ')';
+  };
+
+  var DUST_MOTES = 900;
+  var DUST_LIFE_MS = 340;
+  var DUST_MIN_T = 0.06;   // the ring is a point at t=0 — nothing to ride
+  var DUST_MAX_T = 0.94;   // …and the last motes still get their whole life
+  var dustNoise = function (a, b) {
+    var v = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  // Where the ring IS at time-fraction t: the wipe's own cubic-bezier(0.4,0.25,0.95,1),
+  // solved by bisection on the monotonic X — motion.js swapEase, verbatim.
+  var dustEase = function (t) {
+    var x1 = 0.4, y1 = 0.25, x2 = 0.95, y2 = 1;
+    var lo = 0, hi = 1, u = t, x, i;
+    for (i = 0; i < 24; i++) {
+      u = 0.5 * (lo + hi);
+      x = 3 * (1 - u) * (1 - u) * u * x1 + 3 * (1 - u) * u * u * x2 + u * u * u;
+      if (x < t) lo = u; else hi = u;
+    }
+    return 3 * (1 - u) * (1 - u) * u * y1 + 3 * (1 - u) * u * u * y2 + u * u * u;
+  };
+  var dustSpecs = function (x, y, w, h) {
+    var R = Math.sqrt(Math.pow(Math.max(x, w - x), 2) + Math.pow(Math.max(y, h - y), 2));
+    var specs = [];
+    if (!(R > 0)) return specs;
+    for (var i = 0; i < DUST_MOTES; i++) {
+      var n = dustNoise(i, 3), m = dustNoise(i + 57, 11), q = dustNoise(i + 13, 29);
+      var angle = n * 2 * Math.PI;
+      var u = DUST_MIN_T + m * (DUST_MAX_T - DUST_MIN_T);
+      // Hug the torn edge: just behind even its deepest tooth (1 − amp), so the band
+      // of grains and the ragged clip read as one crumbling front.
+      var r = dustEase(u) * R * (1 - EDGE_AMP) - q * 6;
+      if (r <= 0) continue;
+      var cx = x + Math.cos(angle) * r, cy = y + Math.sin(angle) * r;
+      if (cx < -16 || cy < -16 || cx > w + 16 || cy > h + 16) continue;
+      var size = 2.5 + n * 3.5;
+      // Chase the front outward, slower than it, plus a sideways breath.
+      var d = 8 + q * 14;
+      specs.push({
+        left: cx - size / 2, top: cy - size / 2, size: size,
+        dx: Math.round(Math.cos(angle) * d + (m - 0.5) * 14),
+        dy: Math.round(Math.sin(angle) * d + (0.5 - q) * 14),
+        delay: Math.round(u * SWAP_MS),
+        alpha: 0.75 + q * 0.25,
+        // Every fourth grain is the departing accent; the rest the old surface's own
+        // grain (bg lifted towards ink — browser motion.js MOTE_INK), so an accent
+        // cycle still reads over an unchanged background.
+        accent: i % 4 === 0,
+      });
+    }
+    return specs;
+  };
+  // Read BEFORE the palette flips, baked as literals: by the time a mote is on screen
+  // the variables already mean the NEW theme. This page's vars, not the browser app's.
+  var dustPaint = function () {
+    try {
+      var s = getComputedStyle(document.documentElement);
+      var v = function (name) { return (s.getPropertyValue(name) || '').replace(/^\s+|\s+$/g, ''); };
+      var bg = v('--bg'), ink = v('--text');
+      if (!bg || !ink) return null;
+      return { fill: 'color-mix(in srgb, ' + bg + ' 58%, ' + ink + ')', accent: v('--accent') || ink };
+    } catch (e) { return null; }
+  };
+  var spawnDust = function (px, paint) {
+    try {
+      if (!px || !paint || typeof document === 'undefined' || !document.body || !document.body.appendChild) return;
+      var root = document.documentElement;
+      // A second swap mid-wake starts a new wipe — the newest one owns the dust.
+      clearTimeout(root._swapDustTimer);
+      if (root._swapDustHost && root._swapDustHost.remove) root._swapDustHost.remove();
+      root._swapDustHost = null;
+      var specs = dustSpecs(px.x, px.y, px.w, px.h);
+      if (!specs.length) return;
+      var host = document.createElement('div');
+      host.className = 'swap-dust';
+      host.style.setProperty('--swap-dust-ms', DUST_LIFE_MS + 'ms');
+      for (var i = 0; i < specs.length; i++) {
+        var sp = specs[i];
+        var mote = document.createElement('div');
+        mote.className = 'swap-dust-mote';
+        mote.style.left = sp.left.toFixed(2) + 'px';
+        mote.style.top = sp.top.toFixed(2) + 'px';
+        mote.style.width = sp.size.toFixed(2) + 'px';
+        mote.style.height = sp.size.toFixed(2) + 'px';
+        mote.style.background = sp.accent ? paint.accent : paint.fill;
+        mote.style.setProperty('--dx', sp.dx + 'px');
+        mote.style.setProperty('--dy', sp.dy + 'px');
+        mote.style.setProperty('--mote-o', sp.alpha.toFixed(2));
+        mote.style.animationDelay = sp.delay + 'ms';
+        host.appendChild(mote);
+      }
+      document.body.appendChild(host);
+      root._swapDustHost = host;
+      root._swapDustTimer = setTimeout(function () {
+        host.remove();
+        if (root._swapDustHost === host) { root._swapDustHost = null; root._swapDustTimer = null; }
+      }, SWAP_MS + DUST_LIFE_MS + 200);
+    } catch (e) { /* decoration only — the swap carries on regardless */ }
+  };
+
   var swap = function (fn, originId) {
     var root = document.documentElement;
     var reduced = false;
@@ -175,9 +307,13 @@
     // In PERCENTAGES of the viewport, never pixels: an engine that measures the pseudo-
     // element's box in device pixels paints a px origin at half its offset — the circle
     // blooming above and to the left of the button. Mirrors motion.js swapPercent.
+    // `dustAt` keeps the same answer in PIXELS — the dust is seeded off wherever the
+    // circle was really painted from, so the wake and the ring can never disagree.
+    var dustAt = null;
     var write = function () {
       var w = window.innerWidth, h = window.innerHeight;
       var p = originOf(originId) || { x: w / 2, y: h / 2 };
+      dustAt = { x: p.x, y: p.y, w: w, h: h };
       // The radius that reaches the furthest corner — the circle must cover the whole page.
       var r = Math.sqrt(Math.pow(Math.max(p.x, w - p.x), 2) + Math.pow(Math.max(p.y, h - p.y), 2));
       var pc = function (v) { return Math.round(v * 1000) / 1000; };
@@ -186,8 +322,17 @@
       root.style.setProperty('--swap-y', pc((100 * p.y) / h) + '%');
       root.style.setProperty('--swap-r', pc((100 * Math.SQRT2 * r) / diag) + '%');
       root.style.setProperty('--swap-ms', SWAP_MS + 'ms');
+      // The clip the reveal actually plays: the ragged polygon pair (the circle above
+      // stays the keyframes' fallback and the geometry record tests read).
+      var from = edgePolygon(p.x, p.y, w, h, 0);
+      if (from) {
+        root.style.setProperty('--swap-clip-from', from);
+        root.style.setProperty('--swap-clip-to', edgePolygon(p.x, p.y, w, h, 1));
+      }
     };
     write();
+    // The OLD palette, read before `fn` flips it — the wake is the paint coming off.
+    var paint = dustPaint();
     var t = document.startViewTransition(function () {
       // Transitions off while the snapshot is captured, or it records the OLD colours
       // mid-ease and the wipe reveals a half-changed page.
@@ -199,6 +344,11 @@
     });
     var settle = function () { root.classList.remove('theme-instant'); };
     t.finished.then(settle, settle);
+    // Dust rides in only once the wipe's own animation is running (`ready`), so a mote's
+    // delay and the ring's clock start on the same frame. An engine without `ready` (or
+    // a skipped transition) simply gets no dust — the wipe never depends on it, and
+    // spawning off `finished` instead would replay the whole wake over a finished swap.
+    if (t.ready && t.ready.then) t.ready.then(function () { spawnDust(dustAt, paint); }, function () {});
   };
 
   // The mirrored accent lets non-page contexts colour the on-page highlight to match
