@@ -270,9 +270,11 @@ test('the layer can never take a click or hold focus, and never moves the page',
   // speckPainter paints them), so there is nothing focusable in the layer at all.
   assert.match(motionJs, /tile\.classList\.add\('dust-mote'\);/);
   assert.match(motionJs, /const tile = document\.createElement\('div'\);/);
-  // …and a painted tile carries no child at all: one node per grain, not two, which is
-  // what a window-sized cloud can actually afford to build in a frame.
-  assert.match(motionJs, /if \(paintTile\) \{\s*\n\s*paintTile\(tile,[\s\S]{0,200}?continue;/);
+  // …and a tile carries no child at all: one node per grain, not two, styled in ONE
+  // write — the painter hands back declarations that ride the tile's own cssText —
+  // which is what a window-sized cloud can actually afford to build in a frame.
+  assert.match(motionJs, /tile\.style\.cssText = `--dx:\$\{m\.dx\}px;[\s\S]{0,300}?\+ paint\(tile, \{ cx, cy, cols, rows, cellW, cellH \}\);/);
+  assert.ok(!/tile\.appendChild\(/.test(motionJs), 'nothing is ever put inside a mote');
 });
 
 test('reduced motion: no cloud, no veil — the surface simply is, or is not', () => {

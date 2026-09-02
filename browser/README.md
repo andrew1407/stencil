@@ -288,13 +288,13 @@ Three effects share one small module; all of them are decoration, so a browser w
 - **Drop landing** — a dropped image's canvas scales up into place with one accent pulse
   (`.canvas-container.drop-landing`), and the drop overlay leaves on an animation instead
   of blinking out (`.drop-closing`, click-through while it plays).
-- **Disintegration** — a removed row doesn't fade, it comes apart: `disintegrate()` clones
-  it once per grid cell, clips each clone to its cell, and scatters the cells in a
-  left-to-right sweep while the row's own box collapses so the list closes the gap. The
-  particles live in a fixed layer over the page, because the row under them is collapsing
-  to zero height at the same moment. Clearing the image plays the same idea on the canvas
-  (`ghostOut()` copies the pixels first — `clearRect` is instant and leaves nothing to
-  animate).
+- **Disintegration** — a removed row doesn't fade, it comes apart: `disintegrate()` paints
+  one round mote per grid cell in the row's own colours and scatters them, each on its own
+  bent path, in a top-down sweep while the row's own box collapses so the list closes the
+  gap. The particles live in a fixed layer over the page, because the row under them is
+  collapsing to zero height at the same moment. Clearing the image plays the same idea on
+  the canvas (`ghostOut()` copies the pixels first — `clearRect` is instant and leaves
+  nothing to animate — and flies them as grains of their own colour).
 - **Theme / accent swap** — `themeSwap()` floods the new palette out of the CONTROL that
   changed it (the moon button, the Visuals accent picker, the logo), as a growing circle,
   via the native View Transitions API; without it every colour consumer just gets one beat

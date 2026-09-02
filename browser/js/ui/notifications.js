@@ -32,8 +32,39 @@ export const squeezeLongTokens = (msg, max = 48) =>
     return tok.slice(0, keep) + '…' + tok.slice(-keep);
   }).join('');
 
-// The dust's origin/target: off the left edge, at the toast's own (bottom-of-stack) height.
-const toastDustPoint = (toast) => dockAwayPoint(toast.getBoundingClientRect?.(), 'left');
+// Where the free area begins: a left-docked chat owns everything left of --chat-inset-left
+// (chatPanel.js updateNotifyInset), and the stack already sits beside it. 0 = the viewport.
+const freeLeft = () => {
+  try { return parseFloat(getComputedStyle(document.body).getPropertyValue('--chat-inset-left')) || 0; }
+  catch { return 0; }
+};
+
+// The dust's origin/target: past the free area's left edge, at the toast's own
+// (bottom-of-stack) height. Only 0.15 toast-widths past it, not dockAwayPoint's 1.2: the
+// stack already sits at that edge, so a farther point had every grain off screen within
+// the exit's first beat and the leave read as a cut (desktop notifications.cpp twin).
+const TOAST_REACH = 0.15;
+const toastDustPoint = (toast) => {
+  const r = toast.getBoundingClientRect?.();
+  if (!r || !(r.width > 0)) return dockAwayPoint(r, 'left');
+  return { x: freeLeft() - r.width * TOAST_REACH, y: r.top + r.height / 2 };
+};
+// …and the leave is a steady drift, not a window's ease-out (css --dust-ease): with the
+// edge this close, an ease-out had every grain past it in the exit's first beat; linear
+// spends the toast's own long exit clock crossing the last inch, fading as it goes.
+const LEAVE_EASE = 'linear';
+
+// …and the cloud stays on the free side of that edge: the point it flies to/from is behind
+// the panel, so without this the motes streamed across the composer and the toast read as
+// jumping out of the chat. Clipped at the edge, they pour out from BEHIND it instead. The
+// clip is relative to the host's own box, so it is re-applied whenever the host is moved.
+const clipDustToFree = (toast) => {
+  const host = toast?.__dustHost;
+  const edge = freeLeft();
+  if (!host?.style || !(edge > 0) || !toast.getBoundingClientRect) return;
+  const r = toast.getBoundingClientRect();
+  host.style.clipPath = `inset(-4000px -4000px -4000px ${Math.round(edge - r.left)}px)`;
+};
 
 export class StencilNotifications extends StencilElement {
   // The stack starts empty; every toast is created by notify().
@@ -94,8 +125,9 @@ export class StencilNotifications extends StencilElement {
     // Adding a row to the flex column bumps every sibling already flying (a burst
     // firing on one tick, before either finished its own entrance) — drag their clouds
     // along rather than leaving them stranded at the box they were grabbed at.
-    for (const el of this.children) if (el !== toast) retargetDust(el);
+    for (const el of this.children) if (el !== toast) { retargetDust(el); clipDustToFree(el); }
     surfaceIn(toast, toastDustPoint(toast), { ms: ENTER_DUST_MS });
+    clipDustToFree(toast);
     toast._hideTimer = setTimeout(() => this.#dismiss(toast),
       onClick ? CLICKABLE_HIDE_MS : (type === 'fail' ? FAIL_HIDE_MS : OK_HIDE_MS));
   }
@@ -116,10 +148,12 @@ export class StencilNotifications extends StencilElement {
     toast.classList.add('notify-leaving');
     toast.classList.remove('notify-clickable');
     surfaceOut(toast, toastDustPoint(toast), { ms: LEAVE_DUST_MS });
+    toast.__dustHost?.style?.setProperty?.('--dust-ease', LEAVE_EASE);
+    clipDustToFree(toast);
     setTimeout(() => {
       toast.remove();
       // Removing a row shrinks the column too — the same retarget, the other direction.
-      for (const el of this.children) retargetDust(el);
+      for (const el of this.children) { retargetDust(el); clipDustToFree(el); }
     }, LEAVE_ANIM_MS);
   }
 }

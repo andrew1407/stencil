@@ -230,15 +230,19 @@ namespace stencil::gui {
         p.drawPixmap(0, 0, snap_);
       }
       if (!dust_) return;
-      // The wake is INSIDE the circle, over the freshly themed window — clip off.
+      // The wake is INSIDE the circle, over the freshly themed window — clip off. Round
+      // grains, like every other cloud's (a few hundred AA discs is nothing next to the
+      // blit above; only the clip edge had to stay aliased).
       p.setClipping(false);
+      p.setRenderHint(QPainter::Antialiasing, true);
+      p.setPen(Qt::NoPen);
       DustMote mote;
       for (int i = 0; i < kDustMotes; i++) {
         if (!dustMoteAt(i, timeMs_, QPointF(c), full_, QSizeF(size()), &mote)) continue;
         QColor col = mote.accent ? dustAccent_ : grain_;
         col.setAlphaF(std::clamp(mote.alpha, 0.0, 1.0));
-        p.fillRect(QRectF(mote.x - mote.size / 2, mote.y - mote.size / 2,
-                          mote.size, mote.size), col);
+        p.setBrush(col);
+        p.drawEllipse(QPointF(mote.x, mote.y), mote.size / 2, mote.size / 2);
       }
     }
 

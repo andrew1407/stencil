@@ -11,6 +11,10 @@
 
 namespace stencil::gui {
 
+  // A chat card arrives 1.5x brisker than a list row's 900ms flight: an answer is the
+  // thing you are waiting to read, and it must not keep you waiting on its own dust.
+  constexpr int kChatArriveMs = DisintegrateOverlay::kMs * 2 / 3;   // 600
+
   bool chatCardFullyInViewport(QWidget* card, QScrollArea* scroll) {
     if (!card || !scroll || !scroll->viewport()) return false;
     const QRect view = scroll->viewport()->rect();
@@ -88,7 +92,7 @@ namespace stencil::gui {
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect());
     if (fx) fx->setEnabled(false);
     QWidget* dust = DisintegrateOverlay::over(card, host, DisintegrateOverlay::Sweep::Gather,
-                                              cols, rows);
+                                              cols, rows, kChatArriveMs);
     if (fx) fx->setEnabled(true);
     if (!dust) { settle(); return; }   // nothing to hide behind
     // The card stays FULLY HIDDEN for the whole flight and takes the motes' place when
@@ -98,7 +102,7 @@ namespace stencil::gui {
     // The reveal is a CUT in the frame the overlay deletes itself: the motes have
     // already drawn the bubble into place, so fading it up would double the arrival.
     QPointer<QWidget> cp(card);
-    QTimer::singleShot(DisintegrateOverlay::kMs, card, [cp, settle] { if (cp) settle(); });
+    QTimer::singleShot(kChatArriveMs, card, [cp, settle] { if (cp) settle(); });
   }
 
   // Theme-provided muted text (palette PlaceholderText, not a hardcoded hex).

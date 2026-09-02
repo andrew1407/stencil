@@ -62,7 +62,7 @@ namespace stencil::gui {
   struct ConfirmSpec {
     QString title;                                  // header title
     QString message;                                // the question
-    QString confirmLabel = QStringLiteral("Confirm");
+    QString confirmLabel = QStringLiteral("OK");
     QString confirmIcon = QStringLiteral("check");  // the action's glyph (browser confirmIcon)
     QString cancelLabel = QStringLiteral("Cancel");
     bool danger = false;                            // destructive action → red confirm

@@ -17,6 +17,8 @@ import {
   DUST_CELL_PX, DUST_MAX_PARTICLES,
   playCanvasArrival, ASSEMBLING_CLASS, CLEARING_CLASS, GHOST_MS,
   createFilterAnimator, FILTER_ENTERING_CLASS, FILTER_ENTER_MS,
+  tileWaypoint, tileMotion, surfaceMotion, WAYPOINT_ALONG, SWIRL_SHARE, SWIRL_MAX_PX,
+  DUST_ALPHA_LEVELS,
 } from '../js/ui/motion.js';
 
 const box = (left, top, width, height) => ({ left, top, width, height });
@@ -1248,4 +1250,86 @@ test('animations.css: a filter has an arrival and no exit at all', () => {
   assert.match(css, /@keyframes rowFilterIn \{\s*from \{ opacity: 0; transform: translateY\(-4px\); \}/,
     'the rows that are left arrive — that is the whole effect');
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.filter-entering \{ animation: none; \}/);
+});
+
+// ── No mote flies a straight line ───────────────────────────────────────────
+// Every flight bends through a waypoint pushed off its own line (tileWaypoint), so a
+// cloud churns instead of radiating in spokes — the same recipe on every surface.
+
+test('tileWaypoint sits part-way along the throw, pushed sideways by its own noise', () => {
+  const { mx, my } = tileWaypoint(100, 0, 0.9);
+  assert.equal(mx, Math.round(100 * WAYPOINT_ALONG), 'along the throw');
+  assert.ok(my > 0 && my <= SWIRL_MAX_PX, 'off the line, on the noise’s side');
+  const other = tileWaypoint(100, 0, 0.1);
+  assert.ok(other.my < 0, 'the other half of the noise bends the other way');
+  assert.equal(other.mx, mx, 'the push is perpendicular — it never changes the reach');
+  // A short throw bends by a SHARE of itself; a long one is capped, so a window's 400px
+  // trip cannot swing its motes across half the page.
+  const short = tileWaypoint(0, 40, 1);
+  assert.equal(Math.abs(short.mx), Math.round(40 * SWIRL_SHARE));
+  const long = tileWaypoint(0, 400, 1);
+  assert.equal(Math.abs(long.mx), SWIRL_MAX_PX);
+  // Dead centre of the noise is a straight line; a zero throw has nowhere to bend.
+  assert.deepEqual(tileWaypoint(60, 30, 0.5), { mx: Math.round(60 * WAYPOINT_ALONG), my: Math.round(30 * WAYPOINT_ALONG) });
+  assert.deepEqual(tileWaypoint(0, 0, 0.9), { mx: 0, my: 0 });
+});
+
+test('a row’s fall and a surface’s flight both carry the waypoint, deterministically', () => {
+  const row = tileMotion(5, 3, 34, 16);
+  assert.ok(Number.isInteger(row.mx) && Number.isInteger(row.my), 'pixel-rounded, like dx/dy');
+  assert.deepEqual([row.mx, row.my], [tileMotion(5, 3, 34, 16).mx, tileMotion(5, 3, 34, 16).my], 'a hash, not Math.random');
+  // The gather shares the waypoint with the scatter — the same bend, flown home.
+  const back = tileMotion(5, 3, 34, 16, true);
+  assert.deepEqual([back.mx, back.my], [row.mx, row.my]);
+  // …and the bend scales with the throw, so a 15px tick bends as little as it flies.
+  const mark = tileMotion(5, 3, 34, 16, false, 0.3);
+  assert.ok(Math.hypot(mark.mx, mark.my) < Math.hypot(row.mx, row.my));
+  const box = { left: 100, top: 100, width: 300, height: 200 };
+  const s = surfaceMotion(2, 2, 10, 8, box, { x: 40, y: 20 });
+  assert.ok(Number.isInteger(s.mx) && Number.isInteger(s.my));
+  // Neighbouring cells bend to different sides: a third, decorrelated noise drives it.
+  const sides = new Set();
+  for (let cx = 0; cx < 10; cx++) {
+    const m = surfaceMotion(cx, 2, 10, 8, box, { x: 40, y: 20 });
+    // Sign of the perpendicular component, relative to the throw.
+    sides.add(Math.sign(m.mx * m.dy - m.my * m.dx));
+  }
+  assert.ok(sides.has(1) && sides.has(-1), 'both sides of the line are used');
+});
+
+test('animations.css: every flight bends through --mx/--my, and every tile is round', () => {
+  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  for (const name of ['tileScatter', 'tileGather', 'tileGatherSurface', 'tileScatterSurface']) {
+    const frames = css.match(new RegExp(`@keyframes ${name} \\{([\\s\\S]*?)\\n\\}`))[1];
+    assert.match(frames, /translate\(var\(--mx, [^)]*\), var\(--my, [^)]*\)\)/, `${name} has a waypoint`);
+    // The first leg carries its own curve, so the bend is a bend, not a stop-and-go.
+    assert.match(frames, /0%\s+\{[^}]*animation-timing-function: cubic-bezier/, `${name}: leg one eases on its own`);
+    // Spin and shrink pass through the halfway state, so nothing snaps at the bend.
+    assert.match(frames, /rotate\(calc\(var\(--rot, 0deg\) \* 0\.5\)\)/, `${name}: half the spin at the bend`);
+  }
+  const tile = css.match(/\.disintegrate-tile \{([\s\S]*?)\n\}/)[1];
+  assert.match(tile, /border-radius: 50%;/, 'a tile IS a round mote');
+  assert.ok(!/inset: 0/.test(tile), 'it sizes and seats itself — never fills the host');
+  const swap = css.match(/\.swap-dust-mote \{([\s\S]*?)\n\}/)[1];
+  assert.match(swap, /border-radius: 50%;/, 'the theme wipe’s grains are the same round grain');
+});
+
+test('canvas dust batches its grains: a few alpha steps, one fill per colour and step', () => {
+  // Eight steps on a 3px grain are below what the eye resolves; fewer would band a
+  // slow fade, more would multiply the fills the batching exists to avoid.
+  assert.equal(DUST_ALPHA_LEVELS, 8);
+  const motion = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const dust = motion.slice(motion.indexOf('const drawDust ='), motion.indexOf('const runDust ='));
+  assert.match(dust, /ctx\.arc\(x, y, r, 0, TAU\)/, 'round grains');
+  assert.ok(!/drawImage\(snap, p\./.test(dust), 'never a per-grain blit of the picture');
+  // The picture itself stands in for every cell still at home: one blit, then only the
+  // departed cells are cleared out of it — so the front grinds, it does not pop.
+  assert.match(dust, /ctx\.drawImage\(snap, sox, soy, sw \* cols, sh \* rows, 0, 0, dw \* cols, dh \* rows\)/);
+  assert.match(dust, /ctx\.clearRect\(p\.x0, p\.y0, p\.x1 - p\.x0, p\.y1 - p\.y0\)/);
+  // The outer edge of the grid rounds UP: the picture is blitted at its fractional size,
+  // and a last column rounded down left an uncleared hairline of it down the right edge.
+  const parts = motion.slice(motion.indexOf('const dustParts ='), motion.indexOf('const drawDust ='));
+  assert.match(parts, /x1: cx === cols - 1 \? Math\.ceil\(cols \* dw\)/);
+  assert.match(parts, /y1: cy === rows - 1 \? Math\.ceil\(rows \* dh\)/);
+  assert.ok(dust.indexOf('clearRect') < dust.indexOf('const flush'), 'every clear lands before any grain is drawn');
 });

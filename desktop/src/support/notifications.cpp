@@ -43,22 +43,38 @@ namespace {
   constexpr int kToastOutMs = 1040;
 
 
-  // Off the left edge, at the toast's own height (browser motion.js dockAwayPoint(rect, 'left')).
-  QPoint toastDustPoint(const QRect& r) {
-    return stencil::gui::dockAwayPoint(r, Qt::LeftDockWidgetArea);
+  // Past the FREE area's left edge (`freeLeft`: the window's, or a left-docked chat's
+  // inner edge), at the toast's own height. Only 0.15 toast-widths past it, not a docked
+  // panel's 1.2: the stack already sits at that edge, so a farther point had every grain
+  // off screen within 150ms and the exit read as a cut (browser notifications.js twin).
+  constexpr double kToastReach = 0.15;
+  QPoint toastDustPoint(const QRect& r, int freeLeft) {
+    return QPoint(freeLeft - qRound(r.width() * kToastReach), r.center().y());
+  }
+
+  // Room between a left-docked chat and the stack beside it.
+  constexpr int kDockGapPx = 8;
+
+  // Keep a toast's cloud on the free side of a left-docked chat (`freeLeft` = the
+  // panel's width, 0 without one): the point it flies to/from is behind the panel, and
+  // unclipped the motes streamed across the composer (browser clipDustToFree twin).
+  void clipToFree(stencil::gui::DisintegrateOverlay* overlay, QWidget* host, int freeLeft) {
+    if (overlay && freeLeft > 0)
+      overlay->setPaintClip(QRect(freeLeft, 0, host->width() - freeLeft, host->height()));
   }
 
   // Returns the flying cloud (so the caller can track it for reflow()'s retarget), or
   // null — declined under STENCIL_NO_ANIM / offscreen.
   stencil::gui::DisintegrateOverlay* dustToastIn(QLabel* toast, QGraphicsOpacityEffect* fx,
-                                                 QWidget* host, const QRect& rest) {
+                                                 QWidget* host, const QRect& rest, int freeLeft) {
     if (!stencil::support::dustMotionOk()) return nullptr;
     const QPixmap shot = toast->grab();
     if (shot.isNull()) return nullptr;
     auto* overlay = stencil::gui::DisintegrateOverlay::overSurface(
-        shot, rest, host, toastDustPoint(rest), /*gather=*/true, kToastInMs,
+        shot, rest, host, toastDustPoint(rest, freeLeft), /*gather=*/true, kToastInMs,
         toast->palette().color(QPalette::WindowText));
     if (!overlay) return nullptr;
+    clipToFree(overlay, host, freeLeft);
     fx->setOpacity(0.0);
     auto* fade = new QPropertyAnimation(fx, "opacity", toast);
     stencil::gui::holdFadeKeys(fade, kToastInMs);
@@ -68,14 +84,26 @@ namespace {
 
   // …and the way out — a snapshot with a life of its own, so it can run before the
   // real label's own fade/deletion.
-  bool dustToastOut(QLabel* toast, QWidget* host) {
+  bool dustToastOut(QLabel* toast, QWidget* host, int freeLeft) {
     if (!stencil::support::dustMotionOk()) return false;
+    // grab() renders THROUGH the graphics effect, and the effect's cached source can be
+    // stale or blank at this moment — the leave then flew a cloud of nothing. Off for the
+    // photograph, back on before the fade below animates it (dustToastIn's own rule).
+    auto* fx = qobject_cast<QGraphicsOpacityEffect*>(toast->graphicsEffect());
+    if (fx) fx->setEnabled(false);
     const QPixmap shot = toast->grab();
+    if (fx) fx->setEnabled(true);
     if (shot.isNull()) return false;
-    return stencil::gui::DisintegrateOverlay::overSurface(
-               shot, toast->geometry(), host, toastDustPoint(toast->geometry()),
-               /*gather=*/false, kToastOutMs, toast->palette().color(QPalette::WindowText))
-           != nullptr;
+    auto* overlay = stencil::gui::DisintegrateOverlay::overSurface(
+        shot, toast->geometry(), host, toastDustPoint(toast->geometry(), freeLeft),
+        /*gather=*/false, kToastOutMs, toast->palette().color(QPalette::WindowText));
+    if (!overlay) return false;
+    // A steady drift, not the default OutQuint: with the edge this close, an ease-out
+    // had every grain past it in the exit's first beat; linear spends the toast's own
+    // long exit clock crossing the last inch, fading as it goes.
+    overlay->setSurfaceEasing(QEasingCurve::Linear);
+    clipToFree(overlay, host, freeLeft);
+    return true;
   }
 }  // namespace
 
@@ -193,8 +221,10 @@ namespace stencil::gui {
     // reading a toast back (the GUI tests) has a plain string to compare.
     toast->setProperty(kTextProperty, text);
     toast->setObjectName("toast");
+    // The browser's inner box (.notify-toast: 12px beside the content, 10px above and
+    // below) less the 4px margin the rich-text document adds on every side itself.
     toast->setStyleSheet(QString("QLabel#toast { background: %1; color: white; "
-                                 "padding: 8px 14px; border-radius: 6px; }")
+                                 "padding: 6px 8px; border-radius: 6px; }")
                              .arg(bg.name()));
     toast->setAttribute(Qt::WA_TransparentForMouseEvents);
     // Resolve the stylesheet (padding/font) before measuring; otherwise
@@ -223,7 +253,7 @@ namespace stencil::gui {
     reflow();
     const QRect rest = toast->geometry();
     // Sand first; a decline falls back to the plain fade + rise-into-place below.
-    if (auto* overlay = dustToastIn(toast, fx, host_, rest)) {
+    if (auto* overlay = dustToastIn(toast, fx, host_, rest, leftInset_)) {
       entering_[toast] = overlay;
     } else {
       fx->setOpacity(0.0);
@@ -278,7 +308,7 @@ namespace stencil::gui {
       return;
     }
     // Sand first; a decline falls back to the plain drop-away below.
-    const bool dusted = dustToastOut(toast, host_);
+    const bool dusted = dustToastOut(toast, host_, leftInset_);
     auto* fadeOut = new QPropertyAnimation(fx, "opacity", toast);
     fadeOut->setDuration(kFadeOutMs);
     fadeOut->setStartValue(fx->opacity());
@@ -314,7 +344,8 @@ namespace stencil::gui {
     for (int i = toasts.size() - 1; i >= 0; --i) {
       QLabel* t = toasts[i];
       y -= t->height();
-      const QRect rest(kLeftMargin + leftInset_, std::max(8, y), t->width(), t->height());
+      const QRect rest(kLeftMargin + leftInset_ + (leftInset_ > 0 ? kDockGapPx : 0),
+                       std::max(8, y), t->width(), t->height());
       auto* rise = t->findChild<QPropertyAnimation*>("toastRise");
       if (rise && rise->state() == QAbstractAnimation::Running) {
         // Still rising: retarget the flight rather than move()ing underneath it.

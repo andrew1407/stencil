@@ -319,7 +319,7 @@ test('the panel width is re-clamped when the window changes, keeping the prefere
     'a window narrowed after the drag re-clamps');
   // The STORED value is never rewritten by a clamp — only by a real drag — so the width
   // comes back when the window is big enough for it again.
-  const stores = fn.match(/localStorage\.setItem/g) || [];
+  const stores = fn.match(/sessionStorage\.setItem/g) || [];
   assert.equal(stores.length, 1, 'only the drag persists a width');
   const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
   // Declarations only — the comment above this rule NAMES the trap it avoids, and matching

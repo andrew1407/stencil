@@ -2683,10 +2683,11 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(static_cast<int>(canvas->lines().size()), 1);
 
     // The destructive "Clear All Lines" action (canvas context menu + Edit menu
-    // reuse it) wipes every committed and in-progress point — no confirm on the
-    // lines action (unlike Projects ▸ Clear All), so it runs straight through.
+    // reuse it) asks first — the browser's styled confirm (drawingApp.js
+    // clearAllLines) — and on Confirm wipes every committed and in-progress point.
     QAction* clear = actionByText(&win, "Clear All Lines");
     QVERIFY(clear && clear->isEnabled());
+    dismissModal("OK");
     clear->trigger();
     QCOMPARE(static_cast<int>(canvas->lines().size()), 0);
     QCOMPARE(totalPoints(canvas), 0);   // nothing committed or in-progress remains
@@ -2705,7 +2706,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(clear);
     QVERIFY(clear->isVisible());   // shown for a local/temporary editor (hidden only for server projects)
 
-    dismissModal("Confirm");      // blocks on the confirm until the timer answers it
+    dismissModal("OK");      // blocks on the confirm until the timer answers it
     clear->trigger();
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);   // reset to a blank editor
     QCOMPARE(static_cast<int>(canvas->lines().size()), 0);
@@ -4180,7 +4181,7 @@ class MainWindowGuiTest : public QObject {
     }
 
     // Tidy the dev state dir: drop the project this test created.
-    dismissModal("Confirm");
+    dismissModal("OK");
     QAction* clear = actionByText(&win, "Clear Project");
     QVERIFY(clear);
     clear->trigger();
@@ -4235,7 +4236,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.scroll_->verticalScrollBar()->value(), 20);
 
     // Tidy the dev state dir: drop the project this test created.
-    dismissModal("Confirm");
+    dismissModal("OK");
     QAction* clear = actionByText(&win, "Clear Project");
     QVERIFY(clear);
     clear->trigger();
@@ -8159,7 +8160,7 @@ class MainWindowGuiTest : public QObject {
       // click() is synchronous (like trigger()): dismissModal's 0-timer must first fire
       // INSIDE the confirm's nested loop, not during a QTest::mouseClick event pump —
       // there its qWait poll gets buried under the confirm's loop and deadlocks.
-      dismissModal("Confirm");   // the in-dialog styled confirm
+      dismissModal("OK");   // the in-dialog styled confirm
       clearBtn->click();
 
       // The row is still IN the list (slot held open, same height) but paints as blank.
@@ -8249,7 +8250,7 @@ class MainWindowGuiTest : public QObject {
         if (b->text() == "Close") closeBtn = b;
       }
       if (!clearBtn || !closeBtn) { bailOut(); return; }
-      dismissModal("Confirm");
+      dismissModal("OK");
       clearBtn->click();     // rows doomed, scatter playing
       closeBtn->click();     // …and the dialog closed IMMEDIATELY, mid-scatter
 
@@ -8362,7 +8363,7 @@ class MainWindowGuiTest : public QObject {
 
       // 2. Same remove, answer Confirm: the project goes, the dialog stays open.
       removeViaMenu(rowFor(idA));
-      dismissModal("Confirm");
+      dismissModal("OK");
       QTest::qWait(400);
       openAfterYes = dlg->isVisible() && !hasProject(idA);
       // The scattered row leaves the list once the dust lands (setProjects repaint).
@@ -9708,7 +9709,7 @@ class MainWindowGuiTest : public QObject {
 
     QAction* clear = actionByText(&win, "Clear Project");
     QVERIFY(clear);
-    dismissModal("Confirm");
+    dismissModal("OK");
     clear->trigger();
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);
 
@@ -10152,7 +10153,7 @@ class MainWindowGuiTest : public QObject {
     // invitation is back at once instead of waiting out an animation that never ran.
     QAction* clear = actionByText(&win, "Clear Project");
     QVERIFY(clear);
-    dismissModal("Confirm");
+    dismissModal("OK");
     clear->trigger();
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);
     QVERIFY2(!win.findChild<QWidget*>(stencil::gui::DisintegrateOverlay::kObjectName),
@@ -12061,7 +12062,7 @@ class MainWindowGuiTest : public QObject {
     mock.queue.append(wrap(
         "{\"version\":1,\"reply\":\"Removed.\",\"actions\":["
         "{\"op\":\"removeProject\",\"name\":\"chat del target\"}]}"));
-    dismissModal("Confirm");
+    dismissModal("OK");
     win.onChatSend("delete the chat del target project");
     QTRY_VERIFY(!dock->isBusy());
     QTRY_COMPARE(int(win.projectList_.size()), before - 1);
@@ -12133,7 +12134,7 @@ class MainWindowGuiTest : public QObject {
 
     // Accepted: the §10 clear flow — image and lines go, the editor is empty.
     mock.queue.append(wrap(removeCurrent));
-    dismissModal("Confirm");
+    dismissModal("OK");
     win.onChatSend("remove this project");
     QTRY_VERIFY(!dock->isBusy());
     QTRY_VERIFY2(!canvas->hasImage(), "the accepted fallback must clear the image");
@@ -12148,7 +12149,7 @@ class MainWindowGuiTest : public QObject {
     win.activeProjectId_ = id;
     const int before = int(win.projectList_.size());
     mock.queue.append(wrap(removeCurrent));
-    dismissModal("Confirm");
+    dismissModal("OK");
     win.onChatSend("remove this project");
     QTRY_VERIFY(!dock->isBusy());
     QTRY_COMPARE(int(win.projectList_.size()), before - 1);
@@ -12206,7 +12207,7 @@ class MainWindowGuiTest : public QObject {
     mock.queue.append(wrap(
         "{\"version\":1,\"reply\":\"Clearing.\",\"actions\":[{\"op\":\"clearChat\"}]}"));
     win.onChatSend("clear the chat");
-    dismissModal("Confirm");   // after the send — the confirm is queued (see above)
+    dismissModal("OK");   // after the send — the confirm is queued (see above)
     QTRY_VERIFY(!dock->isBusy());
     QTRY_VERIFY2(win.chatHistory_.isEmpty(), "the replay history must clear");
     QTRY_VERIFY2(assistantBubbleTexts(dock).isEmpty(), "the transcript must clear");
@@ -12217,7 +12218,7 @@ class MainWindowGuiTest : public QObject {
     }
 
     // Tidy the dev state dir: drop the project this test created.
-    dismissModal("Confirm");
+    dismissModal("OK");
     QAction* clear = actionByText(&win, "Clear Project");
     QVERIFY(clear);
     clear->trigger();

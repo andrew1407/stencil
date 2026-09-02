@@ -38,8 +38,8 @@ namespace stencil::gui {
     // Extra clearance above the host's bottom edge — MainWindow hands it the status bar's
     // height, so the stack sits ON the canvas rather than across the coord readout.
     void setBottomInset(int px);
-    // Extra clearance off the left edge — a left-docked chat panel would otherwise
-    // sit under the stack (MainWindow::syncToastInset).
+    // The width a left-docked chat panel occupies — the stack sits beside it (with its own
+    // gap) and its dust is clipped to the free side (MainWindow::syncToastInset).
     void setLeftInset(int px);
 
     void info(const QString& text) { show(text, Level::Info); }

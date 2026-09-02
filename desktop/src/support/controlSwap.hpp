@@ -42,6 +42,7 @@
 #include <QPointer>
 #include <QCoreApplication>
 #include <QEvent>
+#include <QImage>
 #include <QObject>
 #include <QPainter>
 #include <QPaintEvent>
@@ -49,6 +50,7 @@
 #include <QPoint>
 #include <QPointF>
 #include <QRect>
+#include <QRegion>
 #include <QSize>
 #include <QString>
 #include <QStyle>
@@ -59,6 +61,8 @@
 #include <QWidget>
 
 #include <algorithm>
+#include <cmath>
+#include <vector>
 
 namespace stencil::gui {
 
@@ -362,21 +366,34 @@ namespace stencil::gui {
    protected:
     void paintEvent(QPaintEvent*) override {
       QPainter p(this);
-      p.setRenderHint(QPainter::SmoothPixmapTransform, true);
       p.setClipRect(clip_);   // clipped by the edit field, the way the word itself is
       // Sequential, like the odometer this replaces: the outgoing word is most of the way
       // out before the incoming one starts arriving, so two values are never legible at
-      // once — only, now, both are sand.
-      paintCloud(p, out_, std::clamp(t_ / kValueSwapOutShare, 0.0, 1.0), false);
-      paintCloud(p, in_,
-                 std::clamp((t_ - kValueSwapPivot) / (1.0 - kValueSwapPivot), 0.0, 1.0), true);
+      // once — only, now, both are sand. Each cloud is composed on its own layer first:
+      // a word is the picture wherever its cells are at home and cut away wherever they
+      // are not, and the second word's cut-outs must not take the first word's flying
+      // grains with them.
+      renderCloud(&layerOut_, out_, &cellsOut_,
+                  std::clamp(t_ / kValueSwapOutShare, 0.0, 1.0), false);
+      renderCloud(&layerIn_, in_, &cellsIn_,
+                  std::clamp((t_ - kValueSwapPivot) / (1.0 - kValueSwapPivot), 0.0, 1.0), true);
+      p.drawImage(rect(), layerOut_);
+      p.drawImage(rect(), layerIn_);
     }
 
-    // One cloud of a WORD: the label picture redrawn cell by cell, each cell thrown by
-    // its own hash. The twin of DisintegrateOverlay's Fall/Gather sweeps, at word scale —
-    // the same two decorrelated noises, so the app's sand all behaves alike. `t` is this
-    // cloud's own progress; `gather` reads the same journey backwards.
-    void paintCloud(QPainter& p, const QPixmap& pm, double t, bool gather) {
+    // One cloud of a WORD onto `layer`: the label picture, minus the cells that have
+    // left it, plus those cells as round grains of their own ink — the twin of
+    // DisintegrateOverlay's Fall/Gather at word scale, on the same hashes and the same
+    // bend, so the app's sand all behaves alike. `t` is this cloud's own progress;
+    // `gather` reads the same journey backwards.
+    void renderCloud(QImage* layer, const QPixmap& pm, QImage* cells, double t, bool gather) {
+      const qreal dpr = devicePixelRatioF();
+      const QSize px(std::max(1, qRound(width() * dpr)), std::max(1, qRound(height() * dpr)));
+      if (layer->size() != px) {
+        *layer = QImage(px, QImage::Format_ARGB32_Premultiplied);
+        layer->setDevicePixelRatio(dpr);
+      }
+      layer->fill(Qt::transparent);
       if (pm.isNull() || (gather ? t <= 0.0 : t >= 1.0)) return;
       const QRectF box(clip_);
       if (box.width() < 2 || box.height() < 2) return;
@@ -384,37 +401,86 @@ namespace stencil::gui {
       const int rows = std::max(1, qRound(box.height() / kValueSwapCellPx));
       const double cw = box.width() / cols;
       const double ch = box.height() / rows;
-      // The label pixmap covers the whole control and is device-pixel scaled.
-      const double sx = double(pm.width()) / std::max(1, width());
-      const double sy = double(pm.height()) / std::max(1, height());
+      if (cells->width() != cols || cells->height() != rows) {
+        // The word's colour per cell, once: the field's slice of the label sheet (which
+        // covers the whole control, device-pixel scaled), area-averaged down to the grid.
+        const double sx = double(pm.width()) / std::max(1, width());
+        const double sy = double(pm.height()) / std::max(1, height());
+        const QRect src(qRound(box.x() * sx), qRound(box.y() * sy),
+                        std::max(1, qRound(box.width() * sx)), std::max(1, qRound(box.height() * sy)));
+        *cells = DisintegrateOverlay::sampleCells(pm.copy(src), cols, rows);
+      }
+      QPainter p(layer);
+      p.setRenderHint(QPainter::SmoothPixmapTransform, true);
       static const QEasingCurve kOut(QEasingCurve::OutQuint);
-      for (int cy = 0; cy < rows; ++cy)
-        for (int cx = 0; cx < cols; ++cx) {
-          const double n = DisintegrateOverlay::cellNoise(cx, cy);
-          const double m = DisintegrateOverlay::cellNoise(cx + 41, cy + 17);
-          // A word is READ left to right, so it comes apart that way — and gathers back
-          // the same sweep reversed, the rule every other flight here follows.
-          const double along = cols > 1 ? double(cx) / (cols - 1) : 0.0;
-          const double delay = (gather ? 1.0 - along : along) * 0.4 + n * 0.1;
-          double k = (t - delay) / std::max(0.05, 1.0 - delay);
-          k = std::clamp(k, 0.0, 1.0);
-          const double e = kOut.valueForProgress(k);
-          const double away = gather ? 1.0 - e : e;
-          if (away >= 1.0) continue;
-          const QRectF dst(box.x() + cx * cw, box.y() + cy * ch, cw, ch);
-          const QRectF src(dst.x() * sx, dst.y() * sy, cw * sx, ch * sy);
-          p.save();
-          p.setOpacity(std::clamp(1.0 - away, 0.0, 1.0));
-          p.translate(dst.center());
-          p.translate(away * (m - 0.5) * kValueSwapThrowPx,
-                      away * (0.3 + n * 0.7) * kValueSwapThrowPx);
-          p.rotate(away * (m - 0.5) * 50);
-          const double scale = 1.0 - away * (0.6 - n * 0.25);
-          p.scale(scale, scale);
-          p.translate(-dst.center());
-          p.drawPixmap(dst, pm, src);
-          p.restore();
+      struct Grain { QPointF at; double r; QColor c; };
+      std::vector<Grain> grains;
+      std::vector<QRect> cut;
+      for (int cy = 0; cy < rows; ++cy) {
+        const int y0 = qRound(box.y() + cy * ch);
+        const int y1 = cy == rows - 1 ? int(std::ceil(box.bottom())) : qRound(box.y() + (cy + 1) * ch);
+        int runStart = -1;
+        for (int cx = 0; cx <= cols; ++cx) {
+          bool away = false;
+          if (cx < cols) {
+            const double n = DisintegrateOverlay::cellNoise(cx, cy);
+            const double m = DisintegrateOverlay::cellNoise(cx + 41, cy + 17);
+            const double q = DisintegrateOverlay::cellNoise(cx + 97, cy + 53);
+            // A word is READ left to right, so it comes apart that way — and gathers
+            // back the same sweep reversed, the rule every other flight here follows.
+            const double along = cols > 1 ? double(cx) / (cols - 1) : 0.0;
+            const double delay = (gather ? 1.0 - along : along) * 0.4 + n * 0.1;
+            double k = (t - delay) / std::max(0.05, 1.0 - delay);
+            // At home — not yet left, or already landed — the cell is the word itself.
+            away = gather ? k < 1.0 : k > 0.0;
+            if (away) {
+              k = std::clamp(k, 0.0, 1.0);
+              const double e = kOut.valueForProgress(k);
+              const double far = gather ? 1.0 - e : e;
+              QColor c = DisintegrateOverlay::cellColour(*cells, cx, cy);
+              const double alpha = c.alphaF() * (0.78 + n * 0.22)
+                  * (gather ? DisintegrateOverlay::gatherAlpha(k) : DisintegrateOverlay::scatterAlpha(k));
+              if (far < 1.0 && alpha > 0.02) {
+                const QPointF home(box.x() + (cx + 0.5) * cw, box.y() + (cy + 0.5) * ch);
+                const double tx = (m - 0.5) * kValueSwapThrowPx;
+                const double ty = (0.3 + n * 0.7) * kValueSwapThrowPx;
+                c.setAlphaF(std::min(1.0, alpha));
+                grains.push_back({home + QPointF(far * tx, far * ty)
+                                      + DisintegrateOverlay::swirlAt(far, tx, ty, q),
+                                  DisintegrateOverlay::moteRadius(cw, ch, n) * (1.0 - far * (0.6 - n * 0.25)),
+                                  c});
+              }
+            }
+          }
+          if (away) {
+            if (runStart < 0) runStart = cx;
+          } else if (runStart >= 0) {
+            const int x1 = cx == cols ? int(std::ceil(box.right())) : qRound(box.x() + cx * cw);
+            cut.push_back(QRect(QPoint(qRound(box.x() + runStart * cw), y0), QPoint(x1 - 1, y1 - 1)));
+            runStart = -1;
+          }
         }
+      }
+      // The word, minus the cells that have left it — a clip on the blit, never a clear
+      // (disintegrateOverlay.hpp paintEvent explains why).
+      QRegion keep(rect());
+      if (!cut.empty()) {
+        QRegion gone;
+        gone.setRects(cut.data(), int(cut.size()));
+        keep -= gone;
+      }
+      if (!keep.isEmpty()) {
+        p.save();
+        p.setClipRegion(keep);
+        p.drawPixmap(0, 0, pm);
+        p.restore();
+      }
+      p.setRenderHint(QPainter::Antialiasing, true);
+      p.setPen(Qt::NoPen);
+      for (const Grain& g : grains) {
+        p.setBrush(g.c);
+        p.drawEllipse(g.at, g.r, g.r);
+      }
     }
 
    private:
@@ -428,6 +494,8 @@ namespace stencil::gui {
     }
 
     QPixmap out_, in_;
+    QImage cellsOut_, cellsIn_;     // each word's colour per grid cell, sampled once
+    QImage layerOut_, layerIn_;     // per-frame scratch: each cloud composed on its own
     QRect clip_;
     double t_ = 0.0;
   };
