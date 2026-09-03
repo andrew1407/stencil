@@ -974,23 +974,15 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    until then the 0% frame keeps it invisible, then it flares in, drifts after the
    front and settles. The layer clips itself — a mote near the viewport edge must not
    mint a scrollbar mid-swap. */
+/* One canvas for the whole wake: js/ui/motion.js paints the grains and owns their
+   clock. A div per grain ran the same flight declaratively, but at this density it meant
+   thousands of composited layers and the swap dropped half its frames. */
 .swap-dust {
     position: fixed;
-    inset: 0;
+    left: 0;
+    top: 0;
     z-index: 100011;
     pointer-events: none;
-    overflow: hidden;
-}
-.swap-dust-mote {
-    position: absolute;
-    border-radius: 50%;   /* the same round grain every other cloud is made of */
-    will-change: transform, opacity;
-    animation: swapDustMote var(--swap-dust-ms, 340ms) cubic-bezier(0.22, 0.55, 0.3, 1) both;
-}
-@keyframes swapDustMote {
-    0%   { opacity: 0; transform: none; }
-    18%  { opacity: var(--mote-o, 0.9); }
-    100% { opacity: 0; transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(0.3); }
 }
 @media (prefers-reduced-motion: reduce) {
     .swap-dust { display: none; }

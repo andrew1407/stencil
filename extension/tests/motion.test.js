@@ -586,5 +586,9 @@ test('animations.css: every flight bends through --mx/--my, and every tile is ro
   assert.match(tile, /border-radius: 50%;/, 'a tile IS a round mote');
   assert.ok(!/inset: 0/.test(tile) && !/filter/.test(tile.replace(/\/\*[\s\S]*?\*\//g, '')),
     'no host-filling box, no per-tile blur');
-  assert.match(css.match(/\.swap-dust-mote \{([\s\S]*?)\n\}/)[1], /border-radius: 50%;/);
+  // The theme wipe's grains are the same round grain, but the STAGE draws them now
+  // (lib/accent.js spawnDust): no per-grain rule, and so no layer per grain.
+  assert.ok(!/\.swap-dust-mote/.test(css) && !/swapDustMote/.test(css), 'no rule left per grain');
+  assert.ok(!/will-change/.test(css.match(/\.swap-dust \{([\s\S]*?)\n\}/)[1]),
+    'one layer for the whole wake, not one promoted per grain');
 });

@@ -190,7 +190,7 @@
     return 'polygon(' + pts.join(', ') + ')';
   };
 
-  var DUST_MOTES = 900;
+  var DUST_MOTES = 4500;
   var DUST_LIFE_MS = 340;
   var DUST_MIN_T = 0.06;   // the ring is a point at t=0 — nothing to ride
   var DUST_MAX_T = 0.94;   // …and the last motes still get their whole life
@@ -198,10 +198,9 @@
     var v = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
     return v - Math.floor(v);
   };
-  // Where the ring IS at time-fraction t: the wipe's own cubic-bezier(0.4,0.25,0.95,1),
-  // solved by bisection on the monotonic X — motion.js swapEase, verbatim.
-  var dustEase = function (t) {
-    var x1 = 0.4, y1 = 0.25, x2 = 0.95, y2 = 1;
+  // The Y of a cubic-bezier at time t, by bisection on the monotonic X — motion.js
+  // bezierY, verbatim. Shared by the wipe's curve and the grain's.
+  var bezierY = function (t, x1, y1, x2, y2) {
     var lo = 0, hi = 1, u = t, x, i;
     for (i = 0; i < 24; i++) {
       u = 0.5 * (lo + hi);
@@ -210,6 +209,40 @@
     }
     return 3 * (1 - u) * (1 - u) * u * y1 + 3 * (1 - u) * u * u * y2 + u * u * u;
   };
+  // Where the ring IS at time-fraction t: the wipe's own cubic-bezier(0.4,0.25,0.95,1).
+  var dustEase = function (t) { return bezierY(t, 0.4, 0.25, 0.95, 1); };
+
+  // ── One grain's flight (motion.js swapDustFrame) ──
+  // The wake used to be a div per grain running the `swapDustMote` keyframes. At this
+  // density that was thousands of composited layers and the swap dropped half its
+  // frames, so the stage below paints the grains itself and this is where those
+  // keyframes now live: same curve, same three opacity stops, same throw and shrink.
+  // Sampled into a table — the bisection is far too dear to run three times per grain
+  // per frame; both ends are pinned, since the solver only bisects to within a hair.
+  var GRAIN_STEPS = 256;
+  var GRAIN_FLARE = 0.18;   // opacity flares over the first 18% of a life, then falls
+  var grainCurve = new Float32Array(GRAIN_STEPS + 1);
+  for (var gi = 0; gi <= GRAIN_STEPS; gi++) grainCurve[gi] = bezierY(gi / GRAIN_STEPS, 0.22, 0.55, 0.3, 1);
+  grainCurve[0] = 0;
+  grainCurve[GRAIN_STEPS] = 1;
+  var grainEase = function (t) {
+    return grainCurve[Math.min(GRAIN_STEPS, Math.max(0, Math.round(t * GRAIN_STEPS)))];
+  };
+  // Where grain `s` is at life-fraction `p`, how big and how bright. Writes into `out`:
+  // this runs once per grain per frame.
+  var grainAt = function (s, p, out) {
+    var e = grainEase(p);
+    var o = p < GRAIN_FLARE ? grainEase(p / GRAIN_FLARE)
+                            : 1 - grainEase((p - GRAIN_FLARE) / (1 - GRAIN_FLARE));
+    out.x = s.cx + s.dx * e;
+    out.y = s.cy + s.dy * e;
+    out.r = (s.size / 2) * (1 - 0.7 * e);
+    out.alpha = s.alpha * o;
+  };
+  // How many alpha steps a fading grain is drawn in: the stage batches every grain of
+  // one colour AND one step into a single fill (browser motion.js DUST_ALPHA_LEVELS).
+  var DUST_ALPHA_LEVELS = 8;
+  var TAU = Math.PI * 2;
   var dustSpecs = function (x, y, w, h) {
     var R = Math.sqrt(Math.pow(Math.max(x, w - x), 2) + Math.pow(Math.max(y, h - y), 2));
     var specs = [];
@@ -228,7 +261,7 @@
       // Chase the front outward, slower than it, plus a sideways breath.
       var d = 8 + q * 14;
       specs.push({
-        left: cx - size / 2, top: cy - size / 2, size: size,
+        cx: cx, cy: cy, size: size,
         dx: Math.round(Math.cos(angle) * d + (m - 0.5) * 14),
         dy: Math.round(Math.sin(angle) * d + (0.5 - q) * 14),
         delay: Math.round(u * SWAP_MS),
@@ -252,40 +285,97 @@
       return { fill: 'color-mix(in srgb, ' + bg + ' 58%, ' + ink + ')', accent: v('--accent') || ink };
     } catch (e) { return null; }
   };
+  // Whatever the canvas makes of a colour: it normalizes what it accepts and silently
+  // keeps what it had for anything it cannot parse.
+  var canvasColour = function (ctx, c, fallback) {
+    ctx.fillStyle = fallback;
+    ctx.fillStyle = c;
+    return ctx.fillStyle;
+  };
+
+  // ONE canvas, not a div per grain: grains are batched by colour and alpha step into a
+  // handful of fills a frame (browser motion.js spawnSwapDust).
   var spawnDust = function (px, paint) {
     try {
       if (!px || !paint || typeof document === 'undefined' || !document.body || !document.body.appendChild) return;
+      if (typeof requestAnimationFrame !== 'function') return;
       var root = document.documentElement;
       // A second swap mid-wake starts a new wipe — the newest one owns the dust.
-      clearTimeout(root._swapDustTimer);
-      if (root._swapDustHost && root._swapDustHost.remove) root._swapDustHost.remove();
-      root._swapDustHost = null;
+      if (root._swapDustStop) root._swapDustStop();
       var specs = dustSpecs(px.x, px.y, px.w, px.h);
       if (!specs.length) return;
-      var host = document.createElement('div');
-      host.className = 'swap-dust';
-      host.style.setProperty('--swap-dust-ms', DUST_LIFE_MS + 'ms');
-      for (var i = 0; i < specs.length; i++) {
-        var sp = specs[i];
-        var mote = document.createElement('div');
-        mote.className = 'swap-dust-mote';
-        mote.style.left = sp.left.toFixed(2) + 'px';
-        mote.style.top = sp.top.toFixed(2) + 'px';
-        mote.style.width = sp.size.toFixed(2) + 'px';
-        mote.style.height = sp.size.toFixed(2) + 'px';
-        mote.style.background = sp.accent ? paint.accent : paint.fill;
-        mote.style.setProperty('--dx', sp.dx + 'px');
-        mote.style.setProperty('--dy', sp.dy + 'px');
-        mote.style.setProperty('--mote-o', sp.alpha.toFixed(2));
-        mote.style.animationDelay = sp.delay + 'ms';
-        host.appendChild(mote);
+      var stage = document.createElement('canvas');
+      var ctx = stage.getContext && stage.getContext('2d');
+      if (!ctx) return;
+      stage.className = 'swap-dust';
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      stage.width = Math.round(px.w * dpr);
+      stage.height = Math.round(px.h * dpr);
+      stage.style.width = px.w + 'px';
+      stage.style.height = px.h + 'px';
+      ctx.scale(dpr, dpr);
+      // Split by colour once, so a frame is two runs of one fillStyle rather than a
+      // thousand switches — and resolve both now, before the palette moves under us.
+      var runs = [], k;
+      for (k = 0; k < 2; k++) {
+        var mine = [];
+        for (var si = 0; si < specs.length; si++) if (!specs[si].accent === !k) mine.push(specs[si]);
+        runs.push({ colour: canvasColour(ctx, k ? paint.accent : paint.fill, '#888'), grains: mine });
       }
-      document.body.appendChild(host);
-      root._swapDustHost = host;
-      root._swapDustTimer = setTimeout(function () {
-        host.remove();
-        if (root._swapDustHost === host) { root._swapDustHost = null; root._swapDustTimer = null; }
-      }, SWAP_MS + DUST_LIFE_MS + 200);
+      document.body.appendChild(stage);
+      // [x, y, r] per grain, bucketed by alpha step and reused every frame.
+      var lvl = [], lvlN = new Int32Array(DUST_ALPHA_LEVELS), l;
+      for (l = 0; l < DUST_ALPHA_LEVELS; l++) lvl.push(new Float32Array(specs.length * 3));
+      var at = { x: 0, y: 0, r: 0, alpha: 0 };
+      var total = SWAP_MS + DUST_LIFE_MS;
+      var started = performance.now();
+      var raf = 0;
+      var stop = function () {
+        if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
+        clearTimeout(root._swapDustTimer);
+        stage.remove();
+        if (root._swapDustStop === stop) { root._swapDustStop = null; root._swapDustTimer = null; }
+      };
+      var frame = function (now) {
+        var ms = now - started;
+        if (ms >= total) { stop(); return; }
+        ctx.clearRect(0, 0, px.w, px.h);
+        for (var ri = 0; ri < runs.length; ri++) {
+          lvlN.fill(0);
+          var grains = runs[ri].grains, gi2, buf, j;
+          for (gi2 = 0; gi2 < grains.length; gi2++) {
+            var sp = grains[gi2];
+            var p = (ms - sp.delay) / DUST_LIFE_MS;
+            if (p <= 0 || p >= 1) continue;
+            grainAt(sp, p, at);
+            var li = Math.round(at.alpha * DUST_ALPHA_LEVELS) - 1;
+            if (li < 0) continue;
+            buf = lvl[li];
+            j = lvlN[li]++ * 3;
+            buf[j] = at.x; buf[j + 1] = at.y; buf[j + 2] = at.r;
+          }
+          ctx.fillStyle = runs[ri].colour;
+          for (var li2 = 0; li2 < DUST_ALPHA_LEVELS; li2++) {
+            var n = lvlN[li2];
+            if (!n) continue;
+            buf = lvl[li2];
+            ctx.globalAlpha = (li2 + 1) / DUST_ALPHA_LEVELS;
+            ctx.beginPath();
+            for (j = 0; j < n; j++) {
+              var gx = buf[j * 3], gy = buf[j * 3 + 1], gr = buf[j * 3 + 2];
+              ctx.moveTo(gx + gr, gy);
+              ctx.arc(gx, gy, gr, 0, TAU);
+            }
+            ctx.fill();
+          }
+        }
+        raf = requestAnimationFrame(frame);
+      };
+      raf = requestAnimationFrame(frame);
+      root._swapDustStop = stop;
+      // Belt and braces: a throttled or paused rAF (a backgrounded tab) would otherwise
+      // leave the stage sitting over the page for good.
+      root._swapDustTimer = setTimeout(stop, total + 200);
     } catch (e) { /* decoration only — the swap carries on regardless */ }
   };
 

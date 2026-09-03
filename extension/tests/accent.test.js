@@ -329,20 +329,32 @@ test('the wipe seeds a dust layer on <body> once ready, in the OLD palette', asy
   await Promise.resolve();   // let `ready` deliver
   await Promise.resolve();
   assert.equal(page.bodyChildren.length, 1, 'one dust layer');
-  const host = page.bodyChildren[0];
-  assert.equal(host.className, 'swap-dust');
-  assert.ok(host.children.length > 10, `a real field of motes (got ${host.children.length})`);
-  assert.ok(host.children.every((m) => m.className === 'swap-dust-mote'));
+  const stage = page.bodyChildren[0];
+  assert.equal(stage.className, 'swap-dust');
+  assert.equal(stage.tagName, 'CANVAS', 'one stage, not a div per grain');
+  // Sized in device pixels, laid out in CSS ones — a hi-dpi wake is not a blurry one.
+  assert.deepEqual([stage.style.width, stage.style.height], ['480px', '700px']);
+
+  // Mid-wake: grains of both colours are in the air.
+  assert.ok(page.frame(140), 'the wake is running');
+  const lit = stage.fills.filter((f) => f.arcs > 0);
+  const grains = lit.reduce((n, f) => n + f.arcs, 0);
+  assert.ok(grains > 10, `a real field of grains (got ${grains})`);
   // The sandbox's computed vars are the pre-swap (light) palette: the wake bakes those
-  // literals — by the time a mote shows, the live vars already mean the new theme.
-  assert.ok(host.children.some((m) => m.style.background === '#7c3aed'), 'old-accent grains');
-  assert.ok(host.children.some((m) => m.style.background === 'color-mix(in srgb, #f4f5f7 58%, #1d2230)'),
+  // literals — by the time a grain shows, the live vars already mean the new theme.
+  assert.ok(lit.some((f) => f.colour === '#7c3aed'), 'old-accent grains');
+  assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, #f4f5f7 58%, #1d2230)'),
     'body grains lifted off the old surface towards its old ink');
-  // Every mote ignites on the ring's clock, inside the wipe's duration.
-  for (const m of host.children) {
-    const delay = parseInt(m.style.animationDelay, 10);
-    assert.ok(delay > 0 && delay < 280, `ignites mid-wipe, not at the ends (${m.style.animationDelay})`);
-  }
+  // The whole point of the stage: a couple of fills a frame, not one per grain.
+  assert.ok(stage.fills.length <= 16, `batched into ${stage.fills.length} fills, not ${grains}`);
+  assert.ok(lit.every((f) => f.alpha > 0 && f.alpha <= 1), 'every batch carries its own alpha');
+
+  // Nothing is alight before the ring starts moving, or after the last grain burns out.
+  stage.fills.length = 0;
+  assert.ok(page.frame(0));
+  assert.equal(stage.fills.length, 0, 'no grain ignites at t=0 — the ring is still a point');
+  assert.ok(page.frame(280 + 340 + 1) === true);
+  assert.ok(stage.removed, 'the stage clears itself off the page');
 });
 
 test('the fallback path (no View Transitions) spawns no dust — there is no ring to ride', async () => {

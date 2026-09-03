@@ -292,9 +292,9 @@ export function swapPercent(x, y, w, h) {
 // Where the ring IS at time-fraction t: the Y of the wipe's own cubic-bezier, solved the
 // same way the desktop evaluates these control points (themeSwapOverlay.hpp swapEase) —
 // bisection on the monotonic X, then read Y. The dust below is seeded off this curve, so
-// the motes ride the very ring the clip-path draws. Pure — unit-tested.
-export function swapEase(t) {
-  const x1 = 0.4, y1 = 0.25, x2 = 0.95, y2 = 1;
+// the motes ride the very ring the clip-path draws. `bezierY` is shared with the grain's
+// own curve below. Pure — unit-tested.
+const bezierY = (t, x1, y1, x2, y2) => {
   let lo = 0, hi = 1, u = t;
   for (let i = 0; i < 24; i++) {
     u = 0.5 * (lo + hi);
@@ -302,7 +302,8 @@ export function swapEase(t) {
     if (x < t) lo = u; else hi = u;
   }
   return 3 * (1 - u) * (1 - u) * u * y1 + 3 * (1 - u) * u * u * y2 + u * u * u;
-}
+};
+export const swapEase = (t) => bezierY(t, 0.4, 0.25, 0.95, 1);
 
 // ── The ragged front ────────────────────────────────────────────────────────
 // The wipe's edge is not a clean circle: it is a torn, dusty front. The clip is a
@@ -350,7 +351,7 @@ export function swapEdgePolygon(x, y, w, h, grow) {
 // ::view-transition-new(root), so a mote ahead of the front simply would not be seen —
 // they spawn behind even the deepest tooth (the 1 − amp band).
 // (Desktop twin: themeSwapOverlay.hpp dustMoteAt.)
-export const SWAP_DUST_MOTES = 900;
+export const SWAP_DUST_MOTES = 4500;
 export const SWAP_DUST_LIFE_MS = 340;
 // A mote never ignites at the very ends of the wipe: at t=0 the ring is a point (nothing
 // to ride), and the last ones still get their whole life before the layer is reaped.
@@ -382,8 +383,8 @@ export function swapDustSpecs(x, y, w, h, count = SWAP_DUST_MOTES) {
     // sideways breath so the wake churns instead of radiating.
     const d = 8 + q * 14;
     specs.push({
-      left: +(cx - size / 2).toFixed(2),
-      top: +(cy - size / 2).toFixed(2),
+      cx: +cx.toFixed(2),
+      cy: +cy.toFixed(2),
       size,
       dx: Math.round(Math.cos(angle) * d + (m - 0.5) * 14),
       dy: Math.round(Math.sin(angle) * d + (0.5 - q) * 14),
@@ -398,6 +399,41 @@ export function swapDustSpecs(x, y, w, h, count = SWAP_DUST_MOTES) {
   return specs;
 }
 
+// ── One grain's flight ──────────────────────────────────────────────────────
+// The wake used to be a div per grain running the `swapDustMote` keyframes. At this
+// density that was thousands of composited layers and the swap dropped half its frames,
+// so the stage below paints the grains itself and this is where those keyframes now
+// live: the same cubic-bezier, the same three opacity stops, the same throw and shrink.
+// Sampled into a table — the bisection is far too dear to run three times per grain per
+// frame. (Desktop twin: themeSwapOverlay.hpp dustMoteAt, which evaluates them by hand.)
+const SWAP_DUST_STEPS = 256;
+const swapDustCurve = Float32Array.from({ length: SWAP_DUST_STEPS + 1 },
+  (_, i) => bezierY(i / SWAP_DUST_STEPS, 0.22, 0.55, 0.3, 1));
+// Both ends exactly: the solver bisects to within a hair of 0 and 1, and that hair is
+// enough to start a grain a fraction off its home and leave it a fraction lit.
+swapDustCurve[0] = 0;
+swapDustCurve[SWAP_DUST_STEPS] = 1;
+export const swapDustEase = (t) =>
+  swapDustCurve[Math.min(SWAP_DUST_STEPS, Math.max(0, Math.round(t * SWAP_DUST_STEPS)))];
+
+// Opacity flares over the first 18% of a grain's life and falls away across the rest.
+export const SWAP_DUST_FLARE = 0.18;
+
+// Where grain `s` is at life-fraction `p` (0 = ignition, 1 = burnt out), how big and how
+// bright. Writes into `out` rather than returning a fresh object: this runs once per
+// grain per frame. Pure — unit-tested.
+export function swapDustFrame(s, p, out = {}) {
+  const e = swapDustEase(p);
+  const o = p < SWAP_DUST_FLARE
+    ? swapDustEase(p / SWAP_DUST_FLARE)
+    : 1 - swapDustEase((p - SWAP_DUST_FLARE) / (1 - SWAP_DUST_FLARE));
+  out.x = s.cx + s.dx * e;
+  out.y = s.cy + s.dy * e;
+  out.r = (s.size / 2) * (1 - 0.7 * e);
+  out.alpha = s.alpha * o;
+  return out;
+}
+
 // What the wake is painted in — read BEFORE the palette flips, then baked as literals:
 // by the time a mote is on screen the variables already mean the NEW theme.
 const swapDustPaint = () => {
@@ -410,41 +446,93 @@ const swapDustPaint = () => {
   } catch { return null; }
 };
 
+// Whatever the canvas makes of a colour: it normalizes what it accepts and silently
+// keeps what it had for anything it cannot parse, so a round trip that comes back
+// unchanged from `fallback` is a colour that did not survive.
+const canvasColour = (ctx, c, fallback) => {
+  ctx.fillStyle = fallback;
+  ctx.fillStyle = c;
+  return ctx.fillStyle;
+};
+
 // Build the layer. `px` is the origin/viewport the wipe was actually written with.
+// ONE canvas, not a div per grain: grains are batched by colour and alpha step into a
+// handful of fills a frame, the same trick the canvas dust plays (drawDust below).
 // Decoration only: any stub environment bails inside the catch and the swap plays clean.
 function spawnSwapDust(px, paint) {
   try {
     if (!px || !paint || typeof document === 'undefined' || !document.body?.appendChild) return;
+    if (typeof requestAnimationFrame !== 'function') return;
     const root = document.documentElement;
     // A second swap mid-wake starts a new wipe — the newest one owns the dust.
-    clearTimeout(root._swapDustTimer);
-    root._swapDustHost?.remove?.();
-    root._swapDustHost = null;
+    root._swapDustStop?.();
     const specs = swapDustSpecs(px.x, px.y, px.w, px.h);
     if (!specs.length) return;
-    const host = document.createElement('div');
-    host.className = 'swap-dust';
-    host.style.setProperty('--swap-dust-ms', `${SWAP_DUST_LIFE_MS}ms`);
-    for (const s of specs) {
-      const mote = document.createElement('div');
-      mote.className = 'swap-dust-mote';
-      mote.style.left = `${s.left}px`;
-      mote.style.top = `${s.top}px`;
-      mote.style.width = `${s.size}px`;
-      mote.style.height = `${s.size}px`;
-      mote.style.background = s.accent ? paint.accent : paint.fill;
-      mote.style.setProperty('--dx', `${s.dx}px`);
-      mote.style.setProperty('--dy', `${s.dy}px`);
-      mote.style.setProperty('--mote-o', String(s.alpha));
-      mote.style.animationDelay = `${s.delay}ms`;
-      host.appendChild(mote);
-    }
-    document.body.appendChild(host);
-    root._swapDustHost = host;
-    root._swapDustTimer = setTimeout(() => {
-      host.remove();
-      if (root._swapDustHost === host) { root._swapDustHost = null; root._swapDustTimer = null; }
-    }, THEME_SWAP_MS + SWAP_DUST_LIFE_MS + 200);
+    const stage = document.createElement('canvas');
+    const ctx = stage.getContext?.('2d');
+    if (!ctx) return;
+    stage.className = 'swap-dust';
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    stage.width = Math.round(px.w * dpr);
+    stage.height = Math.round(px.h * dpr);
+    stage.style.width = `${px.w}px`;
+    stage.style.height = `${px.h}px`;
+    ctx.scale(dpr, dpr);
+    // Split by colour once, so a frame is two runs of one fillStyle rather than a
+    // thousand switches — and resolve both now, before the palette moves under us.
+    const runs = [{ colour: canvasColour(ctx, paint.fill, '#888'), grains: specs.filter((s) => !s.accent) },
+                  { colour: canvasColour(ctx, paint.accent, '#888'), grains: specs.filter((s) => s.accent) }];
+    document.body.appendChild(stage);
+    // [x, y, r] per grain, bucketed by alpha step and reused every frame.
+    const lvl = Array.from({ length: DUST_ALPHA_LEVELS }, () => new Float32Array(specs.length * 3));
+    const lvlN = new Int32Array(DUST_ALPHA_LEVELS);
+    const at = {};
+    const total = THEME_SWAP_MS + SWAP_DUST_LIFE_MS;
+    const started = performance.now();
+    let raf = 0;
+    const stop = () => {
+      if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
+      clearTimeout(root._swapDustTimer);
+      stage.remove();
+      if (root._swapDustStop === stop) { root._swapDustStop = null; root._swapDustTimer = null; }
+    };
+    const frame = (now) => {
+      const ms = now - started;
+      if (ms >= total) { stop(); return; }
+      ctx.clearRect(0, 0, px.w, px.h);
+      for (const run of runs) {
+        lvlN.fill(0);
+        for (const s of run.grains) {
+          const p = (ms - s.delay) / SWAP_DUST_LIFE_MS;
+          if (p <= 0 || p >= 1) continue;
+          swapDustFrame(s, p, at);
+          const l = Math.round(at.alpha * DUST_ALPHA_LEVELS) - 1;
+          if (l < 0) continue;
+          const buf = lvl[l], j = lvlN[l]++ * 3;
+          buf[j] = at.x; buf[j + 1] = at.y; buf[j + 2] = at.r;
+        }
+        ctx.fillStyle = run.colour;
+        for (let l = 0; l < DUST_ALPHA_LEVELS; l++) {
+          const n = lvlN[l];
+          if (!n) continue;
+          const buf = lvl[l];
+          ctx.globalAlpha = (l + 1) / DUST_ALPHA_LEVELS;
+          ctx.beginPath();
+          for (let j = 0; j < n; j++) {
+            const x = buf[j * 3], y = buf[j * 3 + 1], r = buf[j * 3 + 2];
+            ctx.moveTo(x + r, y);
+            ctx.arc(x, y, r, 0, TAU);
+          }
+          ctx.fill();
+        }
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    root._swapDustStop = stop;
+    // Belt and braces: a throttled or paused rAF (a backgrounded tab) would otherwise
+    // leave the stage sitting over the page for good.
+    root._swapDustTimer = setTimeout(stop, total + 200);
   } catch { /* decoration only — the swap carries on regardless */ }
 }
 

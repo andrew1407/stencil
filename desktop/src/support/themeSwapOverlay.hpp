@@ -21,6 +21,7 @@
 #include <QWidget>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace stencil::gui {
@@ -39,10 +40,9 @@ namespace stencil::gui {
     // its whole duration and reads as durable. Same shape as the browser's
     // cubic-bezier(0.4, 0.25, 0.95, 1) — see the note over ::view-transition-new(root) in
     // browser/css/animations.css, which records the measurements this came from.
-    static qreal swapEase(qreal t) {
-      // cubic-bezier(x1, y1, x2, y2) with the browser's control points: solve x(u) = t by
-      // bisection (the curve is monotonic in x), then read y(u).
-      constexpr double x1 = 0.4, y1 = 0.25, x2 = 0.95, y2 = 1.0;
+    // cubic-bezier(x1, y1, x2, y2): solve x(u) = t by bisection (the curve is monotonic
+    // in x), then read y(u). Shared with the grain's own curve below — browser bezierY.
+    static double bezierY(double t, double x1, double y1, double x2, double y2) {
       double lo = 0.0, hi = 1.0, u = t;
       for (int i = 0; i < 24; i++) {
         u = 0.5 * (lo + hi);
@@ -50,6 +50,25 @@ namespace stencil::gui {
         if (x < t) lo = u; else hi = u;
       }
       return 3 * (1 - u) * (1 - u) * u * y1 + 3 * (1 - u) * u * u * y2 + u * u * u;
+    }
+    static qreal swapEase(qreal t) { return bezierY(t, 0.4, 0.25, 0.95, 1.0); }
+
+    // The GRAIN's curve, cubic-bezier(0.22, 0.55, 0.3, 1) — what the browser's
+    // .swap-dust-mote keyframes ran on, and what both surfaces now evaluate instead of
+    // declaring (browser motion.js swapDustEase). Sampled to the same 256 steps it
+    // tabulates, both ends pinned: the solver only bisects to within a hair of 0 and 1,
+    // and that hair is enough to leave a spent grain a fraction lit.
+    static constexpr int kGrainSteps = 256;
+    static double grainEase(double t) {
+      static const std::array<double, kGrainSteps + 1> curve = [] {
+        std::array<double, kGrainSteps + 1> c{};
+        for (int i = 0; i <= kGrainSteps; i++)
+          c[i] = bezierY(double(i) / kGrainSteps, 0.22, 0.55, 0.3, 1.0);
+        c.front() = 0.0;
+        c.back() = 1.0;
+        return c;
+      }();
+      return curve[std::clamp(int(std::lround(t * kGrainSteps)), 0, kGrainSteps)];
     }
     // Q_OBJECT-free by design, so findChildren<T>() can't reach it — tests (and anything
     // else) locate a live wipe by this name instead.
@@ -82,12 +101,15 @@ namespace stencil::gui {
     // Always just INSIDE the clip (behind even the deepest tooth, the 1 − amp band):
     // the browser renders its page through the clip, so its motes cannot be seen ahead
     // of the front, and the two surfaces must agree.
-    static constexpr int kDustMotes = 900;
+    static constexpr int kDustMotes = 4500;
     static constexpr int kDustLifeMs = 340;
     // A mote never ignites at the very ends of the wipe: at t=0 the ring is a point
     // (nothing to ride), and the last ones still get their whole life before teardown.
     static constexpr double kDustMinT = 0.06;
     static constexpr double kDustMaxT = 0.94;
+    // Opacity flares over the first 18% of a grain's life, then falls away (browser
+    // motion.js SWAP_DUST_FLARE).
+    static constexpr double kGrainFlare = 0.18;
 
     // Deterministic per-mote jitter — the shared scatter hash (browser tileNoise,
     // DisintegrateOverlay::cellNoise), so every surface's dust is cut from one cloth.
@@ -119,15 +141,21 @@ namespace stencil::gui {
       const double hx = origin.x() + std::cos(angle) * r;
       const double hy = origin.y() + std::sin(angle) * r;
       if (hx < -16 || hy < -16 || hx > bounds.width() + 16 || hy > bounds.height() + 16) return false;
-      // The browser's swapDustMote keyframes, evaluated by hand: flare in over the first
-      // 18% of the life, fade to nothing; drift and shrink ride one ease-out.
-      const double e = 1.0 - std::pow(1.0 - life, 3.0);
+      // The browser's swapDustFrame, op for op: opacity flares over the first 18% of the
+      // life and falls away across the rest, each leg on the grain's curve; the throw and
+      // the shrink ride one pass of it.
+      const double e = grainEase(life);
+      const double o = life < kGrainFlare
+                           ? grainEase(life / kGrainFlare)
+                           : 1.0 - grainEase((life - kGrainFlare) / (1.0 - kGrainFlare));
+      const double alpha = (0.75 + q * 0.25) * o;
+      if (alpha < 1.0 / 255) return false;   // below one 8-bit step — nothing to paint
       // Chase the front outward, slower than it (the ring accelerates away), plus a
       // sideways breath so the wake churns instead of radiating.
       const double d = 8 + q * 14;
       out->x = hx + (std::cos(angle) * d + (m - 0.5) * 14) * e;
       out->y = hy + (std::sin(angle) * d + (0.5 - q) * 14) * e;
-      out->alpha = (0.75 + q * 0.25) * (life < 0.18 ? life / 0.18 : 1.0 - (life - 0.18) / 0.82);
+      out->alpha = alpha;
       out->size = (2.5 + n * 3.5) * (1.0 - 0.7 * e);
       out->accent = i % 4 == 0;
       return true;
@@ -231,8 +259,8 @@ namespace stencil::gui {
       }
       if (!dust_) return;
       // The wake is INSIDE the circle, over the freshly themed window — clip off. Round
-      // grains, like every other cloud's (a few hundred AA discs is nothing next to the
-      // blit above; only the clip edge had to stay aliased).
+      // grains, like every other cloud's — a couple of thousand alive at the peak, each
+      // a ~5px AA disc; only the clip edge had to stay aliased.
       p.setClipping(false);
       p.setRenderHint(QPainter::Antialiasing, true);
       p.setPen(Qt::NoPen);
