@@ -10,7 +10,8 @@ import {
   observeReveal, flashLanding, flipTransform, revealDissolve, revealGrain,
   FLIP_MS, FLIP_EASING, FLIP_ACTIVE_CLASS,
   themeSwap, swapRadius, swapPercent, originOf, THEME_SWAP_MS, THEME_SWAP_CLASS,
-  swapEase, swapDustSpecs, SWAP_DUST_MOTES, SWAP_DUST_LIFE_MS, SWAP_DUST_MIN_T, SWAP_DUST_MAX_T,
+  swapEase, swapDustSpecs, swapDustFrame, SWAP_DUST_FLARE,
+  SWAP_DUST_MOTES, SWAP_DUST_LIFE_MS, SWAP_DUST_MIN_T, SWAP_DUST_MAX_T,
   swapEdgePolygon, SWAP_EDGE_POINTS, SWAP_EDGE_AMP,
   originOfId, arriveFrom, arrivalBox, ARRIVE_GLOW_CLASS, LANDING_CLASS, ARRIVE_ACTIVE_CLASS,
   dustDelay, dustEase, dustGrid, dustVisibleBox, pinDustStage, ghostIn, ghostOut, hasPixels, tileNoise,
@@ -667,12 +668,12 @@ test('swapDustSpecs seeds every mote just inside the ring, on screen, determinis
     // In the front's WAKE: when a mote lights up, even the deepest tooth of the torn
     // edge has already passed its spot — during a view transition anything outside the
     // clip simply is not rendered.
-    const dist = Math.hypot(s.left + s.size / 2 - x, s.top + s.size / 2 - y);
+    const dist = Math.hypot(s.cx - x, s.cy - y);
     const wakeAtIgnite = swapEase((s.delay + 1) / THEME_SWAP_MS) * R * (1 - SWAP_EDGE_AMP);
     assert.ok(dist <= wakeAtIgnite + 1, `mote at ${dist}px ahead of the wake band at ${wakeAtIgnite}px`);
     // On screen (a hair of margin), so no spec is spent where nobody can see it.
-    assert.ok(s.left + s.size / 2 >= -16 && s.left + s.size / 2 <= w + 16, `off screen x ${s.left}`);
-    assert.ok(s.top + s.size / 2 >= -16 && s.top + s.size / 2 <= h + 16, `off screen y ${s.top}`);
+    assert.ok(s.cx >= -16 && s.cx <= w + 16, `off screen x ${s.cx}`);
+    assert.ok(s.cy >= -16 && s.cy <= h + 16, `off screen y ${s.cy}`);
     assert.ok(s.size >= 2.5 && s.size <= 6, `grain out of range ${s.size}`);
     assert.ok(s.alpha >= 0.75 && s.alpha <= 1, `never faint ${s.alpha}`);
   }
@@ -682,25 +683,52 @@ test('swapDustSpecs seeds every mote just inside the ring, on screen, determinis
   assert.deepEqual(swapDustSpecs(0, 0, 0, 0), []);
 });
 
+test('swapDustFrame flies a grain the way its keyframes did: flare, throw, shrink', () => {
+  const s = { cx: 100, cy: 200, size: 4, dx: 12, dy: -8, alpha: 0.9, delay: 40, accent: false };
+  const at = (p) => swapDustFrame(s, p);
+  // Ignition and burn-out are both invisible; the flare peaks where the 18% stop was.
+  assert.ok(at(0).alpha < 0.01 && at(1).alpha < 0.01, 'lights up out of nothing, leaves nothing');
+  assert.ok(Math.abs(at(SWAP_DUST_FLARE).alpha - s.alpha) < 1e-6, 'full brightness at the flare stop');
+  // Brightness climbs to the stop and falls away after it, monotonically either side.
+  for (let p = 0.02; p < SWAP_DUST_FLARE; p += 0.02) assert.ok(at(p).alpha < at(p + 0.02).alpha);
+  for (let p = SWAP_DUST_FLARE; p < 0.96; p += 0.02) assert.ok(at(p).alpha > at(p + 0.02).alpha);
+  // The throw is the whole of --dx/--dy, and the grain shrinks to 0.3 of itself.
+  assert.deepEqual([at(0).x, at(0).y], [s.cx, s.cy], 'starts home, untransformed');
+  assert.ok(Math.abs(at(1).x - (s.cx + s.dx)) < 0.05 && Math.abs(at(1).y - (s.cy + s.dy)) < 0.05);
+  assert.ok(Math.abs(at(0).r - s.size / 2) < 1e-6);
+  assert.ok(Math.abs(at(1).r - (s.size / 2) * 0.3) < 0.02, 'scale(0.3) at the end');
+  // The curve is ease-out: more than half the throw is spent in the first half.
+  assert.ok(at(0.5).x - s.cx > s.dx * 0.5);
+  // It writes into a caller's object — this runs once per grain per frame.
+  const out = {};
+  assert.strictEqual(swapDustFrame(s, 0.5, out), out);
+});
+
 test('themeSwap spawns the wake once the transition is ready, in the OLD palette', async () => {
   const root = rootStub();
   const bodyChildren = [];
-  const mkEl = () => {
-    const props = {};
-    const kids = [];
-    return {
-      props, children: kids, className: '',
-      style: { setProperty: (k, v) => { props[k] = v; },
-               set left(v) { props.left = v; }, set top(v) { props.top = v; },
-               set width(v) { props.width = v; }, set height(v) { props.height = v; },
-               set background(v) { props.background = v; }, set animationDelay(v) { props.animationDelay = v; } },
-      appendChild: (c) => kids.push(c),
-      remove: () => {},
+  // A canvas that records what was actually painted: the colour of each fill, its alpha,
+  // and how many arcs rode in it.
+  const mkCanvas = () => {
+    const fills = [];
+    const el = {
+      className: '', width: 0, height: 0, style: {}, removed: false,
+      remove() { el.removed = true; },
     };
+    let arcs = 0;
+    const ctx = {
+      fillStyle: '#000', globalAlpha: 1, cleared: 0,
+      scale() {}, clearRect() { ctx.cleared++; }, beginPath() { arcs = 0; },
+      moveTo() {}, arc() { arcs++; },
+      fill() { fills.push({ colour: ctx.fillStyle, alpha: ctx.globalAlpha, arcs }); },
+    };
+    el.getContext = () => ctx;
+    el.fills = fills;
+    return el;
   };
   const doc = {
     documentElement: root,
-    createElement: () => mkEl(),
+    createElement: (tag) => (tag === 'canvas' ? mkCanvas() : { style: { setProperty() {} }, appendChild() {} }),
     body: { appendChild: (el2) => bodyChildren.push(el2) },
     startViewTransition: (cb) => { cb(); return { ready: Promise.resolve(), finished: Promise.resolve() }; },
   };
@@ -708,7 +736,9 @@ test('themeSwap spawns the wake once the transition is ready, in the OLD palette
   const priorCS = globalThis.getComputedStyle;
   const priorDoc = globalThis.document;
   const priorMM = globalThis.matchMedia;
-  globalThis.window = { innerWidth: 300, innerHeight: 400 };
+  const priorRaf = globalThis.requestAnimationFrame;
+  const priorCancel = globalThis.cancelAnimationFrame;
+  globalThis.window = { innerWidth: 300, innerHeight: 400, devicePixelRatio: 2 };
   // The vars as they read BEFORE apply — the wake must bake these, not the new theme's.
   globalThis.getComputedStyle = () => ({
     getPropertyValue: (n) => ({ '--bg-page': '#111318', '--text-main': '#e8eaf0', '--accent': '#eab308' }[n] || ''),
@@ -717,26 +747,44 @@ test('themeSwap spawns the wake once the transition is ready, in the OLD palette
   // microtask, after a withDoc would already have restored the globals.
   globalThis.document = doc;
   globalThis.matchMedia = () => ({ matches: false });
+  let pending = null;
+  globalThis.requestAnimationFrame = (cb) => { pending = cb; return 1; };
+  globalThis.cancelAnimationFrame = () => { pending = null; };
   try {
     themeSwap(() => {}, { x: 150, y: 200 });
     await Promise.resolve();   // let `ready` deliver
     await Promise.resolve();
     assert.equal(bodyChildren.length, 1, 'one dust layer on <body>');
-    const host = bodyChildren[0];
-    assert.equal(host.className, 'swap-dust');
-    assert.equal(host.props['--swap-dust-ms'], `${SWAP_DUST_LIFE_MS}ms`);
-    assert.ok(host.children.length > 30, 'a field of motes');
-    const motes = host.children;
-    assert.ok(motes.every((m) => m.className === 'swap-dust-mote'));
-    assert.ok(motes.some((m) => m.props.background === '#eab308'), 'accent grains in the OLD accent');
-    assert.ok(motes.some((m) => /color-mix\(in srgb, #111318 58%, #e8eaf0\)/.test(m.props.background)),
+    const stage = bodyChildren[0];
+    assert.equal(stage.className, 'swap-dust');
+    // Sized in device pixels, laid out in CSS ones — a hi-dpi wake is not a blurry one.
+    assert.deepEqual([stage.width, stage.height], [600, 800]);
+    assert.deepEqual([stage.style.width, stage.style.height], ['300px', '400px']);
+
+    // Mid-wake: grains of both colours are in the air.
+    const t0 = performance.now();
+    pending(t0 + THEME_SWAP_MS / 2);
+    const lit = stage.fills.filter((f) => f.arcs > 0);
+    assert.ok(lit.reduce((n, f) => n + f.arcs, 0) > 30, 'a field of grains');
+    assert.ok(lit.some((f) => f.colour === '#eab308'), 'accent grains in the OLD accent');
+    assert.ok(lit.some((f) => /color-mix\(in srgb, #111318 58%, #e8eaf0\)/.test(f.colour)),
       'body grains lifted off the OLD surface towards its OLD ink');
+    // The whole point of the stage: a couple of fills a frame, not one per grain.
+    assert.ok(stage.fills.length <= 2 * DUST_ALPHA_LEVELS,
+      `batched into ${stage.fills.length} fills, not ${lit.reduce((n, f) => n + f.arcs, 0)}`);
+    assert.ok(lit.every((f) => f.alpha > 0 && f.alpha <= 1), 'every batch carries its own alpha');
+
+    // …and it reaps itself once the last grain has burnt out.
+    pending(t0 + THEME_SWAP_MS + SWAP_DUST_LIFE_MS + 1);
+    assert.ok(stage.removed, 'the stage clears itself off the page');
   } finally {
     clearTimeout(root._swapDustTimer);   // reap the layer's own timer — tests must not linger
     globalThis.window = priorWin;
     globalThis.getComputedStyle = priorCS;
     globalThis.document = priorDoc;
     globalThis.matchMedia = priorMM;
+    globalThis.requestAnimationFrame = priorRaf;
+    globalThis.cancelAnimationFrame = priorCancel;
   }
 });
 
@@ -1310,8 +1358,11 @@ test('animations.css: every flight bends through --mx/--my, and every tile is ro
   const tile = css.match(/\.disintegrate-tile \{([\s\S]*?)\n\}/)[1];
   assert.match(tile, /border-radius: 50%;/, 'a tile IS a round mote');
   assert.ok(!/inset: 0/.test(tile), 'it sizes and seats itself — never fills the host');
-  const swap = css.match(/\.swap-dust-mote \{([\s\S]*?)\n\}/)[1];
-  assert.match(swap, /border-radius: 50%;/, 'the theme wipe’s grains are the same round grain');
+  // The theme wipe’s grains are the same round grain, but the STAGE draws them now
+  // (js/ui/motion.js spawnSwapDust): no per-grain rule, and so no layer per grain.
+  assert.ok(!/\.swap-dust-mote/.test(css) && !/swapDustMote/.test(css), 'no rule left per grain');
+  const wake = css.match(/\.swap-dust \{([\s\S]*?)\n\}/)[1];
+  assert.ok(!/will-change/.test(wake), 'one layer for the whole wake, not one promoted per grain');
 });
 
 test('canvas dust batches its grains: a few alpha steps, one fill per colour and step', () => {

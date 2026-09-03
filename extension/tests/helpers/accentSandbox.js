@@ -90,7 +90,8 @@ export const loadAccent = ({
   const bodyChildren = [];
   const pointerListeners = [];
   // Rich enough for BOTH creations accent.js does: the favicon <link> (bare property
-  // writes) and the swap-dust layer (className, style writes + setProperty, children).
+  // writes) and the swap-dust stage — a canvas whose 2d context records what was painted,
+  // so a test can read back the colour, alpha and grain count of every fill.
   const makeElement = (tag) => {
     const style = { setProperty: (k, v) => { style[k] = v; } };
     const children = [];
@@ -101,10 +102,22 @@ export const loadAccent = ({
       children,
       appendChild: (c) => children.push(c),
       remove: () => {
+        el.removed = true;
         const i = bodyChildren.indexOf(el);
         if (i >= 0) bodyChildren.splice(i, 1);
       },
     };
+    if (tag === 'canvas') {
+      let arcs = 0;
+      el.fills = [];
+      const ctx = {
+        fillStyle: '#000', globalAlpha: 1,
+        scale() {}, clearRect() {}, beginPath() { arcs = 0; },
+        moveTo() {}, arc() { arcs++; },
+        fill() { el.fills.push({ colour: ctx.fillStyle, alpha: ctx.globalAlpha, arcs }); },
+      };
+      el.getContext = () => ctx;
+    }
     return el;
   };
   const document = {
@@ -162,6 +175,14 @@ export const loadAccent = ({
   // drop .theme-swapping is a host API, so it has to be supplied.
   sandbox.setTimeout = () => 0;
   sandbox.clearTimeout = () => {};
+  // The wake's own clock. Frames are handed out by the test (`page.frame(ms)`), never by
+  // a real vsync, so a wake can be inspected at any instant of its life.
+  let pendingFrame = null;
+  sandbox.requestAnimationFrame = (cb) => { pendingFrame = cb; return 1; };
+  sandbox.cancelAnimationFrame = () => { pendingFrame = null; };
+  sandbox.performance = { now: () => 0 };
+  sandbox.Float32Array = Float32Array;
+  sandbox.Int32Array = Int32Array;
   // What dustPaint reads for the wake's colours — the page's palette vars, as they stand
   // BEFORE the swap applies (the values below stand in for lib/theme.css's light set).
   sandbox.getComputedStyle = () => ({
@@ -189,8 +210,16 @@ export const loadAccent = ({
     /** The favicon <link>, if one was created/updated. */
     faviconLink: () => headChildren.find((el) => el.tagName === 'LINK' && el.rel === 'icon') || null,
     headChildren,
-    /** Layers appended to <body> — the swap-dust host lands here (after `ready`). */
+    /** Layers appended to <body> — the swap-dust stage lands here (after `ready`). */
     bodyChildren,
+    /** Drive the wake's rAF loop to `ms` into the swap; false once it has reaped itself. */
+    frame(ms) {
+      if (!pendingFrame) return false;
+      const cb = pendingFrame;
+      pendingFrame = null;
+      cb(ms);
+      return true;
+    },
     /** Raw localStorage contents. */
     store,
     /** Every object handed to chrome.storage.local.set, in order. */
