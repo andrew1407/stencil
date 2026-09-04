@@ -383,7 +383,7 @@ button:not(:disabled):active {
 .ic-pin                { --ic-ms: 0.3s; --ic-play: icmPressDown; }      /* pressed home */
 /* Save writes UP into the project list — the disk rises into place from below rather
    than pressing down, so the direction reads as "going up to be saved". */
-.ic-save                { --ic-ms: 0.3s; --ic-play: icmRiseIn; }
+.ic-save                { --ic-ms: 0.42s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); --ic-play: icmRiseIn; }
 .ic-alert             { --ic-ms: 0.3s; --ic-ease: cubic-bezier(0.4, 0, 0.2, 1); --ic-play: icmShake; }
 /* A quick tremor in place. TRANSLATION, not rotation: turning the mark about the icon
    centre swings it out of its own ring, which is the bug this replaced. */
