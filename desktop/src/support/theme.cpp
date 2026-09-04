@@ -512,9 +512,16 @@ namespace stencil::gui {
       QToolButton[toolGhost="true"] {
         background: transparent; border: 1px solid %BORDER%; color: %TEXT%;
       }
-      QToolButton[toolGhost="true"]:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
-      QToolButton[toolGhost="true"]:pressed { background: %ACCENT_SOFT2%; }
+      /* …hovering NEUTRAL as the browser's does (#zoom-fit:hover): --bg-info, the
+         border unchanged. The accent tint here reads as a half-on toggle. */
+      QToolButton[toolGhost="true"]:hover { background: %BG_INFO%; border-color: %BORDER%; }
+      QToolButton[toolGhost="true"]:pressed { background: %BG_COORD_HOVER%; }
       QToolButton[toolGhost="true"]:disabled { color: %MUTED%; background: transparent; border-color: %BORDER%; }
+      /* The Settings cluster: the browser's bordered ghosts (#settings-btn & co). A
+         CHECKED toggle still wins its accent fill (the more specific rule below). */
+      QToolButton[toolSection="Settings"] { background: transparent; border: 1px solid %BORDER%; }
+      QToolButton[toolSection="Settings"]:hover { background: %BG_INFO%; border-color: %BORDER%; }
+      QToolButton[toolSection="Settings"]:pressed { background: %BG_COORD_HOVER%; }
 
       /* ── Menu bar + menus: rounded accent hover, comfortable padding ── */
       QMenuBar { background: %BG_CONTROLS%; color: %TEXT%; border-bottom: 1px solid %BORDER%; padding: 2px 4px; }
@@ -866,6 +873,41 @@ namespace stencil::gui {
          plain-weight 13px label column (components.css .vs-row / its label). */
       QWidget[vsRow="true"] { background: transparent; border-bottom: 1px solid %BORDER%; }
       QLabel[vsLabel="true"] { background: transparent; font-size: 13px; }
+      /* ── The list-shaped modals (info, shortcuts, settings — modalChrome.hpp):
+         the browser's .modal-search box, .settings-body scroller and .info-empty line. ── */
+      QLineEdit#modalSearch { padding: 8px 10px; border-radius: 6px; font-size: 13px; }
+      QLineEdit#modalSearch:focus { border: 2px solid %ACCENT%; padding: 7px 9px; }
+      QScrollArea#modalScroll { background: transparent; border: none; }
+      QScrollArea#modalScroll > QWidget > QWidget { background: transparent; }
+      QLabel#modalEmpty { color: %MUTED%; font-size: 13px; padding: 16px 4px; }
+      /* .info-item rows: the key column beside the description in --text-info. Fonts
+         are set in code (a mono family QSS cannot fall back on). */
+      QWidget[infoRow="true"] { background: transparent; border-bottom: 1px solid %BORDER%; }
+      QLabel#infoKey { background: transparent; }
+      QLabel#infoDesc { color: %TEXT_INFO%; background: transparent; font-size: 13px; }
+      /* .hotkey-table: a pinned bold head on --bg-coord-even, hairline rows that tint
+         on hover, and a quiet reset glyph. */
+      QWidget#hotkeyHead { background: %BG_COORD_EVEN%; border-bottom: 1px solid %BORDER%; }
+      QLabel#hotkeyTh { font-weight: bold; font-size: 13px; background: transparent; }
+      QWidget[hotkeyRow="true"] { background: transparent; border-bottom: 1px solid %BORDER%; }
+      /* Half the row-hover tint — at full strength the keycaps' border vanished into it. */
+      QWidget[hotkeyRow="true"]:hover { background: %BG_ROW_HOVER_SOFT%; }
+      QWidget[infoRow="true"]:hover { background: %BG_ROW_HOVER_SOFT%; }
+      QLabel#hotkeyAction { font-size: 13px; background: transparent; }
+      QLabel#hotkeyDefault { color: %MUTED%; background: transparent; padding: 3px 0px; }
+      /* The combo (keycapChip.hpp ComboCell): a quiet click target with no frame of its
+         own — the row's tint and the caps' shake say "hover" — accented while capturing. */
+      QLabel#hotkeyCell {
+        background: transparent; border: 1px solid transparent; border-radius: 6px;
+        padding: 3px 8px;
+      }
+      QLabel#hotkeyCell[capturing="true"] {
+        background: %ACCENT_SOFT2%; border: 1px solid %ACCENT%;
+      }
+      QToolButton#hotkeyReset {
+        background: transparent; border: none; border-radius: 4px; padding: 2px 6px;
+      }
+      QToolButton#hotkeyReset:hover { background: %BG_COORD_HOVER%; }
       /* Browser .bi-preset blank-fill swatch buttons: real white/black chips. */
       QPushButton#biPresetWhite, QPushButton#biPresetBlack {
         min-width: 54px; max-width: 54px; min-height: 28px; max-height: 28px;
@@ -997,6 +1039,12 @@ namespace stencil::gui {
         .replace("%BG_CONTAINER%", c(p.bgContainer))
         .replace("%BG_CONTROLS%", c(p.bgControls))
         .replace("%BG_COORD_HOVER%", c(p.bgCoordHover))
+        // The keycap rows' hover: halfway from the container to the row-hover tint.
+        .replace("%BG_ROW_HOVER_SOFT%", c(mixSrgb(p.bgContainer, p.bgCoordHover, 0.5)))
+        // --bg-coord-even / --text-info (theme.css): the hotkey table's head and the
+        // info rows' description ink (inherit on light).
+        .replace("%BG_COORD_EVEN%", c(dark ? displayColor(QColor("#2a2a2a")) : p.bgControls))
+        .replace("%TEXT_INFO%", c(dark ? displayColor(QColor("#cccccc")) : p.textMain))
         .replace("%BG_INFO%", c(bgInfo))
         .replace("%BG_DROP_HINT%", c(dropHintBg))
         .replace("%BORDER_HINT%", c(dropHintBorder))

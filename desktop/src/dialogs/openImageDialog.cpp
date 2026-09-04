@@ -50,18 +50,7 @@ namespace stencil::gui {
     // fixed label column (stencil-open-image-modal label min-width: 88px, row
     // padding 7px 4px). The QSS half ([vsRow]/[vsLabel]) lives in theme.cpp.
     QWidget* vsRow(QWidget* parent, const QString& label, QLayout* content) {
-      auto* row = new QWidget(parent);
-      row->setProperty("vsRow", true);
-      row->setAttribute(Qt::WA_StyledBackground, true);
-      auto* h = new QHBoxLayout(row);
-      h->setContentsMargins(4, 7, 4, 7);
-      h->setSpacing(12);
-      auto* l = new QLabel(label, row);
-      l->setProperty("vsLabel", true);
-      l->setMinimumWidth(88);
-      h->addWidget(l);
-      h->addLayout(content, 1);
-      return row;
+      return modalRow(parent, label, content, /*labelMinW=*/88);
     }
     QWidget* vsRow(QWidget* parent, const QString& label, QWidget* field, int stretch = 1) {
       auto* h = new QHBoxLayout;

@@ -91,25 +91,28 @@ namespace stencil::gui {
     // One keycap, PAINTED as an <img> data URI (Qt rich text gives a span only a
     // background — no border/radius/padding), drawn to the browser's .tip-key look.
     // `joiner` = the "+" between caps: no face, muted, same picture so it centres.
-    QString capHtml(const QString& label, const Palette& pal, bool joiner = false) {
+    QString capHtml(const QString& label, const Palette& pal, bool joiner = false,
+                    qreal scale = 1.0) {
       // Only a shade bigger than the tooltip's own type, like the browser's 14px cap over
       // 12px prose — the shape is what makes it read as a key now, not the size.
+      // `scale` < 1 is a smaller cap for a table cell (comboKeycapsHtml).
       QFont f = QToolTip::font();
       f.setBold(!joiner);
-      if (f.pointSizeF() > 0) f.setPointSizeF(f.pointSizeF() * 1.15);
-      else f.setPixelSize(qMax(1, qRound(f.pixelSize() * 1.15)));
+      if (f.pointSizeF() > 0) f.setPointSizeF(f.pointSizeF() * 1.15 * scale);
+      else f.setPixelSize(qMax(1, qRound(f.pixelSize() * 1.15 * scale)));
 
       const QScreen* scr = QGuiApplication::primaryScreen();
       const qreal dpr = qBound(1.0, scr ? scr->devicePixelRatio() : 1.0, 3.0);
       const QString key = label + (joiner ? "|+|" : "|k|") + f.toString() + '|' +
-                          QString::number(dpr) + '|' + pal.bgContainer.name() +
+                          QString::number(dpr) + '|' + QString::number(scale) + '|' +
+                          pal.bgContainer.name(QColor::HexArgb) +   // a transparent face is a face
                           pal.borderMain.name() + pal.textKey.name() + pal.textMuted.name();
       static QHash<QString, QString> cache;
       const auto hit = cache.constFind(key);
       if (hit != cache.constEnd()) return *hit;
 
       const QFontMetricsF fm(f);
-      const qreal padX = 6, padY = 3, radius = 5, gapX = 3;
+      const qreal padX = 6 * scale, padY = 3 * scale, radius = 5, gapX = 3 * scale;
       const qreal h = fm.height() + 2 * padY;
       const qreal w = joiner ? fm.horizontalAdvance(label) + 2
                              : qMax(fm.horizontalAdvance(label) + 2 * padX, h * 0.9);
@@ -127,7 +130,14 @@ namespace stencil::gui {
           p.setBrush(pal.borderMain);
           p.drawRoundedRect(r, radius, radius);
           p.setBrush(pal.bgContainer);  // the face, a shade off the tooltip behind it
+          // A see-through face must CLEAR the border slab under it, or the key comes
+          // out a solid box — a transparent brush would paint nothing at all.
+          if (pal.bgContainer.alpha() == 0) {
+            p.setCompositionMode(QPainter::CompositionMode_Clear);
+            p.setBrush(Qt::black);
+          }
           p.drawRoundedRect(r.adjusted(1, 1, -1, -2), radius - 1, radius - 1);  // 2px bottom edge
+          p.setCompositionMode(QPainter::CompositionMode_SourceOver);
         }
         p.setFont(f);
         p.setPen(joiner ? pal.textMuted : pal.textKey);
@@ -152,23 +162,23 @@ namespace stencil::gui {
       return html;
     }
 
-    QString keysHtml(const QString& combo, const Palette& pal, bool mac) {
+    QString keysHtml(const QString& combo, const Palette& pal, bool mac, qreal scale = 1.0) {
       const QString s = combo.trimmed();
-      const QString plus = capHtml("+", pal, true);
+      const QString plus = capHtml("+", pal, true, scale);
       static const QRegularExpression lead("^[⌃⌥⇧⌘]+");
       const auto m = lead.match(s);
       QStringList caps;
       if (m.hasMatch()) {
         const QString run = m.captured(0);
-        for (const QChar c : run) caps << capHtml(QString(c), pal);
+        for (const QChar c : run) caps << capHtml(QString(c), pal, false, scale);
         const QString rest = s.mid(run.size());
-        if (!rest.isEmpty()) caps << capHtml(rest, pal);
+        if (!rest.isEmpty()) caps << capHtml(rest, pal, false, scale);
         // Apple prints ⇧⌘S with no joiner, but a tooltip is read at a glance and a run of
         // bare glyphs looks like one symbol — so every key gets the "+" here too.
         return caps.join(plus);
       }
       for (const QString& part : s.split('+'))
-        if (!part.isEmpty()) caps << capHtml(macGlyphFor(part, mac), pal);
+        if (!part.isEmpty()) caps << capHtml(macGlyphFor(part, mac), pal, false, scale);
       return caps.join(plus);
     }
 
@@ -422,8 +432,8 @@ namespace stencil::gui {
 
   Palette currentPalette() { return g_pal; }
 
-  QString comboKeycapsHtml(const QString& combo, const Palette& pal, bool mac) {
-    return keysHtml(combo, pal, mac);
+  QString comboKeycapsHtml(const QString& combo, const Palette& pal, bool mac, qreal scale) {
+    return keysHtml(combo, pal, mac, scale);
   }
 
 }

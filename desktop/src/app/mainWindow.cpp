@@ -800,6 +800,7 @@ namespace stencil::gui {
         hotkeyDefaults_.insert(id, def);
         hotkeyLabels_.insert(id, o.value("label").toString());
         hotkeys_.insert(id, def);
+        hotkeyOrder_.append(id);
       }
     }
     // Selected-line flip / rotate-90 chords (Alt+Shift+arrow). These fire from
@@ -817,6 +818,7 @@ namespace stencil::gui {
       hotkeyDefaults_.insert(c.id, c.seq);
       hotkeyLabels_.insert(c.id, c.label);
       hotkeys_.insert(c.id, c.seq);
+      hotkeyOrder_.append(c.id);
     }
     const auto overrides = fileStore::loadHotkeys();
     for (auto it = overrides.begin(); it != overrides.end(); ++it)
@@ -3947,6 +3949,8 @@ namespace stencil::gui {
     connect(&dlg, &SettingsDialog::openAssistantSettingsRequested, this,
             &MainWindow::openAssistantSettings);
     dlg.setOnChange([this](const Settings& s) { applySettings(s, true); });
+    connect(&dlg, &SettingsDialog::visualsReset, this,
+            [this] { notify_->success(QStringLiteral("Visual defaults reset")); });
     execMaybePopover(dlg, actSettings_);
     // Settle-up: catches a field left mid-edit. Skipped when the result matches what
     // the live-apply already applied — the common close costs no extra full pass/save.
@@ -7100,19 +7104,29 @@ namespace stencil::gui {
   // S13: open the rebind dialog, then persist overrides and re-apply them to the
   // live QActions without a restart.
   void MainWindow::openShortcuts() {
+    // In config order (the browser walks HOTKEY_DEFS), not the hash's.
     QVector<ShortcutsDialog::Entry> entries;
-    for (auto it = hotkeyDefaults_.begin(); it != hotkeyDefaults_.end(); ++it) {
+    for (const QString& id : hotkeyOrder_) {
       ShortcutsDialog::Entry e;
-      e.id = it.key();
-      e.label = hotkeyLabels_.value(it.key());
-      e.defaultSeq = it.value();
-      e.currentSeq = hotkeys_.value(it.key(), it.value());
+      e.id = id;
+      e.label = hotkeyLabels_.value(id);
+      e.defaultSeq = hotkeyDefaults_.value(id);
+      e.currentSeq = hotkeys_.value(id, e.defaultSeq);
       entries.push_back(e);
     }
     ShortcutsDialog dlg(entries, this);
-    if (execMaybePopover(dlg, actShortcuts_) != QDialog::Accepted) return;   // grows out of its icon too
+    // Live-apply (browser parity: hotkeys.save on every set) — Close is the only way out.
+    connect(&dlg, &ShortcutsDialog::overridesChanged, this,
+            [this, &dlg] { applyHotkeyOverrides(dlg.overrides()); });
+    connect(&dlg, &ShortcutsDialog::allReset, this,
+            [this] { notify_->success(QStringLiteral("Hotkeys reset to defaults")); });
+    connect(&dlg, &ShortcutsDialog::conflict, this,
+            [this](const QString& msg) { notify_->error(msg); });
+    execMaybePopover(dlg, actShortcuts_);   // grows out of its icon too
+  }
 
-    const auto overrides = dlg.overrides();
+  // Persist `overrides` and re-apply them to the live QActions without a restart.
+  void MainWindow::applyHotkeyOverrides(const QHash<QString, QString>& overrides) {
     // Rebuild the effective map: defaults, then overrides on top.
     hotkeys_ = hotkeyDefaults_;
     for (auto it = overrides.begin(); it != overrides.end(); ++it)

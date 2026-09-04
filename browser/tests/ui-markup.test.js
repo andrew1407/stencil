@@ -88,7 +88,7 @@ test('every static body ID is present exactly once', () => {
 });
 
 test('dynamic containers are present and empty/placeholder', () => {
-    assert.ok(markup.includes('<tbody></tbody>'), 'empty hotkey <tbody> present');
+    assert.ok(markup.includes('<div class="hotkey-rows" role="rowgroup"></div>'), 'empty hotkey rows container present');
     assert.ok(/<div class="settings-body" id="info-body"><!-- filled by JS --><\/div>/.test(markup),
         'empty #info-body present');
     assert.ok(markup.includes('<tbody id="coordinates-body">'), '#coordinates-body present');

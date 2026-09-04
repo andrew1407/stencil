@@ -10,7 +10,7 @@ export class StencilVisualsModal extends StencilElement {
     return `
         <div class="app-modal">
             <div class="settings-header">
-                <h2>${icon('palette', { size: 18 })} Default Visuals</h2>
+                <h2>${icon('palette', { size: 18 })} Style &amp; Visual Settings</h2>
                 <button class="app-modal-close btn-icon-text" id="visuals-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="modal-search-bar">
@@ -19,29 +19,29 @@ export class StencilVisualsModal extends StencilElement {
             <div class="settings-body">
                 <div class="vs-section">App appearance</div>
                 <div class="vs-row"><label>Main theme</label>
-                    <div id="vs-accent"></div>
+                    <div id="vs-accent" class="vs-ctrl"></div>
                 </div>
                 <div class="vs-row"><label>Appearance</label>
-                    <select id="vs-appearance">
+                    <span class="vs-ctrl"><select id="vs-appearance">
                         <option value="system">System (follow the OS)</option>
                         <option value="light">Light</option>
                         <option value="dark">Dark</option>
-                    </select>
+                    </select></span>
                 </div>
                 <div class="vs-section">Drawing defaults (applied to new lines)</div>
-                <div class="vs-row"><label>Line color</label><input type="color" id="vs-line-color"></div>
-                <div class="vs-row"><label>Line thickness</label><input type="number" id="vs-thickness" min="1" max="20"></div>
-                <div class="vs-row"><label>Point size</label><input type="number" id="vs-point" min="1" max="30"></div>
+                <div class="vs-row"><label>Line color</label><label class="vs-ctrl vs-color"><input type="color" id="vs-line-color"><span class="vs-hex"></span></label></div>
+                <div class="vs-row"><label>Line thickness</label><span class="vs-ctrl"><input type="number" id="vs-thickness" min="1" max="20"></span></div>
+                <div class="vs-row"><label>Point size</label><span class="vs-ctrl"><input type="number" id="vs-point" min="1" max="30"></span></div>
                 <div class="vs-row"><label>Line style</label>
-                    <select id="vs-style"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select>
+                    <span class="vs-ctrl"><select id="vs-style"><option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option></select></span>
                 </div>
-                <div class="vs-row"><label>Area fill (new locked areas)</label><input type="color" id="vs-fill"></div>
+                <div class="vs-row"><label>Area fill (new locked areas)</label><label class="vs-ctrl vs-color"><input type="color" id="vs-fill"><span class="vs-hex"></span></label></div>
                 <div class="vs-section">Drawing behavior</div>
-                <div class="vs-row"><label>Hold-to-draw delay (ms)</label><input type="number" id="vs-hold-delay" min="100" max="3000" step="50"></div>
+                <div class="vs-row"><label>Hold-to-draw delay (ms)</label><span class="vs-ctrl"><input type="number" id="vs-hold-delay" min="100" max="3000" step="50"></span></div>
                 <div class="vs-section">Highlight styles</div>
-                <div class="vs-row"><label>Selected line/point glow</label><input type="color" id="vs-sel-glow"></div>
-                <div class="vs-row"><label>Point hover ring</label><input type="color" id="vs-hover-ring"></div>
-                <div class="vs-row"><label>Point focus ring</label><input type="color" id="vs-focus-ring"></div>
+                <div class="vs-row"><label>Selected line/point glow</label><label class="vs-ctrl vs-color"><input type="color" id="vs-sel-glow"><span class="vs-hex"></span></label></div>
+                <div class="vs-row"><label>Point hover ring</label><label class="vs-ctrl vs-color"><input type="color" id="vs-hover-ring"><span class="vs-hex"></span></label></div>
+                <div class="vs-row"><label>Point focus ring</label><label class="vs-ctrl vs-color"><input type="color" id="vs-focus-ring"><span class="vs-hex"></span></label></div>
             </div>
             <div class="settings-footer">
                 <span class="footer-hint">Changes apply live and are saved automatically.</span>
@@ -136,6 +136,17 @@ export class StencilVisualsModal extends StencilElement {
       holdDelay: document.getElementById('vs-hold-delay')
     };
 
+    // The colour wells read their hex beside the chip (desktop parity), kept in step.
+    const syncHex = (input) => {
+      const hex = input.parentElement?.querySelector('.vs-hex');
+      if (hex) hex.textContent = String(input.value || '').toUpperCase();
+    };
+    const wells = [els.lineColor, els.fill, els.selGlow, els.hoverRing, els.focusRing];
+    wells.forEach(w => w.addEventListener('input', () => syncHex(w)));
+
+    // Line style takes the same themed dropdown as Appearance.
+    enhanceSelect(els.style);
+
     const populate = () => {
       accentPicker.set(app.customAccent || app.accent);
       els.lineColor.value = app.color;
@@ -147,6 +158,7 @@ export class StencilVisualsModal extends StencilElement {
       els.selGlow.value = app.selGlowColor   || VIS_DEFAULTS.selGlowColor;
       els.hoverRing.value = app.hoverRingColor || VIS_DEFAULTS.hoverRingColor;
       els.focusRing.value = app.focusRingColor || VIS_DEFAULTS.focusRingColor;
+      wells.forEach(syncHex);
     };
 
     // Default-line controls mirror the main toolbar inputs

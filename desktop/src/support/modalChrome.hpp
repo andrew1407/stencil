@@ -9,7 +9,10 @@ class QFormLayout;
 class QFrame;
 class QHBoxLayout;
 class QLabel;
+class QLayout;
+class QLineEdit;
 class QPushButton;
+class QScrollArea;
 class QVBoxLayout;
 class QWidget;
 
@@ -40,8 +43,38 @@ namespace stencil::gui {
   // filled — it lands below everything added so far.
   QHBoxLayout* addModalFooter(ModalChrome& chrome, const QString& hint = QString());
 
+  // The browser's .modal-search-bar: one full-width search field under the header
+  // hairline. Call before the body is filled.
+  QLineEdit* addModalSearchBar(ModalChrome& chrome, const QString& placeholder);
+
+  // A body that scrolls instead of growing (browser .settings-body). `topPad` is the
+  // browser's 14px, or 0 where a pinned table head takes its place.
+  struct ModalScrollBody {
+    QScrollArea* scroll = nullptr;
+    QWidget* content = nullptr;
+    QVBoxLayout* layout = nullptr;
+  };
+  ModalScrollBody makeModalScrollBody(ModalChrome& chrome, int topPad = 14);
+
   // A tracked, uppercase, muted section caption (browser .vs-section).
   QLabel* modalSectionLabel(const QString& text, QWidget* parent = nullptr);
+  // …with the browser's own rhythm around it (margin 14px 0 6px; the first one 0).
+  QLabel* modalSectionLabel(const QString& text, QWidget* parent, bool first);
+
+  // One browser .vs-row: a hairline-underlined form row. `content` follows the label
+  // (empty = content only); `labelMinW` > 0 pins the label column. QSS in theme.cpp.
+  QWidget* modalRow(QWidget* parent, const QString& label, QLayout* content,
+                    int labelMinW = 0);
+  // The space-between shape: the field sits at the row's right edge, or — `grow` — fills it.
+  QWidget* modalRow(QWidget* parent, const QString& label, QWidget* field, bool grow = false,
+                    int labelMinW = 0);
+
+  // The muted "No matching …" line a filtered list shows (browser .info-empty).
+  QLabel* modalEmptyLabel(const QString& text, QWidget* parent = nullptr);
+
+  // Size a list-shaped dialog as the browser caps its modals: `width` wide and 82% of
+  // the screen tall, capped at 760px, so a long list scrolls inside.
+  void sizeModalTall(QDialog* dlg, int width);
 
   // A 1px hairline in the theme's border colour.
   QFrame* modalDivider(QWidget* parent = nullptr);
