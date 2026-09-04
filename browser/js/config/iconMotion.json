@@ -269,9 +269,9 @@
     "save": {
       "action": "save project (.stencil)",
       "mode": "settle",
-      "note": "the disk slides up into place from below, the way a save writes UP into the project list",
+      "note": "the disk slides up into place from below, the way a save writes UP into the project list — the one settle that does NOT overshoot: a disk seating itself never bounces",
       "parts": [{
-        "hook": null, "durationMs": 300,
+        "hook": null, "durationMs": 420, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
         "keyframes": [{ "at": 0, "translate": [0, 6] }, { "at": 100 }]
       }]
     },
