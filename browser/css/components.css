@@ -1689,8 +1689,9 @@ stencil-fullscreen-layer { display: contents; }
     .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
     /* …and on a phone the hint takes the whole line, buttons under it. The 110px floor
        above still fits beside a full set of footer buttons at this width, so the row never
-       wraps on its own and the hint is squeezed to a fifth of the footer. */
-    .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; }
+       wraps on its own and the hint is squeezed to a fifth of the footer. On its own line
+       it is centred over the row it spans, rather than reading as a stray left column. */
+    .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; text-align: center; }
 }
 /* The compact popover shape (ui/popover.js) squeezes the box to 420px at ANY viewport
    width, so it needs the same wrapping the phone breakpoint applies — keyed on the
@@ -1700,7 +1701,7 @@ stencil-fullscreen-layer { display: contents; }
 .modal-popover .modal-search-bar .modal-filter { flex: 1 1 auto; min-width: 0; max-width: 100%; }
 .modal-popover .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
 .modal-popover .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
-.modal-popover .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; }
+.modal-popover .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; text-align: center; }
 /* Three action buttons overrun 420px by a few pixels at full padding, dropping the last
    onto a third row — trim the padding and gap so they keep the one row the hint's own
    line was meant to give them. */
