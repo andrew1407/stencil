@@ -1013,16 +1013,17 @@ body.fullscreen-mode #fs-points-panel {
     padding: 12px 18px;
     border-top: 1px solid var(--border-main);
     display: flex;
-    /* Hint left, buttons right, on one line. The hint gets a real flex basis rather than
-       its content minimum, which squeezed it into a tall column beside the buttons; below
-       that basis the row wraps and the buttons take their own line. `:not(:empty)` spares
-       the empty hint span the confirm/open-in dialogs carry purely as a spacer. */
+    /* Hint left, buttons right, on one line. The basis is the hint's floor, not its
+       comfortable width: the buttons keep their own row (desktop parity) and the hint
+       wraps over two or three short lines beside them; only below that floor does the row
+       wrap and the buttons take their own line. `:not(:empty)` spares the empty hint span
+       the confirm/open-in dialogs carry purely as a spacer. */
     flex-wrap: wrap;
     justify-content: space-between;
     gap: 8px;
     align-items: center;
 }
-.settings-footer .footer-hint:not(:empty) { flex: 1 1 150px; text-align: left; }
+.settings-footer .footer-hint:not(:empty) { flex: 1 1 110px; text-align: left; }
 /* Composer overflow: only Send stays inline, the rest live behind the … button.
    The menu is anchored to the trigger and floats above the composer. */
 .chat-more-wrap { position: relative; display: inline-flex; }
@@ -1683,9 +1684,9 @@ stencil-fullscreen-layer { display: contents; }
        takes the flex slot the native had, and the trigger fills the wrap. */
     .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
     .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
-    /* …and on a phone the hint takes the whole line, buttons under it. The 150px basis
+    /* …and on a phone the hint takes the whole line, buttons under it. The 110px floor
        above still fits beside a full set of footer buttons at this width, so the row never
-       wraps on its own and the hint is squeezed to a third of the footer. */
+       wraps on its own and the hint is squeezed to a fifth of the footer. */
     .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; }
 }
 /* The compact popover shape (ui/popover.js) squeezes the box to 420px at ANY viewport
