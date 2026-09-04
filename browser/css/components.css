@@ -1698,6 +1698,11 @@ stencil-fullscreen-layer { display: contents; }
 .modal-popover .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
 .modal-popover .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
 .modal-popover .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; }
+/* Three action buttons overrun 420px by a few pixels at full padding, dropping the last
+   onto a third row — trim the padding and gap so they keep the one row the hint's own
+   line was meant to give them. */
+.modal-popover .settings-footer { gap: 6px; }
+.modal-popover .settings-footer button { padding-left: 10px; padding-right: 10px; }
 /* Touch: the modal's search/filter controls and footer actions meet the app's ≥40px
    tap-target convention (same rule the chat panel's compact buttons follow). */
 @media (hover: none) and (pointer: coarse) {
