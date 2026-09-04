@@ -447,16 +447,21 @@ The desktop app mirrors the browser app's interaction surface:
   same pixels as the browser app by construction (shared `core/` math).
 - **Selection panel** dock — the active line's points and live measurements (point
   count, segment count, total length).
-- **Settings** dialog (theme, menu-bar placement, autosave, show points/lines,
-  default visuals, page size), a **Projects** dialog (save / open / delete, with the
-  `core/projectsStore` one-week expiry sweep), and an **Info & Shortcuts** dialog
-  rendered from the shared config JSON.
+- **Style & Visual Settings** dialog (theme, menu-bar placement, autosave, show
+  points/lines, default visuals, page size), a **Projects** dialog (save / open /
+  delete, with the `core/projectsStore` one-week expiry sweep), a **Controls &
+  Shortcuts Info** dialog (the browser's info modal, rendered from the shared
+  `infoConfig.json`), and a **Keyboard Shortcuts** editor (the browser's hotkey table
+  drawn in the tooltips' keycaps: click a combo and press the new chord; edits apply
+  and persist live, with a per-row reset and Reset All). All three wear the shared
+  modal shell (`support/modalChrome`).
   - *Use the system menu bar* (`nativeMenuBar`, default **on**) puts the menus where
     the platform does — the macOS menu bar, a GNOME/Unity app menu — and turning it
     off keeps them inside the window. That escape hatch matters because Qt's export
     leaves an empty in-window bar on some GNOME setups; it takes effect on restart,
-    and the Settings shortcut (`Alt+V` by default, from the shared hotkey registry) reopens this dialog even with no menus showing. Inert on Windows,
-    which has no global bar (the checkbox is disabled there).
+    and the Style & Visual Settings shortcut (`Alt+V` by default, from the shared
+    hotkey registry) reopens this dialog even with no menus showing. Inert on
+    Windows, which has no global bar (the checkbox is disabled there).
 - **Toolbar sections**: every group in all three tool rows carries an uppercase header
   (`makeToolSection`) — IMAGE / PROJECTS / CONNECTIONS & LINKS / EDIT / DRAW / ZOOM /
   SETTINGS on the main row, PAGE / FORMULA on the second, FILTER / VIEW / LINE / POINT on

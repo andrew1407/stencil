@@ -59,13 +59,8 @@ namespace stencil::gui {
     // One browser .vs-row: a hairline-underlined form row. The QSS half ([vsRow]) lives
     // in theme.cpp; the row's contents differ per caller, so it takes a laid-out widget.
     QWidget* vsRow(QWidget* parent, QLayout* content) {
-      auto* row = new QWidget(parent);
-      row->setProperty("vsRow", true);
-      row->setAttribute(Qt::WA_StyledBackground, true);
-      content->setContentsMargins(4, 7, 4, 7);
-      content->setSpacing(12);
-      row->setLayout(content);
-      return row;
+      content->setSpacing(12);   // the row's own gap, between its children too
+      return modalRow(parent, QString(), content);
     }
 
     // One .exp-legend-item: a 12px outlined chip beside "<caption>: <b>value</b>".

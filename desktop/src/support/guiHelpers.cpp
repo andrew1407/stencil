@@ -149,7 +149,8 @@ namespace stencil::gui {
   // updateColorSwatch), and what the browser's padded <input type="color"> shows.
   static const QSize kSwatchChip(32, 16);
 
-  void setColorSwatch(QAbstractButton* btn, const QColor& color, const QSize& size) {
+  void setColorSwatch(QAbstractButton* btn, const QColor& color, const QSize& size,
+                      bool withHex) {
     if (!btn) return;
     // ONE colour well across the app: a small colour chip inside the shared input frame,
     // the treatment the toolbar's pickers use (mainWindow.cpp updateColorSwatch) and the
@@ -159,16 +160,22 @@ namespace stencil::gui {
     // resolved the light theme inside a dark app and ringed the wells in near-white.
     const QPalette appPal = QGuiApplication::palette();
     const Palette pal = themePalette(appPal.color(QPalette::Base).lightness() < 128);
-    btn->setText(QString());
+    btn->setText(withHex ? color.name().toUpper() : QString());
     btn->setCursor(Qt::PointingHandCursor);
     // The frame's sheet does not depend on `color` — only the chip below does — and a
     // live picker preview re-swatches on every drag tick, each setStyleSheet costing a
     // QSS re-parse and a re-polish. Written only when it would actually change.
+    // With the hex, chip + text sit flush left in the frame (browser .vs-color).
     const QString sheet = QString("QAbstractButton{background:%1;border:1px solid %2;"
-                                  "border-radius:7px;padding:0;}"
+                                  "border-radius:%4;padding:%5;%6}"
                                   "QAbstractButton:hover{border-color:%3;}")
                               .arg(pal.inputBg.name(), pal.borderMain.name(),
-                                   appPal.color(QPalette::Highlight).name());   // the LIVE accent
+                                   appPal.color(QPalette::Highlight).name(),   // the LIVE accent
+                                   withHex ? QStringLiteral("6px") : QStringLiteral("7px"),
+                                   withHex ? QStringLiteral("0 10px") : QStringLiteral("0"),
+                                   withHex ? QStringLiteral("text-align:left;color:%1;")
+                                                 .arg(pal.inputText.name())
+                                           : QString());
     if (btn->styleSheet() != sheet) btn->setStyleSheet(sheet);
     // The chip itself: a rounded rect with a soft luminance-tuned outline, so a colour
     // close to the input's own ground stays visible in either theme. Alpha is honoured —

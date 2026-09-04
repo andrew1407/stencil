@@ -1,13 +1,14 @@
 import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import INFO from '../config/infoConfig.json' with { type: 'json' };
 import { icon } from './icons.js';
+import { isKeyCombo, keysHtml, escapeHtml } from './tipContent.js';
 // ── Component: controls & shortcuts info modal ──────────────────
 export class StencilInfoModal extends StencilElement {
   static inner() {
     return `
         <div class="app-modal">
             <div class="settings-header">
-                <h2>${icon('help', { size: 18 })} Controls &amp; Shortcuts</h2>
+                <h2>${icon('help', { size: 18 })} Controls &amp; Shortcuts Info</h2>
                 <button class="app-modal-close btn-icon-text" id="info-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div style="padding:12px 18px 6px;">
@@ -26,6 +27,13 @@ export class StencilInfoModal extends StencilElement {
     const search = document.getElementById('info-search');
     const body = document.getElementById('info-body');
 
+    // The term column wears the tooltips' keycaps: every token that is a key combo
+    // becomes caps, the rest stays prose. Mirrored by the desktop info dialog.
+    const keyTermHtml = term => String(term).replace(/\s*\+\s*/g, '+')
+      .split(/(\s+|[()\/])/)
+      .map(tok => (tok && isKeyCombo(tok) ? keysHtml(tok) : escapeHtml(tok)))
+      .join('');
+
     const render = filter => {
       const q = (filter || '').trim().toLowerCase();
       let html = '';
@@ -37,7 +45,7 @@ export class StencilInfoModal extends StencilElement {
         anyVisible = true;
         html += `<div class="info-group-title">${group}</div>`;
         matches.forEach(([k, d]) => {
-          html += `<div class="info-item"><span class="info-key">${k}</span><span class="info-desc">${d}</span></div>`;
+          html += `<div class="info-item shimmer"><span class="info-key">${keyTermHtml(k)}</span><span class="info-desc">${escapeHtml(d)}</span></div>`;
         });
       });
       body.innerHTML = anyVisible ? html : '<div class="info-empty">No matching controls.</div>';

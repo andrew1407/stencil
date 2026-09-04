@@ -4,6 +4,7 @@
 #include "shimmerOverlay.hpp"
 
 #include <QColor>
+#include <QGuiApplication>
 #include <QDialog>
 #include <QEvent>
 #include <QFormLayout>
@@ -16,6 +17,8 @@
 #include <QPlainTextEdit>
 #include <QPointer>
 #include <QPushButton>
+#include <QScreen>
+#include <QScrollArea>
 #include <QShortcut>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -47,6 +50,92 @@ namespace stencil::gui {
     auto* l = new QLabel(text.toUpper(), parent);
     l->setObjectName(QStringLiteral("modalSection"));
     return l;
+  }
+
+  QLabel* modalSectionLabel(const QString& text, QWidget* parent, bool first) {
+    QLabel* l = modalSectionLabel(text, parent);
+    l->setContentsMargins(0, first ? 0 : 14, 0, 6);
+    return l;
+  }
+
+  QWidget* modalRow(QWidget* parent, const QString& label, QLayout* content, int labelMinW) {
+    auto* row = new QWidget(parent);
+    row->setProperty("vsRow", true);
+    row->setAttribute(Qt::WA_StyledBackground, true);
+    auto* h = new QHBoxLayout(row);
+    h->setContentsMargins(4, 7, 4, 7);
+    h->setSpacing(12);
+    if (!label.isEmpty()) {
+      auto* l = new QLabel(label, row);
+      l->setProperty("vsLabel", true);
+      if (labelMinW > 0) l->setMinimumWidth(labelMinW);
+      h->addWidget(l);
+    }
+    h->addLayout(content, 1);
+    return row;
+  }
+
+  QWidget* modalRow(QWidget* parent, const QString& label, QWidget* field, bool grow,
+                    int labelMinW) {
+    auto* h = new QHBoxLayout;
+    h->setContentsMargins(0, 0, 0, 0);
+    if (!grow) h->addStretch(1);   // justify-content: space-between
+    h->addWidget(field, grow ? 1 : 0);
+    return modalRow(parent, label, h, labelMinW);
+  }
+
+  QLabel* modalEmptyLabel(const QString& text, QWidget* parent) {
+    auto* l = new QLabel(text, parent);
+    l->setObjectName(QStringLiteral("modalEmpty"));
+    return l;
+  }
+
+  void sizeModalTall(QDialog* dlg, int width) {
+    if (!dlg) return;
+    // The browser's min(82vh, 760px) (components.css .app-modal): the same absolute
+    // ceiling, with the 82% share taken of the screen less a browser's own chrome.
+    constexpr int kModalMaxH = 760;
+    constexpr int kBrowserChromePx = 85;
+    const QScreen* screen = dlg->screen() ? dlg->screen() : QGuiApplication::primaryScreen();
+    const int avail = (screen ? screen->availableGeometry().height() : 900) - kBrowserChromePx;
+    dlg->setMinimumSize(width, 360);
+    dlg->resize(width, qBound(360, int(avail * 0.82), kModalMaxH));
+  }
+
+  QLineEdit* addModalSearchBar(ModalChrome& chrome, const QString& placeholder) {
+    QWidget* shell = chrome.root ? chrome.root->parentWidget() : nullptr;
+    auto* search = new QLineEdit(shell);
+    search->setObjectName(QStringLiteral("modalSearch"));
+    search->setPlaceholderText(placeholder);
+    search->setClearButtonEnabled(true);
+    auto* bar = new QHBoxLayout;
+    bar->setContentsMargins(kPadX, 12, kPadX, 6);
+    bar->addWidget(search, 1);
+    // Under the header (0) and its hairline (1), above the body (2).
+    chrome.root->insertLayout(2, bar);
+    return search;
+  }
+
+  ModalScrollBody makeModalScrollBody(ModalChrome& chrome, int topPad) {
+    ModalScrollBody b;
+    QWidget* shell = chrome.root ? chrome.root->parentWidget() : nullptr;
+    // The body column gives up its padding to the column inside, so the scrollbar
+    // rides the shell's own edge.
+    chrome.body->setContentsMargins(0, 0, 0, 0);
+    b.scroll = new QScrollArea(shell);
+    b.scroll->setObjectName(QStringLiteral("modalScroll"));
+    b.scroll->setWidgetResizable(true);
+    b.scroll->setFrameShape(QFrame::NoFrame);
+    b.scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    b.scroll->viewport()->setAutoFillBackground(false);
+    b.content = new QWidget(b.scroll);
+    b.content->setAutoFillBackground(false);
+    b.layout = new QVBoxLayout(b.content);
+    b.layout->setContentsMargins(kPadX, topPad, kPadX, kBodyPadY);
+    b.layout->setSpacing(0);
+    b.scroll->setWidget(b.content);
+    chrome.body->addWidget(b.scroll, 1);
+    return b;
   }
 
   void alignModalForm(QFormLayout* form, bool growFields) {

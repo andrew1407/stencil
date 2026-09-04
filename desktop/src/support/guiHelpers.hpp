@@ -70,8 +70,9 @@ namespace stencil::gui {
 
   // `size` is the well's own box — the selected-line bar passes the browser's 46x34 so
   // its wells stand the same height as the numeric fields beside them.
+  // `withHex` writes the colour's hex beside the chip (browser .vs-color parity).
   void setColorSwatch(QAbstractButton* btn, const QColor& color,
-                      const QSize& size = QSize(46, 26));
+                      const QSize& size = QSize(46, 26), bool withHex = false);
 
   // Fill `combo` with the page-format options every selector shares: "Custom…"
   // first (when includeCustom), then the full core::pageFormatNames() series

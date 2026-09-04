@@ -97,6 +97,8 @@ namespace stencil::gui {
   // One shortcut combo as bordered keycap chips joined by "+" — the same picture a
   // tooltip's own shortcut wears (capHtml), reusable anywhere a combo needs to look
   // like a key. `mac` picks Apple glyphs (⌥⇧⌃⌘) over spelled modifiers.
-  QString comboKeycapsHtml(const QString& combo, const Palette& pal, bool mac = kOnMac);
+  // `scale` shrinks the caps below the tooltip's own, for the table and info rows.
+  QString comboKeycapsHtml(const QString& combo, const Palette& pal, bool mac = kOnMac,
+                           qreal scale = 1.0);
 
 }

@@ -967,7 +967,7 @@ body.fullscreen-mode #fs-points-panel {
     box-shadow: 0 16px 48px rgba(0,0,0,0.45);
     width: 620px;
     max-width: calc(100vw - 40px);
-    max-height: 82vh;
+    max-height: min(82vh, 760px);   /* the absolute cap the desktop shell also stops at (modalChrome sizeModalTall) */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1100,65 +1100,83 @@ body.fullscreen-mode #fs-points-panel {
     cursor: pointer;
 }
 #reset-all-hotkeys:hover { background: var(--bg-info); }
+/* A grid, not a <table>: a row must be a real box to wear the .shimmer sweep (a <tr>
+   hosts no ::after). Subgrid keeps every row on the head's four columns. */
 .hotkey-table {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content max-content 30px;
     width: 100%;
-    border-collapse: collapse;
     font-size: 13px;
 }
-.hotkey-table th, .hotkey-table td {
-    padding: 7px 10px;
-    text-align: left;
+.hotkey-rows { display: contents; }
+.hotkey-head, .hotkey-row {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: center;
     border-bottom: 1px solid var(--border-coord);
 }
-/* Pin the header while the body scrolls. Sticky must sit on <thead> — sticky on
-   the <th> cells alone doesn't engage here, letting the header scroll up and
-   overlap the modal title bar. */
-.hotkey-table thead {
+.hotkey-head > span, .hotkey-td { padding: 7px 10px; text-align: left; }
+/* The two keycap columns centre their contents, head included. */
+.hotkey-head > span:nth-child(2), .hotkey-head > span:nth-child(3),
+.hotkey-td:nth-child(2), .hotkey-td:nth-child(3) { text-align: center; }
+/* Table/info keycaps wear no face: the container fill read as a dark box on a hovered row. */
+.hotkey-table .tip-key, .info-key .tip-key { background: transparent; }
+/* Pin the head while the body scrolls (above the rows' shimmer layer). */
+.hotkey-head {
     position: sticky;
     top: 0;
-    z-index: 2;
-    box-shadow: 0 1px 0 var(--border-coord); /* keep the divider when stuck (border-collapse drops it) */
-}
-.hotkey-table th {
+    z-index: 3;
     background: var(--bg-coord-even);
     font-weight: bold;
+    box-shadow: 0 1px 0 var(--border-coord);
 }
-.hotkey-table tr:hover td { background: var(--bg-coord-hover); }
+/* Half the row-hover tint — at full strength the keycaps' border vanished into it. */
+.hotkey-row:hover { background: color-mix(in srgb, var(--bg-coord-hover) 50%, var(--bg-container)); }
+.hotkey-row.shimmer::after { border-radius: 0; }
+.hotkey-no-match { grid-column: 1 / -1; }
+.hotkey-td-reset { text-align: center; }
+/* The combo: the tooltips' keycaps in a quiet click target that wears the accent while capturing. */
 .hotkey-cell {
     cursor: pointer;
     user-select: none;
-    border-radius: 4px;
-    padding: 4px 10px;
-    background: var(--bg-info);
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border-radius: 6px;
+    padding: 3px 8px;
     min-width: 110px;
-    text-align: center;
-    font-family: 'Menlo','Consolas',monospace;
-    font-size: 12.5px;
-    border: 1px solid var(--border-main);
+    box-sizing: border-box;
+    border: 1px solid transparent;
     color: var(--text-main);
 }
-.hotkey-cell:hover { background: var(--bg-coord-hover); }
-/* Phone: the four columns' MINIMUM widths add up past the screen (the combo pill's
-   110px floor plus two monospace columns that never wrap), so the table could only be
-   read by scrolling it sideways. Trim the cell chrome and let long combos wrap instead
-   of each one forcing its column wider. */
+/* No hover frame of its own — the row's tint and the caps' shake say "hover". */
+.hotkey-cell:hover .tip-key, .hotkey-default:hover .tip-key, .info-item:hover .info-key .tip-key {
+    animation: keycapShake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+.hotkey-unset { font-family: 'Menlo','Consolas',monospace; font-size: 12.5px; color: var(--text-muted); }
+/* Phone: trim the cell chrome and let the caps wrap rather than widen their column. */
 @media (max-width: 680px) {
-    .hotkey-table { font-size: 12.5px; }
-    .hotkey-table th, .hotkey-table td { padding: 7px 5px; }
-    .hotkey-cell { min-width: 0; padding: 4px 6px; }
-    .hotkey-cell, .hotkey-default { overflow-wrap: anywhere; }
+    /* The keycap columns may shrink below their content, so Action keeps a readable floor. */
+    .hotkey-table { font-size: 12.5px; grid-template-columns: minmax(90px, 1fr) minmax(0, max-content) minmax(0, max-content) 26px; }
+    .hotkey-head > span, .hotkey-td { padding: 7px 5px; }
+    .hotkey-cell { min-width: 0; padding: 3px 4px; flex-wrap: wrap; }
+    .hotkey-cell .tip-key, .hotkey-default .tip-key { font-size: 12px; padding: 2px 4px; }
+    .hotkey-default { min-width: 0; }
 }
 .hotkey-cell.capturing {
     background: color-mix(in srgb, var(--accent) 22%, transparent);
     border-color: var(--accent);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
     color: var(--text-main);
-}
-.hotkey-default {
-    font-size: 11px;
-    color: var(--text-muted);
     font-family: 'Menlo','Consolas',monospace;
+    font-size: 12.5px;
+}
+/* The default: the same caps as the current combo (one size, one look), centred. */
+.hotkey-default { display: inline-flex; align-items: center; justify-content: center; gap: 2px; flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) {
+    .hotkey-cell:hover .tip-key, .hotkey-default:hover .tip-key, .info-item:hover .info-key .tip-key { animation: none; }
 }
 .hotkey-reset-btn {
     background: transparent;
@@ -1206,7 +1224,7 @@ body.fullscreen-mode #fs-points-panel {
     box-shadow: 0 16px 48px rgba(0,0,0,0.45);
     width: 560px;
     max-width: calc(100vw - 40px);
-    max-height: 82vh;
+    max-height: min(82vh, 760px);   /* the shared ceiling — see #settings-modal */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1281,6 +1299,57 @@ body.fullscreen-mode #fs-points-panel {
 .vs-row label { font-weight: normal; }
 .vs-row input[type="color"] { width: 46px; height: 24px; padding: 2px; cursor: pointer; }
 .vs-row input[type="number"], .vs-row select { width: 90px; }
+/* ONE control column: every control the same width and height, flush right, so the rows
+   read as a table. A colour well is a chip beside its hex (desktop settingsDialog parity). */
+stencil-visuals-modal { --vs-ctrl-w: 180px; --vs-ctrl-h: 30px; }
+stencil-visuals-modal .vs-row > .vs-ctrl {
+    flex: 0 0 var(--vs-ctrl-w);
+    width: var(--vs-ctrl-w);
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+stencil-visuals-modal .vs-ctrl > input,
+stencil-visuals-modal .vs-ctrl > select,
+stencil-visuals-modal .vs-ctrl > .accent-dd,
+stencil-visuals-modal .vs-ctrl > .cs-dd,
+stencil-visuals-modal .vs-ctrl .accent-dd-trigger {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+stencil-visuals-modal .vs-ctrl > input,
+stencil-visuals-modal .vs-ctrl > select,
+stencil-visuals-modal .vs-ctrl .accent-dd-trigger {
+    height: var(--vs-ctrl-h);
+    padding: 0 10px;
+    font-size: 13px;
+    border-radius: 6px;
+}
+stencil-visuals-modal .vs-ctrl.vs-color {
+    gap: 8px;
+    height: var(--vs-ctrl-h);
+    padding: 0 10px;
+    background: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Menlo','Consolas',monospace;
+    font-size: 12px;
+    font-weight: normal;
+}
+stencil-visuals-modal .vs-ctrl.vs-color:hover { border-color: var(--accent); }
+stencil-visuals-modal .vs-ctrl.vs-color input[type="color"] {
+    flex: 0 0 auto;
+    width: 32px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+stencil-visuals-modal .vs-hex { flex: 1 1 auto; letter-spacing: 0.02em; }
 /* Labeled text-field rows (connect/links modals): equal label column so stacked
    inputs share the same left edge regardless of label length. min-width (not a
    fixed basis) so a label longer than the column can never clip. */
@@ -1570,7 +1639,17 @@ stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
     border-bottom: 1px solid var(--border-coord);
     font-size: 13px;
 }
+/* Tints and sweeps on hover like a hotkey row, at the same half tint. */
+.info-item:hover { background: color-mix(in srgb, var(--bg-coord-hover) 50%, var(--bg-container)); }
+.info-item.shimmer::after { border-radius: 0; }
+/* The term's key combos wear the tooltips' keycaps; they wrap inside the column. */
+.info-key .tip-key { font-size: 12px; padding: 2px 5px; }
+.info-key .tip-plus { font-size: 12px; }
 .info-key {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 0;
     flex: 0 0 188px;
     font-family: 'Menlo','Consolas',monospace;
     font-size: 12px;

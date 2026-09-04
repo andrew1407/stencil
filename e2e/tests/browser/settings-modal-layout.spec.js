@@ -1,7 +1,7 @@
 // The Settings (keyboard shortcuts) dialog on a phone-sized screen.
 //
-// The hotkey table's four columns each carried a minimum width — the combo pill's 110px
-// floor plus two monospace columns that never wrapped — which together came to more than
+// The hotkey table's four columns each carried a minimum width — the combo cell's 110px
+// floor plus two keycap columns that never wrapped — which together came to more than
 // a phone is wide. `.settings-body` scrolls horizontally, so nothing spilled off the page:
 // the Default column and the per-row reset button were simply parked off to the side,
 // reachable only by scrolling the table sideways. These pin the narrow-width rules that
@@ -13,7 +13,7 @@ async function openSettings(page) {
   await gotoApp(page);
   await page.locator('#settings-btn').click();
   await expect(page.locator('#settings-modal-overlay')).toHaveClass(/modal-open/);
-  await expect(page.locator('#hotkey-table tbody tr').first()).toBeVisible();
+  await expect(page.locator('#hotkey-table .hotkey-row').first()).toBeVisible();
   // The dialog flies in from its icon (base.js modalFromIcon) — column widths read
   // mid-flight are scaled down, so measure only once the motion has settled.
   await settleModalAnimations(page, 'settings-modal-overlay');
@@ -27,7 +27,7 @@ const tableBox = (page) => page.evaluate(() => {
   return {
     right: b.right, width: b.width,
     scrollW: body.scrollWidth, clientW: body.clientWidth,
-    heads: [...table.querySelectorAll('thead th')].map((th) => {
+    heads: [...table.querySelectorAll('.hotkey-head > span')].map((th) => {
       const r = th.getBoundingClientRect();
       return { text: th.textContent.trim(), left: r.left, right: r.right, width: r.width };
     }),
@@ -45,7 +45,7 @@ test.describe('settings modal: phone layout', () => {
     expect(t.scrollW, 'the table scroller has nothing parked off to the side').toBe(t.clientW);
     expect(t.right, 'the table ends inside the screen').toBeLessThanOrEqual(w);
     // Every column — including Default and the reset-button column — is on screen and real.
-    expect(t.heads.map((h) => h.text)).toEqual(['Action', 'Shortcut', 'Default', '']);
+    expect(t.heads.map((h) => h.text)).toEqual(['Action', 'Current shortcut', 'Default', '']);
     for (const h of t.heads) {
       expect(h.left, `${h.text || 'reset'} column starts on screen`).toBeGreaterThanOrEqual(0);
       expect(h.right, `${h.text || 'reset'} column ends on screen`).toBeLessThanOrEqual(w);
@@ -65,9 +65,9 @@ test.describe('settings modal: desktop layout is unaffected', () => {
     await openSettings(page);
     const t = await tableBox(page);
     expect(t.scrollW).toBe(t.clientW);
-    // The combo pill's 110px floor still applies here, so the Shortcut column stays wide.
-    const shortcut = t.heads.find((h) => h.text === 'Shortcut');
-    expect(shortcut.width, 'Shortcut column keeps its desktop width').toBeGreaterThan(150);
+    // The combo cell's 110px floor still applies here, so the Shortcut column stays wide.
+    const shortcut = t.heads.find((h) => h.text === 'Current shortcut');
+    expect(shortcut.width, 'Shortcut column keeps its desktop width').toBeGreaterThan(120);
     expect(await page.evaluate(() => getComputedStyle(document.querySelector('.hotkey-cell')).minWidth))
       .toBe('110px');
   });

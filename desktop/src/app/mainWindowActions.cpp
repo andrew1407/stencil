@@ -157,8 +157,8 @@ namespace stencil::gui {
     actPanel_ = mk("Selection Panel", hotkey("togglePointsList", "Alt+X"));
     actToolbars_ = mk("Toolbars", hotkey("toggleControls", "Alt+C"));  // show/hide the top toolbars
     actFullscreen_ = mk("Enter Fullscreen", hotkey("fullscreen", "Alt+F"));
-    actSettings_ = mk("Settings…", hotkey("openVisuals", "Alt+V"));
-    tip(actSettings_, "Settings — theme, accent, and drawing defaults");
+    actSettings_ = mk("Style && Visual Settings…", hotkey("openVisuals", "Alt+V"));
+    tip(actSettings_, "Default visuals & highlight styles");   // the browser #visuals-btn title
     actProjects_ = mk("Projects…", hotkey("openProjects", "Ctrl+Shift+P"));
     actConnect_ = mk("Servers…", hotkey("openServers", "Ctrl+Shift+K"));
     tip(actConnect_,
@@ -203,7 +203,7 @@ namespace stencil::gui {
     actRenameProject_ = mk("Rename Project", hotkey("renameProject", "Ctrl+Alt+N"));
     connect(actRenameProject_, &QAction::triggered, this, &MainWindow::enterNameEdit);
     actSaveSession_ = mk("Save Session", "Ctrl+S");
-    actInfo_ = mk("Info && Shortcuts", hotkey("openHelp", "F1"));
+    actInfo_ = mk("Controls && Shortcuts Info", hotkey("openHelp", "F1"));
     actIncognito_ = mk("Incognito", hotkey("toggleIncognito", "Alt+I"));
     actTooltip_ = mk("Show Tooltips", QString());   // browser label parity (was "Hover Tooltip")
     actTooltip_->setCheckable(true);
@@ -455,8 +455,8 @@ namespace stencil::gui {
     connect(actSaveSession_, &QAction::triggered, this, [this] {
       saveSessionNow();
     });
-    actShortcuts_ = mk("Customize Shortcuts…", hotkey("openHotkeys", "Alt+K"));
-    tip(actShortcuts_, "Customize keyboard shortcuts");
+    actShortcuts_ = mk("Keyboard Shortcuts…", hotkey("openHotkeys", "Alt+K"));
+    tip(actShortcuts_, "Keyboard shortcuts");   // the browser #settings-btn title
     connect(actShortcuts_, &QAction::triggered, this,
             &MainWindow::openShortcuts);
 
@@ -489,7 +489,7 @@ namespace stencil::gui {
     hotkeyActions_["paste"] = actPasteImage_;
     // File / project hotkeys whose defaults live in the shared hotkeysConfig.json
     // (coordinated with the browser), wired so a rebind re-applies live and they
-    // appear in the Customize Shortcuts dialog.
+    // appear in the Keyboard Shortcuts dialog.
     hotkeyActions_["cropImage"] = actCrop_;
     hotkeyActions_["saveImage"] = actSaveImage_;
     hotkeyActions_["saveImageOriginal"] = actSaveImageOriginal_;

@@ -1,21 +1,23 @@
 #pragma once
 #include "fileStore.hpp"
 #include <QDialog>
+#include <QVector>
 #include <functional>
 
 class QComboBox;
 class QCheckBox;
 class QDoubleSpinBox;
-class QSpinBox;
-class QPushButton;
+class QLabel;
 class QLineEdit;
+class QPushButton;
+class QSpinBox;
+class QWidget;
 
-// Settings editor. Sectioned like the browser's "Default Visuals" modal
-// (js/ui/visualsModal.js), plus the desktop-only preferences browser has no
-// home for. Live-apply, like visualsModal.js — no Save/Cancel, just Close.
-// The AI-assistant rows are the one exception (browser's own llmSettingsModal.js
-// is commit/discard too) and stay behind AssistantSettingsDialog; this just
-// links to it.
+// Settings editor — the browser's "Style & Visual Settings" modal (js/ui/visualsModal.js):
+// the shared shell, its search box, .vs-section captions over hairline .vs-row rows,
+// and a footer hint beside Reset All. Live-apply, like the browser — no Save/Cancel,
+// just Close. Desktop-only preferences ride along as extra sections. The AI-assistant
+// rows are commit/discard and stay behind AssistantSettingsDialog; this links to it.
 namespace stencil::gui {
 
   class SettingsDialog : public QDialog {
@@ -28,12 +30,24 @@ namespace stencil::gui {
 
    signals:
     void openAssistantSettingsRequested();  // "Open Assistant Settings…" row
+    void visualsReset();                    // Reset All was applied (the owner toasts it)
 
    private:
     // Opens an animated picker anchored on `btn`, writes the chosen color into
     // `hex`, repaints the swatch, and applies live.
     void pickColorInto(QPushButton* btn, QString& hex, const QString& title);
     void applyLive();  // fires onChange_ with the current result()
+    void applyFilter(const QString& query);
+    void resetVisuals();   // the browser's VIS_DEFAULTS + the default accent
+
+    // A section caption and the rows under it, for the search filter.
+    struct Group {
+      QLabel* title = nullptr;
+      QVector<QPair<QString, QWidget*>> rows;   // label text, row widget
+    };
+    QVector<Group> groups_;
+    QLabel* empty_ = nullptr;
+    QLineEdit* search_ = nullptr;
 
     std::function<void(const Settings&)> onChange_;
     Settings base_;  // preserves fields this dialog doesn't edit (formulas, llm*…)

@@ -896,6 +896,7 @@ namespace stencil::gui {
     void cancelProjectName();
     void openInfo();
     void openShortcuts();
+    void applyHotkeyOverrides(const QHash<QString, QString>& overrides);
     void updateStatusIdle();
     void keyPressEvent(QKeyEvent* event) override;
     void keyReleaseEvent(QKeyEvent* event) override;  // clears the Alt+R rotate-chord flag
@@ -1458,6 +1459,7 @@ namespace stencil::gui {
     QHash<QString, QString> hotkeys_;
     QHash<QString, QString> hotkeyDefaults_;
     QHash<QString, QString> hotkeyLabels_;
+    QStringList hotkeyOrder_;   // ids in hotkeysConfig.json order (the shortcuts list order)
     QHash<QString, QAction*> hotkeyActions_;
 
     // ── state ──
