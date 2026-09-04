@@ -1,4 +1,6 @@
 #include "guiHelpers.hpp"
+
+#include "theme.hpp"
 #include "iconSet.hpp"
 #include "modalChrome.hpp"   // confirmModal — the browser-styled yes/no question
 #include "modalReveal.hpp"   // support::motionReduced()
@@ -8,6 +10,7 @@
 #include <QGuiApplication>
 #include <QColor>
 #include <QComboBox>
+#include <QMenu>
 #include <QDialog>
 #include <QEasingCurve>
 #include <QFileDialog>
@@ -97,9 +100,9 @@ namespace stencil::gui {
         // affirmative CTA (white on the accent fill), ✕ on Cancel/Close (the
         // text colour; browser confirmModal / .app-modal-close do the same).
         if (primary)
-          pb->setIcon(themedIcon("check", QColor("#ffffff"), 14));
+          pb->setIcon(labelIcon("check", QColor("#ffffff"), 14));
         else if (box->buttonRole(pb) == QDialogButtonBox::RejectRole)
-          pb->setIcon(themedIcon("x", parent->palette().color(QPalette::WindowText), 14));
+          pb->setIcon(labelIcon("x", parent->palette().color(QPalette::WindowText), 14));
       }
     }
     return box;
@@ -129,27 +132,58 @@ namespace stencil::gui {
     anim->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
-  void setColorSwatch(QAbstractButton* btn, const QColor& color) {
+  void fitMenuWidth(QMenu& menu) {
+    int label = 0;
+    for (QAction* a : menu.actions())
+      label = std::max(label, menu.fontMetrics().horizontalAdvance(a->text()));
+    // 6 left pad + 16 icon + ~8 icon-text gap + 10 right pad + menu pads/margins.
+    menu.setFixedWidth(label + 52);
+  }
+
+  void compactIconMenu(QMenu& menu) {
+    menu.setStyleSheet(compactMenuQss());   // shared with MenuHotkeyChips' compact mode
+    fitMenuWidth(menu);
+  }
+
+  // The colour chip inside the well — the toolbar's own 32x16 (mainWindow.cpp
+  // updateColorSwatch), and what the browser's padded <input type="color"> shows.
+  static const QSize kSwatchChip(32, 16);
+
+  void setColorSwatch(QAbstractButton* btn, const QColor& color, const QSize& size) {
     if (!btn) return;
-    // A compact colour-WELL whose whole surface is the colour (the browser's
-    // <input type=color>), not a wide button with a tiny chip icon. Fixed size so the
-    // form layout doesn't stretch it; a soft luminance-tuned outline keeps a
-    // near-background colour visible on any theme.
-    btn->setIcon(QIcon());
+    // ONE colour well across the app: a small colour chip inside the shared input frame,
+    // the treatment the toolbar's pickers use (mainWindow.cpp updateColorSwatch) and the
+    // one the browser mirrors. Painting the button's whole surface read as a colour slab.
+    // The frame is the theme's own inputBg/borderMain, taken from the APPLICATION palette
+    // — a widget built before applyTheme still carries Qt's default white one, which
+    // resolved the light theme inside a dark app and ringed the wells in near-white.
+    const QPalette appPal = QGuiApplication::palette();
+    const Palette pal = themePalette(appPal.color(QPalette::Base).lightness() < 128);
     btn->setText(QString());
-    btn->setFixedSize(46, 24);
     btn->setCursor(Qt::PointingHandCursor);
-    const bool lightFill = color.lightnessF() > 0.7;
-    const QString outline = lightFill ? "rgba(0,0,0,0.40)" : "rgba(255,255,255,0.40)";
-    const QString bg = QString("rgba(%1,%2,%3,%4)")
-                           .arg(color.red()).arg(color.green()).arg(color.blue())
-                           .arg(color.alphaF(), 0, 'f', 3);
-    // QAbstractButton, not QPushButton: a QSS type selector does NOT match sibling
-    // classes, so the open-image dialog's QToolButton swatch rendered unstyled
-    // (an invisible white chip on a white dialog).
-    btn->setStyleSheet(QString("QAbstractButton { background: %1; border: 1px solid %2; border-radius: 6px; }"
-                               "QAbstractButton:hover { border: 1px solid palette(highlight); }")
-                           .arg(bg, outline));
+    btn->setStyleSheet(QString("QAbstractButton{background:%1;border:1px solid %2;"
+                               "border-radius:7px;padding:0;}"
+                               "QAbstractButton:hover{border-color:%3;}")
+                           .arg(pal.inputBg.name(), pal.borderMain.name(),
+                                appPal.color(QPalette::Highlight).name()));   // the LIVE accent
+    // The chip itself: a rounded rect with a soft luminance-tuned outline, so a colour
+    // close to the input's own ground stays visible in either theme. Alpha is honoured —
+    // a translucent fill shows as one (cssColor.hpp).
+    QPixmap pm(kSwatchChip);
+    pm.fill(Qt::transparent);
+    {
+      QPainter p(&pm);
+      p.setRenderHint(QPainter::Antialiasing);
+      const bool lightFill = color.lightnessF() > 0.7;
+      p.setPen(QPen(lightFill ? QColor(0, 0, 0, 102) : QColor(255, 255, 255, 102), 1));
+      p.setBrush(color);
+      p.drawRoundedRect(QRectF(0.5, 0.5, kSwatchChip.width() - 1.0, kSwatchChip.height() - 1.0), 4, 4);
+    }
+    btn->setIcon(QIcon(pm));
+    btn->setIconSize(pm.size());
+    // AFTER the stylesheet: setStyleSheet re-polishes the widget, which recomputes its
+    // minimum from the QSS box and undid a fixed size set before it.
+    btn->setFixedSize(size);
   }
 
   void fillPageSizeCombo(QComboBox* combo, bool includeCustom,

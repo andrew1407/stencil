@@ -29,6 +29,7 @@ const makeApp = (over = {}) => {
     askAlt: async () => 'confirm',
     saveHistory() { record.saveHistory++; },
     renderer: { redraw() { record.redraw++; } },
+    strokeFx: { suspend() {}, resume() {} },
     updateButtons() { record.updateButtons++; },
     coordTable: { update: (...a) => record.coordUpdate.push(a) },
     currentLayoutPayload: () => ({ lines: [] }),

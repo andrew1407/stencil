@@ -116,6 +116,12 @@ namespace stencil::gui {
       if (t == QEvent::Resize || t == QEvent::Move || t == QEvent::Show || t == QEvent::Hide)
         positionPanelGrip();
     }
+    // …and the chat dock's resize edge follows ITS panel exactly the same way.
+    if (obj == chatDock_ && chatEdge_) {
+      const QEvent::Type t = event->type();
+      if (t == QEvent::Resize || t == QEvent::Move || t == QEvent::Show || t == QEvent::Hide)
+        positionChatEdge();
+    }
     // The canvas↔panel separator grip (support/dockGrip.hpp): the separator belongs to
     // the QMainWindow itself, so ITS hover and drag arrive here — the grip lights and
     // grows while the cursor is on the strip, and stays hot through a drag (the browser
@@ -138,6 +144,28 @@ namespace stencil::gui {
             static_cast<QMouseEvent*>(event)->position().toPoint()));
       } else if (t == QEvent::HoverLeave || t == QEvent::Leave) {
         if (!panelGripDrag_) panelGrip_->setHot(false);
+      }
+    }
+    // The chat dock's resize edge (browser .chat-resizer): tints on hover and for the
+    // whole drag, like the grip above. Hit-tested against the separator's own rect, not
+    // the thicker painted band — it must not light where Qt starts no resize.
+    if (obj == this && chatEdge_ && chatEdge_->isVisible()) {
+      const QEvent::Type t = event->type();
+      if (t == QEvent::HoverEnter || t == QEvent::HoverMove) {
+        const QPoint p = static_cast<QHoverEvent*>(event)->position().toPoint();
+        chatEdge_->setHot(chatEdgeDrag_ || chatEdgeHit_.contains(p));
+      } else if (t == QEvent::MouseButtonPress &&
+                 static_cast<QMouseEvent*>(event)->button() == Qt::LeftButton) {
+        if (chatEdgeHit_.contains(static_cast<QMouseEvent*>(event)->position().toPoint())) {
+          chatEdgeDrag_ = true;
+          chatEdge_->setHot(true);
+        }
+      } else if (t == QEvent::MouseButtonRelease && chatEdgeDrag_) {
+        chatEdgeDrag_ = false;
+        chatEdge_->setHot(
+            chatEdgeHit_.contains(static_cast<QMouseEvent*>(event)->position().toPoint()));
+      } else if (t == QEvent::HoverLeave || t == QEvent::Leave) {
+        if (!chatEdgeDrag_) chatEdge_->setHot(false);
       }
     }
     // A lost-focus window never delivers the held arrows' key-up (browser parity:
@@ -421,7 +449,10 @@ namespace stencil::gui {
     // already in viewport coordinates, which is what setZoomAnchored wants.
     if (scroll_ && obj == scroll_->viewport()) {
       const QEvent::Type t = event->type();
-      if (t == QEvent::Resize) { positionOverlayArrows(); positionPanelReopenButton(); positionPanelGrip(); }
+      if (t == QEvent::Resize) {
+        positionOverlayArrows(); positionPanelReopenButton(); positionPanelGrip();
+        positionChatEdge();
+      }
       // Right-click on the margin around the image (or anywhere with no image)
       // opens the same context menu the canvas opens — the backdrop had none.
       // syncContextActions() still gates the image-dependent entries.

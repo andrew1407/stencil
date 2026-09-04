@@ -8,6 +8,7 @@ const { PAGE_SIZES } = constants;
 import { HistoryStack } from './historyStack.js';
 import { FormulaEngine } from './formulaEngine.js';
 import { Renderer } from './renderer.js';
+import { StrokeFx } from './strokeFx.js';
 import { Storage } from './storage.js';
 import { getProjectsBackend } from './projectsBackend.js';
 import { TabsCoordinator } from './tabsCoordinator.js';
@@ -34,7 +35,7 @@ import { wireExtensionBridge } from './extensionBridge.js';
 import { normalizePageSize, pageFormatLabel } from './units.js';
 import { icon } from '../ui/icons.js';
 import { enhanceSelect, enhanceAllSelects } from '../ui/customSelect.js';
-import { playCanvasArrival, leaveThenRemove, swapContent, pinWidestFace, revealControls } from '../ui/motion.js';
+import { playCanvasArrival, leaveThenRemove, swapContent, pinWidestFace, revealControls, strokeFoot } from '../ui/motion.js';
 import { requireConnection, createRemoteProject, saveRemoteProject } from '../net/remoteSync.js';
 import { getSyncToServer, loadSavedServers } from '../net/connectionStore.js';
 import { normalizeUrl } from '../net/connectionManager.js';
@@ -255,7 +256,10 @@ export class DrawingApp {
     this.selGlowColor = '#ffc800'; // selection highlight glow (lines + points)
     this.hoverRingColor = '#7c3aed'; // hover ring around points
     this.focusRingColor = '#7c3aed'; // focused/clicked point ring
-    this.defaultFillColor = '#3399ff'; // default fill applied to new locked areas
+    // White, not blue: a fill is paint you put ON the picture, and the neutral one is the
+    // least surprising thing for the swatch to start at (a saturated blue reads as a choice
+    // already made). Shared with the desktop via config/constants.json.
+    this.defaultFillColor = '#ffffff';
 
     // ── Multi-project state ──
     // The active project id mirrors storage.activeId; null = temporary editor.
@@ -275,6 +279,9 @@ export class DrawingApp {
     this.history = new HistoryStack();
     this.formula = new FormulaEngine();
     this.renderer = new Renderer(this);
+    // Vertices in flight: every route that adds a point hands it here and the
+    // renderer draws it travelling to where it was put (strokeFx.js).
+    this.strokeFx = new StrokeFx(this);
     this.storage = new Storage(this);
     this.tabs = new TabsCoordinator();
     // Another tab changed the project set: sync the editor if it's our project.
@@ -1260,15 +1267,15 @@ export class DrawingApp {
         // No segment under the cursor → fall through to normal drawing behavior.
       }
 
+      // A click near the first point closes the stroke into a locked area — whichever
+      // stroke is being drawn (continued or fresh).
+      if (this.tryCloseShapeAt(x, y)) return;
+
       // Continuation drawing: extend the selected line at the insert point
       if (this.continueLineIdx >= 0 && this.lines[this.continueLineIdx]) {
         const line = this.lines[this.continueLineIdx];
-        // Click near the first point closes it into a locked area
-        if (this.#shouldCloseShape(line.points, x, y, line.pointSize ?? this.pointSize)) {
-          this.#closeContinuedShape();
-          return;
-        }
         line.points.splice(this.continueInsertIdx, 0, { x, y });
+        this.strokeFx.flyIn(line, this.continueInsertIdx);
         this.focusedPtIdx = this.continueInsertIdx;
         this.continueInsertIdx++;
         this.coordTable.update(line.points, this.continueLineIdx);
@@ -1277,14 +1284,9 @@ export class DrawingApp {
         return;
       }
 
-      const pts = this.currentLine.points;
-      // Click on the first point closes the shape into a locked area
-      if (this.#shouldCloseShape(pts, x, y, this.currentLine.pointSize ?? this.pointSize)) {
-        this.#closeCurrentShape();
-        return;
-      }
       this.undonePoints = [];
       this.currentLine.points.push({ x, y });
+      this.strokeFx.flyIn(this.currentLine, this.currentLine.points.length - 1);
       this.renderer.redraw();
       this.updateButtons();
       return;
@@ -1338,6 +1340,37 @@ export class DrawingApp {
     this.renderer.redraw();
   }
 
+  // Like every other hit test here, the close grab is a screen radius divided by the
+  // zoom — at 25% a fixed image-pixel radius was three screen pixels and unhittable.
+  // core adds its own +8, so hand it the size that makes the total screen-constant.
+  // Zoomed out only: magnifying must never make the dots harder to hit than at 1:1.
+  static #CLOSE_SLACK = 8;
+  #closeGrabSize(line) {
+    const ps = line.pointSize ?? this.pointSize;
+    const scale = this.scale || 1;
+    if (scale >= 1) return ps;
+    const slack = DrawingApp.#CLOSE_SLACK;
+    return Math.max(ps, (ps + slack) / scale - slack);
+  }
+
+  // Would a point at (x, y) close the stroke being drawn? If so, close it into a locked
+  // area and report it. The one close route: the click path and hold-to-draw both come
+  // here, so a shape closes however the last point is put down.
+  tryCloseShapeAt(x, y) {
+    if (!this.isDrawing) return false;
+    if (this.continueLineIdx >= 0 && this.lines[this.continueLineIdx]) {
+      const line = this.lines[this.continueLineIdx];
+      if (!this.#shouldCloseShape(line.points, x, y, this.#closeGrabSize(line))) return false;
+      this.#closeContinuedShape();
+      return true;
+    }
+    if (!this.currentLine) return false;
+    if (!this.#shouldCloseShape(this.currentLine.points, x, y, this.#closeGrabSize(this.currentLine)))
+      return false;
+    this.#closeCurrentShape();
+    return true;
+  }
+
   // Close the in-progress line into a locked, fillable area.
   #closeCurrentShape() {
     this.#closeShape({ line: this.currentLine, isContinuation: false });
@@ -1368,12 +1401,14 @@ export class DrawingApp {
     }
     this.currentLine = null;
     this.isDrawing = false;
-    // Select the new area so its fill control appears
-    this.selectedLineIdx = areaIdx;
+    // Ends exactly like finishing an ordinary line (stopDrawingMode): the coordinate
+    // table follows it and nothing is selected, so no bar pops up over the new shape.
     this.coordLineIdx = areaIdx;
-    this.focusedPtIdx = -1;
-    this.showSelectionPanel(this.lines[areaIdx]);
     this.coordTable.update(this.lines[areaIdx].points, areaIdx);
+    // A CONTINUED shape was drawn on an already-selected line, so its bar is already up:
+    // repopulate it (it just became an area and grew a Fill control) without opening it —
+    // the panel is visible, so this replays no animation.
+    if (this.selectedLineIdx === areaIdx) this.showSelectionPanel(this.lines[areaIdx]);
     this.saveHistory();
     this.renderer.redraw();
     this.updateButtons();
@@ -1384,6 +1419,9 @@ export class DrawingApp {
     const line = this.lines[lineIdx];
     if (!line) return;
     line.points.splice(insertIdx, 0, { x, y });
+    // An inserted vertex comes out of the segment it split — from its own foot on the
+    // old straight line, so the bend grows rather than appearing.
+    this.strokeFx.flyIn(line, insertIdx, strokeFoot(line.points[insertIdx - 1], line.points[insertIdx + 1], x, y));
     this.selectedLineIdx = lineIdx;
     this.coordLineIdx = lineIdx;
     this.focusedPtIdx = insertIdx;
@@ -1406,6 +1444,7 @@ export class DrawingApp {
         focusedPtIdx: this.focusedPtIdx
       });
       line.points.splice(insertIdx, 0, { x, y });
+      this.strokeFx.flyIn(line, insertIdx);
       this.coordLineIdx = this.selectedLineIdx;
       this.focusedPtIdx = insertIdx;
       this.showSelectionPanel(line);
@@ -1424,6 +1463,7 @@ export class DrawingApp {
       style: this.style
     };
     this.lines.push(newLine);
+    this.strokeFx.flyIn(newLine, 0);
     const idx = this.lines.length - 1;
     this.selectedLineIdx = idx;
     this.coordLineIdx = idx;
@@ -1452,6 +1492,7 @@ export class DrawingApp {
       const line = this.lines[this.continueLineIdx];
       const insertIdx = this.continueInsertIdx;
       line.points.splice(insertIdx, 0, ...corners);
+      this.strokeFx.flyInRange(line, insertIdx, corners.length);
       this.continueInsertIdx = insertIdx + corners.length;
       this.coordLineIdx = this.continueLineIdx;
       this.focusedPtIdx = this.continueInsertIdx - 1;
@@ -1469,6 +1510,7 @@ export class DrawingApp {
         focusedPtIdx: this.focusedPtIdx
       });
       line.points.splice(insertIdx, 0, ...corners);
+      this.strokeFx.flyInRange(line, insertIdx, corners.length);
       this.coordLineIdx = this.selectedLineIdx;
       this.focusedPtIdx = insertIdx;
       this.showSelectionPanel(line);
@@ -1489,6 +1531,7 @@ export class DrawingApp {
       fillColor: 'transparent'
     };
     this.lines.push(rect);
+    this.strokeFx.flyInRange(rect, 0, corners.length);
     const idx = this.lines.length - 1;
     this.selectedLineIdx = idx;
     this.coordLineIdx = idx;
@@ -1685,6 +1728,49 @@ export class DrawingApp {
   // The Alt-drag gesture engine (point/segment/whole-line) lives in dragGestures.js; these
   // delegators keep the shared entry points the mouse + touch controllers call.
   beginSegmentDrag(nearSeg, x, y) { dragGestures.beginSegmentDrag(this, nearSeg, x, y); }
+
+  // Alt+Ctrl/⌘+drag: pull a NEW point out of the line under the cursor and drag it. On a
+  // closed area the same gesture breaks it open at that spot (dragGestures.pullOutPoint),
+  // so the seam appears where the user pulled. Returns whether a drag actually began.
+  beginPullOutDrag(x, y) {
+    if (this.compareReadOnly()) return false;
+    const nearPt = this.findNearestPointWithIdx(x, y);
+    const target = (nearPt && nearPt.lineIdx !== -1)
+      ? { kind: 'point', ptIdx: nearPt.ptIdx, lineIdx: nearPt.lineIdx }
+      : this.findNearestSegmentWithIdx(x, y);
+    if (!target || target.lineIdx === undefined || target.lineIdx < 0) return false;
+    const line = this.lines[target.lineIdx];
+    if (!line) return false;
+    const wasArea = !!line.locked;
+    const idx = dragGestures.pullOutPoint(line, target.kind ? target : { ...target, kind: 'segment' }, x, y);
+    if (idx < 0) return false;
+    this.strokeFx.flyIn(line, idx, { x, y });
+    this.selectedLineIdx = target.lineIdx;
+    this.coordLineIdx = target.lineIdx;
+    this.focusedPtIdx = idx;
+    this.isDraggingPoint = true;
+    this.draggingPoint = { lineIdx: target.lineIdx, ptIdx: idx };
+    this.showSelectionPanel(line);
+    this.coordTable.update(line.points, target.lineIdx);
+    this.renderer.redraw();
+    this.updateButtons();
+    if (wasArea) notify('Area unchained — drag the loose end', 'ok');
+    return true;
+  }
+
+  // Turn the selected area back into an open line (the ✂ in the selection panel).
+  unchainSelectedLine() {
+    if (this.compareReadOnly()) return;
+    const line = this.lines[this.selectedLineIdx];
+    if (!dragGestures.unchainLine(line)) { notify('Selected line is not an area', 'info'); return; }
+    this.focusedPtIdx = -1;
+    this.showSelectionPanel(line);
+    this.coordTable.update(line.points, this.selectedLineIdx);
+    this.saveHistory();
+    this.renderer.redraw();
+    this.updateButtons();
+    notify('Area unchained — it is an open line again', 'ok');
+  }
 
   movePointTo(dp, x, y) { dragGestures.movePointTo(this, dp, x, y); }
 
@@ -1969,6 +2055,7 @@ export class DrawingApp {
     }
     const result = this.history.undo();
     if (result !== null) {
+      this.strokeFx.cancel();     // the snapshot's points are not the ones in the air
       this.lines = result;
       this.hoverPt = null;        // the restored snapshot may not contain the hovered indices
       this.hoverLineIdx = -1;
@@ -1991,6 +2078,7 @@ export class DrawingApp {
     }
     const result = this.history.redo();
     if (result !== null) {
+      this.strokeFx.cancel();     // see undo()
       this.lines = result;
       this.hoverPt = null;        // see undo(): indices may be stale against the snapshot
       this.hoverLineIdx = -1;
@@ -2376,28 +2464,54 @@ export class DrawingApp {
     return { address: conn.url };
   }
 
-  // The current session as an "Open in…" hand-off payload (the #stencil= fragment shape):
-  // a server reference for a linked session (the receiver re-fetches — no bytes, no token),
-  // else the inline image + full layout. Consumed by the Open-in modal for the desktop
-  // stencil:// link and by anything that mirrors this session into another front-end.
-  openInLaunchPayload({ incognito = false } = {}) {
-    const p = this.remoteLink
-      ? {
-        server: {
-          url: this.remoteLink.address,
-          id: this.remoteLink.remoteId,
-          version: this.remoteLink.version || 0,
-        },
-      }
-      : {
-        dataUrl: this.imageDataUrl,
-        name: `${this.imageBaseName || 'image'}.${this.imageExt || 'png'}`,
-        layout: this.currentLayoutPayload(),
-      };
-    if (!this.remoteLink) {
-      if (this.imageSource) p.source = this.imageSource;
-      if (this.imageResource) p.resource = this.imageResource;
+  // The session as an "Open in…" hand-off payload (the #stencil= fragment shape): a
+  // server reference for a linked session, else the inline image + full layout.
+  // `id` hands off a SAVED project instead (the projects list offers this per row),
+  // read from its stored record; null when nothing is stored under that id.
+  openInLaunchPayload({ incognito = false, id = null } = {}) {
+    if (id != null && id !== this.activeProjectId) return this.#storedLaunchPayload(id, incognito);
+    return DrawingApp.#launchPayload({
+      remote: this.remoteLink
+        && { url: this.remoteLink.address, id: this.remoteLink.remoteId, version: this.remoteLink.version },
+      dataUrl: this.imageDataUrl,
+      name: `${this.imageBaseName || 'image'}.${this.imageExt || 'png'}`,
+      layout: this.currentLayoutPayload(),
+      source: this.imageSource,
+      resource: this.imageResource,
+      incognito,
+    });
+  }
+
+  // The saved-project half of openInLaunchPayload: a server-linked project hands over its
+  // reference, a purely local one its stored bytes + layout, exactly as the live session does.
+  #storedLaunchPayload(id, incognito) {
+    const meta = this.storage.store.getMeta(id);
+    const proj = this.storage.store.get(id);
+    if (!meta || !proj) return null;
+    const layout = proj.payload?.layout || {};
+    return DrawingApp.#launchPayload({
+      remote: meta.remoteId && meta.address
+        && { url: meta.address, id: meta.remoteId, version: meta.remoteVersion },
+      dataUrl: proj.payload?.image || null,
+      name: `${layout.imageBaseName || meta.name || 'image'}.${meta.imageExt || layout.imageExt || 'png'}`,
+      layout,
+      source: meta.source || layout.imageSource,
+      resource: meta.resource || layout.imageResource,
+      incognito,
+    });
+  }
+
+  // The one #stencil= fragment shape both hand-offs above answer with: a server reference
+  // (the receiver re-fetches — no bytes, no token), else the inline image + full layout.
+  static #launchPayload({ remote, dataUrl, name, layout, source, resource, incognito }) {
+    if (remote) {
+      const p = { server: { url: remote.url, id: remote.id, version: remote.version || 0 } };
+      if (incognito) p.incognito = true;
+      return p;
     }
+    const p = { dataUrl, name, layout };
+    if (source) p.source = source;
+    if (resource) p.resource = resource;
     if (incognito) p.incognito = true;
     return p;
   }
@@ -2863,6 +2977,7 @@ export class DrawingApp {
     }
     // Every row in the lines list scatters before the list is rebuilt empty.
     for (const row of document.querySelectorAll('#lines-list .lines-row')) leaveThenRemove(row);
+    this.strokeFx.cancel();
     this.lines = [];
     if (this.currentLine) this.currentLine.points = [];
     this.selectedLineIdx = -1;

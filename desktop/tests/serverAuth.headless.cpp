@@ -6,18 +6,15 @@
 //     and issue no fresh auth of their own;
 //   - an admin token still works (the client mints a session with it);
 //   - a valid token still connects normally;
-//   - the dialog row for an expired connection wears the amber card + note and an
-//     icon-only Reconnect, and signing in again turns it green.
-// …plus the credential KIND that rides along with it (browser credentialKind
-// parity): Admin when the credential PROVED it can mint a session, Session when
-// the supplied token passed the /projects probe, None when nothing was supplied —
-// persisted with the saved connections and shown as the row's golden band, its
-// Invite button, and the All / Admin / Non-admin filter — whose changes are a question
-// re-answered (support/filterFade): what it excludes is gone at once with nothing to
-// watch, the rows that are LEFT arrive, no destructive dust is spent either way, and
-// reduced motion goes straight to the end state.
-// A mock QTcpServer stands in for the collaboration server, so no Go server is
-// needed (same approach as connectRow.headless).
+//   - the dialog row for an expired connection wears the amber card and a LABELLED
+//     amber Reconnect (browser .connect-expired: the card says what is wrong, so there
+//     is no separate note), and signing in again turns it green.
+// …plus the credential KIND that rides along with it (browser credentialKind parity):
+// Admin when the credential proved it can mint a session, Session when the token passed
+// the /projects probe, None otherwise — persisted with the saved connections and shown as
+// the row's golden band, its Invite button, and the All / Admin / Non-admin filter, whose
+// changes play as a question re-answered (support/filterFade).
+// A mock QTcpServer stands in for the collaboration server, so no Go server is needed.
 #include "connectDialog.hpp"
 #include "connectionStore.hpp"
 #include "disintegrateOverlay.hpp"  // the DESTRUCTIVE effect a filter-out must not use
@@ -156,6 +153,25 @@ int main(int argc, char** argv) {
       check(true, "an unreachable host is not an expired session");
       check(true, "…and offers no re-auth");
     }
+    // …and the toast reads like the browser's. A request that never reached the server
+    // has no status, so the browser's fetch rejection carries the TRANSPORT's message —
+    // "Could not connect — token request failed (HTTP 0)" was the desktop's own invention.
+    check(!err.contains(QLatin1String("HTTP 0")), "a dead host never reports \"HTTP 0\"");
+    check(!err.isEmpty() && !err.contains(QLatin1String("HTTP")),
+          "…it reports what the transport said instead");
+  }
+
+  // ── a REST failure reads exactly as the browser words it ──────────────────
+  // browser connectionManager.js _req: "<METHOD> <path>: HTTP <status>" (or the server's
+  // own JSON `message`), which the connect toast then wraps in "Could not connect — …".
+  {
+    ConnectionManager mgr;
+    QString err;
+    mock.tokenStatus = 500;
+    mgr.connectTo(mock.url(), QString(), err);
+    mock.tokenStatus = 200;
+    check(err == QLatin1String("POST /auth/token: HTTP 500"),
+          "a REST failure is worded exactly as the browser words it");
   }
 
   // ── a live session going stale mid-flight ──
@@ -408,26 +424,30 @@ int main(int argc, char** argv) {
     dlg.resize(520, 420);
     dlg.show();
     pumpFor(60);
-    auto* note = dlg.findChild<QLabel*>(QStringLiteral("expiredNote"));
-    check(note != nullptr, "the expired row carries its own note");
-    if (note)
-      check(note->text().contains("Session expired") &&
-                note->toolTip().contains("reconnect to sign in again"),
-            "…saying the session expired, with the full sentence on its tooltip");
+    // No separate note any more: the browser says it with the amber card, the amber dot
+    // and a LABELLED Reconnect, and the desktop now says it the same way. The sentence
+    // lives on the dot's and the URL's tooltips.
+    check(dlg.findChild<QLabel*>(QStringLiteral("expiredNote")) == nullptr,
+          "the expired row carries no note of its own (the browser has none)");
+    bool saysExpired = false;
+    for (QLabel* l : dlg.findChildren<QLabel*>())
+      if (l->toolTip().contains("reconnect to sign in again")) saysExpired = true;
+    check(saysExpired, "…the full sentence is on the row's own tooltips");
     // …and the row itself wears the amber card (browser .connect-expired).
     check(dlg.findChildren<QWidget*>(QStringLiteral("connRowExpired")).size() == 1,
           "…and the row wears the expired amber state");
     auto* signIn = dlg.findChild<QPushButton*>(QStringLiteral("expiredReconnect"));
     check(signIn != nullptr, "…and a Reconnect action");
     if (signIn) {
-      // Icon-only, like every other row action: the note says what is wrong, the
-      // tooltip what the button does.
-      check(signIn->text().isEmpty() && !signIn->icon().isNull(),
-            "…that is icon-only, like the row's other actions");
-      check(signIn->toolTip().contains("sign in to this server again"),
+      // LABELLED, unlike every other row action (browser: .btn-icon-text + "Reconnect"):
+      // on an expired row this is the fix, not a retry, so it says so.
+      check(signIn->text() == QStringLiteral("Reconnect") && !signIn->icon().isNull(),
+            "…that is labelled Reconnect, with its icon");
+      check(signIn->toolTip().contains("Sign in to this server again"),
             "…with what it does on its tooltip");
-      check(signIn->size() == dlg.findChild<QPushButton*>(QStringLiteral("rowDisconnect"))->size(),
-            "…and the same footprint as the row's disconnect button");
+      // Wider than an icon button, but on exactly its line — the two sit side by side.
+      check(signIn->height() == dlg.findChild<QPushButton*>(QStringLiteral("rowDisconnect"))->height(),
+            "…and the same height as the row's disconnect button");
     }
 
     // The server starts handing out sessions again: the row's own reconnect
@@ -612,8 +632,9 @@ int main(int argc, char** argv) {
             "…drawn in the app's collaboration gold");
       check(gold[0]->toolTip().contains(QStringLiteral("mint session tokens")),
             "…and saying on its tooltip what the credential can do");
-      // Projects-row parity: the plain rows are cards too — 6px radius, accent-soft hover.
-      check(rowList->styleSheet().contains(QStringLiteral("border-radius:6px")) &&
+      // Browser .connect-row parity: the plain rows are filled cards too — radius 8,
+      // hovering to --bg-info.
+      check(rowList->styleSheet().contains(QStringLiteral("border-radius:8px")) &&
                 rowList->styleSheet().contains(QStringLiteral("QWidget#connRow[hovered=\"true\"]")),
             "…and every row is a rounded card with a hover wash");
     }

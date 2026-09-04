@@ -14,7 +14,7 @@ export class StencilConfirmModal extends StencilElement {
     return `
         <div class="app-modal app-modal-confirm">
             <div class="settings-header">
-                <h2 id="confirm-modal-title">${icon('alert', { size: 18 })} <span id="confirm-modal-title-text">Confirm</span></h2>
+                <h2 id="confirm-modal-title"><span id="confirm-modal-title-icon">${icon('alert', { size: 18 })}</span> <span id="confirm-modal-title-text">Confirm</span></h2>
                 <button class="app-modal-close btn-icon-text" id="confirm-modal-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="settings-body">
@@ -45,6 +45,14 @@ export class StencilConfirmModal extends StencilElement {
     // The gesture this dialog grew from, captured on open and reused on close — measured
     // again at close time it would anchor on the dismiss button instead.
     let openAnchor = null;
+    // …unless the caller names another way back (opts.closeAnchor): a context-menu row is
+    // gone by close time, so the dust pours into the "⋯" the menu hung off. An element,
+    // measured at close time, wherever the list has scrolled to by then.
+    let closeAnchorEl = null;
+    const rectOf = (el) => {
+      const r = el?.getBoundingClientRect?.();
+      return r && r.width > 0 && r.height > 0 ? r : null;
+    };
     // Resolver for the in-flight ask()/choose(); null when no dialog is open.
     let resolveCurrent = null;
     // When set, the dialog is in "choose" mode: Confirm resolves with the picked
@@ -59,7 +67,7 @@ export class StencilConfirmModal extends StencilElement {
       // Measured while it is still up — display:none measures 0 — then handed to the
       // cloud, which has a life of its own on <body>: the answer never waits for it.
       const animate = overlay.classList.contains('modal-open') && !flight.reducedMotion()
-                      && flight.setOrigin(openAnchor);
+                      && flight.setOrigin(rectOf(closeAnchorEl) || openAnchor);
       overlay.classList.remove('modal-open');
       if (animate) flight.playClosing();
       else { flight.settle(); flight.finishClose(); }
@@ -79,11 +87,22 @@ export class StencilConfirmModal extends StencilElement {
     };
     const onKey = (e) => {
       if (e.key === 'Escape') { e.stopPropagation(); settle(false); }
-      else if (e.key === 'Enter') { e.preventDefault(); settle(true); }
+      else if (e.key === 'Enter') {
+        // A multi-line prompt owns plain Enter — it types a newline — so only the
+        // modifier form confirms there. Everywhere else Enter is still "OK".
+        if (promptInput?.tagName === 'TEXTAREA' && e.target === promptInput && !(e.ctrlKey || e.metaKey)) return;
+        e.preventDefault();
+        settle(true);
+      }
     };
     // Shared open: set labels/icon/danger, show the overlay, arm the key handler.
     const beginDialog = (message, opts, defaultTitle) => {
       document.getElementById('confirm-modal-title-text').textContent = opts.title || defaultTitle;
+      // The header glyph says what KIND of dialog this is: the alert triangle for a
+      // question with a consequence, `titleIcon` for anything else — a prompt that just
+      // collects a value (keywords, a description) is information, not a warning.
+      document.getElementById('confirm-modal-title-icon').innerHTML =
+        icon(opts.titleIcon || 'alert', { size: 18 });
       document.getElementById('confirm-modal-message').textContent = message || '';
       // The glyph follows the ACTION, not the dialog: a plain yes/no keeps the check,
       // but a named action ("Replace") shows what it does instead of a generic tick.
@@ -97,6 +116,7 @@ export class StencilConfirmModal extends StencilElement {
       // Measured after the class applies — the box has no size while display:none. Captured
       // once here and reused by settle() so the close flies back to this same point.
       openAnchor = gestureAnchorRect();
+      closeAnchorEl = opts.closeAnchor || null;
       if (!flight.reducedMotion() && flight.setOrigin(openAnchor)) flight.playDust(true);
       document.addEventListener('keydown', onKey, true);
     };
@@ -178,14 +198,18 @@ export class StencilConfirmModal extends StencilElement {
       setTimeout(() => sel.focus(), 30);
     });
 
-    // Text-prompt variant: a single <input> below the message. Resolves the trimmed text on
-    // Confirm, null on Cancel/Close/Escape. opts: { title, confirmLabel, defaultValue }.
+    // Text-prompt variant: an <input> below the message, resolving the trimmed text on
+    // Confirm, null otherwise. opts: { title, titleIcon, confirmLabel, defaultValue,
+    // multiline, rows }. `multiline` swaps in a `rows`-tall <textarea> (default 3) for
+    // sentence-shaped values; Enter then types a newline and Ctrl/⌘+Enter saves.
     this.prompt = (message, opts = {}) => new Promise(resolve => {
       dismissPrevious();
       resolveCurrent = resolve;
       beginDialog(message, opts, 'Enter a name');
-      const inp = document.createElement('input');
-      inp.type = 'text';
+      const multiline = !!opts.multiline;
+      const inp = document.createElement(multiline ? 'textarea' : 'input');
+      if (multiline) inp.rows = opts.rows || 3;
+      else inp.type = 'text';
       inp.className = 'confirm-prompt-input';
       inp.value = opts.defaultValue || '';
       inp.addEventListener('keydown', e => e.stopPropagation());   // keep the modal's Enter/Esc, but let typing through

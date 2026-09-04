@@ -5,10 +5,12 @@
 #include <QDialog>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 
 class QCheckBox;
 class QComboBox;
 class QLabel;
+class QPushButton;
 class QLineEdit;
 class QListWidget;
 class QWidget;
@@ -28,6 +30,17 @@ namespace stencil::gui {
     // Close-early finalize: pending removal slots collapse at once (the dust dies with
     // the dialog), so nothing stale survives into a later show.
     void done(int r) override;
+    // "Sync changes to server" lives here beside Auto-connect (browser connectModal.js
+    // #connect-sync). The setting itself is MainWindow's (Settings.syncToServer), so the
+    // window seeds the box and hears every toggle.
+    void setSyncToServer(bool on);
+
+   signals:
+    void syncToServerToggled(bool on);
+    // Failures are reported the way the browser reports them: a toast on the app's stack
+    // (connectModal.js notify(..., 'fail')), not a native alert box. MainWindow owns the
+    // stack, so the dialog just says what happened.
+    void toast(const QString& text, bool failed);
 
    protected:
     // Watches the list viewport: rows are re-capped to its width on resize.
@@ -57,6 +70,11 @@ namespace stencil::gui {
     void doConnect();
     // Show/hide the batch toolbar + update its count from the current selection.
     void updateBatchBar();
+    // Select all's pool: the urls whose rows the kind filter leaves on view.
+    QStringList shownUrls() const;
+    bool allShownSelected() const;
+    // Select every row on view / clear the whole selection (browser connect-select-all).
+    void toggleSelectAll();
     // Yes/No confirm, then disconnect + refresh — the single remove path shared by the
     // per-row ✕, the batch Disconnect, and the drag-out-of-the-dialog gesture.
     void confirmDisconnect(const QString& url);
@@ -69,6 +87,7 @@ namespace stencil::gui {
     // "Auto-connect on open" — moved here from Settings (it's a connection
     // preference); persisted to net::connectionStore on toggle.
     QCheckBox* autoConnect_ = nullptr;
+    QCheckBox* syncToServer_ = nullptr;
     // "Show:" All / Admin / Non-admin — a view filter over the rows, not a setting.
     QComboBox* kindFilter_ = nullptr;
     // Multi-select: urls checked for a batch reconnect/disconnect, + the toolbar.
@@ -81,6 +100,10 @@ namespace stencil::gui {
     QSet<QString> known_;
     QWidget* batchBar_ = nullptr;
     QLabel* batchCount_ = nullptr;
+    QPushButton* selectAllBtn_ = nullptr;  // Select all / Deselect all over the filtered view
+    // The selection-only actions, in ONE group so the bar's reveal is a single flight
+    // (projectsDialog's batchSelectedGroup_ / browser .connect-batch-actions).
+    QWidget* batchSelectedGroup_ = nullptr;
     // The kind picker's enter/exit transition (owned by the list).
     ListFilterFade* filterFade_ = nullptr;
   };

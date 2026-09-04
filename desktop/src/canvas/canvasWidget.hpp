@@ -3,12 +3,15 @@
 #include "historyStack.hpp"
 #include "holdDraw.hpp"
 #include "models.hpp"
+#include "chainEdit.hpp"
+#include "strokeGrowth.hpp"
 #include <QColor>
 #include <QImage>
 #include <QString>
 #include <QWidget>
 #include <QPoint>
 #include <QRectF>
+#include <QPolygonF>
 #include <QElapsedTimer>
 #include <QTimer>
 #include <functional>
@@ -80,6 +83,8 @@ namespace stencil::gui {
     void startNewLine();      // commit the in-progress line, begin a fresh one
     void deleteLastPoint();   // remove the last point of the in-progress line
     void clearAll();          // remove every line
+    // Turn the selected closed area (a closed shape or a rect) back into an open line.
+    void unchainSelectedLine();
     void undo();
     void redo();
     bool canUndo() const { return history_.canUndo(); }
@@ -229,13 +234,15 @@ namespace stencil::gui {
 
     // ── selected-line mutators + delete (port of applySelectionChange
     // ~1674 and canvasDblClick delete ~1515) ──
-    void setSelectedLineColor(const QString& color);
+    // `preview` = a colour still being chosen in the picker: the line changes at once, but
+    // the undo step is debounced (scheduleEditCommit) so a drag doesn't bury the stack.
+    void setSelectedLineColor(const QString& color, bool preview = false);
     void setSelectedLineThickness(double thickness);
     void setSelectedLinePointSize(double pointSize);
     // Point colour of the selected line(s); empty clears it back to the line colour.
-    void setSelectedLinePointColor(const QString& pointColor);
+    void setSelectedLinePointColor(const QString& pointColor, bool preview = false);
     void setSelectedLineStyle(const QString& style);
-    void setSelectedLineFill(const QString& fillColor);
+    void setSelectedLineFill(const QString& fillColor, bool preview = false);
     void deleteSelectedLine();
 
     // ── drawing-mode state machine (port of drawingApp.js) ──
@@ -274,6 +281,9 @@ namespace stencil::gui {
     void canvasHoverChanged(int lineIdx, int ptIdx, int overLineIdx);
     void changed();                              // lines or history changed
     void selectionChanged();
+    // A one-line toast for something the canvas did on its own (the browser's notify()):
+    // MainWindow owns the notifier, the canvas only says what happened.
+    void statusMessage(const QString& text);
     void contextRequested(const QPoint& globalPos);
     // Left-click on the imageless (idle) canvas: ask the main window to open
     // the blank-image creator (mirrors the browser idle-canvas icon).
@@ -315,13 +325,34 @@ namespace stencil::gui {
 
     // Apply `set` to the selected line (if any), then commit history, repaint,
     // and emit selectionChanged. Backs the setSelectedLine* mutators.
-    void mutateSelectedLine(const std::function<void(core::Line&)>& set);
+    void mutateSelectedLine(const std::function<void(core::Line&)>& set, bool commit = true);
 
-    // Scale-parameterized so renderToImage can draw the overlay at native
-    // resolution (1.0) while the live view uses scale_. `lineIdx` (-1 = in-progress)
-    // and `highlight` drive the hover/selection rings — never baked into exports.
+    // Scale-parameterized so renderToImage can draw the overlay at native resolution
+    // (1.0) while the live view uses scale_. `lineIdx` (-1 = in-progress) and `highlight`
+    // drive the hover/selection rings — never baked into exports. `live` separates the
+    // screen from an export: only the live view flies a freshly-added vertex.
     void drawLineScaled(class QPainter& p, const core::Line& line, int lineIdx,
-                        double scale, bool highlight) const;
+                        double scale, bool highlight, bool live = true) const;
+    // The line's points as they are DRAWN this frame — its own, unless a vertex on it
+    // is still in flight.
+    QPolygonF flownPolygon(const core::Line& line, int lineIdx, double scale,
+                           bool live) const;
+    // The heat a flying vertex drags behind it (under the stroke), and the spark riding
+    // it + the ring its landing pushes out (over everything).
+    void drawStrokeWake(QPainter& p, const core::Line& line, const QPolygonF& poly,
+                        int lineIdx, const QColor& stroke) const;
+    void drawStrokeSpark(QPainter& p, const core::Line& line, const QPolygonF& poly,
+                         int lineIdx, const QColor& pointFill) const;
+    // Put the vertex at `ptIdx` of `line` (index `lineIdx`, -1 = in-progress) in the
+    // air, and keep the frame timer running while anything is.
+    void flyInPoint(int lineIdx, const core::Line& line, int ptIdx,
+                    const QPointF* from = nullptr);
+    void flyInPoints(int lineIdx, const core::Line& line, int startIdx, int count);
+    // Ground every flight. A flight is keyed by LINE INDEX, so anything that renumbers
+    // or replaces the lines (undo, a restore, a removal) must drop them or the last one
+    // would finish on whatever line inherited its number.
+    void resetStrokeFx();
+    double fxNow() const;
     // drawLineScaled decomposed into ordered const paint passes; poly/stroke/pal
     // are built once in the head and threaded in by const& (no per-pass recompute).
     void drawFill(QPainter& p, const core::Line& line,
@@ -332,12 +363,18 @@ namespace stencil::gui {
                     const class QColor& stroke) const;
     void drawPoints(QPainter& p, const core::Line& line, const QPolygonF& poly,
                      int lineIdx, bool highlight, const QColor& stroke,
-                     const Palette& pal) const;
+                     const Palette& pal, bool live) const;
+    // How much bigger than its resting size a vertex is drawn right now (1.0 unless it
+    // is in flight or still settling).
+    double pointScaleAt(int lineIdx, const core::Line& line, int ptIdx, bool live) const;
     // mousePressEvent dispatch helpers; precedence comes from the call order
     // there. handleCtrlClick returns true when it consumes the click; false
     // falls through to a normal append.
     void beginAltDrag(const core::Point& ip, Qt::KeyboardModifiers mods,
                       const QPoint& globalPos);
+    // Alt+Ctrl: pull a NEW point out of the line under the cursor and drag it, breaking a
+    // closed area open at that spot (chainEdit.hpp). False when nothing is under it.
+    bool beginPullOut(const core::Point& ip);
     void beginZoomRect(const QPoint& widgetPos);
     bool handleCtrlClick(const core::Point& ip);
     void handleDrawingClick(const core::Point& ip, Qt::KeyboardModifiers mods,
@@ -391,9 +428,17 @@ namespace stencil::gui {
     void insertPointOnSegment(int lineIdx, int insertIdx, double x, double y);
     void addConnectedPoint(double x, double y);
     void closeContinuedShape();
+    // Close the stroke being drawn if `ip` lands on its first point. THE one close route:
+    // the click path and hold-to-draw both come here (browser drawingApp.js
+    // tryCloseShapeAt). Returns whether it closed.
+    bool tryCloseShapeAt(const core::Point& ip);
     // Insert ip into the line being continued at the (clamped) insert cursor and select
     // it; advance the cursor unless prepending. Caller must have validated continueLineIdx_.
     void insertContinuationPoint(const core::Point& ip, bool advance);
+    // core::shouldCloseShape's own slack, in image px — closeGrabSize undoes the zoom
+    // around it so the grab circle is the same size on screen at any magnification.
+    static constexpr double kCloseSlack = 8.0;
+    double closeGrabSize(const core::Line& line) const;
 
     // Interactive editing helpers (port of drawingApp.js). Refresh the hovered
     // point under the cursor (returns true when it changed), bump thickness of
@@ -547,6 +592,12 @@ namespace stencil::gui {
     bool holdPrepend_ = false;
     core::Point holdPreview_;
     QPoint holdPressPos_;
+
+    // Vertices in flight: every route that adds a point hands it to strokeFx_, fxTimer_
+    // repaints while any is moving, and fxClock_ is their shared monotonic ms.
+    stroke::Fx strokeFx_;
+    QTimer fxTimer_;
+    QElapsedTimer fxClock_;
   };
 
 }

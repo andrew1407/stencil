@@ -355,6 +355,7 @@ namespace stencil::gui {
     // flies to a point behind the panel, and without this its motes streamed across the
     // composer. Clipped, they pour out from behind the panel's edge instead.
     void setPaintClip(const QRect& hostRect) { paintClip_ = hostRect; update(); }
+    QRect paintClip() const { return paintClip_; }   // the GUI test reads what may be painted
 
     // The curve a SURFACE flight rides (OutQuint by default: break away at once, drift to
     // a stop). A toast leaving off the window's edge asks for a gentler one — with the
@@ -366,6 +367,16 @@ namespace stencil::gui {
       picture_.translate(delta);
       target_ += QPointF(delta);
       update();
+    }
+
+    // Keep the cloud anchored to `w` for the rest of the flight: every tick re-maps the
+    // control's top-left and shifts the cloud by however far it moved. A control revealed
+    // beside a sibling is photographed where it sits at that instant, and the sibling's
+    // slot then pushes it along the row. Browser twin: motion.js retargetDust. A tile
+    // flight IS its geometry; a surface flight shifts picture and target.
+    void setFollow(QWidget* w) {
+      follow_ = w;
+      followAt_ = w && parentWidget() ? w->mapTo(parentWidget(), QPoint(0, 0)) : QPoint();
     }
 
    protected:
@@ -610,6 +621,7 @@ namespace stencil::gui {
       anim->setEndValue(1.0);
       connect(anim, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
         t_ = v.toDouble();
+        syncFollow();
         update();
       });
       connect(anim, &QVariantAnimation::finished, this, [this] { deleteLater(); });
@@ -623,6 +635,18 @@ namespace stencil::gui {
       dustGrid(size, cellPx, maxCells, &cols_, &rows_);
     }
 
+    void syncFollow() {
+      if (!follow_ || !parentWidget()) return;
+      const QPoint now = follow_->mapTo(parentWidget(), QPoint(0, 0));
+      const QPoint delta = now - followAt_;
+      if (delta.isNull()) return;
+      followAt_ = now;
+      if (picture_.isValid()) retarget(delta);
+      else move(pos() + delta);
+    }
+
+    QPointer<QWidget> follow_;   // setFollow: the control this cloud stays anchored to
+    QPoint followAt_;            // …and where it was (parent coords) at the last tick
     QPixmap snap_;
     QPixmap base_;          // the state left behind (overPixmaps only); null = nothing
     QImage cells_;          // snap_'s colour per grid cell (sampleCells); rebuilt when the grid changes

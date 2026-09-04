@@ -2,8 +2,8 @@ import { StencilElement, hostTag, define } from './base.js';
 import { icon } from './icons.js';
 import { fillState } from '../core/layout.js';
 import { pointColorOf } from '../core/renderer.js';
-import { notify } from '../utils.js';
-import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint } from './motion.js';
+import { notify, cssColorParts, cssWithAlpha } from '../utils.js';
+import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, revealControls } from './motion.js';
 // ── Component: selected-line editor panel ───────────────────────
 // Markup only; its inputs are wired by DrawingApp via global ids.
 export class StencilSelectionPanel extends StencilElement {
@@ -11,14 +11,20 @@ export class StencilSelectionPanel extends StencilElement {
     return `
             <div class="selection-panel-inner">
                 <span class="selection-label">${icon('pencil', { size: 14 })} Selected Line:</span>
+                <span class="sel-sep" aria-hidden="true"></span>
                 <div class="control-group">
                     <label>Line Color:</label>
                     <input type="color" id="sel-color">
+                    <input type="number" id="sel-alpha" class="alpha-input" min="0" max="255" step="1"
+                           title="Line opacity&#10;0-255, the alpha byte itself: 255 is solid, 0 invisible.">
                 </div>
                 <div class="control-group">
                     <label>Point Color:</label>
                     <input type="color" id="sel-point-color">
+                    <input type="number" id="sel-point-alpha" class="alpha-input" min="0" max="255" step="1"
+                           title="Point opacity&#10;0-255, the alpha byte itself: 255 is solid, 0 invisible.">
                 </div>
+                <span class="sel-sep" aria-hidden="true"></span>
                 <div class="control-group">
                     <label>Thickness:</label>
                     <input type="number" id="sel-thickness" min="1" max="20" style="width:70px">
@@ -35,11 +41,19 @@ export class StencilSelectionPanel extends StencilElement {
                         <option value="dotted">Dotted</option>
                     </select>
                 </div>
+                <span class="sel-sep" id="sel-fill-sep" aria-hidden="true" style="display:none;"></span>
                 <div class="control-group" id="sel-fill-group" style="display:none;">
-                    <label><input type="checkbox" id="sel-fill-enabled" style="vertical-align:middle;"> Fill:</label>
+                    <label>Fill:</label>
                     <input type="color" id="sel-fill">
-                    <button id="sel-fill-clear" type="button" style="background:#e67e22;padding:6px 10px;">${icon('x', { size: 13 })}</button>
+                    <input type="number" id="sel-fill-alpha" class="alpha-input" min="0" max="255" step="1"
+                           title="Fill opacity&#10;0-255, the alpha byte itself: 255 is solid, 0 invisible.">
+                    <button id="sel-fill-clear" type="button" class="btn-icon fill-clear"
+                            title="Clear fill — make the area transparent again">${icon('rect', { size: 13 })}</button>
+                    <button id="sel-unchain" type="button" class="btn-icon-text"
+                            title="Unchain area&#10;Break the closed shape back into an open line.&#10;Alt+Ctrl+drag on the line does the same, at the spot you pull."
+                            style="padding:6px 10px;">${icon('link', { size: 13 })}<span>Unchain</span></button>
                 </div>
+                <span class="sel-sep" aria-hidden="true"></span>
                 <button id="sel-deselect" class="deselect-btn btn-icon-text">${icon('x', { size: 13 })}<span>Deselect</span></button>
             </div>
     `;
@@ -68,23 +82,40 @@ export const barDustPoint = (el, closing = false) => {
 
 // Populate + show the panel (and its fullscreen mirror) for the selected `line`.
 export function showSelectionPanel(app, line) {
-  document.getElementById('sel-color').value = line.color;
+  // The swatch takes the 7-char hex and the slider the alpha: <input type="color"> cannot
+  // carry the alpha byte, so a stored `#rrggbbaa` is split across the pair (utils.js).
+  const setColor = (id, alphaId, value) => {
+    const { hex, alpha } = cssColorParts(value);
+    document.getElementById(id).value = hex;
+    const alphaInput = document.getElementById(alphaId);
+    if (alphaInput) alphaInput.value = String(Math.round(alpha * 255));
+  };
+  setColor('sel-color', 'sel-alpha', line.color);
   // A line with no point colour of its own shows the colour it actually draws in (its
   // stroke) rather than a stale/empty swatch — matching core's pointColorOr fallback.
-  document.getElementById('sel-point-color').value = pointColorOf(line);
+  setColor('sel-point-color', 'sel-point-alpha', pointColorOf(line));
   document.getElementById('sel-thickness').value = line.thickness;
   document.getElementById('sel-point-size').value = line.pointSize ?? app.pointSize;
   document.getElementById('sel-style').value = line.style;
   // Fill control appears only for locked areas
   const fillGroup = document.getElementById('sel-fill-group');
   if (fillGroup) {
+    const fillSep = document.getElementById('sel-fill-sep');
+    // The group SLIDES open and closes, dusting as it goes (revealControls) — it used to
+    // pop in and out, which reads as the bar jumping. Its separator travels with it.
     if (line.locked) {
-      fillGroup.style.display = 'flex';
+      revealControls(fillGroup, true, 'flex');
+      if (fillSep) revealControls(fillSep, true, 'block');
       const fs = fillState(line, app.defaultFillColor);
-      document.getElementById('sel-fill-enabled').checked = fs.enabled;
-      document.getElementById('sel-fill').value = fs.value;
+      // No on/off tick: a fill IS its rgba, and 0 alpha is what "none" means. An
+      // unfilled area shows the default colour at 0 so picking one is a single move.
+      setColor('sel-fill', 'sel-fill-alpha',
+               fs.enabled ? line.fillColor : cssWithAlpha(fs.value, 0));
     } else {
-      fillGroup.style.display = 'none';
+      revealControls(fillGroup, false);
+      // …and so does its separator, or the one before it and the one after the group
+      // end up side by side with nothing between them (user report).
+      if (fillSep) revealControls(fillSep, false);
     }
   }
   const panel = document.getElementById('selection-panel');
@@ -110,15 +141,26 @@ export function hideSelectionPanels() {
   if (fsPanel) fsPanel.style.display = 'none';
 }
 
+// An opacity box's 0-255 byte as the 0..1 fraction cssWithAlpha wants. A blank or
+// out-of-range box reads as fully opaque rather than making the line vanish. Pure.
+export const alphaFraction = (input) => {
+  const n = Number(input?.value);
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(0, Math.min(255, n)) / 255;
+};
+
 // Apply the locked-area fill from the selection panel controls.
 export function applyFill(app) {
   if (app.compareReadOnly()) return; // read-only compare view
   if (app.selectedLineIdx === -1) return;
   const line = app.lines[app.selectedLineIdx];
   if (!line) return;
-  const enabled = document.getElementById('sel-fill-enabled').checked;
-  const color = document.getElementById('sel-fill').value;
-  line.fillColor = enabled ? color : 'transparent';
+  // The fill is exactly what the two controls say: a colour with an alpha. All the way
+  // down at 0 IS "no fill" — stored as 'transparent', the value every surface reads.
+  const alpha = alphaFraction(document.getElementById('sel-fill-alpha'));
+  line.fillColor = alpha <= 0
+    ? 'transparent'
+    : cssWithAlpha(document.getElementById('sel-fill').value, alpha);
   app.saveHistory();
   app.renderer.redraw();
   app.storage.save();
@@ -161,8 +203,7 @@ export function syncFsSelectionPanel(app, line) {
                     <option value="dotted"${line.style==='dotted'?' selected':''}>Dotted</option>
                 </select></div>
             ${line.locked ? `<div class="control-group"><label>Fill:</label>
-                <input type="checkbox" id="fs-sel-fill-enabled"${fs.enabled?' checked':''} style="vertical-align:middle;">
-                <input type="color" id="fs-sel-fill" value="${fs.value}" style="width:60px;height:34px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;">
+                <input type="color" id="fs-sel-fill" value="${fs.value}" style="width:46px;height:26px;cursor:pointer;border:1px solid var(--border-main);border-radius:4px;padding:4px 6px;">
                 <button id="fs-sel-fill-clear" type="button" style="background:#e67e22;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;font-size:13px;">${icon('x', { size: 13 })}</button></div>` : ''}
             <button id="fs-sel-deselect" class="btn-icon-text" style="background:#e67e22;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:13px;">${icon('x', { size: 13 })}<span>Deselect</span></button>
         </div>`;
@@ -186,25 +227,21 @@ export function syncFsSelectionPanel(app, line) {
     app.applySelectionChange('style', e.target.value);
     document.getElementById('sel-style').value = e.target.value;
   });
-  const fsFillEnabled = fsPanel.querySelector('#fs-sel-fill-enabled');
   const fsFill = fsPanel.querySelector('#fs-sel-fill');
-  if (fsFillEnabled && fsFill) {
-    const applyFsFill = () => {
+  if (fsFill) {
+    const applyFsFill = (color) => {
       if (app.selectedLineIdx === -1) return;
       const ln = app.lines[app.selectedLineIdx];
       if (!ln) return;
-      ln.fillColor = fsFillEnabled.checked ? fsFill.value : 'transparent';
-      const mainEnabled = document.getElementById('sel-fill-enabled');
+      ln.fillColor = color;
       const mainFill = document.getElementById('sel-fill');
-      if (mainEnabled) mainEnabled.checked = fsFillEnabled.checked;
-      if (mainFill) mainFill.value = fsFill.value;
+      if (mainFill && color !== 'transparent') mainFill.value = cssColorParts(color).hex;
       app.saveHistory(); app.renderer.redraw(); app.storage.save();
     };
-    fsFillEnabled.addEventListener('change', applyFsFill);
-    fsFill.addEventListener('input', () => { fsFillEnabled.checked = true; applyFsFill(); });
+    fsFill.addEventListener('input', () => applyFsFill(fsFill.value));
     const fsFillClear = fsPanel.querySelector('#fs-sel-fill-clear');
     if (fsFillClear) fsFillClear.addEventListener('click', () => {
-      fsFillEnabled.checked = false; applyFsFill();
+      applyFsFill('transparent');
       notify('Fill cleared (transparent)', 'ok');
     });
   }

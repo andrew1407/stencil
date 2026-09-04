@@ -1,4 +1,5 @@
 #include "chatDock.hpp"
+#include "../support/guiHelpers.hpp"
 #include "chatWidgets.hpp"
 #include "pillSplitter.hpp"
 #include <QLineEdit>
@@ -34,6 +35,7 @@
 #include <QImageReader>
 #include <QKeyEvent>
 #include <QLabel>
+#include "../support/menuShimmer.hpp"
 #include <QMenu>
 #include <QMimeData>
 #include <QMouseEvent>
@@ -63,19 +65,11 @@
 namespace stencil::gui {
 
   namespace {
-    // Qt still reserves the unused shortcut column when sizing the popup, so the
-    // width must be set outright or the menu comes out far wider than its items.
-    void fitMenuWidth(QMenu& menu) {
-      int label = 0;
-      for (QAction* a : menu.actions())
-        label = std::max(label, menu.fontMetrics().horizontalAdvance(a->text()));
-      // 6 left pad + 16 icon + ~8 icon-text gap + 10 right pad + menu pads/margins.
-      menu.setFixedWidth(label + 52);
-    }
-    void compactIconMenu(QMenu& menu) {
-      menu.setStyleSheet(compactMenuQss());   // shared with MenuHotkeyChips' compact mode
-      fitMenuWidth(menu);
-    }
+    // Qt still reserves the unused shortcut column when sizing the popup, so the width
+    // must be set outright. fitMenuWidth / compactIconMenu live in support/guiHelpers —
+    // the projects row's "⋯" wants the same treatment.
+    using gui::compactIconMenu;
+    using gui::fitMenuWidth;
 
     constexpr int kThumbEdge = 160;  // variant thumbnail long edge (px)
     constexpr int kButtonEdge = 23;  // compact ghost action buttons (browser .chat-hbtn: 23x23)
@@ -440,6 +434,10 @@ namespace stencil::gui {
       // Four short labelled icons, not a menu-bar menu — so it hugs them (the card
       // "⋯" gets the same treatment) instead of wearing the theme's wide gutters.
       compactIconMenu(*menu);
+      // The same glass hover sweep every other ctx row plays (browser .chat-row-menu-item
+      // parity). Built once and parented to the menu, because this one is created once and
+      // popped many times (support/menuRowPolish.hpp says why).
+      new support::MenuShimmer(menu, menu);
       // Both edges of the overflow fly, browser/extension parity: the motes stream out
       // of the "…" and pour back into it (the menu is built once, popped many times).
       support::revealMenuFrom(*menu, more_);
@@ -1457,6 +1455,7 @@ namespace stencil::gui {
       resend = menu.addAction(themedIcon("send", hooks.text, 16), QStringLiteral("Resend"));
       resend->setEnabled(!(hooks.busy && hooks.busy()));
     }
+    support::MenuShimmer shimmer(&menu);   // …the same row sweep the composer's menu plays
     compactIconMenu(menu);   // …and it hugs its longest label, like the composer's "…"
     card->setProperty("chatMenuOpen", true);   // holds its "⋯" visible meanwhile
     support::revealMenu(menu, globalPos);  // grow-from-the-cursor pop
@@ -1606,7 +1605,7 @@ namespace stencil::gui {
     // inherits the bubble's --danger. Painted red it sat red-on-red in the error
     // card's danger wash and barely read; the red belongs to the card's ground
     // and border, not to the control offering the way out.
-    retry->setIcon(themedIcon("refresh", glyph, kRetryIcon));
+    retry->setIcon(labelIcon("refresh", glyph, kRetryIcon));
     QObject::connect(retry, &QToolButton::clicked, retry,
                      [onClick] { if (onClick) onClick(); });
     lay->addWidget(retry, 0, Qt::AlignLeft);
@@ -1626,7 +1625,7 @@ namespace stencil::gui {
     cta->setObjectName(QStringLiteral("chatConfigureCta"));
     cta->setProperty("accentCta", true);
     cta->setCursor(Qt::PointingHandCursor);
-    cta->setIcon(themedIcon("gear", Qt::white, 14, accentNeedsGlyphShadow(accent)));
+    cta->setIcon(labelIcon("gear", Qt::white, 14, accentNeedsGlyphShadow(accent)));
     cta->setIconSize(QSize(14, 14));
     QObject::connect(cta, &QPushButton::clicked, cta,
                      [cta, onClick] { if (onClick) onClick(cta); });

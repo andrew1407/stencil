@@ -229,6 +229,45 @@ export const distToSegment = core.bind('distToSegment', (px, py, a, b) => {
   return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
 });
 
+// The native colour picker opens beside the input's own box, so a hidden 1px input pops
+// it at the page corner instead of at the button pressed. Pin the input under the button
+// first. Used by every swatch that hides its input behind a button.
+export const anchorPickerInput = (input, btn) => {
+  const r = btn?.getBoundingClientRect?.();
+  if (!r) return;
+  input.style.position = 'fixed';
+  input.style.left = `${Math.round(r.left)}px`;
+  input.style.top = `${Math.round(r.bottom)}px`;
+};
+
+// ── CSS colours, with alpha ─────────────────────────────────────
+// Colours are stored as CSS, written straight into a canvas context: `#rrggbb` opaque,
+// `#rrggbbaa` translucent. <input type="color"> has no alpha byte, so the editors keep it
+// in a separate opacity control and these two join the halves. core's parseHex checks
+// `< 7`, so the CLI and pystencil read the RGB and ignore the alpha.
+// Desktop twin: support/cssColor.hpp — keep the pair in step.
+
+// Split a stored colour into the swatch's own 7-char hex and an opacity in 0..1. Anything
+// that is not a hex colour (a CSS name, 'transparent') keeps its value and reads as opaque,
+// so a control fed one still shows something sensible. Pure.
+export const cssColorParts = (value) => {
+  const v = typeof value === 'string' ? value.trim() : '';
+  if (/^#[0-9a-fA-F]{8}$/.test(v))
+    return { hex: v.slice(0, 7).toLowerCase(), alpha: parseInt(v.slice(7), 16) / 255 };
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) return { hex: v.toLowerCase(), alpha: 1 };
+  return { hex: v, alpha: 1 };
+};
+
+// …and back. Fully opaque writes the plain `#rrggbb` every surface reads; only a real
+// alpha adds the byte. Pure.
+export const cssWithAlpha = (hex, alpha) => {
+  const h = typeof hex === 'string' ? hex.trim().toLowerCase() : '';
+  const a = Math.max(0, Math.min(1, Number(alpha)));
+  if (!/^#[0-9a-f]{6}$/.test(h) || !Number.isFinite(a)) return hex;
+  if (a >= 1) return h;
+  return h + Math.round(a * 255).toString(16).padStart(2, '0');
+};
+
 // Edges inclusive; takes anything with left/right/top/bottom (a DOMRect in practice).
 export const pointInRect = (x, y, rect) =>
   x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;

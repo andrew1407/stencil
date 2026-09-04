@@ -31,6 +31,8 @@
 
 namespace stencil::gui {
 
+  class DisintegrateOverlay;   // support/disintegrateOverlay.hpp (the arrival's cloud)
+
   // A QLabel for UNTRUSTED text — model output, or a dropped filename (the Qt
   // spelling of the browser's textContent-only rule).
   QLabel* makePlainLabel(const QString& text, QWidget* parent);
@@ -96,8 +98,8 @@ namespace stencil::gui {
                          const QRect& avoidGlobal = QRect());
 
   // ── Card-arrival dust, shared by both chat surfaces (browser motion.js chatIn) ──
-  // A message arriving or leaving is the surface's main event, so it plays on a
-  // FINER grid than a list row (browser CHAT_DISINTEGRATE_COLS/ROWS).
+  // A message arriving or leaving is the surface's main event, so it plays on a finer grid
+  // than a list row. On the way in these only cap overSurface's own grid.
   inline constexpr int kChatScatterCols = 32;
   inline constexpr int kChatScatterRows = 16;
   // One frame between arrival hops: the callers' own scrollToBottom() is a
@@ -112,13 +114,11 @@ namespace stencil::gui {
   // its motes over whatever sits outside it. Taller than the viewport ⇒ false.
   bool chatCardFullyInViewport(QWidget* card, QScrollArea* scroll);
 
-  // One arrival attempt per event-loop turn: wait (bounded by `tries`) for `layout`
-  // to give `card` a real, size-stable box fully inside `scroll`'s viewport, then fly
-  // the card's own dust into place over `host` (Sweep::Gather) while the card hides
-  // behind the motes, tracked per frame. `settle` writes the resting state and is the
-  // one exit every bail-out takes, so a card can never be stranded invisible; a card
-  // no longer in `layout` is leaving and gets nothing. `onFlight` (optional) runs the
-  // moment the dust actually launches — the dock hangs its margin slide off it.
+  // One arrival attempt per event-loop turn: wait (bounded by `tries`) for `layout` to
+  // give `card` a stable box inside `scroll`'s viewport, then fly its dust into place over
+  // `host` while the card hides behind the motes. `settle` writes the resting state and is
+  // the one exit every bail-out takes, so a card is never stranded invisible. `onFlight`
+  // runs the moment the dust launches — the dock hangs its margin slide off it.
   void gatherChatCardIn(QWidget* card, QVBoxLayout* layout, QScrollArea* scroll,
                         QWidget* host, int cols, int rows, std::function<void()> settle,
                         std::function<void()> onFlight = nullptr,
@@ -128,7 +128,7 @@ namespace stencil::gui {
   // the card leaves the viewport or changes size (a stale copy reads as one message
   // drawn over its neighbour — browser motion.js trackDust). The overlay deletes
   // itself when its animation ends, so `!overlay` is exactly "the flight is over".
-  void trackChatCardDust(QWidget* card, QWidget* overlay, QScrollArea* scroll,
+  void trackChatCardDust(QWidget* card, DisintegrateOverlay* overlay, QScrollArea* scroll,
                          std::function<void()> settle);
 
   // ── Hover preview for a small attachment thumbnail ────────────────────────

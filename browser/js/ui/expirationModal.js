@@ -78,8 +78,10 @@ export class StencilExpirationModal extends StencilElement {
     return hostTag('stencil-expiration-modal', 'id="expiration-modal-overlay" class="app-modal-overlay"', StencilExpirationModal.inner());
   }
 
-  // Public entry point used by the projects modal row menu.
-  openFor(id) { this._openFor?.(id); }
+  // Public entry point used by the projects modal row menu. `anchors` is the flight's two
+  // ends: `from` the clicked menu row, `backTo` the "⋯" it hung off (the row is gone by
+  // the time the window closes).
+  openFor(id, anchors) { this._openFor?.(id, anchors); }
 
   wire(app) {
     const overlay = document.getElementById('expiration-modal-overlay');
@@ -193,8 +195,10 @@ export class StencilExpirationModal extends StencilElement {
       return true;
     };
 
-    const { open, close } = wireModalShell(overlay, null, els.close);
-    this._openFor = (id) => { if (loadFrom(id)) { renderAll(); open(); } };
+    // Stacked: raised from a row of the projects list, so it opens OVER it rather than
+    // replacing it — closing the list to ask about one of its rows lost the user their place.
+    const { open, close } = wireModalShell(overlay, null, els.close, { stacked: true });
+    this._openFor = (id, { from = null, backTo = null } = {}) => { if (loadFrom(id)) { renderAll(); open(from, backTo); } };
 
     const seedFromPeriod = () => {
       keep = false;

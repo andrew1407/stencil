@@ -99,9 +99,10 @@ namespace stencil::gui {
     incognitoOverlay_->setTheme(dark, settings_.accentColor);
     if (dropZones_) dropZones_->setAccent(themePalette(dark, settings_.accentColor).accent);
     // The canvas↔panel separator grip paints in palette colours of its own.
-    if (panelGrip_) {
+    if (panelGrip_ || chatEdge_) {
       const Palette gp = themePalette(dark, settings_.accentColor);
-      panelGrip_->setColors(gp.borderMain, gp.accent);
+      if (panelGrip_) panelGrip_->setColors(gp.borderMain, gp.accent);
+      if (chatEdge_) chatEdge_->setAccent(gp.accent);   // …and the chat dock's resize edge
     }
     actTheme_->setText(dark ? "Light Theme" : "Dark Theme");
 
@@ -340,10 +341,17 @@ namespace stencil::gui {
       projectNameAccept_->setIcon(themedIcon("check", QColor("#2e9e4f"), 16));
     if (projectNameCancel_)
       projectNameCancel_->setIcon(themedIcon("x", QColor("#d6293e"), 16));
-    // Browser-style name affordances: a ✎ rename pencil + a 🎨 colour icon (flat line-art glyphs
-    // following the theme text colour — not a filled swatch).
-    if (projectNameEdit_) projectNameEdit_->setIcon(themedIcon("pencil", iconColor, 15));
-    if (projectColorBtn_) projectColorBtn_->setIcon(themedIcon("palette", iconColor, 15));
+    // Browser-style name affordances: a ✎ rename pencil + a 🎨 colour icon, flat line-art
+    // glyphs in the theme text colour. Each carries a white twin in QIcon::Active (the mode
+    // Qt paints an auto-raise button in on hover), so the glyph turns white as the chip
+    // fills with the accent. A QIcon is the only way in — QSS cannot recolour an icon.
+    const auto affordanceIcon = [&](const char* glyph) {
+      QIcon ic = themedIcon(glyph, iconColor, 15);
+      ic.addPixmap(themedIcon(glyph, QColor("#ffffff"), 15).pixmap(15, 15), QIcon::Active);
+      return ic;
+    };
+    if (projectNameEdit_) projectNameEdit_->setIcon(affordanceIcon("pencil"));
+    if (projectColorBtn_) projectColorBtn_->setIcon(affordanceIcon("palette"));
     // blankColorBtn_'s icon is a live colour swatch (set in updateProjectTitle), not a themed glyph.
     // Both Draw toggles own their own glyph (support/faceSwap.hpp), so they are repainted
     // through their face — instantly, this is a theme change and not a toggle.

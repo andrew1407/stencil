@@ -9,6 +9,8 @@
 #include <QPainter>
 #include <QScreen>
 #include <QTextDocument>
+
+#include <optional>
 #include <QToolTip>
 #include <QWidget>
 #include <QRegularExpression>
@@ -195,6 +197,9 @@ namespace stencil::gui {
 
     // The palette the app-wide filter renders with; replaced on every theme change.
     Palette g_pal = themePalette(false);
+    // The type the app's own tooltip widget draws in (setTooltipFont); unset until it
+    // says so, and the measurement then falls back to Qt's own tooltip font.
+    std::optional<QFont> g_font;
 
   }  // namespace
 
@@ -347,7 +352,7 @@ namespace stencil::gui {
     // that width defeats the search; the cap is the browser's #app-tooltip max-width.
     const int width = [&] {
       QTextDocument doc;
-      doc.setDefaultFont(QToolTip::font());
+      doc.setDefaultFont(g_font.value_or(QToolTip::font()));
       // Margin ZERO, or the width comes back with the document's own 4px margins
       // baked in — and the tooltip renders INSIDE a document that adds them again,
       // so every extra pixel lands between the name and its right-pinned keycaps.
@@ -369,6 +374,8 @@ namespace stencil::gui {
     return "<table width=\"" + QString::number(width) +
            "\" cellspacing=\"0\" cellpadding=\"0\"><tr><td>" + head + body + "</td></tr></table>";
   }
+
+  void setTooltipFont(const QFont& font) { g_font = font; }
 
   void setTooltipPalette(const Palette& pal) {
     g_pal = pal;

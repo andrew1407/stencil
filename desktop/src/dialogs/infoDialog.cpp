@@ -1,4 +1,5 @@
 #include "infoDialog.hpp"
+#include "../support/shimmerOverlay.hpp"
 #include "guiHelpers.hpp"
 #include "hotkeyFormat.hpp"
 #include "../support/modalChrome.hpp"   // gui::kModalWidth
@@ -24,6 +25,10 @@ namespace stencil::gui {
   }
 
   InfoDialog::InfoDialog(QWidget* parent) : QDialog(parent) {
+    // The app's glass hover sweep on every control here (the browser's rule is
+    // app-wide; a Qt window opts its own in). Deferred, so the sweep runs once this
+    // constructor has built the content.
+    installHoverShimmerLater(this);
     setWindowTitle("Info & Shortcuts");
     setMinimumSize(kModalWidth, 600);   // the shared .app-modal width (modalChrome.hpp)
 

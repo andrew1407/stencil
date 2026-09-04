@@ -31,3 +31,15 @@ export function icon(name, { size = 16, cls = '', sw = 2 } = {}) {
     `fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" ` +
     `stroke-linejoin="round" aria-hidden="true" focusable="false">${inner}</svg>`;
 }
+
+// The Select all ↔ Deselect all toggle's face (projects + connections batch bars, and
+// the desktop's updateSelectAll twins): the label AND the glyph say which way it goes
+// — a check gathers, a cross lets go. `all` is "everything on view is already checked".
+export const setSelectAllFace = (btn, all) => {
+  if (!btn) return;
+  const label = btn.querySelector?.('span');
+  if (label) label.textContent = all ? 'Deselect all' : 'Select all';
+  const ic = btn.querySelector?.('.ic');
+  const want = all ? 'x' : 'check';
+  if (ic && !ic.classList?.contains(`ic-${want}`)) ic.outerHTML = icon(want, { size: 13 });
+};

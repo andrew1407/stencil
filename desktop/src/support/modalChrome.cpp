@@ -1,15 +1,22 @@
 #include "modalChrome.hpp"
 #include "iconSet.hpp"
+#include "modalReveal.hpp"
+#include "shimmerOverlay.hpp"
 
 #include <QColor>
 #include <QDialog>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QKeySequence>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMouseEvent>
+#include <QPlainTextEdit>
 #include <QPointer>
 #include <QPushButton>
+#include <QShortcut>
+#include <QTimer>
 #include <QVBoxLayout>
 
 namespace stencil::gui {
@@ -21,6 +28,10 @@ namespace stencil::gui {
     constexpr int kHeaderPadY = 12;
     constexpr int kBodyPadY = 14;
     constexpr int kFooterPadY = 12;
+    // The width the footer hint is guaranteed: the DIALOG's own minimum is raised to
+    // reserve it (see addModalFooter), rather than the label carrying a hard floor of its
+    // own — browser twin: the hint's `flex: 1 1 150px` basis.
+    constexpr int kFooterHintMinW = 150;
   }  // namespace
 
   QFrame* modalDivider(QWidget* parent) {
@@ -49,7 +60,8 @@ namespace stencil::gui {
     // A dynamic property, not an objectName: theme.cpp matches
     // QPushButton[accentCta="true"], and the objectName stays free for tests.
     btn->setProperty("accentCta", true);
-    if (!iconName.isEmpty()) btn->setIcon(themedIcon(iconName, QColor("#ffffff"), 15));
+    // labelIcon, not themedIcon: the glyph carries the browser's 6px gap to its label.
+    if (!iconName.isEmpty()) btn->setIcon(labelIcon(iconName, QColor("#ffffff"), 15));
   }
 
   namespace {
@@ -132,7 +144,7 @@ namespace stencil::gui {
     header->addStretch(1);
     c.close = new QPushButton(QObject::tr("Close"), dlg);
     c.close->setObjectName(QStringLiteral("modalClosePill"));
-    c.close->setIcon(themedIcon("x", dlg->palette().color(QPalette::WindowText), 14));
+    c.close->setIcon(labelIcon("x", dlg->palette().color(QPalette::WindowText), 14));
     c.close->setCursor(Qt::PointingHandCursor);
     // Never the default button: Enter in a form must not dismiss the dialog.
     c.close->setAutoDefault(false);
@@ -146,8 +158,24 @@ namespace stencil::gui {
     c.body->setContentsMargins(kPadX, kBodyPadY, kPadX, kBodyPadY);
     c.body->setSpacing(10);
     c.root->addLayout(c.body, 1);
+    // Every control in the window gets the app's glass hover sweep — the browser's rule
+    // is app-wide, so a Qt window has to opt its own in. Deferred a turn, because the
+    // caller fills the body after this returns.
+    installHoverShimmerLater(dlg);
     return c;
   }
+
+  namespace {
+    // Claim the dialog's flight (support/modalReveal.hpp) so the app-wide watcher leaves it
+    // alone, keeping its default origin — the press that raised it — but aiming the CLOSE
+    // wherever the caller asked. Only worth claiming when there IS somewhere else to aim.
+    void armFlight(QDialog& dlg, const FlightAnchors& flight) {
+      if (!flight.openRect.isValid() && !flight.closeRect.isValid()) return;
+      const QRect from = flight.openRect.isValid() ? flight.openRect
+                                                   : support::gestureAnchorRect();
+      support::revealDialog(dlg, nullptr, from, flight.closeRect);
+    }
+  }  // namespace
 
   ConfirmChoice confirmModalChoice(QWidget* parent, const ConfirmSpec& spec) {
     QDialog dlg(parent);
@@ -177,7 +205,7 @@ namespace stencil::gui {
     auto* okBtn = new QPushButton(spec.confirmLabel, &dlg);
     if (spec.danger) {
       okBtn->setObjectName(QStringLiteral("dangerButton"));
-      okBtn->setIcon(themedIcon(spec.confirmIcon, QColor("#ffffff"), 14));
+      okBtn->setIcon(labelIcon(spec.confirmIcon, QColor("#ffffff"), 14));
     } else {
       makeModalCta(okBtn, spec.confirmIcon);
     }
@@ -193,6 +221,7 @@ namespace stencil::gui {
     dlg.setFixedWidth(kModalWidth);
     dlg.adjustSize();
     okBtn->setFocus();
+    armFlight(dlg, spec.flight);
     if (dlg.exec() != QDialog::Accepted) return ConfirmChoice::Cancel;
     return altPicked ? ConfirmChoice::Alt : ConfirmChoice::Confirm;
   }
@@ -201,9 +230,76 @@ namespace stencil::gui {
     return confirmModalChoice(parent, spec) == ConfirmChoice::Confirm;
   }
 
+  std::optional<QString> promptModal(QWidget* parent, const PromptSpec& spec) {
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("stencilPromptModal"));
+    dlg.setWindowTitle(spec.title);
+    ModalChrome chrome = installModalChrome(&dlg, spec.titleIcon, spec.title);
+    auto* caption = new QLabel(spec.message, &dlg);
+    caption->setWordWrap(true);
+    chrome.body->addWidget(caption);
+
+    QLineEdit* line = nullptr;
+    QPlainTextEdit* area = nullptr;
+    if (spec.multiline) {
+      area = new QPlainTextEdit(spec.defaultValue, &dlg);
+      area->setObjectName(QStringLiteral("modalPromptText"));
+      area->setTabChangesFocus(true);   // Tab leaves the field; it never types a tab here
+      // `rows` lines of the field's OWN metrics plus its frame/padding — a fixed pixel
+      // height would drift with the platform font.
+      const int pad = 16;
+      area->setFixedHeight(area->fontMetrics().lineSpacing() * qMax(1, spec.rows) + pad);
+      area->selectAll();
+      chrome.body->addWidget(area);
+    } else {
+      line = new QLineEdit(spec.defaultValue, &dlg);
+      line->setObjectName(QStringLiteral("modalPromptLine"));
+      line->selectAll();
+      chrome.body->addWidget(line);
+    }
+    chrome.body->addStretch(1);
+
+    QHBoxLayout* footer = addModalFooter(chrome);
+    auto* cancelBtn = new QPushButton(spec.cancelLabel, &dlg);
+    makeModalCta(cancelBtn, QStringLiteral("x"));
+    footer->addWidget(cancelBtn);
+    auto* okBtn = new QPushButton(spec.confirmLabel, &dlg);
+    makeModalCta(okBtn, spec.confirmIcon);
+    footer->addWidget(okBtn);
+    QObject::connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+    QObject::connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
+    // A single-line field confirms on Enter (browser parity). The text AREA owns plain
+    // Enter — it types a newline — so only Ctrl/⌘+Enter saves from inside it, and the
+    // buttons stay out of Qt's default-button chain so Enter never leaks to them.
+    if (line) {
+      okBtn->setDefault(true);
+      okBtn->setAutoDefault(true);
+      QObject::connect(line, &QLineEdit::returnPressed, &dlg, &QDialog::accept);
+    } else {
+      cancelBtn->setAutoDefault(false);
+      okBtn->setAutoDefault(false);
+      auto* save = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Return), &dlg);
+      QObject::connect(save, &QShortcut::activated, &dlg, &QDialog::accept);
+      auto* saveEnter = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Enter), &dlg);
+      QObject::connect(saveEnter, &QShortcut::activated, &dlg, &QDialog::accept);
+    }
+    dlg.setFixedWidth(kModalWidth);
+    dlg.adjustSize();
+    if (area) area->setFocus();
+    else line->setFocus();
+    armFlight(dlg, spec.flight);
+    if (dlg.exec() != QDialog::Accepted) return std::nullopt;
+    QString text = (area ? area->toPlainText() : line->text()).trimmed();
+    if (spec.maxChars > 0) text = text.left(spec.maxChars);
+    return text;
+  }
+
   QHBoxLayout* addModalFooter(ModalChrome& chrome, const QString& hint) {
     QWidget* dlg = chrome.root ? chrome.root->parentWidget() : nullptr;
     chrome.root->addWidget(modalDivider(dlg));
+    // Hint left, buttons right, on ONE row (browser .settings-footer). The hint takes all
+    // the slack, so at a normal width it wraps at most a line or two instead of being
+    // squeezed into a tall column of two-word lines (user report, with a picture).
     auto* footer = new QHBoxLayout;
     footer->setContentsMargins(kPadX, kFooterPadY, kPadX, kFooterPadY);
     footer->setSpacing(8);
@@ -211,14 +307,40 @@ namespace stencil::gui {
       auto* h = new QLabel(hint, dlg);
       h->setObjectName(QStringLiteral("modalFooterHint"));
       h->setWordWrap(true);
-      // The hint owns ALL the slack (no competing stretch): a word-wrapped label's
-      // minimum is tiny, so splitting the row with a stretch squeezed it into a
-      // four-line column while the browser's runs the full width (user report).
+      h->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+      // …but that floor is a PREFERENCE, never a hard minimumWidth. A hard one Qt cannot
+      // go under: once the row no longer fits, the layout hands it negative space and the
+      // items overlap. Ignored lets the text yield the last pixels instead, wrapping
+      // deeper, so nothing is ever drawn over.
+      QSizePolicy sp(QSizePolicy::Ignored, QSizePolicy::Preferred);
+      sp.setHeightForWidth(true);   // narrower ⇒ taller, so the wrap is never cut off
+      h->setSizePolicy(sp);
       footer->addWidget(h, 1);
     } else {
       footer->addStretch(1);
     }
     chrome.root->addLayout(footer);
+    // …and the WINDOW is what widens to hold the row. An explicit setMinimumSize (every
+    // dialog sets one) stops SetDefaultConstraint from raising the minimum to what the
+    // layout needs, so a wider system font runs the row out of space. Run once the caller
+    // has added its buttons, and only ever upwards.
+    if (dlg) {
+      QTimer::singleShot(0, dlg, [dlg, footer] {
+        QWidget* win = dlg->window();   // `dlg` here is the shell inside it
+        if (!win) return;
+        int need = footer->contentsMargins().left() + footer->contentsMargins().right() + 2;
+        int items = 0;
+        for (int i = 0; i < footer->count(); ++i) {
+          QWidget* w = footer->itemAt(i)->widget();
+          if (!w || w->isHidden()) continue;
+          ++items;
+          need += w->objectName() == QLatin1String("modalFooterHint")
+                      ? kFooterHintMinW : w->minimumSizeHint().width();
+        }
+        need += footer->spacing() * qMax(0, items - 1);
+        if (need > win->minimumWidth()) win->setMinimumWidth(need);
+      });
+    }
     return footer;
   }
 

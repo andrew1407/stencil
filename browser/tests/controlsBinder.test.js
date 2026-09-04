@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 
+// The helper moved to utils.js when the projects modal's per-row swatch needed it too —
+// ui/ must not import the (heavy, ui-importing) controls binder.
 test('anchorPickerInput pins the hidden colour input under the invoking button', async () => {
-  const { anchorPickerInput } = await import('../js/core/controlsBinder.js');
+  const { anchorPickerInput } = await import('../js/utils.js');
   const input = { style: {} };
   const btn = { getBoundingClientRect: () => ({ left: 411.6, bottom: 92.2 }) };
   anchorPickerInput(input, btn);

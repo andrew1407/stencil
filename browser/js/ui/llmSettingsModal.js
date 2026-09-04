@@ -46,8 +46,13 @@ export class StencilLlmSettingsModal extends StencilElement {
                     <span class="chat-server-status" id="chat-server-status"></span>
                 </div>
                 <div class="vs-section">Chat history</div>
-                <div class="vs-row vs-field"><label for="chat-save-chats" title="Save the conversation with the active project and restore it when the project is reopened. Off by default; incognito sessions never save.">Save chats with projects</label>
-                    <input type="checkbox" id="chat-save-chats">
+                <!-- Box FIRST, its label right beside it: a checkbox reads as one control, and
+                     split across the row it was neither obviously a checkbox nor obviously tied
+                     to that label. Same shape as the desktop's (llmSettingsForm.cpp). -->
+                <div class="vs-row vs-checks">
+                    <label class="vs-inline-check" for="chat-save-chats" title="Save the assistant conversation with the active project and restore it when the project is reopened. Text only, most recent 32 turns; incognito never saves.&#10;&#10;For a project on a server the transcript is stored with it, so everyone that project is shared with can read it. Local projects stay on this machine.">
+                        <input type="checkbox" id="chat-save-chats"> Save chats with projects
+                    </label>
                 </div>
                 <div class="chat-cors-note" id="chat-settings-note">
                     <div id="chat-save-chats-note">

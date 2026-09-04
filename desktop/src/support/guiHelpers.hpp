@@ -62,7 +62,16 @@ namespace stencil::gui {
   // Paint a flat 20×20 color chip as `btn`'s icon so the swatch reads as its
   // current color (the browser uses <input type=color>). No-op on a null button.
   // Shared by mainWindow::updateColorSwatch + selectionPanel::setSwatchColor.
-  void setColorSwatch(QAbstractButton* btn, const QColor& color);
+  // A short, flat icon+label popup (the chat "…" menus, a projects row's "⋯"): compact
+  // padding plus a width fitted to its own longest label, the app-wide QMenu paddings
+  // being sized for the menu bar. Browser twin: .project-menu / .chat-row-menu.
+  void fitMenuWidth(class QMenu& menu);
+  void compactIconMenu(class QMenu& menu);
+
+  // `size` is the well's own box — the selected-line bar passes the browser's 46x34 so
+  // its wells stand the same height as the numeric fields beside them.
+  void setColorSwatch(QAbstractButton* btn, const QColor& color,
+                      const QSize& size = QSize(46, 26));
 
   // Fill `combo` with the page-format options every selector shares: "Custom…"
   // first (when includeCustom), then the full core::pageFormatNames() series

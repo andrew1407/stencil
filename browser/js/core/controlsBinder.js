@@ -1,4 +1,5 @@
-import { notify, matchHotkey, isTypingTarget, hasTextSelection, unitToCm, wireNameEditor, supportsShareFiles, pointInRect, isSplitCompare } from '../utils.js';
+import { alphaFraction } from '../ui/selectionPanel.js';
+import { anchorPickerInput, cssWithAlpha, notify, matchHotkey, isTypingTarget, hasTextSelection, unitToCm, wireNameEditor, supportsShareFiles, pointInRect, isSplitCompare } from '../utils.js';
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 import { hotkeys } from './hotkeys.js';
 import { enhanceSelect } from '../ui/customSelect.js';
@@ -29,18 +30,6 @@ export const typingHotkeyId = (e, hotkeys, ids = HOTKEYS_WHILE_TYPING) => {
   }
   return null;
 };
-
-// The native colour picker anchors to the INPUT's box, and the 1px hidden inputs sit at
-// their positioned ancestor's origin — far from the swatch the user clicked. Pin the
-// input just under the invoking button first.
-export const anchorPickerInput = (input, btn) => {
-  const r = btn?.getBoundingClientRect?.();
-  if (!r) return;
-  input.style.position = 'fixed';
-  input.style.left = `${Math.round(r.left)}px`;
-  input.style.top = `${Math.round(r.bottom)}px`;
-};
-
 
 
 // ── ControlsBinder: DOM event wiring for the toolbars, keyboard, and canvas ─────
@@ -100,21 +89,39 @@ export class ControlsBinder {
 
   wireSelectionPanelControls() {
     const app = this.app;
-    document.getElementById('sel-color').addEventListener('input', e => app.applySelectionChange('color', e.target.value));
-    document.getElementById('sel-point-color').addEventListener('input', e => app.applySelectionChange('pointColor', e.target.value));
+    // The swatch and its opacity slider are two halves of ONE colour: either moving
+    // recomposes `#rrggbb` / `#rrggbbaa` (utils.js cssWithAlpha), because <input
+    // type="color"> cannot carry an alpha byte of its own.
+    const colorWithAlpha = (colorId, alphaId) =>
+      cssWithAlpha(document.getElementById(colorId).value,
+                   alphaFraction(document.getElementById(alphaId)));
+    const wireColorPair = (colorId, alphaId, prop) => {
+      const apply = () => app.applySelectionChange(prop, colorWithAlpha(colorId, alphaId));
+      document.getElementById(colorId).addEventListener('input', apply);
+      document.getElementById(alphaId)?.addEventListener('input', apply);
+    };
+    wireColorPair('sel-color', 'sel-alpha', 'color');
+    wireColorPair('sel-point-color', 'sel-point-alpha', 'pointColor');
     document.getElementById('sel-thickness').addEventListener('change', e => app.applySelectionChange('thickness', parseInt(e.target.value)));
     document.getElementById('sel-point-size').addEventListener('change', e => app.applySelectionChange('point-size', parseInt(e.target.value)));
     document.getElementById('sel-style').addEventListener('change', e => app.applySelectionChange('style', e.target.value));
-    document.getElementById('sel-fill-enabled').addEventListener('change', () => app.applyFill());
+    // No on/off tick: the fill IS the swatch plus its alpha, and 0 alpha is "none".
+    // Picking a colour on an unfilled area therefore also has to raise the alpha off 0,
+    // or the choice would apply invisibly.
+    const fillAlphaBox = () => document.getElementById('sel-fill-alpha');
     document.getElementById('sel-fill').addEventListener('input', () => {
-      document.getElementById('sel-fill-enabled').checked = true;
+      const a = fillAlphaBox();
+      if (a && Number(a.value) <= 0) a.value = '255';
       app.applyFill();
     });
+    fillAlphaBox()?.addEventListener('input', () => app.applyFill());
     document.getElementById('sel-fill-clear').addEventListener('click', () => {
-      document.getElementById('sel-fill-enabled').checked = false;
+      const a = fillAlphaBox();
+      if (a) a.value = '0';
       app.applyFill();
       notify('Fill cleared (transparent)', 'ok');
     });
+    document.getElementById('sel-unchain').addEventListener('click', () => app.unchainSelectedLine());
     document.getElementById('sel-deselect').addEventListener('click', () => app.deselectLine());
   }
 

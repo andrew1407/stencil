@@ -12,7 +12,6 @@
 #include "planExecutor.hpp"
 #include "popover.hpp"
 #include "qtLlmTransport.hpp"
-#include "expirationDialog.hpp"
 #include "deepLink.hpp"
 #include "displayName.hpp"
 #include "openImageDialog.hpp"
@@ -393,10 +392,14 @@ namespace stencil::gui {
     // to 0 (which would drop the dock's 260 px floor).
     chatNaturalMin_ = QSize(chatDock_->minimumWidth(), chatDock_->minimumHeight());
     // Toasts dodge the docked chat (syncToastInset); resize rides eventFilter.
+    // …and the resize-edge tint moves with it — the dock's rect alone does not say which
+    // SIDE the separator is on, so every area/float/visibility change re-places it.
     connect(chatDock_, &QDockWidget::dockLocationChanged, this,
-            [this] { syncToastInset(); });
-    connect(chatDock_, &QDockWidget::topLevelChanged, this, [this] { syncToastInset(); });
-    connect(chatDock_, &QDockWidget::visibilityChanged, this, [this] { syncToastInset(); });
+            [this] { syncToastInset(); positionChatEdge(); });
+    connect(chatDock_, &QDockWidget::topLevelChanged, this,
+            [this] { syncToastInset(); positionChatEdge(); });
+    connect(chatDock_, &QDockWidget::visibilityChanged, this,
+            [this] { syncToastInset(); positionChatEdge(); });
     chatDock_->installEventFilter(this);
     connect(chatDock_, &ChatDock::sendRequested, this, &MainWindow::onChatSend);
     // Retry from a failed turn's card: the same send path, ignored mid-turn.
@@ -1001,9 +1004,9 @@ namespace stencil::gui {
     // carries no Delete button); that stays Alt+Delete / actDeleteLine_ / the
     // Lines tab's own row 🗑.
     connect(selectedLineBar_, &SelectedLineBar::lineColorChanged, this,
-            [this](const QString& c) { canvas_->setSelectedLineColor(c); });
+            [this](const QString& v, bool preview) { canvas_->setSelectedLineColor(v, preview); });
     connect(selectedLineBar_, &SelectedLineBar::linePointColorChanged, this,
-            [this](const QString& c) { canvas_->setSelectedLinePointColor(c); });
+            [this](const QString& v, bool preview) { canvas_->setSelectedLinePointColor(v, preview); });
     connect(selectedLineBar_, &SelectedLineBar::lineThicknessChanged, this,
             [this](int t) { canvas_->setSelectedLineThickness(t); });
     connect(selectedLineBar_, &SelectedLineBar::linePointSizeChanged, this,
@@ -1011,9 +1014,14 @@ namespace stencil::gui {
     connect(selectedLineBar_, &SelectedLineBar::lineStyleChanged, this,
             [this](const QString& s) { canvas_->setSelectedLineStyle(s); });
     connect(selectedLineBar_, &SelectedLineBar::lineFillChanged, this,
-            [this](const QString& f) { canvas_->setSelectedLineFill(f); });
+            [this](const QString& v, bool preview) { canvas_->setSelectedLineFill(v, preview); });
+    connect(selectedLineBar_, &SelectedLineBar::unchainRequested, this,
+            [this] { canvas_->unchainSelectedLine(); });
     connect(selectedLineBar_, &SelectedLineBar::deselectRequested, this,
             [this] { canvas_->deselect(); });
+    // Anything the canvas did on its own that deserves a word (chainEdit's unchain).
+    connect(canvas_, &CanvasWidget::statusMessage, this,
+            [this](const QString& text) { notify_->success(text); });
     // Panel header chevron → hide the panel (routes through actPanel_ so the View menu / Alt+X and
     // the re-open tab stay in sync). The animated slide runs from setPanelShown.
     connect(selPanel_, &SelectionPanel::collapseRequested, this,
@@ -2666,6 +2674,14 @@ namespace stencil::gui {
       panelGrip_->setColors(pal.borderMain, pal.accent);
     }
     panelGrip_->hide();
+    // …and the chat dock's own resize edge (browser .chat-resizer), on the same trick.
+    chatEdge_ = new DockEdgeOverlay(this);
+    chatEdge_->setObjectName(QStringLiteral("chatResizeEdge"));
+    {
+      const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
+      chatEdge_->setAccent(pal.accent);
+    }
+    chatEdge_->hide();
     spinControlsPill(false);   // seed the pill's angle from the current toolbar state
     updatePanelReopenButton();
   }
@@ -2690,6 +2706,40 @@ namespace stencil::gui {
                                 ? QRect(pr.right() + 1, pr.top(), kSepW, pr.height())
                                 : QRect(pr.left() - kSepW, pr.top(), kSepW, pr.height()));
     panelGrip_->raise();
+  }
+
+  // Place the tint over the chat dock's resize separator, whichever area the dock is in
+  // (browser .chat-resizer). Horizontal separators are a hairline, so the band is drawn to
+  // kMinThickness while the hit rect stays the strip Qt really resizes on.
+  void MainWindow::positionChatEdge() {
+    if (!chatEdge_ || !chatDock_) return;
+    const bool on = chatDock_->isVisible() && !chatDock_->isFloating() && !fsActive_;
+    chatEdge_->setVisible(on);
+    if (!on) {
+      chatEdge_->setHot(false);
+      chatEdgeDrag_ = false;
+      chatEdgeHit_ = QRect();
+      return;
+    }
+    const QRect r = chatDock_->geometry();
+    const Qt::DockWidgetArea area = dockWidgetArea(chatDock_);
+    constexpr int kSepW = kDockSeparatorPx;   // QSS QMainWindow::separator width
+    constexpr int kSepH = 1;                  // …and its height (theme.cpp)
+    switch (area) {
+      case Qt::LeftDockWidgetArea:   chatEdgeHit_ = QRect(r.right() + 1, r.top(), kSepW, r.height()); break;
+      case Qt::RightDockWidgetArea:  chatEdgeHit_ = QRect(r.left() - kSepW, r.top(), kSepW, r.height()); break;
+      case Qt::TopDockWidgetArea:    chatEdgeHit_ = QRect(r.left(), r.bottom() + 1, r.width(), kSepH); break;
+      case Qt::BottomDockWidgetArea: chatEdgeHit_ = QRect(r.left(), r.top() - kSepH, r.width(), kSepH); break;
+      default: chatEdgeHit_ = QRect(); chatEdge_->hide(); return;
+    }
+    QRect band = chatEdgeHit_;
+    const int grow = DockEdgeOverlay::kMinThickness;
+    if (band.height() < grow && band.width() > band.height())
+      band.adjust(0, -(grow - band.height()) / 2, 0, (grow - band.height() + 1) / 2);
+    else if (band.width() < grow && band.height() > band.width())
+      band.adjust(-(grow - band.width()) / 2, 0, (grow - band.width() + 1) / 2, 0);
+    chatEdge_->setGeometry(band);
+    chatEdge_->raise();
   }
 
   // The toast stack hangs off the WINDOW's bottom-left, which puts the status bar's coord
@@ -2718,6 +2768,7 @@ namespace stencil::gui {
 
   void MainWindow::positionOverlayArrows() {
     syncToastInset();
+    positionChatEdge();
     if (controlsPill_) {
       // ONE glyph, turned: 0° is ↑ (rows shown), 180° is ↓. spinControlsPill drives the
       // angle, this only paints whatever it currently is (it also runs on theme flips).
@@ -2781,6 +2832,7 @@ namespace stencil::gui {
       positionPanelReopenButton();
       panelReopenBtn_->raise();
     }
+    positionChatEdge();
     positionPanelGrip();   // the grip is the reopen chevron's dual: shown while the panel is
   }
 
@@ -4403,6 +4455,21 @@ namespace stencil::gui {
 
   void MainWindow::openConnections() {
     ConnectDialog dlg(ensureConnections(), this);
+    // "Sync changes to server" sits beside Auto-connect there (browser parity); the
+    // setting stays ours, so a toggle runs the ordinary settings path.
+    dlg.setSyncToServer(settings_.syncToServer);
+    connect(&dlg, &ConnectDialog::syncToServerToggled, this, [this](bool on) {
+      Settings s = settings_;
+      s.syncToServer = on;
+      applySettings(s, true);
+    });
+    // The dialog reports on the app's toast stack, exactly as the browser does — never a
+    // native alert box in front of the window you are working in (user report, with a
+    // picture). It stays open behind the toast, like the projects dialog's own messages.
+    connect(&dlg, &ConnectDialog::toast, this, [this](const QString& text, bool failed) {
+      if (!notify_) return;
+      if (failed) notify_->error(text); else notify_->success(text);
+    });
     execMaybePopover(dlg, actConnect_);
     warnInsecureConnections();  // the dialog may have added a plaintext-remote connection
   }
@@ -4429,7 +4496,7 @@ namespace stencil::gui {
     }
 
     ProjectsDialog dlg(projectList_, nowMs(), connections_, buildProjectThumbs(),
-                       unitFormat(), this, activeProjectId_, accentPrimary(settings_.accentColor));
+                       this, activeProjectId_, accentPrimary(settings_.accentColor));
     dlg.setDragZones(projectZones_);   // the main-window drag-out zone overlay (open/new-window/remove)
     // "Clear All (Local)" is handled WHILE the dialog is up: it confirms itself (over its
     // own window), we remove the projects, and it repaints the now-empty list. Closing the
@@ -4488,6 +4555,31 @@ namespace stencil::gui {
             [this, &dlg](const QString& id, const QString& name) {
       renameProjectById(id, name);
       dlg.setProjects(projectList_);
+    });
+    // "Set expiration": the editor runs over the still-open list (browser parity), so
+    // write the meta here and repaint. Not gated by incognito — it operates on other
+    // saved projects, not the incognito editor's content (see S6 scope note above).
+    // Per-row "Open in another app" — the list stays up while the hand-off dialog runs.
+    const QString botUser = settings_.telegramBotUsername.trimmed();
+    const bool browserTarget = !settings_.browserBaseUrl.trimmed().isEmpty();
+    dlg.setOpenInAvailable(browserTarget, browserTarget || !botUser.isEmpty());
+    connect(&dlg, &ProjectsDialog::openInRequested, this,
+            [this](const QString& id, const QString& serverUrl, const QRect& closeRect) {
+      openInAnotherAppFor(id, serverUrl, closeRect);
+    });
+    connect(&dlg, &ProjectsDialog::expirationRequested, this,
+            [this, &dlg](const QString& id, long long expiresAt, const QString& period,
+                         bool autoRefresh) {
+      Project* pr = findProject(id.toStdString());
+      if (!pr) return;
+      pr->meta.expiresAt = expiresAt;
+      pr->meta.refreshPeriod = period.toStdString();
+      pr->meta.autoRefresh = autoRefresh;
+      fileStore::saveProjects(projectList_);
+      dlg.setProjects(projectList_);
+      const QString shown = support::shortName(QString::fromStdString(pr->meta.name));
+      notify_->success(expiresAt == 0 ? QString("\"%1\" is kept forever").arg(shown)
+                                      : QString("\"%1\" expiration updated").arg(shown));
     });
     if (execMaybePopover(dlg) != QDialog::Accepted) return;
 
@@ -4566,25 +4658,6 @@ namespace stencil::gui {
     } else if (dlg.action() == Action::Rename) {
       // The dialog already validated, but re-validate here so any rename path is safe.
       renameProjectById(dlg.selectedId(), dlg.newName());
-    } else if (dlg.action() == Action::Expiration) {
-      Project* pr = findProject(dlg.selectedId().toStdString());
-      if (!pr) return;
-      // Explicit expiration editor (period selector + calendar + keep-forever),
-      // mirroring the browser expiration modal. Not gated by incognito: operates
-      // on other saved projects, not the incognito editor's content.
-      ExpirationDialog exp(QString::fromStdString(pr->meta.name), pr->meta.expiresAt,
-                           QString::fromStdString(pr->meta.refreshPeriod),
-                           pr->meta.autoRefresh, nowMs(), this);
-      if (exp.exec() != QDialog::Accepted) return;
-      pr->meta.expiresAt = exp.expiresAtMs();
-      pr->meta.refreshPeriod = exp.refreshPeriod().toStdString();
-      pr->meta.autoRefresh = exp.autoRefresh();
-      fileStore::saveProjects(projectList_);
-      notify_->success(pr->meta.expiresAt == 0
-                           ? QString("\"%1\" is kept forever")
-                                 .arg(support::shortName(QString::fromStdString(pr->meta.name)))
-                           : QString("\"%1\" expiration updated")
-                                 .arg(support::shortName(QString::fromStdString(pr->meta.name))));
     } else if (dlg.action() == Action::New) {
       if (incognito_) {  // an explicit promotion out of incognito, not an app-side write
         const QString promoted = promoteIncognitoToLocal(dlg.newName());
@@ -5112,13 +5185,42 @@ namespace stencil::gui {
                     "(or a Telegram bot for server projects).");
       return;
     }
-    OpenInDialog dlg(this, serverProject, remoteSession_->link().address, browserAvailable, telegramAvailable, incognito_);
-    if (execMaybePopover(dlg) != QDialog::Accepted) return;
+    OpenInSource src;
+    src.serverUrl = remoteSession_->link().address;
+    src.serverId = remoteSession_->link().id;
+    src.version = remoteSession_->link().version;
+    if (!serverProject) {
+      src.image = canvas_->originalImage();
+      src.name = projectBaseName();
+      src.source = currentSource_;
+      src.resource = currentResource_;
+      src.layout = fileStore::buildLayoutJson(
+          canvas_->imageWidth(), canvas_->imageHeight(), canvas_->allLines(),
+          settings_.imageFilter, settings_.filterColor, canvas_->cropRect(),
+          canvas_->rotationQuarters(), currentLayoutMeta());
+    }
+    src.startIncognito = incognito_;
+    dispatchOpenIn(src, browserAvailable, telegramAvailable,
+                   [this](OpenInDialog& dlg) { return execMaybePopover(dlg); });
+  }
+
+  // The hand-off itself, whichever side gathered the material: the dialog, the Telegram
+  // branch, the #stencil= payload and the size gates. `run` shows the dialog — the live
+  // session opens it as a popover off the toolbar, a projects row flies it out of the row.
+  void MainWindow::dispatchOpenIn(const OpenInSource& src, bool browserAvailable,
+                                  bool telegramAvailable,
+                                  const std::function<int(OpenInDialog&)>& run) {
+    const QString botUsername = settings_.telegramBotUsername.trimmed();
+    const bool serverProject = !src.serverUrl.isEmpty() && !src.serverId.isEmpty();
+    OpenInDialog dlg(this, serverProject, src.serverUrl, browserAvailable, telegramAvailable,
+                     src.startIncognito);
+    if (run(dlg) != QDialog::Accepted) return;
     const bool incog = dlg.incognito();
 
     if (dlg.outcome() == OpenInDialog::Outcome::Telegram) {
       if (!serverProject) return;  // the dialog disables this outcome anyway
-      const QString payload = deepLink::encodeTelegramStartPayload(remoteSession_->link().address, remoteSession_->link().id);
+      const QString payload =
+          deepLink::encodeTelegramStartPayload(src.serverUrl, src.serverId);
       if (payload.isEmpty()) {
         // 64-char overflow (very long host): hand over the manual recipe instead
         // of a dead link, and open the bot chat.
@@ -5126,7 +5228,7 @@ namespace stencil::gui {
             this, "Link too long for Telegram",
             QString("The server address doesn't fit a Telegram start link.\n"
                     "Open the bot chat and paste:\n\n/connect %1\n/fetch %2")
-                .arg(remoteSession_->link().address, remoteSession_->link().id));
+                .arg(src.serverUrl, src.serverId));
         QDesktopServices::openUrl(QUrl(QStringLiteral("https://t.me/") + botUsername));
         return;
       }
@@ -5138,24 +5240,21 @@ namespace stencil::gui {
     QJsonObject payload;
     if (serverProject) {
       QJsonObject server;
-      server["url"] = remoteSession_->link().address;
-      server["id"] = remoteSession_->link().id;
-      if (remoteSession_->link().version > 0) server["version"] = remoteSession_->link().version;
+      server["url"] = src.serverUrl;
+      server["id"] = src.serverId;
+      if (src.version > 0) server["version"] = src.version;
       payload["server"] = server;
     } else {
       QByteArray png;
       QBuffer buf(&png);
       buf.open(QIODevice::WriteOnly);
-      canvas_->originalImage().save(&buf, "PNG");
+      src.image.save(&buf, "PNG");
       payload["dataUrl"] =
           QStringLiteral("data:image/png;base64,") + QString::fromLatin1(png.toBase64());
-      payload["name"] = projectBaseName() + ".png";
-      payload["layout"] = fileStore::buildLayoutJson(
-          canvas_->imageWidth(), canvas_->imageHeight(), canvas_->allLines(),
-          settings_.imageFilter, settings_.filterColor, canvas_->cropRect(),
-          canvas_->rotationQuarters(), currentLayoutMeta());
-      if (!currentSource_.isEmpty()) payload["source"] = currentSource_;
-      if (!currentResource_.isEmpty()) payload["resource"] = currentResource_;
+      payload["name"] = src.name + ".png";
+      payload["layout"] = src.layout;
+      if (!src.source.isEmpty()) payload["source"] = src.source;
+      if (!src.resource.isEmpty()) payload["resource"] = src.resource;
     }
     if (incog) payload["incognito"] = true;
 
@@ -5171,6 +5270,56 @@ namespace stencil::gui {
     if (!serverProject && url.size() > 200000)
       notify_->info("Large image — the hand-off may fail; prefer saving to a server");
     QDesktopServices::openUrl(QUrl(url));
+  }
+
+  // The projects list's per-row hand-off (browser parity: projectsModal.js). The open
+  // project keeps the live path, unsaved edits and all; any other row is read from what is
+  // saved. The session's filter and page settings ride along, because a project does not
+  // persist its own — the same approximation made when reopening it.
+  void MainWindow::openInAnotherAppFor(const QString& id, const QString& serverUrl,
+                                      const QRect& closeRect) {
+    const bool browserAvailable = !settings_.browserBaseUrl.trimmed().isEmpty();
+    const bool serverProject = !serverUrl.isEmpty();
+    const bool telegramAvailable = !settings_.telegramBotUsername.trimmed().isEmpty() && serverProject;
+    if (!browserAvailable && !telegramAvailable) {
+      notify_->info("Nothing to open into — set a browser URL in Settings "
+                    "(or a Telegram bot for server projects).");
+      return;
+    }
+    // The open project: hand over what is on the canvas, unsaved edits and all.
+    if (!serverProject && id == activeProjectId_ && canvas_->hasImage()) {
+      openInAnotherApp();
+      return;
+    }
+
+    OpenInSource src;
+    src.serverUrl = serverUrl;
+    src.serverId = id;
+    if (!serverProject) {
+      Project* pr = findProject(id.toStdString());
+      if (!pr) { notify_->error("That project could not be read"); return; }
+      src.name = support::shortName(QString::fromStdString(pr->meta.name));
+      src.source = QString::fromStdString(pr->meta.source);
+      src.resource = QString::fromStdString(pr->meta.resource);
+      // The ORIGINAL bytes: lines, crop and rotation travel in the layout, exactly as the
+      // live path sends canvas_->originalImage(). A blank project has no file — it is its
+      // fill (buildProjectThumbs restores the same way).
+      if (!pr->imagePath.isEmpty()) {
+        src.image = QImage(pr->imagePath);
+      } else if (pr->meta.blank && pr->meta.imageW > 0 && pr->meta.imageH > 0) {
+        src.image = QImage(pr->meta.imageW, pr->meta.imageH, QImage::Format_ARGB32);
+        const QColor fill(QString::fromStdString(pr->meta.blankColor));
+        src.image.fill(fill.isValid() ? fill : QColor(Qt::white));
+      }
+      if (src.image.isNull()) { notify_->error("That project's image could not be loaded"); return; }
+      src.layout = fileStore::buildLayoutJson(src.image.width(), src.image.height(), pr->lines,
+                                              settings_.imageFilter, settings_.filterColor,
+                                              pr->cropRect, pr->rotationQuarters, currentLayoutMeta());
+    }
+    dispatchOpenIn(src, browserAvailable, telegramAvailable, [&](OpenInDialog& dlg) {
+      support::revealDialog(dlg, nullptr, support::gestureAnchorRect(), closeRect);
+      return dlg.exec();
+    });
   }
 
   // Lazily construct + wire the async --src resolver (image / URL / video frame).

@@ -4,6 +4,7 @@
 #include "../support/modalReveal.hpp"   // support::motionReduced()
 
 #include <QFrame>
+#include <QPixmap>
 #include <QGraphicsOpacityEffect>
 #include <QScrollArea>
 #include <QScrollBar>
@@ -15,6 +16,28 @@ namespace stencil::gui {
   // thing you are waiting to read, and it must not keep you waiting on its own dust.
   constexpr int kChatArriveMs = DisintegrateOverlay::kMs * 2 / 3;   // 600
 
+  // The scroller's viewport in HOST coordinates — the box a flying cloud may paint in.
+  QRect scrollViewportInHost(QScrollArea* scroll, QWidget* host) {
+    if (!scroll || !scroll->viewport() || !host) return host ? host->rect() : QRect();
+    return QRect(scroll->viewport()->mapTo(host, QPoint(0, 0)), scroll->viewport()->size());
+  }
+
+  // Confine a flying cloud to the transcript (browser motion.js clipDustToScroller).
+  void clipChatDustToScroller(DisintegrateOverlay* dust, QScrollArea* scroll, QWidget* host) {
+    if (dust) dust->setPaintClip(scrollViewportInHost(scroll, host));
+  }
+
+  // Where an arriving card's motes are gathered from: a point off the side the card sits
+  // against, so the user's messages stream in from the right and the assistant's from the
+  // left. Read off the geometry, not the role, so an attachment strip follows the message
+  // it rides with. Both rects are in host coordinates.
+  QPoint chatArrivalPoint(const QRect& card, const QRect& view) {
+    const double reach = 0.9;   // browser motion.js CHAT_ENTER_REACH
+    const bool right = (view.right() - card.right()) <= (card.left() - view.left());
+    const int cx = card.center().x();
+    return QPoint(cx + int((right ? 1 : -1) * card.width() * reach), card.center().y());
+  }
+
   bool chatCardFullyInViewport(QWidget* card, QScrollArea* scroll) {
     if (!card || !scroll || !scroll->viewport()) return false;
     const QRect view = scroll->viewport()->rect();
@@ -24,16 +47,21 @@ namespace stencil::gui {
         && topLeft.y() + card->height() <= view.bottom() + 1;
   }
 
-  void trackChatCardDust(QWidget* card, QWidget* overlay, QScrollArea* scroll,
+  void trackChatCardDust(QWidget* card, DisintegrateOverlay* overlay, QScrollArea* scroll,
                          std::function<void()> settle) {
     QPointer<QWidget> cp(card);
-    QPointer<QWidget> op(overlay);
+    QPointer<DisintegrateOverlay> op(overlay);
     const QSize shot = card->size();
+    QWidget* host = overlay->parentWidget();
+    // A SURFACE cloud covers the whole host and carries the card's box inside it, so it
+    // follows a scroll by retargeting (picture AND flight point together), not by moving
+    // the layer — moving it would drag the point the motes fly from off with it.
+    auto at = std::make_shared<QPoint>(card->mapTo(host, QPoint(0, 0)));
     // Parented to the CARD and stopped by the overlay's own death — a singleShot
     // holding the timer by raw pointer is what crashed here once.
     auto* timer = new QTimer(card);
     timer->setInterval(kChatGatherSettleMs);
-    QObject::connect(timer, &QTimer::timeout, card, [cp, op, scroll, shot, timer, settle] {
+    QObject::connect(timer, &QTimer::timeout, card, [cp, op, scroll, shot, timer, settle, at] {
       if (!op || !cp) { timer->stop(); timer->deleteLater(); return; }
       if (!chatCardFullyInViewport(cp, scroll) || cp->size() != shot) {
         op->deleteLater();          // the photograph no longer matches its subject
@@ -42,7 +70,11 @@ namespace stencil::gui {
         settle();                   // …and the card it was standing in for takes over NOW
         return;
       }
-      op->move(cp->mapTo(op->parentWidget(), QPoint(0, 0)));
+      QWidget* host = op->parentWidget();
+      const QPoint now = cp->mapTo(host, QPoint(0, 0));
+      op->retarget(now - *at);
+      *at = now;
+      clipChatDustToScroller(op, scroll, host);   // the viewport moves with the dock
       op->raise();
     });
     timer->start();
@@ -91,10 +123,22 @@ namespace stencil::gui {
     // before this returns, so no frame is ever painted with the card at full strength.
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect());
     if (fx) fx->setEnabled(false);
-    QWidget* dust = DisintegrateOverlay::over(card, host, DisintegrateOverlay::Sweep::Gather,
-                                              cols, rows, kChatArriveMs);
+    const QPixmap snap = card->grab();
     if (fx) fx->setEnabled(true);
+    if (snap.isNull()) { settle(); return; }
+    // The toast's flight (notifications.cpp dustToastIn), not the scatter the leave still
+    // plays: one speck cloud gathered out of the side the card belongs to. cols/rows only
+    // cap it — overSurface sizes its own grid to the bubble.
+    const QRect box(card->mapTo(host, QPoint(0, 0)), card->size());
+    auto* dust = DisintegrateOverlay::overSurface(
+        snap, box, host, chatArrivalPoint(box, scrollViewportInHost(scroll, host)),
+        /*gather=*/true, kChatArriveMs, card->palette().color(QPalette::WindowText),
+        cols * rows);
     if (!dust) { settle(); return; }   // nothing to hide behind
+    // Confined to the transcript: the layer is drawn on the WINDOW, so an unclipped
+    // gather rained motes over the composer under it (the browser twin's reported bug,
+    // clipDustToScroller).
+    clipChatDustToScroller(dust, scroll, host);
     // The card stays FULLY HIDDEN for the whole flight and takes the motes' place when
     // they land; the snapshot follows the card per frame, or is dropped as stale.
     trackChatCardDust(card, dust, scroll, settle);

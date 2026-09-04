@@ -188,3 +188,25 @@ test('clickable toasts never coalesce — each carries its own action', (t) => {
     assert.equal(standing(stack).length, 3);
   });
 });
+
+// REGRESSION: a toast's exit crawled at full opacity and then snapped out. One timing
+// function drives both the mote's travel and its alpha, and tileScatterSurface holds
+// alpha near 1 until 55%, so linear and ease-in both left a tail. The default ease-out
+// covers the distance early and fades with it, so the toast overrides no curve at all.
+test('the toast exit rides the shared scatter curve, on a short clock', () => {
+    const js = readFileSync(new URL('../js/ui/notifications.js', import.meta.url), 'utf8');
+    const enter = Number(/const ENTER_DUST_MS = SURFACE_MENU_IN_MS \* (\d+)/.exec(js)[1]) * 340;
+    const leave = Number(/const LEAVE_DUST_MS = (\d+)/.exec(js)[1]);
+    assert.ok(leave < enter, `the exit (${leave}ms) must not outlast the entrance (${enter}ms)`);
+    assert.ok(leave <= 480, `${leave}ms is long enough to grow a tail again`);
+    // No curve override: both attempts at one made the tail worse, each in its own way.
+    assert.ok(!/--dust-ease/.test(js), 'the toast must not override the scatter curve');
+    assert.ok(!/LEAVE_EASE/.test(js), 'and the constant that carried it is gone');
+    // The cloud still leaves TOGETHER — a staggered one strands a few motes behind it.
+    const stagger = Number(/const TOAST_LEAVE_STAGGER = ([0-9.]+)/.exec(js)[1]);
+    assert.ok(stagger <= 0.2, `stagger ${stagger} is enough to leave stragglers`);
+    // …and the desktop leaves on the same clock (its constants live in the .cpp).
+    const cpp = readFileSync(new URL('../../desktop/src/support/notifications.cpp', import.meta.url), 'utf8');
+    assert.equal(Number(/constexpr int kToastOutMs = (\d+)/.exec(cpp)[1]), leave,
+        'the two apps must not drift on the exit clock');
+});

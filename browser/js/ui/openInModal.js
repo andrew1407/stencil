@@ -61,6 +61,11 @@ export class StencilOpenInModal extends StencilElement {
   }
   static template() { return hostTag('stencil-open-in-modal', 'id="open-in-modal-overlay" class="app-modal-overlay"', StencilOpenInModal.inner()); }
 
+  // Hand off a project OTHER than the one being edited — the projects list's per-row
+  // "Open in another app". `anchors` is the flight's two ends, as everywhere a window is
+  // raised from a row menu (ui/base.js open(from, backTo)).
+  openFor(id, anchors) { this._openFor?.(id, anchors); }
+
   wire(app) {
     const overlay = document.getElementById('open-in-modal-overlay');
     const closeBtn = document.getElementById('open-in-close');
@@ -79,27 +84,52 @@ export class StencilOpenInModal extends StencilElement {
     let cfg = { ...OPEN_IN_DEFAULTS };
     loadOpenInConfig().then(loaded => { cfg = loaded; });
 
+    // The project being handed off: null = the live session (the toolbar button), an id =
+    // that row of the projects list. Cleared on close so the toolbar button never inherits
+    // the last row's target.
+    let targetId = null;
+    // Its server linkage, which decides the status line and whether Telegram can be offered.
+    const targetRemote = () => {
+      if (targetId == null) return app.remoteLink
+        ? { address: app.remoteLink.address, remoteId: app.remoteLink.remoteId } : null;
+      const meta = app.storage.store.getMeta(targetId);
+      return (meta?.remoteId && meta?.address)
+        ? { address: meta.address, remoteId: meta.remoteId } : null;
+    };
+
     const { open, close } = wireModalShell(overlay, document.getElementById('open-in-btn'), closeBtn, {
       onOpen: () => {
-        incog.checked = app.storage.incognito;   // an incognito session mirrors as incognito
+        // A row hand-off is never the session's incognito state — that belongs to what is
+        // open here, not to the saved project being sent.
+        incog.checked = targetId == null && app.storage.incognito;
         fallbackRow.style.display = 'none';
         hintEl.textContent = '';
-        const remote = app.remoteLink;
+        const remote = targetRemote();
+        const name = targetId == null ? null : (app.storage.store.getMeta(targetId)?.name || 'Untitled');
         statusEl.textContent = remote
           ? `Server project on ${remote.address}`
-          : (app.storage.incognito ? 'Incognito session (image + layout sent inline)'
-            : 'Local project (image + layout sent inline)');
+          : (targetId != null ? `"${name}" (image + layout sent inline)`
+            : (app.storage.incognito ? 'Incognito session (image + layout sent inline)'
+              : 'Local project (image + layout sent inline)'));
         // Unusable targets are HIDDEN, not greyed: Desktop needs a configured scheme;
         // Telegram needs a bot username AND a server project (64 chars can't carry
         // image bytes). The toolbar's #open-in-btn hides when neither is available.
         desktopBtn.style.display = cfg.desktopScheme ? '' : 'none';
         telegramBtn.style.display = (cfg.telegramBotUsername && remote) ? '' : 'none';
       },
+      onClose: () => { targetId = null; },
     });
     cancelBtn.addEventListener('click', close);
+    // Stacked: raised from a row of the projects list, so it opens OVER it. The toolbar
+    // button's own open() still replaces whatever is showing.
+    this._openFor = (id, { from = null, backTo = null } = {}) => {
+      targetId = id;
+      open(from, backTo, { stacked: true });
+    };
 
     desktopBtn.addEventListener('click', () => {
-      const payload = app.openInLaunchPayload({ incognito: incog.checked });
+      const payload = app.openInLaunchPayload({ incognito: incog.checked, id: targetId });
+      if (!payload) { notify('That project could not be read from storage', 'fail'); return; }
       const url = payload.server
         ? buildStencilSchemeUrl({
           scheme: cfg.desktopScheme,
@@ -134,7 +164,7 @@ export class StencilOpenInModal extends StencilElement {
     });
 
     telegramBtn?.addEventListener('click', () => {
-      const remote = app.remoteLink;
+      const remote = targetRemote();
       if (!remote) return;
       const payload = encodeTelegramStartPayload(remote.address, remote.remoteId);
       if (payload) {

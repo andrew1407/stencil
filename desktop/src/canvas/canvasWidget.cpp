@@ -1,4 +1,6 @@
 #include "canvasWidget.hpp"
+
+#include "cssColor.hpp"
 #include "geometry.hpp"
 #include "imageFilter.hpp"
 #include "theme.hpp"
@@ -39,6 +41,15 @@ namespace stencil::gui {
     holdClock_.start();
     holdTimer_.setInterval(40);
     connect(&holdTimer_, &QTimer::timeout, this, [this] { handleHoldTick(); });
+    // Vertices in flight: repaint at ~60fps while any point added just now is still
+    // travelling to where it was put, and stop the moment the last one has landed
+    // (browser strokeFx.js drives the same loop off requestAnimationFrame).
+    fxClock_.start();
+    fxTimer_.setInterval(16);
+    connect(&fxTimer_, &QTimer::timeout, this, [this] {
+      if (!strokeFx_.step(fxNow())) fxTimer_.stop();
+      update();
+    });
     // Watch modifier key changes app-wide so the tooltip/cursor refresh on
     // Shift/Ctrl/Alt without needing a mouse move (see eventFilter).
     qApp->installEventFilter(this);
@@ -185,6 +196,7 @@ namespace stencil::gui {
   void CanvasWidget::restore(const QString& path, const core::Lines& lines,
                              double scale, const core::CropRect& cropRect,
                              int rotationQuarters) {
+    resetStrokeFx();
     scale_ = scale > 0 ? scale : 1.0;
     if (!path.isEmpty()) {
       QImage img;
@@ -225,6 +237,7 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::setLines(const core::Lines& lines) {
+    resetStrokeFx();
     lines_ = lines;
     clearHoverCache();   // indices are meaningless against the new set
     currentLine_ = core::Line{};
@@ -445,6 +458,8 @@ namespace stencil::gui {
 
     if (currentLine_.points.size() >= 2) {
       lines_.push_back(currentLine_);
+      // A vertex still in the air keeps flying on the line the stroke just became.
+      strokeFx_.rekey(-1, static_cast<int>(lines_.size()) - 1);
       commitHistory();
     }
     currentLine_ = core::Line{};
@@ -460,6 +475,7 @@ namespace stencil::gui {
 
   void CanvasWidget::startNewLine() {
     if (compareReadOnly()) return;   // read-only compare view
+    resetStrokeFx();
     if (currentLine_.points.size() >= 2) {
       lines_.push_back(currentLine_);
       commitHistory();
@@ -483,6 +499,7 @@ namespace stencil::gui {
 
   void CanvasWidget::clearAll() {
     if (compareReadOnly()) return;   // read-only compare view
+    resetStrokeFx();
     if (lines_.empty() && currentLine_.points.empty()) return;
     lines_.clear();
     clearHoverCache();
@@ -503,6 +520,7 @@ namespace stencil::gui {
 
   void CanvasWidget::undo() {
     if (compareReadOnly()) return;   // read-only compare view
+    resetStrokeFx();
     if (auto snap = history_.undo()) {
       lines_ = *snap;
       clearHoverCache();   // the snapshot may not contain the hovered indices
@@ -518,6 +536,7 @@ namespace stencil::gui {
 
   void CanvasWidget::redo() {
     if (compareReadOnly()) return;   // read-only compare view
+    resetStrokeFx();
     if (auto snap = history_.redo()) {
       lines_ = *snap;
       clearHoverCache();   // see undo()
@@ -570,6 +589,7 @@ namespace stencil::gui {
       selectedLineIdx_ = -1;  // index may now be stale/invalid
       commitHistory();
     }
+    resetStrokeFx();
     clearHoverCache();   // indices shifted
     selectedPoint_ = -1;
     update();
@@ -687,6 +707,7 @@ namespace stencil::gui {
   // focused point consistent with the now-shifted indices. Port of drawingApp.js removeLine.
   void CanvasWidget::removeLineByIndex(int idx) {
     if (compareReadOnly()) return;   // read-only compare view
+    resetStrokeFx();
     if (idx < 0 || idx >= static_cast<int>(lines_.size())) return;
     lines_.erase(lines_.begin() + idx);
     clearHoverCache();   // indices shifted
@@ -739,6 +760,7 @@ namespace stencil::gui {
       const core::Point corners[4] = {
           {xa, ya}, {xb, ya}, {xb, yb}, {xa, yb}};
       line.points.insert(line.points.begin() + at, corners, corners + 4);
+      flyInPoints(continueLineIdx_, line, at, 4);
       continueInsertIdx_ = at + 4;
       selectedPoint_ = continueInsertIdx_ - 1;
       commitHistory();
@@ -760,6 +782,8 @@ namespace stencil::gui {
 
     lines_.push_back(rect);
     selectedLineIdx_ = static_cast<int>(lines_.size()) - 1;
+    // The rect draws itself out of its first corner, edge by edge.
+    flyInPoints(selectedLineIdx_, lines_.back(), 0, 4);
     selectedPoint_ = -1;
     commitHistory();
     update();
@@ -775,15 +799,15 @@ namespace stencil::gui {
   // so renderToImage draws at native resolution while the live view passes scale_.
   void CanvasWidget::drawLineScaled(QPainter& p, const core::Line& line,
                                     int lineIdx, double scale,
-                                    bool highlight) const {
+                                    bool highlight, bool live) const {
     if (line.points.empty()) return;
 
-    QPolygonF poly;
-    for (const auto& pt : line.points) {
-      poly << QPointF(pt.x * scale, pt.y * scale);
-    }
+    // A vertex added a moment ago is drawn where it is RIGHT NOW; everything below —
+    // fill, glows, stroke, points — reads this polygon, so the segments hanging off a
+    // moving vertex follow it for free.
+    const QPolygonF poly = flownPolygon(line, lineIdx, scale, live);
 
-    const QColor stroke(QString::fromStdString(line.color));
+    const QColor stroke = cssColor(line.color);
     Palette pal = themePalette(dark_, accentKey_);
     // The user's own highlight-style choices (Settings), not the theme's fixed
     // defaults — setHighlightColors() is what actually moves these off DEFAULT_VISUALS.
@@ -793,13 +817,127 @@ namespace stencil::gui {
     // Points take the line's own point colour, which core::pointColorOr resolves to the
     // stroke colour when unset — so a line without one paints exactly as it always did.
     // An unparseable colour falls back to the stroke rather than painting points black.
-    const QColor pointParsed(QString::fromStdString(core::pointColorOr(line)));
+    const QColor pointParsed = cssColor(core::pointColorOr(line));
     const QColor pointFill = pointParsed.isValid() ? pointParsed : stroke;
 
     drawFill(p, line, poly);
     drawGlow(p, line, poly, lineIdx, highlight, pal);
+    if (live) drawStrokeWake(p, line, poly, lineIdx, stroke);
     drawStroke(p, line, poly, stroke);
-    drawPoints(p, line, poly, lineIdx, highlight, pointFill, pal);
+    drawPoints(p, line, poly, lineIdx, highlight, pointFill, pal, live);
+    if (live) drawStrokeSpark(p, line, poly, lineIdx, pointFill);
+  }
+
+  // ── The flight, painted (browser js/core/strokeFx.js) ─────────────────────
+  // How much bigger than its resting size a vertex is drawn right now.
+  double CanvasWidget::pointScaleAt(int lineIdx, const core::Line& line, int ptIdx,
+                                    bool live) const {
+    if (!live || ptIdx < 0 || ptIdx >= static_cast<int>(line.points.size())) return 1.0;
+    const stroke::Flight* f = strokeFx_.at(lineIdx, line.points[ptIdx]);
+    if (!f) return 1.0;
+    return stroke::vertexScale(stroke::phase(fxNow() - f->start, f->fly));
+  }
+
+  // ms on the shared clock. Every pass takes it here so they all agree on one instant.
+  double CanvasWidget::fxNow() const {
+    return static_cast<double>(fxClock_.elapsed());
+  }
+
+  QPolygonF CanvasWidget::flownPolygon(const core::Line& line, int lineIdx,
+                                       double scale, bool live) const {
+    QPolygonF poly;
+    poly.reserve(static_cast<int>(line.points.size()));
+    const bool moving = live && strokeFx_.touches(lineIdx);
+    const double now = moving ? fxNow() : 0.0;
+    for (const auto& pt : line.points) {
+      QPointF at(pt.x, pt.y);
+      if (moving) {
+        if (const stroke::Flight* f = strokeFx_.at(lineIdx, pt)) {
+          const stroke::Phase ph = stroke::phase(now - f->start, f->fly);
+          if (ph.fly < 1.0) at = stroke::flyPoint(f->from, f->to, ph.fly, f->bow);
+        }
+      }
+      poly << QPointF(at.x() * scale, at.y() * scale);
+    }
+    return poly;
+  }
+
+  // The heat a flying vertex drags behind it: a fat, faint stroke in the line's own
+  // colour over the segments it is pulling, under the real one.
+  void CanvasWidget::drawStrokeWake(QPainter& p, const core::Line& line,
+                                    const QPolygonF& poly, int lineIdx,
+                                    const QColor& stroke) const {
+    if (!showLines_ || !strokeFx_.touches(lineIdx)) return;
+    const double now = fxNow();
+    for (int i = 0; i < static_cast<int>(line.points.size()); ++i) {
+      const stroke::Flight* f = strokeFx_.at(lineIdx, line.points[i]);
+      if (!f) continue;
+      const double a = stroke::wake(stroke::phase(now - f->start, f->fly).span);
+      if (a < 0.01) continue;
+      QColor heat = stroke;
+      heat.setAlphaF(a);
+      QPen pen(heat);
+      pen.setWidthF(line.thickness + 7.0);
+      pen.setCapStyle(Qt::RoundCap);
+      pen.setJoinStyle(Qt::RoundJoin);
+      p.setPen(pen);
+      p.setBrush(Qt::NoBrush);
+      for (int j : {i - 1, i + 1}) {
+        if (j < 0 || j >= poly.size()) continue;
+        p.drawLine(poly[j], poly[i]);
+      }
+    }
+  }
+
+  // The glow riding the vertex, and the ring its landing pushes out — on top of
+  // everything the line drew, in the colour its points are drawn in.
+  void CanvasWidget::drawStrokeSpark(QPainter& p, const core::Line& line,
+                                     const QPolygonF& poly, int lineIdx,
+                                     const QColor& pointFill) const {
+    if (!strokeFx_.touches(lineIdx)) return;
+    const double now = fxNow();
+    const double r = line.pointSize;
+    for (int i = 0; i < poly.size() && i < static_cast<int>(line.points.size()); ++i) {
+      const stroke::Flight* f = strokeFx_.at(lineIdx, line.points[i]);
+      if (!f) continue;
+      const stroke::Phase ph = stroke::phase(now - f->start, f->fly);
+      if (ph.fly < 1.0) {
+        const stroke::Ring sp = stroke::spark(ph.fly);
+        QColor glow = pointFill;
+        glow.setAlphaF(sp.alpha);
+        p.setPen(Qt::NoPen);
+        p.setBrush(glow);
+        p.drawEllipse(poly[i], r * sp.scale, r * sp.scale);
+      } else if (ph.ripple < 1.0) {
+        const stroke::Ring rp = stroke::ripple(ph.ripple);
+        QColor ring = pointFill;
+        ring.setAlphaF(rp.alpha);
+        QPen pen(ring);
+        pen.setWidthF(std::max(1.0, r * 0.45 * (1.0 - ph.ripple)));
+        p.setPen(pen);
+        p.setBrush(Qt::NoBrush);
+        p.drawEllipse(poly[i], r * rp.scale, r * rp.scale);
+      }
+    }
+  }
+
+  void CanvasWidget::resetStrokeFx() {
+    strokeFx_.clear();
+    fxTimer_.stop();
+  }
+
+  // Send a just-added vertex on its way and keep the frame timer running while it and
+  // any other are still moving.
+  void CanvasWidget::flyInPoint(int lineIdx, const core::Line& line, int ptIdx,
+                                const QPointF* from) {
+    strokeFx_.flyIn(lineIdx, line, ptIdx, fxNow(), from);
+    if (strokeFx_.active() && !fxTimer_.isActive()) fxTimer_.start();
+  }
+
+  void CanvasWidget::flyInPoints(int lineIdx, const core::Line& line, int startIdx,
+                                 int count) {
+    strokeFx_.flyInRange(lineIdx, line, startIdx, count, fxNow());
+    if (strokeFx_.active() && !fxTimer_.isActive()) fxTimer_.start();
   }
 
   // Locked-area fill beneath the stroke (renderer.js): only for closed shapes
@@ -808,7 +946,7 @@ namespace stencil::gui {
                               const QPolygonF& poly) const {
     if (showLines_ && line.locked && line.points.size() >= 3 &&
         line.fillColor != "transparent" && !line.fillColor.empty()) {
-      p.setBrush(QColor(QString::fromStdString(line.fillColor)));
+      p.setBrush(cssColor(line.fillColor));
       p.setPen(Qt::NoPen);
       p.drawPolygon(poly);
     }
@@ -874,7 +1012,7 @@ namespace stencil::gui {
   void CanvasWidget::drawPoints(QPainter& p, const core::Line& line,
                                  const QPolygonF& poly, int lineIdx,
                                  bool highlight, const QColor& stroke,
-                                 const Palette& pal) const {
+                                 const Palette& pal, bool live) const {
     if (!showPoints_) return;
 
     const bool isActive = highlight && (&line == panelLine());
@@ -906,8 +1044,9 @@ namespace stencil::gui {
         p.drawEllipse(v, r + 4, r + 4);
         p.setPen(QPen(pal.textMain, 1));
       }
+      const double vr = r * pointScaleAt(lineIdx, line, i, live);
       p.setBrush(stroke);
-      p.drawEllipse(v, r, r);
+      p.drawEllipse(v, vr, vr);
     }
   }
 
@@ -1197,6 +1336,14 @@ namespace stencil::gui {
   // rect-noop, continuation, close, append}. Alt/Left branches use image space.
   void CanvasWidget::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::RightButton) {
+      // macOS delivers Ctrl+Left as a right button press, so the Alt+Ctrl pull-out drag
+      // arrived here as a context-menu request. Alt with it means the gesture, not a menu;
+      // a plain right-click, and plain Ctrl+click, still get one.
+      if (!image_.isNull() && (event->modifiers() & Qt::AltModifier) &&
+          (event->modifiers() & Qt::ControlModifier) && !compareReadOnly()) {
+        if (beginPullOut(toImageSpace(event->pos().x(), event->pos().y()))) return;
+        return;   // nothing under the cursor: still the gesture, still no menu
+      }
       emit contextRequested(event->globalPosition().toPoint());
       return;
     }
@@ -1269,10 +1416,12 @@ namespace stencil::gui {
         if (handleCtrlClick(ip)) return;
         // drawing + Ctrl + no segment -> fall through to handleDrawingClick.
       }
-      // Hold-to-draw arms only when not already drawing and with no modifiers.
-      // handleDrawingClick still runs first so a quick click keeps selecting; the
-      // controller takes over once the press is held near-stationary past the delay.
-      const bool eligibleHold = !isDrawing_ && mods == Qt::NoModifier;
+      // Hold-to-draw arms only when not already drawing, with no modifiers, and never
+      // with the rect tool (a hold there would seed a freehand line — browser
+      // inputController.js holdDrawEligible). handleDrawingClick still runs first so a
+      // quick click keeps selecting.
+      const bool eligibleHold =
+          !isDrawing_ && mods == Qt::NoModifier && drawMode_ != DrawMode::Rect;
       handleDrawingClick(ip, mods, event->pos());
       if (eligibleHold && !isDrawing_) beginHold(event->pos());
     }
@@ -1286,6 +1435,11 @@ namespace stencil::gui {
                                   const QPoint& globalPos) {
     dragStart_ = ip;
     dragMoved_ = false;
+
+    // Alt+Ctrl -> pull a new point out of whatever is under the cursor and drag it; on a
+    // closed area the same pull breaks the shape open there. Checked before the plain Alt
+    // drags, which would otherwise move the point already there.
+    if ((mods & Qt::ControlModifier) && !(mods & Qt::ShiftModifier) && beginPullOut(ip)) return;
 
     // Alt+Shift over a line -> whole-line drag (always translates EVERY point).
     if (mods & Qt::ShiftModifier) {
@@ -1338,6 +1492,53 @@ namespace stencil::gui {
     setCursor(Qt::ClosedHandCursor);
   }
 
+  // Pull a new point out of the line under `ip` and start dragging it. A locked area is
+  // opened at that spot first, so the seam appears where the user grabbed rather than
+  // always at point 0 (chainEdit.hpp). False when there is nothing to pull out of.
+  bool CanvasWidget::beginPullOut(const core::Point& ip) {
+    chain::PullTarget target;
+    int lineIdx = -1;
+    if (auto pt = core::findNearestPoint(lines_, ip.x, ip.y, hitRadius(12.0))) {
+      lineIdx = pt->lineIdx;
+      target = {true, pt->ptIdx};
+    } else if (auto seg = core::findNearestSegment(lines_, ip.x, ip.y, hitRadius(12.0))) {
+      lineIdx = seg->lineIdx;
+      target = {false, seg->ptIdx2};
+    } else {
+      return false;
+    }
+    if (lineIdx < 0 || lineIdx >= static_cast<int>(lines_.size())) return false;
+    core::Line& line = lines_[lineIdx];
+    const bool wasArea = line.locked;
+    const int idx = chain::pullOutPoint(line, target, ip.x, ip.y);
+    if (idx < 0) return false;
+    flyInPoint(lineIdx, line, idx);
+    selectedLineIdx_ = lineIdx;
+    selectedPoint_ = idx;
+    dragKind_ = DragKind::Point;
+    dragLineIdx_ = lineIdx;
+    dragPtIdx1_ = idx;
+    setCursor(Qt::SizeAllCursor);
+    update();
+    emit changed();
+    emit selectionChanged();
+    if (wasArea) emit statusMessage(tr("Area unchained — drag the loose end"));
+    return true;
+  }
+
+  // Turn the selected area back into an open line (the selection bar's Unchain button).
+  void CanvasWidget::unchainSelectedLine() {
+    if (compareReadOnly()) return;
+    if (selectedLineIdx_ < 0 || selectedLineIdx_ >= static_cast<int>(lines_.size())) return;
+    if (!chain::unchainLine(lines_[selectedLineIdx_])) return;
+    resetStrokeFx();   // its points were rebuilt; nothing in the air still belongs to them
+    selectedPoint_ = -1;
+    commitHistory();
+    update();
+    emit selectionChanged();
+    emit statusMessage(tr("Area unchained — it is an open line again"));
+  }
+
   // Zoom-to-rect: Shift+left-drag sweeps a rubber band (drawingApp.js
   // startPan shift branch ~746). No points added while sweeping. widgetPos is
   // widget space (NOT image space).
@@ -1372,12 +1573,49 @@ namespace stencil::gui {
   // Plain left-click drawing: rect-draw press, select-when-not-drawing, rect-mode
   // no-op, continuation extend/close, the close-shape gate, and the normal point
   // append. widgetPos seeds the rect-draw rubber band (widget space).
+  // core::shouldCloseShape grabs within `pointSize + 8` image pixels, where every other
+  // hit test here is a screen radius over the zoom (hitRadius) — at 25% the first point
+  // was a three-pixel target. core adds its own +8, so hand it the size that makes the
+  // total screen-constant. Zoomed out only: magnifying must not shrink the targets.
+  double CanvasWidget::closeGrabSize(const core::Line& line) const {
+    const double ps = line.pointSize;
+    const double scale = scale_ > 0 ? scale_ : 1.0;
+    if (scale >= 1.0) return ps;
+    return std::max(ps, (ps + kCloseSlack) / scale - kCloseSlack);
+  }
+
+  // Would a point placed at `ip` close the stroke being drawn? If so, close it into a
+  // locked area and report it. The one close route: the click path and hold-to-draw both
+  // come here. Browser twin: drawingApp.js tryCloseShapeAt.
+  bool CanvasWidget::tryCloseShapeAt(const core::Point& ip) {
+    if (!isDrawing_) return false;
+    if (continueLineIdx_ >= 0 && continueLineIdx_ < static_cast<int>(lines_.size())) {
+      core::Line& line = lines_[continueLineIdx_];
+      if (!core::shouldCloseShape(line.points, ip, closeGrabSize(line))) return false;
+      closeContinuedShape();
+      emit changed();
+      return true;
+    }
+    if (!core::shouldCloseShape(currentLine_.points, ip, closeGrabSize(currentLine_))) return false;
+    currentLine_.points.push_back(currentLine_.points.front());
+    currentLine_.locked = true;
+    // Finishing a shape ends exactly like finishing an ordinary line: the stroke is
+    // committed and NOTHING is selected — no selected-line bar pops up over the picture
+    // you just drew (browser drawingApp.js #closeShape).
+    stopDrawingMode();
+    emit changed();
+    return true;
+  }
+
   void CanvasWidget::handleDrawingClick(const core::Point& ip,
                                         Qt::KeyboardModifiers mods,
                                         const QPoint& widgetPos) {
-    // rect-draw press (drawingApp.js mousedown ~710). While drawing in rect
-    // mode with no modifier, begin a drag-to-create rubber band.
-    if (isDrawing_ && drawMode_ == DrawMode::Rect && mods == Qt::NoModifier) {
+    // rect-draw press (browser pointerController.js startPan). Picking the rect tool is
+    // the intent, so the press turns drawing on itself — it has no hold-to-draw flow to
+    // fall back on (that one refuses in rect mode).
+    if (drawMode_ == DrawMode::Rect && mods == Qt::NoModifier) {
+      if (!isDrawing_) startDrawingMode();
+      if (!isDrawing_) return;   // declined (no image / read-only) — nothing to sweep
       rectDrawActive_ = true;
       rectDrawStart_ = rectDrawEnd_ = widgetPos;
       update();
@@ -1395,19 +1633,14 @@ namespace stencil::gui {
     // (browser drawingApp.js ~1182).
     if (drawMode_ == DrawMode::Rect) return;
 
-    // Continuation drawing: extend the line being continued (drawingApp.js
-    // canvasClick continuation branch ~1201). A click near its first point
-    // closes it into a locked area.
+    // Continuation drawing: extend the line being continued (drawingApp.js canvasClick
+    // continuation branch ~1201). A click on the stroke's first point closes it into a
+    // locked area — whichever stroke is being drawn, continued or fresh.
+    if (tryCloseShapeAt(ip)) return;
+
     if (continueLineIdx_ >= 0 &&
         continueLineIdx_ < static_cast<int>(lines_.size())) {
       core::Line& line = lines_[continueLineIdx_];
-      if (line.points.size() >= 3 &&
-          std::hypot(line.points.front().x - ip.x,
-                     line.points.front().y - ip.y) <= line.pointSize + 8.0) {
-        closeContinuedShape();
-        emit changed();
-        return;
-      }
       insertContinuationPoint(ip, /*advance=*/true);
       update();
       emit changed();
@@ -1415,18 +1648,8 @@ namespace stencil::gui {
       return;
     }
 
-    // Closing an area: with >= 3 points, a click near point[0] closes + locks
-    // the shape (mirrors #closeCurrentShape), then stops drawing.
-    if (core::shouldCloseShape(currentLine_.points, ip,
-                               currentLine_.pointSize)) {
-      currentLine_.points.push_back(currentLine_.points.front());
-      currentLine_.locked = true;
-      stopDrawingMode();
-      emit changed();
-      return;
-    }
-
     currentLine_.points.push_back(ip);
+    flyInPoint(-1, currentLine_, static_cast<int>(currentLine_.points.size()) - 1);
     selectedPoint_ = static_cast<int>(currentLine_.points.size()) - 1;
     update();
     emit changed();
@@ -1811,6 +2034,7 @@ namespace stencil::gui {
         panning_ = false;   // the press that opened this double-click armed it
         unsetCursor();
         lines_.erase(lines_.begin() + idx);
+        resetStrokeFx();
         clearHoverCache();   // indices shifted
         selectedLines_.clear();
         if (selectedLineIdx_ == idx) selectedLineIdx_ = -1;
@@ -1925,8 +2149,8 @@ namespace stencil::gui {
       QPainter p(&out);
       p.setRenderHint(QPainter::Antialiasing, true);
       for (int i = 0; i < static_cast<int>(lines_.size()); ++i)
-        drawLineScaled(p, lines_[i], i, 1.0, /*highlight=*/false);
-      drawLineScaled(p, currentLine_, -1, 1.0, /*highlight=*/false);
+        drawLineScaled(p, lines_[i], i, 1.0, /*highlight=*/false, /*live=*/false);
+      drawLineScaled(p, currentLine_, -1, 1.0, /*highlight=*/false, /*live=*/false);
     }
     if (variant == "split") {
       QPainter p(&out);
@@ -2021,6 +2245,7 @@ namespace stencil::gui {
   }
 
   void CanvasWidget::clearImage() {
+    resetStrokeFx();
     blankPage_ = false;
     originalImage_ = QImage();
     image_ = QImage();
@@ -2051,23 +2276,27 @@ namespace stencil::gui {
   // ── selected-line mutators + delete (port of applySelectionChange ~1674
   // and canvasDblClick delete ~1515) ──
 
-  void CanvasWidget::mutateSelectedLine(const std::function<void(core::Line&)>& set) {
+  void CanvasWidget::mutateSelectedLine(const std::function<void(core::Line&)>& set, bool commit) {
     if (compareReadOnly()) return;   // read-only compare view (selection-panel edits)
     core::Line* line = selectedLine();
     if (!line) return;
     set(*line);
-    commitHistory();
+    // A live preview (a colour still being dragged around the picker) rides the same
+    // debounce the wheel edits use: the picture follows every change, but the whole
+    // gesture collapses into ONE undo step once it goes quiet.
+    if (commit) commitHistory();
+    else scheduleEditCommit();
     update();
     emit selectionChanged();
   }
 
-  void CanvasWidget::setSelectedLineColor(const QString& color) {
+  void CanvasWidget::setSelectedLineColor(const QString& color, bool preview) {
     mutateSelectedLine([&](core::Line& line) {
       // Recolouring the stroke must never recolour the points: a line still on the
       // inherit fallback ('' pointColor) pins its rendered colour first (browser parity).
       if (line.pointColor.empty()) line.pointColor = line.color;
       line.color = color.toStdString();
-    });
+    }, !preview);
   }
 
   void CanvasWidget::setSelectedLineThickness(double thickness) {
@@ -2078,17 +2307,17 @@ namespace stencil::gui {
     mutateSelectedLine([&](core::Line& line) { line.pointSize = pointSize; });
   }
 
-  void CanvasWidget::setSelectedLinePointColor(const QString& pointColor) {
+  void CanvasWidget::setSelectedLinePointColor(const QString& pointColor, bool preview) {
     mutateSelectedLine(
-        [&](core::Line& line) { line.pointColor = pointColor.toStdString(); });
+        [&](core::Line& line) { line.pointColor = pointColor.toStdString(); }, !preview);
   }
 
   void CanvasWidget::setSelectedLineStyle(const QString& style) {
     mutateSelectedLine([&](core::Line& line) { line.style = style.toStdString(); });
   }
 
-  void CanvasWidget::setSelectedLineFill(const QString& fillColor) {
-    mutateSelectedLine([&](core::Line& line) { line.fillColor = fillColor.toStdString(); });
+  void CanvasWidget::setSelectedLineFill(const QString& fillColor, bool preview) {
+    mutateSelectedLine([&](core::Line& line) { line.fillColor = fillColor.toStdString(); }, !preview);
   }
 
   // Deletes the WHOLE selection (browser parity: removeSelectedLines): erase from
@@ -2103,6 +2332,7 @@ namespace stencil::gui {
       if (idx < 0 || idx >= static_cast<int>(lines_.size())) continue;
       lines_.erase(lines_.begin() + idx);
     }
+    resetStrokeFx();
     clearHoverCache();   // indices shifted
     selectedLines_.clear();
     selectedLineIdx_ = -1;
@@ -2167,6 +2397,7 @@ namespace stencil::gui {
       selectedPoint_ = -1;
       startDrawingMode();
       currentLine_.points.push_back(ip);
+      flyInPoint(-1, currentLine_, 0);
     }
     holdPreview_ = ip;
     holdHasPreview_ = true;
@@ -2182,6 +2413,7 @@ namespace stencil::gui {
     const int at = std::max(
         0, std::min(continueInsertIdx_, static_cast<int>(line.points.size())));
     line.points.insert(line.points.begin() + at, ip);
+    flyInPoint(continueLineIdx_, line, at);
     selectedPoint_ = at;
     if (advance) continueInsertIdx_ = at + 1;
   }
@@ -2189,11 +2421,20 @@ namespace stencil::gui {
   // Dwell completed → drop a point (extends the in-progress / continued line).
   void CanvasWidget::holdDrop(double widgetX, double widgetY) {
     const core::Point ip{widgetX / scale_, widgetY / scale_};
+    // Resting on the stroke's FIRST point closes it, exactly as clicking there does. The
+    // shape is committed, so the gesture is over: end it rather than dropping more points
+    // into a stroke that no longer exists.
+    if (tryCloseShapeAt(ip)) {
+      stopHold();
+      emit selectionChanged();
+      return;
+    }
     if (continueLineIdx_ >= 0 &&
         continueLineIdx_ < static_cast<int>(lines_.size())) {
       insertContinuationPoint(ip, /*advance=*/!holdPrepend_);
     } else {
       currentLine_.points.push_back(ip);
+      flyInPoint(-1, currentLine_, static_cast<int>(currentLine_.points.size()) - 1);
     }
     holdPreview_ = ip;
     holdHasPreview_ = true;
@@ -2399,6 +2640,14 @@ namespace stencil::gui {
     const int at = std::max(
         0, std::min(insertIdx, static_cast<int>(line.points.size())));
     line.points.insert(line.points.begin() + at, core::Point{x, y});
+    // An inserted vertex comes out of the segment it split — from its own foot on the
+    // old straight line, so the bend grows rather than appearing.
+    if (at > 0 && at + 1 < static_cast<int>(line.points.size())) {
+      const QPointF src = stroke::foot(line.points[at - 1], line.points[at + 1], x, y);
+      flyInPoint(lineIdx, line, at, &src);
+    } else {
+      flyInPoint(lineIdx, line, at);
+    }
     selectedLineIdx_ = lineIdx;
     selectedPoint_ = at;
     commitHistory();  // emits changed()
@@ -2419,6 +2668,7 @@ namespace stencil::gui {
       const int at = std::max(
           0, std::min(insertIdx, static_cast<int>(line.points.size())));
       line.points.insert(line.points.begin() + at, core::Point{x, y});
+      flyInPoint(selectedLineIdx_, line, at);
       selectedPoint_ = at;
       commitHistory();
       update();
@@ -2435,6 +2685,7 @@ namespace stencil::gui {
     nl.style = defStyle_.toStdString();
     lines_.push_back(nl);
     selectedLineIdx_ = static_cast<int>(lines_.size()) - 1;
+    flyInPoint(selectedLineIdx_, lines_.back(), 0);
     selectedPoint_ = 0;
     commitHistory();
     update();

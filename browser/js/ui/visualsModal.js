@@ -86,7 +86,7 @@ export class StencilVisualsModal extends StencilElement {
 
     const VIS_DEFAULTS = {
       color: '#FFFF00', thickness: 2, pointSize: 4, style: 'solid',
-      defaultFillColor: '#3399ff', selGlowColor: '#ffc800',
+      defaultFillColor: '#ffffff', selGlowColor: '#ffc800',
       hoverRingColor: '#7c3aed', focusRingColor: '#7c3aed', holdDrawDelay: 500
     };
 

@@ -1,6 +1,7 @@
 #pragma once
 #include "theme.hpp"
 #include <QtGlobal>
+#include <QFont>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -71,6 +72,12 @@ namespace stencil::gui {
   // through renderTip. Call once at startup and again on a theme change, so keycaps and
   // muted text follow the palette. Idempotent.
   void setTooltipPalette(const Palette& pal);
+
+  // …and the FONT they are measured in. The rendered html pins a table width, which must
+  // be computed in the type the tip actually draws with — QToolTip's font is larger on
+  // macOS and pinned the table too narrow, breaking a one-line URL. AppTooltip publishes
+  // its body's font here; unset, the measurement falls back to QToolTip::font().
+  void setTooltipFont(const QFont& font);
 
   // Where a widget keeps the PLAIN tooltip it was given, so the rendered html can be
   // rebuilt in a new palette (setTooltipPalette) instead of keeping the colours it was

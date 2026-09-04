@@ -34,8 +34,10 @@ namespace stencil::gui {
 
   // A mark's clock: the arrival is the half you watch, the departure is brisk (browser
   // MARK_IN_MS / MARK_OUT_MS).
-  inline constexpr int kControlRevealInMs = 320;
-  inline constexpr int kControlRevealOutMs = 240;
+  // A group's slot is a wider move than a single mark and reads as a snap at the mark's
+  // clock, so it gets its own. Browser twin: REVEAL_GROUP_IN/OUT_MS.
+  inline constexpr int kControlRevealInMs = 420;
+  inline constexpr int kControlRevealOutMs = 320;
   // Motes about this big on screen, under a ceiling of their own — well below a window's:
   // the f(x,y) row is a few hundred pixels wide and a window's grain over it would build
   // thousands of cells for a third of a second (browser MARK_COLS x MARK_ROWS).
@@ -95,7 +97,10 @@ namespace stencil::gui {
           gather ? DisintegrateOverlay::Sweep::Gather : DisintegrateOverlay::Sweep::Fall,
           cols, rows, ms, kControlRevealSpread, kControlRevealPadPx,
           QString::fromLatin1(kControlRevealObjectName));
-      if (fx) trackRevealFx(w, fx);
+      if (fx) {
+        trackRevealFx(w, fx);
+        fx->setFollow(w);   // a sibling's slot opening in the same turn moves this one
+      }
       return fx;
     }
 
@@ -171,7 +176,10 @@ namespace stencil::gui {
       shrink->setDuration(kControlRevealOutMs);
       shrink->setStartValue(naturalW);
       shrink->setEndValue(0);
-      shrink->setEasingCurve(QEasingCurve::InCubic);
+      // A gentle S, not InCubic: a strong ease-in barely moves for its first 200ms and
+      // then snaps shut, which reads as a glitch (the same reason the modal's own close
+      // eases the way it does). The grow's OutCubic is its mirror.
+      shrink->setEasingCurve(QEasingCurve::InOutCubic);
       QPointer<QWidget> guard(w);
       QObject::connect(shrink, &QPropertyAnimation::finished, w, [guard, savedMax] {
         if (!guard) return;

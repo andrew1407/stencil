@@ -107,10 +107,13 @@ namespace stencil::gui {
   }
 
   namespace {
-    // macOS composites raw pixels as if already in the DISPLAY's space, so on a
-    // wide-gamut (P3) Mac an sRGB hex paints over-saturated vs the colour-managed
-    // browser. Encode sRGB into P3 so both surfaces match; identity off macOS.
-    QColor displayColor(const QColor& c) {
+    // The app paints the SAME sRGB hex the browser does — no colour-space encoding.
+    // Encoding into Display P3 on macOS was a second conversion (Qt's surface is
+    // colour-managed too) and washed every themed colour out. Kept as a named seam: if a
+    // platform ever hands us an unmanaged surface, this is the one place to change.
+    QColor displayColor(const QColor& c) { return c; }
+
+    [[maybe_unused]] QColor encodeDisplayP3(const QColor& c) {
 #ifdef Q_OS_MACOS
       if (!c.isValid()) return c;
       const auto toLinear = [](double v) {
@@ -159,31 +162,37 @@ namespace stencil::gui {
     return 1.05 / (l + 0.05) < 3.0;
   }
 
-  namespace {
-    // Linear sRGB mix, matching CSS color-mix(in srgb, a (1-t), b t) used by the
-    // web themes for the accent shade + glows.
-    QColor mixSrgb(const QColor& a, const QColor& b, double t) {
-      return QColor::fromRgbF(a.redF() * (1 - t) + b.redF() * t,
-                              a.greenF() * (1 - t) + b.greenF() * t,
-                              a.blueF() * (1 - t) + b.blueF() * t);
-    }
-    // The --accent-2 shade: darker in light mode, lighter in dark — the same
-    // ratios as browser/css/theme.css (86% accent + 14% black / 78% + 22% white).
-    QColor accentShade(const QColor& primary, bool dark) {
-      return dark ? mixSrgb(primary, QColor(Qt::white), 0.22)
-                  : mixSrgb(primary, QColor(Qt::black), 0.14);
-    }
-  }  // namespace
+  // Linear sRGB mix, matching CSS color-mix(in srgb, a (1-t), b t) used by the
+  // web themes for the accent shade + glows.
+  QColor mixSrgb(const QColor& a, const QColor& b, double t) {
+    return QColor::fromRgbF(a.redF() * (1 - t) + b.redF() * t,
+                            a.greenF() * (1 - t) + b.greenF() * t,
+                            a.blueF() * (1 - t) + b.blueF() * t);
+  }
+  // The --accent-2 shade: darker in light mode, lighter in dark — the same
+  // ratios as browser/css/theme.css (86% accent + 14% black / 78% + 22% white).
+  QColor accentShade(const QColor& primary, bool dark) {
+    return dark ? mixSrgb(primary, QColor(Qt::white), 0.22)
+                : mixSrgb(primary, QColor(Qt::black), 0.14);
+  }
+
+  QColor dangerHover(bool dark) { return dark ? QColor("#e8455a") : QColor("#b71d30"); }
 
   // Values copied verbatim from browser/css/theme.css + the DEFAULT_VISUALS block
   // of browser/js/config/constants.json. accent + textKey (= --accent-2) are then
   // overridden from the chosen accentKey, so the whole app recolours.
+  QColor infoBackground(bool dark) {
+    return displayColor(dark ? QColor("#2d2d2d") : QColor("#e9ecef"));
+  }
+
   Palette themePalette(bool dark, const QString& accentKey) {
     static const Palette light{
         QColor("#f0f0f0"), QColor("#ffffff"), QColor("#f8f9fa"),
         QColor("#fff8e1"), QColor("#dddddd"), QColor("#dddddd"),
         QColor("#f0b429"), QColor("#000000"), QColor("#888888"),
-        QColor("#7a5c00"), QColor("#6d28d9"), QColor("#ffffff"),
+        QColor("#7a5c00"),
+        QColor("#d99e0b"), QColor("#b7791f"), QColor("#ffffff"),   // --bg-sel-btn / hov / text
+        QColor("#6d28d9"), QColor("#ffffff"),
         QColor("#000000"), QColor("#7c3aed"), QColor("#d6293e"),
         QColor("#ffc800"), QColor("#7c3aed"), QColor("#e9ecef"),
     };
@@ -191,7 +200,9 @@ namespace stencil::gui {
         QColor("#1a1a1a"), QColor("#242424"), QColor("#2d2d2d"),
         QColor("#2e2a17"), QColor("#444444"), QColor("#555555"),
         QColor("#b8860b"), QColor("#e0e0e0"), QColor("#aaaaaa"),
-        QColor("#e0b84a"), QColor("#9b6cf2"), QColor("#333333"),
+        QColor("#e0b84a"),
+        QColor("#b8860b"), QColor("#9a7009"), QColor("#ffffff"),   // --bg-sel-btn / hov / text
+        QColor("#9b6cf2"), QColor("#333333"),
         QColor("#e0e0e0"), QColor("#6d28d9"), QColor("#f0697a"),
         QColor("#ffc800"), QColor("#7c3aed"), QColor("#3a3a3a"),
     };
@@ -199,6 +210,7 @@ namespace stencil::gui {
     // Every token goes to the display's space, so reds/golds match the browser too.
     for (QColor* f : {&p.bgPage, &p.bgContainer, &p.bgControls, &p.bgSelPanel, &p.borderMain,
                       &p.borderCanvas, &p.borderSel, &p.textMain, &p.textMuted, &p.textSelLabel,
+                      &p.bgSelBtn, &p.bgSelBtnHov, &p.textSelBtn,
                       &p.textKey, &p.inputBg, &p.inputText, &p.accent, &p.danger, &p.selGlow,
                       &p.hoverRing, &p.bgCoordHover})
       *f = displayColor(*f);
@@ -271,7 +283,10 @@ namespace stencil::gui {
     const QColor borderTooltip = displayColor(dark ? QColor("#7f8fa6") : QColor("#2c3e50"));
     // --bg-info (browser theme.css): the neutral info fill — the projects rows' hover
     // wash and the inline-rename editor's chip/input surface.
-    const QColor bgInfo = displayColor(dark ? QColor("#2d2d2d") : QColor("#e9ecef"));
+    const QColor bgInfo = infoBackground(dark);
+    // --success (browser theme.css), lifted toward the light on dark like the reds are.
+    // The "today" outline in the expiration calendar is the only thing wearing it so far.
+    const QColor success = displayColor(dark ? QColor("#4cc471") : QColor("#2e9e4f"));
 
     // One stylesheet covering the widgets the app uses. Tracks browser/css —
     // page backdrop, gradient controls, the brand accent, rounded inputs/lists,
@@ -353,12 +368,20 @@ namespace stencil::gui {
         background: %SEL_BG%; border: 2px solid %SEL_BORDER%; border-radius: 6px;
       }
       QLabel#selectedLineLabel { color: %SEL_LABEL%; font-weight: 700; background: transparent; }
-      QLabel#selectedLineFieldLabel { color: %TEXT%; font-weight: 600; background: transparent; }
-      QWidget#selectedLineCard QPushButton,
-      QWidget#selectedLineCard QComboBox,
-      QWidget#selectedLineCard QSpinBox {
-        min-height: 20px; padding: 3px 8px; border-radius: 4px;
+      QLabel#selectedLineFieldLabel { color: %SEL_LABEL%; font-weight: 600; background: transparent; }
+      /* Paddings ARE the browser's: its number/select fields are 8px 12px (34px tall),
+         and the three buttons each carry their own — a cramped 3px 8px on everything made
+         the row read as a different, tighter component than the browser's. */
+      /* The bar's own hairline separators, in its amber (browser .sel-sep). */
+      QFrame#selectedLineSep { background: %SEL_BORDER%; border: none; max-width: 1px; min-width: 1px; }
+      QWidget#selectedLineCard QComboBox { min-height: 18px; padding: 7px 11px; border-radius: 4px; }
+      /* A spin box carries its own step arrows, so the same padding stands it 5px taller
+         than the combo — it gets its own to land on the browser's 34px too. */
+      QWidget#selectedLineCard QSpinBox,
+      QWidget#selectedLineCard QLineEdit {
+        min-height: 18px; padding: 4px 11px; border-radius: 4px;
       }
+      QWidget#selectedLineCard QPushButton { padding: 5px 10px; border-radius: 4px; }
       QWidget#selectedLineCard QPushButton {
         background: %BG_CONTROLS%; border: 1px solid %BORDER%; color: %TEXT%;
       }
@@ -370,9 +393,23 @@ namespace stencil::gui {
          (QWidget#selectedLineCard) or the generic rule's extra type selector actually wins
          instead and the button renders in the plain control style with no accent hover. */
       QWidget#selectedLineCard QPushButton#selectedLineDeselect {
-        background: %DESELECT_BG%; color: white; border: none; font-weight: 600;
+        background: %DESELECT_BG%; color: %SEL_BTN_TEXT%; border: none; font-weight: 600;
+        padding: 4px 12px;
       }
       QWidget#selectedLineCard QPushButton#selectedLineDeselect:hover { background: %DESELECT_HOVER%; }
+      /* Clear-fill and Unchain wear the BAR's amber, not the app accent (browser
+         #sel-fill-clear / #sel-unchain). After the generic rule for the same
+         source-order reason Deselect is. */
+      QWidget#selectedLineCard QPushButton#selectedLineFillClear,
+      QWidget#selectedLineCard QPushButton#selectedLineUnchain {
+        background: %SEL_BTN%; color: %SEL_BTN_TEXT%; border: none;
+      }
+      /* Clear-fill takes the generic button box (no override): it is a full-height control
+         beside Unchain and Deselect now, not the small cross that sat low in the row. */
+      QWidget#selectedLineCard QPushButton#selectedLineFillClear:hover,
+      QWidget#selectedLineCard QPushButton#selectedLineUnchain:hover { background: %SEL_BTN_HOV%; }
+      QWidget#selectedLineCard QComboBox:focus,
+      QWidget#selectedLineCard QSpinBox:focus { border-color: %SEL_BORDER%; }
       /* Controls collapse pill: an outlined pill, not bare text — the browser's
          #toggle-controls (1px border, 16px radius, 12px label). */
       QToolButton#controlsPill {
@@ -387,6 +424,24 @@ namespace stencil::gui {
       }
       QToolButton:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
       QToolButton:pressed { background: %ACCENT_SOFT2%; }
+      /* The ✎ / 🎨 beside the project name: chips with a ground, the way the browser
+         paints them (ordinary buttons on --bg-info inside --border-main). Bare, they read
+         as loose glyphs until the cursor found one. The accent hover above still applies. */
+      QToolButton[nameAffordance="true"] {
+        background: %BG_INFO%; border: 1px solid %BORDER%;
+      }
+      /* Under the cursor it takes the app's own accent, SOLID — the browser's
+         `button:hover { background: var(--accent-2) }` — with the glyph flipping to white
+         through QIcon::Active (mainWindowTheme.cpp). The soft tint every other tool button
+         wears was barely visible on these two (user report). Restated at this rule's own
+         weight because an attribute selector outranks the plain `QToolButton:hover`. */
+      QToolButton[nameAffordance="true"]:hover {
+        background: %ACCENT2%; border-color: %ACCENT2%; color: white;
+      }
+      QToolButton[nameAffordance="true"]:pressed { background: %ACCENT%; border-color: %ACCENT%; }
+      QToolButton[nameAffordance="true"]:disabled {
+        background: %DISABLED_BG%; border-color: %BORDER%;
+      }
       /* The Resend/Retry icon under a failed turn: no fill at all on hover, just its
          own muted glyph colour traced as a thin outline (browser .chat-retry-cta /
          extension .chat-retry parity) — the generic accent-soft fill read as a stray
@@ -732,6 +787,54 @@ namespace stencil::gui {
          shared 560px modal width the connect hint has to land on ONE line as it does
          in the browser. */
       QLabel#modalFooterHint { color: %MUTED%; font-size: 11px; background: transparent; }
+      /* The prompt dialog's field (modalChrome.cpp promptModal) — the browser's
+         .confirm-prompt-input and its multi-line twin: the input fill, a hairline
+         that turns accent on focus, 8px radius. The line-edit half already gets
+         that from the shared QLineEdit rule; only the text area needs its own. */
+      QPlainTextEdit#modalPromptText {
+        background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
+        border-radius: 8px; padding: 5px 7px;
+        selection-background-color: %ACCENT%; selection-color: white;
+      }
+      QPlainTextEdit#modalPromptText:hover { border-color: %ACCENT_RING%; }
+      QPlainTextEdit#modalPromptText:focus { border: 2px solid %ACCENT%; padding: 4px 6px; }
+      /* ── Expiration dialog (dialogs/expirationDialog.cpp) — the browser's own
+         calendar, not Qt's: .exp-calendar is a bordered card on the controls fill,
+         its head a ‹ month year › row, and each day a small transparent cell that
+         tints on hover. Today and the expiry day carry the two outlines the legend
+         swatches repeat; both colours are set per widget in code (the palette has no
+         success token), so only the neutral shapes live here. ── */
+      QFrame#expCalendar {
+        background: %BG_CONTROLS%; border: 1px solid %BORDER%; border-radius: 8px;
+      }
+      QLabel#expCalTitle { font-weight: bold; font-size: 13px; background: transparent; }
+      QLabel#expCalWeekday { color: %MUTED%; font-size: 10px; background: transparent; }
+      QToolButton#expCalNav {
+        background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 2px;
+      }
+      QToolButton#expCalNav:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
+      QToolButton#expCalNav:disabled { background: transparent; border-color: transparent; }
+      QToolButton#expCalDay {
+        background: transparent; border: 2px solid transparent; border-radius: 5px;
+        color: %TEXT%; font-size: 11px; padding: 0px;
+      }
+      QToolButton#expCalDay:hover { background: %BG_COORD_HOVER%; }
+      QToolButton#expCalDay:disabled { color: %MUTED%; background: transparent; }
+      /* .is-today / .is-expiry. A cell that is both wears "expiry", exactly as the
+         browser's later rule wins over the earlier one. */
+      QToolButton#expCalDay[expDay="today"] { border-color: %SUCCESS_RING%; color: %TEXT%; }
+      QToolButton#expCalDay[expDay="expiry"] {
+        border-color: %ACCENT_RING%; background: %ACCENT_SOFT%; color: %TEXT%; font-weight: bold;
+      }
+      /* The legend's two 12px chips repeat those outlines (.exp-swatch). */
+      QFrame#expSwatchToday {
+        border: 2px solid %SUCCESS_RING%; border-radius: 3px; background: transparent;
+      }
+      QFrame#expSwatchExpiry {
+        border: 2px solid %ACCENT_RING%; border-radius: 3px; background: %ACCENT_SOFT%;
+      }
+      QLabel#expProjectName { font-weight: bold; background: transparent; }
+      QLabel#expLegend { color: %MUTED%; font-size: 11px; background: transparent; }
       /* Assistant modal extras (llmSettingsForm.cpp): the tinted help note
          (browser .chat-cors-note — accent-tinted fill, solid hint border, muted
          12px type) and the label-less status row's muted text
@@ -754,7 +857,11 @@ namespace stencil::gui {
         background: %BG_INFO%; border: 1px solid %BORDER%; border-radius: 5px;
         padding: 2px 7px;
       }
-      QToolButton#projectsRenameBtn:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
+      QToolButton#projectsRenameBtn:hover:enabled { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
+      /* A dead ✓ (nothing changed, or the name is rejected) recedes and stops answering
+         hover — the browser's .name-edit-btn:disabled { opacity: .4 }. Qt greys the glyph
+         itself; the chip's own face is what has to fade with it. */
+      QToolButton#projectsRenameBtn:disabled { background: %DISABLED_BG%; border-color: %BORDER%; }
       /* Browser .vs-row form rows (open-image dialog): a hairline under each row and a
          plain-weight 13px label column (components.css .vs-row / its label). */
       QWidget[vsRow="true"] { background: transparent; border-bottom: 1px solid %BORDER%; }
@@ -819,7 +926,9 @@ namespace stencil::gui {
          ordinary QFrame, so it counts its box once — hence the browser's real padding
          here rather than QTipLabel's doubled 2px. */
       QFrame#stencilAppTooltip {
-        background: %BG_CONTROLS%; border: 1px solid %ACCENT_RING%;
+        /* --bg-info, like the browser's #app-tooltip — its own raised fill, not the
+           toolbar's (the accent ring below is already shared with it). */
+        background: %BG_INFO%; border: 1px solid %ACCENT_RING%;
         border-radius: 6px; padding: 7px 10px;
       }
       QLabel#stencilAppTooltipBody { background: transparent; color: %TEXT%; }
@@ -863,7 +972,9 @@ namespace stencil::gui {
         .replace("%ACCENT_RING%", rgba(p.accent, 0.45))
         .replace("%ACCENT2%", c(accent2))
         // Status reds mirror browser/css/theme.css --danger/--danger-2 (per theme).
-        .replace("%DANGER2%", dark ? QStringLiteral("#e8455a") : QStringLiteral("#b71d30"))
+        .replace("%SUCCESS_RING%", rgba(success, 0.55))
+        .replace("%SUCCESS%", c(success))
+        .replace("%DANGER2%", dangerHover(dark).name())
         .replace("%DANGER%", dark ? QStringLiteral("#f0697a") : QStringLiteral("#d6293e"))
         // "Selected Line:" bar amber, mirroring browser/css/components.css
         // --bg-sel-panel / --border-sel / --text-sel-label (per theme). Routed through
@@ -873,11 +984,14 @@ namespace stencil::gui {
         .replace("%SEL_BG%", c(p.bgSelPanel))
         .replace("%SEL_BORDER%", c(p.borderSel))
         .replace("%SEL_LABEL%", c(p.textSelLabel))
+        .replace("%SEL_BTN_TEXT%", c(p.textSelBtn))
+        .replace("%SEL_BTN_HOV%", c(p.bgSelBtnHov))
+        .replace("%SEL_BTN%", c(p.bgSelBtn))
         // The Deselect CTA's browser-hardcoded orange (layout.css .deselect-btn, no
         // light/dark variant) — same display-space conversion, or it reads noticeably
         // more saturated/brighter here than the color-managed browser rendering.
-        .replace("%DESELECT_BG%", c(displayColor(QColor("#e67e22"))))
-        .replace("%DESELECT_HOVER%", c(displayColor(QColor("#ca6f1e"))))
+        .replace("%DESELECT_BG%", c(p.bgSelBtn))
+        .replace("%DESELECT_HOVER%", c(p.bgSelBtnHov))
         .replace("%DISABLED_BG%", c(disabledBg))
         .replace("%BG_PAGE%", c(p.bgPage))
         .replace("%BG_CONTAINER%", c(p.bgContainer))

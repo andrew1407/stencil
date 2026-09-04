@@ -40,6 +40,9 @@ export class ExportService {
     const ctx = offscreen.getContext('2d');
     const savedCtx = app.ctx;
     app.ctx = ctx;
+    // An export is the RESTING picture: a vertex still flying would otherwise be baked
+    // in mid-air, with its spark, by a Ctrl+C landing during the animation.
+    app.strokeFx.suspend();
     if (variant === 'original') {
       ctx.filter = 'none';
       ctx.drawImage(app.image, 0, 0);
@@ -60,6 +63,7 @@ export class ExportService {
       }
     }
     app.ctx = savedCtx;
+    app.strokeFx.resume();
     return offscreen;
   }
 

@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { InputController } = await import('../js/core/inputController.js');
+const { InputController, holdDrawEligible } = await import('../js/core/inputController.js');
 
 const makeApp = (over = {}) => {
   const rec = { save: 0 };
@@ -62,4 +62,26 @@ test('holdAnchorPoint: forward-extend anchors to the point before the insert tai
   });
   // forward mode (default, #holdPrepend=false) → pts[continueInsertIdx-1] = pts[1]
   assert.deepEqual(new InputController(app).holdAnchorPoint(), { x: 5, y: 5 });
+});
+
+// ── holdDrawEligible: which press may become a hold-to-draw stroke ──────────
+const pressable = (over = {}) => ({ image: {}, isDrawing: false, drawMode: 'line', ...over });
+
+test('holdDrawEligible: a plain press on an image with drawing off arms the hold', () => {
+  assert.equal(holdDrawEligible(pressable()), true);
+});
+
+test('holdDrawEligible: the rect tool never seeds a freehand line', () => {
+  // Rect draws AREAS by dragging: holding with it selected used to start a line, so the
+  // tool you picked drew the wrong shape. Mirrored by the desktop's eligibleHold.
+  assert.equal(holdDrawEligible(pressable({ drawMode: 'rect' })), false);
+});
+
+test('holdDrawEligible: no image, manual drawing, or a gesture already running', () => {
+  assert.equal(holdDrawEligible(pressable({ image: null })), false);
+  assert.equal(holdDrawEligible(pressable({ isDrawing: true })), false);
+  for (const busy of ['isPanning', 'isDraggingPoint', 'isDraggingSegment', 'isDraggingLine',
+                      'isZoomRectDragging', 'isRectDrawDragging'])
+    assert.equal(holdDrawEligible(pressable({ [busy]: true })), false, busy);
+  assert.equal(holdDrawEligible(null), false);
 });

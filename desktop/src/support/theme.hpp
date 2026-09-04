@@ -24,6 +24,9 @@ namespace stencil::gui {
     QColor textMain;     // --text-main
     QColor textMuted;    // --text-muted
     QColor textSelLabel; // --text-sel-label
+    QColor bgSelBtn;     // --bg-sel-btn       (the bar's own amber buttons)
+    QColor bgSelBtnHov;  // --bg-sel-btn-hov
+    QColor textSelBtn;   // --text-sel-btn     (their glyph/label — per theme, see theme.css)
     QColor textKey;      // --text-key         (shortcut keys)
     QColor inputBg;      // --input-bg
     QColor inputText;    // --input-text
@@ -60,6 +63,21 @@ namespace stencil::gui {
   // so the accent can vary. (Named themePalette, not palette, to avoid shadowing
   // QWidget::palette().)
   Palette themePalette(bool dark, const QString& accentKey = "violet");
+
+  // --bg-info (css/theme.css): the neutral "raised" fill the app's info boxes and row
+  // hovers use. Not in Palette (the QSS reaches it as %BG_INFO%), but the connections
+  // rows build their own sheet and need the browser's exact value.
+  QColor infoBackground(bool dark);
+
+  // --danger-2: the hover shade the QSS spends as %DANGER2%. Same reason as infoBackground
+  // — a widget that builds its own sheet needs the value the stylesheet would have used.
+  QColor dangerHover(bool dark);
+
+  // CSS color-mix(in srgb, a (1-t), b t) — the accent shade, the glows and the row washes.
+  QColor mixSrgb(const QColor& a, const QColor& b, double t);
+  // The --accent-2 shade: darker in light mode, lighter in dark, at theme.css's own
+  // 86/14 · 78/22 ratios.
+  QColor accentShade(const QColor& primary, bool dark);
 
   // QSS geometry the code also measures against — buildStylesheet interpolates these,
   // so the stylesheet and the arithmetic can't drift.

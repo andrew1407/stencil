@@ -5,6 +5,7 @@
     ["Ctrl + Shift + wheel", "Rotate the selected line around its center — or the focused point if one is selected."],
     ["Alt + drag", "Pan the canvas; over a point/segment it drags that instead."],
     ["Alt + Shift + drag", "Move a whole line."],
+    ["Alt + Ctrl + drag", "Pull a NEW point out of the line under the cursor and drag it; on a closed area the same pull breaks it open at that spot."],
     ["Shift + drag", "Zoom to the dragged rectangle."],
     ["Middle-drag", "Pan the canvas."],
     ["Alt / Middle double-click", "Reset zoom to fit the window."],
@@ -16,6 +17,7 @@
     ["Click (line mode)", "Add a point to the line being drawn."],
     ["Click the first point", "Close the shape into a locked, fillable area."],
     ["Drag (rect mode)", "Sweep out a rectangle: 4 corner points, a locked area."],
+    ["Unchain", "Turn a closed area (a closed shape or a rectangle) back into an open line — the button on the selected-line bar, or Alt+Ctrl+drag on the line itself."],
     ["Ctrl + click (empty)", "Add a new point; connects to the selected line/point if one is selected."],
     ["Ctrl + click (on a line)", "Insert a new point between the two connecting points."],
     ["Double-click a line", "Delete that line."]

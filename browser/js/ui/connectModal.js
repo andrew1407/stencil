@@ -1,13 +1,13 @@
 import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
-import { icon } from './icons.js';
+import { icon, setSelectAllFace } from './icons.js';
 import { getAutoConnect, setAutoConnect, getSyncToServer, setSyncToServer } from '../net/connectionStore.js';
 import { isExpiredSession } from '../net/connectionManager.js';
 import { normalizeUrl, isInsecureRemote } from '../net/connectionManager.js';
 import { setTranslucentDragImage } from './dragGhost.js';
 import { makeTouchDraggable } from './touchDrag.js';
 import { leaveThenRemove, scatterGridFor, materialize, createListHold, emptyStateVisible,
-  createFilterAnimator } from './motion.js';
+  createFilterAnimator, revealControls } from './motion.js';
 import { canRefreshList } from './projectsModal.js';
 
 // Three-way credential filter over the connections list: all | admin | non-admin.
@@ -60,13 +60,21 @@ export class StencilConnectModal extends StencilElement {
                         <option value="non-admin">Non-admin</option>
                     </select>
                 </div>
-                <!-- Batch-select toolbar: appears once one or more connections are checked. -->
+                <!-- Batch-select toolbar: the projects bar's shape — it stays while the list
+                     has rows (it hosts Select all), and only the count + the selection
+                     actions come and go with the checked set (updateBatchBar). -->
                 <div class="connect-batch-bar" id="connect-batch-bar" style="display:none">
-                    <span class="connect-batch-count" id="connect-batch-count">0 selected</span>
+                    <span class="connect-batch-count" id="connect-batch-count" style="display:none">0 selected</span>
                     <span class="connect-batch-actions">
+                        <!-- Select all ↔ Deselect all: the one toggle is also the bar's "clear"
+                             (a separate Clear did the same thing as Deselect all). -->
+                        <button id="connect-select-all" class="btn-icon-text" style="display:none" title="Select every listed connection (the current filter's rows)">${icon('check', { size: 13 })}<span>Select all</span></button>
+                        <!-- The selection-only actions come and go as ONE group, so the swap is a
+                             single flight instead of a button-by-button scramble. -->
+                        <span class="connect-batch-selected" id="connect-batch-selected" style="display:none">
                         <button id="connect-batch-reconnect" class="btn-icon-text" title="Reconnect the selected servers">${icon('refresh', { size: 13 })}<span>Reconnect</span></button>
                         <button id="connect-batch-disconnect" class="danger btn-icon-text" title="Disconnect (and forget) the selected servers">${icon('trash', { size: 13 })}<span>Disconnect</span></button>
-                        <button id="connect-batch-clear" class="btn-icon-text" title="Clear selection">${icon('x', { size: 13 })}<span>Clear</span></button>
+                        </span>
                     </span>
                 </div>
                 <div id="connect-list"><!-- filled by JS --></div>
@@ -99,17 +107,33 @@ export class StencilConnectModal extends StencilElement {
     const batchBtns = {
       reconnect: $('connect-batch-reconnect'),
       disconnect: $('connect-batch-disconnect'),
-      clear: $('connect-batch-clear'),
     };
-    const updateBatchBar = () => {
-      batchBar.style.display = selected.size ? '' : 'none';
-      batchCount.textContent = `${selected.size} selected`;
-    };
+    const selectAllBtn = $('connect-select-all');
+    const selectedGroup = $('connect-batch-selected');
 
     // ── Credential filter (view state only — deliberately NOT persisted) ──
     const filterEl = $('connect-filter');
     let filterMode = 'all';
     let shownUrls = new Set();   // urls the last render actually listed
+
+    // Select-all works over the CURRENT render's rows (the filtered view), so a
+    // filtered "select all" never sweeps up connections the user cannot see.
+    const allSelected = () => shownUrls.size > 0 && [...shownUrls].every((u) => selected.has(u));
+    const updateSelectAll = () => setSelectAllFace(selectAllBtn, allSelected());
+    const updateBatchBar = () => {
+      // The projects selection bar's exact shape (projectsModal.js updateBatchBar): the
+      // bar stays put while the list has rows (it hosts Select all) and only the count and
+      // the selection actions come and go, as the app's control swap (motion.js
+      // revealControls). A bar that never moves has no list jumping beneath it.
+      batchBar.style.display = (selected.size || shownUrls.size) ? '' : 'none';
+      batchCount.textContent = `${selected.size} selected`;
+      revealControls(batchCount, selected.size > 0);
+      // ONE flight for the group, not one per button: a control's dust is photographed
+      // where it sits, and siblings revealed in the same turn are still sliding.
+      revealControls(selectedGroup, selected.size > 0);
+      revealControls(selectAllBtn, shownUrls.size > 0);
+      updateSelectAll();
+    };
 
     // ── Drag-reorder / drag-out-to-remove state ──
     // draggingUrl: the row being dragged; didReorder: an in-list drop already reordered
@@ -375,7 +399,11 @@ export class StencilConnectModal extends StencilElement {
       render();
       if (done) notify(`${okMsg} (${done})`, 'ok');
     };
-    batchBtns.clear.addEventListener('click', () => { selected.clear(); render(); });
+    selectAllBtn?.addEventListener('click', () => {
+      if (allSelected()) selected.clear();
+      else for (const u of shownUrls) selected.add(u);
+      render();   // re-syncs every row's checkbox; ends in updateBatchBar
+    });
     batchBtns.reconnect.addEventListener('click', () => runConnBatch(u => mgr().reconnectOne(u), 'Reconnected', 'Reconnect failed'));
     batchBtns.disconnect.addEventListener('click', async () => {
       if (!selected.size) return;
@@ -446,7 +474,9 @@ export class StencilConnectModal extends StencilElement {
     syncEl.addEventListener('change', () => setSyncToServer(syncEl.checked));
 
     wireModalShell(overlay, $('connect-btn'), $('connect-close'), {
-      onOpen: () => { autoEl.checked = getAutoConnect(); syncEl.checked = getSyncToServer(); render(); },
+      // A selection is a transient of one visit: reopening starts unchecked, exactly as
+      // the projects modal does (clearSelection on its onOpen) — user decision.
+      onOpen: () => { autoEl.checked = getAutoConnect(); syncEl.checked = getSyncToServer(); selected.clear(); render(); },
       // Closing mid-animation finalizes every pending wipe NOW (render + height
       // release), so a half-removed row can't reappear when the modal next opens.
       onClose: () => hold.finalizeAll(),

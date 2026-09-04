@@ -2,18 +2,20 @@
 #include <QDialog>
 #include <QString>
 
-class QCalendarWidget;
 class QCheckBox;
 class QComboBox;
+class QFrame;
+class QGridLayout;
 class QLabel;
 class QPushButton;
+class QToolButton;
+class QWidget;
 
-// Project-expiration editor. Mirrors browser/js/ui/expirationModal.js: a refresh-
-// period selector + Refresh button seed "now + period", a QCalendarWidget lets the
-// user pick any future day (today and the expiry day highlighted in two colors,
-// past days disabled), a "keep forever" checkbox (confirmed) clears the date, and
-// an "auto-refresh on open" checkbox restarts the window each time the project is
-// opened. exec(), then read expiresAtMs()/refreshPeriod()/autoRefresh(). Local only.
+// Project-expiration editor, mirroring browser/js/ui/expirationModal.js chrome and all:
+// a refresh-period selector + Refresh seeding "now + period", a hand-built month grid
+// (not QCalendarWidget, whose nav bar and weekday header are nothing like the browser's),
+// a confirmed "keep forever" that clears the date, and an "auto-refresh on open".
+// exec(), then read expiresAtMs()/refreshPeriod()/autoRefresh(). Local only.
 namespace stencil::gui {
 
   class ExpirationDialog : public QDialog {
@@ -28,19 +30,30 @@ namespace stencil::gui {
     bool autoRefresh() const;
 
    private:
+    bool keep() const;                  // keep-forever — the checkbox IS the state
     void seedFromPeriod();              // expiresAt = now + selected period
     void toggleKeepForever();
-    void repaintCalendar();
-    void syncControls();
+    bool atFloor() const;               // the view month is the current one (or earlier)
+    void setViewToExpiry();
+    void renderControls();
+    void renderCalendar();
+    void renderAll() { renderControls(); renderCalendar(); }
 
     long long nowMs_ = 0;
     long long expiresAt_ = 0;           // working value (0 = keep forever)
+    int viewY_ = 0;                     // the month the grid is showing
+    int viewM_ = 0;
 
-    QCheckBox* keep_ = nullptr;
+    QCheckBox* keepBox_ = nullptr;
+    QWidget* periodRow_ = nullptr;
     QComboBox* period_ = nullptr;
     QPushButton* refresh_ = nullptr;
     QCheckBox* auto_ = nullptr;
-    QCalendarWidget* calendar_ = nullptr;
+    QFrame* calendar_ = nullptr;
+    QLabel* calTitle_ = nullptr;
+    QGridLayout* calGrid_ = nullptr;
+    QToolButton* prev_ = nullptr;
+    QToolButton* next_ = nullptr;
     QLabel* today_ = nullptr;
     QLabel* when_ = nullptr;
   };

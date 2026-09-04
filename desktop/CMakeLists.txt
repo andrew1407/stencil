@@ -316,6 +316,42 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_tipcontent_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # CSS colours with alpha (support/cssColor.hpp) — the #rrggbbaa form the browser writes,
+  # which Qt's own QColor does not parse (its hex alpha comes FIRST). Header-only.
+  add_executable(stencil_csscolor_headless tests/cssColor.headless.cpp)
+  target_include_directories(stencil_csscolor_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_csscolor_headless PRIVATE Qt6::Gui)
+  add_test(NAME stencil_csscolor_headless COMMAND stencil_csscolor_headless)
+  set_tests_properties(stencil_csscolor_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Closing a shape and the ways back out of one (canvas/chainEdit.hpp) — the ring
+  # helpers plus the Alt+Ctrl pull-out gesture on the real widget.
+  add_executable(stencil_chainedit_headless
+    tests/chainEdit.headless.cpp
+    src/canvas/canvasWidget.cpp
+    src/support/theme.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_chainedit_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_chainedit_headless PRIVATE stencil_core Qt6::Widgets)
+  add_test(NAME stencil_chainedit_headless COMMAND stencil_chainedit_headless)
+  set_tests_properties(stencil_chainedit_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Stroke growth (canvas/strokeGrowth.hpp) — where a just-added vertex is at a given
+  # instant, and the flight bookkeeping behind it. Header-only, but it names core::Point /
+  # core::Line, so it links the core.
+  add_executable(stencil_strokegrowth_headless
+    tests/strokeGrowth.headless.cpp
+    src/canvas/canvasWidget.cpp
+    src/support/theme.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_strokegrowth_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_strokegrowth_headless PRIVATE stencil_core Qt6::Widgets)
+  add_test(NAME stencil_strokegrowth_headless COMMAND stencil_strokegrowth_headless)
+  set_tests_properties(stencil_strokegrowth_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
   # Scroll-reveal curve (app/scrollReveal.hpp) — how dim a row is at a given spot in its
   # scroller; header-only, so the test is the only extra compile unit.
   add_executable(stencil_scrollreveal_headless tests/scrollReveal.headless.cpp)
@@ -554,6 +590,7 @@ if(Qt6_FOUND)
     src/net/serverClient.cpp
     src/net/connectionStore.cpp
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
+    src/support/theme.cpp         # …and its colour wells take the theme's input chrome
     src/support/iconSet.cpp
     src/support/modalReveal.cpp
     src/support/menuReveal.cpp    # searchCombo's popup plays this dust
@@ -576,6 +613,7 @@ if(Qt6_FOUND)
     src/net/serverClient.cpp
     src/net/connectionStore.cpp
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
+    src/support/theme.cpp         # …and its colour wells take the theme's input chrome
     src/support/iconSet.cpp
     src/support/modalReveal.cpp
     src/support/menuReveal.cpp    # searchCombo's popup plays this dust
@@ -597,10 +635,13 @@ if(Qt6_FOUND)
   add_executable(stencil_projectsbatch_headless
     tests/projectsBatchBar.headless.cpp
     src/support/modalChrome.cpp
+    src/support/tipContent.cpp    # the rows' rich tooltips (appTooltip.hpp calls into it)
     src/dialogs/projectsDialog.cpp
+    src/dialogs/expirationDialog.cpp  # the ⋯ menu's "Expiration…" opens it in place now
     src/net/serverClient.cpp
     src/io/fileStore.cpp
     src/support/guiHelpers.cpp
+    src/support/theme.cpp         # …and its colour wells take the theme's input chrome
     src/support/iconSet.cpp
     src/support/modalReveal.cpp
     src/support/menuReveal.cpp    # searchCombo's popup plays this dust

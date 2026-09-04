@@ -46,7 +46,7 @@ namespace stencil::gui {
     QString defaultStyle = "solid";   // solid | dashed | dotted
     // Fill for a newly LOCKED area with no fill colour of its own yet (browser
     // DEFAULT_VISUALS.defaultFillColor / layout.js fillState).
-    QString defaultFillColor = "#3399ff";
+    QString defaultFillColor = "#ffffff";
     // Highlight styles (browser DEFAULT_VISUALS.*, same defaults).
     QString selGlowColor = "#ffc800";    // selection highlight glow (lines + points)
     QString hoverRingColor = "#7c3aed";  // hover ring around points

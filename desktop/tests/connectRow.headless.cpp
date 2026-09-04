@@ -7,6 +7,7 @@
 // motion skips to the end. A mock
 // QTcpServer stands in for the collaboration server, so no Go server is needed.
 #include "connectDialog.hpp"
+#include "theme.hpp"   // the app stylesheet these metrics are measured under
 #include "disintegrateOverlay.hpp"
 #include "dissolveEffect.hpp"   // the scroll-edge fade the rows carry
 #include "filterFade.hpp"       // …and the lighter one a FILTER change plays
@@ -24,6 +25,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QScrollBar>
+#include <QSize>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTimer>
@@ -58,6 +60,11 @@ int main(int argc, char** argv) {
   // Keep the dialog's QSettings reads/writes out of the real per-user config.
   QCoreApplication::setOrganizationName("StencilTest");
   QCoreApplication::setApplicationName("connectRowHeadless");
+  // The APP's stylesheet, as main() sets it — without it these metrics are not the app's:
+  // `QListWidget::item { padding: 4px }` takes 8px out of every slot, which is the squeeze
+  // that pushed the row's buttons off their line.
+  app.setStyleSheet(stencil::gui::buildStylesheet(true, "violet"));
+  app.setPalette(stencil::gui::buildQPalette(true, "violet"));
 
   // ── Mock server: any request gets 200 {"token":"tok"} (serves POST /auth/token).
   QTcpServer server;
@@ -107,10 +114,39 @@ int main(int argc, char** argv) {
   check(row && row->width() <= vpw, "row widget no wider than the viewport");
   QLabel* urlLabel = nullptr;
   for (QLabel* l : row->findChildren<QLabel*>())
-    if (l->toolTip() == longUrl) urlLabel = l;
+    if (l->toolTip().endsWith(longUrl)) urlLabel = l;   // "<state> — <url>"
   check(urlLabel != nullptr, "URL label carries the full url on its tooltip");
   check(urlLabel && urlLabel->text() != longUrl, "long URL is not shown verbatim");
   check(urlLabel && urlLabel->text().contains(QChar(0x2026)), "long URL is elided (…)");
+  // ── Row metrics, measured against the browser's .connect-row: a 43-tall card at
+  // padding 8px 10px / gap 12 / radius 8, action buttons 31x25, every child on one centre
+  // line. Qt reaches those only with `border: none` (a 1px one adds 2px to both axes),
+  // and the labelled expired button is pinned to the same box as the trash beside it.
+  check(row->height() == 43, "the row card is the browser's own height");
+  {
+    int centre = -1;
+    bool aligned = true;
+    for (QWidget* w : row->findChildren<QWidget*>()) {
+      if (w->objectName() == QStringLiteral("shimmerOverlay")) continue;   // rides its target
+      const QRect g(w->mapTo(row, QPoint(0, 0)), w->size());
+      // ±1: a widget whose own box is an even height inside an odd slot rounds one way
+      // (the checkbox). Anything further is a real drift off the line.
+      if (centre < 0) centre = g.center().y();
+      else if (qAbs(g.center().y() - centre) > 1) aligned = false;
+    }
+    check(aligned, "every item in the row rides one centre line");
+  }
+  for (QPushButton* b : row->findChildren<QPushButton*>())
+    check(b->size() == QSize(31, 25), "each row action is the browser's 31x25 button");
+  // The row shimmers as one card on hover (browser .connect-row:hover::after), and so
+  // does every control in it — installed per row, since rows are rebuilt on every change
+  // and the dialog-wide pass only ever saw the batch that existed at open.
+  {
+    bool cardSweep = false;
+    for (QWidget* w : row->findChildren<QWidget*>(QStringLiteral("shimmerOverlay")))
+      if (w->parentWidget() == row && w->size() == row->size()) cardSweep = true;
+    check(cardSweep, "the whole row carries a hover shimmer of its own");
+  }
   const auto btns = row->findChildren<QPushButton*>();
   check(btns.size() == 2, "row keeps both trailing action buttons");
   for (QPushButton* b : btns) {
@@ -132,8 +168,8 @@ int main(int argc, char** argv) {
         "…and the row widget fills exactly that slot");
   check(row->objectName() == QStringLiteral("connRow"),
         "a plain connection row is a card like the projects rows");
-  check(list->styleSheet().contains(QStringLiteral("border-radius:6px")),
-        "…styled by the list's own cascading row sheet");
+  check(list->styleSheet().contains(QStringLiteral("border-radius:8px")),
+        "…styled by the list's own cascading row sheet, at the browser's radius");
 
   // ── Hover follows the whole card: Qt sends Enter/Leave to the child under the
   // pointer, and hovering a label must not blink the wash off.
@@ -152,7 +188,8 @@ int main(int argc, char** argv) {
   // ── Removal: retire-then-finalize — slot held, empty state only after the dust.
   QPushButton* disc = row->findChild<QPushButton*>(QStringLiteral("rowDisconnect"));
   check(disc != nullptr, "finds the row's disconnect button");
-  if (disc) check(disc->toolTip() == QStringLiteral("Disconnect"), "…which says what it does");
+  if (disc) check(disc->toolTip() == QStringLiteral("Disconnect (and forget) this server"),
+                  "…which says what it does, in the browser's own words");
   auto* dismiss = new QTimer;  // answers the styled confirm that blocks disc->click()
   dismiss->setInterval(20);
   QObject::connect(dismiss, &QTimer::timeout, [dismiss] {
@@ -233,7 +270,7 @@ int main(int argc, char** argv) {
       check(mrow != nullptr, "compact popover row hosts a widget");
       QLabel* murl = nullptr;
       for (QLabel* l : mrow->findChildren<QLabel*>())
-        if (l->toolTip() == shortUrl) murl = l;
+        if (l->toolTip().endsWith(shortUrl)) murl = l;   // "<state> — <url>"
       check(murl != nullptr, "compact row keeps the URL label");
       // The whole point: a URL this short is shown in FULL, not crushed to "htt…090".
       check(murl && murl->text() == shortUrl,

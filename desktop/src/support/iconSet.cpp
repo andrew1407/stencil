@@ -1,4 +1,6 @@
 #include "iconSet.hpp"
+
+#include <algorithm>
 #include <QApplication>
 #include <QByteArray>
 #include <QColor>
@@ -80,15 +82,18 @@ namespace stencil::gui {
   }
 
   QIcon iconFromMarkup(const QString& inner, const QColor& color, int size, bool shadow,
-                       qreal dprIn, bool withDisabled) {
+                       qreal dprIn, bool withDisabled, int gap) {
     if (inner.isEmpty() || size <= 0) return QIcon();
+    gap = std::max(0, gap);
     const QString hex = color.name();
     const qreal dpr = dprIn > 0 ? dprIn : (qApp ? qApp->devicePixelRatio() : 1.0);
     QSvgRenderer renderer(svgDoc(inner, hex).toUtf8());
     // Rendered at the device pixel ratio so the line-art stays crisp on Retina /
     // fractional-scale displays, then tagged with that ratio.
-    QPixmap pm(QSize(size, size) * dpr);
+    // The glyph fills the left size×size square; `gap` is transparent slack after it.
+    QPixmap pm(QSize(size + gap, size) * dpr);
     pm.fill(Qt::transparent);
+    const QRectF glyphBox(0, 0, size * dpr, size * dpr);
     QPainter painter(&pm);
     painter.setRenderHint(QPainter::Antialiasing, true);
     if (shadow) {
@@ -97,7 +102,7 @@ namespace stencil::gui {
       // Inset by one device pixel so the halo has room instead of being clipped.
       QSvgRenderer dark(svgDoc(inner, QStringLiteral("#000000")).toUtf8());
       const qreal o = dpr;
-      const QRectF box(o, o, pm.width() - 2 * o, pm.height() - 2 * o);
+      const QRectF box = glyphBox.adjusted(o, o, -o, -o);
       painter.setOpacity(0.55);
       for (const QPointF& d : {QPointF(-o, 0), QPointF(o, 0), QPointF(0, -o), QPointF(0, o),
                                QPointF(-o, -o), QPointF(o, -o), QPointF(-o, o), QPointF(o, o)})
@@ -105,7 +110,7 @@ namespace stencil::gui {
       painter.setOpacity(1.0);
       renderer.render(&painter, box);
     } else {
-      renderer.render(&painter);
+      renderer.render(&painter, glyphBox);
     }
     painter.end();
     pm.setDevicePixelRatio(dpr);
@@ -132,7 +137,7 @@ namespace stencil::gui {
   }
 
   QIcon themedIcon(const QString& name, const QColor& color, int size, bool shadow,
-                   qreal dprIn) {
+                   qreal dprIn, int gap) {
     const QString inner = iconTable().value(name);
     if (inner.isEmpty()) return QIcon();
 
@@ -141,15 +146,16 @@ namespace stencil::gui {
     const qreal dpr = dprIn > 0 ? dprIn : (qApp ? qApp->devicePixelRatio() : 1.0);
     static QHash<QString, QIcon> cache;
     const QString key = name + '|' + color.name() + '|' + QString::number(size)
-                        + (shadow ? "|s" : "") + '@' + QString::number(dpr);
+                        + (shadow ? "|s" : "") + '@' + QString::number(dpr)
+                        + (gap > 0 ? "|g" + QString::number(gap) : QString());
     const auto it = cache.constFind(key);
     if (it != cache.constEnd()) return it.value();
 
-    const QIcon icon = iconFromMarkup(inner, color, size, shadow, dpr);
+    const QIcon icon = iconFromMarkup(inner, color, size, shadow, dpr, true, gap);
     cache.insert(key, icon);
     // …and the way back: a QIcon copy keeps its cacheKey, so a button's icon can be
     // traced to the glyph it was made from (iconMotion.hpp's hover lookup).
-    requestIndex().insert(icon.cacheKey(), IconRequest{name, color, size, shadow, dpr});
+    requestIndex().insert(icon.cacheKey(), IconRequest{name, color, size, shadow, dpr, gap});
     return icon;
   }
 

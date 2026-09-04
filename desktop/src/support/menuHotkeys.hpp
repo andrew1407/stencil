@@ -30,6 +30,7 @@
 #include <QVariantAnimation>
 #include <QWidgetAction>
 
+#include <algorithm>
 #include <vector>
 
 namespace stencil::support {
@@ -142,11 +143,22 @@ namespace stencil::support {
         // own findCaps()), since nothing else in this class ever calls capCount() to
         // trigger it — without this the shake ran but painted nothing.
         row.chip->capCount();
-        // A blank run of spaces as wide as the chip itself: the chip paints over it and
-        // the row's real shortcut() is silenced below, so that's all it needs to fit.
-        const int spaceW = qMax(1, menu->fontMetrics().horizontalAdvance(QLatin1Char(' ')));
+        // A blank run of spaces as wide as the chip: the chip paints over it and the row's
+        // real shortcut() is silenced below. Measured, not divided by one space's advance —
+        // that advance is a rounded int, so the quotient over-reserves and leaves a dead
+        // band past the chip that this menu's compact mode exists to remove.
+        const QFontMetrics fm = menu->fontMetrics();
         const int need = row.chip->width();
-        a->setText(label + QLatin1Char('\t') + QString(need / spaceW + 2, QLatin1Char(' ')));
+        // Seeded from one space's advance, then walked to fit: that advance is a rounded
+        // int, so the quotient alone over-reserves and leaves a dead band past the chip
+        // that this menu's compact mode exists to remove — but it lands within a space or
+        // two, which is a couple of measurements rather than one per space.
+        const int spaceW = std::max(1, fm.horizontalAdvance(QLatin1String(" ")));
+        QString run(std::max(0, need / spaceW), QLatin1Char(' '));
+        while (fm.horizontalAdvance(run) < need) run += QLatin1Char(' ');
+        while (!run.isEmpty() && fm.horizontalAdvance(run.left(run.size() - 1)) >= need)
+          run.chop(1);
+        a->setText(label + QLatin1Char('\t') + run);
         // The action keeps its real shortcut() active (still fires) but under Fusion
         // style, a manual "\t"+padding text plus a still-live native shortcut makes
         // QMenuPrivate double up the reserved shortcut column, blowing out the

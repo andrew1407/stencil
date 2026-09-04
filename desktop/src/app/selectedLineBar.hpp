@@ -8,7 +8,7 @@ class QLabel;
 class QPushButton;
 class QSpinBox;
 class QComboBox;
-class QCheckBox;
+class QFrame;
 
 // The "Selected Line:" bar shown above the canvas while a line is selected — port of
 // browser/js/ui/selectionPanel.js's #selection-panel: one flat, amber-bordered row of
@@ -34,16 +34,25 @@ namespace stencil::gui {
     void resizeEvent(QResizeEvent* event) override;
 
    signals:
-    void lineColorChanged(const QString& color);
-    void linePointColorChanged(const QString& pointColor);
+    // `preview` = still being chosen in the picker: apply it to the picture now, but let
+    // the undo step wait (CanvasWidget::mutateSelectedLine debounces it). Trailing and
+    // defaulted, so connections that do not care can keep taking one argument.
+    void lineColorChanged(const QString& color, bool preview = false);
+    void linePointColorChanged(const QString& pointColor, bool preview = false);
     void lineThicknessChanged(int thickness);
     void linePointSizeChanged(int pointSize);
     void lineStyleChanged(const QString& style);
-    void lineFillChanged(const QString& fillColor);  // "transparent" = no fill
+    void lineFillChanged(const QString& fillColor, bool preview = false);  // "transparent" = no fill
+    // Break the closed area back into an open line (browser #sel-unchain).
+    void unchainRequested();
     void deselectRequested();
 
    private:
     QWidget* card_ = nullptr;   // the bordered/rounded box; `this` is just its inset wrapper
+    QPushButton* unchainBtn_ = nullptr;
+    QFrame* fillSep_ = nullptr;   // the hairline that introduces the fill group
+    // Re-assert the height this bar's content needs at its current width (see the .cpp).
+    void refitHeight();
     QPushButton* colorSwatch_ = nullptr;
     QPushButton* pointColorSwatch_ = nullptr;
     QSpinBox* thickness_ = nullptr;
@@ -51,15 +60,14 @@ namespace stencil::gui {
     QComboBox* style_ = nullptr;
     QWidget* fillField_ = nullptr;         // "Fill:" label + fillGroup_, hidden as a unit
     QWidget* fillGroup_ = nullptr;        // locked-area fill, hidden otherwise
-    QCheckBox* fillEnabled_ = nullptr;
     QPushButton* fillSwatch_ = nullptr;
     QPushButton* fillClear_ = nullptr;
     QPushButton* deselectBtn_ = nullptr;
 
     QColor currentColor_{"#FFFF00"};
     QColor currentPointColor_{"#FFFF00"};
-    QColor currentFill_{"#3399ff"};
-    QColor defaultFill_{"#3399ff"};
+    QColor currentFill_{"#ffffff"};
+    QColor defaultFill_{"#ffffff"};
     bool updating_ = false;   // suppress signals while showLine repopulates
   };
 

@@ -1013,10 +1013,16 @@ body.fullscreen-mode #fs-points-panel {
     padding: 12px 18px;
     border-top: 1px solid var(--border-main);
     display: flex;
+    /* Hint left, buttons right, on one line. The hint gets a real flex basis rather than
+       its content minimum, which squeezed it into a tall column beside the buttons; below
+       that basis the row wraps and the buttons take their own line. `:not(:empty)` spares
+       the empty hint span the confirm/open-in dialogs carry purely as a spacer. */
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: 8px;
     align-items: center;
 }
+.settings-footer .footer-hint:not(:empty) { flex: 1 1 150px; text-align: left; }
 /* Composer overflow: only Send stays inline, the rest live behind the … button.
    The menu is anchored to the trigger and floats above the composer. */
 .chat-more-wrap { position: relative; display: inline-flex; }
@@ -1235,7 +1241,13 @@ body.fullscreen-mode #fs-points-panel {
     border-radius: 12px;
     cursor: pointer;
 }
-.app-modal-close:hover { background: var(--bg-info); }
+/* Takes the theme accent on hover, like every other control here and like the desktop's
+   #modalClosePill (ACCENT_SOFT inside an ACCENT_RING). `!important` on the border only
+   because the resting rule above sets it. */
+.app-modal-close:hover {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important;
+}
 .vs-section {
     font-weight: bold;
     font-size: 12px;
@@ -1255,7 +1267,7 @@ body.fullscreen-mode #fs-points-panel {
     font-size: 13px;
 }
 .vs-row label { font-weight: normal; }
-.vs-row input[type="color"] { width: 54px; height: 30px; padding: 2px; cursor: pointer; }
+.vs-row input[type="color"] { width: 46px; height: 24px; padding: 2px; cursor: pointer; }
 .vs-row input[type="number"], .vs-row select { width: 90px; }
 /* Labeled text-field rows (connect/links modals): equal label column so stacked
    inputs share the same left edge regardless of label length. min-width (not a
@@ -1671,10 +1683,6 @@ stencil-fullscreen-layer { display: contents; }
        takes the flex slot the native had, and the trigger fills the wrap. */
     .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
     .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
-    .settings-footer { flex-wrap: wrap; }
-    /* :not(:empty) — the confirm/open-in dialogs use an EMPTY hint span purely as a
-       space-between spacer; giving that one a full line would add a blank row. */
-    .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; }
 }
 /* The compact popover shape (ui/popover.js) squeezes the box to 420px at ANY viewport
    width, so it needs the same wrapping the phone breakpoint applies — keyed on the
@@ -1684,8 +1692,6 @@ stencil-fullscreen-layer { display: contents; }
 .modal-popover .modal-search-bar .modal-filter { flex: 1 1 auto; min-width: 0; max-width: 100%; }
 .modal-popover .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
 .modal-popover .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
-.modal-popover .settings-footer { flex-wrap: wrap; }
-.modal-popover .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; }
 /* Touch: the modal's search/filter controls and footer actions meet the app's ≥40px
    tap-target convention (same rule the chat panel's compact buttons follow). */
 @media (hover: none) and (pointer: coarse) {
@@ -1699,8 +1705,20 @@ stencil-fullscreen-layer { display: contents; }
     display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
     padding: 8px 18px; border-bottom: 1px solid var(--border-main); background: var(--bg-info);
 }
-.projects-batch-count { font-size: 13px; font-weight: 600; color: var(--text-key); }
+/* Never re-flows while its slot closes: the count and Select all collapse by animating
+   max-width to zero under `overflow: hidden`, and wrapping text broke onto a second line
+   instead of being wiped. Same reason .projects-batch-selected stays on one line. */
+.projects-batch-count { font-size: 13px; font-weight: 600; color: var(--text-key); white-space: nowrap; }
+.projects-batch-actions > button { white-space: nowrap; flex: 0 0 auto; }
 .projects-batch-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* The selection-only actions, revealed as one group (projectsModal updateBatchBar).
+   Never wraps and never shrinks: the slot closes by animating max-width to zero under
+   `overflow: hidden`, and a wrapping row re-flowed into a column on the way out. */
+.projects-batch-selected {
+    display: inline-flex; align-items: center; gap: 6px;
+    flex-wrap: nowrap; white-space: nowrap;
+}
+.projects-batch-selected > button { flex: 0 0 auto; }
 .projects-batch-actions button:disabled { opacity: 0.45; cursor: default; }
 .project-thumb {
     width: 56px; height: 56px; flex: 0 0 56px; border-radius: 6px; overflow: hidden;
@@ -1735,7 +1753,7 @@ stencil-fullscreen-layer { display: contents; }
 /* Alt held while hovering: the glance doubles (projectsModal applyZoomScale) — the
    caps double with it, or they clamp the explicit width straight back down. */
 .project-thumb-zoom-xl img { max-width: 50vw; max-height: 40vh; }
-.project-info { flex: 1; min-width: 0; }
+.project-info { flex: 1; min-width: 0; position: relative; }   /* holds the colour swatch (below) */
 .project-name { font-weight: 600; font-size: 14px; color: var(--project-name-fg, #80868f); text-shadow: var(--project-name-shadow, 0 1px 2px rgba(0,0,0,0.55)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Flex row so the date, expiry, and the gold server badge sit on one baseline with
    a consistent gap (instead of the inline-flex badge gluing to / overlapping the date). */
@@ -1820,7 +1838,11 @@ stencil-fullscreen-layer { display: contents; }
    entirely while a menu is open (chatPanel syncJumps) — belt and braces, because an
    arrow showing around a menu's edge reads as broken whatever the stacking says. */
 .project-menu, .chat-row-menu {
-    position: fixed; z-index: 100003; min-width: 184px; padding: 5px;
+    /* Sized to its own widest row, not to a floor: at 184px the menu was wider than anything
+       in it. `max-content` hugs the labels, the smaller floor keeps a two-item menu from
+       looking pinched, and the cap stops a long label running away. */
+    position: fixed; z-index: 100003; width: max-content;
+    min-width: 148px; max-width: min(340px, 90vw); padding: 5px;
     background: var(--bg-container); border: 1px solid var(--border-main); border-radius: 10px;
     box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 2px;
 }
@@ -1838,6 +1860,13 @@ stencil-fullscreen-layer { display: contents; }
 .project-menu-item.is-danger .ic { color: var(--danger); }
 .project-menu-item.is-danger:hover { background: var(--danger); color: #fff; }
 .project-menu-item.is-danger:hover .ic { color: #fff; }
+/* The list's one hidden colour field (projectsModal openColorPicker), moved under the
+   button that opens it. Invisible and inert but never `display: none` — an input with no
+   box sends the picker to the page corner. Cf. #project-color-input. */
+.project-color-picker {
+    position: fixed; width: 1px; height: 1px;
+    opacity: 0; pointer-events: none;
+}
 /* The chat variant hugs its content — the 184px floor stays projects-only. */
 .chat-row-menu { min-width: 0; }
 .chat-row-menu-item { padding: 7px 9px; }
@@ -1904,6 +1933,28 @@ stencil-fullscreen-layer { display: contents; }
     border: 1px solid var(--border-main); background: var(--input-bg); color: var(--text-main);
     font-size: 13px;
 }
+/* The multi-line shape (app.prompt { multiline: true } — keywords, description): the
+   same field, several rows tall. A one-line bar read as "type a word" for values that
+   are routinely a sentence or a list (user report). */
+textarea.confirm-prompt-input {
+    font-family: inherit;
+    line-height: 1.45;
+    resize: vertical;
+    min-height: 62px;
+    /* Dragged past this the field outgrew the modal (capped at 82vh) and its bottom border
+       was clipped by the scrolling body. The cap leaves room for the header, caption,
+       footer and body padding at every window height. */
+    max-height: 50vh;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+/* The accent focus ring the single-line field gets for free — animations.css lists the
+   input TYPES that wear it, and a textarea is not one of them, so it fell back to the
+   browser's own blue outline. */
+textarea.confirm-prompt-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
 
 /* ── Server connections modal ───────────────────────────────────── */
 /* A connection row is a .project-row sibling: same padding/gap/radius/border,
@@ -1956,13 +2007,27 @@ stencil-fullscreen-layer { display: contents; }
 .connect-row.connect-drop-before { box-shadow: 0 -4px 0 -1px var(--accent); }
 .connect-row.connect-drop-after { box-shadow: 0 4px 0 -1px var(--accent); }
 /* Batch-select toolbar for connections (mirrors the projects batch bar). */
+/* One line, the count first: a wrapping bar dropped the action row under the count the
+   moment it appeared, so the bar leapt a line taller mid-reveal. If anything wraps it is
+   the actions, among themselves. */
 .connect-batch-bar {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;
     padding: 6px 10px; margin-bottom: 8px; border-radius: 8px; background: var(--bg-info);
     border: 1px solid var(--border-main);
 }
-.connect-batch-count { font-size: 13px; font-weight: 600; color: var(--text-key); }
+/* The count and the selection group slide their slot open/closed under `overflow:
+   hidden` (motion.js revealControls), so neither may wrap or shrink on the way —
+   cf. .projects-batch-selected. */
+.connect-batch-count { font-size: 13px; font-weight: 600; color: var(--text-key); white-space: nowrap; }
 .connect-batch-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* Compact (6px 10px, like the row's own buttons): at the default 8px 12px the four
+   actions plus "Deselect all" overran the modal's width by a few pixels and wrapped. */
+.connect-batch-actions > button { white-space: nowrap; flex: 0 0 auto; padding: 6px 10px; }
+.connect-batch-selected {
+    display: inline-flex; align-items: center; gap: 6px;
+    flex-wrap: nowrap; white-space: nowrap;
+}
+.connect-batch-selected > button { flex: 0 0 auto; }
 .connect-row .connect-url { flex: 1 1 auto; display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* Connection-status dot: green=connected, yellow=connecting/refreshing, red=error. */
 .conn-status { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 18%, transparent); }
@@ -2001,7 +2066,10 @@ stencil-fullscreen-layer { display: contents; }
     border: 1px solid var(--border-main);
     border-radius: 4px;
     padding: 1px 6px;
-    width: 100%;
+    /* Takes the slack its wrap has, leaving only the ✓/✗ chips beside it. min-width: 0
+       so a long name shrinks the field instead of pushing the chips out of the row. */
+    flex: 1 1 auto;
+    min-width: 0;
     box-sizing: border-box;
 }
 
@@ -2277,6 +2345,15 @@ body.incognito-mode .ig-r, body.incognito-mode .ig-l { height: 100%; }
 .tip-head + .tip-rows, .tip-head + .tip-bullets { margin-top: 5px; }
 
 /* ── Expiration modal ─────────────────────────────────────────── */
+/* Narrower than the shared 560px shell: the widest thing inside is the 320px
+   calendar, and at full width it sat in a band of dead space on either side
+   (user report). Sized to the calendar plus the body's own padding. */
+.exp-modal { width: 400px; }
+/* Raised FROM the projects list (ui/base.js `stacked`), so it must stack above it —
+   on the way in and, like the confirm dialog, on the way out. Below the confirm
+   dialog's 100003: "Keep forever?" is asked from here. */
+#expiration-modal-overlay.modal-open,
+#expiration-modal-overlay.modal-closing { z-index: 100002; }
 .exp-modal .exp-project {
     font-weight: 600;
     color: var(--text-main);
@@ -3000,6 +3077,26 @@ stencil-chat-panel.chat-dock-right  .chat-resizer { top: 0; left: 0;   bottom: 0
 stencil-chat-panel.chat-dock-top    .chat-resizer { left: 0; right: 0; bottom: 0; height: 6px; cursor: row-resize; }
 stencil-chat-panel.chat-dock-bottom .chat-resizer { left: 0; right: 0; top: 0;    height: 6px; cursor: row-resize; }
 stencil-chat-panel.chat-dock-float  .chat-resizer { right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; border-radius: 10px 0 10px 0; }
+/* …and the SE corner shows the same dot the other three do. #chat-resizer owns that
+   corner in every mode, so it never picked up .chat-float-handle::before and sat blank.
+   Anchored 7px in, like the 14px handle box's centred dot; the block tint is dropped
+   in float so all four read alike. */
+stencil-chat-panel.chat-dock-float .chat-resizer::before {
+    content: '';
+    position: absolute;
+    right: 7px;
+    bottom: 7px;
+    transform: translate(50%, 50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border-main);
+    transition: background 0.15s, width 0.15s, height 0.15s;
+}
+stencil-chat-panel.chat-dock-float:not(.chat-gesturing) .chat-resizer:hover,
+stencil-chat-panel.chat-dock-float .chat-resizer.dragging { background: transparent; }
+stencil-chat-panel.chat-dock-float:not(.chat-gesturing) .chat-resizer:hover::before,
+stencil-chat-panel.chat-dock-float .chat-resizer.dragging::before { background: var(--accent); width: 8px; height: 8px; }
 
 /* Float-mode edge/corner resize handles (#chat-resizer stays the SE corner grip).
    Kept fully inside the host rect — the panel is overflow:hidden. Affordance follows
@@ -3170,9 +3267,15 @@ body:has(stencil-chat-panel.chat-open.chat-dock-bottom) #install-host { bottom: 
 
 /* Assistant settings modal extras. */
 .chat-server-status { font-size: 12px; color: var(--text-muted); }
+/* Dot then text, side by side — the reading is one thing ("● failed to fetch"), and the
+   row's default space-between threw them to opposite edges with 400px of nothing between
+   (user report, with a picture). Desktop twin: llmSettingsForm's llmStatusRow. */
+#chat-server-status-row { justify-content: flex-start; gap: 8px; }
 .chat-cors-note {
     margin-top: 10px;
-    padding: 8px 10px;
+    /* Tight to its text: it is a note, not a panel (user report — too much air above and
+       below the line). Desktop twin: llmNoteBox's 10/6 margins. */
+    padding: 6px 10px;
     border-radius: 6px;
     background: var(--bg-drop-hint);
     border: 1px solid var(--border-hint);
@@ -3181,4 +3284,4 @@ body:has(stencil-chat-panel.chat-open.chat-dock-bottom) #install-host { bottom: 
 }
 .chat-cors-note code { font-size: 11px; }
 /* The one merged note box (user decision): its lines stack with a small gap. */
-.chat-cors-note > div + div { margin-top: 6px; }
+.chat-cors-note > div + div { margin-top: 4px; }
