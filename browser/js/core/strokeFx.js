@@ -89,16 +89,19 @@ export class StrokeFx {
 
   #recOf(pt) { return this.#idle ? null : this.#byPt.get(pt) || null; }
 
-  #phase(f) { return strokePhase(this.#now() - f.start, f.flyMs); }
+  // Each pass below reads the clock ONCE and hands `t` down, so every point it touches
+  // is placed at the same instant (desktop twin: canvasWidget's `const double now`).
+  #phase(f, t) { return strokePhase(t - f.start, f.flyMs); }
 
   // The line's points as they should be DRAWN this frame — the array itself when
   // nothing on it moves, so the common case allocates nothing.
   pointsOf(line) {
     if (!this.has(line)) return line.points;
+    const t = this.#now();
     return line.points.map((p) => {
       const f = this.#recOf(p);
       if (!f) return p;
-      const ph = this.#phase(f);
+      const ph = this.#phase(f, t);
       return ph.fly >= 1 ? p : strokeFlyPoint(f.from, f.to, ph.fly, f.bow);
     });
   }
@@ -106,7 +109,7 @@ export class StrokeFx {
   // How much bigger than its resting size a vertex is drawn right now.
   scaleAt(pt) {
     const f = this.#recOf(pt);
-    return f ? strokeVertexScale(this.#phase(f)) : 1;
+    return f ? strokeVertexScale(this.#phase(f, this.#now())) : 1;
   }
 
 
@@ -114,10 +117,11 @@ export class StrokeFx {
   // stroke in the line's own colour, under the real one.
   paintUnder(ctx, line, pts) {
     if (!this.has(line)) return;
+    const t = this.#now();
     line.points.forEach((p, i) => {
       const f = this.#recOf(p);
       if (!f) return;
-      const a = strokeWake(this.#phase(f).span);
+      const a = strokeWake(this.#phase(f, t).span);
       if (a < 0.01) return;
       ctx.save();
       ctx.globalAlpha = a;
@@ -141,12 +145,13 @@ export class StrokeFx {
   // everything the line drew, in the colour its points are drawn in.
   paintOver(ctx, line, pts) {
     if (!this.has(line)) return;
+    const t = this.#now();
     const color = pointColorOf(line);
     const r = line.pointSize ?? this.#app?.pointSize ?? 4;
     line.points.forEach((p, i) => {
       const f = this.#recOf(p);
       if (!f) return;
-      const ph = this.#phase(f);
+      const ph = this.#phase(f, t);
       const at = pts[i];
       if (ph.fly < 1) {
         const sp = strokeSpark(ph.fly);

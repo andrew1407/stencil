@@ -268,6 +268,39 @@ export const cssWithAlpha = (hex, alpha) => {
   return h + Math.round(a * 255).toString(16).padStart(2, '0');
 };
 
+// ── A colour control and its opacity box ────────────────────────────────────
+// <input type="color"> cannot carry an alpha byte, so every editable colour in the app is
+// TWO controls — a swatch and a 0-255 opacity box — that these two put together and take
+// apart. One seam, so the selection panel, the toolbar binder and the fullscreen mirror
+// all read and write the pair the same way.
+
+// An opacity box's 0-255 byte as the 0..1 fraction cssWithAlpha wants. A blank or
+// out-of-range box reads as fully opaque rather than making the line vanish. Pure.
+export const alphaFraction = (input) => {
+  const n = Number(input?.value);
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(0, Math.min(255, n)) / 255;
+};
+
+// The pair as one CSS colour: `#rrggbb` opaque, `#rrggbbaa` otherwise.
+export const readColorPair = (colorId, alphaId, doc = document) =>
+  cssWithAlpha(doc.getElementById(colorId).value, alphaFraction(doc.getElementById(alphaId)));
+
+// …and the way back: a stored colour split across the swatch and the opacity box.
+export const writeColorPair = (colorId, alphaId, value, doc = document) => {
+  const { hex, alpha } = cssColorParts(value);
+  const swatch = doc.getElementById(colorId);
+  if (swatch) swatch.value = hex;
+  const box = doc.getElementById(alphaId);
+  if (box) box.value = String(Math.round(alpha * 255));
+};
+
+// An area's fill is its swatch plus its alpha, and all the way down at 0 IS "no fill" —
+// stored as NO_FILL, the value every surface reads as unfilled.
+export const NO_FILL = 'transparent';
+export const fillFromPair = (colorId, alphaId, doc = document) =>
+  alphaFraction(doc.getElementById(alphaId)) <= 0 ? NO_FILL : readColorPair(colorId, alphaId, doc);
+
 // Edges inclusive; takes anything with left/right/top/bottom (a DOMRect in practice).
 export const pointInRect = (x, y, rect) =>
   x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;

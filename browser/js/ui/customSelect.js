@@ -1,7 +1,7 @@
 import { icon } from './icons.js';
-import { rowMatches } from './base.js';
+import { rowMatches, escapeHtml } from './base.js';
 import { showMenu, hideMenu } from './dropdownMenu.js';
-import { markSwap } from './motion.js';
+import { markSwap, pinWidestFace } from './motion.js';
 
 // Custom dropdown overlaying a native <select> (kept as the source of truth) — macOS
 // centers the native popup uncss-ably, so the compact toolbar selects look misplaced.
@@ -104,32 +104,21 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
   // comes apart into motes and the incoming one forms out of them, in place. Only a real
   // change flies — the first paint, a re-sync on open and a no-op set write straight
   // through, or every dropdown would deal itself in on open.
-  // The box stays put because the trigger is sized to its WIDEST option, not the one
-  // showing, so a row of selects doesn't shuffle as you use them. Measured off a hidden
-  // probe in the label's font, re-measured when the option list changes, and capped at the
-  // CSS width for long-option selects so one long server URL can't overrun the row.
+  // The box stays put because the label is floored at its WIDEST option, not the one
+  // showing, so a row of selects doesn't shuffle as you use them. The app's own face pin
+  // does the measuring — in the real element, so the true font, padding and border count,
+  // and re-measured once webfonts settle. A FLOOR (min-width), not a pin: an option list
+  // that later outgrows the cap should still stretch the control rather than clip.
+  // Capped so one very long server URL can't overrun its row.
   const MAX_FIT_PX = 240;
   let fittedCount = -1;
   const fitToWidestOption = () => {
-    if (fittedCount === selectEl.options.length) return;
-    if (!selectEl.options.length || typeof getComputedStyle !== 'function') return;
-    const cs = getComputedStyle(cur);
-    const probe = document.createElement('span');
-    probe.style.cssText = 'position:absolute;left:-9999px;top:-9999px;white-space:pre;visibility:hidden;';
-    for (const prop of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing'])
-      probe.style[prop] = cs[prop];
-    document.body.appendChild(probe);
-    let widest = 0;
-    for (const o of selectEl.options) {
-      probe.textContent = o.textContent;
-      widest = Math.max(widest, probe.getBoundingClientRect().width);
-    }
-    probe.remove();
+    if (fittedCount === selectEl.options.length || !selectEl.options.length) return;
+    const faces = [...selectEl.options].map((o) => escapeHtml(o.textContent));
     // Only a measurement that MEANT something counts as done: a select enhanced inside a
     // window that is still display:none measures zero, and must fit again once it is up.
-    if (widest <= 0) return;
-    fittedCount = selectEl.options.length;
-    cur.style.minWidth = `${Math.min(Math.ceil(widest), MAX_FIT_PX)}px`;
+    if (pinWidestFace(cur, faces, { force: true, prop: 'minWidth', max: MAX_FIT_PX }) > 0)
+      fittedCount = selectEl.options.length;
   };
 
   let shown = null;

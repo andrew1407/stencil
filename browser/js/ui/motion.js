@@ -933,25 +933,32 @@ export function swapContent(el, html, {
 // original markup is put back before returning (the caller's swap sees no change).
 // Once per element — a re-rendered toolbar hands over a new node, which re-measures —
 // plus one re-measure when webfonts settle, since metrics can change under us.
+// `prop` picks which box the number lands in: `width` PINS the control (the Draw toggles,
+// whose two faces are the only widths it will ever hold), `minWidth` gives it a FLOOR that
+// CSS may still stretch — a dropdown whose option list can grow past `max` later.
+// `max` caps the pin, so one very long option cannot push a control past its row.
 const facePinned = new WeakSet();
-export function pinWidestFace(el, faces, { doc = el?.ownerDocument, force = false } = {}) {
+export function pinWidestFace(el, faces, { doc = el?.ownerDocument, force = false,
+                                           prop = 'width', max = Infinity } = {}) {
   if (!el || !faces?.length || !el.style || !el.getBoundingClientRect) return 0;
   if (!force && facePinned.has(el)) return 0;
-  const html0 = el.innerHTML, width0 = el.style.width;
-  el.style.width = 'auto';                 // beats the pin; min-width:max-content is the floor
+  const html0 = el.innerHTML, pin0 = el.style[prop];
+  el.style[prop] = 'auto';                 // beats the pin; min-width:max-content is the floor
   let widest = 0;
   for (const html of faces) {
     el.innerHTML = html;
     widest = Math.max(widest, el.getBoundingClientRect().width || 0);
   }
   el.innerHTML = html0;
-  el.style.width = width0;
+  el.style[prop] = pin0;
   if (!(widest > 0)) return 0;             // no layout (a stub, a hidden panel): keep the CSS floor
-  const px = Math.ceil(widest);
-  el.style.width = `${px}px`;
+  const px = Math.min(Math.ceil(widest), max);
+  el.style[prop] = `${px}px`;
   if (!facePinned.has(el)) {
     facePinned.add(el);
-    doc?.fonts?.ready?.then?.(() => { if (el.isConnected !== false) pinWidestFace(el, faces, { doc, force: true }); });
+    doc?.fonts?.ready?.then?.(() => {
+      if (el.isConnected !== false) pinWidestFace(el, faces, { doc, force: true, prop, max });
+    });
   }
   return px;
 }

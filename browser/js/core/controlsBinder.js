@@ -1,5 +1,4 @@
-import { alphaFraction } from '../ui/selectionPanel.js';
-import { anchorPickerInput, cssWithAlpha, notify, matchHotkey, isTypingTarget, hasTextSelection, unitToCm, wireNameEditor, supportsShareFiles, pointInRect, isSplitCompare } from '../utils.js';
+import { anchorPickerInput, readColorPair, notify, matchHotkey, isTypingTarget, hasTextSelection, unitToCm, wireNameEditor, supportsShareFiles, pointInRect, isSplitCompare } from '../utils.js';
 import HOTKEY_DEFS from '../config/hotkeysConfig.json' with { type: 'json' };
 import { hotkeys } from './hotkeys.js';
 import { enhanceSelect } from '../ui/customSelect.js';
@@ -89,14 +88,10 @@ export class ControlsBinder {
 
   wireSelectionPanelControls() {
     const app = this.app;
-    // The swatch and its opacity slider are two halves of ONE colour: either moving
-    // recomposes `#rrggbb` / `#rrggbbaa` (utils.js cssWithAlpha), because <input
-    // type="color"> cannot carry an alpha byte of its own.
-    const colorWithAlpha = (colorId, alphaId) =>
-      cssWithAlpha(document.getElementById(colorId).value,
-                   alphaFraction(document.getElementById(alphaId)));
+    // The swatch and its opacity box are two halves of ONE colour, joined by utils.js's
+    // readColorPair — <input type="color"> cannot carry an alpha byte of its own.
     const wireColorPair = (colorId, alphaId, prop) => {
-      const apply = () => app.applySelectionChange(prop, colorWithAlpha(colorId, alphaId));
+      const apply = () => app.applySelectionChange(prop, readColorPair(colorId, alphaId));
       document.getElementById(colorId).addEventListener('input', apply);
       document.getElementById(alphaId)?.addEventListener('input', apply);
     };

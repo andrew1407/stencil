@@ -2,7 +2,7 @@ import { StencilElement, hostTag, define } from './base.js';
 import { icon } from './icons.js';
 import { fillState } from '../core/layout.js';
 import { pointColorOf } from '../core/renderer.js';
-import { notify, cssColorParts, cssWithAlpha } from '../utils.js';
+import { notify, cssColorParts, writeColorPair, fillFromPair, NO_FILL } from '../utils.js';
 import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, revealControls } from './motion.js';
 // ── Component: selected-line editor panel ───────────────────────
 // Markup only; its inputs are wired by DrawingApp via global ids.
@@ -84,16 +84,10 @@ export const barDustPoint = (el, closing = false) => {
 export function showSelectionPanel(app, line) {
   // The swatch takes the 7-char hex and the slider the alpha: <input type="color"> cannot
   // carry the alpha byte, so a stored `#rrggbbaa` is split across the pair (utils.js).
-  const setColor = (id, alphaId, value) => {
-    const { hex, alpha } = cssColorParts(value);
-    document.getElementById(id).value = hex;
-    const alphaInput = document.getElementById(alphaId);
-    if (alphaInput) alphaInput.value = String(Math.round(alpha * 255));
-  };
-  setColor('sel-color', 'sel-alpha', line.color);
+  writeColorPair('sel-color', 'sel-alpha', line.color);
   // A line with no point colour of its own shows the colour it actually draws in (its
   // stroke) rather than a stale/empty swatch — matching core's pointColorOr fallback.
-  setColor('sel-point-color', 'sel-point-alpha', pointColorOf(line));
+  writeColorPair('sel-point-color', 'sel-point-alpha', pointColorOf(line));
   document.getElementById('sel-thickness').value = line.thickness;
   document.getElementById('sel-point-size').value = line.pointSize ?? app.pointSize;
   document.getElementById('sel-style').value = line.style;
@@ -109,8 +103,8 @@ export function showSelectionPanel(app, line) {
       const fs = fillState(line, app.defaultFillColor);
       // No on/off tick: a fill IS its rgba, and 0 alpha is what "none" means. An
       // unfilled area shows the default colour at 0 so picking one is a single move.
-      setColor('sel-fill', 'sel-fill-alpha',
-               fs.enabled ? line.fillColor : cssWithAlpha(fs.value, 0));
+      writeColorPair('sel-fill', 'sel-fill-alpha',
+                     fs.enabled ? line.fillColor : NO_FILL);
     } else {
       revealControls(fillGroup, false);
       // …and so does its separator, or the one before it and the one after the group
@@ -141,26 +135,13 @@ export function hideSelectionPanels() {
   if (fsPanel) fsPanel.style.display = 'none';
 }
 
-// An opacity box's 0-255 byte as the 0..1 fraction cssWithAlpha wants. A blank or
-// out-of-range box reads as fully opaque rather than making the line vanish. Pure.
-export const alphaFraction = (input) => {
-  const n = Number(input?.value);
-  if (!Number.isFinite(n)) return 1;
-  return Math.max(0, Math.min(255, n)) / 255;
-};
-
 // Apply the locked-area fill from the selection panel controls.
 export function applyFill(app) {
   if (app.compareReadOnly()) return; // read-only compare view
   if (app.selectedLineIdx === -1) return;
   const line = app.lines[app.selectedLineIdx];
   if (!line) return;
-  // The fill is exactly what the two controls say: a colour with an alpha. All the way
-  // down at 0 IS "no fill" — stored as 'transparent', the value every surface reads.
-  const alpha = alphaFraction(document.getElementById('sel-fill-alpha'));
-  line.fillColor = alpha <= 0
-    ? 'transparent'
-    : cssWithAlpha(document.getElementById('sel-fill').value, alpha);
+  line.fillColor = fillFromPair('sel-fill', 'sel-fill-alpha');
   app.saveHistory();
   app.renderer.redraw();
   app.storage.save();
@@ -235,13 +216,13 @@ export function syncFsSelectionPanel(app, line) {
       if (!ln) return;
       ln.fillColor = color;
       const mainFill = document.getElementById('sel-fill');
-      if (mainFill && color !== 'transparent') mainFill.value = cssColorParts(color).hex;
+      if (mainFill && color !== NO_FILL) mainFill.value = cssColorParts(color).hex;
       app.saveHistory(); app.renderer.redraw(); app.storage.save();
     };
     fsFill.addEventListener('input', () => applyFsFill(fsFill.value));
     const fsFillClear = fsPanel.querySelector('#fs-sel-fill-clear');
     if (fsFillClear) fsFillClear.addEventListener('click', () => {
-      applyFsFill('transparent');
+      applyFsFill(NO_FILL);
       notify('Fill cleared (transparent)', 'ok');
     });
   }
