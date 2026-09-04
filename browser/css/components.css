@@ -962,6 +962,7 @@ body.fullscreen-mode #fs-points-panel {
 #settings-modal {
     background: var(--bg-container);
     color: var(--text-main);
+    border: 1px solid var(--border-main);   /* .app-modal's hairline (desktop #modalShell parity) */
     border-radius: 10px;
     box-shadow: 0 16px 48px rgba(0,0,0,0.45);
     width: 620px;
@@ -1027,6 +1028,11 @@ body.fullscreen-mode #fs-points-panel {
     align-items: center;
 }
 .settings-footer .footer-hint:not(:empty) { flex: 1 1 110px; text-align: left; }
+/* 10px sides, not the .btn-icon-text 12: three footer actions at full padding left the
+   hint ~126px, which wraps it into a column of two-word lines ("unopened projects" /
+   "expire after 7 days"). The 12px this frees hands the hint the desktop dialog's own
+   wrap — the same trim the popover shape already made for the same reason. */
+.settings-footer button { padding-left: 10px; padding-right: 10px; }
 /* Composer overflow: only Send stays inline, the rest live behind the … button.
    The menu is anchored to the trigger and floats above the composer. */
 .chat-more-wrap { position: relative; display: inline-flex; }
@@ -1193,6 +1199,9 @@ body.fullscreen-mode #fs-points-panel {
 .app-modal {
     background: var(--bg-container);
     color: var(--text-main);
+    /* The hairline the desktop's #modalShell wears on every dialog (theme.cpp, same
+       --border-main): over a dark canvas the shadow alone left no edge at all. */
+    border: 1px solid var(--border-main);
     border-radius: 10px;
     box-shadow: 0 16px 48px rgba(0,0,0,0.45);
     width: 560px;
@@ -1227,7 +1236,6 @@ body.fullscreen-mode #fs-points-panel {
     width: 420px;
     max-width: calc(100vw - 16px);
     max-height: min(560px, 78vh);
-    border: 1px solid var(--border-main);
     box-shadow: 0 10px 34px rgba(0,0,0,0.5);
     animation: popover-in 0.12s ease-out;
 }
@@ -1702,11 +1710,10 @@ stencil-fullscreen-layer { display: contents; }
 .modal-popover .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
 .modal-popover .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
 .modal-popover .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; text-align: center; }
-/* Three action buttons overrun 420px by a few pixels at full padding, dropping the last
-   onto a third row — trim the padding and gap so they keep the one row the hint's own
-   line was meant to give them. */
+/* Three action buttons overrun 420px by a few pixels at the footer's trimmed padding,
+   dropping the last onto a third row — tighten the gap too so they keep the one row the
+   hint's own line was meant to give them. */
 .modal-popover .settings-footer { gap: 6px; }
-.modal-popover .settings-footer button { padding-left: 10px; padding-right: 10px; }
 /* Touch: the modal's search/filter controls and footer actions meet the app's ≥40px
    tap-target convention (same rule the chat panel's compact buttons follow). */
 @media (hover: none) and (pointer: coarse) {
