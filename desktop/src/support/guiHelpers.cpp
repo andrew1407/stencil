@@ -161,11 +161,15 @@ namespace stencil::gui {
     const Palette pal = themePalette(appPal.color(QPalette::Base).lightness() < 128);
     btn->setText(QString());
     btn->setCursor(Qt::PointingHandCursor);
-    btn->setStyleSheet(QString("QAbstractButton{background:%1;border:1px solid %2;"
-                               "border-radius:7px;padding:0;}"
-                               "QAbstractButton:hover{border-color:%3;}")
-                           .arg(pal.inputBg.name(), pal.borderMain.name(),
-                                appPal.color(QPalette::Highlight).name()));   // the LIVE accent
+    // The frame's sheet does not depend on `color` — only the chip below does — and a
+    // live picker preview re-swatches on every drag tick, each setStyleSheet costing a
+    // QSS re-parse and a re-polish. Written only when it would actually change.
+    const QString sheet = QString("QAbstractButton{background:%1;border:1px solid %2;"
+                                  "border-radius:7px;padding:0;}"
+                                  "QAbstractButton:hover{border-color:%3;}")
+                              .arg(pal.inputBg.name(), pal.borderMain.name(),
+                                   appPal.color(QPalette::Highlight).name());   // the LIVE accent
+    if (btn->styleSheet() != sheet) btn->setStyleSheet(sheet);
     // The chip itself: a rounded rect with a soft luminance-tuned outline, so a colour
     // close to the input's own ground stays visible in either theme. Alpha is honoured —
     // a translucent fill shows as one (cssColor.hpp).
