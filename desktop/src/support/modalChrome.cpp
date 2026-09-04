@@ -5,6 +5,7 @@
 
 #include <QColor>
 #include <QDialog>
+#include <QEvent>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -28,10 +29,10 @@ namespace stencil::gui {
     constexpr int kHeaderPadY = 12;
     constexpr int kBodyPadY = 14;
     constexpr int kFooterPadY = 12;
-    // The width the footer hint is guaranteed: the DIALOG's own minimum is raised to
-    // reserve it (see addModalFooter), rather than the label carrying a hard floor of its
-    // own — browser twin: the hint's `flex: 1 1 150px` basis.
-    constexpr int kFooterHintMinW = 150;
+    // The narrowest the footer hint will share a row: below it the hint takes its own
+    // line above the buttons (FooterWrap) rather than shrinking into a column of
+    // one-word lines — browser twin: the hint's `flex: 1 1 110px` basis.
+    constexpr int kFooterHintMinW = 110;
   }  // namespace
 
   QFrame* modalDivider(QWidget* parent) {
@@ -294,6 +295,64 @@ namespace stencil::gui {
     return text;
   }
 
+  namespace {
+    // The browser's `.settings-footer` wraps (flex-wrap): the hint keeps the buttons'
+    // row while it can hold its basis, and drops to its own line above them when it
+    // can't. Qt has no wrapping box, so the swap is done by hand on every resize — the
+    // compact popover shape left the hint a few pixels wide, drawing no text at all
+    // under a tall empty row (user report, with a picture).
+    class FooterWrap : public QObject {
+     public:
+      FooterWrap(QWidget* host, QVBoxLayout* stack, QHBoxLayout* actions, QLabel* hint)
+          : QObject(host), host_(host), stack_(stack), actions_(actions), hint_(hint) {
+        host->installEventFilter(this);
+      }
+
+      // Run once the caller has added its buttons — and after addModalFooter's width
+      // reservation, or the hint wraps for want of room that was about to arrive.
+      void apply() {
+        int need = 0, buttons = 0;
+        for (int i = 0; i < actions_->count(); ++i) {
+          QWidget* w = actions_->itemAt(i)->widget();
+          if (!w || w == hint_ || w->isHidden()) continue;
+          need += w->minimumSizeHint().width();   // the metric the reservation uses too
+          ++buttons;
+        }
+        if (buttons == 0) return;   // the caller has not added its buttons yet
+        need += actions_->spacing() * buttons;   // + the gap the hint itself would need
+        setWrapped(host_->width() - 2 - kPadX * 2 - need < kFooterHintMinW);
+      }
+
+     protected:
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (o == host_ && e->type() == QEvent::Resize) apply();
+        return QObject::eventFilter(o, e);
+      }
+
+     private:
+      void setWrapped(bool on) {
+        if (on == wrapped_) return;
+        wrapped_ = on;
+        if (on) {
+          actions_->removeWidget(hint_);
+          actions_->addStretch(1);   // the buttons pack LEFT on a line of their own
+          stack_->insertWidget(0, hint_);
+        } else {
+          stack_->removeWidget(hint_);
+          const int last = actions_->count() - 1;
+          if (last >= 0 && actions_->itemAt(last)->spacerItem()) delete actions_->takeAt(last);
+          actions_->insertWidget(0, hint_, 1);
+        }
+      }
+
+      QWidget* host_;
+      QVBoxLayout* stack_;
+      QHBoxLayout* actions_;
+      QLabel* hint_;
+      bool wrapped_ = false;
+    };
+  }  // namespace
+
   QHBoxLayout* addModalFooter(ModalChrome& chrome, const QString& hint) {
     QWidget* dlg = chrome.root ? chrome.root->parentWidget() : nullptr;
     chrome.root->addWidget(modalDivider(dlg));
@@ -301,44 +360,60 @@ namespace stencil::gui {
     // the slack, so at a normal width it wraps at most a line or two instead of being
     // squeezed into a tall column of two-word lines (user report, with a picture).
     auto* footer = new QHBoxLayout;
-    footer->setContentsMargins(kPadX, kFooterPadY, kPadX, kFooterPadY);
     footer->setSpacing(8);
-    if (!hint.isEmpty()) {
-      auto* h = new QLabel(hint, dlg);
-      h->setObjectName(QStringLiteral("modalFooterHint"));
-      h->setWordWrap(true);
-      h->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-      // …but that floor is a PREFERENCE, never a hard minimumWidth. A hard one Qt cannot
-      // go under: once the row no longer fits, the layout hands it negative space and the
-      // items overlap. Ignored lets the text yield the last pixels instead, wrapping
-      // deeper, so nothing is ever drawn over.
-      QSizePolicy sp(QSizePolicy::Ignored, QSizePolicy::Preferred);
-      sp.setHeightForWidth(true);   // narrower ⇒ taller, so the wrap is never cut off
-      h->setSizePolicy(sp);
-      footer->addWidget(h, 1);
-    } else {
+    if (hint.isEmpty()) {
+      footer->setContentsMargins(kPadX, kFooterPadY, kPadX, kFooterPadY);
       footer->addStretch(1);
+      chrome.root->addLayout(footer);
+      return footer;
     }
-    chrome.root->addLayout(footer);
-    // …and the WINDOW is what widens to hold the row. An explicit setMinimumSize (every
-    // dialog sets one) stops SetDefaultConstraint from raising the minimum to what the
-    // layout needs, so a wider system font runs the row out of space. Run once the caller
-    // has added its buttons, and only ever upwards.
+    // A hint rides in a wrap-capable stack: its own line above the buttons once the row
+    // can no longer hold kFooterHintMinW beside them (FooterWrap). The padding moves to
+    // the stack so both lines share it.
+    auto* stack = new QVBoxLayout;
+    stack->setContentsMargins(kPadX, kFooterPadY, kPadX, kFooterPadY);
+    stack->setSpacing(8);
+    footer->setContentsMargins(0, 0, 0, 0);
+    auto* h = new QLabel(hint, dlg);
+    h->setObjectName(QStringLiteral("modalFooterHint"));
+    h->setWordWrap(true);
+    h->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    // …but that floor is a PREFERENCE, never a hard minimumWidth. A hard one Qt cannot
+    // go under: once the row no longer fits, the layout hands it negative space and the
+    // items overlap. Ignored lets the text yield the last pixels instead, wrapping
+    // deeper, so nothing is ever drawn over.
+    QSizePolicy sp(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    sp.setHeightForWidth(true);   // narrower ⇒ taller, so the wrap is never cut off
+    h->setSizePolicy(sp);
+    footer->addWidget(h, 1);
+    stack->addLayout(footer);
+    chrome.root->addLayout(stack);
+    auto* wrap = dlg ? new FooterWrap(dlg, stack, footer, h) : nullptr;   // `dlg` = the shell
+    // …and the WINDOW is what widens to hold the BUTTONS. An explicit setMinimumSize
+    // (every dialog sets one) stops SetDefaultConstraint from raising the minimum to what
+    // the layout needs, so a wider system font ran the row out of space and drew the hint
+    // under the first button. The hint itself needs no reservation — it wraps to its own
+    // line instead. Run once the caller has added its buttons, and only ever upwards.
     if (dlg) {
-      QTimer::singleShot(0, dlg, [dlg, footer] {
-        QWidget* win = dlg->window();   // `dlg` here is the shell inside it
-        if (!win) return;
-        int need = footer->contentsMargins().left() + footer->contentsMargins().right() + 2;
-        int items = 0;
-        for (int i = 0; i < footer->count(); ++i) {
-          QWidget* w = footer->itemAt(i)->widget();
-          if (!w || w->isHidden()) continue;
-          ++items;
-          need += w->objectName() == QLatin1String("modalFooterHint")
-                      ? kFooterHintMinW : w->minimumSizeHint().width();
+      QWidget* owner = dlg->parentWidget();   // the dialog the shell fills
+      QTimer::singleShot(0, dlg, [dlg, owner, footer, h, wrap] {
+        QWidget* win = dlg->window();
+        // …but only while the dialog IS the window. Worn as a popover it is re-parented
+        // into the main window (mainWindow execMaybePopover), whose minimum width is
+        // none of this row's business.
+        if (win && win == owner) {
+          int need = kPadX * 2 + 2;   // the stack pads both lines; the root insets 1px a side
+          int items = 0;
+          for (int i = 0; i < footer->count(); ++i) {
+            QWidget* w = footer->itemAt(i)->widget();
+            if (!w || w == h || w->isHidden()) continue;
+            ++items;
+            need += w->minimumSizeHint().width();
+          }
+          need += footer->spacing() * qMax(0, items - 1);
+          if (need > win->minimumWidth()) win->setMinimumWidth(need);
         }
-        need += footer->spacing() * qMax(0, items - 1);
-        if (need > win->minimumWidth()) win->setMinimumWidth(need);
+        if (wrap) wrap->apply();
       });
     }
     return footer;
