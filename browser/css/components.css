@@ -1683,6 +1683,10 @@ stencil-fullscreen-layer { display: contents; }
        takes the flex slot the native had, and the trigger fills the wrap. */
     .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
     .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
+    /* …and on a phone the hint takes the whole line, buttons under it. The 150px basis
+       above still fits beside a full set of footer buttons at this width, so the row never
+       wraps on its own and the hint is squeezed to a third of the footer. */
+    .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; }
 }
 /* The compact popover shape (ui/popover.js) squeezes the box to 420px at ANY viewport
    width, so it needs the same wrapping the phone breakpoint applies — keyed on the
@@ -1692,6 +1696,7 @@ stencil-fullscreen-layer { display: contents; }
 .modal-popover .modal-search-bar .modal-filter { flex: 1 1 auto; min-width: 0; max-width: 100%; }
 .modal-popover .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
 .modal-popover .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
+.modal-popover .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; }
 /* Touch: the modal's search/filter controls and footer actions meet the app's ≥40px
    tap-target convention (same rule the chat panel's compact buttons follow). */
 @media (hover: none) and (pointer: coarse) {
