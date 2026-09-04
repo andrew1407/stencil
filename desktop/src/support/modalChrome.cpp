@@ -333,6 +333,9 @@ namespace stencil::gui {
       void setWrapped(bool on) {
         if (on == wrapped_) return;
         wrapped_ = on;
+        // …and on its own line the hint is CENTRED over the row it now spans; beside the
+        // buttons it reads as a left-hand column again.
+        hint_->setAlignment((on ? Qt::AlignHCenter : Qt::AlignLeft) | Qt::AlignVCenter);
         if (on) {
           actions_->removeWidget(hint_);
           actions_->addStretch(1);   // the buttons pack LEFT on a line of their own
