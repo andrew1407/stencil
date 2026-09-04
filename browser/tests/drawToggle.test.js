@@ -450,3 +450,25 @@ test('the canonical line/rect pair is the inline pair, scaled onto the 24-grid',
     assert.match(glyph, /<circle class="ic-handle" cx="19.5" cy="4.5" r="3" fill="currentColor" stroke="none"\/>/);
   }
 });
+
+// REGRESSION: with the rect tool picked, pressing the mouse did nothing — the sweep
+// required drawing mode to be on already, and rect has no hold-to-draw flow to fall back
+// on. Picking the tool is the intent, so the press turns drawing on itself.
+test('the rect tool starts its sweep on the press, turning drawing on by itself', () => {
+    const js = readFileSync(new URL('../js/core/pointerController.js', import.meta.url), 'utf8');
+    const branch = js.slice(js.indexOf('// Rect-draw mode:'), js.indexOf("// Alt+Ctrl/⌘+left"));
+    // The gate no longer demands isDrawing…
+    assert.ok(!/if \(app\.isDrawing && app\.drawMode === 'rect'/.test(branch),
+        'the sweep must not require drawing mode to be on already');
+    assert.match(branch, /if \(app\.drawMode === 'rect' && e\.button === 0/);
+    // …it turns it on, and gives up cleanly if that is declined (no image / read-only).
+    assert.match(branch, /if \(!app\.isDrawing\) app\.startDrawingMode\(\);/);
+    assert.match(branch, /if \(!app\.isDrawing\) return;/);
+    assert.ok(branch.indexOf('startDrawingMode') < branch.indexOf('isRectDrawDragging = true'),
+        'drawing goes on before the band starts');
+    // The desktop press does the same, so the two tools behave alike.
+    const cpp = readFileSync(new URL('../../desktop/src/canvas/canvasWidget.cpp', import.meta.url), 'utf8');
+    const dbranch = cpp.slice(cpp.indexOf('// rect-draw press'), cpp.indexOf('// when not drawing, a left-click'));
+    assert.match(dbranch, /if \(drawMode_ == DrawMode::Rect && mods == Qt::NoModifier\)/);
+    assert.match(dbranch, /if \(!isDrawing_\) startDrawingMode\(\);/);
+});

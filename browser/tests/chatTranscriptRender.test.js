@@ -8,6 +8,7 @@ import {
 import {
   revealFeather, REVEAL_FEATHER, revealVisibleBottom, revealTriggerFits,
   REVEAL_SMOOTH_FEATHER_PX, REVEAL_TRIGGER_SIZE, REVEAL_TRIGGER_PAD, dustFitsScroller,
+  chatArrivalPoint, CHAT_ENTER_REACH,
 } from '../js/ui/motion.js';
 import { shrinkWrapWidth } from '../js/ui/chatView.js';
 
@@ -589,12 +590,10 @@ test('the arrivals share ONE mesh budget with the wipe, and run after the scroll
   assert.ok(view.indexOf('entering.forEach') > view.indexOf('stickToBottom(transcript)'),
     'the arrivals are armed after the transcript has been told to scroll');
   const motion = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
-  // The arriving cloud flies on <body>, NOT in the transcript like the leave's: an
-  // arrival happens on every turn, and for its whole life its clones are elements
-  // carrying .chat-msg and [data-row] — everything that walks the transcript
-  // (renderChatLog's own lookups, the reveal observer, a test counting rows) would read
-  // them as live rows.
-  assert.match(motion, /reintegrate\(el, \{ cols, rows, toBody: true, ms: CHAT_ENTER_MS \}\)/);
+  // An arrival is a TOAST arriving: the same speck cloud (surfaceDust — which flies on
+  // <body> and paints specks, not clones carrying .chat-msg/[data-row] that everything
+  // walking the transcript would read as live rows), gathered out of the row's OWN side.
+  assert.match(motion, /surfaceDust\(el, chatArrivalPoint\(el\), \{ ms: CHAT_ENTER_MS, gather: true \}\)/);
   // Two frames before the measure: frame one is the new entries' layout, frame two the
   // scroll that follows it (stickToBottom pins on a rAF of its own).
   assert.match(motion, /requestAnimationFrame\(\(\) => requestAnimationFrame\(fn\)\)/);
@@ -602,6 +601,26 @@ test('the arrivals share ONE mesh budget with the wipe, and run after the scroll
   // grace period — the layer holds its FINISHED state (opaque, at identity), which is an
   // exact second copy sitting over the real entry.
   assert.match(motion, /unveil\(\);\s*\n\s*cancelDust\(el\);/);
+});
+
+test('chatArrivalPoint: an entry gathers out of the edge it sits against', () => {
+  // The toast rule, read off geometry rather than the role class, so an attachment strip
+  // or a result card follows the message it rides with.
+  const scroller = { getBoundingClientRect: () => ({ left: 0, right: 400 }) };
+  const row = (left, right) => ({
+    parentElement: scroller,
+    getBoundingClientRect: () => ({ left, right, width: right - left, top: 100, height: 40 }),
+  });
+  const user = chatArrivalPoint(row(180, 396));        // hugging the right edge
+  const bot = chatArrivalPoint(row(4, 220));           // hugging the left edge
+  assert.ok(user.x > 396, 'the user\'s own messages stream in from the right');
+  assert.ok(bot.x < 4, "the assistant's from the left");
+  assert.equal(user.y, 120, 'at the row\'s own height');
+  // …by dockAwayPoint's reach off the row's width, so the point clears the transcript.
+  assert.equal(Math.round(user.x), Math.round(288 + 216 * CHAT_ENTER_REACH));
+  // A row that cannot be measured settles instead of flying at a NaN point.
+  assert.equal(chatArrivalPoint({ getBoundingClientRect: () => ({ left: 0, right: 0, width: 0 }), parentElement: scroller }), null);
+  assert.equal(chatArrivalPoint(null), null);
 });
 
 test('dustFitsScroller: only a whole entry inside its scroller may fly', () => {

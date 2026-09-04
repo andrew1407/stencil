@@ -607,7 +607,11 @@ export class StencilContextMenu extends StencilElement {
     [canvas, viewport].forEach(el => {
       el.addEventListener('contextmenu', e => {
         if (!app.image) return;
+        // On macOS Ctrl+click IS the secondary click, so the Alt+Ctrl pull-out drag fires
+        // this too. Alt with it means the gesture, not a menu: swallow the event, while a
+        // plain Ctrl+click still gets one.
         e.preventDefault();
+        if (e.altKey) return;
         syncState();
         openAt(e.clientX, e.clientY);
       });

@@ -3,6 +3,73 @@
 // state (draggingPoint/Segment/Line + is* flags), which the mouse (pointerController.js) and
 // touch (inputController.js) paths both drive through DrawingApp's thin delegators.
 
+// ── Chaining: a closed area, and the ways back out of one ───────────────────
+// A click-closed shape repeats its first point at the end; a rect is locked without one.
+// "The ring" below is always the points minus that duplicate. Desktop twin: chainEdit.hpp.
+
+// The line's points as a ring: the closing duplicate dropped, if it has one.
+export const ringPoints = (points) => {
+  const n = points.length;
+  if (n >= 2 && points[0].x === points[n - 1].x && points[0].y === points[n - 1].y)
+    return points.slice(0, n - 1);
+  return points;
+};
+
+// Open a ring at vertex k: re-rooted to start there and run back to a copy of it, which
+// becomes the free end — so the seam appears where the user pulled, not at point 0.
+export const openRingAt = (points, k) => {
+  const ring = ringPoints(points);
+  const n = ring.length;
+  if (n === 0) return points.map((p) => ({ x: p.x, y: p.y }));
+  const out = [];
+  for (let i = 0; i <= n; i++) {
+    const p = ring[(((k + i) % n) + n) % n];
+    out.push({ x: p.x, y: p.y });
+  }
+  return out;
+};
+
+// An open line has no area to paint, so its fill goes with the shape. 'transparent' is
+// the app's "no fill", so re-closing the line comes up cleared rather than pre-filled.
+export const clearFill = (line) => { line.fillColor = 'transparent'; };
+
+// Unchain an area back into an open polyline. Returns whether anything changed.
+export const unchainLine = (line) => {
+  if (!line || !line.locked) return false;
+  line.points = ringPoints(line.points).map((p) => ({ x: p.x, y: p.y }));
+  line.locked = false;
+  clearFill(line);
+  return true;
+};
+
+// Where Alt+Ctrl+drag puts its new point: duplicated in place on a vertex, at the cursor
+// on a segment body. A locked line is opened there first, so the same gesture that adds a
+// point breaks a shape. Mutates `line`; returns the index to drag, or -1.
+export const pullOutPoint = (line, target, x, y) => {
+  if (!line || !target) return -1;
+  const pts = line.points;
+  if (line.locked) {
+    const k = target.kind === 'point' ? target.ptIdx : target.ptIdx2;
+    line.points = openRingAt(pts, k);
+    line.locked = false;
+    clearFill(line);
+    // The seam is the last point; for a segment grab slide it onto the cursor.
+    const last = line.points.length - 1;
+    if (target.kind !== 'point') { line.points[last].x = x; line.points[last].y = y; }
+    return last;
+  }
+  if (target.kind === 'point') {
+    const p = pts[target.ptIdx];
+    if (!p) return -1;
+    pts.splice(target.ptIdx + 1, 0, { x: p.x, y: p.y });
+    return target.ptIdx + 1;
+  }
+  const at = target.ptIdx2;
+  if (at < 0 || at > pts.length) return -1;
+  pts.splice(at, 0, { x, y });
+  return at;
+};
+
 // Begin dragging a segment (shared by the mouse Alt-drag and the touch grab). Snapshots
 // the two endpoints + the whole line so a mid-drag Shift can translate the shape.
 // (x, y) are the grab point in canvas coords.

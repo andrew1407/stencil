@@ -1,15 +1,20 @@
 #include "selectedLineBar.hpp"
+
+#include "controlReveal.hpp"
+#include "cssColor.hpp"
 #include "../support/flowLayout.hpp"
 #include "../support/guiHelpers.hpp"
 #include "../support/iconSet.hpp"
 #include "../support/modalReveal.hpp"
 #include "../support/numericInput.hpp"
 #include "../support/searchCombo.hpp"
-#include <QCheckBox>
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QFrame>
 #include <QPushButton>
+#include <QSize>
+#include <QTimer>
 #include <QResizeEvent>
 #include <QSignalBlocker>
 #include <QSpinBox>
@@ -17,6 +22,10 @@
 #include <cmath>
 
 namespace stencil::gui {
+
+  // ONE colour well across every surface: the 46x24 this app's toolbar already used, which
+  // the browser and extension now match too (browser css/layout.css input[type="color"]).
+  // A well as tall as the text fields beside it made the colour the loudest thing in the row.
 
   SelectedLineBar::SelectedLineBar(QWidget* parent) : QWidget(parent) {
     setObjectName("selectedLineBar");
@@ -38,16 +47,28 @@ namespace stencil::gui {
     card_->setAttribute(Qt::WA_StyledBackground, true);
     outer->addWidget(card_);
 
-    // FlowLayout, not QHBoxLayout: at a narrow window width the browser's own row
-    // (flex; flex-wrap: wrap) wraps onto more lines rather than clip or overflow —
-    // this wraps the same way, and its own height grows to fit however many it takes.
-    // Margins match the browser's #selection-panel padding (10px 15px).
-    auto* flow = new FlowLayout(card_, 0, 14, 8);
+    // FlowLayout, not QHBoxLayout: the browser's row wraps rather than clip at a narrow
+    // width, and this wraps the same way, growing its own height to fit. Margins match
+    // #selection-panel's padding (10px 15px); spacings are its flex gaps (12px).
+    auto* flow = new FlowLayout(card_, 0, 12, 12);
     flow->setContentsMargins(15, 10, 15, 10);
+
+    // The bar's parts, told apart by a hairline in its own amber rather than by spacing
+    // alone — the browser's .sel-sep, in the same three places.
+    auto addSeparator = [&]() -> QFrame* {
+      auto* sep = new QFrame(card_);
+      sep->setObjectName("selectedLineSep");
+      sep->setFrameShape(QFrame::NoFrame);
+      sep->setFixedWidth(1);
+      sep->setMinimumHeight(26);
+      flow->addWidget(sep);
+      return sep;
+    };
 
     auto* label = new QLabel("✎ Selected Line:", card_);
     label->setObjectName("selectedLineLabel");
     flow->addWidget(label);
+    addSeparator();
 
     // Each field is its OWN label+control pair, wrapped as one unit — so the flow
     // never splits a label onto one line and its control onto the next.
@@ -55,10 +76,12 @@ namespace stencil::gui {
       auto* group = new QWidget(card_);
       auto* pair = new QHBoxLayout(group);
       pair->setContentsMargins(0, 0, 0, 0);
-      pair->setSpacing(6);
-      auto* lbl = new QLabel(text, group);
-      lbl->setObjectName("selectedLineFieldLabel");
-      pair->addWidget(lbl);
+      pair->setSpacing(8);   // .control-group gap
+      if (!text.isEmpty()) {
+        auto* lbl = new QLabel(text, group);
+        lbl->setObjectName("selectedLineFieldLabel");
+        pair->addWidget(lbl);
+      }
       pair->addWidget(control);
       flow->addWidget(group);
       return group;
@@ -75,6 +98,7 @@ namespace stencil::gui {
     addField("Point Color:", pointColorSwatch_);
 
     // selThickness — drawingApp.js:1546 / :182 (min 1, max 20)
+    addSeparator();   // …and one after the colour wells, before the geometry fields
     auto* thicknessSpin = new ExprSpinBox(card_);
     thicknessSpin->setRange(1, 20);
     thicknessSpin->setFixedWidth(60);
@@ -96,25 +120,50 @@ namespace stencil::gui {
     style_ = styleCombo;
     addField("Style:", style_);
 
+    fillSep_ = addSeparator();   // hidden with the group it introduces (see showLine)
     // selFillGroup — locked-area fill, hidden unless line.locked
     // (selectionPanel.js:29-33; drawingApp.js:1550-1560).
     fillGroup_ = new QWidget(card_);
     auto* fillRow = new QHBoxLayout(fillGroup_);
     fillRow->setContentsMargins(0, 0, 0, 0);
-    fillRow->setSpacing(4);
-    fillEnabled_ = new QCheckBox(fillGroup_);  // selFillEnabled
+    fillRow->setSpacing(8);   // the same .control-group gap as every other field
     fillSwatch_ = new QPushButton(fillGroup_);  // selFill
+    fillSwatch_->setObjectName("selectedLineFillSwatch");
     setColorSwatch(fillSwatch_, currentFill_);
     fillClear_ = new QPushButton(fillGroup_);  // selFillClear (x icon)
     fillClear_->setObjectName("selectedLineFillClear");
-    fillRow->addWidget(fillEnabled_);
+    // Same words as the browser's #sel-fill-clear title and the same small glyph
+    // (restyleIcons). One line: the heading's "term — description" renders as a title plus
+    // a muted subtitle, where a second line would come out as a bullet of one.
+    fillClear_->setToolTip("Clear fill — make the area transparent again");
+    // The pixmap is 11px, but a button's icon BOX defaults to the style's 16 and scales it
+    // back up — the glyph stayed big however small the icon was drawn. Pin the box too.
+    fillClear_->setIconSize(QSize(13, 13));
+    // selUnchain — the way back OUT of an area, in the same group: it shows exactly when
+    // a line is closed, which is exactly when unchaining means anything (browser
+    // selectionPanel.js #sel-unchain).
+    unchainBtn_ = new QPushButton("Unchain", fillGroup_);
+    unchainBtn_->setObjectName("selectedLineUnchain");
+    // Icon + label, like the browser's #sel-unchain (a `link` glyph beside the word) and
+    // like this bar's own Deselect — the icon itself is themed in restyleIcons.
+    unchainBtn_->setIconSize(QSize(13, 13));
+    unchainBtn_->setToolTip("Unchain area\nBreak the closed shape back into an open line.\n"
+                            "Alt+Ctrl+drag on the line does the same, at the spot you pull.");
+    // No on/off tick: the fill IS a colour with an alpha, and 0 is what "none" means
+    // (browser selectionPanel.js applyFill). Just the label, its well and the clear
+    // button, so the label takes the colon every other field in this bar has.
+    auto* fillWord = new QLabel("Fill:", fillGroup_);
+    fillWord->setObjectName("selectedLineFieldLabel");
+    fillRow->addWidget(fillWord);
     fillRow->addWidget(fillSwatch_);
     fillRow->addWidget(fillClear_);
-    fillField_ = addField("Fill:", fillGroup_);
+    fillRow->addWidget(unchainBtn_);
+    fillField_ = addField(QString(), fillGroup_);
 
     // selDeselect (drawingApp.js:195 deselectLine) — the bar's own amber-accented CTA,
     // browser parity (.deselect-btn): no "Delete Line" here, that stays a global action
     // (Alt+Delete / the Lines tab's own row 🗑), matching the browser bar exactly.
+    addSeparator();
     deselectBtn_ = new QPushButton("Deselect", card_);
     deselectBtn_->setObjectName("selectedLineDeselect");
     flow->addWidget(deselectBtn_);
@@ -123,20 +172,27 @@ namespace stencil::gui {
     // controls (updating_), matching the browser which guards via selectedLineIdx. ──
     connect(colorSwatch_, &QPushButton::clicked, this, [this] {
       if (updating_) return;
-      const QColor c = support::pickColorAnimated(currentColor_, this, "Line color", colorSwatch_);
+      // The line follows the picker as it is dragged; Cancel is handed the original back
+      // by pickColorAnimated, so this only has to deal with the accepted value.
+      const QColor c = support::pickColorAnimated(
+          currentColor_, this, "Line color", colorSwatch_, QRect(),
+          [this](const QColor& p) { setColorSwatch(colorSwatch_, p); emit lineColorChanged(cssName(p), true); },
+          /*withAlpha=*/true);
       if (!c.isValid()) return;
       currentColor_ = c;
       setColorSwatch(colorSwatch_, c);
-      emit lineColorChanged(c.name());
+      emit lineColorChanged(cssName(c));
     });
     connect(pointColorSwatch_, &QPushButton::clicked, this, [this] {
       if (updating_) return;
-      const QColor c = support::pickColorAnimated(currentPointColor_, this, "Point color",
-                                                   pointColorSwatch_);
+      const QColor c = support::pickColorAnimated(
+          currentPointColor_, this, "Point color", pointColorSwatch_, QRect(),
+          [this](const QColor& p) { setColorSwatch(pointColorSwatch_, p); emit linePointColorChanged(cssName(p), true); },
+          /*withAlpha=*/true);
       if (!c.isValid()) return;
       currentPointColor_ = c;
       setColorSwatch(pointColorSwatch_, c);
-      emit linePointColorChanged(c.name());
+      emit linePointColorChanged(cssName(c));
     });
     connect(thickness_, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
       if (!updating_) emit lineThicknessChanged(v);
@@ -147,29 +203,25 @@ namespace stencil::gui {
     connect(style_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) {
       if (!updating_) emit lineStyleChanged(style_->currentData().toString());
     });
-    connect(fillEnabled_, &QCheckBox::toggled, this, [this](bool on) {
-      if (updating_) return;
-      emit lineFillChanged(on ? currentFill_.name() : QStringLiteral("transparent"));
-    });
     connect(fillSwatch_, &QPushButton::clicked, this, [this] {
       if (updating_) return;
-      const QColor c = support::pickColorAnimated(currentFill_, this, "Area fill color", fillSwatch_);
+      const QColor c = support::pickColorAnimated(
+          currentFill_, this, "Area fill color", fillSwatch_, QRect(),
+          [this](const QColor& p) { setColorSwatch(fillSwatch_, p); emit lineFillChanged(cssName(p), true); },
+          /*withAlpha=*/true);
       if (!c.isValid()) return;
-      currentFill_ = c;
-      setColorSwatch(fillSwatch_, c);
-      {
-        QSignalBlocker block(fillEnabled_);
-        fillEnabled_->setChecked(true);
-      }
-      emit lineFillChanged(c.name());
+      // Picking a colour on an UNFILLED area must also lift it off zero alpha, or the
+      // choice would apply invisibly (browser controlsBinder: the same nudge to 255).
+      currentFill_ = c.alpha() == 0 ? QColor(c.red(), c.green(), c.blue(), 255) : c;
+      setColorSwatch(fillSwatch_, currentFill_);
+      emit lineFillChanged(cssName(currentFill_));
     });
     connect(fillClear_, &QPushButton::clicked, this, [this] {
       if (updating_) return;
-      {
-        QSignalBlocker block(fillEnabled_);
-        fillEnabled_->setChecked(false);
-      }
       emit lineFillChanged(QStringLiteral("transparent"));
+    });
+    connect(unchainBtn_, &QPushButton::clicked, this, [this] {
+      if (!updating_) emit unchainRequested();
     });
     connect(deselectBtn_, &QPushButton::clicked, this, [this] {
       if (!updating_) emit deselectRequested();
@@ -184,21 +236,25 @@ namespace stencil::gui {
   }
 
   void SelectedLineBar::restyleIcons(const QColor& iconColor) {
-    if (fillClear_) fillClear_->setIcon(themedIcon("x", iconColor, 12));
+    if (fillClear_) fillClear_->setIcon(themedIcon("rect", iconColor, 13));
     if (deselectBtn_) deselectBtn_->setIcon(themedIcon("x", QColor("#ffffff"), 13));
+    if (unchainBtn_) unchainBtn_->setIcon(themedIcon("link", iconColor, 13));
   }
 
   void SelectedLineBar::setDefaultFillColor(const QColor& color) { defaultFill_ = color; }
 
-  void SelectedLineBar::resizeEvent(QResizeEvent* event) {
-    QWidget::resizeEvent(event);
-    // QDockWidget's own internal layout doesn't support a height-for-width content
-    // widget properly: it reserves a height computed from an early/narrow width guess
-    // and never re-asks once it settles on this bar's real (full-window) width, leaving
-    // a huge empty amber gap under a single already-fitting row. Re-assert the REAL
-    // height for the width we actually got, every time it changes.
+  // The height this bar's content needs at its current width. QDockWidget reserves a
+  // height from an early narrow width guess and never re-asks, leaving a huge amber gap
+  // under a row that already fits — so the bar asserts its own height, on every resize
+  // and whenever its content changes shape (below).
+  void SelectedLineBar::refitHeight() {
     const int wantHeight = heightForWidth(width());
     if (wantHeight > 0 && wantHeight != height()) setFixedHeight(wantHeight);
+  }
+
+  void SelectedLineBar::resizeEvent(QResizeEvent* event) {
+    QWidget::resizeEvent(event);
+    refitHeight();
   }
 
   void SelectedLineBar::showLine(const core::Line* line) {
@@ -206,32 +262,39 @@ namespace stencil::gui {
     // (selectedLineDock_); this only repopulates the controls.
     updating_ = true;
     if (line) {
-      currentColor_ = QColor(QString::fromStdString(line->color));
+      currentColor_ = cssColor(line->color);
       setColorSwatch(colorSwatch_, currentColor_);
       // A line with no point colour of its own shows the colour it actually draws in
       // (its stroke), via core::pointColorOr — not a blank or stale swatch.
-      currentPointColor_ = QColor(QString::fromStdString(core::pointColorOr(*line)));
+      currentPointColor_ = cssColor(core::pointColorOr(*line));
       setColorSwatch(pointColorSwatch_, currentPointColor_);
       thickness_->setValue(static_cast<int>(std::lround(line->thickness)));
       pointSize_->setValue(static_cast<int>(std::lround(line->pointSize)));
       const int sidx = style_->findData(QString::fromStdString(line->style));
       style_->setCurrentIndex(sidx >= 0 ? sidx : 0);
 
-      // Fill controls only for locked areas (drawingApp.js:1551-1560) — the WHOLE field
-      // (its "Fill:" label too), matching browser's #sel-fill-group display:none, not
-      // just the inner checkbox/swatch/clear row (which left a dangling bare label).
-      fillField_->setVisible(line->locked);
+      // Fill controls only for locked areas — the whole field, its "Fill:" label too
+      // (browser #sel-fill-group display:none), or a bare label is left dangling. The
+      // group slides open and closed and dusts as it goes (controlReveal), rather than
+      // popping and making the bar jump; its separator travels with it.
+      revealControls(fillField_, line->locked);
+      if (fillSep_) revealControls(fillSep_, line->locked);
       if (line->locked) {
         const QString fc = QString::fromStdString(line->fillColor);
         const bool hasFill = !fc.isEmpty() && fc != "transparent";
-        fillEnabled_->setChecked(hasFill);
-        // browser layout.js fillState: enabled -> the line's own color; else the
-        // Settings default, so the swatch always shows what ticking Fill would use.
-        currentFill_ = hasFill ? QColor(fc) : defaultFill_;
+        // No tick to mirror: an unfilled area shows the default colour at ZERO alpha, so
+        // the well says "none" and picking a colour is a single move.
+        currentFill_ = hasFill ? cssColor(fc)
+                               : QColor(defaultFill_.red(), defaultFill_.green(),
+                                        defaultFill_.blue(), 0);
         setColorSwatch(fillSwatch_, currentFill_);
       }
     }
     updating_ = false;
+    // Losing (or gaining) the fill group can cost the flow layout a whole row, and nothing
+    // else re-asks. Refit now, and again once the reveal has finished shrinking it away.
+    refitHeight();
+    QTimer::singleShot(kControlRevealInMs + 80, this, [this] { refitHeight(); });
   }
 
 }  // namespace stencil::gui

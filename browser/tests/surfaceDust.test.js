@@ -220,7 +220,9 @@ test('one cloud per element: a superseding open/close drops the one in the air',
   const body = motionJs.slice(motionJs.indexOf('export function disintegrate'));
   assert.match(body, /\/\/ One cloud per element[\s\S]{0,320}?if \(own\) cancelDust\(el\);/);
   // …and every surface flight settles the element first.
-  assert.match(motionJs, /const playSurface = \(el, point, \{ ms, gather, box = null \}\) => \{\s*\n\s*if \(!el\?\.classList\) return false;\s*\n\s*settleSurface\(el\);/);
+  // Options are pinned by NAME, not as a verbatim parameter list — the list grows
+  // (delayScale), and a signature-shaped regex only says the file was edited.
+  assert.match(motionJs, /const playSurface = \(el, point, \{[^}]*\bbox = null\b[^}]*\}\) => \{\s*\n\s*if \(!el\?\.classList\) return false;\s*\n\s*settleSurface\(el\);/);
   // The layer removes itself even if nobody ever settles it.
   assert.match(body, /const life = setTimeout\(\(\) => \{[\s\S]*?host\.remove\(\);/);
   assert.match(body, /if \(own\) \{ el\.__dustHost = host; el\.__dustTimer = life; \}/);
@@ -300,12 +302,12 @@ test('modals: the dust point IS the icon centre setOriginVars already measured',
   // …and the CONFIRM dialog, which has no opener icon at all, plays the very same
   // flight out of the gesture that raised it (ui/gesturePoint.js).
   assert.match(confirmJs, /createModalFlight\(overlay, \(\) => overlay\.querySelector\('\.app-modal'\)\)/);
-  assert.match(confirmJs, /openAnchor = gestureAnchorRect\(\);\s*\n\s*if \(!flight\.reducedMotion\(\) && flight\.setOrigin\(openAnchor\)\) flight\.playDust\(true\);/);
+  assert.match(confirmJs, /openAnchor = gestureAnchorRect\(\);[\s\S]{0,200}if \(!flight\.reducedMotion\(\) && flight\.setOrigin\(openAnchor\)\) flight\.playDust\(true\);/);
   assert.match(confirmJs, /if \(animate\) flight\.playClosing\(\);/);
-  // The close reuses the SAME anchor the dialog opened with — not a fresh
-  // gestureAnchorRect(), which by settle time is wherever Confirm/Cancel/Close was
-  // just clicked, not the icon that raised the question.
-  assert.match(confirmJs, /flight\.setOrigin\(openAnchor\);\s*\n\s*overlay\.classList\.remove\('modal-open'\);/);
+  // The close reuses the same anchor the dialog opened with, not a fresh
+  // gestureAnchorRect() (which by then is wherever Confirm was clicked) — unless the
+  // caller named a closeAnchor, since a context-menu row is gone by the time it lands.
+  assert.match(confirmJs, /flight\.setOrigin\(rectOf\(closeAnchorEl\) \|\| openAnchor\);\s*\n\s*overlay\.classList\.remove\('modal-open'\);/);
   assert.ok(!/const settle = \(val\) => \{[\s\S]{0,200}gestureAnchorRect\(\)/.test(confirmJs),
     'settle() must not recompute the gesture point — it would anchor on the button that just closed it');
 });
@@ -452,8 +454,8 @@ test('foldBox declines an unmeasurable box, and never throws on a stub', () => {
 test('a folding surface hands its box in — the live rect is the wrong one', () => {
   // playSurface/surfaceDust/disintegrate all take the override, or a fold dusts over
   // a zero-height box and the flight silently declines.
-  assert.match(motionJs, /export const surfaceIn = \(el, point, \{ ms = SURFACE_IN_MS, box = null \} = \{\}\) =>/);
-  assert.match(motionJs, /export const surfaceOut = \(el, point, \{ ms = SURFACE_OUT_MS, box = null \} = \{\}\) =>/);
+  assert.match(motionJs, /export const surfaceIn = \(el, point, \{[^}]*\bms = SURFACE_IN_MS\b[^}]*\bbox = null\b[^}]*\} = \{\}\) =>/);
+  assert.match(motionJs, /export const surfaceOut = \(el, point, \{[^}]*\bms = SURFACE_OUT_MS\b[^}]*\bbox = null\b[^}]*\} = \{\}\) =>/);
   const dust = motionJs.slice(motionJs.indexOf('const surfaceDust ='));
   assert.match(dust, /const r = box \|\| el\.getBoundingClientRect\(\);/);
   const dis = motionJs.slice(motionJs.indexOf('export function disintegrate'));

@@ -1,4 +1,5 @@
 #include "shortcutsDialog.hpp"
+#include "../support/shimmerOverlay.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
 #include "filterFade.hpp"  // rows fade in/out with the search, never blink
@@ -17,6 +18,10 @@ namespace stencil::gui {
 
   ShortcutsDialog::ShortcutsDialog(const QVector<Entry>& entries, QWidget* parent)
       : QDialog(parent) {
+    // The app's glass hover sweep on every control here (the browser's rule is
+    // app-wide; a Qt window opts its own in). Deferred, so the sweep runs once this
+    // constructor has built the content.
+    installHoverShimmerLater(this);
     setWindowTitle("Customize Shortcuts");
     // Narrower than before: the reset is now a compact icon button, not a wide
     // "Reset" label, so the editor column no longer needs the extra room.

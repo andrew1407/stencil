@@ -1,4 +1,5 @@
 #include "cropDialog.hpp"
+#include "../support/shimmerOverlay.hpp"
 #include "iconSet.hpp"
 #include "guiHelpers.hpp"
 #include <QHBoxLayout>
@@ -179,6 +180,10 @@ namespace stencil::gui {
                          double pageHeightCm, bool album,
                          const core::CropRect& initial, QWidget* parent)
       : QDialog(parent) {
+    // The app's glass hover sweep on every control here (the browser's rule is
+    // app-wide; a Qt window opts its own in). Deferred, so the sweep runs once this
+    // constructor has built the content.
+    installHoverShimmerLater(this);
     setWindowTitle("Crop Image");
 
     auto* layout = new QVBoxLayout(this);

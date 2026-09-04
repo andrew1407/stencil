@@ -21,6 +21,11 @@
 #include <QPaintEvent>
 #include <QRect>
 #include <QVariantAnimation>
+#include <QAbstractButton>
+#include <QComboBox>
+#include <QLineEdit>
+#include <QAbstractSpinBox>
+#include <QTimer>
 #include <QWidget>
 
 namespace stencil::gui {
@@ -174,6 +179,31 @@ namespace stencil::gui {
       view->setProperty("_shimmer", true);
       new ShimmerOverlay(nullptr, view);   // parented to the view's viewport
     }
+  }
+
+  // A control opts out with this property (the toolbar's logo and the rename fields do).
+  inline constexpr const char* kNoShimmerProperty = "_noShimmer";
+
+  // Every control under `root` that the browser sweeps: its rule is app-wide (css/layout
+  // .css ui-shimmer), so a Qt window has to opt each of its own in. installHoverShimmer
+  // is guarded, so calling this twice on the same tree costs nothing.
+  inline void installHoverShimmerIn(QWidget* root) {
+    if (!root) return;
+    // ONE walk: each findChildren<T*> is its own recursive descent building its own list,
+    // and this runs per dialog and (in the connections list) per row rebuild.
+    for (QWidget* w : root->findChildren<QWidget*>()) {
+      if (w->property(kNoShimmerProperty).toBool()) continue;
+      if (qobject_cast<QAbstractButton*>(w) || qobject_cast<QComboBox*>(w) ||
+          qobject_cast<QLineEdit*>(w) || qobject_cast<QAbstractSpinBox*>(w))
+        installHoverShimmer(w);
+    }
+  }
+
+  // …deferred a turn, for a window whose content is added AFTER this is called (every
+  // dialog built on the shared modal chrome, which installs its shell first).
+  inline void installHoverShimmerLater(QWidget* root) {
+    if (!root) return;
+    QTimer::singleShot(0, root, [root] { installHoverShimmerIn(root); });
   }
 
 }  // namespace stencil::gui

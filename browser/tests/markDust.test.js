@@ -83,11 +83,11 @@ test('showing sets display at once; hiding collapses the slot before it goes', (
   // Shown: display FIRST — the group takes its slot immediately — THEN the gather
   // plays over the box it now occupies, growing that slot from zero in step.
   assert.match(body, /el\.style\.display = display;/);
-  assert.match(body, /const played = markIn\(el\);/);
+  assert.match(body, /const played = markIn\(el, \{ ms: REVEAL_GROUP_IN_MS \}\);/);
   // Hidden: measured while still laid out (both the dust and the collapse start from
   // the true box), and a DECLINED flight (reduced motion, too small) still hides AT
   // ONCE — only a played one defers display:none until the slot has finished closing.
-  assert.match(body, /const played = markOut\(el\);/);
+  assert.match(body, /const played = markOut\(el, \{ ms: REVEAL_GROUP_OUT_MS \}\);/);
   assert.match(body, /el\.style\.display = 'none';\s*\/\/ declined/);
   // And a group already in the asked-for state is not a flight at all.
   assert.match(body, /if \(wasShown === !!show\) return false;/);
@@ -113,12 +113,17 @@ test('a group\'s own slot opens/closes in step with its dust, so a neighbour nev
   assert.match(body, /raf\(\(\) => raf\(go\)\);/);
   assert.match(body, /slideRevealSize\(el, sizeProp, '0px', `\$\{size\}px`, REVEAL_GROUP_IN_MS, \{ defer: true, slack: 40 \}\)/);
   assert.match(body, /slideRevealSize\(el, sizeProp, `\$\{size\}px`, '0px', REVEAL_GROUP_OUT_MS,/);
-  // block (context-menu rows) collapses HEIGHT; every horizontal toolbar row (the
-  // default) collapses WIDTH — the axis that actually pushes a neighbour aside.
-  assert.match(body, /const vertical = display === 'block';/);
+  // block (context-menu rows) collapses height; a horizontal toolbar row collapses
+  // width. A caller may override: a full-width bar is a flex row that opens downward.
+  assert.match(body, /const vertical = axis === null \? display === 'block' : !!axis;/);
   assert.match(body, /const sizeProp = vertical \? 'maxHeight' : 'maxWidth';/);
-  assert.equal(REVEAL_GROUP_IN_MS, MARK_IN_MS, 'the slot opens on the same clock as the dust');
-  assert.equal(REVEAL_GROUP_OUT_MS, MARK_OUT_MS, '…and closes on the same clock too');
+  // A group's slot is a wider move than a single mark and read as a snap on the mark's
+  // own clock, so it has its own, longer one — and HANDS it to the dust, which is what
+  // keeps the two landing together (the point the equality used to make).
+  assert.ok(REVEAL_GROUP_IN_MS > MARK_IN_MS, 'a group opens slower than a single mark');
+  assert.ok(REVEAL_GROUP_OUT_MS > MARK_OUT_MS, '…and closes slower too');
+  assert.match(body, /markIn\(el, \{ ms: REVEAL_GROUP_IN_MS \}\)/, 'the dust rides the slot\'s clock');
+  assert.match(body, /markOut\(el, \{ ms: REVEAL_GROUP_OUT_MS \}\)/, '…both ways');
 });
 
 test('animations.css: the slot collapse is a real transition, reduced motion off', () => {

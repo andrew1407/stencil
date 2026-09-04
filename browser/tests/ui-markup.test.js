@@ -9,10 +9,10 @@ const markup = layout();
 
 const count = (needle) => markup.split(needle).length - 1;
 
-// All 248 static body IDs (spec §6 + crop / install / open-image / open-in / confirm modals + AI chat panel/settings), original body order. Each must appear EXACTLY once.
-// ctx-*-img-split ("With Compare") is a FOURTH row, hidden until a split compare view
-// is active, alongside (not instead of) ctx-copy-img-current / ctx-dl-img-current — each
-// pair's own -hk span is where the shared hotkey chip moves to/from (contextMenu.js).
+// All 247 static body IDs (spec §6 + crop / install / open-image / open-in / confirm modals + AI chat panel/settings), original body order. Each must appear EXACTLY once.
+// ctx-*-img-split ("With Compare") is a fourth row, hidden until a split compare view is
+// active, alongside ctx-copy-img-current / ctx-dl-img-current; each pair's own -hk span
+// is where the shared hotkey chip moves to/from (contextMenu.js).
 const IDS = [
     'ctx-menu', 'ctx-layout-menu', 'ctx-layout-sub', 'ctx-copy-img', 'ctx-copy-img-sub',
     'ctx-copy-img-split', 'ctx-copy-img-split-hk', 'ctx-copy-img-current', 'ctx-copy-img-current-hk',
@@ -35,7 +35,7 @@ const IDS = [
     'custom-page-width', 'custom-page-height', 'custom-unit-label', 'allow-formulas', 'formula-inputs', 'formula-x', 'formula-y',
     'formula-error', 'download-json', 'copy-json-btn', 'save-image', 'upload-json', 'upload-json-btn', 'clear-storage',
     'theme-toggle', 'fullscreen-toggle', 'settings-btn', 'visuals-btn', 'info-btn', 'selection-panel',
-    'sel-color', 'sel-thickness', 'sel-point-size', 'sel-style', 'sel-fill-group', 'sel-fill-enabled', 'sel-fill',
+    'sel-color', 'sel-thickness', 'sel-point-size', 'sel-style', 'sel-fill-group', 'sel-fill',
     'sel-fill-clear', 'sel-deselect', 'image-info', 'canvas-viewport', 'canvas-container', 'canvas', 'zoom-rect-overlay',
     'tooltip', 'coord-status', 'coord-panel', 'coord-panel-header', 'coord-tab-points', 'coord-tab-lines', 'toggle-coord-panel', 'coord-body', 'coordinates-table',
     'coordinates-body', 'lines-list', 'notify-balloon', 'settings-modal-overlay', 'settings-modal', 'settings-close', 'hotkey-table',
@@ -77,8 +77,8 @@ const IDS = [
     'chat-server-select', 'chat-server-status-row', 'chat-server-status', 'chat-cors-note'
 ];
 
-test('fixture has exactly 248 IDs', () => {
-    assert.strictEqual(IDS.length, 248);
+test('fixture has exactly 247 IDs', () => {
+    assert.strictEqual(IDS.length, 247);
 });
 
 test('every static body ID is present exactly once', () => {
@@ -436,4 +436,53 @@ test('the status row is the same box with the incognito tag and without it', () 
     const comp = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
     assert.ok(!/body\.incognito-mode[^{]*\.canvas-(viewport|container)[^{]*\{[^}]*(height|width|margin|padding)/.test(comp),
         'incognito must not resize the canvas to make room');
+});
+
+// REGRESSION: the ring around the focused/hovered points row came out open at the top —
+// an outline paints outside the border box, and the sticky column header covered that
+// edge. Inset by its own width it is always whole, matching the desktop's delegate.
+test('the points-table row ring is drawn inside the row, not around it', () => {
+    const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+    for (const cls of ['row-highlighted', 'row-focused']) {
+        const rule = css.slice(css.indexOf(`.coordinates-table tbody tr.${cls} {`),
+                               css.indexOf('}', css.indexOf(`.coordinates-table tbody tr.${cls} {`)));
+        assert.match(rule, /outline: 2px solid/, `${cls} still rings the row`);
+        assert.match(rule, /outline-offset: -2px/, `${cls} draws that ring inside the row`);
+    }
+    // …and the header really is the thing that would cover it, so the rule earns its keep.
+    assert.match(css, /\.coordinates-table thead th \{[^}]*position: sticky/);
+});
+
+// REGRESSION: the project-row "…" menu sat on a 184px min-width floor while its content
+// needed 149, so every row ended in dead space. It is content-sized now, with a smaller
+// floor for short menus and a cap so a long label cannot run away.
+test('the row menus are sized to their content, not to a wide floor', () => {
+    const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+    const rule = css.slice(css.indexOf('.project-menu, .chat-row-menu {'),
+                           css.indexOf('}', css.indexOf('.project-menu, .chat-row-menu {')));
+    assert.match(rule, /width: max-content/, 'the menu hugs its widest row');
+    const floor = Number(/min-width: (\d+)px/.exec(rule)[1]);
+    assert.ok(floor <= 150, `the floor (${floor}px) must not exceed what the items need`);
+    assert.match(rule, /max-width: min\(/, 'and a long label is capped rather than unbounded');
+});
+
+// The selected-line bar is parted into header | colours | geometry | fill | actions by
+// hairlines in its own amber. REGRESSION: the fill group's separator stayed when the
+// group hid, leaving two hairlines with nothing between them. It comes and goes with it.
+test('the bar separators part it in four, and the fill one follows its group', () => {
+    const js = readFileSync(new URL('../js/ui/selectionPanel.js', import.meta.url), 'utf8');
+    const inner = js.slice(js.indexOf('static inner()'), js.indexOf('static template()'));
+    assert.equal((inner.match(/class="sel-sep"/g) || []).length, 4, 'four separators');
+    // The fill group's own one is identified, starts hidden, and is toggled with the group.
+    assert.match(inner, /id="sel-fill-sep"[^>]*style="display:none;"/);
+    // …through the same slide+dust the group itself uses (selectionPanelMotion covers the
+    // motion; here it is only that the separator is driven WITH the group, never alone).
+    const show = js.slice(js.indexOf('const fillSep ='), js.indexOf('const panel ='));
+    assert.match(show, /revealControls\(fillSep, true, 'block'\)/, 'shown with the group');
+    assert.match(show, /revealControls\(fillSep, false\)/, 'and hidden with it');
+    // Deselect wears the bar's own amber token, not an orange literal of its own.
+    const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+    const cta = css.slice(css.indexOf('.deselect-btn {'), css.indexOf('}', css.indexOf('.deselect-btn {')));
+    assert.match(cta, /var\(--bg-sel-btn\)/, 'the same token its sibling buttons use');
+    assert.ok(!/#e67e22/.test(cta), 'and no hardcoded orange left');
 });

@@ -8,6 +8,7 @@
 #include <QPair>
 #include <QPixmap>
 #include <QPoint>
+#include <QRect>
 #include <QSet>
 #include <QString>
 #include <QVector>
@@ -55,6 +56,14 @@ namespace stencil::gui {
     // while a project row is dragged out of this (modal) dialog. Optional (nullptr = no zones).
     void setDragZones(ProjectDragZones* z) { dragZones_ = z; }
 
+    // Whether a hand-off target is configured (a browser URL, or a Telegram bot for server
+    // rows). The row menu hides "Open in another app" when nothing is available, exactly as
+    // the browser hides it (ui/controlState.js) rather than offering a dead action.
+    void setOpenInAvailable(bool local, bool server) {
+      openInLocalOk_ = local;
+      openInServerOk_ = server;
+    }
+
     // NewBlank: create a blank solid-color image (the main window opens its
     // BlankImageDialog after this dialog closes).
     // OpenInNewWindow: like Open, but the main window loads the project into a
@@ -75,7 +84,7 @@ namespace stencil::gui {
     //   it confirms in-dialog and emits removeRequested (kept as runBatch's dispatch tag).
     // SetColor: set (or clear) a project's accent colour — read selectedId() +
     //   selectedServerUrl() (empty = local) + selectedColor() ("" = theme default).
-    enum class Action { None, Open, OpenInNewWindow, New, Rename, Expiration, NewBlank,
+    enum class Action { None, Open, OpenInNewWindow, New, Rename, NewBlank,
                         OpenRemote, MoveToServer, MoveToLocal, MakeLocalCopy, CopyToServer,
                         SetColor,
                         BatchRemove, BatchMoveToServer, BatchCopyToServer,
@@ -87,15 +96,12 @@ namespace stencil::gui {
     // server projects shown with a golden outline. `thumbs` maps a local project
     // id to its pre-rendered EDITED-result preview (filtered image + drawn lines),
     // shown as the row icon; the caller renders them via the canvas/export path.
-    // `unit` is the active display unit (cm/inches); it converts each local project's
-    // cached lineLengthCm into a "Line: <len> <unit>" row in the per-row tooltip.
     // `activeProjectId` (nullable-empty) is the project open in THIS editor right now —
     // its row gets the browser-parity "(Current)" mark right after its origin badge,
     // painted in the installed palette's accent (`accentColor` is unused, kept for ABI).
     explicit ProjectsDialog(const std::vector<Project>& projects, long long now,
                             stencil::net::ConnectionManager* connections = nullptr,
                             const QHash<QString, QPixmap>& thumbs = {},
-                            core::UnitFormat unit = {},
                             QWidget* parent = nullptr,
                             const QString& activeProjectId = QString(),
                             const QColor& accentColor = QColor());
@@ -126,6 +132,15 @@ namespace stencil::gui {
     // Inline rename (dblclick on the name / the ⋯ menu's Rename): already validated
     // in-dialog, same stay-open pattern — the owner renames and calls setProjects().
     void renameRequested(const QString& id, const QString& newName);
+    // "Set expiration": the editor already ran OVER this window (never replacing it, browser
+    // parity) and the user saved. Same stay-open pattern — the owner writes the meta and
+    // calls setProjects(). `expiresAt` 0 means "keep forever".
+    void expirationRequested(const QString& id, long long expiresAt,
+                             const QString& refreshPeriod, bool autoRefresh);
+    // "Open in another app": the owner holds the image + settings a hand-off needs, so
+    // the row just names itself. `serverUrl` empty = a local row. `closeRect` is the row's
+    // "⋯" chip (GLOBAL), where the dialog it opens flies back to. Stay-open, like the rest.
+    void openInRequested(const QString& id, const QString& serverUrl, const QRect& closeRect);
 
    protected:
     // Hover-magnify: watch the list viewport so hovering a row's thumbnail pops a
@@ -233,7 +248,6 @@ namespace stencil::gui {
     // ✓/✗ over the row; Enter saves via renameRequested, Esc/click-away discards).
     void beginInlineRename(QListWidgetItem* it);
     void closeInlineRename();
-    void expirationSelected();
     // Pop a colour picker (seeded with the row's current colour) and emit SetColor.
     void setColorSelected();
     // Clear the row's colour back to the theme default (emit SetColor with "").
@@ -256,9 +270,15 @@ namespace stencil::gui {
     void createNew();
     void createBlank();
 
+    // The "⋯" chip of the row whose menu is open, in global coords — where a window raised
+    // from that menu flies back to once the menu is gone. Empty on every other path.
+    // The selection-only batch actions, revealed as ONE group (see updateBatchBar).
+    QWidget* batchSelectedGroup_ = nullptr;
+    QRect menuKebabRect_;
+    bool openInLocalOk_ = false;    // a browser URL is set → local rows can hand off
+    bool openInServerOk_ = false;   // …that, or a Telegram bot → server rows can too
     std::vector<Project> projects_;
     long long now_ = 0;
-    core::UnitFormat unit_;  // active display unit for the tooltip's line-length row
     stencil::net::ConnectionManager* connections_ = nullptr;
     QString activeProjectId_;  // the project open in THIS editor right now (its "(Current)" row)
     // id -> pre-rendered local-project preview (edited result), shown as the row icon.
@@ -279,6 +299,13 @@ namespace stencil::gui {
     QVariantAnimation* hoverFade_ = nullptr; // its opacity ramp (in behind dust, out behind it)
     bool hoverClosing_ = false;              // the ramp is running towards hide()
     bool hoverZoomCursor_ = false;           // the viewport shows the magnifier cursor
+    // The row whose "⋯" chip the cursor is on (-1 = none), and the looping sweep that
+    // plays over it while it is. Only its OWN hover styles the chip — a row hover used to
+    // brighten it from anywhere on the row.
+    int kebabHoverRow_ = -1;
+    class ShimmerOverlay* kebabSweep_ = nullptr;   // the app's shared glass sweep
+    QString tipRowText_;   // the row text the visible tooltip belongs to (moves vs retires)
+    void setKebabHover(int row);
     QTimer* remoteTimer_ = nullptr;
     bool remoteBusy_ = false;
     // False until the first server listing resolves — drives the "Loading shared

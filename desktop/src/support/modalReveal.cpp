@@ -207,9 +207,9 @@ namespace stencil::support {
     class CloseFlight : public QObject {
      public:
       CloseFlight(QDialog* dlg, QPointer<QWidget> anchor, QRect anchorRect,
-                  std::shared_ptr<QPixmap> shot)
+                  std::shared_ptr<QPixmap> shot, QRect closeRect = QRect())
           : QObject(dlg), dlg_(dlg), anchor_(std::move(anchor)),
-            anchorRect_(anchorRect), shot_(std::move(shot)) {}
+            anchorRect_(anchorRect), closeRect_(closeRect), shot_(std::move(shot)) {}
 
      protected:
       bool eventFilter(QObject* watched, QEvent* event) override {
@@ -233,7 +233,10 @@ namespace stencil::support {
         QPixmap shot = dlg_->grab();
         if (shot.isNull() && shot_) shot = *shot_;
         if (!host || !target.isValid() || shot.isNull()) return;
-        const QRect to = originRect(anchor_.data(), target, anchorRect_);
+        // An explicit close target wins over the way in: the menu row this grew out of is
+        // gone, so the anchor widget is deliberately dropped with it (see revealDialog).
+        const QRect to = closeRect_.isValid() ? closeRect_
+                                              : originRect(anchor_.data(), target, anchorRect_);
         if (to == target) return;
         if (flySurfaceDust(host, shot, target, to, false, inkOf(*dlg_))) return;
         QLabel* ghost = makeGhost(host, shot, target);
@@ -247,24 +250,38 @@ namespace stencil::support {
       QPointer<QDialog> dlg_;
       QPointer<QWidget> anchor_;
       QRect anchorRect_;
+      QRect closeRect_;
       std::shared_ptr<QPixmap> shot_;
       bool flown_ = false;
     };
   }  // namespace
 
   QColor pickColorAnimated(const QColor& initial, QWidget* parent, const QString& title,
-                           QWidget* anchor, const QRect& anchorRect) {
+                           QWidget* anchor, const QRect& anchorRect,
+                           const std::function<void(const QColor&)>& preview, bool withAlpha,
+                           const QRect& closeRect) {
     // Non-native for the same reasons as everywhere else in the app (the macOS shared
     // panel misbehaves under our event filters) — and only a Qt dialog can be flown.
     QColorDialog dlg(parent);
     dlg.setOption(QColorDialog::DontUseNativeDialog);
+    // Alpha only where the caller can actually store it (see the header): a line, its
+    // points and an area fill are CSS `#rrggbbaa` (support/cssColor.hpp, as in the
+    // browser); a tint or accent is a plain #rrggbb and must not offer a byte it drops.
+    if (withAlpha) dlg.setOption(QColorDialog::ShowAlphaChannel);
     dlg.setWindowTitle(title);
     dlg.setCurrentColor(initial);
-    // No explicit move: exec() centres an unpositioned QDialog over its parent — the
-    // exact spot getColor's dialog lands — and revealDialog reads the geometry only
-    // after exec() has laid it out.
-    revealDialog(dlg, anchor, anchorRect);
-    return dlg.exec() == QDialog::Accepted ? dlg.selectedColor() : QColor();
+    // No explicit move: exec() centres an unpositioned QDialog over its parent, where
+    // getColor's lands, and revealDialog reads the geometry only after it is laid out.
+    // Live: the thing being recoloured follows the picker, so the choice is made against
+    // the real picture. Cancel puts the original back (below).
+    if (preview) {
+      QObject::connect(&dlg, &QColorDialog::currentColorChanged, &dlg,
+                       [&preview](const QColor& c) { if (c.isValid()) preview(c); });
+    }
+    revealDialog(dlg, anchor, anchorRect, closeRect);
+    const bool accepted = dlg.exec() == QDialog::Accepted;
+    if (!accepted && preview) preview(initial);
+    return accepted ? dlg.selectedColor() : QColor();
   }
 
   void revealWindow(QWidget& w, QWidget* anchor) {
@@ -283,7 +300,8 @@ namespace stencil::support {
   // The flight itself. Split from the public entry point so the application-wide watcher
   // below can play it WITHOUT claiming the dialog: a claim is what says "a call site owns
   // this one", and a dialog the watcher flew must still fly the next time it is shown.
-  static void flyDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect) {
+  static void flyDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect,
+                        const QRect& closeRect = QRect()) {
     if (motionReduced()) return;
     QPointer<QDialog> guard(&dlg);
     QPointer<QWidget> anchorGuard(anchor);
@@ -325,14 +343,19 @@ namespace stencil::support {
     // repainted the page under it — so the dialog blinked out, a full-size ghost popped back
     // in where it had been, and only then did the flight start. Starting on Hide (and
     // painting the ghost synchronously) puts the ghost up in the same turn as the unmap.
-    dlg.installEventFilter(new CloseFlight(&dlg, anchorGuard, anchorRect, shotWhileOpen));
+    dlg.installEventFilter(new CloseFlight(&dlg, anchorGuard, anchorRect, shotWhileOpen, closeRect));
   }
 
   void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect) {
+    revealDialog(dlg, anchor, anchorRect, QRect());
+  }
+
+  void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect,
+                    const QRect& closeRect) {
     // Claimed: this dialog has a call site that knows where it came from, so the
     // application-wide watcher below leaves it alone.
     dlg.setProperty(kRevealedProperty, true);
-    flyDialog(dlg, anchor, anchorRect);
+    flyDialog(dlg, anchor, anchorRect, closeRect);
   }
 
   namespace {
@@ -370,14 +393,17 @@ namespace stencil::support {
         // The press that provoked the question. A keyboard-raised one has no fresh point
         // to use, and revealDialog's own fallback (from above the box) covers it — an
         // anchor at a stale cursor would be a gesture that never happened.
-        const QPoint p = QCursor::pos();
-        const QRect gesture(p.x() - kGestureAnchorPx / 2, p.y() - kGestureAnchorPx / 2,
-                            kGestureAnchorPx, kGestureAnchorPx);
-        flyDialog(*dlg, nullptr, gesture);
+        flyDialog(*dlg, nullptr, gestureAnchorRect());
         return QObject::eventFilter(o, e);
       }
     };
   }  // namespace
+
+  QRect gestureAnchorRect() {
+    const QPoint p = QCursor::pos();
+    return QRect(p.x() - kGestureAnchorPx / 2, p.y() - kGestureAnchorPx / 2,
+                 kGestureAnchorPx, kGestureAnchorPx);
+  }
 
   void installDialogReveal() {
     QCoreApplication* app = QCoreApplication::instance();

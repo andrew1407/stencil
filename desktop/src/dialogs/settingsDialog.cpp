@@ -1,4 +1,5 @@
 #include "../support/searchCombo.hpp"
+#include "../support/shimmerOverlay.hpp"
 #include "settingsDialog.hpp"
 #include "guiHelpers.hpp"
 #include "../support/modalChrome.hpp"   // modalSectionLabel
@@ -35,6 +36,10 @@ namespace stencil::gui {
       : QDialog(parent), base_(current), colorHex_(current.defaultColor),
         fillHex_(current.defaultFillColor), selGlowHex_(current.selGlowColor),
         hoverRingHex_(current.hoverRingColor), focusRingHex_(current.focusRingColor) {
+    // The app's glass hover sweep on every control here (the browser's rule is
+    // app-wide; a Qt window opts its own in). Deferred, so the sweep runs once this
+    // constructor has built the content.
+    installHoverShimmerLater(this);
     setWindowTitle("Settings");
     setMinimumWidth(320);
 
@@ -196,16 +201,9 @@ namespace stencil::gui {
     form->addRow("Autosave", autosave_);
     connect(autosave_, &QCheckBox::toggled, this, [this] { applyLive(); });
 
-    syncToServer_ = new QCheckBox(this);
-    syncToServer_->setChecked(current.syncToServer);
-    syncToServer_->setToolTip(
-        "When off, edits to a fetched server project stay in this session only — "
-        "never pushed to the server or saved locally (export or 'Make local copy' to keep them).");
-    form->addRow("Sync changes to server", syncToServer_);
-    connect(syncToServer_, &QCheckBox::toggled, this, [this] { applyLive(); });
-
-    // Note: "Auto-connect to servers on open" now lives in the Servers dialog
-    // (it's a connection preference, persisted via net::connectionStore).
+    // Note: "Auto-connect to servers on open" and "Sync changes to server" both live
+    // in the Servers dialog now (connection preferences, as in the browser's modal);
+    // syncToServer rides through result() untouched from base_.
 
     showPoints_ = new QCheckBox(this);
     showPoints_->setChecked(current.showPoints);
@@ -301,7 +299,6 @@ namespace stencil::gui {
     s.accentColor = accent_->currentData().toString();
     s.nativeMenuBar = nativeMenuBar_->isChecked();
     s.autosave = autosave_->isChecked();
-    s.syncToServer = syncToServer_->isChecked();
     s.showPoints = showPoints_->isChecked();
     s.showLines = showLines_->isChecked();
     s.defaultColor = colorHex_;

@@ -1,5 +1,7 @@
 #pragma once
+#include <QRect>
 #include <QString>
+#include <optional>
 
 class QBoxLayout;
 class QDialog;
@@ -54,6 +56,15 @@ namespace stencil::gui {
   // white. Danger buttons keep objectName "dangerButton" instead.
   void makeModalCta(QPushButton* btn, const QString& iconName = QString());
 
+  // Where the dialog's flight starts and ends (support/modalReveal.hpp). Both GLOBAL and
+  // optional: unset, the window grows out of the press that raised it and shrinks back the
+  // same way. A dialog raised from a context-menu row sets `closeRect` to the control the
+  // menu hung off. Browser twin: confirmModal.js `closeAnchor`.
+  struct FlightAnchors {
+    QRect openRect;    // invalid = the press that raised the dialog
+    QRect closeRect;   // invalid = back the way it came
+  };
+
   // The browser's confirm dialog (ui/confirmModal.js): the same chrome shell —
   // alert glyph + title + Close pill over a hairline, the question in the body,
   // and a footer with Cancel + the named action as accent CTAs (danger = red).
@@ -70,10 +81,33 @@ namespace stencil::gui {
     // real answers plus a way out, each one click).
     QString altLabel;
     QString altIcon = QStringLiteral("plus");
+    FlightAnchors flight;                           // where it grows from / shrinks into
   };
   bool confirmModal(QWidget* parent, const ConfirmSpec& spec);
   // The askAlt variant: Cancel / <alt> / <confirm> (browser confirmModal.js askAlt).
   enum class ConfirmChoice { Cancel, Confirm, Alt };
   ConfirmChoice confirmModalChoice(QWidget* parent, const ConfirmSpec& spec);
+
+  // The browser's text-prompt dialog (confirmModal.js `prompt`): the confirm shell with
+  // the message as a label and an editable field under it. `multiline` gives the
+  // <textarea> shape — `rows` lines tall, Enter typing a newline, Ctrl/⌘+Enter confirming
+  // — for sentence-shaped values. Returns the trimmed text, or nullopt on cancel.
+  struct PromptSpec {
+    QString title;                                 // header title
+    // The header glyph says what KIND of dialog this is: the alert triangle for a question
+    // with a consequence, something else for a prompt that just collects a value — keywords
+    // or a description are information, not a warning. Browser twin: opts.titleIcon.
+    QString titleIcon = QStringLiteral("alert");
+    QString message;                               // the field's caption
+    QString defaultValue;                          // pre-filled (and pre-selected) text
+    QString confirmLabel = QStringLiteral("Save");
+    QString confirmIcon = QStringLiteral("save");
+    QString cancelLabel = QStringLiteral("Cancel");
+    bool multiline = false;
+    int rows = 3;                                  // multiline only
+    int maxChars = 0;                              // >0 caps the returned text
+    FlightAnchors flight;                          // where it grows from / shrinks into
+  };
+  std::optional<QString> promptModal(QWidget* parent, const PromptSpec& spec);
 
 }  // namespace stencil::gui

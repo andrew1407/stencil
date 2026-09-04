@@ -16,7 +16,10 @@ const LEAVE_ANIM_MS = 260;
 // Toast dust, 2x the shared menu clock's length — a passing notice can afford to drift
 // rather than snap.
 const ENTER_DUST_MS = SURFACE_MENU_IN_MS * 2;   // 680
-const LEAVE_DUST_MS = 1040;
+// The exit is SHORTER than the entrance, not longer: an arrival can afford to drift, a
+// departure has nothing left to look at. At 1040ms the last stretch crawled — the toast
+// was long gone and its final grains were still inching along (user report).
+const LEAVE_DUST_MS = 420;
 // The stack never grows past this (desktop parity: Notifications::kMaxVisible in
 // desktop/src/support/notifications.cpp). Past three the column starts walling off the
 // side of the canvas, and the oldest message is the one nobody is still reading.
@@ -49,10 +52,14 @@ const toastDustPoint = (toast) => {
   if (!r || !(r.width > 0)) return dockAwayPoint(r, 'left');
   return { x: freeLeft() - r.width * TOAST_REACH, y: r.top + r.height / 2 };
 };
-// …and the leave is a steady drift, not a window's ease-out (css --dust-ease): with the
-// edge this close, an ease-out had every grain past it in the exit's first beat; linear
-// spends the toast's own long exit clock crossing the last inch, fading as it goes.
-const LEAVE_EASE = 'linear';
+// …on the app's own scatter curve, with no override: one timing function drives both the
+// mote's travel and its alpha, and tileScatterSurface holds alpha near 1 until 55%, so
+// linear and ease-in both left the cloud sitting at full opacity and snapping out.
+// Ease-out covers the distance early and fades with it — the only shape with no tail.
+// …and the whole cloud goes at once. The default per-mote stagger makes a window come
+// apart in a wave, but at toast size it just leaves a few stragglers fading over their own
+// full clock. Near-zero stagger: they leave together, so the cloud ends with the flight.
+const TOAST_LEAVE_STAGGER = 0.12;
 
 // …and the cloud stays on the free side of that edge: the point it flies to/from is behind
 // the panel, so without this the motes streamed across the composer and the toast read as
@@ -147,8 +154,7 @@ export class StencilNotifications extends StencilElement {
     // replaying the springy entrance backwards.
     toast.classList.add('notify-leaving');
     toast.classList.remove('notify-clickable');
-    surfaceOut(toast, toastDustPoint(toast), { ms: LEAVE_DUST_MS });
-    toast.__dustHost?.style?.setProperty?.('--dust-ease', LEAVE_EASE);
+    surfaceOut(toast, toastDustPoint(toast), { ms: LEAVE_DUST_MS, delayScale: TOAST_LEAVE_STAGGER });
     clipDustToFree(toast);
     setTimeout(() => {
       toast.remove();

@@ -192,11 +192,11 @@ test('a slow, still press is just a click on either input', () => {
 test('the row wires every gesture to the SAME open paths, and stays keyboard-usable', () => {
   const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
   // One intent runner, reusing the existing open paths — no duplicated open logic.
-  assert.ok(src.includes('const openWithIntent = async ({ confirm = true, target = \'here\' } = {}) => {'));
+  assert.ok(src.includes('const openWithIntent = async ({ confirm = true, target = \'here\', closeAnchor = null } = {}) => {'));
   assert.ok(src.includes('app.openProjectInNewTab(meta.id);   // the same path the ⋯ menu uses'));
   assert.ok(src.includes('app.switchToProject(meta.id);'));
-  assert.ok(src.includes('if (confirm && !(await confirmOpen(meta.name, true))) return;'), 'new-tab wording');
-  assert.ok(src.includes('const open = () => openWithIntent({ confirm: true, target: \'here\' });'), 'the ⋯ menu keeps its Open');
+  assert.ok(src.includes('if (confirm && !(await confirmOpen(meta.name, true, closeAnchor))) return;'), 'new-tab wording');
+  assert.ok(src.includes('const open = () => openWithIntent({ confirm: true, target: \'here\', closeAnchor: menuBtn });'), 'the ⋯ menu keeps its Open — flying back into the ⋯, not the menu row that is gone');
   // Every gesture goes through the machine.
   for (const wire of [
     "row.addEventListener('click', (e) => gesture.click(e));",

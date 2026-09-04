@@ -149,16 +149,11 @@ namespace stencil::gui {
     hugRight(server_);
     serverDiv_ = rowDivider();
 
-    // Live reachability of the EDITED settings — the dialog-local rendering of
-    // the dock gear's status dot, so misconfiguration shows before Save.
-    // Browser #chat-server-status-row: no "Status" label — the coloured dot on
-    // the left, the muted text on the right of the same row (space-between).
+    // Live reachability of the edited settings — the dialog-local rendering of the dock
+    // gear's status dot, so misconfiguration shows before Save. Browser
+    // #chat-server-status-row: no "Status" label, just the dot and the muted text.
     auto* statusRow = new QWidget(this);
     statusRow->setObjectName("llmStatusRow");
-    statusRow->setToolTip(
-        "Reachability of the provider configured above, re-checked as you "
-        "edit (ollama /api/version, OpenAI-compatible /models, Stencil server "
-        "/llm/info)");
     auto* statusLay = new QHBoxLayout(statusRow);
     statusLay->setContentsMargins(0, 0, 0, 0);
     statusLay->setSpacing(8);
@@ -169,7 +164,12 @@ namespace stencil::gui {
     status_ = new QLabel(statusRow);
     status_->setObjectName("llmStatus");
     status_->setWordWrap(true);
-    status_->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    // Dot then text, side by side — the reading is one thing ("● failed to fetch"), and
+    // pinning the text to the right edge left a row of nothing between them (user report).
+    status_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    // It takes the rest of the row (no trailing stretch): a word-wrapped label handed only
+    // its sizeHint width breaks an easily-fitting sentence into three lines. Left-aligned,
+    // so the width goes to the right of the text, not between it and the dot.
     statusLay->addWidget(status_, 1);
     form_->addRow(statusRow);
     rowDivider();
@@ -177,11 +177,10 @@ namespace stencil::gui {
     if (mode_ == RowMode::HideRows)
       form_->addRow(modalSectionLabel(QStringLiteral("Chat history"), this));
 
-    // Chat persistence opt-in (llm-contract.md §12): provider-independent,
-    // so it gets no per-provider row treatment in syncRows. Ships OFF.
-    // Browser row shape: label on the left, the checkbox pinned to the row's
-    // right edge (.vs-row space-between).
-    saveChats_ = new QCheckBox(this);
+    // Chat persistence opt-in (llm-contract.md §12): provider-independent, so it gets no
+    // per-provider row treatment in syncRows. Ships OFF. Box first with its label beside
+    // it, so it reads as one control — the browser's .vs-inline-check does the same.
+    saveChats_ = new QCheckBox(tr("Save chats with projects"), this);
     saveChats_->setObjectName("llmSaveChats");
     saveChats_->setChecked(current.saveChatsWithProject);
     saveChats_->setToolTip(
@@ -190,12 +189,7 @@ namespace stencil::gui {
         "never saves.\n\nFor a project on a server the transcript is stored with it, "
         "so everyone that project is shared with can read it. Local projects stay "
         "on this machine.");
-    auto* saveWrap = new QWidget(this);
-    auto* saveLay = new QHBoxLayout(saveWrap);
-    saveLay->setContentsMargins(0, 0, 0, 0);
-    saveLay->addStretch(1);
-    saveLay->addWidget(saveChats_);
-    form_->addRow("Save chats with projects", saveWrap);
+    form_->addRow(saveChats_);   // one control spanning the row, not a label/field pair
     rowDivider();
     // §12.2 requires the sharing consequence to be visible, not only on hover.
     auto* saveChatsHint = new QLabel(
@@ -204,6 +198,14 @@ namespace stencil::gui {
         this);
     saveChatsHint->setObjectName("llmSaveChatsHint");
     saveChatsHint->setWordWrap(true);
+    // heightForWidth, or the layout budgets the label's height from a narrower width than
+    // it renders at and reserves room for lines the text never uses — which reads as a slab
+    // of padding, not as a margin. Qt consults it only when the policy says to.
+    {
+      QSizePolicy sp = saveChatsHint->sizePolicy();
+      sp.setHeightForWidth(true);
+      saveChatsHint->setSizePolicy(sp);
+    }
 
     if (mode_ == RowMode::HideRows) {
       // ONE tinted help note (browser .chat-cors-note; the two boxes merged per
@@ -212,9 +214,14 @@ namespace stencil::gui {
       // so CORS is not its problem; being up at the URL is what matters.
       noteBox_ = new QFrame(this);
       noteBox_->setObjectName("llmNoteBox");
+      // Tight to its text: it is a note, not a panel, and Fixed height stops the column
+      // stretching it into one (user report — too much air above and below the line).
+      QSizePolicy boxSp(QSizePolicy::Preferred, QSizePolicy::Fixed);
+      boxSp.setHeightForWidth(true);   // …and the frame sizes to the wrapped label, not past it
+      noteBox_->setSizePolicy(boxSp);
       auto* noteLay = new QVBoxLayout(noteBox_);
-      noteLay->setContentsMargins(10, 8, 10, 8);
-      noteLay->setSpacing(6);
+      noteLay->setContentsMargins(10, 6, 10, 6);
+      noteLay->setSpacing(4);
       noteLay->addWidget(saveChatsHint);
       note_ = new QLabel(
           QStringLiteral("Local providers must be running at the URL above "
@@ -224,6 +231,11 @@ namespace stencil::gui {
           noteBox_);
       note_->setObjectName("llmNote");
       note_->setWordWrap(true);
+      {
+        QSizePolicy sp = note_->sizePolicy();
+        sp.setHeightForWidth(true);   // same reason as saveChatsHint above
+        note_->setSizePolicy(sp);
+      }
       noteLay->addWidget(note_);
       col->addWidget(noteBox_);
     } else {

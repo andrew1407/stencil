@@ -45,7 +45,7 @@
     "thickness": 2,
     "pointSize": 4,
     "style": "solid",
-    "defaultFillColor": "#3399ff",
+    "defaultFillColor": "#ffffff",
     "selGlowColor": "#ffc800",
     "hoverRingColor": "#7c3aed",
     "focusRingColor": "#7c3aed"

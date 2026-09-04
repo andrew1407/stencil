@@ -486,12 +486,14 @@ namespace stencil::gui {
     statusHint_->setStyleSheet(
         "QLabel#statusHint{color:rgba(154,160,168,0.75);font-size:11px;font-weight:600;"
         "border:1px solid rgba(154,160,168,0.45);border-radius:9px;background:transparent;}");
-    // ✎ rename + 🎨 colour affordances beside the name (hover-revealed, enabled
-    // only with an active project). Fixed 26px boxes: at their natural size the
-    // hover reveal grew the header row and the whole window jumped.
+    // ✎ rename + 🎨 colour affordances beside the name (hover-revealed, enabled only with
+    // an active project). Fixed 26px boxes, or the hover reveal grows the header row.
+    // Each is a CHIP, not a bare glyph — the browser paints both on --bg-info inside a
+    // --border-main outline at rest. QSS half: QToolButton[nameAffordance] in theme.cpp.
     const auto sizeToRow = [](QToolButton* b) {
       b->setFixedSize(26, 26);
       b->setIconSize(QSize(15, 15));
+      b->setProperty("nameAffordance", true);
     };
     projectNameEdit_ = new QToolButton(nameGroup_);
     projectNameEdit_->setToolButtonStyle(Qt::ToolButtonIconOnly);
@@ -524,11 +526,15 @@ namespace stencil::gui {
     // icon buttons. Icon-only with a tooltip.
     projectNameAccept_ = new QToolButton(nameGroup_);
     projectNameAccept_->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    // Hover text is shared with the browser's toolbar.js (#project-name-accept /
+    // #project-name-cancel) — a control in both apps says the same thing.
+    projectNameAccept_->setToolTip("Save name");
     sizeToRow(projectNameAccept_);   // ✓/✗ replace ✎/🎨 in edit mode — same box, no jump
     projectNameAccept_->setVisible(false);
     nameLay->addWidget(projectNameAccept_);
     projectNameCancel_ = new QToolButton(nameGroup_);
     projectNameCancel_->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    projectNameCancel_->setToolTip("Cancel");
     sizeToRow(projectNameCancel_);
     projectNameCancel_->setVisible(false);
     nameLay->addWidget(projectNameCancel_);

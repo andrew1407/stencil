@@ -328,7 +328,10 @@ input[type="password"]:hover:not(:disabled):not(:focus),
 select:hover:not(:disabled) {
     background-image: linear-gradient(115deg, transparent 42%,
         color-mix(in srgb, #ffffff 26%, transparent) 50%, transparent 58%);
-    animation: ui-shimmer-bg 0.75s ease;
+    /* 1.5x the ::after sweep's 0.75s: a band travelling the whole width of a text field
+       reads much faster than the same clock does across a button (user report, the
+       projects search bar). */
+    animation: ui-shimmer-bg 1.125s ease;
 }
 @keyframes ui-shimmer-bg {
     from { background-position: 185% 0; }
@@ -556,13 +559,34 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     color: var(--text-sel-label);
     white-space: nowrap;
 }
+/* Everything inside the bar reads in the bar's own amber, not the app's generic ink and
+   accent, or the component looks assembled out of parts from elsewhere. The Deselect CTA
+   keeps its orange — it is the one action, not a control. */
+#selection-panel label,
+#selection-panel .control-group label { color: var(--text-sel-label); }
+#selection-panel input[type="checkbox"] { accent-color: var(--border-sel); }
+#selection-panel input:focus-visible,
+#selection-panel select:focus-visible { outline: 2px solid var(--border-sel); outline-offset: 1px; }
+#sel-fill-clear, #sel-unchain {
+    background: var(--bg-sel-btn);
+    color: var(--text-sel-btn);
+}
+#sel-fill-clear:hover:not(:disabled), #sel-unchain:hover:not(:disabled) {
+    background: var(--bg-sel-btn-hov);
+}
+#sel-fill-clear .ic, #sel-unchain .ic { color: var(--text-sel-btn); }
+
+/* Deselect wears the SAME amber as the bar's other buttons — one palette, no outlier.
+   The same token, not a copy of its value, so the two can never drift apart. It stays
+   told apart by its icon and label, not by being the one orange thing in the row. */
 .deselect-btn {
-    background: #e67e22 !important;
+    background: var(--bg-sel-btn) !important;
+    color: var(--text-sel-btn) !important;
     font-size: 13px;
     padding: 6px 12px !important;
 }
 .deselect-btn:hover {
-    background: #ca6f1e !important;
+    background: var(--bg-sel-btn-hov) !important;
 }
 canvas {
     display: block;
@@ -633,12 +657,13 @@ input[type="number"] {
 /* Color pickers share the dark input chrome (the UA default is a white chip that
    clashes with the sibling fields); the swatch fills the chip inside a thin frame. */
 input[type="color"] {
-    /* Sized to the neighbouring fields (thickness/point inputs ≈ 34px tall) —
-       a fixed 60×38 read as a huge colour slab next to them. */
+    /* A colour chip inside an input frame — a 32x16 swatch in a 46x26 box, the desktop's own
+       well (guiHelpers setColorSwatch) and the shape all three surfaces share. Filling the
+       box made the colour a slab and the loudest thing in the row. */
     width: 46px;
-    height: 34px;
+    height: 26px;
     cursor: pointer;
-    padding: 4px;
+    padding: 4px 6px;   /* 46-2*6 = 32 wide, 26-2*4 = 18 high inside the 1px frame */
     background: var(--input-bg);
 }
 input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
@@ -730,7 +755,10 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 .name-edit-btn:disabled { opacity: .4; cursor: not-allowed; }
 .name-edit-accept { color: #22c55e; }
 .name-edit-cancel { color: #ef4444; }
-.project-rename-wrap { display: inline-flex; align-items: center; gap: 4px; }
+/* Fills the name column, so the field runs from the name's left edge to just short of the
+   row's "⋯" — desktop parity (projectsDialog beginInlineRename). inline-flex shrank to fit
+   and left the input a stub measuring its `width: 100%` against that stub. */
+.project-rename-wrap { display: flex; align-items: center; gap: 4px; width: 100%; min-width: 0; }
 #toggle-controls {
     background: transparent;
     border: 1px solid var(--border-main) !important;
@@ -999,14 +1027,50 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 .coordinates-table th { background: var(--bg-coord-th); color: white; font-weight: bold; }
 .coordinates-table tr:nth-child(even) { background-color: var(--bg-coord-even); }
 .coordinates-table tbody tr:hover { background-color: var(--bg-coord-hover); cursor: pointer; }
+/* The ring is drawn inside the row (outline-offset), not around it: an outline sits
+   outside the border box, so under the sticky header (or against the scroller's edge) its
+   top edge was painted over and the ring came out open. Inset, it is always whole. */
 .coordinates-table tbody tr.row-highlighted {
     background: color-mix(in srgb, var(--accent) 18%, transparent) !important;
     outline: 2px solid var(--accent);
+    outline-offset: -2px;
 }
 .coordinates-table tbody tr.row-focused {
     background: rgba(255,200,0,0.28) !important;
     outline: 2px solid #e6b800;
+    outline-offset: -2px;
 }
+
+/* The Fill toggle is a ROW, not inline text: as a plain label the box sat on the text's
+   baseline and the two read as misaligned. Flex centres them on each other. */
+.fill-toggle { display: inline-flex; align-items: center; gap: 6px; }
+
+/* One height for everything in the bar. The row used to mix 34px fields with 28px buttons
+   and a 19px cross, which is what made it look ragged. */
+#selection-panel input:not([type="checkbox"]):not([type="color"]),
+#selection-panel select,
+#selection-panel button { height: 34px; box-sizing: border-box; }
+
+/* The bar's parts, told apart by a hairline in its own amber rather than by spacing
+   alone: the header, the line's own styling, its fill, and the actions. */
+.sel-sep {
+    flex: 0 0 auto;
+    width: 1px;
+    align-self: stretch;
+    margin: 2px 0;
+    background: var(--border-sel);
+    opacity: 0.45;
+}
+
+/* The opacity half of a colour control: the alpha BYTE (0-255) beside its swatch, the
+   same unit the desktop's picker shows. A number, not a slider — a colour is picked to a
+   value, and this one is typed like the thickness/size boxes it sits among. */
+.alpha-input { width: 56px; }
+
+/* Clear-fill: the app's ordinary control button, not a coloured CTA — a small correction
+   beside the swatch, not an action to draw the eye. Tight box + an 11px glyph, matching
+   the desktop's own (selectedLineBar.cpp restyleIcons). */
+.fill-clear { padding: 0 10px; }
 
 /* inline pixel-coord input */
 .coord-px-input {

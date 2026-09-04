@@ -1,14 +1,16 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches, escapeHtml } from './base.js';
-import { wireNameEditor, notify, cmToUnit, unitLabel, isTouchLike, pointInRect, shortName, placeNearCursor } from '../utils.js';
-import { icon } from './icons.js';
+import { wireNameEditor, notify, isTouchLike, pointInRect, shortName, placeNearCursor, anchorPickerInput } from '../utils.js';
+import { icon, setSelectAllFace } from './icons.js';
 import { SORT_MODES, sortProjectItems, reconcileManualOrder } from './projectSort.js';
 import { setTranslucentDragImage } from './dragGhost.js';
 import { makeTouchDraggable } from './touchDrag.js';
 import {
   observeReveal, leaveThenRemove, wipeDurationMs, scatterGridFor, createFilterAnimator,
+  revealControls,
   surfaceIn, surfaceOut, settleSurface, rectCenter, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS,
   TIP_DUST_IN_MS, TIP_DUST_OUT_MS, markIn, markOut,
 } from './motion.js';
+import { normalizeHex } from '../core/accents.js';
 import { normalizeUrl } from '../net/connectionManager.js';
 import { loadSavedServers } from '../net/connectionStore.js';
 
@@ -195,15 +197,19 @@ export class StencilProjectsModal extends StencilElement {
             </div>
             <!-- Batch-select toolbar: appears once one or more rows are checked. -->
             <div class="projects-batch-bar" id="projects-batch-bar" style="display:none">
-                <span class="projects-batch-count" id="projects-batch-count">0 selected</span>
+                <span class="projects-batch-count" id="projects-batch-count" style="display:none">0 selected</span>
                 <span class="projects-batch-actions">
                     <button id="projects-select-all" class="btn-icon-text" style="display:none" title="Select every listed project (the current filter's rows)">${icon('check', { size: 13 })}<span>Select all</span></button>
+                    <!-- The selection-only actions come and go as ONE group, so the swap is a
+                         single flight instead of a button-by-button scramble (updateBatchBar). -->
+                    <span class="projects-batch-selected" id="projects-batch-selected" style="display:none">
                     <button id="projects-batch-move-server" class="btn-icon-text" title="Move the selected local projects to a server">${icon('server', { size: 13 })}<span>Move to server</span></button>
                     <button id="projects-batch-copy-server" class="btn-icon-text" title="Copy the selected local projects to a server">${icon('copy', { size: 13 })}<span>Copy to server</span></button>
                     <button id="projects-batch-move-local" class="btn-icon-text" title="Move the selected server projects to local">${icon('download', { size: 13 })}<span>Move to local</span></button>
                     <button id="projects-batch-copy-local" class="btn-icon-text" title="Copy the selected server projects to local">${icon('copy', { size: 13 })}<span>Copy to local</span></button>
-                    <button id="projects-batch-remove" class="danger btn-icon-text" title="Remove the selected projects">${icon('trash', { size: 13 })}<span>Remove selected</span></button>
                     <button id="projects-batch-clear" class="btn-icon-text" title="Clear selection">${icon('x', { size: 13 })}<span>Clear</span></button>
+                    <button id="projects-batch-remove" class="danger btn-icon-text" title="Remove the selected projects">${icon('trash', { size: 13 })}<span>Remove selected</span></button>
+                    </span>
                 </span>
             </div>
             <div class="settings-body" id="projects-list"><!-- filled by JS --></div>
@@ -295,23 +301,33 @@ export class StencilProjectsModal extends StencilElement {
       remove: document.getElementById('projects-batch-remove'),
       clear: document.getElementById('projects-batch-clear'),
     };
+    const selectAllBtn = () => document.getElementById('projects-select-all');
+    const selectedGroup = document.getElementById('projects-batch-selected');
     const updateBatchBar = () => {
       // The bar hosts Select all too, so it shows whenever the list HAS selectable
       // rows — the selection-only controls inside it come and go with the selection.
       batchBar.style.display = (selected.size || selectables.size) ? '' : 'none';
-      batchCount.style.display = selected.size ? '' : 'none';
+      // The count rides the same swap as the buttons: a hard display flip on the FIRST
+      // thing in the row shoved everything after it sideways in one frame, which is most
+      // of what read as "jumping" (user report).
       batchCount.textContent = `${selected.size} selected`;
       const local = onlyLocalMovable();
       const remote = onlyRemoteMovable();
-      // Inapplicable directions are HIDDEN, not greyed: a local-only selection never
-      // moves "to local", so a disabled button is just noise.
+      // Inapplicable directions are hidden, not greyed: a local-only selection never moves
+      // "to local", so a disabled button is just noise. Coming and going is the app's
+      // control swap (motion.js revealControls). Which directions apply is a plain display
+      // flip inside the group — the group flies, so these carry no cloud of their own.
       const show = (btn, on) => { btn.style.display = on ? '' : 'none'; };
       show(batchBtns.moveServer, local && hasServers());
       show(batchBtns.copyServer, local && hasServers());
       show(batchBtns.moveLocal, remote);
       show(batchBtns.copyLocal, remote);
-      show(batchBtns.remove, selected.size > 0);
-      show(batchBtns.clear, selected.size > 0);
+      // …and the GROUP is what comes and goes. One flight, not one per button:
+      // revealControls photographs a control where it sits at that instant, and siblings
+      // revealed in the same turn are still animating their own width.
+      revealControls(batchCount, selected.size > 0);
+      revealControls(selectedGroup, selected.size > 0);
+      revealControls(selectAllBtn(), selectables.size > 0);
       updateSelectAll();
     };
     const clearSelection = () => { selected.clear(); updateBatchBar(); };
@@ -319,13 +335,9 @@ export class StencilProjectsModal extends StencilElement {
     const selectables = new Map();
     const allSelected = () =>
       selectables.size > 0 && [...selectables.keys()].every((k) => selected.has(k));
-    const updateSelectAll = () => {
-      const btn = document.getElementById('projects-select-all');
-      if (!btn) return;
-      btn.style.display = selectables.size ? '' : 'none';
-      const label = btn.querySelector('span');
-      if (label) label.textContent = allSelected() ? 'Deselect all' : 'Select all';
-    };
+    // Its label only — the button's coming and going rides updateBatchBar's ordered pass,
+    // with the rest of the bar.
+    const updateSelectAll = () => setSelectAllFace(selectAllBtn(), allSelected());
     const toggleSelect = (key, entry, on) => {
       if (on) selected.set(key, entry);
       else selected.delete(key);
@@ -333,11 +345,14 @@ export class StencilProjectsModal extends StencilElement {
     };
 
     // Pick a connected server (auto when only one). Returns an address or null (cancelled).
-    const pickServer = async (message) => {
+    // `closeAnchor` (also in confirmOpen/openWithIntent) is where the dialog's dust pours
+    // back into — a row's "⋯" button, since the menu row it grew out of is gone by then.
+    // Omitted for the row-gesture paths, which fly back into the gesture's own point.
+    const pickServer = async (message, closeAnchor = null) => {
       const urls = app.connections?.urls || [];
       if (!urls.length) return null;
       if (urls.length === 1) return urls[0];
-      return app.choose(message, { title: 'Choose server', confirmLabel: 'OK', confirmIcon: 'server', options: urls.map(u => ({ value: u, label: u })) });
+      return app.choose(message, { title: 'Choose server', confirmLabel: 'OK', confirmIcon: 'server', closeAnchor, options: urls.map(u => ({ value: u, label: u })) });
     };
 
     const fmtDate = ts => {
@@ -349,17 +364,14 @@ export class StencilProjectsModal extends StencilElement {
       }
     };
 
-    // Row hover tooltip (local + server rows). The line length is read from the cached
-    // `lineLengthCm` on the registry meta (computed at save time), so we never reload a
-    // project's image-heavy payload just to measure it.
+    // Row hover tooltip (local + server rows): the picture's size, its orientation under
+    // it, and the description when there is one. No drawn-line length — a number nobody
+    // hovers a project row to read, and it made the tip a third taller for it.
     const projectTooltip = meta => {
       const lines = [];
       const w = meta.imageW;
       const h = meta.imageH;
       if (w && h) lines.push(`${w}x${h} px · ${h >= w ? 'portrait' : 'landscape'}`);
-      if (meta.lineLengthCm > 0) {
-        lines.push(`Line: ${(+cmToUnit(meta.lineLengthCm, app.unit)).toFixed(1)} ${unitLabel(app.unit)}`);
-      }
       if (meta.description) lines.push(`Description: ${meta.description}`);
       return lines.join('\n');
     };
@@ -513,7 +525,14 @@ export class StencilProjectsModal extends StencilElement {
         // red) so the destructive item is red TEXT on the menu background.
         b.className = 'project-menu-item btn-icon-text' + (it.danger ? ' is-danger' : '');
         b.innerHTML = `${icon(it.icon, { size: 15 })}<span>${it.label}</span>`;
-        b.addEventListener('click', e => { e.stopPropagation(); closeMenu(); it.onClick(); });
+        // Each row hands its handler its OWN rect, measured before the menu goes: a window
+        // raised from here grows out of the row that was clicked, not out of thin air.
+        b.addEventListener('click', e => {
+          e.stopPropagation();
+          const at = b.getBoundingClientRect();
+          closeMenu();
+          it.onClick(at);
+        });
         menu.appendChild(b);
       }
       document.body.appendChild(menu);
@@ -575,11 +594,38 @@ export class StencilProjectsModal extends StencilElement {
 
     // Opening replaces this tab's unsaved session (or spawns a tab), so every open path
     // confirms first. Returns true to proceed; `newTab` tunes the wording.
-    const confirmOpen = (name, newTab = false) => app.confirm(
+    const confirmOpen = (name, newTab = false, closeAnchor = null) => app.confirm(
       newTab
         ? `Open "${shortName(name || 'Untitled')}" in a new tab?`
         : `Open "${shortName(name || 'Untitled')}" here? Any unsaved changes in the current tab will be replaced.`,
-      { title: 'Open project', confirmLabel: 'Open', confirmIcon: 'folder', cancelLabel: 'Cancel' });
+      { title: 'Open project', confirmLabel: 'Open', confirmIcon: 'folder', cancelLabel: 'Cancel', closeAnchor });
+
+    // ONE hidden colour field for the whole list, re-pointed at the row being recoloured.
+    // Never `display: none` and never built inside the click handler: the native picker
+    // opens beside its input's laid-out box, and one that has none lands at the page
+    // corner — utils.anchorPickerInput puts it under the button that was pressed.
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.className = 'project-color-picker';
+    colorInput.tabIndex = -1;
+    colorInput.setAttribute('aria-hidden', 'true');
+    let colorTarget = null;
+    colorInput.addEventListener('change', () => {
+      if (!colorTarget) return;
+      app.setProjectColor(colorTarget.id, colorInput.value);
+      colorTarget.color = colorInput.value;
+      render();
+    });
+    list.appendChild(colorInput);
+    const openColorPicker = (meta, btn) => {
+      colorTarget = meta;
+      colorInput.value = normalizeHex(meta.color) || '#7c3aed';
+      anchorPickerInput(colorInput, btn);
+      try {
+        if (typeof colorInput.showPicker === 'function') colorInput.showPicker();
+        else colorInput.click();
+      } catch { colorInput.click(); }
+    };
 
     const makeRow = (meta, opts = {}) => {
       const row = document.createElement('div');
@@ -778,20 +824,20 @@ export class StencilProjectsModal extends StencilElement {
           if (urls.length > 1) {
             address = await app.choose(
               `Move "${shortName(meta.name || 'Untitled')}" to which server? It becomes a server-backed project.`,
-              { title: 'Move to server', confirmLabel: 'Move', confirmIcon: 'upload', options: urls.map(u => ({ value: u, label: u })) });
+              { title: 'Move to server', confirmLabel: 'Move', confirmIcon: 'upload', closeAnchor: menuBtn, options: urls.map(u => ({ value: u, label: u })) });
             if (!address) return;
           } else if (!(await app.confirm(
             `Move "${shortName(meta.name || 'Untitled')}" to server ${address}? It becomes a server-backed project.`,
-            { title: 'Move to server', confirmLabel: 'Move', confirmIcon: 'upload' }))) {
+            { title: 'Move to server', confirmLabel: 'Move', confirmIcon: 'upload', closeAnchor: menuBtn }))) {
             return;
           }
           try { await app.moveProjectToServer(meta.id, address); notify('Moved to server', 'ok'); render(); scrollRowIntoView(meta.id); }
           catch (err) { notify(`Could not move to server — ${err.message}`, 'fail'); }
         };
         const copyToServer = async () => {
-          const address = await pickServer(`Copy "${shortName(meta.name || 'Untitled')}" to which server?`);
+          const address = await pickServer(`Copy "${shortName(meta.name || 'Untitled')}" to which server?`, menuBtn);
           if (!address) return;
-          const name = await app.prompt('Name for the server copy:', { title: 'Copy to server', confirmLabel: 'Copy', confirmIcon: 'copy', defaultValue: `${meta.name || 'Untitled'}-copy` });
+          const name = await app.prompt('Name for the server copy:', { title: 'Copy to server', confirmLabel: 'Copy', confirmIcon: 'copy', defaultValue: `${meta.name || 'Untitled'}-copy`, closeAnchor: menuBtn });
           if (name == null) return;
           try { await app.copyProjectToServer(meta.id, address, { name }); notify('Copied to server', 'ok'); render(); }
           catch (err) { notify(`Could not copy to server — ${err.message}`, 'fail'); }
@@ -801,7 +847,7 @@ export class StencilProjectsModal extends StencilElement {
           const note = serverLinked
             ? `Remove the local copy of "${shortName(meta.name || 'Untitled')}"? It stays on the server ${meta.address}.`
             : `Remove project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`;
-          if (!(await app.confirm(note, { title: 'Remove project', danger: true, confirmIcon: 'trash' }))) return;
+          if (!(await app.confirm(note, { title: 'Remove project', danger: true, confirmIcon: 'trash', closeAnchor: menuBtn }))) return;
           // The row collapses away first; render() then rebuilds the list without it.
           const settle = beginRemoval();
           await leaveThenRemove(rowById(meta.id), () => {}, scatterGridFor(1));
@@ -812,43 +858,29 @@ export class StencilProjectsModal extends StencilElement {
         // Opening the row per the gesture's intent (rowOpenIntent): `here` switches this
         // tab, `newtab` spawns one, `confirm` gates behind the shared modal. Clicking the
         // already-active project just closes the modal.
-        const openWithIntent = async ({ confirm = true, target = 'here' } = {}) => {
+        const openWithIntent = async ({ confirm = true, target = 'here', closeAnchor = null } = {}) => {
           if (target === 'newtab') {
-            if (confirm && !(await confirmOpen(meta.name, true))) return;
+            if (confirm && !(await confirmOpen(meta.name, true, closeAnchor))) return;
             app.openProjectInNewTab(meta.id);   // the same path the ⋯ menu uses
             return;
           }
           if (isActive) { close(); return; }
-          if (confirm && !(await confirmOpen(meta.name))) return;
+          if (confirm && !(await confirmOpen(meta.name, false, closeAnchor))) return;
           app.switchToProject(meta.id);
           close();
         };
-        const open = () => openWithIntent({ confirm: true, target: 'here' });
+        const open = () => openWithIntent({ confirm: true, target: 'here', closeAnchor: menuBtn });
 
-        // Per-row colour: a throwaway native colour picker paints the project name. A second
-        // "Clear colour" item (shown only when a colour is set) resets it to the theme accent.
-        const pickColor = () => {
-          const picker = document.createElement('input');
-          picker.type = 'color';
-          picker.value = meta.color || '#7c3aed';
-          picker.style.cssText = 'position:fixed;left:-9999px;width:1px;height:1px;opacity:0;';
-          document.body.appendChild(picker);
-          const apply = () => { app.setProjectColor(meta.id, picker.value); meta.color = picker.value; render(); };
-          picker.addEventListener('change', () => { apply(); picker.remove(); });
-          try {
-            if (typeof picker.showPicker === 'function') picker.showPicker();
-            else picker.click();
-          } catch {
-            picker.click();
-          }
-        };
+        // Per-row colour: the native picker paints the project name, and a "Clear colour"
+        // item (only when one is set) resets it to the theme accent.
+        const pickColor = () => openColorPicker(meta, menuBtn);
         const clearColor = () => { app.setProjectColor(meta.id, ''); meta.color = ''; render(); };
 
         // Edit the project's search keywords via a prompt (comma/space separated). The store
         // normalizes; a server-linked project also pushes them to the server.
         const editKeywords = async () => {
           const cur = (meta.keywords || []).join(' ');
-          const v = await app.prompt('Keywords (comma or space separated):', { title: 'Project keywords', confirmLabel: 'Save', confirmIcon: 'save', defaultValue: cur });
+          const v = await app.prompt('Keywords (comma or space separated):', { title: 'Project keywords', titleIcon: 'info', confirmLabel: 'Save', confirmIcon: 'save', defaultValue: cur, multiline: true, closeAnchor: menuBtn });
           if (v == null) return;
           const updated = app.setProjectKeywords(meta.id, v.split(/[\s,]+/));
           if (updated) meta.keywords = updated.keywords;
@@ -859,7 +891,7 @@ export class StencilProjectsModal extends StencilElement {
         // an empty value clears it. Mirrors editKeywords / the colour picker above.
         const editDescription = async () => {
           const cur = meta.description || '';
-          const v = await app.prompt('Description:', { title: 'Project description', confirmLabel: 'Save', confirmIcon: 'save', defaultValue: cur });
+          const v = await app.prompt('Description:', { title: 'Project description', titleIcon: 'info', confirmLabel: 'Save', confirmIcon: 'save', defaultValue: cur, multiline: true, closeAnchor: menuBtn });
           if (v == null) return;
           const updated = store.setDescription(meta.id, v);
           if (updated) meta.description = updated.description;
@@ -869,13 +901,17 @@ export class StencilProjectsModal extends StencilElement {
         // One menu definition, shared by the "⋯" button and a right-click on the row.
         const menuItems = () => [
           isActive ? null : { icon: 'folder', label: 'Open', onClick: open },
-          { icon: 'external', label: 'Open in new tab', onClick: async () => { if (await confirmOpen(meta.name, true)) app.openProjectInNewTab(meta.id); } },
+          { icon: 'external', label: 'Open in new tab', onClick: async () => { if (await confirmOpen(meta.name, true, menuBtn)) app.openProjectInNewTab(meta.id); } },
+          // The toolbar's Open-in hand-off, per row — same modal, aimed at THIS project
+          // instead of the open one. Hidden when no target is configured, exactly as the
+          // toolbar button hides (ui/controlState.js), so it never offers a dead action.
+          app.openInAvailable?.() ? { icon: 'monitor', label: 'Open in another app', onClick: (at) => document.querySelector('stencil-open-in-modal')?.openFor(meta.id, { from: at, backTo: menuBtn }) } : null,
           { icon: 'pencil', label: 'Rename', onClick: () => beginRename() },
-          { icon: 'palette', label: 'Set color…', onClick: pickColor },
+          { icon: 'palette', label: 'Set color', onClick: pickColor },
           meta.color ? { icon: 'x', label: 'Clear color', onClick: clearColor } : null,
-          { icon: 'flag', label: 'Keywords…', onClick: editKeywords },
-          { icon: 'file-text', label: 'Description…', onClick: editDescription },
-          { icon: 'calendar', label: 'Expiration…', onClick: () => document.querySelector('stencil-expiration-modal')?.openFor(meta.id) },
+          { icon: 'flag', label: 'Add keywords', onClick: editKeywords },
+          { icon: 'file-text', label: 'Add description', onClick: editDescription },
+          { icon: 'calendar', label: 'Set expiration', onClick: (at) => document.querySelector('stencil-expiration-modal')?.openFor(meta.id, { from: at, backTo: menuBtn }) },
           (hasServers() && !serverLinked) ? { icon: 'server', label: 'Move to server', onClick: moveToServer } : null,
           (hasServers() && !serverLinked) ? { icon: 'copy', label: 'Copy to server', onClick: copyToServer } : null,
           { icon: 'trash', label: 'Remove', danger: true, onClick: removeRow },
@@ -1112,8 +1148,8 @@ export class StencilProjectsModal extends StencilElement {
       // shared with the row's right-click context menu.
       const menuItems = () => [
         { icon: 'folder', label: 'Open from server', onClick: openFromServer },
-        { icon: 'copy', label: 'Copy to local…', onClick: copyToLocal },
-        { icon: 'incognito', label: 'Copy to incognito…', onClick: copyToIncognito },
+        { icon: 'copy', label: 'Copy to local', onClick: copyToLocal },
+        { icon: 'incognito', label: 'Copy to incognito', onClick: copyToIncognito },
         { icon: 'download', label: 'Move to local', onClick: moveToLocal },
         { icon: 'trash', label: 'Delete from server', danger: true, onClick: deleteFromServer },
       ];

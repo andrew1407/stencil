@@ -22,7 +22,10 @@
 #include <QFrame>
 #include <QHelpEvent>
 #include <QImage>
+#include <QDeadlineTimer>
+#include <QHoverEvent>
 #include <QKeyEvent>
+#include <QMouseEvent>
 #include <QLabel>
 #include <QList>
 #include <QPainter>
@@ -194,6 +197,7 @@ namespace stencil::gui {
   class AppTooltip : public QFrame {
    public:
     static constexpr int kFadeMs = 90;      // browser: #app-tooltip transition (the fallback)
+    static constexpr int kMaxTipWidth = 380;   // browser: #app-tooltip max-width
     static constexpr int kShakeMs = 320;    // browser: keycapShake 0.32s, one per appearance
                                             // (TipBody holds its steps — the CAPS move, not this)
     // ── The tooltip is sand too (browser js/ui/controlTooltip.js) ──────────────
@@ -216,6 +220,11 @@ namespace stencil::gui {
       body_ = new TipBody(this);
       body_->setTextFormat(Qt::RichText);
       body_->setObjectName(QStringLiteral("stencilAppTooltipBody"));
+      // Wraps at the browser's own tooltip ceiling (#app-tooltip max-width: 380px). Without
+      // one a long sentence rendered as a single line the width of the screen instead of a
+      // few readable ones (user report, the "save chats" tip).
+      body_->setWordWrap(true);
+      body_->setMaximumWidth(kMaxTipWidth);
       lay->addWidget(body_);
       hide();
 
@@ -243,8 +252,16 @@ namespace stencil::gui {
     QWidget* owner() const { return owner_.data(); }
 
     // Show `owner`'s tooltip near `globalPos`. Rich text is used as given; a plain string
-    // goes through the same rendering Qt's tooltip would have shown.
-    void showFor(QWidget* owner, const QString& text, const QPoint& globalPos) {
+    // goes through the same rendering Qt's tooltip would have shown. `originGlobal` is
+    // where the tip's dust forms out of; left invalid it is the owner's centre, which is
+    // wrong for an item view, whose owner is the whole viewport.
+    void showFor(QWidget* owner, const QString& text, const QPoint& globalPos,
+                 const QRect& originGlobal = QRect()) {
+      origin_ = originGlobal;
+      // The html pins its own table width, which must be measured in the type THIS widget
+      // draws with — Qt's tooltip font is a different size on macOS and pinned the table
+      // too narrow, breaking a URL that fits on one line.
+      setTooltipFont(body_->font());
       const QString rich = text.trimmed().startsWith('<') ? text : enrichedToolTip(text);
       if (rich.isEmpty()) { hideTip(); return; }
       bool dusted = false;
@@ -275,6 +292,10 @@ namespace stencil::gui {
           // The tip waits behind its own motes and fades up as the last of them land.
           setWindowOpacity(0.0);
           holdFadeKeys(fade_, kDustInMs);
+          // …and may not MOVE meanwhile: the cloud was aimed where the tip was placed, so
+          // one tracking the cursor mid-flight would leave its own sand behind. It picks
+          // the cursor up again the moment it lands (browser controlTooltip.js).
+          placeHold_.setRemainingTime(kDustInMs);
         } else {
           fade_->setKeyValues({});
           fade_->setDuration(kFadeMs);
@@ -295,6 +316,12 @@ namespace stencil::gui {
 
     // Fade out and then hide. Idempotent, and a showFor() mid-fade takes it straight back
     // up from wherever it got to rather than blinking.
+    // Slide an already-shown tip to a new cursor position: no re-measure, no entrance, no
+    // fade. showFor would re-run its appearance bookkeeping on every mouse move.
+    void moveTo(const QPoint& globalPos) {
+      if (isVisible() && !closing_ && placeHold_.hasExpired()) place(globalPos);
+    }
+
     void hideTip() {
       if (!isVisible()) { owner_.clear(); return; }
       settleShake();   // it fades out with its caps home, not mid-flick
@@ -351,7 +378,8 @@ namespace stencil::gui {
       // paintNow on a close: the panel hands over in one 60ms beat, and a deferred
       // first frame was exactly the gap in which the tip blinked out mote-less.
       return flyTipDust(this, owner->window(),
-                        owner->mapToGlobal(owner->rect().center()), gather,
+                        origin_.isValid() ? origin_.center()
+                                          : owner->mapToGlobal(owner->rect().center()), gather,
                         gather ? kDustInMs : kDustOutMs,
                         /*escapeHost=*/true, /*paintNow=*/!gather)
              != nullptr;
@@ -393,6 +421,8 @@ namespace stencil::gui {
     QTimer* shakeDelay_ = nullptr;
     QPointer<QWidget> owner_;
     bool closing_ = false;
+    QDeadlineTimer placeHold_{0};   // moveTo is refused until this lapses (the gather)
+    QRect origin_;   // where the dust forms out of (global); invalid = the owner's centre
   };
 
   // The app-wide filter that hands QEvent::ToolTip to AppTooltip. Q_OBJECT-free for the
@@ -414,30 +444,57 @@ namespace stencil::gui {
           // Only a widget carrying its OWN tooltip; anything else (item views resolving a
           // per-index tooltip in viewportEvent) keeps Qt's path.
           if (!w || w->toolTip().isEmpty()) break;
-          tip()->showFor(w, w->toolTip(), static_cast<QHelpEvent*>(e)->globalPos());
+          const QPoint at = static_cast<QHelpEvent*>(e)->globalPos();
+          // The tip forms out of the control it describes — its centre, which for a button
+          // is the button. A control stretched across its row has its content at the left
+          // and its centre in empty space, so wider than it asked to be forms out of the
+          // cursor instead, as the browser's tooltip always does.
+          const bool stretched = w->width() > w->sizeHint().width() + 24;
+          tip()->showFor(w, w->toolTip(), at,
+                         stretched ? QRect(at - QPoint(4, 4), QSize(8, 8)) : QRect());
+          // The follow below needs moves: a control without a :hover rule gets no
+          // HoverMove, and nothing sends MouseMove unpressed without tracking. Turned on
+          // for the life of the tip only — left on, every widget that ever showed one
+          // keeps sending MouseMove through this filter for the rest of the session.
+          if (!w->hasMouseTracking()) {
+            w->setMouseTracking(true);
+            tracked_ = w;
+          }
           return true;   // Qt's own label must not also appear
         }
         case QEvent::Shortcut:
           // A LIVE shortcut never arrives as a key press — Qt consumes the key and sends
           // this instead — so it has to be dismissed from here.
-          if (tip_) tip_->hideTip();
+          dismiss();
           break;
         case QEvent::KeyPress: {
           const auto* ke = static_cast<QKeyEvent*>(e);
           if (ke->isAutoRepeat()) break;
           // Every key retires the tooltip, Escape included — the shake announces the
           // shortcut while you read the tip, it is not a way to pin the tooltip open.
-          if (tip_ && tip_->isVisible()) tip_->hideTip();
+          if (tip_ && tip_->isVisible()) dismiss();
           break;
         }
+        // The tip travels with the pointer while it is up, as the browser's does: a slide,
+        // not a re-show — showFor on every move re-ran the appearance and stuttered. Styled
+        // controls get HoverMove (QStyleSheetStyle sets WA_Hover); anything with mouse
+        // tracking sends MouseMove.
+        case QEvent::HoverMove:
+          if (tip_ && w && w == tip_->owner() && tip_->isVisible())
+            tip_->moveTo(w->mapToGlobal(static_cast<QHoverEvent*>(e)->position().toPoint()));
+          break;
+        case QEvent::MouseMove:
+          if (tip_ && w && w == tip_->owner() && tip_->isVisible())
+            tip_->moveTo(static_cast<QMouseEvent*>(e)->globalPosition().toPoint());
+          break;
         case QEvent::Leave:
         case QEvent::Hide:
         case QEvent::WindowDeactivate:
-          if (tip_ && w && w == tip_->owner()) tip_->hideTip();
+          if (tip_ && w && w == tip_->owner()) dismiss();
           break;
         case QEvent::MouseButtonPress:
         case QEvent::Wheel:
-          if (tip_) tip_->hideTip();
+          dismiss();
           break;
         default:
           break;
@@ -446,7 +503,15 @@ namespace stencil::gui {
     }
 
    private:
+    // Hide the tip and hand back whatever mouse tracking it borrowed to follow the cursor.
+    void dismiss() {
+      if (tip_) tip_->hideTip();
+      if (tracked_) tracked_->setMouseTracking(false);
+      tracked_.clear();
+    }
+
     AppTooltip* tip_ = nullptr;
+    QPointer<QWidget> tracked_;   // the one widget this tip switched tracking on for
   };
 
   // Install the fading tooltip on the running application. Idempotent — the filter and

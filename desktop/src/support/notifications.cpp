@@ -40,7 +40,9 @@ namespace {
   // 2x the shared menu clock — a passing notice can afford to drift rather than snap.
   // Leaving is slower still than arriving (browser ENTER_DUST_MS / LEAVE_DUST_MS).
   constexpr int kToastInMs = 680;
-  constexpr int kToastOutMs = 1040;
+  // Shorter than the entrance, not longer: an arrival can afford to drift, a departure has
+  // nothing left to look at. Browser twin: js/ui/notifications.js LEAVE_DUST_MS.
+  constexpr int kToastOutMs = 420;
 
 
   // Past the FREE area's left edge (`freeLeft`: the window's, or a left-docked chat's
@@ -98,10 +100,9 @@ namespace {
         shot, toast->geometry(), host, toastDustPoint(toast->geometry(), freeLeft),
         /*gather=*/false, kToastOutMs, toast->palette().color(QPalette::WindowText));
     if (!overlay) return false;
-    // A steady drift, not the default OutQuint: with the edge this close, an ease-out
-    // had every grain past it in the exit's first beat; linear spends the toast's own
-    // long exit clock crossing the last inch, fading as it goes.
-    overlay->setSurfaceEasing(QEasingCurve::Linear);
+    // No easing override — the overlay's default (OutQuint) is what it leaves on. One
+    // curve drives the grain's travel AND its alpha, so Linear and InCubic both grew a
+    // tail; an ease-out covers the distance early and starts the fade with it.
     clipToFree(overlay, host, freeLeft);
     return true;
   }

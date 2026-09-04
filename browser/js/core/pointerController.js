@@ -57,9 +57,13 @@ export class PointerController {
         return;
       }
 
-      // Rect-draw mode: plain left-drag sweeps out a rectangle area
-      if (app.isDrawing && app.drawMode === 'rect' && e.button === 0 &&
+      // Rect-draw mode: plain left-drag sweeps out a rectangle area. Picking the tool is
+      // the intent, so the press turns drawing on itself — it has no hold-to-draw flow to
+      // fall back on. Same default as the Draw button, so a selected line adopts the rect.
+      if (app.drawMode === 'rect' && e.button === 0 &&
         !e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey && app.image) {
+        if (!app.isDrawing) app.startDrawingMode();
+        if (!app.isDrawing) return;   // declined (no image / read-only) — nothing to sweep
         const { cssX, cssY, x: imgX, y: imgY } = app.canvasCoords(e.clientX, e.clientY);
         app.isRectDrawDragging = true;
         app.rectDrawStart = { imgX, imgY, cssX, cssY };
@@ -67,6 +71,19 @@ export class PointerController {
         e.preventDefault();
         e.stopPropagation();
         return;
+      }
+
+      // Alt+Ctrl/⌘+left → pull a NEW point out of the line under the cursor and drag it;
+      // on a closed area the same pull breaks the shape open at that spot. Checked before
+      // the plain Alt gestures, which would otherwise move the point that is already there.
+      if (e.button === 0 && e.altKey && (e.ctrlKey || e.metaKey) && !e.shiftKey && app.image) {
+        const { x, y } = app.canvasCoords(e.clientX, e.clientY);
+        if (app.beginPullOutDrag(x, y)) {
+          e.preventDefault();
+          e.stopPropagation();
+          app.canvas.style.cursor = 'move';
+          return;
+        }
       }
 
       // Alt+Shift+left → drag whole line (takes priority over zoom-rect)

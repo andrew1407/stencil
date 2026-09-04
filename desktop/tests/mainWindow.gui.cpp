@@ -9,6 +9,7 @@
 #include "../src/support/themeSwapOverlay.hpp"
 #include "../src/support/notifications.hpp"
 #include "../src/support/disintegrateOverlay.hpp"
+#include "../src/support/dockGrip.hpp"   // DockEdgeOverlay: the chat dock's resize-edge tint
 #include "../src/canvas/dropZonesOverlay.hpp"
 #include "../src/canvas/canvasTooltip.hpp"
 #include "canvasWidget.hpp"
@@ -372,6 +373,50 @@ class MainWindowGuiTest : public QObject {
 
 
 
+
+  // The chat dock's resize edge (browser .chat-resizer). The strip is QMainWindow chrome
+  // with no widget of its own, so a mouse-transparent band is painted over it, in whichever
+  // area the dock sits and only where Qt would actually start the resize.
+  void chatResizeEdgeFollowsTheDockInEveryArea() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QVERIFY(win.chatDock_);
+    win.chatDock_->show();
+    QTest::qWait(120);
+    auto* edge = win.chatEdge_;
+    QVERIFY(edge);
+    const struct { Qt::DockWidgetArea area; Qt::Orientation split; const char* name; } kAreas[] = {
+        {Qt::LeftDockWidgetArea, Qt::Horizontal, "left"},
+        {Qt::RightDockWidgetArea, Qt::Horizontal, "right"},
+        {Qt::TopDockWidgetArea, Qt::Vertical, "top"},
+        {Qt::BottomDockWidgetArea, Qt::Vertical, "bottom"},
+    };
+    for (const auto& a : kAreas) {
+      win.addDockWidget(a.area, win.chatDock_, a.split);
+      QTest::qWait(120);
+      const QRect dock = win.chatDock_->geometry();
+      const QRect hit = win.chatEdgeHit_;
+      const QRect band = edge->geometry();
+      QVERIFY2(edge->isVisible(), a.name);
+      QVERIFY2(!hit.isEmpty(), a.name);
+      // The strip sits OUTSIDE the panel, against the edge it is docked by.
+      QVERIFY2(!hit.intersects(dock), a.name);
+      if (a.area == Qt::LeftDockWidgetArea) QCOMPARE(hit.left(), dock.right() + 1);
+      if (a.area == Qt::RightDockWidgetArea) QCOMPARE(hit.right(), dock.left() - 1);
+      if (a.area == Qt::TopDockWidgetArea) QCOMPARE(hit.top(), dock.bottom() + 1);
+      if (a.area == Qt::BottomDockWidgetArea) QCOMPARE(hit.bottom(), dock.top() - 1);
+      // …and the band is drawn AROUND that strip, never thinner than an affordance can
+      // be seen at (the horizontal separators are a hairline by design, theme.cpp).
+      QVERIFY2(band.contains(hit), a.name);
+      QVERIFY2(qMin(band.width(), band.height()) >= stencil::gui::DockEdgeOverlay::kMinThickness, a.name);
+    }
+    // Nothing to grab while it floats — the window frame owns that resize.
+    win.chatDock_->setFloating(true);
+    QTest::qWait(120);
+    QVERIFY(!edge->isVisible());
+  }
 
   // Regression: enabling the f(x,y) pill must reveal the x/y formula inputs, and they must
   // stay visible across an image load and window resizes (the state the user drives).
@@ -5056,9 +5101,13 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // TEMP DIAGNOSTIC: dust on open, dust on our own forced hover-away close, and dust
-  // replaying on a SECOND open of the same submenu instance.
+  // A context submenu hover-opens, SubmenuCloseGuard closes it again on a hover-away, and
+  // on a real display it dusts on every open — including the second open of the same QMenu
+  // instance, which is what MenuReveal's re-arming fixed. The dust half cannot run here:
+  // dustMotionOk() refuses on the `offscreen` platform, which nothing can lift, so only the
+  // open/close half is asserted and the case reports itself SKIPPED.
   void ctxSubmenuDustReplayProbe() {
+    const auto motion = withMotion();
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
     win.show();
@@ -5127,8 +5176,13 @@ class MainWindowGuiTest : public QObject {
     });
     win.showContextMenu(win.mapToGlobal(QPoint(400, 300)));
 
-    QVERIFY2(dustOnFirstOpen, "no dust on the first open");
+    // Correctness first, and it holds on every platform: our guard really does close a
+    // hovered-away submenu (Qt itself leaves it up).
     QVERIFY2(closed, "the submenu never closed");
+    if (!stencil::support::dustMotionOk())
+      QSKIP("dust is gated off on the offscreen platform (dustMotionOk) — "
+            "run this binary on a real display to exercise the flights");
+    QVERIFY2(dustOnFirstOpen, "no dust on the first open");
     QVERIFY2(dustOnClose, "no dust while our own guard closed the submenu");
     QVERIFY2(dustOnSecondOpen, "no dust replayed on the second open of the same submenu");
   }
@@ -6099,17 +6153,15 @@ class MainWindowGuiTest : public QObject {
   // the same token quieter. theme.cpp encodes into the display space; this pins the result
   // to the value Chrome actually puts on screen for --accent (#7c3aed → #743ee4, measured).
   void accentMatchesTheBrowsersRenderedColour() {
-    const QColor accent = stencil::gui::accentPrimary("violet");
-#ifdef Q_OS_MACOS
-    QCOMPARE(accent.name(), QStringLiteral("#743ee4"));
-    // Neutrals must survive untouched — both spaces share D65 and the transfer curve.
+    // The palette IS the browser's, byte for byte, on every platform: encoding into
+    // Display P3 on macOS was a second conversion on an already colour-managed surface and
+    // made the whole app read duller. The values below are exactly the ones in
+    // browser/css/theme.css and js/config/constants.json.
+    QCOMPARE(stencil::gui::accentPrimary("violet").name(), QStringLiteral("#7c3aed"));
     QCOMPARE(stencil::gui::themePalette(true).bgPage.name(), QStringLiteral("#1a1a1a"));
     QCOMPARE(stencil::gui::themePalette(false).bgPage.name(), QStringLiteral("#f0f0f0"));
-    // …and the whole palette moves together, not just the accent.
-    QCOMPARE(stencil::gui::themePalette(false).danger.name(), QStringLiteral("#c53b43"));
-#else
-    QCOMPARE(accent.name(), QStringLiteral("#7c3aed"));   // identity off macOS
-#endif
+    QCOMPARE(stencil::gui::themePalette(false).danger.name(), QStringLiteral("#d6293e"));
+    QCOMPARE(stencil::gui::themePalette(true).danger.name(), QStringLiteral("#f0697a"));
   }
 
   // The chat header reads as chrome, not an accent badge: the "Assistant" label and its
@@ -7255,6 +7307,155 @@ class MainWindowGuiTest : public QObject {
     const int fontH = QFontMetrics(win.imageSizeInfo_->font()).height();
     QVERIFY2(win.imageSizeInfo_->height() >= fontH + 12,
              "the reserved height leaves no room for 6px top + 6px bottom");
+  }
+
+  // The way back OUT of a closed area. "Unchain" sits in the bar's area-only group, so it
+  // is offered exactly when a line is an area, and clicking it puts the line back to an
+  // open polyline (canvas/chainEdit.hpp; Alt+Ctrl+drag is the gesture route).
+  void unchainButtonIsOfferedOnlyForAreas() {
+    MainWindow win(nullptr, false);
+    win.resize(1200, 850);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+
+    auto* unchain = win.selectedLineBar_->findChild<QPushButton*>("selectedLineUnchain");
+    QVERIFY2(unchain, "the bar has no Unchain button");
+
+    // An OPEN line: the area controls, Unchain among them, stay away.
+    stencil::core::Line open;
+    open.points = {{20, 20}, {80, 80}, {40, 90}};
+    canvas->setLines({open});
+    canvas->selectLineByIndex(0);
+    QTRY_VERIFY_WITH_TIMEOUT(win.selectedLineDock_->isVisible(), 2000);
+    // The group SLIDES away now (controlReveal), so visibility settles on the event loop
+    // rather than on the same tick — wait it out instead of reading it mid-flight.
+    QTRY_VERIFY2(!unchain->isVisible(), "an open line was offered Unchain");
+
+    // REGRESSION: the fill swatch showed a washed-out salmon for a translucent green — a
+    // CSS `#rrggbbaa` handed to QColor, whose 8-digit form is #AARRGGBB, alpha first. It
+    // must go through cssColor(), like every other stored colour.
+    {
+      stencil::core::Line tinted;
+      tinted.points = {{10, 10}, {90, 10}, {90, 70}, {10, 70}};
+      tinted.locked = true;
+      tinted.fillColor = "#00aa4440";        // green at alpha 0x40
+      canvas->setLines({tinted});
+      canvas->selectLineByIndex(0);
+      beat();
+      auto* swatch = win.selectedLineBar_->findChild<QPushButton*>("selectedLineFillSwatch");
+      QVERIFY2(swatch, "the bar has no fill swatch");
+      // The colour lives in the well's CHIP now (a 32x16 pixmap inside the input frame),
+      // so read it there: its channels must be the CSS ones, alpha included.
+      const QImage chip = swatch->icon().pixmap(32, 16).toImage();
+      const QColor mid = chip.pixelColor(chip.width() / 2, chip.height() / 2);
+      // ±2 per channel: the chip is drawn into a premultiplied pixmap, so the readback
+      // rounds by a unit. What matters is that it is THIS green at THIS alpha, and not
+      // the washed-out salmon a #AARRGGBB misread produced (170, 68, 64).
+      const auto near8 = [](int got, int want) { return std::abs(got - want) <= 2; };
+      QVERIFY2(near8(mid.red(), 0) && near8(mid.green(), 170) && near8(mid.blue(), 68) &&
+                   near8(mid.alpha(), 64),
+               qPrintable("fill chip reads " + mid.name(QColor::HexArgb)));
+
+      // REGRESSION: the bar's colours must be the browser's own hex, painted flat.
+      // Encoding into Display P3 on macOS was a second conversion on an already
+      // colour-managed surface and made the whole app read duller.
+      win.resize(1900, 900);
+      QTest::qWait(300);
+      const QImage bar = win.selectedLineBar_->grab().toImage();
+      auto* ds = win.selectedLineBar_->findChild<QWidget*>("selectedLineDeselect");
+      QVERIFY(ds);
+      const QColor got = bar.pixelColor(ds->mapTo(win.selectedLineBar_, QPoint(5, ds->height() / 2)));
+      // Deselect wears the bar's own amber, the same token its siblings use — one
+      // palette, no orange outlier (browser .deselect-btn -> var(--bg-sel-btn)). For the
+      // theme the window is actually in: another case may have left the app in light.
+      const stencil::gui::Palette live = stencil::gui::themePalette(
+          stencil::gui::resolveDark(win.settings_.themeMode), win.settings_.accentColor);
+      QCOMPARE(got.name(), live.bgSelBtn.name());
+      QCOMPARE(stencil::gui::themePalette(true, "violet").danger.name(), QStringLiteral("#f0697a"));
+    }
+
+    // The two glyphs in this group are sized like the browser's: the clear-fill cross is
+    // small (11px box, not the style's 16 scaling an 11px pixmap up), and Unchain carries
+    // the same icon-plus-label pairing #sel-unchain has.
+    {
+      auto* clear = win.selectedLineBar_->findChild<QPushButton*>("selectedLineFillClear");
+      QVERIFY2(clear, "no clear-fill button");
+
+      // …and the same boxes the browser's controls have: a 23x19 cross, 28px-tall buttons
+      // and 46x34 colour wells beside 34px fields. Clear-fill is a full-height control,
+      // not a small cross sitting low in the row.
+      QVERIFY2(clear->height() >= 26, qPrintable(QString("clear is %1px tall").arg(clear->height())));
+      QCOMPARE(clear->iconSize(), QSize(13, 13));
+      // ONE colour well everywhere: 46x24, the size the browser and extension now use too.
+      auto* swatch2 = win.selectedLineBar_->findChild<QPushButton*>("selectedLineFillSwatch");
+      QVERIFY(swatch2);
+      QCOMPARE(swatch2->size(), QSize(46, 26));
+      QVERIFY2(!swatch2->icon().isNull(),
+               "the well should draw a colour CHIP inside its frame, like the toolbar's");
+      // …in the theme's own input chrome, exactly as the toolbar's wells are. Read from
+      // the widget's palette instead, the frame resolved to the LIGHT theme's #dddddd and
+      // the wells sat in the dark bar ringed in near-white (user report).
+      const stencil::gui::Palette chrome = stencil::gui::themePalette(
+          stencil::gui::resolveDark(win.settings_.themeMode), win.settings_.accentColor);
+      QVERIFY2(swatch2->styleSheet().contains(chrome.borderMain.name()),
+               qPrintable("well frame reads: " + swatch2->styleSheet()));
+      QVERIFY2(swatch2->styleSheet().contains(chrome.inputBg.name()),
+               "the well should sit on the theme's input ground");
+      // …and four hairlines part the bar, as the browser's do: header | colours |
+      // geometry | fill | actions. The fill's own comes and goes WITH the group, or
+      // unchaining leaves two side by side with nothing between. Measured while the group
+      // is still there, at a width narrow enough that it costs a second row.
+      win.resize(1100, 900);
+      QTest::qWait(300);
+      const int barHeightWithFill = win.selectedLineBar_->height();
+      const auto visibleSeps = [&] {
+        int n = 0;
+        for (QFrame* f : win.selectedLineBar_->findChildren<QFrame*>("selectedLineSep"))
+          if (f->isVisible()) ++n;
+        return n;
+      };
+      QCOMPARE(visibleSeps(), 4);
+      canvas->unchainSelectedLine();
+      beat();
+      QTRY_COMPARE(visibleSeps(), 3);
+      QTRY_VERIFY2(!swatch2->isVisible(), "the fill group should be gone with it");
+      // …and the bar SHRINKS with it. Losing the fill group can cost the flow layout a
+      // whole row, and nothing re-asked for the height. refitHeight() runs on every
+      // content change now.
+      const int tallWithFill = barHeightWithFill;
+      QTRY_VERIFY2(win.selectedLineBar_->height() < tallWithFill,
+                   qPrintable(QString("bar stayed %1px tall after the fill group left (was %2)")
+                                  .arg(win.selectedLineBar_->height()).arg(tallWithFill)));
+      for (QComboBox* cb : win.selectedLineBar_->findChildren<QComboBox*>()) {
+        QVERIFY2(cb->height() >= 32 && cb->height() <= 36,
+                 qPrintable(QString("style combo is %1px tall, the browser's is 34").arg(cb->height())));
+        break;
+      }
+      QVERIFY2(!clear->toolTip().isEmpty(), "the clear-fill button has no tooltip");
+      QVERIFY2(!unchain->icon().isNull(), "Unchain has no icon — the browser's has one");
+      QCOMPARE(unchain->iconSize(), QSize(13, 13));
+      QVERIFY2(!unchain->text().isEmpty(), "…and it keeps its label beside it");
+    }
+
+    // A rect (locked, four corners, no closing duplicate) — the button appears…
+    stencil::core::Line rect;
+    rect.points = {{10, 10}, {90, 10}, {90, 70}, {10, 70}};
+    rect.locked = true;
+    canvas->setLines({rect});
+    canvas->selectLineByIndex(0);
+    beat();
+    QTRY_VERIFY2(unchain->isVisible(), "an area was not offered Unchain");
+
+    // …and pressing it opens the area, keeping every corner. click() rather than a
+    // synthetic press at coordinates: the group is mid-slide when it first becomes visible
+    // (controlReveal), so a positional click can land beside a still-growing button.
+    unchain->click();
+    beat();
+    QVERIFY2(!canvas->lines()[0].locked, "the click did not unchain the area");
+    QCOMPARE(canvas->lines()[0].points.size(), std::size_t(4));
+    QTRY_VERIFY2(!unchain->isVisible(), "Unchain is still offered on a line that is now open");
   }
 
   // The "Selected Line:" bar appears/disappears through dustSelectedLineBarIn/Out
@@ -9728,10 +9929,10 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // A CHAT card arrives the same way the transcript's Clear scatters one: its own dust
-  // gathers into place (Sweep::Gather) while the bubble is held back behind the motes.
-  // The reported gap was one-sided motion — a deleted message had particles, an appearing
-  // one (yours, the model's reply, an error) simply popped in. Browser motion.js chatIn.
+  // A chat card arrives the way a toast does: its dust gathers into place out of a point
+  // off the side it sits against, while the bubble is held back behind the motes (which
+  // side is chatCardDustArrivesFromTheCardsOwnSide's job — this is that it flies at all).
+  // Browser twin: motion.js chatIn.
   void chatCardsArriveOutOfDust() {
     const auto motion = withMotion();   // the suite runs with STENCIL_NO_ANIM on
     MainWindow win(nullptr, false);
@@ -9826,11 +10027,47 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // REGRESSION: on a transcript long enough to SCROLL, the cloud was photographed before
-  // the scroll landed — so the motes flew at the card's pre-scroll box and rained over the
-  // composer below it, while the card itself sat somewhere else. The entrance now waits a
-  // frame for scrollToBottom() (itself a singleShot(0), queued after the entrance's own),
-  // and refuses to fly at all for a card not wholly inside the viewport.
+  // REGRESSION: on a transcript long enough to scroll, the cloud was photographed before
+  // the scroll landed, so the motes flew at the card's pre-scroll box and rained over the
+  // composer. The entrance now waits a frame for scrollToBottom() and refuses to fly for a
+  // card not wholly inside the viewport.
+  void chatCardDustArrivesFromTheCardsOwnSide() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(1000, 620);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.actChat_->setChecked(true);
+    QTRY_VERIFY(win.chatDock_->isVisible());
+    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
+    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
+                             stencil::gui::DisintegrateOverlay::kMs + 4000);
+
+    // `side` is +1 when the cloud must come from the right of the card, -1 from the left.
+    const auto arrivesFrom = [&](const char* cardName, int side, const char* what) {
+      QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
+      // No Q_OBJECT on the overlay (it needs no MOC), so its unique object name IS the
+      // type check — qobject_cast will not compile for it.
+      auto* dust = static_cast<stencil::gui::DisintegrateOverlay*>(win.findChild<QWidget*>(kDust));
+      QVERIFY2(dust, what);
+      QVERIFY2(dust->gathering(), what);   // an arrival, not a leave
+      QFrame* card = nullptr;
+      for (QFrame* f : win.chatDock_->findChildren<QFrame*>(QString::fromLatin1(cardName))) card = f;
+      QVERIFY2(card, what);
+      const QRect box(card->mapTo(&win, QPoint(0, 0)), card->size());
+      const int dx = dust->surfaceTarget().x() - box.center().x();
+      QVERIFY2(side * dx > 0, what);
+      // …and clear of the card itself, so the motes visibly travel in over its edge.
+      QVERIFY2(qAbs(dx) > box.width() / 2, what);
+      QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
+                               stencil::gui::DisintegrateOverlay::kMs + 2000);
+    };
+    win.chatDock_->appendUser(QStringLiteral("mine, on the right"), {});
+    arrivesFrom("chatCardUser", +1, "a user message must gather from the RIGHT");
+    win.chatDock_->appendAssistant(QStringLiteral("and the reply, on the left"));
+    arrivesFrom("chatCardAssistant", -1, "an assistant message must gather from the LEFT");
+  }
+
   void chatCardDustNeverEscapesTheScrolledTranscript() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
@@ -9853,26 +10090,37 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(scroll->verticalScrollBar()->maximum() > 0, "the transcript never became scrollable");
 
     win.chatDock_->appendUser(QStringLiteral("one more, which has to scroll into view"), {});
-    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
-    QWidget* dust = win.findChild<QWidget*>(kDust);
-    QVERIFY(dust);
-    // The cloud sits over the card it belongs to, and that card is inside the viewport —
-    // so the motes cannot be flying anywhere near the composer.
+    // The cloud that belongs to THIS card. The fill above can still have arrivals in
+    // flight (gatherChatCardIn waits the layout out in hops), and grabbing whichever
+    // overlay happened to exist measured one card's cloud against another's box.
     QFrame* card = nullptr;
-    for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardUser")) card = f;
+    stencil::gui::DisintegrateOverlay* fx = nullptr;
+    QTRY_VERIFY_WITH_TIMEOUT(([&] {
+      card = nullptr;
+      for (QFrame* f : win.chatDock_->findChildren<QFrame*>(QStringLiteral("chatCardUser"))) card = f;
+      if (!card) return false;
+      const QRect box(card->mapTo(&win, QPoint(0, 0)), card->size());
+      for (QWidget* w : win.findChildren<QWidget*>(QString::fromLatin1(kDust))) {
+        auto* o = static_cast<stencil::gui::DisintegrateOverlay*>(w);
+        if (o->surfacePicture() == box) { fx = o; return true; }
+      }
+      return false;
+    }()), 4000);
+    QVERIFY(fx);
     QVERIFY(card);
+    // The card the cloud stands in for is inside the viewport — so the motes cannot be
+    // flying anywhere near the composer.
     const QRect viewGlobal(scroll->viewport()->mapToGlobal(QPoint(0, 0)), scroll->viewport()->size());
     const QRect cardGlobal(card->mapToGlobal(QPoint(0, 0)), card->size());
     // VERTICALLY inside — the axis the scroll moves, and the one the composer is on. A
     // bubble's own furniture (the "…" trigger) deliberately hangs outside it sideways.
     QVERIFY2(cardGlobal.top() >= viewGlobal.top() && cardGlobal.bottom() <= viewGlobal.bottom(),
              "the dusted card is not wholly in the viewport");
-    // The layer is padded for the flight, so it is the CARD's box that must be covered,
-    // not the layer that must be contained.
-    const QRect dustGlobal(dust->mapToGlobal(QPoint(0, 0)), dust->size());
-    QVERIFY2(dustGlobal.intersects(cardGlobal), "the cloud is not over the card it belongs to");
-    QVERIFY2(qAbs(dustGlobal.center().y() - cardGlobal.center().y()) < cardGlobal.height(),
-             "the cloud is stranded away from its card — measured before the scroll");
+    // An arrival is a surface cloud, so the layer is the whole window and carries the
+    // card's box inside it; what matters is where it may PAINT. The clip is the
+    // transcript's viewport, so no mote reaches the composer however far it flies.
+    QCOMPARE(fx->paintClip(),
+             QRect(scroll->viewport()->mapTo(&win, QPoint(0, 0)), scroll->viewport()->size()));
     QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
                              stencil::gui::DisintegrateOverlay::kMs + 2000);
     if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect()))

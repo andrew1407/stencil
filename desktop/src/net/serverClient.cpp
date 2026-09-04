@@ -75,6 +75,21 @@ namespace stencil::net {
     return CredentialKind::None;
   }
 
+  // The browser's own failure text (net/connectionManager.js _req): "<METHOD> <path>: <why>",
+  // where <why> is the server's JSON `message` when it sent one, else "HTTP <status>". A
+  // request that never reached the server has no status at all, and the browser's fetch
+  // rejection carries the transport's own message — so that is what is shown, never "HTTP 0".
+  static QString restError(const QByteArray& method, const QString& path, int status,
+                           const QByteArray& body, const QString& transport) {
+    if (status == 0)
+      return transport.isEmpty() ? QStringLiteral("the request never reached the server")
+                                 : transport;
+    QString why = QJsonDocument::fromJson(body).object().value("message").toString();
+    if (why.isEmpty()) why = QStringLiteral("HTTP %1").arg(status);
+    const int q = path.indexOf('?');   // the browser reports the path, never its query
+    return QString("%1 %2: %3").arg(QLatin1String(method), q < 0 ? path : path.left(q), why);
+  }
+
   QNetworkRequest ServerClient::buildRequest(const QString& path,
                                              const QString& contentType,
                                              const QString& bearer) const {
@@ -104,8 +119,9 @@ namespace stencil::net {
 
     status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     const QByteArray data = reply->readAll();
-    if (reply->error() != QNetworkReply::NoError && status == 0)
-      err_ = reply->errorString();
+    if (status < 200 || status >= 300)
+      err_ = restError(method, path, status, data,
+                       reply->error() == QNetworkReply::NoError ? QString() : reply->errorString());
     reply->deleteLater();
     return data;
   }
@@ -125,8 +141,11 @@ namespace stencil::net {
                        const int status =
                            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
                        const QByteArray data = reply->readAll();
-                       if (reply->error() != QNetworkReply::NoError && status == 0)
-                         err_ = reply->errorString();
+                       if (status < 200 || status >= 300)
+                         err_ = restError(method, path, status, data,
+                                          reply->error() == QNetworkReply::NoError
+                                              ? QString()
+                                              : reply->errorString());
                        reply->deleteLater();
                        const bool refused = status == 401 || status == 403;
                        // A minted session dies with a server restart — while the user's
@@ -164,7 +183,6 @@ namespace stencil::net {
                        // pretending the host is down. One warning, on the way in.
                        if (refused && status_ == Status::Connected) {
                          status_ = Status::Expired;
-                         err_ = QStringLiteral("session expired (HTTP %1)").arg(status);
                          qWarning("stencil: session on %s expired — reconnect to sign in again",
                                   qPrintable(base_));
                        }
@@ -177,15 +195,15 @@ namespace stencil::net {
     kind_ = CredentialKind::None;   // re-proven below by whichever path gets in
     status_ = Status::Connecting;
     // A refused credential is Expired, not Error: see the enum's note.
-    const auto failAuth = [this](const QString& msg) {
-      err_ = msg;
+    const auto failAuth = [this](const QString& msg = QString()) {
+      if (!msg.isEmpty()) err_ = msg;
       status_ = Status::Expired;
       qWarning("stencil: session on %s needs re-authentication (%s)", qPrintable(base_),
                qPrintable(msg));   // ONE warning, never a repeated error
       return false;
     };
-    const auto fail = [this](const QString& msg) {
-      err_ = msg;
+    const auto fail = [this](const QString& msg = QString()) {
+      if (!msg.isEmpty()) err_ = msg;
       status_ = Status::Error;
       return false;
     };
@@ -198,7 +216,7 @@ namespace stencil::net {
         return status == 401 || status == 403
                    ? failAuth(QString("this server gates token minting (ADMIN_TOKEN) — paste a "
                                       "session token, or the admin token, into the Token field"))
-                   : fail(QString("token request failed (HTTP %1)").arg(status));
+                   : fail();
       const QJsonObject obj = QJsonDocument::fromJson(body).object();
       token_ = obj.value("token").toString();
       if (token_.isEmpty()) return fail("server returned no token");
@@ -212,7 +230,7 @@ namespace stencil::net {
           request("POST", "/auth/token", "{}", "application/json", mint);
       if (mint < 200 || mint >= 300) {
         token_.clear();
-        return failAuth(QString("admin token rejected (HTTP %1)").arg(mint));
+        return failAuth();
       }
       token_ = QJsonDocument::fromJson(minted).object().value("token").toString();
       if (token_.isEmpty()) return fail("server returned no token");
@@ -235,7 +253,7 @@ namespace stencil::net {
           kind_ = CredentialKind::Admin;   // it minted: an admin credential
         } else {
           token_.clear();
-          return failAuth(QString("token rejected (HTTP %1)").arg(status));
+          return failAuth();
         }
       }
     }
@@ -261,10 +279,9 @@ namespace stencil::net {
                    [this, done = std::move(done)](int status, QByteArray body) {
                      if (status < 200 || status >= 300) {
                        const bool refused = status == 401 || status == 403;
-                       err_ = refused
-                                  ? QStringLiteral("this server gates token minting (ADMIN_TOKEN) — paste a "
-                                                   "session token, or the admin token, into the Token field")
-                                  : QString("token request failed (HTTP %1)").arg(status);
+                       if (refused)
+                         err_ = QStringLiteral("this server gates token minting (ADMIN_TOKEN) — paste a "
+                                               "session token, or the admin token, into the Token field");
                        // A gate is a credential problem, not a dead server.
                        status_ = refused ? Status::Expired : Status::Error;
                        if (refused)
@@ -288,7 +305,6 @@ namespace stencil::net {
       requestAsync("POST", "/auth/token", "{}", "application/json",
                    [this, done = std::move(done)](int mint, QByteArray body) {
                      if (mint < 200 || mint >= 300) {
-                       err_ = QString("admin token rejected (HTTP %1)").arg(mint);
                        token_.clear();
                        status_ = Status::Expired;
                        qWarning("stencil: admin token refused by %s — reconnect to sign in again",
@@ -338,7 +354,6 @@ namespace stencil::net {
                                     // The token is not a session token and not the
                                     // admin token: a refused CREDENTIAL, so the row
                                     // offers a sign-in rather than a dead server.
-                                    err_ = QString("token rejected (HTTP %1)").arg(status);
                                     token_.clear();
                                     status_ = Status::Expired;
                                     qWarning("stencil: token refused by %s — reconnect to sign in again",
@@ -380,7 +395,6 @@ namespace stencil::net {
                  [this, done = std::move(done)](int status, QByteArray body) {
                    QVector<ServerProject> out;
                    if (status < 200 || status >= 300) {
-                     err_ = QString("list failed (HTTP %1)").arg(status);
                      done(false, out);
                      return;
                    }
@@ -426,7 +440,6 @@ namespace stencil::net {
                  "application/json",
                  [this, done = std::move(done)](int status, QByteArray body) {
                    if (status < 200 || status >= 300) {
-                     err_ = QString("create failed (HTTP %1)").arg(status);
                      done(false, QString(), 0);
                      return;
                    }
@@ -444,7 +457,6 @@ namespace stencil::net {
                    ServerProject meta;
                    QJsonObject layoutOut;
                    if (status < 200 || status >= 300) {
-                     err_ = QString("get failed (HTTP %1)").arg(status);
                      done(false, meta, layoutOut);
                      return;
                    }
@@ -486,7 +498,6 @@ namespace stencil::net {
                      return;
                    }
                    if (status < 200 || status >= 300) {
-                     err_ = QString("%1 failed (HTTP %2)").arg(QLatin1String(verb)).arg(status);
                      done(false, 0, false);
                      return;
                    }
@@ -534,7 +545,6 @@ namespace stencil::net {
     requestAsync("POST", path, bytes, "application/octet-stream",
                  [this, done = std::move(done)](int status, QByteArray) {
                    if (status < 200 || status >= 300) {
-                     err_ = QString("upload failed (HTTP %1)").arg(status);
                      done(false);
                      return;
                    }
@@ -546,9 +556,7 @@ namespace stencil::net {
                                        std::function<void(bool, QByteArray)> done) {
     requestAsync("GET", QString("/projects/%1/files/%2").arg(id, kind), {}, {},
                  [this, done = std::move(done)](int status, QByteArray data) {
-                   const bool ok = status >= 200 && status < 300;
-                   if (!ok) err_ = QString("download failed (HTTP %1)").arg(status);
-                   done(ok, data);
+                   done(status >= 200 && status < 300, data);
                  });
   }
 
@@ -559,7 +567,6 @@ namespace stencil::net {
     requestAsync("DELETE", QString("/projects/%1/files/%2").arg(id, kind), {}, {},
                  [this, done = std::move(done)](int status, QByteArray) {
                    if (status < 200 || status >= 300) {
-                     err_ = QString("file delete failed (HTTP %1)").arg(status);
                      done(false);
                      return;
                    }
@@ -582,11 +589,15 @@ namespace stencil::net {
                      [this, reply, done = std::move(done)] {
                        const int status =
                            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-                       const QString tok = QJsonDocument::fromJson(reply->readAll())
-                                               .object().value("token").toString();
+                       const QByteArray body = reply->readAll();
+                       const QString tok =
+                           QJsonDocument::fromJson(body).object().value("token").toString();
+                       const QString transport = reply->error() == QNetworkReply::NoError
+                                                     ? QString()
+                                                     : reply->errorString();
                        reply->deleteLater();
                        if (status < 200 || status >= 300 || tok.isEmpty()) {
-                         err_ = QString("invite mint failed (HTTP %1)").arg(status);
+                         err_ = restError("POST", "/auth/token", status, body, transport);
                          done(false, QString());
                          return;
                        }
@@ -598,7 +609,6 @@ namespace stencil::net {
     requestAsync("DELETE", QString("/projects/%1").arg(id), {}, {},
                  [this, done = std::move(done)](int status, QByteArray) {
                    if (status < 200 || status >= 300) {
-                     err_ = QString("delete failed (HTTP %1)").arg(status);
                      done(false);
                      return;
                    }

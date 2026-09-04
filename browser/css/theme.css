@@ -33,6 +33,12 @@
     --border-coord:   #ddd;
     --border-tooltip: #2c3e50;
     --border-sel:     #f0b429;
+    /* The selected-line bar's own buttons (clear-fill, Unchain): the bar is amber, so its
+       controls are too — they used the app ACCENT and read as borrowed from elsewhere.
+       The glyph colour is per-theme because white on light gold is unreadable. */
+    --bg-sel-btn:     #d99e0b;
+    --bg-sel-btn-hov: #b7791f;
+    --text-sel-btn:   #ffffff;
     --border-hint:    color-mix(in srgb, var(--accent) 35%, white);
     --text-main:      #000000;
     --text-label:     inherit;
@@ -122,6 +128,9 @@
     --border-coord:   #444;
     --border-tooltip: #7f8fa6;
     --border-sel:     #b8860b;
+    --bg-sel-btn:     #b8860b;
+    --bg-sel-btn-hov: #9a7009;
+    --text-sel-btn:   #ffffff;
     --border-hint:    color-mix(in srgb, var(--accent) 50%, #2a2a2a);
     --text-main:      #e0e0e0;
     --text-label:     #cccccc;

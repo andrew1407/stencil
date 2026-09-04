@@ -67,6 +67,7 @@ class MainWindowGuiTest;  // QtTest e2e (tests/mainWindow.gui.cpp)
 namespace stencil::gui {
 
   class CanvasWidget;
+  class OpenInDialog;
   class SelectionPanel;
   class SelectedLineBar;
   class Notifications;
@@ -283,6 +284,7 @@ namespace stencil::gui {
     void updatePanelReopenButton();     // show/hide + place the floating right-edge re-open chevron
     void positionPanelReopenButton();   // position it flush to the canvas' right edge, vertically centred
     void positionPanelGrip();           // place the animated canvas↔panel separator grip (dockGrip.hpp)
+    void positionChatEdge();            // place the chat dock's resize-edge tint (dockGrip.hpp)
     void setPanelShown(bool show, bool animate);      // animated points-panel collapse/expand
     // The points panel is a surface too (browser mainContent.js parity): its table pours
     // out past the edge it is docked to and gathers back out of it, behind a veil
@@ -648,6 +650,25 @@ namespace stencil::gui {
     // "Open in…" (browser app / Telegram bot) dialog for the current session —
     // the desktop counterpart of the browser's open-in modal (openInModal.js).
     void openInAnotherApp();
+    // …the same hand-off aimed at a projects-list row rather than the open session.
+    // `serverUrl` non-empty = a server row, which sends only the reference; a local row
+    // sends its stored image + layout. The active project falls through to
+    // openInAnotherApp() so the live state is used.
+    void openInAnotherAppFor(const QString& id, const QString& serverUrl,
+                             const QRect& closeRect);
+    // What either hand-off above gathered: a server reference (url + id), else the inline
+    // image + layout. dispatchOpenIn does the rest — the dialog, the Telegram branch, the
+    // #stencil= payload and the size gates — so the two differ only in where this came from.
+    struct OpenInSource {
+      QString serverUrl, serverId;
+      qint64 version = 0;
+      QImage image;
+      QString name, source, resource;
+      QJsonObject layout;
+      bool startIncognito = false;
+    };
+    void dispatchOpenIn(const OpenInSource& src, bool browserAvailable, bool telegramAvailable,
+                        const std::function<int(OpenInDialog&)>& run);
     // Adopt a full layout envelope (crop + rotation + filter + lines + page/formulas,
     // in the ORIGINAL image's pixel space) onto `img` and show it — the shared body of
     // opening a server project and of an inline browser→desktop "Open in…" hand-off.
@@ -1091,6 +1112,12 @@ namespace stencil::gui {
     // separator drag started on it, so the grip stays hot for the whole drag.
     class DockGripOverlay* panelGrip_ = nullptr;
     bool panelGripDrag_ = false;
+    // …and the same pair for the chat dock's resize edge (browser .chat-resizer).
+    // chatEdgeHit_ is the separator's real rect: the band is painted thicker than a
+    // hairline separator, but it may only light where Qt actually starts a resize.
+    class DockEdgeOverlay* chatEdge_ = nullptr;
+    QRect chatEdgeHit_;
+    bool chatEdgeDrag_ = false;
     class QLabel* imageSizeInfo_ = nullptr;       // "Image Size: W × H px" — hides with the tool rows
     // The styled bar imageSizeInfo_ sits in (buildImageInfoBar), inside imageInfoDock_ below
     // — selectedLineBarDustPoint still reads THIS rect for the dust point's y (height/bottom

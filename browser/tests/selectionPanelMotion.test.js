@@ -20,8 +20,23 @@ const stubImageInfo = (t, r) => {
 };
 
 test('the bar imports the shared surface-dust primitives', () => {
-  assert.match(src,
-    /import \{ surfaceIn, surfaceOut, settleSurface, dockAwayPoint \} from '\.\/motion\.js';/);
+  // Pinned by NAME, not as a verbatim import line — the list grows (revealControls, for
+  // the fill group's own slide), and a line-shaped regex only says the file was edited.
+  const line = /import \{([^}]*)\} from '\.\/motion\.js';/.exec(src)[1];
+  for (const fn of ['surfaceIn', 'surfaceOut', 'settleSurface', 'dockAwayPoint'])
+    assert.ok(line.includes(fn), `the bar should still take ${fn} from the shared helpers`);
+});
+
+// The fill group is not shown/hidden outright: it SLIDES open and closed and dusts as it
+// goes (motion.js revealControls), so unchaining a line does not make the bar jump. Its
+// own separator travels with it.
+test('the fill group and its separator come and go through revealControls', () => {
+  const show = src.slice(src.indexOf('const fillSep ='), src.indexOf('const panel ='));
+  assert.match(show, /revealControls\(fillGroup, true, 'flex'\)/);
+  assert.match(show, /revealControls\(fillSep, true, 'block'\)/);
+  assert.match(show, /revealControls\(fillGroup, false\)/);
+  assert.match(show, /revealControls\(fillSep, false\)/);
+  assert.ok(!/fillGroup\.style\.display = /.test(show), 'no outright show/hide left');
 });
 
 test('opening: the point is #image-info\'s own current rect — the reflow already ran', (t) => {

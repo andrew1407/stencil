@@ -22,6 +22,17 @@ namespace stencil::support {
   // bar while the toolbars are collapsed grew out of a generic box above itself, which
   // reads as dropping in from the top rather than opening from what you clicked.
   void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect);
+  // …and this one aims the CLOSE somewhere else than the open: a dialog raised from a
+  // context-menu row grows out of that row, which is gone by the time it closes, so
+  // `closeRect` (GLOBAL) is the "⋯" the menu hung off. Invalid = fly back the way it came.
+  // Browser twin: ui/base.js `backTo` / confirmModal.js `closeAnchor`.
+  void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect,
+                    const QRect& closeRect);
+
+  // A box around the point the user last pressed, the origin for a dialog nobody anchored
+  // (installDialogReveal uses it). Exposed so a call site that claims its own reveal can
+  // keep the same open origin while aiming the close elsewhere.
+  QRect gestureAnchorRect();
 
   // The same flight for a non-modal top-level window (the floating chat dock): call
   // revealWindow() right after showing it, and dismissWindow() instead of hiding it —
@@ -29,12 +40,20 @@ namespace stencil::support {
   void revealWindow(QWidget& win, QWidget* anchor);
   void dismissWindow(QWidget& win, QWidget* anchor);
 
-  // Animated drop-in for QColorDialog::getColor(): a non-native picker that lands
-  // centred on `parent` like getColor's, but flies out of / back into `anchor` via
-  // revealDialog. Cancel → invalid QColor(), same contract as getColor. `anchorRect`
-  // (GLOBAL) is the fallback origin when there is no anchor widget (e.g. a list row).
+  // Animated drop-in for QColorDialog::getColor(): a non-native picker centred on
+  // `parent` that flies out of / back into `anchor` via revealDialog. Cancel → invalid
+  // QColor(), same contract as getColor. `anchorRect` (GLOBAL) is the fallback origin.
+  //
+  // `preview` is called with every colour the user lands on, so the choice is applied to
+  // the real thing as it is made; Cancel calls it once more with `initial`.
+  //
+  // `withAlpha` shows the alpha slider — opt-in, because only CSS-stored colours (a line,
+  // its points, an area fill) can carry one; a tint or accent is parsed as plain #rrggbb
+  // everywhere and would drop the byte. `closeRect` (GLOBAL) aims the shrink, as above.
   QColor pickColorAnimated(const QColor& initial, QWidget* parent, const QString& title,
-                           QWidget* anchor, const QRect& anchorRect = QRect());
+                           QWidget* anchor, const QRect& anchorRect = QRect(),
+                           const std::function<void(const QColor&)>& preview = {},
+                           bool withAlpha = false, const QRect& closeRect = QRect());
 
   // Install the application-wide watcher that gives EVERY dialog the flight — including
   // the ones nobody wires by hand: QMessageBox::question and friends, which are built and

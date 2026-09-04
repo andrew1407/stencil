@@ -8,6 +8,7 @@
 // holds multiple connections for one window.
 #include "connectionStore.hpp"
 #include <QByteArray>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
@@ -155,6 +156,14 @@ namespace stencil::net {
                                        std::function<void(bool ok, qint64 newVersion, bool conflict)> done) {
       QJsonObject obj;
       obj.insert("description", description);  // always sent (even "") so a clear reaches the server
+      putGuarded(id, obj, version, "update", done);
+    }
+    // Update just the search keywords (an empty list clears them), mirroring
+    // updateProjectDescriptionAsync — protocol.ProjectUpdate.Keywords ([] = clear).
+    void updateProjectKeywordsAsync(const QString& id, const QStringList& keywords, qint64 version,
+                                    std::function<void(bool ok, qint64 newVersion, bool conflict)> done) {
+      QJsonObject obj;
+      obj.insert("keywords", QJsonArray::fromStringList(keywords));  // always sent, so [] reaches the server
       putGuarded(id, obj, version, "update", done);
     }
     void updateProjectNameAsync(const QString& id, const QString& name, qint64 version,

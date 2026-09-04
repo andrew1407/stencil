@@ -159,5 +159,5 @@ export const defaultBlankSizePx = ({ width, height }, dpi = 96) => {
 // Derive the selection-panel fill checkbox/color from a line's fillColor.
 export const fillState = (line, defaultFillColor) => {
   const enabled = !!(line.fillColor && line.fillColor !== 'transparent');
-  return { enabled, value: enabled ? line.fillColor : (defaultFillColor || '#3399ff') };
+  return { enabled, value: enabled ? line.fillColor : (defaultFillColor || '#ffffff') };
 };

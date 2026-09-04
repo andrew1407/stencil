@@ -14,7 +14,12 @@ const el = (id = '') => createStubElement('div', {
 });
 
 installDom({}, {
-  window: { matchMedia: () => ({ matches: true }), innerWidth: 1000, innerHeight: 800 },
+  // addEventListener: the popover gesture machine (ui/popover.js) wires window listeners
+  // whenever a shell has an opener button, which the popover test below needs.
+  window: {
+    matchMedia: () => ({ matches: true }), innerWidth: 1000, innerHeight: 800,
+    addEventListener() {}, removeEventListener() {},
+  },
 });
 
 const { wireModalShell, closeOpenModal } = await import('../js/ui/base.js');
@@ -41,4 +46,71 @@ test('opening a window closes whichever other one was showing', () => {
   // …and the helper the hotkey layer uses reports what it closed.
   assert.equal(closeOpenModal(), second);
   assert.equal(closeOpenModal(), null, 'nothing left open');
+});
+
+test('a stacked shell opens OVER the window it was raised from', () => {
+  const parent = wireModalShell(el('parent-overlay'), null, null);
+  const stacked = wireModalShell(el('stacked-overlay'), null, null, { stacked: true });
+  parent.open();
+  stacked.open();
+  assert.equal(stacked.isOpen(), true);
+  assert.equal(parent.isOpen(), true, 'the window it was raised from stays up under it');
+
+  // …and whatever opens next still clears BOTH of them.
+  const other = wireModalShell(el('other-overlay'), null, null);
+  other.open();
+  assert.equal(parent.isOpen(), false);
+  assert.equal(stacked.isOpen(), false, 'no window is left stranded under the new one');
+  other.close();
+});
+
+test('Escape closes only the stacked window, not the one under it', () => {
+  const under = wireModalShell(el('under-overlay'), null, null);
+  const over = wireModalShell(el('over-overlay'), null, null, { stacked: true });
+  under.open();
+  over.open();
+
+  document.dispatch('keydown', { key: 'Escape' });
+  assert.equal(over.isOpen(), false, 'the top window answers the key');
+  assert.equal(under.isOpen(), true, 'the one it was raised from is not taken with it');
+
+  document.dispatch('keydown', { key: 'Escape' });
+  assert.equal(under.isOpen(), false, '…and the next Escape closes it');
+});
+
+// A window raised FROM a popover must not dismiss it. The click-outside rule reads the
+// app's stacking order (components.css: overlays 100001, stacked editor 100002, portaled
+// menus + confirm 100003) to tell "a layer I raised" from "the page underneath me".
+test('a press in a layer raised over a popover leaves it open; the page below still closes it', () => {
+  const zOf = new Map();
+  globalThis.getComputedStyle = (node) => ({ zIndex: zOf.get(node) ?? 'auto' });
+
+  const overlay = el('pop-overlay');
+  const box = el('pop-box');
+  overlay.appendChild(box);
+  zOf.set(overlay, '100001');
+  const openBtn = el('pop-btn');
+  const shell = wireModalShell(overlay, openBtn, null);
+  shell.openPopover(openBtn);
+  assert.equal(shell.isOpen(), true);
+
+  const press = (target) => document.dispatch('pointerdown', {
+    target, preventDefault() {}, stopPropagation() {},
+  });
+
+  // Its own portaled menu, and a stacked window, both sit above it.
+  const menu = el('raised-menu');
+  const menuItem = el('raised-item');
+  menu.appendChild(menuItem);
+  zOf.set(menu, '100003');
+  press(menuItem);
+  assert.equal(shell.isOpen(), true, 'picking from the menu it raised must not close it');
+
+  const stacked = el('stacked-overlay-2');
+  zOf.set(stacked, '100002');
+  press(stacked);
+  assert.equal(shell.isOpen(), true, 'nor does working inside the window that menu opened');
+
+  press(el('page-thing'));
+  assert.equal(shell.isOpen(), false, '…but a press in the page below still dismisses it');
 });

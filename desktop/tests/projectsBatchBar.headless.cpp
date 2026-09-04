@@ -187,6 +187,13 @@ int main(int argc, char** argv) {
 
     // Mixed selection: every direction hidden, the bar itself stays up.
     rowById(list, "r1", true)->setCheckState(Qt::Checked);
+    // The bar's buttons come and go as the app's control swap (ProjectsDialog
+    // updateBatchBar -> support/controlReveal), and a hide only lands once its collapse
+    // has played, so the settled state is what gets asserted.
+    pumpUntil([&] {
+      return !toServer->isVisible() && !copyServer->isVisible() && !toLocal->isVisible() &&
+             !copyLocal->isVisible();
+    });
     check(!toServer->isVisible() && !copyServer->isVisible() && !toLocal->isVisible() &&
               !copyLocal->isVisible(),
           "mixed: all four direction buttons hidden");
@@ -197,6 +204,7 @@ int main(int argc, char** argv) {
     rowById(list, "l2", false)->setCheckState(Qt::Unchecked);
     check(toLocal->isVisible() && copyLocal->isVisible(),
           "server-only: To local / Local copy visible");
+    pumpUntil([&] { return !toServer->isVisible() && !copyServer->isVisible(); });
     check(!toServer->isVisible() && !copyServer->isVisible(),
           "server-only: To server / Server copy hidden");
 
@@ -245,6 +253,7 @@ int main(int argc, char** argv) {
 
     search->setText("zzz-no-match");  // empty filtered view → nothing to select
     pumpFor(20);
+    pumpUntil([&] { return !selectAll->isVisible(); });   // …once its swap has played
     check(!selectAll->isVisible(), "select-all hides when the filtered view is empty");
     dlg.reject();
   }
@@ -447,6 +456,38 @@ int main(int argc, char** argv) {
     check(dlg.isVisible(), "the dialog survives a re-list landing mid dust-flight");
     check(rowById(list, "l1", false) != nullptr, "the rebuilt list still has its rows");
     dlg.reject();
+  }
+
+  // ── The footer row never overlaps itself (support/modalChrome addModalFooter) ──
+  // The hint sits left and the create/danger buttons right, on one row. Every dialog sets
+  // its own minimum size, which stops the layout from raising that minimum to what the row
+  // needs — so a wider system font handed the row negative space and drew the hint under
+  // the first button. Checked at the app font and at a much wider one.
+  {
+    std::printf("the footer hint never runs under its buttons:\n");
+    const QFont appFont = QApplication::font();
+    for (double scale : {1.0, 1.6}) {
+      QFont f = appFont;
+      f.setPointSizeF(appFont.pointSizeF() * scale);
+      QApplication::setFont(f);
+      ProjectsDialog dlg(locals, 5000);
+      dlg.show();
+      pumpFor(80);   // the minimum-width pass runs a turn after the buttons are added
+      auto* hint = dlg.findChild<QLabel*>("modalFooterHint");
+      auto* first = btnByText(&dlg, "Blank image");
+      check(hint && first, "finds the footer hint and its first button");
+      if (hint && first) {
+        const QRect h(hint->mapTo(&dlg, QPoint(0, 0)), hint->size());
+        const QRect b(first->mapTo(&dlg, QPoint(0, 0)), first->size());
+        check(h.right() < b.left(), "the hint ends before the first button starts");
+        // …and that button still has room for its own label, not just its icon.
+        check(first->width() >= first->minimumSizeHint().width(),
+              "the first footer button keeps its natural width");
+        check(h.width() > 0 && h.height() > 0, "the hint is not squeezed away");
+      }
+      dlg.reject();
+    }
+    QApplication::setFont(appFont);
   }
 
   std::printf(failures ? "FAILED (%d failures)\n" : "OK\n", failures);

@@ -1081,7 +1081,8 @@ export function retargetDust(el, r = null) {
 export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS,
                                    gather = false, toward = null, ms = 0, px = MOTE_PX,
                                    spread = SURFACE_SPREAD, drift = 1, toBody = false,
-                                   hostClass = '', paintTile = null, own = true, box = null } = {}) {
+                                   hostClass = '', paintTile = null, own = true, box = null,
+                                   delayScale = null } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
   try {
     // One cloud per element: the newest gesture owns it. `own: false` opts a flight out of
@@ -1118,11 +1119,13 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     const cellH = r.height / rows;
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
-        // A row FALLS (tileMotion); a surface flies at the control that owns it.
-        // The scatter's own sweep is halved (delayScale) — see surfaceMotion.
+        // A row FALLS (tileMotion); a surface flies at the control that owns it. The
+        // scatter's sweep is halved (delayScale), and a caller may compress it further:
+        // stragglers starting after the rest have gone read as a long, thin tail.
         const m = toward
           ? surfaceMotion(cx, cy, cols, rows, r, toward,
-                          { span: ms || DISINTEGRATE_MS, spread, delayScale: gather ? 1 : 0.5 })
+                          { span: ms || DISINTEGRATE_MS, spread,
+                            delayScale: delayScale ?? (gather ? 1 : 0.5) })
           : tileMotion(cx, cy, cols, rows, gather, drift, ms || DISINTEGRATE_MS);
         const tile = document.createElement('div');
         // The gather class overrides the scatter's animation with tileGather (the same
@@ -1335,14 +1338,15 @@ const speckPainter = (el, override = null) => {
 // page — the app's own code, and every test that drives it — would have to know about a
 // decoration. Flat specks in the surface's own colours carry no identity at all, and at
 // a 6px grain that is very nearly all a clone would have shown anyway.
-const surfaceDust = (el, point, { ms, gather, px = SURFACE_MOTE_PX, paint = null, box = null }) => {
+const surfaceDust = (el, point, { ms, gather, px = SURFACE_MOTE_PX, paint = null, box = null,
+                                 delayScale = null }) => {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect) return false;
   if (!(Number.isFinite(point?.x) && Number.isFinite(point?.y))) return false;
   const r = box || el.getBoundingClientRect();
   if (!(r.width >= 8 && r.height >= 8)) return false;
   const grid = reshapeGrid(SURFACE_COLS, SURFACE_ROWS, r.width, r.height, px);
   return disintegrate(el, {
-    ...grid, gather, toward: point, ms, px, toBody: true, box,
+    ...grid, gather, toward: point, ms, px, toBody: true, box, delayScale,
     hostClass: gather ? 'dust-forming' : 'dust-leaving',
     paintTile: speckPainter(el, paint),
   });
@@ -1360,7 +1364,7 @@ export function settleSurface(el) {
   cancelDust(el);
 }
 
-const playSurface = (el, point, { ms, gather, box = null }) => {
+const playSurface = (el, point, { ms, gather, box = null, delayScale = null }) => {
   if (!el?.classList) return false;
   settleSurface(el);
   if (motionReduced()) return false;
@@ -1372,7 +1376,7 @@ const playSurface = (el, point, { ms, gather, box = null }) => {
   // icon's box — the same trap `modal-measuring` dodges in ui/base.js. Off again if the
   // dust declines, so a surface that never plays it keeps its old CSS entrance.
   el.classList.add(SURFACE_DRIVEN_CLASS);
-  if (!surfaceDust(el, point, { ms, gather, box })) {
+  if (!surfaceDust(el, point, { ms, gather, box, delayScale })) {
     el.classList.remove(SURFACE_DRIVEN_CLASS);
     return false;
   }
@@ -1387,12 +1391,14 @@ const playSurface = (el, point, { ms, gather, box = null }) => {
 };
 
 // The surface waits behind its own dust and fades up as the last motes land.
-export const surfaceIn = (el, point, { ms = SURFACE_IN_MS, box = null } = {}) =>
-  playSurface(el, point, { ms, gather: true, box });
+export const surfaceIn = (el, point, { ms = SURFACE_IN_MS, box = null, delayScale = null } = {}) =>
+  playSurface(el, point, { ms, gather: true, box, delayScale });
 // …and hands over to it at once on the way out. The caller still owns the real
 // hide/remove: like leaveThenRemove, the end state never depends on the animation.
-export const surfaceOut = (el, point, { ms = SURFACE_OUT_MS, box = null } = {}) =>
-  playSurface(el, point, { ms, gather: false, box });
+// `delayScale` compresses the per-mote stagger — the default sweep makes a window come
+// apart in a wave, but on a small surface it is just a thin tail of stragglers.
+export const surfaceOut = (el, point, { ms = SURFACE_OUT_MS, box = null, delayScale = null } = {}) =>
+  playSurface(el, point, { ms, gather: false, box, delayScale });
 
 // ── Hover tips / preview popups: one shared clock and origin ────────────────
 // Every cursor-adjacent popup (the control tooltip, the Alt-hover export preview, the
@@ -1540,23 +1546,28 @@ export function markIn(el, { ms = MARK_IN_MS, paint = null, px = MARK_MOTE_PX,
 }
 
 // Show or hide a group of controls another control governs — the f(x,y) inputs, the
-// custom page's W/H boxes — with that sand, WHILE the space it takes in the row also
-// opens or closes smoothly: a group appearing/disappearing at once made its neighbours
-// (Data, Settings) jump sideways the instant it toggled, disconnected from the dust
-// still flying over it. `display: 'block'` (the context-menu twin) collapses HEIGHT
-// instead of width — everything else is a horizontal flex row.
-export const REVEAL_GROUP_IN_MS = MARK_IN_MS;
-export const REVEAL_GROUP_OUT_MS = MARK_OUT_MS;
+// custom page's W/H boxes — with that sand, while the space it takes in the row also
+// opens or closes smoothly, so neighbours don't jump the instant it toggles.
+// `display: 'block'` collapses HEIGHT instead of width; everything else is a flex row.
+// A group's slot is a wider move than a single mark and reads as a snap at the mark's
+// clock, so it gets its own longer one — handed to the dust too, so the two land together.
+export const REVEAL_GROUP_IN_MS = 420;
+export const REVEAL_GROUP_OUT_MS = 320;
 // A transition, not @keyframes: markIn/markOut may also add `.mark-forming`
 // (an animation), and two `animation` rules on one element would fight over a winner.
 const REVEAL_GROUP_TRANSITION_CLASS = 'reveal-group-transition';
 
 // One slide of the space a revealed group reserves: commit `from` as the transition's
-// start, apply `to`, clean up after `ms` (+`slack`). `defer` waits two PAINTED frames
-// before `to` — set in the same (busy) turn, the box leapt to wherever the transition's
-// curve already was (user report; the desktop had the same bug from a stale width).
-const slideRevealSize = (el, sizeProp, from, to, ms, { defer = false, slack = 0, cleanup = null } = {}) => {
+// start, apply `to`, clean up after `ms` (+`slack`). `defer` waits two painted frames
+// before `to` — set in the same busy turn, the box leapt to wherever the curve already was.
+// `ease` is the slot's own curve: the app's usual cubic-bezier(0.16, 1, .3, 1) is half done
+// in 30ms, which makes a whole group's slot jump open and then crawl. Opening rides
+// easeOutCubic, closing the gentle S the modal flight closes on.
+const REVEAL_EASE_IN = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
+const REVEAL_EASE_OUT = 'cubic-bezier(0.45, 0.05, 0.6, 0.9)';
+const slideRevealSize = (el, sizeProp, from, to, ms, { defer = false, slack = 0, cleanup = null, ease = REVEAL_EASE_IN } = {}) => {
   el.classList.add(REVEAL_GROUP_TRANSITION_CLASS);
+  el.style.setProperty('--reveal-ease', ease);
   el.style[sizeProp] = from;
   void el.offsetWidth;   // commit FROM as the transition's start value
   const go = () => {
@@ -1567,6 +1578,7 @@ const slideRevealSize = (el, sizeProp, from, to, ms, { defer = false, slack = 0,
       el.classList.remove(REVEAL_GROUP_TRANSITION_CLASS);
       el.style[sizeProp] = '';
       el.style.removeProperty('--reveal-ms');
+      el.style.removeProperty('--reveal-ease');
     }, ms + slack);
   };
   if (!defer) { go(); return; }
@@ -1576,17 +1588,20 @@ const slideRevealSize = (el, sizeProp, from, to, ms, { defer = false, slack = 0,
   raf(() => raf(go));
 };
 
-export function revealControls(el, show, display = 'inline-flex') {
+export function revealControls(el, show, display = 'inline-flex', { vertical: axis = null } = {}) {
   if (!el?.style) return false;
   const wasShown = el.style.display !== 'none';
   if (wasShown === !!show) return false;   // already there: nothing comes or goes
-  const vertical = display === 'block';
+  // Which way the slot closes: a block collapses its height, an inline group its width.
+  // Right for every caller but a full-width bar, which is a flex row that must still open
+  // downward — hence the explicit override (connectModal.js's selection bar).
+  const vertical = axis === null ? display === 'block' : !!axis;
   const sizeProp = vertical ? 'maxHeight' : 'maxWidth';
   if (show) {
     el.style.display = display;
     const r = el.getBoundingClientRect();   // now laid out at its natural size
     const size = vertical ? r.height : r.width;
-    const played = markIn(el);   // grid sized off that same natural box
+    const played = markIn(el, { ms: REVEAL_GROUP_IN_MS });   // grid sized off that same natural box
     if (size && played)
       slideRevealSize(el, sizeProp, '0px', `${size}px`, REVEAL_GROUP_IN_MS, { defer: true, slack: 40 });
     return played;
@@ -1595,10 +1610,10 @@ export function revealControls(el, show, display = 'inline-flex') {
   // from the true box.
   const r = el.getBoundingClientRect();
   const size = vertical ? r.height : r.width;
-  const played = markOut(el);
+  const played = markOut(el, { ms: REVEAL_GROUP_OUT_MS });
   if (size && played) {
     slideRevealSize(el, sizeProp, `${size}px`, '0px', REVEAL_GROUP_OUT_MS,
-      { cleanup: () => { el.style.display = 'none'; } });
+      { ease: REVEAL_EASE_OUT, cleanup: () => { el.style.display = 'none'; } });
   } else {
     el.style.display = 'none';   // declined (reduced motion, too small): instant, as before
   }
@@ -1642,17 +1657,32 @@ export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
   }, dusted ? wipeDurationMs() : ms));
 }
 
-// ── A chat entry ARRIVES as dust (the mirror of chatLeave) ──────────────────
-// A message appearing is a message being deleted, played backwards: the same fine mesh
-// (scatterGridFor), the same flight, flown HOME (reintegrate). The entry itself is
-// HELD BACK for the whole flight — the motes ARE it forming, and fading it up underneath
-// them showed the message first and the animation after (the reported bug), which is the
-// one thing an arrival must not do.
-// On a clock of its own, well short of a row's 900ms: the motes carry no text, so a
-// long answer is unreadable until the veil lifts — and waiting most of a second for a
-// reply you can already see arriving reads as the app being slow, not as sand settling.
+// ── A chat entry ARRIVES as dust, from its own side ─────────────────────────
+// An arrival is a toast arriving (notifications.js): the same speck cloud, gathered out
+// of a point off the edge the entry belongs to — the user's messages from the right, the
+// assistant's from the left (the LEAVE is still a scatter around the row). The entry is
+// held back for the whole flight: the motes ARE it forming, so fading it up underneath
+// them would show the message first and the animation after.
+// On a short clock of its own: the motes carry no text, so a long answer is unreadable
+// until the veil lifts, and most of a second of that reads as the app being slow.
 export const CHAT_ENTER_MS = 520;
 export const CHAT_ENTERING_CLASS = 'chat-entering';
+// How far off the row's own edge its motes are gathered from. The cloud is clipped to
+// the transcript (clipDustToScroller), so a point outside it simply means the sand
+// streams in over the edge — exactly what a toast does off the window's.
+export const CHAT_ENTER_REACH = 0.9;
+
+// The point an arriving entry's dust flies out of: the edge it sits against, read off the
+// geometry rather than the role class, so an attachment strip or result card follows the
+// message it rides with. Null when unmeasurable — the caller then settles the entry.
+export const chatArrivalPoint = (el, r = null, s = null) => {
+  r = r || el?.getBoundingClientRect?.();
+  s = s || el?.parentElement?.getBoundingClientRect?.();
+  if (!r || !s || !(r.width > 0)) return null;
+  // Hugging the scroller's right edge more closely than its left ⇒ the user's side.
+  return dockAwayPoint(r, (s.right - r.right) <= (r.left - s.left) ? 'right' : 'left',
+                       CHAT_ENTER_REACH);
+};
 
 // Two frames, so the measure below happens on a SETTLED transcript: frame one is the new
 // entries' own layout, frame two is the scroll that follows it (chatView stickToBottom
@@ -1724,7 +1754,7 @@ const trackDust = (el, ms, onDrop = () => {}) => {
 
 export function chatIn(el, count = 1, index = 0) {
   if (!el?.classList || motionReduced() || typeof setTimeout === 'undefined') return Promise.resolve();
-  const { cols, rows } = scatterGridFor(count, index);
+  const { cols } = scatterGridFor(count, index);   // the burst's budget; the grid is surfaceDust's
   // Veiled from the FIRST frame, before anything is painted: the entry keeps its height
   // (so the transcript grows and scrolls to it as usual) but is never seen ahead of its
   // own motes. Lifted below the moment they land — or at once if none can fly.
@@ -1738,11 +1768,10 @@ export function chatIn(el, count = 1, index = 0) {
     const ready = globalThis.document?.fonts?.ready;
     const go = () => afterLayout(() => {
       // cols === 0 is the budget's "fade only" (scatterGridFor past SCATTER_MAX_ROWS).
-      // toBody, unlike the LEAVE's cloud: an arrival happens every turn, and for its whole
-      // life the clones are elements carrying `.chat-msg` and `[data-row]` — inside the
-      // scroller everything that walks the transcript reads them as live rows.
+      // Past that guard the cloud is the toast's: it sizes its grid to the bubble and
+      // paints specks, not clones, so nothing walking the transcript sees a live row.
       const flying = cols !== 0 && dustFitsScroller(el)
-        && reintegrate(el, { cols, rows, toBody: true, ms: CHAT_ENTER_MS });
+        && surfaceDust(el, chatArrivalPoint(el), { ms: CHAT_ENTER_MS, gather: true });
       if (!flying) { unveil(); resolve(); return; }
       clipDustToScroller(el);   // before the first frame paints, not after it
       let handedOver = false;
@@ -2139,3 +2168,133 @@ export function flashLanding(el, cls = 'drop-landing', ms = 700) {
   el.classList.add(cls);
   timers[cls] = setTimeout(() => el.classList.remove(cls), ms);
 }
+
+// ── Drawing a stroke: the new vertex FLIES to where you put it ──────────────
+// Every route that adds a point ends in one motion: the vertex leaves where it came from
+// — the point it extends, or its projection on the segment it splits — and travels to the
+// click on a bowed path, overshooting before it settles. The renderer paints the flown
+// position, so the segments hanging off it bend and join by themselves.
+// C++ mirror: desktop/src/canvas/strokeGrowth.hpp — keep the two in step.
+
+// The flight's own length: a short hop is nearly instant, a reach across the page
+// still lands promptly. Lengths are IMAGE pixels on both sides, so zoom does not
+// change the timing. Pure.
+export const STROKE_FLY_MIN_MS = 150;
+export const STROKE_FLY_MAX_MS = 420;
+export const STROKE_FLY_PX_PER_MS = 2.4;
+export const strokeFlyMs = (len) => Math.min(
+  STROKE_FLY_MAX_MS, STROKE_FLY_MIN_MS + Math.max(0, len) / STROKE_FLY_PX_PER_MS);
+
+// Ease-out-back: the vertex shoots a little past its target and comes back, which is
+// what makes the segment read as REACHING for the point rather than being switched on.
+// Weaker than the textbook 1.70158 — on a 3px stroke a big overshoot reads as a glitch.
+export const STROKE_FLY_BACK = 1.28;
+export const strokeFlyEase = (t) => {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  const u = t - 1;
+  return 1 + (STROKE_FLY_BACK + 1) * u * u * u + STROKE_FLY_BACK * u * u;
+};
+
+// No vertex flies a straight line (the same rule the dust follows — tileWaypoint): it
+// is pushed off its path by a share of the trip, capped, and back by the time it
+// lands. `bow` is the signed side, -1..1. Pure.
+export const STROKE_BOW_SHARE = 0.13;
+export const STROKE_BOW_MAX = 22;
+export const strokeBow = (len) => Math.min(len * STROKE_BOW_SHARE, STROKE_BOW_MAX);
+
+// Which side, and how far off, THIS vertex swings — a hash of where it landed, so the
+// bend is varied but reproducible (and unit-testable). Pure.
+export const strokeBowSign = (x, y) => (tileNoise(Math.round(x), Math.round(y)) - 0.5) * 2;
+
+// The envelope every mid-flight flourish rides: nothing at either end, everything at the
+// half-way mark. A parabola, not a sine, because it is exactly zero at both ends —
+// sin(pi) is not, and a vertex landing a hair off the point it became has not landed.
+export const strokeArc = (t) => {
+  const k = Math.min(1, Math.max(0, t));
+  return 4 * k * (1 - k);
+};
+
+// Where the vertex is `t` through its flight. Pure.
+export const strokeFlyPoint = (from, to, t, bow = 0) => {
+  const k = strokeFlyEase(t);
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const x = from.x + dx * k;
+  const y = from.y + dy * k;
+  const len = Math.hypot(dx, dy);
+  if (!bow || len < 0.5) return { x, y };
+  const s = strokeArc(t) * strokeBow(len) * bow;
+  return { x: x - (dy / len) * s, y: y + (dx / len) * s };
+};
+
+// The landing: the vertex arrives half again its size and settles. POP is the settle;
+// the swell itself happens in flight (strokeFlyRadius), so there is no jump between
+// the two — a size that snaps on arrival reads as a redraw, not a landing.
+export const STROKE_POP_MS = 240;
+export const STROKE_POP_PEAK = 1.5;
+export const STROKE_FLY_R0 = 0.5;
+export const strokeFlyRadius = (t) =>
+  STROKE_FLY_R0 + (STROKE_POP_PEAK - STROKE_FLY_R0) * Math.min(1, Math.max(0, t)) ** 2;
+export const strokePopScale = (u) => {
+  if (u >= 1) return 1;
+  const k = 1 - Math.min(1, Math.max(0, u));
+  return 1 + (STROKE_POP_PEAK - 1) * k * k;
+};
+
+// The ring the landing pushes out — the one part of this that is not the line itself,
+// so it stays faint and brief.
+export const STROKE_RIPPLE_MS = 420;
+export const STROKE_RIPPLE_REACH = 4.2;
+export const STROKE_RIPPLE_ALPHA = 0.55;
+export const strokeRipple = (u) => {
+  const k = Math.min(1, Math.max(0, u));
+  return {
+    scale: 1 + (STROKE_RIPPLE_REACH - 1) * (1 - (1 - k) ** 2),
+    alpha: STROKE_RIPPLE_ALPHA * (1 - k) ** 1.6,
+  };
+};
+
+// The glow riding the vertex in flight: nothing at either end (it must not smudge the
+// anchor it left or the point it became), brightest mid-trip.
+export const STROKE_SPARK_REACH = 2.8;
+export const STROKE_SPARK_ALPHA = 0.6;
+export const strokeSpark = (t) => {
+  const k = strokeArc(t);
+  return { scale: 1 + (STROKE_SPARK_REACH - 1) * k, alpha: STROKE_SPARK_ALPHA * k ** 0.7 };
+};
+
+// How hot the segments the vertex is dragging burn, over the whole flight + settle:
+// full as it leaves, out by the time it has landed.
+export const STROKE_WAKE_ALPHA = 0.5;
+export const strokeWake = (t) => STROKE_WAKE_ALPHA * (1 - Math.min(1, Math.max(0, t))) ** 1.3;
+
+// The whole timeline of one vertex, from an elapsed time. `land` drives the settle,
+// `ripple` the ring; both start the moment the flight ends. Pure.
+export const strokePhase = (elapsed, flyMs) => {
+  const fly = flyMs > 0 ? Math.min(1, Math.max(0, elapsed / flyMs)) : 1;
+  const after = Math.max(0, elapsed - flyMs);
+  return {
+    fly,
+    land: Math.min(1, after / STROKE_POP_MS),
+    ripple: Math.min(1, after / STROKE_RIPPLE_MS),
+    span: Math.min(1, elapsed / (flyMs + STROKE_RIPPLE_MS)),
+    done: elapsed >= flyMs + STROKE_RIPPLE_MS,
+  };
+};
+
+// The vertex's radius multiplier at any point in that timeline. Pure.
+export const strokeVertexScale = (ph) => (ph.fly < 1 ? strokeFlyRadius(ph.fly) : strokePopScale(ph.land));
+
+// Where a vertex INSERTED into a segment comes from: its own foot on the straight line
+// it split, so the bend is pulled out of the stroke instead of appearing beside it.
+// Clamped to the segment, so a foot beyond an end is that end. Pure.
+export const strokeFoot = (a, b, x, y) => {
+  if (!a || !b) return { x, y };
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return { x: a.x, y: a.y };
+  const t = Math.min(1, Math.max(0, ((x - a.x) * dx + (y - a.y) * dy) / lenSq));
+  return { x: a.x + t * dx, y: a.y + t * dy };
+};

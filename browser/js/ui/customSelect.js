@@ -100,13 +100,41 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
     }
   };
 
-  // The chosen word is a MARK like any other (ui/motion.js markSwap): the outgoing value
-  // comes apart into motes and the incoming one forms out of them, in place, without the
-  // trigger's box moving. Only a real CHANGE flies — the first paint, a re-sync on open
-  // and a set to the value already shown write straight through, or every dropdown would
-  // deal itself in on open.
+  // The chosen word is a mark like any other (motion.js markSwap): the outgoing value
+  // comes apart into motes and the incoming one forms out of them, in place. Only a real
+  // change flies — the first paint, a re-sync on open and a no-op set write straight
+  // through, or every dropdown would deal itself in on open.
+  // The box stays put because the trigger is sized to its WIDEST option, not the one
+  // showing, so a row of selects doesn't shuffle as you use them. Measured off a hidden
+  // probe in the label's font, re-measured when the option list changes, and capped at the
+  // CSS width for long-option selects so one long server URL can't overrun the row.
+  const MAX_FIT_PX = 240;
+  let fittedCount = -1;
+  const fitToWidestOption = () => {
+    if (fittedCount === selectEl.options.length) return;
+    if (!selectEl.options.length || typeof getComputedStyle !== 'function') return;
+    const cs = getComputedStyle(cur);
+    const probe = document.createElement('span');
+    probe.style.cssText = 'position:absolute;left:-9999px;top:-9999px;white-space:pre;visibility:hidden;';
+    for (const prop of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'letterSpacing'])
+      probe.style[prop] = cs[prop];
+    document.body.appendChild(probe);
+    let widest = 0;
+    for (const o of selectEl.options) {
+      probe.textContent = o.textContent;
+      widest = Math.max(widest, probe.getBoundingClientRect().width);
+    }
+    probe.remove();
+    // Only a measurement that MEANT something counts as done: a select enhanced inside a
+    // window that is still display:none measures zero, and must fit again once it is up.
+    if (widest <= 0) return;
+    fittedCount = selectEl.options.length;
+    cur.style.minWidth = `${Math.min(Math.ceil(widest), MAX_FIT_PX)}px`;
+  };
+
   let shown = null;
   const sync = () => {
+    fitToWidestOption();
     const label = labelOf(selectEl.value);
     if (shown === null || label === shown) cur.textContent = label;
     else markSwap(cur, () => { cur.textContent = label; });

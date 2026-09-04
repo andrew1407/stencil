@@ -7,9 +7,20 @@ import { canvasOrigin } from './zoomPan.js';
 // auto-enters drawing) and touchscreen (direct-manipulation drag + two-finger pan/pinch).
 // The mouse pointer/drag path stays in DrawingApp's #wirePanDrag; both reuse the same
 // drag helpers and drag-state fields DrawingApp exposes publicly.
+// Which press may become a hold-to-draw stroke: an image to draw on, drawing mode off,
+// no other gesture running, and not the rect tool (a hold there would seed a freehand
+// line while the picked tool draws areas). Desktop twin: mousePressEvent's eligibleHold.
+export const holdDrawEligible = (app) =>
+  !!app?.image && !app.isDrawing && app.drawMode !== 'rect' &&
+  !(app.isPanning || app.isDraggingPoint || app.isDraggingSegment ||
+    app.isDraggingLine || app.isZoomRectDragging || app.isRectDrawDragging);
+
 export class InputController {
   // Hold-to-draw gesture state.
   #holdDraw = null;
+  // Set when a dwell CLOSED the shape: the stroke is over, but the button is still down.
+  // The release still has to swallow its own trailing click (see #suppressTrailingClick).
+  #holdClosedShape = false;
   #holdTickTimer = null;
   #holdAutoEnabled = false;
   // True while a hold stroke extends a line BACKWARD from its first point (points prepended).
@@ -50,6 +61,7 @@ export class InputController {
     });
 
     document.addEventListener('mouseup', () => {
+      if (this.#holdClosedShape) { this.#holdReleaseAfterClose(); return; }
       if (ctrl.state === 'idle') return;
       const r = ctrl.pointerUp(this.#now());
       this.#stopHoldTicks();
@@ -70,12 +82,7 @@ export class InputController {
   // (wireTouch); the caller has already filtered out modified presses. Returns true if armed.
   #holdTryDown(clientX, clientY) {
     const app = this.app;
-    if (!app.image) return false;
-    // Only the auto-mode: manual line/rect drawing keeps its click behavior.
-    if (app.isDrawing) return false;
-    // Never start over another active gesture (pan / drag / zoom / rect).
-    if (app.isPanning || app.isDraggingPoint || app.isDraggingSegment ||
-        app.isDraggingLine || app.isZoomRectDragging || app.isRectDrawDragging) return false;
+    if (!holdDrawEligible(app)) return false;
     this.#holdDraw.setHoldDelay(app.holdDrawDelay);
     this.#holdDraw.pointerDown(clientX, clientY, this.#now());
     this.#startHoldTicks();
@@ -124,6 +131,7 @@ export class InputController {
     const dropSingle = () => {
       clearLongPress();
       this.#stopHoldTicks();
+      this.#holdClosedShape = false;
       if (this.#holdDraw.engaged) { this.#holdDraw.cancel(); this.#holdClearPreview(); }
       app.isDraggingPoint = false; app.draggingPoint = null;
       app.isDraggingSegment = false; app.draggingSegment = null;
@@ -289,6 +297,7 @@ export class InputController {
           tapClick(e, st);
         }
       } else if (st.mode === 'tap') {
+        if (this.#holdClosedShape) { this.#holdReleaseAfterClose(); this.#touch = null; return; }
         const r = this.#holdDraw.pointerUp(this.#now());
         this.#stopHoldTicks();
         if (r && r.type === 'commit') {
@@ -344,7 +353,10 @@ export class InputController {
       app.startDrawingMode({ connect: true });
     } else {
       app.startDrawingMode({ connect: false });
-      if (app.currentLine) app.currentLine.points.push({ x, y });
+      if (app.currentLine) {
+        app.currentLine.points.push({ x, y });
+        app.strokeFx.flyIn(app.currentLine, app.currentLine.points.length - 1);
+      }
     }
     this.#holdSetPreviewImg(x, y);
     app.updateButtons();
@@ -354,9 +366,21 @@ export class InputController {
   #holdDrop(clientX, clientY) {
     const app = this.app;
     const { x, y } = app.canvasCoords(clientX, clientY);
+    // Resting on the stroke's first point closes it into a locked area, as clicking
+    // there does. The shape is committed, so end the gesture rather than dropping more
+    // points into a stroke that no longer exists.
+    if (app.tryCloseShapeAt(x, y)) {
+      this.#stopHoldTicks();
+      this.#holdDraw.cancel();       // no more dwells drop into a stroke that is gone
+      this.#holdClearPreview();
+      this.#holdClosedShape = true;  // …but the release still owes us a swallowed click
+      app.updateButtons();
+      return;
+    }
     if (app.continueLineIdx >= 0 && app.lines[app.continueLineIdx]) {
       const line = app.lines[app.continueLineIdx];
       line.points.splice(app.continueInsertIdx, 0, { x, y });
+      app.strokeFx.flyIn(line, app.continueInsertIdx);
       app.focusedPtIdx = app.continueInsertIdx;
       // Prepend mode keeps inserting at index 0 (each new point becomes the new head); forward
       // mode advances the insert point so points keep appending.
@@ -364,9 +388,19 @@ export class InputController {
       app.coordTable.update(line.points, app.continueLineIdx);
     } else if (app.currentLine) {
       app.currentLine.points.push({ x, y });
+      app.strokeFx.flyIn(app.currentLine, app.currentLine.points.length - 1);
     }
     this.#holdSetPreviewImg(x, y);
     app.updateButtons();
+  }
+
+  // A finished press leaves a synthetic click behind; swallow it. Armed on the RELEASE:
+  // a gesture can end well before the button comes up (a dwell that closes the shape),
+  // and a guard armed back then has expired by the time the click arrives.
+  #suppressTrailingClick() {
+    const app = this.app;
+    app.dragJustEnded = true;
+    setTimeout(() => { app.dragJustEnded = false; }, 50);
   }
 
   // Release after a hold stroke → commit the line and disable drawing mode, then suppress the
@@ -377,8 +411,18 @@ export class InputController {
     if (app.isDrawing) app.stopDrawingMode();
     this.#holdAutoEnabled = false;
     this.#holdPrepend = false;
-    app.dragJustEnded = true;
-    setTimeout(() => { app.dragJustEnded = false; }, 50);
+    this.#suppressTrailingClick();
+  }
+
+  // The release after a dwell-closed shape: nothing left to commit, but the trailing
+  // click still must be swallowed — selecting the area opens the bar, which pushes the
+  // canvas down, so the click would land elsewhere and deselect the new shape.
+  #holdReleaseAfterClose() {
+    this.#holdClosedShape = false;
+    this.#holdClearPreview();
+    this.#holdAutoEnabled = false;
+    this.#holdPrepend = false;
+    this.#suppressTrailingClick();
   }
 
   #holdSetPreview(clientX, clientY) {

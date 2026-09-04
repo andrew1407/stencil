@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
 import { buildLayoutPayload, serializeSession, LAYOUT_FIELDS, validateLayout, resolveInsertIdx, fillState, defaultBlankSizePx, mergeLines, sanitizeLines } from '../js/core/layout.js';
 
 // ── mergeLines (concurrent co-edit conflict resolution) ──
@@ -338,8 +339,13 @@ test('fillState: a real fill color → enabled, value is that color', () => {
     assert.deepStrictEqual(fillState({ fillColor: '#abcdef' }, '#112233'), { enabled: true, value: '#abcdef' });
 });
 
-test('fillState: no default supplied falls back to #3399ff', () => {
-    assert.deepStrictEqual(fillState({}, undefined), { enabled: false, value: '#3399ff' });
+// White, not blue: a fill is paint you put ON the picture, so the neutral colour is the
+// least surprising thing for the swatch to start at. Held against the shared constants so
+// the fallback here and the app-wide default cannot drift apart.
+test('fillState: no default supplied falls back to the shared default (white)', () => {
+    assert.deepStrictEqual(fillState({}, undefined), { enabled: false, value: '#ffffff' });
+    const canon = JSON.parse(readFileSync(new URL('../js/config/constants.json', import.meta.url), 'utf8'));
+    assert.equal(canon.DEFAULT_VISUALS.defaultFillColor, '#ffffff');
 });
 
 // ── defaultBlankSizePx ──────────────────────────────────────────

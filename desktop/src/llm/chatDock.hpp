@@ -399,13 +399,11 @@ namespace stencil::gui {
     // New framed transcript card (inserted above the bottom stretch, scroll
     // deferred); the caller populates the returned layout.
     QVBoxLayout* appendTranscriptCard(int spacing);
-    // Appear motion for a freshly inserted card (browser parity): the card's own
-    // DUST gathers into place (Sweep::Gather — the Clear scatter played backwards)
-    // while the card comes up behind the motes, over a ~6 px upward slide. Under
-    // reduced motion — or when the grab cannot be taken — it is the plain ~140 ms
-    // fade + slide alone. Each card owns its own animation (parented to it,
-    // DeleteWhenStopped), so overlapping appends never interfere and a card deleted
-    // mid-flight takes its animation with it.
+    // Appear motion for a freshly inserted card (browser parity): its dust gathers into
+    // place out of a point off the side it sits against — a toast arriving, not the Clear
+    // scatter reversed — while the card comes up behind the motes over a ~6px slide.
+    // Under reduced motion, or when the grab fails, it is the plain fade + slide alone.
+    // Each card owns its animation, so overlapping appends never interfere.
     void animateCardIn(QWidget* card, QVBoxLayout* lay);
     // The second half of animateCardIn, run one event-loop turn later (the caller has
     // populated the card by then): this dock's settle/slide around the SHARED

@@ -87,10 +87,13 @@ export class Renderer {
       // avoids cloning the lines array into a combined list every frame.
       const drawPts = (line, li, sel) => {
         const ms = line.pointSize ?? this.app.pointSize;
-        line.points.forEach((p, pi) => {
+        const fx = this.app.strokeFx;
+        const pts = fx.pointsOf(line);
+        pts.forEach((p, pi) => {
           const hs = this.#pointHighlightState(li, pi);
-          this.drawPoint(p, pointColorOf(line), ms, sel, hs);
+          this.drawPoint(p, pointColorOf(line), ms * fx.scaleAt(line.points[pi]), sel, hs);
         });
+        fx.paintOver(this.app.ctx, line, pts);
       };
       this.app.lines.forEach((line, i) => drawPts(line, i, ro ? false : this.app.isLineSelected(i)));
       if (this.app.currentLine) drawPts(this.app.currentLine, -1, false);
@@ -186,10 +189,17 @@ export class Renderer {
   }
 
   drawLine(line, isSelected = false, lineIdx = -99) {
+    // Points in flight (a just-added vertex travelling to where it was put) are drawn
+    // where they are RIGHT NOW; everything below — fill, glows, stroke, points — reads
+    // this array, so the segments hanging off a moving vertex follow it for free.
+    const fx = this.app.strokeFx;
+    const pts = fx.pointsOf(line);
     if (line.points.length < 2) {
       if (line.points.length === 1 && this.app.showPoints) {
         const hs = this.#pointHighlightState(lineIdx, 0);
-        this.drawPoint(line.points[0], pointColorOf(line), line.pointSize ?? this.app.pointSize, isSelected, hs);
+        const ps = (line.pointSize ?? this.app.pointSize) * fx.scaleAt(line.points[0]);
+        this.drawPoint(pts[0], pointColorOf(line), ps, isSelected, hs);
+        fx.paintOver(this.app.ctx, line, pts);
       }
       return;
     }
@@ -199,9 +209,9 @@ export class Renderer {
       this.app.ctx.save();
       this.app.ctx.fillStyle = line.fillColor;
       this.app.ctx.beginPath();
-      this.app.ctx.moveTo(line.points[0].x, line.points[0].y);
+      this.app.ctx.moveTo(pts[0].x, pts[0].y);
       for (let i = 1; i < line.points.length; i++)
-        this.app.ctx.lineTo(line.points[i].x, line.points[i].y);
+        this.app.ctx.lineTo(pts[i].x, pts[i].y);
       this.app.ctx.closePath();
       this.app.ctx.fill();
       this.app.ctx.restore();
@@ -218,9 +228,9 @@ export class Renderer {
       this.app.ctx.lineJoin = 'round';
       this.app.ctx.setLineDash([]);
       this.app.ctx.beginPath();
-      this.app.ctx.moveTo(line.points[0].x, line.points[0].y);
+      this.app.ctx.moveTo(pts[0].x, pts[0].y);
       for (let i = 1; i < line.points.length; i++)
-        this.app.ctx.lineTo(line.points[i].x, line.points[i].y);
+        this.app.ctx.lineTo(pts[i].x, pts[i].y);
       if (line.locked) this.app.ctx.closePath();
       this.app.ctx.stroke();
       this.app.ctx.restore();
@@ -235,13 +245,16 @@ export class Renderer {
       this.app.ctx.lineJoin = 'round';
       this.app.ctx.setLineDash([]);
       this.app.ctx.beginPath();
-      this.app.ctx.moveTo(line.points[0].x, line.points[0].y);
+      this.app.ctx.moveTo(pts[0].x, pts[0].y);
       for (let i = 1; i < line.points.length; i++)
-        this.app.ctx.lineTo(line.points[i].x, line.points[i].y);
+        this.app.ctx.lineTo(pts[i].x, pts[i].y);
       if (line.locked) this.app.ctx.closePath();
       this.app.ctx.stroke();
       this.app.ctx.restore();
     }
+
+    // The heat the flying vertex drags behind it, under the real stroke.
+    fx.paintUnder(this.app.ctx, line, pts);
 
     this.app.ctx.strokeStyle = line.color;
     this.app.ctx.lineWidth = line.thickness;
@@ -257,21 +270,25 @@ export class Renderer {
     }
 
     this.app.ctx.beginPath();
-    this.app.ctx.moveTo(line.points[0].x, line.points[0].y);
+    this.app.ctx.moveTo(pts[0].x, pts[0].y);
 
     for (let i = 1; i < line.points.length; i++)
-      this.app.ctx.lineTo(line.points[i].x, line.points[i].y);
+      this.app.ctx.lineTo(pts[i].x, pts[i].y);
     if (line.locked) this.app.ctx.closePath();
 
     this.app.ctx.stroke();
     this.app.ctx.setLineDash([]);
 
     if (this.app.showPoints) {
-      line.points.forEach((point, pi) => {
+      pts.forEach((point, pi) => {
         const hs = this.#pointHighlightState(lineIdx, pi);
-        this.drawPoint(point, pointColorOf(line), line.pointSize ?? this.app.pointSize, isSelected, hs);
+        const ps = (line.pointSize ?? this.app.pointSize) * fx.scaleAt(line.points[pi]);
+        this.drawPoint(point, pointColorOf(line), ps, isSelected, hs);
       });
     }
+    // The spark riding a flying vertex and the ring its landing pushes out, over
+    // everything else this line drew.
+    fx.paintOver(this.app.ctx, line, pts);
   }
 
   // highlightState: 0 = none, 1 = hover (subtle ring), 2 = focused (bold ring + shadow)

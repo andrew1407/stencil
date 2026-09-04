@@ -250,8 +250,8 @@ test('the filter select is in the static markup, all three states, defaulting to
 const WIRE_IDS = [
   'connect-modal-overlay', 'connect-url', 'connect-token', 'connect-add', 'connect-reconnect',
   'connect-list', 'connect-batch-bar', 'connect-batch-count', 'connect-batch-reconnect',
-  'connect-batch-disconnect', 'connect-batch-clear', 'connect-autoconnect', 'connect-sync',
-  'connect-filter',
+  'connect-batch-disconnect', 'connect-autoconnect', 'connect-sync',
+  'connect-filter', 'connect-select-all', 'connect-batch-selected',
 ];
 
 const conn = (url, kind) => ({
@@ -276,14 +276,31 @@ const openModal = (conns, { reduced = true } = {}) => {
   });
   // innerHTML = '' is how render() clears the list; the stub keeps children in an array.
   Object.defineProperty(list, 'innerHTML', { get: () => '', set: (v) => { if (!v) list.children.length = 0; } });
-  for (const id of WIRE_IDS) doc.register(id, id === 'connect-list' ? list : createStubElement('div'));
+  // Select all carries its label in a <span> the modal re-titles (Select ↔ Deselect all).
+  // Select all carries its label in a <span> the modal re-titles (Select ↔ Deselect all)
+  // and a glyph it swaps (check ↔ cross); the stub icon records the swap by class.
+  const selectAllLabel = createStubElement('span');
+  const selectAllIcon = createStubElement('svg');
+  selectAllIcon.classList.add('ic', 'ic-check');
+  Object.defineProperty(selectAllIcon, 'outerHTML', {
+    set: (html) => { const m = /ic ic-([a-z]+)/.exec(html); selectAllIcon.classList.remove('ic-check', 'ic-x'); if (m) selectAllIcon.classList.add(`ic-${m[1]}`); },
+    get: () => '',
+  });
+  for (const id of WIRE_IDS) {
+    doc.register(id, id === 'connect-list' ? list
+      : id === 'connect-select-all' ? createStubElement('button', {
+        querySelector: (sel) => (sel === 'span' ? selectAllLabel : sel === '.ic' ? selectAllIcon : null) })
+      : createStubElement('div'));
+  }
+  const selectAllGlyph = () => (selectAllIcon.classList.contains('ic-x') ? 'x' : selectAllIcon.classList.contains('ic-check') ? 'check' : null);
   const byUrl = new Map(conns.map((c) => [c.url, c]));
   const urls = conns.map((c) => c.url);
   new StencilConnectModal().wire({
     connections: { knownUrls: urls, urls, expiredUrls: [], reconnectable: true, get: (u) => byUrl.get(u) ?? null },
   });
   doc.getElementById('connect-modal-overlay').__stencilModal.open();
-  return { doc, list, filter: doc.getElementById('connect-filter') };
+  return { doc, list, filter: doc.getElementById('connect-filter'), selectAllGlyph,
+    modal: doc.getElementById('connect-modal-overlay').__stencilModal };
 };
 
 const rows = (list) => list.children.filter((c) => c.classList?.contains('connect-row'));
@@ -291,6 +308,81 @@ const rowUrls = (list) => rows(list).map((r) => r.dataset.url);
 const hasClass = (el, c) => el.classList.contains(c);
 const descendants = (el) => el.children.flatMap((c) => [c, ...(c.children ? descendants(c) : [])]);
 const find = (el, cls) => descendants(el).find((c) => c.classList?.contains(cls)) ?? null;
+
+// ── The batch bar is the projects bar's shape ───────────────────────────────
+// It stays while the list has rows (it hosts Select all); only the count and the
+// selection-only actions come and go with the checked set, so the list never jumps.
+
+test('the batch bar stays while rows exist; count + actions ride the selection', () => {
+  const { doc, list } = openModal([conn('http://adm:1', 'admin'), conn('http://plain:2', '')]);
+  const bar = doc.getElementById('connect-batch-bar');
+  const count = doc.getElementById('connect-batch-count');
+  const group = doc.getElementById('connect-batch-selected');
+  const selectAll = doc.getElementById('connect-select-all');
+  assert.notStrictEqual(bar.style.display, 'none', 'the bar is up with nothing checked…');
+  assert.strictEqual(count.style.display, 'none', '…but the count waits for a selection');
+  assert.strictEqual(group.style.display, 'none', '…and so do the selection actions');
+  assert.notStrictEqual(selectAll.style.display, 'none', 'Select all is what the bar holds');
+  assert.strictEqual(selectAll.querySelector('span').textContent, 'Select all');
+  const cb = find(rows(list)[0], 'connect-select');
+  cb.checked = true;
+  cb.dispatch('change');
+  assert.notStrictEqual(count.style.display, 'none', 'one checked → the count appears');
+  assert.strictEqual(count.textContent, '1 selected');
+  assert.notStrictEqual(group.style.display, 'none', '…with the selection actions');
+  assert.ok(hasClass(rows(list)[0], 'connect-selected'));
+});
+
+test('Select all takes the filtered view; Deselect all clears the lot', () => {
+  const { doc, list, filter, selectAllGlyph } = openModal([
+    conn('http://adm:1', 'admin'), conn('http://plain:2', ''), conn('http://adm:3', 'admin'),
+  ]);
+  const selectAll = doc.getElementById('connect-select-all');
+  const count = doc.getElementById('connect-batch-count');
+  filter.value = 'admin';
+  filter.dispatch('change');
+  selectAll.dispatch('click');
+  assert.strictEqual(count.textContent, '2 selected', 'only the rows on view are swept up');
+  assert.strictEqual(selectAll.querySelector('span').textContent, 'Deselect all');
+  assert.strictEqual(selectAllGlyph(), 'x', 'Deselect all wears a cross, not the check (user decision)');
+  assert.ok(rows(list).every((r) => hasClass(r, 'connect-selected')));
+  filter.value = 'all';
+  filter.dispatch('change');
+  const plain = rows(list).find((r) => r.dataset.url === 'http://plain:2');
+  assert.ok(!hasClass(plain, 'connect-selected'), 'the filtered-out row was never checked');
+  assert.strictEqual(selectAll.querySelector('span').textContent, 'Select all',
+    'not everything on view is checked any more');
+  selectAll.dispatch('click');
+  assert.strictEqual(count.textContent, '3 selected');
+  selectAll.dispatch('click');
+  assert.strictEqual(count.textContent, '0 selected', 'Deselect all clears the selection');
+  assert.strictEqual(count.style.display, 'none');
+  assert.strictEqual(selectAllGlyph(), 'check', '…and the glyph is a check again');
+  assert.ok(rows(list).every((r) => !hasClass(r, 'connect-selected')));
+});
+
+test('a selection is one visit\u2019s: reopening the modal starts unchecked', () => {
+  const { doc, list, modal } = openModal([conn('http://adm:1', 'admin'), conn('http://plain:2', '')]);
+  const cb = find(rows(list)[0], 'connect-select');
+  cb.checked = true;
+  cb.dispatch('change');
+  assert.strictEqual(doc.getElementById('connect-batch-count').textContent, '1 selected');
+  modal.close();
+  modal.open();
+  assert.strictEqual(doc.getElementById('connect-batch-count').textContent, '0 selected',
+    'nothing carried over (user decision — projects parity)');
+  assert.ok(rows(list).every((r) => !hasClass(r, 'connect-selected')));
+  assert.ok(rows(list).every((r) => !find(r, 'connect-select').checked));
+});
+
+test('with no rows on view the bar goes too', () => {
+  const { doc, filter } = openModal([conn('http://plain:2', '')]);
+  const bar = doc.getElementById('connect-batch-bar');
+  filter.value = 'admin';
+  filter.dispatch('change');
+  assert.strictEqual(bar.style.display, 'none', 'nothing to select → no bar');
+  assert.strictEqual(openModal([]).doc.getElementById('connect-batch-bar').style.display, 'none');
+});
 
 test('an admin connection renders golden + badged; a session one does not', () => {
   const { list } = openModal([conn('http://adm:1', 'admin'), conn('http://plain:2', '')]);
@@ -376,15 +468,16 @@ test('the row disconnect is a trash button, like the projects modal’s remove',
   assert.ok(disc.classList.contains('danger'), 'and it keeps the danger treatment');
 });
 
-test('the batch bar disconnects with the same trash, and still clears with an ✕', () => {
+test('the batch bar disconnects with the same trash; Deselect all is its only clear', () => {
   const bar = /<div class="connect-batch-bar"[\s\S]*?<\/div>/.exec(markup)?.[0] ?? '';
   const btn = (id) => new RegExp(`<button id="${id}"[\\s\\S]*?</button>`).exec(bar)?.[0] ?? '';
   const disc = btn('connect-batch-disconnect');
   assert.ok(disc.includes('ic-trash'), 'the row and the batch bar agree on the glyph');
   assert.ok(!disc.includes('ic-x'));
   assert.ok(disc.includes('class="danger'), 'still the danger colour');
-  assert.ok(btn('connect-batch-clear').includes('ic-x'),
-    'clearing a selection is not a removal — ✕, exactly like projects-batch-clear');
+  assert.strictEqual(btn('connect-batch-clear'), '',
+    'no separate Clear — it did exactly what Deselect all does (user decision)');
+  assert.ok(btn('connect-select-all').includes('ic-check'));
 });
 
 test('components.css: a connection row and a project row look like siblings', () => {

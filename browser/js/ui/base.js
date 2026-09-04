@@ -51,15 +51,21 @@ export const escapeHtml = (v) => String(v == null ? '' : v)
 // Every wired modal shell, so opening one can close whichever other is showing.
 const modalShells = new Set();
 
-// Close whatever full/popover modal is currently open (optionally sparing one). Returns the
-// shell that was closed, so callers can tell "I replaced something" from "nothing was open".
+// Is a stacked window (one raised OVER another) currently up? The window underneath uses
+// this to leave Escape to it.
+const stackedModalOpen = () => [...modalShells].some(s => s.stacked && s.isOpen());
+
+// Close whatever full/popover modal is open (optionally sparing one). Returns the first
+// shell closed, so callers can tell "I replaced something" from "nothing was open". Every
+// open shell goes: a `stacked` window means two can be up at once.
 export const closeOpenModal = (except = null) => {
+  let closed = null;
   for (const shell of modalShells) {
     if (shell === except || !shell.isOpen()) continue;
     shell.close();
-    return shell;
+    closed = closed || shell;
   }
-  return null;
+  return closed;
 };
 
 // ── Grow-from-the-icon motion, on its own (js/ui/motion.js surfaceIn/surfaceOut) ──
@@ -132,12 +138,12 @@ export const createModalFlight = (overlay, boxOf) => {
            settle: () => settleSurface(boxOf()) };
 };
 
-// `originEl` resolves the control the flight belongs to when it ISN'T the opener button:
-// a gear that lives inside a popup menu is already hidden by the time the window opens,
-// so its own rect is 0x0 and the dust would fall from above instead of returning to the
-// control the user can still see. Returning null is a valid answer — nothing on screen
-// owns the window, and falling from above is then correct.
-export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, escapeClose = true, originEl: originFor = null } = {}) => {
+// `originEl` resolves the control the flight belongs to when it isn't the opener button
+// (a gear inside a popup menu is already hidden, so its rect is 0x0). Null is a valid
+// answer: nothing on screen owns the window, and falling from above is then correct.
+// `stacked` shells open OVER what is showing instead of replacing it — closing the
+// projects list to ask about one of its rows lost the user their place.
+export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, escapeClose = true, originEl: originFor = null, stacked = false } = {}) => {
   // The modal box the popover positions: the shared class, or a shell with its own ids
   // (settingsModal) falls back to the overlay's first element child.
   const boxOf = () => overlay.querySelector('.app-modal') || overlay.firstElementChild;
@@ -149,6 +155,13 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   const flight = createModalFlight(overlay, boxOf);
   const { reducedMotion, finishClose, playDust } = flight;
   let originEl = openBtn;
+  // Where the close flies back to, when that isn't where the window came from: a
+  // context-menu row is gone by then, so the dust pours into the "⋯" that opened the
+  // menu. An element, not a rect — it is measured at close time.
+  let closeOriginEl = null;
+  // Whether THIS window is currently stacked; the wire-time `stacked` is the default. One
+  // shell serves two callers — Open-in replaces from the toolbar, stacks from a row.
+  let stackedNow = stacked;
   const defaultOrigin = () => (originFor ? originFor() : openBtn);
   // An anchor is an element OR a plain client rect — a caller whose control is about to
   // hide (a gear inside a closing popup) captures the rect and passes it directly.
@@ -161,10 +174,12 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   // `from` is the control the flight belongs to. An explicit `null` means there ISN'T
   // one: the window falls from above rather than claiming a gesture that never
   // happened. Omitting it still means "the shell's own opener".
-  const open = (from) => {
+  const open = (from, backTo = null, { stacked: stackThisOpen = stacked } = {}) => {
     originEl = anchorLike(from) ? from
              : (from === null ? null : defaultOrigin());
-    closeOpenModal(api);   // one window at a time: the new one replaces whatever was showing
+    closeOriginEl = anchorLike(backTo) ? backTo : null;
+    stackedNow = stackThisOpen;
+    if (!stackedNow) closeOpenModal(api);   // one window at a time: the new one replaces whatever was showing
     finishClose();
     onOpen?.();
     overlay.classList.add('modal-open');
@@ -179,7 +194,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     // An open with no gesture behind it (originEl null — the projects modal's on-boot
     // auto-chooser opens itself this way) still has a home to shrink BACK into: the
     // control that would reopen it. Falls from above again only if that's off-screen too.
-    const animate = overlay.classList.contains('modal-open') && !reducedMotion() && setOriginVars(originEl || defaultOrigin());
+    const animate = overlay.classList.contains('modal-open') && !reducedMotion() && setOriginVars(closeOriginEl || originEl || defaultOrigin());
     overlay.classList.remove('modal-open');
     if (animate) {
       flight.playClosing();   // measured above, while it was still open
@@ -194,7 +209,7 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   };
   const openPopover = (anchorEl) => {
     if (overlay.classList.contains('modal-open')) return;   // already showing, either shape
-    closeOpenModal(api);
+    if (!stacked) closeOpenModal(api);
     finishClose();
     onOpen?.();
     // A popover grows from what it is anchored to — unless that control is hidden (a
@@ -222,7 +237,8 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     if (overlay.classList.contains('modal-open')) { close(); return; }
     open(from);
   };
-  const api = { open, close, openPopover, toggle, isOpen: () => overlay.classList.contains('modal-open') };
+  const api = { open, close, openPopover, toggle, isOpen: () => overlay.classList.contains('modal-open'),
+                get stacked() { return stackedNow; } };
   modalShells.add(api);
   overlay.__stencilModal = api;
   if (openBtn) openBtn.__stencilModal = api;
@@ -252,13 +268,25 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
       boxEl.addEventListener('mouseenter', () => g.boxEnter());
       boxEl.addEventListener('mouseleave', () => g.boxLeave());
     }
-    // POPOVER shape: the page-covering overlay is pointer-TRANSPARENT (CSS), so an
-    // Alt glide can reach the other toolbar icons. Click-outside dismissal moves
-    // here: a press outside the box closes the popover and is swallowed.
+    // Did the press land in a layer above this window? Everything a window raises stacks
+    // over it, so read the answer off the z-order rather than a class list that goes stale.
+    const pressedAboveBox = (target) => {
+      const mine = parseInt(getComputedStyle(overlay).zIndex, 10);
+      if (!Number.isFinite(mine)) return false;
+      for (let el = target; el && el !== document.body; el = el.parentElement) {
+        const z = parseInt(getComputedStyle(el).zIndex, 10);
+        if (Number.isFinite(z) && z >= mine) return true;
+      }
+      return false;
+    };
+    // POPOVER shape: the overlay is pointer-transparent (CSS) so an Alt glide reaches the
+    // other toolbar icons, and click-outside dismissal moves here instead. A press outside
+    // the box closes and is swallowed — unless it landed in something the popover raised
+    // (its row menu lives on <body>, and dismissing on that killed the editor it opened).
     document.addEventListener('pointerdown', (e) => {
       if (!overlay.classList.contains('modal-open') || !overlay.classList.contains('modal-popover')) return;
       const box = boxOf();
-      if (!box || box.contains(e.target)) return;
+      if (!box || box.contains(e.target) || pressedAboveBox(e.target)) return;
       e.preventDefault();
       e.stopPropagation();
       close();
@@ -266,12 +294,15 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   }
   if (closeBtn) closeBtn.addEventListener('click', close);
   overlay.addEventListener('mousedown', e => { if (e.target === overlay) close(); });
-  // Escape closes every modal, EXCEPT `escapeClose: false` (settingsModal) keeps the
-  // FULL modal open — its capture-phase listener owns Escape while rebinding a hotkey.
-  // The POPOVER shape always closes; an in-progress capture stops propagation first.
+  // Escape closes every modal, except `escapeClose: false` (settingsModal), whose
+  // capture-phase listener owns Escape while rebinding a hotkey; the popover shape always
+  // closes. A window with a stacked one over it stands down so one press doesn't take
+  // both — guarded from both sides, since same-node listeners can't stop each other.
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape' || !overlay.classList.contains('modal-open')) return;
     if (!escapeClose && !overlay.classList.contains('modal-popover')) return;
+    if (!stackedNow && (stackedModalOpen() || e.stencilStackedEscape)) return;
+    if (stackedNow) e.stencilStackedEscape = true;
     close();
   });
   return api;

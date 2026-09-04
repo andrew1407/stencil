@@ -2,6 +2,7 @@
 #include "projectsDialog.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
+#include "expirationDialog.hpp"
 #include "projectDragZones.hpp"
 #include "projectsStore.hpp"
 #include "reorderableListWidget.hpp"
@@ -11,6 +12,10 @@
 #include "../support/displayName.hpp"          // shortName for the remove confirm
 #include "../support/dissolveEffect.hpp"      // scroll-edge grain dissolve
 #include "../support/filterFade.hpp"          // filtered-out rows fade + collapse
+#include "../support/guiHelpers.hpp"
+#include "../support/menuReveal.hpp"
+#include "../support/theme.hpp"          // themePalette().danger for the Remove row
+#include "../support/menuDangerRow.hpp"    // the red "Remove" row (label + glyph)
 #include "../support/menuShimmer.hpp"         // ctx rows' glass hover sweep
 #include "../support/shimmerOverlay.hpp"      // hovered row's glass sweep (browser ui-shimmer)
 #include "../support/modalChrome.hpp"         // the browser modal shell
@@ -34,17 +39,21 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QImage>
-#include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMouseEvent>
+#include <QInputDialog>
 #include <QNetworkAccessManager>
+#include <QRegularExpression>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QApplication>
 #include <QFontMetrics>
 #include <QPainter>
+#include "appTooltip.hpp"
+#include "shimmerOverlay.hpp"
+#include <QPainterPath>
 #include <QPalette>
 #include <QPen>
 #include <QPixmap>
@@ -166,16 +175,25 @@ namespace stencil::gui {
       return store;
     }
 
-    // Live name validation both name editors share (browser parity): the accept button
-    // enables only for a valid name; only a REJECTED name gets a tooltip (the reason).
+    // Live name validation both name editors share (browser parity, utils.js
+    // wireNameEditor): ✓ enables only for a valid name, and only a rejected one gets a
+    // tooltip. `current` adds the other half — an unchanged name is nothing to save, so ✓
+    // goes dead with "No change" (rename passes it; the create/copy prompts do not).
+    // The cursor follows the state, Qt having no `:disabled { cursor }` in QSS.
     std::function<void()> makeNameValidator(std::shared_ptr<core::ProjectsStore> store,
                                             QLineEdit* edit, QAbstractButton* okBtn,
-                                            const QString& exceptId) {
-      return [store = std::move(store), edit, okBtn, exceptId] {
-        const auto res = store->validateName(edit->text().trimmed().toStdString(),
-                                             exceptId.toStdString());
-        okBtn->setEnabled(res.ok);
-        okBtn->setToolTip(res.ok ? QString() : QString::fromStdString(res.reason));
+                                            const QString& exceptId,
+                                            const QString& current = QString()) {
+      return [store = std::move(store), edit, okBtn, exceptId, current] {
+        const QString name = edit->text().trimmed();
+        const bool unchanged = !current.isNull() && name == current;
+        const auto res = store->validateName(name.toStdString(), exceptId.toStdString());
+        const bool ok = res.ok && !unchanged;
+        okBtn->setEnabled(ok);
+        okBtn->setCursor(ok ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
+        okBtn->setToolTip(ok ? QString()
+                             : (unchanged ? QObject::tr("No change")
+                                          : QString::fromStdString(res.reason)));
       };
     }
 
@@ -209,6 +227,10 @@ namespace stencil::gui {
       return edit->text().trimmed();
     }
 
+    // What the "⋯" says on hover — its own tip, not the row's (browser projectsModal.js
+    // menuBtn.title = 'More actions').
+    const QString kKebabTip = QStringLiteral("More actions");
+
     // The "⋯" kebab strip — shared by the delegate (paint) and eventFilter (hit-test).
     QRect kebabZone(const QRect& rowRect) {
       const int w = 50;
@@ -226,7 +248,7 @@ namespace stencil::gui {
     // QColor("#…") parse there is measurable churn.
     const QColor kGoldEdge("#d4a017");    // server rows (browser .project-remote)
     const QColor kBronzeEdge("#c1783c");  // .stencil-file rows
-    const QColor kGreyOrigin("#9aa4b2");  // "this computer" origin line
+    const QColor kGreyOrigin("#9aa4b2");  // the "computer" origin line
 
     // UserRole+7: "doomed" — this row's removal scatter is playing. The delegate
     // paints NOTHING for it (the overlay animates a snapshot; the row must not keep
@@ -288,9 +310,15 @@ namespace stencil::gui {
       // disagree with the paint (they did, sourcing the dust from the checkbox
       // and flickering the preview; user report).
       QRect iconRectFor(int row) const { return iconRects_.value(row); }
+      // Which row's "⋯" the cursor is actually on — only its own hover styles it, not the
+      // row's. The sweep over it is the app's shared ShimmerOverlay, not painted here.
+      void setKebabHover(int row) { kebabRow_ = row; }
+      QRect kebabChipFor(const QRect& rowRect) const { return kebabChip(rowRect); }
 
      private:
       mutable QHash<int, QRect> iconRects_;
+      // The row whose "⋯" the cursor is on (-1 = none).
+      int kebabRow_ = -1;
       // `o` is already initStyleOption'd by paint().
       void recordIconRect(const QStyleOptionViewItem& o, const QModelIndex& idx) const {
         QStyle* st = o.widget ? o.widget->style() : QApplication::style();
@@ -501,7 +529,7 @@ namespace stencil::gui {
             y += mfm.height() + kLineGap;
           }
           // Origin line: glyph + word — `server` (gold) with the address, `file-text`
-          // (bronze) with ".stencil", `monitor` (grey) with "this computer" — plus the
+          // (bronze) with ".stencil", `monitor` (grey) with "computer" — plus the
           // accent "(Current)" for the project open in this editor (browser parity).
           const QString gname = remote ? QStringLiteral("server")
                                        : (fileOrigin ? QStringLiteral("file-text")
@@ -509,7 +537,7 @@ namespace stencil::gui {
           const QColor gcol = remote ? kGoldEdge : (fileOrigin ? kBronzeEdge : kGreyOrigin);
           const QString gtext = remote ? idx.data(Qt::UserRole + 1).toString()
                                        : (fileOrigin ? QStringLiteral(".stencil")
-                                                     : QStringLiteral("this computer"));
+                                                     : QStringLiteral("computer"));
           if (hasIcon(gname)) {
             const int gs = 13;
             p->setRenderHint(QPainter::Antialiasing, true);
@@ -519,9 +547,12 @@ namespace stencil::gui {
             p->setPen(gcol);
             int tx = colLeft + gs + 4;
             const int gw = std::min(mfm.horizontalAdvance(gtext), colWidth - (gs + 4));
+            // Only a server ADDRESS is ellipsised — it can be any length. The other two are
+            // short fixed words that always fit, and cutting one to "local…" reads as a bug
+            // rather than as a truncation (user report).
             p->drawText(QRect(tx, y, gw, mfm.height()),
                         Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine,
-                        mfm.elidedText(gtext, Qt::ElideRight, gw));
+                        remote ? mfm.elidedText(gtext, Qt::ElideRight, gw) : gtext);
             tx += gw;
             if (current) {
               p->setPen(accent);
@@ -534,12 +565,14 @@ namespace stencil::gui {
         }
 
         // Kebab: an accent-filled rounded chip with white dots (the browser row's
-        // "…" more-actions button), brightening on row hover.
+        // "…" more-actions button). It reacts to ITS OWN hover only — row hover leaves it
+        // alone — and then a band of glass sweeps across it.
         const QRect chip = kebabChip(opt.rect);
+        const bool onKebab = idx.row() == kebabRow_;
         p->save();
         p->setRenderHint(QPainter::Antialiasing, true);
         p->setPen(Qt::NoPen);
-        p->setBrush((opt.state & QStyle::State_MouseOver) ? accent.lighter(112) : accent);
+        p->setBrush(onKebab ? accent.lighter(115) : accent);
         p->drawRoundedRect(chip, 8, 8);
         p->setBrush(Qt::white);
         const int cx = chip.center().x();
@@ -564,11 +597,10 @@ namespace stencil::gui {
   ProjectsDialog::ProjectsDialog(const std::vector<Project>& projects, long long now,
                                  stencil::net::ConnectionManager* connections,
                                  const QHash<QString, QPixmap>& thumbs,
-                                 core::UnitFormat unit,
                                  QWidget* parent,
                                  const QString& activeProjectId,
                                  const QColor& accentColor)
-      : QDialog(parent), projects_(projects), now_(now), unit_(unit),
+      : QDialog(parent), projects_(projects), now_(now),
         connections_(connections), thumbs_(thumbs),
         activeProjectId_(activeProjectId) {
     // `accentColor` is unused now: the delegate reads the installed palette's
@@ -666,7 +698,7 @@ namespace stencil::gui {
         auto* b = new QPushButton(label, this);
         b->setToolTip(tip);
         b->setProperty("accentCta", true);
-        b->setIcon(themedIcon(icon, QColor("#ffffff"), 13));
+        b->setIcon(labelIcon(icon, QColor("#ffffff"), 13));
         return b;
       };
       selectAllBtn_ = accentBtn(tr("Select all"), "check",
@@ -685,14 +717,24 @@ namespace stencil::gui {
       batchRemove_ = new QPushButton("Remove selected", this);
       batchRemove_->setToolTip("Remove the checked projects");
       batchRemove_->setObjectName("dangerButton");
-      batchRemove_->setIcon(themedIcon("trash", QColor("#ffffff"), 13));
+      batchRemove_->setIcon(labelIcon("trash", QColor("#ffffff"), 13));
       batchClear_ = accentBtn("Clear", "x", "Clear the current checkbox selection");
-      bh->addWidget(batchToServer_);
-      bh->addWidget(batchCopyServer_);
-      bh->addWidget(batchToLocal_);
-      bh->addWidget(batchCopyLocal_);
-      bh->addWidget(batchRemove_);
-      bh->addWidget(batchClear_);
+      // The selection-only actions live in ONE group so the bar's swap is a single flight,
+      // not one per button: a control's dust is photographed where it sits at that instant,
+      // and siblings revealed in the same turn are still animating their own width.
+      // Browser twin: .projects-batch-selected in projectsModal.js.
+      batchSelectedGroup_ = new QWidget(batchBar_);
+      auto* gh = new QHBoxLayout(batchSelectedGroup_);
+      gh->setContentsMargins(0, 0, 0, 0);
+      gh->setSpacing(bh->spacing());
+      gh->addWidget(batchToServer_);
+      gh->addWidget(batchCopyServer_);
+      gh->addWidget(batchToLocal_);
+      gh->addWidget(batchCopyLocal_);
+      gh->addWidget(batchClear_);
+      gh->addWidget(batchRemove_);   // destructive last, as in the browser's bar
+      batchSelectedGroup_->setVisible(false);
+      bh->addWidget(batchSelectedGroup_);
       bh->addStretch(1);
       batchBar_->setVisible(false);
       layout->addWidget(batchBar_);
@@ -814,11 +856,10 @@ namespace stencil::gui {
     installEventFilter(this);   // own deactivation → hide the hover preview
     connect(list_, &QListWidget::itemChanged, this, &ProjectsDialog::onItemChanged);
 
-    // Footer (browser settings-footer): the auto-save hint on the left, then only the
-    // create actions + danger Clear All — every enabled button accent-filled (browser
-    // default-button treatment); Close lives in the header pill. Per-row actions
-    // (Open / Rename / Renew / To-server / copy / Delete …) live on the "⋯" kebab +
-    // right-click menu, and multi-row actions on the batch toolbar above.
+    // Footer (browser settings-footer): the auto-save hint left, then the create actions
+    // + danger Clear All, every enabled button accent-filled; Close lives in the header
+    // pill. Per-row actions live on the "⋯" kebab + right-click menu, multi-row ones on
+    // the batch toolbar above.
     QHBoxLayout* row = addModalFooter(
         chrome, tr("Projects auto-save · unopened projects expire after 7 days"));
     auto* blankBtn = new QPushButton("Blank image", this);
@@ -833,7 +874,7 @@ namespace stencil::gui {
     auto* clearAllBtn = new QPushButton("Clear All", this);
     clearAllBtn_ = clearAllBtn;
     clearAllBtn->setObjectName("dangerButton");  // red danger styling (mirrors the browser modal)
-    clearAllBtn->setIcon(themedIcon("trash", QColor("#ffffff"), 15));
+    clearAllBtn->setIcon(labelIcon("trash", QColor("#ffffff"), 15));
     clearAllBtn->setToolTip("Remove all local projects (server projects are not affected)");
     row->addWidget(blankBtn);
     row->addWidget(newBtn);
@@ -872,6 +913,11 @@ namespace stencil::gui {
     // Nothing local to clear ⇒ nothing to offer (browser parity: projectsModal disables it
     // when only the synthetic "temporary (unsaved)" row is on screen).
     clearAllBtn->setEnabled(!projects_.empty());
+
+    // Every control in the window gets the app's glass hover sweep, the way the toolbar
+    // and the selection panel do; the list already had its row version. The browser's rule
+    // covers the same set: `button, .btn-icon, .btn-icon-text` plus its text inputs.
+    installHoverShimmerIn(this);
 
     // Server (shared) projects: list them now and keep them live with a periodic
     // re-list while the dialog is open. The desktop talks REST only, so this
@@ -1215,9 +1261,45 @@ namespace stencil::gui {
           return true;
         }
       }
+      if (ev->type() == QEvent::ToolTip) {
+        // The rows' tooltips go through the app's tooltip, not Qt's plain label:
+        // AppTooltip's filter skips item views by design (they resolve a per-index tip in
+        // viewportEvent), so these rows were the one place still showing Qt's box.
+        auto* he = static_cast<QHelpEvent*>(ev);
+        QListWidgetItem* it = list_->itemAt(he->pos());
+        // The "⋯" carries its OWN tip, as the browser's per-row button does
+        // (projectsModal.js menuBtn.title), not the row's picture info.
+        const bool onKebab = it && !it->data(Qt::UserRole).isNull() &&
+                             kebabZone(list_->visualItemRect(it)).contains(he->pos());
+        const QString tip = !it ? QString()
+                                : (onKebab ? kKebabTip : it->toolTip());
+        if (tip.isEmpty()) { gui::appTooltip()->hideTip(); return true; }
+        // …forming out of the CURSOR, which is where the browser's own tooltip flies from
+        // and back into (ui/tooltip.js dust). Left to the default it grew out of the
+        // owner's centre — here the whole viewport, i.e. the middle of the list.
+        tipRowText_ = tip;
+        gui::appTooltip()->showFor(list_->viewport(), tip, he->globalPos(),
+                                   QRect(he->globalPos(), QSize(1, 1)));
+        return true;
+      }
       if (ev->type() == QEvent::MouseMove) {
         const QPoint vpos = static_cast<QMouseEvent*>(ev)->position().toPoint();
         QListWidgetItem* it = list_->itemAt(vpos);
+        // Which row's "⋯" the pointer is actually on — the chip styles itself only for
+        // that, never for a hover anywhere else on the row (user report).
+        const bool onKebab = it && !it->data(Qt::UserRole).isNull() &&
+                             kebabZone(list_->visualItemRect(it)).contains(vpos);
+        setKebabHover(onKebab ? list_->row(it) : -1);
+        // …and the tooltip TRAVELS with the pointer while it is up: moveTo SLIDES it, with
+        // no re-measure and no entrance. Going back through showFor on every move re-ran
+        // its appearance bookkeeping and made the tip stutter and jump (user report).
+        if (auto* tip = gui::appTooltip(); tip->isVisible() && tip->owner() == list_->viewport()) {
+          // Which tip belongs HERE — the kebab's own, or the row's picture info. Reading
+          // only the row's would slide it on over the "⋯", where a different tip is due.
+          const QString text = !it ? QString() : (onKebab ? kKebabTip : it->toolTip());
+          if (text.isEmpty() || text != tipRowText_) tip->hideTip();
+          else tip->moveTo(static_cast<QMouseEvent*>(ev)->globalPosition().toPoint());
+        }
         const QPixmap src = it ? it->data(Qt::UserRole + 2).value<QPixmap>() : QPixmap();
         // Magnify only while over the THUMBNAIL itself — the decoration rect the
         // delegate recorded at paint time (checkbox excluded), so the hit test
@@ -1287,6 +1369,8 @@ namespace stencil::gui {
           hideHoverPreview();
         }
       } else if (ev->type() == QEvent::Leave) {
+        setKebabHover(-1);   // …or the chip stays lit after the pointer has gone
+        if (auto* tip = gui::appTooltip(); tip->owner() == list_->viewport()) tip->hideTip();
         // Same verified-against-the-cursor rule as the deactivate backstop above: a
         // Leave fired by our own preview window sliding under the pointer must not
         // hide what the pointer is still hovering.
@@ -1334,21 +1418,17 @@ namespace stencil::gui {
     list_->clear();
     const core::ProjectsStore store;  // pure helpers only; reads meta, no state
 
-    // Multi-line row tooltip, in order: image size + orientation, total drawn-line
-    // length in the active unit (local rows only; `lineLenCm` 0 omits the row),
-    // the description when set, and the origin note.
-    auto rowTooltip = [&](int w, int h, double lineLenCm, const QString& description,
+    // Multi-line row tooltip: image size with its orientation under it, the description
+    // when set, then the origin note. The separator is the browser's " · ", which is what
+    // tipContent splits a heading on. No drawn-line length — nobody hovers a row for it.
+    auto rowTooltip = [&](int w, int h, const QString& description,
                           const QString& origin) {
       QStringList lines;
       if (w > 0 && h > 0)
-        lines << QString("%1x%2 px   ·   %3").arg(w).arg(h).arg(
+        lines << QString("%1x%2 px · %3").arg(w).arg(h).arg(
             h >= w ? QStringLiteral("portrait") : QStringLiteral("landscape"));
-      if (lineLenCm > 0)
-        lines << QString("Line: %1 %2")
-                     .arg(lineLenCm * unit_.factor, 0, 'f', 1)
-                     .arg(QString::fromStdString(unit_.label));
       if (!description.isEmpty()) lines << QString("Description: %1").arg(description);
-      lines << origin;
+      if (!origin.isEmpty()) lines << origin;
       return lines.join('\n');
     };
 
@@ -1406,10 +1486,13 @@ namespace stencil::gui {
       // delegate's "(Current)" mark, painted in the palette's live accent.
       if (!activeProjectId_.isEmpty() && QString::fromStdString(pr.meta.id) == activeProjectId_)
         it->setData(kActiveRole, true);
-      it->setToolTip(rowTooltip(pr.meta.imageW, pr.meta.imageH, pr.meta.lineLengthCm,
+      // A LOCAL project says nothing about its origin here: the row already carries the
+      // "computer" badge, and the browser's own tip carries no origin line at all. A .stencil
+      // project keeps its note, which tells you more than that badge's one word does.
+      it->setToolTip(rowTooltip(pr.meta.imageW, pr.meta.imageH,
                                 QString::fromStdString(pr.meta.description),
                                 pr.meta.fromFile ? QStringLiteral("Opened from a .stencil project file")
-                                                 : QStringLiteral("Stored on this computer")));
+                                                 : QString()));
     };
 
     // Build one SERVER (shared) project row: golden outline (delegate) + server badge.
@@ -1442,7 +1525,7 @@ namespace stencil::gui {
       it->setData(Qt::UserRole + 4,
                   (!sp.color.isEmpty() && custom.isValid()) ? custom : QColor("#80868f"));
       it->setData(Qt::UserRole + 5, sp.keywords.join(' '));  // keyword search key
-      it->setToolTip(rowTooltip(sp.imageW, sp.imageH, 0.0, sp.description,
+      it->setToolTip(rowTooltip(sp.imageW, sp.imageH, sp.description,
                                 QString("Server project on %1").arg(sp.serverUrl)));
       // Edited preview: the rendered `result`, falling back to `original` (browser
       // makeRemoteRow parity). Cached by id+version so the periodic re-list
@@ -1558,18 +1641,25 @@ namespace stencil::gui {
                       (it->flags() & Qt::ItemIsUserCheckable);
     }
     batchBar_->setVisible(n > 0 || anySelectable);
+    // The count rides the same swap as the buttons: a hard show/hide on the FIRST thing in
+    // the row shoved everything after it sideways in one frame, which is most of what read
+    // as "jumping" (user report). Text first, so it is right before the slot opens.
     if (batchCount_) {
-      batchCount_->setVisible(n > 0);
       batchCount_->setText(tr("%1 selected").arg(n));
+      revealControls(batchCount_, n > 0);
     }
     const bool haveServers = connections_ && !connections_->urls().isEmpty();
     const auto dir = batchDirectionsFor(locals, remotes, haveServers);
+    // Which directions apply is a plain visibility flip INSIDE the group — it is the group
+    // that flies, so these never carry a cloud of their own.
     if (batchToServer_) batchToServer_->setVisible(dir.toServer);
     if (batchCopyServer_) batchCopyServer_->setVisible(dir.toServer);
     if (batchToLocal_) batchToLocal_->setVisible(dir.toLocal);
     if (batchCopyLocal_) batchCopyLocal_->setVisible(dir.toLocal);
-    if (batchRemove_) batchRemove_->setVisible(n > 0);
-    if (batchClear_) batchClear_->setVisible(n > 0);
+    // …and the GROUP comes and goes as the app's control swap (support/controlReveal,
+    // browser motion.js revealControls). A no-op when the state is already right, so an
+    // unrelated refresh() plays nothing.
+    if (batchSelectedGroup_) revealControls(batchSelectedGroup_, n > 0);
     updateSelectAll();
   }
 
@@ -1598,8 +1688,12 @@ namespace stencil::gui {
       any = filteredIn(it) && !it->data(Qt::UserRole).isNull() &&
             (it->flags() & Qt::ItemIsUserCheckable);
     }
-    selectAllBtn_->setVisible(any);
-    selectAllBtn_->setText(allFilteredChecked() ? tr("Deselect all") : tr("Select all"));
+    revealControls(selectAllBtn_, any);
+    // Label AND glyph say which way it goes: a check gathers, a cross lets go
+    // (browser icons.js setSelectAllFace).
+    const bool all = allFilteredChecked();
+    selectAllBtn_->setText(all ? tr("Deselect all") : tr("Select all"));
+    selectAllBtn_->setIcon(labelIcon(all ? "x" : "check", QColor("#ffffff"), 13));
   }
 
   // Select-all toggles over the CURRENT filtered view, so a filtered "select all" never
@@ -1724,6 +1818,22 @@ namespace stencil::gui {
     updateBatchBar();   // the filtered view IS the select-all pool (and the bar's reason to show)
   }
 
+  // Point the delegate at the row whose "⋯" is under the cursor, and sweep the app's own
+  // glass shimmer across the chip as the pointer arrives — the same 325ms InOutSine band
+  // every other control plays (support/shimmerOverlay.hpp), once per entry.
+  void ProjectsDialog::setKebabHover(int row) {
+    if (row == kebabHoverRow_) return;
+    kebabHoverRow_ = row;
+    auto* del = static_cast<ProjectRowDelegate*>(list_->itemDelegate());
+    if (del) del->setKebabHover(row);
+    list_->viewport()->update();
+    if (row < 0) { if (kebabSweep_) kebabSweep_->cancel(); return; }
+    if (!kebabSweep_)
+      kebabSweep_ = new gui::ShimmerOverlay(nullptr, list_, /*externalBands=*/true);
+    if (QListWidgetItem* it = list_->item(row))
+      kebabSweep_->sweepBand(del ? del->kebabChipFor(list_->visualItemRect(it)) : QRect());
+  }
+
   void ProjectsDialog::showRowMenu(QListWidgetItem* it, const QPoint& globalPos) {
     if (!it || it->data(Qt::UserRole).isNull()) return;
     const bool remote = !it->data(Qt::UserRole + 1).toString().isEmpty();
@@ -1731,10 +1841,21 @@ namespace stencil::gui {
     const bool haveServers = connections_ && !connections_->urls().isEmpty();
     QMenu menu(this);
 
-    // "Description…" — edit the row's free-text description inline (no accept()/close), mirroring the
+    // Where a window raised from this menu flies back to: it grows out of the picked row,
+    // but the menu is gone by close time, so the motes pour into the row's "⋯" chip.
+    // Browser twin: projectsModal.js passes `menuBtn` the same way.
+    const QRect kebabGlobal = [this, it]() -> QRect {
+      auto* del = static_cast<ProjectRowDelegate*>(list_->itemDelegate());
+      if (!del) return {};
+      const QRect chip = del->kebabChipFor(list_->visualItemRect(it));
+      return chip.isValid() ? QRect(list_->viewport()->mapToGlobal(chip.topLeft()), chip.size())
+                            : QRect();
+    }();
+
+    // "Add description" — edit the row's free-text description inline (no accept()/close), mirroring the
     // colour edit but persisting straight to the local registry (fileStore) or the server
     // (updateProjectDescriptionAsync), then refreshing the list + its tooltip. An empty value clears.
-    auto editDescription = [this, it] {
+    auto editDescription = [this, it, kebabGlobal] {
       const QString id = it->data(Qt::UserRole).toString();
       const QString server = it->data(Qt::UserRole + 1).toString();
       QString current;
@@ -1748,12 +1869,17 @@ namespace stencil::gui {
         for (const auto& sp : remote_)
           if (sp.id == id && sp.serverUrl == server) { current = sp.description; break; }
       }
-      bool ok = false;
-      QString text = QInputDialog::getMultiLineText(this, tr("Project description"),
-                                                    tr("Description (leave empty to clear):"),
-                                                    current, &ok);
-      if (!ok) return;
-      text = text.trimmed().left(2000);   // soft-cap ~2000 chars (UI only; core does no validation)
+      PromptSpec spec;
+      spec.title = tr("Project description");
+      spec.titleIcon = QStringLiteral("info");
+      spec.message = tr("Description:");
+      spec.defaultValue = current;
+      spec.multiline = true;              // a description is a sentence, not a word
+      spec.maxChars = 2000;               // soft cap (UI only; core does no validation)
+      spec.flight.closeRect = kebabGlobal;
+      const auto entered = promptModal(this, spec);
+      if (!entered) return;
+      const QString text = *entered;
       if (text == current) return;        // nothing changed
       if (server.isEmpty()) {
         // Local row: update the registry copy + persist, then refresh the list/tooltip.
@@ -1785,56 +1911,164 @@ namespace stencil::gui {
       }
     };
 
+    // "Add keywords" — the row's search keywords, comma/space separated. The same in-place
+    // shape as editDescription above (no accept()/close): the list normalizes to lowercase
+    // unique words, persists to the local registry or the server, then refreshes. Empty clears.
+    auto editKeywords = [this, it, kebabGlobal] {
+      const QString id = it->data(Qt::UserRole).toString();
+      const QString server = it->data(Qt::UserRole + 1).toString();
+      QStringList current;
+      if (server.isEmpty()) {
+        for (const auto& p : projects_)
+          if (QString::fromStdString(p.meta.id) == id) {
+            for (const auto& k : p.meta.keywords) current << QString::fromStdString(k);
+            break;
+          }
+      } else {
+        for (const auto& sp : remote_)
+          if (sp.id == id && sp.serverUrl == server) { current = sp.keywords; break; }
+      }
+      PromptSpec spec;
+      spec.title = tr("Project keywords");
+      spec.titleIcon = QStringLiteral("info");
+      spec.message = tr("Keywords (comma or space separated):");
+      spec.defaultValue = current.join(' ');
+      spec.multiline = true;              // keywords are a list, not a word
+      spec.flight.closeRect = kebabGlobal;
+      const auto entered = promptModal(this, spec);
+      if (!entered) return;
+      QStringList next;
+      for (const QString& raw : entered->split(QRegularExpression("[\\s,]+"), Qt::SkipEmptyParts)) {
+        const QString k = raw.toLower();
+        if (!next.contains(k)) next << k;   // normalized like the browser store's setKeywords
+      }
+      if (next == current) return;          // nothing changed
+      if (server.isEmpty()) {
+        for (auto& p : projects_)
+          if (QString::fromStdString(p.meta.id) == id) {
+            p.meta.keywords.clear();
+            for (const QString& k : next) p.meta.keywords.push_back(k.toStdString());
+            break;
+          }
+        fileStore::saveProjects(projects_);
+        refresh();
+      } else {
+        stencil::net::ServerClient* c = connections_ ? connections_->find(server) : nullptr;
+        if (!c) return;
+        qint64 version = 0;
+        for (const auto& sp : remote_)
+          if (sp.id == id && sp.serverUrl == server) { version = sp.version; break; }
+        QPointer<ProjectsDialog> self(this);
+        c->updateProjectKeywordsAsync(
+            id, next, version,
+            [this, self, id, server, next](bool ok2, qint64 newVersion, bool) {
+              if (!self || !ok2) return;
+              for (auto& sp : remote_)
+                if (sp.id == id && sp.serverUrl == server) {
+                  sp.keywords = next;
+                  sp.version = newVersion;
+                  break;
+                }
+              refresh();
+            });
+      }
+    };
+
+    // "Set expiration" — the browser-styled expiration editor, opened OVER this window
+    // (browser parity: ui/base.js `stacked`). Closing the list to edit one of its rows
+    // lost the user their place, so the owner is signalled and calls setProjects().
+    auto editExpiration = [this, it, kebabGlobal] {
+      if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;   // local only
+      const QString id = it->data(Qt::UserRole).toString();
+      const core::ProjectMeta* meta = nullptr;
+      for (const auto& p : projects_)
+        if (QString::fromStdString(p.meta.id) == id) { meta = &p.meta; break; }
+      if (!meta) return;
+      ExpirationDialog exp(QString::fromStdString(meta->name), meta->expiresAt,
+                           QString::fromStdString(meta->refreshPeriod), meta->autoRefresh,
+                           now_, this);
+      support::revealDialog(exp, nullptr, support::gestureAnchorRect(), kebabGlobal);
+      if (exp.exec() != QDialog::Accepted) return;
+      emit expirationRequested(id, exp.expiresAtMs(), exp.refreshPeriod(), exp.autoRefresh());
+    };
+
     // "Clear color" only when the row HAS a custom colour (browser modal parity): with
-    // none set there is nothing to clear, and "Set color…" already clicks straight into
+    // none set there is nothing to clear, and "Set color" already clicks straight into
     // the picker.
     const bool hasColor = !rowColor(it).isEmpty();
-    // Same actions/order as the browser modal's overflow menu (slots act on the current row).
+    QAction* removeAct = nullptr;   // marked as the danger row once the sheet is on (below)
+    QColor dangerColor;
+    // Same actions, order and flat shape as the browser modal's overflow menu, which
+    // groups by order alone and draws no rules (slots act on the current row).
     if (remote) {
       menu.addAction(themedIcon("folder", ico, 16), "Open from server", this,
                      &ProjectsDialog::openSelected);
-      menu.addAction(themedIcon("copy", ico, 16), "Copy to local…", this,
+      if (openInServerOk_)
+        menu.addAction(themedIcon("monitor", ico, 16), "Open in another app", this,
+                       [this, it, kebabGlobal] {
+                         emit openInRequested(it->data(Qt::UserRole).toString(),
+                                              it->data(Qt::UserRole + 1).toString(), kebabGlobal);
+                       });
+      menu.addAction(themedIcon("copy", ico, 16), "Copy to local", this,
                      &ProjectsDialog::makeLocalCopySelected);
       menu.addAction(themedIcon("download", ico, 16), "Move to local", this,
                      &ProjectsDialog::moveToLocalSelected);
-      menu.addSeparator();
-      menu.addAction(themedIcon("image", ico, 16), "Set color…", this,
+      menu.addAction(themedIcon("palette", ico, 16), "Set color", this,
                      &ProjectsDialog::setColorSelected);
       if (hasColor)
         menu.addAction(themedIcon("x", ico, 16), "Clear color", this,
                        &ProjectsDialog::clearColorSelected);
-      menu.addAction(themedIcon("file-text", ico, 16), "Description…", this, editDescription);
+      menu.addAction(themedIcon("flag", ico, 16), "Add keywords", this, editKeywords);
+      menu.addAction(themedIcon("file-text", ico, 16), "Add description", this, editDescription);
     } else {
       menu.addAction(themedIcon("folder", ico, 16), "Open", this,
                      &ProjectsDialog::openSelected);
       menu.addAction(themedIcon("external", ico, 16), "Open in new window", this,
                      &ProjectsDialog::openSelectedInNewWindow);
+      if (openInLocalOk_)
+        menu.addAction(themedIcon("monitor", ico, 16), "Open in another app", this,
+                       [this, it, kebabGlobal] {
+                         emit openInRequested(it->data(Qt::UserRole).toString(), QString(),
+                                              kebabGlobal);
+                       });
       menu.addAction(themedIcon("pencil", ico, 16), "Rename", this,
                      [this] { beginInlineRename(list_->currentItem()); });
-      menu.addAction(themedIcon("calendar", ico, 16), "Expiration…", this,
-                     &ProjectsDialog::expirationSelected);
-      if (haveServers) {
-        menu.addAction(themedIcon("server", ico, 16), "Move to server", this,
-                       &ProjectsDialog::moveToServerSelected);
-        menu.addAction(themedIcon("copy", ico, 16), "Copy to server…", this,
-                       &ProjectsDialog::copyToServerSelected);
-      }
-      menu.addSeparator();
-      menu.addAction(themedIcon("image", ico, 16), "Set color…", this,
+      menu.addAction(themedIcon("palette", ico, 16), "Set color", this,
                      &ProjectsDialog::setColorSelected);
       if (hasColor)
         menu.addAction(themedIcon("x", ico, 16), "Clear color", this,
                        &ProjectsDialog::clearColorSelected);
-      menu.addAction(themedIcon("file-text", ico, 16), "Description…", this, editDescription);
-      menu.addSeparator();
-      // Destructive: a red trash glyph echoes the browser's red "Remove" item.
-      menu.addAction(themedIcon("trash", QColor("#dc3545"), 16), "Remove", this,
-                     &ProjectsDialog::deleteSelected);
+      menu.addAction(themedIcon("flag", ico, 16), "Add keywords", this, editKeywords);
+      menu.addAction(themedIcon("file-text", ico, 16), "Add description", this, editDescription);
+      menu.addAction(themedIcon("calendar", ico, 16), "Set expiration", this, editExpiration);
+      if (haveServers) {
+        menu.addAction(themedIcon("server", ico, 16), "Move to server", this,
+                       &ProjectsDialog::moveToServerSelected);
+        menu.addAction(themedIcon("copy", ico, 16), "Copy to server", this,
+                       &ProjectsDialog::copyToServerSelected);
+      }
+      // Destructive: the browser's "Remove" row colours both halves in --danger
+      // (.project-menu-item.is-danger), so the glyph takes the theme's red and
+      // support/menuDangerRow.hpp inks the label to match.
+      dangerColor = themePalette(palette().color(QPalette::Window).lightness() < 128).danger;
+      removeAct = menu.addAction(themedIcon("trash", dangerColor, 16), "Remove", this,
+                                 &ProjectsDialog::deleteSelected);
     }
     // The same glass shimmer every other ctx row's hover sweeps (browser
     // .project-menu-item parity; mainWindow's canvas context menu already plays it).
     support::MenuShimmer shimmer(&menu);
+    // …and the rest of the treatment every other menu gets (browser projectsModal.js
+    // showMenu): a compact icon+label popup fitted to its own longest label rather than
+    // carrying the menu bar's wide paddings, growing out of the click and pouring back.
+    gui::compactIconMenu(menu);
+    // After compactIconMenu — it replaces the menu's stylesheet, and this appends to it.
+    support::markDangerRow(menu, removeAct, dangerColor);
+    support::revealMenu(menu, globalPos);   // grow-from-the-cursor pop
+    // Visible to the slots this menu fires (deleteSelected, the open confirm) for exactly
+    // as long as the popup lives — they capture it and fly their answer back into the chip.
+    menuKebabRect_ = kebabGlobal;
     menu.exec(globalPos);
+    menuKebabRect_ = QRect();
   }
 
   void ProjectsDialog::scheduleRowOpen(QListWidgetItem* it) {
@@ -1905,9 +2139,10 @@ namespace stencil::gui {
     }
     const QString nm = support::shortName(name.isEmpty() ? tr("Untitled") : name);
     QPointer<ProjectsDialog> self(this);
-    QTimer::singleShot(0, this, [this, self, act, newWindow, nm] {
+    QTimer::singleShot(0, this, [this, self, act, newWindow, nm, closeTo = menuKebabRect_] {
       if (!self) return;
       ConfirmSpec spec;
+      spec.flight.closeRect = closeTo;
       spec.title = tr("Open project");
       spec.message = newWindow
           ? tr("Open \"%1\" in a new window?").arg(nm)
@@ -1930,8 +2165,9 @@ namespace stencil::gui {
     const QString nm = support::shortName(it->data(Qt::UserRole + 3).toString());
     // Confirm on the NEXT turn, over the still-open dialog: the drag-out Remove zone
     // lands here from a drag release, which dismisses a box shown in the same turn.
-    QTimer::singleShot(0, this, [this, id, nm] {
+    QTimer::singleShot(0, this, [this, id, nm, closeTo = menuKebabRect_] {
       ConfirmSpec spec;
+      spec.flight.closeRect = closeTo;
       spec.title = tr("Remove project");
       spec.message = tr("Remove \"%1\"? This cannot be undone.").arg(nm);
       spec.confirmIcon = QStringLiteral("trash");
@@ -2080,8 +2316,7 @@ namespace stencil::gui {
     okBtn->setIcon(themedIcon("check", QColor("#22c55e"), 14));
     okBtn->setIconSize(QSize(14, 14));
     okBtn->setFocusPolicy(Qt::NoFocus);
-    okBtn->setCursor(Qt::PointingHandCursor);
-    lay->addWidget(okBtn);
+    lay->addWidget(okBtn);   // its cursor follows enabled/disabled — see makeNameValidator
     auto* cancelBtn = new QToolButton(renameBox_);
     cancelBtn->setObjectName("projectsRenameBtn");
     cancelBtn->setIcon(themedIcon("x", QColor("#ef4444"), 14));
@@ -2108,7 +2343,7 @@ namespace stencil::gui {
 
     // The shared ✓-enable/tooltip validation (no rest-state tooltip on the chips —
     // user decision, browser look).
-    const auto revalidate = makeNameValidator(store, edit, okBtn, id);
+    const auto revalidate = makeNameValidator(store, edit, okBtn, id, current);
     connect(edit, &QLineEdit::textChanged, renameBox_, [revalidate](const QString&) { revalidate(); });
     revalidate();
     QPointer<ProjectsDialog> self(this);
@@ -2134,15 +2369,6 @@ namespace stencil::gui {
     for (QToolButton* b : box->findChildren<QToolButton*>()) revealControls(b, false);
     box->hide();
     box->deleteLater();
-  }
-
-  void ProjectsDialog::expirationSelected() {
-    auto* it = list_->currentItem();
-    if (!it || it->data(Qt::UserRole).isNull()) return;
-    if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;  // local only
-    selectedId_ = it->data(Qt::UserRole).toString();
-    action_ = Action::Expiration;
-    accept();
   }
 
   void ProjectsDialog::scatterRows(const QSet<QString>& keys) {
@@ -2251,12 +2477,15 @@ namespace stencil::gui {
     const QString cur = currentRowColor();
     const QColor seed = (!cur.isEmpty() && QColor(cur).isValid()) ? QColor(cur)
                                                                   : QColor("#7c3aed");
-    // Rows are delegate-painted (no swatch widget), so the origin is the row's rect —
-    // the strip whose ⋯ menu / right-click opened this — passed as the GLOBAL fallback.
+    // Raised from the row's ⋯ menu, so it flies like every other window that menu opens:
+    // out of the pressed menu row, back into the ⋯ chip. Rows are delegate-painted, so
+    // both ends are global rects; off the menu it falls back to the row's own strip.
     const QRect rowRect(list_->viewport()->mapToGlobal(list_->visualItemRect(it).topLeft()),
                         list_->visualItemRect(it).size());
+    const QRect from = menuKebabRect_.isValid() ? support::gestureAnchorRect() : rowRect;
     const QColor picked =
-        support::pickColorAnimated(seed, this, "Project name color", nullptr, rowRect);
+        support::pickColorAnimated(seed, this, "Project name color", nullptr, from,
+                                   {}, false, menuKebabRect_);
     if (!picked.isValid()) return;   // cancelled
     emitSetColor(it, picked.name());
   }
