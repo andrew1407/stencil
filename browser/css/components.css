@@ -1019,7 +1019,10 @@ body.fullscreen-mode #fs-points-panel {
        wrap and the buttons take their own line. `:not(:empty)` spares the empty hint span
        the confirm/open-in dialogs carry purely as a spacer. */
     flex-wrap: wrap;
-    justify-content: space-between;
+    /* flex-start, not space-between: the hint's own grow already pushes the buttons to
+       the right edge on a shared row, and once it wraps to its own line the buttons pack
+       left instead of being flung to the corners of an empty one. */
+    justify-content: flex-start;
     gap: 8px;
     align-items: center;
 }

@@ -462,7 +462,9 @@ int main(int argc, char** argv) {
   // The hint sits left and the create/danger buttons right, on one row. Every dialog sets
   // its own minimum size, which stops the layout from raising that minimum to what the row
   // needs — so a wider system font handed the row negative space and drew the hint under
-  // the first button. Checked at the app font and at a much wider one.
+  // the first button. Two legal shapes now: beside the buttons, or — once the row can no
+  // longer hold the hint's floor — on its own line above them. Never on top of them.
+  // Checked at the app font and at a much wider one.
   {
     std::printf("the footer hint never runs under its buttons:\n");
     const QFont appFont = QApplication::font();
@@ -479,7 +481,8 @@ int main(int argc, char** argv) {
       if (hint && first) {
         const QRect h(hint->mapTo(&dlg, QPoint(0, 0)), hint->size());
         const QRect b(first->mapTo(&dlg, QPoint(0, 0)), first->size());
-        check(h.right() < b.left(), "the hint ends before the first button starts");
+        check(h.right() < b.left() || h.bottom() < b.top(),
+              "the hint ends before the first button, or sits wholly above it");
         // …and that button still has room for its own label, not just its icon.
         check(first->width() >= first->minimumSizeHint().width(),
               "the first footer button keeps its natural width");
