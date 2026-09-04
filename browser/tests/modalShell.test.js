@@ -78,6 +78,23 @@ test('Escape closes only the stacked window, not the one under it', () => {
   assert.equal(under.isOpen(), false, '…and the next Escape closes it');
 });
 
+test('escapeClose: false keeps the FULL modal open, but its popover shape still closes', () => {
+  // settingsModal owns Escape while a hotkey is being rebound, so the shell's own Escape
+  // must leave the full window alone — the popover shape never rebinds, and always closes.
+  const overlay = el('noesc-overlay');
+  const shell = wireModalShell(overlay, null, null, { escapeClose: false });
+  shell.open();
+  document.dispatch('keydown', { key: 'Escape' });
+  assert.equal(shell.isOpen(), true, 'the full modal keeps Escape for itself');
+  shell.close();
+
+  shell.open();
+  overlay.classList.add('modal-popover');   // open() owns the class; the shape is set after
+  document.dispatch('keydown', { key: 'Escape' });
+  assert.equal(shell.isOpen(), false, 'the popover shape answers it');
+  overlay.classList.remove('modal-popover');
+});
+
 // A window raised FROM a popover must not dismiss it. The click-outside rule reads the
 // app's stacking order (components.css: overlays 100001, stacked editor 100002, portaled
 // menus + confirm 100003) to tell "a layer I raised" from "the page underneath me".

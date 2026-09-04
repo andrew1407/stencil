@@ -934,6 +934,33 @@ namespace stencil::gui {
     }
   }
 
+  void ProjectsDialog::commitRowEdit(
+      const QString& id, const QString& server,
+      const std::function<void(Project&)>& mutate,
+      const std::function<void(stencil::net::ServerClient*, qint64,
+                               std::function<void(bool, qint64)>)>& push,
+      const std::function<void(stencil::net::ServerProject&)>& cache) {
+    if (server.isEmpty()) {
+      for (auto& p : projects_)
+        if (QString::fromStdString(p.meta.id) == id) { mutate(p); break; }
+      fileStore::saveProjects(projects_);
+      refresh();
+      return;
+    }
+    stencil::net::ServerClient* c = connections_ ? connections_->find(server) : nullptr;
+    if (!c) return;
+    qint64 version = 0;
+    for (const auto& sp : remote_)
+      if (sp.id == id && sp.serverUrl == server) { version = sp.version; break; }
+    QPointer<ProjectsDialog> self(this);
+    push(c, version, [this, self, id, server, cache](bool ok, qint64 newVersion) {
+      if (!self || !ok) return;
+      for (auto& sp : remote_)
+        if (sp.id == id && sp.serverUrl == server) { cache(sp); sp.version = newVersion; break; }
+      refresh();
+    });
+  }
+
   void ProjectsDialog::refreshRemote() {
     if (!connections_ || remoteBusy_) return;
     remoteBusy_ = true;
@@ -1852,9 +1879,8 @@ namespace stencil::gui {
                             : QRect();
     }();
 
-    // "Add description" — edit the row's free-text description inline (no accept()/close), mirroring the
-    // colour edit but persisting straight to the local registry (fileStore) or the server
-    // (updateProjectDescriptionAsync), then refreshing the list + its tooltip. An empty value clears.
+    // "Add description" — edit the row's free-text description inline (no accept()/close),
+    // mirroring the colour edit. An empty value clears.
     auto editDescription = [this, it, kebabGlobal] {
       const QString id = it->data(Qt::UserRole).toString();
       const QString server = it->data(Qt::UserRole + 1).toString();
@@ -1881,39 +1907,20 @@ namespace stencil::gui {
       if (!entered) return;
       const QString text = *entered;
       if (text == current) return;        // nothing changed
-      if (server.isEmpty()) {
-        // Local row: update the registry copy + persist, then refresh the list/tooltip.
-        for (auto& p : projects_)
-          if (QString::fromStdString(p.meta.id) == id) { p.meta.description = text.toStdString(); break; }
-        fileStore::saveProjects(projects_);
-        refresh();
-      } else {
-        // Server row: guarded PUT ("" clears). On success update the cached record so the tooltip
-        // reflects it immediately (until the next live re-list), then refresh.
-        stencil::net::ServerClient* c = connections_ ? connections_->find(server) : nullptr;
-        if (!c) return;
-        qint64 version = 0;
-        for (const auto& sp : remote_)
-          if (sp.id == id && sp.serverUrl == server) { version = sp.version; break; }
-        QPointer<ProjectsDialog> self(this);
-        c->updateProjectDescriptionAsync(
-            id, text, version,
-            [this, self, id, server, text](bool ok2, qint64 newVersion, bool) {
-              if (!self || !ok2) return;
-              for (auto& sp : remote_)
-                if (sp.id == id && sp.serverUrl == server) {
-                  sp.description = text;
-                  sp.version = newVersion;
-                  break;
-                }
-              refresh();
-            });
-      }
+      commitRowEdit(
+          id, server,
+          [text](Project& p) { p.meta.description = text.toStdString(); },
+          [id, text](stencil::net::ServerClient* c, qint64 version,
+                     std::function<void(bool, qint64)> done) {
+            c->updateProjectDescriptionAsync(
+                id, text, version,
+                [done](bool ok2, qint64 v, bool) { done(ok2, v); });
+          },
+          [text](stencil::net::ServerProject& sp) { sp.description = text; });
     };
 
-    // "Add keywords" — the row's search keywords, comma/space separated. The same in-place
-    // shape as editDescription above (no accept()/close): the list normalizes to lowercase
-    // unique words, persists to the local registry or the server, then refreshes. Empty clears.
+    // "Add keywords" — the row's search keywords, comma/space separated, normalized to
+    // lowercase unique words the way the browser store's setKeywords does. Empty clears.
     auto editKeywords = [this, it, kebabGlobal] {
       const QString id = it->data(Qt::UserRole).toString();
       const QString server = it->data(Qt::UserRole + 1).toString();
@@ -1940,38 +1947,22 @@ namespace stencil::gui {
       QStringList next;
       for (const QString& raw : entered->split(QRegularExpression("[\\s,]+"), Qt::SkipEmptyParts)) {
         const QString k = raw.toLower();
-        if (!next.contains(k)) next << k;   // normalized like the browser store's setKeywords
+        if (!next.contains(k)) next << k;
       }
       if (next == current) return;          // nothing changed
-      if (server.isEmpty()) {
-        for (auto& p : projects_)
-          if (QString::fromStdString(p.meta.id) == id) {
+      commitRowEdit(
+          id, server,
+          [next](Project& p) {
             p.meta.keywords.clear();
             for (const QString& k : next) p.meta.keywords.push_back(k.toStdString());
-            break;
-          }
-        fileStore::saveProjects(projects_);
-        refresh();
-      } else {
-        stencil::net::ServerClient* c = connections_ ? connections_->find(server) : nullptr;
-        if (!c) return;
-        qint64 version = 0;
-        for (const auto& sp : remote_)
-          if (sp.id == id && sp.serverUrl == server) { version = sp.version; break; }
-        QPointer<ProjectsDialog> self(this);
-        c->updateProjectKeywordsAsync(
-            id, next, version,
-            [this, self, id, server, next](bool ok2, qint64 newVersion, bool) {
-              if (!self || !ok2) return;
-              for (auto& sp : remote_)
-                if (sp.id == id && sp.serverUrl == server) {
-                  sp.keywords = next;
-                  sp.version = newVersion;
-                  break;
-                }
-              refresh();
-            });
-      }
+          },
+          [id, next](stencil::net::ServerClient* c, qint64 version,
+                     std::function<void(bool, qint64)> done) {
+            c->updateProjectKeywordsAsync(
+                id, next, version,
+                [done](bool ok2, qint64 v, bool) { done(ok2, v); });
+          },
+          [next](stencil::net::ServerProject& sp) { sp.keywords = next; });
     };
 
     // "Set expiration" — the browser-styled expiration editor, opened OVER this window

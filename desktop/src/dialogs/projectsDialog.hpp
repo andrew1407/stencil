@@ -152,6 +152,16 @@ namespace stencil::gui {
     void done(int result) override;
 
    private:
+    // Persist one edited field of a row — the half every per-row editor shares. A local
+    // row updates the registry copy and saves; a server row issues its guarded PUT and
+    // patches the cached record so the tooltip reflects it before the next live re-list.
+    // `mutate` writes the value into a local Project, `push` issues the PUT, `cache`
+    // writes it into the cached ServerProject.
+    void commitRowEdit(const QString& id, const QString& server,
+                       const std::function<void(Project&)>& mutate,
+                       const std::function<void(stencil::net::ServerClient*, qint64,
+                                                std::function<void(bool, qint64)>)>& push,
+                       const std::function<void(stencil::net::ServerProject&)>& cache);
     void refresh();
     // Re-list server projects across every connection and append golden rows.
     void refreshRemote();

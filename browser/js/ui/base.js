@@ -51,9 +51,25 @@ export const escapeHtml = (v) => String(v == null ? '' : v)
 // Every wired modal shell, so opening one can close whichever other is showing.
 const modalShells = new Set();
 
-// Is a stacked window (one raised OVER another) currently up? The window underneath uses
-// this to leave Escape to it.
-const stackedModalOpen = () => [...modalShells].some(s => s.stacked && s.isOpen());
+// ONE Escape listener for every shell, rather than one per shell arbitrating with the
+// rest: the TOPMOST open window answers, and only it, so a single press can never take a
+// stacked window and the one it was raised from together. A shell wired with
+// `escapeClose: false` (settingsModal) keeps its FULL modal open — its own capture-phase
+// listener owns Escape while a hotkey is being rebound — though the popover shape always
+// closes. Registered on the first wired shell, where the per-shell listeners used to go.
+let escapeWired = false;
+const wireEscapeOnce = () => {
+  if (escapeWired) return;
+  escapeWired = true;
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const open = [...modalShells].filter((s) => s.isOpen());
+    if (!open.length) return;
+    // A stacked window sits OVER whatever raised it, so it is the one on top.
+    const top = open.find((s) => s.stacked) || open[0];
+    if (top.takesEscape()) top.close();
+  });
+};
 
 // Close whatever full/popover modal is open (optionally sparing one). Returns the first
 // shell closed, so callers can tell "I replaced something" from "nothing was open". Every
@@ -238,8 +254,10 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     open(from);
   };
   const api = { open, close, openPopover, toggle, isOpen: () => overlay.classList.contains('modal-open'),
-                get stacked() { return stackedNow; } };
+                get stacked() { return stackedNow; },
+                takesEscape: () => escapeClose || overlay.classList.contains('modal-popover') };
   modalShells.add(api);
+  wireEscapeOnce();
   overlay.__stencilModal = api;
   if (openBtn) openBtn.__stencilModal = api;
   if (openBtn) {
@@ -294,17 +312,6 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   }
   if (closeBtn) closeBtn.addEventListener('click', close);
   overlay.addEventListener('mousedown', e => { if (e.target === overlay) close(); });
-  // Escape closes every modal, except `escapeClose: false` (settingsModal), whose
-  // capture-phase listener owns Escape while rebinding a hotkey; the popover shape always
-  // closes. A window with a stacked one over it stands down so one press doesn't take
-  // both — guarded from both sides, since same-node listeners can't stop each other.
-  document.addEventListener('keydown', e => {
-    if (e.key !== 'Escape' || !overlay.classList.contains('modal-open')) return;
-    if (!escapeClose && !overlay.classList.contains('modal-popover')) return;
-    if (!stackedNow && (stackedModalOpen() || e.stencilStackedEscape)) return;
-    if (stackedNow) e.stencilStackedEscape = true;
-    close();
-  });
   return api;
 };
 

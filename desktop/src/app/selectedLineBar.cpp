@@ -170,30 +170,28 @@ namespace stencil::gui {
 
     // ── wiring — each lambda early-returns while showLine is repopulating the
     // controls (updating_), matching the browser which guards via selectedLineIdx. ──
-    connect(colorSwatch_, &QPushButton::clicked, this, [this] {
-      if (updating_) return;
-      // The line follows the picker as it is dragged; Cancel is handed the original back
-      // by pickColorAnimated, so this only has to deal with the accepted value.
-      const QColor c = support::pickColorAnimated(
-          currentColor_, this, "Line color", colorSwatch_, QRect(),
-          [this](const QColor& p) { setColorSwatch(colorSwatch_, p); emit lineColorChanged(cssName(p), true); },
-          /*withAlpha=*/true);
-      if (!c.isValid()) return;
-      currentColor_ = c;
-      setColorSwatch(colorSwatch_, c);
-      emit lineColorChanged(cssName(c));
-    });
-    connect(pointColorSwatch_, &QPushButton::clicked, this, [this] {
-      if (updating_) return;
-      const QColor c = support::pickColorAnimated(
-          currentPointColor_, this, "Point color", pointColorSwatch_, QRect(),
-          [this](const QColor& p) { setColorSwatch(pointColorSwatch_, p); emit linePointColorChanged(cssName(p), true); },
-          /*withAlpha=*/true);
-      if (!c.isValid()) return;
-      currentPointColor_ = c;
-      setColorSwatch(pointColorSwatch_, c);
-      emit linePointColorChanged(cssName(c));
-    });
+    // Every colour well in the bar behaves the same: the line follows the picker as it is
+    // dragged (Cancel is handed the original back by pickColorAnimated, so only the
+    // accepted value lands here), and the swatch tracks it either way. `emit` is the one
+    // difference — it takes the css value and whether this is still a preview.
+    const auto wireColorWell = [this](QPushButton* well, QColor& current, const char* title,
+                                      std::function<void(const QString&, bool)> send) {
+      connect(well, &QPushButton::clicked, this, [this, well, &current, title, send] {
+        if (updating_) return;
+        const QColor c = support::pickColorAnimated(
+            current, this, title, well, QRect(),
+            [well, send](const QColor& p) { setColorSwatch(well, p); send(cssName(p), true); },
+            /*withAlpha=*/true);
+        if (!c.isValid()) return;
+        current = c;
+        setColorSwatch(well, current);
+        send(cssName(current), false);
+      });
+    };
+    wireColorWell(colorSwatch_, currentColor_, "Line color",
+                  [this](const QString& v, bool preview) { emit lineColorChanged(v, preview); });
+    wireColorWell(pointColorSwatch_, currentPointColor_, "Point color",
+                  [this](const QString& v, bool preview) { emit linePointColorChanged(v, preview); });
     connect(thickness_, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
       if (!updating_) emit lineThicknessChanged(v);
     });
@@ -203,19 +201,19 @@ namespace stencil::gui {
     connect(style_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) {
       if (!updating_) emit lineStyleChanged(style_->currentData().toString());
     });
-    connect(fillSwatch_, &QPushButton::clicked, this, [this] {
-      if (updating_) return;
-      const QColor c = support::pickColorAnimated(
-          currentFill_, this, "Area fill color", fillSwatch_, QRect(),
-          [this](const QColor& p) { setColorSwatch(fillSwatch_, p); emit lineFillChanged(cssName(p), true); },
-          /*withAlpha=*/true);
-      if (!c.isValid()) return;
-      // Picking a colour on an UNFILLED area must also lift it off zero alpha, or the
-      // choice would apply invisibly (browser controlsBinder: the same nudge to 255).
-      currentFill_ = c.alpha() == 0 ? QColor(c.red(), c.green(), c.blue(), 255) : c;
-      setColorSwatch(fillSwatch_, currentFill_);
-      emit lineFillChanged(cssName(currentFill_));
-    });
+    // …and the fill is the same well with one extra rule: picking a colour on an UNFILLED
+    // area must also lift it off zero alpha, or the choice would apply invisibly (browser
+    // controlsBinder: the same nudge to 255).
+    wireColorWell(fillSwatch_, currentFill_, "Area fill color",
+                  [this](const QString& v, bool preview) {
+                    if (!preview && currentFill_.alpha() == 0) {
+                      currentFill_.setAlpha(255);
+                      setColorSwatch(fillSwatch_, currentFill_);
+                      emit lineFillChanged(cssName(currentFill_));
+                      return;
+                    }
+                    emit lineFillChanged(v, preview);
+                  });
     connect(fillClear_, &QPushButton::clicked, this, [this] {
       if (updating_) return;
       emit lineFillChanged(QStringLiteral("transparent"));

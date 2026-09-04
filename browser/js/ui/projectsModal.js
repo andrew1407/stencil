@@ -616,7 +616,8 @@ export class StencilProjectsModal extends StencilElement {
       colorTarget.color = colorInput.value;
       render();
     });
-    list.appendChild(colorInput);
+    // Beside the list, never inside it: render() wipes the list's own innerHTML.
+    (list.parentElement || list).appendChild(colorInput);
     const openColorPicker = (meta, btn) => {
       colorTarget = meta;
       colorInput.value = normalizeHex(meta.color) || '#7c3aed';
