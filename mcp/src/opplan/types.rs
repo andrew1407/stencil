@@ -93,15 +93,6 @@ pub enum Axis {
     Y,
 }
 
-impl Axis {
-    pub(super) fn as_char(self) -> char {
-        match self {
-            Axis::X => 'x',
-            Axis::Y => 'y',
-        }
-    }
-}
-
 /// The §2 `formula` op's three forms.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FormulaOp {

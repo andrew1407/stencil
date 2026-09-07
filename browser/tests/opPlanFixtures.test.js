@@ -24,13 +24,22 @@ const SURFACES = new Set(['browser', 'desktop', 'cli', 'pystencil', 'bot', 'mcp'
 const BROWSER_PROFILES = ['editor', 'all'];
 
 const files = readdirSync(FIXTURES_DIR).filter((f) => f.endsWith('.json')).sort();
-const fixtures = files.map((file) => ({
-  file,
-  fx: JSON.parse(readFileSync(path.join(FIXTURES_DIR, file), 'utf8')),
-}));
+// The hand-written cases, plus the registry-generated bundle (generated/cases.json —
+// tools/genOpPlanFixtures.mjs), each generated case walking as `<name>.json`.
+const GENERATED = path.join(FIXTURES_DIR, 'generated', 'cases.json');
+const fixtures = [
+  ...files.map((file) => ({ file, fx: JSON.parse(readFileSync(path.join(FIXTURES_DIR, file), 'utf8')) })),
+  ...JSON.parse(readFileSync(GENERATED, 'utf8')).cases.map((fx) => ({ file: `${fx.name}.json`, fx })),
+];
+
+test('the generated bundle is fresh against the registry (npm run gen-fixtures)', async () => {
+  const { generate, render } = await import('../tools/genOpPlanFixtures.mjs');
+  const registry = JSON.parse(readFileSync(path.join(FIXTURES_DIR, '..', '..', 'opRegistry.json'), 'utf8'));
+  assert.equal(readFileSync(GENERATED, 'utf8'), render(generate(registry)), 'generated/cases.json is stale — run `npm run gen-fixtures`');
+});
 
 test('the corpus exists and is well-formed', () => {
-  assert.ok(fixtures.length >= 80, `expected a real corpus, found ${fixtures.length} fixtures`);
+  assert.ok(fixtures.length >= 300, `expected a real corpus, found ${fixtures.length} fixtures`);
   for (const { file, fx } of fixtures) {
     assert.equal(`${fx.name}.json`, file.replace(/^\d+-/, ''), `${file}: "name" must match the filename slug`);
     assert.ok(Array.isArray(fx.profiles) && fx.profiles.length, `${file}: "profiles" must be a non-empty array`);

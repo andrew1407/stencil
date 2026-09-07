@@ -1,8 +1,10 @@
 //! §13 op registry + §4 system-prompt assembly for the console LLM assistant:
-//! the op descriptors the validator's gates read, the forbidden-op/censor teeth,
-//! and the lazily assembled canonical + console prompts (systemPrompt.json).
+//! the executor-side op descriptors (Action tag, bullet, capability — the validating
+//! side is the embedded registry, opSchema.zig), the forbidden-op/censor teeth, and
+//! the lazily assembled canonical + console prompts (systemPrompt.json).
 const std = @import("std");
 const opplan = @import("opplan.zig");
+const opSchema = @import("opSchema.zig");
 const transport = @import("transport.zig");
 
 // Symbols living in the sibling llm/ modules (facade: ../llm.zig).
@@ -22,9 +24,9 @@ pub const OpCapability = enum { theme, network, filesystem, clipboard };
 pub const OpCaps = std.EnumSet(OpCapability);
 pub const full_capabilities = OpCaps.initFull();
 
-/// One §13 registry entry — the single source of an op's existence: its wire name,
-/// its `Action` tag, its prompt bullet(s) VERBATIM, and the flags the validator's
-/// variant gates read. A comptime check pins the table 1:1 onto `Action`'s variants.
+/// One §13 descriptor: an op's wire name, its `Action` tag, its prompt bullet(s)
+/// VERBATIM and its capability tag. Its key schema and variant-gate flags live in
+/// opRegistry.json (opSchema.zig). A comptime check pins the table 1:1 onto `Action`.
 pub const OpDescriptor = struct {
     name: []const u8,
     tag: std.meta.Tag(Action),
@@ -36,11 +38,6 @@ pub const OpDescriptor = struct {
     console_bullet: ?[]const u8 = null,
     /// A console-block line riding AFTER the op bullets (crop's `album` spec key).
     console_addendum: ?[]const u8 = null,
-    /// §2/§2.1: allowed in the top-level plan only — a variant carrying one is dropped.
-    top_level_only: bool = false,
-    /// A console-settings op (the §10 analog): adjusts the CONSOLE, not the image;
-    /// dropped along with any variant that carries it (§1), with its own wording.
-    console_setting: bool = false,
     /// The runtime capability the op needs, when it needs one (§13 exclusion).
     capability: ?OpCapability = null,
 };
@@ -120,7 +117,6 @@ pub const op_registry = [_]OpDescriptor{
     .{
         .name = "undo",
         .tag = .undo,
-        .top_level_only = true,
         .bullet =
         \\- {"op":"undo","steps":1} / {"op":"redo","steps":1} — step this surface's edit history.
         \\  "Undo that" means {"op":"undo"}; steps count history entries, which can be finer
@@ -128,8 +124,8 @@ pub const op_registry = [_]OpDescriptor{
         ,
     },
     // redo rides undo's bullet; reset is parsed per §2 but never advertised.
-    .{ .name = "redo", .tag = .redo, .top_level_only = true },
-    .{ .name = "reset", .tag = .reset, .top_level_only = true },
+    .{ .name = "redo", .tag = .redo },
+    .{ .name = "reset", .tag = .reset },
     .{
         .name = "frame",
         .tag = .frame,
@@ -141,7 +137,6 @@ pub const op_registry = [_]OpDescriptor{
     .{
         .name = "image",
         .tag = .image,
-        .top_level_only = true,
         .bullet =
         \\- {"op":"image","index":1} — switch the working image to the Nth image attached to THIS
         \\  message (1-based, in attachment order); coordinates in later actions are in THAT
@@ -152,7 +147,6 @@ pub const op_registry = [_]OpDescriptor{
     .{
         .name = "save",
         .tag = .save,
-        .top_level_only = true,
         .bullet =
         \\- {"op":"save","name":"portrait 1","path":"~/Downloads"} — save the current image with its
         \\  drawn lines. `path` is optional and may be a folder or a file name (".stencil" saves the
@@ -170,7 +164,6 @@ pub const op_registry = [_]OpDescriptor{
     .{
         .name = "accent",
         .tag = .accent,
-        .console_setting = true,
         .capability = .theme,
         .console_bullet =
         \\- {"op":"accent","color":"#7c3aed"} — set the console's colour theme (its accent).
@@ -183,7 +176,6 @@ pub const op_registry = [_]OpDescriptor{
     .{
         .name = "connect",
         .tag = .connect,
-        .console_setting = true,
         .capability = .network,
         .console_bullet =
         \\- {"op":"connect","server":"..."} / {"op":"disconnect","server":"..."} — manage the
@@ -193,11 +185,10 @@ pub const op_registry = [_]OpDescriptor{
         ,
     },
     // disconnect rides connect's bullet.
-    .{ .name = "disconnect", .tag = .disconnect, .console_setting = true, .capability = .network },
+    .{ .name = "disconnect", .tag = .disconnect, .capability = .network },
     .{
         .name = "reconnect",
         .tag = .reconnect,
-        .console_setting = true,
         .capability = .network,
         .console_bullet =
         \\- {"op":"reconnect","server":"..."} — re-establish a connection that went stale
@@ -207,7 +198,6 @@ pub const op_registry = [_]OpDescriptor{
     .{
         .name = "delete",
         .tag = .delete,
-        .console_setting = true,
         .capability = .filesystem,
         .console_bullet =
         \\- {"op":"delete","path":"old.stencil"} — delete a LOCAL .stencil project file in
@@ -218,7 +208,6 @@ pub const op_registry = [_]OpDescriptor{
     .{
         .name = "openFile",
         .tag = .open_file,
-        .console_setting = true,
         .capability = .filesystem,
         .console_bullet =
         \\- {"op":"openFile","path":"~/Pictures/portrait.png"} — load a LOCAL file the user named
@@ -230,7 +219,6 @@ pub const op_registry = [_]OpDescriptor{
     .{
         .name = "openUrl",
         .tag = .open_url,
-        .console_setting = true,
         .capability = .network,
         .console_bullet =
         \\- {"op":"openUrl","url":"https://…"} — load an image (or video frame) from a URL
@@ -241,7 +229,6 @@ pub const op_registry = [_]OpDescriptor{
     .{
         .name = "copy",
         .tag = .copy,
-        .console_setting = true,
         .capability = .clipboard,
         .console_bullet =
         \\- {"op":"copy"} — copy the current rendered image to the system clipboard. This IS
@@ -252,7 +239,6 @@ pub const op_registry = [_]OpDescriptor{
     .{
         .name = "clear",
         .tag = .clear,
-        .console_setting = true,
         .console_bullet =
         \\- {"op":"clear"} — REMOVE the working image and its lines, leaving the editor empty.
         \\  This is what "remove/delete/clear the image" means. Never answer that with
@@ -263,8 +249,6 @@ pub const op_registry = [_]OpDescriptor{
     .{
         .name = "clearChat",
         .tag = .clear_chat,
-        .console_setting = true,
-        .top_level_only = true,
         .console_bullet =
         \\- {"op":"clearChat"} — clear THIS conversation's history; the app asks the user to
         \\  confirm first, and the clear happens after this plan's other actions finish. This IS
@@ -287,28 +271,13 @@ comptime {
         }
         if (hits != 1) @compileError("op_registry must name Action." ++ t.name ++ " exactly once");
     }
-    for (op_registry) |d| {
-        if (isForbiddenOp(d.name)) @compileError("§13: forbidden op name registered: " ++ d.name);
-    }
 }
 
-/// §13 forbidden ops — the "never model-drivable" boundary. Two teeth: the comptime
-/// check (no registry entry may use one of these names) and the validator's outright
-/// reject in `validateActions` even if one somehow appears.
-pub const forbidden_ops = [_][]const u8{
-    "llm", "provider", "apiKey", "endpoint", // llm/provider configuration
-    "paste", // clipboard reads
-    "hotkey", "keybind", // hotkey rebinding
-    "exit", "quit", // session/window end
-    "chatPersist", "consent", // chat persistence/consent toggles
-    "deleteRemote", "unshare", // server-side destruction beyond §10
-};
-
+/// §13 forbidden ops — the "never model-drivable" boundary, the registry's
+/// `forbidden.perSurface.cli`. Two teeth: no descriptor may use one of these names
+/// (tested below) and the validator's outright reject in `validateActions`.
 pub fn isForbiddenOp(op: []const u8) bool {
-    for (forbidden_ops) |name| {
-        if (std.mem.eql(u8, op, name)) return true;
-    }
-    return false;
+    return opSchema.get().isForbidden(op);
 }
 
 /// §13 prompt censor: patterns no generated bullet may match — a registry mistake fails
@@ -517,31 +486,40 @@ test "console prompt: the settings block splices after the op list; §4 stays ca
 
 test "§13 registry: op name set matches the contract's cli-console profile" {
     // Core §2 ops (incl. §2.1 image/save and the history ops) + the cli-console
-    // profile — table order IS prompt order, nothing more, nothing less.
+    // profile — table order IS prompt order (the registry's console order), nothing
+    // more, nothing less, and never a forbidden name.
     const expected = [_][]const u8{
-        "crop",    "rotate",     "filter",    "layout", "formula", "page",  "blank",
-        "undo",    "redo",       "reset",     "frame",  "image",   "save",  "accent",
-        "connect", "disconnect", "reconnect", "delete", "openFile", "openUrl", "copy", "clear",
-        "clearChat",
+        "crop",    "rotate",     "filter",    "layout", "formula",  "page",    "blank",
+        "undo",    "redo",       "reset",     "frame",  "image",    "save",    "accent",
+        "connect", "disconnect", "reconnect", "delete", "openFile", "openUrl", "copy",
+        "clear",   "clearChat",
     };
     try testing.expect(op_registry.len == expected.len);
     try testing.expect(op_registry.len == std.meta.fields(std.meta.Tag(Action)).len);
     for (expected, op_registry) |name, d| try testing.expectEqualStrings(name, d.name);
+    const schema = opSchema.get();
+    try testing.expectEqual(op_registry.len, schema.entries.len);
+    for (schema.entries, op_registry) |e, d| try testing.expectEqualStrings(e.name, d.name);
+    for (op_registry) |d| try testing.expect(!isForbiddenOp(d.name));
 }
 
 test "§13 registry: flags match the contract (top-level-only, console scope, capabilities)" {
-    const top_level = [_][]const u8{ "image", "save", "undo", "redo", "reset", "clearChat" };
+    // The variant gates read the registry's flags: topLevelOnly (§2/§2.1) and the
+    // settings ops (§10's editorSetting / the console's consoleSetting).
+    const top_level = [_][]const u8{ "image", "save", "undo", "redo", "reset", "openFile" };
     const console = [_][]const u8{ "accent", "connect", "disconnect", "reconnect", "delete", "openFile", "openUrl", "copy", "clear", "clearChat" };
     for (op_registry) |d| {
+        const e = opSchema.get().find(d.name).?;
         var want_top = false;
         for (top_level) |n| want_top = want_top or std.mem.eql(u8, n, d.name);
-        try testing.expectEqual(want_top, d.top_level_only);
+        try testing.expectEqual(want_top, e.top_level_only);
         var want_console = false;
         for (console) |n| want_console = want_console or std.mem.eql(u8, n, d.name);
-        try testing.expectEqual(want_console, d.console_setting);
+        try testing.expectEqual(want_console, e.settings);
         // Only console ops carry capability tags (core §2 ops are always wired).
-        if (d.capability != null) try testing.expect(d.console_setting);
+        if (d.capability != null) try testing.expect(e.settings);
     }
+    try testing.expect(opSchema.get().find("clearChat").?.deferred);
     try testing.expect(findOp("accent").?.capability.? == .theme);
     try testing.expect(findOp("delete").?.capability.? == .filesystem);
     try testing.expect(findOp("openFile").?.capability.? == .filesystem);

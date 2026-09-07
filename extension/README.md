@@ -307,7 +307,7 @@ LLM contract — [`llm-contract/llm-profiles.md`](../llm-contract/llm-profiles.m
   transcript says "Stopped."), 🗑 clears the conversation, empty-state **suggestion
   chips** prefill the input (they never send), and error/notice entries carry a **×** —
   attach failures also clear themselves after a few seconds.
-- Code: `src/llm/` (`llmSettings.js`, `llmClient.js`, `opPlan.js`, `chatController.js`)
+- Code: `src/llm/` (`llmSettings.js`, `llmClient.js`, `opPlan.js`, `opSchema.js` — the registry-driven validation engine, a byte-identical copy of the browser's, over `src/config/opRegistry.json`; `chatController.js`)
   + `src/popup/assistant.js` (the embedded section), `src/lib/chatDrop.js`,
   `src/lib/chatUi.js`, `src/lib/rasterize.js`; unit tests in `tests/llm*.test.js`,
   `tests/chatDrop.test.js`, `tests/chatUi.test.js`, `tests/rasterize.test.js`.

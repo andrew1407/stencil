@@ -6,11 +6,17 @@
 //! `opplan`'s validator consults the same entries for known-ness — so the prompt can never
 //! promise an op this surface cannot run.
 //!
-//! This surface registers the contract's mcp surface: core §2 + §2.1, in §2 order, minus
-//! `undo`/`redo`/`reset` — a one-shot headless tool has no edit history to step. Ops that
-//! need a runtime capability this server does not wire (clipboard, theme store, …) simply
-//! have no entries; [`WIRED_CAPABILITIES`] exists so a future entry CAN declare a
-//! capability and be excluded automatically until it is wired.
+//! The entries and the forbidden list are this surface's view of the shared
+//! `browser/js/config/llm/opRegistry.json` (profile `mcp`, in prompt order; bullets are
+//! the entry's bullet or its `bulletVariants.mcp`), built once from `opplan::schema`.
+//! Ops that need a runtime capability this server does not wire (clipboard, theme store,
+//! …) simply have no entries; [`WIRED_CAPABILITIES`] exists so a future entry CAN declare
+//! a capability and be excluded automatically until it is wired.
+
+use std::ops::Deref;
+use std::sync::OnceLock;
+
+use crate::opplan::schema::schema;
 
 /// One op this surface executes: name + verbatim prompt bullet + flags (contract §13).
 #[derive(Debug, Clone, Copy)]
@@ -37,138 +43,79 @@ pub struct OpDescriptor {
 /// every registered op below is capability-free.
 pub const WIRED_CAPABILITIES: &[&str] = &[];
 
-/// The ops `stencil_prompt` executes, in the §2 prompt order. Bullets are the §4 ops
-/// section, one entry each.
-pub const OP_REGISTRY: &[OpDescriptor] = &[
-    OpDescriptor {
-        name: "crop",
-        bullet: r##"- {"op":"crop","spec":{"x1":"10%","x2":"-10%","aspect":"3:4"}} — move edges inward;
-  tokens are numbers with optional unit % / px / cm / in; a leading "-" measures from the
-  opposite side. Include only the edges you want to move. For a target aspect ratio add
-  "aspect":"W:H" INSIDE "spec", never beside it (portrait "3:4", album/landscape "4:3",
-  square "1:1") — the editor cuts the resolved crop to that exact ratio about its centre,
-  so NEVER derive ratio tokens yourself; combine it with edge tokens when a specific
-  region should be kept."##,
-        top_level_only: false,
-        video_only: false,
-        capability: None,
-    },
-    OpDescriptor {
-        name: "rotate",
-        bullet: r##"- {"op":"rotate","dir":"left"|"right","times":1..3} — quarter turns only."##,
-        top_level_only: false,
-        video_only: false,
-        capability: None,
-    },
-    OpDescriptor {
-        name: "filter",
-        bullet: r##"- {"op":"filter","mode":"none"|"bw"|"sepia"|"invert"|"contour"|"custom","tint":"#rrggbb"}
-  — "custom" is a duotone tint and requires "tint"; "contour" is edge detection."##,
-        top_level_only: false,
-        video_only: false,
-        capability: None,
-    },
-    OpDescriptor {
-        name: "layout",
-        bullet: r##"- {"op":"layout","lines":[{"points":[{"x":0,"y":0},...],"color":"#FFFF00","thickness":2,
-  "pointSize":4,"style":"solid"|"dashed"|"dotted","locked":false,"fillColor":"transparent"}]}
-  — draw annotation polylines in image-pixel coordinates. When asked to extract lines,
-  shapes, or structure from an attached image, answer with this op."##,
-        top_level_only: false,
-        video_only: false,
-        capability: None,
-    },
-    OpDescriptor {
-        name: "formula",
-        bullet: r##"- {"op":"formula","axis":"x"|"y","expr":"x*2+10"} — coordinate transform; single variable
-  matching the axis; operators + - * / ** and parentheses only. An empty "expr" clears
-  that axis; {"op":"formula","enabled":false} switches formulas OFF entirely."##,
-        top_level_only: false,
-        video_only: false,
-        capability: None,
-    },
-    OpDescriptor {
-        name: "page",
-        bullet: r##"- {"op":"page","format":"a4"} — ISO page formats a0–a10, b0–b10, c0–c10 — or a custom
-  size: {"op":"page","width":20,"height":30} in centimetres (one form or the other)."##,
-        top_level_only: false,
-        video_only: false,
-        capability: None,
-    },
-    OpDescriptor {
-        name: "blank",
-        bullet: r##"- {"op":"blank","color":"#ffffff","format":"a4"} — create a blank page; explicit
-  centimetre dims ride as "width"/"height" instead of "format"."##,
-        top_level_only: false,
-        video_only: false,
-        capability: None,
-    },
-    OpDescriptor {
-        name: "frame",
-        bullet: r##"- {"op":"frame","index":0} or {"op":"frame","indices":[0,30,60]} — pick video frame(s);
-  only valid when the current input is a video."##,
-        top_level_only: false,
-        video_only: true,
-        capability: None,
-    },
-    OpDescriptor {
-        name: "image",
-        bullet: r##"- {"op":"image","index":1} — switch the working image to the Nth image attached to THIS
-  message (1-based, in attachment order); coordinates in later actions are in THAT
-  image's pixel frame. Only valid when the user attached images. Use it to edit several
-  attached images in one plan, giving each image its OWN actions."##,
-        top_level_only: true,
-        video_only: false,
-        capability: None,
-    },
-    OpDescriptor {
-        name: "save",
-        bullet: r##"- {"op":"save","name":"portrait 1"} — save the current image with its drawn lines as a
-  project. When the user asks to process several images and keep the results, finish
-  each image's actions with a "save" before switching to the next: image 1, its edits,
-  save, image 2, its edits, save, …"##,
-        top_level_only: true,
-        video_only: false,
-        capability: None,
-    },
-];
+/// A registry-backed table built on first use that reads like a `&'static [T]`.
+pub struct Table<T: 'static>(fn() -> &'static [T]);
 
-/// §13's never-model-drivable boundary, as op names: llm/provider self-configuration,
-/// clipboard READS, hotkey rebinding, session/window end, chat persistence/consent
-/// toggles, and server-side destruction beyond what §10 grants. Two teeth: no registry
-/// entry may use one of these names (tested + rejected at assembly), and the plan
-/// validator hard-fails any plan naming one instead of skipping it as unknown.
-pub const FORBIDDEN_OPS: &[&str] = &[
-    // llm/provider configuration — self-configuration is the exfiltration primitive
-    "llm",
-    "provider",
-    "apiKey",
-    "configureLlm",
-    // clipboard reads (copied secrets would enter vision turns)
-    "paste",
-    // hotkey rebinding
-    "hotkey",
-    "rebind",
-    // ending the session/window
-    "quit",
-    "exit",
-    "closeWindow",
-    "endSession",
-    // chat persistence/clearing and consent toggles
-    "chat",
-    "chatPersist",
-    "clearChat",
-    "shareTabs",
-    // server-side destruction beyond §10's explicit grants
-    "deleteRemote",
-    "removeRemote",
-    "expireProject",
-    "transferProject",
-];
+impl<T> Clone for Table<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<T> Copy for Table<T> {}
+impl<T> Deref for Table<T> {
+    type Target = [T];
+    fn deref(&self) -> &[T] {
+        (self.0)()
+    }
+}
+impl<T> AsRef<[T]> for Table<T> {
+    fn as_ref(&self) -> &[T] {
+        (self.0)()
+    }
+}
+impl<T> IntoIterator for Table<T> {
+    type Item = &'static T;
+    type IntoIter = std::slice::Iter<'static, T>;
+    fn into_iter(self) -> Self::IntoIter {
+        (self.0)().iter()
+    }
+}
+
+fn leak(s: &str) -> &'static str {
+    Box::leak(s.to_string().into_boxed_str())
+}
+
+/// Valid only when the working input is a video — not a registry flag (the frame entry
+/// records it in prose), so it stays a local list.
+const VIDEO_ONLY_OPS: &[&str] = &["frame"];
+
+/// The ops `stencil_prompt` executes, in prompt order, with their §4 bullets — the
+/// registry's mcp-profile entries.
+pub static OP_REGISTRY: Table<OpDescriptor> = Table(op_registry);
+
+fn op_registry() -> &'static [OpDescriptor] {
+    static OPS: OnceLock<Vec<OpDescriptor>> = OnceLock::new();
+    OPS.get_or_init(|| {
+        schema()
+            .entries
+            .iter()
+            .map(|e| OpDescriptor {
+                name: leak(&e.name),
+                bullet: leak(e.bullet.as_deref().unwrap_or_default()),
+                top_level_only: e.flag("topLevelOnly"),
+                video_only: VIDEO_ONLY_OPS.contains(&e.name.as_str()),
+                capability: None,
+            })
+            .collect()
+    })
+}
+
+/// §13's never-model-drivable boundary, as op names — the registry's
+/// `forbidden.perSurface.mcp`: llm/provider self-configuration, clipboard READS, hotkey
+/// rebinding, session/window end, chat persistence/consent toggles, and server-side
+/// destruction beyond what §10 grants. Two teeth: no registry entry may use one of these
+/// names (tested + rejected at assembly), and the plan validator hard-fails any plan
+/// naming one instead of skipping it as unknown.
+pub static FORBIDDEN_OPS: Table<&'static str> = Table(forbidden_ops);
+
+fn forbidden_ops() -> &'static [&'static str] {
+    static OPS: OnceLock<Vec<&'static str>> = OnceLock::new();
+    OPS.get_or_init(|| schema().forbidden.iter().map(|s| leak(s)).collect())
+}
 
 /// True when `name` sits on the §13 never-model-drivable boundary.
 pub fn is_forbidden(name: &str) -> bool {
-    FORBIDDEN_OPS.contains(&name)
+    schema().is_forbidden(name)
 }
 
 /// Lowercase substrings no prompt bullet may match (§13 prompt censor): api keys, bearer
@@ -215,7 +162,8 @@ pub fn descriptor(name: &str) -> Option<&'static OpDescriptor> {
 /// Assemble the §4 "Available ops" bullets from a registry: entries whose capability is
 /// not wired are excluded (§13 capability truth); a forbidden name or a censor-matching
 /// bullet is a registry mistake and errors instead of leaking into the prompt.
-pub fn assemble_ops_section(ops: &[OpDescriptor], wired: &[&str]) -> Result<String, String> {
+pub fn assemble_ops_section(ops: impl AsRef<[OpDescriptor]>, wired: &[&str]) -> Result<String, String> {
+    let ops = ops.as_ref();
     let mut bullets = Vec::with_capacity(ops.len());
     for op in ops {
         if !capability_wired(op.capability, wired) {

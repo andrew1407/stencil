@@ -29,13 +29,13 @@ Implementations:
 | Subproject | Client / parser | Tests |
 |---|---|---|
 | `server/` | `internal/llm/` (`anthropic.go`, `providers.go`, `upstream.go`, `enablement.go`) + `internal/httpapi/llm.go`, `llmlimit.go`, `llmprompt.go` (proxies any of the three §6 mappings) | `internal/llm/*_test.go`, `internal/httpapi/llm_test.go`, `llmlimit_test.go`, `llmprompt_test.go` |
-| `browser/` | `js/llm/` (`llmClient.js`, `opPlan.js`, `chatController.js`, `chatSession.js`, `chatPersistence.js`, `chatStore.js`, `llmSettings.js`, `llmSurface.js`) | `tests/llmClient.test.js`, `opPlan.test.js`, `opPlanFixtures.test.js`, `llmWireFixtures.test.js`, `llmSettings.test.js`, `systemPromptAsset.test.js`, `opRegistryCanon.test.js` |
-| `desktop/` | `src/llm/` (`llmClient.*`, `opPlan.*`, `opRegistry.*`, `planExecutor.*`, chat dock/widgets, `qtLlmTransport.*`) | `tests/llmClient.headless.cpp`, `llmOpPlan.headless.cpp`, `llmExecutor.headless.cpp`, `llmSettings.headless.cpp`, `opPlanFixtures.headless.cpp`, `llmWireFixtures.headless.cpp`, `configCanon.headless.cpp` |
-| `pystencil/` | `pystencil/llm.py` (+ the mirrored assets in `pystencil/_data/`) | `tests/test_llm.py`, `test_fixture_conformance.py`, `test_canonical_drift.py` |
-| `bot/` | `Infrastructure/Llm/HttpLlmClient.cs`, `Application/Llm/` (`OpPlanParser.*`, `OpRegistry.cs`, `PromptService.*`, `PlanFrameMapper.cs`, `SystemPromptAsset.cs`), `Domain/Llm/ProvidersAsset.cs` (chat `/prompt`, `/p`, and `/chat` chat mode) | `HttpLlmClientTests`, `OpPlanParserTests`, `OpPlanFixtureWalkerTests`, `ProvidersAssetTests`, `ChatModeTests` |
-| `mcp/` | `src/llm.rs`, `src/opplan/` (`parse.rs`, `actions.rs`, `ask.rs`, `lower.rs`, `types.rs`), `src/registry.rs`, `src/llmtransport.rs`, `src/server/prompt.rs` | `tests/llm_test.rs`, `opplan_test.rs`, `opplan_fixtures_test.rs`, `llm_wire_fixtures_test.rs`, `llmtransport_test.rs`, `registry_test.rs` |
-| `cli/` | `src/llm.zig` + `src/llm/` (`config.zig`, `opplan.zig`, `registry.zig`, `transport.zig`, `wire.zig`) — console `/prompt`, `/llm` commands | `zig build test` llm suites (`console_test.zig`, `opplan_fixtures_test.zig`, `provider_wire_fixtures_test.zig`, `sanitizer_fixtures_test.zig`, `chatdoc_fixtures_test.zig`) |
-| `extension/` | `src/llm/` (`chatController.js`, `llmClient.js`, `llmSettings.js`, `llmSurface.js`, `opPlan.js`) — embedded assistant + extension op profile, §8 | `npm test` llm suites (incl. `dataParity.test.js`, `fixtureWalkers.test.js`) |
+| `browser/` | `js/llm/` (`llmClient.js`, `opPlan.js`, `opSchema.js` — the registry-driven validation engine (reference), `chatController.js`, `chatSession.js`, `chatPersistence.js`, `chatStore.js`, `llmSettings.js`, `llmSurface.js`) | `tests/llmClient.test.js`, `opPlan.test.js`, `opPlanFixtures.test.js`, `llmWireFixtures.test.js`, `llmSettings.test.js`, `systemPromptAsset.test.js`, `opRegistryCanon.test.js` |
+| `desktop/` | `src/llm/` (`llmClient.*`, `opPlan.*`, `opSchema.*` (registry engine), `opRegistry.*`, `planExecutor.*`, chat dock/widgets, `qtLlmTransport.*`) | `tests/llmClient.headless.cpp`, `llmOpPlan.headless.cpp`, `llmExecutor.headless.cpp`, `llmSettings.headless.cpp`, `opPlanFixtures.headless.cpp`, `llmWireFixtures.headless.cpp`, `configCanon.headless.cpp` |
+| `pystencil/` | `pystencil/llm.py`, `pystencil/_opschema.py` (registry engine; + the mirrored assets in `pystencil/_data/`, incl. `opRegistry.json`) | `tests/test_llm.py`, `test_fixture_conformance.py`, `test_canonical_drift.py` |
+| `bot/` | `Infrastructure/Llm/HttpLlmClient.cs`, `Application/Llm/` (`OpSchema.cs` (registry engine), `OpPlanParser.*`, `OpRegistry.cs`, `PromptService.*`, `PlanFrameMapper.cs`, `SystemPromptAsset.cs`), `Domain/Llm/ProvidersAsset.cs` (chat `/prompt`, `/p`, and `/chat` chat mode) | `HttpLlmClientTests`, `OpPlanParserTests`, `OpPlanFixtureWalkerTests`, `ProvidersAssetTests`, `ChatModeTests` |
+| `mcp/` | `src/llm.rs`, `src/opplan/` (`schema.rs` (registry engine), `parse.rs`, `actions.rs`, `ask.rs`, `lower.rs`, `types.rs`), `src/registry.rs`, `src/llmtransport.rs`, `src/server/prompt.rs` | `tests/llm_test.rs`, `opplan_test.rs`, `opplan_fixtures_test.rs`, `llm_wire_fixtures_test.rs`, `llmtransport_test.rs`, `registry_test.rs` |
+| `cli/` | `src/llm.zig` + `src/llm/` (`config.zig`, `opSchema.zig` (registry engine), `opplan.zig`, `registry.zig`, `transport.zig`, `wire.zig`) — console `/prompt`, `/llm` commands | `zig build test` llm suites (`console_test.zig`, `opplan_fixtures_test.zig`, `provider_wire_fixtures_test.zig`, `sanitizer_fixtures_test.zig`, `chatdoc_fixtures_test.zig`) |
+| `extension/` | `src/llm/` (`chatController.js`, `llmClient.js`, `llmSettings.js`, `llmSurface.js`, `opPlan.js`, `opSchema.js` — byte-identical copy of the browser engine over `src/config/opRegistry.json`) — embedded assistant + extension op profile, §8 | `npm test` llm suites (incl. `dataParity.test.js`, `fixtureWalkers.test.js`) |
 
 Design rules (from `CLAUDE.md` and `.claude/rules/`):
 
@@ -59,11 +59,11 @@ fix the prose.
 
 | Artifact | Normative for | Guarded by |
 |---|---|---|
-| `browser/js/config/llm/opRegistry.json` (+ [`opRegistry.README.md`](browser/js/config/llm/opRegistry.README.md)) | the op set: every op's keys/validation, per-profile membership, §1 limits, token regexes, §13 prompt bullets, and every measured cross-surface divergence | `browser/tests/opRegistryCanon.test.js` — pins it to the live `js/llm/opPlan.js` structures and cross-checks the fixture corpus |
+| `browser/js/config/llm/opRegistry.json` (+ [`opRegistry.README.md`](browser/js/config/llm/opRegistry.README.md)) | the op set: every op's keys/validation, per-profile membership, §1 limits, token regexes, §13 prompt bullets, and every measured cross-surface divergence | `browser/tests/opRegistryCanon.test.js` — pins it to the live `js/llm/opPlan.js` structures and cross-checks the fixture corpus; every surface's fixture walker proves its table-driven validator against the corpus |
 | `browser/js/config/llm/systemPrompt.json` (+ [`README.md`](browser/js/config/llm/README.md)) | the §4 prose core (`head`/`tail`/`extensionHead`/`extensionTail`) | `browser/tests/systemPromptAsset.test.js` (byte-identity, §13 regeneration, server-pin canaries); `extension/tests/dataParity.test.js` (the extension's checked-in copy); `server/internal/httpapi/llmprompt.go` byte-pins the head prefixes |
 | `browser/js/config/llm/providers.json` | §5 provider defaults/display names, wire paths, timeouts (incl. the recorded per-surface outliers), the server's Anthropic upstream constants | `desktop/tests/configCanon.headless.cpp`, `bot` `ProvidersAssetTests`, `pystencil/tests/test_canonical_drift.py`; cli (`src/llm/config.zig` `@embedFile`) and mcp (`src/llm.rs` `include_str!`) consume it at compile time |
 | `browser/js/config/layoutFields.json` | the §3 layout field set and export-payload key order | the layout fixtures below + `browser/js/core/layout.js` (the reference reader/writer) |
-| fixtures: `browser/js/config/llm/fixtures/{opPlan,providerWire,sanitizer,chatDoc}/` and `browser/js/config/fixtures/{layout,deepLink,stencilProject}/` — each with a `_schema.md` | the conformance corpus: 217 op-plan vectors (profiles + known divergences), wire/error vectors, §6.3 sanitizer cases, §12.1 chat-doc tolerance, layout payload/sparse vectors | per-surface walkers: browser `opPlanFixtures`/`llmWireFixtures`, desktop `opPlanFixtures.headless.cpp`/`llmWireFixtures.headless.cpp`, cli `tests/*_fixtures_test.zig`, mcp `tests/*_fixtures_test.rs`, pystencil `test_fixture_conformance.py`, bot `OpPlanFixtureWalkerTests`, extension `fixtureWalkers.test.js` (each with a local `fixture_overrides.json` for its pinned divergences) |
+| fixtures: `browser/js/config/llm/fixtures/{opPlan,providerWire,sanitizer,chatDoc}/` and `browser/js/config/fixtures/{layout,deepLink,stencilProject}/` — each with a `_schema.md` | the conformance corpus: 186 hand-written op-plan vectors (profiles + known divergences) + 444 registry-generated ones (`opPlan/generated/cases.json`, `npm run gen-fixtures`), wire/error vectors, §6.3 sanitizer cases, §12.1 chat-doc tolerance, layout payload/sparse vectors | per-surface walkers: browser `opPlanFixtures`/`llmWireFixtures`, desktop `opPlanFixtures.headless.cpp`/`llmWireFixtures.headless.cpp`, cli `tests/*_fixtures_test.zig`, mcp `tests/*_fixtures_test.rs`, pystencil `test_fixture_conformance.py`, bot `OpPlanFixtureWalkerTests`, extension `fixtureWalkers.test.js` (each with a local `fixture_overrides.json` for its pinned divergences) |
 
 ---
 
@@ -137,11 +137,17 @@ method uses. There is deliberately **no resize and no free-angle rotation** (cor
 neither).
 
 **Normative source: [`opRegistry.json`](browser/js/config/llm/opRegistry.json)** — one
-entry per op (46 today) with its key schema (`keys`), validation regexes, flags
-(`topLevelOnly`, settings scope, gather, needs-confirm), per-profile membership, prompt
-bullet, and every recorded cross-surface divergence. The hand-maintained op tables this
-section once carried are gone; the registry plus the `fixtures/opPlan/` corpus are the
-spec. What remains here is the semantics the registry entries share:
+entry per op (49 today) with its key schema (`keys`: types, enums, ranges, caps, token
+grammars, and the cross-field `forms` / `together` / `exclusive` / `minFields` /
+`onlyWith` / `requiredWith` rules), flags (`topLevelOnly`, settings scope, gather,
+needs-confirm), per-profile membership (with `surfaces` / `surfaceKeys` for the recorded
+within-profile differences), prompt bullet, and every remaining non-schema divergence.
+**Every surface's validator is table-driven from it** (schemaVersion 2): each surface
+embeds the registry and runs a port of the reference engine
+`browser/js/llm/opSchema.js`, keeping in code only its normalizers, executors and the one
+native rule (`cropAspectFold`). The hand-maintained op tables this section once carried
+are gone; the registry plus the `fixtures/opPlan/` corpus are the spec. What remains here
+is the semantics the registry entries share:
 
 - **Core ops** (every plan-executing surface): `crop` (cropSpec token strings, `aspect`
   resolved client-side by core's cropSpec logic — the model states the ratio, never

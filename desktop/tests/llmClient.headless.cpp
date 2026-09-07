@@ -805,7 +805,7 @@ int main(int argc, char** argv) {
       bool found = false;
       for (const OpDescriptor& e : opRegistry())
         if (p.first == QLatin1String(e.name) &&
-            QString::fromUtf8(e.bullet).contains(p.second))
+            e.bullet.contains(p.second))
           found = true;
       if (!found) {
         std::printf("    missing phrase for op %s\n", qPrintable(p.first));
@@ -826,7 +826,7 @@ int main(int argc, char** argv) {
     for (const auto& p : addendaPhrases) {
       bool found = false;
       for (const OpAddendum& ad : opAddenda())
-        if (ad.kind == p.first && QString::fromUtf8(ad.bullet).contains(p.second))
+        if (ad.kind == p.first && ad.bullet.contains(p.second))
           found = true;
       if (!found) addOk = false;
     }

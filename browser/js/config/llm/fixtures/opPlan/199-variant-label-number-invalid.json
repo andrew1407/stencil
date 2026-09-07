@@ -18,10 +18,5 @@
     ]
   },
   "expect": "invalid",
-  "knownDivergence": {
-    "desktop": "valid",
-    "pystencil": "valid",
-    "bot": "valid"
-  },
-  "reason": "variant label must be a string. MEASURED DIVERGENCE: pystencil, desktop (opPlan.cpp label toString(), non-string/absent -> empty) and the bot (OpPlanParser.ParsePlan) all silently coerce a non-string label to \"\" (then auto-name the variant) instead of failing"
+  "reason": "variant label must be a string (registry envelope); desktop, pystencil and the bot converged on the table-driven envelope check instead of coercing"
 }

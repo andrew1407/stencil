@@ -5,6 +5,7 @@
 // skip-with-warning, and the shared limits (16 actions / 8 variants / 200
 // lines / 5000 chars / 32 frame indices). Pure QtCore; no display needed.
 #include "opPlan.hpp"
+#include "opSchema.hpp"
 
 #include <QCoreApplication>
 #include <QString>
@@ -101,6 +102,10 @@ int main(int argc, char** argv) {
     many += "]}";
     check(!parseOpPlan(many).ok, "17 actions exceed the 16 limit");
   }
+  check(!parseOpPlan("{\"reply\":\"x\",\"variants\":[{\"label\":7,\"actions\":[]}]}").ok,
+        "a non-string variant label fails the plan (registry envelope)");
+  check(parseOpPlan("{\"reply\":\"x\",\"variants\":[{\"label\":\"v\",\"actions\":[],\"note\":\"x\"}]}").ok,
+        "a variant object tolerates undeclared keys (envelope allowUnknown)");
   {
     QString many = "{\"reply\":\"x\",\"variants\":[";
     for (int i = 0; i < 9; ++i) many += QString("%1{\"label\":\"v\"}").arg(i ? "," : "");
@@ -749,17 +754,14 @@ int main(int argc, char** argv) {
     check(!parseOpPlan("{\"reply\":\"v\",\"actions\":[{\"op\":\"compare\","
                        "\"mode\":\"sideways\"}]}").ok,
           "unknown compare mode fails");
-    // Models echo the divider back with a non-split mode; the field is ignored
-    // there (split stays 0 = absent), never a failed plan.
-    {
-      const auto n = parseOpPlan("{\"reply\":\"v\",\"actions\":[{\"op\":\"compare\","
-                                 "\"mode\":\"none\",\"split\":0.5}]}");
-      check(n.ok && n.plan.actions[0].mode == "none" && n.plan.actions[0].split == 0,
-            "split echoed with mode none is ignored, not fatal");
-      check(parseOpPlan("{\"reply\":\"v\",\"actions\":[{\"op\":\"compare\","
-                        "\"mode\":\"original\",\"split\":0.5}]}").ok,
-            "split with mode original is ignored too");
-    }
+    // The divider belongs to the SPLIT modes only (registry onlyWith; fixture 160):
+    // echoed beside "none"/"original" it fails the plan like any misplaced field.
+    check(!parseOpPlan("{\"reply\":\"v\",\"actions\":[{\"op\":\"compare\","
+                       "\"mode\":\"none\",\"split\":0.5}]}").ok,
+          "split with mode none fails (split modes only)");
+    check(!parseOpPlan("{\"reply\":\"v\",\"actions\":[{\"op\":\"compare\","
+                       "\"mode\":\"original\",\"split\":0.5}]}").ok,
+          "split with mode original fails too");
     check(!parseOpPlan("{\"reply\":\"v\",\"actions\":[{\"op\":\"compare\","
                        "\"mode\":\"vertical\",\"split\":0.01}]}").ok,
           "split below 0.02 fails");
@@ -1143,7 +1145,9 @@ int main(int argc, char** argv) {
     check(askAnswerText({}).isEmpty(), "no pick, no answer");
     check(askAnswerText({"Sepia"}, "  a warm green  ") == "a warm green", "typed text wins, trimmed");
     check(askAnswerText({"A", "   ", ""}) == "A", "blank labels never pad the answer");
-    check(askAnswerText({}, QString(kMaxAskAnswer + 20, 'x')).size() == kMaxAskAnswer, "answer capped");
+    const int answerCap = OpSchema::desktop().limit("ask.answer");
+    check(answerCap == 500 && askAnswerText({}, QString(answerCap + 20, 'x')).size() == answerCap,
+          "answer capped at the registry's ask.answer limit");
   }
 
   // ── planTouchesTheImage: what makes an attachment worth adopting ──

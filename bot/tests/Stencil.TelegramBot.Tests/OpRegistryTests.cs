@@ -81,6 +81,37 @@ public sealed class OpRegistryTests
     }
 
     [Fact]
+    public void EmbeddedRegistryMatchesCanonicalFileBytes()
+    {
+        // The embed copies the shared registry at build time; catch drift against the repo's copy.
+        using Stream? stream = typeof(OpSchema).Assembly.GetManifestResourceStream(
+            "Stencil.TelegramBot.Application.Assets.opRegistry.json");
+        Assert.NotNull(stream);
+        using var embedded = new MemoryStream();
+        stream.CopyTo(embedded);
+        byte[] canonical = File.ReadAllBytes(
+            SharedFixtures.PathOf("browser", "js", "config", "llm", "opRegistry.json"));
+        Assert.Equal(canonical, embedded.ToArray());
+    }
+
+    [Fact]
+    public void DescriptorsMirrorTheSharedRegistrysBotProfile()
+    {
+        // Same names in the same (prompt) order; bullets are the registry's, byte for byte.
+        OpSchema schema = OpSchema.Bot;
+        Assert.Equal("bot", schema.Profile);
+        Assert.Equal(schema.Entries.Select(e => e.Name), OpRegistry.Names);
+        Assert.Equal(schema.Forbidden.Order(), OpRegistry.ForbiddenOps.Order());
+        foreach (OpDescriptor op in OpRegistry.Ops)
+        {
+            Assert.Equal(schema.Ops[op.Names[0]].Bullet, op.Bullet);
+        }
+        Assert.Equal(
+            string.Join("\n", schema.Entries.Where(e => e.Bullet is not null).Select(e => e.Bullet)),
+            OpRegistry.CoreOpsSection + "\n" + OpRegistry.ProfileOpsSection);
+    }
+
+    [Fact]
     public void ParserKnownOpsEqualTheRegistryNames()
     {
         Assert.Equal(OpRegistry.Names.Order(), OpPlanParser.KnownOps.Order());

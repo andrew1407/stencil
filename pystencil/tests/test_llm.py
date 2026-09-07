@@ -622,7 +622,10 @@ class ParseOpPlanRejectionTest(unittest.TestCase):
 
     def test_layout_invalid_lines(self) -> None:
         self._reject(actions=[{"op": "layout", "lines": {"points": []}}])
-        self._reject(actions=[{"op": "layout", "lines": [{"points": []}]}])
+        # An empty point list is a valid (per-line defaults apply) line — the
+        # registry schema, like the browser reference, puts no floor on "points".
+        plan = parse_op_plan(_plan_json(actions=[{"op": "layout", "lines": [{"points": []}]}]))
+        self.assertEqual(plan.actions[0]["lines"], [{"points": []}])
         self._reject(
             actions=[{"op": "layout", "lines": [{"points": [{"x": 1}]}]}]
         )  # point missing y
@@ -670,7 +673,11 @@ class ParseOpPlanRejectionTest(unittest.TestCase):
 
     def test_variant_shape(self) -> None:
         self._reject(variants=["rotated"])
-        self._reject(variants=[{"label": "x", "actions": [], "seed": 1}])
+        self._reject(variants=[{"label": 7, "actions": []}])
+        # The registry envelope tolerates extra keys on a variant object (allowUnknown);
+        # only ops are strict about unknown fields.
+        plan = parse_op_plan(_plan_json(variants=[{"label": "x", "actions": [], "seed": 1}]))
+        self.assertEqual(plan.variants[0].label, "x")
 
 
 class _StubEditor:
@@ -1927,8 +1934,10 @@ class OpRegistryTest(unittest.TestCase):
             self.assertNotIn(absent, OP_REGISTRY)
 
     def test_flags_pin_the_contract_tables(self):
+        # The registry's topLevelOnly flags: the §2.1 pair, the history steppers and
+        # reset (a variant branches from a snapshot — there is no history to step).
         top_level = {n for n, s in OP_REGISTRY.items() if s.top_level_only}
-        self.assertEqual(top_level, {"undo", "redo", "image", "save"})
+        self.assertEqual(top_level, {"undo", "redo", "reset", "image", "save"})
         console = {n for n, s in OP_REGISTRY.items() if s.console_settings}
         self.assertEqual(console, {"connect", "disconnect", "delete", "openUrl",
                                    "clear", "clearChat"})
@@ -1947,7 +1956,7 @@ class OpRegistryTest(unittest.TestCase):
             self.assertIs(llm_module._ACTION_VALIDATORS[name], spec.validator)
             self.assertIs(llm_module._ACTION_APPLIERS[name], spec.applier)
         self.assertEqual(set(llm_module._TOP_LEVEL_ONLY_OPS),
-                         {"undo", "redo", "image", "save"})
+                         {"undo", "redo", "reset", "image", "save"})
         self.assertEqual(set(llm_module._CONSOLE_SETTINGS_OPS),
                          {"connect", "disconnect", "delete", "openUrl", "clear",
                           "clearChat"})
@@ -2347,8 +2356,9 @@ class MisplacedVariantOpTest(unittest.TestCase):
             parse_op_plan(_plan_json(actions=[{"op": "clear", "hard": True}]))
 
     def test_ask_option_preview_never_fails_the_plan(self):
-        # A console has nowhere to show previews, so an option's actions are dropped
-        # unread (§11) — a misplaced op in one can't reach the plan as an error.
+        # A console has nowhere to show previews: an option's actions are validated
+        # (§11) but never rendered — a misplaced op costs nothing but the preview,
+        # which was going to be dropped anyway, so ONE card-level note results.
         plan = parse_op_plan(
             _plan_json(
                 ask={

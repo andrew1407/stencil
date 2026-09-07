@@ -38,8 +38,13 @@ const PROFILES = new Set(['editor', 'console', 'bot', 'mcp', 'extension', 'all']
 const SURFACES = new Set(['browser', 'desktop', 'cli', 'pystencil', 'bot', 'mcp', 'extension']);
 
 const OP_PLAN_DIR = path.join(LLM_FIXTURES, 'opPlan');
-const opPlanFixtures = readdirSync(OP_PLAN_DIR).filter((f) => f.endsWith('.json')).sort()
-  .map((file) => ({ file, fx: JSON.parse(readFileSync(path.join(OP_PLAN_DIR, file), 'utf8')) }));
+const opPlanFixtures = [
+  ...readdirSync(OP_PLAN_DIR).filter((f) => f.endsWith('.json')).sort()
+    .map((file) => ({ file, fx: JSON.parse(readFileSync(path.join(OP_PLAN_DIR, file), 'utf8')) })),
+  // The registry-generated bundle (browser/tools/genOpPlanFixtures.mjs), one pseudo-file per case.
+  ...JSON.parse(readFileSync(path.join(OP_PLAN_DIR, 'generated', 'cases.json'), 'utf8')).cases
+    .map((fx) => ({ file: `${fx.name}.json`, fx })),
+];
 
 // Corpus-shape check, ported from browser/tests/opPlanFixtures.test.js.
 test('opPlan: the corpus exists and is well-formed', () => {

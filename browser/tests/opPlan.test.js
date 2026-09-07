@@ -966,8 +966,8 @@ test('§1 leniency: a plan of nothing but a misplaced variant still replies norm
 test('§1 leniency is scope-only — bad params inside a variant still fail the plan', () => {
   // A KNOWN op with invalid params is not a misplacement: strictness is unchanged.
   assert.throws(() => parseOpPlan(plan({ variants: [{ label: 'v', actions: [{ op: 'filter', mode: 'plaid' }] }] })),
-    /unknown mode/);
-  assert.throws(() => parseOpPlan(plan({ actions: [{ op: 'filter', mode: 'plaid' }] })), /unknown mode/);
+    /"mode" must be one of/);
+  assert.throws(() => parseOpPlan(plan({ actions: [{ op: 'filter', mode: 'plaid' }] })), /"mode" must be one of/);
   // …and an unknown op still drops just that action, with its own warning.
   const p = dropsWithWarning(plan({ variants: [{ label: 'v', actions: [{ op: 'teleport' }, { op: 'rotate', dir: 'left' }] }] }),
     /Skipped unknown operation "teleport"/);

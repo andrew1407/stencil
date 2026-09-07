@@ -26,11 +26,5 @@
     }
   },
   "expect": "invalid",
-  "knownDivergence": {
-    "extension": "valid",
-    "cli": "valid",
-    "pystencil": "valid",
-    "bot": "valid"
-  },
-  "reason": "only http(s) image.url is accepted — data:/file:/javascript: never. MEASURED DIVERGENCE: the extension never fetches ask urls and skips the scheme check (option kept, picture dropped with a warning), the consoles (cli and pystencil) never inspect an option image at all (previews dropped at parse), and the bot checks only that image.url is a non-empty string (it fetches nothing; no-preview warning) — VALID on all four"
+  "reason": "only http(s) image.url is accepted — data:/file:/javascript: never; uniform on every surface since the table-driven validators (surfaces that fetch nothing still validate the reference, then drop the picture)"
 }

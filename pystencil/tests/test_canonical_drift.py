@@ -118,5 +118,36 @@ class ProvidersAssetDriftTests(unittest.TestCase):
         self.assertEqual(_LLM_TIMEOUT, float(asset["timeouts"]["chatSeconds"]))
 
 
+# Canonical LLM op registry + the checked-in copy _opschema.py loads on first use.
+_CANON_REGISTRY = _CONSTANTS.parent / "llm" / "opRegistry.json"
+_DATA_REGISTRY = _PKG_ROOT / "pystencil" / "_data" / "opRegistry.json"
+
+
+class OpRegistryAssetDriftTests(unittest.TestCase):
+    def test_data_copy_is_byte_identical_to_canonical(self):
+        """pystencil/_data/opRegistry.json == browser's canonical registry, byte-for-byte."""
+        self.assertEqual(_DATA_REGISTRY.read_bytes(), _CANON_REGISTRY.read_bytes())
+
+    def test_validator_tables_derive_from_the_asset(self):
+        """Limits, membership, flags and the forbidden list come from the asset."""
+        from pystencil.llm import FORBIDDEN_OPS, MAX_ACTIONS, MAX_ASK_OPTIONS, OP_REGISTRY, SCHEMA
+
+        asset = json.loads(_DATA_REGISTRY.read_text(encoding="utf-8"))
+        self.assertEqual(asset["$meta"]["schemaVersion"], 2)
+        self.assertEqual(asset["$meta"]["surfaceProfiles"]["pystencil"], SCHEMA.profile)
+        self.assertEqual(MAX_ACTIONS, asset["limits"]["MAX_ACTIONS"])
+        self.assertEqual(MAX_ASK_OPTIONS, asset["limits"]["ask"]["maxOptions"])
+        self.assertEqual(FORBIDDEN_OPS, tuple(asset["forbidden"]["perSurface"]["pystencil"]))
+        mine = [
+            e for e in asset["ops"]
+            if SCHEMA.profile in e["profiles"]
+            and (not e.get("surfaces") or "pystencil" in e["surfaces"])
+        ]
+        self.assertEqual(set(OP_REGISTRY), {e["name"] for e in mine})
+        for e in mine:
+            keys = (e.get("surfaceKeys") or {}).get("pystencil") or e["keys"]
+            self.assertEqual(OP_REGISTRY[e["name"]].fields, frozenset({"op", *keys}), e["name"])
+
+
 if __name__ == "__main__":
     unittest.main()

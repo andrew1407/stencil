@@ -23,7 +23,7 @@ fn load_corpus() -> Vec<(String, Value)> {
         })
         .collect();
     files.sort();
-    files
+    let mut corpus: Vec<(String, Value)> = files
         .into_iter()
         .map(|file| {
             let raw = std::fs::read_to_string(format!("{FIXTURES_DIR}/{file}"))
@@ -32,7 +32,16 @@ fn load_corpus() -> Vec<(String, Value)> {
                 .unwrap_or_else(|e| panic!("{file} is not valid JSON: {e}"));
             (file, fx)
         })
-        .collect()
+        .collect();
+    // The registry-generated bundle (browser/tools/genOpPlanFixtures.mjs): one pseudo-file per case.
+    let bundle = format!("{FIXTURES_DIR}/generated/cases.json");
+    let raw = std::fs::read_to_string(&bundle).unwrap_or_else(|e| panic!("cannot read {bundle}: {e}"));
+    let generated: Value = serde_json::from_str(&raw).expect("generated/cases.json parses");
+    for fx in generated["cases"].as_array().expect("cases array") {
+        let name = fx["name"].as_str().expect("generated case name");
+        corpus.push((format!("{name}.json"), fx.clone()));
+    }
+    corpus
 }
 
 /// The mcp-side override table (`tests/fixture_overrides.json`, family `opPlan`).
@@ -53,7 +62,11 @@ fn corpus_is_well_formed() {
         corpus.len()
     );
     for (file, fx) in &corpus {
-        let slug = file.splitn(2, '-').nth(1).unwrap_or(file);
+        // Strip the NNN- prefix of a hand-written file; generated cases carry none.
+        let slug = match file.split_once('-') {
+            Some((num, rest)) if num.chars().all(|c| c.is_ascii_digit()) => rest,
+            _ => file.as_str(),
+        };
         assert_eq!(
             format!("{}.json", fx["name"].as_str().unwrap_or_default()),
             slug,

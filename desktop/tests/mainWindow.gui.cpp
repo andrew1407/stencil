@@ -10992,11 +10992,10 @@ class MainWindowGuiTest : public QObject {
     win.onChatSend("red album page with a rectangle, compared side by side");
     QTRY_COMPARE(win.canvas_->compareMode(), QStringLiteral("vertical"));
     mock.queue.clear();
-    // Models routinely echo the previous divider ("split") back with mode
-    // "none" — the §10 bullet shows the two fields side by side. That echo must
-    // not cost the plan.
+    // The follow-up carries the mode alone: an echoed "split" beside "none" is a
+    // parse failure since the registry's onlyWith rule (fixture 160).
     mock.response = plan("{\"version\":1,\"reply\":\"cleared\",\"actions\":["
-                         "{\"op\":\"compare\",\"mode\":\"none\",\"split\":0.4}]}");
+                         "{\"op\":\"compare\",\"mode\":\"none\"}]}");
     win.onChatSend("turn the comparison off");
     QTRY_COMPARE(win.canvas_->compareMode(), QStringLiteral("none"));
     QVERIFY2(!win.canvas_->compareReadOnly(), "compare 'none' left the canvas read-only");

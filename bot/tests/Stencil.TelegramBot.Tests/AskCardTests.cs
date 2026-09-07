@@ -5,9 +5,10 @@ namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
 /// The §11 interactive-reply card as the bot sees it: strict parsing (a card nobody can answer
-/// is a plan error), the bot's own preview rule (it resolves no option picture at all — a render
-/// spec, a project id, a page-scan index and a URL alike keep the option and lose the picture),
-/// and the answer text a tap composes for the next turn.
+/// is a plan error; an image reference is validated like everywhere else — exactly one of
+/// url / projectId / scanIndex, http(s) urls only), the bot's own preview rule (it resolves no
+/// option picture at all — a render spec, a project id, a page-scan index and a URL alike keep
+/// the option and lose the picture), and the answer text a tap composes for the next turn.
 /// </summary>
 public sealed class AskCardTests
 {
@@ -81,8 +82,6 @@ public sealed class AskCardTests
     [InlineData("""{"projectId":"p_12"}""")]
     [InlineData("""{"url":"https://example.com/cat.jpg"}""")]
     [InlineData("""{"url":"http://169.254.169.254/latest/meta-data/"}""")]
-    [InlineData("""{"url":"data:image/png;base64,AA"}""")]
-    [InlineData("""{"url":"file:///etc/passwd"}""")]
     public void AReferenceTheChatCannotResolveKeepsTheOptionButLosesThePicture(string image)
     {
         // Built by concatenation: the JSON's own braces fight raw-string interpolation here.
@@ -139,6 +138,9 @@ public sealed class AskCardTests
     [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","actions":[],"image":{"url":"https://e/x"}},{"label":"B"}]}}""")]
     [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{}},{"label":"B"}]}}""")]
     [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{"url":"https://e/x","projectId":"p"}},{"label":"B"}]}}""")]
+    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{"url":"data:image/png;base64,AA"}},{"label":"B"}]}}""")]   // http(s) only (§11.1)
+    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{"url":"file:///etc/passwd"}},{"label":"B"}]}}""")]
+    [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A","image":{"scanIndex":"2"}},{"label":"B"}]}}""")]
     [InlineData("""{"version":1,"reply":"x","ask":{"question":"Q","options":[{"label":"A"},{"label":"B"}],"allowCustom":"yes"}}""")]
     public void MalformedCardsRejectTheWholePlan(string json) => Reject(json);
 

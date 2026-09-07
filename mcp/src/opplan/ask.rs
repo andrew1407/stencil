@@ -3,145 +3,53 @@
 
 use serde_json::Value;
 
-use super::actions::misplaced_top_level_op;
-use super::{
-    AskCard, AskOption, OpPlanError, DEFAULT_CUSTOM_LABEL, MAX_ASK_LABEL, MAX_ASK_OPTIONS,
-    MAX_ASK_QUESTION, MIN_ASK_OPTIONS,
-};
+use super::actions::{misplaced_top_level_op, validate_actions};
+use super::schema::schema;
+use super::{AskCard, AskOption, OpPlanError};
 
 /// Validate the optional `ask` object (contract §11) → the card, or `None` when absent.
-/// Strict, like an action: a card nobody can answer (no options, one option, six options,
-/// an option that is both a render and a reference) rejects the whole plan rather than
-/// reaching the caller as a broken prompt.
+/// The card's structure (keys, caps, the image reference's exactly-one-of url /
+/// projectId / scanIndex, http(s)-only urls) is the registry's ask schema; a card nobody
+/// can answer rejects the whole plan rather than reaching the caller as a broken prompt.
 pub(super) fn validate_ask(
     value: Option<&Value>,
     warnings: &mut Vec<String>,
 ) -> Result<Option<AskCard>, OpPlanError> {
-    let Some(value) = value else { return Ok(None) };
-    if value.is_null() {
+    let Some(value) = value.filter(|v| !v.is_null()) else {
         return Ok(None);
-    }
-    let Value::Object(ask) = value else {
-        return Err(OpPlanError::Plan("\"ask\" must be an object".into()));
     };
-    for key in ask.keys() {
-        if !matches!(
-            key.as_str(),
-            "question" | "mode" | "options" | "allowCustom" | "customLabel"
-        ) {
-            return Err(OpPlanError::Plan(format!(
-                "\"ask\" has an unknown field \"{key}\""
-            )));
-        }
-    }
+    let schema = schema();
+    schema.validate_ask(value).map_err(OpPlanError::Plan)?;
+    // As a `Value`, so an absent optional key reads as `Null` instead of panicking.
+    let card =
+        Value::Object(schema.normalize_ask(value.as_object().expect("validated as an object")));
 
-    let question = match ask.get("question") {
-        Some(Value::String(s)) if !s.trim().is_empty() => s.trim().to_string(),
-        _ => {
-            return Err(OpPlanError::Plan(
-                "\"ask.question\" must be a non-empty string".into(),
-            ))
-        }
-    };
-    if question.chars().count() > MAX_ASK_QUESTION {
-        return Err(OpPlanError::Plan(format!(
-            "\"ask.question\" is longer than {MAX_ASK_QUESTION} characters"
-        )));
-    }
-
-    let multi = match ask.get("mode") {
-        None | Some(Value::Null) => false,
-        Some(Value::String(s)) if s == "multi" => true,
-        Some(Value::String(s)) if s == "single" => false,
-        _ => {
-            return Err(OpPlanError::Plan(
-                "\"ask.mode\" must be \"single\" or \"multi\"".into(),
-            ))
-        }
-    };
-    let allow_custom = match ask.get("allowCustom") {
-        None | Some(Value::Null) => false,
-        Some(Value::Bool(b)) => *b,
-        _ => {
-            return Err(OpPlanError::Plan(
-                "\"ask.allowCustom\" must be a boolean".into(),
-            ))
-        }
-    };
-    let custom_label = match ask.get("customLabel") {
-        None | Some(Value::Null) => DEFAULT_CUSTOM_LABEL.to_string(),
-        Some(Value::String(s)) if !s.trim().is_empty() => {
-            if s.chars().count() > MAX_ASK_LABEL {
-                return Err(OpPlanError::Plan(format!(
-                    "\"ask.customLabel\" is longer than {MAX_ASK_LABEL} characters"
-                )));
-            }
-            s.trim().to_string()
-        }
-        _ => {
-            return Err(OpPlanError::Plan(
-                "\"ask.customLabel\" must be a non-empty string".into(),
-            ))
-        }
-    };
-
-    let Some(Value::Array(raw_options)) = ask.get("options") else {
-        return Err(OpPlanError::Plan(
-            "\"ask.options\" must be an array".into(),
-        ));
-    };
-    if raw_options.len() < MIN_ASK_OPTIONS || raw_options.len() > MAX_ASK_OPTIONS {
-        return Err(OpPlanError::Plan(format!(
-            "\"ask.options\" must hold {MIN_ASK_OPTIONS}..{MAX_ASK_OPTIONS} options"
-        )));
-    }
-
-    let mut options = Vec::with_capacity(raw_options.len());
+    let mut options = Vec::new();
     let mut dropped_preview = false;
-    for (i, raw) in raw_options.iter().enumerate() {
+    for (i, option) in card["options"].as_array().into_iter().flatten().enumerate() {
         let position = i + 1;
-        let Value::Object(option) = raw else {
-            return Err(OpPlanError::Plan(format!(
-                "ask option {position} must be an object"
-            )));
-        };
-        for key in option.keys() {
-            if !matches!(key.as_str(), "label" | "actions" | "image") {
-                return Err(OpPlanError::Plan(format!(
-                    "ask option {position} has an unknown field \"{key}\""
-                )));
+        let label = option["label"].as_str().unwrap_or_default().to_string();
+        let has_actions = !option["actions"].is_null();
+        let has_image = !option["image"].is_null();
+        // Preview actions are ordinary §2 actions. §2.1 (registry flag): a preview may
+        // not switch images or save; §1 leniency: the misplacement drops the PREVIEW with
+        // a warning (the option keeps its place), it never fails the plan.
+        if has_actions {
+            if let Some(op) = misplaced_top_level_op(option.get("actions")) {
+                warnings.push(format!(
+                    "Dropped the preview on ask option {position} (\"{label}\"): \"{op}\" is a \
+                     top-level action only (§2.1)"
+                ));
+            } else {
+                validate_actions(
+                    option.get("actions"),
+                    warnings,
+                    &format!("ask option {position} actions"),
+                )?;
             }
         }
-        let label = match option.get("label") {
-            Some(Value::String(s)) if !s.trim().is_empty() => s.trim().to_string(),
-            _ => {
-                return Err(OpPlanError::Plan(format!(
-                    "ask option {position} \"label\" must be a non-empty string"
-                )))
-            }
-        };
-        if label.chars().count() > MAX_ASK_LABEL {
-            return Err(OpPlanError::Plan(format!(
-                "ask option {position} \"label\" is longer than {MAX_ASK_LABEL} characters"
-            )));
-        }
-        let has_actions = !matches!(option.get("actions"), None | Some(Value::Null));
-        let has_image = !matches!(option.get("image"), None | Some(Value::Null));
-        if has_actions && has_image {
-            return Err(OpPlanError::Plan(format!(
-                "ask option {position} carries both \"actions\" and \"image\" — an option \
-                 previews a render OR names an existing image"
-            )));
-        }
-        // §2.1 (registry flag): an option's preview may not switch images or save — those
-        // are top-level actions. §1 leniency: the misplacement drops the PREVIEW with a
-        // warning (the option keeps its place), it never fails the plan.
-        if let Some(op) = misplaced_top_level_op(option.get("actions")) {
-            warnings.push(format!(
-                "Dropped the preview on ask option {position} (\"{label}\"): \"{op}\" is a \
-                 top-level action only (§2.1)"
-            ));
-        }
+        // This server is a TOOL, not a chat: it cannot show a picture, so the preview —
+        // a render spec or an image reference — is dropped and only the label survives.
         if has_actions || has_image {
             dropped_preview = true;
         }
@@ -156,10 +64,13 @@ pub(super) fn validate_ask(
     }
 
     Ok(Some(AskCard {
-        question,
-        multi,
-        allow_custom,
-        custom_label,
+        question: card["question"].as_str().unwrap_or_default().to_string(),
+        multi: card["mode"].as_str() == Some("multi"),
+        allow_custom: card["allowCustom"].as_bool().unwrap_or(false),
+        custom_label: card["customLabel"]
+            .as_str()
+            .unwrap_or_else(|| schema.default_custom_label())
+            .to_string(),
         options,
     }))
 }

@@ -50,6 +50,12 @@ const MANIFEST = [
     canonical: () => canonical('../../browser/js/config/llm/providers.json'),
   },
   {
+    name: 'op registry: src/config/opRegistry.json ↔ config/llm/opRegistry.json',
+    mode: 'full',
+    extension: () => canonical('../src/config/opRegistry.json'),
+    canonical: () => canonical('../../browser/js/config/llm/opRegistry.json'),
+  },
+  {
     name: 'system prompt: src/config/systemPrompt.json ↔ config/llm/systemPrompt.json extension keys',
     mode: 'full',
     extension: () => canonical('../src/config/systemPrompt.json'),

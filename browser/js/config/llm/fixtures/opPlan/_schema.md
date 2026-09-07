@@ -25,6 +25,21 @@ Shared, language-neutral test corpus for every surface's op-plan validator
   surface-SPECIFIC output pins in the other fixture families, where the divergent value
   (own error wording, own sanitizer text, bodyPatch, …) has no cross-surface representation.
 
+Since the validators became table-driven from `opRegistry.json` (schemaVersion 2), a
+verdict divergence can only come from a recorded surface difference (`surfaces`,
+`surfaceKeys`, a native post-check, or forbidden-op policy) — never from a hand-coded
+check drifting. Fixtures 103/104/160/199 lost their overrides in that pass.
+
+**Generated cases.** `generated/cases.json` (one bundle, `{cases: [...]}` in the same shape,
+each case named `gen-<op>-<rule>`) is DERIVED from `opRegistry.json` by
+`browser/tools/genOpPlanFixtures.mjs` (`npm run gen-fixtures`): the minimal valid action per
+op, unknown/missing/wrong-type fields, enum and grammar rejections, range and cap boundary
+pairs, the cross-field presence rules, the plan envelope caps and the §11 card. Every walker
+loads it beside the hand-written files (each case walks as `<name>.json`);
+`browser/tests/opPlanFixtures.test.js` fails when the bundle is stale. Hand-written files
+are reserved for what the registry cannot derive: extraction tolerance, the aspect fold,
+variant/preview drops, forbidden-op policy, and every recorded divergence.
+
 Walkers: run each fixture whose `profiles` include the surface's profile (or `all`) through
 the surface's real parse/validate entry point and assert the verdict — see
 `browser/tests/opPlanFixtures.test.js` (the reference walker). Extension fixtures assume a

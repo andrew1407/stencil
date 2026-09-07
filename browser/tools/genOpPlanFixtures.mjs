@@ -1,0 +1,257 @@
+// Derives the op-plan conformance corpus's MECHANICAL cases from opRegistry.json — the
+// boundary pairs (N ok / N+1 invalid), unknown fields, wrong types, missing required keys,
+// enum/grammar rejections and the cross-field presence rules — for every op × profile,
+// and writes them as ONE bundle: js/config/llm/fixtures/opPlan/generated/cases.json.
+// Every surface's walker loads the bundle beside the hand-written files (same fixture
+// shape, see ../_schema.md). Run `npm run gen-fixtures` after a registry change;
+// tests/opPlanFixtures.test.js fails when the bundle on disk is stale.
+//
+// Usage: node tools/genOpPlanFixtures.mjs [--check]   (--check: exit 1 if stale, write nothing)
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const LLM_DIR = path.join(HERE, '..', 'js', 'config', 'llm');
+const OUT = path.join(LLM_DIR, 'fixtures', 'opPlan', 'generated', 'cases.json');
+
+export const generate = (registry) => {
+  const limits = registry.limits;
+  const limit = (v) => (typeof v === 'number' ? v : String(v).split('.').reduce((o, k) => o[k], limits));
+  const surfacesOf = (profile) => registry.profiles[profile].surfaces;
+  const ALL = Object.keys(registry.profiles);
+
+  // A sample that satisfies a key spec (the smallest shape that passes every rule).
+  const SAMPLE_BY_REGEX = {
+    CROP_TOKEN: '10%', CROP_ASPECT: '3:4', PAGE_FORMAT: 'a4', HEX: '#aabbcc', CSS_NAME: 'white',
+    FORMULA_X: 'x*2', FORMULA_Y: 'y*2', HTTP_URL: 'https://example.com/a.png',
+  };
+  const sample = (spec, parent) => {
+    switch (spec.type) {
+      case 'string': {
+        if (spec.enum) return spec.enum[0];
+        if (spec.regexBy) return SAMPLE_BY_REGEX[spec.regexBy.map[parent[spec.regexBy.key]]] || 'x';
+        const names = [].concat(spec.regex || []);
+        if (names.length) return SAMPLE_BY_REGEX[names[0]];
+        return spec.regexNot ? 'out.png' : 'x';
+      }
+      case 'integer': case 'number': {
+        if (spec.enum) return spec.enum[0];
+        const [lo, hi] = spec.range || [null, null];
+        return lo != null ? lo : hi != null ? hi : 1;
+      }
+      case 'boolean': return spec.enum ? spec.enum[0] : true;
+      case 'array': {
+        const n = spec.minItems != null ? limit(spec.minItems) : 1;
+        return Array.from({ length: n }, () => (spec.items ? sample(spec.items, {}) : 0));
+      }
+      case 'object': return minimalObject(spec.fields || {}, spec);
+      default: throw new Error(`unknown type ${spec.type}`);
+    }
+  };
+  // The smallest valid object for a key map + holder rules: required keys, the first
+  // form, one key for minFields; onlyWith dependencies are satisfied when a key rides.
+  const minimalObject = (fields, holder, want = []) => {
+    const chosen = new Set(want);
+    for (const [k, s] of Object.entries(fields)) if (s.required) chosen.add(k);
+    if (holder.forms) {
+      const form = holder.forms.find((f) => f.some((k) => chosen.has(k))) || holder.forms[0];
+      for (const k of form) chosen.add(k);
+    }
+    if (holder.minFields && chosen.size < holder.minFields) {
+      for (const k of Object.keys(fields)) { if (chosen.size >= holder.minFields) break; chosen.add(k); }
+    }
+    for (const group of holder.together || []) if (group.some((k) => chosen.has(k))) for (const k of group) chosen.add(k);
+    const out = {};
+    for (const k of Object.keys(fields)) {
+      if (!chosen.has(k)) continue;
+      const s = fields[k];
+      for (const [dep, vals] of Object.entries(s.onlyWith || {})) out[dep] = vals[0];
+    }
+    for (const k of Object.keys(fields)) {
+      if (chosen.has(k) && out[k] === undefined) out[k] = sample(fields[k], out);
+      const s = fields[k];
+      for (const [dep, vals] of Object.entries(s.requiredWith || {})) {
+        if (vals.includes(out[dep]) && out[k] === undefined) out[k] = sample(s, out);
+      }
+    }
+    return out;
+  };
+
+  const cases = [];
+  const plan = (actions) => ({ version: 1, reply: 'ok', actions });
+  const add = (c) => cases.push(c);
+
+  // ── per op ────────────────────────────────────────────────────────────────
+  for (const e of registry.ops) {
+    const keys = e.keys;
+    const profiles = e.profiles;
+    // Invalid-param cases: a surface of the profile that does not register the op sees an
+    // unknown-op skip instead (plan valid) — recorded as knownDivergence.
+    const skipSurfaces = e.surfaces
+      ? profiles.flatMap((p) => surfacesOf(p).filter((s) => !e.surfaces.includes(s))) : [];
+    const invalid = (slug, action, reason, extra = {}) => {
+      const c = { name: `gen-${e.id}-${slug}`, generated: true, profiles, input: plan([{ op: e.name, ...action }]), expect: 'invalid', reason, ...extra };
+      if (skipSurfaces.length) c.knownDivergence = Object.fromEntries(skipSurfaces.map((s) => [s, 'valid']));
+      add(c);
+    };
+    const valid = (slug, action, reason) =>
+      add({ name: `gen-${e.id}-${slug}`, generated: true, profiles, input: plan([{ op: e.name, ...action }]), expect: 'valid', reason });
+    const base = minimalObject(keys, e);
+    // A key present alongside whatever it needs (its form, its onlyWith dependency).
+    const withKey = (k, v) => {
+      const o = minimalObject(keys, e, [k]);
+      o[k] = v;
+      return o;
+    };
+
+    valid('minimal', base, 'the smallest action the registry admits');
+    invalid('unknown-field', { ...base, zzzCanary: 1 }, 'an undeclared field on a known op fails the plan (§1)');
+    if (e.forms) {
+      invalid('forms-none', Object.fromEntries(Object.entries(base).filter(([k]) => !e.forms.flat().includes(k))), `exactly one of ${e.forms.map((f) => f.join('+')).join(' / ')} is required — none given`);
+      if (e.forms.length > 1) {
+        const both = { ...minimalObject(keys, e, e.forms[0]), ...minimalObject(keys, e, e.forms[1]) };
+        invalid('forms-both', both, `exactly one of ${e.forms.map((f) => f.join('+')).join(' / ')} is required — two given`);
+      }
+    }
+    for (const group of e.together || []) {
+      const o = minimalObject(keys, e, group); delete o[group[1]];
+      invalid(`together-${group[0]}-alone`, o, `${group.join(' and ')} ride together`);
+    }
+    if (e.minFields) invalid('no-fields', {}, `needs at least ${e.minFields} of ${Object.keys(keys).join('/')}`);
+
+    for (const [k, s] of Object.entries(keys)) {
+      if (s.required && !e.forms) {
+        const o = { ...base }; delete o[k];
+        invalid(`${k}-missing`, o, `"${k}" is required`);
+      }
+      invalid(`${k}-wrong-type`, withKey(k, s.type === 'object' ? 5 : {}), `"${k}" must be a ${s.type}`);
+      if (s.enum && s.type === 'string') invalid(`${k}-enum-bogus`, withKey(k, 'zzz'), `"${k}" must be one of ${s.enum.join(', ')}`);
+      if (s.enum && s.type === 'boolean') invalid(`${k}-not-true`, withKey(k, !s.enum[0]), `"${k}" must be ${s.enum[0]}`);
+      if (s.range) {
+        const [lo, hi] = s.range;
+        const noun = s.type === 'integer' ? 'an integer' : 'a number';
+        if (lo != null) {
+          valid(`${k}-min-ok`, withKey(k, lo), `"${k}" at its lower bound ${lo}`);
+          invalid(`${k}-below-min`, withKey(k, lo - 1), `"${k}" must be ${noun} >= ${lo}`);
+        }
+        if (hi != null) {
+          valid(`${k}-max-ok`, withKey(k, hi), `"${k}" at its upper bound ${hi}`);
+          invalid(`${k}-above-max`, withKey(k, hi + 1), `"${k}" must be ${noun} <= ${hi}`);
+        }
+      }
+      if (s.type === 'integer') invalid(`${k}-fractional`, withKey(k, (s.range && s.range[0] != null ? s.range[0] : 1) + 0.5), `"${k}" must be an integer`);
+      const hasGrammar = s.regex || s.regexBy;
+      if (s.type === 'string' && s.maxChars != null && !hasGrammar && !s.enum) {
+        const n = limit(s.maxChars);
+        // A path-like key (regexNot URL_SCHEME) keeps a file extension so the surfaces
+        // with an openable-file post-check (desktop, cli) still accept the cap case.
+        const fill = (len) => (s.regexNot ? `${'x'.repeat(len - 4)}.png` : 'x'.repeat(len));
+        valid(`${k}-maxchars-ok`, withKey(k, fill(n)), `"${k}" at its ${n}-character cap`);
+        invalid(`${k}-maxchars-over`, withKey(k, fill(n + 1)), `"${k}" is longer than ${n} characters`);
+      }
+      if (s.nonEmpty) invalid(`${k}-blank`, withKey(k, '   '), `"${k}" must be a non-empty string`);
+      if (hasGrammar) {
+        const names = s.regexBy ? Object.values(s.regexBy.map) : [].concat(s.regex);
+        invalid(`${k}-grammar-bogus`, withKey(k, names.includes('CSS_NAME') ? '12 34' : 'zzz'), `"${k}" must match ${names.join(' or ')}`);
+      }
+      if (s.regexNot) invalid(`${k}-url-rejected`, withKey(k, 'https://example.com/x'), `"${k}" must not be a URL`);
+      if (s.type === 'array' && s.items && !s.opset) {
+        const min = s.minItems != null ? limit(s.minItems) : null;
+        const max = s.maxItems != null ? limit(s.maxItems) : null;
+        const item = () => sample(s.items, {});
+        if (min != null) invalid(`${k}-below-min-items`, withKey(k, Array.from({ length: min - 1 }, item)), `"${k}" needs at least ${min} entries`);
+        if (max != null) {
+          valid(`${k}-max-items-ok`, withKey(k, Array.from({ length: max }, item)), `"${k}" at its ${max}-entry cap`);
+          invalid(`${k}-above-max-items`, withKey(k, Array.from({ length: max + 1 }, item)), `more than ${max} entries in "${k}"`);
+        }
+      }
+      for (const [dep, vals] of Object.entries(s.onlyWith || {})) {
+        const other = keys[dep].enum.find((v) => !vals.includes(v));
+        if (other !== undefined) {
+          const o = withKey(k, sample(s, {})); o[dep] = other;
+          invalid(`${k}-without-${dep}`, o, `"${k}" only applies with "${dep}" ${vals.join('/')}`);
+        }
+      }
+      for (const [dep, vals] of Object.entries(s.requiredWith || {})) {
+        const o = { ...base, [dep]: vals[0] }; delete o[k];
+        invalid(`${k}-required-with-${dep}`, o, `"${k}" is required with "${dep}" ${vals[0]}`);
+      }
+    }
+  }
+
+  // ── plan envelope (every profile) ─────────────────────────────────────────
+  const rot = () => ({ op: 'rotate', dir: 'left' });
+  const A = limit('MAX_ACTIONS'), V = limit('MAX_VARIANTS');
+  add({ name: 'gen-envelope-actions-max-ok', generated: true, profiles: ['all'], input: plan(Array.from({ length: A }, rot)), expect: 'valid', reason: `${A} actions is the cap` });
+  add({ name: 'gen-envelope-actions-over', generated: true, profiles: ['all'], input: plan(Array.from({ length: A + 1 }, rot)), expect: 'invalid', reason: `more than ${A} actions — the length check fires before per-op validation on every surface` });
+  add({ name: 'gen-envelope-variants-max-ok', generated: true, profiles: ['all'], input: { ...plan([]), variants: Array.from({ length: V }, (_, i) => ({ label: `v${i + 1}`, actions: [rot()] })) }, expect: 'valid', reason: `${V} variants is the cap (the extension drops variants with a warning — still valid)` });
+  // The extension never walks variants (it drops them with a warning), so the variant caps
+  // are editor/console/bot/mcp cases.
+  const VARIANT_PROFILES = ALL.filter((p) => p !== 'extension');
+  add({ name: 'gen-envelope-variants-over', generated: true, profiles: VARIANT_PROFILES, input: { ...plan([]), variants: Array.from({ length: V + 1 }, (_, i) => ({ label: `v${i + 1}`, actions: [rot()] })) }, expect: 'invalid', reason: `more than ${V} variants — checked before the variants are walked on every surface` });
+  add({ name: 'gen-envelope-variant-actions-over', generated: true, profiles: VARIANT_PROFILES, input: { ...plan([]), variants: [{ label: 'v', actions: Array.from({ length: A + 1 }, rot) }] }, expect: 'invalid', reason: `more than ${A} actions inside a variant` });
+
+  // ── §11 ask card (every profile) ──────────────────────────────────────────
+  const ask = registry.ask.schema;
+  const askBase = () => ({ question: 'Q', options: [{ label: 'A' }, { label: 'B' }] });
+  const askPlan = (card) => ({ version: 1, reply: 'ok', ask: card });
+  const askInvalid = (slug, card, reason) => add({ name: `gen-ask-${slug}`, generated: true, profiles: ['all'], input: askPlan(card), expect: 'invalid', reason });
+  const askValid = (slug, card, reason) => add({ name: `gen-ask-${slug}`, generated: true, profiles: ['all'], input: askPlan(card), expect: 'valid', reason });
+  askValid('minimal', askBase(), 'the smallest card the registry admits');
+  askInvalid('unknown-field', { ...askBase(), zzzCanary: 1 }, 'an undeclared card field fails the plan');
+  for (const [k, s] of Object.entries(ask.keys)) {
+    if (s.required) { const c = askBase(); delete c[k]; askInvalid(`${k}-missing`, c, `"ask.${k}" is required`); }
+    askInvalid(`${k}-wrong-type`, { ...askBase(), [k]: s.type === 'object' ? 5 : {} }, `"ask.${k}" must be a ${s.type}`);
+    if (s.enum) askInvalid(`${k}-enum-bogus`, { ...askBase(), [k]: 'zzz' }, `"ask.${k}" must be one of ${s.enum.join(', ')}`);
+    if (s.nonEmpty) askInvalid(`${k}-blank`, { ...askBase(), [k]: '   ' }, `"ask.${k}" must be a non-empty string`);
+    if (s.type === 'string' && s.maxChars != null) {
+      const n = limit(s.maxChars);
+      askValid(`${k}-maxchars-ok`, { ...askBase(), [k]: 'x'.repeat(n) }, `"ask.${k}" at its ${n}-character cap`);
+      askInvalid(`${k}-maxchars-over`, { ...askBase(), [k]: 'x'.repeat(n + 1) }, `"ask.${k}" is longer than ${n} characters`);
+    }
+    if (s.type === 'array') {
+      const min = limit(s.minItems), max = limit(s.maxItems);
+      const opt = (i) => ({ label: `O${i + 1}` });
+      askInvalid(`${k}-below-min-items`, { ...askBase(), [k]: Array.from({ length: min - 1 }, (_, i) => opt(i)) }, `"ask.${k}" must hold ${min}..${max} entries`);
+      askValid(`${k}-max-items-ok`, { ...askBase(), [k]: Array.from({ length: max }, (_, i) => opt(i)) }, `"ask.${k}" at its ${max}-entry cap`);
+      askInvalid(`${k}-above-max-items`, { ...askBase(), [k]: Array.from({ length: max + 1 }, (_, i) => opt(i)) }, `"ask.${k}" holds more than ${max} entries`);
+    }
+  }
+  const optFields = ask.keys.options.items.fields;
+  const withOpt = (o) => ({ ...askBase(), options: [{ label: 'A', ...o }, { label: 'B' }] });
+  askInvalid('option-unknown-field', withOpt({ zzzCanary: 1 }), 'an undeclared option field fails the plan');
+  askInvalid('option-label-blank', withOpt({ label: '  ' }), 'an option label must be non-empty');
+  askInvalid('option-label-over', withOpt({ label: 'x'.repeat(limit(optFields.label.maxChars) + 1) }), `an option label is capped at ${limit(optFields.label.maxChars)} characters`);
+  askValid('option-label-max-ok', withOpt({ label: 'x'.repeat(limit(optFields.label.maxChars)) }), 'an option label at its cap');
+  askInvalid('option-actions-and-image', withOpt({ actions: [], image: { scanIndex: 0 } }), 'an option previews a render OR names an image — never both');
+  askInvalid('option-image-no-ref', withOpt({ image: {} }), 'an image reference needs exactly one of url / projectId / scanIndex');
+  askInvalid('option-image-two-refs', withOpt({ image: { url: 'https://example.com/a.png', projectId: 'p' } }), 'an image reference needs exactly one of url / projectId / scanIndex');
+  askInvalid('option-image-unknown-field', withOpt({ image: { zzz: 1 } }), 'an undeclared image-reference field fails the plan');
+  askInvalid('option-image-url-not-http', withOpt({ image: { url: 'data:image/png;base64,AA' } }), 'only http(s) image urls are accepted');
+  askInvalid('option-image-scanindex-negative', withOpt({ image: { scanIndex: -1 } }), 'scanIndex must be an integer >= 0');
+
+  // Names must be unique — a collision means two rules produced the same slug.
+  const seen = new Set();
+  for (const c of cases) { if (seen.has(c.name)) throw new Error(`duplicate generated fixture ${c.name}`); seen.add(c.name); }
+  return cases;
+};
+
+export const render = (cases) => JSON.stringify({
+  $schema: 'one entry per fixture, the shape of ../_schema.md; GENERATED by browser/tools/genOpPlanFixtures.mjs from opRegistry.json — do not edit, run `npm run gen-fixtures`',
+  cases,
+}, null, 1) + '\n';
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const registry = JSON.parse(readFileSync(path.join(LLM_DIR, 'opRegistry.json'), 'utf8'));
+  const text = render(generate(registry));
+  if (process.argv.includes('--check')) {
+    const current = existsSync(OUT) ? readFileSync(OUT, 'utf8') : '';
+    if (current !== text) { console.error(`stale: ${OUT} — run npm run gen-fixtures`); process.exit(1); }
+    console.log('generated corpus is fresh');
+  } else {
+    mkdirSync(path.dirname(OUT), { recursive: true });
+    writeFileSync(OUT, text);
+    console.log(`wrote ${OUT} (${JSON.parse(text).cases.length} cases)`);
+  }
+}

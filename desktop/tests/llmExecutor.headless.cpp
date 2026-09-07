@@ -988,15 +988,16 @@ int main(int argc, char** argv) {
     check(res.ok && target.zoomFit, "zoom fit:true reaches the fit path");
   }
   {
-    // Vertical, then a follow-up "none" that ECHOES the divider back (models do):
-    // the split view clears — the echoed field is ignored, never a failed plan.
+    // Vertical, then a follow-up "none": the split view clears. (An echoed
+    // "split" beside "none" is a parse failure since the registry's onlyWith rule —
+    // fixture 160 — so the follow-up carries the mode alone.)
     CanvasPlanTarget target(img, a4);
     const ExecResult on = executePlan(
         parseOpPlan(R"({"reply":"v","actions":[
           {"op":"compare","mode":"vertical","split":0.3}]})").plan, target);
     const ExecResult off = executePlan(
         parseOpPlan(R"({"reply":"n","actions":[
-          {"op":"compare","mode":"none","split":0.3}]})").plan, target);
+          {"op":"compare","mode":"none"}]})").plan, target);
     check(on.ok && off.ok, "compare vertical then none both execute");
     check(target.compareMode == "none", "compare none clears the split view");
   }

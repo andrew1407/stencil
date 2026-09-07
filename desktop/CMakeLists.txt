@@ -109,6 +109,7 @@ if(Qt6_FOUND)
     src/llm/chatPlanTarget.cpp
     src/llm/opPlan.cpp
     src/llm/opRegistry.cpp
+    src/llm/opSchema.cpp
     src/llm/llmClient.cpp
     src/llm/planExecutor.cpp
     src/llm/qtLlmTransport.cpp
@@ -712,7 +713,10 @@ if(Qt6_FOUND)
   # parse matrix (extraction tolerance, strict per-op validation, limits).
   add_executable(stencil_llmopplan_headless
     tests/llmOpPlan.headless.cpp
-    src/llm/opPlan.cpp)
+    src/llm/opPlan.cpp
+    src/llm/opRegistry.cpp
+    src/llm/opSchema.cpp
+    resources/app.qrc)
   target_include_directories(stencil_llmopplan_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_llmopplan_headless PRIVATE stencil_core Qt6::Core)
   add_test(NAME stencil_llmopplan_headless COMMAND stencil_llmopplan_headless)
@@ -730,7 +734,10 @@ if(Qt6_FOUND)
   # the local override map (the desktop drift inventory).
   add_executable(stencil_opplanfixtures_headless
     tests/opPlanFixtures.headless.cpp
-    src/llm/opPlan.cpp)
+    src/llm/opPlan.cpp
+    src/llm/opRegistry.cpp
+    src/llm/opSchema.cpp
+    resources/app.qrc)
   target_include_directories(stencil_opplanfixtures_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_compile_definitions(stencil_opplanfixtures_headless PRIVATE ${STENCIL_FIXTURE_WALKER_DEFS})
   target_link_libraries(stencil_opplanfixtures_headless PRIVATE stencil_core Qt6::Core)
@@ -745,6 +752,7 @@ if(Qt6_FOUND)
     tests/llmWireFixtures.headless.cpp
     src/llm/opPlan.cpp
     src/llm/opRegistry.cpp
+    src/llm/opSchema.cpp
     src/net/serverClient.cpp
     src/net/connectionStore.cpp
     resources/app.qrc)
@@ -762,6 +770,7 @@ if(Qt6_FOUND)
     src/llm/llmClient.cpp
     src/llm/opPlan.cpp
     src/llm/opRegistry.cpp
+    src/llm/opSchema.cpp
     src/net/serverClient.cpp
     src/net/connectionStore.cpp
     resources/app.qrc)
@@ -804,6 +813,7 @@ if(Qt6_FOUND)
     tests/llmExecutor.headless.cpp
     src/llm/opPlan.cpp
     src/llm/opRegistry.cpp
+    src/llm/opSchema.cpp
     src/llm/planExecutor.cpp
     src/canvas/canvasWidget.cpp
     src/support/theme.cpp

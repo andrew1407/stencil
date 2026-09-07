@@ -4,13 +4,14 @@
 #include <QStringList>
 #include <QVector>
 
-// Op registry (llm-contract.md §13) — the single source of an op's existence
-// on the desktop surface. One descriptor per OpKind carries the op's wire
-// name, its §4/§10 prompt bullet (verbatim), its flags, and its runtime
-// capability requirement; the "Available ops" section and the §10 editor
-// block of the system prompt are ASSEMBLED from this table (llmClient
-// systemPrompt), never hand-embedded. Tests pin the op-name set, the flags
-// and one key phrase per bullet — see tests/llmClient.headless.cpp.
+// Op registry (llm-contract.md §13) — the desktop's view of the shared
+// config/llm/opRegistry.json (opSchema.hpp). One descriptor per OpKind carries
+// the op's wire name, its §4/§10 prompt bullet (the registry's, byte-verbatim),
+// its flags (the registry's) and its runtime capability requirement (the
+// desktop's own); the "Available ops" section and the §10 editor block of the
+// system prompt are ASSEMBLED from this table (llmClient systemPrompt), never
+// hand-embedded. Tests pin the op-name set, the flags and one key phrase per
+// bullet — see tests/llmClient.headless.cpp.
 namespace stencil::llm {
 
   // Runtime capabilities a bullet may require (§13 "capability truth"). On
@@ -32,8 +33,8 @@ namespace stencil::llm {
   // joins (§10 editor block vs the core §2 list).
   struct OpDescriptor {
     OpKind kind;
-    const char* name;      // wire op name — must match the opPlan parser
-    const char* bullet;    // verbatim prompt bullet (no trailing newline)
+    const char* name;      // wire op name — a registry entry of this surface
+    QString bullet;        // the registry's prompt bullet (no trailing newline)
     bool editorSettings;   // §10 scope (banned in variants; editor block)
     bool topLevelOnly;     // §2/§2.1 top-level-only enforcement
     bool history;          // §2 undo/redo history ops
@@ -42,10 +43,10 @@ namespace stencil::llm {
 
   // A widening note attached to an already-registered op ("… also accepts"),
   // emitted at the end of the §10 block; dropped with its op when the op's
-  // capability is missing.
+  // capability is missing. The registry's `also` lines, in `alsoOrder`.
   struct OpAddendum {
     OpKind kind;
-    const char* bullet;
+    QString bullet;
   };
 
   // The full desktop table, in prompt emission order (§2 core ops, then the
@@ -53,14 +54,16 @@ namespace stencil::llm {
   const QVector<OpDescriptor>& opRegistry();
   const QVector<OpAddendum>& opAddenda();
 
-  // Wire name of a kind ("" if somehow unregistered).
+  // Wire name of a kind ("" if somehow unregistered), and the reverse.
   QString opName(OpKind kind);
+  bool opKindFor(const QString& name, OpKind* out);
 
-  // §13 forbidden ops — names the model must never be able to drive:
-  // llm/provider configuration, clipboard reads, hotkey rebinding,
-  // session/window end, chat persistence/consent toggles, and server-side
-  // destruction beyond what §10 grants. Enforced by a registry test (no
-  // entry may use one) and an executor-level reject (rejectForbiddenOp).
+  // §13 forbidden ops — names the model must never be able to drive
+  // (the registry's forbidden.perSurface.desktop): llm/provider configuration,
+  // clipboard reads, hotkey rebinding, session/window end, chat
+  // persistence/consent toggles, and server-side destruction beyond what §10
+  // grants. The parser skips them as unknown; the executor refuses them
+  // (rejectForbiddenOp), and a registry test pins that no entry uses one.
   QStringList forbiddenOps();
   bool isForbiddenOpName(const QString& name);
   // Executor tooth: true (and sets *err) when `name` is forbidden.
