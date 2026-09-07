@@ -61,7 +61,7 @@ namespace stencil::gui {
   bool MainWindow::eventFilter(QObject* obj, QEvent* event) {
     // Canvas scrollbar auto-hide: hovering a bar directly (to find/grab it) must never let
     // it fade out from under the cursor — see revealCanvasScrollbars/scheduleScrollbarHide.
-    if (scroll_ && (obj == scroll_->horizontalScrollBar() || obj == scroll_->verticalScrollBar())) {
+    if (scroll_ && (obj == canvasScrollBar(Qt::Horizontal) || obj == canvasScrollBar(Qt::Vertical))) {
       if (event->type() == QEvent::Enter) { scrollbarHovered_ = true; revealCanvasScrollbars(); }
       else if (event->type() == QEvent::Leave) { scrollbarHovered_ = false; scheduleScrollbarHide(); }
     }

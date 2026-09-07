@@ -1,7 +1,8 @@
 import {
-  motionReduced, strokeBowSign, strokeFlyMs, strokeFlyPoint, strokePhase, strokeRipple,
+  strokeBowSign, strokeFlyMs, strokeFlyPoint, strokePhase, strokeRipple,
   strokeSpark, strokeVertexScale, strokeWake,
 } from '../ui/motion.js';
+import { drawMotionEnabled } from '../ui/motionPrefs.js';
 import { pointColorOf } from './renderer.js';
 
 // ── StrokeFx: the vertices currently in flight ──────────────────────────────
@@ -49,7 +50,9 @@ export class StrokeFx {
   // Send the point at `idx` on its way. `from` defaults to the neighbour it hangs off
   // (the one before, else the one after); a line's first point has none and only pops.
   flyIn(line, idx, from = null) {
-    if (!this.#schedule || motionReduced()) return null;
+    // "Drawing animation" off (Visuals modal / stencil.drawingAnimations) puts the
+    // vertex straight where it was put — as does any motion mode that stops the app.
+    if (!this.#schedule || !drawMotionEnabled()) return null;
     const pts = line?.points;
     const pt = pts?.[idx];
     if (!pt) return null;

@@ -163,6 +163,8 @@ namespace stencil::gui {
     actProjectColor_->setEnabled(false);
     actProjectColorClear_->setEnabled(false);
     project->addSeparator();
+    project->addAction(actDescription_);
+    project->addAction(actKeywords_);
     project->addAction(actLinks_);
     project->addAction(actOpenIn_);
     support::revealMenuBarMenu(*project, *menuBar());

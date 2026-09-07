@@ -1,0 +1,17 @@
+{
+  "name": "dialog-projects",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "dialog",
+        "name": "projects"
+      }
+    ]
+  },
+  "expect": "valid"
+}

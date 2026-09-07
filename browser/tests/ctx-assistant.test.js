@@ -633,7 +633,9 @@ test('the empty state waits out the wipe instead of appearing under the falling 
   // resolves on LEAVE_MS while the particles keep falling for DISINTEGRATE_MS.
   const motion = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
   assert.match(motion, /export const wipeDurationMs = \(\) => \{[\s\S]*Math\.max\(LEAVE_MS, DISINTEGRATE_MS\)/);
-  assert.match(motion, /return reduced \? 0 :/, 'reduced motion has nothing to wait for');
+  assert.match(motion, /if \(motionReduced\(\)\) return 0;/, 'reduced motion has nothing to wait for');
+  // …and neither has a mode with no particles in it: the row's own collapse IS the wipe.
+  assert.match(motion, /dustEnabled\(\) \? Math\.max\(LEAVE_MS, DISINTEGRATE_MS\) : LEAVE_MS/);
 });
 
 // ── The images a turn carries belong to the USER's row ──

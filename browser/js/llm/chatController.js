@@ -155,7 +155,10 @@ export const createChatController = ({
   renameActiveProject,    // §10 renameProject: async (name) => note-string | null (store errors as notes)
   setBlankColor,          // §10 blankColor: async (color) => note-string | null (non-blank → note)
   openProjectNamed,       // §10 openProject: async (name) => note-string | null (confirms in-app)
+  setChatPlacement,       // §10 chat: async ({open, dock}) => note-string | null (the panel's own buttons)
+  openDialog,             // §10 dialog: async (name|null) => note-string | null (null closes; executor-deferred)
   clearChatConversation,  // §10 clearChat: async () => note-string | null (confirms in-app; executor-deferred)
+  setVoiceChat,           // §10 voiceChat: (on) => note-string | null (browser-only; unsupported → note)
 } = {}) => {
   const history = [];       // [{ role, text, images? }] — canonical wire shape
   // This turn's user images, kept past the queue drain so an EDITING plan can adopt
@@ -340,15 +343,22 @@ export const createChatController = ({
     },
   };
 
-  // §10 clearChat lands at the turn's true END — after the §7 continuation round
-  // and the §3 passes, not at the end of the round that asked. Both rounds feed
-  // the same `deferred` list; dedup by op so a clearChat asked twice confirms once.
+  // §10 clearChat and `dialog` land at the turn's true END — after the §7 continuation
+  // round and the §3 passes, not at the end of the round that asked. Both rounds feed
+  // the same `deferred` list; dedup by op so a clearChat asked twice confirms once, and
+  // one "open the projects window" opens one window.
   const flushDeferred = async (deferred, warnings) => {
     if (!deferred.length) return;
-    const seen = new Set();
-    const actions = deferred.filter((a) => !seen.has(a.op) && seen.add(a.op));
-    // clearChat is the only deferred op, so only its capability rides along.
-    const { warnings: w } = await executeOpPlan({ actions, variants: [], warnings: [] }, stencil, { clearChatConversation });
+    // One action per deferred op, and it is the LAST one asked for: a plan that closes a
+    // window and opens another ends with the second one open (first-wins left the user
+    // staring at nothing), while a clearChat asked twice still confirms once.
+    const byOp = new Map();
+    for (const a of deferred) byOp.set(a.op, a);
+    const actions = [...byOp.values()];
+    // Every DEFERRED op's capability rides along — a replay missing one would fail the
+    // op at the very end of a turn that had otherwise gone through.
+    const { warnings: w } = await executeOpPlan({ actions, variants: [], warnings: [] }, stencil,
+      { clearChatConversation, openDialog });
     warnings.push(...w);
   };
 
@@ -421,7 +431,7 @@ export const createChatController = ({
         activeAttachment = at;
       };
       const { results, warnings } = await executeOpPlan(plan, stencil, {
-        exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, deferredSink: deferred,
+        exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, deferredSink: deferred,
         saveProject: saveProject
           ? (name) => saveProject(name || attachmentSaveName(activeAttachment))
           : null,

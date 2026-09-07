@@ -37,14 +37,17 @@ namespace stencil::gui {
     constexpr const char* kDefFocusRing = "#7c3aed";
     constexpr int kDefHoldDelay = 500;
     constexpr const char* kDefAccent = "violet";
+    // ui/motionPrefs.js DEFAULT_DRAWING_ANIMATIONS / DEFAULT_MOTION_MODE.
+    constexpr bool kDefDrawAnim = true;
+    constexpr const char* kDefMotionMode = "particles";
   }  // namespace
 
   SettingsDialog::SettingsDialog(const Settings& current, QWidget* parent)
       : QDialog(parent), base_(current), colorHex_(current.defaultColor),
         fillHex_(current.defaultFillColor), selGlowHex_(current.selGlowColor),
         hoverRingHex_(current.hoverRingColor), focusRingHex_(current.focusRingColor) {
-    setWindowTitle("Style & Visual Settings");
-    ModalChrome chrome = installModalChrome(this, "palette", tr("Style & Visual Settings"));
+    setWindowTitle("Visuals & Settings");
+    ModalChrome chrome = installModalChrome(this, "palette", tr("Visuals & Settings"));
     search_ = addModalSearchBar(chrome, tr("Search settings…"));
     search_->setToolTip("Filter the settings by name");
     ModalScrollBody body = makeModalScrollBody(chrome);
@@ -141,6 +144,28 @@ namespace stencil::gui {
     }
     row(tr("Appearance"), theme_);
     connect(theme_, &QComboBox::activated, this, [this] { applyLive(); });
+
+    // ── Motion (browser visualsModal.js "Motion", same two rows in the same order) ──
+    // Live-applied like everything else here, so the dialog's OWN closing flight is
+    // already the mode you just picked.
+    section(tr("Motion"));
+
+    check(drawAnim_, current.drawingAnimations,
+          "On: a new point flies to where you put it, popping and rippling as it lands.\n"
+          "Off: every point goes straight down.");
+    row(tr("Drawing animation"), drawAnim_, /*column=*/false);
+
+    motionMode_ = combo("How the interface itself moves — windows, menus, marks, the canvas");
+    // The browser's MOTION_MODE_LABELS, in its order (ui/motionPrefs.js).
+    motionMode_->addItem("Particles (dust)", "particles");
+    motionMode_->addItem("Sliding (no dust)", "slide");
+    motionMode_->addItem("None", "none");
+    {
+      const int idx = motionMode_->findData(current.motionMode);
+      motionMode_->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    row(tr("Interface animation"), motionMode_);
+    connect(motionMode_, &QComboBox::activated, this, [this] { applyLive(); });
 
     // ── Drawing defaults (applied to new lines) ──
     section(tr("Drawing defaults (applied to new lines)"));
@@ -344,6 +369,8 @@ namespace stencil::gui {
     holdDelay_->setValue(kDefHoldDelay);
     style_->setCurrentIndex(qMax(0, style_->findData(kDefStyle)));
     accent_->setCurrentIndex(qMax(0, accent_->findData(kDefAccent)));
+    drawAnim_->setChecked(kDefDrawAnim);
+    motionMode_->setCurrentIndex(qMax(0, motionMode_->findData(QLatin1String(kDefMotionMode))));
     applyLive();
     emit visualsReset();
   }
@@ -381,6 +408,8 @@ namespace stencil::gui {
     s.customPageWidth = customW_->value();
     s.customPageHeight = customH_->value();
     s.holdDrawDelay = holdDelay_->value();
+    s.drawingAnimations = drawAnim_->isChecked();
+    s.motionMode = motionMode_->currentData().toString();
     s.browserBaseUrl = browserUrl_->text().trimmed();
     s.telegramBotUsername = botUsername_->text().trimmed().remove(QLatin1Char('@'));
     return s;

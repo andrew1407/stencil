@@ -251,6 +251,16 @@ namespace stencil::gui {
     }
   }
 
+  // The browser's own thumb grey (css/theme.css --sb-thumb), lighter than the border
+  // colour the bars used to borrow; under the pointer it takes the theme's accent, exactly
+  // as the browser's --sb-thumb-hover: var(--accent) does (user decision).
+  QColor canvasScrollThumb(bool dark) {
+    return displayColor(QColor(dark ? "#6a6a6a" : "#d4d8de"));
+  }
+  QColor canvasScrollThumbHover(bool dark, const QString& accentKey) {
+    return themePalette(dark, accentKey).accent;
+  }
+
   QString buildStylesheet(bool dark, const QString& accentKey) {
     const Palette p = themePalette(dark, accentKey);
     auto c = [](const QColor& q) { return q.name(); };
@@ -269,9 +279,9 @@ namespace stencil::gui {
     // halfway to that surface, so a disabled combo's arrow recedes with its text.
     const QColor disabledBg = dark ? p.bgControls : p.bgContainer.darker(108);
     const QColor caretDim = mixSrgb(p.textMuted, disabledBg, 0.55);
-    // Canvas scrollbar hover: a lighter/darker shade of the SAME grey, not an accent-colour
-    // swap (see the scrollbar QSS comment below).
-    const QColor sbThumbHover = dark ? p.borderMain.lighter(135) : p.borderMain.darker(118);
+    // Canvas scrollbar hover: the theme accent (browser --sb-thumb-hover parity).
+    const QColor sbThumbHover = canvasScrollThumbHover(dark, accentKey);
+    const QColor sbThumb = canvasScrollThumb(dark);
     // Drag & drop hint strip (browser --bg-drop-hint/--border-hint, css/theme.css).
     // NB argument order: CSS color-mix(accent P%, base) == mixSrgb(base, accent, P).
     const QColor dropHintBg = dark ? mixSrgb(p.bgPage, p.accent, 0.16)
@@ -637,6 +647,12 @@ namespace stencil::gui {
         background: %ACCENT%; border-color: %ACCENT%; image: url(:/icons/radio-dot.png);
       }
       QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: %ACCENT2%; }
+      /* Keyboard focus (a menu flyout's second → / Tab, stayOpenMenu.cpp): the box itself
+         shows nothing for :focus, so the whole control takes a soft accent wash — the
+         browser's #ctx-menu :focus-visible ring. */
+      QCheckBox:focus, QRadioButton:focus {
+        background: %ACCENT_SOFT%; border-radius: 4px;
+      }
       /* f(x,y) formula toggle: an accent PILL (matches the browser's .pill-toggle) — accent
          outline + text when off, accent-filled with white text when on. The tick indicator is
          hidden; the whole chip conveys the state. */
@@ -794,17 +810,40 @@ namespace stencil::gui {
          shared 560px modal width the connect hint has to land on ONE line as it does
          in the browser. */
       QLabel#modalFooterHint { color: %MUTED%; font-size: 11px; background: transparent; }
+      /* The crop dialog's size line under the preview (browser #crop-dims). */
+      QLabel#cropDims { color: %MUTED%; font-size: 13px; background: transparent; }
       /* The prompt dialog's field (modalChrome.cpp promptModal) — the browser's
          .confirm-prompt-input and its multi-line twin: the input fill, a hairline
          that turns accent on focus, 8px radius. The line-edit half already gets
          that from the shared QLineEdit rule; only the text area needs its own. */
-      QPlainTextEdit#modalPromptText {
+      QPlainTextEdit#modalPromptText, QPlainTextEdit#descriptionText, QPlainTextEdit#keywordsText {
         background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
         border-radius: 8px; padding: 5px 7px;
         selection-background-color: %ACCENT%; selection-color: white;
       }
-      QPlainTextEdit#modalPromptText:hover { border-color: %ACCENT_RING%; }
-      QPlainTextEdit#modalPromptText:focus { border: 2px solid %ACCENT%; padding: 4px 6px; }
+      QPlainTextEdit#modalPromptText:hover, QPlainTextEdit#descriptionText:hover,
+      QPlainTextEdit#keywordsText:hover { border-color: %ACCENT_RING%; }
+      QPlainTextEdit#modalPromptText:focus, QPlainTextEdit#descriptionText:focus,
+      QPlainTextEdit#keywordsText:focus { border: 2px solid %ACCENT%; padding: 4px 6px; }
+      /* …and the reason a value cannot be saved, under the field (promptModal validate). */
+      QLabel#modalPromptReason { color: %DANGER%; font-size: 12px; background: transparent; }
+      /* The picker dialog's select (modalChrome.cpp chooseModal — browser
+         .confirm-choose-select): the shared combo chrome, full width, 8px radius. */
+      QComboBox#modalChooseSelect { padding: 7px 10px; border-radius: 8px; font-size: 13px; }
+      /* The Open In… dialog's Telegram fallback (browser #open-in-fallback-cmds): the two
+         bot commands as selectable code. */
+      QLabel#openInFallbackCmds {
+        font-family: Menlo, Consolas, monospace; font-size: 12px; background: transparent;
+      }
+      /* The logo's accent-preset popover (mainWindow.cpp openAccentPicker): menu-tight
+         rows — a left-aligned label hugging its colour chip, a row-wide hover fill. */
+      QDialog#accentPopover QPushButton {
+        background: transparent; border: none; border-radius: 6px; text-align: left;
+        padding: 5px 14px 5px 4px;
+      }
+      QDialog#accentPopover QPushButton:hover {
+        background: palette(highlight); color: palette(highlighted-text);
+      }
       /* ── Expiration dialog (dialogs/expirationDialog.cpp) — the browser's own
          calendar, not Qt's: .exp-calendar is a bordered card on the controls fill,
          its head a ‹ month year › row, and each day a small transparent cell that
@@ -943,14 +982,19 @@ namespace stencil::gui {
       /* ── Scrollbars: only the HANDLE takes colour, the track stays transparent. Use
          `::handle:hover` (state on the sub-control itself) — `QScrollBar:hover::handle`
          isn't a form Qt's QSS engine supports and paints the WHOLE groove solid instead.
-         Hover is a lighter/darker shade of the same grey (browser parity: --sb-thumb-hover),
-         not an accent swap. Bar visibility (hidden until an actual pan/zoom) is handled in
+         Hover is the theme accent (browser parity: --sb-thumb-hover: var(--accent)). Bar
+         visibility (hidden until an actual pan/zoom) is handled in
          code, not QSS — see MainWindow::revealCanvasScrollbars. */
-      QScrollBar:vertical { background: transparent; width: 12px; margin: 2px; }
-      QScrollBar::handle:vertical { background: %BORDER%; border-radius: 5px; min-height: 28px; }
+      /* Browser layout.css parity: a 12px slot holding an 8px, fully rounded thumb (the
+         2px transparent border there is the 2px margin here), in --sb-thumb's grey. */
+      /* A 1px transparent border is what lets border-radius clip the fill — QSS draws a
+         borderless background as a plain rectangle (the thumbs used to be square). So the
+         slot is 10px + 1px margin, and the 1px border trims the fill to the browser's 8px. */
+      QScrollBar:vertical { background: transparent; width: 10px; margin: 1px; }
+      QScrollBar::handle:vertical { background: %SB_THUMB%; border: 1px solid transparent; border-radius: 5px; min-height: 28px; }
       QScrollBar::handle:vertical:hover { background: %SB_THUMB_HOVER%; }
-      QScrollBar:horizontal { background: transparent; height: 12px; margin: 2px; }
-      QScrollBar::handle:horizontal { background: %BORDER%; border-radius: 5px; min-width: 28px; }
+      QScrollBar:horizontal { background: transparent; height: 10px; margin: 1px; }
+      QScrollBar::handle:horizontal { background: %SB_THUMB%; border: 1px solid transparent; border-radius: 5px; min-width: 28px; }
       QScrollBar::handle:horizontal:hover { background: %SB_THUMB_HOVER%; }
       QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
       QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
@@ -1052,8 +1096,9 @@ namespace stencil::gui {
         .replace("%BORDER_CANVAS%", c(p.borderCanvas))
         .replace("%BORDER%", c(p.borderMain))
         .replace("%SB_THUMB_HOVER%", c(sbThumbHover))
+        .replace("%SB_THUMB%", c(sbThumb))
         .replace("%TEXT%", c(p.textMain))
-        .replace("%CARET_HOVER%", caretImagePath(p.accent))
+        .replace("%CARET_HOVER%", caretImagePath(QColor(Qt::white)))
         .replace("%CARET_DIM%", caretImagePath(caretDim))
         .replace("%CARET%", caretImagePath(p.textMuted))
         .replace("%MUTED%", c(p.textMuted))

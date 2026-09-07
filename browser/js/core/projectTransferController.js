@@ -265,6 +265,16 @@ export class ProjectTransferController {
     return meta;
   }
 
+  // Set a project's free-text description (trimmed by the store; '' clears). Same shape as
+  // setProjectKeywords: local meta, peer tabs, best-effort server push. Null on unknown id.
+  setProjectDescription(id, description) {
+    const meta = this.storage.store.setDescription(id, description);
+    if (!meta) return null;
+    this.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
+    this.pushProjectFieldToServer(id, { description: meta.description }, 'Could not set project description on the server');
+    return meta;
+  }
+
   // Set a project's blank-fill colour by id. No-op (null) for a non-blank project (only blanks have
   // a blank colour). When `id` is the ACTIVE project, recolours the visible background in place
   // (setBlankColor); otherwise updates the stored meta + peers + server. `color` is any normalizeHex

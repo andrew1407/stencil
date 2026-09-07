@@ -1,5 +1,5 @@
 import { popoverPosition, wireModalOpenGestures } from './popover.js';
-import { surfaceIn, surfaceOut, settleSurface, SURFACE_OUT_MS } from './motion.js';
+import { surfaceIn, surfaceOut, settleSurface, SURFACE_OUT_MS, motionReduced } from './motion.js';
 import { isTypingTarget } from '../utils.js';
 // ── Web Component base: light-DOM custom elements ───────────────
 // Each UI region owns its markup (static inner()) and behavior (wire(app)). Light
@@ -95,7 +95,8 @@ export const MODAL_CLOSE_MS = SURFACE_OUT_MS;   // the dust's own clock (css/ani
 export const createModalFlight = (overlay, boxOf) => {
   let closeTimer = null;
   let originPoint = null;   // the origin centre, in client coordinates
-  const reducedMotion = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  // The shared gate (ui/motionPrefs.js): the OS preference OR the user's 'none' mode.
+  const reducedMotion = () => motionReduced();
 
   // `anchor` is a client rect (an icon's, or a small box around a click) or null — a
   // hidden opener measures 0x0 and a scrolled-away one sits outside the viewport, and

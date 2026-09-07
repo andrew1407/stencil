@@ -26,6 +26,11 @@ namespace stencil::gui {
     // refresh the cached art and re-blank the button so the overlay keeps the pixels.
     void themeChanged();
     bool active() const;
+    // The logo's accent popover counts as hovering the logo (browser parity: the menu
+    // lives inside .app-logo-wrap, so the shine holds over it). Enter on `box` starts
+    // the loop, and leaving the logo/box only stops it once neither is under the cursor
+    // — after a short grace, so crossing the anchor gap never blinks the glow.
+    void holdWhile(QWidget* box);
 
    protected:
     bool eventFilter(QObject* o, QEvent* e) override;
@@ -36,12 +41,16 @@ namespace stencil::gui {
     void stop();
     void blankButtonIcon();
     void syncGeometry();
+    void leaveSoon();
+    bool hoveredAnywhere() const;
 
     QToolButton* logo_;
     std::function<QPixmap()> makePixmap_;
     std::function<QColor()> accent_;
     QVariantAnimation* pulse_ = nullptr;
     QVariantAnimation* spin_ = nullptr;
+    QPointer<QWidget> box_;           // the open accent popover's in-window box, if any
+    QTimer* grace_ = nullptr;         // deferred stop across the logo → popover crossing
     QPixmap pm_;      // the mark at the CURRENT accent (cached per hover / theme change)
     qreal beat_ = 0.0;
     qreal angle_ = 0.0;

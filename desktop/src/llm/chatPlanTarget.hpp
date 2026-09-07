@@ -58,9 +58,11 @@ namespace stencil::gui {
     bool renameActiveProject(const QString& name, QString* note) override;
     bool setProjectColor(const QString& color, QString* note) override;
     bool setBlankColor(const QString& color, QString* note) override;
-    bool openProjectNamed(const QString& name, QString* note) override;
+    bool openProjectNamed(const QString& name, bool last, QString* note) override;
     bool setIncognito(bool on, QString* note) override;
-    bool clearProjects(QString* note) override;
+    bool setChatPlacement(int open, const QString& dock, QString* note) override;
+    bool openDialog(const QString& name, QString* note) override;
+    bool clearProjects(bool keepCurrent, QString* note) override;
     bool clearChat(QString*) override;
     // ── §2.1 multi-image ops ──
     bool loadAttachment(int index, QString* err) override;

@@ -13,8 +13,10 @@
 #include "selectionPanel.hpp"
 #include "selectedLineBar.hpp"
 #include "theme.hpp"
+#include "overlayScrollArea.hpp"
 #include "tipContent.hpp"
 #include "../support/faceSwap.hpp"
+#include "../support/motionPrefs.hpp"   // support::dustAllowed()
 #include "../support/themeSwapOverlay.hpp"
 
 #include <QApplication>
@@ -69,8 +71,10 @@ namespace stencil::gui {
       }
       wipe = ThemeSwapOverlay::capture(this, origin);
       // The circle kicks up dust in its wake, painted in the palette it is erasing —
-      // read from the PAINTED state, before the restyle below moves it.
-      if (wipe) {
+      // read from the PAINTED state, before the restyle below moves it. Only in the
+      // particle mode: 'slide' keeps the wipe and drops its grain (browser parity —
+      // motion.js spawnSwapDust is gated the same way).
+      if (wipe && support::dustAllowed()) {
         const Palette old = themePalette(paintedDark_, paintedAccent_);
         wipe->seedDust(old.bgPage, old.textMain, old.accent);
       }
@@ -94,6 +98,11 @@ namespace stencil::gui {
     // Tooltips are rendered as rich text (tipContent.hpp) — their keycaps and muted lines
     // are literal colours, so they have to be re-taken from the palette on every swap.
     setTooltipPalette(themePalette(dark, settings_.accentColor));
+    // The canvas scrollbars paint their own thumbs (overlayScrollArea.hpp) — hand them
+    // the theme's colours, since a stylesheet cannot round them.
+    if (scroll_)
+      static_cast<OverlayScrollArea*>(scroll_)->setThumbColors(
+          canvasScrollThumb(dark), canvasScrollThumbHover(dark, settings_.accentColor));
     canvas_->setDark(dark);
     canvas_->setAccent(settings_.accentColor);
     incognitoOverlay_->setTheme(dark, settings_.accentColor);
@@ -235,6 +244,8 @@ namespace stencil::gui {
     set(actOpen_, "image");
     set(actOpenAnother_, "external");
     set(actLinks_, "link");
+    set(actDescription_, "description");
+    set(actKeywords_, "keywords");
     set(actConnect_, "server");
     set(actOpenIn_, "monitor");
     set(actCrop_, "crop");

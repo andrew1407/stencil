@@ -50,6 +50,8 @@ const IDS = [
     'install-host', 'install-menu', 'install-pwa-btn', 'install-desktop-btn', 'install-toggle',
     // State-aware Image section: compact load button + image-actions group (download/copy/share/open).
     'load-image-btn', 'image-actions', 'copy-image', 'share-image', 'open-image-btn',
+    // Description & attributes section (project meta): description + keywords buttons; links-btn moved here.
+    'description-btn', 'keywords-btn',
     // Context-menu Share Image item.
     'ctx-share-img',
     // Unified Open Image modal (stencil-open-image-modal): Local file / URL link / Blank tabs.
@@ -74,11 +76,14 @@ const IDS = [
     'chat-attach-btn', 'chat-attach-input', 'chat-input', 'chat-send', 'chat-resizer',
     'chat-settings-overlay', 'chat-settings-close', 'chat-provider', 'chat-base-url-row',
     'chat-base-url', 'chat-model', 'chat-api-key-row', 'chat-api-key', 'chat-server-row',
-    'chat-server-select', 'chat-server-status-row', 'chat-server-status', 'chat-cors-note'
+    'chat-server-select', 'chat-server-status-row', 'chat-server-status', 'chat-cors-note',
+    // Project description / keywords modals (stencil-description-modal, stencil-keywords-modal).
+    'description-overlay', 'description-close', 'description-text', 'description-cancel', 'description-save',
+    'keywords-overlay', 'keywords-close', 'keywords-text', 'keywords-cancel', 'keywords-save'
 ];
 
-test('fixture has exactly 247 IDs', () => {
-    assert.strictEqual(IDS.length, 247);
+test('fixture has exactly 260 IDs', () => {
+    assert.strictEqual(IDS.length, 260);
 });
 
 test('every static body ID is present exactly once', () => {
@@ -189,6 +194,31 @@ test('line and point styling are two separate captioned sections', () => {
         assert.ok(point.includes(`id="${id}"`), `${id} lives in the Point section`);
         assert.ok(!line.includes(`id="${id}"`), `${id} is not in the Line section`);
     }
+});
+
+// The toolbar's clusters, in the one order both surfaces build them (desktop:
+// mainWindowToolbar.cpp — Image · Description & attributes · Projects · Connections & chat ·
+// Edit / Line · Point / Draw · View / Zoom · Page · Formula · Data · Settings).
+test('the sections are the same set, in the same order, as the desktop toolbar rows', () => {
+    const order = ['Image', 'Description &amp; attributes', 'Projects', 'Connections &amp; chat',
+                   'Edit', 'Line', 'Point', 'Draw', 'View', 'Zoom', 'Page', 'Formula', 'Data',
+                   'Settings'];
+    const at = order.map((label) => {
+        const i = markup.indexOf(`<div class="ctrl-section-label">${label}</div>`);
+        assert.notStrictEqual(i, -1, `a "${label}" section exists`);
+        return i;
+    });
+    for (let i = 1; i < at.length; i++)
+        assert.ok(at[i] > at[i - 1], `${order[i]} comes after ${order[i - 1]}`);
+    // …and f(x,y) belongs to FORMULA, not to PAGE: inside Page, every toggle of the pill
+    // resized that section and re-flowed the whole wrapping row around it.
+    const formula = markup.slice(at[11], at[12]);
+    const page = markup.slice(at[10], at[11]);
+    for (const id of ['allow-formulas', 'formula-inputs', 'formula-x', 'formula-y', 'formula-error'])
+        assert.ok(formula.includes(`id="${id}"`) && !page.includes(`id="${id}"`),
+                  `${id} lives in the Formula section`);
+    for (const id of ['page-size', 'unit-select', 'custom-page-width'])
+        assert.ok(page.includes(`id="${id}"`), `${id} stays in Page`);
 });
 
 test('filter selects offer every mode (toolbar options + ctx-menu radios)', () => {

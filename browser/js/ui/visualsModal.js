@@ -3,6 +3,8 @@ import { setVal, setRadioGroup, notify } from '../utils.js';
 import { DEFAULT_ACCENT } from '../core/accents.js';
 import { buildAccentPicker } from './accentPicker.js';
 import { enhanceSelect } from './customSelect.js';
+import { MOTION_MODE_LABELS, motionPrefs, MOTION_EVENT,
+         DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS } from './motionPrefs.js';
 import { icon } from './icons.js';
 // ── Component: visual defaults modal ────────────────────────────
 export class StencilVisualsModal extends StencilElement {
@@ -26,6 +28,15 @@ export class StencilVisualsModal extends StencilElement {
                         <option value="system">System (follow the OS)</option>
                         <option value="light">Light</option>
                         <option value="dark">Dark</option>
+                    </select></span>
+                </div>
+                <div class="vs-section">Motion</div>
+                <div class="vs-row"><label>Drawing animation</label>
+                    <span class="vs-ctrl vs-ctrl-check"><input type="checkbox" id="vs-draw-anim"></span>
+                </div>
+                <div class="vs-row"><label>Interface animation</label>
+                    <span class="vs-ctrl"><select id="vs-motion-mode">
+                        ${MOTION_MODE_LABELS.map(([v, label]) => `<option value="${v}">${label}</option>`).join('')}
                     </select></span>
                 </div>
                 <div class="vs-section">Drawing defaults (applied to new lines)</div>
@@ -124,6 +135,23 @@ export class StencilVisualsModal extends StencilElement {
     // The toolbar toggle (or another tab) can move it while this dialog is open.
     window.addEventListener('stencil:theme-changed', syncAppearance);
 
+    // ── Motion: the canvas stroke animation, and how the interface itself moves ──
+    // Both are app-wide (ui/motionPrefs.js), not part of the project — like the theme
+    // above — and both route through the shared setter the console facade uses.
+    const drawAnim = document.getElementById('vs-draw-anim');
+    const motionMode = document.getElementById('vs-motion-mode');
+    enhanceSelect(motionMode);
+    const syncMotion = () => {
+      const m = motionPrefs();
+      drawAnim.checked = m.drawing;
+      motionMode.value = m.mode;
+    };
+    syncMotion();
+    drawAnim.addEventListener('change', () => app.settings.setMotion('drawing', drawAnim.checked));
+    motionMode.addEventListener('change', () => app.settings.setMotion('mode', motionMode.value));
+    // Moved from the console (or another dialog) while this one is open.
+    window.addEventListener(MOTION_EVENT, syncMotion);
+
     const els = {
       lineColor: document.getElementById('vs-line-color'),
       thickness: document.getElementById('vs-thickness'),
@@ -198,6 +226,8 @@ export class StencilVisualsModal extends StencilElement {
     resetBtn.addEventListener('click', () => {
       Object.assign(app, VIS_DEFAULTS);
       app.setAccent(DEFAULT_ACCENT);
+      app.settings.setMotion('drawing', DEFAULT_DRAWING_ANIMATIONS);
+      app.settings.setMotion('mode', DEFAULT_MOTION_MODE);
       setVal('line-color', app.color);
       setVal('line-thickness', app.thickness);
       setVal('point-size', app.pointSize);

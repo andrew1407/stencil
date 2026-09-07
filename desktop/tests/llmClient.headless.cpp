@@ -104,7 +104,9 @@ static const char kLegacyEditorOpsBlock[] =
   name; the app asks the user to confirm before anything is deleted.
 - {"op":"clearProjects"} — remove EVERY saved local project. This IS what "clear/
   delete my projects" means; the app asks the user to confirm first. Server-stored
-  projects are never touched from chat. Takes no fields.
+  projects are never touched from chat. {"op":"clearProjects","keepCurrent":true} spares
+  the project that is open right now — that IS "delete the others / all but this one",
+  and you must never clear everything and try to save it back instead.
 - {"op":"compare","mode":"none"|"original"|"vertical"|"horizontal","split":0.5} — the
   comparison view: the original beside/over the edit ("vertical" = side-by-side split).
   View-only; the exported image is unchanged.
@@ -118,6 +120,14 @@ static const char kLegacyEditorOpsBlock[] =
 - {"op":"openProject","name":"…"} — open a saved local project into the editor (the
   app confirms first when unsaved work would be replaced).
 - {"op":"incognito","on":true} — edit without saving; only togglable on a blank editor.
+- {"op":"chatPanel","open":true,"dock":"right"} — show, hide or move THIS assistant
+  panel: "dock" is "left"|"right"|"top"|"bottom"|"float" ("float" = a free-standing
+  window), and a "dock" on its own opens the panel where it lands. At least one field.
+- {"op":"dialog","name":"projects"} — open one of the editor's own windows for the
+  user: "projects" (the saved projects list), "servers" (connections), "shortcuts",
+  "visuals" (style & visual settings) or "help". {"op":"dialog","close":true} closes the
+  open one. Use it when the user asks to SEE or MANAGE something by hand; when they ask
+  for a change you can make yourself, make it instead.
 - {"op":"clearChat"} — clear THIS conversation's history; the app asks the user to
   confirm first, and the clear happens after this plan's other actions finish. This IS
   what "clear the chat / conversation / history" means; never answer that it cannot be
@@ -129,7 +139,10 @@ static const char kLegacyEditorOpsBlock[] =
 - "accent" also accepts {"op":"accent","preset":"green"} — a named preset persists and
   syncs; use a preset when the user names a colour that has one.
 - "lineStyle" also carries "pointColor" ("" = follow the stroke), "drawMode"
-  ("line"|"rect") and "fillColor" for the defaults of NEW lines.)__";
+  ("line"|"rect") and "fillColor" for the defaults of NEW lines.
+- "openProject" also accepts {"op":"openProject","last":true} — the project edited
+  most recently, which is what "the last project" / "the one I worked on last" means.
+  The app resolves it; you never see the list, so never ask which one that is.)__";
 
 // Captures the request and replies synchronously with the canned response.
 struct MockTransport : LlmTransport {
@@ -721,9 +734,9 @@ int main(int argc, char** argv) {
         "theme", "accent", "lineStyle", "units", "view", "clear", "openUrl", "openFile",
         "connect", "disconnect", "copy", "removeProject", "clearProjects",
         "compare", "zoom", "renameProject", "projectColor", "blankColor",
-        "openProject", "incognito", "clearChat"};
+        "openProject", "incognito", "chatPanel", "dialog", "clearChat"};
     check(names == expected, "registry op-name set == the contract's desktop surface");
-    check(opRegistry().size() == 33, "one registry entry per OpKind (33)");
+    check(opRegistry().size() == 35, "one registry entry per OpKind (35)");
 
     // The registry names agree with the opPlan parser: a KNOWN op with an
     // unknown field fails the plan (an UNKNOWN op would only be skipped with
@@ -783,6 +796,8 @@ int main(int argc, char** argv) {
         {"blankColor", "KEEPING the drawn lines"},
         {"openProject", "open a saved local project into the editor"},
         {"incognito", "edit without saving; only togglable on a blank editor"},
+        {"chatPanel", "a \"dock\" on its own opens the panel where it lands"},
+        {"dialog", "\"visuals\" (style & visual settings) or \"help\""},
         {"clearChat", "the clear happens after this plan's other actions finish"},
     };
     bool phrasesOk = true;
@@ -797,7 +812,7 @@ int main(int argc, char** argv) {
         phrasesOk = false;
       }
     }
-    check(phrasesOk && phrases.size() == 33, "every bullet carries its key phrase");
+    check(phrasesOk && phrases.size() == 35, "every bullet carries its key phrase");
 
     // The §10 also-accepts widenings ride as addenda on their ops.
     const QVector<QPair<OpKind, QString>> addendaPhrases = {
@@ -805,6 +820,7 @@ int main(int argc, char** argv) {
         {OpKind::Copy, "{\"op\":\"copy\",\"what\":\"layout\"}"},
         {OpKind::Accent, "{\"op\":\"accent\",\"preset\":\"green\"}"},
         {OpKind::LineStyle, "\"fillColor\" for the defaults of NEW lines"},
+        {OpKind::OpenProject, "{\"op\":\"openProject\",\"last\":true}"},
     };
     bool addOk = opAddenda().size() == addendaPhrases.size();
     for (const auto& p : addendaPhrases) {
@@ -814,7 +830,7 @@ int main(int argc, char** argv) {
           found = true;
       if (!found) addOk = false;
     }
-    check(addOk, "the four also-accepts widenings are registered as addenda");
+    check(addOk, "the five also-accepts widenings are registered as addenda");
   }
 
   // ── §13 byte-stability: assembly reproduces the pre-registry constants ──

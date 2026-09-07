@@ -6,6 +6,7 @@
 #include "strokeGrowth.hpp"
 
 #include "canvasWidget.hpp"
+#include "motionPrefs.hpp"
 
 #include <QApplication>
 #include <QElapsedTimer>
@@ -217,6 +218,17 @@ int main(int argc, char** argv) {
   check(inkNear(settled, target.x(), target.y(), ink, 8), "the vertex ends where it was put");
   check(inkNear(settled, (anchor.x() + target.x()) / 2, (anchor.y() + target.y()) / 2, ink, 10),
         "…joined to the point it came from");
+
+  // ── "Drawing animation" off: the vertex goes straight down ──────────────────
+  // The Visuals-dialog switch (support/motionPrefs.hpp; browser stencil.drawingAnimations)
+  // is asked before any vertex is sent, so with it off nothing is ever in the air — the
+  // point is at the click in the very first frame after it.
+  stencil::support::setDrawingAnimations(false);
+  const QPoint straight(120, 265);
+  click(straight);
+  check(inkNear(shot(canvas), straight.x(), straight.y(), ink, 8),
+        "with the animation off the vertex is where you clicked at once");
+  stencil::support::setDrawingAnimations(true);
 
   std::puts("strokeGrowth: OK");
   return 0;

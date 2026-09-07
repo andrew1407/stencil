@@ -434,7 +434,8 @@ The desktop app mirrors the browser app's interaction surface:
   the ✎ beside it). `shareImage` (`Ctrl+Alt+S`) is browser-only: this app has no
   share action, so the shortcut appears in the Shortcuts window but does nothing.
 - **Right-click context menu** on the canvas (New Line, Delete Last Point, Clear
-  All, Deselect).
+  All, Deselect). `Shift+F10` (shared hotkey `contextMenu`) opens it from the keyboard,
+  under the pointer when it rests over the canvas, else at the canvas centre.
 - **Page formats** — the toolbar page selector offers the full ISO 216/269
   series (A0–A10, B0–B10, C0–C10) plus a custom W×H size. Every option shows its
   physical size in the active display unit (cm/in), and the toolbar combo is
@@ -447,25 +448,42 @@ The desktop app mirrors the browser app's interaction surface:
   same pixels as the browser app by construction (shared `core/` math).
 - **Selection panel** dock — the active line's points and live measurements (point
   count, segment count, total length).
-- **Style & Visual Settings** dialog (theme, menu-bar placement, autosave, show
+- **Visuals & Settings** dialog (theme, motion, menu-bar placement, autosave, show
   points/lines, default visuals, page size), a **Projects** dialog (save / open /
   delete, with the `core/projectsStore` one-week expiry sweep), a **Controls &
   Shortcuts Info** dialog (the browser's info modal, rendered from the shared
   `infoConfig.json`), and a **Keyboard Shortcuts** editor (the browser's hotkey table
   drawn in the tooltips' keycaps: click a combo and press the new chord; edits apply
   and persist live, with a per-row reset and Reset All). All three wear the shared
-  modal shell (`support/modalChrome`).
+  modal shell (`support/modalChrome`), as do every prompt and picker the app asks with
+  — the New Project name, the server pickers, the expired-session token (echoed as
+  dots) — through `promptModal` / `chooseModal`, the browser's `app.prompt` /
+  `app.choose` twins; no native `QInputDialog` / `QMessageBox` is left in the app.
   - *Use the system menu bar* (`nativeMenuBar`, default **on**) puts the menus where
     the platform does — the macOS menu bar, a GNOME/Unity app menu — and turning it
     off keeps them inside the window. That escape hatch matters because Qt's export
     leaves an empty in-window bar on some GNOME setups; it takes effect on restart,
-    and the Style & Visual Settings shortcut (`Alt+V` by default, from the shared
+    and the Visuals & Settings shortcut (`Alt+V` by default, from the shared
     hotkey registry) reopens this dialog even with no menus showing. Inert on
     Windows, which has no global bar (the checkbox is disabled there).
+  - *Motion* (the browser's Motion section, same two rows): **Drawing animation**
+    (`drawingAnimations`, default **on**) is the canvas stroke flight — a new vertex
+    travels to where you put it, popping and rippling as it lands — and **Interface
+    animation** (`motionMode`, default **particles**) is how everything else moves:
+    *Particles (dust)* has windows, menus, checkbox marks, list rows and the canvas form
+    out of grains and come apart into them; *Sliding (no dust)* keeps every flight but
+    none of the particles, so each surface travels as a ghost between the icon and its
+    box instead; *None* stops motion altogether — the same end state `STENCIL_NO_ANIM=1`
+    has always given (that env var still overrides the setting). Both apply live and
+    persist in `settings.json`; the gates themselves are `support/motionPrefs.hpp`.
 - **Toolbar sections**: every group in all three tool rows carries an uppercase header
-  (`makeToolSection`) — IMAGE / PROJECTS / CONNECTIONS & LINKS / EDIT / DRAW / ZOOM /
-  SETTINGS on the main row, PAGE / FORMULA on the second, FILTER / VIEW / LINE / POINT on
-  the third — mirroring the browser toolbar's named clusters. Fields inside a group keep
+  (`makeToolSection`) — IMAGE / DESCRIPTION & ATTRIBUTES / PROJECTS / CONNECTIONS & CHAT /
+  EDIT / DRAW / ZOOM / SETTINGS on the main row, PAGE / FORMULA on the second, FILTER /
+  VIEW / LINE / POINT on the third — mirroring the browser toolbar's named clusters.
+  DESCRIPTION & ATTRIBUTES (description · keywords · image links, `Alt+Shift+D` /
+  `Alt+Shift+K` / `Ctrl+Shift+L`) edits the saved project's metadata through the same
+  store path as the Projects window's row menu, and is greyed out — with the reason on the
+  tooltip — until a project is saved. Fields inside a group keep
   their own inline label, so a colour swatch reads as "LINE ▸ Color". Section buttons carry
   a solid accent (or danger) fill; **Fit to window** is the browser's ghost box instead
   (outlined, glyph in the text colour), and anything unavailable — buttons *and* combos, e.g.

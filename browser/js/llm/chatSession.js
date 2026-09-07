@@ -13,6 +13,14 @@ import { isAuthStatus } from '../net/connectionManager.js';
 
 const CONTROLLERS = new WeakMap();
 
+// §10 dialog: the toolbar button behind each editor window the assistant may open — the
+// very ids controlsBinder's openProjects/openServers/… hotkey actions press, so the plan
+// and the shortcut take exactly the same path. Keys are the op's `name` enum (opPlan.js).
+const DIALOG_BUTTON_IDS = {
+  projects: 'projects-btn', servers: 'connect-btn', shortcuts: 'settings-btn',
+  visuals: 'visuals-btn', help: 'info-btn',
+};
+
 // Project names are unique (projectsStore.nameExists), and a batch of saves routinely
 // wants the same base — suffix until it is free rather than losing the save to a clash.
 export const uniqueProjectName = (app, wanted) => {
@@ -98,8 +106,13 @@ export const sharedChatController = (app, { create = createChatController } = {}
       // §10 openProject: the projects modal's open path. Replacing an UNSAVED dirty
       // temporary asks the modal's own confirm first; an already-open project or a
       // failed switch comes back as a note, never a failed plan.
-      openProjectNamed: async (name) => {
-        const { meta, note } = resolveProjectByName(app, name);
+      openProjectNamed: async (name, last = false) => {
+        // "the last project I worked on": the store lists newest-edited first, so the
+        // head of the list IS the answer — resolved HERE, never by the model (it is
+        // never shown the project list).
+        const recent = last ? app.storage.store.list()[0] : null;
+        if (last && !recent) return 'there are no saved projects yet';
+        const { meta, note } = last ? { meta: recent } : resolveProjectByName(app, name);
         if (note) return note;
         if (meta.id === app.activeProjectId) return `"${meta.name}" is already open`;
         if (app.storage.temporary && (app.image || app.lines.length)) {
@@ -130,13 +143,25 @@ export const sharedChatController = (app, { create = createChatController } = {}
         app.setBlankColor(hex);
         return null;
       },
-      clearLocalProjects: async () => {
-        const n = app.storage.store.list().length;
-        if (!n) return 'no saved projects to clear';
-        const ok = await app.confirm(`Delete every saved local project (${n})? This cannot be undone.`,
-          { title: 'Clear all projects', danger: true, confirmIcon: 'trash' });
+      // §10 clearProjects: every saved local project, or every one BUT the open project
+      // (`keepCurrent`) — "delete the others" used to leave the model clearing the lot
+      // and trying to save the working image back, which lost the project when there was
+      // no image to re-save (user report).
+      clearLocalProjects: async (keepCurrent = false) => {
+        const all = app.storage.store.list();
+        const keepId = keepCurrent ? app.activeProjectId : null;
+        const doomed = keepId == null ? all : all.filter((m) => m.id !== keepId);
+        if (!doomed.length) {
+          return all.length ? 'no other saved projects to clear' : 'no saved projects to clear';
+        }
+        const kept = keepId == null ? null : all.find((m) => m.id === keepId);
+        const ok = await app.confirm(kept
+          ? `Delete the ${doomed.length} other saved local project${doomed.length === 1 ? '' : 's'}, keeping "${kept.name}"? This cannot be undone.`
+          : `Delete every saved local project (${doomed.length})? This cannot be undone.`,
+          { title: kept ? 'Clear other projects' : 'Clear all projects', danger: true, confirmIcon: 'trash' });
         if (!ok) return 'clear canceled';
-        app.clearAllProjects();
+        if (!kept) app.clearAllProjects();
+        else for (const m of doomed) app.removeProject(m.id);
         return null;
       },
       // §10 clearChat: the shared clear-conversation flow behind the app's own
@@ -147,6 +172,47 @@ export const sharedChatController = (app, { create = createChatController } = {}
         if (!ok) return 'clear canceled';
         clearSharedConversation(app);
         return null;
+      },
+      // §10 dialog: the editor's own windows, opened through the very toolbar buttons
+      // the user would click (controlsBinder's openProjects/openServers/… actions press
+      // the same ids). A disabled button is a note, never a failed plan; null closes
+      // whatever is open, which is the facade's own dismissal path.
+      openDialog: async (name) => {
+        if (typeof document === 'undefined') return 'no dialogs on this surface';
+        if (!name) {
+          const open = document.querySelectorAll('.app-modal-overlay.modal-open');
+          if (!open.length) return 'no dialog is open';
+          open.forEach((o) => o.classList.remove('modal-open'));
+          return null;
+        }
+        const btn = document.getElementById(DIALOG_BUTTON_IDS[name]);
+        if (!btn) return `the ${name} window is not available here`;
+        if (btn.disabled) return `the ${name} window is not available right now`;
+        btn.click();
+        return null;
+      },
+      // §10 chat: the assistant panel's own placement, through the very buttons its
+      // header carries (app.chat = the panel's public face). A "dock" with no "open"
+      // opens it too — moving a panel nobody can see is not what was asked for.
+      setChatPlacement: async ({ open, dock } = {}) => {
+        if (!app.chat) return 'this surface has no assistant panel';
+        // Show FIRST, then place, then close if that is what was asked: the desktop's
+        // float leg only has a window to lift once the panel is showing, and the two
+        // surfaces must end in the same state for the same plan.
+        const show = open == null ? !!dock : open === true;
+        try {
+          if (show) app.chat.open();
+          if (dock) app.chat.dock(dock);
+          if (!show && open === false) app.chat.close();
+          return null;
+        } catch (err) { return err?.message || String(err); }
+      },
+      // §10 voiceChat: the browser-only hands-free toggle; an unsupported browser's
+      // throw (or a missing coordinator) is the note, never a failed plan.
+      setVoiceChat: (on) => {
+        if (!app.voice) return 'voice input is not available';
+        try { app.voice.voiceChat = !!on; return null; }
+        catch (err) { return err?.message || String(err); }
       },
       // Send drained the queued attachments — repaint every composer's chips.
       onAttachmentsChanged: () => {

@@ -388,7 +388,8 @@ body.fullscreen-mode #fs-points-panel {
     white-space: nowrap;
     transition: background 0.12s;
 }
-.ctx-item:hover, .ctx-item.ctx-open-sub {
+/* .ctx-kb: the row the keyboard walk is on (contextMenu.js) — the hover look. */
+.ctx-item:hover, .ctx-item.ctx-open-sub, .ctx-item.ctx-kb {
     background: var(--bg-coord-hover);
 }
 .ctx-item .ctx-icon, .accent-dd-opt .ctx-icon {
@@ -701,11 +702,11 @@ body.fullscreen-mode #fs-points-panel {
    with no `infinite` plays the keyframe a single time per hover, same as the tooltip's
    key-shake. `>` scopes it to the row's OWN hotkey, not a nested row's. Targets each
    .tip-key individually so a multi-key combo shakes key by key, not as one block. */
-.ctx-item:hover > .ctx-hotkey .tip-key, .accent-dd-opt:hover > .ctx-hotkey .tip-key {
+.ctx-item:hover > .ctx-hotkey .tip-key, .ctx-item.ctx-kb > .ctx-hotkey .tip-key, .accent-dd-opt:hover > .ctx-hotkey .tip-key {
     animation: keycapShake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
 @media (prefers-reduced-motion: reduce) {
-    .ctx-item:hover > .ctx-hotkey .tip-key, .accent-dd-opt:hover > .ctx-hotkey .tip-key { animation: none; }
+    .ctx-item:hover > .ctx-hotkey .tip-key, .ctx-item.ctx-kb > .ctx-hotkey .tip-key, .accent-dd-opt:hover > .ctx-hotkey .tip-key { animation: none; }
 }
 
 /* ── Notification stack (bottom-left) ──

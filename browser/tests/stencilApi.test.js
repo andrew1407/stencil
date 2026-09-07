@@ -134,6 +134,18 @@ const makeApp = (over = {}) => {
       if (m) m.color = color;
       return m || null;
     },
+    setProjectKeywords(id, keywords) {
+      calls.push(['setProjectKeywords', id, keywords]);
+      const m = app._metas.find((x) => x.id === id);
+      if (m) m.keywords = keywords;
+      return m || null;
+    },
+    setProjectDescription(id, description) {
+      calls.push(['setProjectDescription', id, description]);
+      const m = app._metas.find((x) => x.id === id);
+      if (m) m.description = description;
+      return m || null;
+    },
     setProjectBlankColor(id, color) {
       calls.push(['setProjectBlankColor', id, color]);
       const m = app._metas.find((x) => x.id === id);
@@ -384,6 +396,36 @@ test('stencil.projectColor throws with no active project', () => {
   const stencil = createStencil(app);
   assert.equal(stencil.projectColor, '');
   assert.throws(() => { stencil.projectColor = '#fff'; }, /No active project/);
+});
+
+test('stencil.description / stencil.keywords read the active meta and route to the app setters', () => {
+  const app = withProjects();
+  app._metas = [{ id: 1, name: 'Alpha', description: 'Site plan', keywords: ['plan', 'north'] }, { id: 2, name: 'Beta' }];
+  const stencil = createStencil(app);
+
+  assert.equal(stencil.description, 'Site plan');
+  assert.deepEqual(stencil.keywords, ['plan', 'north']);
+  stencil.keywords.push('x');   // a copy, not the stored array
+  assert.deepEqual(stencil.keywords, ['plan', 'north']);
+
+  stencil.description = 'North wing';
+  assert.deepEqual(lastCall(app, 'setProjectDescription'), ['setProjectDescription', 1, 'North wing']);
+  stencil.description = null;   // clears
+  assert.deepEqual(lastCall(app, 'setProjectDescription'), ['setProjectDescription', 1, '']);
+  // Keywords: an array passes through; a string splits on commas/whitespace like the row menu.
+  stencil.keywords = ['a', 'b'];
+  assert.deepEqual(lastCall(app, 'setProjectKeywords'), ['setProjectKeywords', 1, ['a', 'b']]);
+  stencil.keywords = 'one, two three';
+  assert.deepEqual(lastCall(app, 'setProjectKeywords'), ['setProjectKeywords', 1, ['one', 'two', 'three']]);
+});
+
+test('stencil.description / stencil.keywords throw with no active project', () => {
+  const app = makeApp();   // activeProjectId null
+  const stencil = createStencil(app);
+  assert.equal(stencil.description, '');
+  assert.deepEqual(stencil.keywords, []);
+  assert.throws(() => { stencil.description = 'x'; }, /No active project/);
+  assert.throws(() => { stencil.keywords = ['x']; }, /No active project/);
 });
 
 test('project.color get/set validates hex and routes to setProjectColor', () => {

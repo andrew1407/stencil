@@ -55,6 +55,13 @@ graph TD
 - Configurable keyboard shortcuts, context menu, fullscreen, and light/dark theme
   (preset brand accents in the Visuals modal; **double-click the logo** for a one-off
   custom accent colour, applied to that page only — not saved or synced)
+- **Motion settings** (Visuals modal → Motion): *Drawing animation* on/off — the stroke
+  flight, landing pop and ripple on the canvas — and *Interface animation* with three
+  settings: **Particles** (the default: windows, menus, checkbox marks, chat entries, the
+  canvas and the listening mic all form out of dust), **Sliding** (no particles anywhere —
+  each surface plays its own plain grow/rise/fade instead) and **None**. The OS's
+  `prefers-reduced-motion` still overrides all of it. Also on the facade
+  (`stencil.drawingAnimations`, `stencil.motionMode`) and mirrored by the desktop app
 - Session autosave (image + layout), multi-project storage with a one-week expiry
   sweep. The image-heavy per-project payloads live in **IndexedDB** (no ~5MB
   localStorage ceiling; existing payloads migrate over on first load), while the
@@ -96,6 +103,7 @@ graph TD
   settings (plus, optionally, the current colour theme) — as one portable file, openable
   on any Stencil surface (browser, CLI, desktop, pystencil, bot). See below.
 - **Toolbar windows** (projects, servers, links, assistant, shortcuts `Alt+K`, visuals `Alt+V`, help `Alt+H`): a window's own shortcut **closes** it again, another window's shortcut swaps to that one, and every one of them works from inside a window's own search box.
+- **Canvas context menu from the keyboard**: `Shift+F10` (rebindable, `contextMenu`) opens the right-click menu under the pointer when it rests over the canvas, else at the viewport centre — the desktop binds the same chord.
 - **Server invite links**: in the Servers window, a connected row with a saved
   credential offers an **Invite** action — it mints a fresh session token
   (`POST /auth/token`, label `invite`) and copies `<server-url>#token=<token>` to the
@@ -344,6 +352,8 @@ stencil.darkTheme        = true;       // dark mode on/off (true = dark, false =
 stencil.mainTheme        = 'green';    // brand accent: a preset key (see .mainThemes) — persists + syncs across tabs
 stencil.mainTheme        = '#ff5623';  // …or any hex → a custom accent for THIS page only (not saved, not synced)
 stencil.projectColor     = '#ec4899';  // active project's accent colour: paints its NAME everywhere ('' = neutral grey)
+stencil.description      = 'Site plan, north wing';   // active project's free-text description ('' clears; shown in the projects list)
+stencil.keywords         = ['plan', 'north'];         // active project's search keywords — an array or a 'comma, space separated' string
 stencil.drawMode         = 'rect';     // 'line' | 'rect'
 stencil.holdDrawDelay    = 500;        // hold-to-draw hold/dwell delay, ms (clamped 100–3000)
 stencil.voiceSilenceMs   = 1000;       // voice input: the pause that ends an utterance, ms (clamped 500–10000) —
@@ -352,6 +362,12 @@ stencil.voiceInputLanguage = 'default'; // voice input language: 'default' (Engl
 stencil.allowFormulas    = true;       // enable the f(x,y) coordinate transforms
 stencil.formulaX         = 'x*2';      // x transform (also formulaY)
 stencil.formulaY         = 'y+10';
+stencil.drawingAnimations = false;     // canvas stroke motion: a new vertex flies to where it was put,
+                                       // pops and ripples as it lands (true by default)
+stencil.motionMode       = 'slide';    // how the INTERFACE moves: 'particles' (windows, menus, marks and
+                                       // the canvas form out of dust — the default), 'slide' (no dust: each
+                                       // surface plays its own plain entrance) or 'none' (nothing moves).
+                                       // prefers-reduced-motion still wins on its own. See .motionModes
 stencil.fillColor        = '#3399ff';  // default rect/area fill
 stencil.selectionGlow    = '#ffd400';  // visuals: selection glow color
 stencil.hoverRing        = '#22c55e';  // visuals: hover ring color

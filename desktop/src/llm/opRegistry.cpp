@@ -157,7 +157,9 @@ namespace stencil::llm {
   constexpr char kBClearProjects[] =
       R"__(- {"op":"clearProjects"} — remove EVERY saved local project. This IS what "clear/
   delete my projects" means; the app asks the user to confirm first. Server-stored
-  projects are never touched from chat. Takes no fields.)__";
+  projects are never touched from chat. {"op":"clearProjects","keepCurrent":true} spares
+  the project that is open right now — that IS "delete the others / all but this one",
+  and you must never clear everything and try to save it back instead.)__";
 
   constexpr char kBCompare[] =
       R"__(- {"op":"compare","mode":"none"|"original"|"vertical"|"horizontal","split":0.5} — the
@@ -186,11 +188,28 @@ namespace stencil::llm {
   constexpr char kBIncognito[] =
       R"__(- {"op":"incognito","on":true} — edit without saving; only togglable on a blank editor.)__";
 
+  constexpr char kBChatPanel[] =
+      R"__(- {"op":"chatPanel","open":true,"dock":"right"} — show, hide or move THIS assistant
+  panel: "dock" is "left"|"right"|"top"|"bottom"|"float" ("float" = a free-standing
+  window), and a "dock" on its own opens the panel where it lands. At least one field.)__";
+
+  constexpr char kBDialog[] =
+      R"__(- {"op":"dialog","name":"projects"} — open one of the editor's own windows for the
+  user: "projects" (the saved projects list), "servers" (connections), "shortcuts",
+  "visuals" (style & visual settings) or "help". {"op":"dialog","close":true} closes the
+  open one. Use it when the user asks to SEE or MANAGE something by hand; when they ask
+  for a change you can make yourself, make it instead.)__";
+
   constexpr char kBClearChat[] =
       R"__(- {"op":"clearChat"} — clear THIS conversation's history; the app asks the user to
   confirm first, and the clear happens after this plan's other actions finish. This IS
   what "clear the chat / conversation / history" means; never answer that it cannot be
   done. Takes no fields.)__";
+
+  constexpr char kBAddOpenProjectLast[] =
+      R"__(- "openProject" also accepts {"op":"openProject","last":true} — the project edited
+  most recently, which is what "the last project" / "the one I worked on last" means.
+  The app resolves it; you never see the list, so never ask which one that is.)__";
 
   constexpr char kBAddRemoveProject[] =
       R"__(- "removeProject" also accepts {"op":"removeProject","current":true} — remove the
@@ -245,6 +264,8 @@ namespace stencil::llm {
         {OpKind::BlankColor, "blankColor", kBBlankColor, true, true, false, CapNone},
         {OpKind::OpenProject, "openProject", kBOpenProject, true, true, false, CapNone},
         {OpKind::Incognito, "incognito", kBIncognito, true, true, false, CapNone},
+        {OpKind::ChatPanel, "chatPanel", kBChatPanel, true, true, false, CapNone},
+        {OpKind::Dialog, "dialog", kBDialog, true, true, false, CapNone},
         {OpKind::ClearChat, "clearChat", kBClearChat, true, true, false, CapNone},
         {OpKind::Image, "image", kBImage, false, true, false, CapNone},
         {OpKind::Save, "save", kBSave, false, true, false, CapNone},
@@ -260,6 +281,7 @@ namespace stencil::llm {
         {OpKind::Copy, kBAddCopy},
         {OpKind::Accent, kBAddAccentPreset},
         {OpKind::LineStyle, kBAddLineStyle},
+        {OpKind::OpenProject, kBAddOpenProjectLast},
     };
     return addenda;
   }

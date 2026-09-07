@@ -11,6 +11,7 @@ import { initProjectsBackend } from './core/projectsBackend.js';
 import { watchNumericInputs } from './ui/numericInput.js';
 import { installControlSwap } from './ui/controlSwap.js';
 import { installVoiceModes } from './llm/voiceModes.js';
+import { applyMotionAttr } from './ui/motionPrefs.js';
 // ── Application entrypoint ──────────────────────────────────────
 // Loaded LAST (importing layout registers every custom element). On load: init the
 // shared C++ core (wasm), mount component hosts, construct the app, then dispatch

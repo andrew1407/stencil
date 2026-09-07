@@ -157,13 +157,15 @@ namespace stencil::gui {
     actPanel_ = mk("Selection Panel", hotkey("togglePointsList", "Alt+X"));
     actToolbars_ = mk("Toolbars", hotkey("toggleControls", "Alt+C"));  // show/hide the top toolbars
     actFullscreen_ = mk("Enter Fullscreen", hotkey("fullscreen", "Alt+F"));
-    actSettings_ = mk("Style && Visual Settings…", hotkey("openVisuals", "Alt+V"));
+    actSettings_ = mk("Visuals && Settings…", hotkey("openVisuals", "Alt+V"));
     tip(actSettings_, "Default visuals & highlight styles");   // the browser #visuals-btn title
     actProjects_ = mk("Projects…", hotkey("openProjects", "Ctrl+Shift+P"));
     actConnect_ = mk("Servers…", hotkey("openServers", "Ctrl+Shift+K"));
     tip(actConnect_,
         "Connect to collaboration servers — shared projects appear with a golden outline");
     actLinks_ = mk("Image Links…", hotkey("openLinks", "Ctrl+Shift+L"));
+    actDescription_ = mk("Project Description…", hotkey("openDescription", "Alt+Shift+D"));
+    actKeywords_ = mk("Project Keywords…", hotkey("openKeywords", "Alt+Shift+K"));
     actOpenIn_ = mk("Open In…", hotkey("openIn", "Ctrl+Shift+E"));
     tip(actOpenIn_,
         "Open the current project in the browser app or the Telegram bot");
@@ -445,6 +447,8 @@ namespace stencil::gui {
     connect(actProjects_, &QAction::triggered, this, &MainWindow::openProjects);
     connect(actConnect_, &QAction::triggered, this, &MainWindow::openConnections);
     connect(actLinks_, &QAction::triggered, this, &MainWindow::openLinks);
+    connect(actDescription_, &QAction::triggered, this, &MainWindow::openDescription);
+    connect(actKeywords_, &QAction::triggered, this, &MainWindow::openKeywords);
     connect(actOpenIn_, &QAction::triggered, this, &MainWindow::openInAnotherApp);
     connect(actNewProject_, &QAction::triggered, this,
             &MainWindow::newProjectFromCanvas);
@@ -459,6 +463,11 @@ namespace stencil::gui {
     tip(actShortcuts_, "Keyboard shortcuts");   // the browser #settings-btn title
     connect(actShortcuts_, &QAction::triggered, this,
             &MainWindow::openShortcuts);
+    // Keyboard route to the canvas right-click menu (shared hotkeysConfig contextMenu).
+    // Registered on the window only — no menu-bar entry, the menu IS the entry.
+    actContextMenu_ = mk("Canvas Context Menu", hotkey("contextMenu", "Shift+F10"));
+    tip(actContextMenu_, "Open the canvas context menu at the pointer (or the canvas centre)");
+    connect(actContextMenu_, &QAction::triggered, this, &MainWindow::showContextMenuFromKeyboard);
 
     // Map hotkey ids -> their actions so a rebind can re-apply live (S13). Only
     // ids present in hotkeysConfig.json are rebindable.
@@ -476,6 +485,7 @@ namespace stencil::gui {
     hotkeyActions_["fullscreen"] = actFullscreen_;
     hotkeyActions_["openVisuals"] = actSettings_;
     hotkeyActions_["openHotkeys"] = actShortcuts_;
+    hotkeyActions_["contextMenu"] = actContextMenu_;
     hotkeyActions_["resetZoom"] = actFit_;
     hotkeyActions_["zoomIn"] = actZoomIn_;
     hotkeyActions_["zoomOut"] = actZoomOut_;
@@ -501,6 +511,8 @@ namespace stencil::gui {
     hotkeyActions_["openProject"] = actOpenProjectFile_;
     hotkeyActions_["openServers"] = actConnect_;
     hotkeyActions_["openLinks"] = actLinks_;
+    hotkeyActions_["openDescription"] = actDescription_;
+    hotkeyActions_["openKeywords"] = actKeywords_;
     hotkeyActions_["toggleIncognito"] = actIncognito_;
     hotkeyActions_["loadImage"] = actOpen_;
     hotkeyActions_["openAnotherImage"] = actOpenAnother_;
@@ -535,6 +547,8 @@ namespace stencil::gui {
     tip(actOpenProjectFile_, "Open Project (.stencil)");
     tip(actConnect_, "Servers — connect to share & co-edit projects");
     tip(actLinks_, "Source & resource links for the current image");
+    tip(actDescription_, "Project description");
+    tip(actKeywords_, "Project keywords");
     tip(actChat_, "AI assistant — chat to edit the image");
     tip(actCrop_, "Crop image");
     tip(actRotateLeft_, "Rotate image left");
@@ -545,6 +559,34 @@ namespace stencil::gui {
     tip(actCopyLayout_, "Copy full Layout JSON (lines + all applied edits)");
     tip(actTheme_, "Toggle dark / light theme");
     tip(actInfo_, "Controls & shortcuts help");
+    // …and why each is greyed out, verbatim too (toolbar.js data-disabled-reason): the
+    // "— reason" line joins the tooltip while the action is disabled and leaves with it.
+    const auto why = [](QAction* a, const char* reason) { setTipReason(a, reason); };
+    why(actSaveImage_, "Load an image to download it");
+    why(actSaveImageCurrentRow_, "Load an image to download it");
+    why(actCopyImage_, "Load an image to copy it");
+    why(actCopyImageCurrentRow_, "Load an image to copy it");
+    why(actSaveProjectFile_, "Open an image first");
+    why(actDeleteProjectFile_, "Open or save a .stencil file first");
+    why(actStencilLiveSync_, "Open or save a .stencil file first");
+    // The DESCRIPTION & ATTRIBUTES trio edits a SAVED project's metadata (updateProjectTitle).
+    why(actDescription_, "Save the project first to add a description");
+    why(actKeywords_, "Save the project first to add keywords");
+    why(actLinks_, "Save the project first to add links");
+    why(actCrop_, "Load an image to crop");
+    why(actRotateLeft_, "Load an image to rotate");
+    why(actRotateRight_, "Load an image to rotate");
+    why(actUndo_, "Nothing to undo");
+    why(actRedo_, "Nothing to redo");
+    why(actStartDraw_, "Load an image to start drawing");
+    why(actClearAll_, "No lines to clear");
+    why(actZoomIn_, "Load an image to zoom");
+    why(actZoomOut_, "Load an image to zoom");
+    why(actFit_, "Load an image to zoom");
+    why(actDownloadJson_, "Draw at least one line to export");
+    why(actCopyLayout_, "Draw at least one line to copy");
+    why(actUploadJson_, "Load an image first");
+    why(actClearProject_, "Open an image first — nothing to remove");
 
     connect(actInfo_, &QAction::triggered, this, &MainWindow::openInfo);
     connect(actIncognito_, &QAction::toggled, this, [this](bool on) {

@@ -1,0 +1,17 @@
+{
+  "name": "clear-projects-keep-current",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "clearProjects",
+        "keepCurrent": true
+      }
+    ]
+  },
+  "expect": "valid"
+}

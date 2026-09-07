@@ -350,8 +350,8 @@ namespace stencil::gui {
     // shape of their dialog (execMaybePopover). A plain click keeps the full dialog, but
     // deferred one double-click interval (the logo pattern): the dialog's exec() blocks,
     // so an instant open would swallow the second click of every double-click.
-    popoverDialogActions_ = {actOpen_, actOpenAnother_, actOpenIn_, actProjects_, actConnect_, actLinks_, actChat_,
-                             actShortcuts_, actSettings_, actInfo_};
+    popoverDialogActions_ = {actOpen_, actOpenAnother_, actOpenIn_, actProjects_, actConnect_, actLinks_,
+                             actDescription_, actKeywords_, actChat_, actShortcuts_, actSettings_, actInfo_};
     popoverClickTimer_ = new QTimer(this);
     popoverClickTimer_->setSingleShot(true);
     popoverClickTimer_->setInterval(250);
@@ -387,14 +387,19 @@ namespace stencil::gui {
                                     {}, {openImageBtn_});
     tb->addWidget(imageSection_);
     tb->addSeparator();
+    // Description & attributes: the saved project's description, keywords and links —
+    // the browser's cluster between IMAGE and PROJECTS. All three gate on a saved,
+    // non-incognito project (updateProjectTitle), so the whole group reads as one rule.
+    tb->addWidget(makeToolSection("Description & attributes", {actDescription_, actKeywords_, actLinks_}));
+    tb->addSeparator();
     // Projects = open editor list + save/open .stencil + live-sync, matching the browser's
     // PROJECTS cluster (layers / save / folder / refresh). Clear-project stays in the menu bar.
     tb->addWidget(makeToolSection("Projects", {actProjects_, actSaveProjectFile_, actOpenProjectFile_, actStencilLiveSync_, actDeleteProjectFile_}));
     tb->addSeparator();
-    // Share = the browser's merged Servers + Links (connect to share/co-edit + image source links).
-    // Connections & links + the AI-assistant sparkle toggle at the end of the
-    // row (identical grouping to the browser toolbar).
-    tb->addWidget(makeToolSection("Connections & links", {actConnect_, actLinks_, actChat_}));
+    // Connections & chat: servers (connect to share/co-edit) + the AI-assistant sparkle
+    // toggle (identical grouping to the browser toolbar; the image's source links live in
+    // DESCRIPTION & ATTRIBUTES above, as in the browser).
+    tb->addWidget(makeToolSection("Connections & chat", {actConnect_, actChat_}));
     tb->addSeparator();
     // Edit cluster (browser parity; blank-recolour chip closes it). The filter
     // combo + tint swatch open the group — built here, WIRED in buildStyleToolbar

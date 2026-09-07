@@ -185,7 +185,7 @@ test('a filter brings its rows in as sand — and never plays one out', () => {
     'a view change has to keep up with typing in a search box');
   assert.ok(FILTER_DUST_DRIFT < 1, 'and it must never read as the delete it is not');
   const body = motionJs.slice(motionJs.indexOf('export const filterDust ='),
-                              motionJs.indexOf('export const motionReduced'));
+                              motionJs.indexOf('export const filterDelta'));
   assert.match(body, /scatterGridFor\(count, index\)/,
     'one shared mesh budget across every row the change moves');
   assert.match(body, /if \(!cols/, 'past the row ceiling a row simply fades, as it always did');

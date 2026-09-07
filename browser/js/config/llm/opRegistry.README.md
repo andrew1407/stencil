@@ -28,9 +28,9 @@ browser reference.
   `CSS_NAME`, `FORMULA_X`/`FORMULA_Y`. Op keys reference them via `regex`.
 - **`profiles`** — per profile: its surfaces, TODAY's op-name list, and `notes`
   marking within-profile drift (ops one surface of the pair registers and the other
-  skips as unknown). Measured sizes: editor 33 (browser 32 + desktop-only
-  `openFile`), console 23 (cli 23 ⊇ pystencil 19 — `accent`/`reconnect`/`copy`/
-  `openFile` are cli-only), bot 24, mcp 10, extension 12.
+  skips as unknown). Measured sizes: editor 36 (browser 35 incl. browser-only
+  `voiceChat`, + desktop-only `openFile`), console 23 (cli 23 ⊇ pystencil 19 —
+  `accent`/`reconnect`/`copy`/`openFile` are cli-only), bot 24, mcp 10, extension 12.
 - **`forbidden`** — the canonical §13 core list (browser's names) plus each surface's
   own list as shipped, and the enforcement split: cli and mcp hard-fail a plan naming
   a forbidden op, every other surface skips it at parse and rejects at the executor

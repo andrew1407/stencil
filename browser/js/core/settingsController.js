@@ -4,6 +4,7 @@ import { COMMIT_DEBOUNCE_MS } from '../ui/numericInput.js';
 import { normalizePageSize } from './units.js';
 import { setChecked, swapCheckGlyph } from '../ui/controlSwap.js';
 import { revealControls } from '../ui/motion.js';
+import { MOTION_MODES, setMotionPrefs, motionPrefs } from '../ui/motionPrefs.js';
 
 // Shared `parse` guards for the settings registry below: the numeric ones return
 // undefined on NaN to ABORT the set (matching the old per-setter guards).
@@ -356,6 +357,27 @@ export class SettingsController {
     if (el) el.checked = !!on;
     app.storage.save();
     try { app.tooltipMgr?.refresh?.(); } catch { /* tooltip not mounted */ }
+  }
+
+  // ── Motion preferences (ui/motionPrefs.js) ───────────────────────────
+  // key ∈ 'mode' (particles | slide | none) | 'drawing' (the canvas stroke motion).
+  // App-wide, not part of the project, so this writes the shared store rather than a
+  // model field — but it is still the ONE funnel the visuals modal and the console
+  // facade both come through, mirroring the dialog's controls on the way.
+  setMotion(key, value) {
+    if (key === 'mode') {
+      const m = String(value).trim().toLowerCase();
+      if (!MOTION_MODES.includes(m))
+        throw new Error(`Unknown motion mode: ${value} (use ${MOTION_MODES.join(' | ')})`);
+      setMotionPrefs({ mode: m });
+      setVal('vs-motion-mode', m);
+    } else if (key === 'drawing') {
+      setMotionPrefs({ drawing: !!value });
+      setChecked(document.getElementById('vs-draw-anim'), !!value);
+    } else {
+      throw new Error(`Unknown motion setting: ${key} (use mode | drawing)`);
+    }
+    return motionPrefs();
   }
 
   // Set one "visual default" colour (shared by the visuals modal + console settings).

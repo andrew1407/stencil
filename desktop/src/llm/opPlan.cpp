@@ -744,9 +744,22 @@ namespace stencil::llm {
       return true;
     }
 
+    // §10 openProject: a saved project by name, OR `last: true` — the most recently
+    // edited one ("the last project I worked on"). Exactly one form, removeProject's
+    // `current: true` shape; the resolution is the target's.
     bool parseOpenProject(const QJsonObject& o, Action& a, QString* e) {
-      if (const QString k = unknownKey(o, {"op", "name"}); !k.isEmpty())
+      if (const QString k = unknownKey(o, {"op", "name", "last"}); !k.isEmpty())
         return err(e, QStringLiteral("openProject: unknown field \"%1\"").arg(k));
+      const bool hasName = o.contains("name");
+      const bool hasLast = o.contains("last");
+      if (hasName == hasLast)
+        return err(e, QStringLiteral("openProject: give exactly one of \"name\" / \"last\""));
+      if (hasLast) {
+        if (!o.value("last").isBool() || !o.value("last").toBool())
+          return err(e, QStringLiteral("openProject: \"last\" must be true"));
+        a.current = true;   // "the latest one" rides removeProject's own presence flag
+        return true;
+      }
       return parseProjectName(o, a, "openProject", 120, e);
     }
 
@@ -759,11 +772,73 @@ namespace stencil::llm {
       return true;
     }
 
+    // §10 chatPanel: where the assistant panel itself sits. At least one of
+    // "open"/"dock"; a dock with no open opens it too (browser opPlan.js parity).
+    bool parseChatPanel(const QJsonObject& o, Action& a, QString* e) {
+      if (const QString k = unknownKey(o, {"op", "open", "dock"}); !k.isEmpty())
+        return err(e, QStringLiteral("chatPanel: unknown field \"%1\"").arg(k));
+      const bool hasOpen = o.contains("open");
+      const bool hasDock = o.contains("dock");
+      if (!hasOpen && !hasDock)
+        return err(e, QStringLiteral("chatPanel: needs \"open\" and/or \"dock\""));
+      if (hasOpen) {
+        if (!o.value("open").isBool())
+          return err(e, QStringLiteral("chatPanel: \"open\" must be a boolean"));
+        a.chatOpen = o.value("open").toBool() ? 1 : 0;
+      }
+      if (hasDock) {
+        const QString d = o.value("dock").toString();
+        static const QStringList kDocks{QStringLiteral("left"), QStringLiteral("right"),
+                                        QStringLiteral("top"), QStringLiteral("bottom"),
+                                        QStringLiteral("float")};
+        if (!kDocks.contains(d))
+          return err(e, QStringLiteral("chatPanel: \"dock\" must be one of %1")
+                            .arg(kDocks.join(QStringLiteral(", "))));
+        a.dock = d;
+      }
+      return true;
+    }
+
+    // §10 dialog: one of the editor's own windows, or close:true for the open one —
+    // exactly one form. The assistant's provider settings are never among the names
+    // (§13 forbidden); the browser opPlan.js list is the canon.
+    bool parseDialog(const QJsonObject& o, Action& a, QString* e) {
+      if (const QString k = unknownKey(o, {"op", "name", "close"}); !k.isEmpty())
+        return err(e, QStringLiteral("dialog: unknown field \"%1\"").arg(k));
+      const bool hasName = o.contains("name");
+      const bool hasClose = o.contains("close");
+      if (hasName == hasClose)
+        return err(e, QStringLiteral("dialog: give exactly one of \"name\" / \"close\""));
+      if (hasClose) {
+        if (!o.value("close").isBool() || !o.value("close").toBool())
+          return err(e, QStringLiteral("dialog: \"close\" must be true"));
+        a.current = true;   // "close what is open" rides the shared presence flag
+        return true;
+      }
+      static const QStringList kNames{QStringLiteral("projects"), QStringLiteral("servers"),
+                                      QStringLiteral("shortcuts"), QStringLiteral("visuals"),
+                                      QStringLiteral("help")};
+      const QString n = o.value("name").toString();
+      if (!kNames.contains(n))
+        return err(e, QStringLiteral("dialog: \"name\" must be one of %1")
+                          .arg(kNames.join(QStringLiteral(", "))));
+      a.dialog = n;
+      return true;
+    }
+
     // §10 clearProjects: fieldless like clear; the empty-store note and the
     // confirm are the target's.
-    bool parseClearProjects(const QJsonObject& o, QString* e) {
-      if (const QString k = unknownKey(o, {"op"}); !k.isEmpty())
+    // §10 clearProjects: every saved LOCAL project, or every one but the open project
+    // (`keepCurrent: true` — "delete the others"). Present-and-true or absent, like
+    // removeProject's `current`; the confirm and the count are the target's.
+    bool parseClearProjects(const QJsonObject& o, Action& a, QString* e) {
+      if (const QString k = unknownKey(o, {"op", "keepCurrent"}); !k.isEmpty())
         return err(e, QStringLiteral("clearProjects: unknown field \"%1\"").arg(k));
+      if (o.contains("keepCurrent")) {
+        if (!o.value("keepCurrent").isBool() || !o.value("keepCurrent").toBool())
+          return err(e, QStringLiteral("clearProjects: \"keepCurrent\" must be true"));
+        a.current = true;   // the shared "the open one" presence flag
+      }
       return true;
     }
 
@@ -846,7 +921,7 @@ namespace stencil::llm {
         else if (op == "connect") { a.op = OpKind::Connect; ok = parseServerRef(o, a, "connect", e); }
         else if (op == "disconnect") { a.op = OpKind::Disconnect; ok = parseServerRef(o, a, "disconnect", e); }
         else if (op == "removeProject") { a.op = OpKind::RemoveProject; ok = parseRemoveProject(o, a, e); }
-        else if (op == "clearProjects") { a.op = OpKind::ClearProjects; ok = parseClearProjects(o, e); }
+        else if (op == "clearProjects") { a.op = OpKind::ClearProjects; ok = parseClearProjects(o, a, e); }
         else if (op == "compare") { a.op = OpKind::Compare; ok = parseCompare(o, a, e); }
         else if (op == "zoom") { a.op = OpKind::Zoom; ok = parseZoom(o, a, e); }
         else if (op == "renameProject") { a.op = OpKind::RenameProject; ok = parseRenameProject(o, a, e); }
@@ -854,6 +929,8 @@ namespace stencil::llm {
         else if (op == "blankColor") { a.op = OpKind::BlankColor; ok = parseBlankColor(o, a, e); }
         else if (op == "openProject") { a.op = OpKind::OpenProject; ok = parseOpenProject(o, a, e); }
         else if (op == "incognito") { a.op = OpKind::Incognito; ok = parseIncognito(o, a, e); }
+        else if (op == "chatPanel") { a.op = OpKind::ChatPanel; ok = parseChatPanel(o, a, e); }
+        else if (op == "dialog") { a.op = OpKind::Dialog; ok = parseDialog(o, a, e); }
         else if (op == "clearChat") { a.op = OpKind::ClearChat; ok = parseClearChat(o, e); }
         else if (op == "undo") { a.op = OpKind::Undo; ok = parseUndoRedo(o, a, "undo", e); }
         else if (op == "redo") { a.op = OpKind::Redo; ok = parseUndoRedo(o, a, "redo", e); }

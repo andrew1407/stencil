@@ -30,6 +30,11 @@ const UNDO_STEPS_MAX = 20;
 const ZOOM_MIN = 5, ZOOM_MAX = 3200;
 const SPLIT_MIN = 0.02, SPLIT_MAX = 0.98;
 const COMPARE_MODES = new Set(['none', 'original', 'vertical', 'horizontal']);
+// §10 chat: where the assistant panel may sit (the panel's own placement buttons).
+const CHAT_DOCKS = ['left', 'right', 'top', 'bottom', 'float'];
+// §10 dialog: the editor windows the assistant may put in front of the user. Deliberately
+// the five NAVIGATION dialogs — never the assistant's own provider settings (§13).
+const DIALOGS = ['projects', 'servers', 'shortcuts', 'visuals', 'help'];
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const CSS_NAME = /^[a-zA-Z]+$/;
@@ -717,16 +722,19 @@ export const OPS = {
   clearProjects: {
     bullet: `- {"op":"clearProjects"} — remove EVERY saved local project. This IS what "clear/
   delete my projects" means; the app asks the user to confirm first. Server-stored
-  projects are never touched from chat. Takes no fields.`,
+  projects are never touched from chat. {"op":"clearProjects","keepCurrent":true} spares
+  the project that is open right now — that IS "delete the others / all but this one",
+  and you must never clear everything and try to save it back instead.`,
     requires: ['clearLocalProjects'],
     editorSetting: true,
     validate(a) {
-      onlyKeys(a, []);
-      return { op: 'clearProjects' };
+      onlyKeys(a, ['keepCurrent']);
+      if (a.keepCurrent != null && a.keepCurrent !== true) fail('clearProjects', '"keepCurrent" must be true');
+      return a.keepCurrent ? { op: 'clearProjects', keepCurrent: true } : { op: 'clearProjects' };
     },
-    run: async (_a, { clearLocalProjects, notes }) => {
+    run: async (a, { clearLocalProjects, notes }) => {
       if (!clearLocalProjects) throw new Error('This surface cannot manage projects');
-      const note = await clearLocalProjects();
+      const note = await clearLocalProjects(!!a.keepCurrent);
       if (note) notes?.push(`clearProjects: ${note}`);
     },
   },
@@ -831,17 +839,28 @@ export const OPS = {
   openProject: {
     bullet: `- {"op":"openProject","name":"…"} — open a saved local project into the editor (the
   app confirms first when unsaved work would be replaced).`,
+    also: `- "openProject" also accepts {"op":"openProject","last":true} — the project edited
+  most recently, which is what "the last project" / "the one I worked on last" means.
+  The app resolves it; you never see the list, so never ask which one that is.`,
+    alsoOrder: 5,
     requires: ['openProjectNamed'],
     editorSetting: true,
     newFrame: true,   // a switched project is a fresh working image — remapping resets
     validate(a) {
-      onlyKeys(a, ['name']);
+      onlyKeys(a, ['name', 'last']);
+      // Exactly one form — a name, or last:true (removeProject's current:true shape).
+      const hasName = a.name != null, hasLast = a.last != null;
+      if (hasName === hasLast) fail('openProject', 'exactly one of "name" / "last" is required');
+      if (hasLast) {
+        if (a.last !== true) fail('openProject', '"last" must be true');
+        return { op: 'openProject', last: true };
+      }
       if (!isStr(a.name, 120) || !a.name.trim()) fail('openProject', '"name" must be a non-empty string of at most 120 characters');
       return { op: 'openProject', name: a.name.trim() };
     },
     run: async (a, { openProjectNamed, notes }) => {
       if (!openProjectNamed) throw new Error('This surface cannot manage projects');
-      const note = await openProjectNamed(a.name);
+      const note = await openProjectNamed(a.name || '', !!a.last);
       if (note) notes?.push(`openProject: ${note}`);
     },
   },
@@ -857,6 +876,80 @@ export const OPS = {
     run: (a, { stencil, notes }) => {
       try { stencil.incognito = a.on; }
       catch (err) { notes?.push(`incognito: ${err?.message || err}`); }
+    },
+  },
+  // §10 voiceChat: browser-only hands-free voice chat toggle; the coordinator's
+  // "not supported" throw becomes a note + skip via the capability's return.
+  voiceChat: {
+    bullet: '- {"op":"voiceChat","on":false} — turn the hands-free voice chat mode off (or on with true); use when the user asks to stop or start voice input / voice mode / listening.',
+    editorSetting: true,
+    requires: ['setVoiceChat'],
+    validate(a) {
+      onlyKeys(a, ['on']);
+      if (typeof a.on !== 'boolean') fail('voiceChat', '"on" must be a boolean');
+      return { op: 'voiceChat', on: a.on };
+    },
+    run: (a, { setVoiceChat, notes }) => {
+      if (!setVoiceChat) throw new Error('This surface has no voice input');
+      const note = setVoiceChat(a.on);
+      if (note) notes?.push(`voiceChat: ${note}`);
+    },
+  },
+  // §10 chat: where the assistant panel itself sits. The one op that acts on the chat
+  // window rather than the image — "open the chat on the right" is a thing users ask
+  // for out loud, hands-free, with no hand on the mouse (user report).
+  chatPanel: {
+    bullet: `- {"op":"chatPanel","open":true,"dock":"right"} — show, hide or move THIS assistant
+  panel: "dock" is "left"|"right"|"top"|"bottom"|"float" ("float" = a free-standing
+  window), and a "dock" on its own opens the panel where it lands. At least one field.`,
+    editorSetting: true,
+    requires: ['setChatPlacement'],
+    validate(a) {
+      onlyKeys(a, ['open', 'dock']);
+      if (a.open == null && a.dock == null) fail('chatPanel', 'needs "open" and/or "dock"');
+      if (a.open != null && typeof a.open !== 'boolean') fail('chatPanel', '"open" must be a boolean');
+      const out = { op: 'chatPanel' };
+      if (a.open != null) out.open = a.open;
+      if (a.dock != null) {
+        if (!CHAT_DOCKS.includes(a.dock)) fail('chatPanel', `"dock" must be one of ${CHAT_DOCKS.join(', ')}`);
+        out.dock = a.dock;
+      }
+      return out;
+    },
+    run: async (a, { setChatPlacement, notes }) => {
+      if (!setChatPlacement) throw new Error('This surface has no assistant panel to place');
+      const note = await setChatPlacement({ open: a.open, dock: a.dock });
+      if (note) notes?.push(`chatPanel: ${note}`);
+    },
+  },
+  // §10 dialog: put one of the editor's own windows in front of the user — the answer to
+  // "show me my projects" / "open the server list". Deferred like clearChat: the dialog
+  // is MODAL, so it opens after the plan's other actions have run and the reply is on
+  // screen, never in the middle of the turn.
+  dialog: {
+    bullet: `- {"op":"dialog","name":"projects"} — open one of the editor's own windows for the
+  user: "projects" (the saved projects list), "servers" (connections), "shortcuts",
+  "visuals" (style & visual settings) or "help". {"op":"dialog","close":true} closes the
+  open one. Use it when the user asks to SEE or MANAGE something by hand; when they ask
+  for a change you can make yourself, make it instead.`,
+    editorSetting: true,
+    deferred: true,
+    requires: ['openDialog'],
+    validate(a) {
+      onlyKeys(a, ['name', 'close']);
+      const hasName = a.name != null, hasClose = a.close != null;
+      if (hasName === hasClose) fail('dialog', 'exactly one of "name" / "close" is required');
+      if (hasClose) {
+        if (a.close !== true) fail('dialog', '"close" must be true');
+        return { op: 'dialog', close: true };
+      }
+      if (!DIALOGS.includes(a.name)) fail('dialog', `"name" must be one of ${DIALOGS.join(', ')}`);
+      return { op: 'dialog', name: a.name };
+    },
+    run: async (a, { openDialog, notes }) => {
+      if (!openDialog) throw new Error('This surface has no dialogs to open');
+      const note = await openDialog(a.close ? null : a.name);
+      if (note) notes?.push(`dialog: ${note}`);
     },
   },
   // §10 clearChat: the surface's clear-conversation flow behind the app's own confirm.
@@ -890,6 +983,7 @@ export const OPS = {
 export const BROWSER_CAPABILITIES = new Set([
   'loadAttachment', 'saveProject', 'removeProjectNamed', 'clearLocalProjects',
   'renameActiveProject', 'setBlankColor', 'openProjectNamed', 'clearChatConversation',
+  'setChatPlacement', 'openDialog', 'setVoiceChat',
 ]);
 
 // §13 forbidden ops — the "never model-drivable" boundary, one name list per the
@@ -1268,14 +1362,14 @@ const restoreWorkingImage = async (stencil, pixels, state, actions) => {
 // an absent one makes its op error out or note+skip per §10/§2.1. savedServers is the
 // ONLY pool `connect` may resolve against (§10; plans never carry tokens).
 // Returns { results: [{ label, dataUrl }], warnings }.
-export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, deferredSink } = {}) => {
+export const executeOpPlan = async (plan, stencil, { exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, deferredSink } = {}) => {
   const warnings = (plan.warnings || []).slice();
   const results = [];
 
   // Dispatch through the registry — the parser only emits ops it holds. `notes` lets an
   // executor report what IT did (rendered with the reply); `frame` is the §1 re-mapping
   // accumulated from executed crops/rotates, reset to identity by newFrame ops.
-  const ctx = { stencil, exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, results, notes: warnings, frame: identityFrame() };
+  const ctx = { stencil, exportImage, loadFrame, savedServers, userText, openIncognito, loadAttachment, saveProject, copyRendered, copyLayoutRendered, removeProjectNamed, clearWorkingImage, clearLocalProjects, renameActiveProject, setBlankColor, openProjectNamed, clearChatConversation, setChatPlacement, openDialog, setVoiceChat, results, notes: warnings, frame: identityFrame() };
   const run = async (a) => {
     // §13: a forbidden op is refused with a typed error even if a plan carrying
     // one reached the executor without passing the parser's unknown-op drop.

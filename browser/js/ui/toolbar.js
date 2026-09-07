@@ -80,6 +80,20 @@ export class StencilToolbar extends StencilElement {
 
             <div class="ctrl-sep"></div>
 
+            <!-- ── Section: Description & attributes (project meta: description, keywords, links) ──
+                 All three attach to a SAVED project's meta, so they are gated together on an
+                 active non-incognito project (ui/controlState.js), not on an image. -->
+            <div class="ctrl-section">
+                <div class="ctrl-section-label">Description &amp; attributes</div>
+                <div class="ctrl-section-row">
+                    <button id="description-btn" class="btn-icon" data-hk-title="openDescription" data-title="Project description" data-disabled-reason="Save the project first to add a description">${icon('description')}</button>
+                    <button id="keywords-btn" class="btn-icon" data-hk-title="openKeywords" data-title="Project keywords" data-disabled-reason="Save the project first to add keywords">${icon('keywords')}</button>
+                    <button id="links-btn" class="btn-icon" data-hk-title="openLinks" data-title="Source &amp; resource links for the current image" data-disabled-reason="Save the project first to add links">${icon('link')}</button>
+                </div>
+            </div>
+
+            <div class="ctrl-sep"></div>
+
             <!-- ── Section: Projects ── -->
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Projects</div>
@@ -493,8 +507,7 @@ export function wireLogoColorPicker(logo, app) {
   // the window — see the hover latch). Pointer-driven dismissal must tell those
   // synthetic leaves from a real one: every swap happens with the menu under the pointer.
   const swapping = () => !!document.documentElement?.classList?.contains('theme-instant');
-  const reducedMotion = () =>
-    typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reducedMotion = () => motionReduced();
   const onDocDown = (e) => { if (!wrap.contains(e.target)) closeMenu(); };
   const onMenuKey = (e) => { if (e.key === 'Escape') closeMenu(); };
   // The list is sand, like every other surface (js/ui/motion.js): it forms from motes

@@ -4,10 +4,12 @@
 #include "geometry.hpp"
 #include "imageFilter.hpp"
 #include "theme.hpp"
+#include "../support/motionPrefs.hpp"   // support::drawingMotionOk() / motionReduced()
 #include <algorithm>
 #include <cmath>
 #include <QColor>
 #include <QCursor>
+#include <QEasingCurve>
 #include <QFileInfo>
 #include <QFontMetricsF>
 #include <QGuiApplication>
@@ -930,12 +932,14 @@ namespace stencil::gui {
   // any other are still moving.
   void CanvasWidget::flyInPoint(int lineIdx, const core::Line& line, int ptIdx,
                                 const QPointF* from) {
+    if (!support::drawingMotionOk()) return;   // "Drawing animation" off, or nothing may move
     strokeFx_.flyIn(lineIdx, line, ptIdx, fxNow(), from);
     if (strokeFx_.active() && !fxTimer_.isActive()) fxTimer_.start();
   }
 
   void CanvasWidget::flyInPoints(int lineIdx, const core::Line& line, int startIdx,
                                  int count) {
+    if (!support::drawingMotionOk()) return;
     strokeFx_.flyInRange(lineIdx, line, startIdx, count, fxNow());
     if (strokeFx_.active() && !fxTimer_.isActive()) fxTimer_.start();
   }
@@ -1907,6 +1911,26 @@ namespace stencil::gui {
     idleCardAnim_->setStartValue(idleCardHoverT_);
     idleCardAnim_->setEndValue(on ? 1.0 : 0.0);
     idleCardAnim_->start();
+
+    // …the glyph's own settle (iconMotion.json "image"): the ridge draws itself on and
+    // the sun drops in. Restarted from 0 on every enter and LEFT TO FINISH on leave —
+    // a settle ends at the rest pose, so there is nothing to ease back
+    // (support/iconMotion.hpp IconMotionRunner::enter / leave).
+    if (on && !support::motionReduced()) {
+      if (!idleGlyphAnim_) {
+        idleGlyphAnim_ = new QVariantAnimation(this);
+        idleGlyphAnim_->setDuration(int(kIdleGlyphPlayMs));
+        idleGlyphAnim_->setStartValue(0.0);
+        idleGlyphAnim_->setEndValue(kIdleGlyphPlayMs);
+        connect(idleGlyphAnim_, &QVariantAnimation::valueChanged, this,
+                [this](const QVariant& v) { idleGlyphMs_ = v.toDouble(); update(); });
+        // Back to the canon's own rest markup, so nothing marks a settled glyph as posed.
+        connect(idleGlyphAnim_, &QVariantAnimation::finished, this,
+                [this] { idleGlyphMs_ = -1.0; update(); });
+      }
+      idleGlyphAnim_->stop();
+      idleGlyphAnim_->start();
+    }
 
     // …and the glass sweep the browser gives every button on hover-enter
     // (layout.css ui-shimmer, 0.75s: a light band crossing from -135% to 135%).

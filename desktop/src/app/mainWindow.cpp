@@ -41,6 +41,8 @@
 #include "infoDialog.hpp"
 #include "launchOptions.hpp"
 #include "linksDialog.hpp"
+#include "descriptionDialog.hpp"
+#include "keywordsDialog.hpp"
 #include "mediaLoader.hpp"
 #include "notifications.hpp"
 #include "projectsDialog.hpp"
@@ -297,24 +299,33 @@ namespace stencil::gui {
     connect(scroll_->verticalScrollBar(), &QScrollBar::valueChanged, this,
             [this](int) { revealCanvasScrollbars(); scheduleViewSave(); });
     // Invisible at rest; revealCanvasScrollbars() (pan or zoom) fades them in, the idle timer
-    // below fades them back out (see the QSS comment by their handle rules).
-    vScrollOpacity_ = new QGraphicsOpacityEffect(scroll_->verticalScrollBar());
+    // below fades them back out (see the QSS comment by their handle rules). The effects sit
+    // on the floating overlay bars — the ones actually painted — not the hidden model bars.
+    QScrollBar* vOverlay = canvasScrollBar(Qt::Vertical);
+    QScrollBar* hOverlay = canvasScrollBar(Qt::Horizontal);
+    vScrollOpacity_ = new QGraphicsOpacityEffect(vOverlay);
     vScrollOpacity_->setOpacity(0.0);
-    scroll_->verticalScrollBar()->setGraphicsEffect(vScrollOpacity_);
-    hScrollOpacity_ = new QGraphicsOpacityEffect(scroll_->horizontalScrollBar());
+    vOverlay->setGraphicsEffect(vScrollOpacity_);
+    hScrollOpacity_ = new QGraphicsOpacityEffect(hOverlay);
     hScrollOpacity_->setOpacity(0.0);
-    scroll_->horizontalScrollBar()->setGraphicsEffect(hScrollOpacity_);
+    hOverlay->setGraphicsEffect(hScrollOpacity_);
+    // A faded-out bar still covers the viewport's edge strip, so it must not swallow clicks
+    // or drag-pans that start there (browser parity: a hidden overlay bar isn't there at all).
+    vOverlay->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+    hOverlay->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     scrollbarHideTimer_ = new QTimer(this);
     scrollbarHideTimer_->setSingleShot(true);
     connect(scrollbarHideTimer_, &QTimer::timeout, this, [this] {
       if (scrollbarHovered_) return;   // the pointer is still on one — stay up
       if (vScrollOpacity_) vScrollOpacity_->setOpacity(0.0);
       if (hScrollOpacity_) hScrollOpacity_->setOpacity(0.0);
+      canvasScrollBar(Qt::Vertical)->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+      canvasScrollBar(Qt::Horizontal)->setAttribute(Qt::WA_TransparentForMouseEvents, true);
     });
     // Hovering a bar directly (to find/grab it) must never let it fade out from under the
     // cursor — tracked via eventFilter's Enter/Leave branch for these two watched objects.
-    scroll_->horizontalScrollBar()->installEventFilter(this);
-    scroll_->verticalScrollBar()->installEventFilter(this);
+    hOverlay->installEventFilter(this);
+    vOverlay->installEventFilter(this);
     // Diagonal keyboard panning (browser parity: controlsBinder.js arrowPanTick, ~60fps via
     // rAF) — combines whichever arrows are CURRENTLY held every tick, rather than each key's
     // own native auto-repeat stepping the canvas on its own axis (see keyPressEvent).
@@ -1205,6 +1216,9 @@ namespace stencil::gui {
     const auto px = core::defaultBlankSizePx(currentPageDimensions());
     OpenImageDialog dlg(this, canReplaceActive(), px.width, px.height, startBlank,
                         settings_.pageSize, settings_.units);
+    // The browser's "Save to" row: a connected server as the new project's home.
+    if (connections_ && !incognito_) dlg.setServerTargets(connections_->urls());
+    pendingServerTarget_.clear();
     if (execMaybePopover(dlg) != QDialog::Accepted) return;
     if (dlg.outcome() == OpenImageDialog::Outcome::Blank) {
       createBlankImageFromDialog(dlg.blankColor(), dlg.blankWidth(), dlg.blankHeight());
@@ -1213,6 +1227,10 @@ namespace stencil::gui {
     const QString src = dlg.source();
     if (src.isEmpty()) return;
     const OpenImageDialog::Outcome outcome = dlg.outcome();
+    // Consumed by adoptCanvasAsLocalProject once the image lands (sync or async) —
+    // the fresh project is created on that server instead of locally. A new window
+    // has no server session to hand it to; it saves locally as before.
+    if (outcome == OpenImageDialog::Outcome::Here) pendingServerTarget_ = dlg.serverTarget();
 
     // Preview path: the dialog already decoded the exact image/frame and chose a
     // quick-crop. Adopt those pixels directly — no re-download/seek — and honor the
@@ -1960,9 +1978,7 @@ namespace stencil::gui {
     if (compareCombo_) compareCombo_->setEnabled(hasImg);
     if (actCycleCompare_) actCycleCompare_->setEnabled(hasImg);
     if (compareGroup_) compareGroup_->setEnabled(hasImg);
-    // Image Links edits the CURRENT image's provenance — greyed out without one
-    // (parity with the browser's disabled 🔗 button).
-    if (actLinks_) actLinks_->setEnabled(hasImg);
+    // Description · Keywords · Links gate on a SAVED project — in updateProjectTitle below.
     // "Open in…" mirrors the browser's #open-in-btn gating: hidden entirely when no
     // target is available (no browser URL, and no Telegram bot / not a server project),
     // otherwise enabled only with an image loaded.
@@ -2068,7 +2084,19 @@ namespace stencil::gui {
   // Canvas right-click menu — mirrors the grouping of browser/js/ui/contextMenu.js
   // (drawing · view/zoom · toggles · transform), reusing the shared QActions so
   // labels, checkmarks and enabled-state stay in sync with the toolbar/menubar.
+  void MainWindow::showContextMenuFromKeyboard() {
+    if (!scroll_) return;
+    const QWidget* vp = scroll_->viewport();
+    const QRect vpGlobal(vp->mapToGlobal(QPoint(0, 0)), vp->size());
+    const QPoint cursor = QCursor::pos();
+    showContextMenu(vpGlobal.contains(cursor) ? cursor : vpGlobal.center());
+  }
+
   void MainWindow::showContextMenu(const QPoint& globalPos) {
+    // No image, no menu — every entry acts on one, so an empty editor's menu is all
+    // dead rows. The single gate for all three ways in (canvas right-click, the
+    // backdrop's, Shift+F10), mirroring contextMenu.js's `if (!app.image) return`.
+    if (!canvas_ || !canvas_->hasImage()) return;
     syncContextActions();
 
     // ── Build the menu tree. Order mirrors contextMenu.js inner() (~5-108):
@@ -2571,7 +2599,13 @@ namespace stencil::gui {
       return;
     if (vScrollOpacity_) vScrollOpacity_->setOpacity(1.0);
     if (hScrollOpacity_) hScrollOpacity_->setOpacity(1.0);
+    canvasScrollBar(Qt::Vertical)->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+    canvasScrollBar(Qt::Horizontal)->setAttribute(Qt::WA_TransparentForMouseEvents, false);
     scheduleScrollbarHide();
+  }
+
+  QScrollBar* MainWindow::canvasScrollBar(Qt::Orientation o) const {
+    return static_cast<OverlayScrollArea*>(scroll_)->overlayBar(o);
   }
 
   // (Re)arms the fade-out timer, unless the pointer is sitting on a bar right now — the
@@ -3842,6 +3876,11 @@ namespace stencil::gui {
         || settings_.llmBaseUrl != s.llmBaseUrl || settings_.llmModel != s.llmModel
         || settings_.llmApiKey != s.llmApiKey || settings_.llmServerUrl != s.llmServerUrl;
     settings_ = s;
+    // Motion, before anything below can play: the two switches every animation in the
+    // app asks (support/modalReveal.hpp). The dialog live-applies, so flipping the mode
+    // there takes effect on that dialog's own closing flight.
+    support::setMotionMode(support::motionModeFromKey(s.motionMode));
+    support::setDrawingAnimations(s.drawingAnimations);
     canvas_->setDefaults(s.defaultColor, s.defaultThickness, s.defaultPointSize,
                          s.defaultStyle, s.defaultPointColor);
     canvas_->setHoldDrawDelay(s.holdDrawDelay);
@@ -4297,6 +4336,9 @@ namespace stencil::gui {
 
     auto* overlay = new QWidget(this);
     overlay->setObjectName(QStringLiteral("popoverOverlay"));   // themed + found by tests
+    // The logo's own popover extends the logo's hover: the shine holds while the
+    // cursor is on the box (browser: the menu lives inside .app-logo-wrap).
+    if (anchor == logoBtn_ && logoFx_) asLogoFx(logoFx_)->holdWhile(overlay);
     overlay->setAutoFillBackground(true);
     dlg.setParent(overlay);
     dlg.setWindowFlags(Qt::Widget);   // a plain child now: no frame, no title, no window
@@ -5337,6 +5379,7 @@ namespace stencil::gui {
       pendingLaunchLayoutJson_.clear();
       pendingProvSource_.clear();
       pendingProvResource_.clear();
+      pendingServerTarget_.clear();
       notify_->error(msg);
     });
   }
@@ -5905,6 +5948,34 @@ namespace stencil::gui {
     notify_->info("Links updated — save to a project to keep them");
   }
 
+  // The saved project's description: pre-filled from the store, written back through the
+  // Projects window's own store path (DescriptionDialog::apply ≙ commitRowEdit).
+  void MainWindow::openDescription() {
+    Project* pr = incognito_ ? nullptr : findProject(activeProjectId_.toStdString());
+    if (!pr) { notify_->info("Save the project first to add a description"); return; }
+    const QString current = QString::fromStdString(pr->meta.description);
+    DescriptionDialog dlg(current, this);
+    if (execMaybePopover(dlg, actDescription_) != QDialog::Accepted) return;
+    const QString text = dlg.text();
+    if (text == current) return;
+    if (DescriptionDialog::apply(projectList_, activeProjectId_, text, nowMs()))
+      notify_->success(text.isEmpty() ? "Description cleared" : "Description saved");
+  }
+
+  // …and its search keywords, the same way (KeywordsDialog::apply ≙ commitRowEdit).
+  void MainWindow::openKeywords() {
+    Project* pr = incognito_ ? nullptr : findProject(activeProjectId_.toStdString());
+    if (!pr) { notify_->info("Save the project first to add keywords"); return; }
+    QStringList current;
+    for (const auto& k : pr->meta.keywords) current << QString::fromStdString(k);
+    KeywordsDialog dlg(current, this);
+    if (execMaybePopover(dlg, actKeywords_) != QDialog::Accepted) return;
+    const QStringList next = dlg.keywords();
+    if (next == current) return;
+    if (KeywordsDialog::apply(projectList_, activeProjectId_, next, nowMs()))
+      notify_->success(next.isEmpty() ? "Keywords cleared" : "Keywords saved");
+  }
+
   // Load an image/video by URL (reusing the --src resolver), remembering the URL +
   // optional resource as provenance so the next project save records them.
   void MainWindow::loadImageByUrl(const QString& source, const QString& resource,
@@ -6053,6 +6124,8 @@ namespace stencil::gui {
     // Guards: incognito never persists; a server session owns its own saving; an
     // already-active project means this canvas is that project (open/replace), not a
     // fresh load; and there's nothing to save without an image.
+    const QString serverTarget = pendingServerTarget_;   // consumed either way
+    pendingServerTarget_.clear();
     if (incognito_) return;
     if (!activeProjectId_.isEmpty() || !remoteSession_->link().address.isEmpty()) return;
     if (!canvas_->hasImage()) return;
@@ -6064,6 +6137,12 @@ namespace stencil::gui {
       core::ProjectsStore tmp;
       tmp.load(metas);
       seed = QString::fromStdString(tmp.defaultName());
+    }
+    // The Open dialog's "Save to" pick (browser openImageModal.js `address`): the
+    // project's home is that server, not this computer.
+    if (!serverTarget.isEmpty()) {
+      createServerProject(serverTarget, seed);
+      return;
     }
     createLocalProject(seed, /*announce=*/false);  // the load path already notified
     // Browser parity: storage.save() flashes "Saved" whenever a project persists.
@@ -6721,6 +6800,11 @@ namespace stencil::gui {
       projectNameEdit_->setEnabled(editable);
       projectNameEdit_->setCursor(editable ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
     }
+    // DESCRIPTION & ATTRIBUTES edits a saved LOCAL project's metadata (browser:
+    // activeProjectId && !incognito); the tooltips carry the reason while greyed out.
+    const bool savedProject = !incognito_ && !activeProjectId_.isEmpty();
+    for (QAction* a : {actDescription_, actKeywords_, actLinks_})
+      if (a) a->setEnabled(savedProject);
     updateImageSizeInfo();
   }
 
