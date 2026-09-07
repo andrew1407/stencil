@@ -19,7 +19,7 @@ import { showMenu, hideMenu } from '../ui/dropdownMenu.js';
 // panel but never close it from inside the box, exactly when the shortcut is wanted.
 export const HOTKEYS_WHILE_TYPING = [
   'toggleChat', 'toggleVoiceChat', 'openHelp', 'openHotkeys', 'openVisuals', 'openProjects', 'openServers', 'openLinks',
-  'openDescription', 'openKeywords',
+  'openDescription', 'openKeywords', 'openAssistantSettings',
 ];
 
 // Which of those a keydown matches while typing, or null for "let the text box have it".
@@ -642,6 +642,10 @@ export class ControlsBinder {
       toggleIncognito: () => clickIfActive('incognito-toggle'),
       toggleChat: () => clickIfActive('chat-btn'),
       toggleVoiceChat: () => clickIfActive('voice-chat-btn'),
+      // The assistant's gear lives inside the chat composer's "…" menu; its click is the
+      // modal's own opener, so the window flies to/from the "…" (or falls from above when
+      // no chat surface is on screen) exactly as the menu route does.
+      openAssistantSettings: () => clickIfActive('chat-settings-btn'),
       openHelp: () => clickIfActive('info-btn'),
       openHotkeys: () => clickIfActive('settings-btn'),
       openVisuals: () => clickIfActive('visuals-btn'),

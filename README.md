@@ -295,8 +295,8 @@ stored connection's token; `mcp/` has no connection store, so it takes an explic
 
 | Surface | Where you set it | Stored as |
 |---|---|---|
-| [browser](browser/README.md) | open the chat (sparkle toolbar button, `Alt+G`, or **Assistant ▸** in the canvas right-click menu) → the input row's **gear** → assistant settings modal; scriptable as `stencil.llm` | `localStorage` key `drawingApp_llmSettings` |
-| [desktop](desktop/README.md) | the chat dock's **gear** → **Assistant** dialog, or **Settings ▸ AI assistant** (same fields, same keys) | settings JSON: `llmProvider`, `llmBaseUrl`, `llmModel`, `llmApiKey`, `llmServerUrl` |
+| [browser](browser/README.md) | open the chat (sparkle toolbar button, `Alt+G`, or **Assistant ▸** in the canvas right-click menu) → the input row's **…** menu ▸ **Settings** (or `Alt+Shift+G` anywhere) → assistant settings modal; scriptable as `stencil.llm` / `stencil.openAssistantSettingsWindow()` | `localStorage` key `drawingApp_llmSettings` |
+| [desktop](desktop/README.md) | the chat dock's **…** menu ▸ **Settings** (or `Alt+Shift+G`, **View ▸ AI Assistant Settings…**) → **Assistant** dialog, or **Settings ▸ AI assistant** (same fields, same keys) | settings JSON: `llmProvider`, `llmBaseUrl`, `llmModel`, `llmApiKey`, `llmServerUrl` |
 | [extension](extension/README.md) | **Options → AI assistant** | `chrome.storage.local` key `llmSettings` (+ `serverToken`) |
 | [cli](cli/README.md) | `STENCIL_LLM_*` env for the initial values; `/llm provider\|url\|model\|key\|server <value>` overrides in-session (bare `/llm` prints the config, secrets masked). Ask with `/prompt` (`/p`) | env + session state |
 | [pystencil](pystencil/README.md) | same `STENCIL_LLM_*` env and the same console `/llm` + `/prompt` commands; in code, `LlmConfig(provider=…, model=…)` (env fallback via `LlmConfig.from_env()`) | env / `LlmConfig` args |

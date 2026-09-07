@@ -27,6 +27,7 @@ import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SI
 import {
   chatSide, setChatSide, applyChatSide, CHAT_SIDE_SWAPPED,
 } from '../ui/chatLayoutPrefs.js';
+import { closeOpenModal } from '../ui/base.js';
 
 // A layout argument may be an OBJECT or a raw JSON string — parse the latter so callers
 // can hand over clipboard/file text directly. A non-object (or bad JSON) throws, since
@@ -40,6 +41,35 @@ const toLayoutObject = (data) => {
 };
 
 const str = (v) => (v == null ? '' : String(v));
+
+// The editor's windows, for stencil.openWindow(title) and the per-window openers. `title`
+// is the window's own heading (its <h2>); `aliases` are the other names people call it by;
+// the hotkey id and the key match too. `opener` is the toolbar/menu control the window
+// flies out of — its disabled state (and data-disabled-reason) gates the script route
+// exactly as it gates the click, so a window that can't open by hand can't open by script.
+export const WINDOWS = Object.freeze([
+  { key: 'projects', title: 'Projects', overlay: 'projects-modal-overlay', opener: 'projects-btn', hotkey: 'openProjects' },
+  { key: 'servers', title: 'Servers', aliases: ['connections', 'connect', 'connection'], overlay: 'connect-modal-overlay', opener: 'connect-btn', hotkey: 'openServers' },
+  { key: 'links', title: 'Image links', aliases: ['image links', 'links'], overlay: 'links-modal-overlay', opener: 'links-btn', hotkey: 'openLinks' },
+  { key: 'description', title: 'Project description', overlay: 'description-overlay', opener: 'description-btn', hotkey: 'openDescription' },
+  { key: 'keywords', title: 'Project keywords', overlay: 'keywords-overlay', opener: 'keywords-btn', hotkey: 'openKeywords' },
+  { key: 'assistant-settings', title: 'Assistant', aliases: ['assistant settings', 'ai assistant settings', 'ai settings', 'llm', 'llm settings'],
+    overlay: 'chat-settings-overlay', opener: 'chat-settings-btn', hotkey: 'openAssistantSettings' },
+  { key: 'shortcuts', title: 'Keyboard Shortcuts', aliases: ['hotkeys'], overlay: 'settings-modal-overlay', opener: 'settings-btn', hotkey: 'openHotkeys' },
+  { key: 'visuals', title: 'Visuals & Settings', aliases: ['visuals', 'settings'], overlay: 'visuals-modal-overlay', opener: 'visuals-btn', hotkey: 'openVisuals' },
+  { key: 'help', title: 'Controls & Shortcuts Info', aliases: ['help', 'info', 'controls'], overlay: 'info-modal-overlay', opener: 'info-btn', hotkey: 'openHelp' },
+  { key: 'open-image', title: 'Open Image', aliases: ['image', 'load image', 'open'], overlay: 'open-image-modal-overlay', opener: ['open-image-btn', 'load-image-btn'], hotkey: 'loadImage' },
+  { key: 'open-in', title: 'Open In…', aliases: ['open in'], overlay: 'open-in-modal-overlay', opener: 'open-in-btn', hotkey: 'openIn' },
+  { key: 'crop', title: 'Crop Image', aliases: ['crop'], overlay: 'crop-modal-overlay', opener: 'crop-image', hotkey: 'cropImage' },
+]);
+// Loose title matching: case-insensitive, punctuation/whitespace-free, so 'Visuals',
+// 'visuals & settings', 'open-in' and 'Open In…' all land.
+const windowNameKey = (v) => str(v).toLowerCase().replace(/[^a-z0-9]+/g, '');
+export const findWindow = (ref) => {
+  const want = windowNameKey(ref);
+  if (!want) return null;
+  return WINDOWS.find((w) => [w.key, w.title, w.hotkey, ...(w.aliases || [])].some((n) => windowNameKey(n) === want)) || null;
+};
 
 // Help text for stencil.expire() — shown when it's called with no argument. The
 // grammar is DurationParser's (durationParser.js / core/parse/durationParser.cpp).
@@ -858,6 +888,55 @@ export const createStencil = (app) => {
       try { hotkeys.updateCtxHints?.(); hotkeys.updateHotkeyTitles?.(); } catch { /* no DOM */ }
       return stencil;
     },
+
+    // ── Windows (the toolbar windows, by title) ──
+    // Titles: 'Projects', 'Servers', 'Image links', 'Project description', 'Project keywords',
+    // 'Assistant' (the AI settings), 'Keyboard Shortcuts', 'Visuals & Settings',
+    // 'Controls & Shortcuts Info', 'Open Image', 'Open In…', 'Crop Image' — loosely matched
+    // (case/punctuation-free; hotkey ids like 'openProjects' work too). Opens through the
+    // window's own shell, flying out of its toolbar control; a disabled control (keywords
+    // before the project is saved, crop with no image) throws with the button's own reason.
+    get windows() { return WINDOWS.map((w) => w.title); },
+    openWindow(title) {
+      const w = findWindow(title);
+      if (!w) throw new Error(`stencil: no window called "${str(title)}" — one of: ${WINDOWS.map((x) => x.title).join(', ')}`);
+      const doc = typeof document !== 'undefined' ? document : null;
+      const ids = Array.isArray(w.opener) ? w.opener : [w.opener];
+      const btn = doc && ids.map((id) => doc.getElementById(id)).find((el) => el && !el.hidden) || null;
+      const shell = doc?.getElementById(w.overlay)?.__stencilModal;
+      if (!btn || !shell) throw new Error(`stencil: the "${w.title}" window is not available here`);
+      if (btn.disabled) throw new Error(`stencil: "${w.title}" is unavailable — ${btn.dataset?.disabledReason || 'its control is disabled'}`);
+      if (!shell.isOpen()) shell.open(btn);
+      return stencil;
+    },
+    // Closes whatever window is showing — the table's own shells first, then anything
+    // else the shell registry knows (a confirm, the expiration prompt).
+    closeWindow() {
+      const doc = typeof document !== 'undefined' ? document : null;
+      for (const w of WINDOWS) {
+        const shell = doc?.getElementById(w.overlay)?.__stencilModal;
+        if (shell?.isOpen()) shell.close();
+      }
+      closeOpenModal();
+      return stencil;
+    },
+    // Which window is showing right now, by title (null when none).
+    get openedWindow() {
+      const doc = typeof document !== 'undefined' ? document : null;
+      return WINDOWS.find((w) => doc?.getElementById(w.overlay)?.__stencilModal?.isOpen())?.title ?? null;
+    },
+    openProjectsWindow() { return stencil.openWindow('projects'); },
+    openServersWindow() { return stencil.openWindow('servers'); },
+    openConnectionsWindow() { return stencil.openWindow('servers'); },   // alias: the Servers window
+    openLinksWindow() { return stencil.openWindow('links'); },
+    openDescriptionWindow() { return stencil.openWindow('description'); },
+    openKeywordsWindow() { return stencil.openWindow('keywords'); },
+    openAssistantSettingsWindow() { return stencil.openWindow('assistant-settings'); },
+    openShortcutsWindow() { return stencil.openWindow('shortcuts'); },
+    openVisualsWindow() { return stencil.openWindow('visuals'); },
+    openHelpWindow() { return stencil.openWindow('help'); },
+    openImageWindow() { return stencil.openWindow('open-image'); },
+    openCropWindow() { return stencil.openWindow('crop'); },
 
     // ── Editor actions (chainable) ──
     rotateLeft() { app.imageModel.rotateImage(-1); return stencil; },

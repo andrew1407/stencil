@@ -3962,6 +3962,27 @@ namespace stencil::gui {
   }
 
 
+  // One window at a time, driven from the keyboard: while a dialog is up, the shortcut that
+  // opened it closes it again, and ANOTHER window's shortcut swaps to that window. A modal
+  // dialog runs its own event loop, so the main window's QActions never fire there — the
+  // dialog carries its own copies of those chords for as long as it is showing, and the
+  // originals are parked (an active QAction with the same chord would be ambiguous when the
+  // dialog is an in-window popover, and neither would fire).
+  template <typename Actions>
+  static void wireWindowSwitching(QDialog& dlg, const Actions& actions, QAction* opener) {
+    for (QAction* a : actions) {
+      if (!a || a->shortcut().isEmpty()) continue;
+      auto* sc = new QShortcut(a->shortcut(), &dlg);
+      sc->setContext(Qt::WidgetWithChildrenShortcut);
+      QObject::connect(sc, &QShortcut::activated, &dlg, [&dlg, a, opener] {
+        // The same window: just close it. A different one: close, then open that instead
+        // once this dialog's event loop has actually unwound.
+        if (a != opener) QTimer::singleShot(0, a, &QAction::trigger);
+        dlg.reject();
+      });
+    }
+  }
+
   // The chat gear's dedicated dialog: provider/base URL/model/API key/server
   // rows (llm-contract.md §5), commit/discard — same as the browser's own
   // llmSettingsModal.js. The (live-apply) Settings dialog just links here.
@@ -3974,6 +3995,9 @@ namespace stencil::gui {
 
   void MainWindow::openAssistantSettingsFrom(QWidget* anchor, const QRect& anchorRect) {
     AssistantSettingsDialog dlg(settings_, this);
+    // Its own chord closes it again and another window's chord swaps to that window,
+    // as for every toolbar window (execMaybePopover) — this one is plain exec()'d.
+    wireWindowSwitching(dlg, popoverDialogActions_, actAssistantSettings_);
     support::revealDialog(dlg, anchor, anchorRect);
     if (dlg.exec() == QDialog::Accepted) {
       applySettings(dlg.result(), true);
@@ -4278,27 +4302,6 @@ namespace stencil::gui {
     if (target && (target == logoBtn_ || popoverButtons_.contains(target)))
       popoverDismissClick_ = true;
     return false;
-  }
-
-  // One window at a time, driven from the keyboard: while a dialog is up, the shortcut that
-  // opened it closes it again, and ANOTHER window's shortcut swaps to that window. A modal
-  // dialog runs its own event loop, so the main window's QActions never fire there — the
-  // dialog carries its own copies of those chords for as long as it is showing, and the
-  // originals are parked (an active QAction with the same chord would be ambiguous when the
-  // dialog is an in-window popover, and neither would fire).
-  template <typename Actions>
-  static void wireWindowSwitching(QDialog& dlg, const Actions& actions, QAction* opener) {
-    for (QAction* a : actions) {
-      if (!a || a->shortcut().isEmpty()) continue;
-      auto* sc = new QShortcut(a->shortcut(), &dlg);
-      sc->setContext(Qt::WidgetWithChildrenShortcut);
-      QObject::connect(sc, &QShortcut::activated, &dlg, [&dlg, a, opener] {
-        // The same window: just close it. A different one: close, then open that instead
-        // once this dialog's event loop has actually unwound.
-        if (a != opener) QTimer::singleShot(0, a, &QAction::trigger);
-        dlg.reject();
-      });
-    }
   }
 
   int MainWindow::execMaybePopover(QDialog& dlg, QAction* opener) {

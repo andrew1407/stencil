@@ -39,6 +39,7 @@
     ["🎨 Default visuals", "Set default line styles, area fill and highlight colors."],
     ["✨ AI assistant (Alt+G)", "Chat with an LLM that edits the image via planned Stencil operations — dock the panel to any edge, attach images/videos, and configure the provider via its ⚙ gear."],
     ["🎤 Voice input", "In the chat, double-click or hold the Send button (or pick Voice input from its … menu) to dictate instead of typing: the message is sent after a pause, or when you end with \"send\" / \"execute\". Click the mic or press Escape to stop."],
+    ["⚙ Assistant settings (Alt+Shift+G)", "Provider, endpoint, model, API key and voice options for the AI assistant — the same window as the chat's … menu ▸ Settings."],
     ["🎤 Voice chat (Alt+M)", "Hands-free assistant: keeps listening even with the chat closed and sends every utterance as a message — toasts show what was sent and answered. Turn it off with the button, the shortcut, or by asking the assistant to stop voice mode. Pause length and language live in the assistant settings."],
     ["📝 Description (Alt+Shift+D)", "Write a free-text description for the saved project — shown in the projects list and its tooltip."],
     ["🏷 Keywords (Alt+Shift+K)", "Tag the saved project with comma- or space-separated keywords; the projects search matches them."],

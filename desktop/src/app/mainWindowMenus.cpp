@@ -132,6 +132,7 @@ namespace stencil::gui {
     support::revealSubmenu(*compareMenu, *view, *compareMenu->menuAction());
     view->addAction(actPanel_);
     view->addAction(actChat_);
+    view->addAction(actAssistantSettings_);
     view->addAction(actToolbars_);
     view->addAction(actTooltip_);
     view->addAction(actAllowFormulas_);
