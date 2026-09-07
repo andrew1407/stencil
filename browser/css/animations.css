@@ -290,6 +290,9 @@ button:not(:disabled):active {
 @keyframes icmDrawPlus    { from { stroke-dashoffset: 14; } to { stroke-dashoffset: 0; } }
 @keyframes icmShrink      { 0%, 100% { transform: scale(1); }  45% { transform: scale(0.68); } }
 @keyframes icmDotPulse    { 0%, 100% { transform: scale(1); }  45% { transform: scale(1.5); } }
+@keyframes icmMicPulse    { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.22); } }
+@keyframes icmWaveOutL    { 0% { transform: translateX(2px) scale(0.2); }  100% { transform: none; } }
+@keyframes icmWaveOutR    { 0% { transform: translateX(-2px) scale(0.2); } 100% { transform: none; } }
 @keyframes icmLedBlink    { 0%, 100% { transform: scale(1); }  40% { transform: scale(2.1); } }
 @keyframes icmBulbGlow    { 0%, 100% { transform: scale(1); }  45% { transform: scale(1.12); } }
 @keyframes icmStamp       { 0% { transform: scale(0.55); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
@@ -406,6 +409,15 @@ button:not(:disabled):active {
 .ic-palette .ic-dot   { --ic-ms: 0.32s; --ic-play: icmDotPulse; transform-box: fill-box; transform-origin: center; }
 .ic-palette .ic-dot:nth-of-type(2) { --ic-delay: 0.055s; }
 .ic-palette .ic-dot:nth-of-type(3) { --ic-delay: 0.11s; }
+/* The mic pulses once (resting size → large → back) while its sound waves grow out of the
+   capsule, smallest first: each arc swells from a dot against the mic to its resting
+   size in turn (paths 1–3 left, 4–6 right: inner, middle, outer — markup order is the
+   stagger order; the body is a <g>, so it does not count among the paths). */
+.ic-mic .ic-body      { --ic-ms: 0.3s; --ic-ease: cubic-bezier(0.4, 0, 0.2, 1); --ic-play: icmMicPulse; }
+.ic-mic .ic-wave-l    { --ic-ms: 0.2s; --ic-play: icmWaveOutL; transform-box: fill-box; transform-origin: center; }
+.ic-mic .ic-wave-r    { --ic-ms: 0.2s; --ic-play: icmWaveOutR; transform-box: fill-box; transform-origin: center; }
+.ic-mic .ic-wave-l:nth-of-type(2), .ic-mic .ic-wave-r:nth-of-type(5) { --ic-delay: 0.06s; }
+.ic-mic .ic-wave-l:nth-of-type(3), .ic-mic .ic-wave-r:nth-of-type(6) { --ic-delay: 0.12s; }
 .ic-palette .ic-dot:nth-of-type(4) { --ic-delay: 0.165s; }
 /* Share: all THREE nodes light up in turn, top to bottom — a plain downward sweep, the
    same read as the server icon's LEDs and the layers icon's stack below. Lighting only
@@ -503,6 +515,106 @@ button:not(:disabled):active {
 @media (prefers-reduced-motion: reduce) {
     .app-logo-wrap.logo-hover .app-logo { animation: none; }   /* layout.css's :hover scale(1.08) remains */
     .app-logo-wrap::before { content: none; }                  /* no static ray ring either */
+}
+
+/* ── Voice input: both mics shine with the microphone ────────────────────────
+   While the assistant listens (js/llm/voiceModes.js) the mics wear the logo's hover
+   shine, RUNNING — the accent glow breathing on the 1.2s beat and the ray ring turning
+   and shimmering — so a listening mic is alive even in a silent room. On top of that
+   `--voice-level` on <html> (voiceLevel.js, ~60 Hz, 0..1) drives the shine's SIZE: the
+   tile's halo spreads and the ray ring grows with the voice. The glyph itself never
+   moves with the volume — only the light around it does. Wearers: the toolbar voice-chat
+   toggle (.active) and a composer's mic face (.chat-voice-listening) — NOT the logo, whose
+   shine stays its own hover's (and its accent popover's). Filter/opacity/absolute-inset
+   only: no box changes. */
+@keyframes voiceGlowPulse {
+    0%, 100% { filter: drop-shadow(0 0 1px color-mix(in srgb, var(--accent) 25%, transparent)); }
+    50%      { filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 80%, transparent)); }
+}
+#voice-chat-btn.active .ic,
+.chat-abtn.chat-voice-listening .ic, .ctx-assist-abtn.chat-voice-listening .ic {
+    animation: voiceGlowPulse 1.2s ease-in-out infinite;
+}
+/* The mic glyph's sound waves are the control's STATE alone: shown while it listens,
+   hidden while it is off. A hover never shows them (it pulses the mic body instead —
+   the waves belong to the click that switches the mode on or off). */
+.ic-mic .ic-wave-l, .ic-mic .ic-wave-r { opacity: 0; transition: opacity 0.2s ease; }
+#voice-chat-btn.active .ic-mic .ic-wave-l, #voice-chat-btn.active .ic-mic .ic-wave-r,
+.chat-voice-listening .ic-mic .ic-wave-l, .chat-voice-listening .ic-mic .ic-wave-r { opacity: 1; }
+/* Switching the mic ON replays the hover's swell; switching it OFF sends the waves
+   out past the tile's left and right edges. The control wears .voice-waves-in /
+   .voice-waves-out for one flight (motion.js replayWaves); the parts' own --ic-ms /
+   --ic-delay clocks stagger the arcs inner → outer both ways. */
+/* !important: the hover trigger (a long :is()/:not() chain) outranks any plain class
+   selector, and a click lands with the pointer resting on the button. */
+.voice-waves-in .ic-mic .ic-wave-l { animation-name: icmWaveInL !important; }
+.voice-waves-in .ic-mic .ic-wave-r { animation-name: icmWaveInR !important; }
+/* Twins of the hover's icmWaveOutL/R under their own names: a click on a HOVERED mic
+   must restart the swell, and CSS only restarts an animation whose name changes. */
+@keyframes icmWaveInL { 0% { transform: translateX(2px) scale(0.2); }  100% { transform: none; } }
+@keyframes icmWaveInR { 0% { transform: translateX(-2px) scale(0.2); } 100% { transform: none; } }
+.voice-waves-out .ic-mic .ic-wave-l { animation-name: icmWaveAwayL !important; --ic-ms: 0.3s; --ic-ease: cubic-bezier(0.4, 0, 1, 1); }
+.voice-waves-out .ic-mic .ic-wave-r { animation-name: icmWaveAwayR !important; --ic-ms: 0.3s; --ic-ease: cubic-bezier(0.4, 0, 1, 1); }
+@keyframes icmWaveAwayL { 0% { transform: none; opacity: 1; } 100% { transform: translateX(-10px) scale(1.3); opacity: 0; } }
+@keyframes icmWaveAwayR { 0% { transform: none; opacity: 1; } 100% { transform: translateX(10px) scale(1.3); opacity: 0; } }
+/* The toolbar mic draws a quarter larger than its 16px box (a transform, so the button
+   never grows) — listening or not. */
+#voice-chat-btn .ic { transform: scale(1.25); }
+/* …and the button itself never moves: the app-wide hover lift / press dip (top of this
+   sheet) would drop a hovered mic by a pixel the moment it turns on (the lift is
+   :not(.active)); its shine is feedback enough. */
+#voice-chat-btn:hover, #voice-chat-btn:active { transform: none; }
+/* No browser focus ring on a mic tile: a key pressed while it holds focus (it keeps focus
+   after the click that switched it on) drew the UA's white outline over the shine, which
+   already says everything the ring would. */
+#voice-chat-btn:focus, #voice-chat-btn:focus-visible,
+.chat-abtn.chat-voice-on:focus, .chat-abtn.chat-voice-on:focus-visible,
+.ctx-assist-abtn.chat-voice-on:focus, .ctx-assist-abtn.chat-voice-on:focus-visible { outline: none; }
+/* The tile's halo IS the shine: the logo's hover glow (logoPulse's drop-shadow, breathing
+   on the 1.2s beat) drawn as an accent box-shadow on the tile's ::after — the glass sweep's
+   pseudo, repurposed while listening. Alive at silence, and the voice widens and thickens
+   it (--voice-level). The animation drives opacity only, so the level-sized shadow never
+   fights the keyframes. The .btn-icon.…-on.…-listening spelling outranks layout.css's
+   .btn-icon:hover:not(:disabled)::after, or a hover would swap the halo for the sweep. */
+#voice-chat-btn.active::after,
+.btn-icon.chat-abtn.chat-voice-on.chat-voice-listening::after,
+.btn-icon.ctx-assist-abtn.chat-voice-on.chat-voice-listening::after {
+    content: "";
+    inset: 0;
+    border-radius: inherit;
+    background: none;
+    transform: none;
+    z-index: -1;
+    box-shadow: 0 0 calc(7px + 14px * var(--voice-level, 0)) calc(1px + 3px * var(--voice-level, 0)) var(--accent);
+    animation: micHaloPulse 1.2s ease-in-out infinite;
+    transition: box-shadow 0.06s linear;
+}
+@keyframes micHaloPulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+#voice-chat-btn.active,
+.chat-abtn.chat-voice-listening, .ctx-assist-abtn.chat-voice-listening {
+    box-shadow: none;   /* the idle 1px inset border would draw a dark rim inside the halo */
+    transition: background 0.2s, color 0.2s;
+}
+/* The mics' RAY RING is not CSS: it is drawn on the voice-dust canvas (ui/voiceDust.js)
+   together with the motes, where the tile's rounded rectangle is punched out of every
+   frame — so ring and dust sit behind the icon on every browser. (A ::before ring under
+   the tile needed mask-composite to cut the tile out, which did not hold everywhere.)
+   The halo needs the tile unclipped (layout.css clips every button for its glass sweep)
+   and its own stacking context, so the z-index:-1 pseudo sits under the glyph and not
+   behind the toolbar. */
+#voice-chat-btn, .chat-abtn.chat-voice-on, .ctx-assist-abtn.chat-voice-on { position: relative; }
+#voice-chat-btn.active, .chat-abtn.chat-voice-listening, .ctx-assist-abtn.chat-voice-listening {
+    overflow: visible;
+    isolation: isolate;
+}
+@media (prefers-reduced-motion: reduce) {
+    /* The halo IS the level readout, so it stays (steady); the glyph loop goes, and the
+       canvas draws neither ring nor dust (voiceDust.js honours motionReduced). */
+    #voice-chat-btn.active .ic,
+    .chat-abtn.chat-voice-listening .ic, .ctx-assist-abtn.chat-voice-listening .ic { animation: none; }
+    #voice-chat-btn.active::after,
+    .btn-icon.chat-abtn.chat-voice-on.chat-voice-listening::after,
+    .btn-icon.ctx-assist-abtn.chat-voice-on.chat-voice-listening::after { animation: none; opacity: 0.8; }
 }
 
 /* ── Modal appearance: backdrop fade + content pop ──────────────────── */

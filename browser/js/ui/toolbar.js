@@ -5,9 +5,11 @@ import { icon } from './icons.js';
 import { ACCENTS, DEFAULT_ACCENT, accentHex, normalizeHex } from '../core/accents.js';
 import { fillAccentMenu, markSelected } from './accentPicker.js';
 import { createModalOpenGesture } from './popover.js';
-import { surfaceIn, surfaceOut, wireHoverDust, foldDust, rectCenter,
-         SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from './motion.js';
-import { isTypingTarget } from '../utils.js';
+import { replayWaves, surfaceIn, surfaceOut, wireHoverDust, foldDust, rectCenter,
+         motionReduced, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from './motion.js';
+import { isTypingTarget, notify } from '../utils.js';
+import { VOICE_STATE_EVENT } from '../llm/voiceModes.js';
+import { attachVoiceDust } from './voiceDust.js';
 import { pageFormatOptions } from '../core/units.js';
 // ── Component: toolbar (controls-wrapper + all control sections) ──────
 // Owns the controls markup and the collapse/hints behavior. The individual
@@ -92,13 +94,13 @@ export class StencilToolbar extends StencilElement {
 
             <div class="ctrl-sep"></div>
 
-            <!-- ── Section: Connections & links (servers, links, AI assistant) ── -->
+            <!-- ── Section: Connections & chat (servers, AI assistant, voice chat) ── -->
             <div class="ctrl-section">
-                <div class="ctrl-section-label">Connections &amp; links</div>
+                <div class="ctrl-section-label">Connections &amp; chat</div>
                 <div class="ctrl-section-row">
-                    <button id="connect-btn" class="btn-icon" data-hk-title="openServers" data-title="Servers — connect to share &amp; co-edit projects" title="Servers — connect to share &amp; co-edit projects">${icon('server')}</button>
-                    <button id="links-btn" class="btn-icon" data-hk-title="openLinks" data-title="Source &amp; resource links for the current image" data-disabled-reason="Open an image first to edit its links" title="Source &amp; resource links for the current image">${icon('link')}</button>
-                    <button id="chat-btn" class="btn-icon" data-hk-title="toggleChat" data-title="AI assistant — chat to edit the image" title="AI assistant — chat to edit the image">${icon('sparkle')}</button>
+                    <button id="connect-btn" class="btn-icon" data-hk-title="openServers" data-title="Servers — connect to share &amp; co-edit projects">${icon('server')}</button>
+                    <button id="chat-btn" class="btn-icon" data-hk-title="toggleChat" data-title="AI assistant — chat to edit the image">${icon('sparkle')}</button>
+                    <button id="voice-chat-btn" class="btn-icon" data-hk-title="toggleVoiceChat" data-title="Voice chat — talk to the assistant hands-free, even with the chat closed" data-disabled-reason="Voice input is not supported in this browser">${icon('mic')}</button>
                 </div>
             </div>
 
@@ -358,7 +360,93 @@ export class StencilToolbar extends StencilElement {
     refresh();
 
     wireLogoColorPicker(this.querySelector('.app-logo'), _app);
+    wireVoiceChatToggle(this.querySelector('#voice-chat-btn'), _app);
+    // The section separators follow the wrap (below): measured again whenever this
+    // toolbar, or the window around the fullscreen clone, changes size.
+    const syncSeps = () => {
+      syncWrappedSeparators(this);
+      const fs = document.getElementById('fs-controls-panel');
+      if (fs) syncWrappedSeparators(fs);
+    };
+    // Every SECTION is watched too, not just the toolbar: the f(x,y) fields and the custom
+    // page's W/H boxes slide open inside theirs and re-wrap the row while the toolbar's own
+    // box never moves.
+    if (typeof ResizeObserver === 'function') {
+      const ro = new ResizeObserver(syncSeps);
+      ro.observe(this);
+      for (const sec of this.querySelectorAll('.ctrl-section')) ro.observe(sec);
+    }
+    window.addEventListener('resize', syncSeps);
+    window.addEventListener('stencil:fullscreen-changed', () => setTimeout(syncSeps, 0));
+    syncSeps();
   }
+}
+
+// The hairlines between toolbar sections (.ctrl-sep) live in a wrapping flex row, so a
+// narrowing window can land one at the START of a row — a stray line shoving that section
+// right. A separator whose two neighbours sit on different rows is hidden.
+export const WRAPPED_SEP_CLASS = 'ctrl-sep-wrapped';
+// Hiding one frees its width, which can pull the next section back up — so one pass
+// leaves answers the new layout no longer matches. Re-ask until the set stops moving; a
+// width that oscillates stops at the cap, hidden (a missing hairline beats a stray one).
+export const SEP_SETTLE_PASSES = 4;
+export function syncWrappedSeparators(root, passes = SEP_SETTLE_PASSES) {
+  const seps = [...(root?.querySelectorAll?.('.ctrl-sep') || [])];
+  // Every separator shown first, so a given width always resolves the same way and the
+  // observer that re-runs this never chases its own change.
+  for (const sep of seps) sep.classList.remove(WRAPPED_SEP_CLASS);
+  const top = (el) => Math.round(el.getBoundingClientRect().top);
+  const straddles = (sep) => {
+    const prev = sep.previousElementSibling;
+    const next = sep.nextElementSibling;
+    return !!prev && !!next && top(next) > top(prev);
+  };
+  for (let pass = 0; pass < passes; pass++) {
+    let moved = false;
+    for (const sep of seps) {
+      const want = straddles(sep);
+      if (want === sep.classList.contains(WRAPPED_SEP_CLASS)) continue;
+      sep.classList.toggle(WRAPPED_SEP_CLASS, want);
+      moved = true;
+    }
+    if (!moved) return;   // settled: every hairline agrees with the row it is in
+  }
+  for (const sep of seps) if (straddles(sep)) sep.classList.add(WRAPPED_SEP_CLASS);   // never settled
+}
+
+// The hands-free voice chat toggle (js/llm/voiceModes.js): `--voice-level` on <html>
+// carries the live loudness (css/animations.css sizes the mics' shine from it), and
+// .active marks this button while voice chat is on — mirrored onto the fullscreen
+// toolbar clone like the chat button's own state. The LOGO is not a wearer: its shine
+// is its own hover (and its accent popover's), never the microphone's (user report).
+export function wireVoiceChatToggle(btn, app) {
+  if (!btn || !app) return;
+  const voice = () => app.voice;
+  const buttons = () => document.querySelectorAll('#voice-chat-btn');
+  let wasOn = false;
+  const sync = () => {
+    const v = voice();
+    const on = !!v?.voiceChat;
+    for (const el of buttons()) {
+      el.classList.toggle('active', on);
+      if (on !== wasOn) replayWaves(el, on);   // the waves swell in / fly out
+    }
+    wasOn = on;
+  };
+  if (!voice()?.supported) btn.disabled = true;   // the disabled-reason tooltip says why
+  // Motes leave the tile with the voice while it listens (ui/voiceDust.js).
+  attachVoiceDust(btn, () => btn.classList.contains('active'));
+  btn.addEventListener('click', () => {
+    const v = voice();
+    if (!v) return;
+    try { v.voiceChat = !v.voiceChat; } catch (err) { notify(err?.message || String(err), 'fail'); }
+    sync();
+  });
+  voice()?.onLevel((level) => {
+    document.documentElement.style.setProperty('--voice-level', level.toFixed(3));
+  });
+  window.addEventListener(VOICE_STATE_EVENT, sync);
+  sync();
 }
 
 // Double-click (or double-tap) the logo opens a native colour picker that tints THIS

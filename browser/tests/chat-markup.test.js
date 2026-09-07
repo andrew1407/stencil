@@ -17,7 +17,7 @@ test('chat panel ids are present exactly once', () => {
     'chat-panel', 'chat-header', 'chat-title', 'chat-status-dot',
     'chat-dock-left-btn', 'chat-dock-top-btn', 'chat-dock-bottom-btn', 'chat-dock-right-btn', 'chat-float-btn',
     'chat-settings-btn', 'chat-close', 'chat-transcript', 'chat-empty', 'chat-attachments',
-    'chat-attach-btn', 'chat-attach-input', 'chat-input', 'chat-send', 'chat-resizer',
+    'chat-attach-btn', 'chat-attach-input', 'chat-input', 'chat-send', 'chat-voice', 'chat-resizer',
     'chat-input-sizer',
   ]) once(id);
 });
@@ -85,7 +85,9 @@ test('header buttons are chat-hbtn ghosts; composer is send + a … menu', () =>
   // …in that order: swap sides sits between Clear history and Settings.
   assert.ok(markup.indexOf('id="chat-clear"') < markup.indexOf('id="chat-swap-sides"')
     && markup.indexOf('id="chat-swap-sides"') < markup.indexOf('id="chat-settings-btn"'));
-  assert.strictEqual(count('chat-more-item'), 4, 'add image + clear history + swap sides + settings');
+  assert.strictEqual(count('chat-more-item'), 5, 'voice input + add image + clear history + swap sides + settings');
+  assert.ok(markup.indexOf('id="chat-voice"') > menu && markup.indexOf('id="chat-voice"') < markup.indexOf('id="chat-attach-btn"'),
+    'voice input is the first … item');
   assert.strictEqual(count('chat-title-text'), 1, 'truncatable title span present');
 });
 
@@ -455,5 +457,8 @@ test('assistant settings modal has Cancel/Save and only Save writes storage', ()
   assert.match(src, /chat-settings-save'\)\.addEventListener\('click'[\s\S]{0,400}persist\(\);/);
   assert.ok(src.includes("$('chat-settings-cancel').addEventListener('click', () => shell.close());"));
   // Reopening reloads from storage — that is what makes a close a discard.
-  assert.ok(src.includes('onOpen: () => { settings = loadLlmSettings(); render(); }'));
+  assert.ok(src.includes('onOpen: () => { settings = loadLlmSettings(); voice = loadVoiceSettings(); render(); }'));
+  // The voice settings ride the same commit: written only from the Save handler.
+  assert.strictEqual(src.split('saveVoiceSettings(').length - 1, 1, 'a single saveVoiceSettings() call site');
+  assert.match(src, /chat-settings-save'\)\.addEventListener\('click'[\s\S]{0,600}saveVoiceSettings\(/);
 });

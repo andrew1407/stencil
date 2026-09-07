@@ -366,8 +366,16 @@ export const runChatTurn = async (controller, text, { signal, settings } = {}) =
 // A turn's outcome shortened for a notification balloon (a turn that lands while
 // the surface is closed must not vanish silently — both surfaces toast it).
 export const CHAT_TOAST_CHARS = 90;
-export const truncateForToast = (text) =>
-  (text.length > CHAT_TOAST_CHARS ? `${text.slice(0, CHAT_TOAST_CHARS - 1)}…` : text);
+// A SPOKEN prompt is echoed back far shorter than that: hands-free, the toast only has
+// to prove the mic heard the right thing, and dictated prompts run to whole paragraphs —
+// 90 characters of one made the balloon a wall of text over the canvas (user report).
+export const SPOKEN_ECHO_CHARS = 34;
+export const truncateForToast = (text, max = CHAT_TOAST_CHARS) =>
+  (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+// What the "Sent" balloon shows of a spoken prompt: its opening words, on ONE line
+// (dictation carries no newlines of its own, but a composer's typed prefix can).
+export const spokenEcho = (text) =>
+  truncateForToast(String(text ?? '').replace(/\s+/g, ' ').trim(), SPOKEN_ECHO_CHARS);
 
 // …and the WHOLE balloon a landed turn deserves, built once so every surface shows the
 // same thing. Returns null when nothing should be said — an abort is the user's own doing.

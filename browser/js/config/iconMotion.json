@@ -645,6 +645,48 @@
           "keyframes": [{ "at": 0, "dashOffset": 22 }, { "at": 100, "dashOffset": 0 }]
         }
       ]
+    },
+    "mic": {
+      "action": "voice input \u2014 talk instead of typing",
+      "mode": "settle",
+      "note": "the mic itself PULSES once \u2014 from its resting size up to large and back \u2014 about the glyph centre, as if it just picked up a voice, while the sound waves GROW out of it, smallest first: each of the three arcs per side starts tiny against the capsule and swells to its resting size in turn, inner \u2192 middle \u2192 outer, the way sound spreads. Left and right mirror. (At rest the arcs are hidden while the mic is off and shown while it listens \u2014 that visibility is the control's state, styled outside the motion sheet; the hover reveals them for the swell either way)",
+      "parts": [
+        {
+          "hook": "ic-body", "durationMs": 300, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+          "keyframes": [{ "at": 0, "scale": 1 }, { "at": 50, "scale": 1.22 }, { "at": 100, "scale": 1 }]
+        },
+        {
+          "hook": "ic-wave-l", "durationMs": 200, "stagger": 60, "originSelf": true,
+          "keyframes": [{ "at": 0, "translate": [2, 0], "scale": 0.2 }, { "at": 100 }]
+        },
+        {
+          "hook": "ic-wave-r", "durationMs": 200, "stagger": 60, "originSelf": true,
+          "keyframes": [{ "at": 0, "translate": [-2, 0], "scale": 0.2 }, { "at": 100 }]
+        }
+      ]
+    },
+    "description": {
+      "action": "the project's description \u2014 a sheet of text",
+      "mode": "settle",
+      "note": "the sheet's three text lines WRITE themselves, top to bottom, one after another (dash draw-on, 8 / 8 / 5 units), the way a description is typed",
+      "parts": [
+        {
+          "hook": "ic-text", "durationMs": 220, "stagger": 90, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 8,
+          "keyframes": [{ "at": 0, "dashOffset": 8 }, { "at": 100, "dashOffset": 0 }]
+        }
+      ]
+    },
+    "keywords": {
+      "action": "the project's keywords \u2014 a bullet list",
+      "mode": "settle",
+      "note": "the three bullet rows (\u2022 \u2014) APPEAR one after another, top to bottom: each slides in from the left, small, and settles at its place",
+      "parts": [
+        {
+          "hook": "ic-row", "durationMs": 400, "stagger": 150, "originSelf": true,
+          "keyframes": [{ "at": 0, "translate": [-4, 0], "scale": 0.6 }, { "at": 100 }]
+        }
+      ]
     }
   },
   "extras": {

@@ -346,6 +346,9 @@ stencil.mainTheme        = '#ff5623';  // …or any hex → a custom accent for 
 stencil.projectColor     = '#ec4899';  // active project's accent colour: paints its NAME everywhere ('' = neutral grey)
 stencil.drawMode         = 'rect';     // 'line' | 'rect'
 stencil.holdDrawDelay    = 500;        // hold-to-draw hold/dwell delay, ms (clamped 100–3000)
+stencil.voiceSilenceMs   = 1000;       // voice input: the pause that ends an utterance, ms (clamped 500–10000) —
+                                       // voice chat sends it; the composer stops dictating and keeps the words
+stencil.voiceInputLanguage = 'default'; // voice input language: 'default' (English) or a BCP-47 tag ('de-DE', 'uk-UA', …)
 stencil.allowFormulas    = true;       // enable the f(x,y) coordinate transforms
 stencil.formulaX         = 'x*2';      // x transform (also formulaY)
 stencil.formulaY         = 'y+10';
@@ -371,6 +374,10 @@ stencil.rotateLeft();  stencil.rotateRight();
 stencil.undo();        stencil.redo();
 stencil.startDrawing();  stencil.stopDrawing();   // enter / leave point-adding mode
 stencil.drawing = true;                // …or toggle it (get/set; needs a loaded image)
+stencil.voiceChat = true;              // hands-free voice chat (get/set; the toolbar mic / Alt+M): listens even with the
+                                       // chat closed and sends every utterance as a turn — toasts show what was sent and
+                                       // answered; ends on a pause (voiceSilenceMs) or a spoken "send" / "execute";
+                                       // throws where the browser has no speech recognition
 stencil.clearLines();                  // remove all lines
 stencil.newEditor();                   // clear to a fresh blank (unsaved) editor
 await stencil.blank('red', { size: { width: 800, height: 600 } });  // blank image to draw on
@@ -471,6 +478,11 @@ stencil.chat.clear();                  // fresh conversation — the trash butto
                                        // (history, queued attachments, transcript, and the
                                        // persisted per-project copy); throws mid-turn
 stencil.chat.isSending;                // a turn is in flight right now
+stencil.chat.voiceInput = true;        // dictate into the panel's composer (the mic face: the "…" item, a double-click
+                                       // or a hold on Send) — sends ONLY on a spoken "send" / "execute", which ends the
+                                       // dictation with it; a pause (voiceSilenceMs) ends it too and leaves the words in
+                                       // the box. Either way the button keeps its (paused) mic face — a click resumes.
+                                       // One voice mode at a time, so this turns voiceChat off and vice versa
 
 // ── Browser extension (the Chrome extension's editor-page API, when it's there) ──
 stencil.extension;                     // null unless the extension is installed AND its

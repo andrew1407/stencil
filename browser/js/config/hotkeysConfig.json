@@ -265,6 +265,11 @@
     "default": "Alt+G"
   },
   {
+    "id": "toggleVoiceChat",
+    "label": "Toggle Voice Chat",
+    "default": "Alt+M"
+  },
+  {
     "id": "openHelp",
     "label": "Controls & Shortcuts Help",
     "default": "Alt+H"
