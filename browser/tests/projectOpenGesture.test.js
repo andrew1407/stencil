@@ -259,8 +259,8 @@ test('constants + focus ring; the hold stays the reorder pickup, unstyled by us'
 // up the thumb's ancestor chain survives the move onto the thumb and covers the preview.
 test('the metadata tooltip is on the text column, not the row', () => {
   const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
-  assert.match(src, /if \(tip\) info\.title = tip;/, 'the tooltip hangs off .project-info');
-  assert.ok(!/if \(tip\) row\.title = tip;/.test(src), 'never on the row — it would cover the preview');
+  assert.match(src, /if \(tip\) info\.dataset\.title = tip;/, 'the tooltip hangs off .project-info');
+  assert.ok(!/if \(tip\) row\.dataset\.title = tip;/.test(src), 'never on the row — it would cover the preview');
 });
 
 // The stored thumbnail is only ~160 px wide, so a max-width can never enlarge it: the

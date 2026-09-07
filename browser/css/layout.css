@@ -262,6 +262,12 @@ button.danger:hover:not(:disabled) {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    /* A label never wraps: while a control slides in (motion.js revealControls animates
+       max-width from 0 under overflow:hidden) the box is briefly narrower than its text,
+       and "Open Image" broke onto two lines — and stayed there when the width the slide
+       measured was the wrapped one. Clipping mid-slide is the browser-side answer; the
+       desktop's Qt buttons never reflow their caption either. */
+    white-space: nowrap;
 }
 .btn-icon-text .ic { vertical-align: 0; }
 /* The two Draw-group toggles swap their own label in place — Start↔Stop, Line↔Rect — and
@@ -517,11 +523,12 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     gap: 6px;
     font-size: 14px;
 }
-.zoom-controls button {
-    padding: 4px 10px;
-    font-size: 16px;
-    line-height: 1;
-}
+/* No box of their own: −, + and Fit are icon buttons like every other one in the toolbar,
+   so they take the shared button padding. The tighter one here dates from when − and +
+   were TEXT glyphs at 16px; with real icons in the box it just made these three squat —
+   36 × 24 beside the 40 × 32 of their neighbours (user report, with a picture) — where the
+   desktop's whole toolbar is one 37 × 33 chip (makeToolSection). */
+.zoom-controls button { line-height: 1; }
 .zoom-input-wrap { position: relative; display: inline-flex; }
 /* Zoom preset dropdown — opens on focus/click of #zoom-input; type or click a preset. */
 .zoom-menu {
@@ -753,6 +760,9 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
     flex-shrink: 0;
     margin: 0 4px;
 }
+/* …unless the row wrapped between its two sections (ui/toolbar.js syncWrappedSeparators):
+   a hairline at the head of a row is a stray, not a divider. */
+.ctrl-sep.ctrl-sep-wrapped { display: none; }
 
 /* ── Controls collapsible ── */
 .controls-wrapper { margin-bottom: 12px; }

@@ -2,6 +2,7 @@
 
 #include <QMenu>
 #include <QPointer>
+#include <QSet>
 
 class QAbstractButton;
 
@@ -26,6 +27,7 @@ namespace stencil::gui {
     // chat row): real events are re-dispatched to the child under the cursor,
     // and keys (except Escape) go to `keyTarget` while it holds focus.
     void setInteractiveArea(QWidget* area, QWidget* keyTarget);
+    QList<QWidget*> tabStops() const;   // hosted focusable controls, in row order
 
    protected:
     QAbstractButton* toggleAt(const QPoint& p);
@@ -38,7 +40,15 @@ namespace stencil::gui {
     void clearAreaHover();
     void leaveEvent(QEvent* e) override;
     void hideEvent(QHideEvent* e) override;
+    void showEvent(QShowEvent* e) override;
+    void actionEvent(QActionEvent* e) override;
     void keyPressEvent(QKeyEvent* e) override;
+    bool enterControls();               // focus the chat input / first tab stop
+    void focusStop(QWidget* w, Qt::FocusReason reason);   // setFocus + the radio filter
+    bool walkTab(bool back);            // one Tab step over controls and plain rows
+    bool eventFilter(QObject* watched, QEvent* event) override;
+    QAction* firstRowAction() const;    // first plain row the keyboard can land on
+    QList<QAction*> rowActions() const; // the plain rows, in order
     void mousePressEvent(QMouseEvent* e) override;
     void mouseReleaseEvent(QMouseEvent* e) override;
 
@@ -55,6 +65,8 @@ namespace stencil::gui {
     QPointer<QWidget> hoverChild_;  // child currently sent a synthetic Enter
     bool redispatching_ = false;    // inside a mouse re-dispatch
     bool redispatchingKey_ = false; // inside a key re-dispatch
+    QSet<QWidget*> filteredStops_;  // hosted controls already given this filter
+    bool entered_ = false;          // past the reveal: a second →, Tab, or the pointer
   };
 
 }  // namespace stencil::gui

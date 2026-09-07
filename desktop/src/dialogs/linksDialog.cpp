@@ -47,8 +47,7 @@ namespace stencil::gui {
 
   LinksDialog::LinksDialog(const QString& source, const QString& resource,
                            bool hasImage, const QString& pageSeed,
-                           const QString& units, QWidget* parent,
-                           const QString& projectName)
+                           const QString& units, QWidget* parent)
       : QDialog(parent), pageSeed_(pageSeed) {
     setWindowTitle("Image links");
     setMinimumWidth(540);
@@ -67,16 +66,8 @@ namespace stencil::gui {
     auto* linksCol = new QVBoxLayout(linksBox);
     linksCol->setContentsMargins(0, 0, 0, 0);
     linksCol->setSpacing(8);
-    // PROJECT / Name (browser linksModal parity): rename the current project here.
-    linksCol->addWidget(modalSectionLabel(tr("Project"), this));
-    auto* nameForm = new QFormLayout;
-    nameForm->setContentsMargins(0, 0, 0, 0);
-    alignModalForm(nameForm, /*growFields=*/true);
-    nameEdit_ = new QLineEdit(projectName, this);
-    nameEdit_->setPlaceholderText(tr("Untitled"));
-    nameForm->addRow(tr("Name:"), nameEdit_);
-    linksCol->addLayout(nameForm);
-    linksCol->addWidget(modalSectionLabel(tr("Links"), this));
+    // Only the links live here (browser linksModal parity): the project's name is edited
+    // in the projects list / the title, so no PROJECT section and no "Links" caption.
     auto* linksForm = new QFormLayout;
     linksForm->setContentsMargins(0, 0, 0, 0);
     alignModalForm(linksForm, /*growFields=*/true);   // labels left, fields span the row
@@ -220,12 +211,6 @@ namespace stencil::gui {
     addForm->addRow(QString(), loadBtn_);
     layout->addWidget(addBox);
 
-    auto* hint = new QLabel(
-        "Downloads bypass page CORS, so any reachable image/video URL works.", this);
-    hint->setStyleSheet(mutedCss + " font-size: 11px;");
-    hint->setWordWrap(true);
-    layout->addWidget(hint);
-
     // ── Preview wiring ──
     preview_ = new MediaLoader(this);
     connect(preview_, &MediaLoader::loaded, this,
@@ -305,14 +290,16 @@ namespace stencil::gui {
     // add-by-URL loader is offered. Mirrors the browser modal's two modes.
     linksBox->setVisible(hasImage);
     addBox->setVisible(!hasImage);
-    hint->setVisible(!hasImage);
     layout->addStretch(1);
 
-    // Footer (browser settings-footer) only in edit mode, and only the hint: like the
-    // browser, there is no Cancel/Save pair — edits apply when the dialog closes
-    // (the caller reads the fields whatever way it was dismissed). Add-by-URL's CTA
-    // is "Load into editor" up in the body, so that mode has no footer at all.
-    if (hasImage) addModalFooter(chrome, tr("Editing the current image’s links."));
+    // Footer (browser settings-footer): the hint alone, in both modes — like the
+    // browser, there is no Cancel/Save pair; edits apply when the dialog closes (the
+    // caller reads the fields whatever way it was dismissed). Add-by-URL's CTA is
+    // "Load into editor" up in the body, so its hint says what the loader can reach.
+    addModalFooter(chrome, hasImage
+                               ? tr("Editing the current image’s links.")
+                               : tr("Downloads bypass page CORS, so any reachable "
+                                    "image/video URL works."));
   }
 
   bool LinksDialog::eventFilter(QObject* obj, QEvent* event) {
@@ -517,9 +504,6 @@ namespace stencil::gui {
   }
 
   QString LinksDialog::source() const { return sourceEdit_->text().trimmed(); }
-  QString LinksDialog::projectName() const {
-    return nameEdit_ ? nameEdit_->text().trimmed() : QString();
-  }
   QString LinksDialog::resource() const { return resourceEdit_->text().trimmed(); }
   QString LinksDialog::urlSource() const { return urlEdit_->text().trimmed(); }
   QString LinksDialog::urlResource() const { return urlResourceEdit_->text().trimmed(); }

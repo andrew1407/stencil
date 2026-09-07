@@ -21,7 +21,9 @@
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QImage>
+#include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QVBoxLayout>
 
 #include <cstdio>
@@ -354,6 +356,65 @@ int main(int argc, char** argv) {
           "…and hides once the slot has fully closed");
     check(pumpUntil([&] { return liveReveals() == 0; }, kControlRevealOutMs + 3000),
           "…the cloud converges too");
+
+    // What FLIES is the controls, not the strip behind them: QWidget::grab() paints the
+    // palette's Window brush under the children, and a group photographed on a toolbar
+    // then flew as a dark slab over a lighter bar (user report: "black lines next to the
+    // inputs"). The gaps a group carries — it is wider than its fields whenever the row
+    // hands it slack — must come out CLEAR.
+    {
+      QWidget wide(&host);
+      wide.setFixedSize(200, 28);
+      auto* only = new QLabel("x(x)=", &wide);
+      only->setGeometry(0, 0, 60, 28);
+      only->setAutoFillBackground(true);
+      wide.show();
+      pumpFor(60);
+      const QImage shot = stencil::gui::ctl::groupShot(&wide).toImage();
+      check(!shot.isNull() && shot.hasAlphaChannel(), "the group's picture carries alpha");
+      const int y = shot.height() / 2;
+      check(shot.pixelColor(shot.width() - 4, y).alpha() == 0,
+            "the slack a group carries flies as nothing at all, not as a slab of page colour");
+      check(shot.pixelColor(4, y).alpha() > 0, "…while the control itself is really in it");
+    }
+
+    // A group the row hands SLACK to (Expanding — the f(x,y) pair) must FLY at the width
+    // the layout really gives it, not at its own size hint: the hint is only what its
+    // contents ask for, so the picture flew narrow and the fields jumped wider the instant
+    // the dust handed over (user report).
+    {
+      auto* row = new QWidget(&host);
+      auto* rowLay = new QHBoxLayout(row);
+      rowLay->setContentsMargins(0, 0, 0, 0);
+      row->setFixedWidth(600);
+      auto* wideGroup = new QWidget(row);
+      wideGroup->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+      auto* wgl = new QHBoxLayout(wideGroup);
+      wgl->setContentsMargins(0, 0, 0, 0);
+      auto* field = new QLineEdit(wideGroup);
+      field->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+      wgl->addWidget(field);
+      rowLay->addWidget(wideGroup);
+      lay->addWidget(row);
+      wideGroup->setVisible(false);
+      pumpFor(60);
+      const int hintW = wideGroup->sizeHint().width();
+
+      revealControls(wideGroup, true);
+      pumpUntil([&] { return liveReveals() == 1; }, 2000);
+      const auto clouds = host.findChildren<QWidget*>(
+          QString::fromLatin1(stencil::gui::kControlRevealObjectName));
+      const int pictureW =
+          clouds.isEmpty() ? -1 : clouds.first()->width() - 2 * stencil::gui::kControlRevealPadPx;
+      check(pumpUntil([&] { return liveReveals() == 0; }, kControlRevealInMs + 3000),
+            "the gather over a stretchy group converges");
+      pumpUntil([&] { return wideGroup->width() > hintW; }, 2000);
+      check(wideGroup->width() > hintW, "the row really does hand this group slack");
+      check(pictureW == wideGroup->width(),
+            "…and its picture flew at the width it settles at, so nothing jumps at the hand-over");
+      delete row;
+      pumpFor(30);
+    }
 
     // Asking for the state it already has is not a flight.
     revealControls(group, false);

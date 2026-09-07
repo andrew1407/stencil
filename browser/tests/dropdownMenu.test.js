@@ -109,6 +109,51 @@ test('open moves the menu to <body> and close puts it back where it was built', 
   for (const p of ['left', 'top', 'minWidth', 'maxHeight']) assert.equal(menu.style[p], '');
 });
 
+// A list is opened to be clicked, and the page can move under it while it is up: the chat
+// panel sliding in re-lays the page and a modal re-centres with it. `resize`/`scroll` never
+// fire for that, so the list stayed where it opened — a screen away from its control.
+test('an open menu follows its trigger when the page moves under it', async () => {
+  const { el, body, listeners } = setupDom();
+  // A hand-cranked rAF: each tick runs whatever the tracker queued.
+  const queue = [];
+  globalThis.requestAnimationFrame = (fn) => { queue.push(fn); return queue.length; };
+  globalThis.cancelAnimationFrame = (id) => { queue[id - 1] = null; };
+  const tick = (n = 1) => {
+    for (let i = 0; i < n; i++) {
+      const pending = queue.splice(0, queue.length);
+      for (const fn of pending) fn?.();
+    }
+  };
+  let at = { left: 300, top: 200, bottom: 230, width: 180, height: 30 };
+  const trigger = el(null);
+  trigger.getBoundingClientRect = () => at;
+  const menu = el({ left: 0, top: 0, width: 200, height: 120 });
+  // Its own markup home, so hideMenu can put it back (the shell it was built in).
+  const home = { insertBefore: (node) => { node.parentElement = home; } };
+  menu.parentElement = home;
+
+  const { showMenu, hideMenu } = await import('../js/ui/dropdownMenu.js');
+  showMenu(menu, trigger);
+  assert.equal(menu.style.left, '300px');
+  tick(2);
+  assert.equal(menu.style.left, '300px', 'a still trigger is not re-placed');
+
+  at = { ...at, left: 40 };            // the page slides under the open list
+  tick(2);
+  assert.equal(menu.style.left, '40px', 'the list came with it');
+
+  hideMenu(menu);
+  const before = queue.length;
+  tick(2);
+  at = { ...at, left: 500 };
+  tick(2);
+  assert.equal(menu.style.left, '', 'a closed menu is not tracked (or re-placed) any more');
+  assert.ok(before >= 0);
+  assert.equal(listeners.length, 0);
+  delete globalThis.requestAnimationFrame;
+  delete globalThis.cancelAnimationFrame;
+});
+
 test('every select dropdown goes through the portal, and its press-outside sees it', () => {
   const cs = readFileSync(new URL('../js/ui/customSelect.js', import.meta.url), 'utf8');
   const ap = readFileSync(new URL('../js/ui/accentPicker.js', import.meta.url), 'utf8');

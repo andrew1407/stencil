@@ -35,18 +35,18 @@ export class StencilToolbar extends StencilElement {
                      dialog uses (accentPicker.js fills it lazily on first open). -->
                 <ul class="accent-dd-menu logo-accent-menu" role="listbox" aria-label="Color theme" hidden></ul>
                 </span>
-                <button id="toggle-controls" class="btn-icon-text" data-hk-title="toggleControls" data-title="Hide controls" title="Hide controls">${icon('chevron-up')}<span>Controls</span></button>
+                <button id="toggle-controls" class="btn-icon-text" data-hk-title="toggleControls" data-title="Hide controls">${icon('chevron-up')}<span>Controls</span></button>
                 <!-- The field shrink-wraps its content (the input carries a size attribute
                      matching the name — see updateProjectTitle), so everything after the name
                      sits beside it instead of at the end of a fixed 240px slot. -->
                 <span class="project-name-field" style="flex:0 1 auto;max-width:280px;min-width:0;display:inline-flex;align-items:center;gap:4px;">
-                    <span id="project-remote-badge" class="project-remote-badge" style="display:none;flex:0 0 auto;" title="Editing a project stored on a server">${icon('server', { size: 13 })}</span>
+                    <span id="project-remote-badge" class="project-remote-badge" style="display:none;flex:0 0 auto;" data-title="Editing a project stored on a server">${icon('server', { size: 13 })}</span>
                     <input id="project-name-input" type="text" size="10" placeholder="No project" readonly disabled
                         style="flex:0 1 auto;min-width:0;font-size:13px;font-weight:600;background:transparent;border:1px solid transparent;border-radius:6px;padding:3px 8px;">
-                    <button id="project-name-edit" class="name-edit-btn name-edit-pencil" type="button" data-hk-title="renameProject" data-title="Rename project" title="Rename project" style="display:none;">${icon('pencil', { size: 13 })}</button>
-                    <button id="project-name-accept" class="name-edit-btn name-edit-accept" type="button" title="Save name" style="display:none;">${icon('check', { size: 14 })}</button>
-                    <button id="project-name-cancel" class="name-edit-btn name-edit-cancel" type="button" title="Cancel" style="display:none;">${icon('x', { size: 14 })}</button>
-                    <button id="project-color-btn" class="name-edit-btn" type="button" title="Project color — paints the project name" style="display:none;">${icon('palette', { size: 14 })}</button>
+                    <button id="project-name-edit" class="name-edit-btn name-edit-pencil" type="button" data-hk-title="renameProject" data-title="Rename project" style="display:none;">${icon('pencil', { size: 13 })}</button>
+                    <button id="project-name-accept" class="name-edit-btn name-edit-accept" type="button" data-title="Save name" style="display:none;">${icon('check', { size: 14 })}</button>
+                    <button id="project-name-cancel" class="name-edit-btn name-edit-cancel" type="button" data-title="Cancel" style="display:none;">${icon('x', { size: 14 })}</button>
+                    <button id="project-color-btn" class="name-edit-btn" type="button" data-title="Project color — paints the project name" style="display:none;">${icon('palette', { size: 14 })}</button>
                     <input id="project-color-input" type="color" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;">
                     <!-- Sits INSIDE the name field, right after the name (which sizes to its
                          text), so the "?" reads as belonging to this project rather than
@@ -66,14 +66,14 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-label">Image</div>
                 <div class="ctrl-section-row">
                     <!-- One Open entry (empty state). Opens the unified Open dialog: local file, URL, or new blank. -->
-                    <button id="load-image-btn" class="btn-icon-text" data-hk-title="loadImage" data-title="Open an image — local file, URL, or new blank" title="Open an image — local file, URL, or new blank">${icon('image')}<span>Open Image</span></button>
+                    <button id="load-image-btn" class="btn-icon-text" data-hk-title="loadImage" data-title="Open an image — local file, URL, or new blank">${icon('image')}<span>Open Image</span></button>
                     <!-- Image actions (shown only when an image is loaded). #save-image moved here from Data. -->
                     <span id="image-actions" style="display:none;align-items:center;gap:4px;">
-                        <button id="save-image" class="btn-icon" data-hk-title="saveImage" data-title="Download image · Right-click for download options" data-disabled-reason="Load an image to download it" title="Download image — right-click for options">${icon('download')}</button>
-                        <button id="copy-image" class="btn-icon" data-hk-title="copyImage" data-title="Copy image to clipboard · Right-click for copy options" data-disabled-reason="Load an image to copy it" title="Copy image to clipboard — right-click for options">${icon('copy')}</button>
-                        <button id="share-image" class="btn-icon" data-hk-title="shareImage" data-title="Share image" title="Share image" style="display:none;">${icon('share')}</button>
-                        <button id="open-in-btn" class="btn-icon" data-hk-title="openIn" data-title="Open in another app" title="Open in another app">${icon('monitor')}</button>
-                        <button id="open-image-btn" class="btn-icon" data-hk-title="openAnotherImage" data-title="Open another image — local file, URL, or new blank" title="Open another image — local file, URL, or new blank">${icon('external')}</button>
+                        <button id="save-image" class="btn-icon" data-hk-title="saveImage" data-title="Download image · Right-click for download options" data-disabled-reason="Load an image to download it">${icon('download')}</button>
+                        <button id="copy-image" class="btn-icon" data-hk-title="copyImage" data-title="Copy image to clipboard · Right-click for copy options" data-disabled-reason="Load an image to copy it">${icon('copy')}</button>
+                        <button id="share-image" class="btn-icon" data-hk-title="shareImage" data-title="Share image" style="display:none;">${icon('share')}</button>
+                        <button id="open-in-btn" class="btn-icon" data-hk-title="openIn" data-title="Open in another app">${icon('monitor')}</button>
+                        <button id="open-image-btn" class="btn-icon" data-hk-title="openAnotherImage" data-title="Open another image — local file, URL, or new blank">${icon('external')}</button>
                     </span>
                 </div>
             </div>
@@ -98,11 +98,11 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Projects</div>
                 <div class="ctrl-section-row">
-                    <button id="projects-btn" class="btn-icon" data-hk-title="openProjects" data-title="Projects" title="Projects">${icon('layers')}</button>
-                    <button id="save-project-btn" class="btn-icon" data-hk-title="saveProject" data-title="Save Project (.stencil) — image + layout + settings in one file (Shift+click: without theme)" data-disabled-reason="Open an image first" title="Save Project (.stencil) — Shift+click to save without the theme">${icon('save')}</button>
-                    <button id="open-project-btn" class="btn-icon" data-hk-title="openProject" data-title="Open Project (.stencil)" title="Open Project (.stencil)">${icon('folder')}</button>
-                    <button id="live-sync-btn" class="btn-icon" data-hk-title="toggleLiveSync" data-title="Live sync this project to its .stencil file (auto-save + watch for changes)" title="Live sync to file" disabled>${icon('refresh-cw')}</button>
-                    <button id="delete-project-btn" class="btn-icon" data-hk-title="deleteProject" data-title="Delete the linked .stencil file from disk (the project stays open here)" data-disabled-reason="Open or save a .stencil file first" title="Delete linked .stencil file" disabled>${icon('trash')}</button>
+                    <button id="projects-btn" class="btn-icon" data-hk-title="openProjects" data-title="Projects">${icon('layers')}</button>
+                    <button id="save-project-btn" class="btn-icon" data-hk-title="saveProject" data-title="Save Project (.stencil) — image + layout + settings in one file (Shift+click: without theme)" data-disabled-reason="Open an image first">${icon('save')}</button>
+                    <button id="open-project-btn" class="btn-icon" data-hk-title="openProject" data-title="Open Project (.stencil)">${icon('folder')}</button>
+                    <button id="live-sync-btn" class="btn-icon" data-hk-title="toggleLiveSync" data-title="Live sync this project to its .stencil file (auto-save + watch for changes)" data-disabled-reason="Open or save a .stencil file first" disabled>${icon('refresh-cw')}</button>
+                    <button id="delete-project-btn" class="btn-icon" data-hk-title="deleteProject" data-title="Delete the linked .stencil file from disk (the project stays open here)" data-disabled-reason="Open or save a .stencil file first" disabled>${icon('trash')}</button>
                 </div>
             </div>
 
@@ -124,7 +124,7 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Edit</div>
                 <div class="ctrl-section-row">
-                    <select id="image-filter" data-hk-title="cycleFilter" data-title="Image Filter" data-disabled-reason="Load an image to apply a filter" title="Image Filter">
+                    <select id="image-filter" data-hk-title="cycleFilter" data-title="Image Filter" data-disabled-reason="Load an image to apply a filter">
                         <option value="none">No Filter</option>
                         <option value="bw">B&amp;W</option>
                         <option value="sepia">Sepia</option>
@@ -132,16 +132,16 @@ export class StencilToolbar extends StencilElement {
                         <option value="contour">Contour</option>
                         <option value="custom">Tint</option>
                     </select>
-                    <input type="color" id="filter-color" value="#7c3aed" title="Tint color" style="display:none;width:36px;height:30px;padding:2px;cursor:pointer;border-radius:4px;">
-                    <button id="crop-image" class="btn-icon" data-hk-title="cropImage" data-title="Crop image" data-disabled-reason="Load an image to crop" title="Crop image — pick the page-shaped region to show on the canvas">${icon('crop')}</button>
-                    <button id="rotate-left" class="btn-icon" data-hk-title="rotateImageLeft" data-title="Rotate image left" data-disabled-reason="Load an image to rotate" title="Rotate image left">${icon('rotate-ccw')}</button>
-                    <button id="rotate-right" class="btn-icon" data-hk-title="rotateImageRight" data-title="Rotate image right" data-disabled-reason="Load an image to rotate" title="Rotate image right">${icon('rotate-cw')}</button>
-                    <button id="undo" disabled class="btn-icon" data-hk-title="undo" data-title="Undo" data-disabled-reason="Nothing to undo" title="Undo">${icon('undo')}</button>
-                    <button id="redo" disabled class="btn-icon" data-hk-title="redo" data-title="Redo" data-disabled-reason="Nothing to redo" title="Redo">${icon('redo')}</button>
+                    <input type="color" id="filter-color" value="#7c3aed" data-title="Tint color" style="display:none;width:36px;height:30px;padding:2px;cursor:pointer;border-radius:4px;">
+                    <button id="crop-image" class="btn-icon" data-hk-title="cropImage" data-title="Crop image" data-disabled-reason="Load an image to crop">${icon('crop')}</button>
+                    <button id="rotate-left" class="btn-icon" data-hk-title="rotateImageLeft" data-title="Rotate image left" data-disabled-reason="Load an image to rotate">${icon('rotate-ccw')}</button>
+                    <button id="rotate-right" class="btn-icon" data-hk-title="rotateImageRight" data-title="Rotate image right" data-disabled-reason="Load an image to rotate">${icon('rotate-cw')}</button>
+                    <button id="undo" disabled class="btn-icon" data-hk-title="undo" data-title="Undo" data-disabled-reason="Nothing to undo">${icon('undo')}</button>
+                    <button id="redo" disabled class="btn-icon" data-hk-title="redo" data-title="Redo" data-disabled-reason="Nothing to redo">${icon('redo')}</button>
                     <!-- Blank-image fill colour (EDIT action: recolours the current blank, keeps lines).
                          Shown only for blank projects; the swatch is a proper colour rect matching the
                          line-colour picker's proportions. -->
-                    <button id="blank-color-btn" type="button" title="Blank background color — recolor this blank image (keeps your lines)" style="display:none;align-items:center;gap:7px;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:5px 9px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;cursor:pointer;">
+                    <button id="blank-color-btn" type="button" data-title="Blank background color — recolor this blank image (keeps your lines)" style="display:none;align-items:center;gap:7px;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:5px 9px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;cursor:pointer;">
                         <span id="blank-color-swatch" style="width:30px;height:22px;border-radius:3px;border:1px solid var(--border-main);display:inline-block;flex:0 0 auto;"></span>Blank
                     </button>
                     <input id="blank-color-input" type="color" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;">
@@ -161,10 +161,10 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-label">Line</div>
                 <div class="ctrl-section-row">
                     <label for="line-color" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Color</label>
-                    <input type="color" id="line-color" value="#FFFF00" title="Line color">
+                    <input type="color" id="line-color" value="#FFFF00" data-title="Line color">
                     <label for="line-thickness" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Thickness</label>
-                    <input type="number" id="line-thickness" value="2" min="1" max="20" title="Line thickness" style="width:54px">
-                    <select id="line-style" title="Line style">
+                    <input type="number" id="line-thickness" value="2" min="1" max="20" data-title="Line thickness" style="width:54px">
+                    <select id="line-style" data-title="Line style">
                         <option value="solid">Solid</option>
                         <option value="dashed">Dashed</option>
                         <option value="dotted">Dotted</option>
@@ -179,9 +179,9 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-label">Point</div>
                 <div class="ctrl-section-row">
                     <label for="point-color" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Color</label>
-                    <input type="color" id="point-color" value="#FFFF00" title="Point color — new lines">
+                    <input type="color" id="point-color" value="#FFFF00" data-title="Point color — new lines">
                     <label for="point-size" style="font-weight:normal;font-size:12px;color:var(--text-muted);">Size</label>
-                    <input type="number" id="point-size" value="4" min="1" max="30" title="Point size" style="width:54px">
+                    <input type="number" id="point-size" value="4" min="1" max="30" data-title="Point size" style="width:54px">
                 </div>
             </div>
 
@@ -191,8 +191,8 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Draw</div>
                 <div class="ctrl-section-row">
-                    <button id="draw-toggle" class="btn-icon-text btn-draw-fixed" data-hk-title="startDraw" data-title="Start Drawing" data-disabled-reason="Load an image to start drawing" title="Start Drawing">${icon('play', { size: 13 })}<span>Start</span></button>
-                    <button id="draw-mode-toggle" class="btn-icon-text btn-draw-fixed" data-title="Drawing mode: Line (click to switch to Rectangle)" data-disabled-reason="Load an image to switch line / rectangle" title="Drawing mode: Line (click to switch to Rectangle)">${DRAW_MODE_ICON.line}<span>Line</span></button>
+                    <button id="draw-toggle" class="btn-icon-text btn-draw-fixed" data-hk-title="startDraw" data-title="Start Drawing" data-disabled-reason="Load an image to start drawing">${icon('play', { size: 13 })}<span>Start</span></button>
+                    <button id="draw-mode-toggle" class="btn-icon-text btn-draw-fixed" data-title="Drawing mode: Line (click to switch to Rectangle)" data-disabled-reason="Load an image to switch line / rectangle">${DRAW_MODE_ICON.line}<span>Line</span></button>
                 </div>
             </div>
 
@@ -202,23 +202,23 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">View</div>
                 <div class="ctrl-section-row">
-                    <label data-hk-title="togglePoints" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Show Points (Alt+P)">
+                    <label data-hk-title="togglePoints" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" data-title="Show Points (Alt+P)">
                         <input type="checkbox" id="show-points" checked> Points
                     </label>
-                    <label data-hk-title="toggleLines" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" title="Show Lines (Alt+L)">
+                    <label data-hk-title="toggleLines" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" data-title="Show Lines (Alt+L)">
                         <input type="checkbox" id="show-lines" checked> Lines
                     </label>
                     <!-- Extra left margin, none on the right: the row's flat 8px gap left "Lines"
                          and "Compare" reading as one run of text. The label belongs to the select,
                          so the air goes on the side that separates it from the toggles. -->
                     <label for="compare-mode" style="font-weight:normal;font-size:13px;color:var(--text-muted);margin-left:12px;">Compare</label>
-                    <select id="compare-mode" data-hk-title="cycleCompare" data-title="Compare with original&#10;• None — normal editing&#10;• Original — the original only (crop + rotation)&#10;• Vertical split — original left, edit right&#10;• Horizontal split — original top, edit bottom&#10;(hold Alt+Shift+O to peek)" data-disabled-reason="Load an image to compare" title="Compare with original&#10;• None — normal editing&#10;• Original — the original only (crop + rotation)&#10;• Vertical split — original left, edit right&#10;• Horizontal split — original top, edit bottom&#10;(hold Alt+Shift+O to peek)">
+                    <select id="compare-mode" data-hk-title="cycleCompare" data-title="Compare with original&#10;• None — normal editing&#10;• Original — the original only (crop + rotation)&#10;• Vertical split — original left, edit right&#10;• Horizontal split — original top, edit bottom&#10;(hold Alt+Shift+O to peek)" data-disabled-reason="Load an image to compare">
                         <option value="none">None</option>
                         <option value="original">Original</option>
                         <option value="vertical">Split ↔</option>
                         <option value="horizontal">Split ↕</option>
                     </select>
-                    <button id="clear-all-lines" class="danger btn-icon" data-hk-title="clearAllLines" data-title="Clear All Lines" data-disabled-reason="No lines to clear" title="Clear All Lines">${icon('eraser')}</button>
+                    <button id="clear-all-lines" class="danger btn-icon" data-hk-title="clearAllLines" data-title="Clear All Lines" data-disabled-reason="No lines to clear">${icon('eraser')}</button>
                 </div>
             </div>
 
@@ -229,17 +229,17 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-label">Zoom</div>
                 <div class="ctrl-section-row">
                     <div class="zoom-controls">
-                        <button id="zoom-out" class="btn-icon" data-title="Zoom out" data-disabled-reason="Load an image to zoom" title="Zoom out">${icon('minus')}</button>
-                        <button id="zoom-in" class="btn-icon" data-title="Zoom in" data-disabled-reason="Load an image to zoom" title="Zoom in">${icon('plus')}</button>
+                        <button id="zoom-out" class="btn-icon" data-title="Zoom out" data-disabled-reason="Load an image to zoom">${icon('minus')}</button>
+                        <button id="zoom-in" class="btn-icon" data-title="Zoom in" data-disabled-reason="Load an image to zoom">${icon('plus')}</button>
                         <!-- Zoom % — type an exact value OR pick a preset from the dropdown that
                              opens on focus/click (custom menu; native datalist on number inputs is
                              unreliable). Presets are populated by wireZoomControls. -->
                         <span class="zoom-input-wrap">
-                            <input type="number" id="zoom-input" value="100" min="5" max="3200" autocomplete="off" data-title="Zoom %" data-disabled-reason="Load an image to zoom" title="Zoom % — type an exact value or pick a preset">
+                            <input type="number" id="zoom-input" value="100" min="5" max="3200" autocomplete="off" data-title="Zoom %" data-disabled-reason="Load an image to zoom">
                             <div class="zoom-menu" id="zoom-menu" role="listbox" hidden></div>
                         </span>
                         <span style="font-size:13px;font-weight:bold;color:var(--text-muted)">%</span>
-                        <button id="zoom-fit" class="btn-icon" data-hk-title="resetZoom" data-title="Fit to window" data-disabled-reason="Load an image to zoom" title="Fit to window">${icon('fit')}</button>
+                        <button id="zoom-fit" class="btn-icon" data-hk-title="resetZoom" data-title="Fit to window" data-disabled-reason="Load an image to zoom">${icon('fit')}</button>
                     </div>
                 </div>
             </div>
@@ -252,12 +252,12 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-row">
                     <!-- Custom… first, then every named ISO format from PAGE_SIZES with its
                          physical size (re-rendered in the active unit by applyUnitToUI). -->
-                    <select id="page-size" title="Page size">
+                    <select id="page-size" data-title="Page size">
                         <option value="custom">Custom…</option>
                         ${pageFormatOptions()}
                     </select>
                     <label style="font-weight:normal;font-size:12px;color:var(--text-muted);">Units:</label>
-                    <select id="unit-select" title="Display units (cm / inches)">
+                    <select id="unit-select" data-title="Display units (cm / inches)">
                         <option value="cm">cm</option>
                         <option value="in">in</option>
                     </select>
@@ -268,13 +268,27 @@ export class StencilToolbar extends StencilElement {
                         <input type="number" id="custom-page-height" value="29.7" min="0.1" max="500" step="0.1" style="width:96px">
                         <span id="custom-unit-label" style="font-size:12px;color:var(--text-muted);">cm</span>
                     </span>
-                    <label class="pill-toggle" style="margin-left:6px;" title="Transform page coordinates with a formula f(x,y)">
+                </div>
+            </div>
+
+            <div class="ctrl-sep"></div>
+
+            <!-- ── Section: Formula ──
+                 Its OWN section, not a tail of Page (desktop parity: mainWindowToolbar.cpp
+                 builds the same named cluster between PAGE and DATA). The two fields are
+                 wide, so inside Page every toggle of the pill resized that section and the
+                 whole wrapping row re-flowed around it — the sections after it jumped a row
+                 (user report, with a picture). On its own the growth is its own. -->
+            <div class="ctrl-section">
+                <div class="ctrl-section-label">Formula</div>
+                <div class="ctrl-section-row">
+                    <label class="pill-toggle" data-title="Transform page coordinates with a formula f(x,y)">
                         <input type="checkbox" id="allow-formulas"> 𝑓(x,y)
                     </label>
                     <span id="formula-inputs" style="display:none;align-items:center;gap:6px;">
                         <input type="text" id="formula-x" placeholder="x(x)=" style="width:180px;font-family:monospace;font-size:12px;">
                         <input type="text" id="formula-y" placeholder="y(y)=" style="width:180px;font-family:monospace;font-size:12px;">
-                        <span id="formula-error" title="Invalid formula" style="color:var(--danger);display:none;">${icon('alert', { size: 15 })}</span>
+                        <span id="formula-error" data-title="Invalid formula" style="color:var(--danger);display:none;">${icon('alert', { size: 15 })}</span>
                     </span>
                 </div>
             </div>
@@ -285,11 +299,11 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Data</div>
                 <div class="ctrl-section-row">
-                    <button id="download-json" class="btn-icon" data-hk-title="downloadJson" data-title="Download Layout JSON" data-disabled-reason="Draw at least one line to export" title="Download Layout JSON">${icon('download')}</button>
-                    <button id="copy-json-btn" class="btn-icon" data-hk-title="copyLayout" data-title="Copy full Layout JSON (lines + all applied edits)" data-disabled-reason="Draw at least one line to copy" title="Copy full Layout JSON (lines + all applied edits)">${icon('copy')}</button>
+                    <button id="download-json" class="btn-icon" data-hk-title="downloadJson" data-title="Download Layout JSON" data-disabled-reason="Draw at least one line to export">${icon('download')}</button>
+                    <button id="copy-json-btn" class="btn-icon" data-hk-title="copyLayout" data-title="Copy full Layout JSON (lines + all applied edits)" data-disabled-reason="Draw at least one line to copy">${icon('copy')}</button>
                     <input type="file" id="upload-json" accept=".json" style="display:none;">
-                    <button id="upload-json-btn" class="btn-icon" data-hk-title="uploadJson" data-title="Upload Layout JSON" data-disabled-reason="Load an image first" title="Upload Layout JSON">${icon('upload')}</button>
-                    <button id="clear-storage" class="danger btn-icon" data-hk-title="clearProject" data-title="Remove" data-disabled-reason="Open an image first — nothing to remove" title="Remove">${icon('trash')}</button>
+                    <button id="upload-json-btn" class="btn-icon" data-hk-title="uploadJson" data-title="Upload Layout JSON" data-disabled-reason="Load an image first">${icon('upload')}</button>
+                    <button id="clear-storage" class="danger btn-icon" data-hk-title="clearProject" data-title="Remove" data-disabled-reason="Open an image first — nothing to remove">${icon('trash')}</button>
                 </div>
             </div>
 
@@ -299,12 +313,12 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Settings</div>
                 <div class="ctrl-section-row">
-                    <button id="theme-toggle" class="btn-icon" data-hk-title="toggleTheme" data-title="Toggle dark / light theme" title="Toggle dark / light theme">${icon('moon')}</button>
-                    <button id="fullscreen-toggle" class="btn-icon" data-hk-title="fullscreen" data-title="Fullscreen" title="Fullscreen">${icon('maximize')}</button>
-                    <button id="incognito-toggle" class="btn-icon" data-hk-title="toggleIncognito" data-title="Incognito — edit without saving (choose before adding an image)" title="Incognito — edit without saving (choose before adding an image)">${icon('incognito')}</button>
-                    <button id="settings-btn" class="btn-icon" data-hk-title="openHotkeys" data-title="Keyboard shortcuts" title="Keyboard shortcuts">${icon('gear')}</button>
-                    <button id="visuals-btn" class="btn-icon" data-hk-title="openVisuals" data-title="Default visuals &amp; highlight styles" title="Default visuals &amp; highlight styles">${icon('palette')}</button>
-                    <button id="info-btn" class="btn-icon" data-hk-title="openHelp" data-title="Controls &amp; shortcuts help" title="Controls &amp; shortcuts help">${icon('help')}</button>
+                    <button id="theme-toggle" class="btn-icon" data-hk-title="toggleTheme" data-title="Toggle dark / light theme">${icon('moon')}</button>
+                    <button id="fullscreen-toggle" class="btn-icon" data-hk-title="fullscreen" data-title="Fullscreen">${icon('maximize')}</button>
+                    <button id="incognito-toggle" class="btn-icon" data-hk-title="toggleIncognito" data-title="Incognito — edit without saving (choose before adding an image)">${icon('incognito')}</button>
+                    <button id="settings-btn" class="btn-icon" data-hk-title="openHotkeys" data-title="Keyboard shortcuts">${icon('gear')}</button>
+                    <button id="visuals-btn" class="btn-icon" data-hk-title="openVisuals" data-title="Default visuals &amp; highlight styles">${icon('palette')}</button>
+                    <button id="info-btn" class="btn-icon" data-hk-title="openHelp" data-title="Controls &amp; shortcuts help">${icon('help')}</button>
                 </div>
             </div>
 
@@ -363,7 +377,7 @@ export class StencilToolbar extends StencilElement {
       // The glyph is NOT swapped — animations.css spins the one chevron 180° (up ⇄ down)
       // off `#controls-body.hidden`, so the arrow turns with the fold instead of blinking.
       btn.dataset.title = hidden ? 'Show controls' : 'Hide controls';
-      btn.title = hotkeys.hkTitle(hidden ? 'Show controls' : 'Hide controls', 'toggleControls');
+      btn.dataset.tip = hotkeys.hkTitle(hidden ? 'Show controls' : 'Hide controls', 'toggleControls');
     });
 
     // The size line drives the bubble; the incognito class rides on <body>, which the

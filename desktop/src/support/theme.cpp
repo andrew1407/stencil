@@ -195,6 +195,7 @@ namespace stencil::gui {
         QColor("#6d28d9"), QColor("#ffffff"),
         QColor("#000000"), QColor("#7c3aed"), QColor("#d6293e"),
         QColor("#ffc800"), QColor("#7c3aed"), QColor("#e9ecef"),
+        QColor("#c98a00"),   // --warning
     };
     static const Palette darkP{
         QColor("#1a1a1a"), QColor("#242424"), QColor("#2d2d2d"),
@@ -205,6 +206,7 @@ namespace stencil::gui {
         QColor("#9b6cf2"), QColor("#333333"),
         QColor("#e0e0e0"), QColor("#6d28d9"), QColor("#f0697a"),
         QColor("#ffc800"), QColor("#7c3aed"), QColor("#3a3a3a"),
+        QColor("#e6b53c"),   // --warning
     };
     Palette p = dark ? darkP : light;
     // Every token goes to the display's space, so reds/golds match the browser too.
@@ -212,7 +214,7 @@ namespace stencil::gui {
                       &p.borderCanvas, &p.borderSel, &p.textMain, &p.textMuted, &p.textSelLabel,
                       &p.bgSelBtn, &p.bgSelBtnHov, &p.textSelBtn,
                       &p.textKey, &p.inputBg, &p.inputText, &p.accent, &p.danger, &p.selGlow,
-                      &p.hoverRing, &p.bgCoordHover})
+                      &p.hoverRing, &p.bgCoordHover, &p.warning})
       *f = displayColor(*f);
     const QColor accent = accentPrimary(accentKey);   // already display-space
     p.accent = accent;
@@ -604,7 +606,11 @@ namespace stencil::gui {
         border-radius: 7px; padding: 3px 8px; min-height: 20px;
         selection-background-color: %ACCENT%; selection-color: white;
       }
-      QComboBox:hover, QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover { border-color: %ACCENT_RING%; }
+      /* Inputs ring on hover; a COMBO is a selector and hovers as the browser's select
+         trigger does (.accent-dd-trigger, a button:hover): the lighter accent fill under a
+         1px accent border — the same 1px, so the box never jumps — and the light text. */
+      QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover { border-color: %ACCENT_RING%; }
+      QComboBox:hover { background: %ACCENT2%; color: white; border: 1px solid %ACCENT%; }
       QComboBox:focus, QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
         border: 2px solid %ACCENT%; padding: 2px 7px;
       }

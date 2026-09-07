@@ -127,14 +127,12 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
-#include <QInputDialog>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
-#include <QMessageBox>
 #include <QMimeData>
 #include <QCloseEvent>
 #include <QPushButton>
@@ -238,7 +236,8 @@ namespace stencil::gui {
     canvas_ = new CanvasWidget(this);
     // OverlayScrollArea, not a plain QScrollArea: theme.cpp's QScrollBar styling turns off
     // Qt's native transient/overlay scrollbar mode app-wide (see overlayScrollArea.hpp), so
-    // this floats the two bars back over the viewport by hand for browser parity.
+    // this floats two mirror bars over the full viewport for browser parity — the base
+    // class's own bars stay hidden and keep acting as the scroll model everywhere below.
     scroll_ = new OverlayScrollArea(this);
     scroll_->setWidget(canvas_);
     scroll_->setAlignment(Qt::AlignCenter);
@@ -436,10 +435,14 @@ namespace stencil::gui {
     // model-side conversation state that goes with it.
     connect(chatDock_, &ChatDock::clearRequested, this, &MainWindow::onChatClear);
     // Every note the dock DISPLAYS is mirrored onto the menu panel — including
-    // the ones it posts on its own (the attachment cap), which used to leave the
-    // panel a row short of the dock.
+    // the ones it posts on its own (a late note), which used to leave the panel
+    // a row short of the dock.
     connect(chatDock_, &ChatDock::notePosted, this, [this](const QString& text) {
       chatMirror(QStringLiteral("Note"), text, true);
+    });
+    // The attachment cap and its like: an accent toast, the browser's notify(…, 'info').
+    connect(chatDock_, &ChatDock::toastRequested, this, [this](const QString& text) {
+      if (notify_) notify_->info(text);
     });
     connect(chatDock_, &ChatDock::lateNotePosted, this, &MainWindow::chatMirrorLateNote);
     // Drag dock zones: edge drop bands over the CENTRAL dockable area (never
@@ -633,7 +636,8 @@ namespace stencil::gui {
     pageSize_->setMaximumWidth(150);
     zoom_ = new QComboBox(this);
     zoom_->addItems({"10%", "25%", "50%", "75%", "100%", "125%", "150%", "200%", "300%", "400%", "500%", "800%", "1600%", "3200%"});
-    zoom_->setToolTip("Zoom %");
+    setTipBase(zoom_, "Zoom %");   // browser #zoom-input: greyed with nothing to zoom
+    setTipReason(zoom_, "Load an image to zoom");
     zoom_->setMaximumWidth(88);   // "3200%" plus the arrow; the rest was slack
     // Editable so the user can type an exact percent, but NoInsert so reflecting
     // a programmatic zoom (Ctrl+wheel) never appends list items — mirrors browser
@@ -3287,12 +3291,10 @@ namespace stencil::gui {
     if (!chatDock_) return;
     const bool wasVisible = chatDock_->isVisible();
     stopChatAnim();  // re-entrancy: a second toggle mid-slide wins outright
-    // Opening clears both the "closing" state and the unread mark — the user is
-    // looking at the conversation now.
+    // Opening clears the "closing" state — the user is looking at the conversation now.
     if (show) {
       chatClosing_ = false;
       chatDock_->setClosing(false);
-      setChatUnread(false);
     }
     // A full open supersedes the icon-popover shape: re-dock to the area the
     // popover displaced instead of reopening the tiny float at its old spot
@@ -3457,7 +3459,6 @@ namespace stencil::gui {
     chatDock_->setFloating(true);
     chatDock_->setGeometry(compactChatRect(anchor));
     chatDock_->show();
-    setChatUnread(false);   // opening any surface marks the news as seen
     // …and the incoming one flies OUT of the icon, the same motion every other
     // popover opens with (the caller above already returned for a window that is
     // staying put, so reaching here always means a real open).
@@ -3985,8 +3986,6 @@ namespace stencil::gui {
     // of the icon (and answers dblclick/right-click with the compact anchored shape).
     // Visuals live in here, so this one was the odd one out.
     // Live-apply: every row persists itself as it changes; no Save/Cancel.
-    connect(&dlg, &SettingsDialog::openAssistantSettingsRequested, this,
-            &MainWindow::openAssistantSettings);
     dlg.setOnChange([this](const Settings& s) { applySettings(s, true); });
     connect(&dlg, &SettingsDialog::visualsReset, this,
             [this] { notify_->success(QStringLiteral("Visual defaults reset")); });
@@ -5259,7 +5258,17 @@ namespace stencil::gui {
     const QString botUsername = settings_.telegramBotUsername.trimmed();
     const bool serverProject = !src.serverUrl.isEmpty() && !src.serverId.isEmpty();
     OpenInDialog dlg(this, serverProject, src.serverUrl, browserAvailable, telegramAvailable,
-                     src.startIncognito);
+                     src.startIncognito, src.serverId);
+    // The 64-char overflow (very long host) stays IN the dialog — the browser's
+    // fallback row with the two bot commands — while the bot chat opens alongside.
+    connect(&dlg, &OpenInDialog::telegramFallback, this, [botUsername] {
+      QDesktopServices::openUrl(QUrl(QStringLiteral("https://t.me/") + botUsername));
+    });
+    connect(&dlg, &OpenInDialog::toast, this,
+            [this](const QString& text, bool fail) {
+              if (fail) notify_->error(text);
+              else notify_->success(text);
+            });
     if (run(dlg) != QDialog::Accepted) return;
     const bool incog = dlg.incognito();
 
@@ -5267,17 +5276,7 @@ namespace stencil::gui {
       if (!serverProject) return;  // the dialog disables this outcome anyway
       const QString payload =
           deepLink::encodeTelegramStartPayload(src.serverUrl, src.serverId);
-      if (payload.isEmpty()) {
-        // 64-char overflow (very long host): hand over the manual recipe instead
-        // of a dead link, and open the bot chat.
-        QMessageBox::information(
-            this, "Link too long for Telegram",
-            QString("The server address doesn't fit a Telegram start link.\n"
-                    "Open the bot chat and paste:\n\n/connect %1\n/fetch %2")
-                .arg(src.serverUrl, src.serverId));
-        QDesktopServices::openUrl(QUrl(QStringLiteral("https://t.me/") + botUsername));
-        return;
-      }
+      if (payload.isEmpty()) return;   // the dialog only accepts once the link fits
       QDesktopServices::openUrl(QUrl(deepLink::buildTelegramLink(botUsername, payload)));
       return;
     }
@@ -5886,16 +5885,9 @@ namespace stencil::gui {
 
     // The Name field's seed — the same the browser's linksModal shows: the bound
     // project's stored name, else the image's base name.
-    QString curName;
-    if (!remoteSession_->link().id.isEmpty()) curName = remoteSession_->link().name;
-    else if (!activeProjectId_.isEmpty()) {
-      if (Project* pr = findProject(activeProjectId_.toStdString()))
-        curName = QString::fromStdString(pr->meta.name);
-    }
-    if (curName.isEmpty()) curName = canvas_->imageBaseName();
 
     LinksDialog dlg(src, res, canvas_->hasImage(), settings_.pageSize,
-                    settings_.units, this, curName);
+                    settings_.units, this);
     execMaybePopover(dlg);
 
     if (dlg.loadRequested()) {
@@ -5924,13 +5916,7 @@ namespace stencil::gui {
     if (!canvas_->hasImage()) return;
 
     // Browser parity: the modal has no Cancel/Save — whatever way it was dismissed,
-    // apply what changed. Rename first (the shared commitProjectName path covers the
-    // local store AND a version-guarded server push), then the links.
-    const QString newName = dlg.projectName();
-    if (!newName.isEmpty() && newName != curName && projectName_) {
-      projectName_->setText(newName);
-      commitProjectName();
-    }
+    // apply what changed.
     if (dlg.source() == src && dlg.resource() == res) return;   // links untouched
     currentSource_ = dlg.source();
     currentResource_ = dlg.resource();
@@ -6007,17 +5993,20 @@ namespace stencil::gui {
       tmp.load(metas);
       seed = QString::fromStdString(tmp.defaultName());
     }
-    bool ok = false;
-    const QString name = QInputDialog::getText(this, "New Project",
-                                               "Project name:", QLineEdit::Normal,
-                                               seed, &ok);
-    if (!ok || name.trimmed().isEmpty()) return;
-    const auto check = checkProjectName(name.trimmed(), QString());
-    if (!check.ok) {
-      notify_->error(QString::fromStdString(check.reason));
-      return;
-    }
-    createProject(name.trimmed());
+    // The name prompt on the shell, with the projects list's own live rules: Save
+    // goes dead with the reason until the name is saveable.
+    PromptSpec spec;
+    spec.title = tr("New Project");
+    spec.titleIcon = QStringLiteral("plus-circle");
+    spec.message = tr("Project name:");
+    spec.defaultValue = seed;
+    spec.validate = [this](const QString& name) {
+      const auto check = checkProjectName(name, QString());
+      return check.ok ? QString() : QString::fromStdString(check.reason);
+    };
+    const auto name = promptModal(this, spec);
+    if (!name || name->isEmpty()) return;
+    createProject(*name);
   }
 
   // Find a loaded project by id, or nullptr when none matches.
@@ -6055,19 +6044,20 @@ namespace stencil::gui {
       createLocalProject(name);
       return;
     }
-    QStringList targets;
-    targets << tr("This computer (local)");
-    for (const QString& s : servers) targets << tr("Server: %1").arg(s);
-    bool ok = false;
-    const QString choice =
-        QInputDialog::getItem(this, tr("Save project"), tr("Where should it be saved?"),
-                              targets, 0, false, &ok);
-    if (!ok) return;
-    const int idx = targets.indexOf(choice);
-    if (idx <= 0) {
+    // The browser's save-target select (base.js fillTargetSelect), in the picker shell.
+    ChooseSpec spec;
+    spec.title = tr("Save project");
+    spec.message = tr("Where should it be saved?");
+    spec.confirmLabel = tr("Save");
+    spec.confirmIcon = QStringLiteral("save");
+    spec.options.push_back({QString(), tr("Local (this computer)")});
+    for (const QString& s : servers) spec.options.push_back({s, s});
+    const auto choice = chooseModal(this, spec);
+    if (!choice) return;
+    if (choice->isEmpty()) {
       createLocalProject(name);
     } else {
-      createServerProject(servers.at(idx - 1), name);
+      createServerProject(*choice, name);
     }
   }
 
@@ -6348,11 +6338,15 @@ namespace stencil::gui {
       // and leaves incognito), mirroring the browser's incognito "Save to server".
       QString target = servers.first();
       if (servers.size() > 1) {
-        bool ok = false;
-        target = QInputDialog::getItem(this, tr("Save to server"),
-                                       tr("Publish this incognito project to which server?"),
-                                       servers, 0, false, &ok);
-        if (!ok) return;
+        ChooseSpec spec;   // browser projectsModal.js saveToServer
+        spec.title = tr("Save to server");
+        spec.message = tr("Save this incognito project to which server?");
+        spec.confirmLabel = tr("Save");
+        spec.confirmIcon = QStringLiteral("upload");
+        for (const QString& s : servers) spec.options.push_back({s, s});
+        const auto choice = chooseModal(this, spec);
+        if (!choice) return;
+        target = *choice;
       }
       publishIncognitoToServer(target);
       return;
@@ -6702,11 +6696,7 @@ namespace stencil::gui {
       row->setIcon(swatch(QColor(a.hex), current));
       row->setText(a.label);
       row->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-      // Menu-tight metrics: left-aligned label hugging the chip, row-wide hover fill.
-      row->setStyleSheet(
-          "QPushButton { border: none; border-radius: 6px; text-align: left; "
-          "padding: 5px 14px 5px 4px; }"
-          "QPushButton:hover { background: palette(highlight); color: palette(highlighted-text); }");
+      // Menu-tight metrics (theme.cpp QDialog#accentPopover QPushButton).
       row->setProperty("accentKey", a.key);         // observable by the GUI test
       row->setProperty("currentAccent", current);
       connect(row, &QPushButton::clicked, &dlg, [this, &dlg, &rows, swatch, key = a.key] {
@@ -6917,9 +6907,9 @@ namespace stencil::gui {
   }
 
   void MainWindow::setActionTip(QAction* a, const QString& desc) {
-    if (!a) return;
-    const QString sc = a->shortcut().toString(QKeySequence::NativeText);
-    a->setToolTip(sc.isEmpty() ? desc : QString("%1 (%2)").arg(desc, sc));
+    // tipContent composes "desc (shortcut)" + the disabled reason, and keeps it composed
+    // as the action's state or chord changes (browser composeControlTitle).
+    setTipBase(a, desc);
   }
 
   void MainWindow::enterNameEdit() {

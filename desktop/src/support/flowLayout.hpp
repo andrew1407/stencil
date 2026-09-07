@@ -7,7 +7,9 @@
 // a height that grows with however many lines that takes (heightForWidth) — Qt has no
 // built-in flex-wrap equivalent, so a QHBoxLayout row either overflows or clips. Standard
 // Qt Widgets "Flow Layout" example algorithm, ported in for the "Selected Line:" bar
-// (browser parity: .selection-panel-inner is a flex row that wraps).
+// (browser parity: .selection-panel-inner is a flex row that wraps). An item wider than
+// the whole row takes the row's width (and its own heightForWidth), so a wrapping group
+// inside a wrapping bar wraps in turn instead of running past the edge.
 namespace stencil::gui {
 
   class FlowLayout : public QLayout {
@@ -43,7 +45,21 @@ namespace stencil::gui {
       const QMargins m = contentsMargins();
       return size + QSize(m.left() + m.right(), m.top() + m.bottom());
     }
-    QSize sizeHint() const override { return minimumSize(); }
+    QSize sizeHint() const override {
+      if (!lineHint_) return minimumSize();
+      QSize size;
+      int n = 0;
+      for (QLayoutItem* item : items_) {
+        if (item->isEmpty()) continue;
+        const QSize sz = item->sizeHint();
+        size.setWidth(size.width() + sz.width());
+        size.setHeight(qMax(size.height(), sz.height()));
+        ++n;
+      }
+      size.rwidth() += hSpace_ * qMax(0, n - 1);
+      const QMargins m = contentsMargins();
+      return size + QSize(m.left() + m.right(), m.top() + m.bottom());
+    }
     void setGeometry(const QRect& rect) override {
       QLayout::setGeometry(rect);
       doLayout(rect, false);
@@ -77,13 +93,18 @@ namespace stencil::gui {
         firstRow = false;
         rowItems.clear();
         rowX.clear();
+        rowSize.clear();
       };
 
       for (QLayoutItem* item : items_) {
         if (item->isEmpty()) continue;  // hidden widgets (e.g. fillGroup_) take no space
-        const QSize sz = item->sizeHint();
+        QSize sz = item->sizeHint();
+        if (wrap && sz.width() > area.width()) {   // wider than the row: take the row
+          sz.setWidth(qMax(area.width(), item->minimumSize().width()));
+          if (item->hasHeightForWidth()) sz.setHeight(item->heightForWidth(sz.width()));
+        }
         int nextX = x + sz.width() + hSpace_;
-        if (nextX - hSpace_ > area.right() && !rowItems.isEmpty()) {
+        if (wrap && nextX - hSpace_ > area.right() && !rowItems.isEmpty()) {
           flushRow();
           x = area.x();
           nextX = x + sz.width() + hSpace_;
@@ -91,6 +112,7 @@ namespace stencil::gui {
         }
         rowItems.append(item);
         rowX.append(x);
+        rowSize.append(sz);
         lineHeight = qMax(lineHeight, sz.height());
         x = nextX;
       }

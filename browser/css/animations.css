@@ -349,8 +349,8 @@ button:not(:disabled):active {
 /* A quarter-turn button turns a WHOLE revolution the way it turns the image, and the
    live-sync wheel one whole turn as well — a sync runs and completes. Each rests
    exactly where it started, which a held part-turn never did. */
-.ic-rotate-ccw        { --ic-ms: 0.62s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); --ic-play: icmTurnCcw; }
-.ic-rotate-cw,
+.ic-rotate-ccw        { --ic-ms: 0.413s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); --ic-play: icmTurnCcw; }
+.ic-rotate-cw         { --ic-ms: 0.413s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); --ic-play: icmTurnCw; }
 .ic-refresh-cw        { --ic-ms: 0.62s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); --ic-play: icmTurnCw; }
 /* Marks that draw themselves, the way you'd make them. */
 .ic-check .ic-tick    { --ic-ms: 0.64s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1); stroke-dasharray: 26; --ic-play: icmTick; }
@@ -943,7 +943,9 @@ select:focus {
         border: 1px solid var(--border-main) !important;
     }
     /* Modals fill more of the narrow viewport. */
-    #settings-modal, .app-modal { width: calc(100vw - 28px); }
+    /* A CAP, not a width: a 560px modal in a 900px window stays 560 wide — only one
+       that would not fit is squeezed (user report: "too wide when the content is smaller"). */
+    #settings-modal, .app-modal { max-width: calc(100vw - 28px); }
 }
 
 /* Phones (landscape) & small tablets: tighten the control clusters. */

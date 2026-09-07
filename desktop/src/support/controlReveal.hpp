@@ -86,6 +86,22 @@ namespace stencil::gui {
       if (w->graphicsEffect()) w->setGraphicsEffect(nullptr);
     }
 
+    // The picture that flies is the CONTROLS, never the strip behind them. QWidget::grab()
+    // renders the window background under its children (the palette's Window brush — the
+    // page colour), so a group photographed on a toolbar flew as a dark slab over a lighter
+    // bar: the "black lines next to the inputs" in the user report. Rendering only the
+    // CHILDREN onto a cleared surface leaves the gaps — a group is wider than its fields
+    // whenever the row hands it slack — genuinely empty, so nothing but the fields flies.
+    inline QPixmap groupShot(QWidget* w) {
+      if (!w || w->width() < 1 || w->height() < 1) return QPixmap();
+      const qreal dpr = w->devicePixelRatioF();
+      QPixmap pm(qRound(w->width() * dpr), qRound(w->height() * dpr));
+      pm.setDevicePixelRatio(dpr);
+      pm.fill(Qt::transparent);
+      w->render(&pm, QPoint(), QRegion(), QWidget::DrawChildren);
+      return pm;
+    }
+
     inline DisintegrateOverlay* flyReveal(QWidget* w, const QPixmap& pm, const QRect& at,
                                           bool gather, int ms) {
       QWidget* host = w->window();
@@ -167,7 +183,7 @@ namespace stencil::gui {
     if (!show) {
       // Photographed while it is still laid out, then the slot closes under the flying
       // dust — the cloud is a snapshot with a life of its own, so it does not wait.
-      const QPixmap pm = w->grab();
+      const QPixmap pm = ctl::groupShot(w);
       const QRect at(w->mapTo(host, QPoint(0, 0)), w->size());
       const int naturalW = w->width();
       const int savedMax = w->maximumWidth();
@@ -209,16 +225,20 @@ namespace stencil::gui {
       // The width is lifted the same way, just for the one measurement.
       guard->setGraphicsEffect(nullptr);
       guard->setMaximumWidth(savedMax);
-      // Settle the row's positions, then measure from the size HINT, never the live
-      // box: the surrounding layouts reflow asynchronously, so mid-swap the live
-      // width is 0 or a stale sliver — the flight was silently declined (no dust),
-      // or the grow eased to the sliver and SNAPPED to full width when the cap
-      // lifted (both user reports). The hint is what the layout will settle on.
+      // Settle the row's positions, then measure the width the group will REALLY end at.
+      // With the cap lifted and the parent laid out, that is its live box — and for an
+      // EXPANDING group (the f(x,y) pair takes the slack its row hands it) that is wider
+      // than its own size hint, which is only what its contents ask for. Flying the hint
+      // made the fields widen the instant the dust handed over (user report). The hint is
+      // still the floor: the surrounding layouts reflow asynchronously, so mid-swap the
+      // live width can be 0 or a stale sliver, and a flight sized off THAT was silently
+      // declined (no dust) or eased to the sliver and snapped wide when the cap lifted.
       if (QWidget* p = guard->parentWidget())
         if (QLayout* pl = p->layout()) pl->activate();
-      const QSize natural = guard->sizeHint().expandedTo(QSize(1, guard->height()));
+      const QSize hint = guard->sizeHint().expandedTo(QSize(1, guard->height()));
+      const QSize natural(std::max(hint.width(), guard->width()), hint.height());
       if (guard->size() != natural) guard->resize(natural);   // just for the grab
-      const QPixmap pm = guard->grab();
+      const QPixmap pm = ctl::groupShot(guard);
       const int naturalW = natural.width();
       const QRect at(guard->mapTo(host, QPoint(0, 0)), natural);
       guard->setMaximumWidth(0);

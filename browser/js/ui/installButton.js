@@ -42,7 +42,7 @@ export class StencilInstall extends StencilElement {
           <span class="install-ic">${icon('download')}</span><span>Install web app (PWA)</span>
         </button>
         <a id="install-desktop-btn" class="shimmer" role="menuitem" href="${url}" download rel="noopener"
-           title="Download the Stencil desktop app for ${label}">
+           data-title="Download the Stencil desktop app for ${label}">
           <span class="install-ic">${icon('monitor')}</span><span>Download desktop app</span>
         </a>
       </div>

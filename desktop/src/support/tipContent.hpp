@@ -6,6 +6,8 @@
 #include <QStringList>
 #include <QVector>
 
+class QAction;
+
 // Rich control tooltips — the desktop rendering of browser/js/ui/tipContent.js.
 //
 // Every control here already carries its tooltip as ONE plain string
@@ -53,8 +55,13 @@ namespace stencil::gui {
 
   // Render a plain tooltip string as Qt rich text, coloured for `pal`. Returns an empty
   // string when there is nothing to show (the caller then leaves the tooltip alone).
-  // `mac` draws modifiers as Apple glyphs; it defaults to the platform.
-  QString renderTip(const QString& text, const Palette& pal, bool mac = kOnMac);
+  // `mac` draws modifiers as Apple glyphs; it defaults to the platform. The html pins
+  // its own width, measured in `font` — which must be the type the tip is DRAWN with:
+  // null = QToolTip::font(), right for Qt's own label (menus) and wrong for AppTooltip,
+  // whose body draws in the app font (13pt vs 11pt on macOS — "Image Filter" measured
+  // in the small one broke onto two lines). AppTooltip re-renders in its own font.
+  QString renderTip(const QString& text, const Palette& pal, bool mac = kOnMac,
+                    const QFont* font = nullptr);
 
   // Class marker carried by every painted keycap <img>, so a rendered tooltip can be asked
   // whether it shows any caps at all — appTooltip shakes only the ones that do. The "+"
@@ -73,12 +80,6 @@ namespace stencil::gui {
   // muted text follow the palette. Idempotent.
   void setTooltipPalette(const Palette& pal);
 
-  // …and the FONT they are measured in. The rendered html pins a table width, which must
-  // be computed in the type the tip actually draws with — QToolTip's font is larger on
-  // macOS and pinned the table too narrow, breaking a one-line URL. AppTooltip publishes
-  // its body's font here; unset, the measurement falls back to QToolTip::font().
-  void setTooltipFont(const QFont& font);
-
   // Where a widget keeps the PLAIN tooltip it was given, so the rendered html can be
   // rebuilt in a new palette (setTooltipPalette) instead of keeping the colours it was
   // first drawn with. Set by the application's QEvent::ToolTipChange filter.
@@ -88,7 +89,28 @@ namespace stencil::gui {
   // setTooltipPalette — what the application's QEvent::ToolTipChange filter substitutes.
   // Returns an empty string for text that must be left exactly as it is: empty, or
   // already rich text (something composed its own HTML, e.g. the chat provider tooltip).
-  QString enrichedToolTip(const QString& plain);
+  // `font` is the type it will be drawn in (see renderTip).
+  QString enrichedToolTip(const QString& plain, const QFont* font = nullptr);
+
+  // ── Composed control tooltips — browser utils.js composeControlTitle ──
+  // A control's hover text is ONE string of up to three parts: the heading (data-title),
+  // " (combo)" for the shortcut it carries, and a "— reason" line shown only while it is
+  // disabled (data-disabled-reason). The parts live as properties on the QAction/QWidget,
+  // and the tooltip is recomposed whenever its enabled state or shortcut changes — so a
+  // greyed control always says why, and a rebound chord shows its new keycap.
+  QString composeControlTitle(const QString& base, const QString& combo, bool disabled,
+                              const QString& reason);
+  inline constexpr const char* kTipBaseProperty = "stencilTipBase";
+  inline constexpr const char* kTipReasonProperty = "stencilTipReason";
+  inline constexpr const char* kTipHotkeyProperty = "stencilTipHotkey";
+  // Unset, the base is read off the current tooltip (its trailing "(combo)" stripped).
+  void setTipBase(QObject* target, const QString& base);
+  void setTipReason(QObject* target, const QString& reason);
+  // A widget has no shortcut of its own: its keycap is `hotkey`'s (the filter combo
+  // wears Cycle Image Filter's chord, as the browser's data-hk-title does).
+  void setTipHotkey(QWidget* target, QAction* hotkey);
+  // Recompose `target`'s tooltip from its parts now; a target carrying none is left alone.
+  void syncControlTip(QObject* target);
 
   // The palette rich tooltips are currently drawn in (last given to setTooltipPalette) —
   // for callers elsewhere (the context menu's hotkey chips) that want the same colours.

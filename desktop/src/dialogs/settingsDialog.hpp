@@ -13,11 +13,11 @@ class QPushButton;
 class QSpinBox;
 class QWidget;
 
-// Settings editor — the browser's "Style & Visual Settings" modal (js/ui/visualsModal.js):
+// Settings editor — the browser's "Visuals & Settings" modal (js/ui/visualsModal.js):
 // the shared shell, its search box, .vs-section captions over hairline .vs-row rows,
 // and a footer hint beside Reset All. Live-apply, like the browser — no Save/Cancel,
 // just Close. Desktop-only preferences ride along as extra sections. The AI-assistant
-// rows are commit/discard and stay behind AssistantSettingsDialog; this links to it.
+// rows are commit/discard and live in AssistantSettingsDialog (the chat dock's gear).
 namespace stencil::gui {
 
   class SettingsDialog : public QDialog {
@@ -29,7 +29,6 @@ namespace stencil::gui {
     void setOnChange(std::function<void(const Settings&)> cb) { onChange_ = std::move(cb); }
 
    signals:
-    void openAssistantSettingsRequested();  // "Open Assistant Settings…" row
     void visualsReset();                    // Reset All was applied (the owner toasts it)
 
    private:

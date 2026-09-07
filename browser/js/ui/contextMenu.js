@@ -860,7 +860,7 @@ export class StencilContextMenu extends StencilElement {
           const imgType = item.types.find(t => t.startsWith('image/'));
           if (imgType) {
             if (app.image && !(await app.confirm('Replace current image with pasted image?', { title: 'Replace image', confirmIcon: 'paste' }))) {
-              notify('Image paste canceled', 'fail');
+              notify('Image paste canceled', 'info');
               return;
             }
             const blob = await item.getType(imgType);

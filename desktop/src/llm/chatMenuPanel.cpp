@@ -135,7 +135,7 @@ namespace stencil::gui {
       b->setObjectName(QString::fromLatin1(name));
       return b;
     };
-    send_ = mkBtn("chatMenuSend", QStringLiteral("Send (Enter)"));
+    send_ = mkBtn("chatMenuSend", QString());
     QObject::connect(send_, &QToolButton::clicked, this, [this] {
       if (busy_) {
         if (onStop_) onStop_();
@@ -434,7 +434,7 @@ namespace stencil::gui {
     updateSendEnabled();
     send_->setIcon(themedIcon(on ? "stop" : "send", QColor(Qt::white), kMenuChatIcon));
     send_->setToolTip(on ? QStringLiteral("Stop the response")
-                         : QStringLiteral("Send (Enter)"));
+                         : QString());
     attach_->setEnabled(!on);  // frozen mid-turn, exactly like the dock's
   }
 

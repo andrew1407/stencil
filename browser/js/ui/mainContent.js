@@ -50,10 +50,10 @@ export class StencilMainContent extends StencilElement {
             <div class="coordinates-panel" id="coord-panel">
                 <div class="coord-panel-header" id="coord-panel-header">
                     <div class="coord-tabs" role="tablist">
-                        <button id="coord-tab-points" class="coord-tab coord-tab-active" role="tab" aria-selected="true" data-tab="points" title="Points of the selected line">Points</button>
-                        <button id="coord-tab-lines" class="coord-tab" role="tab" aria-selected="false" data-tab="lines" title="All lines — select, inspect or remove">Lines</button>
+                        <button id="coord-tab-points" class="coord-tab coord-tab-active" role="tab" aria-selected="true" data-tab="points" data-title="Points of the selected line">Points</button>
+                        <button id="coord-tab-lines" class="coord-tab" role="tab" aria-selected="false" data-tab="lines" data-title="All lines — select, inspect or remove">Lines</button>
                     </div>
-                    <button id="toggle-coord-panel" class="btn-icon" data-hk-title="togglePointsList" data-title="Hide panel" title="Hide panel">${icon('chevron-right')}</button>
+                    <button id="toggle-coord-panel" class="btn-icon" data-hk-title="togglePointsList" data-title="Hide panel">${icon('chevron-right')}</button>
                 </div>
                 <div id="coord-body">
                 <table class="coordinates-table" id="coordinates-table">
@@ -123,7 +123,7 @@ export class StencilMainContent extends StencilElement {
       // The panel collapses to a right-hand rail, so the chevron points RIGHT to hide and
       // LEFT to show. Not swapped: animations.css spins the one glyph 180° with the slide.
       btn.dataset.title = hidden ? 'Show Last Line Points' : 'Hide panel';
-      btn.title = hotkeys.hkTitle(hidden ? 'Show Last Line Points' : 'Hide panel', 'togglePointsList');
+      btn.dataset.tip = hotkeys.hkTitle(hidden ? 'Show Last Line Points' : 'Hide panel', 'togglePointsList');
     });
 
     // Points | Lines tabs — the Points tab is the existing per-line coordinate table;

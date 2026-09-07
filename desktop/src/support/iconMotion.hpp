@@ -64,6 +64,8 @@ namespace stencil::gui {
   // button's checked state means the same thing and needs no property.
   inline constexpr const char* kIconStateProperty = "stencilIconState";
   inline constexpr const char* kIconMotionAnimName = "stencilIconMotion";
+  // Set on a QMenu once its hovered() signal has been wired to the row motion.
+  inline constexpr const char* kMenuHoverWiredProperty = "stencilIcmHovered";
 
   // ── The table ───────────────────────────────────────────────────────────────
   // A pose in the glyph's own 24-unit space. Absent fields are identity.

@@ -10,7 +10,6 @@
 //
 // Callers only have to remember one thing: while a menu is open it is NOT inside the
 // component, so an outside-press check must test the menu as well as the trigger.
-
 import { popoverPosition } from './popover.js';
 import { surfaceIn, surfaceOut, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from './motion.js';
 
@@ -80,6 +79,28 @@ export const showMenu = (menu, trigger) => {
   menu.__ddReflow = reflow;
   window.addEventListener('resize', reflow);
   window.addEventListener('scroll', reflow, true);
+  trackTrigger(menu, trigger);
+};
+
+// …and glued to it for as long as it is open. `resize`/`scroll` miss the moves that
+// happen here — the chat panel sliding in re-lays the page under an open list, and a
+// modal re-centring leaves the list a screen from its control. One rect read per frame
+// while a menu is open, a re-place only when the trigger really moved. No rAF (node
+// tests) just means the placement stays where showMenu put it, as it always did.
+const trackTrigger = (menu, trigger) => {
+  if (typeof requestAnimationFrame !== 'function') return;
+  let last = null;
+  const step = () => {
+    if (menu.hidden || menu.__ddTrigger !== trigger) { menu.__ddTrack = 0; return; }
+    const r = trigger.getBoundingClientRect?.();
+    const key = r && `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)}`;
+    if (key && key !== last) {
+      if (last !== null) placeMenu(menu, trigger);   // the first frame is showMenu's own
+      last = key;
+    }
+    menu.__ddTrack = requestAnimationFrame(step);
+  };
+  menu.__ddTrack = requestAnimationFrame(step);
 };
 
 // Hide `menu` and put it back where it was built, clearing everything showMenu set.
@@ -90,6 +111,8 @@ export const hideMenu = (menu) => {
   surfaceOut(menu, menu.hidden ? null : dustPoint(menu.__ddTrigger), { ms: MENU_OUT_MS });
   menu.__ddTrigger = null;
   menu.hidden = true;
+  if (menu.__ddTrack && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(menu.__ddTrack);
+  menu.__ddTrack = 0;
   if (menu.__ddReflow) {
     window.removeEventListener('resize', menu.__ddReflow);
     window.removeEventListener('scroll', menu.__ddReflow, true);

@@ -216,27 +216,29 @@ namespace stencil::gui {
     previewCenter->addStretch(1);
     layout->addLayout(previewCenter);
 
-    // "Video frame" controls (mirrors LinksDialog): the slider scrubs; the spin box
-    // shows/edits the exact frame; both stay mirrored and seek the persistent scrub
-    // player. A checkbox can switch to the container's embedded preview image instead.
+    // "Video frame" controls (mirrors LinksDialog) as the browser's Frame .vs-row: the
+    // slider scrubs; the spin box shows/edits the exact frame; both stay mirrored and
+    // seek the persistent scrub player. A checkbox under them can switch to the
+    // container's embedded preview image instead.
     frame_ = new QSpinBox(this);
     frame_->setRange(0, 0);
     frameSlider_ = new QSlider(Qt::Horizontal, this);
     frameSlider_->setRange(0, 0);
     frameTotal_ = new QLabel(this);
     frameTotal_->setStyleSheet(mutedCss);
-    frameRow_ = new QWidget(this);
-    auto* frameV = new QVBoxLayout(frameRow_);
+    auto* frameV = new QVBoxLayout;
     frameV->setContentsMargins(0, 0, 0, 0);
+    frameV->setSpacing(7);
     auto* frameH = new QHBoxLayout;
+    frameH->setContentsMargins(0, 0, 0, 0);
     frameH->addWidget(frameSlider_, 1);
-    frameH->addWidget(new QLabel("Frame", frameRow_));
     frameH->addWidget(frame_);
     frameH->addWidget(frameTotal_);
     frameV->addLayout(frameH);
-    usePreview_ = new QCheckBox("Use the video's preview image instead of a frame", frameRow_);
+    usePreview_ = new QCheckBox("Use the video's preview image instead of a frame", this);
     usePreview_->setEnabled(false);
     frameV->addWidget(usePreview_);
+    frameRow_ = vsRow(this, tr("Frame"), frameV);
     frameRow_->setVisible(false);  // shown only for videos
     layout->addWidget(frameRow_);
 
@@ -246,31 +248,39 @@ namespace stencil::gui {
     previewHint_->setVisible(false);   // an empty hint keeps no line of its own
     layout->addWidget(previewHint_);
 
-    // ── Quick pre-load crop (mirrors LinksDialog quick-crop): open the editor already
-    // cropped to a page aspect/orientation, or uncropped. Crop is OFF by default;
-    // shown only once a preview resolves an image/frame. ──
-    quickcropRow_ = new QWidget(this);
+    // ── Quick pre-load crop (mirrors LinksDialog quick-crop) as the browser's Crop
+    // .vs-row (#open-image-crop-row): the toggle, its caption, then — only while
+    // cropping — the Album/Portrait toggle and the page the aspect comes from. Crop is
+    // OFF by default; shown only once a preview resolves an image/frame. ──
     {
-      auto* qc = new QHBoxLayout(quickcropRow_);
+      auto* qc = new QHBoxLayout;
       qc->setContentsMargins(0, 0, 0, 0);
-      cropPage_ = new QCheckBox("Crop", quickcropRow_);
+      qc->setSpacing(8);
+      cropPage_ = new QCheckBox(this);
       cropPage_->setChecked(false);  // UNCHECKED by default → open the whole image
-      cropPage_->setToolTip("Crop the image to the page aspect on open");
-      cropAlbum_ = new QCheckBox("Album", quickcropRow_);
-      cropAlbum_->setToolTip("Landscape orientation (off = portrait)");
-      cropPageSize_ = new SearchComboBox(quickcropRow_);
+      cropPage_->setToolTip("Crop the image to the page aspect before opening");
+      auto* cropHint = new QLabel(tr("Trim to the page aspect before opening."), this);
+      cropHint->setObjectName(QStringLiteral("modalFooterHint"));   // browser .footer-hint
+      cropAlbum_ = new QPushButton(this);
+      cropAlbum_->setCheckable(true);
+      makeModalCta(cropAlbum_, "swap");
+      cropAlbum_->setToolTip("Swap album / portrait — flips the crop orientation");
+      cropAlbum_->setAutoDefault(false);
+      cropPageSize_ = new SearchComboBox(this);
       // Every named ISO format (labels with sizes, data = the canonical name). No
       // "custom" here — the crop needs a fixed page aspect.
       fillPageSizeCombo(cropPageSize_, /*includeCustom=*/false, units_);
       qc->addWidget(cropPage_);
+      qc->addWidget(cropHint, 1);
       qc->addWidget(cropAlbum_);
       qc->addWidget(cropPageSize_);
-      qc->addStretch(1);
+      quickcropRow_ = vsRow(this, tr("Crop"), qc);
     }
     quickcropRow_->setVisible(false);  // shown once a preview succeeds
     layout->addWidget(quickcropRow_);
-    // Album / page only matter when cropping to page; grey them out otherwise.
+    // Album / page only matter when cropping to page; shown only then (browser parity).
     connect(cropPage_, &QCheckBox::toggled, this, &OpenImageDialog::syncQuickcropEnabled);
+    connect(cropAlbum_, &QPushButton::toggled, this, &OpenImageDialog::syncQuickcropEnabled);
 
     // Incognito: a .vs-row with the browser's full caption (openImageModal.js).
     // Applies to a file/URL open; hidden on the Blank tab (never honored there).
@@ -326,7 +336,7 @@ namespace stencil::gui {
     makeModalCta(newWindow_, "external");
     connect(newWindow_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::NewWindow; accept(); });
     createBlank_ = new QPushButton("Create blank", this);
-    makeModalCta(createBlank_, "plus-circle");
+    makeModalCta(createBlank_, "image");   // browser #blank-image-create
     connect(createBlank_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::Blank; accept(); });
     btnRow->addWidget(cancel);
     if (canReplace_) {
@@ -520,6 +530,7 @@ namespace stencil::gui {
     if (replace_) replace_->setVisible(!blank && tabs_->currentIndex() == TabFile);
     replaceRow_->setVisible(!blank && canReplace_ && tabs_->currentIndex() == TabFile);
     createBlank_->setVisible(blank);
+    refreshTargetRow();
     if (blank) clearPreviewImage();   // the blank tab has no source to preview
     // Switching source tabs invalidates any preview built for the other tab.
     resetPreviewState();

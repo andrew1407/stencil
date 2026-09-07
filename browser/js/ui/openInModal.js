@@ -46,7 +46,7 @@ export class StencilOpenInModal extends StencilElement {
                     <label>In the bot</label>
                     <span class="oi-fallback">
                         <code id="open-in-fallback-cmds" style="user-select:all;white-space:pre-line"></code>
-                        <button id="open-in-fallback-copy" class="btn-icon" title="Copy commands">${icon('copy', { size: 14 })}</button>
+                        <button id="open-in-fallback-copy" class="btn-icon" data-title="Copy commands">${icon('copy', { size: 14 })}</button>
                     </span>
                 </div>
             </div>

@@ -391,7 +391,7 @@ test('an admin connection renders golden + badged; a session one does not', () =
   assert.ok(!hasClass(plain, 'connect-admin'), 'a session-token row stays neutral');
   const badge = find(admin, 'connect-admin-badge');
   assert.ok(badge, 'the admin row carries the gold marker');
-  assert.match(badge.title, /mint session tokens/i, 'the marker says what admin means');
+  assert.match(badge.dataset.title, /mint session tokens/i, 'the marker says what admin means');
   assert.strictEqual(find(plain, 'connect-admin-badge'), null);
 });
 
@@ -464,7 +464,7 @@ test('the row disconnect is a trash button, like the projects modal’s remove',
   assert.ok(disc, 'every row can disconnect');
   assert.ok(disc.innerHTML.includes('ic-trash'), 'trash — this app’s remove glyph everywhere else');
   assert.ok(!disc.innerHTML.includes('ic-x'), 'the ✕ meant "close", not "forget this server"');
-  assert.match(disc.title, /disconnect \(and forget\) this server/i, 'the tooltip says it forgets');
+  assert.match(disc.dataset.title, /disconnect \(and forget\) this server/i, 'the tooltip says it forgets');
   assert.ok(disc.classList.contains('danger'), 'and it keeps the danger treatment');
 });
 

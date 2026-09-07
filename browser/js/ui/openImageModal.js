@@ -37,7 +37,7 @@ export class StencilOpenImageModal extends StencilElement {
                 <!-- Tab: URL link. Preview is explicit (button / Enter) after validation — not
                      on every keystroke — so a half-typed URL never spins up a fetch. -->
                 <div class="oi-panel" id="oi-panel-url" style="display:none">
-                    <div class="vs-row vs-field"><label title="Load an image or video straight from the web">URL</label><input type="url" id="open-image-url" placeholder="https://… (image or video)"><button id="open-image-url-preview" class="btn-icon-text" type="button" title="Load a preview of this URL" disabled>${icon('image', { size: 14 })}<span>Preview</span></button></div>
+                    <div class="vs-row vs-field"><label data-title="Load an image or video straight from the web">URL</label><input type="url" id="open-image-url" placeholder="https://… (image or video)"><button id="open-image-url-preview" class="btn-icon-text" type="button" data-title="Load a preview of this URL" disabled>${icon('image', { size: 14 })}<span>Preview</span></button></div>
                 </div>
 
                 <!-- Tab: Blank -->
@@ -45,8 +45,8 @@ export class StencilOpenImageModal extends StencilElement {
                     <div class="vs-section">Fill color</div>
                     <div class="vs-row"><label>Presets</label>
                         <span class="bi-presets">
-                            <button id="blank-image-white" class="bi-preset bi-preset-white" type="button" title="Fill with white">White</button>
-                            <button id="blank-image-black" class="bi-preset bi-preset-black" type="button" title="Fill with black">Black</button>
+                            <button id="blank-image-white" class="bi-preset bi-preset-white" type="button" data-title="Fill with white">White</button>
+                            <button id="blank-image-black" class="bi-preset bi-preset-black" type="button" data-title="Fill with black">Black</button>
                         </span>
                     </div>
                     <div class="vs-row"><label>Custom color</label><input type="color" id="blank-image-color" value="#ffffff"></div>
@@ -77,7 +77,7 @@ export class StencilOpenImageModal extends StencilElement {
 
                 <!-- Frame time: shown when the file/URL source is a video (a still frame is captured). -->
                 <div class="vs-row" id="open-image-frame-row" style="display:none">
-                    <label title="Capture the frame at this time (seconds)">Frame (s)</label>
+                    <label data-title="Capture the frame at this time (seconds)">Frame (s)</label>
                     <input type="number" id="open-image-frame" min="0" step="0.1" value="0" style="width:6rem">
                 </div>
 
@@ -85,11 +85,11 @@ export class StencilOpenImageModal extends StencilElement {
                      editor over the preview (aspect locked to the page, Album/Portrait toggle),
                      matching the standalone Crop modal's model. -->
                 <div class="vs-row" id="open-image-crop-row" style="display:none">
-                    <label title="Crop the image to the page aspect before opening">Crop</label>
+                    <label data-title="Crop the image to the page aspect before opening">Crop</label>
                     <span class="oi-crop-opt">
                         <input type="checkbox" id="open-image-crop-toggle">
                         <span class="footer-hint">Trim to the page aspect before opening.</span>
-                        <button id="open-image-crop-orientation" class="btn-icon-text" type="button" title="Swap album / portrait — flips the crop orientation" style="display:none">${icon('swap', { size: 14 })}<span>Album</span></button>
+                        <button id="open-image-crop-orientation" class="btn-icon-text" type="button" data-title="Swap album / portrait — flips the crop orientation" style="display:none">${icon('swap', { size: 14 })}<span>Album</span></button>
                     </span>
                 </div>
 
@@ -105,12 +105,12 @@ export class StencilOpenImageModal extends StencilElement {
                 </div>
                 <!-- Save target: only shown when at least one server is connected. -->
                 <div class="vs-row" id="open-image-target-row" style="display:none">
-                    <label title="Open here locally or create on a connected server">Save to</label>
+                    <label data-title="Open here locally or create on a connected server">Save to</label>
                     <select id="open-image-target"></select>
                 </div>
                 <!-- Replace options: only shown on the Local file tab over a replaceable project. -->
                 <div class="vs-row" id="open-image-replace-row" style="display:none">
-                    <label title="Swap this project's image, keeping the same project">Replace</label>
+                    <label data-title="Swap this project's image, keeping the same project">Replace</label>
                     <span class="oi-replace">
                         <label class="vs-inline-check"><input type="checkbox" id="open-image-rename"> Rename project to the new image</label>
                         <label class="vs-inline-check"><input type="checkbox" id="open-image-keep" checked> Keep existing annotations</label>

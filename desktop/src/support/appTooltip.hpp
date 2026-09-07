@@ -258,11 +258,17 @@ namespace stencil::gui {
     void showFor(QWidget* owner, const QString& text, const QPoint& globalPos,
                  const QRect& originGlobal = QRect()) {
       origin_ = originGlobal;
-      // The html pins its own table width, which must be measured in the type THIS widget
-      // draws with — Qt's tooltip font is a different size on macOS and pinned the table
-      // too narrow, breaking a URL that fits on one line.
-      setTooltipFont(body_->font());
-      const QString rich = text.trimmed().startsWith('<') ? text : enrichedToolTip(text);
+      // The html pins its own width, so it is rendered HERE, in the type this body draws
+      // with. The owner's tooltip was already rendered when it was set (main.cpp's
+      // ToolTipChange filter) — measured in QToolTip's font, 11pt on macOS against the
+      // body's 13pt, which broke "Image Filter" and a ⇧⌘X chord onto two lines. Every
+      // enriched tooltip remembers the plain text it came from, so it is redone from that.
+      body_->ensurePolished();
+      const QFont font = body_->font();
+      const QVariant plain = owner ? owner->property(kPlainTipProperty) : QVariant();
+      const QString rich = plain.isValid()                    ? enrichedToolTip(plain.toString(), &font)
+                           : text.trimmed().startsWith('<') ? text
+                                                             : enrichedToolTip(text, &font);
       if (rich.isEmpty()) { hideTip(); return; }
       bool dusted = false;
       // An APPEARANCE: a first show, one re-pointed at another control, or new content.

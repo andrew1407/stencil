@@ -8,6 +8,7 @@
 #include "reorderableListWidget.hpp"
 #include "../app/scrollReveal.hpp"  // revealOpacityForItem (scroll edge fade)
 #include "../support/controlReveal.hpp"       // the rename ✓/✗ form/come apart as dust
+#include "../support/flowLayout.hpp"           // the filter row + batch bar wrap, never clip
 #include "../support/disintegrateOverlay.hpp"  // deleted rows come apart
 #include "../support/displayName.hpp"          // shortName for the remove confirm
 #include "../support/dissolveEffect.hpp"      // scroll-edge grain dissolve
@@ -29,11 +30,9 @@
 #include <QLocale>
 #include <QComboBox>
 #include <QMenu>
-#include <QMessageBox>
 #include <QColor>
 #include <QCursor>
 #include <QFont>
-#include <QDialogButtonBox>
 #include <QEvent>
 #include <QGuiApplication>
 #include <QHBoxLayout>
@@ -43,7 +42,6 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMouseEvent>
-#include <QInputDialog>
 #include <QNetworkAccessManager>
 #include <QRegularExpression>
 #include <QNetworkReply>
@@ -197,34 +195,40 @@ namespace stencil::gui {
       };
     }
 
-    // Modal name prompt with live validation (mirrors the browser's inline rename):
-    // OK enabled only when the trimmed name is non-empty, ≤80 chars, and unique
-    // (excluding `exceptId`); its tooltip shows the reason. nullopt on cancel.
+    // Name prompt on the shell (modalChrome promptModal) with the inline rename's live
+    // rules: Save enabled only when the trimmed name is non-empty, ≤80 chars, and unique
+    // (excluding `exceptId`); the reason shows under the field. nullopt on cancel.
     std::optional<QString> promptValidatedName(QWidget* parent, const QString& title,
                                                const QString& initial,
                                                const QString& exceptId,
                                                const std::vector<Project>& projects) {
-      QDialog d(parent);
-      d.setWindowTitle(title);
-      auto* lay = new QVBoxLayout(&d);
-      lay->addWidget(new QLabel("Project name:", &d));
-      auto* edit = new QLineEdit(initial, &d);
-      edit->selectAll();
-      lay->addWidget(edit);
-      auto* box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
-      auto* okBtn = box->button(QDialogButtonBox::Ok);
-      okBtn->setText(QString::fromUtf8("✓ Save"));
-      box->button(QDialogButtonBox::Cancel)->setText(QString::fromUtf8("✗ Cancel"));
-      lay->addWidget(box);
+      PromptSpec spec;
+      spec.title = title;
+      spec.titleIcon = QStringLiteral("plus-circle");   // a name to collect, not a warning
+      spec.message = QObject::tr("Project name:");
+      spec.defaultValue = initial;
+      spec.validate = [store = loadedNameStore(projects), exceptId](const QString& name) {
+        const auto res = store->validateName(name.toStdString(), exceptId.toStdString());
+        return res.ok ? QString() : QString::fromStdString(res.reason);
+      };
+      return promptModal(parent, spec);
+    }
 
-      const auto revalidate = makeNameValidator(loadedNameStore(projects), edit, okBtn, exceptId);
-      QObject::connect(edit, &QLineEdit::textChanged, &d,
-                       [revalidate](const QString&) { revalidate(); });
-      QObject::connect(box, &QDialogButtonBox::accepted, &d, &QDialog::accept);
-      QObject::connect(box, &QDialogButtonBox::rejected, &d, &QDialog::reject);
-      revalidate();
-      if (d.exec() != QDialog::Accepted) return std::nullopt;
-      return edit->text().trimmed();
+    // The browser's pickServer (projectsModal.js): the connected servers in the picker
+    // shell, auto-picked when there is only one. Empty on cancel.
+    QString pickServer(QWidget* parent, const QStringList& urls, const QString& message,
+                       const QString& title = QStringLiteral("Choose server"),
+                       const QString& confirmLabel = QStringLiteral("OK"),
+                       const QString& confirmIcon = QStringLiteral("server")) {
+      if (urls.isEmpty()) return QString();
+      if (urls.size() == 1) return urls.first();
+      ChooseSpec spec;
+      spec.title = title;
+      spec.message = message;
+      spec.confirmLabel = confirmLabel;
+      spec.confirmIcon = confirmIcon;
+      for (const QString& u : urls) spec.options.push_back({u, u});
+      return chooseModal(parent, spec).value_or(QString());
     }
 
     // What the "⋯" says on hover — its own tip, not the row's (browser projectsModal.js
@@ -639,15 +643,16 @@ namespace stencil::gui {
 
     // Filter row: a compact "Show:" dropdown (All / Local / all-servers / a specific connected
     // server) + sort/search-mode selects + Select all (mirrors the browser modal's row below).
+    // A FlowLayout: squeezed, the selects wrap onto a second line at their natural widths
+    // instead of being crushed or cut off at the edge (browser .modal-search-bar flex-wrap).
     {
-      auto* frow = new QHBoxLayout;
+      auto* frow = new FlowLayout(nullptr, 0, 8, 6);
       filter_ = new SearchComboBox(this, /*searchable=*/false);
       filter_->setSizeAdjustPolicy(QComboBox::AdjustToContents);
       filter_->setMaximumWidth(260);
       filter_->setToolTip("Filter the list: all, local only, or a specific server");
       rebuildFilterOptions();
       frow->addWidget(filter_);                       // natural width — no stretch
-      frow->addSpacing(8);
       // Sort mode (mirrors the browser modal): the data role carries the mode key.
       sortCombo_ = new SearchComboBox(this, /*searchable=*/false);
       sortCombo_->setToolTip("Sort projects (drag a row to set a manual order)");
@@ -662,7 +667,6 @@ namespace stencil::gui {
         sortCombo_->setCurrentIndex(mi >= 0 ? mi : 0);
       }
       frow->addWidget(sortCombo_);
-      frow->addSpacing(8);
       // Search-mode (what the search box matches): name+keywords (default), names, keywords.
       searchModeCombo_ = new SearchComboBox(this, /*searchable=*/false);
       searchModeCombo_->setToolTip("What the search box matches");
@@ -670,7 +674,6 @@ namespace stencil::gui {
       searchModeCombo_->addItem(tr("Names only"), QStringLiteral("names"));
       searchModeCombo_->addItem(tr("Keywords only"), QStringLiteral("keywords"));
       frow->addWidget(searchModeCombo_);
-      frow->addStretch(1);
       layout->addLayout(frow);
       connect(filter_, &QComboBox::currentIndexChanged, this, [this](int) { applyFilter(); });
       connect(sortCombo_, &QComboBox::currentIndexChanged, this, [this](int) {
@@ -684,10 +687,11 @@ namespace stencil::gui {
     // (it hosts Select all), with the selection-only controls coming and going with
     // the checked set. Labels + glyphs mirror the browser modal's batch bar; direction
     // buttons show by selection homogeneity (all-local → to-server; all-server → to-local).
+    // The bar WRAPS (browser .projects-batch-bar flex-wrap, gap 10): a narrow dialog
+    // never cuts "Remove selected" off at its edge (user report, with a picture).
     {
       batchBar_ = new QWidget(this);
-      auto* bh = new QHBoxLayout(batchBar_);
-      bh->setContentsMargins(0, 0, 0, 0);
+      auto* bh = new FlowLayout(batchBar_, 0, 10, 6);
       batchCount_ = new QLabel("0 selected", this);
       bh->addWidget(batchCount_);
       // Select/deselect every row in the CURRENT filtered view (browser: `selectables`).
@@ -722,11 +726,12 @@ namespace stencil::gui {
       // The selection-only actions live in ONE group so the bar's swap is a single flight,
       // not one per button: a control's dust is photographed where it sits at that instant,
       // and siblings revealed in the same turn are still animating their own width.
-      // Browser twin: .projects-batch-selected in projectsModal.js.
+      // Browser twin: .projects-batch-selected in projectsModal.js. At rest the group
+      // wraps too (gap 6); only while its slot slides open or shut does it hold one line.
       batchSelectedGroup_ = new QWidget(batchBar_);
-      auto* gh = new QHBoxLayout(batchSelectedGroup_);
-      gh->setContentsMargins(0, 0, 0, 0);
-      gh->setSpacing(bh->spacing());
+      auto* gh = new FlowLayout(batchSelectedGroup_, 0, 6, 6);
+      gh->setLineSizeHint(true);
+      gh->setHoldsLineWhileCapped(true);
       gh->addWidget(batchToServer_);
       gh->addWidget(batchCopyServer_);
       gh->addWidget(batchToLocal_);
@@ -735,7 +740,6 @@ namespace stencil::gui {
       gh->addWidget(batchRemove_);   // destructive last, as in the browser's bar
       batchSelectedGroup_->setVisible(false);
       bh->addWidget(batchSelectedGroup_);
-      bh->addStretch(1);
       batchBar_->setVisible(false);
       layout->addWidget(batchBar_);
       connect(batchToServer_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchMoveToServer); });
@@ -865,7 +869,7 @@ namespace stencil::gui {
     auto* blankBtn = new QPushButton("Blank image", this);
     makeModalCta(blankBtn, "image");
     blankBtn->setToolTip("Create a blank image (white, black, or any color) to draw on");
-    auto* newBtn = new QPushButton("New Project", this);
+    auto* newBtn = new QPushButton("New editor", this);
     makeModalCta(newBtn, "plus-circle");
     newBtn->setToolTip("Create a new empty project from the current canvas");
     // "Clear All" only ever wipes local projects. When a server is connected, label it
@@ -1685,8 +1689,13 @@ namespace stencil::gui {
     if (batchCopyLocal_) batchCopyLocal_->setVisible(dir.toLocal);
     // …and the GROUP comes and goes as the app's control swap (support/controlReveal,
     // browser motion.js revealControls). A no-op when the state is already right, so an
-    // unrelated refresh() plays nothing.
-    if (batchSelectedGroup_) revealControls(batchSelectedGroup_, n > 0);
+    // unrelated refresh() plays nothing. Laid out first: the swap photographs the group
+    // as it stands, and the flips above have only QUEUED its re-flow — the picture would
+    // still hold the hidden buttons' gaps and the old wrap.
+    if (batchSelectedGroup_) {
+      if (QLayout* gl = batchSelectedGroup_->layout()) gl->activate();
+      revealControls(batchSelectedGroup_, n > 0);
+    }
     updateSelectAll();
   }
 
@@ -1751,15 +1760,11 @@ namespace stencil::gui {
     if (batchItems_.isEmpty()) return;
     if (act == Action::BatchMoveToServer || act == Action::BatchCopyToServer) {
       if (!connections_ || connections_->urls().isEmpty()) return;
-      const QStringList urls = connections_->urls();
-      QString target = urls.first();
-      if (urls.size() > 1) {
-        bool ok = false;
-        target = QInputDialog::getItem(this, tr("To server"),
-                                       tr("Move/copy the selected projects to which server?"),
-                                       urls, 0, false, &ok);
-        if (!ok || target.isEmpty()) return;
-      }
+      const QString target = pickServer(
+          this, connections_->urls(),
+          act == Action::BatchMoveToServer ? tr("Move the selected projects to which server?")
+                                           : tr("Copy the selected projects to which server?"));
+      if (target.isEmpty()) return;
       selectedServerUrl_ = target;
     }
     if (act == Action::BatchRemove) {
@@ -2191,16 +2196,13 @@ namespace stencil::gui {
     if (!it || it->data(Qt::UserRole).isNull()) return;
     if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;  // local rows only
     if (!connections_ || connections_->urls().isEmpty()) return;
-    const QStringList urls = connections_->urls();
-    QString target = urls.first();
-    if (urls.size() > 1) {  // pick which server to store it on
-      bool ok = false;
-      target = QInputDialog::getItem(this, "Move to server",
-                                     "Store this project on which server? The local copy "
-                                     "will be removed.",
-                                     urls, 0, false, &ok);
-      if (!ok || target.isEmpty()) return;
-    }
+    // Which server (browser moveToServer): the picker shell, Move as the action.
+    const QString nm = support::shortName(it->data(Qt::UserRole + 3).toString());
+    const QString target = pickServer(
+        this, connections_->urls(),
+        tr("Move \"%1\" to which server? It becomes a server-backed project.").arg(nm),
+        tr("Move to server"), tr("Move"), QStringLiteral("upload"));
+    if (target.isEmpty()) return;
     selectedId_ = it->data(Qt::UserRole).toString();
     selectedServerUrl_ = target;
     action_ = Action::MoveToServer;
@@ -2212,14 +2214,10 @@ namespace stencil::gui {
     if (!it || it->data(Qt::UserRole).isNull()) return;
     if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;  // local rows only
     if (!connections_ || connections_->urls().isEmpty()) return;
-    const QStringList urls = connections_->urls();
-    QString target = urls.first();
-    if (urls.size() > 1) {
-      bool ok = false;
-      target = QInputDialog::getItem(this, "Copy to server",
-                                     "Copy this project to which server?", urls, 0, false, &ok);
-      if (!ok || target.isEmpty()) return;
-    }
+    const QString nm = support::shortName(it->data(Qt::UserRole + 3).toString());
+    const QString target =
+        pickServer(this, connections_->urls(), tr("Copy \"%1\" to which server?").arg(nm));
+    if (target.isEmpty()) return;
     const QString id = it->data(Qt::UserRole).toString();
     const auto cur = std::find_if(projects_.begin(), projects_.end(),
                                   [&](const Project& p) {
@@ -2227,13 +2225,17 @@ namespace stencil::gui {
                                   });
     const QString base = cur != projects_.end() ? QString::fromStdString(cur->meta.name)
                                                 : QStringLiteral("Untitled");
-    bool ok = false;
-    const QString name = QInputDialog::getText(this, "Copy to server", "Name for the server copy:",
-                                               QLineEdit::Normal, base + "-copy", &ok);
-    if (!ok || name.trimmed().isEmpty()) return;
+    PromptSpec spec;
+    spec.title = tr("Copy to server");
+    spec.message = tr("Name for the server copy:");
+    spec.confirmLabel = tr("Copy");
+    spec.confirmIcon = QStringLiteral("copy");
+    spec.defaultValue = base + "-copy";
+    const auto name = promptModal(this, spec);
+    if (!name || name->isEmpty()) return;
     selectedId_ = id;
     selectedServerUrl_ = target;
-    newName_ = name.trimmed();
+    newName_ = *name;
     action_ = Action::CopyToServer;
     accept();
   }
@@ -2258,13 +2260,17 @@ namespace stencil::gui {
     QString base = QStringLiteral("Untitled");
     for (const auto& sp : remote_)
       if (sp.id == id && sp.serverUrl == server) { base = sp.name.isEmpty() ? base : sp.name; break; }
-    bool ok = false;
-    const QString name = QInputDialog::getText(this, "Copy to local", "Name for the local copy:",
-                                               QLineEdit::Normal, base + "-copy", &ok);
-    if (!ok || name.trimmed().isEmpty()) return;
+    PromptSpec spec;
+    spec.title = tr("Copy to local");
+    spec.message = tr("Name for the local copy:");
+    spec.confirmLabel = tr("Copy");
+    spec.confirmIcon = QStringLiteral("copy");
+    spec.defaultValue = base + "-copy";
+    const auto name = promptModal(this, spec);
+    if (!name || name->isEmpty()) return;
     selectedId_ = id;
     selectedServerUrl_ = server;
-    newName_ = name.trimmed();
+    newName_ = *name;
     action_ = Action::MakeLocalCopy;
     accept();
   }

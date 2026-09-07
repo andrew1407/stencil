@@ -39,6 +39,9 @@
 #include "modalReveal.hpp"
 #include <QScopeGuard>
 #include <QtTest>
+#include <QStyleOptionSlider>
+#include <QButtonGroup>
+#include <QRadioButton>
 #include <functional>
 #include <QMenu>
 #include <QMenuBar>
@@ -65,6 +68,7 @@
 #include <QShortcut>
 #include <QFileInfo>
 #include <QTemporaryDir>
+#include <algorithm>
 #include <QApplication>
 #include <QMessageBox>
 #include <QAbstractButton>
@@ -497,21 +501,28 @@ class MainWindowGuiTest : public QObject {
     const QString js = QString::fromUtf8(f.readAll());
     QVERIFY(!js.isEmpty());
 
-    // The browser's hover text for one control id: data-title when it has one (the rich
-    // tooltip), else the plain title. HTML entities back to their characters.
-    auto browserTip = [&js](const QString& id) {
+    // The browser's markup for one control id, and one attribute of it (HTML entities
+    // back to their characters).
+    auto browserTag = [&js](const QString& id) {
       const QRegularExpression tag("<[a-zA-Z]+[^>]*\\bid=\"" + id + "\"[^>]*>");
-      const QRegularExpressionMatch m = tag.match(js);
-      if (!m.hasMatch()) return QString();
-      const QString t = m.captured(0);
-      QRegularExpressionMatch a = QRegularExpression("data-title=\"([^\"]*)\"").match(t);
-      if (!a.hasMatch()) a = QRegularExpression("\\stitle=\"([^\"]*)\"").match(t);
-      QString v = a.hasMatch() ? a.captured(1) : QString();
+      return tag.match(js).captured(0);
+    };
+    auto attrOf = [](const QString& tag, const QString& attr) {
+      QString v = QRegularExpression(attr + "=\"([^\"]*)\"").match(tag).captured(1);
       return v.replace("&amp;", "&").replace("&#10;", "\n");
     };
-    // A desktop tooltip is "<text> (<shortcut>)" — the shortcut is drawn as a keycap, so
-    // only the text takes part in the comparison.
+    // The browser's hover text: data-title when it has one (the rich tooltip), else the
+    // plain title.
+    auto browserTip = [&](const QString& id) {
+      const QString t = browserTag(id);
+      const QString v = attrOf(t, "data-title");
+      return v.isEmpty() ? attrOf(t, "\\stitle") : v;
+    };
+    // A desktop tooltip is "<text> (<shortcut>)" plus a "— reason" line while the control
+    // is disabled (browser composeControlTitle) — the shortcut is drawn as a keycap and the
+    // reason is checked on its own below, so only the text takes part in the comparison.
     auto textOf = [](QString tip) {
+      tip.remove(QRegularExpression("\\n\u2014 [^\\n]*$"));
       const QRegularExpressionMatch m = QRegularExpression("\\s*\\(([^()]*)\\)\\s*$").match(tip);
       if (m.hasMatch() && stencil::gui::isKeyCombo(m.captured(1))) tip = tip.left(m.capturedStart()).trimmed();
       return tip;
@@ -552,6 +563,7 @@ class MainWindowGuiTest : public QObject {
         {win.actIncognito_, nullptr, "incognito-toggle"},
         {win.actInfo_, nullptr, "info-btn"},
         {nullptr, win.imageFilter_, "image-filter"},
+        {nullptr, win.compareCombo_, "compare-mode"},
         {nullptr, win.filterColorBtn_, "filter-color"},
         {nullptr, win.blankColorBtn_, "blank-color-btn"},
         {nullptr, win.zoom_, "zoom-input"},
@@ -572,10 +584,41 @@ class MainWindowGuiTest : public QObject {
       const QString want = browserTip(QString::fromLatin1(p.browserId));
       QVERIFY2(!want.isEmpty(), qPrintable(QString("no browser control #%1").arg(p.browserId)));
       QVERIFY2(p.act || p.widget, p.browserId);
-      const QString got = textOf(p.act ? p.act->toolTip() : p.widget->toolTip());
+      // The plain text a widget's tooltip was composed from (the app renders it rich in
+      // place; this suite's plain QApplication does not).
+      QObject* target = p.act ? static_cast<QObject*>(p.act) : p.widget;
+      const QString plain = p.act ? p.act->toolTip()
+                            : target->property(stencil::gui::kPlainTipProperty).isValid()
+                                ? target->property(stencil::gui::kPlainTipProperty).toString()
+                                : p.widget->toolTip();
+      const QString got = textOf(plain);
       QVERIFY2(got == want,
                qPrintable(QString("#%1: desktop says \"%2\", the browser says \"%3\"")
                               .arg(p.browserId, got, want)));
+      // …and why it is greyed out, verbatim (data-disabled-reason): carried by every control
+      // the browser gives one to, and on the tooltip exactly while the control is disabled.
+      const QString tag = browserTag(QString::fromLatin1(p.browserId));
+      const QString wantReason = attrOf(tag, "data-disabled-reason");
+      const QString gotReason = target->property(stencil::gui::kTipReasonProperty).toString();
+      QVERIFY2(gotReason == wantReason,
+               qPrintable(QString("#%1: desktop reason \"%2\", the browser's \"%3\"")
+                              .arg(p.browserId, gotReason, wantReason)));
+      if (!wantReason.isEmpty()) {
+        const bool disabled = p.act ? !p.act->isEnabled() : !p.widget->isEnabled();
+        QVERIFY2(plain.contains("\n\u2014 " + wantReason) == disabled,
+                 qPrintable(QString("#%1 (%2): tooltip \"%3\"")
+                                .arg(p.browserId, disabled ? "disabled" : "enabled", plain)));
+      }
+      // A widget with a data-hk-title wears that binding's chord (an action wears its own).
+      const QString hk = attrOf(tag, "data-hk-title");
+      if (p.widget && !hk.isEmpty()) {
+        auto* bound = qobject_cast<QAction*>(
+            p.widget->property(stencil::gui::kTipHotkeyProperty).value<QObject*>());
+        QVERIFY2(bound, qPrintable(QString("#%1 wears no chord for %2").arg(p.browserId, hk)));
+        QCOMPARE(bound->shortcut(), QKeySequence(win.hotkey(hk, QString())));
+        QVERIFY2(plain.contains("(" + bound->shortcut().toString(QKeySequence::NativeText) + ")"),
+                 qPrintable(QString("#%1: no chord on \"%2\"").arg(p.browserId, plain)));
+      }
     }
     // …and the shortcut the shared registry defines for a control really is on it, or the
     // tooltip has no keycap to draw and the chord does nothing.
@@ -3681,7 +3724,7 @@ class MainWindowGuiTest : public QObject {
 
     // Composer back to normal: send glyph/tooltip restored, guard cleared.
     QVERIFY(!win.chatStopRequested_);
-    QCOMPARE(send->toolTip(), QString("Send (Enter)"));
+    QCOMPARE(send->toolTip(), QString());
     QVERIFY(!send->isEnabled());  // idle + empty input gates send again
     input->setPlainText("hello");
     QVERIFY(send->isEnabled());
@@ -5304,6 +5347,9 @@ class MainWindowGuiTest : public QObject {
       // Hover away — our own SubmenuCloseGuard should hide it AND dust it.
       hoverPath(menu, parentCenter, plainCenter);
       for (int i = 0; i < 60 && sub->isVisible(); ++i) { QTest::qWait(10); if (dustSeen()) dustOnClose = true; }
+      // The flight is spawned by the hide itself (menuReveal.cpp dustMenuOut off
+      // aboutToHide), so it is only there to see once the popup has gone.
+      if (dustSeen()) dustOnClose = true;
       closed = !sub->isVisible();
 
       // Open #2 — the SAME QMenu instance, reopened.
@@ -5337,6 +5383,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);   // the canvas menu opens for an image, and only then
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     win.settings_.llmProvider = "ollama";
     win.settings_.llmBaseUrl = "http://localhost:11434";
     MockChatTransport mock;
@@ -6178,6 +6226,16 @@ class MainWindowGuiTest : public QObject {
     win.resize(900, 640);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
+    // A pixel test owns its palette: this suite shares the real settings file, and on the
+    // LIGHT theme the card's dashed border is paler than its accent fill, so the
+    // brightest-pixel search below locks onto the border and never sees the band move.
+    // Not persisted (applySettings' `persist` is false) — the app's own theme is left be.
+    {
+      Settings s = win.settings_;
+      s.themeMode = QStringLiteral("dark");
+      win.applySettings(s, /*persist=*/false);
+      QTest::qWait(60);
+    }
     win.canvas_->clearImage();
     win.refreshActions();
     QTest::qWait(1300);   // past the clear-dust hold that hides the card
@@ -6800,9 +6858,22 @@ class MainWindowGuiTest : public QObject {
     win.chatLateNote(QStringLiteral("The layout self-check kept the lines."));
     win.chatNote(QStringLiteral("This model is text-only — the image was not sent."));
     same("late notes");
-    // …and a note the DOCK posts on its own (the attachment cap) is mirrored too.
+    // …while the attachment cap is a TOAST (browser parity: notify(…, 'info')), not a
+    // transcript card: neither surface grows a row, the window's stack shows the line in
+    // the accent (never the danger red), and a batch's repeated hits fold into one toast.
+    const int dockRows = cardsOf(win.chatDock_).size();
     win.chatDock_->warnAttachmentCap();
-    same("dock-posted note");
+    win.chatDock_->warnAttachmentCap();
+    same("cap toast");
+    QCOMPARE(cardsOf(win.chatDock_).size(), dockRows);
+    int capToasts = 0;
+    for (QLabel* l : win.findChildren<QLabel*>("toast", Qt::FindDirectChildrenOnly)) {
+      if (!l->property("stencilToastText").toString().startsWith("Up to 3 images per message")) continue;
+      ++capToasts;
+      const auto pal = stencil::gui::themePalette(stencil::gui::resolveDark(win.settings_.themeMode), win.settings_.accentColor);
+      QVERIFY2(!l->styleSheet().contains(pal.danger.name(), Qt::CaseInsensitive), "the cap toast is red");
+    }
+    QCOMPARE(capToasts, 1);
 
     // ── 6. clearing empties both ──
     win.onChatClear();
@@ -6894,6 +6965,7 @@ class MainWindowGuiTest : public QObject {
     const auto toast = [&]() -> QWidget* {
       return win.chatToast_ && win.chatToast_->isVisible() ? win.chatToast_ : nullptr;
     };
+    // Nothing may mark the icon at all now; the lambda stays to prove it.
     const auto unreadShown = [&] {
       for (QLabel* d : win.findChildren<QLabel*>(QStringLiteral("chatUnreadDot")))
         if (d->isVisible()) return true;
@@ -6905,12 +6977,12 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(win.chatSurfaceHidden(), "a closed chat should count as hidden");
     win.showChatToast(QStringLiteral("Assistant finished — done"), true);
     QVERIFY2(toast(), "no toast with the chat closed");
-    QVERIFY2(unreadShown(), "no unread mark on the chat icon");
+    QVERIFY2(!unreadShown(), "the toast is the whole notice — nothing is left on the icon");
 
     // Opening clears the mark, and nothing toasts while the chat is up.
     win.actChat_->setChecked(true);
     QTRY_VERIFY(win.chatDock_->isVisible());
-    QVERIFY2(!unreadShown(), "the unread mark outlived the open");
+    QVERIFY2(!unreadShown(), "opening must leave the icon unmarked too");
     QVERIFY2(!win.chatSurfaceHidden(), "an open chat must not count as hidden");
 
     // ITEM A — mid-close: the dock is still isVisible() during its slide, but a
@@ -6936,10 +7008,9 @@ class MainWindowGuiTest : public QObject {
     // ITEM B — §3.0: settling a turn is not itself an event. Nothing runs after
     // the reply, so the terminal has no news of its own to toast.
     if (win.chatToast_) win.chatToast_->hide();
-    win.setChatUnread(false);
     win.chatTurnSettled();
     QVERIFY2(!toast(), "the turn terminal must be silent — nothing runs after the reply");
-    QVERIFY2(!unreadShown(), "…and it must not mark anything unread");
+    QVERIFY2(!unreadShown(), "…and it must not mark the icon either");
     beat();
   }
 
@@ -7437,15 +7508,15 @@ class MainWindowGuiTest : public QObject {
     MainWindow win(nullptr, false);
     openLoaded(win);
     QVERIFY(win.imageSizeInfo_);
-    // 10px left/right (browser parity: css/layout.css .info padding: 10px), 6px top/bottom
-    // (tighter than that — a taller row than the text needed).
-    QCOMPARE(win.imageSizeInfo_->contentsMargins(), QMargins(10, 6, 10, 6));
+    // 10px left/right (browser parity: css/layout.css .info padding: 10px), 11px top/bottom
+    // so the readout reads as its own band between the toolbars and the canvas.
+    QCOMPARE(win.imageSizeInfo_->contentsMargins(), QMargins(10, 11, 10, 11));
     // Not just set — actually taken into account: the reserved fixed height must exceed
     // the bare font height by at least the vertical margins.
     win.reserveImageInfoHeight();
     const int fontH = QFontMetrics(win.imageSizeInfo_->font()).height();
-    QVERIFY2(win.imageSizeInfo_->height() >= fontH + 12,
-             "the reserved height leaves no room for 6px top + 6px bottom");
+    QVERIFY2(win.imageSizeInfo_->height() >= fontH + 22,
+             "the reserved height leaves no room for 11px top + 11px bottom");
   }
 
   // The way back OUT of a closed area. "Unchain" sits in the bar's area-only group, so it
@@ -8722,8 +8793,9 @@ class MainWindowGuiTest : public QObject {
 
   // The context menu must open anywhere on the canvas SURFACE, not only on the
   // image. The canvas widget is sized to the image, so the backdrop around a
-  // zoomed-out image (and nearly everything when no image is loaded) belongs to
-  // the scroll area's viewport — which had no menu at all.
+  // zoomed-out image belongs to the scroll area's viewport — which had no menu at
+  // all. With NO image there is no menu anywhere: every entry acts on an image
+  // (browser contextMenu.js parity).
   void contextMenuOpensOnEmptyCanvasArea() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -9462,6 +9534,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);   // the canvas menu opens for an image, and only then
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
 
     for (const char* provider : {"none", "ollama"}) {
       win.settings_.llmProvider = provider;
@@ -9560,6 +9634,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(1200, 800);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);   // the canvas menu opens for an image, and only then
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     win.settings_.llmProvider = "ollama";
 
     bool gearFound = false, menuGoneAfterClick = false, popupGrabGone = false;
@@ -11022,9 +11098,11 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    // A fresh window: no image, no lines. Real right-click on the scroll area's
-    // viewport (contextMenuOpensOnEmptyCanvasArea's own way in) — canvas_ has no
-    // real size to click yet without an image.
+    // An image but NO lines — the menu needs an image to open at all, so the
+    // line-dependent rows are what "unavailable" means here. Real right-click on the
+    // scroll area's viewport (contextMenuOpensOnEmptyCanvasArea's own way in).
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     QWidget* viewport = win.findChild<QScrollArea*>()->viewport();
     QVERIFY(viewport);
 
@@ -11069,17 +11147,18 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!has(rootTitles, "Clear All Lines"), "Clear All Lines showed with no lines to clear");
 
     QVERIFY2(!layoutTitles.isEmpty(), "the Image / Layout submenu never opened");
+    // Line-dependent rows are the ones missing here — nothing is drawn yet.
+    QVERIFY2(!has(layoutTitles, "Copy Layout JSON"), "Copy Layout showed with no lines to copy");
+    QVERIFY2(!has(layoutTitles, "Export Layout JSON"), "Download Layout showed with no lines to download");
     // "Copy Image"/"Download Image" are the SUBMENU-OPENER titles (subMenuIn's own
     // arg) — a different, always-enabled QAction than actCopyImage_/actSaveImage_
     // itself, whose OWN text is the "Current (Tint + Lines/Points)" row nested
     // inside (contextMenuOpensOnEmptyCanvasArea's comment explains the same split).
-    QVERIFY2(!has(layoutTitles, "Copy Image"), "Copy Image showed with no image loaded");
-    QVERIFY2(!has(layoutTitles, "Download Image"), "Download Image showed with no image loaded");
-    QVERIFY2(!has(layoutTitles, "Share Image"), "Share Image showed with no image loaded");
-    QVERIFY2(!has(layoutTitles, "Copy Layout JSON"), "Copy Layout showed with no lines to copy");
-    QVERIFY2(!has(layoutTitles, "Export Layout JSON"), "Download Layout showed with no lines to download");
-    QVERIFY2(!has(layoutTitles, "Paste Layout JSON"), "Paste Layout showed with no image loaded");
-    // These two need neither an image nor lines — they still show.
+    // They ride on the image, which this menu proves is there by existing at all.
+    QVERIFY2(has(layoutTitles, "Copy Image"), "Copy Image hid with an image loaded");
+    QVERIFY2(has(layoutTitles, "Download Image"), "Download Image hid with an image loaded");
+    QVERIFY2(has(layoutTitles, "Paste Layout JSON"), "Paste Layout hid with an image loaded");
+    // These two need neither an image nor lines — they always show.
     QVERIFY2(has(layoutTitles, "Paste (Image or Layout)"), "Paste Image needs no existing image");
     QVERIFY2(has(layoutTitles, "Import Layout JSON"), "Upload Layout needs no existing lines");
     beat();
@@ -11094,6 +11173,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);   // the canvas menu opens for an image, and only then
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     QWidget* viewport = win.findChild<QScrollArea*>()->viewport();
     QVERIFY(viewport);
 
@@ -11161,6 +11242,8 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);   // the canvas menu opens for an image, and only then
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     QWidget* viewport = win.findChild<QScrollArea*>()->viewport();
     QVERIFY(viewport);
 
@@ -11174,9 +11257,11 @@ class MainWindowGuiTest : public QObject {
       for (int i = 0; i < 100 && !parent->menu()->isVisible(); ++i) QTest::qWait(10);
       return parent->menu()->isVisible() ? parent->menu() : nullptr;
     };
+    // Direct children only: findChildren() recurses into the SUBMENUS, whose own
+    // chips sit at their y=0 and so intersect the root menu's first row.
     auto fitChip = [](QMenu* menu, QAction* fit) -> stencil::gui::TipBody* {
       const QRect r = menu->actionGeometry(fit);
-      for (QLabel* l : menu->findChildren<QLabel*>())
+      for (QLabel* l : menu->findChildren<QLabel*>(QString(), Qt::FindDirectChildrenOnly))
         if (auto* c = dynamic_cast<stencil::gui::TipBody*>(l))
           if (c->geometry().intersects(r)) return c;
       return nullptr;

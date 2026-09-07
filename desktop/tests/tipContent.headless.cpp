@@ -6,8 +6,12 @@
 // note. Pure string work; no display needed.
 #include "tipContent.hpp"
 
+#include <QAction>
 #include <QApplication>
 #include <QByteArray>
+#include <QKeySequence>
+#include <QToolTip>
+#include <QWidget>
 #include <QHash>
 #include <QImage>
 #include <QRegularExpression>
@@ -197,6 +201,85 @@ int main(int argc, char** argv) {
           "the joiners keep their picture, so a chord's caps stay separable");
     check(stencil::gui::blankKeycaps(renderTip("Bare hover text", pal)).isEmpty(),
           "a tooltip with no caps blanks to nothing at all");
+  }
+
+  {  // composeControlTitle — the browser's utils.js: heading + " (combo)" + the "— reason"
+     // line while disabled — and the bindings that keep a control's tooltip composed as its
+     // enabled state or chord changes.
+    using stencil::gui::composeControlTitle;
+    check(composeControlTitle("Image Filter", "\u2325B", true, "Load an image to apply a filter") ==
+              "Image Filter (\u2325B)\n\u2014 Load an image to apply a filter",
+          "heading, combo and the reason while disabled");
+    check(composeControlTitle("Image Filter", "\u2325B", false, "Load an image to apply a filter") ==
+              "Image Filter (\u2325B)",
+          "the reason stays off an enabled control");
+    check(composeControlTitle("Undo", "", true, "Nothing to undo") == "Undo\n\u2014 Nothing to undo",
+          "no combo, no parentheses");
+    check(composeControlTitle("", "\u2325B", false, "") == "(\u2325B)", "a bare combo");
+
+    QAction crop("Crop Image\u2026");
+    crop.setShortcut(QKeySequence("Ctrl+Shift+X"));
+    stencil::gui::setTipBase(&crop, "Crop image");
+    stencil::gui::setTipReason(&crop, "Load an image to crop");
+    QString sc = crop.shortcut().toString(QKeySequence::NativeText);
+    check(crop.toolTip() == "Crop image (" + sc + ")", "an action wears its own chord");
+    crop.setEnabled(false);
+    check(crop.toolTip() == "Crop image (" + sc + ")\n\u2014 Load an image to crop",
+          "disabling it adds the reason line");
+    crop.setEnabled(true);
+    check(crop.toolTip() == "Crop image (" + sc + ")", "…which leaves when it is enabled again");
+    crop.setShortcut(QKeySequence("Alt+X"));
+    sc = crop.shortcut().toString(QKeySequence::NativeText);
+    check(crop.toolTip() == "Crop image (" + sc + ")", "a rebound chord reaches the tooltip");
+
+    // A reason given to an action that only ever had "text (combo)" keeps that text as
+    // the heading — the browser reads data-title off the title the same way.
+    QAction undo("Undo");
+    undo.setShortcut(QKeySequence("Ctrl+Z"));
+    const QString z = undo.shortcut().toString(QKeySequence::NativeText);
+    undo.setToolTip("Undo (" + z + ")");
+    stencil::gui::setTipReason(&undo, "Nothing to undo");
+    undo.setEnabled(false);
+    check(undo.toolTip() == "Undo (" + z + ")\n\u2014 Nothing to undo",
+          "the heading is read off a plain tooltip, its combo stripped");
+
+    // A widget has no chord of its own: it wears the cycle action's, and says why it is grey.
+    QWidget filter;
+    stencil::gui::setTipBase(&filter, "Image Filter");
+    stencil::gui::setTipHotkey(&filter, &crop);
+    stencil::gui::setTipReason(&filter, "Load an image to apply a filter");
+    check(filter.toolTip() == "Image Filter (" + sc + ")", "a widget wears another action's chord");
+    filter.setEnabled(false);
+    check(filter.toolTip() == "Image Filter (" + sc + ")\n\u2014 Load an image to apply a filter",
+          "a disabled widget says why");
+    const Tip t = parseTip(filter.toolTip());
+    check(t.title == "Image Filter" && t.keys == QStringList{sc} && t.blocks.size() == 1 &&
+              t.blocks[0].kind == TipBlock::Kind::Note,
+          "…and it all parses as heading + keycap + note");
+    crop.setShortcut(QKeySequence("Ctrl+Shift+X"));
+    check(filter.toolTip().contains("(" + crop.shortcut().toString(QKeySequence::NativeText) + ")"),
+          "rebinding the action re-caps the widget too");
+  }
+
+  {  // The html pins its width in the font it is DRAWN in: the app tooltip's body (the app
+     // font, 13pt on macOS) is not QToolTip's (11pt there), and a width measured in the
+     // small one broke "Image Filter" — and a ⇧⌘X chord — onto two lines.
+    auto pinned = [](const QString& html) {
+      return QRegularExpression("<table width=\"(\\d+)\"").match(html).captured(1).toInt();
+    };
+    QFont big = QToolTip::font();
+    big.setPointSizeF(qMax(1.0, big.pointSizeF()) * 2);
+    const int small = pinned(renderTip("Image Filter", pal, false));
+    const int large = pinned(renderTip("Image Filter", pal, false, &big));
+    check(small > 0 && large > small, "the pinned width follows the font it is measured in");
+    check(pinned(stencil::gui::enrichedToolTip("Image Filter", &big)) == large,
+          "enrichedToolTip measures in the font it is given");
+    check(renderTip("Crop image (Ctrl+Shift+X)", pal, false).contains("white-space: nowrap"),
+          "the keycap row never breaks between its caps");
+    // The reason is its own row under the heading, in the warning colour (browser .tip-note).
+    const QString note = renderTip("Crop image (Ctrl+Shift+X)\n\u2014 Load an image to crop", pal, false);
+    check(note.contains("<div style=\"color:" + pal.warning.name() + "; margin-top:5px;\">Load an image to crop</div>"),
+          "the disabled reason is an amber row of its own");
   }
 
   std::printf("%s\n", failures == 0 ? "RESULT: ALL PASS" : "RESULT: FAILURES");

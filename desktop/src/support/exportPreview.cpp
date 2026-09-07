@@ -16,6 +16,7 @@
 
 #include "disintegrateOverlay.hpp"
 #include "modalReveal.hpp"   // support::motionReduced()
+#include "tipContent.hpp"    // gui::currentPalette() — the theme the tip is painted in
 
 namespace stencil::support {
 
@@ -40,8 +41,6 @@ namespace stencil::support {
         w->setAttribute(Qt::WA_ShowWithoutActivating);
         w->setAttribute(Qt::WA_TransparentForMouseEvents);
         w->setObjectName("exportPreviewTip");
-        w->setStyleSheet(
-            "#exportPreviewTip { background:#222; border:1px solid #555; border-radius:8px; }");
         auto* lay = new QVBoxLayout(w);
         lay->setContentsMargins(4, 4, 4, 4);
         auto* label = new QLabel(w);
@@ -110,6 +109,12 @@ namespace stencil::support {
       return;
     }
     QWidget* w = tipWindow();
+    // The theme's own card (--bg-container over --border-main), read at every show so a
+    // theme swap between two hovers repaints it.
+    const gui::Palette pal = gui::currentPalette();
+    w->setStyleSheet(QStringLiteral("#exportPreviewTip { background:%1; border:1px solid %2; "
+                                    "border-radius:8px; }")
+                         .arg(pal.bgContainer.name(), pal.borderMain.name()));
     // An APPEARANCE is a FRESH show only: hover-out hides the preview (AltPreviewFilter's
     // MouseMove check), so landing on another row arrives here hidden and gathers anew;
     // a re-show that never left its row (per-move QMenu::hovered re-fires) glides.

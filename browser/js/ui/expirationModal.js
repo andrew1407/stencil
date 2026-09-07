@@ -47,7 +47,7 @@ export class StencilExpirationModal extends StencilElement {
                     <label for="expiration-period">Expires in</label>
                     <span class="exp-period-controls">
                         <select id="expiration-period"></select>
-                        <button id="expiration-refresh" class="btn-icon-text" title="Set the expiration to now + the selected period">${icon('refresh', { size: 14 })}<span>Refresh</span></button>
+                        <button id="expiration-refresh" class="btn-icon-text" data-title="Set the expiration to now + the selected period">${icon('refresh', { size: 14 })}<span>Refresh</span></button>
                     </span>
                 </div>
                 <div class="vs-row" id="expiration-auto-row">
@@ -55,9 +55,9 @@ export class StencilExpirationModal extends StencilElement {
                 </div>
                 <div class="exp-calendar" id="expiration-calendar">
                     <div class="exp-cal-head">
-                        <button class="btn-icon" id="expiration-prev" title="Previous month">${icon('chevron-left', { size: 16 })}</button>
+                        <button class="btn-icon" id="expiration-prev" data-title="Previous month">${icon('chevron-left', { size: 16 })}</button>
                         <span class="exp-cal-title" id="expiration-cal-title"></span>
-                        <button class="btn-icon" id="expiration-next" title="Next month">${icon('chevron-right', { size: 16 })}</button>
+                        <button class="btn-icon" id="expiration-next" data-title="Next month">${icon('chevron-right', { size: 16 })}</button>
                     </div>
                     <div class="exp-cal-grid" id="expiration-cal-grid"></div>
                 </div>

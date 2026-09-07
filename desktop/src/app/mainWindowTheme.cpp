@@ -369,7 +369,6 @@ namespace stencil::gui {
     syncDrawModeFace(canvas_ && canvas_->drawMode() == CanvasWidget::DrawMode::Rect, false);
     styleDangerToolButtons();          // filled-red trash buttons (browser .danger parity)
     restyleContextToggles(iconColor);  // theme-text (not accent) checkbox/radio indicators
-    if (chatUnread_) setChatUnread(true);   // repaint the mark in the new accent
   }
 
   // ── the two Draw toggles' faces ──
@@ -429,7 +428,7 @@ namespace stencil::gui {
     face.glyphColor = QColor(Qt::white);
     face.textColor = QColor(Qt::white);
     face.halo = accentNeedsGlyphShadow(pal.accent);
-    drawModeBtn_->setToolTip(rect ? "Drawing mode: Rectangle (click to switch to Line)"
+    setTipBase(drawModeBtn_, rect ? "Drawing mode: Rectangle (click to switch to Line)"
                                   : "Drawing mode: Line (click to switch to Rectangle)");
     const bool flipped =
         drawModeBtn_->property(kFaceLabelProperty).toString() != face.label;

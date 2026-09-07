@@ -4,14 +4,18 @@
 #include <QImage>
 #include <QWidget>
 
+class QHBoxLayout;
 class QPushButton;
 
 // Image-crop dialog. Mirrors browser/js/ui/cropModal.js: shows the full ORIGINAL
 // image with an overlaid crop rectangle locked to the page aspect ratio (A3/A4 =
 // √2, or the custom W×H). The rectangle can be moved and resized from its four
 // corners, with an Album/Portrait toggle; exec(), then read cropRect() (in
-// original-image pixels). The geometry math is the shared C++ core (cropGeometry).
+// original-image pixels). The geometry math is the shared C++ core (cropGeometry);
+// the window wears the shared modal shell (support/modalChrome).
 namespace stencil::gui {
+
+  struct ModalChrome;
 
   // Interactive preview: paints the scaled image + crop overlay and handles the
   // move / corner-resize gestures. All rect math is in original-image pixels.
@@ -24,6 +28,7 @@ namespace stencil::gui {
     core::CropRect cropRect() const { return rect_; }
     bool album() const { return album_; }
     void setAlbum(bool album);  // flips orientation, re-centers the crop
+    void setFitBox(const QSize& box);   // re-fit the display scale into a new box
 
    signals:
     void cropChanged();  // rect or orientation changed (updates the dialog label)
@@ -41,6 +46,7 @@ namespace stencil::gui {
     core::Point toImage(const QPoint& widgetPos) const;  // display px -> image px
     int cornerAt(const QPoint& widgetPos) const;         // handle hit-test (-1 none)
     QRectF displayRect() const;  // crop rect in display (widget) coordinates
+    QRect imageRect() const;     // where the scaled image is painted (inset for handles)
 
     QImage original_;
     double pageWidthCm_;
@@ -68,6 +74,8 @@ namespace stencil::gui {
     core::CropRect cropRect() const;
 
    private:
+    void fitToScreen(const ModalChrome& chrome, const QHBoxLayout* footer);
+
     CropPreview* preview_ = nullptr;
     QPushButton* orientationBtn_ = nullptr;
   };

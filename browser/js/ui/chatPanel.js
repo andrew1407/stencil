@@ -125,13 +125,13 @@ export class StencilChatPanel extends StencilElement {
         <div class="chat-header" id="chat-header">
             <span class="chat-title" id="chat-title">${icon('sparkle', { size: 14 })}<span class="chat-title-text">Assistant</span></span>
             <span class="chat-dock-btns">
-                <button id="chat-dock-left-btn" class="chat-hbtn chat-dock-btn" data-dock="left" title="Dock left — or drag the header to an edge">${icon('chevron-left', { size: 13 })}</button>
-                <button id="chat-dock-top-btn" class="chat-hbtn chat-dock-btn" data-dock="top" title="Dock top — or drag the header to an edge">${icon('chevron-up', { size: 13 })}</button>
-                <button id="chat-dock-bottom-btn" class="chat-hbtn chat-dock-btn" data-dock="bottom" title="Dock bottom — or drag the header to an edge">${icon('chevron-down', { size: 13 })}</button>
-                <button id="chat-dock-right-btn" class="chat-hbtn chat-dock-btn" data-dock="right" title="Dock right — or drag the header to an edge">${icon('chevron-right', { size: 13 })}</button>
-                <button id="chat-float-btn" class="chat-hbtn chat-dock-btn" data-dock="float" title="Float — drag the header to move">${icon('maximize', { size: 13 })}</button>
+                <button id="chat-dock-left-btn" class="chat-hbtn chat-dock-btn" data-dock="left" data-title="Dock left — or drag the header to an edge">${icon('chevron-left', { size: 13 })}</button>
+                <button id="chat-dock-top-btn" class="chat-hbtn chat-dock-btn" data-dock="top" data-title="Dock top — or drag the header to an edge">${icon('chevron-up', { size: 13 })}</button>
+                <button id="chat-dock-bottom-btn" class="chat-hbtn chat-dock-btn" data-dock="bottom" data-title="Dock bottom — or drag the header to an edge">${icon('chevron-down', { size: 13 })}</button>
+                <button id="chat-dock-right-btn" class="chat-hbtn chat-dock-btn" data-dock="right" data-title="Dock right — or drag the header to an edge">${icon('chevron-right', { size: 13 })}</button>
+                <button id="chat-float-btn" class="chat-hbtn chat-dock-btn" data-dock="float" data-title="Float — drag the header to move">${icon('maximize', { size: 13 })}</button>
             </span>
-            <button id="chat-close" class="chat-hbtn" title="Close assistant">${icon('x', { size: 13 })}</button>
+            <button id="chat-close" class="chat-hbtn" data-title="Close assistant">${icon('x', { size: 13 })}</button>
         </div>
         <div class="chat-transcript" id="chat-transcript">
             <div class="chat-empty" id="chat-empty">
@@ -139,8 +139,8 @@ export class StencilChatPanel extends StencilElement {
             </div>
         </div>
         <div class="chat-jumps" id="chat-jumps">
-            <button id="chat-jump-top" class="chat-jump-btn" title="Jump to the beginning">${icon('chevron-up', { size: 14 })}</button>
-            <button id="chat-jump-bottom" class="chat-jump-btn" title="Jump to the latest message">${icon('chevron-down', { size: 14 })}</button>
+            <button id="chat-jump-top" class="chat-jump-btn" data-title="Jump to the beginning">${icon('chevron-up', { size: 14 })}</button>
+            <button id="chat-jump-bottom" class="chat-jump-btn" data-title="Jump to the latest message">${icon('chevron-down', { size: 14 })}</button>
         </div>
         <div class="chat-attachments" id="chat-attachments"></div>
         <div class="chat-input-sizer" id="chat-input-sizer"></div>
@@ -403,7 +403,8 @@ export class StencilChatPanel extends StencilElement {
 
     // Queue Files (from the picker, clipboard paste, or a drop on the panel).
     const attachFiles = async (files) => {
-      await queueAttachments(ctrl(), files, (err) => notify(`Attachment failed — ${err.message}`, 'fail'));
+      await queueAttachments(ctrl(), files, (err) => notify(`Attachment failed — ${err.message}`, 'fail'),
+        () => notify(ATTACHMENT_CAP_NOTICE, 'info'));   // the cap is a notice, not a failure
       renderAttachments();
       notifyAttachmentsChanged();
     };
@@ -448,7 +449,6 @@ export class StencilChatPanel extends StencilElement {
       const toast = closedTurnToast(res);   // one shape for every surface
       if (panelIsOpen() || !toast) return;
       notify(toast.text, toast.type, { onClick: () => setOpen(true) });
-      markChatUnread(true);   // …and the toolbar button carries the dot until it is read
     };
 
     // ── Send loop: the shared logged-turn frame (rows in the SHARED log — this panel
@@ -675,15 +675,11 @@ export class StencilChatPanel extends StencilElement {
     const syncFsCloneActive = (on) => {
       for (const el of fsCloneBtns()) el.classList.toggle('active', on);
     };
-    // Unread: a turn that landed while the chat was not visible leaves a dot ON the
-    // toolbar icon — the toast is transient. Same clone mirroring as `.active`, and
-    // purely a class, so the button's box never moves.
-    const markChatUnread = (on) => {
-      openBtn?.classList.toggle('chat-unread', on);
-      for (const el of fsCloneBtns()) el.classList.toggle('chat-unread', on);
-    };
-    // …and the same dot, quietly pulsing, while a turn is in flight behind a closed
-    // chat: "still working" and "there is an answer" read as one affordance.
+    // No UNREAD dot: a turn that lands while the chat is away already announces itself
+    // with a toast that opens the chat, and a badge left on the icon after it faded was
+    // one more thing to dismiss on both surfaces (user decision — the desktop's twin went
+    // with it). What IS still marked is work IN FLIGHT: a quiet pulse behind a closed
+    // chat, which is a live state rather than a leftover.
     const markChatBusy = (on) => {
       openBtn?.classList.toggle('chat-working', on);
       for (const el of fsCloneBtns()) el.classList.toggle('chat-working', on);
@@ -774,7 +770,6 @@ export class StencilChatPanel extends StencilElement {
       openBtn?.classList.toggle('active', on);
       syncFsCloneActive(on);
       if (on) {
-        markChatUnread(false);   // opening it IS reading it
         refreshStatus();   // async, never blocks the panel or sending
         input.focus();
       }

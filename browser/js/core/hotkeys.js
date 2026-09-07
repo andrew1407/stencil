@@ -111,13 +111,13 @@ class Hotkeys {
     this.updateHotkeyTitles();
   }
 
-  // Patch every [data-hk-title] element's `title` to the platform-formatted current binding
+  // Patch every [data-hk-title] element's data-tip to the platform-formatted current binding
   // (keeping any disabled-reason line). composeControlTitle owns base/hotkey/reason composition,
   // shared with DrawingApp.updateButtons → identical, macOS-correct (⌥/⇧/⌘) tooltips, live across rebinds.
   updateHotkeyTitles() {
     if (typeof document === 'undefined') return;
     document.querySelectorAll('[data-hk-title]').forEach(el => {
-      el.title = composeControlTitle(el, this.#isMac, id => this.#current[id]);
+      el.dataset.tip = composeControlTitle(el, this.#isMac, id => this.#current[id]);
     });
   }
 }

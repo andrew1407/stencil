@@ -384,7 +384,7 @@ namespace stencil::gui {
     // disabled-state sync keeps working untouched.
     auto* btnRow = new QHBoxLayout;
     btnRow->setSpacing(2);
-    send_ = makeChatAccentButton(btnWrap, "Send (Enter)");
+    send_ = makeChatAccentButton(btnWrap, "");
     send_->setObjectName("chatSend");
     send_->setEnabled(false);  // empty input
     connect(send_, &QToolButton::clicked, this, &ChatDock::onSendClicked);
@@ -1181,10 +1181,15 @@ namespace stencil::gui {
     if (overCap) warnAttachmentCap();
   }
 
-  // Browser parity: a queue past the §7 cap is SAID, not silently swallowed.
+  // Browser parity: a queue past the §7 cap is SAID, not silently swallowed — as an
+  // accent toast on the owner's stack, not a transcript card. Once per batch: a drop
+  // of five pictures arrives one image at a time and used to post the line four times.
   void ChatDock::warnAttachmentCap() {
-    appendNote(QStringLiteral("Up to %1 images per message — the extra ones were not attached.")
-                   .arg(kMaxAttachments));
+    if (capToastAt_.isValid() && capToastAt_.elapsed() < 1500) return;
+    capToastAt_.start();
+    emit toastRequested(
+        QStringLiteral("Up to %1 images per message — the extra ones were not attached.")
+            .arg(kMaxAttachments));
   }
 
   void ChatDock::addAttachmentImage(const QImage& img, const QString& name) {
@@ -1940,6 +1945,12 @@ namespace stencil::gui {
     }
 
     auto* submit = new QPushButton(QStringLiteral("Submit"), card);
+    // The affirmative action of the card, so it wears the app's accent CTA face
+    // (theme.cpp QPushButton[accentCta="true"]) and the same hover sweep every other
+    // button in the app carries — the browser's twin is a plain <button>, which gets both
+    // for free from its shared rules (css/layout.css, .chat-ask-submit).
+    submit->setProperty("accentCta", true);
+    installHoverShimmer(submit);
     submit->setEnabled(false);
     lay->addWidget(submit, 0, Qt::AlignLeft);
 
@@ -2201,7 +2212,7 @@ namespace stencil::gui {
     // accent fill, like the rest of the action group).
     send_->setIcon(themedIcon(on ? "stop" : "send", QColor(Qt::white), kAccentIcon));
     send_->setToolTip(on ? QStringLiteral("Stop the response")
-                         : QStringLiteral("Send (Enter)"));
+                         : QString());
     updateSendEnabled();
   }
 

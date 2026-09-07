@@ -1,8 +1,8 @@
 // ── Control tooltip ──────────────────────────────────────────────────────────
 // PORT of browser/js/ui/controlTooltip.js (the extension can't import across
-// subprojects) — shows a `title`/`data-title` on hover after a short delay, where the
-// native popup waits ~1s and never appears on a disabled control. While ours is up the
-// element's `title` is blanked so the native one can't double-show.
+// subprojects) — shows a control's `data-tip` (composed text) or `data-title` (authored
+// base) on hover after a short delay. No surface authors a native `title`: the browser's
+// popup waits ~1s, never appears on a disabled control, and would double this one.
 //
 // The text is not printed flat: tipContent.js parses the title into the desktop app's
 // tooltip shape — a heading with keycaps for its shortcut, term/description rows,
@@ -118,14 +118,10 @@ const ensureTip = () => {
   return tip;
 };
 
-// Prefer the live composed `title` (carries the "(combo)" hint + "— reason" line); fall
-// back to data-title for elements whose title hasn't been composed yet.
-const textFor = (el) => {
-  const t = el.getAttribute('title');
-  if (t != null && t.trim() !== '') return t;
-  const d = el.dataset ? el.dataset.title : '';
-  return d || '';
-};
+// Prefer the live composed data-tip (carries the "(combo)" hint + "— reason" line); fall
+// back to data-title, the authored base text. Never the native `title`: the app authors
+// none, so the browser's own delayed popup can never double the custom one.
+const textFor = (el) => (el.dataset && (el.dataset.tip || el.dataset.title)) || '';
 
 const place = (e) => {
   if (!tip || !e) return;
@@ -152,13 +148,7 @@ const hide = () => {
   showTimer = shakeTimer = null;
   curCombos = [];
   const owner = curEl;
-  if (curEl) {
-    // Restore the native title we suppressed (only if still blanked, so a live re-compose wins).
-    const saved = curEl.__nativeTitle;
-    if (saved != null && curEl.getAttribute('title') === '') curEl.setAttribute('title', saved);
-    if (curEl.__nativeTitle != null) delete curEl.__nativeTitle;
-    curEl = null;
-  }
+  curEl = null;
   if (!tip) return;
   // It comes apart into its control. The class goes NOW either way: the cloud owns its
   // own lifetime, and the end state must never depend on the animation.
@@ -173,12 +163,6 @@ const reveal = (el) => {
   if (!txt) return;
   const html = renderTip(txt);
   if (!html) return;
-  // Suppress the native (delayed) tooltip while ours is visible.
-  const native = el.getAttribute('title');
-  if (native) {
-    el.__nativeTitle = native;
-    el.setAttribute('title', '');
-  }
   const t = ensureTip();
   t.innerHTML = html;         // renderTip escapes every value it interpolates
   // The same parse renderTip ran, kept so a keystroke can be matched against the caps
@@ -241,7 +225,7 @@ export const initTooltips = () => {
     if (curEl && curEl.isConnected === false) hide();
     // Still inside the active target (e.g. moved onto its child icon) -> keep showing.
     if (curEl && curEl.contains(e.target)) return;
-    const el = e.target.closest ? e.target.closest('[title], [data-title]') : null;
+    const el = e.target.closest ? e.target.closest('[data-tip], [data-title]') : null;
     if (!el || el === curEl) return;
     hide();
     curEl = el;

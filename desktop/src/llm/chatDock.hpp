@@ -1,5 +1,6 @@
 #pragma once
 #include <QDockWidget>
+#include <QElapsedTimer>
 #include <QImage>
 #include <QList>
 #include <QColor>
@@ -314,10 +315,13 @@ namespace stencil::gui {
     // The user removed the queued video chip — the owner drops its video input.
     void videoDetached();
     void openVariantRequested(const QString& projectId);
-    // A note card the dock posted ITSELF (the attachment cap, a late note with
-    // no reply bubble to ride in): the owner mirrors it onto the menu panel, so
-    // the panel shows what this transcript shows and nothing else.
+    // A note card the dock posted ITSELF (a late note with no reply bubble to
+    // ride in): the owner mirrors it onto the menu panel, so the panel shows
+    // what this transcript shows and nothing else.
     void notePosted(const QString& text);
+    // A passing notice with no place in the transcript (the §7 attachment cap):
+    // the owner raises it as an accent toast on its stack (browser parity).
+    void toastRequested(const QString& text);
     // A late note that went INTO the last assistant bubble — mirrored the same way.
     void lateNotePosted(const QString& text);
     void settingsRequested();
@@ -524,6 +528,8 @@ namespace stencil::gui {
     bool busyFlag_ = false;
 
     QList<QImage> images_;
+
+    QElapsedTimer capToastAt_;   // folds one batch's repeated cap hits into a single toast
     QStringList imageNames_;   // in lockstep with images_; "" = unnamed
     QString videoPath_;
     // Chat stickiness: true while the view sits at (or near) the bottom, so new

@@ -507,6 +507,17 @@ body.fullscreen-mode #fs-points-panel {
             mask: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23fff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px no-repeat;
 }
 
+/* Keyboard focus inside a flyout (contextMenu.js: the second → and Tab land on these):
+   appearance:none dropped the browser's own ring on the boxes, so nothing showed which
+   control had the keys (user report) — the accent ring the project rows wear. The chat
+   textarea keeps its own focus border (#ctx-assist-input:focus). */
+#ctx-menu input:focus-visible,
+#ctx-menu select:focus-visible,
+#ctx-menu button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
 /* Inline controls inside submenus */
 .ctx-row {
     display: flex;
@@ -876,11 +887,6 @@ body.fullscreen-mode #fs-points-panel {
     transition: background 0.2s, box-shadow 0.2s, color 0.2s;
 }
 #chat-btn.active { box-shadow: none; }
-/* Unread: a turn that landed while the chat was not visible leaves a dot on the icon —
-   the toast is transient, and missing it left no trace anywhere. A pseudo-element on the
-   button's own corner, so nothing in the toolbar moves; accent-coloured with a ring in
-   the toolbar's own ground, so it reads on the idle box AND on the accent fill. Mirrored
-   onto the fullscreen toolbar clone (chatPanel markChatUnread). */
 /* The voice-chat toggle beside it: the same ghost box, the same accent fill while on
    (its level-driven glow lives in animations.css). */
 #voice-chat-btn {
@@ -897,8 +903,13 @@ body.fullscreen-mode #fs-points-panel {
 #voice-chat-btn.active { background: var(--accent); color: #fff; }
 #voice-chat-btn.active:hover { background: var(--accent-2); }
 #voice-chat-btn:disabled { opacity: 0.45; cursor: not-allowed; background: transparent; }
+/* Work IN FLIGHT behind a closed chat: a quiet pulsing dot on the icon's own corner, so
+   nothing in the toolbar moves. Accent-coloured with a ring in the toolbar's ground, so it
+   reads on the idle box AND on the accent fill; mirrored onto the fullscreen toolbar clone
+   (chatPanel markChatBusy). There is deliberately no UNREAD dot beside it — an answer that
+   lands while the chat is away toasts, and the toast opens the chat. */
 #chat-btn { position: relative; }
-#chat-btn.chat-unread::before, #chat-btn.chat-working::before {
+#chat-btn.chat-working::before {
     content: "";
     position: absolute;
     top: 4px; right: 4px;
@@ -909,32 +920,17 @@ body.fullscreen-mode #fs-points-panel {
     pointer-events: none;
 }
 /* On the accent-filled (open) state the dot inverts, so it stays visible either way. */
-#chat-btn.active.chat-unread::before, #chat-btn.active.chat-working::before {
+#chat-btn.active.chat-working::before {
     background: #fff;
     box-shadow: 0 0 0 2px var(--accent);
 }
-/* In flight behind a closed chat: the same dot, breathing. */
-#chat-btn.chat-working:not(.chat-unread)::before { animation: statusPulse 1.2s ease-in-out infinite; }
+#chat-btn.chat-working::before { animation: statusPulse 1.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
     #chat-btn.chat-working::before { animation: none; }
 }
-/* A saved server session the server refuses: an amber dot on the Servers button, so it
-   is discoverable without opening the modal (the boot toast is transient, and a console
-   401 is not a UI). Pseudo-element on the button's own corner — nothing in the toolbar
-   moves — and amber, matching the row's own state: the server is up, the token is not. */
-#connect-btn { position: relative; }
-#connect-btn.conn-needs-auth::before {
-    content: "";
-    position: absolute;
-    top: 4px; right: 4px;
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: #e0a800;
-    box-shadow: 0 0 0 2px var(--bg-controls);
-    pointer-events: none;
-    animation: statusPulse 1.6s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) { #connect-btn.conn-needs-auth::before { animation: none; } }
+/* A saved server session the server refuses says so in the Servers button's TOOLTIP
+   (connectModal.js) — no corner dot: a badge stuck on the icon read as damage, and the
+   desktop's own toolbar has never worn one. */
 
 /* #zoom-fit gets the same ghost box for the same reason: it ends the ZOOM row after the %
    input, and an accent-filled square there reads as a third zoom step rather than the "fit
@@ -1037,10 +1033,10 @@ body.fullscreen-mode #fs-points-panel {
        wrap and the buttons take their own line. `:not(:empty)` spares the empty hint span
        the confirm/open-in dialogs carry purely as a spacer. */
     flex-wrap: wrap;
-    /* flex-start, not space-between: the hint's own grow already pushes the buttons to
-       the right edge on a shared row, and once it wraps to its own line the buttons pack
-       left instead of being flung to the corners of an empty one. */
-    justify-content: flex-start;
+    /* flex-end: the hint's own grow fills a shared row so the buttons sit at the right
+       edge, and once the hint wraps onto its own line the buttons STAY right under it —
+       the same picture at every width, only stacked (desktop FooterWrap parity). */
+    justify-content: flex-end;
     gap: 8px;
     align-items: center;
 }
@@ -1107,16 +1103,17 @@ body.fullscreen-mode #fs-points-panel {
     color: var(--text-muted);
     flex: 1;
 }
-#reset-all-hotkeys {
-    background: transparent;
-    border: 1px solid var(--border-main) !important;
-    color: var(--text-main);
+/* Reset All — this footer's and the visuals modal's: the affirmative action of the
+   dialog, so it wears the accent fill every plain <button> gets (layout.css) rather
+   than an outline, matching the desktop twins (makeModalCta in shortcutsDialog.cpp /
+   settingsDialog.cpp). Only the compact footer sizing is its own; the hover lift
+   (--accent-2) and the white-glyph shadow come from the shared button rules. */
+#reset-all-hotkeys, #vs-reset {
     font-size: 12.5px;
     padding: 5px 12px;
     border-radius: 6px;
     cursor: pointer;
 }
-#reset-all-hotkeys:hover { background: var(--bg-info); }
 /* A grid, not a <table>: a row must be a real box to wear the .shimmer sweep (a <tr>
    hosts no ::after). Subgrid keeps every row on the head's four columns. */
 .hotkey-table {
@@ -1367,6 +1364,16 @@ stencil-visuals-modal .vs-ctrl.vs-color input[type="color"] {
     background: transparent;
 }
 stencil-visuals-modal .vs-hex { flex: 1 1 auto; letter-spacing: 0.02em; }
+/* A checkbox in that column keeps its own 15px box instead of being stretched to it by
+   the rule above, and sits flush with the column's RIGHT edge — the desktop dialog's own
+   rule for its `column=false` rows (settingsDialog.cpp), so the two dialogs read alike. */
+stencil-visuals-modal .vs-ctrl.vs-ctrl-check { justify-content: flex-end; }
+stencil-visuals-modal .vs-ctrl.vs-ctrl-check > input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+    padding: 0;
+    border-radius: 3px;
+}
 /* Labeled text-field rows (connect/links modals): equal label column so stacked
    inputs share the same left edge regardless of label length. min-width (not a
    fixed basis) so a label longer than the column can never clip. */
@@ -1588,16 +1595,6 @@ stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
     white-space: nowrap;
     cursor: default;
 }
-#vs-reset {
-    background: transparent;
-    border: 1px solid var(--border-main) !important;
-    color: var(--text-main);
-    font-size: 12.5px;
-    padding: 5px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-}
-#vs-reset:hover { background: var(--bg-info); }
 /* ── Blank-image creator ── */
 /* Idle-canvas entry point: centered over the empty viewport, hidden by
    DrawingApp.updateButtons() once an image is loaded. */
@@ -1794,8 +1791,8 @@ stencil-fullscreen-layer { display: contents; }
     /* …and on a phone the hint takes the whole line, buttons under it. The 110px floor
        above still fits beside a full set of footer buttons at this width, so the row never
        wraps on its own and the hint is squeezed to a fifth of the footer. On its own line
-       it is centred over the row it spans, rather than reading as a stray left column. */
-    .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; text-align: center; }
+       it stays left-aligned, the buttons right — the wide layout, stacked. */
+    .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; text-align: left; }
 }
 /* The compact popover shape (ui/popover.js) squeezes the box to 420px at ANY viewport
    width, so it needs the same wrapping the phone breakpoint applies — keyed on the
@@ -1805,7 +1802,7 @@ stencil-fullscreen-layer { display: contents; }
 .modal-popover .modal-search-bar .modal-filter { flex: 1 1 auto; min-width: 0; max-width: 100%; }
 .modal-popover .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
 .modal-popover .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
-.modal-popover .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; text-align: center; }
+.modal-popover .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; text-align: left; }
 /* Three action buttons overrun 420px by a few pixels at the footer's trimmed padding,
    dropping the last onto a third row — tighten the gap too so they keep the one row the
    hint's own line was meant to give them. */
@@ -1830,12 +1827,16 @@ stencil-fullscreen-layer { display: contents; }
 .projects-batch-actions > button { white-space: nowrap; flex: 0 0 auto; }
 .projects-batch-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 /* The selection-only actions, revealed as one group (projectsModal updateBatchBar).
-   Never wraps and never shrinks: the slot closes by animating max-width to zero under
-   `overflow: hidden`, and a wrapping row re-flowed into a column on the way out. */
+   At rest the group WRAPS, so a narrow modal (a phone, a squeezed window) never cuts
+   "Remove selected" off at the modal's edge (user report, with a picture). Only while
+   its slot slides open/closed (motion.js reveal-group-transition: max-width animated
+   to zero under `overflow: hidden`) does it hold one line — a wrapping row re-flowed
+   into a column on the way out. */
 .projects-batch-selected {
     display: inline-flex; align-items: center; gap: 6px;
-    flex-wrap: nowrap; white-space: nowrap;
+    flex-wrap: wrap; white-space: nowrap;
 }
+.projects-batch-selected.reveal-group-transition { flex-wrap: nowrap; }
 .projects-batch-selected > button { flex: 0 0 auto; }
 .projects-batch-actions button:disabled { opacity: 0.45; cursor: default; }
 .project-thumb {
@@ -2156,9 +2157,9 @@ textarea.confirm-prompt-input:focus {
    token it no longer knows. Its own state so the row can say what actually helps. */
 .conn-status-expired { background: #e0a800; color: #e0a800; }
 .connect-row.connect-expired { border-color: #e0a800; background: color-mix(in srgb, #e0a800 8%, var(--input-bg)); }
-/* The row's action is a labelled button here, since it is the fix rather than a retry —
-   amber-filled to match the row, not the accent every other row button wears. */
-.connect-row.connect-expired .connect-reconnect-one { white-space: nowrap; }
+/* The row's action keeps its icon-only shape here (desktop parity) and says which
+   state it is in by colour alone: amber-filled to match the row, not the accent every
+   other row button wears. */
 .connect-row.connect-expired .connect-reconnect-one:not(:disabled) { background: #e0a800; color: #1f1f1f; }
 .connect-row.connect-expired .connect-reconnect-one:hover:not(:disabled) { background: #c99400; }
 @keyframes statusPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
@@ -2216,7 +2217,10 @@ textarea.confirm-prompt-input:focus {
     background: var(--bg-info);
     color: var(--text-main);
 }
-.links-clear.danger:hover { border-color: var(--danger) !important; color: var(--danger); }
+/* Solid danger chip: the glyph stays WHITE on hover — a red glyph on the red hover fill
+   was the "greyed-out ×" of the user's report. */
+.links-clear.danger { color: #fff; border-color: var(--danger) !important; }
+.links-clear.danger:hover { border-color: var(--danger-2) !important; color: #fff; }
 .links-preview-wrap {
     margin: 8px 4px 0;
     padding: 8px;
@@ -2721,20 +2725,26 @@ a.chat-hbtn { text-decoration: none; }
 
 /* Edge drop zones shown only while a header drag is live (transient DOM): four
    accent-tinted bands; the hovered one highlights stronger. Pointer events stay
-   off — the header's pointer capture owns the gesture. */
+   off — the header's pointer capture owns the gesture. Below the panel (90000):
+   the zones say where the PANEL would land, so the panel itself must ride over
+   them instead of being painted on. */
 .chat-dock-zones {
     position: fixed;
     inset: 0;
-    z-index: 90001;
+    z-index: 89999;
     pointer-events: none;
 }
+/* Tint + blur, the image drop zones' recipe (#global-drop-overlay): the band
+   reads as a surface over the page rather than a wash the page shows through. */
 .chat-dock-zone {
     position: absolute;
     display: flex;
     align-items: center;
     justify-content: center;
     border: 2px dashed color-mix(in srgb, var(--accent) 70%, transparent);
-    background: color-mix(in srgb, var(--accent) 20%, transparent);
+    background: color-mix(in srgb, var(--accent) 32%, transparent);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
     border-radius: 10px;
     transition: background 0.12s ease, border-color 0.12s ease;
 }
@@ -2744,7 +2754,7 @@ a.chat-hbtn { text-decoration: none; }
 .chat-dock-zone-bottom { bottom: 8px; left: 72px; right: 72px; height: 56px; --zone-nudge-x: 0px; --zone-nudge-y: 4px; }
 /* Stays DASHED when hovered/targeted — only the tint and the arrow strengthen. */
 .chat-dock-zone-active {
-    background: color-mix(in srgb, var(--accent) 38%, transparent);
+    background: color-mix(in srgb, var(--accent) 52%, transparent);
     border-color: var(--accent);
 }
 /* Directional "dock here" chevron, nudging into the edge (animations.css). A soft
@@ -2966,9 +2976,13 @@ a.chat-hbtn { text-decoration: none; }
     background: var(--bg-main); color: var(--text-main);
 }
 .chat-ask-actions { display: flex; align-items: center; gap: 8px; }
+/* An affirmative action like any other in the app: the accent fill, the hover lift and the
+   glass sweep all come from the shared `button` rules (layout.css) — only the card's
+   tighter metrics are its own. It used to paint itself from `--accent-color`, a variable
+   that does not exist: the whole declaration was invalid, so the button came out as bare
+   white text on the card with no box at all (user report, with a picture). */
 .chat-ask-submit {
     font: inherit; padding: 3px 12px; border-radius: 7px; cursor: pointer;
-    border: 1px solid var(--accent-color); background: var(--accent-color); color: #fff;
 }
 .chat-ask-submit:disabled { opacity: .5; cursor: default; }
 /* Answered: the card stops being a control and becomes the record of what was sent. */

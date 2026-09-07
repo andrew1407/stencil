@@ -11,7 +11,7 @@ import {
   uniqueProjectName, resolveProjectByName,
   sharedChatController, forgetChatController,
   chatLog, resetChatLog, chatTurnInFlight,
-  runLoggedChatTurn, unreachableText,
+  runLoggedChatTurn, unreachableText, queueAttachments, ATTACHMENT_CAP_NOTICE,
 } from '../js/llm/chatSession.js';
 import { LlmError } from '../js/llm/llmClient.js';
 
@@ -348,4 +348,35 @@ test('unreachableText degrades gracefully without a label or a URL', () => {
   // No URL → no dangling " at ", and a bare non-Error reason still reads.
   assert.strictEqual(unreachableText({ provider: 'openai-compat', baseUrl: '' }, 'ECONNREFUSED'),
     "Couldn't reach OpenAI API (LM Studio, vLLM, …) (ECONNREFUSED)");
+});
+
+// Files past the §7 cap are a NOTICE, said once per batch, not one red failure per file:
+// a drop of five pictures used to wall the corner with "Attachment failed" toasts for
+// what is an ordinary limit. A genuinely bad file still reports as a failure.
+test('queueAttachments counts the files past the cap and reports them once, apart from real failures', async () => {
+  const attachments = [{}, {}];
+  const controller = {
+    attachments,
+    async addAttachment(file) {
+      if (file.type !== 'image/png') throw new Error(`Not an image or video (got "${file.type}")`);
+      attachments.push({ name: file.name });
+    },
+  };
+  const errors = [], capped = [];
+  const files = [
+    { name: 'bad.txt', type: 'text/plain' },
+    { name: 'three.png', type: 'image/png' },
+    { name: 'four.png', type: 'image/png' },
+    { name: 'five.png', type: 'image/png' },
+  ];
+  const added = await queueAttachments(controller, files, (err, f) => errors.push(f.name), (n) => capped.push(n));
+  assert.equal(added, 1);
+  assert.deepEqual(errors, ['bad.txt'], 'only the unreadable file is a failure');
+  assert.deepEqual(capped, [2], 'the two files past the cap are reported together, once');
+  assert.equal(attachments.length, 3);
+  assert.match(ATTACHMENT_CAP_NOTICE, /^Up to 3 images per message/);
+  // Under the cap nothing is reported at all.
+  const quiet = [];
+  await queueAttachments({ attachments: [], addAttachment: async () => {} }, [files[1]], () => quiet.push('err'), () => quiet.push('cap'));
+  assert.deepEqual(quiet, []);
 });

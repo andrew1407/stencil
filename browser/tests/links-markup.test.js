@@ -11,7 +11,7 @@ const markup = layout();
 const count = needle => markup.split(needle).length - 1;
 
 const EDIT_IDS = [
-  'links-btn', 'links-modal-overlay', 'links-close', 'links-name',
+  'links-btn', 'links-modal-overlay', 'links-close',
   'links-edit-section',
   'links-source', 'links-source-open', 'links-source-clear',
   'links-resource', 'links-resource-open', 'links-resource-clear',

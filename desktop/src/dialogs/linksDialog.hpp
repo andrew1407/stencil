@@ -41,14 +41,12 @@ namespace stencil::gui {
     explicit LinksDialog(const QString& source, const QString& resource,
                          bool hasImage, const QString& pageSeed = "A3",
                          const QString& units = "cm",
-                         QWidget* parent = nullptr,
-                         const QString& projectName = QString());
+                         QWidget* parent = nullptr);
 
     // Edited current-image fields (browser parity: edits apply on ANY close —
     // there is no Cancel/Save pair; the caller persists what it reads here).
     QString source() const;
     QString resource() const;
-    QString projectName() const;
 
     // Add-by-URL request: true when the user clicked "Load into editor" instead of
     // OK. The caller adopts previewedImage() (the pixels already decoded for the
@@ -91,7 +89,6 @@ namespace stencil::gui {
     void showQuickcrop(int w, int h);  // reveal + default the quick-crop row for a preview
     void syncQuickcropEnabled();       // album/page enabled only while cropping to page
 
-    QLineEdit* nameEdit_ = nullptr;   // PROJECT / Name (edit mode only)
     QLineEdit* sourceEdit_ = nullptr;
     QLineEdit* resourceEdit_ = nullptr;
     QLineEdit* urlEdit_ = nullptr;

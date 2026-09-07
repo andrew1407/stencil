@@ -22,7 +22,7 @@ export class StencilLlmSettingsModal extends StencilElement {
             </div>
             <div class="settings-body">
                 <div class="vs-section">Provider</div>
-                <div class="vs-row vs-field"><label title="Which LLM endpoint the assistant talks to">Provider</label>
+                <div class="vs-row vs-field"><label data-title="Which LLM endpoint the assistant talks to">Provider</label>
                     <select id="chat-provider">
                         <option value="none">None (turned off)</option>
                         <option value="ollama">Ollama</option>
@@ -30,17 +30,17 @@ export class StencilLlmSettingsModal extends StencilElement {
                         <option value="stencil-server">Stencil server</option>
                     </select>
                 </div>
-                <div class="vs-row vs-field" id="chat-base-url-row"><label title="Provider base URL">Base URL</label>
+                <div class="vs-row vs-field" id="chat-base-url-row"><label data-title="Provider base URL">Base URL</label>
                     <input type="text" id="chat-base-url" placeholder="http://localhost:11434">
                 </div>
-                <div class="vs-row vs-field" id="chat-model-row"><label title="Model name (empty = provider default) — pick a suggestion or type any name">Model</label>
+                <div class="vs-row vs-field" id="chat-model-row"><label data-title="Model name (empty = provider default) — pick a suggestion or type any name">Model</label>
                     <input type="text" id="chat-model" list="chat-model-list" placeholder="(provider default)">
                     <datalist id="chat-model-list"></datalist>
                 </div>
-                <div class="vs-row vs-field" id="chat-api-key-row"><label title="Only if your endpoint requires auth — sent as 'Authorization: Bearer <key>'. Local servers (LM Studio, llama.cpp) need none; hosted OpenAI-compatible services issue keys in their account dashboard.">API key</label>
+                <div class="vs-row vs-field" id="chat-api-key-row"><label data-title="Only if your endpoint requires auth — sent as 'Authorization: Bearer <key>'. Local servers (LM Studio, llama.cpp) need none; hosted OpenAI-compatible services issue keys in their account dashboard.">API key</label>
                     <input type="password" id="chat-api-key" placeholder="(optional — most local servers need none)">
                 </div>
-                <div class="vs-row vs-field" id="chat-server-row"><label title="Which connected Stencil server proxies the LLM">Server</label>
+                <div class="vs-row vs-field" id="chat-server-row"><label data-title="Which connected Stencil server proxies the LLM">Server</label>
                     <select id="chat-server-select"></select>
                 </div>
                 <div class="vs-row" id="chat-server-status-row">
@@ -52,7 +52,7 @@ export class StencilLlmSettingsModal extends StencilElement {
                      split across the row it was neither obviously a checkbox nor obviously tied
                      to that label. Same shape as the desktop's (llmSettingsForm.cpp). -->
                 <div class="vs-row vs-checks">
-                    <label class="vs-inline-check" for="chat-save-chats" title="Save the assistant conversation with the active project and restore it when the project is reopened. Text only, most recent 32 turns; incognito never saves.&#10;&#10;For a project on a server the transcript is stored with it, so everyone that project is shared with can read it. Local projects stay on this machine.">
+                    <label class="vs-inline-check" for="chat-save-chats" data-title="Save the assistant conversation with the active project and restore it when the project is reopened. Text only, most recent 32 turns; incognito never saves.&#10;&#10;For a project on a server the transcript is stored with it, so everyone that project is shared with can read it. Local projects stay on this machine.">
                         <input type="checkbox" id="chat-save-chats"> Save chats with projects
                     </label>
                 </div>
