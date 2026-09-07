@@ -6,7 +6,11 @@
   "private": true,
   "scripts": {
     "test": "node --test",
+    "build": "node tools/buildHtml.js",
     "serve": "python3 tools/serve.py",
     "build-wasm": "cd ../core && emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release && emmake cmake --build build-wasm -j --target stencil_wasm && mkdir -p ../browser/js/wasm && cp build-wasm/stencil_core.js ../browser/js/wasm/stencilCore.js"
+  },
+  "devDependencies": {
+    "vite": "8.2.2"
   }
 }

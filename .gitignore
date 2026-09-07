@@ -19,9 +19,14 @@ Thumbs.db
 !.claude/hooks/
 !.claude/rules/
 
-# Node (only used for `node --test`; no deps committed)
+# Node (`node --test` plus browser/'s single dev dep, vite; no runtime deps)
 node_modules/
 npm-debug.log*
+
+# Single-file browser build (`cd browser && npm run build`): a generated monolith
+# HTML artifact, not committed. A custom name (`npm run build -- foo.html`) is
+# yours to ignore or keep.
+browser/stencil.html
 
 # E2E harness (e2e/): Playwright deps + generated reports/traces. The suites and
 # helpers are committed; the report artifacts and installed browsers are not.

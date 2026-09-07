@@ -16,7 +16,7 @@ Stencil ships as **one shared logic core with a family of front-ends and service
 | App | Path | Stack | Docs |
 |---|---|---|---|
 | **Core** | [`core/`](core/) | C++17, STL-only, GUI-free shared library | [core/README.md](core/README.md) |
-| **Browser** | [`browser/`](browser/) | Vanilla ES-module JS, no build step | [browser/README.md](browser/README.md) |
+| **Browser** | [`browser/`](browser/) | Vanilla ES-module JS, no build step (optional single-file bundle) | [browser/README.md](browser/README.md) |
 | **Desktop** | [`desktop/`](desktop/) | C++17 + Qt 6, CMake build | [desktop/README.md](desktop/README.md) |
 | **CLI** | [`cli/`](cli/) | Zig, wraps the C++ core | [cli/README.md](cli/README.md) |
 | **Python** | [`pystencil/`](pystencil/) | Stdlib-only Python, drives the C++ core via ctypes (no third-party deps) | [pystencil/README.md](pystencil/README.md) |

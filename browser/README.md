@@ -1,7 +1,9 @@
 # Stencil — Browser app
 
 The browser front-end of Stencil. Built with **vanilla JavaScript and native ES
-modules** — no build step, no bundler, no third-party runtime dependencies.
+modules** — no build step, no bundler, no third-party runtime dependencies. (There is one
+*optional* build, [`npm run build`](#single-file-build), which packs the app into a single
+self-contained HTML file; the app itself never depends on it.)
 
 For the project overview and the desktop (C++/Qt) app, see the
 [repository README](../README.md).
@@ -210,7 +212,8 @@ cross-surface check (author in the browser, open in the CLI) guards that they ag
 
 Because the app uses native ES modules (`import` / `export`), browsers refuse to load it
 over the `file://` protocol (CORS / module-origin restrictions). It must be served over
-HTTP. The `serve` script uses Python's built-in server:
+HTTP — or packed into one file first, see [Single-file build](#single-file-build). The
+`serve` script uses Python's built-in server:
 
 ```bash
 # from this directory (browser/) — serves http://localhost:8080 by default
@@ -238,6 +241,60 @@ ADDR=0.0.0.0 PORT=3000 npm run serve   # bind all interfaces (LAN access)
 > npm run build-wasm   # builds core/ → js/wasm/stencilCore.js
 > ```
 
+### Single-file build
+
+`npm run build` folds the whole app — every module, all four stylesheets, the icons — into
+**one self-contained `stencil.html`** that opens straight off disk, no server involved.
+Handy for handing the editor to someone as a single attachment, or for an air-gapped
+machine.
+
+```bash
+npm run build                  # -> browser/stencil.html (gitignored)
+npm run build -- notes.html    # any name; a bare name gets .html appended
+npm run build -- ~/dist/app    # any path, relative to where you ran it
+```
+
+This is the one place the browser app uses a build step, and it stays strictly optional —
+the app itself is unchanged and `npm run serve` never touches it. It needs the sole dev
+dependency, **vite** (`npm install` in this directory); the bundling rules are written out
+inline in [`vite.config.js`](vite.config.js) so no plugin packages come with it. Its
+`package-lock.json` is committed and CI installs with `npm ci`, so every build uses the
+same bundler bits.
+
+Every build ends by re-reading what it just wrote ([`tools/assertSelfContained.js`](tools/assertSelfContained.js)):
+no `src`/`href` may point at a sibling file, no local JSON may have been baked in, and the
+inline module has to parse — a page truncated by a stray `</script` in a string looks
+perfectly fine until you open it. CI runs
+the same build on every push (the *Browser (single-file build)* job), and
+[`tests/singleFileBuild.test.js`](tests/singleFileBuild.test.js) fails the ordinary
+`npm test` if an edit to `index.html` or one of the three loaders outruns the rewrites in
+[`tools/singleFilePatterns.js`](tools/singleFilePatterns.js) — no vite install needed.
+
+What a single file gives up, and why nothing breaks:
+
+| Sibling file | In `stencil.html` |
+|---|---|
+| `js/wasm/stencilCore.js` | not bundled — the app runs its JS reference implementations (the ones the wasm build is parity-tested against) |
+| `js/worker/projectsWorker.js` | not bundled — cross-tab coordination drops to its `BroadcastChannel` path, as on any browser without `SharedWorker` |
+| `js/config/openInConfig.json` | not bundled — the builder's own operator config stays on their disk; the Open-in modal uses its defaults |
+| `sw.js`, `manifest.webmanifest` | dropped — offline is moot for a file already on disk, and there is no shell to install |
+
+Everything else is intact: projects still persist (IndexedDB + `localStorage` work from
+`file://`), the `window.stencil` console API is fully wired, and servers/LLM endpoints you
+configure are reachable as long as they send CORS headers for a `null` origin.
+
+### GitHub Pages
+
+[`.github/workflows/pages.yml`](../.github/workflows/pages.yml) publishes this app on every
+push to `main` (and on demand via *Run workflow*). It builds the wasm core with Emscripten
+first, so the deployed site runs the **real C++ core**, not the JS fallback — then serves
+`browser/` as the site root, with the single-file build alongside at `stencil.html` as a
+copy visitors can save and keep offline.
+
+Nothing deploys until Pages is turned on for the repo: **Settings → Pages → Build and
+deployment → Source: "GitHub Actions"**. The manifest's `start_url`/`scope` are relative, so
+the app and its service worker work unchanged under the `/<repo>/` subpath Pages serves from.
+
 ### Docker
 
 A multi-stage [`Dockerfile`](Dockerfile) builds the wasm core (Emscripten) and serves
@@ -257,6 +314,7 @@ path (no JS fallback). Map a different host port with e.g. `-p 9000:80`.
 
 ```
 index.html            # single <script type="module"> entrypoint
+vite.config.js        # the OPTIONAL single-file build (npm run build) — nothing else uses it
 launch.html           # standalone bounce page: #stencil-desktop=<url> → stencil:// scheme
 manifest.webmanifest  # PWA metadata (name, icons, standalone display)
 sw.js                 # service worker: offline app-shell + runtime cache
@@ -277,6 +335,7 @@ js/
   ui/                 # pure string-returning components composed by layout()
                       #   (incl. installButton.js — the PWA install affordance)
   worker/             # cross-tab projects sync worker + message constants
+tools/                # dev scripts: static server, single-file build + its self-check
 tests/                # node:test unit tests (run with `node --test`)
 ```
 
