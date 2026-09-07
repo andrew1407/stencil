@@ -11,9 +11,11 @@ import {
   CHAT_LEAVE_MS, CHIP_LEAVE_MS, scatterGridFor, menuPopOrigin,
   REVEAL_ITEM_CLASS, REVEAL_IN_CLASS, REVEAL_MASKED_CLASS, REVEAL_ENTERING_CLASS,
   REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, surfaceIn, surfaceOut, rectCenter,
-  SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS,
+  SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS, swapContent, replayWaves,
 } from './motion.js';
 import { toggleChatSide, applyChatSide } from './chatLayoutPrefs.js';
+import { DOUBLE_CLICK_MS, LONG_PRESS_MS, PRESS_SLOP_PX } from './popover.js';
+import { VOICE_STATE_EVENT, UNSUPPORTED_TEXT } from '../llm/voiceModes.js';
 
 // Every chat entry leaves on the same dissolve. `count` is how many are going at once
 // — one removal gets the full fine mesh, a whole-transcript wipe coarsens so the total
@@ -85,11 +87,19 @@ export const chatEmptyState = () => {
 // surface keeps its own `${prefix}-…` ids). Only SEND stays inline; attach / clear /
 // settings live behind the "…" trigger carrying the provider-status dot — the real
 // controls stay in the DOM inside the menu, so existing ids and listeners keep working.
+// The send button's tooltips: one per face. `·` reads as bullets (tipContent.js); no
+// "(Enter)" keycap any more — the Enter convention lives in the textarea placeholder.
+export const SEND_TITLE = 'Send · Double-click or hold for voice input';
+export const SEND_TITLE_PLAIN = 'Send';
+export const VOICE_TITLE_LISTENING = 'Listening · Say “send” to send, a pause stops · Click or Escape to pause · Double-click or hold to type';
+export const VOICE_TITLE_PAUSED = 'Voice input paused · Click to listen · Double-click or hold to type';
+
 export const chatComposerActionsHtml = ({ prefix, actionsClass, gearClass, trailingHtml = '' }) => `<span class="${actionsClass}">
-                <button id="${prefix}-send" disabled class="btn-icon ${prefix}-abtn" title="Send (Enter)">${icon('send', { size: 14 })}</button>
+                <button id="${prefix}-send" disabled class="btn-icon ${prefix}-abtn" data-title="${SEND_TITLE}">${icon('send', { size: 14 })}</button>
                 <span class="chat-more-wrap">
                     <button id="${prefix}-more-btn" class="btn-icon ${prefix}-abtn ${gearClass}" aria-haspopup="true" aria-expanded="false" aria-label="More actions">${icon('dots', { size: 14 })}<span id="${prefix}-status-dot" class="conn-status conn-status-connecting"></span></button>
                     <span class="chat-more-menu" id="${prefix}-more-menu" hidden>
+                        <button id="${prefix}-voice" class="chat-more-item">${icon('mic', { size: 14 })}<span>Use voice input</span></button>
                         <button id="${prefix}-attach-btn" class="chat-more-item">${icon('image', { size: 14 })}<span>Add image</span></button>
                         <button id="${prefix}-clear" class="chat-more-item">${icon('trash', { size: 14 })}<span>Clear history</span></button>
                         <button id="${prefix}-swap-sides" class="chat-more-item" aria-label="Swap which side user and assistant messages sit on">${icon('swap', { size: 14 })}<span>Swap message sides</span></button>
@@ -161,14 +171,77 @@ export const wireChatSideToggle = (prefix, transcript, doc = document) => {
     ?.addEventListener('click', () => applyChatSide(transcript, toggleChatSide()));
 };
 
-// The send ↔ Stop swap both composers share: while a turn is in flight the send
-// button becomes Stop (enabled, stop glyph) and attaching pauses; otherwise send
-// is enabled only when there is text.
-export const syncComposerControls = ({ sendBtn, attachBtn, input }, sending, { attachFull = false } = {}) => {
-  sendBtn.disabled = sending ? false : !input.value.trim();
-  sendBtn.innerHTML = icon(sending ? 'stop' : 'send', { size: 14 });
-  sendBtn.title = sending ? 'Stop the response' : 'Send (Enter)';
+// The send button's three faces, shared by both composers: Stop while a turn is in
+// flight (attaching pauses too); the MIC while the composer is in voice mode
+// (wireComposerVoice — `voice` = { on, listening }); otherwise Send. With voice input
+// available the empty-box Send is only LOOK-disabled (aria-disabled + .chat-send-idle):
+// a really disabled button hears no double-click / hold, and that gesture is how an
+// empty composer switches to dictation. send() itself already ignores an empty box.
+export const syncComposerControls = ({ sendBtn, attachBtn, input }, sending,
+  { attachFull = false, voice = null, voiceSupported = false } = {}) => {
+  const hasText = !!input.value.trim();
+  const mic = !sending && !!voice?.on;
+  const idle = !sending && !mic && !hasText;
+  let face;
+  if (sending) {
+    face = 'stop';
+    sendBtn.disabled = false;
+    sendBtn.dataset.title = 'Stop the response';
+  } else if (mic) {
+    face = 'mic';
+    sendBtn.disabled = false;
+    sendBtn.dataset.title = voice.listening ? VOICE_TITLE_LISTENING : VOICE_TITLE_PAUSED;
+  } else {
+    face = 'send';
+    sendBtn.disabled = voiceSupported ? false : !hasText;
+    sendBtn.dataset.title = voiceSupported ? SEND_TITLE : SEND_TITLE_PLAIN;
+  }
+  // The face turns in place with the Draw toggles' shared swap (motion.js): the new
+  // glyph turns in while the old one leaves as a ghost. An unchanged face is a no-op,
+  // so typing never rewrites the button.
+  swapContent(sendBtn, icon(face, { size: face === 'mic' ? 18 : 14 }), { key: face });   // the mic reads best a size up
+  sendBtn.classList.toggle('chat-send-idle', idle && voiceSupported);
+  sendBtn.setAttribute('aria-disabled', String(idle));
+  const listening = mic && !!voice.listening;
+  const wasListening = sendBtn.classList.contains('chat-voice-listening');
+  sendBtn.classList.toggle('chat-voice-on', mic);
+  sendBtn.classList.toggle('chat-voice-listening', listening);
+  if (listening !== wasListening) replayWaves(sendBtn, listening);   // the waves swell in / fly out
   attachBtn.disabled = sending || attachFull;   // full = MAX_ATTACHMENTS already queued
+};
+
+// The send button's gesture: a plain click acts one double-click interval later (so a
+// double-click never also sends), a double-click or a HOLD — any pointer, not only
+// touch — switches the composer between typing and dictation. Timers injected for
+// tests; the DOM wiring is in wireChatComposer.
+export const createSendGesture = ({
+  onClick, onSwitch, delay = DOUBLE_CLICK_MS, holdMs = LONG_PRESS_MS, slop = PRESS_SLOP_PX,
+  setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id),
+} = {}) => {
+  let clickTimer = null;
+  let holdTimer = null;
+  let press = null;
+  let swallow = false;   // a hold already acted — the click on release is not a send
+  const cancelClick = () => { if (clickTimer !== null) { clearTimer(clickTimer); clickTimer = null; } };
+  const cancelHold = () => { if (holdTimer !== null) { clearTimer(holdTimer); holdTimer = null; } };
+  return {
+    click() {
+      cancelClick();
+      if (swallow) { swallow = false; return; }
+      clickTimer = setTimer(() => { clickTimer = null; onClick(); }, delay);
+    },
+    dblclick() { cancelClick(); cancelHold(); onSwitch(); },
+    pressStart({ x = 0, y = 0 } = {}) {
+      swallow = false;
+      press = { x, y };
+      cancelHold();
+      holdTimer = setTimer(() => { holdTimer = null; swallow = true; cancelClick(); onSwitch(); }, holdMs);
+    },
+    pressMove({ x = 0, y = 0 } = {}) {
+      if (press && (Math.abs(x - press.x) > slop || Math.abs(y - press.y) > slop)) cancelHold();
+    },
+    pressEnd() { cancelHold(); press = null; },
+  };
 };
 
 // Wire one composer: Enter sends / Shift+Enter newline, send doubles as Stop, and
@@ -178,7 +251,10 @@ export const syncComposerControls = ({ sendBtn, attachBtn, input }, sending, { a
 //   submit(text)     run the (already-dequeued) turn — surface owns control sync
 //   attachFiles(fs)  queue picked Files on the shared controller
 //   onInput()        control sync (and any surface extras) on typing
-export const wireChatComposer = ({ input, sendBtn, attachBtn, attachInput }, { isSending, abort, submit, attachFiles, onInput }) => {
+//   voice            optional { isOn, isListening, toggleMode, toggleListening } from
+//                    wireComposerVoice — the mic face's click and the switch gesture
+// Returns `send` so the voice wiring can submit through the very same path.
+export const wireChatComposer = ({ input, sendBtn, attachBtn, attachInput }, { isSending, abort, submit, attachFiles, onInput, voice = null }) => {
   const send = () => {
     const text = input.value.trim();
     if (!text || isSending()) return;
@@ -187,15 +263,113 @@ export const wireChatComposer = ({ input, sendBtn, attachBtn, attachInput }, { i
   };
   input.addEventListener('input', () => onInput?.());
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); return; }
+    // Escape pauses dictation first; a second Escape reaches the surface's own closer.
+    if (e.key === 'Escape' && voice?.isListening()) { e.preventDefault(); e.stopPropagation(); voice.toggleListening(); }
   });
-  sendBtn.addEventListener('click', () => { if (isSending()) abort(); else send(); });
+  const gesture = createSendGesture({
+    onClick: () => { if (isSending()) abort(); else if (voice?.isOn()) voice.toggleListening(); else send(); },
+    onSwitch: () => voice?.toggleMode(),
+  });
+  sendBtn.addEventListener('click', () => gesture.click());
+  sendBtn.addEventListener('dblclick', (e) => { e.preventDefault(); gesture.dblclick(); });
+  sendBtn.addEventListener('pointerdown', (e) => { if (voice) gesture.pressStart({ x: e.clientX, y: e.clientY }); });
+  sendBtn.addEventListener('pointermove', (e) => gesture.pressMove({ x: e.clientX, y: e.clientY }));
+  sendBtn.addEventListener('pointerup', () => gesture.pressEnd());
+  sendBtn.addEventListener('pointercancel', () => gesture.pressEnd());
+  sendBtn.addEventListener('contextmenu', (e) => { if (voice) e.preventDefault(); });   // a hold must not open the browser menu
   attachBtn.addEventListener('click', () => attachInput.click());
   attachInput.addEventListener('change', async (e) => {
     const files = [...(e.target.files || [])];
     e.target.value = '';
     await attachFiles(files);
   });
+  return send;
+};
+
+// One composer's voice input (js/llm/voiceModes.js), the same for the panel and the
+// flyout. Two layers of state: the FACE (`on` — the mic glyph instead of Send, flipped
+// by the "…" item, a double-click or a hold) and LISTENING (the coordinator's, this
+// surface's target being the one it dictates into — paused by a click or Escape,
+// resumed by a click). Dictation lands in the textarea after whatever was already
+// typed; the auto-send goes through the surface's own `send`, so history, attachments
+// and the Stop face behave exactly as for a typed message.
+//   { prefix, input, sendBtn, doc, app, send, sync }  →  { isOn, isListening, toggleMode, toggleListening, state, setMode }
+export const wireComposerVoice = ({ prefix, input, sendBtn, doc = document, app, send, sync, win = (typeof window !== 'undefined' ? window : null) }) => {
+  const item = doc.getElementById(`${prefix}-voice`);
+  const voice = () => app.voice;
+  const supported = () => !!voice()?.supported;
+  let on = false;
+  let typedPrefix = '';
+  const target = {
+    setText: (t) => {
+      input.value = typedPrefix ? `${typedPrefix} ${t}`.trimEnd() : t;
+      sync();
+    },
+    submit: () => { typedPrefix = ''; send(); },
+    // Whether there is anything to send WITHOUT this utterance: what was typed before the
+    // mic went on, or an earlier utterance a pause left standing here. A spoken "send it"
+    // over a full box is a command about exactly that (js/llm/voiceModes.js flush).
+    hasText: () => !!input.value.trim(),
+    // Ending an utterance ends LISTENING, never the mode — whatever ended it (a pause,
+    // a spoken "send", another surface taking the mic): the face stays a paused mic and a
+    // click resumes it. Only a FATAL error returns the send plane; there is no mic left.
+    onStop: (reason) => { if (reason === 'error') setFace(false); else sync(); },
+  };
+  const isListening = () => !!voice() && voice().mode === 'composer' && voice().target === target;
+  // The "…" item names the OTHER mode, glyph and all: a mic to switch to dictation, the
+  // send plane to switch back (the same in-place swap the button's face uses).
+  const setFace = (next) => {
+    on = next;
+    if (item) {
+      swapContent(item, `${icon(next ? 'send' : 'mic', { size: 14 })}<span>${next ? 'Use send button' : 'Use voice input'}</span>`,
+        { key: next ? 'send' : 'mic' });
+    }
+    sync();
+  };
+  const startListening = () => {
+    if (!supported()) { notify(UNSUPPORTED_TEXT, 'fail'); return false; }
+    typedPrefix = input.value.trim();
+    return voice().startComposer(target);
+  };
+  const stopListening = () => voice()?.stopComposer(target);
+  // Switching TO voice input only changes the face: the mic shows PAUSED and a click on it
+  // starts listening, so the switch gesture alone never opens the mic. Switching back
+  // stops any dictation and returns the send plane.
+  const toggleMode = () => {
+    if (on) { stopListening(); setFace(false); input.focus?.(); return; }
+    if (!supported()) { notify(UNSUPPORTED_TEXT, 'fail'); return; }
+    setFace(true);
+  };
+  const toggleListening = () => {
+    if (isListening()) stopListening(); else if (!startListening()) return;
+    sync();
+  };
+  item?.addEventListener('click', toggleMode);
+  // Record the item's first face so the very first switch turns in place too (the
+  // shared swap treats an unknown element's first write as a plain paint).
+  if (item) swapContent(item, item.innerHTML, { key: 'mic' });
+  if (item && !supported()) {
+    item.disabled = true;
+    item.dataset.title = UNSUPPORTED_TEXT;
+  }
+  // The engine's own transitions (starting → listening, a fatal stop) repaint the face.
+  // The toolbar's hands-free voice chat does NOT: this face is the user's own choice here,
+  // so the toolbar mic must never move the Send button under their finger. One mode still
+  // listens at a time; only the FACE stays put.
+  win?.addEventListener?.(VOICE_STATE_EVENT, () => sync());
+  return {
+    isOn: () => on,
+    isListening,
+    toggleMode,
+    toggleListening,
+    // For syncComposerControls.
+    state: () => (on ? { on: true, listening: isListening() } : null),
+    supported,
+    // Scripting: put the composer in (or out of) voice mode outright.
+    setMode: (next) => { if (!!next !== on) toggleMode(); },
+    target,
+  };
 };
 
 // Render the SHARED transcript log (js/llm/chatSession.js) into `transcript`.

@@ -22,6 +22,7 @@ import { requireConnection } from '../net/remoteSync.js';
 import { notify } from '../utils.js';
 import { videoFrameDataUrl } from '../core/videoFrame.js';
 import { loadLlmSettings, saveLlmSettings, PROVIDERS, withProvider } from '../llm/llmSettings.js';
+import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voiceSettings.js';
 import {
   chatSide, setChatSide, applyChatSide, CHAT_SIDE_SWAPPED,
 } from '../ui/chatLayoutPrefs.js';
@@ -542,6 +543,21 @@ export const createStencil = (app) => {
     get selectionGlow() { return app.selGlowColor; }, set selectionGlow(v) { app.settings.setVisualColor('selGlow', toHexColor(v)); },
     get hoverRing() { return app.hoverRingColor; }, set hoverRing(v) { app.settings.setVisualColor('hoverRing', toHexColor(v)); },
     get focusRing() { return app.focusRingColor; }, set focusRing(v) { app.settings.setVisualColor('focusRing', toHexColor(v)); },
+    // Voice input (js/llm/voiceSettings.js — its own store, shared by dictation and voice
+    // chat). Language: 'default' (English) or any BCP-47 tag like 'de-DE'; a live
+    // recognizer switches at once. Silence: the pause that sends, clamped 500–10000 ms.
+    get voiceInputLanguage() { return loadVoiceSettings().language; },
+    set voiceInputLanguage(v) {
+      const lang = str(v).trim();
+      const isDefault = lang === '' || lang.toLowerCase() === 'default';
+      if (!isDefault && !isLanguageTag(lang)) throw new Error(`Invalid voice input language "${v}" — use 'default' or a BCP-47 tag like en-US`);
+      saveVoiceSettings({ ...loadVoiceSettings(), language: isDefault ? 'default' : lang });
+    },
+    get voiceSilenceMs() { return loadVoiceSettings().silenceMs; },
+    set voiceSilenceMs(v) {
+      if (!Number.isFinite(Number(v))) throw new Error(`Invalid voice silence "${v}" — milliseconds between ${SILENCE_MS_MIN} and ${SILENCE_MS_MAX}`);
+      saveVoiceSettings({ ...loadVoiceSettings(), silenceMs: clampSilenceMs(v) });
+    },
   });
   const settings = () => guard(settingsAccessors());
 
@@ -733,6 +749,10 @@ export const createStencil = (app) => {
           setChatSide(v ? CHAT_SIDE_SWAPPED : 'normal');
           applyChatSideEverywhere();
         },
+        // Dictation into the panel's composer — the mic face (the "…" item, a
+        // double-click or a hold on Send). Turning it on stops the hands-free voice chat.
+        get voiceInput() { return !!app.chat && app.chat.voiceInput; },
+        set voiceInput(v) { chatPanel().setVoiceInput(!!v); },
       });
     },
 
@@ -824,6 +844,14 @@ export const createStencil = (app) => {
     set drawing(on) {
       if (on) { if (app.image && !app.isDrawing) app.startDrawingMode(); }
       else if (app.isDrawing) app.stopDrawingMode();
+    },
+    // Hands-free voice chat (js/llm/voiceModes.js): listens even with the chat closed and
+    // sends every utterance as a turn — the toolbar mic / Alt+M as a get/set toggle.
+    // Turning it on stops any composer dictation; throws where the browser cannot listen.
+    get voiceChat() { return !!app.voice?.voiceChat; },
+    set voiceChat(on) {
+      if (!app.voice) throw new Error('Voice input not ready — the editor UI has not wired yet');
+      app.voice.voiceChat = !!on;
     },
     clearLines() { app.clearAllLines(); return stencil; },
     // variant: 'current' (default — tint + lines/points) | 'original' (no tint, no

@@ -880,6 +880,22 @@ body.fullscreen-mode #fs-points-panel {
    button's own corner, so nothing in the toolbar moves; accent-coloured with a ring in
    the toolbar's own ground, so it reads on the idle box AND on the accent fill. Mirrored
    onto the fullscreen toolbar clone (chatPanel markChatUnread). */
+/* The voice-chat toggle beside it: the same ghost box, the same accent fill while on
+   (its level-driven glow lives in animations.css). */
+#voice-chat-btn {
+    background: transparent;
+    border: none !important;
+    box-shadow: inset 0 0 0 1px var(--border-main);
+    color: var(--text-main);
+    line-height: 1;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s, color 0.2s;
+}
+#voice-chat-btn:not(.active):hover { background: var(--bg-info); }
+#voice-chat-btn.active { background: var(--accent); color: #fff; }
+#voice-chat-btn.active:hover { background: var(--accent-2); }
+#voice-chat-btn:disabled { opacity: 0.45; cursor: not-allowed; background: transparent; }
 #chat-btn { position: relative; }
 #chat-btn.chat-unread::before, #chat-btn.chat-working::before {
     content: "";
@@ -2665,6 +2681,31 @@ a.chat-hbtn { text-decoration: none; }
    btn-icon treatment — order is send first, then media, then settings. */
 .chat-abtn, .ctx-assist-abtn { width: 34px; height: 34px; padding: 0; flex: 0 0 auto; border-radius: 6px; }
 .chat-abtn .ic, .ctx-assist-abtn .ic { flex: 0 0 auto; }
+/* Send with nothing typed, where voice input exists: not :disabled (a disabled button
+   hears no double-click / hold — the gesture that switches an EMPTY composer to
+   dictation), but drawn as one. Same palette as layout.css's button:disabled. */
+.chat-abtn.chat-send-idle, .ctx-assist-abtn.chat-send-idle {
+    background: var(--disabled-bg);
+    color: var(--disabled-text);
+    cursor: default;
+}
+/* The mic's outer sound waves reach past its 24-unit frame: the glyph keeps its box (the
+   buttons around it have the room), only its ink may spill. */
+.ic-mic { overflow: visible; }
+/* The mic face: a plain ghost while paused (no accent — the chat button's idle look),
+   accent-filled while listening. Its glow, ray ring and swell — the logo's own shine,
+   driven by the voice — live in animations.css beside the logo's rules. */
+.chat-abtn.chat-voice-on, .ctx-assist-abtn.chat-voice-on {
+    background: transparent;
+    color: var(--text-main);
+    box-shadow: inset 0 0 0 1px var(--border-main);
+}
+.chat-abtn.chat-voice-on:not(.chat-voice-listening):hover,
+.ctx-assist-abtn.chat-voice-on:not(.chat-voice-listening):hover { background: var(--bg-info); }
+.chat-abtn.chat-voice-listening, .ctx-assist-abtn.chat-voice-listening {
+    background: var(--accent);
+    color: #fff;
+}
 /* The configure gear carries the provider-status dot (.conn-status palette:
    green/amber/red) as a corner badge; its tooltip explains the state. */
 .chat-config-btn, .ctx-assist-config { position: relative; }

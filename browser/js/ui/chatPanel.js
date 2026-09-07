@@ -2,10 +2,11 @@ import { StencilElement, hostTag, define } from './base.js';
 import { popoverPosition, wireModalOpenGestures } from './popover.js';
 import { notify, PHONE_MEDIA } from '../utils.js';
 import { icon } from './icons.js';
+import { attachVoiceDust } from './voiceDust.js';
 import { probeProvider, PROVIDER_LABELS } from '../llm/llmClient.js';
 import { loadLlmSettings, serverBearerToken } from '../llm/llmSettings.js';
 import {
-  sharedChatController, peekChatController, runLoggedChatTurn, closedTurnToast, queueAttachments,
+  sharedChatController, peekChatController, runLoggedChatTurn, closedTurnToast, queueAttachments, ATTACHMENT_CAP_NOTICE,
   cacheProbe, probeStatusClass, chatLog, onChatLog, clearSharedConversation, requeueRowAttachments,
   chatTurnInFlight,
 } from '../llm/chatSession.js';
@@ -17,6 +18,7 @@ import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced, rec
 import {
   renderChatLog, stickToBottom, chatAttachmentChips, wireInputSizer, trackPointer, wireChatSuggestions,
   chatSuggestionsHtml, chatDropCueHtml, chatComposerActionsHtml, syncComposerControls, wireChatComposer, wireChatMoreMenu,
+  wireComposerVoice,
   notifyAttachmentsChanged, CHAT_ATTACHMENTS_EVENT, wireChatRowMenu, rowMenuLiftPx, rowMenuLiftFits,
   chatPopupOpen, CHAT_POPUP_EVENT, wireChatSideToggle,
 } from './chatView.js';
@@ -178,6 +180,7 @@ export class StencilChatPanel extends StencilElement {
     const attachList = $('chat-attachments');
     const input = $('chat-input');
     const sendBtn = $('chat-send');
+    attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'));   // voice motes off the mic face
 
     const tokenFor = (url) => serverBearerToken(app, url);
 
@@ -411,9 +414,11 @@ export class StencilChatPanel extends StencilElement {
     // Only one turn at a time — send() and the facade both guard on `sending`.
     let sending = false;
     let turnAbort = null;
+    let voiceCtl = null;   // wireComposerVoice, below — the mic face's state for the sync
     const updateControls = () => {
       const queued = peekChatController(app)?.attachments.length ?? 0;
-      syncComposerControls({ sendBtn, attachBtn, input }, sending, { attachFull: queued >= MAX_ATTACHMENTS });
+      syncComposerControls({ sendBtn, attachBtn, input }, sending,
+        { attachFull: queued >= MAX_ATTACHMENTS, voice: voiceCtl?.state(), voiceSupported: !!app.voice?.supported });
       // Clear is pointless mid-turn AND on an empty conversation.
       clearBtn.disabled = sending || !!transcript.querySelector('.chat-empty');
     };
@@ -482,7 +487,15 @@ export class StencilChatPanel extends StencilElement {
     // menu's, so one left showing buries the menu the click just opened.
     wireChatMoreMenu('chat', document, { onOpen: () => { updateControls(); hideGearTip(); } });
     wireChatSideToggle('chat', transcript, document);
-    wireChatComposer({ input, sendBtn, attachBtn, attachInput: $('chat-attach-input') }, {
+    // Voice input (dictation into THIS composer) shares the send path: `send` below is
+    // the very closure Enter uses, handed back by wireChatComposer.
+    const voiceHooks = {
+      isOn: () => !!voiceCtl?.isOn(),
+      isListening: () => !!voiceCtl?.isListening(),
+      toggleMode: () => voiceCtl?.toggleMode(),
+      toggleListening: () => voiceCtl?.toggleListening(),
+    };
+    const send = wireChatComposer({ input, sendBtn, attachBtn, attachInput: $('chat-attach-input') }, {
       isSending: () => sending,
       abort: () => turnAbort?.abort(),
       // autoGrow: phone modal — shrink the just-emptied textarea back down.
@@ -493,7 +506,9 @@ export class StencilChatPanel extends StencilElement {
       },
       attachFiles,
       onInput: () => { updateControls(); autoGrow(); },
+      voice: voiceHooks,
     });
+    voiceCtl = wireComposerVoice({ prefix: 'chat', input, sendBtn, app, send, sync: updateControls });
     // Right-click on a transcript row: the SHARED row menu (chatView.js). Insert
     // appends into THIS composer; Resend re-queues the row's original attachments
     // and re-sends through the same runTurn path a composer send takes.
@@ -1036,6 +1051,13 @@ export class StencilChatPanel extends StencilElement {
       },
       get isSending() { return sending; },
       controller: ctrl,
+      // Dictation into this panel's composer (the mic face) — the scripting peer of
+      // the "…" item / double-click / hold.
+      get voiceInput() { return !!voiceCtl?.isOn(); },
+      setVoiceInput: (on) => {
+        if (on && !app.voice?.supported) throw new Error('Voice input is not supported in this browser');
+        voiceCtl?.setMode(!!on);
+      },
     };
   }
 }

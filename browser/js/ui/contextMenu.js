@@ -1,18 +1,19 @@
 import { StencilElement, hostTag, define } from './base.js';
-import { notify, setRadioGroup, setHtml, formatCombo, supportsShareFiles, isTouchLike, pointInRect, hasAnyLines } from '../utils.js';
+import { notify, setRadioGroup, setHtml, formatCombo, supportsShareFiles, isTouchLike, pointInRect, hasAnyLines, isTypingTarget } from '../utils.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
+import { attachVoiceDust } from './voiceDust.js';
 import { loadLlmSettings, serverBearerToken } from '../llm/llmSettings.js';
 import { probeProvider } from '../llm/llmClient.js';
 import { MAX_ATTACHMENTS } from '../llm/chatController.js';
 import {
-  sharedChatController, peekChatController, runLoggedChatTurn, closedTurnToast, queueAttachments,
+  sharedChatController, peekChatController, runLoggedChatTurn, closedTurnToast, queueAttachments, ATTACHMENT_CAP_NOTICE,
   cacheProbe, cachedProbe, probeStatusClass,
   chatLog, onChatLog, clearSharedConversation, requeueRowAttachments, chatTurnInFlight,
 } from '../llm/chatSession.js';
 import {
   renderChatLog, chatAttachmentChips, wireInputSizer, wireChatSuggestions, wireChatMoreMenu, wireChatSideToggle,
-  chatSuggestionsHtml, chatComposerActionsHtml, syncComposerControls, wireChatComposer,
+  chatSuggestionsHtml, chatComposerActionsHtml, syncComposerControls, wireChatComposer, wireComposerVoice,
   notifyAttachmentsChanged, CHAT_ATTACHMENTS_EVENT, wireChatRowMenu, chatRowMenuOpen,
 } from './chatView.js';
 import { menuPopOrigin, surfaceIn, surfaceOut, settleSurface, motionReduced, revealControls,
@@ -452,7 +453,10 @@ export class StencilContextMenu extends StencilElement {
     // Where the menu grew from — the click. Kept so the close pours back into it.
     let openPoint = null;
 
+    // The assistant flyout's own teardown (its dictation, wired later) rides every close.
+    let onMenuClose = () => {};
     const closeMenu = () => {
+      onMenuClose();
       // Into the very point it grew out of (js/ui/motion.js) — measured while it is
       // still on screen, and only if it IS: closeMenu is also the idle teardown.
       if (menu.classList.contains('ctx-open') && !motionReduced()) surfaceOut(menu, openPoint, { ms: SURFACE_MENU_OUT_MS });
@@ -899,6 +903,7 @@ export class StencilContextMenu extends StencilElement {
       const transcript = document.getElementById('ctx-assist-transcript');
       const input = document.getElementById('ctx-assist-input');
       const sendBtn = document.getElementById('ctx-assist-send');
+      attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'));
       const attachBtn = document.getElementById('ctx-assist-attach-btn');
       const attachInput = document.getElementById('ctx-assist-attach-input');
       const gearBtn = document.getElementById('ctx-assist-settings-btn');
@@ -907,9 +912,13 @@ export class StencilContextMenu extends StencilElement {
       if (!item || !flyout || !transcript || !input || !sendBtn) return;
 
       let turnAbort = null;
-      // The shared send ↔ Stop swap (the panel's contract).
+      let voiceCtl = null;   // wireComposerVoice, below
+      // The shared send ↔ Stop swap (the panel's contract), plus the mic face.
       const updateControls = () => syncComposerControls({ sendBtn, attachBtn, input }, assistSending,
-        { attachFull: (peekChatController(app)?.attachments.length ?? 0) >= MAX_ATTACHMENTS });
+        { attachFull: (peekChatController(app)?.attachments.length ?? 0) >= MAX_ATTACHMENTS,
+          voice: voiceCtl?.state(), voiceSupported: !!app.voice?.supported });
+      // The hands-free voice chat asks whether ANY chat surface shows its rows.
+      app.assistantFlyoutOpen = () => menuIsOpen() && flyout.classList.contains('ctx-sub-visible');
 
       // ── Attachments: feed the SAME shared controller, so a file queued here rides
       // the next turn from either surface (both rows repaint on the change event). ──
@@ -1043,18 +1052,30 @@ export class StencilContextMenu extends StencilElement {
         if (assistSending) return;
         clearSharedConversation(app);
       });
-      wireChatComposer({ input, sendBtn, attachBtn, attachInput }, {
+      const voiceHooks = {
+        isOn: () => !!voiceCtl?.isOn(),
+        isListening: () => !!voiceCtl?.isListening(),
+        toggleMode: () => voiceCtl?.toggleMode(),
+        toggleListening: () => voiceCtl?.toggleListening(),
+      };
+      const send = wireChatComposer({ input, sendBtn, attachBtn, attachInput }, {
         isSending: () => assistSending,
         abort: () => turnAbort?.abort(),
         submit: (text) => { updateControls(); runTurn(text); },
         attachFiles: async (files) => {
           await queueAttachments(sharedChatController(app), files,
-            (err) => notify(`Attachment failed — ${err.message}`, 'fail'));
+            (err) => notify(`Attachment failed — ${err.message}`, 'fail'),
+            () => notify(ATTACHMENT_CAP_NOTICE, 'info'));   // the cap is a notice, not a failure
           renderAttachments();
           notifyAttachmentsChanged();
         },
         onInput: updateControls,
+        voice: voiceHooks,
       });
+      voiceCtl = wireComposerVoice({ prefix: 'ctx-assist', input, sendBtn, app, send, sync: updateControls });
+      // A dismissed menu never keeps a mic open: the face goes back to Send too.
+      onMenuClose = () => voiceCtl?.setMode(false);
+      updateControls();
       // Suggestion chips prefill the input (editable before sending) — the same shared
       // delegated wiring as the panel, so a rebuilt empty state stays clickable.
       wireChatSuggestions(transcript, (prompt) => {

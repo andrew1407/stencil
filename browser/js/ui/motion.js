@@ -866,6 +866,29 @@ export const createFilterAnimator = ({
 // falling ash and read as appearing before the removal finished. Pure — unit-tested.
 export const emptyStateVisible = (count, holding = false) => count === 0 && !holding;
 
+// ── Replaying a glyph's state motion on a switch ─────────────────────────────
+// A control that switches wears one of these classes for one flight, so the parts
+// whose visibility IS that state (the mic's sound waves) arrive with the hover's own
+// swell when it goes ON, and fly out past the edges when it goes OFF, rather than just
+// appearing / vanishing. CSS: `.voice-waves-in` / `.voice-waves-out` in animations.css.
+export const WAVES_IN_CLASS = 'voice-waves-in';
+export const WAVES_OUT_CLASS = 'voice-waves-out';
+export const WAVES_FLIGHT_MS = 500;
+export function replayWaves(el, on, { setTimer = setTimeout } = {}) {
+  if (!el?.classList) return;
+  el.classList.remove(WAVES_IN_CLASS, WAVES_OUT_CLASS);
+  void el.offsetWidth;   // restart the keyframes on a quick double switch
+  const cls = on ? WAVES_IN_CLASS : WAVES_OUT_CLASS;
+  el.classList.add(cls);
+  // The class comes off once the flight is over — but not under a resting pointer: the
+  // hover trigger would then take the waves back and play its own swell a second time.
+  const done = () => {
+    if (el.matches?.(':hover')) { el.addEventListener('pointerleave', () => el.classList.remove(cls), { once: true }); return; }
+    el.classList.remove(cls);
+  };
+  setTimer(done, WAVES_FLIGHT_MS);
+}
+
 // ── Swapping a control's face ───────────────────────────────────────────────
 // One shared transition for the toggles that rewrite themselves in place — the Draw
 // group's Start↔Stop and Line↔Rect. Replacing innerHTML outright cannot animate, so

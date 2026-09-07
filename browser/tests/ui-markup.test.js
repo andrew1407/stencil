@@ -68,7 +68,7 @@ const IDS = [
     'confirm-modal-confirm', 'confirm-modal-confirm-text',
     // AI assistant: toolbar toggle + chat panel (stencil-chat-panel) + settings modal
     // (stencil-llm-settings-modal), appended at the END of REGIONS.
-    'chat-btn', 'chat-panel', 'chat-header', 'chat-title', 'chat-status-dot', 'chat-dock-left-btn',
+    'chat-btn', 'voice-chat-btn', 'chat-panel', 'chat-header', 'chat-title', 'chat-status-dot', 'chat-dock-left-btn',
     'chat-dock-top-btn', 'chat-dock-bottom-btn', 'chat-dock-right-btn', 'chat-float-btn',
     'chat-settings-btn', 'chat-close', 'chat-transcript', 'chat-empty', 'chat-attachments',
     'chat-attach-btn', 'chat-attach-input', 'chat-input', 'chat-send', 'chat-resizer',

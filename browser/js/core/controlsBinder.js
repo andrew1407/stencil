@@ -631,6 +631,7 @@ export class ControlsBinder {
       toggleTheme: () => clickIfActive('theme-toggle'),
       toggleIncognito: () => clickIfActive('incognito-toggle'),
       toggleChat: () => clickIfActive('chat-btn'),
+      toggleVoiceChat: () => clickIfActive('voice-chat-btn'),
       openHelp: () => clickIfActive('info-btn'),
       openHotkeys: () => clickIfActive('settings-btn'),
       openVisuals: () => clickIfActive('visuals-btn')

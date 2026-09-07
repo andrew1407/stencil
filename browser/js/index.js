@@ -10,6 +10,7 @@ import { wireChatPersistence } from './llm/chatPersistence.js';
 import { initProjectsBackend } from './core/projectsBackend.js';
 import { watchNumericInputs } from './ui/numericInput.js';
 import { installControlSwap } from './ui/controlSwap.js';
+import { installVoiceModes } from './llm/voiceModes.js';
 // ── Application entrypoint ──────────────────────────────────────
 // Loaded LAST (importing layout registers every custom element). On load: init the
 // shared C++ core (wasm), mount component hosts, construct the app, then dispatch
@@ -34,6 +35,9 @@ window.onload = async () => {
   const root = document.getElementById('root');
   mountHTML(root, layout());      // DOM first (custom elements upgrade synchronously)
   const app = new DrawingApp();   // construct AFTER mount
+  // Voice input (js/llm/voiceModes.js) — installed before the components wire, since the
+  // composers and the toolbar read app.voice as they build their controls.
+  installVoiceModes(app);
   // Let every numeric field take an expression ("45 + 9", "* 9"). Runtime-only, and
   // the observer catches the inputs that modals/panels render later.
   watchNumericInputs();

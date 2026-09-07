@@ -4,6 +4,8 @@ import { loadLlmSettings, saveLlmSettings, serverBearerToken, withProvider } fro
 import { listModels, probeProvider } from '../llm/llmClient.js';
 import { loadSavedServers } from '../net/connectionStore.js';
 import { visibleChatMoreBtn } from './chatView.js';
+import { enhanceSelect } from './customSelect.js';
+import { loadVoiceSettings, saveVoiceSettings, VOICE_LANGUAGES, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voiceSettings.js';
 
 // ── Component: assistant (LLM) settings modal ───────────────────
 // Provider + endpoint configuration for the chat panel (llm-contract.md §5),
@@ -54,6 +56,11 @@ export class StencilLlmSettingsModal extends StencilElement {
                         <input type="checkbox" id="chat-save-chats"> Save chats with projects
                     </label>
                 </div>
+                <div class="vs-section">Voice input</div>
+                <div class="vs-row vs-field"><label for="chat-voice-silence" data-title="How long a pause ends what you are saying and sends it — dictation in the chat and the hands-free voice chat both use it">Send after a pause of (ms)</label>
+                    <span class="vs-ctrl"><input type="number" id="chat-voice-silence" min="${SILENCE_MS_MIN}" max="${SILENCE_MS_MAX}" step="100"></span></div>
+                <div class="vs-row vs-field"><label for="chat-voice-lang" data-title="The language the speech recognizer listens for — Default is English; stencil.voiceInputLanguage takes any BCP-47 tag">Language</label>
+                    <span class="vs-ctrl"><select id="chat-voice-lang">${VOICE_LANGUAGES.map(([v, label]) => `<option value="${v}">${label}</option>`).join('')}</select></span></div>
                 <div class="chat-cors-note" id="chat-settings-note">
                     <div id="chat-save-chats-note">
                         Chats saved with a server project are <strong>readable by everyone
@@ -93,12 +100,17 @@ export class StencilLlmSettingsModal extends StencilElement {
     const statusDot = $('chat-settings-status-dot');
     const corsNote = $('chat-cors-note');
     const saveChatsEl = $('chat-save-chats');
+    const voiceSilenceEl = $('chat-voice-silence');
+    const voiceLangEl = $('chat-voice-lang');
+    // Our own list, not the OS's (ui/customSelect.js) — like the Visuals dialog's menus.
+    enhanceSelect(voiceLangEl);
 
     // The WORKING copy: edits live here (so the status row probes what you are
     // typing) and reach storage only on Save — the desktop dialog's
     // commit/discard model. Closing by any means (Cancel, ×, Escape,
     // click-outside) discards, since onOpen reloads from storage.
     let settings = loadLlmSettings();
+    let voice = loadVoiceSettings();   // its own store (drawingApp_voiceSettings), same commit model
     // Persist AND tell the chat panel so it re-probes the provider status live.
     const persist = () => {
       saveLlmSettings(settings);
@@ -150,6 +162,8 @@ export class StencilLlmSettingsModal extends StencilElement {
       modelEl.value = settings.model;
       apiKeyEl.value = settings.apiKey;
       saveChatsEl.checked = settings.saveChats === true;
+      voiceSilenceEl.value = voice.silenceMs;
+      voiceLangEl.value = voice.language;   // the themed dropdown mirrors the wrapped setter
       const isServer = settings.provider === 'stencil-server';
       const isOff = settings.provider === 'none';
       baseUrlRow.style.display = isServer || isOff ? 'none' : '';
@@ -225,7 +239,7 @@ export class StencilLlmSettingsModal extends StencilElement {
     const shell = wireModalShell(overlay, $('chat-settings-btn'), $('chat-settings-close'), {
       // Reopening always starts from what is STORED — that is what makes every
       // close (Cancel, ×, Escape, click-outside) a discard.
-      onOpen: () => { settings = loadLlmSettings(); render(); },
+      onOpen: () => { settings = loadLlmSettings(); voice = loadVoiceSettings(); render(); },
       // The gear sits inside the composer's "…" menu, which closes as it is clicked —
       // so the window flies to and from the "…" itself, and from above when no chat
       // surface is on screen to hold one.
@@ -239,6 +253,7 @@ export class StencilLlmSettingsModal extends StencilElement {
       settings.apiKey = apiKeyEl.value.trim();
       settings.saveChats = saveChatsEl.checked;
       persist();
+      saveVoiceSettings({ silenceMs: voiceSilenceEl.value, language: voiceLangEl.value });   // dispatches its own event
       shell.close();
     });
     $('chat-settings-cancel').addEventListener('click', () => shell.close());
