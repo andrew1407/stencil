@@ -280,6 +280,11 @@
     "default": "Alt+M"
   },
   {
+    "id": "openAssistantSettings",
+    "label": "AI Assistant Settings",
+    "default": "Alt+Shift+G"
+  },
+  {
     "id": "openHelp",
     "label": "Controls & Shortcuts Help",
     "default": "Alt+H"

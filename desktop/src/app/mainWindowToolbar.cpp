@@ -383,7 +383,8 @@ namespace stencil::gui {
     // deferred one double-click interval (the logo pattern): the dialog's exec() blocks,
     // so an instant open would swallow the second click of every double-click.
     popoverDialogActions_ = {actOpen_, actOpenAnother_, actOpenIn_, actProjects_, actConnect_, actLinks_,
-                             actDescription_, actKeywords_, actChat_, actShortcuts_, actSettings_, actInfo_};
+                             actDescription_, actKeywords_, actChat_, actAssistantSettings_, actShortcuts_,
+                             actSettings_, actInfo_};
     popoverClickTimer_ = new QTimer(this);
     popoverClickTimer_->setSingleShot(true);
     popoverClickTimer_->setInterval(250);

@@ -50,6 +50,9 @@ test('the window shortcuts, not the editing ones, work from inside a text box', 
   assert.ok(HOTKEYS_WHILE_TYPING.includes('openLinks'));
   assert.ok(HOTKEYS_WHILE_TYPING.includes('openDescription'));
   assert.ok(HOTKEYS_WHILE_TYPING.includes('openKeywords'));
+  // The assistant settings window autofocuses its fields too, so its chord must close it
+  // from inside them — and it lives in the shared registry so the desktop lists it as well.
+  assert.ok(HOTKEYS_WHILE_TYPING.includes('openAssistantSettings'));
   const hotkeys = new Map([['openHelp', 'Alt+H'], ['cycleFilter', 'Alt+B']]);
   const press = (key, mods = {}) => ({ key, code: `Key${key.toUpperCase()}`, altKey: false,
     ctrlKey: false, metaKey: false, shiftKey: false, ...mods });
@@ -77,4 +80,16 @@ test('contextMenu hotkey: Shift+F10 in the registry, placed at the pointer or th
   const body = src.slice(src.indexOf('contextMenu: () => {'), src.indexOf('};', src.indexOf('contextMenu: () => {')));
   assert.ok(body.includes("new MouseEvent('contextmenu'"), 'goes through the right-click path');
   assert.ok(body.includes("classList.contains('ctx-open')"), 'an open menu is left alone');
+});
+
+// The AI settings window (the chat's … menu ▸ Settings, both apps) has a rebindable chord
+// of its own, next to the assistant toggle's Alt+G, and it collides with nothing else.
+test('openAssistantSettings is a registry entry on Alt+Shift+G with a unique default', async () => {
+  const { readFileSync } = await import('node:fs');
+  const defs = JSON.parse(readFileSync(new URL('../js/config/hotkeysConfig.json', import.meta.url), 'utf8'));
+  const def = defs.find(d => d.id === 'openAssistantSettings');
+  assert.ok(def, 'openAssistantSettings is a rebindable registry entry');
+  assert.equal(def.default, 'Alt+Shift+G');
+  assert.equal(def.label, 'AI Assistant Settings');
+  assert.equal(defs.filter(d => d.default === def.default).length, 1, 'the default chord is unique');
 });

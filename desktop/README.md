@@ -102,13 +102,15 @@ edit transport is **not** implemented on the desktop.
 > server's Anthropic proxy), verification and troubleshooting:
 > [root README → AI assistant](../README.md#ai-assistant--setting-up-a-model).
 
-The **✦ Assistant** toolbar button (also **View ▸ Assistant**, `Ctrl+Shift+A`) toggles a chat
+The **✦ Assistant** toolbar button (also **View ▸ Assistant**, `Alt+G`) toggles a chat
 dock (`app/chatDock`) that — unlike the fixed selection panel — is fully movable: dock it on
 any of the four window edges or float it as a free window (drag to move, resize normally);
 the placement persists via `QMainWindow::saveState()` in the settings file. Docked, it slides
 in and out from its edge (`MainWindow::setChatShown`, ~0.34 s in / 0.26 s out, browser panel
 parity) and reopens at the width it was dismissed at. Prompts go to the provider configured
-in the dock's own gear — a dedicated **Assistant** dialog (`dialogs/assistantSettingsDialog`,
+in the dock's own gear (the composer's **…** menu ▸ Settings, **View ▸ AI Assistant Settings…**, or
+`Alt+Shift+G` — the shared `openAssistantSettings` hotkey, rebindable in the Shortcuts window; pressed
+again inside the dialog it closes it) — a dedicated **Assistant** dialog (`dialogs/assistantSettingsDialog`,
 browser `llmSettingsModal` parity) with only the provider/base URL/model/API key/server rows,
 hiding whichever are irrelevant to the chosen provider; the same fields also stay in the full
 **Settings ▸ AI assistant** group, and both write the same keys. Choose Ollama or any local

@@ -102,7 +102,7 @@ graph TD
 - **Project files (`.stencil`)**: save a whole project — original image, layout, and
   settings (plus, optionally, the current colour theme) — as one portable file, openable
   on any Stencil surface (browser, CLI, desktop, pystencil, bot). See below.
-- **Toolbar windows** (projects, servers, links, assistant, shortcuts `Alt+K`, visuals `Alt+V`, help `Alt+H`): a window's own shortcut **closes** it again, another window's shortcut swaps to that one, and every one of them works from inside a window's own search box.
+- **Toolbar windows** (projects, servers, links, assistant, assistant settings `Alt+Shift+G`, shortcuts `Alt+K`, visuals `Alt+V`, help `Alt+H`): a window's own shortcut **closes** it again, another window's shortcut swaps to that one, and every one of them works from inside a window's own search box. Scripts open them by title — `stencil.openWindow('Projects')`, or the named `stencil.openProjectsWindow()` / `openServersWindow()` / `openAssistantSettingsWindow()` / … (Console API below).
 - **Canvas context menu from the keyboard**: `Shift+F10` (rebindable, `contextMenu`) opens the right-click menu under the pointer when it rests over the canvas, else at the viewport centre — the desktop binds the same chord.
 - **Server invite links**: in the Servers window, a connected row with a saved
   credential offers an **Invite** action — it mints a fresh session token
@@ -117,7 +117,7 @@ graph TD
   (`max-width: 680px`) none of that fits, so the panel presents as an ordinary **centred
   modal** over a dimmed backdrop, with the placement and resize affordances hidden and
   the usual modal dismissals — a tap on the backdrop, or Escape. Attachments can also be pasted (Ctrl+V) or dropped straight onto the
-  open panel; hover the input row's gear for live provider status. Prompts run against your configured LLM — Ollama or any local
+  open panel; hover the input row's "…" for live provider status, and open the assistant's settings from that menu or with `Alt+Shift+G` (rebindable, `openAssistantSettings`). Prompts run against your configured LLM — Ollama or any local
   OpenAI-compatible server (LM Studio etc.) called directly, or Anthropic Claude proxied
   by a connected collaboration server (the API key stays server-side). The model answers
   with a validated *op-plan* executed through the same `window.stencil` facade as the
@@ -468,6 +468,21 @@ pt.remove();                           // drop this point (empties the line → 
 // ── Shortcuts ──
 stencil.shortcuts;                     // { undo: 'Ctrl+Z', … }
 stencil.changeShortcut('Ctrl+Z', 'Ctrl+Alt+U');   // by current combo or action id
+
+// ── Windows (the toolbar windows, by title) ──
+stencil.windows;                       // every title: 'Projects', 'Servers', 'Image links', 'Project description',
+                                       // 'Project keywords', 'Assistant' (the AI settings), 'Keyboard Shortcuts',
+                                       // 'Visuals & Settings', 'Controls & Shortcuts Info', 'Open Image', 'Open In…', 'Crop Image'
+stencil.openWindow('Projects');        // by title — case/punctuation-free ('visuals', 'open in'), a hotkey id works too
+stencil.openProjectsWindow();          // …and one named opener per window: openServersWindow() (alias
+stencil.openConnectionsWindow();       // openConnectionsWindow()), openLinksWindow(), openDescriptionWindow(),
+stencil.openAssistantSettingsWindow(); // openKeywordsWindow(), openShortcutsWindow(), openVisualsWindow(),
+                                       // openHelpWindow(), openImageWindow(), openCropWindow()
+                                       // Each opens through the window's own shell, flying out of its toolbar
+                                       // control; a disabled control (keywords before the project is saved, crop
+                                       // with no image) throws with the button's own reason. Already open ⇒ no-op.
+stencil.openedWindow;                  // the showing window's title, or null
+stencil.closeWindow();                 // dismiss whatever window is up
 
 // ── AI assistant (llm-contract.md; the scripting peer of the chat panel) ──
 stencil.llm;                           // current provider config (§5 shape); each key is get/set

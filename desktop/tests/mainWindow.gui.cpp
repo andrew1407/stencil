@@ -2024,6 +2024,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!win.actSettings_->shortcut().isEmpty(), "…and so does Settings");
     QVERIFY(win.hotkeyActions_.contains(QStringLiteral("openHotkeys")));
     QVERIFY(win.hotkeyActions_.contains(QStringLiteral("openVisuals")));
+    QVERIFY(win.hotkeyActions_.contains(QStringLiteral("openAssistantSettings")));
     QVERIFY2(!win.actInfo_->shortcut().toString().contains(QStringLiteral("F1")),
              "help left the lone F1 for the Alt+letter family");
 
@@ -2056,6 +2057,41 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(win.actInfo_->shortcutContext() != Qt::WidgetShortcut,
              "…and handed back when the dialog closed");
     QCOMPARE(settingsAsked, 0);   // nothing was swapped to in this pass
+    beat();
+  }
+
+  // The assistant's settings (the chat's … ▸ Settings) have a chord of their own, from the
+  // shared registry: it opens the assistant-only dialog with no chat surface up at all, and
+  // pressed again inside that dialog it closes it — the toolbar windows' toggle rule.
+  void assistantSettingsShortcutOpensAndClosesTheDialog() {
+    MainWindow win(nullptr, false);
+    openLoaded(win);
+    QVERIFY2(!win.actAssistantSettings_->shortcut().isEmpty(), "the dialog has a chord");
+    QCOMPARE(win.hotkeyLabels_.value(QStringLiteral("openAssistantSettings")),
+             QStringLiteral("AI Assistant Settings"));   // the Shortcuts window lists it
+    QVERIFY(!win.chatDock_->isVisible());
+
+    QString dialogName;
+    bool sawOwn = false, closedByOwn = false;
+    QTimer::singleShot(0, &win, [&] {
+      QDialog* dlg = nullptr;
+      for (int i = 0; i < 200 && !dlg; ++i) {
+        dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+        if (!dlg) QTest::qWait(10);
+      }
+      if (!dlg) return;
+      dialogName = dlg->objectName();
+      for (QShortcut* sc : dlg->findChildren<QShortcut*>()) {
+        if (sc->key() == win.actAssistantSettings_->shortcut()) { sawOwn = true; emit sc->activated(); }
+      }
+      closedByOwn = !dlg->isVisible();
+      if (!closedByOwn) dlg->reject();
+    });
+    win.actAssistantSettings_->trigger();   // blocks in exec() until the timer closes it
+
+    QCOMPARE(dialogName, QString("assistantSettingsDialog"));
+    QVERIFY2(sawOwn, "the dialog carried its own opener's chord");
+    QVERIFY2(closedByOwn, "its own shortcut closed the window");
     beat();
   }
 

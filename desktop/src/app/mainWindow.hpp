@@ -1351,6 +1351,7 @@ namespace stencil::gui {
     QAction* actContextMenu_ = nullptr;   // Shift+F10: the canvas context menu from the keyboard (browser parity)
     QAction* actOpenIn_ = nullptr;   // "Open In…" (browser / Telegram) — see openInAnotherApp
     QAction* actChat_ = nullptr;     // AI Assistant chat dock toggle (checkable)
+    QAction* actAssistantSettings_ = nullptr;   // the chat's … ▸ Settings dialog, on its own chord
     QAction* actQuit_ = nullptr;
 
     // ── Data actions (S9; browser toolbar.js Image/Layout buttons + the paste

@@ -167,9 +167,8 @@ namespace stencil::gui {
     actOpenIn_ = mk("Open In…", hotkey("openIn", "Ctrl+Shift+E"));
     tip(actOpenIn_,
         "Open the current project in the browser app or the Telegram bot");
-    // AI Assistant chat dock toggle (llm-contract.md). No shared
-    // hotkeysConfig.json entry yet, so the default is set literally like New Line.
-    actChat_ = mk("AI Assistant", hotkey("toggleChat", "Ctrl+Shift+A"));
+    // AI Assistant chat dock toggle (llm-contract.md; shared hotkeysConfig toggleChat).
+    actChat_ = mk("AI Assistant", hotkey("toggleChat", "Alt+G"));
     // Named to disambiguate from the dock's internal toggleViewAction (same
     // visible text) for the GUI e2e lookup.
     actChat_->setObjectName("actChat");
@@ -447,6 +446,11 @@ namespace stencil::gui {
     connect(actLinks_, &QAction::triggered, this, &MainWindow::openLinks);
     connect(actDescription_, &QAction::triggered, this, &MainWindow::openDescription);
     connect(actKeywords_, &QAction::triggered, this, &MainWindow::openKeywords);
+    // The assistant's own settings dialog (the chat's … menu ▸ Settings) on a chord of its
+    // own — shared hotkeysConfig openAssistantSettings, so the browser answers the same keys.
+    actAssistantSettings_ = mk("AI Assistant Settings…", hotkey("openAssistantSettings", "Alt+Shift+G"));
+    tip(actAssistantSettings_, "AI assistant settings — provider, model & voice");
+    connect(actAssistantSettings_, &QAction::triggered, this, &MainWindow::openAssistantSettings);
     connect(actOpenIn_, &QAction::triggered, this, &MainWindow::openInAnotherApp);
     connect(actNewProject_, &QAction::triggered, this,
             &MainWindow::newProjectFromCanvas);
@@ -483,6 +487,7 @@ namespace stencil::gui {
     hotkeyActions_["fullscreen"] = actFullscreen_;
     hotkeyActions_["openVisuals"] = actSettings_;
     hotkeyActions_["openHotkeys"] = actShortcuts_;
+    hotkeyActions_["openAssistantSettings"] = actAssistantSettings_;
     hotkeyActions_["contextMenu"] = actContextMenu_;
     hotkeyActions_["resetZoom"] = actFit_;
     hotkeyActions_["zoomIn"] = actZoomIn_;
