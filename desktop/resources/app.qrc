@@ -13,6 +13,7 @@
     <file alias="layoutFields.json">../../browser/js/config/layoutFields.json</file>
     <file alias="llm/systemPrompt.json">../../browser/js/config/llm/systemPrompt.json</file>
     <file alias="llm/providers.json">../../browser/js/config/llm/providers.json</file>
+    <file alias="llm/opRegistry.json">../../browser/js/config/llm/opRegistry.json</file>
   </qresource>
   <qresource prefix="/icons">
     <!-- Same icon as the browser app's favicon, so both front-ends share one

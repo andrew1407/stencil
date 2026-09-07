@@ -25,6 +25,12 @@ public sealed class OpPlanFixtureWalkerTests
         {
             yield return (Path.GetFileName(path), SharedFixtures.Load(path));
         }
+        // The registry-generated bundle (browser/tools/genOpPlanFixtures.mjs): one pseudo-file per case.
+        using JsonDocument bundle = SharedFixtures.Load(Path.Combine(dir, "generated", "cases.json"));
+        foreach (JsonElement fx in bundle.RootElement.GetProperty("cases").EnumerateArray())
+        {
+            yield return ($"{fx.GetProperty("name").GetString()}.json", JsonDocument.Parse(fx.GetRawText()));
+        }
     }
 
     [Fact]

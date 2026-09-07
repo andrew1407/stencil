@@ -11,6 +11,8 @@
   <ItemGroup>
     <!-- Canonical §4 system-prompt prose, embedded so the bot needs no repo checkout at run time. -->
     <EmbeddedResource Include="../../../browser/js/config/llm/systemPrompt.json" Link="Assets/systemPrompt.json" />
+    <!-- The shared op registry the plan validator is table-driven from (llm-contract.md §1–§13). -->
+    <EmbeddedResource Include="../../../browser/js/config/llm/opRegistry.json" Link="Assets/opRegistry.json" />
   </ItemGroup>
 
   <PropertyGroup>

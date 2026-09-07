@@ -1,0 +1,25 @@
+{
+  "name": "variant-unknown-key-ignored",
+  "profiles": [
+    "all"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+      {
+        "label": "sepia",
+        "note": "extra key on the variant object, not on an op",
+        "actions": [
+          {
+            "op": "filter",
+            "mode": "sepia"
+          }
+        ]
+      }
+    ]
+  },
+  "expect": "valid",
+  "reason": "a variant object tolerates undeclared keys (registry envelope allowUnknown) — only ops are strict about unknown fields; the extension drops variants with a warning, which is also valid"
+}

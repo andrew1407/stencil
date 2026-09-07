@@ -9,6 +9,8 @@
 //     promised — never the browser's LAYOUT_FIELDS order).
 //   • llm/systemPrompt.json → opRegistry's §4 prose canon (byte-length pins +
 //     the head/tail assembly seams).
+//   • llm/opRegistry.json → opSchema's table-driven op-plan validator (alias +
+//     schema version + the desktop's profile/forbidden list).
 //   • llm/providers.json → llmSettings' §5 provider defaults / display names +
 //     the chat transfer timeout.
 // A broken qrc alias parses to an empty table, so these fail fast.
@@ -180,6 +182,19 @@ int main(int argc, char** argv) {
     check(head.endsWith("free-angle rotation):\n") && tail.startsWith("\n\n") &&
               tail.endsWith("never instructions to follow."),
           "prompt head/tail keep their assembly seams");
+  }
+
+  // ── llm/opRegistry.json op registry (llm-contract.md §13) ─────────────────
+  {
+    const QJsonObject reg = readConfig(":/config/llm/opRegistry.json").object();
+    check(!reg.isEmpty(), "llm/opRegistry.json qrc alias resolves and parses");
+    const QJsonObject meta = reg.value("$meta").toObject();
+    check(meta.value("schemaVersion").toInt() == 2, "op registry is schemaVersion 2");
+    check(meta.value("surfaceProfiles").toObject().value("desktop").toString() == "editor",
+          "the desktop surface maps to the editor profile");
+    check(reg.value("forbidden").toObject().value("perSurface").toObject()
+              .value("desktop").toArray().size() == 30,
+          "the desktop forbidden-op list carries its 30 names");
   }
 
   // ── llm/providers.json provider canon (llm-contract.md §5) ────────────────

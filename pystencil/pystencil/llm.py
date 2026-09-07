@@ -28,6 +28,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, FrozenSet, Iterable, List, Optional, Sequence, Tuple
 
+from ._opschema import SchemaError, schema
 from .layout import Line
 
 # The urllib plumbing is shared with the server client: one request builder, one
@@ -36,21 +37,26 @@ from .layout import Line
 from .server import _http_open, _json_request, _parse_http_error, _LLM_TIMEOUT
 
 
-# ── contract limits (§1/§7 — the same numbers in every client) ────────────────
-MAX_ACTIONS = 16        # per plan: top-level and per variant
-MAX_VARIANTS = 8
-MAX_LAYOUT_LINES = 200
-MAX_STRING_LENGTH = 5000  # per formula/spec string field
-MAX_FRAME_INDICES = 32
-MAX_SAVE_NAME = 120     # §2.1: the `save` op's optional project name
-MAX_PATH_CHARS = 1024   # §10: the longest local path a `save` op may carry
+# ── contract limits (§1/§7/§11 — the same numbers in every client) ────────────
+# Read from the checked-in copy of the canonical op registry
+# (browser/js/config/llm/opRegistry.json; tests/test_canonical_drift.py byte-pins the
+# copy) through the table-driven schema engine every op validator runs on.
+SCHEMA = schema("pystencil")
+_LIMITS = SCHEMA.limits
+MAX_ACTIONS = _LIMITS["MAX_ACTIONS"]              # per plan: top-level and per variant
+MAX_VARIANTS = _LIMITS["MAX_VARIANTS"]
+MAX_LAYOUT_LINES = _LIMITS["MAX_LAYOUT_LINES"]
+MAX_STRING_LENGTH = _LIMITS["MAX_STRING_CHARS"]   # per string field unless its spec caps it
+MAX_FRAME_INDICES = _LIMITS["MAX_FRAME_INDICES"]
+MAX_SAVE_NAME = _LIMITS["MAX_SAVE_NAME"]          # §2.1: the `save` op's optional project name
+MAX_PATH_CHARS = _LIMITS["MAX_PATH_CHARS"]        # §10: the longest local path a `save` op may carry
 # §11 interactive replies — the same numbers as every other client.
-MIN_ASK_OPTIONS = 2
-MAX_ASK_OPTIONS = 5
-MAX_ASK_QUESTION = 300
-MAX_ASK_LABEL = 80
-MAX_ASK_ANSWER = 500
-DEFAULT_CUSTOM_LABEL = "Something else…"
+MIN_ASK_OPTIONS = _LIMITS["ask"]["minOptions"]
+MAX_ASK_OPTIONS = _LIMITS["ask"]["maxOptions"]
+MAX_ASK_QUESTION = _LIMITS["ask"]["question"]
+MAX_ASK_LABEL = _LIMITS["ask"]["label"]
+MAX_ASK_ANSWER = _LIMITS["ask"]["answer"]
+DEFAULT_CUSTOM_LABEL = SCHEMA.registry["ask"]["defaultCustomLabel"]
 MAX_HISTORY = 32        # chat messages replayed per call
 # §12 chat persistence — the persisted-chat document version Chat.to_doc writes and
 # Chat.from_doc accepts (any other version is treated as "no saved chat").
@@ -402,37 +408,12 @@ class OpPlan:
 
 
 # ── op-plan parsing (contract §1/§2/§3) ───────────────────────────────────────
-# Token/format shapes shared by the validators below.
-_CROP_TOKEN_RE = re.compile(r"^-?(?:\d+(?:\.\d+)?|\.\d+)(?:%|px|cm|in)?$")
-# Strict W:H — digits only, both positive (core/parse/cropSpec.cpp's rule).
-_CROP_ASPECT_RE = re.compile(r"^(\d+):(\d+)$")
-_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
-_CSS_NAME_RE = re.compile(r"^[A-Za-z]+$")
-_PAGE_FORMAT_RE = re.compile(r"^[abc](?:[0-9]|10)$")
-_FORMULA_CHARSET_RE = re.compile(r"^[0-9xy+\-*/(). ]*$")
-
-_FILTER_MODES = ("none", "bw", "sepia", "invert", "contour", "custom")
-_LINE_STYLES = ("solid", "dashed", "dotted")
-_LINE_KEYS = {"points", "color", "thickness", "pointSize", "style", "locked", "fillColor"}
+# Field schemas, token grammars and the cross-field rules are the registry's
+# (SCHEMA); only the per-op normalizers below are this surface's own.
 
 # _ACTION_FIELDS / _ACTION_VALIDATORS / _ACTION_APPLIERS / _TOP_LEVEL_ONLY_OPS /
 # _CONSOLE_SETTINGS_OPS are all DERIVED from OP_REGISTRY (contract §13) — defined
 # after the appliers below, which the registry entries reference.
-
-
-def _is_num(v: Any) -> bool:
-    """True for a real JSON number (bool is an int subclass, so exclude it)."""
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
-
-
-def _is_int(v: Any) -> bool:
-    """True for a real JSON integer (excluding bools)."""
-    return isinstance(v, int) and not isinstance(v, bool)
-
-
-def _fail(op: str, msg: str) -> None:
-    """Raise the uniform invalid-known-op error (fails the whole plan)."""
-    raise LlmPlanError('invalid "%s" action: %s' % (op, msg))
 
 
 def _strip_fences(text: str) -> str:
@@ -484,327 +465,48 @@ def _first_json_object(text: str) -> Optional[dict]:
     return None
 
 
-def _check_string(op: str, name: str, v: Any) -> str:
-    """Require a string field within the shared per-string length limit."""
-    if not isinstance(v, str):
-        _fail(op, '"%s" must be a string' % name)
-    if len(v) > MAX_STRING_LENGTH:
-        _fail(op, '"%s" exceeds %d characters' % (name, MAX_STRING_LENGTH))
-    return v
-
-
-def _validate_crop(a: dict) -> dict:
-    spec = a.get("spec")
-    if not isinstance(spec, dict):
-        _fail("crop", '"spec" must be an object of edge tokens')
-    # §3.2 action-level aspect tolerance: models sometimes put "aspect" beside
-    # "spec" — fold it in when the spec lacks it; a conflicting duplicate fails.
-    if a.get("aspect") is not None:
-        if spec.get("aspect") is not None and spec["aspect"] != a["aspect"]:
-            _fail(
-                "crop",
-                '"aspect" appears both beside "spec" and inside it with different values',
-            )
-        spec = dict(spec)
-        if spec.get("aspect") is None:
-            spec["aspect"] = a["aspect"]
-    extra = set(spec) - {"x1", "x2", "y1", "y2", "aspect", "album"}
-    if extra:
-        _fail("crop", "unknown spec keys: %s" % ", ".join(sorted(extra)))
-    norm: dict = {}
-    # §10 (console profile): the console-only `"album": true` spec key — the
-    # `/crop … album` missing-axis derivation. Kept out of the token spec string.
-    if "album" in spec:
-        if not isinstance(spec["album"], bool):
-            _fail("crop", '"album" must be a boolean')
-        if spec["album"]:
-            norm["album"] = True
-    for key in ("x1", "y1", "x2", "y2"):
-        if key not in spec:
-            continue
-        token = _check_string("crop", "spec.%s" % key, spec[key]).strip()
-        if not _CROP_TOKEN_RE.match(token):
-            _fail("crop", "bad %s token %r" % (key, spec[key]))
-        norm[key] = token
-    if "aspect" in spec:
-        token = _check_string("crop", "spec.aspect", spec["aspect"]).strip()
-        m = _CROP_ASPECT_RE.match(token)
-        if not m or int(m.group(1)) <= 0 or int(m.group(2)) <= 0:
-            _fail("crop", "bad aspect token %r" % (spec["aspect"],))
-        norm["aspect"] = token
-    if not norm:
-        _fail("crop", '"spec" needs at least one of x1/x2/y1/y2/aspect')
-    return {"op": "crop", "spec": norm}
-
-
-def _validate_rotate(a: dict) -> dict:
-    direction = a.get("dir")
-    if direction not in ("left", "right"):
-        _fail("rotate", '"dir" must be "left" or "right"')
-    times = a.get("times", 1)
-    if not _is_int(times) or not (1 <= times <= 3):
-        _fail("rotate", '"times" must be an integer 1..3')
-    return {"op": "rotate", "dir": direction, "times": times}
-
-
-def _validate_filter(a: dict) -> dict:
-    mode = a.get("mode")
-    if mode not in _FILTER_MODES:
-        _fail("filter", '"mode" must be one of %s' % "|".join(_FILTER_MODES))
-    if mode == "custom":
-        tint = a.get("tint")
-        if not isinstance(tint, str) or not _HEX_COLOR_RE.match(tint):
-            _fail("filter", '"custom" requires "tint" as "#rrggbb"')
-        return {"op": "filter", "mode": mode, "tint": tint}
-    if "tint" in a:
-        _fail("filter", '"tint" is only allowed with mode "custom"')
-    return {"op": "filter", "mode": mode}
-
-
-def _validate_line(d: Any) -> dict:
-    """Strict per-Line validation for LLM-supplied layout lines (contract §3)."""
-    if not isinstance(d, dict):
-        _fail("layout", "each line must be an object")
-    extra = set(d) - _LINE_KEYS
-    if extra:
-        _fail("layout", "unknown line keys: %s" % ", ".join(sorted(extra)))
-    points = d.get("points")
-    if not isinstance(points, list) or not points:
-        _fail("layout", 'each line needs a non-empty "points" array')
-    for p in points:
-        if not isinstance(p, dict) or set(p) - {"x", "y"}:
-            _fail("layout", "each point must be an {x, y} object")
-        if not _is_num(p.get("x")) or not _is_num(p.get("y")):
-            _fail("layout", "point x/y must be numbers")
-    if "color" in d and not isinstance(d["color"], str):
-        _fail("layout", '"color" must be a string')
-    for key in ("thickness", "pointSize"):
-        if key in d and not (_is_num(d[key]) and d[key] >= 0):
-            _fail("layout", '"%s" must be a non-negative number' % key)
-    if "style" in d and d["style"] not in _LINE_STYLES:
-        _fail("layout", '"style" must be one of %s' % "|".join(_LINE_STYLES))
-    if "locked" in d and not isinstance(d["locked"], bool):
-        _fail("layout", '"locked" must be a boolean')
-    if "fillColor" in d and not isinstance(d["fillColor"], str):
-        _fail("layout", '"fillColor" must be a string')
-    return d
-
-
-def _validate_layout(a: dict) -> dict:
-    lines = a.get("lines")
-    if not isinstance(lines, list):
-        _fail("layout", '"lines" must be an array')
-    if len(lines) > MAX_LAYOUT_LINES:
-        _fail("layout", "too many lines (%d > %d)" % (len(lines), MAX_LAYOUT_LINES))
-    return {"op": "layout", "lines": [_validate_line(ln) for ln in lines]}
-
-
-def _validate_formula(a: dict) -> dict:
-    # §2: two forms — axis + expr (empty expr clears that axis), or `enabled` ALONE
-    # (false switches formulas off entirely, restoring identity).
-    if "enabled" in a:
-        if "axis" in a or "expr" in a:
-            _fail("formula", '"enabled" stands alone — never beside "axis"/"expr"')
-        if not isinstance(a["enabled"], bool):
-            _fail("formula", '"enabled" must be a boolean')
-        return {"op": "formula", "enabled": a["enabled"]}
-    axis = a.get("axis")
-    if axis not in ("x", "y"):
-        _fail("formula", '"axis" must be "x" or "y"')
-    expr = _check_string("formula", "expr", a.get("expr"))
-    if not _FORMULA_CHARSET_RE.match(expr):
-        _fail("formula", "expr has characters outside [0-9xy+-*/(). ]")
-    other = "y" if axis == "x" else "x"
-    if other in expr:
-        _fail("formula", 'expr for axis "%s" must not use "%s"' % (axis, other))
-    return {"op": "formula", "axis": axis, "expr": expr}
-
-
-def _validate_page_format(op: str, value: Any) -> str:
-    if not isinstance(value, str) or not _PAGE_FORMAT_RE.match(value):
-        _fail(op, '"format" must be a lowercase ISO name a0..a10 / b0..b10 / c0..c10')
-    return value
-
-
-def _validate_cm_dim(op: str, name: str, v: Any) -> float:
-    """A §2 centimetre dimension: a number within the shared custom-page range."""
-    if not _is_num(v) or not (0.1 <= v <= 500.0):
-        _fail(op, '"%s" must be a number of centimetres within 0.1..500' % name)
-    return float(v)
-
-
-def _validate_page(a: dict) -> dict:
-    # §2: exactly one of the two forms — an ISO format name, or width+height cm dims
-    # (the editors' custom page size).
-    has_dims = "width" in a or "height" in a
-    if has_dims:
-        if "format" in a:
-            _fail("page", 'takes "format" OR "width"+"height", not both')
-        if "width" not in a or "height" not in a:
-            _fail("page", 'custom dims need both "width" and "height"')
-        return {
-            "op": "page",
-            "width": _validate_cm_dim("page", "width", a.get("width")),
-            "height": _validate_cm_dim("page", "height", a.get("height")),
-        }
-    return {"op": "page", "format": _validate_page_format("page", a.get("format"))}
-
-
-def _validate_blank(a: dict) -> dict:
-    color = a.get("color")
-    if not isinstance(color, str) or not (
-        _HEX_COLOR_RE.match(color) or _CSS_NAME_RE.match(color)
-    ):
-        _fail("blank", '"color" must be "#rrggbb" or a CSS colour name')
-    out = {"op": "blank", "color": color}
-    if "format" in a:
-        out["format"] = _validate_page_format("blank", a.get("format"))
-    # §2: optional cm dims — both or neither, overriding "format" at execution.
-    if "width" in a or "height" in a:
-        if "width" not in a or "height" not in a:
-            _fail("blank", 'explicit dims need both "width" and "height"')
-        out["width"] = _validate_cm_dim("blank", "width", a.get("width"))
-        out["height"] = _validate_cm_dim("blank", "height", a.get("height"))
+# ── per-op normalizers: the typed struct filling the generic deep-pick can't express ──
+# Each runs on the registry-normalized action — {op, declared keys present, defaults,
+# `trim` keys trimmed} — AFTER the table-driven check passed; nothing here validates.
+def _normalize_crop(out: dict) -> dict:
+    """The console-only ``"album": false`` means "no derivation" — dropped from the spec."""
+    if out["spec"].get("album") is False:
+        del out["spec"]["album"]
     return out
 
 
-def _validate_frame(a: dict) -> dict:
-    has_index = "index" in a
-    has_indices = "indices" in a
-    if has_index == has_indices:
-        _fail("frame", 'exactly one of "index" or "indices" is required')
-    if has_index:
-        index = a.get("index")
-        if not _is_int(index) or index < 0:
-            _fail("frame", '"index" must be an integer >= 0')
-        return {"op": "frame", "index": index}
-    indices = a.get("indices")
-    if not isinstance(indices, list) or not indices:
-        _fail("frame", '"indices" must be a non-empty array of integers >= 0')
-    if len(indices) > MAX_FRAME_INDICES:
-        _fail("frame", "too many indices (%d > %d)" % (len(indices), MAX_FRAME_INDICES))
-    for idx in indices:
-        if not _is_int(idx) or idx < 0:
-            _fail("frame", '"indices" must be a non-empty array of integers >= 0')
-    return {"op": "frame", "indices": list(indices)}
-
-
-def _validate_image(a: dict) -> dict:
-    """§2.1 ``image``: switch the working image to the turn's Nth attachment (1-based)."""
-    index = a.get("index")
-    if not _is_int(index) or index < 1:
-        _fail("image", '"index" must be an integer >= 1')
-    return {"op": "image", "index": index}
-
-
-def _validate_save(a: dict) -> dict:
-    """§2.1 ``save``: persist the current image + layout; the name is optional.
-    ``path`` is valid on every surface (desktop/cli shape: string ≤ 1024, no URL
-    scheme); this surface's executor notes+skips it and saves to the usual place."""
-    out = {"op": "save"}
-    if a.get("name") is not None:
-        name = a.get("name")
-        if not isinstance(name, str) or len(name) > MAX_SAVE_NAME:
-            _fail("save", '"name" must be a string of at most %d characters' % MAX_SAVE_NAME)
-        out["name"] = name
-    if a.get("path") is not None:
-        path = a.get("path")
-        if not isinstance(path, str) or len(path) > MAX_PATH_CHARS:
-            _fail("save", '"path" must be a string of at most %d characters' % MAX_PATH_CHARS)
-        path = path.strip()
-        if re.match(r"[a-z][a-z0-9+.-]*://", path, re.I):
-            _fail("save", '"path" is a local path, not a URL')
-        if path:
-            out["path"] = path
+def _float_dims(out: dict) -> dict:
+    """§2 centimetre dims are floats (page / blank)."""
+    for key in ("width", "height"):
+        if key in out:
+            out[key] = float(out[key])
     return out
 
 
-_MAX_HISTORY_STEPS = 20  # §2 undo/redo: "steps" int 1..20 (default 1)
+def _strip_field(key: str) -> Callable[[dict], dict]:
+    """Store a padded string field trimmed (connect/disconnect server, delete path);
+    resolution against the console's own state happens at execution."""
+
+    def normalize(out: dict) -> dict:
+        out[key] = out[key].strip()
+        return out
+
+    return normalize
 
 
-def _validate_steps(op: str, a: dict) -> dict:
-    """§2 ``undo``/``redo``: an optional ``steps`` int 1..20 (default 1)."""
-    steps = a.get("steps", 1)
-    if not _is_int(steps) or not (1 <= steps <= _MAX_HISTORY_STEPS):
-        _fail(op, '"steps" must be an integer 1..%d' % _MAX_HISTORY_STEPS)
-    return {"op": op, "steps": steps}
+def _normalize_save(out: dict) -> dict:
+    """An empty (or all-space) path is no destination at all; this executor
+    notes+skips a path anyway."""
+    if out.get("path") == "":
+        del out["path"]
+    return out
 
 
-def _validate_undo(a: dict) -> dict:
-    return _validate_steps("undo", a)
-
-
-def _validate_redo(a: dict) -> dict:
-    return _validate_steps("redo", a)
-
-
-def _validate_reset(a: dict) -> dict:
-    return {"op": "reset"}  # §2: no fields (the field whitelist already enforced it)
-
-
-def _validate_clear(a: dict) -> dict:
-    return {"op": "clear"}  # §10: no fields at all
-
-
-def _validate_clear_chat(a: dict) -> dict:
-    return {"op": "clearChat"}  # §10: no fields at all; top-level only
-
-
-def _validate_server_op(op: str, a: dict) -> dict:
-    """The shared connect/disconnect field: a non-empty ``server`` string. Resolution
-    against the user's own connections happens at execution — shape only here."""
-    server = a.get("server")
-    if isinstance(server, str) and len(server) <= MAX_STRING_LENGTH:
-        server = server.strip()
-        if server:
-            return {"op": op, "server": server}
-    _fail(op, '"server" must be a non-empty string')
-
-
-def _validate_connect(a: dict) -> dict:
-    return _validate_server_op("connect", a)
-
-
-def _validate_disconnect(a: dict) -> dict:
-    return _validate_server_op("disconnect", a)
-
-
-def _validate_delete(a: dict) -> dict:
-    """Console ``delete``: a non-empty path. The executor applies the SAME guards the
-    /delete command uses (.stencil only, no URLs, no escaping the working directory)."""
-    path = a.get("path")
-    if isinstance(path, str) and len(path) <= MAX_STRING_LENGTH:
-        path = path.strip()
-        if path:
-            return {"op": "delete", "path": path}
-    _fail("delete", '"path" must be a non-empty string')
-
-
-def _is_http_url(url: str) -> bool:
-    """``http(s)://`` + at least one character, none of them whitespace (the browser
-    validator's ``/^https?:\\/\\/\\S+$/i``)."""
-    low = url.lower()
-    scheme = "https://" if low.startswith("https://") else (
-        "http://" if low.startswith("http://") else None
-    )
-    if scheme is None or len(url) == len(scheme):
-        return False
-    return not any(c.isspace() for c in url)
-
-
-def _validate_open_url(a: dict) -> dict:
-    """§10 ``openUrl``: an http(s) URL + optional ``incognito`` bool. Whether the USER
-    actually wrote the URL is the plan-level guard's job (:func:`url_echoed_by_user`)
-    — this checks shape only."""
-    incognito = a.get("incognito", False)
-    if not isinstance(incognito, bool):
-        _fail("openUrl", '"incognito" must be a boolean')
-    url = a.get("url")
-    if isinstance(url, str) and len(url) <= MAX_STRING_LENGTH:
-        url = url.strip()
-        if _is_http_url(url):
-            return {"op": "openUrl", "url": url, "incognito": incognito}
-    _fail("openUrl", '"url" must be an http(s) URL')
+def _normalize_open_url(out: dict) -> dict:
+    """``incognito`` always rides the action (False when omitted). Whether the USER
+    wrote the URL is the plan-level guard's job (:func:`url_echoed_by_user`)."""
+    out.setdefault("incognito", False)
+    return out
 
 
 class _MisplacedOp(Exception):
@@ -816,26 +518,27 @@ class _MisplacedOp(Exception):
         self.reason = reason
 
 
+def _plan_check(check: Callable[[], None]) -> None:
+    """Run a plan-level registry check; a failure is the uniform plan error."""
+    try:
+        check()
+    except SchemaError as e:
+        raise LlmPlanError(str(e)) from None
+
+
 def _validate_actions(raw: Any, warnings: List[str], where: str) -> List[dict]:
     """Validate an actions array: unknown ops are dropped with a warning (forward
     compatibility); a known op with invalid params fails the whole plan. A misplaced
     top-level-only/console op raises :class:`_MisplacedOp` — the variant goes, not the plan."""
     if raw is None:
         return []
-    if not isinstance(raw, list):
-        raise LlmPlanError('"%s" must be an array' % where)
-    if len(raw) > MAX_ACTIONS:
-        raise LlmPlanError(
-            'too many actions in "%s" (%d > %d)' % (where, len(raw), MAX_ACTIONS)
-        )
+    _plan_check(lambda: SCHEMA.check_envelope(raw, "actions"))
     out: List[dict] = []
     for a in raw:
-        if not isinstance(a, dict):
-            raise LlmPlanError('every action in "%s" must be an object' % where)
         op = a.get("op")
         if not isinstance(op, str) or not op:
             raise LlmPlanError('an action in "%s" is missing its "op"' % where)
-        if op not in _ACTION_FIELDS:
+        if op not in OP_REGISTRY:
             warnings.append('unknown op "%s" dropped' % op)
             continue
         if op in _TOP_LEVEL_ONLY_OPS and where != "actions":
@@ -847,9 +550,6 @@ def _validate_actions(raw: Any, warnings: List[str], where: str) -> List[dict]:
                 'the "%s" op adjusts the console, not the image, and cannot appear '
                 "in a variant" % op
             )
-        extra = set(a) - _ACTION_FIELDS[op]
-        if extra:
-            _fail(op, "unknown fields: %s" % ", ".join(sorted(extra)))
         out.append(_ACTION_VALIDATORS[op](a))
     return out
 
@@ -883,22 +583,10 @@ def parse_op_plan(text: str) -> OpPlan:
     variants: List[Variant] = []
     raw_variants = obj.get("variants")
     if raw_variants is not None:
-        if not isinstance(raw_variants, list):
-            raise LlmPlanError('"variants" must be an array')
-        if len(raw_variants) > MAX_VARIANTS:
-            raise LlmPlanError(
-                "too many variants (%d > %d)" % (len(raw_variants), MAX_VARIANTS)
-            )
+        # The registry envelope: ≤ MAX_VARIANTS objects of {label: string, actions}.
+        _plan_check(lambda: SCHEMA.check_envelope(raw_variants, "variants"))
         for i, rv in enumerate(raw_variants):
-            if not isinstance(rv, dict):
-                raise LlmPlanError("every variant must be an object")
-            extra = set(rv) - {"label", "actions"}
-            if extra:
-                raise LlmPlanError(
-                    "unknown variant fields: %s" % ", ".join(sorted(extra))
-                )
-            label = rv.get("label")
-            label = label.strip() if isinstance(label, str) else ""
+            label = (rv.get("label") or "").strip()
             try:
                 v_actions = _validate_actions(
                     rv.get("actions"), warnings, "variants[%d]" % i
@@ -928,91 +616,41 @@ def parse_op_plan(text: str) -> OpPlan:
 
 
 # ── §11 interactive replies (`ask`) ───────────────────────────────────────────
-_ASK_KEYS = {"question", "mode", "options", "allowCustom", "customLabel"}
-_ASK_OPTION_KEYS = {"label", "actions", "image"}
-
-
 def _validate_ask(raw: Any, warnings: List[str]) -> Optional[AskCard]:
     """Validate the optional ``ask`` object (contract §11) → the card, or ``None``.
 
-    Strict, like an action: a card nobody can answer (no options, one option, six options,
-    an option that is both a render and a reference) rejects the whole plan rather than
-    reaching the user as a broken prompt. Option previews are dropped here — a console has
-    nowhere to show them — with ONE note for the card, never one per option.
+    The card's structure — keys, caps, 2..5 options, an image reference's exactly-one-of
+    url / projectId / scanIndex, http(s)-only urls — is the registry's ask schema, checked
+    on every surface even where nothing renders. Option previews are ordinary §2 actions,
+    validated as "inside variants or previews": a misplaced op costs the option its
+    preview (a warning), an invalid one the plan. A console has nowhere to show a preview,
+    so it is dropped after validation — with ONE note for the card, never one per option —
+    and only ``label`` survives.
     """
     if raw is None:
         return None
-    if not isinstance(raw, dict):
-        raise LlmPlanError('"ask" must be an object')
-    extra = set(raw) - _ASK_KEYS
-    if extra:
-        raise LlmPlanError("unknown ask fields: %s" % ", ".join(sorted(extra)))
-
-    question = raw.get("question")
-    if not isinstance(question, str) or not question.strip():
-        raise LlmPlanError('"ask.question" must be a non-empty string')
-    if len(question) > MAX_ASK_QUESTION:
-        raise LlmPlanError('"ask.question" exceeds %d characters' % MAX_ASK_QUESTION)
-
-    mode = raw.get("mode", "single")
-    if mode not in ("single", "multi"):
-        raise LlmPlanError('"ask.mode" must be "single" or "multi"')
-
-    allow_custom = raw.get("allowCustom", False)
-    if not isinstance(allow_custom, bool):
-        raise LlmPlanError('"ask.allowCustom" must be a boolean')
-
-    custom_label = raw.get("customLabel")
-    if custom_label is None:
-        custom_label = DEFAULT_CUSTOM_LABEL
-    else:
-        if not isinstance(custom_label, str) or not custom_label.strip():
-            raise LlmPlanError('"ask.customLabel" must be a non-empty string')
-        if len(custom_label) > MAX_ASK_LABEL:
-            raise LlmPlanError('"ask.customLabel" exceeds %d characters' % MAX_ASK_LABEL)
-        custom_label = custom_label.strip()
-
-    raw_options = raw.get("options")
-    if not isinstance(raw_options, list):
-        raise LlmPlanError('"ask.options" must be an array')
-    if not MIN_ASK_OPTIONS <= len(raw_options) <= MAX_ASK_OPTIONS:
-        raise LlmPlanError(
-            '"ask.options" must hold %d..%d options' % (MIN_ASK_OPTIONS, MAX_ASK_OPTIONS)
-        )
-
+    _plan_check(lambda: SCHEMA.validate_ask(raw))
+    card = SCHEMA.normalize_ask(raw)
     options: List[AskOption] = []
     dropped_preview = False
-    for i, ro in enumerate(raw_options):
-        where = "ask option %d" % (i + 1)
-        if not isinstance(ro, dict):
-            raise LlmPlanError("%s must be an object" % where)
-        unknown = set(ro) - _ASK_OPTION_KEYS
-        if unknown:
-            raise LlmPlanError("%s has unknown fields: %s" % (where, ", ".join(sorted(unknown))))
-        label = ro.get("label")
-        if not isinstance(label, str) or not label.strip():
-            raise LlmPlanError('%s "label" must be a non-empty string' % where)
-        if len(label) > MAX_ASK_LABEL:
-            raise LlmPlanError('%s "label" exceeds %d characters' % (where, MAX_ASK_LABEL))
-        has_actions = ro.get("actions") is not None
-        has_image = ro.get("image") is not None
-        if has_actions and has_image:
-            raise LlmPlanError(
-                '%s carries both "actions" and "image" — an option previews a render OR '
-                "names an existing image" % where
-            )
-        if has_actions or has_image:
+    for i, (ro, opt) in enumerate(zip(raw["options"], card["options"])):
+        if ro.get("actions") is not None:
+            try:
+                _validate_actions(ro["actions"], warnings, "ask option %d" % (i + 1))
+            except _MisplacedOp:
+                pass  # the preview is dropped below anyway — one card-level note
+        if ro.get("actions") is not None or ro.get("image") is not None:
             dropped_preview = True
-        options.append(AskOption(label=label.strip()))
+        options.append(AskOption(label=opt["label"]))
     if dropped_preview:
         warnings.append(
             "the console can't show option previews — the choices are listed by name"
         )
     return AskCard(
-        question=question.strip(),
-        multi=mode == "multi",
-        allow_custom=allow_custom,
-        custom_label=custom_label,
+        question=card["question"],
+        multi=card["mode"] == "multi",
+        allow_custom=card.get("allowCustom", False),
+        custom_label=card.get("customLabel", DEFAULT_CUSTOM_LABEL),
         options=options,
     )
 
@@ -1420,12 +1058,13 @@ def _apply_console_op(action: dict, editor: Any, frame: Optional[_FrameMap] = No
 # ── the op registry (contract §13): ONE entry per op ──────────────────────────
 @dataclass(frozen=True)
 class OpSpec:
-    """One §13 registry entry — the single source of an op's existence.
+    """One §13 registry entry — the single source of an op's existence on this surface.
 
-    Validator, applier, allowed fields, prompt bullet and flags live together, so
-    the "Available ops" prompt sections are GENERATED from the same table that
-    validation and execution dispatch on: the prompt can never promise an op this
-    surface cannot run, and adding/removing an op is one entry.
+    Membership, the key schema and the flags come from the shared opRegistry.json entry
+    (SCHEMA); this surface adds the validator (the table-driven check + normalize),
+    the applier, the prompt bullet and the block that carries it, so the "Available
+    ops" prompt sections are GENERATED from the same table that validation and
+    execution dispatch on: the prompt can never promise an op this surface cannot run.
     """
 
     validator: Callable[[dict], dict]
@@ -1450,14 +1089,32 @@ _CONNECT_DISCONNECT_BULLET = """- {"op":"connect","server":"..."} / {"op":"disco
   a server not listed there, tell the user to run '/connect <url>' themselves."""
 
 
-# Registry order is prompt order: the §2 core ops as §4 lists them, then the §10
-# console-profile ops as the console block splices them. The pystencil console
-# carries the cli console's profile minus accent/reconnect (no theme, no reconnect
-# command) and copy (no clipboard) — those capabilities are not wired on this
-# surface, so per §13 they simply have no entries here and are never promised.
-OP_REGISTRY: Dict[str, OpSpec] = {
-    "crop": OpSpec(
-        _validate_crop, _apply_crop, frozenset({"op", "spec", "aspect"}),
+def _make_validator(
+    entry: dict, normalizer: Optional[Callable[[dict], dict]]
+) -> Callable[[dict], dict]:
+    """The registry's check (native rules, unknown fields, types, grammars, presence
+    rules) + generic normalize, then this surface's own normalizer, if any."""
+
+    def validate(a: dict) -> dict:
+        try:
+            out = SCHEMA.normalize(SCHEMA.validate_action(a, entry), entry)
+        except SchemaError as e:
+            raise LlmPlanError(str(e)) from None
+        return normalizer(out) if normalizer is not None else out
+
+    return validate
+
+
+# What this surface adds to each registry entry: (applier, normalizer, bullet scope,
+# bullet). Table order is prompt order: the §2 core ops as §4 lists them, then the
+# §10 console-profile ops as the console block splices them (reset last — a §2 core
+# op whose bullet rides the console block). The pystencil console carries the cli
+# console's profile minus accent/reconnect (no theme, no reconnect command) and copy
+# (no clipboard) — the registry restricts those entries to the cli, so they are never
+# registered or promised here.
+_SURFACE_OPS: Dict[str, tuple] = {
+    "crop": (
+        _apply_crop, _normalize_crop, "core",
         """- {"op":"crop","spec":{"x1":"10%","x2":"-10%","aspect":"3:4"}} — move edges inward;
   tokens are numbers with optional unit % / px / cm / in; a leading "-" measures from the
   opposite side. Include only the edges you want to move. For a target aspect ratio add
@@ -1466,141 +1123,128 @@ OP_REGISTRY: Dict[str, OpSpec] = {
   so NEVER derive ratio tokens yourself; combine it with edge tokens when a specific
   region should be kept.""",
     ),
-    "rotate": OpSpec(
-        _validate_rotate, _apply_rotate, frozenset({"op", "dir", "times"}),
+    "rotate": (
+        _apply_rotate, None, "core",
         """- {"op":"rotate","dir":"left"|"right","times":1..3} — quarter turns only.""",
     ),
-    "filter": OpSpec(
-        _validate_filter, _apply_filter, frozenset({"op", "mode", "tint"}),
+    "filter": (
+        _apply_filter, None, "core",
         """- {"op":"filter","mode":"none"|"bw"|"sepia"|"invert"|"contour"|"custom","tint":"#rrggbb"}
   — "custom" is a duotone tint and requires "tint"; "contour" is edge detection.""",
     ),
-    "layout": OpSpec(
-        _validate_layout, _apply_layout, frozenset({"op", "lines"}),
+    "layout": (
+        _apply_layout, None, "core",
         """- {"op":"layout","lines":[{"points":[{"x":0,"y":0},...],"color":"#FFFF00","thickness":2,
   "pointSize":4,"style":"solid"|"dashed"|"dotted","locked":false,"fillColor":"transparent"}]}
   — draw annotation polylines in image-pixel coordinates. When asked to extract lines,
   shapes, or structure from an attached image, answer with this op. An empty "lines"
   array REMOVES every drawn line — that is what "clear/remove the lines" means.""",
     ),
-    "formula": OpSpec(
-        _validate_formula, _apply_formula, frozenset({"op", "axis", "expr", "enabled"}),
+    "formula": (
+        _apply_formula, None, "core",
         """- {"op":"formula","axis":"x"|"y","expr":"x*2+10"} — coordinate transform; single variable
   matching the axis; operators + - * / ** and parentheses only. An empty "expr" clears
   that axis; {"op":"formula","enabled":false} switches formulas OFF entirely.""",
     ),
-    "page": OpSpec(
-        _validate_page, _apply_page, frozenset({"op", "format", "width", "height"}),
+    "page": (
+        _apply_page, _float_dims, "core",
         """- {"op":"page","format":"a4"} — ISO page formats a0–a10, b0–b10, c0–c10 — or a custom
   size: {"op":"page","width":20,"height":30} in centimetres (one form or the other).""",
     ),
-    "blank": OpSpec(
-        _validate_blank, _apply_blank,
-        frozenset({"op", "color", "format", "width", "height"}),
+    "blank": (
+        _apply_blank, _float_dims, "core",
         """- {"op":"blank","color":"#ffffff","format":"a4"} — create a blank page; explicit
   centimetre dims ride as "width"/"height" instead of "format".""",
     ),
-    # §2 undo/redo are top-level only — sandboxed variant renders write
-    # history-invisible state (they share §2.1's rule and one prompt bullet).
-    "undo": OpSpec(
-        _validate_undo, _apply_history_step, frozenset({"op", "steps"}),
-        _UNDO_REDO_BULLET, top_level_only=True,
-    ),
-    "redo": OpSpec(
-        _validate_redo, _apply_history_step, frozenset({"op", "steps"}),
-        _UNDO_REDO_BULLET, top_level_only=True,
-    ),
-    "frame": OpSpec(
-        _validate_frame, _apply_frame, frozenset({"op", "index", "indices"}),
+    "undo": (_apply_history_step, None, "core", _UNDO_REDO_BULLET),
+    "redo": (_apply_history_step, None, "core", _UNDO_REDO_BULLET),
+    "frame": (
+        _apply_frame, None, "core",
         """- {"op":"frame","index":0} or {"op":"frame","indices":[0,30,60]} — pick video frame(s);
   only valid when the current input is a video.""",
     ),
-    # §2.1: the multi-image ops are TOP-LEVEL only — inside "variants" (which exist
-    # to produce extra renders of one image) they cost that variant its place.
-    "image": OpSpec(
-        _validate_image, _apply_image, frozenset({"op", "index"}),
+    "image": (
+        _apply_image, None, "core",
         """- {"op":"image","index":1} — switch the working image to the Nth image attached to THIS
   message (1-based, in attachment order); coordinates in later actions are in THAT
   image's pixel frame. Only valid when the user attached images. Use it to edit several
   attached images in one plan, giving each image its OWN actions.""",
-        top_level_only=True,
     ),
-    "save": OpSpec(
-        _validate_save, _apply_save, frozenset({"op", "name", "path"}),
+    "save": (
+        _apply_save, _normalize_save, "core",
         """- {"op":"save","name":"portrait 1"} — save the current image with its drawn lines as a
   project. When the user asks to process several images and keep the results, finish
   each image's actions with a "save" before switching to the next: image 1, its edits,
   save, image 2, its edits, save, …""",
-        top_level_only=True,
     ),
-    # The §10 console profile: like the editor-settings ops these are forbidden
-    # inside "variants" (variants exist to produce images) — dropping that variant
-    # with a distinct message from §2.1's — and execute through the console's hooks.
-    "connect": OpSpec(
-        _validate_connect, _apply_console_op, frozenset({"op", "server"}),
-        _CONNECT_DISCONNECT_BULLET, scope="console", console_settings=True,
-    ),
-    "disconnect": OpSpec(
-        _validate_disconnect, _apply_console_op, frozenset({"op", "server"}),
-        _CONNECT_DISCONNECT_BULLET, scope="console", console_settings=True,
-    ),
-    "delete": OpSpec(
-        _validate_delete, _apply_console_op, frozenset({"op", "path"}),
+    # The §10 console profile executes through the console's hooks.
+    "connect": (_apply_console_op, _strip_field("server"), "console", _CONNECT_DISCONNECT_BULLET),
+    "disconnect": (_apply_console_op, _strip_field("server"), "console", _CONNECT_DISCONNECT_BULLET),
+    "delete": (
+        _apply_console_op, _strip_field("path"), "console",
         """- {"op":"delete","path":"old.stencil"} — delete a LOCAL .stencil project file in
   the working directory (the console's /delete). Only .stencil files, never a URL
   or a path outside the working directory.""",
-        scope="console", console_settings=True,
     ),
-    "openUrl": OpSpec(
-        _validate_open_url, _apply_console_op, frozenset({"op", "url", "incognito"}),
+    "openUrl": (
+        _apply_console_op, _normalize_open_url, "console",
         """- {"op":"openUrl","url":"https://…"} — load an image (or video frame) from a URL
   as the working image (the console's /upload). ONLY a URL the user themselves
   wrote in this conversation — never introduce, complete, or rewrite one.""",
-        scope="console", console_settings=True,
     ),
-    "clear": OpSpec(
-        _validate_clear, _apply_console_op, frozenset({"op"}),
+    "clear": (
+        _apply_console_op, None, "console",
         """- {"op":"clear"} — REMOVE the working image and its lines, leaving the editor empty.
   This is what "remove/delete/clear the image" means. Never answer that with
   {"op":"blank"}: a blank REPLACES the picture with a white page, which is not a
   removal. Takes no fields.""",
-        scope="console", console_settings=True,
     ),
-    # §10 clearChat: every chat surface carries it. Executed via the /chat clear
-    # path with an in-app confirm, DEFERRED to the end of the turn (the REPL's
-    # plan_clear_chat hook records it; the confirm runs once the turn settles).
-    "clearChat": OpSpec(
-        _validate_clear_chat, _apply_console_op, frozenset({"op"}),
+    # clearChat runs via the /chat clear path with an in-app confirm, DEFERRED to the
+    # end of the turn (the REPL's plan_clear_chat hook records it).
+    "clearChat": (
+        _apply_console_op, None, "console",
         """- {"op":"clearChat"} — clear THIS conversation's history; the app asks the user to
   confirm first, and the clear happens after this plan's other actions finish. This IS
   what "clear the chat / conversation / history" means; never answer that it cannot be
   done. Takes no fields.""",
-        scope="console", console_settings=True,
     ),
-    # reset is a §2 core op (allowed in variants), but its bullet rides the console
-    # block: the §4 embed does not list it, the console profile does.
-    "reset": OpSpec(
-        _validate_reset, _apply_reset, frozenset({"op"}),
+    "reset": (
+        _apply_reset, None, "console",
         """- {"op":"reset"} — drop every edit, back to the image exactly as it was loaded (the
   console's /reset). Takes no fields.""",
-        scope="console",
     ),
 }
 
+OP_REGISTRY: Dict[str, OpSpec] = {}
+for _name, (_applier, _normalizer, _scope, _bullet) in _SURFACE_OPS.items():
+    _entry = SCHEMA.ops.get(_name)
+    if _entry is None:  # pragma: no cover - guards registry edits
+        raise AssertionError('"%s" has no pystencil entry in opRegistry.json' % _name)
+    _flags = _entry["flags"]
+    OP_REGISTRY[_name] = OpSpec(
+        _make_validator(_entry, _normalizer), _applier,
+        frozenset({"op", *_entry["keys"]}), _bullet, scope=_scope,
+        # §2/§2.1 top-level-only ops drop the variant they appear in; the §10
+        # settings ops do the same (with their own message) and run through the
+        # console hooks.
+        top_level_only=bool(_flags.get("topLevelOnly")),
+        console_settings=bool(_flags.get("editorSetting") or _flags.get("consoleSetting")),
+    )
+_unbound = sorted(set(SCHEMA.ops) - set(OP_REGISTRY))
+if _unbound:  # pragma: no cover - guards registry edits
+    raise AssertionError(
+        "opRegistry.json registers %s for pystencil, but nothing here executes them"
+        % ", ".join(_unbound)
+    )
 
-# §13 forbidden ops — the §10 "never model-drivable" boundary, as NAMES: the
-# assistant's own configuration (self-configuration is the exfiltration
-# primitive), clipboard READS, hotkey rebinding, ending the session, chat
-# persistence/consent toggles, and server-side destruction beyond §10's grants.
-# Two teeth: the import-time registry check below, and _apply_action's reject.
-FORBIDDEN_OPS = (
-    "llm", "llmConfig", "provider", "apiKey", "setEndpoint",   # llm/provider config
-    "paste",                                                   # clipboard reads
-    "hotkey", "rebind",                                        # hotkey rebinding
-    "exit", "quit", "closeWindow",                             # session/window end
-    "chat", "chatSave", "shareTabs",                           # chat persistence/consent
-    "deleteRemote", "removeServerProject", "expire",           # server-side destruction
-)
+
+# §13 forbidden ops — the §10 "never model-drivable" boundary, as NAMES (the
+# registry's forbidden.perSurface.pystencil): the assistant's own configuration
+# (self-configuration is the exfiltration primitive), clipboard READS, hotkey
+# rebinding, ending the session, chat persistence/consent toggles, and server-side
+# destruction beyond §10's grants. Two teeth: the import-time registry check
+# below (parse skips an unregistered name as unknown), and _apply_action's reject.
+FORBIDDEN_OPS = tuple(SCHEMA.registry["forbidden"]["perSurface"]["pystencil"])
 
 _forbidden_registered = sorted(set(OP_REGISTRY) & set(FORBIDDEN_OPS))
 if _forbidden_registered:  # pragma: no cover - guards future registry edits

@@ -13,33 +13,18 @@
 //   • Extraction tolerance: strip Markdown code fences, take the first balanced
 //     { … } that parses as a JSON object. No JSON object at all ⇒ chat-only
 //     (raw text becomes the reply; zero actions; NOT an error).
-//   • Strict validation once an object is found: `reply` must be a non-empty
-//     string; unknown fields / wrong types / out-of-range values reject an
-//     action; a KNOWN op with invalid params fails the whole plan; an UNKNOWN
-//     op is dropped with a warning (forward compatibility). `version` other
-//     than 1 (or absent) is accepted but ignored.
+//   • Strict validation once an object is found, TABLE-DRIVEN from the shared
+//     op registry (opSchema.hpp): unknown fields / wrong types / out-of-range
+//     values reject an action; a KNOWN op with invalid params fails the whole
+//     plan; an UNKNOWN op is dropped with a warning (forward compatibility).
+//     `version` other than 1 (or absent) is accepted but ignored.
 //   • §1's one exception: a top-level-only or editor-settings op inside a
 //     variant (or an ask-option preview) drops THAT variant/preview with a
 //     warning — the top-level actions and the well-formed variants still run.
-//   • Limits (same numbers everywhere): ≤16 actions per list (top-level and
-//     each variant), ≤8 variants, ≤200 layout lines, ≤5000 chars per
-//     formula/spec string field, ≤32 frame indices.
+//   • Limits (the registry's `limits`, same numbers everywhere): ≤16 actions
+//     per list, ≤8 variants, ≤200 layout lines, ≤5000 chars per string field,
+//     ≤32 frame indices, 2..5 ask options.
 namespace stencil::llm {
-
-  inline constexpr int kMaxActions = 16;
-  inline constexpr int kMaxVariants = 8;
-  inline constexpr int kMaxLayoutLines = 200;
-  inline constexpr int kMaxSpecChars = 5000;
-  // §10: the longest local path an openFile / save destination may carry.
-  inline constexpr int kMaxPathChars = 1024;
-  inline constexpr int kMaxFrameIndices = 32;
-
-  // §11 interactive replies — the same numbers as every other client.
-  inline constexpr int kMinAskOptions = 2;
-  inline constexpr int kMaxAskOptions = 5;
-  inline constexpr int kMaxAskQuestion = 300;
-  inline constexpr int kMaxAskLabel = 80;
-  inline constexpr int kMaxAskAnswer = 500;
 
   // §2 image ops + the §10 editor-settings ops (GUI editors only: Theme…
   // ClearChat adjust the EDITOR, never the image, and are banned in variants)
@@ -214,7 +199,8 @@ namespace stencil::llm {
   QString sanitizeLabel(const QString& label);
 
   // The text an answered card sends as the user's next turn (§11.3): the picked labels
-  // joined by ", ", or the typed custom text; trimmed and capped at kMaxAskAnswer.
+  // joined by ", ", or the typed custom text; trimmed and capped at the registry's
+  // ask.answer limit.
   QString askAnswerText(const QStringList& pickedLabels, const QString& custom = QString());
 
   // Does this plan actually WORK ON the picture? Only then is an attached image worth

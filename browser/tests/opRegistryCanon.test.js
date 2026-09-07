@@ -105,8 +105,9 @@ test('CROP_ASPECT agrees with the live crop validator (plus the >0 check beyond 
   for (const t of samples) {
     assert.equal(re('CROP_ASPECT').test(t), validates('crop', { spec: { aspect: t } }), `CROP_ASPECT vs validator on ${JSON.stringify(t)}`);
   }
-  // Positivity is documented as a note: the regex matches "0:4" but the validator rejects it.
-  assert.equal(re('CROP_ASPECT').test('0:4'), true);
+  // Positivity is part of the regex itself (portable to the hand-written matchers).
+  assert.equal(re('CROP_ASPECT').test('0:4'), false);
+  assert.equal(re('CROP_ASPECT').test('10:07'), true);
   assert.equal(validates('crop', { spec: { aspect: '0:4' } }), false);
 });
 
@@ -211,8 +212,13 @@ test('forbidden.core and forbidden.perSurface.browser match the live FORBIDDEN_O
 
 // ── corpus cross-check: the fixtures are the measured membership truth ──────
 
-const fixtures = readdirSync(FIXTURES_DIR).filter((f) => f.endsWith('.json')).sort()
-  .map((file) => ({ file, fx: JSON.parse(readFileSync(path.join(FIXTURES_DIR, file), 'utf8')) }));
+const fixtures = [
+  ...readdirSync(FIXTURES_DIR).filter((f) => f.endsWith('.json')).sort()
+    .map((file) => ({ file, fx: JSON.parse(readFileSync(path.join(FIXTURES_DIR, file), 'utf8')) })),
+  // The registry-generated bundle counts as measured membership too.
+  ...JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'generated', 'cases.json'), 'utf8')).cases
+    .map((fx) => ({ file: `${fx.name}.json`, fx })),
+];
 
 const expandProfiles = (profiles) => (profiles.includes('all') ? ALL_PROFILES : profiles);
 const fixtureOps = (input) => {

@@ -5,7 +5,8 @@ use serde_json::Value;
 
 use super::actions::{misplaced_top_level_op, validate_actions};
 use super::ask::validate_ask;
-use super::{OpPlan, OpPlanError, Variant, MAX_LABEL_CHARS, MAX_STRING_CHARS, MAX_VARIANTS};
+use super::schema::schema;
+use super::{OpPlan, OpPlanError, Variant, MAX_LABEL_CHARS};
 
 /// Remove Markdown code fences (``` with an optional language tag), keeping the rest of
 /// the text intact — the JS reference's `raw.replace(/```[a-zA-Z]*/g, '')`.
@@ -98,35 +99,25 @@ pub fn parse_op_plan(text: &str) -> Result<OpPlan, OpPlanError> {
         Some(Value::String(s)) if !s.trim().is_empty() => Some(s.clone()),
         _ => None,
     };
-    let actions = validate_actions(object.get("actions"), &mut warnings, "\"actions\"")?;
+    let actions = validate_actions(object.get("actions"), &mut warnings, "actions")?;
 
+    // The variants envelope (registry `envelope.variants`): ≤ MAX_VARIANTS objects, each
+    // with a string label and ≤ MAX_ACTIONS action objects — checked shallowly here.
     let raw_variants: &[Value] = match object.get("variants") {
         None | Some(Value::Null) => &[],
-        Some(Value::Array(list)) => list,
-        Some(_) => {
-            return Err(OpPlanError::Plan("\"variants\" must be an array".to_string()));
+        Some(value) => {
+            schema()
+                .check_envelope(value, "variants", "variants")
+                .map_err(OpPlanError::Plan)?;
+            value.as_array().expect("checked as an array")
         }
     };
-    if raw_variants.len() > MAX_VARIANTS {
-        return Err(OpPlanError::Plan(format!(
-            "more than {MAX_VARIANTS} variants"
-        )));
-    }
     let mut variants = Vec::with_capacity(raw_variants.len());
     for (i, raw) in raw_variants.iter().enumerate() {
-        let Value::Object(v) = raw else {
-            return Err(OpPlanError::Plan("every variant must be an object".to_string()));
-        };
-        let position = format!("variant {}", i + 1);
+        let v = raw.as_object().expect("checked as an object");
         // An absent/empty label stays empty here; `to_edit_requests` falls back to the
         // positional `variant-N` file stem (like the other clients).
-        let label = match v.get("label") {
-            None | Some(Value::Null) => String::new(),
-            Some(Value::String(s)) if s.len() <= MAX_STRING_CHARS => s.clone(),
-            Some(_) => {
-                return Err(OpPlanError::Plan("variant \"label\" must be a string".to_string()));
-            }
-        };
+        let label = v.get("label").and_then(Value::as_str).unwrap_or_default().to_string();
         // §1 leniency: a variant that misplaces a top-level-only op costs THAT variant its
         // place, not the whole turn's work — drop it with a warning and run the rest.
         if let Some(op) = misplaced_top_level_op(v.get("actions")) {
@@ -137,7 +128,8 @@ pub fn parse_op_plan(text: &str) -> Result<OpPlan, OpPlanError> {
             ));
             continue;
         }
-        let actions = validate_actions(v.get("actions"), &mut warnings, &position)?;
+        let actions =
+            validate_actions(v.get("actions"), &mut warnings, &format!("variant {} actions", i + 1))?;
         variants.push(Variant { label, actions });
     }
 

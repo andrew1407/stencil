@@ -37,6 +37,7 @@ All JS test suites use Node's built-in runner (no deps to install). C++ uses CMa
 | **bot** | `cd bot && dotnet build Stencil.TelegramBot.slnx` | `dotnet test Stencil.TelegramBot.slnx` (offline: no token/server/CLI/Redis) | `dotnet run --project src/Stencil.TelegramBot.Bot` (needs `TELEGRAM_BOT_TOKEN` in `bot/.env` + the CLI) |
 
 - `node --test` **never loads wasm** — it always runs the JS fallback path.
+- **LLM op-plan fixtures**: `cd browser && npm run gen-fixtures` regenerates `js/config/llm/fixtures/opPlan/generated/cases.json` from `opRegistry.json` after any registry change (the browser walker fails while it is stale); every surface's walker loads that bundle beside the hand-written files.
 - The browser app must be served over HTTP (ES modules refuse `file://`). Override host/port: `ADDR=0.0.0.0 PORT=3000 npm run serve`.
 - **Single-file build** (`cd browser && npm run build`, or `npm run build -- <name>.html`): folds the module graph + CSS + icons into one gitignored `stencil.html` that opens off disk. It is the *only* sanctioned build step and dev dependency in the repo (vite, local to `browser/` with a committed lockfile, config written inline — no plugin packages); the served app never depends on it. The single file runs the JS fallback (no wasm) and the BroadcastChannel tab path (no SharedWorker) — see `browser/README.md`.
 - **WebAssembly build** (needs Emscripten on `PATH`): `cd browser && npm run build-wasm` — compiles `core/` and drops the generated `js/wasm/stencilCore.js` (gitignored, not committed).
@@ -75,7 +76,7 @@ video frames; validated strictly before anything executes), the provider config 
 Ollama `http://localhost:11434`, OpenAI-compatible/LM Studio `http://localhost:1234/v1`, or
 Anthropic proxied by a collaboration server), the canonical system prompt, and the
 per-provider wire mappings. The exhaustive detail is machine-readable and test-guarded:
-`browser/js/config/llm/opRegistry.json` (ops/profiles/limits), `systemPrompt.json` (the
+`browser/js/config/llm/opRegistry.json` (ops/profiles/limits/key schemas — **every surface's op-plan validator is table-driven from it**, via a port of `browser/js/llm/opSchema.js`; see its README), `systemPrompt.json` (the
 prompt prose; ops bullets are registry-generated), `providers.json` (provider constants),
 and the conformance fixtures under `browser/js/config/llm/fixtures/` +
 `browser/js/config/fixtures/`, walked by every surface's tests. Every client implements the

@@ -17,6 +17,8 @@
 #include <QRegularExpression>
 #include <QSet>
 #include <cstdio>
+#include <utility>
+#include <vector>
 
 #include "support/check.hpp"
 #include "support/fixtureCorpus.hpp"
@@ -28,8 +30,18 @@ int main(int argc, char** argv) {
 
   const QString dir = corpusPath("llm/fixtures/opPlan");
   QStringList files = QDir(dir).entryList({"*.json"}, QDir::Files, QDir::Name);
-  check(files.size() >= 80,
-        qPrintable(QStringLiteral("a real corpus is present (%1 fixtures)").arg(files.size())));
+  // The hand-written files plus the registry-generated bundle (generated/cases.json,
+  // browser/tools/genOpPlanFixtures.mjs), each generated case walking as "<name>.json".
+  std::vector<std::pair<QString, QJsonObject>> corpus;
+  for (const QString& file : files) {
+    bool jsonOk = false;
+    const QJsonObject fx = readJsonFile(dir + "/" + file, &jsonOk).object();
+    corpus.emplace_back(file, jsonOk ? fx : QJsonObject());
+  }
+  for (const QJsonValue& c : readJsonFile(dir + "/generated/cases.json").object().value("cases").toArray())
+    corpus.emplace_back(c.toObject().value("name").toString() + ".json", c.toObject());
+  check(corpus.size() >= 300,
+        qPrintable(QStringLiteral("a real corpus is present (%1 fixtures)").arg(corpus.size())));
 
   static const QSet<QString> kProfiles = {"editor", "console", "bot", "mcp", "extension", "all"};
   static const QSet<QString> kSurfaces = {"browser", "desktop", "cli", "pystencil",
@@ -44,10 +56,8 @@ int main(int argc, char** argv) {
       shapeOk = false;
     }
   };
-  for (const QString& file : files) {
-    bool jsonOk = false;
-    const QJsonObject fx = readJsonFile(dir + "/" + file, &jsonOk).object();
-    shape(jsonOk && !fx.isEmpty(), file + ": parses as a JSON object");
+  for (const auto& [file, fx] : corpus) {
+    shape(!fx.isEmpty(), file + ": parses as a JSON object");
     QString slug = file;
     slug.remove(QRegularExpression("^\\d+-"));
     shape(fx.value("name").toString() + ".json" == slug,
@@ -77,8 +87,7 @@ int main(int argc, char** argv) {
   // ── per-fixture walk (desktop profile: editor) ──
   std::printf("fixtures (profile editor):\n");
   int walked = 0, skipped = 0, overridden = 0, diverged = 0;
-  for (const QString& file : files) {
-    const QJsonObject fx = readJsonFile(dir + "/" + file).object();
+  for (const auto& [file, fx] : corpus) {
     bool applies = false;
     for (const QJsonValue& p : fx.value("profiles").toArray())
       if (p.toString() == "editor" || p.toString() == "all") applies = true;

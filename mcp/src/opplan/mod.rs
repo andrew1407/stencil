@@ -6,8 +6,8 @@
 //! turn, unknown ops are skipped with a warning, and a known op with invalid params fails
 //! the whole plan — except §1's one leniency: a variant (or an ask-option preview) holding
 //! a top-level-only op is dropped with a warning and the rest of the plan still runs.
-//! Limits are the contract's: ≤ 16 actions, ≤ 8 variants, ≤ 200 layout
-//! lines, ≤ 32 frame indices, ≤ 5000 chars per string field.
+//! Limits, key schemas, enums, ranges and token grammars are TABLE-DRIVEN from the shared
+//! `browser/js/config/llm/opRegistry.json` (embedded; see `schema.rs`).
 //!
 //! `to_edit_requests` then maps a validated plan onto [`crate::args::EditParams`] runs of
 //! the existing pipeline — one CLI run for the base result and one per variant. The CLI's
@@ -19,14 +19,16 @@
 //! blank dims (contract §2) are accepted: the dims map onto the CLI's `--blank w h`
 //! pixels, and a formula clear is skipped with a note (a headless run has none to clear).
 //!
-//! Split by stage: [`parse`] (extraction + plan shape), [`actions`] (per-op validators),
-//! [`ask`] (§11 cards), [`lower`] (the mapping onto CLI runs), [`types`] (the validated
-//! plan + errors). The limits below are shared by all of them.
+//! Split by stage: [`parse`] (extraction + plan shape), [`schema`] (the registry-driven
+//! check engine every op and the ask card validate through), [`actions`] (the op dispatch
+//! + typed normalizers), [`ask`] (§11 cards), [`lower`] (the mapping onto CLI runs),
+//! [`types`] (the validated plan + errors). Limits come from the registry.
 
 mod actions;
 mod ask;
 mod lower;
 mod parse;
+pub mod schema;
 mod types;
 
 pub use ask::format_ask;
@@ -37,25 +39,9 @@ pub use types::{
     Variant,
 };
 
-// Limits — the same numbers in every client (contract §1).
-pub const MAX_ACTIONS: usize = 16;
-pub const MAX_VARIANTS: usize = 8;
-pub const MAX_LAYOUT_LINES: usize = 200;
-pub const MAX_FRAME_INDICES: usize = 32;
-pub const MAX_STRING_CHARS: usize = 5000;
-/// §2.1 `save` name cap — the same 120 characters in every client.
-pub const MAX_SAVE_NAME: usize = 120;
-/// §10: the longest local path a `save` op may carry — the same 1024 in every client.
-pub const MAX_PATH_CHARS: usize = 1024;
-// §2 custom page/blank dims — inclusive cm bounds, the same numbers in every client.
-pub const DIM_CM_MIN: f64 = 0.1;
-pub const DIM_CM_MAX: f64 = 500.0;
-// §11 interactive replies — the same numbers as every other client.
-pub const MIN_ASK_OPTIONS: usize = 2;
+/// §11 option cap, pinned to the registry's `limits.ask.maxOptions` by `tests/schema_test.rs`
+/// (every other limit is read from the registry through [`schema::Schema::limit`]).
 pub const MAX_ASK_OPTIONS: usize = 5;
-pub const MAX_ASK_QUESTION: usize = 300;
-pub const MAX_ASK_LABEL: usize = 80;
-pub const DEFAULT_CUSTOM_LABEL: &str = "Something else…";
 
 /// How long a sanitized variant label may get (mirrors the browser's 40-char cap).
 const MAX_LABEL_CHARS: usize = 40;

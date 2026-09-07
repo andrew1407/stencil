@@ -223,9 +223,9 @@ test('focus validates its index against the listing length', () => {
   assert.deepEqual(parse(plan([{ op: 'focus', image: 0 }])).actions, [{ op: 'focus', image: 0 }]);
   assert.deepEqual(parse(plan([{ op: 'focus', image: 9 }])).actions, [{ op: 'focus', image: 9 }]);
   assert.throws(() => parse(plan([{ op: 'focus', image: 10 }])), /out of range/);
-  assert.throws(() => parse(plan([{ op: 'focus', image: -1 }])), /out of range/);
-  assert.throws(() => parse(plan([{ op: 'focus', image: 1.5 }])), /integers/);
-  assert.throws(() => parse(plan([{ op: 'focus', image: '2' }])), /integers/);
+  assert.throws(() => parse(plan([{ op: 'focus', image: -1 }])), /integer >= 0/);
+  assert.throws(() => parse(plan([{ op: 'focus', image: 1.5 }])), /integer/);
+  assert.throws(() => parse(plan([{ op: 'focus', image: '2' }])), /integer/);
   assert.throws(() => parse(plan([{ op: 'focus', image: 0 }]), 0), /out of range/);   // empty listing
 });
 
@@ -273,13 +273,13 @@ test('open.actions: an unknown op drops with a warning (forward compatibility)',
 });
 
 test('open.actions: invalid params on a known core op fail the plan (§2 rules)', () => {
-  assert.throws(() => parse(plan([{ op: 'open', image: 0, actions: [{ op: 'crop', spec: { x1: '10furlongs' } }] }])), /bad token/);
+  assert.throws(() => parse(plan([{ op: 'open', image: 0, actions: [{ op: 'crop', spec: { x1: '10furlongs' } }] }])), /crop token/);
   assert.throws(() => parse(plan([{ op: 'open', image: 0, actions: [{ op: 'crop', spec: {} }] }])), /at least one/);
   assert.throws(() => parse(plan([{ op: 'open', image: 0, actions: [{ op: 'rotate', dir: 'up' }] }])), /"dir"/);
-  assert.throws(() => parse(plan([{ op: 'open', image: 0, actions: [{ op: 'filter', mode: 'custom' }] }])), /requires "tint"/);
-  assert.throws(() => parse(plan([{ op: 'open', image: 0, actions: [{ op: 'filter', mode: 'bw', tint: '#000000' }] }])), /only valid with mode/);
+  assert.throws(() => parse(plan([{ op: 'open', image: 0, actions: [{ op: 'filter', mode: 'custom' }] }])), /"tint" is required/);
+  assert.throws(() => parse(plan([{ op: 'open', image: 0, actions: [{ op: 'filter', mode: 'bw', tint: '#000000' }] }])), /only applies with "mode"/);
   assert.throws(() => parse(plan([{ op: 'open', image: 0, actions: [{ op: 'page', format: 'A4' }] }])), /lowercase/);
-  assert.throws(() => parse(plan([{ op: 'open', image: 0, actions: [{ op: 'layout', lines: [{ points: [{ x: 'a', y: 0 }] }] }] }])), /finite numbers/);
+  assert.throws(() => parse(plan([{ op: 'open', image: 0, actions: [{ op: 'layout', lines: [{ points: [{ x: 'a', y: 0 }] }] }] }])), /must be a number/);
 });
 
 test('open: bad incognito or a bad index fail the plan', () => {
@@ -410,10 +410,12 @@ test('ask: a preview carrying top-level-only / settings ops drops the picture, n
 // Never fetched from the popup, which runs with <all_urls> and the user's cookies. The
 // option survives without its picture, whatever the URL looks like.
 test('ask: an image URL from the model is never fetched — option kept, picture dropped', () => {
-  for (const url of [
-    'https://example.com/cat.jpg', 'http://169.254.169.254/latest/meta-data/',
-    'data:image/png;base64,AA', 'file:///etc/passwd', 'javascript:alert(1)',
-  ]) {
+  // Non-http(s) schemes are plan errors on every surface (registry ask schema, §11.1).
+  for (const url of ['data:image/png;base64,AA', 'file:///etc/passwd', 'javascript:alert(1)']) {
+    assert.throws(() => parse({ version: 1, reply: 'ok', ask: { question: 'Q', options: [
+      { label: 'A', image: { url } }, { label: 'B' }] } }), /http\(s\) URL/, url);
+  }
+  for (const url of ['https://example.com/cat.jpg', 'http://169.254.169.254/latest/meta-data/']) {
     const p = parse({ version: 1, reply: 'ok', ask: { question: 'Q', options: [
       { label: 'A', image: { url } }, { label: 'B' }] } });
     assert.equal(p.ask.options.length, 2, url);
@@ -494,7 +496,7 @@ test('unpin: the missing half of pin — same index shape, bounds, cap and stric
   assert.throws(() => parse(plan([{ op: 'unpin' }])), /exactly one/);
   assert.throws(() => parse(plan([{ op: 'unpin', images: [] }])), /non-empty/);
   assert.throws(() => parse(plan([{ op: 'unpin', image: 99 }])), /out of range/);
-  assert.throws(() => parse(plan([{ op: 'unpin', image: 1.5 }])), /integers/);
+  assert.throws(() => parse(plan([{ op: 'unpin', image: 1.5 }])), /integer/);
   assert.throws(() => parse(plan([{ op: 'unpin', images: [0, 1, 2, 3, 4, 5, 6, 7, 8] }])), /more than 8/);
   assert.throws(() => parse(plan([{ op: 'unpin', image: 0, extra: 1 }])), /unknown field/);
 });
@@ -513,7 +515,7 @@ test('open.mode: "resume" / "copy" carried on the validated action, junk fails',
     [{ op: 'open', image: 1, actions: [], mode: 'copy' }]);
   // Absent mode stays absent (today's fresh-open default).
   assert.deepEqual(parse(plan([{ op: 'open', image: 1 }])).actions, [{ op: 'open', image: 1, actions: [] }]);
-  assert.throws(() => parse(plan([{ op: 'open', image: 1, mode: 'again' }])), /"mode" must be "resume" or "copy"/);
+  assert.throws(() => parse(plan([{ op: 'open', image: 1, mode: 'again' }])), /"mode" must be one of/);
   assert.throws(() => parse(plan([{ op: 'open', image: 1, mode: true }])), /"mode"/);
 });
 
@@ -525,8 +527,8 @@ test('accent: §10\'s shape — exactly one of a #rrggbb color or a preset name'
   assert.throws(() => parse(plan([{ op: 'accent', color: 'purple' }])), /#rrggbb/);
   assert.throws(() => parse(plan([{ op: 'accent', color: '#12ab3' }])), /#rrggbb/);
   assert.throws(() => parse(plan([{ op: 'accent', color: '#12ab3g' }])), /#rrggbb/);
-  assert.throws(() => parse(plan([{ op: 'accent', preset: '   ' }])), /accent name/);
-  assert.throws(() => parse(plan([{ op: 'accent', preset: 'x'.repeat(41) }])), /accent name/);
+  assert.throws(() => parse(plan([{ op: 'accent', preset: '   ' }])), /non-empty string/);
+  assert.throws(() => parse(plan([{ op: 'accent', preset: 'x'.repeat(41) }])), /longer than 40/);
   assert.throws(() => parse(plan([{ op: 'accent', color: '#123456', mode: 'dark' }])), /unknown field/);
 });
 
@@ -538,13 +540,13 @@ test('filter: the three list toggles are strict booleans', () => {
     [{ op: 'filter', showPinned: false }]);
   assert.throws(() => parse(plan([{ op: 'filter', markOpened: 'yes' }])), /"markOpened" must be a boolean/);
   assert.throws(() => parse(plan([{ op: 'filter', openedFirst: 1 }])), /"openedFirst" must be a boolean/);
-  assert.throws(() => parse(plan([{ op: 'filter', showPinned: null }])), /at least one filter field/);
+  assert.throws(() => parse(plan([{ op: 'filter', showPinned: null }])), /needs at least one/);
 });
 
 test('scanTab: integer index bounded by the tabs listing', () => {
   assert.deepEqual(parseT(plan([{ op: 'scanTab', tab: 2 }])).actions, [{ op: 'scanTab', tab: 2 }]);
   assert.throws(() => parseT(plan([{ op: 'scanTab', tab: 5 }])), /out of range/);
-  assert.throws(() => parseT(plan([{ op: 'scanTab', tab: -1 }])), /out of range/);
+  assert.throws(() => parseT(plan([{ op: 'scanTab', tab: -1 }])), /integer >= 0/);
   assert.throws(() => parseT(plan([{ op: 'scanTab', tab: 'x' }])), /must be an integer/);
   assert.throws(() => parseT(plan([{ op: 'scanTab', tab: 0, url: 'https://x' }])), /unknown field/);
   // With no tabs listed there is nothing to scan — the plan fails (model mis-step).
@@ -569,7 +571,7 @@ test('theme: the three modes Options offers, and nothing else', () => {
     assert.deepEqual(parse(plan([{ op: 'theme', mode }])).actions, [{ op: 'theme', mode }]);
   }
   assert.throws(() => parse(plan([{ op: 'theme', mode: 'blue' }])), /must be one of/);
-  assert.throws(() => parse(plan([{ op: 'theme' }])), /must be one of/);
+  assert.throws(() => parse(plan([{ op: 'theme' }])), /is required/);
   assert.throws(() => parse(plan([{ op: 'theme', mode: 'dark', extra: 1 }])), /unknown field/);
 });
 
@@ -584,13 +586,13 @@ test('filter: every field optional, at least one required, each one bounded', ()
     [{ op: 'filter', minWidth: 200, maxWidth: 0 }]);
   assert.deepEqual(parse(plan([{ op: 'filter', regex: true, search: '^ic' }])).actions,
     [{ op: 'filter', search: '^ic', regex: true }]);
-  assert.throws(() => parse(plan([{ op: 'filter' }])), /at least one filter field/);
-  assert.throws(() => parse(plan([{ op: 'filter', kinds: ['pdfs'] }])), /"kinds" entries must be one of/);
+  assert.throws(() => parse(plan([{ op: 'filter' }])), /needs at least one/);
+  assert.throws(() => parse(plan([{ op: 'filter', kinds: ['pdfs'] }])), /"kinds\[0\]" must be one of/);
   assert.throws(() => parse(plan([{ op: 'filter', kinds: 'images' }])), /must be an array/);
   assert.throws(() => parse(plan([{ op: 'filter', regex: 'yes' }])), /must be a boolean/);
-  assert.throws(() => parse(plan([{ op: 'filter', minWidth: -1 }])), /integer >= 0/);
-  assert.throws(() => parse(plan([{ op: 'filter', minWidth: 1.5 }])), /integer >= 0/);
-  assert.throws(() => parse(plan([{ op: 'filter', maxHeight: LIMITS.filterSize + 1 }])), /larger than/);
+  assert.throws(() => parse(plan([{ op: 'filter', minWidth: -1 }])), /integer 0\.\.100000/);
+  assert.throws(() => parse(plan([{ op: 'filter', minWidth: 1.5 }])), /must be an integer/);
+  assert.throws(() => parse(plan([{ op: 'filter', maxHeight: LIMITS.filterSize + 1 }])), /integer 0\.\.100000/);
   assert.throws(() => parse(plan([{ op: 'filter', search: 'x'.repeat(LIMITS.filterSearch + 1) }])), /longer than/);
   assert.throws(() => parse(plan([{ op: 'filter', formats: new Array(LIMITS.filterFormats + 1).fill('PNG') }])), /more than/);
   assert.throws(() => parse(plan([{ op: 'filter', search: 'a', sort: 'name' }])), /unknown field/);
@@ -632,7 +634,7 @@ test('openUrl: http(s) url + optional incognito; junk fails', () => {
     [{ op: 'openUrl', url: 'https://a.com/cat.jpg' }]);
   assert.deepEqual(parse(plan([{ op: 'openUrl', url: 'http://a.com/x.png', incognito: true }])).actions,
     [{ op: 'openUrl', url: 'http://a.com/x.png', incognito: true }]);
-  assert.throws(() => parse(plan([{ op: 'openUrl' }])), /http\(s\) URL/);
+  assert.throws(() => parse(plan([{ op: 'openUrl' }])), /is required/);
   assert.throws(() => parse(plan([{ op: 'openUrl', url: 'ftp://a.com/x' }])), /http\(s\) URL/);
   assert.throws(() => parse(plan([{ op: 'openUrl', url: 'https://a.com/x', incognito: 'yes' }])), /boolean/);
   assert.throws(() => parse(plan([{ op: 'openUrl', url: 'https://a.com/x', tab: 1 }])), /unknown field/);

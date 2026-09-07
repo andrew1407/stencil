@@ -15,8 +15,5 @@
     ]
   },
   "expect": "invalid",
-  "knownDivergence": {
-    "desktop": "valid"
-  },
-  "reason": "split only applies to the split modes. MEASURED DIVERGENCE: desktop parseCompare deliberately ignores split on non-split modes (opPlan.cpp: an ignored field, never a failed plan) — valid there"
+  "reason": "split only applies to the split modes (registry onlyWith); the desktop converged on the table-driven rule"
 }

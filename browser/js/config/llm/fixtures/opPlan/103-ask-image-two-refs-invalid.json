@@ -27,9 +27,5 @@
     }
   },
   "expect": "invalid",
-  "knownDivergence": {
-    "cli": "valid",
-    "pystencil": "valid"
-  },
-  "reason": "image reference needs exactly one of url / projectId / scanIndex (§11.1). MEASURED DIVERGENCE: the consoles (cli and pystencil) never validate the CONTENTS of an option image (previews are dropped at parse, labels only) — valid on both"
+  "reason": "image reference needs exactly one of url / projectId / scanIndex (§11.1) — uniform on every surface since the table-driven validators (the consoles validate option images even though they render no preview)"
 }

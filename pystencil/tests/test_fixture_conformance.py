@@ -83,6 +83,11 @@ class TestOpPlanFixtures(unittest.TestCase):
         cls.fixtures = [
             (p.name, _load(p)) for p in sorted(_OPPLAN_DIR.glob("*.json"))
         ]
+        # The registry-generated bundle (browser/tools/genOpPlanFixtures.mjs): one pseudo-file per case.
+        cls.fixtures += [
+            (fx["name"] + ".json", fx)
+            for fx in _load(_OPPLAN_DIR / "generated" / "cases.json")["cases"]
+        ]
 
     def test_corpus_is_well_formed(self):
         # Port of the reference walker's corpus-shape check (opPlanFixtures.test.js).

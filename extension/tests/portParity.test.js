@@ -27,6 +27,9 @@ const MANIFEST = [
   // The shared LLM client: per-surface wording/token defaults live in llmSurface.js,
   // so the client itself differs only in its header + providers.json import path.
   ['llmClient', '../../browser/js/llm/llmClient.js', '../src/llm/llmClient.js'],
+  // The registry-driven validation engine: pure, registry-in/verdict-out, so the copy
+  // is the whole file.
+  ['opSchema', '../../browser/js/llm/opSchema.js', '../src/llm/opSchema.js'],
 ];
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');

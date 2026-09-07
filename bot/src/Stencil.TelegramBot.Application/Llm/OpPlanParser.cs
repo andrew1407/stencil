@@ -1,7 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
-using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Application.Llm;
@@ -18,50 +16,20 @@ public sealed record OpPlanParseResult(OpPlan? Plan, IReadOnlyList<string> Warni
 /// fences stripped, the first balanced <c>{…}</c> JSON object taken (none ⇒ chat-only); an
 /// unknown <c>op</c> drops with a warning, a known op with invalid params fails the WHOLE plan
 /// — except §1's leniency: a variant or ask-preview carrying a top-level-only/settings op is
-/// dropped alone. The per-op action parsers live in OpPlanParser.Actions.cs.
+/// dropped alone. Every shape check is table-driven by <see cref="OpSchema"/> (the embedded
+/// op registry); the per-op normalizers live in OpPlanParser.Actions.cs.
 /// </summary>
 public static partial class OpPlanParser
 {
-    public const int MaxActions = 16;
-    public const int MaxVariants = 8;
-    public const int MaxLayoutLines = 200;
-    public const int MaxStringField = 5000;
-    public const int MaxFrameIndices = 32;
+    private static readonly OpSchema Schema = OpSchema.Bot;
 
-    /// <summary>The §2.1 <c>save</c> name cap — the same 120 characters in every client.</summary>
-    public const int MaxSaveName = 120;
+    // §11 interactive replies — the registry's numbers, the same in every client.
+    public static readonly int MaxAskOptions = Schema.Limit("ask.maxOptions");
+    public static readonly int MaxAskAnswer = Schema.Limit("ask.answer");
+    public static readonly string DefaultCustomLabel = Schema.DefaultCustomLabel;
 
-    /// <summary>§10: the longest local path a <c>save</c> op may carry — the same 1024 in every client.</summary>
-    public const int MaxPathChars = 1024;
-
-    /// <summary>§2 <c>undo</c>/<c>redo</c>: the <c>steps</c> bound (1..20, default 1).</summary>
-    public const int MaxUndoSteps = 20;
-
-    /// <summary>§10 <c>describe</c>: the description cap (500 chars; empty clears).</summary>
-    public const int MaxDescribeText = 500;
-
-    /// <summary>§10 <c>renameProject</c>: the name cap (1..80 chars).</summary>
-    public const int MaxRenameName = 80;
-
-    // §2 page/blank custom dims: centimetres, 0.1..500.
-    public const double MinPageCm = 0.1;
-    public const double MaxPageCm = 500;
-
-    // §11 interactive replies — the same numbers as every other client.
-    public const int MinAskOptions = 2;
-    public const int MaxAskOptions = 5;
-    public const int MaxAskQuestion = 300;
-    public const int MaxAskLabel = 80;
-    public const int MaxAskAnswer = 500;
-    public const string DefaultCustomLabel = "Something else…";
-
-    /// <summary>Longest value echoed into an error message (so a huge field can't flood the chat).</summary>
+    /// <summary>Longest value echoed into a warning (so a huge label can't flood the chat).</summary>
     private const int MaxEchoedChars = 40;
-
-    private static readonly string[] FilterModes = ["none", "bw", "sepia", "invert", "contour", "custom"];
-    private static readonly string[] LineStyles = ["solid", "dashed", "dotted"];
-    private static readonly string[] CropKeys = ["x1", "x2", "y1", "y2", "aspect"];
-    private static readonly string[] LineFields = ["points", "color", "thickness", "pointSize", "style", "locked", "fillColor"];
 
     /// <summary>§2/§2.1 top-level-only ops — banned inside variants AND ask previews (§13: registry-derived).</summary>
     private static readonly string[] TopLevelOnlyOps = OpRegistry.TopLevelOnlyNames;
@@ -74,37 +42,12 @@ public static partial class OpPlanParser
     private static readonly string[] SettingsOps = OpRegistry.SettingsNames;
 
     /// <summary>
-    /// Every op name <see cref="ParseAction"/>'s dispatch handles — the mirror of its switch
-    /// cases. Tests cross-check this set against <see cref="OpRegistry.Names"/> and against the
-    /// dispatch itself (each name must parse as a KNOWN op, never the §1 unknown-op skip).
+    /// Every op name the parser handles — the bot's registry entries in prompt order. Tests
+    /// cross-check this set against <see cref="OpRegistry.Names"/> and against the dispatch
+    /// (each name must parse as a KNOWN op, never the §1 unknown-op skip).
     /// </summary>
     public static readonly IReadOnlyList<string> KnownOps =
-    [
-        "crop", "rotate", "filter", "layout", "formula", "page", "blank", "frame",
-        "image", "save", "undo", "redo", "reset", "clear", "lineStyle", "openUrl",
-        "renameProject", "describe", "blankColor", "projectColor", "export",
-        "connect", "disconnect", "clearChat",
-    ];
-
-    [GeneratedRegex(@"^-?(\d+(\.\d+)?|\.\d+)(%|px|cm|in)?$")]
-    private static partial Regex CropToken();
-
-    // "W:H" with strictly positive integers (leading zeros tolerated, like the core parser).
-    [GeneratedRegex("^0*[1-9][0-9]*:0*[1-9][0-9]*$")]
-    private static partial Regex AspectRatio();
-
-    [GeneratedRegex("^#[0-9a-fA-F]{6}$")]
-    private static partial Regex HexColor();
-
-    [GeneratedRegex("^[a-zA-Z]+$")]
-    private static partial Regex CssColorName();
-
-    [GeneratedRegex("^[abc]([0-9]|10)$")]
-    private static partial Regex PageFormat();
-
-    // The shared save-path shape check: a scheme:// prefix marks a URL, not a local path.
-    [GeneratedRegex("^[A-Za-z][A-Za-z0-9+.-]*://")]
-    private static partial Regex UrlScheme();
+        Schema.Entries.Select(static e => e.Name).ToArray();
 
     /// <summary>Validation failure for a known op — fails the whole plan (contract §1).</summary>
     private sealed class PlanException : Exception
@@ -139,7 +82,7 @@ public static partial class OpPlanParser
                 OpPlan plan = ParsePlan(doc!.RootElement, warnings);
                 return new OpPlanParseResult(plan, warnings, null);
             }
-            catch (PlanException ex)
+            catch (Exception ex) when (ex is PlanException or OpSchemaException)
             {
                 return new OpPlanParseResult(null, warnings, ex.Message);
             }
@@ -250,26 +193,12 @@ public static partial class OpPlanParser
         if (root.TryGetProperty("variants", out JsonElement variantsElement)
             && variantsElement.ValueKind != JsonValueKind.Null)
         {
-            if (variantsElement.ValueKind != JsonValueKind.Array)
-            {
-                throw new PlanException("\"variants\" must be an array");
-            }
-            if (variantsElement.GetArrayLength() > MaxVariants)
-            {
-                throw new PlanException($"too many variants (max {MaxVariants})");
-            }
+            Schema.CheckEnvelope(variantsElement, "variants");
             int number = 0;
             foreach (JsonElement variantElement in variantsElement.EnumerateArray())
             {
                 number++;
-                if (variantElement.ValueKind != JsonValueKind.Object)
-                {
-                    throw new PlanException("each variant must be a JSON object");
-                }
-                string label = variantElement.TryGetProperty("label", out JsonElement labelElement)
-                    && labelElement.ValueKind == JsonValueKind.String
-                    ? labelElement.GetString() ?? ""
-                    : "";
+                string label = OptionalString(variantElement, Schema.VariantKeys, "label") ?? "";
                 // §1's one leniency: a misplaced op costs THIS variant its place, not the turn.
                 // Its own warnings go with it — nothing of it will run.
                 List<string> variantWarnings = new();
@@ -305,9 +234,10 @@ public static partial class OpPlanParser
     }
 
     /// <summary>
-    /// Parse the optional <c>ask</c> object (contract §11) — the question, its 2..5 options, and
-    /// the free-text row. Validated as strictly as an action: a card nobody can answer rejects
-    /// the whole plan rather than reaching the user as a broken prompt.
+    /// Parse the optional <c>ask</c> object (contract §11): its structure is the registry's
+    /// ask schema (question, 2..5 options, the free-text row, an option's exactly-one-of image
+    /// reference); the preview actions are ordinary §2 actions validated "inside a preview".
+    /// A card nobody can answer rejects the whole plan rather than reaching the user broken.
     /// </summary>
     private static AskCard? ParseAsk(JsonElement root, List<string> warnings)
     {
@@ -315,131 +245,38 @@ public static partial class OpPlanParser
         {
             return null;
         }
-        if (ask.ValueKind != JsonValueKind.Object)
-        {
-            throw new PlanException("\"ask\" must be a JSON object");
-        }
-        foreach (JsonProperty property in ask.EnumerateObject())
-        {
-            if (property.Name is not ("question" or "mode" or "options" or "allowCustom" or "customLabel"))
-            {
-                throw new PlanException($"\"ask\" has an unknown field \"{property.Name}\"");
-            }
-        }
-        if (!ask.TryGetProperty("question", out JsonElement questionElement)
-            || questionElement.ValueKind != JsonValueKind.String
-            || questionElement.GetString()?.Trim() is not string question
-            || question.Length == 0)
-        {
-            throw new PlanException("\"ask.question\" must be a non-empty string");
-        }
-        if (question.Length > MaxAskQuestion)
-        {
-            throw new PlanException($"\"ask.question\" is longer than {MaxAskQuestion} characters");
-        }
+        Schema.ValidateAsk(ask);
+        JsonElement keys = Schema.AskKeys;
+        string question = OptionalString(ask, keys, "question")!;
+        bool multi = OptionalString(ask, keys, "mode") == "multi";
+        bool allowCustom = OptionalBool(ask, "allowCustom") ?? false;
+        string customLabel = OptionalString(ask, keys, "customLabel") ?? DefaultCustomLabel;
+        JsonElement optionKeys = keys.GetProperty("options").GetProperty("items").GetProperty("fields");
 
-        bool multi = false;
-        if (ask.TryGetProperty("mode", out JsonElement modeElement) && modeElement.ValueKind != JsonValueKind.Null)
-        {
-            string? mode = modeElement.ValueKind == JsonValueKind.String ? modeElement.GetString() : null;
-            multi = mode switch
-            {
-                "multi" => true,
-                "single" => false,
-                _ => throw new PlanException("\"ask.mode\" must be \"single\" or \"multi\""),
-            };
-        }
-
-        bool allowCustom = false;
-        if (ask.TryGetProperty("allowCustom", out JsonElement customElement) && customElement.ValueKind != JsonValueKind.Null)
-        {
-            allowCustom = customElement.ValueKind switch
-            {
-                JsonValueKind.True => true,
-                JsonValueKind.False => false,
-                _ => throw new PlanException("\"ask.allowCustom\" must be a boolean"),
-            };
-        }
-
-        string customLabel = DefaultCustomLabel;
-        if (ask.TryGetProperty("customLabel", out JsonElement labelElement) && labelElement.ValueKind != JsonValueKind.Null)
-        {
-            if (labelElement.ValueKind != JsonValueKind.String
-                || labelElement.GetString()?.Trim() is not string custom
-                || custom.Length == 0)
-            {
-                throw new PlanException("\"ask.customLabel\" must be a non-empty string");
-            }
-            if (custom.Length > MaxAskLabel)
-            {
-                throw new PlanException($"\"ask.customLabel\" is longer than {MaxAskLabel} characters");
-            }
-            customLabel = custom;
-        }
-
-        if (!ask.TryGetProperty("options", out JsonElement optionsElement)
-            || optionsElement.ValueKind != JsonValueKind.Array)
-        {
-            throw new PlanException("\"ask.options\" must be an array");
-        }
-        int count = optionsElement.GetArrayLength();
-        if (count < MinAskOptions || count > MaxAskOptions)
-        {
-            throw new PlanException($"\"ask.options\" must hold {MinAskOptions}..{MaxAskOptions} options");
-        }
-
-        List<AskOption> options = new(count);
+        List<AskOption> options = new();
         bool droppedPreview = false;
         int index = 0;
-        foreach (JsonElement optionElement in optionsElement.EnumerateArray())
+        foreach (JsonElement optionElement in ask.GetProperty("options").EnumerateArray())
         {
             index++;
-            if (optionElement.ValueKind != JsonValueKind.Object)
+            string label = OptionalString(optionElement, optionKeys, "label")!;
+            if (HasField(optionElement, "image"))
             {
-                throw new PlanException($"ask option {index} must be a JSON object");
+                NoteAskImage(optionElement.GetProperty("image"), index, warnings);
             }
-            foreach (JsonProperty property in optionElement.EnumerateObject())
-            {
-                if (property.Name is not ("label" or "actions" or "image"))
-                {
-                    throw new PlanException($"ask option {index} has an unknown field \"{property.Name}\"");
-                }
-            }
-            if (!optionElement.TryGetProperty("label", out JsonElement optionLabel)
-                || optionLabel.ValueKind != JsonValueKind.String
-                || optionLabel.GetString()?.Trim() is not string label
-                || label.Length == 0)
-            {
-                throw new PlanException($"ask option {index} \"label\" must be a non-empty string");
-            }
-            if (label.Length > MaxAskLabel)
-            {
-                throw new PlanException($"ask option {index} \"label\" is longer than {MaxAskLabel} characters");
-            }
-            bool hasActions = optionElement.TryGetProperty("actions", out JsonElement actionsElement)
-                && actionsElement.ValueKind != JsonValueKind.Null;
-            bool hasImage = optionElement.TryGetProperty("image", out JsonElement imageElement)
-                && imageElement.ValueKind != JsonValueKind.Null;
-            if (hasActions && hasImage)
-            {
-                throw new PlanException($"ask option {index} carries both \"actions\" and \"image\"");
-            }
-            if (hasImage)
-            {
-                ValidateAskImage(imageElement, index, warnings);
-            }
-            if (hasActions)
+            if (HasField(optionElement, "actions"))
             {
                 // §1: a preview asking for a top-level-only or settings op loses the PREVIEW
-                // and says which option and why — the option, and the plan, stand.
-                if (MisplacedPreviewOp(actionsElement) is string why)
+                // and says which option and why — the option, and the plan, stand. This chat
+                // renders no previews, so a well-formed one is dropped too (with its own notes).
+                try
                 {
-                    warnings.Add($"Dropped the preview for option {index}{Named(label)} — {why} and can't ride inside an ask option's preview.");
-                }
-                else
-                {
-                    // No working image in a chat: the option stands, its rendered preview doesn't.
+                    ParseActionList(optionElement, "actions", new List<string>(), inVariant: true);
                     droppedPreview = true;
+                }
+                catch (MisplacedOpException ex)
+                {
+                    warnings.Add($"Dropped the preview for option {index}{Named(label)} — {ex.Message} and can't ride inside an ask option's preview.");
                 }
             }
             options.Add(new AskOption(label));
@@ -452,82 +289,17 @@ public static partial class OpPlanParser
     }
 
     /// <summary>
-    /// The first top-level-only or §10 settings op inside an ask option's preview <c>actions</c>
-    /// — the "why" fragment for §1's drop warning, or null when the preview is well-formed (the
-    /// rest is dropped unread either way: this chat renders no previews).
+    /// Warn that the bot shows no picture for an option's (already validated) <c>image</c>
+    /// reference (§11.2). None resolves here: a <c>url</c> would have Telegram fetch a host
+    /// nobody chose.
     /// </summary>
-    private static string? MisplacedPreviewOp(JsonElement actions)
+    private static void NoteAskImage(JsonElement image, int index, List<string> warnings)
     {
-        if (actions.ValueKind != JsonValueKind.Array)
-        {
-            return null;
-        }
-        foreach (JsonElement action in actions.EnumerateArray())
-        {
-            if (action.ValueKind != JsonValueKind.Object
-                || !action.TryGetProperty("op", out JsonElement op)
-                || op.ValueKind != JsonValueKind.String
-                || op.GetString() is not string name)
-            {
-                continue;
-            }
-            if (Array.IndexOf(TopLevelOnlyOps, name) >= 0)
-            {
-                return $"\"{name}\" is a top-level action only (§2.1)";
-            }
-            if (Array.IndexOf(SettingsOps, name) >= 0)
-            {
-                return $"\"{name}\" is not an image edit (§10)";
-            }
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// Check an option's <c>image</c> reference — exactly one of url / projectId / scanIndex —
-    /// and warn that the bot shows no picture for any of them (§11.2). None resolves here: a
-    /// <c>url</c> would have Telegram fetch a host nobody chose.
-    /// </summary>
-    private static void ValidateAskImage(JsonElement image, int index, List<string> warnings)
-    {
-        if (image.ValueKind != JsonValueKind.Object)
-        {
-            throw new PlanException($"ask option {index} \"image\" must be a JSON object");
-        }
-        string? only = null;
-        int given = 0;
-        foreach (JsonProperty property in image.EnumerateObject())
-        {
-            if (property.Name is not ("url" or "projectId" or "scanIndex"))
-            {
-                throw new PlanException($"ask option {index} \"image\" has an unknown field \"{property.Name}\"");
-            }
-            if (property.Value.ValueKind != JsonValueKind.Null)
-            {
-                given++;
-                only = property.Name;
-            }
-        }
-        if (given != 1)
-        {
-            throw new PlanException($"ask option {index} \"image\" needs exactly one of url, projectId, scanIndex");
-        }
-        if (only == "scanIndex")
-        {
-            // The extension's reference (§8) — meaningless here; the option stays pictureless.
-            warnings.Add($"ask option {index} names a page-scan image, which this chat has no access to");
-            return;
-        }
-        if (!image.TryGetProperty(only!, out JsonElement value)
-            || value.ValueKind != JsonValueKind.String
-            || value.GetString()?.Trim() is not string text
-            || text.Length == 0)
-        {
-            throw new PlanException($"ask option {index} \"image.{only}\" must be a non-empty string");
-        }
-        warnings.Add(only == "projectId"
-            ? $"ask option {index} names a stored project, which this chat can't preview"
-            : $"ask option {index} names an image URL, which this chat does not fetch — the option is shown without a preview");
+        warnings.Add(HasField(image, "scanIndex")
+            ? $"ask option {index} names a page-scan image, which this chat has no access to"
+            : HasField(image, "projectId")
+                ? $"ask option {index} names a stored project, which this chat can't preview"
+                : $"ask option {index} names an image URL, which this chat does not fetch — the option is shown without a preview");
     }
 
     /// <summary>
@@ -544,7 +316,7 @@ public static partial class OpPlanParser
     }
 
     /// <summary>
-    /// Parse an optional actions array (missing/null = none), bounded to 16 entries.
+    /// Parse an optional actions array (missing/null = none), bounded by the registry envelope.
     /// <paramref name="inVariant"/> enforces §2.1's top-level-only ops.
     /// </summary>
     private static IReadOnlyList<PlanAction> ParseActionList(
@@ -554,14 +326,7 @@ public static partial class OpPlanParser
         {
             return [];
         }
-        if (array.ValueKind != JsonValueKind.Array)
-        {
-            throw new PlanException($"\"{name}\" must be an array");
-        }
-        if (array.GetArrayLength() > MaxActions)
-        {
-            throw new PlanException($"too many actions (max {MaxActions})");
-        }
+        Schema.CheckEnvelope(array, "actions");
         List<PlanAction> actions = new();
         foreach (JsonElement element in array.EnumerateArray())
         {
@@ -599,57 +364,32 @@ public static partial class OpPlanParser
         {
             throw new MisplacedOpException($"\"{op}\" is not an image edit (§10)");
         }
-        switch (op)
+        if (!Schema.Ops.TryGetValue(op, out OpEntry? entry))
         {
-            case "crop": return ParseCrop(element);
-            case "rotate": return ParseRotate(element);
-            case "filter": return ParseFilter(element);
-            case "layout": return ParseLayout(element);
-            case "formula": return ParseFormula(element);
-            case "page": return ParsePage(element);
-            case "blank": return ParseBlank(element);
-            case "frame": return ParseFrame(element);
-            case "image": return ParseImage(element);
-            case "save": return ParseSave(element);
-            case "undo":
-            case "redo": return ParseUndoRedo(element, op);
-            case "reset": return ParseFieldless<ResetAction>(element, op);
-            case "clear": return ParseFieldless<ClearAction>(element, op);
-            case "clearChat": return ParseFieldless<ClearChatAction>(element, op);
-            case "lineStyle": return ParseLineStyle(element);
-            case "openUrl": return ParseOpenUrl(element);
-            case "renameProject": return ParseRenameProject(element);
-            case "describe": return ParseDescribe(element);
-            case "blankColor": return ParseBlankColor(element);
-            case "projectColor": return ParseProjectColor(element);
-            case "export": return ParseExport(element);
-            case "connect":
-            case "disconnect": return ParseServerOp(element, op);
-            default:
-                // Forward compatibility: an unknown op is dropped, not fatal (contract §1).
-                warnings.Add($"Skipped an unknown operation \"{op}\".");
-                return null;
+            // Forward compatibility: an unknown op is dropped, not fatal (contract §1). A
+            // §13 forbidden name lands here too — the executor refuses it if one ever parses.
+            warnings.Add($"Skipped an unknown operation \"{op}\".");
+            return null;
+        }
+        try
+        {
+            return Normalize(Schema.ValidateAction(element, entry), entry);
+        }
+        catch (PlanException ex)
+        {
+            throw new PlanException($"invalid \"{op}\" action: {ex.Message}");
         }
     }
 
-    /// <summary>Reject any property outside the op's allowed set (contract: unknown fields reject the action).</summary>
-    private static void RequireOnly(JsonElement element, string op, params string[] allowed)
-    {
-        foreach (JsonProperty property in element.EnumerateObject())
-        {
-            if (property.Name != "op" && Array.IndexOf(allowed, property.Name) < 0)
-            {
-                throw new PlanException($"invalid \"{op}\" action: unexpected field \"{property.Name}\"");
-            }
-        }
-    }
+    /// <summary>True when the field is present and non-null.</summary>
+    private static bool HasField(JsonElement element, string name) =>
+        element.TryGetProperty(name, out JsonElement value) && value.ValueKind != JsonValueKind.Null;
 
-    private static string RequireString(JsonElement element, string op, string name)
-    {
-        if (!element.TryGetProperty(name, out JsonElement value) || value.ValueKind != JsonValueKind.String)
-        {
-            throw new PlanException($"invalid \"{op}\" action: \"{name}\" must be a string");
-        }
-        return value.GetString() ?? "";
-    }
+    /// <summary>A label in parentheses for a drop warning, or nothing when it carried none.</summary>
+    private static string Named(string label) =>
+        label.Trim() is { Length: > 0 } name ? $" (\"{Truncate(name)}\")" : "";
+
+    /// <summary>Clip a value echoed into a warning so a huge field can't flood the chat.</summary>
+    private static string Truncate(string value) =>
+        value.Length <= MaxEchoedChars ? value : value[..MaxEchoedChars] + "…";
 }

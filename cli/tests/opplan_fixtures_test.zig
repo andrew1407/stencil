@@ -14,6 +14,25 @@ const known_profiles = [_][]const u8{ "editor", "console", "bot", "mcp", "extens
 const known_surfaces = [_][]const u8{ "browser", "desktop", "cli", "pystencil", "bot", "mcp", "extension" };
 const cli_profiles = [_][]const u8{ "console", "all" };
 
+const Entry = struct { file: []const u8, value: std.json.Value };
+
+// The hand-written files plus the registry-generated bundle (generated/cases.json,
+// browser/tools/genOpPlanFixtures.mjs), each generated case walking as "<name>.json".
+fn loadCorpus(a: std.mem.Allocator, io: std.Io) ![]Entry {
+    var out: std.ArrayList(Entry) = .empty;
+    for (try fx.listJson(a, io, opplan_dir)) |file| {
+        if (std.mem.eql(u8, file, "_schema.md")) continue;
+        const sub = try std.fmt.allocPrint(a, "{s}{s}", .{ opplan_dir, file });
+        try out.append(a, .{ .file = file, .value = try fx.loadJson(a, io, sub) });
+    }
+    const bundle = try fx.loadJson(a, io, opplan_dir ++ "generated/cases.json");
+    for (fx.member(bundle, "cases").?.array.items) |c| {
+        const file = try std.fmt.allocPrint(a, "{s}.json", .{fx.memberStr(c, "name").?});
+        try out.append(a, .{ .file = file, .value = c });
+    }
+    return out.items;
+}
+
 fn oneOf(s: []const u8, set: []const []const u8) bool {
     for (set) |x| {
         if (std.mem.eql(u8, s, x)) return true;
@@ -29,17 +48,21 @@ test "opPlan corpus: exists and is well-formed (the reference walker's shape che
     defer threaded.deinit();
     const io = threaded.io();
 
-    const files = try fx.listJson(a, io, opplan_dir);
-    try testing.expect(files.len >= 80); // a real corpus
+    const entries = try loadCorpus(a, io);
+    try testing.expect(entries.len >= 300); // a real corpus
 
-    for (files) |file| {
-        if (std.mem.eql(u8, file, "_schema.md")) continue;
-        var path_buf: [256]u8 = undefined;
-        const sub = try std.fmt.bufPrint(&path_buf, "{s}{s}", .{ opplan_dir, file });
-        const f = try fx.loadJson(a, io, sub);
+    for (entries) |ent| {
+        const file = ent.file;
+        const f = ent.value;
 
-        // "name" must match the filename slug (NNN- prefix + .json stripped).
-        const slug_start = (std.mem.indexOfScalar(u8, file, '-') orelse 0) + 1;
+        // "name" must match the filename slug (a numeric NNN- prefix + .json stripped;
+        // generated cases carry no prefix).
+        const dash = std.mem.indexOfScalar(u8, file, '-') orelse 0;
+        const numeric = dash > 0 and blk: {
+            for (file[0..dash]) |ch| if (!std.ascii.isDigit(ch)) break :blk false;
+            break :blk true;
+        };
+        const slug_start: usize = if (numeric) dash + 1 else 0;
         const slug = file[slug_start .. file.len - ".json".len];
         try testing.expectEqualStrings(slug, fx.memberStr(f, "name").?);
 
@@ -72,15 +95,14 @@ test "opPlan corpus: every console fixture parses to its pinned verdict" {
     const io = threaded.io();
 
     const overrides = try fx.parseOverrides(a);
-    const files = try fx.listJson(a, io, opplan_dir);
+    const entries = try loadCorpus(a, io);
     var walked: usize = 0;
     var skipped: usize = 0;
     var failures: usize = 0;
 
-    for (files) |file| {
-        var path_buf: [256]u8 = undefined;
-        const sub = try std.fmt.bufPrint(&path_buf, "{s}{s}", .{ opplan_dir, file });
-        const f = try fx.loadJson(a, io, sub);
+    for (entries) |ent| {
+        const file = ent.file;
+        const f = ent.value;
         const name = fx.memberStr(f, "name").?;
 
         var applies = false;

@@ -915,13 +915,24 @@ public sealed class OpPlanParserTests
     }
 
     [Fact]
-    public void HugeInvalidValuesAreClippedInTheErrorMessage()
+    public void AVariantToleratesUndeclaredKeysWhileItsLabelStaysAString()
+    {
+        // The envelope's variant objects carry allowUnknown (only ops are strict about fields).
+        OpPlanParseResult ok = OpPlanParser.Parse(
+            """{"reply":"x","variants":[{"label":"v","actions":[],"note":"x"}]}""");
+        Assert.Null(ok.Error);
+        Assert.Equal("v", Assert.Single(ok.Plan!.Variants).Label);
+        Assert.NotNull(OpPlanParser.Parse("""{"reply":"x","variants":[{"label":7,"actions":[]}]}""").Error);
+    }
+
+    [Fact]
+    public void HugeInvalidValuesAreNeverEchoedIntoTheErrorMessage()
     {
         string token = new('x', 500);
         OpPlanParseResult result = OpPlanParser.Parse(
             $$$"""{"reply":"ok","actions":[{"op":"crop","spec":{"x1":"{{{token}}}"}}]}""");
         Assert.Null(result.Plan);
-        Assert.Contains("…", result.Error);
-        Assert.True(result.Error!.Length < 150); // the 500-char token was clipped, not echoed
+        Assert.DoesNotContain(token, result.Error);
+        Assert.True(result.Error!.Length < 150); // the 500-char token names its grammar, not its value
     }
 }
