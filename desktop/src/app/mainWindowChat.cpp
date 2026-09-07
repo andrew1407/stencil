@@ -35,7 +35,6 @@
 #include <QMenu>
 #include <QToolButton>
 #include <QWidgetAction>
-#include <QMessageBox>
 #include <QPointer>
 #include <QTimer>
 #include <QUrl>
@@ -433,7 +432,6 @@ namespace stencil::gui {
       chatMirror(QStringLiteral("Error"), off, true, text, {}, /*configure=*/true);
       // This path never reaches onChatReply's own toast/unread handling (it
       // returns before any reply is even requested) — mark it here instead.
-      if (chatSurfaceHidden()) setChatUnread(true);
       return;
     }
     ensureLlmClient();
@@ -605,34 +603,7 @@ namespace stencil::gui {
     return !dockUp && !panelUp;
   }
 
-  // A quiet accent dot on the chat icon: something landed while you were away.
-  // An overlay child of the button, so it costs no layout and cannot shift it.
-  void MainWindow::setChatUnread(bool on) {
-    chatUnread_ = on;
-    const QColor accent =
-        themePalette(resolveDark(settings_.themeMode), settings_.accentColor).accent;
-    // EVERY button bound to the chat action, not just the first VISIBLE one:
-    // which button that is changes with the toolbar's state, so marking one and
-    // clearing another left the dot stuck on screen.
-    for (QToolButton* btn : findChildren<QToolButton*>()) {
-      if (btn->defaultAction() != actChat_) continue;
-      auto* dot = btn->findChild<QLabel*>(QStringLiteral("chatUnreadDot"));
-      if (!on) { if (dot) dot->hide(); continue; }
-      if (!dot) {
-        dot = new QLabel(btn);
-        dot->setObjectName(QStringLiteral("chatUnreadDot"));
-        dot->setAttribute(Qt::WA_TransparentForMouseEvents);
-        dot->setFixedSize(7, 7);
-      }
-      dot->setStyleSheet(QStringLiteral("background:%1;border-radius:3px;").arg(accent.name()));
-      dot->move(btn->width() - dot->width() - 3, 3);
-      dot->raise();
-      dot->show();
-    }
-  }
-
   void MainWindow::showChatToast(const QString& text, bool success) {
-    setChatUnread(true);   // the icon keeps the news after the toast fades
     if (!chatToast_) chatToast_ = new ChatToast(this);
     QString t = text;
     if (t.size() > kToastMaxChars)
@@ -655,7 +626,6 @@ namespace stencil::gui {
   // (QWidgetAction releases — never deletes — a default widget when the menu it
   // was in goes away).
   void MainWindow::ensureChatMenuPanel() {
-    setChatUnread(false);   // the menu's chat is a surface too — the news is seen
     if (chatMenuAction_) return;
     auto* panel = new ChatMenuPanel(
         this, [this](QString text) { onChatSend(text); }, [this] { onChatStop(); },

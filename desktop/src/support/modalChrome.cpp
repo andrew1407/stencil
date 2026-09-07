@@ -4,6 +4,7 @@
 #include "shimmerOverlay.hpp"
 
 #include <QColor>
+#include <QComboBox>
 #include <QGuiApplication>
 #include <QDialog>
 #include <QEvent>
@@ -33,10 +34,39 @@ namespace stencil::gui {
     constexpr int kBodyPadY = 14;
     constexpr int kFooterPadY = 12;
     // The narrowest the footer hint will share a row: below it the hint takes its own
-    // line above the buttons (FooterWrap) rather than shrinking into a column of
-    // one-word lines — browser twin: the hint's `flex: 1 1 110px` basis.
+    // line above the buttons (FooterWrap) — left-aligned, the buttons packed right under
+    // it — rather than shrinking into a column of one-word lines. Browser twin: the
+    // hint's `flex: 1 1 110px` basis under `justify-content: flex-end`.
     constexpr int kFooterHintMinW = 110;
+
+    // The buttons' share of a footer row — every visible non-hint widget's minimum plus
+    // the gaps between them: the metric the window's width reservation, the wrap and a
+    // `width:auto` dialog all size against.
+    int footerButtonsWidth(const QHBoxLayout* row, const QWidget* hint, int* count = nullptr) {
+      int need = 0, items = 0;
+      for (int i = 0; i < row->count(); ++i) {
+        QWidget* w = row->itemAt(i)->widget();
+        if (!w || w == hint || w->isHidden()) continue;
+        need += w->minimumSizeHint().width();
+        ++items;
+      }
+      if (count) *count = items;
+      return need + row->spacing() * qMax(0, items - 1);
+    }
   }  // namespace
+
+  int modalFooterLineWidth(const ModalChrome& chrome, const QHBoxLayout* footer) {
+    if (!footer) return 0;
+    int items = 0;
+    int need = kPadX * 2 + 2 + footerButtonsWidth(footer, chrome.footerHint, &items);
+    QLabel* hint = chrome.footerHint;
+    if (hint && !hint->text().isEmpty()) {
+      hint->ensurePolished();   // the QSS font, before it is measured
+      need += hint->fontMetrics().horizontalAdvance(hint->text());
+      if (items > 0) need += footer->spacing();
+    }
+    return need;
+  }
 
   QFrame* modalDivider(QWidget* parent) {
     auto* line = new QFrame(parent);
@@ -271,7 +301,7 @@ namespace stencil::gui {
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("stencilConfirmModal"));
     dlg.setWindowTitle(spec.title);
-    ModalChrome chrome = installModalChrome(&dlg, QStringLiteral("alert"), spec.title);
+    ModalChrome chrome = installModalChrome(&dlg, spec.titleIcon, spec.title);
     auto* msg = new QLabel(spec.message, &dlg);
     msg->setWordWrap(true);
     msg->setTextInteractionFlags(Qt::NoTextInteraction);
@@ -344,9 +374,16 @@ namespace stencil::gui {
     } else {
       line = new QLineEdit(spec.defaultValue, &dlg);
       line->setObjectName(QStringLiteral("modalPromptLine"));
+      if (spec.password) line->setEchoMode(QLineEdit::Password);
       line->selectAll();
       chrome.body->addWidget(line);
     }
+    // The reason a value cannot be saved, under the field (hidden while it can).
+    auto* reason = new QLabel(&dlg);
+    reason->setObjectName(QStringLiteral("modalPromptReason"));
+    reason->setWordWrap(true);
+    reason->hide();
+    chrome.body->addWidget(reason);
     chrome.body->addStretch(1);
 
     QHBoxLayout* footer = addModalFooter(chrome);
@@ -358,13 +395,31 @@ namespace stencil::gui {
     footer->addWidget(okBtn);
     QObject::connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
     QObject::connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
+    // Live validation: Save (and Enter) go dead with the reason while the text is
+    // not saveable; the cursor follows, Qt having no `:disabled { cursor }` in QSS.
+    const auto revalidate = [&spec, line, area, okBtn, reason] {
+      if (!spec.validate) return;
+      const QString text = (area ? area->toPlainText() : line->text()).trimmed();
+      const QString why = spec.validate(text);
+      const bool ok = why.isEmpty();
+      okBtn->setEnabled(ok);
+      okBtn->setCursor(ok ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
+      okBtn->setToolTip(why);
+      reason->setText(why);
+      reason->setVisible(!ok);
+    };
+    if (line) QObject::connect(line, &QLineEdit::textChanged, &dlg, revalidate);
+    else QObject::connect(area, &QPlainTextEdit::textChanged, &dlg, revalidate);
+    revalidate();
     // A single-line field confirms on Enter (browser parity). The text AREA owns plain
     // Enter — it types a newline — so only Ctrl/⌘+Enter saves from inside it, and the
     // buttons stay out of Qt's default-button chain so Enter never leaks to them.
     if (line) {
       okBtn->setDefault(true);
       okBtn->setAutoDefault(true);
-      QObject::connect(line, &QLineEdit::returnPressed, &dlg, &QDialog::accept);
+      QObject::connect(line, &QLineEdit::returnPressed, &dlg, [&dlg, okBtn] {
+        if (okBtn->isEnabled()) dlg.accept();
+      });
     } else {
       cancelBtn->setAutoDefault(false);
       okBtn->setAutoDefault(false);
@@ -384,12 +439,53 @@ namespace stencil::gui {
     return text;
   }
 
+  std::optional<QString> chooseModal(QWidget* parent, const ChooseSpec& spec) {
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("stencilChooseModal"));
+    dlg.setWindowTitle(spec.title);
+    ModalChrome chrome = installModalChrome(&dlg, spec.titleIcon, spec.title);
+    auto* msg = new QLabel(spec.message, &dlg);
+    msg->setWordWrap(true);
+    msg->setTextInteractionFlags(Qt::NoTextInteraction);
+    chrome.body->addWidget(msg);
+    // The picker row (browser .confirm-choose-row: 12px above, the select full width).
+    auto* select = new QComboBox(&dlg);
+    select->setObjectName(QStringLiteral("modalChooseSelect"));
+    select->setCursor(Qt::PointingHandCursor);
+    for (const ChooseOption& o : spec.options)
+      select->addItem(o.label.isEmpty() ? o.value : o.label, o.value);
+    if (spec.currentIndex >= 0 && spec.currentIndex < select->count())
+      select->setCurrentIndex(spec.currentIndex);
+    chrome.body->addSpacing(2);   // + the body's own 10px gap = the browser's 12px
+    chrome.body->addWidget(select);
+    chrome.body->addStretch(1);
+
+    QHBoxLayout* footer = addModalFooter(chrome);
+    auto* cancelBtn = new QPushButton(spec.cancelLabel, &dlg);
+    makeModalCta(cancelBtn, QStringLiteral("x"));
+    cancelBtn->setAutoDefault(false);
+    footer->addWidget(cancelBtn);
+    auto* okBtn = new QPushButton(spec.confirmLabel, &dlg);
+    makeModalCta(okBtn, spec.confirmIcon);
+    okBtn->setDefault(true);   // Enter confirms, Escape rejects (QDialog)
+    okBtn->setAutoDefault(true);
+    footer->addWidget(okBtn);
+    QObject::connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+    QObject::connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
+    dlg.setFixedWidth(kModalWidth);
+    dlg.adjustSize();
+    select->setFocus();   // the browser focuses its select
+    armFlight(dlg, spec.flight);
+    if (dlg.exec() != QDialog::Accepted || select->count() == 0) return std::nullopt;
+    return select->currentData().toString();
+  }
+
   namespace {
-    // The browser's `.settings-footer` wraps (flex-wrap): the hint keeps the buttons'
-    // row while it can hold its basis, and drops to its own line above them when it
-    // can't. Qt has no wrapping box, so the swap is done by hand on every resize — the
-    // compact popover shape left the hint a few pixels wide, drawing no text at all
-    // under a tall empty row (user report, with a picture).
+    // The browser's `.settings-footer` wraps (flex-wrap): the hint keeps the buttons' row
+    // while it can hold its basis, and drops to its own line above them when it can't —
+    // left-aligned, the buttons packed RIGHT beneath it. Buttons that still don't fit wrap
+    // onto further right-packed lines, so nothing is cut off at the edge. Qt has no
+    // wrapping box, so the swaps are done by hand on every resize.
     class FooterWrap : public QObject {
      public:
       FooterWrap(QWidget* host, QVBoxLayout* stack, QHBoxLayout* actions, QLabel* hint)
@@ -400,16 +496,25 @@ namespace stencil::gui {
       // Run once the caller has added its buttons — and after addModalFooter's width
       // reservation, or the hint wraps for want of room that was about to arrive.
       void apply() {
-        int need = 0, buttons = 0;
-        for (int i = 0; i < actions_->count(); ++i) {
-          QWidget* w = actions_->itemAt(i)->widget();
-          if (!w || w == hint_ || w->isHidden()) continue;
-          need += w->minimumSizeHint().width();   // the metric the reservation uses too
-          ++buttons;
+        const QList<QWidget*> all = buttons();
+        if (all.isEmpty()) return;   // the caller has not added its buttons yet
+        const int avail = host_->width() - 2 - kPadX * 2;
+        const int gap = actions_->spacing();
+        // Greedy lines (browser flex-wrap): the first button that would run past the
+        // edge opens the next one. Hidden buttons ride along, taking no room.
+        QList<QList<QWidget*>> lines{{}};
+        int x = 0, firstLineW = 0;
+        for (QWidget* w : all) {
+          if (!w->isHidden()) {
+            const int bw = w->minimumSizeHint().width();
+            if (x > 0 && x + gap + bw > avail) { lines.append(QList<QWidget*>()); x = 0; }
+            x += (x > 0 ? gap : 0) + bw;
+            if (lines.size() == 1) firstLineW = x;
+          }
+          lines.last().append(w);
         }
-        if (buttons == 0) return;   // the caller has not added its buttons yet
-        need += actions_->spacing() * buttons;   // + the gap the hint itself would need
-        setWrapped(host_->width() - 2 - kPadX * 2 - need < kFooterHintMinW);
+        setWrapped(lines.size() > 1 || avail - firstLineW - gap < kFooterHintMinW);
+        setLines(lines);
       }
 
      protected:
@@ -419,33 +524,84 @@ namespace stencil::gui {
       }
 
      private:
+      // Every button in reading order: the actions row's, then the extra lines'.
+      QList<QWidget*> buttons() const {
+        QList<QWidget*> out;
+        const auto take = [&](const QHBoxLayout* row) {
+          for (int i = 0; i < row->count(); ++i) {
+            QWidget* w = row->itemAt(i)->widget();
+            if (w && w != hint_) out.append(w);
+          }
+        };
+        take(actions_);
+        for (QHBoxLayout* row : extra_) take(row);
+        return out;
+      }
+
+      // Hint beside the buttons (leading the row, growing) or on its own line above.
       void setWrapped(bool on) {
         if (on == wrapped_) return;
         wrapped_ = on;
-        // …and on its own line the hint is CENTRED over the row it now spans; beside the
-        // buttons it reads as a left-hand column again.
-        hint_->setAlignment((on ? Qt::AlignHCenter : Qt::AlignLeft) | Qt::AlignVCenter);
         if (on) {
           actions_->removeWidget(hint_);
-          actions_->addStretch(1);   // the buttons pack LEFT on a line of their own
+          actions_->insertStretch(0, 1);   // the buttons pack RIGHT on a line of their own
           stack_->insertWidget(0, hint_);
         } else {
           stack_->removeWidget(hint_);
-          const int last = actions_->count() - 1;
-          if (last >= 0 && actions_->itemAt(last)->spacerItem()) delete actions_->takeAt(last);
-          actions_->insertWidget(0, hint_, 1);
+          if (actions_->count() > 0 && actions_->itemAt(0)->spacerItem()) delete actions_->takeAt(0);
+          actions_->insertWidget(0, hint_, 1);   // addModalFooter's slot: first in the row
         }
+      }
+
+      // Re-home the buttons over `lines`: the first line stays the actions row, each
+      // further one is a right-packed row of its own under it. A no-op when nothing moves.
+      void setLines(const QList<QList<QWidget*>>& lines) {
+        QList<QList<QWidget*>> have{{}};
+        for (int i = 0; i < actions_->count(); ++i)
+          if (QWidget* w = actions_->itemAt(i)->widget(); w && w != hint_) have.last().append(w);
+        for (QHBoxLayout* row : extra_) {
+          have.append(QList<QWidget*>());
+          for (int i = 0; i < row->count(); ++i)
+            if (QWidget* w = row->itemAt(i)->widget()) have.last().append(w);
+        }
+        if (have == lines) return;
+        for (const auto& line : have)
+          for (QWidget* w : line) {
+            if (QLayout* l = layoutOf(w)) l->removeWidget(w);
+          }
+        for (QHBoxLayout* row : extra_) { stack_->removeItem(row); delete row; }
+        extra_.clear();
+        for (int i = 0; i < lines.size(); ++i) {
+          QHBoxLayout* row = actions_;
+          if (i > 0) {
+            row = new QHBoxLayout;
+            row->setContentsMargins(0, 0, 0, 0);
+            row->setSpacing(actions_->spacing());
+            row->addStretch(1);
+            stack_->addLayout(row);
+            extra_.append(row);
+          }
+          for (QWidget* w : lines[i]) row->addWidget(w);
+        }
+      }
+
+      QLayout* layoutOf(QWidget* w) const {
+        if (actions_->indexOf(w) >= 0) return actions_;
+        for (QHBoxLayout* row : extra_)
+          if (row->indexOf(w) >= 0) return row;
+        return nullptr;
       }
 
       QWidget* host_;
       QVBoxLayout* stack_;
       QHBoxLayout* actions_;
       QLabel* hint_;
+      QList<QHBoxLayout*> extra_;   // the buttons' further lines, when even they don't fit
       bool wrapped_ = false;
     };
   }  // namespace
 
-  QHBoxLayout* addModalFooter(ModalChrome& chrome, const QString& hint) {
+  QHBoxLayout* addModalFooter(ModalChrome& chrome, const QString& hint, bool liveHint) {
     QWidget* dlg = chrome.root ? chrome.root->parentWidget() : nullptr;
     chrome.root->addWidget(modalDivider(dlg));
     // Hint left, buttons right, on ONE row (browser .settings-footer). The hint takes all
@@ -453,21 +609,22 @@ namespace stencil::gui {
     // squeezed into a tall column of two-word lines (user report, with a picture).
     auto* footer = new QHBoxLayout;
     footer->setSpacing(8);
-    if (hint.isEmpty()) {
+    if (hint.isEmpty() && !liveHint) {
       footer->setContentsMargins(kPadX, kFooterPadY, kPadX, kFooterPadY);
       footer->addStretch(1);
       chrome.root->addLayout(footer);
       return footer;
     }
     // A hint rides in a wrap-capable stack: its own line above the buttons once the row
-    // can no longer hold kFooterHintMinW beside them (FooterWrap). The padding moves to
-    // the stack so both lines share it.
+    // can no longer hold kFooterHintMinW beside them, the buttons right-packed under it
+    // (FooterWrap). The padding moves to the stack so every line shares it.
     auto* stack = new QVBoxLayout;
     stack->setContentsMargins(kPadX, kFooterPadY, kPadX, kFooterPadY);
     stack->setSpacing(8);
     footer->setContentsMargins(0, 0, 0, 0);
     auto* h = new QLabel(hint, dlg);
     h->setObjectName(QStringLiteral("modalFooterHint"));
+    chrome.footerHint = h;
     h->setWordWrap(true);
     h->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     // …but that floor is a PREFERENCE, never a hard minimumWidth. A hard one Qt cannot
@@ -494,15 +651,8 @@ namespace stencil::gui {
         // into the main window (mainWindow execMaybePopover), whose minimum width is
         // none of this row's business.
         if (win && win == owner) {
-          int need = kPadX * 2 + 2;   // the stack pads both lines; the root insets 1px a side
-          int items = 0;
-          for (int i = 0; i < footer->count(); ++i) {
-            QWidget* w = footer->itemAt(i)->widget();
-            if (!w || w == h || w->isHidden()) continue;
-            ++items;
-            need += w->minimumSizeHint().width();
-          }
-          need += footer->spacing() * qMax(0, items - 1);
+          // The stack pads both lines; the root insets 1px a side.
+          const int need = kPadX * 2 + 2 + footerButtonsWidth(footer, h);
           if (need > win->minimumWidth()) win->setMinimumWidth(need);
         }
         if (wrap) wrap->apply();

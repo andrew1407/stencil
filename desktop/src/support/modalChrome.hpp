@@ -1,6 +1,8 @@
 #pragma once
 #include <QRect>
 #include <QString>
+#include <QVector>
+#include <functional>
 #include <optional>
 
 class QBoxLayout;
@@ -32,6 +34,7 @@ namespace stencil::gui {
     QVBoxLayout* root = nullptr;   // the dialog's own layout — margins 0, dividers full-bleed
     QVBoxLayout* body = nullptr;   // the padded content column (browser .settings-body)
     QPushButton* close = nullptr;  // the header pill, already wired to reject()
+    QLabel* footerHint = nullptr;  // the footer's muted hint, once addModalFooter made one
   };
 
   // Install the header + body scaffolding on a dialog that has no layout yet.
@@ -40,8 +43,13 @@ namespace stencil::gui {
 
   // Footer under a full-bleed divider: a muted hint on the left (empty = none)
   // and a stretch, so callers just append their buttons. Call after the body is
-  // filled — it lands below everything added so far.
-  QHBoxLayout* addModalFooter(ModalChrome& chrome, const QString& hint = QString());
+  // filled — it lands below everything added so far. `liveHint` keeps the label
+  // even while empty, for a hint that is set later (browser #open-in-hint).
+  QHBoxLayout* addModalFooter(ModalChrome& chrome, const QString& hint = QString(),
+                              bool liveHint = false);
+  // The footer's width on ONE line — the buttons at their minimum, the hint unwrapped,
+  // the gaps and the shell's padding: what a `width:auto` browser modal opens at.
+  int modalFooterLineWidth(const ModalChrome& chrome, const QHBoxLayout* footer);
 
   // The browser's .modal-search-bar: one full-width search field under the header
   // hairline. Call before the body is filled.
@@ -105,6 +113,8 @@ namespace stencil::gui {
   // QMessageBox question wherever the browser shows its styled modal instead.
   struct ConfirmSpec {
     QString title;                                  // header title
+    // The header glyph (browser opts.titleIcon): the alert triangle by default.
+    QString titleIcon = QStringLiteral("alert");
     QString message;                                // the question
     QString confirmLabel = QStringLiteral("OK");
     QString confirmIcon = QStringLiteral("check");  // the action's glyph (browser confirmIcon)
@@ -137,10 +147,35 @@ namespace stencil::gui {
     QString confirmIcon = QStringLiteral("save");
     QString cancelLabel = QStringLiteral("Cancel");
     bool multiline = false;
+    bool password = false;                         // echo dots (a token, never shown)
     int rows = 3;                                  // multiline only
     int maxChars = 0;                              // >0 caps the returned text
+    // Live validation: the reason the trimmed text cannot be saved (empty = it can).
+    // A reason disables Save (Enter included), shows under the field, and is the
+    // button's tooltip — the projects list's inline rename rules, in the shell.
+    std::function<QString(const QString&)> validate;
     FlightAnchors flight;                          // where it grows from / shrinks into
   };
   std::optional<QString> promptModal(QWidget* parent, const PromptSpec& spec);
+
+  // The browser's picker dialog (confirmModal.js `choose`): the confirm shell with a
+  // <select> of options under the message. Returns the picked option's value, or
+  // nullopt on Cancel / Close / Escape.
+  struct ChooseOption {
+    QString value;
+    QString label;                                 // empty = the value itself
+  };
+  struct ChooseSpec {
+    QString title = QStringLiteral("Choose");
+    QString titleIcon = QStringLiteral("alert");
+    QString message;
+    QVector<ChooseOption> options;
+    int currentIndex = 0;                          // pre-selected option
+    QString confirmLabel = QStringLiteral("OK");
+    QString confirmIcon = QStringLiteral("check");
+    QString cancelLabel = QStringLiteral("Cancel");
+    FlightAnchors flight;
+  };
+  std::optional<QString> chooseModal(QWidget* parent, const ChooseSpec& spec);
 
 }  // namespace stencil::gui

@@ -297,13 +297,20 @@ let turnInFlight = false;
 export const chatTurnInFlight = () => turnInFlight;
 
 // Queue Files onto the shared controller (picker, paste, or drop), reporting each
-// failure separately so one bad file doesn't lose the rest. Returns how many landed.
-export const queueAttachments = async (controller, files, onError) => {
-  let added = 0;
+// failure separately so one bad file doesn't lose the rest. Files past the §7 cap are
+// counted, not thrown: `onCapped` fires ONCE per batch so the caller can say so as an
+// accent notice (the desktop's toast), while a genuinely bad file still reports as a
+// failure. Returns how many landed.
+export const ATTACHMENT_CAP_NOTICE =
+  `Up to ${MAX_ATTACHMENTS} images per message — the extra ones were not attached.`;
+export const queueAttachments = async (controller, files, onError, onCapped) => {
+  let added = 0, capped = 0;
   for (const file of files) {
+    if (controller.attachments.length >= MAX_ATTACHMENTS) { capped++; continue; }
     try { await controller.addAttachment(file); added++; }
     catch (err) { onError?.(err, file); }
   }
+  if (capped) onCapped?.(capped);
   return added;
 };
 

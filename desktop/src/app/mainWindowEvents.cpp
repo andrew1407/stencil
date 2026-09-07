@@ -453,11 +453,13 @@ namespace stencil::gui {
         positionOverlayArrows(); positionPanelReopenButton(); positionPanelGrip();
         positionChatEdge();
       }
-      // Right-click on the margin around the image (or anywhere with no image)
-      // opens the same context menu the canvas opens — the backdrop had none.
-      // syncContextActions() still gates the image-dependent entries.
+      // Right-click on the margin around the image opens the same context menu the
+      // canvas opens — the backdrop had none. With NO image the press is left alone:
+      // showContextMenu() opens nothing then (browser contextMenu.js parity), so
+      // swallowing the click here would only make the backdrop eat it.
       if (t == QEvent::MouseButtonPress &&
-          static_cast<QMouseEvent*>(event)->button() == Qt::RightButton) {
+          static_cast<QMouseEvent*>(event)->button() == Qt::RightButton &&
+          canvas_ && canvas_->hasImage()) {
         showContextMenu(static_cast<QMouseEvent*>(event)->globalPosition().toPoint());
         return true;
       }

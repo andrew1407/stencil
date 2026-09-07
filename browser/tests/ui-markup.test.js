@@ -516,3 +516,35 @@ test('the bar separators part it in four, and the fill one follows its group', (
     assert.match(cta, /var\(--bg-sel-btn\)/, 'the same token its sibling buttons use');
     assert.ok(!/#e67e22/.test(cta), 'and no hardcoded orange left');
 });
+
+// Only the custom tooltip (ui/controlTooltip.js) ever shows: no control carries a native
+// `title` — authored in markup or assigned from code — anywhere in the app or the extension
+// (user report: the toolbar mic showed both). Text lives in data-title, composed text
+// (shortcut + disabled reason) in data-tip; the tooltip reads those and nothing else.
+test('no native title attribute anywhere — the custom tooltip is the only tooltip', async () => {
+  const { readFileSync, readdirSync, statSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const walk = (dir, out = []) => {
+    for (const f of readdirSync(dir)) {
+      const p = join(dir, f);
+      if (statSync(p).isDirectory()) walk(p, out);
+      else if (/\.(js|html)$/.test(f)) out.push(p);
+    }
+    return out;
+  };
+  const roots = [new URL('../js', import.meta.url).pathname, new URL('../../extension/src', import.meta.url).pathname];
+  const offenders = [];
+  for (const file of roots.flatMap((r) => walk(r))) {
+    const src = readFileSync(file, 'utf8');
+    if (/[\s\n]title="/.test(src)) offenders.push(`${file}: title="`);
+    // DOM setters and attribute writes; document.title (the tab) and parseTip's result object are not tooltips.
+    for (const m of src.matchAll(/(?<![\w.])([A-Za-z_$][\w$]*)\.title = |setAttribute\('title'/g)) {
+      if (m[1] === 'document' || m[1] === 'tip') continue;
+      offenders.push(`${file}: ${m[0].trim()}`);
+    }
+  }
+  assert.deepEqual(offenders, []);
+  const ct = readFileSync(new URL('../js/ui/controlTooltip.js', import.meta.url), 'utf8');
+  assert.ok(ct.includes("closest('[data-tip], [data-title]')"), 'the tooltip listens for data attributes only');
+  assert.ok(!ct.includes("getAttribute('title')"), 'and never reads the native one');
+});

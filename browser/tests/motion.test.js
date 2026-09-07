@@ -19,7 +19,7 @@ import {
   playCanvasArrival, ASSEMBLING_CLASS, CLEARING_CLASS, GHOST_MS,
   createFilterAnimator, FILTER_ENTERING_CLASS, FILTER_ENTER_MS,
   tileWaypoint, tileMotion, surfaceMotion, WAYPOINT_ALONG, SWIRL_SHARE, SWIRL_MAX_PX,
-  DUST_ALPHA_LEVELS,
+  DUST_ALPHA_LEVELS, DISINTEGRATE_MS, MIN_TILE_MS,
 } from '../js/ui/motion.js';
 
 const box = (left, top, width, height) => ({ left, top, width, height });
@@ -1320,6 +1320,32 @@ test('tileWaypoint sits part-way along the throw, pushed sideways by its own noi
   // Dead centre of the noise is a straight line; a zero throw has nowhere to bend.
   assert.deepEqual(tileWaypoint(60, 30, 0.5), { mx: Math.round(60 * WAYPOINT_ALONG), my: Math.round(30 * WAYPOINT_ALONG) });
   assert.deepEqual(tileWaypoint(0, 0, 0.9), { mx: 0, my: 0 });
+});
+
+// A row wiped in the browser read as visibly longer than the same wipe on the desktop,
+// on the same 0.9s clock: the sweep's per-mote delay was ADDED to a full-span flight, so
+// the last grains were still going a quarter-second after the span was over. The desktop
+// overlay flies each cell the window it has left (`t = (t - delay) / (1 - delay)`), and
+// so does this now — the cloud is done AT the span, whatever the sweep.
+test('the scatter fits inside its span: a late mote flies what is left of it, not more', () => {
+  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  assert.match(src, /const flightMs = gather \? 0 : Math\.max\(MIN_TILE_MS, \(ms \|\| DISINTEGRATE_MS\) - m\.delay\)/,
+    'the tile is given the remainder of the span, not the whole of it');
+  assert.match(src, /animation-duration:\$\{flightMs\}ms/, '…written on the tile itself');
+  // Every cell of a row scatter lands within DISINTEGRATE_MS (the floor is the only
+  // exception, and it only ever applies to a flight far shorter than a row's).
+  for (let cy = 0; cy < 16; cy++) {
+    for (let cx = 0; cx < 34; cx += 7) {
+      const { delay } = tileMotion(cx, cy, 34, 16);
+      assert.ok(delay >= 0 && delay + Math.max(MIN_TILE_MS, DISINTEGRATE_MS - delay) <= DISINTEGRATE_MS,
+        `cell ${cx},${cy} overruns the span`);
+    }
+  }
+  // A gather is untouched: its flight is the short --gather-ms and the reversed sweep is
+  // what fills the rest of the span, so it already landed on time.
+  assert.ok(tileMotion(0, 0, 34, 16, true).delay >= 0);
+  // …and the layer is torn down a beat after the last mote, not most of a second later.
+  assert.match(src, /\(ms \|\| DISINTEGRATE_MS\) \+ 150\)/);
 });
 
 test('a row’s fall and a surface’s flight both carry the waypoint, deterministically', () => {

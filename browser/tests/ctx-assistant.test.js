@@ -554,7 +554,7 @@ test('the attachment chip is a thumbnail, a name and a remove — nothing else',
   const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
   assert.ok(view.includes("thumb.className = 'chat-attach-thumb';"), 'the queued picture is shown');
   assert.ok(view.includes('wireThumbPreview(thumb, label);'), 'and magnifies on hover');
-  assert.ok(view.includes('name.title = label;'), 'the ellipsised name keeps the full one on the tooltip');
+  assert.ok(view.includes('name.dataset.title = label;'), 'the ellipsised name keeps the full one on the tooltip');
   assert.ok(view.includes('chip.append(name, rm);'), 'name + remove, no analyze/working pill');
   assert.ok(!view.includes('chat-attach-use'), 'the analyze ↔ working toggle is gone from the chip');
   const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
@@ -949,28 +949,26 @@ test('both surfaces toast through the shared builder, each with a way back to th
 });
 
 // ── Unread affordance on the toolbar button ────────────────────────────────
-test('a turn landing on a closed chat marks the toolbar button unread until it is opened', () => {
+test('a turn landing on a closed chat toasts, and only WORK IN FLIGHT marks the button', () => {
   const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
-  // Set exactly where the closed-chat toast fires…
+  // The toast fires only while no surface can show the answer…
   const closed = panel.slice(panel.indexOf('const closedToast = (res) => {'), panel.indexOf('// ── Send loop'));
   assert.ok(closed.includes('if (panelIsOpen() || !toast) return;'), 'never while the chat is visible');
-  assert.ok(closed.includes('markChatUnread(true)'));
-  // …and cleared by opening it.
-  assert.ok(panel.includes('markChatUnread(false);   // opening it IS reading it'));
-  // Mirrored onto the fullscreen toolbar clone, exactly like `.active`.
-  const mark = panel.slice(panel.indexOf('const markChatUnread'), panel.indexOf('const markChatBusy'));
-  assert.ok(mark.includes("openBtn?.classList.toggle('chat-unread', on)"));
-  assert.ok(mark.includes("for (const el of fsCloneBtns()) el.classList.toggle('chat-unread', on)"));
-  // In-flight behind a closed chat gets the quiet pulse, cleared in cleanup.
+  assert.ok(closed.includes('onClick: () => setOpen(true)'), 'and the toast itself opens the chat');
+  // …and it leaves NOTHING behind on the icon: no unread badge on either surface
+  // (the desktop's twin went with it — mainWindowChat.cpp).
+  assert.ok(!panel.includes('chat-unread') && !panel.includes('markChatUnread'),
+    'no unread dot is marked anywhere');
+  // In-flight behind a closed chat still gets the quiet pulse, cleared in cleanup.
   assert.ok(panel.includes('markChatBusy(!panelIsOpen());'));
   assert.ok(panel.includes('markChatBusy(false);'));
   // A pure pseudo-element dot: the button's box never moves.
   const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
-  const dot = css.slice(css.indexOf('#chat-btn.chat-unread::before'), css.indexOf('/* On the accent-filled'));
+  assert.ok(!css.includes('chat-unread'), 'and no unread rule is left in the stylesheet');
+  const dot = css.slice(css.indexOf('#chat-btn.chat-working::before'), css.indexOf('/* On the accent-filled'));
   assert.match(dot, /position: absolute/);
-  assert.match(dot, /background: var\(--accent\)/, 'accent-aware');
-  assert.ok(!/margin|padding|width: 100%/.test(dot), 'nothing that could shift the button');
-  assert.match(css, /#chat-btn\.active\.chat-unread::before/, 'and it inverts on the accent fill');
+  assert.match(dot, /background: var\(--accent\)/, 'accent-coloured');
+  assert.match(css, /#chat-btn\.active\.chat-working::before/, 'and it inverts on the accent fill');
 });
 
 // ── The chat provider hits the same dead session ───────────────────────────

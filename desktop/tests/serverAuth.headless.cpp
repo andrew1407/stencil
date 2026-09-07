@@ -409,7 +409,7 @@ int main(int argc, char** argv) {
     mock.mintToken = "tok";
   }
 
-  // ── the expired ROW: amber note + a labelled Reconnect that signs in again ──
+  // ── the expired ROW: amber card + the row's own Reconnect, which signs in again ──
   std::printf("expired row:\n");
   {
     mock.projectsStatus = 401;
@@ -424,9 +424,9 @@ int main(int argc, char** argv) {
     dlg.resize(520, 420);
     dlg.show();
     pumpFor(60);
-    // No separate note any more: the browser says it with the amber card, the amber dot
-    // and a LABELLED Reconnect, and the desktop now says it the same way. The sentence
-    // lives on the dot's and the URL's tooltips.
+    // No separate note any more: the browser says it with the amber card and the amber
+    // dot, and the desktop says it the same way. The sentence lives on the dot's and
+    // the URL's tooltips.
     check(dlg.findChild<QLabel*>(QStringLiteral("expiredNote")) == nullptr,
           "the expired row carries no note of its own (the browser has none)");
     bool saysExpired = false;
@@ -439,15 +439,17 @@ int main(int argc, char** argv) {
     auto* signIn = dlg.findChild<QPushButton*>(QStringLiteral("expiredReconnect"));
     check(signIn != nullptr, "…and a Reconnect action");
     if (signIn) {
-      // LABELLED, unlike every other row action (browser: .btn-icon-text + "Reconnect"):
-      // on an expired row this is the fix, not a retry, so it says so.
-      check(signIn->text() == QStringLiteral("Reconnect") && !signIn->icon().isNull(),
-            "…that is labelled Reconnect, with its icon");
+      // ICON-ONLY like every other row action (browser: .connect-reconnect-one keeps its
+      // .btn-icon shape here too) — the amber fill and the tooltip carry the state.
+      check(signIn->text().isEmpty() && !signIn->icon().isNull(),
+            "…that is the plain icon button, no label");
       check(signIn->toolTip().contains("Sign in to this server again"),
             "…with what it does on its tooltip");
-      // Wider than an icon button, but on exactly its line — the two sit side by side.
-      check(signIn->height() == dlg.findChild<QPushButton*>(QStringLiteral("rowDisconnect"))->height(),
+      // Exactly the disconnect button's box — the two sit side by side, same square.
+      auto* disc = dlg.findChild<QPushButton*>(QStringLiteral("rowDisconnect"));
+      check(signIn->height() == disc->height(),
             "…and the same height as the row's disconnect button");
+      check(signIn->width() == disc->width(), "…and the same width");
     }
 
     // The server starts handing out sessions again: the row's own reconnect
@@ -632,6 +634,16 @@ int main(int argc, char** argv) {
             "…drawn in the app's collaboration gold");
       check(gold[0]->toolTip().contains(QStringLiteral("mint session tokens")),
             "…and saying on its tooltip what the credential can do");
+      // The lock + "Admin" pair beside the URL, at its natural width — a QLabel host
+      // measured itself from its own empty text and squeezed the pair to a sliver.
+      auto* badge = dlg.findChild<QWidget*>(QStringLiteral("connAdminBadge"));
+      check(badge != nullptr, "…and carrying the Admin badge");
+      if (badge) {
+        int parts = 0;
+        for (QLabel* l : badge->findChildren<QLabel*>()) parts += l->sizeHint().width();
+        check(parts > 0 && badge->sizeHint().width() >= parts,
+              "…wide enough for the lock glyph and the word, not a sliver");
+      }
       // Browser .connect-row parity: the plain rows are filled cards too — radius 8,
       // hovering to --bg-info.
       check(rowList->styleSheet().contains(QStringLiteral("border-radius:8px")) &&

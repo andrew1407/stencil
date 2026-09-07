@@ -325,7 +325,7 @@ export class ExportService {
     if (!(await app.confirm(
       `Delete “${name}” from disk? This can’t be undone. The project stays open here.`,
       { title: 'Delete project file', confirmLabel: 'Delete file', confirmIcon: 'trash', cancelLabel: 'Cancel' }))) {
-      notify('Delete canceled', 'fail');
+      notify('Delete canceled', 'info');
       return;
     }
     try {
@@ -384,11 +384,11 @@ export class ExportService {
           confirmLabel: 'Replace', confirmIcon: 'swap',
           altLabel: 'Combine', altIcon: 'layers',
         });
-      if (!choice) { notify(cancelMsg, 'fail'); return; }
+      if (!choice) { notify(cancelMsg, 'info'); return; }
       mode = choice === 'alt' ? 'combine' : 'replace';
     }
     if (verdict.needsDimMismatchConfirm && !(await app.confirm('Image dimensions do not match. Continue anyway?', { title: 'Dimension mismatch' }))) {
-      notify(cancelMsg, 'fail');
+      notify(cancelMsg, 'info');
       return;
     }
     this.#installLines(mode === 'combine' ? [...(app.lines || []), ...verdict.lines] : verdict.lines);

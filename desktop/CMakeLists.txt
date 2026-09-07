@@ -605,6 +605,25 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_connectrow_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # The shared modal shell's small dialogs (support/modalChrome): the browser's picker
+  # (`choose`), the password prompt, the prompt's live validation, the confirm's
+  # titleIcon, and the Open In… dialog's in-modal Telegram fallback row.
+  add_executable(stencil_modalchrome_headless
+    tests/modalChrome.headless.cpp
+    src/support/modalChrome.cpp
+    src/dialogs/openInDialog.cpp
+    src/app/deepLink.cpp
+    src/net/serverClient.cpp      # deepLink's origin normalisation
+    src/support/iconSet.cpp
+    src/support/modalReveal.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_modalchrome_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_modalchrome_headless PRIVATE
+    stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
+  add_test(NAME stencil_modalchrome_headless COMMAND stencil_modalchrome_headless)
+  set_tests_properties(stencil_modalchrome_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
   # The DESCRIPTION & ATTRIBUTES editors (dialogs/descriptionDialog, keywordsDialog):
   # the shell's structure, Enter/Escape, keyword normalisation, and the store write
   # against an isolated state dir.

@@ -1,7 +1,10 @@
 #include "openInDialog.hpp"
+#include "deepLink.hpp"
 #include "iconSet.hpp"
 #include "../support/modalChrome.hpp"
+#include <QApplication>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -11,8 +14,9 @@
 namespace stencil::gui {
 
   OpenInDialog::OpenInDialog(QWidget* parent, bool serverProject, const QString& serverUrl,
-                             bool browserAvailable, bool telegramAvailable, bool startIncognito)
-      : QDialog(parent) {
+                             bool browserAvailable, bool telegramAvailable, bool startIncognito,
+                             const QString& serverId)
+      : QDialog(parent), serverUrl_(serverUrl), serverId_(serverId) {
     setWindowTitle("Open In…");
     setMinimumWidth(520);
 
@@ -52,11 +56,54 @@ namespace stencil::gui {
     rows->addWidget(incogLbl, 3, 0);
     rows->addWidget(incognito_, 3, 1);
     chrome.body->addLayout(rows);
+
+    // Fallback row (browser #open-in-fallback-row): shown when a Telegram start
+    // payload can't fit in 64 chars — the two bot commands as selectable code, and a
+    // copy chip beside them. Hidden until then.
+    fallbackRow_ = new QWidget(this);
+    {
+      auto* wrap = new QVBoxLayout(fallbackRow_);
+      wrap->setContentsMargins(0, 0, 0, 0);
+      wrap->setSpacing(0);
+      wrap->addSpacing(8);
+      wrap->addWidget(modalDivider(fallbackRow_));
+      wrap->addSpacing(8);
+      auto* h = new QHBoxLayout;
+      h->setContentsMargins(0, 0, 0, 0);
+      h->setSpacing(16);
+      auto* lbl = new QLabel(tr("In the bot"), fallbackRow_);
+      h->addWidget(lbl, 0, Qt::AlignTop);
+      auto* cmdRow = new QHBoxLayout;
+      cmdRow->setContentsMargins(0, 0, 0, 0);
+      cmdRow->setSpacing(8);
+      fallbackCmds_ = new QLabel(fallbackRow_);
+      fallbackCmds_->setObjectName(QStringLiteral("openInFallbackCmds"));
+      fallbackCmds_->setTextInteractionFlags(Qt::TextSelectableByMouse);
+      cmdRow->addWidget(fallbackCmds_, 1);
+      auto* copy = new QPushButton(fallbackRow_);
+      copy->setObjectName(QStringLiteral("openInFallbackCopy"));
+      copy->setProperty("miniChip", true);
+      copy->setFixedSize(34, 29);
+      copy->setIconSize(QSize(14, 14));
+      copy->setIcon(themedIcon("copy", palette().color(QPalette::WindowText), 14));
+      copy->setToolTip(tr("Copy commands"));
+      copy->setAutoDefault(false);
+      connect(copy, &QPushButton::clicked, this, [this] {
+        QApplication::clipboard()->setText(fallbackCmds_->text());
+        emit toast(tr("Commands copied"), false);
+      });
+      cmdRow->addWidget(copy, 0, Qt::AlignTop);
+      h->addLayout(cmdRow, 1);
+      wrap->addLayout(h);
+    }
+    fallbackRow_->hide();
+    chrome.body->addWidget(fallbackRow_);
     chrome.body->addStretch(1);
 
-    // Footer (browser settings-footer): every enabled action wears the accent fill,
-    // Cancel included — the browser's default <button> treatment.
-    QHBoxLayout* btnRow = addModalFooter(chrome);
+    // Footer (browser settings-footer): the live hint (#open-in-hint, empty until the
+    // fallback speaks), then every enabled action in the accent fill, Cancel included.
+    QHBoxLayout* btnRow = addModalFooter(chrome, QString(), /*liveHint=*/true);
+    hint_ = chrome.footerHint;
     auto* cancel = new QPushButton(tr("Cancel"), this);
     makeModalCta(cancel, "x");
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
@@ -80,6 +127,12 @@ namespace stencil::gui {
       telegram_ = new QPushButton(tr("Telegram bot"), this);
       makeModalCta(telegram_, "message");
       connect(telegram_, &QPushButton::clicked, this, [this] {
+        // A payload that fits is the owner's link to open; one that doesn't stays
+        // here as the manual recipe (browser: the modal stays open on the fallback).
+        if (deepLink::encodeTelegramStartPayload(serverUrl_, serverId_).isEmpty()) {
+          showTelegramFallback();
+          return;
+        }
         outcome_ = Outcome::Telegram;
         accept();
       });
@@ -87,6 +140,19 @@ namespace stencil::gui {
     }
   }
 
+  void OpenInDialog::showTelegramFallback() {
+    fallbackCmds_->setText(QStringLiteral("/connect %1\n/fetch %2").arg(serverUrl_, serverId_));
+    fallbackRow_->show();
+    if (hint_)
+      hint_->setText(tr("The link is too long for Telegram — open the bot and paste these commands."));
+    adjustSize();
+    emit telegramFallback();
+  }
+
   bool OpenInDialog::incognito() const { return incognito_->isChecked(); }
+  bool OpenInDialog::fallbackShown() const { return fallbackRow_ && fallbackRow_->isVisible(); }
+  QString OpenInDialog::fallbackCommands() const {
+    return fallbackCmds_ ? fallbackCmds_->text() : QString();
+  }
 
 }

@@ -2,6 +2,7 @@
 
 #include <QEasingCurve>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPen>
 #include <QTimer>
 #include <QVariantAnimation>
@@ -13,6 +14,18 @@ namespace stencil::gui {
     constexpr int kZoneInset = 8;      // inset from the area edges
     constexpr int kZoneNudgePx = 4;    // chevron travel (±px, browser chatZoneNudge)
     constexpr int kZoneNudgeMs = 1400; // full out-and-back cycle (0.7 s each way)
+
+    // Blur by smooth-scaling down and back up — Qt has no backdrop filter, and a
+    // real convolution over the whole dock region would cost more than the wash is
+    // worth. /4 lands close to the browser's blur(2px) at this size.
+    QPixmap blurred(const QPixmap& src) {
+      const QSize small = src.size() / 4;
+      if (small.isEmpty()) return src;
+      QPixmap out = src.scaled(small, Qt::IgnoreAspectRatio, Qt::SmoothTransformation)
+                       .scaled(src.size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+      out.setDevicePixelRatio(src.devicePixelRatio());
+      return out;
+    }
   }  // namespace
 
   DockZonesOverlay::DockZonesOverlay(QWidget* parent) : QWidget(parent) {
@@ -46,6 +59,12 @@ namespace stencil::gui {
     accent_ = accent;
     stillDragging_ = std::move(stillDragging);
     hover_ = -1;
+    // Grabbed while still hidden, so the bands blur the page and not themselves.
+    backdrop_ = QPixmap();
+    if (QWidget* p = parentWidget()) {
+      const QPixmap shot = p->grab(targetRect);
+      if (!shot.isNull()) backdrop_ = blurred(shot);
+    }
     setGeometry(targetRect);
     raise();
     show();
@@ -88,6 +107,7 @@ namespace stencil::gui {
   }
 
   void DockZonesOverlay::hideEvent(QHideEvent* e) {
+    backdrop_ = QPixmap();   // a window-sized pixmap has no business outliving the drag
     nudgeAnim_->stop();
     watchdog_->stop();
     QWidget::hideEvent(e);
@@ -99,8 +119,17 @@ namespace stencil::gui {
     for (int i = 0; i < 4; ++i) {
       const bool hot = i == hover_;
       const QRect z = zoneRect(i);
+      // Blurred page under the band first, then the tint over it.
+      if (!backdrop_.isNull()) {
+        QPainterPath clip;
+        clip.addRoundedRect(z, 10, 10);
+        p.save();
+        p.setClipPath(clip);
+        p.drawPixmap(rect(), backdrop_);
+        p.restore();
+      }
       QColor fill = accent_;
-      fill.setAlpha(hot ? 97 : 51);    // ~38% targeted / ~20% rest
+      fill.setAlpha(hot ? 133 : 82);   // ~52% targeted / ~32% rest
       QColor stroke = accent_;
       stroke.setAlpha(hot ? 255 : 179);  // full / ~70%
       p.setPen(QPen(stroke, 2, Qt::DashLine));

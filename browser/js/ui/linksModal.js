@@ -16,24 +16,21 @@ export class StencilLinksModal extends StencilElement {
                 <button class="app-modal-close btn-icon-text" id="links-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="settings-body">
-                <!-- Edit the current image's links. Shown only when an image is loaded. -->
+                <!-- Edit the current image's links. Shown only when an image is loaded. The
+                     project's name is edited in the projects list / title, not here. -->
                 <div id="links-edit-section">
-                    <div class="vs-section">Project</div>
-                    <div class="vs-row vs-field"><label>Name</label><input type="text" id="links-name" placeholder="Untitled"></div>
-
-                    <div class="vs-section">Links</div>
-                    <div class="vs-row vs-field"><label title="The image/video's own URL">Source</label>
+                    <div class="vs-row vs-field"><label data-title="The image/video's own URL">Source</label>
                         <span class="links-field">
                             <input type="text" id="links-source" placeholder="(empty — local upload)">
-                            <button id="links-source-open" class="links-open btn-icon" title="Open source in a new tab">${icon('external', { size: 14 })}</button>
-                            <button id="links-source-clear" class="links-clear danger btn-icon" title="Remove source link">${icon('x', { size: 14 })}</button>
+                            <button id="links-source-open" class="links-open btn-icon" data-title="Open source in a new tab">${icon('external', { size: 14 })}</button>
+                            <button id="links-source-clear" class="links-clear danger btn-icon" data-title="Remove source link">${icon('x', { size: 14 })}</button>
                         </span>
                     </div>
-                    <div class="vs-row vs-field"><label title="The web page the image was found on">Resource</label>
+                    <div class="vs-row vs-field"><label data-title="The web page the image was found on">Resource</label>
                         <span class="links-field">
                             <input type="text" id="links-resource" placeholder="(empty)">
-                            <button id="links-resource-open" class="links-open btn-icon" title="Open resource page in a new tab">${icon('external', { size: 14 })}</button>
-                            <button id="links-resource-clear" class="links-clear danger btn-icon" title="Remove resource link">${icon('x', { size: 14 })}</button>
+                            <button id="links-resource-open" class="links-open btn-icon" data-title="Open resource page in a new tab">${icon('external', { size: 14 })}</button>
+                            <button id="links-resource-clear" class="links-clear danger btn-icon" data-title="Remove resource link">${icon('x', { size: 14 })}</button>
                         </span>
                     </div>
                 </div>
@@ -49,16 +46,14 @@ export class StencilLinksModal extends StencilElement {
   wire(app) {
     const $ = id => document.getElementById(id);
     const overlay = $('links-modal-overlay');
-    const nameEl = $('links-name');
     const sourceEl = $('links-source');
     const resourceEl = $('links-resource');
     const footHint = $('links-foot-hint');
 
-    // Re-read the current project's name/source/resource into the fields. Pulled out
+    // Re-read the current project's source/resource into the fields. Pulled out
     // of onOpen so it can also refresh LIVE while the modal is open (e.g. when the
     // console's stencil.current.source = … updates the active project).
     const syncLinkFields = () => {
-      nameEl.value = (app.activeProjectId && app.storage.store.getMeta(app.activeProjectId)?.name) || app.imageBaseName || '';
       sourceEl.value = app.imageSource || '';
       resourceEl.value = app.imageResource || '';
     };
@@ -82,13 +77,6 @@ export class StencilLinksModal extends StencilElement {
 
     // ── Current-project links: edit / open / remove ──
     const persist = () => { app.storage.save(); };
-
-    const commitName = () => {
-      const v = nameEl.value.trim();
-      // renameProject keeps imageBaseName in lockstep for the active project.
-      if (app.activeProjectId && v) app.renameProject(app.activeProjectId, v);
-    };
-    nameEl.addEventListener('change', commitName);
 
     const bindLinkField = (input, openBtn, clearBtn, key) => {
       input.addEventListener('change', () => {

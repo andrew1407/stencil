@@ -15,7 +15,6 @@
 #include <QEasingCurve>
 #include <QFileDialog>
 #include <QIcon>
-#include <QMessageBox>
 #include <QPainter>
 #include <QPen>
 #include <QPixmap>
@@ -65,7 +64,6 @@ namespace stencil::gui {
     QFileDialog dlg(parent, title, suggested, filter);
     dlg.setAcceptMode(QFileDialog::AcceptSave);
     dlg.setFileMode(QFileDialog::AnyFile);
-    dlg.setOption(QFileDialog::DontUseNativeDialog, true);
     if (dlg.exec() != QDialog::Accepted || dlg.selectedFiles().isEmpty()) return QString();
     return dlg.selectedFiles().first();
   }

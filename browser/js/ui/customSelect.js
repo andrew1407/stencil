@@ -33,7 +33,7 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
   // The trigger IS the control now, so it inherits the hover text the native select
   // carried — the rich tooltip attributes included (data-title's bullet list, the
   // disabled-reason line, the hotkey keycap), or an enhanced control would go silent.
-  if (selectEl.title) trigger.title = selectEl.title;
+  if (selectEl.dataset.title) trigger.dataset.title = selectEl.dataset.title;
   for (const k of ['title', 'disabledReason', 'hkTitle'])
     if (selectEl.dataset[k] != null) trigger.dataset[k] = selectEl.dataset[k];
   // …and its enabled state: a disabled <select> is hidden here, so nothing would have

@@ -3,6 +3,7 @@
 #include <QDialog>
 #include <QImage>
 #include <QString>
+#include <QStringList>
 #include <QUrl>
 
 class QLineEdit;
@@ -119,8 +120,9 @@ namespace stencil::gui {
     void seekScrub(int frame);    // seek the persistent player to a frame and render it
     void onScrubFrame(const QVideoFrame& frame);  // adopt a rendered frame into the preview
     void showQuickcrop(int w, int h);  // reveal + default the quick-crop row for a preview
-    void syncQuickcropEnabled();       // album/page enabled only while cropping to page
+    void syncQuickcropEnabled();       // album/page shown only while cropping to page
     void refreshOpenEnabled();         // gate the open buttons on a resolved preview
+    void refreshTargetRow();           // the Save-to row follows servers / incognito / tab
 
     // Source tabs: 0 = Local file, 1 = URL link, 2 = Blank.
     QTabWidget* tabs_ = nullptr;
@@ -138,6 +140,9 @@ namespace stencil::gui {
     QCheckBox* rename_ = nullptr;
     QCheckBox* keep_ = nullptr;
     QWidget* replaceRow_ = nullptr;
+    QComboBox* target_ = nullptr;     // "Save to": local or a connected server
+    QWidget* targetRow_ = nullptr;
+    QStringList serverUrls_;
 
     // Preview area.
     QPushButton* previewBtn_ = nullptr;
@@ -148,7 +153,7 @@ namespace stencil::gui {
     // default), album/portrait toggle, and the page-size choice.
     QWidget* quickcropRow_ = nullptr;
     QCheckBox* cropPage_ = nullptr;
-    QCheckBox* cropAlbum_ = nullptr;
+    QPushButton* cropAlbum_ = nullptr;   // the Album / Portrait toggle (checked = album)
     QComboBox* cropPageSize_ = nullptr;
     QString pageSeed_ = "A3";  // canonical format name (findData miss ⇒ A3)
     QString units_ = "cm";

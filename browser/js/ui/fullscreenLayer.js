@@ -18,7 +18,7 @@ export class StencilFullscreenLayer extends StencilElement {
 
     <!-- Fullscreen slide-in: controls (top) -->
     <div id="fs-controls-panel">
-        <button id="fs-exit-btn" class="btn-icon-text" data-hk-title="fullscreen" data-title="Exit fullscreen" title="Exit fullscreen">${icon('x', { size: 14 })}<span>Exit</span></button>
+        <button id="fs-exit-btn" class="btn-icon-text" data-hk-title="fullscreen" data-title="Exit fullscreen">${icon('x', { size: 14 })}<span>Exit</span></button>
         <!-- Controls content will be cloned here by JS -->
     </div>
 
@@ -239,7 +239,7 @@ export class StencilFullscreenLayer extends StencilElement {
       } catch { /* no DOM (tests) */ }
       fsBtn.innerHTML = icon('maximize');
       fsBtn.dataset.title = isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode';
-      fsBtn.title = hotkeys.hkTitle(isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode', 'fullscreen');
+      fsBtn.dataset.tip = hotkeys.hkTitle(isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode', 'fullscreen');
       // Accent-fill only while fullscreen is active (via the shared .active ghost-button style),
       // so the button reads flat like the rest of the Settings row when not in fullscreen.
       fsBtn.classList.toggle('active', isFullscreen);

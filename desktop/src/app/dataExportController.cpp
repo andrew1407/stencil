@@ -12,7 +12,6 @@
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QJsonDocument>
-#include <QMessageBox>
 #include <QPushButton>
 #include <QTemporaryDir>
 

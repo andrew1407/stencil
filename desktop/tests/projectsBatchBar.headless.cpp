@@ -18,6 +18,7 @@
 //     visible set.
 // A mock QTcpServer stands in for the collaboration server (token + /projects list),
 // so the server-row compositions run without a Go server. Offscreen, like the others.
+#include "controlReveal.hpp"   // kControlRevealInMs: the batch group's slot timing
 #include "disintegrateOverlay.hpp"
 #include "fileStore.hpp"
 #include "filterFade.hpp"   // the light enter/exit transition the search/filter uses
@@ -184,6 +185,24 @@ int main(int argc, char** argv) {
     check(!toLocal->isVisible() && !copyLocal->isVisible(),
           "local-only: To local / Local copy hidden (not greyed)");
     check(removeBtn->isVisible(), "Remove stays available for any selection");
+
+    // Squeezed narrow, the bar WRAPS (browser .projects-batch-bar / -selected flex-wrap):
+    // "Remove selected" drops to a line of its own instead of being cut off at the edge.
+    {
+      pumpFor(stencil::gui::kControlRevealInMs + 100);   // the group's slot has slid fully open
+      dlg.setMinimumSize(0, 0);
+      dlg.resize(420, dlg.height());
+      pumpFor(80);
+      const auto inDlg = [&dlg](QWidget* w) { return QRect(w->mapTo(&dlg, QPoint(0, 0)), w->size()); };
+      bool inside = true;
+      for (QPushButton* b : {toServer, copyServer, removeBtn})
+        inside = inside && dlg.rect().contains(inDlg(b));
+      check(inside, "narrow: every batch button stays inside the dialog");
+      check(inDlg(removeBtn).top() > inDlg(toServer).top(),
+            "narrow: Remove selected wraps onto a line under the first");
+      dlg.resize(560, dlg.height());
+      pumpFor(80);
+    }
 
     // Mixed selection: every direction hidden, the bar itself stays up.
     rowById(list, "r1", true)->setCheckState(Qt::Checked);

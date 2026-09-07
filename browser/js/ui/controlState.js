@@ -122,7 +122,7 @@ export function updateButtons(app) {
   // (and hotkey buttons keep their combo). Covers every control carrying either
   // a hotkey id or a disabled-reason.
   document.querySelectorAll('[data-disabled-reason], [data-hk-title]').forEach(el => {
-    el.title = composeControlTitle(el, hotkeys.isMac, id => hotkeys.get(id));
+    el.dataset.tip = composeControlTitle(el, hotkeys.isMac, id => hotkeys.get(id));
   });
 
   app.updateIncognitoUI();

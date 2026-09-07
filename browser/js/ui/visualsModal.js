@@ -12,7 +12,7 @@ export class StencilVisualsModal extends StencilElement {
     return `
         <div class="app-modal">
             <div class="settings-header">
-                <h2>${icon('palette', { size: 18 })} Style &amp; Visual Settings</h2>
+                <h2>${icon('palette', { size: 18 })} Visuals &amp; Settings</h2>
                 <button class="app-modal-close btn-icon-text" id="visuals-close">${icon('x', { size: 14 })}<span>Close</span></button>
             </div>
             <div class="modal-search-bar">
@@ -176,6 +176,7 @@ export class StencilVisualsModal extends StencilElement {
     enhanceSelect(els.style);
 
     const populate = () => {
+      syncMotion();
       accentPicker.set(app.customAccent || app.accent);
       els.lineColor.value = app.color;
       els.thickness.value = app.thickness;

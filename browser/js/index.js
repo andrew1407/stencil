@@ -27,6 +27,10 @@ window.onload = async () => {
       /* ignore */
     }
   }
+  // The motion mode on <html> for the CSS half. prePaintTheme.js already wrote it before
+  // first paint; restating it costs nothing and keeps the attribute right on any host
+  // that loads the module graph without that classic script.
+  applyMotionAttr();
   await core.init();
   console.info(`[stencil] core: ${core.ready ? 'WebAssembly (shared C++)' : 'JavaScript fallback'}`);
   // Hydrate the projects backend (IndexedDB payload mirror + the one-time

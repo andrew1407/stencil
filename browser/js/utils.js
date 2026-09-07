@@ -101,10 +101,10 @@ export const wireNameEditor = (input, acceptBtn, cancelBtn, { current, validate,
       acceptBtn.style.display = changed ? '' : 'none';
       cancelBtn.style.display = changed ? '' : 'none';
     }
-    if (!changed) { acceptBtn.disabled = true; acceptBtn.title = 'No change'; return; }
+    if (!changed) { acceptBtn.disabled = true; acceptBtn.dataset.title = 'No change'; return; }
     const res = validate(v) || { ok: true, reason: '' };
     acceptBtn.disabled = !res.ok;
-    acceptBtn.title = res.ok ? 'Save name (Enter)' : res.reason;
+    acceptBtn.dataset.title = res.ok ? 'Save name (Enter)' : res.reason;
   };
   const doCommit = () => {
     const v = input.value.trim();
@@ -143,10 +143,16 @@ export const wirePanelResizer = (resizer, panel, { maxFactor = 0.7, onStart, onE
   // The width survives a reload, so a panel dragged wide in a big window can come back
   // into a small one — and a window can be narrowed after the fact. Re-clamp on both,
   // against the live window, keeping the preference for when there is room for it again.
+  // A panel the user never dragged has NO preference: it stays on the CSS default
+  // (--coord-panel-default) rather than being pinned to whatever it measures right now.
+  // Measuring it was the bug: below the stacking breakpoint the panel spans the window
+  // under the canvas, and each resize fed that full width back as the "preference",
+  // ratcheting an untouched panel up to its cap by the time the window was wide again.
   const applyStored = () => {
     let saved = NaN;
     try { saved = parseInt(sessionStorage.getItem(COORD_PANEL_WIDTH_KEY), 10); } catch { /* storage blocked */ }
-    setWidth(Number.isFinite(saved) ? saved : panel.getBoundingClientRect().width);
+    if (Number.isFinite(saved)) setWidth(saved);
+    else document.documentElement.style.removeProperty('--coord-panel-width');
   };
   if (restore) {
     applyStored();
@@ -472,14 +478,10 @@ export const formatCombo = (combo, isMac) => {
 // and reason (data-disabled-reason, shown only while disabled). Context-menu rows carry
 // no tooltip of their own and hide instead of disabling (js/ui/contextMenu.js), so the
 // disabled branch here only ever fires for a real disabled button.
+// The authored base lives in data-title; callers write the result to data-tip, which the
+// custom tooltip (ui/controlTooltip.js) prefers. Never the native `title` — the app has none.
 export const composeControlTitle = (el, isMac, getCombo) => {
-  let base = el.dataset.title;
-  if (base == null) {
-    base = (el.getAttribute('title') || '')
-      .replace(/\n[\s\S]*$/, '')          // drop any existing reason line
-      .replace(/\s*\([^)]*\)\s*$/, '');   // drop any trailing "(combo)"
-    el.dataset.title = base;
-  }
+  const base = el.dataset.title || '';
   let out = base;
   const hkId = el.dataset.hkTitle;
   if (hkId && getCombo) {

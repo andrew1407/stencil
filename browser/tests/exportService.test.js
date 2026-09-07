@@ -274,7 +274,7 @@ test('applyPastedLayout over existing lines: Cancel → canceled, no mutation', 
   // Existing lines + a valid payload raises the Combine/Replace/Cancel prompt; back out.
   const app = makeApp({ image: {}, lines: [{ points: [{ x: 0, y: 0 }] }], askAlt: async () => null });
   await new ExportService(app).applyPastedLayout({ lines: [{ points: [{ x: 5, y: 5 }] }] });
-  assert.deepEqual(lastNote(), ['Layout paste canceled', 'fail']);
+  assert.deepEqual(lastNote(), ['Layout paste canceled', 'info']);
   assert.equal(app.record.saveHistory, 0);
 });
 
@@ -480,7 +480,7 @@ test('deleteProjectFile: confirm declined → "Delete canceled", not removed', a
   const sync = makeSync({ handle: { remove: async () => { removed++; } } });
   const app = makeApp({ confirm: async () => false, stencilSync: sync });
   await new ExportService(app).deleteProjectFile();
-  assert.deepEqual(lastNote(), ['Delete canceled', 'fail']);
+  assert.deepEqual(lastNote(), ['Delete canceled', 'info']);
   assert.equal(removed, 0);
   assert.equal(sync.unlinked, 0);
 });

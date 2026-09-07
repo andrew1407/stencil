@@ -1015,7 +1015,7 @@ export class DrawingApp {
     // The tooltip's hotkey follows the state too: Alt+A starts, Alt+S stops.
     btn.dataset.hkTitle = on ? 'stopDraw' : 'startDraw';
     btn.dataset.title = on ? 'Stop Drawing' : 'Start Drawing';
-    btn.title = composeControlTitle(btn, hotkeys.isMac, id => hotkeys.get(id));
+    btn.dataset.tip = composeControlTitle(btn, hotkeys.isMac, id => hotkeys.get(id));
   }
 
   setDrawMode(mode) {
@@ -1037,7 +1037,7 @@ export class DrawingApp {
       btn.dataset.title = this.drawMode === 'rect'
         ? 'Drawing mode: Rectangle (click to switch to Line)'
         : 'Drawing mode: Line (click to switch to Rectangle)';
-      btn.title = composeControlTitle(btn, hotkeys.isMac, id => hotkeys.get(id));
+      btn.dataset.tip = composeControlTitle(btn, hotkeys.isMac, id => hotkeys.get(id));
     }
   }
 
@@ -1203,7 +1203,7 @@ export class DrawingApp {
       const rm = document.createElement('button');
       rm.className = 'lines-remove btn-icon';
       rm.type = 'button';
-      rm.title = 'Remove line';
+      rm.dataset.title = 'Remove line';
       rm.setAttribute('aria-label', `Remove line ${i + 1}`);
       rm.innerHTML = icon('trash', { size: 13 });
       rm.addEventListener('click', (e) => {
@@ -2161,7 +2161,7 @@ export class DrawingApp {
     const badge = document.getElementById('project-remote-badge');
     if (badge) {
       badge.style.display = remote ? 'inline-flex' : 'none';
-      if (remote) badge.title = `Editing a project stored on ${remote.address}`;
+      if (remote) badge.dataset.title = `Editing a project stored on ${remote.address}`;
     }
     const canvasViewport = document.getElementById('canvas-viewport');
     if (canvasViewport) canvasViewport.classList.toggle('remote-editing', !!remote);
@@ -2652,7 +2652,11 @@ export class DrawingApp {
     const on = s.supported && s.linked && s.liveSync;
     btn.classList.toggle('active', on);
     btn.disabled = !(s.supported && s.linked);
-    btn.title = !s.supported ? 'Live file sync needs a Chromium browser (File System Access API)'
+    // The greyed-out tooltip line (controlTooltip's data-disabled-reason), like the delete
+    // button's: the markup default is the "not linked" case, unsupported browsers differ.
+    btn.dataset.disabledReason = s.supported ? 'Open or save a .stencil file first'
+      : 'Live file sync needs a Chromium browser (File System Access API)';
+    btn.dataset.title = !s.supported ? 'Live file sync needs a Chromium browser (File System Access API)'
       : !s.linked ? 'Open or save a .stencil file first to enable live sync'
         : on ? `Live sync ON — auto-saving to ${s.name} and watching it for changes`
           : `Live sync OFF — click to auto-save to ${s.name} and watch it for changes`;
@@ -2660,7 +2664,7 @@ export class DrawingApp {
     const del = document.getElementById('delete-project-btn');
     if (del) {
       del.disabled = !s.linked;
-      del.title = s.linked ? `Delete “${s.name}” from disk (the project stays open here)`
+      del.dataset.title = s.linked ? `Delete “${s.name}” from disk (the project stays open here)`
         : 'Open or save a .stencil file first';
     }
   }
@@ -2977,7 +2981,7 @@ export class DrawingApp {
       return;
     }
     if (!(await this.confirm('Wipe ALL lines from the canvas? This cannot be undone except via Undo.', { title: 'Clear all lines', danger: true, confirmIcon: 'eraser' }))) {
-      notify('Clear canceled', 'fail');
+      notify('Clear canceled', 'info');
       return;
     }
     // Every row in the lines list scatters before the list is rebuilt empty.

@@ -15,6 +15,7 @@
 //
 // Run with `--dump <dir>` to write the sampled frames out as PNGs for a visual pass.
 #include "iconMotion.hpp"
+#include "idleCardMotion.hpp"   // the idle card mirrors the "image" entry by hand
 
 #include <QApplication>
 #include <QDir>
@@ -466,6 +467,43 @@ int main(int argc, char** argv) {
           .save(QStringLiteral("%1/maximize-active@%2.png").arg(dumpDir).arg(int(f * 100)));
     }
     std::printf("  dumped frames to %s\n", qPrintable(dumpDir));
+  }
+
+  // ── The idle "＋ Blank image" card mirrors the `image` entry by hand ──────────
+  // Its glyph is stroked by the canvas itself (canvasWidget.cpp), out of reach of the
+  // app-wide hover watcher, so the two parts of that entry are evaluated there from the
+  // constants in canvasWidget.hpp. They must BE the canon's numbers.
+  std::printf("idle card glyph:\n");
+  {
+    const IconMotionSpec* image = iconMotionFor(QStringLiteral("image"));
+    check(image != nullptr, "the canon carries an `image` entry");
+    if (image) {
+      check(!image->hold, "…as a settle, which is what the card plays once per hover");
+      const IconMotionPart* ridge = nullptr;
+      const IconMotionPart* orb = nullptr;
+      for (const IconMotionPart& part : image->parts) {
+        if (part.hook == QLatin1String("ic-ridge")) ridge = &part;
+        if (part.hook == QLatin1String("ic-orb")) orb = &part;
+      }
+      check(ridge && orb, "…with the ridge and the sun as its two parts");
+      if (ridge && orb) {
+        check(qFuzzyCompare(ridge->durationMs + 1, kIdleGlyphRidgeMs + 1), "ridge duration");
+        check(qFuzzyCompare(ridge->dashArray + 1, kIdleGlyphRidgeLen + 1), "ridge dash length");
+        check(qFuzzyCompare(orb->durationMs + 1, kIdleGlyphOrbMs + 1), "sun duration");
+        check(qFuzzyCompare(orb->delayMs + 1, kIdleGlyphOrbDelayMs + 1), "sun delay");
+        check(orb->keys.size() == 3, "the sun's three keyframes");
+        if (orb->keys.size() == 3) {
+          check(qFuzzyCompare(orb->keys.first().pose.ty + 1, kIdleGlyphOrbDrop + 1),
+                "…the height it drops from");
+          check(qFuzzyCompare(orb->keys.at(1).pose.ty + 1, kIdleGlyphOrbOvershoot + 1),
+                "…and the overshoot it lands through");
+          check(qFuzzyCompare(orb->keys.at(1).at + 1, 70.0 + 1), "…at 70% of the play");
+          check(qFuzzyCompare(orb->keys.last().pose.ty + 1, 1.0), "…ending where it rests");
+        }
+        check(qFuzzyCompare(image->totalMs + 1, kIdleGlyphPlayMs + 1),
+              "the card's play is the whole entry's");
+      }
+    }
   }
 
   std::printf("%s\n", failures ? "FAILED" : "OK");

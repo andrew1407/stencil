@@ -102,7 +102,7 @@
       "mode": "settle",
       "note": "one FULL turn the way the button turns the image, so the glyph comes to rest exactly as it started — a partial tilt held on hover only hinted at the turn",
       "parts": [{
-        "hook": null, "durationMs": 620, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+        "hook": null, "durationMs": 413, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
         "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 100, "rotate": -360 }]
       }]
     },
@@ -111,7 +111,7 @@
       "mode": "settle",
       "note": "the mirror of `rotate-ccw` — same turn, the other way",
       "parts": [{
-        "hook": null, "durationMs": 620, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+        "hook": null, "durationMs": 413, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
         "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 100, "rotate": 360 }]
       }]
     },

@@ -31,21 +31,21 @@ export class StencilConnectModal extends StencilElement {
             </div>
             <div class="settings-body">
                 <div class="vs-section">Connect a server</div>
-                <div class="vs-row vs-field"><label title="Server URL, e.g. http://localhost:8090">URL</label>
+                <div class="vs-row vs-field"><label data-title="Server URL, e.g. http://localhost:8090">URL</label>
                     <input type="text" id="connect-url" placeholder="http://localhost:8090">
                 </div>
-                <div class="vs-row vs-field"><label title="Optional access token (issued otherwise)">Token</label>
+                <div class="vs-row vs-field"><label data-title="Optional access token (issued otherwise)">Token</label>
                     <input type="text" id="connect-token" placeholder="(optional)">
                 </div>
                 <div class="vs-row vs-actions">
-                    <button id="connect-add" class="btn-icon-text" title="Connect to the server at the URL above">${icon('plus-circle', { size: 14 })}<span>Connect</span></button>
-                    <button id="connect-reconnect" class="btn-icon-text" title="Re-establish every connection">${icon('refresh', { size: 15 })}<span>Reconnect all</span></button>
+                    <button id="connect-add" class="btn-icon-text" data-title="Connect to the server at the URL above">${icon('plus-circle', { size: 14 })}<span>Connect</span></button>
+                    <button id="connect-reconnect" class="btn-icon-text" data-title="Re-establish every connection">${icon('refresh', { size: 15 })}<span>Reconnect all</span></button>
                 </div>
                 <div class="vs-row vs-checks">
-                    <label class="vs-inline-check" title="Reconnect saved servers automatically when the editor opens">
+                    <label class="vs-inline-check" data-title="Reconnect saved servers automatically when the editor opens">
                         <input type="checkbox" id="connect-autoconnect"> Auto-connect on open
                     </label>
-                    <label class="vs-inline-check" title="When off, edits to a fetched server project stay in this session only — never pushed to the server or saved locally (download or 'Make local copy' to keep them)">
+                    <label class="vs-inline-check" data-title="When off, edits to a fetched server project stay in this session only — never pushed to the server or saved locally (download or 'Make local copy' to keep them)">
                         <input type="checkbox" id="connect-sync"> Sync changes to server
                     </label>
                 </div>
@@ -54,7 +54,7 @@ export class StencilConnectModal extends StencilElement {
                      only, never persisted. -->
                 <div class="connect-section-row">
                     <div class="vs-section">Connections</div>
-                    <select id="connect-filter" class="modal-filter" title="Filter connections by credential">
+                    <select id="connect-filter" class="modal-filter" data-title="Filter connections by credential">
                         <option value="all">All</option>
                         <option value="admin">Admin</option>
                         <option value="non-admin">Non-admin</option>
@@ -68,12 +68,12 @@ export class StencilConnectModal extends StencilElement {
                     <span class="connect-batch-actions">
                         <!-- Select all ↔ Deselect all: the one toggle is also the bar's "clear"
                              (a separate Clear did the same thing as Deselect all). -->
-                        <button id="connect-select-all" class="btn-icon-text" style="display:none" title="Select every listed connection (the current filter's rows)">${icon('check', { size: 13 })}<span>Select all</span></button>
+                        <button id="connect-select-all" class="btn-icon-text" style="display:none" data-title="Select every listed connection (the current filter's rows)">${icon('check', { size: 13 })}<span>Select all</span></button>
                         <!-- The selection-only actions come and go as ONE group, so the swap is a
                              single flight instead of a button-by-button scramble. -->
                         <span class="connect-batch-selected" id="connect-batch-selected" style="display:none">
-                        <button id="connect-batch-reconnect" class="btn-icon-text" title="Reconnect the selected servers">${icon('refresh', { size: 13 })}<span>Reconnect</span></button>
-                        <button id="connect-batch-disconnect" class="danger btn-icon-text" title="Disconnect (and forget) the selected servers">${icon('trash', { size: 13 })}<span>Disconnect</span></button>
+                        <button id="connect-batch-reconnect" class="btn-icon-text" data-title="Reconnect the selected servers">${icon('refresh', { size: 13 })}<span>Reconnect</span></button>
+                        <button id="connect-batch-disconnect" class="danger btn-icon-text" data-title="Disconnect (and forget) the selected servers">${icon('trash', { size: 13 })}<span>Disconnect</span></button>
                         </span>
                     </span>
                 </div>
@@ -212,7 +212,7 @@ export class StencilConnectModal extends StencilElement {
         // input/button are suppressed so checkbox/action clicks aren't hijacked.
         const grip = document.createElement('span');
         grip.className = 'connect-grip';
-        grip.title = 'Drag to reorder · drag out of the modal to disconnect';
+        grip.dataset.title = 'Drag to reorder · drag out of the modal to disconnect';
         grip.textContent = '⋮⋮';
         row.draggable = true;
         row.addEventListener('dragstart', (e) => {
@@ -295,7 +295,7 @@ export class StencilConnectModal extends StencilElement {
         cb.type = 'checkbox';
         cb.className = 'connect-select';
         cb.checked = selected.has(url);
-        cb.title = 'Select for batch action';
+        cb.dataset.title = 'Select for batch action';
         cb.addEventListener('change', () => {
           if (cb.checked) selected.add(url); else selected.delete(url);
           row.classList.toggle('connect-selected', cb.checked);
@@ -314,24 +314,26 @@ export class StencilConnectModal extends StencilElement {
         if (isAdmin) row.classList.add('connect-admin');
         const label = document.createElement('span');
         label.className = 'connect-url';
-        label.title = `${statusText} — ${url}`;
-        label.innerHTML = `<span class="conn-status conn-status-${status}" title="${statusText}"></span>${icon('server', { size: 14 })}<span>${url}</span>`;
+        label.dataset.title = `${statusText} — ${url}`;
+        label.innerHTML = `<span class="conn-status conn-status-${status}" data-title="${statusText}"></span>${icon('server', { size: 14 })}<span>${url}</span>`;
         // Its own row child, not inside .connect-url — that box ellipsises a long URL
         // and would clip the badge away with it.
         let badge = null;
         if (isAdmin) {
           badge = document.createElement('span');
           badge.className = 'connect-admin-badge';
-          badge.title = 'Admin credential — this connection can mint session tokens (invite links)';
+          badge.dataset.title = 'Admin credential — this connection can mint session tokens (invite links)';
           badge.innerHTML = `${icon('lock', { size: 12 })}<span>Admin</span>`;
         }
-        // Per-row reconnect. On an EXPIRED session it is labelled — the fix, not a
-        // retry: first ask the server for a fresh session, and only if refused ask for
-        // a token, which may equally be the ADMIN token (desktop Connect parity).
+        // Per-row reconnect: the same icon-only button in every state (desktop Connect
+        // parity — an expired row says so with the amber fill and the tooltip, not a
+        // word the other rows don't carry). On an EXPIRED session it first asks the
+        // server for a fresh session, and only if refused asks for a token, which may
+        // equally be the ADMIN token.
         const recon = document.createElement('button');
-        recon.className = expired ? 'connect-reconnect-one btn-icon-text' : 'connect-reconnect-one btn-icon';
-        recon.title = expired ? 'Sign in to this server again' : 'Reconnect this server';
-        recon.innerHTML = icon('refresh', { size: 15 }) + (expired ? '<span>Reconnect</span>' : '');
+        recon.className = 'connect-reconnect-one btn-icon';
+        recon.dataset.title = expired ? 'Sign in to this server again' : 'Reconnect this server';
+        recon.innerHTML = icon('refresh', { size: 15 });
         recon.addEventListener('click', async () => {
           recon.disabled = true;
           try {
@@ -355,7 +357,7 @@ export class StencilConnectModal extends StencilElement {
         const disc = document.createElement('button');
         disc.className = 'connect-disconnect danger btn-icon';
         // Trash, not ✕ — the projects modal's remove glyph; this forgets the server.
-        disc.title = 'Disconnect (and forget) this server';
+        disc.dataset.title = 'Disconnect (and forget) this server';
         disc.innerHTML = icon('trash', { size: 15 });
         disc.addEventListener('click', () => confirmDisconnect(url));
         // Keep reconnect + disconnect grouped tight on the right (their own flex
@@ -368,7 +370,7 @@ export class StencilConnectModal extends StencilElement {
         if (conn && conn.connected && conn.credentialKind === 'admin') {
           const invite = document.createElement('button');
           invite.className = 'connect-invite btn-icon';
-          invite.title = 'Copy an invite link (mints a fresh session token)';
+          invite.dataset.title = 'Copy an invite link (mints a fresh session token)';
           invite.innerHTML = icon('link', { size: 15 });
           invite.addEventListener('click', async () => {
             invite.disabled = true;
@@ -483,18 +485,16 @@ export class StencilConnectModal extends StencilElement {
     });
 
     // A refused saved session must be visible WITHOUT opening this modal (the boot
-    // toast is transient): the Servers button carries an amber dot while any saved
-    // connection needs signing in again — the chat button's unread affordance,
-    // mirrored onto the fullscreen toolbar clone for the same reason.
+    // toast is transient): the Servers button's TOOLTIP says so while any saved
+    // connection needs signing in again — mirrored onto the fullscreen toolbar clone,
+    // which is the same button. No badge on the icon: the desktop wears none either.
     const syncExpiredBadge = () => {
       const on = (mgr()?.expiredUrls?.length || 0) > 0;
       for (const el of [$('connect-btn'), ...document.querySelectorAll('#fs-controls-panel #connect-btn')]) {
-        el?.classList?.toggle('conn-needs-auth', on);
         if (el) {
           el.dataset.title = on
             ? 'Servers — a saved session expired, reconnect to sign in again'
             : 'Servers — connect to share & co-edit projects';
-          el.title = el.dataset.title;
         }
       }
     };

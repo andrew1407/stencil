@@ -1,5 +1,6 @@
 #pragma once
 #include "cropGeometry.hpp"
+#include "idleCardMotion.hpp"   // the idle card's glyph motion (iconMotion.json "image")
 #include "historyStack.hpp"
 #include "holdDraw.hpp"
 #include "models.hpp"
@@ -26,6 +27,7 @@ class QVariantAnimation;  // not transitively declared by <QWidget> (unlike QWhe
 namespace stencil::gui {
 
   struct Palette;  // theme.hpp; used by the drawLineScaled paint helpers below
+
 
   class CanvasWidget : public QWidget {
     Q_OBJECT
@@ -489,6 +491,13 @@ namespace stencil::gui {
     // Hover glass sweep (browser ui-shimmer). -1 = no sweep in flight.
     double idleShimmerT_ = -1.0;
     QVariantAnimation* idleShimmerAnim_ = nullptr;
+    // …and the GLYPH's own hover motion, which every other icon in the app gets from the
+    // app-wide watcher (support/iconMotion.hpp). This card paints its glyph by hand — the
+    // watcher only knows QAbstractButtons, and including that header here would drag
+    // Qt6::Svg into every headless target that compiles this file — so the `image` entry
+    // of the canon table is evaluated by hand below. Elapsed ms into the play, -1 at rest.
+    double idleGlyphMs_ = -1.0;
+    QVariantAnimation* idleGlyphAnim_ = nullptr;
     // Drive idleCardHoverT_ toward `on`, repainting as it goes.
     void setIdleCardHover(bool on);
     bool dark_ = false;

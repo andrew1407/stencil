@@ -74,11 +74,9 @@ namespace stencil::gui {
       if (!seq.isEmpty()) a->setShortcut(QKeySequence(seq));
       // WindowShortcut (default): fires when the main window is active, but not
       // over modal dialogs — so Backspace/Esc stay usable inside dialogs.
-      // Show the shortcut natively (⌘C on macOS, Ctrl+C elsewhere); storage and
-      // matching keep the portable form via QKeySequence above.
-      const QString shown =
-          QKeySequence(seq).toString(QKeySequence::NativeText);
-      a->setToolTip(seq.isEmpty() ? text : QString("%1 (%2)").arg(text, shown));
+      // Shown natively (⌘C on macOS, Ctrl+C elsewhere) and kept current across rebinds;
+      // storage and matching keep the portable form via QKeySequence above.
+      setActionTip(a, text);
       addAction(a);  // register the shortcut on the window
       bindRevealAnchor(a);
       return a;
@@ -414,7 +412,7 @@ namespace stencil::gui {
       spec.confirmIcon = QStringLiteral("trash");
       spec.danger = true;
       if (!confirmModal(this, spec)) {
-        if (notify_) notify_->error(tr("Clear canceled"));
+        if (notify_) notify_->info(tr("Clear canceled"));   // declined = a notice, not a failure
         return;
       }
       canvas_->clearAll();
@@ -730,8 +728,15 @@ namespace stencil::gui {
       rb->setSizePolicy(QSizePolicy::Expanding, rb->sizePolicy().verticalPolicy());
       lay->addWidget(rb);
       // toggled(true) fires for the newly-selected radio; applyImageFilter is a no-op-safe re-set.
-      connect(rb, &QRadioButton::toggled, this,
-              [this, value](bool on) { if (on) applyImageFilter(value); });
+      // The tint row appears/disappears with the Custom Tint pick while the menu is up
+      // (browser parity: contextMenu.js toggles .ctx-tint-visible on the radio change) —
+      // syncContextActions() only sets it for the NEXT open. QMenu re-lays itself out on
+      // an action's visibility change, so the flyout grows/shrinks in place.
+      connect(rb, &QRadioButton::toggled, this, [this, value](bool on) {
+        if (!on) return;
+        applyImageFilter(value);
+        if (tintColorAction_) tintColorAction_->setVisible(value == "custom");
+      });
       return act;
     };
     actFilterNone_ = mkFilter("None", "none");

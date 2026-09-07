@@ -16,13 +16,13 @@ export class StencilSelectionPanel extends StencilElement {
                     <label>Line Color:</label>
                     <input type="color" id="sel-color">
                     <input type="number" id="sel-alpha" class="alpha-input" min="0" max="255" step="1"
-                           title="Line opacity&#10;0-255, the alpha byte itself: 255 is solid, 0 invisible.">
+                           data-title="Line opacity&#10;0-255, the alpha byte itself: 255 is solid, 0 invisible.">
                 </div>
                 <div class="control-group">
                     <label>Point Color:</label>
                     <input type="color" id="sel-point-color">
                     <input type="number" id="sel-point-alpha" class="alpha-input" min="0" max="255" step="1"
-                           title="Point opacity&#10;0-255, the alpha byte itself: 255 is solid, 0 invisible.">
+                           data-title="Point opacity&#10;0-255, the alpha byte itself: 255 is solid, 0 invisible.">
                 </div>
                 <span class="sel-sep" aria-hidden="true"></span>
                 <div class="control-group">
@@ -46,11 +46,11 @@ export class StencilSelectionPanel extends StencilElement {
                     <label>Fill:</label>
                     <input type="color" id="sel-fill">
                     <input type="number" id="sel-fill-alpha" class="alpha-input" min="0" max="255" step="1"
-                           title="Fill opacity&#10;0-255, the alpha byte itself: 255 is solid, 0 invisible.">
+                           data-title="Fill opacity&#10;0-255, the alpha byte itself: 255 is solid, 0 invisible.">
                     <button id="sel-fill-clear" type="button" class="btn-icon fill-clear"
-                            title="Clear fill — make the area transparent again">${icon('rect', { size: 13 })}</button>
+                            data-title="Clear fill — make the area transparent again">${icon('rect', { size: 13 })}</button>
                     <button id="sel-unchain" type="button" class="btn-icon-text"
-                            title="Unchain area&#10;Break the closed shape back into an open line.&#10;Alt+Ctrl+drag on the line does the same, at the spot you pull."
+                            data-title="Unchain area&#10;Break the closed shape back into an open line.&#10;Alt+Ctrl+drag on the line does the same, at the spot you pull."
                             style="padding:6px 10px;">${icon('link', { size: 13 })}<span>Unchain</span></button>
                 </div>
                 <span class="sel-sep" aria-hidden="true"></span>

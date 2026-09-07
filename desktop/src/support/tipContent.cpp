@@ -10,7 +10,10 @@
 #include <QScreen>
 #include <QTextDocument>
 
-#include <optional>
+#include <QAction>
+#include <QEvent>
+#include <QKeySequence>
+#include <QPointer>
 #include <QToolTip>
 #include <QWidget>
 #include <QRegularExpression>
@@ -207,9 +210,6 @@ namespace stencil::gui {
 
     // The palette the app-wide filter renders with; replaced on every theme change.
     Palette g_pal = themePalette(false);
-    // The type the app's own tooltip widget draws in (setTooltipFont); unset until it
-    // says so, and the measurement then falls back to Qt's own tooltip font.
-    std::optional<QFont> g_font;
 
   }  // namespace
 
@@ -313,7 +313,7 @@ namespace stencil::gui {
     return tip;
   }
 
-  QString renderTip(const QString& text, const Palette& pal, bool mac) {
+  QString renderTip(const QString& text, const Palette& pal, bool mac, const QFont* font) {
     const Tip tip = parseTip(text);
     if (tip.title.isEmpty() && tip.blocks.isEmpty()) return {};
     QString caps;
@@ -349,10 +349,13 @@ namespace stencil::gui {
         continue;
       }
       close();
-      const QString colour = b.kind == TipBlock::Kind::Note   ? pal.borderSel.name()
+      // The disabled reason is a warning, on its own row under the heading (browser
+      // .tip-note: --warning, 5px above); a hint sits back in the muted text.
+      const bool note = b.kind == TipBlock::Kind::Note;
+      const QString colour = note                             ? pal.warning.name()
                              : b.kind == TipBlock::Kind::Hint ? pal.textMuted.name()
                                                               : pal.textMain.name();
-      body += "<div style=\"color:" + colour + "; margin-top:3px;\">" +
+      body += "<div style=\"color:" + colour + "; margin-top:" + (note ? "5" : "3") + "px;\">" +
               highlightKeys(b.text, pal, mac) + "</div>";
     }
     close();
@@ -362,7 +365,7 @@ namespace stencil::gui {
     // that width defeats the search; the cap is the browser's #app-tooltip max-width.
     const int width = [&] {
       QTextDocument doc;
-      doc.setDefaultFont(g_font.value_or(QToolTip::font()));
+      doc.setDefaultFont(font ? *font : QToolTip::font());
       // Margin ZERO, or the width comes back with the document's own 4px margins
       // baked in — and the tooltip renders INSIDE a document that adds them again,
       // so every extra pixel lands between the name and its right-pinned keycaps.
@@ -374,18 +377,17 @@ namespace stencil::gui {
 
     // The heading is a row of its own: name left, keycaps pinned right (browser
     // .tip-head). Both cells middle-aligned: a keycap is taller than the type, so
-    // Qt's default (top) alignment makes the row read as crooked.
+    // Qt's default (top) alignment makes the row read as crooked. The caps cell never
+    // breaks: a chord is one thing, and "⇧ + ⌘ +" over a lone "X" is not it.
     QString head = title;
     if (!caps.isEmpty())
       head = "<table width=\"100%\" cellspacing=\"0\" cellpadding=\"0\"><tr>"
              "<td style=\"vertical-align: middle;\">" + title +
-             "</td><td align=\"right\" style=\"vertical-align: middle;\">" + caps +
-             "</td></tr></table>";
+             "</td><td align=\"right\" style=\"vertical-align: middle; white-space: nowrap;\">" +
+             caps + "</td></tr></table>";
     return "<table width=\"" + QString::number(width) +
            "\" cellspacing=\"0\" cellpadding=\"0\"><tr><td>" + head + body + "</td></tr></table>";
   }
-
-  void setTooltipFont(const QFont& font) { g_font = font; }
 
   void setTooltipPalette(const Palette& pal) {
     g_pal = pal;
@@ -424,10 +426,120 @@ namespace stencil::gui {
     return out == richText ? QString() : out;
   }
 
-  QString enrichedToolTip(const QString& plain) {
+  QString enrichedToolTip(const QString& plain, const QFont* font) {
     const QString t = plain.trimmed();
     if (t.isEmpty() || t.startsWith('<')) return {};  // empty, or already someone's own HTML
-    return renderTip(plain, g_pal);
+    return renderTip(plain, g_pal, kOnMac, font);
+  }
+
+  // ── Composed control tooltips (browser utils.js composeControlTitle) ──
+
+  QString composeControlTitle(const QString& base, const QString& combo, bool disabled,
+                              const QString& reason) {
+    QString out = base;
+    if (!combo.isEmpty()) out += (out.isEmpty() ? "" : " ") + QString("(%1)").arg(combo);
+    if (disabled && !reason.isEmpty()) out += (out.isEmpty() ? "" : "\n") + QString("\u2014 ") + reason;
+    return out;
+  }
+
+  namespace {
+
+    // The heading a control was given, or — for one that only ever had a plain tooltip —
+    // that tooltip with its "(combo)" and "— reason" stripped, remembered from then on
+    // (the browser reads data-title the same way).
+    QString tipBaseOf(QObject* t) {
+      const QVariant v = t->property(kTipBaseProperty);
+      if (v.isValid()) return v.toString();
+      QString base = t->property(kPlainTipProperty).toString();
+      if (base.isEmpty()) {
+        if (auto* a = qobject_cast<QAction*>(t)) base = a->toolTip();
+        else if (auto* w = qobject_cast<QWidget*>(t)) base = w->toolTip();
+      }
+      if (base.trimmed().startsWith('<')) base.clear();   // someone's own HTML: no base to read
+      static const QRegularExpression note("\\n[\\s\\S]*$");
+      base.remove(note);
+      static const QRegularExpression paren("\\s*\\(([^()]*)\\)\\s*$");
+      const auto m = paren.match(base);
+      if (m.hasMatch() && isKeyCombo(m.captured(1))) base = base.left(m.capturedStart()).trimmed();
+      t->setProperty(kTipBaseProperty, base);
+      return base;
+    }
+
+    QString tipComboOf(QObject* t) {
+      QAction* a = qobject_cast<QAction*>(t);
+      if (!a) a = qobject_cast<QAction*>(t->property(kTipHotkeyProperty).value<QObject*>());
+      return a ? a->shortcut().toString(QKeySequence::NativeText) : QString();
+    }
+
+    // A widget's enabled state has no signal; this rides its EnabledChange event.
+    class TipStateWatch : public QObject {
+     public:
+      explicit TipStateWatch(QWidget* w) : QObject(w) {}
+     protected:
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (e->type() == QEvent::EnabledChange) syncControlTip(o);
+        return QObject::eventFilter(o, e);
+      }
+    };
+
+    // Recompose on every state change — wired once per target.
+    void wireControlTip(QObject* t) {
+      static constexpr const char* kWired = "stencilTipWired";
+      if (t->property(kWired).toBool()) return;
+      t->setProperty(kWired, true);
+      if (auto* a = qobject_cast<QAction*>(t))
+        QObject::connect(a, &QAction::changed, a, [a] { syncControlTip(a); });
+      else if (auto* w = qobject_cast<QWidget*>(t))
+        w->installEventFilter(new TipStateWatch(w));
+    }
+
+  }  // namespace
+
+  void setTipBase(QObject* target, const QString& base) {
+    if (!target) return;
+    target->setProperty(kTipBaseProperty, base);
+    wireControlTip(target);
+    syncControlTip(target);
+  }
+
+  void setTipReason(QObject* target, const QString& reason) {
+    if (!target) return;
+    tipBaseOf(target);   // pin the heading before the note can land on the tooltip
+    target->setProperty(kTipReasonProperty, reason);
+    wireControlTip(target);
+    syncControlTip(target);
+  }
+
+  void setTipHotkey(QWidget* target, QAction* hotkey) {
+    if (!target) return;
+    tipBaseOf(target);
+    target->setProperty(kTipHotkeyProperty, QVariant::fromValue<QObject*>(hotkey));
+    wireControlTip(target);
+    // A rebound chord reaches the widget wearing it too.
+    if (hotkey) {
+      QPointer<QWidget> w(target);
+      QObject::connect(hotkey, &QAction::changed, target, [w] { if (w) syncControlTip(w); });
+    }
+    syncControlTip(target);
+  }
+
+  void syncControlTip(QObject* target) {
+    if (!target) return;
+    if (!target->property(kTipBaseProperty).isValid()) return;
+    const QString reason = target->property(kTipReasonProperty).toString();
+    QString tip;
+    if (auto* a = qobject_cast<QAction*>(target)) {
+      tip = composeControlTitle(tipBaseOf(a), tipComboOf(a), !a->isEnabled(), reason);
+      a->setToolTip(tip);   // a no-op when unchanged, so the `changed` it emits cannot loop
+      return;
+    }
+    auto* w = qobject_cast<QWidget*>(target);
+    if (!w) return;
+    tip = composeControlTitle(tipBaseOf(w), tipComboOf(w), !w->isEnabled(), reason);
+    // The live tooltip may already be the RENDERED form of this very text (the app's
+    // ToolTipChange filter), so compare against the plain it was rendered from.
+    if (w->property(kPlainTipProperty).toString() == tip || w->toolTip() == tip) return;
+    w->setToolTip(tip);
   }
 
   Palette currentPalette() { return g_pal; }

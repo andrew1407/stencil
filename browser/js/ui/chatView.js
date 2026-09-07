@@ -541,7 +541,7 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
       // labelled button reads as part of the message.
       const retry = document.createElement('button');
       retry.className = 'chat-hbtn chat-retry-cta';
-      retry.title = 'Send this message again';
+      retry.dataset.title = 'Send this message again';
       retry.setAttribute('aria-label', 'Retry');
       retry.innerHTML = icon('refresh', { size: 13 });
       retry.addEventListener('click', () => onRetry(row.retryText));
@@ -796,19 +796,19 @@ export const chatResultCard = (r) => {
   img.className = 'chat-result-thumb';
   img.src = r.dataUrl;
   img.alt = r.label;
-  img.title = r.label;
+  img.dataset.title = r.label;
   const label = document.createElement('span');
   label.className = 'chat-result-label';
   label.textContent = r.label;
   const dl = document.createElement('a');
   dl.className = 'chat-hbtn chat-result-btn';
-  dl.title = `Download ${r.label}`;
+  dl.dataset.title = `Download ${r.label}`;
   dl.download = `${sanitizeLabel(r.label)}.png`;
   dl.href = r.dataUrl;
   dl.innerHTML = icon('download', { size: 13 });
   const use = document.createElement('button');
   use.className = 'chat-hbtn chat-result-btn';
-  use.title = `Open ${r.label} as the working image`;
+  use.dataset.title = `Open ${r.label} as the working image`;
   use.innerHTML = icon('external', { size: 13 });
   use.addEventListener('click', async () => {
     try { await window.stencil.load(r.dataUrl, { name: `${sanitizeLabel(r.label)}.png` }); }
@@ -968,7 +968,7 @@ export const chatAttachmentChips = (container, controller) => {
     name.className = 'chat-attach-name';
     name.textContent = label;
     // The name is ellipsised in CSS, so the full one lives on the tooltip.
-    name.title = label;
+    name.dataset.title = label;
     const rm = document.createElement('button');
     rm.className = 'chat-hbtn chat-attach-remove';
     rm.setAttribute('aria-label', 'Remove attachment');   // no tooltip — the × says it

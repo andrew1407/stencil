@@ -909,21 +909,19 @@ test('boot adopts known-dead sessions instead of re-requesting them', () => {
   assert.match(store, /if \(s\.kind === 'admin'\) out\.kind = 'admin';/, 'the credential kind rides along too');
 });
 
-test('the Servers button carries the needs-re-auth dot without opening the modal', () => {
+test('the Servers button says a session needs signing in again — in its tooltip, not a dot', () => {
   const src = readFileSync(new URL('../js/ui/connectModal.js', import.meta.url), 'utf8');
   assert.ok(src.includes('const syncExpiredBadge = ()'));
-  assert.ok(src.includes("el?.classList?.toggle('conn-needs-auth', on)"));
   assert.match(src, /a saved session expired, reconnect to sign in again/, 'the tooltip says what to do');
   // Runs at wire time AND on every connections change, and covers the fullscreen clone.
   assert.ok(src.includes("document.querySelectorAll('#fs-controls-panel #connect-btn')"));
   const at = src.indexOf('syncExpiredBadge();');
   assert.ok(at > -1 && at < src.indexOf("window.addEventListener('stencil:connections-changed'"),
-    'the badge is correct before any event fires');
+    'the tooltip is correct before any event fires');
+  // No corner badge on the icon (desktop parity: its toolbar wears none).
+  assert.ok(!src.includes('conn-needs-auth'), 'no badge class is set on the button');
   const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
-  const dot = css.slice(css.indexOf('#connect-btn.conn-needs-auth::before'), css.indexOf('/* #zoom-fit gets'));
-  assert.match(dot, /position: absolute/);
-  assert.match(dot, /background: #e0a800/, 'amber, like the row — the server is up');
-  assert.ok(!/margin|padding/.test(dot), 'nothing that could shift the toolbar');
+  assert.ok(!css.includes('conn-needs-auth'), 'no badge rule survives in the stylesheet');
 });
 
 // ── The admin credential's doomed first request ─────────────────────────────

@@ -14,6 +14,7 @@
 #include <QPixmap>
 #include <QMenu>
 #include <QMenuBar>
+#include <QMouseEvent>
 #include <QParallelAnimationGroup>
 #include <QPointer>
 #include <QPropertyAnimation>
@@ -63,10 +64,11 @@ namespace stencil::support {
     }
 
     // Point-based sibling of the public dismissPopup(), which is anchor-widget-based
-    // (MenuFlight's controls). Gated on the menu still being on screen — this fires
-    // mid-hover (SubmenuCloseGuard), before Qt hides it.
+    // (MenuFlight's controls). No isVisible() gate: QMenu emits aboutToHide from its
+    // hideEvent, when the popup is ALREADY hidden — the gate silently skipped every
+    // close Qt made itself (← on a submenu, hovering away), leaving those with no
+    // flight at all (user report). grab() still renders a just-hidden popup.
     bool dustMenuOut(QMenu* m, const QPoint& originGlobal) {
-      if (!m->isVisible()) return false;
       return dustPopupOut(m, menuHostWindow(m->parentWidget()), originGlobal, kMenuPopupDustMs);
     }
 
@@ -94,6 +96,11 @@ namespace stencil::support {
       bool eventFilter(QObject* watched, QEvent* event) override {
         if (watched == menu_ && event->type() == QEvent::Show && !played_) {
           played_ = true;
+          // Veiled NOW, on the Show itself: play() below runs a tick later, and a
+          // keyboard-opened submenu (Right on its row) gets a frame on screen in
+          // between — a full-size flash, then the dust (user report). play() and the
+          // Hide path's settle() both bring the opacity back.
+          menu_->setWindowOpacity(0.0);
           // Deferred one tick: a submenu's Show can fire from deep inside Qt's own
           // QMenu::popup()/internalDelayedPopup() (the hover-delay submenu open).
           // Grabbing a pixmap, spawning the dust overlay's own top-level window and
@@ -118,7 +125,7 @@ namespace stencil::support {
         QMenu* m = menu_;
         // exec()/popup() has already placed the popup by Show time.
         target_ = m->geometry();
-        if (!target_.isValid()) return;
+        if (!target_.isValid()) { m->setWindowOpacity(1.0); return; }
         const QPoint origin = origin_();
         // Sand first; the grow-from-the-cursor pop below is what plays when it declines.
         if (dustMenuIn(m, origin)) { settled_ = true; return; }
@@ -178,24 +185,27 @@ namespace stencil::support {
     // has settled on a different row of `parent`, off hovered() rather than native
     // mouse-move delivery (which a WA_TranslucentBackground popup can lose track of).
     // Always on — this is correctness, not decoration.
+    // Only hovers the POINTER made count: opening `sub` from the keyboard (Right on
+    // its row) makes Qt re-emit hovered() on the parent for a row nobody is on, and
+    // arming on that closed the flyout before its reveal had even landed (user
+    // report: "not opened, or opened and instantly closed"). The parent's own mouse
+    // moves are tracked here (browser parity: contextMenu.js pointerIdle/pointerOver).
     class SubmenuCloseGuard : public QObject {
      public:
       SubmenuCloseGuard(QMenu* sub, QMenu* parent, QAction* parentAction)
           : QObject(sub), sub_(sub), parent_(parent), parentAction_(parentAction) {
+        parent->installEventFilter(this);
+        sub->installEventFilter(this);
         timer_.setSingleShot(true);
         connect(&timer_, &QTimer::timeout, this, [this] {
-          if (!sub_ || !sub_->isVisible()) return;
+          if (!sub_ || !sub_->isVisible() || !parent_) return;
           // The pointer may have already reached `sub` via a diagonal move that
           // grazed a sibling row — check geometry, not Enter/Leave delivery.
           if (sub_->geometry().contains(QCursor::pos())) return;
-          // Dust BEFORE hide(): a hide we trigger already reports isVisible()==false
-          // by the time aboutToHide fires, so dustMenuOut off that signal would find
-          // nothing left to photograph.
-          if (dustMotionOk() && parent_ && parentAction_) {
-            const QRect row = parent_->actionGeometry(parentAction_);
-            if (row.isValid())
-              dustMenuOut(sub_, parent_->mapToGlobal(row.center()));
-          }
+          if (sub_->geometry().contains(parent_->mapToGlobal(pointer_))) return;
+          // The flight rides the hide itself: MenuReveal's aboutToHide handler flies
+          // every close the same way, this one included (dustMenuOut has no
+          // visibility gate), so dusting here too would fly it twice.
           sub_->hide();
         });
         connect(parent, &QMenu::hovered, this, [this](QAction* a) {
@@ -204,6 +214,10 @@ namespace stencil::support {
           // own sloppy-hover bookkeeping); only a genuinely new row restarts the clock.
           if (a == lastHovered_) return;
           lastHovered_ = a;
+          // Keyboard navigation and Qt's synthetic re-hovers move no pointer: the
+          // clock only starts for a row the pointer has actually moved onto since
+          // `sub` came up.
+          if (!movedSinceShow_ || !pointerOnRow(a)) return;
           timer_.start(graceMs());
         });
         // A click, Escape, or the parent closing outright must not leave this timer
@@ -211,7 +225,26 @@ namespace stencil::support {
         connect(parent, &QMenu::aboutToHide, this, [this] { timer_.stop(); });
       }
 
+     protected:
+      bool eventFilter(QObject* watched, QEvent* event) override {
+        if (watched == parent_ && event->type() == QEvent::MouseMove) {
+          // Before the parent's own handler emits hovered(), so the flag is current then.
+          const QPoint p = static_cast<QMouseEvent*>(event)->position().toPoint();
+          if (p != pointer_) { pointer_ = p; movedSinceShow_ = true; }
+        } else if (watched == sub_ && event->type() == QEvent::Show) {
+          movedSinceShow_ = false;
+          timer_.stop();
+        }
+        return QObject::eventFilter(watched, event);
+      }
+
      private:
+      bool pointerOnRow(QAction* a) const {
+        if (!parent_ || !a) return false;
+        const QRect row = parent_->actionGeometry(a);
+        return row.isValid() && row.contains(pointer_);
+      }
+
       // Grace before this backstop assumes a stray hover means the pointer left for good.
       // A submenu flipped LEFT (no room on the right) sits across the parent's whole
       // width instead of one short hop — a real mouse takes longer to cross that, so it
@@ -230,6 +263,8 @@ namespace stencil::support {
       QPointer<QAction> parentAction_;
       QPointer<QAction> lastHovered_;
       QTimer timer_;
+      QPoint pointer_{-1, -1};      // last mouse-move position seen on the parent (local)
+      bool movedSinceShow_ = false;  // …and whether it moved at all since `sub` came up
     };
 
     // A menu owned by a button is built ONCE and popped many times, so its flight cannot
@@ -310,10 +345,14 @@ namespace stencil::support {
     if (!dustMotionOk()) return;
     QPointer<QMenu> parentGuard(&parent);
     QPointer<QAction> actionGuard(&parentAction);
+    // Out of — and back into — the row's ▸ caret at its RIGHT edge, where the flyout
+    // hangs off (browser parity: contextMenu.js subPoint is `r.right, r.top + h/2`),
+    // not the row's centre.
     new MenuReveal(&sub, [parentGuard, actionGuard] {
       if (!parentGuard || !actionGuard) return QCursor::pos();
       const QRect row = parentGuard->actionGeometry(actionGuard);
-      return row.isValid() ? parentGuard->mapToGlobal(row.center()) : QCursor::pos();
+      return row.isValid() ? parentGuard->mapToGlobal(QPoint(row.right(), row.center().y()))
+                           : QCursor::pos();
     });
   }
 

@@ -38,8 +38,11 @@ export class StencilCropModal extends StencilElement {
                 <div id="crop-dims" style="font-size:13px;color:var(--text-muted);"></div>
             </div>
             <div class="settings-footer">
-                <button id="crop-orientation" class="btn-icon-text" title="Swap album / portrait — flips the crop orientation">${icon('swap', { size: 14 })}<span>Album</span></button>
+                <!-- Hint first, every button after it: text left, buttons right — and when the
+                     footer wraps, the hint takes the top line and ALL the buttons the row below
+                     (the same rule the projects footer and the desktop FooterWrap follow). -->
                 <span class="footer-hint">Drag to move · drag a corner to resize (aspect locked to the page).</span>
+                <button id="crop-orientation" class="btn-icon-text" data-title="Swap album / portrait — flips the crop orientation">${icon('swap', { size: 14 })}<span>Album</span></button>
                 <button id="crop-cancel" class="btn-icon-text">${icon('x', { size: 14 })}<span>Cancel</span></button>
                 <button id="crop-apply" class="btn-icon-text">${icon('check', { size: 14 })}<span>Apply Crop</span></button>
             </div>

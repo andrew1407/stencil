@@ -331,13 +331,13 @@ test('Start/Stop: the swap keeps the tooltip and its state-dependent hotkey', ()
   app.syncDrawToggleUI();
   assert.equal(drawBtn.dataset.hkTitle, 'startDraw');
   assert.equal(drawBtn.dataset.title, 'Start Drawing');
-  assert.ok(drawBtn.title.startsWith('Start Drawing'), `composed title, got ${drawBtn.title}`);
+  assert.ok(drawBtn.dataset.tip.startsWith('Start Drawing'), `composed tip, got ${drawBtn.dataset.tip}`);
 
   app.isDrawing = true;
   app.syncDrawToggleUI();
   assert.equal(drawBtn.dataset.hkTitle, 'stopDraw', 'Alt+A starts, Alt+S stops');
   assert.equal(drawBtn.dataset.title, 'Stop Drawing');
-  assert.ok(drawBtn.title.startsWith('Stop Drawing'), `composed title, got ${drawBtn.title}`);
+  assert.ok(drawBtn.dataset.tip.startsWith('Stop Drawing'), `composed tip, got ${drawBtn.dataset.tip}`);
 });
 
 test('Line/Rect: the mode toggle swaps glyph, word and tooltip', () => {

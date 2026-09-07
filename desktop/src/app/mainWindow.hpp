@@ -1297,7 +1297,6 @@ namespace stencil::gui {
     // (title-bar drag, dock buttons, dropping into an area).
     bool chatCompactPopover_ = false;
     bool chatClosing_ = false;          // the dock is mid-slide/flight OUT
-    bool chatUnread_ = false;           // the icon carries an unread mark
     // What the DOCK actually displayed, in order — the panel is built lazily and
     // replays THIS, never chatHistory_. The two are deliberately different: the
     // history is what the MODEL sees (it carries the §7 continuation note and

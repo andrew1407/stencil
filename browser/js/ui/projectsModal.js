@@ -173,7 +173,7 @@ export class StencilProjectsModal extends StencilElement {
                 <input type="text" id="projects-search" class="modal-search" placeholder="Search projects…">
             </div>
             <div class="modal-search-bar projects-filter-row">
-                <select id="projects-filter" class="modal-filter" title="Filter projects">
+                <select id="projects-filter" class="modal-filter" data-title="Filter projects">
                     <option value="all">All</option>
                     <option value="local">Local</option>
                     <option value="server">Server</option>
@@ -181,7 +181,7 @@ export class StencilProjectsModal extends StencilElement {
                     <option value="peer-open">Open elsewhere</option>
                     <option value="peer-closed">Not open elsewhere</option>
                 </select>
-                <select id="projects-sort" class="modal-filter" title="Sort projects (drag a row to set a manual order)">
+                <select id="projects-sort" class="modal-filter" data-title="Sort projects (drag a row to set a manual order)">
                     <option value="name">Name</option>
                     <option value="local">Local first</option>
                     <option value="server">Server first</option>
@@ -189,7 +189,7 @@ export class StencilProjectsModal extends StencilElement {
                     <option value="date-asc">Oldest</option>
                     <option value="manual">Manual order</option>
                 </select>
-                <select id="projects-search-mode" class="modal-filter" title="What the search box matches">
+                <select id="projects-search-mode" class="modal-filter" data-title="What the search box matches">
                     <option value="common">Name + keywords</option>
                     <option value="names">Names only</option>
                     <option value="keywords">Keywords only</option>
@@ -199,25 +199,25 @@ export class StencilProjectsModal extends StencilElement {
             <div class="projects-batch-bar" id="projects-batch-bar" style="display:none">
                 <span class="projects-batch-count" id="projects-batch-count" style="display:none">0 selected</span>
                 <span class="projects-batch-actions">
-                    <button id="projects-select-all" class="btn-icon-text" style="display:none" title="Select every listed project (the current filter's rows)">${icon('check', { size: 13 })}<span>Select all</span></button>
+                    <button id="projects-select-all" class="btn-icon-text" style="display:none" data-title="Select every listed project (the current filter's rows)">${icon('check', { size: 13 })}<span>Select all</span></button>
                     <!-- The selection-only actions come and go as ONE group, so the swap is a
                          single flight instead of a button-by-button scramble (updateBatchBar). -->
                     <span class="projects-batch-selected" id="projects-batch-selected" style="display:none">
-                    <button id="projects-batch-move-server" class="btn-icon-text" title="Move the selected local projects to a server">${icon('server', { size: 13 })}<span>Move to server</span></button>
-                    <button id="projects-batch-copy-server" class="btn-icon-text" title="Copy the selected local projects to a server">${icon('copy', { size: 13 })}<span>Copy to server</span></button>
-                    <button id="projects-batch-move-local" class="btn-icon-text" title="Move the selected server projects to local">${icon('download', { size: 13 })}<span>Move to local</span></button>
-                    <button id="projects-batch-copy-local" class="btn-icon-text" title="Copy the selected server projects to local">${icon('copy', { size: 13 })}<span>Copy to local</span></button>
-                    <button id="projects-batch-clear" class="btn-icon-text" title="Clear selection">${icon('x', { size: 13 })}<span>Clear</span></button>
-                    <button id="projects-batch-remove" class="danger btn-icon-text" title="Remove the selected projects">${icon('trash', { size: 13 })}<span>Remove selected</span></button>
+                    <button id="projects-batch-move-server" class="btn-icon-text" data-title="Move the selected local projects to a server">${icon('server', { size: 13 })}<span>Move to server</span></button>
+                    <button id="projects-batch-copy-server" class="btn-icon-text" data-title="Copy the selected local projects to a server">${icon('copy', { size: 13 })}<span>Copy to server</span></button>
+                    <button id="projects-batch-move-local" class="btn-icon-text" data-title="Move the selected server projects to local">${icon('download', { size: 13 })}<span>Move to local</span></button>
+                    <button id="projects-batch-copy-local" class="btn-icon-text" data-title="Copy the selected server projects to local">${icon('copy', { size: 13 })}<span>Copy to local</span></button>
+                    <button id="projects-batch-clear" class="btn-icon-text" data-title="Clear selection">${icon('x', { size: 13 })}<span>Clear</span></button>
+                    <button id="projects-batch-remove" class="danger btn-icon-text" data-title="Remove the selected projects">${icon('trash', { size: 13 })}<span>Remove selected</span></button>
                     </span>
                 </span>
             </div>
             <div class="settings-body" id="projects-list"><!-- filled by JS --></div>
             <div class="settings-footer">
                 <span class="footer-hint">Projects auto-save · unopened projects expire after 7 days</span>
-                <button id="projects-blank-image" class="btn-icon-text" title="Create a blank image to draw on">${icon('image')}<span>Blank image</span></button>
-                <button id="projects-new-editor" class="btn-icon-text" title="Open a new empty editor in another tab">${icon('plus-circle')}<span>New editor</span></button>
-                <button id="projects-clear-all" class="danger btn-icon-text" title="Delete every saved project">${icon('trash')}<span>Clear All</span></button>
+                <button id="projects-blank-image" class="btn-icon-text" data-title="Create a blank image to draw on">${icon('image')}<span>Blank image</span></button>
+                <button id="projects-new-editor" class="btn-icon-text" data-title="Open a new empty editor in another tab">${icon('plus-circle')}<span>New editor</span></button>
+                <button id="projects-clear-all" class="danger btn-icon-text" data-title="Delete every saved project">${icon('trash')}<span>Clear All</span></button>
             </div>
         </div>
     `;
@@ -686,7 +686,7 @@ export class StencilProjectsModal extends StencilElement {
       if (!opts.temp && meta.color) name.style.color = meta.color;
       // Tooltip on the TEXT column, not the row: over the thumbnail the magnified image is
       // the preview, and a native tooltip up the thumb's ancestor chain would cover it.
-      if (!opts.temp && meta) { const tip = projectTooltip(meta); if (tip) info.title = tip; }
+      if (!opts.temp && meta) { const tip = projectTooltip(meta); if (tip) info.dataset.title = tip; }
       info.appendChild(name);
 
       // Inline rename. The name's dblclick stops propagation, so the ROW's dblclick never
@@ -702,17 +702,17 @@ export class StencilProjectsModal extends StencilElement {
         input.className = 'project-name-edit';
         input.type = 'text';
         input.value = meta.name || 'Untitled';
-        input.title = 'Project name';
+        input.dataset.title = 'Project name';
         const accept = document.createElement('button');
         accept.type = 'button';
         accept.className = 'name-edit-btn name-edit-accept';
         accept.innerHTML = icon('check', { size: 14 });
-        accept.title = 'Save name (Enter)';
+        accept.dataset.title = 'Save name (Enter)';
         const cancel = document.createElement('button');
         cancel.type = 'button';
         cancel.className = 'name-edit-btn name-edit-cancel';
         cancel.innerHTML = icon('x', { size: 14 });
-        cancel.title = 'Cancel (Esc)';
+        cancel.dataset.title = 'Cancel (Esc)';
         wrap.append(input, accept, cancel);
         name.replaceWith(wrap);
         // ✓/✗ FORM from dust (desktop revealControls parity); their hover already
@@ -775,19 +775,19 @@ export class StencilProjectsModal extends StencilElement {
         if (serverLinked) {
           const badge = document.createElement('span');
           badge.className = 'project-remote-badge';
-          badge.title = `Shared server project — ${meta.address}`;
+          badge.dataset.title = `Shared server project — ${meta.address}`;
           badge.innerHTML = `${icon('server', { size: 12 })}<span>${escapeHtml(meta.address)}</span>`;
           sub.appendChild(badge);
         } else if (fileLinked) {
           const badge = document.createElement('span');
           badge.className = 'project-file-badge';
-          badge.title = 'Opened from a .stencil project file';
+          badge.dataset.title = 'Opened from a .stencil project file';
           badge.innerHTML = `${icon('file-text', { size: 12 })}<span>.stencil</span>`;
           sub.appendChild(badge);
         } else if (!opts.incognito) {
           const badge = document.createElement('span');
           badge.className = 'project-local-badge';
-          badge.title = 'Stored in this browser';
+          badge.dataset.title = 'Stored in this browser';
           badge.innerHTML = `${icon('globe', { size: 12 })}<span>browser</span>`;
           sub.appendChild(badge);
         }
@@ -797,7 +797,7 @@ export class StencilProjectsModal extends StencilElement {
         if (meta.id === app.activeProjectId) {
           const cur = document.createElement('span');
           cur.className = 'project-current-badge';
-          cur.title = 'Currently open in this editor';
+          cur.dataset.title = 'Currently open in this editor';
           cur.textContent = ' (Current)';
           sub.appendChild(cur);
         }
@@ -922,7 +922,7 @@ export class StencilProjectsModal extends StencilElement {
         actions.className = 'project-actions';
         const menuBtn = document.createElement('button');
         menuBtn.className = 'project-more btn-icon';
-        menuBtn.title = 'More actions';
+        menuBtn.dataset.title = 'More actions';
         menuBtn.innerHTML = icon('more', { size: 15 });
         menuBtn.addEventListener('click', e => {
           e.stopPropagation();
@@ -986,7 +986,7 @@ export class StencilProjectsModal extends StencilElement {
         actions.className = 'project-actions';
         const btn = document.createElement('button');
         btn.className = 'project-more btn-icon';
-        btn.title = 'Save to server';
+        btn.dataset.title = 'Save to server';
         btn.innerHTML = icon('server', { size: 15 });
         btn.addEventListener('click', e => { e.stopPropagation(); saveToServer(); });
         actions.appendChild(btn);
@@ -1061,7 +1061,7 @@ export class StencilProjectsModal extends StencilElement {
       // Server projects carry `color` in their ProjectRecord — paint the name with it.
       if (meta.color) name.style.color = meta.color;
       // Same informative hover tooltip as local rows (dimensions/orientation + description).
-      { const tip = projectTooltip(meta); if (tip) name.title = tip; }
+      { const tip = projectTooltip(meta); if (tip) name.dataset.title = tip; }
       const sub = document.createElement('div');
       sub.className = 'project-sub';
       // Server projects carry createdAt in their ProjectRecord — show it (they have
@@ -1156,7 +1156,7 @@ export class StencilProjectsModal extends StencilElement {
       ];
       const menuBtn = document.createElement('button');
       menuBtn.className = 'project-more btn-icon';
-      menuBtn.title = 'More actions';
+      menuBtn.dataset.title = 'More actions';
       menuBtn.innerHTML = icon('more', { size: 15 });
       menuBtn.addEventListener('click', e => {
         e.stopPropagation();
@@ -1546,7 +1546,7 @@ export class StencilProjectsModal extends StencilElement {
       // explicitly ("Clear All Local") so the label matches the actual removal.
       const clearAllLabel = clearAllBtn.querySelector('span');
       if (clearAllLabel) clearAllLabel.textContent = hasServers() ? 'Clear All Local' : 'Clear All';
-      clearAllBtn.title = hasServers()
+      clearAllBtn.dataset.title = hasServers()
         ? 'Delete every local project (server projects are not affected)'
         : 'Delete every saved project';
       // …and only when there IS one. The synthetic "temporary (unsaved)" row is not a saved

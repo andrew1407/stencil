@@ -1090,8 +1090,9 @@ namespace stencil::gui {
       QColor accent = accentPrimary(accentKey_);
       if (!accent.isValid()) accent = pal.textMuted;
       // The whole hover is a blend on `t`, mirroring the browser transition: panel fill →
-      // solid accent, muted dashed edge → bright, text → white, plus a 3 px lift, a drop
-      // shadow and a 1.12× icon (.idle-create-btn / .idle-create-icon in animations.css).
+      // solid accent, the dashed edge hint-grey → border-grey (components.css
+      // .idle-create-btn:hover), text → white, plus a 3 px lift, a drop shadow and a
+      // 1.12× icon (.idle-create-btn / .idle-create-icon in animations.css).
       const double t = idleCardHoverT_;
       const auto mix = [t](const QColor& a, const QColor& b) {
         return QColor::fromRgbF(a.redF() + (b.redF() - a.redF()) * t,
@@ -1099,10 +1100,11 @@ namespace stencil::gui {
                                 a.blueF() + (b.blueF() - a.blueF()) * t,
                                 a.alphaF() + (b.alphaF() - a.alphaF()) * t);
       };
-      QColor edgeIdle = accent;
-      edgeIdle.setAlpha(dark_ ? 150 : 120);
+      // --border-hint as theme.cpp derives it for %BORDER_HINT% (css/theme.css).
+      const QColor borderHint = dark_ ? mixSrgb(QColor("#2a2a2a"), accent, 0.50)
+                                      : mixSrgb(QColor(Qt::white), accent, 0.35);
       const QColor fill = mix(pal.bgControls, accent);
-      const QColor edge = mix(edgeIdle, accent.lighter(115));
+      const QColor edge = mix(borderHint, pal.borderMain);
       const QColor ink = mix(pal.textMain, QColor(Qt::white));
       // Hit-test against the RESTING rect, never the lifted one: if the hover target rose
       // with the card, a cursor on its bottom edge would fall out of it, drop the hover,
@@ -1158,6 +1160,42 @@ namespace stencil::gui {
       }
 
       const QRectF content = box.adjusted(kPadX, kPadY, -kPadX, -kPadY);
+      // The `image` glyph's own hover motion — iconMotion.json "image", mode "settle":
+      // the ridge DRAWS ITSELF on, and the little sun drops in a beat later, once per
+      // hover-enter (a settle is left to finish on leave: its end state IS the rest pose,
+      // exactly as IconMotionRunner::leave has it). Hand-evaluated for the same reason the
+      // glyph itself is hand-stroked below; kIdleGlyph* mirror the canon and are pinned
+      // against it by tests/idleCardMotion.headless.cpp.
+      const double gm = idleGlyphMs_;
+      // The sun: keyframes 0 → −1.6, 70% → +0.3, 100% → 0 on the settle default (OutBack).
+      const auto orbDy = [](double ms) {
+        const double local = ms - kIdleGlyphOrbDelayMs;
+        if (local <= 0) return kIdleGlyphOrbDrop;
+        const double pct = 100.0 * local / kIdleGlyphOrbMs;
+        if (pct >= 100.0) return 0.0;
+        const QEasingCurve ease(QEasingCurve::OutBack);   // iconMotion.json defaults.settle
+        if (pct <= 70.0) {
+          const double u = ease.valueForProgress(pct / 70.0);
+          return kIdleGlyphOrbDrop + (kIdleGlyphOrbOvershoot - kIdleGlyphOrbDrop) * u;
+        }
+        return kIdleGlyphOrbOvershoot
+               * (1.0 - ease.valueForProgress((pct - 70.0) / 30.0));
+      };
+      // The ridge: stroke-dashoffset 23 → 0 is the polyline revealed from its start.
+      const auto ridgeUpTo = [](double frac) {
+        const QVector<QPointF> pts{{21, 15}, {16, 10}, {5, 21}};
+        QPolygonF drawn;
+        drawn << pts.first();
+        double left = std::max(0.0, frac) * kIdleGlyphRidgeLen;
+        for (int i = 1; i < pts.size() && left > 0.0; ++i) {
+          const QPointF d = pts[i] - pts[i - 1];
+          const double len = std::hypot(d.x(), d.y());
+          if (left >= len) { drawn << pts[i]; left -= len; continue; }
+          drawn << pts[i - 1] + d * (left / len);
+          left = 0.0;
+        }
+        return drawn;
+      };
       // The glyph grows 1.12x and rises 2px with the hover, about its own centre.
       const double iconScale = 1.0 + 0.12 * t;
       const QRectF iconBox(content.center().x() - kIconPx / 2.0,
@@ -1176,10 +1214,12 @@ namespace stencil::gui {
       p.setPen(glyph);
       p.setBrush(Qt::NoBrush);
       p.drawRoundedRect(QRectF(3, 3, 18, 18), 2, 2);
-      p.drawEllipse(QPointF(8.5, 8.5), 1.5, 1.5);
-      QPolygonF hill;
-      hill << QPointF(21, 15) << QPointF(16, 10) << QPointF(5, 21);
-      p.drawPolyline(hill);
+      p.drawEllipse(QPointF(8.5, 8.5 + (gm >= 0 ? orbDy(gm) : 0.0)), 1.5, 1.5);
+      const double ridgeT = gm < 0 ? 1.0
+                                   : QEasingCurve(QEasingCurve::OutCubic)
+                                         .valueForProgress(
+                                             std::clamp(gm / kIdleGlyphRidgeMs, 0.0, 1.0));
+      p.drawPolyline(ridgeUpTo(ridgeT));
       p.restore();
       p.setFont(cardFont);
       p.setPen(ink);

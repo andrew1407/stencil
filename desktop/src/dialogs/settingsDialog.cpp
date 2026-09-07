@@ -304,16 +304,8 @@ namespace stencil::gui {
     row(tr("Telegram bot"), botUsername_);
     connect(botUsername_, &QLineEdit::editingFinished, this, [this] { applyLive(); });
 
-    // ── AI assistant (llm-contract.md §5) — its own commit/discard dialog ──
-    section(tr("AI assistant"));
-    auto* openAssistant = new QPushButton(tr("Open Assistant Settings…"), host);
-    openAssistant->setIcon(labelIcon("sparkle", palette().color(QPalette::WindowText), 14));
-    openAssistant->setToolTip(
-        "Provider, endpoint, model, and API key — its own dialog, saved on its own Save");
-    openAssistant->setAutoDefault(false);
-    connect(openAssistant, &QPushButton::clicked, this,
-            [this] { emit openAssistantSettingsRequested(); });
-    row(tr("Provider, endpoint, model, API key"), openAssistant, /*column=*/false);
+    // The AI assistant's own rows (provider, endpoint, model, key) live in the chat
+    // dock's Assistant dialog, as the browser's do — not here (visualsModal.js).
 
     empty_ = modalEmptyLabel(tr("No matching settings."), host);
     empty_->hide();
@@ -324,7 +316,7 @@ namespace stencil::gui {
     QHBoxLayout* footer =
         addModalFooter(chrome, tr("Changes apply live and are saved automatically."));
     auto* resetAll = new QPushButton(tr("Reset All"), this);
-    resetAll->setIcon(labelIcon("rotate-ccw", palette().color(QPalette::WindowText), 14));
+    makeModalCta(resetAll, "rotate-ccw");   // browser #vs-reset: the accent-filled CTA
     resetAll->setToolTip("Restore the default visuals (theme accent, line, highlight defaults)");
     resetAll->setAutoDefault(false);
     connect(resetAll, &QPushButton::clicked, this, &SettingsDialog::resetVisuals);

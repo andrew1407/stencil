@@ -3,7 +3,9 @@
 
 #include <QEvent>
 #include <QPainter>
+#include <QCursor>
 #include <QRadialGradient>
+#include <QTimer>
 #include <QToolButton>
 #include <QVariantAnimation>
 #include <cmath>
@@ -182,6 +184,7 @@ namespace stencil::gui {
     blankButtonIcon();
     syncGeometry();
     raise();
+    if (box_ && box_->isVisible()) stackUnder(box_);   // the glow never paints over the popover
     show();
     pulse_->start();
     spin_->start();

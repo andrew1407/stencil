@@ -61,7 +61,6 @@ namespace stencil::gui {
   ShortcutsDialog::ShortcutsDialog(const QVector<Entry>& entries, QWidget* parent)
       : QDialog(parent) {
     setWindowTitle("Keyboard Shortcuts");
-    const QColor ink = palette().color(QPalette::WindowText);
     const QColor muted = palette().color(QPalette::PlaceholderText);
 
     ModalChrome chrome = installModalChrome(this, "gear", tr("Keyboard Shortcuts"));
@@ -194,9 +193,9 @@ namespace stencil::gui {
 
     // Footer (browser .settings-footer): the how-to hint beside Reset All.
     QHBoxLayout* footer = addModalFooter(
-        chrome, tr("Click a shortcut to set a new combination · Esc cancels · reset icon clears one"));
+        chrome, tr("Double-click a shortcut to set a new combination · Esc cancels · reset icon clears one"));
     auto* resetAll = new QPushButton(tr("Reset All"), this);
-    resetAll->setIcon(labelIcon("rotate-ccw", ink, 14));
+    makeModalCta(resetAll, "rotate-ccw");   // browser #reset-all-hotkeys: the accent CTA
     resetAll->setAutoDefault(false);
     connect(resetAll, &QPushButton::clicked, this, &ShortcutsDialog::resetAll);
     footer->addWidget(resetAll);

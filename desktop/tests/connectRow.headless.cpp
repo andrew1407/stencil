@@ -20,6 +20,7 @@
 #include <QGraphicsOpacityEffect>
 #include <QHostAddress>
 #include <QLabel>
+#include <QKeyEvent>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMessageBox>
@@ -392,6 +393,56 @@ int main(int argc, char** argv) {
       kind->setCurrentIndex(kind->findData(QStringLiteral("all")));
       check(settled(), "…and restores every row the same way");
       qunsetenv("STENCIL_NO_ANIM");
+    }
+  }
+
+  // ── Return in the URL field connects ONCE ────────────────────────────────────
+  // A QLineEdit emits returnPressed and then lets the key reach the dialog's DEFAULT
+  // button, so wiring both fired doConnect twice: the first call connected and cleared
+  // the field, the second found it empty and toasted "Enter a server URL" over the
+  // connection that had just been made (user report).
+  {
+    ConnectionManager fresh;
+    ConnectDialog d(&fresh);
+    d.resize(480, 420);
+    d.show();
+    pumpFor(50);
+    QLineEdit* urlField = nullptr;
+    for (QLineEdit* e : d.findChildren<QLineEdit*>())
+      if (e->placeholderText() == QLatin1String("http://localhost:8090")) urlField = e;
+    check(urlField != nullptr, "finds the URL field");
+    if (urlField) {
+      QStringList toasts;
+      QObject::connect(&d, &ConnectDialog::toast, &d,
+                       [&toasts](const QString& text, bool) { toasts << text; });
+      urlField->setFocus();
+      urlField->setText(QStringLiteral("http://127.0.0.1:%1").arg(port));
+      QKeyEvent enter(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier, QStringLiteral("\r"));
+      QCoreApplication::sendEvent(urlField, &enter);
+      pumpUntil([&fresh] { return !fresh.urls().isEmpty(); });
+      pumpFor(80);   // …and let any second, spurious attempt land too
+      check(fresh.urls().size() == 1, "Return added the connection");
+      check(urlField->text().isEmpty(), "…and cleared the field it came from");
+      check(!toasts.contains(QStringLiteral("Enter a server URL")),
+            "…without complaining that the URL is missing over the connection it just made");
+      check(toasts.isEmpty(), "one Return, one attempt, nothing to report");
+
+      // …and the token field, which lost its own returnPressed with the URL field's:
+      // the default button is what carries Return from anywhere in the dialog.
+      QLineEdit* tokenField = nullptr;
+      for (QLineEdit* e : d.findChildren<QLineEdit*>())
+        if (e->placeholderText() == QLatin1String("(optional)")) tokenField = e;
+      check(tokenField != nullptr, "finds the token field");
+      if (tokenField) {
+        urlField->setText(QStringLiteral("http://u2@127.0.0.1:%1").arg(port));
+        tokenField->setFocus();
+        QKeyEvent enter2(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier, QStringLiteral("\r"));
+        QCoreApplication::sendEvent(tokenField, &enter2);
+        pumpUntil([&fresh] { return fresh.urls().size() == 2; });
+        pumpFor(80);
+        check(fresh.urls().size() == 2, "Return from the token field connects as well");
+        check(toasts.isEmpty(), "…and still has nothing to complain about");
+      }
     }
   }
 

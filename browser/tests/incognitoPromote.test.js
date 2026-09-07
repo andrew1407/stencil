@@ -44,7 +44,7 @@ test('promoteIncognitoToLocal: leaves incognito, then saves what is on screen', 
 
   assert.equal(mock.storage.incognito, false, 'the session is no longer incognito');
   assert.deepEqual(mock.calls.map(([n]) => n),
-    ['promote', 'save', 'reportActive', 'updateIncognitoUI', 'updateProjectTitle']);
+    ['promote', 'save', 'reportActive', 'updateButtons']);
   assert.equal(id, 'p1', 'the new project id comes back for the caller to name/open');
 });
 

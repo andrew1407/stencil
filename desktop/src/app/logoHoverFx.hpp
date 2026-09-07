@@ -1,9 +1,11 @@
 #pragma once
 
 #include <QPixmap>
+#include <QPointer>
 #include <QWidget>
 #include <functional>
 
+class QTimer;
 class QToolButton;
 class QVariantAnimation;
 

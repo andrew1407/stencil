@@ -1006,6 +1006,9 @@ export const DISINTEGRATE_MS = 900;
 // DisintegrateOverlay::kDustCellPx, which sizes its motes in pixels instead.)
 export const DISINTEGRATE_COLS = 34;
 export const DISINTEGRATE_ROWS = 16;
+// However late a mote sets off, it still gets this long to fly: the floor keeps the last
+// grains of a short flight (a mark swap, a menu) from being a blink rather than a flight.
+export const MIN_TILE_MS = 160;
 // A gathering tile's flight as a share of the whole span — the CSS default's 0.48s of
 // 0.9s. The rest is the reversed sweep (tileMotion), so the two always add up.
 export const TILE_GATHER_SHARE = 480 / DISINTEGRATE_MS;
@@ -1174,8 +1177,16 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
         // A tile IS the mote — no copy, no child, one node per grain — and it gets ONE
         // style write: a window's cloud is hundreds of them, built in the frame the open
         // lands on, and a property at a time was most of that frame.
+        // The sweep is INSIDE the span, never added to it (the desktop overlay's
+        // `t = (t - delay) / (1 - delay)`): a late mote flies the window it has left, so
+        // the whole cloud is done at `span` instead of trailing a quarter-second of
+        // stragglers past it (user report: the browser's row wipe read as longer than
+        // the desktop's on the same 0.9s clock). Gathers already fit — their flight is
+        // the short --gather-ms and the sweep is what fills the rest.
+        const flightMs = gather ? 0 : Math.max(MIN_TILE_MS, (ms || DISINTEGRATE_MS) - m.delay);
         tile.style.cssText = `--dx:${m.dx}px;--dy:${m.dy}px;--mx:${m.mx}px;--my:${m.my}px;`
           + `--rot:${m.rot}deg;--tile-scale:${m.scale};animation-delay:${m.delay}ms;`
+          + (flightMs ? `animation-duration:${flightMs}ms;` : '')
           + paint(tile, { cx, cy, cols, rows, cellW, cellH });
         host.appendChild(tile);
       }
@@ -1199,10 +1210,12 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
         document.body.appendChild(host);
       }
     }
+    // …and the layer goes one beat after the last mote lands (the flight ends AT the
+    // span now, sweep included), not most of a second later.
     const life = setTimeout(() => {
       host.remove();
       if (el.__dustHost === host) { el.__dustHost = null; el.__dustTimer = null; }
-    }, (ms || DISINTEGRATE_MS) + 400);
+    }, (ms || DISINTEGRATE_MS) + 150);
     if (own) { el.__dustHost = host; el.__dustTimer = life; }
     return true;
   } catch {

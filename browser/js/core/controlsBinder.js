@@ -966,7 +966,7 @@ export class ControlsBinder {
         e.preventDefault();
         const file = mediaFilesFromData(cd).find((f) => f.type.startsWith('image/'));
         if (app.image && !(await app.confirm('Replace current image with pasted image?', { title: 'Replace image', confirmIcon: 'paste' }))) {
-          notify('Image paste canceled', 'fail');
+          notify('Image paste canceled', 'info');   // a declined confirm is a notice, not a failure
           return;
         }
         if (file) {

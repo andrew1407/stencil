@@ -87,10 +87,10 @@ export class StencilSettingsModal extends StencilElement {
         const isDefault = curRaw === def0;
         tr.innerHTML = `
                 <span class="hotkey-td hotkey-action" role="cell">${def.label}</span>
-                <span class="hotkey-td" role="cell"><span class="hotkey-cell" data-id="${def.id}" title="Double-click to set a new combination">${capsOf(curRaw)}</span></span>
+                <span class="hotkey-td" role="cell"><span class="hotkey-cell" data-id="${def.id}" data-title="Double-click to set a new combination">${capsOf(curRaw)}</span></span>
                 <span class="hotkey-td" role="cell"><span class="hotkey-default">${capsOf(def0)}</span></span>
                 <span class="hotkey-td hotkey-td-reset" role="cell">
-                    <button class="hotkey-reset-btn" data-id="${def.id}" title="Reset to default"${isDefault ? ' style="visibility:hidden;"' : ''}>${icon('rotate-ccw', { size: 15 })}</button>
+                    <button class="hotkey-reset-btn" data-id="${def.id}" data-title="Reset to default"${isDefault ? ' style="visibility:hidden;"' : ''}>${icon('rotate-ccw', { size: 15 })}</button>
                 </span>
             `;
         rows.appendChild(tr);

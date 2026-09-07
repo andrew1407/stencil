@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QColor>
+#include <QPixmap>
 #include <QWidget>
 #include <functional>
 
@@ -40,6 +41,10 @@ namespace stencil::gui {
     void drawChevron(QPainter& p, int i, const QRect& z, bool hot);
 
     QColor accent_;
+    // The dock region as it looked when the drag started, pre-blurred: Qt has no
+    // backdrop filter, so the bands paint their own blurred copy of what is under
+    // them (browser parity: .chat-dock-zone backdrop-filter).
+    QPixmap backdrop_;
     int hover_ = -1;
     qreal nudge_ = 0.0;
     QVariantAnimation* nudgeAnim_ = nullptr;

@@ -70,14 +70,34 @@ namespace stencil::gui {
   // The f(x,y) transform fields (browser #formula-inputs, toolbar.js): two bare
   // monospace fields (each placeholder already reads "x(x)=" / "y(y)="), living
   // inside the Formula section so they share the pill's row height and centring.
+  namespace {
+    // The browser's fields are a flat 180px (toolbar.js `style="width:180px"`). Qt has no
+    // "preferred width", and the FORMULA section is content-sized — it sits mid-row, so it
+    // cannot take slack the way an end-of-row cluster can — which left the fields at the
+    // ~158px a QLineEdit asks for. The hint IS the width here, so it says 180; the minimum
+    // below still lets the row squeeze them when it has to.
+    class FormulaField : public QLineEdit {
+     public:
+      explicit FormulaField(QWidget* parent) : QLineEdit(parent) {}
+      QSize sizeHint() const override {
+        return QSize(kFormulaFieldW, QLineEdit::sizeHint().height());
+      }
+    };
+  }  // namespace
+
   void MainWindow::buildFormulaFields() {
     formulaGroup_ = new QWidget(this);
-    formulaGroup_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    // Maximum, not Expanding: the pair is exactly as wide as the two fields want (2 × 180 +
+    // the gap) and may only SHRINK from there. Expanding made this cluster swallow the row's
+    // leftover width — a long empty stretch after the fields, with DATA and SETTINGS shoved
+    // to the far edge — and, once the fields hid, left the lone pill floating in the middle
+    // of that empty box instead of sitting under its caption (user report, with pictures).
+    formulaGroup_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
     auto* fl = new QHBoxLayout(formulaGroup_);
     fl->setContentsMargins(0, 0, 0, 0);
     fl->setSpacing(6);   // the browser's gap between the two fields
     const auto makeField = [this](const char* placeholder, const char* tip) {
-      auto* e = new QLineEdit(formulaGroup_);
+      auto* e = new FormulaField(formulaGroup_);
       e->setPlaceholderText(placeholder);
       e->setToolTip(tip);
       // Monospace, like the browser's — a formula is code, and the digits have to line up.
@@ -89,7 +109,7 @@ namespace stencil::gui {
       // normal window and give the space back on a narrow one instead of overflowing.
       e->setMinimumWidth(kFormulaFieldMinW);
       e->setMaximumWidth(kFormulaFieldW);
-      e->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+      e->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
       return e;
     };
     formulaX_ = makeField("x(x)=", "Transform formula for x — e.g. x*2 + 1 (empty = identity)");
@@ -218,6 +238,17 @@ namespace stencil::gui {
       ex->setParent(rowWidget);
       row->addWidget(ex, 0, Qt::AlignVCenter);
     }
+    // Left-packed under its caption, like the browser's .ctrl-section-row: a section
+    // whose caption is wider than its two or three icons (CONNECTIONS & CHAT) keeps them
+    // at the left edge instead of Qt spreading the caption's extra width around them.
+    // The layout is aligned INSIDE the row (not stretched — a stretch item made every
+    // section grow to share the toolbar's width, and rows carrying a growing field like
+    // the formula inputs must still hand them the leftover, so those are left alone).
+    bool grows = false;
+    for (int i = 0; i < row->count() && !grows; ++i)
+      if (QWidget* w = row->itemAt(i)->widget())
+        grows = (w->sizePolicy().horizontalPolicy() & QSizePolicy::ExpandFlag) != 0;
+    if (!grows) row->setAlignment(Qt::AlignLeft);
     col->addWidget(rowWidget);
     return section;
   }
@@ -313,8 +344,9 @@ namespace stencil::gui {
     imageSizeInfo_->setStyleSheet("color:#9aa0a8;");
     // contentsMargins, not stylesheet `padding` — QLabel's sizeHint()/paint don't reliably
     // pick it up. 10px left/right (browser parity: css/layout.css .info padding: 10px);
-    // 6px top/bottom, tighter than parity since the row read taller than it needed to.
-    imageSizeInfo_->setContentsMargins(10, 6, 10, 6);
+    // 11px top/bottom, so the readout sits in a band of its own rather than pressed
+    // between the toolbars and the canvas (user report, with a picture).
+    imageSizeInfo_->setContentsMargins(10, 11, 10, 11);
     imageSizeInfo_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     addToolBarBreak();
 
@@ -411,7 +443,11 @@ namespace stencil::gui {
     imageFilter_->addItem("Invert", "invert");
     imageFilter_->addItem("Contour", "contour");
     imageFilter_->addItem("Tint", "custom");
-    imageFilter_->setToolTip("Image Filter");
+    // The browser's #image-filter: heading, Cycle Image Filter's chord as its keycap, and
+    // the reason it is greyed out (composed and kept current by tipContent).
+    setTipBase(imageFilter_, "Image Filter");
+    setTipHotkey(imageFilter_, actCycleFilter_);
+    setTipReason(imageFilter_, "Load an image to apply a filter");
     filterColorBtn_ = new QToolButton(this);
     filterColorBtn_->setToolTip("Tint color");
     updateColorSwatch(filterColorBtn_, filterColorValue_);
@@ -429,7 +465,8 @@ namespace stencil::gui {
     drawModeBtn_->setText("Line");
     drawModeBtn_->setAutoRaise(true);
     drawModeBtn_->setIconSize(QSize(kToolIcon, kToolIcon));
-    drawModeBtn_->setToolTip("Drawing mode: Line (click to switch to Rectangle)");
+    setTipBase(drawModeBtn_, "Drawing mode: Line (click to switch to Rectangle)");
+    setTipReason(drawModeBtn_, "Load an image to switch line / rectangle");   // #draw-mode-toggle
     // Solid accent, permanently — it has no QAction for styleDangerToolButtons' own
     // fill pass to reach (its click is a plain connect(), not a default action), and
     // the browser's `#draw-mode-toggle` is a bare `<button>`, filled at rest too.
@@ -450,7 +487,7 @@ namespace stencil::gui {
     // ~1230px, so on a 1000px window Zoom and Settings (incognito!) were pushed clean
     // off the end with no way to reach them. They now sit on the rows below, which is
     // also exactly how the browser splits them — row 1 is Image · Projects ·
-    // Connections & links · Edit there too.
+    // Connections & chat · Edit there too.
   }
 
   // ── Project name field + inline-rename ✓/✗ (mirrors the browser topbar). The field shows the
@@ -505,6 +542,7 @@ namespace stencil::gui {
     sizeToRow(projectNameEdit_);
     projectNameEdit_->setAutoRaise(true);
     projectNameEdit_->setToolTip("Rename project");
+    setTipHotkey(projectNameEdit_, actRenameProject_);   // browser #project-name-edit: its chord as the keycap
     projectNameEdit_->setEnabled(false);
     nameLay->addWidget(projectNameEdit_);
     connect(projectNameEdit_, &QToolButton::clicked, this, [this] { enterNameEdit(); });
@@ -590,12 +628,19 @@ namespace stencil::gui {
     unitCombo_->setToolTip("Display units (cm / inches)");   // its own caption
     connect(unitCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             [this](int) { applyUnits(unitCombo_->currentData().toString()); });
-    // Zoom rides the Line · Point row, not this one: with it here the last row
-    // overflowed on laptop widths and QToolBar's "»" swallowed the SETTINGS cluster.
-    QToolBar* zoomHost = findChild<QToolBar*>("styleToolbar");
-    if (!zoomHost) zoomHost = tb2;   // defensive: rows are built in order
-    zoomHost->addSeparator();
-    zoomHost->addWidget(makeToolSection("Zoom", {}, { zoom_, zoomFitBtn_ }));
+    // ZOOM and PAGE follow VIEW on the row above, keeping the browser's sequence while
+    // leaving this row light enough to survive a narrow window (see the wrap-point note in
+    // buildDrawViewToolbar): PAGE + FORMULA + DATA + SETTINGS together need ~1200px, and
+    // it was SETTINGS that fell into QToolBar's "»" when they shared one row.
+    QToolBar* pageHost = findChild<QToolBar*>("drawViewToolbar");
+    if (!pageHost) pageHost = tb2;   // defensive: rows are built in order
+    pageHost->addSeparator();
+    // The browser's cluster exactly: [−] [+] [value %] [fit] (toolbar.js .zoom-controls).
+    // The steppers are the same two actions the View menu and Alt+↑/↓ drive, so the three
+    // ways to zoom stay one thing; the editable combo stands in for the browser's number
+    // field with its preset menu, and Fit closes the row there too.
+    pageHost->addWidget(makeToolSection("Zoom", { actZoomOut_, actZoomIn_ }, { zoom_, zoomFitBtn_ }));
+    pageHost->addSeparator();
     // Inline custom W x H inputs (S10), shown only for the "custom" page size. Built BEFORE
     // the section so they can go INSIDE it: added straight to the toolbar they were centred
     // on its full height while the two combos sat under the section caption, so the row
@@ -615,7 +660,13 @@ namespace stencil::gui {
       // (browser style width:96px, toolbar.js:110/112) — trimmed a little further
       // with the rest of this row so the SETTINGS cluster always fits after DATA.
       customW_->setMaximumWidth(76);
-      customW_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+      // Capped at 76 as before, but the row may squeeze them: a spin box's own
+      // minimumSizeHint (89) is a floor the toolbar layout cannot go under, and with the
+      // zoom steppers added this row asked for more than a 1000px window has. Ignored +
+      // an explicit minimum makes 56 the floor instead; the maximum above still stops
+      // them growing. Both boxes only show at all for a CUSTOM page size.
+      customW_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+      customW_->setMinimumWidth(56);
       customH_ = new ExprDoubleSpinBox(customGroup_);
       customH_->setRange(0.1, 500.0);
       customH_->setSingleStep(0.1);
@@ -623,7 +674,8 @@ namespace stencil::gui {
       customH_->setValue(29.7);
       customH_->setToolTip("Custom page height in the selected units");
       customH_->setMaximumWidth(76);
-      customH_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+      customH_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+      customH_->setMinimumWidth(56);
       cl->addWidget(customW_, 0, Qt::AlignVCenter);
       cl->addWidget(new QLabel("×", customGroup_), 0, Qt::AlignVCenter);
       cl->addWidget(customH_, 0, Qt::AlignVCenter);
@@ -634,8 +686,7 @@ namespace stencil::gui {
     // One NAMED section, like every group in the main row and like the browser's PAGE
     // cluster — the inline "Page:"/"Units:" captions become the section header ("Units"
     // keeps its own inline label, exactly as the browser does inside that group).
-    tb2->addWidget(makeToolSection("Page", {}, { pageSize_, unitCombo_, customGroup_ }));
-    tb2->addSeparator();
+    pageHost->addWidget(makeToolSection("Page", {}, { pageSize_, unitCombo_, customGroup_ }));
 
     // Inline formula controls (S11): an enable checkbox + fx/fy inputs + error.
     allowFormulas_ = new QCheckBox("𝑓(x,y)", this);
@@ -648,38 +699,24 @@ namespace stencil::gui {
     // pill swallowed it whenever the fields were hidden — a wide chip whose clickable area
     // (QCheckBox's click rect) stayed at the left, so half of it did nothing.
     allowFormulas_->setSizePolicy(QSizePolicy::Fixed, allowFormulas_->sizePolicy().verticalPolicy());
-    // f(x,y) rides the Draw · View row instead of this one. It is a desktop-only
-    // extra — the browser's last row is Zoom · Page · Data · Settings — and its
-    // inline inputs are exactly what tipped this row past the window width, which
-    // pushed the SETTINGS cluster into QToolBar's "»" where the user never saw it.
-    QToolBar* formulaHost = findChild<QToolBar*>("drawViewToolbar");
-    if (!formulaHost) formulaHost = tb2;   // defensive: rows are built in order
-    formulaHost->addSeparator();
+    // f(x,y) sits between PAGE and DATA, where the browser puts it (its PAGE cluster
+    // carries the pill and the inputs inline; here they are their own named section, as
+    // every cluster on this row is). The separator before it is the one PAGE just added.
     // The x/y inputs belong to the SAME section as the pill that reveals them. Added
     // straight to the toolbar instead, they were centred on the toolbar's full height
     // while the pill sat under the section's caption — so the two never shared a
     // baseline. makeToolSection gives every control in the row one height and
     // Qt::AlignVCenter, which is what the browser's flex row does.
     buildFormulaFields();
-    // FORMULA closes this row, so it is the cluster that may take its leftover width —
-    // that is what lets the two fields reach the browser's size (buildFormulaFields). The
-    // tail is where the width the fields cannot use goes: with them hidden, a lone
-    // content-sized pill in a wide section came out CENTRED instead of under its caption.
-    auto* formulaTail = new QWidget(this);
-    formulaTail->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    formulaTail->setFixedHeight(1);
-    QWidget* formulaSection =
-        makeToolSection("Formula", {}, { allowFormulas_, formulaGroup_, formulaTail });
-    formulaSection->setSizePolicy(QSizePolicy::Expanding,
-                                  formulaSection->sizePolicy().verticalPolicy());
-    // …and that width belongs to the FIELDS first: a stretch factor on the group (the tail
-    // keeps none) sends the row's slack there, so the tail only collects what the fields
-    // cannot use — nothing while they are hidden, the excess once they are at 180.
-    if (auto* row = qobject_cast<QBoxLayout*>(formulaGroup_->parentWidget()->layout()))
-      row->setStretchFactor(formulaGroup_, 1);
-    formulaHost->addWidget(formulaSection);
+    // Content-sized, with no expanding tail: DATA and SETTINGS follow it on this row now,
+    // and a cluster that took the row's leftover width would shove them to the far edge —
+    // the browser packs its sections left and leaves the slack at the END of the row.
+    QWidget* formulaSection = makeToolSection("Formula", {}, { allowFormulas_, formulaGroup_ });
+    formulaSection->setSizePolicy(QSizePolicy::Maximum, formulaSection->sizePolicy().verticalPolicy());
+    tb2->addWidget(formulaSection);
+    tb2->addSeparator();
     // Data then Settings close the row, mirroring the browser's last one
-    // (Zoom · Page · Data · Settings). Incognito lives in Settings.
+    // (Zoom · Page · Formula · Data · Settings). Incognito lives in Settings.
     tb2->addWidget(makeToolSection("Data",
                                    {actDownloadJson_, actCopyLayout_, actUploadJson_, actClearProject_}));
     tb2->addSeparator();
@@ -701,16 +738,25 @@ namespace stencil::gui {
   // they are appended to the toolbar buildStyleToolbar opened rather than breaking a
   // row of their own. Data moved to row three, beside Zoom/Page/Settings.
   void MainWindow::buildDrawViewToolbar() {
-    // Their OWN row rather than the tail of the style row: appended there, View (the
-    // Points/Lines toggles, Compare and clear-lines) overflowed into QToolBar's "»" on any
-    // window under ~1100 px and simply vanished — the browser wraps that cluster instead.
+    // The rows are FIXED wrap points in the browser's single sequence (Line · Point · Draw ·
+    // View · Zoom · Page · Formula · Data · Settings): its flex row re-wraps with the window,
+    // a QToolBar cannot, so each break is placed where every row still fits a narrow one —
+    // View alone used to overflow into QToolBar's "»" and simply vanish under ~1100 px.
+    // DRAW therefore closes the LINE · POINT row and VIEW opens this one.
+    QToolBar* drawHost = findChild<QToolBar*>("styleToolbar");
+    if (drawHost) {
+      drawHost->addSeparator();
+      drawHost->addWidget(makeToolSection("Draw", {actStartDraw_}, {drawModeBtn_}));
+    }
     addToolBarBreak();
-    QToolBar* tb4 = addToolBar("Draw & View");
+    QToolBar* tb4 = addToolBar("View & Page");
     tb4->setObjectName("drawViewToolbar");  // named for QMainWindow::saveState
     tb4->setMovable(false);
     tb4->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    tb4->addWidget(makeToolSection("Draw", {actStartDraw_}, {drawModeBtn_}));
-    tb4->addSeparator();
+    if (!drawHost) {   // defensive: rows are built in order
+      tb4->addWidget(makeToolSection("Draw", {actStartDraw_}, {drawModeBtn_}));
+      tb4->addSeparator();
+    }
     // Compare view combo (browser toolbar View section): hold the edit against the
     // untouched original. Kept in sync with the View → Compare submenu radio set.
     compareCombo_ = new SearchComboBox(this, /*searchable=*/false);
@@ -720,17 +766,20 @@ namespace stencil::gui {
     compareCombo_->addItem("Original", "original");
     compareCombo_->addItem(QString::fromUtf8("Split ↔"), "vertical");
     compareCombo_->addItem(QString::fromUtf8("Split ↕"), "horizontal");
-    compareCombo_->setToolTip(
-        // The browser's shape (browser/js/ui/toolbar.js #compare-mode): one bulleted row
-        // per mode, the peek gesture as a parenthesised hint, and the cycle shortcut ONLY
-        // as the trailing "(…)" — tipContent turns that into the heading's keycap, so
-        // naming it in the prose as well would print it twice.
-        "Compare with original\n"
-        "• None — normal editing\n"
-        "• Original — the original only (crop + rotation)\n"
-        "• Vertical split — original left, edit right\n"
-        "• Horizontal split — original top, edit bottom\n"
-        "(hold Alt+Shift+O to peek) (Alt+O)");
+    // The browser's words (browser/js/ui/toolbar.js #compare-mode): one bulleted row per
+    // mode and the peek gesture as a parenthesised hint. The cycle chord is Cycle Compare
+    // View's, appended as the trailing "(…)" tipContent draws as the heading's keycap —
+    // naming it in the prose as well would print it twice — and the greyed-out reason
+    // joins while there is nothing to compare.
+    setTipBase(compareCombo_,
+               "Compare with original\n"
+               "• None — normal editing\n"
+               "• Original — the original only (crop + rotation)\n"
+               "• Vertical split — original left, edit right\n"
+               "• Horizontal split — original top, edit bottom\n"
+               "(hold Alt+Shift+O to peek)");
+    setTipHotkey(compareCombo_, actCycleCompare_);
+    setTipReason(compareCombo_, "Load an image to compare");
     // Compare view combo → route through the shared setter (syncs canvas + View
     // submenu). Wired HERE, not alongside the toolbar's other combo connects
     // (buildStyleToolbar) — that function runs BEFORE this one (buildToolbar's own
@@ -793,12 +842,13 @@ namespace stencil::gui {
     // The host carries the gaps around the styled bar so neither paints as part of its
     // background/border: no left/right margin (full-bleed, unlike the canvas column), an
     // adaptive top gap (0 while "Selected Line:" is shown, 8 otherwise — onSelectionChanged
-    // keeps this in sync) and a fixed 10px bottom gap (browser parity: .canvas-viewport
-    // margin-top: 10px).
+    // keeps this in sync) and a 3px bottom gap: half the old one, so the readout sits close
+    // to the row it describes instead of floating in a black band above the canvas and the
+    // assistant dock (user report, with a picture).
     imageInfoHost_ = new QWidget(this);
     imageInfoHost_->setObjectName("imageInfoHost");
     auto* hostLay = new QVBoxLayout(imageInfoHost_);
-    hostLay->setContentsMargins(0, 8, 0, 6);
+    hostLay->setContentsMargins(0, 8, 0, 3);
     hostLay->setSpacing(0);
     hostLay->addWidget(bar);
 
@@ -871,9 +921,10 @@ namespace stencil::gui {
     tb3->addWidget(makeToolSection("Point", {}, {
         new QLabel(" Color ", this), pointColorBtn_,
         new QLabel(" Size ", this), pointSize_ }));
-    tb3->addSeparator();
-    // Draw + View are appended to THIS row by buildDrawViewToolbar, exactly as they sit
-    // in the browser's second row.
+    // POINT closes this row — no trailing separator, or the row ends on a hairline with
+    // nothing after it (the browser hides exactly that one: toolbar.js
+    // syncWrappedSeparators). Draw · View take the row after this one, Zoom · Page ·
+    // Formula · Data · Settings the one after that, as in the browser's own sequence.
 
     // ── wiring ──
     // Draw-mode toggle (#draw-mode-toggle; button built in buildMainToolbar):

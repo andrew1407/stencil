@@ -1,7 +1,6 @@
 #include "cropDialog.hpp"
-#include "../support/shimmerOverlay.hpp"
-#include "iconSet.hpp"
-#include "guiHelpers.hpp"
+#include "../support/modalChrome.hpp"
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMouseEvent>
@@ -10,16 +9,45 @@
 #include <QWheelEvent>
 #include <QPainterPath>
 #include <QPushButton>
-#include <QVBoxLayout>
+#include <QScreen>
 #include <algorithm>
 #include <cmath>
 
 namespace stencil::gui {
 
   namespace {
-    constexpr int kHandle = 7;     // handle radius (display px)
-    constexpr int kMaxDispW = 760;  // preview fit box
-    constexpr int kMaxDispH = 540;
+    // Browser crop-handle: a 14px accent disc inside a 2px white ring (cropModal.js
+    // .crop-handle) — drawn as an r=8 ellipse under a 2px pen, so the ring's outer
+    // edge lands at r=9 and the disc keeps its 14px.
+    constexpr int kHandle = 8;
+    // The image sits this far inside the widget, so a handle on the image edge draws
+    // whole instead of being sliced in half (browser: handles live in the UNclipped stage).
+    constexpr int kInset = kHandle + 2;
+    const QColor kCropAccent(0x4d, 0xa3, 0xff);   // #4da3ff, the browser's crop blue
+    constexpr int kShadeAlpha = 115;                   // rgba(0,0,0,0.45)
+    constexpr int kMinDispW = 760;  // the preview fit box never shrinks below this…
+    constexpr int kMinDispH = 540;
+    constexpr int kMinDialogW = 640;   // the dialog's own floor
+    constexpr int kScreenMargin = 20;  // …but the window always keeps this much screen around it
+
+    // The screen the dialog lands on — its parent window's (a dialog centres over its
+    // parent), else the primary — as LOGICAL px: availableGeometry is device-independent
+    // on every platform, and leaves out the menu bar / dock / taskbar.
+    QRect screenAvail(const QWidget* w) {
+      const QWidget* top = w ? w->window() : nullptr;
+      if (top && top->parentWidget()) top = top->parentWidget()->window();
+      const QScreen* screen = top ? top->screen() : nullptr;
+      if (!screen) screen = QGuiApplication::primaryScreen();
+      return screen ? screen->availableGeometry() : QRect(0, 0, 1280, 800);
+    }
+
+    // The browser's preview box (cropModal.js #crop-image-el: max-width calc(96vw - 60px),
+    // max-height calc(82vh - 180px)) taken of that screen — never below the old 760×540,
+    // so a small screen keeps what it had (fitToScreen still caps the window itself).
+    QSize previewFitBox(const QRect& avail) {
+      return QSize(qMax(kMinDispW, qRound(avail.width() * 0.96) - 60),
+                   qMax(kMinDispH, qRound(avail.height() * 0.82) - 180));
+    }
   }  // namespace
 
   // ── CropPreview ──────────────────────────────────────────────────────────
@@ -38,13 +66,18 @@ namespace stencil::gui {
     aspect_ = core::cropAspect(pageWidthCm_, pageHeightCm_, album_);
     rect_ = initial.width > 0 ? initial : core::centeredCrop(iw_, ih_, aspect_);
 
-    // Fit the original into the preview box (allow modest upscaling of small
-    // images so the handles are usable).
-    const double s = std::min(static_cast<double>(kMaxDispW) / std::max(1, iw_),
-                              static_cast<double>(kMaxDispH) / std::max(1, ih_));
-    scale_ = s > 0 ? s : 1.0;
-    setFixedSize(qRound(iw_ * scale_), qRound(ih_ * scale_));
+    setFitBox(previewFitBox(screenAvail(parent)));
     setMouseTracking(true);
+  }
+
+  // Fit the original into the box (allow modest upscaling of small images so the
+  // handles are usable); the widget takes exactly the scaled image plus the handle inset.
+  void CropPreview::setFitBox(const QSize& box) {
+    const double s = std::min(static_cast<double>(box.width()) / std::max(1, iw_),
+                              static_cast<double>(box.height()) / std::max(1, ih_));
+    scale_ = s > 0 ? s : 1.0;
+    setFixedSize(qRound(iw_ * scale_) + 2 * kInset, qRound(ih_ * scale_) + 2 * kInset);
+    update();
   }
 
   void CropPreview::setAlbum(bool album) {
@@ -56,12 +89,16 @@ namespace stencil::gui {
   }
 
   core::Point CropPreview::toImage(const QPoint& w) const {
-    return {w.x() / scale_, w.y() / scale_};
+    return {(w.x() - kInset) / scale_, (w.y() - kInset) / scale_};
+  }
+
+  QRect CropPreview::imageRect() const {
+    return rect().adjusted(kInset, kInset, -kInset, -kInset);
   }
 
   QRectF CropPreview::displayRect() const {
-    return QRectF(rect_.x * scale_, rect_.y * scale_, rect_.width * scale_,
-                  rect_.height * scale_);
+    return QRectF(kInset + rect_.x * scale_, kInset + rect_.y * scale_,
+                  rect_.width * scale_, rect_.height * scale_);
   }
 
   int CropPreview::cornerAt(const QPoint& wp) const {
@@ -79,23 +116,25 @@ namespace stencil::gui {
   void CropPreview::paintEvent(QPaintEvent*) {
     QPainter p(this);
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-    p.drawImage(rect(), original_);
+    p.drawImage(imageRect(), original_);
 
     const QRectF d = displayRect();
-    // Dim everything outside the crop (even-odd fill of full rect minus crop).
+    // Dim everything outside the crop (even-odd fill of the image rect minus crop).
     QPainterPath outside;
     outside.setFillRule(Qt::OddEvenFill);
-    outside.addRect(QRectF(rect()));
+    outside.addRect(QRectF(imageRect()));
     outside.addRect(d);
-    p.fillPath(outside, QColor(0, 0, 0, 115));
+    p.fillPath(outside, QColor(0, 0, 0, kShadeAlpha));
 
-    QPen pen(QColor("#4da3ff"));
+    // The browser's 2px border sits INSIDE the crop box (border-box), so inset by 1.
+    QPen pen(kCropAccent);
     pen.setWidth(2);
     p.setPen(pen);
     p.setBrush(Qt::NoBrush);
-    p.drawRect(d);
+    p.drawRect(d.adjusted(1, 1, -1, -1));
 
-    p.setBrush(QColor("#4da3ff"));
+    p.setRenderHint(QPainter::Antialiasing, true);
+    p.setBrush(kCropAccent);
     p.setPen(QPen(Qt::white, 2));
     const QPointF corners[4] = {d.topLeft(), d.topRight(), d.bottomRight(),
                                 d.bottomLeft()};
@@ -176,62 +215,97 @@ namespace stencil::gui {
   }
 
   // ── CropDialog ───────────────────────────────────────────────────────────
+  // The browser's crop modal on the shared shell (modalChrome): crop glyph + "Crop
+  // Image" over the hairline, the preview and its size line centred in the body, and
+  // a footer of hint · Album/Portrait · Cancel · Apply Crop, every button an accent CTA.
   CropDialog::CropDialog(const QImage& original, double pageWidthCm,
                          double pageHeightCm, bool album,
                          const core::CropRect& initial, QWidget* parent)
       : QDialog(parent) {
-    // The app's glass hover sweep on every control here (the browser's rule is
-    // app-wide; a Qt window opts its own in). Deferred, so the sweep runs once this
-    // constructor has built the content.
-    installHoverShimmerLater(this);
-    setWindowTitle("Crop Image");
+    setWindowTitle(tr("Crop Image"));
+    ModalChrome chrome = installModalChrome(this, QStringLiteral("crop"), tr("Crop Image"));
+    chrome.body->setSpacing(12);   // browser .settings-body gap: 12px
 
-    auto* layout = new QVBoxLayout(this);
     preview_ = new CropPreview(original, pageWidthCm, pageHeightCm, initial, this);
     if (initial.width <= 0) preview_->setAlbum(album);
-
-    auto* previewRow = new QHBoxLayout;
-    previewRow->addStretch(1);
-    previewRow->addWidget(preview_);
-    previewRow->addStretch(1);
-    layout->addLayout(previewRow);
+    chrome.body->addWidget(preview_, 0, Qt::AlignHCenter);
 
     auto* dims = new QLabel(this);
+    dims->setObjectName(QStringLiteral("cropDims"));
     dims->setAlignment(Qt::AlignCenter);
-    dims->setStyleSheet("color: gray; font-size: 12px;");
-    layout->addWidget(dims);
+    chrome.body->addWidget(dims);
 
-    auto* controls = new QHBoxLayout;
+    QHBoxLayout* footer = addModalFooter(
+        chrome, tr("Drag to move · drag a corner to resize (aspect locked to the page)."));
+    // Browser order: the hint leads, then the orientation toggle with the other buttons
+    // (#crop-orientation) — text left, every button right.
     orientationBtn_ = new QPushButton(this);
-    // Browser parity: #crop-orientation carries the swap glyph beside Album/Portrait.
-    orientationBtn_->setIcon(themedIcon("swap", palette().color(QPalette::WindowText), 15));
-    orientationBtn_->setToolTip(
-        "Swap album / portrait — flips the crop orientation");
-    controls->addWidget(orientationBtn_);
-    controls->addStretch(1);
-    auto* hint = new QLabel(
-        "Drag to move · drag a corner to resize (aspect locked to the page).",
-        this);
-    hint->setStyleSheet("color: gray; font-size: 11px;");
-    controls->addWidget(hint);
-    layout->addLayout(controls);
-
-    auto* box = makeButtonBox(this, QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
-    box->button(QDialogButtonBox::Ok)->setText("Apply Crop");
-    layout->addWidget(box);
+    makeModalCta(orientationBtn_, QStringLiteral("swap"));
+    orientationBtn_->setToolTip(tr("Swap album / portrait — flips the crop orientation"));
+    orientationBtn_->setAutoDefault(false);
+    footer->addWidget(orientationBtn_);
+    auto* cancelBtn = new QPushButton(tr("Cancel"), this);
+    makeModalCta(cancelBtn, QStringLiteral("x"));
+    cancelBtn->setAutoDefault(false);
+    footer->addWidget(cancelBtn);
+    auto* applyBtn = new QPushButton(tr("Apply Crop"), this);
+    makeModalCta(applyBtn, QStringLiteral("check"));
+    applyBtn->setDefault(true);   // Enter applies, Escape rejects (QDialog)
+    applyBtn->setAutoDefault(true);
+    footer->addWidget(applyBtn);
+    connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
+    connect(applyBtn, &QPushButton::clicked, this, &QDialog::accept);
 
     auto refresh = [this, dims] {
       const core::CropRect r = preview_->cropRect();
       dims->setText(QString("%1 × %2 px · %3")
                         .arg(qRound(r.width))
                         .arg(qRound(r.height))
-                        .arg(preview_->album() ? "Album (landscape)" : "Portrait"));
-      orientationBtn_->setText(preview_->album() ? "⤢ Album" : "⤡ Portrait");
+                        .arg(preview_->album() ? tr("Album (landscape)") : tr("Portrait")));
+      orientationBtn_->setText(preview_->album() ? tr("Album") : tr("Portrait"));
     };
     connect(preview_, &CropPreview::cropChanged, this, refresh);
     connect(orientationBtn_, &QPushButton::clicked, this,
             [this] { preview_->setAlbum(!preview_->album()); });
     refresh();
+    fitToScreen(chrome, footer);
+  }
+
+  // The browser shell is `width:auto` here: the preview sets the width, and the footer
+  // its floor — the modal is as wide as its footer's ONE line, so the hint opens beside
+  // the buttons rather than wrapped above them and the preview centres in the wider
+  // body. Never under kMinDialogW, never narrower than the preview itself — and never
+  // past the screen: the chrome around the preview (header, size line, footer, padding)
+  // is measured and the preview re-fitted to what the screen leaves for it.
+  void CropDialog::fitToScreen(const ModalChrome& chrome, const QHBoxLayout* footer) {
+    const QRect avail = screenAvail(this);
+    const QSize box = previewFitBox(avail);
+    // A hidden widget's size change never reaches the layouts' caches (updateGeometry
+    // stops at a hidden widget), and the shell's layout tree is a widget away from the
+    // dialog's own, so every measurement below refreshes the lot by hand.
+    const auto measure = [this] {
+      for (QWidget* w : findChildren<QWidget*>()) w->updateGeometry();   // the items' caches
+      for (QLayout* l : findChildren<QLayout*>()) l->invalidate();        // the boxes'
+      layout()->invalidate();
+      layout()->activate();
+    };
+    preview_->setFitBox(box);
+    measure();
+    const QSize chrome_(minimumSizeHint().width() - preview_->width(),
+                        sizeHint().height() - preview_->height());
+    const QSize room(avail.width() - 2 * kScreenMargin - chrome_.width(),
+                     avail.height() - 2 * kScreenMargin - chrome_.height());
+    if (box.width() > room.width() || box.height() > room.height()) {
+      preview_->setFitBox(QSize(qMin(box.width(), room.width()), qMin(box.height(), room.height())));
+      measure();
+    }
+    const int minW = std::max({kMinDialogW, minimumSizeHint().width(),
+                               modalFooterLineWidth(chrome, footer)});
+    setMinimumWidth(qMin(minW, avail.width() - 2 * kScreenMargin));
+    const int w = qMax(minimumWidth(), sizeHint().width());
+    const int h = layout()->hasHeightForWidth() ? layout()->totalHeightForWidth(w)
+                                                : sizeHint().height();
+    resize(w, qMin(h, avail.height() - 2 * kScreenMargin));
   }
 
   core::CropRect CropDialog::cropRect() const { return preview_->cropRect(); }

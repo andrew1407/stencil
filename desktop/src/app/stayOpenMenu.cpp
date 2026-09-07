@@ -5,7 +5,15 @@
 #include <QActionGroup>
 #include <QApplication>
 #include <QKeyEvent>
+#include <QActionEvent>
 #include <QMouseEvent>
+#include <QScreen>
+#include <QButtonGroup>
+#include <QRadioButton>
+#include <QTimer>
+#include <QShowEvent>
+#include <QPointer>
+#include <QWidgetAction>
 
 namespace stencil::gui {
 
@@ -108,6 +116,7 @@ namespace stencil::gui {
   // A drag started inside the panel owns the moves until the button comes back
   // up; everything else is QMenu's, so hover-opening submenus is untouched.
   void StayOpenMenu::mouseMoveEvent(QMouseEvent* e) {
+    entered_ = true;   // the pointer coming in is as good as the second →
     if (pressTarget_ && !redispatching_ && (e->buttons() & Qt::LeftButton)) {
       forward(pressTarget_, e);
       e->accept();
