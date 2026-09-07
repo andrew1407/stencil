@@ -1,0 +1,111 @@
+# Publishes the browser app to GitHub Pages. Two things ship together:
+#   • the app itself, served as the static ES-module site it is (browser/ becomes the site
+#     root, so index.html, css/, js/, sw.js and the PWA manifest all land where they expect)
+#   • stencil.html — the single-file build, offered from that same site as a one-file copy
+#     people can save and open offline
+# The wasm core is built fresh here, so the deployed site runs the real C++ core rather
+# than the JS fallback.
+#
+# NOTE: this deploys nothing until Pages is enabled for the repo —
+# Settings → Pages → Build and deployment → Source: "GitHub Actions".
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # deploy on demand (use this for the first run)
+
+# Read the repo, write the Pages deployment.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer push supersedes an in-flight one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Assemble the site
+    runs-on: ubuntu-latest
+    env:
+      EMSDK_VERSION: '5.0.7'
+    steps:
+      - uses: actions/checkout@v5
+
+      # ── The wasm core (same version/steps as ci.yml's wasm job) ──
+      - name: Cache emsdk
+        uses: actions/cache@v4
+        with:
+          path: emsdk
+          key: emsdk-${{ env.EMSDK_VERSION }}
+      - name: Install Emscripten (if not cached)
+        run: |
+          if [ ! -d emsdk ]; then
+            git clone --depth 1 https://github.com/emscripten-core/emsdk.git
+          fi
+          cd emsdk
+          ./emsdk install "$EMSDK_VERSION"
+          ./emsdk activate "$EMSDK_VERSION"
+      - name: Build the wasm core
+        run: |
+          source "$GITHUB_WORKSPACE/emsdk/emsdk_env.sh"
+          emcmake cmake -S core -B core/build-wasm -DCMAKE_BUILD_TYPE=Release
+          emmake cmake --build core/build-wasm -j --target stencil_wasm
+      - name: Place the freshly built module in the browser tree
+        run: |
+          mkdir -p browser/js/wasm
+          cp core/build-wasm/stencil_core.js browser/js/wasm/stencilCore.js
+
+      # ── The single-file copy ──
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: browser/package-lock.json
+      # `npm ci` off the committed lockfile: vite is pinned exactly in package.json, but its
+      # own dependencies (rolldown, lightningcss, …) are ranges — only the lockfile makes
+      # the build reproducible.
+      - name: Install vite (the only dev dependency)
+        working-directory: browser
+        run: npm ci
+      - name: Build + verify stencil.html
+        working-directory: browser
+        run: npm run build
+
+      # ── The site tree ──
+      # Everything the app loads at runtime, and nothing else: no tests, no dev tooling,
+      # no build config, no node_modules. The manifest's start_url/scope are relative, so
+      # the PWA works under the /<repo>/ subpath Pages serves from. openInConfig.json is
+      # operator config, gitignored, and so never present to copy.
+      - name: Assemble _site
+        run: |
+          mkdir -p _site
+          cp -r browser/index.html browser/launch.html browser/sw.js \
+                browser/manifest.webmanifest browser/favicon.svg browser/icon-maskable.svg \
+                browser/css browser/js _site/
+          cp browser/stencil.html _site/stencil.html
+          find _site -name '.DS_Store' -delete
+          du -sh _site && ls _site
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

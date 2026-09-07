@@ -26,6 +26,32 @@ jobs:
         working-directory: browser
         run: npm test
 
+  # Single-file build: the browser app's ONE optional build step (vite, a local dev dep) —
+  # packs the whole app into a self-contained stencil.html. The rewrite patterns it depends
+  # on are guarded without a build by tests/singleFileBuild.test.js (browser job); this runs
+  # the real thing, and tools/assertSelfContained.js then asserts the output needs no
+  # sibling file and that its inline module still parses.
+  single-file:
+    name: Browser (single-file build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: browser/package-lock.json
+      # `npm ci` off the committed lockfile: vite is pinned exactly in package.json, but its
+      # own dependencies (rolldown, lightningcss, …) are ranges — only the lockfile makes
+      # the build reproducible.
+      - name: Install vite (the only dev dependency)
+        working-directory: browser
+        run: npm ci
+      - name: Build + verify stencil.html
+        working-directory: browser
+        run: npm run build
+
   # Extension: vanilla MV3, no build step; node:test over the chrome/DOM-free modules.
   extension:
     name: Extension (JS tests)
