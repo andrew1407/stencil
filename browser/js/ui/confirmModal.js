@@ -60,6 +60,30 @@ export class StencilConfirmModal extends StencilElement {
     let choiceSelect = null;
     // When set, the dialog is in "prompt" mode: Confirm resolves the trimmed text.
     let promptInput = null;
+    // Live validation (desktop twin: modalChrome.hpp PromptSpec::validate): the reason the
+    // trimmed text cannot be accepted, '' when it can. A reason disables Confirm — Enter
+    // with it too — and shows under the field, so the button is never a dead click.
+    let promptValidate = null;
+    let promptReasonEl = null;
+    const promptWhyNot = () =>
+      (promptInput && promptValidate ? (promptValidate(promptInput.value.trim()) || '') : '');
+    const revalidatePrompt = () => {
+      if (!promptInput) return;
+      const why = promptWhyNot();
+      confirmBtn.disabled = !!why;
+      if (why) confirmBtn.dataset.title = why; else delete confirmBtn.dataset.title;
+      if (promptReasonEl) {
+        promptReasonEl.textContent = why;
+        promptReasonEl.style.display = why ? '' : 'none';
+      }
+    };
+    // Forget the last prompt's gate — the next dialog starts clickable.
+    const clearPromptGate = () => {
+      promptValidate = null;
+      promptReasonEl = null;
+      confirmBtn.disabled = false;
+      delete confirmBtn.dataset.title;
+    };
     // When set, the dialog has a THIRD button: Confirm resolves 'confirm', the extra
     // button 'alt', and Cancel/Close/Escape null (see askAlt).
     let altBtn = null;
@@ -75,6 +99,7 @@ export class StencilConfirmModal extends StencilElement {
       const r = resolveCurrent; resolveCurrent = null;
       const selEl = choiceSelect; choiceSelect = null;
       const inp = promptInput; promptInput = null;
+      clearPromptGate();
       const alt = altBtn; altBtn = null;
       if (selEl) selEl.parentElement?.remove();   // drop the injected picker row
       if (inp) inp.parentElement?.remove();       // drop the injected prompt row
@@ -92,6 +117,7 @@ export class StencilConfirmModal extends StencilElement {
         // modifier form confirms there. Everywhere else Enter is still "OK".
         if (promptInput?.tagName === 'TEXTAREA' && e.target === promptInput && !(e.ctrlKey || e.metaKey)) return;
         e.preventDefault();
+        if (promptWhyNot()) return;   // the same gate the disabled Confirm is behind
         settle(true);
       }
     };
@@ -136,6 +162,7 @@ export class StencilConfirmModal extends StencilElement {
       }
       if (choiceSelect) { choiceSelect.parentElement?.remove(); choiceSelect = null; }
       if (promptInput) { promptInput.parentElement?.remove(); promptInput = null; }
+      clearPromptGate();
       if (altBtn) { altBtn.remove(); altBtn = null; }
     };
     // Build a one-element row (select or input) and inject it below the message.
@@ -200,8 +227,10 @@ export class StencilConfirmModal extends StencilElement {
 
     // Text-prompt variant: an <input> below the message, resolving the trimmed text on
     // Confirm, null otherwise. opts: { title, titleIcon, confirmLabel, defaultValue,
-    // multiline, rows }. `multiline` swaps in a `rows`-tall <textarea> (default 3) for
-    // sentence-shaped values; Enter then types a newline and Ctrl/⌘+Enter saves.
+    // multiline, rows, validate }. `multiline` swaps in a `rows`-tall <textarea>
+    // (default 3) for sentence-shaped values; Enter then types a newline and Ctrl/⌘+Enter
+    // saves. `validate(trimmed)` returns the reason the value cannot be accepted ('' when
+    // it can) — it disables Confirm and Enter and shows under the field.
     this.prompt = (message, opts = {}) => new Promise(resolve => {
       dismissPrevious();
       resolveCurrent = resolve;
@@ -215,6 +244,16 @@ export class StencilConfirmModal extends StencilElement {
       inp.addEventListener('keydown', e => e.stopPropagation());   // keep the modal's Enter/Esc, but let typing through
       injectRow(inp);
       promptInput = inp;
+      promptValidate = typeof opts.validate === 'function' ? opts.validate : null;
+      if (promptValidate) {
+        const why = document.createElement('div');
+        why.className = 'confirm-prompt-reason';
+        why.style.display = 'none';
+        inp.parentElement.appendChild(why);
+        promptReasonEl = why;
+        inp.addEventListener('input', revalidatePrompt);
+        revalidatePrompt();   // an empty box starts refused, not offering a dead button
+      }
       setTimeout(() => { inp.focus(); inp.select(); }, 30);
     });
   }

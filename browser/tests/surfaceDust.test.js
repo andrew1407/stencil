@@ -248,9 +248,10 @@ test('the surface keyframes are the row’s scatter, re-timed and re-aimed', () 
   }
   // A surface's motes are visible from the first frame — they ARE the window.
   assert.match(animCss, /@keyframes tileGatherSurface \{\s*\n\s*0%\s*\{ opacity: 0\.\d+;/);
-  // …and both ride the surface's own clock, not the row's 0.9s fall.
-  assert.match(animCss, /animation: tileScatter var\(--dust-ms, 0\.9s\)/);
-  assert.match(animCss, /animation: tileGather var\(--gather-ms, 0\.48s\)/);
+  // …and both ride the surface's own clock, the row's own fall being only the fallback
+  // (motion.js writes --dust-ms / --gather-ms per flight, and each mote's duration inline).
+  assert.match(animCss, /animation: tileScatter var\(--dust-ms, 1\.35s\)/);
+  assert.match(animCss, /animation: tileGather var\(--gather-ms, 0\.72s\)/);
 });
 
 test('the surface waits behind its dust, and hands over to it on the way out', () => {

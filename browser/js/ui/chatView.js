@@ -8,7 +8,7 @@ import { notify } from '../utils.js';
 import { sanitizeLabel, askAnswerText } from '../llm/opPlan.js';
 import {
   observeReveal, leaveThenRemove, LEAVING_CLASS, wipeDurationMs, chatIn, CHAT_ENTERING_CLASS,
-  CHAT_LEAVE_MS, CHIP_LEAVE_MS, scatterGridFor, menuPopOrigin,
+  CHAT_LEAVE_MS, CHIP_LEAVE_MS, ITEM_DUST_MS, scatterGridFor, menuPopOrigin,
   REVEAL_ITEM_CLASS, REVEAL_IN_CLASS, REVEAL_MASKED_CLASS, REVEAL_ENTERING_CLASS,
   REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, surfaceIn, surfaceOut, rectCenter,
   SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS, swapContent, replayWaves,
@@ -21,7 +21,7 @@ import { VOICE_STATE_EVENT, UNSUPPORTED_TEXT } from '../llm/voiceModes.js';
 // — one removal gets the full fine mesh, a whole-transcript wipe coarsens so the total
 // number of flying tiles stays inside the budget (motion.js scatterGridFor).
 const chatLeave = (el, done, count = 1, index = 0) =>
-  leaveThenRemove(el, done, { ms: CHAT_LEAVE_MS, ...scatterGridFor(count, index) });
+  leaveThenRemove(el, done, { ms: CHAT_LEAVE_MS, dustMs: ITEM_DUST_MS, ...scatterGridFor(count, index) });
 // (…and the mirror, motion.js chatIn, is played by renderChatLog on every entry that
 // APPEARS — a fresh row, or a pending "…" resolving into the answer.)
 // Chips ride the longer chip clock (css chipLeave hold + collapse — see motion.js).

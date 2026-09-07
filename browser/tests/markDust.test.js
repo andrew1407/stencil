@@ -17,7 +17,7 @@ import { readFileSync } from 'node:fs';
 import { tileMotion, MARK_IN_MS, MARK_OUT_MS, MARK_MOTE_PX, MARK_DRIFT, MARK_COLS, MARK_ROWS,
          MARK_FORMING_CLASS, MOTE_PX, SURFACE_COLS, SURFACE_ROWS, SURFACE_IN_MS,
          FILTER_DUST_MS, FILTER_DUST_DRIFT, FILTER_ENTER_MS, REVEAL_GROUP_IN_MS, REVEAL_GROUP_OUT_MS,
-         reshapeGrid, markIn, markOut, markSwap, revealControls, settleMark, filterDust } from '../js/ui/motion.js';
+         reshapeGrid, markIn, markOut, markSwap, revealControls, revealBar, settleMark, filterDust } from '../js/ui/motion.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const motionJs = read('../js/ui/motion.js');
@@ -68,11 +68,11 @@ test('a mark FALLS like a row — it does not fly at a point like a window', () 
   assert.ok(!/toward/.test(body), 'a mark has no point to converge on — it falls');
   // (paint falls back to markPaint(el) — the app's muted ink, not the window's own
   // full-contrast text — so a mark never reads as a hard white/black fleck.)
-  assert.match(body, /paintTile: speckPainter\(el, paint \|\| markPaint\(el\)\)/,
+  assert.match(body, /paintTile: painter \|\| speckPainter\(el, paint \|\| markPaint\(el\)\)/,
     'and it is specks, never clones');
   // …but on the SURFACE keyframes: a mark's motes ARE the mark, so they must be visible
   // from the first frame rather than spending their opening third near-transparent.
-  assert.match(body, /hostClass: gather \? 'dust-forming' : 'dust-leaving'/);
+  assert.match(body, /hostClass: gather \? 'dust-forming' : 'dust-falling'/);
   assert.ok(MARK_IN_MS > MARK_OUT_MS, 'arriving is the half you watch');
   assert.ok(MARK_IN_MS < SURFACE_IN_MS, 'and a mark is brisker than a whole window');
 });
@@ -83,11 +83,17 @@ test('showing sets display at once; hiding collapses the slot before it goes', (
   // Shown: display FIRST — the group takes its slot immediately — THEN the gather
   // plays over the box it now occupies, growing that slot from zero in step.
   assert.match(body, /el\.style\.display = display;/);
-  assert.match(body, /const played = markIn\(el, \{ ms: REVEAL_GROUP_IN_MS \}\);/);
+  assert.match(body, /const played = dust \? markIn\(el, \{ ms: inMs, painter: groupPainter\(el\) \}\) : !motionReduced\(\);/);
   // Hidden: measured while still laid out (both the dust and the collapse start from
   // the true box), and a DECLINED flight (reduced motion, too small) still hides AT
   // ONCE — only a played one defers display:none until the slot has finished closing.
-  assert.match(body, /const played = markOut\(el, \{ ms: REVEAL_GROUP_OUT_MS \}\);/);
+  assert.match(body, /const played = dust\s*\n\s*\? markOut\(el, \{ ms: outMs, painter: groupPainter\(el\), veil: MARK_LEAVING_CLASS \}\)\s*\n\s*: !motionReduced\(\);/);
+  // `dust: false` still SLIDES the slot — it only skips the cloud (a full-width bar's
+  // motes are a grey band, not a motion the eye can follow), and reduced motion still
+  // declines the whole thing. `inMs`/`outMs` are the group defaults unless the caller
+  // hands the slot a clock of its own (a removal, so the strip lands with its row).
+  assert.match(body, /const inMs = ms \|\| REVEAL_GROUP_IN_MS;/);
+  assert.match(body, /const outMs = ms \|\| REVEAL_GROUP_OUT_MS;/);
   assert.match(body, /el\.style\.display = 'none';\s*\/\/ declined/);
   // And a group already in the asked-for state is not a flight at all.
   assert.match(body, /if \(wasShown === !!show\) return false;/);
@@ -111,8 +117,8 @@ test('a group\'s own slot opens/closes in step with its dust, so a neighbour nev
   // turn, the opening frames stall while the transition's clock ticks, and the box
   // then leaps to wherever the curve already is — a sliver that jumps to full width.
   assert.match(body, /raf\(\(\) => raf\(go\)\);/);
-  assert.match(body, /slideRevealSize\(el, sizeProp, '0px', `\$\{size\}px`, REVEAL_GROUP_IN_MS, \{ defer: true, slack: 40 \}\)/);
-  assert.match(body, /slideRevealSize\(el, sizeProp, `\$\{size\}px`, '0px', REVEAL_GROUP_OUT_MS,/);
+  assert.match(body, /slideRevealSize\(el, sizeProp, '0px', `\$\{size\}px`, inMs, \{ defer: true, slack: 40 \}\)/);
+  assert.match(body, /slideRevealSize\(el, sizeProp, `\$\{size\}px`, '0px', outMs,/);
   // block (context-menu rows) collapses height; a horizontal toolbar row collapses
   // width. A caller may override: a full-width bar is a flex row that opens downward.
   assert.match(body, /const vertical = axis === null \? display === 'block' : !!axis;/);
@@ -122,8 +128,31 @@ test('a group\'s own slot opens/closes in step with its dust, so a neighbour nev
   // keeps the two landing together (the point the equality used to make).
   assert.ok(REVEAL_GROUP_IN_MS > MARK_IN_MS, 'a group opens slower than a single mark');
   assert.ok(REVEAL_GROUP_OUT_MS > MARK_OUT_MS, '…and closes slower too');
-  assert.match(body, /markIn\(el, \{ ms: REVEAL_GROUP_IN_MS \}\)/, 'the dust rides the slot\'s clock');
-  assert.match(body, /markOut\(el, \{ ms: REVEAL_GROUP_OUT_MS \}\)/, '…both ways');
+  assert.match(body, /markIn\(el, \{ ms: inMs, painter: groupPainter\(el\) \}\)/, 'the dust rides the slot\'s clock');
+  assert.match(body, /markOut\(el, \{ ms: outMs, painter: groupPainter\(el\), veil: MARK_LEAVING_CLASS \}\)/, '…both ways');
+});
+
+// The desktop's DisintegrateOverlay::setFollow: a control revealed beside a sibling is
+// photographed where it sits at that instant, and the sibling's slot then pushes it along
+// the row. The selection bar's count opens ahead of the action group, so without this the
+// real buttons slid right while their motes gathered where the group first stood — formed
+// to the left, then jumped over on landing (user report, with pictures).
+test('a revealed group\'s cloud FOLLOWS the group while a sibling\'s slot moves it', () => {
+  const body = motionJs.slice(motionJs.indexOf('const followDust ='),
+                              motionJs.indexOf('export function markSwap'));
+  // Re-anchored per painted frame, left/top only: the box the motes fly at is the natural
+  // one, while the slot itself is mid-slide (max-width 0 → its width is not the cloud's).
+  assert.match(body, /requestAnimationFrame\(step\)/);
+  assert.match(body, /host\.style\.left = `\$\{r\.left\}px`;\s*host\.style\.top = `\$\{r\.top\}px`;/);
+  assert.ok(!/style\.width|style\.height/.test(body), 'never resizes the cloud');
+  // Stops with the host, at the end of the flight, or on display:none (an all-zero rect
+  // would park the cloud at the page corner).
+  assert.match(body, /if \(!host \|\| Date\.now\(\) - started >= ms\) return;/);
+  assert.match(body, /if \(!r \|\| \(!r\.width && !r\.height\)\) return;/);
+  // …and both directions of a played, dusted reveal ride it — the way out leaves beside
+  // the count whose slot closes under it too.
+  assert.match(body, /if \(dust && played\) followDust\(el, inMs\);/);
+  assert.match(body, /if \(dust && played\) followDust\(el, outMs\);/);
 });
 
 test('animations.css: the slot collapse is a real transition, reduced motion off', () => {
@@ -209,4 +238,63 @@ test('nothing here throws off-browser, or on a stub — decoration is never load
   let wrote = 0;
   markSwap({ getBoundingClientRect: () => ({ width: 0, height: 0 }) }, () => { wrote++; });
   assert.equal(wrote, 1);
+});
+
+// ── The selection bar: a revealed group holding revealed controls ───────────
+// Its own slot CLIPS them (overflow:hidden while the max-height collapses), so closing it
+// in the same turn as the buttons inside took their dust and their slide off the screen
+// before a frame of either showed — they blinked out with no animation at all (user
+// report, projects modal). Opening still has to be immediate: the controls need the slot
+// before they can fly into it. The desktop has always deferred the hide the same way
+// (ProjectsDialog / ConnectDialog::updateBatchBar).
+test('revealBar defers the CLOSE by its contents\' flight, but opens at once', () => {
+  const jobs = [];
+  const setTimer = (fn, ms) => { jobs.push({ fn, ms }); return jobs.length; };
+  // A stub, not a DOM node: revealControls measures the slot it is collapsing.
+  const bar = { style: { display: 'flex' }, getBoundingClientRect: () => ({ width: 0, height: 0 }) };
+
+  // Closing: nothing happens this turn…
+  assert.equal(revealBar(bar, () => false, { setTimer }), false);
+  assert.equal(bar.style.display, 'flex', 'the strip is still there while the buttons fly');
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].ms, REVEAL_GROUP_OUT_MS, 'the group out-flight is the default wait');
+  jobs[0].fn();
+  assert.equal(bar.style.display, 'none', '…and only then does the slot go');
+
+  // …and a removal's own clock is honoured, so the strip lands with its rows.
+  bar.style.display = 'flex';
+  jobs.length = 0;
+  revealBar(bar, () => false, { ms: 220, setTimer });
+  assert.equal(jobs[0].ms, 220);
+
+  // Re-asked on arrival: a selection made while the flight played keeps the bar.
+  bar.style.display = 'flex';
+  jobs.length = 0;
+  let wanted = false;
+  revealBar(bar, () => wanted, { setTimer });
+  wanted = true;
+  jobs[0].fn();
+  assert.equal(bar.style.display, 'flex', 'want() said yes in the meantime');
+
+  // Opening never waits — the controls need the slot before they can fly into it.
+  bar.style.display = 'none';
+  jobs.length = 0;
+  revealBar(bar, () => true, { setTimer });
+  assert.equal(jobs.length, 0, 'no timer at all on the way in');
+  assert.equal(bar.style.display, 'flex');
+  // …and an already-closed bar asked to close again settles now, not a flight later.
+  jobs.length = 0;
+  bar.style.display = 'none';
+  revealBar(bar, () => false, { setTimer });
+  assert.equal(jobs.length, 0);
+  // Decoration is never load-bearing.
+  assert.doesNotThrow(() => revealBar(null, () => false, { setTimer }));
+  // …and the bar's own box is never animated, either way: sliding its max-height clipped
+  // Select all to the height reached so far on the way in, and left the border and
+  // padding standing as a bare grey line on the way out (user report, with pictures).
+  // Only the controls fly — the desktop's updateBatchBar exactly.
+  assert.equal(bar.style.maxHeight, undefined);
+  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('export const revealBar'), src.indexOf('const REVEAL_GROUP_TRANSITION_CLASS'));
+  assert.ok(!/revealControls|slideRevealSize|maxHeight/.test(body), 'a display flip, nothing more');
 });

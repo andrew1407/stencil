@@ -55,6 +55,27 @@ namespace stencil::support {
       return QRect(QPoint(target.center().x() - small.width() / 2, above), small);
     }
 
+    // Is there still a control for the flight to come from / go back to?
+    bool anchorOnScreen(QWidget* anchor, const QRect& anchorRect) {
+      if (anchor && anchor->isVisible() && anchor->width() > 0 && anchor->height() > 0) return true;
+      return anchorRect.isValid() && anchorRect.width() > 0 && anchorRect.height() > 0;
+    }
+
+    // Where a dialog collapses to when there is NOT one any more: the canvas, which is what
+    // the user is looking at. The box above the dialog is the ENTRANCE for a window nobody
+    // asked for; as an exit it leaves towards nothing, and the openers this happens to are
+    // the ones the dialog's own work hides (the toolbar's Open icon goes the moment an
+    // image exists). Browser twin: ui/base.js canvasHomeRect.
+    QRect canvasHomeRect(QWidget* host) {
+      QWidget* canvas =
+          host ? host->findChild<QWidget*>(QStringLiteral("canvasViewport")) : nullptr;
+      if (!canvas || !canvas->isVisible() || canvas->width() < 1 || canvas->height() < 1)
+        return QRect();
+      constexpr int kHomePx = 40;   // a small box, so the shrink reads as collapsing INTO it
+      const QRect g(canvas->mapToGlobal(QPoint(0, 0)), canvas->size());
+      return QRect(g.center() - QPoint(kHomePx / 2, kHomePx / 2), QSize(kHomePx, kHomePx));
+    }
+
     // The flight is played by a CHILD widget of the main window, never by a window of
     // its own. Two reasons, both learned the hard way: moving/resizing a real top-level
     // window per frame goes through the window server, which stutters and lets the
@@ -231,8 +252,13 @@ namespace stencil::support {
         if (!host || !target.isValid() || shot.isNull()) return;
         // An explicit close target wins over the way in: the menu row this grew out of is
         // gone, so the anchor widget is deliberately dropped with it (see revealDialog).
-        const QRect to = closeRect_.isValid() ? closeRect_
-                                              : originRect(anchor_.data(), target, anchorRect_);
+        QRect to = closeRect_.isValid() ? closeRect_
+                                        : originRect(anchor_.data(), target, anchorRect_);
+        // Nothing left to fly back into: land on the canvas rather than above the top edge.
+        if (!closeRect_.isValid() && !anchorOnScreen(anchor_.data(), anchorRect_)) {
+          const QRect home = canvasHomeRect(host);
+          if (home.isValid()) to = home;
+        }
         if (to == target) return;
         if (flySurfaceDust(host, shot, target, to, false, inkOf(*dlg_))) return;
         QLabel* ghost = makeGhost(host, shot, target);

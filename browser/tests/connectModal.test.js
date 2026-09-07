@@ -7,10 +7,10 @@ import { layout } from '../js/ui/layout.js';
 import {
   createListHold, emptyStateVisible, tileMotion, materialize,
   MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, LEAVE_MS, DISINTEGRATE_MS,
-  FILTER_ENTERING_CLASS, FILTER_ENTER_MS,
+  FILTER_ENTERING_CLASS, FILTER_ENTER_MS, TILE_JITTER_SHARE,
 } from '../js/ui/motion.js';
 import { canRefreshList } from '../js/ui/projectsModal.js';
-import { StencilConnectModal, matchesConnFilter } from '../js/ui/connectModal.js';
+import { StencilConnectModal, matchesConnFilter, batchNote } from '../js/ui/connectModal.js';
 import { createStubElement, installDom } from './helpers/dom.js';
 
 const markup = layout();
@@ -164,8 +164,11 @@ test('tileMotion reverse: same flight path, inverted sweep', () => {
   const backBottom = tileMotion(3, rows - 1, cols, rows, true);
   assert.ok(outTop.delay < outBottom.delay, 'scatter sweeps top→bottom');
   assert.ok(backTop.delay > backBottom.delay, 'gather sweeps bottom→top');
-  // The reversed sweep spans the same window as the forward one (same duration budget).
-  assert.ok(backTop.delay <= DISINTEGRATE_MS * 0.4 + 60);
+  // The reversed sweep spans the same window as the forward one (same duration budget):
+  // the gather's 0.4 share plus a mote's own jitter, which is a SHARE of the span too —
+  // it used to be a flat 60ms, and that literal quietly became wrong the moment the span
+  // changed (motion.js TILE_JITTER_SHARE).
+  assert.ok(backTop.delay <= DISINTEGRATE_MS * (0.4 + TILE_JITTER_SHARE));
 });
 
 test('materialize: expands on the collapse’s own timer; no veil without dust', async () => {
@@ -204,7 +207,15 @@ test('animations.css: materialize is the leave reversed, veil outranks keyframes
     'the expansion starts from the collapsed end-state of rowLeave');
   assert.match(css, /\.materialize-veil \{ opacity: 0 !important; \}/,
     'the veil must outrank rowMaterialize’s animated opacity (author !important beats keyframes)');
-  assert.match(css, /\.reintegrate-tile \{\s*animation: tileGather/,
+  // …and it LIFTS under the landing motes, fading up (the transition on the lift alone —
+  // on the veil itself it ran the other way too), with the box keyframes leaving opacity
+  // to it (a transition never starts on a property an animation is holding).
+  assert.match(css, /\.materialize-veil\.materialize-lift \{ opacity: 1 !important; transition: opacity var\(--veil-fade, 0ms\) linear; \}/);
+  assert.match(css, /\.materializing\.materialize-veil \{ animation-name: rowMaterializeBox; \}/);
+  assert.ok(!/@keyframes rowMaterializeBox \{[^}]*opacity/.test(css), 'the box keyframes carry no alpha');
+  assert.match(css, /\.disintegrate-host\.dust-forming \{ animation: dustHostOut var\(--host-ms, var\(--gather-ms, 420ms\)\)/,
+    'the forming host lives the whole span');
+  assert.match(css, /\.reintegrate-tile \{(?:\s|\/\*[\s\S]*?\*\/)*animation: tileGather/,
     'gather tiles override the scatter animation on the shared tile class');
   assert.match(css, /@keyframes tileGather \{\s*0%\s+\{ opacity: 0;\s*transform: translate\(var\(--dx/,
     'a gather tile starts where the scatter would have flung it');
@@ -262,7 +273,8 @@ const conn = (url, kind) => ({
 // Wire the REAL modal against the DOM-lite stubs and open it (onOpen renders the list).
 // `reduced` false is for the motion tests: everything else runs with reduced motion
 // on, so a render is synchronous and the assertions read the settled list.
-const openModal = (conns, { reduced = true } = {}) => {
+const openModal = (conns, { reduced = true, mgrExtra = {}, appExtra = {} } = {}) => {
+  const notes = [];   // what notify() posted, in order
   const doc = installDom({}, {
     window: createStubElement('window', { matchMedia: () => ({ matches: reduced }) }),
     matchMedia: () => ({ matches: reduced }),   // motion.js reads the bare global
@@ -295,11 +307,15 @@ const openModal = (conns, { reduced = true } = {}) => {
   const selectAllGlyph = () => (selectAllIcon.classList.contains('ic-x') ? 'x' : selectAllIcon.classList.contains('ic-check') ? 'check' : null);
   const byUrl = new Map(conns.map((c) => [c.url, c]));
   const urls = conns.map((c) => c.url);
+  // utils.notify() posts through #notify-balloon; recording it is how a test reads a toast.
+  doc.register('notify-balloon', createStubElement('div', { notify: (m, t) => notes.push([m, t]) }));
   new StencilConnectModal().wire({
-    connections: { knownUrls: urls, urls, expiredUrls: [], reconnectable: true, get: (u) => byUrl.get(u) ?? null },
+    connections: { knownUrls: urls, urls, expiredUrls: [], reconnectable: true,
+      get: (u) => byUrl.get(u) ?? null, ...mgrExtra },
+    ...appExtra,
   });
   doc.getElementById('connect-modal-overlay').__stencilModal.open();
-  return { doc, list, filter: doc.getElementById('connect-filter'), selectAllGlyph,
+  return { doc, list, notes, filter: doc.getElementById('connect-filter'), selectAllGlyph,
     modal: doc.getElementById('connect-modal-overlay').__stencilModal };
 };
 
@@ -458,6 +474,16 @@ const ruleAfter = (css, selector) => {
   return css.slice(at, css.indexOf('}', at) + 1);
 };
 
+// Reconnect/Disconnect sit one level down (.connect-batch-selected), so a direct-child
+// padding rule left them at the default 8px 12px — 4px taller than Select all — and the
+// bar grew, and the modal with it, every time a selection was made (user report).
+test('every button in the batch strip shares the compact padding, so the bar never grows', () => {
+  const css = cssText();
+  const rule = ruleAfter(css, '.connect-batch-actions button {');
+  assert.match(rule, /padding: 6px 10px;/);
+  assert.ok(!css.includes('.connect-batch-actions > button {'), 'a descendant rule, not direct children only');
+});
+
 test('the row disconnect is a trash button, like the projects modal’s remove', () => {
   const { list } = openModal([conn('http://plain:2', '')]);
   const disc = find(rows(list)[0], 'connect-disconnect');
@@ -584,3 +610,201 @@ test('a row filtered out of view stays in a pending batch selection', async () =
   const back = find(rows(list).find((r) => r.dataset.url === 'http://plain:2'), 'connect-select');
   assert.strictEqual(back.checked, true, '…but never dropped from the batch');
 });
+
+// ── What a connection toast says ────────────────────────────────────────────
+// "Reconnected" on its own never said WHICH server signed back in (user report, with a
+// picture). A disconnect, meanwhile, says nothing at all here — the row scattering out
+// of the list IS the notice, exactly as on the desktop (ConnectDialog posts none).
+
+test('the row Reconnect toast names the server it signed back in', async () => {
+  const url = 'http://localhost:8090';
+  const done = [];
+  const { list, notes } = openModal([conn(url, '')],
+    { mgrExtra: { reconnectOne: async (u) => { done.push(u); } } });
+  find(rows(list)[0], 'connect-reconnect-one').dispatch('click');
+  await sleep(10);
+  assert.deepEqual(done, [url], 'the real row button drove the manager');
+  assert.deepEqual(notes.at(-1), [`Reconnected to ${url}`, 'ok']);
+});
+
+test('Reconnect all names the one server, and counts several', async () => {
+  const one = openModal([conn('http://localhost:8090', '')], { mgrExtra: { reconnect: async () => {} } });
+  one.doc.getElementById('connect-reconnect').dispatch('click');
+  await sleep(10);
+  assert.deepEqual(one.notes.at(-1), ['Reconnected to http://localhost:8090', 'ok']);
+
+  const many = openModal([conn('http://a:1', ''), conn('http://b:2', '')],
+    { mgrExtra: { reconnect: async () => {} } });
+  many.doc.getElementById('connect-reconnect').dispatch('click');
+  await sleep(10);
+  assert.deepEqual(many.notes.at(-1), ['Reconnected 2 servers', 'ok']);
+
+  assert.strictEqual(batchNote('Reconnected', ['http://x:1']), 'Reconnected to http://x:1');
+  assert.strictEqual(batchNote('Reconnected', ['http://a:1', 'http://b:2']), 'Reconnected 2 servers');
+});
+
+test('disconnecting posts no toast — the row leaving the list is the notice', async () => {
+  const url = 'http://localhost:8090';
+  const gone = [];
+  const { list, notes } = openModal([conn(url, '')], {
+    mgrExtra: { disconnect: (u) => { gone.push(u); } },
+    appExtra: { confirm: async () => true },
+  });
+  find(rows(list)[0], 'connect-disconnect').dispatch('click');
+  await sleep(LEAVE_MS + 60);
+  assert.deepEqual(gone, [url], 'the server really was forgotten…');
+  assert.deepEqual(notes, [], '…and nothing was said about it');
+});
+
+// The selection bar is a REVEAL, not a display flip: flipping it took Select all's own
+// out-flight off the screen before a frame of it showed (user report). Pinned at the
+// source — under this suite's reduced motion revealControls lands on display:none too,
+// so the two are indistinguishable from the outside here.
+test('the batch bar opens and closes on the shared control flight', () => {
+  const src = readFileSync(new URL('../js/ui/connectModal.js', import.meta.url), 'utf8');
+  assert.match(src, /revealBar\(batchBar, \(\) => selected\.size > 0 \|\| anyLiveShown\(\)\)/);
+  // The pool is the shown set MINUS the rows playing their removal dust, so the bar leaves
+  // beside them instead of a flight later (desktop parity: connectDialog's `doomed_`).
+  assert.match(src, /const anyLiveShown = \(\) => \{[\s\S]*?!doomed\.has\(u\)\) return true;/);
+  assert.ok(!/batchBar\.style\.display\s*=/.test(src), 'nothing flips the bar outright any more');
+});
+
+// A refused CREDENTIAL is not a failed connect that leaves nothing behind: the manager
+// keeps the server in `_expired`, so a row appears with a Reconnect on it. That row used
+// to arrive out of the connections-changed echo with no flight at all — the success path
+// rendered and materialized, the failure path only toasted (user report, with a picture).
+test('a refused credential arrives as dust, like a successful one', async () => {
+  const url = 'http://localhost:8090';
+  const { doc, list, notes } = openModal([conn(url, '')], {
+    reduced: false,
+    mgrExtra: {
+      connect: async () => { throw new Error('POST /auth/token: admin token required to issue tokens'); },
+      isExpired: () => true,
+    },
+  });
+  doc.getElementById('connect-url').value = url;
+  doc.getElementById('connect-add').dispatch('click');
+  await sleep(40);
+  assert.match(notes.at(-1)?.[0] ?? '', /Could not connect/, 'it still says what went wrong');
+  const row = rows(list).find((r) => r.dataset.url === url);
+  assert.ok(row && hasClass(row, MATERIALIZE_CLASS), 'and the row it left behind gathers in');
+  // The URL is in the list now, so the fields that put it there are done — leaving them
+  // typed in invited adding the same server twice (user report).
+  assert.equal(doc.getElementById('connect-url').value, '');
+  assert.equal(doc.getElementById('connect-token').value, '');
+});
+
+// …but a server that is merely unreachable leaves NO row, so nothing is animated.
+test('an unreachable server leaves no row and plays nothing', async () => {
+  const { doc, list, notes } = openModal([], {
+    reduced: false,
+    mgrExtra: {
+      connect: async () => { throw new Error('failed to fetch'); },
+      isExpired: () => false,
+    },
+  });
+  doc.getElementById('connect-url').value = 'http://nope:1';
+  doc.getElementById('connect-add').dispatch('click');
+  await sleep(40);
+  assert.match(notes.at(-1)?.[0] ?? '', /Could not connect/);
+  assert.equal(rows(list).length, 0);
+  // …and nothing was added, so the text stays put to be corrected.
+  assert.equal(doc.getElementById('connect-url').value, 'http://nope:1');
+});
+
+// …and the call site asks for that gate: an expired session's token prompt must not
+// offer Reconnect with the box empty — the handler ignores an empty answer, so the
+// button would close the dialog and do nothing (user report, with a picture).
+test('the expired-session prompt refuses an empty token', async () => {
+  const url = 'http://localhost:8090';
+  let asked = null;
+  const { list } = openModal([conn(url, '')], {
+    mgrExtra: {
+      reconnectOne: async () => { const e = new Error('refused'); e.expired = true; throw e; },
+    },
+    appExtra: { prompt: async (_msg, opts) => { asked = opts; return null; } },
+  });
+  find(rows(list)[0], 'connect-reconnect-one').dispatch('click');
+  await sleep(20);
+  assert.ok(asked, 'the refusal raised the token prompt');
+  assert.equal(asked.confirmLabel, 'Reconnect');
+  assert.equal(typeof asked.validate, 'function', 'and the prompt is gated');
+  assert.ok(asked.validate(''), 'an empty token is refused, with a reason');
+  assert.equal(asked.validate('tok'), '', 'a pasted one is accepted');
+});
+
+// The status dot carries its OWN tooltip — what the dot means — inside a row label that
+// carries the URL. Both must be there, and they must differ, or the dot has nothing of
+// its own for the tooltip to take over with (desktop parity: the sentence lives on the
+// dot's and the URL's tooltips alike, serverAuth.headless.cpp).
+test('the connection row labels the dot and the URL separately', () => {
+  const { list } = openModal([conn('http://localhost:8090', '')]);
+  const label = find(rows(list)[0], 'connect-url');
+  assert.ok(label?.dataset.title, 'the row label says the status and the URL');
+  assert.match(label.dataset.title, /http:\/\/localhost:8090/);
+  const dotTitle = /class="conn-status[^"]*"\s+data-title="([^"]*)"/.exec(label.innerHTML)?.[1];
+  assert.ok(dotTitle, 'and the dot inside it says what the dot means');
+  assert.notEqual(dotTitle, label.dataset.title, '…which is not simply the row\'s own text');
+});
+
+// The row and the selection bar must leave TOGETHER. The removal used to await the whole
+// row flight before disconnecting, so the bar only re-asked a flight later and Select all
+// went visibly after the row (user report). The desktop retires the row, disconnects and
+// re-asks the bar in ONE turn (connectDialog.cpp: rebuildList skips the list while rows
+// are doomed but still calls updateBatchBar), and so does this now.
+test('removing a connection retires the row and re-asks the bar in the same turn', () => {
+  const src = readFileSync(new URL('../js/ui/connectModal.js', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('const confirmDisconnect'), src.indexOf('// Build the new url order'));
+  // The leave is STARTED, not awaited, before the disconnect and the bar update…
+  assert.match(body, /const leaving = leaveThenRemove\(/);
+  assert.match(body, /doomed\.add\(url\);[\s\S]*const leaving =[\s\S]*mgr\(\)\.disconnect\(url\);[\s\S]*updateBatchBar\(\);[\s\S]*await leaving;/);
+  // The row leaves the SELECTION too, not just the shown pool: dooming it alone kept
+  // "1 selected" (and the batch buttons with it) on screen until the settle render, so
+  // the row went and the buttons followed a whole flight later (user report).
+  assert.match(body, /doomed\.add\(url\);\s*\n\s*selected\.delete\(url\);/);
+  // …on the app's own CONTROL clock, never the row's 220ms box collapse: handed that, the
+  // buttons' motes were a blink under the confirm dialog's close cloud (user report).
+  assert.ok(!/updateBatchBar\(\{ ms/.test(body), 'no clock override');
+  // …and the url only stops counting as doomed once the SETTLE render has rebuilt the
+  // list without it — the row outlives its own box collapse, so an earlier release
+  // flashes Select all back on for the rest of the scatter.
+  assert.match(body, /await settle\(\);\s*\n(?:[^\n]*\n){0,3}\s*doomed\.delete\(url\);/);
+});
+
+// A connections row plays the SAME flight as a project row. It used to run at two thirds
+// of the clock on the same throw, which puts its cloud farther out at every instant —
+// beside the projects list that read as bigger and wilder, not as brisker (user report).
+// A connections row's dust is FINER and TIGHTER than the row default, and brisker:
+// the row is short, so the default 7px cells were a mosaic of big dots the specks all but
+// filled, and the default throw is proportionally a much bigger cloud over 44px than over
+// a 74px project row (user report, with pictures: "smaller circle particles", "huge").
+test('the connections list dusts on its own finer grid, smaller throw and brisk clock', () => {
+  const src = readFileSync(new URL('../js/ui/connectModal.js', import.meta.url), 'utf8');
+  // Every one of the four row flights — two removals, two arrivals — takes the shared
+  // list-row grid and grain (motion.js rowDustGrid); the REMOVALS add the brisk clock and
+  // the smaller throw (rowLeaveDust)…
+  assert.equal((src.match(/rowLeaveDust\([^)]*CONN_DUST_MS\)/g) || []).length, 2);
+  assert.match(src, /wait: \(\) => wipeDurationMs\(CONN_DUST_MS\)/, 'the hold waits out that clock');
+  // …and the ARRIVALS keep materialize's own defaults — the projects list's filter recipe.
+  assert.equal((src.match(/rowDustGrid\(\)/g) || []).length, 2);
+  assert.equal((src.match(/materialize\(/g) || []).length, 2, 'and those are the two arrivals');
+});
+
+// The arrival is the PROJECTS list's own: filterDust's recipe (the surface gather
+// keyframes — visible from the first frame, eased out so a mote covers most of its trip
+// early — on half a throw and the filter's short clock). The row gather was tried and read
+// wrong every way: motes a whole throw away, hanging through a slow-start curve, and the
+// row surfacing inside a cloud plainly bigger than itself (user report, with pictures).
+test('materialize gathers a row the way the projects list re-forms one', () => {
+  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('export function materialize'), src.indexOf('// ── A chat entry ARRIVES'));
+  assert.match(body, /dustMs = FILTER_DUST_MS,\s*\n\s*drift = FILTER_DUST_DRIFT/);
+  assert.match(body, /gather: true, ms: dustMs, drift, toBody: true, hostClass: 'dust-forming',\s*\n\s*paintTile: speckPainter\(el\),/);
+  assert.ok(!/reintegrate\(/.test(body), 'not the row gather');
+  // …and nothing brings a curve of its own any more: the row and the surface flights each
+  // keep the one shared shape.
+  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  assert.ok(!/--row-ease|--gather-ease/.test(css));
+  assert.ok(!/--row-ease|--gather-ease/.test(src));
+});
+

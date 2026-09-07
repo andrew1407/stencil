@@ -29,6 +29,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace stencil::gui {
 
@@ -311,6 +312,38 @@ namespace stencil::gui {
     QObject::connect(veil, &QPropertyAnimation::finished, fx,
                      [fxGuard] { if (fxGuard) fxGuard->setOpacity(1.0); });
     veil->start(QAbstractAnimation::DeleteWhenStopped);
+  }
+
+  // A BAR holding revealed controls (the selection strips): the bar itself never flies —
+  // only its controls do — so this is a plain show/hide, deferred on the way OUT by their
+  // flight. Taking the strip away at once took Select all's own out-flight off the screen
+  // before a frame of it showed (user report). `want()` is the single source of whether
+  // the bar belongs, asked now and again on arrival, so a selection made mid-flight keeps
+  // it. Browser twin: motion.js revealBar.
+  template <typename Want>   // a template, so the predicate never lands on the heap
+  inline void revealBar(QWidget* bar, Want want) {
+    if (!bar) return;
+    const bool wanted = want();
+    if (wanted || support::motionReduced() || !bar->isVisible()) {
+      bar->setVisible(wanted);
+      return;
+    }
+    // `bar` is the timer's context object, so the job dies with the dialog that owns it.
+    QTimer::singleShot(kControlRevealOutMs, bar, [bar, want = std::move(want)] {
+      if (!want()) bar->setVisible(false);
+    });
+  }
+
+  // Stop every cloud still in the air over `host` — a row's removal dust, a bar's controls
+  // coming or going. Called as a dialog closes: the close flight re-photographs it as it
+  // hides (modalReveal), and a live cloud would be carried on after the window is gone.
+  inline void stopDustClouds(QWidget* host) {
+    if (!host) return;
+    for (const char* name : {DisintegrateOverlay::kObjectName, kControlRevealObjectName})
+      for (QWidget* fx : host->findChildren<QWidget*>(QString::fromLatin1(name))) {
+        fx->hide();   // excluded from the ghost's render immediately; deleted safely after
+        fx->deleteLater();
+      }
   }
 
 }  // namespace stencil::gui

@@ -469,6 +469,37 @@ int main(int argc, char** argv) {
           "…and the expired note leaves with it");
   }
 
+  // ── A pasted token signs the EXPIRED row in ──────────────────────────────────
+  // The refused client keeps its place in the list on purpose, so the sign-in cannot go
+  // through connectTo() — that answered "already connected" and left the session expired
+  // however good the pasted token was (user report, with a picture). reauthenticate()
+  // reuses the listed client instead, so the row keeps its place too.
+  std::printf("expired row: signing in with a pasted token:\n");
+  {
+    mock.projectsStatus = 401;
+    mock.tokenStatus = 401;
+    ConnectionManager m2;
+    QString err0;
+    m2.connectTo(mock.url(), QStringLiteral("stale-token"), err0);
+    ServerClient* c = m2.find(mock.url());
+    check(c && c->status() == ServerClient::Status::Expired, "an expired row to sign in");
+
+    QString cerr;
+    check(!m2.connectTo(mock.url(), QStringLiteral("admin-token"), cerr),
+          "connectTo refuses a url already in the list…");
+    check(cerr == QStringLiteral("already connected"), "…saying exactly that");
+
+    mock.projectsStatus = 200;
+    mock.tokenStatus = 200;
+    QString rerr;
+    check(m2.reauthenticate(mock.url(), QStringLiteral("admin-token"), rerr),
+          "…but reauthenticate signs the same row in with the pasted token");
+    ServerClient* back = m2.find(mock.url());
+    check(back && back->status() == ServerClient::Status::Connected,
+          "…and the connection is live again");
+    check(m2.urls().size() == 1, "…in the one row it always was");
+  }
+
   // ── invite links: "<url>#token=<tok>" feeds the credential flow ──
   std::printf("invite links:\n");
   {

@@ -1621,6 +1621,22 @@ namespace stencil::gui {
       it->setForeground(palette().brush(QPalette::Disabled, QPalette::Text));
     }
 
+    // Drop selections whose project is GONE — removed here, or from another window: the
+    // bar reads checked_.size(), so a dead key kept "1 selected" on screen over an empty
+    // list (user report). A LOCAL key is "|<id>" (UserRole+1, its server url, is empty);
+    // a remote key is left alone — a listing that has not answered is not proof it is gone.
+    if (!checked_.isEmpty()) {
+      QSet<QString> liveIds;
+      liveIds.reserve(projects_.size());
+      for (const Project& p : projects_) liveIds.insert(QString::fromStdString(p.meta.id));
+      for (auto it = checked_.begin(); it != checked_.end();) {
+        if (it->startsWith(QLatin1Char('|')) && !liveIds.contains(it->mid(1)))
+          it = checked_.erase(it);
+        else
+          ++it;
+      }
+    }
+
     if (list_->count() == 0) {
       auto* it = new QListWidgetItem("No projects yet", list_);
       it->setFlags(Qt::NoItemFlags);
@@ -1665,13 +1681,21 @@ namespace stencil::gui {
     // The bar hosts Select all too, so it shows whenever the filtered view HAS
     // selectable rows — the selection-only controls inside it come and go with the
     // checked set (browser parity: projectsModal.js updateBatchBar).
-    bool anySelectable = false;
-    for (int i = 0; i < list_->count() && !anySelectable; ++i) {
-      const QListWidgetItem* it = list_->item(i);
-      anySelectable = filteredIn(it) && !it->data(Qt::UserRole).isNull() &&
-                      (it->flags() & Qt::ItemIsUserCheckable);
-    }
-    batchBar_->setVisible(n > 0 || anySelectable);
+    const auto anySelectableNow = [this] {
+      for (int i = 0; i < list_->count(); ++i) {
+        const QListWidgetItem* it = list_->item(i);
+        if (filteredIn(it) && !it->data(Qt::UserRole).isNull() &&
+            (it->flags() & Qt::ItemIsUserCheckable))
+          return true;
+      }
+      return false;
+    };
+    // Opens at once, closes only once its contents have flown (support/controlReveal) —
+    // taking the strip away outright took Select all's own out-flight off the screen
+    // before a frame of it showed (the connections dialog's twin, and its user report).
+    revealBar(batchBar_, [this, anySelectableNow] {
+      return !checked_.isEmpty() || anySelectableNow();
+    });
     // The count rides the same swap as the buttons: a hard show/hide on the FIRST thing in
     // the row shoved everything after it sideways in one frame, which is most of what read
     // as "jumping" (user report). Text first, so it is right before the slot opens.
@@ -1778,7 +1802,11 @@ namespace stencil::gui {
       spec.confirmIcon = QStringLiteral("trash");
       spec.danger = true;
       if (!confirmModal(this, spec)) return;
-      scatterRows(checked_);   // they come apart on the way out
+      scatterRows(checked_);   // they come apart on the way out — bar and rows together
+      // A checked row the current filter HIDES has no dust to leave with, so scatterRows
+      // never saw it; batchItems_ is already captured, and the whole selection is going.
+      checked_.clear();
+      updateBatchBar();
       emit removeRequested(batchItems_);
       return;
     }
@@ -2186,6 +2214,7 @@ namespace stencil::gui {
             list_->visualItemRect(row).intersected(list_->viewport()->rect()),
             this, DisintegrateOverlay::Sweep::Rows, /*dust=*/true);
         retireRow(row);  // blank the real row at once — the snapshot is what flies
+        updateBatchBar();   // …and it leaves the checked set with its own dust, not after it
       }
       emit removeRequested({{id, QString()}});  // the owner removes, then setProjects()
     });
@@ -2370,6 +2399,10 @@ namespace stencil::gui {
 
   void ProjectsDialog::scatterRows(const QSet<QString>& keys) {
     if (!list_) return;
+    // A copy: retireRow prunes checked_ below, and the batch removal hands checked_ in as
+    // `keys` — iterating a set the loop is emptying is a trap not worth leaving. (Implicit
+    // sharing makes this free until one of them is written to.)
+    const QSet<QString> want = keys;
     QList<QListWidgetItem*> doomed;
     QList<QRect> rects;   // the on-screen slice of each doomed row (scrolled-out rows: none)
     // Clip each row's rect to the viewport: a checked row scrolled out of view must not
@@ -2378,7 +2411,7 @@ namespace stencil::gui {
     const QRect view = list_->viewport()->rect();
     for (int i = 0; i < list_->count(); ++i) {
       const QString key = rowKeyAt(i);
-      if (key.isEmpty() || (!keys.isEmpty() && !keys.contains(key))) continue;
+      if (key.isEmpty() || (!want.isEmpty() && !want.contains(key))) continue;
       QListWidgetItem* it = list_->item(i);
       if (!it || it->isHidden()) continue;
       doomed.append(it);
@@ -2394,9 +2427,15 @@ namespace stencil::gui {
     // Overlays FIRST (they snapshot the still-painted rows), then retire the lot.
     for (const QRect& r : rects)
       DisintegrateOverlay::overRect(list_->viewport(), r, this,
-                                    DisintegrateOverlay::Sweep::Rows, /*dust=*/true, budget);
+                                    DisintegrateOverlay::Sweep::Rows, /*dust=*/true, budget,
+                                    DisintegrateOverlay::kItemMs);   // a card is read, not glanced at
     for (QListWidgetItem* it : doomed)
       retireRow(it);   // blank the real row at once; its slot outlives the dust
+    // …and the bar answers NOW, beside the rows' dust, not after it: retireRow has already
+    // dropped these rows from the checked set and taken their flags, so the count, the
+    // buttons and Select all come apart in the SAME turn the rows do (user report: the
+    // items went, and the buttons went a flight later). Connections dialog parity.
+    updateBatchBar();
   }
 
   // Closing mid-scatter: the close flight re-photographs the dialog as it hides
@@ -2409,10 +2448,7 @@ namespace stencil::gui {
     closeInlineRename();
     for (int i = list_->count() - 1; i >= 0; --i)
       if (list_->item(i)->data(kDoomedRole).toBool()) delete list_->takeItem(i);
-    for (QWidget* fx : findChildren<QWidget*>(QString::fromLatin1(DisintegrateOverlay::kObjectName))) {
-      fx->hide();   // excluded from the ghost's render immediately; deleted safely after
-      fx->deleteLater();
-    }
+    stopDustClouds(this);   // …the bar's controls' own clouds with them
     QDialog::done(result);
   }
 
@@ -2424,7 +2460,8 @@ namespace stencil::gui {
     const QString key = rowKeyAt(list_->row(it));
     it->setData(kDoomedRole, true);   // the delegate paints nothing for it
     it->setFlags(Qt::NoItemFlags);    // no select/check mid-flight
-    QTimer::singleShot(DisintegrateOverlay::kMs, this, [this, key] {
+    checked_.remove(key);             // …and it stops counting towards the selection bar
+    QTimer::singleShot(DisintegrateOverlay::kItemMs, this, [this, key] {
       // Re-found by key: a re-list may have rebuilt the rows (fresh ones aren't doomed).
       for (int i = 0; i < list_->count(); ++i)
         if (rowKeyAt(i) == key && list_->item(i)->data(kDoomedRole).toBool()) {

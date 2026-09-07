@@ -187,7 +187,8 @@ test('clearing waits out the wipe before the empty state returns', () => {
 test('every appended entry arrives as dust — armed only after the scroll', () => {
   const src = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
   const motion = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
-  assert.match(motion, /export const CHAT_ENTER_MS = 520;/);
+  // Derived from the row's flight, not a literal: the two must never meet (motion.js).
+  assert.match(motion, /export const CHAT_ENTER_MS = Math\.round\(DISINTEGRATE_MS \* 0\.58\);/);
   assert.match(motion, /export function chatIn\(el, count = 1, index = 0, \{ host = null \} = \{\}\) \{/);
   // Every route into the transcript — messages / notes / warnings (appendDiv), the
   // attachment strip, a result-or-failure card, the §11 ask card — funnels through

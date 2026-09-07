@@ -724,6 +724,22 @@ namespace stencil::net {
     emit changed();
   }
 
+  bool ConnectionManager::reauthenticate(const QString& url, const QString& token,
+                                        QString& err) {
+    ServerClient* c = find(url);
+    if (!c) return connectTo(url, token, err);   // nothing listed: an ordinary connect
+    // The client is REUSED, credential and all (ServerClient::connect re-proves the kind),
+    // so the row keeps its place and its identity. connectTo() answered "already connected"
+    // and left the session expired however good the pasted token was (user report).
+    if (!c->connect(token)) {
+      err = c->lastError();
+      emit changed();
+      return false;
+    }
+    emit changed();
+    return true;
+  }
+
   void ConnectionManager::reconnectAsync(const QString& url,
                                          std::function<void(bool, QString)> done) {
     ServerClient* c = find(url);

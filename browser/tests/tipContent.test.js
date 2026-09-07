@@ -83,7 +83,7 @@ test('the compare button: heading, bulleted rows, and a parenthesised key hint',
   assert.deepEqual(rows[0], { kind: 'row', term: 'None', desc: 'normal editing' },
     'the "•" marker is stripped — CSS draws it, so it never lands in the text');
   const hints = tip.blocks.filter(b => b.kind === 'hint');
-  assert.deepEqual(hints, [{ kind: 'hint', text: 'hold Alt+Shift+O to peek' }]);
+  assert.deepEqual(hints, [{ kind: 'hint', text: 'Hold Alt+Shift+O to peek' }]);
   // A row's description keeps its own "·" list instead of being torn into bullets.
   assert.equal(parseTip('x\nV split — left: original · right: current edit').blocks[0].desc,
     'left: original · right: current edit');
@@ -98,7 +98,7 @@ test('the compare button: heading, bulleted rows, and a parenthesised key hint',
 test('a single "·" piece on the heading line becomes a hint, not a bullet of one', () => {
   const tip = parseTip('Drag to reorder · drag out of the modal to disconnect');
   assert.equal(tip.title, 'Drag to reorder');
-  assert.deepEqual(tip.blocks, [{ kind: 'hint', text: 'drag out of the modal to disconnect' }]);
+  assert.deepEqual(tip.blocks, [{ kind: 'hint', text: 'Drag out of the modal to disconnect' }]);
 });
 
 test('two+ "·" pieces on the heading line become bullets under the heading', () => {
@@ -120,8 +120,8 @@ test('"term — description" on the heading line splits into heading + muted sub
 test('the disabled-reason line composeControlTitle appends renders as the note', () => {
   const tip = parseTip('Crop image (Alt+R)\n— add an image first');
   assert.deepEqual(tip.keys, ['Alt+R']);
-  assert.deepEqual(tip.blocks, [{ kind: 'note', text: 'add an image first' }]);
-  assert.match(renderTip('Crop image\n— add an image first'), /<div class="tip-note">add an image first<\/div>/);
+  assert.deepEqual(tip.blocks, [{ kind: 'note', text: 'Add an image first' }]);
+  assert.match(renderTip('Crop image\n— add an image first'), /<div class="tip-note">Add an image first<\/div>/);
 });
 
 test('a combo appended after a multi-line body still becomes the heading\'s keycap', () => {
@@ -174,4 +174,33 @@ test('the platform key vocabulary: Qt\'s macOS glyphs, and native modifiers on a
   assert.match(keysHtml('Ctrl+V', true), /<kbd class="tip-key">⌃<\/kbd>/);
   // An already-glyphed combo is never mapped twice.
   assert.equal(keysHtml('⇧⌘S', true), keysHtml('⇧⌘S', false));
+});
+
+// A secondary line reads as a sentence of its own: "Servers — a saved session expired,
+// reconnect to sign in again" showed a lowercase fragment under the heading, as if
+// someone had forgotten to finish it (user report, with a picture). What must NOT be
+// lifted is anything whose first token is a value rather than a word.
+test('a secondary line is sentence-cased; values and code fragments are left alone', () => {
+  // The first block under the heading, whatever it is called: the muted subtitle after a
+  // dash is a `text` block here and a hint on the desktop, and the rule is the same for
+  // every one of them.
+  const hintOf = (s) => parseTip(s).blocks[0]?.text;
+  const noteOf = hintOf;
+
+  assert.equal(hintOf('Servers — a saved session expired, reconnect to sign in again'),
+    'A saved session expired, reconnect to sign in again');
+  assert.equal(noteOf('Crop image\n— add an image first'), 'Add an image first');
+  assert.equal(hintOf('Drag to reorder · drag out of the modal to disconnect'),
+    'Drag out of the modal to disconnect');
+
+  // A URL, a filename, an identifier, a code fragment: written as they mean.
+  assert.equal(hintOf('Shared server project — http://localhost:8090'), 'http://localhost:8090');
+  assert.equal(hintOf('Open Project — .stencil files only'), '.stencil files only');
+  assert.equal(hintOf('Formula — f(x,y) transforms the page'), 'f(x,y) transforms the page');
+  assert.equal(hintOf('Facade — stencil.voiceChat toggles it'), 'stencil.voiceChat toggles it');
+  // A LONE word is a value (an axis letter, a mode name), not a sentence.
+  assert.equal(hintOf('Axis · x'), 'x');
+  // Already capitalised, or not a letter at all: untouched.
+  assert.equal(hintOf('Zoom — 100% of the original'), '100% of the original');
+  assert.equal(hintOf('Servers — Reconnect to sign in again'), 'Reconnect to sign in again');
 });

@@ -985,3 +985,31 @@ test('the kind survives reconnect-one and adoption, but a pasted token starts un
   m2.adoptExpired({ url: 'http://a:1', token: 'admin-token', kind: 'admin' });
   assert.strictEqual(m2.get('http://a:1').credentialKind, 'admin');
 });
+
+// ── A reconnect must not empty the list ─────────────────────────────────────
+// reconnectOne drops the old connection and only puts the new one in the map once its
+// handshake has landed — and every status event in between re-renders the connections
+// list. So for the length of the handshake the server was not "known": the row, the
+// selection bar and Select all all blinked out and back (user report, with a picture).
+test('a server being reconnected stays in the list for the whole handshake', async () => {
+  const { fetchImpl } = makeMockServer();
+  let mgr;
+  const seen = [];
+  mgr = new ConnectionManager({
+    // Sampled from INSIDE the handshake — the exact window the list used to render empty.
+    fetchImpl: async (u, i) => { seen.push({ known: mgr.knownUrls.length, row: mgr.get('http://a:1') }); return fetchImpl(u, i); },
+    WebSocketImpl: StubWS,
+  });
+  await mgr.connect('http://a:1');
+  assert.equal(mgr.knownUrls.length, 1);
+
+  seen.length = 0;
+  await mgr.reconnectOne('http://a:1');
+  assert.ok(seen.length > 0, 'the reconnect really did handshake');
+  assert.ok(seen.every((s) => s.known === 1), 'the url is known at every point in between');
+  assert.ok(seen.every((s) => s.row && s.row.status === 'connecting'),
+    '…and the row has something to render: "connecting"');
+  // …and once it lands the real connection is what get() answers with, exactly once.
+  assert.equal(mgr.knownUrls.length, 1);
+  assert.equal(mgr.get('http://a:1').status, 'connected');
+});

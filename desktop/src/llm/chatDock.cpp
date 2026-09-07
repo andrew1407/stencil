@@ -1385,6 +1385,10 @@ namespace stencil::gui {
       if (auto* e = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect())) e->setOpacity(1.0);
       lay->setContentsMargins(rest);
       card->setProperty(ScrollReveal::kEnteringProperty, false);
+      // Laid out FIRST: setContentsMargins only QUEUES the move, and ScrollReveal::apply()
+      // measures mapTo(viewport)/height() to decide a card's edge dissolve — run against
+      // the old geometry it left the fresh bubble faint until the next scroll (user report).
+      lay->activate();
       if (reveal_) reveal_->apply();   // hand the card over to the scroll curve
       repositionChatBubbleTails(transcript_);
     };
@@ -2140,7 +2144,8 @@ namespace stencil::gui {
       // Fall, not Rows: a cleared message comes apart from its top edge and drops, the
       // way the cleared IMAGE does — the two removals now read as the same gesture.
       DisintegrateOverlay::over(w, window(), DisintegrateOverlay::Sweep::Fall,
-                                kChatScatterCols, kChatScatterRows);
+                                kChatScatterCols, kChatScatterRows,
+                                DisintegrateOverlay::kItemMs);   // a message is read, not glanced at
       // Anything REMOVED means the empty state waits, whether or not the scatter
       // could play (over() declines what it cannot grab — an off-screen dock, a
       // zero-sized card). Keying the wait off the animation instead made the wait
@@ -2161,7 +2166,7 @@ namespace stencil::gui {
     if (wiped) {
       // A hair past the scatter's own duration, so the last particle is gone before
       // the empty state lands (the overlay deletes itself on its animation's finish).
-      QTimer::singleShot(DisintegrateOverlay::kMs + 60, this, [this] {
+      QTimer::singleShot(DisintegrateOverlay::kItemMs + 60, this, [this] {
         // A turn may have started while the wipe played — then the chips are wrong.
         if (transcriptHasCards()) return;
         suggest_->show();

@@ -88,7 +88,9 @@ test('the filter transition and render() agree on the rows by construction', () 
 
 test('a real removal keeps the destructive wipe — a filter is not a delete', () => {
   // The scatter/disintegrate effect stays on the removal paths only.
-  assert.match(projectsSrc, /leaveThenRemove\(rowById\([\s\S]{0,20}\), \(\) => \{\}, scatterGridFor\(1\)\)/,
+  // …on the ITEM clock: a project card is read, not merely noticed, so its wipe runs
+  // half again as long as the connections list's brisk one (motion.js ITEM_DUST_MS).
+  assert.match(projectsSrc, /leaveThenRemove\(rowById\([\s\S]{0,20}\), \(\) => \{\}, rowLeaveDust\(1, 0, ITEM_DUST_MS\)\)/,
     'deleting a project still scatters');
   assert.ok(!/runFilter[\s\S]{0,200}scatterGridFor/.test(projectsSrc),
     'nothing on the filter path reaches for the dust');

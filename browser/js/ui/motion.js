@@ -710,10 +710,11 @@ export const SCATTER_TILE_BUDGET = 1200;
 // at once is already more than the eye resolves, and 200 of them would blow any mesh
 // budget however coarse it got.
 export const SCATTER_MAX_ROWS = 12;
-export const scatterGridFor = (count, index = 0) => {
+// `fine` is the one-row grid to start from — the chat's by default; the lists bring a
+// finer one (ROW_DUST_GRID), still under the same total budget.
+export const scatterGridFor = (count, index = 0, fine = { cols: CHAT_DISINTEGRATE_COLS, rows: CHAT_DISINTEGRATE_ROWS }) => {
   const n = Math.min(Math.max(1, count | 0), SCATTER_MAX_ROWS);
   if (index >= SCATTER_MAX_ROWS) return { cols: 0, rows: 0 };   // fade only, no dust
-  const fine = { cols: CHAT_DISINTEGRATE_COLS, rows: CHAT_DISINTEGRATE_ROWS };
   const total = n * fine.cols * fine.rows;
   if (total <= SCATTER_TILE_BUDGET) return fine;
   // Scale both axes by the same factor, so the cells stay square-ish, and keep a floor
@@ -725,7 +726,8 @@ export const scatterGridFor = (count, index = 0) => {
 // Play `el` out, then run `done`. Returns a promise resolving after `done`, so a
 // caller can await the whole thing. `done` ALWAYS runs, even with no element and
 // even under reduced motion — the removal must never depend on the animation.
-export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows } = {}) {
+export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows, dustMs = 0,
+                                                      drift = 1, px = 0 } = {}) {
   const finish = () => { try { done(); } catch { /* the caller owns its own errors */ } };
   const reduced = motionReduced();
   if (!el?.classList || reduced || typeof setTimeout === 'undefined') { finish(); return Promise.resolve(); }
@@ -740,7 +742,9 @@ export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows
   // The row's own box collapses on its short timer (the list closes the gap) while a
   // copy scatters into particles that own their lifetime in their own layer over the
   // page. cols === 0 is the budget's "fade only" (scatterGridFor past SCATTER_MAX_ROWS).
-  if (cols !== 0) disintegrate(el, { ...(cols ? { cols } : {}), ...(rows ? { rows } : {}) });
+  if (cols !== 0) disintegrate(el, { ...(cols ? { cols } : {}), ...(rows ? { rows } : {}),
+                                    ...(dustMs ? { ms: dustMs } : {}), ...(px ? { px } : {}),
+                                    ...(drift === 1 ? {} : { drift }) });
   el.classList.add(LEAVING_CLASS);
   return new Promise((resolve) => setTimeout(() => { finish(); resolve(); }, ms));
 }
@@ -749,8 +753,9 @@ export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows
 // collapse while the particles fall for DISINTEGRATE_MS — a caller swapping in a
 // PLACEHOLDER must wait for the longer one (same rule as storage.js's GHOST_MS hold).
 // 0 under reduced motion: nothing is playing.
-export const wipeDurationMs = () => {
+export const wipeDurationMs = (dustMs = 0) => {
   if (motionReduced()) return 0;
+  if (dustMs) return dustEnabled() ? Math.max(LEAVE_MS, dustMs) : LEAVE_MS;
   // No dust ('slide') means no particle tail to wait out — the row's own collapse is
   // the whole wipe, and a caller holding for the longer clock would just stall.
   return dustEnabled() ? Math.max(LEAVE_MS, DISINTEGRATE_MS) : LEAVE_MS;
@@ -1000,7 +1005,9 @@ export function pinWidestFace(el, faces, { doc = el?.ownerDocument, force = fals
 // FIXED layer over the page: the row is collapsing to zero height at the same time and
 // would clip anything inside it. Every flight here — a row, a chat entry, a window, a
 // tick — is this one particle system (desktop twin: disintegrateOverlay.hpp).
-export const DISINTEGRATE_MS = 900;
+// Half again the app's original 900ms wipe: 520 and 260 were both tried for briskness
+// and read as hurried over anything you are still looking at.
+export const DISINTEGRATE_MS = 1350;
 // A fine grid — small cells read as ash rather than a broken window; one node per
 // cell, so this is the practical ceiling for a list row. (Matched by the desktop's
 // DisintegrateOverlay::kDustCellPx, which sizes its motes in pixels instead.)
@@ -1009,9 +1016,34 @@ export const DISINTEGRATE_ROWS = 16;
 // However late a mote sets off, it still gets this long to fly: the floor keeps the last
 // grains of a short flight (a mark swap, a menu) from being a blink rather than a flight.
 export const MIN_TILE_MS = 160;
-// A gathering tile's flight as a share of the whole span — the CSS default's 0.48s of
-// 0.9s. The rest is the reversed sweep (tileMotion), so the two always add up.
-export const TILE_GATHER_SHARE = 480 / DISINTEGRATE_MS;
+// The clock a list passes for its own items — the row clock today, named apart because
+// the two have been parted before (desktop twin: kItemMs).
+export const ITEM_DUST_MS = DISINTEGRATE_MS;
+// …and the CONNECTIONS list, the odd one out: a row there is a URL you already know, so
+// it comes and goes half again as briskly (desktop twin: kConnMs).
+export const CONN_DUST_MS = Math.round(DISINTEGRATE_MS / 1.5);
+// ── A LIST ROW's dust: the connections and projects lists ───────────────────
+// The throw, as a share of the row default. That default is a fixed pixel count, so over
+// a 44px row it is two and a half times its height; this is the desktop's row ratio.
+export const ROW_DUST_DRIFT = 0.8;
+// …and the grain: at the row default a short row holds a mosaic of big dots rather than
+// sand (user report). Finer cells, twice as many, still inside SCATTER_TILE_BUDGET.
+export const ROW_DUST_PX = 5;
+export const ROW_DUST_GRID = { cols: 40, rows: 30 };   // 1200 = SCATTER_TILE_BUDGET
+// The grain and budgeted grid every list row's dust shares (connections + projects) —
+// `index` of `count` rows leaving at once. An ARRIVAL keeps materialize's own clock and
+// throw, so it takes this alone; a REMOVAL adds the list's clock and the row throw.
+export const rowDustGrid = (count = 1, index = 0) => ({
+  ...scatterGridFor(count, index, ROW_DUST_GRID), px: ROW_DUST_PX,
+});
+export const rowLeaveDust = (count, index, dustMs) => ({
+  ...rowDustGrid(count, index), dustMs, drift: ROW_DUST_DRIFT,
+});
+// A gathering tile's flight, and a mote's own jitter, as SHARES of the span (the CSS
+// defaults' 0.48s and 60ms of 0.9s) — not divisions by it: shortening DISINTEGRATE_MS
+// must shorten both with it, not hand them a bigger slice of a smaller flight.
+export const TILE_GATHER_SHARE = 480 / 900;
+export const TILE_JITTER_SHARE = 60 / 900;
 
 // Deterministic per-tile jitter — a hash, not Math.random, so the scatter is varied
 // but reproducible (and unit-testable). Returns a 0..1 float.
@@ -1064,7 +1096,7 @@ export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
   // sand leaving (the same halving surfaceMotion's delayScale does). The gather keeps
   // the full sweep — its motes are the row forming, and there is nothing under them.
   const sweep = span * (reverse ? 0.4 : 0.2);
-  const delay = Math.round((reverse ? 1 - progress : progress) * sweep + n * 60 * (span / DISINTEGRATE_MS));
+  const delay = Math.round((reverse ? 1 - progress : progress) * sweep + n * span * TILE_JITTER_SHARE);
   // …and the motes FALL, fanning out as they go. Signed drift, so they spread both
   // ways instead of all sliding one.
   const dx = Math.round((m - 0.5) * 66 * drift);
@@ -1153,6 +1185,10 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     if (ms) {
       host.style.setProperty('--dust-ms', `${ms}ms`);
       host.style.setProperty('--gather-ms', `${toward || !gather ? ms : Math.round(ms * TILE_GATHER_SHARE)}ms`);
+      // …and the HOST lives the WHOLE span, whatever leg its tiles fly: a gather's tiles
+      // set off across the reversed sweep, so the last lands at `ms`, and a host fading on
+      // the leg alone took every late mote off the screen at half time.
+      host.style.setProperty('--host-ms', `${ms}ms`);
     }
     host.style.left = `${r.left}px`;
     host.style.top = `${r.top}px`;
@@ -1384,6 +1420,39 @@ const speckPainter = (el, override = null) => {
   };
 };
 
+// A GROUP of controls dusts in its controls' own colours — the desktop's groupShot
+// (controlReveal.hpp) without a screenshot: every descendant that paints a background
+// claims the cells under its box, innermost winning, and cells over nothing take the
+// group's own recipe. One flat field over a purple and a red button read as grey haze
+// (user report). Measured NOW, while the group is still laid out.
+const groupPainter = (el) => {
+  const base = speckPainter(el, markPaint(el));
+  const get = typeof getComputedStyle === 'function' ? getComputedStyle : null;
+  if (!get || !el?.getBoundingClientRect || !el.querySelectorAll) return base;
+  const root = el.getBoundingClientRect();
+  const parts = [];
+  for (const child of el.querySelectorAll('*')) {
+    const cs = get(child);
+    if (blankPaint(cs.backgroundColor) || !child.getBoundingClientRect) continue;
+    const r = child.getBoundingClientRect();
+    if (r.width < 2 || r.height < 2) continue;
+    const edge = cs.borderTopStyle !== 'none' && parseFloat(cs.borderTopWidth) > 0 && !blankPaint(cs.borderTopColor)
+      ? cs.borderTopColor : cs.backgroundColor;
+    parts.push({ l: r.left - root.left, t: r.top - root.top, r: r.right - root.left, b: r.bottom - root.top,
+                 paint: speckPainter(el, { fill: cs.backgroundColor, edge }) });
+  }
+  if (!parts.length) return base;
+  return (tile, g) => {
+    const x = (g.cx + 0.5) * g.cellW;
+    const y = (g.cy + 0.5) * g.cellH;
+    for (let i = parts.length - 1; i >= 0; i--) {   // last in document order = innermost
+      const p = parts[i];
+      if (x >= p.l && x < p.r && y >= p.t && y < p.b) return p.paint(tile, g);
+    }
+    return base(tile, g);
+  };
+};
+
 // A surface NEVER dusts as clones of itself, however small it is. A row scatter can
 // afford to (a list row is one element in one place), but a surface's cloud lands on
 // <body> — and a cloud of a few hundred copies of a menu is a few hundred more elements
@@ -1543,8 +1612,13 @@ export const MARK_DRIFT = 0.3;        // desktop kCheckSwapSpread
 export const MARK_COLS = 40;
 export const MARK_ROWS = 15;          // 600 motes
 export const MARK_FORMING_CLASS = 'mark-forming';
+// …and the veil a GROUP goes behind: hidden while its dust flies and its slot closes,
+// so the buttons are never seen squeezing shut.
+export const MARK_LEAVING_CLASS = 'mark-leaving';
 
-const markDust = (el, { gather, ms, paint, px, drift, own = true }) => {
+// `painter` is a ready per-cell painter (a group's, see groupPainter); `paint` a colour
+// recipe for the default speck painter. The painter wins.
+const markDust = (el, { gather, ms, paint, px, drift, own = true, painter = null }) => {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect) return false;
   if (motionReduced()) return false;
   const r = el.getBoundingClientRect();
@@ -1552,11 +1626,26 @@ const markDust = (el, { gather, ms, paint, px, drift, own = true }) => {
   const grid = reshapeGrid(MARK_COLS, MARK_ROWS, r.width, r.height, px);
   return disintegrate(el, {
     ...grid, gather, ms, px, drift, toBody: true, own,
-    // The SURFACE keyframes: a mark's motes are the mark, so they must be visible from
-    // the first frame — a row's own ramp spends its opening third near-transparent.
-    hostClass: gather ? 'dust-forming' : 'dust-leaving',
-    paintTile: speckPainter(el, paint || markPaint(el)),
+    // Visible from the first frame either way — a mark's motes ARE the mark. Arrival is
+    // the surface gather; departure its own fall (animations.css tileFall — the desktop's
+    // Sweep::Fall). The surface leave was tried and read as a flick (user report).
+    hostClass: gather ? 'dust-forming' : 'dust-falling',
+    paintTile: painter || speckPainter(el, paint || markPaint(el)),
   });
+};
+
+// Hold a veil on `el` for the length of a flight, then lift it (markIn / markOut).
+const holdMarkVeil = (el, veil, ms) => {
+  el.__markVeil = veil;
+  el.classList.add(veil);
+  el.style?.setProperty?.('--mark-ms', `${ms}ms`);
+  if (typeof setTimeout === 'function')
+    el.__markTimer = setTimeout(() => {
+      el.__markTimer = null;
+      el.classList.remove(veil);
+      el.__markVeil = null;
+      el.style?.removeProperty?.('--mark-ms');
+    }, ms + 40);
 };
 
 // Drop whatever `el` has in flight, veil included, leaving the end state untouched.
@@ -1572,29 +1661,24 @@ export function settleMark(el) {
 
 // The mark comes apart. The caller still owns the real state change — like surfaceOut,
 // the cloud is a copy on <body> and the end state never waits for it.
+// `veil` (opt-in: a group leaving under revealControls) hides the real thing the moment
+// its motes set off, so the dust IS it going. A bare mark keeps its box visible.
 export function markOut(el, { ms = MARK_OUT_MS, paint = null, px = MARK_MOTE_PX,
-                              drift = MARK_DRIFT, own = true } = {}) {
+                              drift = MARK_DRIFT, own = true, painter = null, veil = null } = {}) {
   if (own) settleMark(el);
-  return markDust(el, { gather: false, ms, paint, px, drift, own });
+  const played = markDust(el, { gather: false, ms, paint, px, drift, own, painter });
+  if (played && veil && el.classList) holdMarkVeil(el, veil, ms);
+  return played;
 }
 
 // …and forms. `veil` is the class that holds the real mark back while the motes gather
 // (they ARE the mark forming); null for a mark that is already invisible on its own.
 export function markIn(el, { ms = MARK_IN_MS, paint = null, px = MARK_MOTE_PX,
-                             drift = MARK_DRIFT, veil = MARK_FORMING_CLASS } = {}) {
+                             drift = MARK_DRIFT, veil = MARK_FORMING_CLASS, painter = null } = {}) {
   settleMark(el);
-  const played = markDust(el, { gather: true, ms, paint, px, drift });
+  const played = markDust(el, { gather: true, ms, paint, px, drift, painter });
   if (!played || !veil || !el.classList) return played;
-  el.__markVeil = veil;
-  el.classList.add(veil);
-  el.style?.setProperty?.('--mark-ms', `${ms}ms`);
-  if (typeof setTimeout === 'function')
-    el.__markTimer = setTimeout(() => {
-      el.__markTimer = null;
-      el.classList.remove(veil);
-      el.__markVeil = null;
-      el.style?.removeProperty?.('--mark-ms');
-    }, ms + 40);
+  holdMarkVeil(el, veil, ms);
   return true;
 }
 
@@ -1606,6 +1690,26 @@ export function markIn(el, { ms = MARK_IN_MS, paint = null, px = MARK_MOTE_PX,
 // clock, so it gets its own longer one — handed to the dust too, so the two land together.
 export const REVEAL_GROUP_IN_MS = 420;
 export const REVEAL_GROUP_OUT_MS = 320;
+
+// A BAR holding revealed controls (the selection strips): the BAR ITSELF never flies —
+// only its controls do, so this is a display flip, deferred on the way OUT by their
+// flight (the desktop's ProjectsDialog / ConnectDialog::updateBatchBar). Sliding its own
+// slot was tried and read wrong both ways: opening it clipped the button forming inside
+// it, closing it left the border and padding as a bare grey line (user report).
+// `want()` is the single source of whether the bar belongs — asked now, and again on
+// arrival, so a selection made mid-flight keeps it. Timer injectable — unit-tested.
+export const revealBar = (el, want, { display = 'flex', ms = 0, setTimer = setTimeout } = {}) => {
+  if (!el?.style) return false;
+  const shown = el.style.display !== 'none';
+  if (want()) {
+    if (!shown) el.style.display = display;   // at once: the slot the controls fly INTO
+    return !shown;
+  }
+  if (!shown) return false;
+  if (motionReduced()) { el.style.display = 'none'; return false; }
+  setTimer(() => { if (!want()) el.style.display = 'none'; }, ms || REVEAL_GROUP_OUT_MS);
+  return false;
+};
 // A transition, not @keyframes: markIn/markOut may also add `.mark-forming`
 // (an animation), and two `animation` rules on one element would fight over a winner.
 const REVEAL_GROUP_TRANSITION_CLASS = 'reveal-group-transition';
@@ -1641,7 +1745,36 @@ const slideRevealSize = (el, sizeProp, from, to, ms, { defer = false, slack = 0,
   raf(() => raf(go));
 };
 
-export function revealControls(el, show, display = 'inline-flex', { vertical: axis = null } = {}) {
+// Keep a group's cloud anchored to the group for the length of its flight — the desktop's
+// DisintegrateOverlay::setFollow. A control revealed beside a sibling is photographed
+// where it sits, and the sibling's slot then pushes it along the row: the motes gathered
+// where the group first stood and jumped over on landing (user report). Left/top only —
+// the box they fly at is the natural one while the slot itself is mid-slide. Stops with
+// the host, or on display:none (an all-zero rect).
+const followDust = (el, ms) => {
+  if (typeof requestAnimationFrame !== 'function' || !el.getBoundingClientRect) return;
+  const started = Date.now();
+  const step = () => {
+    const host = el.__dustHost;
+    if (!host || Date.now() - started >= ms) return;
+    const r = el.getBoundingClientRect();
+    if (!r || (!r.width && !r.height)) return;
+    host.style.left = `${r.left}px`;
+    host.style.top = `${r.top}px`;
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+};
+
+// `dust: false` slides the slot without a cloud — for a wide, mostly EMPTY element,
+// whose motes are a grey band the width of the window rather than anything the eye can
+// follow (user report). Its CONTENTS still dust. Desktop twin: revealControls' `dust`.
+// `ms` overrides the slot's own clock, for a group that must land together with something
+// else — the connections bar leaves beside the row that emptied it.
+export function revealControls(el, show, display = 'inline-flex',
+                               { vertical: axis = null, dust = true, ms = 0 } = {}) {
+  const inMs = ms || REVEAL_GROUP_IN_MS;
+  const outMs = ms || REVEAL_GROUP_OUT_MS;
   if (!el?.style) return false;
   const wasShown = el.style.display !== 'none';
   if (wasShown === !!show) return false;   // already there: nothing comes or goes
@@ -1654,22 +1787,27 @@ export function revealControls(el, show, display = 'inline-flex', { vertical: ax
     el.style.display = display;
     const r = el.getBoundingClientRect();   // now laid out at its natural size
     const size = vertical ? r.height : r.width;
-    const played = markIn(el, { ms: REVEAL_GROUP_IN_MS });   // grid sized off that same natural box
+    // grid sized off that same natural box, painted in the group's own colours
+    const played = dust ? markIn(el, { ms: inMs, painter: groupPainter(el) }) : !motionReduced();
     if (size && played)
-      slideRevealSize(el, sizeProp, '0px', `${size}px`, REVEAL_GROUP_IN_MS, { defer: true, slack: 40 });
+      slideRevealSize(el, sizeProp, '0px', `${size}px`, inMs, { defer: true, slack: 40 });
+    if (dust && played) followDust(el, inMs);
     return played;
   }
   // Measured while it is still laid out, so both the dust and the collapse start
   // from the true box.
   const r = el.getBoundingClientRect();
   const size = vertical ? r.height : r.width;
-  const played = markOut(el, { ms: REVEAL_GROUP_OUT_MS });
+  const played = dust
+    ? markOut(el, { ms: outMs, painter: groupPainter(el), veil: MARK_LEAVING_CLASS })
+    : !motionReduced();
   if (size && played) {
-    slideRevealSize(el, sizeProp, `${size}px`, '0px', REVEAL_GROUP_OUT_MS,
+    slideRevealSize(el, sizeProp, `${size}px`, '0px', outMs,
       { ease: REVEAL_EASE_OUT, cleanup: () => { el.style.display = 'none'; } });
   } else {
     el.style.display = 'none';   // declined (reduced motion, too small): instant, as before
   }
+  if (dust && played) followDust(el, outMs);
   return played;
 }
 
@@ -1691,7 +1829,12 @@ export function markSwap(el, apply, { ms = MARK_IN_MS, outMs = MARK_OUT_MS, pain
 // the motes land (the dust IS the row forming). Resolves once the veil lifts.
 export const MATERIALIZE_CLASS = 'materializing';
 export const MATERIALIZE_VEIL_CLASS = 'materialize-veil';
-export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
+export const MATERIALIZE_LIFT_CLASS = 'materialize-lift';   // the veil on its way up
+// `drift` scales the throw the motes gather FROM: a whole row's default carries them
+// most of a hundred pixels, which reads as sand arriving from somewhere else rather than
+// the row forming (user report). A caller whose item is short says so.
+export function materialize(el, { ms = LEAVE_MS, cols, rows, dustMs = FILTER_DUST_MS,
+                                  drift = FILTER_DUST_DRIFT, px = 0 } = {}) {
   const reduced = motionReduced();
   if (!el?.classList || reduced || typeof setTimeout === 'undefined') return Promise.resolve();
   // Freeze the natural height (the row is already laid out) so the expansion has
@@ -1700,14 +1843,30 @@ export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
     const r = el.getBoundingClientRect();
     if (r.height) el.style.setProperty('--enter-h', `${r.height}px`);
   }
+  // The dust is filterDust's recipe — the surface gather (visible from the first frame,
+  // eased out), on half a row's throw and the filter's short clock. The row gather
+  // (reintegrate) was tried here and put the row inside a cloud bigger than itself.
   // cols === 0 is the budget's "fade only" (scatterGridFor past SCATTER_MAX_ROWS).
-  const dusted = cols !== 0 && reintegrate(el, { ...(cols ? { cols } : {}), ...(rows ? { rows } : {}) });
+  const dusted = cols !== 0 && disintegrate(el, {
+    ...(cols ? { cols } : {}), ...(rows ? { rows } : {}), ...(px ? { px } : {}),
+    gather: true, ms: dustMs, drift, toBody: true, hostClass: 'dust-forming',
+    paintTile: speckPainter(el),
+  });
   el.classList.add(MATERIALIZE_CLASS);
-  if (dusted) el.classList.add(MATERIALIZE_VEIL_CLASS);
+  if (dusted) {
+    // The veil LIFTS as the motes land, not after them: held at nothing until the first
+    // are home (the gather leg), then up to full by the last. A hard veil dropped at the
+    // end left a hole — dust gone, nothing, then the row (user report).
+    el.classList.add(MATERIALIZE_VEIL_CLASS);
+    const lift = Math.round(dustMs * TILE_GATHER_SHARE);
+    el.style?.setProperty?.('--veil-fade', `${Math.max(1, dustMs - lift)}ms`);
+    setTimeout(() => el.classList.add(MATERIALIZE_LIFT_CLASS), lift);
+  }
   return new Promise((resolve) => setTimeout(() => {
-    el.classList.remove(MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS);
+    el.classList.remove(MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, MATERIALIZE_LIFT_CLASS);
+    el.style?.removeProperty?.('--veil-fade');
     resolve();
-  }, dusted ? wipeDurationMs() : ms));
+  }, dusted ? wipeDurationMs(dustMs) : ms));
 }
 
 // ── A chat entry ARRIVES as dust, from its own side ─────────────────────────
@@ -1717,8 +1876,9 @@ export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
 // held back for the whole flight: the motes ARE it forming, so fading it up underneath
 // them would show the message first and the animation after.
 // On a short clock of its own: the motes carry no text, so a long answer is unreadable
-// until the veil lifts, and most of a second of that reads as the app being slow.
-export const CHAT_ENTER_MS = 520;
+// until the veil lifts. A fixed FRACTION of the row's flight (520 of the old 900), so
+// shortening DISINTEGRATE_MS shortens this with it rather than letting the two meet.
+export const CHAT_ENTER_MS = Math.round(ITEM_DUST_MS * 0.58);
 export const CHAT_ENTERING_CLASS = 'chat-entering';
 // How far off the row's own edge its motes are gathered from. The cloud is clipped to
 // the transcript (clipDustToScroller), so a point outside it simply means the sand
@@ -1857,9 +2017,9 @@ export function chatIn(el, count = 1, index = 0) {
 // Clearing the canvas is synchronous, so the pixels are copied into a throwaway canvas
 // laid over the real one and THAT is animated away. Call immediately BEFORE the clear;
 // a failed ghost must never block the clear itself.
-// 1.5x brisker than the 1100ms it started at: the picture is the thing you came to
-// work on, and it must not keep you waiting on its own dust.
-export const GHOST_MS = 730;
+// Cut to 730 once for briskness and half again as long since, which lands it back near
+// the 1100ms it started at: the picture is worth watching arrive and leave.
+export const GHOST_MS = 1095;
 // Dust motes are sized on SCREEN, not as a share of the image: a fixed grid over a
 // big canvas gives big rectangles, which is what stopped it reading as dust.
 export const DUST_CELL_PX = 6;

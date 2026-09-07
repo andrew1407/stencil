@@ -13,7 +13,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { parseCombo, eventCombo, comboMatchesEvent } from '../js/ui/controlTooltip.js';
+import { parseCombo, eventCombo, comboMatchesEvent, dustOrigin, DUST_CURSOR_PX } from '../js/ui/controlTooltip.js';
 import { TIP_SHOW_DELAY_MS } from '../js/ui/motion.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -228,4 +228,33 @@ test('reduced motion: the tooltip appears at once and the cap answers without mo
   // The cap shakes and nothing else: no repaint, so it reads as the same key throughout.
   const shake = componentsCss.match(/\.tip-key\.key-shake \{([\s\S]*?)\n\}/)[1];
   assert.doesNotMatch(shake, /border-color|color:|background/);
+});
+
+// ── 4. Where the sand comes from ────────────────────────────────────────────
+// A button's tip forms out of the button. A control STRETCHED across its row — a
+// connection row, a list item — has its content at one end and its centre in empty
+// space, so sand arriving from the middle of the row read as coming from nowhere (user
+// report). Past DUST_CURSOR_PX the pointer is the origin instead, which is what the
+// desktop already does (appTooltip.hpp's `stretched` test).
+test('the dust forms at the control centre, or at the cursor once that is far from it', () => {
+  const centre = { x: 100, y: 100 };
+  // A toolbar icon: the pointer is on it, so the centre IS the cursor, near enough.
+  assert.deepEqual(dustOrigin(centre, { x: 108, y: 104 }), centre);
+  assert.deepEqual(dustOrigin(centre, { x: 100 + DUST_CURSOR_PX, y: 100 }), centre,
+    'exactly at the threshold still belongs to the control');
+  // A wide row: the pointer is hundreds of pixels from the middle of it.
+  const far = { x: 420, y: 104 };
+  assert.deepEqual(dustOrigin(centre, far), far);
+  // No pointer yet (a focus-driven reveal), or a detached owner with no box at all.
+  assert.deepEqual(dustOrigin(centre, null), centre);
+  assert.equal(dustOrigin(null, far), null);
+});
+
+// A descendant that describes ITSELF is a different tooltip, not the same one seen
+// through its icon: the connections row puts a status dot (what the dot means) inside
+// the row label (the URL). The "still inside the active target" guard used to swallow it.
+test('a child with its own text takes the tooltip over from its ancestor', () => {
+  assert.match(tooltipJs,
+    /if \(curEl && curEl\.contains\(e\.target\) && \(!el \|\| el === curEl\)\) return;/,
+    'the guard keeps showing only while the child has no text of its own');
 });
