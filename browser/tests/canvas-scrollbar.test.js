@@ -50,5 +50,9 @@ test('the other panels keep the native thin bars, accent only with the pointer o
   assert.strictEqual(scrollbarHit(box, 400, 440, { canX: true }), true);
   assert.strictEqual(scrollbarHit(box, 800, 440, { canX: true }), false, 'outside the box is never a hit');
   const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
-  assert.match(css, /\.settings-body\.sb-hover,\n#coord-body\.sb-hover,\n#fs-points-panel\.sb-hover \{\s*scrollbar-color: var\(--sb-thumb-hover\) transparent;/);
+  // App-wide: every scrollable gets the thin grey bar, and the accent only via .sb-hover.
+  assert.match(css, /\n\* \{\s*scrollbar-width: thin;\s*scrollbar-color: var\(--sb-thumb\) transparent;\s*\}/);
+  assert.match(css, /\.sb-hover \{ scrollbar-color: var\(--sb-thumb-hover\) transparent; \}/);
+  const app = readFileSync(new URL('../js/core/drawingApp.js', import.meta.url), 'utf8');
+  assert.ok(app.includes('wireScrollbarHover();'), 'one document-level wiring, no per-panel list');
 });

@@ -125,11 +125,16 @@ body.search-collapsed #list, body.search-collapsed #status { display: none; }
 .list { flex: 1 1 auto; min-height: 120px; }
 /* Styled scrollbar so it's a CLASSIC (space-taking) bar, not a macOS overlay that would
    float over the row's ⋯ button. The inset thumb (transparent border + background-clip)
-   leaves a gutter, so the scrollbar never touches the button. */
+   leaves a gutter, so the scrollbar never touches the button. Chrome ignores these
+   ::-webkit-scrollbar rules under theme.css's app-wide scrollbar-width/color, so the
+   list opts back out of those — same colours: thumb grey, the accent on the bar strip
+   (.sb-hover, lib/scrollbarHover.js) and under the thumb itself. */
+.list { scrollbar-width: auto; scrollbar-color: auto; }
 .list::-webkit-scrollbar { width: 11px; }
 .list::-webkit-scrollbar-track { background: transparent; }
-.list::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 8px; border: 3px solid transparent; background-clip: content-box; }
-.list::-webkit-scrollbar-thumb:hover { background: var(--text); }
+.list::-webkit-scrollbar-thumb { background: var(--sb-thumb); border-radius: 8px; border: 3px solid transparent; background-clip: content-box; transition: background-color .15s; }
+.list.sb-hover::-webkit-scrollbar-thumb { background: var(--sb-thumb-hover); }
+.list::-webkit-scrollbar-thumb:hover { background: var(--sb-thumb-active); }
 /* Spring-loaded drag menu (hovering the logo mid-drag): four flat actions, each of them
    a drop target. `.over` is the release-here cue — the accent fill the row menu uses on
    hover, so aiming reads the same whether you're clicking or dragging. */

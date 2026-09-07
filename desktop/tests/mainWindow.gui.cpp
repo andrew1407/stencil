@@ -13642,9 +13642,9 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(win.scroll_->viewport()->geometry().contains(hbar->geometry()));
     QCOMPARE(win.scroll_->viewport()->geometry(), win.scroll_->contentsRect());
     QVERIFY(!vbar->testAttribute(Qt::WA_TransparentForMouseEvents));
-    // The thumb is a painted pill in the browser's thumb grey (overlayScrollArea.hpp
-    // PillScrollBar; QSS cannot round a handle on macOS): its top edge's midpoint carries
-    // the thumb colour while the slot's corner beside it does not.
+    // The thumb is a painted pill in the browser's thumb grey (support/pillScrollBars.hpp,
+    // like every bar in the app; QSS cannot round a handle on macOS): its top edge's
+    // midpoint carries the thumb colour while the slot's corner beside it does not.
     {
       QStyleOptionSlider opt;
       opt.initFrom(vbar);

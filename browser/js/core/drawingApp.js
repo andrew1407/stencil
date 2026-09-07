@@ -427,11 +427,10 @@ export class DrawingApp {
     this.controls.wireKeyboard();
     this.controls.wireArrowPan();
     this.controls.wireDropPaste();
-    // The canvas gets its own overlay bars (js/ui/canvasScrollbars.js); the other
-    // scrollable panels' native thumbs take the accent only under the pointer (utils.js).
+    // The canvas gets its own overlay bars (js/ui/canvasScrollbars.js); every other
+    // scrollable's native thumb takes the accent only under the pointer (utils.js).
     wireCanvasScrollbars(document.getElementById('canvas-viewport'));
-    for (const id of ['coord-body', 'fs-points-panel']) wireScrollbarHover(document.getElementById(id));
-    document.querySelectorAll('.settings-body').forEach(wireScrollbarHover);
+    wireScrollbarHover();
     this.controls.wireCanvasPointer();
     this.controls.wireSmoothZoom();
     // Last, so every select the layout rendered (toolbar, panel and each modal, which are

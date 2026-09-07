@@ -35,65 +35,36 @@
     .canvas-sb, .canvas-sb-thumb { transition: none; }
 }
 
-/* ── Custom scrollbars (the other scrollable panels): thin by default, expand on container hover ─
-   The visible thumb is shrunk by a transparent border; the gutter stays a
-   constant width so growth causes no layout shift, just a visual swell.
-   background-clip:padding-box lets the transparent border act as thumb padding. */
-/* Firefox — only auto/thin/none are available, so we stay 'thin' */
-.settings-body,
-#coord-body,
-#fs-points-panel {
+/* ── Every other scrollable (dialog bodies, the points/coord tables, menus, the chat):
+   thin native bars in the thumb grey, the thumb taking the accent ONLY while the pointer
+   is on the bar's own strip — `.sb-hover`, set by utils.js wireScrollbarHover (one
+   document listener; whichever element scrolls, dialogs opened later included) — not
+   whenever the panel is hovered: the standard scrollbar-color property Chrome/Firefox
+   read has no thumb-hover of its own, and a panel-wide :hover painted the thumb accent
+   on every scroll (user report). The canvas keeps its overlay bars above (scrollbar-width
+   none there outranks this). Desktop parity: support/pillScrollBars.hpp. */
+* {
     scrollbar-width: thin;
     scrollbar-color: var(--sb-thumb) transparent;
 }
-/* Chrome 121+ honours these standard properties too, and once scrollbar-width is set it
-   IGNORES the ::-webkit-scrollbar rules below — so the hover accent has to be said here
-   as well. The standard property has no thumb-hover of its own, and a panel-wide :hover
-   painted the thumb accent on every scroll; `.sb-hover` is set by utils.js
-   wireScrollbarHover only while the pointer is on the bar's own strip. */
-.settings-body.sb-hover,
-#coord-body.sb-hover,
-#fs-points-panel.sb-hover {
-    scrollbar-color: var(--sb-thumb-hover) transparent;
-}
-/* WebKit / Blink */
-.settings-body::-webkit-scrollbar,
-#coord-body::-webkit-scrollbar,
-#fs-points-panel::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
-}
-.settings-body::-webkit-scrollbar-track,
-#coord-body::-webkit-scrollbar-track,
-#fs-points-panel::-webkit-scrollbar-track,
-.settings-body::-webkit-scrollbar-corner,
-#coord-body::-webkit-scrollbar-corner,
-#fs-points-panel::-webkit-scrollbar-corner {
-    background: transparent;
-}
-/* Default: visible thumb ~8 px (12 px slot − 2×2 px transparent border) */
-.settings-body::-webkit-scrollbar-thumb,
-#coord-body::-webkit-scrollbar-thumb,
-#fs-points-panel::-webkit-scrollbar-thumb {
+.sb-hover { scrollbar-color: var(--sb-thumb-hover) transparent; }
+/* WebKit without scrollbar-color (older Safari): a 12px slot holding an ~8px thumb — the
+   visible thumb is shrunk by a transparent border (background-clip lets it act as thumb
+   padding), the gutter stays a constant width so the swell causes no layout shift. Chrome
+   121+ honours the standard properties above and ignores these once scrollbar-width is set. */
+*::-webkit-scrollbar { width: 12px; height: 12px; }
+*::-webkit-scrollbar-track, *::-webkit-scrollbar-corner { background: transparent; }
+*::-webkit-scrollbar-thumb {
     background-color: var(--sb-thumb);
     background-clip: padding-box;
     border: 2px solid transparent;
     border-radius: 12px;
     transition: background-color 0.15s;
 }
-/* Container hover: thumb fills the slot and darkens slightly */
-.settings-body:hover::-webkit-scrollbar-thumb,
-#coord-body:hover::-webkit-scrollbar-thumb,
-#fs-points-panel:hover::-webkit-scrollbar-thumb {
-    border-width: 0;
-    background-color: var(--sb-thumb-hover);
-}
+/* Pointer on the bar strip: the thumb fills the slot and takes the accent */
+.sb-hover::-webkit-scrollbar-thumb { border-width: 0; background-color: var(--sb-thumb-hover); }
 /* Direct thumb hover (about to drag): boldest */
-.settings-body::-webkit-scrollbar-thumb:hover,
-#coord-body::-webkit-scrollbar-thumb:hover,
-#fs-points-panel::-webkit-scrollbar-thumb:hover {
-    background-color: var(--sb-thumb-active);
-}
+*::-webkit-scrollbar-thumb:hover { background-color: var(--sb-thumb-active); }
 /* The points list ends in delete buttons the scrollbar must not cover. padding-right is what
    fixes it: macOS overlay scrollbars take no layout space, so scrollbar-gutter has no gutter
    to stabilise — that only reserves the slot for classic bars, preventing a sideways jump.

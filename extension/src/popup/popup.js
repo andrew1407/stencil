@@ -38,6 +38,7 @@ import { createCollapsibleSections } from '../lib/collapsibleSections.js';
 import { createLogoDragMenu } from '../lib/logoDragMenu.js';
 import { rowTitle, thumbInitialSrc, dimText, rowBadges, rowOutlineClass } from '../lib/rowModel.js';
 import { initTooltips } from '../lib/controlTooltip.js';
+import { wireScrollbarHover } from '../lib/scrollbarHover.js';
 import { setTip } from '../lib/tip.js';
 import { enhanceSelect } from '../lib/customSelect.js';
 
@@ -1796,6 +1797,7 @@ filterUi.load().then(() => { filterUi.restoreStatic(); scan(); });
 // Instant, structured tooltips everywhere on this page (the native `title` waits ~1s
 // and never shows on a disabled control). lib/tipContent.js gives them their shape.
 initTooltips();
+wireScrollbarHover();   // every scrollable's thumb takes the accent under the pointer
 
 // Same for the popup's own filter selects — in a 400px window the OS list covers the page.
 for (const el of document.querySelectorAll('select')) enhanceSelect(el);

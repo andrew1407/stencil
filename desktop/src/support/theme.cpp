@@ -281,8 +281,7 @@ namespace stencil::gui {
     // halfway to that surface, so a disabled combo's arrow recedes with its text.
     const QColor disabledBg = dark ? p.bgControls : p.bgContainer.darker(108);
     const QColor caretDim = mixSrgb(p.textMuted, disabledBg, 0.55);
-    // Canvas scrollbar hover: the theme accent (browser --sb-thumb-hover parity).
-    const QColor sbThumbHover = canvasScrollThumbHover(dark, accentKey);
+    // The scrollbars' unthemed fallback thumb (the pills read the same helper).
     const QColor sbThumb = canvasScrollThumb(dark);
     // Drag & drop hint strip (browser --bg-drop-hint/--border-hint, css/theme.css).
     // NB argument order: CSS color-mix(accent P%, base) == mixSrgb(base, accent, P).
@@ -985,23 +984,19 @@ namespace stencil::gui {
       QTabBar::tab:hover { color: %TEXT%; }
       QTabBar::tab:selected { color: %ACCENT2%; border-bottom: 2px solid %ACCENT%; }
 
-      /* ── Scrollbars: only the HANDLE takes colour, the track stays transparent. Use
-         `::handle:hover` (state on the sub-control itself) — `QScrollBar:hover::handle`
-         isn't a form Qt's QSS engine supports and paints the WHOLE groove solid instead.
-         Hover is the theme accent (browser parity: --sb-thumb-hover: var(--accent)). Bar
-         visibility (hidden until an actual pan/zoom) is handled in
-         code, not QSS — see MainWindow::revealCanvasScrollbars. */
-      /* Browser layout.css parity: a 12px slot holding an 8px, fully rounded thumb (the
-         2px transparent border there is the 2px margin here), in --sb-thumb's grey. */
-      /* A 1px transparent border is what lets border-radius clip the fill — QSS draws a
-         borderless background as a plain rectangle (the thumbs used to be square). So the
-         slot is 10px + 1px margin, and the 1px border trims the fill to the browser's 8px. */
+      /* ── Scrollbars: QSS only SIZES them — browser layout.css parity, a 12px slot
+         (10px + 1px margin) with a transparent track and the handle's minimum length.
+         The thumb itself is painted on every bar by support/pillScrollBars.hpp: a rounded
+         pill in --sb-thumb's grey that swells and takes the theme accent under the
+         pointer (--sb-thumb-hover: var(--accent)). QSS on macOS drew the handle square
+         whatever radius it was given, and its `::handle:hover` never lit the dialogs'
+         bars. The handle colour here is only the unthemed fallback. Canvas bar
+         visibility (hidden until an actual pan/zoom) is code too — see
+         MainWindow::revealCanvasScrollbars. */
       QScrollBar:vertical { background: transparent; width: 10px; margin: 1px; }
       QScrollBar::handle:vertical { background: %SB_THUMB%; border: 1px solid transparent; border-radius: 5px; min-height: 28px; }
-      QScrollBar::handle:vertical:hover { background: %SB_THUMB_HOVER%; }
       QScrollBar:horizontal { background: transparent; height: 10px; margin: 1px; }
       QScrollBar::handle:horizontal { background: %SB_THUMB%; border: 1px solid transparent; border-radius: 5px; min-width: 28px; }
-      QScrollBar::handle:horizontal:hover { background: %SB_THUMB_HOVER%; }
       QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
       QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
 
@@ -1101,7 +1096,6 @@ namespace stencil::gui {
         .replace("%BORDER_TOOLTIP%", c(borderTooltip))
         .replace("%BORDER_CANVAS%", c(p.borderCanvas))
         .replace("%BORDER%", c(p.borderMain))
-        .replace("%SB_THUMB_HOVER%", c(sbThumbHover))
         .replace("%SB_THUMB%", c(sbThumb))
         .replace("%TEXT%", c(p.textMain))
         .replace("%CARET_HOVER%", caretImagePath(QColor(Qt::white)))

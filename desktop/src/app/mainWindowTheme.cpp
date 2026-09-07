@@ -13,7 +13,7 @@
 #include "selectionPanel.hpp"
 #include "selectedLineBar.hpp"
 #include "theme.hpp"
-#include "overlayScrollArea.hpp"
+#include "pillScrollBars.hpp"
 #include "tipContent.hpp"
 #include "../support/faceSwap.hpp"
 #include "../support/motionPrefs.hpp"   // support::dustAllowed()
@@ -98,11 +98,10 @@ namespace stencil::gui {
     // Tooltips are rendered as rich text (tipContent.hpp) — their keycaps and muted lines
     // are literal colours, so they have to be re-taken from the palette on every swap.
     setTooltipPalette(themePalette(dark, settings_.accentColor));
-    // The canvas scrollbars paint their own thumbs (overlayScrollArea.hpp) — hand them
-    // the theme's colours, since a stylesheet cannot round them.
-    if (scroll_)
-      static_cast<OverlayScrollArea*>(scroll_)->setThumbColors(
-          canvasScrollThumb(dark), canvasScrollThumbHover(dark, settings_.accentColor));
+    // Every scrollbar's thumb is a painted pill (support/pillScrollBars.hpp) — hand the
+    // painter the theme's colours, since a stylesheet cannot round or accent them.
+    ScrollBarPill::setColors(canvasScrollThumb(dark),
+                             canvasScrollThumbHover(dark, settings_.accentColor));
     canvas_->setDark(dark);
     canvas_->setAccent(settings_.accentColor);
     incognitoOverlay_->setTheme(dark, settings_.accentColor);

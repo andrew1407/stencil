@@ -8,98 +8,27 @@
 // class's own bars are switched off for good — they stay the scroll MODEL that
 // wheel/keyboard/setValue drive — and two plain QScrollBars owned here mirror
 // them and float over the full viewport.
-#include "modalReveal.hpp"  // motionReduced()
+#include "pillScrollBars.hpp"  // ScrollBarPill: the painted thumb
 
-#include <QEasingCurve>
-#include <QEnterEvent>
 #include <QEvent>
-#include <QPainter>
-#include <QPaintEvent>
 #include <QScrollArea>
 #include <QScrollBar>
-#include <QStyle>
-#include <QStyleOptionSlider>
-#include <QVariantAnimation>
 
 namespace stencil::gui {
-
-  // The overlay thumb, painted by hand: a fully rounded pill in the browser's thumb grey
-  // that is thin at rest and swells a little under the pointer (layout.css: the thumb
-  // grows into its slot on hover). The stylesheet still sizes the bar (theme.cpp
-  // QScrollBar rules) and the hover shade is ours too — QSS on macOS draws the handle
-  // square whatever radius it is given.
-  class PillScrollBar : public QScrollBar {
-   public:
-    explicit PillScrollBar(Qt::Orientation o, QWidget* parent = nullptr) : QScrollBar(o, parent) {
-      swell_ = new QVariantAnimation(this);
-      swell_->setDuration(150);
-      swell_->setEasingCurve(QEasingCurve::OutCubic);
-      connect(swell_, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
-        thick_ = v.toReal();
-        update();
-      });
-    }
-    void setThumbColors(const QColor& thumb, const QColor& hover) {
-      thumb_ = thumb;
-      hover_ = hover;
-      update();
-    }
-    static constexpr qreal kRestThick = 6;    // thinner than the browser's 8 at rest…
-    static constexpr qreal kHoverThick = 9;   // …and 1.5× under the pointer, as there
-
-   protected:
-    void enterEvent(QEnterEvent* e) override { swellTo(kHoverThick); QScrollBar::enterEvent(e); }
-    void leaveEvent(QEvent* e) override { swellTo(kRestThick); QScrollBar::leaveEvent(e); }
-
-    void paintEvent(QPaintEvent* e) override {
-      if (!thumb_.isValid()) { QScrollBar::paintEvent(e); return; }
-      QStyleOptionSlider opt;
-      initStyleOption(&opt);
-      const QRect slider = style()->subControlRect(QStyle::CC_ScrollBar, &opt,
-                                                   QStyle::SC_ScrollBarSlider, this);
-      if (!slider.isValid()) return;
-      // Centred in the slot, whatever the stylesheet's box left us.
-      const QRectF pill =
-          orientation() == Qt::Vertical
-              ? QRectF(slider.center().x() + 0.5 - thick_ / 2.0, slider.top(), thick_, slider.height())
-              : QRectF(slider.left(), slider.center().y() + 0.5 - thick_ / 2.0, slider.width(), thick_);
-      const bool hovered = (opt.activeSubControls & QStyle::SC_ScrollBarSlider) || underMouse();
-      QPainter p(this);
-      p.setRenderHint(QPainter::Antialiasing);
-      p.setPen(Qt::NoPen);
-      p.setBrush(hovered && hover_.isValid() ? hover_ : thumb_);
-      p.drawRoundedRect(pill, thick_ / 2.0, thick_ / 2.0);
-    }
-
-   private:
-    void swellTo(qreal target) {
-      if (support::motionReduced()) { swell_->stop(); thick_ = target; update(); return; }
-      swell_->stop();
-      swell_->setStartValue(thick_);
-      swell_->setEndValue(target);
-      swell_->start();
-    }
-
-    QColor thumb_, hover_;
-    qreal thick_ = kRestThick;
-    QVariantAnimation* swell_ = nullptr;
-  };
 
   class OverlayScrollArea : public QScrollArea {
    public:
     explicit OverlayScrollArea(QWidget* parent = nullptr) : QScrollArea(parent) {
       setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
       setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-      vBar_ = new PillScrollBar(Qt::Vertical, this);
-      hBar_ = new PillScrollBar(Qt::Horizontal, this);
+      vBar_ = new QScrollBar(Qt::Vertical, this);
+      hBar_ = new QScrollBar(Qt::Horizontal, this);
+      // Painted as pills (thin grey thumb, accent + a swell under the pointer) like every
+      // other bar in the app — support/pillScrollBars.hpp; the theme feeds the colours.
+      ScrollBarPill::adopt(vBar_);
+      ScrollBarPill::adopt(hBar_);
       mirror(verticalScrollBar(), vBar_);
       mirror(horizontalScrollBar(), hBar_);
-    }
-
-    // Theme hook (MainWindow::applyTheme): the thumb's rest and hover colours.
-    void setThumbColors(const QColor& thumb, const QColor& hover) {
-      vBar_->setThumbColors(thumb, hover);
-      hBar_->setThumbColors(thumb, hover);
     }
 
     // The visible, floating bar for an axis. horizontalScrollBar()/verticalScrollBar() stay
@@ -150,8 +79,8 @@ namespace stencil::gui {
       connect(view, &QScrollBar::valueChanged, model, &QScrollBar::setValue);
     }
 
-    PillScrollBar* vBar_ = nullptr;
-    PillScrollBar* hBar_ = nullptr;
+    QScrollBar* vBar_ = nullptr;
+    QScrollBar* hBar_ = nullptr;
   };
 
 }  // namespace stencil::gui

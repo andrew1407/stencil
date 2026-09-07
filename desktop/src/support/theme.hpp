@@ -95,9 +95,9 @@ namespace stencil::gui {
   // A Qt stylesheet (QSS) styling the whole app for the given mode + accent.
   QString buildStylesheet(bool dark, const QString& accentKey = "violet");
 
-  // The canvas scrollbars' thumb (browser css/theme.css --sb-thumb) and its hover shade —
-  // read by the painted overlay bars (canvas/overlayScrollArea.hpp), since QSS on macOS
-  // will not round a QScrollBar handle.
+  // Every scrollbar's thumb (browser css/theme.css --sb-thumb) and its hover shade — read
+  // by the painted bars (support/pillScrollBars.hpp), since QSS on macOS will not round
+  // a QScrollBar handle or light it under the pointer.
   QColor canvasScrollThumb(bool dark);
   QColor canvasScrollThumbHover(bool dark, const QString& accentKey = "violet");
 
