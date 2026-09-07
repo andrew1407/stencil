@@ -2212,7 +2212,9 @@ namespace stencil::gui {
         DisintegrateOverlay::overRect(
             list_->viewport(),
             list_->visualItemRect(row).intersected(list_->viewport()->rect()),
-            this, DisintegrateOverlay::Sweep::Rows, /*dust=*/true);
+            this, DisintegrateOverlay::Sweep::Rows, /*dust=*/true,
+            DisintegrateOverlay::kDustMaxCells, DisintegrateOverlay::kMs,
+            list_->palette().color(QPalette::Text));   // lifted to the row's ink
         retireRow(row);  // blank the real row at once — the snapshot is what flies
         updateBatchBar();   // …and it leaves the checked set with its own dust, not after it
       }
@@ -2428,7 +2430,8 @@ namespace stencil::gui {
     for (const QRect& r : rects)
       DisintegrateOverlay::overRect(list_->viewport(), r, this,
                                     DisintegrateOverlay::Sweep::Rows, /*dust=*/true, budget,
-                                    DisintegrateOverlay::kItemMs);   // a card is read, not glanced at
+                                    DisintegrateOverlay::kItemMs,   // a card is read, not glanced at
+                                    list_->palette().color(QPalette::Text));
     for (QListWidgetItem* it : doomed)
       retireRow(it);   // blank the real row at once; its slot outlives the dust
     // …and the bar answers NOW, beside the rows' dust, not after it: retireRow has already

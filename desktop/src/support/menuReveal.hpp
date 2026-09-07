@@ -12,9 +12,9 @@ class QWidget;
 namespace stencil::support {
 
   // Menu/submenu dust clock (browser SURFACE_MENU_IN_MS ×1.5 — user report: too brisk).
-  inline constexpr int kMenuPopupDustMs = 510;
+  inline constexpr int kMenuPopupDustMs = 340;
   // A SELECT's own popup reads slower next to the browser's — 1.5x this clock.
-  inline constexpr int kSelectPopupDustMs = 765;
+  inline constexpr int kSelectPopupDustMs = 510;
 
   // Call BEFORE exec()/popup() with the GLOBAL click point; the flight starts on
   // the menu's own Show, so it survives the blocking exec(). No-op headless

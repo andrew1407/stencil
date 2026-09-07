@@ -39,7 +39,7 @@ namespace {
   // Toast dust (browser motion.js surfaceIn/surfaceOut; desktop DisintegrateOverlay).
   // 2x the shared menu clock — a passing notice can afford to drift rather than snap.
   // Leaving is slower still than arriving (browser ENTER_DUST_MS / LEAVE_DUST_MS).
-  constexpr int kToastInMs = 680;
+  constexpr int kToastInMs = 560;   // browser ENTER_DUST_MS 840 / 1.5
   // Shorter than the entrance, not longer: an arrival can afford to drift, a departure has
   // nothing left to look at. Browser twin: js/ui/notifications.js LEAVE_DUST_MS.
   constexpr int kToastOutMs = 420;

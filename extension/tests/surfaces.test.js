@@ -15,9 +15,11 @@ import {
   SURFACE_COLS, SURFACE_ROWS, SURFACE_MOTE_PX, SURFACE_SPREAD, SURFACE_IN_MS, SURFACE_OUT_MS,
   SURFACE_DRIVEN_CLASS, SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS,
 } from '../src/lib/motion.js';
+import { FLIGHTS, alphaAt } from '../src/lib/dustCloud.js';
 
 const css = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const ANIMS = css('../src/lib/animations.css');
+const MOTION = css('../src/lib/motion.js');
 const THEME = css('../src/lib/theme.css');
 const OVERLAY = css('../src/lib/overlay.js');
 
@@ -161,7 +163,7 @@ test('opening a surface builds ONE mote layer, on <body>, aimed at the icon', (t
     const [host] = hosts(body);
     assert.ok(host, 'the layer lands on <body> — a dialog backdrop is removed under it');
     assert.match(host.className, /dust-forming/, 'the gather, not the scatter');
-    assert.ok(host.children.length > 50, 'a real mesh of motes');
+    assert.ok(host.__cloud.motes.length > 50, 'a real mesh of motes — on one canvas, not a node each');
     // The surface itself only ever gains classes and its clock — never a layout property.
     assert.ok(menu.classList.contains(SURFACE_DRIVEN_CLASS));
     assert.ok(menu.classList.contains(SURFACE_FORMING_CLASS));
@@ -239,18 +241,19 @@ test('with no element at all, nothing throws and nothing is claimed', () => {
   assert.doesNotThrow(() => { settleSurface(null); cancelDust(null); });
 });
 
-test('a mote is a painted speck, never a copy — one node per grain, styled in one write', () => {
+test('a mote is a painted speck, never a copy — one canvas per cloud, no node per grain', () => {
   withDom((body) => {
     disintegrate(makeEl(), { cols: 4, rows: 4, toward: { x: 0, y: 0 }, ms: 200, toBody: true });
     const [host] = hosts(body);
-    const tile = host.children[0];
-    assert.equal(tile.children.length, 0, 'nothing is ever put inside a mote');
-    assert.ok(tile.classes.has('dust-mote'), 'the painter marked it');
-    // Everything a mote needs rides its one cssText: throw, waypoint, spin, size, delay
-    // and its speck's own box and colour.
-    for (const v of ['--dx:', '--dy:', '--mx:', '--my:', '--rot:', '--tile-scale:', 'animation-delay:',
-                     'background:', 'left:', 'top:', 'width:', 'height:'])
-      assert.ok(tile.style.cssText.includes(v), `${v} in the tile’s style`);
+    const cloud = host.__cloud;
+    assert.equal(cloud.flight, 'surfaceScatter');
+    assert.ok(cloud.motes.length >= 9, 'at least three bands each way');
+    // Everything a grain needs rides its record: home, throw, waypoint, size, its
+    // speck's own colour and opacity, and its clock.
+    for (const k of ['x', 'y', 'dx', 'dy', 'mx', 'my', 'r', 's', 'a', 'c', 'delay', 'dur'])
+      assert.ok(Number.isFinite(cloud.motes[0][k]), `${k} on the grain`);
+    assert.ok(cloud.colours.length >= 1, 'painted in the surface’s own colours');
+    assert.ok(!host.children.some((c) => c.classes?.has?.('disintegrate-tile')), 'no node per grain');
   });
 });
 
@@ -266,20 +269,21 @@ test('a dusted surface waits behind its motes, and its old pop stays off for goo
 });
 
 test("a surface's motes are visible from the FIRST frame, unlike a row's", () => {
-  assert.match(ANIMS, /\.dust-forming \.disintegrate-tile \{\s*animation-name: stTileGatherSurface;/);
-  assert.match(ANIMS, /\.dust-leaving \.disintegrate-tile \{\s*animation-name: stTileScatterSurface;/);
-  assert.match(ANIMS, /@keyframes stTileGatherSurface \{\s*0%\s+\{ opacity: 0\.55;/);
-  assert.match(ANIMS, /@keyframes stTileScatterSurface \{\s*0%\s+\{ opacity: 1; transform: none;/);
-  // Both flights ride the SAME per-mote variables the row snap sets — one particle system.
-  for (const v of ['--dx', '--dy', '--rot', '--tile-scale'])
-    assert.ok(ANIMS.includes(`var(${v}`), `${v} drives the surface tiles too`);
-  // A surface flies on its own, shorter clock; a row keeps the CSS default.
-  assert.match(ANIMS, /animation: stTileScatter var\(--dust-ms, 1\.35s\)/);
-  assert.match(ANIMS, /animation: stTileGather var\(--gather-ms, 0\.72s\)/);
+  // The flights are dustCloud's table now (one particle system, shared with the browser
+  // byte for byte): a surface's motes start visible, a row's from nothing.
+  assert.equal(alphaAt(FLIGHTS.surfaceGather.alpha, 0), 0.55);
+  assert.equal(alphaAt(FLIGHTS.surfaceScatter.alpha, 0), 1);
+  assert.equal(alphaAt(FLIGHTS.gather.alpha, 0), 0);
+  // A surface flies on its own, shorter clock; a row keeps the default span.
+  assert.match(MOTION, /const gatherMs = toward \|\| !gather \? span : Math\.round\(span \* TILE_GATHER_SHARE\);/);
+  assert.match(MOTION, /dur: gather \? gatherMs : Math\.max\(MIN_TILE_MS, span - m\.delay\)/);
+  // …and the layer is one canvas, not a node per grain.
+  assert.match(ANIMS, /\.disintegrate-host > canvas \{ position: absolute; display: block; \}/);
+  assert.ok(!/disintegrate-tile/.test(ANIMS) && !/@keyframes stTile/.test(ANIMS), 'no rule left per tile');
 });
 
 test('reduced motion neutralises the surface classes the preference may have flipped under', () => {
-  const tail = ANIMS.slice(ANIMS.indexOf('.dust-mote {'));
+  const tail = ANIMS.slice(ANIMS.indexOf('.disintegrate-host.dust-forming {'));
   assert.match(tail, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\.dust-driven, \.dust-driven\.surface-forming, \.dust-driven\.surface-leaving \{ animation: none !important; \}/);
   assert.match(ANIMS, /\.disintegrate-host \{ display: none; \}/, 'no motes at all under the preference');
 });

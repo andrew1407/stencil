@@ -14,6 +14,7 @@
 // Header-only and Q_OBJECT-free (no signals/slots of its own), so it needs no MOC.
 #include "iconSet.hpp"
 #include "modalReveal.hpp"   // support::motionReduced()
+#include "shimmerOverlay.hpp"   // the app-wide hover sweep, per tab
 
 #include <QEasingCurve>
 #include <QHash>
@@ -47,6 +48,10 @@ namespace stencil::gui {
       setFocusPolicy(Qt::NoFocus);
       setCursor(Qt::PointingHandCursor);
       setAttribute(Qt::WA_Hover, true);
+      // The browser's tabs are <button>s, so they wear the shared glass shimmer on
+      // hover like every other control (css/layout.css ui-shimmer); here the sweep is
+      // driven per hovered TAB over the strip's own overlay (external-band mode).
+      sweep_ = new ShimmerOverlay(this, nullptr, /*externalBands=*/true);
       slide_ = new QVariantAnimation(this);
       slide_->setDuration(kSlideMs);
       slide_->setEasingCurve(QEasingCurve::OutCubic);
@@ -198,6 +203,7 @@ namespace stencil::gui {
       animateHover(hoverIdx_, 0.0);
       hoverIdx_ = idx;
       animateHover(hoverIdx_, 1.0);
+      if (idx >= 0) sweep_->sweepBand(tabRect(idx)); else sweep_->cancel();
     }
 
     void animateHover(int i, double to) {
@@ -228,6 +234,7 @@ namespace stencil::gui {
     QHash<int, double> hoverVal_;
     QHash<int, QVariantAnimation*> hoverAnims_;
     QVariantAnimation* slide_ = nullptr;
+    ShimmerOverlay* sweep_ = nullptr;   // the hovered tab's glass sweep
     QRectF underline_;
     int hoverIdx_ = -1;
   };

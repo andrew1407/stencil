@@ -502,29 +502,12 @@ html.theme-swapping *::before, html.theme-swapping *::after {
     pointer-events: none;
     overflow: visible;
 }
-.disintegrate-tile {
-    position: absolute;
-    /* Every tile IS a mote: round, sized and seated in its cell by motion.js. */
-    border-radius: 50%;
-    /* No `filter` here: a per-tile blur is a separate compositing pass EACH, and a few
-       hundred of them is what made a multi-row removal stutter. */
-    will-change: transform, opacity;
-    animation: stTileScatter var(--dust-ms, 1.35s) cubic-bezier(0.22, 0.55, 0.3, 1) both;
-}
-/* No straight lines: every flight passes a WAYPOINT (--mx/--my, motion.js tileWaypoint)
-   pushed off the mote's own line, so a cloud churns instead of radiating in spokes. The
-   first leg carries its own curve — near-linear, easing a little into the bend — and
-   the flight's own easing takes it home from there, so the turn is a bend, never a
-   stop-and-go. Spin and shrink pass through the halfway state on the way. */
-@keyframes stTileScatter {
-    0%   { opacity: 1; transform: none; animation-timing-function: cubic-bezier(0.3, 0.4, 0.7, 0.8); }
-    38%  { opacity: 0.85;
-           transform: translate(var(--mx, 18px), var(--my, -12px)) rotate(calc(var(--rot, 0deg) * 0.5)) scale(calc(1 - (1 - var(--tile-scale, 0.6)) * 0.5)); }
-    100% {
-        opacity: 0;
-        transform: translate(var(--dx, 30px), var(--dy, -20px)) rotate(var(--rot, 0deg)) scale(var(--tile-scale, 0.6));
-    }
-}
+/* The cloud is ONE canvas inside the layer (lib/dustCloud.js): every grain is drawn
+   there per frame in a few batched fills, so a dialog-sized cloud is one layer, not a
+   compositor layer per mote. The flights that used to be keyframes here (stTileScatter,
+   stTileGather, stTileGatherSurface, stTileScatterSurface) are dustCloud's FLIGHTS
+   table now; the host still owns the cross-fades below. */
+.disintegrate-host > canvas { position: absolute; display: block; }
 
 /* ── Materializing (lib/motion.js materialize) — the leave reversed ────
    A freshly-added row plays the removal backwards: its box expands out of nothing
@@ -552,23 +535,6 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    itself declares `transition: opacity` — with one it crossfades up under the motes
    still sitting where they landed (see .pin-row in options.html). */
 .materialize-veil { opacity: 0 !important; }
-/* The gather: stTileScatter reversed. A tile starts where the scatter would have
-   flung it (same deterministic --dx/--dy/--rot/--tile-scale) and flies home. Shorter
-   than the scatter so even the latest-starting mote (reversed sweep, ~0.42s of delay)
-   has landed by the time the veil lifts at DISINTEGRATE_MS. Declared after
-   .disintegrate-tile so the gather animation wins on the shared tile class. */
-.reintegrate-tile {
-    animation: stTileGather var(--gather-ms, 0.72s) cubic-bezier(0.7, 0, 0.78, 0.45) both;
-}
-@keyframes stTileGather {
-    0%   { opacity: 0;
-           transform: translate(var(--dx, 30px), var(--dy, -20px)) rotate(var(--rot, 0deg)) scale(var(--tile-scale, 0.6));
-           animation-timing-function: cubic-bezier(0.3, 0.2, 0.7, 0.6); }
-    22%  { opacity: 0.75; }
-    58%  { opacity: 0.9;
-           transform: translate(var(--mx, 18px), var(--my, -12px)) rotate(calc(var(--rot, 0deg) * 0.5)) scale(calc(1 - (1 - var(--tile-scale, 0.6)) * 0.5)); }
-    100% { opacity: 1; transform: none; }
-}
 
 /* ── Status line: the closest thing to a toast here ───────────────────
    `.status:empty { display:none }` (popup.css) makes it vanish instantly, and
@@ -758,48 +724,6 @@ html.theme-swapping *::before, html.theme-swapping *::after {
 @keyframes stDustHostOut  { 0%, 58% { opacity: 1; } 100% { opacity: 0; } }
 .disintegrate-host.dust-leaving { animation: stDustHostIn var(--dust-ms, 340ms) linear both; }
 .disintegrate-host.dust-forming { animation: stDustHostOut var(--gather-ms, 420ms) linear both; }
-/* A surface's motes ARE the window — they must be visible from the FIRST frame. A row's
-   stTileScatter/stTileGather spend their opening third near transparent (the row itself is
-   still there to look at); on a surface that read as the menu opening late. Same flight,
-   same noise, same vars — only the alpha ramp and the easing differ. */
-.dust-forming .disintegrate-tile {
-    animation-name: stTileGatherSurface;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
-.dust-leaving .disintegrate-tile {
-    animation-name: stTileScatterSurface;
-    /* Ease-OUT both ways: the motes break away at once and drift to a stop, which is
-       what sand does. The old ease-in-out held them still for the first frames and read
-       as the surface hesitating before it came apart. A caller may hand in a gentler
-       curve (--dust-ease on the host), as the browser's toasts do. */
-    animation-timing-function: var(--dust-ease, cubic-bezier(0.16, 1, 0.3, 1));
-}
-/* The surface flights bend through the same waypoint, early: their ease-out covers most
-   of the trip in the first fifth, so that is where the bend has to be to be seen. */
-@keyframes stTileGatherSurface {
-    0%   { opacity: 0.55;
-           transform: translate(var(--dx, 30px), var(--dy, -20px)) rotate(var(--rot, 0deg)) scale(var(--tile-scale, 0.3));
-           animation-timing-function: cubic-bezier(0.3, 0.3, 0.6, 0.8); }
-    16%  { transform: translate(var(--mx, 18px), var(--my, -12px)) rotate(calc(var(--rot, 0deg) * 0.5)) scale(calc(1 - (1 - var(--tile-scale, 0.3)) * 0.5)); }
-    45%  { opacity: 1; }
-    100% { opacity: 1; transform: none; }
-}
-@keyframes stTileScatterSurface {
-    0%   { opacity: 1; transform: none; animation-timing-function: cubic-bezier(0.3, 0.3, 0.6, 0.8); }
-    18%  { transform: translate(var(--mx, 18px), var(--my, -12px)) rotate(calc(var(--rot, 0deg) * 0.5)) scale(calc(1 - (1 - var(--tile-scale, 0.3)) * 0.5)); }
-    55%  { opacity: 0.9; }
-    100% { opacity: 0;
-           transform: translate(var(--dx, 30px), var(--dy, -20px)) rotate(var(--rot, 0deg)) scale(var(--tile-scale, 0.3)); }
-}
-/* Every cloud's motes are round specks in the surface's own colours — never copies of
-   it (motion.js speckPainter): a cloud on <body> made of copies is a cloud of elements
-   answering to the surface's own selectors, and at mote size a copy shows very nearly
-   nothing more. The speck is a GRAIN inside its cell, not the cell: motion.js sizes and
-   centres it, and caps it at SURFACE_SPECK_PX however far the mote budget let the cell
-   grow. (The class is the painter's mark; .disintegrate-tile already carries the shape.) */
-.dust-mote {
-    border-radius: 50%;
-}
 @media (prefers-reduced-motion: reduce) {
     /* motion.js never adds these under the preference; this is it flipped mid-flight —
        the surface must land at its true opacity, not a keyframed one. */

@@ -51,7 +51,10 @@ namespace stencil::gui {
     // Every route lands here (Settings dialog, logo click/cycle, the LLM setAccent op, a
     // .stencil file's embedded theme, the OS flipping under "system"), so hooking the one
     // apply covers them all — and skipping the boot pass and the no-op re-applies.
-    const bool swapping = themePainted_ && (dark != paintedDark_ || settings_.accentColor != paintedAccent_);
+    // …and never under reduced motion: the browser's themeSwap applies the palette
+    // outright there (motionReduced), and so does this — the wipe is motion too.
+    const bool swapping = themePainted_ && !support::motionReduced()
+        && (dark != paintedDark_ || settings_.accentColor != paintedAccent_);
     // Start the wipe at the ICON that owns the change — the theme button for a
     // light/dark flip, the logo for an accent cycle — exactly as the browser blooms
     // from its theme toggle. The cursor is NOT good enough: driving this from the View

@@ -24,8 +24,10 @@ import {
   SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS,
   SURFACE_DRIVEN_CLASS, MOTE_PX,
 } from '../js/ui/motion.js';
+import { FLIGHTS, alphaAt } from '../js/ui/dustCloud.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+const cloudJs = read('../js/ui/dustCloud.js');
 const animCss = read('../css/animations.css');
 const baseJs = read('../js/ui/base.js');
 const chatPanelJs = read('../js/ui/chatPanel.js');
@@ -144,7 +146,7 @@ test('a surface is grained at least as fine as a row, under its own mote ceiling
   assert.ok(SURFACE_MOTE_PX <= MOTE_PX, 'a surface mote is no coarser than a row’s');
   // 1380 (the original ceiling) still cost ~35ms of build/style/paint on a full-height
   // docked panel, most of a close's own budget spent before the first mote had moved.
-  assert.equal(SURFACE_COLS * SURFACE_ROWS, 672, 'the surface mote ceiling');
+  assert.equal(SURFACE_COLS * SURFACE_ROWS, 1380, 'the surface mote ceiling — the extension’s and the desktop’s (kSurfaceMaxCells)');
   // Whatever the budget leaves, the SPECK drawn in a cell is capped at a grain — a
   // cell-filling square is the "huge rectangles" a scatter must never show.
   assert.ok(SURFACE_SPECK_PX <= MOTE_PX, 'the drawn grain never grows with the cell');
@@ -239,19 +241,21 @@ test('the box is measured with its own entrance suppressed, or every mote is ico
 
 // ── 5. The CSS contract ─────────────────────────────────────────────────────
 
-test('the surface keyframes are the row’s scatter, re-timed and re-aimed', () => {
-  // Same tile vars — so the flight arithmetic above is what the browser plays.
-  for (const name of ['tileGatherSurface', 'tileScatterSurface']) {
-    const frames = animCss.match(new RegExp(`@keyframes ${name} \\{([\\s\\S]*?)\\n\\}`));
-    assert.ok(frames, `${name} exists`);
-    assert.match(frames[1], /translate\(var\(--dx[^)]*\), var\(--dy[^)]*\)\)\s*rotate\(var\(--rot[^)]*\)\)\s*scale\(var\(--tile-scale[^)]*\)\)/);
-  }
+test('the surface flights are the row’s scatter, re-timed and re-aimed', () => {
+  // Same grain, same waypoint arithmetic as a row's (dustCloud.js FLIGHTS): a gather
+  // starts at the far end and flies home, a scatter the other way.
+  assert.equal(FLIGHTS.surfaceGather.from, 'far');
+  assert.equal(FLIGHTS.surfaceScatter.from, 'home');
   // A surface's motes are visible from the first frame — they ARE the window.
-  assert.match(animCss, /@keyframes tileGatherSurface \{\s*\n\s*0%\s*\{ opacity: 0\.\d+;/);
-  // …and both ride the surface's own clock, the row's own fall being only the fallback
-  // (motion.js writes --dust-ms / --gather-ms per flight, and each mote's duration inline).
-  assert.match(animCss, /animation: tileScatter var\(--dust-ms, 1\.35s\)/);
-  assert.match(animCss, /animation: tileGather var\(--gather-ms, 0\.72s\)/);
+  assert.equal(alphaAt(FLIGHTS.surfaceGather.alpha, 0), 0.55);
+  assert.equal(alphaAt(FLIGHTS.surfaceScatter.alpha, 0), 1);
+  // …and their ease-out covers most of the trip early, so the bend sits early too.
+  assert.ok(FLIGHTS.surfaceGather.split <= 0.2 && FLIGHTS.surfaceScatter.split <= 0.2);
+  assert.ok(FLIGHTS.surfaceGather.rest(0.3) > 0.8, 'ease-out: most of the trip in the first third');
+  // Both ride the surface's own clock (motion.js writes --dust-ms / --gather-ms on the
+  // host for its cross-fades, and each grain's duration inline).
+  assert.match(motionJs, /const gatherMs = toward \|\| !gather \? span : Math\.round\(span \* TILE_GATHER_SHARE\);/);
+  assert.match(motionJs, /host\.style\.setProperty\('--gather-ms', `\$\{gatherMs\}ms`\);/);
 });
 
 test('the surface waits behind its dust, and hands over to it on the way out', () => {
@@ -269,15 +273,16 @@ test('the layer can never take a click or hold focus, and never moves the page',
   const host = animCss.match(/\.disintegrate-host \{([\s\S]*?)\n\}/)[1];
   assert.match(host, /position: fixed;/, 'out of flow — no reflow, ever');
   assert.match(host, /pointer-events: none;/);
-  // Motes are the tiles themselves — <div>s with no text and no tabindex (motion.js
-  // speckPainter paints them), so there is nothing focusable in the layer at all.
-  assert.match(motionJs, /tile\.classList\.add\('dust-mote'\);/);
-  assert.match(motionJs, /const tile = document\.createElement\('div'\);/);
-  // …and a tile carries no child at all: one node per grain, not two, styled in ONE
-  // write — the painter hands back declarations that ride the tile's own cssText —
-  // which is what a window-sized cloud can actually afford to build in a frame.
-  assert.match(motionJs, /tile\.style\.cssText = `--dx:\$\{m\.dx\}px;[\s\S]{0,300}?\+ paint\(tile, \{ cx, cy, cols, rows, cellW, cellH \}\);/);
-  assert.ok(!/tile\.appendChild\(/.test(motionJs), 'nothing is ever put inside a mote');
+  // The motes are pixels on ONE canvas inside the layer (dustCloud.js) — no node per
+  // grain, nothing with text or a tabindex, so there is nothing focusable at all.
+  assert.match(motionJs, /startCloud\(host, motes, \{ flight: kind, span, colours: fills, origin/);
+  assert.match(cloudJs, /canvas\.style\.cssText = `position:absolute;[\s\S]{0,200}?pointer-events:none;`/);
+  assert.match(cloudJs, /host\.appendChild\(canvas\);/);
+  assert.ok(!/disintegrate-tile/.test(motionJs), 'no node per grain any more');
+  // The layer never waits on the paint: a document without a 2D canvas (tests) still
+  // gets the bookkeeping, and the loop is stopped before the layer goes.
+  assert.match(cloudJs, /const ctx = canvas\.getContext\?\.\('2d'\);\s*\n\s*if \(!ctx\) return noop;/);
+  assert.match(motionJs, /el\.__dustHost\?\.__stop\?\.\(\);/);
 });
 
 test('reduced motion: no cloud, no veil — the surface simply is, or is not', () => {
@@ -398,7 +403,7 @@ test('a FOLD is the exception: it leaves slower than it arrives', async () => {
 
 test('a surface forms slower than it leaves — arriving is the half you watch', () => {
   assert.ok(SURFACE_IN_MS > SURFACE_OUT_MS, 'the gather is the slower half');
-  assert.ok(SURFACE_IN_MS >= 560 && SURFACE_IN_MS <= 700, 'slow enough to read as sand gathering');
+  assert.ok(SURFACE_IN_MS >= 560 && SURFACE_IN_MS <= 800, 'slow enough to read as sand gathering, brisk enough not to wait on');
   // tileNoise is the shared hash — the surface flight is the row's, not a second system.
   assert.equal(typeof tileNoise(1, 2), 'number');
   assert.equal(tileNoise(1, 2), tileNoise(1, 2));

@@ -34,11 +34,10 @@ namespace stencil::support {
     // (DisintegrateOverlay::kSurfaceInMs / kSurfaceOutMs, the browser's numbers).
     constexpr int kOpenMs = 300;
     constexpr int kCloseMs = 240;
-    // Deliberate desktop divergence (user decision 2026-09-02): a dialog's OPEN gather
-    // runs 1.5× faster than the shared kSurfaceInMs — 620ms read as sluggish on a big
-    // modal. The close keeps the default clock, and the fade-up rides this one so the
-    // window still lands together with its dust.
-    constexpr int kDialogDustInMs = gui::DisintegrateOverlay::kSurfaceInMs * 2 / 3;   // ≈413
+    // The shared surface clock — which on the desktop already runs 1.5x the browser's
+    // (disintegrateOverlay.hpp kMs). The fade-up rides this one so the window lands
+    // with its dust.
+    constexpr int kDialogDustInMs = gui::DisintegrateOverlay::kSurfaceInMs;
 
     // Where the motion starts/ends, in GLOBAL coords: the icon, else a small box above
     // the dialog (hidden widgets map to 0x0, which is the same "not on screen" case).

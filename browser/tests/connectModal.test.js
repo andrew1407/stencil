@@ -12,6 +12,7 @@ import {
 import { canRefreshList } from '../js/ui/projectsModal.js';
 import { StencilConnectModal, matchesConnFilter, batchNote } from '../js/ui/connectModal.js';
 import { createStubElement, installDom } from './helpers/dom.js';
+import { FLIGHTS, moteFrame, alphaAt } from '../js/ui/dustCloud.js';
 
 const markup = layout();
 const count = (needle) => markup.split(needle).length - 1;
@@ -215,15 +216,17 @@ test('animations.css: materialize is the leave reversed, veil outranks keyframes
   assert.ok(!/@keyframes rowMaterializeBox \{[^}]*opacity/.test(css), 'the box keyframes carry no alpha');
   assert.match(css, /\.disintegrate-host\.dust-forming \{ animation: dustHostOut var\(--host-ms, var\(--gather-ms, 420ms\)\)/,
     'the forming host lives the whole span');
-  assert.match(css, /\.reintegrate-tile \{(?:\s|\/\*[\s\S]*?\*\/)*animation: tileGather/,
-    'gather tiles override the scatter animation on the shared tile class');
-  assert.match(css, /@keyframes tileGather \{\s*0%\s+\{ opacity: 0;\s*transform: translate\(var\(--dx/,
-    'a gather tile starts where the scatter would have flung it');
-  assert.match(css, /@keyframes tileGather \{[\s\S]*?100% \{ opacity: 1; transform: none; \}/,
-    'and flies home to identity');
-  // The gather rides the same fixed layer, so reduced motion hides it with the scatter.
-  assert.ok(css.indexOf('.reintegrate-tile') > css.indexOf('.disintegrate-tile'),
-    'declared after .disintegrate-tile so the gather animation wins');
+  // The gather is the scatter reversed, flown on the one canvas (js/ui/dustCloud.js): a
+  // grain starts where the scatter would have flung it, invisible, and flies home to
+  // identity at full opacity — the tileGather keyframes, as numbers.
+  assert.equal(FLIGHTS.gather.from, 'far', 'a gather grain starts where the scatter would have flung it');
+  const grain = { x: 10, y: 20, dx: 30, dy: 40, mx: 18, my: 25, r: 3, s: 0.5, a: 1 };
+  const flung = moteFrame(grain, 'gather', 0);
+  assert.deepEqual([flung.x, flung.y], [40, 60], 'the far end of the throw');
+  const home = moteFrame(grain, 'gather', 1);
+  assert.deepEqual([home.x, home.y, home.r], [10, 20, 3], 'and flies home to identity');
+  assert.equal(alphaAt(FLIGHTS.gather.alpha, 0), 0, 'invisible as it sets off');
+  assert.equal(alphaAt(FLIGHTS.gather.alpha, 1), 1, 'full once home');
 });
 
 // ── Admin connections: the golden outline + the credential filter ───────────

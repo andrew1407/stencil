@@ -383,7 +383,8 @@ namespace stencil::gui {
     // The same finer grid the dock's cards use (chatWidgets.hpp kChatScatter*).
     const bool playing =
         DisintegrateOverlay::over(l, window(), DisintegrateOverlay::Sweep::Fall,
-                                  kChatScatterCols, kChatScatterRows)
+                                  kChatScatterCols, kChatScatterRows, 0,
+                                  l->palette().color(QPalette::WindowText))
         != nullptr;
     rows_->removeWidget(l);
     // Out of the layout, but painted while it fades under its own dust. Reuse

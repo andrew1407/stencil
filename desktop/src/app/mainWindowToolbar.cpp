@@ -137,7 +137,9 @@ namespace stencil::gui {
     auto* section = new QWidget(this);
     auto* col = new QVBoxLayout(section);
     col->setContentsMargins(6, 1, 6, 1);
-    col->setSpacing(3);
+    // The gap between the caption and its controls: the browser's .ctrl-section-label
+    // runs 4px of padding plus a 4px margin under the text (css/layout.css).
+    col->setSpacing(8);
     auto* label = new QLabel(title.toUpper(), section);
     label->setObjectName("sectionLabel");
     label->setStyleSheet("color:#7a828c;font-size:9px;font-weight:700;letter-spacing:0.6px;");

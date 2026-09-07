@@ -37,8 +37,8 @@ namespace stencil::gui {
   // MARK_IN_MS / MARK_OUT_MS).
   // A group's slot is a wider move than a single mark and reads as a snap at the mark's
   // clock, so it gets its own. Browser twin: REVEAL_GROUP_IN/OUT_MS.
-  inline constexpr int kControlRevealInMs = 420;
-  inline constexpr int kControlRevealOutMs = 320;
+  inline constexpr int kControlRevealInMs = 347;   // browser REVEAL_GROUP_IN_MS 520 / 1.5
+  inline constexpr int kControlRevealOutMs = 267;  // browser REVEAL_GROUP_OUT_MS 400 / 1.5
   // Motes about this big on screen, under a ceiling of their own — well below a window's:
   // the f(x,y) row is a few hundred pixels wide and a window's grain over it would build
   // thousands of cells for a third of a second (browser MARK_COLS x MARK_ROWS).

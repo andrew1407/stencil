@@ -51,7 +51,7 @@ namespace stencil::gui {
   inline constexpr int kFilterDustCells = 2400;
   // …on the FILTER's clock, not a removal's: a view change has to keep up with typing in
   // a search box (browser FILTER_DUST_MS).
-  inline constexpr int kFilterDustMs = 300;
+  inline constexpr int kFilterDustMs = 253;
   // Named apart from the removal's scatter (DisintegrateOverlay::kObjectName) on purpose:
   // a filter's sand is an arrival, and anything counting live removals — the tests
   // included — must never mistake one for the other.

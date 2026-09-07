@@ -68,7 +68,7 @@ namespace stencil::gui {
 
   // ── the checkbox's particles ─────────────────────────────────────────────────
   // Click feedback, not a show: a fifth of a removed row's 900ms.
-  inline constexpr int kCheckSwapMs = 260;
+  inline constexpr int kCheckSwapMs = 213;
   // Cells per side over a 16px indicator — ~2px each, which still reads as grit at
   // dpr 1. The row default (22x11) over a box this small gives four slabs, not dust.
   inline constexpr int kCheckSwapCells = 7;

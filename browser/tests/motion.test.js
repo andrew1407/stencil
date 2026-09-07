@@ -21,6 +21,7 @@ import {
   tileWaypoint, tileMotion, surfaceMotion, WAYPOINT_ALONG, SWIRL_SHARE, SWIRL_MAX_PX,
   DUST_ALPHA_LEVELS, DISINTEGRATE_MS, MIN_TILE_MS,
 } from '../js/ui/motion.js';
+import { FLIGHTS, moteFrame } from '../js/ui/dustCloud.js';
 
 const box = (left, top, width, height) => ({ left, top, width, height });
 
@@ -1329,9 +1330,8 @@ test('tileWaypoint sits part-way along the throw, pushed sideways by its own noi
 // so does this now — the cloud is done AT the span, whatever the sweep.
 test('the scatter fits inside its span: a late mote flies what is left of it, not more', () => {
   const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
-  assert.match(src, /const flightMs = gather \? 0 : Math\.max\(MIN_TILE_MS, \(ms \|\| DISINTEGRATE_MS\) - m\.delay\)/,
-    'the tile is given the remainder of the span, not the whole of it');
-  assert.match(src, /animation-duration:\$\{flightMs\}ms/, '…written on the tile itself');
+  assert.match(src, /dur: gather \? gatherMs : Math\.max\(MIN_TILE_MS, span - m\.delay\)/,
+    'the grain is given the remainder of the span, not the whole of it');
   // Every cell of a row scatter lands within DISINTEGRATE_MS (the floor is the only
   // exception, and it only ever applies to a flight far shorter than a row's).
   for (let cy = 0; cy < 16; cy++) {
@@ -1345,7 +1345,7 @@ test('the scatter fits inside its span: a late mote flies what is left of it, no
   // what fills the rest of the span, so it already landed on time.
   assert.ok(tileMotion(0, 0, 34, 16, true).delay >= 0);
   // …and the layer is torn down a beat after the last mote, not most of a second later.
-  assert.match(src, /\(ms \|\| DISINTEGRATE_MS\) \+ 150\)/);
+  assert.match(src, /\}, span \+ 150\);/);
 });
 
 test('a row’s fall and a surface’s flight both carry the waypoint, deterministically', () => {
@@ -1371,19 +1371,24 @@ test('a row’s fall and a surface’s flight both carry the waypoint, determini
   assert.ok(sides.has(1) && sides.has(-1), 'both sides of the line are used');
 });
 
-test('animations.css: every flight bends through --mx/--my, and every tile is round', () => {
+test('every flight bends through the waypoint on its own first leg, and the cloud is one canvas', () => {
   const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
-  for (const name of ['tileScatter', 'tileGather', 'tileGatherSurface', 'tileScatterSurface']) {
-    const frames = css.match(new RegExp(`@keyframes ${name} \\{([\\s\\S]*?)\\n\\}`))[1];
-    assert.match(frames, /translate\(var\(--mx, [^)]*\), var\(--my, [^)]*\)\)/, `${name} has a waypoint`);
-    // The first leg carries its own curve, so the bend is a bend, not a stop-and-go.
-    assert.match(frames, /0%\s+\{[^}]*animation-timing-function: cubic-bezier/, `${name}: leg one eases on its own`);
-    // Spin and shrink pass through the halfway state, so nothing snaps at the bend.
-    assert.match(frames, /rotate\(calc\(var\(--rot, 0deg\) \* 0\.5\)\)/, `${name}: half the spin at the bend`);
+  const grain = { x: 100, y: 200, dx: 60, dy: 80, mx: 30, my: 55, r: 4, s: 0.4, a: 1 };
+  for (const name of ['scatter', 'gather', 'surfaceGather', 'surfaceScatter', 'fall']) {
+    const f = FLIGHTS[name];
+    // The mid keyframe: at `split` every grain is exactly at its waypoint…
+    const bend = moteFrame(grain, name, f.split);
+    assert.ok(Math.abs(bend.x - 130) < 1e-6 && Math.abs(bend.y - 255) < 1e-6, `${name} passes the waypoint`);
+    // …at half its shrink, so nothing snaps at the bend.
+    assert.ok(Math.abs(bend.r - 4 * (1 - (1 - 0.4) * 0.5)) < 1e-6, `${name}: half the shrink at the bend`);
+    // The first leg carries its own curve, so the bend is a bend, not a stop-and-go
+    // (a mark's fall rides one curve throughout, like the desktop's Sweep::Fall).
+    if (name !== 'fall') assert.notEqual(f.leg(0.5), f.rest(0.5), `${name}: leg one eases on its own`);
   }
-  const tile = css.match(/\.disintegrate-tile \{([\s\S]*?)\n\}/)[1];
-  assert.match(tile, /border-radius: 50%;/, 'a tile IS a round mote');
-  assert.ok(!/inset: 0/.test(tile), 'it sizes and seats itself — never fills the host');
+  // No node per grain any more: the layer holds ONE canvas (js/ui/dustCloud.js) and the
+  // flights above are its table — nothing is left in the stylesheet per tile.
+  assert.match(css, /\.disintegrate-host > canvas \{ position: absolute; display: block; \}/);
+  assert.ok(!/disintegrate-tile/.test(css) && !/@keyframes tile/.test(css), 'no rule left per tile');
   // The theme wipe’s grains are the same round grain, but the STAGE draws them now
   // (js/ui/motion.js spawnSwapDust): no per-grain rule, and so no layer per grain.
   assert.ok(!/\.swap-dust-mote/.test(css) && !/swapDustMote/.test(css), 'no rule left per grain');

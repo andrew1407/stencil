@@ -1262,7 +1262,8 @@ namespace stencil::gui {
         if (chip->property("chatChipLeaving").toBool()) return;   // one click is enough
         chip->setProperty("chatChipLeaving", true);
         DisintegrateOverlay::over(chip, window(), DisintegrateOverlay::Sweep::Fall,
-                                  kChatScatterCols, kChatScatterRows);
+                                  kChatScatterCols, kChatScatterRows, 0,
+                                  chip->palette().color(QPalette::WindowText));
         // Fade the chip itself out (the scatter replaces it visually) WITHOUT hiding
         // or deleting it — an invisible chip still holds its slot for the hold+squeeze.
         for (QVariantAnimation* a : chip->findChildren<QVariantAnimation*>()) a->stop();
@@ -2145,7 +2146,8 @@ namespace stencil::gui {
       // way the cleared IMAGE does — the two removals now read as the same gesture.
       DisintegrateOverlay::over(w, window(), DisintegrateOverlay::Sweep::Fall,
                                 kChatScatterCols, kChatScatterRows,
-                                DisintegrateOverlay::kItemMs);   // a message is read, not glanced at
+                                DisintegrateOverlay::kItemMs,   // a message is read, not glanced at
+                                w->palette().color(QPalette::WindowText));
       // Anything REMOVED means the empty state waits, whether or not the scatter
       // could play (over() declines what it cannot grab — an off-screen dock, a
       // zero-sized card). Keying the wait off the animation instead made the wait
