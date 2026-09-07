@@ -30,6 +30,8 @@
 #include <QVariantAnimation>
 #include <QWidget>
 
+#include "motionPrefs.hpp"   // support::dustAllowed()
+
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -212,6 +214,7 @@ namespace stencil::gui {
     // llm/chatWidgets.cpp kChatArriveMs); 0 keeps the row default.
     static DisintegrateOverlay* over(QWidget* victim, QWidget* host, Sweep sweep = Sweep::Rows,
                                      int cols = 0, int rows = 0, int ms = 0) {
+      if (!support::dustAllowed()) return nullptr;   // no particles in this motion mode
       if (!victim || !host || !victim->isVisible()) return nullptr;
       if (victim->width() < 8 || victim->height() < 8) return nullptr;
       const QPixmap snap = victim->grab();
@@ -248,6 +251,7 @@ namespace stencil::gui {
     static DisintegrateOverlay* overRect(QWidget* source, const QRect& rect, QWidget* host,
                                         Sweep sweep = Sweep::Rows, bool dust = false,
                                         int dustCells = kDustMaxCells, int ms = kMs) {
+      if (!support::dustAllowed()) return nullptr;   // no particles in this motion mode
       if (!source || !host || !source->isVisible()) return nullptr;
       if (rect.width() < 8 || rect.height() < 8) return nullptr;
       const QPixmap snap = source->grab(rect);
@@ -277,6 +281,7 @@ namespace stencil::gui {
                                             const QRect& at, QWidget* host, Sweep sweep,
                                             int cols, int rows, int ms, double spread,
                                             int pad = 0, const QString& name = QString()) {
+      if (!support::dustAllowed()) return nullptr;   // no particles in this motion mode
       if (!host || particles.isNull() || at.width() < 2 || at.height() < 2) return nullptr;
       auto* fx = new DisintegrateOverlay(host, particles);
       if (!name.isEmpty()) fx->setObjectName(name);
@@ -323,6 +328,7 @@ namespace stencil::gui {
                                             int ms = 0, const QColor& ink = QColor(),
                                             int maxCells = kSurfaceMaxCells,
                                             bool escapeHost = false, bool alwaysEscape = false) {
+      if (!support::dustAllowed()) return nullptr;   // no particles in this motion mode
       if (!host || snap.isNull() || picture.width() < 8 || picture.height() < 8) return nullptr;
       auto* fx = new DisintegrateOverlay(host, liftedToInk(snap, ink));
       fx->sweep_ = gather ? Sweep::SurfaceIn : Sweep::SurfaceOut;

@@ -1,0 +1,17 @@
+{
+  "name": "chat-panel-empty-invalid",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "chatPanel"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "§10 chatPanel needs at least one of \"open\" / \"dock\" — a placement op that names neither says nothing"
+}

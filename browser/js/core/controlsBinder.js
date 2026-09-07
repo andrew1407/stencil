@@ -18,7 +18,8 @@ import { showMenu, hideMenu } from '../ui/dropdownMenu.js';
 // input, so a blanket typing guard would make their toggles one-way — able to open the
 // panel but never close it from inside the box, exactly when the shortcut is wanted.
 export const HOTKEYS_WHILE_TYPING = [
-  'toggleChat', 'openHelp', 'openHotkeys', 'openVisuals', 'openProjects', 'openServers', 'openLinks',
+  'toggleChat', 'toggleVoiceChat', 'openHelp', 'openHotkeys', 'openVisuals', 'openProjects', 'openServers', 'openLinks',
+  'openDescription', 'openKeywords',
 ];
 
 // Which of those a keydown matches while typing, or null for "let the text box have it".
@@ -28,6 +29,13 @@ export const typingHotkeyId = (e, hotkeys, ids = HOTKEYS_WHILE_TYPING) => {
     if (combo && matchHotkey(e, combo)) return id;
   }
   return null;
+};
+
+// Where a keyboard-opened context menu (Shift+F10) lands: under the pointer while it
+// rests over the canvas, else the viewport's centre — the desktop places its menu the same way.
+export const contextMenuPoint = (app, viewportRect) => {
+  if (app.mouseOverCanvas) return { x: app.lastMouseClientX, y: app.lastMouseClientY };
+  return { x: viewportRect.left + viewportRect.width / 2, y: viewportRect.top + viewportRect.height / 2 };
 };
 
 
@@ -628,13 +636,24 @@ export class ControlsBinder {
       openProjects: () => clickIfActive('projects-btn'),
       openServers: () => clickIfActive('connect-btn'),
       openLinks: () => clickIfActive('links-btn'),
+      openDescription: () => clickIfActive('description-btn'),
+      openKeywords: () => clickIfActive('keywords-btn'),
       toggleTheme: () => clickIfActive('theme-toggle'),
       toggleIncognito: () => clickIfActive('incognito-toggle'),
       toggleChat: () => clickIfActive('chat-btn'),
       toggleVoiceChat: () => clickIfActive('voice-chat-btn'),
       openHelp: () => clickIfActive('info-btn'),
       openHotkeys: () => clickIfActive('settings-btn'),
-      openVisuals: () => clickIfActive('visuals-btn')
+      openVisuals: () => clickIfActive('visuals-btn'),
+      // Shift+F10 opens the canvas context menu from the keyboard, as a REAL contextmenu
+      // event on the viewport so the right-click path (contextMenu.js) is the only path.
+      // An already-open menu keeps its place; Escape closes it.
+      contextMenu: () => {
+        const viewport = document.getElementById('canvas-viewport');
+        if (!viewport || document.getElementById('ctx-menu')?.classList.contains('ctx-open')) return;
+        const { x, y } = contextMenuPoint(app, viewport.getBoundingClientRect());
+        viewport.dispatchEvent(new MouseEvent('contextmenu', { clientX: x, clientY: y, bubbles: true, cancelable: true }));
+      }
     };
     // Editing hotkeys are inert while a compare view is active (it's read-only).
     const EDIT_HOTKEYS = new Set([

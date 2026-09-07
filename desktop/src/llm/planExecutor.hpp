@@ -108,7 +108,8 @@ namespace stencil::llm {
     // cannot manage projects at all (*note is the plan error). `current` names
     // the ACTIVE project instead of resolving `name` (§10 removeProject).
     virtual bool removeProjectNamed(const QString& name, bool current, QString* note);
-    virtual bool clearProjects(QString* note);
+    // §10 clearProjects: `keepCurrent` spares the project open right now.
+    virtual bool clearProjects(bool keepCurrent, QString* note);
     // §10 renameProject / projectColor / blankColor / openProject / incognito:
     // the same true+note contract as removeProjectNamed — a non-empty *note
     // (no active project, non-blank editor, unknown name, declined confirm)
@@ -116,8 +117,18 @@ namespace stencil::llm {
     virtual bool renameActiveProject(const QString& name, QString* note);
     virtual bool setProjectColor(const QString& color, QString* note);
     virtual bool setBlankColor(const QString& color, QString* note);
-    virtual bool openProjectNamed(const QString& name, QString* note);
+    // §10 openProject: `last` = the most recently edited saved project (name is
+    // empty then) — the surface resolves it; the model never sees the list.
+    virtual bool openProjectNamed(const QString& name, bool last, QString* note);
     virtual bool setIncognito(bool on, QString* note);
+    // §10 chatPanel: place the assistant panel itself — `open` -1 = leave the
+    // visibility alone, else 0/1; `dock` "" = leave it where it is. Same
+    // true+note contract as the ops above.
+    virtual bool setChatPlacement(int open, const QString& dock, QString* note);
+    // §10 dialog: put one of the editor's own windows in front of the user
+    // (projects|servers|shortcuts|visuals|help); an empty `name` closes the open one.
+    // Deferred to the plan's end by executePlan — the dialogs are modal.
+    virtual bool openDialog(const QString& name, QString* note);
     // §10 clearChat: run the surface's clear-conversation flow, confirm
     // included — the executor calls this LAST, after the plan's other actions
     // and variants. Same three-valued contract: true + non-empty *note =

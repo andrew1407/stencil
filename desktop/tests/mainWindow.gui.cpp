@@ -24,6 +24,9 @@
 #include "../src/support/appTooltip.hpp"
 #include "serverClient.hpp"
 #include "llmSettingsForm.hpp"
+#include "../src/llm/chatPlanTarget.hpp"   // §10 chatPanel: the plan target that places the dock
+#include "../src/llm/opPlan.hpp"
+#include "../src/llm/planExecutor.hpp"
 #include "mediaLoader.hpp"
 #include "popover.hpp"
 #include "iconSet.hpp"
@@ -532,6 +535,8 @@ class MainWindowGuiTest : public QObject {
         {win.actDeleteProjectFile_, nullptr, "delete-project-btn"},
         {win.actConnect_, nullptr, "connect-btn"},
         {win.actLinks_, nullptr, "links-btn"},
+        {win.actDescription_, nullptr, "description-btn"},
+        {win.actKeywords_, nullptr, "keywords-btn"},
         {win.actChat_, nullptr, "chat-btn"},
         {win.actCrop_, nullptr, "crop-image"},
         {win.actRotateLeft_, nullptr, "rotate-left"},
@@ -1020,6 +1025,140 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(a->state() != QAbstractAnimation::Running,
                "an fx animation kept running after hover-leave");
     QVERIFY2(!iconBlank(), "leave must hand the mark back to the button icon");
+  }
+
+  // Browser parity: the accent popover the logo opens is part of the logo's hover —
+  // the shine holds while the cursor crosses the anchor gap onto it and while it rests
+  // there, starts from a hover that begins on the popover, and stops only once the
+  // cursor has left both.
+  void logoHoverFxHoldsOverAccentPopover() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QToolButton* logo = win.logoBtn_;
+    QWidget* fx = win.findChild<QWidget*>("logoHoverFx");
+    QVERIFY(logo && fx);
+    if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();   // typingFocus gate off
+    const QPoint c = logo->rect().center();
+    const QPoint logoGlobal = logo->mapToGlobal(c);
+    const QPoint awayGlobal = win.mapToGlobal(QPoint(win.width() / 2, win.height() - 40));
+    const auto enter = [](QWidget* w, const QPoint& global) {
+      const QPointF local(w->mapFromGlobal(global));
+      QEnterEvent e(local, local, QPointF(global));
+      QApplication::sendEvent(w, &e);
+    };
+    const auto leave = [](QWidget* w) {
+      QEvent e(QEvent::Leave);
+      QApplication::sendEvent(w, &e);
+    };
+    QCursor::setPos(logoGlobal);
+    enter(logo, logoGlobal);
+    QVERIFY(fx->property("fxActive").toBool());
+
+    bool opened = false, heldOnCrossing = false, heldOnBox = false;
+    bool stoppedOffBoth = false, startedOnBox = false;
+    QTimer::singleShot(600, &win, [&] {   // past the popover's open flight
+      QWidget* box = win.popoverOverlay_.data();
+      opened = box && box->isVisible() && win.activePopover_ &&
+               win.activePopover_->objectName() == QLatin1String("accentPopover");
+      if (!opened) { if (win.activePopover_) win.activePopover_->reject(); return; }
+      // The cursor crosses the anchor gap onto the box: the logo's Leave alone must not
+      // stop the loop (the browser's hover bridge), and resting on the box holds it.
+      const QPoint boxGlobal = box->mapToGlobal(box->rect().center());
+      QCursor::setPos(boxGlobal);
+      leave(logo);
+      QTest::qWait(60);   // inside the grace
+      heldOnCrossing = fx->property("fxActive").toBool();
+      enter(box, boxGlobal);
+      QTest::qWait(300);  // well past the grace
+      heldOnBox = fx->property("fxActive").toBool() && fx->isVisible();
+      // Off both (onto the canvas): the loop stops once the grace runs out.
+      QCursor::setPos(awayGlobal);
+      leave(box);
+      QTest::qWait(300);
+      stoppedOffBoth = !fx->property("fxActive").toBool();
+      // A hover that BEGINS on the popover lights the logo too.
+      QCursor::setPos(boxGlobal);
+      enter(box, boxGlobal);
+      startedOnBox = fx->property("fxActive").toBool();
+      QCursor::setPos(awayGlobal);
+      leave(box);
+      win.activePopover_->reject();
+    });
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, c, logoGlobal);
+    QApplication::sendEvent(logo, &ctx);   // blocks in the popover's loop until the timer acts
+    QTRY_VERIFY(!win.activePopover_);
+    QVERIFY2(opened, "right-click did not open the accent popover");
+    QVERIFY2(heldOnCrossing, "leaving the logo for the open popover stopped the shine");
+    QVERIFY2(heldOnBox, "hovering the open popover did not hold the shine");
+    QVERIFY2(stoppedOffBoth, "the shine kept running with the cursor off logo and popover");
+    QVERIFY2(startedOnBox, "hovering the popover did not start the shine");
+    // The popover has gone and the cursor is on neither: the loop is down and idle.
+    QTRY_VERIFY(!fx->property("fxActive").toBool());
+    for (QVariantAnimation* a : fx->findChildren<QVariantAnimation*>())
+      QVERIFY(a->state() != QAbstractAnimation::Running);
+  }
+
+  // Shift+F10 (shared hotkeysConfig contextMenu) opens the canvas context menu from the
+  // keyboard: under the pointer while it rests over the canvas viewport, else at the
+  // viewport's centre — the browser's placement for the same chord.
+  void contextMenuOpensOnShiftF10() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    QVERIFY(win.actContextMenu_);
+    QCOMPARE(win.actContextMenu_->shortcut(), QKeySequence("Shift+F10"));
+    if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();
+    win.activateWindow();
+    QVERIFY(QTest::qWaitForWindowActive(&win));   // a WindowShortcut needs the active window
+    QWidget* vp = win.scroll_->viewport();
+    const QRect vpGlobal(vp->mapToGlobal(QPoint(0, 0)), vp->size());
+    // The menu exec()s: a poll (armed BEFORE the press — the platform key path flushes
+    // pending events, so a one-shot would fire too early) records where it opened and closes it.
+    const auto armCloser = [&win](bool& opened, QPoint& at) {
+      auto* poll = new QTimer(&win);
+      poll->setInterval(10);
+      int ticks = 0;
+      QObject::connect(poll, &QTimer::timeout, &win, [poll, &opened, &at, ticks]() mutable {
+        if (auto* menu = qobject_cast<QMenu*>(QApplication::activePopupWidget())) {
+          opened = true;
+          at = menu->pos();
+          menu->close();
+          poll->stop();
+          poll->deleteLater();
+        } else if (++ticks > 300) {
+          poll->stop();
+          poll->deleteLater();
+        }
+      });
+      poll->start();
+    };
+    // Pointer resting on the canvas: the menu grows from right there — via the chord
+    // itself, through the platform window so the press walks the real shortcut map.
+    const QPoint onCanvas = vpGlobal.topLeft() + QPoint(40, 40);
+    QCursor::setPos(onCanvas);
+    QPoint at1(-1, -1);
+    bool opened1 = false;
+    armCloser(opened1, at1);
+    QTest::keyClick(win.windowHandle(), Qt::Key_F10, Qt::ShiftModifier);
+    QTRY_VERIFY2_WITH_TIMEOUT(opened1, "Shift+F10 did not open the canvas context menu", 4000);
+    // x is the pointer's; y may be pulled up to keep the menu on the (short) offscreen screen.
+    QCOMPARE(at1.x(), onCanvas.x());
+    QVERIFY(at1.y() <= onCanvas.y());
+    QTRY_VERIFY(!QApplication::activePopupWidget());
+    // Pointer off the canvas (on the toolbar): the menu lands at the viewport's centre.
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 8, 8)));
+    QPoint at2(-1, -1);
+    bool opened2 = false;
+    armCloser(opened2, at2);
+    win.actContextMenu_->trigger();
+    QTRY_VERIFY2_WITH_TIMEOUT(opened2, "the context-menu action did not open the menu", 4000);
+    // x lands on the centre exactly; y may be pulled up to keep the menu on screen.
+    QCOMPARE(at2.x(), vpGlobal.center().x());
+    QVERIFY(at2.y() <= vpGlobal.center().y());
+    QTRY_VERIFY(!QApplication::activePopupWidget());
   }
 
   // A popover must close on a click OUTSIDE it — canvas, toolbar, anywhere — from BOTH
@@ -8618,14 +8757,17 @@ class MainWindowGuiTest : public QObject {
       QTest::qWait(50);
     };
 
-    // ── no image at all: the menu still opens (Fullscreen / Fit / Assistant…)
-    // and the image-dependent entries stay disabled.
+    // ── no image at all: NO menu — a popup of dead rows is worse than none. Clicked
+    // directly (not through rightClickCorner): its poll would spin for two seconds
+    // waiting for a menu that never comes, and still be running for the next case.
     QVERIFY(!win.findChild<CanvasWidget*>()->hasImage());
-    bool openedEmpty = false, copyEnabledEmpty = true, copyFoundEmpty = false;
-    rightClickCorner(&openedEmpty, &copyEnabledEmpty, &copyFoundEmpty);
-    QVERIFY2(openedEmpty, "no context menu on the empty canvas with no image");
-    QVERIFY(copyFoundEmpty);
-    QVERIFY2(!copyEnabledEmpty, "image actions were enabled without an image");
+    QTest::mouseClick(viewport, Qt::RightButton, {}, QPoint(6, 6));
+    QTest::qWait(50);
+    QVERIFY2(!QApplication::activePopupWidget(), "the context menu opened with no image");
+    // …and the keyboard route (Shift+F10) goes through the same gate.
+    win.showContextMenuFromKeyboard();
+    QTest::qWait(30);
+    QVERIFY2(!QApplication::activePopupWidget(), "Shift+F10 opened a menu with no image");
 
     // ── with an image loaded, clicking OUTSIDE it (the backdrop) ──
     win.openPathFromOS(png_);
@@ -9523,6 +9665,65 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(!dock->isFloating());
     QCOMPARE(win.dockWidgetArea(dock), Qt::RightDockWidgetArea);
     QTRY_VERIFY(!zones->isVisible());
+  }
+
+  // §10 chatPanel: the assistant panel's OWN placement, driven by a plan — "put the
+  // chat on the right and open it" is a thing users ask for out loud, hands-free
+  // (browser opPlan.js chatPanel parity). The plan runs through the real parser and
+  // executor, so this pins the whole path, not the target method alone.
+  void chatPanelOpDocksAndOpensThePanel() {
+    MainWindow win(nullptr, false);
+    win.resize(1100, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    auto* dock = win.findChild<QDockWidget*>("llmChatDock");
+    auto* chat = win.findChild<QAction*>("actChat");
+    QVERIFY(dock && chat);
+    chat->setChecked(false);
+    QTRY_VERIFY(!dock->isVisible());
+
+    const auto run = [&win](const char* json) {
+      const stencil::llm::OpPlanResult r = stencil::llm::parseOpPlan(QString::fromUtf8(json));
+      QVERIFY2(r.ok, qPrintable(r.error));
+      stencil::gui::ChatPlanTarget target(win);
+      const stencil::llm::ExecResult res = stencil::llm::executePlan(r.plan, target);
+      QVERIFY2(res.ok, qPrintable(res.error));
+    };
+
+    // A dock with no "open" moves it AND shows it — placing a panel nobody can see is
+    // not what was asked for.
+    run(R"({"reply":"ok","actions":[{"op":"chatPanel","dock":"right"}]})");
+    QTRY_VERIFY(dock->isVisible());
+    QVERIFY(chat->isChecked());
+    // The open and the side switch both FLY (chatSurfaceFlight) — the area is what it
+    // settles at, not what it holds mid-flight.
+    QTRY_VERIFY(!win.chatAnim_);
+    QVERIFY(!dock->isFloating());
+    QTRY_COMPARE(win.dockWidgetArea(dock), Qt::RightDockWidgetArea);
+
+    // …the other sides go through the same path as the title bar's own buttons.
+    run(R"({"reply":"ok","actions":[{"op":"chatPanel","dock":"bottom"}]})");
+    QTRY_COMPARE(win.dockWidgetArea(dock), Qt::BottomDockWidgetArea);
+    // The side switch flies (chatSurfaceFlight) and its finish SHOWS the dock again —
+    // let it land before asking for a close, exactly as a user's second sentence would.
+    QTRY_VERIFY(!win.chatAnim_);
+
+    // "open": false closes it and leaves the placement alone.
+    run(R"({"reply":"ok","actions":[{"op":"chatPanel","open":false}]})");
+    QTRY_VERIFY(!dock->isVisible());
+    QVERIFY(!chat->isChecked());
+
+    // …and "float" lifts it off the edges.
+    run(R"({"reply":"ok","actions":[{"op":"chatPanel","open":true,"dock":"float"}]})");
+    QTRY_VERIFY(dock->isVisible());
+    QTRY_VERIFY(dock->isFloating());
+
+    // A field-less chatPanel says nothing and is rejected by the PARSER, so no plan
+    // reaches the editor at all.
+    const auto bad = stencil::llm::parseOpPlan(
+        QStringLiteral(R"({"reply":"ok","actions":[{"op":"chatPanel"}]})"));
+    QVERIFY2(!bad.ok, "a chatPanel with neither open nor dock must not parse");
+    beat();
   }
 
   // The placement button matching the current state is accent-marked and inert.
@@ -11109,6 +11310,129 @@ class MainWindowGuiTest : public QObject {
         QVERIFY2(b->isVisible(), qPrintable(at + b->defaultAction()->text() + " is hidden"));
     }
     beat();
+  }
+
+  // DESCRIPTION & ATTRIBUTES (browser parity): the cluster sits between IMAGE and
+  // PROJECTS with Description · Keywords · Links in that order, and all three follow ONE
+  // rule — a saved, non-incognito project — with the reason on the tooltip otherwise.
+  // Links used to live in IMAGE and gate on an image; it moved with the browser's.
+  void descriptionSectionFollowsImageAndGatesOnASavedProject() {
+    MainWindow win(nullptr, false);
+    win.resize(1400, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QWidget* section = nullptr;
+    QWidget* image = nullptr;
+    QWidget* projects = nullptr;
+    for (QLabel* l : win.findChildren<QLabel*>("sectionLabel")) {
+      if (l->text() == QLatin1String("DESCRIPTION & ATTRIBUTES")) section = l->parentWidget();
+      else if (l->text() == QLatin1String("IMAGE")) image = l->parentWidget();
+      else if (l->text() == QLatin1String("PROJECTS")) projects = l->parentWidget();
+    }
+    QVERIFY2(section, "no DESCRIPTION & ATTRIBUTES section on the toolbar");
+    QVERIFY(image && projects);
+    QCOMPARE(section->parentWidget(), image->parentWidget());   // the same row
+    QVERIFY2(section->x() > image->x() && section->x() < projects->x(),
+             "the section is not between IMAGE and PROJECTS");
+    QList<QAction*> got;
+    for (QToolButton* b : section->findChildren<QToolButton*>())
+      if (b->defaultAction()) got << b->defaultAction();
+    const QList<QAction*> want{win.actDescription_, win.actKeywords_, win.actLinks_};
+    QCOMPARE(got, want);
+    QVERIFY2(!win.imageSection_->isAncestorOf(win.buttonForAction(win.actLinks_)),
+             "Links is still in the IMAGE section");
+    // Menu bar: the trio sits together where Links lives.
+    QMenu* projectMenu = nullptr;
+    for (QMenu* m : win.menuBar()->findChildren<QMenu*>())
+      if (m->actions().contains(win.actLinks_)) projectMenu = m;
+    QVERIFY(projectMenu);
+    const int di = projectMenu->actions().indexOf(win.actDescription_);
+    QVERIFY(di >= 0);
+    QCOMPARE(projectMenu->actions().at(di + 1), win.actKeywords_);
+    QCOMPARE(projectMenu->actions().at(di + 2), win.actLinks_);
+    // The shared registry's chords are on the actions.
+    QCOMPARE(win.actDescription_->shortcut(), QKeySequence(win.hotkey("openDescription", "Alt+Shift+D")));
+    QCOMPARE(win.actKeywords_->shortcut(), QKeySequence(win.hotkey("openKeywords", "Alt+Shift+K")));
+    // …and the popover gestures reach all three.
+    for (QAction* a : want) QVERIFY(win.popoverDialogActions_.contains(a));
+
+    // No project: all three dead, each with its reason on the tooltip.
+    const auto reasonShown = [](QAction* a) {
+      return a->toolTip().contains("\n— " + a->property(stencil::gui::kTipReasonProperty).toString());
+    };
+    for (QAction* a : want) {
+      QVERIFY2(!a->isEnabled(), qPrintable(a->text() + " is enabled with no project"));
+      QVERIFY2(reasonShown(a), qPrintable(a->text() + ": no reason on the tooltip"));
+    }
+    QCOMPARE(win.actDescription_->property(stencil::gui::kTipReasonProperty).toString(),
+             QStringLiteral("Save the project first to add a description"));
+    QCOMPARE(win.actKeywords_->property(stencil::gui::kTipReasonProperty).toString(),
+             QStringLiteral("Save the project first to add keywords"));
+    QCOMPARE(win.actLinks_->property(stencil::gui::kTipReasonProperty).toString(),
+             QStringLiteral("Save the project first to add links"));
+
+    // A saved project: all three live, the reason gone.
+    // Idempotent against the persisted test store: a copy left by an earlier run (the
+    // dialog writes through fileStore) would be found first and carry the "After".
+    win.projectList_.erase(std::remove_if(win.projectList_.begin(), win.projectList_.end(),
+                                          [](const stencil::gui::Project& p) { return p.meta.id == "meta-gui"; }),
+                           win.projectList_.end());
+    stencil::gui::Project pr;
+    pr.meta.id = "meta-gui";
+    pr.meta.name = "Meta";
+    pr.meta.description = "Before";
+    win.projectList_.push_back(pr);
+    win.activeProjectId_ = "meta-gui";
+    win.refreshActions();
+    for (QAction* a : want) {
+      QVERIFY2(a->isEnabled(), qPrintable(a->text() + " is dead with a saved project"));
+      QVERIFY2(!reasonShown(a), qPrintable(a->text() + ": the reason lingers"));
+    }
+    // Incognito takes them away again.
+    win.actIncognito_->setChecked(true);
+    for (QAction* a : want) QVERIFY2(!a->isEnabled(), qPrintable(a->text() + " survives incognito"));
+    win.actIncognito_->setChecked(false);
+    for (QAction* a : want) QVERIFY(a->isEnabled());
+
+    // The dialogs open pre-filled and write back through the store.
+    QTimer::singleShot(0, [&] {
+      QDialog* dlg = nullptr;
+      for (int i = 0; i < 200 && !dlg; ++i) {
+        dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+        if (!dlg) QTest::qWait(10);
+      }
+      QVERIFY(dlg);
+      QCOMPARE(dlg->objectName(), QStringLiteral("stencilDescriptionDialog"));
+      auto* area = dlg->findChild<QPlainTextEdit*>("descriptionText");
+      QVERIFY(area);
+      QCOMPARE(area->toPlainText(), QStringLiteral("Before"));
+      area->setPlainText("After");
+      dlg->findChild<QPushButton*>("descriptionSave")->click();
+    });
+    win.actDescription_->trigger();
+    QTest::qWait(50);
+    QCOMPARE(QString::fromStdString(win.findProject("meta-gui")->meta.description), QStringLiteral("After"));
+    QTimer::singleShot(0, [&] {
+      QDialog* dlg = nullptr;
+      for (int i = 0; i < 200 && !dlg; ++i) {
+        dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+        if (!dlg) QTest::qWait(10);
+      }
+      QVERIFY(dlg);
+      QCOMPARE(dlg->objectName(), QStringLiteral("stencilKeywordsDialog"));
+      auto* area = dlg->findChild<QPlainTextEdit*>("keywordsText");
+      QVERIFY(area);
+      area->setPlainText("Plan, kitchen plan");
+      QTest::keyClick(area, Qt::Key_Return);   // Enter saves the list
+    });
+    win.actKeywords_->trigger();
+    QTest::qWait(50);
+    QCOMPARE(win.findProject("meta-gui")->meta.keywords, std::vector<std::string>({"plan", "kitchen"}));
+    // …and leave no trace in the store for the next run.
+    win.projectList_.erase(std::remove_if(win.projectList_.begin(), win.projectList_.end(),
+                                          [](const stencil::gui::Project& p) { return p.meta.id == "meta-gui"; }),
+                           win.projectList_.end());
+    stencil::gui::fileStore::saveProjects(win.projectList_);
   }
 
   // The chat's icon controls shimmer on hover like every other button in the app
@@ -13172,7 +13496,59 @@ class MainWindowGuiTest : public QObject {
     win.setZoom(1.0);
     QCOMPARE(win.vScrollOpacity_->opacity(), 1.0);
     QCOMPARE(win.hScrollOpacity_->opacity(), 1.0);
+    // Overlay bars, browser-style: they float INSIDE the viewport (which spans the whole
+    // area — no gutter reserved beside/below it) and are only there while there's overflow.
+    QScrollBar* vbar = win.canvasScrollBar(Qt::Vertical);
+    QScrollBar* hbar = win.canvasScrollBar(Qt::Horizontal);
+    QVERIFY(vbar->isVisible() && hbar->isVisible());
+    QVERIFY(win.scroll_->viewport()->geometry().contains(vbar->geometry()));
+    QVERIFY(win.scroll_->viewport()->geometry().contains(hbar->geometry()));
+    QCOMPARE(win.scroll_->viewport()->geometry(), win.scroll_->contentsRect());
+    QVERIFY(!vbar->testAttribute(Qt::WA_TransparentForMouseEvents));
+    // The thumb is a painted pill in the browser's thumb grey (overlayScrollArea.hpp
+    // PillScrollBar; QSS cannot round a handle on macOS): its top edge's midpoint carries
+    // the thumb colour while the slot's corner beside it does not.
+    {
+      QStyleOptionSlider opt;
+      opt.initFrom(vbar);
+      opt.orientation = Qt::Vertical;
+      opt.minimum = vbar->minimum(); opt.maximum = vbar->maximum();
+      opt.sliderPosition = vbar->sliderPosition(); opt.sliderValue = vbar->value();
+      opt.pageStep = vbar->pageStep(); opt.singleStep = vbar->singleStep();
+      opt.upsideDown = vbar->invertedAppearance();
+      const QRect slider = vbar->style()->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarSlider, vbar);
+      QVERIFY(slider.isValid());
+      const QImage shot = vbar->grab().toImage();
+      const qreal dpr = shot.devicePixelRatio();
+      const QColor thumb = stencil::gui::canvasScrollThumb(stencil::gui::resolveDark(win.settings_.themeMode));
+      const auto near = [](const QColor& a, const QColor& b) {
+        return qAbs(a.red() - b.red()) < 24 && qAbs(a.green() - b.green()) < 24 && qAbs(a.blue() - b.blue()) < 24;
+      };
+      const QColor mid = shot.pixelColor(QPoint(slider.center().x(), slider.top() + 1) * dpr);
+      const QColor corner = shot.pixelColor(QPoint(slider.left(), slider.top()) * dpr);
+      QVERIFY2(near(mid, thumb), qPrintable("the thumb's top-edge midpoint is not the thumb grey: " + mid.name()));
+      QVERIFY2(!near(corner, thumb), "the thumb's corner is filled — the thumb is not rounded");
+      // Thin at rest, a little thicker under the pointer (browser parity: the thumb
+      // grows into its slot on hover): a pixel 3px off the slot's centre line is slot
+      // background at rest and thumb once the pointer is on the bar.
+      const QPoint side(slider.center().x() - 3, slider.top() + 6);
+      const QColor slot = corner;
+      QVERIFY2(near(shot.pixelColor(side * dpr), slot), "the resting thumb is already wide");
+      QEnterEvent enter(QPointF(slider.center()), QPointF(vbar->mapTo(&win, slider.center())),
+                        QPointF(vbar->mapToGlobal(slider.center())));
+      QCoreApplication::sendEvent(vbar, &enter);
+      QTest::qWait(300);   // the 150ms swell
+      const QImage hot = vbar->grab().toImage();
+      QVERIFY2(!near(hot.pixelColor(side * dpr), slot), "the thumb did not swell under the pointer");
+      QEvent leave0(QEvent::Leave);
+      QCoreApplication::sendEvent(vbar, &leave0);
+      QTest::qWait(300);
+      QVERIFY2(near(vbar->grab().toImage().pixelColor(side * dpr), slot), "the thumb did not settle back after the pointer left");
+      win.scrollbarHovered_ = false;
+      win.revealCanvasScrollbars();   // re-arm the reveal our synthetic Leave just cancelled
+    }
     QTest::qWait(1200);   // past the 900ms idle timer
+    QVERIFY(vbar->testAttribute(Qt::WA_TransparentForMouseEvents));   // hidden = not there
     QCOMPARE(win.vScrollOpacity_->opacity(), 0.0);
     QCOMPARE(win.hScrollOpacity_->opacity(), 0.0);
 
@@ -13185,22 +13561,576 @@ class MainWindowGuiTest : public QObject {
 
     // Hovering the bar itself (to grab it) must never let it fade out from under the cursor.
     QEvent enter(QEvent::Enter);
-    QCoreApplication::sendEvent(win.scroll_->verticalScrollBar(), &enter);
+    QCoreApplication::sendEvent(win.canvasScrollBar(Qt::Vertical), &enter);
     QVERIFY(win.scrollbarHovered_);
     QCOMPARE(win.vScrollOpacity_->opacity(), 1.0);
     QTest::qWait(1200);   // would have hidden by now if hovering didn't suppress it
     QCOMPARE(win.vScrollOpacity_->opacity(), 1.0);
     QEvent leave(QEvent::Leave);
-    QCoreApplication::sendEvent(win.scroll_->verticalScrollBar(), &leave);
+    QCoreApplication::sendEvent(win.canvasScrollBar(Qt::Vertical), &leave);
     QVERIFY(!win.scrollbarHovered_);
     QTest::qWait(1200);
     QCOMPARE(win.vScrollOpacity_->opacity(), 0.0);
+    // Dragging the floating bar drives the real scroll model, and vice versa.
+    vbar->setValue(120);
+    QCOMPARE(win.scroll_->verticalScrollBar()->value(), 120);
+    win.scroll_->verticalScrollBar()->setValue(60);
+    QCOMPARE(vbar->value(), 60);
+    // Once an axis fits, its bar goes away entirely rather than lingering as a gutter (the
+    // test window's viewport is too short for the image at any zoom, so the horizontal bar
+    // is the one that fits), and the survivor then runs the viewport's full length.
+    win.setZoom(0.1);
+    QTRY_VERIFY(!hbar->isVisible());
+    QVERIFY(vbar->isVisible());
+    QCOMPARE(vbar->height(), win.scroll_->viewport()->height());
   }
 
   // A repeat of the same message (e.g. pan/zoom's debounced "Saved") landing while the LAST
   // one is still mid-exit used to coexist with it instead of coalescing — liveToasts() only
   // coalesces into a STANDING toast, so the fresh arrival's opaque label buried the leaving
   // one's still-playing dust. Only one "toast" label should ever exist for a given message.
+
+  // REGRESSION: Right on a submenu row opened the flyout and it vanished ~220ms later
+  // (or never got past its reveal). Opening from the keyboard makes Qt re-emit hovered()
+  // on the parent for a row the pointer never touched, and SubmenuCloseGuard
+  // (menuReveal.cpp) armed its close on that. Only pointer-made hovers may arm it.
+  void ctxSubmenuOpenedByKeyboardStaysOpen() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    const QPoint at = win.mapToGlobal(QPoint(500, 400));
+    QCursor::setPos(at);   // the pointer rests where the menu opens, as after a right-click
+    QTest::qWait(100);
+    bool opened = false, stillOpen = false, walkedInside = false, leftClosed = false,
+         reopened = false, closedByPointer = false, reachedPoints = false, enterClosed = false,
+         pointsBefore = false, noFlash = false, enteredRow = false, leftDusted = false;
+    QTimer::singleShot(0, [&] {
+      QMenu* root = nullptr;
+      for (int i = 0; i < 200 && !root; ++i) {
+        root = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!root) QTest::qWait(10);
+      }
+      if (!root) return;
+      QTest::qWait(400);   // let the reveal land
+      QAction* layoutAct = nullptr;
+      for (QAction* a : root->actions()) if (a->text() == "Image / Layout") layoutAct = a;
+      if (!layoutAct || !layoutAct->menu()) { root->close(); return; }
+      // Walk down to the row with the keyboard, like a user would, then open it.
+      for (int i = 0; i < 12 && root->activeAction() != layoutAct; ++i) {
+        QTest::keyClick(root, Qt::Key_Down);
+        QTest::qWait(30);
+      }
+      QTest::keyClick(root, Qt::Key_Right);
+      QMenu* layoutMenu = layoutAct->menu();
+      // Veiled from its very first frame when the dust reveal is on: a flyout that
+      // paints solid for a frame and THEN plays its reveal reads as a flash.
+      noFlash = !stencil::support::dustMotionOk() || !layoutMenu->isVisible() ||
+                layoutMenu->windowOpacity() < 1.0;
+      for (int i = 0; i < 100 && !layoutMenu->isVisible(); ++i) QTest::qWait(10);
+      opened = layoutMenu->isVisible();
+      QTest::qWait(900);   // well past the guard's 220/480ms grace
+      stillOpen = layoutMenu->isVisible();
+      // The rest of the walk: a second Right lands on the flyout's first REAL row (not
+      // its "IMAGE" title), Down moves on past the title rows, Left closes it back
+      // onto the parent row with the root still up, Right reopens it.
+      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Right);
+      QTest::qWait(30);
+      enteredRow = layoutMenu->activeAction() && layoutMenu->activeAction()->text().startsWith("Copy Image");
+      QTest::keyClick(layoutMenu, Qt::Key_Down);
+      QTest::qWait(30);
+      walkedInside = layoutMenu->activeAction() == win.actPasteImage_;
+      // ← folds it with the same dust every other close plays (Qt hides the popup
+      // before aboutToHide fires, which used to leave this close with no flight).
+      const auto dustSeen = [&win] {
+        for (QWidget* w : win.findChildren<QWidget*>(
+                 QString::fromLatin1(stencil::gui::DisintegrateOverlay::kObjectName)))
+          if (static_cast<stencil::gui::DisintegrateOverlay*>(w)->surfacePicture().isValid()) return true;
+        return false;
+      };
+      QTest::keyClick(layoutMenu, Qt::Key_Left);
+      for (int i = 0; i < 100 && layoutMenu->isVisible(); ++i) { QTest::qWait(10); if (dustSeen()) leftDusted = true; }
+      if (dustSeen()) leftDusted = true;
+      leftClosed = !layoutMenu->isVisible() && root->isVisible() && root->activeAction() == layoutAct;
+      QTest::keyClick(root, Qt::Key_Right);
+      for (int i = 0; i < 100 && !layoutMenu->isVisible(); ++i) QTest::qWait(10);
+      reopened = layoutMenu->isVisible();
+      // …while a real pointer move onto another row still closes it (the guard's job).
+      QAction* plainRow = nullptr;
+      for (QAction* a : root->actions()) {
+        if (a->isSeparator() || a->menu() || !a->isEnabled()) continue;
+        plainRow = a; break;
+      }
+      if (plainRow) {
+        const QPoint from = root->actionGeometry(layoutAct).center();
+        const QPoint to = root->actionGeometry(plainRow).center();
+        for (int i = 1; i <= 8; ++i) {
+          const QPoint p = from + (to - from) * i / 8;
+          QMouseEvent e(QEvent::MouseMove, QPointF(p), QPointF(root->mapToGlobal(p)),
+                        Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+          QApplication::sendEvent(root, &e);
+          QTest::qWait(15);
+        }
+        for (int i = 0; i < 80 && layoutMenu->isVisible(); ++i) QTest::qWait(10);
+        closedByPointer = !layoutMenu->isVisible();
+      }
+      // Enter picks a row: walk the root to Show Points and toggle it, which also
+      // closes the menu (a picked action, not a hosted checkbox row).
+      pointsBefore = win.actShowPoints_->isChecked();
+      for (int i = 0; i < 24 && root->activeAction() != win.actShowPoints_; ++i) {
+        QTest::keyClick(root, Qt::Key_Down);
+        QTest::qWait(20);
+      }
+      reachedPoints = root->activeAction() == win.actShowPoints_;
+      QTest::keyClick(root, Qt::Key_Return);
+      for (int i = 0; i < 100 && root->isVisible(); ++i) QTest::qWait(10);
+      enterClosed = !root->isVisible();
+      if (root->isVisible()) root->close();
+    });
+    win.showContextMenu(at);
+    QVERIFY2(opened, "Right on the Image / Layout row did not open its submenu");
+    QVERIFY2(stillOpen, "the keyboard-opened submenu closed on its own");
+    QVERIFY2(noFlash, "the flyout painted solid before its reveal played");
+    QVERIFY2(enteredRow, "the second Right did not land on Copy Image (the first real row)");
+    QVERIFY2(walkedInside, "Down from Copy Image did not reach Paste Image");
+    QVERIFY2(leftClosed, "Left did not close the flyout back onto its parent row");
+    QVERIFY2(!stencil::support::dustMotionOk() || leftDusted, "Left closed the flyout with no dust flight");
+    QVERIFY2(reopened, "Right did not reopen the flyout");
+    QVERIFY2(closedByPointer, "hovering the pointer onto another row no longer closes it");
+    QVERIFY2(reachedPoints, "the keyboard walk never reached Show Points");
+    QVERIFY2(enterClosed, "Return did not pick the row and close the menu");
+    QCOMPARE(win.actShowPoints_->isChecked(), !pointsBefore);
+    QTest::qWait(260);
+  }
+
+  // Tab inside a flyout that hosts real controls (Style's spinners here) walks those
+  // controls, wrapping, instead of QMenu's default "Tab is ↓" that never reached them
+  // (user report). The keyboard-opened submenu is the active popup, so keys go to it.
+  void ctxFlyoutTabWalksItsControls() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    const QPoint at = win.mapToGlobal(QPoint(500, 400));
+    QCursor::setPos(at);
+    QTest::qWait(100);
+    bool opened = false, revealedOnly = false, foldedBack = false, wrappedToLastRow = false;
+    QWidget *first = nullptr, *second = nullptr, *backAgain = nullptr, *wrapped = nullptr;
+    QTimer::singleShot(0, [&] {
+      QMenu* root = nullptr;
+      for (int i = 0; i < 200 && !root; ++i) {
+        root = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!root) QTest::qWait(10);
+      }
+      if (!root) return;
+      QTest::qWait(400);
+      QAction* styleAct = nullptr;
+      for (QAction* a : root->actions()) if (a->text() == "Style") styleAct = a;
+      if (!styleAct || !styleAct->menu()) { root->close(); return; }
+      root->setActiveAction(styleAct);
+      QTest::keyClick(root, Qt::Key_Right);
+      QMenu* style = styleAct->menu();
+      for (int i = 0; i < 100 && !style->isVisible(); ++i) QTest::qWait(10);
+      opened = style->isVisible();
+      QTest::qWait(60);
+      // The first → only revealed it: no control has focus yet, so ← can fold it back.
+      QWidget* popup = QApplication::activePopupWidget();
+      revealedOnly = QApplication::focusWidget() != win.pointSpin_ && QApplication::focusWidget() != win.thickSpin_;
+      QTest::keyClick(popup, Qt::Key_Left);
+      for (int i = 0; i < 100 && style->isVisible(); ++i) QTest::qWait(10);
+      foldedBack = !style->isVisible() && root->isVisible();
+      QTest::keyClick(root, Qt::Key_Right);
+      for (int i = 0; i < 100 && !style->isVisible(); ++i) QTest::qWait(10);
+      QTest::qWait(60);
+      // The second → enters it, onto the first control; Tab walks on from there.
+      popup = QApplication::activePopupWidget();
+      QTest::keyClick(popup, Qt::Key_Right);
+      QTest::qWait(30);
+      first = QApplication::focusWidget();
+      QTest::keyClick(popup, Qt::Key_Tab);
+      QTest::qWait(30);
+      second = QApplication::focusWidget();
+      QTest::keyClick(popup, Qt::Key_Backtab);
+      QTest::qWait(30);
+      backAgain = QApplication::focusWidget();
+      QTest::keyClick(popup, Qt::Key_Backtab);   // …and off the first control onto the LAST row
+      QTest::qWait(30);
+      wrapped = QApplication::focusWidget();
+      wrappedToLastRow = style->activeAction() == win.actStyleDotted_;
+      root->close();
+    });
+    win.showContextMenu(at);
+    QVERIFY2(opened, "Right on the Style row did not open its flyout");
+    QVERIFY2(revealedOnly, "the first Right already moved focus into a control");
+    QVERIFY2(foldedBack, "Left after the first Right did not fold the flyout back");
+    QCOMPARE(first, static_cast<QWidget*>(win.pointSpin_));
+    QCOMPARE(second, static_cast<QWidget*>(win.thickSpin_));
+    QCOMPARE(backAgain, static_cast<QWidget*>(win.pointSpin_));
+    // Shift+Tab off the first control bridges onto the flyout's LAST plain row (Dotted):
+    // the keys go back to the menu (no control focused) and ↑/↓ walk the rows from there.
+    QVERIFY2(!wrapped || (wrapped != win.pointSpin_ && wrapped != win.thickSpin_),
+             "Shift+Tab off the first control left a spinner focused");
+    QVERIFY2(wrappedToLastRow, "Shift+Tab off the first control did not land on the last row");
+    QTest::qWait(260);
+  }
+
+  // The Assistant flyout's own version of the rule above: the first → reveals the chat,
+  // the second → lands in its text box (user decision — the chat's input, not its
+  // first button), so a reply can be typed without touching the mouse.
+  void ctxAssistantFlyoutSecondRightFocusesItsInput() {
+    MainWindow win(nullptr, false);
+    win.settings_.llmProvider = "ollama";
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    const QPoint at = win.mapToGlobal(QPoint(500, 400));
+    QCursor::setPos(at);
+    QTest::qWait(100);
+    bool opened = false, revealedOnly = false, entered = false;
+    QTimer::singleShot(0, [&] {
+      QMenu* root = nullptr;
+      for (int i = 0; i < 200 && !root; ++i) {
+        root = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!root) QTest::qWait(10);
+      }
+      if (!root) return;
+      QTest::qWait(400);
+      QAction* assistAct = nullptr;
+      for (QAction* a : root->actions()) if (a->text() == "Assistant") assistAct = a;
+      if (!assistAct || !assistAct->menu()) { root->close(); return; }
+      root->setActiveAction(assistAct);
+      QTest::keyClick(root, Qt::Key_Right);
+      QMenu* chat = assistAct->menu();
+      for (int i = 0; i < 100 && !chat->isVisible(); ++i) QTest::qWait(10);
+      opened = chat->isVisible();
+      QTest::qWait(80);
+      revealedOnly = QApplication::focusWidget() != win.chatMenuInput_;
+      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Right);
+      QTest::qWait(30);
+      entered = QApplication::focusWidget() == win.chatMenuInput_;
+      root->close();
+    });
+    win.showContextMenu(at);
+    QVERIFY2(opened, "Right on the Assistant row did not open the chat flyout");
+    QVERIFY2(revealedOnly, "the first Right already put the caret in the chat input");
+    QVERIFY2(entered, "the second Right did not focus the chat input");
+    QTest::qWait(260);
+  }
+
+
+  // Radio-style flyouts pick as the keys move (browser parity: arrowing a radio group
+  // applies the option at once, menu still open). Image Filter hosts real QRadioButtons:
+  // the second → lands on the checked one, ↓/↑ move to the neighbour AND pick it. Style's
+  // Solid / Dashed / Dotted are exclusive checkable rows: walking onto one applies it.
+  void ctxRadioFlyoutsPickAsTheKeysMove() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    const QPoint at = win.mapToGlobal(QPoint(500, 400));
+    QCursor::setPos(at);
+    QTest::qWait(100);
+    const auto checkedFilter = [&win] {
+      for (QAbstractButton* b : win.filterButtons_->buttons())
+        if (b->isChecked()) return b->property("filterValue").toString();
+      return QString();
+    };
+    bool filterOpened = false, landedOnChecked = false, downPicked = false, upPicked = false,
+         stayedOpen = false, styleOpened = false, styleApplied = false, styleStayedOpen = false,
+         kbIconMotion = false, rootRouteEntered = false, rootRoutePicked = false, rootRouteFolded = false;
+    QString afterDown, afterUp, afterRootDown;
+    QTimer::singleShot(0, [&] {
+      QMenu* root = nullptr;
+      for (int i = 0; i < 200 && !root; ++i) {
+        root = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!root) QTest::qWait(10);
+      }
+      if (!root) return;
+      QTest::qWait(400);
+      auto rowNamed = [&](const QString& title) -> QAction* {
+        for (QAction* a : root->actions()) if (a->text().startsWith(title)) return a;
+        return nullptr;
+      };
+      // Walk down from the top of the root to a row (the keys go to the active popup).
+      auto walkTo = [&](QAction* act) {
+        for (int i = 0; i < 40 && root->activeAction() != act; ++i) {
+          QTest::keyClick(root, Qt::Key_Down);
+          QTest::qWait(20);
+        }
+        return root->activeAction() == act;
+      };
+      QAction* filterAct = rowNamed("Image Filter");
+      if (!filterAct || !filterAct->menu() || !walkTo(filterAct)) { root->close(); return; }
+      // Landing on a row with the keys is a hover: its icon motion runs (iconMotion.hpp).
+      QTest::qWait(60);
+      kbIconMotion = stencil::support::motionReduced()
+                     || stencil::gui::icm::runnerOfAction(filterAct) != nullptr;
+      QTest::keyClick(root, Qt::Key_Right);
+      QMenu* filter = filterAct->menu();
+      for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
+      filterOpened = filter->isVisible();
+      QTest::qWait(600);
+      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Right);   // enter
+      QTest::qWait(50);
+      auto* focused = qobject_cast<QRadioButton*>(QApplication::focusWidget());
+      landedOnChecked = focused && focused->isChecked() && checkedFilter() == "none";
+      QTest::keyClick(QApplication::focusWidget(), Qt::Key_Down);
+      QTest::qWait(80);
+      afterDown = checkedFilter();
+      downPicked = afterDown == "bw" && qobject_cast<QRadioButton*>(QApplication::focusWidget())
+                   && qobject_cast<QRadioButton*>(QApplication::focusWidget())->isChecked();
+      QTest::keyClick(QApplication::focusWidget(), Qt::Key_Down);
+      QTest::qWait(80);
+      QTest::keyClick(QApplication::focusWidget(), Qt::Key_Up);
+      QTest::qWait(80);
+      afterUp = checkedFilter();
+      upPicked = afterUp == "bw";
+      stayedOpen = filter->isVisible() && root->isVisible();
+      QTest::keyClick(QApplication::focusWidget(), Qt::Key_Left);
+      for (int i = 0; i < 100 && filter->isVisible(); ++i) QTest::qWait(10);
+
+      // The other route: a flyout opened the way a HOVER opens it leaves the keyboard
+      // with the root. Its keys must still reach the focused radio (stayOpenMenu.cpp
+      // forwards them), so → enters and ↓ picks exactly as above.
+      root->setActiveAction(filterAct);
+      for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
+      QTest::qWait(600);
+      QTest::keyClick(root, Qt::Key_Right);
+      QTest::qWait(50);
+      rootRouteEntered = qobject_cast<QRadioButton*>(QApplication::focusWidget()) != nullptr;
+      QTest::keyClick(root, Qt::Key_Down);
+      QTest::qWait(80);
+      afterRootDown = checkedFilter();
+      rootRoutePicked = afterRootDown == "sepia";
+      QTest::keyClick(root, Qt::Key_Left);
+      for (int i = 0; i < 100 && filter->isVisible(); ++i) QTest::qWait(10);
+      rootRouteFolded = !filter->isVisible() && root->isVisible();
+
+      // Style: reveal it, enter it (the point-size spinner), Tab past both spinners
+      // onto its first plain row, then walk the rows — landing on Dashed applies it.
+      // Keys go where the platform sends them: the popup's focus widget if it has one.
+      auto keyTo = [](Qt::Key k) {
+        QWidget* popup = QApplication::activePopupWidget();
+        QWidget* receiver = popup && popup->focusWidget() ? popup->focusWidget() : popup;
+        QTest::keyClick(receiver, k);
+      };
+      QAction* styleAct = rowNamed("Style");
+      if (!styleAct || !styleAct->menu()) { root->close(); return; }
+      for (int i = 0; i < 40 && root->activeAction() != styleAct; ++i) {
+        QTest::keyClick(root, Qt::Key_Up);
+        QTest::qWait(20);
+      }
+      QTest::keyClick(root, Qt::Key_Right);
+      QMenu* style = styleAct->menu();
+      for (int i = 0; i < 100 && !style->isVisible(); ++i) QTest::qWait(10);
+      styleOpened = style->isVisible();
+      QTest::qWait(600);
+      keyTo(Qt::Key_Right);   // enter: the point-size spinner
+      QTest::qWait(40);
+      keyTo(Qt::Key_Tab);     // thickness
+      QTest::qWait(40);
+      keyTo(Qt::Key_Tab);     // off the last control → the first plain row (Solid)
+      QTest::qWait(40);
+      for (int i = 0; i < 6 && style->activeAction() != win.actStyleDashed_; ++i) {
+        keyTo(Qt::Key_Down);
+        QTest::qWait(30);
+      }
+      styleApplied = style->activeAction() == win.actStyleDashed_ && win.actStyleDashed_->isChecked()
+                     && win.settings_.defaultStyle == "dashed";
+      styleStayedOpen = style->isVisible() && root->isVisible();
+      root->close();
+    });
+    win.showContextMenu(at);
+    QVERIFY2(filterOpened, "Right on the Image Filter row did not open its flyout");
+    QVERIFY2(landedOnChecked, "the second Right did not land on the checked radio (None)");
+    QVERIFY2(downPicked, qPrintable("Down did not pick the next filter — checked: " + afterDown));
+    QVERIFY2(upPicked, qPrintable("Up did not pick the previous filter — checked: " + afterUp));
+    QVERIFY2(stayedOpen, "picking a filter with the arrows closed the menu");
+    QVERIFY2(kbIconMotion, "landing on a row with the keys did not run its icon motion");
+    QVERIFY2(rootRouteEntered, "root-held keys: Right did not focus a radio in the hover-opened flyout");
+    QVERIFY2(rootRoutePicked, qPrintable("root-held keys: Down did not pick the next filter — checked: " + afterRootDown));
+    QVERIFY2(rootRouteFolded, "root-held keys: Left did not fold the flyout");
+    QVERIFY2(styleOpened, "Right on the Style row did not open its flyout");
+    QVERIFY2(styleApplied, "walking onto Dashed did not apply the dashed style");
+    QVERIFY2(styleStayedOpen, "applying a style with the arrows closed the menu");
+    win.applyImageFilter("none");
+    QTest::qWait(260);
+  }
+
+
+  // The Custom Tint pick shows the "Tint Color…" row at once, and moving off it hides
+  // the row again — while the flyout is open (browser parity: .ctx-tint-visible follows
+  // the radio change), not only on the next open.
+  void ctxCustomTintRowFollowsTheFilterPick() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    const QPoint at = win.mapToGlobal(QPoint(500, 400));
+    QCursor::setPos(at);
+    QTest::qWait(100);
+    bool opened = false, hiddenAtStart = false, shownOnCustom = false, rowLaidOut = false, hiddenAgain = false;
+    QTimer::singleShot(0, [&] {
+      QMenu* root = nullptr;
+      for (int i = 0; i < 200 && !root; ++i) {
+        root = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!root) QTest::qWait(10);
+      }
+      if (!root) return;
+      QTest::qWait(400);
+      QAction* filterAct = nullptr;
+      for (QAction* a : root->actions()) if (a->text().startsWith("Image Filter")) filterAct = a;
+      if (!filterAct || !filterAct->menu()) { root->close(); return; }
+      for (int i = 0; i < 40 && root->activeAction() != filterAct; ++i) { QTest::keyClick(root, Qt::Key_Down); QTest::qWait(20); }
+      QTest::keyClick(root, Qt::Key_Right);
+      QMenu* filter = filterAct->menu();
+      for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
+      opened = filter->isVisible();
+      QTest::qWait(600);
+      hiddenAtStart = !win.tintColorAction_->isVisible();
+      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Right);   // enter: None
+      QTest::qWait(50);
+      for (int i = 0; i < 5; ++i) { QTest::keyClick(QApplication::focusWidget(), Qt::Key_Down); QTest::qWait(60); }
+      QTest::qWait(100);
+      shownOnCustom = win.settings_.imageFilter == "custom" && win.tintColorAction_->isVisible();
+      rowLaidOut = filter->actionGeometry(win.tintColorAction_).isValid()
+                   && filter->height() >= filter->actionGeometry(win.tintColorAction_).bottom();
+      QTest::keyClick(QApplication::focusWidget(), Qt::Key_Up);
+      QTest::qWait(100);
+      hiddenAgain = win.settings_.imageFilter == "contour" && !win.tintColorAction_->isVisible();
+      root->close();
+    });
+    win.showContextMenu(at);
+    QVERIFY2(opened, "Right on the Image Filter row did not open its flyout");
+    QVERIFY2(hiddenAtStart, "the tint row was showing with no custom filter active");
+    QVERIFY2(shownOnCustom, "picking Custom Tint did not show the tint row");
+    QVERIFY2(rowLaidOut, "the tint row is visible but the flyout did not make room for it");
+    QVERIFY2(hiddenAgain, "moving off Custom Tint did not hide the tint row");
+    win.applyImageFilter("none");
+    QTest::qWait(260);
+
+    // Against the screen's bottom edge: the flyout that grows for the tint row must be
+    // re-placed to stay on screen, or the new row lands below it, never seen.
+    const QRect avail = win.screen()->availableGeometry();
+    win.move(avail.left() + 40, avail.bottom() - win.height() - 10);
+    QTest::qWait(200);
+    const QPoint low = win.mapToGlobal(QPoint(500, win.height() - 60));
+    QCursor::setPos(low);
+    QTest::qWait(100);
+    bool lowOpened = false, onScreen = false, rowOnScreen = false;
+    QTimer::singleShot(0, [&] {
+      QMenu* root = nullptr;
+      for (int i = 0; i < 200 && !root; ++i) {
+        root = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!root) QTest::qWait(10);
+      }
+      if (!root) return;
+      QTest::qWait(400);
+      QAction* filterAct = nullptr;
+      for (QAction* a : root->actions()) if (a->text().startsWith("Image Filter")) filterAct = a;
+      if (!filterAct || !filterAct->menu()) { root->close(); return; }
+      root->setActiveAction(filterAct);   // hover-style open
+      QMenu* filter = filterAct->menu();
+      for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
+      lowOpened = filter->isVisible();
+      QTest::qWait(600);
+      QAbstractButton* custom = nullptr;
+      for (QAbstractButton* b : win.filterButtons_->buttons()) if (b->property("filterValue") == "custom") custom = b;
+      QTest::mouseClick(custom, Qt::LeftButton, Qt::NoModifier, custom->rect().center());
+      QTest::qWait(300);
+      onScreen = avail.contains(filter->geometry());
+      const QRect row = filter->actionGeometry(win.tintColorAction_);
+      rowOnScreen = row.isValid() && avail.contains(QRect(filter->mapToGlobal(row.topLeft()), row.size()));
+      root->close();
+    });
+    win.showContextMenu(low);
+    QVERIFY2(lowOpened, "the low flyout did not open");
+    QVERIFY2(onScreen, "the flyout grew off the bottom of the screen");
+    QVERIFY2(rowOnScreen, "the tint row landed off screen");
+    win.applyImageFilter("none");
+    QTest::qWait(260);
+  }
+
+
+  // A flyout the first → only revealed still belongs to the parent's walk: ↓ moves the
+  // ROOT highlight and folds the flyout (browser parity), and only after the second →
+  // do ↑/↓ work inside it. Before, Qt walked the revealed flyout's rows, which for the
+  // radio flyout read as "the keys only move the radio focus" (user report).
+  void ctxRevealedFlyoutArrowsWalkTheParent() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
+    const QPoint at = win.mapToGlobal(QPoint(500, 400));
+    QCursor::setPos(at);
+    QTest::qWait(100);
+    bool revealed = false, downFolded = false, upBack = false, reRevealed = false, enteredPick = false;
+    QString rootAfterDown;
+    QTimer::singleShot(0, [&] {
+      QMenu* root = nullptr;
+      for (int i = 0; i < 200 && !root; ++i) {
+        root = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+        if (!root) QTest::qWait(10);
+      }
+      if (!root) return;
+      QTest::qWait(400);
+      QAction* filterAct = nullptr;
+      QAction* transformAct = nullptr;
+      for (QAction* a : root->actions()) {
+        if (a->text().startsWith("Image Filter")) filterAct = a;
+        if (a->text().startsWith("Transformation")) transformAct = a;
+      }
+      if (!filterAct || !filterAct->menu() || !transformAct) { root->close(); return; }
+      for (int i = 0; i < 40 && root->activeAction() != filterAct; ++i) { QTest::keyClick(root, Qt::Key_Down); QTest::qWait(20); }
+      QTest::keyClick(root, Qt::Key_Right);
+      QMenu* filter = filterAct->menu();
+      for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
+      revealed = filter->isVisible();
+      QTest::qWait(600);
+      // ↓ while only revealed: the parent walks on (to Transformation) and the flyout folds.
+      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Down);
+      for (int i = 0; i < 100 && filter->isVisible(); ++i) QTest::qWait(10);
+      rootAfterDown = root->activeAction() ? root->activeAction()->text() : QString();
+      downFolded = !filter->isVisible() && root->activeAction() == transformAct;
+      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Up);
+      QTest::qWait(60);
+      upBack = root->activeAction() == filterAct && !filter->isVisible();
+      // → reveals again, a second → enters, and now ↓ picks inside.
+      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Right);
+      for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
+      reRevealed = filter->isVisible();
+      QTest::qWait(600);
+      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Right);
+      QTest::qWait(50);
+      // Keys go where the platform sends them: the popup's focus widget (the radio).
+      QWidget* focused = QApplication::activePopupWidget()->focusWidget();
+      QTest::keyClick(focused ? focused : QApplication::activePopupWidget(), Qt::Key_Down);
+      QTest::qWait(80);
+      enteredPick = win.settings_.imageFilter == "bw" && filter->isVisible();
+      root->close();
+    });
+    win.showContextMenu(at);
+    QVERIFY2(revealed, "Right on the Image Filter row did not reveal its flyout");
+    QVERIFY2(downFolded, qPrintable("Down on a revealed flyout did not walk the parent on and fold it — root row: " + rootAfterDown));
+    QVERIFY2(upBack, "Up did not walk the parent back to Image Filter");
+    QVERIFY2(reRevealed, "Right did not reveal the flyout again");
+    QVERIFY2(enteredPick, "after the second Right, Down did not pick inside the flyout");
+    win.applyImageFilter("none");
+    QTest::qWait(260);
+  }
+
   void repeatedToastReplacesAStillLeavingOne() {
     QWidget host;
     host.resize(600, 420);
@@ -13216,6 +14146,130 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(ts.first()->property("stencilToastText").toString(), QString("Saved"));
     QVERIFY2(!ts.first()->property("stencilToastLeaving").toBool(),
              "the survivor is the stale leaving one, not the fresh arrival");
+  }
+
+  // ── A motion mode changed WHILE a window is up governs how that window LEAVES ──
+  // The Visuals & Settings dialog live-applies its own Motion rows (support/motionPrefs.hpp),
+  // so switching to "None" in it and closing it must not leave that very window still flying
+  // back into its icon — and switching motion back ON must give it the closing flight its
+  // open never installed. The close flight therefore asks the mode when it PLAYS, not when
+  // it was hung on the dialog (support/modalReveal.cpp CloseFlight::fly).
+  void dialogCloseAsksTheMotionModeAgainOnItsWayOut() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+
+    // Any flight at all — the dust cloud or the ghost it falls back to.
+    struct FlightSpy : QObject {
+      bool seen = false;
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (e->type() == QEvent::Show) {
+          auto* w = qobject_cast<QWidget*>(o);
+          if (w && (w->objectName()
+                        == QLatin1String(stencil::gui::DisintegrateOverlay::kObjectName)
+                    || w->objectName() == QLatin1String("stencilModalGhost")))
+            seen = true;
+        }
+        return false;
+      }
+    };
+
+    const auto flewOnClose = [&](stencil::support::MotionMode openMode,
+                                 stencil::support::MotionMode closeMode) {
+      stencil::support::setMotionMode(openMode);
+      QDialog dlg(&win);
+      dlg.resize(260, 180);
+      stencil::support::revealDialog(dlg, nullptr, QRect(40, 40, 26, 26));
+      dlg.show();
+      QTest::qWait(80);            // the open flight, whichever mode allowed it
+      stencil::support::setMotionMode(closeMode);   // …the user moves the setting…
+      FlightSpy spy;
+      qApp->installEventFilter(&spy);
+      dlg.hide();                  // …and closes the window
+      QTest::qWait(30);
+      qApp->removeEventFilter(&spy);
+      return spy.seen;
+    };
+
+    QVERIFY2(!flewOnClose(stencil::support::MotionMode::Particles,
+                          stencil::support::MotionMode::None),
+             "motion turned OFF while the window was up: it must leave without a flight");
+    QVERIFY2(flewOnClose(stencil::support::MotionMode::None,
+                         stencil::support::MotionMode::Particles),
+             "motion turned ON while the window was up: it must leave WITH one");
+    stencil::support::setMotionMode(stencil::support::MotionMode::Particles);
+  }
+
+  // ── The toolbar's clusters, in the browser's order ──────────────────────────
+  // One sequence across both surfaces (browser js/ui/toolbar.js, pinned there by
+  // ui-markup.test.js): Image · Description & attributes · Projects · Connections & chat ·
+  // Edit / Line · Point / Draw · View / Zoom · Page · Formula · Data · Settings. The rows
+  // are where this app's non-wrapping toolbars break that one sequence, so the check is
+  // the concatenation of the rows top to bottom.
+  void toolbarSectionsFollowTheBrowsersOrder() {
+    MainWindow win(nullptr, false);
+    win.resize(1600, 950);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QTest::qWait(200);
+    QList<QToolBar*> bars = win.findChildren<QToolBar*>();
+    std::sort(bars.begin(), bars.end(), [](QToolBar* a, QToolBar* b) {
+      return a->mapTo(a->window(), QPoint(0, 0)).y() < b->mapTo(b->window(), QPoint(0, 0)).y();
+    });
+    QStringList sections;
+    for (QToolBar* tb : bars)
+      for (QLabel* l : tb->findChildren<QLabel*>())
+        if (l->objectName() == QLatin1String("sectionLabel")) sections << l->text();
+    const QStringList want{"IMAGE", "DESCRIPTION & ATTRIBUTES", "PROJECTS",
+                           "CONNECTIONS & CHAT", "EDIT", "LINE", "POINT", "DRAW", "VIEW",
+                           "ZOOM", "PAGE", "FORMULA", "DATA", "SETTINGS"};
+    QCOMPARE(sections, want);
+    // Where the rows BREAK that sequence is a packing decision — the browser re-wraps the
+    // same run with the window and a QToolBar cannot — so every row has to survive a narrow
+    // window on its own. With the formula fields showing and the widest page state chosen,
+    // none of them may fall back on QToolBar's "»", which is how SETTINGS once vanished.
+    win.allowFormulas_->setChecked(true);
+    const int custom = win.pageSize_->findData(QStringLiteral("custom"));
+    QVERIFY(custom >= 0);
+    const int a3 = win.pageSize_->findData(QStringLiteral("A3"));
+    QVERIFY(a3 >= 0);
+    win.pageSize_->setCurrentIndex(a3);   // the everyday state, whatever the settings hold
+    QTest::qWait(150);
+    for (const int width : {1400, 1100, 1000}) {
+      win.resize(width, 950);
+      QTest::qWait(250);
+      for (QToolBar* tb : bars) {
+        if (tb->objectName() == QLatin1String("headerToolbar")
+            || tb->objectName() == QLatin1String("mainToolbar"))
+          continue;   // the main row's five clusters are wider than any of these on their own
+        for (QWidget* c : tb->findChildren<QWidget*>())
+          if (c->metaObject()->className() == QLatin1String("QToolBarExtension"))
+            QVERIFY2(!c->isVisible(),
+                     qPrintable(QString("at %1px the %2 row overflows into \"»\"")
+                                    .arg(width).arg(tb->objectName())));
+      }
+    }
+    // …and once more with the custom page's W × H boxes out — they add ~160px to the PAGE
+    // cluster (squeezable, but only so far), so that state is checked one step wider.
+    win.pageSize_->setCurrentIndex(custom);
+    QTest::qWait(150);
+    for (const int width : {1400, 1100}) {
+      win.resize(width, 950);
+      QTest::qWait(250);
+      for (QToolBar* tb : bars) {
+        if (tb->objectName() == QLatin1String("headerToolbar")
+            || tb->objectName() == QLatin1String("mainToolbar"))
+          continue;
+        for (QWidget* c : tb->findChildren<QWidget*>())
+          if (c->metaObject()->className() == QLatin1String("QToolBarExtension"))
+            QVERIFY2(!c->isVisible(),
+                     qPrintable(QString("at %1px (custom page) the %2 row overflows into \"»\"")
+                                    .arg(width).arg(tb->objectName())));
+      }
+    }
+    win.pageSize_->setCurrentIndex(a3);   // this suite shares the real settings file
   }
 
 };

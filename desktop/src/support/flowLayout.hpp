@@ -16,6 +16,13 @@ namespace stencil::gui {
         : QLayout(parent), hSpace_(hSpacing), vSpace_(vSpacing) {
       setContentsMargins(margin, margin, margin, margin);
     }
+    // sizeHint = the whole row on ONE line (a QHBoxLayout's), not the widest item: what
+    // a controlReveal slot measures and slides open to (browser .projects-batch-selected).
+    void setLineSizeHint(bool on) { lineHint_ = on; }
+    // Hold one line while the owner's maximumWidth is capped — a controlReveal slot
+    // sliding open or shut animates exactly that — so the row is wiped edge-on instead of
+    // re-flowing into a column on the way out (browser .reveal-group-transition nowrap).
+    void setHoldsLineWhileCapped(bool on) { holdWhileCapped_ = on; }
     ~FlowLayout() override {
       QLayoutItem* item;
       while ((item = takeAt(0))) delete item;
@@ -49,16 +56,19 @@ namespace stencil::gui {
     int doLayout(const QRect& rect, bool testOnly) const {
       const QMargins m = contentsMargins();
       const QRect area = rect.adjusted(m.left(), m.top(), -m.right(), -m.bottom());
+      const QWidget* owner = parentWidget();
+      const bool wrap = !(holdWhileCapped_ && owner && owner->maximumWidth() < QWIDGETSIZE_MAX);
       int x = area.x(), y = area.y(), lineHeight = 0, totalHeight = 0;
       QList<QLayoutItem*> rowItems;
       QList<int> rowX;
+      QList<QSize> rowSize;
       bool firstRow = true;
 
       auto flushRow = [&] {
         if (!firstRow) { y += vSpace_; totalHeight += vSpace_; }
         if (!testOnly) {
           for (int i = 0; i < rowItems.size(); ++i) {
-            const QSize sz = rowItems[i]->sizeHint();
+            const QSize sz = rowSize[i];
             rowItems[i]->setGeometry(QRect(rowX[i], y + (lineHeight - sz.height()) / 2, sz.width(), sz.height()));
           }
         }
@@ -91,6 +101,8 @@ namespace stencil::gui {
 
     QList<QLayoutItem*> items_;
     int hSpace_, vSpace_;
+    bool lineHint_ = false;
+    bool holdWhileCapped_ = false;
   };
 
 }  // namespace stencil::gui

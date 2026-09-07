@@ -15,15 +15,18 @@ import { createStubElement, installDom } from './helpers/dom.js';
 const rectOf = (r) => () => ({ ...r, bottom: r.top + r.height });
 
 installDom({}, {
-  // base.js's own reduced-motion check: OFF, so setOriginVars actually runs.
+  // base.js and motion.js now ask the SAME gate (ui/motionPrefs.js), so reduced motion is
+  // off here — setOriginVars must actually run — and the particles are switched off through
+  // the motion mode below instead. The flight math under test happens in setOrigin either way.
   window: { matchMedia: () => ({ matches: false }), innerWidth: 1000, innerHeight: 800, addEventListener: () => {} },
-  // motion.js's separate check (motionReduced): ON, so playDust's particle build
-  // (surfaceDust/disintegrate, which wants a real document) bails out before it runs —
-  // the flight math under test happens earlier, in setOrigin, either way.
-  matchMedia: () => ({ matches: true }),
+  matchMedia: () => ({ matches: false }),
 });
 
 const { wireModalShell } = await import('../js/ui/base.js');
+const { setMotionPrefs } = await import('../js/ui/motionPrefs.js');
+// 'slide': every flight still plays, none of them out of dust — so playDust's particle
+// build (surfaceDust/disintegrate, which wants a real document) never runs.
+setMotionPrefs({ mode: 'slide' });
 
 // Mirrors createModalFlight's setOrigin (js/ui/base.js) so the expectation is computed
 // the same way the code under test computes it, not re-typed as magic numbers.

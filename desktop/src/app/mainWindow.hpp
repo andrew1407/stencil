@@ -60,6 +60,7 @@ namespace stencil::llm {
 }
 
 class MainWindowGuiTest;  // QtTest e2e (tests/mainWindow.gui.cpp)
+class QScrollBar;
 
 // Top-level window. Mirrors the composition done by browser/js/ui/layout.js +
 // toolbar.js + the DrawingApp wiring: a toolbar of actions, the canvas in the
@@ -234,6 +235,9 @@ namespace stencil::gui {
     // Alt-peek/glide/release machinery treats it exactly like every other popover.
     // Right-click on the logo opens it sticky; hold-Alt peeks it (altPeekOpen).
     void openAccentPicker();
+    // Shift+F10 (hotkeysConfig contextMenu): the canvas menu under the pointer while it
+    // rests over the viewport, else at the viewport's centre — where the browser puts it.
+    void showContextMenuFromKeyboard();
     void buildPageFormulaToolbar();
     void buildStyleToolbar();
     void buildDrawViewToolbar();   // row 4: Draw + View (the rows above are full)
@@ -445,9 +449,9 @@ namespace stencil::gui {
     // away — and a dock mid-close counts as away (its slide keeps isVisible()
     // true for 260ms, which used to swallow the toast for a turn landing then).
     bool chatSurfaceHidden() const;
-    // The unread mark on the toolbar's chat icon: set when a result lands with
-    // no surface to show it, cleared when one opens.
-    void setChatUnread(bool on);
+    // (No unread mark on the chat icon: a result that lands with no surface to show it
+    // toasts, and the toast opens the chat — a badge left behind after it faded was one
+    // more thing to dismiss. Browser twin: js/ui/chatPanel.js, same decision.)
     // Resend the failed/stopped turn (the dock signal AND the panel card use it).
     void chatRetryTurn(const QString& text);
     void chatMirrorBusy(bool on);       // send button ⇄ stop button
@@ -482,6 +486,9 @@ namespace stencil::gui {
     // hover-suppress uses too.
     void revealCanvasScrollbars();
     void scheduleScrollbarHide();
+    // The floating bar the user sees/drags for an axis (overlayScrollArea.hpp);
+    // scroll_->horizontalScrollBar()/verticalScrollBar() stay the value model.
+    QScrollBar* canvasScrollBar(Qt::Orientation o) const;
     void openProjects();
     // Build id -> edited-result preview pixmaps for the local project list, shown as
     // the Projects dialog's row icons. Each is rendered through the same canvas/export
@@ -587,6 +594,10 @@ namespace stencil::gui {
     // remove the active image's provenance and add a new image by URL. Edits persist
     // to the active project; a URL load routes through loadImageByUrl().
     void openLinks();
+    // Description / keywords editors for the active SAVED project (browser parity: the
+    // DESCRIPTION & ATTRIBUTES cluster); both persist through the projects store.
+    void openDescription();
+    void openKeywords();
     // Load an image/video BY URL (extracting frame `frame` for video), tagging the
     // result with `source`/`resource` provenance so the next project save records it.
     void loadImageByUrl(const QString& source, const QString& resource, int frame);
@@ -1326,6 +1337,8 @@ namespace stencil::gui {
     QAction* actProjects_ = nullptr;
     QAction* actConnect_ = nullptr;
     QAction* actLinks_ = nullptr;
+    QAction* actDescription_ = nullptr;   // the saved project's description (dialogs/descriptionDialog)
+    QAction* actKeywords_ = nullptr;      // …and its search keywords (dialogs/keywordsDialog)
     QAction* actNewProject_ = nullptr;
     QAction* actSaveProject_ = nullptr;
     QAction* actClearProject_ = nullptr;  // trash: clear (remove) the current project/editor; hidden for server projects
@@ -1336,6 +1349,7 @@ namespace stencil::gui {
     QAction* actInfo_ = nullptr;
     QAction* actIncognito_ = nullptr;
     QAction* actShortcuts_ = nullptr;
+    QAction* actContextMenu_ = nullptr;   // Shift+F10: the canvas context menu from the keyboard (browser parity)
     QAction* actOpenIn_ = nullptr;   // "Open In…" (browser / Telegram) — see openInAnotherApp
     QAction* actChat_ = nullptr;     // AI Assistant chat dock toggle (checkable)
     QAction* actQuit_ = nullptr;
@@ -1508,6 +1522,9 @@ namespace stencil::gui {
     // onLaunchImageLoaded() once the async load succeeds.
     QString pendingProvSource_;
     QString pendingProvResource_;
+    // The Open dialog's "Save to" server for the image now loading (consumed once by
+    // adoptCanvasAsLocalProject; empty = this computer).
+    QString pendingServerTarget_;
     // Pending quick pre-load crop for an in-flight load (set by openLinks, consumed
     // once in onLaunchImageLoaded). Mirrors the browser linksModal load opts: Auto =
     // the default page-aspect auto-crop; Page = crop to `page` in `album`/portrait

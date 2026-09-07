@@ -250,6 +250,16 @@
     "default": "Ctrl+Shift+L"
   },
   {
+    "id": "openDescription",
+    "label": "Open Project Description",
+    "default": "Alt+Shift+D"
+  },
+  {
+    "id": "openKeywords",
+    "label": "Open Project Keywords",
+    "default": "Alt+Shift+K"
+  },
+  {
     "id": "toggleTheme",
     "label": "Toggle Dark / Light Theme",
     "default": "Ctrl+D"
@@ -283,5 +293,10 @@
     "id": "openVisuals",
     "label": "Default Visuals & Highlights",
     "default": "Alt+V"
+  },
+  {
+    "id": "contextMenu",
+    "label": "Open Canvas Context Menu",
+    "default": "Shift+F10"
   }
 ]

@@ -10,10 +10,10 @@ tables these sections once carried are gone. This file keeps the per-profile
 BEHAVIOUR: what each surface's profile is for, its execution model, and its security
 boundaries.
 
-Profile shape today (per the registry): **editor** 33 ops (browser 32 + desktop-only
-`openFile`), **console** 23 (cli 23 ⊇ pystencil 19), **bot** 24, **mcp** 10,
-**extension** 12. An op outside a surface's profile falls to §1's unknown-op skip, by
-design.
+Profile shape today (per the registry): **editor** 36 ops (browser 35 incl. browser-only
+`voiceChat`, + desktop-only `openFile`), **console** 23 (cli 23 ⊇ pystencil 19), **bot** 24,
+**mcp** 10, **extension** 12. An op outside a surface's profile falls to §1's unknown-op
+skip, by design.
 
 ## 8. Extension profile (extension-only ops)
 
@@ -96,10 +96,11 @@ these behaviours:
 The two GUI editors extend §2 with ops that adjust the EDITOR itself, not the image:
 theme, accent, lineStyle, units, view, clear, openUrl, openFile (desktop-only), connect/
 disconnect, copy, removeProject, clearProjects, compare, zoom, renameProject,
-projectColor, blankColor, openProject, incognito, clearChat — schemas, validation and
-bullets per `opRegistry.json` → `profiles.editor` and each op's entry. Everywhere else
-these are unknown ops — skipped with a warning per §1, by design — except where a
-partial profile below carries one explicitly.
+projectColor, blankColor, openProject, incognito, voiceChat (browser-only), chatPanel,
+dialog, clearChat —
+schemas, validation and bullets per `opRegistry.json` → `profiles.editor` and each op's
+entry. Everywhere else these are unknown ops — skipped with a warning per §1, by design —
+except where a partial profile below carries one explicitly.
 
 Semantics (profile-wide):
 
@@ -110,11 +111,32 @@ Semantics (profile-wide):
 - They are **forbidden inside `variants`** (variants exist to produce images) — a variant
   containing one is DROPPED with a warning per §1, never a plan-level failure; the
   top-level actions and the well-formed variants still run.
+- **`clearProjects` can spare the open project** — `{"op":"clearProjects","keepCurrent":true}`
+  is "delete the others / all but this one". Without it the model had to clear everything
+  and try to save the working image back, which lost the open project when there was
+  nothing to re-save; the bullet says so explicitly.
 - **Destructive ops confirm in-app.** `removeProject`, `clearProjects`, `clearChat` (and
   `openProject` over a dirty unsaved editor) execute the surface's EXISTING flow
   *including its user confirmation*; a declined confirm is a "canceled" note, never a
   failed plan. `clearChat` is carried by EVERY chat surface and is deferred to the END of
   the turn (see §12.2 for what a confirmed clear removes).
+- **`chatPanel` places the assistant panel itself** — the one settings op whose subject is
+  the chat window rather than the editor: `{"op":"chatPanel","open":true,"dock":"right"}`,
+  `dock` ∈ left|right|top|bottom|float, at least one field, and a `dock` with no `open`
+  shows the panel where it lands. It runs the panel's own placement path (browser
+  `stencil.chat.dock/open/close`; desktop `dockChatTo` / `toggleChatFloat` / the Assistant
+  toggle), so a spoken "put the chat on the right" lands exactly where a click would.
+  Never confused with the §13-forbidden `chat` op name (transcript persistence).
+- **`dialog` opens the editor's own windows** — `{"op":"dialog","name":"projects"}` with
+  `name` ∈ projects|servers|shortcuts|visuals|help, or `{"op":"dialog","close":true}` for
+  the open one. Runs the same QAction/toolbar button the user would click, and is
+  **deferred to the plan's end** (the windows are modal — the edits and the reply land
+  first; the desktop opens it on the next event-loop turn so nothing blocks on it). The
+  assistant's own provider settings are NOT among the names — that is §13-forbidden.
+- **`openProject` also takes `{"last":true}`** — the most recently edited saved project,
+  resolved by the surface off its own `updatedAt`. The model is never shown the project
+  list, so it must never answer "tell me which project"; `removeProject`'s `current:true`
+  is the same shape for the open one.
 - **The user-echo guard.** `openUrl` (and the console `openFile`, and `save`'s `path`
   where honored) accept only a URL/path the user themselves wrote verbatim in this
   conversation — the model may echo the user but can never introduce, complete, or

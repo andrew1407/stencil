@@ -682,6 +682,17 @@ namespace stencil::gui {
    protected:
     bool eventFilter(QObject* o, QEvent* e) override {
       const QEvent::Type type = e->type();
+      // Keyboard navigation is a hover too (browser .ctx-kb): hovered() fires for the
+      // row the arrows land on, where no mouse move ever will. Wired once per menu.
+      if (type == QEvent::Show) {
+        if (auto* menu = qobject_cast<QMenu*>(o);
+            menu && !menu->property(kMenuHoverWiredProperty).toBool()) {
+          menu->setProperty(kMenuHoverWiredProperty, true);
+          QObject::connect(menu, &QMenu::hovered, this,
+                           [this, menu](QAction* a) { hoverMenuAction(menu, a); });
+        }
+        return QObject::eventFilter(o, e);
+      }
       // A menu's rows are QActions inside ONE widget, so their "hover" is the menu's
       // own mouse moves — the browser's .ctx-item / .chat-more-item icons animate on
       // row hover, and these do the same through ActionIconMotionRunner.

@@ -894,7 +894,7 @@ export class StencilProjectsModal extends StencilElement {
           const cur = meta.description || '';
           const v = await app.prompt('Description:', { title: 'Project description', titleIcon: 'info', confirmLabel: 'Save', confirmIcon: 'save', defaultValue: cur, multiline: true, closeAnchor: menuBtn });
           if (v == null) return;
-          const updated = store.setDescription(meta.id, v);
+          const updated = app.setProjectDescription(meta.id, v);
           if (updated) meta.description = updated.description;
           render();
         };

@@ -1,35 +1,77 @@
-/* ── Custom scrollbars: thin by default, expand on container hover ─
+/* ── The canvas viewport's scrollbars are its OWN overlay bars (js/ui/canvasScrollbars.js,
+   desktop parity: canvas/overlayScrollArea.hpp) — the native ones are hidden here. The
+   native scrollbar-color property is one colour for BOTH bars, so a hover on one lit the
+   other, and the webkit pseudo-elements are ignored once scrollbar-width is set. */
+.canvas-viewport::-webkit-scrollbar { display: none; width: 0; height: 0; }
+/* Each bar owns a 12px strip along one viewport edge; its thumb is a 6px pill in the
+   thumb grey, swelling to 9px and the accent under ITS pointer (or mid-drag). Revealed
+   (.canvas-sb-on) by a scroll or zoom, faded after 900ms idle; while faded it is also
+   transparent to the pointer, so nothing at the canvas edge is blocked. */
+.canvas-sb {
+    position: fixed;
+    z-index: 2;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+}
+.canvas-sb.canvas-sb-on { opacity: 1; pointer-events: auto; }
+.canvas-sb[hidden] { display: none; }
+.canvas-sb-thumb {
+    position: absolute;
+    background: var(--sb-thumb);
+    border-radius: 999px;
+    transition: background-color 0.15s, width 0.15s, height 0.15s, right 0.15s, bottom 0.15s;
+}
+.canvas-sb-y .canvas-sb-thumb { width: 6px; right: 3px; }
+.canvas-sb-x .canvas-sb-thumb { height: 6px; bottom: 3px; }
+.canvas-sb-y:hover .canvas-sb-thumb, .canvas-sb-y.canvas-sb-drag .canvas-sb-thumb {
+    width: 9px; right: 1.5px; background: var(--sb-thumb-hover);
+}
+.canvas-sb-x:hover .canvas-sb-thumb, .canvas-sb-x.canvas-sb-drag .canvas-sb-thumb {
+    height: 9px; bottom: 1.5px; background: var(--sb-thumb-hover);
+}
+.canvas-sb.canvas-sb-nomotion, .canvas-sb.canvas-sb-nomotion .canvas-sb-thumb { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+    .canvas-sb, .canvas-sb-thumb { transition: none; }
+}
+
+/* ── Custom scrollbars (the other scrollable panels): thin by default, expand on container hover ─
    The visible thumb is shrunk by a transparent border; the gutter stays a
    constant width so growth causes no layout shift, just a visual swell.
    background-clip:padding-box lets the transparent border act as thumb padding. */
 /* Firefox — only auto/thin/none are available, so we stay 'thin' */
-.canvas-viewport,
 .settings-body,
 #coord-body,
 #fs-points-panel {
     scrollbar-width: thin;
     scrollbar-color: var(--sb-thumb) transparent;
 }
+/* Chrome 121+ honours these standard properties too, and once scrollbar-width is set it
+   IGNORES the ::-webkit-scrollbar rules below — so the hover accent has to be said here
+   as well. The standard property has no thumb-hover of its own, and a panel-wide :hover
+   painted the thumb accent on every scroll; `.sb-hover` is set by utils.js
+   wireScrollbarHover only while the pointer is on the bar's own strip. */
+.settings-body.sb-hover,
+#coord-body.sb-hover,
+#fs-points-panel.sb-hover {
+    scrollbar-color: var(--sb-thumb-hover) transparent;
+}
 /* WebKit / Blink */
-.canvas-viewport::-webkit-scrollbar,
 .settings-body::-webkit-scrollbar,
 #coord-body::-webkit-scrollbar,
 #fs-points-panel::-webkit-scrollbar {
     width: 12px;
     height: 12px;
 }
-.canvas-viewport::-webkit-scrollbar-track,
 .settings-body::-webkit-scrollbar-track,
 #coord-body::-webkit-scrollbar-track,
 #fs-points-panel::-webkit-scrollbar-track,
-.canvas-viewport::-webkit-scrollbar-corner,
 .settings-body::-webkit-scrollbar-corner,
 #coord-body::-webkit-scrollbar-corner,
 #fs-points-panel::-webkit-scrollbar-corner {
     background: transparent;
 }
 /* Default: visible thumb ~8 px (12 px slot − 2×2 px transparent border) */
-.canvas-viewport::-webkit-scrollbar-thumb,
 .settings-body::-webkit-scrollbar-thumb,
 #coord-body::-webkit-scrollbar-thumb,
 #fs-points-panel::-webkit-scrollbar-thumb {
@@ -40,7 +82,6 @@
     transition: background-color 0.15s;
 }
 /* Container hover: thumb fills the slot and darkens slightly */
-.canvas-viewport:hover::-webkit-scrollbar-thumb,
 .settings-body:hover::-webkit-scrollbar-thumb,
 #coord-body:hover::-webkit-scrollbar-thumb,
 #fs-points-panel:hover::-webkit-scrollbar-thumb {
@@ -48,7 +89,6 @@
     background-color: var(--sb-thumb-hover);
 }
 /* Direct thumb hover (about to drag): boldest */
-.canvas-viewport::-webkit-scrollbar-thumb:hover,
 .settings-body::-webkit-scrollbar-thumb:hover,
 #coord-body::-webkit-scrollbar-thumb:hover,
 #fs-points-panel::-webkit-scrollbar-thumb:hover {
@@ -393,6 +433,7 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
 }
 .canvas-viewport {
     overflow: auto;
+    scrollbar-width: none;   /* its bars are the overlay ones above (js/ui/canvasScrollbars.js) */
     margin-top: 10px;
     border: 2px solid var(--border-canvas);
     max-width: 100%;

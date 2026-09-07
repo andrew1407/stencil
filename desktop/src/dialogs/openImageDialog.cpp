@@ -278,6 +278,17 @@ namespace stencil::gui {
         "Edit without saving — the image is never written to storage.", this);
     incogRow_ = vsRow(this, tr("Incognito"), incognito_, /*stretch=*/0);
     layout->addWidget(incogRow_);
+    // Incognito never offers a server target (browser: fillTargetSelect(!incog)).
+    connect(incognito_, &QCheckBox::toggled, this, &OpenImageDialog::refreshTargetRow);
+
+    // Save target (browser #open-image-target-row): only shown when at least one server
+    // is connected — setServerTargets fills it.
+    target_ = new SearchComboBox(this, /*searchable=*/false);
+    target_->setObjectName(QStringLiteral("openImageTarget"));
+    target_->setToolTip("Open here locally or create on a connected server");
+    targetRow_ = vsRow(this, tr("Save to"), target_);
+    targetRow_->setVisible(false);
+    layout->addWidget(targetRow_);
 
     // Replace options: only shown on the Local file tab over a replaceable project.
     // The two checks stack (browser .oi-replace wraps them onto their own lines).
@@ -742,11 +753,34 @@ namespace stencil::gui {
     refreshOpenEnabled();
   }
 
-  // Album / page size are only meaningful while cropping to page.
+  // Album / page size are only meaningful while cropping to page — shown only then, the
+  // toggle wearing the orientation it holds (browser #open-image-crop-orientation).
   void OpenImageDialog::syncQuickcropEnabled() {
     const bool on = cropPage_->isChecked();
-    cropAlbum_->setEnabled(on);
-    cropPageSize_->setEnabled(on);
+    cropAlbum_->setText(cropAlbum_->isChecked() ? tr("Album") : tr("Portrait"));
+    cropAlbum_->setVisible(on);
+    cropPageSize_->setVisible(on);
+  }
+
+  void OpenImageDialog::setServerTargets(const QStringList& urls) {
+    serverUrls_ = urls;
+    target_->clear();
+    target_->addItem(tr("Local (this computer)"), QString());
+    for (const QString& u : urls) target_->addItem(u, u);
+    refreshTargetRow();
+  }
+
+  // The row shows only with a server to pick, for a file/URL open that is not incognito.
+  void OpenImageDialog::refreshTargetRow() {
+    if (!targetRow_) return;
+    const bool blank = tabs_->currentIndex() == TabBlank;
+    targetRow_->setVisible(!serverUrls_.isEmpty() && !blank && !incognito_->isChecked());
+  }
+
+  QString OpenImageDialog::serverTarget() const {
+    // isHidden, not isVisible: read after exec() returns, when the dialog is down.
+    if (!targetRow_ || targetRow_->isHidden()) return QString();
+    return target_->currentData().toString();
   }
 
   QString OpenImageDialog::source() const {

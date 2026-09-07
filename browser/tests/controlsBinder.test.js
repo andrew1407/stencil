@@ -43,9 +43,38 @@ test('the window shortcuts, not the editing ones, work from inside a text box', 
   const { typingHotkeyId, HOTKEYS_WHILE_TYPING } = await import('../js/core/controlsBinder.js');
   assert.ok(HOTKEYS_WHILE_TYPING.includes('openHelp'));
   assert.ok(HOTKEYS_WHILE_TYPING.includes('openProjects'));
+  // Voice chat must be switchable from inside the composer too (its own dictation lands there).
+  assert.ok(HOTKEYS_WHILE_TYPING.includes('toggleVoiceChat'));
+  // The description / keywords windows autofocus their textarea, so their chords must
+  // close them from inside it too (the same one-way trap as the chat toggle).
+  assert.ok(HOTKEYS_WHILE_TYPING.includes('openLinks'));
+  assert.ok(HOTKEYS_WHILE_TYPING.includes('openDescription'));
+  assert.ok(HOTKEYS_WHILE_TYPING.includes('openKeywords'));
   const hotkeys = new Map([['openHelp', 'Alt+H'], ['cycleFilter', 'Alt+B']]);
   const press = (key, mods = {}) => ({ key, code: `Key${key.toUpperCase()}`, altKey: false,
     ctrlKey: false, metaKey: false, shiftKey: false, ...mods });
   assert.equal(typingHotkeyId(press('h', { altKey: true }), hotkeys), 'openHelp');
   assert.equal(typingHotkeyId(press('b', { altKey: true }), hotkeys), null);   // stays typing
+});
+
+// Shift+F10 opens the canvas context menu from the keyboard (the desktop binds the same
+// chord): under the pointer while it rests on the canvas, else at the viewport's centre,
+// and always through the real contextmenu event so the two open paths cannot drift.
+test('contextMenu hotkey: Shift+F10 in the registry, placed at the pointer or the viewport centre', async () => {
+  const { readFileSync } = await import('node:fs');
+  const defs = JSON.parse(readFileSync(new URL('../js/config/hotkeysConfig.json', import.meta.url), 'utf8'));
+  const def = defs.find(d => d.id === 'contextMenu');
+  assert.ok(def, 'contextMenu is a rebindable registry entry');
+  assert.equal(def.default, 'Shift+F10');
+  const { contextMenuPoint } = await import('../js/core/controlsBinder.js');
+  const vp = { left: 100, top: 50, width: 600, height: 400 };
+  assert.deepEqual(contextMenuPoint({ mouseOverCanvas: true, lastMouseClientX: 320, lastMouseClientY: 240 }, vp),
+    { x: 320, y: 240 });
+  assert.deepEqual(contextMenuPoint({ mouseOverCanvas: false, lastMouseClientX: 320, lastMouseClientY: 240 }, vp),
+    { x: 400, y: 250 });
+  // The handler dispatches a contextmenu MouseEvent on the viewport and never opens a second menu.
+  const src = readFileSync(new URL('../js/core/controlsBinder.js', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('contextMenu: () => {'), src.indexOf('};', src.indexOf('contextMenu: () => {')));
+  assert.ok(body.includes("new MouseEvent('contextmenu'"), 'goes through the right-click path');
+  assert.ok(body.includes("classList.contains('ctx-open')"), 'an open menu is left alone');
 });

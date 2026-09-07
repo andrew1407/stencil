@@ -68,17 +68,18 @@ test('§13: the registered op names are exactly the contract browser surface set
     'theme', 'accent', 'lineStyle', 'units', 'view', 'clear', 'openUrl',
     'connect', 'disconnect', 'copy', 'removeProject', 'clearProjects',
     'compare', 'zoom', 'renameProject', 'projectColor', 'blankColor',
-    'openProject', 'incognito', 'clearChat',
+    'openProject', 'incognito', 'voiceChat', 'chatPanel', 'dialog', 'clearChat',
   ]);
 });
 
 test('§13: each op carries its contract flags', () => {
   const editorSetting = ['theme', 'accent', 'lineStyle', 'units', 'view', 'clear', 'openUrl',
     'connect', 'disconnect', 'copy', 'removeProject', 'clearProjects', 'compare', 'zoom',
-    'renameProject', 'projectColor', 'blankColor', 'openProject', 'incognito', 'clearChat'];
+    'renameProject', 'projectColor', 'blankColor', 'openProject', 'incognito', 'voiceChat',
+    'chatPanel', 'dialog', 'clearChat'];
   const topLevelOnly = ['undo', 'redo', 'image', 'save'];
   const newFrame = ['blank', 'undo', 'redo', 'frame', 'image', 'clear', 'openUrl', 'openProject'];
-  const deferred = ['clearChat'];   // §10: executor-deferred to the plan's end
+  const deferred = ['dialog', 'clearChat'];   // §10: executor-deferred to the plan's end
   for (const [name, def] of Object.entries(OPS)) {
     assert.equal(!!def.editorSetting, editorSetting.includes(name), `${name}.editorSetting`);
     assert.equal(!!def.topLevelOnly, topLevelOnly.includes(name), `${name}.topLevelOnly`);
@@ -110,7 +111,7 @@ test('§13: every bullet keeps its key semantic phrase', () => {
     connect: 'never invent or suggest a new address',
     copy: 'never answer that it cannot be done',
     removeProject: 'confirm before anything is deleted',
-    clearProjects: 'Server-stored projects are never touched from chat',
+    clearProjects: 'you must never clear everything and try to save it back instead',
     compare: 'the exported image is unchanged',
     zoom: 'This never changes the picture — cropping is the crop op',
     renameProject: 'rename the active saved project',
@@ -118,6 +119,9 @@ test('§13: every bullet keeps its key semantic phrase', () => {
     blankColor: 'KEEPING the drawn lines',
     openProject: 'unsaved work would be replaced',
     incognito: 'only togglable on a blank editor',
+    voiceChat: 'turn the hands-free voice chat mode off',
+    chatPanel: 'a "dock" on its own opens the panel where it lands',
+    dialog: 'when they ask for a change you can make yourself, make it instead',
     clearChat: 'the clear happens after this plan\'s other actions finish',
   };
   // redo and disconnect are documented on their sibling's shared bullet.
@@ -133,11 +137,31 @@ test('§13: every bullet keeps its key semantic phrase', () => {
     copy: 'the layout JSON instead of the image',
     accent: 'a named preset persists and syncs',
     lineStyle: 'the defaults of NEW lines',
+    openProject: 'the project edited most recently',
   };
   for (const [name, phrase] of Object.entries(also)) {
     assert.ok(flat(OPS[name].also).includes(phrase), `${name} also-line keeps "${phrase}"`);
   }
   assert.deepStrictEqual(Object.keys(OPS).filter((n) => OPS[n].also).sort(), Object.keys(also).sort());
+});
+
+// The DEFERRED ops run in their own executor pass at the turn's end (chatController
+// flushDeferred), and that pass gets its own capability bag — one missing there failed
+// the op after the whole turn had otherwise gone through (reported on "show me my
+// projects": the dialog op parsed, planned, and then died on the replay).
+test('every deferred op\'s capability rides the end-of-turn replay', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../js/llm/chatController.js', import.meta.url), 'utf8');
+  const flush = src.slice(src.indexOf('const flushDeferred'), src.indexOf('// One model round'));
+  // …and the dedup keeps the LAST of each op: "close this window and open that one" is
+  // two dialog actions, and first-wins left the user with neither.
+  assert.ok(flush.includes('for (const a of deferred) byOp.set(a.op, a);'), 'last-wins dedup');
+  for (const [name, def] of Object.entries(OPS)) {
+    if (!def.deferred) continue;
+    for (const cap of def.requires || []) {
+      assert.ok(flush.includes(cap), `deferred op "${name}" needs ${cap} in the replay bag`);
+    }
+  }
 });
 
 test('§13 capability truth: an op whose capability is not wired drops out of the prompt', () => {
@@ -999,7 +1023,7 @@ test('EDITOR_SYSTEM_PROMPT: prose core + generated ops splice at the settings an
   // `ask` paragraph.
   assert.ok(!LLM_SYSTEM_PROMPT.includes('"op":"theme"'));
   assert.ok(EDITOR_SETTINGS_PROMPT.startsWith('- {"op":"theme","mode":"light"|"dark"}'));
-  assert.ok(EDITOR_SETTINGS_PROMPT.endsWith('("line"|"rect") and "fillColor" for the defaults of NEW lines.'));
+  assert.ok(EDITOR_SETTINGS_PROMPT.endsWith('The app resolves it; you never see the list, so never ask which one that is.'));
   assert.ok(EDITOR_SYSTEM_PROMPT.includes(
     `save, image 2, its edits, save, …\n${EDITOR_SETTINGS_PROMPT}\n\nWhen a choice is genuinely`));
   // …and §4 itself still teaches `ask`, so every surface gets it, not just the editors.

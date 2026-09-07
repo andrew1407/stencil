@@ -42,9 +42,21 @@ namespace stencil::gui {
       setProperty("raysAngle", angle_);
       update();
     });
+    grace_ = new QTimer(this);
+    grace_->setSingleShot(true);
+    grace_->setInterval(150);
+    QObject::connect(grace_, &QTimer::timeout, this, [this] {
+      if (!hoveredAnywhere()) stop();
+    });
     setProperty("fxActive", false);
     hide();
     logo_->installEventFilter(this);
+  }
+
+  void LogoHoverFx::holdWhile(QWidget* box) {
+    if (box_) box_->removeEventFilter(this);
+    box_ = box;
+    if (box_) box_->installEventFilter(this);
   }
 
   void LogoHoverFx::themeChanged() {
@@ -60,21 +72,53 @@ namespace stencil::gui {
     if (o == logo_) {
       switch (e->type()) {
         case QEvent::Enter:
+          grace_->stop();
           if (logo_->isEnabled()) start();
           break;
         case QEvent::Leave:
+          // Bound for the open popover? Hold; the grace check settles it.
+          if (box_ && box_->isVisible()) leaveSoon(); else stop();
+          break;
         case QEvent::Hide:
         case QEvent::EnabledChange:
         case QEvent::WindowDeactivate:
           // Mirror ShimmerOverlay: the button hiding / a modal opening mid-hover
           // stops the loop rather than leaving a frozen glow.
+          grace_->stop();
           stop();
+          break;
+        default:
+          break;
+      }
+    } else if (box_ && o == box_) {
+      switch (e->type()) {
+        case QEvent::Enter:
+          grace_->stop();
+          if (logo_->isEnabled() && logo_->isVisible()) start();
+          break;
+        case QEvent::Leave:
+        case QEvent::Hide:
+          leaveSoon();
           break;
         default:
           break;
       }
     }
     return QWidget::eventFilter(o, e);
+  }
+
+  void LogoHoverFx::leaveSoon() {
+    if (active()) grace_->start();
+  }
+
+  bool LogoHoverFx::hoveredAnywhere() const {
+    // underMouse() lags a synthetic Enter, and Qt delivers the logo's Leave before the
+    // popover's Enter — so the cursor position is the arbiter, as the Alt-glide poll does.
+    const auto under = [](const QWidget* w) {
+      return w->isVisible() &&
+             (w->underMouse() || w->rect().contains(w->mapFromGlobal(QCursor::pos())));
+    };
+    return under(logo_) || (box_ && under(box_));
   }
 
   void LogoHoverFx::paintEvent(QPaintEvent*) {

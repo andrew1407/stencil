@@ -1,0 +1,18 @@
+{
+  "name": "clear-projects-keep-current-false-invalid",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "clearProjects",
+        "keepCurrent": false
+      }
+    ]
+  },
+  "expect": "invalid",
+  "reason": "§10 clearProjects: keepCurrent is present-and-true or absent — false says nothing (removeProject's current:true shape)"
+}

@@ -49,7 +49,7 @@ test('registry is well-formed: unique ids, known profiles, profile lists ↔ op 
 });
 
 test('measured per-profile op counts', () => {
-  assert.equal(registry.profiles.editor.ops.length, 33);     // browser 32 + desktop openFile
+  assert.equal(registry.profiles.editor.ops.length, 36);     // browser 35 (incl. voiceChat) + desktop openFile
   assert.equal(registry.profiles.console.ops.length, 23);    // cli 23 ⊇ pystencil 19
   assert.equal(registry.profiles.bot.ops.length, 24);        // 22 bullet groups, undo/redo + connect/disconnect shared
   assert.equal(registry.profiles.mcp.ops.length, 10);
@@ -153,7 +153,7 @@ test('editor profile matches the live browser OPS keys, with drift entries note-
       assert.ok(notes[name], `editor op "${name}" is not in the browser OPS — it must carry a drift note`);
     }
   }
-  assert.equal(Object.keys(OPS).length, 32, 'the browser registers 32 ops today');
+  assert.equal(Object.keys(OPS).length, 35, 'the browser registers 35 ops today');
 });
 
 test('browser-baselined entries carry the live bullets, also-lines, flags and requires', () => {

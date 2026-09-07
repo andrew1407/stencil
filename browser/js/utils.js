@@ -305,6 +305,34 @@ export const fillFromPair = (colorId, alphaId, doc = document) =>
 export const pointInRect = (x, y, rect) =>
   x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
 
+// ── Scrollbar hover ──────────────────────────────────────────────
+// Whether a pointer at (x, y) is on a scrollable element's overlay scrollbar strip: the
+// last `strip` px along its right edge (vertical bar, when `canY`) or bottom edge
+// (horizontal, when `canX`). Overlay bars take no layout space, so the strip is measured
+// off the element's own box. Pure, so the geometry is unit-testable.
+export const SCROLLBAR_STRIP_PX = 14;
+export const scrollbarHit = (box, x, y, { canX = false, canY = false, strip = SCROLLBAR_STRIP_PX } = {}) => {
+  if (!pointInRect(x, y, box)) return false;
+  if (canY && x >= box.right - strip) return true;
+  if (canX && y >= box.bottom - strip) return true;
+  return false;
+};
+// Toggles `sb-hover` on `el` while the pointer rests on one of its scrollbars — the
+// thumb takes the accent ONLY then (layout.css), not whenever the panel is hovered:
+// the standard scrollbar-color property Chrome/Firefox read has no thumb-hover of its
+// own, and a panel-wide hover made every scroll paint the thumb accent (user report).
+export const wireScrollbarHover = (el) => {
+  if (!el) return;
+  const set = (on) => el.classList.toggle('sb-hover', on);
+  el.addEventListener('mousemove', (e) => {
+    set(scrollbarHit(el.getBoundingClientRect(), e.clientX, e.clientY, {
+      canX: el.scrollWidth > el.clientWidth,
+      canY: el.scrollHeight > el.clientHeight,
+    }));
+  });
+  el.addEventListener('mouseleave', () => set(false));
+};
+
 // ── Color helpers (pure) ────────────────────────────────────────
 // "#rrggbb" + alpha → "rgba(...)"; already-rgba/named values pass through unchanged.
 export const hexToRgba = (hex, alpha) => {

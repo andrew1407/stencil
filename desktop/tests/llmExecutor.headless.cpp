@@ -633,8 +633,8 @@ int main(int argc, char** argv) {
         *note = removeNote;
         return true;
       }
-      bool clearProjects(QString* note) override {
-        calls << QStringLiteral("clear");
+      bool clearProjects(bool keepCurrent, QString* note) override {
+        calls << (keepCurrent ? QStringLiteral("clear:<others>") : QStringLiteral("clear"));
         *note = clearNote;
         return true;
       }
@@ -1127,6 +1127,18 @@ int main(int argc, char** argv) {
   // ── §10 removeProject current:true + the project-row targets ──
   std::printf("project rows (s10):\n");
   {
+    // Records the ORDER a plan's settings ops and its (deferred) dialog run in.
+    struct DialogTarget : CanvasPlanTarget {
+      using CanvasPlanTarget::CanvasPlanTarget;
+      QStringList calls;
+      void setTheme(const QString& mode) override { calls << QStringLiteral("theme:%1").arg(mode); }
+      bool openDialog(const QString& name, QString* note) override {
+        calls << (name.isEmpty() ? QStringLiteral("dialog:<close>")
+                                 : QStringLiteral("dialog:%1").arg(name));
+        *note = QString();
+        return true;
+      }
+    };
     struct ProjectsTarget2 : CanvasPlanTarget {
       using CanvasPlanTarget::CanvasPlanTarget;
       QStringList calls;
@@ -1146,9 +1158,16 @@ int main(int argc, char** argv) {
         *note = QString();
         return true;
       }
-      bool openProjectNamed(const QString& name, QString* note) override {
-        calls << QStringLiteral("open:%1").arg(name);
-        *note = QStringLiteral("no saved project named \"%1\"").arg(name);
+      bool openDialog(const QString& name, QString* note) override {
+        calls << (name.isEmpty() ? QStringLiteral("dialog:<close>")
+                                 : QStringLiteral("dialog:%1").arg(name));
+        *note = QString();
+        return true;
+      }
+      bool openProjectNamed(const QString& name, bool last, QString* note) override {
+        calls << (last ? QStringLiteral("open:last") : QStringLiteral("open:%1").arg(name));
+        *note = last ? QStringLiteral("there are no saved projects yet")
+                     : QStringLiteral("no saved project named \"%1\"").arg(name);
         return true;
       }
       bool setIncognito(bool on, QString* note) override {
@@ -1175,6 +1194,45 @@ int main(int argc, char** argv) {
     check(res.notes.size() == 2 && res.notes.at(0).startsWith("openProject:") &&
               res.notes.at(1).startsWith("incognito:"),
           "the unknown-name and non-blank skips surface as notes");
+
+    // §10 openProject's other form: "the last project I worked on" reaches the target
+    // as last=true, with no name for the model to have guessed.
+    ProjectsTarget2 lastTarget(img, a4);
+    const auto lastPlan = parseOpPlan(
+        R"({"reply":"p","actions":[{"op":"openProject","last":true}]})");
+    check(lastPlan.ok, "openProject last:true parses");
+    check(executePlan(lastPlan.plan, lastTarget).ok, "…and executes");
+    check(lastTarget.calls == QStringList({"open:last"}), "…as the LAST-project form");
+    // Exactly one form: a name AND last is a parse error, so nothing runs.
+    check(!parseOpPlan(R"({"reply":"p","actions":[{"op":"openProject","name":"a","last":true}]})").ok,
+          "name + last is refused at the parser");
+    check(!parseOpPlan(R"({"reply":"p","actions":[{"op":"openProject","last":false}]})").ok,
+          "…and last:false says nothing, so it is refused too");
+
+    // §10 clearProjects keepCurrent: "delete the others" reaches the target as the
+    // spare-the-open-one form, never as a clear-everything-and-save-it-back dance.
+    check(parseOpPlan(R"({"reply":"p","actions":[{"op":"clearProjects","keepCurrent":true}]})").ok,
+          "clearProjects keepCurrent:true parses");
+    check(!parseOpPlan(R"({"reply":"p","actions":[{"op":"clearProjects","keepCurrent":false}]})").ok,
+          "…and keepCurrent:false says nothing, so it is refused");
+
+    // §10 dialog: DEFERRED past the other actions, and only the LAST one asked for runs
+    // ("close this window and open that one" must end with that one open).
+    DialogTarget dlg(img, a4);
+    const auto dialogPlan = parseOpPlan(R"({
+      "reply": "p", "actions": [
+        {"op": "dialog", "close": true},
+        {"op": "theme", "mode": "dark"},
+        {"op": "dialog", "name": "servers"}
+      ]})");
+    check(dialogPlan.ok, "a dialog plan parses");
+    check(executePlan(dialogPlan.plan, dlg).ok, "…and executes");
+    check(dlg.calls == QStringList({"theme:dark", "dialog:servers"}),
+          "the window opens LAST, and only the last one asked for");
+    check(!parseOpPlan(R"({"reply":"p","actions":[{"op":"dialog","name":"llm"}]})").ok,
+          "the assistant's own settings window is not a name it can ask for");
+    check(!parseOpPlan(R"({"reply":"p","actions":[{"op":"dialog"}]})").ok,
+          "…and a dialog naming nothing is refused");
   }
   {
     // The base target has none of the project rows — typed failures each.

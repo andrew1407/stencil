@@ -25,6 +25,13 @@ test('matchHotkey false when extra modifier present', () => {
     assert.strictEqual(matchHotkey({ ctrlKey: true, shiftKey: true, code: 'KeyC', key: 'c' }, 'Ctrl+C'), false);
 });
 
+test('matchHotkey takes function keys with Shift (the context-menu chord)', () => {
+    const f10 = { shiftKey: true, code: 'F10', key: 'F10' };
+    assert.strictEqual(matchHotkey(f10, 'Shift+F10'), true);
+    assert.strictEqual(matchHotkey({ code: 'F10', key: 'F10' }, 'Shift+F10'), false);
+    assert.strictEqual(matchHotkey({ ...f10, altKey: true }, 'Shift+F10'), false);
+});
+
 test('matchHotkey is case-insensitive on key', () => {
     assert.strictEqual(matchHotkey({ ctrlKey: true, code: 'KeyC', key: 'C' }, 'ctrl+c'), true);
 });

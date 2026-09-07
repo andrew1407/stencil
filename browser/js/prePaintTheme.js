@@ -1,5 +1,6 @@
-// Apply saved theme + accent to <html> BEFORE first paint to avoid a wrong-colour
-// flash. Loaded as a CLASSIC <script> in index.html's <head> (modules defer → flash),
+// Apply saved theme + accent (and the motion mode) to <html> BEFORE first paint to
+// avoid a wrong-colour flash — and, for `data-motion`, an entrance animation playing
+// on a page whose owner turned animation off. Loaded as a CLASSIC <script> in index.html's <head> (modules defer → flash),
 // which also prevents importing js/core/accents.js — so the storage keys are inlined
 // here, kept in sync with ACCENT_STORAGE_KEY / 'drawingApp_theme' there. localStorage
 // reads are guarded: private/disabled storage throws, so we fall back to the system
@@ -33,5 +34,19 @@
     }
   } catch {
     /* storage blocked — keep the default accent */
+  }
+
+  // Interface motion mode: 'particles' (default) | 'slide' | 'none'. The CSS half of
+  // js/ui/motionPrefs.js — animations.css keys the no-motion rules off this attribute,
+  // and it must be on <html> before the app's own entrance plays. Same inlining rule as
+  // above (classic script, no imports): keep the key and the values in step with
+  // MOTION_STORAGE_KEY / MOTION_MODES there.
+  try {
+    const saved = JSON.parse(localStorage.getItem('drawingApp_motion') || 'null');
+    const mode = saved && typeof saved === 'object' ? String(saved.mode) : '';
+    root.setAttribute('data-motion',
+      ['particles', 'slide', 'none'].includes(mode) ? mode : 'particles');
+  } catch {
+    root.setAttribute('data-motion', 'particles');   /* storage blocked or junk — the default */
   }
 })();

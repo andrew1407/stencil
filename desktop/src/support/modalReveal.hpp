@@ -5,6 +5,8 @@
 #include <QRect>
 #include <QString>
 
+#include "motionPrefs.hpp"   // motionReduced() / dustAllowed() / dustMotionOk()
+
 class QDialog;
 class QWidget;
 
@@ -72,10 +74,8 @@ namespace stencil::support {
   // dialog-sized popover flight (mainWindow.cpp).
   inline constexpr int kDialogDustMaxCells = 4000;
 
-  // Animations suppressed (STENCIL_NO_ANIM=1).
-  bool motionReduced();
-  // motionReduced() plus the offscreen platform (no compositor; the gui tests run
-  // there) — the one gate every dust flight checks before playing.
-  bool dustMotionOk();
+  // The motion preferences every helper here checks — motionReduced(), dustAllowed(),
+  // dustMotionOk(), drawingMotionOk() — live in their own header-only home, included
+  // above so the dozen call sites that reach for them through this one keep working.
 
 }  // namespace stencil::support

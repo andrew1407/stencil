@@ -29,8 +29,8 @@ const makeMock = (over = {}) => {
       save() { calls.push(['save']); },
     },
     tabs: { reportActive(id) { calls.push(['reportActive', id]); } },
-    updateIncognitoUI() { calls.push(['updateIncognitoUI']); },
-    updateProjectTitle() { calls.push(['updateProjectTitle']); },
+    // One sweep: incognito UI + title + the project-gated buttons (description/keywords/links).
+    updateButtons() { calls.push(['updateButtons']); },
     ...over,
   };
 };

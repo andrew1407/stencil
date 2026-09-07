@@ -160,15 +160,6 @@ namespace stencil::support {
     }
   }  // namespace
 
-  // Qt has no portable reduce-motion hint; this env var is the opt-out (the browser
-  // side uses prefers-reduced-motion).
-  bool motionReduced() { return !qEnvironmentVariableIsEmpty("STENCIL_NO_ANIM"); }
-
-  bool dustMotionOk() {
-    return !motionReduced()
-           && QGuiApplication::platformName() != QLatin1String("offscreen");
-  }
-
   void revealDialog(QDialog& dlg, QWidget* anchor) { revealDialog(dlg, anchor, QRect()); }
 
   namespace {
@@ -223,6 +214,11 @@ namespace stencil::support {
      private:
       void fly() {
         if (!dlg_) return;
+        // Asked HERE, not when the flight was installed: the Visuals & Settings dialog
+        // live-applies its own Motion rows, so turning motion off in it must govern the
+        // way that very window leaves (and turning it back on must give it a flight the
+        // open never installed).
+        if (motionReduced()) return;
         // geometry() survives the hide (and tracks a window the user dragged).
         const QRect target = dlg_->geometry();
         QWidget* host = hostFor(*dlg_);
@@ -302,36 +298,39 @@ namespace stencil::support {
   // this one", and a dialog the watcher flew must still fly the next time it is shown.
   static void flyDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect,
                         const QRect& closeRect = QRect()) {
-    if (motionReduced()) return;
     QPointer<QDialog> guard(&dlg);
     QPointer<QWidget> anchorGuard(anchor);
-
-    // Transparent BEFORE exec() shows it: the dialog is mapped at its final size and
-    // position the instant exec() runs, so anything deferred to a timer lets the real
-    // window flash at full size first — the "it appears, then jumps" part.
-    dlg.setWindowOpacity(0.0);
-    const auto restore = [guard] { if (guard) guard->setWindowOpacity(1.0); };
     // A snapshot taken while the dialog is definitely on screen. The close flight
     // re-photographs the CURRENT content as the dialog hides (grab() still renders a
     // hidden widget); this open-time shot is only its fallback.
     auto shotWhileOpen = std::make_shared<QPixmap>();
 
-    // A 0-timer so this runs once exec() has laid the dialog out — geometry() is not the
-    // final box before that.
-    QTimer::singleShot(0, &dlg, [guard, anchorGuard, anchorRect, restore, shotWhileOpen] {
-      if (!guard || !guard->isVisible()) { restore(); return; }
-      const QRect target(guard->mapToGlobal(QPoint(0, 0)), guard->size());
-      QWidget* host = hostFor(*guard);
-      const QPixmap shot = guard->grab();
-      *shotWhileOpen = shot;
-      if (!host || !target.isValid() || shot.isNull()) { restore(); return; }
-      const QRect from = originRect(anchorGuard.data(), target, anchorRect);
-      if (from == target) { restore(); return; }
-      if (flySurfaceDust(host, shot, target, from, true, inkOf(*guard))) { fadeUpBehindDust(guard); return; }
-      QLabel* ghost = makeGhost(host, shot, from);
-      flyGhost(ghost, host, from, target, kOpenMs, 0.0, 1.0, 0.18,
-               QEasingCurve::OutCubic, restore);
-    });
+    // Only the OPEN flight is decided now — the close one asks again when it plays, so a
+    // dialog whose own rows changed the motion mode leaves the way the NEW mode says.
+    if (!motionReduced()) {
+      // Transparent BEFORE exec() shows it: the dialog is mapped at its final size and
+      // position the instant exec() runs, so anything deferred to a timer lets the real
+      // window flash at full size first — the "it appears, then jumps" part.
+      dlg.setWindowOpacity(0.0);
+      const auto restore = [guard] { if (guard) guard->setWindowOpacity(1.0); };
+
+      // A 0-timer so this runs once exec() has laid the dialog out — geometry() is not the
+      // final box before that.
+      QTimer::singleShot(0, &dlg, [guard, anchorGuard, anchorRect, restore, shotWhileOpen] {
+        if (!guard || !guard->isVisible()) { restore(); return; }
+        const QRect target(guard->mapToGlobal(QPoint(0, 0)), guard->size());
+        QWidget* host = hostFor(*guard);
+        const QPixmap shot = guard->grab();
+        *shotWhileOpen = shot;
+        if (!host || !target.isValid() || shot.isNull()) { restore(); return; }
+        const QRect from = originRect(anchorGuard.data(), target, anchorRect);
+        if (from == target) { restore(); return; }
+        if (flySurfaceDust(host, shot, target, from, true, inkOf(*guard))) { fadeUpBehindDust(guard); return; }
+        QLabel* ghost = makeGhost(host, shot, from);
+        flyGhost(ghost, host, from, target, kOpenMs, 0.0, 1.0, 0.18,
+                 QEasingCurve::OutCubic, restore);
+      });
+    }
 
     // Closing: the dialog hides on exec()'s own terms — what shrinks into the icon is a
     // snapshot, a child ghost that deletes itself on landing.

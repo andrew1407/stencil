@@ -1,4 +1,5 @@
-import { setVal, notify, cmToUnit, unitLabel, defaultUnitFromLocale, composeControlTitle, shortName, compareEditedShows } from '../utils.js';
+import { wireCanvasScrollbars } from '../ui/canvasScrollbars.js';
+import { setVal, notify, cmToUnit, unitLabel, defaultUnitFromLocale, composeControlTitle, shortName, compareEditedShows, wireScrollbarHover } from '../utils.js';
 import * as hitTest from './hitTest.js';
 import * as dragGestures from './dragGestures.js';
 import * as selectionPanel from '../ui/selectionPanel.js';
@@ -426,6 +427,11 @@ export class DrawingApp {
     this.controls.wireKeyboard();
     this.controls.wireArrowPan();
     this.controls.wireDropPaste();
+    // The canvas gets its own overlay bars (js/ui/canvasScrollbars.js); the other
+    // scrollable panels' native thumbs take the accent only under the pointer (utils.js).
+    wireCanvasScrollbars(document.getElementById('canvas-viewport'));
+    for (const id of ['coord-body', 'fs-points-panel']) wireScrollbarHover(document.getElementById(id));
+    document.querySelectorAll('.settings-body').forEach(wireScrollbarHover);
     this.controls.wireCanvasPointer();
     this.controls.wireSmoothZoom();
     // Last, so every select the layout rendered (toolbar, panel and each modal, which are
@@ -2716,8 +2722,7 @@ export class DrawingApp {
     });
     // Leave incognito: it's now a normal server-backed session (no local persistence).
     this.storage.incognito = false;
-    this.updateIncognitoUI();
-    this.updateProjectTitle();
+    this.updateButtons();   // incognito UI + title, and the project-meta buttons re-gate
     notify(`Published to ${conn.url}`, 'ok');
     return this.remoteLink;
   }
@@ -2733,8 +2738,7 @@ export class DrawingApp {
     this.storage.promoteTemporaryToProject();
     this.storage.save();
     this.tabs.reportActive(this.activeProjectId);
-    this.updateIncognitoUI();
-    this.updateProjectTitle();
+    this.updateButtons();   // incognito UI + title, and the project-meta buttons re-gate
     notify('Left incognito — saved as a local project', 'ok');
     return this.activeProjectId;
   }
@@ -2861,6 +2865,7 @@ export class DrawingApp {
   setProjectColor(id, color) { return this.projectTransfer.setProjectColor(id, color); }
 
   setProjectKeywords(id, keywords) { return this.projectTransfer.setProjectKeywords(id, keywords); }
+  setProjectDescription(id, description) { return this.projectTransfer.setProjectDescription(id, description); }
 
   setProjectBlankColor(id, color) { return this.projectTransfer.setProjectBlankColor(id, color); }
 

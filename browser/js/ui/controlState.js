@@ -78,8 +78,12 @@ export function updateButtons(app) {
   // Saving a .stencil bundles the current image — needs one; opening a .stencil is always allowed.
   setDisabled('save-project-btn', !hasImage);
   app.updateStencilSyncUI();   // live-sync toggle reflects link/support/on state
-  // Image Links edit the CURRENT image's provenance — nothing to edit without one.
-  setDisabled('links-btn', !hasImage);
+  // Description, keywords and links live in a SAVED project's meta — a temporary editor or
+  // an incognito session has nothing to attach them to, so the three gate together.
+  const hasProject = app.activeProjectId != null && !app.storage?.incognito;
+  setDisabled('description-btn', !hasProject);
+  setDisabled('keywords-btn', !hasProject);
+  setDisabled('links-btn', !hasProject);
   setDisabled('download-json', !hasLines);
   setDisabled('copy-json-btn', !hasLines);
   // Importing a layout draws it onto the CURRENT image — needs one loaded (the handler also

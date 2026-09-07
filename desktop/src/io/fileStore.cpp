@@ -401,6 +401,8 @@ namespace stencil::gui {
     s.imageFilter = o.value("imageFilter").toString(s.imageFilter);
     s.filterColor = o.value("filterColor").toString(s.filterColor);
     s.holdDrawDelay = o.value("holdDrawDelay").toInt(s.holdDrawDelay);
+    s.drawingAnimations = o.value("drawingAnimations").toBool(s.drawingAnimations);
+    s.motionMode = o.value("motionMode").toString(s.motionMode);
     s.browserBaseUrl = o.value("browserBaseUrl").toString(s.browserBaseUrl);
     s.telegramBotUsername = o.value("telegramBotUsername").toString(s.telegramBotUsername);
     // AI assistant (llm-contract.md §5 persistence keys) + the saved dock state.
@@ -452,6 +454,8 @@ namespace stencil::gui {
     o["imageFilter"] = s.imageFilter;
     o["filterColor"] = s.filterColor;
     o["holdDrawDelay"] = s.holdDrawDelay;
+    o["drawingAnimations"] = s.drawingAnimations;
+    o["motionMode"] = s.motionMode;
     o["browserBaseUrl"] = s.browserBaseUrl;
     o["telegramBotUsername"] = s.telegramBotUsername;
     o["llmProvider"] = s.llmProvider;

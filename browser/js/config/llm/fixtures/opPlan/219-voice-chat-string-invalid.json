@@ -1,0 +1,21 @@
+{
+  "name": "voice-chat-string-invalid",
+  "profiles": [
+    "editor"
+  ],
+  "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+      {
+        "op": "voiceChat",
+        "on": "off"
+      }
+    ]
+  },
+  "expect": "invalid",
+  "knownDivergence": {
+    "desktop": "valid"
+  },
+  "reason": "on must be a boolean; the desktop does not register voiceChat, so there the op is an unknown-op skip and the plan is valid"
+}

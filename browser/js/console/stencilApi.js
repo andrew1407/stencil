@@ -20,6 +20,7 @@ import { ConnectionManager } from '../net/connectionManager.js';
 import { loadSavedServers, saveServers, getAutoConnect } from '../net/connectionStore.js';
 import { requireConnection } from '../net/remoteSync.js';
 import { notify } from '../utils.js';
+import { motionPrefs, MOTION_MODES } from '../ui/motionPrefs.js';
 import { videoFrameDataUrl } from '../core/videoFrame.js';
 import { loadLlmSettings, saveLlmSettings, PROVIDERS, withProvider } from '../llm/llmSettings.js';
 import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voiceSettings.js';
@@ -533,12 +534,45 @@ export const createStencil = (app) => {
       if (s && !normalizeHex(s)) throw new Error(`Invalid project color "${v}" — use a hex like #ff5623, or '' to clear`);
       app.setProjectColor(id, s);
     },
+    // Active project's free-text description ('' when unset) and search keywords (string[]).
+    // Both need an active project to write to (same rule as projectColor); the keywords
+    // setter also takes a comma/space-separated string, and the store normalizes the list.
+    get description() {
+      const id = app.activeProjectId;
+      return id != null ? (app.storage.store.getMeta(id)?.description || '') : '';
+    },
+    set description(v) {
+      const id = app.activeProjectId;
+      if (id == null) throw new Error('No active project to describe');
+      if (app.setProjectDescription(id, str(v)) == null) throw new Error(`Could not set description on project ${id}`);
+    },
+    get keywords() {
+      const id = app.activeProjectId;
+      return id != null ? (app.storage.store.getMeta(id)?.keywords ?? []).slice() : [];
+    },
+    set keywords(v) {
+      const id = app.activeProjectId;
+      if (id == null) throw new Error('No active project to tag');
+      const list = Array.isArray(v) ? v : str(v).split(/[\s,]+/);
+      if (app.setProjectKeywords(id, list) == null) throw new Error(`Could not set keywords on project ${id}`);
+    },
     get drawMode() { return app.drawMode; }, set drawMode(v) { app.setDrawMode(String(v).toLowerCase() === 'rect' ? 'rect' : 'line'); },
     // Hold-to-draw hold/dwell delay in milliseconds (clamped 100–3000). See holdDraw.js.
     get holdDrawDelay() { return app.holdDrawDelay; }, set holdDrawDelay(v) { app.input.setHoldDrawDelay(v); },
     get allowFormulas() { return app.allowFormulas; }, set allowFormulas(v) { app.settings.setAllowFormulas(v); },
     get formulaX() { return app.formulaX; }, set formulaX(v) { app.settings.setFormula('x', v); },
     get formulaY() { return app.formulaY; }, set formulaY(v) { app.settings.setFormula('y', v); },
+    // ── Motion (ui/motionPrefs.js; the Visuals modal's Motion section) ──
+    // The canvas stroke animation — a new vertex flying to where it was put, its
+    // landing pop and ripple. Off puts every point straight down.
+    get drawingAnimations() { return motionPrefs().drawing; },
+    set drawingAnimations(v) { app.settings.setMotion('drawing', !!v); },
+    // How the INTERFACE moves: 'particles' (windows, menus, marks and the canvas form
+    // out of dust), 'slide' (no dust — each surface plays its own plain entrance) or
+    // 'none' (nothing moves). prefers-reduced-motion still wins on its own.
+    get motionMode() { return motionPrefs().mode; },
+    set motionMode(v) { app.settings.setMotion('mode', v); },
+    get motionModes() { return MOTION_MODES.slice(); },
     get fillColor() { return app.defaultFillColor; }, set fillColor(v) { app.settings.setVisualColor('fill', toHexColor(v)); },
     get selectionGlow() { return app.selGlowColor; }, set selectionGlow(v) { app.settings.setVisualColor('selGlow', toHexColor(v)); },
     get hoverRing() { return app.hoverRingColor; }, set hoverRing(v) { app.settings.setVisualColor('hoverRing', toHexColor(v)); },

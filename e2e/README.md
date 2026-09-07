@@ -62,6 +62,10 @@ tests/
              project-file  — .stencil open (image+layout+theme) + save→re-open round-trip via the facade
              chat          — AI assistant panel vs the stub LLM: §1 op-plan executes on the
                              facade, variant cards render, dock/float placement persists
+             ctx-keyboard  — the canvas context menu walked with real key presses (↑/↓, → opens
+                             a flyout, ← closes it, Enter picks, Escape) without panning the canvas
+             canvas-scrollbar — the canvas thumb is grey, and takes the accent only with the real
+                             pointer on the bar's own strip (not on any hover of the canvas)
   extension/ handoff.smoke — scan images+CSS bg, new-tab AND in-page-modal hand-off, pin/unpin
              popup.smoke   — popup + side-panel UI: filter accordion, ⋯ menu + on-screen flyout, side-panel re-scan
              scan-sources  — every HTML/CSS image reference (img/srcset/input/svg/icons/meta + CSS) is scanned

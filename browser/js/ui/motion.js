@@ -2,6 +2,13 @@
 // Pure decoration: a missing IntersectionObserver/MutationObserver (node tests,
 // old engines) simply means no animation — never a broken or hidden view. CSS
 // owns the actual keyframes (css/animations.css); this file only toggles classes.
+import { dustEnabled, motionReduced } from './motionPrefs.js';
+
+// The two gates every helper below asks: `motionReduced()` is "nothing may move"
+// (the OS preference, or the user's own 'none'), `dustEnabled()` is "and it may be
+// made of particles" — false in 'slide', where each surface keeps its own plain
+// CSS entrance instead. Re-exported so a caller needs one import, not two.
+export { dustEnabled, motionReduced };
 
 // Rows only dissolve by the amount the scroller is ALREADY clipping them; a row you can
 // see in full is never touched — the grain is finer than a glyph's strokes, and
@@ -229,7 +236,7 @@ export function flipTransform(from, to) {
 
 export function flipFrom(el, from, { ms = FLIP_MS, activeClass = FLIP_ACTIVE_CLASS } = {}) {
   if (!el?.style || typeof requestAnimationFrame === 'undefined') return;
-  if (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (motionReduced()) return;
   const clear = () => {
     el.classList?.remove(activeClass);
     el.style.transition = '';
@@ -462,7 +469,7 @@ const canvasColour = (ctx, c, fallback) => {
 function spawnSwapDust(px, paint) {
   try {
     if (!px || !paint || typeof document === 'undefined' || !document.body?.appendChild) return;
-    if (typeof requestAnimationFrame !== 'function') return;
+    if (typeof requestAnimationFrame !== 'function' || !dustEnabled()) return;
     const root = document.documentElement;
     // A second swap mid-wake starts a new wipe — the newest one owns the dust.
     root._swapDustStop?.();
@@ -539,7 +546,7 @@ function spawnSwapDust(px, paint) {
 export function themeSwap(apply, origin = null) {
   if (typeof document === 'undefined') { apply(); return; }
   const root = document.documentElement;
-  const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = motionReduced();
 
   if (reduced || typeof document.startViewTransition !== 'function') {
     // No snapshot to wipe: one beat of colour transition instead (a no-op under reduced
@@ -720,7 +727,7 @@ export const scatterGridFor = (count, index = 0) => {
 // even under reduced motion — the removal must never depend on the animation.
 export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows } = {}) {
   const finish = () => { try { done(); } catch { /* the caller owns its own errors */ } };
-  const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = motionReduced();
   if (!el?.classList || reduced || typeof setTimeout === 'undefined') { finish(); return Promise.resolve(); }
   // Freeze the height so the collapse has something to animate from (rows are
   // auto-height, and `height: auto → 0` does not transition). Width too — chips
@@ -743,8 +750,10 @@ export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows
 // PLACEHOLDER must wait for the longer one (same rule as storage.js's GHOST_MS hold).
 // 0 under reduced motion: nothing is playing.
 export const wipeDurationMs = () => {
-  const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  return reduced ? 0 : Math.max(LEAVE_MS, DISINTEGRATE_MS);
+  if (motionReduced()) return 0;
+  // No dust ('slide') means no particle tail to wait out — the row's own collapse is
+  // the whole wipe, and a caller holding for the longer clock would just stall.
+  return dustEnabled() ? Math.max(LEAVE_MS, DISINTEGRATE_MS) : LEAVE_MS;
 };
 
 // ── List hold: wipes in flight ──────────────────────────────────────────────
@@ -798,9 +807,6 @@ export const filterDust = (el, index = 0, count = 1, box = null) => {
     toBody: true, hostClass: 'dust-forming', paintTile: speckPainter(el), box,
   });
 };
-
-export const motionReduced = () =>
-  typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // What a filter change does to a list, by row key: which keys it drops, which it
 // reveals, and whether the sequence moved at all (`moved` is what a SORT switch has —
@@ -1114,6 +1120,10 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
                                    hostClass = '', paintTile = null, own = true, box = null,
                                    delayScale = null } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
+  // Every element-sized cloud in the app is built here, so this is where the motion
+  // mode turns particles off: saying no leaves the caller on its own CSS entrance
+  // (that is what its `false` return has always meant).
+  if (!dustEnabled()) return false;
   try {
     // One cloud per element: the newest gesture owns it. `own: false` opts a flight out of
     // that bookkeeping — an in-place VALUE swap plays two clouds over one element (the old
@@ -1669,7 +1679,7 @@ export function markSwap(el, apply, { ms = MARK_IN_MS, outMs = MARK_OUT_MS, pain
 export const MATERIALIZE_CLASS = 'materializing';
 export const MATERIALIZE_VEIL_CLASS = 'materialize-veil';
 export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
-  const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = motionReduced();
   if (!el?.classList || reduced || typeof setTimeout === 'undefined') return Promise.resolve();
   // Freeze the natural height (the row is already laid out) so the expansion has
   // something to animate to — the same trick the leave plays with --leave-h.
@@ -1782,8 +1792,13 @@ const trackDust = (el, ms, onDrop = () => {}) => {
   return () => { live = false; if (raf) cancelAnimationFrame(raf); };
 };
 
+export const CHAT_SLIDE_CLASS = 'chat-slide-in';
+export const CHAT_SLIDE_MS = 320;
 export function chatIn(el, count = 1, index = 0) {
   if (!el?.classList || motionReduced() || typeof setTimeout === 'undefined') return Promise.resolve();
+  // No particles ('slide'): the entry has no entrance of its own to fall back on — the
+  // cloud WAS it — so it rises in instead (animations.css .chat-slide-in).
+  if (!dustEnabled()) { flashLanding(el, CHAT_SLIDE_CLASS, CHAT_SLIDE_MS); return Promise.resolve(); }
   const { cols } = scatterGridFor(count, index);   // the burst's budget; the grid is surfaceDust's
   // Veiled from the FIRST frame, before anything is painted: the entry keeps its height
   // (so the transcript grows and scrolls to it as usual) but is never seen ahead of its
@@ -2109,7 +2124,7 @@ const runDust = (st, ms, gather) => {
 // editor was held blank for the whole 1.1s with nothing to look at.
 export function ghostOut(canvas, { ms = GHOST_MS } = {}) {
   if (typeof document === 'undefined' || !canvas?.width || !canvas.height) return false;
-  if (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+  if (!dustEnabled()) return false;
   if (typeof requestAnimationFrame === 'undefined' || !canvas.parentElement) return false;
   try {
     const st = makeDustStage(canvas);
@@ -2140,7 +2155,7 @@ export function hasPixels(ctx, w, h, stride = 41) {
 
 export function ghostIn(canvas, { ms = GHOST_MS } = {}) {
   if (typeof document === 'undefined' || !canvas?.width || !canvas.height) return false;
-  if (typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) return false;
+  if (!dustEnabled()) return false;
   if (typeof requestAnimationFrame === 'undefined' || !canvas.parentElement) return false;
   try {
     const st = makeDustStage(canvas);

@@ -291,7 +291,8 @@ namespace stencil::llm {
           return target.saveProject(a.name, dest, err);
         }
         case OpKind::ClearChat:
-          // executePlan defers this past every other action; reaching here
+        case OpKind::Dialog:
+          // executePlan defers these past every other action; reaching here
           // means a variant/preview slipped through the parse ban.
           *err = QStringLiteral("editor-settings ops are not allowed inside a variant");
           return false;
@@ -314,6 +315,7 @@ namespace stencil::llm {
         case OpKind::ProjectColor:
         case OpKind::BlankColor:
         case OpKind::OpenProject:
+        case OpKind::ChatPanel:
         case OpKind::Incognito: {
           if (inVariant) {
             *err = QStringLiteral("editor-settings ops are not allowed inside a variant");
@@ -379,7 +381,7 @@ namespace stencil::llm {
             }
             case OpKind::ClearProjects: {
               QString note;
-              return noted("clearProjects", target.clearProjects(&note), note);
+              return noted("clearProjects", target.clearProjects(a.current, &note), note);
             }
             case OpKind::Compare:
               return target.setCompare(a.mode, a.split, err);
@@ -400,7 +402,7 @@ namespace stencil::llm {
             }
             case OpKind::OpenProject: {
               QString note;
-              if (!noted("openProject", target.openProjectNamed(a.name, &note), note))
+              if (!noted("openProject", target.openProjectNamed(a.name, a.current, &note), note))
                 return false;
               // An actually opened project is a fresh working image, so a
               // fresh frame (a noted skip left the canvas alone, where the
@@ -411,6 +413,10 @@ namespace stencil::llm {
             case OpKind::Incognito: {
               QString note;
               return noted("incognito", target.setIncognito(a.incognito, &note), note);
+            }
+            case OpKind::ChatPanel: {
+              QString note;
+              return noted("chatPanel", target.setChatPlacement(a.chatOpen, a.dock, &note), note);
             }
             default: return target.disconnectServer(a.server, err);
           }
@@ -467,13 +473,23 @@ namespace stencil::llm {
     return false;
   }
 
-  bool PlanTarget::openProjectNamed(const QString&, QString* note) {
+  bool PlanTarget::openProjectNamed(const QString&, bool, QString* note) {
     if (note) *note = QStringLiteral("openProject: managing projects is not available here");
     return false;
   }
 
   bool PlanTarget::setIncognito(bool, QString* note) {
     if (note) *note = QStringLiteral("incognito: not available here");
+    return false;
+  }
+
+  bool PlanTarget::setChatPlacement(int, const QString&, QString* note) {
+    if (note) *note = QStringLiteral("chatPanel: there is no assistant panel here");
+    return false;
+  }
+
+  bool PlanTarget::openDialog(const QString&, QString* note) {
+    if (note) *note = QStringLiteral("dialog: there are no windows to open here");
     return false;
   }
 
@@ -497,7 +513,7 @@ namespace stencil::llm {
     return false;
   }
 
-  bool PlanTarget::clearProjects(QString* note) {
+  bool PlanTarget::clearProjects(bool, QString* note) {
     if (note) *note = QStringLiteral("clearProjects: managing projects is not available here");
     return false;
   }
@@ -749,10 +765,15 @@ namespace stencil::llm {
     QString err;
     FrameMap frame;  // model frame → working frame (contract §1)
     bool clearChatLast = false;
+    // §10 dialog: modal, so it opens once the plan is done — and only the LAST one asked
+    // for ("close this and open that" ends with that one open; browser flushDeferred).
+    Action dialogLast;
+    bool hasDialog = false;
     for (const Action& a : plan.actions) {
       // §10 clearChat is DEFERRED to the end of the plan — wherever the model
       // put it, every other action (and the variants) runs first.
       if (a.op == OpKind::ClearChat) { clearChatLast = true; continue; }
+      if (a.op == OpKind::Dialog) { dialogLast = a; hasDialog = true; continue; }
       if (!applyAction(a, target, frame, /*inVariant=*/false, &res.notes, &err)) {
         res.error = err;
         return res;
@@ -782,6 +803,17 @@ namespace stencil::llm {
         if (label.isEmpty()) label = QStringLiteral("variant %1").arg(i + 1);
         res.variants.append({label, sandbox.renderResult()});
       }
+    }
+    if (hasDialog) {
+      // §10: a window in front of the user is the LAST thing a turn does — the edits
+      // and the reply land first, then the dialog (browser opPlan.js `deferred`).
+      QString note;
+      if (!target.openDialog(dialogLast.current ? QString() : dialogLast.dialog, &note)) {
+        res.error = note;
+        return res;
+      }
+      if (!note.isEmpty()) res.notes << QStringLiteral("dialog: %1").arg(note);
+      res.changed = true;
     }
     if (clearChatLast) {
       // §10: the surface's clear flow (confirm included) runs last; a note

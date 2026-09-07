@@ -40,6 +40,8 @@
     ["✨ AI assistant (Alt+G)", "Chat with an LLM that edits the image via planned Stencil operations — dock the panel to any edge, attach images/videos, and configure the provider via its ⚙ gear."],
     ["🎤 Voice input", "In the chat, double-click or hold the Send button (or pick Voice input from its … menu) to dictate instead of typing: the message is sent after a pause, or when you end with \"send\" / \"execute\". Click the mic or press Escape to stop."],
     ["🎤 Voice chat (Alt+M)", "Hands-free assistant: keeps listening even with the chat closed and sends every utterance as a message — toasts show what was sent and answered. Turn it off with the button, the shortcut, or by asking the assistant to stop voice mode. Pause length and language live in the assistant settings."],
+    ["📝 Description (Alt+Shift+D)", "Write a free-text description for the saved project — shown in the projects list and its tooltip."],
+    ["🏷 Keywords (Alt+Shift+K)", "Tag the saved project with comma- or space-separated keywords; the projects search matches them."],
     ["⚙ Shortcuts", "View and rebind keyboard shortcuts."],
     ["Compare (Alt+O)", "Cycle the compare view: none → original only → vertical split → horizontal split. In a split, the original is on the left/top and your current edit on the right/bottom — drag the divider to move it."],
     ["Peek original (Alt+Shift+O)", "Hold to show the untouched original (crop + rotation only, no filter/lines/points); release to return to your edit."]

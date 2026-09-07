@@ -65,6 +65,11 @@ namespace stencil::gui {
     bool incognito() const;
     bool rename() const;
     bool keepAnnotations() const;
+    // The browser's "Save to" row (base.js fillTargetSelect): the connected servers a
+    // file/URL open can create its project on. The row shows only with servers, and
+    // never for an incognito open. serverTarget() is the picked url (empty = local).
+    void setServerTargets(const QStringList& urls);
+    QString serverTarget() const;
 
     // ── New-blank source ──
     QColor blankColor() const;

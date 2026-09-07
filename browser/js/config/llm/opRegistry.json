@@ -97,10 +97,14 @@
         "blankColor",
         "openProject",
         "incognito",
+        "voiceChat",
+        "chatPanel",
+        "dialog",
         "clearChat"
       ],
       "notes": {
-        "openFile": "desktop-only drift: the browser does not register openFile — there it falls to the §1 unknown-op skip (fixture 052 stays verdict-valid); browser = 32 ops, desktop = 33"
+        "openFile": "desktop-only drift: the browser does not register openFile — there it falls to the §1 unknown-op skip (fixture 052 stays verdict-valid); browser = 35 ops, desktop = 35",
+        "voiceChat": "browser-only drift: the desktop does not register voiceChat — there it falls to the §1 unknown-op skip (fixture 218 stays verdict-valid); browser = 35 ops, desktop = 35"
       }
     },
     "console": {
@@ -1256,14 +1260,22 @@
         "editor"
       ],
       "baseline": "browser",
-      "bullet": "- {\"op\":\"clearProjects\"} — remove EVERY saved local project. This IS what \"clear/\n  delete my projects\" means; the app asks the user to confirm first. Server-stored\n  projects are never touched from chat. Takes no fields.",
+      "bullet": "- {\"op\":\"clearProjects\"} — remove EVERY saved local project. This IS what \"clear/\n  delete my projects\" means; the app asks the user to confirm first. Server-stored\n  projects are never touched from chat. {\"op\":\"clearProjects\",\"keepCurrent\":true} spares\n  the project that is open right now — that IS \"delete the others / all but this one\",\n  and you must never clear everything and try to save it back instead.",
       "requires": [
         "clearLocalProjects"
       ],
       "flags": {
         "editorSetting": true
       },
-      "keys": {},
+      "keys": {
+        "keepCurrent": {
+          "type": "boolean",
+          "enum": [
+            true
+          ],
+          "note": "spare the project open right now — \"delete the others\"; absent = every saved local project"
+        }
+      },
       "id": "clearProjects"
     },
     {
@@ -1408,6 +1420,8 @@
       ],
       "baseline": "browser",
       "bullet": "- {\"op\":\"openProject\",\"name\":\"…\"} — open a saved local project into the editor (the\n  app confirms first when unsaved work would be replaced).",
+      "also": "- \"openProject\" also accepts {\"op\":\"openProject\",\"last\":true} — the project edited\n  most recently, which is what \"the last project\" / \"the one I worked on last\" means.\n  The app resolves it; you never see the list, so never ask which one that is.",
+      "alsoOrder": 5,
       "requires": [
         "openProjectNamed"
       ],
@@ -1418,9 +1432,15 @@
       "keys": {
         "name": {
           "type": "string",
-          "required": true,
           "maxChars": 120,
-          "note": "non-empty; exact match, else unique case-insensitive prefix"
+          "note": "non-empty; exact match, else unique case-insensitive prefix; exactly one of name / last"
+        },
+        "last": {
+          "type": "boolean",
+          "enum": [
+            true
+          ],
+          "note": "the most recently edited saved project; exactly one of name / last"
         }
       },
       "id": "openProject"
@@ -1442,6 +1462,98 @@
         }
       },
       "id": "incognito"
+    },
+    {
+      "name": "voiceChat",
+      "profiles": [
+        "editor"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"voiceChat\",\"on\":false} — turn the hands-free voice chat mode off (or on with true); use when the user asks to stop or start voice input / voice mode / listening.",
+      "requires": [
+        "setVoiceChat"
+      ],
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "on": {
+          "type": "boolean",
+          "required": true
+        }
+      },
+      "note": "browser-only: desktop does not register voiceChat — there it falls to the §1 unknown-op skip",
+      "id": "voiceChat"
+    },
+    {
+      "name": "chatPanel",
+      "profiles": [
+        "editor"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"chatPanel\",\"open\":true,\"dock\":\"right\"} — show, hide or move THIS assistant\n  panel: \"dock\" is \"left\"|\"right\"|\"top\"|\"bottom\"|\"float\" (\"float\" = a free-standing\n  window), and a \"dock\" on its own opens the panel where it lands. At least one field.",
+      "requires": [
+        "setChatPlacement"
+      ],
+      "flags": {
+        "editorSetting": true
+      },
+      "keys": {
+        "open": {
+          "type": "boolean",
+          "note": "at least one of open / dock"
+        },
+        "dock": {
+          "type": "string",
+          "enum": [
+            "left",
+            "right",
+            "top",
+            "bottom",
+            "float"
+          ],
+          "note": "a dock with no open shows the panel where it lands"
+        }
+      },
+      "note": "acts on the assistant panel itself, not on the image — the placement its own header buttons drive",
+      "id": "chatPanel"
+    },
+    {
+      "name": "dialog",
+      "profiles": [
+        "editor"
+      ],
+      "baseline": "browser",
+      "bullet": "- {\"op\":\"dialog\",\"name\":\"projects\"} — open one of the editor's own windows for the\n  user: \"projects\" (the saved projects list), \"servers\" (connections), \"shortcuts\",\n  \"visuals\" (style & visual settings) or \"help\". {\"op\":\"dialog\",\"close\":true} closes the\n  open one. Use it when the user asks to SEE or MANAGE something by hand; when they ask\n  for a change you can make yourself, make it instead.",
+      "requires": [
+        "openDialog"
+      ],
+      "flags": {
+        "editorSetting": true,
+        "deferred": true
+      },
+      "keys": {
+        "name": {
+          "type": "string",
+          "enum": [
+            "projects",
+            "servers",
+            "shortcuts",
+            "visuals",
+            "help"
+          ],
+          "note": "exactly one of name / close"
+        },
+        "close": {
+          "type": "boolean",
+          "enum": [
+            true
+          ],
+          "note": "closes the open dialog; exactly one of name / close"
+        }
+      },
+      "note": "the editor's own navigation windows only — never the assistant's provider settings (§13 forbidden); deferred to the plan's end because the dialogs are modal",
+      "id": "dialog"
     },
     {
       "name": "clearChat",

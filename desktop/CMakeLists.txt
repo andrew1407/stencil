@@ -123,6 +123,8 @@ if(Qt6_FOUND)
     src/dialogs/expirationDialog.cpp
     src/dialogs/openImageDialog.cpp
     src/dialogs/linksDialog.cpp
+    src/dialogs/descriptionDialog.cpp
+    src/dialogs/keywordsDialog.cpp
     src/dialogs/cropDialog.cpp
     src/dialogs/infoDialog.cpp
     src/dialogs/shortcutsDialog.cpp
@@ -603,6 +605,25 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_connectrow_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+  # The DESCRIPTION & ATTRIBUTES editors (dialogs/descriptionDialog, keywordsDialog):
+  # the shell's structure, Enter/Escape, keyword normalisation, and the store write
+  # against an isolated state dir.
+  add_executable(stencil_projectmeta_headless
+    tests/projectMetaDialogs.headless.cpp
+    src/dialogs/descriptionDialog.cpp
+    src/dialogs/keywordsDialog.cpp
+    src/support/modalChrome.cpp
+    src/support/iconSet.cpp
+    src/support/modalReveal.cpp
+    src/io/fileStore.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_projectmeta_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_projectmeta_headless PRIVATE
+    stencil_core Qt6::Widgets Qt6::Svg)
+  add_test(NAME stencil_projectmeta_headless COMMAND stencil_projectmeta_headless)
+  set_tests_properties(stencil_projectmeta_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
   # Stale-session handling (net/serverClient + the Servers row): a refused
   # credential is Expired (never the "unreachable" bucket), is not retried in a
   # loop, keeps the saved connection, and the row offers a labelled Reconnect.
@@ -786,6 +807,19 @@ if(Qt6_FOUND)
   target_link_libraries(stencil_llmsettings_headless PRIVATE stencil_core Qt6::Widgets)
   add_test(NAME stencil_llmsettings_headless COMMAND stencil_llmsettings_headless)
   set_tests_properties(stencil_llmsettings_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Motion preferences (support/motionPrefs.hpp) — the three interface modes and the
+  # drawing switch, the DisintegrateOverlay factories' particle gate, and the two
+  # settings keys. Links fileStore for the JSON round-trip.
+  add_executable(stencil_motionprefs_headless
+    tests/motionPrefs.headless.cpp
+    src/io/fileStore.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_motionprefs_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_motionprefs_headless PRIVATE stencil_core Qt6::Widgets)
+  add_test(NAME stencil_motionprefs_headless COMMAND stencil_motionprefs_headless)
+  set_tests_properties(stencil_motionprefs_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
   # Shared-config canon check: the qrc-embedded browser JSON (accents / icons /

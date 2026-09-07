@@ -94,6 +94,12 @@ namespace stencil::gui {
   // A Qt stylesheet (QSS) styling the whole app for the given mode + accent.
   QString buildStylesheet(bool dark, const QString& accentKey = "violet");
 
+  // The canvas scrollbars' thumb (browser css/theme.css --sb-thumb) and its hover shade —
+  // read by the painted overlay bars (canvas/overlayScrollArea.hpp), since QSS on macOS
+  // will not round a QScrollBar handle.
+  QColor canvasScrollThumb(bool dark);
+  QColor canvasScrollThumbHover(bool dark, const QString& accentKey = "violet");
+
   // A QPalette matching the theme, set on qApp so native bits (menu/toolbar
   // popups, scrollbars) follow the theme alongside the stylesheet — needed on
   // Fedora where the native style otherwise leaves the chrome unthemed (S14).

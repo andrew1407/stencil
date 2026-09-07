@@ -51,7 +51,7 @@ namespace stencil::llm {
     OpenUrl, OpenFile, Theme, Accent, LineStyle, Units, View, Clear, Connect, Disconnect, Copy,
     RemoveProject, ClearProjects,
     Compare, Zoom, RenameProject, ProjectColor, BlankColor, OpenProject, Incognito,
-    ClearChat,
+    ChatPanel, Dialog, ClearChat,
     Undo, Redo,
     Image, Save
   };
@@ -137,6 +137,13 @@ namespace stencil::llm {
     // §10 view (-1 = field absent, else 0/1)
     int viewPoints = -1;
     int viewLines = -1;
+    // §10 chatPanel: the assistant panel's own placement. chatOpen -1 = field
+    // absent, else 0/1; dock "" = absent (left|right|top|bottom|float).
+    int chatOpen = -1;
+    QString dock;
+    // §10 dialog: which editor window to put in front of the user
+    // (projects|servers|shortcuts|visuals|help); "" with `current` = close the open one.
+    QString dialog;
     // §10 connect / disconnect: the user-visible server reference (resolved
     // against the SAVED/live connection stores — plans never carry tokens)
     QString server;
