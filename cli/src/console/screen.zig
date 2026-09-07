@@ -237,17 +237,17 @@ pub const Screen = struct {
     }
 
     // One byte from `fd` within `ms`, or null (timeout / closed). Used only by the startup
-// colour query — the line editor does its own polling.
-fn readByteTimeout(fd: std.posix.fd_t, ms: i32) ?u8 {
-    var pfd = [_]std.posix.pollfd{.{ .fd = fd, .events = std.posix.POLL.IN, .revents = 0 }};
-    const ready = std.posix.poll(&pfd, ms) catch return null;
-    if (ready == 0) return null;
-    var b: [1]u8 = undefined;
-    const n = std.posix.read(fd, &b) catch return null;
-    return if (n == 0) null else b[0];
-}
+    // colour query — the line editor does its own polling.
+    fn readByteTimeout(fd: std.posix.fd_t, ms: i32) ?u8 {
+        var pfd = [_]std.posix.pollfd{.{ .fd = fd, .events = std.posix.POLL.IN, .revents = 0 }};
+        const ready = std.posix.poll(&pfd, ms) catch return null;
+        if (ready == 0) return null;
+        var b: [1]u8 = undefined;
+        const n = std.posix.read(fd, &b) catch return null;
+        return if (n == 0) null else b[0];
+    }
 
-// ── geometry ────────────────────────────────────────────────────────────────
+    // ── geometry ────────────────────────────────────────────────────────────────
 
     pub fn headerRows(self: *Screen) u16 {
         return @intCast(self.header.items.len);
@@ -611,6 +611,35 @@ fn readByteTimeout(fd: std.posix.fd_t, ms: i32) ?u8 {
         }
     }
 
+    /// Swap scrollback line `idx` for `bytes` in place — a transient notice advancing a
+    /// frame. Only while that line still reads `expect`: output since then may have moved
+    /// or wrapped it, and then nothing happens. True when it was swapped.
+    pub fn replaceLine(self: *Screen, idx: usize, expect: []const u8, bytes: []const u8) bool {
+        if (!self.lineIs(idx, expect)) return false;
+        const copy = self.gpa.dupe(u8, bytes) catch return false;
+        self.gpa.free(self.lines.items[idx]);
+        self.lines.items[idx] = copy;
+        self.paintBody();
+        return true;
+    }
+
+    /// Drop scrollback line `idx` — a transient notice whose wait is over — under the same
+    /// guard as replaceLine. True when it went.
+    pub fn removeLine(self: *Screen, idx: usize, expect: []const u8) bool {
+        if (!self.lineIs(idx, expect)) return false;
+        self.gpa.free(self.lines.orderedRemove(idx));
+        self.has_sel = false; // the rows below moved up, so a highlight no longer marks its text
+        self.sel_active = false;
+        self.clampScroll();
+        self.paintBody();
+        self.drawStatusBar();
+        return true;
+    }
+
+    fn lineIs(self: *Screen, idx: usize, expect: []const u8) bool {
+        return idx < self.lines.items.len and std.mem.eql(u8, self.lines.items[idx], expect);
+    }
+
     /// Drop all scrollback (the `/clear` command) and repaint an empty body.
     pub fn clearScrollback(self: *Screen) void {
         for (self.lines.items) |l| self.gpa.free(l);
@@ -688,6 +717,18 @@ fn readByteTimeout(fd: std.posix.fd_t, ms: i32) ?u8 {
         self.sel_hc = hc;
         self.has_sel = true;
         self.extractSelection(); // what a finished drag leaves behind, ready for Ctrl-C/Ctrl-S
+    }
+
+    /// Stand in as the current screen and the output sink without a terminal (fd -1), so a
+    /// test can drive what `logo.print` lands in the scrollback.
+    pub fn installForTest(self: *Screen) void {
+        logo.setSink(sinkTrampoline, self);
+        g_screen = self;
+    }
+
+    pub fn uninstallForTest(self: *Screen) void {
+        if (g_screen == self) g_screen = null;
+        logo.clearSink();
     }
 
     pub fn freeAllForTest(self: *Screen) void {
@@ -1029,4 +1070,26 @@ test "selection covers the INPUT rows too, not just the output above them" {
     s.sel_hc = 8;
     s.extractSelection();
     try testing.expectEqualStrings("wrote out.png\n> /theme", s.sel_buf.items);
+}
+
+test "replaceLine / removeLine: only the line that still reads as expected is touched" {
+    const a = testing.allocator;
+    var threaded = std.Io.Threaded.init(a, .{});
+    defer threaded.deinit();
+    var s = Screen{ .gpa = a, .io = threaded.io(), .fd = -1, .rows = 10, .cols = 40 };
+    defer s.freeAll();
+    s.setRevealSpeed(1.0);
+    s.append("one\n◐ wait\nthree\n");
+    try testing.expect(s.replaceLine(1, "◐ wait", "◓ wait"));
+    try testing.expectEqualStrings("◓ wait", s.lines.items[1]);
+    // Stale expectation (the frame already moved on) or a bad index: untouched.
+    try testing.expect(!s.replaceLine(1, "◐ wait", "◑ wait"));
+    try testing.expect(!s.replaceLine(7, "◓ wait", "◑ wait"));
+    try testing.expectEqualStrings("◓ wait", s.lines.items[1]);
+    try testing.expect(!s.removeLine(1, "◐ wait"));
+    try testing.expectEqual(@as(usize, 3), s.lines.items.len);
+    try testing.expect(s.removeLine(1, "◓ wait"));
+    try testing.expectEqual(@as(usize, 2), s.lines.items.len);
+    try testing.expectEqualStrings("one", s.lines.items[0]);
+    try testing.expectEqualStrings("three", s.lines.items[1]);
 }

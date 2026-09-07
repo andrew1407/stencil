@@ -23,6 +23,9 @@ var use_color: bool = true;
 // `note: ` prefixes byte-for-byte plain for grep and CI logs. Off until init() says otherwise.
 var severity_color: bool = false;
 
+// Whether stderr is a terminal at all (init's `tty`), for output that redraws a row in place.
+var human_tty: bool = false;
+
 // The brand accent (logo panel outline, prompt, echoed commands). Defaults to violet
 // (#7c3aed); the console's `/theme` swaps it. `accent_slice` caches its SGR escape.
 var accent_rgb: [3]u8 = .{ 124, 58, 237 };
@@ -42,7 +45,14 @@ fn refreshAccent() void {
 pub fn init(no_color: bool, tty: bool) void {
     use_color = !no_color;
     severity_color = use_color and tty;
+    human_tty = tty;
     refreshAccent();
+}
+
+/// True when human output goes straight to a terminal — stderr is a tty and no sink is
+/// installed — the one case a row can be rewritten in place with a carriage return.
+pub fn liveTty() bool {
+    return human_tty and sink_fn == null;
 }
 
 /// Repaint the brand accent (logo outline, prompt, command echo) to an RGB triple.
@@ -246,7 +256,7 @@ const verts_small = [_]Pt{
     .{ .col = 8, .row = 3 }, // down the right side
     .{ .col = 7, .row = 4 }, // …to the bottom row
     .{ .col = 1, .row = 4 }, // bottom bar, running left — one cell wider than the middle one,
-};                          // so the three bars stagger and still read as an S at half size
+}; // so the three bars stagger and still read as an S at half size
 
 // Glyph codes laid into the rasterised frame.
 const G_SPACE = 0;
@@ -525,4 +535,3 @@ test "console call sites go through err()/note(), never the literal prefix" {
         try testing.expect(std.mem.indexOf(u8, src, "\"warning: ") == null);
     }
 }
-

@@ -28,6 +28,9 @@ pub const Waiter = struct {
     ctx: ?*anyopaque = null,
     poll: ?*const fn (ctx: *anyopaque, timeout_ms: i32) bool = null,
     timeout_ms: i64 = request_timeout_ms,
+    // Fired once per wait beat with the clock in ms — the console's spinner advances on it.
+    beat_ctx: ?*anyopaque = null,
+    beat: ?*const fn (ctx: *anyopaque, now_ms: i64) void = null,
 
     fn watching(self: Waiter) bool {
         return self.poll != null and self.ctx != null;
@@ -115,7 +118,9 @@ pub fn waitForJob(job: *Job, io: std.Io, waiter: Waiter) PostError!net.Response 
             }
             break; // it landed in the same instant: use the answer we already paid for
         }
-        if (waiter.timeout_ms > 0 and std.Io.Clock.now(.awake, io).toMilliseconds() - started > waiter.timeout_ms) {
+        const now = std.Io.Clock.now(.awake, io).toMilliseconds();
+        if (waiter.beat) |b| if (waiter.beat_ctx) |c| b(c, now);
+        if (waiter.timeout_ms > 0 and now - started > waiter.timeout_ms) {
             if (job.claim(.cancelled)) {
                 logo.err("the LLM endpoint did not answer within {d}s\n", .{@divTrunc(waiter.timeout_ms, 1000)});
                 return PostError.TimedOut;
@@ -406,11 +411,13 @@ test "waitForJob: a Ctrl-C mid-call cancels and hands the job to the worker" {
     // poll below — the same sequence a real slow provider produces.
     const job = try Job.init(a, io, "http://example.invalid", null, "{}");
     var presses: u8 = 0;
-    const waiter = Waiter{ .ctx = &presses, .poll = pressOnSecondBeat };
+    var beats: u8 = 0;
+    const waiter = Waiter{ .ctx = &presses, .poll = pressOnSecondBeat, .beat_ctx = &beats, .beat = countBeat };
 
     try testing.expectError(PostError.Cancelled, waitForJob(job, io, waiter));
     try testing.expectEqual(@intFromEnum(Job.State.cancelled), job.state.load(.acquire));
     try testing.expect(presses == 2); // it really waited a beat before the press landed
+    try testing.expect(beats == 1); // and the spinner got that one beat, not the cancelling one
     job.discard(); // no worker exists here, so this side performs the abandoned-job cleanup
 }
 
@@ -437,6 +444,11 @@ fn pressOnSecondBeat(ctx: *anyopaque, _: i32) bool {
     const n: *u8 = @ptrCast(ctx);
     n.* += 1;
     return n.* >= 2;
+}
+
+fn countBeat(ctx: *anyopaque, _: i64) void {
+    const n: *u8 = @ptrCast(ctx);
+    n.* += 1;
 }
 
 fn pressAlways(ctx: *anyopaque, _: i32) bool {

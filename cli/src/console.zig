@@ -399,5 +399,6 @@ test {
     _ = @import("console/projectsTable.zig");
     _ = @import("console/remoteEvents.zig");
     _ = @import("console/attachments.zig");
+    _ = @import("console/spinner.zig");
     _ = @import("console/llmPrompt.zig");
 }
