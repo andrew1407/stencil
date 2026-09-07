@@ -635,8 +635,6 @@ body.fullscreen-mode #fs-points-panel {
     max-height: min(60vh, 520px);
     overflow-y: auto;
     overscroll-behavior: contain;
-    scrollbar-width: thin;
-    scrollbar-color: var(--sb-thumb) transparent;
 }
 .ctx-assist .chat-msg { font-size: 13px; max-width: 92%; }
 .ctx-assist .chat-empty { padding: 2px 0 0; gap: 4px; }
@@ -2792,8 +2790,6 @@ a.chat-hbtn { text-decoration: none; }
     display: flex;
     flex-direction: column;
     gap: 8px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--sb-thumb) transparent;
     /* Measured for the narrow-column rule below (a docked/floating panel resizes
        independently of the viewport, so a plain media query would answer the wrong
        question). */

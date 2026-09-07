@@ -37,6 +37,11 @@
   --ok: #2e9e4f;
   --check-a: #e7eaf0;
   --check-b: #dfe2ea;
+  /* Scrollbar thumb (browser css/theme.css --sb-thumb): a neutral grey at rest, the
+     accent under the pointer, --accent-2 for the about-to-drag state. */
+  --sb-thumb: #d4d8de;
+  --sb-thumb-hover: var(--accent);
+  --sb-thumb-active: var(--accent-2);
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -53,7 +58,21 @@
   --ok: #4cc471;       /* browser dark --success */
   --check-a: #2a2e38;
   --check-b: #262a33;
+  --sb-thumb: #6a6a6a;
+  --sb-thumb-hover: var(--accent);
+  --sb-thumb-active: var(--accent-2);
 }
+/* ── Scrollbars, every scrollable on every page (browser css/layout.css parity, desktop
+   support/pillScrollBars.hpp): thin native bars in the thumb grey, the thumb taking the
+   accent ONLY while the pointer is on the bar's own strip — `.sb-hover`, set by
+   lib/scrollbarHover.js (one document listener per page) — not whenever the panel is
+   hovered: scrollbar-color has no thumb-hover of its own, and a panel-wide :hover would
+   paint the accent on every scroll. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-thumb) transparent;
+}
+.sb-hover { scrollbar-color: var(--sb-thumb-hover) transparent; }
 /* Accent presets — set only --accent; --accent-2 and the glows derive from it.
    Keys mirror lib/accent.js and apply as <html data-accent="…"> (lib/accent.js
    sets it pre-paint). Violet is the :root default, so no attribute = violet. */

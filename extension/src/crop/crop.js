@@ -11,6 +11,7 @@ import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_K
 import { SRC } from '../lib/messages.js';
 import { watchNumericInputs } from '../lib/numericInput.js';
 import { initTooltips } from '../lib/controlTooltip.js';
+import { wireScrollbarHover } from '../lib/scrollbarHover.js';
 import { enhanceSelect } from '../lib/customSelect.js';
 
 // True when running inside the in-page crop modal (an iframe). We then notify the
@@ -400,6 +401,7 @@ document.getElementById('open').addEventListener('click', async (e) => {
 // Instant, structured tooltips everywhere on this page (the native `title` waits ~1s
 // and never shows on a disabled control). lib/tipContent.js gives them their shape.
 initTooltips();
+wireScrollbarHover();   // the crop stage's bars take the accent under the pointer
 
 // The page-format list is long — our own list gets the filter input and the theme.
 for (const el of document.querySelectorAll('select')) enhanceSelect(el, { search: true });

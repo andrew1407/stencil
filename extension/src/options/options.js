@@ -12,6 +12,7 @@ import { initTooltips } from '../lib/controlTooltip.js';
 import { setTip } from '../lib/tip.js';
 import { enhanceSelect } from '../lib/customSelect.js';
 import { pinToWidestOption } from '../lib/fitWidest.js';
+import { wireScrollbarHover } from '../lib/scrollbarHover.js';
 
 // Theme accent — persisted separately in localStorage (window.StencilAccent, set
 // up by lib/accent.js) so it applies flash-free across the extension's pages. It
@@ -720,6 +721,7 @@ renderConnections();
 // Instant, structured tooltips everywhere on this page (the native `title` waits ~1s
 // and never shows on a disabled control). lib/tipContent.js gives them their shape.
 initTooltips();
+wireScrollbarHover();   // every scrollable's thumb takes the accent under the pointer
 
 // Every <select> on this page gets our own list: the native one is drawn by the OS, in
 // system type, ignoring this panel's theme (see lib/customSelect.js). The page-size list
