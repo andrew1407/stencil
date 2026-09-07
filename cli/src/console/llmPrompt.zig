@@ -17,6 +17,7 @@ const Attachment = @import("session.zig").Attachment;
 const handlers = @import("handlers.zig");
 const attachments = @import("attachments.zig");
 const remoteEvents = @import("remoteEvents.zig");
+const spinner = @import("spinner.zig");
 
 // ── LLM assistant (/prompt, /llm) ──────────────────────────────────────────────
 //
@@ -230,12 +231,14 @@ pub fn doPrompt(session: *Session, io: std.Io, arg: []const u8) !void {
 
         // What is happening, in the user's terms — not the wire's. The endpoint is operator
         // detail (it is one `/llm` away); what matters while the screen sits still is that the
-        // assistant is thinking, roughly how long that can take, and that Ctrl-C ends it.
-        if (session.cancel_poll != null) {
-            logo.print("⏳ thinking… this can take a minute (Ctrl-C to cancel)\n", .{});
-        } else {
-            logo.print("⏳ thinking… this can take a minute\n", .{});
-        }
+        // assistant is thinking, roughly how long that can take, and that Ctrl-C ends it. The
+        // glyph spins on the wait beat and the line goes when the reply (or the error) lands.
+        var spin = spinner.Spinner{};
+        spin.start(if (session.cancel_poll != null)
+            "thinking… this can take a minute (Ctrl-C to cancel)"
+        else
+            "thinking… this can take a minute");
+        defer spin.stop(); // every exit: the pre-print hook must not outlive this frame
 
         // With /chat on the saved conversation is replayed (text-only, §7/§12) before the
         // current turn; off, the request is byte-for-byte the plain single-turn one.
@@ -243,7 +246,9 @@ pub fn doPrompt(session: *Session, io: std.Io, arg: []const u8) !void {
         const history: []const llm.Turn = if (session.chat_on) session.chat_history.items else &.{};
         var req = try llm.buildRequestWithSystem(gpa, cfg, llm.consoleSystemPrompt(), turn_text, imgs.items, server_url, server_token, history, suffix);
         defer req.deinit(gpa);
-        const body = llm.postJson(gpa, io, req.url, req.auth, req.body, promptWaiter(session)) catch return; // message printed
+        const posted = llm.postJson(gpa, io, req.url, req.auth, req.body, promptWaiter(session, &spin));
+        spin.stop();
+        const body = posted catch return; // message printed
         defer gpa.free(body);
 
         const extracted = try llm.extractReply(gpa, cfg.provider, body);
@@ -913,11 +918,17 @@ fn stemTaken(used: []const []u8, stem: []const u8) bool {
 }
 
 /// The §6 transport waiter for a console turn: the session's Ctrl-C watch plus its clock, so
-/// a slow call can be cancelled by the user or abandoned at the deadline. A session with no
-/// watch installed (one-shot CLI, tests) yields the plain blocking call.
-fn promptWaiter(session: *Session) llm.Waiter {
+/// a slow call can be cancelled by the user or abandoned at the deadline, with the spinner
+/// advancing on each beat. A session with no watch installed (one-shot CLI, tests) yields
+/// the plain blocking call — and a spinner that never turns.
+fn promptWaiter(session: *Session, spin: *spinner.Spinner) llm.Waiter {
     if (session.cancel_poll == null or session.cancel_ctx == null) return .{};
-    return .{ .ctx = session.cancel_ctx, .poll = session.cancel_poll };
+    return .{ .ctx = session.cancel_ctx, .poll = session.cancel_poll, .beat_ctx = spin, .beat = spinBeat };
+}
+
+fn spinBeat(ctx: *anyopaque, now_ms: i64) void {
+    const spin: *spinner.Spinner = @ptrCast(@alignCast(ctx));
+    spin.beat(now_ms);
 }
 
 /// Lines waiting to go on a variant at the end of its ops, with the index into `steps` from
