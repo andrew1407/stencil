@@ -6,8 +6,9 @@ import { isExpiredSession } from '../net/connectionManager.js';
 import { normalizeUrl, isInsecureRemote } from '../net/connectionManager.js';
 import { setTranslucentDragImage } from './dragGhost.js';
 import { makeTouchDraggable } from './touchDrag.js';
-import { leaveThenRemove, scatterGridFor, materialize, createListHold, emptyStateVisible,
-  createFilterAnimator, revealControls } from './motion.js';
+import { leaveThenRemove, materialize, createListHold, emptyStateVisible,
+  createFilterAnimator, revealControls, revealBar, CONN_DUST_MS, rowDustGrid, rowLeaveDust,
+  wipeDurationMs } from './motion.js';
 import { canRefreshList } from './projectsModal.js';
 
 // Three-way credential filter over the connections list: all | admin | non-admin.
@@ -17,6 +18,12 @@ export const matchesConnFilter = (conn, mode) => {
   if (mode === 'non-admin') return conn?.credentialKind !== 'admin';
   return true;
 };
+
+// What a batch action says it did: one server is named outright — "Reconnected" alone
+// never said WHICH, and with one saved connection that is the only thing worth saying —
+// and several are counted (desktop parity: the per-row toasts name their url).
+export const batchNote = (verb, urls) =>
+  (urls.length === 1 ? `${verb} to ${urls[0]}` : `${verb} ${urls.length} servers`);
 
 // ── Component: server connections modal ─────────────────────────
 // Connect to / list / disconnect Stencil servers (URL + optional token); their shared
@@ -115,23 +122,44 @@ export class StencilConnectModal extends StencilElement {
     const filterEl = $('connect-filter');
     let filterMode = 'all';
     let shownUrls = new Set();   // urls the last render actually listed
+    // …minus the ones whose row is playing its removal dust: still on screen, already gone
+    // as far as the selection bar is concerned, so Select all leaves WITH the row instead
+    // of a whole flight later (user report). The desktop's `doomed_` (connectDialog.cpp).
+    const doomed = new Set();
+    const anyLiveShown = () => {
+      for (const u of shownUrls) if (!doomed.has(u)) return true;
+      return false;
+    };
 
     // Select-all works over the CURRENT render's rows (the filtered view), so a
     // filtered "select all" never sweeps up connections the user cannot see.
-    const allSelected = () => shownUrls.size > 0 && [...shownUrls].every((u) => selected.has(u));
+    const allSelected = () => {
+      let live = 0;
+      for (const u of shownUrls) {
+        if (doomed.has(u)) continue;
+        if (!selected.has(u)) return false;
+        live++;
+      }
+      return live > 0;
+    };
     const updateSelectAll = () => setSelectAllFace(selectAllBtn, allSelected());
+    // The controls fly on the app's own control clock (motion.js REVEAL_GROUP_OUT_MS —
+    // the desktop's kControlRevealOutMs), never the row's 220ms box collapse: handed that,
+    // their 3px motes read as no animation at all. They still SET OFF with the row.
     const updateBatchBar = () => {
       // The projects selection bar's exact shape (projectsModal.js updateBatchBar): the
       // bar stays put while the list has rows (it hosts Select all) and only the count and
-      // the selection actions come and go, as the app's control swap (motion.js
-      // revealControls). A bar that never moves has no list jumping beneath it.
-      batchBar.style.display = (selected.size || shownUrls.size) ? '' : 'none';
+      // the selection actions come and go, as the app's control swap (revealControls).
+      // The bar itself opens at once and closes only once those have flown — its own slot
+      // clips them (revealBar; the desktop's singleShot in ConnectDialog::updateBatchBar).
+      const live = anyLiveShown();
+      revealBar(batchBar, () => selected.size > 0 || anyLiveShown());
       batchCount.textContent = `${selected.size} selected`;
       revealControls(batchCount, selected.size > 0);
       // ONE flight for the group, not one per button: a control's dust is photographed
       // where it sits, and siblings revealed in the same turn are still sliding.
       revealControls(selectedGroup, selected.size > 0);
-      revealControls(selectAllBtn, shownUrls.size > 0);
+      revealControls(selectAllBtn, live);
       updateSelectAll();
     };
 
@@ -145,8 +173,12 @@ export class StencilConnectModal extends StencilElement {
     // Wipe hold + refresh gate — the projects modal's beginRemoval pattern via the
     // shared createListHold: while a leave/materialize plays, the connections-changed
     // render is deferred (canRefreshList) and the empty state held back
-    // (emptyStateVisible); a close mid-animation finalizes every hold (onClose).
-    const hold = createListHold({ settle: () => { render(); list.style.minHeight = ''; } });
+    // (emptyStateVisible); a close mid-animation finalizes every hold (onClose). On the
+    // clock the rows leave on, so the settle render lands with the last mote.
+    const hold = createListHold({
+      settle: () => { render(); list.style.minHeight = ''; },
+      wait: () => wipeDurationMs(CONN_DUST_MS),
+    });
     // Call BEFORE a removal, await the result after: this list sizes the modal (so its
     // height is pinned through the wipe) and the empty state must not land under the ash.
     const beginRemoval = () => {
@@ -159,10 +191,20 @@ export class StencilConnectModal extends StencilElement {
       if (!(await app.confirm(`Disconnect and forget ${url}?`, { title: 'Disconnect server', danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) { render(); return; }
       // The row scatters before the list is rebuilt without it.
       const settle = beginRemoval();
-      await leaveThenRemove(list.querySelector(`[data-url="${CSS.escape(url)}"]`), () => {}, scatterGridFor(1));
+      doomed.add(url);
+      selected.delete(url);   // …and it stops counting towards the bar with its own dust
+      const leaving = leaveThenRemove(list.querySelector(`[data-url="${CSS.escape(url)}"]`),
+        () => {}, rowLeaveDust(1, 0, CONN_DUST_MS));
       mgr().disconnect(url);
-      notify('Disconnected', 'ok');
+      // The bar answers NOW, beside the row's dust, not after it: the connections-changed
+      // echo is held off mid-wipe (canRefreshList), so this is the only thing that re-asks.
+      updateBatchBar();
+      await leaving;
       await settle();
+      // Released only after the SETTLE render: the row outlives its own box collapse, so
+      // letting go earlier flashes Select all back on for the rest of the scatter.
+      doomed.delete(url);
+      updateBatchBar();
     };
 
     // Build the new url order for dropping draggingUrl relative to targetUrl (before/after).
@@ -338,16 +380,19 @@ export class StencilConnectModal extends StencilElement {
           recon.disabled = true;
           try {
             await mgr().reconnectOne(url, expired ? '' : undefined);
-            notify('Reconnected', 'ok');
+            notify(`Reconnected to ${url}`, 'ok');
           } catch (err) {
             if (!isExpiredSession(err)) notify(`Reconnect failed — ${err.message}`, 'fail');
             else {
               const token = await app.prompt(
                 `${url} refused the saved session. Paste an access token — or the server's `
                 + 'admin token, which mints a fresh session for you.',
-                { title: 'Session expired', confirmLabel: 'Reconnect', confirmIcon: 'link' });
+                { title: 'Session expired', confirmLabel: 'Reconnect', confirmIcon: 'link',
+                  // Reconnect needs a token: without one the caller ignored the answer,
+                  // so the button was a dead click (user report, with a picture).
+                  validate: (v) => (v ? '' : 'Paste a token to reconnect') });
               if (token) {
-                try { await mgr().reconnectOne(url, String(token).trim()); notify('Reconnected', 'ok'); }
+                try { await mgr().reconnectOne(url, String(token).trim()); notify(`Reconnected to ${url}`, 'ok'); }
                 catch (e2) { notify(`Reconnect failed — ${e2.message}`, 'fail'); }
               }
             }
@@ -392,18 +437,19 @@ export class StencilConnectModal extends StencilElement {
     };
 
     // ── Batch actions over the checked connections ──
-    const runConnBatch = async (fn, okMsg, failMsg) => {
-      let done = 0;
-      for (const url of [...selected]) {
-        try { await fn(url); done++; } catch (err) { notify(`${failMsg} ${url} — ${err.message}`, 'fail'); }
+    const runConnBatch = async (fn, okMsg, failMsg, targets = null) => {
+      const ok = [];
+      for (const url of (targets || [...selected])) {
+        try { await fn(url); ok.push(url); } catch (err) { notify(`${failMsg} ${url} — ${err.message}`, 'fail'); }
       }
-      selected.clear();
-      render();
-      if (done) notify(`${okMsg} (${done})`, 'ok');
+      // A caller that named its own targets owns the redraw too — the disconnect batch
+      // has rows in the air and must not have the list rebuilt out from under them.
+      if (!targets) { selected.clear(); render(); }
+      if (ok.length && okMsg) notify(batchNote(okMsg, ok), 'ok');
     };
     selectAllBtn?.addEventListener('click', () => {
       if (allSelected()) selected.clear();
-      else for (const u of shownUrls) selected.add(u);
+      else for (const u of shownUrls) if (!doomed.has(u)) selected.add(u);
       render();   // re-syncs every row's checkbox; ends in updateBatchBar
     });
     batchBtns.reconnect.addEventListener('click', () => runConnBatch(u => mgr().reconnectOne(u), 'Reconnected', 'Reconnect failed'));
@@ -412,11 +458,19 @@ export class StencilConnectModal extends StencilElement {
       if (!(await app.confirm(`Disconnect and forget ${selected.size} selected server(s)?`, { title: 'Disconnect servers', danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) return;
       // Every selected row scatters at once, then the batch runs — budgeted like the
       // projects batch (scatterGridFor).
+      const targets = [...selected];
       const settle = beginRemoval();
-      await Promise.all([...selected].map((u, i) => leaveThenRemove(
-        list.querySelector(`[data-url="${CSS.escape(u)}"]`), () => {}, scatterGridFor(selected.size, i))));
-      await runConnBatch(async (u) => mgr().disconnect(u), 'Disconnected', 'Disconnect failed');
+      for (const u of targets) doomed.add(u);
+      selected.clear();   // the count goes with the rows, not after them
+      const leaving = Promise.all(targets.map((u, i) => leaveThenRemove(
+        list.querySelector(`[data-url="${CSS.escape(u)}"]`), () => {},
+        rowLeaveDust(targets.length, i, CONN_DUST_MS))));
+      updateBatchBar();   // …beside the rows' own dust (see confirmDisconnect)
+      await runConnBatch(async (u) => mgr().disconnect(u), null, 'Disconnect failed', targets);
+      await leaving;
       await settle();
+      for (const u of targets) doomed.delete(u);   // …after the settle render, as above
+      updateBatchBar();
     });
 
     const connect = async () => {
@@ -436,10 +490,30 @@ export class StencilConnectModal extends StencilElement {
         // connections-changed echo can't rebuild the list mid-animation.
         const settle = hold.begin();
         render();
-        materialize(list.querySelector(`[data-url="${CSS.escape(normalizeUrl(url))}"]`), scatterGridFor(1));
+        // …as the projects list's own arrival (materialize: filterDust's recipe — surface
+        // gather, half a throw, the filter clock), on this list's finer grain.
+        materialize(list.querySelector(`[data-url="${CSS.escape(normalizeUrl(url))}"]`),
+          rowDustGrid());
         await settle();
       } catch (err) {
         notify(`Could not connect — ${err.message}`, 'fail');
+        // A refused CREDENTIAL still leaves a row behind (connectionManager keeps it in
+        // `_expired`, with a Reconnect on it), and that row deserves the same arrival as a
+        // successful one — it used to appear out of the echo with no flight at all (user
+        // report). A merely unreachable server leaves no row, and nothing plays.
+        let norm = '';
+        try { norm = normalizeUrl(url); } catch { norm = ''; }
+        if (norm && mgr().isExpired(norm)) {
+          // …and the fields that put it there are done: the URL is in the list now, so
+          // leaving it typed in invites adding it twice. Only an attempt that left
+          // NOTHING behind keeps its text, so a typo can be corrected where it was made.
+          urlEl.value = '';
+          tokenEl.value = '';
+          const settle = hold.begin();
+          render();
+          materialize(list.querySelector(`[data-url="${CSS.escape(norm)}"]`), rowDustGrid());
+          await settle();
+        }
       } finally {
         addBtn.disabled = false;
       }
@@ -449,7 +523,7 @@ export class StencilConnectModal extends StencilElement {
     urlEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); connect(); } });
     tokenEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); connect(); } });
     reconnectBtn.addEventListener('click', async () => {
-      try { await mgr().reconnect(); notify('Reconnected', 'ok'); }
+      try { const urls = mgr().urls; await mgr().reconnect(); notify(batchNote('Reconnected', urls), 'ok'); }
       catch (err) { notify(`Reconnect failed — ${err.message}`, 'fail'); }
       render();
     });

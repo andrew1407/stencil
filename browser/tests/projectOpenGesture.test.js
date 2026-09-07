@@ -322,3 +322,63 @@ test('every out-of-band trigger routes through the shared gate, held while a wip
   assert.ok(!/if \(!dragActive && overlay\.classList\.contains\('modal-open'\)\) render\(\);/.test(src),
     'no trigger keeps the old drag-only guard (it let the peers echo render mid-wipe)');
 });
+
+// The selection bar is a REVEAL, not a display flip — the connections modal's twin
+// (connectModal.js updateBatchBar): flipping it took Select all's own out-flight off the
+// screen before a frame of it showed. Pinned at the source, since under this suite's
+// reduced motion revealControls lands on display:none too.
+test('the projects batch bar opens and closes on the shared control flight', () => {
+  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  assert.match(src, /revealBar\(batchBar, \(\) => selected\.size > 0 \|\| anyLiveSelectable\(\)\)/);
+  // The pool is the select-all set MINUS the rows playing their removal dust, so the bar
+  // leaves beside them instead of a flight later (connections modal parity: `doomed`).
+  assert.match(src, /const anyLiveSelectable = \(\) => \{[\s\S]*?!doomed\.has\(k\)\) return true;/);
+  assert.ok(!/batchBar\.style\.display\s*=/.test(src), 'nothing flips the bar outright any more');
+});
+
+// The rows and the selection bar must come apart TOGETHER. The batch removal used to hold
+// the checked set until every delete had run, so the count, the batch buttons and Select
+// all only started their own flight after the whole row scatter had finished — the items
+// went, and the buttons went a beat later (user report). The connections modal and the
+// desktop dialog both retire the rows and re-ask the bar in ONE turn.
+test('a batch removal retires the rows and re-asks the bar in the same turn', () => {
+  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('batchBtns.remove.addEventListener'),
+                         src.indexOf('batchBtns.moveServer.addEventListener'));
+  // The leaves are STARTED, not awaited, before the selection is let go and the bar re-asked…
+  assert.match(body, /for \(const k of keys\) doomed\.add\(k\);[\s\S]*const leaving = Promise\.all\([\s\S]*selected\.clear\(\);\s*\n\s*updateBatchBar\(\);\s*\n\s*await leaving;/);
+  // …and the keys stop counting as doomed only after runBatch's SETTLE render: the rows
+  // outlive their own box collapse, so an earlier release flashes Select all back on.
+  assert.match(body, /'Removed', 'Could not remove', settle, rows\);\s*\n[^\n]*\n\s*for \(const k of keys\) doomed\.delete\(k\);/);
+});
+
+// Clear All is the same rule over the whole list: every selectable row is going, so the
+// bar has nothing left to offer and must say so while the rows are still falling.
+test('clear-all lets the selection bar go with the rows', () => {
+  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  const body = src.slice(src.indexOf('clearAllBtn.addEventListener'));
+  assert.match(body, /const keys = \[\.\.\.selectables\.keys\(\)\];\s*\n\s*for \(const k of keys\) doomed\.add\(k\);[\s\S]*const leaving = Promise\.all\([\s\S]*updateBatchBar\(\);\s*\n\s*await leaving;/);
+  assert.match(body, /await settle\(\);\s*\n\s*for \(const k of keys\) doomed\.delete\(k\);/);
+});
+
+// A single row removed from its own ⋯ menu counts too: it leaves the checked set and the
+// select-all pool the moment its dust starts, not when the settle render arrives.
+test('a single-row removal retires its key with the row', () => {
+  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  assert.match(src, /const retireKey = \(key\) => \{\s*\n\s*doomed\.add\(key\);\s*\n\s*selected\.delete\(key\);\s*\n\s*updateBatchBar\(\);/);
+  // Every leaveThenRemove of ONE row is preceded by its retireKey, and the undo waits for
+  // that path's settle render — never for the box collapse alone.
+  assert.equal((src.match(/const revive = retireKey\(/g) || []).length, 4);
+  assert.equal((src.match(/await settle\(\);\s*\n\s*revive\(\);/g) || []).length, 4);
+});
+
+// A project row comes apart in the SAME sand as a connection row: the finer grain and the
+// tighter throw tuned on the connections list (motion.js ROW_DUST_*), on the projects
+// list's own card clock — one look across both lists (user report: "same smoothness").
+test('project rows scatter on the shared list-row grain and throw', () => {
+  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  const removals = (src.match(/leaveThenRemove\(/g) || []).length;
+  assert.ok(removals >= 6, `every removal site (${removals})`);
+  // …and each one takes the shared recipe on this list's card clock, nothing hand-rolled.
+  assert.equal((src.match(/rowLeaveDust\([^)]*ITEM_DUST_MS\)/g) || []).length, removals);
+});

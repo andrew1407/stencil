@@ -246,6 +246,11 @@ namespace stencil::net {
     // Async: re-establish one connection (by url) without blocking; emits changed() and reports
     // (ok, err) via `done`. `done`'s captures must be guarded by the caller for its own lifetime.
     void reconnectAsync(const QString& url, std::function<void(bool ok, QString err)> done);
+    // Sign an EXISTING connection in again with a freshly supplied credential — the
+    // expired row's token prompt. connectTo() cannot do this: a refused client keeps its
+    // place in the list on purpose, so that path trips its own "already connected" guard.
+    // Falls back to connectTo when the url is not listed at all.
+    bool reauthenticate(const QString& url, const QString& token, QString& err);
     // Async: re-establish every connection (best-effort) without blocking; emits changed() once all
     // resolve and then invokes `done`.
     void reconnectAllAsync(std::function<void()> done = {});

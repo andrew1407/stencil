@@ -47,7 +47,7 @@ namespace stencil::gui {
     }
     QSize sizeHint() const override {
       if (!lineHint_) return minimumSize();
-      QSize size;
+      QSize size(0, 0);   // NOT QSize(): that is (-1,-1), and the width sum starts short
       int n = 0;
       for (QLayoutItem* item : items_) {
         if (item->isEmpty()) continue;
@@ -104,7 +104,12 @@ namespace stencil::gui {
           if (item->hasHeightForWidth()) sz.setHeight(item->heightForWidth(sz.width()));
         }
         int nextX = x + sz.width() + hSpace_;
-        if (wrap && nextX - hSpace_ > area.right() && !rowItems.isEmpty()) {
+        // The item occupies [x, x + w - 1], so it FITS while its last pixel is still on
+        // area.right(). Testing `x + w > right()` wrapped a row that fitted exactly, which
+        // left sizeHint() (the sum + gaps) one pixel short of what this needs — and given
+        // exactly its own hint the layout then wrapped every item onto its own line (user
+        // report: the connections batch bar's three buttons in a column).
+        if (wrap && nextX - hSpace_ - 1 > area.right() && !rowItems.isEmpty()) {
           flushRow();
           x = area.x();
           nextX = x + sz.width() + hSpace_;

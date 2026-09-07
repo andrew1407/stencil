@@ -292,13 +292,22 @@ export class ConnectionManager {
     // set (nothing may try to use one) but remembered, so the UI can still show the row,
     // keep its saved URL, and offer the one action that helps: a new token.
     this._expired = new Map();
+    // A connection being RE-ESTABLISHED is still a known one: connect() only lands the new
+    // ServerConnection once its handshake is through, and the status events in between
+    // re-render the list, so without this the row (and the selection bar with it) blinked
+    // out and back on every reconnect. The stand-in carries just what the list renders.
+    this._reconnecting = new Map();   // url -> { url, status, connected, credentialKind }
     this._lastSet = [];        // for reconnect()
   }
 
   get urls() { return Array.from(this._conns.keys()); }
   get expiredUrls() { return Array.from(this._expired.keys()); }
   // Everything the user has a row for: live first, then the sessions that need a token.
-  get knownUrls() { return [...this._conns.keys(), ...this._expired.keys()]; }
+  get knownUrls() {
+    const known = [...this._conns.keys(), ...this._expired.keys()];
+    if (!this._reconnecting.size) return known;   // the usual case: no de-duplication
+    return [...new Set([...known, ...this._reconnecting.keys()])];
+  }
   isExpired(url) { try { return this._expired.has(normalizeUrl(url)); } catch { return false; } }
   get connections() { return Array.from(this._conns.values()); }
   // True when reconnect() has anything to act on (live set or the last-known one).
@@ -336,7 +345,10 @@ export class ConnectionManager {
   // can render their status without a second lookup path.
   get(url) {
     const norm = normalizeUrl(url);
-    return this._conns.get(norm) || this._expired.get(norm) || null;
+    // The real connection first: connect() sets it while a reconnect's stand-in is still
+    // there, and the settled row must win over the one that says "connecting".
+    return this._conns.get(norm) || this._expired.get(norm)
+        || this._reconnecting.get(norm) || null;
   }
   get last() { const u = this.urls; return u.length ? this._conns.get(u[u.length - 1]) : null; }
 
@@ -432,7 +444,17 @@ export class ConnectionManager {
       this._conns.delete(norm);
       this._expired.delete(norm);
     }
-    await this.connect(cred ? { url: norm, token: cred, kind } : norm);
+    // Keep the URL known for the whole handshake (see _reconnecting) — the list must not
+    // blink out from under the button that asked for this.
+    this._reconnecting.set(norm, {
+      url: norm, status: 'connecting', connected: false,
+      credentialKind: kind || conn?.credentialKind || '',
+    });
+    try {
+      await this.connect(cred ? { url: norm, token: cred, kind } : norm);
+    } finally {
+      this._reconnecting.delete(norm);
+    }
     return this;
   }
 

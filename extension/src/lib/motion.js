@@ -328,15 +328,19 @@ export const createFilterTransition = ({
 // clones of the element — a clone per cell was hundreds of copies of a row's whole
 // subtree, and at mote size it showed nothing a speck does not. Mirror of browser
 // motion.js; the tiles live in a FIXED layer because the row is collapsing under them.
-export const DISINTEGRATE_MS = 900;
+// Half again the app's original 900ms wipe, in step with the browser's DISINTEGRATE_MS:
+// 520 and 260 were both tried and read as hurried.
+export const DISINTEGRATE_MS = 1350;
 // A fine grid: at 8x4 the cells read as big rectangles sliding apart. Small cells are
 // what make it read as ash rather than a broken window. The cost is one node per
 // cell, so this is the practical ceiling for a list row.
 export const DISINTEGRATE_COLS = 22;
 export const DISINTEGRATE_ROWS = 11;
-// A gathering tile's flight as a share of the whole span — the CSS default's 0.48s of
-// 0.9s. The rest is the reversed sweep (tileMotion), so the two always add up.
-export const TILE_GATHER_SHARE = 480 / DISINTEGRATE_MS;
+// A gathering tile's flight, and a mote's own jitter, as SHARES of the span (the CSS
+// defaults' 0.48s and 60ms of 0.9s) — not divisions by it: shortening DISINTEGRATE_MS
+// must shorten both with it, not hand them a bigger slice of a smaller flight.
+export const TILE_GATHER_SHARE = 480 / 900;
+export const TILE_JITTER_SHARE = 60 / 900;
 
 // Deterministic per-tile jitter — a hash, not Math.random, so the scatter is varied
 // but reproducible (and unit-testable). Returns a 0..1 float.
@@ -385,7 +389,7 @@ export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
   // sand leaving (the same halving surfaceMotion's delayScale does). The gather keeps
   // the full sweep — its motes are the row forming, and there is nothing under them.
   const sweep = span * (reverse ? 0.4 : 0.2);
-  const delay = Math.round((reverse ? 1 - progress : progress) * sweep + n * 60 * (span / DISINTEGRATE_MS));
+  const delay = Math.round((reverse ? 1 - progress : progress) * sweep + n * span * TILE_JITTER_SHARE);
   // …and the motes FALL, fanning out as they go. Signed drift, so they spread both
   // ways instead of all sliding one.
   const dx = Math.round((m - 0.5) * 66);
@@ -551,9 +555,10 @@ export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
 // (reintegrate). The entry itself is HELD BACK for the whole flight — the motes ARE it
 // forming, and fading it up underneath them showed the message first and the animation
 // after, which is the one thing an arrival must not do.
-// On a clock of its own, well short of a row's 900ms (browser twin): the motes carry
-// no text, so a long answer is unreadable until the veil lifts.
-export const CHAT_ENTER_MS = 520;
+// On a clock of its own, well short of a row's flight (browser twin): the motes carry no
+// text, so a long answer is unreadable until the veil lifts. A fixed FRACTION of that
+// flight (520 of the old 900), so shortening DISINTEGRATE_MS shortens this with it.
+export const CHAT_ENTER_MS = Math.round(DISINTEGRATE_MS * 0.58);
 export const CHAT_ENTERING_CLASS = 'chat-entering';
 
 // Two frames, so the measure below happens on a SETTLED transcript: frame one is the new

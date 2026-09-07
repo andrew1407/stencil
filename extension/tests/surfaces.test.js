@@ -274,8 +274,8 @@ test("a surface's motes are visible from the FIRST frame, unlike a row's", () =>
   for (const v of ['--dx', '--dy', '--rot', '--tile-scale'])
     assert.ok(ANIMS.includes(`var(${v}`), `${v} drives the surface tiles too`);
   // A surface flies on its own, shorter clock; a row keeps the CSS default.
-  assert.match(ANIMS, /animation: stTileScatter var\(--dust-ms, 0\.9s\)/);
-  assert.match(ANIMS, /animation: stTileGather var\(--gather-ms, 0\.48s\)/);
+  assert.match(ANIMS, /animation: stTileScatter var\(--dust-ms, 1\.35s\)/);
+  assert.match(ANIMS, /animation: stTileGather var\(--gather-ms, 0\.72s\)/);
 });
 
 test('reduced motion neutralises the surface classes the preference may have flipped under', () => {

@@ -83,6 +83,36 @@ int main(int argc, char** argv) {
     check(renderTip(title, pal, false).contains("alt=\"Alt\""), "the hint keeps its keycaps");
   }
 
+  {  // A secondary line reads as a sentence of its own: "Servers — a saved session
+     // expired, …" showed a lowercase fragment under the heading, as if someone had
+     // forgotten to finish it (user report, with a picture). What must NOT be lifted is
+     // anything whose first token is a value rather than a word. Browser twin:
+     // tipContent.js sentenceCase, pinned by the same cases in tests/tipContent.test.js.
+    const auto firstBlock = [](const QString& title) {
+      const Tip t = parseTip(title);
+      return t.blocks.isEmpty() ? QString() : t.blocks[0].text;
+    };
+    check(firstBlock("Servers — a saved session expired, reconnect to sign in again") ==
+              "A saved session expired, reconnect to sign in again",
+          "the muted line under the heading is sentence-cased");
+    check(firstBlock("Crop image\n— add an image first") == "Add an image first",
+          "…and so is the disabled reason");
+    check(firstBlock("Drag to reorder · drag out of the modal to disconnect") ==
+              "Drag out of the modal to disconnect",
+          "…and a trailing · hint");
+    // A URL, a filename, an identifier, a code fragment: written as they mean.
+    check(firstBlock("Shared server project — http://localhost:8090") == "http://localhost:8090",
+          "a URL keeps its case");
+    check(firstBlock("Open Project — .stencil files only") == ".stencil files only",
+          "…and a filename");
+    check(firstBlock("Formula — f(x,y) transforms the page") == "f(x,y) transforms the page",
+          "…and a code fragment");
+    // A LONE word is a value (an axis letter, a mode name), not a sentence.
+    check(firstBlock("Axis · x") == "x", "a lone word is left alone");
+    check(firstBlock("Servers — Reconnect to sign in again") == "Reconnect to sign in again",
+          "already capitalised stays as it is");
+  }
+
   {  // "·" lists and "term — description" on the heading line.
     const Tip d = parseTip("Drag to reorder · drag out of the modal to disconnect");
     check(d.title == "Drag to reorder" && d.blocks.size() == 1 &&

@@ -657,12 +657,15 @@ test('animations.css: an arriving entry is VEILED, never faded up under its own 
 });
 
 test('chatIn: veils at once, lifts only when the motes have landed', async () => {
-  const { chatIn, CHAT_ENTER_MS, CHAT_ENTERING_CLASS, DISINTEGRATE_MS } = await import('../js/ui/motion.js');
-  // The gather rides the SAME clock the scatter falls on — the two directions are one
-  // motion, so one number owns both.
-  // Shorter than a row's flight on purpose: the motes carry no text, so a long answer is
-  // unreadable until the veil lifts. The gather's sweep and tile flight scale with it.
-  assert.ok(CHAT_ENTER_MS < DISINTEGRATE_MS && CHAT_ENTER_MS >= 400, `chat arrival ${CHAT_ENTER_MS}ms`);
+  const { chatIn, CHAT_ENTER_MS, CHAT_ENTERING_CLASS, ITEM_DUST_MS } = await import('../js/ui/motion.js');
+  // The gather rides the same clock the scatter falls on — the two directions are one
+  // motion, so one number owns both. That clock is ITEM_DUST_MS, NOT the connections
+  // list's DISINTEGRATE_MS: a message is read while it arrives, a URL row is not, and the
+  // two were deliberately parted. Shorter than the leave on purpose — the motes carry no
+  // text, so a long answer is unreadable until the veil lifts — and a SHARE of it rather
+  // than a number of its own, so a change to one clock never has the two meet.
+  assert.ok(CHAT_ENTER_MS < ITEM_DUST_MS && CHAT_ENTER_MS >= ITEM_DUST_MS / 2,
+    `chat arrival ${CHAT_ENTER_MS}ms of a ${ITEM_DUST_MS}ms message flight`);
   const classes = new Set();
   const el = { classList: {
     add: (...c) => c.forEach((x) => classes.add(x)),

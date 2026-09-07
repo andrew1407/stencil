@@ -11,6 +11,7 @@ class QCheckBox;
 class QComboBox;
 class QLabel;
 class QPushButton;
+class QKeyEvent;
 class QLineEdit;
 class QListWidget;
 class QWidget;
@@ -45,6 +46,9 @@ namespace stencil::gui {
    protected:
     // Watches the list viewport: rows are re-capped to its width on resize.
     bool eventFilter(QObject* watched, QEvent* event) override;
+    // Return connects, wherever the focus is (see the definition — a removed row can
+    // leave the dialog with no focus widget at all).
+    void keyPressEvent(QKeyEvent* e) override;
 
    private:
     void rebuildList();

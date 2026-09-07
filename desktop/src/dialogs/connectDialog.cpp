@@ -32,6 +32,7 @@
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
+#include <QKeyEvent>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPainter>
@@ -52,6 +53,10 @@
 #include <algorithm>
 
 namespace stencil::gui {
+
+  // A new row's gather — the flight of the control (Select all) that appears WITH it, so
+  // the two land together (rebuildList says why). Its removal keeps kConnMs.
+  inline constexpr int kConnArriveMs = kControlRevealInMs;
 
   namespace {
     // The collaboration gold used for server points throughout the app (mirrors the
@@ -195,8 +200,11 @@ namespace stencil::gui {
     connectBtn->setToolTip(tr("Connect to the server at the URL above"));
     // Accent CTA with a white glyph (browser default-button treatment).
     makeModalCta(connectBtn, "plus-circle");
-    connectBtn->setDefault(true);
     actions->addWidget(connectBtn);
+    // AFTER the layout has parented it, never before: setDefault() registers the button
+    // with its QDialog by walking up its parents, so on a parentless one it only sets a
+    // flag, and Qt's autoDefault juggling then cleared it with no main default to restore.
+    connectBtn->setDefault(true);
     actions->addStretch(1);
     auto* reconnectAllBtn = new QPushButton(tr("Reconnect all"));
     reconnectAllBtn_ = reconnectAllBtn;
@@ -337,8 +345,12 @@ namespace stencil::gui {
         if (!confirmYesNo(this, tr("Disconnect servers"),
                           tr("Disconnect and forget %1 selected server(s)?").arg(selected_.size())))
           return;
-        scatterRows(selected_.values());   // …and they come apart on the way out
-        for (const QString& u : selected_) manager_->disconnectFrom(u);
+        // Captured FIRST: scatterRows retires each row, and a retired row drops out of
+        // selected_ so the bar can leave with it — reading the set afterwards would
+        // disconnect nothing at all.
+        const QStringList targets = selected_.values();
+        scatterRows(targets);   // …and they come apart on the way out
+        for (const QString& u : targets) manager_->disconnectFrom(u);
         selected_.clear();
         rebuildList();
       });
@@ -416,6 +428,14 @@ namespace stencil::gui {
       tokenEdit_->clear();
     } else {
       emit toast(tr("Could not connect — %1").arg(err), true);
+      // A refused CREDENTIAL still leaves a row behind (the client is kept at
+      // Status::Expired, with a Reconnect on it), so the fields that put it there are done
+      // — leaving them typed in invites adding the same server twice. An attempt that left
+      // NOTHING keeps its text, so a typo can be corrected where it was made.
+      if (manager_->find(url)) {
+        urlEdit_->clear();
+        tokenEdit_->clear();
+      }
     }
     rebuildList();
   }
@@ -438,19 +458,22 @@ namespace stencil::gui {
       QListWidgetItem* it = row >= 0 ? list_->item(row) : nullptr;
       if (!it) continue;
       if (!DisintegrateOverlay::overRect(list_->viewport(), list_->visualItemRect(it), this,
-                                         DisintegrateOverlay::Sweep::Rows, /*dust=*/true, budget))
+                                         DisintegrateOverlay::Sweep::Rows, /*dust=*/true, budget,
+                                         DisintegrateOverlay::kConnMs))
         continue;   // nothing to animate (hidden/tiny) → this row just removes instantly
       // Retire the row at once (projectsDialog::retireRow parity): the snapshot is what
       // flies, so the real row blanks and its empty slot is held until the dust settles.
       list_->removeItemWidget(it);
       it->setFlags(Qt::NoItemFlags);
+      selected_.remove(u);   // …and it stops counting towards the bar with its own dust
       doomed_.insert(u);
       doomedNow.append(u);
     }
     if (doomedNow.isEmpty()) return;
     // Finalize when the dust settles: slots collapse and (only now) the empty state may
     // appear. Dies with the dialog — done() covers an early close.
-    QTimer::singleShot(DisintegrateOverlay::kMs, this, [this, doomedNow] {
+    updateBatchBar();   // the count and the buttons come apart WITH the rows, not after
+    QTimer::singleShot(DisintegrateOverlay::kConnMs, this, [this, doomedNow] {
       for (const QString& u : doomedNow) doomed_.remove(u);
       if (doomed_.isEmpty()) rebuildList();
     });
@@ -463,6 +486,7 @@ namespace stencil::gui {
     }
     // …and the same for a filter fade: nothing half-faded survives into the close flight.
     if (filterFade_) filterFade_->finishNow();
+    stopDustClouds(this);   // nothing may still be flying when the close flight photographs
     QDialog::done(r);
   }
 
@@ -499,6 +523,22 @@ namespace stencil::gui {
                          h > 0 ? std::clamp(double(viewH - top) / h, 0.0, 1.0) : 1.0);
       fx->setDissolve(d);
     }
+  }
+
+  // Return connects, from wherever the focus is (browser twin: connectModal.js wires
+  // keydown on both fields). Handled HERE rather than on the fields: removing a row can
+  // leave the dialog with no focus widget at all (the trash button that had it died with
+  // its row), and QDialog's own default-button path needs a button still carrying the
+  // default flag, which autoDefault juggling takes away. Anything that genuinely wants
+  // Return accepts it first, so reaching here means nothing else claimed it.
+  void ConnectDialog::keyPressEvent(QKeyEvent* e) {
+    if ((e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) &&
+        !(e->modifiers() & ~Qt::KeypadModifier)) {
+      doConnect();
+      e->accept();
+      return;
+    }
+    QDialog::keyPressEvent(e);   // Escape still rejects
   }
 
   bool ConnectDialog::eventFilter(QObject* watched, QEvent* event) {
@@ -565,7 +605,11 @@ namespace stencil::gui {
     // connectModal.js updateBatchBar). A bar that never opens has nothing beneath it to
     // jump, and the swap inside it is the app's control reveal (support/controlReveal).
     const QStringList shown = shownUrls();
-    batchBar_->setVisible(n > 0 || !shown.isEmpty());
+    // Opens at once, closes only once its contents have flown (support/controlReveal).
+    // The browser animates the bar's OWN slot as well (connectModal.js), which a Qt item
+    // view will not tolerate here: an animating bar re-lays out the list every frame, and
+    // the view re-shows a row meant to be hidden under its gather motes.
+    revealBar(batchBar_, [this] { return !selected_.isEmpty() || !shownUrls().isEmpty(); });
     // Text first, so the count is already right when its slot opens.
     if (batchCount_) {
       batchCount_->setText(tr("%1 selected").arg(n));
@@ -604,13 +648,19 @@ namespace stencil::gui {
                          .arg(url);
       spec.confirmLabel = tr("Reconnect");
       spec.confirmIcon = QStringLiteral("link");
-      spec.password = true;
+      // Shown, not echoed as dots: the Token field a few rows above is plain text too,
+      // and a pasted token you cannot read is one you cannot check (user report). Empty is
+      // refused outright — the button would otherwise be a dead click (browser parity:
+      // the same `validate` on app.prompt).
+      spec.validate = [](const QString& t) {
+        return t.isEmpty() ? tr("Paste a token to reconnect") : QString();
+      };
       const auto token = promptModal(this, spec);
       if (!self || !token || token->isEmpty()) return;
       QString cerr;
-      const bool signedIn = manager_->connectTo(url, *token, cerr);
+      const bool signedIn = manager_->reauthenticate(url, *token, cerr);
       if (!self) return;
-      emit toast(signedIn ? tr("Reconnected") : tr("Reconnect failed — %1").arg(cerr),
+      emit toast(signedIn ? tr("Reconnected to %1").arg(url) : tr("Reconnect failed — %1").arg(cerr),
                  !signedIn);
       rebuildList();
     });
@@ -952,9 +1002,11 @@ namespace stencil::gui {
           return;
         }
         QPointer<ConnectDialog> self(this);
-        manager_->reconnectAsync(url, [this, self](bool ok, QString err) {
+        manager_->reconnectAsync(url, [this, self, url](bool ok, QString err) {
           if (!self) return;
-          emit toast(ok ? tr("Reconnected") : tr("Reconnect failed — %1").arg(err), !ok);
+          // Named, not a bare "Reconnected": with more than one saved server the toast
+          // has to say WHICH one signed back in (browser parity).
+          emit toast(ok ? tr("Reconnected to %1").arg(url) : tr("Reconnect failed — %1").arg(err), !ok);
           rebuildList();
         });
       });
@@ -992,11 +1044,14 @@ namespace stencil::gui {
           QWidget* w = it ? list_->itemWidget(it) : nullptr;
           if (!w) continue;
           if (!w->isVisible()) w->show();   // the view may not have polished it yet
-          if (DisintegrateOverlay::over(w, this, DisintegrateOverlay::Sweep::Gather)) {
+          // On the CONTROL clock, not the row's: Select all arrives in the same turn (the
+          // bar opens with the first row), and a row still forming after the button had
+          // landed read as the two appearing one after the other (user report).
+          if (DisintegrateOverlay::over(w, this, DisintegrateOverlay::Sweep::Gather, 0, 0,
+                                        kConnArriveMs)) {
             w->setVisible(false);   // the slot stays; the motes are what the eye follows
             QPointer<QWidget> wp(w);
-            QTimer::singleShot(DisintegrateOverlay::kMs, this,
-                               [wp] { if (wp) wp->setVisible(true); });
+            QTimer::singleShot(kConnArriveMs, this, [wp] { if (wp) wp->setVisible(true); });
           }
         }
       });

@@ -5,8 +5,8 @@ import { SORT_MODES, sortProjectItems, reconcileManualOrder } from './projectSor
 import { setTranslucentDragImage } from './dragGhost.js';
 import { makeTouchDraggable } from './touchDrag.js';
 import {
-  observeReveal, leaveThenRemove, wipeDurationMs, scatterGridFor, createFilterAnimator,
-  revealControls,
+  observeReveal, leaveThenRemove, wipeDurationMs, createFilterAnimator,
+  ITEM_DUST_MS, rowLeaveDust, revealControls, revealBar,
   surfaceIn, surfaceOut, settleSurface, rectCenter, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS,
   TIP_DUST_IN_MS, TIP_DUST_OUT_MS, markIn, markOut,
 } from './motion.js';
@@ -284,6 +284,27 @@ export class StencilProjectsModal extends StencilElement {
     // selected: key -> { kind:'local'|'remote', id, serverUrl, isServer, meta }. A local meta
     // with a remoteId+address is a server-backed project (isServer); a pure-local one isn't.
     const selected = new Map();
+    // …minus the rows whose removal dust is playing: still on screen, already gone as far
+    // as the selection bar is concerned, so Select all and the batch buttons come apart
+    // WITH the rows instead of a whole flight later (user report). The connections modal's
+    // `doomed` (connectModal.js) and the desktop's retired rows (projectsDialog.cpp).
+    const doomed = new Set();
+    const anyLiveSelectable = () => {
+      for (const k of selectables.keys()) if (!doomed.has(k)) return true;
+      return false;
+    };
+    // Retire one row's key for the length of its scatter: it leaves the select-all pool and
+    // the checked set NOW, and the bar re-asks on the row's own clock. Returns the undo,
+    // called once the dust has landed (the settle render then rebuilds the pool anyway).
+    const retireKey = (key) => {
+      doomed.add(key);
+      selected.delete(key);
+      updateBatchBar();
+      // Undone only once the SETTLE render has rebuilt the pool without the row: the row
+      // stays in the DOM (and so in `selectables`) for the whole scatter, so releasing the
+      // key when the box collapses would flash Select all back on for the rest of it.
+      return () => { doomed.delete(key); updateBatchBar(); };
+    };
     const localKey = (id) => `local:${id}`;
     const remoteKey = (m) => `remote:${m.serverUrl}:${m.id}`;
     const isServerMeta = (m) => !!(m && m.remoteId && m.address);
@@ -303,10 +324,17 @@ export class StencilProjectsModal extends StencilElement {
     };
     const selectAllBtn = () => document.getElementById('projects-select-all');
     const selectedGroup = document.getElementById('projects-batch-selected');
+    // The controls fly on the app's own control clock (motion.js REVEAL_GROUP_OUT_MS —
+    // the desktop's kControlRevealOutMs), never the rows' 220ms box collapse (connectModal.js
+    // says why). They still SET OFF with the rows: the removals re-ask in the same turn.
     const updateBatchBar = () => {
-      // The bar hosts Select all too, so it shows whenever the list HAS selectable
-      // rows — the selection-only controls inside it come and go with the selection.
-      batchBar.style.display = (selected.size || selectables.size) ? '' : 'none';
+      // The bar hosts Select all too, so it shows whenever the list HAS selectable rows —
+      // the selection-only controls inside it come and go with the selection. The bar
+      // itself opens at once and closes only once those have flown: its own slot clips
+      // them, so closing it in the same turn blinked them out with no animation at all
+      // (user report, and the desktop's deferred hide in ProjectsDialog::updateBatchBar).
+      const live = anyLiveSelectable();
+      revealBar(batchBar, () => selected.size > 0 || anyLiveSelectable());
       // The count rides the same swap as the buttons: a hard display flip on the FIRST
       // thing in the row shoved everything after it sideways in one frame, which is most
       // of what read as "jumping" (user report).
@@ -327,14 +355,21 @@ export class StencilProjectsModal extends StencilElement {
       // revealed in the same turn are still animating their own width.
       revealControls(batchCount, selected.size > 0);
       revealControls(selectedGroup, selected.size > 0);
-      revealControls(selectAllBtn(), selectables.size > 0);
+      revealControls(selectAllBtn(), live);
       updateSelectAll();
     };
     const clearSelection = () => { selected.clear(); updateBatchBar(); };
     // What THIS render offered a checkbox for (the filtered view) — the select-all pool.
     const selectables = new Map();
-    const allSelected = () =>
-      selectables.size > 0 && [...selectables.keys()].every((k) => selected.has(k));
+    const allSelected = () => {
+      let live = 0;
+      for (const k of selectables.keys()) {
+        if (doomed.has(k)) continue;
+        if (!selected.has(k)) return false;
+        live++;
+      }
+      return live > 0;
+    };
     // Its label only — the button's coming and going rides updateBatchBar's ordered pass,
     // with the rest of the bar.
     const updateSelectAll = () => setSelectAllFace(selectAllBtn(), allSelected());
@@ -851,9 +886,11 @@ export class StencilProjectsModal extends StencilElement {
           if (!(await app.confirm(note, { title: 'Remove project', danger: true, confirmIcon: 'trash', closeAnchor: menuBtn }))) return;
           // The row collapses away first; render() then rebuilds the list without it.
           const settle = beginRemoval();
-          await leaveThenRemove(rowById(meta.id), () => {}, scatterGridFor(1));
+          const revive = retireKey(localKey(meta.id));
+          await leaveThenRemove(rowById(meta.id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
           app.removeProject(meta.id);
           await settle();
+          revive();
         };
 
         // Opening the row per the gesture's intent (rowOpenIntent): `here` switches this
@@ -1141,7 +1178,13 @@ export class StencilProjectsModal extends StencilElement {
         if (!(await app.confirm(`Delete server project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`, { title: 'Delete server project', danger: true, confirmIcon: 'trash' }))) return;
         const conn = app.connections && app.connections.get(meta.serverUrl);
         if (!conn) { notify('Not connected to that server', 'fail'); return; }
-        try { const settle = beginRemoval(); await leaveThenRemove(rowById(meta.id), () => {}, scatterGridFor(1)); await conn.deleteProject(meta.id); invalidateRemotes(); await settle(); }
+        try {
+          const settle = beginRemoval();
+          const revive = retireKey(remoteKey(meta));
+          await leaveThenRemove(rowById(meta.id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
+          await conn.deleteProject(meta.id); invalidateRemotes(); await settle();
+          revive();
+        }
         catch (err) { notify(`Could not delete — ${err.message}`, 'fail'); }
       };
 
@@ -1347,9 +1390,11 @@ export class StencilProjectsModal extends StencilElement {
             : `Remove project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`;
           if (!(await app.confirm(note, { title: 'Remove project', danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) { render(); return; }
           const settle = beginRemoval();
-          await leaveThenRemove(rowById(id), () => {}, scatterGridFor(1));
+          const revive = retireKey(localKey(id));
+          await leaveThenRemove(rowById(id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
           app.removeProject(id);
           await settle();
+          revive();
         }
         return;
       }
@@ -1360,7 +1405,13 @@ export class StencilProjectsModal extends StencilElement {
         if (!(await app.confirm(`Delete server project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`, { title: 'Delete server project', danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) { render(); return; }
         const conn = app.connections && app.connections.get(meta.serverUrl);
         if (!conn) { notify('Not connected to that server', 'fail'); return; }
-        try { const settle = beginRemoval(); await leaveThenRemove(rowById(meta.id), () => {}, scatterGridFor(1)); await conn.deleteProject(meta.id); invalidateRemotes(); await settle(); }
+        try {
+          const settle = beginRemoval();
+          const revive = retireKey(remoteKey(meta));
+          await leaveThenRemove(rowById(meta.id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
+          await conn.deleteProject(meta.id); invalidateRemotes(); await settle();
+          revive();
+        }
         catch (err) { notify(`Could not delete — ${err.message}`, 'fail'); }
       }
     };
@@ -1556,6 +1607,15 @@ export class StencilProjectsModal extends StencilElement {
       clearAllBtn.disabled = clearable === 0;
       clearAllBtn.dataset.disabledReason = 'No saved projects to clear';
 
+      // Drop selections whose project is GONE — removed here, or from another tab: the
+      // bar reads `selected.size`, so a dead key kept "1 selected" on screen over an empty
+      // list (user report). Against what the app KNOWS, never the filtered view — filtering
+      // a row out of sight must not silently drop it from a pending batch.
+      // (Deleting the key being visited is safe on a Map, so this needs no copy.)
+      for (const [key, entry] of selected) {
+        if (entry?.kind === 'local' && entry.id != null && !app.storage.store.getMeta(entry.id))
+          selected.delete(key);
+      }
       updateBatchBar();
     };
 
@@ -1605,10 +1665,13 @@ export class StencilProjectsModal extends StencilElement {
     // ── Batch actions over the checked rows ──
     // Partial failure must be loud and specific: a row whose action failed comes back on
     // the settle render, so without the summary the batch reads as silently dropping it.
-    const runBatch = async (fn, okMsg, failMsg, settle = null) => {
+    // `rows` overrides the checked set for a caller that has already let it go — the
+    // removal clears the selection the moment the rows start leaving, so the bar can fly
+    // with them, and the list of what to act on is captured before that.
+    const runBatch = async (fn, okMsg, failMsg, settle = null, rows = null) => {
       let done = 0;
       const failures = [];
-      for (const s of sel()) {
+      for (const s of (rows || sel())) {
         try { await fn(s); done++; }
         catch (err) { failures.push({ name: shortName(s.meta?.name || 'Untitled'), message: err.message }); }
       }
@@ -1636,17 +1699,30 @@ export class StencilProjectsModal extends StencilElement {
       if (!selected.size) return;
       if (!(await app.confirm(`Remove ${selected.size} selected project(s)? Server projects are deleted from the server.`, { title: 'Remove projects', danger: true, confirmIcon: 'trash' }))) return;
       // Every selected row scatters at once, then the batch runs — one shared animation.
-      // Budgeted: scatterGridFor coarsens each row's grain on a mass removal so the
-      // TOTAL clone count stays bounded.
+      // Budgeted: rowLeaveDust coarsens each row's grain on a mass removal so the
+      // TOTAL mote count stays bounded.
       const settle = beginRemoval();
-      await Promise.all(sel().map((s, i) =>
-        leaveThenRemove(rowById(s.id), () => {}, scatterGridFor(selected.size, i))));
+      const keys = [...selected.keys()];
+      for (const k of keys) doomed.add(k);
+      const rows = sel();
+      const leaving = Promise.all(rows.map((s, i) =>
+        leaveThenRemove(rowById(s.id), () => {}, rowLeaveDust(rows.length, i, ITEM_DUST_MS))));
+      // …and the bar answers NOW, beside the rows' own dust, rather than after it: the
+      // count, the batch buttons and Select all come apart in the same turn the rows do
+      // (connections modal parity — the rows are already `doomed`, so nothing is left to
+      // select). Without this the strip waited out the whole scatter first.
+      selected.clear();
+      updateBatchBar();
+      await leaving;
       await runBatch(async (s) => {
         if (s.kind === 'remote') {
           await deleteRemoteProject(s.serverUrl, s.id);
           invalidateRemotes();
         } else { app.removeProject(s.id); }
-      }, 'Removed', 'Could not remove', settle);
+      }, 'Removed', 'Could not remove', settle, rows);
+      // …released only now: runBatch's settle render has rebuilt the pool without them.
+      for (const k of keys) doomed.delete(k);
+      updateBatchBar();
     });
     batchBtns.moveServer.addEventListener('click', async () => {
       const address = await pickServer('Move the selected projects to which server?');
@@ -1684,12 +1760,21 @@ export class StencilProjectsModal extends StencilElement {
       // The whole list comes apart before it empties — the same leave every other removal
       // plays, and the desktop's ProjectsDialog::scatterRows. Real saved rows only: the
       // "temporary (unsaved)" row re-renders straight after, which read as an undone removal.
-      const doomed = [...list.querySelectorAll('.project-row:not(.project-temp)')];
+      const rows = [...list.querySelectorAll('.project-row:not(.project-temp)')];
       const settle = beginRemoval();
-      await Promise.all(doomed.map((row, i) =>
-        leaveThenRemove(row, () => {}, scatterGridFor(doomed.length, i))));
+      // The bar's controls leave WITH them (batch remove says why): every selectable row
+      // is going, so Select all, the count and the batch buttons have nothing left.
+      const keys = [...selectables.keys()];
+      for (const k of keys) doomed.add(k);
+      const leaving = Promise.all(rows.map((row, i) =>
+        leaveThenRemove(row, () => {}, rowLeaveDust(rows.length, i, ITEM_DUST_MS))));
+      selected.clear();
+      updateBatchBar();
+      await leaving;
       app.clearAllProjects();
       await settle();
+      for (const k of keys) doomed.delete(k);
+      updateBatchBar();
     });
 
     window.addEventListener('stencil:connections-changed', () => {

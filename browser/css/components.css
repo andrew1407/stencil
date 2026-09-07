@@ -2052,6 +2052,9 @@ stencil-fullscreen-layer { display: contents; }
     border: 1px solid var(--border-main); background: var(--input-bg); color: var(--text-main);
     font-size: 13px;
 }
+/* Why the typed value cannot be accepted (app.prompt { validate }), under the field and
+   only while it applies — the desktop's QLabel#modalPromptReason. */
+.confirm-prompt-reason { color: var(--danger); font-size: 12px; margin-top: 6px; }
 /* The multi-line shape (app.prompt { multiline: true } — keywords, description): the
    same field, several rows tall. A one-line bar read as "type a word" for values that
    are routinely a sentence or a list (user report). */
@@ -2140,8 +2143,11 @@ textarea.confirm-prompt-input:focus {
 .connect-batch-count { font-size: 13px; font-weight: 600; color: var(--text-key); white-space: nowrap; }
 .connect-batch-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 /* Compact (6px 10px, like the row's own buttons): at the default 8px 12px the four
-   actions plus "Deselect all" overran the modal's width by a few pixels and wrapped. */
-.connect-batch-actions > button { white-space: nowrap; flex: 0 0 auto; padding: 6px 10px; }
+   actions plus "Deselect all" overran the modal's width by a few pixels and wrapped.
+   Every button under the strip, not only direct children: Reconnect/Disconnect live one
+   level down in .connect-batch-selected, and at the default padding they stood 4px taller
+   than Select all, so the bar (and the modal) grew when they appeared (user report). */
+.connect-batch-actions button { white-space: nowrap; flex: 0 0 auto; padding: 6px 10px; }
 .connect-batch-selected {
     display: inline-flex; align-items: center; gap: 6px;
     flex-wrap: nowrap; white-space: nowrap;

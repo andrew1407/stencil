@@ -13,7 +13,7 @@ import {
   MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, LEAVE_MS, DISINTEGRATE_MS,
   chatIn, CHAT_ENTER_MS, CHAT_ENTERING_CLASS, dustFitsScroller,
   diffListKeys, createFilterTransition, filterLeave,
-  FILTER_IN_CLASS, FILTER_OUT_CLASS, FILTER_ENTER_MS, FILTER_LEAVE_MS,
+  FILTER_IN_CLASS, FILTER_OUT_CLASS, FILTER_ENTER_MS, FILTER_LEAVE_MS, TILE_JITTER_SHARE,
 } from '../src/lib/motion.js';
 import { makeList, makeRow, renderKeys, fakeTimers } from './helpers/listDom.js';
 
@@ -212,7 +212,11 @@ test('tileMotion reverse: same flight path, inverted sweep', () => {
   const backBottom = tileMotion(3, rows - 1, cols, rows, true);
   assert.ok(outTop.delay < outBottom.delay, 'scatter sweeps top→bottom');
   assert.ok(backTop.delay > backBottom.delay, 'gather sweeps bottom→top');
-  assert.ok(backTop.delay <= DISINTEGRATE_MS * 0.4 + 60, 'same sweep window as the scatter');
+  // The gather's 0.4 share plus a mote's own jitter, which is a SHARE of the span too —
+  // it used to be a flat 60ms, and that literal quietly became wrong the moment the span
+  // changed (motion.js TILE_JITTER_SHARE).
+  assert.ok(backTop.delay <= DISINTEGRATE_MS * (0.4 + TILE_JITTER_SHARE),
+    'same sweep window as the scatter');
 });
 
 test('materialize: expands on the collapse’s own timer; no veil without dust', async () => {
@@ -443,7 +447,10 @@ test('chatIn: veils at once, lifts only when the motes have landed', async () =>
   // One number owns both directions — the gather rides the clock the scatter falls on.
   // Shorter than a row's flight on purpose (browser twin): the motes carry no text, so a
   // long answer is unreadable until the veil lifts. The gather scales with it.
-  assert.ok(CHAT_ENTER_MS < DISINTEGRATE_MS && CHAT_ENTER_MS >= 400, `chat arrival ${CHAT_ENTER_MS}ms`);
+  // A SHARE of the row's flight, not a number of its own: the row's clock has been
+  // shortened once already, and a fixed floor here would have the two meet.
+  assert.ok(CHAT_ENTER_MS < DISINTEGRATE_MS && CHAT_ENTER_MS >= DISINTEGRATE_MS / 2,
+    `chat arrival ${CHAT_ENTER_MS}ms of a ${DISINTEGRATE_MS}ms row flight`);
   const row = el();
   const p = chatIn(row);
   // SYNCHRONOUSLY veiled — before the caller returns, so no frame ever paints the entry

@@ -456,9 +456,11 @@ The desktop app mirrors the browser app's interaction surface:
   drawn in the tooltips' keycaps: click a combo and press the new chord; edits apply
   and persist live, with a per-row reset and Reset All). All three wear the shared
   modal shell (`support/modalChrome`), as do every prompt and picker the app asks with
-  — the New Project name, the server pickers, the expired-session token (echoed as
-  dots) — through `promptModal` / `chooseModal`, the browser's `app.prompt` /
-  `app.choose` twins; no native `QInputDialog` / `QMessageBox` is left in the app.
+  — the New Project name, the server pickers, the expired-session token (shown, not
+  echoed as dots: a pasted token you cannot read is one you cannot check, and the Token
+  field above it is plain text too) — through `promptModal` / `chooseModal`, the
+  browser's `app.prompt` / `app.choose` twins; no native `QInputDialog` /
+  `QMessageBox` is left in the app.
   - *Use the system menu bar* (`nativeMenuBar`, default **on**) puts the menus where
     the platform does — the macOS menu bar, a GNOME/Unity app menu — and turning it
     off keeps them inside the window. That escape hatch matters because Qt's export

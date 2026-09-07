@@ -509,7 +509,7 @@ html.theme-swapping *::before, html.theme-swapping *::after {
     /* No `filter` here: a per-tile blur is a separate compositing pass EACH, and a few
        hundred of them is what made a multi-row removal stutter. */
     will-change: transform, opacity;
-    animation: stTileScatter var(--dust-ms, 0.9s) cubic-bezier(0.22, 0.55, 0.3, 1) both;
+    animation: stTileScatter var(--dust-ms, 1.35s) cubic-bezier(0.22, 0.55, 0.3, 1) both;
 }
 /* No straight lines: every flight passes a WAYPOINT (--mx/--my, motion.js tileWaypoint)
    pushed off the mote's own line, so a cloud churns instead of radiating in spokes. The
@@ -558,7 +558,7 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    has landed by the time the veil lifts at DISINTEGRATE_MS. Declared after
    .disintegrate-tile so the gather animation wins on the shared tile class. */
 .reintegrate-tile {
-    animation: stTileGather var(--gather-ms, 0.48s) cubic-bezier(0.7, 0, 0.78, 0.45) both;
+    animation: stTileGather var(--gather-ms, 0.72s) cubic-bezier(0.7, 0, 0.78, 0.45) both;
 }
 @keyframes stTileGather {
     0%   { opacity: 0;

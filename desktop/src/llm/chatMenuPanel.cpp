@@ -422,7 +422,7 @@ namespace stencil::gui {
     // The dock's sequencing (chatDock.cpp clearConversation): the rows leave
     // FIRST and the empty state returns only once the particles have landed.
     if (!wiped) { suggest_->show(); return; }
-    QTimer::singleShot(DisintegrateOverlay::kMs, this, [this] {
+    QTimer::singleShot(DisintegrateOverlay::kItemMs, this, [this] {
       // A turn may have started while the wipe played — then the chips are wrong.
       if (!rowsAdded_.isEmpty() || pending_) return;
       suggest_->show();

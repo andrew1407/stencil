@@ -346,6 +346,17 @@ class MainWindowGuiTest : public QObject {
 
   // The suite runs with STENCIL_NO_ANIM=1; a case that drives real motion turns it off for
   // its own scope. Hold the returned guard for as long as the animation must run.
+  // …and its counterpart, for a test that PAINTS rather than watches: the suite runs with
+  // STENCIL_NO_ANIM=1, but a case that turns motion on can leave it on for whatever runs
+  // next, and then a fixed wait races a flight. Pins it off for the case's own lifetime.
+  [[nodiscard]] auto withoutMotion() {
+    const QByteArray had = qgetenv("STENCIL_NO_ANIM");
+    qputenv("STENCIL_NO_ANIM", "1");
+    return qScopeGuard([had] {
+      if (had.isEmpty()) qunsetenv("STENCIL_NO_ANIM"); else qputenv("STENCIL_NO_ANIM", had);
+    });
+  }
+
   [[nodiscard]] auto withMotion() {
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
@@ -13190,6 +13201,11 @@ class MainWindowGuiTest : public QObject {
   // fail loudly here instead of only failing a user's eyeball (user report: a
   // tail rendering as "a triangle with a visible gap from the message").
   void chatBubbleTailRendersFlushNoGap() {
+    // This case PAINTS: it samples the bubble's own corner. With motion on, the card is
+    // hidden behind its arrival dust for the whole flight, so the grab caught motes and
+    // the corner came back a different blend every run (and a longer chat clock made it
+    // reproducible). Pin motion off for it — the flight has its own cases.
+    const auto still = withoutMotion();
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
     win.show();
@@ -13614,9 +13630,13 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(near(mid, thumb), qPrintable("the thumb's top-edge midpoint is not the thumb grey: " + mid.name()));
       QVERIFY2(!near(corner, thumb), "the thumb's corner is filled — the thumb is not rounded");
       // Thin at rest, a little thicker under the pointer (browser parity: the thumb
-      // grows into its slot on hover): a pixel 3px off the slot's centre line is slot
+      // grows into its slot on hover): a pixel 4px off the slot's centre line is slot
       // background at rest and thumb once the pointer is on the bar.
-      const QPoint side(slider.center().x() - 3, slider.top() + 6);
+      // FOUR, not three: the pill is centred on the slot's true half-pixel centre, so at
+      // rest (6px) it spans centre−2.5 … centre+3.5 and the column at centre−3 is half
+      // covered — an antialiased blend that is neither colour. centre−4 is the first
+      // column wholly outside the resting pill, and wholly inside the 9px hover one.
+      const QPoint side(slider.center().x() - 4, slider.top() + 6);
       const QColor slot = corner;
       QVERIFY2(near(shot.pixelColor(side * dpr), slot), "the resting thumb is already wide");
       QEnterEvent enter(QPointF(slider.center()), QPointF(vbar->mapTo(&win, slider.center())),

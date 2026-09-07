@@ -74,6 +74,24 @@ namespace stencil::gui {
       *desc = line.mid(i + 3).trimmed();
       return true;
     }
+    // A secondary line reads as a sentence of its own: a lowercase fragment under the
+    // heading looks unfinished (user report). Only a plain lowercase first WORD is lifted
+    // — a token carrying a dot, slash, colon, bracket or quote is a URL, a filename or a
+    // code fragment ("http://…", ".stencil file", "f(x,y) …") and means what it is written
+    // as, and a lone word is a value, not a sentence. Term/description rows read as one
+    // sentence across the dash, so they are left alone.
+    // Browser twin: tipContent.js sentenceCase — same test, same edge cases.
+    QString sentenceCase(const QString& s) {
+      static const QRegularExpression ws("\\s");
+      const int end = s.indexOf(ws);   // no second token: a VALUE, not a sentence
+      if (end < 1) return s;
+      static const QRegularExpression word("^[a-z][a-z-]*$");
+      if (!word.matchView(QStringView(s).left(end)).hasMatch()) return s;
+      QString out = s;
+      out[0] = out[0].toUpper();
+      return out;
+    }
+
     bool isNoteLine(const QString& l) {
       static const QRegularExpression re("^[\u2014\u2013-]{1,2}\\s+");
       return re.match(l).hasMatch();
@@ -261,16 +279,16 @@ namespace stencil::gui {
     QString term, desc;
     if (dashSplit(head, &term, &desc)) {                   // "Shared project — <url>"
       tip.title = term;
-      if (!desc.isEmpty()) tip.blocks.push_back({TipBlock::Kind::Hint, {}, desc});
+      if (!desc.isEmpty()) tip.blocks.push_back({TipBlock::Kind::Hint, {}, sentenceCase(desc)});
     } else {
       tip.title = head;
     }
     // A single trailing piece has nothing to enumerate against, so it reads as a hint
     // instead of a bullet list of one.
     if (tail.size() > 1) {
-      for (const QString& t : tail) tip.blocks.push_back({TipBlock::Kind::Bullet, {}, t});
+      for (const QString& t : tail) tip.blocks.push_back({TipBlock::Kind::Bullet, {}, sentenceCase(t)});
     } else if (tail.size() == 1) {
-      tip.blocks.push_back({TipBlock::Kind::Hint, {}, tail.first()});
+      tip.blocks.push_back({TipBlock::Kind::Hint, {}, sentenceCase(tail.first())});
     }
 
     // ── body ──
@@ -279,7 +297,7 @@ namespace stencil::gui {
       static const QRegularExpression note("^[\u2014\u2013-]{1,2}\\s+(.*)$");
       const auto nm = note.match(raw);
       if (nm.hasMatch()) {  // the disabled-reason line the app appends
-        tip.blocks.push_back({TipBlock::Kind::Note, {}, nm.captured(1)});
+        tip.blocks.push_back({TipBlock::Kind::Note, {}, sentenceCase(nm.captured(1))});
         continue;
       }
       // A fully parenthesised line is a hint (the compare control's "(hold Alt+Shift+O …)").
@@ -301,14 +319,14 @@ namespace stencil::gui {
       const QStringList parts = dotParts(bare);
       if (parts.size() > 1) {
         for (const QString& p : parts)
-          tip.blocks.push_back({isHint ? TipBlock::Kind::Hint : TipBlock::Kind::Bullet, {}, p});
+          tip.blocks.push_back({isHint ? TipBlock::Kind::Hint : TipBlock::Kind::Bullet, {}, sentenceCase(p)});
         continue;
       }
       if (bare != line) {  // a marked bullet with no description
-        tip.blocks.push_back({TipBlock::Kind::Bullet, {}, bare});
+        tip.blocks.push_back({TipBlock::Kind::Bullet, {}, sentenceCase(bare)});
         continue;
       }
-      tip.blocks.push_back({isHint ? TipBlock::Kind::Hint : TipBlock::Kind::Text, {}, line});
+      tip.blocks.push_back({isHint ? TipBlock::Kind::Hint : TipBlock::Kind::Text, {}, sentenceCase(line)});
     }
     return tip;
   }

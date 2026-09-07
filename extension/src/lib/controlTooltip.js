@@ -34,8 +34,19 @@ let placeHeldUntil = 0;
 let shakeTimer = null;
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 // Where a tooltip's dust comes from and goes back to: the centre of the control it
-// describes (rectCenter — a detached owner has no point, and the dust declines).
-const dustPoint = (el) => rectCenter(el);
+// describes (rectCenter — a detached owner has no point, and the dust declines). But a
+// control STRETCHED across its row has its content at one end and its centre in empty
+// space, so past this distance the pointer is the better origin. Desktop twin:
+// appTooltip.hpp's `stretched` test.
+export const DUST_CURSOR_PX = 40;
+// The choice itself, pure so it is testable without a pointer.
+export const dustOrigin = (centre, cursor, maxPx = DUST_CURSOR_PX) => {
+  if (!centre || !cursor) return centre;
+  return Math.hypot(cursor.x - centre.x, cursor.y - centre.y) > maxPx ? cursor : centre;
+};
+const dustPoint = (el) =>
+  dustOrigin(rectCenter(el),
+             lastEvent ? { x: lastEvent.clientX, y: lastEvent.clientY } : null);
 
 let tip = null;             // the floating element (created lazily)
 let curEl = null;           // element whose tooltip is currently shown/pending
@@ -223,9 +234,11 @@ export const initTooltips = () => {
     // re-renders, a modal closes — and a detached element never fires pointerout, so the
     // tooltip would hang there describing a control that is gone.
     if (curEl && curEl.isConnected === false) hide();
-    // Still inside the active target (e.g. moved onto its child icon) -> keep showing.
-    if (curEl && curEl.contains(e.target)) return;
     const el = e.target.closest ? e.target.closest('[data-tip], [data-title]') : null;
+    // Still inside the active target (e.g. moved onto its child icon) -> keep showing.
+    // UNLESS that child carries its own text — a status dot inside a row label describes
+    // ITSELF, and its tooltip used to be swallowed here (desktop parity).
+    if (curEl && curEl.contains(e.target) && (!el || el === curEl)) return;
     if (!el || el === curEl) return;
     hide();
     curEl = el;

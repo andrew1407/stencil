@@ -187,6 +187,22 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     ? el.getBoundingClientRect()
     : (Number.isFinite(el?.width) ? el : null));
   const setOriginVars = (el = originEl) => flight.setOrigin(rectOf(el));
+  const onScreenRect = (r) =>
+    !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < (window.innerHeight || 0);
+  // Where a window collapses to when the control it belongs to is NOT on screen any more:
+  // the canvas, which is what the user is looking at. Falling off the top is the ENTRANCE
+  // for a window nobody asked for; as an exit it leaves towards nothing, and the openers
+  // this happens to are the ones the window's own work hides (#load-image-btn goes the
+  // moment an image exists). A small box, so the shrink reads as collapsing INTO it.
+  const CLOSE_HOME_PX = 40;
+  const canvasHomeRect = () => {
+    const r = document.getElementById('canvas-viewport')?.getBoundingClientRect?.();
+    const cx = r && r.width ? r.left + r.width / 2 : (window.innerWidth || 0) / 2;
+    const cy = r && r.height ? r.top + r.height / 2 : (window.innerHeight || 0) / 2;
+    const half = CLOSE_HOME_PX / 2;
+    return { left: cx - half, top: cy - half, right: cx + half, bottom: cy + half,
+             width: CLOSE_HOME_PX, height: CLOSE_HOME_PX };
+  };
 
   // `from` is the control the flight belongs to. An explicit `null` means there ISN'T
   // one: the window falls from above rather than claiming a gesture that never
@@ -211,7 +227,9 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
     // An open with no gesture behind it (originEl null — the projects modal's on-boot
     // auto-chooser opens itself this way) still has a home to shrink BACK into: the
     // control that would reopen it. Falls from above again only if that's off-screen too.
-    const animate = overlay.classList.contains('modal-open') && !reducedMotion() && setOriginVars(closeOriginEl || originEl || defaultOrigin());
+    const home = closeOriginEl || originEl || defaultOrigin();
+    const animate = overlay.classList.contains('modal-open') && !reducedMotion()
+      && setOriginVars(onScreenRect(rectOf(home)) ? home : canvasHomeRect());
     overlay.classList.remove('modal-open');
     if (animate) {
       flight.playClosing();   // measured above, while it was still open

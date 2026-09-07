@@ -88,7 +88,14 @@ namespace stencil::gui {
 
   class DisintegrateOverlay : public QWidget {
    public:
-    static constexpr int kMs = 900;      // browser DISINTEGRATE_MS
+    // Half again the app's original 900ms wipe (browser twin: DISINTEGRATE_MS).
+    static constexpr int kMs = 1350;
+    // The clock a list passes for its own items — the row clock today, named apart because
+    // the two have been parted before (browser twin: ITEM_DUST_MS).
+    static constexpr int kItemMs = kMs;
+    // …and the CONNECTIONS list, the odd one out: a row there is a URL you already know,
+    // so it comes and goes half again as briskly (browser twin: CONN_DUST_MS).
+    static constexpr int kConnMs = kMs * 2 / 3;
     // A fine grid: at 8x4 the cells read as big rectangles sliding apart, not as ash.
     // Cheap here — the snapshot is redrawn per cell, nothing is cloned.
     static constexpr int kCols = 22;     // browser DISINTEGRATE_COLS
@@ -378,8 +385,8 @@ namespace stencil::gui {
     // Keep the cloud anchored to `w` for the rest of the flight: every tick re-maps the
     // control's top-left and shifts the cloud by however far it moved. A control revealed
     // beside a sibling is photographed where it sits at that instant, and the sibling's
-    // slot then pushes it along the row. Browser twin: motion.js retargetDust. A tile
-    // flight IS its geometry; a surface flight shifts picture and target.
+    // slot then pushes it along the row. Browser twin: motion.js followDust (revealControls).
+    // A tile flight IS its geometry; a surface flight shifts picture and target.
     void setFollow(QWidget* w) {
       follow_ = w;
       followAt_ = w && parentWidget() ? w->mapTo(parentWidget(), QPoint(0, 0)) : QPoint();

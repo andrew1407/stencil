@@ -14,7 +14,8 @@ namespace stencil::gui {
 
   // A chat card arrives 1.5x brisker than a list row's 900ms flight: an answer is the
   // thing you are waiting to read, and it must not keep you waiting on its own dust.
-  constexpr int kChatArriveMs = DisintegrateOverlay::kMs * 2 / 3;   // 600
+  // Off the ITEM clock, not the brisk row one: a message is read while it arrives.
+  constexpr int kChatArriveMs = DisintegrateOverlay::kItemMs * 2 / 3;
 
   // The scroller's viewport in HOST coordinates — the box a flying cloud may paint in.
   QRect scrollViewportInHost(QScrollArea* scroll, QWidget* host) {
@@ -146,7 +147,12 @@ namespace stencil::gui {
     // The reveal is a CUT in the frame the overlay deletes itself: the motes have
     // already drawn the bubble into place, so fading it up would double the arrival.
     QPointer<QWidget> cp(card);
-    QTimer::singleShot(kChatArriveMs, card, [cp, settle] { if (cp) settle(); });
+    // A long HAND-OVER, not a cut at the end: the motes draw the same pixels onto the same
+    // box, so the real card showing underneath them is invisible and the overlap is free.
+    // Waiting for it was not — the cloud reads as finished well before its last stragglers
+    // land, and that gap is what the eye calls a delay (user report). The card takes over
+    // at three quarters of the flight; the remaining motes settle on top of it.
+    QTimer::singleShot(kChatArriveMs * 3 / 4, card, [cp, settle] { if (cp) settle(); });
   }
 
   // Theme-provided muted text (palette PlaceholderText, not a hardcoded hex).

@@ -122,6 +122,19 @@ const dashSplit = line => {
   return i === -1 ? null : { term: line.slice(0, i).trim(), desc: line.slice(i + 3).trim() };
 };
 
+// A secondary line reads as a sentence of its own: a lowercase fragment under the heading
+// looks unfinished (user report). Only a plain lowercase first WORD is lifted — a token
+// carrying a dot, slash, colon, bracket or quote is a URL, a filename or a code fragment
+// ("http://…", ".stencil file", "f(x,y) …") and means what it is written as, and a lone
+// word is a value, not a sentence. Term/description rows read as one sentence across the
+// dash, so they are left alone.
+export const sentenceCase = s => {
+  const t = String(s == null ? '' : s);
+  const end = t.search(/\s/);   // no second token: a VALUE (an axis letter, a filename)
+  return end > 0 && /^[a-z][a-z-]*$/.test(t.slice(0, end))
+    ? t[0].toUpperCase() + t.slice(1) : t;
+};
+
 // Parse a composed `title` into the tooltip's structure: {title, keys, blocks} — title/
 // keys are the heading; blocks are {kind: 'row'|'bullet'|'text'|'hint'|'note', …} in
 // source order.
@@ -169,19 +182,19 @@ export const parseTip = text => {
   const headRow = dashSplit(head);
   if (headRow) {
     tip.title = headRow.term;
-    if (headRow.desc) tip.blocks.push({ kind: 'text', text: headRow.desc, muted: true });
+    if (headRow.desc) tip.blocks.push({ kind: 'text', text: sentenceCase(headRow.desc), muted: true });
   } else {
     tip.title = head;
   }
-  if (tail.length > 1) for (const t of tail) tip.blocks.push({ kind: 'bullet', text: t });
-  else if (tail.length === 1) tip.blocks.push({ kind: 'hint', text: tail[0] });
+  if (tail.length > 1) for (const t of tail) tip.blocks.push({ kind: 'bullet', text: sentenceCase(t) });
+  else if (tail.length === 1) tip.blocks.push({ kind: 'hint', text: sentenceCase(tail[0]) });
 
   // ── body ──
   for (const raw of lines.slice(1)) {
     // The disabled-reason line composeControlTitle appends.
     const note = raw.match(/^[—–-]{1,2}\s+(.*)$/);
     if (note) {
-      tip.blocks.push({ kind: 'note', text: note[1] });
+      tip.blocks.push({ kind: 'note', text: sentenceCase(note[1]) });
       continue;
     }
     // A fully parenthesised line is a hint (the compare button's "(Alt+O cycles · …)").
@@ -200,14 +213,14 @@ export const parseTip = text => {
     }
     const parts = dotParts(bare);
     if (parts.length > 1) {
-      for (const p of parts) tip.blocks.push({ kind: wrapped ? 'hint' : 'bullet', text: p });
+      for (const p of parts) tip.blocks.push({ kind: wrapped ? 'hint' : 'bullet', text: sentenceCase(p) });
       continue;
     }
     if (bare !== line) {
-      tip.blocks.push({ kind: 'bullet', text: bare });
+      tip.blocks.push({ kind: 'bullet', text: sentenceCase(bare) });
       continue;
     }
-    tip.blocks.push({ kind, text: line });
+    tip.blocks.push({ kind, text: sentenceCase(line) });
   }
   return tip;
 };

@@ -67,3 +67,36 @@ test('closing an open(null) modal flies into its own icon, not off the top again
   assert.deepEqual(readVars(box), expectedVars(boxRect, openBtn.getBoundingClientRect()),
     'close still has the toolbar icon to shrink into, even though open() never claimed one');
 });
+
+// …and the other way round: the control the window BELONGS to can be gone by the time it
+// closes — #load-image-btn goes display:none the moment an image exists, and the projects
+// footer's buttons go with the modal that held them. Falling off the top then is an exit
+// towards nothing (user report: adding any image made the dialog leave upwards). It
+// collapses into the CANVAS instead — where the picture it just opened has landed.
+test('a window whose opener is gone by close time collapses into the canvas', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const boxRect = { left: 400, top: 300, width: 200, height: 150 };
+  const box = createStubElement('div', { getBoundingClientRect: rectOf(boxRect) });
+  const overlay = createStubElement('div', { querySelector: (sel) => (sel === '.app-modal' ? box : null) });
+  // The opener measures 0x0 — exactly what a display:none control reports.
+  const goneRect = { left: 0, top: 0, width: 0, height: 0 };
+  const openBtn = createStubElement('button', { getBoundingClientRect: rectOf(goneRect) });
+  // The canvas viewport the shell looks up by id.
+  const viewport = createStubElement('div', {
+    getBoundingClientRect: rectOf({ left: 100, top: 100, width: 600, height: 400 }),
+  });
+  const prevGet = globalThis.document.getElementById;
+  globalThis.document.getElementById = (id) => (id === 'canvas-viewport' ? viewport : prevGet?.call(globalThis.document, id));
+  t.after(() => { globalThis.document.getElementById = prevGet; });
+
+  const shell = wireModalShell(overlay, openBtn, null);
+  shell.open(openBtn);
+  shell.close();
+
+  // A 40px box centred on the viewport (100+600/2, 100+400/2) = (400, 300).
+  const home = { left: 380, top: 280, right: 420, bottom: 320, width: 40, height: 40 };
+  assert.deepEqual(readVars(box), expectedVars(boxRect, home),
+    'the exit lands on the canvas, not above the top edge');
+  // …and emphatically NOT the fall-from-above shape.
+  assert.notDeepEqual(readVars(box), expectedVars(boxRect, null));
+});
