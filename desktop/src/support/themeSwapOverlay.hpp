@@ -10,6 +10,7 @@
 // Header-only and Q_OBJECT-free (no signals/slots), so it needs no MOC.
 #include <QColor>
 #include <QEasingCurve>
+#include <QElapsedTimer>
 #include <QPainter>
 #include <QPolygon>
 #include <QRegion>
@@ -17,8 +18,11 @@
 #include <QPaintEvent>
 #include <QPixmap>
 #include <QPointF>
+#include <QTimer>
 #include <QVariantAnimation>
 #include <QWidget>
+
+#include "dustKit.hpp"   // support::bezierY / MoteSprites / frameIntervalMs
 
 #include <algorithm>
 #include <array>
@@ -40,16 +44,10 @@ namespace stencil::gui {
     // its whole duration and reads as durable. Same shape as the browser's
     // cubic-bezier(0.4, 0.25, 0.95, 1) — see the note over ::view-transition-new(root) in
     // browser/css/animations.css, which records the measurements this came from.
-    // cubic-bezier(x1, y1, x2, y2): solve x(u) = t by bisection (the curve is monotonic
-    // in x), then read y(u). Shared with the grain's own curve below — browser bezierY.
+    // cubic-bezier(x1, y1, x2, y2) at t — the shared solver (dustKit.hpp), kept here by
+    // name for the headless test and the grain's own curve below.
     static double bezierY(double t, double x1, double y1, double x2, double y2) {
-      double lo = 0.0, hi = 1.0, u = t;
-      for (int i = 0; i < 24; i++) {
-        u = 0.5 * (lo + hi);
-        const double x = 3 * (1 - u) * (1 - u) * u * x1 + 3 * (1 - u) * u * u * x2 + u * u * u;
-        if (x < t) lo = u; else hi = u;
-      }
-      return 3 * (1 - u) * (1 - u) * u * y1 + 3 * (1 - u) * u * u * y2 + u * u * u;
+      return support::bezierY(t, x1, y1, x2, y2);
     }
     static qreal swapEase(qreal t) { return bezierY(t, 0.4, 0.25, 0.95, 1.0); }
 
@@ -200,18 +198,19 @@ namespace stencil::gui {
       // radius, or the far corner never gets repainted.
       full_ = std::hypot(std::max(c.x(), width() - c.x()),
                          std::max(c.y(), height() - c.y()));
-      auto* anim = new QVariantAnimation(this);
       // The overlay outlives the snapshot by the wake: the last motes ignite near the
       // wipe's end and still get their whole life. Without dust nothing changes.
-      anim->setDuration(kSwapMs + (dust_ ? kDustLifeMs : 0));
-      // The animation is a plain CLOCK (milliseconds); the wipe reads its radius off
-      // swapEase so the AREA grows evenly, and the dust reads its own life off the
-      // same clock — one timeline, two consumers.
-      anim->setEasingCurve(QEasingCurve::Linear);
-      anim->setStartValue(0.0);
-      anim->setEndValue(double(anim->duration()));
-      connect(anim, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
-        timeMs_ = v.toDouble();
+      const int total = kSwapMs + (dust_ ? kDustLifeMs : 0);
+      // A plain CLOCK (milliseconds) on a timer at the screen's own refresh rate
+      // (dustKit.hpp frameIntervalMs — not Qt's 60Hz animation timer); the wipe reads
+      // its radius off swapEase so the AREA grows evenly, and the dust reads its own
+      // life off the same clock — one timeline, two consumers.
+      clock_.start();
+      auto* tick = new QTimer(this);
+      tick->setTimerType(Qt::PreciseTimer);
+      tick->setInterval(support::frameIntervalMs(this));
+      connect(tick, &QTimer::timeout, this, [this, tick, total] {
+        timeMs_ = std::min(double(total), clock_.nsecsElapsed() / 1e6);
         // The WHOLE overlay is repainted each frame, not just the annulus the circle swept.
         // Repainting the ring alone is cheaper and looks identical — right up until a widget
         // UNDERNEATH repaints itself: the restyle that precedes the wipe queues repaints for
@@ -222,9 +221,12 @@ namespace stencil::gui {
         // the expensive version this optimisation was added for was the old PATH clip, which
         // rasterised a subtracted circle over the window every frame.
         update();
+        if (timeMs_ >= total) {
+          tick->stop();
+          deleteLater();
+        }
       });
-      connect(anim, &QVariantAnimation::finished, this, [this] { deleteLater(); });
-      anim->start(QAbstractAnimation::DeleteWhenStopped);
+      tick->start();
     }
 
    protected:
@@ -260,18 +262,19 @@ namespace stencil::gui {
       if (!dust_) return;
       // The wake is INSIDE the circle, over the freshly themed window — clip off. Round
       // grains, like every other cloud's — a couple of thousand alive at the peak, each
-      // a ~5px AA disc; only the clip edge had to stay aliased.
+      // a ~5px disc blitted from the sprite cache (dustKit.hpp MoteSprites: two
+      // colours, a handful of sizes), so the wake costs a fraction of a frame.
       p.setClipping(false);
-      p.setRenderHint(QPainter::Antialiasing, true);
-      p.setPen(Qt::NoPen);
+      p.setRenderHint(QPainter::Antialiasing, false);
+      p.setRenderHint(QPainter::SmoothPixmapTransform, false);
       DustMote mote;
       for (int i = 0; i < kDustMotes; i++) {
         if (!dustMoteAt(i, timeMs_, QPointF(c), full_, QSizeF(size()), &mote)) continue;
         QColor col = mote.accent ? dustAccent_ : grain_;
         col.setAlphaF(std::clamp(mote.alpha, 0.0, 1.0));
-        p.setBrush(col);
-        p.drawEllipse(QPointF(mote.x, mote.y), mote.size / 2, mote.size / 2);
+        sprites_.draw(p, QPointF(mote.x, mote.y), mote.size / 2, col);
       }
+      p.setOpacity(1.0);
     }
 
    private:
@@ -289,6 +292,8 @@ namespace stencil::gui {
     QPoint origin_{-1, -1};   // host coords; -1 = fall back to the centre
     double full_ = 0.0;       // the radius that reaches the furthest corner (start())
     double timeMs_ = 0.0;     // the shared clock: wipe over [0, kSwapMs], wake beyond it
+    QElapsedTimer clock_;     // …read off this wall clock (start())
+    support::MoteSprites sprites_;   // the wake's grains, drawn once each and blitted
     bool dust_ = false;       // armed by seedDust — without it the overlay is the old wipe
     QColor grain_;            // the old surface lifted towards its old ink
     QColor dustAccent_;       // …and the departing accent, for every fourth grain

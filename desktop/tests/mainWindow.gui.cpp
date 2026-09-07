@@ -1858,6 +1858,7 @@ class MainWindowGuiTest : public QObject {
   // is WHEN it plays: on a real theme/accent change, never on the boot pass or on the many
   // re-applies that resolve to the same palette — and it must always clean itself up.
   void themeSwapWipesOnlyOnRealChanges() {
+    const auto motion = withMotion();   // the wipe is motion: reduced motion just restyles
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(900, 640);
     win.show();
@@ -1899,6 +1900,7 @@ class MainWindowGuiTest : public QObject {
   // gets this free (a new view transition supersedes the one in flight); here the press is
   // dropped until the wipe has finished.
   void themeToggleIsIgnoredMidWipe() {
+    const auto motion = withMotion();
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(900, 640);
     win.show();
@@ -1936,6 +1938,7 @@ class MainWindowGuiTest : public QObject {
   // baked into the snapshot already light while the window around them was still dark, and
   // stayed that way until the wipe finally reached them (user report).
   void themeSwapSnapshotStillWearsTheOldPalette() {
+    const auto motion = withMotion();
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1100, 720);
     win.show();
@@ -6285,7 +6288,7 @@ class MainWindowGuiTest : public QObject {
     }
     win.canvas_->clearImage();
     win.refreshActions();
-    QTest::qWait(1300);   // past the clear-dust hold that hides the card
+    QTest::qWait(1800);   // past the clear-dust hold that hides the card (kMs + a beat)
     // Brightest column of the card's mid row — where the band is right now.
     const auto bandX = [&] {
       const QImage im = win.canvas_->grab().toImage();
@@ -7994,7 +7997,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.canvas_->clearImage();
     win.refreshActions();
-    QTest::qWait(1300);   // past the clear-dust hold, so the card is painted
+    QTest::qWait(1800);   // past the clear-dust hold, so the card is painted
     // Painting the card is what used to install the tooltip.
     win.canvas_->grab();
     QVERIFY2(win.canvas_->toolTip().isEmpty(),
@@ -8013,7 +8016,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.canvas_->clearImage();
     win.refreshActions();
-    QTest::qWait(1300);            // past the clear hold, so the card is laid out
+    QTest::qWait(1800);            // past the clear hold, so the card is laid out
     win.canvas_->grab();           // painting is what records the card's rect
     const QRect card = win.canvas_->idleCardGlobalRect();
     QVERIFY2(card.isValid(), "the blank-image card is not on screen");

@@ -1132,13 +1132,13 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    testing exactly as before — and out of the theme wipe's origin lookup, which asks
    checkVisibility (see js/ui/motion.js). */
 :root {
-    --fold-ms: 400ms;
+    --fold-ms: 470ms;
     /* Collapsing is the SLOWER half here, against the usual "going out is brisk" rule: a
        fold has no icon to shrink into, so the only thing that reads as the menu leaving is
        the fold itself — at the opening's pace it registered as a snap rather than a close.
        Applied from the collapsed-state rules alone, which is the after-change style a
        transition takes its timing from, so the way back in keeps --fold-ms. */
-    --fold-out-ms: 600ms;
+    --fold-out-ms: 705ms;
     --fold-fade-ms: 250ms;
     /* A fold grows along ONE axis, so its area IS its height — it wants a plain ease-out
        and deliberately does not take the wipe's area-corrected curve. */
@@ -1478,33 +1478,12 @@ html.theme-swapping *::before, html.theme-swapping *::after {
     pointer-events: none;
     overflow: visible;
 }
-.disintegrate-tile {
-    position: absolute;
-    /* Every tile IS a mote: round, sized and seated in its cell by motion.js. */
-    border-radius: 50%;
-    /* No `filter` here: a per-tile blur is a separate compositing pass EACH, and a few
-       hundred of them is what made a multi-row removal stutter. Transform + opacity alone
-       stay on the compositor, which is also how the desktop overlay draws its motes. */
-    will-change: transform, opacity;
-    /* --dust-ms is set on the HOST only when a SURFACE is flying (motion.js): a window
-       leaves on its modal clock, a row keeps the fall below (motion.js DISINTEGRATE_MS,
-       which also writes each mote's own duration inline — this is the fallback). */
-    animation: tileScatter var(--dust-ms, 1.35s) cubic-bezier(0.22, 0.55, 0.3, 1) both;
-}
-/* No straight lines: every flight passes a WAYPOINT (--mx/--my, motion.js tileWaypoint)
-   pushed off the mote's own line, so a cloud churns instead of radiating in spokes. The
-   first leg carries its own curve — near-linear, easing a little into the bend — and
-   the flight's own easing takes it home from there, so the turn is a bend, never a
-   stop-and-go. Spin and shrink pass through the halfway state on the way. */
-@keyframes tileScatter {
-    0%   { opacity: 1; transform: none; animation-timing-function: cubic-bezier(0.3, 0.4, 0.7, 0.8); }
-    38%  { opacity: 0.85;
-           transform: translate(var(--mx, 18px), var(--my, -12px)) rotate(calc(var(--rot, 0deg) * 0.5)) scale(calc(1 - (1 - var(--tile-scale, 0.6)) * 0.5)); }
-    100% {
-        opacity: 0;
-        transform: translate(var(--dx, 30px), var(--dy, -20px)) rotate(var(--rot, 0deg)) scale(var(--tile-scale, 0.6));
-    }
-}
+/* The cloud is ONE canvas inside the layer (js/ui/dustCloud.js): every grain is drawn
+   there per frame in a few batched fills, so a window-sized cloud is one layer, not a
+   compositor layer per mote. The flights that used to be keyframes here (tileScatter,
+   tileGather, tileGatherSurface, tileScatterSurface, tileFall) are dustCloud's FLIGHTS
+   table now; the host still owns the cross-fades below. */
+.disintegrate-host > canvas { position: absolute; display: block; }
 @media (prefers-reduced-motion: reduce) {
     .disintegrate-host { display: none; }
 }
@@ -1546,24 +1525,6 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    fading OUT for the first fifth of its own arrival. Both !important, so the lift runs
    between two declarations that both outrank the box keyframes. */
 .materialize-veil.materialize-lift { opacity: 1 !important; transition: opacity var(--veil-fade, 0ms) linear; }
-/* The gather: tileScatter reversed. A tile starts where the scatter would have flung
-   it (same deterministic --dx/--dy/--rot/--tile-scale) and flies home. Shorter than
-   the scatter so even the latest-starting mote (reversed sweep, ~0.42s of delay) has
-   landed by the time the veil lifts at DISINTEGRATE_MS. Declared after
-   .disintegrate-tile so the gather animation wins on the shared tile class. */
-.reintegrate-tile {
-    animation: tileGather var(--gather-ms, 0.72s) cubic-bezier(0.7, 0, 0.78, 0.45) both;
-}
-@keyframes tileGather {
-    0%   { opacity: 0;
-           transform: translate(var(--dx, 30px), var(--dy, -20px)) rotate(var(--rot, 0deg)) scale(var(--tile-scale, 0.6));
-           animation-timing-function: cubic-bezier(0.3, 0.2, 0.7, 0.6); }
-    22%  { opacity: 0.75; }
-    58%  { opacity: 0.9;
-           transform: translate(var(--mx, 18px), var(--my, -12px)) rotate(calc(var(--rot, 0deg) * 0.5)) scale(calc(1 - (1 - var(--tile-scale, 0.6)) * 0.5)); }
-    100% { opacity: 1; transform: none; }
-}
-
 /* ── Surfaces made of dust (js/ui/motion.js surfaceIn / surfaceOut) ──────────
    A modal, the chat panel and the ⋯/context popups no longer SCALE out of the icon
    that owns them — they form from motes streaming out of it and come apart into motes
@@ -1589,56 +1550,6 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    the short --gather-ms each but set off across the reversed sweep, and a host fading on
    the leg alone cut every late mote off at half time. */
 .disintegrate-host.dust-forming { animation: dustHostOut var(--host-ms, var(--gather-ms, 420ms)) linear both; }
-/* A surface's motes are the window — they must be visible from the FIRST frame. A row's
-   tileScatter/tileGather spend their opening third near transparent (the row itself is
-   still there to look at); on a surface that read as the window opening late. Same
-   flight, same noise, same vars — only the alpha ramp and the easing differ. */
-.dust-forming .disintegrate-tile {
-    animation-name: tileGatherSurface;
-    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-}
-.dust-leaving .disintegrate-tile {
-    animation-name: tileScatterSurface;
-    /* Ease-OUT both ways: the motes break away at once and drift to a stop, which is
-       what sand does. The old ease-in-out held them still for the first frames and read
-       as the window hesitating before it came apart. A caller may hand in a gentler
-       curve (--dust-ease on the host): a toast leaving off the window's edge does. */
-    animation-timing-function: var(--dust-ease, cubic-bezier(0.16, 1, 0.3, 1));
-}
-/* The surface flights bend through the same waypoint, early: their ease-out covers most
-   of the trip in the first fifth, so that is where the bend has to be to be seen. */
-@keyframes tileGatherSurface {
-    0%   { opacity: 0.55;
-           transform: translate(var(--dx, 30px), var(--dy, -20px)) rotate(var(--rot, 0deg)) scale(var(--tile-scale, 0.3));
-           animation-timing-function: cubic-bezier(0.3, 0.3, 0.6, 0.8); }
-    16%  { transform: translate(var(--mx, 18px), var(--my, -12px)) rotate(calc(var(--rot, 0deg) * 0.5)) scale(calc(1 - (1 - var(--tile-scale, 0.3)) * 0.5)); }
-    45%  { opacity: 1; }
-    100% { opacity: 1; transform: none; }
-}
-@keyframes tileScatterSurface {
-    0%   { opacity: 1; transform: none; animation-timing-function: cubic-bezier(0.3, 0.3, 0.6, 0.8); }
-    18%  { transform: translate(var(--mx, 18px), var(--my, -12px)) rotate(calc(var(--rot, 0deg) * 0.5)) scale(calc(1 - (1 - var(--tile-scale, 0.3)) * 0.5)); }
-    55%  { opacity: 0.9; }
-    100% { opacity: 0;
-           transform: translate(var(--dx, 30px), var(--dy, -20px)) rotate(var(--rot, 0deg)) scale(var(--tile-scale, 0.3)); }
-}
-/* A MARK's departure (motion.js markOut → dust-falling): the desktop's Sweep::Fall,
-   `away = t²` — visible from the first frame, near-still for the first third, then
-   dropping away and accelerating; the bend sits past halfway, where a fall's does. The
-   surface leave above has 62% of its throw done by 18% — right for a window flying into
-   its icon, a flick for a button crumbling (user report). Alpha is the desktop's
-   scatterAlpha: 1 → 0.85 by 38%, then away. Duration is the tile's own inline one. */
-.dust-falling .disintegrate-tile {
-    animation-name: tileFall;
-    animation-timing-function: cubic-bezier(0.45, 0, 0.8, 0.4);
-}
-@keyframes tileFall {
-    0%   { opacity: 1; transform: none; }
-    38%  { opacity: 0.85; }
-    60%  { transform: translate(var(--mx, 18px), var(--my, -12px)) rotate(calc(var(--rot, 0deg) * 0.5)) scale(calc(1 - (1 - var(--tile-scale, 0.3)) * 0.5)); }
-    100% { opacity: 0;
-           transform: translate(var(--dx, 30px), var(--dy, -20px)) rotate(var(--rot, 0deg)) scale(var(--tile-scale, 0.3)); }
-}
 /* The two popups whose visibility is a pure `:hover` rule (the toolbar's hints bubble
    and the install menu) still leave as sand. By the time pointerleave runs `:hover` is
    already gone and the box is display:none, so there is nothing left to copy — this
@@ -1646,15 +1557,6 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    own alpha is the surfaceLeave keyframes', which are down to nothing by then. */
 .hints-popup.dust-hold { display: block; }
 #install-menu.dust-hold { display: flex; }
-/* Every cloud's motes are round specks in the surface's own colours — never copies of
-   it (motion.js speckPainter): a cloud on <body> made of copies is a cloud of elements
-   answering to the surface's own selectors, and at mote size a copy shows very nearly
-   nothing more. The speck is a GRAIN inside its cell, not the cell: motion.js sizes and
-   centres it, and caps it at SURFACE_SPECK_PX however far the mote budget let the cell
-   grow. (The class is the painter's mark; .disintegrate-tile already carries the shape.) */
-.dust-mote {
-    border-radius: 50%;
-}
 @media (prefers-reduced-motion: reduce) {
     /* motion.js never adds these under reduced motion; this is the preference flipped
        mid-flight — the surface must land at its true opacity, not a keyframed one. */

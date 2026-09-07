@@ -459,7 +459,8 @@ namespace stencil::gui {
       if (!it) continue;
       if (!DisintegrateOverlay::overRect(list_->viewport(), list_->visualItemRect(it), this,
                                          DisintegrateOverlay::Sweep::Rows, /*dust=*/true, budget,
-                                         DisintegrateOverlay::kConnMs))
+                                         DisintegrateOverlay::kConnMs,
+                                         list_->palette().color(QPalette::Text)))   // lifted to the row's ink
         continue;   // nothing to animate (hidden/tiny) → this row just removes instantly
       // Retire the row at once (projectsDialog::retireRow parity): the snapshot is what
       // flies, so the real row blanks and its empty slot is held until the dust settles.

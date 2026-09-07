@@ -358,8 +358,9 @@ Three effects share one small module; all of them are decoration, so a browser w
 - **Disintegration** — a removed row doesn't fade, it comes apart: `disintegrate()` paints
   one round mote per grid cell in the row's own colours and scatters them, each on its own
   bent path, in a top-down sweep while the row's own box collapses so the list closes the
-  gap. The particles live in a fixed layer over the page, because the row under them is
-  collapsing to zero height at the same moment. Clearing the image plays the same idea on
+  gap. The particles are drawn on one canvas in a fixed layer over the page
+  (`js/ui/dustCloud.js`), because the row under them is collapsing to zero height at the
+  same moment. Clearing the image plays the same idea on
   the canvas (`ghostOut()` copies the pixels first — `clearRect` is instant and leaves
   nothing to animate — and flies them as grains of their own colour).
 - **Theme / accent swap** — `themeSwap()` floods the new palette out of the CONTROL that

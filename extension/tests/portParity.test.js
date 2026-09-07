@@ -24,6 +24,9 @@ const MANIFEST = [
   ['dropdownMenu', '../../browser/js/ui/dropdownMenu.js', '../src/lib/dropdownMenu.js'],
   ['controlTooltip', '../../browser/js/ui/controlTooltip.js', '../src/lib/controlTooltip.js'],
   ['scrollbarHover', '../../browser/js/ui/scrollbarHover.js', '../src/lib/scrollbarHover.js'],
+  // The one-canvas dust cloud every element-sized flight rides: pure flight table +
+  // painter, so the copy is the whole file.
+  ['dustCloud', '../../browser/js/ui/dustCloud.js', '../src/lib/dustCloud.js'],
   // The shared LLM client: per-surface wording/token defaults live in llmSurface.js,
   // so the client itself differs only in its header + providers.json import path.
   ['llmClient', '../../browser/js/llm/llmClient.js', '../src/llm/llmClient.js'],

@@ -7,12 +7,14 @@
 // its colour is sampled per cell (sampleCells), and every frame draws the snapshot
 // whole, cuts out the cells that have left it, and flies those as round grains of
 // their own colour — offset, bent, shrunk and faded by their own progress. One
-// animation drives the lot, so it stays a single repaint per frame however many cells
-// there are.
+// clock drives the lot, so it stays a single repaint per frame however many cells
+// there are; the grains are blitted from a sprite cache (dustKit.hpp MoteSprites),
+// and the clock ticks at the screen's own refresh rate.
 //
 // Header-only and Q_OBJECT-free (no signals/slots), so it needs no MOC.
 #include <QColor>
 #include <QEasingCurve>
+#include <QElapsedTimer>
 #include <QGuiApplication>
 #include <QImage>
 #include <QPainter>
@@ -30,6 +32,7 @@
 #include <QVariantAnimation>
 #include <QWidget>
 
+#include "dustKit.hpp"       // support::EaseLut / MoteSprites / frameIntervalMs
 #include "motionPrefs.hpp"   // support::dustAllowed()
 
 #include <algorithm>
@@ -40,8 +43,8 @@ namespace stencil::gui {
 
   // ── The floating-tip clock family (browser controlTooltip.js / exportPreview.js):
   // tooltips, the export preview and popup menus gather/leave on this shared clock.
-  inline constexpr int kTipDustInMs = 260;
-  inline constexpr int kTipDustOutMs = 190;
+  inline constexpr int kTipDustInMs = 213;
+  inline constexpr int kTipDustOutMs = 157;
   // Where the browser's surfaceForm keyframes hold a forming surface invisible while
   // its motes gather, and surfaceLeave's one-beat hand-over on the way out.
   inline constexpr double kDustHold = 0.55;
@@ -88,8 +91,10 @@ namespace stencil::gui {
 
   class DisintegrateOverlay : public QWidget {
    public:
-    // Half again the app's original 900ms wipe (browser twin: DISINTEGRATE_MS).
-    static constexpr int kMs = 1350;
+    // The desktop runs every dust clock 1.5x faster than the browser's twin of it
+    // (DISINTEGRATE_MS 1650, user decision 2026-09-08): its grains are the window's own
+    // pixels, and the browser's span read as slow here.
+    static constexpr int kMs = 1100;
     // The clock a list passes for its own items — the row clock today, named apart because
     // the two have been parted before (browser twin: ITEM_DUST_MS).
     static constexpr int kItemMs = kMs;
@@ -110,8 +115,8 @@ namespace stencil::gui {
     // A dialog, a popup menu and the tooltip form from motes streaming out of the control
     // that opened them and come apart into motes pouring back in. Same snapshot, same
     // hashes; only the flight differs — every mote aims at ONE point instead of falling.
-    static constexpr int kSurfaceInMs = 620;    // browser SURFACE_IN_MS
-    static constexpr int kSurfaceOutMs = 380;   // browser SURFACE_OUT_MS
+    static constexpr int kSurfaceInMs = 507;    // browser SURFACE_IN_MS 760 / 1.5
+    static constexpr int kSurfaceOutMs = 313;   // browser SURFACE_OUT_MS 470 / 1.5
     static constexpr int kSurfaceCellPx = 6;    // browser SURFACE_MOTE_PX
     // A window's whole cloud is redrawn in ONE paintEvent every frame, so the cost
     // scales with cell count — a few thousand cells per frame is what read as lag on
@@ -126,6 +131,12 @@ namespace stencil::gui {
     // keeps every mote the window's own colour and gives it something to read against,
     // and it flips with the theme for free — ink always contrasts with its background.
     static constexpr double kSurfaceInkMix = 0.42;
+    // …and the RIM and the GLINTS further still (browser MOTE_RIM_INK 66%): the cells on
+    // the picture's edge, and one inner cell in seven, are brighter grains — the contrast
+    // that makes a cloud read as sand with sparkle in it rather than a haze. Applied on
+    // top of the 42% lift, so this is the share of the REMAINING way to the ink.
+    static constexpr double kGlintMix = (0.66 - 0.42) / (1.0 - 0.42);
+    static constexpr double kGlintHash = 0.86;
     // The grain a mote is drawn at: the smaller of its cell and this, times 0.62..1.12
     // by its own hash (browser motion.js SURFACE_SPECK_PX / speckPainter).
     static constexpr int kSpeckPx = 7;
@@ -135,12 +146,31 @@ namespace stencil::gui {
     // so a cloud churns instead of radiating in spokes.
     static constexpr double kSwirlShare = 0.32;
     static constexpr double kSwirlMaxPx = 44;
+    // Where along the throw the browser's flights put that bend (WAYPOINT_ALONG): a
+    // surface's and a row's motes fly TWO legs — home to the waypoint on one curve, the
+    // waypoint to the far end on another — the mid keyframe of tileScatter and kin. The
+    // turn is a flick, not the smooth arc a single sine bulge draws.
+    static constexpr double kWaypointAlong = 0.62;
+    // However late a mote sets off it still gets this long to fly (browser MIN_TILE_MS):
+    // the floor keeps the last grains of a short flight from being a blink.
+    static constexpr int kMinTileMs = 160;
+    // ── Turbulence and twinkle (browser dustCloud.js turbulenceAt / twinkleAt) ──
+    // A grain is pushed off its line SIDEWAYS by a slow wave of its own, strongest
+    // mid-flight and gone at both ends, so the cloud churns as it goes and still lands
+    // where it would; a GLINT (a rim cell, or one inner cell in seven) breathes in
+    // brightness on a clock of its own. Both keyed off a fourth per-cell hash.
+    static constexpr double kTurbulenceShare = 0.06;   // of the throw…
+    static constexpr double kTurbulenceMaxPx = 6;      // …capped
+    static constexpr double kTurbulenceWaves[2] = {2.5, 4.5};   // waves per flight, by hash
+    static constexpr double kTwinkleDepth = 0.35;      // a glint's brightness swing
+    static constexpr double kTwinkleHz[2] = {4, 7};    // …flickers a second, by hash
     // A cell's alpha is its coverage, lifted: the strokes of a word cover a third of
     // their cells, and a grain a third as strong as its ink is a flight nobody can
     // follow (browser speckPainter: "never faint"). A painted picture is unaffected.
     static constexpr double kCoverageLift = 2.5;
 
-    // Which way the sweep runs. A ROW erodes upward off a list (Rows = bottom→top);
+    // Which way the sweep runs. A ROW crumbles from its top edge downward and the grains
+    // fall, fanning out (Rows — browser tileMotion / tileScatter, top→bottom);
     // an IMAGE falls apart from its top edge and the pieces drop (Fall = top→bottom);
     // GATHER is Fall played backwards — the motes start below where they belong and rise
     // into place, fading up, so an arriving image assembles bottom→top exactly as the
@@ -164,6 +194,78 @@ namespace stencil::gui {
       const double amp = (q - 0.5) * 2.0 * std::min(len * kSwirlShare, kSwirlMaxPx);
       const double s = std::sin(kPi * away) * amp;
       return QPointF(-ty / len * s, tx / len * s);
+    }
+
+    // The waypoint of a throw `tx, ty` (browser tileWaypoint): kWaypointAlong of the way
+    // out, pushed perpendicular by `q`'s side and a capped share of the throw.
+    static QPointF waypointOf(double tx, double ty, double q) {
+      const double len = std::hypot(tx, ty);
+      if (len < 0.5) return {};
+      const double amp = (q - 0.5) * 2.0 * std::min(len * kSwirlShare, kSwirlMaxPx);
+      return QPointF(tx * kWaypointAlong - ty / len * amp, ty * kWaypointAlong + tx / len * amp);
+    }
+
+    // A two-leg keyframe flight at time `t` (0..1): `a` to `b` over the first `split` on
+    // curve `first`, then `b` to `c` on curve `second` — what CSS does with a mid
+    // keyframe that carries its own animation-timing-function.
+    static QPointF legAt(double t, double split, const support::EaseLut& first,
+                         const support::EaseLut& second, const QPointF& a, const QPointF& b,
+                         const QPointF& c) {
+      if (t <= split) {
+        const double e = first.at(split > 0 ? t / split : 1.0);
+        return a + (b - a) * e;
+      }
+      const double e = second.at((t - split) / (1.0 - split));
+      return b + (c - b) * e;
+    }
+    // …and a scalar (the grain's size) on the same two legs.
+    static double legScalar(double t, double split, const support::EaseLut& first,
+                            const support::EaseLut& second, double a, double b, double c) {
+      if (t <= split) return a + (b - a) * first.at(split > 0 ? t / split : 1.0);
+      return b + (c - b) * second.at((t - split) / (1.0 - split));
+    }
+
+    // The browser's curves, tabulated once (css/animations.css):
+    // a surface's first leg into the bend, and its ease-out home (tileGatherSurface /
+    // tileScatterSurface: cubic-bezier(0.3,0.3,0.6,0.8) then (0.16,1,0.3,1));
+    static const support::EaseLut& surfaceLegEase() {
+      static const support::EaseLut lut(0.3, 0.3, 0.6, 0.8);
+      return lut;
+    }
+    static const support::EaseLut& surfaceEase() {
+      static const support::EaseLut lut(0.16, 1.0, 0.3, 1.0);
+      return lut;
+    }
+    // …and a row's (tileScatter: (0.3,0.4,0.7,0.8) into the bend at 38%, then the
+    // flight's own (0.22,0.55,0.3,1) home).
+    static const support::EaseLut& rowLegEase() {
+      static const support::EaseLut lut(0.3, 0.4, 0.7, 0.8);
+      return lut;
+    }
+    static const support::EaseLut& rowEase() {
+      static const support::EaseLut lut(0.22, 0.55, 0.3, 1.0);
+      return lut;
+    }
+    static constexpr double kSurfaceGatherSplit = 0.16;
+    static constexpr double kSurfaceScatterSplit = 0.18;
+    static constexpr double kRowSplit = 0.38;
+
+    // The sideways push at progress `p` of a throw `tx, ty`, for a grain of hash `w`.
+    static QPointF turbulenceAt(double p, double tx, double ty, double w) {
+      constexpr double kPi = 3.14159265358979323846;
+      const double len = std::hypot(tx, ty);
+      if (len < 0.5) return {};
+      const double waves = kTurbulenceWaves[0] + (kTurbulenceWaves[1] - kTurbulenceWaves[0]) * w;
+      const double s = std::min(len * kTurbulenceShare, kTurbulenceMaxPx) * std::sin(kPi * p)
+                     * std::sin(p * waves * 2 * kPi + w * 2 * kPi);
+      return QPointF(-ty / len * s, tx / len * s);
+    }
+    // A glint's brightness at `ms` into the flight (1 for a plain grain).
+    static double twinkleAt(bool glint, double ms, double w) {
+      constexpr double kPi = 3.14159265358979323846;
+      if (!glint) return 1.0;
+      const double hz = kTwinkleHz[0] + (kTwinkleHz[1] - kTwinkleHz[0]) * w;
+      return 1.0 - kTwinkleDepth * 0.5 * (1.0 + std::sin(ms * hz * 2 * kPi / 1000.0 + w * 2 * kPi));
     }
 
     // A grain's radius at home, for a `cw` x `ch` cell and its hash `n`.
@@ -219,8 +321,13 @@ namespace stencil::gui {
     // dust; browser motion.js CHAT_DISINTEGRATE_*). 0 keeps the defaults.
     // `ms` shortens the flight for a caller on its own clock (a chat card arriving —
     // llm/chatWidgets.cpp kChatArriveMs); 0 keeps the row default.
+    // `ink` lifts the grains towards the victim's own text colour (kSurfaceInkMix, the
+    // browser's speckPainter): a list row and the list it leaves are the same colour,
+    // and unlifted its dust was invisible over the rows behind it. A PICTURE (the canvas
+    // image) passes none — its grains are its own pixels.
     static DisintegrateOverlay* over(QWidget* victim, QWidget* host, Sweep sweep = Sweep::Rows,
-                                     int cols = 0, int rows = 0, int ms = 0) {
+                                     int cols = 0, int rows = 0, int ms = 0,
+                                     const QColor& ink = QColor()) {
       if (!support::dustAllowed()) return nullptr;   // no particles in this motion mode
       if (!victim || !host || !victim->isVisible()) return nullptr;
       if (victim->width() < 8 || victim->height() < 8) return nullptr;
@@ -229,7 +336,8 @@ namespace stencil::gui {
       // Placed in the host's coordinates: the victim is about to be destroyed, and a
       // child of it would die mid-flight.
       const QPoint at = victim->mapTo(host, QPoint(0, 0));
-      auto* fx = new DisintegrateOverlay(host, snap);
+      auto* fx = new DisintegrateOverlay(host, liftedToInk(snap, ink));
+      fx->ink_ = ink;
       fx->sweep_ = sweep;
       if (sweep != Sweep::Rows) fx->sizeGridForDust(victim->size());
       if (cols > 0) fx->cols_ = cols;
@@ -255,16 +363,19 @@ namespace stencil::gui {
     // divides the budget between them (browser motion.js scatterGridFor does the same).
     // `ms` shortens the flight for a motion that is not a removal — a filter change moves
     // rows in and out on its own short clock (support/filterFade.hpp kFilterDustMs).
+    // `ink`: as over() — the row's text colour to lift its grains towards; none for a picture.
     static DisintegrateOverlay* overRect(QWidget* source, const QRect& rect, QWidget* host,
                                         Sweep sweep = Sweep::Rows, bool dust = false,
-                                        int dustCells = kDustMaxCells, int ms = kMs) {
+                                        int dustCells = kDustMaxCells, int ms = kMs,
+                                        const QColor& ink = QColor()) {
       if (!support::dustAllowed()) return nullptr;   // no particles in this motion mode
       if (!source || !host || !source->isVisible()) return nullptr;
       if (rect.width() < 8 || rect.height() < 8) return nullptr;
       const QPixmap snap = source->grab(rect);
       if (snap.isNull()) return nullptr;
       const QPoint at = source->mapTo(host, rect.topLeft());
-      auto* fx = new DisintegrateOverlay(host, snap);
+      auto* fx = new DisintegrateOverlay(host, liftedToInk(snap, ink));
+      fx->ink_ = ink;
       fx->sweep_ = sweep;
       if (dust || sweep != Sweep::Rows) fx->sizeGridForDust(rect.size(), dustCells);
       fx->setGeometry(QRect(at, rect.size()));
@@ -338,6 +449,7 @@ namespace stencil::gui {
       if (!support::dustAllowed()) return nullptr;   // no particles in this motion mode
       if (!host || snap.isNull() || picture.width() < 8 || picture.height() < 8) return nullptr;
       auto* fx = new DisintegrateOverlay(host, liftedToInk(snap, ink));
+      fx->ink_ = ink;
       fx->sweep_ = gather ? Sweep::SurfaceIn : Sweep::SurfaceOut;
       fx->picture_ = picture;
       fx->target_ = QPointF(target);
@@ -370,11 +482,6 @@ namespace stencil::gui {
     void setPaintClip(const QRect& hostRect) { paintClip_ = hostRect; update(); }
     QRect paintClip() const { return paintClip_; }   // the GUI test reads what may be painted
 
-    // The curve a SURFACE flight rides (OutQuint by default: break away at once, drift to
-    // a stop). A toast leaving off the window's edge asks for a gentler one — with the
-    // default, every grain was past the edge within 150ms and the exit read as a cut.
-    void setSurfaceEasing(QEasingCurve::Type type) { surfaceEase_ = QEasingCurve(type); }
-
     void retarget(const QPoint& delta) {
       if (delta.isNull()) return;
       picture_.translate(delta);
@@ -402,7 +509,20 @@ namespace stencil::gui {
 
     void paintEvent(QPaintEvent*) override {
       if (snap_.isNull()) return;
-      if (cells_.width() != cols_ || cells_.height() != rows_) cells_ = sampleCells(snap_, cols_, rows_);
+      if (cells_.width() != cols_ || cells_.height() != rows_) {
+        cells_ = sampleCells(snap_, cols_, rows_);
+        // Every grain's colour, once: the picture never changes under a flight, and
+        // reading a QColor back out of the cell image per grain per frame was a third
+        // of the frame at 4000 cells.
+        grains_.resize(size_t(cols_) * rows_);
+        glints_.assign(size_t(cols_) * rows_, false);
+        for (int cy = 0; cy < rows_; ++cy)
+          for (int cx = 0; cx < cols_; ++cx) {
+            const double n = cellNoise(cx, cy);
+            grains_[size_t(cy) * cols_ + cx] = liftedGrain(cx, cy, n);
+            glints_[size_t(cy) * cols_ + cx] = isGlint(cx, cy, n);
+          }
+      }
       QPainter p(this);
       if (paintClip_.isValid()) p.setClipRect(paintClip_.translated(shift_));
       p.setRenderHint(QPainter::SmoothPixmapTransform, true);
@@ -432,7 +552,9 @@ namespace stencil::gui {
         for (int cx = 0; cx <= cols_; ++cx) {
           Mote m;
           const bool away = cx < cols_
-              && (surface ? surfaceMote(box, cx, cy, cw, ch, &m) : fallingMote(box, cx, cy, cw, ch, &m));
+              && (surface ? surfaceMote(box, cx, cy, cw, ch, &m)
+                  : sweep_ == Sweep::Rows ? rowMote(box, cx, cy, cw, ch, &m)
+                                          : fallingMote(box, cx, cy, cw, ch, &m));
           if (away) {
             if (runStart < 0) runStart = cx;
             if (m.radius > 0.25 && m.color.alphaF() > 0.01) motes_.push_back(m);
@@ -446,41 +568,119 @@ namespace stencil::gui {
       }
       // The state left behind, under the particles — it shows wherever a cell has gone.
       if (!base_.isNull()) p.drawPixmap(box, base_, QRectF(base_.rect()));
-      QRegion keep(box.toAlignedRect());
-      if (!cut_.empty()) {
-        QRegion gone;
-        gone.setRects(cut_.data(), int(cut_.size()));
-        keep -= gone;
+      if (surface) {
+        // A SURFACE is never shown cell by cell: the browser's motes are the window
+        // until they land, and the window itself fades up behind them once they mostly
+        // have (surfaceForm: held at 0 to kDustHold, then up) — or, leaving, cuts to
+        // nothing over its first beat while the sand is still where it stood
+        // (surfaceLeave). Cut out per cell, the front was a blocky staircase of
+        // photograph that no browser surface ever shows.
+        const double fade = sweep_ == Sweep::SurfaceIn
+            ? (t_ < kDustHold ? 0.0 : (t_ - kDustHold) / (1.0 - kDustHold))
+            : std::max(0.0, 1.0 - t_ / kSurfaceScatterSplit);
+        if (fade > 0.0) {
+          p.setOpacity(fade);
+          p.drawPixmap(box, snap_, QRectF(snap_.rect()));
+          p.setOpacity(1.0);
+        }
+      } else {
+        QRegion keep(box.toAlignedRect());
+        if (!cut_.empty()) {
+          QRegion gone;
+          gone.setRects(cut_.data(), int(cut_.size()));
+          keep -= gone;
+        }
+        if (!keep.isEmpty()) {
+          p.save();
+          p.setClipRegion(keep, Qt::IntersectClip);
+          p.drawPixmap(box, snap_, QRectF(snap_.rect()));
+          p.restore();
+        }
       }
-      if (!keep.isEmpty()) {
-        p.save();
-        p.setClipRegion(keep, Qt::IntersectClip);
-        p.drawPixmap(box, snap_, QRectF(snap_.rect()));
-        p.restore();
-      }
-      p.setRenderHint(QPainter::Antialiasing, true);
-      p.setPen(Qt::NoPen);
-      for (const Mote& m : motes_) {
-        p.setBrush(m.color);
-        p.drawEllipse(m.at, m.radius, m.radius);
-      }
+      // The grains: blitted from the sprite cache, never rasterised here — antialiasing
+      // OFF, or the raster engine leaves its 1:1 fast path (dustKit.hpp MoteSprites).
+      p.setRenderHint(QPainter::Antialiasing, false);
+      p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+      for (const Mote& m : motes_) sprites_.draw(p, m.at, m.radius, m.color);
+      p.setOpacity(1.0);
     }
 
-    // One grain of a ROW / FALL / GATHER flight (browser motion.js tileMotion + the
-    // tileScatter / tileGather keyframes). Returns false while the cell is at home —
+    // A cell's grain colour, from the per-flight table paintEvent builds.
+    const QColor& grainColour(int cx, int cy, double) const {
+      return grains_[size_t(cy) * cols_ + cx];
+    }
+
+    // The browser speckPainter's RIM and GLINT cells: the picture's edge, and one inner
+    // cell in seven — lifted further towards the ink, and the ones that twinkle.
+    bool isGlint(int cx, int cy, double n) const {
+      return cx == 0 || cy == 0 || cx == cols_ - 1 || cy == rows_ - 1 || n > kGlintHash;
+    }
+    bool glintAt(int cx, int cy) const { return glints_[size_t(cy) * cols_ + cx]; }
+
+    // A cell's colour, lifted further towards the ink where the browser's speckPainter
+    // paints a RIM or a GLINT.
+    QColor liftedGrain(int cx, int cy, double n) const {
+      QColor c = cellColour(cells_, cx, cy);
+      if (!ink_.isValid() || c.alphaF() <= 0.02) return c;
+      if (!isGlint(cx, cy, n)) return c;
+      return QColor(qRound(c.red() + (ink_.red() - c.red()) * kGlintMix),
+                    qRound(c.green() + (ink_.green() - c.green()) * kGlintMix),
+                    qRound(c.blue() + (ink_.blue() - c.blue()) * kGlintMix), c.alpha());
+    }
+
+    // One grain of a ROW flight — the browser's tileMotion + tileScatter keyframes, op
+    // for op: the row crumbles from its top edge downward, each grain falling and
+    // fanning out (signed, so the cloud spreads both ways), through the bend at 38% of
+    // its flight on the first leg's curve and home… out, on the flight's own.
+    // Same contract as fallingMote: false = the cell is the picture right now.
+    bool rowMote(const QRectF& box, int cx, int cy, double cw, double ch, Mote* out) const {
+      const double n = cellNoise(cx, cy);
+      const double m = cellNoise(cx + 41, cy + 17);
+      const double q = cellNoise(cx + 97, cy + 53);
+      // 0 at the TOP row (goes first), 1 at the bottom (goes last). The sweep is a fifth
+      // of the span (browser: "a mote still at its 0% pose past the row's own collapse
+      // is a dot screen sitting where the row was"), plus the tile's own jitter.
+      const double progress = rows_ > 1 ? double(cy) / (rows_ - 1) : 0.0;
+      const double delay = progress * 0.2 + n * (60.0 / 900.0);
+      // The flight is what is left of the span, floored (kMinTileMs) so a late grain
+      // still flies rather than blinks.
+      const double flight = std::max(double(kMinTileMs) / std::max(1, ms_), 1.0 - delay);
+      const double t = (t_ - delay) / flight;
+      if (t <= 0.0) return false;   // not yet left: the picture
+      *out = Mote{};
+      if (t >= 1.0) return true;    // gone
+      const QColor cell = grainColour(cx, cy, n);
+      if (cell.alphaF() <= 0.02) return true;   // nothing was painted here
+      const double tx = (m - 0.5) * 66 * spread_;
+      const double ty = (26 + progress * 30 + n * 44) * spread_;
+      const QPointF home(box.x() + (cx + 0.5) * cw, box.y() + (cy + 0.5) * ch);
+      const double w = cellNoise(cx + 13, cy + 71);
+      const QPointF far = home + QPointF(tx, ty);
+      const QPointF bend = home + waypointOf(tx, ty, q);
+      out->at = legAt(t, kRowSplit, rowLegEase(), rowEase(), home, bend, far) + turbulenceAt(t, tx, ty, w);
+      // tileScatter's scale: 1 at home, its far size (0.3..0.6) out there, halfway at the bend.
+      const double farScale = 0.3 + n * 0.3;
+      out->radius = moteRadius(cw, ch, n)
+          * legScalar(t, kRowSplit, rowLegEase(), rowEase(), 1.0, 1.0 - (1.0 - farScale) * 0.5, farScale);
+      out->color = cell;
+      out->color.setAlphaF(std::clamp(cell.alphaF() * (0.78 + n * 0.22) * scatterAlpha(t)
+                                          * twinkleAt(glintAt(cx, cy), t_ * ms_, w), 0.0, 1.0));
+      return true;
+    }
+
+    // One grain of a FALL / GATHER flight (browser motion.js ghostOut / ghostIn —
+    // dustParts + drawDust). Returns false while the cell is at home —
     // not yet left, or already landed — and is then simply the picture. True means the
     // cell is cut out of it, with `out` the grain to draw (a radius of 0 once it is gone).
     bool fallingMote(const QRectF& box, int cx, int cy, double cw, double ch, Mote* out) const {
-      // The sweep runs BOTTOM→TOP for a row: a cell's clock starts later the higher it
-      // sits, so the silhouette erodes upward and the top is the last thing standing.
       const double n = cellNoise(cx, cy);
       // A second, decorrelated hash for the SIDEWAYS drift, a third for the bend. With
       // one hash driving everything, whole diagonals moved together and the thing tore
       // like a sheet instead of coming apart (browser motion.js tileMotion twin).
       const double m = cellNoise(cx + 41, cy + 17);
       const double q = cellNoise(cx + 97, cy + 53);
-      // Fall starts at the top; Rows and Gather start at the bottom — Gather because
-      // it is Fall rewound, so the cell that leaves first is the last one home.
+      // Fall starts at the top; Gather at the bottom — it is Fall rewound, so the cell
+      // that leaves first is the last one home.
       const double progress = rows_ > 1
           ? (sweep_ == Sweep::Fall ? double(cy) / (rows_ - 1)
                                    : double(rows_ - 1 - cy) / (rows_ - 1))
@@ -497,14 +697,14 @@ namespace stencil::gui {
       const double away = gather ? std::pow(1.0 - t, 3.0) : t;
       *out = Mote{};
       if (away >= 1.0) return true;   // gone, or not yet set off: cut, nothing to draw
-      const QColor cell = cellColour(cells_, cx, cy);
+      const QColor cell = grainColour(cx, cy, n);
       if (cell.alphaF() <= 0.02) return true;   // nothing was painted here
-      // Rows rise off a list; a falling image drops (and accelerates, hence away²);
-      // a gathering one comes FROM below and rises home — the fall inverted. The
-      // sideways fan is signed, so the cloud spreads both ways.
+      // A falling image drops (and accelerates, hence away²); a gathering one comes
+      // FROM below and rises home — the fall inverted. The sideways fan is signed, so
+      // the cloud spreads both ways.
       const double drift = (22 + progress * 34 + n * 30) * spread_;
       const double tx = (m - 0.5) * 66 * spread_;
-      const double ty = sweep_ == Sweep::Rows ? -drift : drift * 1.6;
+      const double ty = drift * 1.6;
       const double fall = sweep_ == Sweep::Fall ? away * away : away;
       const QPointF home(box.x() + (cx + 0.5) * cw, box.y() + (cy + 0.5) * ch);
       out->at = home + QPointF(away * tx, fall * ty) + swirlAt(away, tx, ty, q);
@@ -543,29 +743,55 @@ namespace stencil::gui {
       double t = (t_ - delay) / std::max(0.05, 1.0 - delay);
       if (!gather && t <= 0.0) return false;   // still the surface
       t = std::clamp(t, 0.0, 1.0);
-      // Ease-out both ways: the motes break away (or arrive) at once and drift to a stop,
-      // which is what sand does. `away` is 1 out at the point, 0 home. The curve is a
-      // member: building one per cell per frame is thousands of allocations a frame.
-      const double e = surfaceEase_.valueForProgress(t);
-      if (gather && e >= 1.0) return false;    // landed: the surface
-      const double away = gather ? 1.0 - e : e;
       *out = Mote{};
-      // A scattered mote that has finished is simply gone; a gathering one waits at the
-      // point until its delay is up, which is what makes the stream read as pouring out.
-      // The ramps ride the clock (browser tileGatherSurface / tileScatterSurface), not
-      // the eased distance — see scatterAlpha.
-      double alpha;
-      if (gather) alpha = t < 0.45 ? 0.55 + 0.45 * (t / 0.45) : 1.0;
-      else if (e >= 1.0) return true;
-      else alpha = t < 0.55 ? 1.0 - t * 0.18 : 0.9 * (1.0 - (t - 0.55) / 0.45);
-      const QColor cell = cellColour(cells_, cx, cy);
+      if (!gather && t >= 1.0) return true;    // a scattered mote that has finished is gone
+      const QColor cell = grainColour(cx, cy, n);
       if (cell.alphaF() <= 0.02) return true;
+      // The whole cloud's own alpha (browser dustHostOut / dustHostIn): a forming cloud
+      // stays whole until 58% of the span, then fades out under the surface fading up —
+      // a LANDED mote sits at home at full size until then, a grain of the dot screen
+      // the window is cross-fading out of, never a hole. A leaving cloud fades in over
+      // the first beat, as the surface under it cuts out.
+      const double host = gather ? (t_ < 0.58 ? 1.0 : 1.0 - (t_ - 0.58) / 0.42)
+                                 : std::min(1.0, t_ / kSurfaceScatterSplit);
+      if (gather && t >= 1.0) {
+        out->at = home;
+        out->radius = moteRadius(cw, ch, n);
+        out->color = cell;
+        out->color.setAlphaF(std::clamp(cell.alphaF() * (0.78 + n * 0.22) * host
+                                            * twinkleAt(glintAt(cx, cy), t_ * ms_, cellNoise(cx + 13, cy + 71)),
+                                        0.0, 1.0));
+        return true;
+      }
+      // A gathering mote waits at the point until its delay is up, which is what makes
+      // the stream read as pouring out. The ramps ride the clock (browser
+      // tileGatherSurface / tileScatterSurface), not the eased distance — see scatterAlpha.
+      const double alpha = host * (gather ? (t < 0.45 ? 0.55 + 0.45 * (t / 0.45) : 1.0)
+                                          : (t < 0.55 ? 1.0 - t * 0.18 : 0.9 * (1.0 - (t - 0.55) / 0.45)));
       const double tx = toX + (m - 0.5) * kSurfaceSpreadPx;
       const double ty = toY + (n - 0.5) * kSurfaceSpreadPx;
-      out->at = home + QPointF(away * tx, away * ty) + swirlAt(away, tx, ty, q);
-      out->radius = moteRadius(cw, ch, n) * (1.0 - away * (1.0 - (0.12 + n * 0.25)));
+      // Two legs (the browser's mid keyframe): a gather flies far → bend over its first
+      // 16% on the leg curve, then bend → home on the ease-out; a scatter home → bend
+      // over 18%, then out. Most of the distance goes early either way — the bend sits
+      // where it can be seen — and the turn is a flick, which is what sand does.
+      const double w = cellNoise(cx + 13, cy + 71);
+      const QPointF point = home + QPointF(tx, ty);
+      const QPointF bend = home + waypointOf(tx, ty, q);
+      const QPointF wobble = turbulenceAt(t, tx, ty, w);
+      const double farScale = 0.12 + n * 0.25;
+      const double midScale = 1.0 - (1.0 - farScale) * 0.5;
+      if (gather) {
+        out->at = legAt(t, kSurfaceGatherSplit, surfaceLegEase(), surfaceEase(), point, bend, home) + wobble;
+        out->radius = moteRadius(cw, ch, n)
+            * legScalar(t, kSurfaceGatherSplit, surfaceLegEase(), surfaceEase(), farScale, midScale, 1.0);
+      } else {
+        out->at = legAt(t, kSurfaceScatterSplit, surfaceLegEase(), surfaceEase(), home, bend, point) + wobble;
+        out->radius = moteRadius(cw, ch, n)
+            * legScalar(t, kSurfaceScatterSplit, surfaceLegEase(), surfaceEase(), 1.0, midScale, farScale);
+      }
       out->color = cell;
-      out->color.setAlphaF(std::clamp(cell.alphaF() * alpha * (0.78 + n * 0.22), 0.0, 1.0));
+      out->color.setAlphaF(std::clamp(cell.alphaF() * alpha * (0.78 + n * 0.22)
+                                          * twinkleAt(glintAt(cx, cy), t_ * ms_, w), 0.0, 1.0));
       return true;
     }
 
@@ -626,19 +852,27 @@ namespace stencil::gui {
       hide();
     }
 
+    // The clock: a plain timer at the screen's refresh interval (dustKit.hpp
+    // frameIntervalMs) reading a wall clock, not a QVariantAnimation — Qt's animation
+    // timer ticks 60 times a second whatever the display does, and a cloud at 60 on a
+    // 120Hz screen read as the coarser thing next to the browser's. The per-cell delays
+    // own the shaping; the clock is linear.
     void start(int ms = kMs) {
-      auto* anim = new QVariantAnimation(this);
-      anim->setDuration(std::max(1, ms));
-      anim->setEasingCurve(QEasingCurve::Linear);   // the per-cell delays own the shaping
-      anim->setStartValue(0.0);
-      anim->setEndValue(1.0);
-      connect(anim, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
-        t_ = v.toDouble();
+      ms_ = std::max(1, ms);
+      clock_.start();
+      auto* tick = new QTimer(this);
+      tick->setTimerType(Qt::PreciseTimer);
+      tick->setInterval(support::frameIntervalMs(this));
+      connect(tick, &QTimer::timeout, this, [this, tick] {
+        t_ = std::min(1.0, clock_.nsecsElapsed() / 1e6 / ms_);
         syncFollow();
         update();
+        if (t_ >= 1.0) {
+          tick->stop();
+          deleteLater();
+        }
       });
-      connect(anim, &QVariantAnimation::finished, this, [this] { deleteLater(); });
-      anim->start(QAbstractAnimation::DeleteWhenStopped);
+      tick->start();
     }
 
     // Dust motes sized on screen rather than as a share of the image, thinned back
@@ -663,6 +897,8 @@ namespace stencil::gui {
     QPixmap snap_;
     QPixmap base_;          // the state left behind (overPixmaps only); null = nothing
     QImage cells_;          // snap_'s colour per grid cell (sampleCells); rebuilt when the grid changes
+    std::vector<QColor> grains_;   // …and each cell's lifted grain colour, built with it
+    std::vector<bool> glints_;     // …and whether it is a rim/glint cell (twinkles)
     std::vector<Mote> motes_;   // per-frame scratch: the grains in the air…
     std::vector<QRect> cut_;    // …and the cells cut out of the picture (runs, Y-X sorted)
     Sweep sweep_ = Sweep::Rows;
@@ -673,7 +909,10 @@ namespace stencil::gui {
     QPointF target_;        // the point a surface's motes stream out of / pour into
     QPoint shift_;          // host coords → this layer's, non-zero only when it escaped the host
     QRect paintClip_;       // setPaintClip: the host area the cloud may paint in; invalid = all
-    QEasingCurve surfaceEase_{QEasingCurve::OutQuint};   // setSurfaceEasing
+    QColor ink_;            // the owner's text colour the grains are lifted towards; invalid = none
+    support::MoteSprites sprites_;   // the grains, drawn once each and blitted
+    QElapsedTimer clock_;   // start(): the wall clock the flight reads
+    int ms_ = kMs;          // …and its length
     double spread_ = 1.0;   // throw distance, as a share of a list row's
     double t_ = 0.0;
   };

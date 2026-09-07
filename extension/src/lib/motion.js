@@ -2,6 +2,7 @@
 // Pure decoration: without an IntersectionObserver/MutationObserver nothing here
 // runs and every list simply shows normally. CSS owns the keyframes
 // (lib/animations.css); this file only toggles classes.
+import { startCloud, resolveColour } from './dustCloud.js';
 
 // Rows only dissolve by the amount the scroller is ALREADY clipping them — a row you
 // can see in full is never touched. Decoration must never cost legibility (the grain
@@ -131,7 +132,7 @@ export const LEAVING_CLASS = 'leaving';
 // A single removal scatters ONE element, but a WIPE scatters every row at once — and
 // the cost is the sum, not the per-row grid. So the mesh is budgeted: one row keeps the
 // full fine grain, a mass clear coarsens each row until the total fits. Pure — unit-tested.
-export const SCATTER_TILE_BUDGET = 700;
+export const SCATTER_TILE_BUDGET = 1200;   // browser motion.js twin
 // …and past this many simultaneous rows the extra ones simply fade: a dozen scatters
 // at once is already more than the eye resolves, and 200 of them would blow any mesh
 // budget however coarse it got.
@@ -332,10 +333,12 @@ export const createFilterTransition = ({
 // 520 and 260 were both tried and read as hurried.
 export const DISINTEGRATE_MS = 1350;
 // A fine grid: at 8x4 the cells read as big rectangles sliding apart. Small cells are
-// what make it read as ash rather than a broken window. The cost is one node per
-// cell, so this is the practical ceiling for a list row.
-export const DISINTEGRATE_COLS = 22;
-export const DISINTEGRATE_ROWS = 11;
+// what make it read as ash rather than a broken window (browser DISINTEGRATE_*).
+export const DISINTEGRATE_COLS = 34;
+export const DISINTEGRATE_ROWS = 16;
+// However late a mote sets off, it still gets this long to fly: the floor keeps the last
+// grains of a short flight from being a blink rather than a flight (browser twin).
+export const MIN_TILE_MS = 160;
 // A gathering tile's flight, and a mote's own jitter, as SHARES of the span (the CSS
 // defaults' 0.48s and 60ms of 0.9s) — not divisions by it: shortening DISINTEGRATE_MS
 // must shorten both with it, not hand them a bigger slice of a smaller flight.
@@ -436,9 +439,15 @@ export function cancelDust(el) {
   if (!el) return;
   clearTimeout(el.__dustTimer);
   el.__dustTimer = null;
+  el.__dustHost?.__stop?.();   // the canvas loop, before the layer it paints goes
   el.__dustHost?.remove?.();
   el.__dustHost = null;
 }
+
+// Which of dustCloud's FLIGHTS a cloud flies: a surface's aimed gather/scatter, or a
+// row's fall-and-fan (and its reverse).
+const flightOf = (toward, gather) =>
+  toward ? (gather ? 'surfaceGather' : 'surfaceScatter') : (gather ? 'gather' : 'scatter');
 
 export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS,
                                    gather = false, toward = null, ms = 0, px = MOTE_PX,
@@ -457,13 +466,15 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     // Decoration, and nothing but: the layer must never take a click or a Tab stop.
     host.setAttribute('aria-hidden', 'true');
     host.inert = true;
-    // A surface flies on its own (shorter) clock; a row keeps the CSS defaults. A ROW
-    // gather on its own clock (a chat entry) keeps the default's proportions: the
-    // tile's flight is the span less the reversed sweep (0.48s of 0.9s), so the last
-    // mote to set off still lands before the veil lifts.
+    const span = ms || DISINTEGRATE_MS;
+    // A surface flies on its own (shorter) clock; a row keeps the defaults. A ROW gather
+    // on its own clock (a chat entry) keeps the default's proportions: the grain's
+    // flight is the span less the reversed sweep (0.48s of 0.9s), so the last mote to
+    // set off still lands before the veil lifts.
+    const gatherMs = toward || !gather ? span : Math.round(span * TILE_GATHER_SHARE);
     if (ms) {
       host.style.setProperty('--dust-ms', `${ms}ms`);
-      host.style.setProperty('--gather-ms', `${toward || !gather ? ms : Math.round(ms * TILE_GATHER_SHARE)}ms`);
+      host.style.setProperty('--gather-ms', `${gatherMs}ms`);
     }
     host.style.left = `${r.left}px`;
     host.style.top = `${r.top}px`;
@@ -471,25 +482,37 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     host.style.height = `${r.height}px`;
     const cellW = r.width / cols;
     const cellH = r.height / rows;
+    // Every grain, computed once: its home (the cell's centre), its throw and bend
+    // (tileMotion / surfaceMotion), its colour, size and clock. The cloud is then ONE
+    // canvas evaluating these per frame (dustCloud.js) — no node per mote, so a
+    // dialog-sized cloud costs a few batched fills rather than hundreds of layers.
+    const colours = [];
+    const colourIndex = new Map();
+    const motes = [];
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
         // A row FALLS (tileMotion); a surface flies at the control that owns it.
         const m = toward
-          ? surfaceMotion(cx, cy, cols, rows, r, toward, { span: ms || DISINTEGRATE_MS, spread })
-          : tileMotion(cx, cy, cols, rows, gather, ms || DISINTEGRATE_MS);
-        const tile = document.createElement('div');
-        // The gather class overrides the scatter's animation with stTileGather (the
-        // same flight, played home) while inheriting the tile's box rules.
-        tile.className = gather ? 'disintegrate-tile reintegrate-tile' : 'disintegrate-tile';
-        // A tile IS the mote — no copy, no child, one node per grain — and it gets ONE
-        // style write: a dialog's cloud is hundreds of them, built in the frame the open
-        // lands on, and a property at a time was most of that frame.
-        tile.style.cssText = `--dx:${m.dx}px;--dy:${m.dy}px;--mx:${m.mx}px;--my:${m.my}px;`
-          + `--rot:${m.rot}deg;--tile-scale:${m.scale};animation-delay:${m.delay}ms;`
-          + paint(tile, { cx, cy, cols, rows, cellW, cellH });
-        host.appendChild(tile);
+          ? surfaceMotion(cx, cy, cols, rows, r, toward, { span, spread })
+          : tileMotion(cx, cy, cols, rows, gather, span);
+        const speck = paint({ cx, cy, cols, rows, cellW, cellH });
+        let c = colourIndex.get(speck.color);
+        if (c === undefined) { c = colours.length; colourIndex.set(speck.color, c); colours.push(speck.color); }
+        // The sweep is INSIDE the span, never added to it: a late mote flies the window
+        // it has left, so the whole cloud is done at `span` instead of trailing
+        // stragglers past it. Gathers already fit — their flight is the short gather
+        // clock and the sweep is what fills the rest.
+        motes.push({
+          x: r.left + (cx + 0.5) * cellW, y: r.top + (cy + 0.5) * cellH,
+          dx: m.dx, dy: m.dy, mx: m.mx, my: m.my, r: speck.px / 2, s: m.scale, a: speck.alpha, c,
+          delay: m.delay, dur: gather ? gatherMs : Math.max(MIN_TILE_MS, span - m.delay),
+          // …and its own hash for the wobble and the twinkle (dustCloud.js turbulenceAt).
+          w: tileNoise(cx + 13, cy + 71), t: 1, g: speck.glint ? 1 : 0,
+        });
       }
     }
+    const kind = flightOf(toward, gather);
+    host.__cloud = { motes, colours, flight: kind, span };   // what a test reads
     // Appended to the element's own PARENT, not <body>: a row's cloud is torn down with
     // the list it belongs to. The host stays position:fixed, so it still escapes the
     // scroller's clipping. A SURFACE goes on <body> outright: its own parent (a dialog
@@ -505,11 +528,19 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     if (Math.abs(got.left - r.left) > 1 || Math.abs(got.top - r.top) > 1) {
       document.body.appendChild(host);
     }
+    // Colours resolved ONCE per cloud through one probe, after the host is in the
+    // document (a `var(--…)` needs the page's own scope to mean anything).
+    const probe = document.createElement('span');
+    host.appendChild(probe);
+    const fills = colours.map((css) => resolveColour(document, css, probe));
+    probe.remove();
+    startCloud(host, motes, { flight: kind, span, colours: fills, origin: { x: r.left, y: r.top } });
     el.__dustHost = host;
     el.__dustTimer = setTimeout(() => {
+      host.__stop?.();
       host.remove();
       if (el.__dustHost === host) { el.__dustHost = null; el.__dustTimer = null; }
-    }, (ms || DISINTEGRATE_MS) + 400);
+    }, span + 400);
     return true;
   } catch {
     return false;   // decoration only — the removal carries on regardless
@@ -816,30 +847,23 @@ const surfacePaint = (el) => {
 };
 
 // Round speck in the surface's own colours; the rim cells take its border instead, so
-// the cloud keeps the box's outline for the first frames, and a few inner grains take
+// the cloud keeps the window's outline for the first frames, and a few inner grains take
 // the rim's stronger tone too, so the field glints rather than reading flat. The speck
 // is a GRAIN, not the cell it sits in: past the mote budget a cell can be several times
 // the grain we want, and a cell-filling square is the "huge rectangles" a scatter must
 // never show.
 //
-// Painted onto the TILE ITSELF — one node per mote, not two — and returned as the
-// tile's style DECLARATIONS rather than written property by property: disintegrate
-// folds them into its one cssText write per mote.
+// A painter answers per cell with the grain's colour, its own opacity and its size;
+// disintegrate seats it at the cell's centre and dustCloud.js draws it.
 const speckPainter = (el) => {
   const { fill, edge } = surfacePaint(el);
-  return (tile, { cx, cy, cols, rows, cellW, cellH }) => {
+  return ({ cx, cy, cols, rows, cellW, cellH }) => {
     const n = tileNoise(cx, cy);
-    tile.classList.add('dust-mote');
     const rim = cx === 0 || cy === 0 || cx === cols - 1 || cy === rows - 1 || n > 0.86;
     // Grains of ONE size read as a mosaic; the spread is what makes it sand…
     const grain = Math.min(cellW, cellH, SURFACE_SPECK_PX);
-    const px = grain * (0.62 + n * 0.5);
-    // …each centred in its own cell, so the field stays even however far the mote
-    // budget let the cell outgrow the grain. Never faint: a mote you can barely see is
-    // a flight you cannot follow.
-    return `background:${rim ? edge : fill};opacity:${(0.78 + n * 0.22).toFixed(2)};`
-      + `left:${(cx * cellW + (cellW - px) / 2).toFixed(2)}px;top:${(cy * cellH + (cellH - px) / 2).toFixed(2)}px;`
-      + `width:${px.toFixed(2)}px;height:${px.toFixed(2)}px`;
+    // …never faint: a mote you can barely see is a flight you cannot follow.
+    return { color: rim ? edge : fill, alpha: 0.78 + n * 0.22, px: grain * (0.62 + n * 0.5), glint: rim };
   };
 };
 

@@ -222,7 +222,8 @@ and dissolve again at the top edge. Both collapse under `prefers-reduced-motion:
 and neither runs at all without an `IntersectionObserver` — a row is never left dimmed. A row
 being **removed** comes apart instead of fading: `disintegrate()` (`src/lib/motion.js`, the
 mirror of the browser's) paints one round mote per grid cell in the row's own colours and
-scatters them on bent paths. Changing the accent
+scatters them on bent paths, all on one canvas (`src/lib/dustCloud.js`, the browser's copy
+byte for byte). Changing the accent
 or the light/dark mode floods the new palette out of the CONTROL that changed it — the
 popup's moon button, the options page's Appearance / Main theme pickers — as a growing
 circle (`src/lib/accent.js`, native View Transitions with a colour cross-fade fallback).
