@@ -155,6 +155,44 @@ int main(int argc, char** argv) {
   locals.push_back(makeLocal("l3", "gamma", 1000));
 
   {
+    std::printf("the pinned temporary row:\n");
+    ProjectsDialog dlg(locals, 5000);
+    dlg.setTemporary(true);
+    dlg.show();
+    pumpFor(50);
+    auto* list = dlg.findChild<QListWidget*>("projectsList");
+    check(list && list->count() == int(locals.size()) + 1, "one row more than the projects");
+    QListWidgetItem* top = list ? list->item(0) : nullptr;
+    check(top && top->text() == QStringLiteral("Temporary (unsaved)"), "…pinned at the top, named as the browser's");
+    check(top && top->data(Qt::UserRole).isNull() && top->data(Qt::UserRole + 11).toBool(),
+          "no project id (every action ignores it), marked as the temporary row");
+    check(top && !(top->flags() & Qt::ItemIsSelectable) && !(top->flags() & Qt::ItemIsUserCheckable),
+          "not selectable, no checkbox");
+    check(top && top->data(Qt::UserRole + 10).toString() == QStringLiteral("Current window · not saved to storage"),
+          "carries the browser's note");
+    check(top && !top->icon().isNull(), "wears the pencil tile");
+    dlg.setTemporary(true, /*incognito=*/true);
+    pumpFor(20);
+    top = list ? list->item(0) : nullptr;
+    check(top && top->text() == QStringLiteral("Incognito (unsaved)"), "an incognito editor names itself so");
+    dlg.setTemporary(false);
+    pumpFor(20);
+    check(list && list->count() == int(locals.size()) && !list->item(0)->data(Qt::UserRole + 11).toBool(),
+          "a project open here: no pinned row");
+    // With nothing saved yet the pinned row alone stands — never beside "No projects yet".
+    std::vector<Project> none;
+    ProjectsDialog empty(none, 5000);
+    empty.setTemporary(true);
+    empty.show();
+    pumpFor(30);
+    auto* elist = empty.findChild<QListWidget*>("projectsList");
+    check(elist && elist->count() == 1 && elist->item(0)->data(Qt::UserRole + 11).toBool(),
+          "an empty store shows the temporary row alone");
+    empty.reject();
+    dlg.reject();
+  }
+
+  {
     std::printf("batch bar visibility by selection composition:\n");
     ProjectsDialog dlg(locals, 5000, &mgr);
     dlg.show();

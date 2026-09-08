@@ -12,6 +12,7 @@
 // searchComboPopup / searchComboSearchRow / searchComboSearch / searchComboList
 // / searchComboNoMatch in theme.cpp — a QCompleter popup can't be used here
 // because it is a bare top-level QListView the app stylesheet never reaches.
+class QAbstractItemDelegate;
 class QLabel;
 class QLineEdit;
 class QListView;
@@ -29,6 +30,11 @@ namespace stencil::gui {
 
     void showPopup() override;
     void hidePopup() override;
+    // A delegate for the popup's option rows (the motion modes' animated glyphs —
+    // support/motionIcons.hpp); installed when the popup is built. Owned by the list.
+    void setListDelegate(QAbstractItemDelegate* delegate);
+    // The popup's list, once built (showPopup builds it) — for a delegate that needs it.
+    QListView* popupList();
 
   protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -43,6 +49,7 @@ namespace stencil::gui {
     bool searchable_ = true;        // false → no search row (short lists)
     QWidget* popup_ = nullptr;      // Qt::Popup container (translucent corners)
     QLineEdit* search_ = nullptr;
+    QAbstractItemDelegate* delegate_ = nullptr;   // setListDelegate, applied in ensurePopup
     QListView* list_ = nullptr;
     QLabel* noMatch_ = nullptr;
     QSortFilterProxyModel* proxy_ = nullptr;

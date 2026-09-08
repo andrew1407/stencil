@@ -266,6 +266,10 @@ namespace stencil::gui {
     // UserRole+10: the row's muted meta line ("Created … · expires …"), drawn under the
     // bold name (browser projectsModal row parity: name / dates / origin, stacked).
     constexpr int kMetaRole = Qt::UserRole + 10;
+    // UserRole+11: the synthetic "Temporary (unsaved)" row — THIS window's session while
+    // no project is open (browser parity: projectsModal.js's pinned `project-temp` row).
+    // Its UserRole stays null, so every project action already ignores it.
+    constexpr int kTempRole = Qt::UserRole + 11;
     // Paints a rounded golden outline around server (shared) rows — the desktop analogue
     // of the browser's `.project-remote` border — plus a vertical "⋯" kebab on every
     // real row (the browser modal's per-row "more actions" button).
@@ -283,7 +287,8 @@ namespace stencil::gui {
           s.setWidth(av->viewport()->width());
         // Three stacked text lines (name / meta / origin) need a floor the base
         // (icon + padding) does not guarantee on every platform.
-        if (!idx.data(Qt::UserRole).isNull()) s.setHeight(std::max(s.height(), 76));
+        if (!idx.data(Qt::UserRole).isNull() || idx.data(kTempRole).toBool())
+          s.setHeight(std::max(s.height(), 76));
         // A row leaving the filtered set collapses its slot (support/filterFade), so the
         // rows below it close the gap instead of jumping once it disappears.
         s.setHeight(filterHeight(s.height(), filterPresenceOf(idx)));
@@ -451,8 +456,9 @@ namespace stencil::gui {
         const QStyleOptionViewItem& o = opt;
         const QString full = o.text;
         const bool realRow = !idx.data(Qt::UserRole).isNull();
+        const bool temp = idx.data(kTempRole).toBool();
         QStyle* st = o.widget ? o.widget->style() : QApplication::style();
-        if (!realRow) {
+        if (!realRow && !temp) {
           QStyledItemDelegate::paint(p, o, idx);  // placeholder rows: default rendering
           return;
         }
@@ -482,11 +488,13 @@ namespace stencil::gui {
         if (remote) { edge = kGoldEdge; ring = edge; ring.setAlpha(140); }
         else if (fileOrigin) { edge = kBronzeEdge; ring = edge; ring.setAlpha(140); }
         else if (current) { edge = o.palette.color(QPalette::Link); }
-        else { edge = o.palette.color(QPalette::Mid); edge.setAlpha(70); }
+        else { edge = o.palette.color(QPalette::Mid); edge.setAlpha(temp ? 110 : 70); }
         p->save();
         p->setRenderHint(QPainter::Antialiasing, true);
         p->setBrush(Qt::NoBrush);
-        p->setPen(QPen(edge, 1));
+        // The temporary row's outline is DASHED (browser .project-temp): a card that is
+        // not a saved thing yet.
+        p->setPen(QPen(edge, 1, temp ? Qt::DashLine : Qt::SolidLine));
         p->drawRoundedRect(QRectF(opt.rect).adjusted(1.5, 1.5, -1.5, -1.5), 8, 8);
         if (ring.isValid()) {
           p->setPen(QPen(ring, 1));
@@ -535,6 +543,8 @@ namespace stencil::gui {
           // Origin line: glyph + word — `server` (gold) with the address, `file-text`
           // (bronze) with ".stencil", `monitor` (grey) with "computer" — plus the
           // accent "(Current)" for the project open in this editor (browser parity).
+          // The temporary row has none: it is nowhere yet — and no "⋯" either.
+          if (temp) { p->restore(); return; }
           const QString gname = remote ? QStringLiteral("server")
                                        : (fileOrigin ? QStringLiteral("file-text")
                                                      : QStringLiteral("monitor"));
@@ -1079,6 +1089,40 @@ namespace stencil::gui {
     }
   }
 
+  // The temporary row's tile — the browser's .project-thumb: a 56px rounded box (soft
+  // fill inside a hairline) holding the 24px pencil, or the incognito mask, in the muted
+  // text colour. The box is what puts the glyph where the browser's sits.
+  QPixmap ProjectsDialog::temporaryIcon(bool incognito) const {
+    QPixmap pm(56, 56);
+    pm.fill(Qt::transparent);
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing, true);
+    const QColor muted = palette().color(QPalette::Disabled, QPalette::Text);
+    QColor fill = palette().color(QPalette::Mid), edge = fill;
+    fill.setAlpha(28);
+    edge.setAlpha(90);
+    p.setBrush(fill);
+    p.setPen(QPen(edge, 1));
+    p.drawRoundedRect(QRectF(0.5, 0.5, 55, 55), 6, 6);
+    const QString glyph = incognito ? QStringLiteral("incognito") : QStringLiteral("pencil");
+    if (hasIcon(glyph)) {
+      themedIcon(glyph, muted, 24).paint(&p, QRect(16, 16, 24, 24));
+    } else {   // no such glyph in the set: a plain pen stroke
+      p.setBrush(Qt::NoBrush);
+      p.setPen(QPen(muted, 3, Qt::SolidLine, Qt::RoundCap));
+      p.drawLine(QPointF(20, 36), QPointF(36, 20));
+      p.drawLine(QPointF(18, 39), QPointF(26, 39));
+    }
+    return pm;
+  }
+
+  void ProjectsDialog::setTemporary(bool temporary, bool incognito) {
+    if (temporary_ == temporary && incognito_ == incognito) return;
+    temporary_ = temporary;
+    incognito_ = incognito;
+    refresh();
+  }
+
   QPixmap ProjectsDialog::placeholderIcon(bool remote) const {
     QPixmap pm(56, 56);
     pm.fill(Qt::transparent);
@@ -1607,6 +1651,19 @@ namespace stencil::gui {
       }
       return cmpName(a, b) < 0;  // name (default): server + local interleaved
     });
+    // This window's own unsaved session, pinned above the sorted rows (browser parity).
+    // Inert: no id, so no open, rename, checkbox, drag or "⋯".
+    if (temporary_) {
+      auto* it = new QListWidgetItem(incognito_ ? QStringLiteral("Incognito (unsaved)")
+                                                : QStringLiteral("Temporary (unsaved)"), list_);
+      it->setFlags(Qt::ItemIsEnabled);
+      it->setData(kTempRole, true);
+      it->setData(Qt::UserRole + 3, it->text());   // the search key, like every row's
+      it->setData(kMetaRole, incognito_ ? QStringLiteral("Current window · incognito · never saved")
+                                        : QStringLiteral("Current window · not saved to storage"));
+      it->setData(Qt::UserRole + 4, QColor("#80868f"));   // the shared name grey, like every row
+      it->setIcon(QIcon(temporaryIcon(incognito_)));
+    }
     for (const auto& e : entries) {
       if (e.remote) buildRemoteRow(remote_[e.idx]);
       else buildLocalRow(projects_[e.idx]);
@@ -1858,6 +1915,10 @@ namespace stencil::gui {
     const QString smode = searchModeCombo_ ? searchModeCombo_->currentData().toString()
                                            : QStringLiteral("common");
     auto wanted = [&](QListWidgetItem* it) {
+      if (it->data(kTempRole).toBool()) {   // this window's session: a local thing, by name
+        if (mode != QLatin1String("all") && mode != QLatin1String("local")) return false;
+        return needle.isEmpty() || it->data(Qt::UserRole + 3).toString().contains(needle, Qt::CaseInsensitive);
+      }
       if (it->data(Qt::UserRole).isNull()) return true;  // "Loading…"/"No projects" placeholders
       const QString srv = it->data(Qt::UserRole + 1).toString();
       const bool remote = !srv.isEmpty();

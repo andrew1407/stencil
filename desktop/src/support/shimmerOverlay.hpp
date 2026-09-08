@@ -18,6 +18,7 @@
 #include <QLinearGradient>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPaintEvent>
 #include <QRect>
 #include <QVariantAnimation>
@@ -28,7 +29,16 @@
 #include <QTimer>
 #include <QWidget>
 
+#include <algorithm>
+
 namespace stencil::gui {
+
+  // The sweep is clipped to the control's own rounded shape — a plain band spilled across
+  // the corners of a pill (user report). C++ cannot read a QSS border-radius back, so the
+  // common control radius (theme.cpp: buttons, combos, rows) is the default and anything
+  // rounder — the modal Close pill, the Controls pill — carries its own on this property.
+  inline constexpr const char* kShimmerRadiusProperty = "_shimmerRadius";
+  inline constexpr int kShimmerRadius = 7;
 
   // ── Hover "glass shimmer": a left→right light sweep played on hover — the desktop match for
   // the browser/extension CSS shimmer. Qt style sheets can't animate a sweep, so this is a
@@ -132,6 +142,14 @@ namespace stencil::gui {
       g.setColorAt(1.0, QColor(255, 255, 255, 0));
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing);
+      const QVariant own = target_->property(kShimmerRadiusProperty);
+      const qreal r = std::min<qreal>(own.isValid() ? own.toReal() : kShimmerRadius,
+                                      std::min(b.width(), b.height()) / 2.0);
+      if (r > 0.5) {
+        QPainterPath clip;
+        clip.addRoundedRect(QRectF(b), r, r);
+        p.setClipPath(clip);
+      }
       p.fillRect(b, g);
     }
 

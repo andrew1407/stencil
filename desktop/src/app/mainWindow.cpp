@@ -4279,19 +4279,18 @@ namespace stencil::gui {
             w->frameGeometry().contains(globalPos))
           return false;
     }
-    // Gestures on the LOGO while its accent popover PEEKS (browser parity): a
-    // RIGHT-press PROMOTES the same popover to sticky — clearing the peek marker is
-    // all it takes, the Alt release then leaves it alone — and a LEFT-press is a
-    // NO-OP (no accent cycle, no dismiss: the peek's visibility belongs to the hold
-    // gesture). Both are consumed; every other press dismisses.
+    // Gestures on the LOGO while its accent popover is up never dismiss it (browser
+    // parity): a RIGHT-press promotes a peek to sticky, a LEFT-press mid-peek is a no-op
+    // (both consumed), and a LEFT-press on a sticky popover travels on to the logo, whose
+    // click cycles the accent under the open list. Every other press dismisses.
     const bool onLogo =
         logoBtn_ && (target ? target == logoBtn_
                             : QRect(logoBtn_->mapToGlobal(QPoint(0, 0)), logoBtn_->size())
                                   .contains(globalPos));
-    if (onLogo && altPeekAction_.data() == actAccent_ &&
-        activePopover_->objectName() == QLatin1String("accentPopover")) {
+    if (onLogo && activePopover_->objectName() == QLatin1String("accentPopover")) {
+      const bool peeking = altPeekAction_.data() == actAccent_;
       if (button == Qt::RightButton) { altPeekAction_.clear(); return true; }
-      if (button == Qt::LeftButton) return true;
+      if (button == Qt::LeftButton) return peeking;
     }
     dismissPopover();
     // The press travels on (it always did), but the icon it landed on must not
@@ -4545,6 +4544,9 @@ namespace stencil::gui {
 
     ProjectsDialog dlg(projectList_, nowMs(), connections_, buildProjectThumbs(),
                        this, activeProjectId_, accentPrimary(settings_.accentColor));
+    // No project open here (and no server session standing in for one): the list shows
+    // this window as the pinned "Temporary (unsaved)" row, as the browser's does.
+    dlg.setTemporary(activeProjectId_.isEmpty() && remoteSession_->link().id.isEmpty(), incognito_);
     dlg.setDragZones(projectZones_);   // the main-window drag-out zone overlay (open/new-window/remove)
     // "Clear All (Local)" is handled WHILE the dialog is up: it confirms itself (over its
     // own window), we remove the projects, and it repaints the now-empty list. Closing the
@@ -6655,6 +6657,48 @@ namespace stencil::gui {
   // so all Alt-peek/glide/linger/outside-click rules are the popover system's own.
   // Entries come from theme.cpp accentPresets (the one shared list); a pick applies
   // through the click-cycle's exact applySettings(…, true) path, then closes.
+  // Rounded colour chip for an accent row — the Settings dropdown's swatch recipe, so the
+  // two accent pickers read identically. The CURRENT accent's ✓ is baked into its chip
+  // (white over a dark halo), which keeps the rows a chip+label pair with no check column.
+  static QIcon accentSwatchIcon(const QColor& c, bool current) {
+    QPixmap pm(16, 16);
+    pm.fill(Qt::transparent);
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setPen(QPen(QColor(0, 0, 0, 70), 1));
+    p.setBrush(c);
+    p.drawRoundedRect(1, 1, 13, 13, 3, 3);
+    if (current) {
+      p.setBrush(Qt::NoBrush);
+      const QPointF pts[3] = {{4.4, 8.3}, {6.9, 10.7}, {11.4, 5.3}};
+      p.setPen(QPen(QColor(0, 0, 0, 160), 3.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+      p.drawPolyline(pts, 3);
+      p.setPen(QPen(Qt::white, 1.7, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+      p.drawPolyline(pts, 3);
+    }
+    p.end();
+    return QIcon(pm);
+  }
+
+  // Move the ✓ in an OPEN accent popover to the accent the settings now hold. Called from
+  // applyTheme, so the mark follows EVERY route the accent can take while the list is up,
+  // not only the popover's own picks (user report; browser toolbar.js onAccentMoved twin).
+  // Touches only the row icons, so nothing is rebuilt, re-laid out or re-anchored.
+  void MainWindow::remarkAccentPopover() {
+    // The popover being exec'd (execMaybePopover tracks it; it may sit under the overlay
+    // layer rather than as a direct child, so it is not looked up by parent).
+    QDialog* pop = activePopover_.data();
+    if (!pop || pop->objectName() != QLatin1String("accentPopover")) return;
+    for (QPushButton* r : pop->findChildren<QPushButton*>()) {
+      const QString rowKey = r->property("accentKey").toString();
+      if (rowKey.isEmpty()) continue;
+      const bool now = rowKey == settings_.accentColor;   // a custom #… accent marks nothing
+      if (r->property("currentAccent").toBool() == now) continue;
+      r->setIcon(accentSwatchIcon(QColor(accentPrimary(rowKey)), now));
+      r->setProperty("currentAccent", now);
+    }
+  }
+
   void MainWindow::openAccentPicker() {
     QDialog dlg(this);
     dlg.setObjectName(QStringLiteral("accentPopover"));
@@ -6663,32 +6707,8 @@ namespace stencil::gui {
     col->setSpacing(1);
     // No section header: the swatches say what this is, and the popover is anchored
     // to the logo that opened it.
-    // Rounded colour chip per row — the Settings dropdown's swatch recipe
-    // (settingsDialog.cpp), so the two accent pickers read identically. The CURRENT
-    // accent's ✓ is baked into its chip (white over a dark halo, readable on light
-    // chips), which keeps the rows a tight chip+label pair with no check column.
-    const auto swatch = [](const QColor& c, bool current) {
-      QPixmap pm(16, 16);
-      pm.fill(Qt::transparent);
-      QPainter p(&pm);
-      p.setRenderHint(QPainter::Antialiasing);
-      p.setPen(QPen(QColor(0, 0, 0, 70), 1));
-      p.setBrush(c);
-      p.drawRoundedRect(1, 1, 13, 13, 3, 3);
-      if (current) {
-        p.setBrush(Qt::NoBrush);
-        const QPointF pts[3] = {{4.4, 8.3}, {6.9, 10.7}, {11.4, 5.3}};
-        p.setPen(QPen(QColor(0, 0, 0, 160), 3.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        p.drawPolyline(pts, 3);
-        p.setPen(QPen(Qt::white, 1.7, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        p.drawPolyline(pts, 3);
-      }
-      p.end();
-      return QIcon(pm);
-    };
-    // Rows are built once and RE-MARKED in place when a pick lands: picking must not
-    // rebuild or move the popover (see the clicked handler below).
-    QList<QPushButton*> rows;
+    // Rows are built once and RE-MARKED in place whenever the accent moves
+    // (remarkAccentPopover, off applyTheme): picking must not rebuild or move the popover.
     for (const AccentPreset& a : accentPresets()) {
       const bool current = a.key == settings_.accentColor;   // a custom #… accent marks nothing
       auto* row = new QPushButton(&dlg);
@@ -6696,33 +6716,25 @@ namespace stencil::gui {
       row->setFlat(true);
       row->setCursor(Qt::PointingHandCursor);
       row->setIconSize(QSize(16, 16));
-      row->setIcon(swatch(QColor(a.hex), current));
+      row->setIcon(accentSwatchIcon(QColor(a.hex), current));
       row->setText(a.label);
       row->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
       // Menu-tight metrics (theme.cpp QDialog#accentPopover QPushButton).
       row->setProperty("accentKey", a.key);         // observable by the GUI test
       row->setProperty("currentAccent", current);
-      connect(row, &QPushButton::clicked, &dlg, [this, &dlg, &rows, swatch, key = a.key] {
+      connect(row, &QPushButton::clicked, &dlg, [this, &dlg, key = a.key] {
         auto next = settings_;
         next.accentColor = key;
-        applySettings(next, true);   // the click-cycle's apply + persist path
+        applySettings(next, true);   // the click-cycle's apply + persist path; re-marks the ✓ via applyTheme
         // The popover STAYS OPEN: the point of the list is trying colours against the
-        // live app, so a pick re-marks the ✓ in place and waits for the next one. It
-        // closes the ways every popover closes — outside click, Escape, Alt release, a
-        // glide to another icon, the app losing focus. Re-marking touches only the row
-        // icons, so nothing is rebuilt, re-laid out, or re-anchored under the cursor.
-        for (QPushButton* r : rows) {
-          const QString rowKey = r->property("accentKey").toString();
-          const bool now = rowKey == key;
-          r->setIcon(swatch(QColor(accentPrimary(rowKey)), now));
-          r->setProperty("currentAccent", now);
-        }
+        // live app, so a pick waits for the next one. It closes the ways every popover
+        // closes — outside click, Escape, Alt release, a glide to another icon, the app
+        // losing focus.
         // An accent change re-themes the window (and may play the accent wipe over it):
         // keep the popover on top of whatever that repaints, and keyboard-ready.
         if (popoverOverlay_) popoverOverlay_->raise();
         dlg.setFocus(Qt::PopupFocusReason);
       });
-      rows << row;
       col->addWidget(row);
     }
     execMaybePopover(dlg);

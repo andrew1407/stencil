@@ -91,23 +91,32 @@ int main(int argc, char** argv) {
           "…and had nothing left to show over its last fifth");
   }
 
-  // ── The ragged front (edgeRadiusAt — browser motion.test.js pins swapEdgePolygon to
-  // the same contract). The hole's edge is torn, not a circle line — but coverage still
-  // rules: at full progress even the deepest tooth must clear the furthest corner.
+  // ── The front (edgeRadiusAt — browser motion.test.js pins swapEdgePolygon to the same
+  // contract). Its edge wears the particle style, and coverage still rules: at full
+  // progress even the deepest dip must clear the furthest corner.
   {
+    using stencil::support::ParticleStyle;
     const double R = fullRadius(90, 60, w, h);
-    double lo = 1e18, hi = 0;
-    bool collapsed = true;
-    for (int k = 0; k < ThemeSwapOverlay::kEdgePoints; k++) {
-      const double r = ThemeSwapOverlay::edgeRadiusAt(k, 1.0, R);
-      lo = std::min(lo, r);
-      hi = std::max(hi, r);
-      collapsed = collapsed && ThemeSwapOverlay::edgeRadiusAt(k, 0.0, R) == 0.0;
+    for (const ParticleStyle s : {ParticleStyle::Dust, ParticleStyle::Water, ParticleStyle::Fire}) {
+      double lo = 1e18, hi = 0;
+      bool collapsed = true;
+      for (int k = 0; k < ThemeSwapOverlay::kEdgePoints; k++) {
+        const double r = ThemeSwapOverlay::edgeRadiusAt(k, 1.0, R, s);
+        lo = std::min(lo, r);
+        hi = std::max(hi, r);
+        collapsed = collapsed && ThemeSwapOverlay::edgeRadiusAt(k, 0.0, R, s) == 0.0;
+      }
+      check(lo >= R, "every vertex of the finished front clears the furthest corner");
+      check(hi <= R * 1.15, "no tongue overshoots wildly");
+      check(collapsed, "the front starts collapsed at the origin");
+      if (s == ParticleStyle::Dust) check(hi - lo < 1e-9, "dust: a perfect circle");
+      else check(hi - lo > R * 0.03, "water / fire: visibly not a circle");
     }
-    check(lo >= R, "every tooth of the finished front clears the furthest corner");
-    check(hi <= R * (1 + 2 * ThemeSwapOverlay::kEdgeAmp + 0.02), "no tooth overshoots wildly");
-    check(hi - lo > R * ThemeSwapOverlay::kEdgeAmp, "ragged, not a circle in disguise");
-    check(collapsed, "the front starts collapsed at the origin");
+    // The browser's edgeJitter, op for op (values printed from node — dustCloud.js).
+    const auto near = [](double a, double b) { return std::abs(a - b) < 1e-9; };
+    check(near(ThemeSwapOverlay::edgeJitter(ParticleStyle::Water, 17), -0.015235022) , "water vertex 17 matches the browser");
+    check(near(ThemeSwapOverlay::edgeJitter(ParticleStyle::Fire, 17), 0.043404486), "fire vertex 17 matches the browser");
+    check(ThemeSwapOverlay::edgeJitter(ParticleStyle::Dust, 17) == 0.0, "dust vertex 17 is on the circle");
   }
 
   // ── Dust in the wipe's wake (dustMoteAt — browser motion.test.js pins swapDustSpecs

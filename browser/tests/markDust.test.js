@@ -205,7 +205,7 @@ test('one delegated listener wires every checkbox, as one filter does on the des
 
 test('a select exchanges its chosen word, but only on a real change', () => {
   assert.match(selectJs, /markSwap\(cur, \(\) => \{ cur\.textContent = label; \}\)/);
-  assert.match(selectJs, /if \(shown === null \|\| label === shown\) cur\.textContent = label;/,
+  assert.match(selectJs, /const changed = shown !== null && label !== shown;\s*\n\s*if \(!changed\) cur\.textContent = label;/,
     'the first paint and a re-sync on open write straight through');
 });
 

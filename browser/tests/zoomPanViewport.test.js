@@ -31,7 +31,7 @@ const CONTAINER_PAD = 20;
 const BODY_PAD = 16;
 
 const installDom = ({ innerHeight, vpTop, vpBottom, sectionBottom, containerBottom, vpBorder = 2,
-                      panelTop = vpTop, footerH = sectionBottom - vpBottom }) => {
+                      panelTop = vpTop, footerH = sectionBottom - vpBottom, containerTransform = 'none' }) => {
   const rect = (bottom) => ({ getBoundingClientRect: () => ({ bottom }) });
   const html = { className: 'html', parentElement: null };
   const body = { className: 'body', parentElement: html, classList: { contains: () => false } };
@@ -71,7 +71,7 @@ const installDom = ({ innerHeight, vpTop, vpBottom, sectionBottom, containerBott
     if (el === viewport) {
       return { borderTopWidth: `${vpBorder}px`, borderBottomWidth: `${vpBorder}px`, paddingTop: '0px', paddingBottom: '0px' };
     }
-    if (el === container) return inset(`${CONTAINER_PAD}px`);
+    if (el === container) return { ...inset(`${CONTAINER_PAD}px`), transform: containerTransform };
     if (el === body) return inset(`${BODY_PAD}px`);
     return inset('0px');
   };
@@ -87,6 +87,19 @@ const ROOMY_AVAIL = 460;
 test('uses the space from the viewport top to the window bottom, less its own column footer', () => {
   installDom({ ...ROOMY, containerBottom: 933 });
   assert.equal(new ZoomPan({}).availContentHeight(), ROOMY_AVAIL);
+});
+
+// The shell's appReveal entrance slides the app 8px down while the first measure runs, so
+// a rect read then booted the frame 8px short (user report). The measure reads the
+// LAID-OUT top instead: the ancestor's translate is taken back off.
+test('a mid-flight translate on the shell does not shorten the frame', () => {
+  const vp = installDom({ ...ROOMY, vpTop: ROOMY.vpTop + 8, vpBottom: ROOMY.vpBottom + 8, sectionBottom: ROOMY.sectionBottom + 8, containerBottom: 941,
+                          containerTransform: 'matrix(1, 0, 0, 1, 0, 8)' });
+  const zp = new ZoomPan({});
+  assert.equal(zp.availContentHeight(), ROOMY_AVAIL, 'the same room as at rest');
+  // …and the coordinates panel beside it measures the same way.
+  zp.syncCoordPanelHeight();
+  assert.equal(vp.panel.style.maxHeight, `${Math.floor(953 - 362 - (CONTAINER_PAD + BODY_PAD))}px`);
 });
 
 // The bug this locks down: `below` counted only <body>'s bottom padding, so the

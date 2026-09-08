@@ -2,7 +2,7 @@
 // Pure decoration: without an IntersectionObserver/MutationObserver nothing here
 // runs and every list simply shows normally. CSS owns the keyframes
 // (lib/animations.css); this file only toggles classes.
-import { startCloud, resolveColour } from './dustCloud.js';
+import { startCloud, resolveColour, PARTICLE_STYLES, paletteCss } from './dustCloud.js';
 
 // Rows only dissolve by the amount the scroller is ALREADY clipping them — a row you
 // can see in full is never touched. Decoration must never cost legibility (the grain
@@ -153,9 +153,7 @@ export const scatterGridFor = (count, index = 0) => {
 // reduced motion, anywhere — because the removal must never depend on the animation.
 export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows } = {}) {
   const finish = () => { try { done(); } catch { /* the caller owns its own errors */ } };
-  let reduced = false;
-  try { reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { /* assume motion is fine */ }
-  if (!el?.classList || reduced) { finish(); return Promise.resolve(); }
+  if (!el?.classList || motionReduced()) { finish(); return Promise.resolve(); }
   // Freeze the height so the collapse has something to animate from: `height: auto`
   // has no start value to transition away from.
   if (el.getBoundingClientRect) {
@@ -172,11 +170,11 @@ export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows
 
 // How long a wipe REALLY lasts on screen (browser motion.js twin): leaveThenRemove
 // resolves on the short collapse while particles fall for DISINTEGRATE_MS, so a caller
-// swapping in a placeholder must wait for the longer one. 0 under reduced motion.
+// swapping in a placeholder must wait for the longer one. 0 under reduced motion; just
+// the collapse when the mode flies no particles ('slide').
 export const wipeDurationMs = () => {
-  let reduced = false;
-  try { reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { /* assume motion is fine */ }
-  return reduced ? 0 : Math.max(LEAVE_MS, DISINTEGRATE_MS);
+  if (motionReduced()) return 0;
+  return dustEnabled() ? Math.max(LEAVE_MS, DISINTEGRATE_MS) : LEAVE_MS;
 };
 
 // ── List hold: wipes in flight (browser motion.js twin) ─────────────────────
@@ -219,10 +217,25 @@ export const FILTER_ENTER_MS = 180;
 export const FILTER_OUT_CLASS = 'filter-out';
 export const FILTER_IN_CLASS = 'filter-in';
 
-// Does the user want motion at all? Never throws (no matchMedia outside a browser).
+// Does the OS want motion at all? Never throws (no matchMedia outside a browser).
 export const prefersReducedMotion = () => {
   try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
 };
+// ── The motion mode (browser motionPrefs.js twin) ───────────────────────────
+// The user's own switch, kept by the pre-paint classic script lib/accent.js
+// (window.StencilMotion), asked live so a change on the options page reaches an open popup
+// without a reload. Without the script only the OS preference speaks.
+const motionPref = () => globalThis.StencilMotion || null;
+export const motionMode = () => motionPref()?.get?.() ?? 'particles';
+// The one gate every animation checks: nothing may move.
+export const motionReduced = () => (motionPref() ? motionPref().reduced() : prefersReducedMotion());
+// …and the one every PARTICLE flight checks on top of it. False in 'slide' leaves the
+// surface's own CSS entrance in charge — the flight the particles normally replace.
+export const dustEnabled = () => (motionPref() ? motionPref().particles() : !prefersReducedMotion());
+// Which style the particles wear — 'dust' | 'water' | 'fire' — or null when none fly.
+export const particleStyle = () => (motionPref() ? motionPref().style() : (prefersReducedMotion() ? null : 'dust'));
+// …as dustCloud.js's code (0 = dust, the flight as tabulated).
+const styleCode = () => PARTICLE_STYLES[particleStyle()] || 0;
 
 // Which keys arrived and which went away between two renders, in render order. Pure.
 export const diffListKeys = (prev = [], next = []) => {
@@ -454,6 +467,9 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
                                    spread = SURFACE_SPREAD, toBody = false, hostEl = null,
                                    hostClass = '', paintTile = null } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
+  // Every element-sized cloud is built here, so this is where the mode turns particles
+  // off: a `false` return leaves the caller on its own CSS entrance, as it always has.
+  if (!dustEnabled()) return false;
   try {
     cancelDust(el);   // one cloud per element: the newest gesture owns it
     const r = el.getBoundingClientRect();
@@ -486,8 +502,6 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     // (tileMotion / surfaceMotion), its colour, size and clock. The cloud is then ONE
     // canvas evaluating these per frame (dustCloud.js) — no node per mote, so a
     // dialog-sized cloud costs a few batched fills rather than hundreds of layers.
-    const colours = [];
-    const colourIndex = new Map();
     const motes = [];
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
@@ -495,24 +509,28 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
         const m = toward
           ? surfaceMotion(cx, cy, cols, rows, r, toward, { span, spread })
           : tileMotion(cx, cy, cols, rows, gather, span);
+        // The speck's size, opacity and glint; its colour comes from the palette below.
         const speck = paint({ cx, cy, cols, rows, cellW, cellH });
-        let c = colourIndex.get(speck.color);
-        if (c === undefined) { c = colours.length; colourIndex.set(speck.color, c); colours.push(speck.color); }
         // The sweep is INSIDE the span, never added to it: a late mote flies the window
         // it has left, so the whole cloud is done at `span` instead of trailing
         // stragglers past it. Gathers already fit — their flight is the short gather
         // clock and the sweep is what fills the rest.
         motes.push({
           x: r.left + (cx + 0.5) * cellW, y: r.top + (cy + 0.5) * cellH,
-          dx: m.dx, dy: m.dy, mx: m.mx, my: m.my, r: speck.px / 2, s: m.scale, a: speck.alpha, c,
+          dx: m.dx, dy: m.dy, mx: m.mx, my: m.my, r: speck.px / 2, s: m.scale, a: speck.alpha,
           delay: m.delay, dur: gather ? gatherMs : Math.max(MIN_TILE_MS, span - m.delay),
-          // …and its own hash for the wobble and the twinkle (dustCloud.js turbulenceAt).
+          // …and its own hash for the wobble, the twinkle and its place in the palette
+          // (dustCloud.js turbulenceAt / dustMix).
           w: tileNoise(cx + 13, cy + 71), t: 1, g: speck.glint ? 1 : 0,
         });
       }
     }
     const kind = flightOf(toward, gather);
-    host.__cloud = { motes, colours, flight: kind, span };   // what a test reads
+    // Every cloud is painted in --accent / --accent-2, never in the surface's own colours:
+    // each grain picks its stop by its mix (dustCloud.js drawCloud).
+    const style = styleCode();
+    const paints = paletteCss();
+    host.__cloud = { motes, colours: paints, flight: kind, span, style };   // what a test reads
     // Appended to the element's own PARENT, not <body>: a row's cloud is torn down with
     // the list it belongs to. The host stays position:fixed, so it still escapes the
     // scroller's clipping. A SURFACE goes on <body> outright: its own parent (a dialog
@@ -532,9 +550,9 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     // document (a `var(--…)` needs the page's own scope to mean anything).
     const probe = document.createElement('span');
     host.appendChild(probe);
-    const fills = colours.map((css) => resolveColour(document, css, probe));
+    const fills = paints.map((css) => resolveColour(document, css, probe));
     probe.remove();
-    startCloud(host, motes, { flight: kind, span, colours: fills, origin: { x: r.left, y: r.top } });
+    startCloud(host, motes, { flight: kind, span, colours: fills, origin: { x: r.left, y: r.top }, style });
     el.__dustHost = host;
     el.__dustTimer = setTimeout(() => {
       host.__stop?.();
@@ -561,9 +579,7 @@ export const reintegrate = (el, opts = {}) => disintegrate(el, { ...opts, gather
 export const MATERIALIZE_CLASS = 'materializing';
 export const MATERIALIZE_VEIL_CLASS = 'materialize-veil';
 export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
-  let reduced = false;
-  try { reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { /* assume motion is fine */ }
-  if (!el?.classList || reduced) return Promise.resolve();
+  if (!el?.classList || motionReduced()) return Promise.resolve();
   // Freeze the natural height (the row is already laid out) so the expansion has
   // something to animate to — the same trick the leave plays with --leave-h.
   if (el.getBoundingClientRect) {
@@ -675,8 +691,13 @@ const trackDust = (el, ms, onDrop = () => {}) => {
   return () => { live = false; if (raf) cancelAnimationFrame(raf); };
 };
 
+// A chat entry is the one surface whose ONLY entrance was its dust, so in 'slide' it gets
+// the rise the others already have (browser css/animations.css chatRiseIn twin).
+export const CHAT_SLIDE_CLASS = 'chat-slide-in';
+export const CHAT_SLIDE_MS = 320;
 export function chatIn(el, count = 1, index = 0, { host = null } = {}) {
-  if (!el?.classList || prefersReducedMotion()) return Promise.resolve();
+  if (!el?.classList || motionReduced()) return Promise.resolve();
+  if (!dustEnabled()) { flashLanding(el, CHAT_SLIDE_CLASS, CHAT_SLIDE_MS); return Promise.resolve(); }
   const { cols, rows } = scatterGridFor(count, index);
   // Veiled from the FIRST frame, before anything is painted: the entry keeps its height
   // (so the transcript grows and scrolls to it as usual) but is never seen ahead of its
@@ -902,7 +923,7 @@ export function settleSurface(el) {
 const playSurface = (el, point, { ms, gather }) => {
   if (!el?.classList) return false;
   settleSurface(el);
-  if (prefersReducedMotion()) return false;
+  if (motionReduced()) return false;
   // The marker goes on BEFORE the measure. The element's own entrance (action-menu-pop,
   // stMenuFromAnchor) fills its from-state — an icon-sized scale — so a box measured
   // under it is the ICON's box, and every mote would be built from a 30px menu.
@@ -930,10 +951,6 @@ export const surfaceIn = (el, point, { ms = SURFACE_IN_MS } = {}) =>
 // hide/remove: like leaveThenRemove, the end state never depends on the animation.
 export const surfaceOut = (el, point, { ms = SURFACE_OUT_MS } = {}) =>
   playSurface(el, point, { ms, gather: false });
-// The browser's spelling of the same check, so the modules ported verbatim from
-// browser/js/ui (dropdownMenu, controlTooltip — extension/tests/portParity.test.js)
-// can name it exactly as they do there.
-export const motionReduced = prefersReducedMotion;
 
 // One-shot "it landed here" flash — restart-safe, so two drops in a row replay the
 // animation instead of the second one silently doing nothing.

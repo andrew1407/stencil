@@ -72,25 +72,40 @@ namespace stencil::gui {
     // else) locate a live wipe by this name instead.
     static constexpr const char* kObjectName = "stencilThemeSwap";
 
-    // ── The ragged front (browser motion.js swapEdgePolygon — keep in step) ──
-    // The wipe's edge is not a clean circle: the hole is a polygon ring whose vertices
-    // ride the same easing, each pushed off the nominal radius by its own noise —
-    // smooth lobes (the sin) torn by per-vertex jag (the hash) — so the boundary reads
-    // as the theme crumbling forward, not a line sweeping.
+    // ── The front (browser motion.js swapEdgePolygon ← dustCloud.js edgeJitter) ──
+    // The wipe's edge wears the particle style: a polygon ring whose vertices ride the same
+    // easing, each pushed off the nominal radius by the style's own recipe. Keep the
+    // numbers in step with the browser's EDGE table.
     static constexpr int kEdgePoints = 240;
-    // Kept SMALL: big teeth read as waves rolling, not dust — the raggedness is
-    // grain-scale, and the mote field below carries the rest of the dissolving read.
-    static constexpr double kEdgeAmp = 0.022;         // a tooth's reach, as a share of the radius
-    static constexpr double kEdgeBase = 1 + kEdgeAmp + 0.012;   // deepest dip still covers
     static constexpr double kTau = 6.28318530717958648;   // M_PI is not portable (MSVC)
+    static constexpr double kWaterWaves = 9, kWaterAmp = 0.028, kWaterRipple = 17, kWaterRippleAmp = 0.008;
+    static constexpr double kFireTongues = 20, kFireBase = 0.05, kFireVary = 0.05, kFireDip = 0.012, kFireJag = 0.006;
+    // Vertex k's reach off the nominal radius, as a share of it.
+    static double edgeJitter(support::ParticleStyle s, int k, int points = kEdgePoints) {
+      const double t = double(k) / points;
+      if (s == support::ParticleStyle::Water)
+        return kWaterAmp * std::sin(kTau * kWaterWaves * t) + kWaterRippleAmp * std::sin(kTau * kWaterRipple * t + 1);
+      if (s == support::ParticleStyle::Fire) {
+        const double tongue = std::floor(t * kFireTongues), u = t * kFireTongues - tongue;
+        const double h = kFireBase + kFireVary * dustNoise(int(tongue), 5);
+        return h * std::pow(std::sin(kTau / 2 * u), 3) - kFireDip + kFireJag * (dustNoise(k, 7) * 2 - 1);
+      }
+      return 0.0;
+    }
+    // The deepest dip inward: the ring's base overshoots by it (plus slack) so the
+    // finished front still clears the furthest corner, and the wake hugs just inside it.
+    static double edgeDipOf(support::ParticleStyle s) {
+      if (s == support::ParticleStyle::Water) return kWaterAmp + kWaterRippleAmp;
+      if (s == support::ParticleStyle::Fire) return kFireDip + kFireJag;
+      return 0.0;
+    }
+    static double edgeBaseOf(support::ParticleStyle s) { return 1 + edgeDipOf(s) + 0.012; }
 
     // Where vertex k of the front is at eased progress `e` (swapEase of the wipe time),
-    // `full` being the corner-reaching radius. Mostly per-vertex jag, with a faint fast
-    // ripple so the tear stays organic. Pure — the headless test pins it to the same
-    // coverage/raggedness contract browser motion.test.js holds swapEdgePolygon to.
-    static double edgeRadiusAt(int k, double e, double full) {
-      const double j = kEdgeAmp * (0.35 * std::sin(k * 0.73) + 0.65 * (dustNoise(k, 7) * 2 - 1));
-      return e * full * kEdgeBase * (1 + j);
+    // `full` being the corner-reaching radius. Pure — the headless test pins it to the
+    // same coverage contract browser motion.test.js holds swapEdgePolygon to.
+    static double edgeRadiusAt(int k, double e, double full, support::ParticleStyle s = support::ParticleStyle::Dust) {
+      return e * full * edgeBaseOf(s) * (1 + edgeJitter(s, k));
     }
 
     // ── Dust in the wipe's wake (browser motion.js swapDustSpecs — keep in step) ──
@@ -123,18 +138,23 @@ namespace stencil::gui {
     // motion.test.js pins swapDustSpecs.
     struct DustMote {
       double x, y, size, alpha;
-      bool accent;   // every fourth grain is the departing accent (browser parity)
+      bool accent;   // every fourth grain wears the shade (browser parity)
+      double life;   // how far through its life (0..1) — the style's progress…
+      double w;      // …its own hash (browser swapDustSpecs `w`)…
+      double len;    // …the length of its throw, for dustKit.hpp styleFrame…
+      double heading;   // …and the way it flies, for its shape
     };
     static bool dustMoteAt(int i, double ms, const QPointF& origin, double full,
-                           const QSizeF& bounds, DustMote* out) {
+                           const QSizeF& bounds, DustMote* out,
+                           support::ParticleStyle s = support::ParticleStyle::Dust) {
       const double n = dustNoise(i, 3), m = dustNoise(i + 57, 11), q = dustNoise(i + 13, 29);
       const double u = kDustMinT + m * (kDustMaxT - kDustMinT);
       const double life = (ms - u * kSwapMs) / kDustLifeMs;
       if (life <= 0.0 || life >= 1.0) return false;
       const double angle = n * kTau;
-      // Hug the torn edge: just behind even its deepest tooth (1 − amp of the nominal
-      // radius), so the band of grains and the ragged clip read as one crumbling front.
-      const double r = swapEase(u) * full * (1 - kEdgeAmp) - q * 6;
+      // Hug the front: just behind even its deepest dip, so the band of grains and the
+      // clip read as one crumbling front.
+      const double r = swapEase(u) * full * (1 - edgeDipOf(s)) - q * 6;
       if (r <= 0) return false;
       const double hx = origin.x() + std::cos(angle) * r;
       const double hy = origin.y() + std::sin(angle) * r;
@@ -151,25 +171,27 @@ namespace stencil::gui {
       // Chase the front outward, slower than it (the ring accelerates away), plus a
       // sideways breath so the wake churns instead of radiating.
       const double d = 8 + q * 14;
-      out->x = hx + (std::cos(angle) * d + (m - 0.5) * 14) * e;
-      out->y = hy + (std::sin(angle) * d + (0.5 - q) * 14) * e;
+      const double dx = std::round(std::cos(angle) * d + (m - 0.5) * 14);
+      const double dy = std::round(std::sin(angle) * d + (0.5 - q) * 14);
+      out->x = hx + dx * e;
+      out->y = hy + dy * e;
       out->alpha = alpha;
       out->size = (2.5 + n * 3.5) * (1.0 - 0.7 * e);
       out->accent = i % 4 == 0;
+      out->life = life;
+      out->w = dustNoise(i + 71, 13);
+      out->len = std::hypot(dx, dy);
+      out->heading = support::headingOf(dx, dy, false);
       return true;
     }
 
     // Arm the wake, in the palette the wipe is ERASING — call with the colours as they
-    // stood BEFORE the restyle. The grain is the old surface lifted towards its own ink
-    // (browser motion.js MOTE_INK), so a theme flip dusts in the old page's colour and
-    // an accent cycle still reads over an unchanged background.
-    void seedDust(const QColor& bg, const QColor& ink, const QColor& accent) {
-      if (!bg.isValid() || !ink.isValid()) return;
-      const double k = 0.42;   // MOTE_INK, as a share
-      grain_ = QColor(qRound(bg.red() * (1 - k) + ink.red() * k),
-                      qRound(bg.green() * (1 - k) + ink.green() * k),
-                      qRound(bg.blue() * (1 - k) + ink.blue() * k));
-      dustAccent_ = accent.isValid() ? accent : grain_;
+    // stood BEFORE the restyle: the departing `accent` and its `shade`, the same two
+    // colours every cloud wears (browser motion.js swapDustPaint palette).
+    void seedDust(const QColor& accent, const QColor& shade = QColor()) {
+      if (!accent.isValid()) return;
+      dustAccent_ = accent;
+      dustShade_ = shade.isValid() ? shade : accent;
       dust_ = true;
     }
 
@@ -253,7 +275,7 @@ namespace stencil::gui {
         front.reserve(kEdgePoints);
         for (int k = 0; k < kEdgePoints; k++) {
           const double a = k * kTau / kEdgePoints;
-          const double r = edgeRadiusAt(k, e, full_);
+          const double r = edgeRadiusAt(k, e, full_, style_);
           front << QPoint(qRound(c.x() + std::cos(a) * r), qRound(c.y() + std::sin(a) * r));
         }
         p.setClipRegion(QRegion(rect()).subtracted(QRegion(front)));
@@ -269,10 +291,15 @@ namespace stencil::gui {
       p.setRenderHint(QPainter::SmoothPixmapTransform, false);
       DustMote mote;
       for (int i = 0; i < kDustMotes; i++) {
-        if (!dustMoteAt(i, timeMs_, QPointF(c), full_, QSizeF(size()), &mote)) continue;
-        QColor col = mote.accent ? dustAccent_ : grain_;
-        col.setAlphaF(std::clamp(mote.alpha, 0.0, 1.0));
-        sprites_.draw(p, QPointF(mote.x, mote.y), mote.size / 2, col);
+        if (!dustMoteAt(i, timeMs_, QPointF(c), full_, QSizeF(size()), &mote, style_)) continue;
+        // Every grain is painted from the departing accent palette by its mix (browser
+        // spawnSwapDust), in the style's own shape along its heading.
+        const support::StyleFrame sf = support::styleFrame(style_, mote.life, mote.life, mote.w, mote.len, timeMs_);
+        const double mix = style_ == support::ParticleStyle::Dust ? support::dustMix(mote.w, mote.accent) : sf.mix;
+        QColor col = support::paletteStop(dustAccent_, dustShade_, mix);
+        col.setAlphaF(std::clamp(mote.alpha * sf.glow, 0.0, 1.0));
+        sprites_.draw(p, QPointF(mote.x + sf.sx, mote.y + sf.sy), mote.size / 2 * sf.scale, col,
+                      support::grainShape(style_, mote.w), mote.heading);
       }
       p.setOpacity(1.0);
     }
@@ -295,8 +322,11 @@ namespace stencil::gui {
     QElapsedTimer clock_;     // …read off this wall clock (start())
     support::MoteSprites sprites_;   // the wake's grains, drawn once each and blitted
     bool dust_ = false;       // armed by seedDust — without it the overlay is the old wipe
-    QColor grain_;            // the old surface lifted towards its old ink
-    QColor dustAccent_;       // …and the departing accent, for every fourth grain
+    QColor dustAccent_;       // the departing accent…
+    QColor dustShade_;        // …and its shade: the wake's palette
+    // The style the front and its wake wear — read when the wipe is captured, so a
+    // 'slide' swap (no grain) still cuts its style's edge… a circle, as dust does.
+    support::ParticleStyle style_ = support::particleStyle();
   };
 
 }  // namespace stencil::gui

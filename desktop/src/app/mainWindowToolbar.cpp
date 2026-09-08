@@ -329,6 +329,7 @@ namespace stencil::gui {
     // Its chevron's angle is STATE (toolbars shown/hidden), not hover feedback — the
     // browser's `[id^="toggle-"]` icon-motion opt-out.
     controlsPill_->setProperty(kNoIconMotionProperty, true);
+    controlsPill_->setProperty(kShimmerRadiusProperty, 12);   // its QSS radius (shimmerOverlay.hpp)
     controlsPill_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     controlsPill_->setIconSize(QSize(kPillChevron, kPillChevron));   // scaled to the label, not the toolbar
     controlsPill_->setText("Controls");

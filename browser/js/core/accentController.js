@@ -89,6 +89,14 @@ export class AccentController {
   setAccent(key, originEl = null) {
     const next = this.applyAccent(key, originEl);
     this.app.tabs.broadcastAccent(next);
+    this.announce(next);
+  }
+
+  // Tell anything showing the accent (the Visuals picker, the logo's preset menu) that it
+  // moved. The NEW value rides in `detail` — themeSwap writes the attribute a beat later,
+  // so a listener reading app.accent at once would still see the old preset.
+  announce(value) {
+    try { window.dispatchEvent(new CustomEvent('stencil:accent-changed', { detail: value })); } catch { /* no DOM — best-effort UI nudge */ }
   }
 
   // Paint + persist the accent in THIS tab; returns the resolved key. Used by setAccent
@@ -117,6 +125,7 @@ export class AccentController {
       applyFaviconHex(norm);
       this.applyGlyphContrast(norm);
     }, () => originOf(originEl) || accentOrigin());
+    this.announce(norm);
     return norm;
   }
 }

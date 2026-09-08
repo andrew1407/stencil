@@ -250,9 +250,10 @@ test('a mote is a painted speck, never a copy — one canvas per cloud, no node 
     assert.ok(cloud.motes.length >= 9, 'at least three bands each way');
     // Everything a grain needs rides its record: home, throw, waypoint, size, its
     // speck's own colour and opacity, and its clock.
-    for (const k of ['x', 'y', 'dx', 'dy', 'mx', 'my', 'r', 's', 'a', 'c', 'delay', 'dur'])
+    for (const k of ['x', 'y', 'dx', 'dy', 'mx', 'my', 'r', 's', 'a', 'w', 'delay', 'dur'])
       assert.ok(Number.isFinite(cloud.motes[0][k]), `${k} on the grain`);
-    assert.ok(cloud.colours.length >= 1, 'painted in the surface’s own colours');
+    assert.equal(cloud.colours.length, 6, 'painted from the accent palette, never the surface’s own pixels');
+    assert.match(cloud.colours[0], /var\(--accent\) 100%/);
     assert.ok(!host.children.some((c) => c.classes?.has?.('disintegrate-tile')), 'no node per grain');
   });
 });

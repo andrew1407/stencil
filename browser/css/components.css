@@ -1526,6 +1526,11 @@ stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
 .accent-dd-menu.dd-portal {
     position: fixed;
     right: auto;
+    /* No `min-width: 100%` here: on <body> that is the whole VIEWPORT, and a list measured
+       at that width before placeMenu's inline trigger-width landed was clamped to the
+       left margin (user report: the list opened at the far left). placeMenu sets the
+       real floor inline. */
+    min-width: 0;
     z-index: 100002;
 }
 .accent-dd-opt {

@@ -359,8 +359,8 @@ export class DrawingApp {
     // …and again after the first paint: the first call runs before the shell's layout is
     // real, which leaves the empty editor slightly too tall (permanent scrollbar).
     if (typeof requestAnimationFrame === 'function') requestAnimationFrame(syncViewport);
-    // …and once the shell's reveal animation ends: appReveal (animations.css) TRANSLATES the
-    // container 8px, and a translated box measures 8px lower — the frame boots that short.
+    // …and once the shell's reveal ends. The measure already discounts the appReveal
+    // translate (zoomPan.js layoutTop), so this only catches anything else it settled.
     const shell = document.querySelector('.container');
     shell?.addEventListener('animationend', (e) => {
       if (e.target === shell && e.animationName === 'appReveal') syncViewport();

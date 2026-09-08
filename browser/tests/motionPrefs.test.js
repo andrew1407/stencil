@@ -1,6 +1,6 @@
 // The two motion switches (js/ui/motionPrefs.js): the canvas stroke animation, and the
-// three interface modes — particles / slide / none. Everything that moves in the app asks
-// one of the two gates below, so these are the tests that pin what each mode means.
+// five interface modes — particles (dust) / water / fire / slide / none. Everything that
+// moves asks one of the two gates below, so these pin what each mode means.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -28,12 +28,37 @@ const {
   MOTION_MODES, MOTION_STORAGE_KEY, MOTION_EVENT, DEFAULT_MOTION_MODE,
   motionPrefs, setMotionPrefs, reloadMotionPrefs, normalizeMotionMode,
   motionReduced, dustEnabled, drawMotionEnabled, motionMode, drawingAnimations,
+  PARTICLE_MODES, particleStyle, MOTION_MODE_LABELS,
 } = prefs;
 
 test('the defaults are "everything moves, made of particles"', () => {
-  assert.deepEqual(MOTION_MODES, ['particles', 'slide', 'none']);
+  assert.deepEqual(MOTION_MODES, ['particles', 'water', 'fire', 'slide', 'none']);
+  assert.deepEqual(PARTICLE_MODES, ['particles', 'water', 'fire']);
   assert.equal(DEFAULT_MOTION_MODE, 'particles');
   assert.deepEqual(motionPrefs(), { mode: 'particles', drawing: true });
+  // The dropdown offers every mode, in this order, and nothing else.
+  assert.deepEqual(MOTION_MODE_LABELS.map(([k]) => k), MOTION_MODES);
+});
+
+// Water and fire are particles too: the same gate, a different style on the grains.
+test('water and fire fly particles like dust, each wearing its own style', () => {
+  setMotionPrefs({ mode: 'particles', drawing: true });
+  assert.equal(particleStyle(), 'dust');
+  setMotionPrefs({ mode: 'water' });
+  assert.equal(dustEnabled(), true, 'water: the clouds still fly');
+  assert.equal(motionReduced(), false);
+  assert.equal(particleStyle(), 'water');
+  assert.equal(doc.documentElement.attrs.get('data-motion'), 'water');
+  setMotionPrefs({ mode: 'fire' });
+  assert.equal(dustEnabled(), true);
+  assert.equal(particleStyle(), 'fire');
+  assert.deepEqual(reloadMotionPrefs(), { mode: 'fire', drawing: true }, 'persists like any mode');
+  setMotionPrefs({ mode: 'slide' });
+  assert.equal(particleStyle(), null, 'no particles, no style');
+  setMotionPrefs({ mode: 'particles' });
+  reduced = true;
+  assert.equal(particleStyle(), null, 'the OS preference silences the style with the cloud');
+  reduced = false;
 });
 
 test('an unknown, missing or junk mode reads as the default — never as "off"', () => {
@@ -111,6 +136,11 @@ test('every cloud in the app is built behind the dust gate, and the strokes behi
   // canvas ghost in both directions.
   assert.match(motion, /typeof requestAnimationFrame !== 'function' \|\| !dustEnabled\(\)/);
   assert.equal(motion.match(/if \(!dustEnabled\(\)\) return false;/g).length, 3, 'disintegrate + ghostIn + ghostOut');
+  // …and every one of them wears the style: the element cloud, the canvas ghost and the
+  // theme wake all read styleCode() and paint a styled cloud from the accent palette.
+  assert.ok(body.includes('const style = styleCode();') && body.includes('const paints = paletteCss();'), 'disintegrate');
+  assert.match(motion, /const runDust = [\s\S]*?const style = styleCode\(\);[\s\S]*?style, ms, palette: paletteCss\(\)\.map/, 'the canvas ghost');
+  assert.match(motion, /return \{ palette: paletteCss\(\)\.map\(\(css\) => resolveColour\(document, css\)\) \};/, 'the theme wake, in the OLD palette');
   // The voice mic's motes and ray ring are particles too.
   assert.match(read('../js/ui/voiceDust.js'), /isOn\(\) && dustEnabled\(\)/);
   // The canvas stroke flight answers the drawing switch instead.
@@ -124,6 +154,7 @@ test('the mode reaches the CSS before first paint, and stops what CSS alone driv
   const prePaint = read('../js/prePaintTheme.js');
   assert.ok(prePaint.includes("localStorage.getItem('drawingApp_motion')"), 'same key as motionPrefs.js');
   assert.match(prePaint, /root\.setAttribute\('data-motion',/);
+  assert.ok(prePaint.includes(`[${MOTION_MODES.map((m) => `'${m}'`).join(', ')}]`), 'the inlined mode list is the module\'s');
   const css = read('../css/animations.css');
   assert.match(css, /:root\[data-motion="none"\] \*,/);
   assert.match(css, /animation-duration: 0\.01ms !important;/);

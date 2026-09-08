@@ -6,6 +6,10 @@ import assert from 'node:assert';
 import {
   bezierY, easeLut, EASE_STEPS, FLIGHTS, alphaAt, moteFrame, cloudBounds, drawCloud, ALPHA_LEVELS,
   resolveColour, startCloud, turbulenceAt, twinkleAt, TURBULENCE_MAX_PX, TWINKLE_DEPTH,
+  STYLE_DUST, STYLE_WATER, STYLE_FIRE, PARTICLE_STYLES, PALETTE_STOPS, WATER, FIRE,
+  styleFrame, paletteIndex, paletteCss, dustMix,
+  SHAPE_DISC, SHAPE_OVAL, SHAPE_WAVE, SHAPE_TRIANGLE, SHAPE_STREAK, grainShape, headingOf, shapePolygon, addGrainPath,
+  EDGE_POINTS, edgeJitter, edgeDipOf, edgeReachOf, edgeBaseOf, FILL_CHUNK, fillGrains,
 } from '../js/ui/dustCloud.js';
 
 const grain = { x: 100, y: 200, dx: 60, dy: -80, mx: 40, my: -45, r: 3, s: 0.3, a: 0.9 };
@@ -85,10 +89,12 @@ test('drawing batches grains into one fill per colour and opacity step', () => {
   const ctx = {
     globalAlpha: 1, fillStyle: '',
     beginPath: () => calls.push('begin'), moveTo: () => {}, arc: () => calls.push('arc'),
+    ellipse: () => calls.push('arc'), lineTo: () => {}, closePath: () => calls.push('arc'),
     fill() { calls.push(`fill ${this.fillStyle} @${this.globalAlpha.toFixed(2)}`); },
   };
+  // Two palette stops: plain grains (w 0) wear the first, glints the last.
   const motes = [];
-  for (let i = 0; i < 40; i++) motes.push({ ...grain, x: i * 10, c: i % 2, delay: 0, dur: 1000 });
+  for (let i = 0; i < 40; i++) motes.push({ ...grain, x: i * 10, w: 0, g: i % 2, delay: 0, dur: 1000 });
   drawCloud(ctx, motes, 'scatter', 100, ['red', 'blue']);
   const fills = calls.filter((c) => c.startsWith('fill'));
   assert.equal(calls.filter((c) => c === 'arc').length, 40, 'every grain is an arc');
@@ -122,6 +128,7 @@ test('startCloud paints on the canvas it appends and stops when told', () => {
   let frames = 0;
   const ctx = {
     setTransform() {}, clearRect() { frames++; }, beginPath() {}, moveTo() {}, arc() {}, fill() {},
+    ellipse() {}, lineTo() {}, closePath() {},
     globalAlpha: 1, fillStyle: '',
   };
   const canvas = { getContext: () => ctx, style: {}, width: 0, height: 0 };
@@ -178,4 +185,189 @@ test('a glint twinkles on its own clock; a plain grain does not', () => {
   }
   assert.ok(seen.size > 5, 'breathes over time');
   assert.ok(moteFrame(glint, 'surfaceGather', 1, {}, 0).alpha <= 0.9 + 1e-9, 'the swing rides the opacity');
+});
+
+// ── Particle styles: dust, water, fire ───────────────────────────────────────
+test('dust is the identity style; water and fire touch a grain only mid-flight', () => {
+  assert.deepEqual(PARTICLE_STYLES, { dust: 0, water: 1, fire: 2 });
+  assert.deepEqual(styleFrame(STYLE_DUST, 0.5, 0.5, 0.3, 100, 250), { sx: 0, sy: 0, scale: 1, glow: 1, mix: 0 });
+  for (const style of [STYLE_WATER, STYLE_FIRE]) {
+    for (const p of [0, 1]) {
+      const f = styleFrame(style, p, p, 0.3, 100, 250);
+      assert.ok(Math.abs(f.sx) < 1e-9 && Math.abs(f.sy) < 1e-9, `style ${style} is gone at p=${p}`);
+      assert.ok(Math.abs(f.scale - 1) < 1e-9 || style === STYLE_FIRE, `style ${style} is full size at p=${p}`);
+    }
+    const mid = styleFrame(style, 0.5, 0.5, 0.3, 100, 250);
+    assert.ok(Math.abs(mid.sy) > 5, `style ${style} moves a grain off its line mid-flight`);
+    assert.ok(mid.glow > 0 && mid.glow <= 1, 'brightness is a share');
+    assert.ok(mid.mix >= 0 && mid.mix <= 1, 'the colour is between the accent and its shade');
+  }
+});
+
+test('water sags below its line and swells; fire lifts above it and flickers', () => {
+  const w = styleFrame(STYLE_WATER, 0.5, 0.5, 0.3, 100, 250);
+  assert.ok(w.sy > 0 && w.sy <= WATER.sagMaxPx, `a drop sags down by up to ${WATER.sagMaxPx}px, got ${w.sy}`);
+  assert.ok(Math.abs(w.sx) <= WATER.swayMaxPx);
+  assert.ok(Math.abs(w.scale - (1 + WATER.swell)) < 1e-9, 'swollen fully at the midpoint');
+  assert.ok(w.glow >= 1 - WATER.shimmerDepth - 1e-9);
+  const f = styleFrame(STYLE_FIRE, 0.5, 0.5, 0.3, 100, 250);
+  assert.ok(f.sy < 0 && -f.sy <= FIRE.liftMaxPx, `an ember lifts by up to ${FIRE.liftMaxPx}px, got ${f.sy}`);
+  assert.ok(Math.abs(f.sx) <= FIRE.waverMaxPx);
+  assert.ok(f.glow >= 1 - FIRE.flickerDepth - 1e-9 && f.scale >= 1 && f.scale <= 1 + FIRE.flare + 1e-9);
+  // A short throw is nudged less: the push is a share of the throw, capped.
+  assert.ok(styleFrame(STYLE_WATER, 0.5, 0.5, 0.3, 10, 250).sy < w.sy);
+  assert.equal(styleFrame(STYLE_FIRE, 0.5, 0.5, 0.3, 0, 250).sy, 0, 'no throw, no lift');
+  // Fire cools as it leaves home: accent at home, the shade far away. Water glistens on
+  // its own clock instead, sweeping the whole palette.
+  assert.ok(styleFrame(STYLE_FIRE, 0.5, 0, 0, 100, 0).mix < 0.1 && styleFrame(STYLE_FIRE, 0.5, 1, 1, 100, 0).mix > 0.9);
+  const mixes = new Set();
+  for (let t = 0; t < 2000; t += 50) mixes.add(paletteIndex(styleFrame(STYLE_WATER, 0.5, 0.5, 0.3, 100, t).mix));
+  assert.ok(mixes.size >= 4, `water drifts across the palette, saw ${mixes.size} stops`);
+  // Both flicker over time, and reproducibly: same hash, same frame.
+  const seen = new Set();
+  for (let t = 0; t < 400; t += 10) seen.add(styleFrame(STYLE_FIRE, 0.5, 0.5, 0.3, 100, t).glow.toFixed(2));
+  assert.ok(seen.size > 5, 'an ember flickers');
+  assert.deepEqual(styleFrame(STYLE_FIRE, 0.4, 0.4, 0.7, 80, 123), styleFrame(STYLE_FIRE, 0.4, 0.4, 0.7, 80, 123));
+  assert.notDeepEqual(styleFrame(STYLE_FIRE, 0.4, 0.4, 0.7, 80, 123), styleFrame(STYLE_FIRE, 0.4, 0.4, 0.2, 80, 123));
+});
+
+test('a styled grain still sets off from and lands exactly where its flight says', () => {
+  const live = { ...grain, w: 0.37, t: 1 };
+  for (const style of [STYLE_WATER, STYLE_FIRE]) {
+    for (const [name, f] of Object.entries(FLIGHTS)) {
+      const start = moteFrame(live, name, 0, {}, 0, style), end = moteFrame(live, name, 1, {}, 900, style);
+      const [a, b] = f.from === 'far' ? [[160, 120], [100, 200]] : [[100, 200], [160, 120]];
+      assert.ok(near(start.x, a[0]) && near(start.y, a[1]), `${name}/${style} sets off from home or far`);
+      assert.ok(near(end.x, b[0]) && near(end.y, b[1]), `${name}/${style} lands`);
+      const mid = moteFrame(live, name, 0.5, {}, 300, style), rail = moteFrame(live, name, 0.5, {}, 300, STYLE_DUST);
+      assert.ok(Math.hypot(mid.x - rail.x, mid.y - rail.y) > 1, `${name}/${style} is off the dust rail mid-flight`);
+      assert.ok(mid.mix >= 0 && mid.mix <= 1, 'and carries its colour mix');
+      assert.equal(rail.mix, dustMix(live.w, live.g), 'dust keeps its hashed stop');
+    }
+  }
+  // Water sags DOWN the screen, fire lifts UP it, whatever way the throw points.
+  const up = { ...grain, dy: -80 }, down = { ...grain, dy: 80 };
+  for (const g of [up, down]) {
+    assert.ok(moteFrame(g, 'scatter', 0.5, {}, 300, STYLE_WATER).y > moteFrame(g, 'scatter', 0.5, {}, 300).y);
+    assert.ok(moteFrame(g, 'scatter', 0.5, {}, 300, STYLE_FIRE).y < moteFrame(g, 'scatter', 0.5, {}, 300).y);
+  }
+});
+
+test('the palette is six even mixes of the accent and its shade, and a styled cloud is drawn from it', () => {
+  assert.equal(PALETTE_STOPS, 6);
+  const css = paletteCss();
+  assert.equal(css.length, 6);
+  assert.equal(css[0], 'color-mix(in srgb, var(--accent) 100%, var(--accent-2))');
+  assert.equal(css[5], 'color-mix(in srgb, var(--accent) 0%, var(--accent-2))');
+  assert.equal(css[2], 'color-mix(in srgb, var(--accent) 60%, var(--accent-2))');
+  assert.equal(paletteIndex(0), 0);
+  assert.equal(paletteIndex(1), 5);
+  assert.equal(paletteIndex(0.5), 3);
+  assert.equal(paletteIndex(2), 5, 'clamped');
+  // Drawing: the grains ignore their own colour index and ride the palette by mix — fire
+  // near home is all accent, water sweeps the stops.
+  const fills = [];
+  const ctx = {
+    globalAlpha: 1, fillStyle: '', beginPath() {}, moveTo() {}, arc() {}, ellipse() {}, lineTo() {}, closePath() {},
+    fill() { fills.push(this.fillStyle); },
+  };
+  const palette = ['p0', 'p1', 'p2', 'p3', 'p4', 'p5'];
+  const motes = [];
+  for (let i = 0; i < 30; i++) motes.push({ ...grain, x: i * 10, c: 4, w: i / 30, t: 1, delay: 0, dur: 1000 });
+  drawCloud(ctx, motes, 'scatter', 50, palette, undefined, STYLE_FIRE);   // 5% out: still hot
+  assert.ok(fills.length > 0 && fills.every((f) => f === 'p0' || f === 'p1'), `embers near home are accent, got ${[...new Set(fills)]}`);
+  fills.length = 0;
+  drawCloud(ctx, motes, 'scatter', 500, palette, undefined, STYLE_WATER);
+  assert.ok(new Set(fills).size >= 3, 'drops glisten across the palette');
+  fills.length = 0;
+  drawCloud(ctx, motes, 'scatter', 500, palette, undefined, STYLE_DUST);
+  assert.ok(fills.every((f) => ['p0', 'p1', 'p2', 'p3'].includes(f)), 'dust spreads plain grains over the accent half');
+  assert.ok(new Set(fills).size >= 2);
+  fills.length = 0;
+  drawCloud(ctx, motes.map((m) => ({ ...m, g: 1 })), 'scatter', 500, palette, undefined, STYLE_DUST);
+  assert.ok(fills.every((f) => f === 'p5'), 'dust glints wear the shade');
+  assert.equal(dustMix(0.4, 0), 0.2);
+  assert.equal(dustMix(0.4, 1), 1);
+});
+
+// ── Grain shapes and the wipe's front ───────────────────────────────────────
+test('each style has its own grains: dust discs, water ovals and wave lines, fire triangles and sparks', () => {
+  for (const w of [0, 0.1, 0.37, 0.5, 0.8, 0.95]) assert.equal(grainShape(STYLE_DUST, w), SHAPE_DISC);
+  const water = new Set(), fire = new Set();
+  for (let w = 0; w < 1; w += 0.01) { water.add(grainShape(STYLE_WATER, w)); fire.add(grainShape(STYLE_FIRE, w)); }
+  assert.deepEqual([...water].sort(), [SHAPE_OVAL, SHAPE_WAVE]);
+  assert.deepEqual([...fire].sort(), [SHAPE_TRIANGLE, SHAPE_STREAK]);
+  // Pinned picks — the desktop's grainShape must agree (motionPrefs.headless.cpp).
+  assert.equal(grainShape(STYLE_WATER, 0.1), SHAPE_OVAL);
+  assert.equal(grainShape(STYLE_WATER, 0.8), SHAPE_WAVE);
+  assert.equal(grainShape(STYLE_FIRE, 0.1), SHAPE_TRIANGLE);
+  assert.equal(grainShape(STYLE_FIRE, 0.8), SHAPE_STREAK);
+  // A grain lies along its heading; a gather flies its throw backwards.
+  assert.ok(near(headingOf(0, 1, false), Math.PI / 2) && near(headingOf(0, 1, true), 3 * Math.PI / 2));
+  // Polygons: a triangle points along the heading (its tip is ahead of its base).
+  const tri = shapePolygon(SHAPE_TRIANGLE, 10, 20, 2, 0.5);
+  assert.deepEqual(tri.map((v) => +v.toFixed(6)), [12.983781, 21.630047, 7.549259, 20.940142, 9.466961, 17.429811]);
+  assert.equal(shapePolygon(SHAPE_WAVE, 0, 0, 2, 0).length, 18 * 2, 'a wave line is a 9-sample ribbon');
+  const streak = shapePolygon(SHAPE_STREAK, 0, 0, 2, 0);
+  assert.equal(streak.length, 8);
+  assert.ok(Math.abs(streak[1] - streak[7]) > Math.abs(streak[3] - streak[5]), 'a spark is wide at the head, thin at the tail');
+  // drawCloud works every grain's shape and heading out once per cloud, not per frame.
+  const scratch = { out: {}, buckets: new Map() };
+  const ctx = { globalAlpha: 1, fillStyle: '', beginPath() {}, moveTo() {}, arc() {}, ellipse() {}, lineTo() {}, closePath() {}, fill() {} };
+  drawCloud(ctx, [{ ...grain, w: 0.8, delay: 0, dur: 1000 }], 'surfaceGather', 300, ['p'], scratch, STYLE_FIRE);
+  assert.deepEqual([...scratch.shapes], [SHAPE_STREAK]);
+  assert.ok(near(scratch.heads[0], Math.atan2(-80, 60) + Math.PI, 1e-6), 'a gather points home');
+});
+
+test('a batch is filled in short chunks — the engine charges more per grain the longer the path', () => {
+  assert.equal(FILL_CHUNK, 32);
+  const ops = [];
+  const ctx = { beginPath: () => ops.push('b'), fill: () => ops.push('f'), moveTo() {}, arc: () => ops.push('g'), ellipse() {}, lineTo() {}, closePath() {} };
+  const b = new Float32Array(70 * 5);
+  fillGrains(ctx, b, 70, []);
+  assert.equal(ops.filter((o) => o === 'b').length, 3, '70 grains → 32 + 32 + 6');
+  assert.equal(ops.filter((o) => o === 'f').length, 3);
+  assert.equal(ops.filter((o) => o === 'g').length, 70, 'every grain drawn once');
+});
+
+test('addGrainPath draws discs as arcs, ovals as ellipses and the rest as closed polygons', () => {
+  const ops = [];
+  const ctx = { moveTo: () => ops.push('m'), arc: () => ops.push('arc'), ellipse: () => ops.push('ellipse'),
+                lineTo: () => ops.push('l'), closePath: () => ops.push('z') };
+  addGrainPath(ctx, SHAPE_DISC, 0, 0, 2, 0); assert.deepEqual(ops, ['m', 'arc']); ops.length = 0;
+  addGrainPath(ctx, SHAPE_OVAL, 0, 0, 2, 1); assert.deepEqual(ops, ['m', 'ellipse']); ops.length = 0;
+  addGrainPath(ctx, SHAPE_TRIANGLE, 0, 0, 2, 1); assert.deepEqual(ops, ['m', 'l', 'l', 'z']); ops.length = 0;
+  addGrainPath(ctx, SHAPE_STREAK, 0, 0, 2, 1); assert.deepEqual(ops, ['m', 'l', 'l', 'l', 'z']); ops.length = 0;
+  addGrainPath(ctx, SHAPE_WAVE, 0, 0, 2, 1); assert.equal(ops.filter((o) => o === 'l').length, 17);
+});
+
+test('the wipe front wears the style: dust a perfect circle, water waved, fire cut into tongues', () => {
+  for (let k = 0; k < EDGE_POINTS; k++) assert.equal(edgeJitter(STYLE_DUST, k), 0);
+  const water = [], fire = [];
+  for (let k = 0; k < EDGE_POINTS; k++) { water.push(edgeJitter(STYLE_WATER, k)); fire.push(edgeJitter(STYLE_FIRE, k)); }
+  assert.ok(Math.max(...water) > 0.02 && Math.min(...water) < -0.02, 'water swells both ways');
+  assert.ok(Math.max(...water) <= edgeReachOf(STYLE_WATER) && -Math.min(...water) <= edgeDipOf(STYLE_WATER));
+  assert.ok(Math.max(...fire) > 0.05, 'fire reaches out in tongues');
+  assert.ok(Math.max(...fire) <= edgeReachOf(STYLE_FIRE) + 1e-9 && -Math.min(...fire) <= edgeDipOf(STYLE_FIRE) + 1e-9);
+  assert.ok(fire.filter((j) => j > 0.04).length < EDGE_POINTS / 2, 'tongues, not a bigger circle');
+  // Pinned vertices — the desktop's edgeJitter must agree (themeSwapEase.headless.cpp).
+  assert.ok(near(edgeJitter(STYLE_WATER, 17), -0.015235022, 1e-9));
+  assert.ok(near(edgeJitter(STYLE_FIRE, 17), 0.043404486, 1e-9));
+  assert.equal(edgeBaseOf(STYLE_DUST), 1.012);
+  assert.ok(near(edgeBaseOf(STYLE_WATER), 1 + 0.036 + 0.012));
+});
+
+test('a gathering grain draws nothing until it sets off — no blob of parked grains on the icon', () => {
+  const arcs = [];
+  const ctx = { globalAlpha: 1, fillStyle: '', beginPath() {}, moveTo() {}, arc: (x, y) => arcs.push([x, y]), ellipse() {}, lineTo() {}, closePath() {}, fill() {} };
+  const motes = [];
+  for (let i = 0; i < 20; i++) motes.push({ ...grain, x: i * 10, w: 0.5, delay: 200 + i * 10, dur: 400 });
+  drawCloud(ctx, motes, 'surfaceGather', 100, ['p']);
+  assert.equal(arcs.length, 0, 'before any delay is up, the far end shows no grain');
+  drawCloud(ctx, motes, 'surfaceGather', 250, ['p']);
+  assert.ok(arcs.length > 0 && arcs.length < 20, `only the launched grains show (${arcs.length})`);
+  // A scatter still holds its unlaunched grains at home (they ARE the surface there).
+  arcs.length = 0;
+  drawCloud(ctx, motes, 'surfaceScatter', 100, ['p']);
+  assert.equal(arcs.length, 20);
 });

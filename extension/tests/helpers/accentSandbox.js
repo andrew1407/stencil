@@ -23,6 +23,7 @@ const SRC = readFileSync(
  * @param {object} [opts]
  * @param {Record<string,string>} [opts.stored]   - Pre-seeded localStorage entries.
  * @param {boolean} [opts.prefersDark]            - What the OS media query reports.
+ * @param {boolean} [opts.prefersReduced]         - …and its reduced-motion preference.
  * @param {boolean} [opts.storageThrows]          - Simulate private mode: every
  *   localStorage access throws, as Safari/Chrome do with cookies blocked.
  * @param {boolean} [opts.withChrome]             - false drops `chrome` entirely, the way a
@@ -43,6 +44,7 @@ const toPx = (pct, basis) => Math.round(((parseFloat(pct) / 100) * basis) * 100)
 export const loadAccent = ({
   stored = {},
   prefersDark = false,
+  prefersReduced = false,
   storageThrows = false,
   withChrome = true,
   withMatchMedia = true,
@@ -113,7 +115,7 @@ export const loadAccent = ({
       const ctx = {
         fillStyle: '#000', globalAlpha: 1,
         scale() {}, clearRect() {}, beginPath() { arcs = 0; },
-        moveTo() {}, arc() { arcs++; },
+        moveTo() {}, arc() { arcs++; }, ellipse() { arcs++; }, lineTo() {}, closePath() { arcs++; },
         fill() { el.fills.push({ colour: ctx.fillStyle, alpha: ctx.globalAlpha, arcs }); },
       };
       el.getContext = () => ctx;
@@ -157,7 +159,7 @@ export const loadAccent = ({
       if (type === 'change') mediaListeners.push(fn);
     },
   };
-  const sandboxState = { prefersDark };
+  const sandboxState = { prefersDark, prefersReduced };
 
   const windowListeners = [];
   const window = {
@@ -165,7 +167,8 @@ export const loadAccent = ({
     innerHeight: viewport.height,
     matchMedia: (query) => {
       if (!withMatchMedia) throw new Error('no matchMedia here');
-      return query === '(prefers-color-scheme: dark)' ? mediaQuery : { matches: false, addEventListener() {} };
+      if (query === '(prefers-color-scheme: dark)') return mediaQuery;
+      return { matches: query === '(prefers-reduced-motion: reduce)' && sandboxState.prefersReduced, addEventListener() {} };
     },
     addEventListener: (type, fn) => windowListeners.push({ type, fn }),
   };
@@ -202,6 +205,13 @@ export const loadAccent = ({
     get theme() {
       return window.StencilTheme;
     },
+    get motion() {
+      return window.StencilMotion;
+    },
+    /** `<html data-motion="…">` as currently stamped. */
+    dataMotion: () => documentElement.getAttribute('data-motion'),
+    /** Flip the OS reduced-motion preference (read live, no event). */
+    setPrefersReduced(value) { sandboxState.prefersReduced = value; },
     /** `<html data-accent="…">` / `<html data-theme="…">` as currently stamped. */
     dataAccent: () => documentElement.getAttribute('data-accent'),
     dataTheme: () => documentElement.getAttribute('data-theme'),

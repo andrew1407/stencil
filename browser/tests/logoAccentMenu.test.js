@@ -559,3 +559,28 @@ test('motion.js raises theme-instant BEFORE startViewTransition — the latch de
   assert.ok(add !== -1 && svt !== -1 && add < svt,
     'the class must already be up when the swap\'s synthetic pointerleave lands');
 });
+
+// ── The ✓ follows the accent while the menu is up ─────────────────────────
+// A logo click cycles the preset with the list still open, and the mark used to stay on
+// the old colour (user report): the controller announces the NEW value on window, and an
+// open menu re-marks on it. A closed one stops listening.
+test('an accent change announced while the menu shows moves the ✓; a closed menu ignores it', () => {
+  const { wrap, menu, win, doc } = rig();
+  wrap.dispatch('contextmenu', { preventDefault: () => {} });
+  assert.deepEqual(marked(menu), ['violet']);
+  win.dispatch('stencil:accent-changed', { detail: 'aqua' });
+  assert.deepEqual(marked(menu), ['aqua'], 'the mark follows the announced preset, not the stale app.accent');
+  win.dispatch('stencil:accent-changed', { detail: '#123456' });
+  assert.deepEqual(marked(menu), [], 'a custom colour marks no preset row');
+  win.dispatch('stencil:accent-changed', { detail: 'brown' });
+  assert.deepEqual(marked(menu), ['brown']);
+  // Closed: the listener is gone, so a later change touches nothing.
+  doc.dispatch('keydown', { key: 'Escape' });
+  win.dispatch('stencil:accent-changed', { detail: 'pink' });
+  assert.deepEqual(marked(menu), ['brown'], 'no re-mark after close');
+  // …and the controller really announces: setAccent / setCustomAccent both dispatch it.
+  const src = readFileSync(new URL('../js/core/accentController.js', import.meta.url), 'utf8');
+  assert.match(src, /setAccent\(key, originEl = null\) \{[\s\S]*?this\.announce\(next\);/);
+  assert.match(src, /this\.announce\(norm\);/);
+  assert.match(src, /new CustomEvent\('stencil:accent-changed', \{ detail: value \}\)/);
+});

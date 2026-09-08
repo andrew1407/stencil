@@ -106,6 +106,10 @@ namespace stencil::gui {
                             const QString& activeProjectId = QString(),
                             const QColor& accentColor = QColor());
 
+    // This window's own session is unsaved (no project open): show the pinned "Temporary
+    // (unsaved)" row at the top — "Incognito (unsaved)" for an incognito editor.
+    void setTemporary(bool temporary, bool incognito = false);
+
     Action action() const { return action_; }
     QString selectedId() const { return selectedId_; }
     QString selectedServerUrl() const { return selectedServerUrl_; }
@@ -185,6 +189,7 @@ namespace stencil::gui {
     // A uniform 56×56 fallback tile (centered native glyph) shown when a row has no
     // image, so every row is the same height. `remote` picks a network vs file glyph.
     QPixmap placeholderIcon(bool remote) const;
+    QPixmap temporaryIcon(bool incognito) const;   // the pinned row's pencil / mask tile
     // The hover-magnify preview is sand too (browser js/ui/projectsModal.js
     // enableThumbZoom, motion.js surfaceIn/surfaceOut): it forms from motes streaming
     // out of the row's icon cell and comes apart into motes pouring back in. `it` is
@@ -291,6 +296,8 @@ namespace stencil::gui {
     long long now_ = 0;
     stencil::net::ConnectionManager* connections_ = nullptr;
     QString activeProjectId_;  // the project open in THIS editor right now (its "(Current)" row)
+    bool temporary_ = false;   // setTemporary: this window is an unsaved session → the pinned row
+    bool incognito_ = false;   // …an incognito one
     // id -> pre-rendered local-project preview (edited result), shown as the row icon.
     QHash<QString, QPixmap> thumbs_;
     // Cached server-project previews, keyed "serverUrl|id|version" so the periodic

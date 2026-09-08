@@ -12,7 +12,7 @@ import {
   themeSwap, swapRadius, swapPercent, originOf, THEME_SWAP_MS, THEME_SWAP_CLASS,
   swapEase, swapDustSpecs, swapDustFrame, SWAP_DUST_FLARE,
   SWAP_DUST_MOTES, SWAP_DUST_LIFE_MS, SWAP_DUST_MIN_T, SWAP_DUST_MAX_T,
-  swapEdgePolygon, SWAP_EDGE_POINTS, SWAP_EDGE_AMP,
+  swapEdgePolygon, SWAP_EDGE_POINTS,
   originOfId, arriveFrom, arrivalBox, ARRIVE_GLOW_CLASS, LANDING_CLASS, ARRIVE_ACTIVE_CLASS,
   dustDelay, dustEase, dustGrid, dustVisibleBox, pinDustStage, ghostIn, ghostOut, hasPixels, tileNoise,
   DUST_CELL_PX, DUST_MAX_PARTICLES,
@@ -21,6 +21,7 @@ import {
   tileWaypoint, tileMotion, surfaceMotion, WAYPOINT_ALONG, SWIRL_SHARE, SWIRL_MAX_PX,
   DUST_ALPHA_LEVELS, DISINTEGRATE_MS, MIN_TILE_MS,
 } from '../js/ui/motion.js';
+import { STYLE_DUST, STYLE_WATER, STYLE_FIRE, edgeBaseOf, FILL_CHUNK } from '../js/ui/dustCloud.js';
 import { FLIGHTS, moteFrame } from '../js/ui/dustCloud.js';
 
 const box = (left, top, width, height) => ({ left, top, width, height });
@@ -627,32 +628,39 @@ test('swapEase walks the wipe’s own curve, easing in slightly and never backwa
     'the JS curve and the declared reveal share one set of control points');
 });
 
-// ── The torn front ──────────────────────────────────────────────────────────
-// The clip is a polygon ring, not a circle: each vertex reaches off the nominal radius
-// by its own noise, so the edge crumbles instead of sweeping as a line. Coverage still
-// rules: even the deepest tooth must clear the furthest corner when the wipe ends.
-test('swapEdgePolygon: a ragged ring that still covers the whole viewport', () => {
+// ── The front ───────────────────────────────────────────────────────────────
+// The clip is a polygon ring wearing the particle style (dustCloud.js edgeJitter).
+// Coverage still rules: even the deepest dip must clear the furthest corner at the end.
+test('swapEdgePolygon: a ring in the particle style that still covers the whole viewport', () => {
   const [x, y, w, h] = [90, 60, 1440, 900];
   const R = swapRadius(x, y, w, h);
   const parse = (poly) => [...poly.matchAll(/([\d.-]+)% ([\d.-]+)%/g)]
     .map((mch) => ({ x: (parseFloat(mch[1]) / 100) * w, y: (parseFloat(mch[2]) / 100) * h }));
-  const to = parse(swapEdgePolygon(x, y, w, h, 1));
-  assert.equal(to.length, SWAP_EDGE_POINTS);
-  const radii = to.map((p) => Math.hypot(p.x - x, p.y - y));
-  for (const r of radii) {
-    assert.ok(r >= R, `a tooth dips inside the corner reach (${r} < ${R})`);
-    assert.ok(r <= R * (1 + SWAP_EDGE_AMP * 2 + 0.02), `a tooth overshoots wildly (${r})`);
+  for (const style of [STYLE_DUST, STYLE_WATER, STYLE_FIRE]) {
+    const to = parse(swapEdgePolygon(x, y, w, h, 1, style));
+    assert.equal(to.length, SWAP_EDGE_POINTS);
+    const radii = to.map((p) => Math.hypot(p.x - x, p.y - y));
+    for (const r of radii) {
+      assert.ok(r >= R - 0.05, `style ${style}: a vertex dips inside the corner reach (${r} < ${R})`);
+      assert.ok(r <= R * 1.15, `style ${style}: a tongue overshoots wildly (${r})`);
+    }
+    const spread = Math.max(...radii) - Math.min(...radii);
+    if (style === STYLE_DUST) assert.ok(spread < 0.1, 'dust: a perfect circle');
+    else assert.ok(spread > R * 0.03, `style ${style}: visibly not a circle`);
+    // The collapsed start: every vertex AT the origin, same count, so CSS interpolates.
+    const from = parse(swapEdgePolygon(x, y, w, h, 0, style));
+    assert.equal(from.length, SWAP_EDGE_POINTS);
+    assert.ok(from.every((p) => Math.hypot(p.x - x, p.y - y) < 0.5));
+    // Deterministic, and a stub viewport declines rather than throwing.
+    assert.equal(swapEdgePolygon(x, y, w, h, 1, style), swapEdgePolygon(x, y, w, h, 1, style));
   }
-  // RAGGED, not a circle in disguise: the teeth really spread across the amp band.
-  assert.ok(Math.max(...radii) - Math.min(...radii) > R * SWAP_EDGE_AMP,
-    'the edge varies by a visible share of the radius');
-  // The collapsed start: every vertex AT the origin, same count, so CSS interpolates.
-  const from = parse(swapEdgePolygon(x, y, w, h, 0));
-  assert.equal(from.length, SWAP_EDGE_POINTS);
-  assert.ok(from.every((p) => Math.hypot(p.x - x, p.y - y) < 0.5));
-  // Deterministic, and a stub viewport declines rather than throwing.
-  assert.equal(swapEdgePolygon(x, y, w, h, 1), swapEdgePolygon(x, y, w, h, 1));
+  // Fire's tongues are sharp peaks with dips between; water's swells are smooth.
+  const fire = parse(swapEdgePolygon(x, y, w, h, 1, STYLE_FIRE)).map((p) => Math.hypot(p.x - x, p.y - y));
+  const above = fire.filter((r) => r > R * edgeBaseOf(STYLE_FIRE) * 1.04).length;
+  assert.ok(above > 10 && above < fire.length * 0.6, `tongues reach well out on a minority of vertices (${above})`);
   assert.equal(swapEdgePolygon(0, 0, 0, 0, 1), '');
+  // The default style is the live preference (particles → dust).
+  assert.equal(swapEdgePolygon(x, y, w, h, 1), swapEdgePolygon(x, y, w, h, 1, STYLE_DUST));
 });
 
 test('swapDustSpecs seeds every mote just inside the ring, on screen, deterministically', () => {
@@ -670,7 +678,7 @@ test('swapDustSpecs seeds every mote just inside the ring, on screen, determinis
     // edge has already passed its spot — during a view transition anything outside the
     // clip simply is not rendered.
     const dist = Math.hypot(s.cx - x, s.cy - y);
-    const wakeAtIgnite = swapEase((s.delay + 1) / THEME_SWAP_MS) * R * (1 - SWAP_EDGE_AMP);
+    const wakeAtIgnite = swapEase((s.delay + 1) / THEME_SWAP_MS) * R;   // dust: the front is the circle itself
     assert.ok(dist <= wakeAtIgnite + 1, `mote at ${dist}px ahead of the wake band at ${wakeAtIgnite}px`);
     // On screen (a hair of margin), so no spec is spent where nobody can see it.
     assert.ok(s.cx >= -16 && s.cx <= w + 16, `off screen x ${s.cx}`);
@@ -729,7 +737,11 @@ test('themeSwap spawns the wake once the transition is ready, in the OLD palette
   };
   const doc = {
     documentElement: root,
-    createElement: (tag) => (tag === 'canvas' ? mkCanvas() : { style: { setProperty() {} }, appendChild() {} }),
+    // The palette probe spans (dustCloud.js resolveColour) come and go on <body> too.
+    createElement: (tag) => (tag === 'canvas' ? mkCanvas() : {
+      style: { setProperty() {} }, appendChild() {},
+      remove() { const i = bodyChildren.indexOf(this); if (i >= 0) bodyChildren.splice(i, 1); },
+    }),
     body: { appendChild: (el2) => bodyChildren.push(el2) },
     startViewTransition: (cb) => { cb(); return { ready: Promise.resolve(), finished: Promise.resolve() }; },
   };
@@ -762,17 +774,21 @@ test('themeSwap spawns the wake once the transition is ready, in the OLD palette
     assert.deepEqual([stage.width, stage.height], [600, 800]);
     assert.deepEqual([stage.style.width, stage.style.height], ['300px', '400px']);
 
-    // Mid-wake: grains of both colours are in the air.
+    // Mid-wake: grains of the accent AND its shade are in the air, from the palette
+    // resolved BEFORE the flip (the stub cannot compute a colour, so color-mix() strings
+    // come through).
     const t0 = performance.now();
     pending(t0 + THEME_SWAP_MS / 2);
     const lit = stage.fills.filter((f) => f.arcs > 0);
     assert.ok(lit.reduce((n, f) => n + f.arcs, 0) > 30, 'a field of grains');
-    assert.ok(lit.some((f) => f.colour === '#eab308'), 'accent grains in the OLD accent');
-    assert.ok(lit.some((f) => /color-mix\(in srgb, #111318 58%, #e8eaf0\)/.test(f.colour)),
-      'body grains lifted off the OLD surface towards its OLD ink');
-    // The whole point of the stage: a couple of fills a frame, not one per grain.
-    assert.ok(stage.fills.length <= 2 * DUST_ALPHA_LEVELS,
-      `batched into ${stage.fills.length} fills, not ${lit.reduce((n, f) => n + f.arcs, 0)}`);
+    assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--accent) 100%, var(--accent-2))'), 'accent grains');
+    assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--accent) 0%, var(--accent-2))'), 'shade grains');
+    // The whole point of the stage: batched fills — one per (stop, alpha step), each in
+    // chunks of FILL_CHUNK grains (dustCloud.js) — not one per grain.
+    const grains = lit.reduce((n, f) => n + f.arcs, 0);
+    assert.ok(stage.fills.length <= 6 * DUST_ALPHA_LEVELS + Math.ceil(grains / FILL_CHUNK),
+      `batched into ${stage.fills.length} fills, not ${grains}`);
+    assert.ok(lit.every((f) => f.arcs <= FILL_CHUNK), 'no path longer than a chunk');
     assert.ok(lit.every((f) => f.alpha > 0 && f.alpha <= 1), 'every batch carries its own alpha');
 
     // …and it reaps itself once the last grain has burnt out.
@@ -1402,7 +1418,7 @@ test('canvas dust batches its grains: a few alpha steps, one fill per colour and
   assert.equal(DUST_ALPHA_LEVELS, 8);
   const motion = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
   const dust = motion.slice(motion.indexOf('const drawDust ='), motion.indexOf('const runDust ='));
-  assert.match(dust, /ctx\.arc\(x, y, r, 0, TAU\)/, 'round grains');
+  assert.match(dust, /fillGrains\(ctx, lvl\[l\], n, poly\)/, 'grains in the style\'s own shape, batched and chunked');
   assert.ok(!/drawImage\(snap, p\./.test(dust), 'never a per-grain blit of the picture');
   // The picture itself stands in for every cell still at home: one blit, then only the
   // departed cells are cleared out of it — so the front grinds, it does not pop.

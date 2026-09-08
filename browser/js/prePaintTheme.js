@@ -36,7 +36,7 @@
     /* storage blocked — keep the default accent */
   }
 
-  // Interface motion mode: 'particles' (default) | 'slide' | 'none'. The CSS half of
+  // Interface motion mode: 'particles' (default) | 'water' | 'fire' | 'slide' | 'none'. The CSS half of
   // js/ui/motionPrefs.js — animations.css keys the no-motion rules off this attribute,
   // and it must be on <html> before the app's own entrance plays. Same inlining rule as
   // above (classic script, no imports): keep the key and the values in step with
@@ -45,7 +45,7 @@
     const saved = JSON.parse(localStorage.getItem('drawingApp_motion') || 'null');
     const mode = saved && typeof saved === 'object' ? String(saved.mode) : '';
     root.setAttribute('data-motion',
-      ['particles', 'slide', 'none'].includes(mode) ? mode : 'particles');
+      ['particles', 'water', 'fire', 'slide', 'none'].includes(mode) ? mode : 'particles');
   } catch {
     root.setAttribute('data-motion', 'particles');   /* storage blocked or junk — the default */
   }

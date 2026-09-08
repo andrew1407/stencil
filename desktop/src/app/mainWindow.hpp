@@ -235,6 +235,8 @@ namespace stencil::gui {
     // Alt-peek/glide/release machinery treats it exactly like every other popover.
     // Right-click on the logo opens it sticky; hold-Alt peeks it (altPeekOpen).
     void openAccentPicker();
+    // Move an open accent popover's ✓ to the accent the settings now hold (applyTheme).
+    void remarkAccentPopover();
     // Shift+F10 (hotkeysConfig contextMenu): the canvas menu under the pointer while it
     // rests over the viewport, else at the viewport's centre — where the browser puts it.
     void showContextMenuFromKeyboard();

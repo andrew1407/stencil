@@ -3,6 +3,9 @@
 #include <QEvent>
 
 #include <QAbstractAnimation>
+#include <QAbstractScrollArea>
+#include <QLayout>
+#include <QResizeEvent>
 #include <QColorDialog>
 #include <QCoreApplication>
 #include <QCursor>
@@ -28,16 +31,15 @@ namespace stencil::support {
   static constexpr const char* kRevealedProperty = "stencilDialogRevealed";
 
   namespace {
-    // Brisk, but not so brisk the flight from the icon is over before it registers.
-    // Ease-OUT on the way in, so the growth visibly slows as it settles into place.
-    // These belong to the GHOST fallback below; the dust has its own pair
-    // (DisintegrateOverlay::kSurfaceInMs / kSurfaceOutMs, the browser's numbers).
-    constexpr int kOpenMs = 300;
-    constexpr int kCloseMs = 240;
-    // The shared surface clock — which on the desktop already runs 1.5x the browser's
-    // (disintegrateOverlay.hpp kMs). The fade-up rides this one so the window lands
-    // with its dust.
-    constexpr int kDialogDustInMs = gui::DisintegrateOverlay::kSurfaceInMs;
+    // A MODAL WINDOW takes its time: every clock below runs 1.5x the shared surface clock
+    // (user decision — dialogs opened and closed too fast; every other surface keeps its
+    // own pace). Ease-OUT on the way in. The ghost fallback's pair (slide mode)…
+    constexpr int kOpenMs = 450;
+    constexpr int kCloseMs = 360;
+    // …and the dust's (particle modes): the shared surface clock, slowed the same way.
+    // The fade-up rides the in-clock so the window lands with its dust.
+    constexpr int kDialogDustInMs = gui::DisintegrateOverlay::kSurfaceInMs * 3 / 2;
+    constexpr int kDialogDustOutMs = gui::DisintegrateOverlay::kSurfaceOutMs * 3 / 2;
 
     // Where the motion starts/ends, in GLOBAL coords: the icon, else a small box above
     // the dialog (hidden widgets map to 0x0, which is the same "not on screen" case).
@@ -146,7 +148,7 @@ namespace stencil::support {
       // escapeHost: a dialog can be dragged off the app, so its cloud must not be
       // cropped to the host's rect.
       auto* fx = gui::DisintegrateOverlay::overSurface(shot, box, host, point, opening,
-                                                       opening ? kDialogDustInMs : 0, ink,
+                                                       opening ? kDialogDustInMs : kDialogDustOutMs, ink,
                                                        kDialogDustMaxCells,
                                                        /*escapeHost=*/true);
       // Painted NOW on a close, not on the next posted frame — the same synchronous
@@ -182,6 +184,19 @@ namespace stencil::support {
 
   void revealDialog(QDialog& dlg, QWidget* anchor) { revealDialog(dlg, anchor, QRect()); }
 
+  // Bring `w`'s layout to what it will show as, so a snapshot of it is the window that
+  // lands: a scroll area decides its scrollbar on a posted layout pass that grab() ran
+  // ahead of, so the flight flew a picture a scrollbar too wide (user report).
+  void settleLayout(QWidget& w) {
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
+    if (QLayout* l = w.layout()) l->activate();
+    for (QAbstractScrollArea* area : w.findChildren<QAbstractScrollArea*>()) {
+      QResizeEvent ev(area->size(), area->size());
+      QCoreApplication::sendEvent(area, &ev);
+    }
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
+  }
+
   namespace {
     // Shared body of the two window flights: photograph `w`, fly the ghost between the
     // icon and the window's box inside the ANCHOR's window (a floating dock has no host
@@ -190,6 +205,7 @@ namespace stencil::support {
       QPointer<QWidget> guard(&w);
       QWidget* host = anchor ? anchor->window() : nullptr;
       const QRect target(w.mapToGlobal(QPoint(0, 0)), w.size());
+      settleLayout(w);
       const QPixmap shot = w.grab();
       if (!host || !target.isValid() || shot.isNull()) { if (after) after(); return; }
       const QRect icon = originRect(anchor, target);
@@ -345,6 +361,7 @@ namespace stencil::support {
         if (!guard || !guard->isVisible()) { restore(); return; }
         const QRect target(guard->mapToGlobal(QPoint(0, 0)), guard->size());
         QWidget* host = hostFor(*guard);
+        settleLayout(*guard);   // the scrollbar in, before the photograph
         const QPixmap shot = guard->grab();
         *shotWhileOpen = shot;
         if (!host || !target.isValid() || shot.isNull()) { restore(); return; }

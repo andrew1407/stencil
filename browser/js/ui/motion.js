@@ -2,8 +2,9 @@
 // Pure decoration: a missing IntersectionObserver/MutationObserver (node tests,
 // old engines) simply means no animation — never a broken or hidden view. CSS
 // owns the actual keyframes (css/animations.css); this file only toggles classes.
-import { dustEnabled, motionReduced } from './motionPrefs.js';
-import { startCloud, resolveColour } from './dustCloud.js';
+import { dustEnabled, motionReduced, particleStyle } from './motionPrefs.js';
+import { startCloud, resolveColour, PARTICLE_STYLES, paletteCss, styleFrame, paletteIndex, dustMix,
+         grainShape, headingOf, fillGrains, edgeJitter, edgeBaseOf, edgeDipOf, STYLED_CELL_SCALE } from './dustCloud.js';
 
 // The two gates every helper below asks: `motionReduced()` is "nothing may move"
 // (the OS preference, or the user's own 'none'), `dustEnabled()` is "and it may be
@@ -313,40 +314,28 @@ const bezierY = (t, x1, y1, x2, y2) => {
 };
 export const swapEase = (t) => bezierY(t, 0.4, 0.25, 0.95, 1);
 
-// ── The ragged front ────────────────────────────────────────────────────────
-// The wipe's edge is not a clean circle: it is a torn, dusty front. The clip is a
-// polygon ring whose vertices ride the same easing as the old circle did, each pushed
-// off the nominal radius by its own noise — low-frequency lobes plus per-vertex jag —
-// so the boundary reads as the theme crumbling forward, not a line sweeping. The dust
-// below then hugs this edge, which is what finishes the "dissolving" read.
-// (Desktop twin: themeSwapOverlay.hpp edgeRadiusAt.)
+// ── The front ───────────────────────────────────────────────────────────────
+// The wipe's edge wears the particle style (dustCloud.js edgeJitter): a polygon ring whose
+// vertices ride the wipe's easing, each pushed off the nominal radius by the style's own
+// recipe. Twins: themeSwapOverlay.hpp edgeRadiusAt, extension accent.js edgePolygon.
 export const SWAP_EDGE_POINTS = 240;
-// How far a tooth may reach off the nominal radius, as a share of it. Kept SMALL: big
-// teeth read as waves rolling, not dust — the raggedness is grain-scale, and the mote
-// field below carries the rest of the dissolving read.
-export const SWAP_EDGE_AMP = 0.022;
-// The base radius overshoots by the amp (plus slack) so even the deepest dip still
-// clears the furthest corner when the wipe ends — coverage is non-negotiable.
-export const SWAP_EDGE_BASE = 1 + SWAP_EDGE_AMP + 0.012;
 
-// The per-vertex reach multiplier: 1 ± amp. Mostly per-vertex jag (the hash), with a
-// faint fast ripple (the sin) so the tear stays organic — the same recipe at every k
-// on every surface. Pure.
-export const swapEdgeJitter = (k) =>
-  SWAP_EDGE_AMP * (0.35 * Math.sin(k * 0.73) + 0.65 * (tileNoise(k, 7) * 2 - 1));
+// The per-vertex reach multiplier of vertex k: 1 + the style's jitter. Pure.
+export const swapEdgeJitter = (k, style = styleCode()) => edgeJitter(style, k, SWAP_EDGE_POINTS);
 
 // One end state of the clip, as a polygon() string in viewport percentages (the same
 // device-pixel-engine trap swapPercent dodges). `grow` 0 is the collapsed start —
-// every vertex AT the origin — and 1 the full ragged ring; CSS interpolates the
-// vertices between the two on the wipe's own curve. Pure — unit-tested.
-export function swapEdgePolygon(x, y, w, h, grow) {
+// every vertex AT the origin — and 1 the full ring; CSS interpolates between the two. The
+// base overshoots by the style's deepest dip (edgeBaseOf) so the finished ring still
+// clears the furthest corner — coverage is non-negotiable. Pure — unit-tested.
+export function swapEdgePolygon(x, y, w, h, grow, style = styleCode()) {
   if (!(w > 0 && h > 0)) return '';   // no viewport to measure (a stub)
   const pc = (v) => Math.round(v * 1000) / 1000;
-  const base = swapRadius(x, y, w, h) * SWAP_EDGE_BASE;
+  const base = swapRadius(x, y, w, h) * edgeBaseOf(style);
   const pts = [];
   for (let k = 0; k < SWAP_EDGE_POINTS; k++) {
     const a = (k / SWAP_EDGE_POINTS) * 2 * Math.PI;
-    const r = grow ? base * (1 + swapEdgeJitter(k)) : 0;
+    const r = grow ? base * (1 + swapEdgeJitter(k, style)) : 0;
     pts.push(`${pc(((x + Math.cos(a) * r) / w) * 100)}% ${pc(((y + Math.sin(a) * r) / h) * 100)}%`);
   }
   return `polygon(${pts.join(', ')})`;
@@ -366,13 +355,18 @@ export const SWAP_DUST_LIFE_MS = 340;
 export const SWAP_DUST_MIN_T = 0.06;
 export const SWAP_DUST_MAX_T = 0.94;
 
+// The style the particles wear right now, as dustCloud.js's code (0 = dust, the flight
+// as tabulated). Every cloud builder below reads it once, when the cloud is built.
+const styleCode = () => PARTICLE_STYLES[particleStyle()] || 0;
+
 // The specs for one wipe's dust, all deterministic (tileNoise, like every other cloud
 // here). `x, y` is the origin in viewport px; motes whose home is off screen are dropped,
 // so the field naturally thins as the ring outgrows the viewport. Pure — unit-tested.
-export function swapDustSpecs(x, y, w, h, count = SWAP_DUST_MOTES) {
+export function swapDustSpecs(x, y, w, h, count = SWAP_DUST_MOTES, style = styleCode()) {
   const R = swapRadius(x, y, w, h);
   const specs = [];
   if (!(R > 0)) return specs;
+  const dip = edgeDipOf(style);   // how deep the style's front bites inward
   for (let i = 0; i < count; i++) {
     const n = tileNoise(i, 3);
     const m = tileNoise(i + 57, 11);
@@ -381,7 +375,7 @@ export function swapDustSpecs(x, y, w, h, count = SWAP_DUST_MOTES) {
     const u = SWAP_DUST_MIN_T + m * (SWAP_DUST_MAX_T - SWAP_DUST_MIN_T);
     // Hug the torn edge: just behind even its deepest tooth (1 − amp of the nominal
     // radius), so the band of grains and the ragged clip read as one crumbling front.
-    const r = swapEase(u) * R * (1 - SWAP_EDGE_AMP) - q * 6;
+    const r = swapEase(u) * R * (1 - dip) - q * 6;
     if (r <= 0) continue;
     const cx = x + Math.cos(angle) * r;
     const cy = y + Math.sin(angle) * r;
@@ -390,18 +384,23 @@ export function swapDustSpecs(x, y, w, h, count = SWAP_DUST_MOTES) {
     // Chase the front outward, slower than it (the ring accelerates away), plus a
     // sideways breath so the wake churns instead of radiating.
     const d = 8 + q * 14;
+    const dx = Math.round(Math.cos(angle) * d + (m - 0.5) * 14);
+    const dy = Math.round(Math.sin(angle) * d + (0.5 - q) * 14);
     specs.push({
       cx: +cx.toFixed(2),
       cy: +cy.toFixed(2),
       size,
-      dx: Math.round(Math.cos(angle) * d + (m - 0.5) * 14),
-      dy: Math.round(Math.sin(angle) * d + (0.5 - q) * 14),
+      dx,
+      dy,
       delay: Math.round(u * THEME_SWAP_MS),
       alpha: +(0.75 + q * 0.25).toFixed(2),
       // Every fourth grain is the departing accent; the rest are the old surface's own
       // grain (bg lifted towards ink, the speckPainter recipe) — so a theme flip dusts
       // in the old page's colour and an accent cycle still shows over an unchanged bg.
       accent: i % 4 === 0,
+      // …and its own hash and throw length, for a water / fire wake's styleFrame.
+      w: tileNoise(i + 71, 13),
+      len: Math.hypot(dx, dy),
     });
   }
   return specs;
@@ -448,9 +447,10 @@ const swapDustPaint = () => {
   try {
     const s = getComputedStyle(document.documentElement);
     const v = (name) => (s.getPropertyValue(name) || '').trim();
-    const bg = v('--bg-page'), ink = v('--text-main'), accent = v('--accent');
-    if (!bg || !ink) return null;
-    return { fill: `color-mix(in srgb, ${bg} ${100 - MOTE_INK}%, ${ink})`, accent: accent || ink };
+    if (!v('--accent')) return null;
+    // The wake is painted from the departing accent palette — the same two colours every
+    // cloud wears (dustCloud.js paletteCss) — resolved while they still mean the OLD theme.
+    return { palette: paletteCss().map((css) => resolveColour(document, css)) };
   } catch { return null; }
 };
 
@@ -486,15 +486,23 @@ function spawnSwapDust(px, paint) {
     stage.style.width = `${px.w}px`;
     stage.style.height = `${px.h}px`;
     ctx.scale(dpr, dpr);
-    // Split by colour once, so a frame is two runs of one fillStyle rather than a
-    // thousand switches — and resolve both now, before the palette moves under us.
-    const runs = [{ colour: canvasColour(ctx, paint.fill, '#888'), grains: specs.filter((s) => !s.accent) },
-                  { colour: canvasColour(ctx, paint.accent, '#888'), grains: specs.filter((s) => s.accent) }];
+    // One run of one fillStyle per palette stop, so a frame is six fills rather than a
+    // thousand switches — resolved already, before the palette moved under us.
+    const style = styleCode();
+    const runs = paint.palette.map((c) => ({ colour: canvasColour(ctx, c, '#888') }));
     document.body.appendChild(stage);
-    // [x, y, r] per grain, bucketed by alpha step and reused every frame.
-    const lvl = Array.from({ length: DUST_ALPHA_LEVELS }, () => new Float32Array(specs.length * 3));
+    // [x, y, r, shape, heading] per grain, bucketed by alpha step and reused every frame.
+    const lvl = Array.from({ length: DUST_ALPHA_LEVELS }, () => new Float32Array(specs.length * 5));
     const lvlN = new Int32Array(DUST_ALPHA_LEVELS);
     const at = {};
+    const sf = {};
+    const poly = [];
+    // Every grain's frame, computed once and read by every run's sweep; its shape and
+    // heading (dustCloud.js grainShape / headingOf) never change.
+    const stopOf = new Int8Array(specs.length);
+    const fx = new Float32Array(specs.length * 4);
+    const shapes = Int8Array.from(specs, (s) => grainShape(style, s.w));
+    const heads = Float32Array.from(specs, (s) => headingOf(s.dx, s.dy, false));
     const total = THEME_SWAP_MS + SWAP_DUST_LIFE_MS;
     const started = performance.now();
     let raf = 0;
@@ -508,30 +516,33 @@ function spawnSwapDust(px, paint) {
       const ms = now - started;
       if (ms >= total) { stop(); return; }
       ctx.clearRect(0, 0, px.w, px.h);
-      for (const run of runs) {
+      for (let i = 0; i < specs.length; i++) {
+        const s = specs[i];
+        const p = (ms - s.delay) / SWAP_DUST_LIFE_MS;
+        if (p <= 0 || p >= 1) { stopOf[i] = -1; continue; }
+        swapDustFrame(s, p, at);
+        styleFrame(style, p, p, s.w, s.len, ms, sf);
+        stopOf[i] = paletteIndex(style ? sf.mix : dustMix(s.w, s.accent), runs.length);
+        fx[i * 4] = at.x + sf.sx; fx[i * 4 + 1] = at.y + sf.sy;
+        fx[i * 4 + 2] = at.r * sf.scale; fx[i * 4 + 3] = at.alpha * sf.glow;
+      }
+      for (let c = 0; c < runs.length; c++) {
+        const run = runs[c];
         lvlN.fill(0);
-        for (const s of run.grains) {
-          const p = (ms - s.delay) / SWAP_DUST_LIFE_MS;
-          if (p <= 0 || p >= 1) continue;
-          swapDustFrame(s, p, at);
-          const l = Math.round(at.alpha * DUST_ALPHA_LEVELS) - 1;
+        for (let i = 0; i < specs.length; i++) {
+          if (stopOf[i] !== c) continue;
+          const l = Math.round(fx[i * 4 + 3] * DUST_ALPHA_LEVELS) - 1;
           if (l < 0) continue;
-          const buf = lvl[l], j = lvlN[l]++ * 3;
-          buf[j] = at.x; buf[j + 1] = at.y; buf[j + 2] = at.r;
+          const buf = lvl[l], j = lvlN[l]++ * 5;
+          buf[j] = fx[i * 4]; buf[j + 1] = fx[i * 4 + 1]; buf[j + 2] = fx[i * 4 + 2];
+          buf[j + 3] = shapes[i]; buf[j + 4] = heads[i];
         }
         ctx.fillStyle = run.colour;
         for (let l = 0; l < DUST_ALPHA_LEVELS; l++) {
           const n = lvlN[l];
           if (!n) continue;
-          const buf = lvl[l];
           ctx.globalAlpha = (l + 1) / DUST_ALPHA_LEVELS;
-          ctx.beginPath();
-          for (let j = 0; j < n; j++) {
-            const x = buf[j * 3], y = buf[j * 3 + 1], r = buf[j * 3 + 2];
-            ctx.moveTo(x + r, y);
-            ctx.arc(x, y, r, 0, TAU);
-          }
-          ctx.fill();
+          fillGrains(ctx, lvl[l], n, poly);
         }
       }
       raf = requestAnimationFrame(frame);
@@ -1212,8 +1223,6 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     // (tileMotion / surfaceMotion), its colour, size and clock. The cloud is then ONE
     // canvas evaluating these per frame (dustCloud.js) — no node per mote, so a
     // window-sized cloud costs a few batched fills rather than hundreds of layers.
-    const colours = [];
-    const colourIndex = new Map();
     const motes = [];
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
@@ -1224,9 +1233,8 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
           ? surfaceMotion(cx, cy, cols, rows, r, toward,
                           { span, spread, delayScale: delayScale ?? (gather ? 1 : 0.5) })
           : tileMotion(cx, cy, cols, rows, gather, drift, span);
+        // The speck's size, opacity and glint; its colour comes from the palette below.
         const speck = paint({ cx, cy, cols, rows, cellW, cellH });
-        let c = colourIndex.get(speck.color);
-        if (c === undefined) { c = colours.length; colourIndex.set(speck.color, c); colours.push(speck.color); }
         // The sweep is INSIDE the span, never added to it (the desktop overlay's
         // `t = (t - delay) / (1 - delay)`): a late mote flies the window it has left, so
         // the whole cloud is done at `span` instead of trailing a quarter-second of
@@ -1234,15 +1242,20 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
         // clock and the sweep is what fills the rest.
         motes.push({
           x: r.left + (cx + 0.5) * cellW, y: r.top + (cy + 0.5) * cellH,
-          dx: m.dx, dy: m.dy, mx: m.mx, my: m.my, r: speck.px / 2, s: m.scale, a: speck.alpha, c,
+          dx: m.dx, dy: m.dy, mx: m.mx, my: m.my, r: speck.px / 2, s: m.scale, a: speck.alpha,
           delay: m.delay, dur: gather ? gatherMs : Math.max(MIN_TILE_MS, span - m.delay),
-          // …and its own hash for the wobble and the twinkle (dustCloud.js turbulenceAt).
+          // …and its own hash for the wobble, the twinkle and its place in the palette
+          // (dustCloud.js turbulenceAt / dustMix).
           w: tileNoise(cx + 13, cy + 71), t: 1, g: speck.glint ? 1 : 0,
         });
       }
     }
     const kind = flightOf(toward, gather, flight);
-    host.__cloud = { motes, colours, flight: kind, span };   // what a test reads
+    // Every cloud is painted in --accent / --accent-2, never in the surface's own colours:
+    // each grain picks its stop by its mix (dustCloud.js drawCloud).
+    const style = styleCode();
+    const paints = paletteCss();
+    host.__cloud = { motes, colours: paints, flight: kind, span, style };   // what a test reads
     // Appended to the element's own PARENT, not <body>: a row's cloud is torn down with
     // the list it belongs to. Still position:fixed, so viewport-anchored, clear of
     // scroller clipping. A SURFACE goes on <body> outright: its own parent (a modal
@@ -1263,9 +1276,9 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     // document (a `var(--…)` needs the page's own scope to mean anything).
     const probe = document.createElement('span');
     host.appendChild(probe);
-    const fills = colours.map((css) => resolveColour(document, css, probe));
+    const fills = paints.map((css) => resolveColour(document, css, probe));
     probe.remove();
-    startCloud(host, motes, { flight: kind, span, colours: fills, origin: { x: r.left, y: r.top } });
+    startCloud(host, motes, { flight: kind, span, colours: fills, origin: { x: r.left, y: r.top }, style });
     // …and the layer goes one beat after the last mote lands (the flight ends AT the
     // span now, sweep included), not most of a second later.
     const life = setTimeout(() => {
@@ -2044,11 +2057,11 @@ export const DUST_CELL_PX = 6;
 // thinned back instead.
 export const DUST_MAX_PARTICLES = 7000;
 
-// The grid the ghost dust flies on: aim for DUST_CELL_PX per mote ON SCREEN, thinned
-// evenly once the particle ceiling bites. Pure — unit-tested.
-export const dustGrid = (w, h) => {
-  let cols = Math.max(1, Math.round(w / DUST_CELL_PX));
-  let rows = Math.max(1, Math.round(h / DUST_CELL_PX));
+// The grid the ghost dust flies on: aim for `cellPx` per mote ON SCREEN (a water / fire
+// ghost grids coarser), thinned evenly once the particle ceiling bites. Pure.
+export const dustGrid = (w, h, cellPx = DUST_CELL_PX) => {
+  let cols = Math.max(1, Math.round(w / cellPx));
+  let rows = Math.max(1, Math.round(h / cellPx));
   while (cols * rows > DUST_MAX_PARTICLES) { cols = Math.ceil(cols / 1.1); rows = Math.ceil(rows / 1.1); }
   return { cols, rows };
 };
@@ -2127,7 +2140,7 @@ const makeDustStage = (canvas) => {
   const field = dustField(canvas);
   if (!field) return null;
   const { r, vis } = field;
-  const { cols, rows } = dustGrid(vis.width, vis.height);
+  const { cols, rows } = dustGrid(vis.width, vis.height, DUST_CELL_PX * (styleCode() ? STYLED_CELL_SCALE : 1));
   // The source is snapshotted once — ghostOut clears the real canvas moments later.
   const snap = document.createElement('canvas');
   snap.width = canvas.width;
@@ -2194,15 +2207,11 @@ const sampleDustColours = (st) => {
 // colour AND one alpha step into a single fill — thousands of tiny fills a frame was the
 // cost, not the arcs — and eight steps on a 3px grain are below what the eye resolves.
 export const DUST_ALPHA_LEVELS = 8;
-// Colours are bucketed to 4 bits a channel for the same batching; a grain's own colour
-// is what it is drawn in, the bucket only decides which fill it rides.
-const dustBucket = (r, g, b) => ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4);
 
-// Every grain of a flight, sorted by colour bucket so drawDust can batch them. `gather`
-// picks the arrival's sweep and throw; the fall is shared, the sideways fan differs
-// (the arrival fans less, so the picture visibly closes rather than sweeps in). Grains
-// are small source cells turned into discs: home cell, rounded clear box, radius,
-// colour, throw, and the sideways swirl (tileWaypoint's recipe, as a continuous bulge).
+// Every grain of a flight. `gather` picks the arrival's sweep and throw; the fall is
+// shared, the sideways fan differs (the arrival fans less). Grains are small source cells
+// turned into discs: home cell, clear box, radius, coverage, throw and swirl. Painted from
+// the accent palette like every cloud, not in the picture's own pixels.
 const dustParts = (st, gather) => {
   const { cols, rows, dw, dh } = st;
   const px = sampleDustColours(st);
@@ -2230,81 +2239,97 @@ const dustParts = (st, gather) => {
         hx: (cx + 0.5) * dw, hy: (cy + 0.5) * dh,
         r: (Math.min(dw, dh) / 2) * (0.62 + n * 0.5),
         delay: dustDelay(cy, rows, n, gather),
-        dx, dy,
+        dx, dy, len,
         swx: -(dy / len) * amp, swy: (dx / len) * amp,
+        w: tileNoise(cx + 13, cy + 71),   // its own hash, for a water / fire ghost's styleFrame
         a,
         empty: a < 0.04,
-        color: `rgb(${px[i]},${px[i + 1]},${px[i + 2]})`,
-        bucket: dustBucket(px[i], px[i + 1], px[i + 2]),
       });
     }
   }
-  parts.sort((p, o) => p.bucket - o.bucket);
   return parts;
 };
 
 // One frame: the picture, minus every cell that has left it, plus the grains in the
 // air. `k` is how far from home a grain is (0 whole, 1 gone); a cell at k=0 is simply
 // the picture, and at k=1 nothing. Two passes — every clear first, then every grain —
-// or a clear would punch holes in grains already drawn. Grains are batched per colour
-// bucket and alpha step into one path each.
-const TAU = Math.PI * 2;
-const drawDust = (st, parts, t, gather, ks, lvl, lvlN) => {
+// or a clear would punch holes in grains already drawn. Grains take their style's nudge,
+// swell and glow (styleFrame) and are painted from the accent palette by their mix — one
+// sweep per stop, batched per alpha step. `styled` (runDust) carries style and scratch.
+const drawDust = (st, parts, t, gather, ks, lvl, lvlN, styled) => {
   const { ctx, snap, cols, rows, sw, sh, sox, soy, dw, dh } = st;
   ctx.globalAlpha = 1;
   ctx.drawImage(snap, sox, soy, sw * cols, sh * rows, 0, 0, dw * cols, dh * rows);
   for (let i = 0; i < parts.length; i++) {
     const p = parts[i];
     const pt = (t - p.delay) / Math.max(0.05, 1 - p.delay);
+    styled.pts[i] = Math.max(0, Math.min(1, pt));
     let k;
     if (gather) { if (pt >= 1) { ks[i] = 0; continue; } k = pt <= 0 ? 1 : 1 - dustEase(pt); }
     else { if (pt <= 0) { ks[i] = 0; continue; } k = Math.min(1, pt); }
     ks[i] = k;
     ctx.clearRect(p.x0, p.y0, p.x1 - p.x0, p.y1 - p.y0);
   }
-  let bucket = -1;
+  const { style, palette, sf, pts, stop, fx, shapes, heads, poly } = styled;
   const flush = () => {
     for (let l = 0; l < DUST_ALPHA_LEVELS; l++) {
       const n = lvlN[l];
       if (!n) continue;
-      const buf = lvl[l];
       ctx.globalAlpha = (l + 1) / DUST_ALPHA_LEVELS;
-      ctx.beginPath();
-      for (let j = 0; j < n; j++) {
-        const x = buf[j * 3], y = buf[j * 3 + 1], r = buf[j * 3 + 2];
-        ctx.moveTo(x + r, y);
-        ctx.arc(x, y, r, 0, TAU);
-      }
-      ctx.fill();
+      fillGrains(ctx, lvl[l], n, poly);
       lvlN[l] = 0;
     }
   };
-  for (let i = 0; i < parts.length; i++) {
-    const k = ks[i];
-    if (k <= 0 || k >= 1) continue;
-    const p = parts[i];
-    if (p.empty) continue;
-    const l = Math.round((1 - k) * p.a * DUST_ALPHA_LEVELS) - 1;
-    if (l < 0) continue;
-    if (p.bucket !== bucket) { flush(); bucket = p.bucket; ctx.fillStyle = p.color; }
-    // A falling grain accelerates (k²); a landing one is eased by dustEase already.
+  // One grain into its alpha bucket: home + throw + swirl + the style's nudge, with its
+  // shape and heading. A falling grain accelerates (k²); a landing one is eased already.
+  const place = (i, p, k, l, sx, sy, scale) => {
     const s = Math.sin(Math.PI * k);
     const buf = lvl[l];
-    const j = lvlN[l]++ * 3;
-    buf[j] = p.hx + k * p.dx + s * p.swx;
-    buf[j + 1] = p.hy + (gather ? k : k * k) * p.dy + s * p.swy;
-    buf[j + 2] = p.r * (1 - k * 0.35);
+    const j = lvlN[l]++ * 5;
+    buf[j] = p.hx + k * p.dx + s * p.swx + sx;
+    buf[j + 1] = p.hy + (gather ? k : k * k) * p.dy + s * p.swy + sy;
+    buf[j + 2] = p.r * (1 - k * 0.35) * scale;
+    buf[j + 3] = shapes[i];
+    buf[j + 4] = heads[i];
+  };
+  const tMs = t * styled.ms;
+  // Every grain's touch once…
+  for (let i = 0; i < parts.length; i++) {
+    const k = ks[i], p = parts[i];
+    if (k <= 0 || k >= 1 || p.empty) { stop[i] = -1; continue; }
+    styleFrame(style, pts[i], k, p.w, p.len, tMs, sf);
+    stop[i] = paletteIndex(style ? sf.mix : dustMix(p.w, 0), palette.length);
+    fx[i * 4] = sf.sx; fx[i * 4 + 1] = sf.sy; fx[i * 4 + 2] = sf.scale; fx[i * 4 + 3] = sf.glow;
   }
-  flush();
+  // …then one sweep per palette stop.
+  for (let c = 0; c < palette.length; c++) {
+    ctx.fillStyle = palette[c];
+    for (let i = 0; i < parts.length; i++) {
+      if (stop[i] !== c) continue;
+      const l = Math.round((1 - ks[i]) * parts[i].a * fx[i * 4 + 3] * DUST_ALPHA_LEVELS) - 1;
+      if (l < 0) continue;
+      place(i, parts[i], ks[i], l, fx[i * 4], fx[i * 4 + 1], fx[i * 4 + 2]);
+    }
+    flush();
+  }
 };
 
 // Play a whole flight over the stage: build the grains once, then draw per frame.
 const runDust = (st, ms, gather) => {
   const parts = dustParts(st, gather);
   const ks = new Float32Array(parts.length);
-  const lvl = Array.from({ length: DUST_ALPHA_LEVELS }, () => new Float32Array(parts.length * 3));
+  const lvl = Array.from({ length: DUST_ALPHA_LEVELS }, () => new Float32Array(parts.length * 5));
   const lvlN = new Int32Array(DUST_ALPHA_LEVELS);
-  st.run(ms, (t) => drawDust(st, parts, t, gather, ks, lvl, lvlN));
+  // The style, the palette (resolved once), each grain's fixed shape and heading, and the
+  // per-grain scratch drawDust fills each frame: progress, stop, [sx, sy, scale, glow].
+  const style = styleCode();
+  const styled = {
+    style, ms, palette: paletteCss().map((css) => resolveColour(document, css)), sf: {}, poly: [],
+    pts: new Float32Array(parts.length), stop: new Int8Array(parts.length), fx: new Float32Array(parts.length * 4),
+    shapes: Int8Array.from(parts, (p) => grainShape(style, p.w)),
+    heads: Float32Array.from(parts, (p) => headingOf(p.dx, p.dy, gather)),
+  };
+  st.run(ms, (t) => drawDust(st, parts, t, gather, ks, lvl, lvlN, styled));
 };
 
 // Returns true when the dust is actually playing — the same contract as ghostIn, and

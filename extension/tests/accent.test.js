@@ -272,10 +272,9 @@ test('the wipe starts at the theme button, and no press is remembered to overrid
   assert.deepEqual(page.swapOrigin(), { x: 290, y: 40 }, 'the centre of #theme-toggle');
   // And the circle still has to reach the furthest corner from there.
   assert.equal(Math.round(page.swapRadius()), Math.round(Math.hypot(290, 660)));
-  // The clip the reveal actually plays is the RAGGED polygon pair (browser parity:
-  // motion.js swapEdgePolygon) — a torn front, not a clean circle line; equal vertex
-  // counts so the two end states interpolate, and even the deepest tooth of the full
-  // ring still clears the furthest corner.
+  // The clip the reveal plays is the polygon pair (browser parity: motion.js
+  // swapEdgePolygon) in the particle style: equal vertex counts so the two end states
+  // interpolate, and the full ring still clears the furthest corner.
   const parse = (poly) => [...poly.matchAll(/([\d.-]+)% ([\d.-]+)%/g)]
     .map((m) => ({ x: (parseFloat(m[1]) / 100) * 480, y: (parseFloat(m[2]) / 100) * 700 }));
   const from = parse(page.swapClip('from'));
@@ -285,8 +284,31 @@ test('the wipe starts at the theme button, and no press is remembered to overrid
   assert.ok(from.every((p) => Math.hypot(p.x - 290, p.y - 40) < 0.5), 'collapsed at the origin');
   const radii = to.map((p) => Math.hypot(p.x - 290, p.y - 40));
   const R = Math.hypot(290, 660);
-  assert.ok(radii.every((r) => r >= R), 'every tooth clears the furthest corner');
-  assert.ok(Math.max(...radii) - Math.min(...radii) > R * 0.022, 'ragged, not a circle in disguise');
+  assert.ok(radii.every((r) => r >= R - 0.05), 'every vertex clears the furthest corner');
+  assert.ok(Math.max(...radii) - Math.min(...radii) < 0.1, 'dust: a perfect circle');
+});
+
+test('water and fire cut their own front, and the classic-script twins match dustCloud.js', async () => {
+  const dc = await import('../src/lib/dustCloud.js');
+  const page = loadAccent();
+  const parse = (poly) => [...poly.matchAll(/([\d.-]+)% ([\d.-]+)%/g)]
+    .map((m) => Math.hypot((parseFloat(m[1]) / 100) * 480 - 290, (parseFloat(m[2]) / 100) * 700 - 40));
+  const R = Math.hypot(290, 660);
+  for (const style of [dc.STYLE_WATER, dc.STYLE_FIRE]) {
+    const radii = parse(page.motion.edgePolygon(290, 40, 480, 700, 1, style));
+    assert.equal(radii.length, 240);
+    assert.ok(radii.every((r) => r >= R - 0.05), 'coverage still rules');
+    assert.ok(Math.max(...radii) - Math.min(...radii) > R * 0.03, `style ${style}: visibly not a circle`);
+    for (const k of [0, 17, 101, 239])
+      assert.ok(Math.abs(page.motion.edgeJitter(style, k) - dc.edgeJitter(style, k)) < 1e-12, `edgeJitter ${style}/${k}`);
+    for (const w of [0.1, 0.37, 0.8, 0.95]) assert.equal(page.motion.grainShape(style, w), dc.grainShape(style, w));
+  }
+  assert.equal(page.motion.grainShape(0, 0.8), dc.SHAPE_DISC);
+  const norm = (a) => Array.from(a, (v) => +(+v).toFixed(9) + 0);
+  assert.deepEqual(norm(page.motion.shapePolygon(dc.SHAPE_TRIANGLE, 10, 20, 2, 0.5)),
+                   norm(dc.shapePolygon(dc.SHAPE_TRIANGLE, 10, 20, 2, 0.5)));
+  assert.deepEqual(norm(page.motion.shapePolygon(dc.SHAPE_WAVE, 3, 4, 1.5, 2)), norm(dc.shapePolygon(dc.SHAPE_WAVE, 3, 4, 1.5, 2)));
+  assert.deepEqual(norm(page.motion.shapePolygon(dc.SHAPE_STREAK, 3, 4, 1.5, 2)), norm(dc.shapePolygon(dc.SHAPE_STREAK, 3, 4, 1.5, 2)));
 });
 
 test('with nothing to anchor to, the wipe blooms from the centre — never a click', () => {
@@ -335,18 +357,19 @@ test('the wipe seeds a dust layer on <body> once ready, in the OLD palette', asy
   // Sized in device pixels, laid out in CSS ones — a hi-dpi wake is not a blurry one.
   assert.deepEqual([stage.style.width, stage.style.height], ['480px', '700px']);
 
-  // Mid-wake: grains of both colours are in the air.
+  // Mid-wake: grains of the accent AND its shade are in the air.
   assert.ok(page.frame(140), 'the wake is running');
   const lit = stage.fills.filter((f) => f.arcs > 0);
   const grains = lit.reduce((n, f) => n + f.arcs, 0);
   assert.ok(grains > 10, `a real field of grains (got ${grains})`);
-  // The sandbox's computed vars are the pre-swap (light) palette: the wake bakes those
-  // literals — by the time a grain shows, the live vars already mean the new theme.
-  assert.ok(lit.some((f) => f.colour === '#7c3aed'), 'old-accent grains');
-  assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, #f4f5f7 58%, #1d2230)'),
-    'body grains lifted off the old surface towards its old ink');
-  // The whole point of the stage: a couple of fills a frame, not one per grain.
-  assert.ok(stage.fills.length <= 16, `batched into ${stage.fills.length} fills, not ${grains}`);
+  // Painted from the accent palette, resolved BEFORE the swap (the sandbox cannot compute
+  // a colour, so color-mix() strings come through): every fourth grain wears the shade.
+  assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--accent) 100%, var(--accent-2))'), 'accent grains');
+  assert.ok(lit.some((f) => f.colour === 'color-mix(in srgb, var(--accent) 0%, var(--accent-2))'), 'shade grains');
+  // The whole point of the stage: batched fills — one per (stop, alpha step), each in
+  // chunks of 32 grains (lib/dustCloud.js FILL_CHUNK) — not one per grain.
+  assert.ok(stage.fills.length <= 6 * 8 + Math.ceil(grains / 32), `batched into ${stage.fills.length} fills, not ${grains}`);
+  assert.ok(lit.every((f) => f.arcs <= 32), 'no path longer than a chunk');
   assert.ok(lit.every((f) => f.alpha > 0 && f.alpha <= 1), 'every batch carries its own alpha');
 
   // Nothing is alight before the ring starts moving, or after the last grain burns out.
@@ -440,4 +463,105 @@ test('switching from a light accent back to a dark one clears the flag', () => {
   assert.equal(isAccentLight(), true);
   accent.set('violet');
   assert.equal(isAccentLight(), false);
+});
+
+// ── Interface motion (StencilMotion — browser js/ui/motionPrefs.js twin) ──
+
+test('the motion mode defaults to particles, is stamped before first paint, and mirrors the browser list', async () => {
+  const page = loadAccent();
+  assert.equal(page.motion.get(), 'particles');
+  assert.equal(page.dataMotion(), 'particles', 'data-motion is on <html> at load');
+  assert.equal(page.motion.storageKey, 'stencil_motion');
+  const browser = await import('../../browser/js/ui/motionPrefs.js');
+  // Through JSON: values built inside the vm context carry their own Array prototype.
+  const plain = (v) => JSON.parse(JSON.stringify(v));
+  assert.deepEqual(plain(page.motion.modes), browser.MOTION_MODES, 'the same five modes, in the same order');
+  assert.deepEqual(plain(page.motion.labels), browser.MOTION_MODE_LABELS, 'and the same dropdown labels');
+});
+
+test('setting the mode persists it, restamps <html>, and an unknown one reads as particles', () => {
+  const page = loadAccent();
+  assert.equal(page.motion.set('fire'), 'fire');
+  assert.equal(page.store.get('stencil_motion'), 'fire');
+  assert.equal(page.dataMotion(), 'fire');
+  assert.equal(page.motion.set('sparkles'), 'particles', 'junk falls back');
+  assert.equal(page.dataMotion(), 'particles');
+  // A stored junk value never silences the page either.
+  assert.equal(loadAccent({ stored: { stencil_motion: 'nope' } }).motion.get(), 'particles');
+  assert.equal(loadAccent({ stored: { stencil_motion: 'water' } }).dataMotion(), 'water');
+  // Private mode: the default stands, nothing throws.
+  assert.equal(loadAccent({ storageThrows: true }).motion.set('slide'), 'slide');
+});
+
+test('the gates: particles / water / fire fly, slide moves without particles, none is still', () => {
+  const page = loadAccent();
+  const expect = (mode, reduced, particles, style) => {
+    page.motion.set(mode);
+    assert.equal(page.motion.reduced(), reduced, `${mode}: reduced`);
+    assert.equal(page.motion.particles(), particles, `${mode}: particles`);
+    assert.equal(page.motion.style(), style, `${mode}: style`);
+  };
+  expect('particles', false, true, 'dust');
+  expect('water', false, true, 'water');
+  expect('fire', false, true, 'fire');
+  expect('slide', false, false, null);
+  expect('none', true, false, null);
+  // The OS preference wins over any stored mode.
+  page.motion.set('fire');
+  page.setPrefersReduced(true);
+  assert.equal(page.motion.reduced(), true);
+  assert.equal(page.motion.particles(), false);
+  assert.equal(page.motion.style(), null);
+});
+
+test('a mode changed on another page lands here through the storage event', () => {
+  const page = loadAccent();
+  let seen = null;
+  page.motion.onChange((m) => { seen = m; });
+  page.store.set('stencil_motion', 'water');
+  page.fireStorage('stencil_motion');
+  assert.equal(page.dataMotion(), 'water', 'the CSS half is restamped');
+  assert.equal(seen, 'water', 'and the listener told');
+});
+
+test('the classic-script styleFrame is dustCloud.js styleFrame, frame for frame', async () => {
+  const { styleFrame } = await import('../src/lib/dustCloud.js');
+  const page = loadAccent();
+  for (const style of [0, 1, 2]) {
+    for (const p of [0, 0.13, 0.5, 0.87, 1]) {
+      for (const w of [0, 0.37, 0.91]) {
+        for (const t of [0, 133, 777]) {
+          // Plain numbers (no -0, no vm prototypes) on both sides.
+          const norm = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, +(+v).toFixed(12) + 0]));
+          assert.deepEqual(norm(page.motion.styleFrame(style, p, 1 - p, w, 90, t)),
+                           norm(styleFrame(style, p, 1 - p, w, 90, t)), `style ${style} p ${p} w ${w} t ${t}`);
+        }
+      }
+    }
+  }
+});
+
+test('a water or fire wake is painted from the accent palette; slide keeps the wipe and drops the grain', async () => {
+  const styled = loadAccent({ withViewTransitions: true, stored: { stencil_motion: 'fire' } });
+  styled.accent.set('sky', 'theme-toggle');
+  await Promise.resolve(); await Promise.resolve();
+  assert.equal(styled.bodyChildren.length, 1, 'one dust layer');
+  const stage = styled.bodyChildren[0];
+  styled.frame(0); styled.frame(200);
+  const lit = stage.fills.filter((f) => f.arcs > 0);
+  assert.ok(lit.length > 0, 'grains were painted');
+  for (const f of lit) assert.match(f.colour, /^color-mix\(in srgb, var\(--accent\) \d+%, var\(--accent-2\)\)$/, `palette fill, got ${f.colour}`);
+  assert.ok(new Set(lit.map((f) => f.colour)).size >= 2, 'more than one stop of it');
+
+  const sliding = loadAccent({ withViewTransitions: true, stored: { stencil_motion: 'slide' } });
+  sliding.accent.set('sky', 'theme-toggle');
+  await Promise.resolve(); await Promise.resolve();
+  assert.equal(sliding.dataAccent(), 'sky', 'the palette still swaps');
+  assert.ok(sliding.swapOrigin(), 'the wipe still plays');
+  assert.equal(sliding.bodyChildren.length, 0, 'no wake');
+
+  const still = loadAccent({ withViewTransitions: true, stored: { stencil_motion: 'none' } });
+  still.accent.set('sky', 'theme-toggle');
+  assert.equal(still.dataAccent(), 'sky');
+  assert.equal(still.swapOrigin(), null, 'none: the palette applies outright, no wipe');
 });

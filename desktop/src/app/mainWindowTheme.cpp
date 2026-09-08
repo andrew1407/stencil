@@ -73,13 +73,12 @@ namespace stencil::gui {
         if (rect().contains(c)) origin = c;
       }
       wipe = ThemeSwapOverlay::capture(this, origin);
-      // The circle kicks up dust in its wake, painted in the palette it is erasing —
-      // read from the PAINTED state, before the restyle below moves it. Only in the
-      // particle mode: 'slide' keeps the wipe and drops its grain (browser parity —
-      // motion.js spawnSwapDust is gated the same way).
+      // The circle kicks up particles in its wake, painted in the accent and shade it is
+      // erasing — read from the PAINTED state, before the restyle below moves it. Only in
+      // a particle mode: 'slide' keeps the wipe and drops its grain (browser parity).
       if (wipe && support::dustAllowed()) {
         const Palette old = themePalette(paintedDark_, paintedAccent_);
-        wipe->seedDust(old.bgPage, old.textMain, old.accent);
+        wipe->seedDust(old.accent, old.textKey);
       }
       themeWipe_ = wipe;
     }
@@ -101,6 +100,15 @@ namespace stencil::gui {
     // Tooltips are rendered as rich text (tipContent.hpp) — their keycaps and muted lines
     // are literal colours, so they have to be re-taken from the palette on every swap.
     setTooltipPalette(themePalette(dark, settings_.accentColor));
+    // The two colours a cloud is painted in: the accent and its --accent-2 shade, which
+    // Palette carries as textKey.
+    {
+      const Palette np = themePalette(dark, settings_.accentColor);
+      support::setParticlePalette(np.accent, np.textKey);
+    }
+    // An open accent popover keeps its ✓ on the accent now applied, whichever route
+    // moved it (the logo's click-cycle under the open list, a row pick, the dialog).
+    remarkAccentPopover();
     // Every scrollbar's thumb is a painted pill (support/pillScrollBars.hpp) — hand the
     // painter the theme's colours, since a stylesheet cannot round or accent them.
     ScrollBarPill::setColors(canvasScrollThumb(dark),
