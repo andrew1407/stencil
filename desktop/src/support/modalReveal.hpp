@@ -79,13 +79,21 @@ namespace stencil::support {
   // QApplication drops it and rejects the modal instead. Idempotent.
   void installModalDismiss();
 
+  // …and its platform half, where one exists. A window a modal blocks never gets a mouse
+  // event from Qt (QtGui drops it before any QEvent is made), so on macOS the press is
+  // read from the native event instead — modalDismissMac.mm. A no-op elsewhere.
+  void installModalDismissNative();
+
   // Set on a dialog that must be answered, never clicked away.
   inline constexpr const char* kNoOutsideDismissProperty = "stencilNoOutsideDismiss";
 
-  // A window-sized dust cloud's mote budget — coarser than a menu/select popup's, since a
-  // cloud this size gets laggy past a few thousand cells. Also used by execMaybePopover's
-  // dialog-sized popover flight (mainWindow.cpp).
-  inline constexpr int kDialogDustMaxCells = 4000;
+  // A window-sized dust cloud's mote budget — the SAME ceiling every other surface flight
+  // uses (DisintegrateOverlay::kSurfaceMaxCells, the browser's SURFACE_COLS * SURFACE_ROWS
+  // = 46 * 30; modalReveal.cpp static_asserts the two agree). It used to override that
+  // default with 4000, which packed nearly three times the grains into the icon the window
+  // pours out of: at the far end they overlapped into a solid chunk of the accent instead
+  // of dust (user report). Also used by execMaybePopover's popover flight.
+  inline constexpr int kDialogDustMaxCells = 46 * 30;
 
   // The motion preferences every helper here checks — motionReduced(), dustAllowed(),
   // dustMotionOk(), drawingMotionOk() — live in their own header-only home, included
