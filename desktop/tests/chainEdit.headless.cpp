@@ -36,6 +36,17 @@ static core::Line closedShape() {
   l.locked = true;
   return l;
 }
+// The same shape drawn roomy: no two vertices within one hit radius of each other. A
+// press on the widget takes the FIRST point inside that radius (core findNearestPoint,
+// the browser's rule), so on the 10-unit shape above every grab answers point 0 — the
+// seam would land there whatever the user pointed at, and the gesture below would be
+// testing nothing.
+static core::Line roomyShape() {
+  core::Line l;
+  l.points = {{0, 0}, {60, 0}, {60, 60}, {0, 0}};
+  l.locked = true;
+  return l;
+}
 // A rect: locked, four corners, no duplicate.
 static core::Line rect() {
   core::Line l;
@@ -118,40 +129,40 @@ int main(int argc, char** argv) {
     canvas.loadFromImage(img);
     canvas.setScale(1.0);
     canvas.resize(canvas.imageWidth(), canvas.imageHeight());
-    canvas.setLines({closedShape()});
+    canvas.setLines({roomyShape()});
     canvas.selectLineByIndex(0);
 
-    // Alt+Ctrl-press on vertex 1 (10,0): the area opens there and the new free end is
+    // Alt+Ctrl-press on vertex 1 (60,0): the area opens there and the new free end is
     // what the drag moves.
-    const QPoint at(10, 0);
+    const QPoint at(60, 0);
     QMouseEvent press(QEvent::MouseButtonPress, QPointF(at), canvas.mapToGlobal(at),
                       Qt::LeftButton, Qt::LeftButton, Qt::AltModifier | Qt::ControlModifier);
     QCoreApplication::sendEvent(&canvas, &press);
     check(!canvas.lines()[0].locked, "Alt+Ctrl+press broke the area open");
     check(canvas.lines()[0].points.size() == 4, "three ring points plus the free end");
-    check(same(canvas.lines()[0].points, Pts{{10, 0}, {10, 10}, {0, 0}, {10, 0}}),
+    check(same(canvas.lines()[0].points, Pts{{60, 0}, {60, 60}, {0, 0}, {60, 0}}),
           "…seamed at the vertex grabbed");
     check(canvas.selectedPoint() == 3, "the free end is focused for the drag");
 
     // Dragging really moves that end, and only it.
-    const QPoint to(40, 30);
+    const QPoint to(100, 80);
     QMouseEvent move(QEvent::MouseMove, QPointF(to), canvas.mapToGlobal(to), Qt::NoButton,
                      Qt::LeftButton, Qt::AltModifier | Qt::ControlModifier);
     QCoreApplication::sendEvent(&canvas, &move);
-    check(same(canvas.lines()[0].points[3], 40, 30), "the pulled end followed the cursor");
-    check(same(canvas.lines()[0].points[0], 10, 0), "and the vertex it came from stayed put");
+    check(same(canvas.lines()[0].points[3], 100, 80), "the pulled end followed the cursor");
+    check(same(canvas.lines()[0].points[0], 60, 0), "and the vertex it came from stayed put");
     QMouseEvent rel(QEvent::MouseButtonRelease, QPointF(to), canvas.mapToGlobal(to),
                     Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
     QCoreApplication::sendEvent(&canvas, &rel);
 
     // macOS delivers Ctrl+Left as a RIGHT button press, so the same chord must pull out
     // there too — and must NOT ask for a context menu over the point being dragged.
-    canvas.setLines({closedShape()});
+    canvas.setLines({roomyShape()});
     canvas.selectLineByIndex(0);
     int contextMenus = 0;
     QObject::connect(&canvas, &CanvasWidget::contextRequested, &canvas,
                      [&contextMenus](const QPoint&) { ++contextMenus; });
-    const QPoint vertex(10, 10);
+    const QPoint vertex(60, 60);
     QMouseEvent rightPress(QEvent::MouseButtonPress, QPointF(vertex), canvas.mapToGlobal(vertex),
                            Qt::RightButton, Qt::RightButton,
                            Qt::AltModifier | Qt::ControlModifier);
@@ -175,6 +186,7 @@ int main(int argc, char** argv) {
     check(canvas.lines()[0].points.size() == 4, "…and asking again changes nothing");
   }
 
-  std::puts("chainEdit: OK");
-  return 0;
+  // The counter every check() feeds — without this the suite passed with failures in it.
+  std::printf("chainEdit: %s\n", failures ? "FAILED" : "OK");
+  return failures ? 1 : 0;
 }
