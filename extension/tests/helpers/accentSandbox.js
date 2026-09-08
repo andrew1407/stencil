@@ -33,6 +33,8 @@ const SRC = readFileSync(
  * @param {boolean} [opts.withViewTransitions]    - true adds document.startViewTransition
  *   (and the classList/style <html> carries), so the palette-swap WIPE runs and its origin
  *   can be read back from the --swap-* custom properties.
+ * @param {boolean} [opts.deferViewTransitions]   - the same, but the callback QUEUES until
+ *   runSwaps() — the real API's timing, and the gap a menu's own close runs in.
  * @param {Array<{id:string,rect:object,visible?:boolean}>} [opts.controls] - Elements the
  *   page owns, matched by `[id="…"]`. `rect` is a getBoundingClientRect() result; `visible`
  *   false models a laid-out-but-invisible copy (checkVisibility === false).
@@ -49,6 +51,7 @@ export const loadAccent = ({
   withChrome = true,
   withMatchMedia = true,
   withViewTransitions = false,
+  deferViewTransitions = false,
   controls = [],
   viewport = { width: 480, height: 700 },
 } = {}) => {
@@ -83,7 +86,7 @@ export const loadAccent = ({
     removeProperty: (k) => props.delete(k),
     getPropertyValue: (k) => (props.has(k) ? props.get(k) : ''),
   };
-  if (withViewTransitions) {
+  if (withViewTransitions || deferViewTransitions) {
     documentElement.classList = { add: (c) => classes.add(c), remove: (c) => classes.delete(c) };
   }
 
@@ -145,9 +148,15 @@ export const loadAccent = ({
     },
     addEventListener: (type, fn) => { if (type === 'pointerdown') pointerListeners.push(fn); },
   };
-  if (withViewTransitions) {
+  // The REAL API runs the callback a beat later, and code runs in that gap (a menu
+  // closing over its own pick): `deferViewTransitions` queues them until runSwaps().
+  const queuedSwaps = [];
+  if (withViewTransitions || deferViewTransitions) {
     // `ready` resolves like the real API's: the wake (swap dust) spawns off it.
-    document.startViewTransition = (cb) => { cb(); return { ready: Promise.resolve(), finished: Promise.resolve() }; };
+    document.startViewTransition = (cb) => {
+      if (deferViewTransitions) queuedSwaps.push(cb); else cb();
+      return { ready: Promise.resolve(), finished: Promise.resolve() };
+    };
   }
 
   // ── chrome.storage.local mirror ──
@@ -237,6 +246,8 @@ export const loadAccent = ({
       cb(ms);
       return true;
     },
+    /** Run (and clear) the view-transition callbacks `deferViewTransitions` queued. */
+    runSwaps() { for (const cb of queuedSwaps.splice(0)) cb(); },
     /** Raw localStorage contents. */
     store,
     /** Every object handed to chrome.storage.local.set, in order. */

@@ -772,7 +772,9 @@ button:not(:disabled):active {
     .accent-dd-menu:not([hidden]), .logo-accent-menu.dd-closing { animation: none; }
 }
 .accent-dd-opt { transition: background 0.15s ease, transform 0.12s ease; }
-.accent-dd-opt:hover { transform: translateX(2px); }
+/* `.dd-hover` is accentPicker.js's LATCH of that hover: a preview's flood drops real
+   :hover, so the row slid back to rest and in again after every one. */
+.accent-dd-opt:hover, .accent-dd-opt.dd-hover { transform: translateX(2px); }
 #install-menu [role="menuitem"] { transition: background 0.15s ease, transform 0.12s ease, padding-left 0.15s ease; }
 #install-menu [role="menuitem"]:hover { transform: translateX(2px); }
 /* #install-toggle uses the shared hover shimmer — no magnify (consistent hover). */
@@ -1103,6 +1105,11 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    the swap classes alone does not work — the restart lands after they are gone. */
 .accent-dd-menu.dd-preview-hold .accent-dd-opt::after { animation: none !important; }
 .accent-dd-menu.dd-preview-hold .accent-dd-opt :is(.ic, .ic *) { animation-name: none !important; }
+/* And the CURSOR: the snapshot covers the page, so the pointer stops hitting the row and
+   the hand blinks to an arrow. The snapshot tree hangs off :root — hold it there, in two
+   rules (an engine that drops ::view-transition would drop a shared selector list). */
+html.dd-preview-cursor { cursor: pointer; }
+html.dd-preview-cursor::view-transition { cursor: pointer; }
 
 /* ── Dust in the wipe's wake (js/ui/motion.js swapDustSpecs) ─────────────────
    Specks kicked up where the circle's edge has just passed, in the OLD palette's

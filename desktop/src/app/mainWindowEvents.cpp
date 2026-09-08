@@ -274,14 +274,19 @@ namespace stencil::gui {
         openedExportMenu =
             tryOpen(actCopyImage_, copyImageOptionsMenu_) || tryOpen(actSaveImage_, saveImageOptionsMenu_);
       }
+      // Resting ON an open popover is not resting on the icons its box covers — see the
+      // cursor-rect fallback below (the same guard the glide poll in execMaybePopover has).
+      const bool onOpenBox = activePopover_ && popoverRectGlobal().contains(QCursor::pos());
       if (!openedExportMenu) {
         for (auto it = popoverButtons_.cbegin(); it != popoverButtons_.cend(); ++it) {
           auto* btn = static_cast<QToolButton*>(it.key());
           if (!it.value()->isEnabled()) continue;   // a disabled icon opens nothing
           // underMouse() backs up the cursor-position check: same answer for a real
-          // resting pointer, and it is the state the offscreen GUI test can mock.
+          // resting pointer, and it is the state the offscreen GUI test can mock — but it
+          // is pure geometry, blind to an icon the open box COVERS, hence onOpenBox.
           if (btn->isVisible() && (btn->underMouse() ||
-                                   btn->rect().contains(btn->mapFromGlobal(QCursor::pos())))) {
+                                   (!onOpenBox &&
+                                    btn->rect().contains(btn->mapFromGlobal(QCursor::pos()))))) {
             if (activePopover_) {
               // A popover (peek or sticky) already shows: switch to this icon —
               // the reject unwinds exec(), and execMaybePopover opens the next.
