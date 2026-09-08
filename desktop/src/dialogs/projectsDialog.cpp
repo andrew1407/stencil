@@ -488,7 +488,7 @@ namespace stencil::gui {
         if (remote) { edge = kGoldEdge; ring = edge; ring.setAlpha(140); }
         else if (fileOrigin) { edge = kBronzeEdge; ring = edge; ring.setAlpha(140); }
         else if (current) { edge = o.palette.color(QPalette::Link); }
-        else { edge = o.palette.color(QPalette::Mid); edge.setAlpha(temp ? 110 : 70); }
+        else { edge = o.palette.color(QPalette::Dark); }   // the browser's --border-main
         p->save();
         p->setRenderHint(QPainter::Antialiasing, true);
         p->setBrush(Qt::NoBrush);
@@ -514,14 +514,22 @@ namespace stencil::gui {
           const QColor def = o.palette.color(QPalette::Text);
           QColor nameCol = idx.data(Qt::UserRole + 4).value<QColor>();
           if (!nameCol.isValid()) nameCol = def;
+          // The browser's .project-name / .project-sub sizes (14 / 12 px), not the app
+          // font: at the system size the two lines sat noticeably tighter than the
+          // browser's rows (user report).
           QFont nameF(o.font);
           nameF.setBold(true);
+          nameF.setPixelSize(14);
           QFont metaF(o.font);
-          metaF.setPointSizeF(std::max(8.0, o.font.pointSizeF() - 1.0));
+          metaF.setPixelSize(12);
           const QFontMetrics nfm(nameF), mfm(metaF);
           constexpr int kLineGap = 3;
-          int totalH = nfm.height() + kLineGap + mfm.height();
+          // Centred on the lines this row actually draws: the origin line is a real row's
+          // only, so counting it on the temporary row (which returns before it) reserved a
+          // line that is never painted and pushed the pair up off centre.
+          int totalH = nfm.height();
           if (!meta.isEmpty()) totalH += kLineGap + mfm.height();
+          if (!temp) totalH += kLineGap + mfm.height();   // …the origin line below
           int y = opt.rect.top() + (opt.rect.height() - totalH) / 2;
           p->save();
           p->setFont(nameF);
@@ -1098,11 +1106,8 @@ namespace stencil::gui {
     QPainter p(&pm);
     p.setRenderHint(QPainter::Antialiasing, true);
     const QColor muted = palette().color(QPalette::Disabled, QPalette::Text);
-    QColor fill = palette().color(QPalette::Mid), edge = fill;
-    fill.setAlpha(28);
-    edge.setAlpha(90);
-    p.setBrush(fill);
-    p.setPen(QPen(edge, 1));
+    p.setBrush(palette().color(QPalette::AlternateBase));      // --bg-info
+    p.setPen(QPen(palette().color(QPalette::Dark), 1));         // --border-main
     p.drawRoundedRect(QRectF(0.5, 0.5, 55, 55), 6, 6);
     const QString glyph = incognito ? QStringLiteral("incognito") : QStringLiteral("pencil");
     if (hasIcon(glyph)) {

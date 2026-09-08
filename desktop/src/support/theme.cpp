@@ -1131,6 +1131,9 @@ namespace stencil::gui {
     // footer hints) reads it. Unset, Qt derives a grey from Button that vanishes
     // against the dark theme's dialogs.
     q.setColor(QPalette::Mid, p.textMuted);
+    // Dark = the browser's --border-main: the hairline every hand-painted card outline
+    // wants (projectsDialog's row cards). Mid is the muted TEXT, far too light for one.
+    q.setColor(QPalette::Dark, p.borderMain);
     q.setColor(QPalette::Disabled, QPalette::Text, p.textMuted);
     q.setColor(QPalette::Disabled, QPalette::ButtonText, p.textMuted);
     q.setColor(QPalette::Disabled, QPalette::WindowText, p.textMuted);
