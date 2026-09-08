@@ -1,4 +1,5 @@
 import { surfaceIn, surfaceOut, centerOf } from './motion.js';
+import { icon } from './icons.js';
 
 // How long the pointer must rest on a row before it previews. Browser twin: accentPicker.js.
 const PREVIEW_HOVER_MS = 280;
@@ -131,7 +132,8 @@ export function wireLogoAccent(logo) {
       li.setAttribute('role', 'option');
       li.dataset.key = a.key;
       li.innerHTML =
-        `<span class="accent-swatch" style="background:${a.hex}"></span>` +
+        `<span class="accent-swatch" style="background:${a.hex}">` +
+        `${icon('check', { size: 11, cls: 'accent-check', sw: 3.5 })}</span>` +
         `<span class="accent-dd-name">${a.label}</span>`;
       li.addEventListener('click', () => {
         clearHover(); clearLeave();
