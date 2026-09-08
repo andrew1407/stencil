@@ -196,6 +196,7 @@ namespace stencil::gui {
         QColor("#000000"), QColor("#7c3aed"), QColor("#d6293e"),
         QColor("#ffc800"), QColor("#7c3aed"), QColor("#e9ecef"),
         QColor("#c98a00"),   // --warning
+        QColor("#9aa0a8"),   // --disabled-text: a dead control's ink (browser theme.css)
     };
     static const Palette darkP{
         QColor("#1a1a1a"), QColor("#242424"), QColor("#2d2d2d"),
@@ -207,6 +208,7 @@ namespace stencil::gui {
         QColor("#e0e0e0"), QColor("#6d28d9"), QColor("#f0697a"),
         QColor("#ffc800"), QColor("#7c3aed"), QColor("#3a3a3a"),
         QColor("#e6b53c"),   // --warning
+        QColor("#777777"),   // --disabled-text
     };
     Palette p = dark ? darkP : light;
     // Every token goes to the display's space, so reds/golds match the browser too.
@@ -214,7 +216,7 @@ namespace stencil::gui {
                       &p.borderCanvas, &p.borderSel, &p.textMain, &p.textMuted, &p.textSelLabel,
                       &p.bgSelBtn, &p.bgSelBtnHov, &p.textSelBtn,
                       &p.textKey, &p.inputBg, &p.inputText, &p.accent, &p.danger, &p.selGlow,
-                      &p.hoverRing, &p.bgCoordHover, &p.warning})
+                      &p.hoverRing, &p.bgCoordHover, &p.warning, &p.disabledText})
       *f = displayColor(*f);
     const QColor accent = accentPrimary(accentKey);   // already display-space
     p.accent = accent;
@@ -469,8 +471,8 @@ namespace stencil::gui {
          so a greyed toolbar button reads clearly. The :checked:disabled override is
          higher-specificity so a disabled-but-checked toggle (e.g. incognito once an
          image is loaded) drops its accent highlight instead of looking still-active. */
-      QToolButton:disabled { color: %MUTED%; background: %DISABLED_BG%; border-color: %BORDER%; }
-      QToolButton:checked:disabled { color: %MUTED%; background: %DISABLED_BG%; border-color: %BORDER%; }
+      QToolButton:disabled { color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%; }
+      QToolButton:checked:disabled { color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%; }
       QToolButton::menu-indicator { image: none; }
       /* Chat-dock action buttons (send / attach / gear): the standard FILLED
          accent icon-button treatment (browser chat-panel parity); disabled =
@@ -493,7 +495,7 @@ namespace stencil::gui {
       QToolButton[toolFill="danger"]:hover { background: %DANGER2%; border-color: %DANGER2%; }
       QToolButton[toolFill="danger"]:pressed { background: %DANGER2%; }
       QToolButton[toolFill="accent"]:disabled, QToolButton[toolFill="danger"]:disabled {
-        color: %MUTED%; background: %DISABLED_BG%; border-color: %BORDER%;
+        color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%;
       }
       /* The Draw Start/Stop toggle is an ACCENT TOGGLE, not another filled section
          button (browser #draw-toggle in layout.css): OUTLINED while idle — accent ring,
@@ -513,7 +515,7 @@ namespace stencil::gui {
       /* Disabled outranks both states (the browser's :not(:disabled) guard): the shared
          muted chip, so a toggle you cannot press never wears the accent. */
       QToolButton[drawToggle="idle"]:disabled, QToolButton[drawToggle="on"]:disabled {
-        color: %MUTED%; background: %DISABLED_BG%; border-color: %BORDER%;
+        color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%;
       }
       /* Fit-to-window is the one section button that keeps a GHOST box (browser
          #zoom-fit): an outlined, transparent chip with the theme-coloured glyph, because
@@ -527,7 +529,7 @@ namespace stencil::gui {
          border unchanged. The accent tint here reads as a half-on toggle. */
       QToolButton[toolGhost="true"]:hover { background: %BG_INFO%; border-color: %BORDER%; }
       QToolButton[toolGhost="true"]:pressed { background: %BG_COORD_HOVER%; }
-      QToolButton[toolGhost="true"]:disabled { color: %MUTED%; background: transparent; border-color: %BORDER%; }
+      QToolButton[toolGhost="true"]:disabled { color: %DISABLED_TEXT%; background: transparent; border-color: %BORDER%; }
       /* The Settings cluster: the browser's bordered ghosts (#settings-btn & co). A
          CHECKED toggle still wins its accent fill (the more specific rule below). */
       QToolButton[toolSection="Settings"] { background: transparent; border: 1px solid %BORDER%; }
@@ -542,7 +544,7 @@ namespace stencil::gui {
       QMenu { background: %BG_CONTAINER%; color: %TEXT%; border: 1px solid %BORDER%; border-radius: 8px; padding: 5px; }
       QMenu::item { padding: 6px %MENU_PAD_R%px 6px 24px; border-radius: 6px; margin: 1px 2px; }
       QMenu::item:selected { background: %BG_COORD_HOVER%; color: %TEXT%; }
-      QMenu::item:disabled { color: %MUTED%; }
+      QMenu::item:disabled { color: %DISABLED_TEXT%; }
       QMenu::separator { height: 1px; background: %BORDER%; margin: 5px 10px; }
       /* The project-colour menu (browser .project-menu-item: gap 8px, padding 6px 8px):
          two short rows — the app-wide 24px/26px item padding read as a huge icon gap
@@ -577,7 +579,7 @@ namespace stencil::gui {
       }
       /* The accent variant repeated: its selector ties QPushButton:disabled, so the disabled face needs its own rule. */
       QPushButton:disabled, QPushButton[accentCta="true"]:disabled {
-        color: %MUTED%; background: %DISABLED_BG%; border-color: %BORDER%;
+        color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%;
       }
       /* Danger button (e.g. the selection panel's Delete Line) — the browser's
          --danger red treatment, tuned per theme. */
@@ -626,7 +628,7 @@ namespace stencil::gui {
          --disabled-bg/--disabled-text (button:disabled over .accent-dd-trigger); this is the
          same step, caret included — a QSS sub-control image is never auto-greyed. */
       QComboBox:disabled, QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {
-        color: %MUTED%; background: %DISABLED_BG%; border-color: %BORDER%;
+        color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%;
       }
       QComboBox::down-arrow:disabled { image: url(%CARET_DIM%); }
       QComboBox QAbstractItemView {
@@ -871,7 +873,7 @@ namespace stencil::gui {
         color: %TEXT%; font-size: 11px; padding: 0px;
       }
       QToolButton#expCalDay:hover { background: %BG_COORD_HOVER%; }
-      QToolButton#expCalDay:disabled { color: %MUTED%; background: transparent; }
+      QToolButton#expCalDay:disabled { color: %DISABLED_TEXT%; background: transparent; }
       /* .is-today / .is-expiry. A cell that is both wears "expiry", exactly as the
          browser's later rule wins over the earlier one. */
       QToolButton#expCalDay[expDay="today"] { border-color: %SUCCESS_RING%; color: %TEXT%; }
@@ -1103,6 +1105,7 @@ namespace stencil::gui {
         .replace("%CARET_DIM%", caretImagePath(caretDim))
         .replace("%CARET%", caretImagePath(p.textMuted))
         .replace("%MUTED%", c(p.textMuted))
+        .replace("%DISABLED_TEXT%", c(p.disabledText))
         .replace("%ACCENT%", c(p.accent))
         .replace("%INPUT_BG%", c(p.inputBg))
         .replace("%INPUT_TEXT%", c(p.inputText));
@@ -1134,9 +1137,11 @@ namespace stencil::gui {
     // Dark = the browser's --border-main: the hairline every hand-painted card outline
     // wants (projectsDialog's row cards). Mid is the muted TEXT, far too light for one.
     q.setColor(QPalette::Dark, p.borderMain);
-    q.setColor(QPalette::Disabled, QPalette::Text, p.textMuted);
-    q.setColor(QPalette::Disabled, QPalette::ButtonText, p.textMuted);
-    q.setColor(QPalette::Disabled, QPalette::WindowText, p.textMuted);
+    // The DISABLED group is the browser's --disabled-text — dimmer than the muted live
+    // label, and what a rasterised disabled glyph is inked with (iconSet.cpp mutedInk).
+    q.setColor(QPalette::Disabled, QPalette::Text, p.disabledText);
+    q.setColor(QPalette::Disabled, QPalette::ButtonText, p.disabledText);
+    q.setColor(QPalette::Disabled, QPalette::WindowText, p.disabledText);
     return q;
   }
 

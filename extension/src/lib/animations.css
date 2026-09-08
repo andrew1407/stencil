@@ -800,11 +800,11 @@ html.theme-swapping *::before, html.theme-swapping *::after {
     80%  { transform: scale(1.04, 0.96); }
     100% { transform: none; opacity: 1; }
 }
-.accent-dd-opt:hover .mm-mote, .accent-dd-trigger:hover .mm-mote, .mm-play .mm-mote { animation: mmDust 1.2375s cubic-bezier(0.16, 1, 0.3, 1) both; }
-.mm-mote:nth-of-type(2) { animation-delay: 0.135s; }
-.mm-mote:nth-of-type(3) { animation-delay: 0.27s; }
-.mm-mote:nth-of-type(4) { animation-delay: 0.405s; }
-.mm-mote:nth-of-type(5) { animation-delay: 0.54s; }
+.accent-dd-opt:hover .mm-mote, .accent-dd-trigger:hover .mm-mote, .mm-play .mm-mote { animation: mmDust 0.825s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.mm-mote:nth-of-type(2) { animation-delay: 0.09s; }
+.mm-mote:nth-of-type(3) { animation-delay: 0.18s; }
+.mm-mote:nth-of-type(4) { animation-delay: 0.27s; }
+.mm-mote:nth-of-type(5) { animation-delay: 0.36s; }
 @keyframes mmDust { from { transform: translateY(-7px); opacity: 0; } to { transform: none; opacity: 1; } }
 /* The icon slot in a dropdown row and its trigger (customSelect.js `icons`). */
 .cs-opt-icon, .cs-cur-icon { display: inline-flex; align-items: center; flex: none; }

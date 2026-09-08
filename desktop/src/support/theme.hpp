@@ -37,6 +37,7 @@ namespace stencil::gui {
     QColor bgCoordHover; // --bg-coord-hover   (neutral row-hover tint, e.g. .ctx-item:hover —
                          // NOT accent-tinted; a fixed light/dark gray the same across accents)
     QColor warning;      // --warning          (a tooltip's disabled-reason line: .tip-note)
+    QColor disabledText; // --disabled-text    (a dead control's label AND its glyph)
   };
 
   // A selectable brand-accent preset: a key (stored in Settings.accentColor), a

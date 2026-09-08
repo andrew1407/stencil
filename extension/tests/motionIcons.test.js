@@ -35,11 +35,13 @@ test('the CSS plays each mode on hover, in the direction asked for', () => {
   assert.match(css, /@keyframes mmDrop \{\s*0%\s*\{ transform: translateY\(-9px\)/, 'the drop falls in from the top');
   assert.match(css, /\.mm-flame \{ transform-box: fill-box; transform-origin: 50% 100%; \}/, 'the flame grows from its base');
   assert.match(css, /@keyframes mmDust \{ from \{ transform: translateY\(-7px\); opacity: 0; \}/, 'the specks settle from the top');
-  assert.match(css, /\.mm-mote:nth-of-type\(5\) \{ animation-delay: 0\.54s; \}/, 'one after another');
-  // The drop, flame and specks take their time: 1.5x the line and arrow (user decision).
+  assert.match(css, /\.mm-mote:nth-of-type\(5\) \{ animation-delay: 0\.36s; \}/, 'one after another');
+  // The drop and flame take their time: 1.5x the line and arrow (user decision). The
+  // SPECKS run 1.5x faster again (user decision) — 0.825s each, 90ms apart, the numbers
+  // the desktop's motionIconMs already paints them at.
   assert.match(css, /\.mm-drop \{ animation: mmDrop 1\.125s/);
   assert.match(css, /\.mm-flame \{ animation: mmFlame 0\.9s/);
-  assert.match(css, /\.mm-mote \{ animation: mmDust 1\.2375s/);
+  assert.match(css, /\.mm-mote \{ animation: mmDust 0\.825s/);
   // The trigger's glyph plays too: on hover, and once when the value just changed.
   for (const part of ['mm-line', 'mm-shaft', 'mm-head', 'mm-drop', 'mm-flame', 'mm-mote'])
     assert.match(css, new RegExp(`\\.accent-dd-opt:hover \\.${part}, \\.accent-dd-trigger:hover \\.${part}, \\.mm-play \\.${part} \\{ animation:`), part);

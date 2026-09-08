@@ -227,9 +227,26 @@ namespace stencil::support {
       frame();
     }
 
+    // Every row's glyph, re-inked in the theme that just arrived. A QIcon bakes its
+    // pixels, so a flip repainted the combo but left these in the OLD theme's ink —
+    // invisible on the new one (user report). The popup's rows are painted live by
+    // MotionIconDelegate, so only the items' own icons need this.
+    void reink() {
+      const QColor ink = combo_->palette().color(QPalette::Text);
+      if (ink == inked_) return;   // …and only when it really moved: setItemIcon repaints
+      inked_ = ink;
+      const double dpr = combo_->devicePixelRatioF();
+      for (int i = 0; i < combo_->count(); ++i)
+        combo_->setItemIcon(i, motionIconFrame(combo_->itemData(i).toString(), ink, 1e9,
+                                               kMotionIconPx, dpr));
+    }
+
    protected:
     bool eventFilter(QObject* watched, QEvent* e) override {
-      if (watched == combo_ && e->type() == QEvent::Enter) play();
+      if (watched == combo_) {
+        if (e->type() == QEvent::Enter) play();
+        else if (e->type() == QEvent::PaletteChange) reink();
+      }
       return QObject::eventFilter(watched, e);
     }
 
@@ -246,6 +263,7 @@ namespace stencil::support {
       if (done) tick_.stop();
     }
     QComboBox* combo_;
+    QColor inked_;      // the ink the rows' glyphs were last drawn in
     QElapsedTimer clock_;
     QTimer tick_;
   };
