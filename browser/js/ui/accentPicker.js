@@ -108,6 +108,46 @@ export function fillAccentMenu(menu, onPick, preview = null) {
     };
     settle();
   };
+  const pick = (key) => {
+    clearHover(); clearLeave();
+    // The COMMIT floods too, and the list is closing over it: hold the rows' replays
+    // until that one has settled as well, and let the cursor go with the menu.
+    committing = true;
+    holdCursor(false);
+    afterSwap(() => { committing = false; holdReplays(false); latchHover(null); });
+    committedSel = null; shownKey = key; onPick(key);
+  };
+  // The press a FLOOD swallowed. A view transition's snapshot tree is an overlay over the
+  // whole page and it owns the hit test while it plays: pressing a row mid-wipe answers
+  // <html>, so the row's own click never fires AND the list's outside-press check reads
+  // the press as a dismissal — picking a colour while its own hover preview was still
+  // wiping closed the list and put the old accent back (user report). `pointer-events` on
+  // ::view-transition does not help; the transition ROOT is what takes the hit.
+  // Nothing moves in these swaps — only the palette changes — so the rows are exactly
+  // where the snapshot draws them and the press can be resolved against their boxes.
+  // On the WINDOW, in capture: it must run before any document-level dismissal, whichever
+  // was registered first (the logo menu builds its rows lazily, on the first open).
+  const rowAt = (x, y) => {
+    if (menu.hidden) return null;
+    for (const li of menu.children) {
+      if (!li.classList?.contains('accent-dd-opt') || li.style.display === 'none') continue;
+      const r = li.getBoundingClientRect();
+      if (r.width && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return li;
+    }
+    return null;
+  };
+  const onStolenPress = (e) => {
+    // A press the rows received themselves needs nothing; this is only the stolen case.
+    if (menu.hidden || menu.contains(e.target)) return;
+    const li = rowAt(e.clientX, e.clientY);
+    if (!li) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();   // …and no dismissal may see it
+    pick(li.dataset.key);
+  };
+  if (typeof window !== 'undefined' && window.addEventListener)
+    window.addEventListener('pointerdown', onStolenPress, true);
+
   for (const a of ACCENTS) {
     const li = document.createElement('li');
     li.className = 'accent-dd-opt';
@@ -117,15 +157,7 @@ export function fillAccentMenu(menu, onPick, preview = null) {
       `<span class="accent-swatch" style="background:${a.hex}">` +
       `${icon('check', { size: 11, cls: 'accent-check', sw: 3.5 })}</span>` +
       `<span class="accent-dd-name">${a.label}</span>`;
-    li.addEventListener('click', () => {
-      clearHover(); clearLeave();
-      // The COMMIT floods too, and the list is closing over it: hold the rows' replays
-      // until that one has settled as well, and let the cursor go with the menu.
-      committing = true;
-      holdCursor(false);
-      afterSwap(() => { committing = false; holdReplays(false); latchHover(null); });
-      committedSel = null; shownKey = a.key; onPick(a.key);
-    });
+    li.addEventListener('click', () => pick(a.key));
     if (preview) {
       li.addEventListener('pointerenter', () => {
         clearLeave();
