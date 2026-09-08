@@ -1266,8 +1266,6 @@ class MainWindowGuiTest : public QObject {
     const int dpr = qMax(1, qRound(shot.devicePixelRatio()));
     const QImage img = shot.toImage().convertToFormat(QImage::Format_ARGB32)
                            .scaled(shot.width() / dpr, shot.height() / dpr, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-    const QString out = QDir(QString::fromUtf8(qgetenv("STENCIL_STATE_DIR"))).filePath("motion-combo.png");
-    img.save(out);
     // Per row: the ICON slot's lit columns (the label starts past 36px), as runs. One
     // glyph is one run no wider than a 16px icon; a second icon would be a second run.
     const int rowH = img.height() / 5;
