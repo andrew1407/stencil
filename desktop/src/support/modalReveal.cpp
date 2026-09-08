@@ -472,6 +472,10 @@ namespace stencil::support {
         if (e->type() != QEvent::MouseButtonPress) return QObject::eventFilter(o, e);
         auto* dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
         auto* w = qobject_cast<QWidget*>(o);
+        if (qEnvironmentVariableIsSet("STENCIL_MODAL_LOG"))
+          qWarning("[modal] Qt press seen on %s, modal=%s",
+                   w ? w->metaObject()->className() : o->metaObject()->className(),
+                   dlg ? dlg->metaObject()->className() : "(none)");
         // A NATIVE panel is the OS's window, not ours to close; an opted-out dialog is a
         // question that has to be answered.
         if (!dlg || !w || !dlg->isVisible() || qobject_cast<QFileDialog*>(dlg)

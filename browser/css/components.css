@@ -1005,6 +1005,12 @@ body.fullscreen-mode #fs-points-panel {
     padding: 14px 18px;
     overflow-y: auto;
     flex: 1;
+    /* Reserve the bar's slot up front (the same trick #coord-body uses): without it the
+       body is laid out one scrollbar WIDER until the rows overflow, so the picture the
+       dust flies is wider than the window that lands and the two sets of column headers
+       sit side by side mid-flight (user report). Overlay scrollbars take no layout space,
+       so this costs nothing where there is nothing to reserve. */
+    scrollbar-gutter: stable;
 }
 /* Hotkey table has a sticky header; drop the body's top padding so it pins flush
    to the body top (else scrolled rows show above it and overlap the modal title
