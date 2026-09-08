@@ -264,6 +264,7 @@ namespace stencil::gui {
     header->addStretch(1);
     c.close = new QPushButton(QObject::tr("Close"), dlg);
     c.close->setObjectName(QStringLiteral("modalClosePill"));
+    c.close->setProperty(kShimmerRadiusProperty, 13);   // its QSS radius, so the sweep stays inside
     c.close->setIcon(labelIcon("x", dlg->palette().color(QPalette::WindowText), 14));
     c.close->setCursor(Qt::PointingHandCursor);
     // Never the default button: Enter in a form must not dismiss the dialog.

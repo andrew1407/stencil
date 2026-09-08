@@ -524,6 +524,14 @@ export function wireLogoColorPicker(logo, app) {
   const reducedMotion = () => motionReduced();
   const onDocDown = (e) => { if (!wrap.contains(e.target)) closeMenu(); };
   const onMenuKey = (e) => { if (e.key === 'Escape') closeMenu(); };
+  // The accent moved while the menu shows — a logo click cycles the preset with the list
+  // up, and its ✓ used to stay put (user report). The event carries the NEW value
+  // (app.accent lands a beat later); a custom hex marks nothing.
+  const onAccentMoved = (e) => {
+    if (!menu || menu.hidden) return;
+    const v = typeof e.detail === 'string' ? e.detail : (app.customAccent ? null : app.accent);
+    markSelected(menu, v && /^#/.test(v) ? null : v);
+  };
   // The list is sand, like every other surface (js/ui/motion.js): it forms from motes
   // streaming out of the logo and comes apart into motes pouring back into it, on the
   // shared menu clock. The `hidden` / `.dd-closing` hooks are unchanged — the dust
@@ -562,6 +570,7 @@ export function wireLogoColorPicker(logo, app) {
     // Idempotent (same refs), so a reopen can't double-register.
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('keydown', onMenuKey);
+    window.addEventListener('stencil:accent-changed', onAccentMoved);
   };
   const closeMenu = () => {
     if (!menu || menu.hidden || menu.classList.contains('dd-closing')) return;
@@ -571,6 +580,7 @@ export function wireLogoColorPicker(logo, app) {
     g.notifyClosed();
     document.removeEventListener('pointerdown', onDocDown, true);
     document.removeEventListener('keydown', onMenuKey);
+    window.removeEventListener('stencil:accent-changed', onAccentMoved);
     menuCloseDone = (e) => {
       // animationend BUBBLES: every row runs the hover shimmer on its ::after and the
       // pointer is always over a row at close — an unfiltered listener ended the exit

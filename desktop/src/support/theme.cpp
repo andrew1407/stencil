@@ -1041,7 +1041,8 @@ namespace stencil::gui {
       QListView#searchComboList::item {
         color: %TEXT%; padding: 6px 9px; border-radius: 5px;
       }
-      QListView#searchComboList::item:hover { background: %ACCENT_SOFT%; }
+      /* The browser's .accent-dd-opt:hover — the neutral row-hover grey, not the accent. */
+      QListView#searchComboList::item:hover { background: %BG_COORD_HOVER%; }
       QListView#searchComboList::item:selected {
         background: %ACCENT_SOFT2%; color: %TEXT%;
       }

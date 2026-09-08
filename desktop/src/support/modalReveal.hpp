@@ -15,6 +15,10 @@ class QWidget;
 // A hidden or off-screen icon falls back to a point above the dialog.
 namespace stencil::support {
 
+  // Flush a window's pending layout, every scroll area's scrollbar decision included, so
+  // a snapshot of it matches the window that lands. Exposed for the GUI test.
+  void settleLayout(QWidget& w);
+
   // Animate `dlg` in from `anchor` and back into it on close. Call after the dialog is
   // positioned, before exec(); null/hidden `anchor` = the from-above fallback. exec()
   // still returns when it always did — the closing motion is a self-owned ghost window.

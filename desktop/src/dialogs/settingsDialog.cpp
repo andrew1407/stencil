@@ -1,4 +1,5 @@
 #include "../support/searchCombo.hpp"
+#include "../support/motionIcons.hpp"
 #include "settingsDialog.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
@@ -155,11 +156,25 @@ namespace stencil::gui {
           "Off: every point goes straight down.");
     row(tr("Drawing animation"), drawAnim_, /*column=*/false);
 
-    motionMode_ = combo("How the interface itself moves — windows, menus, marks, the canvas");
+    motionMode_ = combo(QString());   // no tooltip — the browser's dropdown has none (the glyphs say it)
+    motionMode_->setObjectName(QStringLiteral("motionModeCombo"));
     // The browser's MOTION_MODE_LABELS, in its order (ui/motionPrefs.js).
-    motionMode_->addItem("Particles (dust)", "particles");
-    motionMode_->addItem("Sliding (no dust)", "slide");
+    motionMode_->addItem("Dust", "particles");
+    motionMode_->addItem("Water", "water");
+    motionMode_->addItem("Fire", "fire");
+    motionMode_->addItem("Sliding", "slide");
     motionMode_->addItem("None", "none");
+    // Each mode's glyph (support/motionIcons.hpp — the browser's motionIcons.js): on the
+    // trigger at rest, and on the popup rows animated as they are hovered.
+    {
+      // In the text colour, like the labels (never the accent — user decision).
+      const QColor ink = palette().color(QPalette::Text);
+      for (int i = 0; i < motionMode_->count(); ++i)
+        motionMode_->setItemIcon(i, support::motionModeIcon(motionMode_->itemData(i).toString(), ink));
+      auto* mm = static_cast<SearchComboBox*>(motionMode_);   // combo() builds SearchComboBoxes
+      mm->setListDelegate(new support::MotionIconDelegate(mm->popupList(), mm));
+      new support::MotionIconFace(mm);   // the face's glyph plays on change and on hover
+    }
     {
       const int idx = motionMode_->findData(current.motionMode);
       motionMode_->setCurrentIndex(idx >= 0 ? idx : 0);

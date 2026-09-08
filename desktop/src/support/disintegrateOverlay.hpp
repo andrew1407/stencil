@@ -505,7 +505,30 @@ namespace stencil::gui {
       QPointF at;
       double radius = 0;
       QColor color;
+      support::GrainShape shape = support::GrainShape::Disc;   // dustKit.hpp grainShape
+      double heading = 0;                                       // …lying along its travel
     };
+
+    // Finish a grain: its shape, heading (`tx, ty` is its throw, `fromFar` a gather) and
+    // colour. Every grain is painted from the accent palette by its mix, never in the
+    // cell's own colour — the cell only said how much paint there was, which `alpha`
+    // already carries. Dust twinkles; water and fire take styleFrame's touch instead.
+    void finishGrain(Mote* out, double alpha, bool glint, double w,
+                     double p, double away, double tx, double ty, bool fromFar) const {
+      const double len = std::hypot(tx, ty);
+      out->shape = support::grainShape(style_, w);
+      out->heading = support::headingOf(tx, ty, fromFar);
+      if (style_ == support::ParticleStyle::Dust) {
+        out->color = support::paletteStop(accent_, shade_, support::dustMix(w, glint));
+        out->color.setAlphaF(std::clamp(alpha * twinkleAt(glint, t_ * ms_, w), 0.0, 1.0));
+        return;
+      }
+      const support::StyleFrame sf = support::styleFrame(style_, p, away, w, len, t_ * ms_);
+      out->at += QPointF(sf.sx, sf.sy);
+      out->radius *= sf.scale;
+      out->color = support::paletteStop(accent_, shade_, sf.mix);
+      out->color.setAlphaF(std::clamp(alpha * sf.glow, 0.0, 1.0));
+    }
 
     void paintEvent(QPaintEvent*) override {
       if (snap_.isNull()) return;
@@ -601,7 +624,7 @@ namespace stencil::gui {
       // OFF, or the raster engine leaves its 1:1 fast path (dustKit.hpp MoteSprites).
       p.setRenderHint(QPainter::Antialiasing, false);
       p.setRenderHint(QPainter::SmoothPixmapTransform, false);
-      for (const Mote& m : motes_) sprites_.draw(p, m.at, m.radius, m.color);
+      for (const Mote& m : motes_) sprites_.draw(p, m.at, m.radius, m.color, m.shape, m.heading);
       p.setOpacity(1.0);
     }
 
@@ -662,9 +685,8 @@ namespace stencil::gui {
       const double farScale = 0.3 + n * 0.3;
       out->radius = moteRadius(cw, ch, n)
           * legScalar(t, kRowSplit, rowLegEase(), rowEase(), 1.0, 1.0 - (1.0 - farScale) * 0.5, farScale);
-      out->color = cell;
-      out->color.setAlphaF(std::clamp(cell.alphaF() * (0.78 + n * 0.22) * scatterAlpha(t)
-                                          * twinkleAt(glintAt(cx, cy), t_ * ms_, w), 0.0, 1.0));
+      finishGrain(out, cell.alphaF() * (0.78 + n * 0.22) * scatterAlpha(t), glintAt(cx, cy), w,
+                  t, t, tx, ty, false);
       return true;
     }
 
@@ -709,9 +731,10 @@ namespace stencil::gui {
       const QPointF home(box.x() + (cx + 0.5) * cw, box.y() + (cy + 0.5) * ch);
       out->at = home + QPointF(away * tx, fall * ty) + swirlAt(away, tx, ty, q);
       out->radius = moteRadius(cw, ch, n) * (1.0 - away * (0.65 - n * 0.3));
-      out->color = cell;
-      out->color.setAlphaF(std::clamp(cell.alphaF() * (0.78 + n * 0.22)
-                                          * (gather ? gatherAlpha(t) : scatterAlpha(t)), 0.0, 1.0));
+      // No twinkle on a falling picture (browser drawDust has none); a styled one still
+      // breathes, on the same fourth hash every cloud keys its style off.
+      finishGrain(out, cell.alphaF() * (0.78 + n * 0.22) * (gather ? gatherAlpha(t) : scatterAlpha(t)),
+                  false, cellNoise(cx + 13, cy + 71), t, away, tx, ty, gather);
       return true;
     }
 
@@ -742,8 +765,11 @@ namespace stencil::gui {
       const double delay = (progress * 0.45 + n * 0.12) * (gather ? 1.0 : 0.5);
       double t = (t_ - delay) / std::max(0.05, 1.0 - delay);
       if (!gather && t <= 0.0) return false;   // still the surface
-      t = std::clamp(t, 0.0, 1.0);
       *out = Mote{};
+      // A gathering grain is NOTHING until it sets off: parked at the point with hundreds
+      // of others it filled the icon with a solid blob of the accent (user report).
+      if (gather && t <= 0.0) return true;     // cut from the picture, nothing drawn yet
+      t = std::clamp(t, 0.0, 1.0);
       if (!gather && t >= 1.0) return true;    // a scattered mote that has finished is gone
       const QColor cell = grainColour(cx, cy, n);
       if (cell.alphaF() <= 0.02) return true;
@@ -757,10 +783,8 @@ namespace stencil::gui {
       if (gather && t >= 1.0) {
         out->at = home;
         out->radius = moteRadius(cw, ch, n);
-        out->color = cell;
-        out->color.setAlphaF(std::clamp(cell.alphaF() * (0.78 + n * 0.22) * host
-                                            * twinkleAt(glintAt(cx, cy), t_ * ms_, cellNoise(cx + 13, cy + 71)),
-                                        0.0, 1.0));
+        finishGrain(out, cell.alphaF() * (0.78 + n * 0.22) * host, glintAt(cx, cy),
+                    cellNoise(cx + 13, cy + 71), 1.0, 0.0, toX, toY, true);
         return true;
       }
       // A gathering mote waits at the point until its delay is up, which is what makes
@@ -789,9 +813,8 @@ namespace stencil::gui {
         out->radius = moteRadius(cw, ch, n)
             * legScalar(t, kSurfaceScatterSplit, surfaceLegEase(), surfaceEase(), 1.0, midScale, farScale);
       }
-      out->color = cell;
-      out->color.setAlphaF(std::clamp(cell.alphaF() * alpha * (0.78 + n * 0.22)
-                                          * twinkleAt(glintAt(cx, cy), t_ * ms_, w), 0.0, 1.0));
+      finishGrain(out, cell.alphaF() * alpha * (0.78 + n * 0.22), glintAt(cx, cy), w,
+                  t, gather ? 1.0 - t : t, tx, ty, gather);
       return true;
     }
 
@@ -879,6 +902,8 @@ namespace stencil::gui {
     // if that would exceed the per-frame ceiling.
     void sizeGridForDust(const QSize& size, int maxCells = kDustMaxCells,
                          int cellPx = kDustCellPx) {
+      // Water and fire grid coarser (browser motion.js makeDustStage does the same).
+      if (style_ != support::ParticleStyle::Dust) cellPx = qRound(cellPx * support::kStyledCellScale);
       dustGrid(size, cellPx, maxCells, &cols_, &rows_);
     }
 
@@ -910,6 +935,11 @@ namespace stencil::gui {
     QPoint shift_;          // host coords → this layer's, non-zero only when it escaped the host
     QRect paintClip_;       // setPaintClip: the host area the cloud may paint in; invalid = all
     QColor ink_;            // the owner's text colour the grains are lifted towards; invalid = none
+    // The style and palette the cloud was built under (motionPrefs.hpp): a mid-flight
+    // settings change never restyles a cloud already in the air.
+    support::ParticleStyle style_ = support::particleStyle();
+    QColor accent_ = support::particleAccent();
+    QColor shade_ = support::particleShade();
     support::MoteSprites sprites_;   // the grains, drawn once each and blitted
     QElapsedTimer clock_;   // start(): the wall clock the flight reads
     int ms_ = kMs;          // …and its length

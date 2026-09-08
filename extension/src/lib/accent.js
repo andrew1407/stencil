@@ -48,6 +48,38 @@
     } catch (e) { /* no chrome.storage on this page */ }
   };
   var read = function () { return readPref(KEY, has, DEFAULT); };
+
+  // ── Interface motion (browser parity: js/ui/motionPrefs.js) ────────────────
+  // 'particles' (dust — the default) | 'water' | 'fire' | 'slide' (each surface keeps its
+  // own CSS entrance) | 'none'. Stamped on <html data-motion> before first paint for
+  // lib/animations.css; the OS's prefers-reduced-motion still wins. Same localStorage
+  // recipe as the accent, so it reaches every open extension page at once.
+  var MKEY = 'stencil_motion';
+  var MOTION_DEFAULT = 'particles';
+  var MOTION_MODES = ['particles', 'water', 'fire', 'slide', 'none'];
+  // The browser's MOTION_MODE_LABELS, in its order — what the options page offers.
+  var MOTION_LABELS = [
+    ['particles', 'Dust'],
+    ['water', 'Water'],
+    ['fire', 'Fire'],
+    ['slide', 'Sliding'],
+    ['none', 'None'],
+  ];
+  var PARTICLE_STYLE = { particles: 'dust', water: 'water', fire: 'fire' };
+  var isMotion = function (m) { return MOTION_MODES.indexOf(m) >= 0; };
+  var readMotion = function () { return readPref(MKEY, isMotion, MOTION_DEFAULT); };
+  var osReduced = function () {
+    try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
+  };
+  var motionReduced = function () { return readMotion() === 'none' || osReduced(); };
+  // The style the particles wear — 'dust' | 'water' | 'fire' — or null when none fly.
+  var particleStyle = function () {
+    var s = PARTICLE_STYLE[readMotion()];
+    return s && !osReduced() ? s : null;
+  };
+  var applyMotion = function (mode) {
+    document.documentElement.setAttribute('data-motion', isMotion(mode) ? mode : MOTION_DEFAULT);
+  };
   var hexOf = function (k) {
     for (var i = 0; i < ACCENTS.length; i++) if (ACCENTS[i].key === k) return ACCENTS[i].hex;
     return ACCENTS[0].hex;
@@ -162,29 +194,45 @@
   // in the OLD palette's colours — always INSIDE the ring, because during a view
   // transition the page renders through ::view-transition-new(root), clipped to it.
   // Same hash, curve and numbers as the browser (and desktop themeSwapOverlay.hpp).
-  // ── The ragged front (browser parity: motion.js swapEdgePolygon) ──
-  // The wipe's edge is not a clean circle: the clip is a polygon ring whose vertices
-  // ride the wipe's easing, each pushed off the nominal radius by its own noise (smooth
-  // lobes torn by per-vertex jag), so the boundary reads as the theme crumbling forward.
+  // ── The front (browser parity: motion.js swapEdgePolygon ← lib/dustCloud.js edgeJitter) ──
+  // The wipe's edge wears the particle style: a polygon ring whose vertices ride the wipe's
+  // easing, each pushed off the nominal radius by the style's own recipe. Classic-script
+  // twin of dustCloud.js; tests/accent.test.js pins it.
   var EDGE_POINTS = 240;
-  // Kept SMALL: big teeth read as waves rolling, not dust — the raggedness is
-  // grain-scale, and the mote field carries the rest of the dissolving read.
-  var EDGE_AMP = 0.022;         // how far a tooth reaches, as a share of the radius
-  var EDGE_BASE = 1 + EDGE_AMP + 0.012;   // overshoot so the deepest dip still covers
-  var edgeJitter = function (k) {
-    // Mostly per-vertex jag, with a faint fast ripple so the tear stays organic.
-    return EDGE_AMP * (0.35 * Math.sin(k * 0.73) + 0.65 * (dustNoise(k, 7) * 2 - 1));
+  var STYLE_WATER = 1, STYLE_FIRE = 2;
+  var EDGE_WATER = { waves: 9, amp: 0.028, ripple: 17, rippleAmp: 0.008 };
+  var EDGE_FIRE = { tongues: 20, base: 0.05, vary: 0.05, dip: 0.012, jag: 0.006 };
+  var fract = function (v) { return v - Math.floor(v); };
+  var edgeJitter = function (style, k, points) {
+    var t = k / points;
+    if (style === STYLE_WATER)
+      return EDGE_WATER.amp * Math.sin(2 * Math.PI * EDGE_WATER.waves * t)
+        + EDGE_WATER.rippleAmp * Math.sin(2 * Math.PI * EDGE_WATER.ripple * t + 1);
+    if (style === STYLE_FIRE) {
+      var tongue = Math.floor(t * EDGE_FIRE.tongues), u = fract(t * EDGE_FIRE.tongues);
+      var hgt = EDGE_FIRE.base + EDGE_FIRE.vary * dustNoise(tongue, 5);
+      return hgt * Math.pow(Math.sin(Math.PI * u), 3) - EDGE_FIRE.dip + EDGE_FIRE.jag * (dustNoise(k, 7) * 2 - 1);
+    }
+    return 0;
   };
+  // The deepest dip inward: the ring's base overshoots by it (coverage still rules) and
+  // the wake's grains hug just inside it.
+  var edgeDipOf = function (style) {
+    return style === STYLE_WATER ? EDGE_WATER.amp + EDGE_WATER.rippleAmp
+      : style === STYLE_FIRE ? EDGE_FIRE.dip + EDGE_FIRE.jag : 0;
+  };
+  var edgeBaseOf = function (style) { return 1 + edgeDipOf(style) + 0.012; };
   // One end state of the clip, in viewport percentages; grow 0 = collapsed at the
-  // origin, 1 = the full ragged ring. CSS interpolates the equal-count vertex pairs.
-  var edgePolygon = function (x, y, w, h, grow) {
+  // origin, 1 = the full ring. CSS interpolates the equal-count vertex pairs.
+  var edgePolygon = function (x, y, w, h, grow, style) {
     if (!(w > 0 && h > 0)) return '';
+    if (style === undefined) style = styleCode();
     var pc = function (v) { return Math.round(v * 1000) / 1000; };
-    var base = Math.sqrt(Math.pow(Math.max(x, w - x), 2) + Math.pow(Math.max(y, h - y), 2)) * EDGE_BASE;
+    var base = Math.sqrt(Math.pow(Math.max(x, w - x), 2) + Math.pow(Math.max(y, h - y), 2)) * edgeBaseOf(style);
     var pts = [];
     for (var k = 0; k < EDGE_POINTS; k++) {
       var a = (k / EDGE_POINTS) * 2 * Math.PI;
-      var r = grow ? base * (1 + edgeJitter(k)) : 0;
+      var r = grow ? base * (1 + edgeJitter(style, k, EDGE_POINTS)) : 0;
       pts.push(pc(((x + Math.cos(a) * r) / w) * 100) + '% ' + pc(((y + Math.sin(a) * r) / h) * 100) + '%');
     }
     return 'polygon(' + pts.join(', ') + ')';
@@ -228,6 +276,137 @@
   var grainEase = function (t) {
     return grainCurve[Math.min(GRAIN_STEPS, Math.max(0, Math.round(t * GRAIN_STEPS)))];
   };
+  // ── The particle styles (lib/dustCloud.js styleFrame, as a classic script) ──
+  // A water or fire wake is the same grains nudged, swollen and dimmed per frame, painted
+  // from the departing accent palette by each grain's mix. tests/accent.test.js pins this
+  // twin to dustCloud.js frame for frame.
+  var PALETTE_STOPS = 6;
+  var WATER = { sagShare: 0.45, sagMaxPx: 30, swayShare: 0.12, swayMaxPx: 5, swayWaves: [0.8, 1.4], swell: 0.3,
+                shimmerDepth: 0.25, shimmerHz: [1.2, 2.2], glistenHz: [0.6, 1.1] };
+  var FIRE = { liftShare: 0.6, liftMaxPx: 44, waverShare: 0.08, waverMaxPx: 4, waverWaves: [3, 5], flare: 0.35,
+               flickerDepth: 0.55, flickerHz: [9, 14], coolHash: 0.25 };
+  var styleFrame = function (style, p, away, w, len, tMs, out) {
+    out.sx = 0; out.sy = 0; out.scale = 1; out.glow = 1; out.mix = 0;
+    if (style !== STYLE_WATER && style !== STYLE_FIRE) return out;
+    var env = Math.sin(Math.PI * p);
+    var phase = w * 2 * Math.PI;
+    var sec = tMs / 1000;
+    var wave = function (range) { return range[0] + (range[1] - range[0]) * w; };
+    if (style === STYLE_WATER) {
+      out.sy = Math.min(len * WATER.sagShare, WATER.sagMaxPx) * (0.6 + 0.4 * w) * env;
+      out.sx = Math.min(len * WATER.swayShare, WATER.swayMaxPx) * env
+        * Math.sin(p * wave(WATER.swayWaves) * 2 * Math.PI + phase);
+      out.scale = 1 + WATER.swell * env;
+      out.glow = 1 - WATER.shimmerDepth * 0.5 * (1 + Math.sin(sec * wave(WATER.shimmerHz) * 2 * Math.PI + phase));
+      out.mix = 0.5 + 0.5 * Math.sin(sec * wave(WATER.glistenHz) * 2 * Math.PI + phase);
+    } else {
+      out.sy = -Math.min(len * FIRE.liftShare, FIRE.liftMaxPx) * (0.5 + 0.5 * w) * env;
+      out.sx = Math.min(len * FIRE.waverShare, FIRE.waverMaxPx) * env
+        * Math.sin(p * wave(FIRE.waverWaves) * 2 * Math.PI + phase);
+      var dim = 0.5 * (1 + Math.sin(sec * wave(FIRE.flickerHz) * 2 * Math.PI + phase));
+      out.glow = 1 - FIRE.flickerDepth * dim;
+      out.scale = 1 + FIRE.flare * env * (1 - dim);
+      out.mix = Math.max(0, Math.min(1, FIRE.coolHash * w + (1 - FIRE.coolHash) * away));
+    }
+    return out;
+  };
+  var paletteIndex = function (mix, stops) {
+    return Math.max(0, Math.min(stops - 1, Math.round(mix * (stops - 1))));
+  };
+  // A DUST grain's mix, fixed for its flight (lib/dustCloud.js dustMix): plain grains
+  // spread from the main colour to halfway by hash, glints wear the shade.
+  var DUST_MIX_SPREAD = 0.5;
+  var dustMix = function (w, glint) { return glint ? 1 : (w || 0) * DUST_MIX_SPREAD; };
+  var styleCode = function () {
+    var s = particleStyle();
+    return s === 'water' ? STYLE_WATER : s === 'fire' ? STYLE_FIRE : 0;
+  };
+  // ── Grain shapes (lib/dustCloud.js grainShape / shapePolygon / addGrainPath twin) ──
+  // Dust is a round speck; water ovals and wave lines; fire triangles and streaking
+  // sparks — each lying along its heading.
+  var SHAPE_DISC = 0, SHAPE_OVAL = 1, SHAPE_WAVE = 2, SHAPE_TRIANGLE = 3, SHAPE_STREAK = 4;
+  var WATER_WAVE_SHARE = 0.3, FIRE_STREAK_SHARE = 0.4;
+  var SHAPES = {
+    oval: { rx: 1.45, ry: 0.7 },
+    wave: { len: 3.6, amp: 0.42, waves: 1.5, half: 0.28, samples: 9 },
+    triangle: { tip: 1.7, base: 0.85, half: 1.0 },
+    streak: { head: 1.0, headHalf: 0.42, tail: 2.6, tailHalf: 0.1 },
+  };
+  var grainShape = function (style, w) {
+    var pick = fract((w || 0) * 7.31 + 0.17);
+    if (style === STYLE_WATER) return pick < WATER_WAVE_SHARE ? SHAPE_WAVE : SHAPE_OVAL;
+    if (style === STYLE_FIRE) return pick < FIRE_STREAK_SHARE ? SHAPE_STREAK : SHAPE_TRIANGLE;
+    return SHAPE_DISC;
+  };
+  var headingOf = function (dx, dy, fromFar) { return Math.atan2(dy, dx) + (fromFar ? Math.PI : 0); };
+  var shapePolygon = function (shape, x, y, r, a, out) {
+    out.length = 0;
+    var c = Math.cos(a), s = Math.sin(a);
+    var put = function (u, v) { out.push(x + u * c - v * s, y + u * s + v * c); };
+    var t, i;
+    if (shape === SHAPE_TRIANGLE) {
+      t = SHAPES.triangle;
+      put(t.tip * r, 0); put(-t.base * r, t.half * r); put(-t.base * r, -t.half * r);
+    } else if (shape === SHAPE_STREAK) {
+      t = SHAPES.streak;
+      put(t.head * r, t.headHalf * r); put(-t.tail * r, t.tailHalf * r);
+      put(-t.tail * r, -t.tailHalf * r); put(t.head * r, -t.headHalf * r);
+    } else if (shape === SHAPE_WAVE) {
+      t = SHAPES.wave;
+      var rim = function (idx, side) {
+        var kk = idx / (t.samples - 1);
+        put((kk - 0.5) * t.len * r, Math.sin(kk * t.waves * 2 * Math.PI) * t.amp * r + side * t.half * r);
+      };
+      for (i = 0; i < t.samples; i++) rim(i, 1);
+      for (i = t.samples - 1; i >= 0; i--) rim(i, -1);
+    }
+    return out;
+  };
+  // A path only so long (lib/dustCloud.js FILL_CHUNK): the engine's cost per grain climbs
+  // with the path's length, so every batch is filled in chunks of this many grains.
+  var FILL_CHUNK = 32;
+  var fillGrains = function (ctx, b, n, poly) {
+    for (var i = 0; i < n; i += FILL_CHUNK) {
+      var end = Math.min(n, i + FILL_CHUNK);
+      ctx.beginPath();
+      for (var j = i; j < end; j++) addGrainPath(ctx, b[j * 5 + 3], b[j * 5], b[j * 5 + 1], b[j * 5 + 2], b[j * 5 + 4], poly);
+      ctx.fill();
+    }
+  };
+  var addGrainPath = function (ctx, shape, x, y, r, a, scratch) {
+    if (shape === SHAPE_DISC) { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, TAU); return; }
+    if (shape === SHAPE_OVAL) {
+      var rx = SHAPES.oval.rx * r, ry = SHAPES.oval.ry * r;
+      ctx.moveTo(x + Math.cos(a) * rx, y + Math.sin(a) * rx);
+      ctx.ellipse(x, y, rx, ry, a, 0, TAU);
+      return;
+    }
+    var pts = shapePolygon(shape, x, y, r, a, scratch);
+    ctx.moveTo(pts[0], pts[1]);
+    for (var i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+    ctx.closePath();
+  };
+
+  // A CSS colour (a var(), a color-mix()) as the canvas will take it: the computed colour
+  // of a probe span wearing it. Unchanged when the page cannot compute it.
+  var resolveColour = function (css) {
+    try {
+      var span = document.createElement('span');
+      span.style.color = css;
+      document.body.appendChild(span);
+      var got = typeof getComputedStyle === 'function' ? getComputedStyle(span).color : '';
+      span.remove();
+      return got || css;
+    } catch (e) { return css; }
+  };
+  // The accent → shade palette a styled wake is painted in (lib/dustCloud.js paletteCss).
+  var paletteCss = function () {
+    var out = [];
+    for (var i = 0; i < PALETTE_STOPS; i++)
+      out.push('color-mix(in srgb, var(--accent) ' + Math.round(100 - (100 * i) / (PALETTE_STOPS - 1)) + '%, var(--accent-2))');
+    return out;
+  };
+
   // Where grain `s` is at life-fraction `p`, how big and how bright. Writes into `out`:
   // this runs once per grain per frame.
   var grainAt = function (s, p, out) {
@@ -243,33 +422,39 @@
   // one colour AND one step into a single fill (browser motion.js DUST_ALPHA_LEVELS).
   var DUST_ALPHA_LEVELS = 8;
   var TAU = Math.PI * 2;
-  var dustSpecs = function (x, y, w, h) {
+  var dustSpecs = function (x, y, w, h, style) {
     var R = Math.sqrt(Math.pow(Math.max(x, w - x), 2) + Math.pow(Math.max(y, h - y), 2));
     var specs = [];
     if (!(R > 0)) return specs;
+    var dip = edgeDipOf(style === undefined ? styleCode() : style);   // how deep the front bites inward
     for (var i = 0; i < DUST_MOTES; i++) {
       var n = dustNoise(i, 3), m = dustNoise(i + 57, 11), q = dustNoise(i + 13, 29);
       var angle = n * 2 * Math.PI;
       var u = DUST_MIN_T + m * (DUST_MAX_T - DUST_MIN_T);
       // Hug the torn edge: just behind even its deepest tooth (1 − amp), so the band
       // of grains and the ragged clip read as one crumbling front.
-      var r = dustEase(u) * R * (1 - EDGE_AMP) - q * 6;
+      var r = dustEase(u) * R * (1 - dip) - q * 6;
       if (r <= 0) continue;
       var cx = x + Math.cos(angle) * r, cy = y + Math.sin(angle) * r;
       if (cx < -16 || cy < -16 || cx > w + 16 || cy > h + 16) continue;
       var size = 2.5 + n * 3.5;
       // Chase the front outward, slower than it, plus a sideways breath.
       var d = 8 + q * 14;
+      var dx = Math.round(Math.cos(angle) * d + (m - 0.5) * 14);
+      var dy = Math.round(Math.sin(angle) * d + (0.5 - q) * 14);
       specs.push({
         cx: cx, cy: cy, size: size,
-        dx: Math.round(Math.cos(angle) * d + (m - 0.5) * 14),
-        dy: Math.round(Math.sin(angle) * d + (0.5 - q) * 14),
+        dx: dx,
+        dy: dy,
         delay: Math.round(u * SWAP_MS),
         alpha: 0.75 + q * 0.25,
         // Every fourth grain is the departing accent; the rest the old surface's own
         // grain (bg lifted towards ink — browser motion.js MOTE_INK), so an accent
         // cycle still reads over an unchanged background.
         accent: i % 4 === 0,
+        // …and its own hash and throw length, for a water / fire wake's styleFrame.
+        w: dustNoise(i + 71, 13),
+        len: Math.sqrt(dx * dx + dy * dy),
       });
     }
     return specs;
@@ -280,9 +465,12 @@
     try {
       var s = getComputedStyle(document.documentElement);
       var v = function (name) { return (s.getPropertyValue(name) || '').replace(/^\s+|\s+$/g, ''); };
-      var bg = v('--bg'), ink = v('--text');
-      if (!bg || !ink) return null;
-      return { fill: 'color-mix(in srgb, ' + bg + ' 58%, ' + ink + ')', accent: v('--accent') || ink };
+      if (!v('--accent')) return null;
+      // The wake is painted from the departing accent palette — the same two colours
+      // every cloud wears — resolved while they still mean the OLD theme.
+      var palette = paletteCss();
+      for (var pi = 0; pi < palette.length; pi++) palette[pi] = resolveColour(palette[pi]);
+      return { palette: palette };
     } catch (e) { return null; }
   };
   // Whatever the canvas makes of a colour: it normalizes what it accepts and silently
@@ -298,11 +486,14 @@
   var spawnDust = function (px, paint) {
     try {
       if (!px || !paint || typeof document === 'undefined' || !document.body || !document.body.appendChild) return;
-      if (typeof requestAnimationFrame !== 'function') return;
+      // Only in a particle mode: 'slide' keeps the wipe and drops its grain (browser
+      // parity — motion.js spawnSwapDust is gated the same way).
+      if (typeof requestAnimationFrame !== 'function' || !particleStyle()) return;
       var root = document.documentElement;
       // A second swap mid-wake starts a new wipe — the newest one owns the dust.
       if (root._swapDustStop) root._swapDustStop();
-      var specs = dustSpecs(px.x, px.y, px.w, px.h);
+      var style = styleCode();
+      var specs = dustSpecs(px.x, px.y, px.w, px.h, style);
       if (!specs.length) return;
       var stage = document.createElement('canvas');
       var ctx = stage.getContext && stage.getContext('2d');
@@ -314,19 +505,26 @@
       stage.style.width = px.w + 'px';
       stage.style.height = px.h + 'px';
       ctx.scale(dpr, dpr);
-      // Split by colour once, so a frame is two runs of one fillStyle rather than a
-      // thousand switches — and resolve both now, before the palette moves under us.
+      // One run of one fillStyle per palette stop, so a frame is six fills rather than a
+      // thousand switches — resolved already, before the palette moved under us.
       var runs = [], k;
-      for (k = 0; k < 2; k++) {
-        var mine = [];
-        for (var si = 0; si < specs.length; si++) if (!specs[si].accent === !k) mine.push(specs[si]);
-        runs.push({ colour: canvasColour(ctx, k ? paint.accent : paint.fill, '#888'), grains: mine });
-      }
+      for (k = 0; k < paint.palette.length; k++) runs.push({ colour: canvasColour(ctx, paint.palette[k], '#888') });
       document.body.appendChild(stage);
-      // [x, y, r] per grain, bucketed by alpha step and reused every frame.
+      // [x, y, r, shape, heading] per grain, bucketed by alpha step and reused every frame.
       var lvl = [], lvlN = new Int32Array(DUST_ALPHA_LEVELS), l;
-      for (l = 0; l < DUST_ALPHA_LEVELS; l++) lvl.push(new Float32Array(specs.length * 3));
+      for (l = 0; l < DUST_ALPHA_LEVELS; l++) lvl.push(new Float32Array(specs.length * 5));
       var at = { x: 0, y: 0, r: 0, alpha: 0 };
+      var sf = { sx: 0, sy: 0, scale: 1, glow: 1, mix: 0 };
+      var poly = [];
+      // Every grain's frame, computed once and read by every run's sweep; its shape and
+      // heading never change.
+      var stopOf = new Int8Array(specs.length);
+      var fx = new Float32Array(specs.length * 4);
+      var shapes = new Int8Array(specs.length), heads = new Float32Array(specs.length);
+      for (k = 0; k < specs.length; k++) {
+        shapes[k] = grainShape(style, specs[k].w);
+        heads[k] = headingOf(specs[k].dx, specs[k].dy, false);
+      }
       var total = SWAP_MS + DUST_LIFE_MS;
       var started = performance.now();
       var raf = 0;
@@ -340,33 +538,34 @@
         var ms = now - started;
         if (ms >= total) { stop(); return; }
         ctx.clearRect(0, 0, px.w, px.h);
+        for (var fi = 0; fi < specs.length; fi++) {
+          var fs = specs[fi];
+          var fp = (ms - fs.delay) / DUST_LIFE_MS;
+          if (fp <= 0 || fp >= 1) { stopOf[fi] = -1; continue; }
+          grainAt(fs, fp, at);
+          styleFrame(style, fp, fp, fs.w, fs.len, ms, sf);
+          stopOf[fi] = paletteIndex(style ? sf.mix : dustMix(fs.w, fs.accent), runs.length);
+          fx[fi * 4] = at.x + sf.sx; fx[fi * 4 + 1] = at.y + sf.sy;
+          fx[fi * 4 + 2] = at.r * sf.scale; fx[fi * 4 + 3] = at.alpha * sf.glow;
+        }
         for (var ri = 0; ri < runs.length; ri++) {
           lvlN.fill(0);
-          var grains = runs[ri].grains, gi2, buf, j;
-          for (gi2 = 0; gi2 < grains.length; gi2++) {
-            var sp = grains[gi2];
-            var p = (ms - sp.delay) / DUST_LIFE_MS;
-            if (p <= 0 || p >= 1) continue;
-            grainAt(sp, p, at);
-            var li = Math.round(at.alpha * DUST_ALPHA_LEVELS) - 1;
+          var buf, j;
+          for (var gi2 = 0; gi2 < specs.length; gi2++) {
+            if (stopOf[gi2] !== ri) continue;
+            var li = Math.round(fx[gi2 * 4 + 3] * DUST_ALPHA_LEVELS) - 1;
             if (li < 0) continue;
             buf = lvl[li];
-            j = lvlN[li]++ * 3;
-            buf[j] = at.x; buf[j + 1] = at.y; buf[j + 2] = at.r;
+            j = lvlN[li]++ * 5;
+            buf[j] = fx[gi2 * 4]; buf[j + 1] = fx[gi2 * 4 + 1]; buf[j + 2] = fx[gi2 * 4 + 2];
+            buf[j + 3] = shapes[gi2]; buf[j + 4] = heads[gi2];
           }
           ctx.fillStyle = runs[ri].colour;
           for (var li2 = 0; li2 < DUST_ALPHA_LEVELS; li2++) {
             var n = lvlN[li2];
             if (!n) continue;
-            buf = lvl[li2];
             ctx.globalAlpha = (li2 + 1) / DUST_ALPHA_LEVELS;
-            ctx.beginPath();
-            for (j = 0; j < n; j++) {
-              var gx = buf[j * 3], gy = buf[j * 3 + 1], gr = buf[j * 3 + 2];
-              ctx.moveTo(gx + gr, gy);
-              ctx.arc(gx, gy, gr, 0, TAU);
-            }
-            ctx.fill();
+            fillGrains(ctx, lvl[li2], n, poly);
           }
         }
         raf = requestAnimationFrame(frame);
@@ -381,8 +580,9 @@
 
   var swap = function (fn, originId) {
     var root = document.documentElement;
-    var reduced = false;
-    try { reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* assume motion is fine */ }
+    // The motion mode's 'none' and the OS preference alike apply the palette outright —
+    // the wipe is motion too (browser parity: motion.js themeSwap motionReduced()).
+    var reduced = motionReduced();
     if (reduced || typeof document.startViewTransition !== 'function') {
       if (!root || !root.classList) { fn(); return; }
       root.classList.add('theme-swapping');
@@ -522,6 +722,42 @@
     },
   };
 
+  applyMotion(readMotion());
+  window.StencilMotion = {
+    modes: MOTION_MODES,
+    labels: MOTION_LABELS,
+    storageKey: MKEY,
+    get: readMotion,
+    // Store, restamp <html data-motion> for the CSS half, and answer the mode kept. No
+    // wipe: a motion change repaints nothing.
+    set: function (mode) {
+      var next = isMotion(mode) ? mode : MOTION_DEFAULT;
+      writePref(MKEY, next);
+      applyMotion(next);
+      return next;
+    },
+    // The gates lib/motion.js asks (browser motionPrefs.js motionReduced / dustEnabled /
+    // particleStyle): nothing may move; particles may fly; and which style they wear.
+    reduced: motionReduced,
+    particles: function () { return particleStyle() !== null; },
+    style: particleStyle,
+    // The classic-script twin of lib/dustCloud.js styleFrame, published so the tests
+    // can pin the two frame for frame.
+    styleFrame: function (style, p, away, w, len, tMs) { return styleFrame(style, p, away, w, len, tMs, {}); },
+    edgeJitter: function (style, k, points) { return edgeJitter(style, k, points || EDGE_POINTS); },
+    edgePolygon: function (x, y, w, h, grow, style) { return edgePolygon(x, y, w, h, grow, style); },
+    grainShape: grainShape,
+    shapePolygon: function (shape, x, y, r, a) { return shapePolygon(shape, x, y, r, a, []); },
+    // Fires when ANOTHER surface changes the mode (see the storage listener below).
+    onChange: function (fn) {
+      try {
+        window.addEventListener('storage', function (e) {
+          if (e.key === MKEY || e.key === null) fn(readMotion());
+        });
+      } catch (e) { /* no window — not a page context */ }
+    },
+  };
+
   // Live cross-page sync: localStorage is shared across all same-origin extension pages,
   // and the `storage` event fires in every OTHER document when one of them writes KEY. So
   // changing the accent in the options page (or popup) re-applies here without a reload —
@@ -533,6 +769,7 @@
       // silent palette jump reads as a glitch. No pointer here, so it blooms from the centre.
       if (e.key === KEY || e.key === null) swap(function () { apply(read()); }, 'theme-toggle');   // key===null on localStorage.clear()
       if (e.key === TKEY || e.key === null) swap(function () { applyTheme(readTheme()); }, 'theme-toggle');
+      if (e.key === MKEY || e.key === null) applyMotion(readMotion());   // the CSS half; motion.js reads live
     });
   } catch (e) { /* no window — not a page context */ }
 })();

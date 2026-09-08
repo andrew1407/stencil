@@ -11,6 +11,7 @@ import { serverTokenFor } from '../llm/llmSurface.js';
 import { initTooltips } from '../lib/controlTooltip.js';
 import { setTip } from '../lib/tip.js';
 import { enhanceSelect } from '../lib/customSelect.js';
+import { motionModeIcon } from '../lib/motionIcons.js';
 import { pinToWidestOption } from '../lib/fitWidest.js';
 import { wireScrollbarHover } from '../lib/scrollbarHover.js';
 
@@ -81,6 +82,23 @@ if (themePref && appearance) {
   appearance.addEventListener('change', () => { themePref.set(appearance.value, appearance); syncAppearance(); });
   themePref.onChange(syncAppearance);
   syncAppearance();
+}
+
+// Interface animation — the same instant, localStorage-backed recipe (lib/accent.js
+// StencilMotion). The options come from the script's own label list.
+const motionPref = window.StencilMotion;
+const motionSel = document.getElementById('motion');
+if (motionPref && motionSel) {
+  for (const [key, label] of motionPref.labels) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = label;
+    motionSel.appendChild(opt);
+  }
+  const syncMotion = () => { motionSel.value = motionPref.get(); };
+  motionSel.addEventListener('change', () => { motionPref.set(motionSel.value); syncMotion(); });
+  motionPref.onChange(syncMotion);
+  syncMotion();
 }
 
 // ── On-page highlight colour: "theme" (follow the accent) or a custom hex ─────
@@ -727,7 +745,7 @@ wireScrollbarHover();   // every scrollable's thumb takes the accent under the p
 // system type, ignoring this panel's theme (see lib/customSelect.js). The page-size list
 // is long enough to want its filter input.
 for (const el of document.querySelectorAll('select'))
-  enhanceSelect(el, { search: el.id === 'page' });
+  enhanceSelect(el, { search: el.id === 'page', icons: el.id === 'motion' ? motionModeIcon : null });
 
 // The search-mode list is a fixed three-label set, and swapping its label must not
 // resize the control and shove the rest of the wrapping filter row — so it is pinned to

@@ -221,9 +221,15 @@ the mirror of `browser/js/ui/motion.js`): rows fade and lift in as they scroll i
 and dissolve again at the top edge. Both collapse under `prefers-reduced-motion: reduce`,
 and neither runs at all without an `IntersectionObserver` — a row is never left dimmed. A row
 being **removed** comes apart instead of fading: `disintegrate()` (`src/lib/motion.js`, the
-mirror of the browser's) paints one round mote per grid cell in the row's own colours and
-scatters them on bent paths, all on one canvas (`src/lib/dustCloud.js`, the browser's copy
-byte for byte). Changing the accent
+mirror of the browser's) paints one grain per grid cell in the theme's accent and its
+shade and scatters them on bent paths, all on one canvas (`src/lib/dustCloud.js`, the
+browser's copy byte for byte). **Options → Interface animation** picks how all of that
+moves, exactly as the browser's Visuals modal and the desktop's settings do: *Dust* (the
+default — round specks), *Water* (drops), *Fire* (embers), *Sliding* (every entrance but
+no grain) and *None* — each row with its mode's glyph, played on hover
+(`lib/motionIcons.js`, the browser's copy). The choice lives in `localStorage`
+(`lib/accent.js` `StencilMotion`, stamped on `<html data-motion>` before first paint and
+synced to every open extension page), and `prefers-reduced-motion` still wins. Changing the accent
 or the light/dark mode floods the new palette out of the CONTROL that changed it — the
 popup's moon button, the options page's Appearance / Main theme pickers — as a growing
 circle (`src/lib/accent.js`, native View Transitions with a colour cross-fade fallback).

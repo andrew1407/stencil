@@ -1,15 +1,11 @@
 // ── A cloud of dust on ONE canvas ────────────────────────────────────────────
-// Every element-sized cloud in the app (a row coming apart, a window forming out of its
-// icon, a mark's tick crumbling) used to be a <div> per grain flying CSS keyframes. That
-// bought compositor-driven motion and paid for it with a node per mote: a window-sized
-// cloud was hundreds of layers built in the frame the open landed on, and past a few
-// hundred it read as lag — which is why every surface carried a mote ceiling.
+// Every element-sized cloud in the app is one <canvas> and a rAF loop rather than a <div>
+// per grain: the keyframes are tabulated below (FLIGHTS), evaluated per grain per frame
+// and drawn in a handful of batched fills. Desktop twin: disintegrateOverlay.hpp legAt.
 //
-// Here the whole cloud is one <canvas> and a requestAnimationFrame loop: the keyframes
-// are tabulated below (FLIGHTS) and every grain is evaluated per frame, then drawn in a
-// handful of batched fills — the theme wake's trick (motion.js spawnSwapDust), where
-// it was measured to keep 4500 grains at frame rate. The maths is the desktop overlay's
-// (disintegrateOverlay.hpp legAt): the two surfaces now evaluate the same flight.
+// A cloud wears one of three STYLES (motionPrefs.js particleStyle) — dust, water (grains
+// sag and sway like drops) or fire (they lift and waver like embers) — always painted in
+// the theme's --accent / --accent-2, never in the surface's own pixels.
 //
 // Pure except for startCloud, which needs a document. Mirrored byte-for-byte in
 // extension/src/lib/dustCloud.js (extension/tests/portParity.test.js).
@@ -81,13 +77,9 @@ export const alphaAt = (stops, p) => {
 };
 
 // ── Turbulence and twinkle ──────────────────────────────────────────────────
-// A keyframe flight is a fixed rail: every grain slides its own curve and nothing in
-// the cloud ever wavers. Evaluated per frame, a grain can WOBBLE — pushed off its line
-// sideways by a slow wave of its own, strongest mid-flight and gone at both ends, so
-// the cloud churns as it goes and still lands exactly where it would — and a GLINT can
-// twinkle, its brightness breathing on a clock of its own. Both keyed off the grain's
-// own hash (`w`), so the cloud is lively but reproducible. Desktop twin:
-// disintegrateOverlay.hpp turbulenceAt / twinkleAt.
+// A grain WOBBLES sideways off its rail (strongest mid-flight, gone at both ends, so it
+// still lands where the flight says) and a GLINT twinkles. Both keyed off the grain's own
+// hash, so a cloud is lively but reproducible. Desktop twin: disintegrateOverlay.hpp.
 export const TURBULENCE_SHARE = 0.06;   // of the throw…
 export const TURBULENCE_MAX_PX = 6;     // …capped, so a window's trip does not swing wide
 export const TURBULENCE_WAVES = [2.5, 4.5];   // waves per flight, by the grain's hash
@@ -111,13 +103,187 @@ export const twinkleAt = (m, tMs) => {
   return 1 - TWINKLE_DEPTH * 0.5 * (1 + Math.sin(tMs * hz * 2 * Math.PI / 1000 + (m.w || 0) * 2 * Math.PI));
 };
 
+// ── Particle styles: dust, water, fire ───────────────────────────────────────
+// A style is a touch laid over ANY flight, gone at both ends (the turbulence rule): an
+// offset (px), a size multiplier, a brightness (`glow`) and `mix`, where between the main
+// colour (0) and its shade (1) the grain is painted. Dust is the identity. Desktop twin:
+// dustKit.hpp styleFrame — keep the numbers in step.
+export const STYLE_DUST = 0;
+export const STYLE_WATER = 1;
+export const STYLE_FIRE = 2;
+// The style names motionPrefs.js / the desktop settings speak, to their codes.
+export const PARTICLE_STYLES = { dust: STYLE_DUST, water: STYLE_WATER, fire: STYLE_FIRE };
+// A styled cloud's palette: this many even mixes from the main colour to its shade.
+export const PALETTE_STOPS = 6;
+export const WATER = {
+  sagShare: 0.45, sagMaxPx: 30,      // a drop sags below its line by a share of the throw…
+  swayShare: 0.12, swayMaxPx: 5,     // …and sways slowly across it
+  swayWaves: [0.8, 1.4],             // sways per flight, by the grain's hash
+  swell: 0.3,                        // grows this much mid-flight
+  shimmerDepth: 0.25, shimmerHz: [1.2, 2.2],   // a slow, shallow breath of brightness
+  glistenHz: [0.6, 1.1],             // …and a slow drift between the two colours
+};
+export const FIRE = {
+  liftShare: 0.6, liftMaxPx: 44,     // an ember lifts above its line…
+  waverShare: 0.08, waverMaxPx: 4,   // …and wavers quickly across it
+  waverWaves: [3, 5],
+  flare: 0.35,                       // grows this much mid-flight, when bright
+  flickerDepth: 0.55, flickerHz: [9, 14],   // a fast, deep flicker
+  coolHash: 0.25,                    // colour: this share by hash, the rest by distance from home
+};
+// The style's touch on one grain: `p` its progress, `away` its distance from home (0…1),
+// `w` its hash, `len` its throw, `tMs` the clock. Writes sx, sy, scale, glow, mix.
+export const styleFrame = (style, p, away, w, len, tMs, out = {}) => {
+  out.sx = 0; out.sy = 0; out.scale = 1; out.glow = 1; out.mix = 0;
+  if (style !== STYLE_WATER && style !== STYLE_FIRE) return out;
+  const env = Math.sin(Math.PI * p);
+  const phase = w * 2 * Math.PI;
+  const sec = tMs / 1000;
+  const wave = (range) => range[0] + (range[1] - range[0]) * w;
+  if (style === STYLE_WATER) {
+    out.sy = Math.min(len * WATER.sagShare, WATER.sagMaxPx) * (0.6 + 0.4 * w) * env;
+    out.sx = Math.min(len * WATER.swayShare, WATER.swayMaxPx) * env
+      * Math.sin(p * wave(WATER.swayWaves) * 2 * Math.PI + phase);
+    out.scale = 1 + WATER.swell * env;
+    out.glow = 1 - WATER.shimmerDepth * 0.5 * (1 + Math.sin(sec * wave(WATER.shimmerHz) * 2 * Math.PI + phase));
+    out.mix = 0.5 + 0.5 * Math.sin(sec * wave(WATER.glistenHz) * 2 * Math.PI + phase);
+  } else {
+    out.sy = -Math.min(len * FIRE.liftShare, FIRE.liftMaxPx) * (0.5 + 0.5 * w) * env;
+    out.sx = Math.min(len * FIRE.waverShare, FIRE.waverMaxPx) * env
+      * Math.sin(p * wave(FIRE.waverWaves) * 2 * Math.PI + phase);
+    const dim = 0.5 * (1 + Math.sin(sec * wave(FIRE.flickerHz) * 2 * Math.PI + phase));   // 0 bright … 1 dim
+    out.glow = 1 - FIRE.flickerDepth * dim;
+    out.scale = 1 + FIRE.flare * env * (1 - dim);
+    out.mix = Math.max(0, Math.min(1, FIRE.coolHash * w + (1 - FIRE.coolHash) * away));
+  }
+  return out;
+};
+// A DUST grain's mix, fixed for its flight: plain grains spread from the main colour to
+// halfway by their hash, glints wear the shade — sand with sparkle in it.
+export const DUST_MIX_SPREAD = 0.5;
+export const dustMix = (w, glint) => (glint ? 1 : (w || 0) * DUST_MIX_SPREAD);
+// Which palette stop a grain at `mix` is painted from.
+export const paletteIndex = (mix, stops = PALETTE_STOPS) =>
+  Math.max(0, Math.min(stops - 1, Math.round(mix * (stops - 1))));
+// The shared scatter hash (motion.js tileNoise, the desktop's cellNoise): 0..1 from two ints.
+export const hashNoise = (a, b) => { const h = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return h - Math.floor(h); };
+const fract = (v) => v - Math.floor(v);
+
+// ── Grain shapes ─────────────────────────────────────────────────────────────
+// Dust is a round speck; water ovals and short wave lines; fire triangles and streaking
+// sparks. A grain keeps one shape for its flight (picked off its hash) and lies along its
+// heading. Geometry in radii, so every shape covers about the area the disc did. Desktop
+// twin: dustKit.hpp grainShape / shapePolygon.
+export const SHAPE_DISC = 0;
+export const SHAPE_OVAL = 1;
+export const SHAPE_WAVE = 2;
+export const SHAPE_TRIANGLE = 3;
+export const SHAPE_STREAK = 4;
+// A styled grain is bigger and dearer than a speck, so a screen-sized cloud grids at this
+// many times the cell — about half the grains — under water and fire.
+export const STYLED_CELL_SCALE = 1.4;
+export const WATER_WAVE_SHARE = 0.3;    // of water grains are wave lines, the rest ovals
+export const FIRE_STREAK_SHARE = 0.4;   // of fire grains are spark streaks, the rest triangles
+export const SHAPES = {
+  oval: { rx: 1.45, ry: 0.7 },                                   // along, across
+  wave: { len: 3.6, amp: 0.42, waves: 1.5, half: 0.28, samples: 9 },
+  triangle: { tip: 1.7, base: 0.85, half: 1.0 },                 // tip ahead, base behind
+  streak: { head: 1.0, headHalf: 0.42, tail: 2.6, tailHalf: 0.1 },   // a spark's tail trails
+};
+export const grainShape = (style, w) => {
+  const pick = fract((w || 0) * 7.31 + 0.17);
+  if (style === STYLE_WATER) return pick < WATER_WAVE_SHARE ? SHAPE_WAVE : SHAPE_OVAL;
+  if (style === STYLE_FIRE) return pick < FIRE_STREAK_SHARE ? SHAPE_STREAK : SHAPE_TRIANGLE;
+  return SHAPE_DISC;
+};
+// The heading of a grain that flies `dx, dy` from home: the direction it travels, so a
+// gather (flown from the far end home) points the other way.
+export const headingOf = (dx, dy, fromFar) => Math.atan2(dy, dx) + (fromFar ? Math.PI : 0);
+// A polygon shape at (x, y), radius r, heading a: flat [x0, y0, x1, y1, …]. Pure.
+export const shapePolygon = (shape, x, y, r, a, out = []) => {
+  out.length = 0;
+  const c = Math.cos(a), s = Math.sin(a);
+  const put = (u, v) => { out.push(x + u * c - v * s, y + u * s + v * c); };   // u along, v across
+  if (shape === SHAPE_TRIANGLE) {
+    const t = SHAPES.triangle;
+    put(t.tip * r, 0); put(-t.base * r, t.half * r); put(-t.base * r, -t.half * r);
+  } else if (shape === SHAPE_STREAK) {
+    const t = SHAPES.streak;
+    put(t.head * r, t.headHalf * r); put(-t.tail * r, t.tailHalf * r);
+    put(-t.tail * r, -t.tailHalf * r); put(t.head * r, -t.headHalf * r);
+  } else if (shape === SHAPE_WAVE) {
+    const t = SHAPES.wave;
+    const rim = (i, side) => {
+      const k = i / (t.samples - 1);
+      put((k - 0.5) * t.len * r, Math.sin(k * t.waves * 2 * Math.PI) * t.amp * r + side * t.half * r);
+    };
+    for (let i = 0; i < t.samples; i++) rim(i, 1);
+    for (let i = t.samples - 1; i >= 0; i--) rim(i, -1);
+  }
+  return out;
+};
+// Add one grain's outline to the path being built on `ctx` (no fill here — the caller
+// batches many grains into one fill).
+export const addGrainPath = (ctx, shape, x, y, r, a, scratch = []) => {
+  if (shape === SHAPE_DISC) { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2); return; }
+  if (shape === SHAPE_OVAL) {
+    const rx = SHAPES.oval.rx * r, ry = SHAPES.oval.ry * r;
+    ctx.moveTo(x + Math.cos(a) * rx, y + Math.sin(a) * rx);
+    ctx.ellipse(x, y, rx, ry, a, 0, Math.PI * 2);
+    return;
+  }
+  const pts = shapePolygon(shape, x, y, r, a, scratch);
+  ctx.moveTo(pts[0], pts[1]);
+  for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+  ctx.closePath();
+};
+
+// ── The theme-swap front ─────────────────────────────────────────────────────
+// The palette wipe grows a ring whose EDGE wears the style: dust a perfect circle, water
+// one waved by slow swells, fire one cut into tongues of flame. `edgeJitter` is vertex k's
+// reach off the nominal radius, as a share of it; `edgeDipOf` the deepest dip inward.
+export const EDGE_POINTS = 240;
+export const EDGE = {
+  water: { waves: 9, amp: 0.028, ripple: 17, rippleAmp: 0.008 },
+  fire: { tongues: 20, base: 0.05, vary: 0.05, dip: 0.012, jag: 0.006 },
+};
+export const edgeJitter = (style, k, points = EDGE_POINTS) => {
+  const t = k / points;
+  if (style === STYLE_WATER) {
+    const e = EDGE.water;
+    return e.amp * Math.sin(2 * Math.PI * e.waves * t) + e.rippleAmp * Math.sin(2 * Math.PI * e.ripple * t + 1);
+  }
+  if (style === STYLE_FIRE) {
+    const e = EDGE.fire;
+    const tongue = Math.floor(t * e.tongues), u = fract(t * e.tongues);
+    const h = e.base + e.vary * hashNoise(tongue, 5);
+    return h * Math.pow(Math.sin(Math.PI * u), 3) - e.dip + e.jag * (hashNoise(k, 7) * 2 - 1);
+  }
+  return 0;
+};
+export const edgeDipOf = (style) => (style === STYLE_WATER ? EDGE.water.amp + EDGE.water.rippleAmp
+  : style === STYLE_FIRE ? EDGE.fire.dip + EDGE.fire.jag : 0);
+export const edgeReachOf = (style) => (style === STYLE_WATER ? EDGE.water.amp + EDGE.water.rippleAmp
+  : style === STYLE_FIRE ? EDGE.fire.base + EDGE.fire.vary + EDGE.fire.jag : 0);
+// The ring's base radius, as a share of the corner-reaching one: the deepest dip (plus
+// slack) still clears the furthest corner when the wipe ends.
+export const edgeBaseOf = (style) => 1 + edgeDipOf(style) + 0.012;
+
+// The palette itself, as CSS: PALETTE_STOPS even mixes of --accent and --accent-2, so a
+// cloud is violet by default and follows the accent.
+export const paletteCss = (stops = PALETTE_STOPS) =>
+  Array.from({ length: stops }, (_, i) =>
+    `color-mix(in srgb, var(--accent) ${Math.round(100 - (100 * i) / (stops - 1))}%, var(--accent-2))`);
+
 // One grain at progress `p` (0..1) of its OWN animation — before its delay it holds its
 // 0% pose, after its end its 100% pose (animation-fill-mode: both). `tMs` is the cloud's
-// clock, for the twinkle.
+// clock, for the twinkle and the style's breathing; `style` is one of the codes above.
 // `m`: { x, y (home centre), dx, dy (the throw), mx, my (the bend), r (radius at home),
 //        s (size at the far end, as a share), a (the grain's own opacity),
 //        w (the grain's own hash, 0..1), t (turbulence share), g (a glint?) }.
-export const moteFrame = (m, flight, p, out = {}, tMs = 0) => {
+// Writes x, y, r, alpha and mix — its place in the palette (dustMix / styleFrame). Shape
+// and heading never change over a flight, so drawCloud works them out once instead.
+export const moteFrame = (m, flight, p, out = {}, tMs = 0, style = STYLE_DUST) => {
   const f = FLIGHTS[flight] || FLIGHTS.scatter;
   const mid = 1 - (1 - m.s) * 0.5;
   let x, y, size;
@@ -150,10 +316,19 @@ export const moteFrame = (m, flight, p, out = {}, tMs = 0) => {
     x += -m.dy / len * wob;
     y += m.dx / len * wob;
   }
+  let glow = twinkleAt(m, tMs);
+  out.mix = dustMix(m.w, m.g);
+  if (style) {
+    styleFrame(style, p, f.from === 'far' ? 1 - p : p, m.w || 0, Math.hypot(m.dx, m.dy), tMs, out);
+    x += out.sx;
+    y += out.sy;
+    size *= out.scale;
+    glow = out.glow;
+  }
   out.x = x;
   out.y = y;
   out.r = m.r * size;
-  out.alpha = alphaAt(f.alpha, p) * m.a * twinkleAt(m, tMs);
+  out.alpha = alphaAt(f.alpha, p) * m.a * glow;
   return out;
 };
 
@@ -176,33 +351,55 @@ export const cloudBounds = (motes, pad = 4) => {
 // Grains are drawn in a few batched fills — one path per (colour, opacity step) —
 // instead of one fill per grain: with ~1400 grains a frame, the fills were the frame.
 export const ALPHA_LEVELS = 10;
+// …but a path only so long: cost per grain climbs with the path's length (7000 wave lines
+// in one path measured 12x what they did in runs of 32), so batches fill in chunks.
+export const FILL_CHUNK = 32;
+// Fill a run of grains laid out [x, y, r, shape, heading] per grain, in chunks.
+export const fillGrains = (ctx, b, n, poly) => {
+  for (let i = 0; i < n; i += FILL_CHUNK) {
+    const end = Math.min(n, i + FILL_CHUNK);
+    ctx.beginPath();
+    for (let j = i; j < end; j++) addGrainPath(ctx, b[j * 5 + 3], b[j * 5], b[j * 5 + 1], b[j * 5 + 2], b[j * 5 + 4], poly);
+    ctx.fill();
+  }
+};
 
 // Paint one frame of `motes` at `tMs` since launch onto `ctx` (already translated so
-// viewport coords land on the canvas). `scratch` is reused between frames.
-export const drawCloud = (ctx, motes, flight, tMs, colours, scratch = { out: {}, buckets: new Map() }) => {
+// viewport coords land on the canvas). `scratch` is reused between frames; `colours` is
+// the resolved palette, each grain picking its stop by its `mix`.
+export const drawCloud = (ctx, motes, flight, tMs, colours, scratch = { out: {}, buckets: new Map() },
+                          style = STYLE_DUST) => {
   const { out, buckets } = scratch;
+  const fromFar = (FLIGHTS[flight] || FLIGHTS.scatter).from === 'far';
+  // Each grain's shape and heading, once per cloud (they never change over the flight).
+  if (!scratch.shapes || scratch.shapes.length !== motes.length || scratch.style !== style) {
+    scratch.shapes = Int8Array.from(motes, (m) => grainShape(style, m.w));
+    scratch.heads = Float32Array.from(motes, (m) => headingOf(m.dx, m.dy, fromFar));
+    scratch.style = style;
+  }
+  const { shapes, heads } = scratch;
   for (const b of buckets.values()) b.length = 0;
-  for (const m of motes) {
+  for (let i = 0; i < motes.length; i++) {
+    const m = motes[i];
+    // A gathering grain is NOTHING until it sets off: parked at its far end with hundreds
+    // of others it filled the icon with a solid blob of the accent (user report).
+    if (fromFar && tMs < m.delay) continue;
     const p = m.dur > 0 ? Math.max(0, Math.min(1, (tMs - m.delay) / m.dur)) : 1;
-    moteFrame(m, flight, p, out, tMs);
+    moteFrame(m, flight, p, out, tMs, style);
     if (out.alpha < 0.01 || out.r < 0.2) continue;
     const level = Math.round(out.alpha * (ALPHA_LEVELS - 1));
     if (level <= 0) continue;
-    const key = m.c * ALPHA_LEVELS + level;
+    const key = paletteIndex(out.mix, colours.length) * ALPHA_LEVELS + level;
     let b = buckets.get(key);
     if (!b) buckets.set(key, (b = []));
-    b.push(out.x, out.y, out.r);
+    b.push(out.x, out.y, out.r, shapes[i], heads[i]);
   }
+  const poly = scratch.poly || (scratch.poly = []);
   for (const [key, b] of buckets) {
     if (!b.length) continue;
     ctx.globalAlpha = (key % ALPHA_LEVELS) / (ALPHA_LEVELS - 1);
     ctx.fillStyle = colours[Math.floor(key / ALPHA_LEVELS)];
-    ctx.beginPath();
-    for (let i = 0; i < b.length; i += 3) {
-      ctx.moveTo(b[i] + b[i + 2], b[i + 1]);
-      ctx.arc(b[i], b[i + 1], b[i + 2], 0, Math.PI * 2);
-    }
-    ctx.fill();
+    fillGrains(ctx, b, b.length / 5, poly);
   }
   ctx.globalAlpha = 1;
 };
@@ -232,7 +429,8 @@ export const resolveColour = (doc, css, probe = null) => {
 // and a no-op stop, so a flight's bookkeeping never depends on the paint.
 export function startCloud(host, motes, { flight = 'scatter', span, colours, origin, doc = globalThis.document,
                                            viewport = null, raf = globalThis.requestAnimationFrame,
-                                           now = () => (globalThis.performance?.now?.() ?? Date.now()) } = {}) {
+                                           now = () => (globalThis.performance?.now?.() ?? Date.now()),
+                                           style = STYLE_DUST } = {}) {
   const noop = () => {};
   host.__stop = noop;
   if (!doc?.createElement || typeof raf !== 'function' || !motes.length) return noop;
@@ -258,7 +456,7 @@ export function startCloud(host, motes, { flight = 'scatter', span, colours, ori
     + `width:${w}px;height:${h}px;pointer-events:none;`;
   host.appendChild(canvas);
   ctx.setTransform(dpr, 0, 0, dpr, -left * dpr, -top * dpr);
-  const scratch = { out: {}, buckets: new Map() };
+  const scratch = { out: {}, buckets: new Map(), poly: [] };
   const started = now();
   let live = true;
   let handle = 0;
@@ -267,7 +465,7 @@ export function startCloud(host, motes, { flight = 'scatter', span, colours, ori
     if (!live) return;
     const t = now() - started;
     ctx.clearRect(left, top, w, h);
-    drawCloud(ctx, motes, flight, t, colours, scratch);
+    drawCloud(ctx, motes, flight, t, colours, scratch, style);
     if (t <= span + 150) handle = raf(step);
     else live = false;
   };

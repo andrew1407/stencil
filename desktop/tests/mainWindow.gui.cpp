@@ -37,6 +37,8 @@
 #include <QStyleFactory>
 #include "theme.hpp"
 #include "modalReveal.hpp"
+#include "settingsDialog.hpp"
+#include "../src/support/searchCombo.hpp"
 #include <QScopeGuard>
 #include <QtTest>
 #include <QStyleOptionSlider>
@@ -52,7 +54,6 @@
 #include <QGuiApplication>
 #include <QLabel>
 #include <QListView>
-#include "../src/support/searchCombo.hpp"
 #include <QRegularExpression>
 #include "../src/support/tipContent.hpp"
 #include <QPlainTextEdit>
@@ -1215,6 +1216,153 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(!QApplication::activePopupWidget());
   }
 
+  // The open flight photographs the dialog before its scroll area has decided its
+  // scrollbar, so the picture that flew was a scrollbar too wide (user report).
+  // settleLayout brings the scrollbar in before the shot.
+  void revealSnapshotWaitsForTheScrollbar() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    stencil::gui::SettingsDialog dlg(win.settings_, &win);
+    dlg.resize(dlg.width(), 320);   // short enough that the body must scroll
+    dlg.show();
+    auto* scroll = dlg.findChild<QScrollArea*>();
+    QVERIFY(scroll);
+    // Straight after show() the vertical bar may not be decided yet — the frame the old
+    // snapshot was taken on. After the settle the viewport is the real row width.
+    stencil::support::settleLayout(dlg);
+    QVERIFY2(scroll->verticalScrollBar()->isVisible(), "the settled shell shows its scrollbar");
+    const int settledViewport = scroll->viewport()->width();
+    QTest::qWait(80);   // …and nothing moves once the event loop has had its say
+    QCOMPARE(scroll->viewport()->width(), settledViewport);
+    QVERIFY(scroll->viewport()->width() < scroll->width());
+    dlg.reject();
+  }
+
+  // The Interface-animation combo's rows wear ONE glyph each (support/motionIcons.hpp),
+  // handed to the style AS the row's icon — never painted beside its own (that drew two).
+  // Rendered offscreen: the glyph column lights no wider than one 16px icon.
+  void motionComboRowsWearOneGlyph() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    stencil::gui::SettingsDialog dlg(win.settings_, &win);
+    dlg.show();
+    QTest::qWait(30);
+    auto* combo = static_cast<stencil::gui::SearchComboBox*>(   // no Q_OBJECT on the combo: found as its base
+        dlg.findChild<QComboBox*>(QStringLiteral("motionModeCombo")));
+    QVERIFY(combo);
+    QCOMPARE(combo->count(), 5);
+    QVERIFY2(combo->toolTip().isEmpty(), "the browser's dropdown carries no tooltip");
+    for (int i = 0; i < combo->count(); ++i) QVERIFY(!combo->itemIcon(i).isNull());
+    combo->showPopup();
+    QTest::qWait(60);
+    QListView* list = combo->popupList();
+    QVERIFY(list && list->isVisible());
+    // Measured in LOGICAL pixels: the grab is at the screen's ratio (2x offscreen here).
+    const QPixmap shot = list->grab();
+    const int dpr = qMax(1, qRound(shot.devicePixelRatio()));
+    const QImage img = shot.toImage().convertToFormat(QImage::Format_ARGB32)
+                           .scaled(shot.width() / dpr, shot.height() / dpr, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    const QString out = QDir(QString::fromUtf8(qgetenv("STENCIL_STATE_DIR"))).filePath("motion-combo.png");
+    img.save(out);
+    // Per row: the ICON slot's lit columns (the label starts past 36px), as runs. One
+    // glyph is one run no wider than a 16px icon; a second icon would be a second run.
+    const int rowH = img.height() / 5;
+    QVERIFY(rowH > 10);
+    for (int r = 0; r < 5; ++r) {
+      QString cols;
+      // Ink is whatever differs from the ROW's own background (a selected row wears the
+      // accent wash), sampled just inside the popup's border.
+      const QColor bg = img.pixelColor(5, r * rowH + rowH / 2);
+      // Alpha counts: the list's viewport grabs transparent, so black ink on a clear row
+      // differs from it in alpha alone.
+      const auto far = [&](const QColor& c) {
+        return qAbs(c.red() - bg.red()) + qAbs(c.green() - bg.green()) + qAbs(c.blue() - bg.blue())
+               + qAbs(c.alpha() - bg.alpha()) > 90;
+      };
+      for (int x = 4; x < qMin(36, img.width()); ++x) {   // past the popup's own border
+        bool lit = false;
+        for (int y = r * rowH + 4; y < (r + 1) * rowH - 4 && !lit; ++y) lit = far(img.pixelColor(x, y));
+        cols += lit ? QLatin1Char('#') : QLatin1Char('.');
+      }
+      qDebug("row %d icon columns: %s", r, qPrintable(cols));
+      const QStringList runs = cols.split(QLatin1Char('.'), Qt::SkipEmptyParts);
+      QVERIFY2(runs.size() >= 1, qPrintable(QStringLiteral("row %1 shows no glyph (%2)").arg(r).arg(cols)));
+      int widest = 0, gaps = 0;
+      for (const QString& run : runs) widest = qMax(widest, int(run.size()));
+      // Runs parted by a gap of three or more columns are separate glyphs.
+      for (int i = 3; i < cols.size(); ++i)
+        if (cols.mid(i - 3, 3) == QLatin1String("...") && cols[i] == QLatin1Char('#') && cols.left(i - 3).contains(QLatin1Char('#'))) ++gaps;
+      QVERIFY2(gaps == 0, qPrintable(QStringLiteral("row %1: two glyphs (%2)").arg(r).arg(cols)));
+      QVERIFY2(widest <= 20, qPrintable(QStringLiteral("row %1: glyph ink %2px wide — more than one icon (%3)").arg(r).arg(widest).arg(cols)));
+    }
+    // …and a pick from the popup reports itself as a user pick — activated(), the signal
+    // the dialog applies live from — BEFORE the list leaves. setCurrentIndex alone never
+    // emits it, which is why a popup pick used to apply only on OK.
+    QSignalSpy picked(combo, &QComboBox::activated);
+    list->setCurrentIndex(list->model()->index(2, 0));   // Fire
+    emit list->clicked(list->currentIndex());
+    QCOMPARE(picked.count(), 1);
+    QCOMPARE(picked.at(0).at(0).toInt(), 2);
+    QCOMPARE(combo->currentData().toString(), QStringLiteral("fire"));
+    QVERIFY(!list->isVisible());
+    combo->hidePopup();
+  }
+
+  // The ✓ in an OPEN accent popover follows the accent wherever it moved from — the
+  // logo's click-cycle (applySettings), not only the popover's own row picks (user
+  // report). The browser's logo menu re-marks off stencil:accent-changed the same way.
+  void accentPopoverTickFollowsAnOutsideAccentChange() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1000, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QTest::qWait(30);
+    QToolButton* logo = win.logoBtn_;
+    QVERIFY(logo);
+    const QString original = win.settings_.accentColor;
+    const auto& presets = stencil::gui::accentPresets();
+    QVERIFY(presets.size() >= 2);
+    QString other;
+    for (const auto& a : presets) if (a.key != original) { other = a.key; break; }
+    bool opened = false, markedBefore = false, markedAfter = false, oneMark = true;
+    QTimer::singleShot(120, &win, [&] {
+      QDialog* pop = win.activePopover_.data();
+      opened = pop && pop->objectName() == QLatin1String("accentPopover") && pop->isVisible();
+      if (pop) {
+        auto* was = pop->findChild<QPushButton*>(QStringLiteral("accentRow-") + original);
+        markedBefore = was && was->property("currentAccent").toBool();
+        // The accent moves OUTSIDE the popover — the logo click-cycle's own path.
+        auto next = win.settings_;
+        next.accentColor = other;
+        win.applySettings(next, true);
+        QTest::qWait(30);
+        int marks = 0;
+        for (const auto& a : presets) {
+          auto* r = pop->findChild<QPushButton*>(QStringLiteral("accentRow-") + a.key);
+          if (r && r->property("currentAccent").toBool()) ++marks;
+        }
+        auto* now = pop->findChild<QPushButton*>(QStringLiteral("accentRow-") + other);
+        markedAfter = now && now->property("currentAccent").toBool();
+        oneMark = marks == 1;
+        pop->reject();
+      }
+    });
+    const QPoint c = logo->rect().center();
+    QContextMenuEvent ctx(QContextMenuEvent::Mouse, c, logo->mapToGlobal(c));
+    QApplication::sendEvent(logo, &ctx);   // blocks in the popover's exec until the timer acts
+    QVERIFY2(opened, "right-click did not open the accent popover");
+    QVERIFY2(markedBefore, "the current accent's row starts marked");
+    QVERIFY2(markedAfter, "an accent applied from outside the popover must move its tick");
+    QVERIFY2(oneMark, "exactly one row carries the tick");
+    auto restore = win.settings_;
+    restore.accentColor = original;
+    win.applySettings(restore, true);
+  }
+
   // A popover must close on a click OUTSIDE it — canvas, toolbar, anywhere — from BOTH
   // routes that open the accent picker (right-click sticky, hold-Alt peek), and whether
   // Qt delivers that press or not: exec() is application-modal, so the platform DROPS
@@ -1303,11 +1451,48 @@ class MainWindowGuiTest : public QObject {
     outsidePressCloses(Sticky, other, "sticky + toolbar press");
     outsidePressCloses(Peek, win.canvas_, "peek + canvas press");
     outsidePressCloses(Peek, other, "peek + toolbar press");
-    // The logo itself: a press on it closes a STICKY popover (the peek's own no-op rule
-    // is checked in logoAccentPopoverPicksDirectly) and must not cycle the accent.
-    const QString accentBefore = win.settings_.accentColor;
-    outsidePressCloses(Sticky, logo, "sticky + logo press");
-    QCOMPARE(win.settings_.accentColor, accentBefore);
+    // The logo itself is NOT outside: a left click on it with a STICKY popover up keeps
+    // the list open and cycles the accent under it, the ✓ following (browser parity; user
+    // report). The peek's own no-op rule is checked in logoAccentPopoverPicksDirectly.
+    {
+      const QString accentBefore = win.settings_.accentColor;
+      const auto& presets = stencil::gui::accentPresets();
+      bool opened = false, stayedOpen = false, cycleArmed = false, cycled = false, stillOpen = false, ticked = false;
+      QTimer::singleShot(120, &win, [&] {
+        QDialog* pop = win.activePopover_.data();
+        opened = pop && pop->objectName() == QLatin1String("accentPopover") && pop->isVisible();
+        const QPoint local = logo->rect().center();
+        const QPoint at = logo->mapToGlobal(local);
+        QMouseEvent press(QEvent::MouseButtonPress, local, at, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(logo, &press);
+        QMouseEvent rel(QEvent::MouseButtonRelease, local, at, Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(logo, &rel);
+        stayedOpen = win.activePopover_ && !win.activePopover_->isHidden();
+        cycleArmed = win.logoClickTimer_->isActive();
+        QTest::qWait(320);   // past the deferred click: the cycle lands
+        cycled = win.settings_.accentColor != accentBefore &&
+                 std::any_of(presets.begin(), presets.end(),
+                             [&](const auto& a) { return a.key == win.settings_.accentColor; });
+        stillOpen = win.activePopover_ && !win.activePopover_->isHidden();
+        if (pop) {
+          auto* r = pop->findChild<QPushButton*>(QStringLiteral("accentRow-") + win.settings_.accentColor);
+          ticked = r && r->property("currentAccent").toBool();
+        }
+        if (win.activePopover_ && !win.activePopover_->isHidden()) win.activePopover_->reject();
+      });
+      QContextMenuEvent ctx(QContextMenuEvent::Mouse, c, logo->mapToGlobal(c));
+      QApplication::sendEvent(logo, &ctx);      // blocks in exec until the timer acts
+      QVERIFY2(opened, "sticky + logo click: the popover never opened");
+      QVERIFY2(stayedOpen, "a left press on the logo must not close its sticky popover");
+      QVERIFY2(cycleArmed, "the logo click must still arm the accent cycle");
+      QVERIFY2(cycled, "the deferred click must cycle the accent under the open popover");
+      QVERIFY2(stillOpen, "the popover must survive the accent change");
+      QVERIFY2(ticked, "the popover's tick must follow the cycled accent");
+      QVERIFY(!win.activePopover_);
+      auto restore = win.settings_;
+      restore.accentColor = accentBefore;
+      win.applySettings(restore, true);
+    }
 
     // …and the other half of the rule: a press INSIDE the popover, or in a NESTED dialog
     // the popover opened (a confirm, a colour picker), leaves it alone — and Escape
@@ -1425,8 +1610,9 @@ class MainWindowGuiTest : public QObject {
     qApp->installEventFilter(&trace);
     const auto removeTrace = qScopeGuard([&] { qApp->removeEventFilter(&trace); });
 
-    for (QWidget* target : {static_cast<QWidget*>(win.canvas_), static_cast<QWidget*>(logo),
-                            static_cast<QWidget*>(other)}) {
+    // The logo is not an outside target any more (the block above), so the lifecycle is
+    // traced on the canvas and a toolbar icon.
+    for (QWidget* target : {static_cast<QWidget*>(win.canvas_), static_cast<QWidget*>(other)}) {
       trace.seq.clear();
       trace.dialogs.clear();
       trace.pressedAt = trace.hidAt = -1;

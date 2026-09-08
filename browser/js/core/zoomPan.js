@@ -20,6 +20,20 @@ const bottomInsetToPage = (el) => {
   return total;
 };
 
+// Where `el`'s top edge is LAID OUT, not painted: a bounding rect reads a mid-flight
+// transform too, and the shell's appReveal slides the app 8px down — a frame measured then
+// booted 8px short (user report). Any ancestor's translateY is taken back off.
+const layoutTop = (el) => {
+  let top = el.getBoundingClientRect().top;
+  for (let n = el; n && n !== document.documentElement; n = n.parentElement) {
+    const tf = getComputedStyle(n).transform;
+    if (!tf || tf === 'none') continue;
+    const m = /matrix\(([^)]+)\)/.exec(tf);
+    if (m) top -= parseFloat(m[1].split(',')[5]) || 0;
+  }
+  return top;
+};
+
 // What sits under the viewport inside its own column (status line + drop hint), summed
 // from the siblings themselves: the column is a stretched flex box (layout.css), so
 // measuring to the column's bottom EDGE counts leftover slack as occupied space.
@@ -131,7 +145,7 @@ export class ZoomPan {
     if (document.body.classList.contains('fullscreen-mode')) return window.innerHeight;
     const vp = document.getElementById('canvas-viewport');
     if (!vp) return Math.max(200, window.innerHeight - 140 - 96);
-    const r = vp.getBoundingClientRect();
+    const top = layoutTop(vp);
     // What sits BELOW the viewport is MEASURED, never assumed — a fixed guess leaves a
     // permanent scrollbar. Off the viewport's own column, NOT .container: that also
     // encloses the coordinates panel, which grows with the point list.
@@ -142,7 +156,7 @@ export class ZoomPan {
     const below = shell ? belowInColumn(vp) + bottomInsetToPage(shell) : 96;
     // The floor must stay below ordinary window heights so the true fit wins; it only
     // bites on a genuinely tiny window, where something has to give anyway.
-    return Math.max(MIN_VIEWPORT_H, Math.floor(window.innerHeight - r.top - below));
+    return Math.max(MIN_VIEWPORT_H, Math.floor(window.innerHeight - top - below));
   }
 
   // Measured off the viewport itself for the same reason availContentHeight() is: a fixed
@@ -201,7 +215,7 @@ export class ZoomPan {
   syncCoordPanelHeight() {
     const panel = document.getElementById('coord-panel');
     if (!panel || document.body.classList.contains('fullscreen-mode')) return;
-    const top = panel.getBoundingClientRect().top;
+    const top = layoutTop(panel);
     const avail = Math.floor(window.innerHeight - top - bottomInsetToPage(panel));
     panel.style.maxHeight = Math.max(MIN_PANEL_H, avail) + 'px';
   }

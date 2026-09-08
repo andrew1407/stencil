@@ -597,9 +597,9 @@ export const createStencil = (app) => {
     // landing pop and ripple. Off puts every point straight down.
     get drawingAnimations() { return motionPrefs().drawing; },
     set drawingAnimations(v) { app.settings.setMotion('drawing', !!v); },
-    // How the INTERFACE moves: 'particles' (windows, menus, marks and the canvas form
-    // out of dust), 'slide' (no dust — each surface plays its own plain entrance) or
-    // 'none' (nothing moves). prefers-reduced-motion still wins on its own.
+    // How the INTERFACE moves: 'particles' | 'water' | 'fire' (the same flights as dust,
+    // drops or embers), 'slide' (each surface's own plain entrance) or 'none'.
+    // prefers-reduced-motion still wins.
     get motionMode() { return motionPrefs().mode; },
     set motionMode(v) { app.settings.setMotion('mode', v); },
     get motionModes() { return MOTION_MODES.slice(); },

@@ -112,6 +112,7 @@ namespace stencil::gui {
     list_->setEditTriggers(QAbstractItemView::NoEditTriggers);
     // Hover-highlight rows like .accent-dd-opt:hover (QSS ::item:hover needs it).
     list_->setMouseTracking(true);
+    if (delegate_) list_->setItemDelegate(delegate_);
     list_->setFocusPolicy(searchable_ ? Qt::NoFocus : Qt::StrongFocus);   // keys go to
     if (!searchable_) list_->installEventFilter(this);                    // whoever has focus
     layout->addWidget(list_, 1);
@@ -152,7 +153,14 @@ namespace stencil::gui {
 
   void SearchComboBox::choose(int proxyRow) {
     const QModelIndex src = proxy_->mapToSource(proxy_->index(proxyRow, 0));
-    if (src.isValid()) setCurrentIndex(src.row());  // → currentIndexChanged
+    if (src.isValid()) {
+      setCurrentIndex(src.row());   // → currentIndexChanged / currentTextChanged
+      // A user pick, as the native popup reports it — setCurrentIndex alone emits neither,
+      // so a live-applying dialog never heard a pick from this popup. Emitted BEFORE the
+      // popup leaves, so its exit plays under what was just picked.
+      emit activated(src.row());
+      emit textActivated(itemText(src.row()));
+    }
     hidePopup();
   }
 
@@ -180,6 +188,16 @@ namespace stencil::gui {
 
   // Each open starts like the browser's: empty query, every row visible, the
   // current item highlighted, focus in the search field.
+  void SearchComboBox::setListDelegate(QAbstractItemDelegate* delegate) {
+    delegate_ = delegate;
+    if (list_) list_->setItemDelegate(delegate);
+  }
+
+  QListView* SearchComboBox::popupList() {
+    ensurePopup();
+    return list_;
+  }
+
   void SearchComboBox::showPopup() {
     if (popup_ && popup_->isVisible()) {  // trigger acts as a toggle
       hidePopup();

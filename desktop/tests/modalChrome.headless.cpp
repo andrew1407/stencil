@@ -9,12 +9,14 @@
 //   - OpenInDialog's Telegram fallback — a link that cannot fit the 64-char start
 //     payload keeps the dialog OPEN with the browser's fallback row (the two bot
 //     commands + the footer hint), while one that fits accepts with the Telegram outcome;
+//   - the hover shimmer's rounded clip — the sweep stays inside the Close pill's shape;
 //   - addModalFooter's wrap (FooterWrap) — the hint leads the buttons' row while it has
 //     room, drops LEFT onto its own line above right-packed buttons when it hasn't, and
 //     buttons that cannot share a line even alone wrap onto further right-packed lines.
 // Offscreen; every modal is answered from a 0-timer inside its own exec() loop.
 #include "modalChrome.hpp"
 #include "openInDialog.hpp"
+#include "shimmerOverlay.hpp"
 
 #include <QApplication>
 #include <QComboBox>
@@ -25,6 +27,7 @@
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPainter>
 #include <QPushButton>
 #include <QTimer>
 #include <cstdio>
@@ -312,6 +315,36 @@ int main(int argc, char** argv) {
               footer->indexOf(c) == 3 && footer->count() == 4,
           "unwrap: hint, then the buttons in their order, no stretch left behind");
     check(sameRow(hint, a) && sameRow(a, c), "unwrap: everything on the one row again");
+    dlg.close();
+  }
+
+  {
+    // The hover sweep is clipped to the control's own rounded shape: rendered on black
+    // mid-sweep, the pill's corners stay untouched while its middle lights up. A plain
+    // fillRect spilled the band across them (user report).
+    std::printf("the hover shimmer's rounded clip:\n");
+    QDialog dlg;
+    ModalChrome c = installModalChrome(&dlg, QString(), "Shimmer");
+    dlg.resize(320, 200);
+    dlg.show();
+    pumpFor(40);
+    QEvent enter(QEvent::Enter);
+    QCoreApplication::sendEvent(c.close, &enter);
+    pumpFor(120);
+    auto* ov = c.close->findChild<QWidget*>(QStringLiteral("shimmerOverlay"));
+    check(ov && ov->property("sweepProgress").toDouble() > 0, "the pill is mid-sweep");
+    QImage shot(c.close->size(), QImage::Format_ARGB32_Premultiplied);
+    shot.fill(Qt::black);
+    if (ov) {
+      QPainter p(&shot);
+      ov->render(&p, QPoint(), QRegion(), QWidget::DrawChildren);
+    }
+    const int h = shot.height();
+    check(qGray(shot.pixel(0, 0)) == 0 && qGray(shot.pixel(0, h - 1)) == 0,
+          "the leading corners take no light — the band is inside the pill's radius");
+    bool lit = false;
+    for (int x = 0; x < shot.width() && !lit; ++x) lit = qGray(shot.pixel(x, h / 2)) > 0;
+    check(lit, "…while its middle line does");
     dlg.close();
   }
 

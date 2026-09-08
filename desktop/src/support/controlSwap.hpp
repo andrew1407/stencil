@@ -332,6 +332,7 @@ namespace stencil::gui {
       fx->raise();
       auto* anim = new QVariantAnimation(fx);
       anim->setDuration(ms);
+      fx->ms_ = ms;
       anim->setStartValue(0.0);
       anim->setEndValue(1.0);
       // Linear — the shaping lives in faceSwapFrame's two curves.
@@ -365,6 +366,12 @@ namespace stencil::gui {
 
    protected:
     void paintEvent(QPaintEvent*) override {
+      if (!styled_) {
+        styled_ = true;
+        style_ = support::particleStyle();
+        accent_ = support::particleAccent();
+        shade_ = support::particleShade();
+      }
       QPainter p(this);
       p.setClipRect(clip_);   // clipped by the edit field, the way the word itself is
       // Sequential, like the odometer this replaces: the outgoing word is most of the way
@@ -413,7 +420,7 @@ namespace stencil::gui {
       QPainter p(layer);
       p.setRenderHint(QPainter::SmoothPixmapTransform, true);
       static const QEasingCurve kOut(QEasingCurve::OutQuint);
-      struct Grain { QPointF at; double r; QColor c; };
+      struct Grain { QPointF at; double r; QColor c; support::GrainShape shape; double heading; };
       std::vector<Grain> grains;
       std::vector<QRect> cut;
       for (int cy = 0; cy < rows; ++cy) {
@@ -444,11 +451,19 @@ namespace stencil::gui {
                 const QPointF home(box.x() + (cx + 0.5) * cw, box.y() + (cy + 0.5) * ch);
                 const double tx = (m - 0.5) * kValueSwapThrowPx;
                 const double ty = (0.3 + n * 0.7) * kValueSwapThrowPx;
-                c.setAlphaF(std::min(1.0, alpha));
-                grains.push_back({home + QPointF(far * tx, far * ty)
-                                      + DisintegrateOverlay::swirlAt(far, tx, ty, q),
-                                  DisintegrateOverlay::moteRadius(cw, ch, n) * (1.0 - far * (0.6 - n * 0.25)),
-                                  c});
+                const double w = DisintegrateOverlay::cellNoise(cx + 13, cy + 71);
+                Grain g{home + QPointF(far * tx, far * ty) + DisintegrateOverlay::swirlAt(far, tx, ty, q),
+                        DisintegrateOverlay::moteRadius(cw, ch, n) * (1.0 - far * (0.6 - n * 0.25)), c,
+                        support::grainShape(style_, w), support::headingOf(tx, ty, gather)};
+                // Painted from the accent palette like every cloud — the word's own ink
+                // only says how much paint the cell held.
+                const support::StyleFrame sf = support::styleFrame(style_, k, far, w, std::hypot(tx, ty), t_ * ms_);
+                g.at += QPointF(sf.sx, sf.sy);
+                g.r *= sf.scale;
+                g.c = support::paletteStop(accent_, shade_,
+                                           style_ == support::ParticleStyle::Dust ? support::dustMix(w, false) : sf.mix);
+                g.c.setAlphaF(std::min(1.0, alpha * sf.glow));
+                grains.push_back(g);
               }
             }
           }
@@ -478,8 +493,12 @@ namespace stencil::gui {
       p.setRenderHint(QPainter::Antialiasing, true);
       p.setPen(Qt::NoPen);
       for (const Grain& g : grains) {
-        p.setBrush(g.c);
-        p.drawEllipse(g.at, g.r, g.r);
+        if (g.shape == support::GrainShape::Disc) {
+          p.setBrush(g.c);
+          p.drawEllipse(g.at, g.r, g.r);
+        } else {
+          sprites_.draw(p, g.at, g.r, g.c, g.shape, g.heading);
+        }
       }
     }
 
@@ -498,6 +517,14 @@ namespace stencil::gui {
     QImage layerOut_, layerIn_;     // per-frame scratch: each cloud composed on its own
     QRect clip_;
     double t_ = 0.0;
+    int ms_ = 1;   // the exchange's length, for a styled word's clock
+    support::MoteSprites sprites_;   // shaped grains only — the word's discs draw direct, antialiased
+    // The style and palette the exchange plays in, read at its FIRST FRAME rather than at
+    // build time: a combo that changes the motion mode swaps its face in the same call
+    // that applies it, and read early the swap played in the old mode (user report).
+    bool styled_ = false;
+    support::ParticleStyle style_ = support::ParticleStyle::Dust;
+    QColor accent_, shade_;
   };
 
   namespace ctl {

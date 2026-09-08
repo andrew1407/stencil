@@ -80,9 +80,9 @@ namespace stencil::gui {
     // The canvas stroke animation — a new vertex flying to where it was put, its landing
     // pop and ripple. On by default, exactly as in the browser.
     bool drawingAnimations = true;
-    // How the interface moves: "particles" (the default — windows, menus, marks and the
-    // canvas form out of dust), "slide" (no dust: each surface keeps its own flight) or
-    // "none". Unknown values read as "particles" (support::motionModeFromKey).
+    // How the interface moves: "particles" (the default), "water" / "fire" (the same
+    // flights as drops / embers), "slide" (no particles) or "none". Unknown values read
+    // as "particles" (support::motionModeFromKey).
     QString motionMode = "particles";
     // "Open in…" targets: the browser app's base URL (opened via QDesktopServices
     // with the #stencil= fragment) and the Telegram bot's username for t.me deep

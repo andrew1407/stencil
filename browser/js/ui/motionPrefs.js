@@ -7,7 +7,9 @@
 //   • mode    — how the INTERFACE moves:
 //       'particles' (default) every surface forms out of dust and comes apart into it
 //                   — windows, menus, marks, chat entries, the canvas, the voice mic;
-//       'slide'     no dust anywhere: each surface plays its own plain entrance
+//       'water'     the same particles as drops: sagging, swaying, shimmering;
+//       'fire'      …as embers: lifting, wavering, flickering (dustCloud.js styleFrame);
+//       'slide'     no particles anywhere: each surface plays its own plain entrance
 //                   instead (the grow-from-the-icon / rise / fade CSS it already has,
 //                   which is exactly what the dust normally stands in for);
 //       'none'      nothing moves — the same end state prefers-reduced-motion gives.
@@ -26,17 +28,26 @@ export const MOTION_EVENT = 'stencil:motion-changed';
 export const MOTION_ATTR = 'data-motion';
 
 export const MOTION_PARTICLES = 'particles';
+export const MOTION_WATER = 'water';
+export const MOTION_FIRE = 'fire';
 export const MOTION_SLIDE = 'slide';
 export const MOTION_NONE = 'none';
-export const MOTION_MODES = [MOTION_PARTICLES, MOTION_SLIDE, MOTION_NONE];
+export const MOTION_MODES = [MOTION_PARTICLES, MOTION_WATER, MOTION_FIRE, MOTION_SLIDE, MOTION_NONE];
+// The three modes that fly particles, and the style (dustCloud.js PARTICLE_STYLES) each
+// paints them in.
+export const PARTICLE_MODES = [MOTION_PARTICLES, MOTION_WATER, MOTION_FIRE];
+export const PARTICLE_STYLE_OF = { [MOTION_PARTICLES]: 'dust', [MOTION_WATER]: 'water', [MOTION_FIRE]: 'fire' };
 export const DEFAULT_MOTION_MODE = MOTION_PARTICLES;
 export const DEFAULT_DRAWING_ANIMATIONS = true;
 
 // Human labels for the one dropdown that offers them (visualsModal.js) — kept here so
-// the desktop's combo (dialogs/settingsDialog.cpp) has one list to mirror.
+// the desktop's combo (dialogs/settingsDialog.cpp) and the extension's options page
+// (src/lib/accent.js StencilMotion) have one list to mirror.
 export const MOTION_MODE_LABELS = [
-  [MOTION_PARTICLES, 'Particles (dust)'],
-  [MOTION_SLIDE, 'Sliding (no dust)'],
+  [MOTION_PARTICLES, 'Dust'],
+  [MOTION_WATER, 'Water'],
+  [MOTION_FIRE, 'Fire'],
+  [MOTION_SLIDE, 'Sliding'],
   [MOTION_NONE, 'None'],
 ];
 
@@ -79,9 +90,13 @@ export const prefersReducedMotion = () =>
 // The one gate every animation checks: nothing may move.
 export const motionReduced = () => prefs.mode === MOTION_NONE || prefersReducedMotion();
 
-// …and the one every DUST flight checks on top of it. False in 'slide' leaves the
-// surface's own CSS entrance in charge — the flight the dust normally replaces.
-export const dustEnabled = () => prefs.mode === MOTION_PARTICLES && !prefersReducedMotion();
+// …and the one every PARTICLE flight checks on top of it. False in 'slide' leaves the
+// surface's own CSS entrance in charge — the flight the particles normally replace.
+export const dustEnabled = () => PARTICLE_MODES.includes(prefs.mode) && !prefersReducedMotion();
+
+// Which style the particles wear — 'dust' | 'water' | 'fire' — or null when none fly.
+// Read by every cloud builder alongside dustEnabled().
+export const particleStyle = () => (dustEnabled() ? PARTICLE_STYLE_OF[prefs.mode] : null);
 
 // The canvas stroke motion, which the user can turn off on its own.
 export const drawMotionEnabled = () => prefs.drawing && !motionReduced();

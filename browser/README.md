@@ -58,12 +58,16 @@ graph TD
   (preset brand accents in the Visuals modal; **double-click the logo** for a one-off
   custom accent colour, applied to that page only — not saved or synced)
 - **Motion settings** (Visuals modal → Motion): *Drawing animation* on/off — the stroke
-  flight, landing pop and ripple on the canvas — and *Interface animation* with three
-  settings: **Particles** (the default: windows, menus, checkbox marks, chat entries, the
-  canvas and the listening mic all form out of dust), **Sliding** (no particles anywhere —
-  each surface plays its own plain grow/rise/fade instead) and **None**. The OS's
-  `prefers-reduced-motion` still overrides all of it. Also on the facade
-  (`stencil.drawingAnimations`, `stencil.motionMode`) and mirrored by the desktop app
+  flight, landing pop and ripple on the canvas — and *Interface animation* with five
+  settings: **Dust** (the default: windows, menus, checkbox marks, chat entries, the
+  canvas and the listening mic all form out of round specks), **Water** (the same flights
+  as drops) and **Fire** (as embers) — both painted in `--accent` / `--accent-2` rather
+  than the surface's own pixels — **Sliding** (no particles anywhere: each surface plays
+  its own plain grow/rise/fade instead) and **None**. Each mode's dropdown row wears its
+  glyph and plays it on hover (`js/ui/motionIcons.js`). The OS's `prefers-reduced-motion`
+  still overrides all of it. Also on the facade (`stencil.drawingAnimations`,
+  `stencil.motionMode`) and mirrored, grain for grain, by the desktop app and the
+  extension
 - Session autosave (image + layout), multi-project storage with a one-week expiry
   sweep. The image-heavy per-project payloads live in **IndexedDB** (no ~5MB
   localStorage ceiling; existing payloads migrate over on first load), while the
@@ -356,13 +360,14 @@ Three effects share one small module; all of them are decoration, so a browser w
   (`.canvas-container.drop-landing`), and the drop overlay leaves on an animation instead
   of blinking out (`.drop-closing`, click-through while it plays).
 - **Disintegration** — a removed row doesn't fade, it comes apart: `disintegrate()` paints
-  one round mote per grid cell in the row's own colours and scatters them, each on its own
-  bent path, in a top-down sweep while the row's own box collapses so the list closes the
-  gap. The particles are drawn on one canvas in a fixed layer over the page
+  one grain per grid cell — a speck, a drop or a spark, by the motion setting, in the
+  theme's accent and its shade — and scatters them, each on its own bent path, in a
+  top-down sweep while the row's own box collapses so the list closes the gap. The
+  particles are drawn on one canvas in a fixed layer over the page
   (`js/ui/dustCloud.js`), because the row under them is collapsing to zero height at the
   same moment. Clearing the image plays the same idea on
   the canvas (`ghostOut()` copies the pixels first — `clearRect` is instant and leaves
-  nothing to animate — and flies them as grains of their own colour).
+  nothing to animate — and flies the painted cells as grains).
 - **Theme / accent swap** — `themeSwap()` floods the new palette out of the CONTROL that
   changed it (the moon button, the Visuals accent picker, the logo), as a growing circle,
   via the native View Transitions API; without it every colour consumer just gets one beat
@@ -425,8 +430,10 @@ stencil.formulaY         = 'y+10';
 stencil.drawingAnimations = false;     // canvas stroke motion: a new vertex flies to where it was put,
                                        // pops and ripples as it lands (true by default)
 stencil.motionMode       = 'slide';    // how the INTERFACE moves: 'particles' (windows, menus, marks and
-                                       // the canvas form out of dust — the default), 'slide' (no dust: each
-                                       // surface plays its own plain entrance) or 'none' (nothing moves).
+                                       // the canvas form out of dust — the default), 'water' / 'fire' (the
+                                       // same particles as drops / embers, in the accent and its shade),
+                                       // 'slide' (no particles: each surface plays its own plain entrance)
+                                       // or 'none' (nothing moves).
                                        // prefers-reduced-motion still wins on its own. See .motionModes
 stencil.fillColor        = '#3399ff';  // default rect/area fill
 stencil.selectionGlow    = '#ffd400';  // visuals: selection glow color

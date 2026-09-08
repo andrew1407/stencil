@@ -85,10 +85,12 @@ test('drawing batches grains into one fill per colour and opacity step', () => {
   const ctx = {
     globalAlpha: 1, fillStyle: '',
     beginPath: () => calls.push('begin'), moveTo: () => {}, arc: () => calls.push('arc'),
+    ellipse: () => calls.push('arc'), lineTo: () => {}, closePath: () => calls.push('arc'),
     fill() { calls.push(`fill ${this.fillStyle} @${this.globalAlpha.toFixed(2)}`); },
   };
+  // Two palette stops: plain grains (w 0) wear the first, glints the last.
   const motes = [];
-  for (let i = 0; i < 40; i++) motes.push({ ...grain, x: i * 10, c: i % 2, delay: 0, dur: 1000 });
+  for (let i = 0; i < 40; i++) motes.push({ ...grain, x: i * 10, w: 0, g: i % 2, delay: 0, dur: 1000 });
   drawCloud(ctx, motes, 'scatter', 100, ['red', 'blue']);
   const fills = calls.filter((c) => c.startsWith('fill'));
   assert.equal(calls.filter((c) => c === 'arc').length, 40, 'every grain is an arc');
@@ -122,6 +124,7 @@ test('startCloud paints on the canvas it appends and stops when told', () => {
   let frames = 0;
   const ctx = {
     setTransform() {}, clearRect() { frames++; }, beginPath() {}, moveTo() {}, arc() {}, fill() {},
+    ellipse() {}, lineTo() {}, closePath() {},
     globalAlpha: 1, fillStyle: '',
   };
   const canvas = { getContext: () => ctx, style: {}, width: 0, height: 0 };

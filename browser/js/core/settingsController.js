@@ -360,7 +360,7 @@ export class SettingsController {
   }
 
   // ── Motion preferences (ui/motionPrefs.js) ───────────────────────────
-  // key ∈ 'mode' (particles | slide | none) | 'drawing' (the canvas stroke motion).
+  // key ∈ 'mode' (particles | water | fire | slide | none) | 'drawing' (the canvas stroke motion).
   // App-wide, not part of the project, so this writes the shared store rather than a
   // model field — but it is still the ONE funnel the visuals modal and the console
   // facade both come through, mirroring the dialog's controls on the way.

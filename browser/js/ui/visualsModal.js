@@ -2,6 +2,7 @@ import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, ro
 import { setVal, setRadioGroup, notify } from '../utils.js';
 import { DEFAULT_ACCENT } from '../core/accents.js';
 import { buildAccentPicker } from './accentPicker.js';
+import { motionModeIcon } from './motionIcons.js';
 import { enhanceSelect } from './customSelect.js';
 import { MOTION_MODE_LABELS, motionPrefs, MOTION_EVENT,
          DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS } from './motionPrefs.js';
@@ -35,7 +36,7 @@ export class StencilVisualsModal extends StencilElement {
                     <span class="vs-ctrl vs-ctrl-check"><input type="checkbox" id="vs-draw-anim"></span>
                 </div>
                 <div class="vs-row"><label>Interface animation</label>
-                    <span class="vs-ctrl"><select id="vs-motion-mode">
+                    <span class="vs-ctrl"><select id="vs-motion-mode" data-cs-skip>
                         ${MOTION_MODE_LABELS.map(([v, label]) => `<option value="${v}">${label}</option>`).join('')}
                     </select></span>
                 </div>
@@ -113,11 +114,11 @@ export class StencilVisualsModal extends StencilElement {
         return /^#/.test(key) ? app.setCustomAccent(key, from) : app.setAccent(key, from);
       },
     });
-    // Another tab changed the accent — keep this picker's swatch in sync (the app
-    // UI itself is already repainted by the cross-tab listener in drawingApp). Prefer the
-    // custom hex so the trigger shows "Custom" rather than a stale preset name.
+    // The accent moved elsewhere (the logo's click-cycle or menu, another tab) — keep this
+    // picker's swatch in sync. The event carries the NEW value; without one, the live
+    // state, custom hex first so the trigger shows "Custom" over a stale preset name.
     window.addEventListener('stencil:accent-changed',
-      () => accentPicker.set(app.customAccent || app.accent));
+      (e) => accentPicker.set(typeof e.detail === 'string' ? e.detail : (app.customAccent || app.accent)));
 
     // Appearance — light, dark, or SYSTEM (follow the OS; the toolbar moon/sun is the
     // quick flip). Mirrors the extension's options page and the desktop's themeMode.
@@ -140,7 +141,9 @@ export class StencilVisualsModal extends StencilElement {
     // above — and both route through the shared setter the console facade uses.
     const drawAnim = document.getElementById('vs-draw-anim');
     const motionMode = document.getElementById('vs-motion-mode');
-    enhanceSelect(motionMode);
+    // Enhanced HERE, with each mode's glyph (animated on hover), not by the app-wide pass
+    // — data-cs-skip on the <select> keeps that pass off it, or its plain rows would win.
+    enhanceSelect(motionMode, { icons: motionModeIcon });
     const syncMotion = () => {
       const m = motionPrefs();
       drawAnim.checked = m.drawing;

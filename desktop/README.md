@@ -474,12 +474,16 @@ The desktop app mirrors the browser app's interaction surface:
     (`drawingAnimations`, default **on**) is the canvas stroke flight — a new vertex
     travels to where you put it, popping and rippling as it lands — and **Interface
     animation** (`motionMode`, default **particles**) is how everything else moves:
-    *Particles (dust)* has windows, menus, checkbox marks, list rows and the canvas form
-    out of grains and come apart into them; *Sliding (no dust)* keeps every flight but
-    none of the particles, so each surface travels as a ghost between the icon and its
-    box instead; *None* stops motion altogether — the same end state `STENCIL_NO_ANIM=1`
-    has always given (that env var still overrides the setting). Both apply live and
-    persist in `settings.json`; the gates themselves are `support/motionPrefs.hpp`.
+    *Dust* has windows, menus, checkbox marks, list rows and the canvas form out of round
+    specks and come apart into them; *Water* and *Fire* fly the same clouds as drops or
+    embers, painted in the theme's accent and its shade rather than the widget's own
+    pixels (`support/dustKit.hpp`, the browser's `dustCloud.js` value for value);
+    *Sliding* keeps every flight but none of the particles, so each surface travels as a
+    ghost between the icon and its box instead; *None* stops motion altogether — the same
+    end state `STENCIL_NO_ANIM=1` has always given (that env var still overrides the
+    setting). Both apply live and persist in `settings.json`; the gates themselves are
+    `support/motionPrefs.hpp`. The combo's rows wear each mode's glyph and play it as they
+    are hovered (`support/motionIcons.hpp`).
 - **Toolbar sections**: every group in all three tool rows carries an uppercase header
   (`makeToolSection`) — IMAGE / DESCRIPTION & ATTRIBUTES / PROJECTS / CONNECTIONS & CHAT /
   EDIT / DRAW / ZOOM / SETTINGS on the main row, PAGE / FORMULA on the second, FILTER /

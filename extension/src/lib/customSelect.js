@@ -24,7 +24,9 @@ const rowMatches = (text, query) => {
   return !q || String(text ?? '').toLowerCase().includes(q);
 };
 
-export function enhanceSelect(selectEl, { search = false } = {}) {
+// `icons(value)` answers an inline-SVG string for a row (or ''), shown before the label
+// and in the trigger — the motion modes' glyphs (motionIcons.js) are the one user today.
+export function enhanceSelect(selectEl, { search = false, icons = null } = {}) {
   // Also guards the one select built at runtime (the popup's pin-target dialog): it asks
   // for this itself, and must not be enhanced before it is in the document.
   if (!selectEl || !selectEl.parentNode || selectEl.dataset.csEnhanced) return;
@@ -59,6 +61,7 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
   const aria = selectEl.getAttribute('aria-label');
   if (aria) trigger.setAttribute('aria-label', aria);
   trigger.innerHTML =
+    '<span class="cs-cur-icon" aria-hidden="true"></span>' +
     '<span class="accent-dd-name cs-cur"></span>' +
     `<span class="accent-dd-caret" aria-hidden="true">${icon('chevron-down', { size: 13 })}</span>`;
   const menu = document.createElement('ul');
@@ -67,6 +70,7 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
   menu.hidden = true;
   wrap.append(trigger, menu);
   const cur = trigger.querySelector('.cs-cur');
+  const curIcon = trigger.querySelector('.cs-cur-icon');
 
   // Search state — rebuilt with the menu on every open (so each open starts with an
   // empty query and every row visible). Filtering only toggles row display; the native
@@ -102,7 +106,18 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
       li.className = 'accent-dd-opt';
       li.setAttribute('role', 'option');
       li.dataset.value = opt.value;
-      li.textContent = opt.textContent;
+      const glyph = icons ? icons(opt.value) : '';
+      if (glyph) {
+        const slot = document.createElement('span');
+        slot.className = 'cs-opt-icon';
+        slot.innerHTML = glyph;
+        const label = document.createElement('span');
+        label.className = 'cs-opt-label';
+        label.textContent = opt.textContent;
+        li.append(slot, label);
+      } else {
+        li.textContent = opt.textContent;
+      }
       li.addEventListener('click', () => choose(opt.value));
       menu.appendChild(li);
     }
@@ -115,10 +130,25 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
     }
   };
 
+  let shown = null;   // the label on the trigger; null before the first paint
   const sync = () => {
-    cur.textContent = labelOf(selectEl.value);
+    const label = labelOf(selectEl.value);
+    const changed = shown !== null && label !== shown;
+    cur.textContent = label;
+    shown = label;
     for (const li of menu.querySelectorAll('.accent-dd-opt'))
       li.setAttribute('aria-selected', li.dataset.value === selectEl.value ? 'true' : 'false');
+    // The glyph arrives with its own motion when the VALUE changed, like the label's swap:
+    // .mm-play runs the hover keyframes once, then comes off so a hover can replay them.
+    const glyph = icons ? icons(selectEl.value) : '';
+    if (glyph !== curIcon.innerHTML) {
+      curIcon.innerHTML = glyph;
+      const svg = curIcon.firstElementChild;
+      if (svg && changed) {
+        svg.classList.add('mm-play');
+        setTimeout(() => svg.classList.remove('mm-play'), 1800);
+      }
+    }
   };
 
   // Wrap .value so programmatic sets refresh the trigger (a native .value set does not
@@ -182,10 +212,14 @@ export function enhanceSelect(selectEl, { search = false } = {}) {
     };
     closeDone();
   };
+  // The pick is APPLIED first, so the exit and the trigger's swap play under what was just
+  // picked (None → Fire used to arrive with None's no-motion — user report). The raw setter
+  // keeps the wrapped one's sync for after the dispatch.
   const choose = (v) => {
-    selectEl.value = v;   // routes through the wrapped setter → re-syncs the trigger
-    close();
+    proto.set.call(selectEl, v);
     selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+    close();
+    sync();
   };
 
   trigger.addEventListener('click', (e) => {
