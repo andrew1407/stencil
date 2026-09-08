@@ -83,10 +83,11 @@ namespace stencil::gui {
     return true;
   }
 
-  // The ink a disabled glyph is drawn in: the theme's muted text (buildQPalette maps it to
-  // Mid), so icon and label grey out together. Qt's own default palette until a theme lands.
+  // The ink a disabled glyph is drawn in: the theme's --disabled-text (buildQPalette puts
+  // it in the DISABLED group), so icon and label grey out together — and to the same value
+  // the browser uses. Qt's own default palette until a theme lands.
   static QColor mutedInk() {
-    const QColor c = QGuiApplication::palette().color(QPalette::Mid);
+    const QColor c = QGuiApplication::palette().color(QPalette::Disabled, QPalette::WindowText);
     return c.isValid() ? c : QColor("#8a8f98");
   }
 
@@ -112,7 +113,7 @@ namespace stencil::gui {
       QSvgRenderer dark(svgDoc(inner, QStringLiteral("#000000")).toUtf8());
       const qreal o = dpr;
       const QRectF box = glyphBox.adjusted(o, o, -o, -o);
-      painter.setOpacity(0.55);
+      painter.setOpacity(0.34);   // browser --glyph-shadow: a tight, LIGHT ring, not a stroke
       for (const QPointF& d : {QPointF(-o, 0), QPointF(o, 0), QPointF(0, -o), QPointF(0, o),
                                QPointF(-o, -o), QPointF(o, -o), QPointF(-o, o), QPointF(o, o)})
         dark.render(&painter, box.translated(d));

@@ -5961,7 +5961,7 @@ class MainWindowGuiTest : public QObject {
       const double a = meanAlpha(on), b = meanAlpha(off);
       QVERIFY2(b > 0.0, qPrintable("a disabled glyph must still be visible" + at));
       QVERIFY2(b > a * 0.9, qPrintable(QString("faded, not re-inked%1: %2 vs %3").arg(at).arg(a).arg(b)));
-      // The ink is the theme's muted text — what the stylesheet greys the LABEL to.
+      // The ink is the theme's --disabled-text — what the stylesheet greys the LABEL to.
       const auto densest = [](const QImage& im) {
         QColor best;
         int bestA = -1;
@@ -5972,7 +5972,7 @@ class MainWindowGuiTest : public QObject {
           }
         return best;
       };
-      const QColor muted = QGuiApplication::palette().color(QPalette::Mid);
+      const QColor muted = QGuiApplication::palette().color(QPalette::Disabled, QPalette::WindowText);
       const QColor got = densest(off);
       QVERIFY2(qAbs(got.red() - muted.red()) <= 8 && qAbs(got.green() - muted.green()) <= 8
                    && qAbs(got.blue() - muted.blue()) <= 8,

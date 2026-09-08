@@ -99,11 +99,12 @@
 /* A light accent (white-on-accent below 3:1) turns the glyph shadow on. The flag is
    set from the RESOLVED accent hex, so custom colours get it too — not just presets. */
 :root[data-accent-light] {
-    /* A tight dark halo (readable outline for thin stroked line-art) plus a small
-       offset drop for depth. Two shadows, because a single offset one leaves the
-       stroke's upper edge bleeding into a bright fill. */
-    --glyph-shadow:      drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.85)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
-    --glyph-text-shadow: 0 0 2px rgba(0, 0, 0, 0.75), 0 1px 1px rgba(0, 0, 0, 0.5);
+    /* A TIGHT, light halo: enough of an outline to hold thin stroked line-art and white
+       text on a pale accent, and no more — at the old 1.5-2px/0.85 the ring read as a
+       second, heavier stroke and the label looked emboldened (user report). Still two
+       shadows, since a single offset one leaves the stroke's upper edge bleeding. */
+    --glyph-shadow:      drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
+    --glyph-text-shadow: 0 0 1px rgba(0, 0, 0, 0.5), 0 1px 1px rgba(0, 0, 0, 0.3);
 }
 
 [data-theme="dark"] {

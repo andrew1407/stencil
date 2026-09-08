@@ -92,8 +92,10 @@
 /* A light accent (white-on-accent below 3:1) turns the glyph shadow on — a tight
    dark halo plus a small offset, so thin stroked line-art keeps its shape. */
 :root[data-accent-light] {
-  --glyph-shadow: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.85)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.55));
-  --glyph-text-shadow: 0 0 2px rgba(0, 0, 0, 0.75), 0 1px 1px rgba(0, 0, 0, 0.5);
+  /* Tight and light — the browser's theme.css pair, at the size that stopped reading as
+     a second stroke around the glyph. */
+  --glyph-shadow: drop-shadow(0 0 1px rgba(0, 0, 0, 0.6));
+  --glyph-text-shadow: 0 0 1px rgba(0, 0, 0, 0.5), 0 1px 1px rgba(0, 0, 0, 0.3);
 }
 * { box-sizing: border-box; }
 /* Checkboxes & radios: a transparent box outlined in the brand accent, filled
