@@ -5928,7 +5928,7 @@ class MainWindowGuiTest : public QObject {
   // dpr-tagged pixmap, which paints at LOGICAL size into a device-sized target — every
   // disabled glyph came out half-size in the top-left corner, invisible at 1x where the
   // two sizes coincide.
-  void disabledIconsAreFadedNotShrunk() {
+  void disabledIconsTakeTheMutedInk() {
     const auto inkBox = [](const QImage& im) {
       int minx = im.width(), miny = im.height(), maxx = -1, maxy = -1;
       for (int y = 0; y < im.height(); ++y)
@@ -5955,9 +5955,30 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(inkBox(off) == inkBox(on),
                qPrintable(QString("disabled glyph moved/resized%1: %2 vs %3")
                               .arg(at, QDebug::toString(inkBox(off)), QDebug::toString(inkBox(on)))));
+      // …and at FULL strength, re-inked rather than faded: the browser's disabled button
+      // paints its .ic in --disabled-text at opacity 1, and a faded dark glyph was a ghost
+      // on the light theme's pale disabled chip (user report).
       const double a = meanAlpha(on), b = meanAlpha(off);
       QVERIFY2(b > 0.0, qPrintable("a disabled glyph must still be visible" + at));
-      QVERIFY2(b < a * 0.6, qPrintable(QString("not faded%1: %2 vs %3").arg(at).arg(a).arg(b)));
+      QVERIFY2(b > a * 0.9, qPrintable(QString("faded, not re-inked%1: %2 vs %3").arg(at).arg(a).arg(b)));
+      // The ink is the theme's muted text — what the stylesheet greys the LABEL to.
+      const auto densest = [](const QImage& im) {
+        QColor best;
+        int bestA = -1;
+        for (int y = 0; y < im.height(); ++y)
+          for (int x = 0; x < im.width(); ++x) {
+            const QColor c = im.pixelColor(x, y);
+            if (c.alpha() > bestA) { bestA = c.alpha(); best = c; }
+          }
+        return best;
+      };
+      const QColor muted = QGuiApplication::palette().color(QPalette::Mid);
+      const QColor got = densest(off);
+      QVERIFY2(qAbs(got.red() - muted.red()) <= 8 && qAbs(got.green() - muted.green()) <= 8
+                   && qAbs(got.blue() - muted.blue()) <= 8,
+               qPrintable(QString("disabled ink %1, wanted the muted %2%3")
+                              .arg(got.name(), muted.name(), at)));
+      QVERIFY2(got != QColor("#e0e0e0"), qPrintable("still the enabled colour" + at));
     }
   }
 

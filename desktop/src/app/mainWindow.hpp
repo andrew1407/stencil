@@ -397,6 +397,10 @@ namespace stencil::gui {
     void bindRevealAnchors();
     void bindRevealAnchor(QAction* a);
     QColor toolButtonIconColor(QAction* act, const QColor& normal) const;
+    // …and whether that glyph wants the light-accent halo (browser layout.css
+    // `button:not(:disabled) .ic { filter: var(--glyph-shadow) }`): only a WHITE one, and
+    // only while the accent is too pale to carry white on its own.
+    bool toolButtonIconHalo(const QColor& glyph) const;
     // macOS menu-bar icons follow the SYSTEM appearance, not our theme; reconcile the
     // two when they disagree (support/theme.hpp systemPrefersDark).
     void retintMenuIconsForSystem(bool appDark, const QColor& appIconColor);

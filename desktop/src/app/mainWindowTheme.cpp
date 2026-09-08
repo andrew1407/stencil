@@ -216,8 +216,10 @@ namespace stencil::gui {
       // repainted from the action — its glyph colour is its STATE, not the theme text.
       if (b->property(kFaceGlyphProperty).isValid()) continue;
       const auto name = actionIconNames_.constFind(a);
-      if (name != actionIconNames_.constEnd())
-        b->setIcon(themedIcon(name.value(), toolButtonIconColor(a, appIconColor), s));
+      if (name != actionIconNames_.constEnd()) {
+        const QColor ink = toolButtonIconColor(a, appIconColor);
+        b->setIcon(themedIcon(name.value(), ink, s, toolButtonIconHalo(ink)));
+      }
     }
     syncDrawToggleFace(canvas_ && canvas_->isDrawing(), false);
 #else
@@ -455,6 +457,12 @@ namespace stencil::gui {
     return dangerIcons_.contains(act) ? QColor(Qt::white) : normal;
   }
 
+  bool MainWindow::toolButtonIconHalo(const QColor& glyph) const {
+    if (glyph != QColor(Qt::white)) return false;
+    return accentNeedsGlyphShadow(
+        themePalette(resolveDark(settings_.themeMode), settings_.accentColor).accent);
+  }
+
   // Filled-danger treatment for destructive toolbar buttons — the ONLY place the
   // danger red appears (menus keep the neutral glyph). Must run again once the
   // toolbars exist: styleActionIcons can fire before any button exists.
@@ -497,8 +505,10 @@ namespace stencil::gui {
       b->setProperty("toolFill", fill);
       const auto paint = [this, a, b] {
         const auto name = actionIconNames_.constFind(a);
-        if (name != actionIconNames_.constEnd())
-          b->setIcon(themedIcon(name.value(), toolButtonIconColor(a, iconColor_), kToolIcon));
+        if (name != actionIconNames_.constEnd()) {
+          const QColor ink = toolButtonIconColor(a, iconColor_);
+          b->setIcon(themedIcon(name.value(), ink, kToolIcon, toolButtonIconHalo(ink)));
+        }
         // The compound [toolFill="danger"]:disabled selector needs a re-polish on every
         // enabled/disabled flip, same as the property itself does below — otherwise a
         // destructive action that goes disabled (Clear All Lines with nothing to clear)
