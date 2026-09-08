@@ -995,16 +995,17 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(pill && win.formulaX_ && win.formulaY_);
     if (!pill->isChecked()) pill->setChecked(true);
     QTRY_VERIFY(win.formulaX_->isVisible());
+    // The reveal is ANIMATED, so every width here is settled with a QTRY — a plain
+    // compare beside the first one reads the pair mid-slide on a slow machine.
     QTRY_COMPARE(win.formulaX_->width(), 180);
-    QCOMPARE(win.formulaY_->width(), 180);
+    QTRY_COMPARE(win.formulaY_->width(), 180);
     // …side by side on the browser's 6px gap, not spread out over the row's leftover width.
-    QCOMPARE(win.formulaY_->x() - (win.formulaX_->x() + win.formulaX_->width()), 6);
+    QTRY_COMPARE(win.formulaY_->x() - (win.formulaX_->x() + win.formulaX_->width()), 6);
     // A row with no slack squeezes them; the cluster itself stays out on the toolbar.
     win.resize(920, 800);
-    QTest::qWait(120);
+    QTRY_VERIFY2(win.formulaX_->width() < 180 && win.formulaX_->width() >= 72,
+                 qPrintable(QString("squeezed to %1px").arg(win.formulaX_->width())));
     QVERIFY2(win.formulaX_->isVisible(), "the formula fields hid instead of shrinking");
-    QVERIFY2(win.formulaX_->width() < 180 && win.formulaX_->width() >= 72,
-             qPrintable(QString("squeezed to %1px").arg(win.formulaX_->width())));
   }
 
   void formulaToggleRevealsInputs() {
@@ -1018,11 +1019,13 @@ class MainWindowGuiTest : public QObject {
     for (auto* e : win.findChildren<QLineEdit*>())
       if (e->placeholderText().startsWith("x(x)")) fx = e;
     QVERIFY(fx);
-    if (pill->isChecked()) { pill->setChecked(false); QTest::qWait(30); }
-    QVERIFY(!fx->isVisible());
+    // The pill starts wherever the LAST run left it (settings.json persists
+    // allowFormulas), and its reveal/hide is animated — so every wait here is a
+    // QTRY: a fixed one passed only when the pill happened to start unchecked.
+    if (pill->isChecked()) pill->setChecked(false);
+    QTRY_VERIFY(!fx->isVisible());
     QTest::mouseClick(pill, Qt::LeftButton, Qt::NoModifier, pill->rect().center());
-    QTest::qWait(60);
-    QVERIFY2(fx->isVisible(), "formula inputs should appear when f(x,y) is enabled");
+    QTRY_VERIFY2(fx->isVisible(), "formula inputs should appear when f(x,y) is enabled");
     win.openPathFromOS(png_);
     QTest::qWait(120);
     QVERIFY2(fx->isVisible(), "formula inputs should survive an image load");
@@ -2946,7 +2949,9 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(buttonsFor("Start Drawing").size(), 0);
     QCOMPARE(buttonsFor("Stop Drawing").size(), 1);
     QCOMPARE(draw->size(), idleSize);
-    QCOMPARE(draw->text(), QString("Stop"));
+    // The button mirrors its default action's iconText on a later beat than the
+    // action swap above, so this one waits too.
+    QTRY_COMPARE(draw->text(), QString("Stop"));
     QVERIFY2(!draw->icon().isNull(), "the stop state keeps its icon too");
     QVERIFY2(draw->width() >= draw->sizeHint().width(), "pinned width must not clip the label");
     QVERIFY2(draw->isEnabled(), "must stay clickable while drawing — that is how you stop");
@@ -7016,7 +7021,12 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.selPanel_->mapTo(&win, QPoint(0, 0)).y(), win.chatDock_->mapTo(&win, QPoint(0, 0)).y());
     QVERIFY2(win.chatDock_->mapTo(&win, QPoint(0, 0)).x() > win.selPanel_->mapTo(&win, QPoint(0, 0)).x(),
              "the panel reappeared stacked under the chat instead of beside it");
-    QVERIFY2(win.selPanel_->height() > win.height() / 2,
+    // Squashed means SHARING a vertical row with the chat — not "shorter than half
+    // the window": the stacked toolbars and the top info dock can leave the whole
+    // dock row well under half of it. Side by side, both fill that row.
+    QCOMPARE(win.selPanel_->height(), win.chatDock_->height());
+    QVERIFY(win.centralWidget());
+    QVERIFY2(win.selPanel_->height() == win.centralWidget()->height(),
              "the panel came back with a squashed, shared-row height");
   }
 
@@ -12188,6 +12198,17 @@ class MainWindowGuiTest : public QObject {
       QEvent enter(QEvent::Enter);
       QApplication::sendEvent(card, &enter);
     };
+    // The jump pills' current box. A row whose "…" would land under them hides it
+    // instead (placeChatCardMore's shift-else-hide — the pills are the higher-priority
+    // control, checked by chatJumpPillsYieldToTheRowMenu), so the checks below that
+    // want a SHOWN "…" must not pick a row sitting in that corner.
+    const auto pillsBox = [&] {
+      return static_cast<stencil::gui::ChatDock*>(win.chatDock_)->jumpPillsGlobalRect();
+    };
+    const auto crowdedByPills = [&](const QRect& cardGlobal) {
+      const QRect p = pillsBox();
+      return p.isValid() && cardGlobal.intersects(p.adjusted(-8, -8, 8, 8));
+    };
     // Every surface is checked the same way: park the scroll somewhere in the
     // middle, then take a row clipped at each edge.
     const auto checkSurface = [&](QWidget* host, QScrollArea* scroll, const char* what) {
@@ -12258,33 +12279,32 @@ class MainWindowGuiTest : public QObject {
     // NARROW transcript: the bubbles reach the edge, which is where the "…"
     // (it hangs OUTSIDE the bubble) was landing half over the boundary.
     const auto checkNarrow = [&](QWidget* host, QScrollArea* scroll, const char* what) {
-      const QRect vp = globalRect(scroll->viewport());
-      QFrame* left = nullptr;   // a user row: its "…" hangs off the LEFT
-      QFrame* right = nullptr;  // an assistant row: off the RIGHT
-      // This test is about the HORIZONTAL edge (a narrow column's pill hanging
-      // off the bubble's side), not vertical clipping — prefer a row that is
-      // FULLY on screen, so a merely-tall-enough-but-still-clipped one (which
-      // can legitimately hide its "…" against the jump pills, same rule
-      // checkSurface exercises on purpose) doesn't get picked here by accident.
-      for (QFrame* card : host->findChildren<QFrame*>()) {
-        if (!card->property("chatMoreBtn").isValid()) continue;
-        const QRect g = globalRect(card);
-        if (!vp.contains(g)) continue;
-        if (card->objectName() == QLatin1String("chatCardUser")) left = card;
-        else right = card;
-      }
-      // Fall back to a merely-clipped-but-tall-enough row if nothing is fully
-      // on screen (a very short viewport, say).
-      if (!left || !right) {
-        for (QFrame* card : host->findChildren<QFrame*>()) {
-          if (!card->property("chatMoreBtn").isValid()) continue;
-          if (globalRect(card).intersected(vp).height() < 21 + 8) continue;
-          if (card->objectName() == QLatin1String("chatCardUser")) { if (!left) left = card; }
-          else if (!right) right = card;
+      QScrollBar* bar = scroll->verticalScrollBar();
+      // This test is about the HORIZONTAL edge (a narrow column's pill hanging off
+      // the bubble's side), not vertical clipping — so the row must be FULLY on
+      // screen AND clear of the jump pills, each of which legitimately hides the
+      // "…" under its own rule, checked elsewhere. A narrow column fits about one
+      // row at a time, so each kind is hunted — and checked — at its own scroll
+      // position rather than whichever rows happen to share the current one.
+      for (const char* kind : {"chatCardUser",         // its "…" hangs off the LEFT
+                               "chatCardAssistant"}) { // …and this one's off the RIGHT
+        QFrame* card = nullptr;
+        for (int v = 0; v <= bar->maximum() && !card; v += 12) {
+          bar->setValue(v);
+          QTest::qWait(20);
+          const QRect seen = globalRect(scroll->viewport());
+          for (QFrame* c : host->findChildren<QFrame*>()) {
+            if (!c->property("chatMoreBtn").isValid()) continue;
+            if (c->objectName() != QLatin1String(kind)) continue;
+            const QRect g = globalRect(c);
+            if (!seen.contains(g) || crowdedByPills(g)) continue;
+            card = c;
+            break;
+          }
         }
-      }
-      QVERIFY2(left && right, qPrintable(QString("%1: need a row hanging each way").arg(what)));
-      for (QFrame* card : {left, right}) {
+        QVERIFY2(card, qPrintable(QString("%1: no fully visible %2 row to hang a \"…\" off")
+                                      .arg(what, kind)));
+        const QRect vp = globalRect(scroll->viewport());
         hover(card);
         QToolButton* more = moreOf(card);
         QVERIFY(more && more->isVisible());
@@ -12312,7 +12332,7 @@ class MainWindowGuiTest : public QObject {
 
     // A row whose visible SLICE is too short to hold the pill does not show one:
     // the clamp would park it across the neighbouring card, which reads as a bug.
-    // A fully visible row always shows it.
+    // A fully visible row clear of the jump pills always shows it.
     const auto checkSliver = [&](QWidget* host, QScrollArea* scroll, const char* what) {
       QScrollBar* bar = scroll->verticalScrollBar();
       const QRect vp = globalRect(scroll->viewport());
@@ -12322,12 +12342,13 @@ class MainWindowGuiTest : public QObject {
       for (int v = 0; v <= bar->maximum() && !sliver; v += 7) {
         bar->setValue(v);
         QTest::qWait(20);
+        whole = nullptr;   // only a row fully visible at THIS position counts
         for (QFrame* card : host->findChildren<QFrame*>()) {
           if (!card->property("chatMoreBtn").isValid()) continue;
           const QRect g = globalRect(card);
           const int slice = g.intersected(vp).height();
           if (slice > 2 && slice < 16 && g.height() > 40) sliver = card;
-          if (vp.contains(g)) whole = card;
+          if (vp.contains(g) && !crowdedByPills(g)) whole = card;
         }
       }
       QVERIFY2(sliver, qPrintable(QString("%1: no row ended up a sliver").arg(what)));
