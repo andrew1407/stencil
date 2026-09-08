@@ -691,6 +691,11 @@
     // #theme-toggle, so without it the wipe would have to guess.
     set: function (k, from) {
       var next = has(k) ? k : DEFAULT;
+      // NOW, not inside the swap: `apply` clears it too, but the transition runs that
+      // callback a beat later, and the menu's own close ends the preview in between —
+      // a snapshot still standing there floods the page back to the old accent.
+      // Browser twin: applyAccent.
+      previewSnap = null;
       writePref(KEY, next);
       swap(function () { apply(next); }, from || 'theme-toggle');
       announce(next);

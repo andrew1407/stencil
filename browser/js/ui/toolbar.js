@@ -509,6 +509,7 @@ export function wireLogoColorPicker(logo, app) {
   // Non-modal — it only borrows the shared popup motion. Selecting applies through the
   // same setAccent path as the click-cycle, with the logo as the swap origin.
   const menu = wrap.querySelector?.('.logo-accent-menu');
+  let resetRowHover = null;   // fillAccentMenu's reset (see openMenu / closeMenu)
   let menuCloseTimer = null;
   let menuCloseDone = null;
   // How the menu is open right now: 'peek' (Alt-opened) or 'sticky' (right-click).
@@ -550,7 +551,8 @@ export function wireLogoColorPicker(logo, app) {
     if (!menu.childElementCount) {
       // A pick applies the accent and CLOSES the menu (user decision — hovering already
       // previews, so a click is a commit). Rows are built once, kept across the swap.
-      fillAccentMenu(menu, (key) => { app.setAccent(key, logo); markSelected(menu, key); closeMenu(); },
+      resetRowHover = fillAccentMenu(menu,
+                     (key) => { app.setAccent(key, logo); markSelected(menu, key); closeMenu(); },
                      { on: (key) => app.previewAccent?.(key, logo), off: () => app.endAccentPreview?.(logo) });
     }
     markSelected(menu, app.customAccent ? null : app.accent);
@@ -574,7 +576,10 @@ export function wireLogoColorPicker(logo, app) {
   };
   const closeMenu = () => {
     if (!menu || menu.hidden || menu.classList.contains('dd-closing')) return;
-    app.endAccentPreview?.();   // a menu closed mid-hover reverts to the committed accent
+    // Reverts to the committed accent, and drops the row's latched hover with it, so no
+    // held slide greets the next open (accentPicker.js).
+    resetRowHover?.();
+    app.endAccentPreview?.();
     menuKind = null;
     // However it closes, the machine must not keep believing a popover shows — a
     // leaked mode would let a later Alt glide "close" a menu that is already gone.

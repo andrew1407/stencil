@@ -344,6 +344,20 @@ html.theme-swapping *::before, html.theme-swapping *::after {
                 stroke 0.45s ease, box-shadow 0.45s ease !important;
 }
 
+/* Every hover preview plays the palette flood, a View Transition that drops :hover and
+   re-applies it just after — restarting the row's hover motion a beat behind each one.
+   lib/logoAccent.js marks the menu while a preview shows; freeze the replays for that
+   whole time (the swap classes are gone before the restart lands). The 2px slide is held
+   the other way round, by the .dd-hover latch (lib/theme.css).
+   Browser twin: browser/css/animations.css. */
+.accent-dd-menu.dd-preview-hold .accent-dd-opt::after { animation: none !important; }
+.accent-dd-menu.dd-preview-hold .accent-dd-opt :is(.ic, .ic *, [class^="mm-"]) { animation-name: none !important; }
+/* And the CURSOR: the snapshot covers the page, so the pointer stops hitting the row and
+   the hand blinks to an arrow. The snapshot tree hangs off :root — hold it there, in two
+   rules (an engine that drops ::view-transition would drop a shared selector list). */
+html.dd-preview-cursor { cursor: pointer; }
+html.dd-preview-cursor::view-transition { cursor: pointer; }
+
 /* ── Dust in the wipe's wake (lib/accent.js dustSpecs) ────────────────
    Specks kicked up where the circle's edge has just passed, in the OLD palette's
    colours. One canvas for the whole wake: accent.js paints the grains and owns their

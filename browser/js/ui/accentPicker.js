@@ -53,6 +53,7 @@ export function fillAccentMenu(menu, onPick, preview = null) {
   // via aria-selected, an attribute, so it survives the flood's :hover drop. The committed
   // row's mark is snapshotted and put back on leave.
   let committedSel = null;
+  let committing = false;     // a pick's own flood is playing under the closing list
   const currentSel = () => {
     const r = menu.querySelector('.accent-dd-opt[aria-selected="true"]');
     return r ? r.dataset.key : null;
@@ -61,14 +62,41 @@ export function fillAccentMenu(menu, onPick, preview = null) {
     if (!li) return;
     if (committedSel === null) committedSel = currentSel();
     markSelected(menu, li.dataset.key);
+    latchHover(li);
+  };
+  // Run once the flood a call is about to start has finished — one beat first, so that
+  // transition is up before the poll looks for it.
+  const afterSwap = (fn) => {
+    const poll = () => { if (swapping()) { setTimeout(poll, 60); return; } fn(); };
+    setTimeout(poll, 60);
   };
   // `dd-preview-hold` freezes the rows' hover replays for as long as a preview shows —
   // each flood drops and restores :hover, which restarted them (animations.css).
-  const holdReplays = (on) => menu.classList?.[on ? 'add' : 'remove']('dd-preview-hold');
+  const holdReplays = (on) => {
+    menu.classList?.[on ? 'add' : 'remove']('dd-preview-hold');
+    holdCursor(on);
+  };
+  // The flood's snapshot steals the row's hit test, so the hand blinks to an arrow. Held
+  // only while that transition is up, and self-releasing, so a list dismissed mid-preview
+  // strands no hand on the page.
+  const holdCursor = (on) => {
+    const root = document.documentElement;
+    root?.classList?.[on ? 'add' : 'remove']('dd-preview-cursor');
+    if (on) afterSwap(() => root?.classList?.remove('dd-preview-cursor'));
+  };
+  // The hovered row's own :hover treatment (the 2px slide), LATCHED as a class — the flood
+  // drops real :hover, and the row snapped back and slid in again after every preview.
+  const latchHover = (li) => {
+    for (const r of menu.children) r.classList?.toggle('dd-hover', r === li);
+  };
   const restore = () => {
     clearHover();
     if (committedSel !== null) { markSelected(menu, committedSel); committedSel = null; }
     if (preview && shownKey !== null) { shownKey = null; preview.off(); }
+    // A pick closes the list ON TOP of its own flood, and that close lands here: leave the
+    // hold and the latch to the commit's afterSwap below, or the dissolving rows replay.
+    if (committing) return;
+    latchHover(null);
     holdReplays(false);
   };
   const scheduleRestore = () => {
@@ -90,13 +118,24 @@ export function fillAccentMenu(menu, onPick, preview = null) {
       `${icon('check', { size: 11, cls: 'accent-check', sw: 3.5 })}</span>` +
       `<span class="accent-dd-name">${a.label}</span>`;
     li.addEventListener('click', () => {
-      clearHover(); clearLeave(); holdReplays(false);
+      clearHover(); clearLeave();
+      // The COMMIT floods too, and the list is closing over it: hold the rows' replays
+      // until that one has settled as well, and let the cursor go with the menu.
+      committing = true;
+      holdCursor(false);
+      afterSwap(() => { committing = false; holdReplays(false); latchHover(null); });
       committedSel = null; shownKey = a.key; onPick(a.key);
     });
     if (preview) {
       li.addEventListener('pointerenter', () => {
         clearLeave();
-        if (swapping()) return;   // synthetic enter from the flood — keep the current highlight
+        // Synthetic enters — the flood's, and the ones a list closing over its own commit
+        // drags past the pointer. The latter would start a preview nothing ever reverts
+        // (a hidden list sends no pointerleave), stranding a colour nobody chose.
+        if (swapping() || committing) return;
+        // A row the pointer has NOT been resting on is a real hop: lift the hold so it
+        // plays its own hover once.
+        if (!li.classList?.contains?.('dd-hover')) holdReplays(false);
         setHovered(li);           // the hovered row takes the selected style + ✓
         if (shownKey === a.key) return;   // already showing this one
         clearHover();
@@ -115,6 +154,9 @@ export function fillAccentMenu(menu, onPick, preview = null) {
   // Leaving the whole list reverts — but only once the flood has settled and the pointer
   // has really gone (a synthetic mid-flood leave, or a hop to the next row, must not).
   if (preview) menu.addEventListener('pointerleave', scheduleRestore);
+  // A list can also be DISMISSED under the pointer (Escape, an outside press, a pick):
+  // its owner calls this so no latch or hold outlives it and greets the next open.
+  return restore;
 }
 
 // Reflect the active accent on the rows (aria-selected drives the highlight AND the ✓).
@@ -143,7 +185,7 @@ export function buildAccentPicker(mount, { current, onSelect, preview = null }) 
   const curSw = mount.querySelector('.js-cur-sw');
   const curName = mount.querySelector('.js-cur-name');
 
-  fillAccentMenu(menu, (key) => choose(key), preview);
+  const resetHover = fillAccentMenu(menu, (key) => choose(key), preview);
 
   // NOTE: no "Custom…" row — a custom colour is set ONLY from the header logo (double-click). The
   // dropdown just DISPLAYS the custom state in its trigger ("Custom" + the live swatch) below.
@@ -162,7 +204,8 @@ export function buildAccentPicker(mount, { current, onSelect, preview = null }) 
     document.addEventListener('keydown', onKey);
   };
   const close = () => {
-    preview?.off();   // a menu dismissed mid-hover reverts to the committed accent
+    resetHover();     // a menu dismissed mid-hover reverts to the committed accent, and
+    preview?.off();   // drops the row's latched hover with it
     hideMenu(menu);
     trigger.setAttribute('aria-expanded', 'false');
     document.removeEventListener('pointerdown', onDocClick, true);

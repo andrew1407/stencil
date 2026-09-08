@@ -103,6 +103,23 @@ test('a committed set during a preview supersedes it — endAccentPreview then n
   assert.equal(page.dataAccent(), 'aqua', 'the pick stands; no revert to blue');
 });
 
+// The real thing defers the swap's callback a beat, and the menu's own close ends the
+// preview in that gap — so the supersede must already have happened by then, not inside
+// the callback, or the pick is flooded away and the page keeps the old accent.
+test('a pick supersedes the preview BEFORE its swap callback runs, not inside it', () => {
+  const page = loadAccent({ deferViewTransitions: true });
+  page.accent.set('blue');
+  page.runSwaps();
+  page.accent.previewAccent('pink');
+  page.runSwaps();
+  assert.equal(page.dataAccent(), 'pink');
+
+  page.accent.set('aqua');                     // the pick — its paint is still queued
+  page.accent.endAccentPreview();              // …and the menu closes on top of it
+  page.runSwaps();
+  assert.equal(page.dataAccent(), 'aqua', 'the pick stands; the close cannot flood it away');
+});
+
 test('a stored value that is not a preset falls back to the default', () => {
   const page = loadAccent({ stored: { stencil_accent: 'chartreuse' } });
   assert.equal(page.accent.get(), 'violet');

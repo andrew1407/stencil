@@ -91,6 +91,7 @@
 #include "../support/dockGrip.hpp"             // animated canvas↔panel separator grip
 #include "../support/modalChrome.hpp"          // confirmModal — the browser-styled question
 #include "../support/iconMotion.hpp"          // the per-icon hover motion
+#include "../support/hoverSlide.hpp"          // the row hover slide (browser translateX)
 #include "../support/shimmerOverlay.hpp"      // the shared hover sweep
 #include <QHBoxLayout>
 #include <QLayout>
@@ -4181,6 +4182,9 @@ namespace stencil::gui {
   // never adopts the machine's own open window.
   void MainWindow::altPeekOpen(QToolButton* btn, QAction* act) {
     if (!btn || !act || !act->isEnabled() || activePopover_) return;
+    // Some other dialog is up (the popover's own boxes are child widgets, never modal):
+    // a peek under it would be unreachable, and would paint below it.
+    if (QApplication::activeModalWidget()) return;
     // Gliding off an open COMPACT chat (peek, linger, or sticky popover) closes
     // it; a docked chat panel — or a float the user chose (tear-off, the title
     // bar's float button) — is never touched (chatCompactShowing).
@@ -4411,12 +4415,18 @@ namespace stencil::gui {
       // (QTest key events never reach the platform's modifier state).
       if (!(QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier) && !altHeldForTest_)
         return;
+      // Whether the cursor rests ON the open box — see the fallback below.
+      const bool onBox = popoverRectGlobal().contains(QCursor::pos());
       for (auto it = popoverButtons_.cbegin(); it != popoverButtons_.cend(); ++it) {
         auto* b = static_cast<QToolButton*>(it.key());
         if (b == anchor || !b->isVisible() || !it.value()->isEnabled()) continue;
         // underMouse() as backup, same as the Alt KeyPress loop (and the test's mock).
-        if (!(b->underMouse() || b->rect().contains(b->mapFromGlobal(QCursor::pos()))))
-          continue;
+        // The cursor-rect half is pure GEOMETRY and blind to what COVERS the icon, so
+        // resting on the box read as resting on the icons under it. underMouse() has no
+        // such problem (the overlay takes the hover), so only the fallback is guarded.
+        const bool hovering = b->underMouse() ||
+                              (!onBox && b->rect().contains(b->mapFromGlobal(QCursor::pos())));
+        if (!hovering) continue;
         altPeekNextButton_ = b;
         altPeekNextAction_ = it.value();
         dismissPopover();
@@ -6784,6 +6794,10 @@ namespace stencil::gui {
       row->setProperty("accentKey", a.key);         // observable by the GUI test
       row->setProperty("currentAccent", current);
       row->installEventFilter(hover);   // Enter previews this preset (see AccentHoverFilter)
+      // …and eases a couple of pixels right under the pointer, chip and label together —
+      // the browser row's `transform: translateX(2px)`. After the preview filter, so the
+      // preview sees Enter first.
+      installHoverSlide(row);
       connect(row, &QPushButton::clicked, &dlg, [this, key = a.key] {
         accentPreviewActive_ = false;   // a pick commits; the close below must not revert it
         auto next = settings_;

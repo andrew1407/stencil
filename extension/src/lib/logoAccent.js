@@ -59,6 +59,7 @@ export function wireLogoAccent(logo) {
   // enter/leave ping-ponged preview → restore → preview forever (user report).
   trackPointer();
   let shownKey = null;        // the key currently previewed, or null = the committed accent
+  let committing = false;     // a pick's own flood is playing under the closing list
   let hoverTimer = null;
   let leaveTimer = null;
   const clearHover = () => { if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; } };
@@ -75,13 +76,43 @@ export function wireLogoAccent(logo) {
     const inline = document.documentElement.style.getPropertyValue('--accent');
     markKey(inline ? null : A.get());
   };
-  const setHovered = (li) => { if (li) markKey(li.dataset.key); };
+  const setHovered = (li) => { if (li) { markKey(li.dataset.key); latchHover(li); } };
+  // Run once the flood a call is about to start has finished — one beat first, so that
+  // transition is up before the poll looks for it.
+  const afterSwap = (fn) => {
+    const poll = () => { if (swapping()) { setTimeout(poll, 60); return; } fn(); };
+    setTimeout(poll, 60);
+  };
+  // `dd-preview-hold` freezes the rows' hover replays for as long as a preview shows: each
+  // flood drops and restores :hover, which restarted them (lib/animations.css).
+  const holdReplays = (on) => {
+    menu.classList[on ? 'add' : 'remove']('dd-preview-hold');
+    holdCursor(on);
+  };
+  // The flood's snapshot steals the row's hit test, so the hand blinks to an arrow. Held
+  // only while that transition is up, and self-releasing, so a menu dismissed mid-preview
+  // strands no hand on the page.
+  const holdCursor = (on) => {
+    const root = document.documentElement;
+    if (root && root.classList) root.classList[on ? 'add' : 'remove']('dd-preview-cursor');
+    if (on) afterSwap(() => { if (root && root.classList) root.classList.remove('dd-preview-cursor'); });
+  };
+  // The hovered row's own :hover treatment (the 2px slide), LATCHED as a class — the flood
+  // drops real :hover, and the row snapped back and slid in again after every preview.
+  const latchHover = (li) => {
+    for (const r of menu.children) r.classList.toggle('dd-hover', r === li);
+  };
   // The preview ends FIRST: it strips the inline override, so marking before it came back
   // would read a custom accent as its stored preset.
   const restore = () => {
     clearHover();
     if (shownKey !== null) { shownKey = null; A.endAccentPreview(logo); }
     markSel();
+    // A pick closes the list ON TOP of its own flood, and that close lands here: leave the
+    // hold and the latch to the commit's afterSwap below, or the dissolving rows replay.
+    if (committing) return;
+    latchHover(null);
+    holdReplays(false);
   };
   const scheduleRestore = () => {
     clearHover();
@@ -102,10 +133,24 @@ export function wireLogoAccent(logo) {
       li.innerHTML =
         `<span class="accent-swatch" style="background:${a.hex}"></span>` +
         `<span class="accent-dd-name">${a.label}</span>`;
-      li.addEventListener('click', () => { clearHover(); clearLeave(); shownKey = a.key; A.set(a.key, logo); markSel(); closeMenu(); });
+      li.addEventListener('click', () => {
+        clearHover(); clearLeave();
+        // The COMMIT floods too, and the list is closing over it: hold the rows' replays
+        // until that one has settled as well, and let the cursor go with the menu.
+        committing = true;
+        holdCursor(false);
+        afterSwap(() => { committing = false; holdReplays(false); latchHover(null); });
+        shownKey = a.key; A.set(a.key, logo); markSel(); closeMenu();
+      });
       li.addEventListener('pointerenter', () => {
         clearLeave();
-        if (swapping()) return;   // synthetic enter from the flood — keep the current highlight
+        // Synthetic enters — the flood's, and the ones a list closing over its own commit
+        // drags past the pointer. The latter would start a preview nothing ever reverts
+        // (a hidden list sends no pointerleave), stranding a colour nobody chose.
+        if (swapping() || committing) return;
+        // A row the pointer has NOT been resting on is a real hop: lift the hold so it
+        // plays its own hover once.
+        if (!li.classList.contains('dd-hover')) holdReplays(false);
         setHovered(li);           // the hovered row takes the selected style
         if (shownKey === a.key) return;   // already showing this one
         clearHover();
@@ -113,6 +158,7 @@ export function wireLogoAccent(logo) {
           hoverTimer = null;
           if (shownKey === a.key) return;
           shownKey = a.key;
+          holdReplays(true);
           A.previewAccent(a.key, logo);
         }, PREVIEW_HOVER_MS);
       });
