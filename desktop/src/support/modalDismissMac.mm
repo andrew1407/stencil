@@ -17,6 +17,7 @@
 #include <QPointer>
 #include <QRect>
 #include <QTimer>
+#include <QtGlobal>
 #include <QAbstractNativeEventFilter>
 
 #import <AppKit/AppKit.h>
@@ -32,6 +33,12 @@ namespace stencil::support {
         if (ev.type != NSEventTypeLeftMouseDown && ev.type != NSEventTypeRightMouseDown)
           return false;
         auto* dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+        if (qEnvironmentVariableIsSet("STENCIL_MODAL_LOG"))
+          qWarning("[modal] native press seen: modal=%s vis=%d",
+                   dlg ? qPrintable(dlg->objectName().isEmpty() ? dlg->metaObject()->className()
+                                                                : dlg->objectName())
+                       : "(none)",
+                   dlg ? int(dlg->isVisible()) : -1);
         if (!dlg || !dlg->isVisible() || qobject_cast<QFileDialog*>(dlg)
             || dlg->property(kNoOutsideDismissProperty).toBool())
           return false;
@@ -64,6 +71,7 @@ namespace stencil::support {
     if (filter || !qApp) return;
     filter = new MacModalDismiss();
     qApp->installNativeEventFilter(filter);
+    if (qEnvironmentVariableIsSet("STENCIL_MODAL_LOG")) qWarning("[modal] native filter installed");
   }
 
 }  // namespace stencil::support

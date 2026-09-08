@@ -778,8 +778,14 @@ namespace stencil::gui {
       // a LANDED mote sits at home at full size until then, a grain of the dot screen
       // the window is cross-fading out of, never a hole. A leaving cloud fades in over
       // the first beat, as the surface under it cuts out.
-      const double host = gather ? (t_ < 0.58 ? 1.0 : 1.0 - (t_ - 0.58) / 0.42)
-                                 : std::min(1.0, t_ / kSurfaceScatterSplit);
+      // The cloud starts leaving exactly where the window starts fading UP (kDustHold),
+      // so the two alphas stay complementary. They used to overlap for a few percent at
+      // full strength each: harmless while a grain was the window's own pixel, but the
+      // grains are the ACCENT now, so the overlap added coloured light and the window
+      // flashed lighter just before it landed (user report).
+      const double host = gather
+          ? (t_ < kDustHold ? 1.0 : 1.0 - (t_ - kDustHold) / (1.0 - kDustHold))
+          : std::min(1.0, t_ / kSurfaceScatterSplit);
       if (gather && t >= 1.0) {
         out->at = home;
         out->radius = moteRadius(cw, ch, n);
