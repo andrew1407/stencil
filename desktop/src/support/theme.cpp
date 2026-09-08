@@ -1050,8 +1050,13 @@ namespace stencil::gui {
         border-radius: 6px; padding: 4px 8px; font-size: 13px;
       }
       QLineEdit#searchComboSearch:focus { border: 1px solid %ACCENT%; }
+      /* The browser's rows are the PAGE's own 16px, not the 13px its trigger wears: an
+         open menu is moved to <body> (js/ui/dropdownMenu.js) and leaves the modal's
+         smaller type behind, so its options read a size larger than the control. Set on
+         the LIST, not on ::item — the widget's font is what reaches a delegate's
+         QStyleOptionViewItem, and the motion rows are painted through one. */
       QListView#searchComboList {
-        background: transparent; border: 0; outline: none;
+        background: transparent; border: 0; outline: none; font-size: 16px;
       }
       QListView#searchComboList::item {
         color: %TEXT%; padding: 6px 9px; border-radius: 5px;
@@ -1061,7 +1066,7 @@ namespace stencil::gui {
       QListView#searchComboList::item:selected {
         background: %ACCENT_SOFT2%; color: %TEXT%;
       }
-      QLabel#searchComboNoMatch { color: %MUTED%; padding: 6px 9px; }
+      QLabel#searchComboNoMatch { color: %MUTED%; padding: 6px 9px; font-size: 16px; }
     )")
         .replace("%BTN_FLAT%", c(dark ? p.bgContainer.lighter(112) : p.bgContainer.darker(103)))
         // Geometry the code measures against (theme.hpp) — interpolated, never retyped.
