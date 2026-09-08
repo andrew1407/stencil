@@ -23,27 +23,32 @@
     :root { color-scheme: light dark; }
     body {
       font-family: Arial, sans-serif;
-      display: flex; align-items: center; justify-content: center;
-      min-height: 100vh; margin: 0;
+      /* Pinned near the TOP of the window, not centred in it (user decision). The
+         direction is spelled out because layout.css makes body a COLUMN, where
+         justify-content is the vertical axis — it was re-centring the card. */
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      min-height: 100vh; margin: 0; padding-top: 6vh;
       background: var(--bg-page, #f0f0f0);
       color: var(--text-main, #1c1c1e);
     }
-    /* The editor's panel: same surface, radius and shadow as .container (layout.css),
-       inside an accent frame like the logo's (user decision). Hovering it breathes the
-       same accent glow the logo does — logoPulse's drop-shadow, as a box-shadow. */
+    /* The editor's panel: same surface and shadow as .container (layout.css), inside an
+       accent frame like the logo's (user decision). */
     main {
       max-width: 27rem; padding: 28px 32px 32px; text-align: center;
       background: var(--bg-container, #fff);
       border: 2px solid var(--accent, #7c3aed);
       border-radius: 12px;
       box-shadow: 0 2px 10px var(--shadow, rgba(0, 0, 0, .1));
+      animation: cardGlow 1.2s ease-in-out infinite;
     }
-    main:hover { animation: cardPulse 1.2s ease-in-out infinite; }
-    @keyframes cardPulse {
+    /* The card's whole shine: an accent halo, always on, breathing on the logo's own 1.2s
+       beat, so the panel looks lit from behind. (A rotating ray disc sat behind it for a
+       while; it read as hard bands at this size — user decision to keep only the glow.) */
+    @keyframes cardGlow {
       0%, 100% { box-shadow: 0 2px 10px var(--shadow, rgba(0,0,0,.1)),
-                             0 0 2px color-mix(in srgb, var(--accent, #7c3aed) 25%, transparent); }
+                             0 0 20px color-mix(in srgb, var(--accent, #7c3aed) 45%, transparent); }
       50%      { box-shadow: 0 2px 10px var(--shadow, rgba(0,0,0,.1)),
-                             0 0 18px color-mix(in srgb, var(--accent, #7c3aed) 80%, transparent); }
+                             0 0 52px color-mix(in srgb, var(--accent, #7c3aed) 98%, transparent); }
     }
     h1 { font-size: 1.15rem; margin: 14px 0 6px; }
     p { font-size: .9rem; color: var(--text-muted, #888); margin: .5rem 0; }
@@ -70,6 +75,7 @@
        The ::after is absolute + inset:0, so each host must be a positioned, clipping box. */
     a.btn, button.btn {
       position: relative; overflow: hidden;
+      display: inline-flex; align-items: center; gap: 7px;
       font-size: .9rem; padding: 8px 14px; border-radius: 4px; cursor: pointer;
       border: 1px solid var(--border-main, #8884);
       background-color: transparent; color: inherit; text-decoration: none;
@@ -80,6 +86,11 @@
       border-color: color-mix(in srgb, var(--accent, #7c3aed) 45%, transparent);
     }
     a.btn:active, button.btn:active { transform: translateY(1px); }
+    /* Each glyph mimes its own action on hover — the shared per-icon transforms in
+       animations.css, keyed off --ic-on. Its trigger lists `button` but not `a`, so the
+       two links turn the switch on themselves. */
+    a.btn:hover :is(.ic, .ic *) { --ic-on: 1; animation-name: var(--ic-play, none); }
+    .ic { flex: 0 0 auto; }
     a.btn.primary {
       background-color: var(--accent, #7c3aed); border-color: transparent; color: #fff;
       text-shadow: var(--glyph-text-shadow, none);
@@ -98,7 +109,7 @@
     @media (prefers-reduced-motion: reduce) {
       .bar::after { animation: none; width: 100%; }
       .app-logo-wrap:hover .app-logo { animation: none; }
-      main:hover { animation: none; }
+      main { animation: none; }
     }
   </style>
 </head>
@@ -122,10 +133,10 @@
     <p id="error" hidden>This link doesn't carry a valid Stencil desktop URL.</p>
     <div id="bar" class="bar" hidden></div>
     <div class="actions">
-      <a id="open-btn" class="btn primary shimmer" hidden>Open in desktop app</a>
-      <button id="copy-btn" class="btn" hidden>Copy link</button>
+      <a id="open-btn" class="btn primary shimmer" hidden><svg class="ic ic-external" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><g class="ic-arrow"><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></g></svg><span>Open in desktop app</span></a>
+      <button id="copy-btn" class="btn" hidden><svg class="ic ic-copy" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect class="ic-front" x="9" y="9" width="13" height="13" rx="2"/><path class="ic-back" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy link</span></button>
       <a class="btn shimmer" href="https://github.com/andrew1407/stencil/releases/tag/stencil-desktop"
-         rel="noopener">Download the desktop app</a>
+         rel="noopener"><svg class="ic ic-download" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><g class="ic-arrow"><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></g></svg><span>Download the desktop app</span></a>
     </div>
   </main>
   <script>
@@ -149,8 +160,8 @@
       copyBtn.hidden = false;
       document.getElementById('bar').hidden = false;
       copyBtn.addEventListener('click', async () => {
-        try { await navigator.clipboard.writeText(url); copyBtn.textContent = 'Copied!'; }
-        catch { copyBtn.textContent = 'Copy failed'; }
+        try { await navigator.clipboard.writeText(url); copyBtn.querySelector('span').textContent = 'Copied!'; }
+        catch { copyBtn.querySelector('span').textContent = 'Copy failed'; }
       });
       // Auto-forward once; the manual button stays as the fallback.
       location.href = url;
