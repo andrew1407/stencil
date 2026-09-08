@@ -1095,6 +1095,15 @@ html.theme-swapping *::before, html.theme-swapping *::after {
                 stroke 0.45s ease, box-shadow 0.45s ease !important;
 }
 
+/* An accent row PREVIEWS on hover, and every preview plays the palette flood — a View
+   Transition, which drops :hover for its duration and re-applies it just after. That
+   RESTARTED the row's glass sweep and redrew its ✓ a beat behind every flood, so resting
+   on one colour looked like the row kept re-hovering (user report). accentPicker.js marks
+   the menu while a preview is showing; hold both replays for that whole time. Gating on
+   the swap classes alone does not work — the restart lands after they are gone. */
+.accent-dd-menu.dd-preview-hold .accent-dd-opt::after { animation: none !important; }
+.accent-dd-menu.dd-preview-hold .accent-dd-opt :is(.ic, .ic *) { animation-name: none !important; }
+
 /* ── Dust in the wipe's wake (js/ui/motion.js swapDustSpecs) ─────────────────
    Specks kicked up where the circle's edge has just passed, in the OLD palette's
    colours. Each mote's delay is its ignite time on the ring (set inline by motion.js);

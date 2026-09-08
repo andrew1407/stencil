@@ -857,8 +857,12 @@ namespace stencil::gui {
         background: transparent; border: none; border-radius: 6px; text-align: left;
         padding: 5px 14px 5px 4px;
       }
+      /* A translucent accent WASH, not the solid palette(highlight): the browser's row
+         wears `color-mix(in srgb, var(--accent) 18%, transparent)`, which %ACCENT_SOFT% is
+         (user report: the desktop row was a solid saturated block). The label keeps the
+         normal text colour — highlighted-text is white, meant for a solid fill. */
       QDialog#accentPopover QPushButton:hover {
-        background: palette(highlight); color: palette(highlighted-text);
+        background: %ACCENT_SOFT%; color: %TEXT%;
       }
       /* ── Expiration dialog (dialogs/expirationDialog.cpp) — the browser's own
          calendar, not Qt's: .exp-calendar is a bordered card on the controls fill,

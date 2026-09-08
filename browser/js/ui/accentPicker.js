@@ -62,10 +62,14 @@ export function fillAccentMenu(menu, onPick, preview = null) {
     if (committedSel === null) committedSel = currentSel();
     markSelected(menu, li.dataset.key);
   };
+  // `dd-preview-hold` freezes the rows' hover replays for as long as a preview shows —
+  // each flood drops and restores :hover, which restarted them (animations.css).
+  const holdReplays = (on) => menu.classList?.[on ? 'add' : 'remove']('dd-preview-hold');
   const restore = () => {
     clearHover();
     if (committedSel !== null) { markSelected(menu, committedSel); committedSel = null; }
     if (preview && shownKey !== null) { shownKey = null; preview.off(); }
+    holdReplays(false);
   };
   const scheduleRestore = () => {
     clearHover();
@@ -85,7 +89,10 @@ export function fillAccentMenu(menu, onPick, preview = null) {
       `<span class="accent-swatch" style="background:${a.hex}">` +
       `${icon('check', { size: 11, cls: 'accent-check', sw: 3.5 })}</span>` +
       `<span class="accent-dd-name">${a.label}</span>`;
-    li.addEventListener('click', () => { clearHover(); clearLeave(); committedSel = null; shownKey = a.key; onPick(a.key); });
+    li.addEventListener('click', () => {
+      clearHover(); clearLeave(); holdReplays(false);
+      committedSel = null; shownKey = a.key; onPick(a.key);
+    });
     if (preview) {
       li.addEventListener('pointerenter', () => {
         clearLeave();
@@ -97,6 +104,7 @@ export function fillAccentMenu(menu, onPick, preview = null) {
           hoverTimer = null;
           if (shownKey === a.key) return;
           shownKey = a.key;
+          holdReplays(true);
           preview.on(a.key);
         }, PREVIEW_HOVER_MS);
       });
