@@ -18,6 +18,10 @@ const trackPointer = () => {
   if (tracking) return;
   tracking = true;
   document.addEventListener('pointermove', (e) => { lastPt = { x: e.clientX, y: e.clientY }; }, true);
+  // The pointer left the WINDOW (to the tab bar, another app): no pointermove follows, so
+  // the last one would stand as a stale in-menu position and the preview would never
+  // revert. A null relatedTarget is the document boundary.
+  document.addEventListener('pointerout', (e) => { if (!e.relatedTarget) lastPt = null; }, true);
 };
 const pointerIn = (el) => {
   if (!lastPt) return false;
