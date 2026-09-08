@@ -77,8 +77,13 @@ export const loadAccent = ({
     hasAttribute: (k) => attributes.has(k),
     removeAttribute: (k) => attributes.delete(k),
   };
+  // Always present: apply()/setCustom()/previewAccent() read and clear inline --accent.
+  documentElement.style = {
+    setProperty: (k, v) => props.set(k, v),
+    removeProperty: (k) => props.delete(k),
+    getPropertyValue: (k) => (props.has(k) ? props.get(k) : ''),
+  };
   if (withViewTransitions) {
-    documentElement.style = { setProperty: (k, v) => props.set(k, v) };
     documentElement.classList = { add: (c) => classes.add(c), remove: (c) => classes.delete(c) };
   }
 
@@ -217,6 +222,8 @@ export const loadAccent = ({
     dataTheme: () => documentElement.getAttribute('data-theme'),
     /** Whether `<html data-accent-light>` is set — the glyph-shadow switch. */
     isAccentLight: () => documentElement.hasAttribute('data-accent-light'),
+    /** The inline `--accent` override (a custom accent / preview), '' when none. */
+    inlineAccent: () => documentElement.style.getPropertyValue('--accent'),
     /** The favicon <link>, if one was created/updated. */
     faviconLink: () => headChildren.find((el) => el.tagName === 'LINK' && el.rel === 'icon') || null,
     headChildren,

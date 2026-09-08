@@ -28,8 +28,8 @@ namespace stencil::gui {
   inline constexpr int kToolRowH = 33;   // icon-button height; every section row matches it
   // The "Controls" pill's chevron sits BESIDE its label, so it is sized against
   // the text (a toolbar-sized 18 px glyph towered over it).
-  inline constexpr int kPillChevron = 11;
-  inline constexpr int kHeaderLogo = 20;   // header-row logo mark; sets the row's height floor
+  inline constexpr int kPillChevron = 7;    // Controls show/hide arrow (1.5x smaller, user decision)
+  inline constexpr int kHeaderLogo = 33;   // header-row logo mark (user decision); sets the row height floor
   // The f(x,y) inputs take the browser's inline width (#formula-x / #formula-y,
   // toolbar.js) where the row has room, shrinking toward the floor rather than
   // tipping their row into QToolBar's "»".

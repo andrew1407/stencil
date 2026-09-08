@@ -437,7 +437,15 @@ export class DrawingApp {
     // all in the DOM from boot) wears the app's own dropdown rather than the OS one — the
     // toolbar pair enhanced in wirePageAndDisplayControls above included, since a second
     // pass over an enhanced select is a no-op.
-    enhanceAllSelects();
+    // The image-filter and compare selects preview on hover: resting on a row live-applies
+    // it to the canvas (repaint only); leaving the list puts the current value back.
+    enhanceAllSelects(document, {
+      preview: (sel) => {
+        if (sel.id === 'image-filter') return (v) => this.settings.preview('imageFilter', v);
+        if (sel.id === 'compare-mode') return (v) => this.settings.preview('compareMode', v);
+        return null;
+      },
+    });
     this.pointer.wirePanDrag();
     this.input.wireHoldDraw();
     this.input.wireTouch();
@@ -477,6 +485,8 @@ export class DrawingApp {
   setTheme(theme, originEl = null) { this.accents.setTheme(theme, originEl); }
   setAccent(key, originEl = null) { this.accents.setAccent(key, originEl); }
   setCustomAccent(hex, originEl = null) { return this.accents.setCustomAccent(hex, originEl); }
+  previewAccent(key, originEl = null) { this.accents.previewAccent(key, originEl); }
+  endAccentPreview(originEl = null) { this.accents.endAccentPreview(originEl); }
 
   // Active accent preset key (see js/core/accents.js); falls back to violet.
   get accent() {

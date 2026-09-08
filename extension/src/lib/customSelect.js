@@ -26,7 +26,10 @@ const rowMatches = (text, query) => {
 
 // `icons(value)` answers an inline-SVG string for a row (or ''), shown before the label
 // and in the trigger — the motion modes' glyphs (motionIcons.js) are the one user today.
-export function enhanceSelect(selectEl, { search = false, icons = null } = {}) {
+// `preview(value)` — optional: called with an option's value while the pointer rests on
+// its row, and again with the committed value on leave/close (no extension consumer passes
+// it today; kept rule-for-rule with the browser's customSelect).
+export function enhanceSelect(selectEl, { search = false, icons = null, preview = null } = {}) {
   // Also guards the one select built at runtime (the popup's pin-target dialog): it asks
   // for this itself, and must not be enhanced before it is in the document.
   if (!selectEl || !selectEl.parentNode || selectEl.dataset.csEnhanced) return;
@@ -71,6 +74,21 @@ export function enhanceSelect(selectEl, { search = false, icons = null } = {}) {
   wrap.append(trigger, menu);
   const cur = trigger.querySelector('.cs-cur');
   const curIcon = trigger.querySelector('.cs-cur-icon');
+
+  // Hover-preview bookkeeping (see `preview` above): put the committed value back once the
+  // pointer has left the list or the menu closed without a pick. The preview waits for the
+  // pointer to settle, so skimming the rows previews nothing. Browser twin: customSelect.js.
+  const PREVIEW_HOVER_MS = 280;
+  let previewActive = false;
+  let hoverTimer = null;
+  const clearHover = () => { if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; } };
+  const restorePreview = () => {
+    clearHover();
+    if (!preview || !previewActive) return;
+    previewActive = false;
+    preview(selectEl.value);
+  };
+  if (preview) menu.addEventListener('pointerleave', restorePreview);
 
   // Search state — rebuilt with the menu on every open (so each open starts with an
   // empty query and every row visible). Filtering only toggles row display; the native
@@ -119,6 +137,13 @@ export function enhanceSelect(selectEl, { search = false, icons = null } = {}) {
         li.textContent = opt.textContent;
       }
       li.addEventListener('click', () => choose(opt.value));
+      if (preview) {
+        li.addEventListener('pointerenter', () => {
+          clearHover();
+          hoverTimer = setTimeout(() => { hoverTimer = null; previewActive = true; preview(opt.value); }, PREVIEW_HOVER_MS);
+        });
+        li.addEventListener('pointerleave', clearHover);
+      }
       menu.appendChild(li);
     }
     if (search) {
@@ -200,6 +225,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null } = {}) {
   let closeDone = null;
   const close = () => {
     if (menu.hidden || menu.classList.contains('dd-closing')) return;
+    restorePreview();   // a menu dismissed without a pick reverts to the committed value
     trigger.setAttribute('aria-expanded', 'false');
     document.removeEventListener('pointerdown', onDocDown, true);
     document.removeEventListener('keydown', onKey);
@@ -216,6 +242,8 @@ export function enhanceSelect(selectEl, { search = false, icons = null } = {}) {
   // picked (None → Fire used to arrive with None's no-motion — user report). The raw setter
   // keeps the wrapped one's sync for after the dispatch.
   const choose = (v) => {
+    clearHover();
+    previewActive = false;   // the pick commits the real value; no revert on the close below
     proto.set.call(selectEl, v);
     selectEl.dispatchEvent(new Event('change', { bubbles: true }));
     close();

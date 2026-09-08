@@ -1047,7 +1047,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(logo);
     QWidget* fx = win.findChild<QWidget*>("logoHoverFx");
     QVERIFY2(fx, "logo hover fx overlay not installed");
-    QVERIFY(!fx->isVisible());
+    QTest::qWait(20);   // the overlay shows its resting mark on a deferred tick after show
     auto iconBlank = [logo] {
       const QImage im = logo->icon().pixmap(logo->iconSize()).toImage();
       for (int y = 0; y < im.height(); ++y)
@@ -1055,7 +1055,12 @@ class MainWindowGuiTest : public QObject {
           if (qAlpha(im.pixel(x, y)) != 0) return false;
       return true;
     };
-    QVERIFY(!iconBlank());   // at rest the button paints the mark itself
+    // The overlay now paints the mark at ALL times (a QToolButton draws its icon half
+    // size on Retina), so at rest it is VISIBLE but NOT animating, and the button icon is
+    // blanked — the overlay owns the pixels. Only the pulse/rays are hover-gated.
+    QVERIFY2(fx->isVisible(), "the fx paints the resting mark");
+    QVERIFY(!fx->property("fxActive").toBool());
+    QVERIFY2(iconBlank(), "the overlay owns the mark at rest (button icon blanked)");
 
     const QPointF c(logo->rect().center());
     QEnterEvent enter(c, c, logo->mapToGlobal(logo->rect().center()));
@@ -1074,12 +1079,12 @@ class MainWindowGuiTest : public QObject {
 
     QEvent leave(QEvent::Leave);
     QApplication::sendEvent(logo, &leave);
-    QVERIFY2(!fx->isVisible(), "hover-leave must hide the fx overlay");
+    QVERIFY2(fx->isVisible(), "leave keeps the resting mark shown (only the pulse stops)");
     QVERIFY(!fx->property("fxActive").toBool());
     for (QVariantAnimation* a : fx->findChildren<QVariantAnimation*>())
       QVERIFY2(a->state() != QAbstractAnimation::Running,
                "an fx animation kept running after hover-leave");
-    QVERIFY2(!iconBlank(), "leave must hand the mark back to the button icon");
+    QVERIFY2(iconBlank(), "the overlay keeps the mark after leave (button icon stays blanked)");
   }
 
   // Browser parity: the accent popover the logo opens is part of the logo's hover —
@@ -1780,31 +1785,20 @@ class MainWindowGuiTest : public QObject {
       QTest::keyPress(&win, Qt::Key_Alt);
       QTest::keyRelease(&win, Qt::Key_Alt);
       stickySurvivedAlt = win.activePopover_ && !win.activePopover_->isHidden();
-      // Picking a colour APPLIES it and LEAVES THE POPOVER OPEN: the list is for trying
-      // colours against the live app, so three picks in a row must all land, each moving
-      // the ✓ to the row just clicked, with the popover never closing under the cursor.
-      for (int i = 0; i < 3 && pop; ++i) {
-        const QString key = presets[size_t((pick + i) % int(presets.size()))].key;
+      // Picking a colour APPLIES it and CLOSES the popover (user decision — hovering
+      // already previews live, so a click is a commit). Browser twin: the logo menu
+      // closes on a pick.
+      if (pop) {
+        const QString key = presets[size_t(pick)].key;
         auto* row = pop->findChild<QPushButton*>(QStringLiteral("accentRow-") + key);
-        if (!row) { picksOk = false; break; }
-        row->click();
-        QTest::qWait(30);
-        picksOk = picksOk && win.settings_.accentColor == key &&
-                  win.activePopover_ && !win.activePopover_->isHidden();
-        int marked = 0;
-        for (const auto& a : presets) {
-          auto* r = pop->findChild<QPushButton*>(QStringLiteral("accentRow-") + a.key);
-          if (!r) continue;
-          if (r->property("currentAccent").toBool()) ++marked;
-          picksOk = picksOk && r->property("currentAccent").toBool() == (a.key == key);
+        if (!row) { picksOk = false; }
+        else {
+          row->click();
+          QTest::qWait(50);
+          picksOk = win.settings_.accentColor == key;                     // applied
+          escapeClosedAfterPicks = !win.activePopover_ || win.activePopover_->isHidden();  // closed
+          lastPick = key;
         }
-        picksOk = picksOk && marked == 1;
-        lastPick = key;
-      }
-      // …and it closes the ordinary way: Escape.
-      if (win.activePopover_) {
-        QTest::keyClick(win.activePopover_.data(), Qt::Key_Escape);
-        escapeClosedAfterPicks = !win.activePopover_ || win.activePopover_->isHidden();
       }
       if (win.activePopover_ && !win.activePopover_->isHidden()) win.activePopover_->reject();
     });
@@ -1813,8 +1807,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(stickyOpened, "right-click did not open the accent popover");
     QVERIFY2(rowsOk, "popover rows must be the preset list with one ✓-marked current row");
     QVERIFY2(stickySurvivedAlt, "the sticky popover must survive an Alt press/release");
-    QVERIFY2(picksOk, "each colour pick must apply, move the ✓, and leave the popover open");
-    QVERIFY2(escapeClosedAfterPicks, "Escape must still close it after picking colours");
+    QVERIFY2(picksOk, "a colour pick must apply the accent");
+    QVERIFY2(escapeClosedAfterPicks, "a colour pick must close the popover");
     QCOMPARE(win.settings_.accentColor, lastPick);
     QVERIFY2(!win.logoClickTimer_->isActive(), "the popover routes must not arm the click-cycle");
     QVERIFY(!win.activePopover_);
@@ -14680,7 +14674,6 @@ class MainWindowGuiTest : public QObject {
     }
     win.pageSize_->setCurrentIndex(a3);   // this suite shares the real settings file
   }
-
 };
 
 QTEST_MAIN(MainWindowGuiTest)

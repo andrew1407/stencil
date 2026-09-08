@@ -65,6 +65,44 @@ test('a stored accent is honoured at load', () => {
   assert.equal(page.dataAccent(), 'crimson');
 });
 
+test('setCustom: a page-only inline --accent, not persisted; junk → null', () => {
+  const page = loadAccent();
+  assert.equal(page.accent.setCustom('#abc'), '#aabbcc', 'normalizes a 3-digit hex');
+  assert.equal(page.inlineAccent(), '#aabbcc', 'the inline override is set');
+  assert.equal(page.store.get('stencil_accent'), undefined, 'a custom accent never persists');
+  assert.equal(page.accent.setCustom('nope'), null, 'invalid hex is rejected');
+});
+
+test('previewAccent paints a preset instantly (no persist); endAccentPreview reverts to the committed accent', () => {
+  const page = loadAccent();
+  page.accent.set('blue');                     // committed preset
+  assert.equal(page.dataAccent(), 'blue');
+  page.accent.previewAccent('pink');           // hover
+  assert.equal(page.dataAccent(), 'pink', 'the page shows the previewed preset');
+  assert.equal(page.store.get('stencil_accent'), 'blue', 'preview never persists');
+  page.accent.endAccentPreview();
+  assert.equal(page.dataAccent(), 'blue', 'leaving the list restores the committed preset');
+});
+
+test('previewAccent over a custom accent restores the inline hex on revert', () => {
+  const page = loadAccent();
+  page.accent.setCustom('#123456');
+  page.accent.previewAccent('pink');
+  assert.equal(page.dataAccent(), 'pink');
+  assert.equal(page.inlineAccent(), '', 'the preview drops the inline override');
+  page.accent.endAccentPreview();
+  assert.equal(page.inlineAccent(), '#123456', 'the custom hex comes back');
+});
+
+test('a committed set during a preview supersedes it — endAccentPreview then no-ops', () => {
+  const page = loadAccent();
+  page.accent.set('blue');
+  page.accent.previewAccent('pink');
+  page.accent.set('aqua');                     // a real pick mid-hover
+  page.accent.endAccentPreview();
+  assert.equal(page.dataAccent(), 'aqua', 'the pick stands; no revert to blue');
+});
+
 test('a stored value that is not a preset falls back to the default', () => {
   const page = loadAccent({ stored: { stencil_accent: 'chartreuse' } });
   assert.equal(page.accent.get(), 'violet');

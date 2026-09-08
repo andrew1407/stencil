@@ -11,9 +11,20 @@ import { serverTokenFor } from '../llm/llmSurface.js';
 import { initTooltips } from '../lib/controlTooltip.js';
 import { setTip } from '../lib/tip.js';
 import { enhanceSelect } from '../lib/customSelect.js';
+import { wireLogoAccent } from '../lib/logoAccent.js';
 import { motionModeIcon } from '../lib/motionIcons.js';
 import { pinToWidestOption } from '../lib/fitWidest.js';
 import { wireScrollbarHover } from '../lib/scrollbarHover.js';
+
+// This page opens at the TOP, always. The pin and connection lists render asynchronously,
+// so on a reload Chrome restored the old scroll offset against whatever height the document
+// happened to have — landing mid-page with the logo and the first section scrolled off,
+// intermittently (user report). An options page has nothing worth restoring.
+if (typeof history !== 'undefined' && 'scrollRestoration' in history) history.scrollRestoration = 'manual';
+if (typeof window !== 'undefined' && window.scrollTo) {
+  window.scrollTo(0, 0);
+  window.addEventListener('load', () => window.scrollTo(0, 0));
+}
 
 // Theme accent — persisted separately in localStorage (window.StencilAccent, set
 // up by lib/accent.js) so it applies flash-free across the extension's pages. It
@@ -46,7 +57,16 @@ if (accent) {
     menu.appendChild(li);
   }
 
+  // A page-only custom accent (the logo's double-click) shows as "Custom" + its live
+  // swatch, selecting no preset row — exactly like the browser's accent picker trigger.
+  let customHex = null;
   const sync = () => {
+    if (customHex) {
+      curSw.style.background = customHex;
+      curName.textContent = 'Custom';
+      for (const li of menu.children) li.setAttribute('aria-selected', 'false');
+      return;
+    }
     const m = meta(value);
     curSw.style.background = m.hex;
     curName.textContent = m.label;
@@ -64,11 +84,25 @@ if (accent) {
   // would look like the colour came out of a corner. The swatch, not the whole trigger:
   // the new colour should visibly pour out of the little rect that shows it, not out
   // of the middle of the text.
-  const choose = (key) => { value = accent.set(key, trigger.querySelector('.js-cur-sw') || trigger); sync(); close(); };
+  const choose = (key) => { customHex = null; value = accent.set(key, trigger.querySelector('.js-cur-sw') || trigger); sync(); close(); };
 
   trigger.addEventListener('click', () => { menu.hidden ? open() : close(); });
   sync();
+
+  // Keep the trigger in step when the logo's own gestures move the accent: a preset
+  // (cycle / menu) shows that preset; a custom hex (double-click picker) shows "Custom".
+  // The event carries the new value in `detail`.
+  window.addEventListener('stencil:accent-changed', (e) => {
+    const v = typeof e.detail === 'string' ? e.detail : null;
+    if (v && v.charAt(0) === '#') { customHex = v; }
+    else { customHex = null; value = accent.get(); }
+    sync();
+  });
 }
+
+// The header logo gets the browser toolbar logo's accent gestures: click cycles, double-
+// click picks a custom colour, right-click / Alt opens a preset menu with hover preview.
+wireLogoAccent(document.querySelector('.brand .logo'));
 
 // Appearance — like the accent, it lives in localStorage via lib/accent.js rather than
 // in the saved settings, so it applies instantly, independent of the Save button.

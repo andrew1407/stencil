@@ -45,6 +45,8 @@ namespace stencil::gui {
     bool eventFilter(QObject* watched, QEvent* event) override;
 
    private:
+    void reserveHeadGutter();   // pad the pinned head by the scrollbar's slot
+
     struct Row {
       QString id;
       QString defaultSeq;        // PortableText, so a compare with lastSeq is enough

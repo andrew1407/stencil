@@ -6,6 +6,8 @@
 #include "modalReveal.hpp"
 #include "numericInput.hpp"
 #include "searchCombo.hpp"
+#include "controlsPill.hpp"
+#include "openImageButton.hpp"
 #include "theme.hpp"
 #include "../support/controlReveal.hpp"   // section buttons come and go as sand
 #include "../support/iconMotion.hpp"
@@ -142,7 +144,9 @@ namespace stencil::gui {
     col->setSpacing(8);
     auto* label = new QLabel(title.toUpper(), section);
     label->setObjectName("sectionLabel");
-    label->setStyleSheet("color:#7a828c;font-size:9px;font-weight:700;letter-spacing:0.6px;");
+    // Colour comes from the theme sheet (QLabel#sectionLabel) so it re-themes on a swap and
+    // can be darker in the light theme; the rest of the treatment stays inline.
+    label->setStyleSheet("font-size:9px;font-weight:700;letter-spacing:0.6px;");
     label->setAlignment(Qt::AlignLeft);   // left-aligned header, matching the browser sections
     // Fixed, or the QVBoxLayout hands a short section's spare height to the caption and
     // pushes the controls under it down — combos then sat lower than the icon rows.
@@ -267,7 +271,13 @@ namespace stencil::gui {
     logoBtn_ = new QToolButton(this);
     logoBtn_->setCursor(Qt::PointingHandCursor);
     logoBtn_->setIconSize(QSize(kHeaderLogo, kHeaderLogo));
+    // Size the BUTTON to the mark: a QToolBar otherwise lays an added widget out at the
+    // toolbar's default icon metric, so the badge stayed ~40px however large its icon
+    // (user report: the logo would not grow). The margin leaves the hover fx room.
+    logoBtn_->setFixedSize(kHeaderLogo + 6, kHeaderLogo + 6);
     logoBtn_->setIcon(QIcon(makeLogoPixmap(kHeaderLogo)));
+    // LogoHoverFx paints the resting mark and blanks this icon — QToolButton draws it at
+    // half size on Retina. The fx owns BOTH states.
     logoBtn_->setToolTip(QString());   // no tooltip on the logo
     // No hover highlight — flat, transparent, borderless (just the logo art).
     logoBtn_->setStyleSheet("QToolButton{border:none;background:transparent;padding:2px;}");
@@ -324,15 +334,19 @@ namespace stencil::gui {
     headerToolbar_->addWidget(logoBtn_);
     // "Controls" chevron pill — collapses/expands the tool rows (routes through actToolbars_ so the
     // View-menu entry + Alt+C hotkey stay in sync). Icon (chevron) themed in styleActionIcons.
-    controlsPill_ = new QToolButton(this);
+    // ControlsPill paints its own chevron + label: a stock icon+text QToolButton reserves
+    // ~36px for the icon slot however small the chevron, leaving a wide gap beside the
+    // label (user reports).
+    controlsPill_ = new ControlsPill(this);
     controlsPill_->setObjectName("controlsPill");   // outlined pill, styled in theme.cpp
     // Its chevron's angle is STATE (toolbars shown/hidden), not hover feedback — the
     // browser's `[id^="toggle-"]` icon-motion opt-out.
     controlsPill_->setProperty(kNoIconMotionProperty, true);
     controlsPill_->setProperty(kShimmerRadiusProperty, 12);   // its QSS radius (shimmerOverlay.hpp)
-    controlsPill_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-    controlsPill_->setIconSize(QSize(kPillChevron, kPillChevron));   // scaled to the label, not the toolbar
-    controlsPill_->setText("Controls");
+    static_cast<ControlsPill*>(controlsPill_)->setLabel("Controls");
+    // Capped, so the pill is never stretched to the header row the logo now makes tall —
+    // a QToolBar filled it to 41px with a big rounded border (user report: "huge border").
+    controlsPill_->setMaximumHeight(28);
     controlsPill_->setAutoRaise(true);
     controlsPill_->setCursor(Qt::PointingHandCursor);
     controlsPill_->setToolTip(QString("Show / hide the toolbars (%1)").arg(hotkey("toggleControls", "Alt+C")));
@@ -403,7 +417,7 @@ namespace stencil::gui {
     // image loads, refreshActions swaps it for the icon row, whose trailing icon
     // (actOpenAnother_) opens the same dialog as this button's actOpen_ — browser
     // parity: #load-image-btn ↔ #open-image-btn, same handler, different button/icon.
-    openImageBtn_ = new QToolButton(this);
+    openImageBtn_ = new OpenImageButton(this);
     openImageBtn_->setDefaultAction(actOpen_);
     openImageBtn_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     openImageBtn_->setAutoRaise(true);
@@ -413,11 +427,9 @@ namespace stencil::gui {
       f.setPixelSize(14);
       openImageBtn_->setFont(f);
     }
-    // Qt draws a text-beside-icon label LEFT-aligned inside a box whose hint reserves more
-    // slack on the right, so the pair sat off-centre (browser #load-image-btn centres it).
-    // The padding is redistributed, not increased — same button width. Guarded by
-    // openImageButtonLabelIsCentred() in the GUI tests.
-    openImageBtn_->setStyleSheet("padding-left: 11px; padding-right: 3px;");
+    // OpenImageButton paints its own icon+label as one centred group with a wide gap
+    // between them, so there is no stock icon-slot reserve to compensate for.
+    // Guarded by openImageButtonLabelIsCentred() in the GUI tests.
     imageSection_ = makeToolSection("Image",
                                     {actSaveImage_, actCopyImage_, actShareImage_, actOpenIn_, actOpenAnother_},
                                     {}, {openImageBtn_});
@@ -499,7 +511,7 @@ namespace stencil::gui {
   // valid (non-empty, ≤80, unique) name, with the reason on its tooltip when disabled. Enter = ✓,
   // Escape / click-away = ✗. Lives in the always-visible header row beside the "Controls" pill. ──
   void MainWindow::buildProjectNameGroup(QToolBar* tbName) {
-    tbName->addWidget(new QLabel("Project: ", this));
+    // (no "Project:" caption — the field alone reads as the project name, browser parity)
     // ONE container for the field + its affordances (browser .project-name-field
     // parity): hover is the container's own gap-free rect, so sweeping between the
     // field and the ✎/🎨 buttons can never flicker the reveal (which replayed the
@@ -794,6 +806,10 @@ namespace stencil::gui {
             this, [this](int) {
               setCompareModeUi(compareCombo_->currentData().toString());
             });
+    // Hover-preview each compare mode on the canvas (repaint only — no control re-gating);
+    // leaving the list or closing without a pick reverts to the committed mode.
+    static_cast<SearchComboBox*>(compareCombo_)->setPreview(
+        [this](const QString& mode) { canvas_->setCompareMode(mode); });
 
     // View cluster in the browser's order: ☑ Points · ☑ Lines · Compare · clear.
     // Points/Lines are real CHECKBOXES (persistent state, browser parity); the
@@ -1004,6 +1020,11 @@ namespace stencil::gui {
             this, [this](int) {
               applyImageFilter(imageFilter_->currentData().toString());
             });
+    // Hover-preview each filter on the canvas (repaint only — no persist/sync); leaving
+    // the list or closing without a pick reverts (searchCombo setPreview, browser twin).
+    static_cast<SearchComboBox*>(imageFilter_)->setPreview([this](const QString& mode) {
+      canvas_->setImageFilter(mode, filterColorValue_);
+    });
     // Tint color (drawingApp.js:240-249): pick the custom duotone tint.
     connect(filterColorBtn_, &QToolButton::clicked, this, [this] {
       const QColor c =

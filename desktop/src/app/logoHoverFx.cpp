@@ -53,6 +53,11 @@ namespace stencil::gui {
     setProperty("fxActive", false);
     hide();
     logo_->installEventFilter(this);
+    // Paint the mark at ALL times, not only on hover: QToolButton draws its icon at half
+    // size on Retina, so the RESTING logo looked tiny beside the full-size hover fx
+    // (repeated user reports). Only the pulse / glow / rays stay hover-gated. Deferred so
+    // the button is laid out first.
+    QTimer::singleShot(0, this, [this] { showStatic(); });
   }
 
   void LogoHoverFx::holdWhile(QWidget* box) {
@@ -62,7 +67,7 @@ namespace stencil::gui {
   }
 
   void LogoHoverFx::themeChanged() {
-    if (!active()) return;
+    // Refresh the cached art whether hovering or at rest — the resting mark is ours too now.
     pm_ = makePixmap_();
     blankButtonIcon();
     update();
@@ -85,9 +90,17 @@ namespace stencil::gui {
         case QEvent::EnabledChange:
         case QEvent::WindowDeactivate:
           // Mirror ShimmerOverlay: the button hiding / a modal opening mid-hover
-          // stops the loop rather than leaving a frozen glow.
+          // stops the LOOP (stop() falls back to the resting mark, or hides if the
+          // button itself went away).
           grace_->stop();
           stop();
+          break;
+        case QEvent::Move:
+        case QEvent::Resize:
+          if (isVisible()) syncGeometry();   // track the button as the toolbar reflows
+          break;
+        case QEvent::Show:
+          showStatic();                      // the button came back — repaint the mark
           break;
         default:
           break;
@@ -124,19 +137,22 @@ namespace stencil::gui {
   }
 
   void LogoHoverFx::paintEvent(QPaintEvent*) {
-    if (!active()) return;
+    if (pm_.isNull()) return;
+    const bool anim = active();   // hovering: pulse/glow/rays; at rest: just the mark
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
     p.setRenderHint(QPainter::SmoothPixmapTransform);
     const QPointF c = QRectF(rect()).center();   // == the button's icon centre
     const QColor accent = accent_();
     const QSizeF mark(logo_->iconSize());        // logical px; pixmap carries the dpr
-    const qreal lift = 2.0 * beat_;              // translateY(-2px) at the peak
-    const qreal scale = 1.0 + 0.12 * beat_;      // scale(1.12) at the peak
+    const qreal beat = anim ? beat_ : 0.0;       // no breath / lift / glow at rest
+    const qreal lift = 2.0 * beat;               // translateY(-2px) at the peak
+    const qreal scale = 1.0 + 0.12 * beat;       // scale(1.12) at the peak
     const QPointF mc(c.x(), c.y() - lift);       // the levitating mark's centre
     // Accent glow behind the mark, brightening on the beat. Radial soft falloff —
     // the opaque mark covers the middle, so it reads as the CSS drop-shadow halo.
-    {
+    // Glow + rays are hover-only; at rest just the mark is painted.
+    if (anim) {
       const qreal r = mark.width() * 0.5 * scale + 2.0 + 5.0 * beat_;
       QRadialGradient g(mc, r);
       QColor g0 = accent; g0.setAlphaF(0.25 + 0.55 * beat_);
@@ -152,7 +168,7 @@ namespace stencil::gui {
     // the ring shimmers on the SAME beat (logoRaysShimmer). Two strokes per
     // spoke — a wide soft halo under a thin bright core — stand in for the CSS
     // conic gradient's feathered edges.
-    {
+    if (anim) {
       const qreal alpha = 0.14 + 0.26 * beat_;
       const qreal r1 = mark.width() * 0.5 + 3.0;
       const qreal r2 = r1 + 3.5;
@@ -195,9 +211,21 @@ namespace stencil::gui {
     if (!active()) return;
     pulse_->stop();
     spin_->stop();
-    hide();
-    logo_->setIcon(QIcon(pm_));   // hand the (accent-current) mark back to the button
     setProperty("fxActive", false);
+    showStatic();   // keep painting the resting mark (the button icon stays blanked)
+  }
+
+  // The resting mark — no animation, just the pixmap centred at full size, so the logo is
+  // never at the mercy of QToolButton's icon rendering.
+  void LogoHoverFx::showStatic() {
+    if (!logo_ || !logo_->isVisible()) { hide(); return; }
+    beat_ = 0.0;
+    pm_ = makePixmap_();
+    blankButtonIcon();
+    syncGeometry();
+    raise();
+    show();
+    update();
   }
 
   void LogoHoverFx::blankButtonIcon() {

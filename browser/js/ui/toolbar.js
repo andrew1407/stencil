@@ -22,7 +22,7 @@ export class StencilToolbar extends StencilElement {
                      can't host ::before/::after, so the rays live on this span. Clicks and
                      the colour picker stay wired to the .app-logo svg itself. -->
                 <span class="app-logo-wrap">
-                <svg class="app-logo" viewBox="0 0 64 64" width="24" height="24" role="img" aria-label="Stencil" focusable="false">
+                <svg class="app-logo" viewBox="0 0 64 64" width="32" height="32" role="img" aria-label="Stencil" focusable="false">
                     <rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>
                     <rect class="app-logo-frame" x="2.75" y="2.75" width="58.5" height="58.5" rx="12.25" fill="none" stroke-width="2.5"/>
                     <rect x="12" y="12" width="40" height="40" rx="4" fill="#3a3f4b"/>
@@ -548,10 +548,10 @@ export function wireLogoColorPicker(logo, app) {
     if (!menu) return;
     if (pendingKind) menuKind = pendingKind;
     if (!menu.childElementCount) {
-      // A pick APPLIES and leaves the menu up so colours can be tried in a row; rows
-      // are built once, keeping scroll + DOM across the swap. themeSwap writes on a
-      // LATER beat — app.accent is still the old preset, so mark the key we picked.
-      fillAccentMenu(menu, (key) => { app.setAccent(key, logo); markSelected(menu, key); });
+      // A pick applies the accent and CLOSES the menu (user decision — hovering already
+      // previews, so a click is a commit). Rows are built once, kept across the swap.
+      fillAccentMenu(menu, (key) => { app.setAccent(key, logo); markSelected(menu, key); closeMenu(); },
+                     { on: (key) => app.previewAccent?.(key, logo), off: () => app.endAccentPreview?.(logo) });
     }
     markSelected(menu, app.customAccent ? null : app.accent);
     // Size to CONTENT by default (components.css lifts the shared 280px cap for this
@@ -574,6 +574,7 @@ export function wireLogoColorPicker(logo, app) {
   };
   const closeMenu = () => {
     if (!menu || menu.hidden || menu.classList.contains('dd-closing')) return;
+    app.endAccentPreview?.();   // a menu closed mid-hover reverts to the committed accent
     menuKind = null;
     // However it closes, the machine must not keep believing a popover shows — a
     // leaked mode would let a later Alt glide "close" a menu that is already gone.

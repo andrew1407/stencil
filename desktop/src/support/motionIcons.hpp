@@ -42,14 +42,18 @@ namespace stencil::support {
   // How long each glyph's hover plays (the browser's animation durations): the line and
   // the arrow 450ms; the flame 900; the drop 1125 (user decision: 1.5x slower again);
   // the specks 825 each with the five staggered 90ms apart.
+  // Desktop plays the hover 1.5x faster than the browser twin (user decision): the same
+  // per-mode lengths, scaled by one factor so the rows and the trigger stay in step.
+  inline constexpr double kMotionIconSpeedup = 1.5;
   inline double motionIconMs(const QString& mode) {
-    if (mode == QLatin1String("water")) return 1125;
-    if (mode == QLatin1String("fire")) return 900;
-    if (mode == QLatin1String("particles")) return 825 + 4 * 90;
-    return 450;
+    double ms = 450;
+    if (mode == QLatin1String("water")) ms = 1125;
+    else if (mode == QLatin1String("fire")) ms = 900;
+    else if (mode == QLatin1String("particles")) ms = 825 + 4 * 90;
+    return ms / kMotionIconSpeedup;
   }
-  // The longest of them — how long a row's hover keeps repainting.
-  constexpr int kMotionIconHoverMs = 1200;
+  // The longest of them — how long a row's hover keeps repainting (also 1.5x shorter now).
+  constexpr int kMotionIconHoverMs = static_cast<int>(1200 / kMotionIconSpeedup);
   // The browser's glyph box (js/ui/motionIcons.js: viewBox 0 0 16 16 at width/height 16).
   constexpr int kMotionIconPx = 16;
 

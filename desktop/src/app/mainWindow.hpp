@@ -237,6 +237,12 @@ namespace stencil::gui {
     void openAccentPicker();
     // Move an open accent popover's ✓ to the accent the settings now hold (applyTheme).
     void remarkAccentPopover();
+    // Hover preview for the accent popover (browser twin: accentController.previewAccent):
+    // repaint the app in a preset INSTANTLY — no theme wipe, no persist — while the pointer
+    // rests on its row; endAccentPreview() puts the committed accent back. A real pick
+    // (applySettings) discards the snapshot so the revert never fights the commit.
+    void previewAccent(const QString& key);
+    void endAccentPreview();
     // Shift+F10 (hotkeysConfig contextMenu): the canvas menu under the pointer while it
     // rests over the viewport, else at the viewport's centre — where the browser puts it.
     void showContextMenuFromKeyboard();
@@ -1244,6 +1250,12 @@ namespace stencil::gui {
     bool themePainted_ = false;
     bool paintedDark_ = false;
     QString paintedAccent_;
+    // Accent hover preview (openAccentPicker): the committed accent to restore on leave,
+    // and whether a preview is live. The preview floods the palette like a real change
+    // (applyTheme's wipe), so no suppression flag — applyTheme's own in-flight guard
+    // (themeSwapping) keeps rapid row-hovers from stacking wipes.
+    QString accentPreviewSaved_;
+    bool accentPreviewActive_ = false;
     // The wipe currently in flight, if any. Held so a second toggle can be ignored while
     // it plays: the overlay is a snapshot of the window BEFORE the restyle, so re-theming
     // underneath one leaves the new snapshot half-drawn over the old palette — hammering

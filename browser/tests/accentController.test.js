@@ -108,6 +108,41 @@ test('applyAccent: drops any inline custom override when a preset is applied', (
   assert.equal(docEl.getAttribute('data-accent'), 'blue');
 });
 
+test('previewAccent: paints a preset instantly, no persist/broadcast; endAccentPreview reverts to the committed preset', () => {
+  reset();
+  const app = makeApp();
+  const ctrl = new AccentController(app);
+  ctrl.setAccent('blue');                       // committed
+  assert.deepEqual(app.broadcasts, ['blue']);
+  ctrl.previewAccent('pink');                   // hover
+  assert.equal(docEl.getAttribute('data-accent'), 'pink', 'the page shows the previewed preset');
+  assert.equal(localStorage.getItem('drawingApp_accent'), 'blue', 'preview never persists');
+  assert.deepEqual(app.broadcasts, ['blue'], 'preview never broadcasts');
+  ctrl.endAccentPreview();
+  assert.equal(docEl.getAttribute('data-accent'), 'blue', 'leaving the list restores the committed preset');
+});
+
+test('previewAccent: over a committed CUSTOM hex, the inline --accent comes back on revert', () => {
+  reset();
+  const ctrl = new AccentController(makeApp());
+  ctrl.setCustomAccent('#abcdef');              // committed custom
+  ctrl.previewAccent('pink');
+  assert.equal(docEl.getAttribute('data-accent'), 'pink');
+  assert.equal(styleProps.has('--accent'), false, 'the preset preview drops the inline override');
+  ctrl.endAccentPreview();
+  assert.equal(styleProps.get('--accent'), '#abcdef', 'the custom hex is restored');
+});
+
+test('a committed change during a preview supersedes it: endAccentPreview then does nothing', () => {
+  reset();
+  const ctrl = new AccentController(makeApp());
+  ctrl.setAccent('blue');
+  ctrl.previewAccent('pink');
+  ctrl.setAccent('aqua');                       // a real pick lands mid-hover
+  ctrl.endAccentPreview();                       // the trailing revert must be a no-op
+  assert.equal(docEl.getAttribute('data-accent'), 'aqua', 'the pick stands; no revert to blue');
+});
+
 test('setCustomAccent: normalizes hex + sets inline --accent, no broadcast; invalid → null', () => {
   reset();
   const app = makeApp();

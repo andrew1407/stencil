@@ -1,6 +1,8 @@
 #pragma once
 #include <QComboBox>
 #include <QElapsedTimer>
+#include <QTimer>
+#include <functional>
 
 // Desktop port of the browser's enhanceSelect({ search: true }) dropdown
 // (browser/js/ui/customSelect.js + the .accent-dd-* rules in components.css):
@@ -33,6 +35,12 @@ namespace stencil::gui {
     // A delegate for the popup's option rows (the motion modes' animated glyphs —
     // support/motionIcons.hpp); installed when the popup is built. Owned by the list.
     void setListDelegate(QAbstractItemDelegate* delegate);
+    // Hover preview (browser twin: customSelect's `preview`): called with a row's item
+    // DATA while the pointer rests on it, and again with the committed currentData() when
+    // the pointer leaves the list or the popup closes without a pick. The callback must
+    // only repaint — never persist — so a filter or compare mode can be seen before it is
+    // chosen. A real pick commits through the usual activated/currentIndexChanged path.
+    void setPreview(std::function<void(const QString&)> fn);
     // The popup's list, once built (showPopup builds it) — for a delegate that needs it.
     QListView* popupList();
 
@@ -42,6 +50,7 @@ namespace stencil::gui {
   private:
     void ensurePopup();
     void choose(int proxyRow);
+    void restorePreview();          // put the committed value back after a hover preview
     void moveHighlight(int delta);
     void applyFilter(const QString& query);
     void positionPopup();
@@ -50,6 +59,10 @@ namespace stencil::gui {
     QWidget* popup_ = nullptr;      // Qt::Popup container (translucent corners)
     QLineEdit* search_ = nullptr;
     QAbstractItemDelegate* delegate_ = nullptr;   // setListDelegate, applied in ensurePopup
+    std::function<void(const QString&)> preview_;   // setPreview: hover-preview callback
+    bool previewing_ = false;       // a preview is showing → restorePreview() should revert
+    QTimer previewTimer_;           // rested-intent delay before a hover previews
+    QString pendingPreview_;        // …the row-value it will preview when it fires
     QListView* list_ = nullptr;
     QLabel* noMatch_ = nullptr;
     QSortFilterProxyModel* proxy_ = nullptr;

@@ -115,6 +115,20 @@ namespace stencil::gui {
     if (delegate_) list_->setItemDelegate(delegate_);
     list_->setFocusPolicy(searchable_ ? Qt::NoFocus : Qt::StrongFocus);   // keys go to
     if (!searchable_) list_->installEventFilter(this);                    // whoever has focus
+    // Hover preview: resting on a row live-applies its value (repaint only); leaving the
+    // list or closing the popup puts the committed one back. It waits for the pointer to
+    // settle, so skimming down the rows does not repaint for every option passed.
+    previewTimer_.setSingleShot(true);
+    previewTimer_.setInterval(280);
+    connect(&previewTimer_, &QTimer::timeout, this, [this] {
+      if (preview_ && !pendingPreview_.isEmpty()) { previewing_ = true; preview_(pendingPreview_); }
+    });
+    connect(list_, &QListView::entered, this, [this](const QModelIndex& idx) {
+      if (!preview_) return;
+      pendingPreview_ = idx.data(Qt::UserRole).toString();
+      previewTimer_.start();   // fires once the pointer settles on the row
+    });
+    list_->viewport()->installEventFilter(this);
     layout->addWidget(list_, 1);
 
     noMatch_ = new QLabel(tr("No matching format."), frame);
@@ -151,7 +165,20 @@ namespace stencil::gui {
     list_->setCurrentIndex(proxy_->index(next, 0));
   }
 
+  void SearchComboBox::setPreview(std::function<void(const QString&)> fn) {
+    preview_ = std::move(fn);
+  }
+
+  void SearchComboBox::restorePreview() {
+    previewTimer_.stop();          // cancel a hover that had not yet fired
+    pendingPreview_.clear();
+    if (!preview_ || !previewing_) return;
+    previewing_ = false;
+    preview_(currentData().toString());   // the committed value the trigger still holds
+  }
+
   void SearchComboBox::choose(int proxyRow) {
+    previewing_ = false;   // the pick commits the real value; no revert on the hide below
     const QModelIndex src = proxy_->mapToSource(proxy_->index(proxyRow, 0));
     if (src.isValid()) {
       setCurrentIndex(src.row());   // → currentIndexChanged / currentTextChanged
@@ -234,7 +261,10 @@ namespace stencil::gui {
   }
 
   bool SearchComboBox::eventFilter(QObject* watched, QEvent* event) {
+    if (list_ && watched == list_->viewport() && event->type() == QEvent::Leave)
+      restorePreview();   // pointer left the rows while the popup is still up
     if (watched == popup_ && event->type() == QEvent::Hide) {
+      restorePreview();   // however it closed without a pick, revert to the committed value
       lastHide_.start();
       // grab() still renders a hidden widget: an outside click hides popup_ via Qt's own
       // grab-loss handling, which never calls hidePopup() above, so the flight has to hang
