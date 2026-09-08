@@ -84,6 +84,11 @@ namespace stencil::support {
   // read from the native event instead — modalDismissMac.mm. A no-op elsewhere.
   void installModalDismissNative();
 
+  // Diagnostic breadcrumb for the outside-press path, written to the file named by
+  // STENCIL_MODAL_LOG (unset = nothing happens). stderr is not readable when the app is
+  // launched by LaunchServices, which is how it actually runs.
+  void modalDismissLog(const QString& line);
+
   // Set on a dialog that must be answered, never clicked away.
   inline constexpr const char* kNoOutsideDismissProperty = "stencilNoOutsideDismiss";
 

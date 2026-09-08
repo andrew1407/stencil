@@ -84,7 +84,8 @@
 }
 body {
     font-family: Arial, sans-serif;
-    padding: 20px;
+    /* Half the side frame (user decision) — the panel sits closer to the window edges. */
+    padding: 20px 10px;
     background: var(--bg-page);
     color: var(--text-main);
     transition: background 0.3s, color 0.3s;
@@ -127,7 +128,8 @@ body {
        is clamped in utils.js too; this is the backstop that keeps any wide content inside. */
     min-width: 0;
     background: var(--bg-container);
-    padding: 20px;
+    /* Less above the header so the logo row sits higher (user decision). */
+    padding: 12px 20px 20px;
     border-radius: 8px;
     box-shadow: 0 2px 10px var(--shadow);
     color: var(--text-main);
@@ -731,11 +733,11 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.8px;
-    color: var(--text-muted);
+    color: var(--section-title, var(--text-muted));
     white-space: nowrap;
     padding: 0 4px 4px;
     margin-bottom: 4px;
-    opacity: 0.75;
+    opacity: 0.85;
 }
 .ctrl-section {
     display: flex;
@@ -818,7 +820,12 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
     cursor: pointer;
     line-height: 1.4;
 }
-#toggle-controls:hover { background: var(--bg-info); }
+/* Hover fills with a soft, transparent accent wash + accent ring — the desktop
+   controlsPill's ACCENT_SOFT hover, so the two surfaces match. */
+#toggle-controls:hover {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important;
+}
 .controls { margin-bottom: 0; }
 /* Collapsed: the fold itself (grid-template-rows + visibility) lives in animations.css,
    so the toolbar animates away instead of vanishing between two frames. */

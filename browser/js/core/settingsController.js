@@ -228,6 +228,20 @@ export class SettingsController {
 
   setCompareMode(m) { this.set('compareMode', m); }
 
+  // Live-apply a setting's VISUAL effect WITHOUT committing it — the dropdowns' hover
+  // preview. Sets the model field and repaints only: no mirror, no afterSet, no
+  // save/history/remoteSync. Restore by previewing the committed value; a bad one is
+  // ignored.
+  preview(key, value) {
+    const d = SETTINGS[key];
+    if (!d) return;
+    let v;
+    try { v = d.parse ? d.parse(value) : value; } catch { return; }
+    if (v === undefined) return;
+    this.app[d.field] = v;
+    if (d.redraw) this.app.renderer.redraw();
+  }
+
   // Divider position for the split compare modes (0..1), clamped so a sliver of each
   // side stays visible. Transient view state — redraw only, no persist/sync.
   setCompareSplit(v) {

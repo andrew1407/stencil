@@ -176,6 +176,27 @@ test('setImageFilter: coerces, redraws, marks filterDirty, saves + syncs', () =>
   assert.equal(app.rec.remoteSync, 1);
 });
 
+test('preview: repaints the field WITHOUT persisting — no save/sync/filterDirty', () => {
+  const app = makeApp();
+  const ctrl = new SettingsController(app);
+  ctrl.preview('imageFilter', 'sepia');
+  assert.equal(app.imageFilter, 'sepia', 'the model field shows the previewed value');
+  assert.equal(app.rec.redraw, 1, 'the canvas repaints');
+  assert.equal(app.rec.save, 0, 'a preview never saves');
+  assert.equal(app.rec.remoteSync, 0, 'a preview never syncs');
+  assert.equal(app.filterDirty, false, 'a preview never dirties the filter');
+  ctrl.preview('imageFilter', 'none');          // the "restore to committed" call
+  assert.equal(app.imageFilter, 'none');
+  assert.equal(app.rec.save, 0);
+});
+
+test('preview: a bad value is ignored, not thrown (compareMode parse rejects it)', () => {
+  const app = makeApp();
+  const before = app.compareMode;
+  new SettingsController(app).preview('compareMode', 'not-a-mode');
+  assert.equal(app.compareMode, before, 'the model is left as it was');
+});
+
 test('setPageSize: normalizes, updates coord table, redraws, saves + syncs', () => {
   const app = makeApp();
   new SettingsController(app).setPageSize('a5');

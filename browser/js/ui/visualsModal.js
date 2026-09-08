@@ -113,6 +113,13 @@ export class StencilVisualsModal extends StencilElement {
         const from = accentMount.querySelector('.accent-dd-trigger') || accentMount;
         return /^#/.test(key) ? app.setCustomAccent(key, from) : app.setAccent(key, from);
       },
+      // Resting on a preset row previews it on the page — with the flood a real change
+      // plays, out of this picker — and leaving/closing without a pick floods back to the
+      // committed accent (accentController).
+      preview: {
+        on: (key) => app.previewAccent?.(key, accentMount.querySelector('.accent-dd-trigger') || accentMount),
+        off: () => app.endAccentPreview?.(accentMount.querySelector('.accent-dd-trigger') || accentMount),
+      },
     });
     // The accent moved elsewhere (the logo's click-cycle or menu, another tab) — keep this
     // picker's swatch in sync. The event carries the NEW value; without one, the live

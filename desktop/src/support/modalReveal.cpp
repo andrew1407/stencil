@@ -14,7 +14,9 @@
 #include <QDialog>
 #include <QEasingCurve>
 #include <QApplication>
+#include <QFile>
 #include <QFileDialog>
+#include <QTextStream>
 #include <QLabel>
 #include <QParallelAnimationGroup>
 #include <QPixmap>
@@ -454,6 +456,14 @@ namespace stencil::support {
                  kGestureAnchorPx, kGestureAnchorPx);
   }
 
+  void modalDismissLog(const QString& line) {
+    const QByteArray path = qgetenv("STENCIL_MODAL_LOG");
+    if (path.isEmpty()) return;
+    QFile f(QString::fromLocal8Bit(path));
+    if (!f.open(QIODevice::Append | QIODevice::Text)) return;
+    QTextStream(&f) << line << '\n';
+  }
+
   namespace {
     constexpr const char* kModalDismissFilterName = "stencilModalDismissFilter";
 
@@ -472,10 +482,10 @@ namespace stencil::support {
         if (e->type() != QEvent::MouseButtonPress) return QObject::eventFilter(o, e);
         auto* dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
         auto* w = qobject_cast<QWidget*>(o);
-        if (qEnvironmentVariableIsSet("STENCIL_MODAL_LOG"))
-          qWarning("[modal] Qt press seen on %s, modal=%s",
-                   w ? w->metaObject()->className() : o->metaObject()->className(),
-                   dlg ? dlg->metaObject()->className() : "(none)");
+        modalDismissLog(QStringLiteral("[modal] Qt press on %1, modal=%2")
+                            .arg(QString::fromLatin1(w ? w->metaObject()->className()
+                                                       : o->metaObject()->className()),
+                                 QString::fromLatin1(dlg ? dlg->metaObject()->className() : "(none)")));
         // A NATIVE panel is the OS's window, not ours to close; an opted-out dialog is a
         // question that has to be answered.
         if (!dlg || !w || !dlg->isVisible() || qobject_cast<QFileDialog*>(dlg)

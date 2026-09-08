@@ -12,7 +12,12 @@ import { markSwap, pinWidestFace } from './motion.js';
 // substring via rowMatches) with a "no match" placeholder; Escape still closes.
 // `icons(value)` answers an inline-SVG string for a row (or ''), shown before the label
 // and in the trigger — the motion modes' glyphs (motionIcons.js) are the one user today.
-export function enhanceSelect(selectEl, { search = false, icons = null } = {}) {
+// `preview(value)` — optional: called with an option's value while the pointer rests on
+// its row, so a filter or compare mode is live-applied to the canvas as a preview; called
+// again with the committed value (the one the native select still holds) when the pointer
+// leaves the list or the menu closes without a pick. It must NOT persist — it is a repaint
+// only (settingsController.preview). A real pick commits through the normal `change` path.
+export function enhanceSelect(selectEl, { search = false, icons = null, preview = null } = {}) {
   if (!selectEl || selectEl.dataset.csEnhanced) return;
   selectEl.dataset.csEnhanced = '1';
 
@@ -56,6 +61,22 @@ export function enhanceSelect(selectEl, { search = false, icons = null } = {}) {
   wrap.append(trigger, menu);
   const cur = trigger.querySelector('.cs-cur');
   const curIcon = trigger.querySelector('.cs-cur-icon');
+
+  // Hover-preview bookkeeping: put the committed value back (selectEl.value — a preview
+  // never touches it) once the pointer has left the list or the menu closed without a
+  // pick. The preview waits for the pointer to settle, so skimming the rows repaints
+  // nothing; moving off cancels a pending one.
+  const PREVIEW_HOVER_MS = 280;
+  let previewActive = false;
+  let hoverTimer = null;
+  const clearHover = () => { if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; } };
+  const restorePreview = () => {
+    clearHover();
+    if (!preview || !previewActive) return;
+    previewActive = false;
+    preview(selectEl.value);
+  };
+  if (preview) menu.addEventListener('pointerleave', restorePreview);
 
   // Search state — rebuilt with the menu on every open (so each open starts with an
   // empty query and every row visible). Filtering only toggles row display; the native
@@ -104,6 +125,16 @@ export function enhanceSelect(selectEl, { search = false, icons = null } = {}) {
         li.textContent = opt.textContent;
       }
       li.addEventListener('click', () => choose(opt.value));
+      // Hovering a row previews it on the canvas (see `preview` above); leaving the list
+      // puts the committed value back. pointerleave fires once, on the way out of the
+      // whole menu, so moving between rows just re-previews the new one.
+      if (preview) {
+        li.addEventListener('pointerenter', () => {
+          clearHover();
+          hoverTimer = setTimeout(() => { hoverTimer = null; previewActive = true; preview(opt.value); }, PREVIEW_HOVER_MS);
+        });
+        li.addEventListener('pointerleave', clearHover);
+      }
       menu.appendChild(li);
     }
     if (search) {
@@ -205,6 +236,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null } = {}) {
   let closeDone = null;
   const close = () => {
     if (menu.hidden || menu.classList.contains('dd-closing')) return;
+    restorePreview();   // a menu dismissed without a pick reverts to the committed value
     trigger.setAttribute('aria-expanded', 'false');
     document.removeEventListener('pointerdown', onDocDown, true);
     document.removeEventListener('keydown', onKey);
@@ -221,6 +253,8 @@ export function enhanceSelect(selectEl, { search = false, icons = null } = {}) {
   // picked (None → Fire used to arrive with None's no-motion — user report). The raw setter
   // keeps the wrapped one's sync for after the dispatch.
   const choose = (v) => {
+    clearHover();
+    previewActive = false;   // the pick commits the real value; no revert on the close below
     proto.set.call(selectEl, v);
     selectEl.dispatchEvent(new Event('change', { bubbles: true }));
     close();
@@ -245,7 +279,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null } = {}) {
 // Every <select> the app has, in one pass: they all wear the same dropdown, and a
 // second call is a no-op (enhanceSelect marks what it has taken over). `search` is for
 // the long lists — the ISO page formats — where scrolling alone is too slow.
-export function enhanceAllSelects(root = document, { search = ['page-size'] } = {}) {
+export function enhanceAllSelects(root = document, { search = ['page-size'], preview = null } = {}) {
   for (const sel of root.querySelectorAll('select:not([data-cs-skip])'))
-    enhanceSelect(sel, { search: search.includes(sel.id) });
+    enhanceSelect(sel, { search: search.includes(sel.id), preview: preview ? preview(sel) : null });
 }

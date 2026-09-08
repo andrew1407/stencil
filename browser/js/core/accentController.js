@@ -102,6 +102,7 @@ export class AccentController {
   // Paint + persist the accent in THIS tab; returns the resolved key. Used by setAccent
   // (local change) and the cross-tab listener (remote change, no re-broadcast).
   applyAccent(key, originEl = null) {
+    this._preview = null;   // a committed change supersedes any hover preview (no revert)
     const next = isAccent(key) ? key : DEFAULT_ACCENT;
     // Same flood as the theme swap — an accent change repaints as much of the page.
     themeSwap(() => {
@@ -114,12 +115,41 @@ export class AccentController {
     return next;
   }
 
+  // Hover preview for the accent pickers: paint a preset while the pointer rests on its
+  // row, with the same flood a real change plays — but no persist, favicon or broadcast.
+  // The first call snapshots what is committed (a preset, or an inline custom hex);
+  // endAccentPreview() floods back to it. `originEl` is the control the wipe blooms from.
+  previewAccent(key, originEl = null) {
+    if (!isAccent(key)) return;
+    const el = document.documentElement;
+    if (!this._preview) this._preview = { data: el.getAttribute('data-accent'),
+                                          inline: el.style.getPropertyValue('--accent') };
+    themeSwap(() => {
+      el.style.removeProperty('--accent');
+      el.setAttribute('data-accent', key);
+      this.applyGlyphContrast(accentHex(key));
+    }, () => originOf(originEl) || accentOrigin());
+  }
+
+  endAccentPreview(originEl = null) {
+    if (!this._preview) return;
+    const el = document.documentElement;
+    const { data, inline } = this._preview;
+    this._preview = null;
+    themeSwap(() => {
+      if (inline) el.style.setProperty('--accent', inline); else el.style.removeProperty('--accent');
+      if (data) el.setAttribute('data-accent', data); else el.removeAttribute('data-accent');
+      this.applyGlyphContrast(inline || accentHex(data || DEFAULT_ACCENT));
+    }, () => originOf(originEl) || accentOrigin());
+  }
+
   // Page-only accent: NO persistence and NO cross-tab broadcast (unlike setAccent) — it
   // vanishes on reload. The inline --accent overrides the data-accent preset rule.
   // Returns the normalized '#rrggbb', or null when `hex` isn't a valid colour.
   setCustomAccent(hex, originEl = null) {
     const norm = normalizeHex(hex);
     if (!norm) return null;
+    this._preview = null;   // a committed change supersedes any hover preview (no revert)
     themeSwap(() => {
       document.documentElement.style.setProperty('--accent', norm);
       applyFaviconHex(norm);

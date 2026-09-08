@@ -249,6 +249,12 @@ namespace stencil::gui {
     static constexpr double kSurfaceGatherSplit = 0.16;
     static constexpr double kSurfaceScatterSplit = 0.18;
     static constexpr double kRowSplit = 0.38;
+    // A surface's motes are the ACCENT now, not the window's own pixels, so a cloud over a
+    // near-opaque window adds coloured light and the window "blinks lighter" at the
+    // hand-off (user report). The cloud must be clear while the window is substantially
+    // opaque: the gather fades out early, the scatter holds off until the window cuts out.
+    static constexpr double kSurfaceMoteFadeFrac = 0.55;   // of the post-hold span (in)
+    static constexpr double kSurfaceMoteRiseDelay = 0.5;   // × split before motes rise (out)
 
     // The sideways push at progress `p` of a throw `tx, ty`, for a grain of hash `w`.
     static QPointF turbulenceAt(double p, double tx, double ty, double w) {
@@ -448,7 +454,11 @@ namespace stencil::gui {
                                             bool escapeHost = false, bool alwaysEscape = false) {
       if (!support::dustAllowed()) return nullptr;   // no particles in this motion mode
       if (!host || snap.isNull() || picture.width() < 8 || picture.height() < 8) return nullptr;
-      auto* fx = new DisintegrateOverlay(host, liftedToInk(snap, ink));
+      // The TRUE window pixels, NOT liftedToInk(): the motes are the accent now, but the
+      // snapshot is still the cross-fade the window forms out of, and lifting it toward the
+      // ink flashed the wrong tone at the hand-off (user report). The lift survives on the
+      // non-surface flights (over/overRect), whose at-home cells still read it.
+      auto* fx = new DisintegrateOverlay(host, snap);
       fx->ink_ = ink;
       fx->sweep_ = gather ? Sweep::SurfaceIn : Sweep::SurfaceOut;
       fx->picture_ = picture;
@@ -778,14 +788,14 @@ namespace stencil::gui {
       // a LANDED mote sits at home at full size until then, a grain of the dot screen
       // the window is cross-fading out of, never a hole. A leaving cloud fades in over
       // the first beat, as the surface under it cuts out.
-      // The cloud starts leaving exactly where the window starts fading UP (kDustHold),
-      // so the two alphas stay complementary. They used to overlap for a few percent at
-      // full strength each: harmless while a grain was the window's own pixel, but the
-      // grains are the ACCENT now, so the overlap added coloured light and the window
-      // flashed lighter just before it landed (user report).
+      // The cloud clears before the window is substantially opaque (kSurfaceMoteFade*):
+      // IN it holds, then fades out over the first part of the window's fade-up; OUT it
+      // waits until the leaving window has begun to cut out, then rises.
       const double host = gather
-          ? (t_ < kDustHold ? 1.0 : 1.0 - (t_ - kDustHold) / (1.0 - kDustHold))
-          : std::min(1.0, t_ / kSurfaceScatterSplit);
+          ? (t_ < kDustHold ? 1.0
+             : std::max(0.0, 1.0 - (t_ - kDustHold) / ((1.0 - kDustHold) * kSurfaceMoteFadeFrac)))
+          : std::clamp((t_ - kSurfaceScatterSplit * kSurfaceMoteRiseDelay) / kSurfaceScatterSplit,
+                       0.0, 1.0);
       if (gather && t >= 1.0) {
         out->at = home;
         out->radius = moteRadius(cw, ch, n);
@@ -794,10 +804,14 @@ namespace stencil::gui {
         return true;
       }
       // A gathering mote waits at the point until its delay is up, which is what makes
-      // the stream read as pouring out. The ramps ride the clock (browser
-      // tileGatherSurface / tileScatterSurface), not the eased distance — see scatterAlpha.
+      // the stream read as pouring out. The ramps ride the clock (browser dustCloud.js
+      // FLIGHTS surfaceGather / surfaceScatter), not the eased distance — see scatterAlpha.
+      // A SCATTER fades to nothing by 82%, not at the very end: every mote converges on the
+      // one icon point, so a tail still at ~0.2 opacity piled into a solid accent blob that
+      // blinked out (user report). Matches surfaceScatter's alpha stops.
       const double alpha = host * (gather ? (t < 0.45 ? 0.55 + 0.45 * (t / 0.45) : 1.0)
-                                          : (t < 0.55 ? 1.0 - t * 0.18 : 0.9 * (1.0 - (t - 0.55) / 0.45)));
+                                          : (t < 0.5 ? 1.0 - t * 0.3
+                                                     : std::max(0.0, 0.85 * (1.0 - (t - 0.5) / 0.32))));
       const double tx = toX + (m - 0.5) * kSurfaceSpreadPx;
       const double ty = toY + (n - 0.5) * kSurfaceSpreadPx;
       // Two legs (the browser's mid keyframe): a gather flies far → bend over its first

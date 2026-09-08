@@ -41,6 +41,7 @@ namespace stencil::gui {
    private:
     void start();
     void stop();
+    void showStatic();   // paint the resting mark (no animation), button icon blanked
     void blankButtonIcon();
     void syncGeometry();
     void leaveSoon();

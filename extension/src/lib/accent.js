@@ -643,12 +643,41 @@
 
   // The mirrored accent lets non-page contexts colour the on-page highlight to match
   // the theme (lib/highlightColor.js).
+  // ── Custom accent + hover preview (browser parity: accentController) ──
+  // A double-clicked custom accent is PAGE-ONLY: an inline --accent override, gone on
+  // reload. A hover preview paints a preset and reverts on leave. Neither persists.
+  var normalizeHex = function (v) {
+    var m = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(String(v || '').trim());
+    if (!m) return null;
+    var h = m[1];
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    return '#' + h.toLowerCase();
+  };
+  var applyGlyphShadow = function (hex) {
+    if (needsGlyphShadow(hex)) document.documentElement.setAttribute('data-accent-light', '');
+    else document.documentElement.removeAttribute('data-accent-light');
+  };
+  var setFaviconHex = function (hex) {
+    if (typeof document === 'undefined' || !document.head) return;
+    var link = document.querySelector('link[rel="icon"]');
+    if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+    link.type = 'image/svg+xml';
+    link.href = 'data:image/svg+xml,' + encodeURIComponent(faviconSvg(hex));
+  };
+  var previewSnap = null;   // {data, inline} captured on the first hover of an open menu
+  // Tell same-page listeners (the options accent dropdown) that the accent moved — the
+  // logo's own gestures change it out from under them. Browser twin: accentController.announce.
+  var announce = function (v) {
+    try { window.dispatchEvent(new CustomEvent('stencil:accent-changed', { detail: v })); } catch (e) { /* no DOM */ }
+  };
+
   var apply = function (k) {
     var next = has(k) ? k : DEFAULT;
+    previewSnap = null;   // a committed change supersedes any hover preview
+    document.documentElement.style.removeProperty('--accent');   // drop any custom override
     document.documentElement.setAttribute('data-accent', next);
     // White glyphs on a light accent get their dark shadow (lib/theme.css).
-    if (needsGlyphShadow(hexOf(next))) document.documentElement.setAttribute('data-accent-light', '');
-    else document.documentElement.removeAttribute('data-accent-light');
+    applyGlyphShadow(hexOf(next));
     applyFavicon(k);
     mirror({ stencil_accent: next });
   };
@@ -664,7 +693,48 @@
       var next = has(k) ? k : DEFAULT;
       writePref(KEY, next);
       swap(function () { apply(next); }, from || 'theme-toggle');
+      announce(next);
       return next;
+    },
+    // Page-only custom accent (the logo's double-click picker): an inline --accent that
+    // overrides the data-accent preset rule; NOT persisted, gone on reload. Returns the
+    // normalized '#rrggbb', or null for junk. Browser twin: accentController.setCustomAccent.
+    setCustom: function (hex, from) {
+      var norm = normalizeHex(hex);
+      if (!norm) return null;
+      previewSnap = null;   // a commit supersedes any hover preview
+      swap(function () {
+        document.documentElement.style.setProperty('--accent', norm);
+        applyGlyphShadow(norm);
+        setFaviconHex(norm);
+      }, from || 'theme-toggle');
+      announce(norm);
+      return norm;
+    },
+    // Hover preview: paint a preset while the pointer rests on its row, WITH the same
+    // flood-from-the-control a real change plays (swap) — but no persist; endAccentPreview()
+    // floods back to the committed accent (preset or custom). The first call of an open
+    // menu snapshots what is committed. `from` is the control the wipe blooms from.
+    previewAccent: function (key, from) {
+      if (!has(key)) return;
+      var el = document.documentElement;
+      if (!previewSnap) previewSnap = { data: el.getAttribute('data-accent'),
+                                        inline: el.style.getPropertyValue('--accent') };
+      swap(function () {
+        el.style.removeProperty('--accent');
+        el.setAttribute('data-accent', key);
+        applyGlyphShadow(hexOf(key));
+      }, from || 'theme-toggle');
+    },
+    endAccentPreview: function (from) {
+      if (!previewSnap) return;
+      var el = document.documentElement;
+      var snap = previewSnap; previewSnap = null;
+      swap(function () {
+        if (snap.inline) el.style.setProperty('--accent', snap.inline); else el.style.removeProperty('--accent');
+        if (snap.data) el.setAttribute('data-accent', snap.data); else el.removeAttribute('data-accent');
+        applyGlyphShadow(snap.inline || hexOf(snap.data || DEFAULT));
+      }, from || 'theme-toggle');
     },
   };
   // ── Appearance (light / dark / follow the OS) ───────────────────────────────

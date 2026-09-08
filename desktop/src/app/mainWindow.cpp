@@ -36,6 +36,7 @@
 #include "menuShimmer.hpp"
 #include "modalReveal.hpp"
 #include "searchCombo.hpp"
+#include "controlsPill.hpp"
 #include "iconSet.hpp"
 #include "numericInput.hpp"
 #include "infoDialog.hpp"
@@ -2812,9 +2813,10 @@ namespace stencil::gui {
     positionChatEdge();
     if (controlsPill_) {
       // ONE glyph, turned: 0° is ↑ (rows shown), 180° is ↓. spinControlsPill drives the
-      // angle, this only paints whatever it currently is (it also runs on theme flips).
+      // angle; the pill paints the chevron itself (ControlsPill) in the label's left
+      // padding, so the button stays text-only and shrink-wraps the word (no icon-slot gap).
       const QColor ic = palette().color(QPalette::WindowText);
-      controlsPill_->setIcon(rotatedIcon("chevron-up", ic, kPillChevron, pillChevronDeg_));
+      static_cast<ControlsPill*>(controlsPill_)->setChevron(pillChevronDeg_, ic, kPillChevron);
     }
     updatePanelReopenButton();
   }
@@ -6615,7 +6617,10 @@ namespace stencil::gui {
   // dots trace an S. Only the frame tracks the accent (like the browser), so it never looks garish.
   // Repainted on theme/accent change from applyTheme.
   QPixmap MainWindow::makeLogoPixmap(int size) const {
-    const qreal dpr = devicePixelRatioF();
+    // At LEAST 2x, whatever devicePixelRatioF() says: it often reports 1 here (before the
+    // window is on its Retina screen), and a 1x pixmap in a 2x button draws at HALF size
+    // (user report: a tiny resting logo). A 1x screen just downscales it, crisp.
+    const qreal dpr = qMax(devicePixelRatioF(), 2.0);
     QPixmap pm(qRound(size * dpr), qRound(size * dpr));
     pm.setDevicePixelRatio(dpr);
     pm.fill(Qt::transparent);
@@ -6700,9 +6705,64 @@ namespace stencil::gui {
     }
   }
 
+  void MainWindow::previewAccent(const QString& key) {
+    if (!accentPreviewActive_) { accentPreviewSaved_ = settings_.accentColor; accentPreviewActive_ = true; }
+    if (key == settings_.accentColor) return;
+    settings_.accentColor = key;
+    applyTheme();   // floods the palette out of the logo, exactly as a real change does
+  }
+
+  void MainWindow::endAccentPreview() {
+    if (!accentPreviewActive_) return;
+    accentPreviewActive_ = false;
+    if (settings_.accentColor == accentPreviewSaved_) return;
+    settings_.accentColor = accentPreviewSaved_;
+    applyTheme();   // …and floods back to the committed accent on leave
+  }
+
+  namespace {
+    // A row's Enter previews, a real leave of the popover reverts — a hop between rows is
+    // not a leave (the pointer is still inside the popover rect), so it never flickers.
+    // The preview waits for the pointer to settle: it plays the accent flood, which must
+    // not fire once per row skimmed past. Browser twin: accentPicker.js.
+    class AccentHoverFilter : public QObject {
+     public:
+      AccentHoverFilter(QObject* parent, QWidget* popover,
+                        std::function<void(const QString&)> onEnter, std::function<void()> onLeave)
+          : QObject(parent), popover_(popover), enter_(std::move(onEnter)), leave_(std::move(onLeave)) {
+        timer_.setSingleShot(true);
+        timer_.setInterval(280);   // rested-intent delay — matches the JS surfaces (PREVIEW_HOVER_MS)
+        QObject::connect(&timer_, &QTimer::timeout, this, [this] { if (!pending_.isEmpty()) enter_(pending_); });
+      }
+
+     protected:
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (e->type() == QEvent::Enter) {
+          auto* w = qobject_cast<QWidget*>(o);
+          const QString key = w ? w->property("accentKey").toString() : QString();
+          if (!key.isEmpty()) { pending_ = key; timer_.start(); }   // fires once the pointer rests
+        } else if (e->type() == QEvent::Leave && popover_) {
+          const QPoint p = popover_->mapFromGlobal(QCursor::pos());
+          if (!popover_->rect().contains(p)) { timer_.stop(); pending_.clear(); leave_(); }  // truly left
+        }
+        return QObject::eventFilter(o, e);
+      }
+      QWidget* popover_;
+      std::function<void(const QString&)> enter_;
+      std::function<void()> leave_;
+      QTimer timer_;
+      QString pending_;
+    };
+  }  // namespace
+
   void MainWindow::openAccentPicker() {
     QDialog dlg(this);
     dlg.setObjectName(QStringLiteral("accentPopover"));
+    // Resting on a preset row previews it on the whole app (instant repaint, no persist);
+    // leaving the popover or closing it without a pick reverts to the committed accent.
+    auto* hover = new AccentHoverFilter(&dlg, &dlg,
+        [this](const QString& key) { previewAccent(key); }, [this] { endAccentPreview(); });
+    dlg.installEventFilter(hover);
     auto* col = new QVBoxLayout(&dlg);
     col->setContentsMargins(8, 8, 8, 8);
     col->setSpacing(1);
@@ -6723,22 +6783,20 @@ namespace stencil::gui {
       // Menu-tight metrics (theme.cpp QDialog#accentPopover QPushButton).
       row->setProperty("accentKey", a.key);         // observable by the GUI test
       row->setProperty("currentAccent", current);
-      connect(row, &QPushButton::clicked, &dlg, [this, &dlg, key = a.key] {
+      row->installEventFilter(hover);   // Enter previews this preset (see AccentHoverFilter)
+      connect(row, &QPushButton::clicked, &dlg, [this, key = a.key] {
+        accentPreviewActive_ = false;   // a pick commits; the close below must not revert it
         auto next = settings_;
         next.accentColor = key;
         applySettings(next, true);   // the click-cycle's apply + persist path; re-marks the ✓ via applyTheme
-        // The popover STAYS OPEN: the point of the list is trying colours against the
-        // live app, so a pick waits for the next one. It closes the ways every popover
-        // closes — outside click, Escape, Alt release, a glide to another icon, the app
-        // losing focus.
-        // An accent change re-themes the window (and may play the accent wipe over it):
-        // keep the popover on top of whatever that repaints, and keyboard-ready.
-        if (popoverOverlay_) popoverOverlay_->raise();
-        dlg.setFocus(Qt::PopupFocusReason);
+        // A pick CLOSES the popover now (user decision — hovering already previews live,
+        // so a click is a commit). Browser twin: the logo menu closes on a pick.
+        dismissPopover();
       });
       col->addWidget(row);
     }
     execMaybePopover(dlg);
+    endAccentPreview();   // closed while a row was still hovered → back to the committed accent
   }
 
   void MainWindow::updateProjectTitle() {

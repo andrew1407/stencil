@@ -53,8 +53,11 @@ namespace stencil::gui {
     // apply covers them all — and skipping the boot pass and the no-op re-applies.
     // …and never under reduced motion: the browser's themeSwap applies the palette
     // outright there (motionReduced), and so does this — the wipe is motion too.
-    const bool swapping = themePainted_ && !support::motionReduced()
-        && (dark != paintedDark_ || settings_.accentColor != paintedAccent_);
+    // …and never while one is still in flight: a hover preview re-applies on every row,
+    // and stacking a fresh snapshot over a running wipe tore the window (the hpp note).
+    // The palette still restyles; only the extra wipe is skipped.
+    const bool paletteMoved = dark != paintedDark_ || settings_.accentColor != paintedAccent_;
+    const bool swapping = themePainted_ && !support::motionReduced() && !themeSwapping() && paletteMoved;
     // Start the wipe at the ICON that owns the change — the theme button for a
     // light/dark flip, the logo for an accent cycle — exactly as the browser blooms
     // from its theme toggle. The cursor is NOT good enough: driving this from the View
@@ -84,8 +87,11 @@ namespace stencil::gui {
     }
     // The app-wide palette/stylesheet depend only on (dark, accent): skip the global
     // re-polish (it restyles every widget in the process) when neither moved — the
-    // live-apply Settings dialog runs this whole function per control click.
-    const bool restyleApp = !themePainted_ || swapping;
+    // live-apply Settings dialog runs this whole function per control click. Keyed off
+    // paletteMoved, NOT `swapping`: a change that lands while a wipe is still in flight
+    // skips the extra wipe but MUST still restyle, or the palette silently stalls
+    // (a preview flooding over a running one, or a live Settings change mid-wipe).
+    const bool restyleApp = !themePainted_ || paletteMoved;
     themePainted_ = true;
     paintedDark_ = dark;
     paintedAccent_ = settings_.accentColor;

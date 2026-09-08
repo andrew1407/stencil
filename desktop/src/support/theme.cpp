@@ -329,9 +329,12 @@ namespace stencil::gui {
         width: 1px; background: %BORDER%; margin: 5px 6px; border-radius: 1px;
       }
       QToolBar QLabel { color: %MUTED%; background: transparent; padding: 0 2px; }
+      /* Section captions (IMAGE / LINE / POINT …). Darker than %MUTED% in the light theme —
+         the plain grey read as too faint on white (user report). */
+      QLabel#sectionLabel { color: %SECTIONTITLE%; background: transparent; }
       /* The header row carries only the logo, the Controls pill and the project name, so it
          gets a tighter band than the tool rows below it. */
-      QToolBar#headerToolbar { padding: 1px 6px; }
+      QToolBar#headerToolbar { padding: 1px 6px 1px 11px; }   /* +5px left inset for the logo */
 
       /* Image Size bar, right above the canvas — a central-layout row now (see
          MainWindow's centralLayout_), styled like the toolbar rows above it. */
@@ -426,9 +429,14 @@ namespace stencil::gui {
       /* Controls collapse pill: an outlined pill, not bare text — the browser's
          #toggle-controls (1px border, 16px radius, 12px label). */
       QToolButton#controlsPill {
+        /* ControlsPill paints the chevron + label itself, centred, and sizes to them
+           (support/controlsPill.hpp) — so this rule is just the oval: border + fill. */
         color: %TEXT%; background: transparent; font-size: 12px;
-        border: 1px solid %BORDER%; border-radius: 12px; padding: 2px 10px;
+        border: 1px solid %BORDER%; border-radius: 12px; padding: 0px;
       }
+      /* The pill has no menu, but QToolButton still reserves ~13px on the right for the
+         menu-indicator — trailing whitespace inside the button (user report). Zero it. */
+      QToolButton#controlsPill::menu-indicator { image: none; width: 0; }
       QToolButton#controlsPill:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
       QToolButton#controlsPill:pressed { background: %ACCENT_SOFT2%; }
       QToolButton {
@@ -1105,6 +1113,7 @@ namespace stencil::gui {
         .replace("%CARET_DIM%", caretImagePath(caretDim))
         .replace("%CARET%", caretImagePath(p.textMuted))
         .replace("%MUTED%", c(p.textMuted))
+        .replace("%SECTIONTITLE%", dark ? QStringLiteral("#7a828c") : QStringLiteral("#565d67"))
         .replace("%DISABLED_TEXT%", c(p.disabledText))
         .replace("%ACCENT%", c(p.accent))
         .replace("%INPUT_BG%", c(p.inputBg))

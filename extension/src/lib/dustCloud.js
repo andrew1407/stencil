@@ -55,8 +55,11 @@ export const FLIGHTS = {
   // to be seen. Same curves both ways: the motes break away at once and drift to a stop.
   surfaceGather: { from: 'far', split: 0.16, leg: leg(0.3, 0.3, 0.6, 0.8), rest: leg(0.16, 1, 0.3, 1),
                    alpha: [[0, 0.55], [0.45, 1], [1, 1]] },
+  // …fading to nothing by 82% of the trip, not at the very end: every mote converges on
+  // the one icon point, so a tail still at ~0.2 opacity piled into a solid accent blob that
+  // blinked out (user report). Gone before they cluster, they dissipate INTO the icon.
   surfaceScatter: { from: 'home', split: 0.18, leg: leg(0.3, 0.3, 0.6, 0.8), rest: leg(0.16, 1, 0.3, 1),
-                    alpha: [[0, 1], [0.55, 0.9], [1, 0]] },
+                    alpha: [[0, 1], [0.5, 0.85], [0.82, 0]] },
   // A mark's departure: the desktop's Sweep::Fall — near-still for the first third,
   // then dropping away and accelerating, the bend past halfway where a fall's is.
   fall: { from: 'home', split: 0.6, leg: leg(0.45, 0, 0.8, 0.4), rest: leg(0.45, 0, 0.8, 0.4),

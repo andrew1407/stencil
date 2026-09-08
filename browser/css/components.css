@@ -1554,7 +1554,9 @@ stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
     cursor: pointer;
     white-space: nowrap;
 }
-.accent-dd-opt:hover { background: var(--bg-coord-hover); }
+/* `.dd-hover` mirrors :hover but is JS-driven (accentPicker.js), so the previewed row's
+   highlight survives the accent flood's View Transition, which drops real :hover. */
+.accent-dd-opt:hover, .accent-dd-opt.dd-hover { background: var(--bg-coord-hover); }
 .accent-dd-opt[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 18%, transparent); }
 /* The logo's right-click / Alt / Alt+click copy of the menu (ui/toolbar.js): anchored
    under the top-left logo inside .app-logo-wrap, so it hangs LEFT-aligned (the shared

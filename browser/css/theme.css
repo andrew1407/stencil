@@ -43,6 +43,7 @@
     --text-main:      #000000;
     --text-label:     inherit;
     --text-muted:     #888;
+    --section-title:  #565d67;  /* control-section captions: darker than muted on white */
     --text-info:      inherit;
     --text-coord-h3:  #333;
     --text-sel-label: #7a5c00;
@@ -54,10 +55,10 @@
        on light, a light shadow on dark (see [data-theme="dark"]). The colour never switches;
        only the shadow does. A custom per-project colour overrides --project-name-fg inline. */
     --project-name-fg:     #80868f;
-    /* A single soft dark drop shadow — lifts the grey name off a light background and is harmless
-       (invisible) on a dark one. Clean: no muddy 4-way outline, no light-on-dark glow. Same value
-       both themes (the grey is already legible on dark), so no flip is needed. */
-    --project-name-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+    /* A whisper-soft shadow — enough to lift the grey name off a light background. The old
+       0.55 alpha / 2px blur drooped below the glyphs, so the name read as hanging low
+       against the shadow-free logo and pill beside it (user report). */
+    --project-name-shadow: 0 1px 1px rgba(0, 0, 0, 0.20);
     --text-tooltip:   #2c3e50;
     --text-tt-header: #1a252f;
     --input-bg:       #ffffff;

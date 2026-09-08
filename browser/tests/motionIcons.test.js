@@ -54,7 +54,7 @@ test('the CSS plays each mode on hover, in the direction asked for', () => {
 test('the Visuals dropdown wears the glyphs; the dropdown puts them before the label and on the trigger', () => {
   assert.match(read('../js/ui/visualsModal.js'), /enhanceSelect\(motionMode, \{ icons: motionModeIcon \}\)/);
   const cs = read('../js/ui/customSelect.js');
-  assert.match(cs, /export function enhanceSelect\(selectEl, \{ search = false, icons = null \} = \{\}\)/);
+  assert.match(cs, /export function enhanceSelect\(selectEl, \{ search = false, icons = null, preview = null \} = \{\}\)/);
   assert.match(cs, /slot\.className = 'cs-opt-icon';/);
   assert.match(cs, /const glyph = icons \? icons\(selectEl\.value\) : '';/);
   assert.match(cs, /if \(svg && changed\) \{\s*svg\.classList\.add\('mm-play'\);/, 'a changed value plays its glyph in');

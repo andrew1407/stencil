@@ -92,17 +92,15 @@ test('a custom accent selects no row, and picking one routes through setAccent w
 });
 
 // ── Picking KEEPS the menu open ─────────────────────────────────────────
-test('clicking three rows applies each accent and leaves the menu up, mark following the last', () => {
+test('clicking a row applies the accent and CLOSES the menu (user decision)', () => {
   const { logo, wrap, menu, calls } = rig();
   wrap.dispatch('contextmenu', { preventDefault: () => {} });
-  for (const key of ['pink', 'aqua', 'brown']) {
-    menu.children.find((li) => li.dataset.key === key).dispatch('click');
-    assert.equal(menu.hidden, false, `still open after picking ${key}`);
-    assert.ok(!menu.classList.contains('dd-closing'), 'and never starts its exit');
-    assert.deepEqual(marked(menu), [key], 'the ✓ follows the pick');
-  }
-  assert.deepEqual(calls, [['setAccent', 'pink', logo], ['setAccent', 'aqua', logo], ['setAccent', 'brown', logo]],
-    'every pick applied immediately, through the same path and origin');
+  assert.equal(menu.hidden, false, 'open after the right-click');
+  menu.children.find((li) => li.dataset.key === 'pink').dispatch('click');
+  assert.deepEqual(calls, [['setAccent', 'pink', logo]],
+    'the pick applied through the same path and origin');
+  assert.deepEqual(marked(menu), ['pink'], 'the ✓ follows the pick');
+  assert.ok(menu.hidden || menu.classList.contains('dd-closing'), 'a pick closes the menu');
   // The rows are built once — a pick must not re-render the list out from under the user.
   assert.equal(menu.children.length, ACCENTS.length);
 });

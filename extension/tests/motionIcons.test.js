@@ -49,7 +49,7 @@ test('the CSS plays each mode on hover, in the direction asked for', () => {
 
 test('the options dropdown wears the glyphs; the dropdown puts them before the label and on the trigger', () => {
   const cs = read('../src/lib/customSelect.js');
-  assert.match(cs, /export function enhanceSelect\(selectEl, \{ search = false, icons = null \} = \{\}\)/);
+  assert.match(cs, /export function enhanceSelect\(selectEl, \{ search = false, icons = null, preview = null \} = \{\}\)/);
   assert.match(cs, /slot\.className = 'cs-opt-icon';/);
   assert.match(cs, /const glyph = icons \? icons\(selectEl\.value\) : '';/);
   assert.match(cs, /if \(svg && changed\) \{\s*svg\.classList\.add\('mm-play'\);/, 'a changed value plays its glyph in');
