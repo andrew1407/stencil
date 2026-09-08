@@ -18,6 +18,7 @@ int main(int argc, char** argv) {
   check(cssColor(QStringLiteral("red")).isValid(), "named colours still parse");
   check(!cssColor(QStringLiteral("#zzzzzzzz")).isValid(), "garbage is invalid, not silently black");
   check(!cssName(QColor()).size(), "an invalid colour names nothing");
-  std::puts("cssColor: OK");
-  return 0;
+  // The counter every check() feeds — without this the suite would pass with failures in it.
+  std::printf("cssColor: %s\n", failures ? "FAILED" : "OK");
+  return failures ? 1 : 0;
 }
