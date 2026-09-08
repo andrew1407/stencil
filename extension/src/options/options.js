@@ -41,7 +41,7 @@ if (accent) {
     '<button type="button" class="accent-dd-trigger" aria-haspopup="listbox" aria-expanded="false">' +
     '<span class="accent-swatch js-cur-sw"></span><span class="accent-dd-name js-cur-name"></span>' +
     '<span class="accent-dd-caret" aria-hidden="true">' + icon('chevron-down', { size: 13 }) + '</span></button>' +
-    '<ul class="accent-dd-menu" role="listbox" hidden></ul>';
+    '<ul class="accent-dd-menu accent-swatch-menu" role="listbox" hidden></ul>';
   const trigger = mount.querySelector('.accent-dd-trigger');
   const menu = mount.querySelector('.accent-dd-menu');
   const curSw = mount.querySelector('.js-cur-sw');
@@ -52,7 +52,12 @@ if (accent) {
     li.className = 'accent-dd-opt';
     li.setAttribute('role', 'option');
     li.dataset.key = a.key;
-    li.innerHTML = `<span class="accent-swatch" style="background:${a.hex}"></span><span class="accent-dd-name">${a.label}</span>`;
+    // Every chip carries the ✓; only the selected row reveals it (lib/theme.css) — the
+    // browser's accentPicker.js row, and the desktop's painted tick.
+    li.innerHTML =
+      `<span class="accent-swatch" style="background:${a.hex}">` +
+      `${icon('check', { size: 11, cls: 'accent-check', sw: 3.5 })}</span>` +
+      `<span class="accent-dd-name">${a.label}</span>`;
     li.addEventListener('click', () => choose(a.key));
     menu.appendChild(li);
   }
