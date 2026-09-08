@@ -5,42 +5,126 @@
   so links that should open the Stencil DESKTOP app arrive here as
       launch.html#stencil-desktop=<encodeURIComponent(stencil:// URL)>
   and this page forwards to the custom scheme the desktop app registers with the OS.
-  Standalone on purpose: no module imports, works even when the editor fails to boot.
+  It wears the editor's own theme — the same prePaintTheme.js + css/theme.css the app
+  loads, so it follows the saved theme/accent and the OS colour scheme — but imports NO
+  modules and needs nothing to boot: every rule below falls back to a literal if the
+  shared sheets are missing, so a broken editor still shows a working page.
 -->
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stencil — opening the desktop app…</title>
+  <!-- Classic script, no imports: stamps data-theme / data-accent before first paint. -->
+  <script src="js/prePaintTheme.js"></script>
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/animations.css">
   <style>
     :root { color-scheme: light dark; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: Arial, sans-serif;
       display: flex; align-items: center; justify-content: center;
-      min-height: 100vh; margin: 0; background: #f5f5f7; color: #1c1c1e;
+      min-height: 100vh; margin: 0;
+      background: var(--bg-page, #f0f0f0);
+      color: var(--text-main, #1c1c1e);
     }
-    @media (prefers-color-scheme: dark) { body { background: #1c1c1e; color: #f5f5f7; } }
-    main { max-width: 26rem; padding: 2rem; text-align: center; }
-    h1 { font-size: 1.15rem; }
-    p { font-size: .9rem; opacity: .8; }
-    .actions { display: flex; gap: .6rem; justify-content: center; margin-top: 1.2rem; flex-wrap: wrap; }
+    /* The editor's panel: same surface, radius and shadow as .container (layout.css),
+       inside an accent frame like the logo's (user decision). Hovering it breathes the
+       same accent glow the logo does — logoPulse's drop-shadow, as a box-shadow. */
+    main {
+      max-width: 27rem; padding: 28px 32px 32px; text-align: center;
+      background: var(--bg-container, #fff);
+      border: 2px solid var(--accent, #7c3aed);
+      border-radius: 12px;
+      box-shadow: 0 2px 10px var(--shadow, rgba(0, 0, 0, .1));
+    }
+    main:hover { animation: cardPulse 1.2s ease-in-out infinite; }
+    @keyframes cardPulse {
+      0%, 100% { box-shadow: 0 2px 10px var(--shadow, rgba(0,0,0,.1)),
+                             0 0 2px color-mix(in srgb, var(--accent, #7c3aed) 25%, transparent); }
+      50%      { box-shadow: 0 2px 10px var(--shadow, rgba(0,0,0,.1)),
+                             0 0 18px color-mix(in srgb, var(--accent, #7c3aed) 80%, transparent); }
+    }
+    h1 { font-size: 1.15rem; margin: 14px 0 6px; }
+    p { font-size: .9rem; color: var(--text-muted, #888); margin: .5rem 0; }
+    code {
+      background: var(--bg-info, #e9ecef); color: var(--text-main, inherit);
+      padding: 1px 5px; border-radius: 4px; font-size: .85em;
+    }
+    #error { color: var(--danger, #d33); }
+
+    /* ── The logo, with the toolbar's hover shine ────────────────────────────
+       layout.css gives the mark its accent frame (.app-logo-frame) and the :hover
+       scale; animations.css draws the ray ring on .app-logo-wrap::before and breathes
+       it with logoPulse. In the app a JS latch adds .logo-hover — here plain :hover
+       stands in for it. */
+    .app-logo-wrap { display: inline-flex; }
+    .app-logo-wrap:hover .app-logo { animation: logoPulse 1.2s ease-in-out infinite; }
+    .app-logo-wrap:hover::before { animation: logoRaysSpin 8s linear infinite, logoRaysShimmer 1.2s ease-in-out infinite; }
+
+    .actions { display: flex; gap: .6rem; justify-content: center; margin-top: 1.4rem; flex-wrap: wrap; }
+    /* The glass sweep is the editor's OWN: layout.css animates ui-shimmer on
+       `button:hover::after`, and the anchors opt into the same rule through its
+       `.shimmer` hook — so all three behave identically, and at the app's timing.
+       (A second, local sweep on top of it played the shine twice — user report.)
+       The ::after is absolute + inset:0, so each host must be a positioned, clipping box. */
     a.btn, button.btn {
-      font-size: .9rem; padding: .5rem 1rem; border-radius: .5rem; cursor: pointer;
-      border: 1px solid #8884; background: transparent; color: inherit; text-decoration: none;
+      position: relative; overflow: hidden;
+      font-size: .9rem; padding: 8px 14px; border-radius: 4px; cursor: pointer;
+      border: 1px solid var(--border-main, #8884);
+      background-color: transparent; color: inherit; text-decoration: none;
+      transition: background-color .2s ease, border-color .2s ease, transform .12s ease;
     }
-    a.btn.primary { background: #7c3aed; border-color: #7c3aed; color: #fff; }
-    #error { color: #d33; }
+    a.btn:hover, button.btn:hover {
+      background-color: color-mix(in srgb, var(--accent, #7c3aed) 12%, transparent);
+      border-color: color-mix(in srgb, var(--accent, #7c3aed) 45%, transparent);
+    }
+    a.btn:active, button.btn:active { transform: translateY(1px); }
+    a.btn.primary {
+      background-color: var(--accent, #7c3aed); border-color: transparent; color: #fff;
+      text-shadow: var(--glyph-text-shadow, none);
+    }
+    a.btn.primary:hover { background-color: var(--accent-2, #6d28d9); }
+
+    /* A thin accent bar that sweeps while the hand-off is in flight — the page's one
+       sign that something is happening. Hidden once we know the link is bad. */
+    .bar { height: 3px; border-radius: 3px; margin: 18px auto 0; max-width: 220px; overflow: hidden;
+           background: color-mix(in srgb, var(--accent, #7c3aed) 18%, transparent); }
+    .bar::after {
+      content: ""; display: block; height: 100%; width: 40%; border-radius: 3px;
+      background: var(--accent, #7c3aed); animation: launchBar 1.25s ease-in-out infinite;
+    }
+    @keyframes launchBar { 0% { transform: translateX(-110%); } 100% { transform: translateX(320%); } }
+    @media (prefers-reduced-motion: reduce) {
+      .bar::after { animation: none; width: 100%; }
+      .app-logo-wrap:hover .app-logo { animation: none; }
+      main:hover { animation: none; }
+    }
   </style>
 </head>
 <body>
   <main>
+    <!-- The wrap hosts the ray ring (animations.css) — an <svg> can't carry ::before. -->
+    <span class="app-logo-wrap">
+      <svg class="app-logo" viewBox="0 0 64 64" width="56" height="56" role="img" aria-label="Stencil" focusable="false">
+        <rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>
+        <rect class="app-logo-frame" x="2.75" y="2.75" width="58.5" height="58.5" rx="12.25" fill="none" stroke-width="2.5"/>
+        <rect x="12" y="12" width="40" height="40" rx="4" fill="#3a3f4b"/>
+        <polyline points="44,20 32,16 20,24 32,32 44,40 32,48 20,44" fill="none" stroke="#FFFF00" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <g fill="#FFFF00" stroke="#000000" stroke-width="1.25">
+          <circle cx="44" cy="20" r="2.6"/><circle cx="32" cy="16" r="2.6"/><circle cx="20" cy="24" r="2.6"/><circle cx="32" cy="32" r="2.6"/><circle cx="44" cy="40" r="2.6"/><circle cx="32" cy="48" r="2.6"/><circle cx="20" cy="44" r="2.6"/>
+        </g>
+      </svg>
+    </span>
     <h1>Opening the Stencil desktop app…</h1>
     <p id="msg">If nothing happens, the desktop app may not be installed, or your system
       hasn't registered the <code>stencil://</code> link type yet.</p>
     <p id="error" hidden>This link doesn't carry a valid Stencil desktop URL.</p>
+    <div id="bar" class="bar" hidden></div>
     <div class="actions">
-      <a id="open-btn" class="btn primary" hidden>Open in desktop app</a>
+      <a id="open-btn" class="btn primary shimmer" hidden>Open in desktop app</a>
       <button id="copy-btn" class="btn" hidden>Copy link</button>
-      <a class="btn" href="https://github.com/andrew1407/stencil/releases/tag/stencil-desktop"
+      <a class="btn shimmer" href="https://github.com/andrew1407/stencil/releases/tag/stencil-desktop"
          rel="noopener">Download the desktop app</a>
     </div>
   </main>
@@ -49,19 +133,21 @@
       const prefix = '#stencil-desktop=';
       const hash = location.hash || '';
       const errEl = document.getElementById('error');
-      if (!hash.startsWith(prefix)) { errEl.hidden = false; return; }
+      const fail = () => { errEl.hidden = false; document.getElementById('msg').hidden = true; };
+      if (!hash.startsWith(prefix)) { fail(); return; }
       let url = '';
       try { url = decodeURIComponent(hash.slice(prefix.length)); } catch { /* fall through */ }
       // Only ever forward to the stencil: scheme — anything else (javascript:, http:, …)
       // would turn this page into an open redirector.
       let ok = false;
       try { ok = new URL(url).protocol === 'stencil:'; } catch { ok = false; }
-      if (!ok) { errEl.hidden = false; return; }
+      if (!ok) { fail(); return; }
       const openBtn = document.getElementById('open-btn');
       const copyBtn = document.getElementById('copy-btn');
       openBtn.href = url;
       openBtn.hidden = false;
       copyBtn.hidden = false;
+      document.getElementById('bar').hidden = false;
       copyBtn.addEventListener('click', async () => {
         try { await navigator.clipboard.writeText(url); copyBtn.textContent = 'Copied!'; }
         catch { copyBtn.textContent = 'Copy failed'; }
