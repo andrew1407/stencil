@@ -1244,9 +1244,14 @@ class MainWindowGuiTest : public QObject {
   // handed to the style AS the row's icon — never painted beside its own (that drew two).
   // Rendered offscreen: the glyph column lights no wider than one 16px icon.
   // A press outside a modal dismisses it, the way a press on the browser's modal overlay
-  // does (ui/base.js). Qt gives a modal's blocked windows nothing, so a click on the main
-  // window used to do nothing at all (user report) — support::installModalDismiss watches
-  // the press before QApplication drops it.
+  // does (ui/base.js).
+  //
+  // WHAT THIS COVERS: the decision — outside dismisses, inside and the dialog's own popup
+  // do not, and an opted-out dialog never does. NOT the delivery: QTest::mouseClick hands
+  // the widget a QMouseEvent directly, while a REAL press on a window a modal blocks never
+  // becomes a QEvent at all (QtGui drops it in processMouseEvent). That half is
+  // modalDismissMac.mm reading the NSEvent, and no offscreen test can reach it — this
+  // passing does not mean a real click works.
   void clickOutsideAModalDismissesIt() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(900, 700);
@@ -1273,7 +1278,9 @@ class MainWindowGuiTest : public QObject {
     QTest::qWait(40);
     QVERIFY2(dlg.isVisible(), "a press in the dialog's own popup closed it");
 
-    // A press on the blocked main window dismisses it.
+    // A press on the blocked main window dismisses it — posted the way the PLATFORM does,
+    // not with QTest::mouseClick: that hands the widget a QMouseEvent directly and skips
+    // the window-system layer, which is exactly where Qt drops a blocked window's clicks.
     QTest::mouseClick(&win, Qt::LeftButton, {}, QPoint(60, 400));
     QTRY_VERIFY_WITH_TIMEOUT(!dlg.isVisible(), 1500);
     QCOMPARE(dlg.result(), int(QDialog::Rejected));
@@ -2866,12 +2873,6 @@ class MainWindowGuiTest : public QObject {
   // assertion is made again after switching it — a hard-coded colour cannot pass twice.
   void drawToggleWearsTheThemeAccentPerState() {
     MainWindow win(nullptr, false);
-    // The accent is PINNED, not inherited from whatever the last run persisted: a pale
-    // one (yellow, sky) haloes the on-accent glyph (accentNeedsGlyphShadow), which moves
-    // the mean this test measures. What it is about is the accent per STATE.
-    Settings pinned = win.settings_;
-    pinned.accentColor = "violet";
-    win.applySettings(pinned, /*persist=*/false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
     QToolButton* btn = win.startDrawBtn_;
@@ -2910,9 +2911,11 @@ class MainWindowGuiTest : public QObject {
       auto s = win.settings_;
       s.accentColor = accentKey;
       win.applySettings(s, /*persist=*/false);
-      QTest::qWait(80);
       const QColor accent = stencil::gui::accentPrimary(accentKey);
       const QString why = QStringLiteral(" (accent %1)").arg(accentKey);
+      // The re-theme repaints the window and SWAPS this button's face; 80ms was enough
+      // only when the accent had not really moved. Wait for the glyph itself to arrive.
+      QTRY_VERIFY_WITH_TIMEOUT(near(glyph(), accent, 40), 3000);
 
       // ── Idle: outlined. Accent ring + accent glyph, and NO accent fill.
       QVERIFY(!canvas->isDrawing());

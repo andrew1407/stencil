@@ -155,9 +155,10 @@ if(Qt6_FOUND)
   # third-party dependency; Linux's fallback needs nothing beyond what's linked already.
   set(STENCIL_SHARE_LIBS)
   if(APPLE)
-    list(APPEND STENCIL_GUI_SOURCES src/support/shareImageMac.mm)
-    set_source_files_properties(src/support/shareImageMac.mm PROPERTIES
-      COMPILE_FLAGS "-fobjc-arc")
+    list(APPEND STENCIL_GUI_SOURCES src/support/shareImageMac.mm
+                                    src/support/modalDismissMac.mm)
+    set_source_files_properties(src/support/shareImageMac.mm src/support/modalDismissMac.mm
+      PROPERTIES COMPILE_FLAGS "-fobjc-arc")
     find_library(STENCIL_APPKIT_LIBRARY AppKit REQUIRED)
     list(APPEND STENCIL_SHARE_LIBS ${STENCIL_APPKIT_LIBRARY})
   elseif(WIN32)

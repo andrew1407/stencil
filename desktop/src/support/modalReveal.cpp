@@ -27,6 +27,10 @@
 
 namespace stencil::support {
 
+  // One surface ceiling across the app: a dialog's cloud is a surface like any other.
+  static_assert(kDialogDustMaxCells == gui::DisintegrateOverlay::kSurfaceMaxCells,
+                "a dialog's mote budget is the shared surface ceiling");
+
   // Set on a dialog whose flight is already owned — by an explicit revealDialog() call,
   // or by the watcher having taken it once.
   static constexpr const char* kRevealedProperty = "stencilDialogRevealed";
@@ -488,7 +492,13 @@ namespace stencil::support {
                                  Qt::FindDirectChildrenOnly))
       return;
     app->installEventFilter(new ModalDismissFilter(app));
+    installModalDismissNative();
   }
+
+  // The real one lives in modalDismissMac.mm, which only the targets that open windows
+  // compile. WEAK so the headless binaries — they link this TU for revealDialog alone —
+  // still link; the strong Objective-C++ definition wins wherever it is present.
+  __attribute__((weak)) void installModalDismissNative() {}
 
   void installDialogReveal() {
     QCoreApplication* app = QCoreApplication::instance();
