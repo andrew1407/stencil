@@ -36,6 +36,7 @@ const el = (tag = 'div') => {
     removeEventListener() {},
     dispatch(t, ev = {}) { for (const fn of [...(listeners[t] || [])]) fn({ target: node, ...ev }); },
     getBoundingClientRect: () => ({ left: 0, top: 0, right: 40, bottom: 40, width: 40, height: 40 }),
+    contains: (n) => n === node || node.children.includes(n),
     querySelector: () => null,
     closest: () => null,
     matches: () => false,
@@ -56,7 +57,9 @@ const rig = () => {
   // Reduced motion: the surface dust bails on the spot, so opening the menu is just the
   // list appearing — this suite is about the rows, not the pour.
   const calls = [];
+  const winPress = [];   // the window-level capture listener the flood rescue installs
   globalThis.window = {
+    addEventListener: (t, fn, capture) => { if (t === 'pointerdown' && capture) winPress.push(fn); },
     innerHeight: 800,
     matchMedia: () => ({ matches: true, addEventListener() {}, addListener() {} }),
     StencilAccent: {
@@ -76,9 +79,59 @@ const rig = () => {
   wireLogoAccent(logo);
   const menu = wrap.children.find((c) => c.classList.contains('logo-accent-menu'));
   wrap.dispatch('contextmenu', { preventDefault() {} });   // right-click opens the list
-  return { root, menu, calls, logo,
+  return { root, menu, calls, logo, winPress,
            row: (k) => menu.children.find((r) => r.dataset.key === k) };
 };
+
+// ── The press the wipe swallows (browser accentPicker.test.js twin) ──────────
+// A view transition's snapshot owns the document's hit test while it plays: a press on a
+// row mid-wipe is delivered to <html>, so the row's own click never fires and the outside
+// press check reads it as a dismissal — picking a colour while its own hover preview was
+// still wiping closed the list and put the old accent back (user report). The rescue is a
+// window-level capture listener that resolves the press against the rows' boxes.
+const stacked = (menu) => menu.children.forEach((li, i) => {
+  li.getBoundingClientRect = () => ({ left: 100, right: 280, top: 200 + i * 30,
+                                      bottom: 230 + i * 30, width: 180, height: 30 });
+});
+
+test('a press over a row while the wipe owns the hit test still picks that row', (t) => {
+  // Mocked, like every other pick here: the commit's afterSwap polls until the flood is
+  // over, and this rig's `set` raises theme-instant with nothing to lower it.
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { menu, calls, winPress } = rig();
+  stacked(menu);
+  assert.equal(winPress.length, 1, 'exactly one window-level rescue');
+  let prevented = false, stopped = false;
+  winPress[0]({ target: {}, clientX: 150, clientY: 245,   // the middle row: pink
+                preventDefault: () => { prevented = true; },
+                stopImmediatePropagation: () => { stopped = true; } });
+  // The COMMIT is first — the closing list's own revert follows it and is a no-op against
+  // the real controller, which drops the preview snapshot the moment a pick lands.
+  assert.deepEqual(calls[0], ['set', 'pink'], 'the row under the press is the one committed');
+  assert.ok(!calls.slice(1).some(([k]) => k === 'set'), 'and nothing else is committed after it');
+  assert.ok(prevented && stopped, 'and no dismissal may see the press');
+});
+
+test('…but a press that missed the rows is left alone, so an outside press still dismisses', () => {
+  const { menu, calls, winPress } = rig();
+  stacked(menu);
+  let stopped = false;
+  const ev = (x, y) => ({ target: {}, clientX: x, clientY: y, preventDefault: () => {},
+                          stopImmediatePropagation: () => { stopped = true; } });
+  winPress[0](ev(150, 100));    // above the list
+  winPress[0](ev(600, 245));    // beside it
+  assert.deepEqual(calls, [], 'nothing was picked');
+  assert.equal(stopped, false, 'and the press travels on to the dismissal');
+});
+
+test('a hidden list rescues nothing — its rows are still in the DOM with stale boxes', () => {
+  const { menu, calls, winPress } = rig();
+  stacked(menu);
+  menu.hidden = true;
+  winPress[0]({ target: {}, clientX: 150, clientY: 245,
+                preventDefault: () => {}, stopImmediatePropagation: () => {} });
+  assert.deepEqual(calls, []);
+});
 
 const held = (root, menu) => [menu.classList.contains('dd-preview-hold'),
                               root.classList.contains('dd-preview-cursor')];
