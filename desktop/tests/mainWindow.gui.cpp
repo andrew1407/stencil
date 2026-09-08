@@ -2931,9 +2931,13 @@ class MainWindowGuiTest : public QObject {
       start->trigger();
       QTRY_VERIFY(canvas->isDrawing());
       QTRY_COMPARE(btn->property("drawToggle").toString(), QString("on"));
-      QVERIFY2(near(ground(), accent, 50), qPrintable("drawing is not accent-filled" + why));
-      QVERIFY2(near(glyph(), QColor(Qt::white), 40),
-               qPrintable("the ■ is not the on-accent foreground" + why));
+      // The property flips at the face swap's PIVOT, with the glyph still turning in —
+      // so every pixel sample below waits for the face to land rather than reading the
+      // frame that happens to be up.
+      QTRY_VERIFY2_WITH_TIMEOUT(near(ground(), accent, 50),
+                                qPrintable("drawing is not accent-filled" + why), 3000);
+      QTRY_VERIFY2_WITH_TIMEOUT(near(glyph(), QColor(Qt::white), 40),
+                                qPrintable("the ■ is not the on-accent foreground" + why), 3000);
       btn->defaultAction()->trigger();
       QTRY_VERIFY(!canvas->isDrawing());
       QTRY_COMPARE(btn->property("drawToggle").toString(), QString("idle"));

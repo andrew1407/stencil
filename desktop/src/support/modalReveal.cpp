@@ -40,11 +40,14 @@ namespace stencil::support {
     // (user decision — dialogs opened and closed too fast; every other surface keeps its
     // own pace). Ease-OUT on the way in. The ghost fallback's pair (slide mode)…
     constexpr int kOpenMs = 450;
-    constexpr int kCloseMs = 360;
-    // …and the dust's (particle modes): the shared surface clock, slowed the same way.
-    // The fade-up rides the in-clock so the window lands with its dust.
+    // …and CLOSING is slower again by the same 1.5x (user decision): a window leaving is
+    // the beat you actually watch, and at the open's pace it was gone before it read.
+    constexpr int kCloseMs = 360 * 3 / 2;
+    // …and the dust's (particle modes): the shared surface clock, slowed the same way,
+    // the out-clock taking the closing 1.5x on top. The fade-up rides the in-clock so the
+    // window lands with its dust.
     constexpr int kDialogDustInMs = gui::DisintegrateOverlay::kSurfaceInMs * 3 / 2;
-    constexpr int kDialogDustOutMs = gui::DisintegrateOverlay::kSurfaceOutMs * 3 / 2;
+    constexpr int kDialogDustOutMs = gui::DisintegrateOverlay::kSurfaceOutMs * 9 / 4;
 
     // Where the motion starts/ends, in GLOBAL coords: the icon, else a small box above
     // the dialog (hidden widgets map to 0x0, which is the same "not on screen" case).
