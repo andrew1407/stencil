@@ -194,6 +194,33 @@ button:not(:disabled) .ic,
 .notify-toast.notify-info .ic {
     filter: var(--glyph-shadow);
 }
+/* …but ONLY where the ground really is the accent. `button` paints itself accent by
+   default, so the rule above assumed every button is white-on-accent — and a ghost,
+   icon, tab or chip button that paints its OWN ground is dark text on a light chip,
+   where the halo is not readability but a smudge: the Points/Lines tabs and the mic
+   glyph came out blurry on a light accent (user report). These are exactly the
+   selectors that override that default background; `:is()` carries an id's specificity,
+   which is what it takes to beat `button:not(:disabled)`. */
+button:not(:disabled):is(
+    .chat-suggest, .chat-abtn.chat-send-idle, .ctx-assist-abtn.chat-send-idle, .chat-more-item,
+    .name-edit-btn, .deselect-btn, .idle-create-btn, .coord-tab, .app-modal-close, .danger,
+    .oi-tab, .bi-preset-white, .bi-preset-black, .links-open, .links-clear, .chat-hbtn,
+    .chat-dock-btn-active, .chat-jump-btn,
+    #fs-exit-btn, #toggle-controls, #chat-btn, #voice-chat-btn, #theme-toggle, #settings-btn,
+    #visuals-btn, #info-btn, #fullscreen-toggle, #incognito-toggle, #sel-fill-clear,
+    #sel-unchain, #toggle-coord-panel, #settings-close, #blank-color-btn, #install-pwa-btn) {
+    text-shadow: none;
+}
+button:not(:disabled):is(
+    .chat-suggest, .chat-abtn.chat-send-idle, .ctx-assist-abtn.chat-send-idle, .chat-more-item,
+    .name-edit-btn, .deselect-btn, .idle-create-btn, .coord-tab, .app-modal-close, .danger,
+    .oi-tab, .bi-preset-white, .bi-preset-black, .links-open, .links-clear, .chat-hbtn,
+    .chat-dock-btn-active, .chat-jump-btn,
+    #fs-exit-btn, #toggle-controls, #chat-btn, #voice-chat-btn, #theme-toggle, #settings-btn,
+    #visuals-btn, #info-btn, #fullscreen-toggle, #incognito-toggle, #sel-fill-clear,
+    #sel-unchain, #toggle-coord-panel, #settings-close, #blank-color-btn, #install-pwa-btn) .ic {
+    filter: none;
+}
 button:hover {
     background: var(--accent-2);
 }
