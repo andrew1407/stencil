@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <QApplication>
+#include <QGuiApplication>
+#include <QPalette>
 #include <QByteArray>
 #include <QColor>
 #include <QFile>
@@ -81,6 +83,13 @@ namespace stencil::gui {
     return true;
   }
 
+  // The ink a disabled glyph is drawn in: the theme's muted text (buildQPalette maps it to
+  // Mid), so icon and label grey out together. Qt's own default palette until a theme lands.
+  static QColor mutedInk() {
+    const QColor c = QGuiApplication::palette().color(QPalette::Mid);
+    return c.isValid() ? c : QColor("#8a8f98");
+  }
+
   QIcon iconFromMarkup(const QString& inner, const QColor& color, int size, bool shadow,
                        qreal dprIn, bool withDisabled, int gap) {
     if (inner.isEmpty() || size <= 0) return QIcon();
@@ -117,22 +126,21 @@ namespace stencil::gui {
 
     QIcon icon(pm);
     if (!withDisabled) return icon;   // a posed frame on an enabled control never shows it
-    // Disabled: the same glyph, faded. A rasterised icon never picks up the
-    // stylesheet's `color: MUTED` (that reaches text only), unlike the browser's
-    // currentColor `.ic`. Composited from a 1x-tagged copy — drawing `pm` with its
-    // dpr still set would paint it at LOGICAL size into a device-sized pixmap, i.e.
-    // half-size in the corner on Retina.
-    QPixmap src = pm;
-    src.setDevicePixelRatio(1.0);
-    QPixmap faded(pm.size());
-    faded.fill(Qt::transparent);
+    // Disabled: the glyph RE-RENDERED in the muted ink, at full strength — what the
+    // stylesheet's `QToolButton:disabled { color: MUTED }` does for the label beside it,
+    // and what the browser does (its .ic is currentColor, so a disabled button's icon is
+    // --disabled-text at full opacity). Fading the enabled colour instead left a light
+    // theme's dark glyph a ghost on the pale disabled chip (user report).
+    QPixmap off(pm.size());
+    off.fill(Qt::transparent);
     {
-      QPainter fp(&faded);
-      fp.setOpacity(0.42);
-      fp.drawPixmap(0, 0, src);
+      QSvgRenderer dim(svgDoc(inner, mutedInk().name()).toUtf8());
+      QPainter dp(&off);
+      dp.setRenderHint(QPainter::Antialiasing, true);
+      dim.render(&dp, glyphBox);
     }
-    faded.setDevicePixelRatio(dpr);
-    icon.addPixmap(faded, QIcon::Disabled);
+    off.setDevicePixelRatio(dpr);
+    icon.addPixmap(off, QIcon::Disabled);
     return icon;
   }
 
@@ -147,7 +155,8 @@ namespace stencil::gui {
     static QHash<QString, QIcon> cache;
     const QString key = name + '|' + color.name() + '|' + QString::number(size)
                         + (shadow ? "|s" : "") + '@' + QString::number(dpr)
-                        + (gap > 0 ? "|g" + QString::number(gap) : QString());
+                        + (gap > 0 ? "|g" + QString::number(gap) : QString())
+                        + '/' + mutedInk().name();   // …the disabled glyph's ink moves with the theme
     const auto it = cache.constFind(key);
     if (it != cache.constEnd()) return it.value();
 

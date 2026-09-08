@@ -89,6 +89,10 @@ namespace stencil::gui {
     // Re-seeds the header chevron at 0° (›): the last collapse left it turned to ‹, which is
     // the floating re-open button's glyph, not this one's.
     void showEvent(QShowEvent* event) override;
+    // A theme flip repaints the panel, but the empty row's ink is an ITEM foreground —
+    // baked when the row was made, so it kept the old theme's colour and went invisible
+    // on the new one (user report). Re-tinted here.
+    void changeEvent(QEvent* event) override;
 
    private:
     // Apply row `i`'s Lines-tab style: selected outline > canvas-hover tint > plain.

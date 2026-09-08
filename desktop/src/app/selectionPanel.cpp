@@ -411,6 +411,15 @@ namespace stencil::gui {
     applyUnitHeaders();
   }
 
+  void SelectionPanel::changeEvent(QEvent* event) {
+    QDockWidget::changeEvent(event);
+    if (event->type() != QEvent::PaletteChange && event->type() != QEvent::StyleChange) return;
+    // Only the spanned empty row carries a baked foreground; a real row takes the table's.
+    if (points_ && points_->rowCount() == 1 && points_->columnSpan(0, ColIndex) == ColCount)
+      if (QTableWidgetItem* msg = points_->item(0, ColIndex))
+        msg->setForeground(palette().color(QPalette::PlaceholderText));
+  }
+
   // The browser's `<td colspan="6" class="empty-message">No points yet.</td>`: one italic,
   // muted row across the whole table, not a blank body that reads as a broken list.
   void SelectionPanel::showEmptyPoints() {

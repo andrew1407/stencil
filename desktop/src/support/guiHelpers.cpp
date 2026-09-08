@@ -13,6 +13,7 @@
 #include <QMenu>
 #include <QDialog>
 #include <QEasingCurve>
+#include <QEvent>
 #include <QFileDialog>
 #include <QIcon>
 #include <QPainter>
@@ -147,9 +148,37 @@ namespace stencil::gui {
   // updateColorSwatch), and what the browser's padded <input type="color"> shows.
   static const QSize kSwatchChip(32, 16);
 
+  namespace {
+    // A colour well's frame is per-widget QSS, so it is baked in the theme that was live
+    // when it was written — switching the app to the other theme left the wells in the old
+    // one (user report: dark wells in a light Settings dialog). Each well re-swatches
+    // itself off the application palette change instead.
+    class SwatchRestyler : public QObject {
+     public:
+      using QObject::QObject;
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (e->type() == QEvent::PaletteChange || e->type() == QEvent::ApplicationPaletteChange) {
+          auto* b = qobject_cast<QAbstractButton*>(o);
+          if (b && !b->property("swatchColor").isNull())
+            setColorSwatch(b, b->property("swatchColor").value<QColor>(),
+                           b->property("swatchSize").toSize(), b->property("swatchHex").toBool());
+        }
+        return QObject::eventFilter(o, e);
+      }
+    };
+  }  // namespace
+
   void setColorSwatch(QAbstractButton* btn, const QColor& color, const QSize& size,
                       bool withHex) {
     if (!btn) return;
+    // …remembered, so the filter above can rewrite the frame in the theme that arrives.
+    btn->setProperty("swatchColor", color);
+    btn->setProperty("swatchSize", size);
+    btn->setProperty("swatchHex", withHex);
+    if (!btn->property("swatchRestyled").toBool()) {
+      btn->setProperty("swatchRestyled", true);
+      btn->installEventFilter(new SwatchRestyler(btn));
+    }
     // ONE colour well across the app: a small colour chip inside the shared input frame,
     // the treatment the toolbar's pickers use (mainWindow.cpp updateColorSwatch) and the
     // one the browser mirrors. Painting the button's whole surface read as a colour slab.

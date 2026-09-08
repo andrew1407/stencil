@@ -50,6 +50,8 @@ namespace stencil::support {
   }
   // The longest of them — how long a row's hover keeps repainting.
   constexpr int kMotionIconHoverMs = 1200;
+  // The browser's glyph box (js/ui/motionIcons.js: viewBox 0 0 16 16 at width/height 16).
+  constexpr int kMotionIconPx = 16;
 
   // Paint `mode`'s glyph into `box` (square, any size — the drawing is 16 units) in
   // `colour`, `ms` into its hover (a big value = at rest, fully drawn).
@@ -172,13 +174,14 @@ namespace stencil::support {
       const QString mode = index.data(Qt::UserRole).toString();
       const bool hovered = index.row() == hoverRow_;
       const double ms = hovered ? double(clock_.elapsed()) : 1e9;
-      const int px = opt.decorationSize.width() > 0 ? opt.decorationSize.width() : 16;
-      const bool current = opt.state & QStyle::State_Selected;
+      // The browser's 16px glyph, not the combo's own icon size — a Mac's PM_SmallIconSize
+      // drew them half again as big as the browser's rows (user report).
+      opt.decorationSize = QSize(kMotionIconPx, kMotionIconPx);
       const double dpr = p->device() ? p->device()->devicePixelRatio() : 1.0;
-      // In the row's own TEXT colour, hovered or not (never the accent — user decision),
-      // so the glyph reads like the label beside it.
-      const QColor colour = opt.palette.color(current ? QPalette::HighlightedText : QPalette::Text);
-      opt.icon = motionIconFrame(mode, colour, ms, px, dpr);
+      // Always the row's TEXT colour — the picked row keeps its label's ink over the soft
+      // accent wash (theme.cpp searchComboList::item:selected), so HighlightedText's white
+      // left the glyph all but invisible on it in the light theme (user report).
+      opt.icon = motionIconFrame(mode, opt.palette.color(QPalette::Text), ms, kMotionIconPx, dpr);
       opt.features |= QStyleOptionViewItem::HasDecoration;
       const QWidget* w = opt.widget;
       QStyle* style = w ? w->style() : QApplication::style();

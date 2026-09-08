@@ -605,11 +605,13 @@ namespace stencil::gui {
         border-radius: 7px; padding: 3px 8px; min-height: 20px;
         selection-background-color: %ACCENT%; selection-color: white;
       }
-      /* Inputs ring on hover; a COMBO is a selector and hovers as the browser's select
-         trigger does (.accent-dd-trigger, a button:hover): the lighter accent fill under a
-         1px accent border — the same 1px, so the box never jumps — and the light text. */
-      QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover { border-color: %ACCENT_RING%; }
-      QComboBox:hover { background: %ACCENT2%; color: white; border: 1px solid %ACCENT%; }
+      /* Every input — a combo included — only RINGS on hover, as the browser's fields and
+         its select trigger do (.accent-dd-trigger:hover). The accent fill this used to take
+         came from the browser leaking its generic `button:hover` onto that trigger; on a
+         pale accent it left white text and a white caret on near-white (user report). */
+      QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover, QComboBox:hover {
+        border-color: %ACCENT_RING%;
+      }
       QComboBox:focus, QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
         border: 2px solid %ACCENT%; padding: 2px 7px;
       }
@@ -618,7 +620,6 @@ namespace stencil::gui {
          Qt's stylesheet engine does not draw — it came out as a small solid square — and
          styling the sub-control at all stops the native style painting its own arrow. */
       QComboBox::down-arrow { image: url(%CARET%); width: 9px; height: 9px; margin-right: 5px; }
-      QComboBox::down-arrow:hover { image: url(%CARET_HOVER%); }
       /* A dead input has to LOOK dead. The rules above paint every combo/field in the live
          input colours, so a disabled one (the image filter or compare with no image loaded)
          was pixel-identical to a working one. The browser drops those to
@@ -1099,7 +1100,6 @@ namespace stencil::gui {
         .replace("%BORDER%", c(p.borderMain))
         .replace("%SB_THUMB%", c(sbThumb))
         .replace("%TEXT%", c(p.textMain))
-        .replace("%CARET_HOVER%", caretImagePath(QColor(Qt::white)))
         .replace("%CARET_DIM%", caretImagePath(caretDim))
         .replace("%CARET%", caretImagePath(p.textMuted))
         .replace("%MUTED%", c(p.textMuted))
