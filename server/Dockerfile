@@ -5,7 +5,7 @@
 
 FROM golang:1.26 AS build
 WORKDIR /src
-COPY go.mod go.sum ./
+COPY go.mod ./
 # Resolve deps into this image layer's own module cache — never a host cache. (Local dev
 # vendors into server/vendor/ via `go mod vendor`; that dir is git-ignored and excluded
 # from the build context by .dockerignore, so the image always uses this clean download.)

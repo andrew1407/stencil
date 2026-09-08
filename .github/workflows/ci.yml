@@ -40,14 +40,12 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: browser/package-lock.json
-      # `npm ci` off the committed lockfile: vite is pinned exactly in package.json, but its
-      # own dependencies (rolldown, lightningcss, …) are ranges — only the lockfile makes
-      # the build reproducible.
+      # No lockfile is tracked, so this resolves vite's own dependency ranges (rolldown,
+      # lightningcss, …) fresh on every run — `npm ci` needs a lockfile, `npm install`
+      # does not, and setup-node's npm cache cannot be keyed without one either.
       - name: Install vite (the only dev dependency)
         working-directory: browser
-        run: npm ci
+        run: npm install
       - name: Build + verify stencil.html
         working-directory: browser
         run: npm run build
@@ -233,14 +231,13 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.26'
-          # go.sum lives under server/, not the repo root.
-          cache-dependency-path: server/go.sum
+          # No go.sum is tracked, so there is nothing to key the module cache on.
+          cache: false
       # vendor/ is git-ignored, so materialize it and build/vet/test with -mod=vendor.
       - name: Vendor dependencies
         working-directory: server
         run: |
           go mod vendor
-          go mod verify
       - name: Build
         working-directory: server
         run: go build -mod=vendor ./...
@@ -277,7 +274,7 @@ jobs:
         run: zig build
       - name: Install harness deps
         working-directory: e2e
-        run: npm ci
+        run: npm install
       - name: Install Chromium + system deps
         working-directory: e2e
         run: npx playwright install --with-deps chromium
