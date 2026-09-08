@@ -73,6 +73,15 @@ namespace stencil::support {
   // Set on a dialog that must never take that automatic flight.
   inline constexpr const char* kNoDialogRevealProperty = "stencilNoDialogReveal";
 
+  // Click-outside dismissal, the browser's rule (ui/base.js: a press on the modal overlay
+  // closes the box). Qt hands a modal's blocked windows nothing, so a click on the main
+  // window did nothing at all here (user report) — this watches the press before
+  // QApplication drops it and rejects the modal instead. Idempotent.
+  void installModalDismiss();
+
+  // Set on a dialog that must be answered, never clicked away.
+  inline constexpr const char* kNoOutsideDismissProperty = "stencilNoOutsideDismiss";
+
   // A window-sized dust cloud's mote budget — coarser than a menu/select popup's, since a
   // cloud this size gets laggy past a few thousand cells. Also used by execMaybePopover's
   // dialog-sized popover flight (mainWindow.cpp).

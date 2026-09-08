@@ -1243,6 +1243,54 @@ class MainWindowGuiTest : public QObject {
   // The Interface-animation combo's rows wear ONE glyph each (support/motionIcons.hpp),
   // handed to the style AS the row's icon — never painted beside its own (that drew two).
   // Rendered offscreen: the glyph column lights no wider than one 16px icon.
+  // A press outside a modal dismisses it, the way a press on the browser's modal overlay
+  // does (ui/base.js). Qt gives a modal's blocked windows nothing, so a click on the main
+  // window used to do nothing at all (user report) — support::installModalDismiss watches
+  // the press before QApplication drops it.
+  void clickOutsideAModalDismissesIt() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(900, 700);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    stencil::support::installModalDismiss();   // the app installs it at startup; explicit here
+
+    QDialog dlg(&win);
+    dlg.setObjectName(QStringLiteral("probeModal"));
+    dlg.resize(200, 150);
+    dlg.setModal(true);
+    dlg.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&dlg));
+
+    // A press INSIDE the box changes nothing…
+    QTest::mouseClick(&dlg, Qt::LeftButton, {}, QPoint(60, 60));
+    QTest::qWait(40);
+    QVERIFY2(dlg.isVisible(), "a press inside the dialog closed it");
+
+    // …and one on a widget the dialog RAISED (a popup keeps it as its parent) neither.
+    QWidget popup(&dlg, Qt::Popup);
+    popup.resize(40, 40);
+    QTest::mouseClick(&popup, Qt::LeftButton, {}, QPoint(5, 5));
+    QTest::qWait(40);
+    QVERIFY2(dlg.isVisible(), "a press in the dialog's own popup closed it");
+
+    // A press on the blocked main window dismisses it.
+    QTest::mouseClick(&win, Qt::LeftButton, {}, QPoint(60, 400));
+    QTRY_VERIFY_WITH_TIMEOUT(!dlg.isVisible(), 1500);
+    QCOMPARE(dlg.result(), int(QDialog::Rejected));
+
+    // …unless the dialog says it must be answered.
+    QDialog must(&win);
+    must.setProperty(stencil::support::kNoOutsideDismissProperty, true);
+    must.resize(200, 150);
+    must.setModal(true);
+    must.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&must));
+    QTest::mouseClick(&win, Qt::LeftButton, {}, QPoint(60, 400));
+    QTest::qWait(80);
+    QVERIFY2(must.isVisible(), "an opted-out dialog was clicked away");
+    must.close();
+  }
+
   void motionComboRowsWearOneGlyph() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 700);
@@ -2818,6 +2866,12 @@ class MainWindowGuiTest : public QObject {
   // assertion is made again after switching it — a hard-coded colour cannot pass twice.
   void drawToggleWearsTheThemeAccentPerState() {
     MainWindow win(nullptr, false);
+    // The accent is PINNED, not inherited from whatever the last run persisted: a pale
+    // one (yellow, sky) haloes the on-accent glyph (accentNeedsGlyphShadow), which moves
+    // the mean this test measures. What it is about is the accent per STATE.
+    Settings pinned = win.settings_;
+    pinned.accentColor = "violet";
+    win.applySettings(pinned, /*persist=*/false);
     CanvasWidget* canvas = openLoaded(win);
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
     QToolButton* btn = win.startDrawBtn_;

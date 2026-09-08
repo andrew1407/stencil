@@ -13,6 +13,7 @@
 #include <QGraphicsOpacityEffect>
 #include <QDialog>
 #include <QEasingCurve>
+#include <QApplication>
 #include <QFileDialog>
 #include <QLabel>
 #include <QParallelAnimationGroup>
@@ -444,6 +445,49 @@ namespace stencil::support {
     const QPoint p = QCursor::pos();
     return QRect(p.x() - kGestureAnchorPx / 2, p.y() - kGestureAnchorPx / 2,
                  kGestureAnchorPx, kGestureAnchorPx);
+  }
+
+  namespace {
+    constexpr const char* kModalDismissFilterName = "stencilModalDismissFilter";
+
+    // A press anywhere outside the top modal dismisses it, exactly as a press on the
+    // browser's overlay does. Application-wide, because the press we care about is
+    // delivered to a BLOCKED window — QApplication drops it a moment later, but an
+    // application filter still sees it first.
+    class ModalDismissFilter : public QObject {
+     public:
+      explicit ModalDismissFilter(QObject* parent) : QObject(parent) {
+        setObjectName(QString::fromLatin1(kModalDismissFilterName));
+      }
+
+     protected:
+      bool eventFilter(QObject* o, QEvent* e) override {
+        if (e->type() != QEvent::MouseButtonPress) return QObject::eventFilter(o, e);
+        auto* dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+        auto* w = qobject_cast<QWidget*>(o);
+        // A NATIVE panel is the OS's window, not ours to close; an opted-out dialog is a
+        // question that has to be answered.
+        if (!dlg || !w || !dlg->isVisible() || qobject_cast<QFileDialog*>(dlg)
+            || dlg->property(kNoOutsideDismissProperty).toBool())
+          return QObject::eventFilter(o, e);
+        // Inside the dialog, or inside anything it raised — a combo popup, a colour
+        // picker, a nested question — is not an outside press. Popups keep the widget
+        // they were built from as their parent, so the walk reaches the dialog.
+        for (const QWidget* p = w; p; p = p->parentWidget())
+          if (p == dlg) return QObject::eventFilter(o, e);
+        dlg->reject();
+        return true;   // swallowed, like the overlay eating the click in the browser
+      }
+    };
+  }  // namespace
+
+  void installModalDismiss() {
+    QCoreApplication* app = QCoreApplication::instance();
+    if (!app) return;
+    if (app->findChild<QObject*>(QString::fromLatin1(kModalDismissFilterName),
+                                 Qt::FindDirectChildrenOnly))
+      return;
+    app->installEventFilter(new ModalDismissFilter(app));
   }
 
   void installDialogReveal() {

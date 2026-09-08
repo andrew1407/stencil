@@ -359,6 +359,7 @@ namespace stencil::gui {
     // …and the one that gives every dialog its flight, including the QMessageBox
     // confirmations built and exec'd in a single expression (modalReveal.hpp).
     support::installDialogReveal();
+    support::installModalDismiss();   // a press outside a modal closes it (browser parity)
 
     selPanel_ = new SelectionPanel(this);
     selPanel_->setMinimumWidth(kPanelMinWidth);   // the dock's drag handle stops here
