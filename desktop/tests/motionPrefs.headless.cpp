@@ -205,8 +205,9 @@ int main(int argc, char** argv) {
       for (int y = 0; y < 32; y++) for (int x = 0; x < 32; x++) if (qAlpha(img.pixel(x, y)) > 40) ++lit;
       return lit;
     };
-    check(support::motionIconMs("water") == 1125 && support::motionIconMs("fire") == 900
-              && support::motionIconMs("particles") == 1185 && support::motionIconMs("none") == 450,
+    // The browser's own lengths (1125 / 900 / 825+4*90 / 450) on the desktop's 1.5x clock.
+    check(support::motionIconMs("water") == 750 && support::motionIconMs("fire") == 600
+              && support::motionIconMs("particles") == 790 && support::motionIconMs("none") == 300,
           "the drop, flame and specks take 1.5x the line and arrow");
     for (const char* mode : {"particles", "water", "fire", "slide", "none"}) {
       check(inkOf(mode, 1e9) > 20, "every mode paints a glyph at rest");
@@ -214,12 +215,17 @@ int main(int argc, char** argv) {
     }
     // The hover plays IN: nothing (or less) at 0ms, the whole glyph at its own duration
     // (support::motionIconMs — the browser's, the drop / flame / specks 1.5x slower).
-    check(inkOf("water", 0.0) < inkOf("water", 1125) / 4, "the drop starts faded out");
-    check(inkOf("fire", 0.0) < inkOf("fire", 900) / 4, "the flame starts unlit");
-    check(inkOf("particles", 0.0) < inkOf("particles", 1185) / 4, "the specks start out of sight");
-    check(inkOf("slide", 0.0) < inkOf("slide", 450) / 4, "the arrow starts faded out");
-    check(inkOf("none", 0.0) < inkOf("none", 450) && inkOf("none", 0.0) > 20, "the circle stays; only the line draws in");
-    check(inkOf("none", 225) > inkOf("none", 0.0) && inkOf("none", 225) < inkOf("none", 450), "…half-drawn halfway");
+    // Measured at each mode's OWN end, so the speed-up above can never leave these stale.
+    const auto endMs = [](const char* m) { return support::motionIconMs(m); };
+    check(inkOf("water", 0.0) < inkOf("water", endMs("water")) / 4, "the drop starts faded out");
+    check(inkOf("fire", 0.0) < inkOf("fire", endMs("fire")) / 4, "the flame starts unlit");
+    check(inkOf("particles", 0.0) < inkOf("particles", endMs("particles")) / 4, "the specks start out of sight");
+    check(inkOf("slide", 0.0) < inkOf("slide", endMs("slide")) / 4, "the arrow starts faded out");
+    check(inkOf("none", 0.0) < inkOf("none", endMs("none")) && inkOf("none", 0.0) > 20,
+          "the circle stays; only the line draws in");
+    check(inkOf("none", endMs("none") / 2) > inkOf("none", 0.0)
+              && inkOf("none", endMs("none") / 2) < inkOf("none", endMs("none")),
+          "…half-drawn halfway");
   }
 
   // ── Both preferences ride in settings.json ──
@@ -240,6 +246,7 @@ int main(int argc, char** argv) {
           "absent keys -> the defaults, never \"no animation\"");
   }
 
-  std::puts("motionPrefs: OK");
-  return 0;
+  // The counter every check() feeds — without this the suite passed with failures in it.
+  std::printf("motionPrefs: %s\n", failures ? "FAILED" : "OK");
+  return failures ? 1 : 0;
 }

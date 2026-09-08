@@ -154,7 +154,9 @@ int main(int argc, char** argv) {
   check(flights.touches(7) && !flights.touches(0), "rekey follows the line to its new index");
 
   // Landing empties the list; the frame loop stops when it does.
-  check(!flights.step(100.0 + fx::kFlyMinMs + fx::kRippleMs + 1.0), "a landed flight is dropped");
+  // Past the LONGEST flight plus its ring: this vertex left (20,20) for (50,0), so its own
+  // flight is longer than the minimum and stepping to that would still be mid-air.
+  check(!flights.step(100.0 + fx::kFlyMaxMs + fx::kRippleMs + 1.0), "a landed flight is dropped");
   check(!flights.active(), "…and the loop has nothing left to draw");
 
   // A rect's corners are staggered, so the shape draws itself edge by edge.
@@ -201,6 +203,9 @@ int main(int argc, char** argv) {
   click(anchor);
   spin(700);                       // let the first point settle
   click(target);
+  // A moment into the flight, not at the very start of it: at t=0 the vertex is still on
+  // the anchor and the segment has no length yet, so there would be nothing to see leaving.
+  spin(90);
   const QImage flying = shot(canvas);
   check(canvas.currentLine().points.size() == 2, "the click really added the point");
   check(!inkNear(flying, target.x(), target.y(), ink, 8),
@@ -230,6 +235,7 @@ int main(int argc, char** argv) {
         "with the animation off the vertex is where you clicked at once");
   stencil::support::setDrawingAnimations(true);
 
-  std::puts("strokeGrowth: OK");
-  return 0;
+  // The counter every check() feeds — without this the suite passed with failures in it.
+  std::printf("strokeGrowth: %s\n", failures ? "FAILED" : "OK");
+  return failures ? 1 : 0;
 }
