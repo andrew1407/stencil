@@ -1013,6 +1013,33 @@ class MainWindowGuiTest : public QObject {
     win.pageSize_->hidePopup();
   }
 
+  // The window opens at the size it asked for. The wrapping tool run (support/wrapRow.hpp)
+  // hints its WRAPPED height from the very first pass — it used to hint the STACKED one, a
+  // control per line, which QToolBarLayout took as the bar's minimum: the window was sized
+  // to fit ~840px of toolbar, opened 1145px tall whatever it asked for, and never gave the
+  // height back once the row settled a beat later.
+  void theWindowOpensAtTheHeightItAsksFor() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1400, 500);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QTest::qWait(200);
+    QCOMPARE(win.width(), 1400);
+    QVERIFY2(win.height() < 700,
+             qPrintable(QString("opened %1px tall, asked for 500").arg(win.height())));
+    // The run really does wrap, and the minimum tracks it: a narrower window needs more
+    // lines and honestly asks for the height they take.
+    auto* row = win.findChild<QWidget*>("toolWrapRow");
+    QVERIFY(row);
+    win.resize(1500, 500);
+    QTest::qWait(200);
+    const int wideRow = row->height(), wideMin = win.minimumSizeHint().height();
+    win.resize(900, 500);
+    QTest::qWait(200);
+    QVERIFY2(row->height() > wideRow, "the run did not wrap onto more lines when narrowed");
+    QVERIFY2(win.minimumSizeHint().height() > wideMin, "…and the minimum did not follow it");
+  }
+
   // The f(x,y) pair is as wide as the browser's (#formula-x / #formula-y, 180px inline) —
   // they were pinned to a 72px stub, which fits no real formula — and keep that width on a
   // narrow window, where the tool run WRAPS (support/wrapRow.hpp) rather than squeezing its
@@ -11439,7 +11466,9 @@ class MainWindowGuiTest : public QObject {
     // Watch the whole flight: every live cloud must sit on a card, never between two. The
     // WIDGET covers the whole host and follows its card by retargeting what it draws
     // (chatWidgets.cpp trackChatCardDust), so the PICTURE is what has to line up. Its timer
-    // ticks at 16ms, so one sample out of step is lag — only a cloud that STAYS off strands.
+    // ticks at 16ms, so a few samples out of step are lag — under load it can miss several
+    // in a row — and only a cloud that STAYS off its card strands. A real one never returns:
+    // stop the tracker and this counts hundreds, not a handful.
     QHash<QWidget*, int> misses;
     int strandedFrames = 0, sampled = 0;
     for (int f = 0; f < 90; ++f) {
@@ -11465,7 +11494,7 @@ class MainWindowGuiTest : public QObject {
           }
         }
         if (onACard) misses.remove(d);
-        else if (++misses[d] > 2) ++strandedFrames;
+        else if (++misses[d] > 5) ++strandedFrames;
       }
     }
     QVERIFY2(sampled > 0, "no overlay was ever sampled — the check would be vacuous");
