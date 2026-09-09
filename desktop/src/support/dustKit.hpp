@@ -89,31 +89,36 @@ namespace stencil::support {
                   qRound(accent.green() + (shade.green() - accent.green()) * t),
                   qRound(accent.blue() + (shade.blue() - accent.blue()) * t));
   }
-  // Two grains in three ride that ramp; the rest wear a TINT off their own hash — white,
-  // two greys, and the accent blended 55/45 to white and to black. Browser twin:
-  // dustCloud.js TINT_CSS / tintOf; the share and the mixes are the contract.
+  // Two grains in three ride that ramp; the rest wear a TINT off their own hash — a neutral
+  // spark, two greys and two accents. Browser twin: dustCloud.js TINT_CSS / tintOf; the
+  // share and the mixes are the contract.
   constexpr double kTintShare = 0.34;
   constexpr int kTintStops = 5;
   constexpr double kTintAccentShare = 0.55;   // …of the accent in the pale and the deep one
+  constexpr double kTintPaleShare = 0.30;     // …and in the pale one the dark theme swaps in
   inline int tintOf(double w) {
     const double pick = fract(w * 13.73 + 0.41);
     if (pick >= kTintShare) return -1;
     return std::min(kTintStops - 1, int(std::floor(pick / kTintShare * kTintStops)));
   }
-  inline QColor tintColour(const QColor& accent, int tint) {
-    if (tint == 0) return QColor(255, 255, 255);
+  // `c` blended `k` of the way to a grey level (0 black, 255 white).
+  inline QColor towards(const QColor& c, int to, double k) {
+    return QColor(qRound(c.red() + (to - c.red()) * k), qRound(c.green() + (to - c.green()) * k),
+                  qRound(c.blue() + (to - c.blue()) * k));
+  }
+  // Tints 0 and 4 follow the theme (browser css/theme.css --dust-ink / --dust-accent-alt):
+  // a white speck cannot be seen on a pale surface, nor a deep accent one on a dark surface.
+  inline QColor tintColour(const QColor& accent, int tint, bool dark) {
+    if (tint == 0) return dark ? QColor(255, 255, 255) : QColor(0x1f, 0x1f, 0x1f);
     if (tint == 1) return QColor(180, 180, 180);   // #b4b4b4
     if (tint == 2) return QColor(110, 110, 110);   // #6e6e6e
-    const int to = tint == 3 ? 255 : 0;
-    const double k = 1.0 - kTintAccentShare;
-    return QColor(qRound(accent.red() + (to - accent.red()) * k),
-                  qRound(accent.green() + (to - accent.green()) * k),
-                  qRound(accent.blue() + (to - accent.blue()) * k));
+    if (tint == 3) return towards(accent, 255, 1.0 - kTintAccentShare);
+    return dark ? towards(accent, 255, 1.0 - kTintPaleShare) : towards(accent, 0, 1.0 - kTintAccentShare);
   }
   // The colour a grain is painted, once its tint is known — fixed for its whole flight, so
   // a caller with a per-grain cache (disintegrateOverlay.hpp tints_) passes the tint in.
-  inline QColor tintedStop(const QColor& accent, const QColor& shade, double mix, int tint) {
-    return tint < 0 ? paletteStop(accent, shade, mix) : tintColour(accent, tint);
+  inline QColor tintedStop(const QColor& accent, const QColor& shade, double mix, int tint, bool dark) {
+    return tint < 0 ? paletteStop(accent, shade, mix) : tintColour(accent, tint, dark);
   }
 
   // cubic-bezier(x1, y1, x2, y2) at time t: solve x(u) = t by bisection (monotonic in

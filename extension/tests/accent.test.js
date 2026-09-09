@@ -622,7 +622,7 @@ test('a water or fire wake is painted from the accent palette; slide keeps the w
   // Every fill is a palette colour — a stop of the accent ramp or one of its tints
   // (lib/dustCloud.js paletteCss) — never a pixel of the page.
   const ramp = /^color-mix\(in srgb, var\(--accent\) \d+%, var\(--accent-2\)\)$/;
-  const tint = /^(#ffffff|#b4b4b4|#6e6e6e|color-mix\(in srgb, var\(--accent\) 55%, #(ffffff|000000)\))$/;
+  const tint = /^(#b4b4b4|#6e6e6e|color-mix\(in srgb, var\(--accent\) 55%, #ffffff\)|var\(--dust-(ink|accent-alt), #\w{6}\))$/;
   for (const f of lit) assert.ok(ramp.test(f.colour) || tint.test(f.colour), `palette fill, got ${f.colour}`);
   assert.ok(lit.some((f) => ramp.test(f.colour)), 'most of it the accent');
   assert.ok(lit.some((f) => tint.test(f.colour)), '…and a tinted minority');

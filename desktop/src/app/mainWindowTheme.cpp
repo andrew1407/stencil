@@ -81,7 +81,7 @@ namespace stencil::gui {
       // a particle mode: 'slide' keeps the wipe and drops its grain (browser parity).
       if (wipe && support::dustAllowed()) {
         const Palette old = themePalette(paintedDark_, paintedAccent_);
-        wipe->seedDust(old.accent, old.textKey);
+        wipe->seedDust(old.accent, old.textKey, paintedDark_);
       }
       themeWipe_ = wipe;
     }
@@ -110,7 +110,7 @@ namespace stencil::gui {
     // Palette carries as textKey.
     {
       const Palette np = themePalette(dark, settings_.accentColor);
-      support::setParticlePalette(np.accent, np.textKey);
+      support::setParticlePalette(np.accent, np.textKey, dark);
     }
     // An open accent popover keeps its ✓ on the accent now applied, whichever route
     // moved it (the logo's click-cycle under the open list, a row pick, the dialog).

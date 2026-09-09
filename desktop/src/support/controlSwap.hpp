@@ -371,6 +371,7 @@ namespace stencil::gui {
         style_ = support::particleStyle();
         accent_ = support::particleAccent();
         shade_ = support::particleShade();
+        dark_ = support::particleDark();
       }
       QPainter p(this);
       p.setClipRect(clip_);   // clipped by the edit field, the way the word itself is
@@ -462,7 +463,7 @@ namespace stencil::gui {
                 g.r *= sf.scale;
                 g.c = support::tintedStop(accent_, shade_,
                                           style_ == support::ParticleStyle::Dust ? support::dustMix(w, false) : sf.mix,
-                                          support::tintOf(w));
+                                          support::tintOf(w), dark_);
                 g.c.setAlphaF(std::min(1.0, alpha * sf.glow));
                 grains.push_back(g);
               }
@@ -519,6 +520,7 @@ namespace stencil::gui {
     QRect clip_;
     double t_ = 0.0;
     int ms_ = 1;   // the exchange's length, for a styled word's clock
+    bool dark_ = support::particleDark();   // …and the theme, which two tints follow
     support::MoteSprites sprites_;   // shaped grains only — the word's discs draw direct, antialiased
     // The style and palette the exchange plays in, read at its FIRST FRAME rather than at
     // build time: a combo that changes the motion mode swaps its face in the same call

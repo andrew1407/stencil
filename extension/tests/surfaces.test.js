@@ -254,7 +254,10 @@ test('a mote is a painted speck, never a copy — one canvas per cloud, no node 
       assert.ok(Number.isFinite(cloud.motes[0][k]), `${k} on the grain`);
     assert.equal(cloud.colours.length, PAINT_STOPS, 'painted from the theme palette, never the surface’s own pixels');
     assert.match(cloud.colours[0], /var\(--accent\) 100%/);
-    assert.equal(cloud.colours.at(-1), 'color-mix(in srgb, var(--accent) 55%, #000000)', '…tints and all');
+    assert.equal(cloud.colours.at(-1), 'var(--dust-accent-alt, #442082)', '…tints and all');
+    // The spark and that accent tint follow the theme, or one of them would be invisible.
+    assert.match(THEME, /--dust-ink:\s*#1f1f1f;[\s\S]*--dust-accent-alt:\s*color-mix\(in srgb, var\(--accent\) 55%, #000000\)/);
+    assert.match(THEME, /--dust-ink:\s*#ffffff;[\s\S]*--dust-accent-alt:\s*color-mix\(in srgb, var\(--accent\) 30%, #ffffff\)/);
     assert.ok(!host.children.some((c) => c.classes?.has?.('disintegrate-tile')), 'no node per grain');
   });
 });
