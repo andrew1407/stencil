@@ -173,12 +173,14 @@ export const paletteIndex = (mix, stops = PALETTE_STOPS) =>
 // hash, so a violet cloud carries white sparks and ash greys through it. They sit AFTER
 // the ramp, so one index still names one colour. Desktop twin: dustKit.hpp tintOf.
 export const TINT_SHARE = 0.34;   // of grains wear a tint; the rest ride the ramp
+// Two of them follow the theme (css/theme.css), since a white speck cannot be seen on a
+// pale surface, nor a deep accent one on a dark surface.
 export const TINT_CSS = [
-  '#ffffff',                                           // white
+  'var(--dust-ink, #1f1f1f)',                          // white on dark, soot on light
   '#b4b4b4',                                           // grey
   '#6e6e6e',                                           // darker grey
   'color-mix(in srgb, var(--accent) 55%, #ffffff)',    // light accent
-  'color-mix(in srgb, var(--accent) 55%, #000000)',    // dark accent
+  'var(--dust-accent-alt, #442082)',                   // deep accent on light, pale on dark
 ];
 export const TINT_STOPS = TINT_CSS.length;
 // Every colour paletteCss hands out: the ramp, then the tints.

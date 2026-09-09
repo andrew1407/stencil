@@ -52,6 +52,11 @@ namespace stencil::support {
       static QColor c(0x6b, 0x32, 0xcc);
       return c;
     }
+    // …and which theme they came from: two of a cloud's tints flip with it (dustKit.hpp).
+    inline bool& particleDarkState() {
+      static bool dark = false;
+      return dark;
+    }
   }  // namespace detail
 
   inline MotionMode motionMode() { return detail::motionModeState(); }
@@ -77,13 +82,15 @@ namespace stencil::support {
     return QStringLiteral("particles");
   }
 
-  // The particle palette: the accent and its shade, as the theme last set them.
-  inline void setParticlePalette(const QColor& accent, const QColor& shade) {
+  // The particle palette: the accent, its shade and the theme, as last set.
+  inline void setParticlePalette(const QColor& accent, const QColor& shade, bool dark = false) {
     if (accent.isValid()) detail::particleAccentState() = accent;
     detail::particleShadeState() = shade.isValid() ? shade : detail::particleAccentState();
+    detail::particleDarkState() = dark;
   }
   inline QColor particleAccent() { return detail::particleAccentState(); }
   inline QColor particleShade() { return detail::particleShadeState(); }
+  inline bool particleDark() { return detail::particleDarkState(); }
 
   // The canvas stroke motion (a vertex flying to where it was put, its landing pop and
   // ripple — canvas/strokeGrowth.hpp), which the user can turn off on its own.
