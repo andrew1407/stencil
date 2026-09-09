@@ -33,7 +33,9 @@ public sealed class LinkHandlerTests : IDisposable
 
     private CommandHandlers Handlers(string? browserAppUrl) =>
         TestHandlers.Create(
-            new BotOptions { DataDir = _dataDir, BrowserAppUrl = browserAppUrl },
+            browserAppUrl is null
+                ? new BotOptions { DataDir = _dataDir }                                  // the default base
+                : new BotOptions { DataDir = _dataDir, BrowserAppUrl = browserAppUrl },
             _store, new MockStencilCli(), _bot);
 
     private Task Dispatch(string? browserAppUrl, string text = "/link") =>
@@ -80,11 +82,35 @@ public sealed class LinkHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task WithNoBrowserAppConfiguredSaysSoInsteadOfSendingABrokenLink()
+    public async Task UnconfiguredFallsBackToTheDevServerAndFlagsItAsLocalOnly()
     {
         await SeedActiveProject();
 
-        await Dispatch(browserAppUrl: null);
+        await Dispatch(browserAppUrl: null);   // BotOptions default: http://localhost:8080
+
+        SendMessageRequest reply = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
+        Assert.Contains("http://localhost:8080/launch.html#stencil-desktop=", reply.Text);
+        // A loopback link opens on whoever taps it, so the reply must not read as shareable.
+        Assert.Contains("only works on this machine", reply.Text);
+    }
+
+    [Fact]
+    public async Task ARemoteBrowserAppCarriesNoLocalOnlyCaveat()
+    {
+        await SeedActiveProject();
+
+        await Dispatch("https://stencil.example/app");
+
+        SendMessageRequest reply = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
+        Assert.DoesNotContain("only works on this machine", reply.Text);
+    }
+
+    [Fact]
+    public async Task AnUnusableConfiguredBaseSaysSoInsteadOfSendingABrokenLink()
+    {
+        await SeedActiveProject();
+
+        await Dispatch("not-a-url");
 
         SendMessageRequest reply = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
         Assert.Contains("STENCIL_BOT_BROWSER_URL", reply.Text);
