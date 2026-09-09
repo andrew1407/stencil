@@ -39,13 +39,13 @@ export class StencilToolbar extends StencilElement {
                 <!-- The field shrink-wraps its content (the input carries a size attribute
                      matching the name — see updateProjectTitle), so everything after the name
                      sits beside it instead of at the end of a fixed 240px slot. -->
-                <span class="project-name-field" style="flex:0 1 auto;max-width:280px;min-width:0;display:inline-flex;align-items:center;gap:4px;">
+                <span class="project-name-field" style="flex:0 1 auto;max-width:280px;min-width:0;display:inline-flex;align-items:center;gap:8px;">
                     <span id="project-remote-badge" class="project-remote-badge" style="display:none;flex:0 0 auto;" data-title="Editing a project stored on a server">${icon('server', { size: 13 })}</span>
                     <input id="project-name-input" type="text" size="10" placeholder="No project" readonly disabled
                         style="flex:0 1 auto;min-width:0;font-size:13px;font-weight:600;background:transparent;border:1px solid transparent;border-radius:6px;padding:3px 8px;">
-                    <button id="project-name-edit" class="name-edit-btn name-edit-pencil" type="button" data-hk-title="renameProject" data-title="Rename project" style="display:none;">${icon('pencil', { size: 13 })}</button>
-                    <button id="project-name-accept" class="name-edit-btn name-edit-accept" type="button" data-title="Save name" style="display:none;">${icon('check', { size: 14 })}</button>
-                    <button id="project-name-cancel" class="name-edit-btn name-edit-cancel" type="button" data-title="Cancel" style="display:none;">${icon('x', { size: 14 })}</button>
+                    <button id="project-name-edit" class="name-edit-btn name-edit-pencil" type="button" data-hk-title="renameProject" data-title="Rename project" style="display:none;">${icon('pencil', { size: 14 })}</button>
+                    <button id="project-name-accept" class="name-edit-btn name-edit-accept" type="button" data-title="Save name (Enter)" style="display:none;">${icon('check', { size: 14 })}</button>
+                    <button id="project-name-cancel" class="name-edit-btn name-edit-cancel" type="button" data-title="Cancel (Esc)" style="display:none;">${icon('x', { size: 14 })}</button>
                     <button id="project-color-btn" class="name-edit-btn" type="button" data-title="Project color — paints the project name" style="display:none;">${icon('palette', { size: 14 })}</button>
                     <input id="project-color-input" type="color" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;">
                     <!-- Sits INSIDE the name field, right after the name (which sizes to its
@@ -229,6 +229,7 @@ export class StencilToolbar extends StencilElement {
                 <div class="ctrl-section-label">Zoom</div>
                 <div class="ctrl-section-row">
                     <div class="zoom-controls">
+                        <button id="zoom-fit" class="btn-icon" data-hk-title="resetZoom" data-title="Fit to window" data-disabled-reason="Load an image to zoom">${icon('fit')}</button>
                         <button id="zoom-out" class="btn-icon" data-title="Zoom out" data-disabled-reason="Load an image to zoom">${icon('minus')}</button>
                         <button id="zoom-in" class="btn-icon" data-title="Zoom in" data-disabled-reason="Load an image to zoom">${icon('plus')}</button>
                         <!-- Zoom % — type an exact value OR pick a preset from the dropdown that
@@ -239,7 +240,6 @@ export class StencilToolbar extends StencilElement {
                             <div class="zoom-menu" id="zoom-menu" role="listbox" hidden></div>
                         </span>
                         <span style="font-size:13px;font-weight:bold;color:var(--text-muted)">%</span>
-                        <button id="zoom-fit" class="btn-icon" data-hk-title="resetZoom" data-title="Fit to window" data-disabled-reason="Load an image to zoom">${icon('fit')}</button>
                     </div>
                 </div>
             </div>
@@ -299,11 +299,11 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Data</div>
                 <div class="ctrl-section-row">
-                    <button id="download-json" class="btn-icon" data-hk-title="downloadJson" data-title="Download Layout JSON" data-disabled-reason="Draw at least one line to export">${icon('download')}</button>
-                    <button id="copy-json-btn" class="btn-icon" data-hk-title="copyLayout" data-title="Copy full Layout JSON (lines + all applied edits)" data-disabled-reason="Draw at least one line to copy">${icon('copy')}</button>
+                    <button id="copy-json-btn" class="btn-icon" data-hk-title="copyLayout" data-title="Copy full Layout JSON (lines + all applied edits)" data-disabled-reason="Draw at least one line to copy">${icon('clipboard')}</button>
+                    <button id="download-json" class="btn-icon" data-hk-title="downloadJson" data-title="Download Layout JSON" data-disabled-reason="Draw at least one line to export">${icon('file-down')}</button>
                     <input type="file" id="upload-json" accept=".json" style="display:none;">
-                    <button id="upload-json-btn" class="btn-icon" data-hk-title="uploadJson" data-title="Upload Layout JSON" data-disabled-reason="Load an image first">${icon('upload')}</button>
-                    <button id="clear-storage" class="danger btn-icon" data-hk-title="clearProject" data-title="Remove" data-disabled-reason="Open an image first — nothing to remove">${icon('trash')}</button>
+                    <button id="upload-json-btn" class="btn-icon" data-hk-title="uploadJson" data-title="Upload Layout JSON" data-disabled-reason="Load an image first">${icon('file-up')}</button>
+                    <button id="clear-storage" class="danger btn-icon" data-hk-title="clearProject" data-title="Remove current project" data-disabled-reason="Open an image first — nothing to remove">${icon('trash')}</button>
                 </div>
             </div>
 
@@ -313,9 +313,9 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Settings</div>
                 <div class="ctrl-section-row">
-                    <button id="theme-toggle" class="btn-icon" data-hk-title="toggleTheme" data-title="Toggle dark / light theme">${icon('moon')}</button>
+                    <button id="incognito-toggle" class="btn-icon" data-hk-title="toggleIncognito" data-title="Incognito — edit without saving" data-disabled-reason="Choose incognito before adding an image">${icon('incognito')}</button>
                     <button id="fullscreen-toggle" class="btn-icon" data-hk-title="fullscreen" data-title="Fullscreen">${icon('maximize')}</button>
-                    <button id="incognito-toggle" class="btn-icon" data-hk-title="toggleIncognito" data-title="Incognito — edit without saving (choose before adding an image)">${icon('incognito')}</button>
+                    <button id="theme-toggle" class="btn-icon" data-hk-title="toggleTheme" data-title="Toggle dark / light theme">${icon('moon')}</button>
                     <button id="settings-btn" class="btn-icon" data-hk-title="openHotkeys" data-title="Keyboard shortcuts">${icon('gear')}</button>
                     <button id="visuals-btn" class="btn-icon" data-hk-title="openVisuals" data-title="Default visuals &amp; highlight styles">${icon('palette')}</button>
                     <button id="info-btn" class="btn-icon" data-hk-title="openHelp" data-title="Controls &amp; shortcuts help">${icon('help')}</button>

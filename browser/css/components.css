@@ -137,6 +137,10 @@ body.fullscreen-mode .info,
 body.fullscreen-mode .drop-hint,
 body.fullscreen-mode .main-content > .coordinates-panel,
 body.fullscreen-mode .panel-resizer,
+/* The install-app affordance floats over the canvas' bottom-right corner (fixed, z 100000)
+   and stayed there in fullscreen — the one thing left on screen beside the image (user
+   report, with a picture). Fullscreen is the canvas and nothing else. */
+body.fullscreen-mode #install-host,
 body.fullscreen-mode #selection-panel {
     display: none !important;
 }
@@ -321,20 +325,6 @@ body.fullscreen-mode #fs-points-panel {
     background: transparent;
     padding: 0;
 }
-#fs-exit-btn {
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    background: transparent;
-    border: 1px solid var(--border-main) !important;
-    color: var(--text-main);
-    font-size: 13px;
-    padding: 3px 9px;
-    border-radius: 12px;
-    cursor: pointer;
-    z-index: 2;
-}
-#fs-exit-btn:hover { background: var(--bg-info); }
 
 /* Fullscreen selection panel overlay */
 #fs-selection-panel {
@@ -854,13 +844,16 @@ body.fullscreen-mode #fs-points-panel {
 #install-menu [role="menuitem"][hidden] { display: none; }
 #install-menu .install-ic { font-size: 16px; }
 
-/* ── Ghost icon buttons in the Settings section (gear/palette/help + fullscreen +
-   incognito) — one shared flat, square outline so the whole row reads as a set,
-   rather than a mix of pills and accent-filled squares. The active toggles
-   (fullscreen while on, incognito while on) fill with the accent below. ── */
+/* ── Icon buttons in the Settings section (gear/palette/help + fullscreen + incognito):
+   one shared flat, square box, so the whole row reads as a set. The gear, palette and
+   help OPEN DIALOGS, exactly as Projects and Servers do, so they wear those buttons'
+   accent fill (below) — a filled square says "this opens something". The two beside them
+   are TOGGLES: they stay ghosts until they are on, and then fill. ── */
 #settings-btn, #visuals-btn, #info-btn, #fullscreen-toggle, #incognito-toggle {
     background: transparent;
-    border: 1px solid var(--border-main) !important;
+    /* The box is drawn in the ink of the glyph inside it (user report: a --border-main
+       outline vanished on the dark theme and smudged on the light one). */
+    border: 1px solid var(--ui-outline) !important;
     color: var(--text-main);
     font-size: 18px;
     padding: 7px 11px;
@@ -877,7 +870,7 @@ body.fullscreen-mode #fs-points-panel {
 #chat-btn {
     background: transparent;
     border: none !important;
-    box-shadow: inset 0 0 0 1px var(--border-main);
+    box-shadow: inset 0 0 0 1px var(--ui-outline);
     color: var(--text-main);
     line-height: 1;
     border-radius: 4px;
@@ -890,7 +883,7 @@ body.fullscreen-mode #fs-points-panel {
 #voice-chat-btn {
     background: transparent;
     border: none !important;
-    box-shadow: inset 0 0 0 1px var(--border-main);
+    box-shadow: inset 0 0 0 1px var(--ui-outline);
     color: var(--text-main);
     line-height: 1;
     border-radius: 4px;
@@ -936,19 +929,54 @@ body.fullscreen-mode #fs-points-panel {
    this one is ever disabled. The id selector outranks `button:disabled`'s grey fill, so the
    disabled look is the fade the other ghost buttons use (#incognito-toggle). */
 #zoom-fit {
-    background: transparent;
+    background: var(--accent);
     border: none !important;
-    box-shadow: inset 0 0 0 1px var(--border-main);
-    color: var(--text-main);
+    box-shadow: inset 0 0 0 1px var(--accent);
+    color: #fff;
     line-height: 1;
     border-radius: 4px;
     cursor: pointer;
     transition: background 0.2s, box-shadow 0.2s, color 0.2s;
 }
 #zoom-fit:disabled { opacity: 0.45; cursor: not-allowed; }
-#settings-btn:hover, #visuals-btn:hover, #info-btn:hover,
-#fullscreen-toggle:not(.active):hover, #incognito-toggle:not(.active):hover,
-#chat-btn:not(.active):hover, #zoom-fit:not(:disabled):hover { background: var(--bg-info); }
+/* Their glyphs stay the plain text ink — an idle control is not a themed one. The accent
+   belongs to the HOVER, as a border, exactly as a field's hover ring does (user decision;
+   desktop twin: theme.cpp QToolButton:hover). `!important` because the resting border of
+   the Settings ghosts is itself declared that way, a few rules up. */
+/* The three dialog-openers: the standard accent fill, white glyph and accent-2 hover —
+   the same treatment #projects-btn and #connect-btn get from the plain `button` rules,
+   which the ghost box above would otherwise cover. */
+#settings-btn, #visuals-btn, #info-btn {
+    background: var(--accent);
+    border-color: var(--accent) !important;
+    color: #fff;
+}
+#settings-btn:not(:disabled):hover, #visuals-btn:not(:disabled):hover,
+#info-btn:not(:disabled):hover {
+    background: var(--accent-2);
+    border-color: var(--accent-2) !important;
+}
+#incognito-toggle:not(.active):hover,
+#chat-btn:not(.active):hover { background: var(--bg-info); }
+#zoom-fit:not(:disabled):hover { background: var(--accent-2); box-shadow: inset 0 0 0 1px var(--accent-2); }
+/* An idle TOGGLE shows the accent on its hover border alone — it is not on, so it must
+   not look filled (user decision). Desktop twin: theme.cpp QToolButton:hover. */
+#incognito-toggle:not(.active):not(:disabled):hover { border-color: var(--accent) !important; }
+/* The three with an inset ring instead of a border (their box must not grow on toggle)
+   take the same accent on that ring. */
+#chat-btn:not(.active):not(:disabled):hover,
+#voice-chat-btn:not(.active):not(:disabled):hover { box-shadow: inset 0 0 0 1px var(--accent); }
+/* Fullscreen is FILLED either way: it acts the moment it is pressed, like the dialog-openers
+   beside it, and its glyph — not its fill — says which way it goes. */
+#fullscreen-toggle {
+    background: var(--accent);
+    border-color: var(--accent) !important;
+    color: #fff;
+}
+#fullscreen-toggle:not(:disabled):hover {
+    background: var(--accent-2);
+    border-color: var(--accent-2) !important;
+}
 /* Active toggle → accent fill (matches the primary toolbar icons). */
 #fullscreen-toggle.active, #incognito-toggle.active, #chat-btn.active {
     background: var(--accent);
@@ -1500,7 +1528,7 @@ stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
     text-align: left;
     color: var(--input-text);
     background: var(--input-bg);
-    border: 1px solid var(--border-main);
+    border: 1px solid var(--ui-outline);   /* the field's own ink, as every input's box is */
     border-radius: 6px;
     cursor: pointer;
     transition: border-color 0.2s ease;
@@ -1953,7 +1981,11 @@ stencil-fullscreen-layer { display: contents; }
     display: inline-flex; align-items: center; gap: 5px;
     font-size: 13px; font-weight: 600; cursor: pointer; user-select: none;
     padding: 5px 10px; border-radius: 6px;
-    border: 1px solid var(--accent); color: var(--accent);
+    /* An accent OUTLINE around the theme's own ink — the word is read, so it takes the
+       colour every other label does, light on a dark theme and dark on a light one (user
+       decision; desktop twin: QCheckBox#formulaPill). The fill and white text arrive with
+       `.on`. */
+    border: 1px solid var(--ui-outline); color: var(--text-main);
     background: transparent;
     transition: background .12s ease, color .12s ease, border-color .12s ease;
 }
@@ -2211,6 +2243,16 @@ textarea.confirm-prompt-input:focus {
     border-radius: 4px;
 }
 /* Inline rename input shown in place of .project-name */
+/* `input[type="text"]` is an ATTRIBUTE selector, so the shared field padding (8px 12px)
+   outranked this class and the row's editor stood 34px tall — a fat box over the line
+   below it, where the top editor and the desktop's are compact (user report, with
+   pictures of all three). Scoped to the wrap so the weight is beyond doubt. */
+.project-rename-wrap input.project-name-edit {
+    padding: 1px 6px;
+    height: 24px;          /* the chips beside it */
+    font-size: 13px;
+    line-height: 1;
+}
 .project-name-edit {
     font-weight: 600;
     font-size: 14px;

@@ -703,7 +703,7 @@ export class StencilContextMenu extends StencilElement {
       // Fullscreen label
       const isFS = document.body.classList.contains('fullscreen-mode');
       document.getElementById('ctx-fs-label').textContent = isFS ? 'Exit Fullscreen' : 'Enter Fullscreen';
-      setHtml(document.getElementById('ctx-fullscreen').querySelector('.ctx-icon'), icon('maximize'));
+      setHtml(document.getElementById('ctx-fullscreen').querySelector('.ctx-icon'), icon(isFS ? 'minimize' : 'maximize'));
 
       // Tooltip checkboxes
       document.getElementById('ctx-tt-enabled').checked = app.tooltipEnabled;

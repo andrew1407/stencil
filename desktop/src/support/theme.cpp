@@ -328,6 +328,10 @@ namespace stencil::gui {
       QToolBar::separator {
         width: 1px; background: %BORDER%; margin: 5px 6px; border-radius: 1px;
       }
+      /* The wrapping rows carry their own hairlines: a QToolBar separator is an item of the
+         toolbar's layout, and these rows have only one (support/wrapRow.hpp). */
+      QWidget#toolWrapRow { background: transparent; }
+      QFrame#toolWrapSep { background: %BORDER%; border: none; border-radius: 1px; }
       QToolBar QLabel { color: %MUTED%; background: transparent; padding: 0 2px; }
       /* Section captions (IMAGE / LINE / POINT …). Darker than %MUTED% in the light theme —
          the plain grey read as too faint on white (user report). */
@@ -335,6 +339,8 @@ namespace stencil::gui {
       /* The header row carries only the logo, the Controls pill and the project name, so it
          gets a tighter band than the tool rows below it. */
       QToolBar#headerToolbar { padding: 1px 6px 1px 11px; }   /* +5px left inset for the logo */
+      /* In fullscreen the row hangs over the canvas, so it takes 5px more to stand on. */
+      QToolBar[fsBar="true"] { padding-bottom: 9px; }
 
       /* Image Size bar, right above the canvas — a central-layout row now (see
          MainWindow's centralLayout_), styled like the toolbar rows above it. */
@@ -401,6 +407,10 @@ namespace stencil::gui {
       QWidget#selectedLineCard QLineEdit {
         min-height: 18px; padding: 4px 11px; border-radius: 4px;
       }
+      QWidget#selectedLineCard QSpinBox:hover:enabled,
+      QWidget#selectedLineCard QSpinBox:focus,
+      QWidget#selectedLineCard QLineEdit:hover:enabled,
+      QWidget#selectedLineCard QLineEdit:focus { padding: 3px 10px; }
       QWidget#selectedLineCard QPushButton { padding: 5px 10px; border-radius: 4px; }
       QWidget#selectedLineCard QPushButton {
         background: %BG_CONTROLS%; border: 1px solid %BORDER%; color: %TEXT%;
@@ -449,11 +459,17 @@ namespace stencil::gui {
       }
       QToolButton:hover { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
       QToolButton:pressed { background: %ACCENT_SOFT2%; }
-      /* The ✎ / 🎨 beside the project name: chips with a ground, the way the browser
-         paints them (ordinary buttons on --bg-info inside --border-main). Bare, they read
-         as loose glyphs until the cursor found one. The accent hover above still applies. */
+      /* The ✎ / 🎨 beside the project name: the toolbar's own filled squares, so they read
+         as buttons of the same family as everything above them rather than as loose glyphs
+         on a tinted chip (user decision; browser twin: the name-edit buttons in
+         components.css). Square: the same radius the section buttons use. */
       QToolButton[nameAffordance="true"] {
-        background: %BG_INFO%; border: 1px solid %BORDER%;
+        background: %ACCENT%; border: 1px solid %ACCENT%; color: white; border-radius: 7px;
+        /* Room for the glyph and no more: the row's default 5px 7px pushed the mark past the
+           chip and Qt clipped it (user report, with a picture). The sides are wider than the
+           top so the ✓/✗ — whose width is free, to let their reveal slide — still ASK for
+           the chip's full 28px rather than settling narrower than their twins. */
+        padding: 2px 6px;
       }
       /* Under the cursor it takes the app's own accent, SOLID — the browser's
          `button:hover { background: var(--accent-2) }` — with the glyph flipping to white
@@ -485,7 +501,22 @@ namespace stencil::gui {
          image is loaded) drops its accent highlight instead of looking still-active. */
       QToolButton:disabled { color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%; }
       QToolButton:checked:disabled { color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%; }
-      QToolButton::menu-indicator { image: none; }
+      /* No indicator, and no RESERVE for one either: a popover button (Start/Stop, Line/Rect)
+         kept ~11px of empty right margin, so its icon+label block sat left of centre
+         (user report, with a picture). Width 0 centres the pair. */
+      QToolButton::menu-indicator { image: none; width: 0; }
+      /* The Start/Stop and Line/Rect faces read as WORDS, not as chips: a size up from the
+         toolbar's dense default, with the browser's own gap between glyph and label. */
+      /* The padding is deliberately ASYMMETRIC: Qt anchors a text-beside-icon label at the
+         left of the content rect and leaves its own ~6px of slack on the right, so equal
+         padding drew the pair off-centre in its box (user report, with a picture). Moving
+         that slack to the left centres the glyph+word without changing the button's width
+         (the size hint, and the pin taken from it, see the same total). */
+      /* Left padding trimmed to the row's own: the glyph+word block sits where the
+         browser's does rather than pushed in from the left, and the air between glyph and
+         label comes from the icon RECT instead (kFaceIconGap) — Qt's own gap is a fixed
+         4px and QSS `spacing` does nothing here (user report, with a picture). */
+      QToolButton#drawFaceBtn { font-size: 12px; padding: 5px 6px; }
       /* Chat-dock action buttons (send / attach / gear): the standard FILLED
          accent icon-button treatment (browser chat-panel parity); disabled =
          the shared muted chip. The explicit :disabled rule must follow the
@@ -517,7 +548,7 @@ namespace stencil::gui {
          It opts out of toolFill for exactly this reason: filled in both states, the
          toggle said nothing about which one you were in. */
       QToolButton[drawToggle="idle"] {
-        background: transparent; border-color: %ACCENT%; color: %ACCENT%;
+        background: transparent; border-color: %UI_OUTLINE%; color: %TEXT%;
       }
       QToolButton[drawToggle="idle"]:hover { background: %ACCENT_SOFT%; border-color: %ACCENT%; }
       QToolButton[drawToggle="idle"]:pressed { background: %ACCENT_SOFT2%; }
@@ -529,24 +560,20 @@ namespace stencil::gui {
       QToolButton[drawToggle="idle"]:disabled, QToolButton[drawToggle="on"]:disabled {
         color: %DISABLED_TEXT%; background: %DISABLED_BG%; border-color: %BORDER%;
       }
-      /* Fit-to-window is the one section button that keeps a GHOST box (browser
-         #zoom-fit): an outlined, transparent chip with the theme-coloured glyph, because
-         an accent-filled square at the end of the ZOOM row reads as a third zoom step
-         rather than "fit the whole image". Disabled = the browser's fade: the outline
-         stays, the glyph and text go muted (themedIcon supplies the faded pixmap). */
-      QToolButton[toolGhost="true"] {
-        background: transparent; border: 1px solid %BORDER%; color: %TEXT%;
-      }
-      /* …hovering NEUTRAL as the browser's does (#zoom-fit:hover): --bg-info, the
-         border unchanged. The accent tint here reads as a half-on toggle. */
-      QToolButton[toolGhost="true"]:hover { background: %BG_INFO%; border-color: %BORDER%; }
-      QToolButton[toolGhost="true"]:pressed { background: %BG_COORD_HOVER%; }
-      QToolButton[toolGhost="true"]:disabled { color: %DISABLED_TEXT%; background: transparent; border-color: %BORDER%; }
-      /* The Settings cluster: the browser's bordered ghosts (#settings-btn & co). A
-         CHECKED toggle still wins its accent fill (the more specific rule below). */
-      QToolButton[toolSection="Settings"] { background: transparent; border: 1px solid %BORDER%; }
-      QToolButton[toolSection="Settings"]:hover { background: %BG_INFO%; border-color: %BORDER%; }
-      QToolButton[toolSection="Settings"]:pressed { background: %BG_COORD_HOVER%; }
+      /* Fit-to-window is filled like every other ACTING button now (user decision; browser
+         twin: #zoom-fit in css/components.css) — the toolFill rules above own its look.
+         Only its DISABLED face is its own: the browser's fade rather than the filled
+         chip, since it ends the ZOOM row beside a plain field. */
+      QToolButton[toolGhost="true"]:disabled { color: %DISABLED_TEXT%; background: transparent; border-color: %DISABLED_TEXT%; }
+      /* The Settings cluster's TOGGLES: the browser's bordered ghosts (#fullscreen-toggle,
+         #incognito-toggle). Keyed on a property set per button rather than on the section,
+         because the cluster's other three OPEN DIALOGS and wear the accent fill like every
+         other dialog-opening button — this rule is the last word on background, so a
+         section-wide one greyed them back out (user report). A CHECKED toggle still wins
+         its accent fill (the more specific rule below). */
+      QToolButton[toolGhostBox="true"] { background: transparent; border: 1px solid %UI_OUTLINE%; }
+      QToolButton[toolGhostBox="true"]:hover { background: %BG_INFO%; border-color: %ACCENT%; }
+      QToolButton[toolGhostBox="true"]:pressed { background: %BG_COORD_HOVER%; }
 
       /* ── Menu bar + menus: rounded accent hover, comfortable padding ── */
       QMenuBar { background: %BG_CONTROLS%; color: %TEXT%; border-bottom: 1px solid %BORDER%; padding: 2px 4px; }
@@ -615,7 +642,10 @@ namespace stencil::gui {
 
       /* ── Text inputs / combos / spinboxes: rounded, accent focus ring ── */
       QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox {
-        background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
+        /* The outline is the control's own ink, not a near-invisible grey: a %BORDER% box
+           all but vanished behind its glyph on the dark theme and read as a smudge on the
+           light one (user report, with pictures of both). Browser twin: css/layout.css. */
+        background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %UI_OUTLINE%;
         border-radius: 7px; padding: 3px 8px; min-height: 20px;
         selection-background-color: %ACCENT%; selection-color: white;
       }
@@ -623,14 +653,20 @@ namespace stencil::gui {
          its select trigger do (.accent-dd-trigger:hover). The accent fill this used to take
          came from the browser leaking its generic `button:hover` onto that trigger; on a
          pale accent it left white text and a white caret on near-white (user report). */
-      QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover, QComboBox:hover {
-        border-color: %ACCENT_RING%;
+      /* Every input RINGS on hover, as the browser's fields and its select trigger do
+         (css/layout.css) — twice the resting border, so the hover reads as "this is a
+         control" rather than a tint (user decision). The padding gives back exactly the
+         pixel the border takes, so nothing in the row moves as the pointer crosses it.
+         Enabled only: a dead field must never light up under the pointer. */
+      QLineEdit:hover:enabled, QSpinBox:hover:enabled, QDoubleSpinBox:hover:enabled,
+      QComboBox:hover:enabled {
+        border: 2px solid %ACCENT_RING%; padding: 2px 7px;
       }
-      /* A SELECTOR's ring is drawn twice as thick as a field's — it is the one input you
-         open rather than type into, so the hover has to read as "this is a control", not
-         just a tint (user decision). The padding gives back exactly the pixel the border
-         takes, so nothing in the row moves as the pointer crosses it. */
-      QComboBox:hover { border: 2px solid %ACCENT_RING%; padding: 2px 7px; }
+      /* The project NAME at the top is a TITLE at rest — no box — that rings under the
+         pointer. Its look is NOT set here: mainWindow.cpp's applyProjectNameStyle gives that
+         field a stylesheet of its own (it carries the per-project colour), and a widget's own
+         sheet outranks this one for every property it names. Rules here were simply ignored
+         (user report). The rest/hover pair lives beside the colour, in that function. */
       QComboBox:focus, QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
         border: 2px solid %ACCENT%; padding: 2px 7px;
       }
@@ -678,12 +714,14 @@ namespace stencil::gui {
       QCheckBox:focus, QRadioButton:focus {
         background: %ACCENT_SOFT%; border-radius: 4px;
       }
-      /* f(x,y) formula toggle: an accent PILL (matches the browser's .pill-toggle) — accent
-         outline + text when off, accent-filled with white text when on. The tick indicator is
-         hidden; the whole chip conveys the state. */
+      /* f(x,y) formula toggle: an accent PILL (matches the browser's .pill-toggle) — an
+         accent outline around the theme's own text when off, accent-filled with white text
+         when on. The word is read, so it takes the ink every other label does, light on a
+         dark theme and dark on a light one (user decision); the outline is what carries the
+         accent. The tick indicator is hidden; the whole chip conveys the state. */
       QCheckBox#formulaPill {
-        border: 1px solid %ACCENT%; border-radius: 6px; padding: 4px 10px;
-        color: %ACCENT%; font-weight: 600; background: transparent; spacing: 0px;
+        border: 1px solid %UI_OUTLINE%; border-radius: 6px; padding: 4px 10px;
+        color: %TEXT%; font-weight: 600; background: transparent; spacing: 0px;
       }
       QCheckBox#formulaPill::indicator { width: 0px; height: 0px; margin: 0px; border: none; }
       QCheckBox#formulaPill:hover { background: %ACCENT_SOFT%; }
@@ -846,8 +884,10 @@ namespace stencil::gui {
         border-radius: 8px; padding: 5px 7px;
         selection-background-color: %ACCENT%; selection-color: white;
       }
-      QPlainTextEdit#modalPromptText:hover, QPlainTextEdit#descriptionText:hover,
-      QPlainTextEdit#keywordsText:hover { border-color: %ACCENT_RING%; }
+      QPlainTextEdit#modalPromptText:hover:enabled, QPlainTextEdit#descriptionText:hover:enabled,
+      QPlainTextEdit#keywordsText:hover:enabled {
+        border: 2px solid %ACCENT_RING%; padding: 4px 6px;
+      }
       QPlainTextEdit#modalPromptText:focus, QPlainTextEdit#descriptionText:focus,
       QPlainTextEdit#keywordsText:focus { border: 2px solid %ACCENT%; padding: 4px 6px; }
       /* …and the reason a value cannot be saved, under the field (promptModal validate). */
@@ -929,11 +969,15 @@ namespace stencil::gui {
         border-radius: 4px; padding: 1px 6px; font-weight: 600;
       }
       QLineEdit#projectsRenameEdit:focus { border-color: %ACCENT%; }
+      /* The row's rename ✓/✗: the accent-filled chip the toolbar's pair wears, with the
+         white glyph set in the .cpp (user decision) — not a ghost box. */
       QToolButton#projectsRenameBtn {
-        background: %BG_INFO%; border: 1px solid %BORDER%; border-radius: 5px;
-        padding: 2px 7px;
+        background: %ACCENT%; border: 1px solid %ACCENT%; border-radius: 5px;
+        /* The width is left free for the reveal slide, so the PADDING is what makes the chip
+           ask for a square: 4px carries the row's 12px mark past its 22px cap. */
+        padding: 4px;
       }
-      QToolButton#projectsRenameBtn:hover:enabled { background: %ACCENT_SOFT%; border-color: %ACCENT_RING%; }
+      QToolButton#projectsRenameBtn:hover:enabled { background: %ACCENT2%; border-color: %ACCENT2%; }
       /* A dead ✓ (nothing changed, or the name is rejected) recedes and stops answering
          hover — the browser's .name-edit-btn:disabled { opacity: .4 }. Qt greys the glyph
          itself; the chip's own face is what has to fade with it. */
@@ -945,7 +989,8 @@ namespace stencil::gui {
       /* ── The list-shaped modals (info, shortcuts, settings — modalChrome.hpp):
          the browser's .modal-search box, .settings-body scroller and .info-empty line. ── */
       QLineEdit#modalSearch { padding: 8px 10px; border-radius: 6px; font-size: 13px; }
-      QLineEdit#modalSearch:focus { border: 2px solid %ACCENT%; padding: 7px 9px; }
+      QLineEdit#modalSearch:hover:enabled, QLineEdit#modalSearch:focus { padding: 7px 9px; }
+      QLineEdit#modalSearch:focus { border: 2px solid %ACCENT%; }
       QScrollArea#modalScroll { background: transparent; border: none; }
       QScrollArea#modalScroll > QWidget > QWidget { background: transparent; }
       QLabel#modalEmpty { color: %MUTED%; font-size: 13px; padding: 16px 4px; }
@@ -1088,6 +1133,11 @@ namespace stencil::gui {
         .replace("%ACCENT_SOFT2%", rgba(p.accent, dark ? 0.30 : 0.20))
         .replace("%ACCENT_SOFT%", rgba(p.accent, dark ? 0.18 : 0.11))
         .replace("%ACCENT_RING%", rgba(p.accent, 0.45))
+        // The line an input or icon button draws around itself: its OWN ink, well down —
+        // full ink was hard and half still read heavy (user report, twice). A quarter keeps
+        // the colour family while landing light-grey on the light theme and dark-grey on
+        // the dark one, which is what a border should be in each.
+        .replace("%UI_OUTLINE%", rgba(p.textMain, 0.25))
         .replace("%ACCENT2%", c(accent2))
         // Status reds mirror browser/css/theme.css --danger/--danger-2 (per theme).
         .replace("%SUCCESS_RING%", rgba(success, 0.55))
@@ -1132,7 +1182,9 @@ namespace stencil::gui {
         .replace("%CARET_DIM%", caretImagePath(caretDim))
         .replace("%CARET%", caretImagePath(p.textMuted))
         .replace("%MUTED%", c(p.textMuted))
-        .replace("%SECTIONTITLE%", dark ? QStringLiteral("#7a828c") : QStringLiteral("#565d67"))
+        // The captions ride the same softened ink as the outlines, a step stronger — the
+        // fixed greys read as washed out beside them (user decision).
+        .replace("%SECTIONTITLE%", rgba(p.textMain, 0.62))
         .replace("%DISABLED_TEXT%", c(p.disabledText))
         .replace("%ACCENT%", c(p.accent))
         .replace("%INPUT_BG%", c(p.inputBg))

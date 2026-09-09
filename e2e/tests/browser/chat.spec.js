@@ -719,9 +719,10 @@ test.describe('AI assistant chat panel', () => {
     await expect(panel).toHaveClass(/chat-open/);
     await expect(fsBtn).toHaveClass(/active/);
 
-    // And leaving fullscreen hands the state back to the real toolbar. The clone is
-    // left in the DOM with the same id, so scope to the real one.
-    await page.locator('#fs-exit-btn').click();
+    // And leaving fullscreen hands the state back to the real toolbar. There is no Exit
+    // button any more — the strip IS the toolbar, so its own fullscreen toggle leaves
+    // (Escape does too). The clone shares the real one's id, so scope to the clone here.
+    await page.locator('#fs-controls-panel #fullscreen-toggle').click();
     await expect(page.locator('body')).not.toHaveClass(/fullscreen-mode/);
     await expect(page.locator('#controls-body #chat-btn')).toHaveClass(/active/);
   });

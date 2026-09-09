@@ -38,6 +38,7 @@
 #include "theme.hpp"
 #include "modalReveal.hpp"
 #include "settingsDialog.hpp"
+#include "../src/app/mainWindowHelpers.hpp"   // kNameChipBox
 #include "../src/support/searchCombo.hpp"
 #include <QScopeGuard>
 #include <QtTest>
@@ -460,7 +461,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(hdr->height(), before);
     // …and the same going into edit mode, where ✓/✗ take their place.
     win.projectName_->setEnabled(true);
-    win.enterNameEdit();
+    QTest::mouseClick(win.projectNameEdit_, Qt::LeftButton);
     QTest::qWait(200);
     QCOMPARE(hdr->height(), before);
   }
@@ -593,7 +594,10 @@ class MainWindowGuiTest : public QObject {
         {nullptr, win.projectNameCancel_, "project-name-cancel"},
     };
     for (const Pair& p : pairs) {
-      const QString want = browserTip(QString::fromLatin1(p.browserId));
+      // Both sides go through textOf: the browser writes its key into the data-title
+      // ("Save name (Enter)"), the desktop hands the same key to the rich tooltip as a
+      // keycap — the WORDS are what has to match.
+      const QString want = textOf(browserTip(QString::fromLatin1(p.browserId)));
       QVERIFY2(!want.isEmpty(), qPrintable(QString("no browser control #%1").arg(p.browserId)));
       QVERIFY2(p.act || p.widget, p.browserId);
       // The plain text a widget's tooltip was composed from (the app renders it rich in
@@ -1558,10 +1562,15 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.canvas_->hasImage());
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();   // typingFocus gate off
     const QPoint c = logo->rect().center();
-    QToolButton* other = nullptr;   // a toolbar icon that is not the logo
+    // A toolbar icon that is not the logo — and NOT one the open popover's box covers: a
+    // press on a covered icon is a press ON the window (the app's own onOpenBox rule), so
+    // it is not the "outside press" this case is about. The SETTINGS cluster's ℹ sits at
+    // the far end of the last row, clear of a box anchored to the logo.
+    QToolButton* other = nullptr;
     for (auto it = win.popoverButtons_.cbegin(); it != win.popoverButtons_.cend(); ++it)
-      if (it.value() == win.actConnect_) other = static_cast<QToolButton*>(it.key());
-    QVERIFY(other);
+      if (it.value() == win.actInfo_ && static_cast<QWidget*>(it.key())->isVisible())
+        other = static_cast<QToolButton*>(it.key());
+    QVERIFY2(other, "no visible Help button to press outside on");
 
     enum Route { Sticky, Peek };
     // Open the picker by `route`, press outside on `target`, and report whether the
@@ -3025,16 +3034,19 @@ class MainWindowGuiTest : public QObject {
       win.applySettings(s, /*persist=*/false);
       const QColor accent = stencil::gui::accentPrimary(accentKey);
       const QString why = QStringLiteral(" (accent %1)").arg(accentKey);
-      // The re-theme repaints the window and SWAPS this button's face; 80ms was enough
-      // only when the accent had not really moved. Wait for the glyph itself to arrive.
-      QTRY_VERIFY_WITH_TIMEOUT(near(glyph(), accent, 40), 3000);
+      // The re-theme repaints the window and SWAPS this button's face; 80ms was enough only
+      // when the accent had not really moved. Wait for the glyph itself to arrive.
+      const QColor ink = stencil::gui::themePalette(win.paintedDark_, accentKey).textMain;
+      QTRY_VERIFY_WITH_TIMEOUT(near(glyph(), ink, 40), 3000);
 
-      // ── Idle: outlined. Accent ring + accent glyph, and NO accent fill.
+      // ── Idle: the plain UI outline and the theme's own ink, with NO accent anywhere on
+      // it (user decision) — the accent is what the RUNNING state says, and saying it in
+      // both states said nothing about which one you were in.
       QVERIFY(!canvas->isDrawing());
       QCOMPARE(btn->property("drawToggle").toString(), QString("idle"));
-      QVERIFY2(near(outline(), accent, 40), qPrintable("idle draws no accent ring" + why));
+      QVERIFY2(!near(outline(), accent, 40), qPrintable("idle wears the accent ring" + why));
       QVERIFY2(!near(ground(), accent, 50), qPrintable("idle is accent-FILLED" + why));
-      QVERIFY2(near(glyph(), accent, 40), qPrintable("the idle ▶ is not accent-tinted" + why));
+      QVERIFY2(near(glyph(), ink, 40), qPrintable("the idle ▶ is not the theme's ink" + why));
 
       // ── Drawing: filled, with the on-accent white the app's other filled accent
       // controls use (chatDock's send/attach/gear).
@@ -6164,20 +6176,22 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     QTest::qWait(200);
-    // A section row is the widget whose sibling is the "sectionLabel" caption.
-    QHash<QToolBar*, QList<QPair<QString, int>>> byRow;
+    // A section row is the widget whose sibling is the "sectionLabel" caption. The tool
+    // run WRAPS (support/wrapRow.hpp), so the baseline is shared per LINE — sections are
+    // grouped by where the flow put them, not by which toolbar they belong to.
+    QHash<int, QList<QPair<QString, int>>> byRow;
     for (QWidget* rowWidget : win.findChildren<QWidget*>()) {
       QWidget* section = rowWidget->parentWidget();
       if (!section || !section->findChild<QLabel*>("sectionLabel")) continue;
       if (rowWidget->findChild<QLabel*>("sectionLabel")) continue;   // that's the caption itself
-      auto* bar = qobject_cast<QToolBar*>(section->parentWidget());
-      if (!bar) continue;
+      if (!section->parentWidget() || !section->isVisible()) continue;
+      const int line = section->mapTo(&win, QPoint(0, 0)).y();
       for (QWidget* c : rowWidget->findChildren<QWidget*>(QString(), Qt::FindDirectChildrenOnly)) {
         if (!c->isVisible() || c->height() <= 0) continue;
         if (!qobject_cast<QToolButton*>(c) && !qobject_cast<QComboBox*>(c)
             && !qobject_cast<QLineEdit*>(c) && !qobject_cast<QCheckBox*>(c)) continue;
-        byRow[bar] << qMakePair(QString("%1(%2)").arg(c->metaObject()->className(), c->objectName()),
-                                c->mapTo(&win, QPoint(0, c->height() / 2)).y());
+        byRow[line] << qMakePair(QString("%1(%2)").arg(c->metaObject()->className(), c->objectName()),
+                                 c->mapTo(&win, QPoint(0, c->height() / 2)).y());
       }
     }
     QVERIFY2(!byRow.isEmpty(), "no toolbar sections were found");
@@ -6582,10 +6596,11 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(win.zoom_->isEnabled(), "the % field stayed dead with an image loaded");
   }
 
-  // Fit to window keeps the browser's GHOST box (#zoom-fit) instead of the sections' accent
-  // fill: at the end of the ZOOM row a filled accent square read as a third zoom step, so the
-  // glyph SHAPE has to do the identifying. Asserts the outline is painted and the fill is not.
-  void fitToWindowIsAnOutlinedGhost() {
+  // Fit to window is FILLED like every other acting button (user decision; browser twin:
+  // #zoom-fit) — pressing it acts at once, it reports no state. What stays its own is the
+  // DISABLED face: the browser's faded outline rather than a filled chip, since it ends
+  // the ZOOM row beside a plain field. Asserts both halves.
+  void fitToWindowIsFilledAndFadesWhenDead() {
     MainWindow win(nullptr, false);
     win.resize(1400, 700);
     win.show();
@@ -6593,22 +6608,31 @@ class MainWindowGuiTest : public QObject {
     QTest::qWait(150);
     QToolButton* btn = win.zoomFitBtn_;
     QVERIFY(btn);
-    QVERIFY2(btn->property("toolGhost").toBool(), "the fit button lost its ghost tag");
-    QVERIFY2(btn->property("toolFill").toString().isEmpty(),
-             "the fit button must not carry a section fill");
+    QVERIFY2(btn->property("toolGhost").toBool(),
+             "the ghost tag still drives its disabled face");
     const stencil::gui::Palette pal =
         stencil::gui::themePalette(win.paintedDark_, win.settings_.accentColor);
-    const QImage im = btn->grab().toImage();
     const auto near = [](const QColor& a, const QColor& b, int tol) {
       return qAbs(a.red() - b.red()) < tol && qAbs(a.green() - b.green()) < tol
              && qAbs(a.blue() - b.blue()) < tol;
     };
-    // Left edge at mid-height is the 1px outline; the interior never carries the accent.
-    QVERIFY2(near(im.pixelColor(0, im.height() / 2), pal.borderMain, 24),
-             "the fit button has no outline");
-    QVERIFY2(!near(im.pixelColor(im.width() / 2, 3),
-                   stencil::gui::accentPrimary(win.settings_.accentColor), 50),
-             "the fit button is accent-filled");
+    const QColor accent = stencil::gui::accentPrimary(win.settings_.accentColor);
+    // Dead (no image yet): the faded outline, and no accent anywhere in it.
+    QVERIFY2(!btn->isEnabled(), "the fit button should start disabled, with no image");
+    {
+      const QImage im = btn->grab().toImage();
+      QVERIFY2(!near(im.pixelColor(im.width() / 2, 3), accent, 50),
+               "a dead fit button is filled with the accent");
+    }
+    // …and once it can act, the fill every other acting button carries.
+    openLoaded(win);
+    QTRY_VERIFY(win.actFit_->isEnabled());
+    QTest::qWait(120);
+    QCOMPARE(btn->property("toolFill").toString(), QStringLiteral("accent"));
+    const QImage live = btn->grab().toImage();
+    QVERIFY2(near(live.pixelColor(live.width() / 2, 3), accent, 50),
+             "an enabled fit button is not accent-filled");
+    Q_UNUSED(pal);
   }
 
   // A dead combo has to LOOK dead (browser: button:disabled drops the .accent-dd-trigger to
@@ -9032,6 +9056,303 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(blankedAtOnce, "the original row kept painting under the scatter");
     QVERIFY2(slotHeld, "the row's slot collapsed before the scatter finished");
     QVERIFY2(goneAfter, "the doomed row never left the list");
+    beat();
+  }
+
+  // The Start/Stop and Line/Rect faces read as WORDS: a size up from the toolbar's dense
+  // default, with the glyph+label pair CENTRED in the button. Qt anchors a text-beside-icon
+  // label at the left of the content rect and keeps its own slack on the right, so equal
+  // padding drew the pair off-centre in its box (user report, with a picture) — the theme
+  // moves that slack to the left. Pins both halves.
+  void drawFaceButtonsAreCentredAndReadable() {
+    MainWindow win(nullptr, false);
+    win.resize(1500, 900);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    openLoaded(win);
+    QTest::qWait(300);
+    for (QToolButton* b : { win.startDrawBtn_, win.drawModeBtn_ }) {
+      QVERIFY(b);
+      const QString who = b->text();
+      QVERIFY2(b->font().pixelSize() >= 12,
+               qPrintable(who + " kept the toolbar's small font: "
+                          + QString::number(b->font().pixelSize())));
+      // Where the face's ink sits inside the box, ignoring the 1px border.
+      // Photographed through the WINDOW, not the button: a QSS-styled child grabs empty
+      // under the offscreen platform until it has painted once in its own right.
+      const QImage im = win.grab(QRect(b->mapTo(&win, QPoint(0, 0)), b->size())).toImage();
+      // Sampled INSIDE the box, clear of its 1px outline (which is ink of its own).
+      const QRgb bg = im.pixel(5, im.height() / 2);
+      int left = -1, right = -1;
+      for (int x = 5; x < im.width() - 5; ++x)
+        for (int y = 6; y < im.height() - 6; ++y) {
+          const QRgb c = im.pixel(x, y);
+          if (qAbs(qRed(c) - qRed(bg)) + qAbs(qGreen(c) - qGreen(bg))
+                  + qAbs(qBlue(c) - qBlue(bg)) > 90) {
+            if (left < 0) left = x;
+            right = x;
+            break;
+          }
+        }
+      QVERIFY2(left > 0 && right > left, qPrintable(who + " painted no face at all"));
+      // Centred within a few pixels — the glyphs carry their own transparent margins, so
+      // this is about balance, not a pixel identity.
+      const int slack = qAbs(left - (im.width() - 1 - right));
+      QVERIFY2(slack <= 12, qPrintable(QString("%1 sits off-centre: %2px left, %3px right")
+                                           .arg(who).arg(left).arg(im.width() - 1 - right)));
+      QVERIFY2(left <= 16, qPrintable(QString("%1 is pushed in from the left (%2px)")
+                                          .arg(who).arg(left)));
+      // …and the word is not welded to the glyph: the widest empty column run INSIDE the
+      // face is the gap between them (Qt's own is a fixed 4px — kFaceIconGap adds the rest).
+      int gap = 0, run = 0;
+      for (int x = left; x <= right; ++x) {
+        bool ink = false;
+        for (int y = 6; y < im.height() - 6 && !ink; ++y) {
+          const QRgb c = im.pixel(x, y);
+          ink = qAbs(qRed(c) - qRed(bg)) + qAbs(qGreen(c) - qGreen(bg))
+                    + qAbs(qBlue(c) - qBlue(bg)) > 90;
+        }
+        if (ink) { gap = std::max(gap, run); run = 0; } else { run++; }
+      }
+      QVERIFY2(gap >= 6, qPrintable(QString("%1's glyph and word are welded (%2px apart)")
+                                        .arg(who).arg(gap)));
+    }
+    beat();
+  }
+
+  // The ✎/🎨 are hover-revealed over the name group, and a pointer that lands anywhere else
+  // has left it — even when the group's own Leave never arrives (crossing straight onto
+  // another row's icon left the pair lit three clusters away: user report, with a picture).
+  void nameAffordancesGoWhenThePointerLeavesTheGroup() {
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(1400, 860);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    openLoaded(win);
+    QImage img(40, 30, QImage::Format_RGB32);
+    img.fill(Qt::darkCyan);
+    const QString id = win.addImageProjectEntry(img, "hover-out");
+    QVERIFY(!id.isEmpty());
+    QVERIFY(win.loadProjectIntoCanvas(id, false));
+    QTest::qWait(300);
+    const auto paintedOut = [](QWidget* w) { return w->property("stencilPaintedOut").toBool(); };
+
+    QCursor::setPos(win.nameGroup_->mapToGlobal(win.nameGroup_->rect().center()));
+    win.updateNameHover();
+    QTRY_VERIFY(!paintedOut(win.projectNameEdit_));
+    QVERIFY(!paintedOut(win.projectColorBtn_));
+
+    // Onto another control, and the pair goes — driven by the same recompute the app runs
+    // when a pointer enters anything else (here: called directly, as the poll would).
+    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 60, 200)));
+    win.updateNameHover();
+    QTRY_VERIFY_WITH_TIMEOUT(paintedOut(win.projectNameEdit_), 2000);
+    QVERIFY(paintedOut(win.projectColorBtn_));
+    // …and they keep their slots either way: painting out must never move the row.
+    QVERIFY(win.projectNameEdit_->isVisible() && win.projectColorBtn_->isVisible());
+    beat();
+  }
+
+  // Edit mode SWAPS the name affordances in place: ✎/🎨 out, ✓/✗ in, and back again. The
+  // pair returning while the marks were still flying out put all four in the row at once —
+  // it widened, and the ✎/🎨 appeared BESIDE the leaving marks instead of in their place
+  // (user report, with a picture). Never more than two hold a slot at any moment.
+  void nameChipsSwapInPlaceWithoutWideningTheRow() {
+    const auto motion = withMotion();   // the flights below ARE the thing under test
+    MainWindow win(nullptr, false);
+    win.resize(1400, 860);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    openLoaded(win);
+    QImage img(40, 30, QImage::Format_RGB32);
+    img.fill(Qt::darkCyan);
+    const QString id = win.addImageProjectEntry(img, "swap-row");
+    QVERIFY(!id.isEmpty());
+    QVERIFY(win.loadProjectIntoCanvas(id, false));
+    QTest::qWait(300);
+    win.nameHover_ = true;   // ✎/🎨 are hover-revealed; pin them on for the swap
+    const auto held = [&win] {
+      int n = 0;
+      for (QToolButton* b : { win.projectNameEdit_, win.projectColorBtn_,
+                              win.projectNameAccept_, win.projectNameCancel_ })
+        if (b && b->isVisible()) ++n;
+      return n;
+    };
+
+    win.enterNameEdit();
+    for (int i = 0; i < 10; ++i) {   // through the whole in-flight
+      QTest::qWait(50);
+      QVERIFY2(held() <= 2, qPrintable(QString("entering: %1 chips held a slot").arg(held())));
+    }
+    QVERIFY(win.projectNameAccept_->isVisible() && win.projectNameCancel_->isVisible());
+
+    win.cancelProjectName();
+    for (int i = 0; i < 10; ++i) {   // …and the whole way back
+      QTest::qWait(50);
+      QVERIFY2(held() <= 2, qPrintable(QString("leaving: %1 chips held a slot").arg(held())));
+    }
+    QTRY_VERIFY(win.projectNameEdit_->isVisible() && win.projectColorBtn_->isVisible());
+    QVERIFY(!win.projectNameAccept_->isVisible() && !win.projectNameCancel_->isVisible());
+    beat();
+  }
+
+  // The project name at the top is a TITLE at rest — no box — that RINGS in the accent
+  // under the pointer, as the browser's read-only #project-name-input does. The ring has
+  // to live in that field's OWN stylesheet (applyProjectNameStyle): a per-widget sheet
+  // outranks the themed one for every property it names, so the rule in theme.cpp was
+  // simply ignored and the title stayed inert (user report, three times over). Watched in
+  // PIXELS for that reason — a stylesheet that exists is not a ring that paints.
+  void projectNameTitleRingsOnHoverOnly() {
+    MainWindow win(nullptr, false);
+    win.resize(1400, 860);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    openLoaded(win);
+    QImage img(40, 30, QImage::Format_RGB32);
+    img.fill(Qt::darkCyan);
+    const QString id = win.addImageProjectEntry(img, "name-row");
+    QVERIFY(!id.isEmpty());
+    QVERIFY(win.loadProjectIntoCanvas(id, false));
+    QTest::qWait(300);
+    QVERIFY(win.projectName_ && win.projectNameEdit_ && win.projectColorBtn_);
+
+    // The chips: the browser's box, and its 4px gaps either side.
+    QCOMPARE(win.projectNameEdit_->size(), QSize(stencil::gui::kNameChipBox,
+                                                 stencil::gui::kNameChipBox));
+    QCOMPARE(win.projectColorBtn_->size(), win.projectNameEdit_->size());
+    const QRect f(win.projectName_->mapTo(&win, QPoint(0, 0)), win.projectName_->size());
+    const QRect e(win.projectNameEdit_->mapTo(&win, QPoint(0, 0)), win.projectNameEdit_->size());
+    const QRect c(win.projectColorBtn_->mapTo(&win, QPoint(0, 0)), win.projectColorBtn_->size());
+    // 8px of air either side — at 4 the chips sat right against the field's edge (user
+    // report, with a picture). Browser twin: .project-name-field's `gap`.
+    QCOMPARE(e.left() - f.right() - 1, 8);
+    QCOMPARE(c.left() - e.right() - 1, 8);
+
+    // …and the ring itself, top edge of the field: nothing at rest, the accent on hover.
+    const auto edge = [&] {
+      const QImage im = win.grab(f).toImage();
+      return im.pixelColor(im.width() / 2, 1);
+    };
+    const QColor accent = stencil::gui::accentPrimary(win.settings_.accentColor);
+    const QColor rest = edge();
+    // The ring is the accent at the shared 45% (the browser's two stacked layers come to
+    // the same on screen), so the edge lands between the ground and the accent — never the
+    // flat accent, which read far brighter than the browser's (user report).
+    const auto near = [](const QColor& a, const QColor& b, int tol) {
+      return qAbs(a.red() - b.red()) + qAbs(a.green() - b.green()) + qAbs(a.blue() - b.blue()) < tol;
+    };
+    const QColor blend(qRound(0.45 * accent.red() + 0.55 * rest.red()),
+                       qRound(0.45 * accent.green() + 0.55 * rest.green()),
+                       qRound(0.45 * accent.blue() + 0.55 * rest.blue()));
+    QVERIFY2(!near(rest, accent, 60), "the title wears the ring at rest");
+    win.projectName_->setAttribute(Qt::WA_UnderMouse, true);
+    QEnterEvent enter(QPointF(5, 5), QPointF(5, 5), win.projectName_->mapToGlobal(QPointF(5, 5)));
+    QApplication::sendEvent(win.projectName_, &enter);
+    win.projectName_->update();
+    QTest::qWait(150);
+    const QColor hovered = edge();
+    QVERIFY2(!near(hovered, rest, 24), "no ring appeared under the pointer");
+    QVERIFY2(near(hovered, blend, 40),
+             qPrintable(QString("the ring is not the shared 45%% accent: %1 (wanted ~%2)")
+                            .arg(hovered.name(), blend.name())));
+    win.projectName_->setAttribute(Qt::WA_UnderMouse, false);
+    beat();
+  }
+
+  // Fullscreen pulls every toolbar out from under whatever they had in the air, and takes
+  // the logo's own overlay with it: a cloud started by a toolbar control was left flying
+  // over the bare canvas, and the logo's resting mark sat on over the label that took its
+  // place (user report, with pictures of both).
+  void fullscreenLeavesNothingBehindIt() {
+    if (qApp->platformName() != QLatin1String("offscreen"))
+      QSKIP("fullscreen gestures need the offscreen platform");
+    const auto motion = withMotion();
+    MainWindow win(nullptr, false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    openLoaded(win);
+    QTest::qWait(200);
+    QVERIFY(win.logoBtn_);
+    QWidget* fx = win.logoFx_;
+    QVERIFY(fx);
+    // The mark is up (the overlay paints the logo, blanked on the button itself).
+    QTRY_VERIFY_WITH_TIMEOUT(fx->isVisible(), 2000);
+
+    // Something is in the air when the switch happens — a control's own cloud.
+    stencil::gui::DisintegrateOverlay::over(win.logoBtn_, &win,
+                                           stencil::gui::DisintegrateOverlay::Sweep::Fall);
+    const auto cloudsUp = [&win] {
+      int n = 0;
+      for (const char* name : {stencil::gui::DisintegrateOverlay::kObjectName,
+                               "stencilControlReveal", "stencilFilterDust"})
+        for (QWidget* w : win.findChildren<QWidget*>(QString::fromLatin1(name)))
+          if (w->isVisible()) ++n;
+      return n;
+    };
+    QVERIFY2(cloudsUp() > 0, "the test's own cloud never started");
+
+    win.toggleFullscreen();
+    QTest::qWait(120);
+    QVERIFY2(cloudsUp() == 0, "a cloud was left flying over the fullscreen canvas");
+    QVERIFY2(!win.logoBtn_->isVisible(), "fullscreen kept the header row");
+    QVERIFY2(!fx->isVisible(), "the logo's mark stayed up with its button gone");
+
+    win.toggleFullscreen();   // …and back, with the header row and its mark restored
+    QTest::qWait(200);
+    QTRY_VERIFY_WITH_TIMEOUT(win.logoBtn_->isVisible(), 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(fx->isVisible(), 2000);
+    beat();
+  }
+
+  // A select popup's rows hover like every other item in the app: the glass sweep, and the
+  // 2px ease right the browser's `.accent-dd-opt:hover { transform: translateX(2px) }`
+  // plays. The desktop's popups had NEITHER — a page-size row lit up and that was all
+  // (user report). The slide WRAPS whatever delegate the popup already has, so a list with
+  // its own painter (the motion modes' animated glyphs) keeps it.
+  void selectPopupRowsSweepAndSlideOnHover() {
+    if (qApp->platformName() != QLatin1String("offscreen"))
+      QSKIP("popup gestures need the offscreen platform");
+    const auto motion = withMotion();   // the slide below IS the thing under test
+    MainWindow win(nullptr, false);
+    win.resize(1500, 900);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    openLoaded(win);
+    QTest::qWait(200);
+    stencil::gui::SearchComboBox* combo = nullptr;
+    for (QComboBox* c : win.findChildren<QComboBox*>())
+      if (c->isVisible() && c->count() > 2) {
+        combo = dynamic_cast<stencil::gui::SearchComboBox*>(c);
+        if (combo) break;
+      }
+    QVERIFY2(combo, "no themed select on the toolbar");
+    combo->showPopup();
+    QTest::qWait(250);
+    QListView* list = combo->popupList();
+    QVERIFY(list);
+    QCOMPARE(list->itemDelegate()->objectName(), QStringLiteral("stencilSlidingRows"));
+    // The sweep lives on the viewport, as the projects list's does.
+    QVERIFY2(!list->viewport()->findChildren<QWidget*>().isEmpty(),
+             "no shimmer overlay over the popup's rows");
+
+    const QRect row = list->visualRect(list->model()->index(1, 0));
+    const auto pointAt = [&](const QPoint& at) {
+      QMouseEvent mv(QEvent::MouseMove, QPointF(at),
+                     list->viewport()->mapToGlobal(QPointF(at)),
+                     Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+      QApplication::sendEvent(list->viewport(), &mv);
+    };
+    QCOMPARE(list->property("rowSlidePx").toInt(), 0);   // nothing hovered yet
+    pointAt(row.center());
+    QTRY_COMPARE_WITH_TIMEOUT(list->property("rowSlidePx").toInt(), 2, 1500);
+
+    // …and it settles back the moment the pointer is off the rows.
+    QEvent leave(QEvent::Leave);
+    QApplication::sendEvent(list->viewport(), &leave);
+    QTRY_COMPARE_WITH_TIMEOUT(list->property("rowSlidePx").toInt(), 0, 1500);
+    combo->hidePopup();
     beat();
   }
 
@@ -11911,13 +12232,14 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(caption, "the section has no caption");
     QCOMPARE(caption->text(), QStringLiteral("SETTINGS"));   // same styling as its siblings
 
-    // The six controls, in the browser's order: theme · fullscreen · incognito ·
-    // gear (Shortcuts) · palette (Visuals) · info (Help). actAccent_ is NOT here —
-    // it's the logo's own popover, with no toolbar icon of its own in the browser.
+    // The six controls, in the browser's order: the two state TOGGLES first (incognito ·
+    // fullscreen), then the theme switch, then the three that open dialogs — gear
+    // (Shortcuts) · palette (Visuals) · info (Help). actAccent_ is NOT here — it's the
+    // logo's own popover, with no toolbar icon of its own in the browser.
     QList<QAction*> got;
     for (QToolButton* b : section->findChildren<QToolButton*>())
       if (b->defaultAction()) got << b->defaultAction();
-    const QList<QAction*> want{win.actTheme_, win.actFullscreen_, win.actIncognito_,
+    const QList<QAction*> want{win.actIncognito_, win.actFullscreen_, win.actTheme_,
                                win.actShortcuts_, win.actSettings_, win.actInfo_};
     QCOMPARE(got.size(), want.size());
     for (int i = 0; i < want.size(); ++i)
@@ -11961,7 +12283,7 @@ class MainWindowGuiTest : public QObject {
     // toolbar's own rect — at laptop widths, and with the custom-page cm inputs
     // showing (that is the state the report came from), which is what made the
     // row too wide.
-    QToolBar* row = win.findChild<QToolBar*>("pageFormulaToolbar");
+    QToolBar* row = win.findChild<QToolBar*>("mainToolbar");   // the one wrapping run
     QVERIFY(row);
     const int custom = win.pageSize_->findData(QStringLiteral("custom"));
     QVERIFY(custom >= 0);
@@ -14952,9 +15274,7 @@ class MainWindowGuiTest : public QObject {
       win.resize(width, 950);
       QTest::qWait(250);
       for (QToolBar* tb : bars) {
-        if (tb->objectName() == QLatin1String("headerToolbar")
-            || tb->objectName() == QLatin1String("mainToolbar"))
-          continue;   // the main row's five clusters are wider than any of these on their own
+        if (tb->objectName() == QLatin1String("headerToolbar")) continue;
         for (QWidget* c : tb->findChildren<QWidget*>())
           if (c->metaObject()->className() == QLatin1String("QToolBarExtension"))
             QVERIFY2(!c->isVisible(),
@@ -14970,9 +15290,7 @@ class MainWindowGuiTest : public QObject {
       win.resize(width, 950);
       QTest::qWait(250);
       for (QToolBar* tb : bars) {
-        if (tb->objectName() == QLatin1String("headerToolbar")
-            || tb->objectName() == QLatin1String("mainToolbar"))
-          continue;
+        if (tb->objectName() == QLatin1String("headerToolbar")) continue;
         for (QWidget* c : tb->findChildren<QWidget*>())
           if (c->metaObject()->className() == QLatin1String("QToolBarExtension"))
             QVERIFY2(!c->isVisible(),
@@ -14981,6 +15299,93 @@ class MainWindowGuiTest : public QObject {
       }
     }
     win.pageSize_->setCurrentIndex(a3);   // this suite shares the real settings file
+  }
+
+  // The rename ✓/✗ slide their slots open by animating maximumWidth, so the layout's own
+  // cap is parked while that runs (controlReveal parkMaxWidth). Read back off the live
+  // value instead, it ratcheted down on every interrupted swap until the pair was slivers.
+  void nameChipsSurviveRenamesCutShortMidSlide() {
+    MainWindow win(nullptr, false);
+    win.resize(1400, 900);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    win.openPathFromOS(png_);
+    QTest::qWait(200);
+    const auto motion = withMotion();   // the slide is the whole point here
+    const int box = win.projectNameAccept_->maximumWidth();
+    QVERIFY(box > 20);
+    for (int i = 0; i < 6; ++i) {   // in and straight back out, mid-slide every time
+      win.enterNameEdit();
+      QTest::qWait(60);
+      win.cancelProjectName();
+      QTest::qWait(60);
+    }
+    win.enterNameEdit();
+    QTRY_COMPARE(win.projectNameAccept_->width(), box);
+    QCOMPARE(win.projectNameCancel_->width(), box);
+    QVERIFY2(!win.projectNameAccept_->icon().isNull(), "the tick lost its glyph");
+    win.cancelProjectName();
+  }
+
+  // A squeezed window WRAPS its tool row (support/wrapRow.hpp) — the browser's flex-wrap.
+  // QToolBar's own answer is the "»" overflow, where a widget action is not drawn at all.
+  void narrowToolbarRowsWrapInsteadOfLosingSections() {
+    MainWindow win;
+    win.resize(1500, 950);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QTest::qWait(200);
+
+    QStringList captions;
+    for (QLabel* l : win.findChildren<QLabel*>("sectionLabel"))
+      if (l->isVisible()) captions << l->text();
+    QVERIFY2(captions.contains("EDIT"), "the wide window shows EDIT to begin with");
+    QToolBar* main = win.findChild<QToolBar*>("mainToolbar");
+    QVERIFY(main);
+    const int oneLine = main->height();
+
+    for (const int width : {1100, 900, 760}) {
+      win.resize(width, 950);
+      QTest::qWait(300);
+      for (QLabel* l : win.findChildren<QLabel*>("sectionLabel")) {
+        if (!captions.contains(l->text())) continue;
+        QVERIFY2(l->isVisible(),
+                 qPrintable(QString("at %1px the %2 section is gone").arg(width).arg(l->text())));
+        const QPoint tl = l->mapTo(&win, QPoint(0, 0));
+        QVERIFY2(tl.x() >= 0 && tl.x() < win.width(),
+                 qPrintable(QString("at %1px %2 sits off the window at x=%3")
+                                .arg(width).arg(l->text()).arg(tl.x())));
+      }
+      // …and no row falls back on the overflow button to get there.
+      for (QToolBar* tb : win.findChildren<QToolBar*>()) {
+        if (tb->objectName() == QLatin1String("headerToolbar")) continue;
+        for (QWidget* c : tb->findChildren<QWidget*>())
+          if (c->metaObject()->className() == QLatin1String("QToolBarExtension"))
+            QVERIFY2(!c->isVisible(),
+                     qPrintable(QString("at %1px the %2 row overflows into \"»\"")
+                                    .arg(width).arg(tb->objectName())));
+      }
+    }
+    // …and each hairline runs the full height of its line (browser .ctrl-sep stretch).
+    for (QFrame* sep : win.findChildren<QFrame*>("toolWrapSep")) {
+      if (!sep->isVisible()) continue;
+      const int y = sep->mapTo(&win, QPoint(0, 0)).y();
+      int tallest = 0;
+      for (QLabel* l : win.findChildren<QLabel*>("sectionLabel")) {
+        QWidget* sect = l->parentWidget();
+        if (!sect || !sect->isVisible()) continue;
+        if (qAbs(sect->mapTo(&win, QPoint(0, 0)).y() - y) > 4) continue;   // another line
+        tallest = qMax(tallest, sect->height());
+      }
+      if (tallest <= 0) continue;
+      QVERIFY2(sep->height() >= tallest,
+               qPrintable(QString("a divider stops %1px short of its line (%2 vs %3)")
+                              .arg(tallest - sep->height()).arg(sep->height()).arg(tallest)));
+    }
+    // Wrapped, not merely squeezed: the row that no longer fits is TALLER, because the
+    // cluster that fell off the end went onto a second line.
+    QVERIFY2(main->height() > oneLine,
+             qPrintable(QString("the main row never wrapped: %1px at both widths").arg(oneLine)));
   }
 };
 

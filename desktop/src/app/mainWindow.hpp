@@ -10,6 +10,7 @@
 #include <QByteArray>
 #include <QColor>
 #include <QHash>
+#include <QGraphicsOpacityEffect>
 #include <QPointer>
 #include <QSet>
 #include <QMainWindow>
@@ -218,6 +219,8 @@ namespace stencil::gui {
     // formulaGroup_ as one of its row widgets so pill and inputs share a baseline.
     void buildFormulaFields();
 
+    // The single wrapping tool row every cluster is appended to (support/wrapRow.hpp).
+    class QToolBar* toolRow() const;
     class QWidget* makeToolSection(const QString& title, const QList<class QAction*>& actions,
                                    const QList<class QWidget*>& extras = {},
                                    const QList<class QWidget*>& leading = {});
@@ -230,6 +233,10 @@ namespace stencil::gui {
     void reserveImageInfoHeight();
     // Locks imageInfoDock_'s own height to its content's — see the .cpp for why.
     void syncImageInfoDockHeight();
+    // The Fullscreen glyph turns over with the state (maximize ⇄ minimize).
+    void syncFullscreenGlyph();
+    // …and the tool rows take a deeper bottom band while they hang over the canvas.
+    void markFullscreenBars(bool on);
     QPixmap makeLogoPixmap(int size) const;            // paint the mini S-mark logo (browser parity)
     // Logo accent-preset picker: a popover DIALOG opened via execMaybePopover, so the
     // Alt-peek/glide/release machinery treats it exactly like every other popover.
@@ -997,8 +1004,11 @@ namespace stencil::gui {
     // re-saving a view that loadProjectIntoCanvas/restoreSession are still applying.
     QTimer* viewSaveTimer_ = nullptr;
     // Canvas scrollbar auto-hide (revealCanvasScrollbars) — see its own declaration above.
-    class QGraphicsOpacityEffect* vScrollOpacity_ = nullptr;
-    class QGraphicsOpacityEffect* hScrollOpacity_ = nullptr;
+    // QPointer, not raw: QWidget::setGraphicsEffect DELETES whatever effect the widget had,
+    // so anything that re-installs one on a scrollbar leaves a raw pointer dangling — and
+    // the reveal path reads opacity() off it every pan tick (a SIGSEGV in the GUI suite).
+    QPointer<QGraphicsOpacityEffect> vScrollOpacity_;
+    QPointer<QGraphicsOpacityEffect> hScrollOpacity_;
     QTimer* scrollbarHideTimer_ = nullptr;
     bool scrollbarHovered_ = false;   // pointer is on a bar right now — never auto-hide then
     bool restoringView_ = false;
@@ -1130,7 +1140,8 @@ namespace stencil::gui {
     qreal pillChevronDeg_ = 0;                    // 0 = ↑ (rows shown), 180 = ↓; animated by spinControlsPill
     QVariantAnimation* pillSpinAnim_ = nullptr;   // in-flight pill-chevron turn
     class QToolBar* headerToolbar_ = nullptr;     // always-visible header row (pill + project name)
-    QWidget* settingsSection_ = nullptr;          // toolbar SETTINGS cluster (browser's last group)
+    QWidget* settingsSection_ = nullptr;
+    QWidget* connectionsSection_ = nullptr;   // built with row one, added to row two (see the .cpp)          // toolbar SETTINGS cluster (browser's last group)
     class QToolButton* panelReopenBtn_ = nullptr; // floating right-edge chevron: re-opens a hidden panel
     // Animated grip over the canvas↔panel separator (support/dockGrip.hpp) + whether a
     // separator drag started on it, so the grip stays hot for the whole drag.

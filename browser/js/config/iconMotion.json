@@ -24,9 +24,20 @@
     "none": "No motion."
   },
   "defaults": {
-    "hold": { "durationMs": 220, "easing": "cubic-bezier(0.16, 1, 0.3, 1)", "qtEasing": "OutQuint" },
-    "settle": { "durationMs": 320, "easing": "cubic-bezier(0.34, 1.2, 0.64, 1)", "qtEasing": "OutBack" },
-    "origin": [12, 12]
+    "hold": {
+      "durationMs": 220,
+      "easing": "cubic-bezier(0.16, 1, 0.3, 1)",
+      "qtEasing": "OutQuint"
+    },
+    "settle": {
+      "durationMs": 320,
+      "easing": "cubic-bezier(0.34, 1.2, 0.64, 1)",
+      "qtEasing": "OutBack"
+    },
+    "origin": [
+      12,
+      12
+    ]
   },
   "partFields": {
     "hook": "class on the sub-element(s) inside icons.json this part moves; null = the whole glyph. Several elements may share a hook (see `stagger`).",
@@ -42,90 +53,234 @@
     "chevron-up": {
       "action": "collapse / move up; fold toggles opt OUT (rotation there is state)",
       "mode": "hold",
-      "parts": [{ "hook": null, "to": { "translate": [0, -2] } }]
+      "parts": [
+        {
+          "hook": null,
+          "to": {
+            "translate": [
+              0,
+              -2
+            ]
+          }
+        }
+      ]
     },
     "chevron-down": {
       "action": "expand / move down",
       "mode": "hold",
-      "parts": [{ "hook": null, "to": { "translate": [0, 2] } }]
+      "parts": [
+        {
+          "hook": null,
+          "to": {
+            "translate": [
+              0,
+              2
+            ]
+          }
+        }
+      ]
     },
     "chevron-right": {
       "action": "open a submenu / go forward",
       "mode": "hold",
-      "parts": [{ "hook": null, "to": { "translate": [2, 0] } }]
+      "parts": [
+        {
+          "hook": null,
+          "to": {
+            "translate": [
+              2,
+              0
+            ]
+          }
+        }
+      ]
     },
     "chevron-left": {
       "action": "go back",
       "mode": "hold",
-      "parts": [{ "hook": null, "to": { "translate": [-2, 0] } }]
+      "parts": [
+        {
+          "hook": null,
+          "to": {
+            "translate": [
+              -2,
+              0
+            ]
+          }
+        }
+      ]
     },
     "pencil": {
       "action": "rename / edit",
       "mode": "settle",
       "note": "the nib makes one short stroke and lifts",
-      "parts": [{
-        "hook": null, "durationMs": 300,
-        "keyframes": [{ "at": 0 }, { "at": 45, "translate": [-1, 1], "rotate": -8 }, { "at": 100 }]
-      }]
+      "parts": [
+        {
+          "hook": null,
+          "durationMs": 300,
+          "keyframes": [
+            {
+              "at": 0
+            },
+            {
+              "at": 45,
+              "translate": [
+                -1,
+                1
+              ],
+              "rotate": -8
+            },
+            {
+              "at": 100
+            }
+          ]
+        }
+      ]
     },
     "check": {
       "action": "accept / confirm",
       "mode": "settle",
       "note": "the tick draws itself, the way you'd write it — unhurried (2× the old 320ms, user decision)",
-      "parts": [{
-        "hook": "ic-tick", "durationMs": 640, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
-        "dashArray": 26,
-        "keyframes": [{ "at": 0, "dashOffset": 26 }, { "at": 100, "dashOffset": 0 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-tick",
+          "durationMs": 640,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 26,
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 26
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
+        }
+      ]
     },
     "x": {
       "action": "close / clear / disconnect — one motion for all three: they all mean “make this go away”",
       "mode": "settle",
       "note": "the two strokes are drawn one after the other, the way you'd cross something out; each is 12√2 ≈ 16.97 units long. 1.5× the base 180ms draw-on, deliberately slower than the other settle designs",
-      "parts": [{
-        "hook": "ic-stroke", "durationMs": 270, "stagger": 270,
-        "easing": "cubic-bezier(0.33, 1, 0.68, 1)", "dashArray": 17,
-        "keyframes": [{ "at": 0, "dashOffset": 17 }, { "at": 100, "dashOffset": 0 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-stroke",
+          "durationMs": 270,
+          "stagger": 270,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 17,
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 17
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
+        }
+      ]
     },
     "crop": {
       "action": "crop image",
       "mode": "hold",
       "note": "the two brackets close in on the region",
       "parts": [
-        { "hook": "ic-crop-bl", "to": { "translate": [1, -1] } },
-        { "hook": "ic-crop-tr", "to": { "translate": [-1, 1] } }
+        {
+          "hook": "ic-crop-bl",
+          "to": {
+            "translate": [
+              1,
+              -1
+            ]
+          }
+        },
+        {
+          "hook": "ic-crop-tr",
+          "to": {
+            "translate": [
+              -1,
+              1
+            ]
+          }
+        }
       ]
     },
     "rotate-ccw": {
       "action": "rotate image left (quarter turn)",
       "mode": "settle",
       "note": "one FULL turn the way the button turns the image, so the glyph comes to rest exactly as it started — a partial tilt held on hover only hinted at the turn",
-      "parts": [{
-        "hook": null, "durationMs": 413, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
-        "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 100, "rotate": -360 }]
-      }]
+      "parts": [
+        {
+          "hook": null,
+          "durationMs": 413,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "keyframes": [
+            {
+              "at": 0,
+              "rotate": 0
+            },
+            {
+              "at": 100,
+              "rotate": -360
+            }
+          ]
+        }
+      ]
     },
     "rotate-cw": {
       "action": "rotate image right (quarter turn)",
       "mode": "settle",
       "note": "the mirror of `rotate-ccw` — same turn, the other way",
-      "parts": [{
-        "hook": null, "durationMs": 413, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
-        "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 100, "rotate": 360 }]
-      }]
+      "parts": [
+        {
+          "hook": null,
+          "durationMs": 413,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "keyframes": [
+            {
+              "at": 0,
+              "rotate": 0
+            },
+            {
+              "at": 100,
+              "rotate": 360
+            }
+          ]
+        }
+      ]
     },
     "play": {
       "action": "start drawing",
       "mode": "hold",
       "note": "the head sets off",
-      "parts": [{ "hook": null, "to": { "translate": [1.6, 0] } }]
+      "parts": [
+        {
+          "hook": null,
+          "to": {
+            "translate": [
+              1.6,
+              0
+            ]
+          }
+        }
+      ]
     },
     "stop": {
       "action": "stop drawing",
       "mode": "hold",
       "note": "restrained: the block clamps down — a stop has no direction to move in",
-      "parts": [{ "hook": null, "to": { "scale": 0.85 } }]
+      "parts": [
+        {
+          "hook": null,
+          "to": {
+            "scale": 0.85
+          }
+        }
+      ]
     },
     "line": {
       "action": "line draw mode — the sibling of `rect`; both anchor the same two drag handles, only what joins them changes",
@@ -133,13 +288,41 @@
       "note": "the segment draws itself between the handles, the way a drag would, and the handles pop as it lands",
       "parts": [
         {
-          "hook": "ic-stroke", "durationMs": 340, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "hook": "ic-stroke",
+          "durationMs": 340,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
           "dashArray": 22,
-          "keyframes": [{ "at": 0, "dashOffset": 22 }, { "at": 100, "dashOffset": 0 }]
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 22
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         },
         {
-          "hook": "ic-handle", "durationMs": 300, "delayMs": 90, "stagger": 80, "originSelf": true,
-          "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.28 }, { "at": 100, "scale": 1 }]
+          "hook": "ic-handle",
+          "durationMs": 300,
+          "delayMs": 90,
+          "stagger": 80,
+          "originSelf": true,
+          "keyframes": [
+            {
+              "at": 0,
+              "scale": 1
+            },
+            {
+              "at": 45,
+              "scale": 1.28
+            },
+            {
+              "at": 100,
+              "scale": 1
+            }
+          ]
         }
       ]
     },
@@ -149,13 +332,41 @@
       "note": "the same motion as `line`: the box draws itself between the same two handles",
       "parts": [
         {
-          "hook": "ic-box", "durationMs": 340, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "hook": "ic-box",
+          "durationMs": 340,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
           "dashArray": 58,
-          "keyframes": [{ "at": 0, "dashOffset": 58 }, { "at": 100, "dashOffset": 0 }]
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 58
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         },
         {
-          "hook": "ic-handle", "durationMs": 300, "delayMs": 90, "stagger": 80, "originSelf": true,
-          "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.28 }, { "at": 100, "scale": 1 }]
+          "hook": "ic-handle",
+          "durationMs": 300,
+          "delayMs": 90,
+          "stagger": 80,
+          "originSelf": true,
+          "keyframes": [
+            {
+              "at": 0,
+              "scale": 1
+            },
+            {
+              "at": 45,
+              "scale": 1.28
+            },
+            {
+              "at": 100,
+              "scale": 1
+            }
+          ]
         }
       ]
     },
@@ -163,10 +374,26 @@
       "action": "draw a rectangle instantly",
       "mode": "settle",
       "note": "it stamps in at once — the point of the action",
-      "parts": [{
-        "hook": null, "durationMs": 320,
-        "keyframes": [{ "at": 0, "scale": 0.55 }, { "at": 60, "scale": 1.06 }, { "at": 100, "scale": 1 }]
-      }]
+      "parts": [
+        {
+          "hook": null,
+          "durationMs": 320,
+          "keyframes": [
+            {
+              "at": 0,
+              "scale": 0.55
+            },
+            {
+              "at": 60,
+              "scale": 1.06
+            },
+            {
+              "at": 100,
+              "scale": 1
+            }
+          ]
+        }
+      ]
     },
     "eraser": {
       "action": "clear all lines",
@@ -174,13 +401,44 @@
       "note": "it actually ERASES: the pad sweeps right along the line under it and that line vanishes from behind the pad, then the pad comes home and the line is written back — the action mimed, not a generic wobble. The baseline runs (22,21)→(7,21), 15 units, so a POSITIVE dash offset eats it from the x=7 end the pad starts on; 4 units of offset track the pad's own 4-unit travel",
       "parts": [
         {
-          "hook": "ic-body", "durationMs": 520, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
-          "keyframes": [{ "at": 0 }, { "at": 45, "translate": [4, 0] }, { "at": 100 }]
+          "hook": "ic-body",
+          "durationMs": 520,
+          "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+          "keyframes": [
+            {
+              "at": 0
+            },
+            {
+              "at": 45,
+              "translate": [
+                4,
+                0
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
         },
         {
-          "hook": "ic-baseline", "durationMs": 520, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+          "hook": "ic-baseline",
+          "durationMs": 520,
+          "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
           "dashArray": 15,
-          "keyframes": [{ "at": 0, "dashOffset": 0 }, { "at": 45, "dashOffset": 4 }, { "at": 100, "dashOffset": 0 }]
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 0
+            },
+            {
+              "at": 45,
+              "dashOffset": 4
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         }
       ]
     },
@@ -190,14 +448,37 @@
       "note": "the arrow draws itself slowly, tail to head: the shaft (11 + a r5 half turn + 4 ≈ 30.7 units) is drawn from its far END — a NEGATIVE dash offset, so the ink advances backwards along the path towards the head — and the head is struck last. Direction is still the meaning: undo's head points left, redo's right",
       "parts": [
         {
-          "hook": "ic-shaft", "durationMs": 420, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "hook": "ic-shaft",
+          "durationMs": 420,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
           "dashArray": 31,
-          "keyframes": [{ "at": 0, "dashOffset": -31 }, { "at": 100, "dashOffset": 0 }]
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": -31
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         },
         {
-          "hook": "ic-head", "durationMs": 200, "delayMs": 380,
-          "easing": "cubic-bezier(0.33, 1, 0.68, 1)", "dashArray": 15,
-          "keyframes": [{ "at": 0, "dashOffset": 15 }, { "at": 100, "dashOffset": 0 }]
+          "hook": "ic-head",
+          "durationMs": 200,
+          "delayMs": 380,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 15,
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 15
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         }
       ]
     },
@@ -207,14 +488,37 @@
       "note": "undo's mirror: the same draw-on, on a glyph pointing the other way",
       "parts": [
         {
-          "hook": "ic-shaft", "durationMs": 420, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "hook": "ic-shaft",
+          "durationMs": 420,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
           "dashArray": 31,
-          "keyframes": [{ "at": 0, "dashOffset": -31 }, { "at": 100, "dashOffset": 0 }]
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": -31
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         },
         {
-          "hook": "ic-head", "durationMs": 200, "delayMs": 380,
-          "easing": "cubic-bezier(0.33, 1, 0.68, 1)", "dashArray": 15,
-          "keyframes": [{ "at": 0, "dashOffset": 15 }, { "at": 100, "dashOffset": 0 }]
+          "hook": "ic-head",
+          "durationMs": 200,
+          "delayMs": 380,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 15,
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 15
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         }
       ]
     },
@@ -222,87 +526,293 @@
       "action": "more actions / work pending",
       "mode": "settle",
       "note": "the three dots bounce left to right — the typing/pending idiom",
-      "parts": [{
-        "hook": "ic-dot", "durationMs": 300, "stagger": 70,
-        "keyframes": [{ "at": 0 }, { "at": 45, "translate": [0, -2] }, { "at": 100 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-dot",
+          "durationMs": 300,
+          "stagger": 70,
+          "keyframes": [
+            {
+              "at": 0
+            },
+            {
+              "at": 45,
+              "translate": [
+                0,
+                -2
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
+        }
+      ]
     },
     "trash": {
       "action": "delete project / file / line",
       "mode": "hold",
       "note": "the lid lifts off the can, hinged at its left end",
-      "parts": [{ "hook": "ic-lid", "origin": [5, 6], "durationMs": 240, "to": { "rotate": -11, "translate": [0, -0.4] } }]
+      "parts": [
+        {
+          "hook": "ic-lid",
+          "origin": [
+            5,
+            6
+          ],
+          "durationMs": 240,
+          "to": {
+            "rotate": -11,
+            "translate": [
+              0,
+              -0.4
+            ]
+          }
+        }
+      ]
     },
     "download": {
       "action": "download / save to disk",
       "mode": "hold",
       "note": "the arrow travels DOWN into the tray",
-      "parts": [{ "hook": "ic-arrow", "to": { "translate": [0, 2.2] } }]
+      "parts": [
+        {
+          "hook": "ic-arrow",
+          "to": {
+            "translate": [
+              0,
+              2.2
+            ]
+          }
+        }
+      ]
     },
     "upload": {
       "action": "upload / load from disk",
       "mode": "hold",
       "note": "the same arrow, UP — direction is the whole difference between the pair",
-      "parts": [{ "hook": "ic-arrow", "to": { "translate": [0, -2.2] } }]
+      "parts": [
+        {
+          "hook": "ic-arrow",
+          "to": {
+            "translate": [
+              0,
+              -2.2
+            ]
+          }
+        }
+      ]
     },
     "copy": {
       "action": "copy image / layout",
       "mode": "hold",
       "note": "the two sheets separate, so you see there are two",
       "parts": [
-        { "hook": "ic-front", "to": { "translate": [1, 1] } },
-        { "hook": "ic-back", "to": { "translate": [-0.8, -0.8] } }
+        {
+          "hook": "ic-front",
+          "to": {
+            "translate": [
+              1,
+              1
+            ]
+          }
+        },
+        {
+          "hook": "ic-back",
+          "to": {
+            "translate": [
+              -0.8,
+              -0.8
+            ]
+          }
+        }
       ]
     },
     "clipboard": {
       "action": "clipboard contents",
       "mode": "hold",
       "note": "the clip lifts, the way you'd open one",
-      "parts": [{ "hook": "ic-clip", "to": { "translate": [0, -1.2] } }]
+      "parts": [
+        {
+          "hook": "ic-clip",
+          "to": {
+            "translate": [
+              0,
+              -1.2
+            ]
+          }
+        }
+      ]
     },
     "paste": {
       "action": "paste image / layout",
       "mode": "hold",
       "note": "the arrow drops INTO the board — same direction idiom as download",
-      "parts": [{ "hook": "ic-arrow", "to": { "translate": [0, 1.6] } }]
+      "parts": [
+        {
+          "hook": "ic-arrow",
+          "to": {
+            "translate": [
+              0,
+              1.6
+            ]
+          }
+        }
+      ]
     },
     "save": {
       "action": "save project (.stencil)",
       "mode": "settle",
       "note": "the disk slides up into place from below, the way a save writes UP into the project list — the one settle that does NOT overshoot: a disk seating itself never bounces",
-      "parts": [{
-        "hook": null, "durationMs": 420, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
-        "keyframes": [{ "at": 0, "translate": [0, 6] }, { "at": 100 }]
-      }]
+      "parts": [
+        {
+          "hook": null,
+          "durationMs": 420,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "keyframes": [
+            {
+              "at": 0,
+              "translate": [
+                0,
+                6
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
+        }
+      ]
     },
     "file-text": {
       "action": "a document / layout file",
       "mode": "settle",
       "note": "the two text lines write themselves, top line first",
-      "parts": [{
-        "hook": "ic-textline", "durationMs": 300, "stagger": 90,
-        "easing": "cubic-bezier(0.33, 1, 0.68, 1)", "dashArray": 8,
-        "keyframes": [{ "at": 0, "dashOffset": 8 }, { "at": 100, "dashOffset": 0 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-textline",
+          "durationMs": 300,
+          "stagger": 90,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 8,
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 8
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
+        }
+      ]
     },
     "folder": {
       "action": "open project",
       "mode": "hold",
       "note": "the front panel tips open towards you, hinged on the folder's bottom edge",
-      "parts": [{
-        "hook": null, "origin": [12, 21], "perspective": 40,
-        "to": { "rotateX": -22, "translate": [0, -0.4] },
-        "qtFallback": { "scaleY": 0.86, "translate": [0, -0.6] }
-      }]
+      "parts": [
+        {
+          "hook": null,
+          "origin": [
+            12,
+            21
+          ],
+          "perspective": 40,
+          "to": {
+            "rotateX": -22,
+            "translate": [
+              0,
+              -0.4
+            ]
+          },
+          "qtFallback": {
+            "scaleY": 0.86,
+            "translate": [
+              0,
+              -0.6
+            ]
+          }
+        }
+      ]
     },
     "layers": {
       "action": "projects — the stack of saved work",
       "mode": "settle",
       "note": "the three layers fly in and assemble into the icon, bottom first",
       "parts": [
-        { "hook": "ic-layer-bot", "durationMs": 380, "keyframes": [{ "at": 0, "translate": [0, 4.5] }, { "at": 65, "translate": [0, -0.5] }, { "at": 100 }] },
-        { "hook": "ic-layer-mid", "durationMs": 380, "delayMs": 70, "keyframes": [{ "at": 0, "translate": [0, 3.5] }, { "at": 65, "translate": [0, -0.4] }, { "at": 100 }] },
-        { "hook": "ic-layer-top", "durationMs": 380, "delayMs": 140, "keyframes": [{ "at": 0, "translate": [0, -3] }, { "at": 65, "translate": [0, 0.4] }, { "at": 100 }] }
+        {
+          "hook": "ic-layer-bot",
+          "durationMs": 380,
+          "keyframes": [
+            {
+              "at": 0,
+              "translate": [
+                0,
+                4.5
+              ]
+            },
+            {
+              "at": 65,
+              "translate": [
+                0,
+                -0.5
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
+        },
+        {
+          "hook": "ic-layer-mid",
+          "durationMs": 380,
+          "delayMs": 70,
+          "keyframes": [
+            {
+              "at": 0,
+              "translate": [
+                0,
+                3.5
+              ]
+            },
+            {
+              "at": 65,
+              "translate": [
+                0,
+                -0.4
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
+        },
+        {
+          "hook": "ic-layer-top",
+          "durationMs": 380,
+          "delayMs": 140,
+          "keyframes": [
+            {
+              "at": 0,
+              "translate": [
+                0,
+                -3
+              ]
+            },
+            {
+              "at": 65,
+              "translate": [
+                0,
+                0.4
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
+        }
       ]
     },
     "more": {
@@ -310,24 +820,73 @@
       "mode": "hold",
       "note": "the dots spread apart — the menu about to open out",
       "parts": [
-        { "hook": "ic-dot-l", "to": { "translate": [-1.4, 0] } },
-        { "hook": "ic-dot-r", "to": { "translate": [1.4, 0] } }
+        {
+          "hook": "ic-dot-l",
+          "to": {
+            "translate": [
+              -1.4,
+              0
+            ]
+          }
+        },
+        {
+          "hook": "ic-dot-r",
+          "to": {
+            "translate": [
+              1.4,
+              0
+            ]
+          }
+        }
       ]
     },
     "moon": {
       "action": "switch to the dark theme",
       "mode": "settle",
       "note": "the crescent WAVES — a small damped rock about the glyph centre, each swing reversing the last and settling upright. Small on purpose: a crescent tipped far enough reads as a different shape",
-      "parts": [{
-        "hook": null, "durationMs": 520, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
-        "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 25, "rotate": -11 }, { "at": 55, "rotate": 8 }, { "at": 80, "rotate": -4 }, { "at": 100, "rotate": 0 }]
-      }]
+      "parts": [
+        {
+          "hook": null,
+          "durationMs": 520,
+          "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+          "keyframes": [
+            {
+              "at": 0,
+              "rotate": 0
+            },
+            {
+              "at": 25,
+              "rotate": -11
+            },
+            {
+              "at": 55,
+              "rotate": 8
+            },
+            {
+              "at": 80,
+              "rotate": -4
+            },
+            {
+              "at": 100,
+              "rotate": 0
+            }
+          ]
+        }
+      ]
     },
     "sun": {
       "action": "switch to the light theme",
       "mode": "hold",
       "note": "the sun TURNS — but by exactly ONE RAY. The glyph has eight of them, 45 degrees apart, so a single ray-space is the smallest turn that still comes to rest looking untouched: the `gear`'s one-tooth idea on a sun. A whole revolution had to be fast to fit a hover and read as a spin rather than a turn. Its twin the moon waves instead — a turn is plain on a rayed disc and plain nonsense on a crescent",
-      "parts": [{ "hook": null, "durationMs": 420, "to": { "rotate": 45 } }]
+      "parts": [
+        {
+          "hook": null,
+          "durationMs": 420,
+          "to": {
+            "rotate": 45
+          }
+        }
+      ]
     },
     "maximize": {
       "action": "enter fullscreen (base) / leave it (variant `active`)",
@@ -335,35 +894,153 @@
       "note": "the four corner brackets EXTEND outward to enter; on a control already in fullscreen they RETRACT inward instead, so the motion always shows where you are going",
       "stateHook": "active",
       "parts": [
-        { "hook": "ic-corner-tl", "to": { "translate": [-1.4, -1.4] } },
-        { "hook": "ic-corner-tr", "to": { "translate": [1.4, -1.4] } },
-        { "hook": "ic-corner-br", "to": { "translate": [1.4, 1.4] } },
-        { "hook": "ic-corner-bl", "to": { "translate": [-1.4, 1.4] } }
+        {
+          "hook": "ic-corner-tl",
+          "to": {
+            "translate": [
+              -1.4,
+              -1.4
+            ]
+          }
+        },
+        {
+          "hook": "ic-corner-tr",
+          "to": {
+            "translate": [
+              1.4,
+              -1.4
+            ]
+          }
+        },
+        {
+          "hook": "ic-corner-br",
+          "to": {
+            "translate": [
+              1.4,
+              1.4
+            ]
+          }
+        },
+        {
+          "hook": "ic-corner-bl",
+          "to": {
+            "translate": [
+              -1.4,
+              1.4
+            ]
+          }
+        }
       ],
       "variants": {
         "active": {
           "parts": [
-            { "hook": "ic-corner-tl", "to": { "translate": [1.4, 1.4] } },
-            { "hook": "ic-corner-tr", "to": { "translate": [-1.4, 1.4] } },
-            { "hook": "ic-corner-br", "to": { "translate": [-1.4, -1.4] } },
-            { "hook": "ic-corner-bl", "to": { "translate": [1.4, -1.4] } }
+            {
+              "hook": "ic-corner-tl",
+              "to": {
+                "translate": [
+                  1.4,
+                  1.4
+                ]
+              }
+            },
+            {
+              "hook": "ic-corner-tr",
+              "to": {
+                "translate": [
+                  -1.4,
+                  1.4
+                ]
+              }
+            },
+            {
+              "hook": "ic-corner-br",
+              "to": {
+                "translate": [
+                  -1.4,
+                  -1.4
+                ]
+              }
+            },
+            {
+              "hook": "ic-corner-bl",
+              "to": {
+                "translate": [
+                  1.4,
+                  -1.4
+                ]
+              }
+            }
           ]
         }
       }
     },
+    "minimize": {
+      "action": "leave fullscreen",
+      "mode": "hold",
+      "note": "the corner brackets draw IN — the way out of fullscreen, the mirror of maximize's",
+      "parts": [
+        {
+          "hook": "ic-corner-tl",
+          "to": {
+            "translate": [1.4, 1.4]
+          }
+        },
+        {
+          "hook": "ic-corner-tr",
+          "to": {
+            "translate": [-1.4, 1.4]
+          }
+        },
+        {
+          "hook": "ic-corner-br",
+          "to": {
+            "translate": [-1.4, -1.4]
+          }
+        },
+        {
+          "hook": "ic-corner-bl",
+          "to": {
+            "translate": [1.4, -1.4]
+          }
+        }
+      ]
+    },
     "fit": {
       "action": "fit to window",
       "mode": "hold",
-      "note": "the inner frame grows towards the outer one",
-      "parts": [{ "hook": "ic-inner", "to": { "scale": 1.22 } }]
+      "note": "the small inner frame GROWS towards the outer one — fitting the image to the window",
+      "parts": [
+        {
+          "hook": "ic-inner",
+          "to": {
+            "scale": 1.22
+          }
+        }
+      ]
     },
     "link": {
       "action": "source & resource links / connect",
       "mode": "hold",
       "note": "the two chain links close together and join",
       "parts": [
-        { "hook": "ic-link-a", "to": { "translate": [-0.7, 0.7] } },
-        { "hook": "ic-link-b", "to": { "translate": [0.7, -0.7] } }
+        {
+          "hook": "ic-link-a",
+          "to": {
+            "translate": [
+              -0.7,
+              0.7
+            ]
+          }
+        },
+        {
+          "hook": "ic-link-b",
+          "to": {
+            "translate": [
+              0.7,
+              -0.7
+            ]
+          }
+        }
       ]
     },
     "incognito": {
@@ -371,63 +1048,189 @@
       "mode": "hold",
       "note": "the disguise comes apart: the hat lifts off while the glasses drop away from it",
       "parts": [
-        { "hook": "ic-brim", "to": { "translate": [0, -1] } },
-        { "hook": "ic-glasses", "to": { "translate": [0, 1] } }
+        {
+          "hook": "ic-brim",
+          "to": {
+            "translate": [
+              0,
+              -1
+            ]
+          }
+        },
+        {
+          "hook": "ic-glasses",
+          "to": {
+            "translate": [
+              0,
+              1
+            ]
+          }
+        }
       ]
     },
     "lock": {
       "action": "admin / secured",
       "mode": "hold",
       "note": "the shackle lifts a little, as if about to unlatch",
-      "parts": [{ "hook": "ic-shackle", "to": { "translate": [0, -1.4] } }]
+      "parts": [
+        {
+          "hook": "ic-shackle",
+          "to": {
+            "translate": [
+              0,
+              -1.4
+            ]
+          }
+        }
+      ]
     },
     "gear": {
       "action": "settings",
       "mode": "hold",
       "note": "the gear turns exactly one tooth (45 degrees), so it comes to rest looking untouched",
-      "parts": [{ "hook": null, "durationMs": 300, "to": { "rotate": 45 } }]
+      "parts": [
+        {
+          "hook": null,
+          "durationMs": 300,
+          "to": {
+            "rotate": 45
+          }
+        }
+      ]
     },
     "palette": {
       "action": "colors / visuals",
       "mode": "settle",
       "note": "the wells of paint light up in turn",
-      "parts": [{
-        "hook": "ic-dot", "durationMs": 320, "stagger": 55, "originSelf": true,
-        "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.5 }, { "at": 100, "scale": 1 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-dot",
+          "durationMs": 320,
+          "stagger": 55,
+          "originSelf": true,
+          "keyframes": [
+            {
+              "at": 0,
+              "scale": 1
+            },
+            {
+              "at": 45,
+              "scale": 1.5
+            },
+            {
+              "at": 100,
+              "scale": 1
+            }
+          ]
+        }
+      ]
     },
     "help": {
       "action": "help",
       "mode": "settle",
       "note": "the question mark gives a quick tremor in place. TRANSLATION, not rotation: turning the mark about the icon centre swings it out of its own ring",
-      "parts": [{
-        "hook": "ic-mark", "durationMs": 300, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
-        "keyframes": [{ "at": 0 }, { "at": 25, "translate": [-1, 0] }, { "at": 55, "translate": [0.9, 0] }, { "at": 80, "translate": [-0.45, 0] }, { "at": 100 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-mark",
+          "durationMs": 300,
+          "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+          "keyframes": [
+            {
+              "at": 0
+            },
+            {
+              "at": 25,
+              "translate": [
+                -1,
+                0
+              ]
+            },
+            {
+              "at": 55,
+              "translate": [
+                0.9,
+                0
+              ]
+            },
+            {
+              "at": 80,
+              "translate": [
+                -0.45,
+                0
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
+        }
+      ]
     },
     "info": {
       "action": "information",
       "mode": "settle",
       "note": "restrained: the “i” bobs for attention — an info mark has no action to mime",
-      "parts": [{
-        "hook": "ic-mark", "durationMs": 300,
-        "keyframes": [{ "at": 0 }, { "at": 45, "translate": [0, -1.6] }, { "at": 100 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-mark",
+          "durationMs": 300,
+          "keyframes": [
+            {
+              "at": 0
+            },
+            {
+              "at": 45,
+              "translate": [
+                0,
+                -1.6
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
+        }
+      ]
     },
     "refresh": {
       "action": "reload / reconnect",
       "mode": "hold",
       "note": "half a turn — the glyph is point-symmetric, so it rests looking identical",
-      "parts": [{ "hook": null, "durationMs": 420, "to": { "rotate": 180 } }]
+      "parts": [
+        {
+          "hook": null,
+          "durationMs": 420,
+          "to": {
+            "rotate": 180
+          }
+        }
+      ]
     },
     "calendar": {
       "action": "project expiration",
       "mode": "settle",
       "note": "restrained: the binder rings bob — a date has no motion of its own",
-      "parts": [{
-        "hook": "ic-rings", "durationMs": 300,
-        "keyframes": [{ "at": 0 }, { "at": 45, "translate": [0, -1.6] }, { "at": 100 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-rings",
+          "durationMs": 300,
+          "keyframes": [
+            {
+              "at": 0
+            },
+            {
+              "at": 45,
+              "translate": [
+                0,
+                -1.6
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
+        }
+      ]
     },
     "image": {
       "action": "open an image",
@@ -435,13 +1238,44 @@
       "note": "the picture is DRAWN inside its frame — the ridge (≈22.6 units of polyline) draws itself and the little sun DROPS in from just above it, a beat later. Nothing crosses the frame's outline, which sliding the contents in from below did: the sun's top (8.5 − r1.5 − a 1-unit half stroke = 6) clears that outline's inner edge (3 + 1) by 2, so 1.6 is the whole drop there is — it lands with a 0.3 overshoot rather than more height",
       "parts": [
         {
-          "hook": "ic-ridge", "durationMs": 340, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "hook": "ic-ridge",
+          "durationMs": 340,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
           "dashArray": 23,
-          "keyframes": [{ "at": 0, "dashOffset": 23 }, { "at": 100, "dashOffset": 0 }]
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 23
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         },
         {
-          "hook": "ic-orb", "durationMs": 300, "delayMs": 90,
-          "keyframes": [{ "at": 0, "translate": [0, -1.6] }, { "at": 70, "translate": [0, 0.3] }, { "at": 100 }]
+          "hook": "ic-orb",
+          "durationMs": 300,
+          "delayMs": 90,
+          "keyframes": [
+            {
+              "at": 0,
+              "translate": [
+                0,
+                -1.6
+              ]
+            },
+            {
+              "at": 70,
+              "translate": [
+                0,
+                0.3
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
         }
       ]
     },
@@ -451,14 +1285,37 @@
       "note": "the ƒ writes itself: the curve draws top to bottom, then the crossbar strikes through it, the way you'd write an f",
       "parts": [
         {
-          "hook": "ic-curve", "durationMs": 280, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "hook": "ic-curve",
+          "durationMs": 280,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
           "dashArray": 17.5,
-          "keyframes": [{ "at": 0, "dashOffset": 17.5 }, { "at": 100, "dashOffset": 0 }]
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 17.5
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         },
         {
-          "hook": "ic-bar", "durationMs": 140, "delayMs": 200, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "hook": "ic-bar",
+          "durationMs": 140,
+          "delayMs": 200,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
           "dashArray": 7,
-          "keyframes": [{ "at": 0, "dashOffset": 7 }, { "at": 100, "dashOffset": 0 }]
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 7
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         }
       ]
     },
@@ -466,167 +1323,482 @@
       "action": "tooltip text / the Telegram bot",
       "mode": "settle",
       "note": "the bubble draws itself, tail to rim, the way you'd sketch one. The typing dots belong to `sparkle`, which is the glyph that HAS dots",
-      "parts": [{
-        "hook": "ic-outline", "durationMs": 360, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
-        "dashArray": 67,
-        "keyframes": [{ "at": 0, "dashOffset": 67 }, { "at": 100, "dashOffset": 0 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-outline",
+          "durationMs": 360,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 67,
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 67
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
+        }
+      ]
     },
     "eye": {
       "action": "view / preview",
       "mode": "settle",
       "note": "the pupil glances left, then right",
-      "parts": [{
-        "hook": "ic-pupil", "durationMs": 420, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
-        "keyframes": [{ "at": 0 }, { "at": 30, "translate": [-1.4, 0] }, { "at": 65, "translate": [1.4, 0] }, { "at": 100 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-pupil",
+          "durationMs": 420,
+          "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+          "keyframes": [
+            {
+              "at": 0
+            },
+            {
+              "at": 30,
+              "translate": [
+                -1.4,
+                0
+              ]
+            },
+            {
+              "at": 65,
+              "translate": [
+                1.4,
+                0
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
+        }
+      ]
     },
     "external": {
       "action": "open elsewhere / another image",
       "mode": "hold",
       "note": "the arrow leaves the box",
-      "parts": [{ "hook": "ic-arrow", "to": { "translate": [1.4, -1.4] } }]
+      "parts": [
+        {
+          "hook": "ic-arrow",
+          "to": {
+            "translate": [
+              1.4,
+              -1.4
+            ]
+          }
+        }
+      ]
     },
     "share": {
       "action": "share",
       "mode": "settle",
       "note": "all three nodes light up in turn, top to bottom — a plain downward sweep across the glyph, the same read as the server icon's LEDs and the layers icon's stack. Lighting only two of the three read as one being broken, so all three play. They SWELL rather than travel: each node sits on the end of a connecting line, and a move big enough to read pulled it off that end. The glyph is drawn top-to-bottom, so markup order IS the sequence.",
-      "parts": [{
-        "hook": "ic-node", "durationMs": 380, "stagger": 120, "originSelf": true,
-        "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.45 }, { "at": 100, "scale": 1 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-node",
+          "durationMs": 380,
+          "stagger": 120,
+          "originSelf": true,
+          "keyframes": [
+            {
+              "at": 0,
+              "scale": 1
+            },
+            {
+              "at": 45,
+              "scale": 1.45
+            },
+            {
+              "at": 100,
+              "scale": 1
+            }
+          ]
+        }
+      ]
     },
     "monitor": {
       "action": "open in another app",
       "mode": "settle",
       "note": "the screen lifts clear off its stand and settles back — the image being handed to another app. A held 1.2-unit nudge was half a pixel at toolbar size and read as no motion at all, which is the whole reason this table exists",
-      "parts": [{
-        "hook": "ic-screen", "durationMs": 380,
-        "keyframes": [{ "at": 0 }, { "at": 45, "translate": [0, -2.6] }, { "at": 100 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-screen",
+          "durationMs": 380,
+          "keyframes": [
+            {
+              "at": 0
+            },
+            {
+              "at": 45,
+              "translate": [
+                0,
+                -2.6
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
+        }
+      ]
     },
     "server": {
       "action": "servers — connect, share, co-edit",
       "mode": "settle",
       "note": "the status LEDs blink, top unit then bottom",
-      "parts": [{
-        "hook": "ic-led", "durationMs": 360, "stagger": 110, "originSelf": true,
-        "keyframes": [{ "at": 0, "scale": 1 }, { "at": 40, "scale": 2.1 }, { "at": 100, "scale": 1 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-led",
+          "durationMs": 360,
+          "stagger": 110,
+          "originSelf": true,
+          "keyframes": [
+            {
+              "at": 0,
+              "scale": 1
+            },
+            {
+              "at": 40,
+              "scale": 2.1
+            },
+            {
+              "at": 100,
+              "scale": 1
+            }
+          ]
+        }
+      ]
     },
     "cloud": {
       "action": "remote / cloud storage",
       "mode": "hold",
       "note": "restrained: the cloud drifts",
-      "parts": [{ "hook": null, "to": { "translate": [1.4, -0.6] } }]
+      "parts": [
+        {
+          "hook": null,
+          "to": {
+            "translate": [
+              1.4,
+              -0.6
+            ]
+          }
+        }
+      ]
     },
     "globe": {
       "action": "the browser / the public web",
       "mode": "hold",
       "note": "the meridian narrows — the globe turning on its axis",
-      "parts": [{ "hook": "ic-meridian", "to": { "scaleX": 0.45 } }]
+      "parts": [
+        {
+          "hook": "ic-meridian",
+          "to": {
+            "scaleX": 0.45
+          }
+        }
+      ]
     },
     "refresh-cw": {
       "action": "live sync to file — the same wheel as `refresh`, turning a WHOLE revolution: a sync runs and completes, so the wheel comes back to where it started instead of resting half-turned",
       "mode": "settle",
-      "parts": [{
-        "hook": null, "durationMs": 620, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
-        "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 100, "rotate": 360 }]
-      }]
+      "parts": [
+        {
+          "hook": null,
+          "durationMs": 620,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "keyframes": [
+            {
+              "at": 0,
+              "rotate": 0
+            },
+            {
+              "at": 100,
+              "rotate": 360
+            }
+          ]
+        }
+      ]
     },
     "lightbulb": {
       "action": "a hint / tip",
       "mode": "settle",
       "note": "the bulb swells as it lights, hinged on its base",
-      "parts": [{
-        "hook": "ic-bulb", "origin": [12, 17], "durationMs": 340,
-        "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.12 }, { "at": 100, "scale": 1 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-bulb",
+          "origin": [
+            12,
+            17
+          ],
+          "durationMs": 340,
+          "keyframes": [
+            {
+              "at": 0,
+              "scale": 1
+            },
+            {
+              "at": 45,
+              "scale": 1.12
+            },
+            {
+              "at": 100,
+              "scale": 1
+            }
+          ]
+        }
+      ]
     },
     "alert": {
       "action": "warning / invalid input",
       "mode": "settle",
       "note": "a short shake — the universal “look at this”",
-      "parts": [{
-        "hook": null, "durationMs": 300, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
-        "keyframes": [{ "at": 0, "rotate": 0 }, { "at": 25, "rotate": -7 }, { "at": 55, "rotate": 6 }, { "at": 80, "rotate": -3 }, { "at": 100, "rotate": 0 }]
-      }]
+      "parts": [
+        {
+          "hook": null,
+          "durationMs": 300,
+          "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+          "keyframes": [
+            {
+              "at": 0,
+              "rotate": 0
+            },
+            {
+              "at": 25,
+              "rotate": -7
+            },
+            {
+              "at": 55,
+              "rotate": 6
+            },
+            {
+              "at": 80,
+              "rotate": -3
+            },
+            {
+              "at": 100,
+              "rotate": 0
+            }
+          ]
+        }
+      ]
     },
     "flag": {
       "action": "flag / mark",
       "mode": "settle",
       "note": "the cloth waves on its pole",
-      "parts": [{
-        "hook": "ic-cloth", "origin": [4, 3], "durationMs": 420,
-        "keyframes": [{ "at": 0, "skewX": 0 }, { "at": 30, "skewX": 7 }, { "at": 65, "skewX": -5 }, { "at": 100, "skewX": 0 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-cloth",
+          "origin": [
+            4,
+            3
+          ],
+          "durationMs": 420,
+          "keyframes": [
+            {
+              "at": 0,
+              "skewX": 0
+            },
+            {
+              "at": 30,
+              "skewX": 7
+            },
+            {
+              "at": 65,
+              "skewX": -5
+            },
+            {
+              "at": 100,
+              "skewX": 0
+            }
+          ]
+        }
+      ]
     },
     "pin": {
       "action": "pin in place",
       "mode": "settle",
       "note": "the pin is pushed in",
-      "parts": [{
-        "hook": null, "durationMs": 300,
-        "keyframes": [{ "at": 0 }, { "at": 45, "translate": [0, 1.6] }, { "at": 100 }]
-      }]
+      "parts": [
+        {
+          "hook": null,
+          "durationMs": 300,
+          "keyframes": [
+            {
+              "at": 0
+            },
+            {
+              "at": 45,
+              "translate": [
+                0,
+                1.6
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
+        }
+      ]
     },
     "ruler": {
       "action": "measure / units",
       "mode": "hold",
       "note": "restrained: the rule slides along its own length, the way you'd lay it down",
-      "parts": [{ "hook": null, "to": { "translate": [1.2, -1.2] } }]
+      "parts": [
+        {
+          "hook": null,
+          "to": {
+            "translate": [
+              1.2,
+              -1.2
+            ]
+          }
+        }
+      ]
     },
     "sparkle": {
       "action": "the AI assistant — a chat bubble with three dots",
       "mode": "settle",
       "note": "the dots type, left to right",
-      "parts": [{
-        "hook": "ic-dot", "durationMs": 300, "stagger": 70,
-        "keyframes": [{ "at": 0 }, { "at": 45, "translate": [0, -2] }, { "at": 100 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-dot",
+          "durationMs": 300,
+          "stagger": 70,
+          "keyframes": [
+            {
+              "at": 0
+            },
+            {
+              "at": 45,
+              "translate": [
+                0,
+                -2
+              ]
+            },
+            {
+              "at": 100
+            }
+          ]
+        }
+      ]
     },
     "send": {
       "action": "send the message",
       "mode": "hold",
       "note": "the plane takes off along its own heading",
-      "parts": [{ "hook": null, "to": { "translate": [1.8, -1.8] } }]
+      "parts": [
+        {
+          "hook": null,
+          "to": {
+            "translate": [
+              1.8,
+              -1.8
+            ]
+          }
+        }
+      ]
     },
     "plus": {
       "action": "zoom in / add",
       "mode": "settle",
       "note": "DRAWS itself the way you'd write one — the vertical stroke first, then the horizontal struck through it as the first lands (markup order IS the sequence); each stroke is 14 units",
-      "parts": [{
-        "hook": "ic-stroke", "durationMs": 200, "stagger": 200,
-        "easing": "cubic-bezier(0.33, 1, 0.68, 1)", "dashArray": 14,
-        "keyframes": [{ "at": 0, "dashOffset": 14 }, { "at": 100, "dashOffset": 0 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-stroke",
+          "durationMs": 200,
+          "stagger": 200,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 14,
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 14
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
+        }
+      ]
     },
     "minus": {
       "action": "zoom out / remove",
       "mode": "settle",
       "note": "SHRINKS, then settles back — a minus that swelled read as “increase”, which is the bug this table exists to prevent",
-      "parts": [{
-        "hook": null, "durationMs": 340,
-        "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 0.68 }, { "at": 100, "scale": 1 }]
-      }]
+      "parts": [
+        {
+          "hook": null,
+          "durationMs": 340,
+          "keyframes": [
+            {
+              "at": 0,
+              "scale": 1
+            },
+            {
+              "at": 45,
+              "scale": 0.68
+            },
+            {
+              "at": 100,
+              "scale": 1
+            }
+          ]
+        }
+      ]
     },
     "plus-circle": {
       "action": "new editor / new connection / blank page",
       "mode": "settle",
       "note": "the cross inside draws itself — the vertical stroke, then the horizontal, 8 units each; the ring stays put",
-      "parts": [{
-        "hook": "ic-stroke", "durationMs": 200, "stagger": 200,
-        "easing": "cubic-bezier(0.33, 1, 0.68, 1)", "dashArray": 8,
-        "keyframes": [{ "at": 0, "dashOffset": 8 }, { "at": 100, "dashOffset": 0 }]
-      }]
+      "parts": [
+        {
+          "hook": "ic-stroke",
+          "durationMs": 200,
+          "stagger": 200,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "dashArray": 8,
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 8
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
+        }
+      ]
     },
     "swap": {
       "action": "swap album / portrait",
       "mode": "hold",
       "note": "the two arrows slide past each other, each the way it points",
       "parts": [
-        { "hook": "ic-arrow-top", "to": { "translate": [1.4, 0] } },
-        { "hook": "ic-arrow-bot", "to": { "translate": [-1.4, 0] } }
+        {
+          "hook": "ic-arrow-top",
+          "to": {
+            "translate": [
+              1.4,
+              0
+            ]
+          }
+        },
+        {
+          "hook": "ic-arrow-bot",
+          "to": {
+            "translate": [
+              -1.4,
+              0
+            ]
+          }
+        }
       ]
     },
     "compare": {
@@ -635,56 +1807,183 @@
       "note": "the frame draws itself first (a rounded 18x18 square, rx=2: 4 straight 14-unit sides + a full circle's worth of corner ≈ 68.5 units), then the divider draws top to bottom through it, the way you'd rule a split AFTER the page is there to split",
       "parts": [
         {
-          "hook": "ic-box", "durationMs": 340, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "hook": "ic-box",
+          "durationMs": 340,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
           "dashArray": 68.5,
-          "keyframes": [{ "at": 0, "dashOffset": 68.5 }, { "at": 100, "dashOffset": 0 }]
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 68.5
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         },
         {
-          "hook": "ic-stroke", "durationMs": 200, "delayMs": 340, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "hook": "ic-stroke",
+          "durationMs": 200,
+          "delayMs": 340,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
           "dashArray": 22,
-          "keyframes": [{ "at": 0, "dashOffset": 22 }, { "at": 100, "dashOffset": 0 }]
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 22
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         }
       ]
     },
     "mic": {
-      "action": "voice input \u2014 talk instead of typing",
+      "action": "voice input — talk instead of typing",
       "mode": "settle",
-      "note": "the mic itself PULSES once \u2014 from its resting size up to large and back \u2014 about the glyph centre, as if it just picked up a voice, while the sound waves GROW out of it, smallest first: each of the three arcs per side starts tiny against the capsule and swells to its resting size in turn, inner \u2192 middle \u2192 outer, the way sound spreads. Left and right mirror. (At rest the arcs are hidden while the mic is off and shown while it listens \u2014 that visibility is the control's state, styled outside the motion sheet; the hover reveals them for the swell either way)",
+      "note": "the mic itself PULSES once — from its resting size up to large and back — about the glyph centre, as if it just picked up a voice, while the sound waves GROW out of it, smallest first: each of the three arcs per side starts tiny against the capsule and swells to its resting size in turn, inner → middle → outer, the way sound spreads. Left and right mirror. (At rest the arcs are hidden while the mic is off and shown while it listens — that visibility is the control's state, styled outside the motion sheet; the hover reveals them for the swell either way)",
       "parts": [
         {
-          "hook": "ic-body", "durationMs": 300, "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
-          "keyframes": [{ "at": 0, "scale": 1 }, { "at": 50, "scale": 1.22 }, { "at": 100, "scale": 1 }]
+          "hook": "ic-body",
+          "durationMs": 300,
+          "easing": "cubic-bezier(0.4, 0, 0.2, 1)",
+          "keyframes": [
+            {
+              "at": 0,
+              "scale": 1
+            },
+            {
+              "at": 50,
+              "scale": 1.22
+            },
+            {
+              "at": 100,
+              "scale": 1
+            }
+          ]
         },
         {
-          "hook": "ic-wave-l", "durationMs": 200, "stagger": 60, "originSelf": true,
-          "keyframes": [{ "at": 0, "translate": [2, 0], "scale": 0.2 }, { "at": 100 }]
+          "hook": "ic-wave-l",
+          "durationMs": 200,
+          "stagger": 60,
+          "originSelf": true,
+          "keyframes": [
+            {
+              "at": 0,
+              "translate": [
+                2,
+                0
+              ],
+              "scale": 0.2
+            },
+            {
+              "at": 100
+            }
+          ]
         },
         {
-          "hook": "ic-wave-r", "durationMs": 200, "stagger": 60, "originSelf": true,
-          "keyframes": [{ "at": 0, "translate": [-2, 0], "scale": 0.2 }, { "at": 100 }]
+          "hook": "ic-wave-r",
+          "durationMs": 200,
+          "stagger": 60,
+          "originSelf": true,
+          "keyframes": [
+            {
+              "at": 0,
+              "translate": [
+                -2,
+                0
+              ],
+              "scale": 0.2
+            },
+            {
+              "at": 100
+            }
+          ]
         }
       ]
     },
     "description": {
-      "action": "the project's description \u2014 a sheet of text",
+      "action": "the project's description — a sheet of text",
       "mode": "settle",
       "note": "the sheet's three text lines WRITE themselves, top to bottom, one after another (dash draw-on, 8 / 8 / 5 units), the way a description is typed",
       "parts": [
         {
-          "hook": "ic-text", "durationMs": 220, "stagger": 90, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "hook": "ic-text",
+          "durationMs": 220,
+          "stagger": 90,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
           "dashArray": 8,
-          "keyframes": [{ "at": 0, "dashOffset": 8 }, { "at": 100, "dashOffset": 0 }]
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 8
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         }
       ]
     },
     "keywords": {
-      "action": "the project's keywords \u2014 a bullet list",
+      "action": "the project's keywords — a bullet list",
       "mode": "settle",
-      "note": "the three bullet rows (\u2022 \u2014) APPEAR one after another, top to bottom: each slides in from the left, small, and settles at its place",
+      "note": "the three bullet rows (• —) APPEAR one after another, top to bottom: each slides in from the left, small, and settles at its place",
       "parts": [
         {
-          "hook": "ic-row", "durationMs": 400, "stagger": 150, "originSelf": true,
-          "keyframes": [{ "at": 0, "translate": [-4, 0], "scale": 0.6 }, { "at": 100 }]
+          "hook": "ic-row",
+          "durationMs": 400,
+          "stagger": 150,
+          "originSelf": true,
+          "keyframes": [
+            {
+              "at": 0,
+              "translate": [
+                -4,
+                0
+              ],
+              "scale": 0.6
+            },
+            {
+              "at": 100
+            }
+          ]
+        }
+      ]
+    },
+    "file-down": {
+      "action": "download the layout FILE to disk",
+      "mode": "hold",
+      "note": "the arrow inside the page travels DOWN, as the tray pair's does",
+      "parts": [
+        {
+          "hook": "ic-arrow",
+          "to": {
+            "translate": [
+              0,
+              2.2
+            ]
+          }
+        }
+      ]
+    },
+    "file-up": {
+      "action": "upload a layout FILE from disk",
+      "mode": "hold",
+      "note": "the same arrow, UP — direction is the whole difference between the pair",
+      "parts": [
+        {
+          "hook": "ic-arrow",
+          "to": {
+            "translate": [
+              0,
+              -2.2
+            ]
+          }
         }
       ]
     }
@@ -693,22 +1992,61 @@
     "draw-mode-icon": {
       "action": "line / rectangle draw mode — the browser's own inline pair (DRAW_MODE_ICON in core/drawingApp.js), which is the canonical `line`/`rect` pair on a 16-grid instead of 24. A surface drawing the canon uses those two designs; this entry is only for the inline faces.",
       "mode": "settle",
-      "note": "the canonical `line`/`rect` design at 16 units: the shape DRAWS ITSELF between the two drag handles the way a drag would — the segment (10\u221a2 \u2248 14.2) or the box it spans (4\u00d78 straights + a r1 corner each \u2248 38.3) — and the handles pop as it lands. The face swap owns everything else about this button",
+      "note": "the canonical `line`/`rect` design at 16 units: the shape DRAWS ITSELF between the two drag handles the way a drag would — the segment (10√2 ≈ 14.2) or the box it spans (4×8 straights + a r1 corner each ≈ 38.3) — and the handles pop as it lands. The face swap owns everything else about this button",
       "grid": 16,
       "parts": [
         {
-          "hook": "ic-stroke", "durationMs": 340, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "hook": "ic-stroke",
+          "durationMs": 340,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
           "dashArray": 15,
-          "keyframes": [{ "at": 0, "dashOffset": 15 }, { "at": 100, "dashOffset": 0 }]
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 15
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         },
         {
-          "hook": "ic-box", "durationMs": 340, "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
+          "hook": "ic-box",
+          "durationMs": 340,
+          "easing": "cubic-bezier(0.33, 1, 0.68, 1)",
           "dashArray": 39,
-          "keyframes": [{ "at": 0, "dashOffset": 39 }, { "at": 100, "dashOffset": 0 }]
+          "keyframes": [
+            {
+              "at": 0,
+              "dashOffset": 39
+            },
+            {
+              "at": 100,
+              "dashOffset": 0
+            }
+          ]
         },
         {
-          "hook": "ic-handle", "durationMs": 300, "delayMs": 90, "stagger": 80, "originSelf": true,
-          "keyframes": [{ "at": 0, "scale": 1 }, { "at": 45, "scale": 1.28 }, { "at": 100, "scale": 1 }]
+          "hook": "ic-handle",
+          "durationMs": 300,
+          "delayMs": 90,
+          "stagger": 80,
+          "originSelf": true,
+          "keyframes": [
+            {
+              "at": 0,
+              "scale": 1
+            },
+            {
+              "at": 45,
+              "scale": 1.28
+            },
+            {
+              "at": 100,
+              "scale": 1
+            }
+          ]
         }
       ]
     }

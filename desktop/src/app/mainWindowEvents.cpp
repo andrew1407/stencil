@@ -513,6 +513,15 @@ namespace stencil::gui {
       if (t == QEvent::Enter || t == QEvent::Leave)
         QTimer::singleShot(0, this, [this] { updateNameHover(); });
     }
+    // …and a pointer that has landed ANYWHERE ELSE has left the group, whether or not the
+    // group's own Leave arrived: crossing straight onto another row's icon left the ✎/🎨
+    // lit while the pointer was three clusters away (user report, with a picture). Only
+    // while the hover is actually held, so this costs nothing the rest of the time.
+    if (nameHover_ && obj != nameGroup_ && obj != projectName_ && obj != projectNameEdit_
+        && obj != projectColorBtn_
+        && (event->type() == QEvent::Enter || event->type() == QEvent::HoverEnter
+            || event->type() == QEvent::MouseMove || event->type() == QEvent::HoverMove))
+      QTimer::singleShot(0, this, [this] { updateNameHover(); });
     if (obj == projectName_) {
       const QEvent::Type t = event->type();
       if (t == QEvent::MouseButtonDblClick) {

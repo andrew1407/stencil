@@ -17,8 +17,10 @@ export class StencilFullscreenLayer extends StencilElement {
     <div id="fs-right-trigger"></div>
 
     <!-- Fullscreen slide-in: controls (top) -->
+    <!-- No Exit button of its own: the revealed strip IS the toolbar, and the fullscreen
+         toggle inside it (lit while on) is what leaves — plus Escape. A second control for
+         the same thing sat over the cloned rows and read as part of them (user decision). -->
     <div id="fs-controls-panel">
-        <button id="fs-exit-btn" class="btn-icon-text" data-hk-title="fullscreen" data-title="Exit fullscreen">${icon('x', { size: 14 })}<span>Exit</span></button>
         <!-- Controls content will be cloned here by JS -->
     </div>
 
@@ -41,7 +43,6 @@ export class StencilFullscreenLayer extends StencilElement {
     const fsPointsPanel = document.getElementById('fs-points-panel');
     const fsTopTrigger = document.getElementById('fs-top-trigger');
     const fsRightTrigger = document.getElementById('fs-right-trigger');
-    const fsExitBtn = document.getElementById('fs-exit-btn');
     const fsBtn = document.getElementById('fullscreen-toggle');
 
     let isFullscreen = false;
@@ -237,7 +238,9 @@ export class StencilFullscreenLayer extends StencilElement {
       try {
         window.dispatchEvent(new CustomEvent('stencil:fullscreen-changed', { detail: { on: isFullscreen } }));
       } catch { /* no DOM (tests) */ }
-      fsBtn.innerHTML = icon('maximize');
+      // The glyph turns over with the state, and each one's hover moves the way the click
+      // will (iconMotion.json maximize / minimize).
+      fsBtn.innerHTML = icon(isFullscreen ? 'minimize' : 'maximize');
       fsBtn.dataset.title = isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode';
       fsBtn.dataset.tip = hotkeys.hkTitle(isFullscreen ? 'Exit fullscreen' : 'Fullscreen mode', 'fullscreen');
       // Accent-fill only while fullscreen is active (via the shared .active ghost-button style),
@@ -303,9 +306,6 @@ export class StencilFullscreenLayer extends StencilElement {
     app.toggleFullscreen = toggleFullscreen;
 
     fsBtn.addEventListener('click', () => toggleFullscreen());
-    fsExitBtn.addEventListener('click', () => {
-      if (isFullscreen) toggleFullscreen();
-    });
 
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape' && isFullscreen) toggleFullscreen();
