@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Stencil.TelegramBot.Infrastructure.Server;
 
 namespace Stencil.TelegramBot.Infrastructure.Links;
 
@@ -60,6 +61,14 @@ public static class DesktopLinkBuilder
             ? null
             : BounceUrl(origin, SchemeUrl(serverUrl, projectId, version, incognito));
     }
+
+    /// <summary>
+    /// True when the configured base points at this machine — a link the bot hands out then
+    /// resolves on whoever taps it, not on the operator's host, so the caller says so.
+    /// </summary>
+    public static bool IsLoopbackBase(string? browserBase) =>
+        NormalizeBase(browserBase) is { } origin
+        && UrlNormalizer.IsLoopbackHost(new Uri(origin).Host);
 
     /// <summary>
     /// The configured base as <c>scheme://authority[/path]</c> with no query, fragment or

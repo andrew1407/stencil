@@ -33,10 +33,12 @@ public sealed record BotOptions
     /// <summary>
     /// Base URL of the served browser app (<c>STENCIL_BOT_BROWSER_URL</c>), e.g.
     /// <c>https://stencil.example/app</c>. It is what <c>/link</c> builds its desktop hand-off
-    /// links from — they ride through that app's <c>launch.html</c> bounce page. Null (the
-    /// default) ⇒ <c>/link</c> replies that the operator hasn't configured one.
+    /// links from — they ride through that app's <c>launch.html</c> bounce page. Defaults to the
+    /// dev server, like the desktop app's "Browser app URL", the extension's editor URL and
+    /// mcp's <c>STENCIL_BROWSER_URL</c> — but a bot link is tapped on someone ELSE's machine, so
+    /// a public address (a Pages deployment, say) is what an operator normally wants here.
     /// </summary>
-    public string? BrowserAppUrl { get; init; }
+    public string BrowserAppUrl { get; init; } = DefaultBrowserAppUrl;
 
     /// <summary>
     /// Maximum number of stencil CLI processes allowed to run at once, process-wide
@@ -127,6 +129,9 @@ public sealed record BotOptions
     /// <summary>The default LLM in-flight cap: the server's <c>LLM_MAX_IN_FLIGHT</c> default.</summary>
     private const int DefaultMaxConcurrentLlm = 8;
 
+    /// <summary>The browser-app base every surface defaults to: the served dev app.</summary>
+    public const string DefaultBrowserAppUrl = "http://localhost:8080";
+
     private const int DefaultHttpTimeoutSeconds = 30;
     private const int DefaultMaxDownloadMb = 50;
     private const int DefaultWorkspaceTtlMinutes = 60;
@@ -145,7 +150,8 @@ public sealed record BotOptions
         string dataDir = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_BOT_DATA_DIR"))
             ?? Path.Combine(Path.GetTempPath(), "stencil-bot");
         bool tlsInsecure = IsTruthy(Environment.GetEnvironmentVariable("STENCIL_TLS_INSECURE"));
-        string? browserAppUrl = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_BOT_BROWSER_URL"));
+        string browserAppUrl = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_BOT_BROWSER_URL"))
+            ?? DefaultBrowserAppUrl;
         int maxConcurrentCli = ParsePositiveInt(
             Environment.GetEnvironmentVariable("STENCIL_BOT_MAX_CONCURRENT_CLI"),
             DefaultMaxConcurrentCli);

@@ -103,12 +103,14 @@ public sealed partial class CommandHandlers
             session.ActiveProjectVersion);
         if (url is null)
         {
-            await _bot.SendMessage(chatId, Replies.DesktopLinkUnconfigured(), cancellationToken: ct);
+            await _bot.SendMessage(chatId, Replies.DesktopLinkUnusable(), cancellationToken: ct);
             return;
         }
         await _bot.SendMessage(
             chatId,
-            Replies.DesktopLink(session.ActiveProjectName ?? session.ActiveProjectId, url),
+            Replies.DesktopLink(
+                session.ActiveProjectName ?? session.ActiveProjectId, url,
+                DesktopLinkBuilder.IsLoopbackBase(_options.BrowserAppUrl)),
             cancellationToken: ct);
     }
 
