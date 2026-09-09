@@ -455,13 +455,14 @@ namespace stencil::gui {
                 Grain g{home + QPointF(far * tx, far * ty) + DisintegrateOverlay::swirlAt(far, tx, ty, q),
                         DisintegrateOverlay::moteRadius(cw, ch, n) * (1.0 - far * (0.6 - n * 0.25)), c,
                         support::grainShape(style_, w), support::headingOf(tx, ty, gather)};
-                // Painted from the accent palette like every cloud — the word's own ink
+                // Painted from the theme's palette like every cloud — the word's own ink
                 // only says how much paint the cell held.
                 const support::StyleFrame sf = support::styleFrame(style_, k, far, w, std::hypot(tx, ty), t_ * ms_);
                 g.at += QPointF(sf.sx, sf.sy);
                 g.r *= sf.scale;
-                g.c = support::paletteStop(accent_, shade_,
-                                           style_ == support::ParticleStyle::Dust ? support::dustMix(w, false) : sf.mix);
+                g.c = support::tintedStop(accent_, shade_,
+                                          style_ == support::ParticleStyle::Dust ? support::dustMix(w, false) : sf.mix,
+                                          support::tintOf(w));
                 g.c.setAlphaF(std::min(1.0, alpha * sf.glow));
                 grains.push_back(g);
               }

@@ -526,8 +526,8 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
       }
     }
     const kind = flightOf(toward, gather);
-    // Every cloud is painted in --accent / --accent-2, never in the surface's own colours:
-    // each grain picks its stop by its mix (dustCloud.js drawCloud).
+    // Every cloud is painted from the theme's palette, never in the surface's own colours:
+    // each grain picks its stop by its mix and its tint (dustCloud.js stopOfTint).
     const style = styleCode();
     const paints = paletteCss();
     host.__cloud = { motes, colours: paints, flight: kind, span, style };   // what a test reads

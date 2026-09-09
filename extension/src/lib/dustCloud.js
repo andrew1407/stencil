@@ -4,8 +4,8 @@
 // and drawn in a handful of batched fills. Desktop twin: disintegrateOverlay.hpp legAt.
 //
 // A cloud wears one of three STYLES (motionPrefs.js particleStyle) — dust, water (grains
-// sag and sway like drops) or fire (they lift and waver like embers) — always painted in
-// the theme's --accent / --accent-2, never in the surface's own pixels.
+// sag and sway like drops) or fire (they lift and waver like embers) — always painted from
+// the theme's palette (the --accent / --accent-2 ramp, or a TINT), never the surface's pixels.
 //
 // Pure except for startCloud, which needs a document. Mirrored byte-for-byte in
 // extension/src/lib/dustCloud.js (extension/tests/portParity.test.js).
@@ -165,9 +165,34 @@ export const styleFrame = (style, p, away, w, len, tMs, out = {}) => {
 // halfway by their hash, glints wear the shade — sand with sparkle in it.
 export const DUST_MIX_SPREAD = 0.5;
 export const dustMix = (w, glint) => (glint ? 1 : (w || 0) * DUST_MIX_SPREAD);
-// Which palette stop a grain at `mix` is painted from.
+// Which stop of the ACCENT RAMP a grain at `mix` is painted from.
 export const paletteIndex = (mix, stops = PALETTE_STOPS) =>
   Math.max(0, Math.min(stops - 1, Math.round(mix * (stops - 1))));
+// ── Tints: the minority colours ─────────────────────────────────────────────
+// Two grains in three ride the ramp above; the rest wear one of these, off the grain's own
+// hash, so a violet cloud carries white sparks and ash greys through it. They sit AFTER
+// the ramp, so one index still names one colour. Desktop twin: dustKit.hpp tintOf.
+export const TINT_SHARE = 0.34;   // of grains wear a tint; the rest ride the ramp
+export const TINT_CSS = [
+  '#ffffff',                                           // white
+  '#b4b4b4',                                           // grey
+  '#6e6e6e',                                           // darker grey
+  'color-mix(in srgb, var(--accent) 55%, #ffffff)',    // light accent
+  'color-mix(in srgb, var(--accent) 55%, #000000)',    // dark accent
+];
+export const TINT_STOPS = TINT_CSS.length;
+// Every colour paletteCss hands out: the ramp, then the tints.
+export const PAINT_STOPS = PALETTE_STOPS + TINT_STOPS;
+// Which tint a grain wears, or -1 for the ramp — its own slice of the hash, decorrelated
+// from the shape, wobble and twinkle the same `w` picks.
+export const tintOf = (w) => {
+  const pick = fract((w || 0) * 13.73 + 0.41);
+  if (pick >= TINT_SHARE) return -1;
+  return Math.min(TINT_STOPS - 1, Math.floor((pick / TINT_SHARE) * TINT_STOPS));
+};
+// The stop a grain is painted from, once its tint is known — fixed for its whole flight,
+// so every painter caches the tint per cloud (drawCloud's scratch.tints) instead of re-hashing.
+export const stopOfTint = (mix, tint) => (tint < 0 ? paletteIndex(mix) : PALETTE_STOPS + tint);
 // The shared scatter hash (motion.js tileNoise, the desktop's cellNoise): 0..1 from two ints.
 export const hashNoise = (a, b) => { const h = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return h - Math.floor(h); };
 const fract = (v) => v - Math.floor(v);
@@ -272,11 +297,13 @@ export const edgeReachOf = (style) => (style === STYLE_WATER ? EDGE.water.amp + 
 // slack) still clears the furthest corner when the wipe ends.
 export const edgeBaseOf = (style) => 1 + edgeDipOf(style) + 0.012;
 
-// The palette itself, as CSS: PALETTE_STOPS even mixes of --accent and --accent-2, so a
-// cloud is violet by default and follows the accent.
-export const paletteCss = (stops = PALETTE_STOPS) =>
-  Array.from({ length: stops }, (_, i) =>
-    `color-mix(in srgb, var(--accent) ${Math.round(100 - (100 * i) / (stops - 1))}%, var(--accent-2))`);
+// The palette itself, as CSS: PALETTE_STOPS even mixes of --accent and --accent-2 — so a
+// cloud is violet by default and follows the accent — then the TINT_CSS minority.
+export const paletteCss = (stops = PALETTE_STOPS) => [
+  ...Array.from({ length: stops }, (_, i) =>
+    `color-mix(in srgb, var(--accent) ${Math.round(100 - (100 * i) / (stops - 1))}%, var(--accent-2))`),
+  ...TINT_CSS,
+];
 
 // One grain at progress `p` (0..1) of its OWN animation — before its delay it holds its
 // 0% pose, after its end its 100% pose (animation-fill-mode: both). `tMs` is the cloud's
@@ -374,13 +401,14 @@ export const drawCloud = (ctx, motes, flight, tMs, colours, scratch = { out: {},
                           style = STYLE_DUST) => {
   const { out, buckets } = scratch;
   const fromFar = (FLIGHTS[flight] || FLIGHTS.scatter).from === 'far';
-  // Each grain's shape and heading, once per cloud (they never change over the flight).
+  // Each grain's shape, heading and tint, once per cloud (none change over the flight).
   if (!scratch.shapes || scratch.shapes.length !== motes.length || scratch.style !== style) {
     scratch.shapes = Int8Array.from(motes, (m) => grainShape(style, m.w));
     scratch.heads = Float32Array.from(motes, (m) => headingOf(m.dx, m.dy, fromFar));
+    scratch.tints = Int8Array.from(motes, (m) => tintOf(m.w));
     scratch.style = style;
   }
-  const { shapes, heads } = scratch;
+  const { shapes, heads, tints } = scratch;
   for (const b of buckets.values()) b.length = 0;
   for (let i = 0; i < motes.length; i++) {
     const m = motes[i];
@@ -392,7 +420,7 @@ export const drawCloud = (ctx, motes, flight, tMs, colours, scratch = { out: {},
     if (out.alpha < 0.01 || out.r < 0.2) continue;
     const level = Math.round(out.alpha * (ALPHA_LEVELS - 1));
     if (level <= 0) continue;
-    const key = paletteIndex(out.mix, colours.length) * ALPHA_LEVELS + level;
+    const key = Math.min(colours.length - 1, stopOfTint(out.mix, tints[i])) * ALPHA_LEVELS + level;
     let b = buckets.get(key);
     if (!b) buckets.set(key, (b = []));
     b.push(out.x, out.y, out.r, shapes[i], heads[i]);

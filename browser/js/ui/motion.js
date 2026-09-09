@@ -3,7 +3,7 @@
 // old engines) simply means no animation — never a broken or hidden view. CSS
 // owns the actual keyframes (css/animations.css); this file only toggles classes.
 import { dustEnabled, motionReduced, particleStyle } from './motionPrefs.js';
-import { startCloud, resolveColour, PARTICLE_STYLES, paletteCss, styleFrame, paletteIndex, dustMix,
+import { startCloud, resolveColour, PARTICLE_STYLES, paletteCss, styleFrame, tintOf, stopOfTint, dustMix,
          grainShape, headingOf, fillGrains, edgeJitter, edgeBaseOf, edgeDipOf, STYLED_CELL_SCALE } from './dustCloud.js';
 
 // The two gates every helper below asks: `motionReduced()` is "nothing may move"
@@ -448,8 +448,9 @@ const swapDustPaint = () => {
     const s = getComputedStyle(document.documentElement);
     const v = (name) => (s.getPropertyValue(name) || '').trim();
     if (!v('--accent')) return null;
-    // The wake is painted from the departing accent palette — the same two colours every
-    // cloud wears (dustCloud.js paletteCss) — resolved while they still mean the OLD theme.
+    // The wake is painted from the departing palette — the accent ramp plus its tints,
+    // what every cloud wears (dustCloud.js paletteCss) — resolved while the variables
+    // still mean the OLD theme.
     return { palette: paletteCss().map((css) => resolveColour(document, css)) };
   } catch { return null; }
 };
@@ -486,8 +487,8 @@ function spawnSwapDust(px, paint) {
     stage.style.width = `${px.w}px`;
     stage.style.height = `${px.h}px`;
     ctx.scale(dpr, dpr);
-    // One run of one fillStyle per palette stop, so a frame is six fills rather than a
-    // thousand switches — resolved already, before the palette moved under us.
+    // One run of one fillStyle per palette stop, so a frame is a handful of fills rather
+    // than a thousand switches — resolved already, before the palette moved under us.
     const style = styleCode();
     const runs = paint.palette.map((c) => ({ colour: canvasColour(ctx, c, '#888') }));
     document.body.appendChild(stage);
@@ -503,6 +504,7 @@ function spawnSwapDust(px, paint) {
     const fx = new Float32Array(specs.length * 4);
     const shapes = Int8Array.from(specs, (s) => grainShape(style, s.w));
     const heads = Float32Array.from(specs, (s) => headingOf(s.dx, s.dy, false));
+    const tints = Int8Array.from(specs, (s) => tintOf(s.w));
     const total = THEME_SWAP_MS + SWAP_DUST_LIFE_MS;
     const started = performance.now();
     let raf = 0;
@@ -522,7 +524,7 @@ function spawnSwapDust(px, paint) {
         if (p <= 0 || p >= 1) { stopOf[i] = -1; continue; }
         swapDustFrame(s, p, at);
         styleFrame(style, p, p, s.w, s.len, ms, sf);
-        stopOf[i] = paletteIndex(style ? sf.mix : dustMix(s.w, s.accent), runs.length);
+        stopOf[i] = stopOfTint(style ? sf.mix : dustMix(s.w, s.accent), tints[i]);
         fx[i * 4] = at.x + sf.sx; fx[i * 4 + 1] = at.y + sf.sy;
         fx[i * 4 + 2] = at.r * sf.scale; fx[i * 4 + 3] = at.alpha * sf.glow;
       }
@@ -1277,8 +1279,8 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
       }
     }
     const kind = flightOf(toward, gather, flight);
-    // Every cloud is painted in --accent / --accent-2, never in the surface's own colours:
-    // each grain picks its stop by its mix (dustCloud.js drawCloud).
+    // Every cloud is painted from the theme's palette, never in the surface's own colours:
+    // each grain picks its stop by its mix and its tint (dustCloud.js stopOfTint).
     const style = styleCode();
     const paints = paletteCss();
     host.__cloud = { motes, colours: paints, flight: kind, span, style };   // what a test reads
@@ -2334,7 +2336,7 @@ const drawDust = (st, parts, t, gather, ks, lvl, lvlN, styled) => {
     ks[i] = k;
     ctx.clearRect(p.x0, p.y0, p.x1 - p.x0, p.y1 - p.y0);
   }
-  const { style, palette, sf, pts, stop, fx, shapes, heads, poly } = styled;
+  const { style, palette, sf, pts, stop, fx, shapes, heads, tints, poly } = styled;
   const flush = () => {
     for (let l = 0; l < DUST_ALPHA_LEVELS; l++) {
       const n = lvlN[l];
@@ -2362,7 +2364,7 @@ const drawDust = (st, parts, t, gather, ks, lvl, lvlN, styled) => {
     const k = ks[i], p = parts[i];
     if (k <= 0 || k >= 1 || p.empty) { stop[i] = -1; continue; }
     styleFrame(style, pts[i], k, p.w, p.len, tMs, sf);
-    stop[i] = paletteIndex(style ? sf.mix : dustMix(p.w, 0), palette.length);
+    stop[i] = stopOfTint(style ? sf.mix : dustMix(p.w, 0), tints[i]);
     fx[i * 4] = sf.sx; fx[i * 4 + 1] = sf.sy; fx[i * 4 + 2] = sf.scale; fx[i * 4 + 3] = sf.glow;
   }
   // …then one sweep per palette stop.
@@ -2392,6 +2394,7 @@ const runDust = (st, ms, gather) => {
     pts: new Float32Array(parts.length), stop: new Int8Array(parts.length), fx: new Float32Array(parts.length * 4),
     shapes: Int8Array.from(parts, (p) => grainShape(style, p.w)),
     heads: Float32Array.from(parts, (p) => headingOf(p.dx, p.dy, gather)),
+    tints: Int8Array.from(parts, (p) => tintOf(p.w)),
   };
   st.run(ms, (t) => drawDust(st, parts, t, gather, ks, lvl, lvlN, styled));
 };
