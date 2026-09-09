@@ -52,6 +52,9 @@ RUN cd cli && zig build -Doptimize=ReleaseFast
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src/bot
 COPY bot/ ./
+# Separate stage, separate filesystem: the csproj files <EmbeddedResource> the same shared
+# JSON (../../../browser/js/config/…), so this stage needs its own copy of it.
+COPY browser/js/config/ /src/browser/js/config/
 # nuget.config (copied above) pins globalPackagesFolder to ./packages, so this restore
 # pulls Telegram.Bot, StackExchange.Redis, … into an image-local bot/packages/ folder
 # rather than any global cache. --packages is passed too so it holds even if the config
