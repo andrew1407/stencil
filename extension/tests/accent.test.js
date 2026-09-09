@@ -364,6 +364,12 @@ test('water and fire cut their own front, and the classic-script twins match dus
                    norm(dc.shapePolygon(dc.SHAPE_TRIANGLE, 10, 20, 2, 0.5)));
   assert.deepEqual(norm(page.motion.shapePolygon(dc.SHAPE_WAVE, 3, 4, 1.5, 2)), norm(dc.shapePolygon(dc.SHAPE_WAVE, 3, 4, 1.5, 2)));
   assert.deepEqual(norm(page.motion.shapePolygon(dc.SHAPE_STREAK, 3, 4, 1.5, 2)), norm(dc.shapePolygon(dc.SHAPE_STREAK, 3, 4, 1.5, 2)));
+  // …and so does the tint a grain's hash gives it, and the palette that names it.
+  assert.deepEqual([...page.motion.paletteCss()], dc.paletteCss());
+  for (let w = 0; w < 1; w += 0.0037) {
+    assert.equal(page.motion.tintOf(w), dc.tintOf(w), `tintOf ${w}`);
+    assert.equal(page.motion.stopOfTint(0.5, dc.tintOf(w)), dc.stopOfTint(0.5, dc.tintOf(w)), `stopOfTint ${w}`);
+  }
 });
 
 test('with nothing to anchor to, the wipe blooms from the centre — never a click', () => {
@@ -605,7 +611,13 @@ test('a water or fire wake is painted from the accent palette; slide keeps the w
   styled.frame(0); styled.frame(200);
   const lit = stage.fills.filter((f) => f.arcs > 0);
   assert.ok(lit.length > 0, 'grains were painted');
-  for (const f of lit) assert.match(f.colour, /^color-mix\(in srgb, var\(--accent\) \d+%, var\(--accent-2\)\)$/, `palette fill, got ${f.colour}`);
+  // Every fill is a palette colour — a stop of the accent ramp or one of its tints
+  // (lib/dustCloud.js paletteCss) — never a pixel of the page.
+  const ramp = /^color-mix\(in srgb, var\(--accent\) \d+%, var\(--accent-2\)\)$/;
+  const tint = /^(#ffffff|#b4b4b4|#6e6e6e|color-mix\(in srgb, var\(--accent\) 55%, #(ffffff|000000)\))$/;
+  for (const f of lit) assert.ok(ramp.test(f.colour) || tint.test(f.colour), `palette fill, got ${f.colour}`);
+  assert.ok(lit.some((f) => ramp.test(f.colour)), 'most of it the accent');
+  assert.ok(lit.some((f) => tint.test(f.colour)), '…and a tinted minority');
   assert.ok(new Set(lit.map((f) => f.colour)).size >= 2, 'more than one stop of it');
 
   const sliding = loadAccent({ withViewTransitions: true, stored: { stencil_motion: 'slide' } });

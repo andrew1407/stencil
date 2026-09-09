@@ -70,6 +70,30 @@ int main(int argc, char** argv) {
     check(support::paletteIndex(0.5) == 3 && support::paletteIndex(2.0) == 5 && support::paletteIndex(-1) == 0,
           "paletteIndex rounds and clamps like the browser's");
 
+    // The tints: two grains in three ride that ramp, the rest wear one of five colours off
+    // their own hash. Pinned to the browser's dustCloud.js tintOf (printed from node).
+    check(support::tintOf(0.0) == -1 && support::tintOf(0.37) == -1 && support::tintOf(0.8) == -1,
+          "most grains are the accent");
+    check(support::tintOf(0.043) == 0 && support::tintOf(0.048) == 1 && support::tintOf(0.0529) == 2
+              && support::tintOf(0.0579) == 3 && support::tintOf(0.0628) == 4 && support::tintOf(0.99) == 0,
+          "…and the rest each take a fifth of the tints, on the browser's own picks");
+    int tinted = 0;
+    for (int i = 0; i < 4000; i++) if (support::tintOf(i / 4000.0) >= 0) tinted++;
+    check(tinted > 4000 * 0.30 && tinted < 4000 * 0.38, "about a third of a cloud is tinted");
+    const QColor violet(0x7c, 0x3a, 0xed);
+    check(support::tintColour(violet, 0) == QColor(255, 255, 255)
+              && support::tintColour(violet, 1) == QColor(180, 180, 180)
+              && support::tintColour(violet, 2) == QColor(110, 110, 110),
+          "white, grey and a darker grey, whatever the accent");
+    check(support::tintColour(violet, 3) == QColor(183, 147, 245) && support::tintColour(violet, 4) == QColor(68, 32, 130),
+          "…then the accent blended 55/45 to white and to black (browser TINT_CSS)");
+    const QColor shade(0x6b, 0x32, 0xcc);
+    check(support::tintedStop(violet, shade, 0.5, support::tintOf(0.37)) == support::paletteStop(violet, shade, 0.5),
+          "an untinted grain keeps its stop on the ramp");
+    check(support::tintedStop(violet, shade, 0.5, support::tintOf(0.043)) == QColor(255, 255, 255)
+              && support::tintedStop(violet, shade, 0.0, support::tintOf(0.043)) == QColor(255, 255, 255),
+          "…a tinted one wears its tint whatever its mix says");
+
     // styleFrame — the browser's dustCloud.js styleFrame, op for op (the sample values
     // below are that module's, printed from node).
     const auto near = [](double a, double b) { return std::abs(a - b) < 1e-5; };

@@ -525,23 +525,23 @@ namespace stencil::gui {
     };
 
     // Finish a grain: its shape, heading (`tx, ty` is its throw, `fromFar` a gather) and
-    // colour. Every grain is painted from the accent palette by its mix, never in the
-    // cell's own colour — the cell only said how much paint there was, which `alpha`
-    // already carries. Dust twinkles; water and fire take styleFrame's touch instead.
-    void finishGrain(Mote* out, double alpha, bool glint, double w,
+    // colour. Every grain is painted from the theme's palette by its mix and its hash,
+    // never in the cell's own colour — the cell only said how much paint there was, which
+    // `alpha` already carries. Dust twinkles; water and fire take styleFrame's touch.
+    void finishGrain(Mote* out, double alpha, bool glint, double w, int tint,
                      double p, double away, double tx, double ty, bool fromFar) const {
       const double len = std::hypot(tx, ty);
       out->shape = support::grainShape(style_, w);
       out->heading = support::headingOf(tx, ty, fromFar);
       if (style_ == support::ParticleStyle::Dust) {
-        out->color = support::paletteStop(accent_, shade_, support::dustMix(w, glint));
+        out->color = support::tintedStop(accent_, shade_, support::dustMix(w, glint), tint);
         out->color.setAlphaF(std::clamp(alpha * twinkleAt(glint, t_ * ms_, w), 0.0, 1.0));
         return;
       }
       const support::StyleFrame sf = support::styleFrame(style_, p, away, w, len, t_ * ms_);
       out->at += QPointF(sf.sx, sf.sy);
       out->radius *= sf.scale;
-      out->color = support::paletteStop(accent_, shade_, sf.mix);
+      out->color = support::tintedStop(accent_, shade_, sf.mix, tint);
       out->color.setAlphaF(std::clamp(alpha * sf.glow, 0.0, 1.0));
     }
 
@@ -554,11 +554,13 @@ namespace stencil::gui {
         // of the frame at 4000 cells.
         grains_.resize(size_t(cols_) * rows_);
         glints_.assign(size_t(cols_) * rows_, false);
+        tints_.assign(size_t(cols_) * rows_, -1);
         for (int cy = 0; cy < rows_; ++cy)
           for (int cx = 0; cx < cols_; ++cx) {
             const double n = cellNoise(cx, cy);
             grains_[size_t(cy) * cols_ + cx] = liftedGrain(cx, cy, n);
             glints_[size_t(cy) * cols_ + cx] = isGlint(cx, cy, n);
+            tints_[size_t(cy) * cols_ + cx] = support::tintOf(cellNoise(cx + 13, cy + 71));
           }
       }
       QPainter p(this);
@@ -654,6 +656,8 @@ namespace stencil::gui {
       return cx == 0 || cy == 0 || cx == cols_ - 1 || cy == rows_ - 1 || n > kGlintHash;
     }
     bool glintAt(int cx, int cy) const { return glints_[size_t(cy) * cols_ + cx]; }
+    // A cell's tint (-1 = the accent ramp), fixed for the flight like its glint.
+    int tintAt(int cx, int cy) const { return tints_[size_t(cy) * cols_ + cx]; }
 
     // A cell's colour, lifted further towards the ink where the browser's speckPainter
     // paints a RIM or a GLINT.
@@ -701,7 +705,7 @@ namespace stencil::gui {
       out->radius = moteRadius(cw, ch, n)
           * legScalar(t, kRowSplit, rowLegEase(), rowEase(), 1.0, 1.0 - (1.0 - farScale) * 0.5, farScale);
       finishGrain(out, cell.alphaF() * (0.78 + n * 0.22) * scatterAlpha(t), glintAt(cx, cy), w,
-                  t, t, tx, ty, false);
+                  tintAt(cx, cy), t, t, tx, ty, false);
       return true;
     }
 
@@ -749,7 +753,7 @@ namespace stencil::gui {
       // No twinkle on a falling picture (browser drawDust has none); a styled one still
       // breathes, on the same fourth hash every cloud keys its style off.
       finishGrain(out, cell.alphaF() * (0.78 + n * 0.22) * (gather ? gatherAlpha(t) : scatterAlpha(t)),
-                  false, cellNoise(cx + 13, cy + 71), t, away, tx, ty, gather);
+                  false, cellNoise(cx + 13, cy + 71), tintAt(cx, cy), t, away, tx, ty, gather);
       return true;
     }
 
@@ -805,7 +809,7 @@ namespace stencil::gui {
         out->at = home;
         out->radius = moteRadius(cw, ch, n);
         finishGrain(out, cell.alphaF() * (0.78 + n * 0.22) * host, glintAt(cx, cy),
-                    cellNoise(cx + 13, cy + 71), 1.0, 0.0, toX, toY, true);
+                    cellNoise(cx + 13, cy + 71), tintAt(cx, cy), 1.0, 0.0, toX, toY, true);
         return true;
       }
       // A gathering mote waits at the point until its delay is up, which is what makes
@@ -839,7 +843,7 @@ namespace stencil::gui {
             * legScalar(t, kSurfaceScatterSplit, surfaceLegEase(), surfaceEase(), 1.0, midScale, farScale);
       }
       finishGrain(out, cell.alphaF() * alpha * (0.78 + n * 0.22), glintAt(cx, cy), w,
-                  t, gather ? 1.0 - t : t, tx, ty, gather);
+                  tintAt(cx, cy), t, gather ? 1.0 - t : t, tx, ty, gather);
       return true;
     }
 
@@ -949,6 +953,7 @@ namespace stencil::gui {
     QImage cells_;          // snap_'s colour per grid cell (sampleCells); rebuilt when the grid changes
     std::vector<QColor> grains_;   // …and each cell's lifted grain colour, built with it
     std::vector<bool> glints_;     // …and whether it is a rim/glint cell (twinkles)
+    std::vector<int8_t> tints_;    // …and the tint its hash gave it, -1 for the ramp
     std::vector<Mote> motes_;   // per-frame scratch: the grains in the air…
     std::vector<QRect> cut_;    // …and the cells cut out of the picture (runs, Y-X sorted)
     Sweep sweep_ = Sweep::Rows;
