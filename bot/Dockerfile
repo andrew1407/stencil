@@ -42,6 +42,9 @@ RUN set -eux; \
 WORKDIR /src
 COPY core/ ./core/
 COPY cli/ ./cli/
+# cli/build.zig embeds shared JSON from the browser app (accents, colour names, constants,
+# and the LLM prompt/registry/providers), so those files must be in the build context too.
+COPY browser/js/config/ ./browser/js/config/
 # Zig fetches the pinned stb_image dependency on demand (needs network).
 RUN cd cli && zig build -Doptimize=ReleaseFast
 
