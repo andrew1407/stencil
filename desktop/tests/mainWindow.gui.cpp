@@ -6669,6 +6669,11 @@ class MainWindowGuiTest : public QObject {
       const QString qss = stencil::gui::buildStylesheet(win.paintedDark_, accentKey);
       QVERIFY2(qss.contains("color: " + ink.name()),
                qPrintable("the QSS carries no on-accent ink" + why));
+      // The empty state's "Open Image" paints its own label (support/openImageButton.hpp),
+      // so it reads that ink out of the palette the sheet filled rather than the sheet.
+      QVERIFY(win.openImageBtn_);
+      QTRY_VERIFY2(win.openImageBtn_->palette().color(QPalette::ButtonText) == ink,
+                   qPrintable("Open Image's own painter has no on-accent ink" + why));
     }
   }
 
