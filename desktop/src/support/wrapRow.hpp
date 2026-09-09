@@ -24,6 +24,19 @@ namespace stencil::gui {
     // A hidden row gets no resize, so its pinned height is stale until asked.
     void remeasure() { sync(); }
 
+    // Both hints are the WRAPPED height, measured against the width the row is going to
+    // get. Without them the first pass hints the stacked height — one control per line —
+    // QToolBarLayout takes that as the bar's minimum, and the window is sized to fit it and
+    // never gives the height back once the row settles a beat later.
+    bool hasHeightForWidth() const override { return true; }
+    int heightForWidth(int w) const override { return flow_->heightForWidth(w); }
+    QSize sizeHint() const override {
+      const int w = measureWidth();
+      return w > 0 ? QSize(flow_->minimumSize().width(), flow_->heightForWidth(w))
+                   : QWidget::sizeHint();
+    }
+    QSize minimumSizeHint() const override { return sizeHint(); }
+
    protected:
     void resizeEvent(QResizeEvent* e) override { QWidget::resizeEvent(e); sync(); }
     void showEvent(QShowEvent* e) override { QWidget::showEvent(e); sync(); }
@@ -35,10 +48,19 @@ namespace stencil::gui {
     }
 
    private:
+    // A row still at its construction stub is not a layout: fall back to the WINDOW's
+    // width, which is the width the toolbar spanning it will hand over.
+    static constexpr int kLaidOut = 200;
+    int measureWidth() const {
+      if (width() > kLaidOut) return width();
+      const QWidget* top = window();
+      return top ? top->width() : 0;
+    }
     // Converges: the new height feeds back as one more resize at the same width.
     void sync() {
-      if (width() <= 0) return;
-      const int h = flow_->heightForWidth(width());
+      const int w = measureWidth();
+      if (w <= 0) return;
+      const int h = flow_->heightForWidth(w);
       if (h > 0 && h != height()) setFixedHeight(h);
     }
     FlowLayout* flow_ = nullptr;
