@@ -1105,7 +1105,10 @@ namespace stencil::gui {
     pm.fill(Qt::transparent);
     QPainter p(&pm);
     p.setRenderHint(QPainter::Antialiasing, true);
-    const QColor muted = palette().color(QPalette::Disabled, QPalette::Text);
+    // Mid = --text-muted, the browser's .project-thumb-placeholder colour. NOT the
+    // Disabled group (--disabled-text): that is dimmer, and the pen read darker here
+    // than in the browser (user report).
+    const QColor muted = palette().color(QPalette::Mid);
     p.setBrush(palette().color(QPalette::AlternateBase));      // --bg-info
     p.setPen(QPen(palette().color(QPalette::Dark), 1));         // --border-main
     p.drawRoundedRect(QRectF(0.5, 0.5, 55, 55), 6, 6);
@@ -1148,7 +1151,7 @@ namespace stencil::gui {
       p.drawEllipse(QPointF(20, top.center().y()), 2, 2);
       p.drawEllipse(QPointF(20, bot.center().y()), 2, 2);
     } else {
-      const QColor muted = palette().color(QPalette::Disabled, QPalette::Text);
+      const QColor muted = palette().color(QPalette::Mid);   // --text-muted, as above
       const QRectF frame(13, 15, 30, 26);
       p.setPen(QPen(muted, 2.5));
       p.setBrush(Qt::NoBrush);
