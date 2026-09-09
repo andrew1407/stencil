@@ -379,16 +379,23 @@ public static class Replies
         return $"Delete '{name}'{where}? This permanently removes the project for everyone and can't be undone.";
     }
 
-    /// <summary>The <c>/link</c> reply: the desktop hand-off link plus what it does and doesn't carry.</summary>
-    public static string DesktopLink(string name, string url) =>
+    /// <summary>
+    /// The <c>/link</c> reply: the desktop hand-off link plus what it does and doesn't carry. A
+    /// loopback link resolves on whoever taps it, so say so rather than let it look shareable.
+    /// </summary>
+    public static string DesktopLink(string name, string url, bool loopback) =>
         $"🔗 Open '{name}' in the Stencil desktop app:\n{url}\n\n"
         + "The page it opens hands the link to the desktop app. It carries no token — whoever "
-        + "follows it connects to the server with their own.";
+        + "follows it connects to the server with their own."
+        + (loopback
+            ? "\n\n" + Glyph(Tone.Notice) + " It points at localhost, so it only works on this "
+              + "machine — set STENCIL_BOT_BROWSER_URL to a public browser app to share it."
+            : "");
 
-    /// <summary>The <c>/link</c> reply when no browser app is configured to bounce through.</summary>
-    public static string DesktopLinkUnconfigured() =>
+    /// <summary>The <c>/link</c> reply when the configured browser app isn't a usable address.</summary>
+    public static string DesktopLinkUnusable() =>
         Tag(Tone.Notice,
-            "Desktop links are off — the operator has to point STENCIL_BOT_BROWSER_URL at the "
+            "Desktop links are off — STENCIL_BOT_BROWSER_URL has to be an http(s) address of the "
             + "served browser app, whose launch.html page carries the hand-off.");
 
     /// <summary>
