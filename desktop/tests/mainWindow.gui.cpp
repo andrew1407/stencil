@@ -14173,7 +14173,7 @@ class MainWindowGuiTest : public QObject {
       // The rest of the walk: a second Right lands on the flyout's first REAL row (not
       // its "IMAGE" title), Down moves on past the title rows, Left closes it back
       // onto the parent row with the root still up, Right reopens it.
-      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Right);
+      if (QWidget* p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Right);
       QTest::qWait(30);
       enteredRow = layoutMenu->activeAction() && layoutMenu->activeAction()->text().startsWith("Copy Image");
       QTest::keyClick(layoutMenu, Qt::Key_Down);
@@ -14348,7 +14348,7 @@ class MainWindowGuiTest : public QObject {
       opened = chat->isVisible();
       QTest::qWait(80);
       revealedOnly = QApplication::focusWidget() != win.chatMenuInput_;
-      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Right);
+      if (QWidget* p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Right);
       QTest::qWait(30);
       entered = QApplication::focusWidget() == win.chatMenuInput_;
       root->close();
@@ -14415,7 +14415,7 @@ class MainWindowGuiTest : public QObject {
       for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
       filterOpened = filter->isVisible();
       QTest::qWait(600);
-      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Right);   // enter
+      if (QWidget* p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Right);   // enter
       QTest::qWait(50);
       auto* focused = qobject_cast<QRadioButton*>(QApplication::focusWidget());
       landedOnChecked = focused && focused->isChecked() && checkedFilter() == "none";
@@ -14535,7 +14535,7 @@ class MainWindowGuiTest : public QObject {
       opened = filter->isVisible();
       QTest::qWait(600);
       hiddenAtStart = !win.tintColorAction_->isVisible();
-      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Right);   // enter: None
+      if (QWidget* p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Right);   // enter: None
       QTest::qWait(50);
       for (int i = 0; i < 5; ++i) { QTest::keyClick(QApplication::focusWidget(), Qt::Key_Down); QTest::qWait(60); }
       QTest::qWait(100);
@@ -14630,6 +14630,14 @@ class MainWindowGuiTest : public QObject {
         if (a->text().startsWith("Transformation")) transformAct = a;
       }
       if (!filterAct || !filterAct->menu() || !transformAct) { root->close(); return; }
+      // keyClick derefs its receiver (QTEST_ASSERT is compiled out in Release), so a chain
+      // that has already closed segfaults the whole binary and takes every later case with
+      // it. Bail out instead and let the QVERIFY2s below report the miss.
+      auto toPopup = [](Qt::Key k) {
+        QWidget* p = QApplication::activePopupWidget();
+        if (p) QTest::keyClick(p, k);
+        return p;
+      };
       for (int i = 0; i < 40 && root->activeAction() != filterAct; ++i) { QTest::keyClick(root, Qt::Key_Down); QTest::qWait(20); }
       QTest::keyClick(root, Qt::Key_Right);
       QMenu* filter = filterAct->menu();
@@ -14637,23 +14645,26 @@ class MainWindowGuiTest : public QObject {
       revealed = filter->isVisible();
       QTest::qWait(600);
       // ↓ while only revealed: the parent walks on (to Transformation) and the flyout folds.
-      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Down);
+      if (!toPopup(Qt::Key_Down)) { root->close(); return; }
       for (int i = 0; i < 100 && filter->isVisible(); ++i) QTest::qWait(10);
       rootAfterDown = root->activeAction() ? root->activeAction()->text() : QString();
       downFolded = !filter->isVisible() && root->activeAction() == transformAct;
-      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Up);
+      if (!toPopup(Qt::Key_Up)) { root->close(); return; }
       QTest::qWait(60);
       upBack = root->activeAction() == filterAct && !filter->isVisible();
       // → reveals again, a second → enters, and now ↓ picks inside.
-      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Right);
+      if (!toPopup(Qt::Key_Right)) { root->close(); return; }
       for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
       reRevealed = filter->isVisible();
       QTest::qWait(600);
-      QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Right);
+      QWidget* popup = toPopup(Qt::Key_Right);
+      if (!popup) { root->close(); return; }
       QTest::qWait(50);
       // Keys go where the platform sends them: the popup's focus widget (the radio).
-      QWidget* focused = QApplication::activePopupWidget()->focusWidget();
-      QTest::keyClick(focused ? focused : QApplication::activePopupWidget(), Qt::Key_Down);
+      popup = QApplication::activePopupWidget();
+      if (!popup) { root->close(); return; }
+      QWidget* focused = popup->focusWidget();
+      QTest::keyClick(focused ? focused : popup, Qt::Key_Down);
       QTest::qWait(80);
       enteredPick = win.settings_.imageFilter == "bw" && filter->isVisible();
       root->close();
