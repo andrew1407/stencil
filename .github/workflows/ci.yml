@@ -233,10 +233,13 @@ jobs:
           go-version: '1.26'
           # No go.sum is tracked, so there is nothing to key the module cache on.
           cache: false
-      # vendor/ is git-ignored, so materialize it and build/vet/test with -mod=vendor.
+      # Neither go.sum nor vendor/ is tracked, so rebuild both: `go mod tidy` writes the
+      # checksums (plain `go mod download` leaves them incomplete and vendoring then fails),
+      # and vendor/ is what every build/vet/test step uses via -mod=vendor.
       - name: Vendor dependencies
         working-directory: server
         run: |
+          go mod tidy
           go mod vendor
       - name: Build
         working-directory: server
