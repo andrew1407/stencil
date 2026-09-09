@@ -90,6 +90,11 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
+        with:
+          # Create the Pages site if it does not exist yet, instead of 404ing on a repo
+          # where Pages was never switched on (the job's `pages: write` permission above
+          # is what allows it). Without this the action only READS the existing site.
+          enablement: true
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
