@@ -391,6 +391,10 @@ namespace stencil::gui {
       /* The bar's own hairline separators, in its amber (browser .sel-sep). */
       QFrame#selectedLineSep { background: %SEL_BORDER%; border: none; max-width: 1px; min-width: 1px; }
       QWidget#selectedLineCard QComboBox { min-height: 18px; padding: 7px 11px; border-radius: 4px; }
+      /* Its own padding outranks the generic hover/focus rule's, so the pixel the thicker
+         ring takes is given back here — otherwise the value slides as you point at it. */
+      QWidget#selectedLineCard QComboBox:hover,
+      QWidget#selectedLineCard QComboBox:focus { padding: 6px 10px; }
       /* A spin box carries its own step arrows, so the same padding stands it 5px taller
          than the combo — it gets its own to land on the browser's 34px too. */
       QWidget#selectedLineCard QSpinBox,
@@ -622,6 +626,11 @@ namespace stencil::gui {
       QLineEdit:hover, QSpinBox:hover, QDoubleSpinBox:hover, QComboBox:hover {
         border-color: %ACCENT_RING%;
       }
+      /* A SELECTOR's ring is drawn twice as thick as a field's — it is the one input you
+         open rather than type into, so the hover has to read as "this is a control", not
+         just a tint (user decision). The padding gives back exactly the pixel the border
+         takes, so nothing in the row moves as the pointer crosses it. */
+      QComboBox:hover { border: 2px solid %ACCENT_RING%; padding: 2px 7px; }
       QComboBox:focus, QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
         border: 2px solid %ACCENT%; padding: 2px 7px;
       }
@@ -846,6 +855,7 @@ namespace stencil::gui {
       /* The picker dialog's select (modalChrome.cpp chooseModal — browser
          .confirm-choose-select): the shared combo chrome, full width, 8px radius. */
       QComboBox#modalChooseSelect { padding: 7px 10px; border-radius: 8px; font-size: 13px; }
+      QComboBox#modalChooseSelect:hover, QComboBox#modalChooseSelect:focus { padding: 6px 9px; }
       /* The Open In… dialog's Telegram fallback (browser #open-in-fallback-cmds): the two
          bot commands as selectable code. */
       QLabel#openInFallbackCmds {
