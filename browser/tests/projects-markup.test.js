@@ -86,6 +86,20 @@ test('the filter transition and render() agree on the rows by construction', () 
   assert.match(projectsSrc, /shownKeys\.push\(entry\.key\)/, 'and records what it listed');
 });
 
+test('what a removal REVEALS arrives, it does not simply appear', () => {
+  // Deleting the project open in this tab blanks the editor, so the settle render brings
+  // the pinned "Temporary (unsaved)" row in. A row that is genuinely NEW to the list
+  // materializes — veiled behind its own motes until they land, the removal played
+  // backwards — which is the arrival the connections list already uses, and the twin of
+  // the desktop's ListFilterFade::dustRowIn. Only the rows the settle ADDED.
+  assert.match(projectsSrc, /const before = \[\.\.\.shownKeys\];/,
+    'the settle remembers what the list showed before the removal');
+  assert.match(projectsSrc, /const \{ entering \} = filterDelta\(before, shownKeys\);[\s\S]{0,400}materialize\(el, rowDustGrid\(entering\.length, i\)\)/,
+    'and materializes the keys it ADDED — the shared delta, on the shared list-row grain');
+  assert.match(projectsSrc, /import \{[^}]*materialize[^}]*\} from '\.\/motion\.js'/,
+    'through the shared helper, not an animation of its own');
+});
+
 test('a real removal keeps the destructive wipe — a filter is not a delete', () => {
   // The scatter/disintegrate effect stays on the removal paths only.
   // …on the ITEM clock: a project card is read, not merely noticed, so its wipe runs

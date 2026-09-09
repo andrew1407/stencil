@@ -9035,6 +9035,169 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
+  // Nothing open here, so the pinned "Temporary (unsaved)" row is listed above the saved
+  // projects — and the batch bar (it hosts Select all) is up because there are rows to
+  // select. Removing every project takes both away, and the row underneath must GLIDE up
+  // into the space, not be dropped into it: the strip used to lose its height the frame
+  // its last control was hidden, and the layout's own spacing went in one more frame
+  // after that (user report — "it should smoothly move"). Pins the whole close as a
+  // continuous slide: no single frame moves the row more than a few pixels.
+  void closingTheBatchBarGlidesTheRowsUp() {
+    if (qApp->platformName() != QLatin1String("offscreen"))
+      QSKIP("modal-dialog gestures need the offscreen platform");
+    const auto motion = withMotion();   // the slide below IS the thing under test
+    MainWindow win(nullptr, false);
+    win.resize(1100, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(40, 30, QImage::Format_RGB32);
+    img.fill(Qt::darkCyan);
+    QVERIFY(!win.addImageProjectEntry(img, "one").isEmpty());
+    QVERIFY(!win.addImageProjectEntry(img, "two").isEmpty());
+
+    bool sawPinned = false, barWasUp = false;
+    int biggestStep = 0, travelled = 0;
+    QTimer::singleShot(0, [&] {
+      const auto bailOut = [] {
+        if (auto* d = qobject_cast<QDialog*>(QApplication::activeModalWidget())) d->reject();
+      };
+      QDialog* dlg = nullptr;
+      QListWidget* list = nullptr;
+      for (int i = 0; i < 200 && !list; ++i) {
+        dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+        if (dlg) list = dlg->findChild<QListWidget*>("projectsList");
+        if (!list) QTest::qWait(10);
+      }
+      if (!list) { bailOut(); return; }
+      QWidget* selectAll = dlg->findChild<QPushButton*>("projectsSelectAll");
+      QWidget* bar = selectAll ? selectAll->parentWidget() : nullptr;
+      QPushButton* clearBtn = nullptr;
+      for (QPushButton* b : dlg->findChildren<QPushButton*>())
+        if (b->text().startsWith("Clear All")) clearBtn = b;
+      if (!bar || !clearBtn) { bailOut(); return; }
+      // The pinned row's top edge, in screen coordinates — what the eye follows.
+      const auto pinnedTop = [&] {
+        for (int i = 0; i < list->count(); ++i)
+          if (list->item(i)->data(Qt::UserRole + 11).toBool())
+            return list->viewport()->mapToGlobal(list->visualItemRect(list->item(i)).topLeft()).y();
+        return -1;
+      };
+      sawPinned = pinnedTop() >= 0;
+      barWasUp = bar->isVisible() && bar->height() > 0;
+      if (!sawPinned || !barWasUp) { bailOut(); return; }
+      const int from = pinnedTop();
+      dismissModal("OK");
+      clearBtn->click();
+      int last = from;
+      for (int i = 0; i < 70 && bar->isVisible(); ++i) {
+        QTest::qWait(16);
+        const int now = pinnedTop();
+        if (now < 0) continue;   // mid-rebuild
+        biggestStep = std::max(biggestStep, std::abs(now - last));
+        last = now;
+      }
+      travelled = from - last;
+      bailOut();
+    });
+    win.openProjects();
+    QVERIFY2(sawPinned, "the pinned row was not listed with the saved projects");
+    QVERIFY2(barWasUp, "the batch bar was not up over the selectable rows");
+    QVERIFY2(travelled > 20, QString("the rows never moved up (%1px)").arg(travelled).toLatin1());
+    QVERIFY2(biggestStep <= 20,
+             QString("the bar's close dropped the rows %1px in one frame — not a glide")
+                 .arg(biggestStep).toLatin1());
+    beat();
+  }
+
+  // Removing the OPEN project empties the list — and what stands there then is the pinned
+  // "Temporary (unsaved)" row, never "No projects yet": the removal reset this window to a
+  // blank unsaved editor (eraseLocalProject → resetToBlankEditor), exactly the state the
+  // browser's list pins that row for. The window was asked once, at open time, so the row
+  // never came and the emptied list read "No projects yet" (user report). Driven through
+  // Clear All, the removal path that keeps the dialog up.
+  void removingTheOpenProjectPinsTheTemporaryRow() {
+    if (qApp->platformName() != QLatin1String("offscreen"))
+      QSKIP("modal-dialog gestures need the offscreen platform");
+    const auto motion = withMotion();   // the arrival below IS the thing under test
+    MainWindow win(nullptr, false);
+    win.resize(1100, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(40, 30, QImage::Format_RGB32);
+    img.fill(Qt::darkMagenta);
+    const QString id = win.addImageProjectEntry(img, "the-only-one");
+    QVERIFY(!id.isEmpty());
+    QVERIFY(win.loadProjectIntoCanvas(id, false));   // …and it is this window's OPEN project
+
+    bool sawRow = false, tempPinned = false, noPlaceholder = true, landedWhereItArrived = false;
+    bool arrivedVeiled = false, cloudInFlight = false, landedWhole = false;
+    QTimer::singleShot(0, [&] {
+      const auto bailOut = [] {
+        if (auto* d = qobject_cast<QDialog*>(QApplication::activeModalWidget())) d->reject();
+      };
+      QDialog* dlg = nullptr;
+      QListWidget* list = nullptr;
+      for (int i = 0; i < 200 && !list; ++i) {
+        dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget());
+        if (dlg) list = dlg->findChild<QListWidget*>("projectsList");
+        if (!list) QTest::qWait(10);
+      }
+      if (!list) { bailOut(); return; }
+      for (int i = 0; i < list->count(); ++i)
+        if (list->item(i)->data(Qt::UserRole).toString() == id) sawRow = true;
+      if (!sawRow) { bailOut(); return; }
+
+      QPushButton* clearBtn = nullptr;
+      for (QPushButton* b : dlg->findChildren<QPushButton*>())
+        if (b->text().startsWith("Clear All")) clearBtn = b;
+      if (!clearBtn) { bailOut(); return; }
+      dismissModal("OK");   // the in-dialog styled confirm (see the note above)
+      clearBtn->click();
+
+      // Once the dust has landed the list holds the pinned row and nothing else.
+      const auto pinned = [&] {
+        return list->count() == 1 && list->item(0)->data(Qt::UserRole + 11).toBool();
+      };
+      for (int i = 0; i < 300 && !pinned(); ++i) QTest::qWait(10);
+      tempPinned = pinned() && list->item(0)->text() == QStringLiteral("Temporary (unsaved)");
+      for (int i = 0; i < list->count(); ++i)
+        if (list->item(i)->text() == QStringLiteral("No projects yet")) noPlaceholder = false;
+      // …and it ARRIVES: veiled behind its own motes (the sand IS the row forming) with
+      // the filter's light cloud in flight, never the removal's scatter. The rebuild that
+      // answers a removal finds the list EMPTY — the doomed row left the view when its
+      // scatter ended — and reading that as the dialog's opening build skipped the
+      // arrival outright: the row simply appeared (user report).
+      arrivedVeiled = list->item(0)->data(Qt::UserRole + 43).toDouble() == 0.0;
+      cloudInFlight = !dlg->findChildren<QWidget*>("stencilFilterDust").isEmpty();
+      for (int i = 0; i < 200 && list->item(0)->data(Qt::UserRole + 43).toDouble() < 1.0; ++i)
+        QTest::qWait(10);
+      landedWhole = list->item(0)->data(Qt::UserRole + 43).toDouble() >= 1.0;
+
+      // …and it arrives WHERE IT BELONGS. The list's own top moves with the batch bar
+      // above it, and answering the removal in two repaints showed that bar again for the
+      // stale row: the pinned row appeared a bar's height too low and jumped up a beat
+      // later (user report). Its screen position at arrival must be its final one.
+      if (tempPinned) {
+        const auto rowTop = [&] {
+          return list->viewport()->mapToGlobal(list->visualItemRect(list->item(0)).topLeft()).y();
+        };
+        const int atArrival = rowTop();
+        for (int i = 0; i < 60; ++i) QTest::qWait(10);   // past the bar's out-flight
+        landedWhereItArrived = rowTop() == atArrival;
+      }
+      bailOut();
+    });
+    win.openProjects();
+    QVERIFY2(sawRow, "the seeded project row never appeared in the dialog");
+    QVERIFY2(tempPinned, "the emptied list never pinned the window's \"Temporary (unsaved)\" row");
+    QVERIFY2(noPlaceholder, "the emptied list still read \"No projects yet\"");
+    QVERIFY2(arrivedVeiled, "the pinned row was simply there — not veiled behind its own motes");
+    QVERIFY2(cloudInFlight, "no arrival cloud played for the row the removal revealed");
+    QVERIFY2(landedWhole, "the arriving row never came out from behind its veil");
+    QVERIFY2(landedWhereItArrived, "the pinned row appeared off its final place and jumped");
+    beat();
+  }
+
   // Closing the dialog mid-scatter must not bring removed rows back: the close flight
   // photographs the dialog as it hides, and it used to fly the OPEN-time snapshot —
   // rows just cleared reappeared in the shrinking ghost. Pins the fix: on done() the

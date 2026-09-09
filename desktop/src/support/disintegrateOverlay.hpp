@@ -370,14 +370,19 @@ namespace stencil::gui {
     // `ms` shortens the flight for a motion that is not a removal — a filter change moves
     // rows in and out on its own short clock (support/filterFade.hpp kFilterDustMs).
     // `ink`: as over() — the row's text colour to lift its grains towards; none for a picture.
+    // `shot` overrides the photograph: a caller that must HIDE the source before its motes
+    // fly (a delegate-painted row waiting behind its own dust — filterFade's dustRowIn)
+    // has to take the picture while the row is still inked, or the cloud is made of the
+    // bare background it left behind and nothing is seen to arrive.
     static DisintegrateOverlay* overRect(QWidget* source, const QRect& rect, QWidget* host,
                                         Sweep sweep = Sweep::Rows, bool dust = false,
                                         int dustCells = kDustMaxCells, int ms = kMs,
-                                        const QColor& ink = QColor()) {
+                                        const QColor& ink = QColor(),
+                                        const QPixmap& shot = QPixmap()) {
       if (!support::dustAllowed()) return nullptr;   // no particles in this motion mode
       if (!source || !host || !source->isVisible()) return nullptr;
       if (rect.width() < 8 || rect.height() < 8) return nullptr;
-      const QPixmap snap = source->grab(rect);
+      const QPixmap snap = shot.isNull() ? source->grab(rect) : shot;
       if (snap.isNull()) return nullptr;
       const QPoint at = source->mapTo(host, rect.topLeft());
       auto* fx = new DisintegrateOverlay(host, liftedToInk(snap, ink));

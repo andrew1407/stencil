@@ -17,7 +17,8 @@ import { readFileSync } from 'node:fs';
 import { tileMotion, MARK_IN_MS, MARK_OUT_MS, MARK_MOTE_PX, MARK_DRIFT, MARK_COLS, MARK_ROWS,
          MARK_FORMING_CLASS, MOTE_PX, SURFACE_COLS, SURFACE_ROWS, SURFACE_IN_MS,
          FILTER_DUST_MS, FILTER_DUST_DRIFT, FILTER_ENTER_MS, REVEAL_GROUP_IN_MS, REVEAL_GROUP_OUT_MS,
-         reshapeGrid, markIn, markOut, markSwap, revealControls, revealBar, settleMark, filterDust } from '../js/ui/motion.js';
+         reshapeGrid, markIn, markOut, markSwap, revealControls, revealBar, settleMark, filterDust,
+         BAR_HELD_CLASS, BAR_CLOSING_CLASS } from '../js/ui/motion.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const motionJs = read('../js/ui/motion.js');
@@ -297,4 +298,66 @@ test('revealBar defers the CLOSE by its contents\' flight, but opens at once', (
   const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('export const revealBar'), src.indexOf('const REVEAL_GROUP_TRANSITION_CLASS'));
   assert.ok(!/revealControls|slideRevealSize|maxHeight/.test(body), 'a display flip, nothing more');
+});
+
+// …and the strip does not simply vanish when that wait is over: the row under it would be
+// dropped upward in one frame (user report — the pinned "Temporary (unsaved)" row jumped
+// when Select all left). Its footprint is HELD from the moment it is asked to leave (the
+// controls flying out inside it must not collapse it first), and then height, padding and
+// the divider close together. Desktop twin: controlReveal holdBarSlot / closeBarSlot.
+test('a leaving bar HOLDS its slot, then closes the whole footprint', () => {
+  const jobs = [];
+  const setTimer = (fn, ms) => { jobs.push({ fn, ms }); return jobs.length; };
+  const classes = new Set();
+  const props = new Map();
+  const bar = {
+    style: {
+      display: 'flex',
+      setProperty: (k, v) => props.set(k, v),
+      removeProperty: (k) => props.delete(k),
+      getPropertyValue: (k) => props.get(k) || '',
+    },
+    classList: {
+      add: (...c) => c.forEach((x) => classes.add(x)),
+      remove: (...c) => c.forEach((x) => classes.delete(x)),
+    },
+    getBoundingClientRect: () => ({ width: 300, height: 47 }),
+  };
+
+  revealBar(bar, () => false, { setTimer });
+  assert.ok(classes.has(BAR_HELD_CLASS), 'held the instant it is asked to leave');
+  assert.equal(props.get('--bar-h'), '47px', '…at the footprint it actually has');
+  assert.ok(!classes.has(BAR_CLOSING_CLASS), 'but nothing closes while the controls fly');
+  assert.equal(bar.style.display, 'flex');
+
+  jobs[0].fn();
+  assert.ok(classes.has(BAR_CLOSING_CLASS), 'and then the slot closes');
+  assert.equal(bar.style.display, 'flex', 'still in the flow while it does — that IS the slide');
+  jobs[1].fn();
+  assert.equal(bar.style.display, 'none', 'out of the flow only once it has closed');
+  assert.equal(classes.size, 0, 'and nothing of the flight is left on it');
+  assert.equal(props.size, 0);
+
+  // Asked back mid-close: the hold comes straight off, or the bar stays squeezed.
+  bar.style.display = 'flex';
+  jobs.length = 0;
+  revealBar(bar, () => false, { setTimer });
+  assert.ok(classes.has(BAR_HELD_CLASS));
+  revealBar(bar, () => true, { setTimer });
+  assert.equal(classes.size, 0, 'the freeze is released when it is wanted again');
+  assert.equal(bar.style.display, 'flex');
+});
+
+// The CSS half of that close: whatever the bar's footprint is made of has to go with the
+// height, or the list below still drops by the leftovers in the frame it is hidden.
+test('the closing bar zeroes its padding and divider, not just its height', () => {
+  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const rule = css.match(/\.bar-held\.bar-closing \{[^}]*\}/)?.[0] || '';
+  for (const prop of ['height: 0', 'max-height: 0', 'padding-top: 0', 'padding-bottom: 0',
+                      'border-bottom-width: 0']) {
+    assert.ok(rule.includes(prop), `the close takes ${prop} with it`);
+    assert.match(rule, new RegExp(`transition:[^;]*${prop.split(':')[0]}`, 's'),
+      `${prop.split(':')[0]} is animated, not dropped`);
+  }
+  assert.match(css, /\.bar-held \{[^}]*overflow: hidden/, 'the held slot clips its contents');
 });
