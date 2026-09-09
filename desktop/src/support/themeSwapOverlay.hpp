@@ -284,7 +284,7 @@ namespace stencil::gui {
       if (!dust_) return;
       // The wake is INSIDE the circle, over the freshly themed window — clip off. Round
       // grains, like every other cloud's — a couple of thousand alive at the peak, each
-      // a ~5px disc blitted from the sprite cache (dustKit.hpp MoteSprites: two
+      // a ~5px disc blitted from the sprite cache (dustKit.hpp MoteSprites: a dozen
       // colours, a handful of sizes), so the wake costs a fraction of a frame.
       p.setClipping(false);
       p.setRenderHint(QPainter::Antialiasing, false);
@@ -292,11 +292,11 @@ namespace stencil::gui {
       DustMote mote;
       for (int i = 0; i < kDustMotes; i++) {
         if (!dustMoteAt(i, timeMs_, QPointF(c), full_, QSizeF(size()), &mote, style_)) continue;
-        // Every grain is painted from the departing accent palette by its mix (browser
-        // spawnSwapDust), in the style's own shape along its heading.
+        // Every grain is painted from the departing palette by its mix and its hash
+        // (browser spawnSwapDust), in the style's own shape along its heading.
         const support::StyleFrame sf = support::styleFrame(style_, mote.life, mote.life, mote.w, mote.len, timeMs_);
         const double mix = style_ == support::ParticleStyle::Dust ? support::dustMix(mote.w, mote.accent) : sf.mix;
-        QColor col = support::paletteStop(dustAccent_, dustShade_, mix);
+        QColor col = support::tintedStop(dustAccent_, dustShade_, mix, support::tintOf(mote.w));
         col.setAlphaF(std::clamp(mote.alpha * sf.glow, 0.0, 1.0));
         sprites_.draw(p, QPointF(mote.x + sf.sx, mote.y + sf.sy), mote.size / 2 * sf.scale, col,
                       support::grainShape(style_, mote.w), mote.heading);

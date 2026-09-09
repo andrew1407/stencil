@@ -317,6 +317,22 @@
   // spread from the main colour to halfway by hash, glints wear the shade.
   var DUST_MIX_SPREAD = 0.5;
   var dustMix = function (w, glint) { return glint ? 1 : (w || 0) * DUST_MIX_SPREAD; };
+  // Two grains in three ride that accent ramp; the rest wear a TINT off their own hash —
+  // white, two greys, a pale and a deep accent (lib/dustCloud.js tintOf / stopOfTint).
+  var TINT_SHARE = 0.34;
+  var TINT_CSS = ['#ffffff', '#b4b4b4', '#6e6e6e',
+                  'color-mix(in srgb, var(--accent) 55%, #ffffff)',
+                  'color-mix(in srgb, var(--accent) 55%, #000000)'];
+  var TINT_STOPS = TINT_CSS.length;
+  var tintOf = function (w) {
+    var pick = fract((w || 0) * 13.73 + 0.41);
+    if (pick >= TINT_SHARE) return -1;
+    return Math.min(TINT_STOPS - 1, Math.floor((pick / TINT_SHARE) * TINT_STOPS));
+  };
+  // A tint is fixed for a grain's flight, so the wake caches it and reads it back per frame.
+  var stopOfTint = function (mix, tint) {
+    return tint < 0 ? paletteIndex(mix, PALETTE_STOPS) : PALETTE_STOPS + tint;
+  };
   var styleCode = function () {
     var s = particleStyle();
     return s === 'water' ? STYLE_WATER : s === 'fire' ? STYLE_FIRE : 0;
@@ -399,11 +415,13 @@
       return got || css;
     } catch (e) { return css; }
   };
-  // The accent → shade palette a styled wake is painted in (lib/dustCloud.js paletteCss).
+  // The palette a styled wake is painted in (lib/dustCloud.js paletteCss): the accent →
+  // shade ramp, then the tints.
   var paletteCss = function () {
-    var out = [];
-    for (var i = 0; i < PALETTE_STOPS; i++)
+    var out = [], i;
+    for (i = 0; i < PALETTE_STOPS; i++)
       out.push('color-mix(in srgb, var(--accent) ' + Math.round(100 - (100 * i) / (PALETTE_STOPS - 1)) + '%, var(--accent-2))');
+    for (i = 0; i < TINT_STOPS; i++) out.push(TINT_CSS[i]);
     return out;
   };
 
@@ -466,8 +484,8 @@
       var s = getComputedStyle(document.documentElement);
       var v = function (name) { return (s.getPropertyValue(name) || '').replace(/^\s+|\s+$/g, ''); };
       if (!v('--accent')) return null;
-      // The wake is painted from the departing accent palette — the same two colours
-      // every cloud wears — resolved while they still mean the OLD theme.
+      // The wake is painted from the departing palette — the accent ramp plus its tints,
+      // what every cloud wears — resolved while they still mean the OLD theme.
       var palette = paletteCss();
       for (var pi = 0; pi < palette.length; pi++) palette[pi] = resolveColour(palette[pi]);
       return { palette: palette };
@@ -505,8 +523,8 @@
       stage.style.width = px.w + 'px';
       stage.style.height = px.h + 'px';
       ctx.scale(dpr, dpr);
-      // One run of one fillStyle per palette stop, so a frame is six fills rather than a
-      // thousand switches — resolved already, before the palette moved under us.
+      // One run of one fillStyle per palette stop, so a frame is a handful of fills rather
+      // than a thousand switches — resolved already, before the palette moved under us.
       var runs = [], k;
       for (k = 0; k < paint.palette.length; k++) runs.push({ colour: canvasColour(ctx, paint.palette[k], '#888') });
       document.body.appendChild(stage);
@@ -521,9 +539,11 @@
       var stopOf = new Int8Array(specs.length);
       var fx = new Float32Array(specs.length * 4);
       var shapes = new Int8Array(specs.length), heads = new Float32Array(specs.length);
+      var tints = new Int8Array(specs.length);
       for (k = 0; k < specs.length; k++) {
         shapes[k] = grainShape(style, specs[k].w);
         heads[k] = headingOf(specs[k].dx, specs[k].dy, false);
+        tints[k] = tintOf(specs[k].w);
       }
       var total = SWAP_MS + DUST_LIFE_MS;
       var started = performance.now();
@@ -544,7 +564,7 @@
           if (fp <= 0 || fp >= 1) { stopOf[fi] = -1; continue; }
           grainAt(fs, fp, at);
           styleFrame(style, fp, fp, fs.w, fs.len, ms, sf);
-          stopOf[fi] = paletteIndex(style ? sf.mix : dustMix(fs.w, fs.accent), runs.length);
+          stopOf[fi] = stopOfTint(style ? sf.mix : dustMix(fs.w, fs.accent), tints[fi]);
           fx[fi * 4] = at.x + sf.sx; fx[fi * 4 + 1] = at.y + sf.sy;
           fx[fi * 4 + 2] = at.r * sf.scale; fx[fi * 4 + 3] = at.alpha * sf.glow;
         }
@@ -823,6 +843,9 @@
     edgePolygon: function (x, y, w, h, grow, style) { return edgePolygon(x, y, w, h, grow, style); },
     grainShape: grainShape,
     shapePolygon: function (shape, x, y, r, a) { return shapePolygon(shape, x, y, r, a, []); },
+    tintOf: tintOf,
+    stopOfTint: stopOfTint,
+    paletteCss: paletteCss,
     // Fires when ANOTHER surface changes the mode (see the storage listener below).
     onChange: function (fn) {
       try {

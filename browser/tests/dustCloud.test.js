@@ -7,7 +7,8 @@ import {
   bezierY, easeLut, EASE_STEPS, FLIGHTS, alphaAt, moteFrame, cloudBounds, drawCloud, ALPHA_LEVELS,
   resolveColour, startCloud, turbulenceAt, twinkleAt, TURBULENCE_MAX_PX, TWINKLE_DEPTH,
   STYLE_DUST, STYLE_WATER, STYLE_FIRE, PARTICLE_STYLES, PALETTE_STOPS, WATER, FIRE,
-  styleFrame, paletteIndex, paletteCss, dustMix,
+  styleFrame, paletteIndex, paletteCss, dustMix, hashNoise,
+  TINT_SHARE, TINT_STOPS, TINT_CSS, PAINT_STOPS, tintOf, stopOfTint,
   SHAPE_DISC, SHAPE_OVAL, SHAPE_WAVE, SHAPE_TRIANGLE, SHAPE_STREAK, grainShape, headingOf, shapePolygon, addGrainPath,
   EDGE_POINTS, edgeJitter, edgeDipOf, edgeReachOf, edgeBaseOf, FILL_CHUNK, fillGrains,
 } from '../js/ui/dustCloud.js';
@@ -253,39 +254,79 @@ test('a styled grain still sets off from and lands exactly where its flight says
   }
 });
 
-test('the palette is six even mixes of the accent and its shade, and a styled cloud is drawn from it', () => {
+test('the palette is six even mixes of the accent and its shade, then the five tints', () => {
   assert.equal(PALETTE_STOPS, 6);
   const css = paletteCss();
-  assert.equal(css.length, 6);
+  assert.equal(css.length, PAINT_STOPS);
   assert.equal(css[0], 'color-mix(in srgb, var(--accent) 100%, var(--accent-2))');
   assert.equal(css[5], 'color-mix(in srgb, var(--accent) 0%, var(--accent-2))');
   assert.equal(css[2], 'color-mix(in srgb, var(--accent) 60%, var(--accent-2))');
+  assert.deepEqual(css.slice(6), TINT_CSS, 'the tints follow the ramp, in order');
+  assert.deepEqual(TINT_CSS.slice(0, 3), ['#ffffff', '#b4b4b4', '#6e6e6e'], 'white, grey, darker grey');
+  assert.match(TINT_CSS[3], /var\(--accent\) 55%, #ffffff/, 'a light accent');
+  assert.match(TINT_CSS[4], /var\(--accent\) 55%, #000000/, 'a dark one');
   assert.equal(paletteIndex(0), 0);
   assert.equal(paletteIndex(1), 5);
   assert.equal(paletteIndex(0.5), 3);
   assert.equal(paletteIndex(2), 5, 'clamped');
-  // Drawing: the grains ignore their own colour index and ride the palette by mix — fire
-  // near home is all accent, water sweeps the stops.
+});
+
+test('two grains in three ride the accent ramp; the rest share the five tints evenly', () => {
+  // The share is the contract the desktop's dustKit.hpp tintOf pins itself to.
+  assert.equal(TINT_SHARE, 0.34);
+  assert.equal(TINT_STOPS, 5);
+  const seen = new Array(TINT_STOPS + 1).fill(0);
+  let n = 0;
+  for (let x = 0; x < 120; x++) {
+    for (let y = 0; y < 120; y++) { seen[tintOf(hashNoise(x + 13, y + 71)) + 1]++; n++; }
+  }
+  const share = seen.map((c) => c / n);
+  assert.ok(share[0] > 0.63 && share[0] < 0.7, `two grains in three are the accent, got ${share[0]}`);
+  for (let i = 1; i <= TINT_STOPS; i++) {
+    assert.ok(share[i] > 0.04 && share[i] < 0.09, `tint ${i - 1} takes a fifth of the rest, got ${share[i]}`);
+  }
+  // A tinted grain wears its tint whatever its mix says; the rest keep their ramp stop.
+  assert.equal(tintOf(0.02), -1);
+  assert.equal(stopOfTint(0.5, tintOf(0.02)), paletteIndex(0.5));
+  const tinted = [...Array(200).keys()].map((i) => i / 200).find((w) => tintOf(w) >= 0);
+  assert.equal(stopOfTint(0, tintOf(tinted)), PALETTE_STOPS + tintOf(tinted));
+  assert.equal(stopOfTint(1, tintOf(tinted)), PALETTE_STOPS + tintOf(tinted), 'the mix cannot move it');
+  // …and the pick is its own slice of the hash, not the one that chose its shape.
+  const shapePick = new Set(), tintPick = new Set();
+  for (let w = 0; w < 1; w += 0.01) { shapePick.add(grainShape(STYLE_WATER, w)); tintPick.add(tintOf(w)); }
+  assert.ok(tintPick.size === TINT_STOPS + 1 && shapePick.size === 2);
+});
+
+test('a styled cloud is drawn from the palette, most of it on the ramp', () => {
+  // The grains ignore their own colour index and ride the palette by mix — fire near home
+  // is accent, water sweeps the stops — bar the tinted third, which is off the ramp.
+  // drawCloud caches each grain's tint, so this also covers that path.
   const fills = [];
   const ctx = {
     globalAlpha: 1, fillStyle: '', beginPath() {}, moveTo() {}, arc() {}, ellipse() {}, lineTo() {}, closePath() {},
     fill() { fills.push(this.fillStyle); },
   };
-  const palette = ['p0', 'p1', 'p2', 'p3', 'p4', 'p5'];
+  const ramp = ['p0', 'p1', 'p2', 'p3', 'p4', 'p5'];
+  const palette = [...ramp, 't0', 't1', 't2', 't3', 't4'];
   const motes = [];
   for (let i = 0; i < 30; i++) motes.push({ ...grain, x: i * 10, c: 4, w: i / 30, t: 1, delay: 0, dur: 1000 });
+  const onRamp = (f) => ramp.includes(f);
   drawCloud(ctx, motes, 'scatter', 50, palette, undefined, STYLE_FIRE);   // 5% out: still hot
-  assert.ok(fills.length > 0 && fills.every((f) => f === 'p0' || f === 'p1'), `embers near home are accent, got ${[...new Set(fills)]}`);
+  assert.ok(fills.length > 0 && fills.filter(onRamp).every((f) => f === 'p0' || f === 'p1'),
+            `embers near home are accent, got ${[...new Set(fills)]}`);
+  assert.ok(fills.some((f) => !onRamp(f)), 'and a few of them are tinted');
   fills.length = 0;
   drawCloud(ctx, motes, 'scatter', 500, palette, undefined, STYLE_WATER);
-  assert.ok(new Set(fills).size >= 3, 'drops glisten across the palette');
+  assert.ok(new Set(fills.filter(onRamp)).size >= 3, 'drops glisten across the palette');
   fills.length = 0;
   drawCloud(ctx, motes, 'scatter', 500, palette, undefined, STYLE_DUST);
-  assert.ok(fills.every((f) => ['p0', 'p1', 'p2', 'p3'].includes(f)), 'dust spreads plain grains over the accent half');
+  assert.ok(fills.filter(onRamp).every((f) => ['p0', 'p1', 'p2', 'p3'].includes(f)),
+            'dust spreads plain grains over the accent half');
   assert.ok(new Set(fills).size >= 2);
+  assert.ok(new Set(fills.filter((f) => !onRamp(f))).size >= 3, 'and several tints run through it');
   fills.length = 0;
   drawCloud(ctx, motes.map((m) => ({ ...m, g: 1 })), 'scatter', 500, palette, undefined, STYLE_DUST);
-  assert.ok(fills.every((f) => f === 'p5'), 'dust glints wear the shade');
+  assert.ok(fills.filter(onRamp).every((f) => f === 'p5'), 'dust glints wear the shade');
   assert.equal(dustMix(0.4, 0), 0.2);
   assert.equal(dustMix(0.4, 1), 1);
 });

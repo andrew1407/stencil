@@ -76,6 +76,7 @@ namespace stencil::support {
   // spread from the main colour to halfway by their hash, glints wear the shade.
   constexpr double kDustMixSpread = 0.5;
   inline double dustMix(double w, bool glint) { return glint ? 1.0 : w * kDustMixSpread; }
+  inline double fract(double v) { return v - std::floor(v); }
   // A cloud's palette: this many even mixes from the main colour to its shade
   // (browser paletteCss / paletteIndex — CSS color-mix in srgb is this same straight mix).
   constexpr int kPaletteStops = 6;
@@ -87,6 +88,32 @@ namespace stencil::support {
     return QColor(qRound(accent.red() + (shade.red() - accent.red()) * t),
                   qRound(accent.green() + (shade.green() - accent.green()) * t),
                   qRound(accent.blue() + (shade.blue() - accent.blue()) * t));
+  }
+  // Two grains in three ride that ramp; the rest wear a TINT off their own hash — white,
+  // two greys, and the accent blended 55/45 to white and to black. Browser twin:
+  // dustCloud.js TINT_CSS / tintOf; the share and the mixes are the contract.
+  constexpr double kTintShare = 0.34;
+  constexpr int kTintStops = 5;
+  constexpr double kTintAccentShare = 0.55;   // …of the accent in the pale and the deep one
+  inline int tintOf(double w) {
+    const double pick = fract(w * 13.73 + 0.41);
+    if (pick >= kTintShare) return -1;
+    return std::min(kTintStops - 1, int(std::floor(pick / kTintShare * kTintStops)));
+  }
+  inline QColor tintColour(const QColor& accent, int tint) {
+    if (tint == 0) return QColor(255, 255, 255);
+    if (tint == 1) return QColor(180, 180, 180);   // #b4b4b4
+    if (tint == 2) return QColor(110, 110, 110);   // #6e6e6e
+    const int to = tint == 3 ? 255 : 0;
+    const double k = 1.0 - kTintAccentShare;
+    return QColor(qRound(accent.red() + (to - accent.red()) * k),
+                  qRound(accent.green() + (to - accent.green()) * k),
+                  qRound(accent.blue() + (to - accent.blue()) * k));
+  }
+  // The colour a grain is painted, once its tint is known — fixed for its whole flight, so
+  // a caller with a per-grain cache (disintegrateOverlay.hpp tints_) passes the tint in.
+  inline QColor tintedStop(const QColor& accent, const QColor& shade, double mix, int tint) {
+    return tint < 0 ? paletteStop(accent, shade, mix) : tintColour(accent, tint);
   }
 
   // cubic-bezier(x1, y1, x2, y2) at time t: solve x(u) = t by bisection (monotonic in
@@ -133,10 +160,9 @@ namespace stencil::support {
     constexpr int kWaveSamples = 9;
     constexpr double kTriTip = 1.7, kTriBase = 0.85, kTriHalf = 1.0;
     constexpr double kStreakHead = 1.0, kStreakHeadHalf = 0.42, kStreakTail = 2.6, kStreakTailHalf = 0.1;
-    inline double fract(double v) { return v - std::floor(v); }
   }  // namespace shape
   inline GrainShape grainShape(ParticleStyle s, double w) {
-    const double pick = shape::fract(w * 7.31 + 0.17);
+    const double pick = fract(w * 7.31 + 0.17);
     if (s == ParticleStyle::Water) return pick < shape::kWaterWaveShare ? GrainShape::Wave : GrainShape::Oval;
     if (s == ParticleStyle::Fire) return pick < shape::kFireStreakShare ? GrainShape::Streak : GrainShape::Triangle;
     return GrainShape::Disc;

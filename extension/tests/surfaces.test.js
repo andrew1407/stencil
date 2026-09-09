@@ -15,7 +15,7 @@ import {
   SURFACE_COLS, SURFACE_ROWS, SURFACE_MOTE_PX, SURFACE_SPREAD, SURFACE_IN_MS, SURFACE_OUT_MS,
   SURFACE_DRIVEN_CLASS, SURFACE_FORMING_CLASS, SURFACE_LEAVING_CLASS,
 } from '../src/lib/motion.js';
-import { FLIGHTS, alphaAt } from '../src/lib/dustCloud.js';
+import { FLIGHTS, alphaAt, PAINT_STOPS } from '../src/lib/dustCloud.js';
 
 const css = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const ANIMS = css('../src/lib/animations.css');
@@ -252,8 +252,9 @@ test('a mote is a painted speck, never a copy — one canvas per cloud, no node 
     // speck's own colour and opacity, and its clock.
     for (const k of ['x', 'y', 'dx', 'dy', 'mx', 'my', 'r', 's', 'a', 'w', 'delay', 'dur'])
       assert.ok(Number.isFinite(cloud.motes[0][k]), `${k} on the grain`);
-    assert.equal(cloud.colours.length, 6, 'painted from the accent palette, never the surface’s own pixels');
+    assert.equal(cloud.colours.length, PAINT_STOPS, 'painted from the theme palette, never the surface’s own pixels');
     assert.match(cloud.colours[0], /var\(--accent\) 100%/);
+    assert.equal(cloud.colours.at(-1), 'color-mix(in srgb, var(--accent) 55%, #000000)', '…tints and all');
     assert.ok(!host.children.some((c) => c.classes?.has?.('disintegrate-tile')), 'no node per grain');
   });
 });
