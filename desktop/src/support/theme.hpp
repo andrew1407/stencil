@@ -38,6 +38,9 @@ namespace stencil::gui {
                          // NOT accent-tinted; a fixed light/dark gray the same across accents)
     QColor warning;      // --warning          (a tooltip's disabled-reason line: .tip-note)
     QColor disabledText; // --disabled-text    (a dead control's label AND its glyph)
+    // --on-accent: the ink an accent-BACKED control paints its label and glyph in — a
+    // light accent swallows white. Derived in themePalette(), not in the tables below.
+    QColor onAccent;
   };
 
   // A selectable brand-accent preset: a key (stored in Settings.accentColor), a
@@ -56,9 +59,13 @@ namespace stencil::gui {
   // darker/lighter --accent-2 shade is derived inside themePalette().
   QColor accentPrimary(const QString& accentKey);
 
-  // True when white-on-`accent` falls below 3:1 — the caller then asks iconSet for the
-  // shadowed glyph. Mirrors browser accents.js needsGlyphShadow / extension accent.js.
-  bool accentNeedsGlyphShadow(const QColor& accent);
+  // True when black's WCAG contrast on `accent` beats white's. Mirrors browser
+  // accents.js needsDarkGlyph / extension accent.js — all three flip on the same accents.
+  bool accentNeedsDarkGlyph(const QColor& accent);
+
+  // The ink to paint ON `accent`: Palette::onAccent, and the answer for a swatch that
+  // paints its own colour (the ✓ on an accent-picker row).
+  QColor onAccentInk(const QColor& accent);
 
   // Palette for the given mode + accent. `dark == false` is the browser default
   // (light); `accentKey` defaults to violet (the brand colour). Returned by value

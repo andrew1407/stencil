@@ -1635,7 +1635,7 @@ namespace stencil::gui {
     cta->setObjectName(QStringLiteral("chatConfigureCta"));
     cta->setProperty("accentCta", true);
     cta->setCursor(Qt::PointingHandCursor);
-    cta->setIcon(labelIcon("gear", Qt::white, 14, accentNeedsGlyphShadow(accent)));
+    cta->setIcon(labelIcon("gear", onAccentInk(accent), 14));
     cta->setIconSize(QSize(14, 14));
     QObject::connect(cta, &QPushButton::clicked, cta,
                      [cta, onClick] { if (onClick) onClick(cta); });
@@ -2215,9 +2215,9 @@ namespace stencil::gui {
     // The … menu mirrors those two (its items are the visible affordance now):
     // mid-turn they leave the menu entirely instead of greying out.
     syncMoreMenuItems();
-    // While in flight, the send button IS the stop button (white glyph on the
+    // While in flight, the send button IS the stop button (the on-accent glyph on the
     // accent fill, like the rest of the action group).
-    send_->setIcon(themedIcon(on ? "stop" : "send", QColor(Qt::white), kAccentIcon));
+    send_->setIcon(themedIcon(on ? "stop" : "send", paletteCache_.onAccent, kAccentIcon));
     send_->setToolTip(on ? QStringLiteral("Stop the response")
                          : QString());
     updateSendEnabled();
@@ -2296,16 +2296,14 @@ namespace stencil::gui {
         // context menu's panel applies too, so one message looks the same
         // wherever it is rendered.
         + chatCardStyleSheet(pal, chatSwapSides_));
-    // The accent-filled composer buttons carry white line-art (like checked
+    // The accent-filled composer buttons carry the accent's own ink (like checked
     // toolbar toggles); the title-bar float/close ghosts use the theme text.
-    const QColor onAccent = Qt::white;
-    // On a LIGHT accent that white would wash out, so the glyphs get a dark halo.
-    const bool halo = accentNeedsGlyphShadow(pal.accent);
-    send_->setIcon(themedIcon(isBusy() ? "stop" : "send", onAccent, kAccentIcon, halo));
-    attach_->setIcon(themedIcon("image", onAccent, kAccentIcon, halo));
-    gear_->setIcon(themedIcon("gear", onAccent, kAccentIcon, halo));
-    clearBtn_->setIcon(themedIcon("trash", onAccent, kAccentIcon, halo));
-    if (more_) more_->setIcon(themedIcon("dots", onAccent, kAccentIcon, halo));
+    const QColor onAccent = pal.onAccent;
+    send_->setIcon(themedIcon(isBusy() ? "stop" : "send", onAccent, kAccentIcon));
+    attach_->setIcon(themedIcon("image", onAccent, kAccentIcon));
+    gear_->setIcon(themedIcon("gear", onAccent, kAccentIcon));
+    clearBtn_->setIcon(themedIcon("trash", onAccent, kAccentIcon));
+    if (more_) more_->setIcon(themedIcon("dots", onAccent, kAccentIcon));
     if (actAttach_) actAttach_->setIcon(themedIcon("image", pal.textMain, 14));
     if (actClear_) actClear_->setIcon(themedIcon("trash", pal.textMain, 14));
     if (actSwapSides_) actSwapSides_->setIcon(themedIcon("swap", pal.textMain, 14));

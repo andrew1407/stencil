@@ -150,16 +150,20 @@ namespace stencil::gui {
     return displayColor(QColor("#7c3aed"));  // unknown key -> violet (the default)
   }
 
-  bool accentNeedsGlyphShadow(const QColor& accent) {
+  bool accentNeedsDarkGlyph(const QColor& accent) {
     if (!accent.isValid()) return false;
-    // WCAG luminance → contrast of white against it. Threshold 3:1, same constant as
-    // accents.js, so all three surfaces flip on the same accents.
+    // WCAG luminance → the two contrasts; the greater wins, as in accents.js.
     const auto toLinear = [](double c) {
       return c <= 0.04045 ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4);
     };
     const double l = 0.2126 * toLinear(accent.redF()) + 0.7152 * toLinear(accent.greenF())
                      + 0.0722 * toLinear(accent.blueF());
-    return 1.05 / (l + 0.05) < 3.0;
+    return (l + 0.05) / 0.05 > 1.05 / (l + 0.05);
+  }
+
+  // Near-black, not black: the page ink, so it matches the app's other glyphs.
+  QColor onAccentInk(const QColor& accent) {
+    return accentNeedsDarkGlyph(accent) ? QColor("#1a1a1a") : QColor(Qt::white);
   }
 
   // Linear sRGB mix, matching CSS color-mix(in srgb, a (1-t), b t) used by the
@@ -221,6 +225,7 @@ namespace stencil::gui {
     const QColor accent = accentPrimary(accentKey);   // already display-space
     p.accent = accent;
     p.textKey = accentShade(accent, dark);
+    p.onAccent = onAccentInk(accent);
     return p;
   }
 
@@ -279,6 +284,7 @@ namespace stencil::gui {
           .arg(a, 0, 'f', 3);
     };
     const QColor accent2 = p.textKey;  // the derived hover/active accent shade
+    const bool darkGlyph = accentNeedsDarkGlyph(p.accent);   // which indicator mark to bake in
     // The dead-control surface (%DISABLED_BG%), and the caret drawn for one: muted pulled
     // halfway to that surface, so a disabled combo's arrow recedes with its text.
     const QColor disabledBg = dark ? p.bgControls : p.bgContainer.darker(108);
@@ -464,7 +470,7 @@ namespace stencil::gui {
          on a tinted chip (user decision; browser twin: the name-edit buttons in
          components.css). Square: the same radius the section buttons use. */
       QToolButton[nameAffordance="true"] {
-        background: %ACCENT%; border: 1px solid %ACCENT%; color: white; border-radius: 7px;
+        background: %ACCENT%; border: 1px solid %ACCENT%; color: %ON_ACCENT%; border-radius: 7px;
         /* Room for the glyph and no more: the row's default 5px 7px pushed the mark past the
            chip and Qt clipped it (user report, with a picture). The sides are wider than the
            top so the ✓/✗ — whose width is free, to let their reveal slide — still ASK for
@@ -477,7 +483,7 @@ namespace stencil::gui {
          wears was barely visible on these two (user report). Restated at this rule's own
          weight because an attribute selector outranks the plain `QToolButton:hover`. */
       QToolButton[nameAffordance="true"]:hover {
-        background: %ACCENT2%; border-color: %ACCENT2%; color: white;
+        background: %ACCENT2%; border-color: %ACCENT2%; color: %ON_ACCENT%;
       }
       QToolButton[nameAffordance="true"]:pressed { background: %ACCENT%; border-color: %ACCENT%; }
       QToolButton[nameAffordance="true"]:disabled {
@@ -492,9 +498,9 @@ namespace stencil::gui {
          .active toolbar buttons (fullscreen while on, incognito while on) rather than
          a soft tint — so an enabled toggle clearly reads as active. */
       QToolButton:checked {
-        background: %ACCENT%; border-color: %ACCENT%; color: white;
+        background: %ACCENT%; border-color: %ACCENT%; color: %ON_ACCENT%;
       }
-      QToolButton:checked:hover { background: %ACCENT2%; border-color: %ACCENT2%; color: white; }
+      QToolButton:checked:hover { background: %ACCENT2%; border-color: %ACCENT2%; color: %ON_ACCENT%; }
       /* Disabled: a filled, low-contrast "inactive" chip (matches QPushButton:disabled)
          so a greyed toolbar button reads clearly. The :checked:disabled override is
          higher-specificity so a disabled-but-checked toggle (e.g. incognito once an
@@ -521,17 +527,17 @@ namespace stencil::gui {
          accent icon-button treatment (browser chat-panel parity); disabled =
          the shared muted chip. The explicit :disabled rule must follow the
          base rule — same specificity class, last-one-wins. */
-      QToolButton[chatAccent="true"] { background: %ACCENT%; border-color: %ACCENT%; color: white; }
+      QToolButton[chatAccent="true"] { background: %ACCENT%; border-color: %ACCENT%; color: %ON_ACCENT%; }
       QToolButton[chatAccent="true"]:hover { background: %ACCENT2%; border-color: %ACCENT2%; }
       QToolButton[chatAccent="true"]:pressed { background: %ACCENT2%; }
       /* Disabled accent button: a DIMMED member of the accent set, not the generic
          grey chip. The composer's send sits between attach and the gear; the grey
          treatment made it read as broken rather than merely unavailable. */
-      QToolButton[chatAccent="true"]:disabled { color: white; background: %ACCENT_DIM%; border-color: %ACCENT_DIM%; }
+      QToolButton[chatAccent="true"]:disabled { color: %ON_ACCENT%; background: %ACCENT_DIM%; border-color: %ACCENT_DIM%; }
       /* Toolbar-section buttons carry a SOLID fill, as in the browser: accent for an
          ordinary action, danger for a destructive one, the shared muted chip when
          disabled. Only the Settings cluster stays a bordered ghost (no toolFill). */
-      QToolButton[toolFill="accent"] { background: %ACCENT%; border-color: %ACCENT%; color: white; }
+      QToolButton[toolFill="accent"] { background: %ACCENT%; border-color: %ACCENT%; color: %ON_ACCENT%; }
       QToolButton[toolFill="accent"]:hover { background: %ACCENT2%; border-color: %ACCENT2%; }
       QToolButton[toolFill="accent"]:pressed { background: %ACCENT2%; }
       QToolButton[toolFill="danger"] { background: %DANGER%; border-color: %DANGER%; color: white; }
@@ -543,8 +549,7 @@ namespace stencil::gui {
       /* The Draw Start/Stop toggle is an ACCENT TOGGLE, not another filled section
          button (browser #draw-toggle in layout.css): OUTLINED while idle — accent ring,
          accent word and glyph on a neutral face — and accent-FILLED while a session is
-         live, with the on-accent white the app's other filled accent controls use (the
-         glyph takes the light-accent halo from accentNeedsGlyphShadow, as chatDock's do).
+         live, in the on-accent ink the app's other filled accent controls use.
          It opts out of toolFill for exactly this reason: filled in both states, the
          toggle said nothing about which one you were in. */
       QToolButton[drawToggle="idle"] {
@@ -552,8 +557,8 @@ namespace stencil::gui {
       }
       QToolButton[drawToggle="idle"]:hover { background: %ACCENT_SOFT%; border-color: %ACCENT%; }
       QToolButton[drawToggle="idle"]:pressed { background: %ACCENT_SOFT2%; }
-      QToolButton[drawToggle="on"] { background: %ACCENT%; border-color: %ACCENT%; color: white; }
-      QToolButton[drawToggle="on"]:hover { background: %ACCENT2%; border-color: %ACCENT2%; color: white; }
+      QToolButton[drawToggle="on"] { background: %ACCENT%; border-color: %ACCENT%; color: %ON_ACCENT%; }
+      QToolButton[drawToggle="on"]:hover { background: %ACCENT2%; border-color: %ACCENT2%; color: %ON_ACCENT%; }
       QToolButton[drawToggle="on"]:pressed { background: %ACCENT2%; }
       /* Disabled outranks both states (the browser's :not(:disabled) guard): the shared
          muted chip, so a toggle you cannot press never wears the accent. */
@@ -579,7 +584,7 @@ namespace stencil::gui {
       QMenuBar { background: %BG_CONTROLS%; color: %TEXT%; border-bottom: 1px solid %BORDER%; padding: 2px 4px; }
       QMenuBar::item { background: transparent; padding: 5px 11px; border-radius: 6px; }
       QMenuBar::item:selected { background: %ACCENT_SOFT2%; color: %ACCENT2%; }
-      QMenuBar::item:pressed { background: %ACCENT%; color: white; }
+      QMenuBar::item:pressed { background: %ACCENT%; color: %ON_ACCENT%; }
       QMenu { background: %BG_CONTAINER%; color: %TEXT%; border: 1px solid %BORDER%; border-radius: 8px; padding: 5px; }
       QMenu::item { padding: 6px %MENU_PAD_R%px 6px 24px; border-radius: 6px; margin: 1px 2px; }
       QMenu::item:selected { background: %BG_COORD_HOVER%; color: %TEXT%; }
@@ -611,7 +616,7 @@ namespace stencil::gui {
          parity — a plain <button> there is accent-filled by default (layout.css). One
          dynamic-property selector, so the buttons' objectNames stay free for the tests. */
       QPushButton[accentCta="true"] {
-        background: %ACCENT%; color: white; border: none;
+        background: %ACCENT%; color: %ON_ACCENT%; border: none;
       }
       QPushButton[accentCta="true"]:hover {
         background: %ACCENT2%;
@@ -647,7 +652,7 @@ namespace stencil::gui {
            light one (user report, with pictures of both). Browser twin: css/layout.css. */
         background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %UI_OUTLINE%;
         border-radius: 7px; padding: 3px 8px; min-height: 20px;
-        selection-background-color: %ACCENT%; selection-color: white;
+        selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
       }
       /* Every input — a combo included — only RINGS on hover, as the browser's fields and
          its select trigger do (.accent-dd-trigger:hover). The accent fill this used to take
@@ -687,7 +692,7 @@ namespace stencil::gui {
       QComboBox QAbstractItemView {
         background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
         border-radius: 6px; padding: 3px; outline: none;
-        selection-background-color: %ACCENT%; selection-color: white;
+        selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
       }
       QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { width: 16px; border: 0; background: transparent; }
 
@@ -702,10 +707,10 @@ namespace stencil::gui {
       QCheckBox::indicator { border-radius: 4px; }
       QRadioButton::indicator { border-radius: 9px; }
       QCheckBox::indicator:checked {
-        background: %ACCENT%; border-color: %ACCENT%; image: url(:/icons/check.png);
+        background: %ACCENT%; border-color: %ACCENT%; image: url(%TICK_IMG%);
       }
       QRadioButton::indicator:checked {
-        background: %ACCENT%; border-color: %ACCENT%; image: url(:/icons/radio-dot.png);
+        background: %ACCENT%; border-color: %ACCENT%; image: url(%RADIO_IMG%);
       }
       QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: %ACCENT2%; }
       /* Keyboard focus (a menu flyout's second → / Tab, stayOpenMenu.cpp): the box itself
@@ -725,7 +730,7 @@ namespace stencil::gui {
       }
       QCheckBox#formulaPill::indicator { width: 0px; height: 0px; margin: 0px; border: none; }
       QCheckBox#formulaPill:hover { background: %ACCENT_SOFT%; }
-      QCheckBox#formulaPill:checked { background: %ACCENT%; color: white; border-color: %ACCENT%; }
+      QCheckBox#formulaPill:checked { background: %ACCENT%; color: %ON_ACCENT%; border-color: %ACCENT%; }
       /* Projects-list row checkboxes: a light, clearly-outlined box so it reads on BOTH a dark
          row and the purple selected row (the default dark-fill box vanished on dark rows). Unified
          look in every state; checked fills with the accent + a tick. */
@@ -735,7 +740,7 @@ namespace stencil::gui {
       }
       QListWidget#projectsList::indicator:hover { border-color: %ACCENT%; }
       QListWidget#projectsList::indicator:checked {
-        background: %ACCENT%; border-color: %ACCENT%; image: url(:/icons/check.png);
+        background: %ACCENT%; border-color: %ACCENT%; image: url(%TICK_IMG%);
       }
 
       /* ── Dock (selection panel) ── */
@@ -782,7 +787,7 @@ namespace stencil::gui {
       }
       QListWidget::item, QTreeWidget::item { padding: 4px; border-radius: 6px; }
       QListWidget::item:hover, QTreeWidget::item:hover { background: %ACCENT_SOFT%; }
-      QListWidget::item:selected, QTableWidget::item:selected, QTreeWidget::item:selected { background: %ACCENT%; color: white; }
+      QListWidget::item:selected, QTableWidget::item:selected, QTreeWidget::item:selected { background: %ACCENT%; color: %ON_ACCENT%; }
       /* Projects/Connect rows paint their own text and badges in fixed colours (not
          HighlightedText), so the generic solid selected-fill above swallowed them —
          same fix as #pointsTable below: kill it, keep only the hover wash. */
@@ -808,7 +813,7 @@ namespace stencil::gui {
          (layout.css: background: var(--bg-coord-th), a single solid colour). */
       QHeaderView::section {
         background: %ACCENT%;
-        color: white; border: 0; padding: 5px 6px;
+        color: %ON_ACCENT%; border: 0; padding: 5px 6px;
       }
       QTableWidget { gridline-color: %BORDER%; }
       /* Points table (SelectionPanel): roomy cells, no grid clutter, hover tint, and an outline
@@ -882,7 +887,7 @@ namespace stencil::gui {
       QPlainTextEdit#modalPromptText, QPlainTextEdit#descriptionText, QPlainTextEdit#keywordsText {
         background: %INPUT_BG%; color: %INPUT_TEXT%; border: 1px solid %BORDER%;
         border-radius: 8px; padding: 5px 7px;
-        selection-background-color: %ACCENT%; selection-color: white;
+        selection-background-color: %ACCENT%; selection-color: %ON_ACCENT%;
       }
       QPlainTextEdit#modalPromptText:hover:enabled, QPlainTextEdit#descriptionText:hover:enabled,
       QPlainTextEdit#keywordsText:hover:enabled {
@@ -1127,6 +1132,11 @@ namespace stencil::gui {
         // Geometry the code measures against (theme.hpp) — interpolated, never retyped.
         .replace("%MENU_PAD_R%", QString::number(kMenuItemRightPadPx))
         .replace("%SEP_W%", QString::number(kDockSeparatorPx))
+        // The ink an accent-BACKED control paints its label and glyph in (theme.hpp
+        // onAccentInk). The indicator marks are baked PNGs, so they come as a pair.
+        .replace("%ON_ACCENT%", c(p.onAccent))
+        .replace("%TICK_IMG%", darkGlyph ? ":/icons/check-dark.png" : ":/icons/check.png")
+        .replace("%RADIO_IMG%", darkGlyph ? ":/icons/radio-dot-dark.png" : ":/icons/radio-dot.png")
         // Dimmed accent fill for disabled accent buttons — still obviously part
         // of the accent group, just muted (see QToolButton[chatAccent]:disabled).
         .replace("%ACCENT_DIM%", rgba(p.accent, dark ? 0.38 : 0.30))

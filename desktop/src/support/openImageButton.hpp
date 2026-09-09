@@ -48,8 +48,9 @@ namespace stencil::gui {
       const QIcon::Mode mode = !isEnabled() ? QIcon::Disabled
                              : (opt.state & QStyle::State_MouseOver ? QIcon::Active : QIcon::Normal);
       icon().paint(&sp, iconRect, Qt::AlignCenter, mode, QIcon::Off);
-      // This button is always accent-filled (toolFill="accent" ⇒ white label).
-      sp.setPen(QColor(Qt::white));
+      // Always accent-filled, so the label takes the ink the stylesheet's
+      // `QToolButton[toolFill="accent"] { color: … }` put in the palette.
+      sp.setPen(opt.palette.buttonText().color());
       sp.setFont(font());
       sp.drawText(QRectF(x0 + iw + kGap, 0, tw, height()),
                   Qt::AlignLeft | Qt::AlignVCenter, text());

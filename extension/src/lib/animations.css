@@ -45,8 +45,8 @@ select:focus,
    SETTLE motion (a bounce, a draw-on, a rise) has to come back to rest at the end of
    its own play, so it names a keyframe set in `--ic-play` and the same rule switches
    that on. Everything rides transform / stroke-dashoffset on the <svg> or a part of
-   it, so no box changes and no control can reflow — the .icon-btn:hover lift and the
-   glyph-shadow filter (popup.css) own different properties and are untouched.
+   it, so no box changes and no control can reflow — the .icon-btn:hover lift owns
+   different properties and is untouched.
    Opted out: the fold chevrons, whose rotation is their open/closed STATE rather than
    hover feedback. Here they are `.chev`, outside .ic entirely; the guard below keeps
    it that way. */

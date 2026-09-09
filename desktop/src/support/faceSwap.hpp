@@ -65,7 +65,6 @@ namespace stencil::gui {
   inline constexpr const char* kFaceTextColorProperty = "stencilFaceTextColor";
   inline constexpr const char* kFaceIconSizeProperty = "stencilFaceIconSize";
   inline constexpr const char* kFaceGapProperty = "stencilFaceGap";
-  inline constexpr const char* kFaceHaloProperty = "stencilFaceHalo";
   inline constexpr const char* kFaceBaseSheetProperty = "stencilFaceBaseSheet";
   inline constexpr const char* kFaceLabelColorProperty = "stencilFaceLabelColor";
 
@@ -80,7 +79,6 @@ namespace stencil::gui {
     // text-beside-icon gap is a fixed 4px (pixmap width + 4) and QSS `spacing` does nothing
     // for a QToolButton, so the room has to be in the PIXMAP (user report, with a picture).
     int gapPx = 0;
-    bool halo = false;    // dark halo under a white glyph on a light accent
   };
 
   // One frame of the exchange: which face it belongs to and how it is drawn.
@@ -141,7 +139,7 @@ namespace stencil::gui {
     inline QIcon faceIcon(const FaceSpec& f, const FaceSwapFrame& fr) {
       const int size = std::max(1, f.iconSize);
       const QIcon base = std::abs(fr.deg) < 0.01
-                             ? themedIcon(f.glyph, f.glyphColor, size, f.halo)
+                             ? themedIcon(f.glyph, f.glyphColor, size)
                              : rotatedIcon(f.glyph, f.glyphColor, size, fr.deg);
       if (base.isNull()) return base;
       if (fr.alpha >= 0.999 && fr.scale >= 0.999) return withGap(base, size, f.gapPx);
@@ -214,7 +212,6 @@ namespace stencil::gui {
       btn->setProperty(kFaceTextColorProperty, f.textColor);
       btn->setProperty(kFaceIconSizeProperty, f.iconSize);
       btn->setProperty(kFaceGapProperty, f.gapPx);
-      btn->setProperty(kFaceHaloProperty, f.halo);
     }
 
     // The face a previous swap left painted. `known` is false the first time, when the
@@ -228,7 +225,6 @@ namespace stencil::gui {
       f.textColor = btn->property(kFaceTextColorProperty).value<QColor>();
       f.iconSize = btn->property(kFaceIconSizeProperty).toInt();
       f.gapPx = btn->property(kFaceGapProperty).toInt();
-      f.halo = btn->property(kFaceHaloProperty).toBool();
       return f;
     }
 
@@ -239,7 +235,7 @@ namespace stencil::gui {
     }
 
     inline void settleFace(QAbstractButton* btn, const FaceSpec& f) {
-      btn->setIcon(withGap(themedIcon(f.glyph, f.glyphColor, std::max(1, f.iconSize), f.halo),
+      btn->setIcon(withGap(themedIcon(f.glyph, f.glyphColor, std::max(1, f.iconSize)),
                            std::max(1, f.iconSize), f.gapPx));
       if (!f.label.isNull()) btn->setText(f.label);
       clearLabelAlpha(btn);
@@ -268,7 +264,7 @@ namespace stencil::gui {
     const FaceSpec painted = detail::paintedFace(btn, &known);
     if (!known) return;
     btn->setIcon(themedIcon(painted.glyph, painted.glyphColor,
-                            std::max(1, painted.iconSize), painted.halo));
+                            std::max(1, painted.iconSize)));
     if (!painted.label.isNull()) btn->setText(painted.label);
   }
 

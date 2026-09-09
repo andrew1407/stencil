@@ -113,8 +113,7 @@
     :root { --btn-ink:var(--accent); --btn-danger:#ef4444; }
     :root[data-theme="dark"] { --btn-ink:var(--accent-2); --btn-danger:#f87171; }
     .pin-btn { width:30px; height:30px; padding:0; display:inline-flex; align-items:center; justify-content:center; background:color-mix(in srgb, var(--btn-ink) 12%, var(--panel)); color:var(--btn-ink); border:1px solid color-mix(in srgb, var(--btn-ink) 45%, var(--line)); border-radius:7px; cursor:pointer; transition:background .12s ease, color .12s ease, border-color .12s ease; }
-    .pin-btn:hover:not(:disabled) { color:#fff; background:var(--accent); border-color:var(--accent); text-shadow:var(--glyph-text-shadow); }
-    .pin-btn:hover:not(:disabled) .ic { filter:var(--glyph-shadow); }
+    .pin-btn:hover:not(:disabled) { color:var(--on-accent); background:var(--accent); border-color:var(--accent); }
     .pin-btn.danger { color:var(--btn-danger); background:color-mix(in srgb, var(--btn-danger) 12%, var(--panel)); border-color:color-mix(in srgb, var(--btn-danger) 45%, var(--line)); }
     .pin-btn.danger:hover:not(:disabled) { color:#fff; background:#dc2626; border-color:#dc2626; }
     /* Only a genuinely disabled button still looks disabled. */

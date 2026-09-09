@@ -499,7 +499,7 @@ namespace stencil::gui {
       anim_->stop();
       elapsed_ = 0;
       if (!btn_ || tookOver()) return;   // a theme flip already put a proper glyph there
-      btn_->setIcon(themedIcon(req_.name, req_.color, req_.size, req_.shadow, req_.dpr, req_.gap));
+      btn_->setIcon(themedIcon(req_.name, req_.color, req_.size, req_.dpr, req_.gap));
     }
 
    private:
@@ -529,7 +529,7 @@ namespace stencil::gui {
       if (faceSwapping(btn_) || tookOver()) { anim_->stop(); return; }
       const QString posed = iconMotionMarkup(req_.name, *spec_, *parts_, elapsed);
       // A disabled control renders the icon's Disabled variant, so only then is it built.
-      btn_->setIcon(iconFromMarkup(posed, req_.color, req_.size, req_.shadow, req_.dpr,
+      btn_->setIcon(iconFromMarkup(posed, req_.color, req_.size, req_.dpr,
                                    /*withDisabled=*/!btn_->isEnabled(), req_.gap));
     }
 
@@ -578,7 +578,7 @@ namespace stencil::gui {
       // Blocked: a bound toolbar button mirrors the action's icon via changed(), and a
       // posed/rest repaint here must never leak onto it (its own runner owns its glyph).
       const QSignalBlocker block(act_);
-      act_->setIcon(themedIcon(req_.name, req_.color, req_.size, req_.shadow, req_.dpr, req_.gap));
+      act_->setIcon(themedIcon(req_.name, req_.color, req_.size, req_.dpr, req_.gap));
     }
 
    private:
@@ -605,7 +605,7 @@ namespace stencil::gui {
       const QString posed = iconMotionMarkup(req_.name, *spec_, *parts_, elapsed);
       const QSignalBlocker block(act_);  // never let a bound toolbar button see this frame
       // A disabled row renders the icon's Disabled variant, so only then is it built.
-      act_->setIcon(iconFromMarkup(posed, req_.color, req_.size, req_.shadow, req_.dpr,
+      act_->setIcon(iconFromMarkup(posed, req_.color, req_.size, req_.dpr,
                                    /*withDisabled=*/!act_->isEnabled(), req_.gap));
     }
 

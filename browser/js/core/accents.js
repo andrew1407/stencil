@@ -37,10 +37,10 @@ export const normalizeHex = (value) => {
   return /^[0-9a-fA-F]{6}$/.test(h) ? '#' + h.toLowerCase() : null;
 };
 
-// ── Accent contrast: does a white glyph need a shadow? ──────────────────────
-// Buttons paint white glyphs on --accent, so a light accent washes them out. Keep the
-// white mark and lay a dark shadow under it. Trigger: white-vs-accent contrast under
-// 3:1. Pure, so the extension (lib/accent.js) and desktop (theme.cpp) share the threshold.
+// ── Accent contrast: which ink reads on the accent? ─────────────────────────
+// Accent-backed controls paint their label and their currentColor line-art ON --accent,
+// so the ink is whichever of white / near-black contrasts more (WCAG). Pure, so the
+// extension (lib/accent.js) and desktop (theme.cpp) share the rule.
 const srgbToLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 
 // WCAG relative luminance of a hex colour, or null when it isn't one.
@@ -51,25 +51,32 @@ export const relativeLuminance = (hex) => {
   return 0.2126 * srgbToLinear(r) + 0.7152 * srgbToLinear(g) + 0.0722 * srgbToLinear(b);
 };
 
-// Contrast ratio of pure white against `hex` (1..21), or null when it isn't a hex.
+// Contrast ratio of pure white / pure black against `hex` (1..21), null when not a hex.
 export const contrastWithWhite = (hex) => {
   const l = relativeLuminance(hex);
   return l == null ? null : 1.05 / (l + 0.05);
 };
-
-export const GLYPH_SHADOW_MIN_CONTRAST = 3;
-
-// True when white-on-`hex` falls below the threshold — the accent is light enough
-// that the glyph shadow should be turned on. A non-hex answers false (no shadow).
-export const needsGlyphShadow = (hex) => {
-  const c = contrastWithWhite(hex);
-  return c != null && c < GLYPH_SHADOW_MIN_CONTRAST;
+export const contrastWithBlack = (hex) => {
+  const l = relativeLuminance(hex);
+  return l == null ? null : (l + 0.05) / 0.05;
 };
 
-// The preset keys that need it, DERIVED from the presets — adding a light preset
-// can never forget to update this list. Mirrored by prePaintTheme.js (which can't
-// import this module) and asserted equal in the tests.
-export const LIGHT_ACCENT_KEYS = ACCENTS.filter((a) => needsGlyphShadow(a.hex)).map((a) => a.key);
+// The dark ink is the page ink, not pure black, so it matches the app's other glyphs.
+export const ON_ACCENT_LIGHT = '#ffffff';
+export const ON_ACCENT_DARK = '#1a1a1a';
+
+// True when black reads better on `hex` than white does. A non-hex answers false.
+export const needsDarkGlyph = (hex) => {
+  const l = relativeLuminance(hex);
+  return l != null && (l + 0.05) / 0.05 > 1.05 / (l + 0.05);
+};
+
+// The ink to paint on `hex`.
+export const onAccentInk = (hex) => (needsDarkGlyph(hex) ? ON_ACCENT_DARK : ON_ACCENT_LIGHT);
+
+// The presets that take the dark ink, DERIVED from the palette. Mirrored by
+// prePaintTheme.js (which can't import this module) and asserted equal in the tests.
+export const LIGHT_ACCENT_KEYS = ACCENTS.filter((a) => needsDarkGlyph(a.hex)).map((a) => a.key);
 
 // Normalize any CSS color ('red', rgb()/hsl(), #rgb) to '#rrggbb' via a canvas probe,
 // since <input type=color> only takes #rrggbb. 'transparent'/null pass through; an
