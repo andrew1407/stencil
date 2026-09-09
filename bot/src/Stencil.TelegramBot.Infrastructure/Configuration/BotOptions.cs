@@ -31,6 +31,14 @@ public sealed record BotOptions
     public bool TlsInsecure { get; init; }
 
     /// <summary>
+    /// Base URL of the served browser app (<c>STENCIL_BOT_BROWSER_URL</c>), e.g.
+    /// <c>https://stencil.example/app</c>. It is what <c>/link</c> builds its desktop hand-off
+    /// links from — they ride through that app's <c>launch.html</c> bounce page. Null (the
+    /// default) ⇒ <c>/link</c> replies that the operator hasn't configured one.
+    /// </summary>
+    public string? BrowserAppUrl { get; init; }
+
+    /// <summary>
     /// Maximum number of stencil CLI processes allowed to run at once, process-wide
     /// (<c>STENCIL_BOT_MAX_CONCURRENT_CLI</c>). Each edit/probe is a separate OS process, so this
     /// caps process/CPU pressure when many users edit at the same time. Defaults to the CPU count;
@@ -137,6 +145,7 @@ public sealed record BotOptions
         string dataDir = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_BOT_DATA_DIR"))
             ?? Path.Combine(Path.GetTempPath(), "stencil-bot");
         bool tlsInsecure = IsTruthy(Environment.GetEnvironmentVariable("STENCIL_TLS_INSECURE"));
+        string? browserAppUrl = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_BOT_BROWSER_URL"));
         int maxConcurrentCli = ParsePositiveInt(
             Environment.GetEnvironmentVariable("STENCIL_BOT_MAX_CONCURRENT_CLI"),
             DefaultMaxConcurrentCli);
@@ -162,6 +171,7 @@ public sealed record BotOptions
             RedisUrl = redisUrl,
             DataDir = dataDir,
             TlsInsecure = tlsInsecure,
+            BrowserAppUrl = browserAppUrl,
             MaxConcurrentCli = maxConcurrentCli,
             MaxConcurrentLlm = maxConcurrentLlm,
             ServerHttpTimeout = TimeSpan.FromSeconds(httpTimeoutSeconds),

@@ -104,7 +104,9 @@ graph TD
   fields (see `js/core/deepLink.js` `normalizeLaunchPayload`). `launch.html` is a
   standalone helper that forwards `#stencil-desktop=<encoded stencil:// URL>` to the
   OS scheme — useful for opening a `stencil://` link shared through a channel that
-  won't linkify custom schemes (it validates the target is exactly `stencil:`)
+  won't linkify custom schemes (it validates the target is exactly `stencil:`). The
+  Telegram bot's `/link` builds exactly that URL (`buildDesktopBounceUrl`, ported in
+  its `DesktopLinkBuilder`), pointed at its `STENCIL_BOT_BROWSER_URL` app
 - **Project files (`.stencil`)**: save a whole project — original image, layout, and
   settings (plus, optionally, the current colour theme) — as one portable file, openable
   on any Stencil surface (browser, CLI, desktop, pystencil, bot). See below.

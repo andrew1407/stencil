@@ -80,6 +80,38 @@ public sealed partial class CommandHandlers
         }
     }
 
+    /// <summary>
+    /// Hand the active project to the desktop app: <c>/link</c> replies with an https link that
+    /// bounces through the browser app's <c>launch.html</c> to <c>stencil://open?…</c>. Server
+    /// projects only (a link carries a reference, never image bytes), and no token rides it —
+    /// the recipient connects to that server with their own credential.
+    /// </summary>
+    private async Task LinkAsync(long userId, long chatId, CancellationToken ct)
+    {
+        UserSession session = await _store.GetAsync(userId, ct);
+        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
+        {
+            await _bot.SendMessage(
+                chatId,
+                "No active server project to link — /fetch or /create one first (a link points at a "
+                + "server project, it can't carry the image itself).",
+                cancellationToken: ct);
+            return;
+        }
+        string? url = DesktopLinkBuilder.TryProjectBounceUrl(
+            _options.BrowserAppUrl, session.ActiveServerUrl, session.ActiveProjectId,
+            session.ActiveProjectVersion);
+        if (url is null)
+        {
+            await _bot.SendMessage(chatId, Replies.DesktopLinkUnconfigured(), cancellationToken: ct);
+            return;
+        }
+        await _bot.SendMessage(
+            chatId,
+            Replies.DesktopLink(session.ActiveProjectName ?? session.ActiveProjectId, url),
+            cancellationToken: ct);
+    }
+
     /// <summary>Connect to a collaboration server: <c>/connect &lt;url&gt; [token]</c>.</summary>
     private async Task ConnectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {

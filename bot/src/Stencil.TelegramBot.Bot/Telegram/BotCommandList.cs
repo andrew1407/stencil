@@ -51,6 +51,7 @@ public static class BotCommandList
         new("create", "Save the result as a new project"),
         new("save", "Save back to the active project"),
         new("sync", "Live sync on/off (auto-upload + pull)"),
+        new("link", "Link that opens the project in the desktop app"),
         new("projectcolor", "Set the project accent colour"),
         new("projectname", "Rename the working image or project"),
         new("projectdescription", "Set the description (empty clears; saved on /create)"),

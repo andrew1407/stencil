@@ -105,6 +105,7 @@ public static class Replies
         sb.AppendLine("/create [name] — save the result as a new project");
         sb.AppendLine("/save — save back to the active project");
         sb.AppendLine("/sync [on|off] — live mode: auto-upload edits + pull peers' changes");
+        sb.AppendLine("/link — a link that opens the active project in the desktop app");
         sb.AppendLine("/project-name <text> — rename the working image (or the active project)");
         sb.AppendLine("/project-color <#hex|name|clear> — set the project's accent colour");
         sb.AppendLine("/project-description <text> — set the description (empty clears; saved on /create)");
@@ -377,6 +378,18 @@ public static class Replies
         string where = serverUrl is null ? "" : $" from {Host(serverUrl)}";
         return $"Delete '{name}'{where}? This permanently removes the project for everyone and can't be undone.";
     }
+
+    /// <summary>The <c>/link</c> reply: the desktop hand-off link plus what it does and doesn't carry.</summary>
+    public static string DesktopLink(string name, string url) =>
+        $"🔗 Open '{name}' in the Stencil desktop app:\n{url}\n\n"
+        + "The page it opens hands the link to the desktop app. It carries no token — whoever "
+        + "follows it connects to the server with their own.";
+
+    /// <summary>The <c>/link</c> reply when no browser app is configured to bounce through.</summary>
+    public static string DesktopLinkUnconfigured() =>
+        Tag(Tone.Notice,
+            "Desktop links are off — the operator has to point STENCIL_BOT_BROWSER_URL at the "
+            + "served browser app, whose launch.html page carries the hand-off.");
 
     /// <summary>
     /// All named page formats with their portrait cm sizes (canonical order), plus the custom
