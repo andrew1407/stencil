@@ -84,10 +84,11 @@
     for (var i = 0; i < ACCENTS.length; i++) if (ACCENTS[i].key === k) return ACCENTS[i].hex;
     return ACCENTS[0].hex;
   };
-  // Accent-backed controls paint white glyphs; a light accent washes them out, so
-  // <html data-accent-light> switches on a dark shadow (lib/theme.css --glyph-shadow).
-  // Same 3:1 threshold as browser accents.js and desktop theme.cpp.
-  var GLYPH_SHADOW_MIN_CONTRAST = 3;
+  // Accent-backed controls paint their label and line-art ON the accent, so the accent
+  // picks the ink: whichever of white / near-black contrasts more (<html
+  // data-accent-light> → lib/theme.css --on-accent). Browser twin: accents.js.
+  var ON_ACCENT_LIGHT = '#ffffff';
+  var ON_ACCENT_DARK = '#1a1a1a';
   var srgbToLinear = function (c) {
     return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   };
@@ -99,9 +100,12 @@
     var b = srgbToLinear(parseInt(h.slice(4, 6), 16) / 255);
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
-  var needsGlyphShadow = function (hex) {
+  var needsDarkGlyph = function (hex) {
     var l = relativeLuminance(hex);
-    return l != null && 1.05 / (l + 0.05) < GLYPH_SHADOW_MIN_CONTRAST;
+    return l != null && (l + 0.05) / 0.05 > 1.05 / (l + 0.05);
+  };
+  var onAccentInk = function (hex) {
+    return needsDarkGlyph(hex) ? ON_ACCENT_DARK : ON_ACCENT_LIGHT;
   };
 
   // Tab favicon as inline SVG with the panel outline painted in `hex` (rest is fixed
@@ -673,8 +677,8 @@
     if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
     return '#' + h.toLowerCase();
   };
-  var applyGlyphShadow = function (hex) {
-    if (needsGlyphShadow(hex)) document.documentElement.setAttribute('data-accent-light', '');
+  var applyAccentInk = function (hex) {
+    if (needsDarkGlyph(hex)) document.documentElement.setAttribute('data-accent-light', '');
     else document.documentElement.removeAttribute('data-accent-light');
   };
   var setFaviconHex = function (hex) {
@@ -696,8 +700,8 @@
     previewSnap = null;   // a committed change supersedes any hover preview
     document.documentElement.style.removeProperty('--accent');   // drop any custom override
     document.documentElement.setAttribute('data-accent', next);
-    // White glyphs on a light accent get their dark shadow (lib/theme.css).
-    applyGlyphShadow(hexOf(next));
+    // A light accent flips every on-accent label and glyph to the dark ink (lib/theme.css).
+    applyAccentInk(hexOf(next));
     applyFavicon(k);
     mirror({ stencil_accent: next });
   };
@@ -707,6 +711,9 @@
     storageKey: KEY,
     get: read,
     hexOf: hexOf,
+    // The ink for a swatch that paints its own chip (the ✓ on a preset row), which
+    // no --on-accent var can reach.
+    inkOn: onAccentInk,
     // `from` is the control that was pressed (element or id) — the options page has no
     // #theme-toggle, so without it the wipe would have to guess.
     set: function (k, from) {
@@ -730,7 +737,7 @@
       previewSnap = null;   // a commit supersedes any hover preview
       swap(function () {
         document.documentElement.style.setProperty('--accent', norm);
-        applyGlyphShadow(norm);
+        applyAccentInk(norm);
         setFaviconHex(norm);
       }, from || 'theme-toggle');
       announce(norm);
@@ -748,7 +755,7 @@
       swap(function () {
         el.style.removeProperty('--accent');
         el.setAttribute('data-accent', key);
-        applyGlyphShadow(hexOf(key));
+        applyAccentInk(hexOf(key));
       }, from || 'theme-toggle');
     },
     endAccentPreview: function (from) {
@@ -758,7 +765,7 @@
       swap(function () {
         if (snap.inline) el.style.setProperty('--accent', snap.inline); else el.style.removeProperty('--accent');
         if (snap.data) el.setAttribute('data-accent', snap.data); else el.removeAttribute('data-accent');
-        applyGlyphShadow(snap.inline || hexOf(snap.data || DEFAULT));
+        applyAccentInk(snap.inline || hexOf(snap.data || DEFAULT));
       }, from || 'theme-toggle');
     },
   };

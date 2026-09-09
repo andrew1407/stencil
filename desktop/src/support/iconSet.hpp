@@ -19,18 +19,17 @@ namespace stencil::gui {
 
   // Render the named icon as a QIcon filled with `color`, sized `size` px (square,
   // high-DPI aware); an unknown name gives a null QIcon. Cached by every argument here.
-  // `shadow` lays a dark halo under the glyph, for white glyphs on a light accent
-  // (theme.hpp accentNeedsGlyphShadow decides). `dpr` overrides the screen's device-pixel
-  // ratio (0 = ask qApp), for tests. `gap` pads the glyph's right, Qt's icon-to-text
-  // spacing being a hard-coded 4px against the browser's 6px .btn-icon-text gap.
-  QIcon themedIcon(const QString& name, const QColor& color, int size = 18, bool shadow = false,
+  // A glyph on an accent fill is asked for in that accent's own ink (theme.hpp
+  // onAccentInk). `dpr` overrides the screen's device-pixel ratio (0 = ask qApp), for
+  // tests. `gap` pads the glyph's right, Qt's icon-to-text spacing being a hard-coded
+  // 4px against the browser's 6px .btn-icon-text gap.
+  QIcon themedIcon(const QString& name, const QColor& color, int size = 18,
                    qreal dpr = 0, int gap = 0);
   // The extra columns a glyph before a LABEL carries (browser gap 6 − Qt's own 4).
   inline constexpr int kLabelIconGap = 2;
   // themedIcon for an icon-and-label button — the same glyph, kLabelIconGap wider.
-  inline QIcon labelIcon(const QString& name, const QColor& color, int size = 15,
-                         bool shadow = false) {
-    return themedIcon(name, color, size, shadow, 0, kLabelIconGap);
+  inline QIcon labelIcon(const QString& name, const QColor& color, int size = 15) {
+    return themedIcon(name, color, size, 0, kLabelIconGap);
   }
 
   // The same glyph turned `degrees` clockwise about its centre, re-rendered from the SVG
@@ -59,7 +58,7 @@ namespace stencil::gui {
   // Rasterize (already posed) inner markup — themedIcon's back half, minus the cache.
   // `withDisabled=false` skips compositing the faded Disabled variant — for per-frame
   // posed icons on an ENABLED control, where that variant is built and never shown.
-  QIcon iconFromMarkup(const QString& inner, const QColor& color, int size, bool shadow,
+  QIcon iconFromMarkup(const QString& inner, const QColor& color, int size,
                        qreal dpr, bool withDisabled = true, int gap = 0);
 
   // What themedIcon() was asked for, recovered from the QIcon it returned. A button
@@ -70,7 +69,6 @@ namespace stencil::gui {
     QString name;
     QColor color;
     int size = 18;
-    bool shadow = false;
     qreal dpr = 1;
     int gap = 0;   // trailing transparent columns (labelIcon)
   };

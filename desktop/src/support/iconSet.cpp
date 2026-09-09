@@ -91,7 +91,7 @@ namespace stencil::gui {
     return c.isValid() ? c : QColor("#8a8f98");
   }
 
-  QIcon iconFromMarkup(const QString& inner, const QColor& color, int size, bool shadow,
+  QIcon iconFromMarkup(const QString& inner, const QColor& color, int size,
                        qreal dprIn, bool withDisabled, int gap) {
     if (inner.isEmpty() || size <= 0) return QIcon();
     gap = std::max(0, gap);
@@ -106,22 +106,7 @@ namespace stencil::gui {
     const QRectF glyphBox(0, 0, size * dpr, size * dpr);
     QPainter painter(&pm);
     painter.setRenderHint(QPainter::Antialiasing, true);
-    if (shadow) {
-      // The Qt stand-in for the web's drop-shadow(): paint the same glyph in
-      // near-black around the mark to build a tight halo, then the mark on top.
-      // Inset by one device pixel so the halo has room instead of being clipped.
-      QSvgRenderer dark(svgDoc(inner, QStringLiteral("#000000")).toUtf8());
-      const qreal o = dpr;
-      const QRectF box = glyphBox.adjusted(o, o, -o, -o);
-      painter.setOpacity(0.34);   // browser --glyph-shadow: a tight, LIGHT ring, not a stroke
-      for (const QPointF& d : {QPointF(-o, 0), QPointF(o, 0), QPointF(0, -o), QPointF(0, o),
-                               QPointF(-o, -o), QPointF(o, -o), QPointF(-o, o), QPointF(o, o)})
-        dark.render(&painter, box.translated(d));
-      painter.setOpacity(1.0);
-      renderer.render(&painter, box);
-    } else {
-      renderer.render(&painter, glyphBox);
-    }
+    renderer.render(&painter, glyphBox);
     painter.end();
     pm.setDevicePixelRatio(dpr);
 
@@ -145,33 +130,33 @@ namespace stencil::gui {
     return icon;
   }
 
-  QIcon themedIcon(const QString& name, const QColor& color, int size, bool shadow,
+  QIcon themedIcon(const QString& name, const QColor& color, int size,
                    qreal dprIn, int gap) {
     const QString inner = iconTable().value(name);
     if (inner.isEmpty()) return QIcon();
 
-    // Cache by (name, color, size, shadow): the same glyph is requested for many
+    // Cache by (name, color, size): the same glyph is requested for many
     // actions on every theme change, so rasterizing once per key keeps it cheap.
     const qreal dpr = dprIn > 0 ? dprIn : (qApp ? qApp->devicePixelRatio() : 1.0);
     static QHash<QString, QIcon> cache;
     const QString key = name + '|' + color.name() + '|' + QString::number(size)
-                        + (shadow ? "|s" : "") + '@' + QString::number(dpr)
+                        + '@' + QString::number(dpr)
                         + (gap > 0 ? "|g" + QString::number(gap) : QString())
                         + '/' + mutedInk().name();   // …the disabled glyph's ink moves with the theme
     const auto it = cache.constFind(key);
     if (it != cache.constEnd()) return it.value();
 
-    const QIcon icon = iconFromMarkup(inner, color, size, shadow, dpr, true, gap);
+    const QIcon icon = iconFromMarkup(inner, color, size, dpr, true, gap);
     cache.insert(key, icon);
     // …and the way back: a QIcon copy keeps its cacheKey, so a button's icon can be
     // traced to the glyph it was made from (iconMotion.hpp's hover lookup).
-    requestIndex().insert(icon.cacheKey(), IconRequest{name, color, size, shadow, dpr, gap});
+    requestIndex().insert(icon.cacheKey(), IconRequest{name, color, size, dpr, gap});
     return icon;
   }
 
   QIcon rotatedIcon(const QString& name, const QColor& color, int size, qreal degrees,
                     qreal dprIn) {
-    if (qFuzzyIsNull(degrees)) return themedIcon(name, color, size, false, dprIn);
+    if (qFuzzyIsNull(degrees)) return themedIcon(name, color, size, dprIn);
     const QString inner = iconTable().value(name);
     if (inner.isEmpty()) return QIcon();
 

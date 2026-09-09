@@ -8,6 +8,7 @@ import { icon } from '../lib/icons.js';
 import { loadLlmSettings, saveLlmSettings, PROVIDER_BASE_URLS, LLM_SETTINGS_KEY } from '../llm/llmSettings.js';
 import { listModels } from '../llm/llmClient.js';
 import { serverTokenFor } from '../llm/llmSurface.js';
+import { menuDustPoint } from '../lib/dropdownMenu.js';
 import { initTooltips } from '../lib/controlTooltip.js';
 import { setTip } from '../lib/tip.js';
 import { enhanceSelect } from '../lib/customSelect.js';
@@ -41,7 +42,7 @@ if (accent) {
     '<button type="button" class="accent-dd-trigger" aria-haspopup="listbox" aria-expanded="false">' +
     '<span class="accent-swatch js-cur-sw"></span><span class="accent-dd-name js-cur-name"></span>' +
     '<span class="accent-dd-caret" aria-hidden="true">' + icon('chevron-down', { size: 13 }) + '</span></button>' +
-    '<ul class="accent-dd-menu accent-swatch-menu" role="listbox" hidden></ul>';
+    '<ul class="accent-dd-menu" role="listbox" hidden></ul>';
   const trigger = mount.querySelector('.accent-dd-trigger');
   const menu = mount.querySelector('.accent-dd-menu');
   const curSw = mount.querySelector('.js-cur-sw');
@@ -55,7 +56,7 @@ if (accent) {
     // Every chip carries the ✓; only the selected row reveals it (lib/theme.css) — the
     // browser's accentPicker.js row, and the desktop's painted tick.
     li.innerHTML =
-      `<span class="accent-swatch" style="background:${a.hex}">` +
+      `<span class="accent-swatch" style="background:${a.hex};color:${accent.inkOn(a.hex)}">` +
       `${icon('check', { size: 11, cls: 'accent-check', sw: 3.5 })}</span>` +
       `<span class="accent-dd-name">${a.label}</span>`;
     li.addEventListener('click', () => choose(a.key));
@@ -80,10 +81,11 @@ if (accent) {
   };
   const onDocPtr = (e) => { if (!mount.contains(e.target)) close(); };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
-  // The swatch list pours out of its trigger and back into it (lib/motion.js) — the same
-  // corner it has always grown from, drawn as particles.
-  const open = () => { menu.hidden = false; surfaceIn(menu, centerOf(trigger)); trigger.setAttribute('aria-expanded', 'true'); document.addEventListener('pointerdown', onDocPtr, true); document.addEventListener('keydown', onKey); };
-  const close = () => { if (!menu.hidden) surfaceOut(menu, centerOf(trigger)); menu.hidden = true; trigger.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', onDocPtr, true); document.removeEventListener('keydown', onKey); };
+  // The swatch list pours out of the CARET the pointer pressed and back into it, the
+  // same corner every enhanced select on this page grows from (dropdownMenu.js
+  // menuDustPoint) — off the trigger's centre it formed in the middle of the label.
+  const open = () => { menu.hidden = false; surfaceIn(menu, menuDustPoint(trigger)); trigger.setAttribute('aria-expanded', 'true'); document.addEventListener('pointerdown', onDocPtr, true); document.addEventListener('keydown', onKey); };
+  const close = () => { if (!menu.hidden) surfaceOut(menu, menuDustPoint(trigger)); menu.hidden = true; trigger.setAttribute('aria-expanded', 'false'); document.removeEventListener('pointerdown', onDocPtr, true); document.removeEventListener('keydown', onKey); };
   // The wipe starts at the trigger's colour SWATCH, not at the option row: the menu is
   // gone by the time the palette floods, and a row near the top of a scrolled menu
   // would look like the colour came out of a corner. The swatch, not the whole trigger:

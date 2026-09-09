@@ -204,30 +204,33 @@ int main(int argc, char** argv) {
   check(bgShown > 320 * 200 / 2,
         "overlay is transparent — the canvas shows through everywhere but the frame");
 
-  // 5) Accent glyph shadow: accent-backed buttons carry WHITE line-art, so a LIGHT
-  //    accent needs the dark halo (iconSet themedIcon's `shadow`). The threshold is
-  //    the same WCAG 3:1 the browser (accents.js needsGlyphShadow) and the extension
-  //    (lib/accent.js) use, so the three surfaces flip on identical accents.
-  std::printf("accent glyph shadow:\n");
-  using stencil::gui::accentNeedsGlyphShadow;
-  check(!accentNeedsGlyphShadow(QColor("#7c3aed")), "violet default needs no halo (5.70:1)");
-  check(accentNeedsGlyphShadow(QColor("#eab308")), "yellow preset needs the halo (1.92:1)");
-  check(accentNeedsGlyphShadow(QColor("#0ea5e9")), "sky preset needs the halo (2.77:1)");
-  check(accentNeedsGlyphShadow(QColor("#00ffff")), "a light custom accent needs the halo");
-  check(!accentNeedsGlyphShadow(QColor("#000000")), "black needs no halo (21:1)");
-  check(!accentNeedsGlyphShadow(QColor()), "an invalid colour asks for no halo");
-  // Exactly the two presets the other surfaces flag — the parity assertion.
+  // 5) On-accent ink: the accent picks the ink its own labels and line-art wear —
+  //    whichever of white / near-black contrasts more (WCAG). Same rule as the browser
+  //    (accents.js needsDarkGlyph) and the extension (lib/accent.js).
+  std::printf("on-accent ink:\n");
+  using stencil::gui::accentNeedsDarkGlyph;
+  using stencil::gui::onAccentInk;
+  check(!accentNeedsDarkGlyph(QColor("#7c3aed")), "violet default keeps white (5.70 vs 3.69)");
+  check(accentNeedsDarkGlyph(QColor("#eab308")), "yellow flips to the dark ink (1.92 vs 10.95)");
+  check(accentNeedsDarkGlyph(QColor("#0ea5e9")), "so does sky (2.77 vs 7.58)");
+  check(accentNeedsDarkGlyph(QColor("#00ffff")), "and a light custom accent");
+  check(!accentNeedsDarkGlyph(QColor("#000000")), "black keeps white (21:1)");
+  check(!accentNeedsDarkGlyph(QColor()), "an invalid colour keeps the white default");
+  check(onAccentInk(QColor("#eab308")) == QColor("#1a1a1a"), "the dark ink is the page ink");
+  check(onAccentInk(QColor("#7c3aed")) == QColor(Qt::white), "…and the light one is white");
+  // Exactly the seven presets the other surfaces flag — the parity assertion.
   int flagged = 0;
   for (const auto& a : stencil::gui::accentPresets())
-    if (accentNeedsGlyphShadow(QColor(a.hex))) ++flagged;
-  check(flagged == 2, "exactly two presets (yellow, sky) need the halo");
+    if (accentNeedsDarkGlyph(QColor(a.hex))) ++flagged;
+  check(flagged == 7, "seven presets (pink, yellow, orange, aqua, sky, grass, brown) flip");
 
-  // The shadowed glyph must actually differ from the plain one (and stay cached
-  // per-flag, so the two never collide in the icon cache).
-  const QPixmap plain = stencil::gui::themedIcon("gear", QColor(Qt::white), 18, false).pixmap(18, 18);
-  const QPixmap haloed = stencil::gui::themedIcon("gear", QColor(Qt::white), 18, true).pixmap(18, 18);
-  check(!plain.isNull() && !haloed.isNull(), "both glyph variants rasterize");
-  check(plain.toImage() != haloed.toImage(), "the halo variant is a different raster");
+  // The palette hands the ink out with the theme, tick image included.
+  check(stencil::gui::themePalette(false, "yellow").onAccent == QColor("#1a1a1a"),
+        "themePalette carries the accent's ink");
+  check(stencil::gui::buildStylesheet(false, "yellow").contains(":/icons/check-dark.png"),
+        "a light accent's checkbox takes the dark tick");
+  check(stencil::gui::buildStylesheet(false, "violet").contains(":/icons/check.png"),
+        "…and a dark accent keeps the white one");
 
   // 6) Numeric fields take an arithmetic expression (support/numericInput.cpp). The
   //    cases mirror browser/tests/numericInput.test.js and extension/tests/ —

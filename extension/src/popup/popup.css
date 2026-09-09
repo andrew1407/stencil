@@ -28,7 +28,7 @@ header .icon-btn + .icon-btn { margin-left: 0; }
   border-radius: 6px; width: 28px; height: 28px; font-size: 14px; cursor: pointer; line-height: 1;
   display: inline-flex; align-items: center; justify-content: center;
 }
-.icon-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.icon-btn:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 /* Inline-SVG icons inherit color via currentColor (shared set: lib/icons.js). */
 .ic { flex: 0 0 auto; vertical-align: -0.18em; }
 .btn-icon-text { display: inline-flex; align-items: center; gap: 6px; }
@@ -66,7 +66,7 @@ header .icon-btn + .icon-btn { margin-left: 0; }
   background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
   border-radius: 6px; padding: 3px 8px; font-size: 11px; cursor: pointer;
 }
-.mini:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mini:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 /* Collapsible filter sections (accordion): click a section header to hide/show its body. */
 .fsection { display: flex; flex-direction: column; gap: 6px; }
@@ -145,7 +145,7 @@ body.search-collapsed #list, body.search-collapsed #status { display: none; }
 }
 .action-menu .drag-item .ic { pointer-events: none; }        /* never let the glyph swallow the drag */
 .action-menu .drag-item * { pointer-events: none; }
-.action-menu .drag-item.over, .action-menu .drag-item:hover { background: var(--accent); color: #fff; }
+.action-menu .drag-item.over, .action-menu .drag-item:hover { background: var(--accent); color: var(--on-accent); }
 
 /* ARMED: a compatible drag is live SOMEWHERE on the surface, so the logo advertises
    itself as a target before the pointer gets there — a gentle scale + a breathing accent
@@ -368,7 +368,7 @@ body.on-editor-page #row-highlight { display: none; }
   border-radius: 6px; padding: 6px 12px; font-size: 12.5px; cursor: pointer;
 }
 .dialog-actions button:hover { border-color: var(--accent); }
-.dialog-actions button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.dialog-actions button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 /* Brief accent flash on the just-(un)pinned row, so the eye can follow it as it floats. */
 @keyframes stencil-pin-flash {
@@ -383,9 +383,9 @@ body.on-editor-page #row-highlight { display: none; }
 }
 .pin-btn { display: inline-flex; align-items: center; justify-content: center; }
 .row:hover .more-btn, .row:hover .pin-btn { border-color: var(--line); color: var(--text); }
-.more-btn:hover, .more-btn.active, .pin-btn:hover { background: var(--accent); color: #fff; }
+.more-btn:hover, .more-btn.active, .pin-btn:hover { background: var(--accent); color: var(--on-accent); }
 /* Active (pinned) state: filled accent, so a pin reads as "on" even without hover. */
-.pin-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.pin-btn.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 .empty { padding: 24px 12px; text-align: center; color: var(--muted); }
 
@@ -415,7 +415,7 @@ body.on-editor-page #row-highlight { display: none; }
   background: transparent; border: 0; color: var(--text); border-radius: 6px;
   padding: 7px 9px; font-size: 12.5px; cursor: pointer; text-align: left;
 }
-.action-menu button:hover { background: var(--accent); color: #fff; }
+.action-menu button:hover { background: var(--accent); color: var(--on-accent); }
 .action-menu .ic { width: 16px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .badge.opened .ic { vertical-align: -0.16em; }
 .action-menu .sep { height: 1px; background: var(--line); margin: 4px 2px; }
@@ -429,7 +429,7 @@ body.on-editor-page #row-highlight { display: none; }
 .action-menu .submenu-head { justify-content: space-between; }
 .action-menu .submenu-head .submenu-label { flex: 1 1 auto; }
 .action-menu .submenu-head .caret { flex: 0 0 auto; color: var(--muted); }
-.action-menu .submenu:hover > .submenu-head { background: var(--accent); color: #fff; }
+.action-menu .submenu:hover > .submenu-head { background: var(--accent); color: var(--on-accent); }
 /* CSS controls VISIBILITY on :hover (robust — the flyout still shows even if the JS below
    is stale/cached); JS only repositions it. Default is an absolute side-flyout (the fallback
    when JS doesn't run); on hover JS upgrades it to position:fixed + viewport-clamped coords
@@ -486,7 +486,7 @@ body.on-editor-page #row-highlight { display: none; }
   transition: opacity .12s ease, background .12s ease, border-color .12s ease, color .12s ease;
 }
 #sec-assistant .chat-jump-btn:hover {
-  opacity: 1; background: var(--accent-2); border-color: var(--accent); color: var(--text);
+  opacity: 1; background: var(--accent-2); border-color: var(--accent); color: var(--on-accent);
 }
 #sec-assistant #chat-jump-bottom { right: 14px; }
 #sec-assistant #chat-jump-top { right: 48px; }
@@ -657,7 +657,7 @@ body.on-editor-page #row-highlight { display: none; }
   display: flex; align-items: center; width: max-content; max-width: 100%;
   margin-top: 6px; padding: 6px 9px; gap: 7px;
   font: inherit; font-size: 12px; font-weight: 600;
-  border: 0; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer;
+  border: 0; border-radius: 6px; background: var(--accent); color: var(--on-accent); cursor: pointer;
 }
 #sec-assistant .chat-config-cta:hover { box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 55%, transparent); }
 #sec-assistant .msg.note { align-self: center; color: var(--muted); font-size: 11px; background: none; padding: 0 10px; }
@@ -795,7 +795,7 @@ body.on-editor-page #row-highlight { display: none; }
 }
 .chat-composer textarea:focus { outline: none; border-color: var(--accent); }
 .chat-send {
-  background: var(--accent); color: #fff; border: 0; border-radius: 8px;
+  background: var(--accent); color: var(--on-accent); border: 0; border-radius: 8px;
   width: 34px; height: 34px; cursor: pointer; flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
 }
@@ -809,7 +809,7 @@ body.on-editor-page #row-highlight { display: none; }
   background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
   display: inline-flex; align-items: center; justify-content: center;
 }
-#sec-assistant .chat-clear:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: #fff; }
+#sec-assistant .chat-clear:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 #sec-assistant .chat-clear:disabled { opacity: .5; cursor: default; }
 /* Provider reachability badge on the … trigger (browser .conn-status parity). */
 #sec-assistant .chat-status-dot {
@@ -870,7 +870,7 @@ body.on-editor-page #row-highlight { display: none; }
   border-radius: 6px; background: none; color: var(--text); font: inherit;
   font-size: 12px; text-align: left; cursor: pointer;
 }
-#sec-assistant .chat-more-item:hover:not(:disabled) { background: var(--accent); color: #fff; }
+#sec-assistant .chat-more-item:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
 /* An inapplicable item (nothing to clear, attach paused mid-turn) leaves the menu
    instead of greying out — browser/desktop parity. */
 #sec-assistant .chat-more-item:disabled { display: none; }
@@ -901,36 +901,13 @@ body.on-editor-page #row-highlight { display: none; }
 .chat-ask-actions { display: flex; align-items: center; gap: 8px; }
 .chat-ask-submit {
   font: inherit; font-size: 12px; padding: 3px 12px; border-radius: 6px; cursor: pointer;
-  border: 1px solid var(--accent); background: var(--accent); color: #fff;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent);
 }
 .chat-ask-submit:disabled { opacity: .5; cursor: default; }
 /* Answered: a record of what was sent, not a control. */
 .chat-ask-answered { opacity: .8; }
 .chat-ask-answered .chat-ask-option { cursor: default; }
 .chat-ask-sent { color: var(--muted); font-style: italic; font-size: 11.5px; }
-
-/* ── White-on-accent readability ────────────────────────────────────────────
-   These controls paint white glyphs/labels on --accent. On a LIGHT accent the
-   tokens below resolve to a dark halo (lib/theme.css --glyph-shadow); on every
-   other accent they are `none`, so nothing changes. */
-.icon-btn:hover,
-.mini:hover,
-.action-menu .drag-item.over, .action-menu .drag-item:hover,
-.action-menu button:hover,
-.dialog-actions button.primary,
-.more-btn:hover, .more-btn.active, .pin-btn:hover,
-.pin-btn.active {
-  text-shadow: var(--glyph-text-shadow);
-}
-.icon-btn:hover .ic,
-.mini:hover .ic,
-.action-menu .drag-item.over .ic, .action-menu .drag-item:hover .ic,
-.action-menu button:hover .ic,
-.dialog-actions button.primary .ic,
-.more-btn:hover .ic, .more-btn.active .ic, .pin-btn:hover .ic,
-.pin-btn.active .ic {
-  filter: var(--glyph-shadow);
-}
 
 /* ── Assistant "thinking" dots (browser chatView.js parity) ──────────────── */
 .typing-row {

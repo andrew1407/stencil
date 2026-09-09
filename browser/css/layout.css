@@ -178,54 +178,12 @@ select {
 }
 button {
     background: var(--accent);
-    color: white;
+    /* The accent's own ink (theme.css --on-accent); a button that paints its OWN
+       ground sets its own colour. */
+    color: var(--on-accent);
     cursor: pointer;
     border: none;
     transition: background 0.3s;
-}
-/* White-on-accent readability: on a light accent these resolve to a dark shadow
-   (theme.css --glyph-shadow), everywhere else to `none`. Disabled buttons sit on
-   --disabled-bg, not the accent, so they keep the flat look. */
-button:not(:disabled),
-.pill-toggle.on,
-.zoom-menu-item:hover, .zoom-menu-item.active,
-.project-menu-item:hover,
-.notify-toast.notify-info {
-    text-shadow: var(--glyph-text-shadow);
-}
-button:not(:disabled) .ic,
-.pill-toggle.on .ic,
-.zoom-menu-item:hover .ic, .zoom-menu-item.active .ic,
-.project-menu-item:hover .ic,
-.notify-toast.notify-info .ic {
-    filter: var(--glyph-shadow);
-}
-/* …but ONLY where the ground really is the accent. `button` paints itself accent by
-   default, so the rule above assumed every button is white-on-accent — and a ghost,
-   icon, tab or chip button that paints its OWN ground is dark text on a light chip,
-   where the halo is not readability but a smudge: the Points/Lines tabs and the mic
-   glyph came out blurry on a light accent (user report). These are exactly the
-   selectors that override that default background; `:is()` carries an id's specificity,
-   which is what it takes to beat `button:not(:disabled)`. */
-button:not(:disabled):is(
-    .chat-suggest, .chat-abtn.chat-send-idle, .ctx-assist-abtn.chat-send-idle, .chat-more-item,
-    .name-edit-btn, .deselect-btn, .idle-create-btn, .coord-tab, .app-modal-close, .danger,
-    .oi-tab, .bi-preset-white, .bi-preset-black, .links-open, .links-clear, .chat-hbtn,
-    .chat-dock-btn-active, .chat-jump-btn,
-    #toggle-controls, #chat-btn, #voice-chat-btn,
-    #fullscreen-toggle, #incognito-toggle, #sel-fill-clear,
-    #sel-unchain, #toggle-coord-panel, #settings-close, #blank-color-btn, #install-pwa-btn) {
-    text-shadow: none;
-}
-button:not(:disabled):is(
-    .chat-suggest, .chat-abtn.chat-send-idle, .ctx-assist-abtn.chat-send-idle, .chat-more-item,
-    .name-edit-btn, .deselect-btn, .idle-create-btn, .coord-tab, .app-modal-close, .danger,
-    .oi-tab, .bi-preset-white, .bi-preset-black, .links-open, .links-clear, .chat-hbtn,
-    .chat-dock-btn-active, .chat-jump-btn,
-    #toggle-controls, #chat-btn, #voice-chat-btn,
-    #fullscreen-toggle, #incognito-toggle, #sel-fill-clear,
-    #sel-unchain, #toggle-coord-panel, #settings-close, #blank-color-btn, #install-pwa-btn) .ic {
-    filter: none;
 }
 button:hover {
     background: var(--accent-2);
@@ -237,11 +195,14 @@ button.active:disabled {
     color: var(--disabled-text);
     cursor: not-allowed;
 }
+/* Fixed grounds, not the accent: white regardless of what --on-accent resolves to. */
 button.active {
     background: var(--success);
+    color: #fff;
 }
 button.danger {
     background: var(--danger);
+    color: #fff;
 }
 /* :not(:disabled) — button.danger:disabled sits earlier above at the SAME specificity
    (0,2,1), so plain button.danger:hover would win the tie on a disabled danger button
@@ -304,20 +265,15 @@ button.danger:hover:not(:disabled) {
     /* The word and its glyph read as TEXT — the accent outline is what marks the toggle
        (user decision; desktop twin: QToolButton[drawToggle="idle"]). */
     color: var(--text-main);
-    text-shadow: none;   /* on-neutral: the on-accent halo would only muddy it */
 }
-#draw-toggle:not(:disabled) .ic { filter: none; }
 #draw-toggle:not(:disabled):hover {
     background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
-/* Drawing: filled, with the app's on-accent foreground — white plus the light-accent
-   halo (--glyph-text-shadow / --glyph-shadow), so a yellow accent stays legible. */
+/* Drawing: filled, in the app's on-accent ink — so a yellow accent stays legible. */
 #draw-toggle.active:not(:disabled) {
     background: var(--accent);
-    color: #fff;
-    text-shadow: var(--glyph-text-shadow);
+    color: var(--on-accent);
 }
-#draw-toggle.active:not(:disabled) .ic { filter: var(--glyph-shadow); }
 #draw-toggle.active:not(:disabled):hover { background: var(--accent-2); }
 /* Icon-only buttons: square-ish, glyph centered; disabled keeps a clear look. */
 .btn-icon {
@@ -437,7 +393,7 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
 #theme-toggle {
     background: var(--accent);
     border: 1px solid var(--accent) !important;
-    color: #fff;
+    color: var(--on-accent);
     font-size: 18px;
     padding: 7px 11px;
     line-height: 1;
@@ -595,7 +551,7 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     cursor: pointer;
     color: var(--text-main);
 }
-.zoom-menu-item:hover, .zoom-menu-item.active { background: var(--accent); color: #fff; }
+.zoom-menu-item:hover, .zoom-menu-item.active { background: var(--accent); color: var(--on-accent); }
 #zoom-input {
     min-width: 52px;
     width: 62px;
@@ -842,7 +798,7 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 .name-edit-btn {
     border: 1px solid var(--accent);
     background: var(--accent);
-    color: #fff;
+    color: var(--on-accent);
     border-radius: 5px;
     width: 28px; height: 28px;
     display: inline-flex; align-items: center; justify-content: center;
@@ -858,7 +814,7 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 /* ✓/✗ are the SAME chip as the ✎/🎨 they replace, glyph included — a smaller pair read as
    faint, half-there marks beside the field (user decision, after trying both bigger and
    smaller). One size for all four, so edit mode never resizes the row. */
-.name-edit-accept, .name-edit-cancel { color: #fff; }
+.name-edit-accept, .name-edit-cancel { color: var(--on-accent); }
 /* Fills the name column, so the field runs from the name's left edge to just short of the
    row's "⋯" — desktop parity (projectsDialog beginInlineRename). inline-flex shrank to fit
    and left the input a stub measuring its `width: 100%` against that stub. */
@@ -1139,7 +1095,7 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
     border: 1px solid var(--border-coord);
     color: var(--text-main);
 }
-.coordinates-table th { background: var(--bg-coord-th); color: white; font-weight: bold; }
+.coordinates-table th { background: var(--bg-coord-th); color: var(--on-accent); font-weight: bold; }
 .coordinates-table tr:nth-child(even) { background-color: var(--bg-coord-even); }
 .coordinates-table tbody tr:hover { background-color: var(--bg-coord-hover); cursor: pointer; }
 /* The ring is drawn inside the row (outline-offset), not around it: an outline sits

@@ -48,17 +48,15 @@ test('the draw toggle is accent, not the green button.active', () => {
 });
 
 test('the filled state uses the app’s on-accent foreground, so a light accent stays legible', () => {
-  assert.match(layoutCss, /#draw-toggle\.active:not\(:disabled\) \{[^}]*text-shadow: var\(--glyph-text-shadow\)/,
-    'the same halo every other filled accent control uses');
-  assert.match(layoutCss, /#draw-toggle\.active:not\(:disabled\) \.ic \{ filter: var\(--glyph-shadow\); \}/);
-  // Idle is accent-on-neutral: the on-accent halo there would only muddy the glyph.
-  assert.match(layoutCss, /#draw-toggle:not\(:disabled\) \{[^}]*text-shadow: none/);
-  assert.match(layoutCss, /#draw-toggle:not\(:disabled\) \.ic \{ filter: none; \}/);
+  assert.match(layoutCss, /#draw-toggle\.active:not\(:disabled\) \{[^}]*color: var\(--on-accent\)/,
+    'the ink the accent picked for itself — white on a deep accent, near-black on a pale one');
+  // Idle is accent-on-neutral: it reads as text, in the theme's own ink.
+  assert.match(layoutCss, /#draw-toggle:not\(:disabled\) \{[^}]*color: var\(--text-main\)/);
 });
 
 test('the OTHER active controls keep the green light — the repaint was scoped', () => {
-  assert.match(layoutCss, /button\.active \{\s*background: var\(--success\);\s*\}/,
-    'the global active rule is untouched');
+  assert.match(layoutCss, /button\.active \{\s*background: var\(--success\);\s*color: #fff;\s*\}/,
+    'the global active rule is untouched — a fixed green ground, so white whatever the accent');
   // The controls that rely on it, by their own class toggles.
   assert.match(read('../js/ui/fullscreenLayer.js'), /fsBtn\.classList\.toggle\('active', isFullscreen\)/);
   assert.match(read('../js/core/drawingApp.js'), /btn\.classList\.toggle\('active', this\.storage\.incognito\)/);

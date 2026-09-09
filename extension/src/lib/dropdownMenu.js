@@ -25,8 +25,9 @@ const MENU_OUT_MS = SURFACE_MENU_OUT_MS;
 // Where those motes come from and go back to: the CARET at the trigger's right edge —
 // the arrow the user actually pressed — not the trigger's horizontal centre (a wide
 // select had its list forming out of the middle of the label). Clamped to the centre
-// for a trigger too narrow to have a distinct arrow zone.
-const dustPoint = (trigger) => {
+// for a trigger too narrow to have a distinct arrow zone. Exported for pickers that
+// drive their own open/close and must grow from the same corner.
+export const menuDustPoint = (trigger) => {
   const r = trigger?.getBoundingClientRect?.();
   if (!r || !(r.width > 0 && r.height > 0)) return null;
   return { x: Math.max(r.left + r.width / 2, r.right - 14), y: r.top + r.height / 2 };
@@ -74,7 +75,7 @@ export const showMenu = (menu, trigger) => {
   menu.__ddTrigger = trigger;
   // Placed first, so the motes stream at the box the list will actually occupy.
   // (surfaceIn settles the menu itself when it can't fly.)
-  surfaceIn(menu, dustPoint(trigger), { ms: MENU_IN_MS });
+  surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS });
   const reflow = () => placeMenu(menu, trigger);
   menu.__ddReflow = reflow;
   window.addEventListener('resize', reflow);
@@ -108,7 +109,7 @@ export const hideMenu = (menu) => {
   if (!menu) return;
   // Measured while it is still up, then hidden at once: the cloud is a copy on <body>
   // with a life of its own, so the end state never waits for the animation.
-  surfaceOut(menu, menu.hidden ? null : dustPoint(menu.__ddTrigger), { ms: MENU_OUT_MS });
+  surfaceOut(menu, menu.hidden ? null : menuDustPoint(menu.__ddTrigger), { ms: MENU_OUT_MS });
   menu.__ddTrigger = null;
   menu.hidden = true;
   if (menu.__ddTrack && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(menu.__ddTrack);

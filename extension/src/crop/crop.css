@@ -15,7 +15,7 @@ main { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
 .zbtn { background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
   border-radius: 6px; height: 28px; min-width: 28px; cursor: pointer; font-size: 14px; }
 .zbtn.wide { padding: 0 10px; }
-.zbtn:hover { background: var(--accent); border-color: var(--accent); }
+.zbtn:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .zlabel { color: var(--muted); font-size: 12px; min-width: 46px; text-align: center; }
 
 .viewport {
@@ -53,7 +53,7 @@ main { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
 .seg { display: flex; gap: 6px; }
 .seg button { flex: 1; background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
   border-radius: 6px; padding: 6px 0; cursor: pointer; font-size: 13px; }
-.seg button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.seg button.active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 /* Inline-SVG icons (shared set: lib/icons.js) inherit color via currentColor. */
 .btn-icon-text { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .ic { flex: 0 0 auto; }
@@ -82,6 +82,6 @@ main { display: flex; gap: 16px; padding: 16px; align-items: flex-start; }
 .btn { flex: 1; border-radius: 7px; padding: 9px 0; font-size: 13px; cursor: pointer; border: 1px solid var(--line); }
 .btn.ghost { background: var(--panel-2); color: var(--text); }
 .btn.ghost:hover { background: var(--line); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .btn.primary:hover { background: var(--accent-2); }
 .btn:disabled { opacity: .5; cursor: default; }

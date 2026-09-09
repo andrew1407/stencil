@@ -6641,7 +6641,7 @@ namespace stencil::gui {
     const QString name = fsActive_ ? QStringLiteral("minimize") : QStringLiteral("maximize");
     actionIconNames_.insert(actFullscreen_, name);
     const QColor ink = toolButtonIconColor(actFullscreen_, iconColor_);
-    actFullscreen_->setIcon(themedIcon(name, ink, kToolIcon, toolButtonIconHalo(ink)));
+    actFullscreen_->setIcon(themedIcon(name, ink, kToolIcon));
   }
 
   // A deeper bottom band while the rows hang over the canvas (theme.cpp QToolBar[fsBar]).
@@ -6751,8 +6751,9 @@ namespace stencil::gui {
   // Entries come from theme.cpp accentPresets (the one shared list); a pick applies
   // through the click-cycle's exact applySettings(…, true) path, then closes.
   // Rounded colour chip for an accent row — the Settings dropdown's swatch recipe, so the
-  // two accent pickers read identically. The CURRENT accent's ✓ is baked into its chip
-  // (white over a dark halo), which keeps the rows a chip+label pair with no check column.
+  // two accent pickers read identically. The CURRENT accent's ✓ is baked into its chip in
+  // that chip's OWN ink (browser accentPicker.js does the same), so the rows stay a
+  // chip+label pair with no check column.
   static QIcon accentSwatchIcon(const QColor& c, bool current) {
     QPixmap pm(16, 16);
     pm.fill(Qt::transparent);
@@ -6764,9 +6765,7 @@ namespace stencil::gui {
     if (current) {
       p.setBrush(Qt::NoBrush);
       const QPointF pts[3] = {{4.4, 8.3}, {6.9, 10.7}, {11.4, 5.3}};
-      p.setPen(QPen(QColor(0, 0, 0, 160), 3.2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-      p.drawPolyline(pts, 3);
-      p.setPen(QPen(Qt::white, 1.7, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+      p.setPen(QPen(onAccentInk(c), 1.9, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
       p.drawPolyline(pts, 3);
     }
     p.end();

@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
               && !rectGlyph.mid(rectEl, rectGlyph.indexOf('>', rectEl) - rectEl)
                       .contains("fill=\"currentColor\""),
           "the rect face is an outline, not a filled slab");
-    const QIcon crop = themedIcon("crop", QColor("#7c3aed"), 24, false, 1.0);
+    const QIcon crop = themedIcon("crop", QColor("#7c3aed"), 24, 1.0);
     check(!crop.isNull() && !crop.pixmap(24, 24).isNull(),
           "crop glyph rasterizes (spot-check)");
     // Every glyph must still RASTERIZE with the browser's motion hooks in it: the
@@ -96,7 +96,7 @@ int main(int argc, char** argv) {
     // so this rasterizes the WHOLE set and looks for actual ink.
     bool drawn = true;
     for (auto it = canon.begin(); it != canon.end(); ++it) {
-      const QImage img = themedIcon(it.key(), QColor("#7c3aed"), 24, false, 1.0)
+      const QImage img = themedIcon(it.key(), QColor("#7c3aed"), 24, 1.0)
                              .pixmap(24, 24).toImage();
       bool ink = false;
       for (int y = 0; y < img.height() && !ink; ++y)

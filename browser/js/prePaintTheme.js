@@ -24,12 +24,12 @@
   // The light presets are inlined for the same reason the storage keys are — this
   // runs as a classic script and can't import accents.js. Kept in sync with its
   // derived LIGHT_ACCENT_KEYS (the accent tests assert the two lists match).
-  const LIGHT_ACCENT_KEYS = ['yellow', 'sky'];
+  const LIGHT_ACCENT_KEYS = ['pink', 'yellow', 'orange', 'aqua', 'sky', 'grass', 'brown'];
   try {
     const accent = localStorage.getItem('drawingApp_accent');
     if (accent) {
       root.setAttribute('data-accent', accent);
-      // White glyphs on a light accent need their dark shadow from the first paint.
+      // A light accent wants the dark on-accent ink from the very first paint.
       if (LIGHT_ACCENT_KEYS.includes(accent)) root.setAttribute('data-accent-light', '');
     }
   } catch {

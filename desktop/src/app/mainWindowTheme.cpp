@@ -224,7 +224,7 @@ namespace stencil::gui {
       const auto name = actionIconNames_.constFind(a);
       if (name != actionIconNames_.constEnd()) {
         const QColor ink = toolButtonIconColor(a, appIconColor);
-        b->setIcon(themedIcon(name.value(), ink, s, toolButtonIconHalo(ink)));
+        b->setIcon(themedIcon(name.value(), ink, s));
       }
     }
     syncDrawToggleFace(canvas_ && canvas_->isDrawing(), false);
@@ -375,20 +375,18 @@ namespace stencil::gui {
     // two halves of one edit (user decision, with a picture). The glyph is the chip's, a
     // size up from the marks it swaps with, so the pair is unmistakable at a glance.
     // Browser-style name affordances: a ✎ rename pencil + a 🎨 colour icon. Their chips are
-    // accent-FILLED (theme.cpp QToolButton[nameAffordance="true"]), so both glyphs are white
-    // at rest like every other filled button's — in the theme's ink one of them read as
-    // greyed-out beside its twin (user report, with a picture). The Active twin (the mode Qt
-    // paints an auto-raise button in on hover) is the same white, plus the light-accent halo
-    // every white-on-accent glyph takes. A QIcon is the only way in — QSS cannot recolour one.
-    const bool affordanceHalo =
-        accentNeedsGlyphShadow(themePalette(dark, settings_.accentColor).accent);
+    // accent-FILLED (theme.cpp QToolButton[nameAffordance="true"]), so both glyphs take
+    // the accent's own ink in every state — in the theme's ink one of them read as
+    // greyed-out beside its twin (user report). A QIcon is the only way in; QSS cannot
+    // recolour one.
+    const QColor affordanceInk = themePalette(dark, settings_.accentColor).onAccent;
     const auto affordanceIcon = [&](const char* glyph) {
       // A PLAIN themedIcon, not a composed pixmap: the app-wide icon-motion filter traces a
       // button's glyph back through QIcon::cacheKey (iconSet::iconRequestForKey), and a
       // hand-built pixmap has no entry — so the ✎ never drew itself and the ✗ was never
       // struck through on hover (user report). Nothing to compose any more either: these
-      // chips are accent-filled in every state, so the glyph is white throughout.
-      return themedIcon(glyph, QColor("#ffffff"), kNameChipGlyph, affordanceHalo);
+      // chips are accent-filled in every state, so the glyph is that ink throughout.
+      return themedIcon(glyph, affordanceInk, kNameChipGlyph);
     };
     if (projectNameEdit_) projectNameEdit_->setIcon(affordanceIcon("pencil"));
     if (projectColorBtn_) projectColorBtn_->setIcon(affordanceIcon("palette"));
@@ -407,8 +405,8 @@ namespace stencil::gui {
   // tooltip and shortcut it carries, whether it is enabled — while the face (glyph + word)
   // and the accent state cross over through the shared swap. Idle is the OUTLINED accent
   // (accent glyph and word on a neutral face); drawing is the filled one, whose foreground
-  // is the app's on-accent white plus the light-accent halo, exactly as chatDock's filled
-  // accent buttons pick theirs. Browser parity: #draw-toggle / .active in layout.css.
+  // is the app's on-accent ink, exactly as chatDock's filled accent buttons pick theirs.
+  // Browser parity: #draw-toggle / .active in layout.css.
   void MainWindow::syncDrawToggleFace(bool drawing, bool animate) {
     if (!startDrawBtn_ || !actStartDraw_ || !actStopDraw_) return;
     QAction* want = drawing ? actStopDraw_ : actStartDraw_;
@@ -424,10 +422,9 @@ namespace stencil::gui {
     face.iconSize = kToolIcon;
     face.gapPx = kFaceIconGap;   // air between glyph and word (see mainWindowHelpers.hpp)
     // Idle: the theme's own ink, as every other label and glyph in the row (user decision) —
-    // the accent OUTLINE is what says this is the draw toggle. Running: white on the fill.
-    face.glyphColor = drawing ? QColor(Qt::white) : pal.textMain;
+    // the accent OUTLINE is what says this is the draw toggle. Running: the fill's own ink.
+    face.glyphColor = drawing ? pal.onAccent : pal.textMain;
     face.textColor = face.glyphColor;
-    face.halo = drawing && accentNeedsGlyphShadow(pal.accent);
     // The fill flip is hidden at the swap's pivot, where the face is invisible. It SETS the
     // state (never toggles it), so a superseded swap can be dropped without stranding it.
     auto applyFill = [this, drawing] {
@@ -457,12 +454,10 @@ namespace stencil::gui {
     face.label = rect ? QStringLiteral("Rect") : QStringLiteral("Line");
     face.iconSize = 16;   // a touch under kToolIcon: this glyph reads heavier than the rest
     face.gapPx = kFaceIconGap;   // …and the same air before the word as its twin
-    // On-accent white, like every other filled toolbar button (toolButtonIconColor) —
-    // plus the light-accent halo those pick up too, for the same contrast reason.
+    // The accent's own ink, like every other filled toolbar button (toolButtonIconColor).
     const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
-    face.glyphColor = QColor(Qt::white);
-    face.textColor = QColor(Qt::white);
-    face.halo = accentNeedsGlyphShadow(pal.accent);
+    face.glyphColor = pal.onAccent;
+    face.textColor = pal.onAccent;
     setTipBase(drawModeBtn_, rect ? "Drawing mode: Rectangle (click to switch to Line)"
                                   : "Drawing mode: Line (click to switch to Rectangle)");
     const bool flipped =
@@ -470,20 +465,18 @@ namespace stencil::gui {
     swapFace(drawModeBtn_, face, {}, animate && flipped ? kFaceSwapMs : 0);
   }
 
-  // The glyph colour a TOOLBAR button wants for `act`. Destructive actions sit on a solid
-  // danger fill there (QToolButton[dangerFill]), so their glyph is white — the neutral one
-  // the MENUS use would vanish into the red.
+  // The glyph colour a TOOLBAR button wants for `act` — its ground's on-colour: the
+  // accent's own ink (theme.hpp onAccentInk), or white on the fixed danger red. The
+  // neutral glyph the MENUS use would vanish into either fill.
   QColor MainWindow::toolButtonIconColor(QAction* act, const QColor& normal) const {
-    for (QToolButton* b : findChildren<QToolButton*>())
-      if (b->defaultAction() == act && !b->property("toolFill").toString().isEmpty())
-        return QColor(Qt::white);
+    for (QToolButton* b : findChildren<QToolButton*>()) {
+      if (b->defaultAction() != act) continue;
+      const QString fill = b->property("toolFill").toString();
+      if (fill.isEmpty()) break;
+      if (fill == QLatin1String("danger")) return QColor(Qt::white);
+      return themePalette(resolveDark(settings_.themeMode), settings_.accentColor).onAccent;
+    }
     return dangerIcons_.contains(act) ? QColor(Qt::white) : normal;
-  }
-
-  bool MainWindow::toolButtonIconHalo(const QColor& glyph) const {
-    if (glyph != QColor(Qt::white)) return false;
-    return accentNeedsGlyphShadow(
-        themePalette(resolveDark(settings_.themeMode), settings_.accentColor).accent);
   }
 
   // Filled-danger treatment for destructive toolbar buttons — the ONLY place the
@@ -538,7 +531,7 @@ namespace stencil::gui {
         const auto name = actionIconNames_.constFind(a);
         if (name != actionIconNames_.constEnd()) {
           const QColor ink = toolButtonIconColor(a, iconColor_);
-          b->setIcon(themedIcon(name.value(), ink, kToolIcon, toolButtonIconHalo(ink)));
+          b->setIcon(themedIcon(name.value(), ink, kToolIcon));
         }
         // The compound [toolFill="danger"]:disabled selector needs a re-polish on every
         // enabled/disabled flip, same as the property itself does below — otherwise a

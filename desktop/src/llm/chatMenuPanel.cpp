@@ -433,7 +433,7 @@ namespace stencil::gui {
   void ChatMenuPanel::setBusy(bool on) {
     busy_ = on;
     updateSendEnabled();
-    send_->setIcon(themedIcon(on ? "stop" : "send", QColor(Qt::white), kMenuChatIcon));
+    send_->setIcon(themedIcon(on ? "stop" : "send", paletteCache_.onAccent, kMenuChatIcon));
     send_->setToolTip(on ? QStringLiteral("Stop the response")
                          : QString());
     attach_->setEnabled(!on);  // frozen mid-turn, exactly like the dock's
@@ -468,13 +468,11 @@ namespace stencil::gui {
         // …plus the DOCK's bubble sheet, so a mirrored message wears the same
         // colours and hairlines as the one in the dock.
         + chatCardStyleSheet(pal, chatSwapSides_));
-    // White line-art on the accent fill — identical to the dock's, including
-    // the dark halo a LIGHT accent needs to keep the mark readable.
-    const QColor onAccent = Qt::white;
-    const bool halo = accentNeedsGlyphShadow(pal.accent);
-    send_->setIcon(themedIcon(busy_ ? "stop" : "send", onAccent, kMenuChatIcon, halo));
-    attach_->setIcon(themedIcon("image", onAccent, kMenuChatIcon, halo));
-    gear_->setIcon(themedIcon("gear", onAccent, kMenuChatIcon, halo));
+    // The accent's own line-art ink on the accent fill — identical to the dock's.
+    const QColor onAccent = pal.onAccent;
+    send_->setIcon(themedIcon(busy_ ? "stop" : "send", onAccent, kMenuChatIcon));
+    attach_->setIcon(themedIcon("image", onAccent, kMenuChatIcon));
+    gear_->setIcon(themedIcon("gear", onAccent, kMenuChatIcon));
     splitter_->setPillColors(pal.borderMain, pal.accent);
     styleSuggestionChips(suggest_, pal);
   }

@@ -340,12 +340,15 @@ test('every icon-anchored surface dusts from — and back into — its own contr
     ['../src/lib/actionMenu.js', 'surfaceIn(menuEl, openOrigin);', 'surfaceOut(menuEl, openOrigin);'],
     ['../src/lib/actionMenu.js', 'surfaceIn(fly, centerOf(head));', 'surfaceOut(fly, centerOf(head));'],
     // customSelect hands both halves to showMenu/hideMenu, which aim at the trigger too.
-    ['../src/lib/dropdownMenu.js', 'surfaceIn(menu, dustPoint(trigger), { ms: MENU_IN_MS })',
-                                   'surfaceOut(menu, menu.hidden ? null : dustPoint(menu.__ddTrigger), { ms: MENU_OUT_MS })'],
+    ['../src/lib/dropdownMenu.js', 'surfaceIn(menu, menuDustPoint(trigger), { ms: MENU_IN_MS })',
+                                   'surfaceOut(menu, menu.hidden ? null : menuDustPoint(menu.__ddTrigger), { ms: MENU_OUT_MS })'],
     ['../src/lib/chatMsgMenu.js', 'surfaceIn(el, openOrigin);', 'surfaceOut(el, openOrigin);'],
     ['../src/popup/dialogShell.js', 'surfaceIn(box, origin', 'surfaceOut(box, origin);'],
     ['../src/options/options.js', 'surfaceIn(box, origin);', 'surfaceOut(box, origin);'],
-    ['../src/options/options.js', 'surfaceIn(menu, centerOf(trigger));', 'surfaceOut(menu, centerOf(trigger));'],
+    // The Main-theme picker drives its own open/close, so it borrows the SAME caret point
+    // showMenu aims at — its trigger is a full-width field, and the centre put the list's
+    // motes in the middle of the label rather than at the arrow that was pressed.
+    ['../src/options/options.js', 'surfaceIn(menu, menuDustPoint(trigger));', 'surfaceOut(menu, menuDustPoint(trigger));'],
     // The chat composer's "…" — the last one still hard-cutting on both edges.
     ['../src/popup/assistant.js', 'surfaceIn(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_IN_MS })',
                                   'surfaceOut(moreMenu, centerOf(moreBtn), { ms: SURFACE_MENU_OUT_MS })'],

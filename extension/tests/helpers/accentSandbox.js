@@ -76,7 +76,7 @@ export const loadAccent = ({
   const documentElement = {
     getAttribute: (k) => (attributes.has(k) ? attributes.get(k) : null),
     setAttribute: (k, v) => attributes.set(k, v),
-    // data-accent-light is a bare presence flag (the glyph-shadow switch).
+    // data-accent-light is a bare presence flag (the on-accent ink switch).
     hasAttribute: (k) => attributes.has(k),
     removeAttribute: (k) => attributes.delete(k),
   };
@@ -229,7 +229,7 @@ export const loadAccent = ({
     /** `<html data-accent="…">` / `<html data-theme="…">` as currently stamped. */
     dataAccent: () => documentElement.getAttribute('data-accent'),
     dataTheme: () => documentElement.getAttribute('data-theme'),
-    /** Whether `<html data-accent-light>` is set — the glyph-shadow switch. */
+    /** Whether `<html data-accent-light>` is set — the on-accent ink switch. */
     isAccentLight: () => documentElement.hasAttribute('data-accent-light'),
     /** The inline `--accent` override (a custom accent / preview), '' when none. */
     inlineAccent: () => documentElement.style.getPropertyValue('--accent'),

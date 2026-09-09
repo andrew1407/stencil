@@ -172,7 +172,7 @@ export function wireLogoAccent(logo) {
       li.setAttribute('role', 'option');
       li.dataset.key = a.key;
       li.innerHTML =
-        `<span class="accent-swatch" style="background:${a.hex}">` +
+        `<span class="accent-swatch" style="background:${a.hex};color:${A.inkOn(a.hex)}">` +
         `${icon('check', { size: 11, cls: 'accent-check', sw: 3.5 })}</span>` +
         `<span class="accent-dd-name">${a.label}</span>`;
       li.addEventListener('click', () => pick(a.key));

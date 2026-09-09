@@ -40,7 +40,7 @@ namespace {
   QImage frame(const QString& glyph, const IconMotionSpec& spec,
                const QVector<IconMotionPart>& parts, double t) {
     const QString posed = iconMotionMarkup(glyph, spec, parts, t);
-    return iconFromMarkup(posed, QColor(Qt::black), kPx, false, 1.0)
+    return iconFromMarkup(posed, QColor(Qt::black), kPx, 1.0)
         .pixmap(kPx, kPx)
         .toImage()
         .convertToFormat(QImage::Format_ARGB32);
@@ -162,7 +162,7 @@ int main(int argc, char** argv) {
   bool sameBox = true, converges = true, restIsRest = true;
   for (auto it = table.begin(); it != table.end(); ++it) {
     const IconMotionSpec& s = it.value();
-    const QImage base = iconFromMarkup(iconMarkup(it.key()), QColor(Qt::black), kPx, false, 1.0)
+    const QImage base = iconFromMarkup(iconMarkup(it.key()), QColor(Qt::black), kPx, 1.0)
                             .pixmap(kPx, kPx).toImage();
     for (double f : {0.0, 0.25, 0.5, 0.75, 1.0}) {
       const QImage im = frame(it.key(), s, s.totalMs * f);
@@ -392,7 +392,7 @@ int main(int argc, char** argv) {
 
     // Reduced motion: the preference wins, and the glyph stays in its rest pose.
     qputenv("STENCIL_NO_ANIM", "1");
-    btn->setIcon(themedIcon(QStringLiteral("plus"), QColor(Qt::black), 18, false, 1.0));
+    btn->setIcon(themedIcon(QStringLiteral("plus"), QColor(Qt::black), 18, 1.0));
     const qint64 restKey = btn->icon().cacheKey();
     hover(btn, true);
     pumpFor(60);
@@ -401,7 +401,7 @@ int main(int argc, char** argv) {
     qunsetenv("STENCIL_NO_ANIM");
 
     // A settle plays and comes back on its own.
-    btn->setIcon(themedIcon(QStringLiteral("plus"), QColor(Qt::black), 18, false, 1.0));
+    btn->setIcon(themedIcon(QStringLiteral("plus"), QColor(Qt::black), 18, 1.0));
     const QSize box = btn->sizeHint();
     hover(btn, true);
     check(pumpUntil([&] { return btn->icon().cacheKey() != restKey; }, 500),
@@ -412,7 +412,7 @@ int main(int argc, char** argv) {
     hover(btn, false);
 
     // A hold holds while the pointer rests, and eases back when it leaves.
-    btn->setIcon(themedIcon(QStringLiteral("trash"), QColor(Qt::black), 18, false, 1.0));
+    btn->setIcon(themedIcon(QStringLiteral("trash"), QColor(Qt::black), 18, 1.0));
     const qint64 trashKey = btn->icon().cacheKey();
     hover(btn, true);
     check(pumpUntil([&] { return btn->icon().cacheKey() != trashKey; }, 500),
@@ -425,7 +425,7 @@ int main(int argc, char** argv) {
 
     // The opt-out (a fold chevron, whose angle is state) is honoured.
     btn->setProperty(kNoIconMotionProperty, true);
-    btn->setIcon(themedIcon(QStringLiteral("chevron-up"), QColor(Qt::black), 18, false, 1.0));
+    btn->setIcon(themedIcon(QStringLiteral("chevron-up"), QColor(Qt::black), 18, 1.0));
     const qint64 chevKey = btn->icon().cacheKey();
     hover(btn, true);
     pumpFor(80);
@@ -438,7 +438,7 @@ int main(int argc, char** argv) {
     // disabled reason at all — and freezing the glyph read as a dead area of the toolbar
     // rather than as a control that cannot act right now.
     btn->setEnabled(false);
-    btn->setIcon(themedIcon(QStringLiteral("plus"), QColor(Qt::black), 18, false, 1.0));
+    btn->setIcon(themedIcon(QStringLiteral("plus"), QColor(Qt::black), 18, 1.0));
     const qint64 plusKey = btn->icon().cacheKey();
     hover(btn, true);
     check(pumpUntil([&] { return btn->icon().cacheKey() != plusKey; }, 2000),

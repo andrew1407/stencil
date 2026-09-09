@@ -32,4 +32,13 @@ test('every page replaces its native selects, and the list is themed + portaled'
   assert.match(css, /\.cs-native \{ display: none; \}/, 'the native control is hidden, not removed');
   assert.match(css, /\.accent-dd-menu\.dd-portal \{[^}]*position: fixed/, 'the portaled menu is viewport-positioned');
   assert.match(css, /\.accent-dd-menu\.dd-portal \{[^}]*right: auto/, 'and anchored from the left it was given');
+  // An in-flow list spans its TRIGGER, the way a native <select>'s does — the Main-theme
+  // picker's column of colour chips read as a different control when it was narrower than
+  // the full-width field it drops out of (user report). Only the logo's badge menu, which
+  // hangs off a 26px mark, sizes to its rows instead.
+  assert.match(css, /\.accent-dd-menu \{[^}]*left: 0; right: 0/, 'the list spans its trigger');
+  assert.ok(!/\.accent-swatch-menu/.test(css), 'no per-picker width override survives');
+  const options = readFileSync(new URL('../src/options/options.js', import.meta.url), 'utf8');
+  assert.ok(!/accent-swatch-menu/.test(options), '…and nothing asks for one');
+  assert.match(css, /\.logo-accent-menu \{[^}]*min-width: 168px/, 'the logo badge menu keeps its own size');
 });

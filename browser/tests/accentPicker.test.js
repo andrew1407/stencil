@@ -246,7 +246,7 @@ test('components.css hides the ✓ by default and reveals it on the selected row
   const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
   const base = /\.accent-check \{[^}]*\}/.exec(css)?.[0] || '';
   assert.match(base, /opacity: 0/, 'the glyph ships on every row, hidden');
-  assert.match(base, /drop-shadow/, 'white-on-dark-halo, so it reads on light AND dark chips in either theme');
+  assert.doesNotMatch(base, /color:/, 'the ink is the chip\'s own on-accent one, set per preset in accentPicker.js');
   assert.match(css, /\.accent-dd-opt\[aria-selected="true"\] \.accent-check \{ opacity: 1; \}/,
     'the listbox state IS the mark — one hook for both copies of the list');
   assert.match(/\.accent-swatch \{[^}]*\}/.exec(css)?.[0] || '', /justify-content: center/,

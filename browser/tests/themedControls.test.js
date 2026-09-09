@@ -43,7 +43,7 @@ test('browser: what a Settings-row button looks like says what it DOES', () => {
   // mainWindowTheme.cpp's toolFill / toolGhostBox pair.
   const filled = components.match(/#settings-btn, #visuals-btn, #info-btn \{[\s\S]*?\}/)?.[0] || '';
   assert.match(filled, /background:\s*var\(--accent\)/, 'the dialog-openers are filled');
-  assert.match(filled, /color:\s*#fff/, '…with a white glyph on it');
+  assert.match(filled, /color:\s*var\(--on-accent\)/, '…with the glyph in the accent\'s own ink');
   const theme = layout.match(/#theme-toggle \{[\s\S]*?\}/)?.[0] || '';
   assert.match(theme, /background:\s*var\(--accent\)/, 'and so is the theme switch');
   assert.ok(!/#settings-btn:not\(:disabled\):not\(\.active\)[\s\S]{0,400}color:\s*var\(--accent\)/.test(components),
@@ -53,7 +53,7 @@ test('browser: what a Settings-row button looks like says what it DOES', () => {
   // which way the click goes.
   const fs = components.match(/#fullscreen-toggle \{[\s\S]*?\}/)?.[0] || '';
   assert.match(fs, /background:\s*var\(--accent\)/, 'fullscreen is filled at rest too');
-  assert.match(fs, /color:\s*#fff/, '…with a white glyph on it');
+  assert.match(fs, /color:\s*var\(--on-accent\)/, '…with the glyph in the accent\'s own ink');
   // Incognito is the one real TOGGLE left in the row: a ghost until it is on.
   const ghostHover = components.match(/#incognito-toggle:not\(\.active\):not\(:disabled\):hover[\s\S]*?\}/)?.[0] || '';
   assert.match(ghostHover, /border-color:\s*var\(--accent\)\s*!important/,

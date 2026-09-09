@@ -41,7 +41,7 @@ namespace stencil::gui {
     // The dpr-AWARE pixmap overload: pixmap(w, h) asks for device pixels and would
     // hand back the raster scaled DOWN to px, throwing the Retina detail away. The
     // width/height attributes below scale the px·dpr raster back to px on screen.
-    themedIcon(name, color, px, /*shadow=*/false, ratio)
+    themedIcon(name, color, px, ratio)
         .pixmap(QSize(px, px), ratio)
         .toImage()
         .save(&buf, "PNG");
