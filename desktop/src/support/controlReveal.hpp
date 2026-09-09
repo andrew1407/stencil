@@ -314,23 +314,91 @@ namespace stencil::gui {
     veil->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
+  // The height slide a leaving bar rides (below), named so a bar coming back can cancel it.
+  inline constexpr const char* kBarSlotAnimName = "stencilBarSlot";
+
+  // Give the bar's height back to the layout — after the slide, or when the bar is asked
+  // back while one is still running.
+  inline void releaseBarSlot(QWidget* bar) {
+    if (!bar) return;
+    if (auto* live = bar->findChild<QPropertyAnimation*>(QString::fromLatin1(kBarSlotAnimName))) {
+      live->stop();
+      delete live;
+    }
+    bar->setMinimumHeight(0);
+    bar->setMaximumHeight(QWIDGETSIZE_MAX);
+  }
+
+  // Pin the bar's slot at the height it has RIGHT NOW. Its controls are about to fly out,
+  // and the last one to be hidden takes the strip's content height with it — the bar
+  // collapsing to nothing in that one frame IS the jump, before any slide of ours could
+  // start (user report). Frozen, the strip keeps its shape while they leave.
+  inline void holdBarSlot(QWidget* bar) {
+    if (!bar || !bar->isVisible()) return;
+    const int h = bar->height();
+    if (h <= 0) return;
+    bar->setMinimumHeight(h);
+    bar->setMaximumHeight(h);
+  }
+
+  // …and then the slide: the strip's SLOT closes on its own curve instead of the strip
+  // blinking out and dropping everything below it upward in one frame. The bar sits
+  // directly above a list, so that drop moved the first row out from under the eye (user
+  // report: the pinned "Temporary (unsaved)" row jumped when Select all left). The gap
+  // under the bar is the BAR's own bottom margin (projectsDialog gives it one, in a
+  // zero-spacing slot with the list), so the whole footprint goes with the height and
+  // nothing is left over to fall away at the end. Min AND max ride the value together —
+  // a cap alone cannot hold a slot open, and a floor alone cannot close it.
+  inline void closeBarSlot(QWidget* bar, int ms) {
+    if (!bar || !bar->isVisible()) return;
+    const int h = bar->height();
+    if (h <= 0 || support::motionReduced()) {
+      releaseBarSlot(bar);
+      bar->setVisible(false);
+      return;
+    }
+    auto* shrink = new QPropertyAnimation(bar, "minimumHeight", bar);
+    shrink->setObjectName(QString::fromLatin1(kBarSlotAnimName));
+    shrink->setDuration(ms);
+    shrink->setStartValue(h);
+    shrink->setEndValue(0);
+    // The same gentle S a control's own slot closes on (revealControls) — a strong
+    // ease-in barely moves, then snaps, which is the jump this exists to remove.
+    shrink->setEasingCurve(QEasingCurve::InOutCubic);
+    QPointer<QWidget> guard(bar);
+    QObject::connect(shrink, &QPropertyAnimation::valueChanged, bar,
+                     [guard](const QVariant& v) { if (guard) guard->setMaximumHeight(v.toInt()); });
+    QObject::connect(shrink, &QPropertyAnimation::finished, bar, [guard] {
+      if (!guard) return;
+      guard->setVisible(false);
+      releaseBarSlot(guard);   // hand sizing back to the layout
+    });
+    shrink->start(QAbstractAnimation::DeleteWhenStopped);
+  }
+
   // A BAR holding revealed controls (the selection strips): the bar itself never flies —
-  // only its controls do — so this is a plain show/hide, deferred on the way OUT by their
-  // flight. Taking the strip away at once took Select all's own out-flight off the screen
-  // before a frame of it showed (user report). `want()` is the single source of whether
-  // the bar belongs, asked now and again on arrival, so a selection made mid-flight keeps
-  // it. Browser twin: motion.js revealBar.
+  // only its controls do — so on the way IN this is a plain show (the slot they fly into),
+  // and on the way OUT it is deferred by their flight and then closes its slot. Taking the
+  // strip away at once took Select all's own out-flight off the screen before a frame of
+  // it showed (user report). `want()` is the single source of whether the bar belongs,
+  // asked now and again on arrival, so a selection made mid-flight keeps it.
+  // Browser twin: motion.js revealBar.
   template <typename Want>   // a template, so the predicate never lands on the heap
   inline void revealBar(QWidget* bar, Want want) {
     if (!bar) return;
     const bool wanted = want();
     if (wanted || support::motionReduced() || !bar->isVisible()) {
+      // A bar asked back mid-close is still frozen (or part-closed) at whatever the
+      // slide left it, so give its height back to the layout before showing it again.
+      releaseBarSlot(bar);
       bar->setVisible(wanted);
       return;
     }
+    holdBarSlot(bar);   // …so its controls' departure cannot collapse it first
     // `bar` is the timer's context object, so the job dies with the dialog that owns it.
     QTimer::singleShot(kControlRevealOutMs, bar, [bar, want = std::move(want)] {
-      if (!want()) bar->setVisible(false);
+      if (!want()) closeBarSlot(bar, kControlRevealOutMs);
+      else releaseBarSlot(bar);   // wanted again mid-wait: unfreeze, it stays
     });
   }
 

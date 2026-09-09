@@ -6,6 +6,7 @@ import { setTranslucentDragImage } from './dragGhost.js';
 import { makeTouchDraggable } from './touchDrag.js';
 import {
   observeReveal, leaveThenRemove, wipeDurationMs, createFilterAnimator,
+  materialize, filterDelta, rowDustGrid,
   ITEM_DUST_MS, rowLeaveDust, revealControls, revealBar,
   surfaceIn, surfaceOut, settleSurface, rectCenter, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS,
   TIP_DUST_IN_MS, TIP_DUST_OUT_MS, markIn, markOut,
@@ -611,11 +612,24 @@ export class StencilProjectsModal extends StencilElement {
       removalsInFlight++;
       const held = list.getBoundingClientRect().height;
       if (held) list.style.minHeight = `${held}px`;
+      const before = [...shownKeys];
       return async () => {
         await new Promise((r) => setTimeout(r, wipeDurationMs()));
         removalsInFlight = Math.max(0, removalsInFlight - 1);
         render();
         list.style.minHeight = '';
+        // What the removal REVEALED — the pinned "Temporary (unsaved)" row, when the
+        // project that just left was the one open here — MATERIALIZES: it waits behind
+        // its own motes and comes up as they land, the removal played backwards (the
+        // connections list's arrival, on this list's grain). It used to be simply there
+        // on the next frame (user report). Only rows the settle ADDED; everything that
+        // was already listed stays where it is. Desktop twin: ListFilterFade::dustRowIn
+        // over the rows a ProjectsDialog::refresh rebuild brought in.
+        const { entering } = filterDelta(before, shownKeys);
+        entering.forEach((key, i) => {
+          const el = rowByFilterKey(key);
+          if (el) materialize(el, rowDustGrid(entering.length, i));
+        });
       };
     };
 

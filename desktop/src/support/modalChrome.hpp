@@ -29,6 +29,11 @@ namespace stencil::gui {
   // The browser's shared modal width (.app-modal: 560px) — every chrome-shelled
   // dialog sizes itself against it.
   inline constexpr int kModalWidth = 560;
+  // The gap the modal body puts between its children. Public because a child that
+  // ANIMATES its slot has to carry that gap itself — a layout's spacing cannot be
+  // animated, and dropping it in one frame at the end of a slide is a jump
+  // (projectsDialog's batch bar; support/controlReveal closeBarSlot).
+  inline constexpr int kBodySpacing = 10;
 
   struct ModalChrome {
     QVBoxLayout* root = nullptr;   // the dialog's own layout — margins 0, dividers full-bleed
