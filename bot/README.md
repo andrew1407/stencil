@@ -162,6 +162,7 @@ Real environment variables always win over `.env`. The real `bot/.env` is gitign
 | `REDIS_URL` | — (in-memory) | Redis for per-user session state. Either form works: `redis://[user:password@]host[:port][/db]` (`rediss://` for TLS) or StackExchange's own `host:port[,option=value]` |
 | `STENCIL_BOT_DATA_DIR` | `<temp>/stencil-bot` | Scratch dir for working images |
 | `STENCIL_TLS_INSECURE` | `false` | Accept self-signed certs for `https` servers (dev) |
+| `STENCIL_BOT_BROWSER_URL` | — (`/link` off) | Base URL of the **served browser app**, e.g. `https://stencil.example/app`. `/link` builds its desktop hand-off links through that app's `launch.html` bounce page; unset ⇒ `/link` says so rather than sending a broken address |
 | `STENCIL_BOT_MAX_CONCURRENT_CLI` | CPU count | Cap on concurrent CLI processes (per-process) |
 | `STENCIL_BOT_MAX_CONCURRENT_LLM` | `8` | Cap on concurrent LLM calls (per-process); full ⇒ an immediate "busy" reply; `0` = unlimited |
 | `STENCIL_BOT_HTTP_TIMEOUT_SECONDS` | `30` | Per-request timeout for server REST calls |
@@ -312,6 +313,7 @@ a time). An album with no caption at all adopts only its last photo, with a sing
 | `/fetch <name\|id>` | Load a server project as the working image |
 | `/create [name]` | Publish the current result as a **new** server project |
 | `/save` | Save the result + layout back to the active project (version-guarded) |
+| `/link` (`/desktop`, `/open-in`) | **Outbound deep link** — the reverse of `/start`: an `https` link (also the 🔗 Link button on the `/status` and edit menus) that opens the active project in the **desktop app**. Chat apps only linkify `http(s)`, so it points at the browser app's `launch.html` bounce page, which forwards to `stencil://open?server=…&id=…&version=…`. Server projects only (a link carries a reference, not image bytes) and **no token rides it** — whoever follows it connects with their own credential. Needs `STENCIL_BOT_BROWSER_URL` |
 | `/expire <n unit \| never>` | Set the active project's expiry (version-guarded) — bare `/expire` (or the ⏳ Expiration button in `/status`) opens a duration picker: **1 day · 3 days · 1 week · Fortnight · 1 month · 3 months · Custom · Never**; **Custom** awaits a free-text span like `3 days`, `week 4`, `2 weeks`, `1 month` |
 | `/start <payload>` | Inbound deep link: t.me `?start=` payloads from the browser/desktop **"Open in… → Telegram"** button decode to (server, project id); the bot connects like a fresh client (token minted via `POST /auth/token`) and fetches the project into the chat. Failures reply with the manual `/connect` + `/fetch` recipe |
 
