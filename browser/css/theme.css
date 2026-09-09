@@ -43,7 +43,12 @@
     --text-main:      #000000;
     --text-label:     inherit;
     --text-muted:     #888;
-    --section-title:  #565d67;  /* control-section captions: darker than muted on white */
+    --section-title:  color-mix(in srgb, var(--text-main) 62%, transparent);  /* captions: the ink, softened */
+    /* The line an input or icon button draws around itself: the control's OWN ink, well
+       down — full ink was hard and half still read heavy (user report, twice). A quarter
+       keeps the colour family while landing light-grey on the light theme and dark-grey on
+       the dark one, which is what a border should be in each. */
+    --ui-outline:     color-mix(in srgb, var(--text-main) 25%, transparent);
     --text-info:      inherit;
     --text-coord-h3:  #333;
     --text-sel-label: #7a5c00;
@@ -137,6 +142,7 @@
     --text-main:      #e0e0e0;
     --text-label:     #cccccc;
     --text-muted:     #aaaaaa;
+    --section-title:  color-mix(in srgb, var(--text-main) 62%, transparent);
     --text-info:      #cccccc;
     --text-coord-h3:  #cccccc;
     --text-sel-label: #e0b84a;

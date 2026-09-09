@@ -12,6 +12,7 @@
 #include "../support/controlReveal.hpp"   // section buttons come and go as sand
 #include "../support/iconMotion.hpp"
 #include "../support/shimmerOverlay.hpp"
+#include "../support/wrapRow.hpp"     // rows wrap like the browser's, never overflow into "»"
 
 #include <QAbstractSpinBox>
 #include <QBoxLayout>
@@ -36,10 +37,10 @@
 
 namespace stencil::gui {
 
-  // Three rows, in the browser's order (toolbar.js): Image·Projects·Connections·Edit,
-  // then Line·Point·Draw·View, then Zoom·Page·Data·Settings. addToolBar/addToolBarBreak
-  // sequencing fixes the visual order, so the sub-builders MUST run in this order —
-  // buildDrawViewToolbar appends to the row buildStyleToolbar opened.
+  // ONE wrapping run, in the browser's order (toolbar.js): Image · Description · Projects ·
+  // Connections · Edit · Line · Point · Draw · View · Zoom · Page · Formula · Data ·
+  // Settings. Like the browser's single flex-wrap container, it re-packs with the window —
+  // so the four sub-builders all append to the same row and MUST run in this order.
   void MainWindow::buildToolbar() {
     buildMainToolbar();
     buildStyleToolbar();
@@ -133,12 +134,16 @@ namespace stencil::gui {
     fl->addStretch(0);
   }
 
+  QToolBar* MainWindow::toolRow() const { return findChild<QToolBar*>("mainToolbar"); }
+
   QWidget* MainWindow::makeToolSection(const QString& title, const QList<QAction*>& actions,
                                        const QList<QWidget*>& extras,
                                        const QList<QWidget*>& leading) {
     auto* section = new QWidget(this);
     auto* col = new QVBoxLayout(section);
-    col->setContentsMargins(6, 1, 6, 1);
+    // 4px sides, not 6: fourteen clusters is a lot of width to give away. Top and bottom
+    // are the browser's .ctrl-section padding, which is what a wrapped line's caption needs.
+    col->setContentsMargins(4, 4, 4, 4);
     // The gap between the caption and its controls: the browser's .ctrl-section-label
     // runs 4px of padding plus a 4px margin under the text (css/layout.css).
     col->setSpacing(8);
@@ -227,7 +232,9 @@ namespace stencil::gui {
         // the short "Start"/"Stop" while their menu entries stay "Start Drawing"/"Stop
         // Drawing". Its width is pinned later, by refreshActions — the themed icons and the
         // stylesheet padding both land after this runs, so measuring here comes out short.
+        btn->setObjectName("drawFaceBtn");   // theme.cpp: the pair's larger word
         btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        btn->setIconSize(QSize(kToolIcon + kFaceIconGap, kToolIcon));   // see kFaceIconGap
       }
       // Dialog-opening icons: the popover gestures (see the block above the toolbar
       // sections). The event filter owns click/dblclick; right-click arrives here.
@@ -367,9 +374,7 @@ namespace stencil::gui {
     imageSizeInfo_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     addToolBarBreak();
 
-    // Two rows so nothing is pushed into QToolBar's "»" overflow (which is what
-    // hid the formula inputs / custom-page inputs at normal window widths). Row 1:
-    // file + drawing + history + zoom. Row 2: page size (+custom) + formulas.
+    // The one tool row: it wraps, so nothing reaches QToolBar's "»" (see buildToolbar).
     auto* tb = addToolBar("Main");
     tb->setObjectName("mainToolbar");  // named for QMainWindow::saveState
     tb->setMovable(false);
@@ -433,22 +438,23 @@ namespace stencil::gui {
     imageSection_ = makeToolSection("Image",
                                     {actSaveImage_, actCopyImage_, actShareImage_, actOpenIn_, actOpenAnother_},
                                     {}, {openImageBtn_});
-    tb->addWidget(imageSection_);
-    tb->addSeparator();
+    addWrapped(tb, imageSection_);
+    addWrappedSeparator(tb);
     // Description & attributes: the saved project's description, keywords and links —
     // the browser's cluster between IMAGE and PROJECTS. All three gate on a saved,
     // non-incognito project (updateProjectTitle), so the whole group reads as one rule.
-    tb->addWidget(makeToolSection("Description & attributes", {actDescription_, actKeywords_, actLinks_}));
-    tb->addSeparator();
+    addWrapped(tb, makeToolSection("Description & attributes", {actDescription_, actKeywords_, actLinks_}));
+    addWrappedSeparator(tb);
     // Projects = open editor list + save/open .stencil + live-sync, matching the browser's
     // PROJECTS cluster (layers / save / folder / refresh). Clear-project stays in the menu bar.
-    tb->addWidget(makeToolSection("Projects", {actProjects_, actSaveProjectFile_, actOpenProjectFile_, actStencilLiveSync_, actDeleteProjectFile_}));
-    tb->addSeparator();
+    addWrapped(tb, makeToolSection("Projects", {actProjects_, actSaveProjectFile_, actOpenProjectFile_, actStencilLiveSync_, actDeleteProjectFile_}));
+    addWrappedSeparator(tb);
     // Connections & chat: servers (connect to share/co-edit) + the AI-assistant sparkle
     // toggle (identical grouping to the browser toolbar; the image's source links live in
     // DESCRIPTION & ATTRIBUTES above, as in the browser).
-    tb->addWidget(makeToolSection("Connections & chat", {actConnect_, actChat_}));
-    tb->addSeparator();
+    connectionsSection_ = makeToolSection("Connections & chat", {actConnect_, actChat_});
+    addWrapped(tb, connectionsSection_);
+    addWrappedSeparator(tb);
     // Edit cluster (browser parity; blank-recolour chip closes it). The filter
     // combo + tint swatch open the group — built here, WIRED in buildStyleToolbar
     // (which runs next). data carries the canonical value.
@@ -468,19 +474,20 @@ namespace stencil::gui {
     filterColorBtn_->setToolTip("Tint color");
     updateColorSwatch(filterColorBtn_, filterColorValue_);
     filterColorBtn_->setVisible(false);   // shown only for the "custom" filter
-    tb->addWidget(makeToolSection("Edit",
-                                  {actCrop_, actRotateLeft_, actRotateRight_, actUndo_, actRedo_},
-                                  {blankColorBtn_}, {imageFilter_, filterColorBtn_}));
-    tb->addSeparator();
+    addWrapped(tb, makeToolSection("Edit",
+                                   {actCrop_, actRotateLeft_, actRotateRight_, actUndo_, actRedo_},
+                                   {blankColorBtn_}, {imageFilter_, filterColorBtn_}));
+
     // Draw = ONE Start/Stop button (refreshActions swaps its default action, like
     // the browser's single #draw-toggle) + the Line/Rect mode toggle. The toggle
     // is built here, wired in buildStyleToolbar (which needs the canvas signals).
     drawModeBtn_ = new QToolButton(this);
     // Icon + label (the glyph is themed in styleActionIcons / the drawModeChanged handler).
+    drawModeBtn_->setObjectName("drawFaceBtn");   // theme.cpp: the pair's larger word
     drawModeBtn_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     drawModeBtn_->setText("Line");
     drawModeBtn_->setAutoRaise(true);
-    drawModeBtn_->setIconSize(QSize(kToolIcon, kToolIcon));
+    drawModeBtn_->setIconSize(QSize(kToolIcon + kFaceIconGap, kToolIcon));
     setTipBase(drawModeBtn_, "Drawing mode: Line (click to switch to Rectangle)");
     setTipReason(drawModeBtn_, "Load an image to switch line / rectangle");   // #draw-mode-toggle
     // Solid accent, permanently — it has no QAction for styleDangerToolButtons' own
@@ -492,9 +499,9 @@ namespace stencil::gui {
     // pick a preset). Fit button built here so it sits AFTER the combo, like the browser.
     zoomFitBtn_ = new QToolButton(this);
     zoomFitBtn_->setDefaultAction(actFit_);
-    // Ghost box, not the sections' accent fill (browser #zoom-fit): an outlined chip whose
-    // glyph shape is what you read, so it doesn't look like a third zoom step after the %
-    // field. styleDangerToolButtons honours this property by leaving the fill off.
+    // Filled like the other acting buttons (browser #zoom-fit); the property is kept for
+    // its DISABLED face alone — a faded outline rather than a filled chip, since it ends
+    // the ZOOM row beside a plain field (theme.cpp QToolButton[toolGhost="true"]:disabled).
     zoomFitBtn_->setProperty("toolGhost", true);
     zoomFitBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     zoomFitBtn_->setAutoRaise(true);
@@ -519,8 +526,11 @@ namespace stencil::gui {
     nameGroup_ = new QWidget(this);
     auto* nameLay = new QHBoxLayout(nameGroup_);
     nameLay->setContentsMargins(0, 0, 0, 0);
-    nameLay->setSpacing(4);
+    // Air between the name and its two chips: at 4 they sat right against the field's
+    // edge (user report, with a picture). Browser twin: .project-name-field's `gap`.
+    nameLay->setSpacing(8);
     projectName_ = new QLineEdit(nameGroup_);
+    projectName_->setObjectName("projectNameField");   // theme.cpp: no hover ring on a title
     projectName_->setPlaceholderText("No project");
     projectName_->setToolTip(QString());   // no tooltip on the name field (the ✎ button has its own)
     projectName_->setMinimumWidth(150);
@@ -549,8 +559,15 @@ namespace stencil::gui {
     // Each is a CHIP, not a bare glyph — the browser paints both on --bg-info inside a
     // --border-main outline at rest. QSS half: QToolButton[nameAffordance] in theme.cpp.
     const auto sizeToRow = [](QToolButton* b) {
-      b->setFixedSize(26, 26);
-      b->setIconSize(QSize(15, 15));
+      // The app's two hover treatments, explicitly: this group is built after the sweep that
+      // installs the shimmer across the toolbar rows, so these four were the only controls in
+      // the bar without it (user report). The icon-motion filter is app-wide and needs no
+      // hand — a themedIcon glyph is all it asks for.
+      installHoverShimmer(b);
+      // The browser's box with a glyph to match — at 26/15 the pair read as small, faint
+      // marks beside the name (user report, with pictures of both surfaces).
+      b->setFixedSize(kNameChipBox, kNameChipBox);
+      b->setIconSize(QSize(kNameChipGlyph, kNameChipGlyph));
       b->setProperty("nameAffordance", true);
     };
     projectNameEdit_ = new QToolButton(nameGroup_);
@@ -587,14 +604,27 @@ namespace stencil::gui {
     projectNameAccept_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     // Hover text is shared with the browser's toolbar.js (#project-name-accept /
     // #project-name-cancel) — a control in both apps says the same thing.
-    projectNameAccept_->setToolTip("Save name");
+    // The key each one answers to, as a keycap: the rich tooltip reads a trailing "(…)"
+    // (tipContent's key vocabulary) — the pair said only what they did, not how (user
+    // report, with a picture). Browser twin: the same two data-titles in toolbar.js.
+    projectNameAccept_->setToolTip("Save name (Enter)");
     sizeToRow(projectNameAccept_);   // ✓/✗ replace ✎/🎨 in edit mode — same box, no jump
+    // …but their WIDTH must be free to animate: revealControls slides maximumWidth from 0,
+    // and a fixed size pins the minimum too, so the pair simply blinked in and out with no
+    // sand at all (user report; the browser's markIn/markOut pair).
+    const auto letItSlide = [](QToolButton* b) {
+      b->setMinimumWidth(0);
+      b->setFixedHeight(kNameChipBox);
+      b->setMaximumWidth(kNameChipBox);
+    };
+    letItSlide(projectNameAccept_);
     projectNameAccept_->setVisible(false);
     nameLay->addWidget(projectNameAccept_);
     projectNameCancel_ = new QToolButton(nameGroup_);
     projectNameCancel_->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    projectNameCancel_->setToolTip("Cancel");
+    projectNameCancel_->setToolTip("Cancel (Esc)");
     sizeToRow(projectNameCancel_);
+    letItSlide(projectNameCancel_);
     projectNameCancel_->setVisible(false);
     nameLay->addWidget(projectNameCancel_);
     // The container goes on the toolbar as one action, AFTER its children exist.
@@ -627,14 +657,8 @@ namespace stencil::gui {
   }
 
   void MainWindow::buildPageFormulaToolbar() {
-    // ── third row: Zoom · Page · Data · Settings (the browser's last toolbar row).
-    // The f(x,y) pill and its inputs are built here but LIVE on the Draw · View
-    // row (see below), so this row carries exactly the browser's four clusters. ──
-    addToolBarBreak();
-    auto* tb2 = addToolBar("Page & Formula");
-    tb2->setObjectName("pageFormulaToolbar");  // named for QMainWindow::saveState
-    tb2->setMovable(false);
-    tb2->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    // ── Zoom · Page · Formula · Data · Settings — the tail of the browser's sequence. ──
+    QToolBar* row = toolRow();
 
     // Units switch on the toolbar (mirrors View ▸ Units, kept in sync). data
     // carries the canonical code; both surfaces route through applyUnits().
@@ -644,19 +668,18 @@ namespace stencil::gui {
     unitCombo_->setToolTip("Display units (cm / inches)");   // its own caption
     connect(unitCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             [this](int) { applyUnits(unitCombo_->currentData().toString()); });
-    // ZOOM and PAGE follow VIEW on the row above, keeping the browser's sequence while
-    // leaving this row light enough to survive a narrow window (see the wrap-point note in
-    // buildDrawViewToolbar): PAGE + FORMULA + DATA + SETTINGS together need ~1200px, and
-    // it was SETTINGS that fell into QToolBar's "»" when they shared one row.
-    QToolBar* pageHost = findChild<QToolBar*>("drawViewToolbar");
-    if (!pageHost) pageHost = tb2;   // defensive: rows are built in order
-    pageHost->addSeparator();
+    // ZOOM and PAGE follow VIEW, keeping the browser's sequence.
+    addWrappedSeparator(row);
     // The browser's cluster exactly: [−] [+] [value %] [fit] (toolbar.js .zoom-controls).
     // The steppers are the same two actions the View menu and Alt+↑/↓ drive, so the three
     // ways to zoom stay one thing; the editable combo stands in for the browser's number
     // field with its preset menu, and Fit closes the row there too.
-    pageHost->addWidget(makeToolSection("Zoom", { actZoomOut_, actZoomIn_ }, { zoom_, zoomFitBtn_ }));
-    pageHost->addSeparator();
+    // Fit LEADS the row, ahead of − and + (user decision; browser twin: #zoom-fit first in
+    // .zoom-controls): it is the one that puts the whole image back on screen, and the two
+    // steppers follow it with the % field.
+    addWrapped(row,
+        makeToolSection("Zoom", { actZoomOut_, actZoomIn_ }, { zoom_ }, { zoomFitBtn_ }));
+    addWrappedSeparator(row);
     // Inline custom W x H inputs (S10), shown only for the "custom" page size. Built BEFORE
     // the section so they can go INSIDE it: added straight to the toolbar they were centred
     // on its full height while the two combos sat under the section caption, so the row
@@ -702,7 +725,7 @@ namespace stencil::gui {
     // One NAMED section, like every group in the main row and like the browser's PAGE
     // cluster — the inline "Page:"/"Units:" captions become the section header ("Units"
     // keeps its own inline label, exactly as the browser does inside that group).
-    pageHost->addWidget(makeToolSection("Page", {}, { pageSize_, unitCombo_, customGroup_ }));
+    addWrapped(row, makeToolSection("Page", {}, { pageSize_, unitCombo_, customGroup_ }));
 
     // Inline formula controls (S11): an enable checkbox + fx/fy inputs + error.
     allowFormulas_ = new QCheckBox("𝑓(x,y)", this);
@@ -729,50 +752,35 @@ namespace stencil::gui {
     // the browser packs its sections left and leaves the slack at the END of the row.
     QWidget* formulaSection = makeToolSection("Formula", {}, { allowFormulas_, formulaGroup_ });
     formulaSection->setSizePolicy(QSizePolicy::Maximum, formulaSection->sizePolicy().verticalPolicy());
-    tb2->addWidget(formulaSection);
-    tb2->addSeparator();
+    addWrapped(row, formulaSection);
+    addWrappedSeparator(row);
     // Data then Settings close the row, mirroring the browser's last one
     // (Zoom · Page · Formula · Data · Settings). Incognito lives in Settings.
-    tb2->addWidget(makeToolSection("Data",
-                                   {actDownloadJson_, actCopyLayout_, actUploadJson_, actClearProject_}));
-    tb2->addSeparator();
+    // Copy leads, then the two FILE moves (down, then up) — the pair reads as one gesture
+    // in two directions (user decision; browser twin: toolbar.js's Data row).
+    addWrapped(row, makeToolSection("Data",
+                                   {actCopyLayout_, actDownloadJson_, actUploadJson_, actClearProject_}));
+    addWrappedSeparator(row);
     // Settings mirrors the browser's last cluster in order: theme · fullscreen ·
-    // incognito · gear (Shortcuts) · palette (Visuals) · info (Help). Every button
+    // fullscreen · theme · gear (Shortcuts) · palette (Visuals) · info (Help). Every button
     // drives the existing QAction (keeps toolbar and menu bar in step). actAccent_
     // is NOT in this row — it's the logo's own right-click/dblclick popover, with
     // no toolbar icon of its own in the browser either.
     settingsSection_ = makeToolSection(
-        "Settings", {actTheme_, actFullscreen_, actIncognito_, actShortcuts_, actSettings_, actInfo_});
-    tb2->addWidget(settingsSection_);
+        "Settings", {actIncognito_, actFullscreen_, actTheme_, actShortcuts_, actSettings_, actInfo_});
+    addWrapped(row, settingsSection_);
     formulaGroup_->setVisible(false);   // revealed by the pill (setFormulaFieldsVisible)
     // (Theme / Incognito / Settings / Info are NOT menu-bar-only any more: they
     // are the SETTINGS section that closes this row, mirroring the browser's last
     // cluster. The actions are shared, so both surfaces stay in step.)
   }
 
-  // Draw + View CLOSE the second row (browser order: Line · Point · Draw · View), so
-  // they are appended to the toolbar buildStyleToolbar opened rather than breaking a
-  // row of their own. Data moved to row three, beside Zoom/Page/Settings.
   void MainWindow::buildDrawViewToolbar() {
-    // The rows are FIXED wrap points in the browser's single sequence (Line · Point · Draw ·
-    // View · Zoom · Page · Formula · Data · Settings): its flex row re-wraps with the window,
-    // a QToolBar cannot, so each break is placed where every row still fits a narrow one —
-    // View alone used to overflow into QToolBar's "»" and simply vanish under ~1100 px.
-    // DRAW therefore closes the LINE · POINT row and VIEW opens this one.
-    QToolBar* drawHost = findChild<QToolBar*>("styleToolbar");
-    if (drawHost) {
-      drawHost->addSeparator();
-      drawHost->addWidget(makeToolSection("Draw", {actStartDraw_}, {drawModeBtn_}));
-    }
-    addToolBarBreak();
-    QToolBar* tb4 = addToolBar("View & Page");
-    tb4->setObjectName("drawViewToolbar");  // named for QMainWindow::saveState
-    tb4->setMovable(false);
-    tb4->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    if (!drawHost) {   // defensive: rows are built in order
-      tb4->addWidget(makeToolSection("Draw", {actStartDraw_}, {drawModeBtn_}));
-      tb4->addSeparator();
-    }
+    // ── Draw · View, continuing the one run — the wrap points are the layout's to choose. ──
+    QToolBar* row = toolRow();
+    addWrappedSeparator(row);
+    addWrapped(row, makeToolSection("Draw", {actStartDraw_}, {drawModeBtn_}));
+    addWrappedSeparator(row);
     // Compare view combo (browser toolbar View section): hold the edit against the
     // untouched original. Kept in sync with the View → Compare submenu radio set.
     compareCombo_ = new SearchComboBox(this, /*searchable=*/false);
@@ -840,7 +848,7 @@ namespace stencil::gui {
     // words, so they need more air between the toggles and the selector than between siblings.
     auto* compareLabel = new QLabel("Compare:", this);
     compareLabel->setStyleSheet("padding-left: 10px; padding-right: 2px;");
-    tb4->addWidget(makeToolSection("View", {}, {
+    addWrapped(row, makeToolSection("View", {}, {
         showPointsCheck_, showLinesCheck_, compareLabel, compareCombo_, clearLinesBtn }));
   }
 
@@ -885,15 +893,10 @@ namespace stencil::gui {
   }
 
   void MainWindow::buildStyleToolbar() {
-    // ── second row: Line · Point — the browser's second toolbar row. The filter combo it
-    // used to carry now opens the EDIT group in row one, like the browser's; Draw and View
-    // take the row after this one (buildDrawViewToolbar, which runs next).
-    addToolBarBreak();
-    auto* tb3 = addToolBar("Style");
-    tb3->setObjectName("styleToolbar");  // named for QMainWindow::saveState
-    tb3->setMovable(false);
-    tb3->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    styleToolbar_ = tb3;
+    // ── Line · Point, continuing the one run. The filter combo they used to carry now
+    // opens the EDIT group ahead of them, like the browser's.
+    QToolBar* row = toolRow();
+    styleToolbar_ = row;
 
     // Default line color swatch (toolbar.js:40 #lineColor).
     lineColorBtn_ = new QToolButton(this);
@@ -934,11 +937,12 @@ namespace stencil::gui {
 
     // Two NAMED sections, mirroring the browser's LINE (colour · thickness · style)
     // and POINT (colour · size) clusters.
-    tb3->addWidget(makeToolSection("Line", {}, {
+    addWrappedSeparator(row);
+    addWrapped(row, makeToolSection("Line", {}, {
         new QLabel(" Color ", this), lineColorBtn_,
         new QLabel(" Thickness ", this), lineThickness_, lineStyle_ }));
-    tb3->addSeparator();
-    tb3->addWidget(makeToolSection("Point", {}, {
+    addWrappedSeparator(row);
+    addWrapped(row, makeToolSection("Point", {}, {
         new QLabel(" Color ", this), pointColorBtn_,
         new QLabel(" Size ", this), pointSize_ }));
     // POINT closes this row — no trailing separator, or the row ends on a hairline with

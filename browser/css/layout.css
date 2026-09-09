@@ -161,7 +161,11 @@ input[type="text"],
 select,
 button {
     padding: 8px 12px;
-    border: 1px solid var(--border-main);
+    /* The outline is the control's own ink, not a near-invisible grey: on the dark theme a
+       --border-main box all but vanished behind its glyph, and on the light one it read as
+       a smudge (user report, with pictures of both). Both themes now draw the box in the
+       colour of what is inside it. Desktop twin: theme.cpp's input rule. */
+    border: 1px solid var(--ui-outline);
     border-radius: 4px;
     font-size: 14px;
 }
@@ -208,8 +212,8 @@ button:not(:disabled):is(
     .name-edit-btn, .deselect-btn, .idle-create-btn, .coord-tab, .app-modal-close, .danger,
     .oi-tab, .bi-preset-white, .bi-preset-black, .links-open, .links-clear, .chat-hbtn,
     .chat-dock-btn-active, .chat-jump-btn,
-    #fs-exit-btn, #toggle-controls, #chat-btn, #voice-chat-btn, #theme-toggle, #settings-btn,
-    #visuals-btn, #info-btn, #fullscreen-toggle, #incognito-toggle, #sel-fill-clear,
+    #toggle-controls, #chat-btn, #voice-chat-btn,
+    #fullscreen-toggle, #incognito-toggle, #sel-fill-clear,
     #sel-unchain, #toggle-coord-panel, #settings-close, #blank-color-btn, #install-pwa-btn) {
     text-shadow: none;
 }
@@ -218,8 +222,8 @@ button:not(:disabled):is(
     .name-edit-btn, .deselect-btn, .idle-create-btn, .coord-tab, .app-modal-close, .danger,
     .oi-tab, .bi-preset-white, .bi-preset-black, .links-open, .links-clear, .chat-hbtn,
     .chat-dock-btn-active, .chat-jump-btn,
-    #fs-exit-btn, #toggle-controls, #chat-btn, #voice-chat-btn, #theme-toggle, #settings-btn,
-    #visuals-btn, #info-btn, #fullscreen-toggle, #incognito-toggle, #sel-fill-clear,
+    #toggle-controls, #chat-btn, #voice-chat-btn,
+    #fullscreen-toggle, #incognito-toggle, #sel-fill-clear,
     #sel-unchain, #toggle-coord-panel, #settings-close, #blank-color-btn, #install-pwa-btn) .ic {
     filter: none;
 }
@@ -294,9 +298,13 @@ button.danger:hover:not(:disabled) {
 }
 #draw-toggle:not(:disabled) {
     background: transparent;
-    border-color: var(--accent);
-    color: var(--accent);
-    text-shadow: none;   /* accent-on-neutral: the on-accent halo would only muddy it */
+    /* The plain UI outline every other idle control wears — not the accent (user
+       decision): the accent is what the FILLED, running state says. */
+    border-color: var(--ui-outline);
+    /* The word and its glyph read as TEXT — the accent outline is what marks the toggle
+       (user decision; desktop twin: QToolButton[drawToggle="idle"]). */
+    color: var(--text-main);
+    text-shadow: none;   /* on-neutral: the on-accent halo would only muddy it */
 }
 #draw-toggle:not(:disabled) .ic { filter: none; }
 #draw-toggle:not(:disabled):hover {
@@ -366,6 +374,25 @@ input[type="password"], select {
     background-size: 250% 100%;
     background-position: 185% 0;
 }
+/* A field's hover RING, the desktop's twin (theme.cpp QLineEdit/QComboBox:hover): twice
+   the resting border, in the accent at the ring's own strength. Never on a disabled field
+   (a dead control must not light up), and never over :focus, which has its own stronger
+   ring. The second pixel is an INSET shadow just inside the 1px border, not a thicker
+   border: a field's height is content-driven, so growing the border grew the box and
+   pushed its row (border-box only pins a size that was set). `!important` because several
+   fields carry an id-level `border`/`box-shadow` of their own (#zoom-input,
+   #project-name-input…) that outranks this shared rule; only the ring is forced. */
+input[type="text"]:hover:not(:disabled):not(:focus),
+input[type="number"]:hover:not(:disabled):not(:focus),
+input[type="search"]:hover:not(:disabled):not(:focus),
+input[type="url"]:hover:not(:disabled):not(:focus),
+input[type="password"]:hover:not(:disabled):not(:focus),
+textarea:hover:not(:disabled):not(:focus),
+select:hover:not(:disabled):not(:focus),
+.accent-dd-trigger:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent) !important;
+}
 input[type="text"]:hover:not(:disabled):not(:focus),
 input[type="number"]:hover:not(:disabled):not(:focus),
 input[type="search"]:hover:not(:disabled):not(:focus),
@@ -402,11 +429,15 @@ select:hover:not(:disabled) {
    (the reason) shows on hover — :disabled normally swallows them. A disabled
    button never dispatches click, so this only re-enables the tooltip. */
 button:disabled, select:disabled, input:disabled { pointer-events: auto; }
-/* Theme toggle button */
+/* Theme toggle button. It ACTS (it flips the theme) rather than reporting a state, so it
+   wears the accent fill the other acting buttons in its row do — the ghost box is for the
+   two toggles beside it, which fill only while they are on (user decision; desktop twin:
+   the SETTINGS cluster's toolFill in mainWindowTheme.cpp). Box unchanged, so the row's
+   six squares stay one size. */
 #theme-toggle {
-    background: transparent;
-    border: 1px solid var(--border-main) !important;
-    color: var(--text-main);
+    background: var(--accent);
+    border: 1px solid var(--accent) !important;
+    color: #fff;
     font-size: 18px;
     padding: 7px 11px;
     line-height: 1;
@@ -415,7 +446,8 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
     transition: background 0.2s, border-color 0.2s;
 }
 #theme-toggle:hover {
-    background: var(--bg-info);
+    background: var(--accent-2);
+    border-color: var(--accent-2) !important;
 }
 .main-content {
     display: flex;
@@ -802,14 +834,41 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 #project-color-btn { visibility: hidden; }
 .project-name-field.name-hover #project-color-btn { visibility: visible; }
 /* Inline rename accept(✓)/cancel(✗) buttons (topbar + projects list). */
-.name-edit-btn { border: 1px solid var(--border-main); background: var(--bg-info); border-radius: 5px; padding: 2px 7px; font-size: 12px; line-height: 1; cursor: pointer; }
+/* The ✎ and 🎨 beside the project name: the toolbar's own filled squares, so they read as
+   buttons of the same family as everything above them rather than as loose glyphs on a
+   tinted chip (user decision; desktop twin: QToolButton[nameAffordance="true"]). SQUARE —
+   one size, the glyph centred — and the accent fill with a white glyph. The ✓/✗ of an
+   open rename keep their own green/red, which is what those two mean. */
+.name-edit-btn {
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    border-radius: 5px;
+    width: 28px; height: 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0;
+    font-size: 12px; line-height: 1; cursor: pointer;
+}
+.name-edit-btn:not(:disabled):hover { background: var(--accent-2); border-color: var(--accent-2); }
 .name-edit-btn:disabled { opacity: .4; cursor: not-allowed; }
-.name-edit-accept { color: #22c55e; }
-.name-edit-cancel { color: #ef4444; }
+/* ✓ and ✗ take the SAME chip as the ✎/🎨 they replace — accent-filled, white glyph — rather
+   than a green tick and a red cross: on the fill those colours read as a warning instead of
+   the two halves of one edit (user decision, with a picture). Desktop twin:
+   QToolButton#projectsRenameBtn / the toolbar's affordanceIcon. */
+/* ✓/✗ are the SAME chip as the ✎/🎨 they replace, glyph included — a smaller pair read as
+   faint, half-there marks beside the field (user decision, after trying both bigger and
+   smaller). One size for all four, so edit mode never resizes the row. */
+.name-edit-accept, .name-edit-cancel { color: #fff; }
 /* Fills the name column, so the field runs from the name's left edge to just short of the
    row's "⋯" — desktop parity (projectsDialog beginInlineRename). inline-flex shrank to fit
    and left the input a stub measuring its `width: 100%` against that stub. */
 .project-rename-wrap { display: flex; align-items: center; gap: 4px; width: 100%; min-width: 0; }
+/* A row's inline editor replaces the NAME line, so its chips are sized to that line, not to
+   the toolbar's: at 28px they made the row grow and the editor sat over the "Created …"
+   line under it (user report, with a picture). The desktop's row editor is compact for the
+   same reason. */
+.project-rename-wrap .name-edit-btn { width: 24px; height: 24px; border-radius: 5px; }
+.project-rename-wrap .name-edit-btn .ic { width: 13px; height: 13px; }
 #toggle-controls {
     background: transparent;
     border: 1px solid var(--border-main) !important;

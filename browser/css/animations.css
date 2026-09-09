@@ -77,13 +77,13 @@ button:not(:disabled):active {
 /* Primary action buttons get a faint sheen sweep on hover. Scoped to the
    accent-coloured controls/toolbar buttons so icon/ghost buttons (theme toggle,
    settings gear, close ✕) stay flat. */
-.controls button:not(#theme-toggle):not(#toggle-controls):not(#settings-btn):not(#visuals-btn):not(#info-btn):not(#incognito-toggle):not(#fullscreen-toggle):not(:disabled) {
+.controls button:not(#toggle-controls):not(#incognito-toggle):not(#fullscreen-toggle):not(:disabled) {
     background-image: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.22) 50%, transparent 70%);
     background-size: 220% 100%;
     background-repeat: no-repeat;
     background-position: 200% 0;
 }
-.controls button:not(#theme-toggle):not(#toggle-controls):not(#settings-btn):not(#visuals-btn):not(#info-btn):not(#incognito-toggle):not(#fullscreen-toggle):not(:disabled):hover {
+.controls button:not(#toggle-controls):not(#incognito-toggle):not(#fullscreen-toggle):not(:disabled):hover {
     animation: shimmerSweep 0.7s ease;
 }
 
@@ -225,6 +225,9 @@ button:not(:disabled):active {
 /* One arrow, two directions — the whole difference between the pair. */
 .ic-download .ic-arrow { transform: translateY(calc(var(--ic-on) * 2.2px)); }
 .ic-upload .ic-arrow   { transform: translateY(calc(var(--ic-on) * -2.2px)); }
+/* The layout FILE pair: the same travel, inside a blank page (icons.json file-down/up). */
+.ic-file-down .ic-arrow { transform: translateY(calc(var(--ic-on) * 2.2px)); }
+.ic-file-up .ic-arrow   { transform: translateY(calc(var(--ic-on) * -2.2px)); }
 .ic-paste .ic-arrow    { transform: translateY(calc(var(--ic-on) * 1.6px)); }
 .ic-external .ic-arrow { transform: translate(calc(var(--ic-on) * 1.4px), calc(var(--ic-on) * -1.4px)); }
 /* The two brackets close in on the region they'd keep. */
@@ -243,7 +246,7 @@ button:not(:disabled):active {
 /* Each arrow slides the way it points — the swap itself. */
 .ic-swap .ic-arrow-top { transform: translateX(calc(var(--ic-on) * 1.4px)); }
 .ic-swap .ic-arrow-bot { transform: translateX(calc(var(--ic-on) * -1.4px)); }
-.ic-fit .ic-inner       { transform: scale(calc(1 + var(--ic-on) * 0.22)); }  /* grows to fit */
+.ic-fit .ic-inner       { transform: scale(calc(1 + var(--ic-on) * 0.22)); }  /* grows out to fit the frame */
 .ic-globe .ic-meridian  { transform: scaleX(calc(1 - var(--ic-on) * 0.55)); } /* turning on its axis */
 /* The disguise comes apart: the hat lifts off, the glasses drop away from it. */
 .ic-incognito .ic-brim    { transform: translateY(calc(var(--ic-on) * -1px)); }
@@ -259,6 +262,12 @@ button:not(:disabled):active {
 .active .ic-maximize .ic-corner-tr { transform: translate(calc(var(--ic-on) * -1.4px), calc(var(--ic-on) * 1.4px)); }
 .active .ic-maximize .ic-corner-br { transform: translate(calc(var(--ic-on) * -1.4px), calc(var(--ic-on) * -1.4px)); }
 .active .ic-maximize .ic-corner-bl { transform: translate(calc(var(--ic-on) * 1.4px), calc(var(--ic-on) * -1.4px)); }
+/* The mirror glyph, worn while fullscreen is on: the hover draws the brackets closer
+   still — the way out. */
+.ic-minimize .ic-corner-tl { transform: translate(calc(var(--ic-on) * 1.4px), calc(var(--ic-on) * 1.4px)); }
+.ic-minimize .ic-corner-tr { transform: translate(calc(var(--ic-on) * -1.4px), calc(var(--ic-on) * 1.4px)); }
+.ic-minimize .ic-corner-br { transform: translate(calc(var(--ic-on) * -1.4px), calc(var(--ic-on) * -1.4px)); }
+.ic-minimize .ic-corner-bl { transform: translate(calc(var(--ic-on) * 1.4px), calc(var(--ic-on) * -1.4px)); }
 /* The draw-mode pair's own faces, the canonical `line`/`rect` design at 16 units: the
    shape DRAWS ITSELF between the two drag handles the way a drag would — the segment or
    the box it spans — and the handles pop as it lands. The face swap owns everything

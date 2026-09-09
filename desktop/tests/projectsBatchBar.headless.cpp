@@ -37,7 +37,9 @@
 #include <QPushButton>
 #include <QTimer>
 #include <QTcpServer>
+#include <QMouseEvent>
 #include <QTcpSocket>
+#include <QToolButton>
 #include <cstdio>
 #include <functional>
 
