@@ -534,14 +534,14 @@ namespace stencil::gui {
       out->shape = support::grainShape(style_, w);
       out->heading = support::headingOf(tx, ty, fromFar);
       if (style_ == support::ParticleStyle::Dust) {
-        out->color = support::tintedStop(accent_, shade_, support::dustMix(w, glint), tint);
+        out->color = support::tintedStop(accent_, shade_, support::dustMix(w, glint), tint, dark_);
         out->color.setAlphaF(std::clamp(alpha * twinkleAt(glint, t_ * ms_, w), 0.0, 1.0));
         return;
       }
       const support::StyleFrame sf = support::styleFrame(style_, p, away, w, len, t_ * ms_);
       out->at += QPointF(sf.sx, sf.sy);
       out->radius *= sf.scale;
-      out->color = support::tintedStop(accent_, shade_, sf.mix, tint);
+      out->color = support::tintedStop(accent_, shade_, sf.mix, tint, dark_);
       out->color.setAlphaF(std::clamp(alpha * sf.glow, 0.0, 1.0));
     }
 
@@ -970,6 +970,7 @@ namespace stencil::gui {
     support::ParticleStyle style_ = support::particleStyle();
     QColor accent_ = support::particleAccent();
     QColor shade_ = support::particleShade();
+    bool dark_ = support::particleDark();
     support::MoteSprites sprites_;   // the grains, drawn once each and blitted
     QElapsedTimer clock_;   // start(): the wall clock the flight reads
     int ms_ = kMs;          // …and its length

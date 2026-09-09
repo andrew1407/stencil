@@ -21,6 +21,10 @@
      --accent (darker here, lighter in dark) so any chosen accent stays harmonised. */
   --accent: #7c3aed;
   --accent-2: color-mix(in srgb, var(--accent) 86%, black);
+  /* Two of a cloud's tints (lib/dustCloud.js TINT_CSS) are theme-aware: a white speck is
+     invisible on a pale surface, and a deep accent one on a dark surface. */
+  --dust-ink:        #1f1f1f;
+  --dust-accent-alt: color-mix(in srgb, var(--accent) 55%, #000000);
   /* The ink an accent-BACKED control paints its label and its line-art in. A light
      accent swallows white, so <html data-accent-light> — set in lib/accent.js from the
      WCAG contrast — swaps this for the near-black below. Browser twin: --on-accent. */
@@ -54,6 +58,8 @@
   --muted: #9aa0b0;
   /* Same accent (from :root / data-accent); only the shade flips lighter. */
   --accent-2: color-mix(in srgb, var(--accent) 78%, white);
+  --dust-ink:        #ffffff;
+  --dust-accent-alt: color-mix(in srgb, var(--accent) 30%, #ffffff);
   --yellow: #ffd400;
   --danger: #f0697a;   /* lighter on dark, like the browser's dark palette */
   --ok: #4cc471;       /* browser dark --success */

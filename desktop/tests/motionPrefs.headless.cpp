@@ -81,18 +81,30 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 4000; i++) if (support::tintOf(i / 4000.0) >= 0) tinted++;
     check(tinted > 4000 * 0.30 && tinted < 4000 * 0.38, "about a third of a cloud is tinted");
     const QColor violet(0x7c, 0x3a, 0xed);
-    check(support::tintColour(violet, 0) == QColor(255, 255, 255)
-              && support::tintColour(violet, 1) == QColor(180, 180, 180)
-              && support::tintColour(violet, 2) == QColor(110, 110, 110),
-          "white, grey and a darker grey, whatever the accent");
-    check(support::tintColour(violet, 3) == QColor(183, 147, 245) && support::tintColour(violet, 4) == QColor(68, 32, 130),
-          "…then the accent blended 55/45 to white and to black (browser TINT_CSS)");
+    check(support::tintColour(violet, 1, false) == QColor(180, 180, 180)
+              && support::tintColour(violet, 2, true) == QColor(110, 110, 110),
+          "the two greys read on either theme, whatever the accent");
+    check(support::tintColour(violet, 3, false) == QColor(183, 147, 245)
+              && support::tintColour(violet, 3, true) == QColor(183, 147, 245),
+          "…so does the accent blended 55/45 to white");
+    // The other two follow the theme, or they would be invisible on one of them
+    // (browser css/theme.css --dust-ink / --dust-accent-alt).
+    check(support::tintColour(violet, 0, true) == QColor(255, 255, 255)
+              && support::tintColour(violet, 0, false) == QColor(0x1f, 0x1f, 0x1f),
+          "a white speck on the dark theme is soot on the light one");
+    check(support::tintColour(violet, 4, false) == QColor(68, 32, 130)
+              && support::tintColour(violet, 4, true) == QColor(216, 196, 250),
+          "…and a deep accent on the light theme is a pale one on the dark");
     const QColor shade(0x6b, 0x32, 0xcc);
-    check(support::tintedStop(violet, shade, 0.5, support::tintOf(0.37)) == support::paletteStop(violet, shade, 0.5),
+    check(support::tintedStop(violet, shade, 0.5, support::tintOf(0.37), true) == support::paletteStop(violet, shade, 0.5),
           "an untinted grain keeps its stop on the ramp");
-    check(support::tintedStop(violet, shade, 0.5, support::tintOf(0.043)) == QColor(255, 255, 255)
-              && support::tintedStop(violet, shade, 0.0, support::tintOf(0.043)) == QColor(255, 255, 255),
+    check(support::tintedStop(violet, shade, 0.5, support::tintOf(0.043), true) == QColor(255, 255, 255)
+              && support::tintedStop(violet, shade, 0.0, support::tintOf(0.043), true) == QColor(255, 255, 255),
           "…a tinted one wears its tint whatever its mix says");
+    support::setParticlePalette(violet, shade, true);
+    check(support::particleDark(), "the theme rides along with the palette the overlays read");
+    support::setParticlePalette(violet, shade, false);
+    check(!support::particleDark(), "…and flips back");
 
     // styleFrame — the browser's dustCloud.js styleFrame, op for op (the sample values
     // below are that module's, printed from node).

@@ -3,6 +3,7 @@
 // overlay (disintegrateOverlay.hpp legAt) and the extension's copy share.
 import test from 'node:test';
 import assert from 'node:assert';
+import { readFileSync } from 'node:fs';
 import {
   bezierY, easeLut, EASE_STEPS, FLIGHTS, alphaAt, moteFrame, cloudBounds, drawCloud, ALPHA_LEVELS,
   resolveColour, startCloud, turbulenceAt, twinkleAt, TURBULENCE_MAX_PX, TWINKLE_DEPTH,
@@ -262,9 +263,17 @@ test('the palette is six even mixes of the accent and its shade, then the five t
   assert.equal(css[5], 'color-mix(in srgb, var(--accent) 0%, var(--accent-2))');
   assert.equal(css[2], 'color-mix(in srgb, var(--accent) 60%, var(--accent-2))');
   assert.deepEqual(css.slice(6), TINT_CSS, 'the tints follow the ramp, in order');
-  assert.deepEqual(TINT_CSS.slice(0, 3), ['#ffffff', '#b4b4b4', '#6e6e6e'], 'white, grey, darker grey');
+  assert.deepEqual(TINT_CSS.slice(1, 3), ['#b4b4b4', '#6e6e6e'], 'grey and a darker grey');
   assert.match(TINT_CSS[3], /var\(--accent\) 55%, #ffffff/, 'a light accent');
-  assert.match(TINT_CSS[4], /var\(--accent\) 55%, #000000/, 'a dark one');
+  // The neutral spark and the second accent tint follow the theme (css/theme.css), since
+  // white cannot be seen on a pale surface nor a deep accent on a dark one.
+  assert.match(TINT_CSS[0], /^var\(--dust-ink, #\w{6}\)$/, 'the spark');
+  assert.match(TINT_CSS[4], /^var\(--dust-accent-alt, #\w{6}\)$/, 'the other accent');
+  const theme = readFileSync(new URL('../css/theme.css', import.meta.url), 'utf8');
+  assert.match(theme, /--dust-ink:\s*#1f1f1f;[\s\S]*--dust-accent-alt:\s*color-mix\(in srgb, var\(--accent\) 55%, #000000\)/,
+               'light: soot, and the accent taken down to a deep one');
+  assert.match(theme, /--dust-ink:\s*#ffffff;[\s\S]*--dust-accent-alt:\s*color-mix\(in srgb, var\(--accent\) 30%, #ffffff\)/,
+               'dark: white, and the accent lifted to a pale one');
   assert.equal(paletteIndex(0), 0);
   assert.equal(paletteIndex(1), 5);
   assert.equal(paletteIndex(0.5), 3);

@@ -188,10 +188,11 @@ namespace stencil::gui {
     // Arm the wake, in the palette the wipe is ERASING — call with the colours as they
     // stood BEFORE the restyle: the departing `accent` and its `shade`, the same two
     // colours every cloud wears (browser motion.js swapDustPaint palette).
-    void seedDust(const QColor& accent, const QColor& shade = QColor()) {
+    void seedDust(const QColor& accent, const QColor& shade = QColor(), bool dark = false) {
       if (!accent.isValid()) return;
       dustAccent_ = accent;
       dustShade_ = shade.isValid() ? shade : accent;
+      dustDark_ = dark;
       dust_ = true;
     }
 
@@ -296,7 +297,7 @@ namespace stencil::gui {
         // (browser spawnSwapDust), in the style's own shape along its heading.
         const support::StyleFrame sf = support::styleFrame(style_, mote.life, mote.life, mote.w, mote.len, timeMs_);
         const double mix = style_ == support::ParticleStyle::Dust ? support::dustMix(mote.w, mote.accent) : sf.mix;
-        QColor col = support::tintedStop(dustAccent_, dustShade_, mix, support::tintOf(mote.w));
+        QColor col = support::tintedStop(dustAccent_, dustShade_, mix, support::tintOf(mote.w), dustDark_);
         col.setAlphaF(std::clamp(mote.alpha * sf.glow, 0.0, 1.0));
         sprites_.draw(p, QPointF(mote.x + sf.sx, mote.y + sf.sy), mote.size / 2 * sf.scale, col,
                       support::grainShape(style_, mote.w), mote.heading);
@@ -324,6 +325,7 @@ namespace stencil::gui {
     bool dust_ = false;       // armed by seedDust — without it the overlay is the old wipe
     QColor dustAccent_;       // the departing accent…
     QColor dustShade_;        // …and its shade: the wake's palette
+    bool dustDark_ = false;   // …from the theme it is erasing, which two tints follow
     // The style the front and its wake wear — read when the wipe is captured, so a
     // 'slide' swap (no grain) still cuts its style's edge… a circle, as dust does.
     support::ParticleStyle style_ = support::particleStyle();
