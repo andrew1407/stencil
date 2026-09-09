@@ -167,15 +167,17 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
 /* ── Glass shimmer: a soft left→right light sweep on hover — the shared hover treatment for the
    extension's interactive items (icon buttons, mini buttons, chips, image thumbs), matching the
    browser app + desktop. Clipped ::after gradient; honours prefers-reduced-motion. ── */
-.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .shimmer { position: relative; overflow: hidden; }
-.icon-btn::after, .mini::after, .btn-icon-text::after, .thumb::after, .chk::after, .shimmer::after {
+.icon-btn, .mini, .btn-icon-text, .thumb, .chk, .accent-dd-opt, .shimmer { position: relative; overflow: hidden; }
+.icon-btn::after, .mini::after, .btn-icon-text::after, .thumb::after, .chk::after,
+.accent-dd-opt::after, .shimmer::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   background: linear-gradient(115deg, transparent 38%,
     color-mix(in srgb, #ffffff 42%, transparent) 50%, transparent 62%);
   transform: translateX(-135%); opacity: 0;
 }
 .icon-btn:hover:not(:disabled)::after, .mini:hover:not(:disabled)::after,
-.btn-icon-text:hover:not(:disabled)::after, .thumb:hover::after, .chk:hover::after, .shimmer:hover::after {
+.btn-icon-text:hover:not(:disabled)::after, .thumb:hover::after, .chk:hover::after,
+.accent-dd-opt:hover::after, .shimmer:hover::after {
   animation: ui-shimmer 0.7s ease;
 }
 @keyframes ui-shimmer {
@@ -183,7 +185,8 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
   to   { transform: translateX(135%);  opacity: 0.9; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .icon-btn::after, .mini::after, .btn-icon-text::after, .thumb::after, .chk::after, .shimmer::after { content: none; }
+  .icon-btn::after, .mini::after, .btn-icon-text::after, .thumb::after, .chk::after,
+  .accent-dd-opt::after, .shimmer::after { content: none; }
 }
 
 /* ── Instant control tooltip (lib/controlTooltip.js + lib/tipContent.js) ──
@@ -396,3 +399,32 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
 }
 .accent-dd-search:focus { outline: none; border-color: var(--accent); }
 .accent-dd-no-match { padding: 8px 9px; color: var(--muted); font-size: 13px; list-style: none; }
+
+/* ── A field's hover ring (browser twin: css/layout.css; desktop: theme.cpp
+   QLineEdit:hover) ───────────────────────────────────────────────────────────
+   A field RINGS on hover at twice its resting border, the second pixel an INSET shadow
+   rather than a thicker border so nothing moves (a field's height is content-driven).
+   Never on a disabled field, never over :focus, which has its own stronger ring. */
+input[type="text"]:hover:not(:disabled):not(:focus),
+input[type="number"]:hover:not(:disabled):not(:focus),
+input[type="search"]:hover:not(:disabled):not(:focus),
+input[type="url"]:hover:not(:disabled):not(:focus),
+input[type="password"]:hover:not(:disabled):not(:focus),
+textarea:hover:not(:disabled):not(:focus),
+select:hover:not(:disabled):not(:focus) {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent) !important;
+}
+
+/* …and the box an input or an icon button draws around itself is that control's OWN ink,
+   not a near-invisible grey: a --line outline vanished behind its glyph on the dark theme
+   and read as a smudge on the light one (user report, with pictures of both). Browser
+   twins: css/layout.css's input rule and the ghost buttons in css/components.css. */
+input[type="text"], input[type="number"], input[type="search"], input[type="url"],
+input[type="password"], textarea, select,
+.icon-btn, .more-btn, .pin-btn, .num, .page-select, .dialog-select, .accent-dd-search {
+  /* Its OWN ink, well down: full ink was hard and half still read heavy (user report,
+     twice). A quarter lands light-grey on the light theme and dark-grey on the dark one.
+     Browser twin: --ui-outline in css/theme.css. */
+  border-color: color-mix(in srgb, var(--text) 25%, transparent);
+}

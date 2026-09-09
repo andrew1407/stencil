@@ -763,6 +763,11 @@ export class StencilProjectsModal extends StencilElement {
         cancel.innerHTML = icon('x', { size: 14 });
         cancel.dataset.title = 'Cancel (Esc)';
         wrap.append(input, accept, cancel);
+        // The editor is INSIDE the row, and the row opens the project on click — so a
+        // press on ✓/✗ reached it and the window closed on the project it just opened
+        // (user report). Nothing inside the editor is a click on the row.
+        for (const ev of ['mousedown', 'click', 'dblclick'])
+          wrap.addEventListener(ev, (e) => e.stopPropagation());
         name.replaceWith(wrap);
         // ✓/✗ FORM from dust (desktop revealControls parity); their hover already
         // draws the check / strikes the cross (animations.css .ic-check/.ic-x).

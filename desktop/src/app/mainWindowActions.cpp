@@ -196,7 +196,7 @@ namespace stencil::gui {
     // Trash: clear (remove) the current project/editor (mirrors the browser's
     // #clear-storage danger button). Hidden for server projects (refreshActions).
     actClearProject_ = mk("Clear Project", hotkey("clearProject", "Ctrl+Alt+R"));
-    tip(actClearProject_, "Remove");
+    tip(actClearProject_, "Remove current project");
     // Rename the project from the keyboard — the same inline edit the ✎ beside the
     // toolbar name opens (enterNameEdit declines when there is nothing to rename).
     actRenameProject_ = mk("Rename Project", hotkey("renameProject", "Ctrl+Alt+N"));
@@ -326,8 +326,10 @@ namespace stencil::gui {
     actIncognito_->setCheckable(true);
     // Through tip(), not setToolTip(): a plain set would drop the ⌥I that mk() had put on
     // it, and the icon-only toolbar is the only place that shortcut is written down.
-    tip(actIncognito_,
-        "Incognito — edit without saving (choose before adding an image)");
+    tip(actIncognito_, "Incognito — edit without saving");
+    // …and WHY it is greyed out, as the amber reason line (browser: data-disabled-reason) —
+    // inside the title it read as part of what the button does.
+    setTipReason(actIncognito_, "Choose incognito before adding an image");
 
     // Fullscreen is a toggle: its toolbar button shows the accent "active" fill
     // (QToolButton:checked) while fullscreen is on, mirroring the browser.

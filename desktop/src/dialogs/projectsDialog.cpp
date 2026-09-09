@@ -7,6 +7,7 @@
 #include "projectsStore.hpp"
 #include "reorderableListWidget.hpp"
 #include "../app/scrollReveal.hpp"  // revealOpacityForItem (scroll edge fade)
+#include "../app/mainWindowHelpers.hpp"   // kNameChipBox / kNameChipGlyph — the shared chip
 #include "../support/controlReveal.hpp"       // the rename ✓/✗ form/come apart as dust
 #include "../support/flowLayout.hpp"           // the filter row + batch bar wrap, never clip
 #include "../support/disintegrateOverlay.hpp"  // deleted rows come apart
@@ -188,7 +189,9 @@ namespace stencil::gui {
         const bool ok = res.ok && !unchanged;
         okBtn->setEnabled(ok);
         okBtn->setCursor(ok ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
-        okBtn->setToolTip(ok ? QString()
+        // Live: what the key is. Rejected: why. (The tooltip's trailing "(…)" is what the
+        // rich tip turns into a keycap — tipContent's key vocabulary.)
+        okBtn->setToolTip(ok ? QObject::tr("Save name (Enter)")
                              : (unchanged ? QObject::tr("No change")
                                           : QString::fromStdString(res.reason)));
       };
@@ -522,7 +525,10 @@ namespace stencil::gui {
           QFont metaF(o.font);
           metaF.setPixelSize(12);
           const QFontMetrics nfm(nameF), mfm(metaF);
-          constexpr int kLineGap = 3;
+          // A little more air under the name than between the lines below it: with the
+          // inline editor up, the field sat right on top of the "Created …" line (user
+          // report, with a picture), and even at rest the name read as crowded.
+          constexpr int kLineGap = 6;
           // Centred on the lines this row actually draws: the origin line is a real row's
           // only, so counting it on the temporary row (which returns before it) reserved a
           // line that is never painted and pushed the pair up off centre.
@@ -2459,34 +2465,58 @@ namespace stencil::gui {
     renameBox_ = new QWidget(list_->viewport());
     renameBox_->setObjectName("projectsRenameBox");
     auto* lay = new QHBoxLayout(renameBox_);
-    lay->setContentsMargins(0, 0, 0, 0);
-    lay->setSpacing(4);
+    lay->setContentsMargins(0, 2, 2, 2);   // even air around the ✓/✗ inside the box
+    lay->setSpacing(5);
+    // A row's chips are the height of the FIELD beside them: the editor reads as one
+    // control, and clears the row's top border instead of straddling it.
+    constexpr int kRenameGlyph = 12;
+    constexpr int kRenameBox = 22;
     auto* edit = new QLineEdit(current, renameBox_);
     edit->setObjectName("projectsRenameEdit");
     edit->setToolTip(tr("Project name"));
+    edit->setFixedHeight(kRenameBox);   // …the chips' own height: one control, three parts
     lay->addWidget(edit, 1);
-    // ✓/✗ are the browser's .name-edit-btn chips (green check / red cross); the shared
-    // objectName carries their QSS. themedIcon feeds the app-wide iconMotion filter, so
-    // hovering DRAWS the check / strikes the cross exactly like the browser's icons.
+    // ✓/✗ are the browser's .name-edit-btn chips: accent-filled with a WHITE glyph, the
+    // same pair the toolbar's rename shows (a green tick and a red cross read as a warning
+    // on the fill, not as the two halves of one edit — user decision, with a picture). The
+    // shared objectName carries their QSS; themedIcon feeds the app-wide iconMotion filter,
+    // so hovering DRAWS the check / strikes the cross exactly like the browser's icons.
+    // The same chip the toolbar's ✎/🎨/✓/✗ wear (mainWindowHelpers kNameChip*): one size for
+    // every name affordance in the app.
     auto* okBtn = new QToolButton(renameBox_);
     okBtn->setObjectName("projectsRenameBtn");
-    okBtn->setIcon(themedIcon("check", QColor("#22c55e"), 14));
-    okBtn->setIconSize(QSize(14, 14));
+    okBtn->setIcon(themedIcon("check", QColor("#ffffff"), kRenameGlyph));
+    okBtn->setIconSize(QSize(kRenameGlyph, kRenameGlyph));
+    okBtn->setFixedHeight(kRenameBox);
+    okBtn->setMinimumWidth(0);          // …so revealControls can slide its slot open
+    okBtn->setMaximumWidth(kRenameBox);
     okBtn->setFocusPolicy(Qt::NoFocus);
+    installHoverShimmer(okBtn);   // the row's editor is built on demand, after the dialog's sweep
     lay->addWidget(okBtn);   // its cursor follows enabled/disabled — see makeNameValidator
     auto* cancelBtn = new QToolButton(renameBox_);
     cancelBtn->setObjectName("projectsRenameBtn");
-    cancelBtn->setIcon(themedIcon("x", QColor("#ef4444"), 14));
-    cancelBtn->setIconSize(QSize(14, 14));
+    cancelBtn->setIcon(themedIcon("x", QColor("#ffffff"), kRenameGlyph));
+    cancelBtn->setIconSize(QSize(kRenameGlyph, kRenameGlyph));
+    cancelBtn->setFixedHeight(kRenameBox);
+    cancelBtn->setMinimumWidth(0);          // …so revealControls can slide its slot open
+    cancelBtn->setMaximumWidth(kRenameBox);
     cancelBtn->setFocusPolicy(Qt::NoFocus);
+    cancelBtn->setToolTip(tr("Cancel (Esc)"));   // …and its key, as a keycap
+    installHoverShimmer(cancelBtn);
     cancelBtn->setCursor(Qt::PointingHandCursor);
     lay->addWidget(cancelBtn);
 
-    // Span from the name's left edge to just short of the "⋯" strip.
+    // Span from the name's left edge to just short of the "⋯" strip. The box has to HOLD
+    // its ✓/✗ — at the name line's own height they were cut off on the right and along the
+    // bottom (user report, with a picture) — so it is at least a chip plus its air, and
+    // wide enough for the field and both chips side by side.
     const int left = nr.left() - 4;
-    const int width = std::max(140, kebabZone(vr).left() - 8 - left);
-    const int h = std::max(26, nr.height() + 8);
-    renameBox_->setGeometry(left, nr.center().y() - h / 2, width, h);
+    const int chips = 2 * kRenameBox + 3 * lay->spacing();
+    const int width = std::max(160 + chips, kebabZone(vr).left() - 8 - left);
+    const int h = kRenameBox + 4;   // the field's height plus the box's own air
+    // …centred on the name line, but never across the row's own edges.
+    const int top = std::clamp(nr.center().y() - h / 2, vr.top() + 3, vr.bottom() - h - 3);
+    renameBox_->setGeometry(left, top, width, h);
     // The ✓/✗ FORM from dust once the editor is up (browser markIn parity): hidden
     // before show, then revealed — their slots open under the gathering motes.
     okBtn->hide();

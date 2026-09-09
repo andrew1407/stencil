@@ -279,9 +279,9 @@ namespace stencil::gui {
     // menu-only before, so they had no glyph.
     // Not the trash can: that is "delete the project/file" (actClearProject_ below).
     setDanger(actClearAll_, "eraser");
-    set(actDownloadJson_, "download");
-    set(actCopyLayout_, "copy");
-    set(actUploadJson_, "upload");
+    set(actDownloadJson_, "file-down");
+    set(actCopyLayout_, "clipboard");
+    set(actUploadJson_, "file-up");
     setDanger(actClearProject_, "trash");
     set(actSettings_, "palette");
     set(actInfo_, "help");
@@ -304,7 +304,9 @@ namespace stencil::gui {
     set(actPanel_, actPanel_ && actPanel_->isChecked() ? "chevron-right" : "chevron-left");
     set(actToolbars_, "chevron-up");   // top-menu (toolbars) show/hide, View menu only
     set(actChat_, "sparkle");          // AI Assistant chat dock (browser sparkle parity)
-    set(actFullscreen_, "maximize");
+    // The glyph turns over with the state, and each one's hover moves the way the click
+    // will (iconMotion.json maximize / minimize; browser twin: fullscreenLayer.js).
+    set(actFullscreen_, fsActive_ ? "minimize" : "maximize");
     set(actTooltip_, "message");
     set(actAllowFormulas_, "function");
     set(actUnitCm_, "ruler");
@@ -328,9 +330,9 @@ namespace stencil::gui {
     setDanger(actDeleteProjectFile_, "trash");
     setDanger(actClearProject_, "trash");
     set(actSaveSession_, "clipboard");
-    set(actDownloadJson_, "download");
-    set(actUploadJson_, "upload");
-    set(actCopyLayout_, "copy");
+    set(actDownloadJson_, "file-down");
+    set(actUploadJson_, "file-up");
+    set(actCopyLayout_, "clipboard");
     set(actPasteLayout_, "paste");
     // actSaveImage_/actCopyImage_ always mean "Current" — the toolbar's own generic glyph,
     // whichever variant they perform (browser parity: exportOptionsMenu.js VARIANT_ICONS —
@@ -360,27 +362,38 @@ namespace stencil::gui {
     // face (browser contextMenu.js parity: ctx-draw-line/ctx-draw-rect, icon('line')/('rect')).
     set(actDrawLineNow_, "line");
     set(actDrawRectNow_, "rect");
+    set(actTheme_, dark ? "sun" : "moon");
     // The theme toggle shows the destination scheme (sun when dark, moon when light),
-    // matching the browser's toggle glyph.
-    if (actTheme_) actTheme_->setIcon(themedIcon(dark ? "sun" : "moon", iconColor, s));
+    // matching the browser's toggle glyph. Through `set`, not setIcon: only a REGISTERED
+    // glyph can be re-inked for the button it sits on, and this one is accent-filled now,
+    // so it needs the white-on-fill pass like every other filled button (user report: it
+    // kept the menu's dark glyph on the accent).
 
-    // Toolbuttons that aren't backed by a QAction. The rename confirm/cancel mirror the browser's
-    // green ✓ / red ✗ inline-edit buttons.
-    if (projectNameAccept_)
-      projectNameAccept_->setIcon(themedIcon("check", QColor("#2e9e4f"), 16));
-    if (projectNameCancel_)
-      projectNameCancel_->setIcon(themedIcon("x", QColor("#d6293e"), 16));
-    // Browser-style name affordances: a ✎ rename pencil + a 🎨 colour icon, flat line-art
-    // glyphs in the theme text colour. Each carries a white twin in QIcon::Active (the mode
-    // Qt paints an auto-raise button in on hover), so the glyph turns white as the chip
-    // fills with the accent. A QIcon is the only way in — QSS cannot recolour an icon.
+    // Toolbuttons that aren't backed by a QAction. The rename ✓/✗ take the SAME chip as the
+    // ✎/🎨 they replace — accent-filled, white glyph, one size — rather than a green tick and
+    // a red cross in a ghost box: on the fill those colours read as a warning, not as the
+    // two halves of one edit (user decision, with a picture). The glyph is the chip's, a
+    // size up from the marks it swaps with, so the pair is unmistakable at a glance.
+    // Browser-style name affordances: a ✎ rename pencil + a 🎨 colour icon. Their chips are
+    // accent-FILLED (theme.cpp QToolButton[nameAffordance="true"]), so both glyphs are white
+    // at rest like every other filled button's — in the theme's ink one of them read as
+    // greyed-out beside its twin (user report, with a picture). The Active twin (the mode Qt
+    // paints an auto-raise button in on hover) is the same white, plus the light-accent halo
+    // every white-on-accent glyph takes. A QIcon is the only way in — QSS cannot recolour one.
+    const bool affordanceHalo =
+        accentNeedsGlyphShadow(themePalette(dark, settings_.accentColor).accent);
     const auto affordanceIcon = [&](const char* glyph) {
-      QIcon ic = themedIcon(glyph, iconColor, 15);
-      ic.addPixmap(themedIcon(glyph, QColor("#ffffff"), 15).pixmap(15, 15), QIcon::Active);
-      return ic;
+      // A PLAIN themedIcon, not a composed pixmap: the app-wide icon-motion filter traces a
+      // button's glyph back through QIcon::cacheKey (iconSet::iconRequestForKey), and a
+      // hand-built pixmap has no entry — so the ✎ never drew itself and the ✗ was never
+      // struck through on hover (user report). Nothing to compose any more either: these
+      // chips are accent-filled in every state, so the glyph is white throughout.
+      return themedIcon(glyph, QColor("#ffffff"), kNameChipGlyph, affordanceHalo);
     };
     if (projectNameEdit_) projectNameEdit_->setIcon(affordanceIcon("pencil"));
     if (projectColorBtn_) projectColorBtn_->setIcon(affordanceIcon("palette"));
+    if (projectNameAccept_) projectNameAccept_->setIcon(affordanceIcon("check"));
+    if (projectNameCancel_) projectNameCancel_->setIcon(affordanceIcon("x"));
     // blankColorBtn_'s icon is a live colour swatch (set in updateProjectTitle), not a themed glyph.
     // Both Draw toggles own their own glyph (support/faceSwap.hpp), so they are repainted
     // through their face — instantly, this is a theme change and not a toggle.
@@ -409,7 +422,10 @@ namespace stencil::gui {
     face.glyph = drawing ? QStringLiteral("stop") : QStringLiteral("play");
     face.label = want->iconText();   // the short toolbar word; the menus keep the long one
     face.iconSize = kToolIcon;
-    face.glyphColor = drawing ? QColor(Qt::white) : pal.accent;
+    face.gapPx = kFaceIconGap;   // air between glyph and word (see mainWindowHelpers.hpp)
+    // Idle: the theme's own ink, as every other label and glyph in the row (user decision) —
+    // the accent OUTLINE is what says this is the draw toggle. Running: white on the fill.
+    face.glyphColor = drawing ? QColor(Qt::white) : pal.textMain;
     face.textColor = face.glyphColor;
     face.halo = drawing && accentNeedsGlyphShadow(pal.accent);
     // The fill flip is hidden at the swap's pivot, where the face is invisible. It SETS the
@@ -440,6 +456,7 @@ namespace stencil::gui {
     face.glyph = rect ? QStringLiteral("rect") : QStringLiteral("line");
     face.label = rect ? QStringLiteral("Rect") : QStringLiteral("Line");
     face.iconSize = 16;   // a touch under kToolIcon: this glyph reads heavier than the rest
+    face.gapPx = kFaceIconGap;   // …and the same air before the word as its twin
     // On-accent white, like every other filled toolbar button (toolButtonIconColor) —
     // plus the light-accent halo those pick up too, for the same contrast reason.
     const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
@@ -500,15 +517,23 @@ namespace stencil::gui {
         b->update();
         continue;
       }
-      // No fill for the Settings ghosts, for a button tagged toolGhost (Fit to window), nor
-      // for a CHECKABLE toggle: on those the accent means "on" (browser #chat-btn /
-      // .active), so it comes from QToolButton:checked.
-      const QString fill = (sect.toString() == QLatin1String("Settings")
-                            || b->property("toolGhost").toBool() || a->isCheckable())
+      // No fill for a CHECKABLE toggle: there the accent means "on" (browser #chat-btn /
+      // .active), so it comes from QToolButton:checked. Everything else ACTS the moment it
+      // is pressed — Fit to window, the SETTINGS cluster's theme switch, shortcuts, visual
+      // styles and help included — and takes the fill every other such button has (user
+      // decision; browser twins: #zoom-fit, #theme-toggle, #settings-btn, #visuals-btn and
+      // #info-btn in css/components.css).
+      // …except Fullscreen, filled in BOTH states (browser #fullscreen-toggle): its glyph,
+      // not its fill, says which way the click goes.
+      const bool alwaysFilled = (a == actFullscreen_);
+      const QString fill = (a->isCheckable() && !alwaysFilled)
                                ? QString()
                                : (dangerIcons_.contains(a) ? QStringLiteral("danger")
                                                            : QStringLiteral("accent"));
       b->setProperty("toolFill", fill);
+      // …and what is left unfilled in that cluster wears its bordered ghost box.
+      b->setProperty("toolGhostBox",
+                     fill.isEmpty() && sect.toString() == QLatin1String("Settings"));
       const auto paint = [this, a, b] {
         const auto name = actionIconNames_.constFind(a);
         if (name != actionIconNames_.constEnd()) {

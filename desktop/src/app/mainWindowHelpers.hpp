@@ -25,6 +25,22 @@ namespace stencil::gui {
 
   // ── shared toolbar metrics ──
   inline constexpr int kToolIcon = 18;   // toolbar glyph box
+  // Air between the glyph and the word on the two FACE buttons (Start/Stop, Line/Rect).
+  // Qt's text-beside-icon gap is a fixed 4px and QSS `spacing` does nothing for a
+  // QToolButton, so the room is made in the icon RECT: the same glyph centred in a wider
+  // box hands the label its own air (browser twin: .btn-icon-text's `gap: 6px`).
+  inline constexpr int kFaceIconGap = 3;
+  // The ✎/🎨/✓/✗ chips beside the project name: the box, and the glyph in it. Half again
+  // the mark they carried before — at 17 in a 28 box the pair read as small, faint marks
+  // (user decision, with pictures of both surfaces). Browser twin: .name-edit-btn.
+  inline constexpr int kNameChipBox = 28;
+  // Half the box, as the browser's .name-edit-btn draws it (28px chip, 14px glyph): at 21
+  // the mark filled its chip edge to edge and the pair read as heavy blocks beside the
+  // name (user decision, with the two surfaces side by side).
+  inline constexpr int kNameChipGlyph = 15;
+  // The ✓/✗ that replace them in edit mode are the SAME chip, glyph included: a smaller
+  // pair read as faint, half-there marks beside the field (user decision, after trying both
+  // bigger and smaller). One size for all four, so edit mode never resizes the row.
   inline constexpr int kToolRowH = 33;   // icon-button height; every section row matches it
   // The "Controls" pill's chevron sits BESIDE its label, so it is sized against
   // the text (a toolbar-sized 18 px glyph towered over it).

@@ -64,6 +64,7 @@ namespace stencil::gui {
   inline constexpr const char* kFaceGlyphColorProperty = "stencilFaceGlyphColor";
   inline constexpr const char* kFaceTextColorProperty = "stencilFaceTextColor";
   inline constexpr const char* kFaceIconSizeProperty = "stencilFaceIconSize";
+  inline constexpr const char* kFaceGapProperty = "stencilFaceGap";
   inline constexpr const char* kFaceHaloProperty = "stencilFaceHalo";
   inline constexpr const char* kFaceBaseSheetProperty = "stencilFaceBaseSheet";
   inline constexpr const char* kFaceLabelColorProperty = "stencilFaceLabelColor";
@@ -75,6 +76,10 @@ namespace stencil::gui {
     QColor glyphColor;    // the glyph's tint at rest
     QColor textColor;     // the label's colour at rest; invalid = don't touch the colour
     int iconSize = 16;
+    // Transparent air carried on the glyph's RIGHT, so the label is not welded to it. Qt's
+    // text-beside-icon gap is a fixed 4px (pixmap width + 4) and QSS `spacing` does nothing
+    // for a QToolButton, so the room has to be in the PIXMAP (user report, with a picture).
+    int gapPx = 0;
     bool halo = false;    // dark halo under a white glyph on a light accent
   };
 
@@ -116,6 +121,21 @@ namespace stencil::gui {
 
   namespace detail {
 
+    // The same glyph in a wider, left-aligned box: `gap` px of transparent air on its
+    // right, which is where the label's breathing room comes from (see FaceSpec::gapPx).
+    inline QIcon withGap(const QIcon& base, int size, int gap) {
+      if (base.isNull() || gap <= 0) return base;
+      const qreal dpr = qApp ? qApp->devicePixelRatio() : qreal(1);
+      const QPixmap src = base.pixmap(QSize(size, size), dpr);
+      QPixmap out(QSize(int(std::lround((size + gap) * dpr)), int(std::lround(size * dpr))));
+      out.setDevicePixelRatio(dpr);
+      out.fill(Qt::transparent);
+      QPainter p(&out);
+      p.drawPixmap(QPointF(0, 0), src);
+      p.end();
+      return QIcon(out);
+    }
+
     // The glyph turned, shrunk and faded. rotatedIcon bakes the colour into the SVG and
     // QColor::name() drops alpha, so the fade and the scale are composited here.
     inline QIcon faceIcon(const FaceSpec& f, const FaceSwapFrame& fr) {
@@ -124,7 +144,7 @@ namespace stencil::gui {
                              ? themedIcon(f.glyph, f.glyphColor, size, f.halo)
                              : rotatedIcon(f.glyph, f.glyphColor, size, fr.deg);
       if (base.isNull()) return base;
-      if (fr.alpha >= 0.999 && fr.scale >= 0.999) return base;
+      if (fr.alpha >= 0.999 && fr.scale >= 0.999) return withGap(base, size, f.gapPx);
       const qreal dpr = qApp ? qApp->devicePixelRatio() : qreal(1);
       const QPixmap src = base.pixmap(QSize(size, size), dpr);
       QPixmap out(src.size());
@@ -193,6 +213,7 @@ namespace stencil::gui {
       btn->setProperty(kFaceGlyphColorProperty, f.glyphColor);
       btn->setProperty(kFaceTextColorProperty, f.textColor);
       btn->setProperty(kFaceIconSizeProperty, f.iconSize);
+      btn->setProperty(kFaceGapProperty, f.gapPx);
       btn->setProperty(kFaceHaloProperty, f.halo);
     }
 
@@ -206,6 +227,7 @@ namespace stencil::gui {
       f.glyphColor = btn->property(kFaceGlyphColorProperty).value<QColor>();
       f.textColor = btn->property(kFaceTextColorProperty).value<QColor>();
       f.iconSize = btn->property(kFaceIconSizeProperty).toInt();
+      f.gapPx = btn->property(kFaceGapProperty).toInt();
       f.halo = btn->property(kFaceHaloProperty).toBool();
       return f;
     }
@@ -217,7 +239,8 @@ namespace stencil::gui {
     }
 
     inline void settleFace(QAbstractButton* btn, const FaceSpec& f) {
-      btn->setIcon(themedIcon(f.glyph, f.glyphColor, std::max(1, f.iconSize), f.halo));
+      btn->setIcon(withGap(themedIcon(f.glyph, f.glyphColor, std::max(1, f.iconSize), f.halo),
+                           std::max(1, f.iconSize), f.gapPx));
       if (!f.label.isNull()) btn->setText(f.label);
       clearLabelAlpha(btn);
       rememberFace(btn, f);

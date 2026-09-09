@@ -361,3 +361,50 @@ test('the closing bar zeroes its padding and divider, not just its height', () =
   }
   assert.match(css, /\.bar-held \{[^}]*overflow: hidden/, 'the held slot clips its contents');
 });
+
+// A cloud is parented to <body> so it clears the scroller it was started in — which means
+// it OUTLIVES the window that started it: removing a project and closing the window left
+// its motes coming apart mid-air over the page (user report). Every window sweeps its own
+// on the way out; its own close flight starts after that, so it is never caught.
+test('sweepDust takes down the clouds a window started, and only those', async () => {
+  const { sweepDust } = await import('../js/ui/motion.js');
+  const made = [];
+  const host = (scope) => {
+    const stopped = { stopped: false };
+    const el = {
+      className: 'disintegrate-host',
+      dataset: scope ? { dustScope: scope } : {},
+      __stop: () => { stopped.stopped = true; },
+      remove: () => { el.removed = true; },
+      removed: false,
+      stopped,
+    };
+    made.push(el);
+    return el;
+  };
+  const mine = host('projects-modal-overlay');
+  const alsoMine = host('projects-modal-overlay');
+  const anothers = host('connect-modal-overlay');
+  const loose = host(null);
+  const realDoc = globalThis.document;
+  globalThis.document = { querySelectorAll: () => made };
+  try {
+    assert.strictEqual(sweepDust('projects-modal-overlay'), 2, 'both of that window\'s clouds');
+    assert.ok(mine.removed && mine.stopped.stopped, 'the layer goes, and its loop stops first');
+    assert.ok(alsoMine.removed);
+    assert.ok(!anothers.removed, 'another window\'s cloud is left alone');
+    assert.ok(!loose.removed, '…and so is one that belongs to no window');
+    assert.strictEqual(sweepDust(null), 0, 'no scope, nothing swept');
+    assert.strictEqual(sweepDust({ id: 'connect-modal-overlay' }), 1, 'an element works too');
+  } finally {
+    globalThis.document = realDoc;
+  }
+});
+
+// …and the shell is what calls it: every window closes the same way (base.js close()).
+test('every modal shell sweeps its own dust as it closes', () => {
+  const base = read('../js/ui/base.js');
+  assert.match(base, /const close = \(\) => \{[\s\S]{0,400}sweepDust\(overlay\);/,
+    'the shared close sweeps, so no window has to remember to');
+  assert.match(base, /import \{[^}]*sweepDust[^}]*\} from '\.\/motion\.js'/);
+});

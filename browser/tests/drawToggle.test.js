@@ -41,8 +41,8 @@ test('the draw toggle is accent, not the green button.active', () => {
     assert.ok(!/#[0-9a-fA-F]{3,6}\b(?!f)/.test(b.body.replace(/#fff\b/g, '')),
       `no hard-coded colour in ${b.sel} — the accent is the user's to change`);
   }
-  assert.match(layoutCss, /#draw-toggle:not\(:disabled\) \{[^}]*background: transparent;[^}]*border-color: var\(--accent\);[^}]*color: var\(--accent\)/,
-    'idle: outlined — accent border + accent glyph on a transparent face');
+  assert.match(layoutCss, /#draw-toggle:not\(:disabled\) \{[^}]*background: transparent;[\s\S]*?border-color: var\(--ui-outline\);[\s\S]*?color: var\(--text-main\)/,
+    'idle: the plain UI outline and the theme\'s own ink — the accent is the RUNNING state');
   assert.match(layoutCss, /#draw-toggle\.active:not\(:disabled\) \{[^}]*background: var\(--accent\)/,
     'drawing: accent-FILLED');
 });

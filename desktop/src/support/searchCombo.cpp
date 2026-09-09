@@ -1,5 +1,7 @@
 #include "searchCombo.hpp"
-#include "menuReveal.hpp"   // support::revealPopup / dismissPopup — the shared surface dust
+#include "menuReveal.hpp"       // support::revealPopup / dismissPopup — the shared surface dust
+#include "rowHoverSlide.hpp"    // the hovered row eases 2px right (browser .accent-dd-opt:hover)
+#include "shimmerOverlay.hpp"   // …and takes the app's glass sweep with it
 
 #include <QEvent>
 #include <QKeyEvent>
@@ -113,6 +115,11 @@ namespace stencil::gui {
     // Hover-highlight rows like .accent-dd-opt:hover (QSS ::item:hover needs it).
     list_->setMouseTracking(true);
     if (delegate_) list_->setItemDelegate(delegate_);
+    // The two hover treatments every other item in the app has, which these rows were
+    // missing entirely (user report): the glass sweep, and the 2px ease right. The slide
+    // WRAPS whatever delegate is installed, so a popup with its own painter keeps it.
+    installRowShimmer(list_);
+    installRowHoverSlide(list_);
     list_->setFocusPolicy(searchable_ ? Qt::NoFocus : Qt::StrongFocus);   // keys go to
     if (!searchable_) list_->installEventFilter(this);                    // whoever has focus
     // Hover preview: resting on a row live-applies its value (repaint only); leaving the
@@ -217,7 +224,9 @@ namespace stencil::gui {
   // current item highlighted, focus in the search field.
   void SearchComboBox::setListDelegate(QAbstractItemDelegate* delegate) {
     delegate_ = delegate;
-    if (list_) list_->setItemDelegate(delegate);
+    if (!list_) return;
+    list_->setItemDelegate(delegate);
+    installRowHoverSlide(list_);   // …re-wrapped around the new painter, never stacked
   }
 
   QListView* SearchComboBox::popupList() {

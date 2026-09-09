@@ -94,6 +94,11 @@ namespace stencil::gui {
           // button itself went away).
           grace_->stop();
           stop();
+          // …and the RESTING mark goes with the button. stop() returns early when no loop
+          // was running, so a logo hidden while the overlay merely SAT there (fullscreen
+          // hides the header row) left the mark floating over whatever took its place —
+          // it covered the label beside it (user report, with a picture).
+          if (!logo_ || !logo_->isVisible()) hide();
           break;
         case QEvent::Move:
         case QEvent::Resize:
@@ -237,6 +242,12 @@ namespace stencil::gui {
   void LogoHoverFx::syncGeometry() {
     const QPoint tl = logo_->mapTo(parentWidget(), QPoint(0, 0));
     setGeometry(QRect(tl, logo_->size()).adjusted(-kMargin, -kMargin, kMargin, kMargin));
+    // …and the mark goes wherever the button has gone. Fullscreen's edge reveal SLIDES the
+    // toolbars' height instead of hiding them, so the logo is clipped away without a Hide
+    // event ever arriving — the mark hung on over whatever the collapsed row uncovered,
+    // and nothing could take it down (user report, with a picture). visibleRegion() is the
+    // honest question: is any of the button actually on screen?
+    if (logo_->visibleRegion().isEmpty()) hide();
   }
 
 }  // namespace stencil::gui

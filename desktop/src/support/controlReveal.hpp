@@ -12,6 +12,7 @@
 //
 // Header-only and Q_OBJECT-free (no signals/slots of its own), so it needs no MOC.
 #include "disintegrateOverlay.hpp"
+#include "filterFade.hpp"    // kFilterDustObjectName — an arrival's cloud counts too
 #include "modalReveal.hpp"   // support::motionReduced()
 
 #include <QAbstractAnimation>
@@ -61,6 +62,12 @@ namespace stencil::gui {
   // The owner's handle on its one in-flight cloud, so settleReveal is O(1) instead of
   // a findChildren scan of the whole window (it runs several times per canvas edit).
   inline constexpr const char* kRevealFxProperty = "stencilRevealFx";
+  // …and the layout's own maximumWidth, parked while a slide holds it at 0 (see parkMaxWidth).
+  inline constexpr const char* kRevealMaxWidthProperty = "stencilRevealSavedMax";
+  // The width slide and its direction: one going the wrong way must be cancelled before the
+  // next reveal, or its finished handler undoes that call.
+  inline constexpr const char* kRevealSlideProperty = "stencilRevealSlide";
+  inline constexpr const char* kRevealOpeningProperty = "stencilRevealOpening";
 
   namespace ctl {
 
@@ -80,11 +87,37 @@ namespace stencil::gui {
                        [w] { w->setProperty(kRevealFxProperty, QVariant()); });
     }
 
-    // Drop whatever `w` has in flight, veil included, leaving its visibility untouched.
+    // The cap the LAYOUT owns, parked while a slide holds maximumWidth at 0 — read back from
+    // here, or an interleaved reveal hands the 0 back as the widget's permanent width.
+    inline int parkMaxWidth(QWidget* w) {
+      const QVariant had = w->property(kRevealMaxWidthProperty);
+      const int natural = had.isValid() ? had.toInt() : w->maximumWidth();
+      w->setProperty(kRevealMaxWidthProperty, natural);
+      return natural;
+    }
+    inline void handBackMaxWidth(QWidget* w, int natural) {
+      w->setMaximumWidth(natural);
+      w->setProperty(kRevealMaxWidthProperty, QVariant());
+    }
+
+    // `w`'s one in-flight width slide. Deleting a running animation emits no finished(),
+    // so a cancelled slide never runs its handler.
+    inline void trackSlide(QWidget* w, QObject* anim, bool opening) {
+      anim->setProperty(kRevealOpeningProperty, opening);
+      w->setProperty(kRevealSlideProperty, QVariant::fromValue<QObject*>(anim));
+      QObject::connect(anim, &QObject::destroyed, w,
+                       [w] { w->setProperty(kRevealSlideProperty, QVariant()); });
+    }
+
+    // Drop whatever `w` has in flight, veil included, leaving its visibility untouched —
+    // and give the layout its width cap back, however the slide ended.
     inline void settleReveal(QWidget* w) {
       if (!w) return;
       delete w->property(kRevealFxProperty).value<QObject*>();  // destroyed() clears the handle
+      delete w->property(kRevealSlideProperty).value<QObject*>();
       if (w->graphicsEffect()) w->setGraphicsEffect(nullptr);
+      const QVariant parked = w->property(kRevealMaxWidthProperty);
+      if (parked.isValid()) handBackMaxWidth(w, parked.toInt());
     }
 
     // The picture that flies is the CONTROLS, never the strip behind them. QWidget::grab()
@@ -172,6 +205,9 @@ namespace stencil::gui {
   // and set visibility outright, no flight either way.
   inline void revealControls(QWidget* w, bool show, bool dust = true) {
     if (!w) return;
+    // A slide running the other way is stale: drop it, and the cap it holds, first.
+    if (QObject* slide = w->property(kRevealSlideProperty).value<QObject*>())
+      if (slide->property(kRevealOpeningProperty).toBool() != show) ctl::settleReveal(w);
     if (w->isVisibleTo(w->parentWidget()) == show) { w->setVisible(show); return; }
     ctl::settleReveal(w);
     if (!dust) { w->setVisible(show); return; }
@@ -187,7 +223,7 @@ namespace stencil::gui {
       const QPixmap pm = ctl::groupShot(w);
       const QRect at(w->mapTo(host, QPoint(0, 0)), w->size());
       const int naturalW = w->width();
-      const int savedMax = w->maximumWidth();
+      const int savedMax = ctl::parkMaxWidth(w);
       ctl::flyReveal(w, pm, at, /*gather=*/false, kControlRevealOutMs);
       auto* shrink = new QPropertyAnimation(w, kMaxWidthProperty, w);
       shrink->setDuration(kControlRevealOutMs);
@@ -201,15 +237,16 @@ namespace stencil::gui {
       QObject::connect(shrink, &QPropertyAnimation::finished, w, [guard, savedMax] {
         if (!guard) return;
         guard->setVisible(false);
-        guard->setMaximumWidth(savedMax);   // hand sizing back to the layout
+        ctl::handBackMaxWidth(guard, savedMax);   // hand sizing back to the layout
       });
+      ctl::trackSlide(w, shrink, /*opening=*/false);
       shrink->start(QAbstractAnimation::DeleteWhenStopped);
       return;
     }
     // Going the other way the group has no geometry yet, so both the opacity veil AND
     // the width start at zero BEFORE Show — nothing is ever painted at full strength or
     // full width first.
-    const int savedMax = w->maximumWidth();
+    const int savedMax = ctl::parkMaxWidth(w);
     w->setMaximumWidth(0);
     auto* veil = new QGraphicsOpacityEffect(w);
     veil->setOpacity(0.0);
@@ -220,7 +257,11 @@ namespace stencil::gui {
     QTimer::singleShot(0, w, [guard, veilGuard, savedMax] {
       if (!guard || !veilGuard || guard->graphicsEffect() != veilGuard) return;
       QWidget* host = guard->window();
-      if (!guard->isVisible() || !host) { guard->setGraphicsEffect(nullptr); return; }
+      if (!guard->isVisible() || !host) {
+        guard->setGraphicsEffect(nullptr);
+        ctl::handBackMaxWidth(guard, savedMax);
+        return;
+      }
       // Detached for the grab: a QGraphicsEffect's cached source can outlive a
       // same-turn setOpacity(), and grabbing through it risked a stale (black) frame.
       // The width is lifted the same way, just for the one measurement.
@@ -249,7 +290,7 @@ namespace stencil::gui {
       QPointer<QGraphicsOpacityEffect> freshVeilGuard(freshVeil);
       if (!ctl::flyReveal(guard, pm, at, /*gather=*/true, kControlRevealInMs)) {
         guard->setGraphicsEffect(nullptr);
-        guard->setMaximumWidth(savedMax);
+        ctl::handBackMaxWidth(guard, savedMax);
         return;
       }
       auto* fade = new QPropertyAnimation(freshVeilGuard, "opacity", freshVeilGuard);
@@ -266,8 +307,9 @@ namespace stencil::gui {
       grow->setStartValue(0);
       grow->setEndValue(naturalW);
       grow->setEasingCurve(QEasingCurve::OutCubic);
+      ctl::trackSlide(guard, grow, /*opening=*/true);
       QObject::connect(grow, &QPropertyAnimation::finished, guard, [guard, savedMax] {
-        if (guard) guard->setMaximumWidth(savedMax);   // hand sizing back to the layout
+        if (guard) ctl::handBackMaxWidth(guard, savedMax);   // hand sizing back to the layout
       });
       grow->start(QAbstractAnimation::DeleteWhenStopped);
     });
@@ -402,12 +444,17 @@ namespace stencil::gui {
     });
   }
 
-  // Stop every cloud still in the air over `host` — a row's removal dust, a bar's controls
-  // coming or going. Called as a dialog closes: the close flight re-photographs it as it
-  // hides (modalReveal), and a live cloud would be carried on after the window is gone.
+  // Stop every cloud still in the air over `host` — a row's removal dust, a row ARRIVING
+  // out of the filter's sand, a bar's controls coming or going. Called as a dialog closes
+  // (the close flight re-photographs it as it hides — modalReveal — and a live cloud would
+  // be carried on after the window is gone) and whenever the layout under the clouds is
+  // pulled away: entering or leaving fullscreen hides every toolbar, and a cloud started
+  // by one of those controls was left flying over the bare canvas (user report, with a
+  // picture).
   inline void stopDustClouds(QWidget* host) {
     if (!host) return;
-    for (const char* name : {DisintegrateOverlay::kObjectName, kControlRevealObjectName})
+    for (const char* name : {DisintegrateOverlay::kObjectName, kControlRevealObjectName,
+                             kFilterDustObjectName})
       for (QWidget* fx : host->findChildren<QWidget*>(QString::fromLatin1(name))) {
         fx->hide();   // excluded from the ghost's render immediately; deleted safely after
         fx->deleteLater();

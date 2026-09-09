@@ -2153,7 +2153,11 @@ export class DrawingApp {
       const colorBtn = document.getElementById('project-color-btn');
       if (colorBtn && !this.nameEditing) {
         colorBtn.style.display = editable ? '' : 'none';
-        colorBtn.style.color = projColor || 'var(--text-muted)';
+        // The chip is accent-FILLED, so its glyph is white like the pencil's beside it when
+        // the project has no colour of its own — muted grey on the accent read as disabled
+        // (user report, with a picture). A project WITH a colour still wears it: that is
+        // what the control says.
+        colorBtn.style.color = projColor || '#fff';
       }
     }
     // Outside edit mode (no project, incognito, post-commit, click-away) the ✓/✗

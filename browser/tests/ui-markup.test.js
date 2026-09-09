@@ -27,7 +27,7 @@ const IDS = [
     'ctx-filter-radios', 'ctx-tint-row', 'ctx-tint-color', 'ctx-transform-menu', 'ctx-transform-sub',
     'ctx-allow-formulas', 'ctx-formula-inputs', 'ctx-formula-x', 'ctx-formula-y', 'ctx-formula-error',
     'ctx-tooltip-menu', 'ctx-tooltip-sub', 'ctx-tt-enabled', 'ctx-tt-page', 'ctx-tt-screen', 'ctx-tt-coords',
-    'fs-top-trigger', 'fs-right-trigger', 'fs-controls-panel', 'fs-exit-btn', 'fs-selection-panel',
+    'fs-top-trigger', 'fs-right-trigger', 'fs-controls-panel', 'fs-selection-panel',
     'fs-points-panel', 'global-drop-overlay', 'toggle-controls', 'hints-btn', 'hints-popup', 'controls-body',
     'image-filter', 'filter-color', 'crop-image', 'line-color', 'line-thickness',
     'point-size', 'line-style', 'draw-toggle', 'draw-mode-toggle', 'undo', 'redo', 'show-points',
@@ -82,8 +82,8 @@ const IDS = [
     'keywords-overlay', 'keywords-close', 'keywords-text', 'keywords-cancel', 'keywords-save'
 ];
 
-test('fixture has exactly 260 IDs', () => {
-    assert.strictEqual(IDS.length, 260);
+test('fixture has exactly 259 IDs', () => {
+    assert.strictEqual(IDS.length, 259);   // -1: fullscreen's own Exit button is gone
 });
 
 test('every static body ID is present exactly once', () => {

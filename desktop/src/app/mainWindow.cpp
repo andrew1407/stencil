@@ -88,6 +88,7 @@
 #include "../support/disintegrateOverlay.hpp"  // the canvas scatters when cleared
 #include "../support/controlSwap.hpp"         // checkbox particles + combo value swap
 #include "../support/controlReveal.hpp"        // a group of fields comes and goes as sand
+#include "../support/wrapRow.hpp"               // the tool rows wrap, so their height follows the width
 #include "../support/dockGrip.hpp"             // animated canvas↔panel separator grip
 #include "../support/modalChrome.hpp"          // confirmModal — the browser-styled question
 #include "../support/iconMotion.hpp"          // the per-icon hover motion
@@ -182,7 +183,7 @@ namespace stencil::gui {
     // accepted verbatim, and it pins the old row extents — which left the new
     // SETTINGS section past the end of a restored row, invisible behind the
     // toolbar's "»" (a separator at the right edge and nothing after it).
-    constexpr int kToolbarLayoutVersion = 5;   // v5: name group folded into one container action
+    constexpr int kToolbarLayoutVersion = 6;   // v6: the four tool rows folded into one wrapping run
 
     // How long the chat takes to LEAVE: the dock's edge slide (setChatShown) and
     // a floating window's flight into the icon (modalReveal kCloseMs). The
@@ -3518,7 +3519,17 @@ namespace stencil::gui {
     auto release = [bars] {
       for (QToolBar* b : bars) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); }
     };
-    // Natural height each bar should expand to (measure before we start clamping them).
+    // Natural height each bar expands to. The rows wrap, so it follows the width they are
+    // about to have — and a hidden bar's sizeHint carries the height pinned at the OLD one,
+    // so the show path lets the layout hand them the real width before measuring.
+    if (show) {
+      release();
+      for (QToolBar* b : bars) b->show();
+      if (QLayout* l = layout()) l->activate();
+      for (QToolBar* b : bars)
+        if (WrapRow* row = wrapRowIn(b)) row->remeasure();
+      if (QLayout* l = layout()) l->activate();
+    }
     int full = 0;
     for (QToolBar* b : bars) full = std::max(full, b->sizeHint().height());
     if (full <= 0) full = 40;
@@ -3552,9 +3563,15 @@ namespace stencil::gui {
   }
 
   void MainWindow::toggleFullscreen() {
+    // Whatever is in the air goes first, both ways: the switch hides (or brings back) every
+    // toolbar, and a cloud started by one of those controls was left flying over the bare
+    // canvas, belonging to nothing (user report, with a picture).
+    stopDustClouds(this);
     if (fsActive_) {
       // Exit: stop the hover poll and restore the top menu + points panel (right, as before).
       fsActive_ = false;
+      syncFullscreenGlyph();
+      markFullscreenBars(false);
       if (fsHoverTimer_) fsHoverTimer_->stop();
       // Cancel any in-flight edge-hover slide and release the pinned toolbar heights so the restore
       // below starts from a clean state (a leftover animation / fixed height would fight it).
@@ -3567,6 +3584,10 @@ namespace stencil::gui {
       if (menuBar()) menuBar()->setVisible(true);
       if (status_) status_->setVisible(true);     // restore the coord readout
       if (dropHint_) dropHint_->setVisible(true);  // …and the drag & drop hint (browser: .drop-hint)
+      // …and the size readout, DOCK included: its height is pinned, so hiding only the bar
+      // inside it left an empty band above the canvas.
+      if (imageInfoHost_) imageInfoHost_->setVisible(true);
+      if (imageInfoDock_) imageInfoDock_->setVisible(true);
       // The header row (Controls pill + project name) ALWAYS returns — it's the only way to re-show
       // the tool rows, so it must never stay hidden. The tool rows restore to their pre-fullscreen
       // shown/collapsed state (setToolbarsShown keeps the header, unlike setToolbarsVisible).
@@ -3592,11 +3613,18 @@ namespace stencil::gui {
       if (menuBar()) menuBar()->setVisible(false);
       if (status_) status_->setVisible(false);     // hide the coord readout so the canvas fills the screen
       if (dropHint_) dropHint_->setVisible(false);  // …and the hint (browser: .fullscreen-mode .drop-hint)
+      // …and the image-size readout, which belongs to the tool rows: in fullscreen the
+      // browser shows the canvas and nothing else, and this line sat over it (user report,
+      // with a picture). It comes back with the rows on exit (refreshStatusHintVisibility).
+      if (imageInfoHost_) imageInfoHost_->setVisible(false);
+      if (imageInfoDock_) imageInfoDock_->setVisible(false);   // …its pinned band with it
       if (selPanel_->isVisible() && selPanel_->width() > 120) panelRestoreWidth_ = selPanel_->width();
       selPanel_->setVisible(false);   // hidden in fullscreen; revealed on right-edge hover
       fsBarsShown_ = false;
       fsPanelShown_ = false;
       fsActive_ = true;
+      syncFullscreenGlyph();
+      markFullscreenBars(true);
       beginFullscreenZoom();
       showFullScreen();
       setFocus(Qt::OtherFocusReason);   // help key events reach us for the Escape-exits path
@@ -3619,7 +3647,16 @@ namespace stencil::gui {
     // the top band, keep them while it stays within the taller keep-zone. Drive off the tracked target
     // (fsBarsShown_), NOT live isVisible(): during an animated hide the bars stay visible until the
     // slide ends, so reading isVisible() here would restart the hide every 50ms tick (that's flicker).
-    const int tbBand = 150;   // keep-zone once shown (approx combined toolbar-row height)
+    // The keep-zone is the REVEALED ROWS THEMSELVES, not a guessed band: at a fixed 150px
+    // the cursor left the zone while still ON the lower rows and the menu slid shut under
+    // it — before it had even reached the row it was heading for (user report). Measured
+    // from the visible tool rows (plus a little grace below them, so crossing a 1px gap
+    // between rows never counts as leaving), and never smaller than the reveal band.
+    int tbBand = 0;
+    for (QToolBar* b : findChildren<QToolBar*>())
+      if (b != headerToolbar_ && b->isVisible())
+        tbBand = std::max(tbBand, b->mapTo(this, QPoint(0, b->height())).y());
+    tbBand = std::max(tbBand + 24, 150);
     // The reveal band (only checked while hidden). On macOS the very top strip is grabbed by the
     // auto-revealing system menu bar, so start the band LOWER (clear that chrome) and make it SHORTER —
     // a slim hot-zone just below the menu bar. Elsewhere the whole top edge is ours.
@@ -3631,7 +3668,14 @@ namespace stencil::gui {
     const bool wantTb = fsBarsShown_ ? (p.y() < tbBand) : (p.y() > revealTop && p.y() < revealBot);
     if (wantTb != fsBarsShown_) {
       fsBarsShown_ = wantTb;
-      animateBarsHeight(findChildren<QToolBar*>(), wantTb);   // reuse the pill's smooth height slide
+      // The TOOL rows only — the header row (logo + project name + the Controls pill) stays
+      // away for the whole session, as the browser's fullscreen does: it shows the control
+      // sections and nothing else (user decision, with a picture). It is also what stranded
+      // the logo's mark, which is painted by an overlay that the row's slide clips away.
+      QList<QToolBar*> bars;
+      for (QToolBar* b : findChildren<QToolBar*>())
+        if (b != headerToolbar_) bars.append(b);
+      animateBarsHeight(bars, wantTb);   // reuse the pill's smooth height slide
     }
 
     // Right points panel: reveal it when the cursor hits the right edge (a generous 28px band, not
@@ -3639,7 +3683,10 @@ namespace stencil::gui {
     // right third of the window — a wide keep-zone so dragging the dock splitter to RESIZE the panel
     // (setPanelShown's finish() releases the fixed width, so the splitter is draggable) doesn't stray
     // out of the zone and auto-hide the panel mid-drag.
-    const int pnlKeep = std::max(w / 3, (selPanel_->isVisible() ? selPanel_->width() : 0) + 140);
+    // …and the panel's keep-zone is the panel itself, the same way: its own width plus the
+    // grace, never narrower than a third of the window (the splitter-drag allowance).
+    const int panelW = selPanel_->isVisible() ? selPanel_->width() : 0;
+    const int pnlKeep = std::max(w / 3, panelW + 140);
     const bool wantPnl = fsPanelShown_ ? (p.x() > w - pnlKeep) : (p.x() > w - 28);
     if (wantPnl != fsPanelShown_) {
       fsPanelShown_ = wantPnl;
@@ -6587,6 +6634,27 @@ namespace stencil::gui {
 
   // Pins imageInfoDock_'s own height too, not just its content's — otherwise QMainWindow
   // still treats it as resizable and draws a drag grip above the canvas for nothing.
+  // Brackets OUT to enter fullscreen, IN to leave it (browser twin: fullscreenLayer.js).
+  // The button repaints off actionIconNames_ on the icon change, keeping its glyph white.
+  void MainWindow::syncFullscreenGlyph() {
+    if (!actFullscreen_) return;
+    const QString name = fsActive_ ? QStringLiteral("minimize") : QStringLiteral("maximize");
+    actionIconNames_.insert(actFullscreen_, name);
+    const QColor ink = toolButtonIconColor(actFullscreen_, iconColor_);
+    actFullscreen_->setIcon(themedIcon(name, ink, kToolIcon, toolButtonIconHalo(ink)));
+  }
+
+  // A deeper bottom band while the rows hang over the canvas (theme.cpp QToolBar[fsBar]).
+  // Qt matches property selectors at polish time, so the flag needs a re-polish.
+  void MainWindow::markFullscreenBars(bool on) {
+    for (QToolBar* b : findChildren<QToolBar*>()) {
+      if (b == headerToolbar_) continue;
+      b->setProperty("fsBar", on);
+      b->style()->unpolish(b);
+      b->style()->polish(b);
+    }
+  }
+
   void MainWindow::syncImageInfoDockHeight() {
     if (!imageInfoDock_ || !imageInfoHost_) return;
     imageInfoDock_->setFixedHeight(imageInfoHost_->sizeHint().height());
@@ -6902,16 +6970,38 @@ namespace stencil::gui {
     const bool editable = projectName_->isEnabled();
     // Toggle the QWidgetActions (not the widgets) so the toolbar actually re-lays-out. In edit
     // mode only ✓/✗ show; out of it only ✎ + 🎨 show — exactly like the browser topbar.
-    projectNameAccept_->setVisible(nameEditing_);
-    projectNameCancel_->setVisible(nameEditing_);
+    // They arrive and leave as SAND, like the browser's ✓/✗ (markIn / markOut) — a bare
+    // setVisible blinked them in and out (user report). revealControls is a no-op when the
+    // state already matches, so refreshActions may call this as often as it likes.
+    revealControls(projectNameAccept_, nameEditing_);
+    revealControls(projectNameCancel_, nameEditing_);
     // ✎/🎨 reveal only on name-group hover (✓/✗ replace them while editing) and
     // must not MOVE anything: they keep their slots and are merely painted out —
     // the browser's `visibility: hidden`. Removing slots shoved the "?" sideways.
     const bool affordable = editable && !nameEditing_;
-    if (projectNameEdit_) projectNameEdit_->setVisible(affordable);
-    if (projectColorBtn_) projectColorBtn_->setVisible(affordable);
-    setPaintedOut(projectNameEdit_, affordable && !nameHover_);
-    setPaintedOut(projectColorBtn_, affordable && !nameHover_);
+    const auto placeAffordances = [this](bool on) {
+      if (projectNameEdit_) projectNameEdit_->setVisible(on);
+      if (projectColorBtn_) projectColorBtn_->setVisible(on);
+      setPaintedOut(projectNameEdit_, on && !nameHover_);
+      setPaintedOut(projectColorBtn_, on && !nameHover_);
+    };
+    if (!affordable) {
+      placeAffordances(false);
+    } else if (projectNameEdit_ && projectNameEdit_->isVisible()) {
+      placeAffordances(true);   // already there: nothing is coming or going
+    } else {
+      // Leaving edit mode: the ✓/✗ are still sliding out, and giving ✎/🎨 their slots now
+      // put all four in the row at once — it widened and the pair appeared BESIDE the marks
+      // still flying instead of in their place (user report, with a picture). Wait for the
+      // slots to close, then take them; re-checked on arrival, since anything may have
+      // changed in the meantime.
+      QPointer<MainWindow> self(this);
+      QTimer::singleShot(kControlRevealOutMs, this, [self, placeAffordances] {
+        if (!self) return;
+        placeAffordances(self->projectName_ && self->projectName_->isEnabled()
+                         && !self->nameEditing_);
+      });
+    }
     // Blank-colour button: shown only when this session is a blank image (recolourable), regardless
     // of whether it's a saved/editable project (in-memory recolour works for unsaved blanks too).
     // Paint its icon as a live swatch of the current fill colour.
@@ -7152,10 +7242,26 @@ namespace stencil::gui {
                   "QLineEdit:focus{border:1px solid %2;}")
               .arg(fg, accent.name()));
     } else {
+      // A TITLE at rest — no box — that rings under the pointer, exactly as the browser's
+      // read-only #project-name-input does (transparent border, the field ring on hover).
+      // The ring has to live HERE: this per-widget sheet outranks the app-wide one for
+      // every property it names, so the themed `QLineEdit#projectNameField:hover` never got
+      // a look in and the title stayed inert (user report, three times over — the rule was
+      // in the stylesheet, just not the stylesheet that wins).
+      // The ring is the shared one: the accent at the ring's own strength, which is what the
+      // browser's two stacked 45% layers come to on screen — the solid accent read far
+      // brighter than the browser's beside it (user report).
+      const QColor accent = accentPrimary(settings_.accentColor);
+      const QString ring = QString("rgba(%1,%2,%3,0.45)")
+                               .arg(accent.red())
+                               .arg(accent.green())
+                               .arg(accent.blue());
       projectName_->setStyleSheet(
-          QString("QLineEdit{color:%1;font-weight:600;border:1px solid transparent;background:transparent;}"
+          QString("QLineEdit{color:%1;font-weight:600;border:1px solid transparent;"
+                  "border-radius:6px;background:transparent;padding:3px 8px;}"
+                  "QLineEdit:hover{border:2px solid %2;padding:2px 7px;}"
                   "QLineEdit:focus{border:1px solid transparent;}")
-              .arg(fg));
+              .arg(fg, ring));
     }
   }
 

@@ -85,7 +85,13 @@ namespace stencil::gui {
         if (!testOnly) {
           for (int i = 0; i < rowItems.size(); ++i) {
             const QSize sz = rowSize[i];
-            rowItems[i]->setGeometry(QRect(rowX[i], y + (lineHeight - sz.height()) / 2, sz.width(), sz.height()));
+            // An item asking to expand vertically takes the whole line rather than being
+            // centred in it — the browser's `align-self: stretch` (.ctrl-sep).
+            const QWidget* w = rowItems[i]->widget();
+            const bool stretch =
+                w && (w->sizePolicy().verticalPolicy() & QSizePolicy::ExpandFlag) != 0;
+            const int h = stretch ? lineHeight : sz.height();
+            rowItems[i]->setGeometry(QRect(rowX[i], y + (lineHeight - h) / 2, sz.width(), h));
           }
         }
         y += lineHeight;

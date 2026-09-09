@@ -1,5 +1,5 @@
 import { popoverPosition, wireModalOpenGestures } from './popover.js';
-import { surfaceIn, surfaceOut, settleSurface, SURFACE_OUT_MS, motionReduced } from './motion.js';
+import { surfaceIn, surfaceOut, settleSurface, sweepDust, SURFACE_OUT_MS, motionReduced } from './motion.js';
 import { isTypingTarget } from '../utils.js';
 // ── Web Component base: light-DOM custom elements ───────────────
 // Each UI region owns its markup (static inner()) and behavior (wire(app)). Light
@@ -222,6 +222,11 @@ export const wireModalShell = (overlay, openBtn, closeBtn, { onOpen, onClose, es
   let gestures = null;   // set below when there is an opener button
   const close = () => {
     onClose?.();
+    // Whatever this window had in the air goes with it — a removal's motes are on <body>
+    // (clear of the scroller), so they outlived the window that started them and kept
+    // flying over the page (user report). The window's own close flight starts below,
+    // after this, so it is never caught by the sweep.
+    sweepDust(overlay);
     // `modal-open` is what every caller tests, so it comes off now; the shrink runs under
     // `modal-closing`, which is purely visual. Measure first — display:none measures 0.
     // An open with no gesture behind it (originEl null — the projects modal's on-boot

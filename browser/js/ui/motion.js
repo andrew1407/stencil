@@ -1152,6 +1152,26 @@ export function cancelDust(el) {
   el.__dustHost = null;
 }
 
+// Take down every cloud that came out of `scope` (a modal overlay), whoever owns it.
+// A cloud is parented to <body> to clear the scroller, so closing the window it belongs
+// to leaves it flying over the page — motes with nothing behind them (user report:
+// remove a project, close the window, the removal is still coming apart mid-air). The
+// window's OWN close flight is started after this, so it is never swept with them.
+export function sweepDust(scope) {
+  const id = typeof scope === 'string' ? scope : scope?.id;
+  if (!id || typeof document === 'undefined') return 0;
+  // Matched by DATA, not by an attribute selector: an id is arbitrary text, and CSS.escape
+  // does not exist in every environment this module is loaded in (the node suite has no DOM).
+  let swept = 0;
+  for (const host of document.querySelectorAll('.disintegrate-host')) {
+    if (host.dataset?.dustScope !== id) continue;
+    host.__stop?.();
+    host.remove();
+    swept++;
+  }
+  return swept;
+}
+
 // Re-anchor a still-flying cloud to `el`'s CURRENT box. The host's left/top are pinned
 // once, at creation (disintegrate below) — a layout change that moves `el` afterward (a
 // sibling toast pushing it up the stack) leaves the cloud stranded at the old spot while
@@ -1199,6 +1219,12 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     // Decoration, and nothing but: the layer must never take a click or a Tab stop.
     host.setAttribute?.('aria-hidden', 'true');
     host.inert = true;
+    // Which WINDOW the cloud came out of. A row's cloud is torn down with the list it
+    // hangs in, but a cloud on <body> outlives it: deleting a project and closing the
+    // window left its motes flying over the page with nothing to belong to (user report).
+    // sweepDust() reads this on close. Purely a label — nothing else looks at it.
+    const scope = el.closest?.('.app-modal-overlay, [data-dust-scope]');
+    if (scope?.id) host.dataset.dustScope = scope.id;
     const span = ms || DISINTEGRATE_MS;
     // A surface flies on its own (shorter) clock; a row keeps the defaults. A ROW gather
     // on its own clock (a chat entry) keeps the default's proportions: the grain's
