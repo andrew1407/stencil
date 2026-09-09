@@ -376,6 +376,32 @@ class MainWindowGuiTest : public QObject {
     return win.findChild<CanvasWidget*>();
   }
 
+  // The chat dock slides open, so isVisible() is true while it is still a zero-width
+  // sliver, and anything appended into that lays out at the wrong width. Wait for the
+  // transcript's real width, and hand back the scroll area every chat test drives.
+  QScrollArea* openTranscript(MainWindow& win) {
+    QScrollArea* scroll = nullptr;
+    [&] {
+      QTRY_VERIFY(win.chatDock_->isVisible());
+      scroll = win.chatDock_->findChild<QScrollArea*>();
+      QVERIFY(scroll);
+      QTRY_VERIFY(scroll->viewport()->width() > 100);
+    }();
+    return scroll;
+  }
+
+  // Pad the transcript until it really scrolls past `minMax`. A fixed bubble count is a
+  // guess about the dock's height, which is whatever the window allows it to be.
+  QScrollBar* fillUntilScrollable(MainWindow& win, QScrollArea* scroll, int minMax = 0) {
+    QScrollBar* bar = scroll->verticalScrollBar();
+    for (int i = 0; i < 60 && bar->maximum() <= minMax; ++i) {
+      win.chatDock_->appendAssistant(
+          QStringLiteral("Filler bubble %1, long enough to take real height in the column.").arg(i));
+      QTest::qWait(20);
+    }
+    return bar;
+  }
+
  private slots:
   void initTestCase() {
     // The quit-confirmation test closes its window; keep that from ending the shared
@@ -987,9 +1013,10 @@ class MainWindowGuiTest : public QObject {
     win.pageSize_->hidePopup();
   }
 
-  // The f(x,y) pair is as wide as the browser's (#formula-x / #formula-y, 180px inline)
-  // wherever the row has room — they were pinned to a 72px stub, which fits no real formula
-  // — and give that width back on a narrow window instead of hiding behind QToolBar's "»".
+  // The f(x,y) pair is as wide as the browser's (#formula-x / #formula-y, 180px inline) —
+  // they were pinned to a 72px stub, which fits no real formula — and keep that width on a
+  // narrow window, where the tool run WRAPS (support/wrapRow.hpp) rather than squeezing its
+  // fields or hiding them behind QToolBar's "»".
   void formulaFieldsTakeTheBrowsersWidth() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1400, 800);
@@ -1005,11 +1032,15 @@ class MainWindowGuiTest : public QObject {
     QTRY_COMPARE(win.formulaY_->width(), 180);
     // …side by side on the browser's 6px gap, not spread out over the row's leftover width.
     QTRY_COMPARE(win.formulaY_->x() - (win.formulaX_->x() + win.formulaX_->width()), 6);
-    // A row with no slack squeezes them; the cluster itself stays out on the toolbar.
-    win.resize(920, 800);
-    QTRY_VERIFY2(win.formulaX_->width() < 180 && win.formulaX_->width() >= 72,
-                 qPrintable(QString("squeezed to %1px").arg(win.formulaX_->width())));
-    QVERIFY2(win.formulaX_->isVisible(), "the formula fields hid instead of shrinking");
+    // A row with no slack wraps around them: the pair keeps the browser's width and stays
+    // on the toolbar, down to the narrowest window the layout allows.
+    for (const int w : {1100, 920, 850}) {
+      win.resize(w, 800);
+      QTRY_COMPARE(win.formulaX_->width(), 180);
+      QCOMPARE(win.formulaY_->width(), 180);
+      QVERIFY2(win.formulaX_->isVisible(),
+               qPrintable(QString("the formula fields hid at %1px").arg(w)));
+    }
   }
 
   void formulaToggleRevealsInputs() {
@@ -11314,7 +11345,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
+    QScrollArea* scroll = openTranscript(win);
     const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
 
     // Fill it well past one viewport, so every further append really does scroll.
@@ -11322,10 +11353,9 @@ class MainWindowGuiTest : public QObject {
       win.chatDock_->appendUser(QStringLiteral("question %1 long enough to wrap onto a second line").arg(i), {});
       win.chatDock_->appendAssistant(QStringLiteral("reply %1, also long enough to take real height in the column").arg(i));
     }
+    fillUntilScrollable(win, scroll);
     QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
                              stencil::gui::DisintegrateOverlay::kMs + 4000);
-    auto* scroll = win.chatDock_->findChild<QScrollArea*>();
-    QVERIFY(scroll);
     QVERIFY2(scroll->verticalScrollBar()->maximum() > 0, "the transcript never became scrollable");
 
     win.chatDock_->appendUser(QStringLiteral("one more, which has to scroll into view"), {});
@@ -11380,14 +11410,17 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
+    QScrollArea* scroll = openTranscript(win);
     const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
 
-    // Enough traffic that every further append really does scroll the transcript.
+    // Enough traffic that every further append really does scroll the transcript — the
+    // whole point here is that the card moves UNDER its own snapshot.
     for (int i = 0; i < 8; ++i) {
       win.chatDock_->appendUser(QStringLiteral("Give me 3 variants: rotated, tinted, cropped %1").arg(i), {});
       win.chatDock_->appendAssistant(QStringLiteral("reply %1, long enough to take real height").arg(i));
     }
+    fillUntilScrollable(win, scroll);
+    QVERIFY2(scroll->verticalScrollBar()->maximum() > 0, "the transcript never scrolled");
     QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
                              stencil::gui::DisintegrateOverlay::kMs + 4000);
 
@@ -11398,27 +11431,36 @@ class MainWindowGuiTest : public QObject {
     win.chatDock_->appendError(QStringLiteral("not connected to http://localhost:8090 (no token)"),
                                QStringLiteral("retry me"));
 
-    // Watch the whole flight: every live overlay must sit on a card, never between two.
+    // Watch the whole flight: every live cloud must sit on a card, never between two. The
+    // WIDGET covers the whole host and follows its card by retargeting what it draws
+    // (chatWidgets.cpp trackChatCardDust), so the PICTURE is what has to line up. Its timer
+    // ticks at 16ms, so one sample out of step is lag — only a cloud that STAYS off strands.
+    QHash<QWidget*, int> misses;
     int strandedFrames = 0, sampled = 0;
     for (int f = 0; f < 90; ++f) {
       QTest::qWait(16);
       for (QWidget* d : win.findChildren<QWidget*>(kDust)) {
-        if (!d->isVisible()) continue;
+        // kObjectName is the overlay's own, set nowhere else — and the class carries no
+        // Q_OBJECT, so this is the cast available.
+        auto* fx = static_cast<stencil::gui::DisintegrateOverlay*>(d);
+        if (!fx->isVisible()) continue;
+        const QRect pic = fx->surfacePicture();   // host coords; invalid on an item cloud
+        if (!pic.isValid()) continue;
         ++sampled;
-        const QPoint dTL = d->mapToGlobal(QPoint(0, 0));
         bool onACard = false;
         for (QFrame* c : win.chatDock_->findChildren<QFrame*>()) {
           if (!c->objectName().startsWith(QLatin1String("chatCard"))) continue;
-          const QPoint cTL = c->mapToGlobal(QPoint(0, 0));
-          // The layer is padded around its picture (kSurfacePadPx-ish slack), so it is
-          // the OFFSET that must match, not the box.
-          constexpr int kSlack = 70;
-          if (qAbs(dTL.x() - cTL.x()) <= kSlack && qAbs(dTL.y() - cTL.y()) <= kSlack) {
+          const QPoint cTL = c->mapTo(&win, QPoint(0, 0));
+          // The picture IS the card's box, retargeted by the exact delta, so a tracked
+          // cloud lands on it to the pixel — the slack is for rounding, nothing else.
+          constexpr int kSlack = 2;
+          if (qAbs(pic.left() - cTL.x()) <= kSlack && qAbs(pic.top() - cTL.y()) <= kSlack) {
             onACard = true;
             break;
           }
         }
-        if (!onACard) ++strandedFrames;
+        if (onACard) misses.remove(d);
+        else if (++misses[d] > 2) ++strandedFrames;
       }
     }
     QVERIFY2(sampled > 0, "no overlay was ever sampled — the check would be vacuous");
@@ -14211,16 +14253,13 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.chatDock_->show();
-    QTest::qWait(30);
     // Fill the transcript until it scrolls FIRST: appending into an already
     // scrollable transcript triggers no scrollbar toggle, so no healing
     // viewport-resize re-measure follows — exactly the intermittent case users
     // hit, where the first (wrong-width) reservation was the one that stuck.
-    for (int i = 0; i < 10; ++i)
-      win.chatDock_->appendAssistant(QStringLiteral("Filler bubble %1.").arg(i));
-    auto* scroll = win.chatDock_->findChild<QScrollArea*>();
-    QVERIFY(scroll);
-    QTRY_VERIFY(scroll->verticalScrollBar()->maximum() > 0);
+    QScrollArea* scroll = openTranscript(win);
+    fillUntilScrollable(win, scroll);
+    QVERIFY(scroll->verticalScrollBar()->maximum() > 0);
     QTest::qWait(50);
     const QString text = QStringLiteral(
         "This reply is deliberately long enough to wrap across several transcript lines, "
@@ -14301,14 +14340,9 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.chatDock_->show();
-    QTest::qWait(30);
-    auto* scroll = win.chatDock_->findChild<QScrollArea*>();
-    QVERIFY(scroll);
-    for (int i = 0; i < 10; ++i)
-      win.chatDock_->appendAssistant(QStringLiteral("Row %1 padding the transcript out "
-                                                    "until it scrolls.").arg(i));
-    auto* bar = scroll->verticalScrollBar();
-    QTRY_VERIFY(bar->maximum() > 24);
+    QScrollArea* scroll = openTranscript(win);
+    QScrollBar* bar = fillUntilScrollable(win, scroll, 24);
+    QVERIFY(bar->maximum() > 24);
     bar->setValue(bar->maximum() / 2);   // mid-log: both pills visible
     const auto jumps =
         win.chatDock_->findChildren<QToolButton*>(QStringLiteral("chatJumpBtn"));
@@ -14550,7 +14584,9 @@ class MainWindowGuiTest : public QObject {
     win.resize(600, 500);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QImage img(2000, 2000, QImage::Format_RGB32);   // bigger than the viewport at 100%
+    // TALL, not square: the last leg needs a zoom where the width fits and the height
+    // still does not, and a square image left that to a viewport size the layout picks.
+    QImage img(800, 4000, QImage::Format_RGB32);   // bigger than the viewport at 100%
     img.fill(Qt::white);
     win.loadImageWithLayout(img, QJsonObject());
     win.refreshActions();
@@ -14643,10 +14679,11 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.scroll_->verticalScrollBar()->value(), 120);
     win.scroll_->verticalScrollBar()->setValue(60);
     QCOMPARE(vbar->value(), 60);
-    // Once an axis fits, its bar goes away entirely rather than lingering as a gutter (the
-    // test window's viewport is too short for the image at any zoom, so the horizontal bar
-    // is the one that fits), and the survivor then runs the viewport's full length.
-    win.setZoom(0.1);
+    // Once an axis fits, its bar goes away entirely rather than lingering as a gutter, and
+    // the survivor then runs the viewport's full length. The zoom is read off the LIVE
+    // viewport: the image is five times as tall as it is wide, so a width that just fits
+    // leaves the height overflowing whatever size the layout gave the canvas.
+    win.setZoom(double(win.scroll_->viewport()->width() - 40) / 800.0);
     QTRY_VERIFY(!hbar->isVisible());
     QVERIFY(vbar->isVisible());
     QCOMPARE(vbar->height(), win.scroll_->viewport()->height());
