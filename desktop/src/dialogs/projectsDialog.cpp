@@ -26,7 +26,6 @@
 #include <QAction>
 #include <QBrush>
 #include <QDate>
-#include <QDateTime>
 #include <QLocale>
 #include <QComboBox>
 #include <QMenu>
@@ -759,7 +758,18 @@ namespace stencil::gui {
       batchSelectedGroup_->setVisible(false);
       bh->addWidget(batchSelectedGroup_);
       batchBar_->setVisible(false);
-      layout->addWidget(batchBar_);
+      // The bar and the list share ONE zero-spacing slot, and the gap under the bar is the
+      // bar's OWN bottom margin (the body layout's spacing, moved inside it). So when the
+      // strip closes, its whole footprint slides away together (support/controlReveal
+      // closeBarSlot) and the rows glide up — the layout's spacing dropping in one frame
+      // at the end is exactly the jump this removes (user report). Both states look
+      // exactly as they did: 10px above the bar, 10px between it and the list.
+      bh->setContentsMargins(0, 0, 0, kBodySpacing);
+      barSlot_ = new QVBoxLayout;
+      barSlot_->setContentsMargins(0, 0, 0, 0);
+      barSlot_->setSpacing(0);
+      barSlot_->addWidget(batchBar_);
+      layout->addLayout(barSlot_, 1);   // the list joins it below (see addWidget(list_))
       connect(batchToServer_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchMoveToServer); });
       connect(batchCopyServer_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchCopyToServer); });
       connect(batchToLocal_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchMoveToLocal); });
@@ -850,7 +860,7 @@ namespace stencil::gui {
               list_->setCurrentItem(it);
               showRowMenu(it, list_->viewport()->mapToGlobal(pos));
             });
-    layout->addWidget(list_, 1);
+    barSlot_->addWidget(list_, 1);   // directly under the bar, no layout gap of its own
     refresh();
 
     // Row-open gestures (see the header's scheduleRowOpen mapping).
@@ -1483,15 +1493,52 @@ namespace stencil::gui {
   // Replace the listed projects and repaint (see the header): lets the owner act on a
   // request without the dialog having to close and be reopened.
   void ProjectsDialog::setProjects(const std::vector<Project>& projects) {
+    setProjects(projects, temporary_, incognito_);
+  }
+
+  // …and the same repaint carrying the owner window's session state, so a removal that
+  // also blanks the editor lands as ONE frame (see the header).
+  void ProjectsDialog::setProjects(const std::vector<Project>& projects, bool temporary,
+                                   bool incognito) {
     projects_ = projects;
+    temporary_ = temporary;
+    incognito_ = incognito;
     if (clearAllBtn_) clearAllBtn_->setEnabled(!projects_.empty());   // nothing left to clear
     refresh();
+  }
+
+  // A row's identity across a rebuild: the server url + id it stands for, "temp" for the
+  // pinned session row. Placeholders ("Loading…", "No projects yet") have none — they are
+  // never counted as arrivals.
+  static QString rebuildKeyOf(const QListWidgetItem* it) {
+    if (!it) return QString();
+    if (it->data(kTempRole).toBool()) return QStringLiteral("temp");
+    const QVariant id = it->data(Qt::UserRole);
+    if (id.isNull()) return QString();
+    return it->data(Qt::UserRole + 1).toString() + "|" + id.toString();
   }
 
   void ProjectsDialog::refresh() {
     // Preserve the selected row across a live remote re-list so the polling timer
     // doesn't yank the user's selection out from under them.
     const int prevRow = list_->currentRow();
+    // What this list holds RIGHT NOW: a row the rebuild ADDS to it (the pinned session
+    // row a removal reveals, a project a server listing brings in) arrives out of the
+    // filter's sand at the end, rather than simply being there next frame — the browser's
+    // arrival for the same event (motion.js filterDust / playFilterEnter). The very first
+    // build dusts nothing: the dialog has its own opening flight.
+    QSet<QString> keysBefore;
+    for (int i = 0; i < list_->count(); ++i) {
+      const QString k = rebuildKeyOf(list_->item(i));
+      if (!k.isEmpty()) keysBefore.insert(k);
+    }
+    // Whether this dialog has EVER built its list — not whether the list has rows in it
+    // right now. A removal takes its row out of the view when the scatter ends, so the
+    // rebuild that answers it can find the list empty; reading that as "this is the
+    // opening build" is what made the pinned row simply appear, with no arrival at all
+    // (user report).
+    const bool wasBuilt = built_;
+    built_ = true;
     // Keep the "Show:" per-server entries in step if servers were connected/disconnected.
     if (filter_ && connections_ && connections_->urls() != knownServerUrls_)
       rebuildFilterOptions();
@@ -1713,6 +1760,19 @@ namespace stencil::gui {
     applyFilter();   // re-hide rows the current filter excludes (survives the live re-list)
     building_ = false;
     updateBatchBar();
+    // …and every row this rebuild ADDED forms out of sand, on the filter's own shared
+    // budget (applyFilter just reset it) but the longer ARRIVAL clock — a row the list
+    // gained is not a filter keeping up with a keystroke (browser twin: materialize, not
+    // the filter animator). A row that was already listed is untouched. Last, with the
+    // bookkeeping settled: dustRowIn writes a role per row, and it guards that write with
+    // the same beforeFrame/afterFrame the filter's own frames use.
+    if (wasBuilt)
+      for (int i = 0; i < list_->count(); ++i) {
+        QListWidgetItem* it = list_->item(i);
+        const QString k = rebuildKeyOf(it);
+        if (k.isEmpty() || it->isHidden() || keysBefore.contains(k)) continue;
+        if (auto* fade = filterFade()) fade->dustRowIn(it, window(), kRowArriveMs);
+      }
   }
 
   // A row's checkbox toggled → update the checked set + the batch toolbar.

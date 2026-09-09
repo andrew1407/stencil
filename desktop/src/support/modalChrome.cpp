@@ -277,7 +277,7 @@ namespace stencil::gui {
 
     c.body = new QVBoxLayout;
     c.body->setContentsMargins(kPadX, kBodyPadY, kPadX, kBodyPadY);
-    c.body->setSpacing(10);
+    c.body->setSpacing(kBodySpacing);
     c.root->addLayout(c.body, 1);
     // Every control in the window gets the app's glass hover sweep — the browser's rule
     // is app-wide, so a Qt window has to opt its own in. Deferred a turn, because the

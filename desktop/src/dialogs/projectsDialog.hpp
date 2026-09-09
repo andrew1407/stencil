@@ -14,6 +14,7 @@
 #include <QVector>
 #include <vector>
 
+class QVBoxLayout;
 class QListWidget;
 class QListWidgetItem;
 class QComboBox;
@@ -121,7 +122,12 @@ namespace stencil::gui {
 
     // Replace the listed projects and repaint — the owner calls this after acting on a
     // request signalled below, so the dialog STAYS OPEN and simply shows the new state.
+    // The overload carries the window's session state IN THE SAME repaint: a removal can
+    // empty the list and blank the editor in one breath, and two repaints showed the
+    // batch bar for the stale row and took it away a beat later — the list, and the row
+    // arriving in it, visibly jumped (user report).
     void setProjects(const std::vector<Project>& projects);
+    void setProjects(const std::vector<Project>& projects, bool temporary, bool incognito);
 
    signals:
     // "Clear All (Local)": already confirmed INSIDE the dialog, so the confirmation sits
@@ -296,6 +302,8 @@ namespace stencil::gui {
     long long now_ = 0;
     stencil::net::ConnectionManager* connections_ = nullptr;
     QString activeProjectId_;  // the project open in THIS editor right now (its "(Current)" row)
+    QVBoxLayout* barSlot_ = nullptr;   // batch bar + list, spacing 0 (see the .cpp)
+    bool built_ = false;       // the list has been built at least once (arrivals animate after that)
     bool temporary_ = false;   // setTemporary: this window is an unsaved session → the pinned row
     bool incognito_ = false;   // …an incognito one
     // id -> pre-rendered local-project preview (edited result), shown as the row icon.

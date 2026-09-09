@@ -46,6 +46,7 @@ using stencil::gui::batchDirectionsFor;
 using stencil::gui::DisintegrateOverlay;
 using stencil::gui::filteredIn;
 using stencil::gui::kFilterDustObjectName;
+using stencil::gui::kFilterDustRole;
 using stencil::gui::kFilterFadeMs;
 using stencil::gui::Project;
 using stencil::gui::ProjectsDialog;
@@ -189,6 +190,66 @@ int main(int argc, char** argv) {
     check(elist && elist->count() == 1 && elist->item(0)->data(Qt::UserRole + 11).toBool(),
           "an empty store shows the temporary row alone");
     empty.reject();
+    dlg.reject();
+  }
+
+  {
+    // …and when it turns up on a list ALREADY on screen — a removal that took the open
+    // project with it — the row ARRIVES: it forms out of the filter's own sand, like any
+    // row a re-answered list brings in, instead of simply being there next frame (user
+    // report: "make it appear with a correct animation"). Browser twin: the settle render
+    // plays motion.js playFilterEnter over the keys the rebuild added.
+    std::printf("the pinned row arrives out of sand, and lands whole:\n");
+    ProjectsDialog dlg(locals, 5000);
+    dlg.show();
+    pumpFor(50);
+    auto* list = dlg.findChild<QListWidget*>("projectsList");
+    check(list && list->count() == int(locals.size()), "opens on the saved rows alone");
+    if (!list) return 1;
+    // Exactly what a removal hands the still-open dialog: the new list and the window's
+    // session state in ONE repaint.
+    dlg.setProjects(locals, /*temporary=*/true, /*incognito=*/false);
+    QListWidgetItem* top = list->item(0);
+    check(top && top->data(Qt::UserRole + 11).toBool(), "the pinned row is in the list at once");
+    if (!top) return 1;
+    check(top->data(kFilterDustRole).toDouble() == 0.0,
+          "…veiled while its motes gather — the sand IS the row arriving");
+    check(dlg.findChild<QWidget*>(QString::fromLatin1(kFilterDustObjectName)) != nullptr,
+          "…out of the FILTER's light sand");
+    check(dlg.findChild<QWidget*>(DisintegrateOverlay::kObjectName) == nullptr,
+          "…never the removal's destructive scatter");
+    const QVariant settled = list->item(1)->data(kFilterDustRole);
+    check(!settled.isValid() || settled.toDouble() >= 1.0,
+          "…while a row that was already listed does not replay its own arrival");
+    // …and those motes are made of the ROW. A delegate-painted row draws nothing at all
+    // while it is veiled, so photographing it after the veil went up handed the cloud a
+    // flat slab of list background: the flight played, and nothing was seen to arrive
+    // (user report — "it just appears"). The picture the cloud carries must have the
+    // row's own ink in it, not one uniform colour.
+    // Q_OBJECT-free (header-only, no MOC), so it is found as the widget it is: nothing
+    // else ever wears the filter dust's object name.
+    auto* cloud = static_cast<DisintegrateOverlay*>(
+        dlg.findChild<QWidget*>(QString::fromLatin1(kFilterDustObjectName)));
+    check(cloud != nullptr, "the arrival's cloud is on the dialog");
+    if (cloud) {
+      const QImage shot = cloud->snapshot().toImage();
+      int varied = 0;
+      const QRgb corner = shot.isNull() ? 0 : shot.pixel(1, 1);
+      for (int y = 0; y < shot.height(); ++y)
+        for (int x = 0; x < shot.width(); ++x)
+          if (shot.pixel(x, y) != corner) ++varied;
+      check(varied > 200, "…and it is made of the row's picture, not the bare background");
+    }
+    pumpUntil([&] { return top->data(kFilterDustRole).toDouble() >= 1.0; });
+    check(top->data(kFilterDustRole).toDouble() >= 1.0 && !top->isHidden(),
+          "…and the row is left whole once the motes have landed");
+
+    // A repaint that adds nothing (a rename, a poll that changed no row) plays nothing.
+    pumpUntil([&] { return dlg.findChild<QWidget*>(
+                        QString::fromLatin1(kFilterDustObjectName)) == nullptr; });
+    dlg.setProjects(locals, /*temporary=*/true, /*incognito=*/false);
+    check(dlg.findChild<QWidget*>(QString::fromLatin1(kFilterDustObjectName)) == nullptr,
+          "an unchanged repaint animates nothing");
     dlg.reject();
   }
 

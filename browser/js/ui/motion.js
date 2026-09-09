@@ -1727,16 +1727,54 @@ export const REVEAL_GROUP_OUT_MS = 400;
 // it, closing it left the border and padding as a bare grey line (user report).
 // `want()` is the single source of whether the bar belongs — asked now, and again on
 // arrival, so a selection made mid-flight keeps it. Timer injectable — unit-tested.
+// The class a leaving bar wears while its SLOT closes: height, padding and the divider
+// under it all go together, or whatever is left of its footprint drops the list below it
+// in one frame at the end.
+export const BAR_CLOSING_CLASS = 'bar-closing';
+// …and the freeze it wears first. Its controls fly out before the slot closes, and the
+// last one being hidden takes the strip's content height with it — that collapse IS the
+// jump, before any slide could start (user report: the pinned row jumped when Select all
+// left). Held at its measured height, the strip keeps its shape while they leave.
+export const BAR_HELD_CLASS = 'bar-held';
+
+const releaseBarSlot = (el) => {
+  el.classList?.remove(BAR_CLOSING_CLASS, BAR_HELD_CLASS);
+  el.style.removeProperty?.('--bar-h');
+  el.style.removeProperty?.('--reveal-ms');
+};
+
+// Close the bar's slot from the height it is holding, then take it out of the flow.
+export const closeBarSlot = (el, ms, { setTimer = setTimeout } = {}) => {
+  const h = parseFloat(el.style.getPropertyValue?.('--bar-h'))
+    || el.getBoundingClientRect?.().height || 0;
+  if (!h || motionReduced()) { releaseBarSlot(el); el.style.display = 'none'; return false; }
+  el.style.setProperty('--reveal-ms', `${ms}ms`);
+  el.style.setProperty('--bar-h', `${h}px`);
+  el.classList.add(BAR_HELD_CLASS);
+  void el.offsetWidth;                    // commit the held height as the start
+  el.classList.add(BAR_CLOSING_CLASS);    // …and everything it owns goes to zero
+  setTimer(() => { el.style.display = 'none'; releaseBarSlot(el); }, ms);
+  return true;
+};
+
 export const revealBar = (el, want, { display = 'flex', ms = 0, setTimer = setTimeout } = {}) => {
   if (!el?.style) return false;
   const shown = el.style.display !== 'none';
   if (want()) {
+    releaseBarSlot(el);   // asked back mid-close: give its own height back first
     if (!shown) el.style.display = display;   // at once: the slot the controls fly INTO
     return !shown;
   }
   if (!shown) return false;
   if (motionReduced()) { el.style.display = 'none'; return false; }
-  setTimer(() => { if (!want()) el.style.display = 'none'; }, ms || REVEAL_GROUP_OUT_MS);
+  const out = ms || REVEAL_GROUP_OUT_MS;
+  // Freeze the footprint NOW, before the controls inside start leaving.
+  const held = el.getBoundingClientRect?.().height || 0;
+  if (held) { el.style.setProperty?.('--bar-h', `${held}px`); el.classList?.add(BAR_HELD_CLASS); }
+  setTimer(() => {
+    if (want()) { releaseBarSlot(el); return; }   // wanted again mid-wait: it stays
+    closeBarSlot(el, out, { setTimer });
+  }, out);
   return false;
 };
 // A transition, not @keyframes: markIn/markOut may also add `.mark-forming`

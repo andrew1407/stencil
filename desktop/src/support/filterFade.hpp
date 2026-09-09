@@ -52,6 +52,11 @@ namespace stencil::gui {
   // …on the FILTER's clock, not a removal's: a view change has to keep up with typing in
   // a search box (browser FILTER_DUST_MS).
   inline constexpr int kFilterDustMs = 253;
+  // A row the list genuinely GAINS is not a filter keeping up with a keystroke: the
+  // pinned session row a removal reveals, a project a listing brings in. It forms on the
+  // browser's arrival clock (motion.js materialize, FILTER_DUST_MS 560) taken at the 1.5
+  // ratio the rest of the desktop's motion runs at (kControlRevealInMs = 520 / 1.5).
+  inline constexpr int kRowArriveMs = 373;
   // Named apart from the removal's scatter (DisintegrateOverlay::kObjectName) on purpose:
   // a filter's sand is an arrival, and anything counting live removals — the tests
   // included — must never mistake one for the other.
@@ -190,7 +195,7 @@ namespace stencil::gui {
     // box. Budgeted per filter change (apply() resets it): past the row ceiling the
     // rest simply fade. `host` is the window the flight is drawn on. Wire it from
     // onArrive on a delegate-painted list; nothing plays for a row the filter drops.
-    void dustRowIn(QListWidgetItem* it, QWidget* host) {
+    void dustRowIn(QListWidgetItem* it, QWidget* host, int ms = kFilterDustMs) {
       if (!it || !list_ || !host || !host->isVisible() || support::motionReduced()) return;
       if (dustBudget_ >= kFilterDustMaxRows) return;
       const int cells = kFilterDustCells / kFilterDustMaxRows;
@@ -202,7 +207,7 @@ namespace stencil::gui {
       QPointer<QWidget> hostP(host);
       QListWidget* list = list_;
       QPersistentModelIndex idx(list_->indexFromItem(it));
-      const auto fly = [self, list, idx, hostP, cells] {
+      const auto fly = [self, list, idx, hostP, cells, ms] {
         if (!self || !hostP || !idx.isValid()) return;
         QListWidgetItem* row = list->item(idx.row());
         if (!row) return;
@@ -218,13 +223,28 @@ namespace stencil::gui {
         };
         const QRect r = list->visualItemRect(row);
         if (r.width() < 8 || r.height() < 8 || !hostP->isVisible()) { unveil(); return; }
+        // The motes ARE the row, so they must be made of its picture. The row is veiled
+        // by now (a delegate-painted one draws NOTHING at ink 0), so lift the veil for
+        // the photograph alone — grab() renders into a pixmap, never to the screen, and
+        // nothing repaints in between — then put it straight back. Photographing the
+        // veiled row made the cloud out of the list's bare background: the row simply
+        // appeared, with no arrival to see (user report).
+        const auto setVeil = [&](double v) {
+          if (self->beforeFrame) self->beforeFrame();
+          row->setData(kFilterDustRole, v);
+          if (self->afterFrame) self->afterFrame();
+        };
+        setVeil(1.0);
+        const QPixmap shot = list->viewport()->grab(r);
+        setVeil(0.0);
         auto* fx = DisintegrateOverlay::overRect(list->viewport(), r, hostP,
                                                  DisintegrateOverlay::Sweep::Gather,
-                                                 /*dust=*/true, cells, kFilterDustMs);
+                                                 /*dust=*/true, cells, ms,
+                                                 QColor(), shot);
         if (!fx) { unveil(); return; }
         fx->setObjectName(QString::fromLatin1(kFilterDustObjectName));
         // Held back until the motes have very nearly landed — the browser's markForm stop.
-        QTimer::singleShot(int(kFilterDustMs * kFilterDustVeilStop), self, unveil);
+        QTimer::singleShot(int(ms * kFilterDustVeilStop), self, unveil);
       };
       // Already listed: its box is real right now, so the motes start this frame and the
       // slot never moves. Being revealed: wait out the slot opening, then read the box.

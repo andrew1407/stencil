@@ -1462,6 +1462,28 @@ html.dd-preview-cursor::view-transition { cursor: pointer; }
     .reveal-group-transition { transition: none; }
 }
 
+/* ── A selection BAR leaving (js/ui/motion.js revealBar) ─────────────────────
+   The strip sits directly above a list, so it may not blink out and drop everything
+   below it upward: the row underneath moved out from under the eye in one frame (user
+   report — the pinned "Temporary (unsaved)" row jumped when Select all left). It is
+   HELD at its measured height first (its controls fly out inside it, and the last one
+   being hidden would otherwise collapse the strip before any slide began), then its
+   whole footprint closes together — height, padding and the divider under it, or
+   whatever is left of them drops the list at the end anyway. */
+.bar-held { height: var(--bar-h); max-height: var(--bar-h); overflow: hidden; }
+.bar-held.bar-closing {
+    height: 0; max-height: 0; padding-top: 0; padding-bottom: 0; border-bottom-width: 0;
+    /* The gentle S a group's slot closes on (motion.js REVEAL_EASE_OUT). */
+    transition: height var(--reveal-ms, 400ms) cubic-bezier(0.45, 0.05, 0.6, 0.9),
+                max-height var(--reveal-ms, 400ms) cubic-bezier(0.45, 0.05, 0.6, 0.9),
+                padding-top var(--reveal-ms, 400ms) cubic-bezier(0.45, 0.05, 0.6, 0.9),
+                padding-bottom var(--reveal-ms, 400ms) cubic-bezier(0.45, 0.05, 0.6, 0.9),
+                border-bottom-width var(--reveal-ms, 400ms) cubic-bezier(0.45, 0.05, 0.6, 0.9);
+}
+@media (prefers-reduced-motion: reduce) {
+    .bar-held.bar-closing { transition: none; }
+}
+
 /* ── Filtering (js/ui/motion.js createFilterAnimator) ────────────────────────
    A filter is a QUESTION being re-answered, not a removal. What no longer matches was
    never destroyed, so it does not play OUT at all — it is gone the moment the list

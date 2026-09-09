@@ -4558,13 +4558,22 @@ namespace stencil::gui {
     ProjectsDialog dlg(projectList_, nowMs(), connections_, buildProjectThumbs(),
                        this, activeProjectId_, accentPrimary(settings_.accentColor));
     // No project open here (and no server session standing in for one): the list shows
-    // this window as the pinned "Temporary (unsaved)" row, as the browser's does.
-    dlg.setTemporary(activeProjectId_.isEmpty() && remoteSession_->link().id.isEmpty(), incognito_);
+    // this window as the pinned "Temporary (unsaved)" row, as the browser's does. Re-asked
+    // with every removal below — deleting the OPEN project resets this window to a blank
+    // unsaved editor (eraseLocalProject → resetToBlankEditor), so the pinned row must
+    // appear then, exactly as the browser's list does; a stale `false` left the emptied
+    // list reading "No projects yet" instead (user report). It travels WITH the new
+    // project list, in one repaint: answering it separately showed the batch bar for the
+    // stale row and took it away a beat later, and the arriving row jumped with it.
+    const auto unsavedSession = [this] {
+      return activeProjectId_.isEmpty() && remoteSession_->link().id.isEmpty();
+    };
+    dlg.setTemporary(unsavedSession(), incognito_);
     dlg.setDragZones(projectZones_);   // the main-window drag-out zone overlay (open/new-window/remove)
     // "Clear All (Local)" is handled WHILE the dialog is up: it confirms itself (over its
     // own window), we remove the projects, and it repaints the now-empty list. Closing the
     // window to ask, then leaving it closed, lost the user their place.
-    connect(&dlg, &ProjectsDialog::clearAllRequested, this, [this, &dlg] {
+    connect(&dlg, &ProjectsDialog::clearAllRequested, this, [this, &dlg, unsavedSession] {
       const int n = static_cast<int>(projectList_.size());
       const bool hadActive = !activeProjectId_.isEmpty();
       projectList_.clear();
@@ -4576,15 +4585,15 @@ namespace stencil::gui {
       // the same turn pulled them out from under their own dust and dropped "No projects
       // yet" in underneath it. Rebuild once the motes have landed (browser: beginRemoval).
       QPointer<ProjectsDialog> live(&dlg);
-      QTimer::singleShot(DisintegrateOverlay::kMs, this, [this, live] {
-        if (live) live->setProjects(projectList_);
+      QTimer::singleShot(DisintegrateOverlay::kMs, this, [this, live, unsavedSession] {
+        if (live) live->setProjects(projectList_, unsavedSession(), incognito_);
       });
       notify_->success(QString("Cleared %1 local project(s)").arg(n));
     });
     // Single Delete / batch Remove: same stay-open pattern — the dialog confirmed and is
     // scattering the rows; remove here, then repaint the still-open list once the dust lands.
     connect(&dlg, &ProjectsDialog::removeRequested, this,
-            [this, &dlg](const QVector<QPair<QString, QString>>& items) {
+            [this, &dlg, unsavedSession](const QVector<QPair<QString, QString>>& items) {
       QPointer<ProjectsDialog> live(&dlg);
       const bool single = items.size() == 1 && items.first().second.isEmpty();
       // Block removing a project that's open in another window (matches the browser's
@@ -4608,8 +4617,8 @@ namespace stencil::gui {
       refreshDockMenu();  // drop it from the Dock "recent" list
       if (single) notify_->info("Project deleted");
       // Rebuild once the motes have landed (see the Clear All note above).
-      QTimer::singleShot(DisintegrateOverlay::kMs, this, [this, live] {
-        if (live) live->setProjects(projectList_);
+      QTimer::singleShot(DisintegrateOverlay::kMs, this, [this, live, unsavedSession] {
+        if (live) live->setProjects(projectList_, unsavedSession(), incognito_);
       });
     });
     // Inline rename (dblclick on the row's name): same stay-open pattern — the dialog
