@@ -52,6 +52,9 @@ RUN cd cli && zig build -Doptimize=ReleaseFast
 FROM rust:slim-bookworm AS server
 WORKDIR /src/mcp
 COPY mcp/ ./
+# Separate stage, separate filesystem: the crate include_str!s the same shared JSON
+# (src/../../browser/js/config/…), so this stage needs its own copy of it.
+COPY browser/js/config/ /src/browser/js/config/
 # cargo fetches the rmcp SDK and other crates on demand (needs network).
 RUN cargo build --release
 
