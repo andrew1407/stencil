@@ -87,32 +87,41 @@ public static class Keyboards
         List<InlineKeyboardButton[]> rows = MainRows();
         if (hasActiveProject)
         {
-            rows.Add(ProjectActionsRow(hasActiveProject: true));
+            rows.AddRange(ProjectActionsRows(hasActiveProject: true));
         }
         return new InlineKeyboardMarkup(rows);
     }
 
     /// <summary>
-    /// The project-actions row shared by <see cref="StatusMenu"/> and <see cref="EditMenu"/>.
+    /// The project-actions rows shared by <see cref="StatusMenu"/> and <see cref="EditMenu"/>.
     /// Rename and Describe are always offered (they also apply to a not-yet-saved working image,
-    /// carried into <c>/create</c>); Expiration and Remove need a saved server project, so they
-    /// appear only when <paramref name="hasActiveProject"/>. Each token dispatches the equivalent
-    /// command (which replies with the prompt / picker / confirmation as a fresh message), so they
-    /// work identically from either menu.
+    /// carried into <c>/create</c>); Link, Expiration and Remove need a saved server project, so
+    /// they ride a second row only when <paramref name="hasActiveProject"/> — five buttons abreast
+    /// squeeze their labels away on a phone. Each token dispatches the equivalent command (which
+    /// replies with the link / prompt / picker / confirmation as a fresh message), so they work
+    /// identically from either menu.
     /// </summary>
-    private static InlineKeyboardButton[] ProjectActionsRow(bool hasActiveProject)
+    private static List<InlineKeyboardButton[]> ProjectActionsRows(bool hasActiveProject)
     {
-        List<InlineKeyboardButton> buttons = new()
+        List<InlineKeyboardButton[]> rows = new()
         {
-            InlineKeyboardButton.WithCallbackData("✏️ Rename", "name:menu"),
-            InlineKeyboardButton.WithCallbackData("📝 Describe", "desc:menu"),
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("✏️ Rename", "name:menu"),
+                InlineKeyboardButton.WithCallbackData("📝 Describe", "desc:menu"),
+            },
         };
         if (hasActiveProject)
         {
-            buttons.Add(InlineKeyboardButton.WithCallbackData("⏳ Expiration", "exp:menu"));
-            buttons.Add(InlineKeyboardButton.WithCallbackData("🗑 Remove", "del:menu"));
+            rows.Add(new[]
+            {
+                // Bare verb token: CallbackAction dispatches it as /link.
+                InlineKeyboardButton.WithCallbackData("🔗 Link", "link"),
+                InlineKeyboardButton.WithCallbackData("⏳ Expiration", "exp:menu"),
+                InlineKeyboardButton.WithCallbackData("🗑 Remove", "del:menu"),
+            });
         }
-        return buttons.ToArray();
+        return rows;
     }
 
     /// <summary>
@@ -253,9 +262,9 @@ public static class Keyboards
             },
         };
         // The edit menu always rides a rendered image, so Rename is always available here; the
-        // server-only Expiration/Remove buttons ride along only when it's a saved server project
+        // server-only Link/Expiration/Remove row rides along only when it's a saved server project
         // (the menu shown after /fetch). Same tokens as StatusMenu.
-        rows.Add(ProjectActionsRow(hasActiveProject));
+        rows.AddRange(ProjectActionsRows(hasActiveProject));
         return new InlineKeyboardMarkup(rows);
     }
 

@@ -87,6 +87,7 @@ public sealed partial class CommandHandlers
             "create" => CreateAsync(userId, chatId, cmd, ct),
             "save" => SaveAsync(userId, chatId, ct),
             "sync" => SyncAsync(userId, chatId, cmd, ct),
+            "link" or "openin" or "open_in" or "open-in" or "desktop" => LinkAsync(userId, chatId, ct),
             "projectcolor" or "project_color" or "project-color" or "pcolor" => ProjectColorAsync(userId, chatId, cmd, ct),
             "projectname" or "project_name" or "project-name" or "pname" or "rename" => ProjectNameAsync(userId, chatId, cmd, ct),
             "projectdescription" or "project_description" or "project-description" or "pdesc" => ProjectDescriptionAsync(userId, chatId, cmd, ct),
