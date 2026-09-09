@@ -8,8 +8,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { installMemoryStorage } from './helpers/memoryStorage.js';
 import {
-  needsGlyphShadow, contrastWithWhite, relativeLuminance,
-  GLYPH_SHADOW_MIN_CONTRAST, LIGHT_ACCENT_KEYS,
+  needsDarkGlyph, onAccentInk, contrastWithWhite, contrastWithBlack, relativeLuminance,
+  ON_ACCENT_LIGHT, ON_ACCENT_DARK, LIGHT_ACCENT_KEYS,
 } from '../js/core/accents.js';
 
 // Minimal <html> stand-in: attribute map + a CSS style object supporting the three ops the
@@ -21,7 +21,7 @@ const docEl = {
   setAttribute: (k, v) => attrs.set(k, v),
   hasAttribute: (k) => attrs.has(k),
   removeAttribute: (k) => attrs.delete(k),
-  // data-accent-light is a bare presence flag (the glyph-shadow switch).
+  // data-accent-light is a bare presence flag (the on-accent ink switch).
   toggleAttribute: (k, on) => (on ? attrs.set(k, '') : attrs.delete(k)),
   style: {
     setProperty: (k, v) => styleProps.set(k, v),
@@ -153,33 +153,49 @@ test('setCustomAccent: normalizes hex + sets inline --accent, no broadcast; inva
   assert.equal(ctrl.setCustomAccent('nope'), null);
 });
 
-// ── Glyph-shadow contrast switch (light accents) ────────────────────────────
-// White icons/labels sit on --accent; a LIGHT accent washes them out, so the
-// controller flags <html data-accent-light> and css/theme.css swaps --glyph-shadow
-// from `none` to a dark halo. These assert the threshold and both apply paths.
+// ── On-accent ink (light accents) ───────────────────────────────────────────
+// Labels and currentColor line-art sit on --accent, so the accent picks the ink that
+// reads on it: whichever of white / near-black contrasts more. The controller flags
+// <html data-accent-light> for the dark one and css/theme.css swaps --on-accent.
 
-test('needsGlyphShadow: only accents that white reads poorly on', () => {
-  assert.equal(needsGlyphShadow('#00ffff'), true);   // cyan — 1.25:1 against white
-  assert.equal(needsGlyphShadow('#ffffff'), true);   // white on white
-  assert.equal(needsGlyphShadow('#eab308'), true);   // the yellow preset — 1.92:1
-  assert.equal(needsGlyphShadow('#7c3aed'), false);  // violet default — 5.70:1
-  assert.equal(needsGlyphShadow('#000000'), false);  // black — maximum contrast
-  assert.equal(needsGlyphShadow('nope'), false);     // not a hex → no shadow, no throw
+test('needsDarkGlyph: the accents black reads better on than white', () => {
+  assert.equal(needsDarkGlyph('#00ffff'), true);   // cyan — white 1.25:1, black 16.7:1
+  assert.equal(needsDarkGlyph('#ffffff'), true);   // white on white
+  assert.equal(needsDarkGlyph('#eab308'), true);   // the yellow preset — 1.92 vs 10.95
+  assert.equal(needsDarkGlyph('#16a34a'), true);   // grass — 3.30 vs 6.37, both above 3:1
+  assert.equal(needsDarkGlyph('#7c3aed'), false);  // violet default — 5.70 vs 3.69
+  assert.equal(needsDarkGlyph('#000000'), false);  // black — white is the only readable ink
+  assert.equal(needsDarkGlyph('nope'), false);     // not a hex → the white default, no throw
 });
 
-test('contrast helpers: white-vs-black anchors and the 3:1 threshold', () => {
+test('onAccentInk hands back the ink itself', () => {
+  assert.equal(onAccentInk('#eab308'), ON_ACCENT_DARK);
+  assert.equal(onAccentInk('#7c3aed'), ON_ACCENT_LIGHT);
+  assert.equal(onAccentInk('nope'), ON_ACCENT_LIGHT);
+  // Near-black, not black: the dark theme's own page ink, so the glyph doesn't out-ink
+  // every other glyph in the app.
+  assert.equal(ON_ACCENT_DARK, '#1a1a1a');
+  assert.equal(ON_ACCENT_LIGHT, '#ffffff');
+});
+
+test('contrast helpers: the white/black anchors and the crossover', () => {
   assert.equal(Math.round(contrastWithWhite('#000000') * 100) / 100, 21);
   assert.equal(Math.round(contrastWithWhite('#ffffff') * 100) / 100, 1);
+  assert.equal(Math.round(contrastWithBlack('#ffffff') * 100) / 100, 21);
+  assert.equal(Math.round(contrastWithBlack('#000000') * 100) / 100, 1);
+  assert.equal(contrastWithBlack('nope'), null);
   assert.equal(relativeLuminance('#ffffff'), 1);
   assert.equal(relativeLuminance('#000000'), 0);
   assert.equal(relativeLuminance('nope'), null);
-  assert.equal(GLYPH_SHADOW_MIN_CONTRAST, 3);
+  // The two ratios cross at luminance 0.1791 — anything lighter takes the dark ink.
+  assert.equal(needsDarkGlyph('#757575'), false);   // L 0.1779, just under
+  assert.equal(needsDarkGlyph('#767676'), true);    // L 0.1812, just over
 });
 
 test('LIGHT_ACCENT_KEYS matches prePaintTheme.js\'s inlined copy', () => {
   // prePaintTheme.js is a classic script and cannot import accents.js, so it
   // inlines this list. If a preset's hex changes, these two must move together.
-  assert.deepEqual(LIGHT_ACCENT_KEYS, ['yellow', 'sky']);
+  assert.deepEqual(LIGHT_ACCENT_KEYS, ['pink', 'yellow', 'orange', 'aqua', 'sky', 'grass', 'brown']);
   const inlined = readFileSync(new URL('../js/prePaintTheme.js', import.meta.url), 'utf8')
     .match(/LIGHT_ACCENT_KEYS = \[([^\]]*)\]/)[1]
     .split(',').map((s) => s.trim().replace(/^'|'$/g, '')).filter(Boolean);

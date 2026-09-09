@@ -201,7 +201,7 @@ namespace stencil::gui {
       // The dpr-AWARE overload — pixmap(16, 16) would scale the Retina raster back
       // down to 16 device pixels and show a soft glyph on a hi-dpi screen.
       const qreal dpr = qApp ? qApp->devicePixelRatio() : qreal(1);
-      themedIcon(QString::fromLatin1(glyph), QColor(Qt::white), 16, /*shadow=*/false, dpr)
+      themedIcon(QString::fromLatin1(glyph), QColor(Qt::white), 16, dpr)
           .pixmap(QSize(16, 16), dpr)
           .toImage()
           .save(&buf, "PNG");

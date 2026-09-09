@@ -26,5 +26,8 @@
          beside these are the editable source (regenerate with Qt's SVG renderer). -->
     <file alias="check.png">icons/check.png</file>
     <file alias="radio-dot.png">icons/radio-dot.png</file>
+    <!-- Dark twins, for a checkbox/radio filled with a LIGHT accent (theme.cpp ON_ACCENT). -->
+    <file alias="check-dark.png">icons/check-dark.png</file>
+    <file alias="radio-dot-dark.png">icons/radio-dot-dark.png</file>
   </qresource>
 </RCC>

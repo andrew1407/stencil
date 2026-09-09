@@ -1,6 +1,6 @@
 import { icon } from '../ui/icons.js';
 import { themeSwap, originOf, originOfId } from '../ui/motion.js';
-import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex, accentHex, needsGlyphShadow } from './accents.js';
+import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex, accentHex, needsDarkGlyph } from './accents.js';
 
 // ── Appearance mode ────────────────────────────────────────────────
 // Three states, like the desktop and the extension: 'system' follows the OS and is the
@@ -79,11 +79,11 @@ export class AccentController {
     for (const btn of document.querySelectorAll('[id="theme-toggle"]')) btn.innerHTML = glyph;
   }
 
-  // Flag a LIGHT accent on <html> so the white glyphs pick up their dark shadow
-  // (css/theme.css --glyph-shadow). Driven by the resolved hex, so presets and
-  // custom colours go through the same test. Mirrors prePaintTheme.js's pre-paint pass.
+  // Flag a LIGHT accent on <html> so every accent-backed control takes the dark ink
+  // (css/theme.css --on-accent). Driven by the resolved hex, so a custom colour goes
+  // through the same test. Mirrors prePaintTheme.js's pre-paint pass.
   applyGlyphContrast(hex) {
-    document.documentElement.toggleAttribute('data-accent-light', needsGlyphShadow(hex));
+    document.documentElement.toggleAttribute('data-accent-light', needsDarkGlyph(hex));
   }
 
   setAccent(key, originEl = null) {

@@ -502,10 +502,11 @@ test('the extension and the browser deliberately use DIFFERENT storage keys', ()
   assert.equal(accent.storageKey, 'stencil_accent');
 });
 
-// ── Glyph-shadow contrast switch ────────────────────────────────────────────
-// White glyphs sit on --accent; a LIGHT preset washes them out, so accent.js flags
-// <html data-accent-light> and lib/theme.css swaps --glyph-shadow to a dark halo.
-// Mirrors browser/tests/accentController.test.js (same WCAG 3:1 threshold).
+// ── On-accent ink switch ────────────────────────────────────────────────────
+// Labels and currentColor line-art sit on --accent, so the accent picks the ink that
+// reads on it: whichever of white / near-black contrasts more. accent.js flags
+// <html data-accent-light> for the dark one and lib/theme.css swaps --on-accent.
+// Mirrors browser/tests/accentController.test.js (same rule).
 
 test('data-accent-light is stamped only for the light presets', () => {
   const { accent, isAccentLight } = loadAccent();
@@ -514,8 +515,15 @@ test('data-accent-light is stamped only for the light presets', () => {
     accent.set(a.key);
     if (isAccentLight()) light.push(a.key);
   }
-  // Yellow (1.92:1) and sky (2.77:1) are the presets white reads poorly on.
-  assert.deepEqual(light, ['yellow', 'sky']);
+  // The seven presets black reads better on than white does.
+  assert.deepEqual(light, ['pink', 'yellow', 'orange', 'aqua', 'sky', 'grass', 'brown']);
+});
+
+test('inkOn hands a swatch the ink for its own colour', () => {
+  const { accent } = loadAccent();
+  assert.equal(accent.inkOn('#eab308'), '#1a1a1a');   // yellow — white 1.92:1, black 10.95:1
+  assert.equal(accent.inkOn('#7c3aed'), '#ffffff');   // violet — 5.70 vs 3.69
+  assert.equal(accent.inkOn('nope'), '#ffffff');      // not a hex → the white default
 });
 
 test('switching from a light accent back to a dark one clears the flag', () => {

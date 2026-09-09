@@ -1,4 +1,4 @@
-import { ACCENTS, accentHex, normalizeHex } from '../core/accents.js';
+import { ACCENTS, accentHex, normalizeHex, onAccentInk } from '../core/accents.js';
 import { icon } from './icons.js';
 import { showMenu, hideMenu } from './dropdownMenu.js';
 
@@ -154,7 +154,7 @@ export function fillAccentMenu(menu, onPick, preview = null) {
     li.setAttribute('role', 'option');
     li.dataset.key = a.key;
     li.innerHTML =
-      `<span class="accent-swatch" style="background:${a.hex}">` +
+      `<span class="accent-swatch" style="background:${a.hex};color:${onAccentInk(a.hex)}">` +
       `${icon('check', { size: 11, cls: 'accent-check', sw: 3.5 })}</span>` +
       `<span class="accent-dd-name">${a.label}</span>`;
     li.addEventListener('click', () => pick(a.key));
@@ -223,6 +223,7 @@ export function buildAccentPicker(mount, { current, onSelect, preview = null }) 
   // dropdown just DISPLAYS the custom state in its trigger ("Custom" + the live swatch) below.
   const syncTrigger = () => {
     curSw.style.background = swatchOf(value);
+    curSw.style.color = onAccentInk(swatchOf(value));
     curName.textContent = labelOf(value);
     markSelected(menu, value);
   };

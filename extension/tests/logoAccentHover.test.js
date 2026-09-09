@@ -66,6 +66,7 @@ const rig = () => {
       list: ACCENTS,
       get: () => 'violet',
       hexOf: (k) => ACCENTS.find((a) => a.key === k).hex,
+      inkOn: () => '#ffffff',
       set: (k) => { calls.push(['set', k]); root.classList.add('theme-instant'); },
       setCustom: () => {},
       previewAccent: (k) => { calls.push(['preview', k]); root.classList.add('theme-instant'); },

@@ -2988,7 +2988,7 @@ class MainWindowGuiTest : public QObject {
 
   // The Start/Stop toggle is an ACCENT toggle, not a status light (browser #draw-toggle):
   // OUTLINED while idle — accent ring, accent glyph, neutral face — and accent-FILLED with
-  // the on-accent white while a session is live. The bug this locks down: it carried the
+  // the on-accent ink while a session is live. The bug this locks down: it carried the
   // sections' permanent toolFill, so both states were the same filled accent chip and the
   // button said nothing about which one you were in. The accent is the USER's, so every
   // assertion is made again after switching it — a hard-coded colour cannot pass twice.
@@ -3048,8 +3048,8 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(!near(ground(), accent, 50), qPrintable("idle is accent-FILLED" + why));
       QVERIFY2(near(glyph(), ink, 40), qPrintable("the idle ▶ is not the theme's ink" + why));
 
-      // ── Drawing: filled, with the on-accent white the app's other filled accent
-      // controls use (chatDock's send/attach/gear).
+      // ── Drawing: filled, in the on-accent ink the app's other filled accent controls
+      // use (chatDock's send/attach/gear) — white on violet, near-black on grass.
       QAction* start = actionByText(&win, "Start Drawing");
       QVERIFY(start);
       start->trigger();
@@ -3060,7 +3060,7 @@ class MainWindowGuiTest : public QObject {
       // frame that happens to be up.
       QTRY_VERIFY2_WITH_TIMEOUT(near(ground(), accent, 50),
                                 qPrintable("drawing is not accent-filled" + why), 3000);
-      QTRY_VERIFY2_WITH_TIMEOUT(near(glyph(), QColor(Qt::white), 40),
+      QTRY_VERIFY2_WITH_TIMEOUT(near(glyph(), stencil::gui::onAccentInk(accent), 40),
                                 qPrintable("the ■ is not the on-accent foreground" + why), 3000);
       btn->defaultAction()->trigger();
       QTRY_VERIFY(!canvas->isDrawing());
@@ -3201,7 +3201,7 @@ class MainWindowGuiTest : public QObject {
     // slab is solid, and the two faces carry a comparable amount of ink — which is what
     // "siblings" means here, and what a pencil-beside-a-slab pair failed.
     const auto glyph = [](const QString& name) {
-      return stencil::gui::themedIcon(name, QColor(Qt::black), 32, false, 1.0)
+      return stencil::gui::themedIcon(name, QColor(Qt::black), 32, 1.0)
           .pixmap(32, 32).toImage().convertToFormat(QImage::Format_ARGB32);
     };
     const auto ink = [](const QImage& im) {
@@ -6131,7 +6131,7 @@ class MainWindowGuiTest : public QObject {
       return sum / (im.width() * im.height());
     };
     for (qreal dpr : {1.0, 2.0}) {
-      const QIcon ic = stencil::gui::themedIcon("download", QColor("#e0e0e0"), 18, false, dpr);
+      const QIcon ic = stencil::gui::themedIcon("download", QColor("#e0e0e0"), 18, dpr);
       const QImage on = ic.pixmap(18, 18, QIcon::Normal).toImage();
       const QImage off = ic.pixmap(18, 18, QIcon::Disabled).toImage();
       const QString at = QString(" (at %1x)").arg(dpr);
@@ -6594,6 +6594,51 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.actFit_->isEnabled());
     QVERIFY(win.actZoomIn_->isEnabled() && win.actZoomOut_->isEnabled());
     QVERIFY2(win.zoom_->isEnabled(), "the % field stayed dead with an image loaded");
+  }
+
+  // Every accent-BACKED control wears the ink the ACCENT picked (theme.hpp onAccentInk).
+  // The bug this locks down: a fixed white glyph, which a yellow or sky accent all but
+  // swallowed (user report). Browser twin: --on-accent.
+  void filledControlsWearTheAccentsOwnInk() {
+    MainWindow win(nullptr, false);
+    CanvasWidget* canvas = openLoaded(win);
+    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+    const auto near = [](const QColor& a, const QColor& b, int tol) {
+      return qAbs(a.red() - b.red()) < tol && qAbs(a.green() - b.green()) < tol
+             && qAbs(a.blue() - b.blue()) < tol;
+    };
+    // The mean of the pixels a button's line-art actually covers.
+    const auto glyph = [](QToolButton* b) {
+      const QImage im = b->icon().pixmap(QSize(18, 18), 1.0).toImage();
+      long r = 0, g = 0, bl = 0, n = 0;
+      for (int y = 0; y < im.height(); ++y)
+        for (int x = 0; x < im.width(); ++x) {
+          const QColor c = im.pixelColor(x, y);
+          if (c.alpha() > 200) { r += c.red(); g += c.green(); bl += c.blue(); ++n; }
+        }
+      return n ? QColor(int(r / n), int(g / n), int(bl / n)) : QColor();
+    };
+    // Both directions on the SAME button — a hard-coded ink cannot pass twice.
+    for (const QString& accentKey : {QStringLiteral("violet"), QStringLiteral("yellow")}) {
+      auto s = win.settings_;
+      s.accentColor = accentKey;
+      win.applySettings(s, /*persist=*/false);
+      const QColor ink = stencil::gui::onAccentInk(stencil::gui::accentPrimary(accentKey));
+      const QString why = QStringLiteral(" (accent %1)").arg(accentKey);
+
+      QToolButton* filled = nullptr;
+      for (QToolButton* b : win.findChildren<QToolButton*>())
+        if (b->property("toolFill").toString() == QLatin1String("accent")
+            && b->isEnabled() && !b->icon().isNull()) { filled = b; break; }
+      QVERIFY2(filled, "no enabled accent-filled toolbar button to sample");
+      QTRY_VERIFY2_WITH_TIMEOUT(near(glyph(filled), ink, 40),
+                                qPrintable("a filled button's glyph is not the accent's ink" + why), 3000);
+
+      // …and the stylesheet hands the same ink to every label on the accent.
+      const QString qss = stencil::gui::buildStylesheet(win.paintedDark_, accentKey);
+      QVERIFY2(qss.contains("color: " + ink.name()),
+               qPrintable("the QSS carries no on-accent ink" + why));
+    }
   }
 
   // Fit to window is FILLED like every other acting button (user decision; browser twin:

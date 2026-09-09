@@ -23,7 +23,7 @@ input[type=radio] { border-radius: 50%; }
 input[type=checkbox]:checked {
     background-color: var(--accent);
     border-color: var(--accent);
-    background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23fff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-image: var(--accent-tick);
     background-repeat: no-repeat;
     background-position: center;
     background-size: 12px;
@@ -31,7 +31,7 @@ input[type=checkbox]:checked {
 input[type=radio]:checked {
     background-color: var(--accent);
     border-color: var(--accent);
-    background-image: radial-gradient(circle, #fff 0 2.6px, transparent 3.1px);
+    background-image: radial-gradient(circle, var(--on-accent) 0 2.6px, transparent 3.1px);
 }
 input[type=checkbox]:disabled, input[type=radio]:disabled { opacity: .5; cursor: default; }
 
@@ -753,7 +753,7 @@ body.fullscreen-mode #fs-points-panel {
    and made routine confirmations shout as loudly as failures. The ✓ / ✕ / ℹ glyph is what
    still separates the kinds. Mirrored in desktop/src/support/notifications.cpp. */
 .notify-toast.notify-ok,
-.notify-toast.notify-info  { background: var(--accent); }
+.notify-toast.notify-info  { background: var(--accent); color: var(--on-accent); }
 .notify-toast.notify-fail  { background: var(--danger); }
 .notify-toast .notify-icon { display: inline-flex; align-items: center; }
 /* Clickable toasts (e.g. "assistant finished while the chat was closed") are real
@@ -781,7 +781,7 @@ body.fullscreen-mode #fs-points-panel {
     align-items: center;
     justify-content: center;
     background: var(--accent);
-    color: #fff;
+    color: var(--on-accent);
     border: none;
     border-radius: 50%;
     font-size: 15px;
@@ -891,7 +891,7 @@ body.fullscreen-mode #fs-points-panel {
     transition: background 0.2s, box-shadow 0.2s, color 0.2s;
 }
 #voice-chat-btn:not(.active):hover { background: var(--bg-info); }
-#voice-chat-btn.active { background: var(--accent); color: #fff; }
+#voice-chat-btn.active { background: var(--accent); color: var(--on-accent); }
 #voice-chat-btn.active:hover { background: var(--accent-2); }
 #voice-chat-btn:disabled { opacity: 0.45; cursor: not-allowed; background: transparent; }
 /* Work IN FLIGHT behind a closed chat: a quiet pulsing dot on the icon's own corner, so
@@ -912,7 +912,7 @@ body.fullscreen-mode #fs-points-panel {
 }
 /* On the accent-filled (open) state the dot inverts, so it stays visible either way. */
 #chat-btn.active.chat-working::before {
-    background: #fff;
+    background: var(--on-accent);
     box-shadow: 0 0 0 2px var(--accent);
 }
 #chat-btn.chat-working::before { animation: statusPulse 1.2s ease-in-out infinite; }
@@ -932,7 +932,7 @@ body.fullscreen-mode #fs-points-panel {
     background: var(--accent);
     border: none !important;
     box-shadow: inset 0 0 0 1px var(--accent);
-    color: #fff;
+    color: var(--on-accent);
     line-height: 1;
     border-radius: 4px;
     cursor: pointer;
@@ -949,7 +949,7 @@ body.fullscreen-mode #fs-points-panel {
 #settings-btn, #visuals-btn, #info-btn {
     background: var(--accent);
     border-color: var(--accent) !important;
-    color: #fff;
+    color: var(--on-accent);
 }
 #settings-btn:not(:disabled):hover, #visuals-btn:not(:disabled):hover,
 #info-btn:not(:disabled):hover {
@@ -971,7 +971,7 @@ body.fullscreen-mode #fs-points-panel {
 #fullscreen-toggle {
     background: var(--accent);
     border-color: var(--accent) !important;
-    color: #fff;
+    color: var(--on-accent);
 }
 #fullscreen-toggle:not(:disabled):hover {
     background: var(--accent-2);
@@ -981,7 +981,7 @@ body.fullscreen-mode #fs-points-panel {
 #fullscreen-toggle.active, #incognito-toggle.active, #chat-btn.active {
     background: var(--accent);
     border-color: var(--accent) !important;
-    color: #fff;
+    color: var(--on-accent);
 }
 #fullscreen-toggle.active:hover, #incognito-toggle.active:hover,
 #chat-btn.active:hover { background: var(--accent-2); border-color: var(--accent-2) !important; }
@@ -1140,7 +1140,7 @@ body.fullscreen-mode #fs-points-panel {
 /* Commit/discard pair in a settings footer (assistant modal — desktop dialog
    parity: edits reach storage only on Save). */
 .chat-settings-actions { display: inline-flex; gap: 8px; flex: 0 0 auto; }
-.chat-settings-actions .primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chat-settings-actions .primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .settings-footer .footer-hint {
     font-size: 12px;
     color: var(--text-muted);
@@ -1150,7 +1150,7 @@ body.fullscreen-mode #fs-points-panel {
    dialog, so it wears the accent fill every plain <button> gets (layout.css) rather
    than an outline, matching the desktop twins (makeModalCta in shortcutsDialog.cpp /
    settingsDialog.cpp). Only the compact footer sizing is its own; the hover lift
-   (--accent-2) and the white-glyph shadow come from the shared button rules. */
+   (--accent-2) and the on-accent ink come from the shared button rules. */
 #reset-all-hotkeys, #vs-reset {
     font-size: 12.5px;
     padding: 5px 12px;
@@ -1450,7 +1450,7 @@ stencil-llm-settings-modal .vs-row select { flex: 1 1 auto; width: auto; min-wid
    shadow, same as every filled button) — accent text over the accent pill made the
    hovered active tab unreadable (user report). The :hover rule must ALSO carry
    .is-active's specificity, or the active tab's accent text wins the tie. */
-.oi-tab:hover, .oi-tab.is-active:hover { color: #fff; }
+.oi-tab:hover, .oi-tab.is-active:hover { color: var(--on-accent); }
 .oi-tab.is-active { color: var(--accent); border-bottom-color: var(--accent); }
 .oi-panel { margin-bottom: 2px; }
 /* One dialog height across the source tabs (desktop parity): the shell is sized for
@@ -1507,13 +1507,11 @@ stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
    (mainWindow.cpp openAccentPicker draws the same tick into the current swatch), and a
    marker the row tint can't be: that tint is the same affordance :hover uses, so on the
    logo menu (opened under the pointer) the active row read no differently from the row
-   being hovered. White over a dark halo, so it stays legible on light and dark chips in
-   either theme. Every row carries the glyph; only the selected one reveals it, so a
-   custom hex accent (which selects no row) marks nothing. */
+   being hovered. It inherits the chip's own on-accent ink (accentPicker.js sets it per
+   preset). Every row carries the glyph; only the selected one reveals it, so a custom
+   hex accent (which selects no row) marks nothing. */
 .accent-check {
     opacity: 0;
-    color: #fff;
-    filter: drop-shadow(0 0 1.5px rgba(0,0,0,0.9)) drop-shadow(0 0 1px rgba(0,0,0,0.55));
     transition: opacity 0.15s ease;
 }
 .accent-dd-opt[aria-selected="true"] .accent-check { opacity: 1; }
@@ -1993,7 +1991,7 @@ stencil-fullscreen-layer { display: contents; }
 .pill-toggle > input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
 /* ON: accent-filled with contrasting text. Driven by a JS class toggle (settingsController
    .syncFormulaUI / the change handler) — deterministic across programmatic state changes. */
-.pill-toggle.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.pill-toggle.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 
 /* Plain local (browser-storage) projects: a muted globe badge (no row outline) — the
    neutral third state next to the golden server + bronze file rows. */
@@ -2031,8 +2029,8 @@ stencil-fullscreen-layer { display: contents; }
     padding: 8px 10px; font-size: 13px; cursor: pointer; text-align: left;
 }
 .project-menu-item .ic, .chat-row-menu-item .ic { flex: 0 0 auto; color: var(--text-muted); }
-.project-menu-item:hover, .chat-row-menu-item:hover { background: var(--accent); color: #fff; }
-.project-menu-item:hover .ic, .chat-row-menu-item:hover .ic { color: #fff; }
+.project-menu-item:hover, .chat-row-menu-item:hover { background: var(--accent); color: var(--on-accent); }
+.project-menu-item:hover .ic, .chat-row-menu-item:hover .ic { color: var(--on-accent); }
 /* Destructive item: red TEXT on the menu background (a dedicated class, NOT the
    global `.danger`, which would fill the whole button red). */
 .project-menu-item.is-danger { color: var(--danger); }
@@ -2785,7 +2783,7 @@ a.chat-hbtn { text-decoration: none; }
 .ctx-assist-abtn.chat-voice-on:not(.chat-voice-listening):hover { background: var(--bg-info); }
 .chat-abtn.chat-voice-listening, .ctx-assist-abtn.chat-voice-listening {
     background: var(--accent);
-    color: #fff;
+    color: var(--on-accent);
 }
 /* The configure gear carries the provider-status dot (.conn-status palette:
    green/amber/red) as a corner badge; its tooltip explains the state. */
