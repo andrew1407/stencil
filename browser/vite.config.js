@@ -3,7 +3,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import {
-  PRE_PAINT_TAG, MANIFEST_LINK, FAVICON_HREF,
+  CSP_META, PRE_PAINT_TAG, MANIFEST_LINK, FAVICON_HREF,
   PROJECTS_WORKER_URL, WASM_IMPORT, OPEN_IN_CONFIG_URL, NO_SIBLINGS,
 } from './tools/singleFilePatterns.js';
 
@@ -22,7 +22,8 @@ const dataUri = file =>
 
 // Rewrite the raw HTML before vite:build-html extracts assets out of it: the classic
 // pre-paint script goes inline (it must still run before first paint), the icons become
-// data: URIs, and the PWA manifest link goes — one file has no shell to install, and
+// data: URIs, and the PWA manifest link + the <meta> CSP go (one file is all inline
+// script/style, which the served app's policy forbids — see singleFilePatterns.js) — one file has no shell to install, and
 // sw.js registration already no-ops when it can't be fetched.
 const prepareHtml = () => ({
   name: 'stencil-singlefile-html',
@@ -31,6 +32,7 @@ const prepareHtml = () => ({
     if (!id.endsWith('index.html')) return null;
     const prePaint = readFileSync(resolve(root, 'js/prePaintTheme.js'), 'utf8');
     const out = code
+      .replace(CSP_META, '')
       .replace(MANIFEST_LINK, '')
       .replace(PRE_PAINT_TAG, `<script>\n${prePaint}\n</script>`)
       .replace(FAVICON_HREF, `href="${dataUri('favicon.svg')}"`);

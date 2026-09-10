@@ -20,9 +20,13 @@ import { applyMotionAttr } from './ui/motionPrefs.js';
 window.onload = async () => {
   // When framed in the extension's in-page editor modal, signal liveness before
   // the heavy boot so the host keeps the modal up instead of timing out to a tab.
+  // Addressed at the embedder's origin (the referrer) rather than '*'; a page that
+  // sends no referrer falls back to '*', which is safe because the ping carries no
+  // state — just "this frame booted".
   if (window.parent !== window && (location.hash || '').startsWith('#stencil=')) {
     try {
-      window.parent.postMessage({ source: 'stencil-modal', type: 'ready' }, '*');
+      const target = document.referrer ? new URL(document.referrer).origin : '*';
+      window.parent.postMessage({ source: 'stencil-modal', type: 'ready' }, target);
     } catch {
       /* ignore */
     }

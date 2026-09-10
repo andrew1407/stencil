@@ -207,7 +207,7 @@ export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   const onMsg = (e) => {
     const d = e.data;
-    if (!d || d.source !== 'stencil-modal') return;   // literal SRC.MODAL (injected fn — can't import)
+    if (e.source !== frame.contentWindow || !d || d.source !== 'stencil-modal') return;   // only OUR frame
     if (d.type === 'ready') {
       clearTimeout(timer);
       const l = root.querySelector('.loading');

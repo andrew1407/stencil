@@ -16,6 +16,8 @@
 // Every DOM seam (bitmap decoder, image element, canvas, blob/object URLs) is INJECTED,
 // so `node --test` drives the whole module with stubs.
 
+import { isAllowedImageUrl } from './urlGuard.js';
+
 // Long edge a decoded image is fitted into by default (contract §7 downscale).
 export const DEFAULT_MAX_EDGE = 1568;
 // Long edge used when the source has NO usable pixel size — the common case for an
@@ -28,6 +30,7 @@ export const DEFAULT_RASTER_EDGE = 512;
 export const DECODE_TIMEOUT_MS = 10000;
 
 export const DECODE_ERROR = 'the image could not be decoded (unsupported or blocked source)';
+export const BLOCKED_URL = 'blocked private or internal address';
 
 // Is this media type / URL an SVG (the type that must never reach createImageBitmap
 // and must never be sent to the model unrasterised)?
@@ -83,7 +86,12 @@ const domDeps = () => ({
   createBitmap: typeof createImageBitmap === 'function' ? (blob) => createImageBitmap(blob) : null,
   makeImage: () => document.createElement('img'),
   makeCanvas: () => document.createElement('canvas'),
-  toBlob: async (url) => (await fetch(url)).blob(),
+  // Sources reach here as data:/blob: (fetchAsDataUrl pulled the bytes under the guard
+  // already); anything else is a page-harvested URL, so it takes the same SSRF check.
+  toBlob: async (url) => {
+    if (!isAllowedImageUrl(url)) throw new Error(BLOCKED_URL);
+    return (await fetch(url)).blob();
+  },
   objectUrl: (blob) => URL.createObjectURL(blob),
   revokeUrl: (url) => URL.revokeObjectURL(url),
   timer: (fn, ms) => setTimeout(fn, ms),
@@ -139,6 +147,9 @@ const decodeViaElement = (url, { width, height }, d, timeoutMs) => new Promise((
 // API). `elementSize(vector)` is the <img> box — for an SVG with no intrinsic size,
 // the box IS the rasterisation resolution.
 const decode = async ({ dataUrl = '', blob = null }, { d, timeoutMs, elementSize, noSource }, use) => {
+  // Both decoders below reach the network for an http(s) source (fetch, then <img src>),
+  // so the SSRF guard sits here, ahead of either. data:/blob: pass (urlGuard.js).
+  if (dataUrl && !isAllowedImageUrl(dataUrl)) throw new Error(BLOCKED_URL);
   const type = (blob && blob.type) || mediaTypeOf(dataUrl);
   const vector = isSvgType(type) || (!type && isSvgUrl(dataUrl));
 

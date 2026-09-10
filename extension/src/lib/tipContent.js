@@ -53,9 +53,9 @@ const isMacPlatform = () => {
   return /mac/i.test(p || navigator.userAgent || '');
 };
 
-export const escapeHtml = s => String(s)
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  .replace(/"/g, '&quot;');
+// ONE escaper for the whole surface — a security helper must not exist in two copies.
+import { escapeHtml } from './escapeHtml.js';
+export { escapeHtml };
 
 /** Whether `s` is a key combo and nothing else (what a trailing "(…)" must be to become keycaps). */
 export const isKeyCombo = s =>

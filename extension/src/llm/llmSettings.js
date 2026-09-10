@@ -34,6 +34,11 @@ const KEYS = ['provider', 'baseUrl', 'model', 'apiKey', 'serverUrl', 'serverToke
 // Booleans, merged separately (typeof 'string' would drop them).
 const BOOL_KEYS = ['shareTabs'];
 
+// Endpoint keys are http(s) ONLY, so a poisoned chrome.storage entry can't aim the
+// client at another scheme. Mirrors browser/js/llm/llmSettings.js.
+export const URL_KEYS = ['baseUrl', 'serverUrl'];
+export const isHttpUrl = (v) => /^https?:\/\//i.test(String(v == null ? '' : v));
+
 // First-run defaults: ollama on its standard local port, model empty (the user picks),
 // serverUrl pre-filled with the FIRST stored Stencil server connection (empty when none).
 // shareTabs is the §8 tab-listing opt-in — OFF: it sends the one thing the user did not
@@ -62,7 +67,9 @@ export const loadLlmSettings = async ({ connections } = {}) => {
     const saved = o ? o[LLM_SETTINGS_KEY] : null;
     if (saved && typeof saved === 'object') {
       for (const k of KEYS) {
-        if (typeof saved[k] === 'string') out[k] = saved[k];
+        if (typeof saved[k] !== 'string') continue;
+        if (URL_KEYS.includes(k) && saved[k] && !isHttpUrl(saved[k])) continue;   // keep the default
+        out[k] = saved[k];
       }
       for (const k of BOOL_KEYS) {
         if (typeof saved[k] === 'boolean') out[k] = saved[k];

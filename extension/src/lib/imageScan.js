@@ -168,7 +168,12 @@ export const scanPageForImages = async (limit) => {
   if (manifestLink && out.length < limit) {
     try {
       const manifestUrl = abs(manifestLink.getAttribute('href'));
-      const res = await fetch(manifestUrl, { credentials: manifestLink.crossOrigin ? 'omit' : 'include' });
+      // The href is page-supplied, and this fetch carries the page's cookies — so it may
+      // only ever reach the page's OWN origin. (lib/urlGuard.js is the guard everywhere
+      // else, but this function is INJECTED and can't import; same-origin is strictly
+      // tighter than its scanned-page same-host carve-out anyway.)
+      if (new URL(manifestUrl).origin !== location.origin) throw new Error('cross-origin manifest');
+      const res = await fetch(manifestUrl, { credentials: 'include' });
       const manifest = await res.json();
       for (const ic of (Array.isArray(manifest.icons) ? manifest.icons : [])) {
         if (ic && ic.src) push(abs(new URL(ic.src, manifestUrl).href), 'img', 0, 0, ic.purpose || 'app icon', { meta: true });

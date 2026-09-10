@@ -1,10 +1,11 @@
 // ── Rewrite patterns for the single-file build ──────────────────
-// vite.config.js edits four sources on its way to one self-contained HTML: the app
-// shell (inline the pre-paint script + icons, drop the PWA manifest) and the three
-// loaders that address a sibling file by URL. Each pattern lives here, dependency-free, so
-// tests/singleFileBuild.test.js can assert they all still match — a rewrite that silently
-// stops matching would otherwise ship an HTML that needs siblings, or emit a stray file.
+// vite.config.js edits four sources on its way to one self-contained HTML: the app shell
+// (inline the pre-paint script + icons, drop the PWA manifest and the <meta> CSP an all-inline
+// file off disk can't obey) and the three loaders that address a sibling file by URL. Each
+// pattern lives here, dependency-free, so tests/singleFileBuild.test.js can assert they all
+// still match — one that silently stops matching would ship an HTML needing siblings.
 
+export const CSP_META = /^.*<!-- CSP:(?:.*\n)*?.*<meta http-equiv="Content-Security-Policy"[^>]*>\n/m;
 export const PRE_PAINT_TAG = /<script src="js\/prePaintTheme\.js"><\/script>/;
 export const MANIFEST_LINK = /^.*<link rel="manifest".*\n/m;
 export const FAVICON_HREF = /href="favicon\.svg"/g;
@@ -14,7 +15,7 @@ export const OPEN_IN_CONFIG_URL = /new URL\((['"])\.\/openInConfig\.json\1,\s*im
 
 // file → the patterns that must still match inside it.
 export const REWRITES = Object.freeze({
-  'index.html': [PRE_PAINT_TAG, MANIFEST_LINK, FAVICON_HREF],
+  'index.html': [CSP_META, PRE_PAINT_TAG, MANIFEST_LINK, FAVICON_HREF],
   'js/core/tabsCoordinator.js': [PROJECTS_WORKER_URL],
   'js/core/stencilCore.js': [WASM_IMPORT],
   'js/config/openInConfig.js': [OPEN_IN_CONFIG_URL],

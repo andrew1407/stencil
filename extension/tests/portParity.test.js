@@ -19,6 +19,8 @@ import { readFileSync } from 'node:fs';
 
 // name → [browser copy, extension copy], both relative to this file.
 const MANIFEST = [
+  // The one HTML escaper both surfaces (and tipContent below) re-export.
+  ['escapeHtml', '../../browser/js/ui/escapeHtml.js', '../src/lib/escapeHtml.js'],
   ['tipContent', '../../browser/js/ui/tipContent.js', '../src/lib/tipContent.js'],
   ['numericInput', '../../browser/js/ui/numericInput.js', '../src/lib/numericInput.js'],
   ['dropdownMenu', '../../browser/js/ui/dropdownMenu.js', '../src/lib/dropdownMenu.js'],

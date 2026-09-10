@@ -1290,7 +1290,7 @@ export const chatReconnectButton = (serverUrl, onReconnect) => {
   const b = document.createElement('button');
   b.className = 'btn-icon-text chat-reconnect-cta';
   const host = String(serverUrl || '').replace(/^https?:\/\//i, '');
-  b.innerHTML = icon('link', { size: 13 }) + `<span>Reconnect${host ? ` to ${host}` : ''}</span>`;
+  b.innerHTML = icon('link', { size: 13 }) + `<span>Reconnect${host ? ` to ${escapeHtml(host)}` : ''}</span>`;
   b.addEventListener('click', () => onReconnect?.(serverUrl));
   return b;
 };

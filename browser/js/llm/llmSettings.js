@@ -19,6 +19,12 @@ export const PROVIDER_BASE_URLS = Object.fromEntries(
   Object.entries(PROVIDERS_ASSET.providers).map(([id, p]) => [id, p.defaultBaseUrl || '']),
 );
 
+// Endpoint keys are http(s) ONLY — the one scheme check, shared by loadLlmSettings
+// below and the stencil.llm setup facade, so a poisoned store and a scripted setter
+// can never aim the client at javascript:/file:/chrome-extension:.
+export const URL_KEYS = ['baseUrl', 'serverUrl'];
+export const isHttpUrl = (v) => /^https?:\/\//i.test(String(v == null ? '' : v));
+
 // Switch `settings` to `provider`, pre-filling the new provider's default base URL
 // unless the user has overridden it (a URL that isn't just the previous provider's
 // default). THE provider-switch rule — the settings modal and the stencil.llm()
@@ -52,7 +58,9 @@ export const loadLlmSettings = () => {
     const saved = raw ? JSON.parse(raw) : null;
     if (saved && typeof saved === 'object') {
       for (const k of ['provider', 'baseUrl', 'model', 'apiKey', 'serverUrl']) {
-        if (typeof saved[k] === 'string') out[k] = saved[k];
+        if (typeof saved[k] !== 'string') continue;
+        if (URL_KEYS.includes(k) && saved[k] && !isHttpUrl(saved[k])) continue;   // keep the default
+        out[k] = saved[k];
       }
       if (typeof saved.saveChats === 'boolean') out.saveChats = saved.saveChats;
     }

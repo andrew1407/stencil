@@ -22,7 +22,7 @@ import { requireConnection } from '../net/remoteSync.js';
 import { notify } from '../utils.js';
 import { motionPrefs, MOTION_MODES } from '../ui/motionPrefs.js';
 import { videoFrameDataUrl } from '../core/videoFrame.js';
-import { loadLlmSettings, saveLlmSettings, PROVIDERS, withProvider } from '../llm/llmSettings.js';
+import { loadLlmSettings, saveLlmSettings, PROVIDERS, withProvider, URL_KEYS, isHttpUrl } from '../llm/llmSettings.js';
 import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voiceSettings.js';
 import {
   chatSide, setChatSide, applyChatSide, CHAT_SIDE_SWAPPED,
@@ -638,10 +638,10 @@ export const createStencil = (app) => {
       // below still wins.
       if (p !== cur.provider) next = withProvider(next, p);
     }
-    for (const k of ['baseUrl', 'serverUrl']) {
+    for (const k of URL_KEYS) {
       if (opts[k] != null) {
         const v = str(opts[k]).trim();
-        if (v && !/^https?:\/\//i.test(v)) throw new Error(`${k} must be an http(s) URL`);
+        if (v && !isHttpUrl(v)) throw new Error(`${k} must be an http(s) URL`);
         next[k] = v;
       }
     }
