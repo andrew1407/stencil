@@ -92,6 +92,17 @@ int stencil_cli_validateFormula(const char* expr, int var);
  * empty, or evaluation fails / is non-finite (identity-on-error, like the browser). */
 double stencil_cli_applyFormula(const char* expr, int var, double value, int allowFormulas);
 
+/* ── Canon enumeration (adapter drift guards) ───────────────────────────────── */
+/* Built-in CSS colour keywords, alphabetically: the count, and the name at `index`
+ * (NULL out of range) with its 0xRRGGBB written to *rgb. Static storage. */
+int stencil_cli_colorNameCount(void);
+const char* stencil_cli_colorNameAt(int index, unsigned int* rgb);
+
+/* Space-separated `expire` vocabulary in help order: the unit words, then the
+ * keep-forever aliases. The console prints its help from these. Static storage. */
+const char* stencil_cli_durationUnits(void);
+const char* stencil_cli_durationOffAliases(void);
+
 /* ── Human-duration parser (same DurationParser the browser `expire` uses) ────── */
 /* Parse a spec ("days 23", "fortnight", "month", "off") into milliseconds written to
  * *outMs (0 for off/never). Returns 1 on a valid spec, 0 otherwise (*outMs untouched).

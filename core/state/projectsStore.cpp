@@ -181,7 +181,8 @@ namespace stencil::core {
       const std::string& name, const std::string& exceptId) const {
     const std::string clean = std::string(trimAscii(name));
     if (clean.empty()) return {false, "Name can't be empty"};
-    if (clean.size() > 80) return {false, "Name is too long (max 80 characters)"};
+    if (clean.size() > kMaxNameLength)
+      return {false, "Name is too long (max 80 characters)"};
     if (nameExists(clean, exceptId)) return {false, "\"" + clean + "\" is already taken"};
     return {true, ""};
   }

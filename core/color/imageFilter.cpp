@@ -1,4 +1,5 @@
 #include "imageFilter.hpp"
+#include "luma.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -28,8 +29,7 @@ namespace stencil::core {
 
       case FilterMode::Bw: {
         // Rec. 709 luma (renderer.js grayscale(100%)).
-        const int l =
-            static_cast<int>(0.2126 * r + 0.7152 * g + 0.0722 * b);
+        const int l = luma::rec709Truncated(r, g, b);
         return {l, l, l};
       }
 
@@ -47,8 +47,7 @@ namespace stencil::core {
       case FilterMode::Custom: {
         // Grayscale -> duotone tint (renderer.js #applyTintFilter): dark pixels
         // -> the tint color, light pixels -> white.
-        const int l =
-            static_cast<int>(0.2126 * r + 0.7152 * g + 0.0722 * b);
+        const int l = luma::rec709Truncated(r, g, b);
         const double t = l / 255.0;  // 0 dark->color, 1 light->white
         return {
             static_cast<int>(std::lround(tintR + (255 - tintR) * t)),
@@ -100,8 +99,7 @@ namespace stencil::core {
     std::vector<std::uint8_t> luma(count);
     for (std::size_t i = 0; i < count; ++i) {
       const std::uint8_t* px = data + i * 4;
-      luma[i] = static_cast<std::uint8_t>(
-          (2126 * px[0] + 7152 * px[1] + 722 * px[2]) / 10000);
+      luma[i] = core::luma::rec709Scaled(px[0], px[1], px[2]);
     }
 
     // Edge-replicated (clamped) luma lookup.

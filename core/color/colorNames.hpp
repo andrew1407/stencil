@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <optional>
 #include <string>
 
@@ -19,5 +20,12 @@ namespace stencil::core {
   // Parse a colour spec to RGBA (0–255). Case-insensitive. nullopt if unrecognized.
   // 'transparent' resolves to {0,0,0,0}.
   std::optional<Rgba> parseColor(const std::string& spec);
+
+  // Enumerate the keyword table alphabetically, so an adapter can drift-check its
+  // own copy (browser/js/config/colorNames.json) in BOTH directions. 'transparent'
+  // is not in here: parseColor handles it on its own and it has no hex.
+  // colorNameAt returns nullptr out of range and writes 0xRRGGBB to *rgb.
+  std::size_t colorNameCount();
+  const char* colorNameAt(std::size_t index, unsigned* rgb);
 
 }

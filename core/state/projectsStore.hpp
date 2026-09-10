@@ -1,4 +1,5 @@
 #pragma once
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <vector>
@@ -146,9 +147,13 @@ namespace stencil::core {
       bool ok = false;
       std::string reason;  // human-readable rejection reason when !ok
     };
-    // Validate a proposed name → { ok, reason }. Rejects empty / too-long (>80
-    // chars) / duplicate names with a reason; otherwise ok. `exceptId` is the
-    // project being renamed (so its own current name isn't a self-collision).
+    // Longest accepted project name, in characters. The rule lives here; callers
+    // that pre-trim a name (the desktop's chat save) clamp to this, never to 80.
+    static constexpr std::size_t kMaxNameLength = 80;
+
+    // Validate a proposed name → { ok, reason }. Rejects empty / too-long
+    // (> kMaxNameLength) / duplicate names with a reason; otherwise ok. `exceptId`
+    // is the project being renamed (so its own name isn't a self-collision).
     NameCheck validateName(const std::string& name, const std::string& exceptId = {}) const;
 
    private:

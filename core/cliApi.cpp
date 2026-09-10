@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <string>
 
 using namespace stencil::core;
@@ -146,6 +147,20 @@ extern "C" {
     return FormulaParser::apply(std::string(expr ? expr : ""), static_cast<char>(var), value,
                                 allowFormulas != 0);
   }
+
+  int stencil_cli_colorNameCount(void) { return static_cast<int>(colorNameCount()); }
+
+  const char* stencil_cli_colorNameAt(int index, unsigned int* rgb) {
+    if (index < 0) return nullptr;
+    unsigned v = 0;
+    const char* name = colorNameAt(static_cast<std::size_t>(index), &v);
+    if (name && rgb) *rgb = v;
+    return name;
+  }
+
+  const char* stencil_cli_durationUnits(void) { return DurationParser::unitNames(); }
+
+  const char* stencil_cli_durationOffAliases(void) { return DurationParser::offAliases(); }
 
   int stencil_cli_parseDuration(const char* spec, long long* outMs) {
     static const DurationParser dp;

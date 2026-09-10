@@ -30,6 +30,13 @@ namespace stencil::core {
     // adapters can mirror the same constants without re-deriving them.
     static constexpr long long DAY_MS = 24LL * 60 * 60 * 1000;
 
+    // The grammar's vocabulary, space-separated in help order: the unit words
+    // ("day week fortnight month year") and the keep-forever aliases ("off never
+    // none"). Adapters print their `expire` help from these, so a printed list
+    // can't drift from what parse() actually accepts. Static storage.
+    static const char* unitNames();
+    static const char* offAliases();
+
     // Parse `spec` into a duration in ms written to `outMs` (0 for off/never).
     // Returns true iff the spec is valid; leaves `outMs` untouched on failure.
     bool parse(const std::string& spec, long long& outMs) const;

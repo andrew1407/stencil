@@ -28,18 +28,31 @@ namespace stencil::core {
       return toks;
     }
 
+    // The grammar's vocabulary, in help order. One table so the words a spec may
+    // use and the words unitNames()/offAliases() advertise can never drift apart.
+    // Fixed durations, matching PERIOD_MS in projectsStore.
+    struct Unit {
+      const char* name;
+      long long days;
+    };
+    constexpr Unit kUnits[] = {{"day", 1}, {"week", 7}, {"fortnight", 14},
+                               {"month", 30}, {"year", 365}};
+    constexpr const char* kOffAliases[] = {"off", "never", "none"};
+
     // Milliseconds for one unit word (singular or trailing-'s' plural). False on
-    // an unknown word. Fixed durations, matching PERIOD_MS in projectsStore.
+    // an unknown word.
     bool unitMs(const std::string& word, long long& out) {
-      const long long day = DurationParser::DAY_MS;
       std::string w = word;
       // Accept an optional plural 's' (days, weeks, months, years, fortnights).
       if (w.size() > 1 && w.back() == 's') w.pop_back();
-      if (w == "day") { out = day; return true; }
-      if (w == "week") { out = 7 * day; return true; }
-      if (w == "fortnight") { out = 14 * day; return true; }
-      if (w == "month") { out = 30 * day; return true; }
-      if (w == "year") { out = 365 * day; return true; }
+      for (const Unit& u : kUnits)
+        if (w == u.name) { out = u.days * DurationParser::DAY_MS; return true; }
+      return false;
+    }
+
+    bool isOffAlias(const std::string& w) {
+      for (const char* a : kOffAliases)
+        if (w == a) return true;
       return false;
     }
 
@@ -61,13 +74,37 @@ namespace stencil::core {
 
   }  // namespace
 
+  const char* DurationParser::unitNames() {
+    static const std::string s = [] {
+      std::string out;
+      for (const Unit& u : kUnits) {
+        if (!out.empty()) out += ' ';
+        out += u.name;
+      }
+      return out;
+    }();
+    return s.c_str();
+  }
+
+  const char* DurationParser::offAliases() {
+    static const std::string s = [] {
+      std::string out;
+      for (const char* a : kOffAliases) {
+        if (!out.empty()) out += ' ';
+        out += a;
+      }
+      return out;
+    }();
+    return s.c_str();
+  }
+
   bool DurationParser::parse(const std::string& spec, long long& outMs) const {
     const std::vector<std::string> toks = tokenize(toLowerAscii(spec));
     if (toks.empty() || toks.size() > 2) return false;
 
     if (toks.size() == 1) {
       const std::string& t = toks[0];
-      if (t == "off" || t == "never" || t == "none") { outMs = 0; return true; }
+      if (isOffAlias(t)) { outMs = 0; return true; }
       long long unit = 0;
       if (unitMs(t, unit)) { outMs = unit; return true; }  // bare unit = one of it
       return false;
