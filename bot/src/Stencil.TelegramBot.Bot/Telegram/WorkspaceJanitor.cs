@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Sessions;
@@ -11,8 +12,9 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 /// stays referenced by the session — the rest are orphans the moment a newer render supersedes
 /// them. This loop periodically deletes those orphans once they age past
 /// <see cref="BotOptions.WorkspaceTtl"/>, while always keeping the session-referenced files.
+/// Hosted, so it starts with the app and unwinds on a graceful shutdown.
 /// </summary>
-public sealed class WorkspaceJanitor
+public sealed class WorkspaceJanitor : BackgroundService
 {
     private readonly IUserWorkspace _workspace;
     private readonly ISessionStore _store;
@@ -31,8 +33,8 @@ public sealed class WorkspaceJanitor
         _logger = logger;
     }
 
-    /// <summary>Sweep on a cadence of half the TTL (floored at 5 minutes) until cancelled.</summary>
-    public async Task RunAsync(CancellationToken ct)
+    /// <summary>Sweep on a cadence of half the TTL (floored at 5 minutes) until the host stops.</summary>
+    protected override async Task ExecuteAsync(CancellationToken ct)
     {
         TimeSpan interval = Max(TimeSpan.FromTicks(_options.WorkspaceTtl.Ticks / 2), TimeSpan.FromMinutes(5));
         while (!ct.IsCancellationRequested)

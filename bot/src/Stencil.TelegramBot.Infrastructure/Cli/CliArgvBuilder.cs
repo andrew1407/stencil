@@ -4,26 +4,21 @@ using Stencil.TelegramBot.Domain.Exceptions;
 namespace Stencil.TelegramBot.Infrastructure.Cli;
 
 /// <summary>
-/// Maps an <see cref="EditRequest"/> to the exact <c>stencil [options] &lt;output&gt;</c>
-/// argv. A faithful port of <c>mcp/src/args.rs</c> (<c>build_argv</c>), with the same
-/// validation invariants the CLI would otherwise reject with a terse message.
+/// Maps an <see cref="EditRequest"/> to the exact <c>stencil [options] &lt;output&gt;</c> argv. A
+/// faithful port of <c>mcp/src/args.rs</c> (<c>build_argv</c>), with the same validation
+/// invariants the CLI would otherwise reject with a terse message — or, worse, silently skip.
+/// The pipeline order is the CLI's own, so argv order here is cosmetic.
 /// </summary>
-/// <remarks>
-/// The pipeline order is fixed by the CLI itself (source → crop → rotate → filter → layout →
-/// encode), so argv order here is only cosmetic — the CLI parses flags order-independently.
-/// </remarks>
 public static class CliArgvBuilder
 {
     /// <summary>
     /// Build the argv for one edit. Throws <see cref="StencilCliException"/> when the
-    /// source/output/blank invariants are violated (exactly one of input/blank; non-empty
-    /// output; blank width and height together or both omitted; a blank page format and
-    /// explicit width/height are mutually exclusive).
+    /// source/output/blank invariants are violated (exactly one of input/blank; non-empty output;
+    /// blank dims together or both omitted; a page format and explicit dims are exclusive).
     /// </summary>
     // ── CLI flag names ──
-    // The exact option strings understood by the Zig CLI (cli/src/args.zig), centralized so the
-    // flag contract is single-sourced and greppable — the .NET peer of mcp's FLAG_* consts
-    // (mcp/src/args.rs). See cli/CONTRACT.md §1.
+    // The exact option strings the Zig CLI understands (cli/src/args.zig, cli/CONTRACT.md §1) —
+    // the .NET peer of mcp's FLAG_* consts.
     private const string FlagServer = "--server";
     private const string FlagInput = "-i";
     private const string FlagBlank = "--blank";
@@ -33,13 +28,13 @@ public static class CliArgvBuilder
     private const string FlagRotate = "-r";
     private const string FlagLayout = "-l";
     private const string FlagFilter = "--filter";
+    private const string FlagConfineOutput = "--confine-output";
     private const string FlagRemoteUpdate = "--remote-update";
     private const string FlagRemote = "--remote";
     private const string FlagRemoteName = "--remote-name";
 
     // ── Source-site scrape flags (DESIGN source-site contract §1) ──
-    // The scrape mode's option strings, kept next to the edit flags so the whole CLI flag
-    // contract is single-sourced here — the .NET peer of mcp's FLAG_SOURCE_* consts.
+    // Kept next to the edit flags so the whole CLI flag contract is single-sourced here.
     private const string FlagSourceSite = "--source-site";
     private const string FlagSourceCount = "--source-count";
     private const string FlagSourceGroup = "--group";
@@ -68,13 +63,9 @@ public static class CliArgvBuilder
         {
             throw new StencilCliException("`output` must not be empty");
         }
-        // Flag-injection guard, mirroring build_argv in mcp/src/args.rs. The output is a
-        // positional operand appended last, and the CLI (cli/src/args.zig) has no `--`
-        // end-of-options terminator, so an output like `--album` or `-l` would be parsed as a
-        // flag rather than the output path. A real output path never starts with a dash — the
-        // CLI could never accept one in the positional slot — so reject one up front. (Today
-        // Output is always a GUID workspace path, never user-supplied; this keeps the port in
-        // sync and is defense-in-depth should that ever change.)
+        // Flag-injection guard, mirroring build_argv in mcp/src/args.rs: the output is a
+        // positional operand and the CLI has no `--` end-of-options terminator, so an output like
+        // `--album` would be parsed as a flag. A real output path never starts with a dash.
         if (req.Output.StartsWith('-'))
         {
             throw new StencilCliException(
@@ -110,9 +101,8 @@ public static class CliArgvBuilder
 
         List<string> argv = new();
 
-        // Source: `--server <url> -i <name>`, `-i <input>`, or the `--blank …` series.
-        // `--server` conceptually precedes `-i` (it changes what `-i` means), though the CLI
-        // parses order-independently.
+        // Source: `--server <url> -i <name>`, `-i <input>`, or the `--blank …` series. --server
+        // conceptually precedes -i (it changes what -i means); the CLI parses order-independently.
         if (req.Server is not null)
         {
             argv.Add(FlagServer);
@@ -152,6 +142,14 @@ public static class CliArgvBuilder
             }
             if (blank.Color is not null)
             {
+                // The CLI SKIPS a colour it can't parse — the blank would come out white with no
+                // error — so reject it here, exactly as mcp/src/args.rs does.
+                if (!ColorSpec.IsValid(blank.Color))
+                {
+                    throw new StencilCliException(
+                        $"`blank.color` isn't a colour the CLI understands (got \"{blank.Color}\") — " +
+                        "use #rgb/#rrggbb/#rrggbbaa, a CSS colour name, or transparent");
+                }
                 argv.Add(blank.Color);
             }
         }
@@ -214,18 +212,19 @@ public static class CliArgvBuilder
             argv.Add(req.RemoteName);
         }
 
+        // The adapter forwards paths it did not author, so the CLI refuses anything outside its
+        // working directory — ProcessStencilCli picks that directory and passes the leaf here.
+        argv.Add(FlagConfineOutput);
         argv.Add(req.Output);
         return argv;
     }
 
     /// <summary>
     /// Build the argv for one source-site scrape: <c>--source-site &lt;url&gt; [filters]
-    /// &lt;output-dir&gt;</c>. Emits only the flags the request actually sets — an absent count/group
-    /// or an unset (null or non-positive) dimension bound is left off, matching the CLI's own
+    /// &lt;output-dir&gt;</c>. Emits only the flags the request actually sets, matching the CLI's
     /// "0 = unset" / "count absent = all" semantics (DESIGN source-site contract §1). Throws
     /// <see cref="StencilCliException"/> when the url or output dir is empty, or when the output
-    /// dir would be parsed as a flag (a dash-leading value), mirroring <see cref="BuildArgv"/>'s
-    /// flag-injection guard on the positional operand.
+    /// dir would be parsed as a flag — the same guard <see cref="BuildArgv"/> puts on its output.
     /// </summary>
     public static IReadOnlyList<string> BuildScrapeArgv(ScrapeRequest req)
     {
@@ -283,6 +282,7 @@ public static class CliArgvBuilder
         AddBound(argv, FlagSourceMinHeight, req.MinHeight);
         AddBound(argv, FlagSourceMaxHeight, req.MaxHeight);
 
+        argv.Add(FlagConfineOutput);
         argv.Add(req.OutputDir);
         return argv;
     }

@@ -16,18 +16,14 @@ using Telegram.Bot.Types;
 namespace Stencil.TelegramBot.Bot.Telegram;
 
 /// <summary>
-/// Central inbound dispatch. Telegram messages are routed by shape: a slash command goes
-/// through <see cref="CommandParser"/> + <see cref="CommandHandlers"/>; a photo or image
-/// document becomes the working image; a <c>.json</c> document (caption <c>/apply</c>, or any
-/// <c>.json</c> while an image is loaded) overlays a drawing layout; and callback queries go
-/// through <see cref="CallbackAction"/>. Every handler body is guarded so a domain error is
+/// Central inbound dispatch, and where the global <see cref="AccessGate"/> is enforced. Telegram
+/// messages are routed by shape: a slash command goes through <see cref="CommandParser"/> +
+/// <see cref="CommandHandlers"/>; a photo or image document becomes the working image; a
+/// <c>.json</c> document overlays a drawing layout; and callback queries go through
+/// <see cref="CallbackAction"/>. Plain text is claimed in a fixed precedence: a pending free-text
+/// prompt, then an http(s) link (as <c>/url</c>), then chat mode, then the "send a photo" hint —
+/// slash commands short-circuit all of it. Every handler body is guarded so a domain error is
 /// surfaced verbatim and an unexpected one is logged and apologised for.
-///
-/// Plain text is claimed in a fixed precedence: a pending free-text prompt (<see
-/// cref="PendingInputs"/>) first, then an http(s) link (treated as <c>/url</c>; in chat mode any
-/// words around the link then run as a prompt ON it), then — when chat mode is on (<c>/chat</c>)
-/// — the AI assistant via the <c>prompt</c> handler, and finally the "send a photo" hint. Slash
-/// commands short-circuit all of it, so a command is never swallowed by chat mode.
 /// </summary>
 public sealed class UpdateRouter
 {
@@ -40,6 +36,7 @@ public sealed class UpdateRouter
     private readonly BotOptions _options;
     private readonly ILogger<UpdateRouter> _logger;
     private readonly AlbumCollector _albums;
+    private readonly AccessGate _access;
 
     public UpdateRouter(
         CommandHandlers handlers,
@@ -61,33 +58,44 @@ public sealed class UpdateRouter
         _options = options;
         _logger = logger;
         _albums = albums ?? new AlbumCollector();
+        _access = new AccessGate(options, bot, logger);
     }
 
-    /// <summary>Route one incoming message (slash command, photo, or document).</summary>
-    /// <remarks>
-    /// The whole route runs under the user's <see cref="UserGate"/> so a burst of updates from the
-    /// same user is processed one at a time — the session's read-modify-write edits can't race and
-    /// lose each other. Different users are unaffected (independent gates).
-    /// </remarks>
+    /// <summary>
+    /// Route one incoming message (slash command, photo, or document). The route runs under the
+    /// user's <see cref="UserGate"/>, so a burst from one user is processed one update at a time
+    /// and its read-modify-write edits can't race; different users stay concurrent.
+    /// </summary>
     public async Task HandleMessageAsync(Message message, CancellationToken ct)
     {
         long chatId = message.Chat.Id;
         long userId = message.From?.Id ?? chatId;
-        // Album members buffer OUTSIDE the gate: the flush acquires it itself, so waiting for
-        // sibling messages while holding it would deadlock this user's queue.
-        if (message.MediaGroupId is string groupId && message.Photo is { Length: > 0 } album)
-        {
-            _albums.Add(userId, groupId,
-                new AlbumPhoto(message.Id, album[^1].FileId, message.Caption),
-                photos => FlushAlbumAsync(userId, chatId, photos, ct), ct);
-            return;
-        }
         await SafeAsync(chatId, async () =>
         {
+            // The allowlist comes first, ahead of the album buffer: a stranger's media group is
+            // never even collected, so no upload, CLI process or outbound fetch is spent on them.
+            if (!IsUngatedMessage(message) && !await _access.AllowsAsync(userId, chatId, ct))
+            {
+                return;
+            }
+            // Album members buffer OUTSIDE the user gate: the flush acquires it itself, so waiting
+            // for sibling messages while holding it would deadlock this user's queue.
+            if (message.MediaGroupId is string groupId && message.Photo is { Length: > 0 } album)
+            {
+                _albums.Add(userId, groupId,
+                    new AlbumPhoto(message.Id, album[^1].FileId, message.Caption),
+                    photos => FlushAlbumAsync(userId, chatId, photos, ct), ct);
+                return;
+            }
             using IDisposable gate = await _gate.AcquireAsync(userId, ct);
             await RouteMessageAsync(userId, chatId, message, ct);
         }, ct);
     }
+
+    /// <summary>The two commands an unlisted user may still run (<see cref="AccessGate"/>).</summary>
+    private static bool IsUngatedMessage(Message message) =>
+        message.Text is string text && text.StartsWith('/')
+            && AccessGate.IsUngated(CommandParser.Parse(text));
 
     /// <summary>A settled album's background flush: same error guard + user gate as a message.</summary>
     private Task FlushAlbumAsync(long userId, long chatId, IReadOnlyList<AlbumPhoto> photos, CancellationToken ct) =>
@@ -98,12 +106,10 @@ public sealed class UpdateRouter
         }, ct);
 
     /// <summary>
-    /// One settled album. With a caption (on whichever member carries it): adopt + run that
-    /// caption once per photo, sequentially in album order — the same path a single captioned
-    /// photo takes — buffering each rendered result so the batch replies as ONE media group.
-    /// The last photo's edited result stays as the working image. With no caption at all, only
-    /// the last photo is adopted (one working image), with a single note — captionless members
-    /// are never individually echoed.
+    /// One settled album. With a caption (on whichever member carries it): adopt + run it once per
+    /// photo in album order, buffering each render so the batch replies as ONE media group; the
+    /// last photo's result stays as the working image. With no caption, only the last photo is
+    /// adopted, with a single note — captionless members are never individually echoed.
     /// </summary>
     private async Task ProcessAlbumAsync(long userId, long chatId, IReadOnlyList<AlbumPhoto> photos, CancellationToken ct)
     {
@@ -155,16 +161,21 @@ public sealed class UpdateRouter
         }
         long chatId = query.Message?.Chat.Id ?? query.From.Id;
         long userId = query.From.Id;
-        // Stop skips the gate ON PURPOSE: the assistant turn it cancels holds that gate for as
-        // long as it runs, so taking it here would park the tap behind the very turn it means to
-        // end. It touches no session state, so running it alongside the turn is safe.
-        if (query.Data == CallbackAction.StopToken)
-        {
-            await SafeAsync(chatId, () => _callbacks.HandleAsync(query, ct), ct);
-            return;
-        }
         await SafeAsync(chatId, async () =>
         {
+            // Every button does real work, so none of them is ungated.
+            if (!await _access.AllowsAsync(userId, chatId, ct))
+            {
+                return;
+            }
+            // Stop skips the USER gate on purpose: the assistant turn it cancels holds that gate
+            // for as long as it runs, so taking it here would park the tap behind the very turn it
+            // means to end. It touches no session state, so running it alongside the turn is safe.
+            if (query.Data == CallbackAction.StopToken)
+            {
+                await _callbacks.HandleAsync(query, ct);
+                return;
+            }
             using IDisposable gate = await _gate.AcquireAsync(userId, ct);
             await _callbacks.HandleAsync(query, ct);
         }, ct);
@@ -178,9 +189,8 @@ public sealed class UpdateRouter
             // A command supersedes any pending free-text prompt (e.g. the custom-expiry entry).
             await ClearPendingInputAsync(userId, ct);
             BotCommand command = CommandParser.Parse(text);
-            // "/prompt …" sent as a REPLY to a photo means "ask the AI about THAT photo":
-            // adopt the replied-to image as the working image first (the same download path an
-            // upload takes), then let the handler attach it to the LLM turn.
+            // "/prompt …" as a REPLY to a photo means "ask the AI about THAT photo": adopt it as
+            // the working image first, then let the handler attach it to the LLM turn.
             if (command.Verb == "prompt" && message.ReplyToMessage?.Photo is { Length: > 0 } replied)
             {
                 string repliedPath = await DownloadToTempAsync(replied[^1].FileId, ".jpg", ct);
@@ -206,7 +216,7 @@ public sealed class UpdateRouter
         if (message.Video is Video video)
         {
             await ClearPendingInputAsync(userId, ct);
-            await AdoptVideoAsync(userId, chatId, video.FileId, ExtensionOf(video.FileName ?? "", ".mp4"), "video", message.Caption, ct);
+            await AdoptVideoAsync(userId, chatId, video.FileId, DocumentKinds.ExtensionOf(video.FileName ?? "", ".mp4"), "video", message.Caption, ct);
             return;
         }
         if (message.Document is Document document)
@@ -220,10 +230,9 @@ public sealed class UpdateRouter
         {
             return;
         }
-        // A pasted http(s) link (no command, no attachment) is treated as /url — fetch it.
-        // Words AROUND the link are a request about it ("b&w this and outline the face: <url>"),
-        // so in chat mode the link is loaded first and the rest goes to the assistant, which
-        // then sees it as the working image. Without chat mode the link alone still wins.
+        // A pasted http(s) link (no command, no attachment) is treated as /url — fetch it. Words
+        // AROUND the link are a request about it, so in chat mode the link loads first and the
+        // rest goes to the assistant. Without chat mode the link alone still wins.
         if (message.Text is string body && TryExtractUrl(body, out string url))
         {
             await _handlers.DispatchAsync(userId, chatId, new BotCommand("url", url, [url]), ct);
@@ -238,9 +247,8 @@ public sealed class UpdateRouter
             }
             return;
         }
-        // Chat mode (/chat): anything left over — a plain message that is not a command, not an
-        // attachment, not the answer to a pending prompt and not a bare image link — is handed to
-        // the assistant exactly as "/prompt <text>" would be, same handler, same media groups.
+        // Chat mode (/chat): anything left over — not a command, attachment, pending-prompt answer
+        // or bare image link — is handed to the assistant exactly as "/prompt <text>" would be.
         if (message.Text is string chat && !string.IsNullOrWhiteSpace(chat)
             && (await _store.GetAsync(userId, ct)).ChatMode)
         {
@@ -264,9 +272,8 @@ public sealed class UpdateRouter
     }
 
     /// <summary>
-    /// If the user has an armed prompt, consume this plain-text message as its answer and dispatch
-    /// the matching command (the flag is one-shot — cleared before dispatch). Returns whether it
-    /// was consumed.
+    /// Consume a plain-text message as the answer to an armed prompt and dispatch the matching
+    /// command (one-shot — the flag is cleared first). Returns whether it was consumed.
     /// </summary>
     private async Task<bool> TryConsumePendingInputAsync(long userId, long chatId, string reply, CancellationToken ct)
     {
@@ -310,8 +317,8 @@ public sealed class UpdateRouter
     }
 
     /// <summary>
-    /// Download a Telegram image (compressed photo or uncompressed file) and adopt it as the
-    /// working image, then apply any caption command (e.g. <c>/crop …</c>) or just render it.
+    /// Download a Telegram image and adopt it as the working image, then apply any caption command
+    /// (e.g. <c>/crop …</c>) or just render it.
     /// </summary>
     private async Task AdoptImageAsync(long userId, long chatId, string fileId, string extension, string label, string? caption, CancellationToken ct)
     {
@@ -329,9 +336,8 @@ public sealed class UpdateRouter
     }
 
     /// <summary>
-    /// Download a Telegram video (compressed or as a file) and grab a frame. A caption
-    /// <c>/frame n</c> selects the frame; any other caption command (e.g. <c>/filter bw</c>) is
-    /// applied to frame 0; with no caption it grabs frame 0 and hints at <c>/frame n</c>.
+    /// Download a Telegram video and grab a frame. A caption <c>/frame n</c> selects it; any other
+    /// caption command applies to frame 0; with no caption it grabs frame 0 and hints at the flag.
     /// </summary>
     private async Task AdoptVideoAsync(long userId, long chatId, string fileId, string extension, string label, string? caption, CancellationToken ct)
     {
@@ -361,9 +367,8 @@ public sealed class UpdateRouter
     }
 
     /// <summary>
-    /// After adopting an upload, apply a caption command when it is a recognised edit (it then
-    /// renders the result); a plain-text caption goes to the assistant when chat mode is on;
-    /// otherwise just render the adopted image.
+    /// After adopting an upload: run a recognised caption edit, else hand a plain-text caption to
+    /// the assistant when chat mode is on, else just render the adopted image.
     /// </summary>
     private async Task ApplyCaptionOrRenderAsync(long userId, long chatId, string? caption, CancellationToken ct)
     {
@@ -417,10 +422,7 @@ public sealed class UpdateRouter
         "prompt",
     };
 
-    /// <summary>
-    /// Handle an uploaded document: a <c>.json</c> layout (apply), an image, or a video file.
-    /// Unknown document types get a hint.
-    /// </summary>
+    /// <summary>Handle an uploaded document: a <c>.json</c> layout, an image, a video, or a hint.</summary>
     private async Task HandleDocumentAsync(long userId, long chatId, Document document, string? caption, CancellationToken ct)
     {
         string name = document.FileName ?? "";
@@ -436,16 +438,16 @@ public sealed class UpdateRouter
             await OpenProjectDocumentAsync(userId, chatId, document.FileId, ct);
             return;
         }
-        if (IsImageDocument(document))
+        if (DocumentKinds.IsImage(document))
         {
-            string ext = ExtensionOf(name, ".png");
+            string ext = DocumentKinds.ExtensionOf(name, ".png");
             string label = name.Length == 0 ? "image" : name;
             await AdoptImageAsync(userId, chatId, document.FileId, ext, label, caption, ct);
             return;
         }
-        if (IsVideoDocument(document))
+        if (DocumentKinds.IsVideo(document))
         {
-            string ext = ExtensionOf(name, ".mp4");
+            string ext = DocumentKinds.ExtensionOf(name, ".mp4");
             string label = name.Length == 0 ? "video" : name;
             await AdoptVideoAsync(userId, chatId, document.FileId, ext, label, caption, ct);
             return;
@@ -456,7 +458,7 @@ public sealed class UpdateRouter
             cancellationToken: ct);
     }
 
-    /// <summary>Download a <c>.json</c> document, parse it as a layout and apply it, then render.</summary>
+    /// <summary>Parse a <c>.json</c> document as a layout, apply it, then render.</summary>
     private async Task ApplyLayoutDocumentAsync(long userId, long chatId, string fileId, string? caption, CancellationToken ct)
     {
         bool explicitApply = string.Equals(caption?.Trim(), "/apply", StringComparison.OrdinalIgnoreCase);
@@ -469,7 +471,7 @@ public sealed class UpdateRouter
                 cancellationToken: ct);
             return;
         }
-        byte[] bytes = await DownloadBytesAsync(fileId, ct);
+        byte[] bytes = await DownloadDocumentBytesAsync(fileId, ".json", ct);
         StencilLayout? layout = StencilLayoutParser.Parse(bytes);
         if (layout is null)
         {
@@ -480,10 +482,10 @@ public sealed class UpdateRouter
         await _handlers.RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Download a <c>.stencil</c> project document, adopt it (image + layout), then render.</summary>
+    /// <summary>Adopt a <c>.stencil</c> project document (image + layout), then render.</summary>
     private async Task OpenProjectDocumentAsync(long userId, long chatId, string fileId, CancellationToken ct)
     {
-        byte[] bytes = await DownloadBytesAsync(fileId, ct);
+        byte[] bytes = await DownloadDocumentBytesAsync(fileId, ".stencil", ct);
         StencilProject? project = StencilProjectFile.Parse(bytes);
         if (project is null)
         {
@@ -494,28 +496,35 @@ public sealed class UpdateRouter
         await _handlers.RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Download a Telegram file's bytes into memory, capped at the configured limit.</summary>
-    private async Task<byte[]> DownloadBytesAsync(string fileId, CancellationToken ct)
+    /// <summary>
+    /// A document (layout <c>.json</c> / <c>.stencil</c> project) as bytes. It streams to a temp
+    /// file first, so an oversized upload is refused on the way to disk rather than growing the
+    /// heap, under the far tighter non-image cap <see cref="BotOptions.MaxDocumentBytes"/>.
+    /// </summary>
+    private async Task<byte[]> DownloadDocumentBytesAsync(string fileId, string extension, CancellationToken ct)
     {
-        using MemoryStream stream = new();
-        await using (CappingWriteStream capped = new(stream, _options.MaxDownloadBytes))
+        string path = await DownloadToTempAsync(fileId, extension, ct, _options.MaxDocumentBytes);
+        try
         {
-            await _bot.GetInfoAndDownloadFile(fileId, capped, ct);
+            return await File.ReadAllBytesAsync(path, ct);
         }
-        return stream.ToArray();
+        finally
+        {
+            TempFiles.TryDelete(path);
+        }
     }
 
     /// <summary>
-    /// Download a Telegram file to a fresh temp path with the given extension, capped at the
-    /// configured limit. A partial file from an over-limit or failed download is cleaned up.
+    /// Download a Telegram file to a fresh temp path, capped at <paramref name="maxBytes"/> (the
+    /// image/video limit by default). A partial file from a failed download is cleaned up.
     /// </summary>
-    private async Task<string> DownloadToTempAsync(string fileId, string extension, CancellationToken ct)
+    private async Task<string> DownloadToTempAsync(string fileId, string extension, CancellationToken ct, long? maxBytes = null)
     {
         string path = Path.Combine(Path.GetTempPath(), $"stencil-bot-{Guid.NewGuid():N}{extension}");
         try
         {
             await using FileStream stream = File.Create(path);
-            await using CappingWriteStream capped = new(stream, _options.MaxDownloadBytes);
+            await using CappingWriteStream capped = new(stream, maxBytes ?? _options.MaxDownloadBytes);
             await _bot.GetInfoAndDownloadFile(fileId, capped, ct);
         }
         catch
@@ -543,7 +552,7 @@ public sealed class UpdateRouter
         }
         catch (StencilCliException ex)
         {
-            // Deployment faults tell the chat a plain sentence and the operator the whole story.
+            // A deployment fault tells the chat a sentence and the operator the whole story.
             if (ex.OperatorDetail is string detail)
             {
                 _logger.LogError("Stencil CLI unavailable: {Detail}", detail);
@@ -563,7 +572,7 @@ public sealed class UpdateRouter
 
     /// <summary>
     /// Best-effort error reply (a failed reply must not mask the original error). Every failure
-    /// the bot answers with — CLI, server, validation, the catch-all — wears the error glyph here.
+    /// the bot answers with wears the error glyph here.
     /// </summary>
     private async Task ReplyError(long chatId, string message, CancellationToken ct)
     {
@@ -575,34 +584,5 @@ public sealed class UpdateRouter
         {
             _logger.LogWarning(ex, "Failed to send error reply to chat {ChatId}", chatId);
         }
-    }
-
-    /// <summary>Treat a document as an image by MIME type or by a known image extension.</summary>
-    private static bool IsImageDocument(Document document)
-    {
-        if (document.MimeType is string mime && mime.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-        string ext = ExtensionOf(document.FileName ?? "", "");
-        return ext is ".png" or ".jpg" or ".jpeg" or ".gif" or ".bmp" or ".webp" or ".tif" or ".tiff";
-    }
-
-    /// <summary>Treat a document as a video by MIME type or by a known video extension.</summary>
-    private static bool IsVideoDocument(Document document)
-    {
-        if (document.MimeType is string mime && mime.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-        string ext = ExtensionOf(document.FileName ?? "", "");
-        return ext is ".mp4" or ".mov" or ".webm" or ".mkv" or ".avi" or ".m4v";
-    }
-
-    /// <summary>The lowercased extension of a file name, or a fallback when none is present.</summary>
-    private static string ExtensionOf(string name, string fallback)
-    {
-        string ext = Path.GetExtension(name);
-        return ext.Length == 0 ? fallback : ext.ToLowerInvariant();
     }
 }

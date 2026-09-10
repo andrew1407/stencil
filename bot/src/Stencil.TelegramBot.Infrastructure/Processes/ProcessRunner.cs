@@ -24,7 +24,8 @@ public sealed record ProcessTimedOut : ProcessOutcome;
 public static class ProcessRunner
 {
     /// <summary>
-    /// Run <paramref name="fileName"/> with <paramref name="argv"/> and capture stderr.
+    /// Run <paramref name="fileName"/> with <paramref name="argv"/> in
+    /// <paramref name="workingDirectory"/> (the caller's own when null) and capture stderr.
     /// Returns <see cref="ProcessCompleted"/> / <see cref="ProcessStartFailed"/> /
     /// <see cref="ProcessTimedOut"/>; caller cancellation propagates as
     /// <see cref="OperationCanceledException"/> like every other async path.
@@ -34,7 +35,8 @@ public static class ProcessRunner
         IReadOnlyList<string> argv,
         TimeSpan timeout,
         CancellationToken ct,
-        IReadOnlyDictionary<string, string>? environment = null)
+        IReadOnlyDictionary<string, string>? environment = null,
+        string? workingDirectory = null)
     {
         ProcessStartInfo info = new()
         {
@@ -42,6 +44,7 @@ public static class ProcessRunner
             UseShellExecute = false,
             RedirectStandardError = true,
             RedirectStandardOutput = true,
+            WorkingDirectory = workingDirectory ?? "",
         };
         foreach (string arg in argv)
         {

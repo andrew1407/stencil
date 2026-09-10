@@ -20,7 +20,7 @@ public sealed class CliArgvBuilderTests
             Input = "a.png",
             Output = "out.png",
         };
-        Assert.Equal(new[] { "-i", "a.png", "out.png" }, CliArgvBuilder.BuildArgv(req));
+        Assert.Equal(new[] { "-i", "a.png", "--confine-output", "out.png" }, CliArgvBuilder.BuildArgv(req));
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public sealed class CliArgvBuilderTests
                 "-r", "1",
                 "-l", "/tmp/layout.json",
                 "--filter", "sepia",
-                "out.png",
+                "--confine-output", "out.png",
             },
             CliArgvBuilder.BuildArgv(req));
     }
@@ -86,7 +86,7 @@ public sealed class CliArgvBuilderTests
             Output = "out",
         };
         Assert.Equal(
-            new[] { "--blank", "800", "600", "red", "--album", "out" },
+            new[] { "--blank", "800", "600", "red", "--album", "--confine-output", "out" },
             CliArgvBuilder.BuildArgv(req));
     }
 
@@ -99,7 +99,7 @@ public sealed class CliArgvBuilderTests
             Output = "page.png",
         };
         Assert.Equal(
-            new[] { "--blank", "#102030", "page.png" },
+            new[] { "--blank", "#102030", "--confine-output", "page.png" },
             CliArgvBuilder.BuildArgv(req));
     }
 
@@ -112,7 +112,7 @@ public sealed class CliArgvBuilderTests
             Output = "page.png",
         };
         Assert.Equal(
-            new[] { "--blank", "B5", "pink", "page.png" },
+            new[] { "--blank", "B5", "pink", "--confine-output", "page.png" },
             CliArgvBuilder.BuildArgv(req));
     }
 
@@ -138,7 +138,7 @@ public sealed class CliArgvBuilderTests
             Output = "f.png",
         };
         Assert.Equal(
-            new[] { "-i", "clip.mp4", "-f", "24", "f.png" },
+            new[] { "-i", "clip.mp4", "-f", "24", "--confine-output", "f.png" },
             CliArgvBuilder.BuildArgv(req));
     }
 
@@ -302,7 +302,7 @@ public sealed class CliArgvBuilderTests
                 "-i", "Shared",
                 "--filter", "sepia",
                 "--remote-update",
-                "out.png",
+                "--confine-output", "out.png",
             },
             CliArgvBuilder.BuildArgv(req));
     }
@@ -325,7 +325,7 @@ public sealed class CliArgvBuilderTests
                 "-r", "1",
                 "--remote", "http://h:8090",
                 "--remote-name", "Shared",
-                "out.png",
+                "--confine-output", "out.png",
             },
             CliArgvBuilder.BuildArgv(req));
     }
@@ -406,7 +406,7 @@ public sealed class CliArgvBuilderTests
     {
         ScrapeRequest req = new() { Url = "https://example.com", OutputDir = "out" };
         Assert.Equal(
-            new[] { "--source-site", "https://example.com", "out" },
+            new[] { "--source-site", "https://example.com", "--confine-output", "out" },
             CliArgvBuilder.BuildScrapeArgv(req));
     }
 
@@ -440,7 +440,7 @@ public sealed class CliArgvBuilderTests
                 "--source-max-width", "4000",
                 "--source-min-height", "100",
                 "--source-max-height", "3000",
-                "downloads",
+                "--confine-output", "downloads",
             },
             CliArgvBuilder.BuildScrapeArgv(req));
     }
@@ -459,7 +459,7 @@ public sealed class CliArgvBuilderTests
             OutputDir = "out",
         };
         Assert.Equal(
-            new[] { "--source-site", "https://example.com", "out" },
+            new[] { "--source-site", "https://example.com", "--confine-output", "out" },
             CliArgvBuilder.BuildScrapeArgv(req));
     }
 
@@ -470,7 +470,7 @@ public sealed class CliArgvBuilderTests
         // the CLI interprets as "all matches" (the /sourcesite handler maps an explicit 0 here).
         ScrapeRequest req = new() { Url = "https://example.com", Count = 0, OutputDir = "out" };
         Assert.Equal(
-            new[] { "--source-site", "https://example.com", "--source-count", "0", "out" },
+            new[] { "--source-site", "https://example.com", "--source-count", "0", "--confine-output", "out" },
             CliArgvBuilder.BuildScrapeArgv(req));
     }
 
@@ -493,7 +493,7 @@ public sealed class CliArgvBuilderTests
                 "--source-count", "1",
                 "--group", "2",
                 "--source-filter", "img|background|poster",
-                "out",
+                "--confine-output", "out",
             },
             CliArgvBuilder.BuildScrapeArgv(req));
     }

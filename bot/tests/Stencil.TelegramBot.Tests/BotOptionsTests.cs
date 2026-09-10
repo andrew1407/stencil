@@ -140,7 +140,7 @@ public sealed class BotOptionsTests
     [InlineData("oops", new long[0])]
     [InlineData("0", new long[0])]
     [InlineData("-1001234", new long[] { -1001234 })]
-    public void FromEnvironmentParsesTheAssistantAllowlist(string? value, long[] expected)
+    public void FromEnvironmentParsesTheAllowlist(string? value, long[] expected)
     {
         const string name = "STENCIL_BOT_ALLOWED_USERS";
         string? original = Environment.GetEnvironmentVariable(name);
@@ -148,12 +148,12 @@ public sealed class BotOptionsTests
         {
             Environment.SetEnvironmentVariable(name, value);
             BotOptions options = BotOptions.FromEnvironment();
-            Assert.Equal(expected.OrderBy(x => x), options.LlmAllowedUsers.OrderBy(x => x));
+            Assert.Equal(expected.OrderBy(x => x), options.AllowedUsers.OrderBy(x => x));
             foreach (long id in expected)
             {
-                Assert.True(options.LlmAllowedFor(id));
+                Assert.True(options.AllowedFor(id));
             }
-            Assert.False(options.LlmAllowedFor(123456));
+            Assert.False(options.AllowedFor(123456));
         }
         finally
         {

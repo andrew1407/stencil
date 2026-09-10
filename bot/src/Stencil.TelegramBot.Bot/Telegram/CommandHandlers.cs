@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -40,8 +39,6 @@ public sealed partial class CommandHandlers
     private readonly LlmAttachmentLoader _attachments;
     private readonly PromptCancellations _cancellations;
     private readonly ILogger<CommandHandlers> _logger;
-    // User ids whose assistant refusal already carried the operator hint to the log.
-    private readonly ConcurrentDictionary<long, byte> _refusalsLogged = new();
 
     public CommandHandlers(
         IEditingService editing,

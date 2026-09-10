@@ -35,7 +35,7 @@ public sealed class PromptStopTests : IDisposable
     public PromptStopTests()
     {
         _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-stop-" + Guid.NewGuid().ToString("N"));
-        BotOptions options = new() { DataDir = _dataDir };
+        BotOptions options = new() { DataDir = _dataDir, AllowedUsers = AnyUser.Instance };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, editing: editing, cancellations: _cancellations);
         CallbackAction callbacks = new(_handlers, _bot, _store, _cancellations);

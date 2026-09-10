@@ -52,10 +52,10 @@ public class MockBotClient : ITelegramBotClient
 
     public Task<bool> TestApi(CancellationToken cancellationToken = default) => Task.FromResult(true);
 
-    public Task DownloadFile(string filePath, Stream destination, CancellationToken cancellationToken = default) =>
+    public virtual Task DownloadFile(string filePath, Stream destination, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 
-    public Task DownloadFile(TGFile file, Stream destination, CancellationToken cancellationToken = default) =>
+    public virtual Task DownloadFile(TGFile file, Stream destination, CancellationToken cancellationToken = default) =>
         Task.CompletedTask;
 
     /// <summary>Suppress "event never used" warnings — the mock never raises them.</summary>

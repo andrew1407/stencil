@@ -7,12 +7,6 @@ namespace Stencil.TelegramBot.Infrastructure.Configuration;
 /// configuration of the other adapters — <c>mcp/</c>'s <c>STENCIL_CLI</c> override and
 /// <c>pystencil</c>'s server/TLS knobs). Plain data so it can be injected as a singleton.
 /// </summary>
-/// <remarks>
-/// <see cref="BotToken"/> is the Telegram bot API token; <see cref="CliPath"/> overrides CLI
-/// discovery (<c>STENCIL_CLI</c>); <see cref="RedisUrl"/> selects the Redis-backed session
-/// store when present; <see cref="DataDir"/> is the per-user scratch root; and
-/// <see cref="TlsInsecure"/> accepts self-signed certs on dev collaboration servers.
-/// </remarks>
 public sealed record BotOptions
 {
     /// <summary>Telegram bot API token (<c>TELEGRAM_BOT_TOKEN</c>).</summary>
@@ -70,6 +64,13 @@ public sealed record BotOptions
     public long MaxDownloadBytes { get; init; } = (long)DefaultMaxDownloadMb * 1024 * 1024;
 
     /// <summary>
+    /// Cap for a NON-image upload — a layout <c>.json</c> or a <c>.stencil</c> project. Those are
+    /// parsed whole, so they get a far tighter bound than a photo: 4 MB, or
+    /// <see cref="MaxDownloadBytes"/> when the operator configured something smaller.
+    /// </summary>
+    public long MaxDocumentBytes => Math.Min(MaxDownloadBytes, (long)DefaultMaxDocumentMb * 1024 * 1024);
+
+    /// <summary>
     /// Maximum wall-clock time a single stencil CLI invocation may run
     /// (<c>STENCIL_BOT_CLI_TIMEOUT_SECONDS</c>) before it is killed. A scrape fetches a page plus
     /// N media downloads, so without a bound a slow/hung host could pin a scarce
@@ -110,18 +111,16 @@ public sealed record BotOptions
         name is null ? null : LlmProfiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Telegram user ids allowed to use the LLM commands (<c>STENCIL_BOT_ALLOWED_USERS</c>, a
-    /// comma/space-separated list). Empty = the assistant is OFF for everyone.
+    /// Telegram user ids allowed to use the bot (<c>STENCIL_BOT_ALLOWED_USERS</c>, a
+    /// comma/space-separated list). Empty = the bot is OFF for everyone. Anyone who finds the bot
+    /// can message it and every command spends the operator's resources — a CLI process, disk in
+    /// the data dir, an outbound fetch, the single LLM API key — so the whole bot is opt-in per
+    /// user and fails closed; only <c>/start</c> and <c>/help</c> answer an unlisted user.
     /// </summary>
-    /// <remarks>
-    /// Every LLM turn spends the operator's single <c>STENCIL_LLM_API_KEY</c> and anyone who finds
-    /// the bot can message it, so the assistant is opt-in per user and fails closed. Editing is
-    /// unaffected.
-    /// </remarks>
-    public IReadOnlySet<long> LlmAllowedUsers { get; init; } = new HashSet<long>();
+    public IReadOnlySet<long> AllowedUsers { get; init; } = new HashSet<long>();
 
-    /// <summary>Whether <paramref name="userId"/> may use <c>/prompt</c> and <c>/chat</c>.</summary>
-    public bool LlmAllowedFor(long userId) => LlmAllowedUsers.Contains(userId);
+    /// <summary>Whether <paramref name="userId"/> may use the bot at all.</summary>
+    public bool AllowedFor(long userId) => AllowedUsers.Contains(userId);
 
     /// <summary>The default CLI concurrency cap: one process per logical CPU (at least one).</summary>
     private static readonly int DefaultMaxConcurrentCli = Math.Max(1, Environment.ProcessorCount);
@@ -134,6 +133,7 @@ public sealed record BotOptions
 
     private const int DefaultHttpTimeoutSeconds = 30;
     private const int DefaultMaxDownloadMb = 50;
+    private const int DefaultMaxDocumentMb = 4;
     private const int DefaultWorkspaceTtlMinutes = 60;
     private const int DefaultCliTimeoutSeconds = 120;
 
@@ -186,7 +186,7 @@ public sealed record BotOptions
             CliTimeout = TimeSpan.FromSeconds(cliTimeoutSeconds),
             Llm = LlmFromEnvironment(),
             LlmProfiles = LlmProfilesFromEnvironment(),
-            LlmAllowedUsers = ParseUserIds(Environment.GetEnvironmentVariable("STENCIL_BOT_ALLOWED_USERS")),
+            AllowedUsers = ParseUserIds(Environment.GetEnvironmentVariable("STENCIL_BOT_ALLOWED_USERS")),
         };
     }
 

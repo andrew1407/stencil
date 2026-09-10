@@ -35,7 +35,7 @@ public sealed class ReplyTonesTests : IDisposable
     public ReplyTonesTests()
     {
         _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-tones-" + Guid.NewGuid().ToString("N"));
-        BotOptions options = new() { DataDir = _dataDir };
+        BotOptions options = new() { DataDir = _dataDir, AllowedUsers = AnyUser.Instance };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, servers: _servers, editing: editing);
         _router = new UpdateRouter(

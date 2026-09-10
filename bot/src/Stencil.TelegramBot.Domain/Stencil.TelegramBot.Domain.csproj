@@ -3,6 +3,8 @@
   <ItemGroup>
     <!-- Canonical provider constants (default base URLs, chat timeout), embedded so the bot needs no repo checkout at run time. -->
     <EmbeddedResource Include="../../../browser/js/config/llm/providers.json" Link="Assets/providers.json" />
+    <!-- Canonical CSS colour-name table, so an unparseable colour is rejected before it reaches the CLI. -->
+    <EmbeddedResource Include="../../../browser/js/config/colorNames.json" Link="Assets/colorNames.json" />
   </ItemGroup>
 
   <PropertyGroup>

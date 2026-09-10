@@ -45,7 +45,7 @@ public sealed class ChatPersistenceTests : IDisposable
     public ChatPersistenceTests()
     {
         _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-chatsave-" + Guid.NewGuid().ToString("N"));
-        BotOptions options = new() { DataDir = _dataDir };
+        BotOptions options = new() { DataDir = _dataDir, AllowedUsers = AnyUser.Instance };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
         ServerService servers = new(_factory, _store, editing);
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, servers: servers, editing: editing);

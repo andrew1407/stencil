@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Abstractions;
@@ -10,9 +11,10 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 /// Background poller that gives the REST-only bot a live feel (the analogue of the CLI's
 /// <c>/sync</c> auto-pull). Every few seconds it checks each sync-enabled user's active project
 /// version on the server; when a peer's change bumps it past what the session last saw, it pulls
-/// the new layout+image and pushes the refreshed result into the chat.
+/// the new layout+image and pushes the refreshed result into the chat. Hosted, so the loop
+/// starts with the app and unwinds on a graceful shutdown.
 /// </summary>
-public sealed class SyncWatcher
+public sealed class SyncWatcher : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(6);
 
@@ -42,8 +44,8 @@ public sealed class SyncWatcher
         _logger = logger;
     }
 
-    /// <summary>Run the poll loop until <paramref name="ct"/> is cancelled.</summary>
-    public async Task RunAsync(CancellationToken ct)
+    /// <summary>Run the poll loop until the host stops.</summary>
+    protected override async Task ExecuteAsync(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
         {

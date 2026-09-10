@@ -140,10 +140,15 @@ bot/
   simultaneous edits queues instead of forking an unbounded pile of processes. Both are
   single-instance; scaling out would move them to a distributed lock/limiter.
 - **Resource bounds.** Outbound REST calls carry a timeout (`STENCIL_BOT_HTTP_TIMEOUT_SECONDS`)
-  and `/url` host resolution a 5s cap, so a slow peer can't wedge a handler; Telegram downloads are
-  size-capped (`STENCIL_BOT_MAX_DOWNLOAD_MB`) to bound memory/disk; and a background `WorkspaceJanitor`
-  sweeps each user's orphaned render/layout artifacts once they age past
+  and `/url` host resolution a 5s cap, so a slow peer can't wedge a handler; a CLI run is killed
+  past `STENCIL_BOT_CLI_TIMEOUT_SECONDS` rather than pinning a concurrency slot; Telegram downloads
+  are size-capped (`STENCIL_BOT_MAX_DOWNLOAD_MB`, and a far tighter 4 MB for a non-image document,
+  which streams to disk instead of into a `byte[]`) to bound memory/disk; and a background
+  `WorkspaceJanitor` sweeps each user's orphaned render/layout artifacts once they age past
   `STENCIL_BOT_WORKSPACE_TTL_MINUTES` (the session's live image/video are never swept).
+- **Hosted background loops.** `SyncWatcher` and `WorkspaceJanitor` run as `IHostedService`s under
+  a generic host, so Ctrl+C / SIGTERM cancels *and awaits* them instead of tearing a sweep down
+  mid-flight. The update pump itself stays deliberately detached (see `Program.cs`).
 
 ## Configuration
 
@@ -158,6 +163,7 @@ Real environment variables always win over `.env`. The real `bot/.env` is gitign
 | Variable | Default | Purpose |
 |---|---|---|
 | `TELEGRAM_BOT_TOKEN` | — (**required**) | Bot token from [@BotFather](https://t.me/BotFather) |
+| `STENCIL_BOT_ALLOWED_USERS` | empty (**required**) | Comma-separated Telegram user ids allowed to use the bot **at all** — see [the allowlist](#the-bot-is-opt-in-per-user) below. Empty = the bot is off for everyone |
 | `STENCIL_CLI` | auto-discovered | Path to the `stencil` CLI binary |
 | `REDIS_URL` | — (in-memory) | Redis for per-user session state. Either form works: `redis://[user:password@]host[:port][/db]` (`rediss://` for TLS) or StackExchange's own `host:port[,option=value]` |
 | `STENCIL_BOT_DATA_DIR` | `<temp>/stencil-bot` | Scratch dir for working images |
@@ -166,7 +172,8 @@ Real environment variables always win over `.env`. The real `bot/.env` is gitign
 | `STENCIL_BOT_MAX_CONCURRENT_CLI` | CPU count | Cap on concurrent CLI processes (per-process) |
 | `STENCIL_BOT_MAX_CONCURRENT_LLM` | `8` | Cap on concurrent LLM calls (per-process); full ⇒ an immediate "busy" reply; `0` = unlimited |
 | `STENCIL_BOT_HTTP_TIMEOUT_SECONDS` | `30` | Per-request timeout for server REST calls |
-| `STENCIL_BOT_MAX_DOWNLOAD_MB` | `50` | Max size of a Telegram download |
+| `STENCIL_BOT_MAX_DOWNLOAD_MB` | `50` | Max size of a Telegram photo/video download. A non-image document (`.json` layout, `.stencil` project) is parsed whole, so it caps at 4 MB — or this value when it is smaller |
+| `STENCIL_BOT_CLI_TIMEOUT_SECONDS` | `120` | Wall-clock limit on one CLI run before it is killed, so a hung fetch can't pin a `STENCIL_BOT_MAX_CONCURRENT_CLI` slot |
 | `STENCIL_BOT_WORKSPACE_TTL_MINUTES` | `60` | Age after which orphaned scratch files are swept |
 
 **AI assistant (`/prompt`, or `/chat` for hands-free chat mode)** — the same `STENCIL_LLM_*` keys as pystencil, per
@@ -176,7 +183,6 @@ these keys is the [root README](../README.md#ai-assistant--setting-up-a-model):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `STENCIL_BOT_ALLOWED_USERS` | empty | **Required to enable the assistant.** Comma-separated Telegram user ids allowed to use `/prompt` and `/chat`; empty = the assistant is off for everyone |
 | `STENCIL_LLM_PROVIDER` | `ollama` | `ollama` \| `openai-compat` \| `stencil-server` |
 | `STENCIL_LLM_BASE_URL` | `http://localhost:11434` (ollama) / `http://localhost:1234/v1` (openai-compat) | Endpoint origin for the local providers |
 | `STENCIL_LLM_MODEL` | empty | Model name (empty = provider/server default) |
@@ -209,14 +215,19 @@ through `ffmpeg` before being sent, per the contract's §7 — so `ffmpeg` on `P
 `/prompt` as well as `/frame`. It stays optional: without it, oversized images up to 8 MB are
 attached as-is and anything larger is skipped, leaving a text-only turn.
 
-**The assistant is opt-in per user.** An edit costs local CPU, but every LLM turn spends the one
-`STENCIL_LLM_API_KEY` the operator configured — and any Telegram user who finds the bot can
-message it. So `/prompt` and `/chat` answer with a short "not enabled" note unless the caller's
-id is listed in `STENCIL_BOT_ALLOWED_USERS`, and with the list unset they are off entirely. That
-note is all the user sees — the variable to set and the id to add go to the **server log**
-instead (one warning per user id), since configuring the bot is the operator's business, not the
-chat's. The editing commands are unaffected. (`/chat clear` is never gated, so anyone who used the assistant
-before the list tightened can still delete what it stored.)
+### The bot is opt-in per user
+
+`STENCIL_BOT_ALLOWED_USERS` gates **every** command, button and upload except `/start` and
+`/help`, and it **fails closed**: with the list unset the bot answers nobody. Anyone who finds a
+running bot can message it, and there is no command that costs the operator nothing — `/url` and
+`/sourcesite` fetch user-named hosts, every edit forks a CLI process, an upload writes to the data
+dir, `/connect` dials out, and each `/prompt` spends the one `STENCIL_LLM_API_KEY` configured.
+
+An unlisted caller gets one plain sentence and nothing else runs. That sentence is all they see —
+the variable to set and the id to add go to the **server log** instead (one warning per user id),
+since configuring the bot is the operator's business, not the chat's. Send `/start` to the bot and
+it reports your id (or ask [@userinfobot](https://t.me/userinfobot)); a `/start` carrying a deep
+link is gated like everything else, because it connects out and fetches a project.
 
 ## Build · test · run
 

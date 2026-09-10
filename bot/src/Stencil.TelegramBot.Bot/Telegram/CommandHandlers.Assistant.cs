@@ -33,32 +33,6 @@ public sealed partial class CommandHandlers
         + "/p is a shortcut; a photo captioned /prompt … works too.";
 
     /// <summary>
-    /// Gate the assistant on the operator's allowlist — an LLM turn spends their single API key,
-    /// and any Telegram user can message this bot. The chat gets a plain sentence; how to open
-    /// the gate goes to the log instead (once per user id). Returns true when allowed.
-    /// </summary>
-    private async Task<bool> AssistantAllowedAsync(long userId, long chatId, CancellationToken ct)
-    {
-        if (_options.LlmAllowedFor(userId))
-        {
-            return true;
-        }
-        if (_refusalsLogged.TryAdd(userId, 0))
-        {
-            _logger.LogWarning(
-                "Refused assistant request from Telegram user {UserId}; add the id to "
-                + "STENCIL_BOT_ALLOWED_USERS to allow it", userId);
-        }
-        await _bot.SendMessage(
-            chatId,
-            Replies.Tag(Replies.Tone.Error, _options.LlmAllowedUsers.Count == 0
-                ? "The AI assistant isn't enabled on this bot."
-                : "The AI assistant isn't enabled for your account."),
-            cancellationToken: ct);
-        return false;
-    }
-
-    /// <summary>
     /// Park a prompt that never delivered (it failed, or was stopped) so the 🔄 Retry button on
     /// that message can re-run it. Re-reads the session first: the turn may have written it (chat
     /// history, a partly-applied plan) before it ended.
@@ -76,10 +50,6 @@ public sealed partial class CommandHandlers
     /// </summary>
     private async Task PromptAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
-        if (!await AssistantAllowedAsync(userId, chatId, ct))
-        {
-            return;
-        }
         string text = cmd.ArgumentText.Trim();
         if (text.Length == 0)
         {
@@ -280,10 +250,6 @@ public sealed partial class CommandHandlers
     /// </remarks>
     private async Task ChatApiAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
-        if (!await AssistantAllowedAsync(userId, chatId, ct))
-        {
-            return;
-        }
         if (_options.LlmProfiles.Count == 0)
         {
             await _bot.SendMessage(chatId, Replies.ChatApiNoProfiles(), cancellationToken: ct);
@@ -347,10 +313,6 @@ public sealed partial class CommandHandlers
             // Never gated: someone who used the assistant before the allowlist tightened
             // must still be able to delete what it stored.
             await ClearChatHistoryAsync(userId, chatId, ct);
-            return;
-        }
-        if (!await AssistantAllowedAsync(userId, chatId, ct))
-        {
             return;
         }
         if (arg == "save" || arg.StartsWith("save ", StringComparison.Ordinal))

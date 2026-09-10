@@ -14,10 +14,8 @@ namespace Stencil.TelegramBot.Application.Editing;
 /// <see cref="EditState"/>, replayed through <see cref="IStencilCli"/> on render.
 /// </summary>
 /// <remarks>
-/// Mutating-edit methods load the session, fold an intent into <see cref="EditState"/> and
-/// save it back; <see cref="RenderAsync"/> reads the session and maps the original plus the
-/// edit state to one <see cref="EditRequest"/> (the CLI parses flags order-independently, so
-/// the fixed pipeline order lives in the CLI itself, per <c>cli/README.md</c>). Friendly
+/// A mutating method folds an intent into <see cref="EditState"/>; <see cref="RenderAsync"/> maps
+/// the original plus that state to one <see cref="EditRequest"/>. Its friendly
 /// <see cref="InvalidOperationException"/> messages are meant to be surfaced verbatim.
 /// </remarks>
 public sealed class EditingService : IEditingService
@@ -71,10 +69,8 @@ public sealed class EditingService : IEditingService
     {
         var session = await _store.GetAsync(userId, ct);
         // A stored /format becomes the default page when the spec names neither a page nor
-        // explicit dims. The CLI's --blank only takes named format tokens, so a stored
-        // "custom" rides as explicit pixel dims instead, converted from the stored cm the
-        // same way the CLI console does (core defaultBlankSizePx: cm / 2.54 * 96 dpi,
-        // rounded, never below 1 px) — the raster must match the layout's declared page.
+        // explicit dims. --blank only takes named tokens, so a stored "custom" rides as pixel dims
+        // converted from the stored cm the way the CLI console does (defaultBlankSizePx).
         var customConverted = false;
         if (spec.Page is null && spec.Width is null && spec.Height is null
             && session.Edits.PageFormat is string stored)
@@ -99,11 +95,9 @@ public sealed class EditingService : IEditingService
         };
         var result = await _cli.EditAsync(request, ct);
         var updated = ResetToImage(session, result.Path, result.Size, "blank");
-        // Carry a page format onto the fresh canvas so a later /save writes the layout's
-        // pageSize: the page the blank was made with (an explicit token, the injected stored
-        // format, or the converted custom cm dims) wins; a blank made from explicit pixel
-        // dims keeps the previous /format pick instead, mirroring the CLI console's doBlank
-        // restore order (a stored "custom" is only restorable when both cm dims are set).
+        // Carry a page format onto the fresh canvas so a later /save writes the layout's pageSize:
+        // the page the blank was made with wins; one made from explicit pixel dims keeps the
+        // previous /format pick, mirroring the CLI console's doBlank restore order.
         if (spec.Page is string page)
         {
             updated = updated with { Edits = WithPageFormat(updated.Edits, page, null, null) };
@@ -128,11 +122,7 @@ public sealed class EditingService : IEditingService
         return updated;
     }
 
-    /// <summary>
-    /// Convert a page dimension in cm to blank-canvas pixels exactly like the core's
-    /// <c>defaultBlankSizePx</c> (mirrored by the CLI console and pystencil REPL):
-    /// <c>cm / 2.54 * 96</c>, rounded half-up, never below 1 px.
-    /// </summary>
+    /// <summary>cm → blank-canvas px like the core's <c>defaultBlankSizePx</c>: cm / 2.54 * 96.</summary>
     private static int CmToBlankPx(double cm)
     {
         var px = (int)(cm / 2.54 * 96.0 + 0.5);
@@ -271,10 +261,7 @@ public sealed class EditingService : IEditingService
     private Task<UserSession> ApplyEditAsync(long userId, Func<EditState, EditState> mutate, CancellationToken ct) =>
         ApplyEditAsync(userId, session => mutate(session.Edits), ct);
 
-    /// <summary>
-    /// Push the session's current edit state onto the bounded history and set the new one. A
-    /// fresh edit clears the redo stack (you can't redo past a new branch).
-    /// </summary>
+    /// <summary>Push the current state onto the bounded history; a fresh edit clears redo.</summary>
     private static UserSession WithHistory(UserSession session, EditState newEdits)
     {
         var history = Bounded(session.EditHistory.Append(session.Edits));
@@ -295,6 +282,10 @@ public sealed class EditingService : IEditingService
     /// <inheritdoc />
     public async Task<UserSession> ConfigurePenAsync(long userId, string? color, double? thickness, double? pointSize, string? style, string? fill, CancellationToken ct = default)
     {
+        // The CLI SKIPS a colour it can't parse, so a typo would silently paint the default
+        // instead of failing. Reject it here, for /color, /fill and the §10 lineStyle op alike.
+        RejectUnparseableColor(color, "colour");
+        RejectUnparseableColor(NormalizeFill(fill), "fill");
         var session = await _store.GetAsync(userId, ct);
         var pen = session.Edits.Pen;
         var updatedPen = pen with
@@ -547,10 +538,7 @@ public sealed class EditingService : IEditingService
         return StencilProjectFile.BuildUtf8(project);
     }
 
-    /// <summary>
-    /// Reset a session onto a freshly adopted base image: store the path/dimensions/label,
-    /// clear the edit state and any active server project.
-    /// </summary>
+    /// <summary>Reset a session onto a freshly adopted base image, clearing edits and project.</summary>
     private static UserSession ResetToImage(UserSession session, string path, ImageSize size, string label, string? sourceUrl = null) =>
         session with
         {
@@ -582,10 +570,17 @@ public sealed class EditingService : IEditingService
             Lines = [],
         };
 
-    /// <summary>
-    /// Normalise a pen fill argument: null keeps the current fill; <c>none</c>/<c>clear</c>/
-    /// <c>transparent</c> (or blank) clears it to <c>transparent</c>; otherwise the colour as-is.
-    /// </summary>
+    /// <summary>Throw when a caller-supplied colour is one <c>parseColor</c> would drop.</summary>
+    private static void RejectUnparseableColor(string? spec, string label)
+    {
+        if (spec is not null && !ColorSpec.IsValid(spec))
+        {
+            throw new InvalidOperationException(
+                $"'{spec}' isn't a {label} I understand — use #rgb/#rrggbb, a CSS colour name, or transparent.");
+        }
+    }
+
+    /// <summary>null keeps the fill; <c>none</c>/<c>clear</c>/blank clears it; else the colour.</summary>
     private static string? NormalizeFill(string? fill)
     {
         if (fill is null)

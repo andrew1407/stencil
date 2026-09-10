@@ -36,7 +36,7 @@ public sealed class ChatModeTests : IDisposable
     public ChatModeTests()
     {
         _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-chatmode-" + Guid.NewGuid().ToString("N"));
-        BotOptions options = new() { DataDir = _dataDir };
+        BotOptions options = new() { DataDir = _dataDir, AllowedUsers = AnyUser.Instance };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, editing: editing);
         _callbacks = new CallbackAction(_handlers, _bot, _store);
