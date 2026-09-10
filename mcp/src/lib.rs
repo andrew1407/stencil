@@ -7,6 +7,7 @@
 //! the CLI's output back into structured results.
 
 pub mod args;
+pub mod confine;
 pub mod config;
 pub mod deliver;
 pub mod layout;

@@ -46,15 +46,14 @@ pub fn sanitize_label(label: &str) -> String {
 
 /// Map a validated plan onto CLI runs: one for the base result when the plan's final
 /// working image carries actions, one `.stencil` write per §2.1 `save`, plus one per
-/// variant (each variant replays the base actions first — contract §1: variants branch
-/// from the state *after* the top-level actions). Layout coordinates are always in the
-/// snapshot frame (contract §1), so a drawing run rides with `--layout-frame source`.
+/// variant (which replays the base actions first — §1: variants branch from the state
+/// *after* them). Plan coordinates are snapshot-frame, so drawing runs ride
+/// `--layout-frame source`.
 ///
 /// §2.1 multi-image plans: `stencil_prompt` carries a single `input`, so `image` index 1
-/// restarts the working image from it (the actions before the switch are what the
-/// preceding `save` bundled) and any higher index is an attachment this turn cannot
-/// satisfy — that ACTION is skipped with a `notes` warning, never the whole plan. Saving
-/// with no working image warns the same way.
+/// restarts the working image from it and any higher index is an attachment this turn
+/// cannot satisfy — that ACTION is skipped with a `notes` warning, never the whole plan.
+/// Saving with no working image warns the same way.
 pub fn to_edit_requests(
     plan: &OpPlan,
     input: Option<&str>,
@@ -125,12 +124,12 @@ pub fn to_edit_requests(
         requests.push(EditRequest {
             label: None,
             project: false,
-            params: collapse(&current, input, out_path("result"))?,
+            params: collapse(&current, input, out_path("result"), output_dir)?,
         });
     }
 
     for (i, (name, path, actions)) in saves.iter().enumerate() {
-        // §2.1: an unnamed save derives its name from the input file, then a positional
+        // §2.1: an unnamed save derives its name from the input, then a positional
         // fallback; colliding names stay distinct so one save never overwrites another.
         let mut stem = sanitize_label(name.as_deref().unwrap_or_default());
         if stem.is_empty() {
@@ -157,7 +156,7 @@ pub fn to_edit_requests(
         requests.push(EditRequest {
             label: Some(stem.clone()),
             project: true,
-            params: collapse(actions, input, output)?,
+            params: collapse(actions, input, output, output_dir)?,
         });
     }
 
@@ -174,6 +173,7 @@ pub fn to_edit_requests(
             current.iter().chain(&variant.actions),
             input,
             out_path(&stem),
+            output_dir,
         )?;
         requests.push(EditRequest {
             label: Some(stem),
@@ -236,20 +236,19 @@ fn default_save_name(input: &str) -> String {
     sanitize_label(stem)
 }
 
-/// A §2 cm dimension as CLI `--blank` pixels — the core's defaultBlankSizePx conversion:
-/// `cm / 2.54 * 96` dpi, rounded half-up, never below 1 px.
+/// A §2 cm dimension as CLI `--blank` pixels: `cm / 2.54 * 96` dpi, half-up, min 1 px.
 fn cm_to_blank_px(cm: f64) -> u32 {
     ((cm / 2.54 * 96.0 + 0.5) as u32).max(1)
 }
 
-/// Collapse one action list into a single `EditParams` (the CLI applies its fixed pipeline
-/// order source → frame → crop → rotate → filter → layout, so rotations sum, layout lines
-/// concatenate, and the last filter wins). Ops the CLI cannot express in one headless run
-/// are rejected with an explanation.
+/// Collapse one action list into a single `EditParams` (the CLI's fixed pipeline order
+/// source → frame → crop → rotate → filter → layout makes rotations sum, layout lines
+/// concatenate, the last filter win). Ops it cannot express in one run are rejected.
 fn collapse<'a>(
     actions: impl IntoIterator<Item = &'a Action>,
     input: Option<&str>,
     output: String,
+    output_dir: &str,
 ) -> Result<EditParams, OpPlanError> {
     let mut crop: Option<String> = None;
     let mut quarters: i64 = 0;
@@ -413,8 +412,9 @@ fn collapse<'a>(
         layout_frame,
         filter,
         output,
-        // Results land under the caller's output_dir with derived names; iterative
-        // prompting re-writes them, so the clobber guard is opted out of here.
+        // Confined to output_dir, so the CLI refuses an escaping destination itself, behind
+        // honored_save_path. Iterative prompting re-writes results: no clobber guard.
+        confine_root: Some(output_dir.to_string()),
         overwrite: true,
         surface: None,
         server: None,

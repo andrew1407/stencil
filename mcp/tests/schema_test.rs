@@ -5,7 +5,7 @@
 
 use stencil_mcp::opplan::schema::{matches, schema};
 use stencil_mcp::opplan::MAX_ASK_OPTIONS;
-use stencil_mcp::registry::FORBIDDEN_OPS;
+use stencil_mcp::registry::forbidden_ops;
 
 #[test]
 fn the_mcp_profile_resolves_to_the_contracts_surface_in_prompt_order() {
@@ -29,7 +29,7 @@ fn limits_and_the_forbidden_list_come_from_the_registry() {
     assert_eq!(s.limit("ask.maxOptions") as usize, MAX_ASK_OPTIONS);
     assert_eq!(s.limit("MAX_ACTIONS"), 16.0);
     assert_eq!(s.limit("MAX_STRING_CHARS"), 5000.0);
-    assert_eq!(FORBIDDEN_OPS.to_vec(), s.forbidden);
+    assert_eq!(forbidden_ops().to_vec(), s.forbidden);
     assert!(s.is_forbidden("paste") && !s.is_forbidden("crop"));
 }
 

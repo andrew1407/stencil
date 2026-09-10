@@ -2,12 +2,12 @@
 //!
 //! Mirrors the role of `cli/src/pipeline.zig` on the wrapper side — it locates the binary,
 //! materializes an inline layout, spawns the CLI (with `NO_COLOR=1`), and maps the exit
-//! status + stderr into a result or an error. All pixel work happens in the CLI/core, so
-//! output is identical to the browser, desktop, and CLI front-ends by construction.
+//! status + stderr into a result or an error. All pixel work happens in the CLI/core.
 
 use std::path::Path;
 
 use crate::args::{self, EditError, EditParams, LayoutArg, ScrapeParams};
+use crate::confine;
 use crate::locate;
 use crate::outcome::{self, ScrapedFile};
 
@@ -23,8 +23,7 @@ pub struct EditResult {
 
 impl EditResult {
     /// The human-readable head of the tool summary: the local write line followed by one
-    /// line per collaboration-server delivery. The delivery-surface lines are appended by
-    /// the handler, which owns the surface notes.
+    /// line per collaboration-server delivery. The handler appends the surface notes.
     pub fn summary(&self) -> String {
         let mut summary = format!("wrote {} ({}x{})", self.path, self.width, self.height);
         for remote in &self.remotes {
@@ -36,8 +35,7 @@ impl EditResult {
 }
 
 /// A successful scrape: the destination directory and page host (from the CLI's summary
-/// line, when present) plus every downloaded file. `files` reuses `outcome::ScrapedFile`, so
-/// the server payload serializes straight off it.
+/// line, when present) plus every downloaded file, ready to serialize.
 #[derive(Debug, Clone)]
 pub struct ScrapeResult {
     pub dir: Option<String>,
@@ -56,7 +54,7 @@ pub async fn run_edit(params: &EditParams) -> Result<EditResult, EditError> {
     let stderr = run_cli(params).await?;
     match outcome::parse_wrote(&stderr) {
         Some(w) => Ok(EditResult {
-            path: w.path,
+            path: confine::rejoin(params.confine_root.as_deref(), w.path),
             width: w.width,
             height: w.height,
             remotes: outcome::parse_remotes(&stderr),
@@ -69,16 +67,16 @@ pub async fn run_edit(params: &EditParams) -> Result<EditResult, EditError> {
 }
 
 /// Run one contract §2.1 `save`: the same pipeline with a `.stencil` output, which the CLI
-/// bundles as a project (image + layout + metadata) and reports without dimensions.
-/// Returns the written project path.
+/// bundles as a project and reports without dimensions. Returns the written path.
 pub async fn run_project(params: &EditParams) -> Result<String, EditError> {
     let stderr = run_cli(params).await?;
-    outcome::parse_wrote_project(&stderr).ok_or_else(|| {
+    let path = outcome::parse_wrote_project(&stderr).ok_or_else(|| {
         EditError::Runtime(format!(
             "the stencil CLI reported success but wrote no project:\n{}",
             stderr.trim()
         ))
-    })
+    })?;
+    Ok(confine::rejoin(params.confine_root.as_deref(), path))
 }
 
 /// One CLI invocation of the edit pipeline: clobber guard, inline-layout temp file, argv,
@@ -107,7 +105,13 @@ async fn run_cli(params: &EditParams) -> Result<String, EditError> {
     };
 
     let argv = args::build_argv(params, layout_path.as_deref())?;
-    let result = spawn(&argv).await;
+    // A confined run is spawned INSIDE its sandbox root with `--confine-output` — defence in
+    // depth behind the executor's own path sandbox. No root means an unconfined run.
+    let result = match params.confine_root.as_deref().map(|r| confine::confine(r, &argv)) {
+        None => spawn(&argv, None).await,
+        Some(Some(run)) => spawn(&run.argv, Some(&run.dir)).await,
+        Some(None) => Err(format!("error: refusing to write outside '{}'", params.output)),
+    };
 
     // Drop the temp file only after the CLI has run.
     drop(layout_temp);
@@ -120,18 +124,16 @@ async fn run_cli(params: &EditParams) -> Result<String, EditError> {
 }
 
 /// Run one `source_site` scrape: build the argv, spawn the CLI (which fetches the page,
-/// parses its HTML, filters, and downloads the matches), and parse the multi-file result.
-/// The CLI writes the files itself; this only maps its stderr into a structured result.
+/// filters, and downloads the matches), and map its stderr into a structured result.
 pub async fn run_scrape(params: &ScrapeParams) -> Result<ScrapeResult, EditError> {
     let argv = args::build_scrape_argv(params)?;
-    let output = spawn(&argv).await?;
+    let output = spawn(&argv, None).await?;
     if !output.success {
         return Err(outcome::extract_errors(&output.stderr).into());
     }
     let scraped = outcome::parse_scraped(&output.stderr);
     if scraped.files.is_empty() {
-        // A zero-file success shouldn't happen (the CLI exits 1 with `no media matched`),
-        // but guard it so the tool never reports an empty success.
+        // The CLI exits 1 on `no media matched`; guard so success is never empty.
         return Err(EditError::Runtime(format!(
             "the stencil CLI reported success but wrote no files:\n{}",
             output.stderr.trim()
@@ -155,7 +157,7 @@ pub async fn run_probe(input: &str) -> Result<(u32, u32), String> {
     let out_path = temp.path().to_string_lossy().into_owned();
 
     let argv = vec!["-i".to_string(), input.to_string(), out_path];
-    let output = spawn(&argv).await?;
+    let output = spawn(&argv, None).await?;
     drop(temp);
 
     if !output.success {
@@ -168,8 +170,7 @@ pub async fn run_probe(input: &str) -> Result<(u32, u32), String> {
 }
 
 /// Render `input` through the CLI's contour filter into a temp PNG and return its bytes —
-/// the §7 edge map. Best-effort by contract: a missing CLI, a failed render, or an
-/// unreadable temp file yields `None`; the caller never fails the prompt over it.
+/// the §7 edge map. Best-effort: any failure yields `None` and the prompt still runs.
 pub async fn render_edge_map(input: &str) -> Option<Vec<u8>> {
     let temp = tempfile::Builder::new()
         .prefix("stencil-edgemap-")
@@ -178,7 +179,6 @@ pub async fn render_edge_map(input: &str) -> Option<Vec<u8>> {
         .ok()?;
     let out_path = temp.path().to_string_lossy().into_owned();
 
-    // `stencil -i <input> --filter contour <output>` — the same flags build_argv emits.
     let argv = vec![
         "-i".to_string(),
         input.to_string(),
@@ -186,23 +186,43 @@ pub async fn render_edge_map(input: &str) -> Option<Vec<u8>> {
         "contour".to_string(),
         out_path,
     ];
-    let output = spawn(&argv).await.ok()?;
+    let output = spawn(&argv, None).await.ok()?;
     if !output.success {
         return None;
     }
     std::fs::read(temp.path()).ok()
 }
 
-/// Locate the CLI and run it with the given argv, capturing stderr.
-async fn spawn(argv: &[String]) -> Result<CliOutput, String> {
+/// Locate the CLI and run it with the given argv, capturing stderr — under the
+/// `config::cli_timeout()` deadline (the bot's `ProcessRunner` rule), so a hung CLI can
+/// never pin an MCP tool call forever. Its stdin is `/dev/null`: our own stdin is the
+/// JSON-RPC channel and the CLI must never read from it.
+async fn spawn(argv: &[String], dir: Option<&Path>) -> Result<CliOutput, String> {
     let bin = locate::find_cli()?;
-    let output = tokio::process::Command::new(&bin)
+    let deadline = crate::config::cli_timeout();
+    let failed = |e| format!("failed to run the stencil CLI ({}): {e}", bin.display());
+    let child = tokio::process::Command::new(&bin)
+        // `.` is the inherited working directory; a confined run names its sandbox root.
+        .current_dir(dir.unwrap_or(Path::new(".")))
         .args(argv)
         .env("NO_COLOR", "1")
-        .output()
-        .await
-        .map_err(|e| format!("failed to run the stencil CLI ({}): {e}", bin.display()))?;
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        // On expiry the timeout drops the wait future, which drops the child; this kills it.
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(failed)?;
 
+    let output = match tokio::time::timeout(deadline, child.wait_with_output()).await {
+        Ok(result) => result.map_err(failed)?,
+        Err(_) => {
+            return Err(format!(
+                "error: the stencil CLI timed out after {}s and was terminated",
+                deadline.as_secs()
+            ))
+        }
+    };
     Ok(CliOutput {
         success: output.status.success(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),

@@ -20,7 +20,7 @@ use crate::registry;
 /// The §4 prose core around the generated ops section — `head` ends at the "Available
 /// ops" heading, `tail` follows the bullets — loaded verbatim from the canonical
 /// cross-surface asset (see `browser/js/config/llm/README.md`), embedded at compile
-/// time. The bullets themselves live in [`crate::registry::OP_REGISTRY`] (§13).
+/// time. The bullets themselves live in [`crate::registry::op_registry`] (§13).
 static PROMPT_PROSE: std::sync::LazyLock<(String, String)> = std::sync::LazyLock::new(|| {
     let asset: Value =
         serde_json::from_str(include_str!("../../browser/js/config/llm/systemPrompt.json"))
@@ -42,7 +42,7 @@ pub fn llm_system_prompt() -> &'static str {
     static PROMPT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     PROMPT.get_or_init(|| {
         let ops =
-            crate::registry::assemble_ops_section(registry::OP_REGISTRY, registry::WIRED_CAPABILITIES)
+            crate::registry::assemble_ops_section(registry::op_registry(), registry::WIRED_CAPABILITIES)
                 .expect("§4 ops-section assembly from the op registry");
         let (head, tail) = &*PROMPT_PROSE;
         format!("{head}{ops}{tail}")

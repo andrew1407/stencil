@@ -1,9 +1,8 @@
 //! Typed tool parameters and their translation into the CLI's argv.
 //!
 //! This mirrors the role of `cli/src/args.zig`: it owns the mapping between a request and
-//! the exact `stencil [options] <output>` command line. The pipeline order is fixed by the
-//! CLI itself (source → crop → rotate → filter → layout → encode), so argv order here is
-//! only cosmetic; the CLI parses flags order-independently.
+//! the exact `stencil [options] <output>` command line. The CLI fixes the pipeline order
+//! and parses flags order-independently, so argv order here is only cosmetic.
 
 use std::collections::HashSet;
 use std::sync::LazyLock;
@@ -59,6 +58,11 @@ pub struct EditParams {
     #[serde(skip)]
     pub layout_frame: Option<String>,
 
+    /// Sandbox root this run must write inside (CLI `--confine-output`). Not part of the
+    /// tool schema — set by the op-plan executor, whose paths are already sandboxed.
+    #[serde(skip)]
+    pub confine_root: Option<String>,
+
     /// Image filter: `bw`, `sepia`, `invert`, `contour`, or a CSS color / `#hex` for a
     /// duotone tint. Overrides any filter baked into the layout.
     #[serde(default)]
@@ -83,8 +87,7 @@ pub struct EditParams {
 
     // ── Collaboration server (server/) ──
     // These drive the CLI's server client: connect over REST, fetch/create projects, and
-    // upload result bytes. The Stencil collaboration server stores/shares projects across
-    // all front-ends; see ../server/README.md for the wire protocol.
+    // upload result bytes. See ../server/README.md for the wire protocol.
     /// Connect to a collaboration server at this `http(s)://` URL and treat `input` as the
     /// **name of a project on that server**: the project's image is fetched and edited
     /// instead of a local file. Requires `input` (the project name); incompatible with
@@ -178,8 +181,7 @@ impl Crop {
 }
 
 /// The ISO page-format names the CLI's core recognizes (`A0`–`C10`), matched
-/// case-insensitively. Loaded from the canonical `PAGE_SIZES` table in
-/// `browser/js/config/constants.json`, embedded at compile time.
+/// case-insensitively — the canonical `PAGE_SIZES` table, embedded at compile time.
 static PAGE_FORMATS: LazyLock<Vec<String>> = LazyLock::new(|| {
     let constants: serde_json::Value =
         serde_json::from_str(include_str!("../../browser/js/config/constants.json"))
@@ -193,9 +195,8 @@ static PAGE_FORMATS: LazyLock<Vec<String>> = LazyLock::new(|| {
 });
 
 /// Whether `name` is a known page-format token (case-insensitive). The CLI's `--blank`
-/// parser silently skips an unrecognized token — it would fall through to the positional
-/// output slot and the blank would come out A4 with no error — so the server must reject
-/// unknown names before they reach argv.
+/// parser silently SKIPS an unrecognized token (the blank would come out A4 with no
+/// error), so the server must reject unknown names before they reach argv.
 fn is_page_format(name: &str) -> bool {
     PAGE_FORMATS.iter().any(|f| f.eq_ignore_ascii_case(name))
 }
@@ -211,11 +212,10 @@ static COLOR_NAMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
     table.into_keys().collect()
 });
 
-/// Whether `spec` is a colour the CLI's `parseColor` accepts (`cli/src/core.zig` →
-/// `parseColor` in `core/color/colorNames.cpp`): after trimming and ASCII-lowercasing,
-/// `transparent`, `#` + 3/4/6/8 hex digits, or a CSS named colour. Like an unknown page
-/// token, an unparseable colour is silently skipped by the CLI's `--blank` parser — the
-/// blank would come out white with no error — so the server must reject it before argv.
+/// Whether `spec` is a colour the CLI's `parseColor` accepts (`core/color/colorNames.cpp`):
+/// after trimming and ASCII-lowercasing, `transparent`, `#` + 3/4/6/8 hex digits, or a CSS
+/// named colour. Like an unknown page token, the CLI's `--blank` parser silently skips an
+/// unparseable colour, so the server must reject it before argv.
 fn is_color(spec: &str) -> bool {
     let s = spec.trim().to_ascii_lowercase();
     if s.is_empty() {
@@ -568,17 +568,12 @@ impl<'a> TryFrom<&'a EditParams> for Source<'a> {
             return Err(EditError::NoSource);
         }
 
-        // Flag-injection guard on the positional `output`. The output is appended last and
-        // the CLI (`cli/src/args.zig`) has *no* `--` end-of-options terminator (a bare `--`
-        // is itself rejected as an unknown flag), so an `output` like `--album` or `-l`
-        // would be parsed as a flag rather than the path (`-l` would even swallow the
-        // following token). A real output path never starts with a dash, so reject it up
-        // front — mirroring the CLI's own `arg[0] == '-'` flag test.
-        //
+        // Flag-injection guard on the positional `output`: the CLI has *no* `--`
+        // end-of-options terminator, so a dash-leading `output` would parse as a flag (`-l`
+        // would even swallow the next token). Mirrors the CLI's own `arg[0] == '-'` test.
         // Scheme/host SSRF filtering for `input`/`server`/`remote` is deliberately NOT done
-        // here: it is enforced downstream in the CLI (which was hardened for this), and this
-        // builder only guarantees each value rides as a single inert argv token (no shell,
-        // no splitting).
+        // here — it is enforced downstream in the CLI; this builder only guarantees each
+        // value rides as one inert argv token (no shell, no splitting).
         if p.output.trim().is_empty() {
             return Err(EditError::EmptyOutput);
         }

@@ -28,10 +28,11 @@ pub static DEFAULT_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
     Duration::from_secs(secs)
 });
 
-/// Response guards so a misbehaving endpoint can't balloon memory.
+/// Response guards so a misbehaving endpoint can't balloon memory. The body cap matches the
+/// collaboration server's `maxResponseBytes` (`server/internal/llm/anthropic.go`, 8 MiB).
 const MAX_HEADER_BYTES: usize = 64 * 1024;
-const MAX_BODY_BYTES: usize = 64 * 1024 * 1024;
-const BODY_TOO_LARGE: &str = "response body exceeds 64 MiB";
+const MAX_BODY_BYTES: usize = 8 * 1024 * 1024;
+const BODY_TOO_LARGE: &str = "response body exceeds 8 MiB";
 
 // ── Errors ──
 
@@ -433,8 +434,7 @@ fn read_chunked(mut buf: Vec<u8>, stream: &mut TcpStream) -> Result<Vec<u8>, Llm
             }
         }
         body.extend_from_slice(&buf[pos..pos + size]);
-        // Drop the consumed bytes so `buf` never holds the whole raw stream alongside
-        // `body` (which would double peak memory on large responses).
+        // Drop consumed bytes so `buf` never holds the raw stream alongside `body`.
         buf.drain(..pos + size + 2);
         pos = 0;
     }

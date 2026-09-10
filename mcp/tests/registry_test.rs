@@ -5,8 +5,8 @@
 use stencil_mcp::llm::llm_system_prompt;
 use stencil_mcp::opplan::{parse_op_plan, OpPlanError};
 use stencil_mcp::registry::{
-    assemble_ops_section, censor_violation, descriptor, is_forbidden, OpDescriptor,
-    FORBIDDEN_OPS, OP_REGISTRY, WIRED_CAPABILITIES,
+    assemble_ops_section, censor_violation, descriptor, forbidden_ops, is_forbidden,
+    op_registry, OpDescriptor, WIRED_CAPABILITIES,
 };
 
 /// The contract's mcp surface: core §2 + §2.1 in §2 order, minus `undo`/`redo`/`reset` —
@@ -24,7 +24,7 @@ fn plan_with_op(op: &str) -> String {
 
 #[test]
 fn the_registry_names_are_exactly_the_contracts_mcp_surface_in_prompt_order() {
-    let names: Vec<&str> = OP_REGISTRY.iter().map(|d| d.name).collect();
+    let names: Vec<&str> = op_registry().iter().map(|d| d.name).collect();
     assert_eq!(names, MCP_SURFACE);
 }
 
@@ -32,7 +32,7 @@ fn the_registry_names_are_exactly_the_contracts_mcp_surface_in_prompt_order() {
 
 #[test]
 fn only_image_and_save_are_top_level_only_and_only_frame_is_video_only() {
-    for d in OP_REGISTRY {
+    for d in op_registry() {
         assert_eq!(
             d.top_level_only,
             matches!(d.name, "image" | "save"),
@@ -81,13 +81,13 @@ fn the_assembled_prompt_carries_every_registered_bullet_in_registry_order() {
     // golden assertion in llm.rs — the byte-stability proof of the refactor.
     let prompt = llm_system_prompt();
     let mut cursor = 0usize;
-    for d in OP_REGISTRY {
+    for d in op_registry() {
         let at = prompt[cursor..]
             .find(d.bullet)
             .unwrap_or_else(|| panic!("bullet of \"{}\" missing or out of order", d.name));
         cursor += at + d.bullet.len();
     }
-    let ops = assemble_ops_section(OP_REGISTRY, WIRED_CAPABILITIES).unwrap();
+    let ops = assemble_ops_section(op_registry(), WIRED_CAPABILITIES).unwrap();
     assert!(prompt.contains(&ops), "the prompt embeds the assembled ops section verbatim");
 }
 
@@ -97,7 +97,7 @@ fn the_assembled_prompt_carries_every_registered_bullet_in_registry_order() {
 fn every_registered_op_is_known_to_the_validator() {
     // A known op with a bogus extra field FAILS the plan (contract §1) — proving the
     // validator has a real arm for it; an unknown op would only warn.
-    for d in OP_REGISTRY {
+    for d in op_registry() {
         let err = parse_op_plan(&plan_with_op(d.name)).unwrap_err();
         match err {
             OpPlanError::Action { ref op, ref detail } => {
@@ -134,14 +134,14 @@ fn forbidden_ops_cover_the_never_model_drivable_boundary() {
         assert!(is_forbidden(op), "\"{op}\" must be forbidden");
     }
     // And no forbidden name ever resolves to an active descriptor.
-    for op in FORBIDDEN_OPS {
+    for op in forbidden_ops() {
         assert!(descriptor(op).is_none(), "forbidden \"{op}\" resolved to a descriptor");
     }
 }
 
 #[test]
 fn no_registry_entry_uses_a_forbidden_name() {
-    for d in OP_REGISTRY {
+    for d in op_registry() {
         assert!(!is_forbidden(d.name), "registry entry \"{}\" is forbidden", d.name);
     }
 }
@@ -228,7 +228,7 @@ fn assembly_errors_on_bullets_matching_sensitive_patterns() {
 
 #[test]
 fn the_real_bullets_pass_the_censor_including_crops_cropspec_tokens() {
-    for d in OP_REGISTRY {
+    for d in op_registry() {
         assert_eq!(censor_violation(d.bullet), None, "\"{}\" bullet", d.name);
     }
     // The word "tokens" (cropSpec tokens) is legitimate prompt vocabulary — the censor

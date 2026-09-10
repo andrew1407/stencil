@@ -1,18 +1,15 @@
 //! Server configuration: which delivery surface(s) a `stencil_edit` result goes to, plus
 //! the paths/URLs those surfaces need.
 //!
-//! Resolution order, lowest precedence first:
-//!   built-in defaults  <  a `.env` file  <  process env (incl. the mcpServers "env")  <
-//!   the `--surface` CLI arg
-//! and a per-call `surface` tool parameter overrides the resolved default for one call.
-//!
-//! The `.env` loader is a tiny hand-rolled `KEY=VALUE` reader — no extra dependency — that
-//! only sets a variable when the process env doesn't already define it (so real env wins).
+//! Resolution order, lowest precedence first: built-in defaults < the dotenv file < process
+//! env (incl. the mcpServers "env") < the `--surface` CLI arg; a per-call `surface` parameter
+//! overrides it for one call. The hand-rolled dotenv loader never overrides the process env.
 
 use std::path::PathBuf;
+use std::time::Duration;
 
-/// Where a finished edit is delivered. The CLI always does the pixel work; surfaces beyond
-/// `Cli` present the result somewhere.
+/// Where a finished edit is delivered. The CLI always does the pixel work; other surfaces
+/// present the result somewhere.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Surface {
     /// Write the output file (always implied).
@@ -54,9 +51,8 @@ impl Surface {
 }
 
 /// Parse a comma/space-separated surface list, de-duplicated, order preserved. Always keeps
-/// `Cli` present (the file write is the basis every other surface builds on). Tolerant of a
-/// JSON-array-looking string (`["cli","browser"]`) so the env var accepts the same shape the
-/// per-call `surface` parameter does.
+/// `Cli` present (the file write is the basis every other surface builds on), and tolerates a
+/// JSON-array-looking string so the env var accepts the `surface` parameter's shape too.
 pub fn parse_surfaces(spec: &str) -> Result<Vec<Surface>, String> {
     let spec = spec.trim().trim_start_matches('[').trim_end_matches(']');
     let mut out: Vec<Surface> = Vec::new();
@@ -76,11 +72,9 @@ pub fn parse_surfaces(spec: &str) -> Result<Vec<Surface>, String> {
     Ok(out)
 }
 
-/// The raw `STENCIL_LLM_*` settings (contract §5 — the same env names pystencil and the
-/// bot use, plus `STENCIL_LLM_SERVER_TOKEN` since mcp has no connection store). Read here
-/// with the same `.env` layering as everything else; validated and defaulted per call in
-/// `llm::LlmConfig::resolve`, because the `stencil_prompt` tool may override
-/// provider/base-url/model per call.
+/// The raw `STENCIL_LLM_*` settings (contract §5 — the env names pystencil and the bot use,
+/// plus `STENCIL_LLM_SERVER_TOKEN` since mcp has no connection store). Validated and
+/// defaulted per call in `llm::LlmConfig::resolve`, which `stencil_prompt` may override.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LlmEnv {
     /// `STENCIL_LLM_PROVIDER` — `ollama` (default) | `openai-compat` | `stencil-server`.
@@ -127,9 +121,8 @@ impl Default for Config {
 }
 
 impl Config {
-    /// Build the config from a `.env` file, the process environment, and `--surface <list>`
-    /// in `args`. Returns the config and any non-fatal warnings (e.g. a bad surface token,
-    /// which is ignored in favour of the default).
+    /// Build the config from the dotenv file, the process environment, and `--surface <list>`
+    /// in `args`, plus any non-fatal warnings (a bad surface token falls back to the default).
     pub fn load(args: &[String]) -> (Config, Vec<String>) {
         load_dotenv();
 
@@ -198,6 +191,14 @@ fn env_nonempty(key: &str) -> Option<String> {
         .filter(|v| !v.is_empty())
 }
 
+/// Per-invocation deadline for one CLI run (`STENCIL_CLI_TIMEOUT_SECONDS`, default 120s —
+/// the bot's `STENCIL_BOT_CLI_TIMEOUT_SECONDS` default): a hung CLI must never pin an MCP
+/// tool call forever. Read per spawn; a blank/zero/unparseable value falls back to 120s.
+pub fn cli_timeout() -> Duration {
+    let secs = env_nonempty("STENCIL_CLI_TIMEOUT_SECONDS").and_then(|v| v.parse::<u64>().ok());
+    Duration::from_secs(secs.filter(|s| *s > 0).unwrap_or(120))
+}
+
 /// The default desktop binary location inside a repo checkout.
 fn default_desktop_path() -> Option<PathBuf> {
     let candidate = crate::locate::repo_root()?.join("desktop/build/stencil");
@@ -210,8 +211,7 @@ fn arg_value(args: &[String], flag: &str) -> Option<String> {
     args.get(pos + 1).cloned()
 }
 
-/// Minimal `.env` loader: read `KEY=VALUE` lines from the first `.env` found near the CWD
-/// or the executable, setting each variable only if the process env hasn't already set it.
+/// Minimal dotenv loader: `KEY=VALUE` lines, never overriding the process env.
 fn load_dotenv() {
     let Some(path) = dotenv_path() else {
         return;

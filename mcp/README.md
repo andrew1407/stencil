@@ -62,6 +62,10 @@ graph TD
 | Browser launch-URL data URLs | **base64** | encode the result image into the `#stencil=` fragment (already in the tree) |
 | The actual pixel/geometry work | **`../cli/`** (and through it, **`../core/`**) | invoked as a subprocess; **not** linked or recompiled here |
 
+Every crate is pinned **exactly** (`=x.y.z`) — the repo does not track `Cargo.lock`, so the
+manifest is the only pin there is. That list is the whole of it: logging is `eprintln!` to
+stderr and errors are hand-written, so there is no `tracing`, no `anyhow`, no `thiserror`.
+
 The server contains **no image logic** — it never touches `core/`, codecs, or the DOM. It
 maps tool parameters to the CLI's command line and parses the CLI's output back into
 structured results. That keeps it decoupled from the `core/` source-list parity rules the
@@ -71,7 +75,7 @@ other front-ends share: its only contract is the CLI's documented flags.
 
 ```
 mcp/
-  Cargo.toml           # package + pinned deps (rmcp, tokio, serde, schemars, tempfile, base64, tracing)
+  Cargo.toml           # package + exactly pinned deps (rmcp, tokio, serde, schemars, tempfile, base64)
   .env.example         # config template; copy to .env (gitignored) and adjust
   src/
     main.rs            # entry: load config, stderr logging, serve(stdio()).waiting()
@@ -84,6 +88,7 @@ mcp/
     locate.rs          # find the stencil binary (STENCIL_CLI → repo cli/zig-out/bin → PATH)
     layout.rs          # Layout/Line/Point types + write an inline layout to a temp file
     outcome.rs         # parse the CLI's `wrote …` success line and `error:` lines (stderr)
+    confine.rs         # rewrite a run to spawn inside its sandbox root, under `--confine-output`
     llmtransport.rs    # hand-rolled plain-http HTTP/1.1 POST transport (no TLS, no deps)
     llm.rs             # LLM providers, system prompt + wire mappings (llm-contract.md)
     opplan.rs          # op-plan parser/validator + mapping onto EditParams runs
@@ -93,6 +98,7 @@ mcp/
     opplan_test.rs     # op-plan parse tables + EditParams mapping (pure)
     llmtransport_test.rs # HTTP transport against a canned local TcpListener
     llm_test.rs        # provider wire shapes via a mock recording transport
+    guards_test.rs     # the spawn deadline, the response-body cap, and output confinement (negative tests)
     e2e_test.rs        # real CLI runs (incl. a canned-LLM prompt flow), self-skipping when the binary is absent
   Dockerfile           # builds the Zig CLI + the Rust server into one runtime image
 ```
@@ -101,7 +107,7 @@ mcp/
 CLI's so the two wrappers read the same way.
 
 > **stdout is the JSON-RPC channel.** All logging goes to **stderr** (writing to stdout
-> would corrupt the protocol). `main.rs` configures `tracing` accordingly.
+> would corrupt the protocol). `main.rs` logs with plain `eprintln!` — no logging crate.
 
 ## Build
 
@@ -153,6 +159,7 @@ the resolved default for that one call. Copy [`.env.example`](.env.example) to `
 |---|---|---|
 | `STENCIL_SURFACES` | `cli` | default surfaces (see list form below), e.g. `cli,desktop,browser` |
 | `STENCIL_CLI` | auto-discovered | path to the `stencil` CLI binary |
+| `STENCIL_CLI_TIMEOUT_SECONDS` | `120` | per-invocation deadline; a CLI run past it is killed and reported as an `error:` |
 | `STENCIL_DESKTOP` | `<repo>/desktop/build/stencil` | path to the Qt desktop binary |
 | `STENCIL_BROWSER_URL` | `http://localhost:8080` | base URL of the served editor — only for the browser surfaces, only if not on the default |
 | `STENCIL_AUTO_OPEN` | `false` | open the browser URL with the OS opener (`open`/`xdg-open`) |

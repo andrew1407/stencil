@@ -13,7 +13,6 @@
 //! …) simply have no entries; [`WIRED_CAPABILITIES`] exists so a future entry CAN declare
 //! a capability and be excluded automatically until it is wired.
 
-use std::ops::Deref;
 use std::sync::OnceLock;
 
 use crate::opplan::schema::schema;
@@ -43,34 +42,6 @@ pub struct OpDescriptor {
 /// every registered op below is capability-free.
 pub const WIRED_CAPABILITIES: &[&str] = &[];
 
-/// A registry-backed table built on first use that reads like a `&'static [T]`.
-pub struct Table<T: 'static>(fn() -> &'static [T]);
-
-impl<T> Clone for Table<T> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl<T> Copy for Table<T> {}
-impl<T> Deref for Table<T> {
-    type Target = [T];
-    fn deref(&self) -> &[T] {
-        (self.0)()
-    }
-}
-impl<T> AsRef<[T]> for Table<T> {
-    fn as_ref(&self) -> &[T] {
-        (self.0)()
-    }
-}
-impl<T> IntoIterator for Table<T> {
-    type Item = &'static T;
-    type IntoIter = std::slice::Iter<'static, T>;
-    fn into_iter(self) -> Self::IntoIter {
-        (self.0)().iter()
-    }
-}
-
 fn leak(s: &str) -> &'static str {
     Box::leak(s.to_string().into_boxed_str())
 }
@@ -80,10 +51,8 @@ fn leak(s: &str) -> &'static str {
 const VIDEO_ONLY_OPS: &[&str] = &["frame"];
 
 /// The ops `stencil_prompt` executes, in prompt order, with their §4 bullets — the
-/// registry's mcp-profile entries.
-pub static OP_REGISTRY: Table<OpDescriptor> = Table(op_registry);
-
-fn op_registry() -> &'static [OpDescriptor] {
+/// registry's mcp-profile entries, built once on first use.
+pub fn op_registry() -> &'static [OpDescriptor] {
     static OPS: OnceLock<Vec<OpDescriptor>> = OnceLock::new();
     OPS.get_or_init(|| {
         schema()
@@ -106,9 +75,7 @@ fn op_registry() -> &'static [OpDescriptor] {
 /// destruction beyond what §10 grants. Two teeth: no registry entry may use one of these
 /// names (tested + rejected at assembly), and the plan validator hard-fails any plan
 /// naming one instead of skipping it as unknown.
-pub static FORBIDDEN_OPS: Table<&'static str> = Table(forbidden_ops);
-
-fn forbidden_ops() -> &'static [&'static str] {
+pub fn forbidden_ops() -> &'static [&'static str] {
     static OPS: OnceLock<Vec<&'static str>> = OnceLock::new();
     OPS.get_or_init(|| schema().forbidden.iter().map(|s| leak(s)).collect())
 }
@@ -154,7 +121,7 @@ fn capability_wired(capability: Option<&str>, wired: &[&str]) -> bool {
 /// validator's single known-ness gate — an op with no active entry falls to §1's
 /// unknown-op skip, exactly matching what the generated prompt promised.
 pub fn descriptor(name: &str) -> Option<&'static OpDescriptor> {
-    OP_REGISTRY.iter().find(|d| {
+    op_registry().iter().find(|d| {
         d.name == name && capability_wired(d.capability, WIRED_CAPABILITIES) && !is_forbidden(d.name)
     })
 }
@@ -162,8 +129,7 @@ pub fn descriptor(name: &str) -> Option<&'static OpDescriptor> {
 /// Assemble the §4 "Available ops" bullets from a registry: entries whose capability is
 /// not wired are excluded (§13 capability truth); a forbidden name or a censor-matching
 /// bullet is a registry mistake and errors instead of leaking into the prompt.
-pub fn assemble_ops_section(ops: impl AsRef<[OpDescriptor]>, wired: &[&str]) -> Result<String, String> {
-    let ops = ops.as_ref();
+pub fn assemble_ops_section(ops: &[OpDescriptor], wired: &[&str]) -> Result<String, String> {
     let mut bullets = Vec::with_capacity(ops.len());
     for op in ops {
         if !capability_wired(op.capability, wired) {
