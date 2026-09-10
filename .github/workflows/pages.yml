@@ -13,7 +13,15 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
-  workflow_dispatch:   # deploy on demand (use this for the first run)
+    # The site has exactly two inputs — browser/ is its root, core/ is what the wasm
+    # module is compiled from — plus this workflow. Nothing else can change a byte of
+    # what ships, and a run here is a full Emscripten build + npm install, so a push
+    # that touches only the other subprojects or the docs deploys nothing.
+    paths:
+      - 'browser/**'
+      - 'core/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:   # deploy on demand (use this for the first run, or to force one)
 
 # Read the repo, write the Pages deployment.
 permissions:
