@@ -232,7 +232,7 @@ appearance-aware icons authored as an Icon Composer `.icon` and compiled with
 build it). Adding a tintable layered icon is a future follow-up.
 
 CI builds these for all three platforms on every `v*` tag and attaches them to the
-GitHub release (`.github/workflows/release.yml`); a manual `workflow_dispatch` run
+GitHub release (`.github/workflows/desktop-packages.yml`); a manual `workflow_dispatch` run
 produces the same packages as downloadable workflow artifacts without cutting a tag.
 
 > On Qt < 6.3 the install step can't bundle Qt automatically — run the platform's
