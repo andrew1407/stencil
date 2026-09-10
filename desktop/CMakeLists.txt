@@ -165,6 +165,19 @@ if(Qt6_FOUND)
     list(APPEND STENCIL_GUI_SOURCES src/support/shareImageWin.cpp)
     # C++/WinRT projection headers ship with the Windows SDK; `windowsapp` is its
     # umbrella import lib for the WinRT runtime classes used there.
+    #
+    # Those headers reach for <experimental/coroutine> whenever __cpp_lib_coroutine is
+    # absent, which on MSVC means anything below /std:c++20 — and its STL now refuses
+    # that header outright unless the deprecation is silenced. Scoped to THIS ONE file:
+    # bumping the standard would have to take core/ with it (MSVC does not support
+    # mixing /std within a binary), and the shared core is C++17 by design. Nothing
+    # here co_awaits anything; only the projection's own unused plumbing needs it.
+    # When MSVC finally drops the header this file wants C++20, not a third flag.
+    if(MSVC)
+      set_source_files_properties(src/support/shareImageWin.cpp PROPERTIES
+        COMPILE_FLAGS "/await"
+        COMPILE_DEFINITIONS "_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS")
+    endif()
     list(APPEND STENCIL_SHARE_LIBS windowsapp)
   else()
     list(APPEND STENCIL_GUI_SOURCES src/support/shareImageLinux.cpp)
