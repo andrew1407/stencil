@@ -1,11 +1,13 @@
 //! Stencil collaboration-server client for the CLI. Mirrors server/internal/protocol
-//! over REST (std.http.Client) for the non-console runtime: connect/issue a token,
-//! find a project by name, download its image, create a project, and upload result
-//! bytes. It also opens a read-only live events subscription (`EditConn`) over the
-//! server's raw-TCP NDJSON edit channel — the CLI uses TCP rather than a WebSocket
+//! over REST (through net.request's guarded client) for the non-console runtime:
+//! connect/issue a token, find a project by name, download its image, create a project,
+//! and upload result bytes. It also opens a read-only live events subscription (`EditConn`)
+//! over the server's raw-TCP NDJSON edit channel — TCP rather than a WebSocket
 //! library — to learn when a project it is editing was changed by another client.
 const std = @import("std");
 const logo = @import("logo.zig");
+const net = @import("net.zig");
+const sanitize = @import("sanitize.zig");
 
 pub const Error = error{
     HttpFailed,
@@ -768,7 +770,9 @@ fn recordReject(gpa: std.mem.Allocator, status: u32, body: []const u8) void {
     reject_status = status;
     const msg = parseErrorMessage(gpa, body);
     defer if (msg) |m| gpa.free(m);
-    const src = std.mem.trim(u8, msg orelse body, " \t\r\n");
+    // The server's prose is untrusted: bound it and strip keys/URLs before it can be printed.
+    var buf: sanitize.DetailBuf = undefined;
+    const src = sanitize.sanitizeDetail(msg orelse body, &buf);
     reject_len = @min(src.len, reject_buf.len);
     @memcpy(reject_buf[0..reject_len], src[0..reject_len]);
 }
@@ -792,8 +796,9 @@ pub fn printConnectError(url: []const u8, e: anyerror) void {
     }
 }
 
-/// One-shot HTTP request with explicit headers; returns owned response body bytes.
-fn rawRequest(
+/// One-shot HTTP request with explicit headers; returns owned response body bytes. Runs over
+/// net.request: response capped, redirect refused, host block skipped (the user's own server).
+pub fn rawRequest(
     gpa: std.mem.Allocator,
     io: std.Io,
     url: []const u8,
@@ -801,27 +806,20 @@ fn rawRequest(
     payload: ?[]const u8,
     headers: []const std.http.Header,
 ) TransportError![]u8 {
-    var client: std.http.Client = .{ .allocator = gpa, .io = io };
-    defer client.deinit();
-    var body: std.Io.Writer.Allocating = .init(gpa);
-    defer body.deinit();
-
     reject_status = 0; // a transport failure below leaves no stale rejection behind
-    const result = client.fetch(.{
-        .location = .{ .url = url },
-        .method = method,
-        .payload = payload,
-        .extra_headers = headers,
-        .response_writer = &body.writer,
-    }) catch return Error.HttpFailed;
+    const opts: net.RequestOptions = .{ .method = method, .payload = payload, .extra_headers = headers, .allow_named_host = true };
+    const res = net.request(gpa, io, url, opts) catch |e| return if (e == error.OutOfMemory) error.OutOfMemory else Error.HttpFailed;
 
-    const code = @intFromEnum(result.status);
-    if (code < 200 or code >= 300) recordReject(gpa, code, body.written());
-    if (code == 401) return Error.Unauthorized;
-    if (code == 404) return Error.NotFound;
-    if (code == 409) return Error.Conflict;
-    if (code < 200 or code >= 300) return Error.HttpFailed;
-    return gpa.dupe(u8, body.written());
+    const code = res.status;
+    if (code < 200 or code >= 300) {
+        defer gpa.free(res.body);
+        recordReject(gpa, code, res.body);
+        if (code == 401) return Error.Unauthorized;
+        if (code == 404) return Error.NotFound;
+        if (code == 409) return Error.Conflict;
+        return Error.HttpFailed;
+    }
+    return res.body;
 }
 
 /// Escape a string for embedding inside a JSON string literal: the two structural chars
@@ -1096,7 +1094,7 @@ test "isLoopbackHost and isInsecureRemote classify the connection" {
     try testing.expect(isLoopbackHost("localhost"));
     try testing.expect(isLoopbackHost("127.0.0.1"));
     try testing.expect(isLoopbackHost("::1"));
-    try testing.expect(isLoopbackHost("[::1]"));  // bracketed IPv6 (parity with the other front-ends)
+    try testing.expect(isLoopbackHost("[::1]")); // bracketed IPv6 (parity with the other front-ends)
     try testing.expect(!isLoopbackHost("example.com"));
     // Only cleartext-to-a-remote-host is insecure.
     try testing.expect(isInsecureRemote("http://example.com:8090"));
@@ -1193,6 +1191,15 @@ test "recordReject keeps status + message; falls back to the raw body; save/rest
     r = lastReject().?;
     try testing.expectEqual(@as(u32, 401), r.status);
     try testing.expectEqualStrings("missing or invalid token", r.message);
+
+    // The server's prose is sanitized on the way in: no key, no URL, and bounded.
+    recordReject(a, 500, "{\"code\":\"x\",\"message\":\"upstream http://10.0.0.5:9000/llm rejected sk-abcdef1234567890\"}");
+    r = lastReject().?;
+    try testing.expectEqualStrings("upstream [redacted] rejected [redacted]", r.message);
+    var long: [600]u8 = undefined;
+    for (&long, 0..) |*c, i| c.* = if (i % 5 == 4) ' ' else 'a';
+    recordReject(a, 500, &long);
+    try testing.expect(lastReject().?.message.len <= sanitize.detail_limit + "…".len);
 
     reject_status = 0; // leave no cross-test state
 }

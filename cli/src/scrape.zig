@@ -3,11 +3,10 @@
 //! dimension), and download the matches into an output DIRECTORY. Adapter-only — the C++
 //! core is never touched (HTML parsing is adapter territory).
 //!
-//! Reference implementation of the cross-surface scrape contract (pystencil mirrors it).
-//! The parsing/filter semantics are a port of the Chrome extension
-//! (extension/src/lib/imageScan.js + filters.js) with the static-HTML adaptations noted in
-//! the DESIGN contract: no computed style / currentSrc, so <img> falls back to lazy attrs
-//! and backgrounds cover inline `style=` + `<style>` blocks only.
+//! Reference implementation of the cross-surface scrape contract (pystencil mirrors it). The
+//! parsing/filter semantics port the Chrome extension (extension/src/lib/imageScan.js +
+//! filters.js) with the static-HTML adaptations in the DESIGN contract: no computed style /
+//! currentSrc, so <img> falls back to lazy attrs and backgrounds cover inline styles only.
 //!
 //! Everything below the flag plumbing is pure and inline-unit-tested; `run` (one-shot dir
 //! download) and `scrapeOne` (console /source-upload) add the I/O.
@@ -18,21 +17,25 @@ const image = @import("image.zig");
 const pipeline = @import("pipeline.zig");
 const args = @import("args.zig");
 const logo = @import("logo.zig");
+const confine = @import("confine.zig");
 
 const MAX_HTML = 32 << 20; // sanity cap on a scraped page (fetch itself is unbounded)
 
 // ── --source-name matcher (POSIX regex.h; substring fallback off-POSIX) ──────────
 //
 // The scrape name filter is a regex on the media URL. POSIX targets use the platform libc's
-// regex.h via a small C shim (src/regex_shim.c — no new dependency, the CLI already links
-// libc via libc++); Windows/WASI, which have no regex.h, fall back to a case-insensitive
-// substring test. The shim owns the `regex_t` storage because Zig 0.16's translate-c renders
-// glibc's `regex_t` as an opaque type that can't be embedded by value in a Zig struct. The
-// `extern`s are only referenced under the comptime guard, so they don't link off-POSIX.
+// regex.h via a small C shim (src/regex_shim.c — no new dependency; it owns the `regex_t`,
+// which Zig 0.16's translate-c renders opaque). Windows/WASI have no regex.h and fall back to
+// a case-insensitive substring test; the `extern`s sit under the comptime guard, so they
+// don't link there.
 const has_posix_regex = builtin.os.tag != .windows and builtin.os.tag != .wasi;
 extern fn stencil_regex_compile(pattern: [*:0]const u8) ?*anyopaque;
 extern fn stencil_regex_match(handle: ?*anyopaque, text: [*:0]const u8) c_int;
 extern fn stencil_regex_free(handle: ?*anyopaque) void;
+
+/// Longest pattern accepted: glibc's regexec can backtrack catastrophically on a crafted one,
+/// and this is model-controlled the moment an adapter forwards it.
+const max_name_pattern = 200;
 
 /// A compiled `--source-name` matcher. POSIX: a case-insensitive extended regex; elsewhere: a
 /// case-insensitive substring test. An absent/empty pattern matches everything.
@@ -41,11 +44,12 @@ const NameMatcher = struct {
     pattern: []const u8 = "",
     handle: ?*anyopaque = null, // POSIX: opaque regex_t owned by the C shim; null = inactive
 
-    /// Compile `pattern`; error.BadNamePattern on an invalid regex. `arena` owns the scratch
-    /// NUL-terminated copy handed to the shim's regcomp.
+    /// Compile `pattern`; error.BadNamePattern on an invalid regex, error.NamePatternTooLong
+    /// past the cap. `arena` owns the NUL-terminated copy handed to the shim's regcomp.
     fn init(pattern: ?[]const u8, arena: std.mem.Allocator) !NameMatcher {
         const p = pattern orelse return .{};
         if (p.len == 0) return .{};
+        if (p.len > max_name_pattern) return error.NamePatternTooLong;
         if (has_posix_regex) {
             const pz = try arena.dupeZ(u8, p);
             const handle = stencil_regex_compile(pz.ptr) orelse return error.BadNamePattern;
@@ -61,8 +65,8 @@ const NameMatcher = struct {
         }
     }
 
-    /// Does `url` match? An inactive matcher passes everything. On POSIX a scratch NUL copy is
-    /// made (regexec needs it); an OOM there fails closed (drops the item).
+    /// Does `url` match? An inactive matcher passes everything. The POSIX scratch NUL copy that
+    /// regexec needs fails closed on OOM (drops the item).
     fn matches(self: *NameMatcher, url: []const u8, arena: std.mem.Allocator) bool {
         if (!self.active) return true;
         if (has_posix_regex) {
@@ -77,8 +81,8 @@ const NameMatcher = struct {
 
 pub const Kind = enum { img, bg, video, poster };
 
-/// One extracted media item. `url` is the absolute http(s) URL (owned by the parse
-/// allocator); `is_poster` promotes the item to the `poster` category regardless of kind.
+/// One extracted media item. `url` is the absolute http(s) URL (owned by the parse allocator);
+/// `is_poster` promotes the item to the `poster` category regardless of kind.
 pub const Media = struct {
     url: []const u8,
     kind: Kind,
@@ -101,9 +105,8 @@ pub const Media = struct {
 
 // ── format derivation (port of extension formatOf + norm) ──────────────────────
 
-/// Lowercase, normalized media "format" token for a URL / data: URI, written into `buf`;
-/// "" when none. Exact port of the extension's `formatOf`+`norm` (jpeg→jpg, svg+xml→svg,
-/// quicktime→mov). `buf` needs ~16 bytes (longest data: subtype is "quicktime").
+/// Lowercase, normalized media "format" token for a URL / data: URI, written into `buf`; ""
+/// when none. Port of the extension's `formatOf`+`norm`. `buf` needs ~16 bytes.
 pub fn formatOf(buf: []u8, url: []const u8) []const u8 {
     if (url.len == 0) return "";
     if (std.ascii.startsWithIgnoreCase(url, "data:")) {
@@ -131,10 +134,9 @@ pub fn formatOf(buf: []u8, url: []const u8) []const u8 {
     return norm(buf, ext);
 }
 
-/// Lowercase `ext` into `buf`, then apply the SUBSTRING normalizations jpeg→jpg,
-/// svg+xml→svg, quicktime→mov — matching the extension's chained `String.replace` and the
-/// pystencil `.replace` port (so e.g. a `data:` subtype `x-jpeg` normalizes to `x-jpg`).
-/// Every replacement shrinks, so the result always fits back into `buf`.
+/// Lowercase `ext` into `buf`, then apply the SUBSTRING normalizations jpeg→jpg, svg+xml→svg,
+/// quicktime→mov — matching the extension's chained `String.replace` and the pystencil port
+/// (a `data:` subtype `x-jpeg` normalizes to `x-jpg`). Every replacement shrinks, so it fits.
 fn norm(buf: []u8, ext: []const u8) []const u8 {
     const n = @min(ext.len, buf.len);
     _ = std.ascii.lowerString(buf[0..n], ext[0..n]);
@@ -327,8 +329,7 @@ const RawVideo = struct { url: []const u8, poster: []const u8, alt: []const u8 }
 
 /// Parse `html`, extracting media URLs resolved absolute against `base_url` (honoring a
 /// `<base href>`), deduped first-wins, in the scan order: <img>, <svg><image>, <video>
-/// (+ poster), <picture><source>, then CSS `url(...)` backgrounds. All strings are owned by
-/// `alloc`. Only http(s) URLs are kept.
+/// (+ poster), <picture><source>, then CSS `url(...)` backgrounds. Owned by `alloc`; http(s) only.
 pub fn parseMedia(alloc: std.mem.Allocator, html: []const u8, base_url: []const u8) ![]Media {
     var imgs: std.ArrayList(RawImg) = .empty;
     defer imgs.deinit(alloc);
@@ -561,11 +562,10 @@ pub fn resolveUrl(alloc: std.mem.Allocator, base: []const u8, raw: []const u8) !
     return try std.fmt.allocPrint(alloc, "{s}{s}{s}", .{ dir, sep, r });
 }
 
-/// True when `raw`, RESOLVED against `base`, is an http(s) URL. Used to gate `<video src>`
-/// and in-`<video>` `<source src>`: a relative/protocol-relative src must be resolved to an
-/// absolute URL FIRST (the extension reads the DOM-resolved absolute), then scheme-checked —
-/// matching pystencil. Resolution scratch is thrown away (arena); the caller keeps the raw
-/// src, which the dedupe phase re-resolves against the final base.
+/// True when `raw`, RESOLVED against `base`, is an http(s) URL. Gates `<video src>` and
+/// in-`<video>` `<source src>`: a relative src is resolved FIRST (the extension reads the
+/// DOM-resolved absolute), then scheme-checked — matching pystencil. The scratch is arena
+/// garbage; the caller keeps the raw src, re-resolved by the dedupe phase.
 fn resolvesHttp(alloc: std.mem.Allocator, base: []const u8, raw: []const u8) !bool {
     if (raw.len == 0) return false;
     const abs = (try resolveUrl(alloc, base, raw)) orelse return false;
@@ -606,7 +606,7 @@ fn baseNoQuery(url: []const u8) []const u8 {
 fn dirOf(url: []const u8) []const u8 {
     const clean = baseNoQuery(url);
     const origin = originOf(clean);
-    if (clean.len == origin.len) return url[0 .. origin.len]; // no path → caller joins raw after
+    if (clean.len == origin.len) return url[0..origin.len]; // no path → caller joins raw after
     const slash = std.mem.lastIndexOfScalar(u8, clean, '/') orelse return clean;
     if (slash < origin.len) return clean[0..origin.len];
     return clean[0 .. slash + 1];
@@ -750,12 +750,11 @@ fn boundOpt(v: u32) ?u32 {
     return if (v == 0) null else v;
 }
 
-/// Whether a media sub-resource fetch must run in strict mode (loopback blocked). Loopback /
-/// internal targets are tolerated for a media URL ONLY when it is on the SAME host the user
-/// named (the page) — so scraping your own `localhost` gallery still works, while a public
-/// page that smuggles `<img src="http://127.0.0.1/…">` (a DIFFERENT internal host) is refused.
-/// An unparseable media host errs safe (strict). Private/link-local/metadata stay blocked in
-/// both modes; this toggle only governs loopback. `page_host` is the page URL's bare host.
+/// Whether a media sub-resource fetch must run in strict mode (loopback blocked). Loopback is
+/// tolerated ONLY for a media URL on the SAME host the user named — scraping your own
+/// `localhost` gallery works, while a page smuggling `<img src="http://127.0.0.1/…">` (a
+/// DIFFERENT internal host) is refused. An unparseable host errs safe (strict); private /
+/// link-local / metadata stay blocked either way. `page_host` is the page URL's bare host.
 fn subStrict(media_url: []const u8, page_host: []const u8) bool {
     const mh = net.hostOf(media_url) orelse return true;
     return !std.ascii.eqlIgnoreCase(mh, page_host);
@@ -835,7 +834,7 @@ fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Deps) !
         return error.BadSourceUrl;
     };
     const dir = opts.output orelse ".";
-    if (pipeline.hasParentTraversal(dir)) {
+    if (pipeline.hasParentTraversal(dir) or (opts.confine_output and confine.outsideCwd(dir))) {
         deps.err(arena, "refusing to write to a path that escapes the working directory: '{s}'\n", .{dir});
         return error.UnsafeOutputPath;
     }
@@ -845,16 +844,17 @@ fn runImpl(gpa: std.mem.Allocator, io: std.Io, opts: args.Options, deps: Deps) !
     const host = try std.ascii.allocLowerString(arena, host_raw);
 
     // Compile the optional --source-name regex before any I/O so a bad pattern fails fast.
-    var name_matcher = NameMatcher.init(opts.source_name, arena) catch {
-        deps.err(arena, "invalid --source-name regex '{s}'\n", .{opts.source_name.?});
-        return error.BadNamePattern;
+    var name_matcher = NameMatcher.init(opts.source_name, arena) catch |e| {
+        if (e == error.NamePatternTooLong) {
+            deps.err(arena, "--source-name pattern is too long (max {d} characters)\n", .{max_name_pattern});
+        } else deps.err(arena, "invalid --source-name regex '{s}'\n", .{opts.source_name.?});
+        return e;
     };
     defer name_matcher.deinit();
 
-    // Announce the scrape up front: the page fetch and the per-item downloads can take a while,
-    // so emit a progress line before any network I/O rather than sitting silent until the first
-    // `wrote`. It carries none of the parsed prefixes (`wrote `/`scraped `/`error:`), so the mcp
-    // and bot adapters ignore it; pystencil's _run_scrape mirrors it.
+    // Announce the scrape up front: the page fetch and the downloads take a while, so don't sit
+    // silent until the first `wrote`. It carries none of the parsed prefixes (`wrote `/`scraped
+    // `/`error:`), so the mcp and bot adapters ignore it; pystencil's _run_scrape mirrors it.
     deps.emit(arena, "scraping {s}…\n", .{site});
 
     const html = try deps.fetch(arena, io, site, false); // net prints its own error on failure
@@ -1475,6 +1475,37 @@ test "run: no matching media is a hard error" {
     try testing.expectEqualStrings("error: no media matched at http://example.com/\n", mock.line(1));
 }
 
+test "run: --confine-output keeps the destination dir inside the cwd; default allows it" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    var threaded = std.Io.Threaded.init(testing.allocator, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    var mock = MockIo.init(a);
+    try mock.serve("http://example.com/", "<img src=\"cat.png\">");
+    try mock.serve("http://example.com/cat.png", mkPng(a, 1, 1));
+
+    var opts = args.Options{};
+    opts.source_site = "http://example.com/";
+    opts.output = "/tmp/stencil_scrape";
+    opts.confine_output = true;
+    try testing.expectError(error.UnsafeOutputPath, runImpl(testing.allocator, io, opts, mock.deps()));
+    opts.output = "~/stencil_scrape";
+    try testing.expectError(error.UnsafeOutputPath, runImpl(testing.allocator, io, opts, mock.deps()));
+    try testing.expectEqual(@as(usize, 0), mock.files.count());
+
+    // A relative dir is fine confined, and an absolute one is fine without the flag.
+    opts.output = "out";
+    try runImpl(testing.allocator, io, opts, mock.deps());
+    opts.output = "/tmp/stencil_scrape";
+    opts.confine_output = false;
+    try runImpl(testing.allocator, io, opts, mock.deps());
+    try testing.expect(mock.files.get("out/cat.png") != null);
+    try testing.expect(mock.files.get("/tmp/stencil_scrape/cat.png") != null);
+}
+
 test "run: --source-name filters candidates by URL (regex or substring)" {
     var arena = std.heap.ArenaAllocator.init(testing.allocator);
     defer arena.deinit();
@@ -1526,6 +1557,31 @@ test "run: --source-name honours regex metacharacters (POSIX)" {
     try testing.expectEqual(@as(usize, 1), mock.files.count());
     try testing.expect(mock.files.get("out/dog.jpg") != null);
     try testing.expect(mock.files.get("out/cat.png") == null);
+}
+
+test "run: an over-long --source-name pattern is refused before regcomp" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    var threaded = std.Io.Threaded.init(testing.allocator, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    var mock = MockIo.init(a);
+    try mock.serve("http://example.com/", "<img src=\"cat.png\">");
+
+    // A nest of counted repetitions is exactly the shape glibc's regexec backtracks on.
+    const long = "(a+)+" ** 60;
+    try testing.expect(long.len > max_name_pattern);
+    var opts = args.Options{};
+    opts.source_site = "http://example.com/";
+    opts.output = "out";
+    opts.source_name = long;
+    try testing.expectError(error.NamePatternTooLong, runImpl(testing.allocator, io, opts, mock.deps()));
+    try testing.expectEqual(@as(usize, 0), mock.files.count());
+    // A pattern at the cap still compiles.
+    opts.source_name = "c" ++ ("a" ** (max_name_pattern - 1));
+    try testing.expect(NameMatcher.init(opts.source_name, a) catch null != null);
 }
 
 test "run: --source-name invalid regex is a hard error (POSIX)" {

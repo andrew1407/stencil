@@ -55,22 +55,16 @@ pub fn hostOf(url: []const u8) ?[]const u8 {
     return authority;
 }
 
-/// True when `host` names a private / link-local / cloud-metadata / reserved target
-/// that a fetch of untrusted image/layout URLs must never reach (SSRF guard).
-///
-/// Blocks IP-literal targets — `169.254.169.254` (cloud metadata), link-local,
-/// `10.x`/`172.16-31`/`192.168` (RFC1918), CGNAT, ULA, reserved — including the
-/// alternate numeric encodings (decimal/hex/octal/short-dotted) a resolver would accept.
-/// When `strict` is false, loopback (`127.0.0.0/8`, `::1`, `localhost`) is deliberately
-/// ALLOWED: for a URL the user named directly, the CLI is a local tool that legitimately
-/// fetches from the user's own dev/fixture server on localhost (the project's own e2e does
-/// exactly this), and loopback is the CLI process's own trust domain, not a network pivot.
-/// When `strict` is true, loopback is ALSO blocked — used for sub-resource URLs harvested
-/// from untrusted scanned page content, which must never reach a host it discovered in that
-/// content, loopback services included. This is the pure/literal check; `fetch` additionally
-/// resolves DNS names and
-/// blocks those pointing at an internal address (`hostResolvesToBlocked`). The server-connect
-/// path is intentionally exempt (users name their own servers).
+/// True when `host` names a private / link-local / cloud-metadata / reserved target that a
+/// fetch of untrusted image/layout URLs must never reach (SSRF guard). Blocks IP literals —
+/// metadata, link-local, RFC1918, CGNAT, ULA, reserved — including the alternate numeric
+/// encodings (decimal/hex/octal/short-dotted) a resolver would accept.
+/// `strict` ALSO blocks loopback (`127.0.0.0/8`, `::1`, `localhost`): pass it for sub-resource
+/// URLs harvested from untrusted scanned content, which must never reach a host they named.
+/// A URL the user typed may reach loopback — the CLI's own trust domain (dev/fixture servers).
+/// This is the literal check; `request` also resolves DNS names (`hostResolvesToBlocked`). The
+/// server-connect path is intentionally exempt (users name their own servers) — see
+/// `RequestOptions.allow_named_host`.
 pub fn isBlockedFetchHost(host: []const u8, strict: bool) bool {
     if (host.len == 0) return true;
     // IP literal (dotted-quad / IPv6)? Classify it.
@@ -210,6 +204,9 @@ pub const RequestOptions = struct {
     /// Block loopback in addition to the always-blocked internal ranges — pass true for
     /// sub-resource URLs harvested from untrusted scanned content, false for user-named URLs.
     strict: bool = false,
+    /// Skip the host/DNS block entirely (see isBlockedFetchHost: the server-connect path is
+    /// exempt — the user names their own server). The cap and redirect refusal still apply.
+    allow_named_host: bool = false,
 };
 
 pub const Response = struct {
@@ -217,27 +214,30 @@ pub const Response = struct {
     body: []u8, // owned by the caller (present for non-2xx statuses too)
 };
 
+/// SSRF guard: refuse loopback/private/link-local/metadata targets before connecting.
+fn guardHost(io: std.Io, url: []const u8, strict: bool) Error!void {
+    const host = hostOf(url) orelse {
+        logo.err("could not parse a host from URL '{s}'\n", .{url});
+        return Error.BlockedHost;
+    };
+    if (isBlockedFetchHost(host, strict)) {
+        logo.err("refusing to fetch internal/blocked host '{s}'\n", .{host});
+        return Error.BlockedHost;
+    }
+    // A DNS name must also not RESOLVE to an internal target (the literal check can't see that).
+    if (!isNumericHost(host) and hostResolvesToBlocked(io, host, strict)) {
+        logo.err("refusing to fetch host '{s}' — it resolves to an internal address\n", .{host});
+        return Error.BlockedHost;
+    }
+}
+
 /// Send one HTTP request through the full SSRF guard and return the status + owned body
 /// (capped at `MAX_FETCH_BYTES`; the caller judges non-2xx). Every outbound http(s) request
 /// the CLI makes to a non-server host goes through here so the guard is uniform: the literal
 /// host check, the DNS-resolution check (a hostname must not resolve to an internal
 /// address), and the redirect refusal. Failures print a human-readable reason.
 pub fn request(gpa: std.mem.Allocator, io: std.Io, url: []const u8, opts: RequestOptions) (Error || error{OutOfMemory})!Response {
-    // SSRF guard: refuse loopback/private/link-local/metadata targets before connecting.
-    const host = hostOf(url) orelse {
-        logo.err("could not parse a host from URL '{s}'\n", .{url});
-        return Error.BlockedHost;
-    };
-    if (isBlockedFetchHost(host, opts.strict)) {
-        logo.err("refusing to fetch internal/blocked host '{s}'\n", .{host});
-        return Error.BlockedHost;
-    }
-    // For a DNS name, also refuse when it RESOLVES to an internal target (closes the
-    // hostname-with-internal-record vector the literal check above can't see).
-    if (!isNumericHost(host) and hostResolvesToBlocked(io, host, opts.strict)) {
-        logo.err("refusing to fetch host '{s}' — it resolves to an internal address\n", .{host});
-        return Error.BlockedHost;
-    }
+    if (!opts.allow_named_host) try guardHost(io, url, opts.strict);
 
     var client: std.http.Client = .{ .allocator = gpa, .io = io };
     defer client.deinit();
@@ -364,12 +364,12 @@ test "isBlockedFetchHost strict mode also blocks loopback (scanned-content fetch
 
 test "isBlockedFetchHost blocks alternate numeric IPv4 encodings" {
     // 169.254.169.254 (cloud metadata) in decimal / hex.
-    try testing.expect(isBlockedFetchHost("2852039166", false));   // decimal
-    try testing.expect(isBlockedFetchHost("0xA9FEA9FE", false));   // hex
+    try testing.expect(isBlockedFetchHost("2852039166", false)); // decimal
+    try testing.expect(isBlockedFetchHost("0xA9FEA9FE", false)); // hex
     // 10.0.0.1 in decimal / hex / short-dotted; 192.168.0.1 in octal; 10.0.0.0 short.
-    try testing.expect(isBlockedFetchHost("167772161", false));    // 10.0.0.1 decimal
-    try testing.expect(isBlockedFetchHost("0x0A000001", false));   // 10.0.0.1 hex
-    try testing.expect(isBlockedFetchHost("10.0", false));         // 10.0.0.0 short-dotted
+    try testing.expect(isBlockedFetchHost("167772161", false)); // 10.0.0.1 decimal
+    try testing.expect(isBlockedFetchHost("0x0A000001", false)); // 10.0.0.1 hex
+    try testing.expect(isBlockedFetchHost("10.0", false)); // 10.0.0.0 short-dotted
     try testing.expect(isBlockedFetchHost("0300.0250.0.1", false)); // 192.168.0.1 octal parts
 
     // Loopback is allowed in numeric forms too when non-strict (127.0.0.1 = 0x7f000001).
@@ -378,7 +378,7 @@ test "isBlockedFetchHost blocks alternate numeric IPv4 encodings" {
 
     // Public numeric forms and out-of-range / non-numeric hosts are not blocked here
     // (a genuine hostname is covered by the DNS-resolution check in fetch()).
-    try testing.expect(!isBlockedFetchHost("134744072", false));       // 8.8.8.8 decimal
-    try testing.expect(!isBlockedFetchHost("999999999999", false));    // > u32 → not an IPv4 form
+    try testing.expect(!isBlockedFetchHost("134744072", false)); // 8.8.8.8 decimal
+    try testing.expect(!isBlockedFetchHost("999999999999", false)); // > u32 → not an IPv4 form
     try testing.expect(!isBlockedFetchHost("12345.example.com", false)); // starts numeric but is a name
 }

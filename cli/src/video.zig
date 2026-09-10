@@ -3,6 +3,7 @@
 //! frame and writes a single PNG to stdout, which we capture as bytes for the normal
 //! image pipeline. If ffmpeg isn't installed the caller surfaces a clear hint.
 const std = @import("std");
+const child = @import("child.zig");
 
 pub const Error = error{ FfmpegMissing, FfmpegFailed };
 
@@ -36,14 +37,14 @@ pub fn extractFrame(gpa: std.mem.Allocator, io: std.Io, src: []const u8, frame: 
     const whitelist = if (remote) "http,https,tcp,tls,crypto" else "file";
 
     const argv = [_][]const u8{
-        "ffmpeg",     "-nostdin",           "-loglevel", "error",
-        "-protocol_whitelist", whitelist,   "-i",        src,
-        "-vf",        select,               "-frames:v", "1",
-        "-f",         "image2pipe",         "-vcodec",   "png",
+        "ffmpeg",              "-nostdin",   "-loglevel", "error",
+        "-protocol_whitelist", whitelist,    "-i",        src,
+        "-vf",                 select,       "-frames:v", "1",
+        "-f",                  "image2pipe", "-vcodec",   "png",
         "-",
     };
 
-    const res = std.process.run(gpa, io, .{ .argv = &argv }) catch |e| switch (e) {
+    const res = child.run(gpa, io, .{ .argv = &argv }) catch |e| switch (e) {
         error.FileNotFound => return Error.FfmpegMissing,
         else => return e,
     };

@@ -1,7 +1,7 @@
 //! Image codec layer — the part the C++ core deliberately doesn't do. Decodes encoded
 //! bytes to a flat RGBA8 buffer and encodes an RGBA8 buffer back to a chosen format,
 //! via stb_image / stb_image_write (public-domain single-header C codecs; see
-//! stb_impl.c). Pure in-memory: the pipeline handles file/URL/stdout I/O.
+//! stb_read_impl.c / stb_write_impl.c). Pure in-memory: the pipeline does the I/O.
 const std = @import("std");
 
 const c = @cImport({
@@ -52,15 +52,26 @@ pub fn formatFromExt(ext: []const u8) ?Format {
     return null;
 }
 
+/// Pixel-area cap for a decoded image. `w*h*4` must fit a c_int (the stride/size arguments
+/// handed back to stb when encoding), which caps the area at 2^29; 2^28 keeps a decoded
+/// buffer under 1 GiB. Matches the per-side STBI_MAX_DIMENSIONS 16384 in stb_read_impl.c.
+pub const max_pixels: usize = 16384 * 16384;
+
 /// Decode encoded image bytes into an owned RGBA8 buffer.
 pub fn decode(allocator: std.mem.Allocator, bytes: []const u8) !Rgba8 {
     var w: c_int = 0;
     var h: c_int = 0;
     var channels: c_int = 0;
+    // Read the header first: a crafted w/h is refused before stb allocates w*h*4 bytes.
+    if (c.stbi_info_from_memory(bytes.ptr, @intCast(bytes.len), &w, &h, &channels) != 0) {
+        if (w <= 0 or h <= 0) return error.ImageDecodeFailed;
+        if (@as(usize, @intCast(w)) * @as(usize, @intCast(h)) > max_pixels) return error.ImageTooLarge;
+    }
     const data = c.stbi_load_from_memory(bytes.ptr, @intCast(bytes.len), &w, &h, &channels, 4);
     if (data == null) return error.ImageDecodeFailed;
     defer c.stbi_image_free(data);
     if (w <= 0 or h <= 0) return error.ImageDecodeFailed;
+    if (@as(usize, @intCast(w)) * @as(usize, @intCast(h)) > max_pixels) return error.ImageTooLarge;
 
     const n = @as(usize, @intCast(w)) * @as(usize, @intCast(h)) * 4;
     return .{

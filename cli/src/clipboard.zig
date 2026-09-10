@@ -5,13 +5,13 @@
 //! Automation), **Linux** (`wl-paste`/`wl-copy` on Wayland, else `xclip`) and **Windows**
 //! (PowerShell). Anything else returns `Unsupported` with a clear message at the call site.
 //!
-//! Reading takes what is actually there, not one blessed flavour: a PNG, else a TIFF (what
-//! most macOS apps and many Linux ones put on the board) re-encoded to PNG, else an image
-//! FILE copied in a file manager. AppleScript's `the clipboard as «class PNGf»` — what this
-//! used to use — fails with -1700 on a rich multi-flavour clipboard even while `clipboard
-//! info` lists PNGf, which read as "no image on the clipboard" for every such copy.
+//! Reading takes what is actually there, not one blessed flavour: a PNG, else a TIFF (what most
+//! macOS apps and many Linux ones put on the board) re-encoded to PNG, else an image FILE copied
+//! in a file manager. AppleScript's `the clipboard as «class PNGf»` — what this used to use —
+//! fails with -1700 on a rich multi-flavour clipboard even while `clipboard info` lists PNGf.
 const std = @import("std");
 const builtin = @import("builtin");
+const child = @import("child.zig");
 
 pub const Error = error{ Unsupported, ToolMissing, NoImage, Failed };
 
@@ -95,7 +95,7 @@ fn readMac(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
     const script = try std.mem.concat(gpa, u8, &.{ mac_js_head, quoted, mac_js_tail });
     defer gpa.free(script);
 
-    const res = std.process.run(gpa, io, .{ .argv = &.{ "osascript", "-l", "JavaScript", "-e", script } }) catch |e| switch (e) {
+    const res = child.run(gpa, io, .{ .argv = &.{ "osascript", "-l", "JavaScript", "-e", script } }) catch |e| switch (e) {
         error.FileNotFound => return Error.ToolMissing,
         else => return e,
     };
@@ -114,7 +114,7 @@ fn readLinux(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
         &.{ "wl-paste", "--no-newline", "--type", "image/png" },
         &.{ "xclip", "-selection", "clipboard", "-t", "image/png", "-o" },
     }) |argv| {
-        const res = std.process.run(gpa, io, .{ .argv = argv, .stdout_limit = .limited(MAX_IMAGE) }) catch |e| switch (e) {
+        const res = child.run(gpa, io, .{ .argv = argv, .stdout_limit = .limited(MAX_IMAGE) }) catch |e| switch (e) {
             error.FileNotFound => {
                 missing += 1;
                 continue;
@@ -150,7 +150,7 @@ fn readWindows(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
     dir.deleteFile(io, path) catch {};
     defer dir.deleteFile(io, path) catch {};
 
-    const res = std.process.run(gpa, io, .{ .argv = &.{ "powershell", "-NoProfile", "-STA", "-Command", win_ps, "-args", path } }) catch |e| switch (e) {
+    const res = child.run(gpa, io, .{ .argv = &.{ "powershell", "-NoProfile", "-STA", "-Command", win_ps, "-args", path } }) catch |e| switch (e) {
         error.FileNotFound => return Error.ToolMissing,
         else => return e,
     };
@@ -170,7 +170,7 @@ pub fn readText(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
         .windows => &.{ "powershell", "-NoProfile", "-Command", "Get-Clipboard -Raw" },
         else => return Error.Unsupported,
     };
-    const res = std.process.run(gpa, io, .{ .argv = argv, .stdout_limit = .limited(1 << 20) }) catch |e| switch (e) {
+    const res = child.run(gpa, io, .{ .argv = argv, .stdout_limit = .limited(1 << 20) }) catch |e| switch (e) {
         // X11 without wl-paste: xclip is the other half of the Linux pair.
         error.FileNotFound => if (builtin.os.tag == .linux) return readTextXclip(gpa, io) else return Error.ToolMissing,
         else => return e,
@@ -185,7 +185,7 @@ pub fn readText(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
 }
 
 fn readTextXclip(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
-    const res = std.process.run(gpa, io, .{ .argv = &.{ "xclip", "-selection", "clipboard", "-o" }, .stdout_limit = .limited(1 << 20) }) catch |e| switch (e) {
+    const res = child.run(gpa, io, .{ .argv = &.{ "xclip", "-selection", "clipboard", "-o" }, .stdout_limit = .limited(1 << 20) }) catch |e| switch (e) {
         error.FileNotFound => return Error.ToolMissing,
         else => return e,
     };
@@ -267,7 +267,7 @@ pub fn writeText(gpa: std.mem.Allocator, io: std.Io, text: []const u8) !void {
 
 // Run a tool, mapping "not installed" to ToolMissing and a non-zero exit to Failed.
 fn runOrFail(gpa: std.mem.Allocator, io: std.Io, argv: []const []const u8) !void {
-    const res = std.process.run(gpa, io, .{ .argv = argv }) catch |e| switch (e) {
+    const res = child.run(gpa, io, .{ .argv = argv }) catch |e| switch (e) {
         error.FileNotFound => return Error.ToolMissing,
         else => return e,
     };

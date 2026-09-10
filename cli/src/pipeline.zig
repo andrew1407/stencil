@@ -19,6 +19,7 @@ const net = @import("net.zig");
 const server = @import("serverClient.zig");
 const args = @import("args.zig");
 const logo = @import("logo.zig");
+const confine = @import("confine.zig");
 
 const MAX_FILE = 256 << 20; // 256 MiB read cap for inputs
 const BLANK_MIN = 1;
@@ -122,6 +123,10 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
         logo.err("no output path given\n", .{});
         return error.NoOutput;
     };
+    if (opts.confine_output and confine.outsideCwd(out)) {
+        logo.err("--confine-output: refusing to write outside the working directory: '{s}'\n", .{out});
+        return error.UnsafeOutputPath;
+    }
     // The page reported in the `wrote` line follows the effective page state: an applied
     // layout's pageSize (custom cm dims included), else a blank's picked format, else A4.
     const page_name = effectivePageName(if (doc) |*d| d.page_size else null, if (opts.blank) |b| b.page else null);
@@ -500,15 +505,8 @@ fn extOf(path: []const u8) ?[]const u8 {
     return path[dot + 1 ..];
 }
 
-/// True when `path` has a ".." component (on either separator) that could climb
-/// above the working directory. Also reused by scrape.zig's output guard.
-pub fn hasParentTraversal(path: []const u8) bool {
-    var it = std.mem.splitAny(u8, path, "/\\");
-    while (it.next()) |seg| {
-        if (std.mem.eql(u8, seg, "..")) return true;
-    }
-    return false;
-}
+/// The `..` guard lives in confine.zig; re-exported for scrape.zig and the console's /save.
+pub const hasParentTraversal = confine.hasParentTraversal;
 
 const testing = std.testing;
 

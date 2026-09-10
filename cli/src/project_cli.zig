@@ -8,6 +8,7 @@ const layout_mod = @import("layout.zig");
 const net = @import("net.zig");
 const project = @import("project.zig");
 const logo = @import("logo.zig");
+const confine = @import("confine.zig");
 const commands = @import("console/commands.zig");
 const Session = @import("console/session.zig").Session;
 
@@ -106,6 +107,10 @@ pub fn runOneShot(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void 
         logo.err("no output path given\n", .{});
         return error.NoOutput;
     };
+    if (opts.confine_output and confine.outsideCwd(out)) {
+        logo.err("--confine-output: refusing to write outside the working directory: '{s}'\n", .{out});
+        return error.UnsafeOutputPath;
+    }
     if (project.isStencilPath(out)) {
         try project.saveInto(&sess, io, out, .{
             .name = meta_name,

@@ -57,7 +57,7 @@ HTTP, video, and JSON all live in Zig.
 ## Layout
 
 ```
-build.zig            # compiles ../core/*.cpp + cliApi.cpp + stb_impl.c, links libc++
+build.zig            # compiles ../core/*.cpp + cliApi.cpp + the stb TUs, links libc++
 build.zig.zon        # package manifest + the pinned stb_image dependency
 src/
   main.zig           # entry: logo, parse args, run pipeline
@@ -75,8 +75,12 @@ src/
   theme.zig          # brand-accent palette (mirrors browser/desktop); drives /theme + logo colour
   clipboard.zig      # /paste + /copy clipboard image I/O (macOS osascript · Linux wl-paste/xclip · Windows PowerShell)
   core.zig           # typed wrappers over the C++ core's extern "C" ABI (@cImport)
-  image.zig          # stb_image decode/encode (RGBA8 <-> file formats)
-  stb_impl.c         # the stb_image / stb_image_write implementation translation unit
+  image.zig          # stb_image decode/encode (RGBA8 <-> file formats; pixel-area capped)
+  stb_read_impl.c    # stb_image decoder TU: only the formats we read, dimension-capped, UBSan on
+  stb_write_impl.c   # stb_image_write encoder TU: built -fno-sanitize=undefined (its signed shifts)
+  confine.zig        # output-path guards: `..` always, absolute/~ under --confine-output
+  sanitize.zig       # the one sanitizer for untrusted server/provider prose that gets printed
+  child.zig          # child processes spawned without the STENCIL_LLM_* environment
   video.zig          # ffmpeg frame grab (to PNG on stdout)
   net.zig            # std.http(s) URL fetch (native TLS, no external tool)
   layout.zig         # std.json -> drawable lines
@@ -152,6 +156,7 @@ stencil [options] <output>
 | `--remote <url>` | Upload the result as a **new** project on a server (for a local/web input). |
 | `--remote-name <name>` | Name for the `--remote` project (default: the input image's base name). A web input's URL is recorded as the project source. |
 | `--token <tok>` | Access token for `--server` / `--remote` — needed when the server gates token minting (`ADMIN_TOKEN`). Takes a **session token** or the **admin token** itself (a session is minted from it automatically); without it the CLI self-issues a session, which open servers allow. |
+| `--confine-output` | Refuse an output path that leaves the working directory — an **absolute** path or a leading `~` on top of the `..` traversal that is always refused. Off by default (a human at a terminal keeps writing wherever they name); pass it when something else chooses the path, as the [mcp](../mcp/README.md) and [bot](../bot/README.md) adapters do when they forward LLM-chosen paths. Applies to `<output>` and to the scrape destination directory. |
 | `-h, --help` | Show help |
 | `<output>` | Result path. A missing/unknown extension is filled in from the input format (`png`, `jpg`, `bmp`, `tga`). |
 
@@ -234,6 +239,9 @@ inline `<svg><image>`, `<video>` + its `poster`, `<picture><source src>`, and CS
 downloads the matches into `<output>` (a **directory**, created if missing; default `.`). It
 is adapter-only: no `core/` involvement. The semantics mirror the Chrome extension's image
 scanner, adapted for static HTML.
+
+`--source-name` is a POSIX ERE matched against each media URL; patterns are capped at 200
+characters, since `regexec` can backtrack catastrophically on a crafted one.
 
 Filtering runs **category → format → dimension**. Dimension bounds are inclusive and apply to
 images, whose pixel size is read from a header sniff (PNG/JPEG/GIF/BMP/WebP); videos and any

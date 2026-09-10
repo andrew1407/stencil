@@ -31,20 +31,18 @@ pub const Options = struct {
     layout_frame: LayoutFrame = .current,
     filter: ?[]const u8 = null,
     output: ?[]const u8 = null,
+    confine_output: bool = false, // --confine-output: output + scrape dir stay inside the cwd
     // ── Server (collaboration server) options ──
-    // --server <url>: -i names a server project, fetched + edited. --remote-update writes
-    // the result back into it. --remote <url> + --remote-name <name>: upload the result as
-    // a NEW project (default name = input image name; a web source URL recorded as source).
-    // --token <tok>: access token for --server/--remote (session or admin; needed when the
-    // server gates token minting with ADMIN_TOKEN).
+    // --server <url>: -i names a server project, fetched + edited; --remote-update writes the
+    // result back. --remote <url> + --remote-name <name>: upload the result as a NEW project
+    // (default name = input image name). --token <tok>: session or admin access token.
     server: ?[]const u8 = null,
     remote: ?[]const u8 = null,
     remote_name: ?[]const u8 = null,
     remote_update: bool = false,
     token: ?[]const u8 = null,
-    // ── Source-site scraping ──
-    // --source-site <url> activates scrape mode (mutually exclusive with -i/--blank/--server):
-    // fetch the page, extract + filter media, and download the matches into <output> (a dir).
+    // ── Source-site scraping ── --source-site <url> activates scrape mode (mutually exclusive
+    // with -i/--blank/--server): fetch the page, filter its media, download into <output> (a dir).
     source_site: ?[]const u8 = null,
     source_count: ?u32 = null, // items per page/group; absent = default 5, 0 = all (applied in scrape.effectiveCount)
     group: u32 = 0, // 0-based page index; window = filtered[G*N : G*N+N]
@@ -133,6 +131,8 @@ pub fn parse(allocator: std.mem.Allocator, argv: []const [:0]const u8) Error!Opt
             }
         } else if (eq(arg, "--filter")) {
             opts.filter = try value(&st, "--filter");
+        } else if (eq(arg, "--confine-output")) {
+            opts.confine_output = true;
         } else if (eq(arg, "--server")) {
             if (opts.source_site != null) return Error.DuplicateSource;
             opts.server = try value(&st, "--server");
@@ -349,13 +349,13 @@ test "parse: --token rides with --server / --remote" {
 test "parse: source-site scrape flags" {
     const a = testing.allocator;
     const argv = [_][:0]const u8{
-        "--source-site",   "https://example.com/",
-        "--source-count",  "3",
-        "--group",         "1",
-        "--source-filter", "img|background",
-        "--source-format", "png|jpg",
-        "--source-name",   "cat.*\\.jpg",
-        "--source-min-width", "100",
+        "--source-site",       "https://example.com/",
+        "--source-count",      "3",
+        "--group",             "1",
+        "--source-filter",     "img|background",
+        "--source-format",     "png|jpg",
+        "--source-name",       "cat.*\\.jpg",
+        "--source-min-width",  "100",
         "--source-max-height", "800",
         "out",
     };

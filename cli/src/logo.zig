@@ -425,6 +425,8 @@ pub fn usage() void {
         \\      --console              Interactive console: /upload, /crop, /rotate, /save, ...
         \\      --console-full-screen  Console in a full-screen TUI: pinned logo header,
         \\                             scrollback (wheel/PgUp/PgDn), click logo to change theme
+        \\      --confine-output       Refuse an output path outside the working directory
+        \\                             (absolute or ~); for adapters forwarding chosen paths
         \\  -h, --help                 Show this help
         \\
         \\{s}Scrape a web page (mutually exclusive with the source flags){s}
@@ -453,9 +455,7 @@ pub fn usage() void {
         \\  stencil --source-site https://example.com --source-filter img --source-min-width 200 out/
         \\  stencil --console          (then: /upload photo.png / /crop ... / /rotate 1 / /save out.png)
         \\
-    , .{
-        b, r, b, r, b, r, b, r, b, r, b, r,
-    });
+    , .{ b, r, b, r, b, r, b, r, b, r, b, r });
 }
 
 // ── tests ──────────────────────────────────────────────────────────────────────

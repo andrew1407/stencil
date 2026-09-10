@@ -59,13 +59,19 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
     mod.addAnonymousImport("systemPrompt.json", .{ .root_source_file = b.path("../browser/js/config/llm/systemPrompt.json") });
     mod.addAnonymousImport("opRegistry.json", .{ .root_source_file = b.path("../browser/js/config/llm/opRegistry.json") });
     mod.addAnonymousImport("providers.json", .{ .root_source_file = b.path("../browser/js/config/llm/providers.json") });
+    // stb's DECODER (untrusted input) keeps UBSan on; regex_shim owns the POSIX regex_t for
+    // the --source-name filter (Zig can't embed the opaque translated regex_t by value).
     mod.addCSourceFiles(.{
         .root = b.path("src"),
-        // stb: the image codecs. regex_shim: owns POSIX regex_t for the --source-name filter
-        // (Zig can't embed the opaque translated regex_t by value).
-        .files = &.{ "stb_impl.c", "regex_shim.c" },
-        // stb's JPEG encoder relies on signed-shift wraparound that is technically UB;
-        // it's benign in C but Zig instruments C with UBSan in Debug and would trap.
+        .files = &.{ "stb_read_impl.c", "regex_shim.c" },
+        .flags = &.{"-std=c11"},
+    });
+    // stb's JPEG ENCODER relies on signed-shift wraparound that is technically UB; it's
+    // benign in C but Zig instruments C with UBSan in Debug and would trap. Its own TU so
+    // the exemption never reaches the decoder.
+    mod.addCSourceFiles(.{
+        .root = b.path("src"),
+        .files = &.{"stb_write_impl.c"},
         .flags = &.{ "-std=c11", "-fno-sanitize=undefined" },
     });
 }

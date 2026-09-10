@@ -9,6 +9,7 @@ const project = @import("project.zig");
 const project_cli = @import("project_cli.zig");
 const llm = @import("llm.zig");
 const logo = @import("logo.zig");
+const child = @import("child.zig");
 
 pub fn main(init: std.process.Init) !void {
     // Colour off when NO_COLOR is set; the severity prefixes also need stderr (the human
@@ -17,6 +18,8 @@ pub fn main(init: std.process.Init) !void {
         init.environ_map.getPtr("NO_COLOR") != null,
         std.Io.File.stderr().isTty(init.io) catch false,
     );
+    // Children (ffmpeg, clipboard helpers) must not inherit the user's LLM key.
+    child.captureEnv(init.environ_map);
     const gpa = init.gpa;
     const io = init.io;
     const arena = init.arena.allocator();
@@ -91,4 +94,7 @@ test {
     _ = @import("theme.zig");
     _ = @import("line_edit.zig");
     _ = @import("clipboard.zig");
+    _ = @import("child.zig");
+    _ = @import("confine.zig");
+    _ = @import("sanitize.zig");
 }
