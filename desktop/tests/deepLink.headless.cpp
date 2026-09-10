@@ -10,6 +10,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QUrl>
+#include <QUrlQuery>
 #include <cstdio>
 
 using namespace stencil::gui;
@@ -61,6 +62,20 @@ int main(int argc, char** argv) {
     const LaunchOptions dataUrl = parseStencilUrl(
         QUrl("stencil://open?src=data%3Aimage%2Fpng%3Bbase64%2CAAA"));
     check(dataUrl.src == "data:image/png;base64,AAA", "data: src is kept");
+  }
+  {
+    // The inline layout is parsed as JSON downstream, so it takes the same 32 MiB cap
+    // as the browser hand-off payload — one char over and the field is dropped.
+    QUrl u("stencil://open");
+    QUrlQuery q;
+    q.addQueryItem("layout",
+                   QString(deepLink::kBrowserLaunchPayloadMax + 1, QLatin1Char('A')));
+    u.setQuery(q);
+    check(parseStencilUrl(u).layoutJson.isEmpty(), "over-limit inline layout is dropped");
+    QUrlQuery ok;
+    ok.addQueryItem("layout", QStringLiteral("{\"lines\":[]}"));
+    u.setQuery(ok);
+    check(parseStencilUrl(u).layoutJson == "{\"lines\":[]}", "…while a small one still rides");
   }
 
   // ── Telegram start-payload codec (shared golden vectors) ──

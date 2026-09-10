@@ -20,7 +20,6 @@ class QListWidgetItem;
 class QComboBox;
 class QLineEdit;
 class QTimer;
-class QNetworkAccessManager;
 class QVariantAnimation;
 class QLabel;
 class QPushButton;
@@ -312,9 +311,6 @@ namespace stencil::gui {
     // remote re-list reuses them instead of re-downloading unchanged projects.
     QHash<QString, QPixmap> remoteThumbs_;
     QVector<stencil::net::ServerProject> remote_;
-    // Lazily-created network manager for fetching server projects' `source` image
-    // URLs when the server itself holds no stored bytes.
-    QNetworkAccessManager* thumbNet_ = nullptr;
     // Cache keys with an in-flight async source fetch, so a re-list doesn't kick off
     // a duplicate download for the same project.
     QSet<QString> thumbInFlight_;

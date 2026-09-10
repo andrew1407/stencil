@@ -1413,7 +1413,7 @@ namespace stencil::gui {
     // with the toolbar's own action.
     QAction* actSaveImageCurrentRow_ = nullptr;
     QAction* actCopyImageCurrentRow_ = nullptr;
-    QAction* actShareImage_ = nullptr;   // native OS share sheet (support/shareImage.hpp)
+    QAction* actShareImage_ = nullptr;   // native OS share sheet, hidden without one (Linux)
     QAction* actPasteImage_ = nullptr;
     // The two toolbar buttons' own dust-animated options popups (double-click / right-click
     // opens; Alt+hover on a row previews it — support/exportPreview.hpp). Built once, reused.

@@ -1,17 +1,17 @@
 #include "mediaLoader.hpp"
+#include "fetchGuard.hpp"
 #include <QAudioOutput>
 #include <QFileInfo>
 #include <QMediaMetaData>
 #include <QMediaPlayer>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QTimer>
 #include <QVideoFrame>
 #include <QVideoSink>
 #include <algorithm>
 
 namespace stencil::gui {
+
+  namespace guard = stencil::net::fetchGuard;
 
   namespace {
     constexpr int kVideoTimeoutMs = 20000;  // give the decoder time to seek+render
@@ -39,28 +39,6 @@ namespace stencil::gui {
     static const QStringList kImageExt = {"png", "jpg", "jpeg", "webp", "gif", "bmp"};
     return kImageExt.contains(QFileInfo(path).suffix().toLower());
   }
-
-  namespace net {
-    void fetch(QObject* owner, const QUrl& url,
-               std::function<void(const QByteArray&)> onOk,
-               std::function<void(const QString&)> onErr) {
-      auto* nam = new QNetworkAccessManager(owner);
-      QNetworkRequest req(url);
-      req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                       QNetworkRequest::NoLessSafeRedirectPolicy);
-      QNetworkReply* reply = nam->get(req);
-      QObject::connect(reply, &QNetworkReply::finished, owner,
-                       [reply, nam, onOk, onErr] {
-                         reply->deleteLater();
-                         nam->deleteLater();
-                         if (reply->error() != QNetworkReply::NoError) {
-                           onErr(reply->errorString());
-                           return;
-                         }
-                         onOk(reply->readAll());
-                       });
-    }
-  }  // namespace net
 
   MediaLoader::MediaLoader(QObject* parent) : QObject(parent) {}
 
@@ -156,7 +134,12 @@ namespace stencil::gui {
       return;
     }
 
-    // ── Remote URL ──
+    // ── Remote URL ── refuse an internal target before EITHER branch reaches it.
+    const QString why = guard::blockedReason(url_, /*strict=*/false);
+    if (!why.isEmpty()) {
+      fail(QStringLiteral("Could not fetch --src: %1").arg(why));
+      return;
+    }
     if (video) {
       startVideo(url_);  // QMediaPlayer streams a direct media URL itself
       return;
@@ -164,24 +147,17 @@ namespace stencil::gui {
     // Unknown remote: download and try to decode as an image; if that fails,
     // fall back to treating the URL as streamable video.
     const QUrl u = url_;
-    net::fetch(
-        this, u,
-        [this, u](const QByteArray& bytes) {
-          if (done_) return;
-          QImage img;
-          if (img.loadFromData(bytes)) {
-            done_ = true;
-            emit loaded(img, QString());
-            return;
-          }
-          startVideo(u);
-        },
-        [this, u](const QString& err) {
-          if (done_) return;
-          // The download itself failed; a media stream may still succeed.
-          startVideo(u);
-          if (!player_) fail(QStringLiteral("Could not fetch --src: %1").arg(err));
-        });
+    guard::get(this, u, /*strict=*/false, [this, u](const QByteArray& bytes, const QString& err) {
+      if (done_) return;
+      QImage img;
+      if (err.isEmpty() && img.loadFromData(bytes)) {
+        done_ = true;
+        emit loaded(img, QString());
+        return;
+      }
+      startVideo(u);  // not an image (or no bytes): a media stream may still work
+      if (!player_ && !err.isEmpty()) fail(QStringLiteral("Could not fetch --src: %1").arg(err));
+    });
   }
 
   void MediaLoader::startVideo(const QUrl& url) {

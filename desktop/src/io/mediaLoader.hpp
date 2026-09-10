@@ -5,7 +5,6 @@
 #include <QUrl>
 #include <functional>
 
-class QNetworkAccessManager;
 class QMediaPlayer;
 class QAudioOutput;
 class QVideoSink;
@@ -112,14 +111,5 @@ namespace stencil::gui {
     bool seekIssued_ = false;
     qint64 targetMs_ = 0;
   };
-
-  // Minimal one-shot HTTP(S) GET helper, shared by MediaLoader (remote images)
-  // and the launch --layout URL path. The reply + its manager are owned by
-  // `owner` and cleaned up after the callback fires.
-  namespace net {
-    void fetch(QObject* owner, const QUrl& url,
-               std::function<void(const QByteArray&)> onOk,
-               std::function<void(const QString&)> onErr);
-  }
 
 }

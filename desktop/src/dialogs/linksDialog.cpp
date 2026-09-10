@@ -2,6 +2,7 @@
 #include "linksDialog.hpp"
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
+#include "fetchGuard.hpp"
 #include "mediaLoader.hpp"
 #include "../support/modalChrome.hpp"
 #include <algorithm>
@@ -315,9 +316,10 @@ namespace stencil::gui {
   }
 
   void LinksDialog::openInBrowser(const QLineEdit* field) const {
-    const QString url = field->text().trimmed();
-    if (url.isEmpty()) return;
-    QDesktopServices::openUrl(QUrl::fromUserInput(url));
+    const QUrl u = QUrl::fromUserInput(field->text().trimmed());
+    // http(s) only — a typed file:/smb: URL must never reach the OS handler.
+    if (stencil::net::fetchGuard::isWebScheme(u)) QDesktopServices::openUrl(u);
+    else if (u.isValid()) previewHint_->setText("Only http(s) links can be opened.");
   }
 
   void LinksDialog::doPreview() {

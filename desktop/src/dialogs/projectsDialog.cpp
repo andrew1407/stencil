@@ -1,6 +1,7 @@
 #include "../support/searchCombo.hpp"
 #include "projectsDialog.hpp"
 #include "guiHelpers.hpp"
+#include "fetchGuard.hpp"
 #include "iconSet.hpp"
 #include "expirationDialog.hpp"
 #include "projectDragZones.hpp"
@@ -42,10 +43,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMouseEvent>
-#include <QNetworkAccessManager>
 #include <QRegularExpression>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QApplication>
 #include <QFontMetrics>
 #include <QPainter>
@@ -75,6 +73,8 @@
 #include <optional>
 
 namespace stencil::gui {
+
+  namespace fetchGuard = stencil::net::fetchGuard;
 
   namespace {
     // Ctrl on Windows/Linux; Qt maps macOS ⌘ to ControlModifier, and Meta is
@@ -1075,22 +1075,18 @@ namespace stencil::gui {
     }
     if (thumbInFlight_.contains(key)) return;  // already downloading this version
     thumbInFlight_.insert(key);
-    if (!thumbNet_) thumbNet_ = new QNetworkAccessManager(this);
-    QNetworkRequest req(u);
-    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                     QNetworkRequest::NoLessSafeRedirectPolicy);
-    QNetworkReply* reply = thumbNet_->get(req);
     const QString id = sp.id;
     const QString serverUrl = sp.serverUrl;
-    // `this` as context: Qt drops the connection (and never fires into a dead dialog)
-    // if the dialog is destroyed before the download completes.
-    connect(reply, &QNetworkReply::finished, this, [this, reply, key, id, serverUrl] {
-      thumbInFlight_.remove(key);
-      QImage img;
-      if (reply->error() == QNetworkReply::NoError) img.loadFromData(reply->readAll());
-      reply->deleteLater();
-      applyRemoteThumb(key, id, serverUrl, img);  // caches even a miss so we don't refetch
-    });
+    // This URL rides in on a SHARED project record, so it is untrusted: the STRICT guard,
+    // a capped body and no redirect. `this` as context, so nothing fires into a dead
+    // dialog; a refusal caches like any other miss, and is never retried.
+    fetchGuard::get(this, u, /*strict=*/true,
+                    [this, key, id, serverUrl](const QByteArray& bytes, const QString&) {
+                      thumbInFlight_.remove(key);
+                      QImage img;
+                      img.loadFromData(bytes);
+                      applyRemoteThumb(key, id, serverUrl, img);
+                    });
   }
 
   void ProjectsDialog::applyRemoteThumb(const QString& key, const QString& id,

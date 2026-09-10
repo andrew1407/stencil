@@ -350,6 +350,11 @@ namespace stencil::gui {
   QString fileStore::settingsPath() { return stateDir() + "/settings.json"; }
   QString fileStore::sessionPath() { return stateDir() + "/session.autosave"; }
   QString fileStore::projectsPath() { return stateDir() + "/projects.json"; }
+  QString fileStore::secretsPath() { return stateDir() + "/secrets.json"; }
+  QJsonObject fileStore::loadSecrets() { return readJson(secretsPath()).object(); }
+  void fileStore::saveSecrets(const QJsonObject& o) {
+    writeJson(secretsPath(), QJsonDocument(o), /*ownerOnly=*/true);
+  }
 
   Settings fileStore::loadSettings() {
     Settings s;

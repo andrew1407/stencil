@@ -13,6 +13,7 @@
 #include "popover.hpp"
 #include "qtLlmTransport.hpp"
 #include "deepLink.hpp"
+#include "fetchGuard.hpp"
 #include "displayName.hpp"
 #include "openImageDialog.hpp"
 #include "../support/localPath.hpp"
@@ -112,9 +113,6 @@
 #include <QTextEdit>
 #include <QSplitter>
 #include <QSplitterHandle>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QPainter>
 #include <QPaintEvent>
 #include <QAbstractItemView>
@@ -1862,6 +1860,7 @@ namespace stencil::gui {
     actCopyImageCurrentRow_->setVisible(hasLines);
     actSaveImageCurrentRow_->setVisible(hasLines);
     syncSplitCopyDownloadSlot();
+    // A no-op where there is no share sheet: Qt will not enable an invisible action.
     actShareImage_->setEnabled(hasImg);
   }
 
@@ -4908,35 +4907,18 @@ namespace stencil::gui {
     }
 
 
-    // GET an http(s) URL's bytes (no auth) with a 10s timeout,
-    // delivering them to `done` on the event loop (empty on any failure/timeout). `ctx` owns the
-    // transient QNetworkAccessManager — if `ctx` is destroyed mid-fetch the nam dies with it, the
-    // reply is severed, and `done` never runs on a dangling caller (a safe no-op).
+    // GET an http(s) URL's bytes (no auth) with a 10s deadline, delivering them to `done`
+    // on the event loop (empty on any refusal/failure/timeout). `ctx` owns the transient
+    // manager — if `ctx` is destroyed mid-fetch the reply is severed, and `done` never
+    // runs on a dangling caller (a safe no-op).
     void fetchUrlBytesAsync(QObject* ctx, const QString& url,
                             std::function<void(QByteArray)> done) {
-      const QUrl u(url);
-      if (!u.isValid() || (u.scheme() != "http" && u.scheme() != "https")) {
-        done(QByteArray());
-        return;
-      }
-      auto* nam = new QNetworkAccessManager(ctx);
-      QNetworkRequest req(u);
-      req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                       QNetworkRequest::NoLessSafeRedirectPolicy);
-      QNetworkReply* reply = nam->get(req);
-      auto* timeout = new QTimer(nam);
-      timeout->setSingleShot(true);
-      // Timeout aborts the reply, which fires finished() with an error → empty result.
-      QObject::connect(timeout, &QTimer::timeout, reply, [reply] { reply->abort(); });
-      QObject::connect(reply, &QNetworkReply::finished, nam,
-                       [reply, nam, done = std::move(done)]() {
-                         QByteArray out;
-                         if (reply->error() == QNetworkReply::NoError) out = reply->readAll();
-                         reply->deleteLater();
-                         nam->deleteLater();
-                         done(out);
-                       });
-      timeout->start(10000);
+      // The URL comes off a SHARED project record, so it is untrusted: the STRICT guard
+      // (loopback included, DNS answers classified), a capped body, no redirect off the
+      // host just cleared. A refusal or any failure lands as empty bytes, as before.
+      stencil::net::fetchGuard::get(
+          ctx, QUrl(url), /*strict=*/true,
+          [done = std::move(done)](const QByteArray& b, const QString&) { done(b); }, 10000);
     }
 
     // Read a layout's saved filter/tint (legacy blackAndWhite → "bw"); an absent or empty
@@ -5719,9 +5701,13 @@ namespace stencil::gui {
 
     const QUrl url = QUrl::fromUserInput(src);
     if (url.scheme() == "http" || url.scheme() == "https") {
-      net::fetch(this, url, adopt, [this](const QString& e) {
-        notify_->error("Could not fetch --layout: " + e);
-      });
+      // --layout is a URL the USER named, so the loose guard: their own localhost server
+      // stays reachable, the internal ranges do not.
+      stencil::net::fetchGuard::get(this, url, /*strict=*/false,
+                                    [this, adopt](const QByteArray& b, const QString& e) {
+                                      if (e.isEmpty()) adopt(b);
+                                      else notify_->error("Could not fetch --layout: " + e);
+                                    });
       return;
     }
     // Local file (resolve the existing path, not fromUserInput's guess).

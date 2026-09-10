@@ -1,4 +1,5 @@
 #include "launchOptions.hpp"
+#include "deepLink.hpp"
 #include <QCommandLineOption>
 #include <QCommandLineParser>
 #include <QCoreApplication>
@@ -108,7 +109,10 @@ namespace stencil::gui {
           && !o.src.startsWith(QLatin1String("data:"), Qt::CaseInsensitive)) {
         o.src.clear();
       }
-      o.layoutJson = q.queryItemValue("layout", QUrl::FullyDecoded).trimmed();
+      // Bounded: a deep link is remotely clickable and this string is parsed as JSON
+      // downstream, so it takes the same cap as the browser hand-off payload.
+      const QString layout = q.queryItemValue("layout", QUrl::FullyDecoded).trimmed();
+      if (layout.size() <= deepLink::kBrowserLaunchPayloadMax) o.layoutJson = layout;
       bool ok = false;
       const int n = q.queryItemValue("frame").toInt(&ok);
       o.frame = (ok && n > 0) ? n : 0;

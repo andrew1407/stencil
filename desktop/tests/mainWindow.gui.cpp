@@ -22,6 +22,7 @@
 #include "fileStore.hpp"
 #include "connectDialog.hpp"
 #include "../src/support/appTooltip.hpp"
+#include "../src/support/shareImage.hpp"   // shareSheetAvailable — the Share button's gate
 #include "serverClient.hpp"
 #include "llmSettingsForm.hpp"
 #include "../src/llm/chatPlanTarget.hpp"   // §10 chatPanel: the plan target that places the dock
@@ -492,10 +493,43 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(hdr->height(), before);
   }
 
+  // The Share button exists only where the OS has a share sheet of its own — hidden on
+  // Linux, where none does. Browser parity: supportsShareFiles() (utils.js) keeps
+  // #share-image display:none on every browser that turns files down, rather than
+  // offering a button that can only apologise.
+  void shareButtonOnlyWhereTheOsShares() {
+    MainWindow win(nullptr, /*restoreLast=*/false);
+    win.resize(1200, 800);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    QImage img(40, 40, QImage::Format_RGB32);
+    img.fill(Qt::white);
+    win.loadImageWithLayout(img, QJsonObject());   // the IMAGE cluster shows its icons
+    QTest::qWait(120);
+
+    const bool shares = stencil::support::shareSheetAvailable();
+    QCOMPARE(win.actShareImage_->isVisible(), shares);
+    QToolButton* btn = nullptr;
+    for (QToolButton* b : win.findChildren<QToolButton*>())
+      if (b->defaultAction() == win.actShareImage_) btn = b;
+    QVERIFY2(btn, "the Share action has no toolbar button at all");
+    QCOMPARE(btn->isVisible(), shares);
+    if (shares) {
+      QVERIFY(win.actShareImage_->isEnabled());
+      return;
+    }
+    // …and the chord is dead with it: Qt will not enable an invisible action, so the
+    // refresh that follows every image load cannot bring it back.
+    QVERIFY2(!win.actShareImage_->isEnabled(), "the Share chord is live with no share sheet");
+    win.actShareImage_->setEnabled(true);
+    QVERIFY2(!win.actShareImage_->isEnabled(), "an invisible Share action took enabling");
+  }
+
   // Two project actions the shared hotkeysConfig.json now carries: the trash reads
   // "Remove" and answers Ctrl+Alt+R, and Ctrl+Alt+N opens the toolbar name field for
   // inline editing — the keyboard route to the ✎ the browser grew at the same time.
-  // (shareImage is in that config too, but browser-only: this app has no share action.)
+  // (shareImage is in that config too, and this app answers it wherever the OS shares —
+  // see shareButtonOnlyWhereTheOsShares.)
   void projectRemoveAndRenameShortcuts() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1200, 800);

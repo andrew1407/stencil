@@ -59,10 +59,11 @@ option(STENCIL_REQUIRE_QT "Fail configuration if Qt6 is missing (release packagi
 # (the qrc-embedded browser/js/config/icons.json canon) into themed toolbar/menu QIcons. qt6-qtsvg
 # is already an effective dependency — the window/taskbar icon (appicon.svg) is
 # drawn by the same module's SVG icon engine.
+# 6.3 is the floor: the install step below needs qt6_generate_deploy_app_script (Qt >= 6.3).
 if(STENCIL_REQUIRE_QT)
-  find_package(Qt6 REQUIRED COMPONENTS Widgets Network Multimedia Svg Test)
+  find_package(Qt6 6.3 REQUIRED COMPONENTS Widgets Network Multimedia Svg Test)
 else()
-  find_package(Qt6 QUIET COMPONENTS Widgets Network Multimedia Svg Test)
+  find_package(Qt6 6.3 QUIET COMPONENTS Widgets Network Multimedia Svg Test)
 endif()
 if(Qt6_FOUND)
   set(CMAKE_AUTOMOC ON)
@@ -134,6 +135,7 @@ if(Qt6_FOUND)
     src/net/serverClient.cpp
     src/net/liveFeed.cpp
     src/net/connectionStore.cpp
+    src/net/fetchGuard.cpp
     src/io/fileStore.cpp
     src/io/mediaLoader.cpp
     src/support/theme.cpp
@@ -456,6 +458,28 @@ if(Qt6_FOUND)
   set_tests_properties(stencil_mainwindow_gui PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;STENCIL_NO_ANIM=1")
 
+  # Appearance pins: the app stylesheet hashed per theme x accent, plus twelve rendered
+  # MainWindow / dialog states diffed against tests/pins (per platform; a platform with
+  # no baselines skips that half). Registered TWICE — offscreen runs at devicePixelRatio
+  # 1, so the hi-dpi pass forces dpr 2 with QT_SCALE_FACTOR, which is read once at
+  # QApplication construction and so needs its own process.
+  add_executable(stencil_uipins_headless
+    tests/uiPins.headless.cpp
+    tests/uiPins.states.cpp
+    ${STENCIL_GUI_SOURCES})
+  target_include_directories(stencil_uipins_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_compile_definitions(stencil_uipins_headless PRIVATE
+    "STENCIL_UI_PINS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/pins\"")
+  target_link_libraries(stencil_uipins_headless PRIVATE
+    stencil_core Qt6::Widgets Qt6::Network Qt6::Multimedia Qt6::Svg Qt6::Test
+    ${STENCIL_SHARE_LIBS})
+  add_test(NAME stencil_uipins_headless COMMAND stencil_uipins_headless)
+  set_tests_properties(stencil_uipins_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;STENCIL_NO_ANIM=1")
+  add_test(NAME stencil_uipins_hidpi_headless COMMAND stencil_uipins_headless)
+  set_tests_properties(stencil_uipins_hidpi_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;STENCIL_NO_ANIM=1;QT_SCALE_FACTOR=2")
+
   # Hold-to-draw + selection-delete headless check (CanvasWidget public API).
   add_executable(stencil_holddraw_headless
     tests/holdDrawCanvas.headless.cpp
@@ -606,6 +630,7 @@ if(Qt6_FOUND)
     src/dialogs/connectDialog.cpp
     src/net/serverClient.cpp
     src/net/connectionStore.cpp
+    src/io/fileStore.cpp          # …whose tokens live in its owner-only store
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
     src/support/theme.cpp         # …and its colour wells take the theme's input chrome
     src/support/iconSet.cpp
@@ -667,6 +692,7 @@ if(Qt6_FOUND)
     src/dialogs/connectDialog.cpp
     src/net/serverClient.cpp
     src/net/connectionStore.cpp
+    src/io/fileStore.cpp          # …whose tokens live in its owner-only store
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
     src/support/theme.cpp         # …and its colour wells take the theme's input chrome
     src/support/iconSet.cpp
@@ -694,6 +720,7 @@ if(Qt6_FOUND)
     src/dialogs/projectsDialog.cpp
     src/dialogs/expirationDialog.cpp  # the ⋯ menu's "Expiration…" opens it in place now
     src/net/serverClient.cpp
+    src/net/fetchGuard.cpp        # the row thumbnails' SSRF guard
     src/io/fileStore.cpp
     src/support/guiHelpers.cpp
     src/support/theme.cpp         # …and its colour wells take the theme's input chrome
@@ -769,6 +796,7 @@ if(Qt6_FOUND)
     src/llm/opSchema.cpp
     src/net/serverClient.cpp
     src/net/connectionStore.cpp
+    src/io/fileStore.cpp          # …whose tokens live in its owner-only store
     resources/app.qrc)
   target_include_directories(stencil_llmwirefixtures_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_compile_definitions(stencil_llmwirefixtures_headless PRIVATE ${STENCIL_FIXTURE_WALKER_DEFS})
@@ -787,6 +815,7 @@ if(Qt6_FOUND)
     src/llm/opSchema.cpp
     src/net/serverClient.cpp
     src/net/connectionStore.cpp
+    src/io/fileStore.cpp          # …whose tokens live in its owner-only store
     resources/app.qrc)
   target_include_directories(stencil_llmclient_headless PRIVATE ${STENCIL_GUI_DIRS})
   target_link_libraries(stencil_llmclient_headless PRIVATE stencil_core Qt6::Network)
@@ -879,6 +908,43 @@ if(Qt6_FOUND)
     stencil_core Qt6::Widgets Qt6::Svg)
   add_test(NAME stencil_configcanon_headless COMMAND stencil_configcanon_headless)
   set_tests_properties(stencil_configcanon_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Saved-connection secrets (net/connectionStore + io/fileStore): the token never lands
+  # in QSettings, an older build's plaintext row is migrated out of it on load, and every
+  # stored shape still round-trips.
+  add_executable(stencil_connectionsecrets_headless
+    tests/connectionSecrets.headless.cpp
+    src/net/connectionStore.cpp
+    src/io/fileStore.cpp
+    resources/app.qrc)          # fileStore reads the embedded LLM provider config
+  target_include_directories(stencil_connectionsecrets_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_connectionsecrets_headless PRIVATE stencil_core Qt6::Core)
+  add_test(NAME stencil_connectionsecrets_headless COMMAND stencil_connectionsecrets_headless)
+  set_tests_properties(stencil_connectionsecrets_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Untrusted-fetch SSRF guard (net/fetchGuard) — the port of cli/src/net.zig: the
+  # blocked host classes and their alternate numeric encodings, strict-vs-loose
+  # loopback, the scheme gate, and the shape of the request it hands out. Nothing is
+  # fetched; the one DNS case resolves `localhost`.
+  add_executable(stencil_fetchguard_headless
+    tests/fetchGuard.headless.cpp
+    src/net/fetchGuard.cpp)
+  target_include_directories(stencil_fetchguard_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_fetchguard_headless PRIVATE Qt6::Network)
+  add_test(NAME stencil_fetchguard_headless COMMAND stencil_fetchguard_headless)
+  set_tests_properties(stencil_fetchguard_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Size + comment ratchet (tests/sizeBudget.json): reads the desktop .cpp/.hpp tree
+  # itself, so it compiles no app source — no new oversized file, no budgeted file
+  # growing, no directory raising its comment share.
+  add_executable(stencil_sizebudget_headless tests/sizeBudget.headless.cpp)
+  target_include_directories(stencil_sizebudget_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_sizebudget_headless PRIVATE Qt6::Core)
+  add_test(NAME stencil_sizebudget_headless COMMAND stencil_sizebudget_headless)
+  set_tests_properties(stencil_sizebudget_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
   # Every test writes to an ISOLATED state dir, never the dev .stencil the real

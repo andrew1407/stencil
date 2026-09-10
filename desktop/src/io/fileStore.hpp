@@ -174,6 +174,11 @@ namespace stencil::gui {
     QString settingsPath();
     QString sessionPath();
     QString projectsPath();
+    // Owner-only (0600) sidecar for stored SECRETS — today the saved connection tokens,
+    // which used to sit in plaintext QSettings (settings.json's protection, own file).
+    QString secretsPath();
+    QJsonObject loadSecrets();
+    void saveSecrets(const QJsonObject& o);
 
     Settings loadSettings();
     void saveSettings(const Settings& s);
