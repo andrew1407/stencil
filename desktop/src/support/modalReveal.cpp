@@ -514,8 +514,14 @@ namespace stencil::support {
 
   // The real one lives in modalDismissMac.mm, which only the targets that open windows
   // compile. WEAK so the headless binaries — they link this TU for revealDialog alone —
-  // still link; the strong Objective-C++ definition wins wherever it is present.
+  // still link; the strong Objective-C++ definition wins wherever it is present. MSVC
+  // has no weak symbols, and nothing on Windows defines a strong one, so it gets a
+  // plain definition.
+#if defined(_MSC_VER)
+  void installModalDismissNative() {}
+#else
   __attribute__((weak)) void installModalDismissNative() {}
+#endif
 
   void installDialogReveal() {
     QCoreApplication* app = QCoreApplication::instance();
