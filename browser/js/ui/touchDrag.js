@@ -68,8 +68,15 @@ export function makeTouchDraggable(row, opts) {
     // doesn't also trigger the row's tap-to-open. It has to be caught on the DOCUMENT: the
     // drop re-renders the list, so by the time the click lands `row` is detached and a
     // listener on it would never see it (a hold-and-release would open the project).
-    const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
-    document.addEventListener('click', swallow, { capture: true, once: true });
+    // Only clicks inside the row's own dialog, though — a drop onto a zone asks to
+    // confirm, and a quick tap on that (sibling) dialog's button must go through.
+    const scope = (row.closest && row.closest('.app-modal-overlay')) || row.parentElement || document;
+    const swallow = (ev) => {
+      if (!scope.contains(ev.target)) return;
+      ev.stopPropagation(); ev.preventDefault();
+      document.removeEventListener('click', swallow, true);
+    };
+    document.addEventListener('click', swallow, { capture: true });
     setTimeout(() => document.removeEventListener('click', swallow, true), 500);
     if (cancelled) onCancel && onCancel(); else onDrop && onDrop(x, y);
   };

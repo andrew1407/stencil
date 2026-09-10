@@ -73,9 +73,12 @@ test.describe('extension AI assistant (embedded section)', () => {
     await expect(popup.locator('#sec-assistant')).not.toHaveClass(/collapsed/);
 
     // Ready: the seeded settings show on the … trigger's rich tooltip (the provider
-    // line moved there, onto the status dot — assistant.js refreshSettings).
-    await expect(popup.locator('#chat-more-btn')).toHaveAttribute('title', /Provider: openai-compat/, { timeout: 15_000 });
-    await expect(popup.locator('#chat-more-btn')).toHaveAttribute('title', /Model: e2e-model/);
+    // line moved there, onto the status dot — assistant.js refreshSettings). It is a
+    // hover-built table (lib/chatStatusTip.js), not a title attribute.
+    await popup.locator('#chat-more-btn').hover();
+    await expect(popup.locator('.chat-status-tip')).toContainText('OpenAI API', { timeout: 15_000 });
+    await expect(popup.locator('.chat-status-tip')).toContainText('e2e-model');
+    await popup.mouse.move(0, 0);
 
     // ── Turn 1: §8 `focus` → the injected on-page highlight marking. ──
     stub.queue({ version: 1, reply: 'Highlighted it for you.', actions: [{ op: 'focus', image: 0 }], variants: [] });
@@ -151,7 +154,9 @@ test.describe('extension AI assistant (embedded section)', () => {
     await popup.evaluate(() => document.getElementById('rescan').click());
     await popup.waitForFunction(() => document.querySelectorAll('.row').length > 1, null, { timeout: 15_000 });
     await popup.evaluate(() => document.getElementById('open-chat').click());
-    await expect(popup.locator('#chat-more-btn')).toHaveAttribute('title', /Model: e2e-model/, { timeout: 15_000 });
+    await popup.locator('#chat-more-btn').hover();
+    await expect(popup.locator('.chat-status-tip')).toContainText('e2e-model', { timeout: 15_000 });
+    await popup.mouse.move(0, 0);
 
     // Turn 1 (chat-only) just to read back the §8 listing and learn the SVG's index —
     // the ops address images by their position in that listing.

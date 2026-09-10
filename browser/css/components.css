@@ -3417,6 +3417,10 @@ stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-nw:hover::before, ste
    beneath the panel whenever the chat is open, and step it out of a right/bottom
    dock's band (the panel's live size rides the same --chat-size var). */
 body:has(stencil-chat-panel.chat-open) #install-host { z-index: 89999; }
+/* In fullscreen the slide-in strips (#fs-controls-panel / #fs-points-panel, 10000+)
+   ARE the toolbar, and a docked chat at 90000 sat over the strip's own fullscreen
+   toggle. The chat goes beneath them there; modal overlays stay above both. */
+body.fullscreen-mode stencil-chat-panel { z-index: 9990; }
 /* A DOCKED chat shares the page instead of covering it: the panel is fixed, so
    the body gives up exactly its band as padding and the whole editor reflows
    beside it. Driven by the same --chat-size the panel and its resizer use, so
