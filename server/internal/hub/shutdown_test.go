@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"stencil/server/internal/protocol"
+	"stencil/server/internal/testutil"
 	"stencil/server/internal/transport"
 )
 
@@ -16,7 +17,7 @@ func TestShutdownNotifiesLiveConnections(t *testing.T) {
 	editor := joinProject(t, addr, "p_t_a", "A")
 
 	// The global /events feed is a connection too, and it also gets the notice.
-	feed, err := transport.DialTCP(addr)
+	feed, err := testutil.DialTCP(addr)
 	if err != nil {
 		t.Fatal(err)
 	}

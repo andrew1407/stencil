@@ -96,7 +96,7 @@ func expectClosed(t *testing.T, c transport.Conn, what string) {
 // joinProject connects, sends hello + subscribe, and waits for welcome.
 func joinProject(t *testing.T, addr, project, client string) transport.Conn {
 	t.Helper()
-	c, err := transport.DialTCP(addr)
+	c, err := testutil.DialTCP(addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func TestEventsFeedReceivesSave(t *testing.T) {
 	addr := startTCP(t, h)
 
 	// Events client: hello with empty ProjectID selects the global feed.
-	ev, err := transport.DialTCP(addr)
+	ev, err := testutil.DialTCP(addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestEventsFeedReceivesSave(t *testing.T) {
 func TestUnauthorizedRejected(t *testing.T) {
 	h := newTestHub(t)
 	addr := startTCP(t, h)
-	c, err := transport.DialTCP(addr)
+	c, err := testutil.DialTCP(addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +217,7 @@ func waitFor(t *testing.T, cond func() bool) {
 func TestHelloRequiredFirst(t *testing.T) {
 	h := newTestHub(t)
 	addr := startTCP(t, h)
-	c, _ := transport.DialTCP(addr)
+	c, _ := testutil.DialTCP(addr)
 	defer c.Close(0, "")
 	// Send a non-hello first frame; the server must close the connection.
 	send(t, c, protocol.WSMessage{Type: protocol.WSEdit})
@@ -237,7 +237,7 @@ func TestHelloTimeoutClosesSilentPeer(t *testing.T) {
 
 	h := newTestHub(t)
 	addr := startTCP(t, h)
-	c, err := transport.DialTCP(addr)
+	c, err := testutil.DialTCP(addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -310,7 +310,7 @@ func TestRoomIsolation(t *testing.T) {
 func TestOversizedFrameRejected(t *testing.T) {
 	h := newTestHub(t)
 	addr := startTCP(t, h)
-	c, err := transport.DialTCP(addr)
+	c, err := testutil.DialTCP(addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -357,7 +357,7 @@ func TestWebSocketTransport(t *testing.T) {
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
 
 	dial := func(client string) transport.Conn {
-		c, err := transport.DialWS(context.Background(), wsURL)
+		c, err := testutil.DialWS(context.Background(), wsURL)
 		if err != nil {
 			t.Fatal(err)
 		}

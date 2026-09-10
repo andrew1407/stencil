@@ -41,16 +41,6 @@ func AcceptWS(w http.ResponseWriter, r *http.Request) (Conn, error) {
 	return x, nil
 }
 
-// DialWS connects to a WebSocket server (used by tests and Go-side clients).
-func DialWS(ctx context.Context, url string) (Conn, error) {
-	c, _, err := websocket.Dial(ctx, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	c.SetReadLimit(MaxMessageBytes)
-	return &wsConn{c: c, remote: url}, nil
-}
-
 // keepalive pings the peer on a timer; the pong is read by whatever Read the
 // hub has pending. A missed pong hard-closes the conn, which unblocks that
 // Read so the half-open peer is reaped instead of lingering forever.

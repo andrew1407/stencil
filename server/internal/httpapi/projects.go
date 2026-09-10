@@ -1,8 +1,6 @@
 package httpapi
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -75,7 +73,7 @@ func (a *API) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not create project")
 		return
 	}
-	a.publishEvent(ctx, protocol.EventCreated, rec)
+	bus.PublishProjectEvent(ctx, a.deps.Bus, protocol.EventCreated, rec)
 	writeJSON(w, http.StatusCreated, rec)
 }
 
@@ -106,7 +104,7 @@ func (a *API) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not update project")
 		return
 	}
-	a.publishEvent(ctx, protocol.EventUpdated, rec)
+	bus.PublishProjectEvent(ctx, a.deps.Bus, protocol.EventUpdated, rec)
 	writeJSON(w, http.StatusOK, rec)
 }
 
@@ -129,21 +127,6 @@ func (a *API) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 	if a.deps.Files != nil {
 		_ = a.deps.Files.Remove(id)
 	}
-	a.publishEvent(ctx, protocol.EventDeleted, protocol.ProjectRecord{ID: id})
+	bus.PublishProjectEvent(ctx, a.deps.Bus, protocol.EventDeleted, protocol.ProjectRecord{ID: id})
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// publishEvent broadcasts a project-lifecycle event to the global feed so every
-// connected client refreshes its projects list live. Best-effort: a bus error
-// never fails the request.
-func (a *API) publishEvent(ctx context.Context, event string, rec protocol.ProjectRecord) {
-	if a.deps.Bus == nil {
-		return
-	}
-	msg := protocol.WSMessage{Type: protocol.WSProjectEv, Event: event, Project: &rec}
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return
-	}
-	_ = a.deps.Bus.Publish(ctx, bus.ChannelEvents, data)
 }

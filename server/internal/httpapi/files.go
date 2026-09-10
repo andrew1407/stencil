@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"stencil/server/internal/bus"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/store"
@@ -140,7 +141,7 @@ func (a *API) handlePutFile(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not record file")
 			return
 		}
-		a.publishEvent(ctx, protocol.EventUpdated, rec)
+		bus.PublishProjectEvent(ctx, a.deps.Bus, protocol.EventUpdated, rec)
 	} else if _, err := a.deps.Projects.GetProject(ctx, id); errors.Is(err, store.ErrNotFound) {
 		_ = a.deps.Files.RemoveKind(id, kind)
 		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")

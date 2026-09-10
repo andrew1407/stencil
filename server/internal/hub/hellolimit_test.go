@@ -24,7 +24,6 @@ import (
 	"stencil/server/internal/bus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
-	"stencil/server/internal/transport"
 )
 
 // countingResolver records how many token lookups reached the store.
@@ -54,7 +53,7 @@ func limitedHub(t *testing.T, perMin int, trusted []netip.Prefix) (*Hub, *counti
 // helloOnce dials, sends one hello, and returns the error code it got back.
 func helloOnce(t *testing.T, addr, token string) string {
 	t.Helper()
-	c, err := transport.DialTCP(addr)
+	c, err := testutil.DialTCP(addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +75,7 @@ func TestFailedHellosAreThrottledPerIP(t *testing.T) {
 		t.Fatalf("the store saw %d lookups, want 2", got)
 	}
 	// The bucket is empty: the next hello is refused before auth runs.
-	c, err := transport.DialTCP(addr)
+	c, err := testutil.DialTCP(addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +108,7 @@ func TestGoodHelloSpendsNoHelloBudget(t *testing.T) {
 }
 
 // wsHello opens a WebSocket with the given X-Forwarded-For, sends one hello and
-// returns the error code (transport.DialWS sets no headers).
+// returns the error code (testutil.DialWS sets no headers).
 func wsHello(t *testing.T, url, xff, token string) string {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

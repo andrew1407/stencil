@@ -37,15 +37,6 @@ func NewTCP(conn net.Conn) Conn {
 	return &tcpConn{conn: conn, sc: sc}
 }
 
-// DialTCP connects to a TCP edit endpoint (used by tests and Go-side clients).
-func DialTCP(addr string) (Conn, error) {
-	c, err := net.Dial("tcp", addr)
-	if err != nil {
-		return nil, err
-	}
-	return NewTCP(c), nil
-}
-
 func (t *tcpConn) Read(ctx context.Context) ([]byte, error) {
 	// An already-cancelled context wins before any bytes are consumed. Without
 	// this, a Read on a torn-down connection still delivers whatever the scanner

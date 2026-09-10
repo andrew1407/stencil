@@ -149,12 +149,6 @@ func (s *Store) ResolveToken(ctx context.Context, tokenHash []byte) (auth.Sessio
 	return sess, nil
 }
 
-// DeleteSession revokes a session by id.
-func (s *Store) DeleteSession(ctx context.Context, id string) error {
-	_, err := s.pool.Exec(ctx, `DELETE FROM sessions WHERE id = $1`, id)
-	return err
-}
-
 // ----- Projects -----
 
 // ListProjects returns project metadata (without layout/original content),

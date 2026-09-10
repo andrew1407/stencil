@@ -47,10 +47,10 @@ type SessionCounter interface {
 // path for filestore-only kinds (video/variantN/chat); OpenByRelPath hands back
 // an *os.File so downloads can stream via http.ServeContent instead of
 // buffering whole files in memory; RemoveKind backs the per-file DELETE route
-// for filestore-only kinds.
+// for filestore-only kinds. Reads go through the path pair, never a whole-file
+// Get — nothing here buffers a file in memory.
 type FileStore interface {
 	Put(id, kind, ext string, data []byte) (string, error)
-	Get(id, kind, ext string) ([]byte, error)
 	FindByKind(id, kind string) (string, error)
 	OpenByRelPath(rel string) (*os.File, error)
 	RemoveKind(id, kind string) error

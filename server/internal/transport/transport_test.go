@@ -40,7 +40,7 @@ func tcpPair(t *testing.T) (client, server Conn) {
 		accepted <- c
 	}()
 
-	c, err := DialTCP(ln.Addr().String())
+	c, err := dialTCP(ln.Addr().String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,9 +385,9 @@ func TestDialTCPFailsOnAClosedPort(t *testing.T) {
 	}
 	addr := ln.Addr().String()
 	ln.Close() // nothing is listening now
-	if c, err := DialTCP(addr); err == nil {
+	if c, err := dialTCP(addr); err == nil {
 		c.Close(CloseNormal, "")
-		t.Fatal("expected DialTCP to fail against a closed port")
+		t.Fatal("expected dialTCP to fail against a closed port")
 	}
 }
 
@@ -420,7 +420,7 @@ func wsPair(t *testing.T) (client, server Conn) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	c, err := DialWS(ctx, "ws"+strings.TrimPrefix(srv.URL, "http"))
+	c, err := dialWS(ctx, "ws"+strings.TrimPrefix(srv.URL, "http"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -554,9 +554,9 @@ func TestDialWSFailsAgainstANonWebSocketEndpoint(t *testing.T) {
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if c, err := DialWS(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")); err == nil {
+	if c, err := dialWS(ctx, "ws"+strings.TrimPrefix(srv.URL, "http")); err == nil {
 		c.Close(CloseNormal, "")
-		t.Fatal("expected DialWS to fail without an upgrade")
+		t.Fatal("expected dialWS to fail without an upgrade")
 	}
 }
 
@@ -565,7 +565,7 @@ func TestDialWSFailsAgainstANonWebSocketEndpoint(t *testing.T) {
 // extension page or a file:// document may connect and simply fails auth without
 // a valid token. A cross-origin handshake must therefore upgrade cleanly.
 //
-// DialWS is no use here — the Go dialer sends no Origin header at all — so this
+// dialWS is no use here — the Go dialer sends no Origin header at all — so this
 // drives the library directly to put a foreign Origin on the wire.
 func TestAcceptWSUpgradesFromAForeignOrigin(t *testing.T) {
 	accepted := make(chan error, 1)
@@ -663,13 +663,12 @@ func TestWSKeepaliveSparesAnActivePeer(t *testing.T) {
 func TestCloseCodesAreValidRFC6455StatusCodes(t *testing.T) {
 	for name, code := range map[string]int{
 		"CloseNormal": CloseNormal, "ClosePolicyViolation": ClosePolicyViolation,
-		"CloseInternal": CloseInternal,
 	} {
 		if code < 1000 || code > 4999 {
 			t.Errorf("%s = %d, outside the RFC6455 status range", name, code)
 		}
 	}
-	if CloseNormal != 1000 || ClosePolicyViolation != 1008 || CloseInternal != 1011 {
+	if CloseNormal != 1000 || ClosePolicyViolation != 1008 {
 		t.Error("close codes drifted from the RFC6455 values clients expect")
 	}
 }

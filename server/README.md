@@ -89,7 +89,7 @@ server/
   internal/
     protocol/   wire DTOs + WS message envelope — the shape every client mirrors
     config/     env/.env configuration
-    auth/       opaque bearer tokens (sha256-hashed, constant-time), HTTP + WS gate
+    auth/       opaque bearer tokens (sha256-hashed, resolved by lookup), HTTP + WS gate
     filestore/  path-confined byte store; traversal-proof safeJoin (path.go)
     store/      pgx ProjectRepository + SessionRepository; embedded SQL migrations
     bus/        pub/sub interface + in-process implementation

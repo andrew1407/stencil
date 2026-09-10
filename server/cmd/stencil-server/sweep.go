@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"sync"
 	"time"
@@ -42,7 +41,7 @@ func startExpirySweep(ctx context.Context, wg *sync.WaitGroup, st expiredProject
 			if fs != nil {
 				_ = fs.Remove(id) // best-effort; a missing dir is not an error
 			}
-			publishDeleted(ctx, b, id)
+			bus.PublishProjectEvent(ctx, b, protocol.EventDeleted, protocol.ProjectRecord{ID: id})
 		}
 		if len(ids) > 0 {
 			log.Printf("expiry sweep: removed %d expired project(s)", len(ids))
@@ -63,23 +62,4 @@ func startExpirySweep(ctx context.Context, wg *sync.WaitGroup, st expiredProject
 			}
 		}
 	}()
-}
-
-// publishDeleted broadcasts a project-deleted event on the global feed, mirroring
-// the shape httpapi.publishEvent uses for the DELETE /projects/{id} route so
-// clients handle a swept project exactly like a manual delete. Best-effort.
-func publishDeleted(ctx context.Context, b bus.Bus, id string) {
-	if b == nil {
-		return
-	}
-	rec := protocol.ProjectRecord{ID: id}
-	data, err := json.Marshal(protocol.WSMessage{
-		Type:    protocol.WSProjectEv,
-		Event:   protocol.EventDeleted,
-		Project: &rec,
-	})
-	if err != nil {
-		return
-	}
-	_ = b.Publish(ctx, bus.ChannelEvents, data)
 }

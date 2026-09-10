@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +15,7 @@ type stubResolver struct {
 }
 
 func (f stubResolver) ResolveToken(_ context.Context, hash []byte) (Session, error) {
-	if f.hash != nil && ConstantTimeEqual(hash, f.hash) {
+	if f.hash != nil && bytes.Equal(hash, f.hash) {
 		return f.sess, nil
 	}
 	return Session{}, ErrInvalidToken
@@ -29,10 +30,10 @@ func TestGenerateTokenIsUniqueAndHashes(t *testing.T) {
 	if t1 == t2 {
 		t.Fatal("tokens not unique")
 	}
-	if !ConstantTimeEqual(h1, HashToken(t1)) {
+	if !bytes.Equal(h1, HashToken(t1)) {
 		t.Fatal("hash mismatch for generated token")
 	}
-	if ConstantTimeEqual(h1, HashToken(t2)) {
+	if bytes.Equal(h1, HashToken(t2)) {
 		t.Fatal("distinct tokens hashed equal")
 	}
 }

@@ -2,10 +2,10 @@
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
   "files": {
-    "server/cmd/stencil-server/main.go": 232,
-    "server/internal/config/config.go": 258,
+    "server/cmd/stencil-server/main.go": 201,
+    "server/internal/config/config.go": 204,
     "server/internal/config/config_test.go": 292,
-    "server/internal/filestore/filestore.go": 375,
+    "server/internal/filestore/filestore.go": 364,
     "server/internal/filestore/filestore_test.go": 352,
     "server/internal/httpapi/api_test.go": 707,
     "server/internal/httpapi/llm_test.go": 408,
@@ -17,11 +17,11 @@
     "server/internal/llm/providers_test.go": 256,
     "server/internal/llm/upstream.go": 231,
     "server/internal/llm/upstream_test.go": 265,
-    "server/internal/protocol/protocol.go": 273,
+    "server/internal/protocol/protocol.go": 272,
     "server/internal/protocol/protocol_test.go": 424,
-    "server/internal/store/store.go": 337,
-    "server/internal/store/store_test.go": 405,
-    "server/internal/transport/transport_test.go": 675
+    "server/internal/store/store.go": 331,
+    "server/internal/store/store_test.go": 399,
+    "server/internal/transport/transport_test.go": 674
   },
   "commentPct": {
     "server/cmd/stencil-server": 12,

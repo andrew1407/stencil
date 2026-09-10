@@ -7,7 +7,6 @@ package filestore
 
 import (
 	"errors"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -362,14 +361,4 @@ func dirSize(dir string) (int64, error) {
 		return nil
 	})
 	return n, err
-}
-
-// Copy streams src into the store for (id, kind, ext); convenience over Put for
-// io.Reader sources.
-func (s *Store) Copy(id, kind, ext string, src io.Reader) (string, error) {
-	data, err := io.ReadAll(src)
-	if err != nil {
-		return "", err
-	}
-	return s.Put(id, kind, ext, data)
 }

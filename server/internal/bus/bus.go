@@ -7,7 +7,10 @@ package bus
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
+
+	"stencil/server/internal/protocol"
 )
 
 // Channel names used across the server.
@@ -29,6 +32,23 @@ type Bus interface {
 	Subscribe(channel string) (<-chan []byte, func())
 	// Close releases any backend resources.
 	Close() error
+}
+
+// PublishProjectEvent broadcasts a project-lifecycle event on the global feed —
+// the single path for it, so a swept project looks exactly like a manual delete.
+func PublishProjectEvent(ctx context.Context, b Bus, event string, rec protocol.ProjectRecord) {
+	if b == nil {
+		return
+	}
+	data, err := json.Marshal(protocol.WSMessage{
+		Type:    protocol.WSProjectEv,
+		Event:   event,
+		Project: &rec,
+	})
+	if err != nil {
+		return
+	}
+	_ = b.Publish(ctx, ChannelEvents, data)
 }
 
 // subBuffer bounds per-subscriber queueing; a slow consumer drops messages

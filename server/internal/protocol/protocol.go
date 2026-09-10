@@ -189,7 +189,7 @@ type LlmInfoResponse struct {
 const (
 	// client -> server
 	WSHello     = "hello"     // MUST be the first frame: { token, clientId, name? }
-	WSSubscribe = "subscribe" // { sinceVersion? } request a snapshot
+	WSSubscribe = "subscribe" // request a full snapshot (no incremental resync)
 	WSEdit      = "edit"      // { version, op, payload } layout mutation
 	WSCursor    = "cursor"    // { x, y } ephemeral, relayed not persisted
 	WSPresence  = "presence"  // { state } ephemeral
@@ -247,10 +247,9 @@ type WSMessage struct {
 	ProjectID string `json:"projectId,omitempty"`
 
 	// edit / sync
-	Version      int64           `json:"version,omitempty"`
-	SinceVersion int64           `json:"sinceVersion,omitempty"`
-	Op           string          `json:"op,omitempty"`
-	Payload      json.RawMessage `json:"payload,omitempty"`
+	Version int64           `json:"version,omitempty"`
+	Op      string          `json:"op,omitempty"`
+	Payload json.RawMessage `json:"payload,omitempty"`
 
 	// snapshots / events
 	Project    *ProjectRecord  `json:"project,omitempty"`

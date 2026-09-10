@@ -51,12 +51,6 @@ func TestSessionLifecycle(t *testing.T) {
 	if got.ID != sess.ID || got.ExpiresAt != 9999 {
 		t.Fatalf("resolved session mismatch: %+v", got)
 	}
-	if err := s.DeleteSession(ctx, sess.ID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.ResolveToken(ctx, hash); !errors.Is(err, auth.ErrInvalidToken) {
-		t.Fatalf("revoked token should be invalid, got %v", err)
-	}
 }
 
 // TestExpiredSessionRejectedEndToEnd proves the real Postgres → auth.Verify path (the

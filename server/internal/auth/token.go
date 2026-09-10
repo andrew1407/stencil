@@ -1,14 +1,14 @@
 // Package auth issues and verifies bearer tokens. Tokens are opaque 256-bit
 // random values; the server persists only their SHA-256 hash, so a database leak
-// never exposes a usable credential. Verification is constant-time. All of this
-// is standard-library crypto (crypto/rand, crypto/sha256, crypto/subtle).
+// never exposes a usable credential. A bearer token is resolved by hash lookup,
+// never by comparing secrets here. All of this is standard-library crypto
+// (crypto/rand, crypto/sha256).
 package auth
 
 import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 )
@@ -46,11 +46,6 @@ func GenerateToken() (token string, hash []byte, err error) {
 func HashToken(token string) []byte {
 	sum := sha256.Sum256([]byte(token))
 	return sum[:]
-}
-
-// ConstantTimeEqual compares two hashes without leaking timing information.
-func ConstantTimeEqual(a, b []byte) bool {
-	return subtle.ConstantTimeCompare(a, b) == 1
 }
 
 // Verify resolves a raw token to its session and checks expiry against nowMs.
