@@ -57,6 +57,10 @@ namespace stencil::support {
     }
   }  // namespace
 
+  // Every Windows the app runs on has the share UI; a SKU that somehow does not fails
+  // in GetForWindow/ShowShareUIForWindow below, which showShareSheet reports.
+  bool shareSheetAvailable() { return true; }
+
   bool showShareSheet(QWidget* anchor, const QString& filePath, const QString& title) {
     if (!anchor) return false;
     const HWND hwnd = reinterpret_cast<HWND>(anchor->winId());

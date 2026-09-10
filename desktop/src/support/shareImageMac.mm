@@ -19,6 +19,10 @@ namespace stencil::support {
     NSSharingServicePicker* gPicker = nil;
   }
 
+  // Every macOS the app runs on has the share sheet; the picker itself is the only
+  // thing that can fail, and showShareSheet reports that.
+  bool shareSheetAvailable() { return true; }
+
   bool showShareSheet(QWidget* anchor, const QString& filePath, const QString& title) {
     if (!anchor) return false;
     NSURL* url = [NSURL fileURLWithPath:filePath.toNSString()];

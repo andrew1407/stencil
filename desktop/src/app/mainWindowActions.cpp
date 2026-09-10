@@ -11,6 +11,7 @@
 #include "menuReveal.hpp"
 #include "menuRowPolish.hpp"
 #include "../support/modalChrome.hpp"   // confirmModal — the browser-styled question
+#include "../support/shareImage.hpp"    // shareSheetAvailable — no Share button on Linux
 
 #include <QAbstractSpinBox>
 #include <QCheckBox>
@@ -270,6 +271,10 @@ namespace stencil::gui {
     actCopyImageCurrentRow_ = mk("Current (Tint + Lines/Points)", QString());
     actCopyImageCurrentRow_->setVisible(false);
     actShareImage_ = mk("Share Image…", hotkey("shareImage", "Ctrl+Alt+S"));
+    // Hidden where the OS has no share sheet (Linux) — icon, menu row and, since Qt
+    // never enables an invisible action, the chord too. Browser parity: utils.js
+    // supportsShareFiles() gates #share-image exactly so.
+    actShareImage_->setVisible(support::shareSheetAvailable());
     // Single Ctrl+V entrypoint (paste hotkey): image takes priority over a layout
     // JSON text payload, mirroring the browser paste listener (drawingApp.js
     // :563-591). pasteImage() does that dispatch.

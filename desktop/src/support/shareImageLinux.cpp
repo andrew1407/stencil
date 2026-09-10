@@ -1,35 +1,28 @@
 // Linux body of shareImage.hpp. There is no cross-desktop OS share sheet on Linux —
 // no GNOME/KDE/XFCE-spanning equivalent of NSSharingServicePicker or
 // DataTransferManager, and xdg-desktop-portal ships no general "share this file"
-// portal (only narrow ones like email/URI). The honest fallback is to reveal the
-// file where the user can decide what to do with it themselves, the same gesture
-// a "Show in Folder" action gives.
+// portal (only narrow ones like email/URI). So there is nothing to show, and the
+// Share action is hidden here instead of offered and then refused — the browser does
+// exactly that with its own button when navigator.canShare() turns files down
+// (browser/js/utils.js supportsShareFiles → toolbar.js / contextMenu.js).
 //
-// Plain QDesktopServices, not the org.freedesktop.FileManager1 D-Bus interface some
-// file managers (Nautilus, Dolphin, …) answer with a file PRE-SELECTED: that needs
-// QtDBus, a Qt module this app otherwise never links, and — since there is no
-// Linux desktop session in this repo to verify ShowItems actually lands — the
-// dependency isn't worth taking for a nicety on top of a fallback that is already
-// the "not really shared" branch. Opening the containing folder needs nothing new.
-//
-// `title` has nowhere to go here — nothing is being handed a subject line, just a
-// folder window — so it stays unused, kept only for parity with the other two
-// platforms' signature.
+// showShareSheet stays defined for the shared declaration and answers false: with the
+// action hidden nothing reaches it, and a caller that gets here anyway (a scripted
+// trigger) gets the "Sharing not supported on this system" toast rather than a
+// surprise — the same shape as the browser's "Sharing not supported on this browser".
 #include "shareImage.hpp"
 
-#include <QDesktopServices>
-#include <QFileInfo>
-#include <QUrl>
-#include <QWidget>
+class QWidget;
 
 namespace stencil::support {
 
+  bool shareSheetAvailable() { return false; }
+
   bool showShareSheet(QWidget* anchor, const QString& filePath, const QString& title) {
     (void)anchor;
+    (void)filePath;
     (void)title;
-    const QFileInfo info(filePath);
-    if (!info.exists()) return false;
-    return QDesktopServices::openUrl(QUrl::fromLocalFile(info.absolutePath()));
+    return false;
   }
 
 }  // namespace stencil::support

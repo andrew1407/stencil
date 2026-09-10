@@ -44,7 +44,8 @@ namespace stencil::gui {
     void copyImageToClipboard(const QString& variant = "current");
     // Native OS share sheet (browser/extension parity: exportService.js shareImage()).
     // Writes the annotated render to a session-lifetime temp file and hands it to
-    // support::showShareSheet — see shareImage.hpp for what that actually shows per OS.
+    // support::showShareSheet — see shareImage.hpp for what that shows per OS. Only
+    // reachable where shareSheetAvailable(); elsewhere the action itself is hidden.
     // `anchor` is the Share BUTTON itself, not `parent_` (the whole window) — macOS's
     // picker positions itself relative to anchor's bounds, and a window-sized anchor
     // popped up off in a corner of the window instead of next to the button that was

@@ -8,19 +8,25 @@
 //   shareImageMac.mm    macOS   — NSSharingServicePicker (AirDrop, Mail, Notes, …)
 //   shareImageWin.cpp   Windows — DataTransferManager (WinRT: Mail, Nearby Share, …)
 //   shareImageLinux.cpp Linux   — no OS share sheet exists across desktop environments;
-//                                 reveals the file in the system file manager instead.
+//                                 shareSheetAvailable() is false there and the Share
+//                                 action is hidden, so nothing calls into it.
 #include <QString>
 
 class QWidget;
 
 namespace stencil::support {
 
-  // Shows the OS's share UI (or, on Linux, reveals the file) for the file already
-  // written at `filePath` — the caller has already rendered and saved it, this only
-  // hands it off. `anchor` positions a popover on platforms that show one near a
-  // control; `title` is the share sheet's subject line where the OS displays one.
-  // Returns false only when nothing could be shown at all (a missing file, or no
-  // desktop integration available) — the caller reports that as "not supported here".
+  // Whether this platform has an OS share sheet at all — true on macOS/Windows, false
+  // on Linux. The Share action is hidden where this is false, the way the browser hides
+  // its own button when navigator.canShare() refuses files (utils.js supportsShareFiles).
+  bool shareSheetAvailable();
+
+  // Shows the OS's share UI for the file already written at `filePath` — the caller has
+  // already rendered and saved it, this only hands it off. `anchor` positions a popover
+  // on platforms that show one near a control; `title` is the share sheet's subject line
+  // where the OS displays one.
+  // Returns false only when nothing could be shown at all (a missing file, or the
+  // native picker refusing to open) — the caller reports that as "not supported here".
   bool showShareSheet(QWidget* anchor, const QString& filePath, const QString& title);
 
 }  // namespace stencil::support
