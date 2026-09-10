@@ -1061,32 +1061,21 @@ class OpSpec:
     """One §13 registry entry — the single source of an op's existence on this surface.
 
     Membership, the key schema and the flags come from the shared opRegistry.json entry
-    (SCHEMA); this surface adds the validator (the table-driven check + normalize),
-    the applier, the prompt bullet and the block that carries it, so the "Available
-    ops" prompt sections are GENERATED from the same table that validation and
-    execution dispatch on: the prompt can never promise an op this surface cannot run.
+    (SCHEMA), the prompt bullet included; this surface adds the validator (the
+    table-driven check + normalize), the applier and the block that carries the bullet,
+    so the "Available ops" prompt sections are GENERATED from the same table that
+    validation and execution dispatch on: the prompt can never promise an op this
+    surface cannot run.
     """
 
     validator: Callable[[dict], dict]
     applier: Callable[..., None]
     fields: FrozenSet[str]          # allowed action keys (including "op" itself)
-    bullet: str                     # the op's prompt bullet, verbatim (§4/§10)
+    bullet: str                     # the asset's prompt bullet, verbatim (§4/§10)
     scope: str = "core"             # which block carries the bullet: "core"|"console"
     top_level_only: bool = False    # §2/§2.1: inside "variants" it drops that variant
     console_settings: bool = False  # §10 console profile: variant ban + console hooks
     capability: str = ""            # runtime capability the op needs ("" = always wired)
-
-
-# A bullet documenting two ops rides both entries and is emitted once (§4 keeps
-# undo/redo — and the console's connect/disconnect — as single shared bullets).
-_UNDO_REDO_BULLET = """- {"op":"undo","steps":1} / {"op":"redo","steps":1} — step this surface's edit history.
-  "Undo that" means {"op":"undo"}; steps count history entries, which can be finer
-  than one request."""
-
-_CONNECT_DISCONNECT_BULLET = """- {"op":"connect","server":"..."} / {"op":"disconnect","server":"..."} — manage the
-  user's collaboration-server connections. Only a server listed in the console
-  state below may be named — never invent, complete, or suggest a new address; for
-  a server not listed there, tell the user to run '/connect <url>' themselves."""
 
 
 def _make_validator(
@@ -1105,125 +1094,50 @@ def _make_validator(
     return validate
 
 
-# What this surface adds to each registry entry: (applier, normalizer, bullet scope,
-# bullet). Table order is prompt order: the §2 core ops as §4 lists them, then the
-# §10 console-profile ops as the console block splices them (reset last — a §2 core
-# op whose bullet rides the console block). The pystencil console carries the cli
-# console's profile minus accent/reconnect (no theme, no reconnect command) and copy
+# What this surface adds to each registry entry: (applier, normalizer, bullet scope).
+# The bullet prose itself comes from the shared opRegistry.json entry, so a canonical
+# reword lands here untouched. Table order is prompt order: the §2 core ops as §4 lists
+# them, then the §10 console-profile ops as the console block splices them (reset last —
+# a §2 core op whose bullet rides the console block). The pystencil console carries the
+# cli console's profile minus accent/reconnect (no theme, no reconnect command) and copy
 # (no clipboard) — the registry restricts those entries to the cli, so they are never
 # registered or promised here.
 _SURFACE_OPS: Dict[str, tuple] = {
-    "crop": (
-        _apply_crop, _normalize_crop, "core",
-        """- {"op":"crop","spec":{"x1":"10%","x2":"-10%","aspect":"3:4"}} — move edges inward;
-  tokens are numbers with optional unit % / px / cm / in; a leading "-" measures from the
-  opposite side. Include only the edges you want to move. For a target aspect ratio add
-  "aspect":"W:H" INSIDE "spec", never beside it (portrait "3:4", album/landscape "4:3",
-  square "1:1") — the editor cuts the resolved crop to that exact ratio about its centre,
-  so NEVER derive ratio tokens yourself; combine it with edge tokens when a specific
-  region should be kept.""",
-    ),
-    "rotate": (
-        _apply_rotate, None, "core",
-        """- {"op":"rotate","dir":"left"|"right","times":1..3} — quarter turns only.""",
-    ),
-    "filter": (
-        _apply_filter, None, "core",
-        """- {"op":"filter","mode":"none"|"bw"|"sepia"|"invert"|"contour"|"custom","tint":"#rrggbb"}
-  — "custom" is a duotone tint and requires "tint"; "contour" is edge detection.""",
-    ),
-    "layout": (
-        _apply_layout, None, "core",
-        """- {"op":"layout","lines":[{"points":[{"x":0,"y":0},...],"color":"#FFFF00","thickness":2,
-  "pointSize":4,"style":"solid"|"dashed"|"dotted","locked":false,"fillColor":"transparent"}]}
-  — draw annotation polylines in image-pixel coordinates. When asked to extract lines,
-  shapes, or structure from an attached image, answer with this op. An empty "lines"
-  array REMOVES every drawn line — that is what "clear/remove the lines" means.""",
-    ),
-    "formula": (
-        _apply_formula, None, "core",
-        """- {"op":"formula","axis":"x"|"y","expr":"x*2+10"} — coordinate transform; single variable
-  matching the axis; operators + - * / ** and parentheses only. An empty "expr" clears
-  that axis; {"op":"formula","enabled":false} switches formulas OFF entirely.""",
-    ),
-    "page": (
-        _apply_page, _float_dims, "core",
-        """- {"op":"page","format":"a4"} — ISO page formats a0–a10, b0–b10, c0–c10 — or a custom
-  size: {"op":"page","width":20,"height":30} in centimetres (one form or the other).""",
-    ),
-    "blank": (
-        _apply_blank, _float_dims, "core",
-        """- {"op":"blank","color":"#ffffff","format":"a4"} — create a blank page; explicit
-  centimetre dims ride as "width"/"height" instead of "format".""",
-    ),
-    "undo": (_apply_history_step, None, "core", _UNDO_REDO_BULLET),
-    "redo": (_apply_history_step, None, "core", _UNDO_REDO_BULLET),
-    "frame": (
-        _apply_frame, None, "core",
-        """- {"op":"frame","index":0} or {"op":"frame","indices":[0,30,60]} — pick video frame(s);
-  only valid when the current input is a video.""",
-    ),
-    "image": (
-        _apply_image, None, "core",
-        """- {"op":"image","index":1} — switch the working image to the Nth image attached to THIS
-  message (1-based, in attachment order); coordinates in later actions are in THAT
-  image's pixel frame. Only valid when the user attached images. Use it to edit several
-  attached images in one plan, giving each image its OWN actions.""",
-    ),
-    "save": (
-        _apply_save, _normalize_save, "core",
-        """- {"op":"save","name":"portrait 1"} — save the current image with its drawn lines as a
-  project. When the user asks to process several images and keep the results, finish
-  each image's actions with a "save" before switching to the next: image 1, its edits,
-  save, image 2, its edits, save, …""",
-    ),
+    "crop": (_apply_crop, _normalize_crop, "core"),
+    "rotate": (_apply_rotate, None, "core"),
+    "filter": (_apply_filter, None, "core"),
+    "layout": (_apply_layout, None, "core"),
+    "formula": (_apply_formula, None, "core"),
+    "page": (_apply_page, _float_dims, "core"),
+    "blank": (_apply_blank, _float_dims, "core"),
+    "undo": (_apply_history_step, None, "core"),
+    "redo": (_apply_history_step, None, "core"),
+    "frame": (_apply_frame, None, "core"),
+    "image": (_apply_image, None, "core"),
+    "save": (_apply_save, _normalize_save, "core"),
     # The §10 console profile executes through the console's hooks.
-    "connect": (_apply_console_op, _strip_field("server"), "console", _CONNECT_DISCONNECT_BULLET),
-    "disconnect": (_apply_console_op, _strip_field("server"), "console", _CONNECT_DISCONNECT_BULLET),
-    "delete": (
-        _apply_console_op, _strip_field("path"), "console",
-        """- {"op":"delete","path":"old.stencil"} — delete a LOCAL .stencil project file in
-  the working directory (the console's /delete). Only .stencil files, never a URL
-  or a path outside the working directory.""",
-    ),
-    "openUrl": (
-        _apply_console_op, _normalize_open_url, "console",
-        """- {"op":"openUrl","url":"https://…"} — load an image (or video frame) from a URL
-  as the working image (the console's /upload). ONLY a URL the user themselves
-  wrote in this conversation — never introduce, complete, or rewrite one.""",
-    ),
-    "clear": (
-        _apply_console_op, None, "console",
-        """- {"op":"clear"} — REMOVE the working image and its lines, leaving the editor empty.
-  This is what "remove/delete/clear the image" means. Never answer that with
-  {"op":"blank"}: a blank REPLACES the picture with a white page, which is not a
-  removal. Takes no fields.""",
-    ),
+    "connect": (_apply_console_op, _strip_field("server"), "console"),
+    "disconnect": (_apply_console_op, _strip_field("server"), "console"),
+    "delete": (_apply_console_op, _strip_field("path"), "console"),
+    "openUrl": (_apply_console_op, _normalize_open_url, "console"),
+    "clear": (_apply_console_op, None, "console"),
     # clearChat runs via the /chat clear path with an in-app confirm, DEFERRED to the
     # end of the turn (the REPL's plan_clear_chat hook records it).
-    "clearChat": (
-        _apply_console_op, None, "console",
-        """- {"op":"clearChat"} — clear THIS conversation's history; the app asks the user to
-  confirm first, and the clear happens after this plan's other actions finish. This IS
-  what "clear the chat / conversation / history" means; never answer that it cannot be
-  done. Takes no fields.""",
-    ),
-    "reset": (
-        _apply_reset, None, "console",
-        """- {"op":"reset"} — drop every edit, back to the image exactly as it was loaded (the
-  console's /reset). Takes no fields.""",
-    ),
+    "clearChat": (_apply_console_op, None, "console"),
+    "reset": (_apply_reset, None, "console"),
 }
 
 OP_REGISTRY: Dict[str, OpSpec] = {}
-for _name, (_applier, _normalizer, _scope, _bullet) in _SURFACE_OPS.items():
+for _name, (_applier, _normalizer, _scope) in _SURFACE_OPS.items():
     _entry = SCHEMA.ops.get(_name)
     if _entry is None:  # pragma: no cover - guards registry edits
         raise AssertionError('"%s" has no pystencil entry in opRegistry.json' % _name)
     _flags = _entry["flags"]
     OP_REGISTRY[_name] = OpSpec(
         _make_validator(_entry, _normalizer), _applier,
-        frozenset({"op", *_entry["keys"]}), _bullet, scope=_scope,
+        # A bullet shared by two ops (undo/redo, connect/disconnect) sits on the
+        # first entry; the partner's asset bullet is null and emits nothing.
+        frozenset({"op", *_entry["keys"]}), _entry["bullet"] or "", scope=_scope,
         # §2/§2.1 top-level-only ops drop the variant they appear in; the §10
         # settings ops do the same (with their own message) and run through the
         # console hooks.
@@ -1292,12 +1206,13 @@ def _assemble_ops_bullets(
     """Concatenate a prompt block's op bullets from the registry (contract §13).
 
     Registry order is emission order; a bullet shared by two ops (undo/redo,
-    connect/disconnect) is emitted once. An entry whose ``capability`` is not in
-    ``capabilities`` is excluded — the op is then never promised to the model and
-    falls to §1's unknown-op skip. A bullet matching a censor pattern raises."""
+    connect/disconnect) sits on the first entry and the partner's is empty, so it is
+    emitted once. An entry whose ``capability`` is not in ``capabilities`` is excluded —
+    the op is then never promised to the model and falls to §1's unknown-op skip. A
+    bullet matching a censor pattern raises."""
     bullets: List[str] = []
     for name, spec in registry.items():
-        if spec.scope != scope:
+        if spec.scope != scope or not spec.bullet:
             continue
         if spec.capability and spec.capability not in capabilities:
             continue

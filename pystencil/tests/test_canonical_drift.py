@@ -148,6 +148,58 @@ class OpRegistryAssetDriftTests(unittest.TestCase):
             keys = (e.get("surfaceKeys") or {}).get("pystencil") or e["keys"]
             self.assertEqual(OP_REGISTRY[e["name"]].fields, frozenset({"op", *keys}), e["name"])
 
+    def test_prompt_bullets_come_from_the_asset(self):
+        """Every registered op's bullet IS the asset's — no hand-copied prose here.
+
+        A bullet shared by two ops (undo/redo, connect/disconnect) sits on the first
+        entry; the partner's asset bullet is null and registers as empty.
+        """
+        from pystencil.llm import OP_REGISTRY, SCHEMA
+
+        asset = json.loads(_DATA_REGISTRY.read_text(encoding="utf-8"))
+        seen = 0
+        for e in asset["ops"]:
+            name = e["name"]
+            if SCHEMA.profile not in e["profiles"] or name not in OP_REGISTRY:
+                continue  # a name can repeat across profiles (extension's own "filter")
+            variants = e.get("bulletVariants") or {}
+            variant = variants.get("pystencil")
+            if variant is None:
+                variant = variants.get(SCHEMA.profile)
+            expected = variant if isinstance(variant, str) else e.get("bullet")
+            self.assertEqual(OP_REGISTRY[name].bullet, expected or "", name)
+            seen += 1
+        self.assertEqual(seen, len(OP_REGISTRY))
+
+    def test_assembled_prompts_carry_the_asset_bullets(self):
+        """Each op's asset bullet appears verbatim in the block that carries it."""
+        from pystencil.llm import CONSOLE_SYSTEM_PROMPT, LLM_SYSTEM_PROMPT, OP_REGISTRY
+
+        for name, spec in OP_REGISTRY.items():
+            if not spec.bullet:
+                continue
+            with self.subTest(op=name):
+                self.assertIn(spec.bullet, CONSOLE_SYSTEM_PROMPT)
+                self.assertEqual(spec.scope == "core", spec.bullet in LLM_SYSTEM_PROMPT)
+
+    def test_assembled_prompt_lengths(self):
+        """Byte pins on the two assembled prompts — a canonical bullet edit fails here.
+
+        The console prompt is the LLM one with the §10 block spliced at the shared ask
+        anchor, so it stays the longer of the two.
+        """
+        from pystencil.llm import (
+            CONSOLE_SETTINGS_PROMPT,
+            CONSOLE_SPLICE_ANCHOR,
+            CONSOLE_SYSTEM_PROMPT,
+            LLM_SYSTEM_PROMPT,
+        )
+
+        self.assertEqual(len(LLM_SYSTEM_PROMPT.encode()), 8678)
+        self.assertEqual(len(CONSOLE_SETTINGS_PROMPT.encode()), 1532)
+        self.assertEqual(len(CONSOLE_SYSTEM_PROMPT.encode()), 10211)
+        self.assertIn("\n" + CONSOLE_SETTINGS_PROMPT + CONSOLE_SPLICE_ANCHOR, CONSOLE_SYSTEM_PROMPT)
+
 
 if __name__ == "__main__":
     unittest.main()

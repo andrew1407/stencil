@@ -1961,7 +1961,7 @@ class OpRegistryTest(unittest.TestCase):
                          {"connect", "disconnect", "delete", "openUrl", "clear",
                           "clearChat"})
 
-    # One key semantic phrase per bullet (§13's pin (c)).
+    # One key semantic phrase per bullet (§13's pin (c)); a shared partner has none.
     KEY_PHRASES = {
         "crop": "NEVER derive ratio tokens yourself",
         "rotate": "quarter turns only",
@@ -1987,18 +1987,18 @@ class OpRegistryTest(unittest.TestCase):
     def test_each_bullet_carries_its_key_phrase(self):
         self.assertEqual(set(self.KEY_PHRASES), set(OP_REGISTRY))
         for name, phrase in self.KEY_PHRASES.items():
-            self.assertIn(phrase, OP_REGISTRY[name].bullet, name)
+            self.assertIn(phrase, OP_REGISTRY[name].bullet or CONSOLE_SYSTEM_PROMPT, name)
 
-    def test_shared_bullets_ride_both_entries_and_emit_once(self):
-        self.assertIs(OP_REGISTRY["undo"].bullet, OP_REGISTRY["redo"].bullet)
-        self.assertIs(OP_REGISTRY["connect"].bullet, OP_REGISTRY["disconnect"].bullet)
+    def test_shared_bullets_sit_on_one_entry_and_emit_once(self):
+        self.assertEqual(OP_REGISTRY["redo"].bullet, "")
+        self.assertEqual(OP_REGISTRY["disconnect"].bullet, "")
         self.assertEqual(LLM_SYSTEM_PROMPT.count(OP_REGISTRY["undo"].bullet), 1)
         self.assertEqual(
             CONSOLE_SETTINGS_PROMPT.count(OP_REGISTRY["connect"].bullet), 1
         )
 
     def test_bullets_reach_exactly_their_prompt_block(self):
-        for name, spec in OP_REGISTRY.items():
+        for name, spec in ((n, s) for n, s in OP_REGISTRY.items() if s.bullet):
             if spec.scope == "core":
                 self.assertIn(spec.bullet, LLM_SYSTEM_PROMPT, name)
                 self.assertNotIn(spec.bullet, CONSOLE_SETTINGS_PROMPT, name)
