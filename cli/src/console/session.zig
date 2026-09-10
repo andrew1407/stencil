@@ -644,7 +644,7 @@ pub const Session = struct {
 
     /// Page-format label shown next to the px size, e.g. "A4 21×29.7cm" (picked size oriented
     /// to the image, or "custom <w>×<h>cm"). Shares the one derivation with the one-shot
-    /// pipeline's wrote line (pipeline.pageLabelAlloc). Owned by the caller.
+    /// pipeline's wrote line (page.pageLabelAlloc). Owned by the caller.
     pub fn pageFormatLabel(self: *Session) ![]u8 {
         const img = self.current();
         return pipeline.pageLabelAlloc(self.gpa, self.page_size, self.custom_page_w, self.custom_page_h, img.width, img.height);

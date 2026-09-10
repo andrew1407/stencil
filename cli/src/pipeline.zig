@@ -20,6 +20,7 @@ const server = @import("serverClient.zig");
 const args = @import("args.zig");
 const logo = @import("logo.zig");
 const confine = @import("confine.zig");
+const page_mod = @import("page.zig");
 
 const MAX_FILE = 256 << 20; // 256 MiB read cap for inputs
 const BLANK_MIN = 1;
@@ -129,8 +130,8 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
     }
     // The page reported in the `wrote` line follows the effective page state: an applied
     // layout's pageSize (custom cm dims included), else a blank's picked format, else A4.
-    const page_name = effectivePageName(if (doc) |*d| d.page_size else null, if (opts.blank) |b| b.page else null);
-    const page_label = try pageLabelAlloc(
+    const page_name = page_mod.effectivePageName(if (doc) |*d| d.page_size else null, if (opts.blank) |b| b.page else null);
+    const page_label = try page_mod.pageLabelAlloc(
         gpa,
         page_name,
         if (doc) |*d| d.custom_page_w else 0,
@@ -228,7 +229,7 @@ pub fn applyCropSpec(gpa: std.mem.Allocator, img: *image.Rgba8, spec: []const u8
 /// dims), without cropping — for the console's structured model, which records the rect rather
 /// than baking. Prints + returns null on a bad spec.
 pub fn resolveCropSpec(gpa: std.mem.Allocator, w: usize, h: usize, spec: []const u8, album: bool) ?core.Rect {
-    const page = pageForImage(gpa, w, h);
+    const page = page_mod.pageForImage(gpa, w, h);
     const px_per_cm_x = @as(f64, @floatFromInt(w)) / page.w;
     const px_per_cm_y = @as(f64, @floatFromInt(h)) / page.h;
     return core.resolveCrop(gpa, spec, @floatFromInt(w), @floatFromInt(h), px_per_cm_x, px_per_cm_y, page.w, page.h, album) orelse {
@@ -388,15 +389,11 @@ fn mapMediaError(e: anyerror) anyerror {
 // ── blank synthesis ──────────────────────────────────────────────────────────
 
 pub fn acquireBlank(gpa: std.mem.Allocator, blank: args.Blank) !image.Rgba8 {
-    // Explicit dims win; else the picked page format; else the default A4.
-    const page = core.namedPageSize(gpa, blank.page orelse "A4") orelse core.Page{ .w = 21.0, .h = 29.7 };
-    var w: i64 = undefined;
-    var h: i64 = undefined;
-    if (blank.width != null and blank.height != null) {
-        w = blank.width.?;
-        h = blank.height.?;
-    } else {
-        const s = core.defaultBlankSizePx(page.w, page.h, 96.0);
+    // Explicit dims win; else the picked page format's default size.
+    var w: i64 = blank.width orelse 0;
+    var h: i64 = blank.height orelse 0;
+    if (blank.width == null or blank.height == null) {
+        const s = page_mod.blankSizeFor(gpa, blank.page, 0, 0);
         w = s.w;
         h = s.h;
     }
@@ -433,46 +430,7 @@ fn rotateInPlace(gpa: std.mem.Allocator, img: *image.Rgba8, rotate: i32) !void {
     img.* = .{ .width = uw, .height = uh, .pixels = dst };
 }
 
-// ── page + output helpers ────────────────────────────────────────────────────
-
-pub fn pageForImage(gpa: std.mem.Allocator, w: usize, h: usize) core.Page {
-    return namedPageForImage(gpa, "A4", w, h);
-}
-
-/// A named page format's cm dims oriented to a `w`×`h` image (landscape swap, mirroring
-/// core pageDimensions); an unknown name falls back to the A4 dims.
-pub fn namedPageForImage(gpa: std.mem.Allocator, name: []const u8, w: usize, h: usize) core.Page {
-    const base = core.namedPageSize(gpa, name) orelse
-        core.namedPageSize(gpa, "A4") orelse core.Page{ .w = 21.0, .h = 29.7 };
-    // Landscape image -> lay the page on its side, mirroring core pageDimensions.
-    if (w > h) return .{ .w = @max(base.w, base.h), .h = @min(base.w, base.h) };
-    return .{ .w = @min(base.w, base.h), .h = @max(base.w, base.h) };
-}
-
-/// The page name the one-shot `wrote` line reports against: an applied layout's pageSize
-/// wins, then --blank's picked format, else "" (→ the A4 default). Pure; unit-tested.
-pub fn effectivePageName(layout_page: ?[]const u8, blank_page: ?[]const u8) []const u8 {
-    return layout_page orelse (blank_page orelse "");
-}
-
-/// The page label printed next to the px size ("<name> <w>×<h>cm"): a named pick oriented
-/// to the image, "custom <w>×<h>cm" for explicit cm dims, or the A4-derived default when
-/// nothing is picked (empty name). The ONE derivation shared by the one-shot wrote line and
-/// the console's header/save label (Session.pageFormatLabel). Caller owns the result.
-pub fn pageLabelAlloc(gpa: std.mem.Allocator, page_size: []const u8, custom_w: f64, custom_h: f64, w: usize, h: usize) ![]u8 {
-    var name: []const u8 = "A4";
-    var dims = pageForImage(gpa, w, h);
-    if (page_size.len != 0) {
-        name = page_size;
-        if (std.ascii.eqlIgnoreCase(page_size, "custom")) {
-            // Custom dims are reported as picked (never orientation-swapped to the image).
-            if (custom_w > 0 and custom_h > 0) dims = .{ .w = custom_w, .h = custom_h };
-        } else {
-            dims = namedPageForImage(gpa, page_size, w, h);
-        }
-    }
-    return std.fmt.allocPrint(gpa, "{s} {d}×{d}cm", .{ name, dims.w, dims.h });
-}
+// ── output helpers ───────────────────────────────────────────────────────────
 
 const Resolved = struct { path: []u8, fmt: image.Format };
 
@@ -507,6 +465,11 @@ fn extOf(path: []const u8) ?[]const u8 {
 
 /// The `..` guard lives in confine.zig; re-exported for scrape.zig and the console's /save.
 pub const hasParentTraversal = confine.hasParentTraversal;
+
+// Page-format policy lives in page.zig; re-exported for the console's call sites.
+pub const blankSizeFor = page_mod.blankSizeFor;
+pub const effectivePageName = page_mod.effectivePageName;
+pub const pageLabelAlloc = page_mod.pageLabelAlloc;
 
 const testing = std.testing;
 

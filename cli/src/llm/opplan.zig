@@ -3,6 +3,7 @@
 //! plus the cli's own typed normalizers and extras), and the executor helpers
 //! (crop specs, server resolution, console context, label sanitizing).
 const std = @import("std");
+const host = @import("../host.zig");
 const registry = @import("registry.zig");
 const opSchema = @import("opSchema.zig");
 const transport = @import("transport.zig");
@@ -27,9 +28,6 @@ pub const max_label_chars = 40;
 /// Attachments larger than this are sent text-only with a note (contract-adjacent cap,
 /// shared with mcp — the console cannot downscale without pulling a resampler into core).
 pub const max_image_bytes: usize = 8 * 1024 * 1024;
-/// §11: the card's free-text row label — the registry's `ask.defaultCustomLabel`
-/// (drift-tested below); the parser reads the registry's copy.
-pub const default_custom_label = "Something else…";
 
 // ── The op-plan (contract §1–§3) ─────────────────────────────────────────────
 
@@ -129,7 +127,7 @@ pub const Ask = struct {
     question: []const u8,
     multi: bool = false,
     allow_custom: bool = false,
-    custom_label: []const u8 = default_custom_label,
+    custom_label: []const u8, // always set from the registry by parseAsk
     options: []AskOption = &.{},
 };
 
@@ -709,33 +707,17 @@ pub fn resolveServer(urls: []const []const u8, want_raw: []const u8) ServerMatch
     for (urls, 0..) |u, i| {
         if (std.mem.eql(u8, u, want)) return .{ .index = i };
     }
+    // A bare IPv6 name may be written with or without brackets; the split strips them.
+    const want_host = if (want.len >= 2 and want[0] == '[' and want[want.len - 1] == ']') want[1 .. want.len - 1] else want;
     var found: ?usize = null;
     for (urls, 0..) |u, i| {
-        const auth = urlAuthority(u);
-        if (std.ascii.eqlIgnoreCase(auth, want) or std.ascii.eqlIgnoreCase(urlHostname(auth), want)) {
+        const a = host.authorityOf(u) orelse continue;
+        if (std.ascii.eqlIgnoreCase(a.raw, want) or std.ascii.eqlIgnoreCase(a.host, want_host)) {
             if (found != null) return .ambiguous;
             found = i;
         }
     }
     return if (found) |i| .{ .index = i } else .none;
-}
-
-/// "scheme://host:port/path" → "host:port" (userinfo-free server bases only).
-fn urlAuthority(url: []const u8) []const u8 {
-    var rest = url;
-    if (std.mem.indexOf(u8, rest, "://")) |i| rest = rest[i + 3 ..];
-    const end = std.mem.indexOfScalar(u8, rest, '/') orelse rest.len;
-    return rest[0..end];
-}
-
-/// "host:port" → "host" (a bracketed IPv6 literal keeps its brackets).
-fn urlHostname(auth: []const u8) []const u8 {
-    if (std.mem.startsWith(u8, auth, "[")) {
-        if (std.mem.indexOfScalar(u8, auth, ']')) |i| return auth[0 .. i + 1];
-        return auth;
-    }
-    if (std.mem.lastIndexOfScalar(u8, auth, ':')) |i| return auth[0..i];
-    return auth;
 }
 
 /// One live connection as the console-context suffix sees it: the URL and (optionally)
@@ -852,9 +834,10 @@ fn mustReject(raw: []const u8, expected: []const u8) !void {
     }
 }
 
-test "registry drift: the cli's own copies of registry values" {
-    try testing.expectEqualStrings(opSchema.get().default_custom_label, default_custom_label);
-    // Every schema entry has an executor-side descriptor and vice versa.
+// registry.zig's table is NOT a copy of opRegistry.json: it adds the `Action` tag, the
+// verbatim §4 bullets and the capability, none of which the JSON carries. Only the op
+// NAMES overlap, and nothing comptime can pin them (the schema is parsed at runtime).
+test "every op name has both a schema entry and an executor descriptor" {
     for (opSchema.get().entries) |e| try testing.expect(findOp(e.name) != null);
     for (op_registry) |d| try testing.expect(opSchema.get().find(d.name) != null);
 }
@@ -1231,7 +1214,7 @@ test "parsePlan: ask card, defaults, and multi mode" {
     try testing.expectEqualStrings("Which tint?", ask.question);
     try testing.expect(!ask.multi); // default single
     try testing.expect(!ask.allow_custom);
-    try testing.expectEqualStrings(default_custom_label, ask.custom_label);
+    try testing.expectEqualStrings(opSchema.get().default_custom_label, ask.custom_label);
     try testing.expectEqual(@as(usize, 2), ask.options.len);
     try testing.expectEqualStrings("Sepia", ask.options[0].label);
 

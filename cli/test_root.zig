@@ -19,5 +19,6 @@ test {
     _ = @import("tests/layout_fixtures_test.zig");
     _ = @import("tests/stencil_project_fixtures_test.zig");
     _ = @import("tests/color_names_drift_test.zig");
+    _ = @import("tests/page_sizes_drift_test.zig");
     _ = @import("tests/size_budget_test.zig");
 }

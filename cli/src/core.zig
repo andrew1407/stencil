@@ -170,6 +170,50 @@ pub fn parseDuration(allocator: std.mem.Allocator, spec: []const u8) ?i64 {
     return @intCast(ms);
 }
 
+/// Number of CSS colour keywords the core's own table carries.
+pub fn colorNameCount() usize {
+    return @intCast(c.stencil_cli_colorNameCount());
+}
+
+/// The colour keyword at `index` (alphabetical) and its 0xRRGGBB. null out of range.
+/// Together with colorNameCount this makes a table drift check bidirectional.
+pub fn colorNameAt(index: usize) ?struct { name: []const u8, rgb: u32 } {
+    var rgb: c_uint = 0;
+    const p = c.stencil_cli_colorNameAt(@intCast(index), &rgb) orelse return null;
+    return .{ .name = std.mem.span(p), .rgb = @intCast(rgb) };
+}
+
+/// The `/expire` unit words and keep-forever aliases the core parser accepts, joined
+/// as help text ("day | week | …"). Backed by a call-local static buffer: the console
+/// prints the slice straight away, and both lists are short and fixed.
+pub fn durationUnitsHelp() []const u8 {
+    const S = struct {
+        var buf: [96]u8 = undefined;
+    };
+    return joinPipes(&S.buf, std.mem.span(c.stencil_cli_durationUnits()));
+}
+
+pub fn durationOffHelp() []const u8 {
+    const S = struct {
+        var buf: [48]u8 = undefined;
+    };
+    return joinPipes(&S.buf, std.mem.span(c.stencil_cli_durationOffAliases()));
+}
+
+fn joinPipes(buf: []u8, words: []const u8) []const u8 {
+    var n: usize = 0;
+    var it = std.mem.tokenizeScalar(u8, words, ' ');
+    while (it.next()) |word| {
+        if (n > 0) {
+            @memcpy(buf[n..][0..3], " | ");
+            n += 3;
+        }
+        @memcpy(buf[n..][0..word.len], word);
+        n += word.len;
+    }
+    return buf[0..n];
+}
+
 const testing = std.testing;
 
 test "parseColor: names, hex, rejects junk" {
@@ -200,6 +244,22 @@ test "formula validate + apply through the ABI" {
     try testing.expectEqual(@as(f64, 20), applyFormula(a, "x*2", 'x', 10, true));
     try testing.expectEqual(@as(f64, 10), applyFormula(a, "x*2", 'x', 10, false)); // disabled = identity
     try testing.expectEqual(@as(f64, 10), applyFormula(a, "bad(", 'x', 10, true)); // invalid = identity
+}
+
+test "the core's expire vocabulary joins into the console help lists" {
+    try testing.expectEqualStrings("day | week | fortnight | month | year", durationUnitsHelp());
+    try testing.expectEqualStrings("off | never | none", durationOffHelp());
+}
+
+test "colour-name enumeration is alphabetical and matches parseColor" {
+    const a = testing.allocator;
+    try testing.expect(colorNameCount() > 100);
+    const first = colorNameAt(0).?;
+    try testing.expectEqualStrings("aliceblue", first.name);
+    try testing.expectEqual(@as(u32, 0xf0f8ff), first.rgb);
+    try testing.expect(colorNameAt(colorNameCount()) == null);
+    const got = parseColor(a, first.name).?;
+    try testing.expectEqual(@as(u8, 0xf0), got.r);
 }
 
 test "parseDuration through the ABI" {

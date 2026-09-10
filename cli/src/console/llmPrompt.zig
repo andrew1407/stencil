@@ -855,7 +855,7 @@ fn acquirePlanBlank(session: *const Session, b: anytype, variant: ?[]const u8) ?
         return null;
     }
     if (b.width > 0 and b.height > 0) {
-        const s = core.defaultBlankSizePx(b.width, b.height, 96.0);
+        const s = pipeline.blankSizeFor(gpa, null, b.width, b.height);
         const img = pipeline.acquireBlank(gpa, .{ .width = @intCast(s.w), .height = @intCast(s.h), .color = b.color }) catch return null;
         return .{ .img = img, .page = null, .custom_w = b.width, .custom_h = b.height };
     }

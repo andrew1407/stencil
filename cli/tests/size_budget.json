@@ -16,16 +16,16 @@
     "cli/src/console/ui.zig": 278,
     "cli/src/line_edit.zig": 1256,
     "cli/src/llm/opSchema.zig": 821,
-    "cli/src/llm/opplan.zig": 854,
+    "cli/src/llm/opplan.zig": 839,
     "cli/src/llm/registry.zig": 440,
     "cli/src/llm/transport.zig": 255,
     "cli/src/llm/wire.zig": 457,
     "cli/src/logo.zig": 472,
-    "cli/src/net.zig": 290,
-    "cli/src/pipeline.zig": 514,
+    "cli/src/net.zig": 138,
+    "cli/src/pipeline.zig": 475,
     "cli/src/project.zig": 341,
     "cli/src/scrape.zig": 1079,
-    "cli/src/serverClient.zig": 1056
+    "cli/src/serverClient.zig": 1017
   },
   "commentPct": {
     "cli/src": 14,

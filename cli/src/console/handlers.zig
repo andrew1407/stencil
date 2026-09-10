@@ -136,7 +136,7 @@ pub fn doBlank(session: *Session, arg: []const u8) !void {
             custom_w = prev_w;
             custom_h = prev_h;
             if (custom_w > 0 and custom_h > 0) {
-                const s = core.defaultBlankSizePx(custom_w, custom_h, 96.0);
+                const s = pipeline.blankSizeFor(session.gpa, null, custom_w, custom_h);
                 blank.width = @intCast(s.w);
                 blank.height = @intCast(s.h);
             }
@@ -1016,12 +1016,12 @@ pub fn doExpire(session: *Session, io: std.Io, arg: []const u8) !void {
     }
 }
 
-/// Print the `/expire` duration formats (also shown on a bad argument).
+/// Print the `/expire` formats (bare or bad arg); the word lists come from the core parser.
 fn printExpireFormats() void {
     logo.print("usage: /expire <duration> — set when the active server project expires\n", .{});
-    logo.print("  a unit alone (one of it): day | week | fortnight | month | year\n", .{});
+    logo.print("  a unit alone (one of it): {s}\n", .{core.durationUnitsHelp()});
     logo.print("  a count + unit (either order): 'days 23' | 'months 3' | '3 weeks'\n", .{});
-    logo.print("  keep forever: off | never | none\n", .{});
+    logo.print("  keep forever: {s}\n", .{core.durationOffHelp()});
 }
 
 /// Version-guarded PUT of a project's expiry (epoch ms; 0 = keep forever) with a 409 retry,

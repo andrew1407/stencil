@@ -35,26 +35,9 @@ pub const Transport = *const fn (
 
 /// Normalize a server URL to a clean origin: add http:// if no scheme, drop any
 /// path/trailing slash. Caller owns the returned slice.
-/// Extract the host from a bare authority ("host:port", "[::1]:port", or "host").
-fn bareHost(s: []const u8) []const u8 {
-    if (s.len > 0 and s[0] == '[') {
-        if (std.mem.indexOfScalar(u8, s, ']')) |close| return s[1..close];
-    }
-    if (std.mem.indexOfScalar(u8, s, ':')) |colon| return s[0..colon];
-    return s;
-}
-
-/// True for a loopback host (localhost, *.localhost, 127.0.0.0/8, ::1), where plaintext
-/// http is safe because the bytes never leave the machine.
-pub fn isLoopbackHost(raw: []const u8) bool {
-    // Strip any IPv6 brackets so "[::1]" matches (mirrors the browser/desktop classifiers).
-    const host = if (raw.len >= 2 and raw[0] == '[' and raw[raw.len - 1] == ']') raw[1 .. raw.len - 1] else raw;
-    if (std.ascii.eqlIgnoreCase(host, "localhost")) return true;
-    if (host.len > ".localhost".len and std.ascii.eqlIgnoreCase(host[host.len - ".localhost".len ..], ".localhost")) return true;
-    if (std.mem.eql(u8, host, "::1")) return true;
-    if (std.mem.startsWith(u8, host, "127.")) return true;
-    return false;
-}
+/// True for a loopback host, where plaintext http is safe because the bytes never leave
+/// the machine. The one classifier, shared with the fetch guard's strict mode.
+pub const isLoopbackHost = net.isLoopbackHost;
 
 /// True when `base` would send the bearer token + image bytes in CLEARTEXT to a remote
 /// host (http scheme and not loopback) — connect() warns on these.
@@ -83,7 +66,7 @@ pub fn normalizeBase(gpa: std.mem.Allocator, url: []const u8) ![]u8 {
         // Secure by default: a bare REMOTE host gets https; loopback keeps plaintext http
         // (localhost dev servers, traffic never leaves the machine). An explicit scheme is
         // preserved, so "http://<remote>" still works — the user opts into cleartext.
-        const scheme = if (isLoopbackHost(bareHost(s))) "http://" else "https://";
+        const scheme = if (isLoopbackHost(net.hostOf(s) orelse "")) "http://" else "https://";
         buf = try std.fmt.allocPrint(gpa, "{s}{s}", .{ scheme, s });
         owned = true;
         s = buf;
@@ -315,31 +298,17 @@ pub fn parseProjectKeywords(gpa: std.mem.Allocator, body: []const u8) ![][]u8 {
     return dupeStrList(gpa, p.value.project.keywords);
 }
 
-/// Parse a single-project body ({ "project": { ..., "color": "#rrggbb" } }) for its custom
-/// name colour ("" when absent/empty). Caller owns the returned slice.
-pub fn parseProjectColor(gpa: std.mem.Allocator, body: []const u8) ![]u8 {
-    const T = struct { project: struct { color: []const u8 = "" } };
-    var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
+/// Parse one string field out of a single-project body ({ "project": { <key>: "…" } }) —
+/// "color", "blankColor" ("" = not a blank project), "description". "" when the key is
+/// absent/empty or holds a non-string. Caller owns the returned slice.
+pub fn parseProjectStringField(gpa: std.mem.Allocator, body: []const u8, key: []const u8) ![]u8 {
+    var p = std.json.parseFromSlice(std.json.Value, gpa, body, .{}) catch return Error.BadResponse;
     defer p.deinit();
-    return gpa.dupe(u8, p.value.project.color);
-}
-
-/// Parse a single-project body ({ "project": { ..., "blankColor": "#rrggbb" } }) for its
-/// blank-image fill colour ("" when absent/empty = not a blank project). Caller owns the slice.
-pub fn parseProjectBlankColor(gpa: std.mem.Allocator, body: []const u8) ![]u8 {
-    const T = struct { project: struct { blankColor: []const u8 = "" } };
-    var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
-    defer p.deinit();
-    return gpa.dupe(u8, p.value.project.blankColor);
-}
-
-/// Parse a single-project body ({ "project": { ..., "description": "..." } }) for its free-text
-/// description ("" when absent/empty). Caller owns the returned slice.
-pub fn parseProjectDescription(gpa: std.mem.Allocator, body: []const u8) ![]u8 {
-    const T = struct { project: struct { description: []const u8 = "" } };
-    var p = std.json.parseFromSlice(T, gpa, body, .{ .ignore_unknown_fields = true }) catch return Error.BadResponse;
-    defer p.deinit();
-    return gpa.dupe(u8, p.value.project.description);
+    if (p.value != .object) return Error.BadResponse;
+    const proj = p.value.object.get("project") orelse return Error.BadResponse;
+    if (proj != .object) return Error.BadResponse;
+    const v = proj.object.get(key) orelse return gpa.dupe(u8, "");
+    return gpa.dupe(u8, if (v == .string) v.string else "");
 }
 
 // ── REST client ──────────────────────────────────────────────────────────────
@@ -509,7 +478,7 @@ pub const Client = struct {
     pub fn getProjectColor(self: *Client, id: []const u8) ![]u8 {
         const body = try self.getProject(id);
         defer self.gpa.free(body);
-        return parseProjectColor(self.gpa, body);
+        return parseProjectStringField(self.gpa, body, "color");
     }
 
     /// PUT a project's custom name colour ("#rrggbb" or "" to clear), version-guarded (a stale
@@ -530,7 +499,7 @@ pub const Client = struct {
     pub fn getProjectBlankColor(self: *Client, id: []const u8) ![]u8 {
         const body = try self.getProject(id);
         defer self.gpa.free(body);
-        return parseProjectBlankColor(self.gpa, body);
+        return parseProjectStringField(self.gpa, body, "blankColor");
     }
 
     /// PUT a project's blank fill colour ("#rrggbb"), version-guarded (a stale version yields
@@ -552,7 +521,7 @@ pub const Client = struct {
     pub fn getProjectDescription(self: *Client, id: []const u8) ![]u8 {
         const body = try self.getProject(id);
         defer self.gpa.free(body);
-        return parseProjectDescription(self.gpa, body);
+        return parseProjectStringField(self.gpa, body, "description");
     }
 
     /// PUT a project's free-text description ("" clears it), version-guarded (a stale version yields
@@ -868,15 +837,9 @@ pub const HostPort = struct { host: []const u8, port: u16 };
 /// Split a normalized origin ("scheme://host[:port]") into host + REST port, defaulting
 /// the port by scheme (443 for https, else 80). The host slices into `base`. Pure.
 pub fn hostAndPort(base: []const u8) HostPort {
-    const https = std.ascii.startsWithIgnoreCase(base, "https://");
-    const def: u16 = if (https) 443 else 80;
-    const scheme_end = (std.mem.indexOf(u8, base, "://") orelse return .{ .host = base, .port = def }) + 3;
-    const authority = base[scheme_end..];
-    if (std.mem.lastIndexOfScalar(u8, authority, ':')) |i| {
-        const port = std.fmt.parseInt(u16, authority[i + 1 ..], 10) catch return .{ .host = authority, .port = def };
-        return .{ .host = authority[0..i], .port = port };
-    }
-    return .{ .host = authority, .port = def };
+    const def: u16 = if (std.ascii.startsWithIgnoreCase(base, "https://")) 443 else 80;
+    const a = net.authorityOf(base) orelse return .{ .host = base, .port = def };
+    return .{ .host = a.host, .port = a.port orelse def };
 }
 
 /// A parsed project-update event from the global feed. Caller owns id + name.
@@ -1357,26 +1320,24 @@ test "parseProjectList yields owned name/size/updatedAt/color records" {
     try testing.expectEqual(@as(usize, 0), none.len);
 }
 
-test "parseProjectColor reads a single project's colour, empty when absent" {
+test "parseProjectStringField reads one project field, empty when absent" {
     const a = testing.allocator;
-    const c = try parseProjectColor(a, "{\"project\":{\"id\":\"p_1\",\"name\":\"N\",\"color\":\"#7c3aed\"}}");
-    defer a.free(c);
-    try testing.expectEqualStrings("#7c3aed", c);
+    const body = "{\"project\":{\"id\":\"p_1\",\"name\":\"N\",\"color\":\"#7c3aed\",\"blankColor\":\"#fff\",\"description\":\"a caption\"}}";
+    for ([_][2][]const u8{
+        .{ "color", "#7c3aed" },
+        .{ "blankColor", "#fff" },
+        .{ "description", "a caption" },
+    }) |c| {
+        const got = try parseProjectStringField(a, body, c[0]);
+        defer a.free(got);
+        try testing.expectEqualStrings(c[1], got);
+    }
 
-    const none = try parseProjectColor(a, "{\"project\":{\"id\":\"p_1\",\"name\":\"N\"}}");
+    const none = try parseProjectStringField(a, "{\"project\":{\"id\":\"p_1\",\"name\":\"N\"}}", "color");
     defer a.free(none);
     try testing.expectEqualStrings("", none);
-}
 
-test "parseProjectDescription reads a single project's description, empty when absent" {
-    const a = testing.allocator;
-    const d = try parseProjectDescription(a, "{\"project\":{\"id\":\"p_1\",\"name\":\"N\",\"description\":\"a caption\"}}");
-    defer a.free(d);
-    try testing.expectEqualStrings("a caption", d);
-
-    const none = try parseProjectDescription(a, "{\"project\":{\"id\":\"p_1\",\"name\":\"N\"}}");
-    defer a.free(none);
-    try testing.expectEqualStrings("", none);
+    try testing.expectError(Error.BadResponse, parseProjectStringField(a, "{\"nope\":1}", "color"));
 }
 
 test "EditConn frame buffer handles partial, multiple, and skipped frames" {

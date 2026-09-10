@@ -1,12 +1,9 @@
 //! Cross-language drift guard: the canonical CSS colour-name table
-//! (browser/js/config/colorNames.json, embedded at build time) must resolve
-//! identically through the linked C++ core's parser (core/color/colorNames.cpp,
-//! reached via core.parseColor / stencil_cli_parseColor).
-//!
-//! Limitation: the core keeps its table in an anonymous namespace and exports no
-//! enumeration through cliApi.h, so the check is one-directional — every JSON name
-//! must parse to its JSON hex. Extra names known only to the core would go unseen;
-//! the count pin (148) at least catches JSON-side additions/removals.
+//! (browser/js/config/colorNames.json, embedded at build time) and the linked C++
+//! core's own table (core/color/colorNames.cpp) must hold the SAME names with the
+//! same hexes. The core exports its table through cliApi.h (colorNameCount /
+//! colorNameAt), so the check runs in both directions: a name known only to the
+//! core, or only to the JSON, fails here.
 const std = @import("std");
 const core = @import("../src/core.zig");
 
@@ -16,13 +13,15 @@ fn hexByte(s: []const u8) !u8 {
     return std.fmt.parseInt(u8, s, 16);
 }
 
-test "colorNames.json: 148 entries, each resolves identically through the core" {
+test "colorNames.json and the core's table agree, name for name, both ways" {
     const a = std.testing.allocator;
     const parsed = try std.json.parseFromSlice(std.json.Value, a, color_names_json, .{});
     defer parsed.deinit();
     const map = parsed.value.object;
     try std.testing.expectEqual(@as(usize, 148), map.count());
+    try std.testing.expectEqual(map.count(), core.colorNameCount());
 
+    // JSON -> core: every canon name resolves through the core to its canon hex.
     var it = map.iterator();
     while (it.next()) |entry| {
         const name = entry.key_ptr.*;
@@ -40,6 +39,22 @@ test "colorNames.json: 148 entries, each resolves identically through the core" 
         };
         std.testing.expectEqual(want, got) catch |err| {
             std.debug.print("core disagrees on \"{s}\": json {s}\n", .{ name, hex });
+            return err;
+        };
+    }
+
+    // core -> JSON: every name the core carries is in the canon, with the same hex.
+    var i: usize = 0;
+    while (i < core.colorNameCount()) : (i += 1) {
+        const entry = core.colorNameAt(i).?;
+        const canon = map.get(entry.name) orelse {
+            std.debug.print("core knows CSS name \"{s}\", the JSON canon does not\n", .{entry.name});
+            return error.NameMissingInJson;
+        };
+        var buf: [8]u8 = undefined;
+        const hex = try std.fmt.bufPrint(&buf, "#{x:0>6}", .{entry.rgb});
+        std.testing.expectEqualStrings(canon.string, hex) catch |err| {
+            std.debug.print("hex drift on \"{s}\"\n", .{entry.name});
             return err;
         };
     }
