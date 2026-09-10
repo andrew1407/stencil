@@ -1,0 +1,37 @@
+{
+  "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'. Zig convention: inline `test { }` blocks are idiomatic and not penalised, so 'files' records PRODUCTION lines (everything before the first column-0 `test \"` / `test {`), and maxNewFileLines applies to that count; 'commentPct' is over TOTAL lines.",
+  "maxNewFileLines": 230,
+  "files": {
+    "cli/src/args.zig": 232,
+    "cli/src/clipboard.zig": 298,
+    "cli/src/console.zig": 366,
+    "cli/src/console/ansi.zig": 345,
+    "cli/src/console/attachments.zig": 362,
+    "cli/src/console/handlers.zig": 1471,
+    "cli/src/console/llmPrompt.zig": 1127,
+    "cli/src/console/logoFx.zig": 440,
+    "cli/src/console/remoteEvents.zig": 257,
+    "cli/src/console/screen.zig": 953,
+    "cli/src/console/session.zig": 864,
+    "cli/src/console/ui.zig": 278,
+    "cli/src/line_edit.zig": 1256,
+    "cli/src/llm/opSchema.zig": 821,
+    "cli/src/llm/opplan.zig": 854,
+    "cli/src/llm/registry.zig": 440,
+    "cli/src/llm/transport.zig": 255,
+    "cli/src/llm/wire.zig": 457,
+    "cli/src/logo.zig": 472,
+    "cli/src/net.zig": 290,
+    "cli/src/pipeline.zig": 514,
+    "cli/src/project.zig": 341,
+    "cli/src/scrape.zig": 1079,
+    "cli/src/serverClient.zig": 1056
+  },
+  "commentPct": {
+    "cli/src": 14,
+    "cli/src/console": 14,
+    "cli/src/llm": 11,
+    "cli/tests": 11
+  },
+  "exceptions": {}
+}

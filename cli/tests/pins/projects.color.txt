@@ -1,0 +1,6 @@
+  NAME                                                SIZE      CREATED   EXPIRES  CHANGED
+  [38;2;128;134;143mposter[0m                                              1200x800  3d ago    never    5m ago
+  [38;2;128;134;143ma-very-long-project-name-that-runs-past-the-column[0m  640x480   90d ago   never    1d ago  [2m— a description long enough that the trailing note…[0m
+  [38;2;128;134;143mexpiring-soon[0m                                       800x600   2d ago    in 3d    2d ago  [2m— expires in three days[0m
+  [38;2;128;134;143mstale[0m                                               100x100   400d ago  expired  300d ago
+  [38;2;255;136;0munrendered[0m                                          -         30s ago   never    30s ago

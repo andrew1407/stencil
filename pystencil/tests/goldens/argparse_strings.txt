@@ -1,0 +1,47 @@
+prog: stencil-py
+description: Headless image editing over the shared Stencil core (Python port of the Zig CLI).
+
+-h --help [metavar= default='==SUPPRESS==']
+  show this help message and exit
+-i --input [metavar= default=None]
+  image source: a file path or http(s):// URL
+--blank [metavar=TOKEN default=None]
+  create a blank page: [format] [w h] [color] (default A4 @ 96dpi, white)
+-f --frame [metavar= default=0]
+  video frame index (parity only)
+-c --crop [metavar= default=None]
+  crop spec, e.g. "x1=10%% x2=90%% y1=10%% y2=90%%"
+--album [metavar= default=False]
+  derive the missing crop axis from the page
+-r --rotate [metavar= default=0]
+  rotate by N quarter-turns (N×90°)
+-l --layout [metavar= default=None]
+  layout JSON (path or URL) to DRAW onto the image
+--filter [metavar= default=None]
+  bw | sepia | invert | contour | none | a colour name/#hex (duotone)
+--save-layout [metavar= default=None]
+  export the structured layout JSON here
+--source-site [metavar=URL default=None]
+  scrape a web page's media into the output DIRECTORY (activates scrape mode)
+--source-count [metavar= default=None]
+  items per page/group (default 5; 0 = all)
+--group [metavar= default=0]
+  0-based page index
+--source-filter [metavar= default='all']
+  category tokens |-joined: img|video|background|poster (all = every category)
+--source-format [metavar= default='all']
+  format tokens |-joined, e.g. png|jpg|webp|mp4 (all = every format)
+--source-name [metavar= default=None]
+  regex (case-insensitive) matched against each media URL
+--source-min-width [metavar= default=0]
+  inclusive min width in px (0 = unset)
+--source-max-width [metavar= default=0]
+  inclusive max width in px (0 = unset)
+--source-min-height [metavar= default=0]
+  inclusive min height in px (0 = unset)
+--source-max-height [metavar= default=0]
+  inclusive max height in px (0 = unset)
+--console --repl [metavar= default=False]
+  start the interactive /command REPL instead of a one-shot run
+output [metavar= default=None]
+  result image path (extension auto-filled to .png)

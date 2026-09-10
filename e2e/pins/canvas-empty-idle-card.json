@@ -1,0 +1,93 @@
+{
+  "name": "canvas-empty-idle-card",
+  "root": "#idle-create-wrap",
+  "nodes": [
+    {
+      "path": ":root",
+      "tag": "div",
+      "classes": "idle-create",
+      "style": {
+        "display": "flex",
+        "position": "absolute",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "width": "783px",
+        "height": "252px",
+        "justify-content": "center",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/button[1]",
+      "tag": "button",
+      "classes": "idle-create-btn",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(233, 236, 239)",
+        "border-color": "color(srgb 0.820196 0.729608 0.975294)",
+        "border-width": "2px",
+        "border-radius": "10px",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "padding": "16px 26px",
+        "gap": "6px",
+        "width": "144.4px",
+        "height": "92.8px",
+        "text-align": "center",
+        "flex-direction": "column",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/button[1]/span[1]",
+      "tag": "span",
+      "classes": "idle-create-icon",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "32px",
+        "font-family": "Arial",
+        "width": "32px",
+        "height": "32.8px",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/button[1]/span[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-image",
+      "style": {
+        "display": "inline-block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "32px",
+        "font-family": "Arial",
+        "width": "32px",
+        "height": "32px",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/button[1]/span[2]",
+      "tag": "span",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "width": "88.4px",
+        "height": "18px",
+        "text-align": "center"
+      },
+      "text": "＋ Blank image"
+    }
+  ]
+}

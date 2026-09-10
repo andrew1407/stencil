@@ -1,0 +1,671 @@
+{
+  "name": "chat-panel-docked-right",
+  "root": "#chat-panel",
+  "nodes": [
+    {
+      "path": ":root",
+      "tag": "stencil-chat-panel",
+      "classes": "chat-dock-right chat-open chat-panel",
+      "style": {
+        "display": "flex",
+        "position": "fixed",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(248, 249, 250)",
+        "border-color": "rgb(221, 221, 221)",
+        "border-width": "1px",
+        "border-radius": "10px 0px 0px 10px",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "width": "340px",
+        "height": "720px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "box-shadow": "rgba(0, 0, 0, 0.1) 0px 8px 32px 0px",
+        "flex-direction": "column",
+        "overflow": "hidden",
+        "z-index": "90000"
+      }
+    },
+    {
+      "path": ":root/div[1]",
+      "tag": "div",
+      "classes": "chat-header",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(233, 236, 239)",
+        "border-color": "rgb(0, 0, 0) rgb(0, 0, 0) rgb(221, 221, 221)",
+        "border-width": "0px 0px 1px",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "padding": "5px 8px",
+        "gap": "3px",
+        "width": "338px",
+        "height": "34px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[1]",
+      "tag": "span",
+      "classes": "chat-title",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Arial, sans-serif",
+        "gap": "5px",
+        "width": "174px",
+        "height": "15px",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-sparkle",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Arial, sans-serif",
+        "width": "14px",
+        "height": "14px",
+        "transform": "matrix(1, 0, 0, 1, 0, 1)"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[1]/span[1]",
+      "tag": "span",
+      "classes": "chat-title-text",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "13px",
+        "font-weight": "700",
+        "font-family": "Arial, sans-serif",
+        "width": "58.5px",
+        "height": "15px",
+        "overflow": "hidden"
+      },
+      "text": "Assistant"
+    },
+    {
+      "path": ":root/div[1]/span[2]",
+      "tag": "span",
+      "classes": "chat-dock-btns",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "gap": "1px",
+        "width": "119px",
+        "height": "23px"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[1]",
+      "tag": "button",
+      "classes": "chat-dock-btn chat-hbtn",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "border-radius": "5px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "23px",
+        "height": "23px",
+        "text-align": "center",
+        "justify-content": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-left",
+      "style": {
+        "display": "block",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "13px",
+        "height": "13px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[2]",
+      "tag": "button",
+      "classes": "chat-dock-btn chat-hbtn",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "border-radius": "5px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "23px",
+        "height": "23px",
+        "text-align": "center",
+        "justify-content": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[2]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-up",
+      "style": {
+        "display": "block",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "13px",
+        "height": "13px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[3]",
+      "tag": "button",
+      "classes": "chat-dock-btn chat-hbtn",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "border-radius": "5px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "23px",
+        "height": "23px",
+        "text-align": "center",
+        "justify-content": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[3]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-down",
+      "style": {
+        "display": "block",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "13px",
+        "height": "13px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[4]",
+      "tag": "button",
+      "classes": "chat-dock-btn chat-dock-btn-active chat-hbtn",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(124, 58, 237)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(124, 58, 237)",
+        "border-radius": "5px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "23px",
+        "height": "23px",
+        "text-align": "center",
+        "justify-content": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[4]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-chevron-right",
+      "style": {
+        "display": "block",
+        "color": "rgb(124, 58, 237)",
+        "border-color": "rgb(124, 58, 237)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "13px",
+        "height": "13px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[5]",
+      "tag": "button",
+      "classes": "chat-dock-btn chat-hbtn",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "border-radius": "5px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "23px",
+        "height": "23px",
+        "text-align": "center",
+        "justify-content": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]/button[5]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-maximize",
+      "style": {
+        "display": "block",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "13px",
+        "height": "13px",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/button[1]",
+      "tag": "button",
+      "classes": "chat-hbtn",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "border-radius": "5px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "23px",
+        "height": "23px",
+        "text-align": "center",
+        "justify-content": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[1]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-x",
+      "style": {
+        "display": "block",
+        "color": "rgb(136, 136, 136)",
+        "border-color": "rgb(136, 136, 136)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "13px",
+        "height": "13px",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[2]",
+      "tag": "div",
+      "classes": "chat-transcript",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "padding": "10px",
+        "gap": "8px",
+        "width": "338px",
+        "height": "583px",
+        "flex-direction": "column"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[1]",
+      "tag": "div",
+      "classes": "chat-empty",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "padding": "6px 4px",
+        "gap": "6px",
+        "width": "318px",
+        "height": "146px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[2]/div[1]/button[1]",
+      "tag": "button",
+      "classes": "chat-suggest",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(221, 221, 221)",
+        "border-width": "1px",
+        "border-radius": "16px",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "padding": "6px 12px",
+        "width": "102.6px",
+        "height": "29px",
+        "text-align": "center",
+        "overflow": "hidden"
+      },
+      "text": "Make it sepia"
+    },
+    {
+      "path": ":root/div[2]/div[1]/button[2]",
+      "tag": "button",
+      "classes": "chat-suggest",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(221, 221, 221)",
+        "border-width": "1px",
+        "border-radius": "16px",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "padding": "6px 12px",
+        "width": "232px",
+        "height": "29px",
+        "text-align": "center",
+        "overflow": "hidden"
+      },
+      "text": "3 variants: rotated · tinted · cropped"
+    },
+    {
+      "path": ":root/div[2]/div[1]/button[3]",
+      "tag": "button",
+      "classes": "chat-suggest",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(221, 221, 221)",
+        "border-width": "1px",
+        "border-radius": "16px",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "padding": "6px 12px",
+        "width": "211px",
+        "height": "29px",
+        "text-align": "center",
+        "overflow": "hidden"
+      },
+      "text": "Extract the lines from this image"
+    },
+    {
+      "path": ":root/div[2]/div[1]/button[4]",
+      "tag": "button",
+      "classes": "chat-suggest",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(221, 221, 221)",
+        "border-width": "1px",
+        "border-radius": "16px",
+        "font-size": "13px",
+        "font-family": "Arial",
+        "padding": "6px 12px",
+        "width": "239px",
+        "height": "29px",
+        "text-align": "center",
+        "overflow": "hidden"
+      },
+      "text": "Crop 10% off every edge, rotate right"
+    },
+    {
+      "path": ":root/div[3]",
+      "tag": "div",
+      "classes": "chat-jumps",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "width": "338px",
+        "z-index": "6"
+      }
+    },
+    {
+      "path": ":root/div[5]",
+      "tag": "div",
+      "classes": "chat-input-sizer",
+      "style": {
+        "display": "block",
+        "position": "relative",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "width": "338px",
+        "height": "8px"
+      }
+    },
+    {
+      "path": ":root/div[6]",
+      "tag": "div",
+      "classes": "chat-input-row",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(221, 221, 221) rgb(0, 0, 0) rgb(0, 0, 0)",
+        "border-width": "1px 0px 0px",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "padding": "8px 10px",
+        "gap": "6px",
+        "width": "338px",
+        "height": "93px",
+        "align-items": "flex-end"
+      }
+    },
+    {
+      "path": ":root/div[6]/div[1]",
+      "tag": "div",
+      "classes": "chat-input-wrap",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "width": "242px",
+        "height": "76px"
+      }
+    },
+    {
+      "path": ":root/div[6]/div[1]/textarea[1]",
+      "tag": "textarea",
+      "classes": "",
+      "style": {
+        "display": "block",
+        "color": "rgb(0, 0, 0)",
+        "background-color": "rgb(255, 255, 255)",
+        "border-color": "rgb(124, 58, 237)",
+        "border-width": "1px",
+        "border-radius": "8px",
+        "font-size": "14px",
+        "font-family": "monospace",
+        "padding": "6px 8px",
+        "width": "242px",
+        "height": "76px",
+        "box-shadow": "color(srgb 0.486275 0.227451 0.929412 / 0.25) 0px 0px 0px 3px"
+      }
+    },
+    {
+      "path": ":root/div[6]/span[1]",
+      "tag": "span",
+      "classes": "chat-input-actions",
+      "style": {
+        "display": "flex",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "padding": "0px 0px 2px",
+        "gap": "2px",
+        "width": "70px",
+        "height": "36px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[6]/span[1]/button[1]",
+      "tag": "button",
+      "classes": "btn-icon chat-abtn chat-send-idle",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(154, 160, 168)",
+        "background-color": "rgb(228, 230, 234)",
+        "border-color": "rgb(154, 160, 168)",
+        "border-radius": "6px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "34px",
+        "height": "34px",
+        "text-align": "center",
+        "justify-content": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[6]/span[1]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-send",
+      "style": {
+        "display": "block",
+        "color": "rgb(154, 160, 168)",
+        "border-color": "rgb(154, 160, 168)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "14px",
+        "height": "14px",
+        "transform": "matrix(1, 0, 0, 1, 0, 0)",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[6]/span[1]/span[1]",
+      "tag": "span",
+      "classes": "chat-more-wrap",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "width": "34px",
+        "height": "34px"
+      }
+    },
+    {
+      "path": ":root/div[6]/span[1]/span[1]/button[1]",
+      "tag": "button",
+      "classes": "btn-icon chat-abtn chat-config-btn",
+      "style": {
+        "display": "flex",
+        "position": "relative",
+        "color": "rgb(255, 255, 255)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(255, 255, 255)",
+        "border-radius": "6px",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "34px",
+        "height": "34px",
+        "text-align": "center",
+        "justify-content": "center",
+        "align-items": "center",
+        "overflow": "hidden"
+      }
+    },
+    {
+      "path": ":root/div[6]/span[1]/span[1]/button[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-dots",
+      "style": {
+        "display": "block",
+        "color": "rgb(255, 255, 255)",
+        "border-color": "rgb(255, 255, 255)",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "14px",
+        "height": "14px",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[6]/span[1]/span[1]/button[1]/span[1]",
+      "tag": "span",
+      "classes": "conn-status conn-status-error",
+      "style": {
+        "display": "block",
+        "position": "absolute",
+        "color": "rgb(220, 53, 69)",
+        "background-color": "rgb(220, 53, 69)",
+        "border-color": "rgb(220, 53, 69)",
+        "border-radius": "50%",
+        "font-size": "14px",
+        "font-family": "Arial",
+        "width": "7px",
+        "height": "7px",
+        "text-align": "center"
+      }
+    },
+    {
+      "path": ":root/div[7]",
+      "tag": "div",
+      "classes": "chat-resizer",
+      "style": {
+        "display": "block",
+        "position": "absolute",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "width": "6px",
+        "height": "718px"
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+commands:
+  /upload <path|url>     load an image or a .stencil project (aliases: open, load)
+  /source-upload <url> [index=0] [format=all] [name=] [minW=-1] [maxW=-1] [minH=-1] [maxH=-1]
+                         scrape a page, load one filtered image (alias: scrape)
+  /blank [f] [w h] [color]  create a blank page, f = a page format (alias: new)
+  /format [name|custom w h]  list the page formats / set the session's format
+  /crop <spec> [album]   crop, e.g. x1=10% x2=90% y1=10% y2=90%
+  /rotate <int>          rotate int×90° (aliases: rot, turn)
+  /filter <mode>         bw | sepia | invert | contour | none | colour (also: /bw /sepia /none /tint)
+  /apply <path|url>      draw a layout JSON onto the image (alias: draw)
+  /layout [path]         EXPORT the structured layout JSON
+  /save [path]           write the working image (a .stencil path saves the project)
+  /undo /redo /reset     walk the edit history
+  /status                show the working image (alias: info)
+  /delete <x.stencil>    delete a local .stencil project file (aliases: del, rm)
+  /connect <url[ url2]> [token=<tok>]
+                         connect to collaboration server(s); token= is required by a
+                         server that has ADMIN_TOKEN set (it won't issue one)
+  /disconnect [url]      close one connection (or the most recent when omitted)
+  /connections [admin|session]
+                         list the connected servers (alias: servers); admin-token
+                         credentials are tagged [admin], and the word filters the list
+  /projects [url]        list a server's projects (alias: ls)
+  /fetch <name> [url]    load a server project's image (alias: pull)
+  /prompt <text>         ask the LLM to edit the image (alias: p); plan actions apply to
+                         the session, each variant lands as variant-<label>.png
+  /llm [key value]       show the LLM config / set provider | url | model | key | server
+  /chat [on|off|clear]   multi-turn /prompt + save chats with the project (default off)
+  /help                  this list (aliases: ?, h)
+  /exit                  leave (aliases: quit, q)

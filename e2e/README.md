@@ -52,8 +52,11 @@ helpers/
   boot.js            gotoApp(page): navigate, clear state, await window.stencil
   serverApi.js       REST helpers (token issuance, project CRUD) over Playwright's request
   wire.js            WS (ws lib) + raw-TCP (net) clients for the live-edit protocol
+  uiPin.js           UI regression pins: capture a subtree's computed styles + DOM shape
+                     and deep-equal it against pins/<name>.json (UPDATE_PINS=1 re-records)
   llm-stub.js        scriptable stub LLM server (openai-compat / ollama / Anthropic
                      Messages wire shapes) — ALL model traffic in the suite ends here
+pins/                recorded UI-pin baselines (one JSON per pinned state)
 fixtures/            host pages (+ pixel.png / site.webmanifest) the extension scanner loads over http
                      (page-with-image.html · all-image-sources.html — one of every image reference)
 tests/
@@ -64,11 +67,15 @@ tests/
                              facade, variant cards render, dock/float placement persists
              ctx-keyboard  — the canvas context menu walked with real key presses (↑/↓, → opens
                              a flyout, ← closes it, Enter picks, Escape) without panning the canvas
+             ui-pins       — computed-style + DOM-shape pins for 15 editor states
+                             (toolbar, modals, chat placements, fullscreen strip, toast)
              canvas-scrollbar — the canvas thumb is grey, and takes the accent only with the real
                              pointer on the bar's own strip (not on any hover of the canvas)
   extension/ handoff.smoke — scan images+CSS bg, new-tab AND in-page-modal hand-off, pin/unpin
              popup.smoke   — popup + side-panel UI: filter accordion, ⋯ menu + on-screen flyout, side-panel re-scan
              scan-sources  — every HTML/CSS image reference (img/srcset/input/svg/icons/meta + CSS) is scanned
+             ui-pins       — the same pins for 6 extension states (popup list/filters/
+                             row menu/assistant, side panel, options page)
              chat.smoke    — popup → AI chat page vs the stub LLM: `focus` highlights on the
                              page, `open` hands off `#stencil=` with the translated filter
   fullstack/ collab.smoke  — two clients + real server: create → cross-client visibility
@@ -166,6 +173,12 @@ E2E_STACK=1 E2E_SKIP_COMPOSE=1 npm test   # uses whatever is on SERVER_URL (defa
   as `X-Admin-Token`. With `E2E_SKIP_COMPOSE=1`, export `ADMIN_TOKEN` matching your server.
   Side effect: with an admin token always set, the server's LLM proxy enables whenever the
   stub provider is configured, so the fullstack llm-proxy spec runs instead of self-skipping.
+- **UI pins.** `tests/browser/ui-pins.spec.js` + `tests/extension/ui-pins.spec.js` record
+  each UI state's computed styles and DOM shape (`helpers/uiPin.js`) and deep-equal them
+  against `pins/<name>.json` — no screenshots; a failure names the element path and the
+  property that moved. They freeze the app's own motion (`motionMode 'none'` /
+  `StencilMotion.set('none')` + emulated `prefers-reduced-motion`) and pin the light theme.
+  After an INTENDED visual change, re-record: `UPDATE_PINS=1 npm run test:ui`.
 
 ## CI
 

@@ -9,7 +9,9 @@ test {
     _ = @import("tests/rotate_test.zig");
     _ = @import("tests/layout_filter_test.zig");
     _ = @import("tests/pipeline_e2e_test.zig");
+    _ = @import("tests/net_guard_test.zig");
     _ = @import("tests/console_test.zig");
+    _ = @import("tests/tui_pins_test.zig");
     _ = @import("tests/opplan_fixtures_test.zig");
     _ = @import("tests/sanitizer_fixtures_test.zig");
     _ = @import("tests/chatdoc_fixtures_test.zig");
@@ -17,4 +19,5 @@ test {
     _ = @import("tests/layout_fixtures_test.zig");
     _ = @import("tests/stencil_project_fixtures_test.zig");
     _ = @import("tests/color_names_drift_test.zig");
+    _ = @import("tests/size_budget_test.zig");
 }

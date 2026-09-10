@@ -1,0 +1,101 @@
+== AskCardKeyboard(["Left", "Right"], multi: false, picked: [], allowCustom: false)
+Left => ask:0
+Right => ask:1
+
+== AskCardKeyboard(["Left", "Right"], multi: true, picked: [1], allowCustom: true)
+⬜️ Left => ask:0
+☑️ Right => ask:1
+✅ Send => ask:send
+✍️ Type my own => ask:custom
+
+== ChatApiMenu(profiles, "studio")
+Local (Ollama) => api:local
+✅ LM Studio => api:studio
+
+== ChatModeMenu(saveChats: false)
+🧹 Clear chat => chat:clear  |  🚪 Chat off => chat:off
+💾 Save chats: off => chat:save-on
+
+== ChatModeMenu(saveChats: true)
+🧹 Clear chat => chat:clear  |  🚪 Chat off => chat:off
+💾 Save chats: on => chat:save-off
+
+== ClearChatConfirmMenu()
+🧹 Yes, clear it => chatclear:confirm
+« Cancel => chatclear:cancel
+
+== DeleteConfirmMenu()
+🗑 Yes, delete permanently => del:confirm
+« Cancel => del:cancel
+
+== DownloadSubmenu(hasEdits: false)
+🖼 Image => image  |  📦 Project => project
+« Back => m:main
+
+== DownloadSubmenu(hasEdits: true)
+🖼 Image => image  |  📦 Project => project
+📄 Layout JSON => json
+« Back => m:main
+
+== DrawSubmenu()
+✏️ Draw… => drawhelp  |  🩹 Undo line => undoline  |  🧹 Clear lines => clearlines
+« Back => m:main
+
+== EditMenu(hasActiveProject: false)
+🎛 Edit => m:edit  |  🎨 Filter => m:filter  |  ✏️ Draw => m:draw
+↩️ Undo => undo  |  ↪️ Redo => redo  |  💬 Chat => chat:on
+⬇️ Download => m:download  |  🧼 Reset => reset  |  💾 Save => save
+✏️ Rename => name:menu  |  📝 Describe => desc:menu
+
+== EditMenu(hasActiveProject: true)
+🎛 Edit => m:edit  |  🎨 Filter => m:filter  |  ✏️ Draw => m:draw
+↩️ Undo => undo  |  ↪️ Redo => redo  |  💬 Chat => chat:on
+⬇️ Download => m:download  |  🧼 Reset => reset  |  💾 Save => save
+✏️ Rename => name:menu  |  📝 Describe => desc:menu
+🔗 Link => link  |  ⏳ Expiration => exp:menu  |  🗑 Remove => del:menu
+
+== EditSubmenu()
+🔄 Rotate +90° => rot90  |  🔃 Rotate −90° => rotneg90  |  ✂️ Crop… => crophelp
+« Back => m:main
+
+== ExpirationMenu()
+⏳ 1 day => exp:1d  |  📅 3 days => exp:3d
+🗓 1 week => exp:1w  |  🗓 Fortnight => exp:2w
+🗓 1 month => exp:1mo  |  🗓 3 months => exp:3mo
+✏️ Custom… => exp:custom  |  ♾ Never => exp:never
+
+== FilterSubmenu()
+⚫ B&W => f:bw  |  🟤 Sepia => f:sepia
+🌓 Invert => f:invert  |  〰️ Contour => f:contour
+🎨 Tint… => tinthelp  |  🚫 None => f:none
+« Back => m:main
+
+== MainMenu()
+💬 Chat with assistant => chat:on
+❓ Help => help  |  ℹ️ Status => status
+🖼 Sources => sources  |  🆕 Blank => blank
+🔌 Connect => connect  |  📁 Projects => projects
+➕ Create => create  |  💾 Save => save
+
+== RetryPrompt()
+🔄 Retry => retry:prompt
+
+== StatusMenu(hasActiveProject: false)
+💬 Chat with assistant => chat:on
+❓ Help => help  |  ℹ️ Status => status
+🖼 Sources => sources  |  🆕 Blank => blank
+🔌 Connect => connect  |  📁 Projects => projects
+➕ Create => create  |  💾 Save => save
+
+== StatusMenu(hasActiveProject: true)
+💬 Chat with assistant => chat:on
+❓ Help => help  |  ℹ️ Status => status
+🖼 Sources => sources  |  🆕 Blank => blank
+🔌 Connect => connect  |  📁 Projects => projects
+➕ Create => create  |  💾 Save => save
+✏️ Rename => name:menu  |  📝 Describe => desc:menu
+🔗 Link => link  |  ⏳ Expiration => exp:menu  |  🗑 Remove => del:menu
+
+== StopPrompt()
+⏹ Stop => stop:prompt
+
