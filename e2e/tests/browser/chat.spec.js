@@ -499,6 +499,7 @@ test.describe('AI assistant chat panel', () => {
         return {
           w: Math.round(r.width), h: Math.round(r.height), radius: cs.borderRadius,
           bg: cs.backgroundColor, color: cs.color, opacity: cs.opacity, disabled: e.disabled,
+          idle: e.getAttribute('aria-disabled') === 'true',
         };
       });
       // The composer is Send + "…" (attach / clear / settings moved into the
@@ -507,30 +508,38 @@ test.describe('AI assistant chat panel', () => {
       for (const b of [send_, more]) {
         expect({ w: b.w, h: b.h, radius: b.radius }).toEqual({ w: 34, h: 34, radius: '6px' });
       }
-      // Send is the disabled one, and it wears the app's shared disabled palette —
-      // the SAME treatment the panel's send has in that state (no bespoke flyout rule).
-      expect(send_.disabled).toBe(true);
+      // Send is the idle one (aria-disabled; with voice supported it stays clickable as
+      // the mic — chatView.js syncComposerControls), and it wears the app's shared idle
+      // palette — the SAME treatment the panel's send has in that state (no bespoke
+      // flyout rule).
+      expect(send_.idle).toBe(true);
+      expect(more.idle).toBe(false);
       expect(more.disabled).toBe(false);
-      const panelDisabled = await look('chat-send');
-      expect({ bg: send_.bg, color: send_.color, opacity: send_.opacity })
-        .toEqual({ bg: panelDisabled.bg, color: panelDisabled.color, opacity: panelDisabled.opacity });
+      const panelIdle = await look('chat-send');
+      expect(panelIdle.idle).toBe(true);
+      expect({ disabled: send_.disabled, bg: send_.bg, color: send_.color, opacity: send_.opacity })
+        .toEqual({ disabled: panelIdle.disabled, bg: panelIdle.bg, color: panelIdle.color, opacity: panelIdle.opacity });
       // Typing enables it, and it becomes an accent tile exactly like its sibling.
       // (Poll: the button's background is transitioned, so it arrives a frame later.)
       await page.locator('#ctx-assist-input').fill('hi');
       await expect.poll(async () => {
         const b = await look('ctx-assist-send');
-        return { disabled: b.disabled, bg: b.bg, color: b.color };
-      }, { timeout: 5000 }).toEqual({ disabled: false, bg: more.bg, color: more.color });
+        return { idle: b.idle, disabled: b.disabled, bg: b.bg, color: b.color };
+      }, { timeout: 5000 }).toEqual({ idle: false, disabled: false, bg: more.bg, color: more.color });
 
-      // The three overflow actions exist, hidden until the "…" is opened — the same
-      // set, the same order, as the panel's own menu.
+      // The overflow actions exist, hidden until the "…" is opened — the same set, the
+      // same order, as the panel's own menu (one chatView.js template, two id prefixes).
+      const panelItems = await page.locator('#chat-more-menu .chat-more-item')
+        .evaluateAll((els) => els.map((e) => e.id.replace(/^chat-/, '')));
+      expect(panelItems).toContain('attach-btn');
+      expect(panelItems).toContain('clear');
+      expect(panelItems).toContain('settings-btn');
       const items = page.locator('#ctx-assist-more-menu .chat-more-item');
-      await expect(items).toHaveCount(3);
+      await expect(items).toHaveCount(panelItems.length);
       await expect(page.locator('#ctx-assist-more-menu')).toBeHidden();
       await page.locator('#ctx-assist-more-btn').click();
       await expect(page.locator('#ctx-assist-more-menu')).toBeVisible();
-      expect(await items.evaluateAll((els) => els.map((e) => e.id))).toEqual(
-        ['ctx-assist-attach-btn', 'ctx-assist-clear', 'ctx-assist-settings-btn']);
+      expect(await items.evaluateAll((els) => els.map((e) => e.id.replace(/^ctx-assist-/, '')))).toEqual(panelItems);
     });
 
     // The composer inside the flyout resizes with the panel's slider handle.

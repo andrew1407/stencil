@@ -72,11 +72,12 @@ test.describe('extension editor mode', () => {
     // state), and every row is an editor tab — the row's tooltip carries the tab URL. The
     // tooltip LEADS with the project name (the row itself ellipsizes it, and the "this tab"
     // badge was dropped for an accent outline), so the URL is asserted as a line of it
-    // rather than as its prefix.
+    // rather than as its prefix. It is the app's own tooltip (lib/tip.js writes
+    // data-title for controlTooltip), not the native title.
     await ui.waitForFunction(
       () => document.querySelectorAll('#ed-list .ed-row').length > 0, null, { timeout: 15_000 });
     expect(await ui.evaluate((app) => [...document.querySelectorAll('#ed-list .ed-row')]
-      .every((el) => el.title.split('\n').includes(app)), APP_URL)).toBe(true);
+      .every((el) => (el.dataset.title || '').split('\n').includes(app)), APP_URL)).toBe(true);
 
     // …and it is the editor tab we opened that it lists. One request/response round-trip to
     // the service worker, from the panel page (which has chrome.runtime, like the real popup):

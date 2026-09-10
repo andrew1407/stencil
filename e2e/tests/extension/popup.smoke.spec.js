@@ -57,7 +57,7 @@ test.describe('extension popup + side panel UI', () => {
       expect(await ui.evaluate(() => [...document.querySelectorAll('.section-head .dlbl')]
         .filter((el) => getComputedStyle(el.closest('.fsection')).display !== 'none')
         .map((el) => el.textContent)))
-        .toEqual(['Elements to include', 'Formats', 'Size (px)', 'Found resources', 'Assistant']);
+        .toEqual(['Elements to include', 'Formats', 'Size (px)', 'Found resources', 'Assistant chat']);
       // Found resources is the last VISIBLE section of .filters, and its body holds
       // #f-search (the source-page picker sits after it in the markup, hidden here).
       expect(await ui.evaluate(() => {
@@ -279,7 +279,16 @@ test.describe('extension popup + side panel UI', () => {
         .dispatchEvent(new MouseEvent('dblclick', { bubbles: true })));
       await host.waitForFunction(() => !!document.getElementById('stencil-ext-modal'), null, { timeout: 15_000 });
       await expect.poll(async () => (await shell())?.theme, { timeout: 10_000 }).toBe(mode);
-      seen[mode] = await shell();
+      // The shell's colours transition (.bar button: background .15s), so read it once
+      // two consecutive reads agree — a snapshot mid-fade still wears the other theme.
+      let last = await shell();
+      await expect.poll(async () => {
+        const now = await shell();
+        const settled = JSON.stringify(now) === JSON.stringify(last);
+        last = now;
+        return settled;
+      }, { timeout: 10_000, intervals: [100, 100, 200] }).toBe(true);
+      seen[mode] = last;
     }
 
     // The shell is painted from the SAME palette as the rest of the chrome (theme.css).
