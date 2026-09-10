@@ -125,10 +125,15 @@ test.describe('extension', () => {
 
     // Merely HOVERING primes the probe — the group is revealed before any right-click,
     // which is what stops the reveal from racing Chrome's menu render (and from losing
-    // outright when the MV3 worker has to wake up first).
+    // outright when the MV3 worker has to wake up first). Keep the pointer moving while
+    // polling, as a hand does: the probe is a document_idle content script, so a single
+    // move fired before it attached would prime nothing.
     const box = await host.locator('#svgbg').boundingBox();
-    await host.mouse.move(box.x + 20, box.y + 20);
-    await expect.poll(async () => (await flips('stencil-bg')).length, { timeout: 10_000 }).toBeGreaterThan(0);
+    let wiggle = 0;
+    await expect.poll(async () => {
+      await host.mouse.move(box.x + 20 + (wiggle++ % 4), box.y + 20);
+      return (await flips('stencil-bg')).length;
+    }, { timeout: 10_000 }).toBeGreaterThan(0);
 
     // The inline-SVG data URI resolves as the target (the scanner allows these now).
     const probed = await sw.evaluate(() => globalThis.__probes[globalThis.__probes.length - 1]);
