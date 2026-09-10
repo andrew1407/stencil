@@ -47,6 +47,7 @@ type Hub struct {
 	bus      bus.Bus
 	resolver auth.SessionResolver
 	ctx      context.Context
+	hello    helloGuard // per-IP throttle on failed handshakes (hellolimit.go)
 
 	mu       sync.Mutex
 	sessions map[string]*session
@@ -55,12 +56,17 @@ type Hub struct {
 
 // connReg is one tracked live connection; cancelling its context unwinds the
 // connection's handler (both transports honor ctx), which is how shutdown drains
-// hijacked WebSocket editors that httpSrv.Shutdown cannot reach.
-type connReg struct{ cancel context.CancelFunc }
+// hijacked WebSocket editors that httpSrv.Shutdown cannot reach. The conn itself
+// is kept so shutdown can send the notice before cancelling.
+type connReg struct {
+	cancel context.CancelFunc
+	conn   transport.Conn
+}
 
-// New constructs a hub. ctx bounds background publishes/persists.
-func New(ctx context.Context, store Store, b bus.Bus, resolver auth.SessionResolver) *Hub {
-	return &Hub{
+// New constructs a hub. ctx bounds background publishes/persists; opts carry the
+// tunables (WithHelloLimit).
+func New(ctx context.Context, store Store, b bus.Bus, resolver auth.SessionResolver, opts ...Option) *Hub {
+	h := &Hub{
 		store:    store,
 		bus:      b,
 		resolver: resolver,
@@ -68,12 +74,16 @@ func New(ctx context.Context, store Store, b bus.Bus, resolver auth.SessionResol
 		sessions: map[string]*session{},
 		conns:    map[*connReg]struct{}{},
 	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
 }
 
 // trackConn records a live connection's cancel func so CloseAll can reach it,
 // returning an untrack func to call when the connection ends.
-func (h *Hub) trackConn(cancel context.CancelFunc) func() {
-	reg := &connReg{cancel: cancel}
+func (h *Hub) trackConn(conn transport.Conn, cancel context.CancelFunc) func() {
+	reg := &connReg{cancel: cancel, conn: conn}
 	h.mu.Lock()
 	h.conns[reg] = struct{}{}
 	h.mu.Unlock()
@@ -84,16 +94,13 @@ func (h *Hub) trackConn(cancel context.CancelFunc) func() {
 	}
 }
 
-// CloseAll cancels every live connection's context so its handler unwinds and
-// releases the conn. It is non-blocking (it only fires cancels); handlers drain
-// asynchronously, letting httpSrv.Shutdown and ServeListener's wg.Wait() return.
-// Safe to call concurrently with connects/disconnects (guarded by mu).
+// CloseAll tells every live connection the server is going away (unsaved live
+// edits die with it — shutdown.go) and cancels its context so the handler
+// unwinds and releases the conn. Handlers drain asynchronously, letting
+// httpSrv.Shutdown and ServeListener's wg.Wait() return. Safe to call
+// concurrently with connects/disconnects.
 func (h *Hub) CloseAll() {
-	h.mu.Lock()
-	for reg := range h.conns {
-		reg.cancel()
-	}
-	h.mu.Unlock()
+	closeAll(h.liveConns())
 }
 
 // acquire returns the session for id, creating and starting it if needed, and
@@ -131,7 +138,8 @@ func (h *Hub) WSHandler() http.Handler {
 		if err != nil {
 			return // Accept already wrote a response
 		}
-		if err := h.HandleConn(r.Context(), conn); err != nil {
+		ctx := withClientIP(r.Context(), h.hello.requestIP(r))
+		if err := h.HandleConn(ctx, conn); err != nil {
 			log.Printf("hub: ws connection ended: %v", err)
 		}
 	})
@@ -165,7 +173,7 @@ func (h *Hub) HandleConn(ctx context.Context, conn transport.Conn) error {
 	// conn (WebSocket conns are hijacked, so httpSrv.Shutdown can't close them).
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	untrack := h.trackConn(cancel)
+	untrack := h.trackConn(conn, cancel)
 	defer untrack()
 
 	// First frame must be a hello within the deadline.
@@ -181,9 +189,7 @@ func (h *Hub) HandleConn(ctx context.Context, conn transport.Conn) error {
 		_ = conn.Close(transport.ClosePolicyViolation, "expected hello")
 		return err
 	}
-	if _, err := auth.Verify(ctx, h.resolver, hello.Token, nowMs()); err != nil {
-		writeMsg(ctx, conn, protocol.WSMessage{Type: protocol.WSError, Code: protocol.CodeUnauthorized, Message: "invalid token"})
-		_ = conn.Close(transport.ClosePolicyViolation, "unauthorized")
+	if err := h.checkHello(ctx, conn, hello); err != nil {
 		return err
 	}
 
@@ -287,15 +293,6 @@ func (h *Hub) serveEvents(ctx context.Context, conn transport.Conn) error {
 			}
 		}
 	}
-}
-
-// writeMsg marshals and sends a single message (best effort).
-func writeMsg(ctx context.Context, conn transport.Conn, msg protocol.WSMessage) {
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return
-	}
-	_ = conn.Write(ctx, data)
 }
 
 func randomID() string {

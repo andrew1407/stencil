@@ -1,36 +1,58 @@
 package httpapi
 
-import "strings"
-
 // System-prompt pin: the proxy only forwards a system prompt that starts with
-// one of Stencil's own byte-pinned heads, so a token can't turn the operator's
-// key into a general LLM. Canonical source: browser/js/config/llm/systemPrompt.json
-// (keys head/extensionHead); llmprompt_test.go asserts the pins against it.
-const (
-	// maxLLMSystemBytes bounds the system prompt alone; a real prompt
-	// (head + op bullets + tail + short dynamic suffix) sits far below it.
-	maxLLMSystemBytes = 32 * 1024
+// one of Stencil's own heads, so a token can't turn the operator's key into a
+// general LLM. The heads are not retyped here — assets/systemPrompt.json is a
+// checked-in copy of browser/js/config/llm/systemPrompt.json (outside this Go
+// module, so it can't be embedded directly), and llmprompt_test.go pins it.
 
-	// llmEditorPromptHead is browser/js/llm/opPlan.js PROMPT_CORE_HEAD, byte-identical
-	// in desktop, cli, pystencil, mcp, bot, and llm-contract.md §4.
-	llmEditorPromptHead = `You are the AI assistant inside Stencil, an image-annotation tool. You help the user
-edit the working image by planning operations; you never produce image data yourself.
-
-Respond with EXACTLY ONE JSON object and no other text, in this shape:
-{"version":1,"reply":"<short answer for the user>","actions":[...],"variants":[...]}
-`
-
-	// llmExtensionPromptHead is extension/src/llm/opPlan.js PROMPT_CORE_HEAD
-	// (the contract-§8 extension profile; deliberately diverged from the editor's).
-	llmExtensionPromptHead = `You are the AI assistant inside Stencil, an image-annotation tool. You are running in
-Stencil's browser extension, which scans the images on the user's current web page; you
-help the user find and act on those images by planning operations. You never produce
-image data yourself.
-
-Respond with EXACTLY ONE JSON object and no other text, in this shape:
-{"version":1,"reply":"<short answer for the user>","actions":[...],"variants":[]}
-`
+import (
+	_ "embed"
+	"encoding/json"
+	"strings"
 )
+
+// maxLLMSystemBytes bounds the system prompt alone; a real prompt (head + op
+// bullets + tail + short dynamic suffix) sits far below it.
+const maxLLMSystemBytes = 32 * 1024
+
+// promptShapeMarker opens the line declaring the JSON response shape — the last
+// line the two profiles share verbatim before their op bullets diverge.
+const promptShapeMarker = `{"version":1,"reply":`
+
+//go:embed assets/systemPrompt.json
+var systemPromptAsset []byte
+
+// The editor head is browser/js/llm/opPlan.js PROMPT_CORE_HEAD (byte-identical
+// in desktop, cli, pystencil, mcp, bot and llm-contract.md §4); the extension
+// head is extension/src/llm/opPlan.js PROMPT_CORE_HEAD (contract §8).
+var llmEditorPromptHead, llmExtensionPromptHead = promptHeads()
+
+// promptHeads cuts both heads out of the embedded asset. A corrupt asset is a
+// build fault: failing here beats forwarding an unpinned prompt.
+func promptHeads() (string, string) {
+	var asset struct {
+		Head          string `json:"head"`
+		ExtensionHead string `json:"extensionHead"`
+	}
+	if err := json.Unmarshal(systemPromptAsset, &asset); err != nil {
+		panic("httpapi: assets/systemPrompt.json: " + err.Error())
+	}
+	return promptPin(asset.Head), promptPin(asset.ExtensionHead)
+}
+
+// promptPin truncates a head after the response-shape line.
+func promptPin(head string) string {
+	i := strings.Index(head, promptShapeMarker)
+	if i < 0 {
+		panic("httpapi: systemPrompt.json head has no " + promptShapeMarker + " line")
+	}
+	nl := strings.IndexByte(head[i:], '\n')
+	if nl < 0 {
+		panic("httpapi: systemPrompt.json response-shape line is unterminated")
+	}
+	return head[:i+nl+1]
+}
 
 // hasStencilPromptHead reports whether a system prompt is recognizably one of
 // Stencil's own (starts with a pinned head).

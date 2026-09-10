@@ -28,7 +28,9 @@ func (a *API) handleGetFile(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, "unknown file kind")
 		return
 	}
-	rec, err := a.deps.Projects.GetProject(r.Context(), id)
+	ctx, cancel := a.opCtx(r)
+	defer cancel()
+	rec, err := a.deps.Projects.GetProject(ctx, id)
 	if errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
 		return
@@ -83,6 +85,8 @@ func (a *API) handlePutFile(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, "unknown file kind")
 		return
 	}
+	ctx, cancel := a.opCtx(r)
+	defer cancel()
 	ext := strings.TrimPrefix(r.URL.Query().Get("ext"), ".")
 	width, _ := strconv.Atoi(r.URL.Query().Get("w"))
 	height, _ := strconv.Atoi(r.URL.Query().Get("h"))
@@ -99,7 +103,7 @@ func (a *API) handlePutFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure the project exists before writing bytes for it.
-	if _, err := a.deps.Projects.GetProject(r.Context(), id); errors.Is(err, store.ErrNotFound) {
+	if _, err := a.deps.Projects.GetProject(ctx, id); errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
 		return
 	}
@@ -126,7 +130,7 @@ func (a *API) handlePutFile(w http.ResponseWriter, r *http.Request) {
 	// just wrote: drop them and report gone. RemoveKind, not Remove — the latter
 	// deletes the whole project directory over a race on one upload.
 	if kind == protocol.KindOriginal || kind == protocol.KindResult {
-		rec, err := a.deps.Projects.SetFile(r.Context(), id, kind, rel, width, height)
+		rec, err := a.deps.Projects.SetFile(ctx, id, kind, rel, width, height)
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
 				_ = a.deps.Files.RemoveKind(id, kind)
@@ -136,8 +140,8 @@ func (a *API) handlePutFile(w http.ResponseWriter, r *http.Request) {
 			writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not record file")
 			return
 		}
-		a.publishEvent(r.Context(), protocol.EventUpdated, rec)
-	} else if _, err := a.deps.Projects.GetProject(r.Context(), id); errors.Is(err, store.ErrNotFound) {
+		a.publishEvent(ctx, protocol.EventUpdated, rec)
+	} else if _, err := a.deps.Projects.GetProject(ctx, id); errors.Is(err, store.ErrNotFound) {
 		_ = a.deps.Files.RemoveKind(id, kind)
 		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
 		return
@@ -161,7 +165,9 @@ func (a *API) handleDeleteFile(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, kind+" is removed with the project")
 		return
 	}
-	if _, err := a.deps.Projects.GetProject(r.Context(), id); errors.Is(err, store.ErrNotFound) {
+	ctx, cancel := a.opCtx(r)
+	defer cancel()
+	if _, err := a.deps.Projects.GetProject(ctx, id); errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
 		return
 	} else if err != nil {

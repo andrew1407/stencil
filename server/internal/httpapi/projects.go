@@ -13,7 +13,9 @@ import (
 )
 
 func (a *API) handleListProjects(w http.ResponseWriter, r *http.Request) {
-	projects, err := a.deps.Projects.ListProjects(r.Context())
+	ctx, cancel := a.opCtx(r)
+	defer cancel()
+	projects, err := a.deps.Projects.ListProjects(ctx)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not list projects")
 		return
@@ -22,7 +24,9 @@ func (a *API) handleListProjects(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) handleGetProject(w http.ResponseWriter, r *http.Request) {
-	rec, err := a.deps.Projects.GetProject(r.Context(), r.PathValue("id"))
+	ctx, cancel := a.opCtx(r)
+	defer cancel()
+	rec, err := a.deps.Projects.GetProject(ctx, r.PathValue("id"))
 	if errors.Is(err, store.ErrNotFound) {
 		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
 		return
@@ -64,12 +68,14 @@ func (a *API) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	if req.ExpiresAt == 0 && a.deps.ProjectTTL > 0 {
 		req.ExpiresAt = nowMs() + a.deps.ProjectTTL.Milliseconds()
 	}
-	rec, err := a.deps.Projects.CreateProject(r.Context(), owner, req)
+	ctx, cancel := a.opCtx(r)
+	defer cancel()
+	rec, err := a.deps.Projects.CreateProject(ctx, owner, req)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not create project")
 		return
 	}
-	a.publishEvent(r.Context(), protocol.EventCreated, rec)
+	a.publishEvent(ctx, protocol.EventCreated, rec)
 	writeJSON(w, http.StatusCreated, rec)
 }
 
@@ -78,7 +84,9 @@ func (a *API) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 	if !a.decodeJSON(w, r, &req) {
 		return
 	}
-	rec, err := a.deps.Projects.UpdateProject(r.Context(), r.PathValue("id"), store.ProjectPatch{
+	ctx, cancel := a.opCtx(r)
+	defer cancel()
+	rec, err := a.deps.Projects.UpdateProject(ctx, r.PathValue("id"), store.ProjectPatch{
 		Name:        req.Name,
 		Color:       req.Color,
 		Description: req.Description,
@@ -98,12 +106,14 @@ func (a *API) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not update project")
 		return
 	}
-	a.publishEvent(r.Context(), protocol.EventUpdated, rec)
+	a.publishEvent(ctx, protocol.EventUpdated, rec)
 	writeJSON(w, http.StatusOK, rec)
 }
 
 func (a *API) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
+	ctx, cancel := a.opCtx(r)
+	defer cancel()
 	// A project is a shared workspace: anyone may list/read/edit it. Deletion is the
 	// one destructive op, so it's only allowed when at most one client is in the
 	// project's live edit session (the lone editor tidying up). If two or more clients
@@ -112,14 +122,14 @@ func (a *API) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusConflict, protocol.CodeConflict, "project is in use by other clients; cannot delete")
 		return
 	}
-	if err := a.deps.Projects.DeleteProject(r.Context(), id); err != nil {
+	if err := a.deps.Projects.DeleteProject(ctx, id); err != nil {
 		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not delete project")
 		return
 	}
 	if a.deps.Files != nil {
 		_ = a.deps.Files.Remove(id)
 	}
-	a.publishEvent(r.Context(), protocol.EventDeleted, protocol.ProjectRecord{ID: id})
+	a.publishEvent(ctx, protocol.EventDeleted, protocol.ProjectRecord{ID: id})
 	w.WriteHeader(http.StatusNoContent)
 }
 

@@ -139,8 +139,7 @@ func IsFileKind(kind string) bool {
 
 // IsFilestoreOnlyKind reports whether kind lives in the filestore only (no
 // project-record columns): these are the kinds the per-file DELETE route may
-// remove (llm-contract.md §9); original/result are removed with the
-// project.
+// remove (llm-contract.md §9); original/result are removed with the project.
 func IsFilestoreOnlyKind(kind string) bool {
 	return kind == KindVideo || kind == KindChat || IsVariantKind(kind)
 }
@@ -222,9 +221,10 @@ const (
 	CodeConflict     = "conflict"
 	CodeBadRequest   = "badRequest"
 	CodeInternal     = "internal"
-	CodeLlmDisabled  = "llmDisabled" // /llm/chat on a server with no LLM key configured
-	CodeRateLimited  = "rateLimited" // /llm/chat over the per-session rate or the in-flight cap
-	CodeLlmUpstream  = "llmUpstream" // /llm/chat when the upstream provider failed; message names the condition
+	CodeLlmDisabled  = "llmDisabled"  // /llm/chat on a server with no LLM key configured
+	CodeRateLimited  = "rateLimited"  // over a rate or in-flight cap (/llm/chat, /auth/token, writes, hello)
+	CodeShutdown     = "shuttingDown" // the server is closing sessions: unsaved live edits are lost
+	CodeLlmUpstream  = "llmUpstream"  // /llm/chat when the upstream provider failed; message names the condition
 )
 
 // Peer identifies a participant in a live edit session.

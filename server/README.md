@@ -4,8 +4,9 @@ A Go server that stores and shares Stencil projects and runs **live, multi-clien
 edit sessions**. Like `mcp/`, it is a **protocol adapter, not a core consumer**:
 it never links or recompiles the C++ `core/`, never decodes images, and keeps the
 parity contract out of scope. It persists project metadata in **Postgres** and
-image bytes in a **custom secured file store**, and fans live edits out over
-**WebSocket and raw TCP** (optionally across instances via **Redis**).
+image bytes in a **path-confined file store** (traversal-proof, *not* encrypted —
+there is no key handling anywhere), and fans live edits out over **WebSocket and
+raw TCP** (optionally across instances via **Redis**).
 
 ## Architecture
 
@@ -22,7 +23,7 @@ graph TD
       HUB["hub/ — live edit sessions (one run-loop per project)"]
       AUTH["auth/ — opaque bearer tokens (sha256)"]
       STORE["store/ — pgx repos + embedded SQL migrations"]
-      FILES["filestore/ — secured byte store (safeJoin)"]
+      FILES["filestore/ — path-confined byte store (safeJoin)"]
       BUS["bus / redisbus — pub/sub fan-out"]
     end
     PG[("Postgres")]
@@ -89,7 +90,7 @@ server/
     protocol/   wire DTOs + WS message envelope — the shape every client mirrors
     config/     env/.env configuration
     auth/       opaque bearer tokens (sha256-hashed, constant-time), HTTP + WS gate
-    filestore/  custom secured byte store; traversal-proof safeJoin (path.go)
+    filestore/  path-confined byte store; traversal-proof safeJoin (path.go)
     store/      pgx ProjectRepository + SessionRepository; embedded SQL migrations
     bus/        pub/sub interface + in-process implementation
     redisbus/   Redis implementation of bus.Bus
@@ -111,9 +112,14 @@ is created at boot via embedded idempotent migrations.
 
 Configuration (see `.env.example`): `LISTEN_ADDR`, `TCP_ADDR`, `DATABASE_URL`,
 `REDIS_URL`, `FILESTORE_ROOT`, `ADMIN_TOKEN`, `AUTH_OPEN`, `TOKEN_TTL_HOURS`, `MAX_BODY_BYTES`,
-`PROJECT_TTL_HOURS`, `EXPIRY_SWEEP_MINUTES`,
+`PROJECT_TTL_HOURS`, `EXPIRY_SWEEP_MINUTES`, `OP_TIMEOUT_SECONDS`, `TRUSTED_PROXY_CIDRS`,
 `TLS_CERT`/`TLS_KEY` (one cert/key secures HTTPS+WSS and the TCP edit channel),
 and the LLM proxy keys (`ANTHROPIC_API_KEY`, `LLM_*` — see [LLM proxy](#llm-proxy)).
+
+`FILESTORE_ROOT` defaults to the relative `./data/filestore`, which resolves
+against the working directory — in a container with no mounted volume the bytes
+are lost on restart. The server logs a WARN at boot when the configured root is
+relative; set an absolute path in production.
 
 ### Project expiration
 
@@ -232,6 +238,9 @@ Server → client: `welcome` (snapshot: project, layout, version, peers),
 Edits are relayed live without persistence; `save` writes the full layout to
 Postgres under the version guard and broadcasts the new authoritative version.
 This separates low-latency live relay from durable last-writer-wins snapshots.
+Because live edits are never persisted, a shutdown loses everything since the
+last `save` — so before closing sessions the server sends every connection an
+`error` frame with code `shuttingDown`, and clients can prompt to save/reconnect.
 
 ## Security
 
@@ -248,7 +257,11 @@ This separates low-latency live relay from durable last-writer-wins snapshots.
   `AUTH_RATE_PER_MINUTE` still applies per client IP; everything other than
   issuance stays token-gated exactly as before.
 - WebSocket/TCP connections must authenticate with a `hello` token before joining
-  any session; unauthenticated connections are closed.
+  any session; unauthenticated connections are closed. FAILED hellos are metered
+  per client IP (`HELLO_RATE_PER_MINUTE`, default 30; `0` disables) — the socket
+  accepts any origin by design, so without that meter a page could try tokens at
+  line rate. A valid token spends nothing, and an exhausted bucket is refused
+  before the token is even looked up.
 - **Authorization is coarse by design: a valid token grants access to _every_
   project.** This is the intended shared-collaboration model — there is no
   per-project ownership check, so any client holding any valid token can
@@ -269,12 +282,23 @@ This separates low-latency live relay from durable last-writer-wins snapshots.
 - The file store never touches a client-supplied filename: paths are derived from
   a validated project-id allowlist plus a fixed `original`/`result` kind, run
   through `safeJoin` (clean + root-prefix re-check + symlink-escape guard), and
-  written atomically. Traversal attempts are rejected and tested.
+  written atomically. Traversal attempts are rejected and tested. It is
+  **path-confined, not encrypted**: bytes land on disk as uploaded, so the
+  guarantee is "no path escapes the root", not "at rest protection".
 - REST bodies are size-capped and decoded with unknown-field rejection.
 - Transport encryption is opt-in via `TLS_CERT`/`TLS_KEY`: one cert/key secures
   HTTPS + WSS *and* the raw-TCP edit channel (TLS 1.2 minimum). Tokens travel as
   bearer headers, so enable TLS (or front the server with a TLS-terminating proxy)
   on any untrusted network; plaintext is intended only for localhost/dev.
+- **Behind a proxy, set `TRUSTED_PROXY_CIDRS`** (comma-separated networks or bare
+  addresses). Every per-IP limiter keys on the peer address, which behind a
+  TLS-terminating proxy is the proxy itself — one bucket for the whole internet.
+  With it, the client is taken from `X-Forwarded-For` (rightmost hop the trusted
+  chain vouched for). Empty (the default) ignores that header entirely, so a
+  spoofed one from an untrusted peer changes nothing.
+- Every REST handler runs its store calls under `OP_TIMEOUT_SECONDS` (default 10),
+  so one stuck query cannot hold a pool connection for the server's whole
+  5-minute write timeout.
 
 ## Tests
 

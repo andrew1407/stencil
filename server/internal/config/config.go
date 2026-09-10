@@ -5,13 +5,10 @@
 package config
 
 import (
-	"bufio"
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
+	"net/netip"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -34,7 +31,12 @@ type Config struct {
 	CORSOrigins         []string      // browser origins allowed to call the REST API; empty = loopback only, "*" = any
 	AuthRatePerMin      int           // POST /auth/token attempts per minute, per client IP (0 = off)
 	WriteRatePerMin     int           // per-session project creations + file uploads per minute (0 = off)
+	HelloRatePerMin     int           // FAILED WS/TCP hello handshakes per minute, per client IP (0 = off)
 	StorageQuotaBytes   int64         // aggregate filestore cap in bytes (0 = unlimited)
+	OpTimeout           time.Duration // deadline around one REST store operation
+	// TrustedProxies are the peers whose X-Forwarded-For is believed when a
+	// limiter keys on the client IP. Empty (default) ignores the header.
+	TrustedProxies []netip.Prefix
 
 	// LLM proxy (llm-contract.md §6). LLMProvider picks the upstream
 	// mapping — anthropic (default) | ollama | openai-compat. The key never
@@ -75,6 +77,12 @@ const (
 	// pace; 120 writes/min per session still allows a bulk sync. 0 = off.
 	defaultAuthRatePerMin  = 10
 	defaultWriteRatePerMin = 120
+	// Only FAILED hellos spend this (a good token refunds), so it bounds a
+	// brute-force loop while leaving room for a reconnect storm behind one NAT.
+	defaultHelloRatePerMin = 30
+	// One store call, not one request: long enough for a cold index scan, short
+	// enough that a stuck query releases its pool connection.
+	defaultOpTimeout = 10 * time.Second
 )
 
 // Load reads .env (if present in the working directory) then the process
@@ -157,6 +165,17 @@ func Load() (Config, error) {
 	if cfg.WriteRatePerMin, err = positiveInt(get, "WRITE_RATE_PER_MINUTE", defaultWriteRatePerMin, 0); err != nil {
 		return Config{}, err
 	}
+	if cfg.HelloRatePerMin, err = positiveInt(get, "HELLO_RATE_PER_MINUTE", defaultHelloRatePerMin, 0); err != nil {
+		return Config{}, err
+	}
+	opSeconds, err := positiveInt(get, "OP_TIMEOUT_SECONDS", int(defaultOpTimeout/time.Second), 1)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.OpTimeout = time.Duration(opSeconds) * time.Second
+	if cfg.TrustedProxies, err = parseCIDRs(get("TRUSTED_PROXY_CIDRS", "")); err != nil {
+		return Config{}, err
+	}
 	// Aggregate filestore quota in bytes; unset/0 = unlimited.
 	if v := get("STORAGE_QUOTA_BYTES", ""); v != "" {
 		b, err := strconv.ParseInt(v, 10, 64)
@@ -182,77 +201,4 @@ func Load() (Config, error) {
 		cfg.AdminTokenGenerated = true
 	}
 	return cfg, nil
-}
-
-// positiveInt reads an integer env var through get, returning def when unset.
-// min is the lowest accepted value: 0 for settings where zero means "disabled",
-// 1 otherwise. Non-numeric input or anything below min is rejected.
-func positiveInt(get func(key, def string) string, key string, def, min int) (int, error) {
-	v := get(key, "")
-	if v == "" {
-		return def, nil
-	}
-	n, err := strconv.Atoi(v)
-	if err != nil || n < min {
-		return 0, fmt.Errorf("config: invalid %s %q", key, v)
-	}
-	return n, nil
-}
-
-// parseOrigins splits a comma-separated origin list, trimming blanks. An empty
-// result means "loopback origins only" (the fail-closed dev default); a list
-// containing "*" means "any origin" and must be asked for explicitly.
-func parseOrigins(raw string) []string {
-	out := []string{}
-	for _, part := range strings.Split(raw, ",") {
-		if p := strings.TrimSpace(part); p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
-// generateAdminToken mints a random bootstrap admin token for this boot when
-// ADMIN_TOKEN is unset, so issuance is never open by default. 256-bit, like
-// session tokens (internal/auth).
-func generateAdminToken() (string, error) {
-	raw := make([]byte, 32)
-	if _, err := rand.Read(raw); err != nil {
-		return "", fmt.Errorf("config: admin token generation: %w", err)
-	}
-	return base64.RawURLEncoding.EncodeToString(raw), nil
-}
-
-// loadDotEnv parses a simple KEY=VALUE file. Missing file is not an error.
-// Lines that are blank or start with '#' are ignored; surrounding quotes on the
-// value are stripped.
-func loadDotEnv(path string) (map[string]string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return map[string]string{}, nil
-		}
-		return nil, err
-	}
-	defer f.Close()
-
-	out := map[string]string{}
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		key, val, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		key = strings.TrimSpace(key)
-		val = strings.TrimSpace(val)
-		val = strings.Trim(val, `"'`)
-		if key != "" {
-			out[key] = val
-		}
-	}
-	return out, sc.Err()
 }

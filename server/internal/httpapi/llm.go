@@ -67,7 +67,7 @@ func (a *API) handleLLMChat(w http.ResponseWriter, r *http.Request) {
 	// Rate FIRST, before the body is read or decoded: a client that is over its
 	// budget shouldn't get to spend the server's memory either.
 	sess, _ := auth.SessionFromContext(r.Context())
-	if !a.llmRate.allow(sess.ID) {
+	if !a.llmRate.Allow(sess.ID) {
 		w.Header().Set("Retry-After", "60")
 		writeErr(w, http.StatusTooManyRequests, protocol.CodeRateLimited,
 			"too many assistant requests — wait a moment and try again")

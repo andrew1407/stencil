@@ -38,7 +38,9 @@ func (a *API) handleIssueToken(w http.ResponseWriter, r *http.Request) {
 	}
 	now := nowMs()
 	expires := now + a.deps.TokenTTL.Milliseconds()
-	if _, err := a.deps.Sessions.CreateSession(r.Context(), hash, req.Label, now, expires); err != nil {
+	ctx, cancel := a.opCtx(r)
+	defer cancel()
+	if _, err := a.deps.Sessions.CreateSession(ctx, hash, req.Label, now, expires); err != nil {
 		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not persist session")
 		return
 	}

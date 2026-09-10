@@ -4,54 +4,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"testing"
-	"time"
 
 	"stencil/server/internal/bus"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/testutil"
 )
-
-// The bucket must allow a burst up to the per-minute rate, refuse the next
-// spend, refill with elapsed time, and keep keys independent. A nil limiter
-// (rate 0) is unlimited.
-func TestKeyLimiterBuckets(t *testing.T) {
-	now := time.Unix(1000, 0)
-	l := newKeyLimiter(3)
-	l.now = func() time.Time { return now }
-
-	steps := []struct {
-		key     string
-		advance time.Duration
-		want    bool
-	}{
-		{"a", 0, true}, {"a", 0, true}, {"a", 0, true}, // burst up to capacity
-		{"a", 0, false},                // bucket empty
-		{"b", 0, true},                 // an independent key is unaffected
-		{"a", 20 * time.Second, true},  // 20s at 3/min refills one token
-		{"a", 0, false},                // and only one
-		{"a", 10 * time.Minute, true},  // refill caps at one minute's worth
-		{"a", 0, true}, {"a", 0, true}, // ...i.e. capacity 3
-		{"a", 0, false},
-	}
-	for i, s := range steps {
-		now = now.Add(s.advance)
-		if got := l.allow(s.key); got != s.want {
-			t.Fatalf("step %d (%s): allow=%v, want %v", i, s.key, got, s.want)
-		}
-	}
-
-	var unlimited *keyLimiter // rate 0 -> nil
-	if unlimited = newKeyLimiter(0); unlimited != nil {
-		t.Fatal("rate 0 should yield a nil (unlimited) limiter")
-	}
-	for i := 0; i < 100; i++ {
-		if !unlimited.allow("any") {
-			t.Fatal("a nil limiter must always allow")
-		}
-	}
-}
 
 // A token-issuance flood from one IP hits 429 once AUTH_RATE_PER_MINUTE is
 // spent; a different IP still gets through (the key is the client address).
@@ -171,4 +131,67 @@ func TestUploadAgainstStorageQuota(t *testing.T) {
 // jsonDecode unmarshals a recorder body (tiny local helper).
 func jsonDecode(rec *httptest.ResponseRecorder, v any) error {
 	return json.Unmarshal(rec.Body.Bytes(), v)
+}
+
+// issuer builds an API whose /auth/token bucket allows one attempt per key, and
+// returns a func that issues as one (peer, X-Forwarded-For) pair.
+func issuer(t *testing.T, trusted ...netip.Prefix) func(peer, xff string) int {
+	t.Helper()
+	fs, err := filestore.New(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := testutil.NewMemStore()
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(),
+		AdminToken: testAdmin, AuthRatePerMin: 1, TrustedProxies: trusted})
+	return func(peer, xff string) int {
+		req := httptest.NewRequest(http.MethodPost, "/auth/token", nil)
+		req.Header.Set("X-Admin-Token", testAdmin)
+		req.RemoteAddr = peer
+		if xff != "" {
+			req.Header.Set("X-Forwarded-For", xff)
+		}
+		rec := httptest.NewRecorder()
+		api.Handler().ServeHTTP(rec, req)
+		return rec.Code
+	}
+}
+
+// X-Forwarded-For only moves the limiter key when the PEER is a trusted proxy.
+// From anyone else the header is ignored, so it cannot buy a fresh bucket.
+func TestPerIPKeyHonoursForwardedForOnlyFromTrustedPeers(t *testing.T) {
+	loopback := netip.MustParsePrefix("127.0.0.0/8")
+	cases := []struct {
+		name          string
+		trusted       []netip.Prefix
+		first, second [2]string // {peer, X-Forwarded-For}
+		want          int
+	}{
+		{"spoofed header from an untrusted peer shares one bucket", nil,
+			[2]string{"203.0.113.5:1", "198.51.100.1"}, [2]string{"203.0.113.5:2", "198.51.100.2"},
+			http.StatusTooManyRequests},
+		{"no trusted CIDRs: the header is ignored entirely", nil,
+			[2]string{"127.0.0.1:1", "198.51.100.1"}, [2]string{"127.0.0.1:2", "198.51.100.2"},
+			http.StatusTooManyRequests},
+		{"behind a trusted proxy each forwarded client gets its own bucket", []netip.Prefix{loopback},
+			[2]string{"127.0.0.1:1", "198.51.100.1"}, [2]string{"127.0.0.1:2", "198.51.100.2"},
+			http.StatusOK},
+		{"trusted proxy, same forwarded client twice", []netip.Prefix{loopback},
+			[2]string{"127.0.0.1:1", "198.51.100.1"}, [2]string{"127.0.0.1:2", "198.51.100.1"},
+			http.StatusTooManyRequests},
+		{"trusted proxy, spoofed hop appended by the client", []netip.Prefix{loopback},
+			[2]string{"127.0.0.1:1", "198.51.100.1"}, [2]string{"127.0.0.1:2", "10.9.9.9, 198.51.100.1"},
+			http.StatusTooManyRequests},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			issue := issuer(t, tc.trusted...)
+			if code := issue(tc.first[0], tc.first[1]); code != http.StatusOK {
+				t.Fatalf("first issue: code %d", code)
+			}
+			if code := issue(tc.second[0], tc.second[1]); code != tc.want {
+				t.Fatalf("second issue: code %d, want %d", code, tc.want)
+			}
+		})
+	}
 }

@@ -9,12 +9,14 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/netip"
 	"os"
 	"time"
 
 	"stencil/server/internal/auth"
 	"stencil/server/internal/bus"
 	"stencil/server/internal/protocol"
+	"stencil/server/internal/ratelimit"
 	"stencil/server/internal/store"
 )
 
@@ -82,15 +84,19 @@ type Deps struct {
 	// Abuse guards for the non-LLM writes (ratelimit.go); 0 = off.
 	AuthRatePerMin  int // POST /auth/token attempts per minute, per client IP
 	WriteRatePerMin int // project creations + file uploads per minute, per session
+	// Peers whose X-Forwarded-For is believed when keying a per-IP limiter;
+	// empty (the default) ignores the header entirely.
+	TrustedProxies []netip.Prefix
+	OpTimeout      time.Duration // deadline around ONE store operation
 }
 
 // API holds the resolved dependencies and serves HTTP.
 type API struct {
 	deps      Deps
-	llmRate   *llmRateLimiter
+	llmRate   *ratelimit.Limiter // per-session, POST /llm/chat
 	llmGate   *llmGate
-	authRate  *keyLimiter // per-IP, POST /auth/token
-	writeRate *keyLimiter // per-session, project creation + file uploads
+	authRate  *ratelimit.Limiter // per-IP, POST /auth/token
+	writeRate *ratelimit.Limiter // per-session, project creation + file uploads
 }
 
 // nowMs is overridable in tests.
@@ -104,19 +110,32 @@ func New(deps Deps) *API {
 	if deps.TokenTTL == 0 {
 		deps.TokenTTL = 7 * 24 * time.Hour
 	}
+	if deps.OpTimeout <= 0 {
+		deps.OpTimeout = defaultOpTimeout
+	}
 	return &API{
 		deps:      deps,
-		llmRate:   newLLMRateLimiter(deps.LLMRatePerMin),
+		llmRate:   ratelimit.New(deps.LLMRatePerMin),
 		llmGate:   newLLMGate(deps.LLMMaxInFlight),
-		authRate:  newKeyLimiter(deps.AuthRatePerMin),
-		writeRate: newKeyLimiter(deps.WriteRatePerMin),
+		authRate:  ratelimit.New(deps.AuthRatePerMin),
+		writeRate: ratelimit.New(deps.WriteRatePerMin),
 	}
+}
+
+// defaultOpTimeout is the fallback for Deps.OpTimeout (OP_TIMEOUT_SECONDS).
+const defaultOpTimeout = 10 * time.Second
+
+// opCtx bounds one store operation: the request context alone runs to the
+// server's 5-minute write timeout, which is a long time to pin a pool
+// connection. Streaming a download still uses the request itself.
+func (a *API) opCtx(r *http.Request) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(r.Context(), a.deps.OpTimeout)
 }
 
 // Register mounts the REST routes onto mux. Project/file routes are gated by the
 // auth middleware; POST /auth/token has its own admin gate.
 func (a *API) Register(mux *http.ServeMux) {
-	mux.HandleFunc("POST /auth/token", limitByIP(a.authRate, a.handleIssueToken))
+	mux.HandleFunc("POST /auth/token", a.limitByIP(a.authRate, a.handleIssueToken))
 
 	guard := auth.Middleware(a.deps.Sessions)
 	protected := func(pattern string, h http.HandlerFunc) {
