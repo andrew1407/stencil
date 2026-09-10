@@ -1,14 +1,31 @@
-name: Release
+name: Desktop packages
 
 # Builds self-contained desktop packages for macOS / Windows / Linux; on a version
 # tag it also attaches them to the GitHub release, otherwise it just uploads them as
-# workflow artifacts so packaging is exercised on every push.
+# workflow artifacts so packaging is exercised on every push that touches the app.
 on:
   push:
     branches: [main]
     tags: ['v*']
+    # A package is the desktop app over the core, with the shared JSON + artwork its
+    # qrc embeds — nothing else changes a byte of it, so other pushes skip the three
+    # runners. (GitHub does not apply path filters to tag pushes: a release always builds.)
+    paths:
+      - 'desktop/**'
+      - 'core/**'
+      - 'browser/js/config/**'
+      - 'browser/favicon.svg'
+      - '.github/workflows/desktop-packages.yml'
+      - '!**/*.md'
   pull_request:
     branches: [main]
+    paths:
+      - 'desktop/**'
+      - 'core/**'
+      - 'browser/js/config/**'
+      - 'browser/favicon.svg'
+      - '.github/workflows/desktop-packages.yml'
+      - '!**/*.md'
   workflow_dispatch:
 
 permissions:

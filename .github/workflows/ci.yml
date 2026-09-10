@@ -5,17 +5,102 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:   # a manual run exercises every job
 
 # Opt bundled JS actions into node24 ahead of the runner's forced switch.
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # Which jobs a change can reach. Each job below runs only when something it builds
+  # or reads changed — its own tree plus the cross-tree inputs it compiles, embeds or
+  # asserts parity against (core/ for everything that recompiles it, browser/js/config/
+  # for the surfaces that embed the shared JSON, and so on; the patterns are the
+  # inventory). Markdown never feeds a build or a test, so docs-only pushes run
+  # nothing. A manual run, a new branch, a force-push whose old tip is gone, or an
+  # edit to this file runs the lot.
+  changes:
+    name: Changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      browser: ${{ steps.filter.outputs.browser }}
+      single_file: ${{ steps.filter.outputs.single_file }}
+      extension: ${{ steps.filter.outputs.extension }}
+      core: ${{ steps.filter.outputs.core }}
+      desktop: ${{ steps.filter.outputs.desktop }}
+      wasm: ${{ steps.filter.outputs.wasm }}
+      cli: ${{ steps.filter.outputs.cli }}
+      pystencil: ${{ steps.filter.outputs.pystencil }}
+      mcp: ${{ steps.filter.outputs.mcp }}
+      server: ${{ steps.filter.outputs.server }}
+      e2e: ${{ steps.filter.outputs.e2e }}
+      bot: ${{ steps.filter.outputs.bot }}
+      guard: ${{ steps.filter.outputs.guard }}
+      images: ${{ steps.filter.outputs.images }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # the diff needs the push's old tip / the PR's base
+      - id: filter
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          all=false
+          files=""
+          case "$GITHUB_EVENT_NAME" in
+            # A PR checkout is the merge commit, so its first parent is the base branch.
+            pull_request) files=$(git diff --name-only HEAD^1 HEAD) ;;
+            push)
+              if [ -n "$BEFORE" ] && ! [[ "$BEFORE" =~ ^0+$ ]] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+                files=$(git diff --name-only "$BEFORE" HEAD)
+              else
+                all=true
+              fi ;;
+            *) all=true ;;
+          esac
+          files=$(printf '%s\n' "$files" | grep -Ev '\.md$' || true)
+          printf '%s\n' "$files" | grep -Eq '^\.github/workflows/ci\.yml$' && all=true
+          echo "== changed (docs dropped) =="; printf '%s\n' "$files"; echo "all=$all"
+
+          hit() { $all || printf '%s\n' "$files" | grep -Eq "$1"; }
+          flag() { local v=false; hit "$2" && v=true; echo "$1=$v" >> "$GITHUB_OUTPUT"; echo "$1: $v"; }
+          cfg='^browser/js/config/'
+          # Tests pin parity against sibling trees (browser ↔ desktop/src + extension/src,
+          # extension ↔ browser/js + css), so those count as inputs too.
+          flag browser     '^browser/|^extension/src/|^desktop/src/'
+          flag single_file '^browser/'
+          flag extension   '^extension/|^browser/(js|css)/'
+          flag core        '^core/'
+          flag desktop     "^desktop/|^core/|^browser/js/|^browser/favicon\.svg$"
+          flag wasm        '^core/|^browser/'
+          flag cli         "^cli/|^core/|$cfg"
+          flag pystencil   "^pystencil/|^core/|$cfg"
+          flag mcp         "^mcp/|^cli/|^core/|$cfg"
+          flag server      "^server/|$cfg"
+          flag bot         "^bot/|$cfg"
+          flag e2e         '^e2e/|^browser/|^extension/|^server/|^cli/|^core/|^docker-compose\.yml$'
+          flag guard       '^\.claude/hooks/'
+
+          # The image matrix: only the images whose build context changed. Each entry is
+          # image,dockerfile,context; browser/cli/mcp/bot build from the repo root.
+          images=()
+          hit "^browser/|^core/|^\.dockerignore$"        && images+=("stencil-browser,browser/Dockerfile,.")
+          hit "^cli/|^core/|$cfg|^\.dockerignore$"       && images+=("stencil-cli,cli/Dockerfile,.")
+          hit "^mcp/|^cli/|^core/|$cfg|^\.dockerignore$" && images+=("stencil-mcp,mcp/Dockerfile,.")
+          hit "^bot/|^cli/|^core/|$cfg|^\.dockerignore$" && images+=("stencil-bot,bot/Dockerfile,.")
+          hit '^server/'                                  && images+=("stencil-server,server/Dockerfile,server")
+          json=$(jq -cn '[$ARGS.positional[] | split(",") | {image: .[0], dockerfile: .[1], context: .[2]}]' --args ${images[@]+"${images[@]}"})
+          echo "images=$json" >> "$GITHUB_OUTPUT"; echo "images: $json"
+
   # Browser: vanilla ES-module JS, no build step. wasm-parity self-skips here (no wasm
   # artifact) — the wasm job asserts it against a fresh build.
   browser:
     name: Browser (JS tests)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.browser == 'true'
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -34,6 +119,8 @@ jobs:
   single-file:
     name: Browser (single-file build)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.single_file == 'true'
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -54,6 +141,8 @@ jobs:
   extension:
     name: Extension (JS tests)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.extension == 'true'
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -68,6 +157,8 @@ jobs:
   core:
     name: Core (C++ build + tests)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.core == 'true'
     steps:
       - uses: actions/checkout@v5
       - name: Install toolchain (g++, cmake)
@@ -85,6 +176,8 @@ jobs:
   desktop:
     name: Desktop (C++ build + tests)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.desktop == 'true'
     steps:
       - uses: actions/checkout@v5
       - name: Install toolchain (g++, cmake, Qt6)
@@ -106,6 +199,8 @@ jobs:
   wasm:
     name: WebAssembly (build + parity)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.wasm == 'true'
     env:
       EMSDK_VERSION: '5.0.7'
     steps:
@@ -145,6 +240,8 @@ jobs:
   cli:
     name: CLI (Zig build + tests)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.cli == 'true'
     steps:
       - uses: actions/checkout@v5
       - name: Set up Zig
@@ -163,6 +260,8 @@ jobs:
   pystencil:
     name: pystencil (Python tests)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.pystencil == 'true'
     steps:
       - uses: actions/checkout@v5
       - name: Install toolchain (g++)
@@ -177,6 +276,8 @@ jobs:
   mcp:
     name: MCP (Rust build + tests)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.mcp == 'true'
     steps:
       - uses: actions/checkout@v5
       - name: Set up Zig
@@ -202,6 +303,8 @@ jobs:
   server:
     name: Server (Go build + tests)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
     services:
       postgres:
         image: postgres:16
@@ -260,6 +363,8 @@ jobs:
   e2e:
     name: E2E (Playwright + compose)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.e2e == 'true'
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -301,6 +406,8 @@ jobs:
   bot:
     name: Bot (.NET build + tests)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.bot == 'true'
     steps:
       - uses: actions/checkout@v5
       - name: Set up .NET
@@ -329,6 +436,8 @@ jobs:
   guard-hook:
     name: Guard hook (JS tests)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.guard == 'true'
     steps:
       - uses: actions/checkout@v5
       - name: Set up Node.js
@@ -343,25 +452,13 @@ jobs:
   docker-images:
     name: Docker images (build)
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.images != '[]'
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - image: stencil-browser
-            dockerfile: browser/Dockerfile
-            context: .
-          - image: stencil-cli
-            dockerfile: cli/Dockerfile
-            context: .
-          - image: stencil-mcp
-            dockerfile: mcp/Dockerfile
-            context: .
-          - image: stencil-bot
-            dockerfile: bot/Dockerfile
-            context: .
-          - image: stencil-server
-            dockerfile: server/Dockerfile
-            context: server
+        # {image, dockerfile, context} per image whose inputs changed — see `changes`.
+        include: ${{ fromJSON(needs.changes.outputs.images) }}
     steps:
       - uses: actions/checkout@v5
       - name: Build ${{ matrix.image }}
