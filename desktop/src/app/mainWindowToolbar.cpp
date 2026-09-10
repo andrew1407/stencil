@@ -718,13 +718,13 @@ namespace stencil::gui {
       cl->addWidget(customW_, 0, Qt::AlignVCenter);
       cl->addWidget(new QLabel("×", customGroup_), 0, Qt::AlignVCenter);
       cl->addWidget(customH_, 0, Qt::AlignVCenter);
-      customUnitLabel_ = new QLabel("cm", customGroup_);
-      cl->addWidget(customUnitLabel_, 0, Qt::AlignVCenter);
+      // No unit suffix after the boxes (user decision; browser twin: the same span is gone
+      // from toolbar.js) — the units combo two controls left already says cm / in.
     }
     customGroup_->setVisible(false);   // revealed by the "custom" page size
     // One NAMED section, like every group in the main row and like the browser's PAGE
-    // cluster — the inline "Page:"/"Units:" captions become the section header ("Units"
-    // keeps its own inline label, exactly as the browser does inside that group).
+    // cluster. Neither combo carries an inline caption (user decision, browser twin):
+    // each spells its own answer out ("A4 (21 × 29.7 cm)", "cm").
     addWrapped(row, makeToolSection("Page", {}, { pageSize_, unitCombo_, customGroup_ }));
 
     // Inline formula controls (S11): an enable checkbox + fx/fy inputs + error.
@@ -740,13 +740,15 @@ namespace stencil::gui {
     allowFormulas_->setSizePolicy(QSizePolicy::Fixed, allowFormulas_->sizePolicy().verticalPolicy());
     // f(x,y) sits between PAGE and DATA, where the browser puts it (its PAGE cluster
     // carries the pill and the inputs inline; here they are their own named section, as
-    // every cluster on this row is). The separator before it is the one PAGE just added.
+    // every cluster on this row is), fenced by its own separator like every neighbour —
+    // it was the one section running straight on from PAGE (the browser writes a .ctrl-sep).
     // The x/y inputs belong to the SAME section as the pill that reveals them. Added
     // straight to the toolbar instead, they were centred on the toolbar's full height
     // while the pill sat under the section's caption — so the two never shared a
     // baseline. makeToolSection gives every control in the row one height and
     // Qt::AlignVCenter, which is what the browser's flex row does.
     buildFormulaFields();
+    addWrappedSeparator(row);
     // Content-sized, with no expanding tail: DATA and SETTINGS follow it on this row now,
     // and a cluster that took the row's leftover width would shove them to the far edge —
     // the browser packs its sections left and leaves the slack at the END of the row.
@@ -844,12 +846,13 @@ namespace stencil::gui {
     clearLinesBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
     clearLinesBtn->setAutoRaise(true);
     clearLinesBtn->setIconSize(QSize(kToolIcon, kToolIcon));
-    // The row's own gap left "Lines" and "Compare" reading as one run of text — both are bare
-    // words, so they need more air between the toggles and the selector than between siblings.
-    auto* compareLabel = new QLabel("Compare:", this);
-    compareLabel->setStyleSheet("padding-left: 10px; padding-right: 2px;");
+    // Compare LEADS the section (user decision; browser twin: toolbar.js's View cluster),
+    // on the row's own gap — the extra air it carried was for two bare words running
+    // together. Captioned as the browser captions it, no colon.
+    auto* compareLabel = new QLabel("Compare", this);
+    compareLabel->setStyleSheet("padding-right: 2px;");
     addWrapped(row, makeToolSection("View", {}, {
-        showPointsCheck_, showLinesCheck_, compareLabel, compareCombo_, clearLinesBtn }));
+        compareLabel, compareCombo_, showPointsCheck_, showLinesCheck_, clearLinesBtn }));
   }
 
   // "Image Size: W × H px" bar right above the canvas (browser parity: #image-info, a sibling

@@ -1879,8 +1879,6 @@ export class DrawingApp {
     const h = document.getElementById('custom-page-height');
     if (w) w.value = +cmToUnit(this.customPageWidth, this.unit).toFixed(2);
     if (h) h.value = +cmToUnit(this.customPageHeight, this.unit).toFixed(2);
-    const cul = document.getElementById('custom-unit-label');
-    if (cul) cul.textContent = lbl;
     const ths = document.querySelectorAll('#coordinates-table thead th');
     if (ths[3]) ths[3].textContent = `X ${lbl}`;
     if (ths[4]) ths[4].textContent = `Y ${lbl}`;

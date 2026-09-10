@@ -317,9 +317,10 @@ export const paletteCss = (stops = PALETTE_STOPS) => [
 // and heading never change over a flight, so drawCloud works them out once instead.
 export const moteFrame = (m, flight, p, out = {}, tMs = 0, style = STYLE_DUST) => {
   const f = FLIGHTS[flight] || FLIGHTS.scatter;
+  const fromFar = f.from === 'far';
   const mid = 1 - (1 - m.s) * 0.5;
   let x, y, size;
-  if (f.from === 'far') {
+  if (fromFar) {
     if (p <= f.split) {
       const e = f.leg(f.split > 0 ? p / f.split : 1);
       x = m.x + m.dx + (m.mx - m.dx) * e;
@@ -351,7 +352,11 @@ export const moteFrame = (m, flight, p, out = {}, tMs = 0, style = STYLE_DUST) =
   let glow = twinkleAt(m, tMs);
   out.mix = dustMix(m.w, m.g);
   if (style) {
-    styleFrame(style, p, f.from === 'far' ? 1 - p : p, m.w || 0, Math.hypot(m.dx, m.dy), tMs, out);
+    // The sag/lift is a share of what the grain has LEFT to reach its end, not of its whole
+    // throw: converging on an icon it then has nowhere to sag, and lands where dust lands.
+    const ex = fromFar ? m.x : m.x + m.dx;
+    const ey = fromFar ? m.y : m.y + m.dy;
+    styleFrame(style, p, fromFar ? 1 - p : p, m.w || 0, Math.hypot(ex - x, ey - y), tMs, out);
     x += out.sx;
     y += out.sy;
     size *= out.scale;

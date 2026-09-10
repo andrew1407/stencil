@@ -1051,7 +1051,6 @@ namespace stencil::gui {
     QWidget* customGroup_ = nullptr;
     QDoubleSpinBox* customW_ = nullptr;
     QDoubleSpinBox* customH_ = nullptr;
-    QLabel* customUnitLabel_ = nullptr;  // "cm"/"in" suffix by the spinboxes
     QComboBox* unitCombo_ = nullptr;     // toolbar cm/in switch (mirrors the menu)
     QCheckBox* allowFormulas_ = nullptr;
     QWidget* formulaGroup_ = nullptr;

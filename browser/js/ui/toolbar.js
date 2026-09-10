@@ -202,22 +202,21 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">View</div>
                 <div class="ctrl-section-row">
-                    <label data-hk-title="togglePoints" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" data-title="Show Points (Alt+P)">
-                        <input type="checkbox" id="show-points" checked> Points
-                    </label>
-                    <label data-hk-title="toggleLines" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" data-title="Show Lines (Alt+L)">
-                        <input type="checkbox" id="show-lines" checked> Lines
-                    </label>
-                    <!-- Extra left margin, none on the right: the row's flat 8px gap left "Lines"
-                         and "Compare" reading as one run of text. The label belongs to the select,
-                         so the air goes on the side that separates it from the toggles. -->
-                    <label for="compare-mode" style="font-weight:normal;font-size:13px;color:var(--text-muted);margin-left:12px;">Compare</label>
+                    <!-- Compare LEADS the section (desktop twin: mainWindowToolbar.cpp's View
+                         cluster), on the row's own gap — the extra air was for two bare words. -->
+                    <label for="compare-mode" style="font-weight:normal;font-size:13px;color:var(--text-muted);">Compare</label>
                     <select id="compare-mode" data-hk-title="cycleCompare" data-title="Compare with original&#10;• None — normal editing&#10;• Original — the original only (crop + rotation)&#10;• Vertical split — original left, edit right&#10;• Horizontal split — original top, edit bottom&#10;(hold Alt+Shift+O to peek)" data-disabled-reason="Load an image to compare">
                         <option value="none">None</option>
                         <option value="original">Original</option>
                         <option value="vertical">Split ↔</option>
                         <option value="horizontal">Split ↕</option>
                     </select>
+                    <label data-hk-title="togglePoints" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" data-title="Show Points (Alt+P)">
+                        <input type="checkbox" id="show-points" checked> Points
+                    </label>
+                    <label data-hk-title="toggleLines" style="font-weight:normal;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:4px;" data-title="Show Lines (Alt+L)">
+                        <input type="checkbox" id="show-lines" checked> Lines
+                    </label>
                     <button id="clear-all-lines" class="danger btn-icon" data-hk-title="clearAllLines" data-title="Clear All Lines" data-disabled-reason="No lines to clear">${icon('eraser')}</button>
                 </div>
             </div>
@@ -256,7 +255,6 @@ export class StencilToolbar extends StencilElement {
                         <option value="custom">Custom…</option>
                         ${pageFormatOptions()}
                     </select>
-                    <label style="font-weight:normal;font-size:12px;color:var(--text-muted);">Units:</label>
                     <select id="unit-select" data-title="Display units (cm / inches)">
                         <option value="cm">cm</option>
                         <option value="in">in</option>
@@ -266,7 +264,6 @@ export class StencilToolbar extends StencilElement {
                         <input type="number" id="custom-page-width" value="21" min="0.1" max="500" step="0.1" style="width:96px">
                         <label style="font-weight:normal;font-size:12px;color:var(--text-muted);">H</label>
                         <input type="number" id="custom-page-height" value="29.7" min="0.1" max="500" step="0.1" style="width:96px">
-                        <span id="custom-unit-label" style="font-size:12px;color:var(--text-muted);">cm</span>
                     </span>
                 </div>
             </div>

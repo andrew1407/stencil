@@ -55,8 +55,10 @@ export class StencilInstall extends StencilElement {
     const pwaBtn = this.querySelector('#install-pwa-btn');
     const toggle = this.querySelector('#install-toggle');
     // The menu is shown by a :hover / :focus-within rule alone, so its sand is wired
-    // here rather than hung off an open/close (js/ui/motion.js wireHoverDust).
-    wireHoverDust(this, this.querySelector('#install-menu'));
+    // here rather than hung off an open/close (js/ui/motion.js wireHoverDust). The host
+    // has to be the hover region (else moving onto the menu would close it), but the sand
+    // comes out of the ICON — the host's box grows to cover the open menu.
+    wireHoverDust(this, this.querySelector('#install-menu'), { anchor: toggle });
     // Touch device: the button IS the PWA install (no menu / desktop option), so it
     // only makes sense while installable — hide it until `beforeinstallprompt`.
     const mobile = matchMedia('(hover: none) and (pointer: coarse)').matches;

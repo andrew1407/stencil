@@ -1703,8 +1703,6 @@ namespace stencil::gui {
     customH_->setDecimals(inches ? 2 : 1);
     customW_->setValue(settings_.customPageWidth * u.factor);
     customH_->setValue(settings_.customPageHeight * u.factor);
-    if (customUnitLabel_)
-      customUnitLabel_->setText(QString::fromStdString(u.label));
   }
 
   // Reflect settings_.units in both unit controls without firing their handlers.

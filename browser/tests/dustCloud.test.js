@@ -241,8 +241,20 @@ test('a styled grain still sets off from and lands exactly where its flight says
       const [a, b] = f.from === 'far' ? [[160, 120], [100, 200]] : [[100, 200], [160, 120]];
       assert.ok(near(start.x, a[0]) && near(start.y, a[1]), `${name}/${style} sets off from home or far`);
       assert.ok(near(end.x, b[0]) && near(end.y, b[1]), `${name}/${style} lands`);
+      // Off the dust rail while it still has road left, and back ON it as it arrives —
+      // it used to keep tens of pixels of offset all the way into the icon. Where the gap
+      // is widest depends on the flight's easing, so the whole trip is scanned for it.
+      let widest = 0;
+      for (let p = 0.02; p < 1; p += 0.02) {
+        const s = moteFrame(live, name, p, {}, 300, style), r = moteFrame(live, name, p, {}, 300, STYLE_DUST);
+        widest = Math.max(widest, Math.hypot(s.x - r.x, s.y - r.y));
+      }
+      assert.ok(widest > 1, `${name}/${style} is off the dust rail mid-flight`);
+      const late = moteFrame(live, name, 0.97, {}, 300, style);
+      const lateRail = moteFrame(live, name, 0.97, {}, 300, STYLE_DUST);
+      assert.ok(Math.hypot(late.x - lateRail.x, late.y - lateRail.y) < widest * 0.25,
+                `${name}/${style} is back on the rail as it arrives`);
       const mid = moteFrame(live, name, 0.5, {}, 300, style), rail = moteFrame(live, name, 0.5, {}, 300, STYLE_DUST);
-      assert.ok(Math.hypot(mid.x - rail.x, mid.y - rail.y) > 1, `${name}/${style} is off the dust rail mid-flight`);
       assert.ok(mid.mix >= 0 && mid.mix <= 1, 'and carries its colour mix');
       assert.equal(rail.mix, dustMix(live.w, live.g), 'dust keeps its hashed stop');
     }

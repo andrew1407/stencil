@@ -206,8 +206,12 @@ test('one delegated listener wires every checkbox, as one filter does on the des
 
 test('a select exchanges its chosen word, but only on a real change', () => {
   assert.match(selectJs, /markSwap\(cur, \(\) => \{ cur\.textContent = label; \}\)/);
-  assert.match(selectJs, /const changed = shown !== null && label !== shown;\s*\n\s*if \(!changed\) cur\.textContent = label;/,
+  assert.match(selectJs, /const changed = settled && shown !== null && label !== shown;\s*\n\s*if \(!changed\) cur\.textContent = label;/,
     'the first paint and a re-sync on open write straight through');
+  // …and so does BOOT: applyUnitToUI writes the restored page size and unit in the same
+  // task that wired the toolbar, and both dropdowns dealt themselves in as the page opened.
+  assert.match(selectJs, /requestAnimationFrame\(\(\) => \{ settled = true; \}\)/);
+  assert.match(selectJs, /else settled = true;/, 'off-browser, every set is a real one');
 });
 
 test('a filter brings its rows in as sand — and never plays one out', () => {

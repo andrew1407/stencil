@@ -150,6 +150,12 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
   // comes apart into motes and the incoming one forms out of them, in place. Only a real
   // change flies — the first paint, a re-sync on open and a no-op set write straight
   // through, or every dropdown would deal itself in on open.
+  // BOOT counts as that first paint too: applyUnitToUI asserts the restored page size and
+  // unit in the same task that wired the toolbar, and both dropdowns dealt themselves in as
+  // the page opened. Nothing the user does can beat the next frame, so the swap wakes there.
+  let settled = false;
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => { settled = true; });
+  else settled = true;
   // The box stays put because the label is floored at its WIDEST option, not the one
   // showing, so a row of selects doesn't shuffle as you use them. The app's own face pin
   // does the measuring — in the real element, so the true font, padding and border count,
@@ -171,7 +177,7 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
   const sync = () => {
     fitToWidestOption();
     const label = labelOf(selectEl.value);
-    const changed = shown !== null && label !== shown;
+    const changed = settled && shown !== null && label !== shown;
     if (!changed) cur.textContent = label;
     else markSwap(cur, () => { cur.textContent = label; });
     shown = label;

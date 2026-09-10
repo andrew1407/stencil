@@ -1639,9 +1639,12 @@ export function foldDust(el, scope, cls, hiding, dock, { inMs = SURFACE_IN_MS, t
 // copy. The hold class puts the box back for exactly as long as the motes need.
 export const HOVER_DUST_HOLD_CLASS = 'dust-hold';
 export const HOVER_DUST_HOLD_MS = 120;
-export function wireHoverDust(host, popup, { inMs = 300, outMs = 200 } = {}) {
+// `anchor` is what the sand flies out of, defaulting to the hover host — a host that WRAPS
+// its popup needs to name its trigger instead, or the box it measures covers the open popup
+// and the motes form out of the middle of their own cloud (installButton.js).
+export function wireHoverDust(host, popup, { inMs = 300, outMs = 200, anchor = host } = {}) {
   if (!host?.addEventListener || !popup?.classList) return;
-  const point = () => (motionReduced() ? null : rectCenter(host));
+  const point = () => (motionReduced() ? null : rectCenter(anchor));
   host.addEventListener('pointerenter', () => surfaceIn(popup, point(), { ms: inMs }));
   host.addEventListener('pointerleave', () => {
     const p = point();

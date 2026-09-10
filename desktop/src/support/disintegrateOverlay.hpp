@@ -527,10 +527,13 @@ namespace stencil::gui {
     // Finish a grain: its shape, heading (`tx, ty` is its throw, `fromFar` a gather) and
     // colour. Every grain is painted from the theme's palette by its mix and its hash,
     // never in the cell's own colour — the cell only said how much paint there was, which
-    // `alpha` already carries. Dust twinkles; water and fire take styleFrame's touch.
+    // `alpha` already carries. Dust twinkles; water and fire take styleFrame's touch, sized
+    // by what the grain has LEFT to reach `dest` (its flight's end) rather than by the whole
+    // throw — converging on an icon it then lands where dust lands (browser: moteFrame).
     void finishGrain(Mote* out, double alpha, bool glint, double w, int tint,
-                     double p, double away, double tx, double ty, bool fromFar) const {
-      const double len = std::hypot(tx, ty);
+                     double p, double away, double tx, double ty, bool fromFar,
+                     const QPointF& dest) const {
+      const double len = std::hypot(dest.x() - out->at.x(), dest.y() - out->at.y());
       out->shape = support::grainShape(style_, w);
       out->heading = support::headingOf(tx, ty, fromFar);
       if (style_ == support::ParticleStyle::Dust) {
@@ -705,7 +708,7 @@ namespace stencil::gui {
       out->radius = moteRadius(cw, ch, n)
           * legScalar(t, kRowSplit, rowLegEase(), rowEase(), 1.0, 1.0 - (1.0 - farScale) * 0.5, farScale);
       finishGrain(out, cell.alphaF() * (0.78 + n * 0.22) * scatterAlpha(t), glintAt(cx, cy), w,
-                  tintAt(cx, cy), t, t, tx, ty, false);
+                  tintAt(cx, cy), t, t, tx, ty, false, far);
       return true;
     }
 
@@ -753,7 +756,8 @@ namespace stencil::gui {
       // No twinkle on a falling picture (browser drawDust has none); a styled one still
       // breathes, on the same fourth hash every cloud keys its style off.
       finishGrain(out, cell.alphaF() * (0.78 + n * 0.22) * (gather ? gatherAlpha(t) : scatterAlpha(t)),
-                  false, cellNoise(cx + 13, cy + 71), tintAt(cx, cy), t, away, tx, ty, gather);
+                  false, cellNoise(cx + 13, cy + 71), tintAt(cx, cy), t, away, tx, ty, gather,
+                  gather ? home : home + QPointF(tx, ty));
       return true;
     }
 
@@ -809,7 +813,7 @@ namespace stencil::gui {
         out->at = home;
         out->radius = moteRadius(cw, ch, n);
         finishGrain(out, cell.alphaF() * (0.78 + n * 0.22) * host, glintAt(cx, cy),
-                    cellNoise(cx + 13, cy + 71), tintAt(cx, cy), 1.0, 0.0, toX, toY, true);
+                    cellNoise(cx + 13, cy + 71), tintAt(cx, cy), 1.0, 0.0, toX, toY, true, home);
         return true;
       }
       // A gathering mote waits at the point until its delay is up, which is what makes
@@ -843,7 +847,7 @@ namespace stencil::gui {
             * legScalar(t, kSurfaceScatterSplit, surfaceLegEase(), surfaceEase(), 1.0, midScale, farScale);
       }
       finishGrain(out, cell.alphaF() * alpha * (0.78 + n * 0.22), glintAt(cx, cy), w,
-                  tintAt(cx, cy), t, gather ? 1.0 - t : t, tx, ty, gather);
+                  tintAt(cx, cy), t, gather ? 1.0 - t : t, tx, ty, gather, gather ? home : point);
       return true;
     }
 

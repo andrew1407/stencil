@@ -32,7 +32,7 @@ const IDS = [
     'image-filter', 'filter-color', 'crop-image', 'line-color', 'line-thickness',
     'point-size', 'line-style', 'draw-toggle', 'draw-mode-toggle', 'undo', 'redo', 'show-points',
     'show-lines', 'clear-all-lines', 'zoom-out', 'zoom-input', 'zoom-menu', 'zoom-in', 'zoom-fit', 'page-size', 'unit-select', 'custom-size-group',
-    'custom-page-width', 'custom-page-height', 'custom-unit-label', 'allow-formulas', 'formula-inputs', 'formula-x', 'formula-y',
+    'custom-page-width', 'custom-page-height', 'allow-formulas', 'formula-inputs', 'formula-x', 'formula-y',
     'formula-error', 'download-json', 'copy-json-btn', 'save-image', 'upload-json', 'upload-json-btn', 'clear-storage',
     'theme-toggle', 'fullscreen-toggle', 'settings-btn', 'visuals-btn', 'info-btn', 'selection-panel',
     'sel-color', 'sel-thickness', 'sel-point-size', 'sel-style', 'sel-fill-group', 'sel-fill',
@@ -82,8 +82,8 @@ const IDS = [
     'keywords-overlay', 'keywords-close', 'keywords-text', 'keywords-cancel', 'keywords-save'
 ];
 
-test('fixture has exactly 259 IDs', () => {
-    assert.strictEqual(IDS.length, 259);   // -1: fullscreen's own Exit button is gone
+test('fixture has exactly 258 IDs', () => {
+    assert.strictEqual(IDS.length, 258);   // -1: the custom page boxes' unit suffix is gone
 });
 
 test('every static body ID is present exactly once', () => {
