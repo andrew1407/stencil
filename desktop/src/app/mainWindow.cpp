@@ -875,7 +875,6 @@ namespace stencil::gui {
       }
       openImageDialog(/*startBlank=*/true);
     });
-    connect(canvas_, &CanvasWidget::zoomStep, this, &MainWindow::zoomStep);
     // Reflect drawing mode in the Start/Stop actions (S5).
     connect(canvas_, &CanvasWidget::drawingModeChanged, this,
             &MainWindow::refreshActions);
@@ -2562,9 +2561,6 @@ namespace stencil::gui {
   }
 
   // ── view / zoom ──
-  void MainWindow::zoomStep(int dir) {
-    setZoom(canvas_->scale() * (dir > 0 ? 1.25 : 0.8));
-  }
   void MainWindow::zoomIn() { setZoom(canvas_->scale() * 1.25); }
   void MainWindow::zoomOut() { setZoom(canvas_->scale() * 0.8); }
 

@@ -113,17 +113,20 @@ namespace stencil::gui {
     // platform ever hands us an unmanaged surface, this is the one place to change.
     QColor displayColor(const QColor& c) { return c; }
 
+    // sRGB transfer function: encoded 0..1 -> linear light (CSS/WCAG, not Rec.709 luma).
+    double srgbToLinear(double v) {
+      return v <= 0.04045 ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4);
+    }
+
     [[maybe_unused]] QColor encodeDisplayP3(const QColor& c) {
 #ifdef Q_OS_MACOS
       if (!c.isValid()) return c;
-      const auto toLinear = [](double v) {
-        return v <= 0.04045 ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4);
-      };
       const auto toCurve = [](double v) {
         v = std::clamp(v, 0.0, 1.0);
         return v <= 0.0031308 ? 12.92 * v : 1.055 * std::pow(v, 1.0 / 2.4) - 0.055;
       };
-      const double r = toLinear(c.redF()), g = toLinear(c.greenF()), b = toLinear(c.blueF());
+      const double r = srgbToLinear(c.redF()), g = srgbToLinear(c.greenF()),
+                   b = srgbToLinear(c.blueF());
       // sRGB -> XYZ(D65) -> Display P3 linear, folded into one matrix.
       constexpr double m[3][3] = {{0.822462, 0.177538, 0.000000},
                                   {0.033194, 0.966806, 0.000000},
@@ -153,11 +156,8 @@ namespace stencil::gui {
   bool accentNeedsDarkGlyph(const QColor& accent) {
     if (!accent.isValid()) return false;
     // WCAG luminance → the two contrasts; the greater wins, as in accents.js.
-    const auto toLinear = [](double c) {
-      return c <= 0.04045 ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4);
-    };
-    const double l = 0.2126 * toLinear(accent.redF()) + 0.7152 * toLinear(accent.greenF())
-                     + 0.0722 * toLinear(accent.blueF());
+    const double l = 0.2126 * srgbToLinear(accent.redF()) + 0.7152 * srgbToLinear(accent.greenF())
+                     + 0.0722 * srgbToLinear(accent.blueF());
     return (l + 0.05) / 0.05 > 1.05 / (l + 0.05);
   }
 
@@ -166,13 +166,6 @@ namespace stencil::gui {
     return accentNeedsDarkGlyph(accent) ? QColor("#1a1a1a") : QColor(Qt::white);
   }
 
-  // Linear sRGB mix, matching CSS color-mix(in srgb, a (1-t), b t) used by the
-  // web themes for the accent shade + glows.
-  QColor mixSrgb(const QColor& a, const QColor& b, double t) {
-    return QColor::fromRgbF(a.redF() * (1 - t) + b.redF() * t,
-                            a.greenF() * (1 - t) + b.greenF() * t,
-                            a.blueF() * (1 - t) + b.blueF() * t);
-  }
   // The --accent-2 shade: darker in light mode, lighter in dark — the same
   // ratios as browser/css/theme.css (86% accent + 14% black / 78% + 22% white).
   QColor accentShade(const QColor& primary, bool dark) {

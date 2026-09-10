@@ -1,4 +1,5 @@
 #pragma once
+#include "colorMix.hpp"   // mixSrgb / blendColors, used with everything below
 #include <QColor>
 #include <QPalette>
 #include <QString>
@@ -82,8 +83,6 @@ namespace stencil::gui {
   // — a widget that builds its own sheet needs the value the stylesheet would have used.
   QColor dangerHover(bool dark);
 
-  // CSS color-mix(in srgb, a (1-t), b t) — the accent shade, the glows and the row washes.
-  QColor mixSrgb(const QColor& a, const QColor& b, double t);
   // The --accent-2 shade: darker in light mode, lighter in dark, at theme.css's own
   // 86/14 · 78/22 ratios.
   QColor accentShade(const QColor& primary, bool dark);

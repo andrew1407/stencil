@@ -1094,18 +1094,12 @@ namespace stencil::gui {
       // .idle-create-btn:hover), text → white, plus a 3 px lift, a drop shadow and a
       // 1.12× icon (.idle-create-btn / .idle-create-icon in animations.css).
       const double t = idleCardHoverT_;
-      const auto mix = [t](const QColor& a, const QColor& b) {
-        return QColor::fromRgbF(a.redF() + (b.redF() - a.redF()) * t,
-                                a.greenF() + (b.greenF() - a.greenF()) * t,
-                                a.blueF() + (b.blueF() - a.blueF()) * t,
-                                a.alphaF() + (b.alphaF() - a.alphaF()) * t);
-      };
       // --border-hint as theme.cpp derives it for %BORDER_HINT% (css/theme.css).
       const QColor borderHint = dark_ ? mixSrgb(QColor("#2a2a2a"), accent, 0.50)
                                       : mixSrgb(QColor(Qt::white), accent, 0.35);
-      const QColor fill = mix(pal.bgControls, accent);
-      const QColor edge = mix(borderHint, pal.borderMain);
-      const QColor ink = mix(pal.textMain, QColor(Qt::white));
+      const QColor fill = mixSrgb(pal.bgControls, accent, t);
+      const QColor edge = mixSrgb(borderHint, pal.borderMain, t);
+      const QColor ink = mixSrgb(pal.textMain, QColor(Qt::white), t);
       // Hit-test against the RESTING rect, never the lifted one: if the hover target rose
       // with the card, a cursor on its bottom edge would fall out of it, drop the hover,
       // fall back in, and oscillate. Only the painted box moves.

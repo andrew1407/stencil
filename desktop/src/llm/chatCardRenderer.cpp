@@ -58,12 +58,6 @@ namespace stencil::gui {
         .arg(userRadii, otherRadii);
   }
 
-  QColor blendColors(const QColor& a, const QColor& b, double t) {
-    return QColor(qRound(a.red() * t + b.red() * (1 - t)),
-                  qRound(a.green() * t + b.green() * (1 - t)),
-                  qRound(a.blue() * t + b.blue() * (1 - t)));
-  }
-
   // Flattened opaque, not translucent: the card's own rgba() fill blends once
   // against a known backdrop, but ChatBubbleTail paints onto whatever the host
   // last left there — and its fill triangle would blend a second time over the

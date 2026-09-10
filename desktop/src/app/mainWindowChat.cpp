@@ -1306,7 +1306,7 @@ namespace stencil::gui {
     if (name.isEmpty()) name = activeProjectName();
     if (name.isEmpty() && canvas_ && canvas_->hasImage()) name = canvas_->imageBaseName();
     if (name.isEmpty()) name = QStringLiteral("Untitled");
-    return name.left(80);   // core validateName's cap
+    return name.left(core::ProjectsStore::kMaxNameLength);  // core validateName's cap
   }
 
   bool MainWindow::chatSaveProject(const QString& name, const QString& dest, QString* err) {

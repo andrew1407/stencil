@@ -284,7 +284,6 @@ namespace stencil::gui {
     void applyUnits(const QString& code);
     // Push settings_.units into the menu actions + toolbar combo (no side effects).
     void syncUnitControls();
-    void zoomStep(int dir);
     void zoomIn();
     void zoomOut();
     void setZoom(double scale, bool syncCombo = true);

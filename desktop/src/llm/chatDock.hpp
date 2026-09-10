@@ -108,9 +108,6 @@ namespace stencil::gui {
   void applyChatSwapToCards(QWidget* transcript, QLayout* layout, bool swapped,
                             const QColor& accent, const QColor& chip, const QColor& border,
                             const QColor& danger, const QColor& pageBg);
-  // `a` over `b` at `t` opacity, flattened opaque — for the places a translucent
-  // colour is not an option (a rasterised icon, a painted tail with no known backdrop).
-  QColor blendColors(const QColor& a, const QColor& b, double t);
   // ── Per-message row menu: the hover "…" plus the right-click menu, SHARED by
   // the dock and the context menu's assistant panel (browser chatView.js
   // chatRowMenuItems: EVERY settled row — errors included — offers Copy message /

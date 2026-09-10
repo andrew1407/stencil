@@ -1,4 +1,5 @@
 #include "fileStore.hpp"
+#include "layoutCanon.hpp"
 #include "localeUnit.hpp"
 #include <QDir>
 #include <QFile>
@@ -141,24 +142,23 @@ namespace stencil::gui {
                                          const core::CropRect& cropRect,
                                          int rotationQuarters,
                                          const LayoutMeta& meta) {
-    QJsonObject o;
-    o["imageWidth"] = w;
-    o["imageHeight"] = h;
-    o["lines"] = linesToJson(lines);
-    o["imageFilter"] = imageFilter;
-    o["filterColor"] = filterColor;
-    // Geometry is optional on the wire: omit a non-crop and a zero rotation so callers
-    // that don't pass them (file export) stay byte-identical to the old envelope.
-    if (cropRect.width > 0 && cropRect.height > 0) o["cropRect"] = cropRectToJson(cropRect);
-    if (rotationQuarters != 0) o["rotationQuarters"] = rotationQuarters;
-    // Page format + formulas (server save only): omit-when-default so file exports stay stable.
-    if (!meta.pageSize.isEmpty()) o["pageSize"] = meta.pageSize;
-    if (meta.customPageWidth != 0) o["customPageWidth"] = meta.customPageWidth;
-    if (meta.customPageHeight != 0) o["customPageHeight"] = meta.customPageHeight;
-    if (meta.allowFormulas) o["allowFormulas"] = true;
-    if (!meta.formulaX.isEmpty()) o["formulaX"] = meta.formulaX;
-    if (!meta.formulaY.isEmpty()) o["formulaY"] = meta.formulaY;
-    return o;
+    QMap<QString, QJsonValue> vals;
+    vals["imageWidth"] = w;
+    vals["imageHeight"] = h;
+    vals["lines"] = linesToJson(lines);
+    vals["imageFilter"] = imageFilter;
+    vals["filterColor"] = filterColor;
+    // Geometry is optional on the wire: a non-crop and a zero rotation are omitted.
+    if (cropRect.width > 0 && cropRect.height > 0) vals["cropRect"] = cropRectToJson(cropRect);
+    if (rotationQuarters != 0) vals["rotationQuarters"] = rotationQuarters;
+    // Page format + formulas (server save only): omit-when-default, same reason.
+    if (!meta.pageSize.isEmpty()) vals["pageSize"] = meta.pageSize;
+    if (meta.customPageWidth != 0) vals["customPageWidth"] = meta.customPageWidth;
+    if (meta.customPageHeight != 0) vals["customPageHeight"] = meta.customPageHeight;
+    if (meta.allowFormulas) vals["allowFormulas"] = true;
+    if (!meta.formulaX.isEmpty()) vals["formulaX"] = meta.formulaX;
+    if (!meta.formulaY.isEmpty()) vals["formulaY"] = meta.formulaY;
+    return layoutCanon::emitExport(vals);  // the canon's key set, not this function's
   }
 
   // Read the layout envelope back, reporting stored image size (browser
