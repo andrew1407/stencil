@@ -24,11 +24,11 @@ import base64
 import binascii
 import json
 import os
-import urllib.request
 import urllib.parse
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Union
 
+from . import _net
 from .core import Core, get_core
 from .image import Image
 from .layout import Layout, Line
@@ -1170,15 +1170,14 @@ class Editor:
 
     @staticmethod
     def _fetch_url(url: str, timeout: float = 30.0) -> bytes:
-        """Fetch raw bytes from an http(s) URL with urllib (stdlib, no deps).
+        """Fetch raw bytes from an http(s) URL through the shared guard in ``_net``.
 
-        Only http(s) is accepted: urllib would otherwise open file://, ftp://, or
-        data: URLs, turning "fetch this image" into a local-file/SSRF read. A
-        timeout bounds a hostile or hung server."""
-        if not Editor._is_url(url):
-            raise ValueError(f"refusing to fetch non-http(s) URL: {url!r}")
-        with urllib.request.urlopen(url, timeout=timeout) as resp:
-            return resp.read()
+        One copy of the rules for the whole package: http(s) only (urllib would otherwise
+        open file://, ftp:// or data: URLs), internal/metadata addresses refused, redirects
+        not followed, body size-capped, timeout bounded. Non-strict because ``load(url)`` is
+        a URL the USER named, so loopback stays reachable while RFC1918/link-local do not.
+        """
+        return _net._fetch(url, strict=False, timeout=timeout)
 
     @staticmethod
     def _name_from_path(path: str) -> str:

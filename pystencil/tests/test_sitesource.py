@@ -31,8 +31,8 @@ if str(_PKG_ROOT) not in sys.path:
 import ipaddress
 
 from pystencil import codecs
-from pystencil.sitesource import download_media, format_of, scan_html, scan_page
-from pystencil.sitesource import _assert_fetchable, _is_blocked_ip, _sub_strict
+from pystencil._net import _assert_fetchable, _is_blocked_ip
+from pystencil.sitesource import download_media, format_of, scan_html, scan_page, _sub_strict
 
 
 # ── SSRF guard (parity with the Zig CLI's net.zig) ──────────────────────────────

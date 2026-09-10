@@ -10,21 +10,28 @@ The loaded CDLL is cached in a module global so every Core / get_core() shares o
 from __future__ import annotations
 
 import ctypes
+import importlib.util
 import os
-import sys
 from pathlib import Path
 from typing import Optional
 
 
 # build.py sits at the package root (pystencil/build.py), one dir above this file's package.
-# Put that dir on sys.path so `import build` resolves regardless of the caller's cwd.
-_PKG_ROOT = Path(__file__).resolve().parent.parent
-if str(_PKG_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PKG_ROOT))
+_BUILD_PY = Path(__file__).resolve().parent.parent / "build.py"
 
 
 # Cached handles so repeated loads are cheap and consistent across the process.
 _CDLL: Optional[ctypes.CDLL] = None
+
+
+def _load_build():
+    """Import pystencil/build.py by path, leaving sys.path (and sys.modules) untouched."""
+    spec = importlib.util.spec_from_file_location("pystencil._build", _BUILD_PY)
+    if spec is None or spec.loader is None:
+        raise FileNotFoundError("build script not found at %s" % _BUILD_PY)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def find_or_build(build_if_missing: bool = True) -> str:
@@ -43,15 +50,19 @@ def find_or_build(build_if_missing: bool = True) -> str:
             )
         return str(path)
 
-    # build.py lives at the package root (pystencil/build.py); it knows the platform name
-    # and output location. Import it lazily so a prebuilt-lib deployment needn't ship it.
-    import build as _build  # type: ignore
+    # build.py knows the platform name and output location. Loaded lazily (a prebuilt-lib
+    # deployment needn't ship it) and BY PATH: putting the package root on sys.path would
+    # let this library shadow a caller's own top-level `build` module.
+    _build = _load_build()
 
     expected = _build.lib_path()
-    if expected.exists():
+    if expected.exists() and not _build.is_stale(expected):
         return str(expected)
 
     if not build_if_missing:
+        # Stale but present: the caller refused a compile, so hand back what exists.
+        if expected.exists():
+            return str(expected)
         raise FileNotFoundError(
             "stencil core library not built yet (expected at %s)" % expected
         )

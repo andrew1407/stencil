@@ -14,12 +14,12 @@ from __future__ import annotations
 
 import importlib.resources
 import json
-import ssl
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any, Callable, Iterable, Optional, Union
+from ._net import _unverified_ssl_context
 
 
 # Default port the collaboration server listens on (server/.env.example). Used
@@ -315,7 +315,7 @@ class ServerConnection:
         self.client_id = "c_" + format(id(self) & 0xFFFFFFFF, "08x")
         # When False, accept self-signed certs (dev servers); default verifies.
         self._verify = verify
-        self._ssl_ctx = None if verify else ssl._create_unverified_context()
+        self._ssl_ctx = None if verify else _unverified_ssl_context()
 
     # ── request plumbing ──
     def _build_request(

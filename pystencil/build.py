@@ -85,14 +85,45 @@ def _compiler() -> str:
     return os.environ.get("CXX", "c++")
 
 
+def build_inputs() -> list:
+    """Every file whose edit invalidates the built artifact: the compiled sources, the
+    headers they include (INCLUDE_DIRS, non-recursive so third_party/ stays out), and
+    this script (it carries the flags and the source list)."""
+    paths = [CORE_DIR / rel for rel in STENCIL_CORE_SOURCES + [ABI_SOURCE]]
+    for inc in INCLUDE_DIRS:
+        for pattern in ("*.hpp", "*.h"):
+            paths.extend(sorted((CORE_DIR / inc).glob(pattern)))
+    paths.append(Path(__file__).resolve())
+    return paths
+
+
+def is_stale(out: Path, inputs=None) -> bool:
+    """True when the artifact is missing or older than any build input.
+
+    Existence alone is not enough: a stale .dylib silently makes every core-parity test
+    run against the previous edit. Missing inputs are ignored (the compile reports them).
+    """
+    try:
+        built = out.stat().st_mtime
+    except OSError:
+        return True
+    for src in build_inputs() if inputs is None else inputs:
+        try:
+            if Path(src).stat().st_mtime > built:
+                return True
+        except OSError:
+            continue
+    return False
+
+
 def build(force: bool = False, verbose: bool = False) -> Path:
     """Compile the core into one shared library and return its path.
 
-    Skips the compile when an up-to-date artifact already exists unless `force`.
+    Skips the compile when the artifact is newer than every build input, unless `force`.
     Raises RuntimeError carrying the compiler's stderr if the build fails.
     """
     out = lib_path()
-    if out.exists() and not force:
+    if not force and not is_stale(out):
         return out
 
     NATIVE_DIR.mkdir(parents=True, exist_ok=True)
