@@ -14,8 +14,13 @@
 
 #include <map>
 
+// IDataTransferManagerInterop is declared by shobjidl_core.h (there is no separate
+// interop header for it in the SDK). NOMINMAX keeps windows.h's min/max macros off
+// the WinRT headers that follow.
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <shobjidl_core.h>
-#include <windows.applicationmodel.datatransfer.interop.h>
 #include <winrt/Windows.ApplicationModel.DataTransfer.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Foundation.h>
@@ -26,24 +31,29 @@ namespace stencil::support {
   namespace {
     using namespace winrt::Windows::ApplicationModel::DataTransfer;
     using namespace winrt::Windows::Storage;
+    using namespace winrt::Windows::Foundation;
     using namespace winrt::Windows::Foundation::Collections;
 
     // The request has to stay answerable until the async file lookup below resolves,
     // hence the deferral; a plain synchronous SetStorageItems here would hand the
     // share target an empty package on any machine where the disk read isn't instant.
-    winrt::fire_and_forget fulfil(DataRequest request, QString filePath, QString title) {
+    // A Completed handler rather than co_await: the app is C++17 without /await, and
+    // the projection's coroutine support needs one or the other.
+    void fulfil(DataRequest request, QString filePath, QString title) {
       auto deferral = request.GetDeferral();
       const auto props = request.Data().Properties();
-      props.Title(title.toStdWString());
-      try {
-        StorageFile file = co_await StorageFile::GetFileFromPathAsync(filePath.toStdWString());
-        auto items = winrt::single_threaded_vector<IStorageItem>();
-        items.Append(file);
-        request.Data().SetStorageItems(items);
-      } catch (winrt::hresult_error const&) {
-        request.FailWithDisplayText(L"Could not prepare the file to share");
-      }
-      deferral.Complete();
+      props.Title(winrt::hstring(title.toStdWString()));
+      StorageFile::GetFileFromPathAsync(winrt::hstring(filePath.toStdWString()))
+          .Completed([request, deferral](IAsyncOperation<StorageFile> const& op, AsyncStatus) {
+            try {
+              auto items = winrt::single_threaded_vector<IStorageItem>();
+              items.Append(op.GetResults());
+              request.Data().SetStorageItems(items);
+            } catch (winrt::hresult_error const&) {
+              request.FailWithDisplayText(L"Could not prepare the file to share");
+            }
+            deferral.Complete();
+          });
     }
   }  // namespace
 
