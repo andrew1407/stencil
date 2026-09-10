@@ -12,7 +12,7 @@ export const DEFAULT_EDITOR_URL = 'http://localhost:8080/';
 export const DEFAULT_PAGE = 'A3';
 // Default desktop-app URL scheme for the "Open in…" desktop hand-off (mirrors the browser
 // app's openInConfig `desktopScheme`). Empty = hide the Desktop action.
-export const DEFAULT_DESKTOP_SCHEME = 'stencil';
+const DEFAULT_DESKTOP_SCHEME = 'stencil';
 
 // Settings live in chrome.storage.sync so they follow the user across machines.
 export const getSettings = async () => {

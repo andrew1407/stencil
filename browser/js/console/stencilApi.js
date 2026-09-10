@@ -65,7 +65,7 @@ export const WINDOWS = Object.freeze([
 // Loose title matching: case-insensitive, punctuation/whitespace-free, so 'Visuals',
 // 'visuals & settings', 'open-in' and 'Open In…' all land.
 const windowNameKey = (v) => str(v).toLowerCase().replace(/[^a-z0-9]+/g, '');
-export const findWindow = (ref) => {
+const findWindow = (ref) => {
   const want = windowNameKey(ref);
   if (!want) return null;
   return WINDOWS.find((w) => [w.key, w.title, w.hotkey, ...(w.aliases || [])].some((n) => windowNameKey(n) === want)) || null;

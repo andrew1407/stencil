@@ -18,7 +18,7 @@
 import { dustEnabled } from './motion.js';
 
 export const DUST_MARGIN = 56;            // canvas room around the tile, px
-export const DUST_MAX_LIVE = 540;         // motes alive at once, whatever the shouting
+const DUST_MAX_LIVE = 540;         // motes alive at once, whatever the shouting
 export const DUST_SILENCE = 0.06;         // below this level nothing is born
 export const DUST_LIFE_MS = [420, 900];   // a mote's life, min..max
 export const DUST_RATE = 48;              // motes per frame at full level
@@ -26,7 +26,7 @@ export const DUST_TINTS = 6;              // palette stops, ink → accent
 export const RING_SPOKES = 24;
 export const RING_SPIN_MS = 8000;         // one revolution (the logo's logoRaysSpin clock)
 export const RING_BEAT_MS = 1200;         // the shimmer beat (logoPulse's)
-export const RING_WIDTH = 1.2;            // hairline, px
+const RING_WIDTH = 1.2;            // hairline, px
 // How far the spokes reach from the tile's centre: past its corners, further with the voice.
 export const ringRadius = (w, h, level) => Math.hypot(w / 2, h / 2) + 8 + 14 * level;
 // The ring's opacity at time t: 0.35 ↔ 0.6 on the beat.

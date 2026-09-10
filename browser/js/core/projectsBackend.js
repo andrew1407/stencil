@@ -11,13 +11,13 @@
 
 import { PROJECT_PREFIX } from './projectsStore.js';
 
-export const PROJECTS_DB_NAME = 'stencil_projects';
-export const PROJECTS_DB_STORE = 'payloads';
+const PROJECTS_DB_NAME = 'stencil_projects';
+const PROJECTS_DB_STORE = 'payloads';
 
 // Minimal promise KV over one object store — same shape as chatStore.js's
 // createIdbBackend, plus the bulk entries() read hydration needs. Returns null when
 // IndexedDB is missing so createProjectsBackend degrades to localStorage.
-export const createIdbKv = (idb = (typeof indexedDB !== 'undefined' ? indexedDB : null)) => {
+const createIdbKv = (idb = (typeof indexedDB !== 'undefined' ? indexedDB : null)) => {
   if (!idb) return null;
   let dbPromise = null;
   const openDb = () => new Promise((resolve, reject) => {

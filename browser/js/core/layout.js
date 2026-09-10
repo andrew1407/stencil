@@ -32,7 +32,7 @@ export const serializeSession = (state) => {
 // spell it {x,y,width,height}. Readers accept both, canonical wins when both appear.
 
 // → canonical {x,y,w,h} for emission. Non-objects pass through untouched.
-export const canonicalCropRect = (r) => {
+const canonicalCropRect = (r) => {
   if (!r || typeof r !== 'object') return r;
   return { x: r.x, y: r.y, w: r.w ?? r.width, h: r.h ?? r.height };
 };

@@ -23,7 +23,7 @@ export const LISTING_ALT_CHARS = 64;
 // Open-tabs listing bounds (contract §8): ≤ 20 entries, titles/URLs truncated.
 export const TABS_LIMIT = 20;
 export const TAB_TITLE_CHARS = 64;
-export const TAB_URL_CHARS = 80;
+const TAB_URL_CHARS = 80;
 
 // §13's second enforcement tooth: a forbidden op never executes, even if a registry
 // mistake ever let one through validation — refused with a warning, action skipped.
@@ -113,7 +113,7 @@ export const buildListing = (items, { formatOfItem = () => '' } = {}) => {
 // A listed tab's address, reduced to origin + path: the query/fragment hold session
 // ids and search terms and don't help pick a tab. Truncating wouldn't do it — a
 // length cut keeps the FRONT of a query string.
-export const tabUrlForModel = (raw) => {
+const tabUrlForModel = (raw) => {
   const u = (raw || '').trim();
   if (!u) return '';
   try {

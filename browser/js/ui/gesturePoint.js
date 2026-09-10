@@ -15,7 +15,7 @@ let at = 0;
 // How long a press stays "the last thing the user did". Past it the gesture was a key
 // press, and what holds focus is the better answer — a stale click from a minute ago
 // would fly the question out of wherever the pointer happened to be resting.
-export const GESTURE_FRESH_MS = 1500;
+const GESTURE_FRESH_MS = 1500;
 export const GESTURE_ANCHOR_PX = 26;
 
 if (typeof document !== 'undefined' && document.addEventListener)

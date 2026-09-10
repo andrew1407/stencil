@@ -23,7 +23,7 @@ export const highlightSourceOnTab = async (tabId, source, color) => {
   }
 };
 
-export const highlightPageElementForSource = (source, color = '#7c3aed') => {
+const highlightPageElementForSource = (source, color = '#7c3aed') => {
   const STYLE_ID = 'stencil-listhover-style';
   const ATTR = 'data-stencil-listhover';
 

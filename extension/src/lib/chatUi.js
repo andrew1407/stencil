@@ -64,7 +64,6 @@ export const makeDismissible = (el, { doc, autoMs = 0, timer = setTimeout, onDis
 // in-place popup would be clipped exactly when it matters) and flips above/below to
 // stay in view. `doc` is injectable, like makeDismissible, so tests drive it with a
 // stub document. Mirror of the browser's chatView.js wireThumbPreview.
-export const THUMB_PREVIEW_MAX = 320;
 let openPreview = null;
 export const hideThumbPreview = () => { openPreview?.remove?.(); openPreview = null; };
 // Alt HELD doubles the glance (browser chatView parity) — pressed or released

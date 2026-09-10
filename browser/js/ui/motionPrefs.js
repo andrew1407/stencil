@@ -25,18 +25,18 @@
 export const MOTION_STORAGE_KEY = 'drawingApp_motion';
 // Fired on <window> after every change, so an open dialog can restate its controls.
 export const MOTION_EVENT = 'stencil:motion-changed';
-export const MOTION_ATTR = 'data-motion';
+const MOTION_ATTR = 'data-motion';
 
-export const MOTION_PARTICLES = 'particles';
-export const MOTION_WATER = 'water';
-export const MOTION_FIRE = 'fire';
-export const MOTION_SLIDE = 'slide';
-export const MOTION_NONE = 'none';
+const MOTION_PARTICLES = 'particles';
+const MOTION_WATER = 'water';
+const MOTION_FIRE = 'fire';
+const MOTION_SLIDE = 'slide';
+const MOTION_NONE = 'none';
 export const MOTION_MODES = [MOTION_PARTICLES, MOTION_WATER, MOTION_FIRE, MOTION_SLIDE, MOTION_NONE];
 // The three modes that fly particles, and the style (dustCloud.js PARTICLE_STYLES) each
 // paints them in.
 export const PARTICLE_MODES = [MOTION_PARTICLES, MOTION_WATER, MOTION_FIRE];
-export const PARTICLE_STYLE_OF = { [MOTION_PARTICLES]: 'dust', [MOTION_WATER]: 'water', [MOTION_FIRE]: 'fire' };
+const PARTICLE_STYLE_OF = { [MOTION_PARTICLES]: 'dust', [MOTION_WATER]: 'water', [MOTION_FIRE]: 'fire' };
 export const DEFAULT_MOTION_MODE = MOTION_PARTICLES;
 export const DEFAULT_DRAWING_ANIMATIONS = true;
 
@@ -58,12 +58,12 @@ export const normalizeMotionMode = (v) => {
   return MOTION_MODES.includes(s) ? s : DEFAULT_MOTION_MODE;
 };
 
-export const defaultMotionPrefs = () => ({
+const defaultMotionPrefs = () => ({
   mode: DEFAULT_MOTION_MODE, drawing: DEFAULT_DRAWING_ANIMATIONS,
 });
 
 // Saved overrides merged over the defaults. Bad/missing data degrades to defaults.
-export const readMotionPrefs = () => {
+const readMotionPrefs = () => {
   const out = defaultMotionPrefs();
   try {
     const raw = ls()?.getItem(MOTION_STORAGE_KEY);

@@ -414,7 +414,7 @@ export const WRAPPED_SEP_CLASS = 'ctrl-sep-wrapped';
 // Hiding one frees its width, which can pull the next section back up — so one pass
 // leaves answers the new layout no longer matches. Re-ask until the set stops moving; a
 // width that oscillates stops at the cap, hidden (a missing hairline beats a stray one).
-export const SEP_SETTLE_PASSES = 4;
+const SEP_SETTLE_PASSES = 4;
 export function syncWrappedSeparators(root, passes = SEP_SETTLE_PASSES) {
   const seps = [...(root?.querySelectorAll?.('.ctrl-sep') || [])];
   // Every separator shown first, so a given width always resolves the same way and the
@@ -444,7 +444,7 @@ export function syncWrappedSeparators(root, passes = SEP_SETTLE_PASSES) {
 // .active marks this button while voice chat is on — mirrored onto the fullscreen
 // toolbar clone like the chat button's own state. The LOGO is not a wearer: its shine
 // is its own hover (and its accent popover's), never the microphone's (user report).
-export function wireVoiceChatToggle(btn, app) {
+function wireVoiceChatToggle(btn, app) {
   if (!btn || !app) return;
   const voice = () => app.voice;
   const buttons = () => document.querySelectorAll('#voice-chat-btn');

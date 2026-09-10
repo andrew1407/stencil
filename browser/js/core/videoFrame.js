@@ -99,7 +99,7 @@ export function videoFrameSamples(file, count = 4) {
 // Nominal fps for mapping a frame INDEX onto a seek time: the browser cannot read a
 // video's true frame rate, so index / 30 s approximates the CLI's exact frame pick
 // (ffmpeg select=eq(n, index)). Used by the assistant's "frame" op.
-export const FRAME_INDEX_FPS = 30;
+const FRAME_INDEX_FPS = 30;
 export function videoFrameByIndex(file, index) {
   return videoFrameDataUrl(URL.createObjectURL(file), Math.max(0, Number(index) || 0) / FRAME_INDEX_FPS);
 }

@@ -14,7 +14,7 @@ import { markIn, markOut } from './motion.js';
 // Alt+P and the context-menu twin animate exactly as a click on the box does.
 
 // A control opts out with this attribute (the desktop's kNoControlSwapProperty).
-export const NO_SWAP_ATTR = 'data-no-mark-dust';
+const NO_SWAP_ATTR = 'data-no-mark-dust';
 
 // What the checked state PAINTS, resolved off the live element rather than guessed:
 // the app-wide box fills with the accent, the context menu's twin with the theme text
@@ -40,7 +40,7 @@ const checkedInk = (el) => {
 // reached, so a tick GATHERS and an untick SCATTERS. Anything that cannot be dusted —
 // reduced motion, a hidden box, a pill whose indicator is `width: 0` — simply does
 // nothing: the state itself has already changed, which is the part that must not wait.
-export function playCheckDust(el, on) {
+function playCheckDust(el, on) {
   if (!el?.getBoundingClientRect || el.hasAttribute?.(NO_SWAP_ATTR)) return false;
   const ink = checkedInk(el);
   if (!ink) return false;   // an indicator that paints nothing has nothing to scatter

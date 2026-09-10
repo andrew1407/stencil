@@ -63,7 +63,7 @@ export const typingDots = () => {
 // The cue shown over the COMPOSER while a drag hovers it: an animated icon beside the
 // label. It lives in the composer (not over the whole panel) because that is exactly
 // where a drop attaches — the transcript above belongs to the canvas's own drop.
-export const CHAT_DROP_CUE = 'Drop to attach';
+const CHAT_DROP_CUE = 'Drop to attach';
 export const chatDropCueHtml = (id = 'chat-drop-cue') =>
   `<div class="chat-drop-cue" id="${id}" aria-hidden="true">`
   + `<span class="chat-drop-cue-icon">${icon('image', { size: 16 })}</span>`
@@ -706,7 +706,6 @@ export const wireInputSizer = (sizer, input, { host, onDrag, hold } = {}) => {
 // video shows its first sampled frame — frames are what the model sees (contract §7).
 // The hover preview is fixed-position on the BODY: the panel clips its own overflow
 // (and the extension popup is 400px wide), so an in-place popup would be cut off.
-export const THUMB_PREVIEW_MAX = 320;
 let thumbPreviewEl = null;
 export const hideThumbPreview = () => { thumbPreviewEl?.remove(); thumbPreviewEl = null; };
 // Switching window never fires the thumbnail's mouseleave — hide on blur, module-wide.
@@ -789,7 +788,7 @@ export const chatAttachmentStrip = (attachments) => {
 };
 
 // One result card: thumbnail + label + download + open-as-the-working-image.
-export const chatResultCard = (r) => {
+const chatResultCard = (r) => {
   const card = document.createElement('div');
   card.className = 'chat-result';
   const img = document.createElement('img');
@@ -1108,7 +1107,7 @@ const selectionCoversRow = (rowEl, win = typeof window === 'undefined' ? null : 
 let rowMenuEl = null;
 let rowMenuClose = null;
 export const chatRowMenuOpen = () => !!rowMenuEl;
-export const closeChatRowMenu = () => { rowMenuClose?.(); };
+const closeChatRowMenu = () => { rowMenuClose?.(); };
 // ── Any chat popup, and the one event that announces it ─────────────────────
 // The jump pills stand down while ANY chat popup is up. One event on both edges; a
 // listener re-reads chatPopupOpen() rather than tracking its own state, so nothing can

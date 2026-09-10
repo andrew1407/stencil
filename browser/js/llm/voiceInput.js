@@ -22,7 +22,7 @@ export const FATAL_ERRORS = new Set([
 export const NETWORK_BACKOFF_MS = [250, 1000, 2000];   // three network drops in a row → fatal
 // How long to wait before restarting after `fails` consecutive network drops. Anything
 // but a network drop restarts at once; the table's last step is the floor.
-export const restartDelayMs = (code, fails) =>
+const restartDelayMs = (code, fails) =>
   (code === 'network' ? NETWORK_BACKOFF_MS[Math.min(fails, NETWORK_BACKOFF_MS.length) - 1] || 0 : 0);
 
 const ERROR_TEXT = {

@@ -69,7 +69,7 @@ export const revealVisibleBottom = (top, bottom, viewH) => {
 // visible row always does. `hidden` gives the threshold hysteresis against flutter. Pure.
 export const REVEAL_TRIGGER_SIZE = 21;    // .chat-row-menu-btn is 21×21
 export const REVEAL_TRIGGER_PAD = 4;      // clearance from the neighbouring bubble
-export const REVEAL_TRIGGER_HYSTERESIS = 2;
+const REVEAL_TRIGGER_HYSTERESIS = 2;
 export const revealTriggerFits = (top, bottom, viewH, hidden = false) => {
   const h = bottom - top;
   if (h <= 0) return false;
@@ -321,7 +321,7 @@ export const swapEase = (t) => bezierY(t, 0.4, 0.25, 0.95, 1);
 export const SWAP_EDGE_POINTS = 240;
 
 // The per-vertex reach multiplier of vertex k: 1 + the style's jitter. Pure.
-export const swapEdgeJitter = (k, style = styleCode()) => edgeJitter(style, k, SWAP_EDGE_POINTS);
+const swapEdgeJitter = (k, style = styleCode()) => edgeJitter(style, k, SWAP_EDGE_POINTS);
 
 // One end state of the clip, as a polygon() string in viewport percentages (the same
 // device-pixel-engine trap swapPercent dodges). `grow` 0 is the collapsed start —
@@ -673,7 +673,7 @@ export function originOf(el) {
 // The counterpart to leaveThenRemove: dropped content plays IN out of the drop point.
 // Without one (the Open dialog, a paste, a fetched URL) there is no place to come
 // from, so it keeps the plain landing: a scale-up plus the accent pulse.
-export const ARRIVE_MS = 620;
+const ARRIVE_MS = 620;
 export const ARRIVE_GLOW_CLASS = 'drop-arriving';   // glow only — the FLIP owns the transform
 export const ARRIVE_ACTIVE_CLASS = 'arrive-active';
 export const LANDING_CLASS = 'drop-landing';        // scale-up + glow, for the no-point case
@@ -805,9 +805,9 @@ export const createListHold = ({ settle = () => {}, wait = wipeDurationMs, setTi
 // rebuild, and the whole effect belongs to the rows that are LEFT, which assemble anew.
 export const FILTER_ENTER_MS = 340;
 // Small enough that a long list still settles in one beat.
-export const FILTER_STAGGER_MS = 22;
+const FILTER_STAGGER_MS = 22;
 // Past this many rows the effect is noise (and a cost) — the rest simply appear.
-export const FILTER_MAX_ANIMATED = 16;
+const FILTER_MAX_ANIMATED = 16;
 export const FILTER_ENTERING_CLASS = 'filter-entering';
 // The kept rows form from anonymous specks (speckPainter) on a shorter, non-destructive
 // throw — a filter is a view change, never mistakable for a deletion's scatter.
@@ -896,9 +896,9 @@ export const emptyStateVisible = (count, holding = false) => count === 0 && !hol
 // whose visibility IS that state (the mic's sound waves) arrive with the hover's own
 // swell when it goes ON, and fly out past the edges when it goes OFF, rather than just
 // appearing / vanishing. CSS: `.voice-waves-in` / `.voice-waves-out` in animations.css.
-export const WAVES_IN_CLASS = 'voice-waves-in';
-export const WAVES_OUT_CLASS = 'voice-waves-out';
-export const WAVES_FLIGHT_MS = 500;
+const WAVES_IN_CLASS = 'voice-waves-in';
+const WAVES_OUT_CLASS = 'voice-waves-out';
+const WAVES_FLIGHT_MS = 500;
 export function replayWaves(el, on, { setTimer = setTimeout } = {}) {
   if (!el?.classList) return;
   el.classList.remove(WAVES_IN_CLASS, WAVES_OUT_CLASS);
@@ -1042,11 +1042,11 @@ export const CONN_DUST_MS = Math.round(DISINTEGRATE_MS / 1.5);
 // ── A LIST ROW's dust: the connections and projects lists ───────────────────
 // The throw, as a share of the row default. That default is a fixed pixel count, so over
 // a 44px row it is two and a half times its height; this is the desktop's row ratio.
-export const ROW_DUST_DRIFT = 0.8;
+const ROW_DUST_DRIFT = 0.8;
 // …and the grain: at the row default a short row holds a mosaic of big dots rather than
 // sand (user report). Finer cells, twice as many, still inside SCATTER_TILE_BUDGET.
-export const ROW_DUST_PX = 5;
-export const ROW_DUST_GRID = { cols: 40, rows: 30 };   // 1200 = SCATTER_TILE_BUDGET
+const ROW_DUST_PX = 5;
+const ROW_DUST_GRID = { cols: 40, rows: 30 };   // 1200 = SCATTER_TILE_BUDGET
 // The grain and budgeted grid every list row's dust shares (connections + projects) —
 // `index` of `count` rows leaving at once. An ARRIVAL keeps materialize's own clock and
 // throw, so it takes this alone; a REMOVAL adds the list's clock and the row throw.
@@ -1637,8 +1637,8 @@ export function foldDust(el, scope, cls, hiding, dock, { inMs = SURFACE_IN_MS, t
 // take the same sand — the only difference is the EXIT: by the time pointerleave runs,
 // `:hover` is gone and the popup is already display:none, so there is nothing left to
 // copy. The hold class puts the box back for exactly as long as the motes need.
-export const HOVER_DUST_HOLD_CLASS = 'dust-hold';
-export const HOVER_DUST_HOLD_MS = 120;
+const HOVER_DUST_HOLD_CLASS = 'dust-hold';
+const HOVER_DUST_HOLD_MS = 120;
 // `anchor` is what the sand flies out of, defaulting to the hover host — a host that WRAPS
 // its popup needs to name its trigger instead, or the box it measures covers the open popup
 // and the motes form out of the middle of their own cloud (installButton.js).
@@ -1927,7 +1927,7 @@ export function markSwap(el, apply, { ms = MARK_IN_MS, outMs = MARK_OUT_MS, pain
 // the motes land (the dust IS the row forming). Resolves once the veil lifts.
 export const MATERIALIZE_CLASS = 'materializing';
 export const MATERIALIZE_VEIL_CLASS = 'materialize-veil';
-export const MATERIALIZE_LIFT_CLASS = 'materialize-lift';   // the veil on its way up
+const MATERIALIZE_LIFT_CLASS = 'materialize-lift';   // the veil on its way up
 // `drift` scales the throw the motes gather FROM: a whole row's default carries them
 // most of a hundred pixels, which reads as sand arriving from somewhere else rather than
 // the row forming (user report). A caller whose item is short says so.
@@ -2517,7 +2517,7 @@ export const strokeFlyMs = (len) => Math.min(
 // Ease-out-back: the vertex shoots a little past its target and comes back, which is
 // what makes the segment read as REACHING for the point rather than being switched on.
 // Weaker than the textbook 1.70158 — on a 3px stroke a big overshoot reads as a glitch.
-export const STROKE_FLY_BACK = 1.28;
+const STROKE_FLY_BACK = 1.28;
 export const strokeFlyEase = (t) => {
   if (t <= 0) return 0;
   if (t >= 1) return 1;
@@ -2528,7 +2528,7 @@ export const strokeFlyEase = (t) => {
 // No vertex flies a straight line (the same rule the dust follows — tileWaypoint): it
 // is pushed off its path by a share of the trip, capped, and back by the time it
 // lands. `bow` is the signed side, -1..1. Pure.
-export const STROKE_BOW_SHARE = 0.13;
+const STROKE_BOW_SHARE = 0.13;
 export const STROKE_BOW_MAX = 22;
 export const strokeBow = (len) => Math.min(len * STROKE_BOW_SHARE, STROKE_BOW_MAX);
 
@@ -2560,7 +2560,7 @@ export const strokeFlyPoint = (from, to, t, bow = 0) => {
 // The landing: the vertex arrives half again its size and settles. POP is the settle;
 // the swell itself happens in flight (strokeFlyRadius), so there is no jump between
 // the two — a size that snaps on arrival reads as a redraw, not a landing.
-export const STROKE_POP_MS = 240;
+const STROKE_POP_MS = 240;
 export const STROKE_POP_PEAK = 1.5;
 export const STROKE_FLY_R0 = 0.5;
 export const strokeFlyRadius = (t) =>
@@ -2575,7 +2575,7 @@ export const strokePopScale = (u) => {
 // so it stays faint and brief.
 export const STROKE_RIPPLE_MS = 420;
 export const STROKE_RIPPLE_REACH = 4.2;
-export const STROKE_RIPPLE_ALPHA = 0.55;
+const STROKE_RIPPLE_ALPHA = 0.55;
 export const strokeRipple = (u) => {
   const k = Math.min(1, Math.max(0, u));
   return {
@@ -2586,8 +2586,8 @@ export const strokeRipple = (u) => {
 
 // The glow riding the vertex in flight: nothing at either end (it must not smudge the
 // anchor it left or the point it became), brightest mid-trip.
-export const STROKE_SPARK_REACH = 2.8;
-export const STROKE_SPARK_ALPHA = 0.6;
+const STROKE_SPARK_REACH = 2.8;
+const STROKE_SPARK_ALPHA = 0.6;
 export const strokeSpark = (t) => {
   const k = strokeArc(t);
   return { scale: 1 + (STROKE_SPARK_REACH - 1) * k, alpha: STROKE_SPARK_ALPHA * k ** 0.7 };

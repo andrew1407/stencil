@@ -8,9 +8,9 @@
 // pointer, draggable, with a page-step on its track.
 import { motionReduced } from './motion.js';
 
-export const SB_SLOT_PX = 12;      // the strip each bar owns along the viewport edge
+const SB_SLOT_PX = 12;      // the strip each bar owns along the viewport edge
 export const SB_MIN_THUMB_PX = 28;
-export const SB_HIDE_MS = 900;     // idle before the bars fade (desktop: revealCanvasScrollbars)
+const SB_HIDE_MS = 900;     // idle before the bars fade (desktop: revealCanvasScrollbars)
 
 // Pure: a thumb's length and offset along `track` px for one axis — `client` visible of
 // `scroll` total, scrolled to `offset`. Null when nothing overflows.

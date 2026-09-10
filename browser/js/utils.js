@@ -282,7 +282,7 @@ export const cssWithAlpha = (hex, alpha) => {
 
 // An opacity box's 0-255 byte as the 0..1 fraction cssWithAlpha wants. A blank or
 // out-of-range box reads as fully opaque rather than making the line vanish. Pure.
-export const alphaFraction = (input) => {
+const alphaFraction = (input) => {
   const n = Number(input?.value);
   if (!Number.isFinite(n)) return 1;
   return Math.max(0, Math.min(255, n)) / 255;

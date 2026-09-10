@@ -12,7 +12,7 @@ import { icon } from './icons.js';
 
 export const LOGO_DROP_HINT = 'Drag an image or video here for quick actions';
 // Grace period after leaving the logo — long enough to travel to the menu.
-export const LOGO_GRACE_MS = 450;
+const LOGO_GRACE_MS = 450;
 
 // A dragged FILE's MIME type IS readable mid-drag (unlike its data), so a video file
 // gets the video-guarded menu straight away; unknown payloads get the optimistic menu.

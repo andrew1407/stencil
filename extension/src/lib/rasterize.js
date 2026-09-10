@@ -27,10 +27,10 @@ export const DEFAULT_MAX_EDGE = 1568;
 export const DEFAULT_RASTER_EDGE = 512;
 // How long to wait for the <img> decode before giving up (a stuck load must not hang
 // the chat's send loop).
-export const DECODE_TIMEOUT_MS = 10000;
+const DECODE_TIMEOUT_MS = 10000;
 
 export const DECODE_ERROR = 'the image could not be decoded (unsupported or blocked source)';
-export const BLOCKED_URL = 'blocked private or internal address';
+const BLOCKED_URL = 'blocked private or internal address';
 
 // Is this media type / URL an SVG (the type that must never reach createImageBitmap
 // and must never be sent to the model unrasterised)?

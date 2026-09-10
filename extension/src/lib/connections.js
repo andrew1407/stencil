@@ -115,8 +115,6 @@ export const dropConnection = (list, url) =>
 export const isAdminConnection = (conn) => !!conn && conn.credentialKind === 'admin';
 
 // View-only three-way filter for the options list: 'all' | 'admin' | 'other'.
-export const CONNECTION_FILTERS = ['all', 'admin', 'other'];
-
 export const filterConnections = (list, mode = 'all') => {
   const arr = (Array.isArray(list) ? list : []).filter(Boolean);
   if (mode === 'admin') return arr.filter(isAdminConnection);

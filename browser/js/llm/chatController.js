@@ -27,7 +27,7 @@ export const CHAT_ATTACHMENTS_EVENT = 'stencil:chat-attachments-changed';
 
 // §2.1 `save` with no name: the attachment the plan is working on names the project.
 // Empty means "no idea from here" — the surface falls back to the editor's own name.
-export const attachmentSaveName = (attachment) =>
+const attachmentSaveName = (attachment) =>
   String(attachment?.name || '').replace(/\.[^.]+$/, '').trim();
 
 // Does this plan actually WORK ON the picture? Only then is an attached image worth
@@ -40,7 +40,7 @@ export const planEditsTheImage = (plan) =>
 export const VIDEO_FRAME_COUNT = 4;
 // Ask-option previews live in the shared chat log for the whole session but render
 // as small thumbs (no download/open affordance) — stored at thumbnail size.
-export const ASK_PREVIEW_MAX_EDGE = 256;
+const ASK_PREVIEW_MAX_EDGE = 256;
 
 // data:mediaType;base64,payload → { mediaType, data } (the LlmImage wire shape).
 export const splitDataUrl = (u) => {
@@ -72,7 +72,7 @@ const thumbnailDataUrl = async (dataUrl, maxEdge = ASK_PREVIEW_MAX_EDGE) => {
 
 // The core contour pass in place over RGBA8 pixels — wasm stencil_applyContourRGBA
 // when loaded, else the JS reference. Shared with chatSession's crop-edge wiring.
-export const contourInPlace = (data, w, h) => (core.op('applyContourRGBA') || applyContourRGBA)(data, w, h);
+const contourInPlace = (data, w, h) => (core.op('applyContourRGBA') || applyContourRGBA)(data, w, h);
 
 // Re-render a snapshot data URL with the core `contour` filter — the exact path the
 // user-facing "contour" filter mode uses. Browser-only default for the injected edgeMap.
@@ -93,7 +93,7 @@ export const contourDataUrl = async (dataUrl) => {
 
 // A provider/model that has no vision, answering the auto-attached working image.
 // Providers word it differently, so match the shapes rather than one string.
-export const isImageRejection = (err) =>
+const isImageRejection = (err) =>
   /multimodal|vision|image input|does not support image|image_url|images are not/i.test(
     String(err?.message ?? err ?? ''));
 
@@ -121,7 +121,7 @@ export const replayMessages = (history) => {
 // containing one — that drew NO layout — is re-sent once with the new working image
 // attached: outlining needs pixels, and a plan that already placed lines committed to
 // its coordinates. `openUrl` counts with OR without incognito (adopted in this editor).
-export const LOAD_ONLY_OPS = new Set(['openUrl', 'blank', 'frame']);
+const LOAD_ONLY_OPS = new Set(['openUrl', 'blank', 'frame']);
 export const planLoadsWithoutTracing = (plan) =>
   !!plan && Array.isArray(plan.actions)
   && plan.actions.some((a) => LOAD_ONLY_OPS.has(a.op))

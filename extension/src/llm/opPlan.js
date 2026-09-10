@@ -37,13 +37,6 @@ export const LIMITS = {
   filterSize: SCHEMA.limits.extension.filterSize,
 };
 
-// The panel's own theme choice (Options offers exactly these three).
-export const THEME_MODES = new Set(SCHEMA.ops.get('theme').keys.mode.enum);
-// open's destination modes (§8): resume an already-open editor tab, or open fresh.
-export const OPEN_MODES = new Set(SCHEMA.ops.get('open').keys.mode.enum);
-// The "elements to include" tick-boxes, by the names the model uses.
-export const FILTER_KINDS = new Set(SCHEMA.ops.get('filter').keys.kinds.items.enum);
-
 // §11 interactive replies — the same numbers as every other client.
 export const ASK_LIMITS = { ...SCHEMA.limits.ask };
 export const DEFAULT_CUSTOM_LABEL = REGISTRY.ask.defaultCustomLabel;

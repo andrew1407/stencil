@@ -10,8 +10,8 @@ export const SILENCE_MS_DEFAULT = 1000;
 export const SILENCE_MS_MIN = 500;
 export const SILENCE_MS_MAX = 10000;
 // 'default' = the recognizer's English; any BCP-47 tag is accepted (en-GB, uk-UA, …).
-export const DEFAULT_LANGUAGE = 'default';
-export const DEFAULT_RECOGNITION_LANG = 'en-US';
+const DEFAULT_LANGUAGE = 'default';
+const DEFAULT_RECOGNITION_LANG = 'en-US';
 
 // The settings dialog's menu — a short, common set; the facade takes any tag.
 export const VOICE_LANGUAGES = [

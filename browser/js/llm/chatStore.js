@@ -4,8 +4,8 @@
 // is best-effort — a failure means "not persisted", never a thrown error in the editor.
 // The backend is injected so `node --test` drives the store with an async Map shim.
 
-export const CHAT_DB_NAME = 'stencil_chats';
-export const CHAT_DB_STORE = 'chats';
+const CHAT_DB_NAME = 'stencil_chats';
+const CHAT_DB_STORE = 'chats';
 export const CHAT_DOC_VERSION = 1;
 // §7's history bound — the persisted transcript never exceeds the replay window.
 export const CHAT_MESSAGE_LIMIT = 32;
