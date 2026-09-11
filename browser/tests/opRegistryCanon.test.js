@@ -56,6 +56,15 @@ test('measured per-profile op counts', () => {
   assert.equal(registry.profiles.extension.ops.length, 12);
 });
 
+test('the registry carries every op exactly once, bar the one deliberate name reuse', () => {
+  assert.equal(registry.ops.length, 49);
+  const names = registry.ops.map((o) => o.name);
+  const reused = names.filter((n, i) => names.indexOf(n) !== i);
+  // `filter` appears twice: the editor op and the extension's narrowed variant.
+  assert.deepEqual(reused, ['filter']);
+  assert.equal(new Set(names).size, 48);
+});
+
 // ── limits ──────────────────────────────────────────────────────────────────
 
 test('limits match the live browser LIMITS / ASK_LIMITS', () => {

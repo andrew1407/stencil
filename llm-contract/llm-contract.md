@@ -105,7 +105,7 @@ per op holding its key schema (types, enums, ranges, caps, token grammars, cross
 its flags (`topLevelOnly`, settings scope, gather, needs-confirm), its per-profile membership
 (`surfaces`/`surfaceKeys` for within-profile differences), its prompt bullet and its recorded
 divergences. Don't restate op tables here or count the ops in prose; read the registry (its
-per-profile counts are pinned by `browser/tests/opRegistryCanon.test.js`). **Every surface's
+total and per-profile counts are pinned by `browser/tests/opRegistryCanon.test.js`). **Every surface's
 validator is table-driven from it** (schemaVersion 2): the surface embeds the registry
 and runs a port of the reference engine `browser/js/llm/opSchema.js`, keeping only its normalizers,
 executors and the one native rule (`cropAspectFold`). What every entry shares:
