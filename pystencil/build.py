@@ -71,7 +71,6 @@ def lib_filename() -> str:
         return "libstencilcore.dylib"
     if system == "Windows":
         return "stencilcore.dll"
-    # Linux and other Unixes use the ELF .so convention.
     return "libstencilcore.so"
 
 
@@ -161,6 +160,5 @@ def build(force: bool = False, verbose: bool = False) -> Path:
 
 
 if __name__ == "__main__":
-    # `python3 build.py` -> build (forcing a fresh compile) and print the artifact path.
     path = build(force=True, verbose=True)
     print(path)

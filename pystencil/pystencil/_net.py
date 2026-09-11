@@ -7,7 +7,8 @@ Keeping one copy means one place to reason about the scheme gate, the SSRF addre
 the refused redirect and the size cap.
 
 Callers differ only in strictness: a URL the USER named runs ``strict=False`` (loopback
-allowed), a URL harvested from untrusted content runs strict.
+allowed), a URL harvested from untrusted content runs strict. :func:`_fetch_all` runs a
+batch of independent fetches at once, since they are pure I/O waits.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 
 # A browser-like User-Agent so plain static hosts (and CDNs that 403 the urllib default)
@@ -128,6 +130,25 @@ def _fetch(url: str, *, strict: bool = True, timeout: float = 30.0) -> bytes:
             "response from %s exceeds the %d-byte fetch cap" % (url, MAX_FETCH_BYTES)
         )
     return data
+
+
+# Upper bound on concurrent fetches in one batch. These jobs are I/O-bound (the GIL is free
+# while a socket waits), so a small pool turns N serial round-trips into roughly one — but a
+# bounded one, so a scrape never opens an antisocial number of sockets against a host.
+MAX_FETCH_WORKERS = 8
+
+
+def _fetch_all(jobs, work):
+    """Map ``work`` over ``jobs`` in a bounded thread pool; results come back in INPUT order.
+
+    Each job must be self-contained (its own guard, its own failure handling) — this is a
+    fan-out, not a scheduler: an exception from ``work`` propagates on iteration.
+    """
+    jobs = list(jobs)
+    if len(jobs) < 2:
+        return [work(job) for job in jobs]
+    with ThreadPoolExecutor(max_workers=min(MAX_FETCH_WORKERS, len(jobs))) as pool:
+        return list(pool.map(work, jobs))
 
 
 def _unverified_ssl_context() -> ssl.SSLContext:

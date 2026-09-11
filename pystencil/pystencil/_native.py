@@ -20,7 +20,6 @@ from typing import Optional
 _BUILD_PY = Path(__file__).resolve().parent.parent / "build.py"
 
 
-# Cached handles so repeated loads are cheap and consistent across the process.
 _CDLL: Optional[ctypes.CDLL] = None
 
 

@@ -25,11 +25,11 @@ graph TD
     CORE["<b>core/</b> — shared C++ logic"]
     subgraph PY["pystencil/ — stdlib only"]
       NATIVE["_native.py + core.py — ctypes over the stencil_cli_* ABI"]
-      CODECS["codecs.py — pure-Python PNG / BMP"]
+      CODECS["codecs/ — pure-Python PNG / BMP"]
       IMG["image.py · layout.py — RGBA8 buffer + structured JSON"]
-      ED["editor.py — Editor facade<br/><i>derived view + history</i>"]
-      SRVC["server.py — urllib REST client"]
-      CLIM["cli.py — one-shot pipeline + /command REPL"]
+      ED["editor/ — Editor facade<br/><i>derived view + history</i>"]
+      SRVC["server/ — urllib REST client"]
+      CLIM["cli/ — one-shot pipeline + /command REPL"]
     end
     SRV["Collaboration server"]
 
@@ -68,7 +68,7 @@ sources rather than linking the CMake library. That places it under the repo's
 | Language / runtime | **Python 3.9+** | the system `python3`; every module sets `from __future__ import annotations` so `X \| None` hints work on 3.9 |
 | Calling the core | **`ctypes`** (stdlib) | loads the shared library built from `core/` and binds the `stencil_cli_*` ABI |
 | Shared geometry / crop / raster / filter | **`../core/`** | the C++ core, **recompiled from source** by `build.py` and called over `../core/cliApi.h` |
-| Image decode/encode (PNG/BMP) | **`zlib` + `struct`** (stdlib) | a pure-Python codec in `codecs.py` — no PIL/numpy |
+| Image decode/encode (PNG/BMP) | **`zlib` + `struct`** (stdlib) | a pure-Python codec in `codecs/` — no PIL/numpy |
 | HTTP + server protocol | **`urllib` + `ssl` + `json`** (stdlib) | REST client for the collaboration server |
 
 **No third-party packages** — stdlib only. PNG and BMP are supported natively; **JPEG
@@ -86,16 +86,22 @@ pystencil/
   pystencil/
     __init__.py           # public exports (Editor/Image/Layout/… + Stencil alias)
     _native.py            # locate → (lazily) build → ctypes-load the shared lib
-    core.py               # ctypes binding over the stencil_cli_* ABI → class Core
-    codecs.py             # pure-python PNG + BMP encode/decode
+    core.py               # class Core over the stencil_cli_* ABI
+    _bindings.py          # the ctypes .argtypes/.restype table for that ABI
     image.py              # class Image (RGBA8 buffer)
     layout.py             # Point / Line / Layout dataclasses (camelCase JSON)
-    editor.py             # class Editor — the chainable facade
-    server.py             # ServerConnection + ConnectionManager (urllib REST client)
-    cli.py                # python -m pystencil — one-shot pipeline + /command REPL
-  tests/
-    test_codecs.py test_layout.py test_core.py
-    test_editor.py test_server.py test_cli.py
+    codecs/               # pure-python PNG + BMP encode/decode (png · bmp · sniff)
+    editor/               # class Editor — the chainable facade, over its history,
+                          #   derive, project, layout_io and source collaborators
+    llm/                  # the op-plan contract: config · plan · registry ·
+                          #   execute · client · chat
+    server/               # ServerConnection + ConnectionManager (urllib REST client)
+    sitesource/           # source-site scraping (format · scan · filter · download · net)
+    cli/                  # python -m pystencil — the one-shot pipeline, the console
+                          #   I/O surface, and the /command REPL (commands/)
+  tests/                  # one suite per subject, named after it
+    test_codecs.py test_layout.py test_core.py test_editor.py
+    test_llm_*.py test_server_*.py test_sitesource_*.py test_cli_*.py
 ```
 
 > The core stays STL-only, codec-free, GUI-free: `pystencil` never pushes Qt, a codec, or
