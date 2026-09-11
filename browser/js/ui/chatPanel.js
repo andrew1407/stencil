@@ -38,9 +38,8 @@ export {
 
 // ── Component: AI assistant chat panel ──────────────────────────
 // Dockable chat with the configured LLM (llm-contract.md). Plans execute against the
-// frozen window.stencil facade — the panel never edits pixels itself. Layout (host
-// classes chat-dock-*, --chat-size, a clamped float rect) is session-only; the header
-// strip is the drag handle — dragging a docked panel undocks it, edge zones re-dock.
+// frozen window.stencil facade — the panel never edits pixels itself. Layout is
+// session-only; the header strip is the drag handle (drag undocks, edge zones re-dock).
 
 export class StencilChatPanel extends StencilElement {
   static inner() {
@@ -524,6 +523,7 @@ export class StencilChatPanel extends StencilElement {
       }
     });
 
+    let gestures = null;   // the icon's gesture machine, assigned below
     // ── Where the panel lives: dock edge / float rect, its buttons and gestures ──
     // ui/chatDock.js. playDust and the pill rects are declared below, so they cross as
     // thunks; onAdopt resets the icon's gesture machine when a layout is chosen.
