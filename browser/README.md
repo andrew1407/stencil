@@ -249,7 +249,7 @@ ADDR=0.0.0.0 PORT=3000 npm run serve   # bind all interfaces (LAN access)
 
 ### Single-file build
 
-`npm run build` folds the whole app — every module, all four stylesheets, the icons — into
+`npm run build` folds the whole app — every module, every stylesheet, the icons — into
 **one self-contained `stencil.html`** that opens straight off disk, no server involved.
 Handy for handing the editor to someone as a single attachment, or for an air-gapped
 machine.
@@ -326,11 +326,16 @@ manifest.webmanifest  # PWA metadata (name, icons, standalone display)
 sw.js                 # service worker: offline app-shell + runtime cache
 favicon.svg           # icon (also the PWA "any"-purpose icon)
 icon-maskable.svg     # full-bleed PWA icon for adaptive (maskable) masks
-css/                  # theme, layout, component styles
+css/                  # theme.css and layout.css, then components/ (18 files plus
+                      #   chat/) and animations/ (12) — one file per banner section
+                      #   of the old components.css / animations.css; index.html's
+                      #   link order IS the cascade
 js/
   index.js            # bootstraps the app on window load
   pwa.js              # registers the service worker (best-effort)
-  utils.js            # shared DOM / geometry / color / hotkey helpers
+  utils.js            # one import point over utils/: DOM, geometry, color, hotkeys
+  bus/                # appBus.js — the app-wide event channel (js/config/events.json)
+  net/                # abortable fetch, connection store + manager, remote sync
   config/             # constants, hotkey + help-text registries, and the
                       #   cross-surface assets the other front-ends read:
                       #   themeTokens.json (css/theme.css's tokens, keyed),
@@ -348,8 +353,11 @@ js/
                       #   chat controller, the app's one shared chat session
                       #   (chatSession.js — panel + context menu), settings
                       #   (see llm-contract.md)
+  console/            # the window.stencil facade
   ui/                 # pure string-returning components composed by layout()
-                      #   (incl. installButton.js — the PWA install affordance)
+                      #   (incl. installButton.js — the PWA install affordance);
+                      #   bindings/ wires the toolbar controls to the app, and
+                      #   motion/ holds the sections motion.js re-exports
   worker/             # cross-tab projects sync worker + message constants
 tools/                # dev scripts: static server, single-file build + its self-check
 tests/                # node:test unit tests (run with `node --test`)
@@ -358,9 +366,10 @@ tests/                # node:test unit tests (run with `node --test`)
 Every module declares its dependencies with `import` and exposes its public API with
 `export`. The HTML loads only `js/index.js`; the module graph pulls in everything else.
 
-### Motion (`js/ui/motion.js` + `css/animations.css`)
+### Motion (`js/ui/motion/` + `css/animations/`)
 
-Three effects share one small module; all of them are decoration, so a browser without
+These effects share one import point — `js/ui/motion.js` is a barrel over
+`js/ui/motion/`, a file per section. All of them are decoration, so a browser without
 `IntersectionObserver`/`MutationObserver` — or a user with `prefers-reduced-motion: reduce`
 — just gets the static view, never a stuck one.
 
@@ -639,17 +648,17 @@ fallback — used when the module hasn't been built or fails to load, and by
 
 | This app | C++ core |
 |---|---|
-| `js/core/formulaEngine.js` | `core/formulaParser.*` |
-| `js/utils.js` (`distToSegment`, color) | `core/geometry.*`, `core/color.*` |
-| `js/core/drawingApp.js` (`pixelToPageCoords`) | `core/pageMetrics.*` |
-| `js/core/historyStack.js` | `core/historyStack.*` |
-| `js/core/projectsStore.js` | `core/projectsStore.*` |
+| `js/core/formulaEngine.js` | `core/parse/formulaParser.*` |
+| `js/utils/geometry.js` (`distToSegment`), `js/utils/color.js` | `core/geometry/geometry.*`, `core/color/color.*` |
+| `js/core/pageMetrics.js` (`pixelToPageCoords`) | `core/page/pageMetrics.*` |
+| `js/core/historyStack.js` | `core/state/historyStack.*` |
+| `js/core/projectsStore.js` | `core/state/projectsStore.*` |
 
-> Note: the C++ `formulaParser` is a real recursive-descent parser for `+ - * / ** ( )`,
-> replacing this app's `new Function(...)` (`eval`) approach. When wasm is loaded,
-> `formulaEngine.js` delegates to it; the JS `new Function` path remains as the
-> fallback. Keep the two behaviorally aligned (same operators, same precedence,
-> same identity-on-error semantics) so the fallback matches the C++.
+> Note: both sides are real recursive-descent parsers for `+ - * / ** ( )` — there is
+> no `eval`/`new Function` anywhere. When wasm is loaded, `formulaEngine.js` delegates
+> to the C++ one and keeps its own parser as the fallback. Keep the two behaviorally
+> aligned (same operators, same precedence, same identity-on-error semantics) so the
+> fallback matches the C++.
 >
 > `historyStack.js` / `projectsStore.js` run as JS (their C++ counterparts exist
 > but need a handle-based ABI rather than the flat numeric surface used by the
