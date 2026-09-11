@@ -15,7 +15,7 @@ The `mcp/` literals are the **reference** for what the contract IS; this documen
 shared fixtures pin them to what the CLI (`cli/`) actually emits. When the CLI's flags or
 output lines change, update **this file, the shared fixtures, and both adapters together**.
 
-> This describes what the CLI does **today** (verified against `cli/src/args.zig` and
+> This describes what the CLI does **today** (verified against `cli/src/params/parse.zig` and
 > `cli/src/pipeline.zig`), not what it should do. The console/REPL mode (`--console`) is a
 > separate interactive surface and is **not** part of this adapter contract.
 
@@ -33,7 +33,7 @@ output lines change, update **this file, the shared fixtures, and both adapters 
 
 ## 1. Argv (input) contract
 
-Produced by `parse()` in **`cli/src/args.zig`**. The grammar is small and
+Produced by `parse()` in **`cli/src/params/parse.zig`** (re-exported as `args.parse`). The grammar is small and
 **order-independent** (flags may appear in any order); a bare token that isn't a flag or a
 flag's value is the positional **output** path (last one wins). There is **no `--`
 end-of-options terminator** — a bare `--` is rejected as an unknown flag — so an output path
@@ -201,7 +201,7 @@ if stderr is empty, return the fixed message `the stencil CLI failed without a m
 
 ## 3. Scrape mode (`--source-site`) output contract
 
-Emitted by `run()` in **`cli/src/scrape.zig`**. Like §2, everything goes to **stderr**;
+Emitted by `runImpl()` in **`cli/src/scrape/run.zig`**. Like §2, everything goes to **stderr**;
 **stdout stays empty**. A run downloads zero or more files into the output directory and
 prints one line per file plus a final summary. Per-item fetch failures are **non-fatal**
 (the run continues); **zero files written** is a hard error (exit 1).
