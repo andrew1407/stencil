@@ -1,26 +1,23 @@
 namespace Stencil.TelegramBot.Domain.Llm;
 
-/// <summary>How an LLM call failed (drives the chat wording; none of these yield a plan).</summary>
+// How an LLM call failed. Drives the chat wording; none of these yields a plan.
 public enum LlmFailure
 {
-    /// <summary>Transport/config/provider error (unreachable endpoint, non-2xx, bad payload).</summary>
+    // Transport/config/provider: unreachable endpoint, non-2xx, bad payload.
     Error,
 
-    /// <summary>The reply stopped on <c>max_tokens</c> — truncated text is never parsed as a plan.</summary>
+    // Stopped on max_tokens; truncated text is never parsed as a plan.
     Truncated,
 
-    /// <summary>The model refused (<c>refusal</c> stop reason) — shown as a chat error, never a plan.</summary>
+    // The refusal stop reason.
     Refusal,
 
-    /// <summary>The server's 503 <c>llmDisabled</c>: no LLM key configured — a configure hint, not a broken call.</summary>
+    // The server's 503 llmDisabled: no key configured, so a configure hint, not a broken call.
     Disabled,
 }
 
-/// <summary>
-/// An LLM call that produced no usable reply. The message is human-readable and surfaced
-/// verbatim in chat; <see cref="Failure"/> distinguishes the contract's <c>max_tokens</c> and
-/// <c>refusal</c> stop reasons from plain errors (<c>llm-contract.md</c> §6.3).
-/// </summary>
+// An LLM call that produced no usable reply. The message is surfaced verbatim in chat; Failure
+// keeps the contract's max_tokens/refusal stop reasons apart from plain errors (§6.3).
 public sealed class LlmException : Exception
 {
     public LlmFailure Failure { get; }
@@ -31,13 +28,9 @@ public sealed class LlmException : Exception
         Failure = failure;
     }
 
-    /// <summary>
-    /// Deployment detail (endpoint URLs, env vars, transport errors) for the operator's log
-    /// only — the chat reply is <see cref="Exception.Message"/>. Null when there is none.
-    /// </summary>
+    // Endpoint URLs, env vars, transport errors: the operator's log only, never the chat reply.
     public string? OperatorDetail { get; private init; }
 
-    /// <summary>A failure whose real cause is operator-only: plain message out, detail logged.</summary>
     public static LlmException Deployment(string message, string operatorDetail) =>
         new(message) { OperatorDetail = operatorDetail };
 }

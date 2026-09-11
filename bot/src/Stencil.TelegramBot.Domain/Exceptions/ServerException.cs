@@ -1,11 +1,7 @@
 namespace Stencil.TelegramBot.Domain.Exceptions;
 
-/// <summary>
-/// A non-2xx REST response from a collaboration server. Carries the server's structured
-/// <c>{code, message}</c> (protocol <c>ErrorResponse</c>) plus the raw HTTP status, mirroring
-/// <c>pystencil</c>'s <c>ServerError</c>. <see cref="Code"/> is e.g. <c>conflict</c>,
-/// <c>notFound</c>, <c>unauthorized</c>.
-/// </summary>
+// A non-2xx REST response: the server's structured {code, message} (protocol ErrorResponse)
+// plus the raw status, mirroring pystencil's ServerError. Code is conflict/notFound/unauthorized.
 public sealed class ServerException : Exception
 {
     public string Code { get; }
@@ -18,6 +14,5 @@ public sealed class ServerException : Exception
         Status = status;
     }
 
-    /// <summary>True when this is a last-writer-wins conflict (HTTP 409 / <c>conflict</c>).</summary>
     public bool IsConflict => Status == 409 || Code == "conflict";
 }

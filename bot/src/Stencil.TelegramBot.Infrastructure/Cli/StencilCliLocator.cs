@@ -15,10 +15,8 @@ namespace Stencil.TelegramBot.Infrastructure.Cli;
 /// </remarks>
 public static class StencilCliLocator
 {
-    /// <summary>The CLI binary's base name.</summary>
     private const string BinaryName = "stencil";
 
-    /// <summary>The relative path of the built CLI inside a repo checkout.</summary>
     private const string RepoBinary = "cli/zig-out/bin/stencil";
 
     /// <summary>A sentinel path that identifies the repo root unambiguously.</summary>
@@ -84,7 +82,6 @@ public static class StencilCliLocator
         return null;
     }
 
-    /// <summary>Candidate directories to start an upward search from (CWD then exe dir).</summary>
     private static IEnumerable<string> StartDirs()
     {
         List<string> starts = new();
@@ -120,7 +117,6 @@ public static class StencilCliLocator
         return null;
     }
 
-    /// <summary>Walk up from <paramref name="start"/> for an ancestor containing the sentinel.</summary>
     private static string? RepoRootFrom(string start)
     {
         DirectoryInfo? dir = new(start);
@@ -136,7 +132,6 @@ public static class StencilCliLocator
         return null;
     }
 
-    /// <summary>Scan <c>PATH</c> for an executable file named <c>stencil</c>.</summary>
     private static string? FindOnPath()
     {
         string? path = Environment.GetEnvironmentVariable("PATH");

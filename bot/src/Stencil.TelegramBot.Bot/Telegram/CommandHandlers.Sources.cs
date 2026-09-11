@@ -12,7 +12,6 @@ using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
-using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Links;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -25,7 +24,6 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 // argument parsers. Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
-    /// <summary>Load an image from an http(s) URL: <c>/url &lt;link&gt;</c>.</summary>
     private async Task UrlAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
@@ -80,13 +78,11 @@ public sealed partial class CommandHandlers
             await using FileStream stream = File.OpenRead(file.Path);
             if (file.Width is int w && file.Height is int h)
             {
-                // A measured item is an image — send it as a photo with its dimensions.
                 InputFileStream photo = InputFile.FromStream(stream, name);
                 await _bot.SendPhoto(chatId, photo, caption: $"{name} — {w}x{h}", cancellationToken: ct);
             }
             else
             {
-                // A video / unmeasured item — send the raw file as a document.
                 InputFileStream document = InputFile.FromStream(stream, name);
                 await _bot.SendDocument(chatId, document, caption: name, cancellationToken: ct);
             }
@@ -97,7 +93,6 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>The /sourcesite usage hint (shown on no args or a bad option).</summary>
     private const string SourceSiteUsage =
         "Usage: /sourcesite <http(s) link> [count (default 5, 0 = all)] "
         + "[filter=img|video|background|poster] "
@@ -169,7 +164,6 @@ public sealed partial class CommandHandlers
         return true;
     }
 
-    /// <summary>Parse a non-negative integer option value; false with an <paramref name="error"/> otherwise.</summary>
     private static bool SetInt(ref int? target, string value, string key, out string? error)
     {
         if (int.TryParse(value, out int parsed) && parsed >= 0)
@@ -230,7 +224,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>The /sourceupload usage hint (shown on no args or a bad option).</summary>
     private const string SourceUploadUsage =
         "Usage: /sourceupload <http(s) link> [index=0] [format=png|jpg|…] [name=<regex>] "
         + "[minw=…] [maxw=…] [minh=…] [maxh=…]\n"

@@ -1,25 +1,16 @@
 namespace Stencil.TelegramBot.Domain.Sessions;
 
-/// <summary>
-/// A remembered collaboration-server connection for one user: a normalised origin
-/// (<c>scheme://host[:port]</c>) plus the bearer token minted/validated at connect time.
-/// </summary>
-/// <remarks>
-/// Mirrors <c>pystencil</c>'s REST-only <c>ServerConnection</c> identity — a connection is
-/// just a validated token + base URL (no live WS feed). <see cref="VerifyTls"/> false
-/// accepts self-signed certs for dev servers.
-/// </remarks>
+// pystencil's REST-only ServerConnection identity: a validated token + a normalised origin,
+// no live WS feed. VerifyTls false accepts a dev server's self-signed cert.
 public sealed record ServerConnectionInfo
 {
     public required string Url { get; init; }
     public string Token { get; init; } = "";
 
-    /// <summary>The user-supplied connect value (may be the server's ADMIN token) — kept
-    /// separately from the live session token so a stale session can be re-minted.</summary>
+    // The user-supplied connect value (possibly the server's ADMIN token), kept apart from the
+    // live session token so a stale session can be re-minted.
     public string Credential { get; init; } = "";
 
-    /// <summary>What that credential proved to be at connect time (browser parity: the
-    /// persisted <c>kind</c>) — admin once it minted a session token that worked.</summary>
     public CredentialKind CredentialKind { get; init; } = CredentialKind.None;
 
     public bool VerifyTls { get; init; } = true;

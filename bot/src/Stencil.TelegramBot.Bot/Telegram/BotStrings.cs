@@ -21,7 +21,6 @@ public static class BotStrings
         IReadOnlyDictionary<string, string> Marks,
         IReadOnlyDictionary<string, (string Label, string Token)> Buttons);
 
-    /// <summary>One reply string, verbatim.</summary>
     public static string Reply(string key) =>
         Asset.Value.Replies.TryGetValue(key, out string? text)
             ? text
@@ -30,7 +29,6 @@ public static class BotStrings
     /// <summary>One reply string with its <c>{0}</c>… placeholders filled in order.</summary>
     public static string Reply(string key, params object?[] args) => string.Format(Reply(key), args);
 
-    /// <summary>The glyph a <see cref="Replies.Tone"/> wears.</summary>
     public static string Tone(string name) => Asset.Value.Tones[name];
 
     /// <summary>A short selection mark (an option tick, the current chat API's ✅).</summary>

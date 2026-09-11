@@ -2,7 +2,6 @@ using System.Diagnostics;
 
 namespace Stencil.TelegramBot.Infrastructure.Processes;
 
-/// <summary>The outcome of one bounded process run (see <see cref="ProcessRunner.RunAsync"/>).</summary>
 public abstract record ProcessOutcome;
 
 /// <summary>The process ran to completion (any exit code), with stderr fully captured.</summary>

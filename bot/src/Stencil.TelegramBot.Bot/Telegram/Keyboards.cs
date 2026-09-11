@@ -70,7 +70,6 @@ public static class Keyboards
     /// <summary>Button labels have to stay readable on a phone — long option text is clipped.</summary>
     private static string Trim(string label) => label.Length <= 40 ? label : label[..39] + "…";
 
-    /// <summary>The top-level menu shown after /start and /help.</summary>
     public static InlineKeyboardMarkup MainMenu() => new(MainRows());
 
     /// <summary>
@@ -159,7 +158,6 @@ public static class Keyboards
             },
         });
 
-    /// <summary>The shared top-level rows (Chat, Help/Status, Connect/Projects, Create/Save).</summary>
     private static List<InlineKeyboardButton[]> MainRows() =>
         new()
         {
@@ -256,7 +254,6 @@ public static class Keyboards
         return new InlineKeyboardMarkup(rows);
     }
 
-    /// <summary>Download submenu: rendered image, layout JSON (only when edits exist), whole .stencil project, plus Back.</summary>
     public static InlineKeyboardMarkup DownloadSubmenu(bool hasEdits)
     {
         List<InlineKeyboardButton[]> rows = new()
@@ -275,7 +272,6 @@ public static class Keyboards
         return new InlineKeyboardMarkup(rows);
     }
 
-    /// <summary>Transform submenu: rotate ±90° and crop, plus Back.</summary>
     public static InlineKeyboardMarkup EditSubmenu() =>
         new(new[]
         {
@@ -288,7 +284,6 @@ public static class Keyboards
             BackRow(),
         });
 
-    /// <summary>Filter submenu: B&amp;W · Sepia · Invert · Contour · custom Tint · None, plus Back.</summary>
     public static InlineKeyboardMarkup FilterSubmenu() =>
         new(new[]
         {
@@ -310,7 +305,6 @@ public static class Keyboards
             BackRow(),
         });
 
-    /// <summary>Draw submenu: how-to, undo last line, clear all lines, plus Back.</summary>
     public static InlineKeyboardMarkup DrawSubmenu() =>
         new(new[]
         {
@@ -323,7 +317,6 @@ public static class Keyboards
             BackRow(),
         });
 
-    /// <summary>A single-row "back to the main edit menu" button.</summary>
     private static InlineKeyboardButton[] BackRow() =>
         new[] { BotStrings.Button("back") };
 

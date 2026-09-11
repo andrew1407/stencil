@@ -3,49 +3,30 @@ using Stencil.TelegramBot.Domain.Serialization;
 
 namespace Stencil.TelegramBot.Domain.Llm;
 
-/// <summary>One persisted chat message: role (user|assistant) and text only — never images.</summary>
+// Role (user|assistant) and text only — never images.
 public sealed record ChatDocumentMessage(string Role, string Text);
 
-/// <summary>
-/// The contract's persisted-chat document (<c>llm-contract.md</c> §12.1) — the one shape
-/// every surface reads and writes when a conversation is saved with a project. Text-only,
-/// ≤ 32 messages, tolerant on read: a wrong <c>version</c> or shape means "no chat" (never an
-/// error), unknown fields and stray <c>images</c> are ignored.
-/// </summary>
-/// <remarks>
-/// For the bot the store is the active server project's <c>chat</c> file kind (§12.3 — no
-/// local store). Assistant <c>Text</c> must be the DISPLAYED reply, never the raw JSON plan:
-/// the extraction is the caller's job (see <c>PromptService.BuildChatDocument</c>), and
-/// <see cref="DisplayText"/> is the backstop that refuses one on both sides.
-/// </remarks>
+// The §12.1 persisted-chat document — the shape every surface reads and writes. Text-only and
+// tolerant on read: a wrong version or shape means "no chat", never an error. The bot's store
+// is the active server project's chat file kind (§12.3 — there is no local one).
 public sealed record ChatDocument
 {
-    /// <summary>The §12.1 message bound (the §7 history bound): the most recent 32 survive.</summary>
+    // §12.1 (and the §7 history bound): the most recent 32 survive.
     public const int MaxMessages = 32;
 
-    /// <summary>
-    /// §7's auto-continuation note: the internal sentence <c>PromptService</c> appends to the
-    /// RESTATED request after a plan made a new picture. It lives beside the §12 rules so the
-    /// one place that writes it and the one that must never persist it agree by construction.
-    /// </summary>
+    // §7's auto-continuation note, appended to the RESTATED request after a plan made a new
+    // picture. It lives beside the §12 rules so the one place that writes it and the one that
+    // must never persist it agree by construction.
     public const string ContinuationNote =
         "[The working image is now the picture those actions just made — continue with it, using its real pixel size.]";
 
     private const string ContinuationOpen = "[The working image is now";
 
-    /// <summary>
-    /// The §12.1 text to persist/restore for one turn, or null when the turn is dropped. The
-    /// document is SHARED across surfaces and a restored transcript must read as a conversation,
-    /// so machinery never enters it. Applied on BOTH sides (<see cref="Build"/> and
-    /// <see cref="TryParse"/>), which is what keeps another surface's — or an older build's —
-    /// internals from being replayed as the user's own words:
-    /// <list type="bullet">
-    /// <item>§7's continuation note: stripped off the restated request it trails, or the whole
-    /// turn dropped when it stands alone (any bracketed wording).</item>
-    /// <item>An assistant turn that is a raw op-plan: §7 permits that on the WIRE, §12.1 does
-    /// not. Assistant turns only — a user may paste JSON and see it again.</item>
-    /// </list>
-    /// </summary>
+    // The §12.1 text for one turn, or null to drop it. Applied on BOTH sides (Build and
+    // TryParse), which is what keeps another surface's — or an older build's — internals from
+    // replaying as the user's own words: §7's continuation note is stripped off the restated
+    // request it trails, and a raw op-plan is refused, assistant turns only (a user may paste
+    // JSON and see it again).
     public static string? DisplayText(string role, string? text)
     {
         string t = (text ?? string.Empty).Trim();
@@ -64,14 +45,14 @@ public sealed record ChatDocument
         return role == LlmMessage.RoleAssistant && LooksLikeRawPlan(t) ? null : t;
     }
 
-    /// <summary>A raw op-plan: a JSON object/array carrying "version" plus one of the plan's fields.</summary>
+    // A JSON object/array carrying "version" plus one of the plan's own fields.
     private static bool LooksLikeRawPlan(string t) =>
         t[0] is '{' or '['
         && HasJsonKey(t, "version")
         && (HasJsonKey(t, "actions") || HasJsonKey(t, "reply")
             || HasJsonKey(t, "variants") || HasJsonKey(t, "ask"));
 
-    /// <summary><c>"key"</c> followed by optional whitespace and a colon, anywhere in the text.</summary>
+    // "key" followed by optional whitespace and a colon, anywhere in the text.
     private static bool HasJsonKey(string t, string key)
     {
         string quoted = $"\"{key}\"";
@@ -93,16 +74,13 @@ public sealed record ChatDocument
 
     public int Version { get; init; } = 1;
 
-    /// <summary>Epoch ms when the document was written — informational only.</summary>
+    // Epoch ms; informational only.
     public long SavedAt { get; init; }
 
     public IReadOnlyList<ChatDocumentMessage> Messages { get; init; } = [];
 
-    /// <summary>
-    /// Build a document from conversation messages: text-only (any images are stripped by
-    /// construction), unknown roles dropped, §7 machinery refused by <see cref="DisplayText"/>,
-    /// trimmed to the most recent <see cref="MaxMessages"/> of what survives.
-    /// </summary>
+    // Text-only by construction: images cannot enter. Unknown roles dropped, §7 machinery
+    // refused by DisplayText, trimmed to the most recent MaxMessages of what survives.
     public static ChatDocument Build(IEnumerable<LlmMessage> messages, long savedAtMs)
     {
         List<ChatDocumentMessage> kept = new();
@@ -121,15 +99,12 @@ public sealed record ChatDocument
         return new ChatDocument { SavedAt = savedAtMs, Messages = kept };
     }
 
-    /// <summary>The camelCase §12.1 JSON (<c>{"version":1,"savedAt":…,"messages":[…]}</c>).</summary>
+    // {"version":1,"savedAt":…,"messages":[…]}, camelCase.
     public string ToJson() => StencilJson.Serialize(this);
 
-    /// <summary>
-    /// Tolerant §12.1 reader: null (treat as "no chat") for malformed JSON, a non-object, or a
-    /// <c>version</c> other than 1; messages with a non-user/assistant role or without a string
-    /// <c>text</c> are dropped; stray <c>images</c> and unknown fields are ignored; anything
-    /// beyond <see cref="MaxMessages"/> is truncated to the most recent.
-    /// </summary>
+    // Null means "no chat": malformed JSON, a non-object, or a version other than 1. A message
+    // without a user/assistant role or a string text is dropped; stray images and unknown fields
+    // are ignored; anything past MaxMessages is truncated to the most recent.
     public static ChatDocument? TryParse(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))

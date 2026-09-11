@@ -44,7 +44,6 @@ public sealed class SyncWatcher : BackgroundService
         _logger = logger;
     }
 
-    /// <summary>Run the poll loop until the host stops.</summary>
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)
@@ -72,7 +71,6 @@ public sealed class SyncWatcher : BackgroundService
         }
     }
 
-    /// <summary>One poll pass over every sync-enabled user.</summary>
     private async Task TickAsync(CancellationToken ct)
     {
         foreach (var (userId, chatId) in _registry.Entries())
@@ -91,7 +89,6 @@ public sealed class SyncWatcher : BackgroundService
             {
                 continue; // unreachable, or no change since our last-seen version
             }
-            // A peer advanced the version — pull their layout + image and show it.
             await _servers.PullActiveAsync(userId, ct);
             await _bot.SendMessage(chatId, "↺ a peer changed this project — pulled their version.", cancellationToken: ct);
             await _handlers.RenderAndSendAsync(userId, chatId, ct, mutating: false);

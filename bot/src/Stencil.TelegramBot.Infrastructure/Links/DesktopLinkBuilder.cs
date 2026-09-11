@@ -44,7 +44,6 @@ public static class DesktopLinkBuilder
         return $"{scheme}://open?{query}";
     }
 
-    /// <summary>Wrap a <c>stencil://</c> URL in the browser app's launch.html bounce URL.</summary>
     public static string BounceUrl(string? browserBase, string stencilUrl) =>
         $"{(browserBase ?? "").TrimEnd('/')}/launch.html#stencil-desktop={EncodeComponent(stencilUrl)}";
 

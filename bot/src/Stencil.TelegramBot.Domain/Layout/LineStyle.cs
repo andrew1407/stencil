@@ -1,10 +1,7 @@
 namespace Stencil.TelegramBot.Domain.Layout;
 
-/// <summary>
-/// The current "pen" — the styling applied to newly drawn lines/shapes until changed. Holds
-/// the same style fields as <see cref="LayoutLine"/> (minus the points), with the identical
-/// per-line defaults so a freshly drawn line matches every other front-end's defaults.
-/// </summary>
+// The pen applied to newly drawn lines. Defaults track LayoutLine's, so a freshly drawn
+// line matches every other front-end.
 public sealed record LineStyle
 {
     public string Color { get; init; } = LayoutLine.DefaultColor;
@@ -12,6 +9,6 @@ public sealed record LineStyle
     public double PointSize { get; init; } = LayoutLine.DefaultPointSize;
     public string Style { get; init; } = LayoutLine.DefaultStyle;
 
-    /// <summary>Fill for a closed shape, or <c>transparent</c>. Ignored by open polylines.</summary>
+    // Ignored by open polylines.
     public string FillColor { get; init; } = LayoutLine.DefaultFillColor;
 }

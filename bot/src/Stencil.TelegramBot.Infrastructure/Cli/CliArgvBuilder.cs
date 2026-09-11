@@ -3,19 +3,11 @@ using Stencil.TelegramBot.Domain.Exceptions;
 
 namespace Stencil.TelegramBot.Infrastructure.Cli;
 
-/// <summary>
-/// Maps an <see cref="EditRequest"/> to the exact <c>stencil [options] &lt;output&gt;</c> argv. A
-/// faithful port of <c>mcp/src/args.rs</c> (<c>build_argv</c>), with the same validation
-/// invariants the CLI would otherwise reject with a terse message — or, worse, silently skip.
-/// The pipeline order is the CLI's own, so argv order here is cosmetic.
-/// </summary>
+// Maps an EditRequest to the exact `stencil [options] <output>` argv — a port of mcp's
+// build_argv, with the same validation invariants the CLI would otherwise reject tersely or,
+// worse, silently skip. The pipeline order is the CLI's own, so argv order here is cosmetic.
 public static class CliArgvBuilder
 {
-    /// <summary>
-    /// Build the argv for one edit. Throws <see cref="StencilCliException"/> when the
-    /// source/output/blank invariants are violated (exactly one of input/blank; non-empty output;
-    /// blank dims together or both omitted; a page format and explicit dims are exclusive).
-    /// </summary>
     // ── CLI flag names ──
     // The exact option strings the Zig CLI understands (cli/src/args.zig, cli/CONTRACT.md §1) —
     // the .NET peer of mcp's FLAG_* consts.
@@ -219,13 +211,8 @@ public static class CliArgvBuilder
         return argv;
     }
 
-    /// <summary>
-    /// Build the argv for one source-site scrape: <c>--source-site &lt;url&gt; [filters]
-    /// &lt;output-dir&gt;</c>. Emits only the flags the request actually sets, matching the CLI's
-    /// "0 = unset" / "count absent = all" semantics (DESIGN source-site contract §1). Throws
-    /// <see cref="StencilCliException"/> when the url or output dir is empty, or when the output
-    /// dir would be parsed as a flag — the same guard <see cref="BuildArgv"/> puts on its output.
-    /// </summary>
+    // `--source-site <url> [filters] <output-dir>`. Emits only the flags the request actually
+    // sets, matching the CLI's "0 = unset" / "count absent = all" semantics (source-site §1).
     public static IReadOnlyList<string> BuildScrapeArgv(ScrapeRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.Url))
@@ -287,7 +274,7 @@ public static class CliArgvBuilder
         return argv;
     }
 
-    /// <summary>Append <c>flag &lt;value&gt;</c> only for a set, positive dimension bound (0/null = unset).</summary>
+    // Only for a set, positive bound: 0/null is unset.
     private static void AddBound(List<string> argv, string flag, int? value)
     {
         if (value is int px && px > 0)

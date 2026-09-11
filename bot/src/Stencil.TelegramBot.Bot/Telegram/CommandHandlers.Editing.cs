@@ -12,7 +12,6 @@ using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
-using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Links;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -86,7 +85,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Start a blank canvas: <c>/blank [format] [w h] [color]</c>.</summary>
     private async Task BlankAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string? page = null;
@@ -119,7 +117,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Show or set the page format: <c>/format [name | custom &lt;w&gt; &lt;h&gt;]</c>.</summary>
     private async Task FormatAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
@@ -151,7 +148,6 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, $"Page format set to {name} ({PageFormats.Cm(wcm)}×{PageFormats.Cm(hcm)} cm) — the /blank default, saved into the project layout.", cancellationToken: ct);
     }
 
-    /// <summary>Crop the working image: <c>/crop &lt;spec&gt; [album]</c>.</summary>
     private async Task CropAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string spec = cmd.ArgumentText;
@@ -183,7 +179,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Draw a shape: <c>/draw &lt;line|rect|poly&gt; x1,y1 x2,y2 …</c>.</summary>
     private async Task DrawAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
@@ -196,7 +191,6 @@ public sealed partial class CommandHandlers
         await DrawShapeAsync(userId, chatId, shape, pointTokens, ct);
     }
 
-    /// <summary>Append a styled line/rectangle/polygon built from the point tokens.</summary>
     private async Task DrawShapeAsync(long userId, long chatId, string shape, IReadOnlyList<string> pointTokens, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
@@ -247,7 +241,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Set the pen colour: <c>/color &lt;#hex|name&gt;</c>.</summary>
     private async Task PenColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
@@ -259,7 +252,6 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, $"Pen colour set to {cmd.Args[0]}.", cancellationToken: ct);
     }
 
-    /// <summary>Set the pen stroke width: <c>/thickness &lt;n&gt;</c>.</summary>
     private async Task PenThicknessAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (!TryParseNonNegative(cmd.Args, out double value))
@@ -271,7 +263,6 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, $"Pen thickness set to {value}.", cancellationToken: ct);
     }
 
-    /// <summary>Set the vertex point radius: <c>/points &lt;n&gt;</c> (0 hides them).</summary>
     private async Task PenPointsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (!TryParseNonNegative(cmd.Args, out double value))
@@ -292,7 +283,6 @@ public sealed partial class CommandHandlers
             && value >= 0;
     }
 
-    /// <summary>Set the line style: <c>/style &lt;solid|dashed|dotted&gt;</c>.</summary>
     private async Task PenStyleAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string style = cmd.Args.Count == 0 ? "" : cmd.Args[0].ToLowerInvariant();
@@ -305,7 +295,6 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, $"Line style set to {style}.", cancellationToken: ct);
     }
 
-    /// <summary>Set the closed-shape fill: <c>/fill &lt;#hex|name|none&gt;</c>.</summary>
     private async Task PenFillAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
@@ -330,7 +319,6 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, Replies.PenText(session.Edits.Pen), cancellationToken: ct);
     }
 
-    /// <summary>Step back one edit (crop/rotate/filter/draw), then re-render.</summary>
     private async Task UndoAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession before = await _store.GetAsync(userId, ct);
@@ -348,7 +336,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Re-apply the most recently undone edit, then re-render.</summary>
     private async Task RedoAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession before = await _store.GetAsync(userId, ct);
@@ -366,7 +353,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Remove the most recently drawn line/shape, then re-render.</summary>
     private async Task UndoLineAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _editing.RemoveLastLineAsync(userId, ct);
@@ -378,7 +364,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Remove every drawn line/shape, then re-render.</summary>
     private async Task ClearLinesAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _editing.ClearLinesAsync(userId, ct);
@@ -390,7 +375,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Rotate clockwise: <c>/rotate &lt;n&gt;</c> quarter-turns (bare lists the variants).</summary>
     private async Task RotateAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0 || !int.TryParse(cmd.Args[0], out int turns))
@@ -402,10 +386,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>
-    /// Set or clear the filter: <c>/filter &lt;bw|sepia|invert|contour|none|color&gt;</c>
-    /// (bare lists the variants plus the filter submenu).
-    /// </summary>
     private async Task FilterAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.ArgumentText.Length == 0)
@@ -417,7 +397,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Clear pending edits but keep the working image.</summary>
     private async Task ResetAsync(long userId, long chatId, CancellationToken ct)
     {
         await _editing.ResetEditsAsync(userId, ct);

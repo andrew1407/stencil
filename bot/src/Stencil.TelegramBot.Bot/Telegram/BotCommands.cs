@@ -2,14 +2,13 @@ using System.Text.Json;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>One command in the bot's vocabulary: its canonical verb, its "/" menu description
-/// (null when it stays off the menu), and the aliases that dispatch to it.</summary>
+/// <summary>A null <c>Menu</c> keeps the command off the Telegram "/" menu.</summary>
 public sealed record CommandDescriptor(string Verb, string? Menu, IReadOnlyList<string> Aliases);
 
 /// <summary>
 /// The bot's command vocabulary, parsed once from the embedded <c>Assets/botCommands.json</c>
 /// (same embedding pattern as <see cref="PageFormats"/>'s <c>constants.json</c>). It is the one
-/// source for four lists that used to be hand-synced: the dispatch table's aliases
+/// source for four lists: the dispatch table's aliases
 /// (<see cref="Canonical"/>), the Telegram "/" menu (<see cref="BotCommandList"/>),
 /// <c>/help</c> (<see cref="HelpText"/>) and the README's command tables.
 /// </summary>
@@ -27,7 +26,6 @@ public static class BotCommands
     /// <summary>Every command, menu order first, then the ones that stay off the "/" menu.</summary>
     public static IReadOnlyList<CommandDescriptor> All => Asset.Value.Commands;
 
-    /// <summary>The full <c>/help</c> reference.</summary>
     public static string HelpText => Asset.Value.Help;
 
     /// <summary>

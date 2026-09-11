@@ -2,23 +2,18 @@ using System.Collections.Concurrent;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// The set of users with live sync enabled, mapping each to the chat their updates go to.
-/// Populated by <c>/sync on</c> and drained by <c>/sync off</c> (or /drop); the
-/// <see cref="SyncWatcher"/> polls exactly this set. Thread-safe (touched by handlers and the
-/// background poller).
-/// </summary>
+// The users with live sync on, each mapped to the chat their updates go to; SyncWatcher polls
+// exactly this set. Thread-safe: the handlers and the background poller both touch it.
 public sealed class SyncRegistry
 {
     private readonly ConcurrentDictionary<long, long> _chatByUser = new();
 
-    /// <summary>Start (or retarget) live sync for a user, delivering pulls to <paramref name="chatId"/>.</summary>
+    // Retargets when already enabled.
     public void Enable(long userId, long chatId) => _chatByUser[userId] = chatId;
 
-    /// <summary>Stop live sync for a user.</summary>
     public void Disable(long userId) => _chatByUser.TryRemove(userId, out _);
 
-    /// <summary>A snapshot of the current (userId, chatId) pairs to poll.</summary>
+    // A snapshot, so the poller iterates without holding the map.
     public IReadOnlyList<(long UserId, long ChatId)> Entries() =>
         _chatByUser.Select(kv => (kv.Key, kv.Value)).ToList();
 }

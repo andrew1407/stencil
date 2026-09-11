@@ -1,6 +1,5 @@
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>The calendar unit of a parsed expiry duration.</summary>
 public enum DurationUnit
 {
     Day,
@@ -14,7 +13,6 @@ public enum DurationUnit
 /// </summary>
 public sealed record ParsedDuration(DurationUnit Unit, int Count)
 {
-    /// <summary>The absolute instant this duration lands on, measured from <paramref name="baseTime"/>.</summary>
     public DateTimeOffset From(DateTimeOffset baseTime) => Unit switch
     {
         DurationUnit.Day => baseTime.AddDays(Count),
@@ -23,7 +21,6 @@ public sealed record ParsedDuration(DurationUnit Unit, int Count)
         _ => baseTime,
     };
 
-    /// <summary>A human phrase like "3 days" / "1 week" / "2 months".</summary>
     public override string ToString()
     {
         string unit = Unit switch
@@ -108,7 +105,6 @@ public static class DurationParser
         }
     }
 
-    /// <summary>The first maximal run of characters matching <paramref name="pred"/>, or "".</summary>
     private static string FirstRun(string s, Func<char, bool> pred)
     {
         int start = -1;

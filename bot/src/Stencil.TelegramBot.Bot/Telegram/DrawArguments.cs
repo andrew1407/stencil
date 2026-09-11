@@ -42,7 +42,6 @@ public static class DrawArguments
         return true;
     }
 
-    /// <summary>Parse a single <c>x,y</c> (or <c>x%,y%</c>) token.</summary>
     public static bool TryParsePoint(string token, double width, double height, out LayoutPoint point)
     {
         point = new LayoutPoint(0, 0);
@@ -63,7 +62,6 @@ public static class DrawArguments
         return true;
     }
 
-    /// <summary>The four corners of the rectangle spanned by two opposite corners.</summary>
     public static IReadOnlyList<LayoutPoint> Rectangle(LayoutPoint a, LayoutPoint b) =>
         new[]
         {

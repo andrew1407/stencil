@@ -162,6 +162,5 @@ public sealed class ProcessStencilCli : IStencilCli
     private static readonly IReadOnlyDictionary<string, string> NoColor =
         new Dictionary<string, string> { ["NO_COLOR"] = "1" };
 
-    /// <summary>Raw capture from one CLI invocation.</summary>
     private readonly record struct CliOutput(bool Success, string Stderr);
 }

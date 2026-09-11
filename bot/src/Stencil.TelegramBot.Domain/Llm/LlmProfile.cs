@@ -1,28 +1,20 @@
 namespace Stencil.TelegramBot.Domain.Llm;
 
-/// <summary>
-/// One selectable chat API — a named <see cref="LlmOptions"/> the operator configured, offered
-/// to users by the <c>/chatapi</c> picker.
-/// </summary>
-/// <remarks>
-/// Profiles are a PICKER, deliberately: the endpoint of every one of them comes from the
-/// operator's environment, never from a chat message. A bot that let a user type its base URL
-/// would issue HTTP requests to whatever host a message named — the thing
-/// <c>.claude/rules/security.md</c> exists to prevent — so the free-text form the cli console's
-/// <c>/llm</c> offers has no equivalent here.
-/// </remarks>
+// A named LlmOptions the operator configured, offered by the /chatapi picker.
+// A PICKER, deliberately: every endpoint comes from the operator's environment, never from a
+// chat message. Letting a user type a base URL would make the bot fetch whatever host a message
+// named, so the cli console's free-text /llm form has no equivalent here.
 public sealed record LlmProfile
 {
-    /// <summary>Lookup key: lowercase, no spaces. What the session stores and the button carries.</summary>
+    // Lookup key: lowercase, no spaces. What the session stores and the button carries.
     public required string Name { get; init; }
 
-    /// <summary>What the picker shows (defaults to <see cref="Name"/> when unset).</summary>
+    // What the picker shows; defaults to Name when unset.
     public required string Label { get; init; }
 
-    /// <summary>The provider configuration this profile selects.</summary>
     public required LlmOptions Options { get; init; }
 
-    /// <summary>A one-line description for the picker: provider, model and where it points.</summary>
+    // One line for the picker: provider, model, where it points.
     public string Summary()
     {
         string model = Options.Model.Length > 0 ? Options.Model : "default model";

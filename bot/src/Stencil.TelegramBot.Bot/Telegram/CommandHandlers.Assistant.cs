@@ -12,7 +12,6 @@ using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
-using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Links;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -25,7 +24,6 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 // persistence, and the prompt render/album senders. Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
-    /// <summary>The /prompt usage hint (shown when no request text follows the command).</summary>
     private const string PromptUsage =
         "Usage: /prompt <request>, e.g. /prompt make it black & white and crop 10% off each side\n"
         + "The AI assistant plans the edit (crop/rotate/filter/draw/…) and the bot renders it with "
@@ -43,11 +41,6 @@ public sealed partial class CommandHandlers
         await _store.SaveAsync(pending with { LastRetryablePrompt = text }, ct);
     }
 
-    /// <summary>
-    /// <c>/prompt &lt;request&gt;</c> (alias <c>/p</c>): the assistant plans the edit, the plan
-    /// executes through the same editing service the slash commands use, and results come back
-    /// as one photo with the edit menu or a media album for variants.
-    /// </summary>
     private async Task PromptAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string text = cmd.ArgumentText.Trim();
@@ -288,7 +281,6 @@ public sealed partial class CommandHandlers
         await SelectChatApiAsync(userId, chatId, picked, ct);
     }
 
-    /// <summary>Store the picked chat API for this user and confirm it. Shared by command and button.</summary>
     public async Task SelectChatApiAsync(long userId, long chatId, LlmProfile picked, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
@@ -424,7 +416,6 @@ public sealed partial class CommandHandlers
             Keyboards.EditMenu(session.ActiveProjectId is not null), ct);
     }
 
-    /// <summary>The caption every prompt result carries: its label plus the rendered size.</summary>
     private static string PromptCaption(PromptRender render) =>
         $"{render.Label} — {render.Result.Size}";
 
@@ -450,16 +441,11 @@ public sealed partial class CommandHandlers
         return new RenderCaptureScope(this, userId);
     }
 
-    /// <summary>Ends a render-capture scope (double-dispose is a no-op).</summary>
     private sealed class RenderCaptureScope(CommandHandlers owner, long userId) : IDisposable
     {
         public void Dispose() => owner._renderCaptures.TryRemove(userId, out _);
     }
 
-    /// <summary>
-    /// Send an album batch's captured results: one lone result as a plain photo, several as one
-    /// media group; nothing at all (a text-only batch) sends nothing.
-    /// </summary>
     public async Task SendRenderAlbumAsync(long chatId, IReadOnlyList<PromptRender> renders, CancellationToken ct)
     {
         if (renders.Count == 0)

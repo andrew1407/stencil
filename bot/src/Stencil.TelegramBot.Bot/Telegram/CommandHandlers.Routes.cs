@@ -63,13 +63,11 @@ public sealed partial class CommandHandlers
         ["cancel"] = (h, u, c, cmd, ct) => h.CancelAsync(c, ct),
     };
 
-    /// <summary>How a routed command runs: the handler instance plus the parsed command.</summary>
     private delegate Task Route(CommandHandlers handlers, long userId, long chatId, BotCommand cmd, CancellationToken ct);
 
     /// <summary>The canonical verbs the table answers — the drift test's view of it.</summary>
     public static IReadOnlyCollection<string> HandledVerbs => Routes.Keys;
 
-    /// <summary>Route a parsed command to its handler (unknown verbs fall back to a /help hint).</summary>
     public Task DispatchAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct) =>
         Routes.TryGetValue(BotCommands.Canonical(cmd.Verb), out Route? route)
             ? route(this, userId, chatId, cmd, ct)

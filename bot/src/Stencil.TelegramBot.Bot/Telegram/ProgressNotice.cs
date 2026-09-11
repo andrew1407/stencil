@@ -19,10 +19,8 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 /// </remarks>
 public sealed class ProgressNotice
 {
-    /// <summary>The spinner frames, in order — a filled quarter circling clockwise.</summary>
     public static readonly string[] Frames = ["◐", "◓", "◑", "◒"];
 
-    /// <summary>How often the frame advances and the chat action is re-armed.</summary>
     public static readonly TimeSpan Tick = TimeSpan.FromSeconds(3);
 
     private readonly ITelegramBotClient _bot;
@@ -50,7 +48,6 @@ public sealed class ProgressNotice
         _loop = Task.Run(RunAsync, CancellationToken.None);
     }
 
-    /// <summary>The notice text at frame <paramref name="i"/> — the spinner, then the message.</summary>
     public static string Frame(int i, string text) => $"{Frames[i % Frames.Length]} {text}";
 
     /// <summary>

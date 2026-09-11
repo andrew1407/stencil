@@ -2,22 +2,17 @@ using System.Text.Json.Serialization;
 
 namespace Stencil.TelegramBot.Domain.Sessions;
 
-/// <summary>
-/// What a connection's credential turned out to be — the browser's <c>credentialKind</c>
-/// (<c>connectionManager.js</c>), persisted so a later connect can skip a doomed probe.
-/// </summary>
-/// <remarks>
-/// Serialised by name so a stored session survives any reordering of the members.
-/// </remarks>
+// The browser's credentialKind (connectionManager.js), persisted so a later connect can skip a
+// doomed probe. Serialised BY NAME, so a stored session survives reordering these.
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum CredentialKind
 {
-    /// <summary>Nothing was supplied — the session token was minted anonymously.</summary>
+    // Nothing supplied: the session token was minted anonymously.
     None = 0,
 
-    /// <summary>A session token: it listed projects directly, so it is not an admin token.</summary>
+    // It listed projects directly, so it is not an admin token.
     Session = 1,
 
-    /// <summary>An ADMIN token: it can't list projects, but it PROVED it can mint a session token.</summary>
+    // It can't list projects, but it PROVED it can mint a session token.
     Admin = 2,
 }

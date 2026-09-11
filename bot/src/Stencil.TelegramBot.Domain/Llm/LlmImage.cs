@@ -1,14 +1,8 @@
 namespace Stencil.TelegramBot.Domain.Llm;
 
-/// <summary>
-/// One attached image: its media type (<c>image/png</c>, <c>image/jpeg</c>, <c>image/webp</c>
-/// or <c>image/gif</c> — the contract's accepted set) and its base64-encoded bytes.
-/// </summary>
+// MediaType is the contract's accepted set: image/png, image/jpeg, image/webp, image/gif.
 public sealed record LlmImage(string MediaType, string Base64Data)
 {
-    /// <summary>
-    /// Contract §7: attached images are downscaled to at most this many pixels on the long
-    /// edge before base64-encoding.
-    /// </summary>
+    // §7: the long edge an attachment is downscaled to before base64-encoding.
     public const int MaxLongEdgePixels = 1568;
 }

@@ -6,12 +6,12 @@ using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
+using Stencil.TelegramBot.Domain.Configuration;
 using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
-using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Links;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -33,7 +33,7 @@ public sealed partial class CommandHandlers
     private readonly IServerService _servers;
     private readonly ISessionStore _store;
     private readonly ITelegramBotClient _bot;
-    private readonly BotOptions _options;
+    private readonly IBotPolicy _options;
     private readonly SyncRegistry _sync;
     private readonly LayoutFetcher _layoutFetcher;
     private readonly PromptService _prompts;
@@ -46,7 +46,7 @@ public sealed partial class CommandHandlers
         IServerService servers,
         ISessionStore store,
         ITelegramBotClient bot,
-        BotOptions options,
+        IBotPolicy options,
         SyncRegistry sync,
         LayoutFetcher layoutFetcher,
         PromptService prompts,
@@ -85,11 +85,9 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>Show the full command help plus the main menu.</summary>
     private Task HelpAsync(long chatId, CancellationToken ct) =>
         _bot.SendMessage(chatId, Replies.HelpText(), replyMarkup: Keyboards.MainMenu(), cancellationToken: ct);
 
-    /// <summary>Export and send the layout JSON as a document.</summary>
     private async Task JsonAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
@@ -109,7 +107,6 @@ public sealed partial class CommandHandlers
         await _bot.SendDocument(chatId, document, caption: "Layout JSON", cancellationToken: ct);
     }
 
-    /// <summary>Export and send the whole project as a portable <c>.stencil</c> document.</summary>
     private async Task ProjectAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
@@ -138,11 +135,9 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>A friendly no-op acknowledgement.</summary>
     private Task CancelAsync(long chatId, CancellationToken ct) =>
         _bot.SendMessage(chatId, "Okay, never mind. Send /help for the command list.", cancellationToken: ct);
 
-    /// <summary>Unknown command — point at /help.</summary>
     private Task UnknownAsync(long chatId, CancellationToken ct) =>
         _bot.SendMessage(chatId, "Unknown command. Send /help for the list.", cancellationToken: ct);
 
@@ -174,7 +169,6 @@ public sealed partial class CommandHandlers
         }
     }
 
-    /// <summary>Push the current result to the active project (best-effort), surfacing a conflict.</summary>
     private async Task AutoSyncAsync(long userId, long chatId, CancellationToken ct)
     {
         try
@@ -193,7 +187,6 @@ public sealed partial class CommandHandlers
         }
     }
 
-    /// <summary>A short caption: label and rendered size.</summary>
     private static string BuildCaption(UserSession session, RenderResult result)
     {
         string label = session.ImageLabel ?? "image";
@@ -206,7 +199,6 @@ public sealed partial class CommandHandlers
         return caption;
     }
 
-    /// <summary>A short human label for a URL source: its file name, else its host.</summary>
     private static string LabelFromUrl(string url)
     {
         if (Uri.TryCreate(url, UriKind.Absolute, out Uri? uri))
@@ -217,7 +209,6 @@ public sealed partial class CommandHandlers
         return "image";
     }
 
-    /// <summary>A filesystem-safe stem for the JSON download (defaults to "layout").</summary>
     private static string SafeLabel(string? label)
     {
         if (string.IsNullOrWhiteSpace(label))

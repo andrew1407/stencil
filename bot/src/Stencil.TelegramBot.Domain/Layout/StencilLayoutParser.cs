@@ -3,14 +3,10 @@ using Stencil.TelegramBot.Domain.Serialization;
 
 namespace Stencil.TelegramBot.Domain.Layout;
 
-/// <summary>
-/// Parse raw bytes into a <see cref="StencilLayout"/> via the shared JSON conventions.
-/// Shared by the <c>.json</c> document upload (UpdateRouter) and the <c>/layout</c> command
-/// so both apply exactly the same validation.
-/// </summary>
+// Shared by the .json document upload and /layout so both validate identically.
 public static class StencilLayoutParser
 {
-    /// <summary>Parse layout bytes; null on malformed JSON / a non-layout shape.</summary>
+    // Null on malformed JSON / a non-layout shape.
     public static StencilLayout? Parse(byte[] bytes)
     {
         try

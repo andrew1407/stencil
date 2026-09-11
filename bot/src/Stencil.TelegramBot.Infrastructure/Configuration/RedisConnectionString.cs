@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Infrastructure.Configuration;
 /// <c>bot/.env.example</c> documents (and that the Go server, pystencil and every hosted Redis
 /// hand out), and StackExchange's own <c>host:port,option=value</c> configuration string.
 /// Only the second is native — passing a URL straight to <c>ConnectionMultiplexer.Connect</c>
-/// throws at startup, so the documented value used to crash the bot.
+/// throws at startup, so the documented URL form has to be translated here.
 /// <para>
 /// The URL's parts are set on the options object rather than spliced into a configuration
 /// string, so a password containing a <c>,</c> or <c>=</c> survives intact. Percent-escapes in
@@ -26,9 +26,6 @@ public static class RedisConnectionString
     private const string PlainScheme = "redis://";
     private const string TlsScheme = "rediss://";
 
-    /// <summary>
-    /// Parse <paramref name="value"/> into connection options.
-    /// </summary>
     /// <exception cref="ArgumentException">
     /// The value is neither a valid <c>redis(s)://</c> URL nor a valid configuration string. The
     /// message never quotes the value — it may carry a password.

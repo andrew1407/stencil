@@ -45,16 +45,13 @@ public static class Replies
     public static string Tag(Tone tone, string message) =>
         OpensWithGlyph(message) ? message : $"{Glyph(tone)} {message}";
 
-    /// <summary>True when the text already starts with a symbol rune (emoji, arrow, …).</summary>
     private static bool OpensWithGlyph(string text) =>
         Rune.DecodeFromUtf16(text, out Rune first, out _) == OperationStatus.Done
         && Rune.GetUnicodeCategory(first) is UnicodeCategory.OtherSymbol or UnicodeCategory.MathSymbol
             or UnicodeCategory.ModifierSymbol or UnicodeCategory.CurrencySymbol;
 
-    /// <summary>The full slash-command reference, noting that the inline buttons mirror them.</summary>
     public static string HelpText() => BotCommands.HelpText;
 
-    /// <summary>A short status block: working image label/size, pending edits, active project.</summary>
     public static string StatusText(UserSession session)
     {
         StringBuilder sb = new();
@@ -115,10 +112,8 @@ public static class Replies
         return sb.ToString();
     }
 
-    /// <summary>Confirmation shown when chat mode is switched on (rides the "Chat off" button).</summary>
     public static string ChatModeOn() => BotStrings.Reply("chatModeOn");
 
-    /// <summary>Confirmation shown when chat mode is switched off.</summary>
     public static string ChatModeOff() => BotStrings.Reply("chatModeOff");
 
     /// <summary>
@@ -128,10 +123,6 @@ public static class Replies
     public static string ChatHistoryCleared(bool chatModeOn) =>
         BotStrings.Reply(chatModeOn ? "chatClearedModeOn" : "chatCleared");
 
-    /// <summary>
-    /// What the spinning <see cref="ProgressNotice"/> says while an assistant turn runs — the
-    /// model call, the edits it plans and every render it asks for.
-    /// </summary>
     public static string PromptWorking() => BotStrings.Reply("promptWorking");
 
     /// <summary>
@@ -140,13 +131,10 @@ public static class Replies
     /// </summary>
     public static string PromptStopped() => Tag(Tone.Notice, BotStrings.Reply("promptStopped"));
 
-    /// <summary>Acknowledges the ⏹ tap; the turn's own "Stopped." lands when it unwinds.</summary>
     public static string PromptStopping() => Tag(Tone.Notice, BotStrings.Reply("promptStopping"));
 
-    /// <summary>/chatapi on a bot whose operator configured no alternatives.</summary>
     public static string ChatApiNoProfiles() => Tag(Tone.Notice, BotStrings.Reply("chatApiNoProfiles"));
 
-    /// <summary>The picker's text: every configured API, with the caller's current one marked.</summary>
     public static string ChatApiList(IReadOnlyList<LlmProfile> profiles, LlmProfile? current)
     {
         StringBuilder sb = new();
@@ -160,11 +148,9 @@ public static class Replies
         return sb.ToString();
     }
 
-    /// <summary>Confirmation after a pick.</summary>
     public static string ChatApiSelected(LlmProfile picked) =>
         Tag(Tone.Success, BotStrings.Reply("chatApiSelected", picked.Label, picked.Summary()));
 
-    /// <summary>A name that is not configured — with the ones that are.</summary>
     public static string ChatApiUnknown(string wanted, IReadOnlyList<LlmProfile> profiles) => Tag(
         Tone.Error, BotStrings.Reply("chatApiUnknown", wanted, string.Join(", ", profiles.Select(p => p.Name))));
 
@@ -174,45 +160,34 @@ public static class Replies
     /// </summary>
     public static string ClearChatConfirm() => BotStrings.Reply("clearChatConfirm");
 
-    /// <summary>The declined <c>clearChat</c> confirm — a note, never a failed plan (§10).</summary>
     public static string ClearChatCanceled() => BotStrings.Reply("clearChatCanceled");
 
-    /// <summary>Usage hint for <c>/chat</c> with an unrecognised argument.</summary>
     public static string ChatUsage() => BotStrings.Reply("chatUsage");
 
-    /// <summary>Confirmation for <c>/chat save on</c> (contract §12.3 — the server project is the store).</summary>
     public static string ChatSaveOn() => BotStrings.Reply("chatSaveOn");
 
     /// <summary>Confirmation for <c>/chat save off</c> (§12.2: no retroactive delete).</summary>
     public static string ChatSaveOff() => BotStrings.Reply("chatSaveOff");
 
-    /// <summary>The current chat-saving setting, for a bare <c>/chat save</c>.</summary>
     public static string ChatSaveStatus(bool on) =>
         BotStrings.Reply(on ? "chatSaveStatusOn" : "chatSaveStatusOff");
 
-    /// <summary>The fetch-reply line for a restored persisted chat (only shown when N &gt; 0).</summary>
     public static string ChatRestored(int count) =>
         BotStrings.Reply(count == 1 ? "chatRestoredOne" : "chatRestoredMany", count);
 
-    /// <summary>The once-per-streak warning when the best-effort chat save-back fails (§12).</summary>
     public static string ChatSaveFailed() => Tag(Tone.Warning, BotStrings.Reply("chatSaveFailed"));
 
-    /// <summary>Usage hint for adding a working image from a link or web page (the Sources button).</summary>
     public static string SourcesHelp() => BotStrings.Reply("sourcesHelp");
 
-    /// <summary>Usage hint for the <c>/draw</c> family.</summary>
     public static string DrawHelp() => BotStrings.Reply("drawHelp");
 
     /// <summary>The filter variants for a bare <c>/filter</c> (mirrors the CLI console's list).</summary>
     public static string FilterVariants() => BotStrings.Reply("filterVariants");
 
-    /// <summary>The quarter-turn variants for a bare <c>/rotate</c>.</summary>
     public static string RotateVariants() => BotStrings.Reply("rotateVariants");
 
-    /// <summary>The crop-spec vocabulary for a bare <c>/crop</c> (and the Crop… button).</summary>
     public static string CropUsage() => BotStrings.Reply("cropUsage");
 
-    /// <summary>Usage hint for <c>/connect</c> (a bare command and the Connect… button).</summary>
     public static string ConnectUsage() => BotStrings.Reply("connectUsage");
 
     /// <summary>
@@ -227,10 +202,8 @@ public static class Replies
         return BotStrings.Reply("expiryChoose", current);
     }
 
-    /// <summary>Usage hint for <c>/expire</c> (an unparseable duration argument).</summary>
     public static string ExpireUsage() => BotStrings.Reply("expireUsage");
 
-    /// <summary>The delete-project confirmation question (bare <c>/delete</c> and the 🗑 Remove button).</summary>
     public static string DeleteConfirmPrompt(string name, string? serverUrl)
     {
         string where = serverUrl is null ? "" : BotStrings.Reply("deleteConfirmWhere", Host(serverUrl));
@@ -245,7 +218,6 @@ public static class Replies
         BotStrings.Reply("desktopLinkHead", name, url)
         + (loopback ? BotStrings.Reply("desktopLinkLoopback", Glyph(Tone.Notice)) : "");
 
-    /// <summary>The <c>/link</c> reply when the configured browser app isn't a usable address.</summary>
     public static string DesktopLinkUnusable() => Tag(Tone.Notice, BotStrings.Reply("desktopLinkUnusable"));
 
     /// <summary>
@@ -266,7 +238,6 @@ public static class Replies
         return sb.ToString();
     }
 
-    /// <summary>A full description of the current pen.</summary>
     public static string PenText(LineStyle pen)
     {
         StringBuilder sb = new();
@@ -279,11 +250,9 @@ public static class Replies
         return sb.ToString();
     }
 
-    /// <summary>A one-line pen summary for the status block.</summary>
     private static string PenSummary(LineStyle pen) =>
         BotStrings.Reply("penSummary", pen.Color, pen.Thickness, pen.Style, pen.PointSize, pen.FillColor);
 
-    /// <summary>One-line human summary of the pending <see cref="EditState"/>.</summary>
     public static string DescribeEdits(EditState edits)
     {
         if (edits.IsEmpty)
@@ -317,7 +286,6 @@ public static class Replies
         return string.Join(", ", parts);
     }
 
-    /// <summary>Usage hint for <c>/connections</c> with an unrecognised filter argument.</summary>
     public static string ConnectionsUsage() => BotStrings.Reply("connectionsUsage");
 
     /// <summary>
@@ -356,7 +324,6 @@ public static class Replies
     /// </summary>
     public const int MaxProjectsListed = 20;
 
-    /// <summary>List the aggregated cross-server projects (or a hint when none), capped.</summary>
     public static string ProjectsText(IReadOnlyList<ServerProjectInfo> projects)
     {
         if (projects.Count == 0)
@@ -440,7 +407,6 @@ public static class Replies
             && int.TryParse(s.AsSpan(4, 2), System.Globalization.NumberStyles.HexNumber, null, out b);
     }
 
-    /// <summary>The host[:port] of a normalised origin, for compact labels.</summary>
     public static string Host(string url)
     {
         if (Uri.TryCreate(url, UriKind.Absolute, out Uri? uri))
@@ -450,7 +416,6 @@ public static class Replies
         return url;
     }
 
-    /// <summary>Format an epoch-ms timestamp as an ISO date (UTC), or "" when unset.</summary>
     public static string FmtDate(long ms) =>
         ms <= 0 ? "" : DateTimeOffset.FromUnixTimeMilliseconds(ms).ToString("yyyy-MM-dd");
 }

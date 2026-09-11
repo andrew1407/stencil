@@ -66,7 +66,6 @@ public sealed class PromptCancellations
         }
     }
 
-    /// <summary>One registered turn; disposing it ends the registration and its token.</summary>
     public sealed class Registration : IDisposable
     {
         private readonly PromptCancellations _owner;

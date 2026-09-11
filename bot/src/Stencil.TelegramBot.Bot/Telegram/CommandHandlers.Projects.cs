@@ -12,7 +12,6 @@ using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
-using Stencil.TelegramBot.Infrastructure.Configuration;
 using Stencil.TelegramBot.Infrastructure.Links;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -114,7 +113,6 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>Connect to a collaboration server: <c>/connect &lt;url&gt; [token]</c>.</summary>
     private async Task ConnectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
@@ -133,7 +131,6 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>Forget a connection: <c>/disconnect [url]</c> (the most recent when omitted).</summary>
     private async Task DisconnectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string? url = cmd.Args.Count == 0 ? null : cmd.Args[0];
@@ -144,11 +141,6 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, text, cancellationToken: ct);
     }
 
-    /// <summary>
-    /// List the remembered connections: <c>/connections [admin|session]</c> — bare lists them all,
-    /// <c>admin</c> only those whose credential proved to be the server's admin token,
-    /// <c>session</c> only the rest.
-    /// </summary>
     private async Task ConnectionsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string filter = cmd.Args.Count == 0 ? "" : cmd.Args[0].ToLowerInvariant();
@@ -168,7 +160,6 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, Replies.ConnectionsText(connections, filter), cancellationToken: ct);
     }
 
-    /// <summary>List projects (across all servers, or one) as tappable buttons.</summary>
     private async Task ProjectsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string? url = cmd.Args.Count == 0 ? null : cmd.Args[0];
@@ -185,7 +176,6 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>Load a project as the working image: <c>/fetch &lt;name|id&gt;</c> (bare lists them).</summary>
     private async Task FetchAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.ArgumentText.Length == 0)
@@ -213,7 +203,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct, mutating: false);
     }
 
-    /// <summary>Save the current result as a new project: <c>/create [name]</c>.</summary>
     private async Task CreateAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string? name = cmd.ArgumentText.Length == 0 ? null : cmd.ArgumentText;
@@ -234,7 +223,6 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>Toggle live sync for the active project: <c>/sync [on|off]</c>.</summary>
     private async Task SyncAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
@@ -259,7 +247,6 @@ public sealed partial class CommandHandlers
         }
     }
 
-    /// <summary>Set the active project's accent colour: <c>/project-color &lt;#hex|name|clear&gt;</c>.</summary>
     private async Task ProjectColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
@@ -276,9 +263,6 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>Rename the working image — or, when it's a saved server project, the project:
-    /// <c>/project-name &lt;text&gt;</c>. A not-yet-saved image is just relabelled (the name
-    /// <c>/create</c> will use).</summary>
     private async Task ProjectNameAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         // Free text: the whole remainder is the name (project names may contain spaces).
@@ -306,9 +290,6 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, $"Working image renamed to: {name} — /create will save it under this name.", cancellationToken: ct);
     }
 
-    /// <summary>Set the description of the working image, or — when it's a saved server project —
-    /// the project: <c>/project-description &lt;text&gt;</c> (an empty argument clears it). For a
-    /// not-yet-saved image this is held locally and uploaded when <c>/create</c> saves it.</summary>
     private async Task ProjectDescriptionAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         // Free text: the whole remainder is the description; empty clears it.
@@ -339,8 +320,6 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>Recolour the active BLANK project's background fill: <c>/blank-color &lt;#hex|name&gt;</c>
-    /// (blanks only). Bare shows the current fill.</summary>
     private async Task BlankColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)

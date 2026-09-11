@@ -61,7 +61,6 @@ public static class CommandParser
         return new BotCommand("prompt", spec, spec.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }
 
-    /// <summary>Index of the first whitespace character, or -1 when none is present.</summary>
     private static int IndexOfWhitespace(string value)
     {
         for (int i = 0; i < value.Length; i++)

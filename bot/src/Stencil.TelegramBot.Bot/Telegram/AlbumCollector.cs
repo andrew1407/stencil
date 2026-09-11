@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>One buffered album member: its message id (album order), photo file id and caption.</summary>
 public sealed record AlbumPhoto(int MessageId, string FileId, string? Caption);
 
 /// <summary>
@@ -54,7 +53,6 @@ public sealed class AlbumCollector
     /// <summary>Completes when every started group has flushed — lets tests await, not sleep.</summary>
     public Task WhenIdleAsync() => Task.WhenAll(_inFlight.Keys);
 
-    /// <summary>Re-wait the settle window until the group stops growing, then flush it once.</summary>
     private async Task FlushWhenSettledAsync((long, string) key, Group group,
         Func<IReadOnlyList<AlbumPhoto>, Task> flush, CancellationToken ct)
     {

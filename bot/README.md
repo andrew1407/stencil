@@ -95,7 +95,8 @@ bot/
   src/
     Stencil.TelegramBot.Domain/          entities, value objects, abstractions — the frozen contract
       Layout/        LayoutPoint · LayoutLine · StencilLayout  (the shared layout JSON schema)
-      Editing/       EditState · EditRequest · BlankSpec · RenderResult · ImageSize
+      Editing/       EditState · EditRequest · BlankSpec · RenderResult · ImageSize · HistoryStack
+      Configuration/ IBotPolicy          (the operator policy the presentation layer reads)
       Projects/      ProjectRecord · ProjectFull · Create/UpdateProjectRequest · FileWriteResult
       Sessions/      UserSession · ServerConnectionInfo
       Abstractions/  IStencilCli · IStencilServerClient(+Factory) · ISessionStore · IUserWorkspace
@@ -103,15 +104,19 @@ bot/
       Exceptions/    StencilCliException · ServerException
     Stencil.TelegramBot.Application/      use cases over the Domain abstractions
       Editing/       IEditingService + EditingService   (one base image + a replayable EditState)
+      Llm/           OpSchema (+SchemaLoader/KeySpecChecker/PresenceRules) · OpRegistry · PromptService
       Servers/       IServerService + ServerService      (connect/list/fetch/create/save)
     Stencil.TelegramBot.Infrastructure/   the adapters (depend only on Domain)
       Cli/           StencilCliLocator · CliArgvBuilder · CliOutcomeParser · ProcessStencilCli
       Server/        UrlNormalizer · HttpStencilServerClient · StencilServerClientFactory
       Sessions/      InMemorySessionStore · RedisSessionStore
       Workspace/     UserWorkspace        (per-user scratch dir for working images)
-      Configuration/ BotOptions · DotEnv
+      Llm/           HttpLlmClient + one IProviderMapping per §6 wire shape
+      Configuration/ BotOptions (: IBotPolicy) · LlmProfileOptions · EnvRead · DotEnv
     Stencil.TelegramBot.Bot/              the Telegram presentation + console host
-      Program.cs · Telegram/{UpdateRouter, CommandParser, CommandHandlers, CallbackAction, Keyboards, Replies, PageFormats}
+      Program.cs · Telegram/{UpdateRouter, MessageRouter + its IMessageHandler chain, AlbumRouter,
+                             MediaIntake, DocumentIntake, ErrorGuard, CommandParser, CommandHandlers,
+                             CallbackAction + CallbackTokens, Keyboards, Replies, PageFormats}
       Assets/        botCommands.json · botStrings.json   (the command vocabulary + the chat copy)
   tests/
     Stencil.TelegramBot.Tests/            xUnit — offline (no token, server, CLI or Redis)
@@ -242,7 +247,8 @@ link is gated like everything else, because it connects out and fetches a projec
 ```bash
 # from bot/
 dotnet build Stencil.TelegramBot.slnx          # build all five projects
-dotnet test  Stencil.TelegramBot.slnx          # 632 offline tests — no token/server/CLI/LLM/Redis needed
+dotnet test  Stencil.TelegramBot.slnx          # 2117 offline tests — no token/server/CLI/LLM/Redis needed
+dotnet test  Stencil.TelegramBot.slnx --filter Category=Bench   # the opt-in timing tripwires
 dotnet run --project src/Stencil.TelegramBot.Bot   # run the bot (needs TELEGRAM_BOT_TOKEN + the CLI)
 ```
 

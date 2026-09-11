@@ -195,7 +195,6 @@ public sealed class HttpStencilServerClient : IStencilServerClient
         await EnsureSuccessAsync(response, ct).ConfigureAwait(false);
     }
 
-    /// <summary>Send a request and parse its non-empty JSON body into a document.</summary>
     private async Task<JsonDocument> SendJsonAsync(HttpMethod method, string path, HttpContent? content, CancellationToken ct)
     {
         using HttpResponseMessage response = await SendAsync(method, path, content, ct).ConfigureAwait(false);
@@ -270,7 +269,6 @@ public sealed class HttpStencilServerClient : IStencilServerClient
         }
     }
 
-    /// <summary>Translate a non-2xx response into a <see cref="ServerException"/>.</summary>
     private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken ct)
     {
         if (response.IsSuccessStatusCode)
@@ -314,7 +312,6 @@ public sealed class HttpStencilServerClient : IStencilServerClient
     /// <summary>Empty JSON object body for <c>POST /auth/token</c>.</summary>
     private static StringContent EmptyBody() => JsonContent("{}");
 
-    /// <summary>An <c>application/json</c> body from a pre-serialised string.</summary>
     private static StringContent JsonContent(string json) =>
         new(json, Encoding.UTF8, "application/json");
 }
