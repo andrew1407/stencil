@@ -4,7 +4,7 @@
   "files": {
     "cli/src/args.zig": 14,
     "cli/src/clipboard.zig": 298,
-    "cli/src/console.zig": 366,
+    "cli/src/console.zig": 73,
     "cli/src/console/ansi.zig": 345,
     "cli/src/console/attachments.zig": 362,
     "cli/src/console/handlers.zig": 77,
