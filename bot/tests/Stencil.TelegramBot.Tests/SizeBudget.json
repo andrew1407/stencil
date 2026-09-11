@@ -3,7 +3,7 @@
   "maxNewFileLines": 230,
   "files": {
     "bot/src/Stencil.TelegramBot.Application/Editing/EditingService.cs": 187,
-    "bot/src/Stencil.TelegramBot.Application/Llm/OpPlanParser.cs": 389,
+    "bot/src/Stencil.TelegramBot.Application/Llm/OpPlanParser.cs": 149,
     "bot/src/Stencil.TelegramBot.Application/Llm/OpSchema.cs": 157,
     "bot/src/Stencil.TelegramBot.Application/Llm/PromptService.Actions.cs": 112,
     "bot/src/Stencil.TelegramBot.Application/Llm/PromptService.Execute.cs": 189,
