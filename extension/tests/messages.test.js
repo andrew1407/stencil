@@ -51,6 +51,12 @@ for (const [file, msgKeys, srcKeys] of MIRRORS) {
           `${file}: ${key} must be mirrored as '${table[key]}'`);
       }
     }
+    // …and the other way round: EVERY pair the mirror declares must be the table's, so a
+    // channel added to a mirror without being listed above still can't drift or misspell.
+    for (const [, key, value] of text.matchAll(/(\w+): '(stencil-[a-z-]+)'/g)) {
+      assert.ok(ALL[key], `${file}: ${key} is not a channel in lib/messages.js`);
+      assert.equal(value, ALL[key], `${file}: ${key} must be mirrored as '${ALL[key]}'`);
+    }
   });
 }
 
