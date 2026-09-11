@@ -9,8 +9,8 @@ import { makeTouchDraggable } from './touchDrag.js';
 import { leaveThenRemove, materialize, createListHold, emptyStateVisible,
   createFilterAnimator, revealControls, revealBar, CONN_DUST_MS, rowDustGrid, rowLeaveDust,
   wipeDurationMs } from './motion.js';
-import { canRefreshList } from './projectsModal.js';
-import EVENTS from '../config/events.json' with { type: 'json' };
+import { canRefreshList } from '../core/projectOpenGesture.js';
+import { subscribe, EVENTS } from '../bus/appBus.js';
 
 // Three-way credential filter over the connections list: all | admin | non-admin.
 // An ADMIN connection is one whose stored credential can mint session tokens.
@@ -575,10 +575,10 @@ export class StencilConnectModal extends StencilElement {
 
     syncExpiredBadge();
     // Keep the list live when connections change from the console facade or events.
-    window.addEventListener(EVENTS.connectionsChanged, () => {
+    subscribe(EVENTS.connectionsChanged, () => {
       syncExpiredBadge();
       // Guard against a live event re-rendering the list mid-drag (destroying the
-      // dragged element) or mid-wipe (projectsModal's canRefreshList gate; the hold's
+      // dragged element) or mid-wipe (the shared canRefreshList gate; the hold's
       // settle render catches up).
       if (canRefreshList({
         open: overlay.classList.contains('modal-open'),

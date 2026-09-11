@@ -1,5 +1,5 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches, escapeHtml } from './base.js';
-import { wireNameEditor, notify, isTouchLike, pointInRect, shortName, placeNearCursor, anchorPickerInput } from '../utils.js';
+import { wireNameEditor, notify, isTouchLike, shortName, anchorPickerInput } from '../utils.js';
 import { icon, setSelectAllFace } from './icons.js';
 import { SORT_MODES, sortProjectItems, reconcileManualOrder } from './projectSort.js';
 import { setTranslucentDragImage } from './dragGhost.js';
@@ -8,126 +8,17 @@ import {
   observeReveal, leaveThenRemove, wipeDurationMs, createFilterAnimator,
   materialize, filterDelta, rowDustGrid,
   ITEM_DUST_MS, rowLeaveDust, revealControls, revealBar,
-  surfaceIn, surfaceOut, settleSurface, rectCenter, SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS,
-  TIP_DUST_IN_MS, TIP_DUST_OUT_MS, markIn, markOut,
+  SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS, markIn, markOut,
 } from './motion.js';
 import { normalizeHex } from '../core/accents.js';
-import { normalizeUrl } from '../net/connectionManager.js';
-import { loadSavedServers } from '../net/connectionStore.js';
-import EVENTS from '../config/events.json' with { type: 'json' };
+import { deleteRemoteProject as removeRemoteProject } from '../net/remoteSync.js';
+import { subscribe, EVENTS } from '../bus/appBus.js';
 
-// ── Opening a project row: gesture → intent ─────────────────────────────────
-// MOUSE   click            → confirm, this tab      dblclick        → open now, this tab
-//         ⌘/Ctrl+click     → confirm, NEW TAB       ⌘/Ctrl+dblclick → open now, NEW TAB
-//         Enter / Space    → confirm, this tab (⌘/Ctrl held → new tab), like a single click
-// TOUCH   tap              → confirm, this tab      new tab → the row's ⋯ menu
-//
-// Touch deliberately has NO hold gesture: press-and-hold is the list's drag-to-reorder
-// pickup (touchDrag.js), so the ⋯ menu is the touch route to a new tab. Movement always
-// wins: past the slop the gesture belongs to the drag/scroll and any pending open is
-// dropped. Pure — unit-tested.
-export const DOUBLE_CLICK_MS = 250;    // single-click actions wait this long for a dblclick
-export const DRAG_SLOP_PX = 10;        // travel that means "this is a drag/scroll, not a tap"
-export const rowOpenIntent = ({ type, ctrlKey, metaKey } = {}) => {
-  if (type === 'tap') return { confirm: true, target: 'here' };           // touch only
-  const target = (ctrlKey || metaKey) ? 'newtab' : 'here';
-  return { confirm: type !== 'dblclick', target };
-};
-
-// The gesture machine behind a row. The crux is the DEFERRED single click: a plain click
-// waits one double-click interval and a dblclick cancels it, so the confirmation modal
-// never flashes open and shut. Timers and the touch test are injected for DOM-free tests.
-export const createOpenGesture = ({
-  run,
-  touch = () => isTouchLike(),
-  delay = DOUBLE_CLICK_MS,
-  slop = DRAG_SLOP_PX,
-  setTimer = setTimeout,
-  clearTimer = clearTimeout,
-} = {}) => {
-  let clickTimer = null;
-  let press = null;          // { x, y, moved } while a pointer is down on the row
-  let swallowNextClick = false;
-  const cancelClick = () => { if (clickTimer !== null) { clearTimer(clickTimer); clickTimer = null; } };
-  return {
-    click(e = {}) {
-      cancelClick();
-      // The click synthesized after a long press (or a drag) must not also open.
-      if (swallowNextClick) { swallowNextClick = false; return; }
-      if (touch()) { run(rowOpenIntent({ type: 'tap' })); return; }
-      clickTimer = setTimer(() => {
-        clickTimer = null;
-        run(rowOpenIntent({ type: 'click', ctrlKey: e.ctrlKey, metaKey: e.metaKey }));
-      }, delay);
-    },
-    dblclick(e = {}) {
-      cancelClick();                     // …the pending single click never happens
-      if (touch()) return;               // touch has no double-click gesture
-      run(rowOpenIntent({ type: 'dblclick', ctrlKey: e.ctrlKey, metaKey: e.metaKey }));
-    },
-    key(e = {}) {
-      cancelClick();
-      run(rowOpenIntent({ type: 'key', ctrlKey: e.ctrlKey, metaKey: e.metaKey }));
-    },
-    // ── Pointer travel: MOVEMENT WINS ──
-    // Past the slop the gesture belongs to the drag/scroll: the pending open is dropped
-    // and the click that may follow the release is swallowed. Nothing here ever OPENS
-    // anything — the hold is the list's reorder pickup, not ours.
-    pressStart(pt = {}) {
-      swallowNextClick = false;
-      press = { x: pt.x || 0, y: pt.y || 0, moved: false };
-    },
-    pressMove(pt = {}) {
-      if (!press || press.moved) return false;
-      if (Math.abs((pt.x || 0) - press.x) <= slop && Math.abs((pt.y || 0) - press.y) <= slop) return false;
-      press.moved = true;
-      cancelClick();                     // a deferred single click never survives a drag
-      swallowNextClick = true;           // …nor does the click a drop may synthesize
-      return true;
-    },
-    pressEnd() { const moved = !!press && press.moved; press = null; return moved; },
-    // Drag pickup (HTML5 dragstart on mouse, the touch engine's onStart on finger).
-    dragStart() { cancelClick(); swallowNextClick = true; press = null; },
-    cancel() { cancelClick(); press = null; swallowNextClick = false; },
-    get pendingClick() { return clickTimer !== null; },
-    get dragging() { return !!press && press.moved; },
-  };
-};
-
-// Whether an out-of-band change (server event, peers echo, another tab) may rebuild the
-// list RIGHT NOW: never mid-drag (the rebuild destroys the dragged row) and never while a
-// removal wipe plays — those wait for beginRemoval's settle render. Pure — unit-tested.
-export const canRefreshList = ({ open = true, dragging = false, removing = false } = {}) =>
-  !!open && !dragging && !removing;
-
-// ── Server-listing cache (what the shimmer skeletons answer to) ─────────────
-// null cache = not loaded, [] = loaded/empty. ensure() starts at most one fetch; a token
-// drops a stale in-flight fetch after invalidate(), which must ALSO clear `loading` or
-// ensure() never fetches again and the skeletons never resolve. Pure factory — unit-tested.
-export const createRemoteListing = (load) => {
-  const s = { cache: null, loading: false, failed: false, token: 0 };
-  return {
-    get cache() { return s.cache; },
-    get loading() { return s.loading; },
-    get failed() { return s.failed; },
-    ensure(done = () => {}) {
-      if (s.cache !== null || s.loading) return;
-      s.loading = true;
-      s.failed = false;
-      const myToken = ++s.token;
-      load()
-        .then((list) => { if (myToken !== s.token) return; s.cache = list || []; s.loading = false; done(); })
-        .catch(() => { if (myToken !== s.token) return; s.cache = []; s.failed = true; s.loading = false; done(); });
-    },
-    invalidate() { s.cache = null; s.failed = false; s.loading = false; s.token++; },
-  };
-};
-
-// Skeleton rows may show ONLY while a server-listing fetch is genuinely in flight; a null
-// cache with no fetch running must fall through to the honest empty/error state, or the
-// skeletons stay up forever. Pure — unit-tested.
-export const showsRemoteSkeletons = ({ showServer = false, hasServers = false, cache = null, loading = false } = {}) =>
-  !!showServer && !!hasServers && cache === null && !!loading;
+import { DOUBLE_CLICK_MS, DRAG_SLOP_PX, rowOpenIntent, createOpenGesture, canRefreshList } from '../core/projectOpenGesture.js';
+import { createRemoteListing, showsRemoteSkeletons } from '../core/remoteListing.js';
+import { createProjectRowMenu } from './projectRowMenu.js';
+import { createDropZones } from './projectDropZones.js';
+import { createThumbZoom } from './projectThumbZoom.js';
 
 // Remote-thumbnail blob cache keyed by `serverUrl|id|version`, so the many re-renders
 // (search keystrokes, live events, peer pings) reuse one fetch per project version
@@ -425,181 +316,11 @@ export class StencilProjectsModal extends StencilElement {
       };
     };
 
-    // Magnified hover preview: a fixed-position floating copy of a row's thumbnail that
-    // follows the cursor, shown while hovering a thumb that holds a real image (not the
-    // placeholder glyph). One reused element, shared by local + remote rows.
-    const PREVIEW_ZOOM = 1.67;
-    // A hover preview is a GLANCE, not a lightbox — it must leave the list underneath
-    // readable. Mirrored by the max-width/max-height backstop in components.css.
-    const PREVIEW_MAX_VW = 0.25;
-    const PREVIEW_MAX_VH = 0.20;
-    let zoomEl = null;
-    const ensureZoom = () => {
-      if (zoomEl) return zoomEl;
-      zoomEl = document.createElement('div');
-      zoomEl.className = 'project-thumb-zoom';
-      zoomEl.innerHTML = '<img alt="">';
-      document.body.appendChild(zoomEl);
-      return zoomEl;
-    };
-    // ── The zoom is sand too (js/ui/motion.js surfaceIn/surfaceOut), on the shared
-    // short tip clock — a sweep across rows re-triggers it fast. ──
-    const ZOOM_DUST_IN_MS = TIP_DUST_IN_MS;
-    const ZOOM_DUST_OUT_MS = TIP_DUST_OUT_MS;
-    let zoomPoint = null;   // the thumbnail's own centre — the flight's origin/destination
-    const hideZoom = () => {
-      if (zoomEl) {
-        if (zoomEl.style.display !== 'none') surfaceOut(zoomEl, zoomPoint, { ms: ZOOM_DUST_OUT_MS });
-        else settleSurface(zoomEl);
-        zoomEl.style.display = 'none';
-        zoomSize = null;
-      }
-      zoomPoint = null;
-    };
-    // Switching window never fires the row's mouseleave — hide on blur, or the
-    // zoom is still up when the user comes back (chatView hideThumbPreview parity).
-    window.addEventListener('blur', hideZoom);
-    // Holding Alt doubles the glance (every hover preview honours it — chat thumbs,
-    // extension, desktop): factor 2 on the zoom cap AND the viewport ceilings.
-    let zoomSize = null;   // {nw, nh} of the picture currently zoomed
-    let zoomAlt = false;
-    // A keyup can be lost off-window — Alt released while a docked DevTools pane (or any
-    // other panel) holds keyboard focus never reaches this listener — which would leave
-    // the NEXT hover's glance stuck doubled with no key actually held. blur is the one
-    // signal that always fires when focus leaves, so it's the backstop that un-sticks it.
-    window.addEventListener('blur', () => { zoomAlt = false; });
-    // The size change IS a re-formation, not just a resize — replay the gather so
-    // holding/releasing Alt reads as sand rather than a snap.
-    const replayZoomDust = () => {
-      if (!zoomEl || zoomEl.style.display === 'none' || !zoomPoint) return;
-      surfaceIn(zoomEl, zoomPoint, { ms: ZOOM_DUST_IN_MS });
-    };
-    const applyZoomScale = () => {
-      if (!zoomEl || !zoomSize || zoomEl.style.display === 'none') return;
-      const f = zoomAlt ? 2 : 1;
-      const scale = Math.min(PREVIEW_ZOOM * f,
-        (window.innerWidth * PREVIEW_MAX_VW * f) / zoomSize.nw,
-        (window.innerHeight * PREVIEW_MAX_VH * f) / zoomSize.nh);
-      // The xl class doubles the CSS vw/vh caps too — they would clamp the explicit
-      // width right back to the un-Alt size otherwise.
-      zoomEl.classList.toggle('project-thumb-zoom-xl', zoomAlt);
-      const img = zoomEl.querySelector('img');
-      img.style.width = `${Math.round(zoomSize.nw * scale)}px`;
-      img.style.height = `${Math.round(zoomSize.nh * scale)}px`;
-    };
-    window.addEventListener('keydown', e => { if (e.key === 'Alt') { zoomAlt = true; applyZoomScale(); replayZoomDust(); } });
-    window.addEventListener('keyup', e => { if (e.key === 'Alt') { zoomAlt = false; applyZoomScale(); replayZoomDust(); } });
-    // A backstop under applyZoomScale's own vw/vh caps: those track the window at the
-    // moment a hover STARTS, so the box is re-cropped into whatever the window actually
-    // is — applied on show and on resize, not per mousemove (a style write before every
-    // measure forced a layout per move).
-    const ZOOM_EDGE = 8;
-    const applyZoomCaps = () => {
-      if (!zoomEl) return;
-      zoomEl.style.maxWidth = `${Math.max(0, window.innerWidth - ZOOM_EDGE * 2)}px`;
-      zoomEl.style.maxHeight = `${Math.max(0, window.innerHeight - ZOOM_EDGE * 2)}px`;
-    };
-    window.addEventListener('resize', applyZoomCaps);
-    // Down-right of the cursor, flipped/clamped into the viewport (shared helper); an
-    // overflowing height pins to the bottom edge rather than flipping above.
-    const positionZoom = e => {
-      if (!zoomEl) return;
-      placeNearCursor(zoomEl, e.clientX, e.clientY, { edge: ZOOM_EDGE, clampY: true });
-    };
-    const enableThumbZoom = thumbEl => {
-      thumbEl.addEventListener('mouseenter', e => {
-        const img = thumbEl.querySelector('img');
-        if (!img || !img.src) return;   // placeholder glyph — nothing to magnify
-        const z = ensureZoom();
-        const zImg = z.querySelector('img');
-        zImg.src = img.src;
-        // Sized here rather than left to the CSS caps: independent max-width/max-height
-        // clamping squashes a portrait thumb into a letterboxed landscape box. One scale
-        // factor keeps aspect, honours the viewport ceiling, never upscales past PREVIEW_ZOOM.
-        zoomSize = {
-          nw: img.naturalWidth || img.width || 160,
-          nh: img.naturalHeight || img.height || 160,
-        };
-        zoomAlt = e.altKey;   // Alt already held on entry counts too
-        zoomPoint = rectCenter(thumbEl);
-        z.style.display = 'block';
-        applyZoomCaps();
-        applyZoomScale();
-        positionZoom(e);
-        surfaceIn(z, zoomPoint, { ms: ZOOM_DUST_IN_MS });
-      });
-      thumbEl.addEventListener('mousemove', positionZoom);
-      thumbEl.addEventListener('mouseleave', hideZoom);
-    };
+    // Magnified hover preview that follows the cursor — ui/projectThumbZoom.js.
+    const { enableThumbZoom, hideZoom } = createThumbZoom();
 
-    // ── Per-row overflow ("⋯") menu ───────────────────────────────
-    // A single floating menu reused by every row, so secondary actions (new tab,
-    // rename, renew, move-to-server/local, remove) live behind one "⋯" button
-    // instead of crowding the row. Closes on click-away, Escape, or re-render.
-    let openMenu = null;
-    let menuPoint = null;   // the "⋯" (or the right-click) the menu grew out of
-    const closeMenu = () => {
-      if (!openMenu) return;
-      // Back into that same point as dust (js/ui/motion.js) — its own layer, so the
-      // menu node still goes away NOW and nothing can be left half-removed.
-      surfaceOut(openMenu, menuPoint, { ms: SURFACE_MENU_OUT_MS });
-      openMenu.remove();
-      openMenu = null;
-      document.removeEventListener('mousedown', onMenuDocDown, true);
-      document.removeEventListener('keydown', onMenuKey, true);
-    };
-    const onMenuDocDown = e => { if (openMenu && !openMenu.contains(e.target)) closeMenu(); };
-    const onMenuKey = e => { if (e.key === 'Escape') { e.stopPropagation(); closeMenu(); } };
-    // Opens under `anchor` (the "⋯" button), or at `point` ({x,y}) for a right-click.
-    const showMenu = (anchor, items, point = null) => {
-      closeMenu();
-      const menu = document.createElement('div');
-      menu.className = 'project-menu';
-      for (const it of items) {
-        if (!it) continue;   // skip conditionally-omitted entries
-        const b = document.createElement('button');
-        // Dedicated danger class (NOT the global `.danger`, which fills the button
-        // red) so the destructive item is red TEXT on the menu background.
-        b.className = 'project-menu-item btn-icon-text' + (it.danger ? ' is-danger' : '');
-        b.innerHTML = `${icon(it.icon, { size: 15 })}<span>${it.label}</span>`;
-        // Each row hands its handler its OWN rect, measured before the menu goes: a window
-        // raised from here grows out of the row that was clicked, not out of thin air.
-        b.addEventListener('click', e => {
-          e.stopPropagation();
-          const at = b.getBoundingClientRect();
-          closeMenu();
-          it.onClick(at);
-        });
-        menu.appendChild(b);
-      }
-      document.body.appendChild(menu);
-      const mw = menu.offsetWidth;
-      const mh = menu.offsetHeight;
-      let x;
-      let y;
-      if (point) {
-        // Cursor-anchored (right-click): open at the point, flipping left/up near edges.
-        x = point.x + mw > window.innerWidth - 8 ? point.x - mw : point.x;
-        y = point.y + mh > window.innerHeight - 8 ? point.y - mh : point.y;
-      } else {
-        // Button-anchored: right-align under the "⋯", flip above if it would clip.
-        const r = anchor.getBoundingClientRect();
-        x = r.right - mw;
-        y = r.bottom + 6;
-        if (y + mh > window.innerHeight - 8) y = r.top - mh - 6;
-      }
-      menu.style.left = `${Math.max(8, x)}px`;
-      menu.style.top = `${Math.max(8, y)}px`;
-      openMenu = menu;
-      // Grow out of the control that opened it: the cursor for a right-click, the "⋯"
-      // button's centre otherwise.
-      menuPoint = point || rectCenter(anchor);
-      surfaceIn(menu, menuPoint, { ms: SURFACE_MENU_IN_MS });
-      setTimeout(() => {
-        document.addEventListener('mousedown', onMenuDocDown, true);
-        document.addEventListener('keydown', onMenuKey, true);
-      }, 0);
-    };
+    // One floating "⋯" menu reused by every row — ui/projectRowMenu.js.
+    const { showMenu, closeMenu } = createProjectRowMenu();
 
     // The rendered row for a project id — a delete plays it out before the rebuild.
     const rowById = (id) => (id == null ? null : list.querySelector(`[data-id="${id}"]`));
@@ -1329,39 +1050,14 @@ export class StencilProjectsModal extends StencilElement {
       setSortMode('manual');
     };
 
-    // ── Drag-out drop zones ──
+    // ── Drag-out drop zones (ui/projectDropZones.js) ──
     // Overlay around the dialog while a row is dragged: top 70% splits Open here / Open in
     // a new tab, bottom 30% is Remove. Zones are PURELY VISUAL (pointer-events:none) — the
     // action is decided from the pointer's RELEASE position (zoneForPoint). Every zone confirms.
-    let zonesEl = null;
+    const { showZones, hideZones, zoneForPoint, highlightZone } = createDropZones(overlay);
     let lastX = 0;
     let lastY = 0;
-    const buildZones = () => {
-      const wrap = document.createElement('div');
-      wrap.className = 'project-dropzones';
-      wrap.innerHTML =
-        '<div class="pdz pdz-here" data-action="here"><div class="pdz-label">' + icon('folder', { size: 22 }) + '<span>Open here</span></div></div>'
-        + '<div class="pdz pdz-newtab" data-action="newtab"><div class="pdz-label">' + icon('external', { size: 22 }) + '<span>Open in a new tab</span></div></div>'
-        + '<div class="pdz pdz-remove" data-action="remove"><div class="pdz-label">' + icon('trash', { size: 22 }) + '<span>Remove</span></div></div>';
-      return wrap;
-    };
-    // Painted over the modal (inserted as the overlay's first child), shown only while dragging.
-    const ensureZones = () => { if (!zonesEl) { zonesEl = buildZones(); overlay.insertBefore(zonesEl, overlay.firstChild); } return zonesEl; };
-    const showZones = () => ensureZones().classList.add('is-dragging');
-    const hideZones = () => { if (zonesEl) { zonesEl.classList.remove('is-dragging'); zonesEl.querySelectorAll('.pdz-over').forEach((z) => z.classList.remove('pdz-over')); } };
-    // The zone the point falls in, or null when it's OVER the dialog card (reorder / no-op there).
-    // Mirrors the visual bands: bottom 30% of the viewport = remove, else top split left/right.
-    const zoneForPoint = (x, y) => {
-      const card = overlay.querySelector('.app-modal');
-      const r = card && card.getBoundingClientRect();
-      if (r && pointInRect(x, y, r)) return null;  // over the dialog
-      if (y > window.innerHeight * 0.7) return 'remove';
-      return x < window.innerWidth / 2 ? 'here' : 'newtab';
-    };
-    const highlightZone = (zone) => {
-      if (!zonesEl) return;
-      for (const z of zonesEl.querySelectorAll('.pdz')) z.classList.toggle('pdz-over', z.dataset.action === zone);
-    };
+
     // Track the pointer + highlight the live zone during a row drag. preventDefault over a zone so
     // the cursor reads as droppable and the drop is ACCEPTED — that suppresses the browser's
     // snap-back-to-source animation (the glitch where the row appeared to return to the list).
@@ -1662,25 +1358,7 @@ export class StencilProjectsModal extends StencilElement {
     searchModeEl.value = searchMode;
     searchModeEl.addEventListener('change', () => { searchMode = searchModeEl.value; ssSet(SEARCH_MODE_KEY, searchMode); runFilter(); });
 
-    // Delete a server project even when this tab's live connection object is gone
-    // (dropped feed, listing served from cache): fall back to a direct authenticated
-    // DELETE with the token saved for that server.
-    const deleteRemoteProject = async (serverUrl, id) => {
-      const conn = app.connections?.get(serverUrl);
-      if (conn) { await conn.deleteProject(id); return; }
-      const saved = loadSavedServers().find((s) => {
-        try { return normalizeUrl(s.url) === normalizeUrl(serverUrl); } catch { return false; }
-      });
-      if (!saved) throw new Error(`not connected to ${serverUrl}`);
-      const res = await fetch(`${normalizeUrl(serverUrl)}/projects/${encodeURIComponent(id)}`, {
-        method: 'DELETE', headers: { Authorization: `Bearer ${saved.token}` },
-      });
-      if (!res.ok && res.status !== 404) {   // already-gone counts as removed
-        let msg = `HTTP ${res.status}`;
-        try { const body = await res.json(); if (body && body.message) msg = body.message; } catch { /* not JSON */ }
-        throw new Error(msg);
-      }
-    };
+    const deleteRemoteProject = (serverUrl, id) => removeRemoteProject(app.connections, serverUrl, id);
 
     // ── Batch actions over the checked rows ──
     // Partial failure must be loud and specific: a row whose action failed comes back on
@@ -1797,7 +1475,7 @@ export class StencilProjectsModal extends StencilElement {
       updateBatchBar();
     });
 
-    window.addEventListener(EVENTS.connectionsChanged, () => {
+    subscribe(EVENTS.connectionsChanged, () => {
       // A connect/disconnect or live server project-event invalidates the cached listing, so
       // the next render re-fetches it — never mid-drag or mid-removal (mayRefresh).
       invalidateRemotes();

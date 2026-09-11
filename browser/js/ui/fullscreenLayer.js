@@ -1,10 +1,10 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
-import { wirePanelResizer } from '../utils.js';
+import { wirePanelResizer, onWindowResize } from '../utils.js';
 import { flipFrom, FLIP_MS } from './motion.js';
 import { canvasOrigin } from '../core/zoomPan.js';
-import EVENTS from '../config/events.json' with { type: 'json' };
+import { publish, EVENTS } from '../bus/appBus.js';
 // ── Component: fullscreen trigger zones + slide-in panels ───────
 // Owns the fs trigger/panel markup and fullscreen behavior (cloning the live
 // controls + coord panel, slide-in panels, enter/exit). Exposes the toggle as
@@ -236,7 +236,7 @@ export class StencilFullscreenLayer extends StencilElement {
       // Components pinned to a toolbar icon need to know: the toolbar they measured is
       // about to be hidden and re-cloned elsewhere (the chat panel's popover).
       try {
-        window.dispatchEvent(new CustomEvent(EVENTS.fullscreenChanged, { detail: { on: isFullscreen } }));
+        publish(EVENTS.fullscreenChanged, { on: isFullscreen });
       } catch { /* no DOM (tests) */ }
       // The glyph turns over with the state, and each one's hover moves the way the click
       // will (iconMotion.json maximize / minimize).
@@ -312,9 +312,7 @@ export class StencilFullscreenLayer extends StencilElement {
     });
 
     // Resize: re-fit in fullscreen (CSS position:fixed handles viewport sizing)
-    window.addEventListener('resize', () => {
-      if (isFullscreen && app && app.image) app.zoomPan.fitToWindow();
-    });
+    onWindowResize(() => { if (isFullscreen && app && app.image) app.zoomPan.fitToWindow(); });
   }
 }
 define('stencil-fullscreen-layer', StencilFullscreenLayer);

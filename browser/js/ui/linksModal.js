@@ -1,7 +1,7 @@
 import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import { notify } from '../utils.js';
 import { icon } from './icons.js';
-import EVENTS from '../config/events.json' with { type: 'json' };
+import { subscribe, EVENTS } from '../bus/appBus.js';
 
 // ── Component: source/resource links modal ──────────────────────
 // Opened from the toolbar 🔗 button: view/edit the CURRENT image's provenance — its
@@ -72,7 +72,7 @@ export class StencilLinksModal extends StencilElement {
     // with on-the-fly source/resource edits. Uses the window event (fired by
     // TabsCoordinator.projectsChanged in THIS tab; onProjectsChanged only fires for
     // OTHER tabs), so same-tab console edits refresh too.
-    window.addEventListener(EVENTS.registryChanged, () => {
+    subscribe(EVENTS.registryChanged, () => {
       if (overlay.classList.contains('modal-open') && app.image) syncLinkFields();
     });
 

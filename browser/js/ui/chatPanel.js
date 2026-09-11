@@ -1,9 +1,9 @@
 import { StencilElement, hostTag, define } from './base.js';
-import { popoverPosition, wireModalOpenGestures } from './popover.js';
-import { notify, PHONE_MEDIA } from '../utils.js';
+import { wireModalOpenGestures } from './popover.js';
+import { notify, PHONE_MEDIA, onWindowResize } from '../utils.js';
 import { icon } from './icons.js';
 import { attachVoiceDust } from './voiceDust.js';
-import { probeProvider, PROVIDER_LABELS } from '../llm/llmClient.js';
+import { probeProvider } from '../llm/llmClient.js';
 import { loadLlmSettings, serverBearerToken } from '../llm/llmSettings.js';
 import {
   sharedChatController, peekChatController, runLoggedChatTurn, closedTurnToast, queueAttachments, ATTACHMENT_CAP_NOTICE,
@@ -13,7 +13,7 @@ import {
 import { rowsToMessages } from '../llm/chatStore.js';
 import { MAX_ATTACHMENTS } from '../llm/chatController.js';
 import { mediaFilesFromData, extractDraggedImageUrl, fetchDraggedMediaFile } from '../core/dragImageUrl.js';
-import EVENTS from '../config/events.json' with { type: 'json' };
+import { publish, subscribe, EVENTS } from '../bus/appBus.js';
 import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced, rectCenter,
          TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from './motion.js';
 import {
@@ -24,101 +24,22 @@ import {
   chatPopupOpen, CHAT_POPUP_EVENT, wireChatSideToggle,
 } from './chatView.js';
 
+import {
+  DOCKS, FLOAT_DEFAULT, DRAG_THRESHOLD_PX, DOCK_MIN_SIZE, DOCK_MAX_FRACTION, FLOAT_MIN_W, FLOAT_MIN_H,
+  clampFloatRect, COMPACT_CHAT_W, COMPACT_CHAT_H, compactChatRect, resizeFloatRect, DOCK_ZONE_BAND,
+  dockZoneAt, gearStatusRows, gearTipFootText,
+} from './chatGeometry.js';
+// The geometry above is re-exported: the suites and the flyout found it here first.
+export {
+  FLOAT_MIN_W, FLOAT_MIN_H, clampFloatRect, COMPACT_CHAT_W, COMPACT_CHAT_H, compactChatRect,
+  resizeFloatRect, DOCK_ZONE_BAND, dockZoneAt, gearStatusRows, gearTipFootText,
+} from './chatGeometry.js';
+
 // ── Component: AI assistant chat panel ──────────────────────────
 // Dockable chat with the configured LLM (llm-contract.md). Plans execute against the
 // frozen window.stencil facade — the panel never edits pixels itself. Layout (host
 // classes chat-dock-*, --chat-size, a clamped float rect) is session-only; the header
 // strip is the drag handle — dragging a docked panel undocks it, edge zones re-dock.
-const DOCKS = ['left', 'right', 'top', 'bottom', 'float'];
-
-const FLOAT_DEFAULT = { x: 80, y: 80, w: 360, h: 440 };
-const DRAG_THRESHOLD_PX = 4;      // plain header clicks must not twitch the panel
-const DOCK_MIN_SIZE = 240;
-const DOCK_MAX_FRACTION = 0.8;    // docked panel never exceeds 80% of the viewport
-
-// Clamp a float rect so the WHOLE panel (right/bottom edges included) stays inside
-// the vw×vh viewport. Pure — unit-tested; the panel wires it to window.inner*.
-export const FLOAT_MIN_W = 280;
-export const FLOAT_MIN_H = 220;
-export const clampFloatRect = (r, vw, vh) => {
-  const w = Math.max(FLOAT_MIN_W, Math.min(Math.round(r?.w || FLOAT_DEFAULT.w), vw));
-  const h = Math.max(FLOAT_MIN_H, Math.min(Math.round(r?.h || FLOAT_DEFAULT.h), vh));
-  return {
-    x: Math.max(0, Math.min(Math.round(r?.x || 0), vw - w)),
-    y: Math.max(0, Math.min(Math.round(r?.y || 0), vh - h)),
-    w,
-    h,
-  };
-};
-
-// The compact shape the toolbar icon's popover gestures open (ui/popover.js): the
-// panel floated SMALL and pinned next to the icon, sized like the context-menu chat
-// flyout. Pure — rects in, a clamped float rect out — so it's unit-testable.
-export const COMPACT_CHAT_W = 340;
-export const COMPACT_CHAT_H = 460;
-export const compactChatRect = (anchor, vw, vh) => {
-  const w = Math.min(COMPACT_CHAT_W, vw);
-  const h = Math.min(COMPACT_CHAT_H, vh);
-  const p = popoverPosition({ anchor, box: { width: w, height: h }, viewport: { width: vw, height: vh } });
-  return clampFloatRect({ x: p.left, y: p.top, w, h }, vw, vh);
-};
-
-// Resize a float rect by dragging edge/corner `dir` (n|s|e|w|ne|nw|se|sw) by dx/dy.
-// The opposite edge stays anchored; the moving edge is clamped to the min size and
-// the vw×vh viewport. Pure — unit-tested.
-export const resizeFloatRect = (r, dir, dx, dy, vw, vh) => {
-  let { x, y, w, h } = r;
-  const right = x + w, bottom = y + h;
-  if (dir.includes('e')) w = Math.min(Math.max(FLOAT_MIN_W, w + dx), vw - x);
-  if (dir.includes('s')) h = Math.min(Math.max(FLOAT_MIN_H, h + dy), vh - y);
-  if (dir.includes('w')) { w = Math.min(Math.max(FLOAT_MIN_W, w - dx), right); x = right - w; }
-  if (dir.includes('n')) { h = Math.min(Math.max(FLOAT_MIN_H, h - dy), bottom); y = bottom - h; }
-  return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
-};
-
-// Which edge drop zone (if any) a viewport point falls in during a header drag.
-// Corners resolve to the NEAREST edge; null = keep floating. Pure — unit-tested.
-export const DOCK_ZONE_BAND = 72;
-export const dockZoneAt = (x, y, vw, vh, band = DOCK_ZONE_BAND) => {
-  const dist = { left: x, right: vw - x, top: y, bottom: vh - y };
-  let best = null;
-  for (const side of ['left', 'right', 'top', 'bottom']) {
-    if (dist[side] <= band && (best == null || dist[side] < dist[best])) best = side;
-  }
-  return best;
-};
-
-// The configure-gear's status tooltip is a TABLE (.chat-status-tip): one row per
-// fact, the Status cell coloured by `state` (ok|error|connecting). Pure — unit-tested.
-export const gearStatusRows = (probe) => {
-  if (!probe) return [{ label: 'Status', value: 'Checking the configured LLM…', state: 'connecting' }];
-  if (probe.provider === 'none') {
-    return [
-      { label: 'Provider', value: PROVIDER_LABELS.none },
-      { label: 'Status', value: 'Assistant turned off — nothing is sent anywhere', state: 'error' },
-    ];
-  }
-  const rows = [{ label: 'Provider', value: PROVIDER_LABELS[probe.provider] || probe.provider || '—' }];
-  if (probe.url) rows.push({ label: 'Endpoint', value: probe.url.replace(/^https?:\/\//i, '') });
-  rows.push({ label: 'Model', value: probe.model || 'server default' });
-  rows.push(probe.ok
-    ? { label: 'Status', value: `Connected${probe.detail ? ` — ${probe.detail}` : ''}`, state: 'ok' }
-    : { label: 'Status', value: probe.detail || 'Unreachable', state: 'error' });
-  return rows;
-};
-
-// The tooltip's footer lines (pre-line text under the table): what to try / the
-// call to action, always ending with the click hint. Pure — unit-tested.
-export const gearTipFootText = (probe) => {
-  const lines = [];
-  // Connected needs no prose — the table above already says provider/model/status.
-  if (!probe || probe.provider === 'none' || probe.ok) { /* the table says it all */ }
-  else {
-    lines.push(`No LLM reachable${probe.url ? ` at ${probe.url}` : ''} — ${probe.provider === 'ollama' ? 'start Ollama or ' : ''}configure another provider.`);
-  }
-  lines.push('Click to configure the assistant');
-  return lines.join('\n');
-};
 
 export class StencilChatPanel extends StencilElement {
   static inner() {
@@ -234,7 +155,7 @@ export class StencilChatPanel extends StencilElement {
     // toggles in syncJumps), the window resizes, or the panel itself changes shape.
     let pillRects = null;
     const invalidatePillRects = () => { pillRects = null; };
-    window.addEventListener('resize', invalidatePillRects);
+    onWindowResize(invalidatePillRects);
     const syncRowMenuLift = () => {
       if (!hoverRow) return;
       const btn = hoverRow.querySelector('.chat-row-menu-btn')?.getBoundingClientRect?.();
@@ -285,7 +206,7 @@ export class StencilChatPanel extends StencilElement {
     });
     // Both edges of any chat popup (chatView announces open AND close), from EITHER
     // surface: the flyout shares the one row menu and has a composer "…" of its own.
-    window.addEventListener(CHAT_POPUP_EVENT, syncJumps);
+    subscribe(CHAT_POPUP_EVENT, syncJumps);
     transcript.addEventListener('scroll', syncJumps, { passive: true });
     new MutationObserver(syncJumps).observe(transcript, { childList: true, subtree: true });
     jumpPills[0].addEventListener('click', () => transcript.scrollTo({ top: 0, behavior: 'smooth' }));
@@ -390,7 +311,7 @@ export class StencilChatPanel extends StencilElement {
       }
     };
     // Re-probe when the settings modal persists a change (it fires this event).
-    window.addEventListener(EVENTS.llmSettingsChanged, () => refreshStatus());
+    subscribe(EVENTS.llmSettingsChanged, () => refreshStatus());
 
     // ── Attachments row (shared renderer — the context-menu composer paints the
     // very same queue, so both repaint on the shared change event) ──
@@ -398,7 +319,7 @@ export class StencilChatPanel extends StencilElement {
       // peek, never create: the controller must not exist before window.stencil is frozen.
       chatAttachmentChips(attachList, peekChatController(app));
     };
-    window.addEventListener(CHAT_ATTACHMENTS_EVENT, renderAttachments);
+    subscribe(CHAT_ATTACHMENTS_EVENT, renderAttachments);
 
     renderAttachments();
 
@@ -633,7 +554,7 @@ export class StencilChatPanel extends StencilElement {
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(updateNotifyInset).observe(host);
     const announceLayout = () => {
       updateNotifyInset();
-      try { window.dispatchEvent(new Event(EVENTS.chatLayoutChanged)); } catch { /* no DOM */ }
+      publish(EVENTS.chatLayoutChanged);
     };
     const setDock = (mode) => {
       dock = mode;
@@ -832,7 +753,7 @@ export class StencilChatPanel extends StencilElement {
     }
     // Entering or leaving fullscreen swaps which toolbar is on screen, stranding a compact
     // popover — drop the popover shape and stamp the open state onto the fresh clone.
-    window.addEventListener(EVENTS.fullscreenChanged, () => {
+    subscribe(EVENTS.fullscreenChanged, () => {
       if (compactPopover) restoreFromCompact();
       syncFsCloneActive(panelIsOpen());
     });

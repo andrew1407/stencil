@@ -1,5 +1,5 @@
 import { StencilElement, hostTag, define } from './base.js';
-import { notify, setRadioGroup, setHtml, formatCombo, supportsShareFiles, isTouchLike, pointInRect, hasAnyLines, isTypingTarget } from '../utils.js';
+import { notify, setRadioGroup, setHtml, formatCombo, supportsShareFiles, isTouchLike, pointInRect, hasAnyLines, isTypingTarget, onWindowResize } from '../utils.js';
 import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
 import { attachVoiceDust } from './voiceDust.js';
@@ -21,16 +21,18 @@ import { menuPopOrigin, surfaceIn, surfaceOut, settleSurface, motionReduced, rev
 import { setChecked, swapCheckGlyph } from './controlSwap.js';
 import { wireAltPreview, hideExportPreview, clearAltPreviewHover } from './exportPreview.js';
 import { keysHtml } from './tipContent.js';
-import EVENTS from '../config/events.json' with { type: 'json' };
+import { ctxArrow } from './ctxArrow.js';
+import { assistantEnabled, assistantItemHtml } from './ctxAssistantItem.js';
+import { wireCtxAssistant } from './ctxAssistant.js';
+import { subscribe, EVENTS } from '../bus/appBus.js';
 import { EXPORT_VARIANTS, EXPORT_VARIANT_LABELS, EXPORT_VARIANT_ICONS,
          exportVariantState } from './exportVariants.js';
-// ── Component: custom right-click context menu ──────────────────
-// Trailing arrow slot: ALWAYS rendered, fixed-width (components.css), whether or not
-// this row nests a submenu — so a row's hotkey lands on the exact same right edge as a
-// row that DOES have an arrow, instead of drifting rightward whenever no arrow follows
-// it. This only decides whether the chevron itself paints; the space is reserved either way.
-const ctxArrow = (has = false) => has ? `<span class="ctx-arrow">${icon('chevron-right', { size: 12 })}</span>` : '<span class="ctx-arrow"></span>';
+export { assistantEnabled, assistantItemHtml };
+// Keyboard navigation lives in ctxKeyboard.js; its three helpers stay reachable here.
+export { ctxKeyStep, CTX_NAV_KEYS, ctxFocusables } from './ctxKeyboard.js';
+import { wireCtxKeyboard } from './ctxKeyboard.js';
 
+// ── Component: custom right-click context menu ──────────────────
 // The variant rows of a Copy/Download Image flyout, from the shared registry
 // (exportVariants.js — labels, glyphs, order, and the "With Compare is a FOURTH row"
 // rule live there). split/current share the primary combo (their empty `-hk` chips are
@@ -44,61 +46,9 @@ const exportVariantRows = (prefix, currentIcon, hks) => EXPORT_VARIANTS.map((v) 
     + `<span class="ctx-label">${EXPORT_VARIANT_LABELS[v]}</span>${hk}</div>`;
 }).join('\n                        ');
 const SUBMENU_HIDE_DELAY_MS = 180; // grace period before a submenu closes on mouseleave
-// Keyboard walk (desktop QMenu parity): the row index `step` away from `idx` among
-// `count` rows, wrapping at both ends; no row yet ⇒ the first (down) or last (up).
-export const ctxKeyStep = (count, idx, step) => {
-  if (!count) return -1;
-  if (idx < 0) return step > 0 ? 0 : count - 1;
-  return (idx + step + count) % count;
-};
-// The keys the open menu owns outright (contextMenu.js keyboard navigation).
-export const CTX_NAV_KEYS = Object.freeze(['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Enter', ' ', 'Home', 'End', 'Tab']);
-// What Tab walks inside an open flyout: its real form controls (the Style spinners and
-// radios, the tint colour, the formula inputs, the tooltip checkboxes, the chat's input
-// and buttons), in markup order, skipping anything currently hidden.
-const CTX_FOCUSABLE = 'input, select, textarea, button, [tabindex]:not([tabindex="-1"])';
-export const ctxFocusables = (level) => [...level.querySelectorAll(CTX_FOCUSABLE)]
-  .filter((el) => !el.disabled && el.getClientRects().length > 0);
 const LIVE_SYNC_INTERVAL_MS = 120; // poll cadence to reflect external state while the menu is open
 const TINT_DEBOUNCE_MS = 80;       // debounce custom-tint recolor+save while dragging the picker
 const ASSIST_SCROLL_GRACE_MS = 900; // window in which an assistant-caused scroll can't close the menu
-
-// ── Assistant: an ordinary submenu parent whose flyout IS a chat ─────────────
-// A compact chat on the SAME conversation as the panel (one controller per app —
-// js/llm/chatSession.js). Exists ONLY when a provider is configured; an unreachable
-// one still shows it — the failure surfaces in the reply, exactly like the panel.
-export const assistantEnabled = (settings) => (settings?.provider ?? 'none') !== 'none';
-
-// The entry's markup, unconditionally (syncAssistant gates and builds it). It sits
-// directly ABOVE the drawing items with no separator of its own, so gating it off
-// leaves the menu's original separator set untouched — nothing dangles.
-export const assistantItemHtml = () => `
-        <!-- Assistant submenu: the flyout is a compact chat (chat panel's conversation) -->
-        <div class="ctx-item" id="ctx-assist-menu">
-            <span class="ctx-icon">${icon('sparkle')}</span><span class="ctx-label">Assistant</span>${ctxArrow(true)}
-            <div class="ctx-sub ctx-assist-sub" id="ctx-assist-sub">
-                <div class="ctx-assist" id="ctx-assist">
-                    <div class="ctx-assist-transcript" id="ctx-assist-transcript">
-                        <div class="chat-empty">
-                            ${chatSuggestionsHtml()}
-                        </div>
-                    </div>
-                    <div class="ctx-assist-attachments" id="ctx-assist-attachments"></div>
-                    <div class="ctx-assist-row">
-                        <div class="ctx-assist-inputcol">
-                            <div class="ctx-assist-sizer" id="ctx-assist-sizer"></div>
-                            <textarea id="ctx-assist-input" rows="2" placeholder="Ask the assistant… (Enter sends, Shift+Enter newline)"></textarea>
-                        </div>
-                        ${chatComposerActionsHtml({
-    prefix: 'ctx-assist',
-    actionsClass: 'ctx-assist-actions',
-    gearClass: 'ctx-assist-config',
-    gearTitle: 'Assistant settings — provider &amp; model',
-  })}
-                    </div>
-                </div>
-            </div>
-        </div>`;
 
 export class StencilContextMenu extends StencilElement {
   static inner() {
@@ -349,6 +299,9 @@ export class StencilContextMenu extends StencilElement {
       document.querySelectorAll('#ctx-menu .ctx-sub.ctx-sub-fresh')
         .forEach(s => s.classList.remove('ctx-sub-fresh'));
     };
+    // Assigned by wireCtxKeyboard below (the keyboard owns the .ctx-kb highlight); the
+    // pointer, open and close paths clear it. Declared here because they come first.
+    let setKbItem = () => {};
     const samplePointer = e => {
       const moved = e.clientX !== lastPointer.x || e.clientY !== lastPointer.y;
       lastPointer = { x: e.clientX, y: e.clientY };
@@ -393,146 +346,19 @@ export class StencilContextMenu extends StencilElement {
       activeSubItem = null;
     };
 
-    // ── Keyboard navigation (desktop QMenu parity) ──────────────────────────
-    // ↑/↓ walk the rows of the deepest open level, → opens the row's flyout (and lands
-    // on its first row), ← closes it back onto its parent row, Enter/Space picks. The
-    // highlighted row wears .ctx-kb (the :hover look, components.css); a real pointer
-    // move hands the highlight back to :hover (samplePointer above).
-    let kbItem = null;
-    const setKbItem = (item) => {
-      if (kbItem && kbItem !== item) kbItem.classList.remove('ctx-kb');
-      kbItem = item || null;
-      if (kbItem) {
-        kbItem.classList.add('ctx-kb');
-        kbItem.scrollIntoView?.({ block: 'nearest' });
-      }
-    };
-    // The rows of one level: its DIRECT .ctx-item children that syncState hasn't hidden.
-    const kbRows = (level) => [...level.querySelectorAll(':scope > .ctx-item')]
-      .filter(i => i.style.display !== 'none');
-    // The level the highlight walks: the one holding the highlighted row (rows are direct
-    // children of their level), else the deepest open flyout.
-    const kbLevel = () => kbItem ? kbItem.parentElement
-      : (activeSub && activeSub.classList.contains('ctx-sub-visible')) ? activeSub : menu;
-    const subOf = (item) => item?.querySelector(':scope > .ctx-sub') || null;
-    // Where the second → lands: the flyout's text box where it has one (the chat), else
-    // its first control (Style's point size, Transformation's checkbox, a filter radio).
-    const primaryControl = (sub) => {
-      const controls = ctxFocusables(sub);
-      return controls.find((el) => el.tagName === 'TEXTAREA') || controls[0] || null;
-    };
-    // A flyout with no controls (Image / Layout) is entered onto its first row instead.
-    const kbEnterSub = (sub) => {
-      const control = primaryControl(sub);
-      if (control) { control.focus(); setKbItem(null); return; }
-      setKbItem(kbRows(sub)[0] || null);
-    };
-    const kbOpenSub = (item) => {
-      const sub = subOf(item);
-      if (!sub || item.dataset.noSub === '1') return false;
-      // The hover path's own steps (wireSubmenu mouseenter): siblings close, ancestors stay.
-      document.querySelectorAll('#ctx-menu .ctx-sub.ctx-sub-visible').forEach(s => {
-        if (s !== sub && !s.contains(item)) closeSub(s);
-      });
-      document.querySelectorAll('#ctx-menu .ctx-item.ctx-open-sub').forEach(i => {
-        if (i !== item && !i.contains(item)) i.classList.remove('ctx-open-sub');
-      });
-      positionSub(item, sub);
-      activeSub = sub;
-      activeSubItem = item;
-      setKbItem(item);   // revealed only — ← folds it back, a second → enters it
-      return true;
-    };
-    // Close the deepest open flyout; the highlight lands back on its parent row unless
-    // `keepHighlight` (the walk that closed it already moved on).
-    const kbCloseSub = (keepHighlight = false) => {
-      const sub = activeSub;
-      if (!sub) return false;
-      const item = sub.__ctxItem;
-      if (sub.contains(document.activeElement)) document.activeElement.blur();
-      closeSub(sub);
-      item?.classList.remove('ctx-open-sub');
-      const parentSub = item?.parentElement?.closest('.ctx-sub') || null;
-      activeSub = parentSub;
-      activeSubItem = parentSub ? parentSub.__ctxItem : null;
-      if (!keepHighlight) setKbItem(item || null);
-      return true;
-    };
-    // Walking off a parent row folds its flyout (Qt parity: the hover path's plain-item
-    // mouseenter does the same) — every open flyout the highlight is no longer inside.
-    const closeSubsOutside = (item) => {
-      while (activeSub && !activeSub.contains(item) && activeSub.__ctxItem !== item) {
-        if (!kbCloseSub(true)) break;
-      }
-    };
-    // Capture phase, consumed only while open — same as Escape below: the arrows must
-    // never reach the canvas pan/nudge binding (controlsBinder.js wireArrowPan). A pan
-    // scrolls the viewport, and the scroll closer would then take the menu with it,
-    // which is exactly how "the arrows don't work in the menu" looked (user report).
-    document.addEventListener('keydown', e => {
-      if (!menuIsOpen() || chatRowMenuOpen()) return;
-      if (!CTX_NAV_KEYS.includes(e.key)) return;
-      const openSub = (activeSub && activeSub.classList.contains('ctx-sub-visible')) ? activeSub : null;
-      // Tab walks the open flyout's own controls (Shift+Tab backwards), wrapping — the
-      // browser's default would tab straight out of the menu into the toolbar (user
-      // report: the Style / Transformation / Assistant controls were unreachable). A
-      // level with no controls (the root, a plain flyout) treats Tab as the arrows.
-      if (e.key === 'Tab') {
-        const controls = ctxFocusables(openSub || menu);
-        if (controls.length) {
-          e.preventDefault();
-          e.stopPropagation();
-          const at = controls.indexOf(document.activeElement);
-          controls[ctxKeyStep(controls.length, at, e.shiftKey ? -1 : 1)].focus();
-          setKbItem(null);
-          return;
-        }
-      }
-      // A control inside the flyout has the keys (typing, spinning, picking a radio);
-      // the canvas pan still never sees them. Only ← leaves it, back onto the parent row —
-      // except in a text field, where ← moves the caret (Tab / Shift+Tab leave those).
-      if (openSub && openSub.contains(document.activeElement) && document.activeElement !== openSub) {
-        // A text field keeps every key, Enter included — the chat sends on it, and the
-        // canvas pan already ignores typing targets; stopping propagation here would
-        // keep the key from ever reaching the field.
-        if (isTypingTarget(e.target)) return;
-        if (e.key.startsWith('Arrow')) e.stopPropagation();   // never the canvas pan
-        if (e.key === 'ArrowLeft') { e.preventDefault(); kbCloseSub(); }
-        return;
-      }
-      if (isTypingTarget(e.target) && menu.contains(e.target)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const level = kbLevel();
-      const rows = kbRows(level);
-      const idx = rows.indexOf(kbItem);
-      const step = (d) => {
-        const n = ctxKeyStep(rows.length, idx, d);
-        if (n < 0) return;
-        setKbItem(rows[n]);
-        closeSubsOutside(rows[n]);
-      };
-      // → (or Enter) on a parent row: the first reveals its flyout, the second enters it.
-      const openOrEnter = () => {
-        const sub = subOf(kbItem);
-        if (!sub) return false;
-        if (sub.classList.contains('ctx-sub-visible')) kbEnterSub(sub);
-        else kbOpenSub(kbItem);
-        return true;
-      };
-      switch (e.key) {
-        case 'ArrowDown': step(1); break;
-        case 'ArrowUp': step(-1); break;
-        case 'Tab': step(e.shiftKey ? -1 : 1); break;
-        case 'Home': if (rows.length) { setKbItem(rows[0]); closeSubsOutside(rows[0]); } break;
-        case 'End': if (rows.length) { setKbItem(rows.at(-1)); closeSubsOutside(rows.at(-1)); } break;
-        case 'ArrowRight': if (kbItem && idx >= 0) openOrEnter(); break;
-        case 'ArrowLeft': kbCloseSub(); break;
-        default:   // Enter / Space
-          if (!kbItem || idx < 0) break;
-          if (!openOrEnter()) kbItem.click();
-      }
-    }, true);
+    // Keyboard navigation (desktop QMenu parity) — ui/ctxKeyboard.js. It walks the
+    // same open-flyout state the hover path owns, so that is passed in, not copied.
+    // Every callback is a thunk: menuIsOpen and friends are `const`s declared further
+    // down wire(), so reading them at this call site would hit the temporal dead zone.
+    ({ setKbItem } = wireCtxKeyboard({
+      menu,
+      menuIsOpen: () => menuIsOpen(),
+      chatRowMenuOpen: () => chatRowMenuOpen(),
+      closeSub: (sub) => closeSub(sub),
+      positionSub: (item, sub) => positionSub(item, sub),
+      activeSub: () => activeSub,
+      setActiveSub: (sub, item) => { activeSub = sub; activeSubItem = item; },
+    }));
 
     // Items WITHOUT a submenu close any open one on hover.
     const wirePlainItem = (item) => {
@@ -723,6 +549,8 @@ export class StencilContextMenu extends StencilElement {
     // the executing plan must NOT dismiss the menu the user is chatting in.
     let assistSending = false;
     let assistBusyUntil = 0;
+    // Assigned by wireCtxAssistant below; openAt only runs long after wire() has.
+    let syncAssistant = () => {};
     const assistantBusy = () => assistSending || Date.now() < assistBusyUntil;
 
     // Clamp the menu into the viewport, ONCE per open. Deliberately NOT re-run while
@@ -1053,259 +881,17 @@ export class StencilContextMenu extends StencilElement {
     });
     menu.addEventListener('mousedown', e => e.stopPropagation());
 
-    // ── Assistant entry: a submenu parent whose flyout is a chat ────────────
-    // The flyout is NOT a list of .ctx-items, so none of the menu's "activate →
-    // closeMenu()" wiring applies: typing, sending, stopping and executing a plan
-    // all leave the menu (and the flyout) open.
-    let assistWired = false;
-    const wireAssistant = () => {
-      const item = document.getElementById('ctx-assist-menu');
-      const flyout = document.getElementById('ctx-assist-sub');
-      const transcript = document.getElementById('ctx-assist-transcript');
-      const input = document.getElementById('ctx-assist-input');
-      const sendBtn = document.getElementById('ctx-assist-send');
-      attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'));
-      const attachBtn = document.getElementById('ctx-assist-attach-btn');
-      const attachInput = document.getElementById('ctx-assist-attach-input');
-      const gearBtn = document.getElementById('ctx-assist-settings-btn');
-      const statusDot = document.getElementById('ctx-assist-status-dot');
-      const attachList = document.getElementById('ctx-assist-attachments');
-      if (!item || !flyout || !transcript || !input || !sendBtn) return;
-
-      let turnAbort = null;
-      let voiceCtl = null;   // wireComposerVoice, below
-      // The shared send ↔ Stop swap (the panel's contract), plus the mic face.
-      const updateControls = () => syncComposerControls({ sendBtn, attachBtn, input }, assistSending,
-        { attachFull: (peekChatController(app)?.attachments.length ?? 0) >= MAX_ATTACHMENTS,
-          voice: voiceCtl?.state(), voiceSupported: !!app.voice?.supported });
-      // The hands-free voice chat asks whether ANY chat surface shows its rows.
-      app.assistantFlyoutOpen = () => menuIsOpen() && flyout.classList.contains('ctx-sub-visible');
-
-      // ── Attachments: feed the SAME shared controller, so a file queued here rides
-      // the next turn from either surface (both rows repaint on the change event). ──
-      const renderAttachments = () => chatAttachmentChips(attachList, peekChatController(app));
-      window.addEventListener(CHAT_ATTACHMENTS_EVENT, renderAttachments);
-      renderAttachments();
-
-      // ── Settings gear: opens the assistant settings modal through the panel's own
-      // gear (one modal, one wiring) — and CLOSES the menu first, because a modal
-      // behind a popup menu is unusable. Its dot mirrors the shared probe. ──
-      const setDot = (probe) => { statusDot.className = `conn-status conn-status-${probeStatusClass(probe)}`; };
-      const refreshDot = () => {
-        const settings = loadLlmSettings();
-        const known = cachedProbe(settings);
-        if (known) { setDot(known); return; }
-        setDot(null);   // amber while in flight
-        probeProvider(settings, { getToken: (url) => serverBearerToken(app, url) })
-          .then((probe) => { cacheProbe(settings, probe); setDot(probe); })
-          .catch(() => setDot({ ok: false }));
-      };
-      gearBtn.addEventListener('click', () => {
-        // Captured NOW: this popup (gearBtn included) is about to hide before the
-        // settings modal can measure it, and the panel's OWN #chat-settings-btn is a
-        // different button entirely — neither is the control that was just clicked.
-        const rect = gearBtn.getBoundingClientRect();
-        closeMenu();
-        document.getElementById('chat-settings-overlay')?.__stencilModal?.open(rect);
-      });
-      // Refresh the dot when the flyout is about to open (free when the panel already
-      // probed — see the shared cache). No dot to paint in plain mode.
-      item.addEventListener('mouseenter', () => { if (item.dataset.noSub !== '1') refreshDot(); });
-      // "Engaged" = typing in the flyout, resizing its composer, or a running turn —
-      // the hover-out timers must not yank the chat away then (a SIBLING submenu
-      // parent still closes it). keepSubOpen consults this predicate.
-      let resizing = false;
-      // The row menu floats on the body OVER the flyout, so while it shows the
-      // pointer reads as "left" — that must not close the chat under it.
-      flyout._keepOpen = () => assistSending || resizing || chatRowMenuOpen() || flyout.contains(document.activeElement);
-
-      // ── Resizable composer: the panel's slider strip. The flyout is a fixed-height
-      // column, so growing the input takes room from the transcript; re-place it anyway
-      // (its height can hit the viewport clamp) — the ROOT menu is never re-placed. ──
-      wireInputSizer(document.getElementById('ctx-assist-sizer'), input, {
-        hold: (on) => { resizing = on; },
-        onDrag: () => { if (flyout.classList.contains('ctx-sub-visible')) positionSub(item, flyout); },
-      });
-
-      // ── Transcript: the SHARED row log, exactly like the panel's — both surfaces
-      // render the same rows in the same order, and this one shows the history that
-      // happened while the menu was closed. ──
-      const paint = () => renderChatLog(transcript, chatLog(), {
-        onConfigure: closeMenu,   // the CTA opens the settings modal; the menu must go
-        // An expired collaboration-server session is fixed in Connections, not in the
-        // provider settings — and the menu closes for that modal just the same.
-        onReconnect: () => { closeMenu(); document.getElementById('connect-btn')?.click(); },
-        // §11: this surface renders the SAME shared log, so its choice cards must answer
-        // too — otherwise a card shown here would be inert while the panel's works.
-        onAskSubmit: (answer) => { runTurn(answer).catch(() => { /* shown in the transcript */ }); },
-        // Retry on a failed turn: the SAME text through the normal send path.
-        onRetry: (text) => {
-          // Never on top of a running turn — panel parity, and the shared flag catches
-          // one started from the panel too (that is what logged the prompt twice).
-          if (assistSending || chatTurnInFlight()) return;
-          // The failed turn's attachments ride the retry too (panel parity).
-          peekChatController(app)?.requeueLastTurnAttachments?.();
-          runTurn(text).catch(() => { /* shown in the transcript */ });
-        },
-      });
-      onChatLog(paint);
-      paint();
-      // Anything clicked in here (send, a chip, "open as the working image") may make
-      // the editor relayout — hold the scroll grace open across it.
-      flyout.addEventListener('click', () => { assistBusyUntil = Date.now() + ASSIST_SCROLL_GRACE_MS; });
-      // Clicking the parent opens the flyout too (hover is the primary affordance,
-      // like the other parents) and drops the caret into the input.
-      item.addEventListener('click', (e) => {
-        if (flyout.contains(e.target)) return;
-        if (item.dataset.noSub === '1') {
-          // Phones/touch: no flyout here — hand over to the (modal) chat panel.
-          closeMenu();
-          openChatPanel();
-          return;
-        }
-        if (!flyout.classList.contains('ctx-sub-visible')) {
-          positionSub(item, flyout);
-          activeSub = flyout;
-          activeSubItem = item;
-        }
-        input.focus();
-      });
-
-      // The shared logged-turn frame; only the deltas below are this surface's own.
-      const runTurn = async (text) => {
-        assistSending = true;
-        updateControls();
-        await runLoggedChatTurn(sharedChatController(app), text, {
-          settings: loadLlmSettings(),
-          begin: (abort) => { turnAbort = abort; },
-          // A turn that lands after the menu was dismissed must not vanish silently.
-          onResult: (res) => {
-            // The SAME balloon the panel builds — and a way back: reopening this flyout
-            // would need the menu at its old point, so the click opens the docked
-            // panel, which holds the very same conversation.
-            const toast = closedTurnToast(res);
-            if (!menuIsOpen() && toast) notify(toast.text, toast.type, { onClick: () => app.chat?.open() });
-          },
-          cleanup: () => {
-            assistSending = false;
-            // The plan's last relayout can still be settling — keep the grace window
-            // open a moment past the turn.
-            assistBusyUntil = Date.now() + ASSIST_SCROLL_GRACE_MS;
-            turnAbort = null;
-            updateControls();
-            renderAttachments();          // the turn consumed the queue…
-            notifyAttachmentsChanged();   // …so the panel's row drops them too
-          },
-        });
-      };
-
-      // Escape bubbles out of the composer on purpose (the document listener closes
-      // the menu); every other key stays inside. Global hotkeys ignore typing targets.
-      wireChatMoreMenu('ctx-assist', document, { onOpen: () => {
-        updateControls();
-        const clr = document.getElementById('ctx-assist-clear');
-        if (clr) clr.disabled = !!transcript.querySelector('.chat-empty');
-      } });   // attach / clear / settings behind the …
-      wireChatSideToggle('ctx-assist', transcript, document);
-      // Clear from THIS surface clears the shared conversation, exactly like the
-      // panel's own item (one controller, one log — both surfaces repaint).
-      document.getElementById('ctx-assist-clear')?.addEventListener('click', () => {
-        if (assistSending) return;
-        clearSharedConversation(app);
-      });
-      const voiceHooks = {
-        isOn: () => !!voiceCtl?.isOn(),
-        isListening: () => !!voiceCtl?.isListening(),
-        toggleMode: () => voiceCtl?.toggleMode(),
-        toggleListening: () => voiceCtl?.toggleListening(),
-      };
-      const send = wireChatComposer({ input, sendBtn, attachBtn, attachInput }, {
-        isSending: () => assistSending,
-        abort: () => turnAbort?.abort(),
-        submit: (text) => { updateControls(); runTurn(text); },
-        attachFiles: async (files) => {
-          await queueAttachments(sharedChatController(app), files,
-            (err) => notify(`Attachment failed — ${err.message}`, 'fail'),
-            () => notify(ATTACHMENT_CAP_NOTICE, 'info'));   // the cap is a notice, not a failure
-          renderAttachments();
-          notifyAttachmentsChanged();
-        },
-        onInput: updateControls,
-        voice: voiceHooks,
-      });
-      voiceCtl = wireComposerVoice({ prefix: 'ctx-assist', input, sendBtn, app, send, sync: updateControls });
-      // A dismissed menu never keeps a mic open: the face goes back to Send too.
-      onMenuClose = () => voiceCtl?.setMode(false);
-      updateControls();
-      // Suggestion chips prefill the input (editable before sending) — the same shared
-      // delegated wiring as the panel, so a rebuilt empty state stays clickable.
-      wireChatSuggestions(transcript, (prompt) => {
-        input.value = prompt;
-        updateControls();
-        input.focus();
-      });
-      // Right-click on a transcript row: the SHARED row menu (panel parity).
-      // Insert appends into THIS flyout's composer; Resend re-queues the row's
-      // original attachments and re-sends through the same runTurn path.
-      wireChatRowMenu(transcript, {
-        onInsert: (text) => {
-          input.value = input.value ? `${input.value}\n${text}` : text;
-          updateControls();
-          input.focus();
-        },
-        onResend: (text, attachments) => {
-          if (assistSending || chatTurnInFlight()) return;
-          requeueRowAttachments(sharedChatController(app), attachments);
-          renderAttachments();
-          notifyAttachmentsChanged();
-          runTurn(text).catch(() => { /* shown in the transcript */ });
-        },
-      });
-      updateControls();
-    };
-
-    // The phone/touch fallback: close the menu and open the chat panel (a full-screen
-    // modal there), which continues the very same conversation.
-    const openChatPanel = () => {
-      if (typeof app?.chat?.open === 'function') app.chat.open();
-      else document.getElementById('chat-btn')?.click();
-    };
-
-    // Show/hide (and, if the provider was configured after load, BUILD) the Assistant
-    // entry, and pick its mode. Runs on every open and on LLM-settings changes, so the
-    // assistant switching on/off — and a resize between opens — needs no reload.
-    const syncAssistant = () => {
-      const on = assistantEnabled(loadLlmSettings());
-      let item = document.getElementById('ctx-assist-menu');
-      if (on && !item) {
-        // Built directly above the Drawing group and wired exactly like the static
-        // parents (those were wired in the loop at the top of wire()).
-        const anchor = document.getElementById('ctx-draw-toggle');
-        if (anchor) anchor.insertAdjacentHTML('beforebegin', assistantItemHtml());
-        else menu.insertAdjacentHTML('beforeend', assistantItemHtml());
-        item = document.getElementById('ctx-assist-menu');
-        const sub = item?.querySelector(':scope > .ctx-sub');
-        if (item && sub) wireSubmenu(item, sub);
-      }
-      if (!item) return;
-      // Built once, then only hidden — the menu session's transcript survives a provider
-      // switch, and it owns no separator, so hiding it leaves the grouping as it was.
-      item.style.display = on ? '' : 'none';
-      if (on && !assistWired) { assistWired = true; wireAssistant(); }
-      // Plain (no flyout) on phones and coarse pointers: no caret, click opens the
-      // panel (the app-wide touch rule, utils.js — a hover flyout needs a hover).
-      const plain = isTouchLike();
-      item.dataset.noSub = plain ? '1' : '0';
-      item.classList.toggle('ctx-assist-plain', plain);
-      if (plain && document.getElementById('ctx-assist-sub')?.classList.contains('ctx-sub-visible')) {
-        closeAllSubs();   // a resize while open collapses the flyout instead of stranding it
-      }
-    };
-    window.addEventListener(EVENTS.llmSettingsChanged, syncAssistant);
-    // A resize WHILE the menu is open re-evaluates the mode (and drops a flyout that
-    // no longer fits) — the next open re-evaluates anyway.
-    window.addEventListener('resize', () => { if (menuIsOpen()) syncAssistant(); });
-    syncAssistant();
+    // The Assistant entry (a submenu parent whose flyout IS a chat) lives in
+    // ctxAssistant.js; it drives the menu's own state through this narrow host.
+    ({ syncAssistant } = wireCtxAssistant(app, {
+      menu,
+      menuIsOpen, closeMenu, closeAllSubs, positionSub, wireSubmenu,
+      sending: () => assistSending,
+      setSending: (v) => { assistSending = v; },
+      bumpBusy: () => { assistBusyUntil = Date.now() + ASSIST_SCROLL_GRACE_MS; },
+      setActiveSub: (sub, item) => { activeSub = sub; activeSubItem = item; },
+      setOnMenuClose: (fn) => { onMenuClose = fn; },
+    }));
 
     // Format the data-hk shortcut spans (hardcoded "Ctrl+C"/"Alt+J" in the markup) right away
     // so macOS shows ⌘/⌥ from the very first paint — not only after the menu is first opened

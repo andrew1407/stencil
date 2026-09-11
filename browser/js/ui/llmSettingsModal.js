@@ -6,8 +6,8 @@ import { loadSavedServers } from '../net/connectionStore.js';
 import { visibleChatMoreBtn } from './chatView.js';
 import { enhanceSelect } from './customSelect.js';
 import { loadVoiceSettings, saveVoiceSettings, VOICE_LANGUAGES, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voiceSettings.js';
-import EVENTS from '../config/events.json' with { type: 'json' };
 import UI_STRINGS from '../config/uiStrings.json' with { type: 'json' };
+import { publish, EVENTS } from '../bus/appBus.js';
 
 // ── Component: assistant (LLM) settings modal ───────────────────
 // Provider + endpoint configuration for the chat panel (llm-contract.md §5), persisted as
@@ -114,7 +114,7 @@ export class StencilLlmSettingsModal extends StencilElement {
     // Persist AND tell the chat panel so it re-probes the provider status live.
     const persist = () => {
       saveLlmSettings(settings);
-      try { window.dispatchEvent(new Event(EVENTS.llmSettingsChanged)); } catch { /* no DOM */ }
+      publish(EVENTS.llmSettingsChanged);
     };
 
     // Server dropdown: live connections first, then saved-but-closed servers.

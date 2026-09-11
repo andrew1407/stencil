@@ -7,6 +7,7 @@
 // an idle spell, each thumb thin at rest and swelling to the accent only under its OWN
 // pointer, draggable, with a page-step on its track.
 import { motionReduced } from './motion.js';
+import { onWindowResize } from './frameSync.js';
 
 const SB_SLOT_PX = 12;      // the strip each bar owns along the viewport edge
 export const SB_MIN_THUMB_PX = 28;
@@ -106,7 +107,7 @@ export const wireCanvasScrollbars = (vp) => {
   };
 
   vp.addEventListener('scroll', reveal, { passive: true });
-  window.addEventListener('resize', layout);
+  onWindowResize(layout);
   window.addEventListener('scroll', layout, { capture: true, passive: true });
   if (typeof ResizeObserver !== 'undefined') {
     const ro = new ResizeObserver(reveal);   // the viewport's box, and the picture's (a zoom)

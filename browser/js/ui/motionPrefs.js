@@ -22,7 +22,7 @@
 // read is guarded: private/disabled storage throws, and the defaults are then correct.
 // The mode is also mirrored onto <html data-motion> for the CSS half (animations.css).
 
-import EVENTS from '../config/events.json' with { type: 'json' };
+import { publish, EVENTS } from '../bus/appBus.js';
 
 export const MOTION_STORAGE_KEY = 'drawingApp_motion';
 // Fired on <window> after every change, so an open dialog can restate its controls.
@@ -119,7 +119,7 @@ export const setMotionPrefs = (patch = {}) => {
   prefs = next;
   try { ls()?.setItem(MOTION_STORAGE_KEY, JSON.stringify(prefs)); } catch { /* storage blocked — this session still honours it */ }
   applyMotionAttr();
-  try { window.dispatchEvent(new CustomEvent(MOTION_EVENT, { detail: motionPrefs() })); } catch { /* no DOM — best-effort UI nudge */ }
+  publish(MOTION_EVENT, motionPrefs());
   return motionPrefs();
 };
 

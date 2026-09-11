@@ -1,0 +1,96 @@
+// ── Chat panel geometry + gear tip text (pure) ──────────────────
+// Every number the dockable panel's layout is made of, and the two tip builders that
+// read a provider probe. No DOM: unit-tested, and the panel wires them to window.inner*.
+import { clamp } from '../utils/math.js';
+import { popoverPosition } from './popover.js';
+import { PROVIDER_LABELS } from '../llm/llmClient.js';
+export const DOCKS = ['left', 'right', 'top', 'bottom', 'float'];
+
+export const FLOAT_DEFAULT = { x: 80, y: 80, w: 360, h: 440 };
+export const DRAG_THRESHOLD_PX = 4;      // plain header clicks must not twitch the panel
+export const DOCK_MIN_SIZE = 240;
+export const DOCK_MAX_FRACTION = 0.8;    // docked panel never exceeds 80% of the viewport
+
+// Clamp a float rect so the WHOLE panel (right/bottom edges included) stays inside
+// the vw×vh viewport. Pure — unit-tested; the panel wires it to window.inner*.
+export const FLOAT_MIN_W = 280;
+export const FLOAT_MIN_H = 220;
+export const clampFloatRect = (r, vw, vh) => {
+  const w = clamp(Math.round(r?.w || FLOAT_DEFAULT.w), FLOAT_MIN_W, vw);
+  const h = clamp(Math.round(r?.h || FLOAT_DEFAULT.h), FLOAT_MIN_H, vh);
+  return {
+    x: clamp(Math.round(r?.x || 0), 0, vw - w),
+    y: clamp(Math.round(r?.y || 0), 0, vh - h),
+    w,
+    h,
+  };
+};
+
+// The compact shape the toolbar icon's popover gestures open (ui/popover.js): the
+// panel floated SMALL and pinned next to the icon, sized like the context-menu chat
+// flyout. Pure — rects in, a clamped float rect out — so it's unit-testable.
+export const COMPACT_CHAT_W = 340;
+export const COMPACT_CHAT_H = 460;
+export const compactChatRect = (anchor, vw, vh) => {
+  const w = Math.min(COMPACT_CHAT_W, vw);
+  const h = Math.min(COMPACT_CHAT_H, vh);
+  const p = popoverPosition({ anchor, box: { width: w, height: h }, viewport: { width: vw, height: vh } });
+  return clampFloatRect({ x: p.left, y: p.top, w, h }, vw, vh);
+};
+
+// Resize a float rect by dragging edge/corner `dir` (n|s|e|w|ne|nw|se|sw) by dx/dy.
+// The opposite edge stays anchored; the moving edge is clamped to the min size and
+// the vw×vh viewport. Pure — unit-tested.
+export const resizeFloatRect = (r, dir, dx, dy, vw, vh) => {
+  let { x, y, w, h } = r;
+  const right = x + w, bottom = y + h;
+  if (dir.includes('e')) w = Math.min(Math.max(FLOAT_MIN_W, w + dx), vw - x);
+  if (dir.includes('s')) h = Math.min(Math.max(FLOAT_MIN_H, h + dy), vh - y);
+  if (dir.includes('w')) { w = Math.min(Math.max(FLOAT_MIN_W, w - dx), right); x = right - w; }
+  if (dir.includes('n')) { h = Math.min(Math.max(FLOAT_MIN_H, h - dy), bottom); y = bottom - h; }
+  return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+};
+
+// Which edge drop zone (if any) a viewport point falls in during a header drag.
+// Corners resolve to the NEAREST edge; null = keep floating. Pure — unit-tested.
+export const DOCK_ZONE_BAND = 72;
+export const dockZoneAt = (x, y, vw, vh, band = DOCK_ZONE_BAND) => {
+  const dist = { left: x, right: vw - x, top: y, bottom: vh - y };
+  let best = null;
+  for (const side of ['left', 'right', 'top', 'bottom']) {
+    if (dist[side] <= band && (best == null || dist[side] < dist[best])) best = side;
+  }
+  return best;
+};
+
+// The configure-gear's status tooltip is a TABLE (.chat-status-tip): one row per
+// fact, the Status cell coloured by `state` (ok|error|connecting). Pure — unit-tested.
+export const gearStatusRows = (probe) => {
+  if (!probe) return [{ label: 'Status', value: 'Checking the configured LLM…', state: 'connecting' }];
+  if (probe.provider === 'none') {
+    return [
+      { label: 'Provider', value: PROVIDER_LABELS.none },
+      { label: 'Status', value: 'Assistant turned off — nothing is sent anywhere', state: 'error' },
+    ];
+  }
+  const rows = [{ label: 'Provider', value: PROVIDER_LABELS[probe.provider] || probe.provider || '—' }];
+  if (probe.url) rows.push({ label: 'Endpoint', value: probe.url.replace(/^https?:\/\//i, '') });
+  rows.push({ label: 'Model', value: probe.model || 'server default' });
+  rows.push(probe.ok
+    ? { label: 'Status', value: `Connected${probe.detail ? ` — ${probe.detail}` : ''}`, state: 'ok' }
+    : { label: 'Status', value: probe.detail || 'Unreachable', state: 'error' });
+  return rows;
+};
+
+// The tooltip's footer lines (pre-line text under the table): what to try / the
+// call to action, always ending with the click hint. Pure — unit-tested.
+export const gearTipFootText = (probe) => {
+  const lines = [];
+  // Connected needs no prose — the table above already says provider/model/status.
+  if (!probe || probe.provider === 'none' || probe.ok) { /* the table says it all */ }
+  else {
+    lines.push(`No LLM reachable${probe.url ? ` at ${probe.url}` : ''} — ${probe.provider === 'ollama' ? 'start Ollama or ' : ''}configure another provider.`);
+  }
+  lines.push('Click to configure the assistant');
+  return lines.join('\n');
+};

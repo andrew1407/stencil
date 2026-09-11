@@ -10,21 +10,21 @@ const PREVIEW_HOVER_MS = 280;
 const swapping = () => !!document.documentElement?.classList?.contains('theme-instant');
 // The pointer's real position — a flood never fires a pointermove. One listener for
 // every menu (a `:hover` check looped: restore fired after each flood, re-arming it).
-let lastPt = null;
+let lastX = NaN, lastY = NaN;   // passive + two numbers, not a point per move: it sees them ALL
 let tracking = false;
 const trackPointer = () => {
   if (tracking) return;
   tracking = true;
-  document.addEventListener('pointermove', (e) => { lastPt = { x: e.clientX, y: e.clientY }; }, true);
+  document.addEventListener('pointermove', (e) => { lastX = e.clientX; lastY = e.clientY; }, { capture: true, passive: true });
   // The pointer left the WINDOW (to the tab bar, another app): no pointermove follows, so
   // the last one would stand as a stale in-menu position and the preview would never
   // revert. A null relatedTarget is the document boundary.
-  document.addEventListener('pointerout', (e) => { if (!e.relatedTarget) lastPt = null; }, true);
+  document.addEventListener('pointerout', (e) => { if (!e.relatedTarget) lastX = NaN; }, { capture: true, passive: true });
 };
 const pointerIn = (el) => {
-  if (!lastPt) return false;
+  if (Number.isNaN(lastX)) return false;
   const r = el.getBoundingClientRect();
-  return lastPt.x >= r.left && lastPt.x <= r.right && lastPt.y >= r.top && lastPt.y <= r.bottom;
+  return lastX >= r.left && lastX <= r.right && lastY >= r.top && lastY <= r.bottom;
 };
 
 // Custom "main theme" dropdown: a native <select> can't paint a per-option colour

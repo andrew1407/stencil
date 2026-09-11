@@ -7,7 +7,7 @@ import { enhanceSelect } from './customSelect.js';
 import { MOTION_MODE_LABELS, motionPrefs, MOTION_EVENT,
          DEFAULT_MOTION_MODE, DEFAULT_DRAWING_ANIMATIONS } from './motionPrefs.js';
 import { icon } from './icons.js';
-import EVENTS from '../config/events.json' with { type: 'json' };
+import { subscribe, EVENTS } from '../bus/appBus.js';
 // ── Component: visual defaults modal ────────────────────────────
 export class StencilVisualsModal extends StencilElement {
   static inner() {
@@ -124,7 +124,7 @@ export class StencilVisualsModal extends StencilElement {
     });
     // The accent moved elsewhere (logo click-cycle or menu, another tab) — keep this picker's
     // swatch in sync. Custom hex first, so the trigger never shows a stale preset name.
-    window.addEventListener(EVENTS.accentChanged,
+    subscribe(EVENTS.accentChanged,
       (e) => accentPicker.set(typeof e.detail === 'string' ? e.detail : (app.customAccent || app.accent)));
 
     // Appearance — light, dark, or SYSTEM (follow the OS; the toolbar moon/sun is the
@@ -141,7 +141,7 @@ export class StencilVisualsModal extends StencilElement {
       app.accents.setThemeMode(appearance.value, from);
     });
     // The toolbar toggle (or another tab) can move it while this dialog is open.
-    window.addEventListener(EVENTS.themeChanged, syncAppearance);
+    subscribe(EVENTS.themeChanged, syncAppearance);
 
     // ── Motion: the canvas stroke animation, and how the interface itself moves ──
     // Both are app-wide (ui/motionPrefs.js), not part of the project — like the theme
@@ -160,7 +160,7 @@ export class StencilVisualsModal extends StencilElement {
     drawAnim.addEventListener('change', () => app.settings.setMotion('drawing', drawAnim.checked));
     motionMode.addEventListener('change', () => app.settings.setMotion('mode', motionMode.value));
     // Moved from the console (or another dialog) while this one is open.
-    window.addEventListener(MOTION_EVENT, syncMotion);
+    subscribe(MOTION_EVENT, syncMotion);
 
     const els = {
       lineColor: document.getElementById('vs-line-color'),

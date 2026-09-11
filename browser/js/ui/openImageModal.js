@@ -5,7 +5,8 @@ import constants from '../config/constants.json' with { type: 'json' };
 import MEDIA_TYPES from '../config/mediaTypes.json' with { type: 'json' };
 import { defaultBlankSizePx } from '../core/layout.js';
 import { icon } from './icons.js';
-import { isVideoFile, isVideoUrl, videoFileToImageFile, videoFrameDataUrl } from '../core/videoFrame.js';
+import { isVideoFile, isVideoUrl, videoFrameDataUrl } from '../core/videoFrame.js';
+import { fetchUrlToFile, toFrameIfVideo as frameIfVideo } from '../core/imageSourceLoader.js';
 import { cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, isAlbumOrientation } from '../core/cropGeometry.js';
 const { PAGE_SIZES } = constants;
 
@@ -507,22 +508,7 @@ export class StencilOpenImageModal extends StencilElement {
     $('blank-image-white').addEventListener('click', () => { colorEl.value = '#ffffff'; });
     $('blank-image-black').addEventListener('click', () => { colorEl.value = '#000000'; });
 
-    // Fetch a URL's bytes into a File (same-origin / data: / CORS-enabled), mirroring
-    // the old Links modal's honest fetch path (a canvas readback would taint without CORS).
-    const fetchUrlToFile = async (url) => {
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const blob = await resp.blob();
-      const ext = (blob.type.split('/')[1] || url.split(/[?#]/)[0].split('.').pop() || 'png').slice(0, 5);
-      const name = (url.split(/[?#]/)[0].split('/').pop() || 'image').replace(/\.[a-z0-9]+$/i, '') + '.' + ext;
-      return new File([blob], name, { type: blob.type || 'image/png' });
-    };
-
-    // A video source is converted to a captured still frame first; images pass through.
-    const toFrameIfVideo = async (file) => {
-      if (!isVideoFile(file)) return file;
-      return await videoFileToImageFile(file, Number(frameEl && frameEl.value) || 0);
-    };
+    const toFrameIfVideo = (file) => frameIfVideo(file, Number(frameEl && frameEl.value) || 0);
 
     // Resolve the active tab's source (file or URL) to a still-image File, or null on
     // error (already notified). URLs are fetched first, then treated exactly like a file.
