@@ -13,7 +13,7 @@
     "browser/js/core/renderer.js": 418,
     "browser/js/core/settingsController.js": 410,
     "browser/js/core/stencilCore.js": 393,
-    "browser/js/core/storage.js": 429,
+    "browser/js/core/storage.js": 381,
     "browser/js/core/tabsCoordinator.js": 232,
     "browser/js/core/zoomPan.js": 115,
     "browser/js/llm/chatController.js": 481,

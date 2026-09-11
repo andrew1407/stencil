@@ -8,6 +8,8 @@ import { createTrailingSave } from './zoomPan.js';
 import { ghostOut, flashLanding, playCanvasArrival, revealControls, GHOST_MS } from '../ui/motion.js';
 import { setChecked } from '../ui/controlSwap.js';
 import { showImageMissingBanner as paintImageMissingBanner } from '../ui/imageMissingBanner.js';
+import { paintPageSize, paintDrawingControls, paintVisibilityChecks, paintFormulaFields,
+         hideSelectionPanels, resetViewportScroll, scrollViewportTo } from '../ui/layoutControls.js';
 import { upsertWithQuota } from './quotaWriter.js';
 import { buildLayoutState, buildProjectMeta } from './projectMeta.js';
 
@@ -103,19 +105,13 @@ export class Storage {
     const layout = payload.layout || {};
     this.app.lines = layout.lines || [];
     this.app.history.reset(this.app.lines, this.app.lines.length ? 0 : -1);
-    if (layout.showPoints !== undefined) {
-      this.app.showPoints = layout.showPoints;
-      setChecked(document.getElementById('show-points'), layout.showPoints);
-    }
-    if (layout.showLines !== undefined) {
-      this.app.showLines = layout.showLines;
-      setChecked(document.getElementById('show-lines'), layout.showLines);
-    }
+    if (layout.showPoints !== undefined) this.app.showPoints = layout.showPoints;
+    if (layout.showLines !== undefined) this.app.showLines = layout.showLines;
+    paintVisibilityChecks(this.app);
     this.app.selectedLineIdx = -1;
     this.app.coordLineIdx = -1;
     this.app.focusedPtIdx = -1;
-    const selPanel = document.getElementById('selection-panel');
-    if (selPanel) selPanel.style.display = 'none';
+    hideSelectionPanels();
     this.app.renderer.redraw();
     this.app.updateButtons();
     this.app.coordTable.update(this.app.lines.length ? this.app.lines[this.app.lines.length - 1].points : null);
@@ -181,8 +177,7 @@ export class Storage {
       const pageSize = normalizePageSize(layout.pageSize);
       if (pageSize) {
         this.app.pageSize = pageSize;
-        document.getElementById('page-size').value = pageSize;
-        revealControls(document.getElementById('custom-size-group'), pageSize === 'custom');
+        paintPageSize(pageSize);
       }
       if (layout.customPageWidth) this.app.customPageWidth = layout.customPageWidth;
       if (layout.customPageHeight) this.app.customPageHeight = layout.customPageHeight;
@@ -190,42 +185,18 @@ export class Storage {
       // it (stored values are cm; applyUnitToUI converts for display).
       if (layout.unit) this.app.unit = layout.unit;
       this.app.applyUnitToUI();
-      if (layout.color) {
-        this.app.color = layout.color;
-        document.getElementById('line-color').value = layout.color;
-      }
+      if (layout.color) this.app.color = layout.color;
       // '' is a MEANINGFUL value here ("points follow the line colour"), so this restores
       // on a typeof check rather than truthiness the way the others do.
-      if (typeof layout.pointColor === 'string') {
-        this.app.pointColor = layout.pointColor;
-        const el = document.getElementById('point-color');
-        if (el && layout.pointColor) el.value = layout.pointColor;
-      }
-      if (layout.thickness) {
-        this.app.thickness = layout.thickness;
-        document.getElementById('line-thickness').value = layout.thickness;
-      }
-      if (layout.pointSize) {
-        this.app.pointSize = layout.pointSize;
-        document.getElementById('point-size').value = layout.pointSize;
-      }
-      if (layout.style) {
-        this.app.style = layout.style;
-        document.getElementById('line-style').value = layout.style;
-      }
+      if (typeof layout.pointColor === 'string') this.app.pointColor = layout.pointColor;
+      if (layout.thickness) this.app.thickness = layout.thickness;
+      if (layout.pointSize) this.app.pointSize = layout.pointSize;
+      if (layout.style) this.app.style = layout.style;
       this.app.showPoints = layout.showPoints !== undefined ? layout.showPoints : true;
       this.app.showLines = layout.showLines !== undefined ? layout.showLines : true;
       this.app.imageFilter = layout.imageFilter || (layout.blackAndWhite ? 'bw' : 'none');
-      if (layout.filterColor) {
-        this.app.filterColor = layout.filterColor;
-        const fp = document.getElementById('filter-color');
-        if (fp) fp.value = this.app.filterColor;
-      }
-      setChecked(document.getElementById('show-points'), this.app.showPoints);
-      setChecked(document.getElementById('show-lines'), this.app.showLines);
-      document.getElementById('image-filter').value = this.app.imageFilter;
-      const filterColorPicker = document.getElementById('filter-color');
-      if (filterColorPicker) filterColorPicker.style.display = (this.app.imageFilter === 'custom') ? 'inline-block' : 'none';
+      if (layout.filterColor) this.app.filterColor = layout.filterColor;
+      paintDrawingControls(this.app, layout);
       this.app.imageBaseName = layout.imageBaseName || null;
       this.app.imageExt = layout.imageExt || null;
       this.app.imageSource = layout.imageSource || null;
@@ -240,16 +211,7 @@ export class Storage {
       this.app.settings.syncFormulaUI(this.app.allowFormulas);
       this.app.formulaX = layout.formulaX || '';
       this.app.formulaY = layout.formulaY || '';
-      {
-        const el = document.getElementById('formula-x');
-        const ctxEl = document.getElementById('ctx-formula-x');
-        if (el) el.value = this.app.formulaX;
-        if (ctxEl) ctxEl.value = this.app.formulaX;
-        const ely = document.getElementById('formula-y');
-        const ctxEly = document.getElementById('ctx-formula-y');
-        if (ely) ely.value = this.app.formulaY;
-        if (ctxEly) ctxEly.value = this.app.formulaY;
-      }
+      paintFormulaFields(this.app);
       if (layout.drawMode) this.app.drawMode = layout.drawMode;
       if (Number.isFinite(layout.holdDrawDelay))
         this.app.input.setHoldDrawDelay(layout.holdDrawDelay, { persist: false });   // clamps in one place
@@ -283,15 +245,9 @@ export class Storage {
 
           if (layout.zoom) {
             this.app.zoomPan.setZoom(layout.zoom);   // also sizes the viewport (syncViewportHeight)
-            const vp = document.getElementById('canvas-viewport');
-            if (vp) {
-              // Synchronously, BEFORE the arrival below — assigning scroll forces the
-              // reflow it needs, so the dust forms over the very slice the user will
-              // see. Deferred a frame, the restore jumped the viewport out from under
-              // the freshly-raised cloud.
-              vp.scrollLeft = layout.scrollLeft || 0;
-              vp.scrollTop = layout.scrollTop || 0;
-            }
+            // Synchronously, BEFORE the arrival below, so the dust forms over the very
+            // slice the user will see (scrollViewportTo says why that reflow matters).
+            scrollViewportTo(layout.scrollLeft, layout.scrollTop);
           } else {
             this.app.zoomPan.fitToWindow();
           }
@@ -403,12 +359,8 @@ export class Storage {
     this.app.scale = 1;
     this.app.renderedScale = null;
     this.app.zoomPan?.setZoomInputValue(100);
-    const vp = document.getElementById('canvas-viewport');
-    if (vp) { vp.scrollLeft = 0; vp.scrollTop = 0; }
-    const selPanel = document.getElementById('selection-panel');
-    if (selPanel) selPanel.style.display = 'none';
-    const fsPanel = document.getElementById('fs-selection-panel');
-    if (fsPanel) fsPanel.style.display = 'none';
+    resetViewportScroll();
+    hideSelectionPanels();
     this.showImageMissingBanner(false);
 
     this.app.updateInfo();

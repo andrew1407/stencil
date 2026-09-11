@@ -123,10 +123,14 @@ test('newTemporary resets the canvas size/zoom and the viewport scroll, not just
   assert.match(body, /this\.app\.canvas\.style\.width = ''/, 'a stale inline CSS width survives the clear');
   assert.match(body, /this\.app\.canvas\.style\.height = ''/, 'a stale inline CSS height survives the clear');
   assert.match(body, /this\.app\.scale = 1/, 'the zoom level is never reset on clear');
-  const scroll = body.match(/const vp = document\.getElementById\('canvas-viewport'\);\s*\n\s*if \(vp\) \{ ([^}]+) \}/)?.[1];
-  assert.ok(scroll, 'the viewport scroll position is never reset on clear');
-  assert.match(scroll, /vp\.scrollLeft = 0/);
-  assert.match(scroll, /vp\.scrollTop = 0/);
+  assert.match(body, /resetViewportScroll\(\);/, 'the viewport scroll position is never reset on clear');
+  // …and that helper (ui/layoutControls.js) is what actually puts it back to the corner.
+  const controls = readFileSync(new URL('../js/ui/layoutControls.js', import.meta.url), 'utf8');
+  assert.match(controls, /export const resetViewportScroll = \(\) => scrollViewportTo\(0, 0\);/);
+  const scroll = controls.match(/export const scrollViewportTo[\s\S]{0,200}if \(vp\) \{ ([^}]+) \}/)?.[1];
+  assert.ok(scroll, 'scrollViewportTo must touch the viewport');
+  assert.match(scroll, /vp\.scrollLeft = left \|\| 0/);
+  assert.match(scroll, /vp\.scrollTop = top \|\| 0/);
 });
 
 // Collapsed to its rail, the points/lines panel shows one chevron. As a `display: block`

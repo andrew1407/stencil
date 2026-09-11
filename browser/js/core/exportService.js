@@ -28,10 +28,8 @@ export class ExportService {
   //   'current'  — active filter/tint + visible lines/points (the original, default behavior)
   //   'original' — the cropped+rotated original alone: no filter, no annotations
   //   'tint'     — active filter/tint, but no lines/points
-  //   'split'    — 'current' plus the split-compare composite (edited half + original
-  //                half). Always a CLEAN split: the divider bar and its knob are on-screen
-  //                editor UI, not part of the picture, so every export opts out of
-  //                drawCompareSplit's live-canvas `withDivider` default.
+  //   'split'    — 'current' plus the compare composite, always CLEAN: the divider and its
+  //                knob are editor UI, so exports opt out of drawCompareSplit's withDivider.
   renderExportCanvas(variant = 'current') {
     const app = this.app;
     const offscreen = document.createElement('canvas');
@@ -178,10 +176,8 @@ export class ExportService {
   // ClipboardItem — deferring into the async toBlob callback loses the user-activation
   // (NotAllowedError on macOS WebKit). Returns a promise resolving on a successful write
   // and REJECTING on failure, so a plan-driven copy (§10 `copy` op) can report the outcome.
-  //   variant: 'current' (default, Ctrl+C) | 'original' (Ctrl+Shift+C) | 'tint' (Ctrl+Alt+C)
-  //            | 'split' (Ctrl+C's OWN row/slot while a split compare view is active —
-  //            see controlsBinder.js's copyImage hotkey handler and exportOptionsMenu.js's
-  //            openFull, which decide 'split' vs 'current' at the call site)
+  //   variant: 'current' (Ctrl+C) | 'original' (Ctrl+Shift+C) | 'tint' (Ctrl+Alt+C) |
+  //            'split' (Ctrl+C's own slot in a compare view; the call site decides which).
   copyImageToClipboard(variant = 'current') {
     // Rejections are PRE-CAUGHT on a side branch so a fire-and-forget caller (the
     // toolbar button, the chainable facade) never trips unhandledrejection, while an

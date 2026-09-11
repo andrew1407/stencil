@@ -7,23 +7,19 @@ import { requireConnection, createRemoteProject, saveRemoteProject } from '../ne
 import { getSyncToServer } from '../net/connectionStore.js';
 
 // ── ProjectTransferController: project lifecycle + local ↔ server transfer ──────
-// Extracted from drawingApp.js (named after desktop's projectTransferController.cpp, whose
-// Hooks pattern the `host` facade mirrors). Owns switching/opening projects, meta writes
-// (rename/color/keywords/expiration/blank colour) with their server pushes, remove/clear,
-// and the move/copy flows between local storage and a collaboration server.
+// Switching/opening projects, the meta writes with their server pushes, remove/clear, and
+// the move/copy flows between local storage and a collaboration server. Desktop twin:
+// projectTransferController.cpp, whose Hooks pattern the `host` facade mirrors.
 //
-// Explicit deps, so the whole subsystem is unit-testable without a DrawingApp:
-//   storage        — the Storage instance (store registry, save/loadProject/newTemporary,
-//                    temporary/incognito flags)
+// Explicit deps, so the subsystem unit-tests without a DrawingApp:
+//   storage        — Storage (registry, save/loadProject/newTemporary, temp/incognito flags)
 //   tabs           — TabsCoordinator (peer-tab broadcasts)
 //   remoteSync     — RemoteSyncController (reloadRemoteActive, fetchRemoteOriginal)
-//   getConnections — () => ConnectionManager; a getter because stencilApi creates it lazily
+//   getConnections — () => ConnectionManager; a getter, since stencilApi creates it lazily
 //   host           — the narrow app facade: activeProjectId + remoteLink (get/set),
-//                    blankColor/imageBaseName (set), chatPersistence (get), and the
-//                    session callbacks updateProjectTitle / updateIncognitoUI / newEditor /
+//                    blankColor/imageBaseName (set), chatPersistence (get), and the session
+//                    callbacks updateProjectTitle / updateIncognitoUI / newEditor /
 //                    loadImageFromFile / setBlankColor.
-// DrawingApp keeps thin delegating methods, so every call site (stencilApi, controlsBinder,
-// projectsModal glue) is untouched.
 export class ProjectTransferController {
   constructor({ storage, tabs, remoteSync, getConnections, host }) {
     this.storage = storage;
