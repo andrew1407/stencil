@@ -17,6 +17,7 @@
 #include "linksDialog.hpp"
 #include "mediaLoader.hpp"
 #include "../support/modalChrome.hpp"
+#include "../support/rowWork.hpp"
 
 #include <QFileInfo>
 #include <QImage>
@@ -33,11 +34,23 @@ namespace stencil::gui {
                                               settings_.customPageWidth,
                                               settings_.customPageHeight);
     canvas_->setPageCm(page.width, page.height);
-    if (!canvas_->loadImage(path)) {
+    // Decoding the picture and re-reading its bytes for the bundle are independent file
+    // jobs, so they run as two slices: the decode goes to the pool, this thread takes
+    // slice 0. Neither touches GUI state; the canvas is handed the finished pixels.
+    QImage decoded;
+    QByteArray sourceBytes;
+    const QString ext = QFileInfo(path).suffix().toLower();
+    support::forEachSlice(2, 1, [&](int i0, int i1) {
+      for (int i = i0; i < i1; ++i) {
+        if (i == 0) { if (!ext.isEmpty()) readFileBytes(path, sourceBytes); }
+        else decoded.load(path);
+      }
+    });
+    if (!canvas_->loadImage(path, decoded)) {
       notify_->error("Failed to load image");
       return false;
     }
-    retainSourceFromFile(path);   // keep the untouched file bytes for a lossless .stencil bundle
+    setSourceBytes(sourceBytes, ext);   // untouched file bytes ⇒ a lossless .stencil bundle
     currentSource_.clear();  // a local file has no source/resource provenance
     currentResource_.clear();
     blankColor_.clear();     // a loaded image is not a blank project
