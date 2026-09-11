@@ -27,10 +27,10 @@
     "bot/tests/Stencil.TelegramBot.Tests/ChatModeTests.cs": 171,
     "bot/tests/Stencil.TelegramBot.Tests/ChatPersistenceTests.cs": 296,
     "bot/tests/Stencil.TelegramBot.Tests/CliArgvBuilderTests.cs": 205,
-    "bot/tests/Stencil.TelegramBot.Tests/CliOutcomeParserTests.cs": 234,
+    "bot/tests/Stencil.TelegramBot.Tests/CliOutcomeParserTests.cs": 129,
     "bot/tests/Stencil.TelegramBot.Tests/EditingServiceTests.cs": 195,
-    "bot/tests/Stencil.TelegramBot.Tests/HttpLlmClientTests.cs": 305,
-    "bot/tests/Stencil.TelegramBot.Tests/HttpStencilServerClientTests.cs": 334,
+    "bot/tests/Stencil.TelegramBot.Tests/HttpLlmClientTests.cs": 83,
+    "bot/tests/Stencil.TelegramBot.Tests/HttpStencilServerClientTests.cs": 118,
     "bot/tests/Stencil.TelegramBot.Tests/PromptHandlerTests.cs": 275,
     "bot/tests/Stencil.TelegramBot.Tests/ServerServiceTests.cs": 167
   },
