@@ -86,10 +86,15 @@ pystencil/
   pystencil/
     __init__.py           # public exports (Editor/Image/Layout/… + Stencil alias)
     _native.py            # locate → (lazily) build → ctypes-load the shared lib
-    core.py               # class Core over the stencil_cli_* ABI
+    core.py               # class Core over the stencil_cli_* ABI (scalar half)
+    _rasterops.py         # its pixel-buffer half — crop + the RGBA8 kernels
     _bindings.py          # the ctypes .argtypes/.restype table for that ABI
+    _marshal.py           # str/bytes/bytearray → C views, and the buffer guards
+    _opschema/            # the registry-driven op-plan schema engine
+                          #   (path · rules · checks · schema)
     image.py              # class Image (RGBA8 buffer)
-    layout.py             # Point / Line / Layout dataclasses (camelCase JSON)
+    layout.py             # Point / Line / Layout dataclasses (camelCase JSON),
+                          #   parsed through _coerce.py's tolerant coercions
     codecs/               # pure-python PNG + BMP encode/decode (png · bmp · sniff)
     editor/               # class Editor — the chainable facade, over its history,
                           #   derive, project, layout_io and source collaborators
@@ -100,7 +105,8 @@ pystencil/
     cli/                  # python -m pystencil — the one-shot pipeline, the console
                           #   I/O surface, and the /command REPL (commands/)
   tests/                  # one suite per subject, named after it
-    test_codecs.py test_layout.py test_core.py test_editor.py
+    test_codecs.py test_layout.py test_core.py test_image*.py
+    test_editor*.py test_projectfile*.py test_fixture_*.py
     test_llm_*.py test_server_*.py test_sitesource_*.py test_cli_*.py
 ```
 
