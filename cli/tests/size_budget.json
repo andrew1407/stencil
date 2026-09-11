@@ -5,7 +5,7 @@
     "cli/src/args.zig": 14,
     "cli/src/clipboard.zig": 298,
     "cli/src/console.zig": 73,
-    "cli/src/console/ansi.zig": 345,
+    "cli/src/console/ansi.zig": 30,
     "cli/src/console/attachments.zig": 71,
     "cli/src/console/handlers.zig": 77,
     "cli/src/console/llmPrompt.zig": 18,
