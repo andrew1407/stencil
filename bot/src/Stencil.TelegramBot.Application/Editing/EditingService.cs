@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Stencil.TelegramBot.Application.Llm;
 using Stencil.TelegramBot.Application.Servers;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
@@ -18,17 +19,21 @@ namespace Stencil.TelegramBot.Application.Editing;
 /// the original plus that state to one <see cref="EditRequest"/>. Its friendly
 /// <see cref="InvalidOperationException"/> messages are meant to be surfaced verbatim.
 /// </remarks>
-public sealed class EditingService : IEditingService
+public sealed partial class EditingService : IEditingService
 {
     private readonly IStencilCli _cli;
     private readonly IUserWorkspace _workspace;
     private readonly ISessionStore _store;
+    private readonly VideoFrames _video;
+    private readonly ProjectFileService _projectFiles;
 
     public EditingService(IStencilCli cli, IUserWorkspace workspace, ISessionStore store)
     {
         _cli = cli;
         _workspace = workspace;
         _store = store;
+        _video = new VideoFrames(cli, workspace);
+        _projectFiles = new ProjectFileService(cli, this);
     }
 
     /// <inheritdoc />
@@ -38,8 +43,8 @@ public sealed class EditingService : IEditingService
         var extension = Path.GetExtension(sourcePath);
         var destination = _workspace.NewFilePath(userId, extension);
         File.Copy(sourcePath, destination, overwrite: true);
-        var size = await _cli.ProbeAsync(destination, ct);
-        var updated = ResetToImage(session, destination, size, label, sourceUrl);
+        var size = await ImageDimensionReader.TryReadFileAsync(destination, ct) ?? await _cli.ProbeAsync(destination, ct);
+        var updated = EditSessions.ResetToImage(session, destination, size, label, sourceUrl);
         await _store.SaveAsync(updated, ct);
         return updated;
     }
@@ -59,7 +64,7 @@ public sealed class EditingService : IEditingService
             Overwrite = true,
         };
         var result = await _cli.EditAsync(request, ct);
-        var updated = ResetToImage(session, result.Path, result.Size, label, url);
+        var updated = EditSessions.ResetToImage(session, result.Path, result.Size, label, url);
         await _store.SaveAsync(updated, ct);
         return updated;
     }
@@ -94,7 +99,7 @@ public sealed class EditingService : IEditingService
             Overwrite = true,
         };
         var result = await _cli.EditAsync(request, ct);
-        var updated = ResetToImage(session, result.Path, result.Size, "blank");
+        var updated = EditSessions.ResetToImage(session, result.Path, result.Size, "blank");
         // Carry a page format onto the fresh canvas so a later /save writes the layout's pageSize:
         // the page the blank was made with wins; one made from explicit pixel dims keeps the
         // previous /format pick, mirroring the CLI console's doBlank restore order.
@@ -130,253 +135,13 @@ public sealed class EditingService : IEditingService
     }
 
     /// <inheritdoc />
-    public Task<UserSession> SetCropAsync(long userId, string spec, bool album, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, edits => edits with { CropSpec = spec, Album = album }, ct);
-
-    /// <inheritdoc />
-    public Task<UserSession> RotateAsync(long userId, int quarterTurns, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, edits => edits with { Rotate = ((((edits.Rotate + quarterTurns) % 4) + 4) % 4) }, ct);
-
-    /// <inheritdoc />
-    public Task<UserSession> SetFilterAsync(long userId, string? filter, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, edits => edits with { Filter = NormalizeFilter(filter) }, ct);
-
-    /// <inheritdoc />
-    public Task<UserSession> SetPageFormatAsync(long userId, string format, double? widthCm = null, double? heightCm = null, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, edits => WithPageFormat(edits, format, widthCm, heightCm), ct);
-
-    /// <summary>Set the page format on an edit state; cm dims only ride a <c>custom</c> format.</summary>
-    private static EditState WithPageFormat(EditState edits, string format, double? widthCm, double? heightCm) =>
-        edits with
-        {
-            PageFormat = format,
-            CustomPageWidth = format == "custom" ? widthCm : null,
-            CustomPageHeight = format == "custom" ? heightCm : null,
-        };
-
-    /// <inheritdoc />
-    public Task<UserSession> ApplyLayoutAsync(
-        long userId, StencilLayout layout, bool combine = false, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, edits =>
-        {
-            // Combine keeps what is already drawn and puts the incoming lines on top —
-            // the same choice the GUI editors offer, and the CLI console's `apply … combine`.
-            if (!combine || edits.Layout is null) return edits with { Layout = layout };
-            List<LayoutLine> merged = [.. edits.Layout.Lines, .. layout.Lines];
-            return edits with { Layout = layout with { Lines = merged } };
-        }, ct);
-
-    /// <inheritdoc />
-    public Task<UserSession> SetFormulaAsync(long userId, string axis, string expr, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, edits =>
-        {
-            string? value = string.IsNullOrWhiteSpace(expr) ? null : expr;
-            return axis.Equals("y", StringComparison.OrdinalIgnoreCase)
-                ? edits with { FormulaY = value }
-                : edits with { FormulaX = value };
-        }, ct);
-
-    /// <inheritdoc />
-    public async Task<UserSession> UndoAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        if (session.EditHistory.Count == 0)
-        {
-            return session;
-        }
-        var previous = session.EditHistory[^1];
-        var history = session.EditHistory.Take(session.EditHistory.Count - 1).ToList();
-        var redo = Bounded(session.EditRedo.Append(session.Edits));
-        var updated = session with { Edits = previous, EditHistory = history, EditRedo = redo };
-        await _store.SaveAsync(updated, ct);
-        return updated;
-    }
-
-    /// <inheritdoc />
-    public async Task<UserSession> RedoAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        if (session.EditRedo.Count == 0)
-        {
-            return session;
-        }
-        var next = session.EditRedo[^1];
-        var redo = session.EditRedo.Take(session.EditRedo.Count - 1).ToList();
-        var history = Bounded(session.EditHistory.Append(session.Edits));
-        var updated = session with { Edits = next, EditHistory = history, EditRedo = redo };
-        await _store.SaveAsync(updated, ct);
-        return updated;
-    }
-
-    /// <inheritdoc />
-    public async Task<UserSession> ResetEditsAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        var updated = session with { Edits = new EditState(), EditHistory = [], EditRedo = [] };
-        await _store.SaveAsync(updated, ct);
-        return updated;
-    }
-
-    /// <inheritdoc />
-    public async Task<UserSession> DropImageAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        _workspace.Clear(userId);
-        var updated = session with
-        {
-            OriginalImagePath = null,
-            OriginalWidth = 0,
-            OriginalHeight = 0,
-            ImageLabel = null,
-            VideoSourcePath = null,
-            Edits = new EditState(),
-            EditHistory = [],
-            EditRedo = [],
-            ActiveServerUrl = null,
-            ActiveProjectId = null,
-            ActiveProjectName = null,
-            ActiveProjectDescription = null,
-            ActiveProjectCreatedAt = 0,
-            ActiveProjectExpiresAt = 0,
-            ActiveProjectVersion = 0,
-            ActiveProjectLayoutJson = null,
-        };
-        await _store.SaveAsync(updated, ct);
-        return updated;
-    }
-
-    /// <summary>Number of edit snapshots kept for undo (older ones are dropped).</summary>
-    private const int MaxHistory = 25;
-
-    /// <summary>Load, fold a new edit state, record the prior state for undo, and persist.</summary>
-    private async Task<UserSession> ApplyEditAsync(long userId, Func<UserSession, EditState> mutate, CancellationToken ct)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        var updated = WithHistory(session, mutate(session));
-        await _store.SaveAsync(updated, ct);
-        return updated;
-    }
-
-    /// <summary>Convenience overload whose mutator only needs the current <see cref="EditState"/>.</summary>
-    private Task<UserSession> ApplyEditAsync(long userId, Func<EditState, EditState> mutate, CancellationToken ct) =>
-        ApplyEditAsync(userId, session => mutate(session.Edits), ct);
-
-    /// <summary>Push the current state onto the bounded history; a fresh edit clears redo.</summary>
-    private static UserSession WithHistory(UserSession session, EditState newEdits)
-    {
-        var history = Bounded(session.EditHistory.Append(session.Edits));
-        return session with { Edits = newEdits, EditHistory = history, EditRedo = [] };
-    }
-
-    /// <summary>Keep only the most recent <see cref="MaxHistory"/> entries of an undo/redo stack.</summary>
-    private static List<EditState> Bounded(IEnumerable<EditState> stack)
-    {
-        var list = stack.ToList();
-        if (list.Count > MaxHistory)
-        {
-            list = list.Skip(list.Count - MaxHistory).ToList();
-        }
-        return list;
-    }
-
-    /// <inheritdoc />
-    public async Task<UserSession> ConfigurePenAsync(long userId, string? color, double? thickness, double? pointSize, string? style, string? fill, CancellationToken ct = default)
-    {
-        // The CLI SKIPS a colour it can't parse, so a typo would silently paint the default
-        // instead of failing. Reject it here, for /color, /fill and the §10 lineStyle op alike.
-        RejectUnparseableColor(color, "colour");
-        RejectUnparseableColor(NormalizeFill(fill), "fill");
-        var session = await _store.GetAsync(userId, ct);
-        var pen = session.Edits.Pen;
-        var updatedPen = pen with
-        {
-            Color = color ?? pen.Color,
-            Thickness = thickness ?? pen.Thickness,
-            PointSize = pointSize ?? pen.PointSize,
-            Style = style ?? pen.Style,
-            FillColor = NormalizeFill(fill) ?? pen.FillColor,
-        };
-        var updated = session with { Edits = session.Edits with { Pen = updatedPen } };
-        await _store.SaveAsync(updated, ct);
-        return updated;
-    }
-
-    /// <inheritdoc />
-    public Task<UserSession> AddLineAsync(long userId, IReadOnlyList<LayoutPoint> points, bool closed, CancellationToken ct = default) =>
-        ApplyEditAsync(userId, session =>
-        {
-            var pen = session.Edits.Pen;
-            var pts = points.ToList();
-            if (closed && pts.Count >= 1)
-            {
-                var first = pts[0];
-                var last = pts[^1];
-                if (last.X != first.X || last.Y != first.Y)
-                {
-                    pts.Add(first);
-                }
-            }
-            var line = new LayoutLine
-            {
-                Points = pts,
-                Color = pen.Color,
-                Thickness = pen.Thickness,
-                PointSize = pen.PointSize,
-                Style = pen.Style,
-                Locked = closed,
-                FillColor = closed ? pen.FillColor : LayoutLine.DefaultFillColor,
-            };
-            var layout = session.Edits.Layout ?? EmptyLayout(session);
-            var lines = layout.Lines.Append(line).ToList();
-            var updatedLayout = layout with
-            {
-                Lines = lines,
-                ImageWidth = session.OriginalWidth,
-                ImageHeight = session.OriginalHeight,
-            };
-            return session.Edits with { Layout = updatedLayout };
-        }, ct);
-
-    /// <inheritdoc />
-    public async Task<UserSession> RemoveLastLineAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        var layout = session.Edits.Layout;
-        if (layout is null || layout.Lines.Count == 0)
-        {
-            return session;
-        }
-        var lines = layout.Lines.Take(layout.Lines.Count - 1).ToList();
-        var updatedLayout = lines.Count == 0 ? null : layout with { Lines = lines };
-        var updated = WithHistory(session, session.Edits with { Layout = updatedLayout });
-        await _store.SaveAsync(updated, ct);
-        return updated;
-    }
-
-    /// <inheritdoc />
-    public async Task<UserSession> ClearLinesAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        if (session.Edits.Layout is null)
-        {
-            return session;
-        }
-        var updated = WithHistory(session, session.Edits with { Layout = null });
-        await _store.SaveAsync(updated, ct);
-        return updated;
-    }
-
-    /// <inheritdoc />
     public async Task<UserSession> SetImageFromVideoAsync(long userId, string videoSourcePath, int frame, string label, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
-        var ext = Path.GetExtension(videoSourcePath);
-        var storedVideo = _workspace.NewFilePath(userId, ext.Length == 0 ? ".mp4" : ext);
-        File.Copy(videoSourcePath, storedVideo, overwrite: true);
-        var result = await GrabFrameAsync(userId, storedVideo, frame, ct);
-        var updated = ResetToImage(session, result.Path, result.Size, label) with { VideoSourcePath = storedVideo };
-        await _store.SaveAsync(updated, ct);
-        return updated;
+        var storedVideo = _video.Store(userId, videoSourcePath);
+        var result = await _video.GrabAsync(userId, storedVideo, frame, ct);
+        return await SaveAsync(
+            EditSessions.ResetToImage(session, result.Path, result.Size, label) with { VideoSourcePath = storedVideo }, ct);
     }
 
     /// <inheritdoc />
@@ -389,80 +154,14 @@ public sealed class EditingService : IEditingService
         }
         var video = session.VideoSourcePath;
         var label = session.ImageLabel ?? "frame";
-        var result = await GrabFrameAsync(userId, video, frame, ct);
-        var updated = ResetToImage(session, result.Path, result.Size, label) with { VideoSourcePath = video };
-        await _store.SaveAsync(updated, ct);
-        return updated;
-    }
-
-    /// <summary>Render one video frame to a fresh PNG via the CLI (<c>-i video -f n</c>).</summary>
-    private Task<RenderResult> GrabFrameAsync(long userId, string videoPath, int frame, CancellationToken ct)
-    {
-        var request = new EditRequest
-        {
-            Input = videoPath,
-            Frame = frame,
-            Output = _workspace.NewFilePath(userId, ".png"),
-            Overwrite = true,
-        };
-        return _cli.EditAsync(request, ct);
+        var result = await _video.GrabAsync(userId, video, frame, ct);
+        return await SaveAsync(
+            EditSessions.ResetToImage(session, result.Path, result.Size, label) with { VideoSourcePath = video }, ct);
     }
 
     /// <inheritdoc />
     public Task<string> StoreOriginalBytesAsync(long userId, byte[] data, string extension, CancellationToken ct = default) =>
         _workspace.WriteAsync(userId, data, extension, ct);
-
-    /// <inheritdoc />
-    public async Task<RenderResult> RenderAsync(long userId, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        return await RenderWithAsync(userId, session, session.Edits, ct);
-    }
-
-    /// <inheritdoc />
-    public Task<RenderResult> RenderContourAsync(long userId, string sourcePath, CancellationToken ct = default) =>
-        _cli.EditAsync(new EditRequest
-        {
-            Input = sourcePath,
-            Filter = "contour",
-            Output = _workspace.NewFilePath(userId, ".png"),
-            Overwrite = true,
-        }, ct);
-
-    /// <inheritdoc />
-    public async Task<RenderResult> RenderAsync(long userId, EditState edits, CancellationToken ct = default)
-    {
-        var session = await _store.GetAsync(userId, ct);
-        return await RenderWithAsync(userId, session, edits, ct);
-    }
-
-    /// <summary>Replay the session's original through the CLI with the given edit state.</summary>
-    private async Task<RenderResult> RenderWithAsync(long userId, UserSession session, EditState edits, CancellationToken ct)
-    {
-        if (session.OriginalImagePath is null)
-        {
-            throw new InvalidOperationException("No working image — upload a photo or use /blank first.");
-        }
-        string? layoutPath = null;
-        if (edits.Layout is not null)
-        {
-            var json = StencilJson.Serialize(edits.Layout);
-            var bytes = System.Text.Encoding.UTF8.GetBytes(json);
-            layoutPath = await _workspace.WriteAsync(userId, bytes, ".json", ct);
-        }
-        var request = new EditRequest
-        {
-            Input = session.OriginalImagePath,
-            CropSpec = edits.CropSpec,
-            Album = edits.Album,
-            Rotate = edits.Rotate == 0 ? null : edits.Rotate,
-            Filter = edits.Filter,
-            LayoutPath = layoutPath,
-            Output = _workspace.NewFilePath(userId, ".png"),
-            Overwrite = true,
-        };
-        return await _cli.EditAsync(request, ct);
-    }
 
     /// <inheritdoc />
     public Task<ScrapeResult> ScrapeAsync(long userId, ScrapeRequest request, CancellationToken ct = default)
@@ -475,132 +174,14 @@ public sealed class EditingService : IEditingService
     }
 
     /// <inheritdoc />
-    public StencilLayout BuildLayout(UserSession session) =>
-        new()
-        {
-            ImageWidth = session.OriginalWidth,
-            ImageHeight = session.OriginalHeight,
-            Filter = session.Edits.Filter,
-            Lines = session.Edits.Layout?.Lines ?? [],
-        };
-
-    /// <inheritdoc />
-    public string ExportLayoutJson(UserSession session) =>
-        StencilJson.SerializeIndented(BuildLayout(session));
-
-    /// <inheritdoc />
     public async Task<UserSession> OpenProjectFileAsync(long userId, StencilProject project, CancellationToken ct = default)
     {
         UserSession session = await _store.GetAsync(userId, ct);
-        string extension = string.IsNullOrEmpty(project.ImageExt) ? ".png" : "." + project.ImageExt;
-        string path = await StoreOriginalBytesAsync(userId, project.ImageBytes, extension, ct);
-        // Probe the decoded image for its true dimensions (the file's w/h are advisory).
-        ImageSize size = await _cli.ProbeAsync(path, ct);
-        string label = string.IsNullOrEmpty(project.Name) ? "project" : project.Name;
-        UserSession reset = ResetToImage(session, path, size, label, project.Source);
-        // Rebuild crop/rotation/filter/lines from the layout — the same map used for server projects.
-        EditState edits = project.Layout is JsonElement layout
-            ? ProjectLayoutMapper.ToEditState(layout, size.Width, size.Height)
-            : new EditState();
-        UserSession updated = reset with
-        {
-            Edits = edits,
-            ActiveProjectLayoutJson = project.Layout?.GetRawText(),
-        };
-        await _store.SaveAsync(updated, ct);
-        return updated;
+        return await SaveAsync(await _projectFiles.OpenAsync(userId, session, project, ct), ct);
     }
 
     /// <inheritdoc />
-    public async Task<byte[]> ExportProjectFileAsync(long userId, CancellationToken ct = default)
-    {
-        UserSession session = await _store.GetAsync(userId, ct);
-        if (session.OriginalImagePath is null)
-        {
-            throw new InvalidOperationException("No working image — upload a photo or use /blank first.");
-        }
-        byte[] originalBytes = await File.ReadAllBytesAsync(session.OriginalImagePath, ct);
-        string ext = Path.GetExtension(session.OriginalImagePath).TrimStart('.');
-        if (string.IsNullOrEmpty(ext)) ext = "png";
-        // Render for the RESULT dimensions the layout's imageWidth/imageHeight report.
-        RenderResult render = await RenderAsync(userId, ct);
-        var layout = ProjectLayoutWriter.Build(session.ActiveProjectLayoutJson, session.Edits, render.Width, render.Height);
-        var project = new StencilProject
-        {
-            Name = string.IsNullOrEmpty(session.ImageLabel) ? "project" : session.ImageLabel!,
-            Source = session.SourceUrl,
-            ImageBytes = originalBytes,
-            ImageExt = ext,
-            ImageWidth = session.OriginalWidth,
-            ImageHeight = session.OriginalHeight,
-            Layout = JsonSerializer.SerializeToElement(layout, StencilJson.Options),
-        };
-        return StencilProjectFile.BuildUtf8(project);
-    }
+    public async Task<byte[]> ExportProjectFileAsync(long userId, CancellationToken ct = default) =>
+        await _projectFiles.ExportAsync(userId, await _store.GetAsync(userId, ct), ct);
 
-    /// <summary>Reset a session onto a freshly adopted base image, clearing edits and project.</summary>
-    private static UserSession ResetToImage(UserSession session, string path, ImageSize size, string label, string? sourceUrl = null) =>
-        session with
-        {
-            OriginalImagePath = path,
-            OriginalWidth = size.Width,
-            OriginalHeight = size.Height,
-            ImageLabel = label,
-            SourceUrl = sourceUrl,
-            VideoSourcePath = null,
-            Edits = new EditState(),
-            EditHistory = [],
-            EditRedo = [],
-            ActiveServerUrl = null,
-            ActiveProjectId = null,
-            ActiveProjectName = null,
-            ActiveProjectDescription = null,
-            ActiveProjectCreatedAt = 0,
-            ActiveProjectExpiresAt = 0,
-            ActiveProjectVersion = 0,
-            ActiveProjectLayoutJson = null,
-        };
-
-    /// <summary>A fresh empty layout carrying the working image's dimensions.</summary>
-    private static StencilLayout EmptyLayout(UserSession session) =>
-        new()
-        {
-            ImageWidth = session.OriginalWidth,
-            ImageHeight = session.OriginalHeight,
-            Lines = [],
-        };
-
-    /// <summary>Throw when a caller-supplied colour is one <c>parseColor</c> would drop.</summary>
-    private static void RejectUnparseableColor(string? spec, string label)
-    {
-        if (spec is not null && !ColorSpec.IsValid(spec))
-        {
-            throw new InvalidOperationException(
-                $"'{spec}' isn't a {label} I understand — use #rgb/#rrggbb, a CSS colour name, or transparent.");
-        }
-    }
-
-    /// <summary>null keeps the fill; <c>none</c>/<c>clear</c>/blank clears it; else the colour.</summary>
-    private static string? NormalizeFill(string? fill)
-    {
-        if (fill is null)
-        {
-            return null;
-        }
-        if (string.IsNullOrWhiteSpace(fill) || fill is "none" or "clear" or "transparent")
-        {
-            return LayoutLine.DefaultFillColor;
-        }
-        return fill;
-    }
-
-    /// <summary>Map null/empty/"none" to a cleared filter; otherwise keep the spec.</summary>
-    private static string? NormalizeFilter(string? filter)
-    {
-        if (string.IsNullOrEmpty(filter) || string.Equals(filter, "none", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-        return filter;
-    }
 }
