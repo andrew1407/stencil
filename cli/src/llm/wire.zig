@@ -17,7 +17,7 @@ const edge_map_suffix = registry.edge_map_suffix;
 const systemPrompt = registry.systemPrompt;
 const trimUrl = config.trimUrl;
 
-// ── Chat history & persistence (contract §7 + §12) ───────────────────────────
+// Chat history & persistence (contract §7 + §12)
 
 /// The §7/§12 history bound: at most this many messages are replayed or persisted.
 pub const max_chat_messages = 32;
@@ -157,7 +157,7 @@ pub fn freeTurns(gpa: std.mem.Allocator, turns: []Turn) void {
     gpa.free(turns);
 }
 
-// ── Wire mappings (contract §6) ──────────────────────────────────────────────
+// Wire mappings (contract §6)
 
 /// One ready-to-send request: URL, optional `Authorization` value, JSON body. All owned.
 pub const Request = struct {
@@ -378,7 +378,7 @@ fn closeChatBody(js: *std.json.Stringify) std.json.Stringify.Error!void {
     try js.endObject(); // the body
 }
 
-// ── Reply extraction (contract §6 response shapes + stopReason semantics) ────
+// Reply extraction (contract §6 response shapes + stopReason semantics)
 
 /// What came back from a 2xx provider response. `truncated`/`refusal` are the
 /// stencil-server stopReason contract: shown as console errors, NEVER parsed as plans.
@@ -451,386 +451,50 @@ pub fn memberStr(v: std.json.Value, key: []const u8) ?[]const u8 {
     return if (m == .string) m.string else null;
 }
 
-// ── tests ────────────────────────────────────────────────────────────────────
-
 const testing = std.testing;
 
-test "buildRequest: ollama wire mapping (§6.1), with and without an image" {
+test "buildRequest: the canonical system prompt, its §7 suffix, and empty-history equivalence" {
+    // The §6 mappings (url, auth, body shape, history and image order) are walked from the
+    // shared corpus by tests/provider_wire_fixtures_test.zig; only what no corpus case can
+    // reach is asserted here.
     const a = testing.allocator;
     var cfg = try Config.init(a, .{ .model = "llava" });
     defer cfg.deinit(a);
 
     const sys = try std.json.Stringify.valueAlloc(a, @as([]const u8, systemPrompt()), .{});
     defer a.free(sys);
+    var plain = try buildRequest(a, &cfg, "hi", &.{}, "", "");
+    defer plain.deinit(a);
+    try testing.expect(std.mem.indexOf(u8, plain.body, sys) != null);
 
-    var r1 = try buildRequest(a, &cfg, "hi", &.{}, "", "");
-    defer r1.deinit(a);
-    try testing.expectEqualStrings("http://localhost:11434/api/chat", r1.url);
-    try testing.expect(r1.auth == null); // ollama never sends Authorization
-    const want1 = try std.fmt.allocPrint(
-        a,
-        "{{\"model\":\"llava\",\"stream\":false,\"messages\":[{{\"role\":\"system\",\"content\":{s}}},{{\"role\":\"user\",\"content\":\"hi\"}}]}}",
-        .{sys},
-    );
-    defer a.free(want1);
-    try testing.expectEqualStrings(want1, r1.body);
-
-    // Images ride as bare base64 strings on the user message.
-    var r2 = try buildRequest(a, &cfg, "hi", &.{"QUJD"}, "", "");
-    defer r2.deinit(a);
-    const want2 = try std.fmt.allocPrint(
-        a,
-        "{{\"model\":\"llava\",\"stream\":false,\"messages\":[{{\"role\":\"system\",\"content\":{s}}},{{\"role\":\"user\",\"content\":\"hi\",\"images\":[\"QUJD\"]}}]}}",
-        .{sys},
-    );
-    defer a.free(want2);
-    try testing.expectEqualStrings(want2, r2.body);
-}
-
-test "buildRequest: openai-compat wire mapping (§6.2), bearer + data-URL image parts" {
-    const a = testing.allocator;
-    var cfg = try Config.init(a, .{ .provider = "openai-compat", .model = "m", .api_key = "sk-x" });
-    defer cfg.deinit(a);
-
-    const sys = try std.json.Stringify.valueAlloc(a, @as([]const u8, systemPrompt()), .{});
-    defer a.free(sys);
-
-    var r1 = try buildRequest(a, &cfg, "hi", &.{"QUJD"}, "", "");
-    defer r1.deinit(a);
-    try testing.expectEqualStrings("http://localhost:1234/v1/chat/completions", r1.url);
-    try testing.expectEqualStrings("Bearer sk-x", r1.auth.?);
-    const want1 = try std.fmt.allocPrint(
-        a,
-        "{{\"model\":\"m\",\"stream\":false,\"messages\":[{{\"role\":\"system\",\"content\":{s}}}," ++
-            "{{\"role\":\"user\",\"content\":[{{\"type\":\"text\",\"text\":\"hi\"}}," ++
-            "{{\"type\":\"image_url\",\"image_url\":{{\"url\":\"data:image/png;base64,QUJD\"}}}}]}}]}}",
-        .{sys},
-    );
-    defer a.free(want1);
-    try testing.expectEqualStrings(want1, r1.body);
-
-    // Without an image, content is a plain string; without a key there is no auth header.
-    try cfg.setApiKey(a, "");
-    var r2 = try buildRequest(a, &cfg, "hi", &.{}, "", "");
-    defer r2.deinit(a);
-    try testing.expect(r2.auth == null);
-    const want2 = try std.fmt.allocPrint(
-        a,
-        "{{\"model\":\"m\",\"stream\":false,\"messages\":[{{\"role\":\"system\",\"content\":{s}}},{{\"role\":\"user\",\"content\":\"hi\"}}]}}",
-        .{sys},
-    );
-    defer a.free(want2);
-    try testing.expectEqualStrings(want2, r2.body);
-}
-
-test "buildRequest: stencil-server wire mapping (§6.3), session bearer + optional model" {
-    const a = testing.allocator;
-    var cfg = try Config.init(a, .{ .provider = "stencil-server" });
-    defer cfg.deinit(a);
-
-    const sys = try std.json.Stringify.valueAlloc(a, @as([]const u8, systemPrompt()), .{});
-    defer a.free(sys);
-
-    var r1 = try buildRequest(a, &cfg, "hi", &.{"QUJD"}, "https://s:8090/", "tok");
-    defer r1.deinit(a);
-    try testing.expectEqualStrings("https://s:8090/llm/chat", r1.url);
-    try testing.expectEqualStrings("Bearer tok", r1.auth.?);
-    const want1 = try std.fmt.allocPrint(
-        a,
-        "{{\"system\":{s},\"messages\":[{{\"role\":\"user\",\"text\":\"hi\"," ++
-            "\"images\":[{{\"mediaType\":\"image/png\",\"data\":\"QUJD\"}}]}}]}}",
-        .{sys},
-    );
-    defer a.free(want1);
-    try testing.expectEqualStrings(want1, r1.body); // model omitted when empty
-
-    // A configured model is included; an empty token sends no Authorization.
-    try cfg.setModel(a, "claude-opus-5");
-    var r2 = try buildRequest(a, &cfg, "hi", &.{}, "https://s:8090", "");
-    defer r2.deinit(a);
-    try testing.expect(r2.auth == null);
-    const want2 = try std.fmt.allocPrint(
-        a,
-        "{{\"system\":{s},\"messages\":[{{\"role\":\"user\",\"text\":\"hi\"}}],\"model\":\"claude-opus-5\"}}",
-        .{sys},
-    );
-    defer a.free(want2);
-    try testing.expectEqualStrings(want2, r2.body);
-}
-
-test "buildRequestWithHistory: turns replay in order before the current turn (all three providers)" {
-    const a = testing.allocator;
-    const hist = [_]Turn{
-        .{ .role = .user, .text = "crop it" },
-        .{ .role = .assistant, .text = "done" },
-    };
-
-    const sys = try std.json.Stringify.valueAlloc(a, @as([]const u8, systemPrompt()), .{});
-    defer a.free(sys);
-
-    // §6.1 ollama: history rides as plain role/content messages between system and the turn.
-    var cfg = try Config.init(a, .{ .model = "llava" });
-    defer cfg.deinit(a);
-    var r1 = try buildRequestWithHistory(a, &cfg, "hi", &.{}, "", "", &hist, "");
-    defer r1.deinit(a);
-    const want1 = try std.fmt.allocPrint(
-        a,
-        "{{\"model\":\"llava\",\"stream\":false,\"messages\":[{{\"role\":\"system\",\"content\":{s}}}," ++
-            "{{\"role\":\"user\",\"content\":\"crop it\"}},{{\"role\":\"assistant\",\"content\":\"done\"}}," ++
-            "{{\"role\":\"user\",\"content\":\"hi\"}}]}}",
-        .{sys},
-    );
-    defer a.free(want1);
-    try testing.expectEqualStrings(want1, r1.body);
-
-    // §6.2 openai-compat: identical role/content interleaving.
-    var cfg2 = try Config.init(a, .{ .provider = "openai-compat", .model = "m" });
-    defer cfg2.deinit(a);
-    var r2 = try buildRequestWithHistory(a, &cfg2, "hi", &.{}, "", "", &hist, "");
-    defer r2.deinit(a);
-    const want2 = try std.fmt.allocPrint(
-        a,
-        "{{\"model\":\"m\",\"stream\":false,\"messages\":[{{\"role\":\"system\",\"content\":{s}}}," ++
-            "{{\"role\":\"user\",\"content\":\"crop it\"}},{{\"role\":\"assistant\",\"content\":\"done\"}}," ++
-            "{{\"role\":\"user\",\"content\":\"hi\"}}]}}",
-        .{sys},
-    );
-    defer a.free(want2);
-    try testing.expectEqualStrings(want2, r2.body);
-
-    // §6.3 stencil-server: history as role/text messages before the current turn.
-    var cfg3 = try Config.init(a, .{ .provider = "stencil-server" });
-    defer cfg3.deinit(a);
-    var r3 = try buildRequestWithHistory(a, &cfg3, "hi", &.{}, "https://s:8090", "tok", &hist, "");
-    defer r3.deinit(a);
-    const want3 = try std.fmt.allocPrint(
-        a,
-        "{{\"system\":{s},\"messages\":[{{\"role\":\"user\",\"text\":\"crop it\"}}," ++
-            "{{\"role\":\"assistant\",\"text\":\"done\"}},{{\"role\":\"user\",\"text\":\"hi\"}}]}}",
-        .{sys},
-    );
-    defer a.free(want3);
-    try testing.expectEqualStrings(want3, r3.body);
-
-    // An empty history is byte-for-byte the plain single-turn request.
-    var r4 = try buildRequestWithHistory(a, &cfg, "hi", &.{}, "", "", &.{}, "");
-    defer r4.deinit(a);
-    var r5 = try buildRequest(a, &cfg, "hi", &.{}, "", "");
-    defer r5.deinit(a);
-    try testing.expectEqualStrings(r5.body, r4.body);
-}
-
-test "buildRequestWithHistory: two images ride in order + the suffix only when given (§7 edge map)" {
-    const a = testing.allocator;
-    const imgs = [_][]const u8{ "V09SSw", "RURHRQ" }; // working snapshot, then the edge map
-
-    const sys_plain = try std.json.Stringify.valueAlloc(a, @as([]const u8, systemPrompt()), .{});
-    defer a.free(sys_plain);
     const joined = try std.mem.join(a, "\n\n", &.{ systemPrompt(), edge_map_suffix });
     defer a.free(joined);
-    const sys_suffixed = try std.json.Stringify.valueAlloc(a, @as([]const u8, joined), .{});
-    defer a.free(sys_suffixed);
+    const suffixed = try std.json.Stringify.valueAlloc(a, @as([]const u8, joined), .{});
+    defer a.free(suffixed);
+    var edged = try buildRequestWithHistory(a, &cfg, "hi", &.{"QUJD"}, "", "", &.{}, edge_map_suffix);
+    defer edged.deinit(a);
+    try testing.expect(std.mem.indexOf(u8, edged.body, suffixed) != null);
+    try testing.expect(std.mem.indexOf(u8, edged.body, sys) == null); // suffixed, not both
 
-    // §6.1 ollama: both base64 strings, in order, on the one user message.
-    var cfg = try Config.init(a, .{ .model = "llava" });
-    defer cfg.deinit(a);
-    var r1 = try buildRequestWithHistory(a, &cfg, "hi", &imgs, "", "", &.{}, edge_map_suffix);
-    defer r1.deinit(a);
-    const want1 = try std.fmt.allocPrint(
-        a,
-        "{{\"model\":\"llava\",\"stream\":false,\"messages\":[{{\"role\":\"system\",\"content\":{s}}}," ++
-            "{{\"role\":\"user\",\"content\":\"hi\",\"images\":[\"V09SSw\",\"RURHRQ\"]}}]}}",
-        .{sys_suffixed},
-    );
-    defer a.free(want1);
-    try testing.expectEqualStrings(want1, r1.body);
-
-    // §6.2 openai-compat: one image_url content part per image, after the text part.
-    var cfg2 = try Config.init(a, .{ .provider = "openai-compat", .model = "m" });
-    defer cfg2.deinit(a);
-    var r2 = try buildRequestWithHistory(a, &cfg2, "hi", &imgs, "", "", &.{}, edge_map_suffix);
-    defer r2.deinit(a);
-    const want2 = try std.fmt.allocPrint(
-        a,
-        "{{\"model\":\"m\",\"stream\":false,\"messages\":[{{\"role\":\"system\",\"content\":{s}}}," ++
-            "{{\"role\":\"user\",\"content\":[{{\"type\":\"text\",\"text\":\"hi\"}}," ++
-            "{{\"type\":\"image_url\",\"image_url\":{{\"url\":\"data:image/png;base64,V09SSw\"}}}}," ++
-            "{{\"type\":\"image_url\",\"image_url\":{{\"url\":\"data:image/png;base64,RURHRQ\"}}}}]}}]}}",
-        .{sys_suffixed},
-    );
-    defer a.free(want2);
-    try testing.expectEqualStrings(want2, r2.body);
-
-    // §6.3 stencil-server: one {mediaType,data} entry per image, in order.
-    var cfg3 = try Config.init(a, .{ .provider = "stencil-server" });
-    defer cfg3.deinit(a);
-    var r3 = try buildRequestWithHistory(a, &cfg3, "hi", &imgs, "https://s:8090", "tok", &.{}, edge_map_suffix);
-    defer r3.deinit(a);
-    const want3 = try std.fmt.allocPrint(
-        a,
-        "{{\"system\":{s},\"messages\":[{{\"role\":\"user\",\"text\":\"hi\"," ++
-            "\"images\":[{{\"mediaType\":\"image/png\",\"data\":\"V09SSw\"}}," ++
-            "{{\"mediaType\":\"image/png\",\"data\":\"RURHRQ\"}}]}}]}}",
-        .{sys_suffixed},
-    );
-    defer a.free(want3);
-    try testing.expectEqualStrings(want3, r3.body);
-
-    // No suffix → the canonical prompt rides verbatim, even with two images attached.
-    var r4 = try buildRequestWithHistory(a, &cfg, "hi", &imgs, "", "", &.{}, "");
-    defer r4.deinit(a);
-    try testing.expect(std.mem.indexOf(u8, r4.body, sys_plain) != null);
+    var empty = try buildRequestWithHistory(a, &cfg, "hi", &.{}, "", "", &.{}, "");
+    defer empty.deinit(a);
+    try testing.expectEqualStrings(plain.body, empty.body);
 }
 
-test "chatDocAlloc → parseChatDoc round-trips roles + texts (contract §12.1)" {
+test "extractReply: a body that is not JSON at all is a bad reply, clipped for the detail" {
     const a = testing.allocator;
-    const hist = [_]Turn{
-        .{ .role = .user, .text = "crop 10% off the left" },
-        .{ .role = .assistant, .text = "Done - anything else?" },
-    };
-    const doc = try chatDocAlloc(a, &hist, 1753900000000);
-    defer a.free(doc);
-    try testing.expect(std.mem.indexOf(u8, doc, "\"version\":1") != null);
-    try testing.expect(std.mem.indexOf(u8, doc, "\"savedAt\":1753900000000") != null);
-    try testing.expect(std.mem.indexOf(u8, doc, "images") == null); // text-only, always
-
-    const turns = try parseChatDoc(a, doc);
-    defer freeTurns(a, turns);
-    try testing.expectEqual(@as(usize, 2), turns.len);
-    try testing.expect(turns[0].role == .user);
-    try testing.expectEqualStrings("crop 10% off the left", turns[0].text);
-    try testing.expect(turns[1].role == .assistant);
-    try testing.expectEqualStrings("Done - anything else?", turns[1].text);
-}
-
-test "parseChatDoc: tolerant reader (bad version → empty, images ignored, >32 trimmed)" {
-    const a = testing.allocator;
-
-    // Wrong/absent version, non-JSON, or an off-shape root reads as missing — never an error.
-    inline for (.{
-        "{\"version\":2,\"messages\":[{\"role\":\"user\",\"text\":\"x\"}]}",
-        "{\"messages\":[{\"role\":\"user\",\"text\":\"x\"}]}",
-        "not json at all",
-        "[1,2]",
-        "{\"version\":1,\"messages\":\"nope\"}",
-    }) |bad| {
-        const t = try parseChatDoc(a, bad);
-        defer freeTurns(a, t);
-        try testing.expectEqual(@as(usize, 0), t.len);
-    }
-
-    // Unknown roles and text-less messages drop; a stray "images" field is ignored.
-    const mixed = "{\"version\":1,\"savedAt\":0,\"extra\":true,\"messages\":[" ++
-        "{\"role\":\"system\",\"text\":\"nope\"}," ++
-        "{\"role\":\"user\"}," ++
-        "{\"role\":\"user\",\"text\":\"keep\",\"images\":[\"QUJD\"]}]}";
-    const t = try parseChatDoc(a, mixed);
-    defer freeTurns(a, t);
-    try testing.expectEqual(@as(usize, 1), t.len);
-    try testing.expect(t[0].role == .user);
-    try testing.expectEqualStrings("keep", t[0].text);
-
-    // More than 32 messages truncate to the most recent 32 (the writer bound, mirrored).
-    var big: std.ArrayList(u8) = .empty;
-    defer big.deinit(a);
-    try big.appendSlice(a, "{\"version\":1,\"messages\":[");
-    for (0..40) |i| {
-        if (i != 0) try big.append(a, ',');
-        const m = try std.fmt.allocPrint(a, "{{\"role\":\"user\",\"text\":\"m{d}\"}}", .{i});
-        defer a.free(m);
-        try big.appendSlice(a, m);
-    }
-    try big.appendSlice(a, "]}");
-    const many = try parseChatDoc(a, big.items);
-    defer freeTurns(a, many);
-    try testing.expectEqual(@as(usize, max_chat_messages), many.len);
-    try testing.expectEqualStrings("m8", many[0].text);
-    try testing.expectEqualStrings("m39", many[many.len - 1].text);
-}
-
-test "chat document keeps machinery out on write AND read (contract §12.1)" {
-    const a = testing.allocator;
-
-    // The §7 continuation round restates the request with the note appended; only the
-    // user's own words are persisted, and the note itself never reaches the document.
-    const restated = "outline the face\n\n" ++ continuation_note;
-    const hist = [_]Turn{
-        .{ .role = .user, .text = "outline the face" },
-        .{ .role = .assistant, .text = "Blank page made." },
-        .{ .role = .user, .text = restated },
-        .{ .role = .assistant, .text = "{\"version\":1,\"reply\":\"Outlined.\",\"actions\":[]}" },
-    };
-    const doc = try chatDocAlloc(a, &hist, 1753900000000);
-    defer a.free(doc);
-    try testing.expect(std.mem.indexOf(u8, doc, "The working image is now") == null);
-    try testing.expect(std.mem.indexOf(u8, doc, "\\\"version\\\"") == null); // no raw plan
-    const turns = try parseChatDoc(a, doc);
-    defer freeTurns(a, turns);
-    try testing.expectEqual(@as(usize, 3), turns.len);
-    try testing.expectEqualStrings("outline the face", turns[2].text);
-
-    // A dirty document — an older build's, or another surface's — restores clean: the
-    // stand-alone note (any bracketed wording) goes, an appended one is stripped, and a
-    // raw op-plan assistant turn drops. A user pasting JSON still sees their own text.
-    const dirty = "{\"version\":1,\"messages\":[" ++
-        "{\"role\":\"user\",\"text\":\"[The working image is now the frame you extracted — carry on.]\"}," ++
-        "{\"role\":\"user\",\"text\":\"crop it\\n\\n" ++ continuation_note ++ "\"}," ++
-        "{\"role\":\"assistant\",\"text\":\"{\\\"version\\\":1,\\\"reply\\\":\\\"Cropped.\\\",\\\"actions\\\":[]}\"}," ++
-        "{\"role\":\"user\",\"text\":\"{\\\"version\\\":1,\\\"actions\\\":[]}\"}," ++
-        "{\"role\":\"assistant\",\"text\":\"Cropped.\"}]}";
-    const clean = try parseChatDoc(a, dirty);
-    defer freeTurns(a, clean);
-    try testing.expectEqual(@as(usize, 3), clean.len);
-    try testing.expectEqualStrings("crop it", clean[0].text);
-    try testing.expectEqualStrings("{\"version\":1,\"actions\":[]}", clean[1].text); // the user's own
-    try testing.expectEqualStrings("Cropped.", clean[2].text);
-}
-
-test "extractReply: per-provider response shapes + stopReason semantics" {
-    const a = testing.allocator;
-
-    const o = try extractReply(a, .ollama, "{\"message\":{\"role\":\"assistant\",\"content\":\"hey\"}}");
-    defer o.deinit(a);
-    try testing.expectEqualStrings("hey", o.text);
-
-    const oc = try extractReply(a, .openai_compat, "{\"choices\":[{\"message\":{\"content\":\"yo\"}}]}");
-    defer oc.deinit(a);
-    try testing.expectEqualStrings("yo", oc.text);
-
-    const s = try extractReply(a, .stencil_server, "{\"model\":\"claude-opus-5\",\"text\":\"hi\",\"stopReason\":\"end_turn\"}");
-    defer s.deinit(a);
-    try testing.expectEqualStrings("hi", s.text);
-
-    // stopReason max_tokens / refusal are typed — never parsed as plans.
-    const t = try extractReply(a, .stencil_server, "{\"text\":\"partial\",\"stopReason\":\"max_tokens\"}");
-    defer t.deinit(a);
-    try testing.expect(t == .truncated);
-    const r = try extractReply(a, .stencil_server, "{\"text\":\"no.\",\"stopReason\":\"refusal\"}");
-    defer r.deinit(a);
-    try testing.expectEqualStrings("no.", r.refusal);
-
-    // Off-shape bodies are bad replies, not crashes.
-    const b1 = try extractReply(a, .ollama, "{\"nope\":1}");
+    const b1 = try extractReply(a, .openai_compat, "not json at all");
     defer b1.deinit(a);
     try testing.expect(b1 == .bad_reply);
-    const b2 = try extractReply(a, .openai_compat, "not json at all");
-    defer b2.deinit(a);
-    try testing.expect(b2 == .bad_reply);
-    const b3 = try extractReply(a, .stencil_server, "{\"stopReason\":\"end_turn\"}");
-    defer b3.deinit(a);
-    try testing.expect(b3 == .bad_reply);
-}
 
-test "extractReply: an off-shape body is clipped for the error detail" {
-    const a = testing.allocator;
     var big: std.ArrayList(u8) = .empty;
     defer big.deinit(a);
     try big.appendSlice(a, "{\"weird\":\"");
     for (0..2 * clip_limit) |_| try big.append(a, 'z');
     try big.appendSlice(a, "\"}");
-    const b = try extractReply(a, .ollama, big.items);
-    defer b.deinit(a);
-    try testing.expect(b == .bad_reply);
-    try testing.expectEqual(@as(usize, clip_limit + "…".len), b.bad_reply.len);
-    try testing.expect(std.mem.endsWith(u8, b.bad_reply, "…"));
+    const b2 = try extractReply(a, .ollama, big.items);
+    defer b2.deinit(a);
+    try testing.expect(b2 == .bad_reply);
+    try testing.expectEqual(@as(usize, clip_limit + "…".len), b2.bad_reply.len);
+    try testing.expect(std.mem.endsWith(u8, b2.bad_reply, "…"));
 }

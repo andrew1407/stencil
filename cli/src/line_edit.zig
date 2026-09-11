@@ -10,18 +10,31 @@
 const std = @import("std");
 const logo = @import("logo.zig");
 const screen_mod = @import("console/screen.zig");
+const wrap = @import("line_edit/wrap.zig");
+const markers = @import("line_edit/markers.zig");
+const words = @import("line_edit/words.zig");
+pub const History = @import("line_edit/history.zig").History;
+pub const max_history = @import("line_edit/history.zig").max_history;
+pub const PendingImages = markers.PendingImages;
+pub const max_pending_images = markers.max_pending_images;
+pub const max_marker_label = markers.max_marker_label;
+pub const marker_open = markers.marker_open;
+pub const markerEnd = markers.markerEnd;
+pub const markerBefore = markers.markerBefore;
+pub const stripMarkers = markers.stripMarkers;
+pub const sanitizeInline = markers.sanitizeInline;
+pub const max_prompt_rows = wrap.max_prompt_rows;
+pub const wrappedRows = wrap.wrappedRows;
+pub const rowSlice = wrap.rowSlice;
+pub const rowStart = wrap.rowStart;
+pub const rowMove = wrap.rowMove;
+pub const isWordChar = words.isWordChar;
+pub const wordLeft = words.wordLeft;
+pub const wordRight = words.wordRight;
+pub const commonLen = words.commonLen;
+pub const copyInto = words.copyInto;
 
 pub const max_line = 4096; // editing buffer size; commands (URLs, crop specs) fit easily
-pub const max_history = 50; // last-N entered commands kept for Up/Down
-
-/// How many images one prompt line may carry (the cap Claude Code's CLI uses; a turn can
-/// still hold more by /upload-ing as well).
-pub const max_pending_images = 3;
-/// The widest name a marker shows — the host elides longer ones into this.
-pub const max_marker_label = 20;
-// What a pasted image leaves in the line: "[Image #N <label>]", the index at a fixed offset
-// so dropping one renumbers the rest with a single byte write.
-const marker_open = "[Image #";
 
 // What a readLine() call resolved to. A submitted line carries its length in `buf`; the
 // other variants are key chords the caller acts on (clipboard I/O, exit) so line_edit stays
@@ -42,95 +55,7 @@ pub const Input = union(enum) {
 /// or nothing at all.
 pub const PasteResult = union(enum) { image: usize, text: usize, none };
 
-pub const PendingImages = struct {
-    ctx: *anyopaque,
-    /// What Ctrl-V does with the clipboard, for the line `before` — which also says how many
-    /// images that line may carry (`/upload` loads one picture, a `/prompt` up to three; the
-    /// host knows the verbs). A picture is held and its marker label written into `label`; with
-    /// no picture the clipboard's TEXT is written into `text` and simply typed into the line.
-    /// `.none` means there was nothing to take (the hook said why).
-    paste: *const fn (ctx: *anyopaque, before: []const u8, label: []u8, text: []u8) PasteResult,
-    /// Consider a bracketed paste — `text`, typed after `before` — as an image file's path;
-    /// same contract, and silent when it declines (the paste is then ordinary text).
-    addPath: *const fn (ctx: *anyopaque, text: []const u8, before: []const u8, label: []u8) ?usize,
-    /// Keep only these images (0-based, in the order the line's markers now read).
-    keep: *const fn (ctx: *anyopaque, kept: []const usize) void,
-    count: *const fn (ctx: *anyopaque) usize,
-};
-
-/// How many rows `len` bytes occupy when the first row holds `first` and the rest hold `cols`.
-/// Always at least 1 (an empty line still owns its row).
-fn wrappedRows(len: usize, first: usize, cols: usize) usize {
-    if (len <= first) return 1;
-    const rest = len - first;
-    return 1 + (rest + cols - 1) / cols;
-}
-
-/// The slice of `line` shown on wrapped row `idx` (0-based).
-fn rowSlice(line: []const u8, idx: usize, first: usize, cols: usize) []const u8 {
-    if (idx == 0) return line[0..@min(first, line.len)];
-    const start = first + (idx - 1) * cols;
-    if (start >= line.len) return line[line.len..];
-    return line[start..@min(start + cols, line.len)];
-}
-
-/// Byte offset into `line` where wrapped row `idx` begins.
-fn rowStart(idx: usize, first: usize, cols: usize) usize {
-    return if (idx == 0) 0 else first + (idx - 1) * cols;
-}
-
-/// Where the cursor lands after moving one wrapped row up (`up`) or down, keeping the SCREEN
-/// column — row 0 is indented by the prompt, the rest start at column 1. Null when there is no
-/// row that way, which is the caller's signal to fall back to history recall: on a line that
-/// fits one row (the common case) Up/Down keep meaning "previous/next command". Pure, so the
-/// geometry unit-tests without a terminal.
-fn rowMove(len: usize, pos: usize, prompt_len: usize, first: usize, cols: usize, up: bool) ?usize {
-    const rows = wrappedRows(len, first, cols);
-    if (rows == 1) return null;
-    const cur = wrappedRows(pos + 1, first, cols) - 1;
-    if (up and cur == 0) return null;
-    if (!up and cur + 1 >= rows) return null;
-    const target = if (up) cur - 1 else cur + 1;
-    const screen_col = (pos - rowStart(cur, first, cols)) + if (cur == 0) prompt_len else 0;
-    const want = screen_col -| (if (target == 0) prompt_len else 0);
-    const width = if (target == 0) first else cols;
-    return @min(rowStart(target, first, cols) + @min(want, width), len);
-}
-
-// ── command history (a small ring of owned strings, oldest first) ──────────────
-
-/// The tallest the wrapped input block can grow (screen.maxPromptRows clamps to this too).
-pub const max_prompt_rows = 8;
-
-pub const History = struct {
-    gpa: std.mem.Allocator,
-    items: std.ArrayList([]u8) = .empty,
-
-    pub fn deinit(self: *History) void {
-        for (self.items.items) |it| self.gpa.free(it);
-        self.items.deinit(self.gpa);
-    }
-
-    /// Record a command, ignoring blanks and consecutive duplicates; drops the oldest
-    /// once `max_history` is exceeded.
-    pub fn add(self: *History, line: []const u8) void {
-        const t = std.mem.trim(u8, line, " \t\r\n");
-        if (t.len == 0) return;
-        const n = self.items.items.len;
-        if (n > 0 and std.mem.eql(u8, self.items.items[n - 1], t)) return;
-        const dup = self.gpa.dupe(u8, t) catch return;
-        self.items.append(self.gpa, dup) catch {
-            self.gpa.free(dup);
-            return;
-        };
-        if (self.items.items.len > max_history) {
-            self.gpa.free(self.items.items[0]);
-            _ = self.items.orderedRemove(0);
-        }
-    }
-};
-
-// ── the editor (raw terminal mode, restored on deinit) ─────────────────────────
+// the editor (raw terminal mode, restored on deinit)
 
 pub const Editor = struct {
     fd_in: std.posix.fd_t,
@@ -166,13 +91,13 @@ pub const Editor = struct {
     // prompt, so it cannot be a slice of the live line).
     prompt_row_buf: [max_prompt_rows][max_line]u8 = undefined,
 
-    const ByteResult = union(enum) { byte: u8, idle, closed };
+    pub const ByteResult = union(enum) { byte: u8, idle, closed };
     // Two logo clicks within this window = double-click, and a SINGLE click is deferred this
     // long before it cycles the accent. That wait — plus the press frame held before it
     // (screen.zig press_ms) — is the whole lag between the click and the colour moving, and
     // both were halved to cut it in two. 250ms is also the interval the browser app's own
     // deferred click uses (ui/popover.js DOUBLE_CLICK_MS), so a double-click stays comfortable.
-    const double_click_ms: i64 = 250;
+    pub const double_click_ms: i64 = 250;
 
     /// Put `tty_fd` into raw mode (no canonical line editing, no echo, no signal keys).
     pub fn init(tty_fd: std.posix.fd_t) !Editor {
@@ -198,177 +123,17 @@ pub const Editor = struct {
         _ = std.c.write(self.fd_out, "\x1b[?2004l", 8); // disable bracketed paste
         std.posix.tcsetattr(self.fd_in, .FLUSH, self.orig) catch {};
     }
-
-    fn writeAll(self: *Editor, bytes: []const u8) void {
-        var i: usize = 0;
-        while (i < bytes.len) {
-            const n = std.c.write(self.fd_out, bytes[i..].ptr, bytes.len - i); // libc write (no std.posix.write)
-            if (n <= 0) return;
-            i += @intCast(n);
-        }
-    }
-
-    // Redraw the line in place: carriage-return, then the accent-coloured prompt and (only
-    // when the line is a "/command") its leading token — arguments and plain text stay
-    // default. Clear to end of line, then park the cursor at the visible column.
-    /// The input block's wrap geometry: how many columns the FIRST row leaves for the line
-    /// (the prompt eats into it) and how wide each continuation row is. Null outside screen
-    /// mode, where the terminal's own autowrap runs the show and no width is tracked.
-    fn wrapGeom(self: *Editor, prompt: []const u8) ?struct { first: usize, cols: usize } {
-        const s = self.screen orelse return null;
-        const cols: usize = @max(@as(usize, 8), s.cols);
-        return .{ .first = if (cols > prompt.len + 1) cols - prompt.len else 1, .cols = cols };
-    }
-
-    fn refresh(self: *Editor, prompt: []const u8, line: []const u8, pos: usize) void {
-        // Theme the command word only if it starts with '/'; otherwise nothing in the input.
-        const cmd_end: usize = if (line.len != 0 and line[0] == '/')
-            (std.mem.indexOfAny(u8, line, " \t") orelse line.len)
-        else
-            0;
-        const s = self.screen orelse return self.refreshFlat(prompt, line, pos, cmd_end);
-
-        // Full-screen: the input WRAPS onto as many rows as it needs (the block grows upward
-        // into the output, like Claude Code's), instead of scrolling a one-row window sideways
-        // — a long prompt you cannot read back is a prompt you cannot check before sending.
-        const g = self.wrapGeom(prompt) orelse return;
-        const cols = g.cols;
-        const first_avail = g.first;
-        const need = wrappedRows(line.len, first_avail, cols);
-        const max_rows: usize = s.maxPromptRows();
-        s.setPromptRows(@intCast(@min(need, max_rows)));
-        // Past the cap the block stops growing and scrolls by whole rows, keeping the row the
-        // cursor is on in view — the same rule the one-row window used, one dimension up.
-        const cur_row = wrappedRows(pos + 1, first_avail, cols) - 1;
-        const shown = @min(need, max_rows);
-        const skip = if (cur_row >= shown) cur_row - shown + 1 else 0;
-
-        const top = s.promptRow();
-        // What each input row ends up showing, handed to the screen so the mouse can select
-        // the line being typed (screen.setPromptText) — the scrollback never sees it.
-        var shown_rows: [max_prompt_rows][]const u8 = undefined;
-        var shown_n: usize = 0;
-        var row: usize = 0;
-        while (row < shown) : (row += 1) {
-            const idx = row + skip;
-            const seg = rowSlice(line, idx, first_avail, cols);
-            self.gotoRow(@intCast(top + row));
-            if (idx == 0) {
-                self.writeAll(logo.accentReal());
-                self.writeAll(prompt);
-                // The accent covers the command token only.
-                const split = @min(cmd_end, seg.len);
-                self.writeAll(seg[0..split]);
-                self.writeAll(logo.resetSeq());
-                self.writeAll(seg[split..]);
-                // The stored copy is plain text: the prompt plus what this row shows.
-                shown_rows[shown_n] = std.fmt.bufPrint(self.prompt_row_buf[shown_n][0..], "{s}{s}", .{ prompt, seg }) catch seg;
-            } else {
-                self.writeAll(seg);
-                shown_rows[shown_n] = seg;
-            }
-            if (shown_n + 1 < max_prompt_rows) shown_n += 1;
-            self.writeAll("\x1b[K");
-        }
-        s.setPromptText(shown_rows[0..shown_n]);
-        // We just overwrote whatever the screen had painted on these rows — including a live
-        // selection wash. Put it back, or a drag over the input would flash and vanish on the
-        // very next event (every mouse event ends in a refresh).
-        if (s.hasHighlight()) s.paintPromptSelection();
-        // Park the cursor where the next keystroke lands.
-        const col = if (cur_row == 0) prompt.len + pos else (pos - first_avail) % cols;
-        self.gotoRow(@intCast(top + (cur_row - skip)));
-        if (col > 0) {
-            var fbuf: [16]u8 = undefined;
-            self.writeAll(std.fmt.bufPrint(&fbuf, "\x1b[{d}C", .{col}) catch return);
-        }
-    }
-
-    /// The plain (non-full-screen) redraw: one row, the terminal's own autowrap does the rest.
-    fn refreshFlat(self: *Editor, prompt: []const u8, line: []const u8, pos: usize, cmd_end: usize) void {
-        self.gotoLineStart();
-        self.writeAll(logo.accentReal());
-        self.writeAll(prompt);
-        self.writeAll(line[0..cmd_end]);
-        self.writeAll(logo.resetSeq());
-        self.writeAll(line[cmd_end..]);
-        self.writeAll("\x1b[K");
-        self.gotoLineStart();
-        const vis = prompt.len + pos;
-        if (vis > 0) {
-            var fbuf: [16]u8 = undefined;
-            self.writeAll(std.fmt.bufPrint(&fbuf, "\x1b[{d}C", .{vis}) catch return);
-        }
-    }
-
-    /// Move to column 1 of an absolute screen row.
-    fn gotoRow(self: *Editor, row: u16) void {
-        var b: [16]u8 = undefined;
-        self.writeAll(std.fmt.bufPrint(&b, "\x1b[{d};1H", .{row}) catch "\r");
-    }
-
-    // Park the cursor at column 1 of the input line: the fixed prompt row in screen mode,
-    // otherwise the current row (a bare carriage return), matching the legacy behaviour.
-    fn gotoLineStart(self: *Editor) void {
-        if (self.screen) |s| {
-            var b: [16]u8 = undefined;
-            self.writeAll(std.fmt.bufPrint(&b, "\x1b[{d};1H", .{s.promptRow()}) catch "\r");
-        } else {
-            self.writeAll("\r");
-        }
-    }
-
-    // End the current input line. In screen mode the prompt is a fixed bottom row, so a real
-    // newline would line-feed and scroll the whole alt-screen (eating the pinned header) — so
-    // instead just clear the prompt row in place; the command is echoed into the scrollback by
-    // the caller. In the plain editor, emit the usual CR+LF to advance to the next line.
-    fn endPromptLine(self: *Editor) void {
-        if (self.screen) |s| {
-            self.clearPromptBlock();
-            // Hand the rows back: the submitted line is gone, so a block that grew to fit it
-            // must shrink or the output stays squeezed under a band of blank rows.
-            s.setPromptRows(1);
-        } else {
-            self.writeAll("\r\n");
-        }
-    }
-
-    /// Erase EVERY row the input block owns. Clearing only `promptRow()` leaves the
-    /// continuation rows of a wrapped line on screen: they sit below the output body, so
-    /// nothing repaints them until the block next changes height — which is why a submitted
-    /// two-row prompt used to leave its second row hanging there for the whole command.
-    fn clearPromptBlock(self: *Editor) void {
-        const s = self.screen orelse return;
-        const top = s.promptRow();
-        var i: u16 = 0;
-        while (i < s.promptRows()) : (i += 1) {
-            self.gotoRow(top + i);
-            self.writeAll("\x1b[2K");
-        }
-        self.gotoRow(top);
-    }
-
-    fn nowMs(self: *Editor) i64 {
-        const io = self.io orelse return 0;
-        return std.Io.Clock.now(.awake, io).toMilliseconds();
-    }
-
-    fn readByte(self: *Editor) ?u8 {
-        var b: [1]u8 = undefined;
-        const n = std.posix.read(self.fd_in, &b) catch return null;
-        return if (n == 0) null else b[0];
-    }
-
-    // Like readByte but waits at most `timeout_ms` (−1 = forever); returns `.idle` on timeout so
-    // the main loop can run its idle hook between keystrokes without blocking on input.
-    fn pollByte(self: *Editor, timeout_ms: i32) ByteResult {
-        var pfd = [_]std.posix.pollfd{.{ .fd = self.fd_in, .events = std.posix.POLL.IN, .revents = 0 }};
-        const ready = std.posix.poll(&pfd, timeout_ms) catch return .closed;
-        if (ready == 0) return .idle;
-        var b: [1]u8 = undefined;
-        const n = std.posix.read(self.fd_in, &b) catch return .closed;
-        return if (n == 0) .closed else .{ .byte = b[0] };
-    }
+    pub const writeAll = @import("line_edit/render.zig").writeAll;
+    pub const wrapGeom = @import("line_edit/render.zig").wrapGeom;
+    pub const refresh = @import("line_edit/render.zig").refresh;
+    pub const refreshFlat = @import("line_edit/render.zig").refreshFlat;
+    pub const gotoRow = @import("line_edit/render.zig").gotoRow;
+    pub const gotoLineStart = @import("line_edit/render.zig").gotoLineStart;
+    pub const endPromptLine = @import("line_edit/render.zig").endPromptLine;
+    pub const clearPromptBlock = @import("line_edit/render.zig").clearPromptBlock;
+    pub const nowMs = @import("line_edit/keys.zig").nowMs;
+    pub const readByte = @import("line_edit/keys.zig").readByte;
+    pub const pollByte = @import("line_edit/keys.zig").pollByte;
 
     /// Watch the tty for up to `timeout_ms` while a long command runs (an LLM turn): true when
     /// the user pressed Ctrl-C. Everything else readable is DROPPED — type-ahead during a call
@@ -387,165 +152,18 @@ pub const Editor = struct {
         }
         return seen;
     }
-
-    // Whether a byte is readable within `timeout_ms` — a peek that does NOT consume, unlike pollByte.
-    fn waitReadable(self: *Editor, timeout_ms: i32) bool {
-        var pfd = [_]std.posix.pollfd{.{ .fd = self.fd_in, .events = std.posix.POLL.IN, .revents = 0 }};
-        const ready = std.posix.poll(&pfd, timeout_ms) catch return false;
-        return ready > 0;
-    }
-
-    // A physical click emits a press report (…M) and then a release report (…m). When a double-click
-    // fires the custom-colour callback — which animates the logo — the second click's release is
-    // still queued; left there it counts as "pending input" and aborts the flourish the instant it
-    // starts (screen.sleepOrAbort). Swallow that one release first. A press is always followed by its
-    // own release before any later click's press, so consuming a single report can never drop a click.
-    fn drainMouseRelease(self: *Editor) void {
-        if (!self.waitReadable(20)) return; // release not here yet (or none coming) — nothing to drain
-        const b = self.readByte() orelse return;
-        if (b != 27) return; // a CSI mouse report starts with ESC; anything else isn't the release
-        if ((self.readByte() orelse return) != '[') return;
-        if ((self.readByte() orelse return) != '<') return;
-        while (self.readByte()) |c| {
-            if (c == 'M' or c == 'm') break; // consumed through the report's final byte
-        }
-    }
-
-    // ── images pasted into the line being typed ───────────────────────────────
-
-    // Make room for a line of output printed mid-edit (a paste's note): wipe the prompt row.
-    // The caller repaints it afterwards, exactly as the idle hook does.
-    fn clearForOutput(self: *Editor) void {
-        if (self.screen != null) return self.clearPromptBlock();
-        self.gotoLineStart();
-        self.writeAll("\x1b[2K");
-    }
-
-    // Ctrl-V: hand the clipboard to the host, which holds the picture and gives back the
-    // short name its marker shows. True when the chord was handled here — with no hooks
-    // wired the caller falls back to returning `.paste`.
-    fn attachClipboard(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize) bool {
-        const p = self.pending orelse return false;
-        var lb: [max_marker_label]u8 = undefined;
-        var tb: [max_line]u8 = undefined;
-        // Reading the clipboard shells out and takes a moment: leave the line ON SCREEN for
-        // it and erase the row only if the hook actually says something (logo's one-shot
-        // pre-print hook). Blanking it up front is what made the input blink on every paste.
-        self.armLineClear();
-        const what = p.paste(p.ctx, buf[0..len.*], &lb, &tb);
-        logo.disarmPrePrint();
-        switch (what) {
-            // A picture: it rides the line as a marker until Enter loads it.
-            .image => |n| self.insertMarker(prompt, buf, len, pos, p.count(p.ctx), lb[0..n]),
-            // Plain text on the clipboard is a plain paste — Ctrl-V is the paste key, and
-            // refusing to type what was copied because it is not a picture helps nobody.
-            .text => |n| self.insertText(prompt, buf, len, pos, sanitizeInline(tb[0..n])),
-            .none => self.refresh(prompt, buf[0..len.*], pos.*),
-        }
-        return true;
-    }
-
-    // Copy the live mouse selection (full-screen mode) to the clipboard. False when there is
-    // none, so the caller can fall through to whatever the key otherwise means.
-    fn copySelection(self: *Editor) bool {
-        const s = self.screen orelse return false;
-        if (!s.hasSelection()) return false;
-        const text = s.takeSelection();
-        if (text.len != 0) {
-            if (self.copy_text_cb) |cb| cb(self.logo_ctx.?, text);
-        }
-        return true;
-    }
-
-    // Erase the prompt row, as the one-shot pre-print hook: the caller repaints right after.
-    fn clearLineTrampoline(raw: *anyopaque) void {
-        const self: *Editor = @ptrCast(@alignCast(raw));
-        self.clearForOutput();
-    }
-
-    fn armLineClear(self: *Editor) void {
-        logo.armPrePrint(clearLineTrampoline, self);
-    }
-
-    // Ctrl-Z: take back the last image pasted into THIS line, marker and all. False when the
-    // line holds none, so the chord falls through to the session's own `/unpaste`.
-    fn dropLastMarker(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize) bool {
-        const p = self.pending orelse return false;
-        if (p.count(p.ctx) == 0) return false;
-        var start: usize = 0;
-        var end: usize = 0;
-        var i: usize = 0;
-        while (i < len.*) {
-            if (markerEnd(buf[0..len.*], i)) |e| {
-                start = i;
-                end = e;
-                i = e;
-            } else i += 1;
-        }
-        if (end == 0) { // markers all gone already — drop what they stood for and carry on
-            p.keep(p.ctx, &.{});
-            return true;
-        }
-        if (end < len.* and buf[end] == ' ') end += 1; // take the marker's own spacer with it
-        std.mem.copyForwards(u8, buf[start..], buf[end..len.*]);
-        len.* -= end - start;
-        pos.* = if (pos.* >= end) pos.* - (end - start) else @min(pos.*, start);
-        self.syncPending(buf[0..len.*]);
-        self.refresh(prompt, buf[0..len.*], pos.*);
-        return true;
-    }
-
-    // The line is being abandoned (Ctrl-C / Ctrl-D / Ctrl-U / a closed tty): whatever was
-    // pasted into it goes too — nothing was ever loaded.
-    fn abortPending(self: *Editor) void {
-        const p = self.pending orelse return;
-        if (p.count(p.ctx) != 0) p.keep(p.ctx, &.{});
-    }
-
-    // Reconcile the host's images with the markers the line actually still holds: the
-    // surviving ones are kept in the order they now read (and renumbered in place, so the
-    // first marker is always #1); the rest are dropped. Cheap, and a no-op with none pending.
-    fn syncPending(self: *Editor, line: []u8) void {
-        const p = self.pending orelse return;
-        if (p.count(p.ctx) == 0) return;
-        var kept: [max_pending_images]usize = undefined;
-        var n: usize = 0;
-        var i: usize = 0;
-        while (i < line.len) {
-            const end = markerEnd(line, i) orelse {
-                i += 1;
-                continue;
-            };
-            const idx: usize = line[i + marker_open.len] - '1';
-            if (n < kept.len and std.mem.indexOfScalar(usize, kept[0..n], idx) == null) {
-                kept[n] = idx;
-                n += 1;
-                line[i + marker_open.len] = '0' + @as(u8, @intCast(n));
-            }
-            i = end;
-        }
-        p.keep(p.ctx, kept[0..n]);
-    }
-
-    // Insert "[Image #N <label>]" at the cursor, spaced off the surrounding words so the line
-    // still reads as the sentence being written.
-    fn insertMarker(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, n: usize, label: []const u8) void {
-        var m: [max_marker_label + 16]u8 = undefined;
-        const lead: []const u8 = if (pos.* != 0 and buf[pos.* - 1] != ' ') " " else "";
-        const text = std.fmt.bufPrint(&m, "{s}{s}{d} {s}] ", .{ lead, marker_open, n, label }) catch return;
-        self.insertText(prompt, buf, len, pos, text);
-    }
-
-    // Insert `text` at the cursor (silently ignored when the line has no room left).
-    fn insertText(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, text: []const u8) void {
-        if (len.* + text.len <= buf.len) {
-            if (pos.* < len.*) std.mem.copyBackwards(u8, buf[pos.* + text.len .. len.* + text.len], buf[pos.*..len.*]);
-            @memcpy(buf[pos.*..][0..text.len], text);
-            len.* += text.len;
-            pos.* += text.len;
-        }
-        self.refresh(prompt, buf[0..len.*], pos.*);
-    }
+    pub const waitReadable = @import("line_edit/keys.zig").waitReadable;
+    pub const drainMouseRelease = @import("line_edit/keys.zig").drainMouseRelease;
+    pub const clearForOutput = @import("line_edit/render.zig").clearForOutput;
+    pub const attachClipboard = @import("line_edit/paste.zig").attachClipboard;
+    pub const copySelection = @import("line_edit/paste.zig").copySelection;
+    pub const clearLineTrampoline = @import("line_edit/render.zig").clearLineTrampoline;
+    pub const armLineClear = @import("line_edit/render.zig").armLineClear;
+    pub const dropLastMarker = @import("line_edit/paste.zig").dropLastMarker;
+    pub const abortPending = @import("line_edit/paste.zig").abortPending;
+    pub const syncPending = @import("line_edit/paste.zig").syncPending;
+    pub const insertMarker = @import("line_edit/editing.zig").insertMarker;
+    pub const insertText = @import("line_edit/editing.zig").insertText;
 
     /// Read one edited line into `buf`. Returns a submitted `.line` (its length), or a key
     /// chord the caller handles — `.eof` (Ctrl-D / closed tty), `.interrupt` (Ctrl-C, exit),
@@ -786,14 +404,7 @@ pub const Editor = struct {
             }
         }
     }
-
-    // After a mouse/nav ESC '[' arrives during confirm(), consume through the sequence's final
-    // byte (0x40..0x7e) so the whole report is swallowed and ignored.
-    fn drainCsi(self: *Editor) void {
-        while (self.readByte()) |b| {
-            if (b >= 0x40 and b <= 0x7e) break;
-        }
-    }
+    pub const drainCsi = @import("line_edit/keys.zig").drainCsi;
 
     fn finishConfirm(self: *Editor, question: []const u8, yes: bool) void {
         if (self.screen != null) {
@@ -805,343 +416,24 @@ pub const Editor = struct {
         }
     }
 
-    const CsiResult = struct { np: usize, final: u8 };
-
-    // Read CSI parameter bytes (digits and ';') into `out`, returning the final non-param byte.
-    fn collectCsi(self: *Editor, out: []u8) CsiResult {
-        return self.collectCsi2(self.readByte() orelse 0, out);
-    }
-    // Same, but `first` is a parameter byte the caller already read (e.g. while sniffing for '<').
-    fn collectCsi2(self: *Editor, first: u8, out: []u8) CsiResult {
-        var np: usize = 0;
-        var bb = first;
-        while ((bb >= '0' and bb <= '9') or bb == ';') {
-            if (np < out.len) {
-                out[np] = bb;
-                np += 1;
-            }
-            bb = self.readByte() orelse break;
-        }
-        return .{ .np = np, .final = bb };
-    }
-
-    // Act on a collected CSI nav sequence (`ESC [ params final`, mouse excluded). A modifier param
-    // > 1 or a Meta ESC prefix (`force_word`) turns a plain arrow into a word jump. Application-
-    // cursor keys (`ESC O <final>`) arrive with empty params.
-    fn csi(self: *Editor, params: []const u8, final: u8, force_word: bool, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, hist: *History, hidx: *usize, stash: []u8, stash_len: *usize) void {
-        var it = std.mem.splitScalar(u8, params, ';');
-        const code: u32 = std.fmt.parseInt(u32, it.next() orelse "", 10) catch 0;
-        const mod: u32 = std.fmt.parseInt(u32, it.next() orelse "", 10) catch 0;
-        const word = force_word or mod > 1; // any modifier on an arrow = move by word
-        switch (final) {
-            // Up/Down first move BETWEEN the rows of a wrapped line — a two-row prompt you
-            // cannot walk back into is a prompt you cannot fix. Only from the top row (Up) or
-            // the bottom one (Down) do they mean the usual previous/next command.
-            'A', 'B' => {
-                const up = final == 'A';
-                if (self.rowStep(prompt, buf[0..len.*], pos, up)) {
-                    self.refresh(prompt, buf[0..len.*], pos.*);
-                } else {
-                    self.recall(prompt, buf, len, pos, hist, hidx, stash, stash_len, up);
-                }
-            },
-            'C' => { // Right (modified = word right)
-                pos.* = if (word) wordRight(buf[0..len.*], pos.*) else @min(pos.* + 1, len.*);
-                self.refresh(prompt, buf[0..len.*], pos.*);
-            },
-            'D' => { // Left (modified = word left)
-                pos.* = if (word) wordLeft(buf[0..len.*], pos.*) else pos.* -| 1;
-                self.refresh(prompt, buf[0..len.*], pos.*);
-            },
-            'H' => {
-                pos.* = 0;
-                self.refresh(prompt, buf[0..len.*], pos.*);
-            },
-            'F' => {
-                pos.* = len.*;
-                self.refresh(prompt, buf[0..len.*], pos.*);
-            },
-            // ESC [ <code> ; <mods> u — how xterm's modifyOtherKeys and the kitty protocol
-            // report a MODIFIED key. Backspace (127, or 8 where that is the erase byte) with
-            // any modifier is the "delete the word" chord; bare, it is one character.
-            'u' => if (code == 127 or code == 8) {
-                if (word) self.deleteWordBack(prompt, buf, len, pos) else self.backspace(prompt, buf, len, pos);
-            },
-            '~' => switch (code) {
-                1, 7 => { // Home
-                    pos.* = 0;
-                    self.refresh(prompt, buf[0..len.*], pos.*);
-                },
-                4, 8 => { // End
-                    pos.* = len.*;
-                    self.refresh(prompt, buf[0..len.*], pos.*);
-                },
-                3 => { // Delete (modified = delete word forward)
-                    if (word) {
-                        self.deleteWordFwd(prompt, buf, len, pos);
-                    } else if (pos.* < len.*) {
-                        // Forward-delete drops a whole image marker too (see backspace).
-                        const gone = if (markerEnd(buf[0..len.*], pos.*)) |e| e - pos.* else 1;
-                        std.mem.copyForwards(u8, buf[pos.* .. len.* - gone], buf[pos.* + gone .. len.*]);
-                        len.* -= gone;
-                        self.syncPending(buf[0..len.*]);
-                        self.refresh(prompt, buf[0..len.*], pos.*);
-                    }
-                },
-                5, 6 => if (self.screen) |s| { // Page Up / Page Down: scroll the scrollback a page
-                    s.scroll(code == 5, true);
-                    self.refresh(prompt, buf[0..len.*], pos.*);
-                },
-                else => {},
-            },
-            else => {},
-        }
-    }
-
-    // One Backspace. On an image marker it takes the WHOLE picture back, not one byte of its
-    // name — the marker is one thing on screen, so it is one thing to delete.
-    fn backspace(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize) void {
-        if (pos.* == 0) return;
-        if (markerBefore(buf[0..len.*], pos.*)) |start| {
-            const gone = pos.* - start;
-            std.mem.copyForwards(u8, buf[start .. len.* - gone], buf[pos.*..len.*]);
-            pos.* = start;
-            len.* -= gone;
-        } else {
-            std.mem.copyForwards(u8, buf[pos.* - 1 .. len.* - 1], buf[pos.*..len.*]);
-            pos.* -= 1;
-            len.* -= 1;
-        }
-        self.syncPending(buf[0..len.*]);
-        self.refresh(prompt, buf[0..len.*], pos.*);
-    }
-
-    // Delete from the start of the word before the cursor up to the cursor (Ctrl-W / Alt-Backspace).
-    fn deleteWordBack(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize) void {
-        const start = wordLeft(buf[0..len.*], pos.*);
-        if (start == pos.*) return;
-        const removed = pos.* - start;
-        std.mem.copyForwards(u8, buf[start .. len.* - removed], buf[pos.*..len.*]);
-        len.* -= removed;
-        pos.* = start;
-        self.syncPending(buf[0..len.*]);
-        self.refresh(prompt, buf[0..len.*], pos.*);
-    }
-
-    // Delete from the cursor to the end of the word ahead of it (Alt-d / modified Delete).
-    fn deleteWordFwd(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize) void {
-        const end = wordRight(buf[0..len.*], pos.*);
-        if (end == pos.*) return;
-        const removed = end - pos.*;
-        std.mem.copyForwards(u8, buf[pos.* .. len.* - removed], buf[end..len.*]);
-        len.* -= removed;
-        self.syncPending(buf[0..len.*]);
-        self.refresh(prompt, buf[0..len.*], pos.*);
-    }
-
-    // Read a bracketed paste (`ESC [ 200 ~` consumed) up to the `ESC [ 201 ~` terminator and insert
-    // it at the cursor. Control bytes (notably newlines) become spaces, so it lands as one line.
-    fn readPaste(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize) void {
-        const start = pos.*;
-        while (true) {
-            const b = self.readByte() orelse break;
-            if (b == 27) { // an escape inside the paste — the only one we expect is the terminator
-                if ((self.readByte() orelse break) != '[') continue; // unknown → drop the introducer
-                var pr: [8]u8 = undefined;
-                var pn: usize = 0;
-                var bb = self.readByte() orelse break;
-                while ((bb >= '0' and bb <= '9') or bb == ';') {
-                    if (pn < pr.len) {
-                        pr[pn] = bb;
-                        pn += 1;
-                    }
-                    bb = self.readByte() orelse break;
-                }
-                if (bb == '~' and std.mem.eql(u8, pr[0..pn], "201")) break; // end of paste
-                continue; // some other CSI inside the paste — ignore it
-            }
-            const c: u8 = if (b < 0x20 or b == 0x7f) ' ' else b; // newlines/controls → space
-            if (len.* >= buf.len) continue; // buffer full — drop the rest of the paste
-            if (pos.* < len.*) std.mem.copyBackwards(u8, buf[pos.* + 1 .. len.* + 1], buf[pos.*..len.*]);
-            buf[pos.*] = c;
-            pos.* += 1;
-            len.* += 1;
-        }
-        // A paste that delivered NOTHING is what a terminal does when the clipboard holds only
-        // an image: its paste event carries text, and there is none. Take the picture off the
-        // clipboard ourselves — pressing ⌘V/Ctrl-Shift-V with an image copied means exactly
-        // what Ctrl-V means here.
-        if (pos.* == start and self.pending != null) {
-            _ = self.attachClipboard(prompt, buf, len, pos);
-            return;
-        }
-        self.attachPastedPath(prompt, buf, len, pos, start);
-        self.syncPending(buf[0..len.*]);
-        self.refresh(prompt, buf[0..len.*], pos.*);
-    }
-
-    // A ⌘V that pasted nothing but the path of an image FILE becomes a marker instead of the
-    // raw text: the terminal cannot hand over the picture itself, only its name. The host
-    // decides (it knows the command being typed, and whether the file is really an image) —
-    // when it declines, the pasted text simply stays.
-    fn attachPastedPath(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, start: usize) void {
-        const p = self.pending orelse return;
-        if (pos.* <= start) return;
-        var lb: [max_marker_label]u8 = undefined;
-        self.armLineClear(); // the hook may print; erase the row only then (see attachClipboard)
-        const n = p.addPath(p.ctx, buf[start..pos.*], buf[0..start], &lb) orelse {
-            logo.disarmPrePrint();
-            return;
-        };
-        logo.disarmPrePrint();
-        std.mem.copyForwards(u8, buf[start..], buf[pos.*..len.*]); // the path is now the picture
-        len.* -= pos.* - start;
-        pos.* = start;
-        self.insertMarker(prompt, buf, len, pos, p.count(p.ctx), lb[0..n]);
-    }
-
-    // Handle an SGR mouse report (`ESC [ <` already consumed): read up to the final 'M'/'m',
-    // parse it, and act — wheel scrolls the scrollback; a left-click on the pinned logo ARMS a
-    // deferred single-click (cycle, fired by readLine after the double-click window), and a
-    // *second* click within that window supersedes it as a double-click (random custom colour).
-    // Deferring avoids the first click's animation blocking the double-click detection. Else ignored.
-    fn handleMouse(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, click_pending: *bool, click_at: *i64) void {
-        var mb: [32]u8 = undefined;
-        var mi: usize = 0;
-        while (mi < mb.len) {
-            const b = self.readByte() orelse break;
-            mb[mi] = b;
-            mi += 1;
-            if (b == 'M' or b == 'm') break;
-        }
-        const ev = screen_mod.parseMouse(mb[0..mi]) orelse return;
-        const s = self.screen orelse return;
-        if (ev.isWheelUp()) {
-            s.scroll(true, false);
-            self.refresh(prompt, buf[0..len.*], pos.*);
-        } else if (ev.isWheelDown()) {
-            s.scroll(false, false);
-            self.refresh(prompt, buf[0..len.*], pos.*);
-        } else if (ev.isLeftDrag()) {
-            s.selDrag(ev.col, ev.row); // extend the visual text selection
-            self.refresh(prompt, buf[0..len.*], pos.*);
-        } else if (ev.isRelease()) {
-            if (s.selActive()) { // finished a drag → settle the highlight (visual only, no copy)
-                s.selEnd();
-                self.refresh(prompt, buf[0..len.*], pos.*);
-            }
-        } else if (ev.isLeftPress()) {
-            if (s.inHeader(ev.row)) { // logo click: deferred single (cycle) / double (custom)
-                s.pressLogo(); // immediate feedback: the logo shrinks and springs back
-                const now = self.nowMs();
-                if (click_pending.* and now - click_at.* <= double_click_ms) {
-                    click_pending.* = false;
-                    self.drainMouseRelease(); // eat this click's trailing release so the flourish plays
-                    if (self.logo_custom_cb) |cb| cb(self.logo_ctx.?);
-                    self.refresh(prompt, buf[0..len.*], pos.*);
-                } else {
-                    click_pending.* = true;
-                    click_at.* = now;
-                }
-            } else { // press on an output row → begin a visual text selection
-                s.selStart(ev.col, ev.row);
-                self.refresh(prompt, buf[0..len.*], pos.*);
-            }
-        }
-    }
-
-    // Up (older) / Down (newer) through history, stashing the fresh line on first Up.
-    /// Move the cursor one wrapped row up/down inside a multi-row input. False when there is
-    /// no such row (or no screen geometry at all), leaving Up/Down to history recall.
-    fn rowStep(self: *Editor, prompt: []const u8, line: []const u8, pos: *usize, up: bool) bool {
-        const g = self.wrapGeom(prompt) orelse return false;
-        const to = rowMove(line.len, pos.*, prompt.len, g.first, g.cols, up) orelse return false;
-        pos.* = to;
-        return true;
-    }
-
-    fn recall(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, hist: *History, hidx: *usize, stash: []u8, stash_len: *usize, older: bool) void {
-        const items = hist.items.items;
-        if (older) {
-            if (hidx.* == 0) return;
-            if (hidx.* == items.len) { // leaving the fresh line — park it
-                const m = @min(len.*, stash.len);
-                @memcpy(stash[0..m], buf[0..m]);
-                stash_len.* = m;
-            }
-            hidx.* -= 1;
-            len.* = copyInto(buf, items[hidx.*]);
-        } else {
-            if (hidx.* >= items.len) return;
-            hidx.* += 1;
-            if (hidx.* == items.len) {
-                @memcpy(buf[0..stash_len.*], stash[0..stash_len.*]);
-                len.* = stash_len.*;
-            } else {
-                len.* = copyInto(buf, items[hidx.*]);
-            }
-        }
-        pos.* = len.*;
-        self.syncPending(buf[0..len.*]); // a recalled line carries no markers: images pasted into the abandoned one go
-        self.refresh(prompt, buf[0..len.*], pos.*);
-    }
-
-    // Tab-complete the command word against `completions`. Only fires while still typing the
-    // command (no whitespace yet, cursor at the end). A unique match fills it in with a
-    // trailing space; several matches extend to their common prefix, or list them if that
-    // adds nothing. A leading '/' is preserved. Names are matched case-insensitively.
-    fn complete(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize, completions: []const []const u8) void {
-        const line = buf[0..len.*];
-        if (pos.* != len.* or std.mem.indexOfAny(u8, line, " \t") != null) return;
-        const has_slash = line.len != 0 and line[0] == '/';
-        const base = if (has_slash) line[1..] else line;
-
-        var count: usize = 0;
-        var only: []const u8 = "";
-        var lcp: []const u8 = "";
-        for (completions) |cand| {
-            if (cand.len < base.len or !std.ascii.eqlIgnoreCase(cand[0..base.len], base)) continue;
-            lcp = if (count == 0) cand else lcp[0..commonLen(lcp, cand)];
-            only = cand;
-            count += 1;
-        }
-        if (count == 0) return;
-
-        if (count == 1) {
-            len.* = setCommand(buf, has_slash, only, true); // unique: fill in + trailing space
-        } else if (lcp.len > base.len) {
-            len.* = setCommand(buf, has_slash, lcp, false); // extend to the common prefix
-        } else {
-            self.listMatches(completions, base); // ambiguous: show the options
-        }
-        pos.* = len.*;
-        self.refresh(prompt, buf[0..len.*], pos.*);
-    }
-
-    fn listMatches(self: *Editor, completions: []const []const u8, base: []const u8) void {
-        // In screen mode, emit into the scrollback (one line) so the frame/header stay put;
-        // the caller redraws the prompt afterwards. Otherwise print inline under the prompt.
-        if (self.screen != null) {
-            for (completions) |cand| {
-                if (cand.len >= base.len and std.ascii.eqlIgnoreCase(cand[0..base.len], base))
-                    logo.print("{s}  ", .{cand});
-            }
-            logo.print("\n", .{});
-            return;
-        }
-        self.writeAll("\r\n");
-        for (completions) |cand| {
-            if (cand.len >= base.len and std.ascii.eqlIgnoreCase(cand[0..base.len], base)) {
-                self.writeAll(cand);
-                self.writeAll("  ");
-            }
-        }
-        self.writeAll("\r\n");
-    }
+    pub const CsiResult = struct { np: usize, final: u8 };
+    pub const collectCsi = @import("line_edit/keys.zig").collectCsi;
+    pub const collectCsi2 = @import("line_edit/keys.zig").collectCsi2;
+    pub const csi = @import("line_edit/keys.zig").csi;
+    pub const backspace = @import("line_edit/editing.zig").backspace;
+    pub const deleteWordBack = @import("line_edit/editing.zig").deleteWordBack;
+    pub const deleteWordFwd = @import("line_edit/editing.zig").deleteWordFwd;
+    pub const readPaste = @import("line_edit/paste.zig").readPaste;
+    pub const attachPastedPath = @import("line_edit/paste.zig").attachPastedPath;
+    pub const handleMouse = @import("line_edit/paste.zig").handleMouse;
+    pub const rowStep = @import("line_edit/editing.zig").rowStep;
+    pub const recall = @import("line_edit/editing.zig").recall;
+    pub const complete = @import("line_edit/editing.zig").complete;
+    pub const listMatches = @import("line_edit/render.zig").listMatches;
 };
 
 // Write "[/]name[ ]" into buf and return the new length (clamped to the buffer).
-fn setCommand(buf: []u8, slash: bool, name: []const u8, space: bool) usize {
+pub fn setCommand(buf: []u8, slash: bool, name: []const u8, space: bool) usize {
     var i: usize = 0;
     if (slash and buf.len != 0) {
         buf[0] = '/';
@@ -1155,101 +447,6 @@ fn setCommand(buf: []u8, slash: bool, name: []const u8, space: bool) usize {
         i += 1;
     }
     return i;
-}
-
-// Length of the common case-insensitive prefix of `a` and `b`.
-fn commonLen(a: []const u8, b: []const u8) usize {
-    const n = @min(a.len, b.len);
-    var i: usize = 0;
-    while (i < n and std.ascii.toLower(a[i]) == std.ascii.toLower(b[i])) : (i += 1) {}
-    return i;
-}
-
-fn copyInto(buf: []u8, src: []const u8) usize {
-    const n = @min(buf.len, src.len);
-    @memcpy(buf[0..n], src[0..n]);
-    return n;
-}
-
-/// The end offset (exclusive) of the `[Image #N …]` marker starting at `i`, or null when no
-/// marker starts there. The index is one digit, so a marker is always removed and renumbered
-/// as a whole.
-pub fn markerEnd(line: []const u8, i: usize) ?usize {
-    if (i + marker_open.len + 2 > line.len) return null;
-    if (!std.mem.eql(u8, line[i..][0..marker_open.len], marker_open)) return null;
-    const d = line[i + marker_open.len];
-    if (d < '1' or d > '0' + max_pending_images) return null;
-    const rest = line[i + marker_open.len + 1 ..];
-    const close = std.mem.indexOfScalar(u8, rest, ']') orelse return null;
-    return i + marker_open.len + 1 + close + 1;
-}
-
-/// The start of the marker ENDING at `pos`, or null when the cursor isn't right behind one.
-pub fn markerBefore(line: []const u8, pos: usize) ?usize {
-    if (pos == 0 or pos > line.len or line[pos - 1] != ']') return null;
-    var i = pos - 1;
-    while (true) : (i -= 1) {
-        if (line[i] == '[') {
-            if (markerEnd(line, i)) |e| {
-                if (e == pos) return i;
-            }
-            return null;
-        }
-        if (i == 0) return null;
-    }
-}
-
-/// `line` with every image marker taken out (and the gap it left closed), written into `out`
-/// — the command the console actually dispatches once the pictures have been lifted off it.
-/// Returns `line` itself, untouched, when it carries no markers.
-pub fn stripMarkers(out: []u8, line: []const u8) []const u8 {
-    if (std.mem.indexOf(u8, line, marker_open) == null) return line;
-    var n: usize = 0;
-    var i: usize = 0;
-    while (i < line.len) {
-        if (markerEnd(line, i)) |e| {
-            i = e;
-            continue;
-        }
-        // Never leave a doubled (or leading) space where a marker stood.
-        if (!(line[i] == ' ' and (n == 0 or out[n - 1] == ' '))) {
-            out[n] = line[i];
-            n += 1;
-        }
-        i += 1;
-    }
-    return std.mem.trimEnd(u8, out[0..n], " ");
-}
-
-/// Pasted text as ONE editable line: control bytes (newlines above all) become spaces, so it
-/// lands the way a bracketed paste does and nothing runs until Enter.
-fn sanitizeInline(text: []u8) []const u8 {
-    for (text) |*c| {
-        if (c.* < 0x20 or c.* == 0x7f) c.* = ' ';
-    }
-    return std.mem.trimEnd(u8, text, " ");
-}
-
-// A word character for cursor motion: anything non-whitespace. Word jumps skip a run of
-// separators, then the run of word characters (bash/emacs-style).
-fn isWordChar(c: u8) bool {
-    return c > ' ' and c != 0x7f;
-}
-
-/// One word to the LEFT of `pos`: back over separators, then over the word. 0 at line start.
-fn wordLeft(line: []const u8, pos: usize) usize {
-    var p = @min(pos, line.len);
-    while (p > 0 and !isWordChar(line[p - 1])) p -= 1;
-    while (p > 0 and isWordChar(line[p - 1])) p -= 1;
-    return p;
-}
-
-/// One word to the RIGHT of `pos`: forward over separators, then over the word. `line.len` at end.
-fn wordRight(line: []const u8, pos: usize) usize {
-    var p = @min(pos, line.len);
-    while (p < line.len and !isWordChar(line[p])) p += 1;
-    while (p < line.len and isWordChar(line[p])) p += 1;
-    return p;
 }
 
 const testing = std.testing;
@@ -1537,50 +734,6 @@ test "Ctrl-C copies a live selection; with none it still confirms the exit" {
     try testing.expectEqual(@as(usize, 1), Copied.count); // copied once, exited once
 }
 
-test "History.add: trims, dedups consecutive, caps at max_history" {
-    var h = History{ .gpa = testing.allocator };
-    defer h.deinit();
-
-    h.add("  /upload a.png  ");
-    h.add("/upload a.png"); // consecutive duplicate — ignored
-    h.add("   "); // blank — ignored
-    h.add("/rotate 1");
-    try testing.expectEqual(@as(usize, 2), h.items.items.len);
-    try testing.expectEqualStrings("/upload a.png", h.items.items[0]);
-    try testing.expectEqualStrings("/rotate 1", h.items.items[1]);
-
-    var i: usize = 0;
-    while (i < max_history + 10) : (i += 1) {
-        var b: [16]u8 = undefined;
-        h.add(std.fmt.bufPrint(&b, "/cmd {d}", .{i}) catch unreachable);
-    }
-    try testing.expectEqual(@as(usize, max_history), h.items.items.len);
-}
-
-test "completion helpers: common prefix and command fill-in" {
-    try testing.expectEqual(@as(usize, 2), commonLen("reset", "redo")); // "re"
-    try testing.expectEqual(@as(usize, 0), commonLen("crop", "save"));
-    try testing.expectEqual(@as(usize, 6), commonLen("ROTATE", "rotate")); // case-insensitive
-
-    var buf: [32]u8 = undefined;
-    try testing.expectEqualStrings("/upload ", buf[0..setCommand(&buf, true, "upload", true)]);
-    try testing.expectEqualStrings("rotate", buf[0..setCommand(&buf, false, "rotate", false)]);
-}
-
-test "wordLeft/wordRight: jump over separator runs then the word" {
-    const s = "/crop 10 20 to end";
-    //         0123456789...
-    try testing.expectEqual(@as(usize, 12), wordLeft(s, 14)); // inside "to" → start of "to"
-    try testing.expectEqual(@as(usize, 9), wordLeft(s, 11)); // start of "20"
-    try testing.expectEqual(@as(usize, 0), wordLeft(s, 5)); // from the space back to line start
-    try testing.expectEqual(@as(usize, 0), wordLeft(s, 0)); // already home
-
-    try testing.expectEqual(@as(usize, 5), wordRight(s, 0)); // over "/crop" to the space's end... "/crop"
-    try testing.expectEqual(@as(usize, 8), wordRight(s, 5)); // over " 10"
-    try testing.expectEqual(@as(usize, s.len), wordRight(s, 15)); // "end" → end of line
-    try testing.expectEqual(@as(usize, s.len), wordRight(s, s.len)); // already at end
-}
-
 test "plain Ctrl-V / Ctrl-Z resolve to the paste / un-paste actions" {
     // Driven over a pipe rather than a tty: readLine only reads bytes, and the actions under
     // test need no screen. (Ctrl-V is the binding Claude Code's CLI uses for the same job —
@@ -1626,51 +779,6 @@ test "pollInterrupt: a Ctrl-C is reported, other type-ahead is dropped" {
     // Everything was consumed: nothing is left to arm a quit once the call returns.
     try testing.expect(!ed.pollInterrupt(0));
     _ = std.c.close(in[1]);
-}
-
-test "rowMove: Up/Down walk a wrapped line's rows, then hand back to history" {
-    // Geometry: prompt "> " (2 cols), a 10-col first row, 12-col continuation rows. The line
-    // is 30 bytes, so it occupies rows [0..10), [10..22), [22..30) — three rows.
-    const len: usize = 30;
-    const first: usize = 10;
-    const cols: usize = 12;
-    const pl: usize = 2;
-
-    // From the top row there is nothing above: null = "do the history thing instead".
-    try testing.expectEqual(@as(?usize, null), rowMove(len, 3, pl, first, cols, true));
-    // …and from the last row there is nothing below.
-    try testing.expectEqual(@as(?usize, null), rowMove(len, 27, pl, first, cols, false));
-    // A line that fits one row keeps Up/Down as previous/next command, wherever the cursor is.
-    try testing.expectEqual(@as(?usize, null), rowMove(8, 4, pl, first, cols, true));
-    try testing.expectEqual(@as(?usize, null), rowMove(8, 4, pl, first, cols, false));
-
-    // Down from row 0 keeps the SCREEN column: offset 3 sits at column 2+3=5, and row 1 has
-    // no prompt in front of it, so the cursor lands 5 bytes into it.
-    try testing.expectEqual(@as(?usize, 15), rowMove(len, 3, pl, first, cols, false));
-    // Up from there returns to where it started (the move is symmetric).
-    try testing.expectEqual(@as(?usize, 3), rowMove(len, 15, pl, first, cols, true));
-    // Down from row 1 to row 2, same column, no prompt on either.
-    try testing.expectEqual(@as(?usize, 27), rowMove(len, 15, pl, first, cols, false));
-    // A column past the end of the target row clamps to the end of the line, never past it.
-    try testing.expectEqual(@as(?usize, 30), rowMove(len, 21, pl, first, cols, false));
-    // Coming back up onto row 0, the prompt's own columns are not walkable: column 1 is offset 0.
-    try testing.expectEqual(@as(?usize, 0), rowMove(len, 10, pl, first, cols, true));
-}
-
-test "wrappedRows / rowSlice: the input flows onto as many rows as it needs" {
-    // The first row is shorter (the prompt sits on it); an empty line still owns one row.
-    try testing.expectEqual(@as(usize, 1), wrappedRows(0, 10, 20));
-    try testing.expectEqual(@as(usize, 1), wrappedRows(10, 10, 20));
-    try testing.expectEqual(@as(usize, 2), wrappedRows(11, 10, 20));
-    try testing.expectEqual(@as(usize, 2), wrappedRows(30, 10, 20));
-    try testing.expectEqual(@as(usize, 3), wrappedRows(31, 10, 20));
-
-    const line = "0123456789abcdefghijklmnopqrstuvwxyz";
-    try testing.expectEqualStrings("0123456789", rowSlice(line, 0, 10, 8));
-    try testing.expectEqualStrings("abcdefgh", rowSlice(line, 1, 10, 8));
-    try testing.expectEqualStrings("ijklmnop", rowSlice(line, 2, 10, 8));
-    // A row past the end is empty rather than out of bounds.
-    try testing.expectEqualStrings("", rowSlice(line, 9, 10, 8));
 }
 
 /// Read a non-blocking fd until it runs dry — the editor emits its escapes in many small
@@ -1747,4 +855,15 @@ test "refresh keeps a selection wash on the input rows instead of erasing it" {
     const n = std.posix.read(out[0], &drained) catch 0;
     const painted = drained[0..n];
     try testing.expect(std.mem.indexOf(u8, painted, "\x1b[48;2;") != null); // the wash survived
+}
+
+test {
+    _ = wrap;
+    _ = markers;
+    _ = words;
+    _ = @import("line_edit/history.zig");
+    _ = @import("line_edit/render.zig");
+    _ = @import("line_edit/keys.zig");
+    _ = @import("line_edit/editing.zig");
+    _ = @import("line_edit/paste.zig");
 }

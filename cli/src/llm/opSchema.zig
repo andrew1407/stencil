@@ -48,7 +48,7 @@ pub const Entry = struct {
 
 pub const OpsetHit = union(enum) { entry: Entry, fail, none };
 
-// ── the token grammars (registry.regexes), hand-matched — Zig has no regex ────
+// the token grammars (registry.regexes), hand-matched — Zig has no regex
 
 pub const Grammar = enum { CROP_TOKEN, CROP_ASPECT, PAGE_FORMAT, HEX, CSS_NAME, FORMULA_X, FORMULA_Y, HTTP_URL, URL_SCHEME };
 
@@ -174,8 +174,6 @@ fn hasUrlScheme(s: []const u8) bool {
     return std.mem.startsWith(u8, s[i..], "://");
 }
 
-// ── value helpers ────────────────────────────────────────────────────────────
-
 /// A finite number: integers, finite floats, and the overflowed literals std.json
 /// keeps as text (JSON.parse reads those as finite floats too).
 fn numOf(v: Value) ?f64 {
@@ -250,7 +248,7 @@ fn trimWs(s: []const u8) []const u8 {
     return std.mem.trim(u8, s, &std.ascii.whitespace);
 }
 
-// ── message plumbing: where a value sits ─────────────────────────────────────
+// message plumbing: where a value sits
 
 const Path = struct { root: []const u8 = "", key: []const u8 = "", container: ?[]const u8 = null };
 
@@ -320,7 +318,7 @@ fn quoteKeys(ctx: Ctx, keys: []const Value, sep: []const u8) Error![]const u8 {
     return out.toOwnedSlice(ctx.a);
 }
 
-// ── native cross-field rules an entry may name in `rules` ───────────────────
+// native cross-field rules an entry may name in `rules`
 
 /// §3.2 tolerance: "aspect" beside "spec" folds into the spec when it lacks one; a
 /// conflicting duplicate fails. The folded copy is what gets validated + normalized.
@@ -344,7 +342,7 @@ fn cropAspectFold(ctx: Ctx, a: ObjectMap) Error!ObjectMap {
     return out;
 }
 
-// ── the checks (opSchema.js order: rules → unknown keys → presence rules → per key) ──
+// the checks (opSchema.js order: rules → unknown keys → presence rules → per key)
 
 fn checkString(ctx: Ctx, v: Value, spec: ObjectMap, path: Path, parent: ?ObjectMap) Error!void {
     if (v != .string) return ctx.fail("{s} must be a string", .{try label(ctx, path)});
@@ -573,7 +571,7 @@ fn checkFields(ctx: Ctx, obj: ObjectMap, fields: ObjectMap, holder: ObjectMap, p
     }
 }
 
-// ── normalization: the declared keys only, defaults applied, trims honoured ──
+// normalization: the declared keys only, defaults applied, trims honoured
 
 fn pick(a: std.mem.Allocator, v: Value, spec: ObjectMap) Error!Value {
     const t = getStr(spec, "type") orelse "";
@@ -603,7 +601,7 @@ fn pickFields(a: std.mem.Allocator, obj: ObjectMap, fields: ObjectMap) Error!Obj
     return out;
 }
 
-// ── the schema: the registry resolved for this surface ───────────────────────
+// the schema: the registry resolved for this surface
 
 pub const Schema = struct {
     root: ObjectMap,
@@ -767,7 +765,8 @@ fn resolveEntry(e: ObjectMap) error{OutOfMemory}!Entry {
     };
 }
 
-// Parsed once on first use; the CLI is single-threaded. The tree lives for the process.
+// Parsed once on first use, from the main thread only (scrape's fetch pool never reaches
+// here). The tree lives for the process.
 var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 var instance: ?Schema = null;
 
@@ -814,8 +813,6 @@ pub fn get() *const Schema {
     if (instance == null) instance = build() catch @panic("out of memory parsing opRegistry.json");
     return &instance.?;
 }
-
-// ── tests ────────────────────────────────────────────────────────────────────
 
 const testing = std.testing;
 

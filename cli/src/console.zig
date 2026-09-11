@@ -400,5 +400,6 @@ test {
     _ = @import("console/remoteEvents.zig");
     _ = @import("console/attachments.zig");
     _ = @import("console/spinner.zig");
+    _ = @import("console/derivedView.zig");
     _ = @import("console/llmPrompt.zig");
 }

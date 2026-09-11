@@ -2,15 +2,13 @@
 //! the guarded net.request path, and the sanitized provider error details.
 const std = @import("std");
 const net = @import("../net.zig");
-const logo = @import("../logo.zig");
+const report = @import("../report.zig");
 const wire = @import("wire.zig");
 const sanitize = @import("../sanitize.zig");
 
 // Symbols living in the sibling llm/ modules (facade: ../llm.zig).
 const member = wire.member;
 const memberStr = wire.memberStr;
-
-// ── Transport ────────────────────────────────────────────────────────────────
 
 /// `LlmDisabled` = the server's 503 llmDisabled (no LLM key configured) — typed so a
 /// caller can tell "configure the server" apart from a broken transport (browser
@@ -114,7 +112,7 @@ pub fn waitForJob(job: *Job, io: std.Io, waiter: Waiter) PostError!net.Response 
             if (job.claim(.cancelled)) {
                 // The user asked for the stop, so it is a note, not an `error:` — the command
                 // did exactly what was asked. The deadline below still is an error.
-                logo.note("cancelled — the assistant turn was stopped\n", .{});
+                report.note("cancelled — the assistant turn was stopped\n", .{});
                 return PostError.Cancelled;
             }
             break; // it landed in the same instant: use the answer we already paid for
@@ -123,7 +121,7 @@ pub fn waitForJob(job: *Job, io: std.Io, waiter: Waiter) PostError!net.Response 
         if (waiter.beat) |b| if (waiter.beat_ctx) |c| b(c, now);
         if (waiter.timeout_ms > 0 and now - started > waiter.timeout_ms) {
             if (job.claim(.cancelled)) {
-                logo.err("the LLM endpoint did not answer within {d}s\n", .{@divTrunc(waiter.timeout_ms, 1000)});
+                report.err("the LLM endpoint did not answer within {d}s\n", .{@divTrunc(waiter.timeout_ms, 1000)});
                 return PostError.TimedOut;
             }
             break;
@@ -172,9 +170,9 @@ fn finish(gpa: std.mem.Allocator, res: net.Response) PostError![]u8 {
         var buf: DetailBuf = undefined;
         const why = errorDetail(gpa, res.body, &buf);
         if (why.len != 0) {
-            logo.err("{s}\n", .{why});
+            report.err("{s}\n", .{why});
         } else {
-            logo.err("the LLM endpoint answered HTTP {d}\n", .{res.status});
+            report.err("the LLM endpoint answered HTTP {d}\n", .{res.status});
         }
         // Same printed message, typed: the server's llmDisabled is its own error.
         return if (isLlmDisabled(gpa, res.body)) PostError.LlmDisabled else PostError.HttpFailed;
@@ -248,8 +246,6 @@ pub fn clip(buf: *ClipBuf, body: []const u8) []const u8 {
     @memcpy(buf[end .. end + ell.len], ell);
     return buf[0 .. end + ell.len];
 }
-
-// ── tests ────────────────────────────────────────────────────────────────────
 
 const testing = std.testing;
 

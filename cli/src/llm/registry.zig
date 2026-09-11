@@ -11,7 +11,7 @@ const transport = @import("transport.zig");
 const Action = opplan.Action;
 const findOp = opplan.findOp;
 
-// ── The canonical system prompt (contract §4 + §13, registry-generated ops) ──
+// The canonical system prompt (contract §4 + §13, registry-generated ops)
 //
 // §4's two-part rule: the PROSE CORE is embedded verbatim; the ops list is GENERATED from
 // `op_registry` — the same table the validator's variant gates read — so the prompt can
@@ -157,7 +157,7 @@ pub const op_registry = [_]OpDescriptor{
         \\  next: image 1, its edits, save, image 2, its edits, save, …
         ,
     },
-    // ── The console settings-op profile (the CLI's §10 analog) ───────────────
+    // The console settings-op profile (the CLI's §10 analog)
     // Ops that drive the console's OWN controls, the way the GUI editors' §10 block
     // drives theirs. Every op maps 1:1 onto an EXISTING console command (/theme,
     // /connect, /disconnect, /reconnect, /delete, /upload <url>, /copy, /drop).
@@ -433,8 +433,6 @@ pub fn consoleSystemPrompt() []const u8 {
 /// map actually rides along as the second attachment. Verbatim per the contract.
 pub const edge_map_suffix = "The second attached image is an edge-map render of the working " ++
     "image at the same pixel coordinates: use it to place outline points on real edges.";
-
-// ── tests ────────────────────────────────────────────────────────────────────
 
 const testing = std.testing;
 
