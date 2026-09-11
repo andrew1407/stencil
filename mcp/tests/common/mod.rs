@@ -2,6 +2,7 @@
 #![allow(dead_code)]
 
 pub mod cli;
+pub mod args;
 pub mod llm;
 
 use std::sync::LazyLock;
