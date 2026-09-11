@@ -3,9 +3,8 @@
 // app via a `stencil://open?…` OS-scheme link (page images ride INLINE as data:, server
 // rows send only a reference — no token in the link), or the Telegram bot via a
 // `t.me/<bot>?start=` deep link (server rows only: a start payload can't carry bytes).
-// PORTS of browser/js/core/deepLink.js + openInModal.js's size guards; the extension
-// can't import from browser/, so they're duplicated and unit-tested against the
-// browser's golden vectors (tests/openIn.test.js). Keep the two in sync.
+// Ports of browser/js/core/deepLink.js + openInModal.js's size guards, unit-tested
+// against the browser's golden vectors (tests/openIn.test.js). Keep the two in sync.
 import { isLoopbackHost, normalizeUrl } from './connections.js';
 
 // Inline hand-offs ride the OS launch machinery (LaunchServices / xdg-open argv), which

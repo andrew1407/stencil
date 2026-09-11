@@ -1,13 +1,8 @@
-// Display-shortening for image / project names — the extension's port of
-// browser/js/utils.js `shortName`. Keep the two behaviourally identical (same limit,
-// same head/tail split); desktop/src/support/displayName.hpp is the third port.
-//
-// Names come from a URL basename (see filenameFromUrl), and CDNs hand out opaque
-// 60-char slugs ("MV5BODg3MzYwMjE4N15BMl5BanBnXkFtZTcwMjU5NzAzNw@@._V1_"). A list cell
-// can lean on CSS text-overflow, but a name interpolated into a status SENTENCE cannot.
-//
-// Middle ellipsis, because both ends carry meaning: the head is what little the user
-// recognises and the tail holds the extension / suffix that says WHICH item this is.
+// Port of browser/js/utils.js `shortName` — keep the two behaviourally identical (same
+// limit, same head/tail split); desktop/src/support/displayName.hpp is the third port.
+// Names come from a URL basename, and CDNs hand out opaque 60-char slugs; a name
+// interpolated into a status SENTENCE can't lean on CSS text-overflow. Middle ellipsis
+// because both ends carry meaning — the recognisable head and the suffix.
 export const NAME_DISPLAY_CHARS = 28;
 
 export const shortName = (name, limit = NAME_DISPLAY_CHARS) => {

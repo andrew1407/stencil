@@ -57,7 +57,7 @@ export function wireLogoAccent(logo) {
   // Hover preview, hardened against the flood's own churn (browser twin: accentPicker.js):
   // it fires only after a rest AND only when the key CHANGES, and the restore waits out the
   // flood before checking that the pointer has really left. Without both, the synthetic
-  // enter/leave ping-ponged preview → restore → preview forever (user report).
+  // enter/leave ping-pong preview → restore → preview forever.
   trackPointer();
   let shownKey = null;        // the key currently previewed, or null = the committed accent
   let committing = false;     // a pick's own flood is playing under the closing list
@@ -134,15 +134,11 @@ export function wireLogoAccent(logo) {
     shownKey = key; A.set(key, logo); markSel(); closeMenu();
   };
   // The press a FLOOD swallowed — browser accentPicker.js twin, same reason. A view
-  // transition's snapshot tree is an overlay over the whole page and it owns the hit test
-  // while it plays: pressing a row mid-wipe answers <html>, so the row's own click never
-  // fires AND the outside-press check reads the press as a dismissal — picking a colour
-  // while its own hover preview was still wiping closed the list and put the old accent
-  // back (user report). `pointer-events` on ::view-transition does not help; the
-  // transition ROOT is what takes the hit. Nothing moves in these swaps — only the
-  // palette changes — so the rows are exactly where the snapshot draws them and the press
-  // can be resolved against their boxes. On the WINDOW, in capture, so it runs before any
-  // document-level dismissal whichever was registered first.
+  // transition's snapshot tree owns the hit test while it plays: pressing a row mid-wipe
+  // answers <html>, so the row's click never fires AND the outside-press check reads it as
+  // a dismissal. `pointer-events` on ::view-transition does not help; the transition ROOT
+  // takes the hit. Nothing MOVES in these swaps, so the press resolves against the rows'
+  // own boxes. On the WINDOW, in capture, so it beats any document-level dismissal.
   const rowAt = (x, y) => {
     if (menu.hidden) return null;
     for (const li of menu.children) {

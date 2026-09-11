@@ -1,13 +1,8 @@
 // ── Dropped media → a scan-row entry ────────────────────────────────────────
-// Everything the panel can act on is a "row": `{kind, src, videoUrl?, name, w, h,
-// opened, pinned, …}` (the shape scanPageForImages produces and popup.js's ⋯ menu
-// consumes). This module normalises a DROPPED payload — a page <img>/<video> dragged
-// out of the page, a local file, a data:/blob: URL — into that same shape, so the drop
-// targets (the header logo's action menu, drag-to-pin) reuse the row machinery instead
-// of growing their own.
-//
-// Pure and DOM-free: `URL.createObjectURL` is injected for the file case, so
-// `node --test` drives it with stubs.
+// Everything the panel can act on is a "row": `{kind, src, videoUrl?, name, w, h, opened,
+// pinned, …}` — what scanPageForImages produces and popup.js's ⋯ menu consumes. A DROPPED
+// payload is normalised into that same shape so the drop targets reuse the row machinery.
+// Pure and DOM-free: `URL.createObjectURL` is injected for the file case.
 import { filenameFromUrl } from './stencil.js';
 import { guessKindFromUrl } from './dragUrl.js';
 import { isVideoFile, isDropCandidate } from './chatDrop.js';
@@ -70,9 +65,8 @@ export const isMediaFile = (file) =>
  * A minimal scan-shaped row for a media URL that isn't among the scanned images.
  * A video keys on its media URL and has no still (`src: ''`), which is exactly how the
  * scanner represents a frameless video — so the row machinery treats it identically.
- * @param {string} src - Absolute media URL (http(s), data:, blob:).
- * @param {object} [opts] - `{name}` overrides the URL-derived name; `{kind}` overrides
- *   the extension guess (a dropped File knows its own MIME type).
+ * `{name}` overrides the URL-derived name; `{kind}` overrides the extension guess (a
+ * dropped File knows its own MIME type).
  */
 export const entryFromUrl = (src, { name = '', kind = '' } = {}) => {
   const url = String(src || '').trim();
@@ -87,15 +81,10 @@ export const entryFromUrl = (src, { name = '', kind = '' } = {}) => {
 };
 
 /**
- * Normalise a classified drop (lib/chatDrop.js `classifyDrop`) into a row entry.
+ * Normalise a classified drop (lib/chatDrop.js `classifyDrop`) into a row entry, or null.
  *   files → the first image/video File, via an object URL (its MIME picks the kind)
  *   url   → a matching SCANNED entry when there is one (richer: real dims, format,
  *           opened/pinned state), else a fresh entry derived from the URL
- * @param {object} payload - `{kind: 'files', files}` | `{kind: 'url', url}`
- * @param {object} [ctx]
- * @param {Array}  [ctx.items] - The current scan rows, to prefer a match from.
- * @param {Function} [ctx.objectUrl] - URL.createObjectURL seam (required for files).
- * @returns {object|null} the entry, or null when nothing usable was dropped.
  */
 export const entryFromDrop = (payload, { items = [], objectUrl = null } = {}) => {
   if (!payload) return null;
@@ -113,10 +102,10 @@ export const entryFromDrop = (payload, { items = [], objectUrl = null } = {}) =>
 };
 
 // ── The spring-loaded drag menu ─────────────────────────────────────────────
-// The menu that opens under the logo MID-DRAG is deliberately tiny: four flat
-// actions, each of them a drop target you can release the drag onto. No Download /
-// Pin / Open in… / submenus — those live in the row's ⋯ menu, which you reach with a
-// normal click. `needsPixels` marks the actions that need something drawable.
+// The menu that opens under the logo MID-DRAG is deliberately tiny: four flat actions,
+// each a drop target you can release onto. Download / Pin / Open in… / submenus live in
+// the row's ⋯ menu, which a normal click reaches. `needsPixels` marks the actions that
+// need something drawable.
 export const DRAG_MENU_ACTIONS = [
   { id: 'editor', label: 'Open in editor', icon: 'monitor', needsPixels: true },
   { id: 'newtab', label: 'Open in new tab', icon: 'external', needsPixels: false },
@@ -126,12 +115,11 @@ export const DRAG_MENU_ACTIONS = [
 
 /**
  * The drag-menu actions that apply to an entry, in menu order. Same guards as the row
- * menu, over the same primitives: unknown DIMENSIONS cost nothing (the editor measures
- * the bytes it fetches), but a video with no captured frame keeps only the actions that
- * don't need pixels — omitted rather than offered-and-throwing.
- * @param {object|null} entry - null when the payload can't be read yet: a `dragover`
- *   exposes only the DataTransfer's types, never its data, so the menu springs open
- *   optimistically and the drop re-checks against the real entry.
+ * menu: unknown DIMENSIONS cost nothing (the editor measures the bytes it fetches), but a
+ * video with no captured frame keeps only the actions that don't need pixels — omitted
+ * rather than offered-and-throwing. A null `entry` means the payload can't be read yet (a
+ * `dragover` exposes only types), so the menu springs open optimistically and the drop
+ * re-checks against the real entry.
  */
 export const dragMenuActions = (entry) => {
   if (entry === null || entry === undefined) return DRAG_MENU_ACTIONS.slice();

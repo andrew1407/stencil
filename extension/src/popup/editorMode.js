@@ -10,10 +10,8 @@ import { icon } from '../lib/icons.js';
 import { createFilterTransition } from '../lib/motion.js';
 import { openPanelDialog } from './dialogShell.js';
 import { setTip } from '../lib/tip.js';
+import { pollClock } from '../lib/pollClock.js';
 
-// Preview refresh interval (ms) — the same poll-while-open the shared pins use, an MV3 popup
-// being too short-lived for a background channel. Cleared on pagehide / leaving editor mode.
-const EDITOR_POLL_MS = 8000;
 // Debounce for tab open/close/navigate bursts before the source-page list refreshes.
 const TABS_REFRESH_DEBOUNCE_MS = 300;
 
@@ -59,7 +57,6 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
   let editors = [];         // the last EDITOR_LIST rows (editorRow shape)
   let choices = [];         // the last SOURCE_TABS choices
   const selected = new Set();   // tabIds ticked in the source list (empty = list nothing)
-  let pollTimer = null;
   const magnified = new Map();   // tabId → the big hover capture, fetched once per tab
 
   // ── "Open editors" ─────────────────────────────────────────────────────────
@@ -506,19 +503,16 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
   };
 
   // ── Poll-while-open (previews) ─────────────────────────────────────────────
-  const startPolling = () => {
-    if (pollTimer) return;
-    pollTimer = setInterval(() => {
-      refreshEditors();
-      // The DevTools panel has no chrome.tabs events — its page list rides the
-      // same poll instead (popup/side panel refresh on the events below).
-      if (!chrome.tabs?.onCreated) refreshChoicesLive();
-    }, EDITOR_POLL_MS);
+  // Rides the panel's shared clock (lib/pollClock.js) — the same tick the shared pins use,
+  // an MV3 panel being too short-lived for a background channel.
+  const poll = () => {
+    refreshEditors();
+    // The DevTools panel has no chrome.tabs events — its page list rides the
+    // same poll instead (popup/side panel refresh on the events below).
+    if (!chrome.tabs?.onCreated) refreshChoicesLive();
   };
-  const stopPolling = () => {
-    if (pollTimer) clearInterval(pollTimer);
-    pollTimer = null;
-  };
+  const startPolling = () => pollClock.add(poll);
+  const stopPolling = () => pollClock.remove(poll);
 
   if (present) {
     window.addEventListener('pagehide', stopPolling);

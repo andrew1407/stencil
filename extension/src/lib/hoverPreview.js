@@ -4,11 +4,10 @@
 // a thumbnail-sized image never flashes an empty card twice. Extracted from popup.js.
 //
 // ── The card is sand too (lib/motion.js surfaceIn/surfaceOut) ───────────────
-// It forms from motes streaming out of the row it previews and comes apart into motes
-// pouring back into it, like every other overlay in the extension. Its own, short clock
-// (lib/controlTooltip.js's own precedent): a sweep across rows re-triggers it fast, so a
-// flight has to be over before the next row's begins — and an UPGRADE (the small source
-// swapped for the fetched/decoded one) replays the same gather rather than snapping.
+// It forms from motes streaming out of the row it previews and pours back into it. Its
+// own short clock (as in lib/controlTooltip.js): a sweep across rows re-triggers fast, so
+// a flight must end before the next begins — and an UPGRADE (the small source swapped for
+// the fetched one) replays the gather rather than snapping.
 import {
   surfaceIn, surfaceOut, settleSurface, centerOf, TIP_DUST_IN_MS, TIP_DUST_OUT_MS,
 } from './motion.js';
@@ -30,18 +29,9 @@ export const previewWorthwhile = (image, thumbPx) =>
   !(image.w > 0 && image.h > 0 && image.w <= thumbPx && image.h <= thumbPx);
 
 /**
- * Wire the shared preview card.
- *
- * @param {object} deps
- * @param {HTMLElement} deps.previewEl - The floating card.
- * @param {HTMLImageElement} deps.previewImg - The <img> inside it.
- * @param {number} deps.thumbPx - The row-thumbnail size previews must beat.
- * @param {(src: string, pageUrl: string) => Promise<string>} deps.fetchDataUrl - The
- *   host-permission fetch: a bare <img src> can't load a hotlink-protected source.
- * @param {(image: object) => string} deps.getSrc - An image's previewable source ('' = none).
- * @param {(image: object) => string} [deps.getPageUrl] - The page a row came from.
- * @param {Window} [deps.win]
- * @param {number} [deps.debounceMs] - The settle-before-showing delay.
+ * Wire the shared preview card. `thumbPx` is the row-thumbnail size a preview must beat;
+ * `fetchDataUrl` is the host-permission fetch, since a bare <img src> can't load a
+ * hotlink-protected source; `getSrc` returns an image's previewable source ('' = none).
  */
 export const createHoverPreview = ({
   previewEl, previewImg, thumbPx, fetchDataUrl, getSrc,

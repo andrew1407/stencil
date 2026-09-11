@@ -18,13 +18,8 @@ import { setTip } from './tip.js';
 export const AUTO_DISMISS_MS = 8000;
 
 /**
- * Add a small × dismiss button to a transcript entry.
- * @param {object} el - The entry element (gets the button appended).
- * @param {object} opts
- * @param {object} opts.doc - Document (injected; `document` in the app).
- * @param {number} [opts.autoMs] - Auto-dismiss delay in ms (0/absent = manual only).
- * @param {Function} [opts.timer] - setTimeout seam (tests pass a stub).
- * @param {Function} [opts.onDismiss] - Called after the entry is removed.
+ * Add a small × dismiss button to a transcript entry. `autoMs` 0/absent = manual only;
+ * `doc` and `timer` are the injected seams.
  * @returns {{dismiss: Function, button: object}}
  */
 export const makeDismissible = (el, { doc, autoMs = 0, timer = setTimeout, onDismiss } = {}) => {
@@ -171,12 +166,8 @@ export const SUGGESTIONS = [
 ];
 
 /**
- * Build the empty-state suggestion-chip block. Clicking a chip calls
- * `onPick(prompt)` — it PREFILLS the input, it never sends.
- * @param {object} doc - Document (injected).
- * @param {Function} onPick - Receives the chip's full prompt text.
- * @param {Array} [items] - Chip list (defaults to SUGGESTIONS).
- * @returns {object} The container element (append it to the transcript).
+ * Build the empty-state suggestion-chip block. Clicking a chip calls `onPick(prompt)` —
+ * it PREFILLS the input, it never sends. Returns the container to append.
  */
 export const renderSuggestions = (doc, onPick, items = SUGGESTIONS) => {
   const wrap = doc.createElement('div');
@@ -186,10 +177,9 @@ export const renderSuggestions = (doc, onPick, items = SUGGESTIONS) => {
     b.type = 'button';
     b.className = 'chat-suggest';
     b.textContent = s.label;
-    // No tooltip (browser parity: chatView.js chatEmptyState builds these bare). The chip
-    // IS its own label, and hovering one popped a bubble restating it in slightly longer
-    // words — over the chips beside it, which is the opposite of helpful. The full prompt
-    // still rides `data-prompt`, which is what the click prefills.
+    // No tooltip (browser parity: chatView.js chatEmptyState builds these bare) — the chip
+    // IS its own label, and a bubble restating it covers the chips beside it. The full
+    // prompt rides `data-prompt`, which is what the click prefills.
     if (b.dataset) b.dataset.prompt = s.prompt;
     b.addEventListener('click', () => onPick(s.prompt));
     wrap.appendChild(b);

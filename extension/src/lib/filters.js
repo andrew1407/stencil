@@ -24,7 +24,7 @@ export const formatOf = (src) => {
   return m ? norm(m[1]) : '';
 };
 
-// The format used to filter an item: a video keys on its media URL, the rest on `src`.
+// A video keys on its media URL, the rest on `src`.
 export const formatOfItem = (item) =>
   item && item.kind === 'video' ? formatOf(item.videoUrl) : formatOf(item && item.src);
 

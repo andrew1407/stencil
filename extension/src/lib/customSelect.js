@@ -239,8 +239,8 @@ export function enhanceSelect(selectEl, { search = false, icons = null, preview 
     closeDone();
   };
   // The pick is APPLIED first, so the exit and the trigger's swap play under what was just
-  // picked (None → Fire used to arrive with None's no-motion — user report). The raw setter
-  // keeps the wrapped one's sync for after the dispatch.
+  // picked (None → Fire must not arrive with None's no-motion). The raw setter keeps the
+  // wrapped one's sync for after the dispatch.
   const choose = (v) => {
     clearHover();
     previewActive = false;   // the pick commits the real value; no revert on the close below

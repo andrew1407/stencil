@@ -12,12 +12,9 @@ import { menuTransformOrigin } from '../lib/chatMsgMenu.js';
 import { surfaceIn, surfaceOut, centerOf } from '../lib/motion.js';
 
 /**
- * Open a dialog shell and resolve it exactly once.
- * @param {object} args
- * @param {(finish: (value: any) => void) => (Node[]|Node)} args.build - Build the dialog's
- *   content; `finish(value)` closes and settles the promise (undefined = cancelled).
- * @param {Element} [args.anchor] - The control that opened it → the anchored popover shape.
- * @returns {Promise<any>} The value passed to finish; undefined on click-away / Escape.
+ * Open a dialog shell and resolve it exactly once. `build(finish)` returns the content;
+ * `finish(value)` closes and settles (undefined = cancelled, as click-away / Escape do).
+ * `anchor` (the control that opened it) switches on the popover shape.
  */
 export const openPanelDialog = ({ build, anchor }) => new Promise((resolve) => {
   const back = document.createElement('div');

@@ -6,10 +6,9 @@
 //
 // THEME: the shell can't link lib/theme.css (it lives in someone else's page), so its
 // palette arrives as DATA — `theme` = {mode, accent, palettes, accents} from
-// lib/shellTheme.js. It used to be hardcoded light-with-a-prefers-color-scheme-override,
-// which put a WHITE frame around a dark crop page whenever the user's Appearance choice
-// disagreed with the OS. The values become CSS custom properties on the host element,
-// so a live theme/accent change (chrome.storage mirror) just re-sets them.
+// lib/shellTheme.js. Never prefers-color-scheme: that frames a dark crop page in white
+// whenever the Appearance choice disagrees with the OS. The values become CSS custom
+// properties on the host element, so a live theme/accent change just re-sets them.
 export const mountStencilModal = (url, title, readyTimeoutMs, theme) => {
   const ID = 'stencil-ext-modal';
   const existing = document.getElementById(ID);

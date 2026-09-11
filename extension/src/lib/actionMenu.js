@@ -41,14 +41,9 @@ export const flyoutPlacement = ({ head, wrap, size, viewport }) => {
 };
 
 /**
- * Build the shared action-menu controller around one (already-styled) menu element.
- *
- * @param {object} deps
- * @param {HTMLElement} deps.menuEl - The single #action-menu element.
- * @param {(fn: Function) => any} [deps.run] - Runs a clicked item's action (the caller's
- *   error-reporting wrapper). Defaults to calling the action directly.
- * @param {Document} [deps.doc]
- * @param {Window} [deps.win]
+ * Build the shared action-menu controller around one (already-styled) #action-menu
+ * element. `run` wraps a clicked item's action in the caller's error reporting; without
+ * it the action is called directly.
  */
 export const createActionMenu = ({ menuEl, run = (fn) => fn(), doc = document, win = window }) => {
   let anchorBtn = null;
@@ -110,9 +105,7 @@ export const createActionMenu = ({ menuEl, run = (fn) => fn(), doc = document, w
       fly.style.left = `${p.left}px`;
       fly.style.top = `${p.top}px`;
     };
-    // The flyout is sand too, out of and back into its own head — the "icon" that opens
-    // it. Its visibility is CSS :hover, so by the time mouseleave fires it is already
-    // display:none; unhide it for the one frame the clone is taken in.
+    // The flyout is sand too, out of and back into its own head — the "icon" that opens it.
     wrap.addEventListener('mouseenter', () => {
       place();
       surfaceIn(fly, centerOf(head));
@@ -191,10 +184,9 @@ export const createActionMenu = ({ menuEl, run = (fn) => fn(), doc = document, w
   };
 
   const close = () => {
-    // Dust it out FIRST, while it is still on screen and measurable: the motes start as
-    // an exact copy of the box where it stood, so hiding it on this very frame is
-    // invisible — and the close stays synchronous, which is what lets a burst of
-    // open/close land on the true state instead of stranding a half-played menu.
+    // Dust it out FIRST, while it is still on screen and measurable: the motes copy the
+    // box it stood in, so hiding it this frame is invisible — and the close stays
+    // synchronous, so a burst of open/close lands on the true state.
     if (!menuEl.hidden) surfaceOut(menuEl, openOrigin);
     else settleSurface(menuEl);
     menuEl.hidden = true;

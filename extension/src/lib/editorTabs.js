@@ -9,9 +9,6 @@ import { BLOCKED_SCHEMES } from './imageScan.js';
  * Is this tab the configured Stencil editor? An ORIGIN match (the rule that also scopes the
  * editorBridge, so the two can't disagree); non-http(s) is never the editor. Only a PRE-filter:
  * an ordinary page beside the editor matches too, so callers confirm via a bridge round-trip.
- * @param {string} url - The tab's URL.
- * @param {string} editorUrl - The configured editor URL (settings.editorUrl).
- * @returns {boolean}
  */
 export const isEditorTab = (url, editorUrl) => {
   const pattern = originPattern(url);
@@ -30,14 +27,8 @@ const hostOf = (url) => {
 /**
  * One "Open editors" row: a chrome tab joined with its EDITOR_STATE reply. `state` null = that
  * tab never answered (`ready:false`); everything is normalised so the UI never null-checks.
- * @param {object} tab - chrome.tabs.Tab ({id, windowId, url, title, active}).
- * @param {object|null} [state] - The EDITOR_STATE reply ({projectId, projectName, hasImage,
- *   imageName, imageSize:{w,h}, incognito, thumbnail, projects:[{id,name,active}]}).
- * @param {object} [opts]
- * @param {number} [opts.currentTabId] - The tab the panel / console call is standing in; that
- *   row is flagged `current` (it is the default import target and gets the "this tab" badge).
- * @returns {object} `{tabId, windowId, url, title, active, current, ready, projectId,
- *   projectName, hasImage, imageName, imageSize, incognito, thumbnail, projects}`.
+ * `currentTabId` is the tab the panel / console call stands in — that row is flagged
+ * `current` (the default import target, and it gets the "this tab" badge).
  */
 export const editorRow = (tab, state, { currentTabId } = {}) => {
   const t = tab || {};
@@ -66,31 +57,18 @@ export const editorRow = (tab, state, { currentTabId } = {}) => {
   };
 };
 
-/**
- * Filter editor rows by the search box, through lib/filters.js `matchesSearch` so the editor
- * list obeys the image list's rules exactly (project name / URL / title are its three fields).
- * @param {object[]} rows - Rows from `editorRow`.
- * @param {string} query - The search text ('' / undefined = no filtering).
- * @param {object} [opts]
- * @param {boolean} [opts.regex=false] - Treat `query` as a regular expression.
- * @returns {object[]} The matching rows, in order.
- */
+// Filter editor rows by the search box, through lib/filters.js `matchesSearch` so the editor
+// list obeys the image list's rules exactly (project name / URL / title are its three fields).
 export const matchEditors = (rows, query, { regex = false } = {}) =>
   (rows || []).filter(r => matchesSearch({ name: r.projectName, src: r.url, videoUrl: r.title }, { search: query, regex }));
 
 /**
  * The tabs offered in "Images from another page": every open page we can actually scan, minus
  * blocked schemes, non-http(s) URLs and the editor's own tabs (an import's destination).
- * Which tabs are "the editor's own" is answerable two ways: `editorTabIds` (the tabs that
- * actually ANSWERED a state query) is authoritative — an ordinary page served from the editor's
- * origin is not an editor — and the origin rule is the fallback when no fan-out is to hand.
- * @param {object[]} tabs - chrome.tabs.Tab list (any window).
- * @param {object} [opts]
- * @param {string} [opts.editorUrl] - The configured editor URL; its tabs are excluded.
- * @param {number[]|Set<number>} [opts.editorTabIds] - Tab ids known to BE editors; when given,
- *   only these are excluded (so a same-origin ordinary page is correctly offered).
- * @returns {object[]} `{tabId, title, url, host, label}` in the given order, where `label` is
- *   the `<select>` text: "title — host", falling back to whichever of the two exists.
+ * `editorTabIds` (tabs that actually ANSWERED a state query) is authoritative — an ordinary
+ * page served from the editor's origin is not an editor — and the origin rule is the fallback
+ * when no fan-out is to hand. Rows are `{tabId, title, url, host, label}`, `label` being the
+ * `<select>` text "title — host" (whichever of the two exists).
  */
 export const sourceTabChoices = (tabs, { editorUrl, editorTabIds } = {}) => {
   const known = editorTabIds == null ? null : new Set(editorTabIds);
@@ -116,11 +94,6 @@ export const sourceTabChoices = (tabs, { editorUrl, editorTabIds } = {}) => {
  * Narrow the source-tab choices by URL. The picker's filter is deliberately about the URL
  * alone — it's what tells two tabs of the same site apart — and `regex` treats the query as a
  * case-insensitive RegExp (an invalid pattern matches nothing, like the image list's).
- * @param {object[]} choices - Rows from `sourceTabChoices`.
- * @param {string} query - The filter text ('' / undefined = everything).
- * @param {object} [opts]
- * @param {boolean} [opts.regex=false]
- * @returns {object[]} The matching choices, in order.
  */
 export const matchSourceTabs = (choices, query, { regex = false } = {}) => {
   const q = String(query || '').trim();
@@ -134,12 +107,7 @@ export const matchSourceTabs = (choices, query, { regex = false } = {}) => {
   return (choices || []).filter(c => String(c.url || '').toLowerCase().includes(needle));
 };
 
-/**
- * How to import into an editor tab: `'new'` straight away, or `'ask'` (chooser first) when it
- * already holds an image a replace would overwrite. Anything unknown is `'new'` — the only mode
- * that can never destroy work.
- * @param {object|null} editorState - An EDITOR_STATE reply or an `editorRow` (both carry
- *   `hasImage`).
- * @returns {'new'|'ask'}
- */
+// How to import into an editor tab: `'new'` straight away, or `'ask'` (chooser first) when it
+// already holds an image a replace would overwrite. Anything unknown is `'new'` — the only
+// mode that can never destroy work. Takes an EDITOR_STATE reply or an `editorRow`.
 export const importModeFor = (editorState) => (editorState && editorState.hasImage ? 'ask' : 'new');

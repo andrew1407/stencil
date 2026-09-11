@@ -139,13 +139,11 @@ const decodeViaElement = (url, { width, height }, d, timeoutMs) => new Promise((
   img.src = url;
 });
 
-// The shared two-step decode skeleton. Detects a vector source, tries the bitmap
-// path (never for SVG — Chrome rejects it outright), and falls back to the element
-// path, managing the bitmap's and any object URL's lifetime. The decoded source is
-// handed to `use({ vector, src, width, height })`; a `use` failure on the bitmap
-// path also falls through to the element decoder (it decodes more than the bitmap
-// API). `elementSize(vector)` is the <img> box — for an SVG with no intrinsic size,
-// the box IS the rasterisation resolution.
+// The shared two-step decode skeleton: tries the bitmap path (never for SVG — Chrome
+// rejects it outright) and falls back to the element path, managing the bitmap's and any
+// object URL's lifetime. A `use` failure on the bitmap path also falls through, since the
+// element decoder handles more. `elementSize(vector)` is the <img> box — for an SVG with
+// no intrinsic size, the box IS the rasterisation resolution.
 const decode = async ({ dataUrl = '', blob = null }, { d, timeoutMs, elementSize, noSource }, use) => {
   // Both decoders below reach the network for an http(s) source (fetch, then <img src>),
   // so the SSRF guard sits here, ahead of either. data:/blob: pass (urlGuard.js).
@@ -179,13 +177,8 @@ const decode = async ({ dataUrl = '', blob = null }, { d, timeoutMs, elementSize
   }
 };
 
-/**
- * Rasterise any image source to a PNG data URL, downscaled to `maxEdge`.
- * @param {object} source - `{ dataUrl?, blob?, width?, height? }`; `width`/`height`
- *   are the scan entry's known pixel dims (0 = unknown).
- * @param {object} [opts] - `{ maxEdge, fallbackEdge, timeoutMs, deps }`.
- * @returns {Promise<string>} `data:image/png;base64,…`
- */
+// Rasterise any image source (`{dataUrl?, blob?, width?, height?}`, dims 0 = unknown) to
+// a PNG data URL, downscaled to `maxEdge`.
 export const rasterizeToPngDataUrl = async ({ dataUrl = '', blob = null, width = 0, height = 0 } = {}, opts = {}) => {
   const d = deps(opts.deps);
   const maxEdge = opts.maxEdge || DEFAULT_MAX_EDGE;
@@ -200,12 +193,8 @@ export const rasterizeToPngDataUrl = async ({ dataUrl = '', blob = null, width =
     drawToPng(src, size(vector, { naturalWidth: nw, naturalHeight: nh }), d));
 };
 
-/**
- * The intrinsic pixel size of an image source, using the same two-step decode
- * (so an SVG measures too). Throws when nothing can decode it.
- * @param {object} source - `{ dataUrl?, blob? }`
- * @returns {Promise<{width: number, height: number}>}
- */
+// The intrinsic pixel size of `{dataUrl?, blob?}`, using the same two-step decode (so an
+// SVG measures too). Throws when nothing can decode it.
 export const decodeSize = async ({ dataUrl = '', blob = null } = {}, opts = {}) => {
   const d = deps(opts.deps);
   return decode({ dataUrl, blob }, {

@@ -92,15 +92,10 @@ export const menuTransformOrigin = ({ x, y, left, top, size }) => {
 };
 
 /**
- * Build the floating menu element (`.action-menu` styling — the popup's own row
- * menu language). The caller appends `el` to its page and owns outside-click /
- * scroll dismissal via `close()`; Escape dismissal is owned here (open-scoped).
- * @param {object} args
- * @param {Document} args.doc - Document used for createElement.
- * @param {(name:string)=>string} [args.renderIcon] - Named glyph → svg markup (lib/icons.js).
- * @param {Record<string,(target:object)=>void>} args.actions - Handler per item id;
- *   each receives the `target` passed to openFor ({ role, text, el, attachments? }).
- * @returns {{el:object, openFor:Function, close:Function, isOpen:()=>boolean}}
+ * Build the floating menu element (`.action-menu` styling — the popup's own row menu
+ * language). The caller appends `el` and owns outside-click / scroll dismissal via
+ * `close()`; Escape dismissal is owned here (open-scoped). `actions` is a handler per item
+ * id, each receiving openFor's `target` ({ role, text, el, attachments? }).
  */
 export const createMsgMenu = ({ doc, renderIcon = () => '', actions = {} }) => {
   let openOrigin = null;   // the point it grew out of, so the close pours it back there

@@ -1,10 +1,9 @@
 import { formatOf, VIDEO_FORMATS } from './filters.js';
 
-// Pure helper: pull an image/video URL out of a drag's payloads (feature #6). Dragging a page
-// <img>/<video> onto the side panel's list lands NOT a File but a URL in the drag's
-// text/uri-list, text/html (an <img>/<source> src), or text/plain. `read(type)` returns the
-// drag's string for that MIME type (''/throwing tolerated). Returns the first URL, or ''.
-// DOM-free so it's unit-testable (tests/dragUrl.test.js).
+// Pull an image/video URL out of a drag's payloads. Dragging a page <img>/<video> onto
+// the side panel lands NOT a File but a URL in text/uri-list, text/html (an <img>/<source>
+// src), or text/plain. `read(type)` returns the drag's string for that MIME type
+// (''/throwing tolerated). Returns the first URL, or ''. DOM-free, so it's unit-testable.
 export const extractDraggedUrl = (read) => {
   const get = (t) => { try { return read(t) || ''; } catch { return ''; } };
 

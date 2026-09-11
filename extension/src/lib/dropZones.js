@@ -23,9 +23,8 @@ export const quadrantAt = (x, y, w, h) => {
 // `mode` is the extension's Appearance choice, UNRESOLVED ('system' | 'light' | 'dark') —
 // only the target page can answer what the OS prefers, so 'system' is resolved here with
 // its own matchMedia (the same hand-off lib/shellTheme.js makes to the injected modal).
-// It used to be a bare `@media (prefers-color-scheme: light)`, which is why the zones came
-// up white on a light OS even with the extension set to dark: they followed the PAGE's
-// colour scheme rather than the extension's own theme.
+// Never a bare `@media (prefers-color-scheme: light)`: that follows the PAGE's colour
+// scheme, not the extension's own theme.
 export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'system') => {
   if (window.__stencilDropZones) return;
   window.__stencilDropZones = true;

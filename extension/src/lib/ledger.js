@@ -76,9 +76,9 @@ export const originOf = (url) => {
 // open never loses its badge.
 export const RECONCILE_GRACE_MS = 2 * 60 * 1000;
 
-// Pure: reconcile ledger entries against the reporting editor's live registry.
-// `projects` = that editor's registry ([{ source }]). Only entries for `editorOrigin`
-// are touched. Let `live` = live projects sharing an entry's source:
+// Reconcile ledger entries against the reporting editor's live registry
+// (`projects` = [{ source }]). Only entries for `editorOrigin` are touched. Let `live` =
+// live projects sharing an entry's source:
 //   • live > 0  → keep, set `count` = live (so "opened N×" tracks reality both ways).
 //   • live == 0 → drop, UNLESS newer than `graceMs` (editor may not have saved yet) or
 //                 has no/untrackable source (can't reconcile) → keep as-is.

@@ -78,6 +78,26 @@ export const scanPageForImages = async (limit) => {
     out.push({ src, kind, w: w || 0, h: h || 0, alt: alt || '', ...extra });
   };
 
+  // Web-app-manifest icons — the only source needing an async fetch (+ JSON parse). Started
+  // BEFORE the DOM walk so the round-trip overlaps it, and awaited at the end.
+  // Best-effort: a missing/cross-origin/malformed manifest is silently skipped.
+  const manifestIcons = (async () => {
+    const link = document.querySelector('link[rel~="manifest"]');
+    if (!link) return [];
+    try {
+      const manifestUrl = abs(link.getAttribute('href'));
+      // The href is page-supplied, and this fetch carries the page's cookies — so it may
+      // only ever reach the page's OWN origin. (lib/urlGuard.js is the guard everywhere
+      // else, but this function is INJECTED and can't import; same-origin is strictly
+      // tighter than its scanned-page same-host carve-out anyway.)
+      if (new URL(manifestUrl).origin !== location.origin) return [];
+      const manifest = await (await fetch(manifestUrl, { credentials: 'include' })).json();
+      return (Array.isArray(manifest.icons) ? manifest.icons : [])
+        .filter((ic) => ic && ic.src)
+        .map((ic) => ({ src: abs(new URL(ic.src, manifestUrl).href), purpose: ic.purpose || 'app icon' }));
+    } catch { return []; /* no manifest / blocked / bad JSON */ }
+  })();
+
   document.querySelectorAll('img').forEach(img =>
     push(img.currentSrc || img.src, 'img', img.naturalWidth, img.naturalHeight, img.alt));
 
@@ -162,23 +182,10 @@ export const scanPageForImages = async (limit) => {
     }
   }
 
-  // Web-app-manifest icons — the only source that needs an async fetch (+ JSON parse).
-  // Best-effort: a missing/cross-origin/malformed manifest is silently skipped.
-  const manifestLink = document.querySelector('link[rel~="manifest"]');
-  if (manifestLink && out.length < limit) {
-    try {
-      const manifestUrl = abs(manifestLink.getAttribute('href'));
-      // The href is page-supplied, and this fetch carries the page's cookies — so it may
-      // only ever reach the page's OWN origin. (lib/urlGuard.js is the guard everywhere
-      // else, but this function is INJECTED and can't import; same-origin is strictly
-      // tighter than its scanned-page same-host carve-out anyway.)
-      if (new URL(manifestUrl).origin !== location.origin) throw new Error('cross-origin manifest');
-      const res = await fetch(manifestUrl, { credentials: 'include' });
-      const manifest = await res.json();
-      for (const ic of (Array.isArray(manifest.icons) ? manifest.icons : [])) {
-        if (ic && ic.src) push(abs(new URL(ic.src, manifestUrl).href), 'img', 0, 0, ic.purpose || 'app icon', { meta: true });
-      }
-    } catch { /* no manifest / blocked / bad JSON */ }
+  // The manifest icons fetched above land last, so the DOM order of everything else stands.
+  for (const ic of await manifestIcons) {
+    if (out.length >= limit) break;
+    push(ic.src, 'img', 0, 0, ic.purpose, { meta: true });
   }
 
   return out;

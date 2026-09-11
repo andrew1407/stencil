@@ -12,11 +12,8 @@ export const COMMON_FORMATS = ['png', 'jpg', 'gif', 'webp', 'svg', 'avif', 'bmp'
 
 export const FILTERS_KEY = 'popupFilters';
 
-/**
- * The ordered pill list for the scanned items: common formats, video containers, any
- * extra formats the page uses, then 'etc' (undetectable) last — plus which of them are
- * actually present on the page.
- */
+// The ordered pill list: common formats, video containers, any extra formats the page
+// uses, then 'etc' (undetectable) last — plus which of them the page actually has.
 export const formatListFor = (items) => {
   const present = new Set(distinctFormats(items));
   // 'etc' is always offered, last, marked present only when the page has such items.
@@ -33,13 +30,8 @@ export const formatPillsHtml = (formats, present) => formats.map((f) => {
     + `<input type="checkbox" value="${f}" checked>${f.toUpperCase()}</label>`;
 }).join('');
 
-/**
- * Wire the filter controls of one surface.
- *
- * @param {object} deps
- * @param {Document} [deps.doc]
- * @param {() => void} [deps.onChange] - The owner's applyFilters, run when a pill changes.
- */
+// Wire the filter controls of one surface. `onChange` is the owner's applyFilters, run
+// when a pill changes.
 export const createFilterUi = ({ doc = document, onChange = () => {} } = {}) => {
   let persisted = null;
   // JSON of the state we last wrote, so a storage.onChanged echo of our own write can

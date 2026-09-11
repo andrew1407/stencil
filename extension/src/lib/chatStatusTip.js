@@ -1,12 +1,9 @@
 // ── The assistant "…" trigger's rich status tooltip ──────────────────────────
 // Browser chatPanel.js gearStatusRows / gearTipFootText / showGearTip / hideGearTip,
 // ported — a themed TABLE (provider / endpoint / model / status, the status cell
-// coloured), not the generic flat controlTooltip.js popup: that one prints a `title`
-// as plain lines, and "More — attach, clear, settings" read as a second heading
-// fighting the dropdown's own items for the same information (user report). The
-// dropdown already lists attach/clear/settings, so the tip says only what it alone
-// knows: reachability. Extracted from popup/assistant.js (the chatMsgMenu.js pattern)
-// so `node --test` can drive the row/foot builders and the show/hide wiring.
+// coloured), not the flat controlTooltip.js popup. The dropdown already lists
+// attach/clear/settings, so the tip says only what it alone knows: reachability.
+// Split out so `node --test` can drive the row/foot builders and the show/hide wiring.
 import {
   surfaceIn, surfaceOut, settleSurface, motionReduced, centerOf,
   TIP_DUST_IN_MS, TIP_DUST_OUT_MS,

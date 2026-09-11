@@ -1,14 +1,9 @@
 // ── Theme for the INJECTED in-page modal shell ──────────────────────────────
-// lib/overlay.js mounts the crop / editor modal into an arbitrary web page, so it
-// can't link lib/theme.css or read the extension's CSS variables — it gets its palette
-// handed to it as DATA. This module is that hand-off: the same Appearance choice and
-// accent every other surface follows (lib/accent.js writes them to localStorage and
-// mirrors both into chrome.storage.local, which is readable from a page OR the service
-// worker, the two places a modal is launched from).
-//
-// The MODE travels unresolved ('system' included): only the target page can answer
-// what the OS prefers, so the injected shell resolves it with its own matchMedia and
-// re-resolves if the choice changes while the modal is open.
+// lib/overlay.js mounts the crop / editor modal into an arbitrary web page, so it can't
+// link lib/theme.css — it gets its palette handed to it as DATA. accent.js mirrors the
+// choice into chrome.storage.local, readable from a page OR the service worker.
+// The MODE travels unresolved ('system' included): only the target page can answer what
+// the OS prefers, so the injected shell resolves it with its own matchMedia.
 import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from './highlightColor.js';
 
 // chrome.storage.local key the Appearance mode is mirrored under (same string as the

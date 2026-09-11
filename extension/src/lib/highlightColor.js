@@ -15,7 +15,6 @@ export const DEFAULT_HL = ACCENT_HEX.violet;
 // localStorage key in lib/accent.js, so the two never drift).
 export const ACCENT_STORAGE_KEY = 'stencil_accent';
 
-// Resolve the effective highlight hex from the setting + the current accent key.
 // setting === 'theme' (or empty) → the accent's hex; otherwise the setting IS the hex.
 export const resolveHighlightColor = (setting, accentKey) =>
   (!setting || setting === 'theme') ? (ACCENT_HEX[accentKey] || DEFAULT_HL) : setting;

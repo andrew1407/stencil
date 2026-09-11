@@ -1,15 +1,9 @@
 // ── Spring-loaded drop targets: opening the collapsed section under the pointer ─
-// A COLLAPSED section can't accept a drop — its body is `display: none` — so dragging
-// an image at a folded Assistant / Found-resources section was a dead end. This is the
-// classic spring-loaded-folder answer: while a drag is live, the section the POINTER
-// dwells on unfolds, and only that one. Nothing opens up front, and a section the drag
-// never visited is never touched.
-//
-// Pure decision + bookkeeping only: every DOM action (is it collapsed? expand it,
-// collapse it, scroll to it) is INJECTED by popup.js, which routes expansion through
-// the SAME toggler the section header click uses — so aria-expanded, the chevron, the
-// assistant's lazy boot and the body.search-collapsed coupling all stay in sync.
-// `node --test` drives the whole thing with stubs.
+// A COLLAPSED section can't accept a drop (its body is `display: none`), so while a drag
+// is live the section the POINTER dwells on unfolds — and only that one.
+// Pure decision + bookkeeping: every DOM action is INJECTED by popup.js, which routes
+// expansion through the SAME toggler the header click uses, so aria-expanded, the
+// chevron, the assistant's lazy boot and the search-collapsed coupling stay in sync.
 
 export const ASSISTANT_SECTION = 'sec-assistant';
 export const SEARCH_SECTION = 'sec-search';
@@ -47,17 +41,9 @@ export const sectionForDragPoint = (kind, sectionId, { collapsed = {}, sections 
 };
 
 /**
- * Build the spring-open controller.
- * @param {object} io
- * @param {string[]} io.sections   - Sections that are drop targets on this surface
- *   (the popup has no drag-to-pin list, so it passes the chat alone).
- * @param {Function} io.isCollapsed- (id) => boolean
- * @param {Function} io.expand     - (id) => void  — MUST go through the shared toggler
- * @param {Function} io.collapse   - (id) => void  — likewise
- * @param {Function} [io.onOpen]   - (id) => void  — e.g. scroll it into view
- * @param {number}   [io.dwellMs]  - Hover dwell before springing (SPRING_DWELL_MS)
- * @param {Function} [io.timer]    - setTimeout seam
- * @param {Function} [io.clearTimer] - clearTimeout seam
+ * Build the spring-open controller. `sections` are this surface's drop targets (the
+ * popup has no drag-to-pin list, so it passes the chat alone); `expand`/`collapse` MUST
+ * go through the shared toggler.
  */
 export const createDragSectionOpener = ({
   sections = [ASSISTANT_SECTION],

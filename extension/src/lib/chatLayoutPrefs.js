@@ -1,13 +1,9 @@
 // ── Chat message side placement ("Swap message sides") ──────────────────────
-// A UI-only display preference — which side user/assistant/error bubbles draw on,
-// and which corner their tail points from. Browser app parity: js/ui/chatLayoutPrefs.js
-// is the same module. Deliberately NOT persisted (user report: it should never carry
-// over a reload or a reopened tab/panel) — it lives in a plain module-level variable, so
-// each freshly opened popup/side panel/DevTools panel starts at the default, scoped to
-// that one instance's own session. There used to be a watchChatSide() that kept the
-// three pages in step live via a `storage` event — dropped along with the persistence
-// it depended on; each page's own click toggle is now the only way to change it there.
-// Default ('normal'): user right, assistant/error left — exactly today's layout.
+// Which side user/assistant/error bubbles draw on. Browser app parity:
+// js/ui/chatLayoutPrefs.js is the same module. Deliberately NOT persisted — a plain
+// module-level variable, so each freshly opened popup/side panel/DevTools panel starts
+// at the default, scoped to that one instance's session.
+// Default ('normal'): user right, assistant/error left.
 let side = 'normal';
 
 export const CHAT_SIDE_NORMAL = 'normal';

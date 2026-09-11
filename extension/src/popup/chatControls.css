@@ -1,0 +1,130 @@
+/* The assistant's controls: clear, provider badge + status tooltip, the composer's
+   overflow menu, the §11 choice card and the thinking dots. */
+#sec-assistant .chat-clear:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+#sec-assistant .chat-clear:disabled { opacity: .5; cursor: default; }
+/* Provider reachability badge on the … trigger (browser .conn-status parity). */
+#sec-assistant .chat-status-dot {
+  position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--muted); border: 1px solid rgba(255, 255, 255, .63); pointer-events: none;
+}
+#sec-assistant .chat-status-dot.ok { background: var(--ok); }
+#sec-assistant .chat-status-dot.bad { background: var(--danger); }
+/* The … trigger's rich status tooltip (assistant.js gearTip): a themed TABLE — label
+   column muted, status cell coloured by state — plus a pre-line footer, fixed-positioned
+   above the trigger. Browser .chat-status-tip parity (browser/css/components.css):
+   same accent-outlined card #app-tooltip already uses here, not the plain flat lines the
+   generic controlTooltip.js prints a `title` as. Unscoped like #app-tooltip: appended to
+   <body>, outside #sec-assistant. */
+.chat-status-tip {
+  position: fixed;
+  z-index: 100003;
+  max-width: 320px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 90ms ease;
+}
+.chat-status-tip.visible { opacity: 1; }
+/* Once the real motes have flown (lib/motion.js surfaceIn/surfaceOut), the plain fade
+   steps aside for good — same reasoning as #app-tooltip.dust-driven above — so it can
+   never fight the surfaceForm/surfaceLeave keyframes over the same property. */
+.chat-status-tip.dust-driven { transition: none; }
+.chat-status-tip table { border-collapse: collapse; font-size: 12px; line-height: 1.45; }
+.chat-status-tip th {
+  text-align: left; font-weight: 500; color: var(--muted); padding-right: 12px;
+  vertical-align: top; white-space: nowrap;
+}
+.chat-status-tip td { color: var(--text); word-break: break-word; }
+.chat-status-tip td.chat-status-ok { color: var(--ok); }
+.chat-status-tip td.chat-status-error { color: var(--danger); }
+.chat-status-tip td.chat-status-connecting { color: var(--yellow); }
+.chat-status-tip-foot {
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line);
+  font-size: 11px; color: var(--muted); white-space: pre-line;
+}
+#sec-assistant .chat-more-wrap > .chat-clear { position: relative; }
+/* Composer overflow: only Send stays inline, the rest sit behind the … button. */
+#sec-assistant .chat-more-wrap { position: relative; display: inline-flex; flex: 0 0 auto; }
+#sec-assistant .chat-more-menu {
+  position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 6;
+  display: flex; flex-direction: column; gap: 2px; min-width: 150px; padding: 4px;
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .38);
+}
+#sec-assistant .chat-more-menu[hidden] { display: none; }
+#sec-assistant .chat-more-item {
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: none;
+  border-radius: 6px; background: none; color: var(--text); font: inherit;
+  font-size: 12px; text-align: left; cursor: pointer;
+}
+#sec-assistant .chat-more-item:hover:not(:disabled) { background: var(--accent); color: var(--on-accent); }
+/* An inapplicable item (nothing to clear, attach paused mid-turn) leaves the menu
+   instead of greying out — browser/desktop parity. */
+#sec-assistant .chat-more-item:disabled { display: none; }
+/* Transcript entries ride the shared scroll reveal (lib/animations.css), which
+   covers the entrance AND the scroll — an `animation: … both` end state here
+   would out-rank the reveal's transform (browser parity). */
+
+/* §11 choice card — the model's question as pick-one / pick-many, with the referenced
+   images it named. Same panel language as the result cards above it. */
+.chat-ask {
+  display: flex; flex-direction: column; gap: 6px; margin: 6px 0;
+  padding: 8px 9px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-2);
+}
+.chat-ask-q { font-weight: 600; font-size: 12px; }
+.chat-ask-options { display: flex; flex-direction: column; gap: 3px; }
+.chat-ask-option { display: flex; align-items: center; gap: 7px; padding: 3px 4px; border-radius: 6px; cursor: pointer; }
+.chat-ask-option:hover { background: var(--panel); }
+.chat-ask-option input { margin: 0; flex: 0 0 auto; cursor: pointer; }
+.chat-ask-thumb {
+  width: 40px; height: 40px; flex: 0 0 auto; object-fit: contain;
+  border: 1px solid var(--line); border-radius: 5px; background: var(--panel);
+}
+.chat-ask-label { min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
+.chat-ask-custom-text {
+  flex: 1 1 auto; min-width: 0; font: inherit; font-size: 12px; padding: 3px 6px;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--text);
+}
+.chat-ask-actions { display: flex; align-items: center; gap: 8px; }
+.chat-ask-submit {
+  font: inherit; font-size: 12px; padding: 3px 12px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent);
+}
+.chat-ask-submit:disabled { opacity: .5; cursor: default; }
+/* Answered: a record of what was sent, not a control. */
+.chat-ask-answered { opacity: .8; }
+.chat-ask-answered .chat-ask-option { cursor: default; }
+.chat-ask-sent { color: var(--muted); font-style: italic; font-size: 11.5px; }
+
+/* ── Assistant "thinking" dots (browser chatView.js parity) ──────────────── */
+.typing-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.chat-typing {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+.chat-typing i {
+    width: 3.5px;
+    height: 3.5px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.45;
+    animation: chat-typing-bounce 1.2s infinite ease-in-out;
+}
+.chat-typing i:nth-child(2) { animation-delay: 0.16s; }
+.chat-typing i:nth-child(3) { animation-delay: 0.32s; }
+@keyframes chat-typing-bounce {
+    0%, 70%, 100% { transform: translateY(0); opacity: 0.45; }
+    35%           { transform: translateY(-3px); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .chat-typing i { animation: none; opacity: 0.6; }
+}

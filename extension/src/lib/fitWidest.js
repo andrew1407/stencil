@@ -1,13 +1,9 @@
 // ── Pin a custom-select trigger to its widest option ─────────────────────────
-// A filter dropdown that changes width with its value shoves everything after it in the
-// row — which is why such a control gets a width pinned at all. Pin it to the WIDEST
-// label the list can show, measured in the trigger's own font: a hard-coded px floor is
-// a guess, and a guess is dead space around the short labels while still being too
-// narrow at another font size, another zoom level, or in translation.
-//
-// Only for lists whose options are FIXED and short. One carrying arbitrary content (a
-// hostname, a project name) would pin itself to its longest entry forever, which is the
-// same dead space by another route — those size to the label they show.
+// A dropdown that changes width with its value shoves the rest of the row about, so it
+// gets pinned to the WIDEST label the list can show, measured in the trigger's own font
+// (a px floor is a guess at another font size, zoom level or translation).
+// Only for lists whose options are FIXED and short: one carrying arbitrary content (a
+// hostname, a project name) would pin itself to its longest entry forever.
 
 // Returns the width it pinned (0 when there was nothing to measure).
 export function pinToWidestOption(selectEl) {
