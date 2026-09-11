@@ -7,18 +7,48 @@ import (
 	"stencil/server/internal/auth"
 	"stencil/server/internal/bus"
 	"stencil/server/internal/protocol"
+	"stencil/server/internal/service"
 	"stencil/server/internal/store"
+	"stencil/server/internal/validate"
 )
 
-func (a *API) handleListProjects(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := a.opCtx(r)
-	defer cancel()
-	projects, err := a.deps.Projects.ListProjects(ctx)
+// listPage reads the opt-in keyset paging params; both absent = every project.
+func listPage(r *http.Request) (store.ProjectPage, error) {
+	q := r.URL.Query()
+	page := store.ProjectPage{}
+	limit, err := validate.ListLimit(q.Get("limit"))
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not list projects")
+		return page, err
+	}
+	page.Limit = limit
+	after, err := store.ParseProjectCursor(q.Get("after"))
+	if err != nil {
+		return page, errors.New("after is not a cursor from a previous page")
+	}
+	page.After = after
+	return page, nil
+}
+
+func (a *API) handleListProjects(w http.ResponseWriter, r *http.Request) {
+	page, err := listPage(r)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, protocol.ProjectListResponse{Projects: projects})
+	ctx, cancel := a.opCtx(r)
+	defer cancel()
+	projects, err := a.deps.Projects.ListProjects(ctx, page)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgListProjects)
+		return
+	}
+	resp := protocol.ProjectListResponse{Projects: projects}
+	// A full page may have more behind it; a short one is the end of the list.
+	if page.Limit > 0 && len(projects) == page.Limit {
+		last := projects[len(projects)-1]
+		resp.NextCursor = store.ProjectCursor{UpdatedAt: last.UpdatedAt, ID: last.ID}.String()
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
 
 func (a *API) handleGetProject(w http.ResponseWriter, r *http.Request) {
@@ -26,11 +56,11 @@ func (a *API) handleGetProject(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	rec, err := a.deps.Projects.GetProject(ctx, r.PathValue("id"))
 	if errors.Is(err, store.ErrNotFound) {
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
+		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
 		return
 	}
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not load project")
+		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgLoadProject)
 		return
 	}
 	resp := protocol.ProjectResponse{
@@ -44,36 +74,28 @@ func (a *API) handleGetProject(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+// handleCreateProject decodes the request; the image rule and the PROJECT_TTL
+// stamping are policy and live in the service.
 func (a *API) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	var req protocol.CreateProjectRequest
 	if !a.decodeJSON(w, r, &req) {
-		return
-	}
-	// A Stencil project is created FROM an image — there is no such thing as an
-	// image-less project. The create request must declare an image (HasImage, set by
-	// every real client right before it uploads the `original` bytes); reject bare
-	// metadata-only creates so a project without image bytes can never come to exist.
-	if !req.HasImage {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, "a project must be created from an image")
 		return
 	}
 	owner := ""
 	if sess, ok := auth.SessionFromContext(r.Context()); ok {
 		owner = sess.ID
 	}
-	// Server projects have no expiry unless the client set one explicitly, or the
-	// operator configured a default lifetime (PROJECT_TTL). Off by default.
-	if req.ExpiresAt == 0 && a.deps.ProjectTTL > 0 {
-		req.ExpiresAt = nowMs() + a.deps.ProjectTTL.Milliseconds()
-	}
 	ctx, cancel := a.opCtx(r)
 	defer cancel()
-	rec, err := a.deps.Projects.CreateProject(ctx, owner, req)
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not create project")
+	rec, err := a.projects.Create(ctx, owner, req)
+	switch {
+	case errors.Is(err, service.ErrImageRequired):
+		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, msgImageRequired)
+		return
+	case err != nil:
+		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgCreateProject)
 		return
 	}
-	bus.PublishProjectEvent(ctx, a.deps.Bus, protocol.EventCreated, rec)
 	writeJSON(w, http.StatusCreated, rec)
 }
 
@@ -95,38 +117,32 @@ func (a *API) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 	}, req.Version)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, "project not found")
+		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
 		return
 	case errors.Is(err, store.ErrConflict):
-		writeErr(w, http.StatusConflict, protocol.CodeConflict, "stale version; reload and retry")
+		writeErr(w, http.StatusConflict, protocol.CodeConflict, msgStaleVersion)
 		return
 	case err != nil:
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not update project")
+		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgUpdateProject)
 		return
 	}
 	bus.PublishProjectEvent(ctx, a.deps.Bus, protocol.EventUpdated, rec)
 	writeJSON(w, http.StatusOK, rec)
 }
 
+// handleDeleteProject defers to the service: the live-session guard and the
+// row-then-bytes-then-announce ordering are shared with the expiry sweep.
 func (a *API) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
 	ctx, cancel := a.opCtx(r)
 	defer cancel()
-	// A project is a shared workspace: anyone may list/read/edit it. Deletion is the
-	// one destructive op, so it's only allowed when at most one client is in the
-	// project's live edit session (the lone editor tidying up). If two or more clients
-	// are connected, refuse — one peer must not yank the project out from under others.
-	if a.deps.LiveSessions != nil && a.deps.LiveSessions.ConnectionCount(id) >= 2 {
-		writeErr(w, http.StatusConflict, protocol.CodeConflict, "project is in use by other clients; cannot delete")
+	err := a.projects.Delete(ctx, r.PathValue("id"))
+	switch {
+	case errors.Is(err, service.ErrProjectInUse):
+		writeErr(w, http.StatusConflict, protocol.CodeConflict, msgProjectInUse)
+		return
+	case err != nil:
+		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgDeleteProject)
 		return
 	}
-	if err := a.deps.Projects.DeleteProject(ctx, id); err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not delete project")
-		return
-	}
-	if a.deps.Files != nil {
-		_ = a.deps.Files.Remove(id)
-	}
-	bus.PublishProjectEvent(ctx, a.deps.Bus, protocol.EventDeleted, protocol.ProjectRecord{ID: id})
 	w.WriteHeader(http.StatusNoContent)
 }

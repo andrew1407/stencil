@@ -5,6 +5,7 @@ package testutil
 
 import (
 	"context"
+	"sort"
 	"strconv"
 	"sync"
 
@@ -98,13 +99,30 @@ func (f *MemStore) CreateSession(_ context.Context, hash []byte, label string, c
 	return s, nil
 }
 
-func (f *MemStore) ListProjects(context.Context) ([]protocol.ProjectRecord, error) {
+// ListProjects mirrors the real store: (updatedAt DESC, id DESC) order, keyset
+// paging off page.After, no layout/original content on a list row.
+func (f *MemStore) ListProjects(_ context.Context, page store.ProjectPage) ([]protocol.ProjectRecord, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	out := []protocol.ProjectRecord{}
 	for _, p := range f.projects {
-		p.Layout = nil
+		p.Layout, p.OriginalContent = nil, ""
 		out = append(out, p)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].UpdatedAt != out[j].UpdatedAt {
+			return out[i].UpdatedAt > out[j].UpdatedAt
+		}
+		return out[i].ID > out[j].ID
+	})
+	if after := page.After; after.ID != "" {
+		for len(out) > 0 && !(out[0].UpdatedAt < after.UpdatedAt ||
+			(out[0].UpdatedAt == after.UpdatedAt && out[0].ID < after.ID)) {
+			out = out[1:]
+		}
+	}
+	if page.Limit > 0 && len(out) > page.Limit {
+		out = out[:page.Limit]
 	}
 	return out, nil
 }

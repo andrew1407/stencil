@@ -5,6 +5,7 @@ package redisbus
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/redis/go-redis/v9"
 
@@ -35,25 +36,34 @@ func New(ctx context.Context, redisURL string) (*Bus, error) {
 	return &Bus{client: client}, nil
 }
 
-// Publish posts data to a Redis channel.
-func (b *Bus) Publish(ctx context.Context, channel string, data []byte) error {
-	return b.client.Publish(ctx, channel, data).Err()
+// Publish posts one envelope to a Redis channel — the only place it is
+// serialised. Data rides along as raw JSON, so the frame is not re-encoded.
+func (b *Bus) Publish(ctx context.Context, channel string, env bus.Envelope) error {
+	payload, err := json.Marshal(env)
+	if err != nil {
+		return err
+	}
+	return b.client.Publish(ctx, channel, payload).Err()
 }
 
 // Subscribe opens a Redis subscription and pumps payloads onto a buffered Go
 // channel. The unsubscribe func closes the subscription, which ends the pump
 // goroutine and closes the returned channel.
-func (b *Bus) Subscribe(channel string) (<-chan []byte, func()) {
+func (b *Bus) Subscribe(channel string) (<-chan bus.Envelope, func()) {
 	// The subscription's lifetime is bounded by the returned unsubscribe func
 	// (which closes the pubsub), not by a per-call context, so use a background
 	// context for the initial SUBSCRIBE command.
 	pubsub := b.client.Subscribe(context.Background(), channel)
-	out := make(chan []byte, subBuffer)
+	out := make(chan bus.Envelope, subBuffer)
 	go func() {
 		defer close(out)
 		for msg := range pubsub.Channel() {
+			var env bus.Envelope
+			if json.Unmarshal([]byte(msg.Payload), &env) != nil {
+				continue
+			}
 			select {
-			case out <- []byte(msg.Payload):
+			case out <- env:
 			default: // consumer behind; drop (recoverable via version resync)
 			}
 		}

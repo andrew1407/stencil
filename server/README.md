@@ -108,9 +108,14 @@ go run ./cmd/stencil-server
 
 Requires a reachable Postgres (`DATABASE_URL`). Redis is optional (`REDIS_URL`);
 without it the server uses an in-process bus and is single-instance. The schema
-is created at boot via embedded idempotent migrations.
+is created at boot via embedded idempotent migrations, applied in lexical order
+(`0001_init.sql`, then `0002_keywords_array.sql`, which moves project keywords
+into a GIN-indexed `text[]` and back-fills the newline-joined column it replaces —
+that column is still written, unread, for one release so a rollback keeps working).
 
 Configuration (see `.env.example`): `LISTEN_ADDR`, `TCP_ADDR`, `DATABASE_URL`,
+`DB_MAX_CONNS`/`DB_MIN_CONNS`/`DB_STATEMENT_TIMEOUT` (pgx pool sizing and the
+server-side per-statement cap, in seconds),
 `REDIS_URL`, `FILESTORE_ROOT`, `ADMIN_TOKEN`, `AUTH_OPEN`, `TOKEN_TTL_HOURS`, `MAX_BODY_BYTES`,
 `PROJECT_TTL_HOURS`, `EXPIRY_SWEEP_MINUTES`, `OP_TIMEOUT_SECONDS`, `TRUSTED_PROXY_CIDRS`,
 `TLS_CERT`/`TLS_KEY` (one cert/key secures HTTPS+WSS and the TCP edit channel),
@@ -140,7 +145,7 @@ All routes except `POST /auth/token` require `Authorization: Bearer <token>`.
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/auth/token` | issue a token+session (always gated by the admin token — set or per-boot generated) |
-| GET | `/projects` | list project metadata (incl. `createdAt`/`expiresAt`), newest-updated first |
+| GET | `/projects` | list project metadata (incl. `createdAt`/`expiresAt`), newest-updated first; optional `?limit=&after=` paging |
 | POST | `/projects` | create a project (optional `expiresAt`; else server default / none) |
 | GET | `/projects/{id}` | full project incl. layout + original content |
 | PUT | `/projects/{id}` | update name/color/`expiresAt`/layout under a version guard (409 on conflict) |
@@ -151,6 +156,14 @@ All routes except `POST /auth/token` require `Authorization: Bearer <token>`.
 | GET | `/llm/info` | LLM proxy status: `{enabled, model}` |
 | POST | `/llm/chat` | proxy one chat turn to Anthropic (503 `llmDisabled` without a key; 502 `llmUpstream` with the reason when the upstream fails) |
 | GET | `/healthz` | liveness |
+
+`GET /projects` returns every project by default. Paging is **opt-in**, so the
+default response shape is unchanged: pass `?limit=` (1..500) and the response adds
+`nextCursor`, an opaque token to send back as `?after=` for the following page. The
+walk is a keyset over `(updatedAt DESC, id DESC)` — stable while projects are
+created or updated, unlike an offset — and ends on the page that carries no
+`nextCursor`. A bad `limit`/`after` is a 400. List rows never carry `layout` or
+`originalContent`; fetch those per project via `GET /projects/{id}`.
 
 The `video`/`variantN`/`chat` file kinds are v1 filestore-only: the bytes upload
 and download through the same routes, but no path/dimensions are written to the

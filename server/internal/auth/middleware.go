@@ -5,17 +5,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-	"time"
 
+	"stencil/server/internal/clock"
 	"stencil/server/internal/protocol"
 )
 
 type ctxKey int
 
 const sessionKey ctxKey = 0
-
-// nowMs is overridable in tests; production uses the wall clock.
-var nowMs = func() int64 { return time.Now().UnixMilli() }
 
 // Middleware gates a handler behind bearer-token auth. On success the resolved
 // Session is attached to the request context (see SessionFromContext). On
@@ -24,7 +21,7 @@ func Middleware(resolver SessionResolver) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token := BearerToken(r)
-			sess, err := Verify(r.Context(), resolver, token, nowMs())
+			sess, err := Verify(r.Context(), resolver, token, clock.NowMs())
 			if err != nil {
 				writeUnauthorized(w)
 				return

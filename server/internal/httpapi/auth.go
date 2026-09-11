@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"stencil/server/internal/auth"
+	"stencil/server/internal/clock"
 	"stencil/server/internal/protocol"
 )
 
@@ -21,7 +22,7 @@ type issueTokenRequest struct {
 // all, though the per-IP rate limit and the admin token both keep working.
 func (a *API) handleIssueToken(w http.ResponseWriter, r *http.Request) {
 	if !a.deps.AuthOpen && !a.adminAuthorized(r) {
-		writeErr(w, http.StatusUnauthorized, protocol.CodeUnauthorized, "admin token required to issue tokens")
+		writeErr(w, http.StatusUnauthorized, protocol.CodeUnauthorized, msgAdminRequired)
 		return
 	}
 	var req issueTokenRequest
@@ -33,15 +34,15 @@ func (a *API) handleIssueToken(w http.ResponseWriter, r *http.Request) {
 
 	token, hash, err := auth.GenerateToken()
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "token generation failed")
+		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgTokenGenFailed)
 		return
 	}
-	now := nowMs()
+	now := clock.NowMs()
 	expires := now + a.deps.TokenTTL.Milliseconds()
 	ctx, cancel := a.opCtx(r)
 	defer cancel()
 	if _, err := a.deps.Sessions.CreateSession(ctx, hash, req.Label, now, expires); err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, "could not persist session")
+		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgPersistSession)
 		return
 	}
 	writeJSON(w, http.StatusOK, protocol.TokenResponse{Token: token, ExpiresAt: expires})

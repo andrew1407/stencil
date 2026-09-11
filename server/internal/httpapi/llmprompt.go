@@ -12,10 +12,6 @@ import (
 	"strings"
 )
 
-// maxLLMSystemBytes bounds the system prompt alone; a real prompt (head + op
-// bullets + tail + short dynamic suffix) sits far below it.
-const maxLLMSystemBytes = 32 * 1024
-
 // promptShapeMarker opens the line declaring the JSON response shape — the last
 // line the two profiles share verbatim before their op bullets diverge.
 const promptShapeMarker = `{"version":1,"reply":`

@@ -15,6 +15,7 @@ import (
 	"net/netip"
 
 	"stencil/server/internal/auth"
+	"stencil/server/internal/clock"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/ratelimit"
 	"stencil/server/internal/transport"
@@ -74,7 +75,7 @@ func (h *Hub) checkHello(ctx context.Context, conn transport.Conn, hello protoco
 		refuseHello(ctx, conn, protocol.CodeRateLimited, "too many failed handshakes; retry later")
 		return errHelloThrottled
 	}
-	if _, err := auth.Verify(ctx, h.resolver, hello.Token, nowMs()); err != nil {
+	if _, err := auth.Verify(ctx, h.resolver, hello.Token, clock.NowMs()); err != nil {
 		refuseHello(ctx, conn, protocol.CodeUnauthorized, "invalid token")
 		return err
 	}

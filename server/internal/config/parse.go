@@ -13,6 +13,9 @@ import (
 	"strings"
 )
 
+// getter reads one env var, falling back to a default.
+type getter = func(key, def string) string
+
 // positiveInt reads an integer env var through get, returning def when unset.
 // min is the lowest accepted value: 0 for settings where zero means "disabled",
 // 1 otherwise. Non-numeric input or anything below min is rejected.

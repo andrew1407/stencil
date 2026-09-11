@@ -2,31 +2,23 @@
 // is deliberately custom (no object-store dependency): files live under a single
 // root, addressed only by a validated project id plus a fixed kind/extension, so
 // no client-supplied filename ever reaches disk. Every path flows through
-// safeJoin (see path.go), and writes are atomic (temp file + rename).
+// safeJoin (see path.go), and writes are atomic and durable (put.go).
 package filestore
 
 import (
 	"errors"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 )
 
 // ErrNotFound is returned when a requested file does not exist.
 var ErrNotFound = errors.New("filestore: not found")
 
-// ErrQuotaExceeded is returned by Put when a write would push the aggregate
-// stored bytes past the configured quota.
-var ErrQuotaExceeded = errors.New("filestore: storage quota exceeded")
-
 // Store is a root-confined file store.
 type Store struct {
 	root  string
-	quota int64      // aggregate byte cap; 0 = unlimited (usage untracked)
-	qmu   sync.Mutex // guards usage
-	usage int64      // total bytes under root, maintained only when quota > 0
+	usage usageMeter // storage-quota accounting (quota.go)
 }
 
 // New creates the store rooted at the given directory, resolving it to an
@@ -46,86 +38,24 @@ func New(root string) (*Store, error) {
 	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
 		abs = resolved
 	}
-	return &Store{root: filepath.Clean(abs)}, nil
+	return &Store{root: filepath.Clean(abs), usage: unmetered{}}, nil
 }
 
 // NewWithQuota is New plus an aggregate storage cap in bytes (0 = unlimited).
-// The starting usage is computed by walking the root once; Put/RemoveKind/
-// Remove keep the counter current after that.
 func NewWithQuota(root string, quota int64) (*Store, error) {
 	s, err := New(root)
 	if err != nil {
 		return nil, err
 	}
 	if quota > 0 {
-		s.quota = quota
-		if s.usage, err = dirSize(s.root); err != nil {
+		if s.usage, err = newCapped(s.root, quota); err != nil {
 			return nil, err
 		}
 	}
 	return s, nil
 }
 
-// Root returns the absolute store root (mainly for tests/logging).
 func (s *Store) Root() string { return s.root }
-
-// Put writes bytes for (id, kind) with the given extension, atomically. It
-// returns the store-relative path recorded in project metadata.
-func (s *Store) Put(id, kind, ext string, data []byte) (string, error) {
-	full, err := s.safeJoin(id, kind, ext)
-	if err != nil {
-		return "", err
-	}
-	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-		return "", err
-	}
-	if err := s.guardSymlinkEscape(full); err != nil {
-		return "", err
-	}
-	// Quota check + accounting up front, so two concurrent Puts cannot both
-	// squeeze past the cap; released again on any failure below. Existing bytes
-	// for this kind (any extension) are replaced, so they credit the delta.
-	delta := int64(len(data)) - s.kindBytes(filepath.Dir(full), kind)
-	if err := s.reserve(delta); err != nil {
-		return "", err
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(full), ".tmp-*")
-	if err != nil {
-		s.release(delta)
-		return "", err
-	}
-	tmpName := tmp.Name()
-	defer os.Remove(tmpName) // no-op after a successful rename
-	if _, err := tmp.Write(data); err != nil {
-		tmp.Close()
-		s.release(delta)
-		return "", err
-	}
-	if err := tmp.Close(); err != nil {
-		s.release(delta)
-		return "", err
-	}
-	if err := os.Rename(tmpName, full); err != nil {
-		s.release(delta)
-		return "", err
-	}
-	// Best-effort: drop same-kind files left by an earlier upload with a
-	// different extension, so kind-based lookups never resolve to stale bytes.
-	// Their bytes were already credited into the reserve delta above.
-	if entries, err := os.ReadDir(filepath.Dir(full)); err == nil {
-		for _, e := range entries {
-			name := e.Name()
-			if name != filepath.Base(full) && strings.HasPrefix(name, kind+".") {
-				_ = os.Remove(filepath.Join(filepath.Dir(full), name))
-			}
-		}
-	}
-	rel, err := filepath.Rel(s.root, full)
-	if err != nil {
-		return "", err
-	}
-	return filepath.ToSlash(rel), nil
-}
 
 // Get returns the bytes for (id, kind, ext). Missing files yield ErrNotFound.
 func (s *Store) Get(id, kind, ext string) ([]byte, error) {
@@ -233,7 +163,7 @@ func (s *Store) RemoveKind(id, kind string) error {
 	if err := os.Remove(full); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	s.release(size)
+	s.usage.release(size)
 	return nil
 }
 
@@ -244,14 +174,11 @@ func (s *Store) Remove(id string) error {
 	if err != nil {
 		return err
 	}
-	var size int64
-	if s.quota > 0 {
-		size, _ = dirSize(dir) // 0 when the directory does not exist
-	}
+	size := s.usage.dirBytes(dir)
 	if err := os.RemoveAll(dir); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	s.release(size)
+	s.usage.release(size)
 	return nil
 }
 
@@ -298,67 +225,4 @@ func (s *Store) guardSymlinkEscape(full string) error {
 		return err
 	}
 	return nil
-}
-
-// kindBytes sums the bytes currently held for kind (any extension) in dir;
-// 0 when quota accounting is off.
-func (s *Store) kindBytes(dir, kind string) int64 {
-	if s.quota <= 0 {
-		return 0
-	}
-	var n int64
-	if entries, err := os.ReadDir(dir); err == nil {
-		for _, e := range entries {
-			if strings.HasPrefix(e.Name(), kind+".") {
-				if info, err := e.Info(); err == nil {
-					n += info.Size()
-				}
-			}
-		}
-	}
-	return n
-}
-
-// reserve accounts a byte delta about to land on disk, failing with
-// ErrQuotaExceeded when the aggregate cap would be passed. Hand the delta back
-// to release if the write later fails.
-func (s *Store) reserve(delta int64) error {
-	if s.quota <= 0 {
-		return nil
-	}
-	s.qmu.Lock()
-	defer s.qmu.Unlock()
-	if s.usage+delta > s.quota {
-		return ErrQuotaExceeded
-	}
-	s.usage += delta
-	return nil
-}
-
-// release gives delta bytes back to the quota accounting (no-op when
-// untracked or zero).
-func (s *Store) release(delta int64) {
-	if s.quota <= 0 || delta == 0 {
-		return
-	}
-	s.qmu.Lock()
-	s.usage -= delta
-	s.qmu.Unlock()
-}
-
-// dirSize sums the sizes of every regular file under dir.
-func dirSize(dir string) (int64, error) {
-	var n int64
-	err := filepath.WalkDir(dir, func(_ string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		info, err := d.Info()
-		if err != nil {
-			return err
-		}
-		n += info.Size()
-		return nil
-	})
-	return n, err
 }

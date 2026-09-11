@@ -25,7 +25,7 @@ func (a *API) clientIP(r *http.Request) string {
 func (a *API) limitByIP(l *ratelimit.Limiter, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !l.Allow(a.clientIP(r)) {
-			tooManyRequests(w, "too many token requests")
+			tooManyRequests(w, msgTooManyTokenRequests)
 			return
 		}
 		next(w, r)
@@ -37,7 +37,7 @@ func (a *API) limitByIP(l *ratelimit.Limiter, next http.HandlerFunc) http.Handle
 func limitBySession(l *ratelimit.Limiter, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if sess, ok := auth.SessionFromContext(r.Context()); ok && !l.Allow(sess.ID) {
-			tooManyRequests(w, "write rate exceeded")
+			tooManyRequests(w, msgWriteRateExceeded)
 			return
 		}
 		next(w, r)
@@ -46,5 +46,5 @@ func limitBySession(l *ratelimit.Limiter, next http.HandlerFunc) http.HandlerFun
 
 func tooManyRequests(w http.ResponseWriter, msg string) {
 	w.Header().Set("Retry-After", "60")
-	writeErr(w, http.StatusTooManyRequests, protocol.CodeRateLimited, msg+"; retry later")
+	writeErr(w, http.StatusTooManyRequests, protocol.CodeRateLimited, msg+msgRetryLater)
 }

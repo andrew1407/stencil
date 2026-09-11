@@ -5,6 +5,9 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"stencil/server/internal/bus"
+	"stencil/server/internal/protocol"
 )
 
 // requireRedis returns a live bus or skips the test when REDIS_URL is unset or
@@ -31,13 +34,15 @@ func TestRedisPubSubRoundTrip(t *testing.T) {
 	defer cancel()
 	time.Sleep(100 * time.Millisecond) // let the subscription register
 
-	if err := b.Publish(ctx, "test:proj:1", []byte("edit-op")); err != nil {
+	env := bus.Envelope{Type: protocol.WSEdit, From: "c_1", Data: []byte(`{"type":"edit"}`)}
+	if err := b.Publish(ctx, "test:proj:1", env); err != nil {
 		t.Fatal(err)
 	}
 	select {
 	case m := <-ch:
-		if string(m) != "edit-op" {
-			t.Fatalf("got %q", m)
+		// The envelope crosses the process boundary intact: routing header + frame.
+		if m.Type != env.Type || m.From != env.From || string(m.Data) != string(env.Data) {
+			t.Fatalf("got %+v", m)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout")

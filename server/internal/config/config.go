@@ -34,6 +34,9 @@ type Config struct {
 	HelloRatePerMin     int           // FAILED WS/TCP hello handshakes per minute, per client IP (0 = off)
 	StorageQuotaBytes   int64         // aggregate filestore cap in bytes (0 = unlimited)
 	OpTimeout           time.Duration // deadline around one REST store operation
+	DBMaxConns          int           // DB_MAX_CONNS: pool ceiling (0 = pgx default)
+	DBMinConns          int           // DB_MIN_CONNS: warm connections (0 = pgx default)
+	DBStatementTimeout  time.Duration // DB_STATEMENT_TIMEOUT: per-statement cap (0 = none)
 	// TrustedProxies are the peers whose X-Forwarded-For is believed when a
 	// limiter keys on the client IP. Empty (default) ignores the header.
 	TrustedProxies []netip.Prefix
@@ -113,11 +116,6 @@ func Load() (Config, error) {
 		AdminToken:    get("ADMIN_TOKEN", ""),
 		MaxBodyBytes:  defaultMaxBodyBytes,
 		CORSOrigins:   parseOrigins(get("CORS_ORIGINS", "")),
-		LLMProvider:   get("LLM_PROVIDER", "anthropic"),
-		LLMAPIKey:     get("LLM_API_KEY", ""),
-		AnthropicKey:  get("ANTHROPIC_API_KEY", ""),
-		LLMModel:      get("LLM_MODEL", defaultLLMModel),
-		LLMBaseURL:    get("LLM_BASE_URL", ""), // "" = the provider's default
 	}
 
 	tokenTTLHours, err := positiveInt(get, "TOKEN_TTL_HOURS", int(defaultTokenTTL/time.Hour), 1)
@@ -145,20 +143,20 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	cfg.SweepInterval = time.Duration(sweepMinutes) * time.Minute
-	if cfg.LLMMaxTokens, err = positiveInt(get, "LLM_MAX_TOKENS", defaultLLMMaxTokens, 1); err != nil {
+	if err := loadLLM(get, &cfg); err != nil {
 		return Config{}, err
 	}
-	llmTimeoutSeconds, err := positiveInt(get, "LLM_TIMEOUT_SECONDS", int(defaultLLMTimeout/time.Second), 1)
+	if cfg.DBMaxConns, err = positiveInt(get, "DB_MAX_CONNS", 0, 0); err != nil {
+		return Config{}, err
+	}
+	if cfg.DBMinConns, err = positiveInt(get, "DB_MIN_CONNS", 0, 0); err != nil {
+		return Config{}, err
+	}
+	dbStatementSeconds, err := positiveInt(get, "DB_STATEMENT_TIMEOUT", 0, 0)
 	if err != nil {
 		return Config{}, err
 	}
-	cfg.LLMTimeout = time.Duration(llmTimeoutSeconds) * time.Second
-	if cfg.LLMRatePerMin, err = positiveInt(get, "LLM_RATE_PER_MINUTE", defaultLLMRatePerMin, 0); err != nil {
-		return Config{}, err
-	}
-	if cfg.LLMMaxInFlight, err = positiveInt(get, "LLM_MAX_IN_FLIGHT", defaultLLMMaxInFlight, 0); err != nil {
-		return Config{}, err
-	}
+	cfg.DBStatementTimeout = time.Duration(dbStatementSeconds) * time.Second
 	if cfg.AuthRatePerMin, err = positiveInt(get, "AUTH_RATE_PER_MINUTE", defaultAuthRatePerMin, 0); err != nil {
 		return Config{}, err
 	}

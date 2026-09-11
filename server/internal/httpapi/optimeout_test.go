@@ -12,6 +12,7 @@ import (
 	"stencil/server/internal/bus"
 	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
+	"stencil/server/internal/store"
 	"stencil/server/internal/testutil"
 )
 
@@ -26,7 +27,7 @@ func (s *stalledStore) block(ctx context.Context) error {
 	return ctx.Err()
 }
 
-func (s *stalledStore) ListProjects(ctx context.Context) ([]protocol.ProjectRecord, error) {
+func (s *stalledStore) ListProjects(ctx context.Context, _ store.ProjectPage) ([]protocol.ProjectRecord, error) {
 	return nil, s.block(ctx)
 }
 

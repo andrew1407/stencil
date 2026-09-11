@@ -8,6 +8,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/netip"
 	"os"
@@ -17,12 +18,13 @@ import (
 	"stencil/server/internal/bus"
 	"stencil/server/internal/protocol"
 	"stencil/server/internal/ratelimit"
+	"stencil/server/internal/service"
 	"stencil/server/internal/store"
 )
 
 // ProjectStore is the project persistence the API needs.
 type ProjectStore interface {
-	ListProjects(ctx context.Context) ([]protocol.ProjectRecord, error)
+	ListProjects(ctx context.Context, page store.ProjectPage) ([]protocol.ProjectRecord, error)
 	GetProject(ctx context.Context, id string) (protocol.ProjectRecord, error)
 	CreateProject(ctx context.Context, ownerSession string, req protocol.CreateProjectRequest) (protocol.ProjectRecord, error)
 	UpdateProject(ctx context.Context, id string, patch store.ProjectPatch, expectedVersion int64) (protocol.ProjectRecord, error)
@@ -47,10 +49,10 @@ type SessionCounter interface {
 // path for filestore-only kinds (video/variantN/chat); OpenByRelPath hands back
 // an *os.File so downloads can stream via http.ServeContent instead of
 // buffering whole files in memory; RemoveKind backs the per-file DELETE route
-// for filestore-only kinds. Reads go through the path pair, never a whole-file
-// Get — nothing here buffers a file in memory.
+// for filestore-only kinds. Nothing here holds a whole file in memory: reads go
+// through the path pair, and PutStream writes the request body as it arrives.
 type FileStore interface {
-	Put(id, kind, ext string, data []byte) (string, error)
+	PutStream(id, kind, ext string, r io.Reader) (string, error)
 	FindByKind(id, kind string) (string, error)
 	OpenByRelPath(rel string) (*os.File, error)
 	RemoveKind(id, kind string) error
@@ -90,17 +92,18 @@ type Deps struct {
 	OpTimeout      time.Duration // deadline around ONE store operation
 }
 
-// API holds the resolved dependencies and serves HTTP.
+// API holds the resolved dependencies and serves HTTP. The project and file
+// policy it enforces lives in internal/service, composed here from Deps so the
+// handlers stay transport-only.
 type API struct {
 	deps      Deps
+	projects  *service.ProjectService
+	files     *service.FileService
 	llmRate   *ratelimit.Limiter // per-session, POST /llm/chat
 	llmGate   *llmGate
 	authRate  *ratelimit.Limiter // per-IP, POST /auth/token
 	writeRate *ratelimit.Limiter // per-session, project creation + file uploads
 }
-
-// nowMs is overridable in tests.
-var nowMs = func() int64 { return time.Now().UnixMilli() }
 
 // New constructs the API handler set.
 func New(deps Deps) *API {
@@ -115,11 +118,22 @@ func New(deps Deps) *API {
 	}
 	return &API{
 		deps:      deps,
+		projects:  service.NewProjects(deps.Projects, deps.Files, liveSessions(deps), deps.Bus, deps.ProjectTTL),
+		files:     service.NewFiles(deps.Projects, deps.Files, deps.Bus),
 		llmRate:   ratelimit.New(deps.LLMRatePerMin),
 		llmGate:   newLLMGate(deps.LLMMaxInFlight),
 		authRate:  ratelimit.New(deps.AuthRatePerMin),
 		writeRate: ratelimit.New(deps.WriteRatePerMin),
 	}
+}
+
+// liveSessions hands the hub to the service as a plain interface, keeping a
+// typed nil (an unset Deps.LiveSessions) out of it.
+func liveSessions(deps Deps) service.SessionCounter {
+	if deps.LiveSessions == nil {
+		return nil
+	}
+	return deps.LiveSessions
 }
 
 // defaultOpTimeout is the fallback for Deps.OpTimeout (OP_TIMEOUT_SECONDS).
@@ -153,7 +167,6 @@ func (a *API) Register(mux *http.ServeMux) {
 	protected("POST /llm/chat", a.handleLLMChat)
 }
 
-// Handler returns a ready ServeMux with all routes registered.
 func (a *API) Handler() *http.ServeMux {
 	mux := http.NewServeMux()
 	a.Register(mux)
@@ -179,7 +192,7 @@ func (a *API) decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, "invalid JSON body: "+err.Error())
+		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, msgInvalidJSONPre+err.Error())
 		return false
 	}
 	return true

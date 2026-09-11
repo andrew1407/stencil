@@ -78,3 +78,33 @@ func TestHardeningRejectsBadValues(t *testing.T) {
 		})
 	}
 }
+
+// The Postgres pool keys: unset = pgx decides (store.NewWithPool floors it).
+func TestDatabasePoolKeys(t *testing.T) {
+	chdirTemp(t)
+	clearEnv(t)
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.DBMaxConns != 0 || cfg.DBMinConns != 0 || cfg.DBStatementTimeout != 0 {
+		t.Fatalf("pool defaults: %+v", cfg)
+	}
+	t.Setenv("DB_MAX_CONNS", "40")
+	t.Setenv("DB_MIN_CONNS", "4")
+	t.Setenv("DB_STATEMENT_TIMEOUT", "15")
+	if cfg, err = Load(); err != nil {
+		t.Fatal(err)
+	}
+	if cfg.DBMaxConns != 40 || cfg.DBMinConns != 4 || cfg.DBStatementTimeout != 15*time.Second {
+		t.Fatalf("pool overrides: %d/%d/%v", cfg.DBMaxConns, cfg.DBMinConns, cfg.DBStatementTimeout)
+	}
+	for _, tc := range [][2]string{{"DB_MAX_CONNS", "-1"}, {"DB_MIN_CONNS", "x"}, {"DB_STATEMENT_TIMEOUT", "-5"}} {
+		chdirTemp(t)
+		clearEnv(t)
+		t.Setenv(tc[0], tc[1])
+		if _, err := Load(); err == nil {
+			t.Errorf("%s=%q should be rejected", tc[0], tc[1])
+		}
+	}
+}

@@ -1,7 +1,7 @@
 package main
 
-// Boot wiring split out of main(): the opt-in LLM proxy, and the warnings an
-// operator must see before the listeners come up.
+// Boot wiring split out of main(): the REST dependency set, the opt-in LLM
+// proxy, and the warnings an operator must see before the listeners come up.
 
 import (
 	"fmt"
@@ -9,10 +9,45 @@ import (
 	"path/filepath"
 	"strings"
 
+	"stencil/server/internal/bus"
 	"stencil/server/internal/config"
+	"stencil/server/internal/filestore"
 	"stencil/server/internal/httpapi"
+	"stencil/server/internal/hub"
 	"stencil/server/internal/llm"
+	"stencil/server/internal/store"
 )
+
+// apiDeps assembles the REST handler's dependency set and logs the auth posture
+// it implies — the one thing an operator must read before traffic arrives.
+func apiDeps(cfg config.Config, st *store.Store, fs *filestore.Store, h *hub.Hub, b bus.Bus) httpapi.Deps {
+	deps := httpapi.Deps{
+		Projects:        st,
+		Sessions:        st,
+		Files:           fs,
+		LiveSessions:    h,
+		Bus:             b,
+		TokenTTL:        cfg.TokenTTL,
+		ProjectTTL:      cfg.ProjectTTL,
+		MaxBodyBytes:    cfg.MaxBodyBytes,
+		AdminToken:      cfg.AdminToken,
+		AuthOpen:        cfg.AuthOpen,
+		AuthRatePerMin:  cfg.AuthRatePerMin,
+		WriteRatePerMin: cfg.WriteRatePerMin,
+		TrustedProxies:  cfg.TrustedProxies,
+		OpTimeout:       cfg.OpTimeout,
+	}
+	if cfg.AuthOpen {
+		log.Printf("WARNING: AUTH_OPEN=1 — token issuance is OPEN: anyone who can reach this server " +
+			"gets full workspace access (projects, chat transcripts, the LLM proxy). Use only on trusted networks.")
+	} else if cfg.AdminTokenGenerated {
+		// Printed exactly once, at boot: issuance is closed by default now, so a
+		// dev without ADMIN_TOKEN needs this to mint session tokens.
+		log.Printf("auth: ADMIN_TOKEN not set — generated for this run: %s", cfg.AdminToken)
+	}
+	configureLLM(cfg, &deps) // opt-in proxy, or a log line saying why not
+	return deps
+}
 
 // configureLLM attaches the proxy to deps when a provider is fully configured,
 // and otherwise logs why it stays off.

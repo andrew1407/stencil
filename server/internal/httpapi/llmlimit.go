@@ -1,12 +1,6 @@
 package httpapi
 
-// Spend controls for POST /llm/chat. Every accepted turn spends the OPERATOR's
-// upstream and a session token is valid for TOKEN_TTL_HOURS, so "authenticated"
-// is not a budget. Two caps, both 0 = unlimited: a per-session rate
-// (LLM_RATE_PER_MINUTE, spending the shared bucket in internal/ratelimit) and
-// the server-wide in-flight cap below (LLM_MAX_IN_FLIGHT), which also bounds
-// heap — each call in flight can hold an 8 MiB response plus its images.
-// In-process only: a multi-instance deployment limits per instance.
+// Spend controls for POST /llm/chat (README.md#llm-proxy).
 
 // llmGate bounds concurrent upstream calls. The zero value (nil channel) is
 // unlimited.
