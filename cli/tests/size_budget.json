@@ -19,7 +19,7 @@
     "cli/src/llm/opplan.zig": 39,
     "cli/src/llm/registry.zig": 440,
     "cli/src/llm/transport.zig": 255,
-    "cli/src/llm/wire.zig": 457,
+    "cli/src/llm/wire.zig": 41,
     "cli/src/logo.zig": 451,
     "cli/src/net.zig": 138,
     "cli/src/pipeline.zig": 473,
