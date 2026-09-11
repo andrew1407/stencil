@@ -6,7 +6,7 @@ const std = @import("std");
 const image = @import("image.zig");
 const net = @import("net.zig");
 const pipeline = @import("pipeline.zig");
-const logo = @import("logo.zig");
+const report = @import("report.zig");
 const llm = @import("llm.zig");
 const Session = @import("console/session.zig").Session;
 
@@ -225,7 +225,7 @@ pub fn parse(gpa: std.mem.Allocator, bytes: []const u8) !Project {
     return proj;
 }
 
-// ── session ⇄ .stencil bridge (shared by console handlers + one-shot pipeline) ────────────
+// session ⇄ .stencil bridge (shared by console handlers + one-shot pipeline)
 
 /// Load a `.stencil` at `path` (local file or http(s) URL) into `session`: read its bytes, parse,
 /// decode the embedded ORIGINAL image, hand it to the session (retaining the encoded source bytes
@@ -236,12 +236,12 @@ pub fn loadInto(session: *Session, io: std.Io, path: []const u8) !Project {
     const bytes = try pipeline.loadLayoutBytes(session.gpa, io, path); // prints its own error
     defer session.gpa.free(bytes);
     var proj = parse(session.gpa, bytes) catch |e| {
-        logo.err("'{s}' is not a valid .stencil project ({s})\n", .{ path, @errorName(e) });
+        report.err("'{s}' is not a valid .stencil project ({s})\n", .{ path, @errorName(e) });
         return e;
     };
     errdefer proj.deinit();
     const decoded = image.decode(session.gpa, proj.image_bytes) catch |e| {
-        logo.err("could not decode the project image in '{s}' ({s})\n", .{ path, @errorName(e) });
+        report.err("could not decode the project image in '{s}' ({s})\n", .{ path, @errorName(e) });
         return e;
     };
     const fmt = image.formatFromExt(proj.image_ext) orelse .png;
@@ -254,7 +254,7 @@ pub fn loadInto(session: *Session, io: std.Io, path: []const u8) !Project {
     };
     try session.loadImage(decoded, label, net.isUrl(path), fmt, sb);
     session.adoptServerLayout(proj.layout_json) catch
-        logo.note("ignoring an invalid embedded layout in '{s}'\n", .{path});
+        report.note("ignoring an invalid embedded layout in '{s}'\n", .{path});
     // §12: a saved chat block restores the conversation (replacing) — only when the /chat
     // opt-in is on; off, the key is ignored. A malformed block silently restores nothing.
     if (session.chat_on) {
@@ -284,13 +284,13 @@ pub const SaveMeta = struct {
 /// success (or an error) and returns any error. Assumes `session.original != null` (guard first).
 pub fn saveInto(session: *Session, io: std.Io, path: []const u8, meta: SaveMeta) !void {
     if (pipeline.hasParentTraversal(path)) {
-        logo.err("refusing to write to a path that escapes the working directory: '{s}'\n", .{path});
+        report.err("refusing to write to a path that escapes the working directory: '{s}'\n", .{path});
         return error.UnsafeOutputPath;
     }
     const orig = session.original.?;
     const owned_enc: ?[]u8 = if (session.source_bytes == null)
         image.encode(session.gpa, orig, session.default_fmt) catch |e| {
-            logo.err("could not encode the project image ({s})\n", .{@errorName(e)});
+            report.err("could not encode the project image ({s})\n", .{@errorName(e)});
             return e;
         }
     else
@@ -322,16 +322,16 @@ pub fn saveInto(session: *Session, io: std.Io, path: []const u8, meta: SaveMeta)
         .layout_json = layout_json,
         .chat_json = chat_doc,
     }) catch |e| {
-        logo.err("could not build the project file ({s})\n", .{@errorName(e)});
+        report.err("could not build the project file ({s})\n", .{@errorName(e)});
         return e;
     };
     defer session.gpa.free(bundle);
     std.Io.Dir.cwd().writeFile(io, .{ .sub_path = path, .data = bundle }) catch |e| {
-        logo.err("could not write project to {s} ({s})\n", .{ path, @errorName(e) });
+        report.err("could not write project to {s} ({s})\n", .{ path, @errorName(e) });
         return e;
     };
     // No "WxH px" token (like the console's "(layout)") so the mcp/bot `wrote` parsers skip it.
-    logo.print("wrote {s} (project)\n", .{path});
+    report.print("wrote {s} (project)\n", .{path});
 }
 
 const testing = std.testing;

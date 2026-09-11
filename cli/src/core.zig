@@ -1,7 +1,8 @@
 //! Typed Zig wrappers over the shared C++ core's extern "C" ABI (../core/cliApi.h).
 //! The core owns all geometry / colour / length / raster logic; this file is a thin,
-//! allocation-aware bridge. The C strings it needs are produced with dupeZ so callers
-//! can pass ordinary Zig slices.
+//! allocation-free bridge: every string argument is `[:0]const u8`, so the caller owns
+//! the NUL (a literal already has one) instead of the wrapper duping one per call.
+//! The row-range slice of the same ABI lives in imageRows.zig, its only consumer.
 const std = @import("std");
 
 const c = @cImport({
@@ -13,19 +14,30 @@ pub const Rect = struct { x: i32, y: i32, w: i32, h: i32 };
 pub const Size = struct { w: i32, h: i32 };
 pub const Page = struct { w: f64, h: f64 };
 
+/// A NUL-terminated copy of `s` in this thread's scratch, for a caller whose string came
+/// from a console line or a model plan (argv and literals already carry the NUL). Valid
+/// until this thread's next call. null when it does not fit: no spec that long is valid.
+pub fn zstr(s: []const u8) ?[:0]const u8 {
+    const S = struct {
+        threadlocal var buf: [4096]u8 = undefined; // a console line is at most this
+    };
+    if (s.len >= S.buf.len) return null;
+    @memcpy(S.buf[0..s.len], s);
+    S.buf[s.len] = 0;
+    return S.buf[0..s.len :0];
+}
+
 fn toByte(v: c_int) u8 {
     return @intCast(std.math.clamp(v, 0, 255));
 }
 
 /// Parse a CSS colour (named / hex / "transparent"). null if unrecognized.
-pub fn parseColor(allocator: std.mem.Allocator, spec: []const u8) ?Rgba {
-    const z = allocator.dupeZ(u8, spec) catch return null;
-    defer allocator.free(z);
+pub fn parseColor(spec: [:0]const u8) ?Rgba {
     var r: c_int = 0;
     var g: c_int = 0;
     var b: c_int = 0;
     var a: c_int = 0;
-    if (c.stencil_cli_parseColor(z.ptr, &r, &g, &b, &a) == 0) return null;
+    if (c.stencil_cli_parseColor(spec.ptr, &r, &g, &b, &a) == 0) return null;
     return .{ .r = toByte(r), .g = toByte(g), .b = toByte(b), .a = toByte(a) };
 }
 
@@ -39,20 +51,21 @@ pub fn pageFormats() []const u8 {
 /// null when the name is not a known format ("custom" included — it is not a named size).
 /// The result slices into the core's static name list, so it never dangles.
 pub fn canonicalPageFormat(name: []const u8) ?[]const u8 {
+    // The list is a C pointer, so it cannot be a comptime map; the length test skips the
+    // case-insensitive compare for all but the two or three names of the right width.
+    if (name.len == 0 or name.len > 4) return null;
     var it = std.mem.tokenizeScalar(u8, pageFormats(), ' ');
     while (it.next()) |n| {
-        if (std.ascii.eqlIgnoreCase(n, name)) return n;
+        if (n.len == name.len and std.ascii.eqlIgnoreCase(n, name)) return n;
     }
     return null;
 }
 
 /// Named page size in cm (e.g. "A4"). null if unknown.
-pub fn namedPageSize(allocator: std.mem.Allocator, name: []const u8) ?Page {
-    const z = allocator.dupeZ(u8, name) catch return null;
-    defer allocator.free(z);
+pub fn namedPageSize(name: [:0]const u8) ?Page {
     var w: f64 = 0;
     var h: f64 = 0;
-    if (c.stencil_cli_namedPageSize(z.ptr, &w, &h) == 0) return null;
+    if (c.stencil_cli_namedPageSize(name.ptr, &w, &h) == 0) return null;
     return .{ .w = w, .h = h };
 }
 
@@ -65,8 +78,7 @@ pub fn defaultBlankSizePx(page_w_cm: f64, page_h_cm: f64, dpi: f64) Size {
 
 /// Resolve a crop spec string to a clamped integer pixel rect. null on a bad spec.
 pub fn resolveCrop(
-    allocator: std.mem.Allocator,
-    spec: []const u8,
+    spec: [:0]const u8,
     image_w: f64,
     image_h: f64,
     px_per_cm_x: f64,
@@ -75,13 +87,11 @@ pub fn resolveCrop(
     page_h_cm: f64,
     album: bool,
 ) ?Rect {
-    const z = allocator.dupeZ(u8, spec) catch return null;
-    defer allocator.free(z);
     var x: c_int = 0;
     var y: c_int = 0;
     var w: c_int = 0;
     var h: c_int = 0;
-    const ok = c.stencil_cli_resolveCrop(z.ptr, image_w, image_h, px_per_cm_x,
+    const ok = c.stencil_cli_resolveCrop(spec.ptr, image_w, image_h, px_per_cm_x,
         px_per_cm_y, page_w_cm, page_h_cm, @intFromBool(album), &x, &y, &w, &h);
     if (ok == 0) return null;
     return .{ .x = @intCast(x), .y = @intCast(y), .w = @intCast(w), .h = @intCast(h) };
@@ -111,10 +121,8 @@ pub fn fillRGBA(dst: []u8, pixel_count: i32, color: Rgba) void {
 }
 
 /// Apply an image filter in place. `mode` is "bw"|"sepia"|"invert"|"none"|a custom colour.
-pub fn applyFilter(allocator: std.mem.Allocator, mode: []const u8, data: []u8, pixel_count: i32, tint: Rgba) void {
-    const z = allocator.dupeZ(u8, mode) catch return;
-    defer allocator.free(z);
-    c.stencil_cli_applyFilter(z.ptr, data.ptr, pixel_count, tint.r, tint.g, tint.b);
+pub fn applyFilter(mode: [:0]const u8, data: []u8, pixel_count: i32, tint: Rgba) void {
+    c.stencil_cli_applyFilter(mode.ptr, data.ptr, pixel_count, tint.r, tint.g, tint.b);
 }
 
 /// Sobel contour (edge-detection) filter in place — dark edges on white, alpha preserved.
@@ -132,9 +140,7 @@ pub const LineDraw = struct {
     style: [:0]const u8,
     locked: bool,
     fill_color: [:0]const u8,
-    /// Point colour. Empty = inherit `color` (the pre-field behaviour), so callers
-    /// that don't set it get exactly the old rendering. Defaulted so existing construction
-    /// sites keep compiling unchanged.
+    /// Point colour. Empty = inherit `color`.
     point_color: [:0]const u8 = "",
 };
 
@@ -146,27 +152,21 @@ pub fn rasterizeLine(buf: []u8, w: i32, h: i32, line: LineDraw) void {
 }
 
 /// Validate a single-variable formula (`var_name` is 'x' or 'y'). Empty = valid (identity).
-pub fn validateFormula(allocator: std.mem.Allocator, expr: []const u8, var_name: u8) bool {
-    const z = allocator.dupeZ(u8, expr) catch return false;
-    defer allocator.free(z);
-    return c.stencil_cli_validateFormula(z.ptr, @as(c_int, var_name)) != 0;
+pub fn validateFormula(expr: [:0]const u8, var_name: u8) bool {
+    return c.stencil_cli_validateFormula(expr.ptr, @as(c_int, var_name)) != 0;
 }
 
 /// Apply a formula to `value` ('x'/'y' variable). Identity when disabled, empty, or invalid.
-pub fn applyFormula(allocator: std.mem.Allocator, expr: []const u8, var_name: u8, value: f64, allow: bool) f64 {
-    const z = allocator.dupeZ(u8, expr) catch return value;
-    defer allocator.free(z);
-    return c.stencil_cli_applyFormula(z.ptr, @as(c_int, var_name), value, @intFromBool(allow));
+pub fn applyFormula(expr: [:0]const u8, var_name: u8, value: f64, allow: bool) f64 {
+    return c.stencil_cli_applyFormula(expr.ptr, @as(c_int, var_name), value, @intFromBool(allow));
 }
 
 /// Parse a human duration ("days 23", "fortnight", "month", "off") into milliseconds.
 /// Returns the duration in ms (0 for off/never), or null when the spec is invalid.
 /// The caller adds this to "now" to get an expiry timestamp.
-pub fn parseDuration(allocator: std.mem.Allocator, spec: []const u8) ?i64 {
-    const z = allocator.dupeZ(u8, spec) catch return null;
-    defer allocator.free(z);
+pub fn parseDuration(spec: [:0]const u8) ?i64 {
     var ms: c_longlong = 0;
-    if (c.stencil_cli_parseDuration(z.ptr, &ms) == 0) return null;
+    if (c.stencil_cli_parseDuration(spec.ptr, &ms) == 0) return null;
     return @intCast(ms);
 }
 
@@ -177,7 +177,7 @@ pub fn colorNameCount() usize {
 
 /// The colour keyword at `index` (alphabetical) and its 0xRRGGBB. null out of range.
 /// Together with colorNameCount this makes a table drift check bidirectional.
-pub fn colorNameAt(index: usize) ?struct { name: []const u8, rgb: u32 } {
+pub fn colorNameAt(index: usize) ?struct { name: [:0]const u8, rgb: u32 } {
     var rgb: c_uint = 0;
     const p = c.stencil_cli_colorNameAt(@intCast(index), &rgb) orelse return null;
     return .{ .name = std.mem.span(p), .rgb = @intCast(rgb) };
@@ -217,33 +217,30 @@ fn joinPipes(buf: []u8, words: []const u8) []const u8 {
 const testing = std.testing;
 
 test "parseColor: names, hex, rejects junk" {
-    const a = testing.allocator;
-    const red = parseColor(a, "red").?;
+    const red = parseColor("red").?;
     try testing.expectEqual(@as(u8, 255), red.r);
     try testing.expectEqual(@as(u8, 0), red.g);
-    try testing.expect(parseColor(a, "#0000ff").?.b == 255);
-    try testing.expect(parseColor(a, "notacolour") == null);
+    try testing.expect(parseColor("#0000ff").?.b == 255);
+    try testing.expect(parseColor("notacolour") == null);
 }
 
 test "resolveCrop + rotate helpers" {
-    const a = testing.allocator;
-    const rect = resolveCrop(a, "x1=0px x2=100px y1=0px y2=50px", 200, 200, 10, 10, 21, 29.7, false).?;
+    const rect = resolveCrop("x1=0px x2=100px y1=0px y2=50px", 200, 200, 10, 10, 21, 29.7, false).?;
     try testing.expectEqual(@as(i32, 100), rect.w);
     try testing.expectEqual(@as(i32, 50), rect.h);
-    try testing.expect(resolveCrop(a, "z=1", 200, 200, 10, 10, 21, 29.7, false) == null);
+    try testing.expect(resolveCrop("z=1", 200, 200, 10, 10, 21, 29.7, false) == null);
     try testing.expectEqual(@as(i32, 3), normalizeQuarters(-1));
     const d = rotatedDims(4, 2, 1);
     try testing.expect(d.w == 2 and d.h == 4);
 }
 
 test "formula validate + apply through the ABI" {
-    const a = testing.allocator;
-    try testing.expect(validateFormula(a, "x*2", 'x'));
-    try testing.expect(validateFormula(a, "", 'x')); // empty = identity = valid
-    try testing.expect(!validateFormula(a, "foo(x)", 'x')); // unknown ident = invalid
-    try testing.expectEqual(@as(f64, 20), applyFormula(a, "x*2", 'x', 10, true));
-    try testing.expectEqual(@as(f64, 10), applyFormula(a, "x*2", 'x', 10, false)); // disabled = identity
-    try testing.expectEqual(@as(f64, 10), applyFormula(a, "bad(", 'x', 10, true)); // invalid = identity
+    try testing.expect(validateFormula("x*2", 'x'));
+    try testing.expect(validateFormula("", 'x')); // empty = identity = valid
+    try testing.expect(!validateFormula("foo(x)", 'x')); // unknown ident = invalid
+    try testing.expectEqual(@as(f64, 20), applyFormula("x*2", 'x', 10, true));
+    try testing.expectEqual(@as(f64, 10), applyFormula("x*2", 'x', 10, false)); // disabled = identity
+    try testing.expectEqual(@as(f64, 10), applyFormula("bad(", 'x', 10, true)); // invalid = identity
 }
 
 test "the core's expire vocabulary joins into the console help lists" {
@@ -252,31 +249,28 @@ test "the core's expire vocabulary joins into the console help lists" {
 }
 
 test "colour-name enumeration is alphabetical and matches parseColor" {
-    const a = testing.allocator;
     try testing.expect(colorNameCount() > 100);
     const first = colorNameAt(0).?;
     try testing.expectEqualStrings("aliceblue", first.name);
     try testing.expectEqual(@as(u32, 0xf0f8ff), first.rgb);
     try testing.expect(colorNameAt(colorNameCount()) == null);
-    const got = parseColor(a, first.name).?;
+    const got = parseColor(first.name).?;
     try testing.expectEqual(@as(u8, 0xf0), got.r);
 }
 
 test "parseDuration through the ABI" {
-    const a = testing.allocator;
     const day: i64 = 24 * 60 * 60 * 1000;
-    try testing.expectEqual(day, parseDuration(a, "day").?);
-    try testing.expectEqual(@as(i64, 23) * day, parseDuration(a, "days 23").?);
-    try testing.expectEqual(@as(i64, 3) * 30 * day, parseDuration(a, "months 3").?);
-    try testing.expectEqual(@as(i64, 14) * day, parseDuration(a, "fortnight").?);
-    try testing.expectEqual(@as(i64, 0), parseDuration(a, "off").?); // keep forever
-    try testing.expect(parseDuration(a, "banana") == null);
-    try testing.expect(parseDuration(a, "days 0") == null);
+    try testing.expectEqual(day, parseDuration("day").?);
+    try testing.expectEqual(@as(i64, 23) * day, parseDuration("days 23").?);
+    try testing.expectEqual(@as(i64, 3) * 30 * day, parseDuration("months 3").?);
+    try testing.expectEqual(@as(i64, 14) * day, parseDuration("fortnight").?);
+    try testing.expectEqual(@as(i64, 0), parseDuration("off").?); // keep forever
+    try testing.expect(parseDuration("banana") == null);
+    try testing.expect(parseDuration("days 0") == null);
 }
 
 test "namedPageSize + blank fill round trips through the ABI" {
-    const a = testing.allocator;
-    const p = namedPageSize(a, "A4").?;
+    const p = namedPageSize("A4").?;
     try testing.expectApproxEqAbs(@as(f64, 21.0), p.w, 0.01);
     var px = [_]u8{0} ** 8;
     fillRGBA(&px, 2, .{ .r = 10, .g = 20, .b = 30, .a = 40 });
@@ -285,7 +279,6 @@ test "namedPageSize + blank fill round trips through the ABI" {
 }
 
 test "pageFormats lists the canonical names; canonicalPageFormat normalizes case" {
-    const a = testing.allocator;
     const names = pageFormats();
     try testing.expect(std.mem.startsWith(u8, names, "A0 A1 "));
     try testing.expect(std.mem.indexOf(u8, names, "B5") != null);
@@ -298,16 +291,15 @@ test "pageFormats lists the canonical names; canonicalPageFormat normalizes case
     try testing.expect(canonicalPageFormat("nope") == null);
     try testing.expect(canonicalPageFormat("") == null);
     // Every canonical name resolves to a size through the ABI.
-    const b5 = namedPageSize(a, canonicalPageFormat("B5").?).?;
+    const b5 = namedPageSize(zstr(canonicalPageFormat("B5").?).?).?;
     try testing.expectApproxEqAbs(@as(f64, 17.6), b5.w, 0.01);
     try testing.expectApproxEqAbs(@as(f64, 25.0), b5.h, 0.01);
 }
 
 test "invert + contour filters through the ABI" {
-    const a = testing.allocator;
     // Invert flips each channel; alpha untouched.
     var px = [_]u8{ 10, 20, 30, 40 };
-    applyFilter(a, "invert", &px, 1, .{ .r = 0, .g = 0, .b = 0, .a = 255 });
+    applyFilter("invert", &px, 1, .{ .r = 0, .g = 0, .b = 0, .a = 255 });
     try testing.expectEqual(@as(u8, 245), px[0]);
     try testing.expectEqual(@as(u8, 235), px[1]);
     try testing.expectEqual(@as(u8, 225), px[2]);

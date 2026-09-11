@@ -128,7 +128,7 @@ fn clipError(verb: []const u8, e: anyerror) void {
     }
 }
 
-// ── images pasted INTO the line being typed (Ctrl-V, or a pasted image path) ──
+// images pasted INTO the line being typed (Ctrl-V, or a pasted image path)
 // The editor owns the `[Image #N <label>]` markers in the line; the session owns the bytes
 // behind them. Nothing is loaded until the line is submitted (drainPending) — deleting a
 // marker, Ctrl-C or Ctrl-U simply drops what it stood for.
@@ -443,8 +443,6 @@ test "unpaste with nothing loaded says so instead of erroring" {
 
     try testing.expect(std.mem.indexOf(u8, cap.text(), "nothing to remove") != null);
 }
-
-// ── images pasted into the prompt line ────────────────────────────────────────
 
 test "a submitted line's pasted images become this turn's uploads" {
     const a = testing.allocator;

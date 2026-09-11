@@ -99,8 +99,6 @@ fn isTokenChars(s: []const u8) bool {
     return true;
 }
 
-// ── tests ───────────────────────────────────────────────────────────────────────────
-
 const testing = std.testing;
 
 test "sanitizeDetail: bounded, control-free, and never echoing a key or URL" {

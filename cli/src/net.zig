@@ -3,8 +3,9 @@
 //! http(s) URLs are downloaded in-process. (Video URLs are handled by ffmpeg, which reads
 //! URLs directly; pure-Zig video decoding isn't practical — see video.zig.)
 const std = @import("std");
-const logo = @import("logo.zig");
+const report = @import("report.zig");
 const host_guard = @import("host.zig");
+const fetchPool = @import("fetchPool.zig");
 
 // The host/authority split + SSRF guard live in host.zig; these are the names callers use.
 pub const Authority = host_guard.Authority;
@@ -65,16 +66,16 @@ pub const Response = struct {
 /// SSRF guard: refuse loopback/private/link-local/metadata targets before connecting.
 fn guardHost(io: std.Io, url: []const u8, strict: bool) Error!void {
     const host = hostOf(url) orelse {
-        logo.err("could not parse a host from URL '{s}'\n", .{url});
+        report.err("could not parse a host from URL '{s}'\n", .{url});
         return Error.BlockedHost;
     };
     if (isBlockedFetchHost(host, strict)) {
-        logo.err("refusing to fetch internal/blocked host '{s}'\n", .{host});
+        report.err("refusing to fetch internal/blocked host '{s}'\n", .{host});
         return Error.BlockedHost;
     }
     // A DNS name must also not RESOLVE to an internal target (the literal check can't see that).
     if (!host_guard.isNumericHost(host) and host_guard.hostResolvesToBlocked(io, host, strict)) {
-        logo.err("refusing to fetch host '{s}' — it resolves to an internal address\n", .{host});
+        report.err("refusing to fetch host '{s}' — it resolves to an internal address\n", .{host});
         return Error.BlockedHost;
     }
 }
@@ -92,9 +93,8 @@ pub fn request(gpa: std.mem.Allocator, io: std.Io, url: []const u8, opts: Reques
 
     // Bounded scratch: a fixed writer returns error.WriteFailed once the body exceeds the
     // cap, aborting the stream instead of growing memory without limit. Page-allocated so a
-    // small response only commits its own pages, and freed regardless of the caller's arena.
-    const scratch = std.heap.page_allocator.alloc(u8, MAX_FETCH_BYTES) catch return Error.HttpFailed;
-    defer std.heap.page_allocator.free(scratch);
+    // small response only commits its own pages.
+    const scratch = fetchPool.bodyScratch(MAX_FETCH_BYTES) orelse return Error.HttpFailed;
     var body: std.Io.Writer = .fixed(scratch);
 
     const result = client.fetch(.{
@@ -108,9 +108,9 @@ pub fn request(gpa: std.mem.Allocator, io: std.Io, url: []const u8, opts: Reques
         .redirect_behavior = .not_allowed,
     }) catch |e| {
         if (e == error.WriteFailed) {
-            logo.err("response from {s} exceeds the {d}-byte fetch cap\n", .{ url, MAX_FETCH_BYTES });
+            report.err("response from {s} exceeds the {d}-byte fetch cap\n", .{ url, MAX_FETCH_BYTES });
         } else {
-            logo.err("HTTP request failed for {s}: {s}\n", .{ url, @errorName(e) });
+            report.err("HTTP request failed for {s}: {s}\n", .{ url, @errorName(e) });
         }
         return Error.HttpFailed;
     };
@@ -128,7 +128,7 @@ pub fn fetch(gpa: std.mem.Allocator, io: std.Io, url: []const u8, strict: bool) 
     const res = try request(gpa, io, url, .{ .strict = strict });
     if (res.status < 200 or res.status >= 300) {
         defer gpa.free(res.body);
-        logo.err("HTTP {d} fetching {s}\n", .{ res.status, url });
+        report.err("HTTP {d} fetching {s}\n", .{ res.status, url });
         return Error.HttpFailed;
     }
     return res.body;

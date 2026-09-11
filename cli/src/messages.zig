@@ -3,7 +3,6 @@
 //! this is the text moving out ahead of it. Same text, same `logo.err/note/print` call
 //! shape: tests/pins/*.txt pin what several of these render to, byte for byte.
 
-// ── source / save ───────────────────────────────────────────────────────────────
 pub const upload_needs_path = "upload needs a path or URL — e.g. '/upload photo.png' (or copy an image and run a bare '/upload')\n";
 pub const source_upload_needs_url = "source-upload needs a URL — e.g. '/source-upload https://example.com'\n";
 pub const source_upload_usage = "source-upload takes '<url> [index=0] [format=all] [minW=-1] [maxW=-1] [minH=-1] [maxH=-1]'\n";
@@ -30,7 +29,6 @@ pub const unknown_page_format = "unknown page format '{s}' — type '/format' to
 pub const format_takes_one_name = "/format takes one name — e.g. '/format b5' (or '/format custom <w> <h>')\n";
 pub const format_set = "page format set to {s} ({d}×{d}cm)\n";
 
-// ── server connections ──────────────────────────────────────────────────────────
 pub const connect_needs_url = "connect needs a server URL — e.g. '/connect http://host:8090 [token]'\n";
 pub const already_connected = "already connected to {s}\n";
 pub const connected = "connected to {s}\n";
@@ -65,7 +63,6 @@ pub const could_not_rename_project = "could not rename the project ({s})\n";
 pub const could_not_set_blank_color = "could not set the blank colour ({s})\n";
 pub const could_not_set_description = "could not set the description ({s})\n";
 
-// ── keywords (server projects) ──────────────────────────────────────────────────
 pub const keywords_none = "keywords for \"{s}\": (none)\n";
 pub const keywords_head = "keywords for \"{s}\":";
 pub const could_not_update_keywords = "could not update keywords ({s})\n";
@@ -105,7 +102,6 @@ pub const chat_usage = "chat takes 'on', 'off', 'show', or 'clear'\n";
 pub const chat_state = "chat {s} ({d} saved turns)\n";
 pub const chat_on_note = "  saved into the .stencil project on /save; on a server project, readable by everyone it is shared with\n";
 
-// ── transforms ──────────────────────────────────────────────────────────────────
 pub const exec_usage = "usage: /exec <action> <args> — actions: crop | rotate | filter | apply (e.g. '/exec rotate 1')\n";
 pub const crop_usage = "usage: /crop <spec> [album] — edges x1= x2= y1= y2= with %, px, cm/mm/in, or a bare pixel delta; omit an edge to keep the image bound\n";
 pub const crop_usage_example = "       e.g. '/crop x1=10% x2=90% y1=10% y2=90%' (add 'album' to derive a missing axis from the page, landscape)\n";
@@ -115,7 +111,6 @@ pub const rotate_needs_int = "rotate needs an integer (quarter-turns), e.g. '/ro
 pub const rotate_full_turn = "rotate {d} is a full turn — no change\n";
 pub const unknown_filter = "unknown filter \"{s}\" — 'bw', 'sepia', 'invert', 'contour', 'none', or a colour\n";
 
-// ── history / theme / session ───────────────────────────────────────────────────
 pub const reset_done = "reset to original\n";
 pub const unknown_theme = "unknown theme '{s}' — type '/theme' to list them, or give a colour like #ff5623\n";
 pub const theme_set = "theme set to {s} ({s})\n";

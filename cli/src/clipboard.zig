@@ -7,8 +7,8 @@
 //!
 //! Reading takes what is actually there, not one blessed flavour: a PNG, else a TIFF (what most
 //! macOS apps and many Linux ones put on the board) re-encoded to PNG, else an image FILE copied
-//! in a file manager. AppleScript's `the clipboard as «class PNGf»` — what this used to use —
-//! fails with -1700 on a rich multi-flavour clipboard even while `clipboard info` lists PNGf.
+//! in a file manager. AppleScript's `the clipboard as «class PNGf»` fails with -1700 on a rich
+//! multi-flavour clipboard even while `clipboard info` lists PNGf.
 const std = @import("std");
 const builtin = @import("builtin");
 const child = @import("child.zig");
@@ -35,8 +35,6 @@ fn scratchPath(gpa: std.mem.Allocator, comptime name: []const u8) ![]u8 {
     const sep: []const u8 = if (builtin.os.tag == .windows) "\\" else "/";
     return std.fmt.allocPrint(gpa, "{s}{s}stencil_clip_{s}.{d}.png", .{ tmpDir(), sep, name, std.c.getpid() });
 }
-
-// ── reading (clipboard → PNG bytes) ───────────────────────────────────────────
 
 /// Read an image off the clipboard as owned PNG bytes (caller frees). `NoImage` when the
 /// clipboard holds no picture (and no picture FILE) — the ordinary "nothing to paste" case.
@@ -198,9 +196,6 @@ fn readTextXclip(gpa: std.mem.Allocator, io: std.Io) ![]u8 {
     return res.stdout;
 }
 
-// ── writing (PNG bytes / text → clipboard) ────────────────────────────────────
-
-/// Put PNG bytes onto the clipboard.
 pub fn writeImage(gpa: std.mem.Allocator, io: std.Io, png: []const u8) !void {
     if (builtin.os.tag != .macos and builtin.os.tag != .linux and builtin.os.tag != .windows) return Error.Unsupported;
 
@@ -262,8 +257,6 @@ pub fn writeText(gpa: std.mem.Allocator, io: std.Io, text: []const u8) !void {
         else => unreachable,
     }
 }
-
-// ── plumbing ──────────────────────────────────────────────────────────────────
 
 // Run a tool, mapping "not installed" to ToolMissing and a non-zero exit to Failed.
 fn runOrFail(gpa: std.mem.Allocator, io: std.Io, argv: []const []const u8) !void {

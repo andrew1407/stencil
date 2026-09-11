@@ -148,7 +148,7 @@ pub fn listFormats(session: *Session) void {
     while (it.next()) |name| {
         const mark: []const u8 = if (std.ascii.eqlIgnoreCase(name, current)) "*" else " ";
         const tag: []const u8 = if (std.mem.eql(u8, name, "A4")) " (default)" else "";
-        const p = core.namedPageSize(session.gpa, name) orelse continue;
+        const p = core.namedPageSize(core.zstr(name) orelse continue) orelse continue;
         logo.print(" {s} {s:<4} {d:>5} × {d:>5} cm{s}\n", .{ mark, name, p.w, p.h, tag });
     }
     const cmark: []const u8 = if (std.ascii.eqlIgnoreCase("custom", current)) "*" else " ";

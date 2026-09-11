@@ -18,9 +18,10 @@ const video = @import("video.zig");
 const net = @import("net.zig");
 const server = @import("serverClient.zig");
 const args = @import("args.zig");
-const logo = @import("logo.zig");
+const report = @import("report.zig");
 const confine = @import("confine.zig");
 const page_mod = @import("page.zig");
+const imageRows = @import("imageRows.zig");
 
 const MAX_FILE = 256 << 20; // 256 MiB read cap for inputs
 const BLANK_MIN = 1;
@@ -44,7 +45,7 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
 
     if (opts.server) |url| {
         const name = opts.input orelse {
-            logo.err("--server needs -i <server project name>\n", .{});
+            report.err("--server needs -i <server project name>\n", .{});
             return error.NoSource;
         };
         fetch_client = server.connect(gpa, io, url, opts.token) catch |e| {
@@ -52,17 +53,17 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
             return e;
         };
         const id = (fetch_client.?.findProjectIdByName(name) catch |e| {
-            logo.err("server lookup failed ({s})\n", .{@errorName(e)});
+            report.err("server lookup failed ({s})\n", .{@errorName(e)});
             return e;
         }) orelse {
-            logo.err("no server project named \"{s}\"\n", .{name});
+            report.err("no server project named \"{s}\"\n", .{name});
             return error.NoSource;
         };
         fetched_id = id;
         const orig = try fetch_client.?.downloadFile(id, "original");
         defer gpa.free(orig);
         img = image.decode(gpa, orig) catch |e| {
-            logo.err("could not decode server image ({s})\n", .{@errorName(e)});
+            report.err("could not decode server image ({s})\n", .{@errorName(e)});
             return e;
         };
     } else if (opts.blank) |blank| {
@@ -73,7 +74,7 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
         default_fmt = src.default_fmt;
         gpa.free(src.bytes);   // one-shot raster path doesn't bundle a project — source bytes unneeded
     } else {
-        logo.err("no source — pass --input <path|url> or --blank [format] [w h] [color]\n", .{});
+        report.err("no source — pass --input <path|url> or --blank [format] [w h] [color]\n", .{});
         return error.NoSource;
     }
     defer img.deinit(gpa);
@@ -91,7 +92,7 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
     var steps_buf: [2]layout_mod.FrameStep = undefined;
     var n_steps: usize = 0;
     if (opts.crop) |spec| {
-        const rect = resolveCropSpec(gpa, img.width, img.height, spec, opts.album) orelse return error.BadCrop;
+        const rect = resolveCropSpec(img.width, img.height, spec, opts.album) orelse return error.BadCrop;
         try cropInPlace(gpa, &img, rect);
         steps_buf[n_steps] = .{ .crop = .{ .x = @floatFromInt(rect.x), .y = @floatFromInt(rect.y) } };
         n_steps += 1;
@@ -121,11 +122,11 @@ pub fn run(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void {
 
     // 6) Encode + write locally.
     const out = opts.output orelse {
-        logo.err("no output path given\n", .{});
+        report.err("no output path given\n", .{});
         return error.NoOutput;
     };
     if (opts.confine_output and confine.outsideCwd(out)) {
-        logo.err("--confine-output: refusing to write outside the working directory: '{s}'\n", .{out});
+        report.err("--confine-output: refusing to write outside the working directory: '{s}'\n", .{out});
         return error.UnsafeOutputPath;
     }
     // The page reported in the `wrote` line follows the effective page state: an applied
@@ -163,14 +164,14 @@ fn deliverToServer(
     // Mode A: write the result back into the fetched server project.
     if (opts.remote_update) {
         if (fetch_client == null or fetched_id == null) {
-            logo.err("--remote-update needs --server <url> -i <project>\n", .{});
+            report.err("--remote-update needs --server <url> -i <project>\n", .{});
             return error.NoRemote;
         }
         var c = fetch_client.?;
         const result = try image.encode(gpa, img, fmt);
         defer gpa.free(result);
         try c.uploadFile(fetched_id.?, "result", result, fmt.ext(), img.width, img.height);
-        logo.print("updated server result for project {s} ({d}x{d})\n", .{ fetched_id.?, img.width, img.height });
+        report.print("updated server result for project {s} ({d}x{d})\n", .{ fetched_id.?, img.width, img.height });
     }
 
     // Mode B: create a NEW project on --remote and upload original + result.
@@ -188,7 +189,7 @@ fn deliverToServer(
         const result = try image.encode(gpa, img, fmt);
         defer gpa.free(result);
         try c.uploadFile(id, "result", result, fmt.ext(), img.width, img.height);
-        logo.print("created server project \"{s}\" ({s})\n", .{ name, id });
+        report.print("created server project \"{s}\" ({s})\n", .{ name, id });
     }
 }
 
@@ -200,7 +201,7 @@ fn baseName(path: []const u8) []const u8 {
     return if (dot) |d| base[0..d] else base;
 }
 
-// ── steps (each usable standalone by console.zig) ─────────────────────────────
+// steps (each usable standalone by console.zig)
 
 /// Decode an image (or video frame) from a file path or http(s) URL into an owned buffer.
 pub fn acquireInput(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame: u32) !Source {
@@ -208,7 +209,7 @@ pub fn acquireInput(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame
     errdefer gpa.free(bytes);
     var default_fmt: image.Format = .png;
     const img = image.decode(gpa, bytes) catch |e| {
-        logo.err("could not decode an image from '{s}' ({s})\n", .{ input, @errorName(e) });
+        report.err("could not decode an image from '{s}' ({s})\n", .{ input, @errorName(e) });
         return e;
     };
     if (extOf(input)) |e| {
@@ -221,19 +222,19 @@ pub fn acquireInput(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame
 
 /// Crop in place using a crop spec string; page metrics are derived from the current dims.
 pub fn applyCropSpec(gpa: std.mem.Allocator, img: *image.Rgba8, spec: []const u8, album: bool) !void {
-    const rect = resolveCropSpec(gpa, img.width, img.height, spec, album) orelse return error.BadCrop;
+    const rect = resolveCropSpec(img.width, img.height, spec, album) orelse return error.BadCrop;
     try cropInPlace(gpa, img, rect);
 }
 
 /// Resolve a crop spec to a pixel rect within a `w`×`h` image (page metrics derived from the
 /// dims), without cropping — for the console's structured model, which records the rect rather
 /// than baking. Prints + returns null on a bad spec.
-pub fn resolveCropSpec(gpa: std.mem.Allocator, w: usize, h: usize, spec: []const u8, album: bool) ?core.Rect {
-    const page = page_mod.pageForImage(gpa, w, h);
+pub fn resolveCropSpec(w: usize, h: usize, spec: []const u8, album: bool) ?core.Rect {
+    const page = page_mod.pageForImage(w, h);
     const px_per_cm_x = @as(f64, @floatFromInt(w)) / page.w;
     const px_per_cm_y = @as(f64, @floatFromInt(h)) / page.h;
-    return core.resolveCrop(gpa, spec, @floatFromInt(w), @floatFromInt(h), px_per_cm_x, px_per_cm_y, page.w, page.h, album) orelse {
-        logo.err("could not parse crop spec \"{s}\"\n", .{spec});
+    return core.resolveCrop(core.zstr(spec) orelse "", @floatFromInt(w), @floatFromInt(h), px_per_cm_x, px_per_cm_y, page.w, page.h, album) orelse {
+        report.err("could not parse crop spec \"{s}\"\n", .{spec});
         return null;
     };
 }
@@ -251,7 +252,7 @@ pub fn cropToRect(gpa: std.mem.Allocator, img: *image.Rgba8, rect: core.Rect) !v
     try cropInPlace(gpa, img, r);
 }
 
-/// Rotate in place by `rotate` quarter-turns. A multiple of four (incl. 0) is a no-op.
+/// Rotate in place by `rotate` quarter-turns.
 pub fn applyRotateBy(gpa: std.mem.Allocator, img: *image.Rgba8, rotate: i32) !void {
     if (@mod(rotate, 4) == 0) return;
     try rotateInPlace(gpa, img, rotate);
@@ -293,17 +294,14 @@ pub fn drawLayoutDoc(
 /// modes (checked before the colour fallback); any other colour name/#hex tints.
 pub fn applyFilterMode(gpa: std.mem.Allocator, img: *image.Rgba8, mode: []const u8) void {
     if (mode.len == 0 or std.ascii.eqlIgnoreCase(mode, "none")) return;
-    if (std.ascii.eqlIgnoreCase(mode, "contour")) {
-        // Contour is an edge-detection convolution, not a per-pixel map — it needs the dims.
-        core.applyContour(img.pixels, @intCast(img.width), @intCast(img.height));
-        return;
-    }
-    if (std.ascii.eqlIgnoreCase(mode, "invert")) {
-        core.applyFilter(gpa, "invert", img.pixels, @intCast(img.width * img.height), .{ .r = 0, .g = 0, .b = 0, .a = 255 });
-        return;
-    }
-    const tint = core.parseColor(gpa, mode) orelse core.Rgba{ .r = 0, .g = 0, .b = 0, .a = 255 };
-    core.applyFilter(gpa, mode, img.pixels, @intCast(img.width * img.height), tint);
+    const w: i32 = @intCast(img.width);
+    const h: i32 = @intCast(img.height);
+    const black = core.Rgba{ .r = 0, .g = 0, .b = 0, .a = 255 };
+    // Contour is an edge-detection convolution, not a per-pixel map — it needs the dims.
+    if (std.ascii.eqlIgnoreCase(mode, "contour")) return imageRows.contour(gpa, img.pixels, w, h);
+    if (std.ascii.eqlIgnoreCase(mode, "invert")) return imageRows.filter("invert", img.pixels, w, h, black);
+    const z = core.zstr(mode) orelse return;
+    imageRows.filter(z, img.pixels, w, h, core.parseColor(z) orelse black);
 }
 
 /// Encode the image, write it to `out` (extension filled from `default_fmt` if absent), and
@@ -318,17 +316,15 @@ pub fn writeOutputLabeled(gpa: std.mem.Allocator, io: std.Io, img: image.Rgba8, 
     defer gpa.free(encoded);
     try dir.writeFile(io, .{ .sub_path = resolved.path, .data = encoded });
 
-    logo.print("wrote {s} ({d}x{d} px · {s})\n", .{ resolved.path, img.width, img.height, page_label });
+    report.print("wrote {s} ({d}x{d} px · {s})\n", .{ resolved.path, img.width, img.height, page_label });
 }
-
-// ── source acquisition ───────────────────────────────────────────────────────
 
 fn loadSource(gpa: std.mem.Allocator, io: std.Io, input: []const u8, frame: u32) ![]u8 {
     // Only http(s) URLs and local paths are accepted. Reject any other scheme up front so a
     // `.mp4`-looking `ftp://`/`file://`/`rtmp://` string can never be handed to ffmpeg, whose
     // protocol surface is far wider than our in-process fetcher.
     if (net.hasForeignScheme(input)) {
-        logo.err("unsupported URL scheme in '{s}' — pass an http(s) URL or a local path\n", .{input});
+        report.err("unsupported URL scheme in '{s}' — pass an http(s) URL or a local path\n", .{input});
         return error.UnsupportedScheme;
     }
     if (video.looksLikeVideo(input)) {
@@ -355,7 +351,7 @@ fn readLocal(gpa: std.mem.Allocator, io: std.Io, path: []const u8) ![]u8 {
     defer gpa.free(home);
     const dir = std.Io.Dir.cwd();
     return dir.readFileAlloc(io, home, gpa, .limited(MAX_FILE)) catch |e| {
-        logo.err("cannot read '{s}': {s}\n", .{ home, @errorName(e) });
+        report.err("cannot read '{s}': {s}\n", .{ home, @errorName(e) });
         return e;
     };
 }
@@ -380,26 +376,24 @@ pub fn expandHome(gpa: std.mem.Allocator, path: []const u8) ![]u8 {
 
 fn mapMediaError(e: anyerror) anyerror {
     switch (e) {
-        video.Error.FfmpegMissing => logo.err("ffmpeg not found on PATH — needed only for video input\n", .{}),
+        video.Error.FfmpegMissing => report.err("ffmpeg not found on PATH — needed only for video input\n", .{}),
         else => {},
     }
     return e;
 }
-
-// ── blank synthesis ──────────────────────────────────────────────────────────
 
 pub fn acquireBlank(gpa: std.mem.Allocator, blank: args.Blank) !image.Rgba8 {
     // Explicit dims win; else the picked page format's default size.
     var w: i64 = blank.width orelse 0;
     var h: i64 = blank.height orelse 0;
     if (blank.width == null or blank.height == null) {
-        const s = page_mod.blankSizeFor(gpa, blank.page, 0, 0);
+        const s = page_mod.blankSizeFor(blank.page, 0, 0);
         w = s.w;
         h = s.h;
     }
     w = std.math.clamp(w, BLANK_MIN, BLANK_MAX);
     h = std.math.clamp(h, BLANK_MIN, BLANK_MAX);
-    const color = core.parseColor(gpa, blank.color) orelse core.Rgba{ .r = 255, .g = 255, .b = 255, .a = 255 };
+    const color = core.parseColor(core.zstr(blank.color) orelse "") orelse core.Rgba{ .r = 255, .g = 255, .b = 255, .a = 255 };
 
     const uw: usize = @intCast(w);
     const uh: usize = @intCast(h);
@@ -408,14 +402,14 @@ pub fn acquireBlank(gpa: std.mem.Allocator, blank: args.Blank) !image.Rgba8 {
     return .{ .width = uw, .height = uh, .pixels = pixels };
 }
 
-// ── transforms (replace the owned buffer) ────────────────────────────────────
+// transforms (replace the owned buffer)
 
 fn cropInPlace(gpa: std.mem.Allocator, img: *image.Rgba8, rect: core.Rect) !void {
     const uw: usize = @intCast(rect.w);
     const uh: usize = @intCast(rect.h);
     const dst = try gpa.alloc(u8, uw * uh * 4);
-    core.cropImageRGBA(img.pixels, @intCast(img.width), @intCast(img.height), rect, dst);
-    gpa.free(img.pixels);
+    imageRows.crop(img.pixels, @intCast(img.width), @intCast(img.height), rect, dst);
+    img.deinit(gpa);
     img.* = .{ .width = uw, .height = uh, .pixels = dst };
 }
 
@@ -425,12 +419,10 @@ fn rotateInPlace(gpa: std.mem.Allocator, img: *image.Rgba8, rotate: i32) !void {
     const uw: usize = @intCast(dims.w);
     const uh: usize = @intCast(dims.h);
     const dst = try gpa.alloc(u8, uw * uh * 4);
-    core.rotateImageRGBA(img.pixels, @intCast(img.width), @intCast(img.height), q, dst);
-    gpa.free(img.pixels);
+    imageRows.rotate(img.pixels, @intCast(img.width), @intCast(img.height), q, dst);
+    img.deinit(gpa);
     img.* = .{ .width = uw, .height = uh, .pixels = dst };
 }
-
-// ── output helpers ───────────────────────────────────────────────────────────
 
 const Resolved = struct { path: []u8, fmt: image.Format };
 
@@ -444,7 +436,7 @@ fn resolveOutput(gpa: std.mem.Allocator, out_raw: []const u8, fallback: image.Fo
     // still write anywhere they name (absolute paths, subdirs); this only blocks the
     // ".." traversal that a caller/adapter forwarding an untrusted name shouldn't do.
     if (hasParentTraversal(out)) {
-        logo.err("refusing to write to a path that escapes the working directory: '{s}'\n", .{out});
+        report.err("refusing to write to a path that escapes the working directory: '{s}'\n", .{out});
         return error.UnsafeOutputPath; // the errdefer above frees `out`
     }
     if (extOf(out)) |e| {

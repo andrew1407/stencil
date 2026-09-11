@@ -29,24 +29,24 @@ fn boldFg(comptime rgb: [3]u8) []const u8 {
     return std.fmt.comptimePrint("\x1b[1;38;2;{d};{d};{d}m", .{ rgb[0], rgb[1], rgb[2] });
 }
 
-var use_color: bool = true;
+var use_color: std.atomic.Value(bool) = .init(true);
 
-// Severity colour is gated separately from `use_color`: only a real terminal gets it, so
-// redirected/piped output — and every test that captures the sink — keeps the `error: ` /
-// `note: ` prefixes byte-for-byte plain for grep and CI logs. Off until init() says otherwise.
-var severity_color: bool = false;
+// Atomic: a worker thread prints through here (scrape fans its fetches out) and init is the
+// sole writer. Severity colour is gated separately — only a real terminal gets it, so piped
+// output and every sink-capturing test keep `error: `/`note: ` plain for grep and CI logs.
+var severity_color: std.atomic.Value(bool) = .init(false);
 
 // Whether stderr is a terminal at all (init's `tty`), for output that redraws a row in place.
-var human_tty: bool = false;
+var human_tty: std.atomic.Value(bool) = .init(false);
 
-// The brand accent (logo panel outline, prompt, echoed commands). Defaults to the canonical
-// brand violet; the console's `/theme` swaps it. `accent_slice` caches its SGR escape.
+// The brand accent (logo panel outline, prompt, echoed commands). Defaults to the canonical brand
+// violet; `/theme` swaps it — main loop only, never under a fan-out. `accent_slice` caches its SGR.
 var accent_rgb: [3]u8 = brand.accent;
 var accent_buf: [20]u8 = undefined;
 var accent_slice: []const u8 = "";
 
 fn refreshAccent() void {
-    accent_slice = if (use_color)
+    accent_slice = if (use_color.load(.monotonic))
         std.fmt.bufPrint(&accent_buf, "\x1b[38;2;{d};{d};{d}m", .{ accent_rgb[0], accent_rgb[1], accent_rgb[2] }) catch ""
     else
         "";
@@ -56,16 +56,16 @@ fn refreshAccent() void {
 /// whether the human channel (stderr) is a terminal, which additionally gates the
 /// severity prefixes.
 pub fn init(no_color: bool, tty: bool) void {
-    use_color = !no_color;
-    severity_color = use_color and tty;
-    human_tty = tty;
+    use_color.store(!no_color, .monotonic);
+    severity_color.store(!no_color and tty, .monotonic);
+    human_tty.store(tty, .monotonic);
     refreshAccent();
 }
 
 /// True when human output goes straight to a terminal — stderr is a tty and no sink is
 /// installed — the one case a row can be rewritten in place with a carriage return.
 pub fn liveTty() bool {
-    return human_tty and sink_fn == null;
+    return human_tty.load(.monotonic) and sink_fn == null;
 }
 
 /// Repaint the brand accent (logo outline, prompt, command echo) to an RGB triple.
@@ -79,17 +79,17 @@ pub fn setAccent(rgb: [3]u8) void {
 // *current* accent every repaint (screen.clip expands 0x01 → accentReal()). This is what lets a
 // theme change recolour already-printed help/echoes. Direct-to-terminal writers (the prompt) use
 // accentReal() so they never emit the raw sentinel.
-var accent_sentinel_on: bool = false;
+var accent_sentinel_on: std.atomic.Value(bool) = .init(false);
 pub const accent_sentinel = "\x01";
 pub fn setAccentSentinel(on: bool) void {
-    accent_sentinel_on = on;
+    accent_sentinel_on.store(on, .monotonic);
 }
 
 /// SGR escape for the current accent, and the reset; both "" when colour is off. Used by
 /// the line editor to colour the prompt and the typed command. In sentinel mode this returns
 /// the 0x01 placeholder instead (see setAccentSentinel).
 pub fn accentSeq() []const u8 {
-    return if (accent_sentinel_on) accent_sentinel else accent_slice;
+    return if (accent_sentinel_on.load(.monotonic)) accent_sentinel else accent_slice;
 }
 
 /// The real accent SGR escape, never the sentinel — for direct terminal writes.
@@ -106,11 +106,11 @@ pub fn resetSeq() []const u8 {
     return c(Ansi.reset);
 }
 pub fn colorEnabled() bool {
-    return use_color;
+    return use_color.load(.monotonic);
 }
 
 fn c(comptime code: []const u8) []const u8 {
-    return if (use_color) code else "";
+    return if (use_color.load(.monotonic)) code else "";
 }
 
 // Optional output sink. When set (by the full-screen console in screen.zig), every `print`
@@ -169,7 +169,6 @@ pub fn print(comptime fmt: []const u8, args: anytype) void {
     std.debug.print(fmt, args);
 }
 
-// ── severity ───────────────────────────────────────────────────────────────────
 // The CLI's whole severity vocabulary: `error: ` (the command did not do what was asked)
 // and `note: ` (it went ahead, with something worth saying). Word prefixes, never emoji —
 // they are the Unix convention that grep, CI logs and the mcp/bot adapters parse. Go
@@ -180,7 +179,7 @@ pub fn print(comptime fmt: []const u8, args: anytype) void {
 
 /// The `error: ` prefix — bold red on a colour terminal, plain elsewhere.
 pub fn errPrefix() []const u8 {
-    return if (severity_color) Ansi.red ++ "error: " ++ Ansi.reset else "error: ";
+    return if (severity_color.load(.monotonic)) Ansi.red ++ "error: " ++ Ansi.reset else "error: ";
 }
 
 /// The `note: ` prefix — the live THEME accent on a colour terminal, plain elsewhere. It uses
@@ -188,7 +187,7 @@ pub fn errPrefix() []const u8 {
 /// scrollback is re-tinted when the theme changes, like every other accent-coloured line.
 /// `error:` stays red: severity that means "this did not happen" should not move with the theme.
 pub fn notePrefix() []const u8 {
-    if (!severity_color) return "note: ";
+    if (!severity_color.load(.monotonic)) return "note: ";
     // Bold FIRST, then the accent: `error:` is bold red, so the two severities carry the same
     // weight and differ only in hue. In sentinel mode the accent is one byte the screen expands
     // on every repaint, and the bold in front of it survives that expansion untouched.
@@ -206,9 +205,9 @@ pub fn notePrefix() []const u8 {
     return note_prefix_buf[0..n];
 }
 
-/// Scratch for notePrefix's runtime concatenation — the accent is not known at compile time.
-/// Single-threaded like the rest of the console's output path.
-var note_prefix_buf: [64]u8 = undefined;
+/// Scratch for notePrefix (the accent is not comptime). Thread-local: a worker printing a
+/// fetch failure must not share it with the console.
+threadlocal var note_prefix_buf: [64]u8 = undefined;
 
 /// Print an `error: ` line (the message must supply its own trailing newline).
 pub fn err(comptime fmt: []const u8, args: anytype) void {
@@ -437,7 +436,6 @@ fn emitMarked(text: []const u8, bold: []const u8, reset: []const u8) void {
     if (rest.len != 0) print("{s}", .{rest});
 }
 
-// ── tests ──────────────────────────────────────────────────────────────────────
 const testing = std.testing;
 
 // Collects `print` output through the same sink seam the full-screen console installs.
@@ -498,19 +496,86 @@ test "err/note colour only the prefix on a terminal, and NO_COLOR turns it off" 
     try testing.expectEqualStrings("error: boom\n", cap.buf.items);
 }
 
-test "console call sites go through err()/note(), never the literal prefix" {
-    const sources = .{
-        @embedFile("console.zig"),
-        @embedFile("console/handlers.zig"),
-        @embedFile("console/ui.zig"),
-        @embedFile("pipeline.zig"),
-        @embedFile("project.zig"),
-        @embedFile("net.zig"),
-        @embedFile("args.zig"),
-    };
-    inline for (sources) |src| {
-        try testing.expect(std.mem.indexOf(u8, src, "\"error: ") == null);
-        try testing.expect(std.mem.indexOf(u8, src, "\"note: ") == null);
-        try testing.expect(std.mem.indexOf(u8, src, "\"warning: ") == null);
+// Only the PRESENTATION layer talks to a terminal. Everything below it — pipeline, net,
+// project, scrape, serverClient, llm/, the codecs — reports through report.zig, so the same
+// code runs headlessly behind another sink. Both rules are linted over the sources: the
+// severity prefixes have one definition (err()/note(), never a literal), and no file below
+// the line reaches for logo or an ANSI escape. The lint WALKS src/ rather than reading an
+// embedded list, so a new file below the line is caught the day it lands.
+
+/// Files that may paint a terminal: this module, the sink in front of it, the entry points,
+/// and the two interactive surfaces (see presentation_dirs for their packages).
+const presentation = [_][]const u8{
+    "logo.zig",        "report.zig",     "main.zig",     "bench.zig",
+    "args.zig",        "brand.zig",      "messages.zig", "theme.zig",
+    "project_cli.zig", "line_edit.zig",  "console.zig",
+};
+const presentation_dirs = [_][]const u8{ "console/", "line_edit/", "params/" };
+
+fn isPresentation(rel: []const u8) bool {
+    for (presentation) |p| if (std.mem.eql(u8, rel, p)) return true;
+    for (presentation_dirs) |d| if (std.mem.startsWith(u8, rel, d)) return true;
+    return false;
+}
+
+/// The shipped half of a source file: everything before the first column-0 `test`, so an
+/// assertion QUOTING a prefix or an escape never counts as a call site.
+fn productionPart(src: []const u8) []const u8 {
+    var i: usize = 0;
+    while (std.mem.indexOfPos(u8, src, i, "\ntest ")) |at| {
+        if (src[at + 6] == '"' or src[at + 6] == '{') return src[0 .. at + 1];
+        i = at + 1;
     }
+    return src;
+}
+
+test "layering: severity has one definition, and only the presentation layer prints" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    var threaded = std.Io.Threaded.init(testing.allocator, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    // cwd is cli/ under `zig build test`; tolerate a run from the repo root.
+    var src_dir = std.Io.Dir.cwd().openDir(io, "src", .{ .iterate = true }) catch
+        try std.Io.Dir.cwd().openDir(io, "cli/src", .{ .iterate = true });
+    defer src_dir.close(io);
+
+    const literals = [_][]const u8{ "\"error: ", "\"note: ", "\"warning: " };
+    const prints = [_][]const u8{ "logo.print(", "logo.err(", "logo.note(", "logo.banner(" };
+    const escapes = [_][]const u8{ "\\x1b", "\\x1B", "\\u{1b}", "\\033", "\x1b" };
+
+    var seen: usize = 0;
+    var failures: usize = 0;
+    var walker = try src_dir.walk(a);
+    defer walker.deinit();
+    while (try walker.next(io)) |e| {
+        if (e.kind != .file or !std.mem.endsWith(u8, e.basename, ".zig")) continue;
+        const rel = try a.dupe(u8, e.path);
+        std.mem.replaceScalar(u8, rel, '\\', '/'); // walker paths are host-separated
+        const prod = productionPart(try e.dir.readFileAlloc(io, e.basename, a, .limited(4 << 20)));
+        seen += 1;
+
+        // Every layer: the `error: `/`note: ` wording and colouring live in err()/note().
+        if (!std.mem.eql(u8, rel, "logo.zig")) {
+            for (literals) |lit| if (std.mem.indexOf(u8, prod, lit) != null) {
+                std.debug.print("LITERAL PREFIX: {s} spells {s} itself — call err()/note()\n", .{ rel, lit });
+                failures += 1;
+            };
+        }
+        if (isPresentation(rel)) continue;
+
+        // Below the line: no terminal at all — report.zig is the only way out.
+        for (prints) |call| if (std.mem.indexOf(u8, prod, call) != null) {
+            std.debug.print("LAYER BREAK: {s} calls {s} — go through report.zig\n", .{ rel, call });
+            failures += 1;
+        };
+        for (escapes) |esc| if (std.mem.indexOf(u8, prod, esc) != null) {
+            std.debug.print("LAYER BREAK: {s} writes an ANSI escape — styling is the console's\n", .{rel});
+            failures += 1;
+        };
+    }
+    try testing.expect(seen >= 30); // the tree really was walked
+    try testing.expectEqual(@as(usize, 0), failures);
 }

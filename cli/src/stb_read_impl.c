@@ -3,6 +3,16 @@
 // (image.zig's Format enum): the GIF/PSD/PIC/PNM/HDR codecs are where most of stb's
 // historical memory-safety bugs live. STBI_NO_STDIO: we use the *_from_memory entry
 // points, so no fopen surface. The dimension cap bounds w*h*4 before any allocation.
+// Buffers come from the Zig side (image.zig) so a decode can hand its pixel plane straight
+// to the caller instead of copying it out of malloc.
+#include <stddef.h>
+void *stencil_stbi_alloc(size_t n);
+void *stencil_stbi_realloc(void *p, size_t n);
+void stencil_stbi_free(void *p);
+#define STBI_MALLOC(sz) stencil_stbi_alloc(sz)
+#define STBI_REALLOC(p, sz) stencil_stbi_realloc(p, sz)
+#define STBI_FREE(p) stencil_stbi_free(p)
+
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_NO_STDIO
 #define STBI_NO_GIF

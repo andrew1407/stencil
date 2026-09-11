@@ -133,7 +133,6 @@ fn pullActive(session: *Session, e: *const server.Event, now: i64) void {
     logo.print("↺ pulled \"{s}\" from the server (changed {s})\n", .{ e.name, server.formatAgo(&tb, now, e.updated_at) });
 }
 
-// ── /sync debounce ─────────────────────────────────────────────────────────────
 //
 // Each edit sets a cheap `dirty` flag (markDirty) and the REPL flushes once the input burst
 // settles (flushSync, at the prompt boundary) — one upload per run of edits, not per action.

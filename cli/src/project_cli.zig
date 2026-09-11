@@ -39,7 +39,6 @@ pub fn runOneShot(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void 
         gpa.free(meta_blank_color);
     }
 
-    // ── 1) Source ──────────────────────────────────────────────────────────────
     if (opts.input) |input| {
         if (project.isStencilPath(input)) {
             var proj = try project.loadInto(&sess, io, input); // prints its own error
@@ -67,14 +66,14 @@ pub fn runOneShot(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void 
         return error.NoSource;
     }
 
-    // ── 2) Extra flag edits ON TOP (crop → rotate → layout → filter), mirroring pipeline order ──
+    // Extra flag edits ON TOP of the source, in pipeline order (crop → rotate → layout → filter).
     // --layout-frame source records the crop/rotate as frame steps so the layout doc's
     // SOURCE-frame points are re-mapped + clamped before drawing (llm-contract.md §1).
     var steps_buf: [2]layout_mod.FrameStep = undefined;
     var n_steps: usize = 0;
     if (opts.crop) |spec| {
         const cur = sess.current();
-        const rect = pipeline.resolveCropSpec(gpa, cur.width, cur.height, spec, opts.album) orelse return error.BadCrop;
+        const rect = pipeline.resolveCropSpec(cur.width, cur.height, spec, opts.album) orelse return error.BadCrop;
         try sess.applyCrop(rect);
         steps_buf[n_steps] = .{ .crop = .{ .x = @floatFromInt(rect.x), .y = @floatFromInt(rect.y) } };
         n_steps += 1;
@@ -102,7 +101,6 @@ pub fn runOneShot(gpa: std.mem.Allocator, io: std.Io, opts: args.Options) !void 
         try sess.setFilter(mc.mode, mc.color);
     }
 
-    // ── 3) Output ──────────────────────────────────────────────────────────────
     const out = opts.output orelse {
         logo.err("no output path given\n", .{});
         return error.NoOutput;
