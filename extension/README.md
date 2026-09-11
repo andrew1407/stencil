@@ -447,14 +447,22 @@ page size, loads the image (with the crop), then strips the fragment.
 ```
 manifest.json            MV3 manifest
 package.json             `npm test` → node --test
+jsconfig.json            editor/type tooling only — nothing builds or emits from it
 src/
-  background/background.js  service worker: image context menu + tab-fallback relay
-  popup/    popup.html|css|js   image list, search/filters, floating actions, preview
+  background/ background.js  service worker: wiring only — menus.js, registrars.js,
+            tabState.js, editorRelay.js, handlers/*.js (one per message group),
+            frameCapture.js and ctxActions.js hold the work
+  popup/    popup.html, popup.js  image list, search/filters, floating actions, preview
+            popup.css + list.css · editorMode.css · chatPanel|chatComposer|chatControls.css
+                                (linked in that order — see popup.html)
             editorMode.js       editor mode: open-editor list, source-tab picker, import here
-  sidepanel/ sidepanel.html|css  docked side-panel surface (reuses popup.js + popup.css)
+            assistant.js + assistant/  the embedded AI chat (§8): transcript, attachments,
+                                results, turnRunner, capabilities, boot, the two menus
+  sidepanel/ sidepanel.html|css  docked side-panel surface (reuses popup.js + the popup CSS set)
   devtools/ devtools.html|js, panel.html|css  DevTools "Stencil" panel (reuses popup.js)
   crop/     crop.html|css|js    quick page-aspect crop (zoom, custom size)
-  options/  options.html|js     editor URL, page size, pinned-images viewer, server connections
+  options/  options.html|js     boot order only; appearance.js, general.js, llm.js,
+            pins.js (+ pinsDom/pinRow/confirmDialog) and connections.js are the sections
   lib/
     stencil.js       settings, fetch→dataURL, launch-URL builder, launchEditor
     overlay.js       in-page editor modal (also injected into pages)
@@ -468,9 +476,17 @@ src/
     pins.js          pinned-images store, keyed by (site, source URL) (pure + storage)
     connections.js   collaboration-server connections + SHARED pins (REST mirror of server/internal/protocol)
     messages.js      cross-context message `type`/`source` constants (no magic strings)
+    *.d.ts           shape files beside the modules whose payloads cross a context
+                     (messages, imageScan, editorTabs, editorApiMain, llm/*) — read by an
+                     editor, guarded by tests/dts.test.js, never built or imported
     theme.css        shared light/dark palette, keyed on <html data-theme> (linked by popup/crop/options)
-    accent.js        pre-paint accent + appearance (light/dark/system) resolver, localStorage-backed
+    accent.js        the accent facade — sixth of seven pre-paint CLASSIC scripts, loaded in
+                     this order: prefs.js, swapGeometry.js, dustGrains.js, dustWake.js,
+                     themeSwap.js, accent.js, shellPrefs.js (they share window.StencilKit)
+    videoFrames.js   a dropped video → evenly-spaced JPEG frames for the chat (contract §7)
 tests/                   node:test unit tests for the pure modules
+  helpers/               chromeStub.js (chrome.*), domStub.js (document/element/window),
+                         listDom.js, accentSandbox.js, sources.js
 ```
 
 ## Page scripting API (`window.stencil`, opt-in)

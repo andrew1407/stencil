@@ -4,6 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { gearStatusRows, gearTipFootText, createChatStatusTip } from '../src/lib/chatStatusTip.js';
+import { stubDoc, stubEl, stubWin } from './helpers/domStub.js';
 
 const LABELS = { none: 'None (assistant off)', ollama: 'Ollama', anthropic: 'Anthropic' };
 
@@ -58,40 +59,11 @@ test('unreachable: the foot names the endpoint, and Ollama gets its "start Ollam
 
 // ── createChatStatusTip (stub DOM) ──
 
-const stubEl = (tag = 'div') => {
-  const classes = new Set();
-  const el = {
-    tag, className: '', textContent: '', children: [], handlers: {},
-    style: {
-      props: {},
-      setProperty(k, v) { this.props[k] = v; },
-      removeProperty(k) { delete this.props[k]; },
-    },
-    classList: {
-      add: (...c) => c.forEach((x) => classes.add(x)),
-      remove: (...c) => c.forEach((x) => classes.delete(x)),
-      contains: (c) => classes.has(c),
-      toggle: (c, on) => { on ? classes.add(c) : classes.delete(c); },
-    },
-    classes,
-    appendChild: (c) => { el.children.push(c); return c; },
-    append: (...cs) => el.children.push(...cs),
-    addEventListener: (t, fn) => { (el.handlers[t] || (el.handlers[t] = [])).push(fn); },
-    fire: (t) => { for (const fn of el.handlers[t] || []) fn(); },
-    getBoundingClientRect: () => ({ left: 100, top: 200, width: 30, height: 20 }),
-  };
-  return el;
-};
-const stubDoc = () => {
-  const body = stubEl('body');
-  return { body, createElement: (tag) => stubEl(tag) };
-};
-
 const build = () => {
   const doc = stubDoc();
   const anchor = stubEl('button');
   const tip = createChatStatusTip({
-    doc, getAnchor: () => anchor, labels: LABELS, win: { innerWidth: 400, innerHeight: 600 },
+    doc, getAnchor: () => anchor, labels: LABELS, win: stubWin(),
   });
   return { doc, anchor, tip };
 };

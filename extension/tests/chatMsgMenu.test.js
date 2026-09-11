@@ -5,45 +5,18 @@
 // (real clipboard / send loop) the stub DOM cannot reach.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { assistantSrc, popupCss } from './helpers/sources.js';
 import { readFileSync } from 'node:fs';
 import {
   msgMenuItems, appendToPrompt, clampMenuPosition, createMsgMenu,
   msgMenuBtnSide, createMsgMenuButton, menuTransformOrigin,
 } from '../src/lib/chatMsgMenu.js';
 import { ICONS } from '../src/lib/icons.js';
+import { stubDoc, stubEl } from './helpers/domStub.js';
 
-// ── Stub DOM ──
-const stubEl = (tag = 'div') => {
-  const el = {
-    tag, className: '', textContent: '', type: '', hidden: false, style: {},
-    children: [], handlers: {}, _html: '', attrs: {},
-    setAttribute: (k, v) => { el.attrs[k] = v; },
-    offsetWidth: 120, offsetHeight: 80,
-    appendChild: (c) => { el.children.push(c); return c; },
-    append: (...cs) => { el.children.push(...cs); },
-    addEventListener: (t, fn) => { (el.handlers[t] || (el.handlers[t] = [])).push(fn); },
-    click: () => { for (const fn of el.handlers.click || []) fn({}); },
-    get innerHTML() { return el._html; },
-    set innerHTML(v) { el._html = v; if (v === '') el.children = []; },
-  };
-  return el;
-};
-const stubDoc = () => {
-  const doc = {
-    listeners: { keydown: [] },
-    // DOM semantics: re-adding the same fn+capture is a no-op.
-    addEventListener: (t, fn, cap) => {
-      const l = doc.listeners[t] || (doc.listeners[t] = []);
-      if (!l.some((e) => e.fn === fn && e.cap === cap)) l.push({ fn, cap });
-    },
-    removeEventListener: (t, fn) => {
-      doc.listeners[t] = (doc.listeners[t] || []).filter((e) => e.fn !== fn);
-    },
-    createElement: (tag) => stubEl(tag),
-    createTextNode: (text) => ({ text }),
-  };
-  return doc;
-};
+// The menu measures itself to clamp; the shared stub is inert, so give it a size.
+const msgDoc = () => stubDoc({ createElement: (t) => stubEl(t, { offsetWidth: 120, offsetHeight: 80 }) });
+
 const labelOf = (btn) => btn.children[1].text;
 
 // ── Menu composition per role ──
@@ -65,7 +38,7 @@ test('every menu item names a real icon glyph', () => {
 
 test('openFor builds the role\'s items in order, glyph + label each', () => {
   const seen = [];
-  const menu = createMsgMenu({ doc: stubDoc(), renderIcon: (n) => { seen.push(n); return `<${n}>`; }, actions: {} });
+  const menu = createMsgMenu({ doc: msgDoc(), renderIcon: (n) => { seen.push(n); return `<${n}>`; }, actions: {} });
   menu.openFor({ role: 'user', text: 'hi' }, { x: 0, y: 0, viewport: { width: 400, height: 600 } });
   assert.deepEqual(menu.el.children.map(labelOf), ['Copy message', 'Insert into prompt', 'Resend']);
   assert.deepEqual(seen, ['copy', 'pencil', 'send']);   // browser chatRowMenuItems glyphs
@@ -78,7 +51,7 @@ test('openFor builds the role\'s items in order, glyph + label each', () => {
 });
 
 test('the menu element carries the popup menu styling and boots closed', () => {
-  const menu = createMsgMenu({ doc: stubDoc(), actions: {} });
+  const menu = createMsgMenu({ doc: msgDoc(), actions: {} });
   assert.equal(menu.el.className, 'action-menu chat-msg-menu');
   assert.equal(menu.el.hidden, true);
   assert.equal(menu.isOpen(), false);
@@ -88,7 +61,7 @@ test('the menu element carries the popup menu styling and boots closed', () => {
 
 test('clicking an item closes the menu and hands the action the clicked message', () => {
   const copied = [];
-  const menu = createMsgMenu({ doc: stubDoc(), actions: { copy: (t) => copied.push(t.text) } });
+  const menu = createMsgMenu({ doc: msgDoc(), actions: { copy: (t) => copied.push(t.text) } });
   const target = { role: 'assistant', text: 'the model said this' };
   menu.openFor(target, { x: 10, y: 10, viewport: { width: 400, height: 600 } });
   assert.equal(menu.isOpen(), true);
@@ -100,7 +73,7 @@ test('clicking an item closes the menu and hands the action the clicked message'
 
 test('Resend dispatches the user turn — same text, same attachments', () => {
   let got = null;
-  const menu = createMsgMenu({ doc: stubDoc(), actions: { resend: (t) => { got = t; } } });
+  const menu = createMsgMenu({ doc: msgDoc(), actions: { resend: (t) => { got = t; } } });
   const attachments = [{ image: { mediaType: 'image/png', data: 'aa' }, name: 'a.png' }];
   menu.openFor({ role: 'user', text: 'crop it', resendText: 'crop it', attachments },
     { x: 0, y: 0, viewport: { width: 400, height: 600 } });
@@ -110,14 +83,14 @@ test('Resend dispatches the user turn — same text, same attachments', () => {
 });
 
 test('an item with no handler still closes the menu instead of throwing', () => {
-  const menu = createMsgMenu({ doc: stubDoc(), actions: {} });
+  const menu = createMsgMenu({ doc: msgDoc(), actions: {} });
   menu.openFor({ role: 'user', text: 'x' }, { x: 0, y: 0, viewport: { width: 400, height: 600 } });
   menu.el.children[0].click();
   assert.equal(menu.isOpen(), false);
 });
 
 test('pressing the menu never clears a selection: its mousedown is inert', () => {
-  const menu = createMsgMenu({ doc: stubDoc(), actions: {} });
+  const menu = createMsgMenu({ doc: msgDoc(), actions: {} });
   let prevented = false;
   for (const fn of menu.el.handlers.mousedown) fn({ preventDefault: () => { prevented = true; } });
   assert.equal(prevented, true);
@@ -132,7 +105,7 @@ test('the trigger sits on the side facing the panel centre', () => {
 });
 
 test('createMsgMenuButton builds the ghost dots button for the role', () => {
-  const btn = createMsgMenuButton({ doc: stubDoc(), renderIcon: (n) => `<${n}>`, role: 'user' });
+  const btn = createMsgMenuButton({ doc: msgDoc(), renderIcon: (n) => `<${n}>`, role: 'user' });
   assert.equal(btn.className, 'msg-menu-btn left');
   assert.equal(btn.type, 'button');
   assert.equal(btn.innerHTML, '<dots>');   // the existing overflow glyph, no new icon
@@ -140,12 +113,12 @@ test('createMsgMenuButton builds the ghost dots button for the role', () => {
   assert.equal(btn.attrs['aria-label'], 'Message actions');   // labelled, never aria-hidden
   assert.ok(btn.handlers.mousedown?.length, 'inert mousedown keeps selections');
   assert.equal(btn.tabIndex, -1);
-  const other = createMsgMenuButton({ doc: stubDoc(), role: 'assistant' });
+  const other = createMsgMenuButton({ doc: msgDoc(), role: 'assistant' });
   assert.equal(other.className, 'msg-menu-btn right');
 });
 
 test('the button click path opens the very same items as a right-click', () => {
-  const menu = createMsgMenu({ doc: stubDoc(), actions: {} });
+  const menu = createMsgMenu({ doc: msgDoc(), actions: {} });
   const target = { role: 'user', text: 'hi' };
   const vp = { viewport: { width: 400, height: 600 } };
   menu.openFor(target, { x: 15, y: 25, ...vp });   // right-click: at the pointer
@@ -193,7 +166,7 @@ test('the menu never leaves the top-left margin', () => {
 });
 
 test('openFor positions the element with the clamp', () => {
-  const menu = createMsgMenu({ doc: stubDoc(), actions: {} });
+  const menu = createMsgMenu({ doc: msgDoc(), actions: {} });
   menu.openFor({ role: 'user', text: 'x' }, { x: 390, y: 10, viewport: { width: 400, height: 600 } });
   assert.equal(menu.el.style.left, '274px');   // 400 - 120 - 6
   assert.equal(menu.el.style.top, '10px');
@@ -215,7 +188,7 @@ test('the origin never leaves the menu box', () => {
 });
 
 test('openFor grows the pop from the pointer: transform-origin at the click point', () => {
-  const menu = createMsgMenu({ doc: stubDoc(), actions: {} });
+  const menu = createMsgMenu({ doc: msgDoc(), actions: {} });
   menu.openFor({ role: 'user', text: 'x' }, { x: 390, y: 10, viewport: { width: 400, height: 600 } });
   assert.equal(menu.el.style.transformOrigin, '116px 0px');   // 390 - clamped left 274
 });
@@ -223,43 +196,42 @@ test('openFor grows the pop from the pointer: transform-origin at the click poin
 // ── Escape dismissal (owned by the menu, open-scoped) ──
 
 test('Escape closes the menu, stops the event, and detaches its listener', () => {
-  const doc = stubDoc();
+  const doc = msgDoc();
   const menu = createMsgMenu({ doc, actions: {} });
   menu.openFor({ role: 'user', text: 'x' }, { x: 0, y: 0, viewport: { width: 400, height: 600 } });
-  assert.equal(doc.listeners.keydown.length, 1);
-  assert.equal(doc.listeners.keydown[0].cap, true);   // capture: beats the dialog/popup behind
+  assert.equal(doc.on('keydown').length, 1);
+  assert.equal(doc.on('keydown')[0].capture, true);   // capture: beats the dialog/popup behind
   let prevented = 0, stopped = 0;
   const ev = (key) => ({ key, preventDefault: () => prevented++, stopPropagation: () => stopped++ });
-  doc.listeners.keydown[0].fn(ev('a'));
+  doc.on('keydown')[0].fn(ev('a'));
   assert.equal(menu.isOpen(), true);                  // other keys pass through untouched
   assert.equal(prevented + stopped, 0);
-  doc.listeners.keydown[0].fn(ev('Escape'));
+  doc.on('keydown')[0].fn(ev('Escape'));
   assert.equal(menu.isOpen(), false);
   assert.equal(prevented, 1);
   assert.equal(stopped, 1);
-  assert.equal(doc.listeners.keydown.length, 0);      // no leak after close
+  assert.equal(doc.on('keydown').length, 0);      // no leak after close
 });
 
 test('every close route detaches the keydown listener; reopen re-arms exactly one', () => {
-  const doc = stubDoc();
+  const doc = msgDoc();
   const menu = createMsgMenu({ doc, actions: {} });
   const at = { x: 0, y: 0, viewport: { width: 400, height: 600 } };
   menu.openFor({ role: 'user', text: 'x' }, at);
   menu.el.children[0].click();                        // item click closes
-  assert.equal(doc.listeners.keydown.length, 0);
+  assert.equal(doc.on('keydown').length, 0);
   menu.openFor({ role: 'user', text: 'x' }, at);
   menu.openFor({ role: 'assistant', text: 'y' }, at); // reopen while open: still one
-  assert.equal(doc.listeners.keydown.length, 1);
+  assert.equal(doc.on('keydown').length, 1);
   menu.close();
-  assert.equal(doc.listeners.keydown.length, 0);
+  assert.equal(doc.on('keydown').length, 0);
   menu.close();                                       // closing when closed stays safe
-  assert.equal(doc.listeners.keydown.length, 0);
+  assert.equal(doc.on('keydown').length, 0);
 });
 
 // ── assistant.js wiring (source assertions — the stub DOM cannot reach these) ──
-
-const assistant = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
-const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
+const assistant = assistantSrc();
+const css = popupCss();
 
 test('the transcript wires the menu on right-click, skipping notes and typing rows', () => {
   assert.match(assistant, /transcriptEl\.addEventListener\('contextmenu'/);
@@ -273,7 +245,7 @@ test('copy uses the real clipboard', () => {
 
 test('insert appends into the composer; resend rides the normal send loop', () => {
   assert.match(assistant, /insert: \(t\) => appendToPrompt\(inputEl, t\.text\)/);
-  assert.match(assistant, /if \(!busy\) send\(t\.resendText, t\.attachments\)/);
+  assert.match(assistant, /if \(!state\.busy\) send\(t\.resendText, t\.attachments\)/);
 });
 
 test('the user turn records its original text + attachments for resend', () => {
@@ -299,7 +271,7 @@ test('the message menu hugs its content; other action menus keep their floor', (
 });
 
 test('every bubble (never notes) grows the hover trigger, wired through openMenuAt', () => {
-  assert.match(assistant, /if \(cls !== 'note'\) addMsgMenuBtn\(el\);/);
+  assert.match(assistant, /if \(cls !== 'note'\) state\.addMsgMenuBtn\(el\);/);
   assert.match(assistant, /createMsgMenuButton\(\{/);
   assert.match(assistant, /openMenuAt\(el, e\.clientX, e\.clientY\)/);   // right-click, same path
   assert.match(assistant, /openMenuAt\(el, r\.left, r\.bottom \+ 2\)/);  // "⋯", anchored at its rect
@@ -312,6 +284,8 @@ test('the shared pop keyframe lives on .action-menu and respects reduced motion'
 });
 
 const actionMenu = readFileSync(new URL('../src/lib/actionMenu.js', import.meta.url), 'utf8');
+const theme = readFileSync(new URL('../src/lib/theme.css', import.meta.url), 'utf8');
+const anim = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
 
 test('the shared action menu places via the origin helper; its Escape is armed per open', () => {
   assert.match(actionMenu, /menuEl\.style\.transformOrigin = menuTransformOrigin\(\{/);
@@ -344,7 +318,6 @@ test('the trigger is an absolute ghost, revealed only for hover-capable pointers
 });
 
 test('the failed-turn bubble has a danger tone to reach for', () => {
-  const theme = readFileSync(new URL('../src/lib/theme.css', import.meta.url), 'utf8');
   // --danger was USED by #sec-assistant .msg.error and never defined: every one of those
   // declarations was invalid at computed-value time, so a failed turn lost its red text,
   // its border and its wash and read as an ordinary message.
@@ -362,7 +335,6 @@ test('the failed-turn bubble has a danger tone to reach for', () => {
 });
 
 test('the reveal mask reaches the "…" the row paints outside its box', () => {
-  const anim = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
   const masked = anim.slice(anim.indexOf('.reveal-item.reveal-masked {'),
     anim.indexOf('\n}', anim.indexOf('.reveal-item.reveal-masked {')));
   // Clipped to the row's box, the wipe layer erased the trigger beside the bubble

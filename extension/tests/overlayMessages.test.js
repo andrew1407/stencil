@@ -6,47 +6,36 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mountStencilModal } from '../src/lib/overlay.js';
+import { installDom, stubDoc, stubEl, stubWin } from './helpers/domStub.js';
 
+// The shell reaches for its own parts by selector, so each stub remembers what it made.
 const el = (tag) => {
-  const node = {
-    tagName: tag, children: [], style: { setProperty() {}, cssText: '' }, dataset: {},
-    className: '', _html: '', textContent: '', src: '', onclick: null, contentWindow: { id: tag },
-    classList: { add() {}, remove() {}, contains: () => false },
-    setAttribute() {}, getAttribute: () => null, addEventListener() {}, removeEventListener() {},
-    append: (...n) => node.children.push(...n), appendChild: (n) => node.children.push(n), remove() { node.removed = true; },
-    attachShadow: () => node,
-    set innerHTML(v) { node._html = v; },
-    get innerHTML() { return node._html; },
-    querySelector: (sel) => (node._q[sel] ||= el(sel)),
-    _q: {},
-  };
+  const found = {};
+  const node = stubEl(tag, {
+    contentWindow: { id: tag },
+    querySelector: (sel) => (found[sel] ||= el(sel)),
+  });
+  node.attachShadow = () => node;
   return node;
 };
 
 const mount = () => {
-  const listeners = {};
   const created = [];
-  const prior = { doc: globalThis.document, win: globalThis.window, chrome: globalThis.chrome };
-  globalThis.document = {
-    createElement: (t) => { const n = el(t); created.push(n); return n; },
-    getElementById: () => null,
-    body: el('body'),
-    documentElement: el('html'),
-    addEventListener() {}, removeEventListener() {},
-  };
-  globalThis.window = {
-    matchMedia: () => ({ matches: false }),
-    addEventListener: (t, fn) => { (listeners[t] ||= []).push(fn); },
-    removeEventListener: (t, fn) => { listeners[t] = (listeners[t] || []).filter((f) => f !== fn); },
-    open() {},
-  };
-  globalThis.chrome = { storage: { onChanged: { addListener() {}, removeListener() {} } }, runtime: { sendMessage() {} } };
+  const win = stubWin();
+  const restore = installDom({
+    document: stubDoc({
+      createElement: (t) => { const n = el(t); created.push(n); return n; },
+      body: el('body'),
+      documentElement: el('html'),
+    }),
+    window: win,
+    chrome: { storage: { onChanged: { addListener() {}, removeListener() {} } }, runtime: { sendMessage() {} } },
+  });
   mountStencilModal('https://editor.example/#stencil=x', 'Stencil', 3000, {});
   const host = created.find((n) => n.id === 'stencil-ext-modal');
-  const wrap = created.find((n) => n._html && n._html.includes('<iframe'));
+  const wrap = created.find((n) => n.innerHTML.includes('<iframe'));
   const frame = wrap.querySelector('iframe');
-  const post = (data, source) => { for (const fn of listeners.message || []) fn({ data, source }); };
-  const restore = () => { globalThis.document = prior.doc; globalThis.window = prior.win; globalThis.chrome = prior.chrome; };
+  const post = (data, source) => win.fire('message', { data, source });
   return { host, wrap, frame, post, restore, loading: host.querySelector('.loading') };
 };
 
@@ -59,8 +48,8 @@ test('a message from anywhere but the modal iframe is ignored', (t) => {
     m.post({ source: 'stencil-modal', type: 'close' }, globalThis.window);
     m.post({ source: 'stencil-modal', type: 'close' }, { id: 'some-other-frame' });
     m.post({ source: 'stencil-modal', type: 'close' }, null);
-    assert.equal(m.loading.removed, undefined, 'a forged ready cleared the loading state');
-    assert.equal(m.host.removed, undefined, 'a forged close tore the modal down');
+    assert.equal(m.loading.removed, false, 'a forged ready cleared the loading state');
+    assert.equal(m.host.removed, false, 'a forged close tore the modal down');
   } finally { m.restore(); }
 });
 

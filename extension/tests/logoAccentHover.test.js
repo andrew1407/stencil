@@ -8,41 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { wireLogoAccent } from '../src/lib/logoAccent.js';
-
-// ── A page-lite, exactly the surface wireLogoAccent touches ──────────────────
-const el = (tag = 'div') => {
-  const classes = new Set();
-  const attrs = new Map();
-  const listeners = {};
-  const node = {
-    tagName: String(tag).toUpperCase(),
-    hidden: false, innerHTML: '', textContent: '', value: '', type: '', tabIndex: 0,
-    dataset: {}, children: [], parent: null, classes,
-    get className() { return [...classes].join(' '); },
-    set className(v) { classes.clear(); for (const c of String(v).split(/\s+/)) if (c) classes.add(c); },
-    style: { cssText: '', setProperty() {}, removeProperty() {}, getPropertyValue: () => '' },
-    classList: {
-      add: (...c) => c.forEach((x) => classes.add(x)),
-      remove: (...c) => c.forEach((x) => classes.delete(x)),
-      contains: (c) => classes.has(c),
-      toggle: (c, on) => { (on === undefined ? !classes.has(c) : on) ? classes.add(c) : classes.delete(c); },
-    },
-    setAttribute: (k, v) => attrs.set(k, v),
-    getAttribute: (k) => (attrs.has(k) ? attrs.get(k) : null),
-    appendChild(c) { c.parent = node; node.children.push(c); return c; },
-    insertAdjacentElement() {},
-    get childElementCount() { return node.children.length; },
-    addEventListener(t, fn) { (listeners[t] ||= []).push(fn); },
-    removeEventListener() {},
-    dispatch(t, ev = {}) { for (const fn of [...(listeners[t] || [])]) fn({ target: node, ...ev }); },
-    getBoundingClientRect: () => ({ left: 0, top: 0, right: 40, bottom: 40, width: 40, height: 40 }),
-    contains: (n) => n === node || node.children.includes(n),
-    querySelector: () => null,
-    closest: () => null,
-    matches: () => false,
-  };
-  return node;
-};
+import { installDom, stubEl as el } from './helpers/domStub.js';
 
 const ACCENTS = [{ key: 'violet', label: 'Violet', hex: '#8b5cf6' },
                  { key: 'pink', label: 'Pink', hex: '#ec4899' },
@@ -53,12 +19,11 @@ const rig = () => {
   const doc = el('#document');
   doc.documentElement = root;
   doc.createElement = el;
-  globalThis.document = doc;
   // Reduced motion: the surface dust bails on the spot, so opening the menu is just the
   // list appearing — this suite is about the rows, not the pour.
   const calls = [];
   const winPress = [];   // the window-level capture listener the flood rescue installs
-  globalThis.window = {
+  const win = {
     addEventListener: (t, fn, capture) => { if (t === 'pointerdown' && capture) winPress.push(fn); },
     innerHeight: 800,
     matchMedia: () => ({ matches: true, addEventListener() {}, addListener() {} }),
@@ -73,6 +38,7 @@ const rig = () => {
       endAccentPreview: () => calls.push(['off']),
     },
   };
+  installDom({ document: doc, window: win });
   const logo = el('img');
   const wrap = el('div');
   wrap.appendChild(logo);

@@ -1,22 +1,9 @@
 // ── Per-icon hover motion: the extension's half of the contract ──────────────
-// browser/js/config/iconMotion.json is the CANONICAL design table — ONE motion per
-// glyph, matched to what that glyph's action DOES (the trash lid lifts, download's
-// arrow travels down, the crop brackets close in, the sun shakes, the assistant's dots
-// type). The browser implements it in css/animations.css. The extension ships a
-// deliberate SUBSET of the glyphs (lib/icons.js, pinned by dataParity.test.js) and
-// implements the SAME designs, on the SAME numbers, in lib/animations.css — otherwise
-// the two surfaces would merely both move rather than match.
-//
-// This file pins that:
-//   • every glyph the extension carries that HAS a canonical design gets a rule, and
-//     every part hook the design addresses is both present in the glyph and styled;
-//   • the extension's rules are byte-identical to the browser's for the same selector
-//     (values can't drift), and so are the keyframes they play;
-//   • extension-only glyphs are declared and stay unanimated;
-//   • the fold chevrons — whose rotation is STATE — are excluded;
-//   • reduced motion leaves every glyph in its rest pose;
-//   • nothing in the section can move a box, so no control can reflow on hover;
-//   • the host pages' inline glyph copies and the injected overlay shell get it too.
+// browser/js/config/iconMotion.json is the CANONICAL design table — ONE motion per glyph,
+// matched to what that glyph's action DOES. The browser implements it in
+// css/animations/iconHover.css; the extension ships a deliberate SUBSET of the glyphs
+// (lib/icons.js, pinned by dataParity.test.js) and implements the SAME designs on the SAME
+// numbers in lib/animations.css, so the two match rather than merely both move.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -35,7 +22,7 @@ const section = (css, from, to) => {
 };
 const EXT = section(read('../src/lib/animations.css'),
   '/* ── Icon hover: every glyph mimes its own action', '/* ── Header logo hover');
-const APP = section(read('../../browser/css/animations.css'),
+const APP = section(read('../../browser/css/animations/iconHover.css'),
   '/* ── Icon hover: every glyph mimes its own action', '/* ── App logo hover');
 
 // Glyphs lib/icons.js carries that the browser has no twin for (dataParity.test.js
@@ -137,7 +124,7 @@ test('every .ic- rule is byte-identical to the browser app\'s', () => {
     if (r.prelude.startsWith('@') || !r.prelude.includes('.ic-')) continue;
     for (const sel of r.prelude.split(',').map(squash)) {
       const app = APP_SEL.get(sel);
-      assert.ok(app, `"${sel}" exists here but not in browser/css/animations.css`);
+      assert.ok(app, `"${sel}" exists here but not in browser/css/animations/iconHover.css`);
       assert.ok(app.includes(r.body),
         `"${sel}" drifted from the app:\n  ext: ${r.body}\n  app: ${app.join(' | ')}`);
       compared++;
@@ -291,24 +278,14 @@ test('the injected overlay shell mimes the same two actions', () => {
     'and the shell honours prefers-reduced-motion');
 });
 
-// ── The designs a refactor could quietly invert ─────────────────────────────
-test('direction is the meaning, on the glyphs the extension shows', () => {
+// ── The designs, as this surface implements them ────────────────────────────
+// The canonical table's own rules (direction, the sun's single ray, the moon's swings)
+// are the browser suite's — these pin that the extension's sheet and glyph copies carry
+// the designs the table describes.
+test('the designs that read backwards if inverted are wired right here too', () => {
   const to = (name, hook) => MOTION.icons[name].parts.find((p) => p.hook === hook).to;
-  assert.ok(to('download', 'ic-arrow').translate[1] > 0, 'download goes DOWN, into the tray');
-  assert.ok(to('external', 'ic-arrow').translate[1] < 0, 'external leaves the box, upward');
-  // The quarter-turn pair make WHOLE revolutions now, each the way it turns the image.
-  const spin = (name) => MOTION.icons[name].parts[0].keyframes.at(-1).rotate;
-  assert.equal(spin('rotate-ccw'), -360);
-  assert.equal(spin('rotate-cw'), 360);
-  assert.ok(to('chevron-down', null).translate[1] > 0 && to('chevron-right', null).translate[0] > 0);
-  // The crop brackets close IN on the region they would keep.
-  assert.deepEqual(to('crop', 'ic-crop-bl').translate, [1, -1]);
-  assert.deepEqual(to('crop', 'ic-crop-tr').translate, [-1, 1]);
-  // The trash lid is hinged at the left end of the rim, and it lifts: SVG's y axis
-  // points down, so the negative angle turns the far end (x=21) UP off the can.
-  const lid = MOTION.icons.trash.parts[0];
-  assert.deepEqual(lid.origin, [5, 6]);
-  assert.ok(lid.to.rotate < 0);
+  // The trash lid is hinged at the left end of the rim, and it lifts.
+  assert.deepEqual(MOTION.icons.trash.parts[0].origin, [5, 6]);
   assert.match(EXT, /\.ic-trash \.ic-lid \{[^}]*transform-origin: 5px 6px;/);
   // The disguise comes APART: the hat lifts off, the glasses drop away from it.
   assert.ok(to('incognito', 'ic-brim').translate[1] < 0);
@@ -319,31 +296,15 @@ test('direction is the meaning, on the glyphs the extension shows', () => {
 });
 
 test('the sun turns by one ray, the moon waves, the assistant types, the LEDs blink', () => {
-  // Each is ONE whole-glyph design, turning about the glyph centre and nothing else.
-  for (const name of ['sun', 'moon']) {
-    const parts = MOTION.icons[name].parts;
-    assert.equal(parts.length, 1, `${name} moves whole`);
-    assert.equal(parts[0].hook, null);
-    for (const pose of parts[0].keyframes || [parts[0].to])
-      assert.equal(pose.translate, undefined, `${name}: the theme pair turn, they do not slide`);
-  }
   // The sun's ray spacing IS its turn: eight rays, 45° apart, so one ray-space leaves the
-  // glyph looking untouched — the `gear`'s one-tooth idea. The moon rocks instead, each
-  // swing reversing the last.
-  const rays = (ICONS.sun.match(/<line /g) || []).length;
-  assert.equal(rays, 8, 'the sun is drawn with eight rays');
-  assert.equal(MOTION.icons.sun.parts[0].to.rotate, 360 / rays, 'exactly one ray of turn');
-  const rocks = MOTION.icons.moon.parts[0].keyframes.map((k) => k.rotate);
-  assert.equal(rocks.at(-1), 0, 'the moon comes back upright');
-  const swings = rocks.slice(1, -1);
-  assert.ok(swings.length >= 3 && swings.every((r, i) => !i || r * swings[i - 1] < 0),
-    'the moon waves — each swing reverses the last');
+  // glyph looking untouched. The extension's copy has to be drawn with those eight.
+  assert.equal((ICONS.sun.match(/<line /g) || []).length, 8);
+  assert.equal(MOTION.icons.sun.parts[0].to.rotate, 360 / 8);
   assert.match(EXT, /\.ic-sun\s+\{[^}]*rotate\(calc\(var\(--ic-on\) \* 45deg\)\);/);
   assert.match(EXT, /\.ic-moon\s+\{[^}]*--ic-play: icmRock;/);
   // Three dots, one bounce each, left to right — the typing idiom.
   const dots = MOTION.icons.sparkle.parts[0];
   assert.equal(dots.hook, 'ic-dot');
-  assert.ok(dots.stagger > 0);
   assert.equal((ICONS.sparkle.match(/class="ic-dot"/g) || []).length, 3);
   assert.match(EXT, /\.ic-sparkle \.ic-dot:nth-of-type\(3\)[^{]*\{[^}]*--ic-delay: 0\.14s;/);
   // The two status LEDs blink top unit then bottom, each about its own centre.

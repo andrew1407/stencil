@@ -36,7 +36,19 @@ const walk = (dir, out = []) => {
 
 // Total lines, plus lines that are only a comment: a line whose first non-whitespace opens
 // a comment, and every line inside a block comment. The char scan tracks strings so a
-// `//` or `/*` inside a literal doesn't count (` spans lines, ' and " don't).
+// `//` or `/*` inside a literal doesn't count (` spans lines, ' and " don't) — and
+// regex literals are consumed whole, or a backtick inside one (/[{`]/) reads as a template
+// opening and every comment to the end of the file is silently skipped.
+const REGEX_AFTER = /[(,=:[!&|?{};+\-*%^~<>]\s*$|\b(?:return|typeof|case|in|of|new|do|else|void|delete|instanceof|yield|await)\s*$/;
+const endOfRegex = (line, i) => {
+  for (let j = i + 1, klass = false; j < line.length; j++) {
+    if (line[j] === '\\') { j++; continue; }
+    if (klass) { if (line[j] === ']') klass = false; continue; }
+    if (line[j] === '[') { klass = true; continue; }
+    if (line[j] === '/') return j;
+  }
+  return -1;
+};
 const measure = (src) => {
   const lines = src.split('\n');
   if (lines.length && lines[lines.length - 1] === '') lines.pop();
@@ -55,6 +67,10 @@ const measure = (src) => {
       }
       if (c === '/' && next === '*') { inBlock = true; i++; continue; }
       if (c === '/' && next === '/') break;
+      if (c === '/' && REGEX_AFTER.test(line.slice(0, i))) {
+        const end = endOfRegex(line, i);
+        if (end > 0) { i = end; continue; }
+      }
       if (c === '"' || c === "'" || c === '`') quote = c;
     }
     inTemplate = quote === '`';

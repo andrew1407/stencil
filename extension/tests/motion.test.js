@@ -5,11 +5,14 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
+import { popupCss } from './helpers/sources.js';
+
+// The stylesheet the CSS half of this contract lives in, read once.
+const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
 
 import {
-  observeReveal, flashLanding, revealDissolve, revealGrain,
+  observeReveal, flashLanding,
   createListHold, emptyStateVisible, tileMotion, materialize,
-  tileWaypoint, WAYPOINT_ALONG, SWIRL_SHARE, SWIRL_MAX_PX,
   MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, LEAVE_MS, DISINTEGRATE_MS,
   chatIn, CHAT_ENTER_MS, CHAT_ENTERING_CLASS, dustFitsScroller,
   diffListKeys, createFilterTransition, filterLeave,
@@ -33,53 +36,9 @@ const el = (cls = '') => {
   };
 };
 
-// ── The reveal ramp (browser parity) ───────────────────────────────────────
-// Dissolve tracks ONLY the share of a row the scroller already clips. The earlier
-// design dissolved anything inside a "band" of the visible area, which turned a
-// fully-readable message into an unreadable dot screen — the grain is finer than a
-// glyph's strokes. Decoration must never cost legibility.
-const H = 800;
-
-test('a row you can see in FULL is never dissolved at all', () => {
-  assert.equal(revealDissolve(0, 60, H), 0);
-  assert.equal(revealDissolve(300, 400, H), 0);
-  assert.equal(revealDissolve(H - 50, H, H), 0);
-});
-
-test('dissolve equals the clipped share, at either edge', () => {
-  assert.equal(revealDissolve(-50, 50, H), 0.5);
-  assert.equal(revealDissolve(H - 50, H + 50, H), 0.5);
-});
-
-test('a row fully out of view is fully dissolved, both ways', () => {
-  assert.equal(revealDissolve(-200, -50, H), 1);
-  assert.equal(revealDissolve(H + 20, H + 120, H), 1);
-});
-
-test('degenerate inputs never dissolve anything', () => {
-  assert.equal(revealDissolve(0, 50, 0), 0);
-  assert.equal(revealDissolve(50, 50, H), 0);
-});
-
-// The grain covers the whole row, so a message TALLER than the scroller — clipped by
-// definition, however you scroll it — must not be speckled while you are reading it.
-test('a row taller than the viewport gets no grain while it fills the view', () => {
-  assert.equal(revealGrain(-400, 1600, H), 0);   // 2000px row, viewport full of it
-  assert.equal(revealGrain(0, 2000, H), 0);
-  assert.ok(revealDissolve(0, 2000, H) > 0.5);   // still clipped: the soft edge stays
-});
-
-test('grain matches the clipped share for rows that fit', () => {
-  assert.equal(revealGrain(0, 60, H), 0);
-  assert.equal(revealGrain(-50, 50, H), 0.5);
-  assert.equal(revealGrain(H - 50, H + 50, H), 0.5);
-});
-
-test('a tall row grains as it leaves, and is fully grained once gone', () => {
-  assert.equal(revealGrain(-1800, 200, H), 0.75);   // only 200 of 800 still showing
-  assert.equal(revealGrain(-2200, -200, H), 1);
-  assert.equal(revealGrain(0, 2000, 0), 0);
-});
+// ── The reveal ramp ─────────────────────────────────────────────────────────
+// revealDissolve/revealGrain are shared with the app to the letter (portParity.test.js
+// pins them), so their cases are the browser suite's.
 
 test('observeReveal is inert without requestAnimationFrame', () => {
   const prior = globalThis.requestAnimationFrame;
@@ -104,7 +63,6 @@ test('flashLanding replays on a second drop and clears itself', (t) => {
 });
 
 test('animations.css: reveal rest state, drop landing, drag cue, reduced motion', () => {
-  const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
   const rest = css.slice(css.indexOf('.reveal-item.reveal-masked {'),
                          css.indexOf('\n}', css.indexOf('.reveal-item.reveal-masked {')));
   const base = css.slice(css.indexOf('.reveal-item {'), css.indexOf('\n}', css.indexOf('.reveal-item {')));
@@ -130,13 +88,12 @@ test('animations.css: reveal rest state, drop landing, drag cue, reduced motion'
 });
 
 test('animations.css: only the wipe drives the theme transition', () => {
-  const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
   assert.match(css, /::view-transition-group\(root\) \{ animation: none; \}/,
     'the UA group default would retime the snapshots under the wipe');
 });
 
 test('popup.css keeps just-pinned distinct from the drop landing', () => {
-  const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
+  const css = popupCss();   // shadows the animations.css read above
   assert.ok(/\.row\.just-pinned \{ animation: stencil-pin-flash/.test(css),
     'pinning an EXISTING row keeps the plainer flash');
   // The transcript's per-entry entrance moved to the shared reveal; a leftover
@@ -238,7 +195,6 @@ test('materialize: a missing element resolves without touching anything', async 
 });
 
 test('animations.css: materialize is the leave reversed, veil outranks keyframes', () => {
-  const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
   assert.match(css, /\.materializing \{[^}]*animation: stRowMaterialize 0\.32s cubic-bezier\(0\.16, 1, 0\.3, 1\)/,
     'the box opens on one expo-out curve — 220ms of ease-out read as a pop');
   assert.match(css, /@keyframes stRowMaterialize \{\s*from \{ opacity: 0;[^}]*max-height: 0/,
@@ -428,7 +384,6 @@ test('filterLeave always runs `done` — reduced motion and a missing element in
 });
 
 test('animations.css: a filter drop is lighter and quicker than a delete', () => {
-  const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
   const out = css.match(/\.filter-out \{[\s\S]*?\n\}/)[0];
   const secs = (block, name) => parseFloat(block.match(new RegExp(`animation: ${name} ([\\d.]+)s`))[1]);
   const leaving = css.match(/\.leaving \{[\s\S]*?\n\}/)[0];
@@ -496,7 +451,6 @@ test('dustFitsScroller: only a whole entry inside its scroller may fly', () => {
 });
 
 test('animations.css: an arriving entry is VEILED, never faded up under its own dust', () => {
-  const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
   const rule = css.slice(css.indexOf('#sec-assistant .chat-transcript > .chat-entering'));
   assert.match(rule.slice(0, 400), /opacity: 0 !important;/,
     'a veil, not a keyframed fade — the entry is not seen until the motes land');
@@ -566,18 +520,9 @@ test('dropping the cloud hands the entry over in the SAME frame', () => {
   assert.match(src, /if \(handedOver\) return;/);
 });
 
-// ── No mote flies a straight line (browser motion.test.js twin) ─────────────
-test('tileWaypoint sits part-way along the throw, pushed sideways by its own noise', () => {
-  const { mx, my } = tileWaypoint(100, 0, 0.9);
-  assert.equal(mx, Math.round(100 * WAYPOINT_ALONG), 'along the throw');
-  assert.ok(my > 0 && my <= SWIRL_MAX_PX, 'off the line, on the noise’s side');
-  const other = tileWaypoint(100, 0, 0.1);
-  assert.ok(other.my < 0, 'the other half of the noise bends the other way');
-  assert.equal(Math.abs(tileWaypoint(0, 40, 1).mx), Math.round(40 * SWIRL_SHARE), 'a share of a short throw');
-  assert.equal(Math.abs(tileWaypoint(0, 400, 1).mx), SWIRL_MAX_PX, 'capped on a long one');
-  assert.deepEqual(tileWaypoint(0, 0, 0.9), { mx: 0, my: 0 });
-});
-
+// ── No mote flies a straight line ───────────────────────────────────────────
+// tileWaypoint itself is pinned to the app's (portParity.test.js); these are the
+// extension's own carriers of it.
 test('a row’s fall carries the waypoint, and the gather shares it', () => {
   const out = tileMotion(5, 3, 22, 11);
   const back = tileMotion(5, 3, 22, 11, true);
@@ -586,7 +531,6 @@ test('a row’s fall carries the waypoint, and the gather shares it', () => {
 });
 
 test('every flight bends through the waypoint on its own first leg, and the cloud is one canvas', () => {
-  const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
   const grain = { x: 100, y: 200, dx: 60, dy: 80, mx: 30, my: 55, r: 4, s: 0.4, a: 1 };
   for (const name of ['scatter', 'gather', 'surfaceGather', 'surfaceScatter']) {
     const f = FLIGHTS[name];
@@ -599,13 +543,13 @@ test('every flight bends through the waypoint on its own first leg, and the clou
   assert.match(css, /\.disintegrate-host > canvas \{ position: absolute; display: block; \}/);
   assert.ok(!/disintegrate-tile/.test(css) && !/@keyframes stTile/.test(css), 'no rule left per tile');
   // The theme wipe's grains are the same round grain, but the STAGE draws them now
-  // (lib/accent.js spawnDust): no per-grain rule, and so no layer per grain.
+  // (lib/dustWake.js spawnDust): no per-grain rule, and so no layer per grain.
   assert.ok(!/\.swap-dust-mote/.test(css) && !/swapDustMote/.test(css), 'no rule left per grain');
   assert.ok(!/will-change/.test(css.match(/\.swap-dust \{([\s\S]*?)\n\}/)[1]),
     'one layer for the whole wake, not one promoted per grain');
 });
 
-// ── The motion mode (lib/accent.js StencilMotion; browser motionPrefs.js twin) ──
+// ── The motion mode (lib/shellPrefs.js StencilMotion; browser motionPrefs.js twin) ──
 test('the gates read StencilMotion live, and fall back to the OS preference without it', async () => {
   const m = await import('../src/lib/motion.js');
   const prev = globalThis.StencilMotion;
@@ -650,10 +594,9 @@ test('the mode is wired: the one cloud door, the chat slide, and the CSS half', 
   assert.match(src, /if \(!dustEnabled\(\)\) \{ flashLanding\(el, CHAT_SLIDE_CLASS, CHAT_SLIDE_MS\); return Promise\.resolve\(\); \}/);
   // No helper still reads the media query by hand — motionReduced() is the one gate.
   assert.equal((src.match(/matchMedia\('\(prefers-reduced-motion: reduce\)'\)/g) || []).length, 1, 'only prefersReducedMotion itself');
-  const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
   assert.match(css, /:root\[data-motion="none"\] \*,/);
   assert.match(css, /\.chat-slide-in \{ animation: chatRiseIn/);
-  // Every extension page stamps the mode pre-paint through accent.js.
-  const accent = readFileSync(new URL('../src/lib/accent.js', import.meta.url), 'utf8');
-  assert.match(accent, /setAttribute\('data-motion'/);
+  // Every extension page stamps the mode pre-paint through the accent script set.
+  const prefs = readFileSync(new URL('../src/lib/prefs.js', import.meta.url), 'utf8');
+  assert.match(prefs, /setAttribute\('data-motion'/);
 });

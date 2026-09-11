@@ -5,26 +5,22 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { scanPageForImages } from '../src/lib/imageScan.js';
+import { installDom, stubDoc } from './helpers/domStub.js';
 
 const scan = async (manifestHref, pageUrl = 'https://shop.example/cart') => {
   const fetched = [];
   const link = { getAttribute: (k) => (k === 'href' ? manifestHref : null), crossOrigin: null };
-  const prior = { doc: globalThis.document, loc: globalThis.location, fetch: globalThis.fetch };
-  globalThis.document = {
-    querySelectorAll: () => [],
-    querySelector: (sel) => (sel.includes('manifest') ? link : null),
-    createElement: () => ({ getContext: () => null }),
-  };
-  globalThis.location = new URL(pageUrl);
-  globalThis.fetch = async (url, opts) => {
-    fetched.push({ url, credentials: opts && opts.credentials });
-    return { json: async () => ({ icons: [{ src: '/icon.png' }] }) };
-  };
+  const restore = installDom({
+    document: stubDoc({ querySelector: (sel) => (sel.includes('manifest') ? link : null) }),
+    location: new URL(pageUrl),
+    fetch: async (url, opts) => {
+      fetched.push({ url, credentials: opts && opts.credentials });
+      return { json: async () => ({ icons: [{ src: '/icon.png' }] }) };
+    },
+  });
   try {
     return { items: await scanPageForImages(1000), fetched };
-  } finally {
-    globalThis.document = prior.doc; globalThis.location = prior.loc; globalThis.fetch = prior.fetch;
-  }
+  } finally { restore(); }
 };
 
 // NEGATIVE: a page pointing its manifest link anywhere off its own origin gets no fetch.

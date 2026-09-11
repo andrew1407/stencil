@@ -7,6 +7,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { assistantSrc, popupCss } from './helpers/sources.js';
+
+// The controller's own source and the popup's stylesheet set, read once — several
+// cases assert on them as text.
+const src = assistantSrc();
+const css = popupCss();
 
 const HOSTS = {
   popup: 'src/popup/popup.html',
@@ -51,7 +57,6 @@ test('the composer keeps attach / clear / settings behind the … on every host'
 // "Attached x.jpg" result cards: no image at all, and worded as if the model had said
 // it. They are now a thumbnail strip on the user's side (browser chatView.js parity).
 test('user attachments render as thumbnails on the user side, not as assistant cards', () => {
-  const src = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
   assert.match(src, /if \(attachments\.length\) addAttachments\(attachments\);/,
     'the send loop paints the strip for what the user attached');
   assert.match(src, /strip\.className = 'chat-attached';/);
@@ -61,7 +66,6 @@ test('user attachments render as thumbnails on the user side, not as assistant c
   // The filename is scanned-page data — it may only ride alt/title, never markup.
   assert.match(src, /img\.alt = p\.name;/);
   // Every host loads popup.css, so one rule covers popup / side panel / DevTools.
-  const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
   assert.match(css, /#sec-assistant \.chat-attached \{[^}]*align-self: flex-end/);
   assert.match(css, /#sec-assistant \.chat-attached-thumb \{[^}]*object-fit: cover/);
 });
@@ -70,12 +74,10 @@ test('user attachments render as thumbnails on the user side, not as assistant c
 // dismissible yellow .warn note, never through the red .msg.error bubble — the red
 // style stays reserved for actually failed turns (browser/desktop parity).
 test('plan warnings render as neutral notes, never in the error style', () => {
-  const src = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
   assert.match(src, /for \(const w of result\.warnings\) addWarn\(w\);/,
     'renderResult routes warnings through addWarn');
   assert.ok(!/addMsg\('error', w\)/.test(src) && !/addMsg\(`msg error`/.test(src),
     'warnings never go through the error bubble');
-  const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
   const warn = /#sec-assistant \.warn \{([^}]*)\}/.exec(css);
   assert.ok(warn, 'the .warn note has its own rule');
   assert.match(warn[1], /var\(--yellow\)/, 'a warning is toned yellow…');
@@ -86,7 +88,6 @@ test('plan warnings render as neutral notes, never in the error style', () => {
 // unbounded, it squeezed the found-resources list down to a single clipped row with
 // no scrollbar anywhere to recover it.
 test('the popup column keeps the resource list alive when the Assistant expands', () => {
-  const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
   assert.match(css, /\.list \{ flex: 1 1 auto; min-height: 120px; \}/,
     'the list is content-sized so it ABSORBS the shrink (flex: 1 alone cannot), down to a floor');
   assert.match(css, /\.filters \{ flex: 0 0 auto; \}/,
@@ -104,7 +105,6 @@ test('the popup column keeps the resource list alive when the Assistant expands'
 // claimed the whole section when only the composer can take a drop. The cue is now an
 // animated icon + label drawn over the COMPOSER (browser .chat-drop-cue parity).
 test('the drop target is the composer, cued by an animated icon over it', () => {
-  const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
   const cue = /#sec-assistant \.chat-drop-cue \{([^}]*)\}/.exec(css);
   assert.ok(cue, 'the drop-over state paints an overlay in the composer');
   assert.match(cue[1], /position: absolute;/);
@@ -119,7 +119,6 @@ test('the drop target is the composer, cued by an animated icon over it', () => 
   assert.ok(!/#sec-assistant\.drop-over/.test(css));
   assert.match(css, /^\.list\.drag-over \{/m, 'the list keeps its own outline+tint cue');
   // The composer — not the section — is what the drop is wired to.
-  const src = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
   assert.match(src, /const composerEl = sectionEl\.querySelector\('\.chat-composer'\);/);
   assert.match(src, /wireDropTarget\(composerEl, \{\n\s*highlight: composerEl,/);
   assert.match(src, /cue\.className = 'chat-drop-cue';/);
@@ -132,14 +131,13 @@ test('the drop target is the composer, cued by an animated icon over it', () => 
 
 // A 28–56px thumbnail can't tell two screenshots apart.
 test('hovering a small attachment thumbnail shows it large', () => {
-  const src = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
+  const chips = readFileSync(new URL('../src/popup/assistant/attachments.js', import.meta.url), 'utf8');
   assert.match(src, /wireThumbPreview\(img, \{ caption \}\);/, 'the transcript strip is wired');
-  assert.match(src, /wireThumbPreview\(img, \{ caption: p\.name \}\);/, 'and so are the pending chips');
+  assert.match(chips, /wireThumbPreview\(img, \{ caption: p\.name \}\);/, 'and so are the pending chips');
   const ui = readFileSync(new URL('../src/lib/chatUi.js', import.meta.url), 'utf8');
   assert.match(ui, /export const wireThumbPreview = \(img, \{ doc = globalThis\.document/);
   assert.match(ui, /cap\.textContent = caption;/, 'a scanned filename stays data, never markup');
   assert.match(ui, /doc\.body\.appendChild\(box\);/, 'on the body — the popup clips its regions');
-  const css = readFileSync(new URL('../src/popup/popup.css', import.meta.url), 'utf8');
   assert.match(css, /\.chat-thumb-preview \{[^}]*position: fixed;/);
   assert.match(css, /\.chat-thumb-preview \{[^}]*pointer-events: none;/);
   // A GLANCE, not a lightbox — clamped so the surface underneath stays readable.
@@ -150,7 +148,6 @@ test('hovering a small attachment thumbnail shows it large', () => {
 // queued chips behind. Here the queue and the chips live in one place, so the drain
 // and the tray repaint must stay adjacent in send().
 test('send drains the pending attachments and clears their chips at once', () => {
-  const src = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
   assert.match(src, /const attachments = pending\.splice\(0\);\n\s*renderTray\(\);/,
     'the tray repaint rides the drain — chips must not survive the send');
 });
@@ -158,15 +155,15 @@ test('send drains the pending attachments and clears their chips at once', () =>
 // Clear used to scatter the entries and prepend the empty state in the SAME tick, so
 // the suggestion chips appeared under particles that were still falling.
 test('clearing waits out the wipe before the empty state returns', () => {
-  const src = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
   assert.match(src, /}, wipeDurationMs\(\)\);/, 'the empty state is deferred by the wipe length');
-  assert.match(src, /if \(busy \|\| transcriptEl\.querySelector\(':scope > \.msg, :scope > \.card, :scope > \.warn'\)\) return;/,
+  assert.match(src, /if \(state\.busy \|\| transcriptEl\.querySelector\(':scope > \.msg, :scope > \.card, :scope > \.warn'\)\) return;/,
     'a turn started during the wipe must not be papered over with chips — and the '
     + 'check is :scope-d, or the scatter\'s own .msg clones read as live conversation');
   const motion = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
-  assert.match(src, /observeReveal, leaveThenRemove, wipeDurationMs, CHAT_LEAVE_MS, scatterGridFor,/);
+  const shared = readFileSync(new URL('../src/popup/assistant/shared.js', import.meta.url), 'utf8');
+  assert.match(shared, /chatIn, leaveThenRemove, CHAT_LEAVE_MS, scatterGridFor/);
   // Chat entries leave on the slower, finer dissolve — more particles, more time.
-  assert.match(src, /const chatLeave = \(el, done, count = 1, index = 0\) =>\n\s*leaveThenRemove\(el, done, \{ ms: CHAT_LEAVE_MS, \.\.\.scatterGridFor\(count, index\) \}\);/);
+  assert.match(shared, /export const chatLeave = \(el, done, count = 1, index = 0\) =>\n\s*leaveThenRemove\(el, done, \{ ms: CHAT_LEAVE_MS, \.\.\.scatterGridFor\(count, index\) \}\);/);
   assert.match(motion, /export const CHAT_LEAVE_MS = 260;/);
   assert.match(motion, /export const CHAT_DISINTEGRATE_COLS = 32;/);
   // A wipe scatters every entry at once, so the mesh is budgeted by how many are going.
@@ -185,7 +182,6 @@ test('clearing waits out the wipe before the empty state returns', () => {
 // …and the mirror: an entry APPEARING had no particles at all, so the two directions
 // read as different surfaces. Every append now plays the gather (motion.js chatIn).
 test('every appended entry arrives as dust — armed only after the scroll', () => {
-  const src = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
   const motion = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
   // Derived from the row's flight, not a literal: the two must never meet (motion.js).
   assert.match(motion, /export const CHAT_ENTER_MS = Math\.round\(DISINTEGRATE_MS \* 0\.58\);/);
@@ -207,7 +203,7 @@ test('every appended entry arrives as dust — armed only after the scroll', () 
   assert.match(src, /appendDiv\('msg assistant typing-row', '', \{ arrive: false \}\)/);
   // A failed turn's bubble STAYS on Retry, as it does in the browser and on the desktop —
   // a retry is another attempt, not an undo. Deleting it also killed it mid-flight.
-  assert.match(src, /retry\.addEventListener\('click', \(\) => \{ if \(!busy\) send\(text, attachments\); \}\);/);
+  assert.match(src, /retry\.addEventListener\('click', \(\) => \{ if \(!state\.busy\) send\(text, attachments\); \}\);/);
   assert.ok(!/el\.remove\(\); send\(text, attachments\)/.test(src), 'no bare delete on retry');
   // …and it is armed AFTER scrollDown(), never before. chatIn veils the entry
   // synchronously (it keeps its height, so the transcript grows and scrolls to it as
@@ -227,7 +223,6 @@ test('every appended entry arrives as dust — armed only after the scroll', () 
 // #chat-status-dot (the reachability badge), and innerHTML= deleted it, so the dot
 // silently vanished and the rich provider tooltip lost its badge.
 test('the … trigger keeps its status dot when the glyph is painted in', () => {
-  const src = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
   assert.match(src, /moreTrigger\.insertAdjacentHTML\('afterbegin', icon\('dots'/,
     'the dots glyph is inserted alongside the dot, not assigned over it');
   assert.ok(!/moreTrigger\.innerHTML\s*=/.test(src),

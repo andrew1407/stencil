@@ -1,21 +1,12 @@
-// The extension can't import across subprojects, so a few browser/js/ui modules are
-// duplicated into src/lib as rule-for-rule PORTS. The behavioural cases for them live in
-// browser/tests/<name>.test.js; this file is the drift guard that lets the extension
-// drop its duplicated copies of those suites: each manifest pair's two SOURCE files must
-// be identical once ONLY the header comment block and import specifiers are normalized.
-//
-// Converge-then-pin plan: today the copies differ only in their header comments (each
-// surface introduces the module in its own words) and import paths, so the guard is
-// "normalized-identical". A later phase converges the headers too and pins full
-// byte-equality, at which point the normalization here shrinks to nothing.
-//
-// controlTooltip.js joined the manifest after its one mid-body comment (the hover-popup
-// opt-out note) was converged to the browser's wording. Body differences are never
+// The extension can't import across subprojects, so a few browser modules are duplicated
+// into src/ as rule-for-rule PORTS. Their behavioural cases live in browser/tests/; this
+// is the drift guard that lets the extension drop those duplicated suites. Two manifests:
+// whole-file pairs below, then per-function ports further down. Body differences are never
 // normalized away — a rewording in either copy fails the pair.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
 // name → [browser copy, extension copy], both relative to this file.
 const MANIFEST = [
@@ -65,5 +56,68 @@ for (const [name, browserPath, extPath] of MANIFEST) {
     assert.equal(ext, browser,
       `${name} drifted from its browser original — change one, change the other `
       + '(only the header comment and import paths may differ)');
+  });
+}
+
+// ── Partial ports: one function at a time ───────────────────────────────────
+// A module that ports only PART of a browser module lists the functions instead: each
+// must match its browser original verbatim, mid-body comments included. A browser
+// function routed to the wasm core keeps its JS reference under a `JS` suffix — that is
+// the original. The browser side may be a file or a directory, which is scanned.
+const FUNCTIONS = [
+  ['popover', '../../browser/js/ui/popover.js', '../src/lib/popover.js', ['popoverPosition']],
+  ['cropGeometry', '../../browser/js/core/cropGeometry.js', '../src/lib/cropGeometry.js',
+    ['isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
+     'moveCropClamped', 'scaleCropCentered']],
+  // motion.js is the extension's own implementation; only what it shares to the letter
+  // with the app — the pure ramps, the tile maths, the class names — is listed.
+  ['motion', '../../browser/js/ui/motion/', '../src/lib/motion.js', [
+    'REVEAL_ITEM_CLASS', 'REVEAL_IN_CLASS', 'REVEAL_ENTERING_CLASS', 'REVEAL_MASKED_CLASS',
+    'revealDissolve', 'revealGrain',
+    'LEAVING_CLASS', 'createListHold', 'emptyStateVisible',
+    'TILE_GATHER_SHARE', 'TILE_JITTER_SHARE', 'tileNoise', 'tileWaypoint', 'reshapeGrid',
+    'reintegrate', 'rectCenter',
+    'MATERIALIZE_CLASS', 'MATERIALIZE_VEIL_CLASS', 'CHAT_ENTERING_CLASS', 'CHAT_SLIDE_CLASS',
+    'SURFACE_FORMING_CLASS', 'SURFACE_LEAVING_CLASS', 'SURFACE_DRIVEN_CLASS',
+  ]],
+];
+
+// One top-level `export const NAME = …` / `export function NAME …` statement, from its
+// first line to the line that closes it: brackets balance and the line ends the statement.
+const declaration = (src, name) => {
+  const lines = src.split('\n');
+  const start = lines.findIndex((l) => new RegExp(`^export (?:const|function) ${name}\\b`).test(l));
+  if (start < 0) return null;
+  let depth = 0;
+  for (let i = start; i < lines.length; i++) {
+    for (const c of lines[i]) {
+      if ('([{'.includes(c)) depth++;
+      else if (')]}'.includes(c)) depth--;
+    }
+    if (depth <= 0 && /[;}]\s*$/.test(lines[i])) return lines.slice(start, i + 1).join('\n');
+  }
+  return null;
+};
+
+// The browser original as one string: a file, or every .js in a directory.
+const browserSource = (rel) => {
+  if (!rel.endsWith('/')) return read(rel);
+  const dir = new URL(rel, import.meta.url);
+  return readdirSync(dir).filter((f) => f.endsWith('.js')).sort()
+    .map((f) => readFileSync(new URL(f, dir), 'utf8')).join('\n');
+};
+
+for (const [name, browserPath, extPath, fns] of FUNCTIONS) {
+  test(`${name}: every ported function matches its browser original`, () => {
+    const browser = browserSource(browserPath);
+    const ext = read(extPath);
+    for (const fn of fns) {
+      const mine = declaration(ext, fn);
+      assert.ok(mine, `${name}: the extension no longer exports ${fn}`);
+      const theirs = declaration(browser, `${fn}JS`)?.replace(`${fn}JS`, fn) ?? declaration(browser, fn);
+      assert.ok(theirs, `${name}: ${fn} has no browser original (nor a ${fn}JS reference)`);
+      assert.equal(mine, theirs,
+        `${name}.${fn} drifted from its browser original — change one, change the other`);
+    }
   });
 }

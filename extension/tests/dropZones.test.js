@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { quadrantAt, mountDropZones } from '../src/lib/dropZones.js';
+import { installDom, stubDoc, stubEl, stubWin } from './helpers/domStub.js';
 
 // The 4-quadrant map the on-page drop overlay uses (see lib/dropZones.js / popup drag).
 test('quadrantAt maps each corner to its action', () => {
@@ -31,25 +32,13 @@ test('quadrantAt splits on the exact midpoint (< is top/left)', () => {
 // mounts under mocked timers.
 const stylesFor = (mode, prefersDark) => {
   const styles = [];
-  const el = () => ({ style: {}, classList: { add() {}, remove() {} }, set textContent(v) { this._t = v; },
-                      get textContent() { return this._t; }, append() {}, appendChild() {}, addEventListener() {},
-                      set innerHTML(v) { this._h = v; }, remove() {}, attachShadow: () => ({ append: (...n) => styles.push(...n) }) });
-  const priorDoc = globalThis.document, priorWin = globalThis.window;
-  globalThis.document = {
-    createElement: () => el(),
-    getElementById: () => null,
-    body: { appendChild() {} },
-    documentElement: { appendChild() {} },
-    addEventListener() {},
-    removeEventListener() {},
-  };
-  globalThis.window = {
-    matchMedia: () => ({ matches: prefersDark }),
-    innerWidth: 1000, innerHeight: 800,
-    addEventListener() {}, removeEventListener() {},
-  };
+  const el = () => stubEl('div', { attachShadow: () => ({ append: (...n) => styles.push(...n) }) });
+  const restore = installDom({
+    document: stubDoc({ createElement: el }),
+    window: stubWin({ innerWidth: 1000, innerHeight: 800, matchMedia: () => ({ matches: prefersDark }) }),
+  });
   try { mountDropZones('#7c3aed', false, mode); } catch { /* only the stylesheet matters */ }
-  finally { globalThis.document = priorDoc; globalThis.window = priorWin; }
+  finally { restore(); }
   return styles.map((n) => n.textContent || '').join('\n');
 };
 
@@ -77,7 +66,7 @@ test('the zone panels let a fifth more of the page through', (t) => {
 });
 
 test('the service worker hands the Appearance mode to the injected zones', () => {
-  const sw = readFileSync(new URL('../src/background/background.js', import.meta.url), 'utf8');
+  const sw = readFileSync(new URL('../src/background/handlers/dropZones.js', import.meta.url), 'utf8');
   assert.match(sw, /THEME_STORAGE_KEY/, 'it reads the mirrored Appearance mode');
   assert.match(sw, /func: mountDropZones, args: \[accent, !!probe\.ok, mode\]/,
     'and passes it through executeScript');

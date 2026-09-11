@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
+import { assistantSrc } from './helpers/sources.js';
 import { readFileSync } from 'node:fs';
 
 // ── "Swap message sides" (lib/chatLayoutPrefs.js) — browser js/ui/chatLayoutPrefs.js
@@ -68,7 +69,7 @@ test('"Swap message sides" sits between Clear history and Settings in every host
 });
 
 test('assistant.js wires the icon and the click — no cross-page watch (each page is its own session)', () => {
-  const js = readFileSync(new URL('../src/popup/assistant.js', import.meta.url), 'utf8');
+  const js = assistantSrc();
   assert.match(js, /\['chat-swap-sides', 'swap'\]/, 'the menu item gets the swap glyph');
   assert.match(js, /applyChatSide\(transcriptEl\)/, 'applied on mount');
   assert.match(js, /applyChatSide\(transcriptEl, toggleChatSide\(\)\)/, 'click flips + re-applies');

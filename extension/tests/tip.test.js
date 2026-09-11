@@ -6,16 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { setTip, tipLabel } from '../src/lib/tip.js';
-
-// ── Stub DOM ──
-const stubEl = () => {
-  const attrs = {};
-  return {
-    attrs,
-    setAttribute: (k, v) => { attrs[k] = v; },
-    removeAttribute: (k) => { delete attrs[k]; },
-  };
-};
+import { stubEl } from './helpers/domStub.js';
 
 test('setTip writes data-title and never a title attribute', () => {
   const el = setTip(stubEl(), 'Rescan page (Alt+R)');
