@@ -31,152 +31,17 @@ export { assistantEnabled, assistantItemHtml };
 // Keyboard navigation lives in ctxKeyboard.js; its three helpers stay reachable here.
 export { ctxKeyStep, CTX_NAV_KEYS, ctxFocusables } from './ctxKeyboard.js';
 import { wireCtxKeyboard } from './ctxKeyboard.js';
+import { contextMenuInner } from './contextMenuMarkup.js';
+import { createCtxNav } from './contextMenuNav.js';
 
 // ── Component: custom right-click context menu ──────────────────
-// The variant rows of a Copy/Download Image flyout, from the shared registry
-// (exportVariants.js — labels, glyphs, order, and the "With Compare is a FOURTH row"
-// rule live there). split/current share the primary combo (their empty `-hk` chips are
-// filled by syncState); original/tint carry their own data-hk bindings.
-const exportVariantRows = (prefix, currentIcon, hks) => EXPORT_VARIANTS.map((v) => {
-  const hk = v === 'split' || v === 'current'
-    ? `<span class="ctx-hotkey" id="${prefix}-${v}-hk"></span>`
-    : `<span class="ctx-hotkey" data-hk="${hks[v][0]}">${hks[v][1]}</span>`;
-  return `<div class="ctx-item ctx-sub-item" id="${prefix}-${v}"${v === 'split' ? ' style="display:none;"' : ''}>`
-    + `<span class="ctx-icon">${icon(v === 'current' ? currentIcon : EXPORT_VARIANT_ICONS[v])}</span>`
-    + `<span class="ctx-label">${EXPORT_VARIANT_LABELS[v]}</span>${hk}</div>`;
-}).join('\n                        ');
 const SUBMENU_HIDE_DELAY_MS = 180; // grace period before a submenu closes on mouseleave
 const LIVE_SYNC_INTERVAL_MS = 120; // poll cadence to reflect external state while the menu is open
 const TINT_DEBOUNCE_MS = 80;       // debounce custom-tint recolor+save while dragging the picker
 const ASSIST_SCROLL_GRACE_MS = 900; // window in which an assistant-caused scroll can't close the menu
 
 export class StencilContextMenu extends StencilElement {
-  static inner() {
-    return `
-        <!-- Fit zoom to window — FIRST: the most-reached-for entry, and a plain item, so it
-             is a single click with no submenu to traverse. -->
-        <div class="ctx-item" id="ctx-fit-window"><span class="ctx-icon">${icon('fit')}</span><span class="ctx-label">Fit to Window</span><span class="ctx-hotkey" data-hk="resetZoom">Alt+0</span>${ctxArrow()}</div>
-        <!-- Image / Layout submenu -->
-        <div class="ctx-item" id="ctx-layout-menu">
-            <span class="ctx-icon">${icon('folder')}</span><span class="ctx-label">Image / Layout</span>${ctxArrow(true)}
-            <div class="ctx-sub" id="ctx-layout-sub">
-                <div class="ctx-sub-label">Image</div>
-                <!-- Copy Image: a nested flyout of the shared variant rows (exportVariants.js;
-                     Alt+hover any row previews it — js/ui/exportPreview.js). This opener row
-                     carries no hotkey chip: the combo already lives on the primary variant row.
-                     No row in this flyout nests further, so its rows reserve no arrow column. -->
-                <div class="ctx-item ctx-sub-item" id="ctx-copy-img">
-                    <span class="ctx-icon">${icon('copy')}</span><span class="ctx-label">Copy Image</span>${ctxArrow(true)}
-                    <div class="ctx-sub ctx-sub-nested" id="ctx-copy-img-sub">
-                        ${exportVariantRows('ctx-copy-img', 'copy',
-    { original: ['copyImageOriginal', 'Ctrl+Shift+C'], tint: ['copyImageTint', 'Ctrl+Alt+C'] })}
-                    </div>
-                </div>
-                <div class="ctx-item ctx-sub-item" id="ctx-paste-img"><span class="ctx-icon">${icon('paste')}</span><span class="ctx-label">Paste Image</span><span class="ctx-hotkey" data-hk="paste">Ctrl+V</span>${ctxArrow()}</div>
-                <!-- Download Image: the same shared variant rows and rules as Copy Image. -->
-                <div class="ctx-item ctx-sub-item" id="ctx-dl-img">
-                    <span class="ctx-icon">${icon('download')}</span><span class="ctx-label">Download Image</span>${ctxArrow(true)}
-                    <div class="ctx-sub ctx-sub-nested" id="ctx-dl-img-sub">
-                        ${exportVariantRows('ctx-dl-img', 'download',
-    { original: ['saveImageOriginal', 'Ctrl+Alt+D'], tint: ['saveImageTint', 'Ctrl+Shift+Alt+D'] })}
-                    </div>
-                </div>
-                <div class="ctx-item ctx-sub-item" id="ctx-share-img" style="display:none;"><span class="ctx-icon">${icon('share')}</span><span class="ctx-label">Share Image</span>${ctxArrow()}</div>
-                <div class="ctx-sep"></div>
-                <div class="ctx-sub-label">Layout (JSON)</div>
-                <div class="ctx-item ctx-sub-item" id="ctx-copy-layout"><span class="ctx-icon">${icon('copy')}</span><span class="ctx-label">Copy Layout</span><span class="ctx-hotkey" data-hk="copyLayout">Ctrl+Alt+C</span>${ctxArrow()}</div>
-                <div class="ctx-item ctx-sub-item" id="ctx-paste-layout"><span class="ctx-icon">${icon('paste')}</span><span class="ctx-label">Paste Layout</span><span class="ctx-hotkey" data-hk="paste">Ctrl+V</span>${ctxArrow()}</div>
-                <div class="ctx-item ctx-sub-item" id="ctx-dl-layout"><span class="ctx-icon">${icon('file-text')}</span><span class="ctx-label">Download Layout</span>${ctxArrow()}</div>
-                <div class="ctx-item ctx-sub-item" id="ctx-ul-layout"><span class="ctx-icon">${icon('upload')}</span><span class="ctx-label">Upload Layout</span>${ctxArrow()}</div>
-            </div>
-        </div>
-        <!-- Fullscreen toggle -->
-        <div class="ctx-item" id="ctx-fullscreen"><span class="ctx-icon">${icon('maximize')}</span><span class="ctx-label" id="ctx-fs-label">Enter Fullscreen</span><span class="ctx-hotkey" data-hk="fullscreen">Alt+F</span>${ctxArrow()}</div>
-        <div class="ctx-sep"></div>
-        <!-- Drawing (the Assistant entry is built above this group by syncAssistant) -->
-        <div class="ctx-item" id="ctx-draw-toggle"><span class="ctx-icon">${icon('play', { size: 14 })}</span><span class="ctx-label" id="ctx-draw-label">Start Drawing</span><span class="ctx-hotkey" id="ctx-draw-hotkey" data-hk="startDraw">Alt+A</span>${ctxArrow()}</div>
-        <div class="ctx-item" id="ctx-draw-line"><span class="ctx-icon">${icon('line')}</span><span class="ctx-label">Draw Line</span>${ctxArrow()}</div>
-        <div class="ctx-item" id="ctx-draw-rect"><span class="ctx-icon">${icon('rect')}</span><span class="ctx-label">Draw Rectangle</span>${ctxArrow()}</div>
-        <div class="ctx-sep"></div>
-        <!-- Toggles -->
-        <div class="ctx-item" id="ctx-show-points"><span class="ctx-check" id="ctx-chk-points">${icon('check', { size: 14 })}</span><span class="ctx-label">Show Points</span><span class="ctx-hotkey" data-hk="togglePoints">Alt+P</span>${ctxArrow()}</div>
-        <div class="ctx-item" id="ctx-show-lines"><span class="ctx-check" id="ctx-chk-lines">${icon('check', { size: 14 })}</span><span class="ctx-label">Show Lines</span><span class="ctx-hotkey" data-hk="toggleLines">Alt+L</span>${ctxArrow()}</div>
-        <div class="ctx-item" id="ctx-clear-lines"><span class="ctx-icon">${icon('eraser')}</span><span class="ctx-label">Clear All Lines</span><span class="ctx-hotkey" data-hk="clearAllLines">Alt+W</span>${ctxArrow()}</div>
-        <div class="ctx-sep"></div>
-        <!-- Style submenu -->
-        <div class="ctx-item" id="ctx-style-menu">
-            <span class="ctx-icon">${icon('palette')}</span><span class="ctx-label">Style</span>${ctxArrow(true)}
-            <div class="ctx-sub" id="ctx-style-sub">
-                <div class="ctx-row">
-                    <label>Point Size</label>
-                    <input type="number" class="ctx-num" id="ctx-point-size" min="1" max="30">
-                </div>
-                <div class="ctx-row">
-                    <label>Line Thickness</label>
-                    <input type="number" class="ctx-num" id="ctx-thickness" min="1" max="20">
-                </div>
-                <div class="ctx-sub-label">Line Style</div>
-                <div class="ctx-radio-group" id="ctx-style-radios">
-                    <label class="ctx-radio-item"><input type="radio" name="ctxLineStyle" value="solid"> Solid</label>
-                    <label class="ctx-radio-item"><input type="radio" name="ctxLineStyle" value="dashed"> Dashed</label>
-                    <label class="ctx-radio-item"><input type="radio" name="ctxLineStyle" value="dotted"> Dotted</label>
-                </div>
-            </div>
-        </div>
-        <!-- Filter submenu -->
-        <div class="ctx-item" id="ctx-filter-menu">
-            <span class="ctx-icon">${icon('image')}</span><span class="ctx-label">Image Filter</span><span class="ctx-hotkey" data-hk="cycleFilter">Alt+B</span>${ctxArrow(true)}
-            <div class="ctx-sub" id="ctx-filter-sub">
-                <div class="ctx-sub-label">Filter</div>
-                <div class="ctx-radio-group" id="ctx-filter-radios">
-                    <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="none"> None</label>
-                    <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="bw"> Black &amp; White</label>
-                    <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="sepia"> Sepia</label>
-                    <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="invert"> Invert</label>
-                    <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="contour"> Contour</label>
-                    <label class="ctx-radio-item"><input type="radio" name="ctxFilter" value="custom"> Custom Tint</label>
-                </div>
-                <div id="ctx-tint-row">
-                    <label>Tint Color</label>
-                    <input type="color" class="ctx-color" id="ctx-tint-color">
-                </div>
-            </div>
-        </div>
-        <!-- Transformation submenu -->
-        <div class="ctx-item" id="ctx-transform-menu">
-            <span class="ctx-icon">${icon('function')}</span><span class="ctx-label">Transformation</span>${ctxArrow(true)}
-            <div class="ctx-sub" id="ctx-transform-sub">
-                <div class="ctx-sub-label">Coordinate Formulas</div>
-                <label class="ctx-checkbox-item"><input type="checkbox" id="ctx-allow-formulas"> Allow Formulas</label>
-                <div id="ctx-formula-inputs" style="display:none;padding:5px 14px 8px;">
-                    <div style="margin-top:4px;display:flex;flex-direction:column;gap:5px;">
-                        <div style="display:flex;align-items:center;gap:6px;">
-                            <label style="font-size:12px;color:var(--text-muted);min-width:36px;font-weight:normal;">x(x)=</label>
-                            <input type="text" id="ctx-formula-x" class="ctx-formula-input" placeholder="e.g. x + 9">
-                        </div>
-                        <div style="display:flex;align-items:center;gap:6px;">
-                            <label style="font-size:12px;color:var(--text-muted);min-width:36px;font-weight:normal;">y(y)=</label>
-                            <input type="text" id="ctx-formula-y" class="ctx-formula-input" placeholder="e.g. (y-7)*4">
-                        </div>
-                        <div id="ctx-formula-error" style="font-size:11px;color:var(--danger);display:none;align-items:center;gap:5px;">${icon('alert', { size: 13 })} Invalid formula</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- Tooltip submenu -->
-        <div class="ctx-item" id="ctx-tooltip-menu">
-            <span class="ctx-icon">${icon('message')}</span><span class="ctx-label">Tooltip</span>${ctxArrow(true)}
-            <div class="ctx-sub" id="ctx-tooltip-sub">
-                <label class="ctx-checkbox-item"><input type="checkbox" id="ctx-tt-enabled" checked> Show Tooltips</label>
-                <div class="ctx-sep"></div>
-                <div class="ctx-sub-label">Show in Tooltip</div>
-                <label class="ctx-checkbox-item"><input type="checkbox" id="ctx-tt-page" checked> Page (cm)</label>
-                <label class="ctx-checkbox-item"><input type="checkbox" id="ctx-tt-screen" checked> Screen (px)</label>
-                <label class="ctx-checkbox-item"><input type="checkbox" id="ctx-tt-coords" checked> To Edge (cm)</label>
-            </div>
-        </div>
-    `;
-  }
+  static inner() { return contextMenuInner(); }
   static template() { return hostTag('stencil-context-menu', 'id="ctx-menu"', StencilContextMenu.inner()); }
 
   wire(app) {
@@ -184,245 +49,26 @@ export class StencilContextMenu extends StencilElement {
     const canvas = document.getElementById('canvas');
     const viewport = document.getElementById('canvas-viewport');
 
-    // ── Submenu management ──────────────────────────────────────
-    let subHideTimer = null;
-    let activeSub = null;
-    let activeSubItem = null;
-
-    // ── A submenu is dust too ────────────────────────────────────────────
-    // Same flight as the menu it hangs off (js/ui/motion.js surfaceIn/surfaceOut), out
-    // of — and back into — the ROW that owns it, which is where it grows from.
-    const SUB_IN_MS = SURFACE_MENU_IN_MS;
-    const SUB_OUT_MS = SURFACE_MENU_OUT_MS;
-    const subPoint = (sub) => {
-      const r = sub.__ctxItem?.getBoundingClientRect?.();
-      if (!r || !(r.width > 0 && r.height > 0)) return null;
-      return { x: r.right, y: r.top + r.height / 2 };
-    };
-    // Close one submenu, leaving its motes to pour back into the row. The class comes
-    // off NOW either way — the cloud owns its own lifetime. (surfaceOut settles the
-    // flyout itself whenever it can't fly.)
-    const closeSub = (sub) => {
-      surfaceOut(sub, sub.classList.contains('ctx-sub-visible') ? subPoint(sub) : null,
-        { ms: SUB_OUT_MS });
-      sub.classList.remove('ctx-sub-visible');
-      sub.classList.remove('ctx-sub-fresh');
-    };
-
-    const closeAllSubs = () => {
-      clearTimeout(subHideTimer);
-      document.querySelectorAll('#ctx-menu .ctx-sub.ctx-sub-visible').forEach(closeSub);
-      document.querySelectorAll('#ctx-menu .ctx-item.ctx-open-sub').forEach(i => i.classList.remove('ctx-open-sub'));
-      activeSub = null;
-      activeSubItem = null;
-      subShownPointer = null;   // nothing placed ⇒ no "pointer idle since" reference
-    };
-
-    const positionSub = (item, sub) => {
-      // A re-place of an ALREADY open flyout (the item moved under a still cursor, the
-      // chat flyout grew) must not replay the gather — only a genuine open does.
-      const wasOpen = sub.classList.contains('ctx-sub-visible');
-      sub.__ctxItem = item;
-      // The menu's entry pop (animations/overlays.css) keeps a live transform for ~140ms, and a
-      // transformed ancestor becomes the containing block for our position:fixed
-      // flyouts — one placed during the pop lands off-target. A quick hover beats the
-      // animation, so finish the (purely cosmetic) pop first.
-      try { for (const a of menu.getAnimations?.() || []) a.finish(); } catch { /* no WAAPI */ }
-      // Render off-screen to measure, then place correctly
-      sub.style.left = '-9999px';
-      sub.style.top = '-9999px';
-      sub.classList.add('ctx-sub-visible');
-      item.classList.add('ctx-open-sub');
-
-      const ir = item.getBoundingClientRect();
-      const sw = sub.offsetWidth;
-      const sh = sub.offsetHeight;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-
-      let left = ir.right + 2;
-      if (left + sw > vw - 6) left = ir.left - sw - 2;
-      if (left < 4) left = 4;
-
-      let top = ir.top;
-      if (top + sh > vh - 6) top = vh - sh - 6;
-      if (top < 4) top = 4;
-
-      sub.style.left = left + 'px';
-      sub.style.top = top  + 'px';
-      subShownPointer = { ...lastPointer };
-      // Every (re)placement can land a row under a cursor that never moved to reach
-      // it — see samplePointer/clearFreshSubs above. Marked fresh again on EVERY call,
-      // including a reposition: that is exactly the "item slid under a still cursor"
-      // case this exists for.
-      sub.classList.add('ctx-sub-fresh');
-      anyFreshSub = true;
-      // Placed first, so the motes stream at the box the flyout will actually occupy.
-      // A re-place of an already-open flyout leaves the flight alone; otherwise
-      // surfaceIn flies — or settles the flyout itself when it can't.
-      if (!wasOpen) surfaceIn(sub, subPoint(sub), { ms: SUB_IN_MS });
-    };
-
-    const repositionActiveSub = () => {
-      if (activeSub && activeSubItem && activeSub.classList.contains('ctx-sub-visible'))
-        positionSub(activeSubItem, activeSub);
-    };
-
-    // A flyout may declare itself "engaged" (a chat mid-typing, a running turn) via a
-    // `_keepOpen` predicate: a stray mouseleave must NOT yank it away then. Only the
-    // hover-out paths honour it — hovering ANOTHER submenu parent still closes it.
-    const keepSubOpen = (sub) => !!sub._keepOpen?.();
-
-    // Pointer bookkeeping for the hide timers: a mouseleave does NOT always mean the
-    // user left — an item that MOVES under a stationary cursor (the menu's entry pop)
-    // fires one with no user motion at all, which must not shut a just-opened flyout.
-    let lastPointer = { x: -1, y: -1 };
-    let subShownPointer = null;   // where the pointer was when the flyout was placed
-    // The pointer has not MOVED since the open flyout was placed ⇒ hover events arriving
-    // now are layout-induced (items sliding under a still cursor), not the user's.
-    // Compared by position, not clock: the shift can land in the placement's millisecond.
-    const pointerIdle = () => !!subShownPointer
-      && subShownPointer.x === lastPointer.x && subShownPointer.y === lastPointer.y;
-    // A freshly PLACED flyout can land a row directly under a cursor that never moved
-    // to reach it — the icon-motion/keycap-shake CSS (animations/iconHover.css) triggers on
-    // `:hover`, which the browser re-evaluates the instant that row's geometry lands
-    // under the pointer, with no actual mouse motion involved. `.ctx-sub-fresh`
-    // (below, positionSub) makes every row in a just-placed flyout `pointer-events:
-    // none` — so no phantom `:hover` can land — until the FIRST genuine pointer move
-    // clears it here, which is also the earliest moment a real hover is possible.
-    // `anyFreshSub` gates the DOM query: this runs on every captured mousemove/over/out
-    // while the menu is open, and almost always with nothing fresh to clear.
-    let anyFreshSub = false;
-    const clearFreshSubs = () => {
-      if (!anyFreshSub) return;
-      anyFreshSub = false;
-      document.querySelectorAll('#ctx-menu .ctx-sub.ctx-sub-fresh')
-        .forEach(s => s.classList.remove('ctx-sub-fresh'));
-    };
-    // Assigned by wireCtxKeyboard below (the keyboard owns the .ctx-kb highlight); the
-    // pointer, open and close paths clear it. Declared here because they come first.
-    let setKbItem = () => {};
-    const samplePointer = e => {
-      const moved = e.clientX !== lastPointer.x || e.clientY !== lastPointer.y;
-      lastPointer = { x: e.clientX, y: e.clientY };
-      if (subShownPointer && !pointerIdle()) clearFreshSubs();
-      if (moved) setKbItem(null);   // the pointer takes over from the keyboard highlight
-    };
-    // Captured mouseover/mouseout too — they precede the non-bubbling mouseenter/
-    // mouseleave the wiring reacts to; tracking moves alone would leave a stale position
-    // at decision time. Bound only while the menu is open (openAt ↔ closeMenu).
-    const setPointerTracking = (on) => {
-      for (const type of ['mousemove', 'mouseover', 'mouseout']) {
-        if (on) document.addEventListener(type, samplePointer, true);
-        else document.removeEventListener(type, samplePointer, true);
-      }
-    };
-    const pointerOver = (el) => pointInRect(lastPointer.x, lastPointer.y, el.getBoundingClientRect());
-
-    // Hide a submenu — unless the cursor never moved since it opened (a layout-induced
-    // mouseleave: re-place it and keep it), the cursor is still on it or its parent, or
-    // it's the assistant flyout the user is busy in.
-    const hideSub = (item, sub) => {
-      if (keepSubOpen(sub)) return;
-      if (pointerIdle() && sub.classList.contains('ctx-sub-visible')) {
-        positionSub(item, sub);   // the item moved, not the user — follow it
-        return;
-      }
-      if (pointerOver(item) || pointerOver(sub)) return;
-      closeSub(sub);
-      item.classList.remove('ctx-open-sub');
-      if (activeSub === sub) { activeSub = null; activeSubItem = null; }
-    };
-
-    // Closes the WHOLE open chain, not just the deepest flyout — a nested submenu
-    // (Copy Image ▸) leaves its own ancestor (Image / Layout) open, and hovering an
-    // unrelated top-level item (this function's only caller) has left that branch
-    // entirely, so every level of it must go.
-    const closeActiveSub = () => {
-      if (!activeSub || keepSubOpen(activeSub) || pointerIdle()) return;
-      document.querySelectorAll('#ctx-menu .ctx-sub.ctx-sub-visible').forEach(closeSub);
-      document.querySelectorAll('#ctx-menu .ctx-item.ctx-open-sub').forEach(i => i.classList.remove('ctx-open-sub'));
-      activeSub = null;
-      activeSubItem = null;
-    };
+    // ── Submenu navigation: opening, placing, hover-grace hiding — ui/contextMenuNav.js ──
+    const {
+      closeSub, closeAllSubs, positionSub, repositionActiveSub, hideSub, closeActiveSub,
+      wireSubmenu, wirePlainItem, setPointerTracking, activeSub, setActiveSub,
+      bindKbItem, setKbItem, setLastPointer,
+    } = createCtxNav({ menu });
 
     // Keyboard navigation (desktop QMenu parity) — ui/ctxKeyboard.js. It walks the
     // same open-flyout state the hover path owns, so that is passed in, not copied.
     // Every callback is a thunk: menuIsOpen and friends are `const`s declared further
     // down wire(), so reading them at this call site would hit the temporal dead zone.
-    ({ setKbItem } = wireCtxKeyboard({
+    bindKbItem(wireCtxKeyboard({
       menu,
       menuIsOpen: () => menuIsOpen(),
       chatRowMenuOpen: () => chatRowMenuOpen(),
       closeSub: (sub) => closeSub(sub),
       positionSub: (item, sub) => positionSub(item, sub),
-      activeSub: () => activeSub,
-      setActiveSub: (sub, item) => { activeSub = sub; activeSubItem = item; },
-    }));
-
-    // Items WITHOUT a submenu close any open one on hover.
-    const wirePlainItem = (item) => {
-      item.addEventListener('mouseenter', () => {
-        clearTimeout(subHideTimer);
-        closeActiveSub();
-      });
-    };
-
-    // Hover-open + grace-period hide for one submenu parent. Extracted so the
-    // assistant entry — which may be built after wire() runs — gets the SAME wiring
-    // as the static parents (Image / Layout, Style, Image Filter, …).
-    const wireSubmenu = (item, sub) => {
-      // ResizeObserver: reposition whenever submenu content changes size (the chat
-      // flyout grows with the conversation). Only the FLYOUT moves — never the menu.
-      // Skipped mid-flight for a reveal-group transition inside (Coordinate Formulas'
-      // inputs, motion.js revealControls): that fires this on every tick of its own
-      // max-height transition, and repositioning off the still-growing/shrinking size
-      // snapped the flyout the instant it crossed the viewport clamp — "fast and
-      // broken". revealControls' own class removal at the end fires one more resize,
-      // which lands here with the class gone and repositions cleanly, once, settled.
-      new ResizeObserver(() => {
-        if (sub !== activeSub || !sub.classList.contains('ctx-sub-visible')) return;
-        if (sub.querySelector('.reveal-group-transition')) return;
-        positionSub(item, sub);
-      }).observe(sub);
-
-      item.addEventListener('mouseenter', () => {
-        clearTimeout(subHideTimer);
-        // A neighbour sliding under a stationary cursor must not steal the open flyout.
-        if (pointerIdle() && activeSub && activeSub !== sub) return;
-        // Phones/touch: the assistant entry is a plain item there — no flyout.
-        if (item.dataset.noSub === '1') { closeActiveSub(); return; }
-        // Close other open subs — but NOT an ANCESTOR flyout (the one `item` itself
-        // lives inside, e.g. Copy Image ▸ opening from within Image / Layout's own
-        // flyout must leave Image / Layout open, not yank it away from under the
-        // cursor). This is the one path that also closes the assistant flyout while
-        // it's engaged: opening a sibling submenu wins, as everywhere.
-        document.querySelectorAll('#ctx-menu .ctx-sub.ctx-sub-visible').forEach(s => {
-          if (s === sub || s.contains(item)) return;
-          closeSub(s);
-        });
-        document.querySelectorAll('#ctx-menu .ctx-item.ctx-open-sub').forEach(i => {
-          if (i === item || i.contains(item)) return;
-          i.classList.remove('ctx-open-sub');
-        });
-        positionSub(item, sub);
-        activeSub = sub;
-        activeSubItem = item;
-      });
-
-      item.addEventListener('mouseleave', e => {
-        if (sub.contains(e.relatedTarget)) return;
-        subHideTimer = setTimeout(() => {
-          if (activeSub === sub) hideSub(item, sub);
-        }, SUBMENU_HIDE_DELAY_MS);
-      });
-
-      sub.addEventListener('mouseenter', () => clearTimeout(subHideTimer));
-      sub.addEventListener('mouseleave', e => {
-        if (item.contains(e.relatedTarget)) return;
-        subHideTimer = setTimeout(() => hideSub(item, sub), SUBMENU_HIDE_DELAY_MS);
-      });
-    };
+      activeSub,
+      setActiveSub,
+    }).setKbItem);
 
     // Wire hover handlers — only for TOP-LEVEL items so nested ones inside
     // a submenu don't accidentally close their parent submenu on hover.
@@ -577,7 +223,7 @@ export class StencilContextMenu extends StencilElement {
       // Track the pointer only while open; seed it with the click point so the
       // idle checks never compare against a stale position from a previous open.
       setPointerTracking(true);
-      lastPointer = { x, y };
+      setLastPointer(x, y);
       // Build/hide the Assistant entry and pick its mode (flyout vs plain) BEFORE
       // measuring — the menu is re-evaluated per open, so a provider change or a
       // window resize between opens is picked up.
@@ -889,7 +535,7 @@ export class StencilContextMenu extends StencilElement {
       sending: () => assistSending,
       setSending: (v) => { assistSending = v; },
       bumpBusy: () => { assistBusyUntil = Date.now() + ASSIST_SCROLL_GRACE_MS; },
-      setActiveSub: (sub, item) => { activeSub = sub; activeSubItem = item; },
+      setActiveSub,
       setOnMenuClose: (fn) => { onMenuClose = fn; },
     }));
 

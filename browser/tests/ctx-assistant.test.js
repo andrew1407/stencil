@@ -111,7 +111,7 @@ test('flyouts survive the menu moving under a stationary cursor', () => {
   assert.ok(!/#ctx-menu\.ctx-open \{[^}]*animation: menuPop[^;]*both/.test(anims), '…and still not `both`-filled');
   // 2. The pop moves items under a still cursor, which fires SYNTHETIC boundary events.
   //    Hover decisions ignore them: no pointer motion ⇒ no hover state change.
-  assert.match(src, /const pointerIdle = \(\) => !!subShownPointer/);
+  assert.match(src, /const pointerIdle = \(\) => samePoint\(subShownPointer, lastPointer\);/);
   assert.ok(src.includes('subShownPointer = { ...lastPointer };'), 'the placement records the pointer');
   assert.ok(src.includes("for (const type of ['mousemove', 'mouseover', 'mouseout'])"),
     'pointer tracking covers the events that PRECEDE mouseenter/mouseleave');

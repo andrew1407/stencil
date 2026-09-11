@@ -29,7 +29,7 @@
     "browser/js/ui/chatView.js": 20,
     "browser/js/ui/confirmModal.js": 261,
     "browser/js/ui/connectModal.js": 591,
-    "browser/js/ui/contextMenu.js": 902,
+    "browser/js/ui/contextMenu.js": 548,
     "browser/js/ui/controlTooltip.js": 266,
     "browser/js/ui/customSelect.js": 291,
     "browser/js/ui/expirationModal.js": 253,
