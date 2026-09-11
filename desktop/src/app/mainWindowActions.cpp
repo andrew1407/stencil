@@ -443,8 +443,8 @@ namespace stencil::gui {
     connect(actFullscreen_, &QAction::triggered, this,
             &MainWindow::toggleFullscreen);
     // Escape-leaves-fullscreen is handled in the app-wide eventFilter (reliable across focus).
-    fsHoverTimer_ = new QTimer(this);   // drives the fullscreen edge-hover reveal
-    connect(fsHoverTimer_, &QTimer::timeout, this, &MainWindow::fsHoverTick);
+    fs_.hoverTimer = new QTimer(this);   // drives the fullscreen edge-hover reveal
+    connect(fs_.hoverTimer, &QTimer::timeout, this, &MainWindow::fsHoverTick);
     connect(actSettings_, &QAction::triggered, this, &MainWindow::openSettings);
     connect(actProjects_, &QAction::triggered, this, &MainWindow::openProjects);
     connect(actConnect_, &QAction::triggered, this, &MainWindow::openConnections);

@@ -305,7 +305,7 @@ namespace stencil::gui {
     set(actChat_, "sparkle");          // AI Assistant chat dock (browser sparkle parity)
     // The glyph turns over with the state, and each one's hover moves the way the click
     // will (iconMotion.json maximize / minimize; browser twin: fullscreenLayer.js).
-    set(actFullscreen_, fsActive_ ? "minimize" : "maximize");
+    set(actFullscreen_, fs_.active ? "minimize" : "maximize");
     set(actTooltip_, "message");
     set(actAllowFormulas_, "function");
     set(actUnitCm_, "ruler");

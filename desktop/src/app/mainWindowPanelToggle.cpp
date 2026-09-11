@@ -63,7 +63,7 @@ namespace stencil::gui {
     // shown, where isVisible() is false for every child regardless of state (same trap the
     // windowState restore above this is careful to avoid): it showed this reopen chevron
     // OVER a panel that was actually already open, right from the app's first paint.
-    const bool showBtn = selPanel_ && selPanel_->isHidden() && !fsActive_;
+    const bool showBtn = selPanel_ && selPanel_->isHidden() && !fs_.active;
     panelReopenBtn_->setVisible(showBtn);
     // The canvas only needs the WIDE margin while the chevron is actually floating over it
     // (panel collapsed) — with the panel open, that room belongs to the dock gap instead.

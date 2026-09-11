@@ -1,5 +1,6 @@
 #pragma once
 #include "chatDock.hpp"  // ChatDock::ProviderStatus (chatMirrorProviderStatus)
+#include "fullscreenController.hpp"
 #include "formulaParser.hpp"
 #include "llmClient.hpp"
 #include "pageMetrics.hpp"
@@ -1214,9 +1215,8 @@ namespace stencil::gui {
     // dismissal returns false, so the press travels on.
     bool handlePopoverPress(class QWidget* target, const QPoint& globalPos,
                             Qt::MouseButton button);
-    // Fullscreen restore state: whether the toolbars were shown, and the panel's dock area/visibility
-    // before entering fullscreen (fullscreen hides the toolbars + moves the panel to the LEFT).
-    bool fsActive_ = false;   // our own fullscreen flag (isFullScreen() is unreliable on macOS)
+    // Fullscreen state + its band/zoom arithmetic (app/fullscreenController.hpp).
+    FullscreenController fs_;
     // Fullscreen enter/exit motion: the canvas STRETCHES out of the viewport box it
     // had (entering) and MINIMISES back into the smaller one (leaving). Browser
     // parity — the FLIP in js/ui/motion.js played by fullscreenLayer.js. The zoom the
@@ -1244,14 +1244,8 @@ namespace stencil::gui {
     QPointer<QWidget> themeWipe_;
     bool themeSwapping() const { return !themeWipe_.isNull(); }
 
-    QSize fsZoomFromViewport_;          // viewport size before the show/showNormal
-    QVariantAnimation* fsZoomAnim_ = nullptr;
-    int fsZoomWaits_ = 0;               // frames spent waiting for the resize to land
     void beginFullscreenZoom();         // capture + schedule
     void startFullscreenZoom();         // run once the new viewport size is in
-    bool fsWasToolbars_ = true;
-    bool fsWasPanel_ = true;
-    QTimer* fsHoverTimer_ = nullptr;   // polls the cursor to edge-reveal toolbars/panel in fullscreen
     // How wide the points panel is before the user has ever dragged the splitter — the
     // browser's --coord-panel-default (css/layout.css).
     static constexpr int kPanelDefaultWidth = 405;
@@ -1318,10 +1312,6 @@ namespace stencil::gui {
     // float is never popover-dismissed.
     bool chatCompactShowing() const;
     QVariantAnimation* barsAnim_ = nullptr;   // in-flight toolbars collapse/expand
-    // Fullscreen edge-hover target states: track the INTENDED reveal, not live isVisible(), so an
-    // in-flight hide slide (widget stays visible until it finishes) isn't restarted every poll tick.
-    bool fsBarsShown_ = false;
-    bool fsPanelShown_ = false;
     QAction* actSettings_ = nullptr;
     QAction* actProjects_ = nullptr;
     QAction* actConnect_ = nullptr;

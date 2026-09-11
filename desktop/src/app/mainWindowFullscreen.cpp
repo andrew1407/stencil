@@ -27,18 +27,18 @@ namespace stencil::gui {
     // toolbar, and a cloud started by one of those controls was left flying over the bare
     // canvas, belonging to nothing.
     stopDustClouds(this);
-    if (fsActive_) {
+    if (fs_.active) {
       // Exit: stop the hover poll and restore the top menu + points panel (right, as before).
-      fsActive_ = false;
+      fs_.active = false;
       syncFullscreenGlyph();
       markFullscreenBars(false);
-      if (fsHoverTimer_) fsHoverTimer_->stop();
+      if (fs_.hoverTimer) fs_.hoverTimer->stop();
       // Cancel any in-flight edge-hover slide and release the pinned toolbar heights so the restore
       // below starts from a clean state (a leftover animation / fixed height would fight it).
       if (barsAnim_) { barsAnim_->stop(); barsAnim_->deleteLater(); barsAnim_ = nullptr; }
       for (QToolBar* b : findChildren<QToolBar*>()) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); }
-      fsBarsShown_ = false;
-      fsPanelShown_ = false;
+      fs_.barsShown = false;
+      fs_.panelShown = false;
       beginFullscreenZoom();
       showNormal();
       if (menuBar()) menuBar()->setVisible(true);
@@ -52,19 +52,19 @@ namespace stencil::gui {
       // the tool rows, so it must never stay hidden. The tool rows restore to their pre-fullscreen
       // shown/collapsed state (setToolbarsShown keeps the header, unlike setToolbarsVisible).
       if (headerToolbar_) { headerToolbar_->setMaximumHeight(QWIDGETSIZE_MAX); headerToolbar_->setVisible(true); }
-      setToolbarsShown(fsWasToolbars_, false);
+      setToolbarsShown(fs_.wasToolbars, false);
       // Sync the toggle-action checks WITHOUT re-firing their (animated) toggled handlers, then
       // restore the panel to its pre-fullscreen expanded/collapsed(rail) state (non-animated).
-      if (actToolbars_) { QSignalBlocker b(actToolbars_); actToolbars_->setChecked(fsWasToolbars_); }
-      if (actPanel_) { QSignalBlocker b(actPanel_); actPanel_->setChecked(fsWasPanel_); }
-      setPanelShown(fsWasPanel_, false);
+      if (actToolbars_) { QSignalBlocker b(actToolbars_); actToolbars_->setChecked(fs_.wasToolbars); }
+      if (actPanel_) { QSignalBlocker b(actPanel_); actPanel_->setChecked(fs_.wasPanel); }
+      setPanelShown(fs_.wasPanel, false);
       positionOverlayArrows();
     } else {
       // Enter: hide the top menu (all toolbars + menubar) AND the points panel so the canvas fills
       // the screen; a cursor poll re-reveals the toolbars when the cursor touches the TOP edge and
       // the points panel (kept on the RIGHT) when it touches the RIGHT edge — mirrors the browser.
-      fsWasToolbars_ = actToolbars_ ? actToolbars_->isChecked() : true;
-      fsWasPanel_ = actPanel_ ? actPanel_->isChecked() : true;   // was the panel expanded (vs rail)?
+      fs_.wasToolbars = actToolbars_ ? actToolbars_->isChecked() : true;
+      fs_.wasPanel = actPanel_ ? actPanel_->isChecked() : true;   // was the panel expanded (vs rail)?
       // Capture the panel's real width BEFORE hiding it, so the edge-hover reveal slides to exactly
       // that width instead of setPanelShown's 320px default — which would overshoot the panel's natural
       // width and snap back at the end of the slide (a visible jump).
@@ -80,54 +80,45 @@ namespace stencil::gui {
       if (imageInfoDock_) imageInfoDock_->setVisible(false);   // …its pinned band with it
       if (selPanel_->isVisible() && selPanel_->width() > 120) panelRestoreWidth_ = selPanel_->width();
       selPanel_->setVisible(false);   // hidden in fullscreen; revealed on right-edge hover
-      fsBarsShown_ = false;
-      fsPanelShown_ = false;
-      fsActive_ = true;
+      fs_.barsShown = false;
+      fs_.panelShown = false;
+      fs_.active = true;
       syncFullscreenGlyph();
       markFullscreenBars(true);
       beginFullscreenZoom();
       showFullScreen();
       setFocus(Qt::OtherFocusReason);   // help key events reach us for the Escape-exits path
-      if (fsHoverTimer_) fsHoverTimer_->start(16);   // ~60Hz poll: reveal reacts immediately on hover
+      if (fs_.hoverTimer) fs_.hoverTimer->start(16);   // ~60Hz poll: reveal reacts immediately on hover
     }
     // Reflect the on/off state on the toolbar button (accent fill via QToolButton:checked).
     // Guarded so it never re-enters through a toggled slot.
-    if (actFullscreen_) { QSignalBlocker b(actFullscreen_); actFullscreen_->setChecked(fsActive_); }
+    if (actFullscreen_) { QSignalBlocker b(actFullscreen_); actFullscreen_->setChecked(fs_.active); }
   }
 
   // Fullscreen edge-hover reveal: show the toolbars while the cursor is at/over the TOP band, and
   // the points panel while it's at/over the RIGHT edge; hide each once the cursor leaves. Hysteresis
   // (a wide "keep" zone once shown) stops flicker as the cursor moves onto the revealed widget.
   void MainWindow::fsHoverTick() {
-    if (!fsActive_) return;
+    if (!fs_.active) return;
     const QPoint p = mapFromGlobal(QCursor::pos());
-    const int w = width(), h = height();
-    if (p.x() < 0 || p.y() < 0 || p.x() > w || p.y() > h) return;  // cursor outside the window
+    const QSize win = size();
+    if (!FullscreenController::cursorInside(p, win)) return;
     // Top toolbars: slide them in (all rows incl. header — fullscreen hid them) when the cursor enters
     // the top band, keep them while it stays within the taller keep-zone. Drive off the tracked target
-    // (fsBarsShown_), NOT live isVisible(): during an animated hide the bars stay visible until the
+    // (fs_.barsShown), NOT live isVisible(): during an animated hide the bars stay visible until the
     // slide ends, so reading isVisible() here would restart the hide every 50ms tick (that's flicker).
     // The keep-zone is the REVEALED ROWS THEMSELVES, not a guessed band: at a fixed 150px
     // the cursor left the zone while still ON the lower rows and the menu slid shut under
     // it — before it had even reached the row it was heading for. Measured
     // from the visible tool rows (plus a little grace below them, so crossing a 1px gap
     // between rows never counts as leaving), and never smaller than the reveal band.
-    int tbBand = 0;
+    int tbBottom = 0;
     for (QToolBar* b : findChildren<QToolBar*>())
       if (b != headerToolbar_ && b->isVisible())
-        tbBand = std::max(tbBand, b->mapTo(this, QPoint(0, b->height())).y());
-    tbBand = std::max(tbBand + 24, 150);
-    // The reveal band (only checked while hidden). On macOS the very top strip is grabbed by the
-    // auto-revealing system menu bar, so start the band LOWER (clear that chrome) and make it SHORTER —
-    // a slim hot-zone just below the menu bar. Elsewhere the whole top edge is ours.
-#ifdef Q_OS_MACOS
-    const int revealTop = 26, revealBot = 60;   // clear the ~24px macOS menu bar; 34px band
-#else
-    const int revealTop = 0, revealBot = 120;
-#endif
-    const bool wantTb = fsBarsShown_ ? (p.y() < tbBand) : (p.y() > revealTop && p.y() < revealBot);
-    if (wantTb != fsBarsShown_) {
-      fsBarsShown_ = wantTb;
+        tbBottom = std::max(tbBottom, b->mapTo(this, QPoint(0, b->height())).y());
+    const bool wantTb = fs_.wantBars(p, tbBottom);
+    if (wantTb != fs_.barsShown) {
+      fs_.barsShown = wantTb;
       // The TOOL rows only — the header row (logo + project name + the Controls pill) stays
       // away for the whole session, as the browser's fullscreen does: it shows the control
       // sections and nothing else (user decision, with a picture). It is also what stranded
@@ -146,10 +137,9 @@ namespace stencil::gui {
     // …and the panel's keep-zone is the panel itself, the same way: its own width plus the
     // grace, never narrower than a third of the window (the splitter-drag allowance).
     const int panelW = selPanel_->isVisible() ? selPanel_->width() : 0;
-    const int pnlKeep = std::max(w / 3, panelW + 140);
-    const bool wantPnl = fsPanelShown_ ? (p.x() > w - pnlKeep) : (p.x() > w - 28);
-    if (wantPnl != fsPanelShown_) {
-      fsPanelShown_ = wantPnl;
+    const bool wantPnl = fs_.wantPanel(p, win, panelW);
+    if (wantPnl != fs_.panelShown) {
+      fs_.panelShown = wantPnl;
       setPanelShown(wantPnl, true);
     }
   }

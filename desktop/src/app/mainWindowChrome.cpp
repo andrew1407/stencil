@@ -88,7 +88,7 @@ namespace stencil::gui {
   void MainWindow::positionPanelGrip() {
     if (!panelGrip_ || !selPanel_) return;
     const Qt::DockWidgetArea area = dockWidgetArea(selPanel_);
-    const bool on = !selPanel_->isHidden() && !selPanel_->isFloating() && !fsActive_
+    const bool on = !selPanel_->isHidden() && !selPanel_->isFloating() && !fs_.active
                     && (area == Qt::RightDockWidgetArea || area == Qt::LeftDockWidgetArea);
     panelGrip_->setVisible(on);
     if (!on) {
@@ -109,7 +109,7 @@ namespace stencil::gui {
   // kMinThickness while the hit rect stays the strip Qt really resizes on.
   void MainWindow::positionChatEdge() {
     if (!chatEdge_ || !chatDock_) return;
-    const bool on = chatDock_->isVisible() && !chatDock_->isFloating() && !fsActive_;
+    const bool on = chatDock_->isVisible() && !chatDock_->isFloating() && !fs_.active;
     chatEdge_->setVisible(on);
     if (!on) {
       chatEdge_->setHot(false);

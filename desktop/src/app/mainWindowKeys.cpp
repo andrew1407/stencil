@@ -38,7 +38,7 @@ namespace stencil::gui {
     const int key = event->key();
 
     // Escape leaves fullscreen (browser parity) — restores the toolbars + panel.
-    if (key == Qt::Key_Escape && fsActive_) { toggleFullscreen(); event->accept(); return; }
+    if (key == Qt::Key_Escape && fs_.active) { toggleFullscreen(); event->accept(); return; }
 
     // Track R held for the Alt+R+←/→ line-rotate chord (mirror of the browser #rHeld).
     if (key == Qt::Key_R) { rKeyHeld_ = true; QMainWindow::keyPressEvent(event); return; }

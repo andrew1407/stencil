@@ -198,7 +198,7 @@ namespace stencil::gui {
     // Escape, app-wide (KeyPress AND ShortcutOverride, so nothing swallows it):
     // closes an open popover first (the compact chat follows the same mini-window
     // contract — docked/user-adopted floats never dismiss this way), then leaves
-    // fullscreen (gated on fsActive_ — isFullScreen() is unreliable on macOS).
+    // fullscreen (gated on fs_.active — isFullScreen() is unreliable on macOS).
     if (activePopover_ &&
         (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) &&
         static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape) {
@@ -216,7 +216,7 @@ namespace stencil::gui {
       return true;   // the ShortcutOverride claim keeps focused widgets from eating it
     }
     if ((event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) &&
-        static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape && fsActive_) {
+        static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape && fs_.active) {
       toggleFullscreen();
       return true;
     }

@@ -2260,11 +2260,11 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(fs);
     fs->trigger();
     // Outlast the ramp itself plus the bounded wait for the window manager's resize.
-    QTRY_VERIFY_WITH_TIMEOUT(!win.fsZoomAnim_, 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.fs_.zoomAnim, 3000);
     QCOMPARE(canvas->scale(), chosen);  // entering never changed the user's zoom
 
     fs->trigger();
-    QTRY_VERIFY_WITH_TIMEOUT(!win.fsZoomAnim_, 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.fs_.zoomAnim, 3000);
     QCOMPARE(canvas->scale(), chosen);  // …and neither did leaving
   }
 

@@ -74,6 +74,12 @@ stencil_headless_test(stencil_strokegrowth_headless
     src/support/theme.cpp resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
+# Fullscreen band + zoom-handoff arithmetic (app/fullscreenController.hpp) — the edge
+# hysteresis and the viewport ratio; header-only, so the test is the only compile unit.
+stencil_headless_test(stencil_fullscreencontroller_headless
+  SOURCES tests/fullscreenController.headless.cpp
+  LIBS Qt6::Core)
+
 # Scroll-reveal curve (app/scrollReveal.hpp) — how dim a row is at a given spot in its
 # scroller; header-only, so the test is the only extra compile unit.
 stencil_headless_test(stencil_scrollreveal_headless

@@ -70,7 +70,7 @@ namespace stencil::gui {
   // The button repaints off actionIconNames_ on the icon change, keeping its glyph white.
   void MainWindow::syncFullscreenGlyph() {
     if (!actFullscreen_) return;
-    const QString name = fsActive_ ? QStringLiteral("minimize") : QStringLiteral("maximize");
+    const QString name = fs_.active ? QStringLiteral("minimize") : QStringLiteral("maximize");
     actionIconNames_.insert(actFullscreen_, name);
     const QColor ink = toolButtonIconColor(actFullscreen_, iconColor_);
     actFullscreen_->setIcon(themedIcon(name, ink, kToolIcon));
