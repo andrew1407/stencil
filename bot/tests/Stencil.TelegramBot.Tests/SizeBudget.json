@@ -16,7 +16,7 @@
     "bot/src/Stencil.TelegramBot.Bot/Telegram/CommandHandlers.Sources.cs": 300,
     "bot/src/Stencil.TelegramBot.Bot/Telegram/CommandHandlers.cs": 226,
     "bot/src/Stencil.TelegramBot.Bot/Telegram/Keyboards.cs": 343,
-    "bot/src/Stencil.TelegramBot.Bot/Telegram/Replies.cs": 421,
+    "bot/src/Stencil.TelegramBot.Bot/Telegram/Replies.cs": 111,
     "bot/src/Stencil.TelegramBot.Bot/Telegram/UpdateRouter.cs": 100,
     "bot/src/Stencil.TelegramBot.Domain/Editing/CropSpecResolver.cs": 343,
     "bot/src/Stencil.TelegramBot.Infrastructure/Cli/CliArgvBuilder.cs": 286,
