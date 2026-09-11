@@ -10,20 +10,15 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-/// <summary>One output image produced by a prompt turn, with its short human label.</summary>
 public sealed record PromptRender(string Label, RenderResult Result);
 
-/// <summary>
-/// One §10 <c>export</c> document produced by a prompt turn — the same bytes/name/caption the
-/// <c>/json</c> and <c>/project</c> commands send. The caller sends each as ONE document into
-/// the user's own chat (one send per action, per the contract).
-/// </summary>
+/// <summary>One §10 <c>export</c> document — the same bytes/name/caption <c>/json</c> and
+/// <c>/project</c> send; one document per action, per the contract.</summary>
 public sealed record PromptExport(string FileName, byte[] Bytes, string Caption);
 
 /// <summary>
-/// The outcome of one prompt turn. The main result is deliberately NOT rendered here — on
-/// <see cref="Mutated"/> the caller sends it through the shared render-and-send path; the §10
-/// <c>clearChat</c> confirm (<see cref="ClearChatRequested"/>) is deferred to the end of the turn.
+/// One prompt turn's outcome. The main result is NOT rendered here — on <see cref="Mutated"/>
+/// the caller sends it through the shared render path; §10 <c>clearChat</c> is deferred.
 /// </summary>
 public sealed record PromptOutcome(
     string Reply,
@@ -57,32 +52,27 @@ public sealed partial class PromptService
     /// <summary>Longest sanitized variant label kept for captions/file names.</summary>
     private const int MaxLabelChars = 40;
 
-    /// <summary>
-    /// The §10 profile block's closing sentence — contract prose, not a registry bullet, so it
-    /// comes from the shared asset (its rule is enforced by the parser's variant ban on §10 ops).
-    /// </summary>
+    /// <summary>The §10 block's closing sentence — contract prose, not a bullet, so it comes
+    /// from the shared asset.</summary>
     private static string BotOpsFooter => SystemPromptAsset.Text("botOpsFooter");
 
     /// <summary>
-    /// The canonical §4 system prompt: the shared prose asset around the "Available ops" section
-    /// assembled from <see cref="OpRegistry"/> — the same registry the parser and executor run
-    /// on, so the prompt can never promise an op the bot cannot execute.
+    /// The canonical §4 system prompt: shared prose around an "Available ops" section assembled
+    /// from <see cref="OpRegistry"/>, so it can never promise an op the bot cannot execute.
     /// </summary>
     public static readonly string SystemPrompt =
         SystemPromptAsset.Head + OpRegistry.CoreOpsSection + SystemPromptAsset.Tail;
 
     /// <summary>
-    /// The bot's §10 profile block — one bullet per §10-scoped op — assembled from the registry's
-    /// profile entries and spliced at the end of §4's op list, where the GUI editors splice their
-    /// editor-settings block. Every op maps 1:1 onto an EXISTING bot command.
+    /// The bot's §10 profile block — one bullet per §10-scoped op, spliced at the end of §4's op
+    /// list where the GUI editors splice theirs. Every op maps 1:1 onto an existing command.
     /// </summary>
     public static readonly string BotOpsPrompt =
         OpRegistry.ProfileOpsSection + "\n" + BotOpsFooter;
 
     /// <summary>
-    /// The chat turns' system prompt: §4 plus <see cref="BotOpsPrompt"/> at the op
-    /// list's end. The splice anchor is verified, so rewording §4 without updating it fails
-    /// loudly here instead of silently shipping a prompt with the block missing.
+    /// §4 plus <see cref="BotOpsPrompt"/> at the op list's end. The anchor is verified, so
+    /// rewording §4 fails loudly here instead of shipping a prompt with the block missing.
     /// </summary>
     public static readonly string ChatSystemPrompt = BuildChatSystemPrompt();
 
@@ -96,16 +86,12 @@ public sealed partial class PromptService
             : throw new InvalidOperationException("SystemPrompt no longer contains the bot-ops splice anchor");
     }
 
-    /// <summary>
-    /// The §7 edge-map suffix sentence (shared asset prose), appended verbatim to the
-    /// system-prompt suffix when — and only when — the edge map is actually attached.
-    /// </summary>
+    /// <summary>The §7 edge-map sentence (shared asset prose), appended only when the edge map
+    /// is actually attached.</summary>
     public static string EdgeMapSentence => SystemPromptAsset.Text("edgeMapSentence");
 
-    /// <summary>
-    /// Bound on how many users' conversations are held in memory at once: beyond it, the
-    /// least-recently-active user's history is forgotten (their next turn simply starts fresh).
-    /// </summary>
+    /// <summary>How many users' conversations stay in memory; beyond it the least-recently-active
+    /// one is forgotten (their next turn starts fresh).</summary>
     public const int MaxTrackedUsers = 256;
 
     /// <summary>One user's conversation plus a monotonic last-touched stamp for eviction.</summary>
@@ -154,9 +140,8 @@ public sealed partial class PromptService
     }
 
     /// <summary>
-    /// The provider config this user's turns run against: the profile they picked with
-    /// <c>/chatapi</c>, or the operator's own when they picked none — or one since removed from
-    /// the configuration, which falls back rather than failing the turn.
+    /// The provider config this user's turns run against: their <c>/chatapi</c> profile, else
+    /// the operator's own — a profile since removed falls back rather than failing the turn.
     /// </summary>
     private LlmOptions OptionsFor(UserSession session) =>
         session.LlmProfile is not string name
@@ -164,13 +149,11 @@ public sealed partial class PromptService
             : _profiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))?.Options
                 ?? _options;
 
-    /// <summary>The immediate reply when the process-wide LLM gate is full.</summary>
     public const string BusyReply = "The assistant is busy right now — please try again in a moment.";
 
     /// <summary>
     /// Run one prompt turn: build the request, call the LLM, parse the plan and execute it.
-    /// <see cref="LlmException"/>s bubble to the caller (truncated/refused replies are never
-    /// parsed as plans) — including the gate's <see cref="BusyReply"/> when full.
+    /// <see cref="LlmException"/>s bubble up — a truncated/refused reply is never parsed.
     /// </summary>
     public async Task<PromptOutcome> PromptAsync(long userId, string text, LlmImage? image, CancellationToken ct = default)
     {
@@ -214,7 +197,6 @@ public sealed partial class PromptService
         };
     }
 
-    /// <summary>One model round: build the turn, call the LLM, parse and execute the plan.</summary>
     private async Task<(PromptOutcome Outcome, OpPlan? Plan)> RoundAsync(
         long userId, string text, LlmImage? image, CancellationToken ct)
     {
@@ -233,16 +215,13 @@ public sealed partial class PromptService
         return (await ExecuteAsync(userId, plan, parsed.Warnings, ct), plan);
     }
 
-    /// <summary>
-    /// §7: the plan's actions CONTAIN a load op (a blank, an extracted frame, an opened URL)
-    /// and drew NO layout, so the model has yet to see the pixels it produced.
-    /// </summary>
+    /// <summary>§7: the plan loaded pixels (blank / frame / URL) and drew no layout, so the
+    /// model has yet to see what it produced.</summary>
     private static bool ContinuablePlan(OpPlan plan) =>
         plan.Variants.Count == 0 && plan.Ask is null
         && plan.Actions.Any(a => a is BlankAction or FrameAction or OpenUrlAction)
         && !plan.Actions.Any(a => a is LayoutAction);
 
-    /// <summary>The freshly rendered working image, encoded for the continuation round.</summary>
     private async Task<LlmImage?> RenderForVisionAsync(long userId, CancellationToken ct)
     {
         if (_attachments is null) return null;

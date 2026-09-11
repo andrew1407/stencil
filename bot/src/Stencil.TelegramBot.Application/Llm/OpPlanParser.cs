@@ -65,7 +65,6 @@ public static partial class OpPlanParser
         public MisplacedOpException(string message) : base(message) { }
     }
 
-    /// <summary>Parse one raw LLM reply into a plan, warnings, or a plan-level error.</summary>
     public static OpPlanParseResult Parse(string? raw)
     {
         string text = (raw ?? "").Trim();
@@ -89,7 +88,6 @@ public static partial class OpPlanParser
         }
     }
 
-    /// <summary>Drop Markdown code-fence lines (```/```json) before object extraction.</summary>
     private static string StripFences(string text)
     {
         if (!text.Contains("```"))
@@ -135,7 +133,6 @@ public static partial class OpPlanParser
         return false;
     }
 
-    /// <summary>Index of the matching <c>}</c> for the <c>{</c> at <paramref name="start"/>.</summary>
     private static bool TryFindBalancedEnd(string text, int start, out int end)
     {
         int depth = 0;
@@ -381,15 +378,12 @@ public static partial class OpPlanParser
         }
     }
 
-    /// <summary>True when the field is present and non-null.</summary>
     private static bool HasField(JsonElement element, string name) =>
         element.TryGetProperty(name, out JsonElement value) && value.ValueKind != JsonValueKind.Null;
 
-    /// <summary>A label in parentheses for a drop warning, or nothing when it carried none.</summary>
     private static string Named(string label) =>
         label.Trim() is { Length: > 0 } name ? $" (\"{Truncate(name)}\")" : "";
 
-    /// <summary>Clip a value echoed into a warning so a huge field can't flood the chat.</summary>
     private static string Truncate(string value) =>
         value.Length <= MaxEchoedChars ? value : value[..MaxEchoedChars] + "…";
 }

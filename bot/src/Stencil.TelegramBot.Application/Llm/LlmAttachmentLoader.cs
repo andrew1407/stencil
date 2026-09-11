@@ -122,7 +122,6 @@ public sealed class LlmAttachmentLoader
         return new LlmImage(mediaType, Convert.ToBase64String(await File.ReadAllBytesAsync(path, ct)));
     }
 
-    /// <summary>Read at most <paramref name="count"/> leading bytes of a file.</summary>
     private static async Task<byte[]> ReadPrefixAsync(string path, int count, CancellationToken ct)
     {
         await using FileStream stream = File.OpenRead(path);

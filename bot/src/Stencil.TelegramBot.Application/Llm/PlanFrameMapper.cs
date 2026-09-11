@@ -20,10 +20,8 @@ public sealed class PlanFrameMapper
 
     private readonly List<Step> _steps = new();
 
-    /// <summary>Current tracked frame width in px.</summary>
     public double Width { get; private set; }
 
-    /// <summary>Current tracked frame height in px.</summary>
     public double Height { get; private set; }
 
     public PlanFrameMapper(double width, double height)

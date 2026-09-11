@@ -156,7 +156,6 @@ public sealed partial class PromptService
         return suffix + PenSuffix(session) + ConnectionsSuffix(session) + ProjectsSuffix(projects);
     }
 
-    /// <summary>The pen defaults + the pending-edit stack size, for the §10 bot context.</summary>
     private static string PenSuffix(UserSession session)
     {
         LineStyle pen = session.Edits.Pen;
