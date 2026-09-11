@@ -27,7 +27,7 @@ its own tree, plus the cross-tree inputs it compiles, embeds, or pins parity aga
 | **mcp** | Builds the CLI first (its gated e2e tests need the binary on `STENCIL_CLI`), then `cargo build` + `cargo test`. |
 | **server** | `go build` + `go test -race`, with Postgres and Redis service containers for the gated store/bus integration tests. |
 | **e2e** | Node/Playwright. Brings up db + redis + server via docker compose and drives the real browser app, the unpacked extension, and the server binary over their wire protocols. See `e2e/README.md`. |
-| **bot** | `dotnet build` + the offline xUnit suite (no token, server, CLI or Redis). |
+| **bot** | `dotnet build` + the offline xUnit suite (no token, server, CLI or Redis). The `packages.lock.json` files are tracked, so it restores with `--locked-mode`. |
 | **guard-hook** | `node --test` over the PreToolUse guard's own suite (`.claude/hooks/`). |
 | **docker-images** | A matrix over only the images whose build context changed. browser/cli/mcp/bot build **from the repo root** (they compile `core/`); server builds from `./server`. Behaviour is covered elsewhere — this guards packaging. |
 

@@ -51,6 +51,11 @@ cd bot
 dotnet restore Stencil.TelegramBot.slnx   # populates bot/packages/ (never ~/.nuget)
 ```
 
+Every project sets `RestorePackagesWithLockFile`, so a restore writes a **tracked**
+`packages.lock.json` beside its `.csproj`. CI restores with `--locked-mode`, which fails
+instead of resolving anything the lockfile does not pin — so commit the regenerated lockfiles
+whenever you change a `<PackageReference>`.
+
 That keeps the bot's dependencies self-contained and off the global cache. If you ever need
 to re-add one, do it against the project, e.g.:
 
