@@ -15,7 +15,7 @@
     "cli/src/console/session.zig": 357,
     "cli/src/console/ui.zig": 209,
     "cli/src/line_edit.zig": 453,
-    "cli/src/llm/opSchema.zig": 821,
+    "cli/src/llm/opSchema.zig": 183,
     "cli/src/llm/opplan.zig": 39,
     "cli/src/llm/registry.zig": 440,
     "cli/src/llm/transport.zig": 255,
@@ -35,7 +35,8 @@
     "cli/src/console/screen": 16,
     "cli/src/console/session": 15,
     "cli/src/line_edit": 17,
-    "cli/src/llm": 10,
+    "cli/src/llm": 12,
+    "cli/src/llm/opSchema": 6,
     "cli/src/llm/opplan": 12,
     "cli/src/params": 10,
     "cli/src/scrape": 11,
@@ -44,6 +45,7 @@
   },
   "exceptions": {},
   "_notes": {
+    "cli/src/llm commentPct 10 -> 12": "Splitting opSchema.zig into opSchema/ moved 666 comment-sparse lines out of cli/src/llm. The directory's ABSOLUTE comment count FELL from 288 to 254; only the denominator moved. No comment was added.",
     "cli/src/console commentPct 14 -> 15": "Phase 6 moved ~4,600 lines of comment-sparse implementation out of cli/src/console into console/{handlers,llm,screen,session}/ (each newly pinned at its own measured share). The directory's ABSOLUTE comment count fell from ~1289 to 640; only the denominator moved. No comment was added to the files that stayed."
   }
 }
