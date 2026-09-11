@@ -5,7 +5,6 @@
     "mcp/src/deliver.rs": { "lines": 251, "prod": 202 },
     "mcp/src/server/mod.rs": { "lines": 140, "prod": 140 },
     "mcp/tests/layout_test.rs": 181,
-    "mcp/tests/llm_wire_fixtures_test.rs": 279,
     "mcp/tests/outcome_test.rs": 236,
     "mcp/tests/registry_test.rs": 197
   },
