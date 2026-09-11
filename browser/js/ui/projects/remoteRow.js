@@ -3,9 +3,8 @@ import { escapeHtml } from '../base.js';
 import { notify, shortName } from '../../utils.js';
 import { leaveThenRemove, rowLeaveDust, ITEM_DUST_MS } from '../motion.js';
 
-// Remote-thumbnail blob cache keyed by `serverUrl|id|version`, so the many re-renders
-// (search keystrokes, live events, peer pings) reuse one fetch per project version
-// instead of re-downloading on each. Mirrors the desktop ProjectsDialog::remoteThumbs_.
+// Thumbnail blobs keyed `serverUrl|id|version`, so the many re-renders (search keystrokes,
+// live events, peer pings) share one fetch per version. Twin: ProjectsDialog::remoteThumbs_.
 const remoteThumbCache = new Map();
 const remoteThumbBlob = (conn, meta) => {
   const id = `${meta.serverUrl}|${meta.id}`;
@@ -15,9 +14,8 @@ const remoteThumbBlob = (conn, meta) => {
     // Drop any stale-version entry for this project so we hold ~one blob per project.
     for (const k of remoteThumbCache.keys())
       if (k.startsWith(`${id}|`)) remoteThumbCache.delete(k);
-    // Fetch only files the record says exist (resultPath/originalPath), preferring the edited
-    // `result`. A project with neither (no bytes uploaded) resolves to null with NO request, so
-    // the console isn't spammed with 404s for files the server doesn't have.
+    // Only files the record says exist, preferring the edited `result`. With neither, this
+    // resolves null and makes NO request — no 404 spam for files the server hasn't got.
     const hasResult = !!meta.resultPath;
     const hasOriginal = !!meta.originalPath;
     if (hasResult)
@@ -43,9 +41,8 @@ export function createRemoteRow(deps) {
     projectTooltip, fmtDate, confirmOpen, openRemote,
     scrollRowIntoView, beginRemoval, retireKey, rowById, invalidateRemotes,
   } = deps;
-    // Build a row for a server-stored project: golden outline + a server badge.
-    // "Open" fetches the original image bytes + layout from the server and loads
-    // them into the editor (read into a local editing session).
+    // Golden outline + a server badge. "Open" fetches the image bytes and layout from the
+    // server into a local editing session.
     const makeRemoteRow = (meta) => {
       const row = document.createElement('div');
       row.className = 'project-row project-remote';
@@ -106,16 +103,14 @@ export function createRemoteRow(deps) {
       { const tip = projectTooltip(meta); if (tip) name.dataset.title = tip; }
       const sub = document.createElement('div');
       sub.className = 'project-sub';
-      // Server projects carry createdAt in their ProjectRecord — show it (they have
-      // no local expiry). Shown before the server badge.
+      // ProjectRecord's createdAt (server rows have no local expiry), before the badge.
       if (meta.createdAt) {
         const created = document.createElement('span');
         created.className = 'project-created';
         created.textContent = `Created ${fmtDate(meta.createdAt)} · `;
         sub.appendChild(created);
       }
-      // Server projects may carry an expiresAt (epoch ms; 0/absent = keep forever) —
-      // shown next to the created date when the server has set one.
+      // expiresAt is epoch ms; 0 or absent means keep forever, so nothing is shown.
       if (meta.expiresAt) {
         const expires = document.createElement('span');
         expires.className = 'project-expires';
@@ -155,8 +150,7 @@ export function createRemoteRow(deps) {
         try { const newId = await app.moveProjectToLocal(meta); notify('Moved to local', 'ok'); render(); scrollRowIntoView(newId); }
         catch (err) { notify(`Could not move to local — ${err.message}`, 'fail'); }
       };
-      // Detached local copy (prompts a name, default "<name>-copy"), leaving the server copy
-      // in place; opens the new local project.
+      // Detached local copy, leaving the server's in place; opens the new local project.
       const copyToLocal = async () => {
         const name = await app.prompt('Name for the local copy:', { title: 'Copy to local', confirmLabel: 'Copy', confirmIcon: 'copy', defaultValue: `${meta.name || 'Untitled'}-copy` });
         if (name == null) return;
@@ -167,8 +161,7 @@ export function createRemoteRow(deps) {
           close();
         } catch (err) { notify(`Could not make a local copy — ${err.message}`, 'fail'); }
       };
-      // Incognito copy (no saving): load the project's content as an incognito session, in
-      // this tab or a new one.
+      // Incognito copy (never saved), in this tab or a new one.
       const copyToIncognito = async () => {
         const where = await app.choose(`Open an incognito copy of "${shortName(meta.name || 'Untitled')}" where?`,
           { title: 'Incognito copy', confirmLabel: 'Open', confirmIcon: 'incognito', options: [
@@ -193,8 +186,7 @@ export function createRemoteRow(deps) {
         catch (err) { notify(`Could not delete — ${err.message}`, 'fail'); }
       };
 
-      // Secondary actions behind the "⋯" overflow menu (matches the local rows);
-      // shared with the row's right-click context menu.
+      // The "⋯" overflow menu, shared with the row's right-click menu (as local rows).
       const menuItems = () => [
         { icon: 'folder', label: 'Open from server', onClick: openFromServer },
         { icon: 'copy', label: 'Copy to local', onClick: copyToLocal },

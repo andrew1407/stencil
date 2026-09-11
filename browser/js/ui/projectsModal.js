@@ -20,6 +20,7 @@ import { createRemoteRow } from './projects/remoteRow.js';
 import { attachRowActions, attachIncognitoActions } from './projects/rowActions.js';
 import { createDragReorder } from './projects/dragReorder.js';
 import { wireBatchActions } from './projects/batchActions.js';
+import { createProjectSelection } from './projects/selection.js';
 
 // ── Component: projects chooser / switcher modal ────────────────
 // Lists saved projects + a synthetic row for the current temp editor. Rows built at
@@ -84,104 +85,12 @@ export class StencilProjectsModal extends StencilElement {
     // load) so the hover-magnify zoom can reuse them; freed at the start of the next render.
     const remoteObjectUrls = new Set();
 
-    // ── Multi-select state ──
-    // selected: key -> { kind:'local'|'remote', id, serverUrl, isServer, meta }. A local meta
-    // with a remoteId+address is a server-backed project (isServer); a pure-local one isn't.
-    const selected = new Map();
-    // …minus the rows whose removal dust is playing: still on screen, already gone as far
-    // as the selection bar is concerned, so Select all and the batch buttons come apart
-    // WITH the rows instead of a whole flight later (user report). The connections modal's
-    // `doomed` (connectModal.js) and the desktop's retired rows (projectsDialog.cpp).
-    const doomed = new Set();
-    const anyLiveSelectable = () => {
-      for (const k of selectables.keys()) if (!doomed.has(k)) return true;
-      return false;
-    };
-    // Retire one row's key for the length of its scatter: it leaves the select-all pool and
-    // the checked set NOW, and the bar re-asks on the row's own clock. Returns the undo,
-    // called once the dust has landed (the settle render then rebuilds the pool anyway).
-    const retireKey = (key) => {
-      doomed.add(key);
-      selected.delete(key);
-      updateBatchBar();
-      // Undone only once the SETTLE render has rebuilt the pool without the row: the row
-      // stays in the DOM (and so in `selectables`) for the whole scatter, so releasing the
-      // key when the box collapses would flash Select all back on for the rest of it.
-      return () => { doomed.delete(key); updateBatchBar(); };
-    };
-    const localKey = (id) => `local:${id}`;
-    const remoteKey = (m) => `remote:${m.serverUrl}:${m.id}`;
-    const isServerMeta = (m) => !!(m && m.remoteId && m.address);
-    const sel = () => Array.from(selected.values());
-    // Batch eligibility: move/copy-to-server wants only pure-local rows; move/copy-to-local
-    // wants only pure-remote (not-yet-local) rows.
-    const onlyLocalMovable = () => selected.size > 0 && sel().every(s => s.kind === 'local' && !s.isServer);
-    const onlyRemoteMovable = () => selected.size > 0 && sel().every(s => s.kind === 'remote');
-
-    const batchBtns = {
-      moveServer: document.getElementById('projects-batch-move-server'),
-      copyServer: document.getElementById('projects-batch-copy-server'),
-      moveLocal: document.getElementById('projects-batch-move-local'),
-      copyLocal: document.getElementById('projects-batch-copy-local'),
-      remove: document.getElementById('projects-batch-remove'),
-      clear: document.getElementById('projects-batch-clear'),
-    };
-    const selectAllBtn = () => document.getElementById('projects-select-all');
-    const selectedGroup = document.getElementById('projects-batch-selected');
-    // The controls fly on the app's own control clock (motion.js REVEAL_GROUP_OUT_MS —
-    // the desktop's kControlRevealOutMs), never the rows' 220ms box collapse (connectModal.js
-    // says why). They still SET OFF with the rows: the removals re-ask in the same turn.
-    const updateBatchBar = () => {
-      // The bar hosts Select all too, so it shows whenever the list HAS selectable rows —
-      // the selection-only controls inside it come and go with the selection. The bar
-      // itself opens at once and closes only once those have flown: its own slot clips
-      // them, so closing it in the same turn blinked them out with no animation at all
-      // (user report, and the desktop's deferred hide in ProjectsDialog::updateBatchBar).
-      const live = anyLiveSelectable();
-      revealBar(batchBar, () => selected.size > 0 || anyLiveSelectable());
-      // The count rides the same swap as the buttons: a hard display flip on the FIRST
-      // thing in the row shoved everything after it sideways in one frame, which is most
-      // of what read as "jumping" (user report).
-      batchCount.textContent = `${selected.size} selected`;
-      const local = onlyLocalMovable();
-      const remote = onlyRemoteMovable();
-      // Inapplicable directions are hidden, not greyed: a local-only selection never moves
-      // "to local", so a disabled button is just noise. Coming and going is the app's
-      // control swap (motion.js revealControls). Which directions apply is a plain display
-      // flip inside the group — the group flies, so these carry no cloud of their own.
-      const show = (btn, on) => { btn.style.display = on ? '' : 'none'; };
-      show(batchBtns.moveServer, local && hasServers());
-      show(batchBtns.copyServer, local && hasServers());
-      show(batchBtns.moveLocal, remote);
-      show(batchBtns.copyLocal, remote);
-      // …and the GROUP is what comes and goes. One flight, not one per button:
-      // revealControls photographs a control where it sits at that instant, and siblings
-      // revealed in the same turn are still animating their own width.
-      revealControls(batchCount, selected.size > 0);
-      revealControls(selectedGroup, selected.size > 0);
-      revealControls(selectAllBtn(), live);
-      updateSelectAll();
-    };
-    const clearSelection = () => { selected.clear(); updateBatchBar(); };
-    // What THIS render offered a checkbox for (the filtered view) — the select-all pool.
-    const selectables = new Map();
-    const allSelected = () => {
-      let live = 0;
-      for (const k of selectables.keys()) {
-        if (doomed.has(k)) continue;
-        if (!selected.has(k)) return false;
-        live++;
-      }
-      return live > 0;
-    };
-    // Its label only — the button's coming and going rides updateBatchBar's ordered pass,
-    // with the rest of the bar.
-    const updateSelectAll = () => setSelectAllFace(selectAllBtn(), allSelected());
-    const toggleSelect = (key, entry, on) => {
-      if (on) selected.set(key, entry);
-      else selected.delete(key);
-      updateBatchBar();
-    };
+    // ── Multi-select + the batch bar (ui/projects/selection.js) ──
+    const {
+      selected, doomed, selectables, batchBtns, sel, retireKey, localKey, remoteKey,
+      isServerMeta, anyLiveSelectable, allSelected, updateBatchBar, updateSelectAll,
+      clearSelection, toggleSelect,
+    } = createProjectSelection({ batchBar, batchCount, hasServers: () => hasServers() });
 
     // Pick a connected server (auto when only one). Returns an address or null (cancelled).
     // `closeAnchor` (also in confirmOpen/openWithIntent) is where the dialog's dust pours
