@@ -216,11 +216,11 @@ both. `prefers-reduced-motion: reduce` keeps the ring and drops the motion.
 A URL dropped onto the list becomes a **new pinned row**, and that row announces itself:
 it drops in from the drag and pulses the accent ring once (`.row.just-dropped`) so it is
 findable mid-list — distinct from the plainer flash a row that was merely pinned gets. The
-list itself and the assistant transcript ride a **scroll reveal** (`src/lib/motion.js`,
-the mirror of `browser/js/ui/motion.js`): rows fade and lift in as they scroll into view
+list itself and the assistant transcript ride a **scroll reveal** (`src/lib/motion/`,
+the mirror of `browser/js/ui/motion/`): rows fade and lift in as they scroll into view
 and dissolve again at the top edge. Both collapse under `prefers-reduced-motion: reduce`,
 and neither runs at all without an `IntersectionObserver` — a row is never left dimmed. A row
-being **removed** comes apart instead of fading: `disintegrate()` (`src/lib/motion.js`, the
+being **removed** comes apart instead of fading: `disintegrate()` (`src/lib/motion/`, the
 mirror of the browser's) paints one grain per grid cell in the theme's accent and its
 shade and scatters them on bent paths, all on one canvas (`src/lib/dustCloud.js`, the
 browser's copy byte for byte). **Options → Interface animation** picks how all of that

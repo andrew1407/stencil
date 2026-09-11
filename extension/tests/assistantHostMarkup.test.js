@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { assistantSrc, popupCss } from './helpers/sources.js';
+import { assistantSrc, motionSrc, popupCss } from './helpers/sources.js';
 
 // The controller's own source and the popup's stylesheet set, read once — several
 // cases assert on them as text.
@@ -159,7 +159,7 @@ test('clearing waits out the wipe before the empty state returns', () => {
   assert.match(src, /if \(state\.busy \|\| transcriptEl\.querySelector\(':scope > \.msg, :scope > \.card, :scope > \.warn'\)\) return;/,
     'a turn started during the wipe must not be papered over with chips — and the '
     + 'check is :scope-d, or the scatter\'s own .msg clones read as live conversation');
-  const motion = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  const motion = motionSrc();
   const shared = readFileSync(new URL('../src/popup/assistant/shared.js', import.meta.url), 'utf8');
   assert.match(shared, /chatIn, leaveThenRemove, CHAT_LEAVE_MS, scatterGridFor/);
   // Chat entries leave on the slower, finer dissolve — more particles, more time.
@@ -182,7 +182,7 @@ test('clearing waits out the wipe before the empty state returns', () => {
 // …and the mirror: an entry APPEARING had no particles at all, so the two directions
 // read as different surfaces. Every append now plays the gather (motion.js chatIn).
 test('every appended entry arrives as dust — armed only after the scroll', () => {
-  const motion = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  const motion = motionSrc();
   // Derived from the row's flight, not a literal: the two must never meet (motion.js).
   assert.match(motion, /export const CHAT_ENTER_MS = Math\.round\(DISINTEGRATE_MS \* 0\.58\);/);
   assert.match(motion, /export function chatIn\(el, count = 1, index = 0, \{ host = null \} = \{\}\) \{/);

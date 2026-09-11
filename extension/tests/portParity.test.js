@@ -63,15 +63,16 @@ for (const [name, browserPath, extPath] of MANIFEST) {
 // A module that ports only PART of a browser module lists the functions instead: each
 // must match its browser original verbatim, mid-body comments included. A browser
 // function routed to the wasm core keeps its JS reference under a `JS` suffix — that is
-// the original. The browser side may be a file or a directory, which is scanned.
+// the original. Either side may be a file or a directory, which is scanned whole.
 const FUNCTIONS = [
   ['popover', '../../browser/js/ui/popover.js', '../src/lib/popover.js', ['popoverPosition']],
   ['cropGeometry', '../../browser/js/core/cropGeometry.js', '../src/lib/cropGeometry.js',
     ['isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
      'moveCropClamped', 'scaleCropCentered']],
-  // motion.js is the extension's own implementation; only what it shares to the letter
-  // with the app — the pure ramps, the tile maths, the class names — is listed.
-  ['motion', '../../browser/js/ui/motion/', '../src/lib/motion.js', [
+  // motion/ is the extension's own implementation, split along the browser's own file
+  // boundaries; only what it shares to the letter with the app — the pure ramps, the tile
+  // maths, the class names — is listed.
+  ['motion', '../../browser/js/ui/motion/', '../src/lib/motion/', [
     'REVEAL_ITEM_CLASS', 'REVEAL_IN_CLASS', 'REVEAL_ENTERING_CLASS', 'REVEAL_MASKED_CLASS',
     'revealDissolve', 'revealGrain',
     'LEAVING_CLASS', 'createListHold', 'emptyStateVisible',
@@ -99,8 +100,8 @@ const declaration = (src, name) => {
   return null;
 };
 
-// The browser original as one string: a file, or every .js in a directory.
-const browserSource = (rel) => {
+// A port as one string: a file, or every .js in a directory.
+const sourceOf = (rel) => {
   if (!rel.endsWith('/')) return read(rel);
   const dir = new URL(rel, import.meta.url);
   return readdirSync(dir).filter((f) => f.endsWith('.js')).sort()
@@ -109,8 +110,8 @@ const browserSource = (rel) => {
 
 for (const [name, browserPath, extPath, fns] of FUNCTIONS) {
   test(`${name}: every ported function matches its browser original`, () => {
-    const browser = browserSource(browserPath);
-    const ext = read(extPath);
+    const browser = sourceOf(browserPath);
+    const ext = sourceOf(extPath);
     for (const fn of fns) {
       const mine = declaration(ext, fn);
       assert.ok(mine, `${name}: the extension no longer exports ${fn}`);

@@ -6,7 +6,7 @@
 // layer itself is driven over a hand-rolled document; the CSS contract is read out of the
 // stylesheets, and the injected modal (which can link none of them) out of its own source.
 import test from 'node:test';
-import { assistantSrc } from './helpers/sources.js';
+import { assistantSrc, motionSrc } from './helpers/sources.js';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
@@ -20,7 +20,7 @@ import { FLIGHTS, alphaAt, PAINT_STOPS } from '../src/lib/dustCloud.js';
 
 const css = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 const ANIMS = css('../src/lib/animations.css');
-const MOTION = css('../src/lib/motion.js');
+const MOTION = motionSrc();
 const THEME = css('../src/lib/theme.css');
 const OVERLAY = css('../src/lib/overlay.js');
 
@@ -97,7 +97,7 @@ test('a surface never dusts as copies of ITSELF — a cloud carries no identity'
   // surface's cloud lands on <body>: a few hundred copies of a menu would be a few
   // hundred more elements answering to `.accent-dd-menu`, `.action-menu`, an id — and
   // every query on the page would have to know about a decoration.
-  const motionJs = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  const motionJs = motionSrc();
   const dust = motionJs.slice(motionJs.indexOf('const surfaceDust ='));
   assert.match(dust, /paintTile: speckPainter\(el\),/, 'a surface always paints specks');
   assert.ok(!/makeCopy|cloneNode|cloneForTile/.test(dust.slice(0, dust.indexOf('settleSurface'))),

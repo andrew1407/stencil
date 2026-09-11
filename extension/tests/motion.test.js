@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { popupCss } from './helpers/sources.js';
+import { popupCss, motionSrc } from './helpers/sources.js';
 
 // The stylesheet the CSS half of this contract lives in, read once.
 const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
@@ -422,7 +422,7 @@ test('chatIn: veils at once, lifts only when the motes have landed', async () =>
   // Decoration only: a missing element must never make an append throw.
   await chatIn(null);
 
-  const src = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  const src = motionSrc();
   // The arriving cloud is hosted in the CALLER's `host` (assistant.js passes its
   // section), not in the transcript (its clones would read as live conversation to
   // everything that walks it) and not on <body> (every bubble rule here is scoped
@@ -469,7 +469,7 @@ test('a flying cloud is re-anchored to its entry, and dropped if the entry leave
   // appends more rows. A cloud left where it started is drawn over whatever has since
   // moved into those coordinates: the reported "text appears mid-animation, breaking the
   // UI" (a user bubble's motes rendered on top of the error card below it).
-  const src = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  const src = motionSrc();
   assert.match(src, /const trackDust = \(el, ms, onDrop = \(\) => \{\}\) => \{/);
   // …and a subject that RESIZES mid-flight (a re-wrapped label, a font landing, the panel
   // dragged wider) leaves a cloud that no longer matches what arrives — there is no
@@ -498,7 +498,7 @@ test('a flying cloud is clipped to its scroller, so no mote lands on the compose
   // (reported). The clip is against the host's OWN border box, so the insets are signed:
   // negative EXPANDS it, letting a mote fly anywhere inside the transcript and nowhere
   // outside it.
-  const src = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  const src = motionSrc();
   assert.match(src, /const clipDustToScroller = \(el, scroller = el\?\.parentElement\) => \{/);
   assert.match(src, /host\.style\.clipPath =/);
   assert.match(src, /inset\(\$\{px\(s\.top - r\.top\)\} \$\{px\(r\.right - s\.right\)\} \$\{px\(r\.bottom - s\.bottom\)\} \$\{px\(s\.left - r\.left\)\}\)/);
@@ -512,7 +512,7 @@ test('dropping the cloud hands the entry over in the SAME frame', () => {
   // The veil is lifted by a timer at the end of the FULL flight. A cancel that only killed
   // the motes therefore left the message invisible, with nothing standing in for it, until
   // that timer fired — up to the whole gather. Found by resizing a live entry mid-flight.
-  const src = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  const src = motionSrc();
   assert.match(src, /const trackDust = \(el, ms, onDrop = \(\) => \{\}\) => \{/);
   assert.match(src, /cancelDust\(el\); live = false; onDrop\(\); return;/);
   assert.match(src, /const stop = trackDust\(el, CHAT_ENTER_MS, handOver\);/);
@@ -586,7 +586,7 @@ test('the gates read StencilMotion live, and fall back to the OS preference with
 });
 
 test('the mode is wired: the one cloud door, the chat slide, and the CSS half', () => {
-  const src = readFileSync(new URL('../src/lib/motion.js', import.meta.url), 'utf8');
+  const src = motionSrc();
   const body = src.slice(src.indexOf('export function disintegrate('), src.indexOf('export const reintegrate'));
   assert.ok(body.includes('if (!dustEnabled()) return false;'), 'the cloud is built behind the gate');
   assert.ok(body.includes('const style = styleCode();') && body.includes('const paints = paletteCss();'),
