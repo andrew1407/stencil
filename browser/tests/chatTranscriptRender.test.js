@@ -15,6 +15,7 @@ import { motionSource } from './helpers/motionSource.js';
 import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
+import { projectsModalSource } from './helpers/projectsModalSource.js';
 
 // ── A DOM-lite live tree, enough to actually RUN renderChatLog ───────────────
 // The other chat views are pinned against their source; the bugs this file guards
@@ -266,9 +267,8 @@ test('ONE turn at a time: the shared in-flight flag every surface reads', async 
   assert.strictEqual(chatLog().length, 2, 'exactly one turn was logged');
   resetChatLog();
 
-  // Both retry/resend entry points consult it, so a click in one surface cannot start
-  // a second turn over a turn the OTHER surface is running (that is what logged the
-  // user's prompt twice).
+  // Both retry/resend entry points consult it, so a click in one surface cannot start a
+  // second turn over one the OTHER surface is running (that logged the prompt twice).
   for (const [name, src] of [['panel', readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8')],
     ['flyout', contextMenuSource()]]) {
     assert.ok(src.includes('chatTurnInFlight()'), `${name} guards on the shared flag`);
@@ -428,7 +428,7 @@ test('the chat transcript takes the SMOOTH fade; other reveal targets keep the g
   const view = chatViewSource();
   assert.match(view, /observeReveal\(transcript, '\[data-row\]', \{ smooth: true \}\)/,
     'text rows opt out of the dot grain');
-  const projects = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  const projects = projectsModalSource();
   assert.match(projects, /observeReveal\(list, '\.project-row'\)/, 'project rows are untouched');
   const motion = motionSource();
   const apply = motion.slice(motion.indexOf('const apply = ()'), motion.indexOf('const schedule'));

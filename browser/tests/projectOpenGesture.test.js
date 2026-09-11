@@ -2,15 +2,16 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
-// Opening a project row: the gesture → intent mapping and the deferred-single-click
-// machine behind it (browser/js/core/projectOpenGesture.js). Both are pure/injected, so the
-// whole matrix — mouse and touch — is exercised without a DOM.
+// Opening a project row: the gesture → intent mapping and the deferred-single-click machine
+// behind it (js/core/projectOpenGesture.js) — pure/injected, so the whole mouse+touch matrix
+// runs without a DOM.
 import {
   rowOpenIntent, createOpenGesture, DOUBLE_CLICK_MS, DRAG_SLOP_PX, canRefreshList,
 } from '../js/core/projectOpenGesture.js';
 import { isTouchLike, TOUCH_MEDIA } from '../js/utils.js';
 import { COMPONENTS_CSS } from './helpers/css.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
+import { projectsModalSource } from './helpers/projectsModalSource.js';
 
 // A controllable clock: timers fire only when the test advances it.
 const stubTimers = () => {
@@ -192,7 +193,7 @@ test('a slow, still press is just a click on either input', () => {
 
 // ── Wiring contract (what the DOM side must keep doing) ──
 test('the row wires every gesture to the SAME open paths, and stays keyboard-usable', () => {
-  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  const src = projectsModalSource();
   // One intent runner, reusing the existing open paths — no duplicated open logic.
   assert.ok(src.includes('const openWithIntent = async ({ confirm = true, target = \'here\', closeAnchor = null } = {}) => {'));
   assert.ok(src.includes('app.openProjectInNewTab(meta.id);   // the same path the ⋯ menu uses'));
@@ -219,10 +220,10 @@ test('the row wires every gesture to the SAME open paths, and stays keyboard-usa
   assert.ok(src.includes('row.tabIndex = 0;') && src.includes("row.setAttribute('role', 'button');"));
   assert.ok(src.includes("if (e.key !== 'Enter' && e.key !== ' ') return;"));
   // The rename path cancels a pending open so no modal lands over the input.
-  assert.ok(src.includes('rowGesture?.cancel();'));
+  assert.ok(src.includes('gesture: rowGesture }') && src.includes('gesture?.cancel();'));
   // The overflow menu still opens from a right-click / touch callout — that menu is
   // where "Open in new tab" lives for touch, since the hold belongs to reordering.
-  assert.ok(src.includes("row.addEventListener('contextmenu', e => {\n          e.preventDefault();\n          showMenu(menuBtn, menuItems(), { x: e.clientX, y: e.clientY });"));
+  assert.match(src, /row\.addEventListener\('contextmenu', e => \{\s+e\.preventDefault\(\);\s+showMenu\(menuBtn, menuItems\(\), \{ x: e\.clientX, y: e\.clientY \}\);/);
   assert.ok(src.includes("{ icon: 'external', label: 'Open in new tab', onClick:"), 'the touch route exists');
   // Touch detection is the app-wide helper, never a user-agent sniff. Matched on the
   // named import rather than the whole import line, which any unrelated helper added
@@ -260,7 +261,7 @@ test('constants + focus ring; the hold stays the reorder pickup, unstyled by us'
 // tooltip therefore lives on the TEXT column, never on the row: a native tooltip anywhere
 // up the thumb's ancestor chain survives the move onto the thumb and covers the preview.
 test('the metadata tooltip is on the text column, not the row', () => {
-  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  const src = projectsModalSource();
   assert.match(src, /if \(tip\) info\.dataset\.title = tip;/, 'the tooltip hangs off .project-info');
   assert.ok(!/if \(tip\) row\.dataset\.title = tip;/.test(src), 'never on the row — it would cover the preview');
 });
@@ -307,16 +308,15 @@ test('canRefreshList: open + idle only — never mid-drag, never mid-removal', (
 });
 
 test('every out-of-band trigger routes through the shared gate, held while a wipe plays', () => {
-  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  const src = projectsModalSource();
   // beginRemoval opens the hold; the settle render releases it BEFORE re-rendering.
   assert.match(src, /let removalsInFlight = 0;/, 'the hold is a counter (batch + single overlap)');
   assert.match(src, /removalsInFlight\+\+;\n\s+const held = list\.getBoundingClientRect\(\)\.height;/,
     'beginRemoval takes the hold with the height');
   assert.match(src, /removalsInFlight = Math\.max\(0, removalsInFlight - 1\);\n\s+render\(\);/,
     'the settle render releases it first, so it is never blocked by its own hold');
-  // The four live triggers + the remote-listing settle all ask mayRefresh (the gate
-  // bound to modal-open/dragActive/removalsInFlight) instead of rendering outright.
-  // The remote fetch's two arms now share ONE gated `done` (createRemoteListing).
+  // The four live triggers + the remote-listing settle ask mayRefresh (modal-open/dragActive/
+  // removalsInFlight) rather than rendering outright; the fetch's arms share one gated `done`.
   const gated = (src.match(/if \(mayRefresh\(\)\) render\(\);/g) || []).length;
   assert.ok(gated >= 5, `connections-changed, projectsChanged, peers, incognito peers and the remote-listing settle all gate (found ${gated})`);
   assert.match(src, /remotes\.ensure\(\(\) => \{ if \(mayRefresh\(\)\) render\(\); \}\);/,
@@ -330,7 +330,7 @@ test('every out-of-band trigger routes through the shared gate, held while a wip
 // screen before a frame of it showed. Pinned at the source, since under this suite's
 // reduced motion revealControls lands on display:none too.
 test('the projects batch bar opens and closes on the shared control flight', () => {
-  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  const src = projectsModalSource();
   assert.match(src, /revealBar\(batchBar, \(\) => selected\.size > 0 \|\| anyLiveSelectable\(\)\)/);
   // The pool is the select-all set MINUS the rows playing their removal dust, so the bar
   // leaves beside them instead of a flight later (connections modal parity: `doomed`).
@@ -343,7 +343,7 @@ test('the projects batch bar opens and closes on the shared control flight', () 
 // the whole row scatter (user report). The connections modal and the desktop dialog both
 // retire the rows and re-ask the bar in ONE turn.
 test('a batch removal retires the rows and re-asks the bar in the same turn', () => {
-  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  const src = projectsModalSource();
   const body = src.slice(src.indexOf('batchBtns.remove.addEventListener'),
                          src.indexOf('batchBtns.moveServer.addEventListener'));
   // The leaves are STARTED, not awaited, before the selection is let go and the bar re-asked…
@@ -356,7 +356,7 @@ test('a batch removal retires the rows and re-asks the bar in the same turn', ()
 // Clear All is the same rule over the whole list: every selectable row is going, so the
 // bar has nothing left to offer and must say so while the rows are still falling.
 test('clear-all lets the selection bar go with the rows', () => {
-  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  const src = projectsModalSource();
   const body = src.slice(src.indexOf('clearAllBtn.addEventListener'));
   assert.match(body, /const keys = \[\.\.\.selectables\.keys\(\)\];\s*\n\s*for \(const k of keys\) doomed\.add\(k\);[\s\S]*const leaving = Promise\.all\([\s\S]*updateBatchBar\(\);\s*\n\s*await leaving;/);
   assert.match(body, /await settle\(\);\s*\n\s*for \(const k of keys\) doomed\.delete\(k\);/);
@@ -365,7 +365,7 @@ test('clear-all lets the selection bar go with the rows', () => {
 // A single row removed from its own ⋯ menu counts too: it leaves the checked set and the
 // select-all pool the moment its dust starts, not when the settle render arrives.
 test('a single-row removal retires its key with the row', () => {
-  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  const src = projectsModalSource();
   assert.match(src, /const retireKey = \(key\) => \{\s*\n\s*doomed\.add\(key\);\s*\n\s*selected\.delete\(key\);\s*\n\s*updateBatchBar\(\);/);
   // Every leaveThenRemove of ONE row is preceded by its retireKey, and the undo waits for
   // that path's settle render — never for the box collapse alone.
@@ -377,7 +377,7 @@ test('a single-row removal retires its key with the row', () => {
 // tighter throw tuned on the connections list (motion.js ROW_DUST_*), on the projects
 // list's own card clock — one look across both lists (user report: "same smoothness").
 test('project rows scatter on the shared list-row grain and throw', () => {
-  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  const src = projectsModalSource();
   const removals = (src.match(/leaveThenRemove\(/g) || []).length;
   assert.ok(removals >= 6, `every removal site (${removals})`);
   // …and each one takes the shared recipe on this list's card clock, nothing hand-rolled.

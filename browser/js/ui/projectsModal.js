@@ -1,9 +1,7 @@
 import { StencilElement, hostTag, define, wireModalShell, attachSearchFilter, rowMatches, escapeHtml } from './base.js';
 import { wireNameEditor, notify, isTouchLike, shortName, anchorPickerInput } from '../utils.js';
 import { icon, setSelectAllFace } from './icons.js';
-import { SORT_MODES, sortProjectItems, reconcileManualOrder } from './projectSort.js';
-import { setTranslucentDragImage } from './dragGhost.js';
-import { makeTouchDraggable } from './touchDrag.js';
+import { SORT_MODES, sortProjectItems } from './projectSort.js';
 import {
   observeReveal, leaveThenRemove, wipeDurationMs, createFilterAnimator,
   materialize, filterDelta, rowDustGrid,
@@ -11,110 +9,23 @@ import {
   SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS, markIn, markOut,
 } from './motion.js';
 import { normalizeHex } from '../core/accents.js';
-import { deleteRemoteProject as removeRemoteProject } from '../net/remoteSync.js';
 import { subscribe, EVENTS } from '../bus/appBus.js';
 
 import { DOUBLE_CLICK_MS, DRAG_SLOP_PX, rowOpenIntent, createOpenGesture, canRefreshList } from '../core/projectOpenGesture.js';
 import { createRemoteListing, showsRemoteSkeletons } from '../core/remoteListing.js';
 import { createProjectRowMenu } from './projectRowMenu.js';
-import { createDropZones } from './projectDropZones.js';
 import { createThumbZoom } from './projectThumbZoom.js';
+import { projectsModalInner } from './projects/markup.js';
+import { createRemoteRow } from './projects/remoteRow.js';
+import { attachRowActions, attachIncognitoActions } from './projects/rowActions.js';
+import { createDragReorder } from './projects/dragReorder.js';
+import { wireBatchActions } from './projects/batchActions.js';
 
-// Remote-thumbnail blob cache keyed by `serverUrl|id|version`, so the many re-renders
-// (search keystrokes, live events, peer pings) reuse one fetch per project version
-// instead of re-downloading on each. Mirrors the desktop ProjectsDialog::remoteThumbs_.
-const remoteThumbCache = new Map();
-const remoteThumbBlob = (conn, meta) => {
-  const id = `${meta.serverUrl}|${meta.id}`;
-  const key = `${id}|${meta.version ?? ''}`;
-  let p = remoteThumbCache.get(key);
-  if (!p) {
-    // Drop any stale-version entry for this project so we hold ~one blob per project.
-    for (const k of remoteThumbCache.keys())
-      if (k.startsWith(`${id}|`)) remoteThumbCache.delete(k);
-    // Fetch only files the record says exist (resultPath/originalPath), preferring the edited
-    // `result`. A project with neither (no bytes uploaded) resolves to null with NO request, so
-    // the console isn't spammed with 404s for files the server doesn't have.
-    const hasResult = !!meta.resultPath;
-    const hasOriginal = !!meta.originalPath;
-    if (hasResult)
-      p = conn.fetchFile(meta.id, 'result')
-        .catch(() => (hasOriginal ? conn.fetchFile(meta.id, 'original') : null))
-        .catch(() => null);
-    else if (hasOriginal)
-      p = conn.fetchFile(meta.id, 'original').catch(() => null);
-    else
-      p = Promise.resolve(null);
-    remoteThumbCache.set(key, p);
-  }
-  return p;
-};
 // ── Component: projects chooser / switcher modal ────────────────
 // Lists saved projects + a synthetic row for the current temp editor. Rows built at
 // runtime (static #projects-list stays comment-only) to keep the markup tests green.
 export class StencilProjectsModal extends StencilElement {
-  static inner() {
-    return `
-        <div class="app-modal">
-            <div class="settings-header">
-                <h2>${icon('layers', { size: 18 })} Projects</h2>
-                <button class="app-modal-close btn-icon-text" id="projects-close">${icon('x', { size: 14 })}<span>Close</span></button>
-            </div>
-            <!-- Search full-width on its own row; the filter selects sit on the row below
-                 (user decision — the shared single-row bar squeezed the search box). -->
-            <div class="modal-search-bar">
-                <input type="text" id="projects-search" class="modal-search" placeholder="Search projects…">
-            </div>
-            <div class="modal-search-bar projects-filter-row">
-                <select id="projects-filter" class="modal-filter" data-title="Filter projects">
-                    <option value="all">All</option>
-                    <option value="local">Local</option>
-                    <option value="server">Server</option>
-                    <option value="incognito">Incognito tabs</option>
-                    <option value="peer-open">Open elsewhere</option>
-                    <option value="peer-closed">Not open elsewhere</option>
-                </select>
-                <select id="projects-sort" class="modal-filter" data-title="Sort projects (drag a row to set a manual order)">
-                    <option value="name">Name</option>
-                    <option value="local">Local first</option>
-                    <option value="server">Server first</option>
-                    <option value="date-desc">Newest</option>
-                    <option value="date-asc">Oldest</option>
-                    <option value="manual">Manual order</option>
-                </select>
-                <select id="projects-search-mode" class="modal-filter" data-title="What the search box matches">
-                    <option value="common">Name + keywords</option>
-                    <option value="names">Names only</option>
-                    <option value="keywords">Keywords only</option>
-                </select>
-            </div>
-            <!-- Batch-select toolbar: appears once one or more rows are checked. -->
-            <div class="projects-batch-bar" id="projects-batch-bar" style="display:none">
-                <span class="projects-batch-count" id="projects-batch-count" style="display:none">0 selected</span>
-                <span class="projects-batch-actions">
-                    <button id="projects-select-all" class="btn-icon-text" style="display:none" data-title="Select every listed project (the current filter's rows)">${icon('check', { size: 13 })}<span>Select all</span></button>
-                    <!-- The selection-only actions come and go as ONE group, so the swap is a
-                         single flight instead of a button-by-button scramble (updateBatchBar). -->
-                    <span class="projects-batch-selected" id="projects-batch-selected" style="display:none">
-                    <button id="projects-batch-move-server" class="btn-icon-text" data-title="Move the selected local projects to a server">${icon('server', { size: 13 })}<span>Move to server</span></button>
-                    <button id="projects-batch-copy-server" class="btn-icon-text" data-title="Copy the selected local projects to a server">${icon('copy', { size: 13 })}<span>Copy to server</span></button>
-                    <button id="projects-batch-move-local" class="btn-icon-text" data-title="Move the selected server projects to local">${icon('download', { size: 13 })}<span>Move to local</span></button>
-                    <button id="projects-batch-copy-local" class="btn-icon-text" data-title="Copy the selected server projects to local">${icon('copy', { size: 13 })}<span>Copy to local</span></button>
-                    <button id="projects-batch-clear" class="btn-icon-text" data-title="Clear selection">${icon('x', { size: 13 })}<span>Clear</span></button>
-                    <button id="projects-batch-remove" class="danger btn-icon-text" data-title="Remove the selected projects">${icon('trash', { size: 13 })}<span>Remove selected</span></button>
-                    </span>
-                </span>
-            </div>
-            <div class="settings-body" id="projects-list"><!-- filled by JS --></div>
-            <div class="settings-footer">
-                <span class="footer-hint">Projects auto-save · unopened projects expire after 7 days</span>
-                <button id="projects-blank-image" class="btn-icon-text" data-title="Create a blank image to draw on">${icon('image')}<span>Blank image</span></button>
-                <button id="projects-new-editor" class="btn-icon-text" data-title="Open a new empty editor in another tab">${icon('plus-circle')}<span>New editor</span></button>
-                <button id="projects-clear-all" class="danger btn-icon-text" data-title="Delete every saved project">${icon('trash')}<span>Clear All</span></button>
-            </div>
-        </div>
-    `;
-  }
+  static inner() { return projectsModalInner(); }
   static template() { return hostTag('stencil-projects-modal', 'id="projects-modal-overlay" class="app-modal-overlay"', StencilProjectsModal.inner()); }
 
   wire(app) {
@@ -460,69 +371,11 @@ export class StencilProjectsModal extends StencilElement {
       if (!opts.temp && meta) { const tip = projectTooltip(meta); if (tip) info.dataset.title = tip; }
       info.appendChild(name);
 
-      // Inline rename. The name's dblclick stops propagation, so the ROW's dblclick never
-      // fires — but its two clicks did arm the deferred open, which would pop the
-      // confirmation modal over the rename input a moment later. Cancel it.
-      let rowGesture = null;
-      const beginRename = () => {
-        if (opts.temp) return;
-        rowGesture?.cancel();
-        const wrap = document.createElement('span');
-        wrap.className = 'project-rename-wrap';
-        const input = document.createElement('input');
-        input.className = 'project-name-edit';
-        input.type = 'text';
-        input.value = meta.name || 'Untitled';
-        input.dataset.title = 'Project name';
-        const accept = document.createElement('button');
-        accept.type = 'button';
-        accept.className = 'name-edit-btn name-edit-accept';
-        accept.innerHTML = icon('check', { size: 14 });
-        accept.dataset.title = 'Save name (Enter)';
-        const cancel = document.createElement('button');
-        cancel.type = 'button';
-        cancel.className = 'name-edit-btn name-edit-cancel';
-        cancel.innerHTML = icon('x', { size: 14 });
-        cancel.dataset.title = 'Cancel (Esc)';
-        wrap.append(input, accept, cancel);
-        // The editor is INSIDE the row, and the row opens the project on click — so a
-        // press on ✓/✗ reached it and the window closed on the project it just opened
-        // (user report). Nothing inside the editor is a click on the row.
-        for (const ev of ['mousedown', 'click', 'dblclick'])
-          wrap.addEventListener(ev, (e) => e.stopPropagation());
-        name.replaceWith(wrap);
-        // ✓/✗ FORM from dust (desktop revealControls parity); their hover already
-        // draws the check / strikes the cross (animations/iconHover.css .ic-check/.ic-x).
-        markIn(accept);
-        markIn(cancel);
-        input.focus();
-        input.select();
-        let done = false;
-        const finish = (save, next) => {
-          if (done) return;
-          done = true;
-          // …and come apart BEFORE the re-render sweeps the editor away — the
-          // clouds are copies on <body>, so the rebuild never waits for them.
-          markOut(accept);
-          markOut(cancel);
-          // renameProject re-checks uniqueness; adopt the name only if accepted.
-          if (save && next && next !== meta.name && app.renameProject(meta.id, next)) meta.name = next;
-          render();
-        };
-        // Live-validated ✓/✗ (always shown here): ✓ enabled only for a changed, valid
-        // name, its tooltip explaining any rejection. Enter = ✓, Escape/click-away = ✗.
-        wireNameEditor(input, accept, cancel, {
-          alwaysShow: true,
-          current: () => meta.name || '',
-          validate: (v) => app.storage.store.validateName(v, meta.id),
-          commit: (v) => finish(true, v),
-          cancel: () => finish(false),
-        });
-        input.addEventListener('keydown', e => e.stopPropagation());   // keep modal hotkeys out
-        input.addEventListener('blur', () => finish(false));           // click-away discards
-        input.addEventListener('click', e => e.stopPropagation());
-      };
-      if (!opts.temp) name.addEventListener('dblclick', e => { e.stopPropagation(); beginRename(); });
+      // Inline rename (ui/projects/rowRename.js). The name's dblclick stops propagation, so
+      // the ROW's dblclick never fires — but its two clicks did arm the deferred open, which
+      // the editor cancels through the row's own gesture.
+      let rowActions = null;
+      if (!opts.temp) name.addEventListener('dblclick', e => { e.stopPropagation(); rowActions?.beginRename(); });
 
       const sub = document.createElement('div');
       sub.className = 'project-sub';
@@ -589,186 +442,14 @@ export class StencilProjectsModal extends StencilElement {
       row.appendChild(info);
 
       if (!opts.temp) {
-        const isActive = meta.id === app.activeProjectId;
-        // True while THIS project is open in a DIFFERENT tab — removing/moving it
-        // would yank it out from under that tab, so both are blocked then.
-        const openElsewhere = () => isPeerOpen(meta);
-
-        const moveToServer = async () => {
-          if (openElsewhere()) { notify('Open in another tab — close it there first', 'fail'); return; }
-          const urls = app.connections.urls;
-          let address = urls[0];
-          if (urls.length > 1) {
-            address = await app.choose(
-              `Move "${shortName(meta.name || 'Untitled')}" to which server? It becomes a server-backed project.`,
-              { title: 'Move to server', confirmLabel: 'Move', confirmIcon: 'upload', closeAnchor: menuBtn, options: urls.map(u => ({ value: u, label: u })) });
-            if (!address) return;
-          } else if (!(await app.confirm(
-            `Move "${shortName(meta.name || 'Untitled')}" to server ${address}? It becomes a server-backed project.`,
-            { title: 'Move to server', confirmLabel: 'Move', confirmIcon: 'upload', closeAnchor: menuBtn }))) {
-            return;
-          }
-          try { await app.moveProjectToServer(meta.id, address); notify('Moved to server', 'ok'); render(); scrollRowIntoView(meta.id); }
-          catch (err) { notify(`Could not move to server — ${err.message}`, 'fail'); }
-        };
-        const copyToServer = async () => {
-          const address = await pickServer(`Copy "${shortName(meta.name || 'Untitled')}" to which server?`, menuBtn);
-          if (!address) return;
-          const name = await app.prompt('Name for the server copy:', { title: 'Copy to server', confirmLabel: 'Copy', confirmIcon: 'copy', defaultValue: `${meta.name || 'Untitled'}-copy`, closeAnchor: menuBtn });
-          if (name == null) return;
-          try { await app.copyProjectToServer(meta.id, address, { name }); notify('Copied to server', 'ok'); render(); }
-          catch (err) { notify(`Could not copy to server — ${err.message}`, 'fail'); }
-        };
-        const removeRow = async () => {
-          if (openElsewhere()) { notify('Open in another tab — close it there first', 'fail'); return; }
-          const note = serverLinked
-            ? `Remove the local copy of "${shortName(meta.name || 'Untitled')}"? It stays on the server ${meta.address}.`
-            : `Remove project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`;
-          if (!(await app.confirm(note, { title: 'Remove project', danger: true, confirmIcon: 'trash', closeAnchor: menuBtn }))) return;
-          // The row collapses away first; render() then rebuilds the list without it.
-          const settle = beginRemoval();
-          const revive = retireKey(localKey(meta.id));
-          await leaveThenRemove(rowById(meta.id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
-          app.removeProject(meta.id);
-          await settle();
-          revive();
-        };
-
-        // Opening the row per the gesture's intent (rowOpenIntent): `here` switches this
-        // tab, `newtab` spawns one, `confirm` gates behind the shared modal. Clicking the
-        // already-active project just closes the modal.
-        const openWithIntent = async ({ confirm = true, target = 'here', closeAnchor = null } = {}) => {
-          if (target === 'newtab') {
-            if (confirm && !(await confirmOpen(meta.name, true, closeAnchor))) return;
-            app.openProjectInNewTab(meta.id);   // the same path the ⋯ menu uses
-            return;
-          }
-          if (isActive) { close(); return; }
-          if (confirm && !(await confirmOpen(meta.name, false, closeAnchor))) return;
-          app.switchToProject(meta.id);
-          close();
-        };
-        const open = () => openWithIntent({ confirm: true, target: 'here', closeAnchor: menuBtn });
-
-        // Per-row colour: the native picker paints the project name, and a "Clear colour"
-        // item (only when one is set) resets it to the theme accent.
-        const pickColor = () => openColorPicker(meta, menuBtn);
-        const clearColor = () => { app.setProjectColor(meta.id, ''); meta.color = ''; render(); };
-
-        // Edit the project's search keywords via a prompt (comma/space separated). The store
-        // normalizes; a server-linked project also pushes them to the server.
-        const editKeywords = async () => {
-          const cur = (meta.keywords || []).join(' ');
-          const v = await app.prompt('Keywords (comma or space separated):', { title: 'Project keywords', titleIcon: 'info', confirmLabel: 'Save', confirmIcon: 'save', defaultValue: cur, multiline: true, closeAnchor: menuBtn });
-          if (v == null) return;
-          const updated = app.setProjectKeywords(meta.id, v.split(/[\s,]+/));
-          if (updated) meta.keywords = updated.keywords;
-          render();
-        };
-
-        // Edit the project's free-text description via a prompt. The store trims + stores it;
-        // an empty value clears it. Mirrors editKeywords / the colour picker above.
-        const editDescription = async () => {
-          const cur = meta.description || '';
-          const v = await app.prompt('Description:', { title: 'Project description', titleIcon: 'info', confirmLabel: 'Save', confirmIcon: 'save', defaultValue: cur, multiline: true, closeAnchor: menuBtn });
-          if (v == null) return;
-          const updated = app.setProjectDescription(meta.id, v);
-          if (updated) meta.description = updated.description;
-          render();
-        };
-
-        // One menu definition, shared by the "⋯" button and a right-click on the row.
-        const menuItems = () => [
-          isActive ? null : { icon: 'folder', label: 'Open', onClick: open },
-          { icon: 'external', label: 'Open in new tab', onClick: async () => { if (await confirmOpen(meta.name, true, menuBtn)) app.openProjectInNewTab(meta.id); } },
-          // The toolbar's Open-in hand-off, per row — same modal, aimed at THIS project
-          // instead of the open one. Hidden when no target is configured, exactly as the
-          // toolbar button hides (ui/controlState.js), so it never offers a dead action.
-          app.openInAvailable?.() ? { icon: 'monitor', label: 'Open in another app', onClick: (at) => document.querySelector('stencil-open-in-modal')?.openFor(meta.id, { from: at, backTo: menuBtn }) } : null,
-          { icon: 'pencil', label: 'Rename', onClick: () => beginRename() },
-          { icon: 'palette', label: 'Set color', onClick: pickColor },
-          meta.color ? { icon: 'x', label: 'Clear color', onClick: clearColor } : null,
-          { icon: 'flag', label: 'Add keywords', onClick: editKeywords },
-          { icon: 'file-text', label: 'Add description', onClick: editDescription },
-          { icon: 'calendar', label: 'Set expiration', onClick: (at) => document.querySelector('stencil-expiration-modal')?.openFor(meta.id, { from: at, backTo: menuBtn }) },
-          (hasServers() && !serverLinked) ? { icon: 'server', label: 'Move to server', onClick: moveToServer } : null,
-          (hasServers() && !serverLinked) ? { icon: 'copy', label: 'Copy to server', onClick: copyToServer } : null,
-          { icon: 'trash', label: 'Remove', danger: true, onClick: removeRow },
-        ];
-
-        const actions = document.createElement('div');
-        actions.className = 'project-actions';
-        const menuBtn = document.createElement('button');
-        menuBtn.className = 'project-more btn-icon';
-        menuBtn.dataset.title = 'More actions';
-        menuBtn.innerHTML = icon('more', { size: 15 });
-        menuBtn.addEventListener('click', e => {
-          e.stopPropagation();
-          showMenu(menuBtn, menuItems());
-        });
-        actions.appendChild(menuBtn);
-        row.appendChild(actions);
-
-        // Right-click (and, on touch, the long-press callout) opens the same overflow
-        // menu at the cursor — that menu is where "Open in new tab" lives for fingers.
-        row.addEventListener('contextmenu', e => {
-          e.preventDefault();
-          showMenu(menuBtn, menuItems(), { x: e.clientX, y: e.clientY });
-        });
-
-        row.classList.add('project-clickable');
-        // ── Open gestures (see rowOpenIntent): click / dblclick / ⌘-variants on a
-        // mouse, tap / long press on touch, Enter or Space from the keyboard. ──
-        const gesture = createOpenGesture({ run: (intent) => openWithIntent(intent) });
-        rowGesture = gesture;      // the rename editor cancels any pending open
-        row._openGesture = gesture;   // …and so do BOTH drag engines (see attachRowDrag)
-        row.addEventListener('click', (e) => gesture.click(e));
-        row.addEventListener('dblclick', (e) => gesture.dblclick(e));
-        // MOVEMENT WINS (see pressMove): past the slop the pending open is dropped and
-        // the drop's click swallowed — the hold belongs to touchDrag's reorder pickup.
-        row.addEventListener('pointerdown', (e) => {
-          if (e.target.closest('input,button,select,.project-name-edit')) return;
-          gesture.pressStart({ x: e.clientX, y: e.clientY });
-        });
-        row.addEventListener('pointermove', (e) => gesture.pressMove({ x: e.clientX, y: e.clientY }));
-        for (const type of ['pointerup', 'pointercancel', 'pointerleave']) {
-          row.addEventListener(type, () => gesture.pressEnd());
-        }
-        // A real drag pickup (mouse HTML5 DnD; the touch engine reports its own below)
-        // kills any pending open outright.
-        row.addEventListener('dragstart', () => gesture.dragStart());
-        // Keyboard: the row is a real button. Enter/Space = a plain click (confirmed),
-        // ⌘/Ctrl held targets a new tab — the same mapping as the mouse.
-        row.tabIndex = 0;
-        row.setAttribute('role', 'button');
-        row.addEventListener('keydown', (e) => {
-          if (e.key !== 'Enter' && e.key !== ' ') return;
-          e.preventDefault();
-          gesture.key(e);
+        rowActions = attachRowActions({
+          row, name, meta, app, close: () => close(), render: () => render(),
+          serverLinked, hasServers, isPeerOpen, pickServer, confirmOpen,
+          scrollRowIntoView, openColorPicker, beginRemoval, retireKey, localKey,
+          rowById, showMenu,
         });
       } else if (opts.incognito && hasServers()) {
-        // The incognito session has no menu, but it CAN be published to a server (it then
-        // becomes a normal server-backed project and leaves incognito).
-        const saveToServer = async () => {
-          const urls = app.connections.urls;
-          let address = urls[0];
-          if (urls.length > 1) {
-            address = await app.choose('Save this incognito project to which server?',
-              { title: 'Save to server', confirmLabel: 'Save', confirmIcon: 'upload', options: urls.map(u => ({ value: u, label: u })) });
-            if (!address) return;
-          }
-          try { await app.publishIncognitoToServer(address); render(); }
-          catch (err) { notify(`Could not save to server — ${err.message}`, 'fail'); }
-        };
-        const actions = document.createElement('div');
-        actions.className = 'project-actions';
-        const btn = document.createElement('button');
-        btn.className = 'project-more btn-icon';
-        btn.dataset.title = 'Save to server';
-        btn.innerHTML = icon('server', { size: 15 });
-        btn.addEventListener('click', e => { e.stopPropagation(); saveToServer(); });
-        actions.appendChild(btn);
-        row.appendChild(actions);
+        attachIncognitoActions({ row, app, render: () => render() });
       }
       if (opts.temp) {
         // The synthetic "Current tab" row is whatever's already open here — there's nothing
@@ -779,185 +460,17 @@ export class StencilProjectsModal extends StencilElement {
       return row;
     };
 
-    // Build a row for a server-stored project: golden outline + a server badge.
-    // "Open" fetches the original image bytes + layout from the server and loads
-    // them into the editor (read into a local editing session).
-    const makeRemoteRow = (meta) => {
-      const row = document.createElement('div');
-      row.className = 'project-row project-remote';
-      if (meta && meta.id != null) row.dataset.id = meta.id;
-      // Multi-select checkbox (server projects are the move/copy-to-local batch targets).
-      {
-        const key = remoteKey(meta);
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.className = 'project-select';
-        cb.checked = selected.has(key);
-        if (cb.checked) row.classList.add('project-selected');
-        selectables.set(key, { kind: 'remote', id: meta.id, serverUrl: meta.serverUrl, isServer: true, meta });
-        cb.addEventListener('click', e => e.stopPropagation());
-        cb.addEventListener('change', () => {
-          toggleSelect(key, { kind: 'remote', id: meta.id, serverUrl: meta.serverUrl, isServer: true, meta }, cb.checked);
-          row.classList.toggle('project-selected', cb.checked);
-        });
-        row.appendChild(cb);
-      }
-      const thumb = document.createElement('div');
-      thumb.className = 'project-thumb project-thumb-placeholder';
-      thumb.innerHTML = icon('server', { size: 24 });
-      row.appendChild(thumb);
-      enableThumbZoom(thumb);
-      // Swap the server glyph for the real picture: prefer the server's stored bytes,
-      // else load the `source` URL directly (an <img> needs no CORS); glyph stays if nothing loads.
-      const showThumb = (src, revoke) => {
-        const img = document.createElement('img');
-        img.alt = '';
-        img.src = src;
-        // Keep blob URLs alive for the hover-magnify zoom (which reuses img.src); they're
-        // revoked at the NEXT render instead of on load, so the preview isn't a broken image.
-        if (revoke) remoteObjectUrls.add(src);
-        thumb.innerHTML = '';
-        thumb.classList.remove('project-thumb-placeholder');
-        thumb.appendChild(img);
-      };
-      const sourceUrl = /^https?:/i.test(meta.source || '') ? meta.source : '';
-      const conn = app.connections && app.connections.get(meta.serverUrl);
-      if (conn) {
-        remoteThumbBlob(conn, meta).then((blob) => {
-          if (blob) showThumb(URL.createObjectURL(blob), true);
-          else if (sourceUrl) showThumb(sourceUrl, false);
-        });
-      } else if (sourceUrl) {
-        showThumb(sourceUrl, false);
-      }
-
-      const info = document.createElement('div');
-      info.className = 'project-info';
-      const name = document.createElement('div');
-      name.className = 'project-name';
-      name.textContent = meta.name || 'Untitled';
-      // Server projects carry `color` in their ProjectRecord — paint the name with it.
-      if (meta.color) name.style.color = meta.color;
-      // Same informative hover tooltip as local rows (dimensions/orientation + description).
-      { const tip = projectTooltip(meta); if (tip) name.dataset.title = tip; }
-      const sub = document.createElement('div');
-      sub.className = 'project-sub';
-      // Server projects carry createdAt in their ProjectRecord — show it (they have
-      // no local expiry). Shown before the server badge.
-      if (meta.createdAt) {
-        const created = document.createElement('span');
-        created.className = 'project-created';
-        created.textContent = `Created ${fmtDate(meta.createdAt)} · `;
-        sub.appendChild(created);
-      }
-      // Server projects may carry an expiresAt (epoch ms; 0/absent = keep forever) —
-      // shown next to the created date when the server has set one.
-      if (meta.expiresAt) {
-        const expires = document.createElement('span');
-        expires.className = 'project-expires';
-        expires.textContent = `Expires ${fmtDate(meta.expiresAt)} · `;
-        sub.appendChild(expires);
-      }
-      const badge = document.createElement('span');
-      badge.className = 'project-remote-badge';
-      badge.innerHTML = `${icon('server', { size: 12 })}<span>${escapeHtml(meta.serverUrl)}</span>`;
-      sub.appendChild(badge);
-      info.append(name, sub);
-      row.appendChild(info);
-
-      const actions = document.createElement('div');
-      actions.className = 'project-actions';
-
-      // The row opens the server project on click (fetches image + layout). A brief
-      // dimmed state reads as "working" since opening hits the network.
-      let opening = false;
-      const openFromServer = async () => {
-        if (opening) return;
-        if (!(await confirmOpen(meta.name))) return;
-        opening = true;
-        row.classList.add('is-opening');
-        try { await openRemote(meta); close(); }
-        catch (err) {
-          notify(`Could not open server project — ${err.message}`, 'fail');
-          row.classList.remove('is-opening');
-          opening = false;
-        }
-      };
-
-      const moveToLocal = async () => {
-        if (!(await app.confirm(
-          `Move "${shortName(meta.name || 'Untitled')}" to local storage? It will be removed from the server.`,
-          { title: 'Move to local', confirmLabel: 'Move', confirmIcon: 'download' }))) return;
-        try { const newId = await app.moveProjectToLocal(meta); notify('Moved to local', 'ok'); render(); scrollRowIntoView(newId); }
-        catch (err) { notify(`Could not move to local — ${err.message}`, 'fail'); }
-      };
-      // Detached local copy (prompts a name, default "<name>-copy"), leaving the server copy
-      // in place; opens the new local project.
-      const copyToLocal = async () => {
-        const name = await app.prompt('Name for the local copy:', { title: 'Copy to local', confirmLabel: 'Copy', confirmIcon: 'copy', defaultValue: `${meta.name || 'Untitled'}-copy` });
-        if (name == null) return;
-        try {
-          const newId = await app.copyServerProjectToLocal(meta, { name });
-          notify('Local copy created', 'ok');
-          app.switchToProject(newId);
-          close();
-        } catch (err) { notify(`Could not make a local copy — ${err.message}`, 'fail'); }
-      };
-      // Incognito copy (no saving): load the project's content as an incognito session, in
-      // this tab or a new one.
-      const copyToIncognito = async () => {
-        const where = await app.choose(`Open an incognito copy of "${shortName(meta.name || 'Untitled')}" where?`,
-          { title: 'Incognito copy', confirmLabel: 'Open', confirmIcon: 'incognito', options: [
-            { value: 'here', label: 'This tab (replace current)' },
-            { value: 'newtab', label: 'New tab' },
-          ] });
-        if (!where) return;
-        try { await app.copyServerProjectToIncognito(meta, { newTab: where === 'newtab' }); if (where === 'here') close(); }
-        catch (err) { notify(`Could not open an incognito copy — ${err.message}`, 'fail'); }
-      };
-      const deleteFromServer = async () => {
-        if (!(await app.confirm(`Delete server project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`, { title: 'Delete server project', danger: true, confirmIcon: 'trash' }))) return;
-        const conn = app.connections && app.connections.get(meta.serverUrl);
-        if (!conn) { notify('Not connected to that server', 'fail'); return; }
-        try {
-          const settle = beginRemoval();
-          const revive = retireKey(remoteKey(meta));
-          await leaveThenRemove(rowById(meta.id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
-          await conn.deleteProject(meta.id); invalidateRemotes(); await settle();
-          revive();
-        }
-        catch (err) { notify(`Could not delete — ${err.message}`, 'fail'); }
-      };
-
-      // Secondary actions behind the "⋯" overflow menu (matches the local rows);
-      // shared with the row's right-click context menu.
-      const menuItems = () => [
-        { icon: 'folder', label: 'Open from server', onClick: openFromServer },
-        { icon: 'copy', label: 'Copy to local', onClick: copyToLocal },
-        { icon: 'incognito', label: 'Copy to incognito', onClick: copyToIncognito },
-        { icon: 'download', label: 'Move to local', onClick: moveToLocal },
-        { icon: 'trash', label: 'Delete from server', danger: true, onClick: deleteFromServer },
-      ];
-      const menuBtn = document.createElement('button');
-      menuBtn.className = 'project-more btn-icon';
-      menuBtn.dataset.title = 'More actions';
-      menuBtn.innerHTML = icon('more', { size: 15 });
-      menuBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        showMenu(menuBtn, menuItems());
-      });
-
-      actions.append(menuBtn);
-      row.appendChild(actions);
-      // Right-click anywhere on the row opens the same overflow menu at the cursor.
-      row.addEventListener('contextmenu', e => {
-        e.preventDefault();
-        showMenu(menuBtn, menuItems(), { x: e.clientX, y: e.clientY });
-      });
-      row.classList.add('project-clickable');
-      row.addEventListener('click', openFromServer);
-      return row;
-    };
+    // One server-project row — ui/projects/remoteRow.js.
+    // `render`, `close`, `openRemote` and `invalidateRemotes` are declared below, so they
+    // cross as thunks — the row calls them long after wire() has finished.
+    const makeRemoteRow = createRemoteRow({
+      app, close: () => close(), render: () => render(),
+      remoteKey, selected, selectables, toggleSelect,
+      enableThumbZoom, showMenu, remoteObjectUrls,
+      projectTooltip, fmtDate, confirmOpen, openRemote: (m) => openRemote(m),
+      scrollRowIntoView, beginRemoval, retireKey, rowById,
+      invalidateRemotes: () => invalidateRemotes(),
+    });
 
     // Fetch a remote project's image + layout and load it into the editor (shared with
     // the external-launch server hand-off — see DrawingApp.openRemoteProject).
@@ -978,7 +491,7 @@ export class StencilProjectsModal extends StencilElement {
     // skipped render is picked up by the settle render / endDrag's render instead.)
     const mayRefresh = () => canRefreshList({
       open: overlay.classList.contains('modal-open'),
-      dragging: dragActive,
+      dragging: isDragging(),
       removing: removalsInFlight > 0,
     });
 
@@ -1030,177 +543,16 @@ export class StencilProjectsModal extends StencilElement {
     const sortItems = (items, mode) => sortProjectItems(items, mode, loadOrder());
     const setSortMode = (m) => { sortMode = m; ssSet(SORT_KEY, m); if (sortEl) sortEl.value = m; };
 
-    // ── Per-session manual drag order ──
-    // A drop rewrites the persisted key order and switches the sort to 'manual'. The order is
-    // seeded from the full current ordering (ignoring the search filter) so every project keeps
-    // a slot even when a drag happens while filtered; unknown/added ids fall to the end.
-    let dragKey = null;
-    let didReorder = false;
-    let dragActive = false;
-    let didZone = false;   // a drag-out zone action ran on the accepted drop (skip dragend render)
-    // Row key -> { meta, isRemote } for the current render, so a drop on a drag-out zone can
-    // resolve the dragged project without re-parsing the key (server urls contain ':').
-    const keyMeta = new Map();
-    const clearRowDropCues = () => list.querySelectorAll('.project-drop-before,.project-drop-after')
-      .forEach((el) => el.classList.remove('project-drop-before', 'project-drop-after'));
-    const persistManualDrop = (draggedKey, targetKey, before) => {
-      const full = sortItems(buildItems({ applySearch: false }), sortMode === 'manual' ? 'name' : sortMode).map((i) => i.key);
-      const base = sortMode === 'manual' ? loadOrder() : [];
-      saveOrder(reconcileManualOrder(full, base, draggedKey, targetKey, before));
-      setSortMode('manual');
-    };
+    // ── Dragging a row: manual reorder + the drag-out zones (ui/projects/dragReorder.js) ──
+    const { attachRowDrag, keyMeta, isDragging } = createDragReorder({
+      list, overlay, app, close: () => close(), render: () => render(),
+      sortMode: () => sortMode, setSortMode: (m) => setSortMode(m),
+      sortItems: (items, mode) => sortItems(items, mode), buildItems: (o) => buildItems(o),
+      loadOrder, saveOrder, confirmOpen, openRemote: (m) => openRemote(m),
+      invalidateRemotes: () => invalidateRemotes(),
+      beginRemoval, retireKey, localKey, remoteKey, rowById,
+    });
 
-    // ── Drag-out drop zones (ui/projectDropZones.js) ──
-    // Overlay around the dialog while a row is dragged: top 70% splits Open here / Open in
-    // a new tab, bottom 30% is Remove. Zones are PURELY VISUAL (pointer-events:none) — the
-    // action is decided from the pointer's RELEASE position (zoneForPoint). Every zone confirms.
-    const { showZones, hideZones, zoneForPoint, highlightZone } = createDropZones(overlay);
-    let lastX = 0;
-    let lastY = 0;
-
-    // Track the pointer + highlight the live zone during a row drag. preventDefault over a zone so
-    // the cursor reads as droppable and the drop is ACCEPTED — that suppresses the browser's
-    // snap-back-to-source animation (the glitch where the row appeared to return to the list).
-    const onDocDragOver = (e) => {
-      if (!dragActive) return;
-      lastX = e.clientX; lastY = e.clientY;
-      const zone = zoneForPoint(lastX, lastY);
-      highlightZone(zone);
-      // dropEffect MUST stay compatible with effectAllowed ('move', set in dragstart): a
-      // 'copy' effect makes the browser REJECT the drop (no drop event fires → snap-back,
-      // no action). Keep every zone on 'move'.
-      if (zone) { e.preventDefault(); try { e.dataTransfer.dropEffect = 'move'; } catch { /* noop */ } }
-    };
-    document.addEventListener('dragover', onDocDragOver);
-    // Run the zone action on the accepted DROP (not dragend), so there's no snap-back glitch and
-    // the action fires immediately. A reorder (drop on a row, stopPropagation) never reaches here.
-    const onDocDrop = (e) => {
-      if (!dragActive) return;
-      const zone = zoneForPoint(e.clientX, e.clientY);
-      if (!zone) return;   // over the dialog → row drop / nothing handles it
-      e.preventDefault();
-      didZone = true;
-      performZoneAction(dragKey, zone);
-    };
-    document.addEventListener('drop', onDocDrop);
-    const endDrag = () => {
-      dragActive = false; dragKey = null; didReorder = false; didZone = false;
-      hideZones(); clearRowDropCues();
-      list.querySelectorAll('.project-dragging').forEach((el) => el.classList.remove('project-dragging'));
-    };
-
-    // Run the drag-out action for the dropped row (resolved via keyMeta), mirroring the ⋯-menu
-    // equivalents so both paths behave identically.
-    const performZoneAction = async (key, action) => {
-      const info = keyMeta.get(key);
-      if (!info) { render(); return; }
-      const meta = info.meta;
-      if (!info.isRemote) {
-        const id = meta.id;
-        if (action === 'here') { if (await confirmOpen(meta.name)) { app.switchToProject(id); close(); } else render(); }
-        else if (action === 'newtab') { if (await confirmOpen(meta.name, true)) app.openProjectInNewTab(id); render(); }
-        else if (action === 'remove') {
-          const serverLinked = meta.remoteId && meta.address;
-          const note = serverLinked
-            ? `Remove the local copy of "${shortName(meta.name || 'Untitled')}"? It stays on the server ${meta.address}.`
-            : `Remove project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`;
-          if (!(await app.confirm(note, { title: 'Remove project', danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) { render(); return; }
-          const settle = beginRemoval();
-          const revive = retireKey(localKey(id));
-          await leaveThenRemove(rowById(id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
-          app.removeProject(id);
-          await settle();
-          revive();
-        }
-        return;
-      }
-      // Server (remote) row.
-      if (action === 'here') { if (!(await confirmOpen(meta.name))) { render(); return; } try { await openRemote(meta); close(); } catch (err) { notify(`Could not open server project — ${err.message}`, 'fail'); render(); } }
-      else if (action === 'newtab') { if (await confirmOpen(meta.name, true)) app.openRemoteProjectInNewTab(meta); render(); }
-      else if (action === 'remove') {
-        if (!(await app.confirm(`Delete server project "${shortName(meta.name || 'Untitled')}"? This cannot be undone.`, { title: 'Delete server project', danger: true, confirmLabel: 'Yes', confirmIcon: 'trash', cancelLabel: 'No' }))) { render(); return; }
-        const conn = app.connections && app.connections.get(meta.serverUrl);
-        if (!conn) { notify('Not connected to that server', 'fail'); return; }
-        try {
-          const settle = beginRemoval();
-          const revive = retireKey(remoteKey(meta));
-          await leaveThenRemove(rowById(meta.id), () => {}, rowLeaveDust(1, 0, ITEM_DUST_MS));
-          await conn.deleteProject(meta.id); invalidateRemotes(); await settle();
-          revive();
-        }
-        catch (err) { notify(`Could not delete — ${err.message}`, 'fail'); }
-      }
-    };
-
-    const attachRowDrag = (row, key) => {
-      row.draggable = true;
-      row.dataset.dragKey = key;   // lets the touch path hit-test the drop target via elementFromPoint
-      row.addEventListener('dragstart', (e) => {
-        // Don't hijack clicks on interactive children (checkbox, ⋯ menu, rename input).
-        if (e.target.closest('input,button,select,.project-name-edit')) { e.preventDefault(); return; }
-        dragKey = key; didReorder = false; dragActive = true;
-        row.classList.add('project-dragging');
-        setTranslucentDragImage(e, row);  // translucent cursor-following ghost
-        showZones();
-        // Mark this as an internal reorder drag so the image-drop overlay ignores it.
-        try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('application/x-stencil-reorder', 'project'); } catch { /* older DnD */ }
-      });
-      row.addEventListener('dragover', (e) => {
-        if (!dragKey || dragKey === key) return;
-        e.preventDefault();
-        try { e.dataTransfer.dropEffect = 'move'; } catch { /* noop */ }
-        const r = row.getBoundingClientRect();
-        clearRowDropCues();
-        row.classList.add(e.clientY < r.top + r.height / 2 ? 'project-drop-before' : 'project-drop-after');
-      });
-      row.addEventListener('dragleave', () => row.classList.remove('project-drop-before', 'project-drop-after'));
-      row.addEventListener('drop', (e) => {
-        if (!dragKey || dragKey === key) return;
-        e.preventDefault(); e.stopPropagation();
-        const r = row.getBoundingClientRect();
-        persistManualDrop(dragKey, key, e.clientY < r.top + r.height / 2);
-        didReorder = true;
-      });
-      row.addEventListener('dragend', () => {
-        const acted = didZone;   // the zone action already ran on the accepted drop
-        endDrag();               // resets flags + hides zones (the source row may be detached)
-        if (!acted) render();    // reflect a reorder, or clean up after a no-op release
-      });
-
-      // Touch/pen: HTML5 DnD never fires on touch, so drive the SAME reorder + zone logic through
-      // the pointer engine (long-press to pick up; swipe to scroll). Mouse ignores this path.
-      makeTouchDraggable(row, {
-        canStart: (e) => !e.target.closest('input,button,select,.project-name-edit'),
-        // The pickup is a DRAG, never an open: drop any pending click intent (the engine
-        // also swallows the click after a real drag — this covers the pickup itself).
-        onStart: () => { row._openGesture?.dragStart(); dragKey = key; didReorder = false; didZone = false; dragActive = true; row.classList.add('project-dragging'); showZones(); },
-        onMove: (x, y) => {
-          lastX = x; lastY = y;
-          const zone = zoneForPoint(x, y);
-          highlightZone(zone);
-          clearRowDropCues();
-          if (!zone) {
-            const target = document.elementFromPoint(x, y)?.closest('.project-row');
-            if (target && target.dataset.dragKey && target.dataset.dragKey !== dragKey) {
-              const r = target.getBoundingClientRect();
-              target.classList.add(y < r.top + r.height / 2 ? 'project-drop-before' : 'project-drop-after');
-            }
-          }
-        },
-        onDrop: (x, y) => {
-          const zone = zoneForPoint(x, y);
-          if (zone) { didZone = true; performZoneAction(dragKey, zone); endDrag(); return; }
-          const target = document.elementFromPoint(x, y)?.closest('.project-row');
-          if (target && target.dataset.dragKey && target.dataset.dragKey !== dragKey) {
-            const r = target.getBoundingClientRect();
-            persistManualDrop(dragKey, target.dataset.dragKey, y < r.top + r.height / 2);
-          }
-          endDrag();
-          render();
-        },
-        onCancel: () => { endDrag(); render(); },
-      });
-    };
 
     // A read-only row for an incognito session open in ANOTHER tab (informational — its
     // in-memory content can't be reached from here).
@@ -1358,87 +710,11 @@ export class StencilProjectsModal extends StencilElement {
     searchModeEl.value = searchMode;
     searchModeEl.addEventListener('change', () => { searchMode = searchModeEl.value; ssSet(SEARCH_MODE_KEY, searchMode); runFilter(); });
 
-    const deleteRemoteProject = (serverUrl, id) => removeRemoteProject(app.connections, serverUrl, id);
-
-    // ── Batch actions over the checked rows ──
-    // Partial failure must be loud and specific: a row whose action failed comes back on
-    // the settle render, so without the summary the batch reads as silently dropping it.
-    // `rows` overrides the checked set for a caller that has already let it go — the
-    // removal clears the selection the moment the rows start leaving, so the bar can fly
-    // with them, and the list of what to act on is captured before that.
-    const runBatch = async (fn, okMsg, failMsg, settle = null, rows = null) => {
-      let done = 0;
-      const failures = [];
-      for (const s of (rows || sel())) {
-        try { await fn(s); done++; }
-        catch (err) { failures.push({ name: shortName(s.meta?.name || 'Untitled'), message: err.message }); }
-      }
-      clearSelection();
-      // `settle` is the hold the CALLER opened before the rows started leaving (it knows
-      // when that was); batches with no removal just re-render.
-      if (settle) await settle(); else render();
-      if (!failures.length) { if (done) notify(`${okMsg} (${done})`, 'ok'); return; }
-      const names = failures.slice(0, 3).map((f) => `"${f.name}"`).join(', ')
-        + (failures.length > 3 ? ` +${failures.length - 3} more` : '');
-      notify(done
-        ? `${okMsg} ${done} of ${done + failures.length} — failed on ${names}: ${failures[0].message}`
-        : `${failMsg} ${names} — ${failures[0].message}`, 'fail');
-    };
-    batchBtns.clear.addEventListener('click', () => { clearSelection(); render(); });
-    // Select-all toggles over the CURRENT render's rows (the filtered view), so a
-    // filtered "select all" never sweeps up projects the user cannot see.
-    document.getElementById('projects-select-all')?.addEventListener('click', () => {
-      if (allSelected()) selected.clear();
-      else for (const [k, e] of selectables) selected.set(k, e);
-      updateBatchBar();
-      render();
-    });
-    batchBtns.remove.addEventListener('click', async () => {
-      if (!selected.size) return;
-      if (!(await app.confirm(`Remove ${selected.size} selected project(s)? Server projects are deleted from the server.`, { title: 'Remove projects', danger: true, confirmIcon: 'trash' }))) return;
-      // Every selected row scatters at once, then the batch runs — one shared animation.
-      // Budgeted: rowLeaveDust coarsens each row's grain on a mass removal so the
-      // TOTAL mote count stays bounded.
-      const settle = beginRemoval();
-      const keys = [...selected.keys()];
-      for (const k of keys) doomed.add(k);
-      const rows = sel();
-      const leaving = Promise.all(rows.map((s, i) =>
-        leaveThenRemove(rowById(s.id), () => {}, rowLeaveDust(rows.length, i, ITEM_DUST_MS))));
-      // …and the bar answers NOW, beside the rows' own dust, rather than after it: the
-      // count, the batch buttons and Select all come apart in the same turn the rows do
-      // (connections modal parity — the rows are already `doomed`, so nothing is left to
-      // select). Without this the strip waited out the whole scatter first.
-      selected.clear();
-      updateBatchBar();
-      await leaving;
-      await runBatch(async (s) => {
-        if (s.kind === 'remote') {
-          await deleteRemoteProject(s.serverUrl, s.id);
-          invalidateRemotes();
-        } else { app.removeProject(s.id); }
-      }, 'Removed', 'Could not remove', settle, rows);
-      // …released only now: runBatch's settle render has rebuilt the pool without them.
-      for (const k of keys) doomed.delete(k);
-      updateBatchBar();
-    });
-    batchBtns.moveServer.addEventListener('click', async () => {
-      const address = await pickServer('Move the selected projects to which server?');
-      if (!address) return;
-      await runBatch(s => app.moveProjectToServer(s.id, address), 'Moved to server', 'Could not move');
-    });
-    batchBtns.copyServer.addEventListener('click', async () => {
-      const address = await pickServer('Copy the selected projects to which server?');
-      if (!address) return;
-      await runBatch(s => app.copyProjectToServer(s.id, address), 'Copied to server', 'Could not copy');
-    });
-    batchBtns.moveLocal.addEventListener('click', async () => {
-      if (!selected.size) return;
-      if (!(await app.confirm(`Move ${selected.size} server project(s) to local? They will be removed from the server.`, { title: 'Move to local', confirmLabel: 'Move', confirmIcon: 'download' }))) return;
-      await runBatch(s => app.moveProjectToLocal(s.meta), 'Moved to local', 'Could not move');
-    });
-    batchBtns.copyLocal.addEventListener('click', async () => {
-      await runBatch(s => app.copyServerProjectToLocal(s.meta), 'Copied to local', 'Could not copy');
+    // ── Batch actions over the checked rows (ui/projects/batchActions.js) ──
+    wireBatchActions({
+      app, batchBtns, sel, selected, selectables, doomed, clearSelection, allSelected,
+      updateBatchBar, render: () => render(), pickServer, beginRemoval, rowById,
+      invalidateRemotes: () => invalidateRemotes(),
     });
 
     // Opens a fresh editor tab; nothing is discarded here, so nothing to confirm.

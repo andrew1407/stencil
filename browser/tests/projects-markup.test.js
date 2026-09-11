@@ -6,6 +6,7 @@ import { layout } from '../js/ui/layout.js';
 import { escapeHtml } from '../js/ui/base.js';
 import { escapeHtml as tipEscape } from '../js/ui/tipContent.js';
 import { escapeHtml as oneEscape } from '../js/ui/escapeHtml.js';
+import { projectsModalSource } from './helpers/projectsModalSource.js';
 
 // The project-row / server-row badges interpolate server-provenance strings
 // (meta.address, meta.serverUrl — user-typed connect URLs or server-returned
@@ -62,7 +63,7 @@ test('no runtime-only project row ids in static markup', () => {
 // behaviour is unit-tested in motion.test.js, and end-to-end in connectModal.test.js.
 import { readFileSync } from 'node:fs';
 
-const projectsSrc = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+const projectsSrc = projectsModalSource();
 
 test('every projects filter control re-lists through the shared transition', () => {
   assert.match(projectsSrc, /import \{[^}]*createFilterAnimator[^}]*\} from '\.\/motion\.js'/,
