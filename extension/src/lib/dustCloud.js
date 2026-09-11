@@ -10,6 +10,10 @@
 // Pure except for startCloud, which needs a document. Mirrored byte-for-byte in
 // extension/src/lib/dustCloud.js (extension/tests/portParity.test.js).
 
+// The tuned numbers this painter runs on live in the shared asset, not here.
+import MOTION from '../config/motion.json' with { type: 'json' };
+const TUNE = MOTION.dust;
+
 // cubic-bezier(x1, y1, x2, y2) at time t: solve x(u) = t by bisection (monotonic in
 // x), then read y(u).
 export const bezierY = (t, x1, y1, x2, y2) => {
@@ -25,7 +29,7 @@ export const bezierY = (t, x1, y1, x2, y2) => {
 // A curve sampled once into 256 steps, both ends pinned exactly — the solver only
 // bisects to within a hair of 0 and 1, and that hair leaves a landed grain a fraction
 // off home. Thousands of grains read it per frame; solving per read was the frame.
-export const EASE_STEPS = 256;
+export const EASE_STEPS = TUNE.EASE_STEPS;
 export const easeLut = (x1, y1, x2, y2) => {
   const lut = new Float32Array(EASE_STEPS + 1);
   for (let i = 0; i <= EASE_STEPS; i++) lut[i] = bezierY(i / EASE_STEPS, x1, y1, x2, y2);
@@ -83,11 +87,11 @@ export const alphaAt = (stops, p) => {
 // A grain WOBBLES sideways off its rail (strongest mid-flight, gone at both ends, so it
 // still lands where the flight says) and a GLINT twinkles. Both keyed off the grain's own
 // hash, so a cloud is lively but reproducible. Desktop twin: disintegrateOverlay.hpp.
-export const TURBULENCE_SHARE = 0.06;   // of the throw…
-export const TURBULENCE_MAX_PX = 6;     // …capped, so a window's trip does not swing wide
-export const TURBULENCE_WAVES = [2.5, 4.5];   // waves per flight, by the grain's hash
-export const TWINKLE_DEPTH = 0.35;      // a glint's brightness swing, as a share
-export const TWINKLE_HZ = [4, 7];       // …at this many flickers a second, by hash
+export const TURBULENCE_SHARE = TUNE.TURBULENCE_SHARE;     // of the throw…
+export const TURBULENCE_MAX_PX = TUNE.TURBULENCE_MAX_PX;   // …capped, so a window's trip does not swing wide
+export const TURBULENCE_WAVES = TUNE.TURBULENCE_WAVES;     // waves per flight, by the grain's hash
+export const TWINKLE_DEPTH = TUNE.TWINKLE_DEPTH;           // a glint's brightness swing, as a share
+export const TWINKLE_HZ = TUNE.TWINKLE_HZ;                 // …at this many flickers a second, by hash
 // The sideways push at progress `p` for a grain with turbulence share `t` (0 = a rail).
 export const turbulenceAt = (m, p) => {
   const t = m.t || 0;
@@ -117,23 +121,9 @@ export const STYLE_FIRE = 2;
 // The style names motionPrefs.js / the desktop settings speak, to their codes.
 export const PARTICLE_STYLES = { dust: STYLE_DUST, water: STYLE_WATER, fire: STYLE_FIRE };
 // A styled cloud's palette: this many even mixes from the main colour to its shade.
-export const PALETTE_STOPS = 6;
-export const WATER = {
-  sagShare: 0.45, sagMaxPx: 30,      // a drop sags below its line by a share of the throw…
-  swayShare: 0.12, swayMaxPx: 5,     // …and sways slowly across it
-  swayWaves: [0.8, 1.4],             // sways per flight, by the grain's hash
-  swell: 0.3,                        // grows this much mid-flight
-  shimmerDepth: 0.25, shimmerHz: [1.2, 2.2],   // a slow, shallow breath of brightness
-  glistenHz: [0.6, 1.1],             // …and a slow drift between the two colours
-};
-export const FIRE = {
-  liftShare: 0.6, liftMaxPx: 44,     // an ember lifts above its line…
-  waverShare: 0.08, waverMaxPx: 4,   // …and wavers quickly across it
-  waverWaves: [3, 5],
-  flare: 0.35,                       // grows this much mid-flight, when bright
-  flickerDepth: 0.55, flickerHz: [9, 14],   // a fast, deep flicker
-  coolHash: 0.25,                    // colour: this share by hash, the rest by distance from home
-};
+export const PALETTE_STOPS = TUNE.PALETTE_STOPS;
+export const WATER = TUNE.WATER;
+export const FIRE = TUNE.FIRE;
 // The style's touch on one grain: `p` its progress, `away` its distance from home (0…1),
 // `w` its hash, `len` its throw, `tMs` the clock. Writes sx, sy, scale, glow, mix.
 export const styleFrame = (style, p, away, w, len, tMs, out = {}) => {
@@ -163,7 +153,7 @@ export const styleFrame = (style, p, away, w, len, tMs, out = {}) => {
 };
 // A DUST grain's mix, fixed for its flight: plain grains spread from the main colour to
 // halfway by their hash, glints wear the shade — sand with sparkle in it.
-export const DUST_MIX_SPREAD = 0.5;
+export const DUST_MIX_SPREAD = TUNE.DUST_MIX_SPREAD;
 export const dustMix = (w, glint) => (glint ? 1 : (w || 0) * DUST_MIX_SPREAD);
 // Which stop of the ACCENT RAMP a grain at `mix` is painted from.
 export const paletteIndex = (mix, stops = PALETTE_STOPS) =>
@@ -172,16 +162,10 @@ export const paletteIndex = (mix, stops = PALETTE_STOPS) =>
 // Two grains in three ride the ramp above; the rest wear one of these, off the grain's own
 // hash, so a violet cloud carries white sparks and ash greys through it. They sit AFTER
 // the ramp, so one index still names one colour. Desktop twin: dustKit.hpp tintOf.
-export const TINT_SHARE = 0.34;   // of grains wear a tint; the rest ride the ramp
+export const TINT_SHARE = TUNE.TINT_SHARE;   // of grains wear a tint; the rest ride the ramp
 // Two of them follow the theme (css/theme.css), since a white speck cannot be seen on a
 // pale surface, nor a deep accent one on a dark surface.
-export const TINT_CSS = [
-  'var(--dust-ink, #1f1f1f)',                          // white on dark, soot on light
-  '#b4b4b4',                                           // grey
-  '#6e6e6e',                                           // darker grey
-  'color-mix(in srgb, var(--accent) 55%, #ffffff)',    // light accent
-  'var(--dust-accent-alt, #442082)',                   // deep accent on light, pale on dark
-];
+export const TINT_CSS = TUNE.TINT_CSS;
 export const TINT_STOPS = TINT_CSS.length;
 // Every colour paletteCss hands out: the ramp, then the tints.
 export const PAINT_STOPS = PALETTE_STOPS + TINT_STOPS;
@@ -211,15 +195,10 @@ export const SHAPE_TRIANGLE = 3;
 export const SHAPE_STREAK = 4;
 // A styled grain is bigger and dearer than a speck, so a screen-sized cloud grids at this
 // many times the cell — about half the grains — under water and fire.
-export const STYLED_CELL_SCALE = 1.4;
-export const WATER_WAVE_SHARE = 0.3;    // of water grains are wave lines, the rest ovals
-export const FIRE_STREAK_SHARE = 0.4;   // of fire grains are spark streaks, the rest triangles
-export const SHAPES = {
-  oval: { rx: 1.45, ry: 0.7 },                                   // along, across
-  wave: { len: 3.6, amp: 0.42, waves: 1.5, half: 0.28, samples: 9 },
-  triangle: { tip: 1.7, base: 0.85, half: 1.0 },                 // tip ahead, base behind
-  streak: { head: 1.0, headHalf: 0.42, tail: 2.6, tailHalf: 0.1 },   // a spark's tail trails
-};
+export const STYLED_CELL_SCALE = TUNE.STYLED_CELL_SCALE;
+export const WATER_WAVE_SHARE = TUNE.WATER_WAVE_SHARE;   // of water grains are wave lines, the rest ovals
+export const FIRE_STREAK_SHARE = TUNE.FIRE_STREAK_SHARE; // of fire grains are spark streaks, the rest triangles
+export const SHAPES = TUNE.SHAPES;
 export const grainShape = (style, w) => {
   const pick = fract((w || 0) * 7.31 + 0.17);
   if (style === STYLE_WATER) return pick < WATER_WAVE_SHARE ? SHAPE_WAVE : SHAPE_OVAL;
@@ -272,11 +251,8 @@ export const addGrainPath = (ctx, shape, x, y, r, a, scratch = []) => {
 // The palette wipe grows a ring whose EDGE wears the style: dust a perfect circle, water
 // one waved by slow swells, fire one cut into tongues of flame. `edgeJitter` is vertex k's
 // reach off the nominal radius, as a share of it; `edgeDipOf` the deepest dip inward.
-export const EDGE_POINTS = 240;
-export const EDGE = {
-  water: { waves: 9, amp: 0.028, ripple: 17, rippleAmp: 0.008 },
-  fire: { tongues: 20, base: 0.05, vary: 0.05, dip: 0.012, jag: 0.006 },
-};
+export const EDGE_POINTS = TUNE.EDGE_POINTS;
+export const EDGE = TUNE.EDGE;
 export const edgeJitter = (style, k, points = EDGE_POINTS) => {
   const t = k / points;
   if (style === STYLE_WATER) {
@@ -387,10 +363,10 @@ export const cloudBounds = (motes, pad = 4) => {
 
 // Grains are drawn in a few batched fills — one path per (colour, opacity step) —
 // instead of one fill per grain: with ~1400 grains a frame, the fills were the frame.
-export const ALPHA_LEVELS = 10;
+export const ALPHA_LEVELS = TUNE.ALPHA_LEVELS;
 // …but a path only so long: cost per grain climbs with the path's length (7000 wave lines
 // in one path measured 12x what they did in runs of 32), so batches fill in chunks.
-export const FILL_CHUNK = 32;
+export const FILL_CHUNK = TUNE.FILL_CHUNK;
 // Fill a run of grains laid out [x, y, r, shape, heading] per grain, in chunks.
 export const fillGrains = (ctx, b, n, poly) => {
   for (let i = 0; i < n; i += FILL_CHUNK) {
