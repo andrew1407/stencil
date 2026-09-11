@@ -6,7 +6,7 @@ use serde_json::Value;
 use stencil_mcp::config::LlmEnv;
 use stencil_mcp::llm::{
     chat, edge_map_attachment, ChatError, ChatMessage, ImageAttachment, LlmConfig, Provider,
-    llm_system_prompt, Role, EDGE_MAP_SUFFIX, MAX_IMAGE_BYTES,
+    edge_map_suffix, llm_system_prompt, Role, MAX_IMAGE_BYTES,
 };
 use stencil_mcp::llmtransport::{LlmError, LlmTransport};
 
@@ -406,23 +406,23 @@ fn the_prompt_prose_comes_verbatim_from_the_canonical_asset() {
 
 #[test]
 fn a_system_suffix_is_appended_after_the_canonical_prompt_on_every_provider() {
-    let expected = format!("{}\n\n{}", llm_system_prompt(), EDGE_MAP_SUFFIX);
+    let expected = format!("{}\n\n{}", llm_system_prompt(), edge_map_suffix());
 
     let transport = MockTransport::new(r#"{"message":{"content":"ok"}}"#);
     let config = LlmConfig::resolve(&env(), None).unwrap();
-    chat(&transport, &config, &user_message("hi", vec![]), EDGE_MAP_SUFFIX).unwrap();
+    chat(&transport, &config, &user_message("hi", vec![]), edge_map_suffix()).unwrap();
     let (_, _, body) = transport.single_call();
     assert_eq!(body["messages"][0]["content"], expected.as_str());
 
     let transport = MockTransport::new(r#"{"choices":[{"message":{"content":"ok"}}]}"#);
     let config = LlmConfig::resolve(&provider_env("openai-compat"), None).unwrap();
-    chat(&transport, &config, &user_message("hi", vec![]), EDGE_MAP_SUFFIX).unwrap();
+    chat(&transport, &config, &user_message("hi", vec![]), edge_map_suffix()).unwrap();
     let (_, _, body) = transport.single_call();
     assert_eq!(body["messages"][0]["content"], expected.as_str());
 
     let transport = MockTransport::new(r#"{"text":"ok","stopReason":"end_turn"}"#);
     let config = LlmConfig::resolve(&server_env(), None).unwrap();
-    chat(&transport, &config, &user_message("hi", vec![]), EDGE_MAP_SUFFIX).unwrap();
+    chat(&transport, &config, &user_message("hi", vec![]), edge_map_suffix()).unwrap();
     let (_, _, body) = transport.single_call();
     assert_eq!(body["system"], expected.as_str());
 }
@@ -439,7 +439,7 @@ fn an_empty_suffix_leaves_the_prompt_verbatim() {
 #[test]
 fn edge_map_suffix_is_the_contract_sentence_verbatim() {
     assert_eq!(
-        EDGE_MAP_SUFFIX,
+        edge_map_suffix(),
         "The second attached image is an edge-map render of the working image at the same \
          pixel coordinates: use it to place outline points on real edges."
     );
@@ -582,7 +582,7 @@ async fn a_load_only_plan_continues_once_with_the_loaded_image_attached() {
     assert!(second["messages"][0]["content"]
         .as_str()
         .unwrap()
-        .ends_with(EDGE_MAP_SUFFIX));
+        .ends_with(edge_map_suffix()));
 
     // Both replies reach the caller; the base result was written (and then re-written).
     let (summary, payload) = summary_and_payload(&result);
@@ -660,7 +660,7 @@ async fn a_layout_turn_over_an_input_image_still_costs_one_round() {
     assert!(transport.body(0)["messages"][0]["content"]
         .as_str()
         .unwrap()
-        .ends_with(EDGE_MAP_SUFFIX));
+        .ends_with(edge_map_suffix()));
 
     let (summary, payload) = summary_and_payload(&result);
     assert_eq!(payload["reply"], "Outlined.");

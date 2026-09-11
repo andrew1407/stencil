@@ -17,22 +17,19 @@ use crate::config::LlmEnv;
 use crate::llmtransport::{clip, LlmError, LlmTransport, SNIPPET_LEN};
 use crate::registry;
 
-/// The §4 prose core around the generated ops section — `head` ends at the "Available
-/// ops" heading, `tail` follows the bullets — loaded verbatim from the canonical
-/// cross-surface asset (see `browser/js/config/llm/README.md`), embedded at compile
-/// time. The bullets themselves live in [`crate::registry::op_registry`] (§13).
-static PROMPT_PROSE: std::sync::LazyLock<(String, String)> = std::sync::LazyLock::new(|| {
-    let asset: Value =
-        serde_json::from_str(include_str!("../../browser/js/config/llm/systemPrompt.json"))
-            .expect("canonical browser/js/config/llm/systemPrompt.json is not valid JSON");
-    let field = |key: &str| {
-        asset[key]
-            .as_str()
-            .unwrap_or_else(|| panic!("systemPrompt.json: \"{key}\" must be a string"))
-            .to_owned()
-    };
-    (field("head"), field("tail"))
+/// The canonical cross-surface prompt asset (see `browser/js/config/llm/README.md`),
+/// embedded at compile time — every shared sentence this surface speaks comes from it.
+static PROMPT_ASSET: std::sync::LazyLock<Value> = std::sync::LazyLock::new(|| {
+    serde_json::from_str(include_str!("../../browser/js/config/llm/systemPrompt.json"))
+        .expect("canonical browser/js/config/llm/systemPrompt.json is not valid JSON")
 });
+
+/// One string field of that asset, verbatim.
+pub fn prompt_field(key: &str) -> &'static str {
+    PROMPT_ASSET[key]
+        .as_str()
+        .unwrap_or_else(|| panic!("systemPrompt.json: \"{key}\" must be a string"))
+}
 
 /// The canonical system prompt — contract §4: the verbatim prose core around an ops
 /// section GENERATED from the op registry (§13), assembled once at first use. A registry
@@ -44,8 +41,9 @@ pub fn llm_system_prompt() -> &'static str {
         let ops =
             crate::registry::assemble_ops_section(registry::op_registry(), registry::WIRED_CAPABILITIES)
                 .expect("§4 ops-section assembly from the op registry");
-        let (head, tail) = &*PROMPT_PROSE;
-        format!("{head}{ops}{tail}")
+        // §4: the prose core (`head` ends at the "Available ops" heading, `tail` follows
+        // the bullets) around the ops section generated from the registry.
+        format!("{}{ops}{}", prompt_field("head"), prompt_field("tail"))
     })
 }
 
@@ -54,9 +52,10 @@ pub fn llm_system_prompt() -> &'static str {
 pub const MAX_IMAGE_BYTES: u64 = 8 * 1024 * 1024;
 
 /// Contract §7: appended to the system-prompt suffix when — and only when — the edge map
-/// is actually attached. Verbatim.
-pub const EDGE_MAP_SUFFIX: &str = "The second attached image is an edge-map render of the \
-working image at the same pixel coordinates: use it to place outline points on real edges.";
+/// is actually attached.
+pub fn edge_map_suffix() -> &'static str {
+    prompt_field("edgeMapSentence")
+}
 
 // ── Providers & configuration (contract §5) ──
 

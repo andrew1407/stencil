@@ -33,9 +33,8 @@ struct PromptPayload<'a> {
     reply: &'a str,
     notes: &'a [String],
     results: &'a [PromptResult],
-    /// The turn's question (contract §11), when it asked one. There is no interactive
-    /// surface here, so the calling agent gets the card as data (and as text on the reply)
-    /// and answers it by calling `stencil_prompt` again with its choice.
+    /// The turn's question (contract §11), when it asked one. No interactive surface here:
+    /// the agent gets the card as data and answers by calling `stencil_prompt` again.
     #[serde(skip_serializing_if = "Option::is_none")]
     ask: Option<PromptAsk<'a>>,
 }
@@ -95,11 +94,6 @@ fn prompt_response(
     };
     ok_result(summary, payload)
 }
-
-/// §7 auto-continuation: the note appended to the re-sent turn (the cli console's wording
-/// — this tool is single-turn like it, so there is no history to carry the request).
-const CONTINUATION_NOTE: &str = "[The working image is now the picture those actions \
-loaded — continue with it, using its real pixel size.]";
 
 /// A round-2 failure never costs round 1's work: fold the failure into a note and answer
 /// with what the first round already wrote. With no first round it stays a hard error.
@@ -204,9 +198,8 @@ pub async fn run_prompt(
             if let Some(note) = note {
                 notes.push(note);
             }
-            // §7 edge map: a contour render of the input, directly after the snapshot.
-            // Only when the snapshot itself rides (dropped snapshot ⇒ dropped edge map);
-            // a missing CLI, failed render, or oversized render silently skips it.
+            // §7 edge map: a contour render of the input, right after the snapshot and only
+            // when the snapshot rides; a missing CLI or failed/oversized render just skips it.
             if snapshot_attached {
                 if let Some(edge) = pipeline::render_edge_map(input)
                     .await
@@ -214,7 +207,7 @@ pub async fn run_prompt(
                     .and_then(llm::edge_map_attachment)
                 {
                     images.push(edge);
-                    system_suffix = llm::EDGE_MAP_SUFFIX.to_string();
+                    system_suffix = llm::edge_map_suffix().to_string();
                 }
             }
         }
@@ -305,11 +298,9 @@ pub async fn run_prompt(
                 }
             }
         }
-        // The runs are independent — each variant replays the base actions from the
-        // original input and writes its own deduped path — so they execute concurrently.
-        // All runs are joined before responding, results keep request order, and the
-        // failure reported is the first in request order (same message as the old
-        // sequential loop).
+        // The runs are independent — each variant replays the base actions from the original
+        // input onto its own deduped path — so they run concurrently, joined before the reply;
+        // results keep request order, and the failure reported is the first in that order.
         let mut handles = Vec::with_capacity(requests.len());
         for request in requests {
             let params = request.params;
@@ -366,7 +357,10 @@ pub async fn run_prompt(
         if round == 0 && opplan::loads_without_tracing(&plan) {
             if let Some(base) = results.iter().find(|r| r.label.is_none() && r.width.is_some()) {
                 round_input = Some(base.path.clone());
-                text = format!("{prompt}\n\n{CONTINUATION_NOTE}");
+                // §7 auto-continuation: the cli console's wording — this tool is
+                // single-turn like it, so no history carries the request.
+                let note = llm::prompt_field("continuationNoteConsole");
+                text = format!("{prompt}\n\n{note}");
                 first = Some((plan.reply.clone(), results));
                 continue;
             }

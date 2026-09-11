@@ -22,8 +22,7 @@ use crate::outcome::{Remote, ScrapedFile};
 use crate::pipeline;
 
 /// The `stencil_edit` structured payload, serialized as the tool's JSON content. Borrows the
-/// result/notes so serialization is the single source of the payload shape (the per-delivery
-/// and per-server objects come straight off `DeliveryNote`/`Remote`'s own `Serialize`).
+/// result/notes, so `DeliveryNote`/`Remote`'s own `Serialize` shapes the nested objects.
 #[derive(Serialize)]
 struct EditPayload<'a> {
     path: &'a str,
@@ -34,16 +33,23 @@ struct EditPayload<'a> {
     server: &'a [Remote],
 }
 
-/// The `source_site` structured payload: the destination directory, the scraped page's
-/// host, and every downloaded file (each with its measured dimensions, or null for video).
-/// `files` borrows the pipeline result's `ScrapedFile`s, whose own `Serialize` shapes each
-/// `{path,width,height}` object.
+/// The `source_site` structured payload: the destination directory, the scraped page's host,
+/// and every downloaded file — `ScrapedFile`'s `Serialize` shapes each `{path,width,height}`.
 #[derive(Serialize)]
 struct ScrapePayload<'a> {
     dir: Option<&'a str>,
     host: Option<&'a str>,
     files: &'a [ScrapedFile],
 }
+
+/// This surface's user-facing prose, embedded from the committed canonical asset. rmcp's
+/// `#[tool]` takes a literal, so the four descriptions ride in on `#[doc = include_str!]`
+/// from its generated `toolDescriptions/*.txt` shards; `tests/tool_prose_test.rs` pins
+/// those and README.md's Tools table against this file.
+static PROSE: std::sync::LazyLock<serde_json::Value> = std::sync::LazyLock::new(|| {
+    serde_json::from_str(include_str!("../../toolDescriptions.json"))
+        .expect("mcp/toolDescriptions.json is not valid JSON")
+});
 
 /// Wrap a text summary + JSON payload as a successful tool result.
 fn ok_result(summary: String, payload: impl Serialize) -> Result<CallToolResult, McpError> {
@@ -83,20 +89,8 @@ impl StencilServer {
         }
     }
 
-    #[tool(
-        description = "Edit one image or video frame with Stencil's core pipeline (source \
-        → crop → rotate → filter → draw layout → encode) and write the result to a file, \
-        then deliver it to the selected surface(s). Provide either `input` (a path or \
-        http(s) URL) or `blank` (a fresh canvas), plus any of crop/rotate/layout/filter, an \
-        `output` path, and an optional `surface` override. To work with a Stencil \
-        collaboration server: set `server` to a server URL and `input` to a project NAME to \
-        fetch and edit it, add `remote_update` to write the result back; or set `remote` (a \
-        server URL) + optional `remote_name` to push the result as a NEW project. `server` \
-        and `remote` may point at different servers, so one call can fetch from one and \
-        publish to another. The result is always saved locally too. Returns the written \
-        path, final dimensions, per-surface delivery notes, and any server projects \
-        updated/created."
-    )]
+    #[doc = include_str!("../../toolDescriptions/stencil_edit.txt")]
+    #[tool]
     async fn stencil_edit(
         &self,
         Parameters(params): Parameters<EditParams>,
@@ -113,8 +107,7 @@ impl StencilServer {
 
         let notes = deliver::deliver(&surfaces, &result, &self.config).await;
 
-        // A human-readable summary: the write line + any server deliveries (from the result),
-        // then one line per surface beyond cli.
+        // Summary: the write line + server deliveries, then one line per surface beyond cli.
         use std::fmt::Write;
         let mut summary = result.summary();
         for note in &notes {
@@ -128,9 +121,8 @@ impl StencilServer {
             }
         }
 
-        // The structured payload mirrors the shapes of `DeliveryNote` and `Remote` directly;
-        // `server` may touch more than one collaboration server in one call (fetch/update one
-        // and create on another), each object tagged with its action by `Remote`'s Serialize.
+        // `server` may touch more than one collaboration server in one call (fetch/update
+        // one and create on another), each tagged with its action by `Remote`'s Serialize.
         let payload = EditPayload {
             path: &result.path,
             width: result.width,
@@ -143,10 +135,8 @@ impl StencilServer {
         ok_result(summary, payload)
     }
 
-    #[tool(
-        description = "Read an image's pixel dimensions. Useful before computing crop or \
-        layout coordinates. `input` is a path or http(s) URL. Returns width and height."
-    )]
+    #[doc = include_str!("../../toolDescriptions/stencil_probe.txt")]
+    #[tool]
     async fn stencil_probe(
         &self,
         Parameters(params): Parameters<ProbeParams>,
@@ -161,26 +151,8 @@ impl StencilServer {
         }
     }
 
-    #[tool(
-        description = "Ask Stencil's configured LLM to plan and run edits from a natural-\
-        language `prompt` (see llm-contract.md). `input` is the working image (path \
-        or http(s) URL; a local file is also attached for vision). The LLM answers with a \
-        strictly validated op-plan (crop / rotate / filter / layout / blank / frame / \
-        image / save); its base actions are written to `{output_dir}/result.png` and each \
-        variant to `{output_dir}/{label}.png` via the same CLI pipeline as stencil_edit, \
-        and each `save` op bundles the image + layout so far into \
-        `{output_dir}/{name}.stencil`. This tool carries ONE `input`, so an `image` op may \
-        only select index 1 (it restarts from that input); a higher index is noted and \
-        skipped. A plan with \
-        no actions is a chat-only answer (text, nothing written). A plan that only LOADS \
-        a picture (blank/frame, no layout drawn) is applied and the prompt automatically \
-        re-sent ONCE with the loaded image attached (llm-contract §7), so e.g. 'create a \
-        blank page and draw …' completes in one call. The provider and its \
-        endpoint come from the operator's STENCIL_LLM_* env and are NOT settable per call \
-        (only `model` is): `ollama`, `openai-compat` (LM Studio etc.), or `stencil-server` \
-        (a Stencil collaboration server proxying Anthropic). The built-in transport is \
-        plain http:// only and refuses to send credentials off-loopback."
-    )]
+    #[doc = include_str!("../../toolDescriptions/stencil_prompt.txt")]
+    #[tool]
     async fn stencil_prompt(
         &self,
         Parameters(params): Parameters<PromptParams>,
@@ -193,25 +165,13 @@ impl StencilServer {
         .await
     }
 
-    #[tool(
-        description = "Scrape a web page and download the media it references into a \
-        DIRECTORY. Give `source_site` (the page's http(s) URL) and an `output` directory \
-        (created if missing; defaults to the current directory). Filter what's downloaded \
-        with `filter` (category tokens `img|video|background|poster`, `|`-separated; default \
-        all), `format` (normalized extension tokens like `png|jpg|webp|mp4`; default all), \
-        and `min_width`/`max_width`/`min_height`/`max_height` (inclusive px bounds measured \
-        from image bytes; video and unmeasurable items always pass). Page through large \
-        result sets with `count` (items per page — omit to take ALL matches) and `group` (a \
-        0-based page index). This is a headless directory download, so it only writes files \
-        locally (the `cli` surface). Returns the directory, the page host, and the list of \
-        written files with their pixel dimensions."
-    )]
+    #[doc = include_str!("../../toolDescriptions/source_site.txt")]
+    #[tool]
     async fn source_site(
         &self,
         Parameters(params): Parameters<ScrapeParams>,
     ) -> Result<CallToolResult, McpError> {
-        // Scraping writes a directory of downloads — the only supported delivery is the local
-        // file write. Reject any other surface override before touching the CLI.
+        // Scraping only writes files locally: reject any other surface before the CLI runs.
         if let Err(message) = params.validate_surface() {
             return Ok(err_result(message));
         }
@@ -262,24 +222,9 @@ impl ServerHandler for StencilServer {
         implementation.version = env!("CARGO_PKG_VERSION").to_string();
         info.server_info = implementation;
         info.instructions = Some(
-            "Stencil image/video editing. `stencil_edit` runs the full pipeline \
-             (source → crop → rotate → filter → layout → encode), writes a file, and \
-             delivers it to the configured surface(s) — cli (file), desktop (launch the Qt \
-             app), browser (editor launch URL); pass `surface` to override per call. It can \
-             also work with Stencil collaboration servers: `server`+`input` fetches a \
-             project by name to edit, `remote_update` writes the result back, and `remote` \
-             (+`remote_name`) publishes the result as a new project — `server` and `remote` \
-             can be different servers in one call. `stencil_probe` returns an image's pixel \
-             size. `source_site` scrapes a web page and downloads its matching media (filter \
-             by category/format/dimensions, page with count/group) into a directory. \
-             `stencil_prompt` hands a natural-language request (plus the input image, for \
-             vision) to a configured LLM — ollama, openai-compat, or a stencil-server \
-             Anthropic proxy, via the STENCIL_LLM_* env keys, plain http:// only — and runs \
-             the strictly validated op-plan it returns through the same pipeline, writing \
-             {output_dir}/result.png plus one file per variant. \
-             Coordinates in layouts and crops are image pixels. The server shells out \
-             to the Stencil CLI, so set STENCIL_CLI if the binary isn't found in the repo or \
-             on PATH."
+            PROSE["instructions"]
+                .as_str()
+                .expect("toolDescriptions.json: \"instructions\" must be a string")
                 .to_string(),
         );
         info
@@ -318,9 +263,8 @@ pub(super) mod testwire {
 
 #[cfg(test)]
 mod tests {
-    //! The shared result wrappers and the edit/scrape payload shapes (pure). These types
-    //! are the contract with a calling agent: it reads the text summary and parses the
-    //! JSON block, so every assertion runs against the real wire shape.
+    //! The shared result wrappers and the edit/scrape payload shapes (pure) — the contract
+    //! with a calling agent, so every assertion runs against the real wire shape.
 
     use super::testwire::{payload_of, wire};
     use super::*;

@@ -32,7 +32,7 @@ CLI editors. For the project overview see the [repository README](../README.md).
 graph TD
     CLIENT["MCP client — Claude Code · Desktop · any agent"]
     subgraph MCP["mcp/ — Rust (rmcp over stdio)"]
-      SERVER["server.rs — stencil_edit / stencil_probe / source_site tools"]
+      SERVER["server/ — stencil_edit / stencil_probe / source_site / stencil_prompt tools"]
       ARGS["args.rs — params → argv (mirrors cli/args.zig)"]
       PIPE["pipeline.rs — locate → spawn → parse"]
       DEL["deliver.rs — surfaces: file · desktop launch · browser URL"]
@@ -59,6 +59,7 @@ graph TD
 | MCP protocol over stdio | **`rmcp`** | the official Rust MCP SDK (server + stdio transport + macros), fetched by cargo |
 | Async runtime + subprocess | **tokio** | spawns the CLI and serves the stdio transport |
 | Tool schemas / (de)serialization | **serde**, **serde_json**, **schemars** | typed tool params → JSON Schema, advertised in `tools/list` |
+| Temp files handed to the CLI | **tempfile** | inline layouts, fetched bytes and LLM attachments written for the subprocess |
 | Browser launch-URL data URLs | **base64** | encode the result image into the `#stencil=` fragment (already in the tree) |
 | The actual pixel/geometry work | **`../cli/`** (and through it, **`../core/`**) | invoked as a subprocess; **not** linked or recompiled here |
 
@@ -77,10 +78,14 @@ other front-ends share: its only contract is the CLI's documented flags.
 mcp/
   Cargo.toml           # package + exactly pinned deps (rmcp, tokio, serde, schemars, tempfile, base64)
   .env.example         # config template; copy to .env (gitignored) and adjust
+  toolDescriptions.json  # canonical tool + get_info prose (→ the shards and README's Tools table)
+  toolDescriptions/    # generated, committed shards the #[tool] attributes include_str!
   src/
     main.rs            # entry: load config, stderr logging, serve(stdio()).waiting()
     lib.rs             # module surface (so integration tests can reach the wrapper)
-    server.rs          # the MCP surface: StencilServer + the #[tool] methods + get_info
+    server/
+      mod.rs           # the MCP surface: StencilServer + the #[tool] methods + get_info
+      prompt.rs        # the stencil_prompt flow: one LLM turn → validated plan → CLI runs
     config.rs          # Surface enum + Config (defaults ← .env ← env ← --surface arg)
     args.rs            # typed tool params (EditParams/ProbeParams) → CLI argv  (mirrors cli/src/args.zig)
     pipeline.rs        # orchestration: locate → spawn → parse           (mirrors cli/src/pipeline.zig)
@@ -91,20 +96,34 @@ mcp/
     confine.rs         # rewrite a run to spawn inside its sandbox root, under `--confine-output`
     llmtransport.rs    # hand-rolled plain-http HTTP/1.1 POST transport (no TLS, no deps)
     llm.rs             # LLM providers, system prompt + wire mappings (llm-contract.md)
-    opplan.rs          # op-plan parser/validator + mapping onto EditParams runs
+    registry.rs        # the §13 op registry: the ops this server may plan + the prompt's ops section
+    opplan/
+      mod.rs           # the op-plan surface the rest of the crate calls
+      types.rs         # the validated plan types + the one error enum
+      parse.rs         # §1 extraction: fences, the first balanced JSON object, plan shape
+      schema.rs        # the registry-driven schema engine (port of browser/js/llm/opSchema.js)
+      actions.rs       # §2–§3 per-op validation, registry-gated
+      lower.rs         # map a validated plan onto EditParams runs
+      ask.rs           # §11 `ask` cards: validation + text rendering
   tests/
     args_test.rs       # param → argv mapping + surface resolution + guards (pure)
     outcome_test.rs    # stderr parsing (pure)
     opplan_test.rs     # op-plan parse tables + EditParams mapping (pure)
+    schema_test.rs     # the schema engine against the registry's own grammars
+    registry_test.rs   # the registry loads and the prompt's ops section assembles from it
     llmtransport_test.rs # HTTP transport against a canned local TcpListener
     llm_test.rs        # provider wire shapes via a mock recording transport
     guards_test.rs     # the spawn deadline, the response-body cap, and output confinement (negative tests)
+    text_golden_test.rs # goldens/*.txt: the wire descriptions + get_info instructions, byte-exact
+    tool_prose_test.rs # toolDescriptions.json → the committed shards + README's Tools table
+    size_budget_test.rs # the per-file size + comment-share ratchet
+    *_fixtures_test.rs # the shared cross-surface fixtures under browser/js/config/
     e2e_test.rs        # real CLI runs (incl. a canned-LLM prompt flow), self-skipping when the binary is absent
   Dockerfile           # builds the Zig CLI + the Rust server into one runtime image
 ```
 
-`src/` is kept flat to mirror `cli/src/`; the module names (`args`, `pipeline`) echo the
-CLI's so the two wrappers read the same way.
+`src/` mirrors `cli/src/` — the module names (`args`, `pipeline`) echo the CLI's so the two
+wrappers read the same way; only the two large surfaces (`server/`, `opplan/`) are directories.
 
 > **stdout is the JSON-RPC channel.** All logging goes to **stderr** (writing to stdout
 > would corrupt the protocol). `main.rs` logs with plain `eprintln!` — no logging crate.
@@ -193,12 +212,14 @@ STENCIL_CLI=/path/to/stencil claude mcp add stencil -- /path/to/stencil-mcp
 
 ### Tools
 
+<!-- generated from toolDescriptions.json — rewrite with `MCP_UPDATE_PROSE=1 cargo test` -->
 | Tool | Purpose | Key parameters |
 |---|---|---|
 | `stencil_edit` | Run the full pipeline, write a file, deliver to surface(s), optionally fetch/publish on a collaboration server | `input` \| `blank`, `crop`, `rotate`, `layout`, `filter`, `frame`, `output`, `overwrite`, `surface`, `server`, `remote_update`, `remote`, `remote_name` |
 | `stencil_probe` | Read an image's pixel size | `input` |
 | `source_site` | Scrape a web page and download its matching media into a **directory** | `source_site`, `output`, `count`, `group`, `filter`, `format`, `min_width`/`max_width`/`min_height`/`max_height` |
 | `stencil_prompt` | Ask a configured LLM to plan edits from natural language and run them (see [LLM assistant](#llm-assistant-stencil_prompt)) | `prompt`, `input`, `output_dir`, `model` override |
+<!-- /generated -->
 
 `stencil_edit` maps directly onto the CLI (`source → crop → rotate → filter → layout →
 encode`):
