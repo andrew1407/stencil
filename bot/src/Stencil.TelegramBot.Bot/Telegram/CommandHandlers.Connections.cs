@@ -1,0 +1,146 @@
+using Stencil.TelegramBot.Application.Servers;
+using Stencil.TelegramBot.Domain.Sessions;
+using Stencil.TelegramBot.Infrastructure.Links;
+using Telegram.Bot;
+
+namespace Stencil.TelegramBot.Bot.Telegram;
+
+// CommandHandlers — reaching a server: /start deep links, /link, /connect, /disconnect and
+// /connections. Class doc lives in CommandHandlers.cs.
+public sealed partial class CommandHandlers
+{
+    /// <summary>
+    /// Greet the user — or, when the message carries a deep-link start payload (a
+    /// t.me/&lt;bot&gt;?start=&lt;payload&gt; link from the browser/desktop "Open in…"), connect to
+    /// the referenced server like a fresh client and open the project.
+    /// </summary>
+    private async Task StartAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        if (cmd.ArgumentText.Length > 0
+            && DeepLinkCodec.TryDecode(cmd.ArgumentText, out string serverUrl, out string projectId))
+        {
+            await OpenDeepLinkedProjectAsync(userId, chatId, serverUrl, projectId, ct);
+            return;
+        }
+        await _bot.SendMessage(
+            chatId,
+            "Welcome to Stencil. Send a photo to start editing, or tap a button below.",
+            replyMarkup: Keyboards.MainMenu(),
+            cancellationToken: ct);
+    }
+
+    /// <summary>
+    /// Open a deep-linked server project: reuse the session's connection to that origin, else
+    /// connect tokenless (the server mints one — no token ever rides the link), then fetch and
+    /// render. Failures reply with the manual /connect + /fetch recipe.
+    /// </summary>
+    private async Task OpenDeepLinkedProjectAsync(long userId, long chatId, string serverUrl,
+        string projectId, CancellationToken ct)
+    {
+        try
+        {
+            UserSession session = await _store.GetAsync(userId, ct);
+            if (session.FindConnection(serverUrl) is null)
+            {
+                await _servers.ConnectAsync(userId, serverUrl, token: null, !_options.TlsInsecure, ct);
+            }
+            UserSession updated = await _servers.FetchAsync(userId, projectId, serverUrl, ct);
+            await _bot.SendMessage(
+                chatId,
+                Replies.Tag(Replies.Tone.Success,
+                    $"Loaded shared project '{updated.ActiveProjectName}' from {serverUrl}."),
+                cancellationToken: ct);
+            await RenderAndSendAsync(userId, chatId, ct, mutating: false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            await _bot.SendMessage(
+                chatId,
+                Replies.Tag(Replies.Tone.Error,
+                    $"Couldn't open the shared project — {ex.Message}\n\n"
+                    + $"Try manually:\n/connect {serverUrl} [token]\n/fetch {projectId}"),
+                cancellationToken: ct);
+        }
+    }
+
+    /// <summary>
+    /// Hand the active project to the desktop app: <c>/link</c> replies with an https link that
+    /// bounces through the browser app's <c>launch.html</c> to <c>stencil://open?…</c>. Server
+    /// projects only (a link carries a reference, never image bytes), and no token rides it —
+    /// the recipient connects to that server with their own credential.
+    /// </summary>
+    private async Task LinkAsync(long userId, long chatId, CancellationToken ct)
+    {
+        UserSession session = await _store.GetAsync(userId, ct);
+        if (session.ActiveProjectId is null || session.ActiveServerUrl is null)
+        {
+            await _bot.SendMessage(
+                chatId,
+                "No active server project to link — /fetch or /create one first (a link points at a "
+                + "server project, it can't carry the image itself).",
+                cancellationToken: ct);
+            return;
+        }
+        string? url = DesktopLinkBuilder.TryProjectBounceUrl(
+            _options.BrowserAppUrl, session.ActiveServerUrl, session.ActiveProjectId,
+            session.ActiveProjectVersion);
+        if (url is null)
+        {
+            await _bot.SendMessage(chatId, Replies.DesktopLinkUnusable(), cancellationToken: ct);
+            return;
+        }
+        await _bot.SendMessage(
+            chatId,
+            Replies.DesktopLink(
+                session.ActiveProjectName ?? session.ActiveProjectId, url,
+                DesktopLinkBuilder.IsLoopbackBase(_options.BrowserAppUrl)),
+            cancellationToken: ct);
+    }
+
+    private async Task ConnectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        if (cmd.Args.Count == 0)
+        {
+            await _bot.SendMessage(chatId, Replies.ConnectUsage(), cancellationToken: ct);
+            return;
+        }
+        string url = cmd.Args[0];
+        string? token = cmd.Args.Count > 1 ? cmd.Args[1] : null;
+        bool verifyTls = !_options.TlsInsecure;
+        ServerConnectionInfo info = await _servers.ConnectAsync(userId, url, token, verifyTls, ct);
+        await _bot.SendMessage(
+            chatId,
+            Replies.Tag(Replies.Tone.Success, $"Connected to {info.Url}."),
+            replyMarkup: Keyboards.MainMenu(),
+            cancellationToken: ct);
+    }
+
+    private async Task DisconnectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        string? url = cmd.Args.Count == 0 ? null : cmd.Args[0];
+        bool removed = await _servers.DisconnectAsync(userId, url, ct);
+        string text = removed
+            ? Replies.Tag(Replies.Tone.Success, "Disconnected.")
+            : Replies.Tag(Replies.Tone.Notice, "No matching connection to disconnect.");
+        await _bot.SendMessage(chatId, text, cancellationToken: ct);
+    }
+
+    private async Task ConnectionsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
+    {
+        string filter = cmd.Args.Count == 0 ? "" : cmd.Args[0].ToLowerInvariant();
+        if (filter is not ("" or "admin" or "session"))
+        {
+            await _bot.SendMessage(chatId, Replies.ConnectionsUsage(), cancellationToken: ct);
+            return;
+        }
+        IReadOnlyList<ServerConnectionInfo> connections = await _servers.ConnectionsAsync(userId, ct);
+        if (filter.Length > 0)
+        {
+            bool wantAdmin = filter == "admin";
+            connections = connections
+                .Where(c => (c.CredentialKind == CredentialKind.Admin) == wantAdmin)
+                .ToList();
+        }
+        await _bot.SendMessage(chatId, Replies.ConnectionsText(connections, filter), cancellationToken: ct);
+    }
+}
