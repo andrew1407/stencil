@@ -176,8 +176,8 @@ namespace stencil::gui {
     if (!a || a->property("revealBound").toBool()) return;
     a->setProperty("revealBound", true);
     connect(a, &QAction::triggered, this, [this, a] {
-      dialogAnchor_ = buttonForAction(a);   // resolved at trigger time; buttons come later
-      dialogAnchorRect_ = (menuRowAction_ == a) ? menuRowRect_ : QRect();
+      pop_.dialogAnchor = buttonForAction(a);   // resolved at trigger time; buttons come later
+      pop_.dialogAnchorRect = (pop_.menuRowAction == a) ? pop_.menuRowRect : QRect();
     });
   }
 

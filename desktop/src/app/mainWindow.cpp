@@ -379,7 +379,7 @@ namespace stencil::gui {
     // back into the icon.
     connect(chatDock_, &ChatDock::closeRequested, this, [this] {
       if (!chatDock_ || tearingDown_ || !chatDock_->isVisible()) return;
-      popoverAnchor_.clear();   // a plain close is never a popover gesture
+      pop_.anchor.clear();   // a plain close is never a popover gesture
       if (actChat_ && actChat_->isChecked()) {
         actChat_->setChecked(false);   // its handler runs setChatShown(false, animate)
         return;
@@ -815,8 +815,8 @@ namespace stencil::gui {
     connect(canvas_, &CanvasWidget::blankImageRequested, this, [this] {
       const QRect card = canvas_ ? canvas_->idleCardGlobalRect() : QRect();
       if (card.isValid()) {
-        dialogAnchor_.clear();       // the rect below is the origin, not any icon
-        dialogAnchorRect_ = card;
+        pop_.dialogAnchor.clear();       // the rect below is the origin, not any icon
+        pop_.dialogAnchorRect = card;
       }
       openImageDialog(/*startBlank=*/true);
     });
@@ -1139,7 +1139,7 @@ namespace stencil::gui {
     AssistantSettingsDialog dlg(settings_, this);
     // Its own chord closes it again and another window's chord swaps to that window,
     // as for every toolbar window (execMaybePopover) — this one is plain exec()'d.
-    wireWindowSwitching(dlg, popoverDialogActions_, actAssistantSettings_);
+    wireWindowSwitching(dlg, pop_.dialogActions, actAssistantSettings_);
     support::revealDialog(dlg, anchor, anchorRect);
     if (dlg.exec() == QDialog::Accepted) {
       applySettings(dlg.result(), true);
@@ -1168,10 +1168,10 @@ namespace stencil::gui {
   static constexpr int kPopoverCloseMs = 360;
 
   int MainWindow::execMaybePopover(QDialog& dlg, QAction* opener) {
-    wireWindowSwitching(dlg, popoverDialogActions_, opener);
+    wireWindowSwitching(dlg, pop_.dialogActions, opener);
     // Park the originals while the dialog owns those chords, and put them back after.
     QList<QPair<QAction*, Qt::ShortcutContext>> parked;
-    for (QAction* a : popoverDialogActions_) {
+    for (QAction* a : pop_.dialogActions) {
       if (!a || a->shortcut().isEmpty()) continue;
       parked.append({a, a->shortcutContext()});
       a->setShortcutContext(Qt::WidgetShortcut);
@@ -1179,12 +1179,12 @@ namespace stencil::gui {
     const QScopeGuard restore([&] {
       for (const auto& [a, ctx] : parked) a->setShortcutContext(ctx);
     });
-    QWidget* anchor = popoverAnchor_.data();
-    popoverAnchor_.clear();
+    QWidget* anchor = pop_.anchor.data();
+    pop_.anchor.clear();
     if (!anchor) {
       // Ordinary centred window: it still grows out of the icon that opened it — or,
       // when that icon is hidden, out of the menu row that was clicked.
-      support::revealDialog(dlg, dialogAnchor_.data(), dialogAnchorRect_);
+      support::revealDialog(dlg, pop_.dialogAnchor.data(), pop_.dialogAnchorRect);
       return dlg.exec();
     }
     // The popover is a CHILD WIDGET, never a window of its own: a small frameless
@@ -1259,22 +1259,22 @@ namespace stencil::gui {
         fade->start(QAbstractAnimation::DeleteWhenStopped);
       }
     }
-    activePopover_ = &dlg;
-    popoverOverlay_ = overlay;
+    pop_.active = &dlg;
+    pop_.overlay = overlay;
     // Alt-GLIDE: while any popover shows and Alt is HELD, the cursor landing on a
     // DIFFERENT popover icon closes this dialog and opens that icon's peek. The
     // modal loop blocks Enter/hover events, so a poll watches the cursor.
     QTimer glide;
     glide.setInterval(80);
     connect(&glide, &QTimer::timeout, this, [this, anchor] {
-      if (!activePopover_) return;
+      if (!pop_.active) return;
       // altHeldForTest_: the offscreen GUI test's stand-in for a physically held Alt
       // (QTest key events never reach the platform's modifier state).
       if (!(QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier) && !altHeldForTest_)
         return;
       // Whether the cursor rests ON the open box — see the fallback below.
       const bool onBox = popoverRectGlobal().contains(QCursor::pos());
-      for (auto it = popoverButtons_.cbegin(); it != popoverButtons_.cend(); ++it) {
+      for (auto it = pop_.buttons.cbegin(); it != pop_.buttons.cend(); ++it) {
         auto* b = static_cast<QToolButton*>(it.key());
         if (b == anchor || !b->isVisible() || !it.value()->isEnabled()) continue;
         // underMouse() as backup, same as the Alt KeyPress loop (and the test's mock).
@@ -1284,8 +1284,8 @@ namespace stencil::gui {
         const bool hovering = b->underMouse() ||
                               (!onBox && b->rect().contains(b->mapFromGlobal(QCursor::pos())));
         if (!hovering) continue;
-        altPeekNextButton_ = b;
-        altPeekNextAction_ = it.value();
+        pop_.peekNextButton = b;
+        pop_.peekNextAction = it.value();
         dismissPopover();
         break;
       }
@@ -1347,8 +1347,8 @@ namespace stencil::gui {
     connect(qApp, &QCoreApplication::aboutToQuit, &loop, end);
     if (!ended) loop.exec();
     glide.stop();
-    activePopover_.clear();
-    popoverOverlay_.clear();
+    pop_.active.clear();
+    pop_.overlay.clear();
     const int result = alive ? alive->result() : int(QDialog::Rejected);
     // Hand the dialog back to its caller — it is a stack object, so it must NOT be left
     // parented to the overlay we are about to delete.
@@ -1358,12 +1358,12 @@ namespace stencil::gui {
     }
     if (overlayAlive) overlayAlive->deleteLater();
     // The glide picked the next icon: open its peek once this dialog unwinds.
-    if (altPeekNextAction_) {
+    if (pop_.peekNextAction) {
       QTimer::singleShot(0, this, [this] {
-        QToolButton* b = altPeekNextButton_.data();
-        QAction* a = altPeekNextAction_.data();
-        altPeekNextButton_.clear();
-        altPeekNextAction_.clear();
+        QToolButton* b = pop_.peekNextButton.data();
+        QAction* a = pop_.peekNextAction.data();
+        pop_.peekNextButton.clear();
+        pop_.peekNextAction.clear();
         altPeekOpen(b, a);
       });
     }

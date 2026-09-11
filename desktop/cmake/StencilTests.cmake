@@ -86,6 +86,12 @@ stencil_headless_test(stencil_sessioncontroller_headless
   SOURCES tests/sessionController.headless.cpp
   LIBS Qt6::Core)
 
+# What a press outside an open compact popover means (app/popoverHost.hpp) — including
+# the logo/accent exception; header-only, so the test is the only compile unit.
+stencil_headless_test(stencil_popoverhost_headless
+  SOURCES tests/popoverHost.headless.cpp
+  LIBS Qt6::Widgets)
+
 # Scroll-reveal curve (app/scrollReveal.hpp) — how dim a row is at a given spot in its
 # scroller; header-only, so the test is the only extra compile unit.
 stencil_headless_test(stencil_scrollreveal_headless

@@ -175,7 +175,7 @@ namespace stencil::gui {
     support::revealMenuBarMenu(*help, *menuBar());
 
     // Remember WHICH ROW a menu command came out of, so a dialog opened from the menu bar
-    // grows out of that row when its toolbar icon is hidden (see dialogAnchorRect_).
+    // grows out of that row when its toolbar icon is hidden (see pop_.dialogAnchorRect).
     // It has to be recorded on HOVER: Qt hides the menu before it emits triggered(), so by
     // the time the action fires there is no popup left to ask for the row's geometry — the
     // reveal then fell back to a box above the dialog and read as dropping in from the top.
@@ -183,14 +183,14 @@ namespace stencil::gui {
     for (QMenu* m : menuBar()->findChildren<QMenu*>()) {
       connect(m, &QMenu::hovered, this, [this, m](QAction* a) {
         const QRect r = m->actionGeometry(a);
-        menuRowAction_ = a;
-        menuRowRect_ = r.isValid() ? QRect(m->mapToGlobal(r.topLeft()), r.size()) : QRect();
+        pop_.menuRowAction = a;
+        pop_.menuRowRect = r.isValid() ? QRect(m->mapToGlobal(r.topLeft()), r.size()) : QRect();
       });
       // Drop it once the menu is gone — otherwise a row hovered earlier would still be
       // claiming to be the origin when the same command is later run from its icon or a
       // shortcut. Deferred by one cycle because triggered() lands AFTER the hide.
       connect(m, &QMenu::aboutToHide, this, [this] {
-        QTimer::singleShot(0, this, [this] { menuRowAction_ = nullptr; menuRowRect_ = QRect(); });
+        QTimer::singleShot(0, this, [this] { pop_.menuRowAction = nullptr; pop_.menuRowRect = QRect(); });
       });
     }
   }

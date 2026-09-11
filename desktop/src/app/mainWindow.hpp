@@ -1,6 +1,7 @@
 #pragma once
 #include "chatDock.hpp"  // ChatDock::ProviderStatus (chatMirrorProviderStatus)
 #include "fullscreenController.hpp"
+#include "popoverHost.hpp"
 #include "sessionController.hpp"
 #include "formulaParser.hpp"
 #include "llmClient.hpp"
@@ -1146,58 +1147,13 @@ namespace stencil::gui {
     class QLabel* dropHintText_ = nullptr;
     class QToolButton* logoBtn_ = nullptr;        // header-row app logo — click cycles the accent (browser parity)
     QTimer* logoClickTimer_ = nullptr;            // defers the single-click cycle so a double-click can pre-empt it
-    QAction* actAccent_ = nullptr;                // opens the accent-preset popover (logo's popoverButtons_ entry)
+    QAction* actAccent_ = nullptr;                // opens the accent-preset popover (logo's pop_.buttons entry)
     bool altHeldForTest_ = false;                 // GUI-test stand-in for a held Alt (glide poll only)
-    // A press dismissed a popover: the same click must not go on to RE-OPEN it through
-    // the icon it landed on (the logo's accent cycle, a popover icon's deferred click).
-    bool popoverDismissClick_ = false;
     QWidget* logoFx_ = nullptr;                   // hover pulse/glow/rays overlay (file-local LogoHoverFx —
                                                   // browser animations.css logoPulse parity); runs only while hovered
 
-    // Modal popovers (support/popover.hpp)
-    // Dialog-opening toolbar icons answer a second gesture set: double-click / right-click
-    // opens the SAME dialog as a compact frameless popover pinned next to the icon. A plain
-    // click still opens the full dialog — deferred one double-click interval (logo pattern)
-    // so the blocking exec() can never swallow the second click of a double-click.
-    QSet<QAction*> popoverDialogActions_;         // the actions whose buttons get the gestures
-    QHash<QObject*, QAction*> popoverButtons_;    // button → its action, for the event filter
-    QTimer* popoverClickTimer_ = nullptr;         // the deferred single click (one at a time)
-    QPointer<QWidget> popoverAnchor_;             // set right before trigger → popover shape
-    // Icon that last opened a dialog (click, menu or shortcut) — the rect
-    // support::revealDialog animates the window out of and back into.
-    // dialogAnchorRect_ is the MENU row's global rect, used when that icon is
-    // hidden (toolbars collapsed) so the window still opens from what was clicked.
-    QPointer<QWidget> dialogAnchor_;
-    QRect dialogAnchorRect_;
-    // The menu row under the cursor/selection right now, recorded on QMenu::hovered —
-    // Qt hides the menu BEFORE emitting triggered(), so the row has to be captured while
-    // the popup is still up. Cleared one cycle after the menu hides (buildMenus).
-    QPointer<QAction> menuRowAction_;
-    QRect menuRowRect_;
-    QPointer<QAction> popoverPendingAction_;      // the action a deferred click will trigger
-    QPointer<QDialog> activePopover_;             // the popover being exec'd (outside-click close)
-    QPointer<QWidget> popoverOverlay_;            // the in-window box hosting it
-    // A double-click already acted for this press cycle: swallow its trailing RELEASE
-    // without re-arming the deferred click, which would toggle a NON-modal target (the
-    // chat dock) straight back off. Reset on the next press.
-    bool popoverSwallowRelease_ = false;
-    // HOLD-to-peek: the action whose popover an Alt+hover opened. Releasing Alt
-    // closes exactly that (reject the modal popover / hide the compact chat) and
-    // nothing else — a dblclick / right-click open clears this and stays sticky.
-    QPointer<QAction> altPeekAction_;
-    // HOLD-to-peek for the export-options popups: the same gesture as popoverButtons_,
-    // but a plain QMenu (QMenu::popup(), not a QDialog trigger), so it is kept independent
-    // of the popover machinery. Set right after popup(); KeyRelease(Alt) closes it unless
-    // the cursor has since moved INSIDE it (engaged, as for a peeked popover).
-    QPointer<QMenu> altPeekExportMenu_;
-    // Alt-GLIDE continuation: the popover icon the cursor landed on while another
-    // popover was showing; execMaybePopover rejects the current dialog and opens
-    // this one's peek next (the modal loop blocks ordinary hover events).
-    QPointer<QAction> altPeekNextAction_;
-    QPointer<QToolButton> altPeekNextButton_;
-    // Poll that hover-binds a LINGERING window (engaged peek after Alt release):
-    // closes it once the cursor leaves, unless it holds typed content.
-    QTimer* lingerPoll_ = nullptr;
+    // Modal popover gestures and their state (app/popoverHost.hpp).
+    PopoverHost pop_;
     // `opener` is the window action this dialog belongs to, so its own shortcut can close it
     // and another window's shortcut can swap to that window (see WindowShortcutSwitch).
     int execMaybePopover(QDialog& dlg, QAction* opener = nullptr);           // exec() — anchored+compact when armed

@@ -86,7 +86,7 @@ namespace stencil::gui {
   void MainWindow::remarkAccentPopover() {
     // The popover being exec'd (execMaybePopover tracks it; it may sit under the overlay
     // layer rather than as a direct child, so it is not looked up by parent).
-    QDialog* pop = activePopover_.data();
+    QDialog* pop = pop_.active.data();
     if (!pop || pop->objectName() != QLatin1String("accentPopover")) return;
     for (QPushButton* r : pop->findChildren<QPushButton*>()) {
       const QString rowKey = r->property("accentKey").toString();

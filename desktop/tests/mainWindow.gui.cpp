@@ -1206,10 +1206,10 @@ class MainWindowGuiTest : public QObject {
     bool opened = false, heldOnCrossing = false, heldOnBox = false;
     bool stoppedOffBoth = false, startedOnBox = false;
     QTimer::singleShot(600, &win, [&] {   // past the popover's open flight
-      QWidget* box = win.popoverOverlay_.data();
-      opened = box && box->isVisible() && win.activePopover_ &&
-               win.activePopover_->objectName() == QLatin1String("accentPopover");
-      if (!opened) { if (win.activePopover_) win.activePopover_->reject(); return; }
+      QWidget* box = win.pop_.overlay.data();
+      opened = box && box->isVisible() && win.pop_.active &&
+               win.pop_.active->objectName() == QLatin1String("accentPopover");
+      if (!opened) { if (win.pop_.active) win.pop_.active->reject(); return; }
       // The cursor crosses the anchor gap onto the box: the logo's Leave alone must not
       // stop the loop (the browser's hover bridge), and resting on the box holds it.
       const QPoint boxGlobal = box->mapToGlobal(box->rect().center());
@@ -1231,11 +1231,11 @@ class MainWindowGuiTest : public QObject {
       startedOnBox = fx->property("fxActive").toBool();
       QCursor::setPos(awayGlobal);
       leave(box);
-      win.activePopover_->reject();
+      win.pop_.active->reject();
     });
     QContextMenuEvent ctx(QContextMenuEvent::Mouse, c, logoGlobal);
     QApplication::sendEvent(logo, &ctx);   // blocks in the popover's loop until the timer acts
-    QTRY_VERIFY(!win.activePopover_);
+    QTRY_VERIFY(!win.pop_.active);
     QVERIFY2(opened, "right-click did not open the accent popover");
     QVERIFY2(heldOnCrossing, "leaving the logo for the open popover stopped the shine");
     QVERIFY2(heldOnBox, "hovering the open popover did not hold the shine");
@@ -1466,7 +1466,7 @@ class MainWindowGuiTest : public QObject {
     for (const auto& a : presets) if (a.key != original) { other = a.key; break; }
     bool opened = false, markedBefore = false, markedAfter = false, oneMark = true;
     QTimer::singleShot(120, &win, [&] {
-      QDialog* pop = win.activePopover_.data();
+      QDialog* pop = win.pop_.active.data();
       opened = pop && pop->objectName() == QLatin1String("accentPopover") && pop->isVisible();
       if (pop) {
         auto* was = pop->findChild<QPushButton*>(QStringLiteral("accentRow-") + original);
@@ -1514,13 +1514,13 @@ class MainWindowGuiTest : public QObject {
     const QPoint cursorWas = QCursor::pos();
     bool opened = false, covered = false, stayed = false, armed = true;
     QTimer::singleShot(700, &win, [&] {   // past the popover's open flight
-      QWidget* box = win.popoverOverlay_.data();
-      opened = box && box->isVisible() && win.activePopover_ &&
-               win.activePopover_->objectName() == QLatin1String("accentPopover");
+      QWidget* box = win.pop_.overlay.data();
+      opened = box && box->isVisible() && win.pop_.active &&
+               win.pop_.active->objectName() == QLatin1String("accentPopover");
       if (opened) {
         const QRect boxGlobal(box->mapToGlobal(QPoint(0, 0)), box->size());
         QPoint on;   // a point on the box AND on a popover icon it covers
-        for (auto it = win.popoverButtons_.cbegin(); it != win.popoverButtons_.cend(); ++it) {
+        for (auto it = win.pop_.buttons.cbegin(); it != win.pop_.buttons.cend(); ++it) {
           auto* b = static_cast<QToolButton*>(it.key());
           if (b == logo || !b->isVisible() || !it.value()->isEnabled()) continue;
           const QRect hit = QRect(b->mapToGlobal(QPoint(0, 0)), b->size()).intersected(boxGlobal);
@@ -1533,16 +1533,16 @@ class MainWindowGuiTest : public QObject {
           win.altHeldForTest_ = true;   // the glide poll's stand-in for a held Alt
           QCursor::setPos(on);
           QTest::qWait(300);            // several glide ticks (80ms)
-          stayed = win.activePopover_ &&
-                   win.activePopover_->objectName() == QLatin1String("accentPopover");
-          armed = !win.altPeekNextAction_.isNull();
+          stayed = win.pop_.active &&
+                   win.pop_.active->objectName() == QLatin1String("accentPopover");
+          armed = !win.pop_.peekNextAction.isNull();
           win.altHeldForTest_ = false;
           // Never leave a peek queued: it would open (and block) after this unwinds.
-          win.altPeekNextAction_.clear();
-          win.altPeekNextButton_.clear();
+          win.pop_.peekNextAction.clear();
+          win.pop_.peekNextButton.clear();
         }
       }
-      if (win.activePopover_) win.activePopover_->reject();
+      if (win.pop_.active) win.pop_.active->reject();
     });
     const QPoint c = logo->rect().center();
     QContextMenuEvent ctx(QContextMenuEvent::Mouse, c, logo->mapToGlobal(c));
@@ -1573,7 +1573,7 @@ class MainWindowGuiTest : public QObject {
     bool opened = false, foundRow = false;
     int restX = 0, hoverX = 0, floodedX = 0, backX = 0;
     QTimer::singleShot(120, &win, [&] {
-      QDialog* pop = win.activePopover_.data();
+      QDialog* pop = win.pop_.active.data();
       opened = pop && pop->objectName() == QLatin1String("accentPopover") && pop->isVisible();
       if (pop) {
         auto* row = pop->findChild<QPushButton*>(QStringLiteral("accentRow-") + presets.front().key);
@@ -1638,7 +1638,7 @@ class MainWindowGuiTest : public QObject {
     // it is not the "outside press" this case is about. The SETTINGS cluster's ℹ sits at
     // the far end of the last row, clear of a box anchored to the logo.
     QToolButton* other = nullptr;
-    for (auto it = win.popoverButtons_.cbegin(); it != win.popoverButtons_.cend(); ++it)
+    for (auto it = win.pop_.buttons.cbegin(); it != win.pop_.buttons.cend(); ++it)
       if (it.value() == win.actInfo_ && static_cast<QWidget*>(it.key())->isVisible())
         other = static_cast<QToolButton*>(it.key());
     QVERIFY2(other, "no visible Help button to press outside on");
@@ -1649,15 +1649,15 @@ class MainWindowGuiTest : public QObject {
     const auto outsidePressCloses = [&](Route route, QWidget* target, const char* what) {
       bool opened = false, closed = false, notModal = false;
       QTimer::singleShot(120, &win, [&] {
-        opened = win.activePopover_ &&
-                 win.activePopover_->objectName() == QLatin1String("accentPopover") &&
-                 win.activePopover_->isVisible();
+        opened = win.pop_.active &&
+                 win.pop_.active->objectName() == QLatin1String("accentPopover") &&
+                 win.pop_.active->isVisible();
         // THE mechanism: the popover must not be MODAL. An application-modal dialog
         // marks this window blockedByModalWindow, and Qt then drops every press aimed
         // at it before any filter runs — which is exactly why the outside click did
         // nothing on the user's machine. No modal widget ⇒ the press is delivered.
-        notModal = !QApplication::activeModalWidget() && win.activePopover_ &&
-                   !win.activePopover_->isModal() && win.isEnabled();
+        notModal = !QApplication::activeModalWidget() && win.pop_.active &&
+                   !win.pop_.active->isModal() && win.isEnabled();
         const QPoint local = target->rect().center();
         const QPoint at = target->mapToGlobal(local);
         // A real press, press + release, exactly as the window system delivers it now
@@ -1668,8 +1668,8 @@ class MainWindowGuiTest : public QObject {
         QMouseEvent rel(QEvent::MouseButtonRelease, local, at, Qt::LeftButton,
                         Qt::NoButton, Qt::NoModifier);
         QApplication::sendEvent(target, &rel);
-        closed = !win.activePopover_ || win.activePopover_->isHidden();
-        if (win.activePopover_ && !win.activePopover_->isHidden()) win.activePopover_->reject();
+        closed = !win.pop_.active || win.pop_.active->isHidden();
+        if (win.pop_.active && !win.pop_.active->isHidden()) win.pop_.active->reject();
       });
       if (route == Sticky) {
         QContextMenuEvent ctx(QContextMenuEvent::Mouse, c, logo->mapToGlobal(c));
@@ -1686,14 +1686,14 @@ class MainWindowGuiTest : public QObject {
                                   "the outside press before any filter sees it").arg(what)));
       QVERIFY2(closed, qPrintable(QString("%1: the popover survived a press outside it")
                                       .arg(what)));
-      QVERIFY(!win.activePopover_);
+      QVERIFY(!win.pop_.active);
       // The closing click is spent: no icon may re-open what it just dismissed.
-      QVERIFY2(!win.popoverClickTimer_->isActive(),
+      QVERIFY2(!win.pop_.clickTimer->isActive(),
                qPrintable(QString("%1: the dismissing click armed a re-open").arg(what)));
       QVERIFY2(!win.logoClickTimer_->isActive(),
                qPrintable(QString("%1: the dismissing click armed the accent cycle").arg(what)));
       QTest::qWait(320);   // past both deferred-click delays…
-      QVERIFY2(!win.activePopover_, qPrintable(QString("%1: it came back").arg(what)));
+      QVERIFY2(!win.pop_.active, qPrintable(QString("%1: it came back").arg(what)));
       // …and the nested loop really unwound: the OUTER loop is running our timers again.
       bool alive = false;
       QTimer::singleShot(0, &win, [&alive] { alive = true; });
@@ -1713,7 +1713,7 @@ class MainWindowGuiTest : public QObject {
       const auto& presets = stencil::gui::accentPresets();
       bool opened = false, stayedOpen = false, cycleArmed = false, cycled = false, stillOpen = false, ticked = false;
       QTimer::singleShot(120, &win, [&] {
-        QDialog* pop = win.activePopover_.data();
+        QDialog* pop = win.pop_.active.data();
         opened = pop && pop->objectName() == QLatin1String("accentPopover") && pop->isVisible();
         const QPoint local = logo->rect().center();
         const QPoint at = logo->mapToGlobal(local);
@@ -1721,18 +1721,18 @@ class MainWindowGuiTest : public QObject {
         QApplication::sendEvent(logo, &press);
         QMouseEvent rel(QEvent::MouseButtonRelease, local, at, Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
         QApplication::sendEvent(logo, &rel);
-        stayedOpen = win.activePopover_ && !win.activePopover_->isHidden();
+        stayedOpen = win.pop_.active && !win.pop_.active->isHidden();
         cycleArmed = win.logoClickTimer_->isActive();
         QTest::qWait(320);   // past the deferred click: the cycle lands
         cycled = win.settings_.accentColor != accentBefore &&
                  std::any_of(presets.begin(), presets.end(),
                              [&](const auto& a) { return a.key == win.settings_.accentColor; });
-        stillOpen = win.activePopover_ && !win.activePopover_->isHidden();
+        stillOpen = win.pop_.active && !win.pop_.active->isHidden();
         if (pop) {
           auto* r = pop->findChild<QPushButton*>(QStringLiteral("accentRow-") + win.settings_.accentColor);
           ticked = r && r->property("currentAccent").toBool();
         }
-        if (win.activePopover_ && !win.activePopover_->isHidden()) win.activePopover_->reject();
+        if (win.pop_.active && !win.pop_.active->isHidden()) win.pop_.active->reject();
       });
       QContextMenuEvent ctx(QContextMenuEvent::Mouse, c, logo->mapToGlobal(c));
       QApplication::sendEvent(logo, &ctx);      // blocks in exec until the timer acts
@@ -1742,7 +1742,7 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(cycled, "the deferred click must cycle the accent under the open popover");
       QVERIFY2(stillOpen, "the popover must survive the accent change");
       QVERIFY2(ticked, "the popover's tick must follow the cycled accent");
-      QVERIFY(!win.activePopover_);
+      QVERIFY(!win.pop_.active);
       auto restore = win.settings_;
       restore.accentColor = accentBefore;
       win.applySettings(restore, true);
@@ -1753,7 +1753,7 @@ class MainWindowGuiTest : public QObject {
     // still closes it.
     bool insideKept = false, nestedKept = false, escapeClosed = false;
     QTimer::singleShot(120, &win, [&] {
-      QDialog* pop = win.activePopover_.data();
+      QDialog* pop = win.pop_.active.data();
       if (pop) {
         const auto pressAt = [](QWidget* w) {
           const QPoint local = w->rect().center();
@@ -1762,7 +1762,7 @@ class MainWindowGuiTest : public QObject {
           QApplication::sendEvent(w, &press);
         };
         pressAt(pop);
-        insideKept = win.activePopover_ && !win.activePopover_->isHidden();
+        insideKept = win.pop_.active && !win.pop_.active->isHidden();
         // A nested dialog on top of the popover: its presses belong to another window.
         auto nested = std::make_unique<QDialog>(pop);
         nested->setObjectName(QStringLiteral("nestedOverPopover"));
@@ -1770,21 +1770,21 @@ class MainWindowGuiTest : public QObject {
         nested->show();
         QTest::qWait(30);
         pressAt(nested.get());
-        nestedKept = win.activePopover_ && !win.activePopover_->isHidden() &&
-                     win.activePopover_.data() == pop;
+        nestedKept = win.pop_.active && !win.pop_.active->isHidden() &&
+                     win.pop_.active.data() == pop;
         nested->close();
         QTest::qWait(30);
         QTest::keyClick(pop, Qt::Key_Escape);
-        escapeClosed = !win.activePopover_ || win.activePopover_->isHidden();
+        escapeClosed = !win.pop_.active || win.pop_.active->isHidden();
       }
-      if (win.activePopover_ && !win.activePopover_->isHidden()) win.activePopover_->reject();
+      if (win.pop_.active && !win.pop_.active->isHidden()) win.pop_.active->reject();
     });
     QContextMenuEvent ctx(QContextMenuEvent::Mouse, c, logo->mapToGlobal(c));
     QApplication::sendEvent(logo, &ctx);
     QVERIFY2(insideKept, "a press INSIDE the popover must not dismiss it");
     QVERIFY2(nestedKept, "a press in a NESTED dialog must not dismiss the popover under it");
     QVERIFY2(escapeClosed, "Escape must still close the popover");
-    QVERIFY(!win.activePopover_);
+    QVERIFY(!win.pop_.active);
 
     // Losing the KEYBOARD closes it too — the path that survives when the window system
     // The popover lives in this window, so an app-focus loss is what ends it (a click
@@ -1792,7 +1792,7 @@ class MainWindowGuiTest : public QObject {
     // the popover opened took that focus for us.
     bool deactClosedSticky = false, deactKeptWithNested = false;
     QTimer::singleShot(120, &win, [&] {
-      QDialog* pop = win.activePopover_.data();
+      QDialog* pop = win.pop_.active.data();
       if (pop) {
         auto nested = std::make_unique<QDialog>(pop);
         nested->resize(120, 80);
@@ -1800,22 +1800,22 @@ class MainWindowGuiTest : public QObject {
         QTest::qWait(30);
         QEvent deact1(QEvent::WindowDeactivate);
         QApplication::sendEvent(&win, &deact1);   // …handing focus to OUR nested window
-        deactKeptWithNested = win.activePopover_ && !win.activePopover_->isHidden();
+        deactKeptWithNested = win.pop_.active && !win.pop_.active->isHidden();
         nested->close();
         nested.reset();
         QTest::qWait(30);
         QEvent deact2(QEvent::WindowDeactivate);
         QApplication::sendEvent(&win, &deact2);   // …now the app really lost focus
-        deactClosedSticky = !win.activePopover_ || win.activePopover_->isHidden();
+        deactClosedSticky = !win.pop_.active || win.pop_.active->isHidden();
       }
-      if (win.activePopover_ && !win.activePopover_->isHidden()) win.activePopover_->reject();
+      if (win.pop_.active && !win.pop_.active->isHidden()) win.pop_.active->reject();
     });
     QContextMenuEvent ctx2(QContextMenuEvent::Mouse, c, logo->mapToGlobal(c));
     QApplication::sendEvent(logo, &ctx2);
     QVERIFY2(deactKeptWithNested,
              "a nested window's activation must not close the popover under it");
     QVERIFY2(deactClosedSticky, "losing focus must close even a STICKY popover");
-    QVERIFY(!win.activePopover_);
+    QVERIFY(!win.pop_.active);
 
     // One open, one close, both animated, nothing re-shown. The popover is a CHILD
     // widget of the main window, so its grow/shrink are ordinary in-window animations.
@@ -1874,8 +1874,8 @@ class MainWindowGuiTest : public QObject {
         trace.pressedAt = trace.clock.elapsed();
         // THE property: no window of its own. That is what made three animated closes
         // invisible, and what the in-window overlay fixes.
-        if (win.activePopover_) wasTopLevel = win.activePopover_->isWindow();
-        hadOverlay = win.popoverOverlay_ && win.popoverOverlay_->isVisible();
+        if (win.pop_.active) wasTopLevel = win.pop_.active->isWindow();
+        hadOverlay = win.pop_.overlay && win.pop_.overlay->isVisible();
         trace.dismissed = true;
         QMouseEvent pr(QEvent::MouseButtonPress, local, at, Qt::LeftButton, Qt::LeftButton,
                        Qt::NoModifier);
@@ -1919,7 +1919,7 @@ class MainWindowGuiTest : public QObject {
                qPrintable(QString("%1: no dust played on open").arg(what)));
       QVERIFY2(trace.dustClosing > 0,
                qPrintable(QString("%1: no dust played on close").arg(what)));
-      QVERIFY(!win.activePopover_);
+      QVERIFY(!win.pop_.active);
     }
     beat();
   }
@@ -1951,7 +1951,7 @@ class MainWindowGuiTest : public QObject {
     bool picksOk = true, escapeClosedAfterPicks = false;
     QString lastPick;
     QTimer::singleShot(120, &win, [&] {
-      QDialog* pop = win.activePopover_.data();
+      QDialog* pop = win.pop_.active.data();
       stickyOpened = pop && pop->objectName() == QLatin1String("accentPopover") && pop->isVisible();
       if (pop) {
         int currentCount = 0;
@@ -1966,7 +1966,7 @@ class MainWindowGuiTest : public QObject {
       // Sticky: Alt press/release must NOT close it (only a peek dies with the key).
       QTest::keyPress(&win, Qt::Key_Alt);
       QTest::keyRelease(&win, Qt::Key_Alt);
-      stickySurvivedAlt = win.activePopover_ && !win.activePopover_->isHidden();
+      stickySurvivedAlt = win.pop_.active && !win.pop_.active->isHidden();
       // Picking a colour APPLIES it and CLOSES the popover (user decision — hovering
       // already previews live, so a click is a commit). Browser twin: the logo menu
       // closes on a pick.
@@ -1978,11 +1978,11 @@ class MainWindowGuiTest : public QObject {
           row->click();
           QTest::qWait(50);
           picksOk = win.settings_.accentColor == key;                     // applied
-          escapeClosedAfterPicks = !win.activePopover_ || win.activePopover_->isHidden();  // closed
+          escapeClosedAfterPicks = !win.pop_.active || win.pop_.active->isHidden();  // closed
           lastPick = key;
         }
       }
-      if (win.activePopover_ && !win.activePopover_->isHidden()) win.activePopover_->reject();
+      if (win.pop_.active && !win.pop_.active->isHidden()) win.pop_.active->reject();
     });
     QContextMenuEvent ctx(QContextMenuEvent::Mouse, c, logo->mapToGlobal(c));
     QApplication::sendEvent(logo, &ctx);   // blocks in the popover's exec until the timer acts
@@ -1993,11 +1993,11 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(escapeClosedAfterPicks, "a colour pick must close the popover");
     QCOMPARE(win.settings_.accentColor, lastPick);
     QVERIFY2(!win.logoClickTimer_->isActive(), "the popover routes must not arm the click-cycle");
-    QVERIFY(!win.activePopover_);
+    QVERIFY(!win.pop_.active);
 
     // ── Alt+click stays inert (no popover, no accent cycle armed) ──
     QTest::mouseClick(logo, Qt::LeftButton, Qt::AltModifier, c);
-    QVERIFY2(!win.activePopover_, "Alt+click must not open a popover");
+    QVERIFY2(!win.pop_.active, "Alt+click must not open a popover");
     QVERIFY2(!win.logoClickTimer_->isActive(), "Alt+click must not arm the click-cycle timer");
 
     // ── PEEK: plain Alt hold over the logo opens promptly; Alt release closes ──
@@ -2006,27 +2006,27 @@ class MainWindowGuiTest : public QObject {
     logo->setAttribute(Qt::WA_UnderMouse, true);
     bool peekOpened = false, releaseClosed = false;
     QTimer::singleShot(120, &win, [&] {
-      QDialog* pop = win.activePopover_.data();
+      QDialog* pop = win.pop_.active.data();
       peekOpened = pop && pop->objectName() == QLatin1String("accentPopover") && pop->isVisible();
       QTest::keyRelease(&win, Qt::Key_Alt);   // ends the peek on the spot
-      releaseClosed = !win.activePopover_ || win.activePopover_->isHidden();
-      if (win.activePopover_ && !win.activePopover_->isHidden()) win.activePopover_->reject();
+      releaseClosed = !win.pop_.active || win.pop_.active->isHidden();
+      if (win.pop_.active && !win.pop_.active->isHidden()) win.pop_.active->reject();
     });
     QTest::keyPress(&win, Qt::Key_Alt);   // blocks in the peek's exec
     QVERIFY2(peekOpened, "holding Alt over the logo did not peek the accent popover");
     QVERIFY2(releaseClosed, "releasing Alt must close the peeked popover at once");
-    QVERIFY(!win.activePopover_);
+    QVERIFY(!win.pop_.active);
 
     // ── GLIDE logo → Connections: one popover at a time, swapped by the system ──
     QToolButton* connBtn = nullptr;
-    for (auto it = win.popoverButtons_.cbegin(); it != win.popoverButtons_.cend(); ++it)
+    for (auto it = win.pop_.buttons.cbegin(); it != win.pop_.buttons.cend(); ++it)
       if (it.value() == win.actConnect_) connBtn = static_cast<QToolButton*>(it.key());
     QVERIFY2(connBtn, "no popover button registered for the Connections action");
     win.altHeldForTest_ = true;   // the glide poll's stand-in for a physically held Alt
     bool accentFirst = false;
     QTimer::singleShot(120, &win, [&] {
-      accentFirst = win.activePopover_ &&
-                    win.activePopover_->objectName() == QLatin1String("accentPopover");
+      accentFirst = win.pop_.active &&
+                    win.pop_.active->objectName() == QLatin1String("accentPopover");
       // The pointer glides off the logo onto the Connections icon…
       logo->setAttribute(Qt::WA_UnderMouse, false);
       connBtn->setAttribute(Qt::WA_UnderMouse, true);
@@ -2036,57 +2036,57 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(accentFirst, "the glide phase did not start from the accent popover");
     bool swapped = false, glideClosed = false;
     QTimer::singleShot(150, &win, [&] {   // fires inside the Connections popover's exec
-      QDialog* pop = win.activePopover_.data();
+      QDialog* pop = win.pop_.active.data();
       swapped = pop && qobject_cast<stencil::gui::ConnectDialog*>(pop) && pop->isVisible() &&
                 win.findChildren<QDialog*>("accentPopover").isEmpty();   // single instance
       connBtn->setAttribute(Qt::WA_UnderMouse, false);
       win.altHeldForTest_ = false;
       QTest::keyRelease(&win, Qt::Key_Alt);   // closes the glided-to popover too
-      glideClosed = !win.activePopover_ || win.activePopover_->isHidden();
-      if (win.activePopover_ && !win.activePopover_->isHidden()) win.activePopover_->reject();
+      glideClosed = !win.pop_.active || win.pop_.active->isHidden();
+      if (win.pop_.active && !win.pop_.active->isHidden()) win.pop_.active->reject();
     });
     QTest::qWait(700);   // lets the deferred altPeekOpen(Connections) run + close
     QVERIFY2(swapped, "the glide did not swap to the Connections popover (single instance)");
     QVERIFY2(glideClosed, "Alt release did not close the glided-to popover");
-    QVERIFY(!win.activePopover_);
+    QVERIFY(!win.pop_.active);
 
     // ── Mid-peek gestures: left-click on the logo is a NO-OP; right-press PROMOTES ──
     logo->setAttribute(Qt::WA_UnderMouse, true);
     bool noopKept = false, cycleNotArmed = false, promoted = false;
     QTimer::singleShot(120, &win, [&] {
-      if (win.activePopover_) {
+      if (win.pop_.active) {
         QTest::mousePress(logo, Qt::LeftButton, Qt::NoModifier, c);
         QTest::mouseRelease(logo, Qt::LeftButton, Qt::NoModifier, c);
-        noopKept = win.activePopover_ && !win.activePopover_->isHidden();
+        noopKept = win.pop_.active && !win.pop_.active->isHidden();
         cycleNotArmed = !win.logoClickTimer_->isActive();
         QTest::mousePress(logo, Qt::RightButton, Qt::NoModifier, c);   // promote to sticky
         QTest::mouseRelease(logo, Qt::RightButton, Qt::NoModifier, c);
         QTest::keyRelease(&win, Qt::Key_Alt);   // promoted → the release must NOT close it
-        promoted = win.activePopover_ && !win.activePopover_->isHidden();
+        promoted = win.pop_.active && !win.pop_.active->isHidden();
       }
-      if (win.activePopover_ && !win.activePopover_->isHidden()) win.activePopover_->reject();
+      if (win.pop_.active && !win.pop_.active->isHidden()) win.pop_.active->reject();
     });
     QTest::keyPress(&win, Qt::Key_Alt);
     QVERIFY2(noopKept, "a left-click on the logo must not dismiss its peeked popover");
     QVERIFY2(cycleNotArmed, "a left-click during the peek armed the accent cycle");
     QVERIFY2(promoted, "a right-press during the peek must promote it past the Alt release");
-    QVERIFY(!win.activePopover_);
+    QVERIFY(!win.pop_.active);
 
     // ── Losing the app's focus ends a peek (Cmd-Tab eats the keyup). The popover is a
     // child widget of this window, so it is THIS window's deactivation that says so ──
     bool deactClosed = false;
     QTimer::singleShot(120, &win, [&] {
-      if (win.activePopover_) {
+      if (win.pop_.active) {
         QEvent deact(QEvent::WindowDeactivate);
         QApplication::sendEvent(&win, &deact);
-        deactClosed = !win.activePopover_ || win.activePopover_->isHidden();
+        deactClosed = !win.pop_.active || win.pop_.active->isHidden();
       }
-      if (win.activePopover_ && !win.activePopover_->isHidden()) win.activePopover_->reject();
+      if (win.pop_.active && !win.pop_.active->isHidden()) win.pop_.active->reject();
       QTest::keyRelease(&win, Qt::Key_Alt);
     });
     QTest::keyPress(&win, Qt::Key_Alt);
     QVERIFY2(deactClosed, "the peeked popover must close when the app loses focus");
-    QVERIFY(!win.activePopover_);
+    QVERIFY(!win.pop_.active);
     logo->setAttribute(Qt::WA_UnderMouse, false);
 
     // ── Alt with the cursor NOT over any popover icon opens nothing ──
@@ -2094,7 +2094,7 @@ class MainWindowGuiTest : public QObject {
     QTest::qWait(30);
     QTest::keyPress(&win, Qt::Key_Alt);
     QTest::keyRelease(&win, Qt::Key_Alt);
-    QVERIFY2(!win.activePopover_, "Alt away from the icons must not open a popover");
+    QVERIFY2(!win.pop_.active, "Alt away from the icons must not open a popover");
 
     // ── A PLAIN click still cycles: it arms the deferred timer ──
     QTest::mouseClick(logo, Qt::LeftButton, Qt::NoModifier, c);
@@ -6035,7 +6035,7 @@ class MainWindowGuiTest : public QObject {
     QMenu* owner = nullptr;
     for (QMenu* m : win.menuBar()->findChildren<QMenu*>()) {
       for (QAction* a : m->actions())
-        if (win.popoverDialogActions_.contains(a) && a->isEnabled()) { act = a; owner = m; break; }
+        if (win.pop_.dialogActions.contains(a) && a->isEnabled()) { act = a; owner = m; break; }
       if (act) break;
     }
     QVERIFY2(act && owner, "no dialog action on the menu bar to test");
@@ -6047,20 +6047,20 @@ class MainWindowGuiTest : public QObject {
     // Hover the row the way a user does, then let the menu close and the action fire.
     QTest::mouseMove(owner, row.center());
     QTest::qWait(30);
-    QVERIFY2(win.menuRowAction_ == act, "the hovered row was not recorded");
+    QVERIFY2(win.pop_.menuRowAction == act, "the hovered row was not recorded");
     const QRect rowGlobal(owner->mapToGlobal(row.topLeft()), row.size());
-    QCOMPARE(win.menuRowRect_, rowGlobal);
+    QCOMPARE(win.pop_.menuRowRect, rowGlobal);
     // Qt hides the menu and THEN activates the action, in the same pass of the event loop.
     // The record has to still be there at that point — this is exactly what reading
     // QApplication::activePopupWidget() inside triggered() got wrong.
     owner->close();
-    QVERIFY2(win.menuRowAction_ == act, "the row was forgotten before the action fired");
+    QVERIFY2(win.pop_.menuRowAction == act, "the row was forgotten before the action fired");
     // The dialog itself blocks in exec(), so drive only the handler that stamps the anchor.
-    win.dialogAnchorRect_ = (win.menuRowAction_ == act) ? win.menuRowRect_ : QRect();
-    QCOMPARE(win.dialogAnchorRect_, rowGlobal);
+    win.pop_.dialogAnchorRect = (win.pop_.menuRowAction == act) ? win.pop_.menuRowRect : QRect();
+    QCOMPARE(win.pop_.dialogAnchorRect, rowGlobal);
     // …and the record does not linger: the next run from an icon/shortcut is not the menu's.
     QTest::qWait(30);
-    QVERIFY2(!win.menuRowAction_, "the hovered row outlived its menu");
+    QVERIFY2(!win.pop_.menuRowAction, "the hovered row outlived its menu");
   }
 
   // Destructive toolbar buttons wear the browser's `.danger.btn-icon` face: a SOLID red
@@ -6429,18 +6429,18 @@ class MainWindowGuiTest : public QObject {
     QWidget* b2 = win.buttonForAction(second);
     QVERIFY2(b1 && b2 && b1 != b2, "expected a distinct toolbar button per action");
     first->trigger();
-    QCOMPARE(win.dialogAnchor_.data(), b1);
+    QCOMPARE(win.pop_.dialogAnchor.data(), b1);
     second->trigger();
-    QCOMPARE(win.dialogAnchor_.data(), b2);
+    QCOMPARE(win.pop_.dialogAnchor.data(), b2);
     // An action with no toolbar icon of its own clears the anchor instead of inheriting
     // the last icon — this is the "it flew out of the wrong button" case.
     // A bare action with no toolbar icon (and no slot of its own, so nothing opens).
     auto* iconless = new QAction("Menu-only command", &win);
     win.addAction(iconless);
     win.bindRevealAnchors();     // idempotent — binds whatever is not bound yet
-    win.dialogAnchor_ = b2;
+    win.pop_.dialogAnchor = b2;
     iconless->trigger();
-    QVERIFY2(!win.dialogAnchor_, "an icon-less action left the previous icon as the origin");
+    QVERIFY2(!win.pop_.dialogAnchor, "an icon-less action left the previous icon as the origin");
   }
 
   // End-to-end: open a dialog the way a user does and read where its flight STARTS.
@@ -9898,7 +9898,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     // Away from every icon before touching Alt at all — see the sibling test below
-    // for why a stray popoverButtons_ match here would be a real, hang-the-suite bug.
+    // for why a stray pop_.buttons match here would be a real, hang-the-suite bug.
     QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
     win.openPathFromOS(png_);
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
@@ -10078,7 +10078,7 @@ class MainWindowGuiTest : public QObject {
 
   // Alt+hover over the copy/download-image toolbar buttons themselves opens their
   // export-options popup, the SAME hold-to-peek gesture every other popover icon
-  // gets (mainWindowEvents.cpp's altPeekExportMenu_) — not just right-click/dblclick.
+  // gets (mainWindowEvents.cpp's pop_.peekExportMenu) — not just right-click/dblclick.
   // Releasing Alt closes it again unless the cursor moved inside it first (engaged).
   void altHoldOverExportButtonOpensItsOptionsPopup() {
     MainWindow win(nullptr, false);
@@ -12346,7 +12346,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.actDescription_->shortcut(), QKeySequence(win.hotkey("openDescription", "Alt+Shift+D")));
     QCOMPARE(win.actKeywords_->shortcut(), QKeySequence(win.hotkey("openKeywords", "Alt+Shift+K")));
     // …and the popover gestures reach all three.
-    for (QAction* a : want) QVERIFY(win.popoverDialogActions_.contains(a));
+    for (QAction* a : want) QVERIFY(win.pop_.dialogActions.contains(a));
 
     // No project: all three dead, each with its reason on the tooltip.
     const auto reasonShown = [](QAction* a) {

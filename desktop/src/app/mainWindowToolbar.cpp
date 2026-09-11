@@ -178,16 +178,16 @@ namespace stencil::gui {
     // loop below AND leading widgets like the labelled Open Image button, which opens
     // the same dialog as the icons.
     const auto wirePopover = [this](QToolButton* btn, QAction* a) {
-      if (!a || !popoverDialogActions_.contains(a)) return;
-      popoverButtons_.insert(btn, a);
+      if (!a || !pop_.dialogActions.contains(a)) return;
+      pop_.buttons.insert(btn, a);
       btn->installEventFilter(this);
       btn->setContextMenuPolicy(Qt::CustomContextMenu);
       connect(btn, &QToolButton::customContextMenuRequested, this, [this, a, btn] {
         if (!a->isEnabled()) return;   // a disabled icon opens nothing — mini window included
-        if (popoverClickTimer_) popoverClickTimer_->stop();
-        altPeekAction_.clear();   // a deliberate open is sticky — Alt release keeps it
+        if (pop_.clickTimer) pop_.clickTimer->stop();
+        pop_.peekAction.clear();   // a deliberate open is sticky — Alt release keeps it
         stopLingerPoll();         // a lingering window's poll must not close THIS open
-        popoverAnchor_ = btn;
+        pop_.anchor = btn;
         a->trigger();
       });
     };
@@ -306,27 +306,27 @@ namespace stencil::gui {
     });
     connect(logoBtn_, &QToolButton::clicked, this, [this] {
       // The click that dismissed a popover is spent doing exactly that.
-      if (popoverDismissClick_) { popoverDismissClick_ = false; return; }
+      if (pop_.dismissClick) { pop_.dismissClick = false; return; }
       logoClickTimer_->start(250);
     });
     // Accent picker = a first-class popover (execMaybePopover); registering the
-    // logo in popoverButtons_ gives it the shared Alt machinery. The logo keeps
+    // logo in pop_.buttons gives it the shared Alt machinery. The logo keeps
     // its own click/dblclick gestures (excluded from popover presses in eventFilter).
     actAccent_ = new QAction(tr("Theme Color"), this);
     actAccent_->setObjectName("actAccent");
     connect(actAccent_, &QAction::triggered, this, [this] { openAccentPicker(); });
-    popoverButtons_.insert(logoBtn_, actAccent_);
+    pop_.buttons.insert(logoBtn_, actAccent_);
     // Right-click: the same popover, STICKY — the popover icons' right-click route
     // (makeToolSection): a deliberate open, so the Alt release never closes it.
     // QToolButton::clicked never fires for the right button, so opening it can never
     // arm the cycle timer above.
     logoBtn_->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(logoBtn_, &QToolButton::customContextMenuRequested, this, [this] {
-      if (popoverClickTimer_) popoverClickTimer_->stop();
+      if (pop_.clickTimer) pop_.clickTimer->stop();
       if (logoClickTimer_) logoClickTimer_->stop();
-      altPeekAction_.clear();   // a deliberate open is sticky — Alt release keeps it
+      pop_.peekAction.clear();   // a deliberate open is sticky — Alt release keeps it
       stopLingerPoll();         // a lingering window's poll must not close THIS open
-      popoverAnchor_ = logoBtn_;
+      pop_.anchor = logoBtn_;
       actAccent_->trigger();
     });
     logoBtn_->installEventFilter(this);   // catch double-click → custom colour picker (see eventFilter)
@@ -403,15 +403,15 @@ namespace stencil::gui {
     // shape of their dialog (execMaybePopover). A plain click keeps the full dialog, but
     // deferred one double-click interval (the logo pattern): the dialog's exec() blocks,
     // so an instant open would swallow the second click of every double-click.
-    popoverDialogActions_ = {actOpen_, actOpenAnother_, actOpenIn_, actProjects_, actConnect_, actLinks_,
+    pop_.dialogActions = {actOpen_, actOpenAnother_, actOpenIn_, actProjects_, actConnect_, actLinks_,
                              actDescription_, actKeywords_, actChat_, actAssistantSettings_, actShortcuts_,
                              actSettings_, actInfo_};
-    popoverClickTimer_ = new QTimer(this);
-    popoverClickTimer_->setSingleShot(true);
-    popoverClickTimer_->setInterval(250);
-    connect(popoverClickTimer_, &QTimer::timeout, this, [this] {
-      if (QAction* act = popoverPendingAction_.data()) {
-        popoverPendingAction_.clear();
+    pop_.clickTimer = new QTimer(this);
+    pop_.clickTimer->setSingleShot(true);
+    pop_.clickTimer->setInterval(250);
+    connect(pop_.clickTimer, &QTimer::timeout, this, [this] {
+      if (QAction* act = pop_.pendingAction.data()) {
+        pop_.pendingAction.clear();
         act->trigger();
       }
     });

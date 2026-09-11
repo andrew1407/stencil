@@ -176,11 +176,11 @@ namespace stencil::gui {
     actChat_->setCheckable(true);
     tip(actChat_, "Chat with the AI assistant — plan edits, variants, and layouts");
     // Animated reveal/dismiss (browser parity). A popover gesture (armed
-    // popoverAnchor_) opens the COMPACT floating chat instead — that gesture
+    // pop_.anchor) opens the COMPACT floating chat instead — that gesture
     // always means "show it compact here", so an unchecking trigger is re-checked.
     connect(actChat_, &QAction::toggled, this, [this](bool on) {
-      QWidget* anchor = popoverAnchor_.data();
-      popoverAnchor_.clear();
+      QWidget* anchor = pop_.anchor.data();
+      pop_.anchor.clear();
       if (anchor && chatDock_) {
         if (!on) {
           QSignalBlocker b(actChat_);
