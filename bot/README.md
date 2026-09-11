@@ -119,9 +119,11 @@ bot/
       Llm/           HttpLlmClient + one IProviderMapping per §6 wire shape
       Configuration/ BotOptions (: IBotPolicy) · LlmProfileOptions · EnvRead · DotEnv
     Stencil.TelegramBot.Bot/              the Telegram presentation + console host
-      Program.cs · Telegram/{UpdateRouter, MessageRouter + its IMessageHandler chain, AlbumRouter,
-                             MediaIntake, DocumentIntake, ErrorGuard, CommandParser, CommandHandlers,
-                             CallbackAction + CallbackTokens, Keyboards, Replies, PageFormats}
+      Program.cs · BotComposition (the DI root) · UpdatePump (bounded update workers)
+      Telegram/      UpdateRouter, MessageRouter + its IMessageHandler chain, AlbumRouter,
+                     AlbumCollector, MediaIntake, DocumentIntake, ErrorGuard, CommandParser,
+                     CommandHandlers, CallbackAction + CallbackTokens, Keyboards, Replies,
+                     PageFormats, UserGate, SyncWatcher, WorkspaceJanitor
       Assets/        botCommands.json · botStrings.json   (the command vocabulary + the chat copy)
   tests/
     Stencil.TelegramBot.Tests/            xUnit — offline (no token, server, CLI or Redis)
@@ -264,6 +266,16 @@ MCP suites), URL normalisation (port of the pystencil suite), CLI locator, `.env
 layout/protocol JSON round-trips, the in-memory session store, the REST client against a
 stub `HttpMessageHandler`, and the editing/server services against hand-written mocks (they live in `tests/…/Doubles`). It
 never reads `TELEGRAM_BOT_TOKEN`.
+
+The background loops are covered the same way, on injected clocks and waits rather than real
+sleeps: `SyncWatcher` (a peer's version bump pulls and pushes into the chat), `AlbumCollector`
+(the settle window and where the caption sits), `WorkspaceJanitor` (an orphan ages out, a
+session-referenced file never does) and `UpdatePump` (the bounded hand-off and its drain).
+`CompositionRootTests` resolves the whole `BotComposition` graph, so a missing registration
+fails there rather than at start-up. `BenchTests` holds order-of-magnitude ceilings on the hot
+paths (op-plan validation, crop-spec resolution, image-header reading); the project's
+`Category!=Bench` filter keeps it out of the default run, so it only runs on the
+`--filter Category=Bench` command above.
 
 ## Chat surface
 

@@ -131,6 +131,9 @@ mcp/
   tests/
     args_test.rs       # param → argv mapping + surface resolution + guards (pure)
     outcome_test.rs    # stderr parsing (pure)
+    locate_test.rs     # find_cli's precedence: STENCIL_CLI, then the checkout, then PATH
+    imagesize_test.rs  # header sniffing agrees with the CLI, and declines what it can't measure
+    layout_test.rs     # the layout JSON mcp writes for --layout, pinned byte by byte
     opplan_*_test.rs   # op-plan parse tables + EditParams mapping, banded per file (pure)
     lowering_test.rs   # one table: a validated op is an op with a lowering to run it
     pipeline_test.rs   # the tool summary an edit reports back (pure)
@@ -147,6 +150,7 @@ mcp/
     tool_prose_test.rs # toolDescriptions.json → the committed shards + README's Tools table
     size_budget_test.rs # the per-file size + comment-share ratchet
     *_fixtures_test.rs # the shared cross-surface fixtures under browser/js/config/
+    fixtures_test.rs   # the CLI's stderr-grammar goldens (cli/testdata/), shared with the bot
     common/            # helpers: the corpus/override loaders + the recording CliRunner
     e2e_test.rs        # real CLI runs (incl. a canned-LLM prompt flow), self-skipping when the binary is absent
   Dockerfile           # builds the Zig CLI + the Rust server into one runtime image
