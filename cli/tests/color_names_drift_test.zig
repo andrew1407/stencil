@@ -33,7 +33,7 @@ test "colorNames.json and the core's table agree, name for name, both ways" {
             .b = try hexByte(hex[5..7]),
             .a = 255,
         };
-        const got = core.parseColor(a, name) orelse {
+        const got = core.parseColor(core.zstr(name) orelse "") orelse {
             std.debug.print("core does not recognise CSS name \"{s}\"\n", .{name});
             return error.NameMissingInCore;
         };

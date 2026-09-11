@@ -40,7 +40,7 @@ test "constants.json PAGE_SIZES matches the core's native page table, both ways"
     while (it.next()) |entry| {
         const name = entry.key_ptr.*;
         const o = entry.value_ptr.*.object;
-        const page = core.namedPageSize(a, name) orelse {
+        const page = core.namedPageSize(core.zstr(name) orelse "") orelse {
             std.debug.print("core does not know page format \"{s}\"\n", .{name});
             return error.FormatMissingInCore;
         };

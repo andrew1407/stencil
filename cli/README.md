@@ -17,7 +17,7 @@ stencil -i clip.mp4 -f 24 frame.png
 graph TD
     CORE["<b>core/</b> — shared C++ logic"]
     subgraph CLIP["cli/ — Zig"]
-      ARGS["args.zig — flag parser"]
+      ARGS["args.zig — flag surface (params/)"]
       PIPE["pipeline.zig — source → crop → rotate → filter → layout → encode"]
       COREZ["core.zig — @cImport(cliApi.h) typed wrappers"]
       IO["image · video · net · layout<br/><i>stb_image · ffmpeg · std.http · std.json</i>"]
@@ -60,18 +60,21 @@ HTTP, video, and JSON all live in Zig.
 build.zig            # compiles ../core/*.cpp + cliApi.cpp + the stb TUs, links libc++
 build.zig.zon        # package manifest + the pinned stb_image dependency
 src/
-  main.zig           # entry: logo, parse args, run pipeline
-  args.zig           # flag parser (+ --help text)
-  logo.zig           # ANSI-coloured console logo (echoes browser/favicon.svg)
+  main.zig           # entry: logo, parse args, switch on args.Mode
+  args.zig           # flag surface; params/ holds the option blocks + the grammar
+  params/            #   options.zig (Options + the Mode a run selected) · parse.zig (argv -> Options)
+  logo.zig           # ANSI-coloured console logo (echoes browser/favicon.svg) + the layer lint
+  report.zig         # the sink everything BELOW the console reports through (default: logo)
   pipeline.zig       # orchestration: source -> crop -> rotate -> layout -> filter -> encode
   console.zig        # interactive --console REPL: input loop + verb/action dispatch
   console/           # the REPL package, driven by console.zig:
-    session.zig      #   working image + undo/redo snapshot stack
+    session.zig      #   the working session; session/ holds history, edits, attachments, chat, servers
     commands.zig     #   command grammar (pure parsing: verbs, transforms, /blank, album)
     ui.zig           #   presentation: header, acks, prompt, help, /theme listing
-    handlers.zig     #   command implementations over pipeline.zig's steps
-    screen.zig       #   full-screen TUI: pinned logo header, scrollback, mouse (TTY only)
-  line_edit.zig      # raw-mode line editor: history, cursor keys, mouse, pasted-image markers (TTY only)
+    handlers.zig     #   the verbs; handlers/ holds one file per feature (media, keywords, …)
+    llmPrompt.zig    #   /prompt + /llm; llm/ holds the turn, the plan and the op executors
+    screen.zig       #   full-screen TUI; screen/ holds the model, scrollback, selection, paint, input
+  line_edit.zig      # raw-mode line editor (TTY only); line_edit/ holds wrap, history, markers, keys, paint
   theme.zig          # brand-accent palette (mirrors browser/desktop); drives /theme + logo colour
   clipboard.zig      # /paste + /copy clipboard image I/O (macOS osascript · Linux wl-paste/xclip · Windows PowerShell)
   core.zig           # typed wrappers over the C++ core's extern "C" ABI (@cImport)
@@ -84,16 +87,31 @@ src/
   video.zig          # ffmpeg frame grab (to PNG on stdout)
   net.zig            # std.http(s) URL fetch (native TLS, no external tool)
   layout.zig         # std.json -> drawable lines
+  llm.zig            # the assistant; llm/ holds the wire, and llm/opplan/ the validator + §10 guards
+  scrape.zig         # --source-site; scrape/ holds the page walker, filters, window and the run loop
   project.zig        # .stencil project files: parse/build (image + layout + metadata in one file)
   project_cli.zig    # one-shot .stencil open/bundle (reuses the console Session for the layout)
+  serverClient.zig   # the collaboration-server client; server/ holds the wire (urls, payload, parse, edit)
 test_root.zig        # test entry point (inline unit tests + the integration suite)
 tests/
-  *_test.zig         # integration tests (decode, crop, rotate, format, layout, e2e)
+  *_test.zig         # integration suites, banded by seam (pipeline ops, layout, console, /prompt, fixtures)
   fixtures/          # sample.png + layout.json used by the tests
 ```
 
-`src/` is kept flat: it's a small, cohesive set of modules and that's the idiomatic
-Zig layout.
+A module that outgrows one file becomes a package: `x.zig` stays as the surface its callers
+bind to (re-exporting the names they already used) and `x/` holds the pieces. Two rules keep
+that honest, both linted as tests:
+
+- **The layer boundary.** Only the presentation layer — `logo.zig`, `report.zig`, the entry
+  points and the two interactive surfaces (`console/`, `line_edit/`) — may write to a
+  terminal. Everything below it reports through `report.zig`, so `pipeline`, `net`,
+  `scrape`, `serverClient` and `llm/` run headlessly behind another sink and never spell an
+  ANSI escape. `logo.zig`'s `test "layering: …"` walks `src/` and fails on a new file that
+  breaks it.
+- **One registration convention.** A package root pulls its files into the test build with
+  `test { _ = @import("…"); }` (or `_ = name;`). `tests/test_registration_test.zig` walks
+  `src/` and fails on any module no `test {}` block names — without it a new file compiles,
+  is reachable through an alias, and silently has no tests run.
 
 > The Zig build recompiles the core sources directly (it does not link the CMake static
 > library), so the file list in `build.zig` must stay in sync with `STENCIL_CORE_SOURCES`
