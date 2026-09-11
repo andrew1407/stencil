@@ -1,6 +1,6 @@
 import { cmToUnit, isTypingTarget } from '../utils.js';
-import { icon } from '../ui/icons.js';
-import { leaveThenRemove } from '../ui/motion.js';
+import { icon } from './icons.js';
+import { leaveThenRemove } from './motion.js';
 // ── CoordTable: the points table DOM + per-row interactions ──────
 export class CoordTable {
   constructor(app) {

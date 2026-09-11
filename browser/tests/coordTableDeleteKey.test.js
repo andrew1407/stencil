@@ -1,5 +1,5 @@
 // Regression tests for the bare Delete/Backspace on a focused coordinates row
-// (js/core/coordTable.js) — the parity port of the desktop points table, whose
+// (js/ui/coordTable.js) — the parity port of the desktop points table, whose
 // SelectionPanel::eventFilter takes the same key when that table has focus
 // (desktop/src/app/selectionPanel.cpp).
 //
@@ -35,7 +35,7 @@ globalThis.document = {
   },
 };
 
-const { CoordTable } = await import('../js/core/coordTable.js');
+const { CoordTable } = await import('../js/ui/coordTable.js');
 
 // A stub editor exposing only what update() + the handler read.
 const makeApp = ({ readOnly = false } = {}) => {

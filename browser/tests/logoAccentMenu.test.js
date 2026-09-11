@@ -579,7 +579,7 @@ test('an accent change announced while the menu shows moves the ✓; a closed me
   win.dispatch('stencil:accent-changed', { detail: 'pink' });
   assert.deepEqual(marked(menu), ['brown'], 'no re-mark after close');
   // …and the controller really announces: setAccent / setCustomAccent both dispatch it.
-  const src = readFileSync(new URL('../js/core/accentController.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/accentController.js', import.meta.url), 'utf8');
   assert.match(src, /setAccent\(key, originEl = null\) \{[\s\S]*?this\.announce\(next\);/);
   assert.match(src, /this\.announce\(norm\);/);
   assert.match(src, /publish\(EVENTS\.accentChanged, value\)/);

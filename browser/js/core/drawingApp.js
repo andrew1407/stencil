@@ -25,11 +25,11 @@ import { Storage } from './storage.js';
 import { getProjectsBackend } from './projectsBackend.js';
 import { TabsCoordinator } from './tabsCoordinator.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
-import { CoordTable } from './coordTable.js';
+import { CoordTable } from '../ui/coordTable.js';
 import { ZoomPan } from './zoomPan.js';
 import { ExportService } from './exportService.js';
 import { SettingsController } from './settingsController.js';
-import { AccentController } from './accentController.js';
+import { AccentController } from '../ui/accentController.js';
 import { ImageModel } from './imageModel.js';
 import { RemoteSyncController } from './remoteSyncController.js';
 import { ProjectTransferController } from './projectTransferController.js';
@@ -52,9 +52,8 @@ import { OPEN_IN_DEFAULTS, loadOpenInConfig } from '../config/openInConfig.js';
 import { publish, EVENTS } from '../bus/appBus.js';
 
 // ── DrawingApp: orchestrator owning state + DOM wiring ──────────
-// DOM event wiring is split into cohesive #wire* methods invoked in source order
-// by initEventListeners(). Pure decision helpers live in ./layout.js so they can
-// be unit-tested in Node without a DOM.
+// The #wire* methods run in source order from initEventListeners(); the pure decision
+// helpers live in ./layout.js, so they unit-test in Node without a DOM.
 export class DrawingApp {
   // Point/segment/line drag state
   draggingPoint = null;
@@ -221,10 +220,8 @@ export class DrawingApp {
 
 
   // ── Formula controls (top bar) ──────────────────────────────
-  // The formula UI helpers (settings.syncFormulaUI / showFormulaError / refreshFormulaCoords)
-  // and setAllowFormulas live in SettingsController with the other setters. This validates
-  // BOTH inputs together (no half-typed pair) and shows the inline error; the console's
-  // setFormula() throws instead.
+  // The UI helpers and setAllowFormulas live in SettingsController. This validates BOTH
+  // inputs together (no half-typed pair) and shows the inline error; setFormula() throws.
 
 
 
@@ -275,11 +272,9 @@ export class DrawingApp {
     return this.renderer.effectiveCompareMode() !== 'none';
   }
 
-  // …but the coordinate tooltip is DISPLAY, not editing, so it stays live in a
-  // comparison — for the points you can actually see. A point behind the original half
-  // gets nothing, because labelling something the user is not looking at is a lie
-  // (desktop parity). Gate on the POINT's own coordinates, never the cursor's: a point
-  // just across the divider from the pointer must not be labelled from the visible side.
+  // …but the tooltip is DISPLAY, not editing, so it stays live in a comparison — for the
+  // points you can actually SEE. Gated on the POINT's own coordinates, never the cursor's:
+  // one just across the divider must not be labelled from the visible side.
   compareShowsPoint(x, y) {
     return compareEditedShows(this.renderer.effectiveCompareMode(), this.compareSplit,
       x, y, this.canvas.width, this.canvas.height);
@@ -298,11 +293,9 @@ export class DrawingApp {
       : Math.abs(cssY - this.canvas.height * f * scale) <= 8;
   }
 
-  // The rect is measured ONCE PER FRAME and reused: this runs 2-3x per mouse-move and again
-  // per pointermove of a drag, and getBoundingClientRect forces a layout every time — with a
-  // style write in between (the hover cursor) that was a read/write/read thrash. The cache
-  // lives one animation frame — and only while the canvas's inline size is unchanged, so a
-  // zoom/fit drops it at once. Where there is no rAF (node) every call measures, as before.
+  // Measured ONCE PER FRAME: this runs 2-3x per mouse-move and getBoundingClientRect forces
+  // a layout each time, with a style write between them (read/write/read thrash). The cache
+  // lives one frame, and only while the canvas's inline size holds; no rAF ⇒ every call.
   canvasCoords(clientX, clientY) {
     let rect = this.canvasRect;
     const sized = this.canvas.style?.width;   // a zoom/fit rewrites it — a string read, no layout
@@ -324,10 +317,9 @@ export class DrawingApp {
     return { cssX, cssY, x: cssX / sx, y: cssY / sy };
   }
 
-  // opts.crop — explicit crop rect {x,y,width,height} in original-image pixels, overriding
-  // the default centered page-aspect crop (external-launch path). opts.source/opts.resource —
-  // provenance URLs for add-by-URL + extension hand-off; omitted for local uploads (clears prior).
-  // The whole load flow lives in imageLoadFlow.js / imageSettle.js.
+  // opts.crop overrides the default centered page-aspect crop (external-launch path);
+  // opts.source/resource are provenance URLs, cleared for a local upload. The load flow
+  // itself lives in imageLoadFlow.js / imageSettle.js.
   loadImageFromFile(file, opts = {}) { return imageLoadFlow.loadImageFromFile(this, file, opts); }
 
   // ── External launch (extension / desktop / bot): `#stencil=<encodeURIComponent(JSON)>` ──

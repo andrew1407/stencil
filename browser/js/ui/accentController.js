@@ -1,6 +1,6 @@
-import { icon } from '../ui/icons.js';
-import { themeSwap, originOf, originOfId } from '../ui/motion.js';
-import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex, accentHex, needsDarkGlyph } from './accents.js';
+import { icon } from './icons.js';
+import { themeSwap, originOf, originOfId } from './motion.js';
+import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex, accentHex, needsDarkGlyph } from '../core/accents.js';
 import { publish, EVENTS } from '../bus/appBus.js';
 
 // ── Appearance mode ────────────────────────────────────────────────

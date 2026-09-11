@@ -1127,7 +1127,7 @@ test('the incognito frame markup ships all four edges, inside the canvas viewpor
 // Switching between two modes that resolve to the SAME palette repaints nothing — playing
 // the wipe for it animates an unchanged screen.
 test('theme mode: picking a mode that resolves to the painted palette does not animate', () => {
-  const src = readFileSync(new URL('../js/core/accentController.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/accentController.js', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('setThemeMode('), src.indexOf('get themeMode()'));
   assert.match(body, /resolveThemeMode\(next\) === painted/, 'the resolved palette is compared');
   // …and the setting is still stored + announced on that path, or the picker would snap back.
@@ -1140,7 +1140,7 @@ test('theme mode: picking a mode that resolves to the painted palette does not a
 });
 
 test('theme mode: three states, system by default, resolved against the OS', async () => {
-  const { THEME_MODES, resolveThemeMode } = await import('../js/core/accentController.js');
+  const { THEME_MODES, resolveThemeMode } = await import('../js/ui/accentController.js');
   assert.deepEqual(THEME_MODES, ['system', 'light', 'dark']);
   // An explicit mode is taken as-is, whatever the OS says.
   assert.equal(resolveThemeMode('dark', false), 'dark');
