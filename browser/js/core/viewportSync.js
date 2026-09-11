@@ -30,7 +30,7 @@ export function wireViewportSync(app) {
     else syncViewport();
   };
   subscribe(EVENTS.chatLayoutChanged, syncViewportSoon);
-  // …and once body's padding finishes ANIMATING (components.css slides it over ~340ms):
+  // …and once body's padding finishes ANIMATING (components/chat/touch.css slides it ~340ms):
   // the events above fire at the start of the slide and measure the old geometry.
   document.body.addEventListener('transitionend', (e) => {
     if (e.target === document.body && e.propertyName.startsWith('padding')) syncViewport();

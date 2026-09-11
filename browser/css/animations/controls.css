@@ -19,7 +19,7 @@ button {
     transition: background 0.25s ease, color 0.2s ease,
                 transform 0.12s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
-/* The chat "…" trigger opts out: its hover is an ACCENT glow (components.css),
+/* The chat "…" trigger opts out: its hover is an ACCENT glow (components/projects.css),
    and this rule's specificity would bury it under the plain dark shadow. */
 button:not(:disabled):not(.active):not(.chat-row-menu-btn):hover {
     box-shadow: 0 3px 10px var(--shadow);

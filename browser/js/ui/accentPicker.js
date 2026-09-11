@@ -71,7 +71,7 @@ export function fillAccentMenu(menu, onPick, preview = null) {
     setTimeout(poll, 60);
   };
   // `dd-preview-hold` freezes the rows' hover replays for as long as a preview shows —
-  // each flood drops and restores :hover, which restarted them (animations.css).
+  // each flood drops and restores :hover, which restarted them (animations/themeSwap.css).
   const holdReplays = (on) => {
     menu.classList?.[on ? 'add' : 'remove']('dd-preview-hold');
     holdCursor(on);

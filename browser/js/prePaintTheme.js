@@ -37,7 +37,7 @@
   }
 
   // Interface motion mode: 'particles' (default) | 'water' | 'fire' | 'slide' | 'none'. The CSS half of
-  // js/ui/motionPrefs.js — animations.css keys the no-motion rules off this attribute,
+  // js/ui/motionPrefs.js — animations/motionModes.css keys the no-motion rules off it,
   // and it must be on <html> before the app's own entrance plays. Same inlining rule as
   // above (classic script, no imports): keep the key and the values in step with
   // MOTION_STORAGE_KEY / MOTION_MODES there.

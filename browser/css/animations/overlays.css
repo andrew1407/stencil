@@ -5,7 +5,7 @@
     backdrop-filter: blur(3px);
     -webkit-backdrop-filter: blur(3px);
 }
-/* The POPOVER shape keeps the page readable: no dim (components.css) and no blur —
+/* The POPOVER shape keeps the page readable: no dim (components/modalShell.css) and no blur —
    the point of anchoring it at the icon is working with the page still in view. */
 #settings-modal-overlay.modal-open.modal-popover,
 .app-modal-overlay.modal-open.modal-popover {
@@ -74,7 +74,7 @@
     transform-origin: top left;
 }
 /* Slight slide of the menu items' hover highlight already comes from the
-   background transition in components.css; nudge the row content on hover.
+   background transition in components/contextMenu.css; nudge the row content on hover.
    The 3px gained on the left is taken back on the right (14+14 → 17+11) so the
    item's TOTAL width never changes — the menu is shrink-to-fit over nowrap
    items, and a left-only nudge on the widest row jittered the whole menu wider. */
@@ -120,7 +120,7 @@
     100% { opacity: 0; transform: translateY(-6px) scale(0.66); }
 }
 /* Origin = the corner nearest the control. The shared rule hangs the menu right-aligned
-   under its trigger (components.css right:0); the logo copy and the toolbar's custom
+   under its trigger (components/accentPicker.css right:0); the logo copy and the toolbar's custom
    selects are left-aligned, so theirs is the other corner. Declared after, and on the
    base selector, so the exit scales toward the same point as the entrance came from. */
 .accent-dd-menu { transform-origin: right top; }
@@ -174,7 +174,7 @@ stencil-chat-panel.chat-open.chat-closing.chat-dock-right  { animation: chatSlid
 stencil-chat-panel.chat-open.chat-closing.chat-dock-top    { animation: chatSlideOutTop 0.26s ease both; }
 stencil-chat-panel.chat-open.chat-closing.chat-dock-bottom { animation: chatSlideOutBottom 0.26s ease both; }
 stencil-chat-panel.chat-open.chat-closing.chat-dock-float  { animation: modalToIcon 0.34s ease both; }
-/* Phones render the panel as a CENTRED MODAL (components.css), so it takes the
+/* Phones render the panel as a CENTRED MODAL (components/chat/touch.css), so it takes the
    app-wide modal motion — backdrop fade + content pop — instead of a dock slide,
    whatever dock mode the session happens to hold. */
 @media (max-width: 680px) {

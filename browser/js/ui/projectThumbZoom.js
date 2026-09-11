@@ -12,7 +12,7 @@ export const createThumbZoom = () => {
   // placeholder glyph). One reused element, shared by local + remote rows.
   const PREVIEW_ZOOM = 1.67;
   // A hover preview is a GLANCE, not a lightbox — it must leave the list underneath
-  // readable. Mirrored by the max-width/max-height backstop in components.css.
+  // readable. Mirrored by the max-width/max-height backstop in components/projects.css.
   const PREVIEW_MAX_VW = 0.25;
   const PREVIEW_MAX_VH = 0.20;
   let zoomEl = null;

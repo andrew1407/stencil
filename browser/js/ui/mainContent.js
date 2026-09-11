@@ -112,7 +112,7 @@ export class StencilMainContent extends StencilElement {
       foldDust(body, panel, 'coord-collapsed', hidden, 'right',
         { inMs: 460, toggle: () => panel.classList.toggle('coord-collapsed', hidden) });
       // Hold the tabs/table out of the layout while the panel slides (.coord-folding,
-      // animations.css). Half the slide's OWN duration — the collapse takes the longer
+      // animations/collapse.css). Half the slide's OWN duration — the collapse takes the longer
       // one — by which point the out-quart ease is ~94% done.
       const reduced = motionReduced();
       const token = hidden ? '--fold-out-ms' : '--fold-ms';
@@ -121,7 +121,7 @@ export class StencilMainContent extends StencilElement {
       panel.classList.add('coord-folding');
       foldTimer = setTimeout(() => panel.classList.remove('coord-folding'), reduced ? 0 : foldMs / 2);
       // The panel collapses to a right-hand rail, so the chevron points RIGHT to hide and
-      // LEFT to show. Not swapped: animations.css spins the one glyph 180° with the slide.
+      // LEFT to show. Not swapped: animations/collapse.css spins the one glyph 180° with it.
       btn.dataset.title = hidden ? 'Show Last Line Points' : 'Hide panel';
       btn.dataset.tip = hotkeys.hkTitle(hidden ? 'Show Last Line Points' : 'Hide panel', 'togglePointsList');
     });

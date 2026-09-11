@@ -16,7 +16,7 @@ export const chatSuggestionsHtml = () => CHAT_SUGGESTIONS
   .map((s) => `<button type="button" class="chat-suggest" data-prompt="${escapeHtml(s.prompt)}">${escapeHtml(s.label)}</button>`)
   .join('\n                ');
 // Three bouncing dots for an in-flight turn — the same look in the extension panel and
-// the desktop dock. Stops moving under prefers-reduced-motion (see animations.css).
+// the desktop dock. Stops moving under prefers-reduced-motion (animations/motionModes.css).
 export const typingDots = () => {
   const wrap = document.createElement('span');
   wrap.className = 'chat-typing';

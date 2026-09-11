@@ -223,7 +223,7 @@ export class StencilContextMenu extends StencilElement {
       // chat flyout grew) must not replay the gather — only a genuine open does.
       const wasOpen = sub.classList.contains('ctx-sub-visible');
       sub.__ctxItem = item;
-      // The menu's entry pop (animations.css) keeps a live transform for ~140ms, and a
+      // The menu's entry pop (animations/overlays.css) keeps a live transform for ~140ms, and a
       // transformed ancestor becomes the containing block for our position:fixed
       // flyouts — one placed during the pop lands off-target. A quick hover beats the
       // animation, so finish the (purely cosmetic) pop first.
@@ -284,7 +284,7 @@ export class StencilContextMenu extends StencilElement {
     const pointerIdle = () => !!subShownPointer
       && subShownPointer.x === lastPointer.x && subShownPointer.y === lastPointer.y;
     // A freshly PLACED flyout can land a row directly under a cursor that never moved
-    // to reach it — the icon-motion/keycap-shake CSS (animations.css) triggers on
+    // to reach it — the icon-motion/keycap-shake CSS (animations/iconHover.css) triggers on
     // `:hover`, which the browser re-evaluates the instant that row's geometry lands
     // under the pointer, with no actual mouse motion involved. `.ctx-sub-fresh`
     // (below, positionSub) makes every row in a just-placed flyout `pointer-events:
@@ -566,7 +566,7 @@ export class StencilContextMenu extends StencilElement {
       const top = Math.max(4, Math.min(y, vh - mh - 6));
       menu.style.left = left + 'px';
       menu.style.top = top + 'px';
-      // The entry pop (animations.css menuPop) grows out of the click point.
+      // The entry pop (animations/overlays.css menuPop) grows out of the click point.
       menu.style.transformOrigin = menuPopOrigin(x, y, { left, top, width: mw, height: mh });
     };
 

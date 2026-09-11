@@ -4,7 +4,7 @@ import { TUNE } from './tune.js';
 // A control that switches wears one of these classes for one flight, so the parts
 // whose visibility IS that state (the mic's sound waves) arrive with the hover's own
 // swell when it goes ON, and fly out past the edges when it goes OFF, rather than just
-// appearing / vanishing. CSS: `.voice-waves-in` / `.voice-waves-out` in animations.css.
+// appearing / vanishing. CSS: `.voice-waves-in` / `.voice-waves-out` in animations/voice.css.
 const WAVES_IN_CLASS = 'voice-waves-in';
 const WAVES_OUT_CLASS = 'voice-waves-out';
 const WAVES_FLIGHT_MS = TUNE.WAVES_FLIGHT_MS;
@@ -29,7 +29,7 @@ export function replayWaves(el, on, { setTimer = setTimeout } = {}) {
 // the new markup is written FIRST (the DOM is never behind the state, however fast
 // the toggling) and the decoration plays around it: the new glyph turns in, the new
 // word rises, and the outgoing face leaves as a ghost stacked on top of it. CSS owns
-// the keyframes (animations.css .swapping / .swap-ghost).
+// the keyframes (animations/controls.css .swapping / .swap-ghost).
 export const SWAP_MS = TUNE.SWAP_MS;
 export const SWAP_CLASS = 'swapping';
 export const SWAP_GHOST_CLASS = 'swap-ghost';

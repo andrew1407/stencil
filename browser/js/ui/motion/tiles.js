@@ -84,7 +84,7 @@ export const tileNoise = (cx, cy) => {
 // ── The waypoint: no mote flies a straight line ─────────────────────────────
 // Part-way along its throw each mote is pushed off its line by its own amount, to its
 // own side — a bend, not a beam — so a cloud churns instead of radiating in spokes.
-// CSS plays it as the mid keyframe (--mx/--my; animations.css tileScatter and kin),
+// CSS played it as the mid keyframe (--mx/--my; the tileScatter family, now FLIGHTS),
 // the desktop as a sine bulge on the same throw (disintegrateOverlay.hpp swirlAt).
 // The push is a share of the throw, capped: a window's 400px trip must not swing its
 // motes across half the page. Pure — unit-tested.

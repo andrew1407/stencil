@@ -108,7 +108,7 @@ a.chat-hbtn { text-decoration: none; }
 .ic-mic { overflow: visible; }
 /* The mic face: a plain ghost while paused (no accent — the chat button's idle look),
    accent-filled while listening. Its glow, ray ring and swell — the logo's own shine,
-   driven by the voice — live in animations.css beside the logo's rules. */
+   driven by the voice — live in animations/voice.css beside the logo's rules. */
 .chat-abtn.chat-voice-on, .ctx-assist-abtn.chat-voice-on {
     background: transparent;
     color: var(--text-main);
@@ -166,8 +166,9 @@ a.chat-hbtn { text-decoration: none; }
     background: color-mix(in srgb, var(--accent) 52%, transparent);
     border-color: var(--accent);
 }
-/* Directional "dock here" chevron, nudging into the edge (animations.css). A soft
-   contrast halo keeps it legible over whatever the zone overlays. */
+/* Directional "dock here" chevron, nudging into the edge (chatZoneNudge,
+   animations/keyframes.css). A soft contrast halo keeps it legible over
+   whatever the zone overlays. */
 .chat-zone-arrow {
     display: inline-flex;
     color: var(--accent);

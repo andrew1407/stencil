@@ -47,7 +47,7 @@ header .logo.drop-over {
 }
 
 /* ── Drop cue (shared) ───────────────────────────────────────────────────────
-   The browser editor's treatment (components.css .chat-drop-target / dropOverlay):
+   The browser editor's treatment (components/chat/narrow.css .chat-drop-target / dropOverlay):
    a dashed ACCENT outline over a faint accent TINT the content still shows through.
    Never an opaque fill — a solid panel colour reads as a white block in light theme.
    Used by the list's drag-to-pin cue and by the Assistant section's drop state. */
@@ -64,7 +64,7 @@ header .logo.drop-over {
 .row.dragging { opacity: .5; }
 .row:hover { background: var(--panel); }
 /* The thumbnail sits on the PAGE colour with a grey outline, like the browser's
-   .project-thumb (components.css: bg-info + border-main): the panel tone behind a
+   .project-thumb (components/projects.css: bg-info + border-main): the panel tone behind a
    transparent PNG or an icon left the artwork floating on a grey slab, and in dark mode
    that slab was lighter than everything around it. Dark → near-black with a grey edge,
    light → the page grey with the same edge. */

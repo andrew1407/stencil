@@ -20,7 +20,7 @@
 // App-wide, not per project (the same flavour as the theme/accent keys), so the value
 // lives under its own localStorage key rather than in the project layout blob. Every
 // read is guarded: private/disabled storage throws, and the defaults are then correct.
-// The mode is also mirrored onto <html data-motion> for the CSS half (animations.css).
+// The mode is also mirrored onto <html data-motion> for the CSS half (animations/motionModes.css).
 
 import { publish, EVENTS } from '../bus/appBus.js';
 

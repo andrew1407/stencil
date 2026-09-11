@@ -639,7 +639,7 @@ const trackDust = (el, ms, onDrop = () => {}) => {
 };
 
 // A chat entry's only entrance is its dust, so in 'slide' it gets the rise the others
-// already have (browser css/animations.css chatRiseIn twin).
+// already have (browser css/animations/motionModes.css chatRiseIn twin).
 export const CHAT_SLIDE_CLASS = 'chat-slide-in';
 export const CHAT_SLIDE_MS = 320;
 export function chatIn(el, count = 1, index = 0, { host = null } = {}) {

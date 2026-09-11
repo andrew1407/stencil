@@ -73,7 +73,7 @@ const openChatRowMenu = (row, x, y, hooks) => {
   const top = Math.max(8, y + mh > window.innerHeight - 8 ? y - mh : y);
   menu.style.left = `${left}px`;
   menu.style.top = `${top}px`;
-  // The entry pop (animations.css menuPop) grows out of the open point — as dust when
+  // The entry pop (animations/overlays.css menuPop) grows out of the open point — as dust when
   // motion.js can play it, and the plain pop is the fallback it leaves behind.
   menu.style.transformOrigin = menuPopOrigin(x, y, { left, top, width: mw, height: mh });
   surfaceIn(menu, { x, y }, { ms: SURFACE_MENU_IN_MS });

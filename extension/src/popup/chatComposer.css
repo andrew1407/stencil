@@ -79,7 +79,7 @@
 /* Hover preview: the chips and strip thumbnails are deliberately small, so hovering
    shows the picture at a readable size. On the BODY (the popup's regions all scroll,
    so an in-place popup would be clipped), above everything. Browser parity:
-   components.css .chat-thumb-preview. */
+   components/chat/narrow.css .chat-thumb-preview. */
 .chat-thumb-preview {
   position: fixed; left: -9999px;              /* measured, then placed by wireThumbPreview */
   z-index: 200;                                 /* over the section peek (80) and the menus */

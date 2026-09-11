@@ -1,6 +1,7 @@
 /* ──────────────────────────────────────────────────────────────────────
-   animations.css — motion, transitions, hovers, popups & responsive layer
+   css/animations/ — motion, transitions, hovers, popups & responsive layer
 
+   This file leads the group; the rest follow it in index.html's link order.
    Loaded LAST (after theme/layout/components) to enrich existing rules. Purely
    cosmetic: removing it leaves the app fully functional, just static. All motion
    disabled under prefers-reduced-motion (see bottom). Deliberately untouched:

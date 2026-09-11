@@ -27,7 +27,7 @@ define('stencil-drop-overlay', StencilDropOverlay);
 // pointer-events:none so it can't eat the drop it is dismissing for). Both helpers
 // are idempotent: dragover fires them continuously while the pointer sits over a
 // drop owner, and that must not restart the fade every frame.
-const DROP_CLOSE_MS = 220;   // matches .drop-closing in animations.css
+const DROP_CLOSE_MS = 220;   // matches .drop-closing in animations/dust.css
 
 export const showDropOverlay = (el) => {
   if (!el) return;

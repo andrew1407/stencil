@@ -28,12 +28,12 @@
        times a second on a toolbar sweep, and it TRACKS THE CURSOR while it is up — a
        mote layer measured at one position would be stranded a frame later, and a burst
        per show would be both a cost and a mess. So it takes the same sand as a mask on
-       itself: the three coprime dot grids of the scroll dissolve (animations.css
+       itself: the three coprime dot grids of the scroll dissolve (animations/reveal.css
        .reveal-masked), which ride the box wherever it goes, cost one composited layer,
        and can neither stack, strand, nor leak a timer.
        Still a TRANSITION, not keyframes, for the original reason: re-pointing simply
        re-aims from wherever the grain is, with no animation to restart or half-play.
-       --dissolve: 1 = pure grain, 0 = solid. Registered in animations.css, which is why
+       --dissolve: 1 = pure grain, 0 = solid. Registered in animations/reveal.css, which is why
        it can be transitioned at all; at 120% the dots overlap outright, so a settled
        tooltip is solid to the pixel and nothing here costs legibility.
        transform-origin sits at the top-left so the grain gathers toward the cursor,

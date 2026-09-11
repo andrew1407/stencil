@@ -153,7 +153,7 @@ export const CHAT_SLIDE_MS = TUNE.CHAT_SLIDE_MS;
 export function chatIn(el, count = 1, index = 0) {
   if (!el?.classList || motionReduced() || typeof setTimeout === 'undefined') return Promise.resolve();
   // No particles ('slide'): the entry has no entrance of its own to fall back on — the
-  // cloud WAS it — so it rises in instead (animations.css .chat-slide-in).
+  // cloud WAS it — so it rises in instead (animations/motionModes.css .chat-slide-in).
   if (!dustEnabled()) { flashLanding(el, CHAT_SLIDE_CLASS, CHAT_SLIDE_MS); return Promise.resolve(); }
   const { cols } = scatterGridFor(count, index);   // the burst's budget; the grid is surfaceDust's
   // Veiled from the FIRST frame, before anything is painted: the entry keeps its height

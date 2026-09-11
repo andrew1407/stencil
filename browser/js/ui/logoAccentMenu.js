@@ -61,7 +61,7 @@ export function wireLogoAccentMenu(logo, wrap, app) {
                      { on: (key) => app.previewAccent?.(key, logo), off: () => app.endAccentPreview?.(logo) });
     }
     markSelected(menu, app.customAccent ? null : app.accent);
-    // Size to CONTENT by default (components.css lifts the shared 280px cap for this
+    // Size to CONTENT by default (components/accentPicker.css lifts the shared 280px cap for this
     // copy); cap at the viewport space under the logo so only a genuinely too-short
     // window makes the list scroll (overflow-y:auto shows a scrollbar only then).
     const r = wrap.getBoundingClientRect?.();
@@ -102,7 +102,7 @@ export function wireLogoAccentMenu(logo, wrap, app) {
       menu.hidden = true;
       menu.classList.remove('dd-closing');
     };
-    // Reduced motion: animations.css neutralises both the rise and the pop-out, so
+    // Reduced motion: animations/overlays.css neutralises both the rise and the pop-out, so
     // there is no exit to wait for — hide outright rather than sit through the fallback.
     if (reducedMotion()) { menuCloseDone(); return; }
     // Leaves on the shared pop-out; hidden only once the exit has played — with a timer

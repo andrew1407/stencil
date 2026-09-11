@@ -18,7 +18,7 @@ import SVG_ART from '../config/svgArt.json' with { type: 'json' };
 // Several glyphs carry class="ic-…" hooks on their parts (a trash lid, a download
 // arrow, the sun's rays). They are inert markup for anything that just draws the
 // glyph; what moves them is config/iconMotion.json — the canonical per-icon hover
-// motion every surface implements — via css/animations.css here.
+// motion every surface implements — via css/animations/iconHover.css here.
 export const ICONS = ICONS_DATA;
 
 // The draw-mode toggle's two faces, from config/svgArt.json: complete <svg> strings on

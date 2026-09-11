@@ -36,7 +36,7 @@ export function wireExportOptionsMenu(trigger, app, { run, currentIcon = 'copy',
   const primaryVariant = () => exportVariantState(app).primary;
 
   // Reuses the context menu's INNER row shape (.ctx-icon / .ctx-label / .ctx-hotkey) so
-  // the alignment CSS and the hover shake apply here too (components.css scopes both to
+  // the alignment CSS and the hover shake apply here too (components/ctxAssistant.css scopes both to
   // ".accent-dd-opt, .ctx-item" — one rule, not a second copy) — the row itself stays
   // .accent-dd-opt (this dropdown's own base flex/padding/hover), not .ctx-item, so the
   // two rules never fight the cascade over which one wins.

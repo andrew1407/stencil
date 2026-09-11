@@ -25,7 +25,7 @@ export const wireCtxKeyboard = ({ menu, menuIsOpen, chatRowMenuOpen, closeSub, p
                                  activeSub, setActiveSub }) => {
       // ↑/↓ walk the rows of the deepest open level, → opens the row's flyout (and lands
     // on its first row), ← closes it back onto its parent row, Enter/Space picks. The
-    // highlighted row wears .ctx-kb (the :hover look, components.css); a real pointer
+    // highlighted row wears .ctx-kb (the :hover look, components/contextMenu.css); a real pointer
     // move hands the highlight back to :hover (samplePointer above).
     let kbItem = null;
     const setKbItem = (item) => {

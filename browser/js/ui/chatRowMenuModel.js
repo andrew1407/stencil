@@ -5,7 +5,7 @@ import { icon } from './icons.js';
 
 // ── Right-click menu on transcript rows ─────────────────────────────────────
 // One floating menu for any settled row, shared by the panel and the context-menu
-// flyout, styled as the projects modal's row menu (components.css aliases
+// flyout, styled as the projects modal's row menu (components/projects.css aliases
 // .chat-row-menu). renderChatLog stamps each row element with its log row
 // (el._chatRow, refreshed per repaint), so the menu always reads the CURRENT row.
 // The items, data-driven and pure: every settled row gets Copy / Insert into

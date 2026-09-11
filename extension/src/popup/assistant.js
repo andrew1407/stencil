@@ -50,7 +50,7 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
   bindShrinkWrapResize(transcriptEl);
 
   // Transcript entries fade + lift in as they arrive and dissolve at the top edge
-  // as the conversation scrolls past them (browser parity, css/animations.css). The
+  // as the conversation scrolls past them (browser parity, css/animations/reveal.css). The
   // dust layers are excluded: they are position:fixed clouds owning their own alpha,
   // not rows, and the scroll curve masking them sanded the particles away (the browser
   // twin selects '[data-row]', which never matched them either).

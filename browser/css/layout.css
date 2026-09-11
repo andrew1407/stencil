@@ -68,7 +68,7 @@
 /* The points list ends in delete buttons the scrollbar must not cover. padding-right is what
    fixes it: macOS overlay scrollbars take no layout space, so scrollbar-gutter has no gutter
    to stabilise — that only reserves the slot for classic bars, preventing a sideways jump.
-   #fs-points-panel needs no padding here; its 12 px all round (components.css) already clears. */
+   #fs-points-panel needs no padding here; its 12 px all round (components/fullscreen.css) already clears. */
 #coord-body {
     padding-right: 10px;
 }
@@ -250,7 +250,7 @@ button.danger:hover:not(:disabled) {
 }
 /* The Start/Stop toggle is an ACCENT toggle, not a status light: outlined while idle
    ("Start"), accent-filled while drawing ("Stop") — the .pill-toggle convention in
-   components.css. It deliberately opts out of the global green `button.active`, which
+   components/projects.css. It deliberately opts out of the global green `button.active`, which
    stays as-is for the other active controls (#fullscreen-toggle, #incognito-toggle,
    the chat button). box-sizing is border-box, so the outline costs no width and the
    pinned .btn-draw-fixed box never changes between the two states. */
@@ -535,7 +535,7 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
 }
 .zoom-menu[hidden] { display: none; }
 /* While open, the menu is moved to <body> (js/ui/dropdownMenu.js) — same portal contract
-   as .accent-dd-menu (components.css), which used to slice this list under the row below. */
+   as .accent-dd-menu (components/accentPicker.css), which used to slice this list under the row below. */
 .zoom-menu.dd-portal {
     position: fixed;
     left: auto;
@@ -753,7 +753,7 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 .ctrl-sep.ctrl-sep-wrapped { display: none; }
 /* Blank-image fill chip (js/ui/toolbar.js; drawingApp.js sets `display` on a blank
    project). A flat info-coloured control, not an accent action, so it also opts out of
-   the toolbar sheen — see the :not() list in animations.css. Descendant-of-.controls so
+   the toolbar sheen — see the :not() list in animations/controls.css. Descendant-of-.controls so
    it outranks the shared `button` and narrow-viewport `.controls button` rules. */
 .controls .blank-color-btn {
     display: none;
@@ -782,7 +782,7 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 .controls-topbar { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 /* App logo — its panel outline tracks the chosen accent (the rest of the mark is
    fixed brand art). A gentle hover lift to match the toolbar's other affordances;
-   animations.css enriches it into a pulse/shine/rays loop. The wrap is the anchor
+   animations/iconHover.css enriches it into a pulse/shine/rays loop. The wrap is the anchor
    for the absolutely-positioned ray layer (and the parked colour-picker input) —
    z-index:0 makes it a stacking context so the rays' z-index:-1 stays INSIDE it
    (behind the mark, above the toolbar) instead of dropping behind the page. */
@@ -867,7 +867,7 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
     border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important;
 }
 .controls { margin-bottom: 0; }
-/* Collapsed: the fold itself (grid-template-rows + visibility) lives in animations.css,
+/* Collapsed: the fold itself (grid-template-rows + visibility) lives in animations/collapse.css,
    so the toolbar animates away instead of vanishing between two frames. */
 
 /* The "?" chip beside the project name (js/ui/toolbar.js, which sets `display` to
@@ -946,8 +946,8 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 /* ── Coordinates panel ── */
 /* What the panel is wide BEFORE the user has ever dragged it (--coord-panel-width is
    written by the resizer, js/utils.js). One token, because the fullscreen points drawer
-   and its resizer rail fall back to the same number (components.css, animations.css) —
-   they read as one panel and must not drift apart. */
+   and its resizer rail fall back to the same number (components/fullscreen.css and
+   animations/responsive.css) — they read as one panel and must not drift apart. */
 :root { --coord-panel-default: 405px; }
 .coordinates-panel {
     /* Width is user-resizable via #panel-resizer (drag handle), persisted as --coord-panel-width;
@@ -1013,14 +1013,14 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 /* No resizing while the panel is collapsed to its 36px rail. */
 .main-content:has(.coordinates-panel.coord-collapsed) .panel-resizer { display: none; }
 .coordinates-panel.coord-collapsed {
-    /* Collapsing is the slower half — see --fold-out-ms (animations.css). Declared HERE,
+    /* Collapsing is the slower half — see --fold-out-ms (animations/collapse.css). Declared HERE,
        on the after-change style, so only the way out takes it. */
     transition: width var(--fold-out-ms) var(--fold-ease),
                 min-width var(--fold-out-ms) var(--fold-ease),
                 padding var(--fold-out-ms) var(--fold-ease);
     /* 0, not `unset`: `min-width: auto` cannot be interpolated, and with `unset` the
        240px floor snapped back the instant the class came off — the panel jumped most of
-       the way open before the width transition (animations.css) had anything left to do. */
+       the way open before the width transition (animations/collapse.css) had anything left to do. */
     min-width: 0;
     max-width: unset;
     width: 36px;

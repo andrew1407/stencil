@@ -1,5 +1,5 @@
-/* ── Chat panel on phones & touch (breakpoints follow animations.css: 680px = phones,
-   hover:none+coarse = touch). Side docks / floating / resizing don't fit a phone:
+/* ── Chat panel on phones & touch (breakpoints follow animations/responsive.css:
+   680px = phones, hover:none+coarse = touch). Side docks / floating / resizing don't fit a phone:
    whatever the mode says, the OPEN panel presents as an ORDINARY MODAL — a CENTRED
    card over the dimmed #chat-backdrop, with every interactive placement affordance
    hidden (the header drag is also gated in JS, and the backdrop/Escape close it like

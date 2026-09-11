@@ -46,7 +46,7 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
   host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;pointer-events:none;opacity:0;transition:opacity .12s ease;';
   const root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
 
-  // Mirrors the browser editor's drop overlay (browser/js/ui/dropOverlay.js + components.css):
+  // Mirrors the browser editor's drop overlay (browser js/ui/dropOverlay.js + css/animations/dust.css):
   // thick dashed border + monochrome line-art icon, BOTH painted in the theme `accent` (passed
   // in), pulsing small↔large. The hovered quadrant fills with a translucent accent tint.
   // Theme-aware light/dark for the surrounding card.

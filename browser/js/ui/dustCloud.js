@@ -38,7 +38,7 @@ export const easeLut = (x1, y1, x2, y2) => {
   return (t) => lut[Math.max(0, Math.min(EASE_STEPS, Math.round(t * EASE_STEPS)))];
 };
 
-// ── The flights: css/animations.css's tile keyframes, as numbers ─────────────
+// ── The flights: the tile keyframes CSS used to own, as numbers ──────────────
 // A grain flies TWO legs (no straight lines, motion.js tileWaypoint): from its start to
 // the bend on the first leg's own curve, then from the bend to its end on the flight's
 // — the mid keyframe that carried its own animation-timing-function. `split` is where

@@ -87,7 +87,7 @@ export const closeOpenModal = (except = null) => {
 // raised by whatever the user just did, so its origin is that gesture's own point.
 // The `--modal-*` vars stay — they are the flight modalFromIcon/modalToIcon plays
 // wherever the dust declines (an unmeasurable box, a stub, reduced motion).
-export const MODAL_CLOSE_MS = SURFACE_OUT_MS;   // the dust's own clock (css/animations.css)
+export const MODAL_CLOSE_MS = SURFACE_OUT_MS;   // the dust's own clock (config/motion.json)
 export const createModalFlight = (overlay, boxOf) => {
   let closeTimer = null;
   let originPoint = null;   // the origin centre, in client coordinates

@@ -32,7 +32,7 @@ export function themeSwap(apply, origin = null) {
   };
   // The OLD palette, read before `apply` flips it — the wake is the paint coming off.
   const paint = swapDustPaint();
-  // Handed to the DECLARATIVE keyframes in animations.css. Scripting the animation from
+  // Handed to the DECLARATIVE keyframes in animations/themeSwap.css. Scripting it from
   // ready.then() instead races the transition's own teardown — it ends as soon as its
   // pseudo-elements have no animations, so the wipe stopped half way.
   // --swap-x/y/r stay the wipe's authoritative geometry record (and the keyframes'

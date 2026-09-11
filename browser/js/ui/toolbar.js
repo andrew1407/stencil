@@ -22,7 +22,7 @@ export class StencilToolbar extends StencilElement {
   static inner() {
     return `
             <div class="controls-topbar">
-                <!-- The wrap exists for the hover ray layer (animations.css): SVG elements
+                <!-- The wrap exists for the hover ray layer (animations/iconHover.css): SVG
                      can't host ::before/::after, so the rays live on this span. Clicks and
                      the colour picker stay wired to the .app-logo svg itself. -->
                 <span class="app-logo-wrap">
@@ -375,7 +375,7 @@ export class StencilToolbar extends StencilElement {
       // The fold is a body-level state: the info line hides with the rows (CSS), and the
       // "?" badge appears in its place (refresh, via the class observer below).
       document.body.classList.toggle('controls-collapsed', hidden);
-      // The glyph is NOT swapped — animations.css spins the one chevron 180° (up ⇄ down)
+      // The glyph is NOT swapped — animations/collapse.css spins the one chevron 180° (up ⇄ down)
       // off `#controls-body.hidden`, so the arrow turns with the fold instead of blinking.
       btn.dataset.title = hidden ? 'Show controls' : 'Hide controls';
       btn.dataset.tip = hotkeys.hkTitle(hidden ? 'Show controls' : 'Hide controls', 'toggleControls');

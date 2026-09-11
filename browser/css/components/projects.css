@@ -377,7 +377,7 @@ textarea.confirm-prompt-input {
     max-height: 50vh;
     transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
-/* The accent focus ring the single-line field gets for free — animations.css lists the
+/* The accent focus ring the single-line field gets for free — animations/overlays.css lists the
    input TYPES that wear it, and a textarea is not one of them, so it fell back to the
    browser's own blue outline. */
 textarea.confirm-prompt-input:focus {

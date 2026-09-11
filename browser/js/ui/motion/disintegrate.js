@@ -135,6 +135,6 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
 
 // ── Reintegration: the snap played backwards ────────────────────────────────
 // The same tile layer as disintegrate, but every mote starts where the scatter would
-// have flung it and flies HOME (tileGather in animations.css), with the sweep reversed
+// have flung it and flies HOME (the old tileGather keyframe), with the sweep reversed
 // so the first mote out is the last one in. Used by materialize below.
 export const reintegrate = (el, opts = {}) => disintegrate(el, { ...opts, gather: true });

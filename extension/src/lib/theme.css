@@ -198,7 +198,7 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
    Replaces the slow, disabled-control-skipping native `title` popup, and renders the
    title as STRUCTURE rather than flat text — the desktop app's tooltip shape: a heading
    with keycaps for its shortcut, term/description rows, bullets, and the muted
-   disabled-reason note. Mirrors #app-tooltip in browser/css/components.css. ── */
+   disabled-reason note. Mirrors #app-tooltip in browser/css/components/tooltip.css. ── */
 #app-tooltip {
   position: fixed;
   z-index: 100003;
@@ -209,7 +209,7 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
   line-height: 1.75;
   color: var(--text);
   background: var(--panel-2);
-  /* Accent outline, like the desktop's QToolTip — see browser/css/components.css. */
+  /* Accent outline, like the desktop's QToolTip — see browser components/tooltip.css. */
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
   border-radius: 6px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
@@ -231,7 +231,7 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
      tooltip is solid to the pixel and nothing here costs legibility.
      transform-origin sits at the top-left, where controlTooltip.js anchors the box, so
      the grain gathers toward the cursor. Mirrors #app-tooltip in
-     browser/css/components.css. */
+     browser/css/components/tooltip.css. */
   --dissolve: 1;
   transform: translate(3px, 6px) scale(0.96);
   transform-origin: top left;
@@ -289,7 +289,7 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
 .tip-head { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
 .tip-title { font-weight: 600; }
 .tip-keys { display: inline-flex; align-items: center; gap: 6px; flex: none; }
-/* Half again the prose size — see the note in browser/css/components.css. */
+/* Half again the prose size — see the note in browser/css/components/tooltip.css. */
 .tip-key {
   display: inline-block; font: inherit; font-size: 14px; line-height: 1; font-weight: 600;
   padding: 3px 6px; min-width: 12px; text-align: center;
@@ -328,7 +328,7 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
    centred on the control in system type, ignoring this panel's theme entirely — and in a
    400px popup it covers nearly everything. So every <select> here is replaced by the same
    markup the options page's accent picker uses, and the pages keep the <select> itself as
-   the value source. Mirrors .cs-dd / .accent-dd in browser/css/components.css. ── */
+   the value source. Mirrors .cs-dd / .accent-dd in browser components/accentPicker.css. ── */
 .cs-native { display: none; }
 .accent-dd { position: relative; display: block; }
 /* enhanceSelect mirrors the <select>'s `hidden` onto this wrapper, and `display` above
@@ -359,13 +359,13 @@ input[type="checkbox"]:disabled, input[type="radio"]:disabled { opacity: .5; cur
 .logo-wrap.logo-menu-open { z-index: 100002; }
 /* Open: moved to <body> and placed in viewport coordinates, so a filter row near the
    bottom of the popup drops its list upward instead of off the window. */
-.accent-dd-menu.dd-portal { position: fixed; right: auto; min-width: 0; z-index: 100002; }   /* no viewport-wide floor on <body> (browser components.css) */
+.accent-dd-menu.dd-portal { position: fixed; right: auto; min-width: 0; z-index: 100002; }   /* no viewport-wide floor on <body> (browser components/accentPicker.css) */
 .accent-dd-opt {
   display: flex; align-items: center; gap: 9px; padding: 6px 9px; border-radius: 6px;
   cursor: pointer; white-space: nowrap; transition: background .15s ease, transform .12s ease;
 }
 /* The colour chip a theme row wears, and the ✓ the ACTIVE preset shows inside it — the
-   browser's components.css .accent-swatch / .accent-check, rule for rule. A tick, not
+   browser's components/accentPicker.css .accent-swatch / .accent-check, rule for rule. A tick, not
    just the row's tint: that tint is the same affordance :hover uses, so on the logo's
    menu (opened under the pointer) the active row read no differently from the row being
    hovered. White over a dark halo, legible on light and dark chips in either theme.
@@ -420,7 +420,7 @@ select:hover:not(:disabled):not(:focus) {
 /* …and the box an input or an icon button draws around itself is that control's OWN ink,
    not a near-invisible grey: a --line outline vanished behind its glyph on the dark theme
    and read as a smudge on the light one (user report, with pictures of both). Browser
-   twins: css/layout.css's input rule and the ghost buttons in css/components.css. */
+   twins: css/layout.css's input rule and the ghost buttons in components/settings.css. */
 input[type="text"], input[type="number"], input[type="search"], input[type="url"],
 input[type="password"], textarea, select,
 .icon-btn, .more-btn, .pin-btn, .num, .page-select, .dialog-select, .accent-dd-search {

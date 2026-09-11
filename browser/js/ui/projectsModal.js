@@ -492,7 +492,7 @@ export class StencilProjectsModal extends StencilElement {
           wrap.addEventListener(ev, (e) => e.stopPropagation());
         name.replaceWith(wrap);
         // ✓/✗ FORM from dust (desktop revealControls parity); their hover already
-        // draws the check / strikes the cross (animations.css .ic-check/.ic-x).
+        // draws the check / strikes the cross (animations/iconHover.css .ic-check/.ic-x).
         markIn(accept);
         markIn(cancel);
         input.focus();

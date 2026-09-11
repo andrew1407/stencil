@@ -11,7 +11,7 @@
 #sec-assistant .chat-status-dot.bad { background: var(--danger); }
 /* The … trigger's rich status tooltip (assistant.js gearTip): a themed TABLE — label
    column muted, status cell coloured by state — plus a pre-line footer, fixed-positioned
-   above the trigger. Browser .chat-status-tip parity (browser/css/components.css):
+   above the trigger. Browser .chat-status-tip parity (browser components/chat/touch.css):
    same accent-outlined card #app-tooltip already uses here, not the plain flat lines the
    generic controlTooltip.js prints a `title` as. Unscoped like #app-tooltip: appended to
    <body>, outside #sec-assistant. */

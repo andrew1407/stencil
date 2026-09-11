@@ -9,7 +9,7 @@ export function wireLogoColorPicker(logo, app) {
   logo.style.cursor = 'pointer';
   const wrap = logo.closest?.('.app-logo-wrap') || logo;
 
-  // ── Hover latch (.logo-hover) ── the pulse/ray loop (animations.css) keys on this
+  // ── Hover latch (.logo-hover) ── the pulse/ray loop (animations/iconHover.css) keys on this
   // class, NOT :hover: the browser force-drops page hover for the whole accent/theme
   // view transition. themeSwap raises `theme-instant` on <html> for exactly that
   // window — hold the latch through it, then trust real :hover once the swap ends.

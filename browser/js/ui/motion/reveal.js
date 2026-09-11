@@ -9,7 +9,7 @@ export const REVEAL_MASKED_CLASS = 'reveal-masked';
 export const REVEAL_SMOOTH_CLASS = 'reveal-smooth';
 export const REVEAL_NO_TRIGGER_CLASS = 'reveal-no-trigger';
 export const REVEAL_ENTER_MS = TUNE.REVEAL_ENTER_MS;
-// How far the wipe softens into the cut — a share of the ROW, matching animations.css.
+// How far the wipe softens into the cut — a share of the ROW, matching animations/reveal.css.
 export const REVEAL_FEATHER = TUNE.REVEAL_FEATHER;
 
 // How dissolved a row spanning [top, bottom) is in a scroller `viewH` tall: 0 while

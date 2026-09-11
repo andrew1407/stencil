@@ -1,7 +1,7 @@
 // ── Shared UI motion helpers ────────────────────────────────────
 // Pure decoration: a missing IntersectionObserver/MutationObserver (node tests,
 // old engines) simply means no animation — never a broken or hidden view. CSS
-// owns the actual keyframes (css/animations.css); this file only toggles classes.
+// owns the actual keyframes (css/animations/); this file only toggles classes.
 // The sections live one per file under motion/; this is the single import point.
 //
 // The two gates every helper asks: `motionReduced()` is "nothing may move"

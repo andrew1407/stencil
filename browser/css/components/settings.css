@@ -33,7 +33,7 @@
 }
 #chat-btn.active { box-shadow: none; }
 /* The voice-chat toggle beside it: the same ghost box, the same accent fill while on
-   (its level-driven glow lives in animations.css). */
+   (its level-driven glow lives in animations/voice.css). */
 #voice-chat-btn {
     background: transparent;
     border: none !important;

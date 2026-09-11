@@ -37,12 +37,12 @@ export function foldBox(el, scope, cls, on, instant) {
   return r.width >= 8 && r.height >= 8
     ? { left: r.left, top: r.top, width: r.width, height: r.height } : null;
 }
-// The class that switches those transitions off for the read (css/animations.css).
+// The class that switches those transitions off for the read (animations/collapse.css).
 export const FOLD_INSTANT_CLASS = 'fold-instant';
 // A fold COLLAPSING is the slower half — the opposite of every other surface, and the
 // reason it has its own exit clock: with no icon to shrink into, the fold itself is the
 // only thing that reads as the menu leaving, so a brisk exit registered as a snap.
-// 1.5x SURFACE_OUT_MS, matching --fold-out-ms against --fold-ms in css/animations.css.
+// 1.5x SURFACE_OUT_MS, matching --fold-out-ms against --fold-ms in animations/collapse.css.
 export const FOLD_DUST_OUT_MS = TUNE.FOLD_DUST_OUT_MS;   // 1.5x SURFACE_OUT_MS, as the CSS fold's --fold-out-ms is of --fold-ms
 
 // The whole fold-with-dust ritual (toolbar rows, points panel): measure the SHOWN box

@@ -31,7 +31,7 @@ select:focus,
 }
 
 /* ── Icon hover: every glyph mimes its own action ────────────────────────────
-   browser css/animations.css icon-motion twin, cut to the glyphs lib/icons.js
+   browser css/animations/iconHover.css icon-motion twin, cut to the glyphs lib/icons.js
    actually carries (a deliberate SUBSET, pinned by tests/dataParity.test.js). The
    canonical design table is browser/js/config/iconMotion.json: ONE motion per glyph,
    matched to what that glyph's action DOES. One generic move for all of them is worse
@@ -208,7 +208,7 @@ button:not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
 }
 
 /* ── Header logo hover: pulse + levitate + accent shine + orbiting rays ──
-   browser css/animations.css logoPulse twin. Every host page (popup, side panel,
+   browser css/animations/iconHover.css logoPulse twin. Every host page (popup, side panel,
    DevTools panel, quick-crop, options) wraps its .logo in a .logo-wrap span:
    inline SVGs can't host pseudo-elements, so the ray ring lives on the wrap's
    ::before. Transform/filter only — the logo's box never changes, so no header
@@ -282,7 +282,7 @@ button:not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
    The new palette floods out from where the user pressed. With the View
    Transitions API the NEW snapshot is clipped by a growing circle (scripted, so
    both default cross-fades are off here); without it, every colour consumer gets
-   one beat of transition. Mirrors browser/css/animations.css. */
+   one beat of transition. Mirrors browser/css/animations/themeSwap.css. */
 ::view-transition-old(root),
 ::view-transition-new(root) { mix-blend-mode: normal; }
 ::view-transition-old(root) { z-index: 0; animation: none; }
@@ -304,7 +304,7 @@ button:not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
        creeps over a sliver in the far corner — which reads as the animation stopping half
        way and finishing later. So the radius eases IN slightly. The full measurements and
        the traps on either side are recorded over the same declaration in
-       browser/css/animations.css; keep the two identical.
+       browser/css/animations/themeSwap.css; keep the two identical.
        All three surfaces run this same wipe — the desktop evaluates these very control
        points as a Qt easing (support/themeSwapOverlay.hpp swapEase) over the same duration.
        browser/tests/motion.test.js holds this file and the browser's to each other, and
@@ -319,7 +319,7 @@ button:not(.is-loading):not(.swapping):hover :is(.ic, .ic *) {
    edgePolygon hands in a collapsed and a full ragged polygon ring (equal vertex
    counts, so the browser interpolates them), and the swap-dust grains ride right
    behind it. The circle stays only as the fallback for a write that never happened.
-   Mirrors browser/css/animations.css. */
+   Mirrors browser/css/animations/themeSwap.css. */
 @keyframes themeSwapReveal {
     from { clip-path: var(--swap-clip-from, circle(0% at var(--swap-x, 50%) var(--swap-y, 50%))); }
     to   { clip-path: var(--swap-clip-to, circle(var(--swap-r, 150%) at var(--swap-x, 50%) var(--swap-y, 50%))); }
@@ -349,7 +349,7 @@ html.theme-swapping *::before, html.theme-swapping *::after {
    lib/logoAccent.js marks the menu while a preview shows; freeze the replays for that
    whole time (the swap classes are gone before the restart lands). The 2px slide is held
    the other way round, by the .dd-hover latch (lib/theme.css).
-   Browser twin: browser/css/animations.css. */
+   Browser twin: browser/css/animations/themeSwap.css. */
 .accent-dd-menu.dd-preview-hold .accent-dd-opt::after { animation: none !important; }
 .accent-dd-menu.dd-preview-hold .accent-dd-opt :is(.ic, .ic *, [class^="mm-"]) { animation-name: none !important; }
 /* And the CURSOR: the snapshot covers the page, so the pointer stops hitting the row and
@@ -363,7 +363,7 @@ html.dd-preview-cursor::view-transition { cursor: pointer; }
    colours. One canvas for the whole wake: accent.js paints the grains and owns their
    clock. A div per grain ran the same flight declaratively, but at this density it meant
    thousands of composited layers and the swap dropped half its frames.
-   Mirrors browser/css/animations.css. */
+   Mirrors browser/css/animations/themeSwap.css. */
 .swap-dust {
     position: fixed;
     left: 0;
@@ -379,7 +379,7 @@ html.dd-preview-cursor::view-transition { cursor: pointer; }
    Rows in a long scroller fade + lift into place as they enter and dissolve
    again as they leave. motion.js only adds .reveal-item once it has an
    IntersectionObserver to drive it, so a row is never stranded at the dimmed
-   rest state. Mirrors browser/css/animations.css. */
+   rest state. Mirrors browser/css/animations/reveal.css. */
 @property --dissolve { syntax: "<number>"; inherits: false; initial-value: 0; }
 
 .reveal-item {
@@ -436,7 +436,7 @@ html.dd-preview-cursor::view-transition { cursor: pointer; }
        row paints OUTSIDE its box — the chat "…" trigger sits beside the bubble, and with
        the layer stopping at the box edge the mask erased it (and its hit-testing with it:
        the row stayed hoverable, the control did not). Only the vertical mapping matters to
-       a `to bottom` gradient, and that is unchanged. Mirrors browser/css/animations.css. */
+       a `to bottom` gradient, and that is unchanged. Mirrors browser/css/animations/reveal.css. */
     -webkit-mask-size: 4px 4px, 7px 7px, 11px 11px, 300% 100%;
     mask-size: 4px 4px, 7px 7px, 11px 11px, 300% 100%;
     -webkit-mask-position: 0 0, 2px 3px, 5px 1px, center top;
@@ -509,7 +509,7 @@ html.dd-preview-cursor::view-transition { cursor: pointer; }
    A removed row doesn't fade — it comes apart. motion.js paints one round mote per
    grid cell in the row's own colours (speckPainter); the motes then drift off in a
    top-down sweep. The layer is FIXED over the page because the row underneath is
-   collapsing to zero height at the same moment. Mirrors browser/css/animations.css. */
+   collapsing to zero height at the same moment. Mirrors browser/css/animations/dust.css. */
 .disintegrate-host {
     position: fixed;
     z-index: 100010;
@@ -527,7 +527,7 @@ html.dd-preview-cursor::view-transition { cursor: pointer; }
    A freshly-added row plays the removal backwards: its box expands out of nothing
    on the collapse's own timer while a dust copy of the row gathers over the list.
    --enter-h is the row's measured natural height, frozen by motion.js. Mirrors
-   browser/css/animations.css. */
+   browser/css/animations/dust.css. */
 .materializing {
     pointer-events: none;
     overflow: hidden;
@@ -620,7 +620,7 @@ html.dd-preview-cursor::view-transition { cursor: pointer; }
     .card { padding: 18px; }
 }
 
-/* ── Motion mode (lib/accent.js StencilMotion; browser css/animations.css twin) ──
+/* ── Motion mode (lib/accent.js StencilMotion; browser animations/motionModes.css twin) ──
    The user's own switch over everything above, stamped on <html data-motion> before
    first paint and rewritten live when the options page moves it:
 
@@ -685,7 +685,7 @@ html.dd-preview-cursor::view-transition { cursor: pointer; }
 
 /* The composer's drop-to-attach cue: the icon bobs toward the input while a drag
    hovers it, so the target reads as "let go here" rather than a static outline
-   (browser css/animations.css chat-drop-bob twin). The global reduced-motion block
+   (browser css/animations/motionModes.css chat-drop-bob twin). The global reduced-motion block
    above already neutralises it. */
 .chat-drop-cue-icon { animation: chat-drop-bob 1s infinite ease-in-out; }
 @keyframes chat-drop-bob {
@@ -697,7 +697,7 @@ html.dd-preview-cursor::view-transition { cursor: pointer; }
 
 /* A CHAT entry takes its time on the way out (motion.js CHAT_LEAVE_MS): a deleted
    message is a deliberate act, and the old 0.22s snap read as a glitch next to the
-   particles still drifting off it. Browser css/animations.css chatCardLeave twin. */
+   particles still drifting off it. Browser css/animations/reveal.css chatCardLeave twin. */
 #sec-assistant .chat-transcript > .leaving, #sec-assistant .chip.leaving {
     animation: chatCardLeave 0.26s cubic-bezier(0.33, 0, 0.2, 1) both;
     will-change: opacity, transform;
@@ -711,7 +711,7 @@ html.dd-preview-cursor::view-transition { cursor: pointer; }
 /* …and it ARRIVES the same way, backwards (motion.js chatIn): its own motes gather over
    it (reintegrate) and the entry appears as they land. A VEIL, not a fade — the entry
    keeps its height, so the transcript grows and scrolls to it exactly as it always did,
-   but it is never seen ahead of its own dust. Browser css/animations.css twin. */
+   but it is never seen ahead of its own dust. Browser css/animations/reveal.css twin. */
 #sec-assistant .chat-transcript > .chat-entering,
 #chat-transcript > .chat-entering {
     opacity: 0 !important;
@@ -721,7 +721,7 @@ html.dd-preview-cursor::view-transition { cursor: pointer; }
     pointer-events: none;
 }
 
-/* ── Dropdown lists open and close like the app's (browser/css/animations.css
+/* ── Dropdown lists open and close like the app's (browser/css/animations/overlays.css
    menuFromAnchor / menuToAnchor) ──
    The list GROWS out of the corner nearest its trigger rather than fading in as a
    rectangle: full opacity by 22%, so what the eye follows is the box expanding. Closing
@@ -752,7 +752,7 @@ html.dd-preview-cursor::view-transition { cursor: pointer; }
 }
 
 /* ── Surfaces made of dust (lib/motion.js surfaceIn / surfaceOut) ───────────
-   browser css/animations.css twin. A dialog and the ⋯/context/dropdown popups no longer
+   browser css/animations/dust.css twin. A dialog and the ⋯/context/dropdown popups no longer
    SCALE out of the icon that owns them — they form from motes streaming out of it and
    come apart into motes pouring back in. Same tiles, same noise, same keyframes as a
    removed row; only the flight is aimed at a point instead of falling (motion.js
@@ -779,7 +779,7 @@ html.dd-preview-cursor::view-transition { cursor: pointer; }
     .dust-driven, .dust-driven.surface-forming, .dust-driven.surface-leaving { animation: none !important; }
 }
 
-/* ── The motion modes' icons (lib/motionIcons.js; browser css/animations.css twin) ──
+/* ── The motion modes' icons (lib/motionIcons.js; browser animations/motionModes.css twin) ──
    Each dropdown row wears its mode's glyph, and hovering the row plays the mode:
    the ⊘ line draws from top-right to bottom-left, the arrow is drawn from bottom-left to
    top-right (its head last),

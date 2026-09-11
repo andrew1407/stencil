@@ -263,7 +263,7 @@ export class StencilFullscreenLayer extends StencilElement {
       };
 
       if (isFullscreen) {
-        // Hand the box over to the fullscreen rule (components.css pins it to the window):
+        // Hand the box over to the fullscreen rule (components/fullscreen.css pins it to the window):
         // the in-flow height written by syncViewportHeight has no business here.
         if (vp) vp.style.maxHeight = '';
         populateFsControls();

@@ -27,7 +27,7 @@
 
 /* The composer's drop-to-attach cue: the icon bobs toward the input while a drag
    hovers it, so the target reads as "let go here" rather than a static outline.
-   The cue itself is styled in components.css (.chat-drop-cue). */
+   The cue itself is styled in components/chat/narrow.css (.chat-drop-cue). */
 .chat-drop-cue-icon { animation: chat-drop-bob 1s infinite ease-in-out; }
 @keyframes chat-drop-bob {
     0%, 100% { transform: translateY(-2px); }

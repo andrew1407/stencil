@@ -101,7 +101,7 @@
 .msg-menu-btn.msg-menu-btn-yield { opacity: 0 !important; pointer-events: none !important; }
 #sec-assistant .msg.user {
   align-self: flex-end;
-  /* Browser .chat-msg-user parity (components.css): a subtle accent-tinted
+  /* Browser .chat-msg-user parity (components/chat/panel.css): a subtle accent-tinted
      wash with a matching accent-tinted border, not a solid accent fill — the
      two surfaces read as the same chat, not two different designs (user
      report). Named so the tail below can reach the SAME colours without
@@ -138,7 +138,7 @@
 }
 /* ── Message tails: a triangular flag on the BOTTOM edge, at the corner facing the
    panel centre — user right, assistant/error left. Browser
-   .chat-msg-user::before/::after parity; see components.css for the shape. */
+   .chat-msg-user::before/::after parity; see components/chat/tails.css for the shape. */
 #sec-assistant .msg.user::before, #sec-assistant .msg.user::after,
 #sec-assistant .msg.assistant::before, #sec-assistant .msg.assistant::after,
 #sec-assistant .msg.error::before, #sec-assistant .msg.error::after {
@@ -180,7 +180,7 @@
 }
 #sec-assistant .chat-transcript.chat-swapped .msg-menu-btn.left { left: auto; right: -24px; }
 #sec-assistant .chat-transcript.chat-swapped .msg-menu-btn.right { right: auto; left: -24px; }
-/* ── Narrow column: same rule as the browser (js/ui/components.css) — below this the
+/* ── Narrow column: same rule as the browser (css/components/chat/narrow.css) — below this the
    split has no room to read as one, so both roles go near-full-width and stack.
    The popup itself (400px) stays split; only a narrowed side panel/DevTools panel
    collapses. !important: column mode has no "sides" to swap, so it must outrank the

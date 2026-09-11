@@ -346,7 +346,7 @@ export class StencilChatPanel extends StencilElement {
       clearBtn.disabled = sending || !!transcript.querySelector('.chat-empty');
     };
 
-    // Phone modal (components.css ≤680px) hides the drag sizer — the textarea
+    // Phone modal (components/chat/touch.css ≤680px) hides the drag sizer — the textarea
     // auto-grows with its content there instead (clamped by its CSS max-height).
     const autoGrow = () => {
       if (typeof matchMedia === 'undefined' || !matchMedia(PHONE_MEDIA).matches) return;
@@ -874,7 +874,7 @@ export class StencilChatPanel extends StencilElement {
     const header = $('chat-header');
     header.addEventListener('pointerdown', (e) => {
       if (e.target.closest('button')) return;
-      // Phones present the panel as an ordinary modal (components.css) — no
+      // Phones present the panel as an ordinary modal (components/chat/touch.css) — no
       // dragging, no undocking, no dock zones.
       if (phoneModal()) return;
       e.preventDefault();
