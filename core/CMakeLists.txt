@@ -58,6 +58,7 @@ set(STENCIL_CORE_SOURCES
 # desktop GUI and the core tests inherit it transitively when they link stencil_core.
 set(STENCIL_CORE_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/abi
   ${CMAKE_CURRENT_SOURCE_DIR}/geometry
   ${CMAKE_CURRENT_SOURCE_DIR}/raster
   ${CMAKE_CURRENT_SOURCE_DIR}/color
@@ -96,6 +97,7 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
   add_executable(stencil_tests
     tests/testMain.cpp
     tests/pointMath.test.cpp
+    tests/abiShared.test.cpp
     tests/hitTest.test.cpp
     tests/holdDraw.test.cpp
     tests/color.test.cpp

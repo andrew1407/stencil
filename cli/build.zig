@@ -31,6 +31,7 @@ const core_sources = [_][]const u8{
 // cross-group includes ("cropGeometry.hpp") resolve. Mirrors STENCIL_CORE_INCLUDE_DIRS.
 const core_include_dirs = [_][]const u8{
     "../core",
+    "../core/abi",
     "../core/geometry",
     "../core/raster",
     "../core/color",

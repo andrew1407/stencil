@@ -8,6 +8,8 @@
 // every export is a plain C function over doubles / C strings, which Emscripten
 // exposes via Module.ccall / cwrap with no extra runtime.
 
+#include "marshal.hpp"
+
 #include "color.hpp"
 #include "cropGeometry.hpp"
 #include "durationParser.hpp"
@@ -23,13 +25,7 @@
 using namespace stencil::core;
 
 namespace {
-  // Marshal a flat [x0,y0,x1,y1,...] array of `count` points into a vector.
-  std::vector<Point> toPoints(const double* pts, int count) {
-    std::vector<Point> v;
-    if (count > 0) v.reserve(count);
-    for (int i = 0; i < count; ++i) v.push_back(Point{pts[2 * i], pts[2 * i + 1]});
-    return v;
-  }
+  using abi::toPoints;
 
   // Write a CropRect to out[0..3] = {x, y, width, height}.
   void writeRect(const CropRect& r, double* out) {
@@ -95,20 +91,8 @@ extern "C" {
   // The canonical page-format names ("A0 A1 … C10", space-separated, no
   // "custom") in the canonical A/B/C-series order. Static storage — the
   // browser reads it as a string, never frees it.
-  const char* stencil_pageFormats(void) { return pageFormatNames(); }
-
   // ── formula engine (formulaEngine.js validate / apply / evaluate) ──
   // varName is the ASCII code of 'x' or 'y'.
-  int stencil_formulaValidate(const char* expr, int varName) {
-    return FormulaParser::validate(expr ? expr : "", static_cast<char>(varName)) ? 1 : 0;
-  }
-
-  double stencil_formulaApply(const char* expr, int varName, double value,
-                              int allowFormulas) {
-    return FormulaParser::apply(expr ? expr : "", static_cast<char>(varName), value,
-                                allowFormulas != 0);
-  }
-
   // Returns 1 and writes the result to *out on success; returns 0 on a parse
   // error or non-finite result (leaving *out untouched).
   int stencil_formulaEvaluate(const char* expr, int varName, double varValue,
@@ -124,14 +108,6 @@ extern "C" {
   // Parse a human duration ("days 23", "fortnight", "off") into milliseconds
   // written to *out (0 for off/never). Returns 1 on a valid spec, 0 otherwise
   // (leaving *out untouched). The browser adds *out to Date.now() for the expiry.
-  int stencil_parseDuration(const char* spec, double* out) {
-    static const DurationParser dp;
-    long long ms = 0;
-    if (!dp.parse(spec ? spec : "", ms)) return 0;
-    *out = static_cast<double>(ms);
-    return 1;
-  }
-
   // ── image filters (renderer.js drawImageWithFilter / #applyTintFilter) ──
   // Apply a filter in place to an interleaved RGBA8 buffer of `pixelCount`
   // pixels (a canvas ImageData.data layout). `mode`: 0 none, 1 bw, 2 sepia,
@@ -149,10 +125,6 @@ extern "C" {
   // edges on a white page, alpha preserved. Pinned integer math — the JS
   // fallback (contourFilter.js) must stay byte-identical. Degenerate sizes /
   // null data are a no-op.
-  void stencil_applyContourRGBA(std::uint8_t* data, int w, int h) {
-    applyContourRGBA(data, w, h);
-  }
-
   // ── geometry transforms (drawingApp.js #rotateSelectedLine) ──
   // Rotate a flat [x0,y0,x1,y1,...] array of `count` points in place about
   // (cx,cy) by `angle` radians.
@@ -279,5 +251,11 @@ extern "C" {
     out[0] = c.orientationChanged ? 1.0 : 0.0;
     out[1] = c.scale;
   }
+
+  // Five more exports are emitted here from abi/shared.inc, shared verbatim
+  // with the other ABI.
+#define STENCIL_ABI(wasmName, cliName) stencil_##wasmName
+#include "shared.inc"
+#undef STENCIL_ABI
 
 }  // extern "C"

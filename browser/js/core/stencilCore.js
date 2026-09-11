@@ -101,7 +101,7 @@ class StencilCore {
   // Build the typed wrappers over an instantiated Emscripten module. The raw
   // exports speak only numbers and pointers, so this owns the marshalling.
   #buildWrappers(core) {
-    const F64 = 8;
+    const F64 = 8, I64 = 8;  // 8-byte scratch out slots: double, int64
     const I32 = 4;
 
     // cwrap'd scalar exports (numbers / strings in, number out).
@@ -226,13 +226,13 @@ class StencilCore {
         return withCString(expr, p => cFormulaApply(p, varName.charCodeAt(0), val, allowFormulas ? 1 : 0));
       },
 
-      // Parse a human duration → milliseconds (0 = keep forever), or null if the
-      // spec is invalid. Writes the ms through a scratch out-pointer.
+      // Parse a human duration → ms (0 = keep forever), or null if invalid. The int64
+      // out slot (as on the CLI ABI) reads as two halves; exact below 2^53, the cap.
       parseDuration(spec) {
-        const out = core._malloc(F64);
+        const out = core._malloc(I64);
         try {
           if (cParseDuration(spec ?? '', out) !== 1) return null;
-          return core.getValue(out, 'double');
+          return core.getValue(out + 4, 'i32') * 4294967296 + (core.getValue(out, 'i32') >>> 0);
         } finally {
           core._free(out);
         }

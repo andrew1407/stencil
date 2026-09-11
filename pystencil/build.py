@@ -62,7 +62,7 @@ ABI_SOURCE = "cliApi.cpp"
 
 # Include dirs mirror STENCIL_CORE_INCLUDE_DIRS: the core root (for models.hpp + the ABI
 # headers) plus each concern group, so headers are included bare regardless of group.
-INCLUDE_DIRS = [".", "geometry", "raster", "color", "parse", "page", "format", "state"]
+INCLUDE_DIRS = [".", "abi", "geometry", "raster", "color", "parse", "page", "format", "state"]
 
 
 def lib_filename() -> str:
@@ -87,11 +87,11 @@ def _compiler() -> str:
 
 def build_inputs() -> list:
     """Every file whose edit invalidates the built artifact: the compiled sources, the
-    headers they include (INCLUDE_DIRS, non-recursive so third_party/ stays out), and
-    this script (it carries the flags and the source list)."""
+    headers and .inc bodies they include (INCLUDE_DIRS, non-recursive so third_party/
+    stays out), and this script (it carries the flags and the source list)."""
     paths = [CORE_DIR / rel for rel in STENCIL_CORE_SOURCES + [ABI_SOURCE]]
     for inc in INCLUDE_DIRS:
-        for pattern in ("*.hpp", "*.h"):
+        for pattern in ("*.hpp", "*.h", "*.inc"):
             paths.extend(sorted((CORE_DIR / inc).glob(pattern)))
     paths.append(Path(__file__).resolve())
     return paths
