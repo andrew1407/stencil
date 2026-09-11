@@ -314,7 +314,7 @@ LLM contract — [`llm-contract/llm-profiles.md`](../llm-contract/llm-profiles.m
   transcript says "Stopped."), 🗑 clears the conversation, empty-state **suggestion
   chips** prefill the input (they never send), and error/notice entries carry a **×** —
   attach failures also clear themselves after a few seconds.
-- Code: `src/llm/` (`llmSettings.js`, `llmClient.js`, `opPlan.js`, `opSchema.js` — the registry-driven validation engine, a byte-identical copy of the browser's, over `src/config/opRegistry.json`; `chatController.js`)
+- Code: `src/llm/` (`llmSettings.js`, `llmClient.js`, `opPlan.js`, `opSchema.js` — the registry-driven validation engine, a byte-identical copy of the browser's, over `src/config/opRegistry.json`; `chatController.js` + `chatListing.js`, `openActions.js`, `opExecutors.js`)
   + `src/popup/assistant.js` (the embedded section), `src/lib/chatDrop.js`,
   `src/lib/chatUi.js`, `src/lib/rasterize.js`; unit tests in `tests/llm*.test.js`,
   `tests/chatDrop.test.js`, `tests/chatUi.test.js`, `tests/rasterize.test.js`.
@@ -455,12 +455,15 @@ src/
   popup/    popup.html, popup.js  image list, search/filters, floating actions, preview
             popup.css + list.css · editorMode.css · chatPanel|chatComposer|chatControls.css
                                 (linked in that order — see popup.html)
-            editorMode.js       editor mode: open-editor list, source-tab picker, import here
+            editorMode.js       editor mode: wires editorList.js (open editors),
+                                sourceTabsList.js (source-tab picker), editorImport.js
+                                and editorDialogs.js
             assistant.js + assistant/  the embedded AI chat (§8): transcript, attachments,
                                 results, turnRunner, capabilities, boot, the two menus
   sidepanel/ sidepanel.html|css  docked side-panel surface (reuses popup.js + the popup CSS set)
   devtools/ devtools.html|js, panel.html|css  DevTools "Stencil" panel (reuses popup.js)
-  crop/     crop.html|css|js    quick page-aspect crop (zoom, custom size)
+  crop/     crop.html|css|js    quick page-aspect crop; cropStage.js (zoom + drag),
+            cropControls.js (page/orientation) and cropHandoff.js (the editor payload)
   options/  options.html|js     boot order only; appearance.js, general.js, llm.js,
             pins.js (+ pinsDom/pinRow/confirmDialog) and connections.js are the sections
   lib/
@@ -484,6 +487,8 @@ src/
                      this order: prefs.js, swapGeometry.js, dustGrains.js, dustWake.js,
                      themeSwap.js, accent.js, shellPrefs.js (they share window.StencilKit)
     videoFrames.js   a dropped video → evenly-spaced JPEG frames for the chat (contract §7)
+    motionPrefs.js + motion/  the motion layer, split along the browser's own
+                     js/ui/motion/ boundaries; motion.js is the single import point
 tests/                   node:test unit tests for the pure modules
   helpers/               chromeStub.js (chrome.*), domStub.js (document/element/window),
                          listDom.js, accentSandbox.js, sources.js
