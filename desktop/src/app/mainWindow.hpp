@@ -1,6 +1,7 @@
 #pragma once
 #include "chatDock.hpp"  // ChatDock::ProviderStatus (chatMirrorProviderStatus)
 #include "fullscreenController.hpp"
+#include "sessionController.hpp"
 #include "formulaParser.hpp"
 #include "llmClient.hpp"
 #include "pageMetrics.hpp"
@@ -483,6 +484,7 @@ namespace stencil::gui {
     // context-menu panel's carry the same tooltip and dot.
     void chatMirrorProviderStatus(const QString& richTooltip,
                                   ChatDock::ProviderStatus status);
+    SessionController::Gates sessionGates() const;
     void scheduleAutosave();
     void saveSessionNow();
     void restoreSession();
@@ -975,11 +977,10 @@ namespace stencil::gui {
     QLabel* status_ = nullptr;
     QComboBox* pageSize_ = nullptr;
     QComboBox* zoom_ = nullptr;
-    QTimer* autosaveTimer_ = nullptr;
-    // Debounced pan/zoom persistence (scheduleViewSave/saveActiveProjectView) — browser
-    // parity, storage.js's scroll/zoom save debounce. restoringView_ below guards against
-    // re-saving a view that loadProjectIntoCanvas/restoreSession are still applying.
-    QTimer* viewSaveTimer_ = nullptr;
+    // Debounced session + pan/zoom persistence, and the gates on both
+    // (app/sessionController.hpp); its restoring() guard keeps loadProjectIntoCanvas /
+    // restoreSession from re-saving the view they are still applying.
+    SessionController session_;
     // Canvas scrollbar auto-hide (revealCanvasScrollbars) — see its own declaration above.
     // QPointer, not raw: QWidget::setGraphicsEffect DELETES whatever effect the widget had,
     // so anything that re-installs one on a scrollbar leaves a raw pointer dangling — and
@@ -988,7 +989,6 @@ namespace stencil::gui {
     QPointer<QGraphicsOpacityEffect> hScrollOpacity_;
     QTimer* scrollbarHideTimer_ = nullptr;
     bool scrollbarHovered_ = false;   // pointer is on a bar right now — never auto-hide then
-    bool restoringView_ = false;
     // Live co-edit reentrancy flags: true while an async push / reload is in flight (set at the
     // start of saveToServer / openServerProject, cleared by a shared clearer when the whole async
     // chain ends). READ by the RemoteSyncController (passed as const bool*) plus the filter/reload

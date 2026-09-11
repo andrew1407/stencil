@@ -127,7 +127,7 @@ namespace stencil::gui {
     // `if (layout.zoom) { setZoom(...); restore scroll } else fitToWindow()`) — otherwise
     // fall back to the plain fit. Guarded so restoring the saved values doesn't immediately
     // re-schedule (and re-persist) a save of what was just read back.
-    restoringView_ = true;
+    session_.setRestoring(true);
     if (pr->zoomScale > 0) {
       setZoom(pr->zoomScale);
       // Deferred a turn (like the browser's requestAnimationFrame): the scrollbars' range
@@ -138,11 +138,11 @@ namespace stencil::gui {
           scroll_->horizontalScrollBar()->setValue(sx);
           scroll_->verticalScrollBar()->setValue(sy);
         }
-        restoringView_ = false;
+        session_.setRestoring(false);
       });
     } else {
       fitToWindow();   // fit the opened project to the window (matches the browser)
-      restoringView_ = false;
+      session_.setRestoring(false);
     }
     if (animate) playImageArrival();   // a reopened project's picture APPEARS, like any other
     notify_->success(

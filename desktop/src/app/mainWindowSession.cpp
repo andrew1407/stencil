@@ -32,19 +32,23 @@
 
 namespace stencil::gui {
 
-  // Incognito gates every write of the incognito editor's OWN state (session,
-  // settings, promotion, shortcut overrides — a deliberate desktop-only widening
-  // of the browser rule) but never maintenance on OTHER saved projects.
+  // The write gates in one place (sessionController.hpp). Incognito covers the
+  // incognito editor's OWN state — session, settings, promotion, shortcut overrides,
+  // a deliberate desktop-only widening of the browser rule — but never maintenance on
+  // OTHER saved projects.
+  SessionController::Gates MainWindow::sessionGates() const {
+    return {incognito_,
+            !remoteSession_->link().address.isEmpty() && !settings_.syncToServer,
+            !activeProjectId_.isEmpty(),
+            canvas_ && canvas_->hasImage()};
+  }
+
   void MainWindow::scheduleAutosave() {
-    if (incognito_) return;  // no autosave timer while incognito
-    if (settings_.autosave) autosaveTimer_->start(600);
+    session_.scheduleAutosave(settings_.autosave, sessionGates());
   }
 
   void MainWindow::saveSessionNow() {
-    if (incognito_) return;  // skip session writes while incognito
-    // Sync off + a fetched server project = edit-in-memory only: don't persist the
-    // restore blob either (the session is "stored nowhere").
-    if (!remoteSession_->link().address.isEmpty() && !settings_.syncToServer) return;
+    if (!SessionController::wantsSessionWrite(sessionGates())) return;
     Session s;
     s.imagePath = canvas_->imagePath();
     s.pageSize = pageSizeValue();
@@ -95,37 +99,30 @@ namespace stencil::gui {
     // Guarded: this setZoom is restoring a value, not the user zooming — without the guard
     // it would immediately re-schedule (and, once the debounce fires, re-persist) the exact
     // zoom that was just read back, and could pop a stray "Saved" toast right on launch.
-    restoringView_ = true;
+    session_.setRestoring(true);
     setZoom(sess->scale);
-    restoringView_ = false;
+    session_.setRestoring(false);
   }
 
   // Persist the active project's pan/zoom position only (browser parity: storage.js's
   // scrollLeft/scrollTop/zoom, saved via a debounced listener) — every route that moves the
   // view (setZoom, both scrollbars) calls this instead of saving directly, so a drag-pan or
   // a zoom burst ends in ONE save/toast, not one per pixel/step.
-  void MainWindow::scheduleViewSave() {
-    if (incognito_ || activeProjectId_.isEmpty() || restoringView_) return;
-    if (!canvas_ || !canvas_->hasImage()) return;
-    viewSaveTimer_->start(400);   // browser parity: storage.js's own scroll-save debounce
-  }
+  void MainWindow::scheduleViewSave() { session_.scheduleViewSave(sessionGates()); }
 
   // What scheduleViewSave's debounce actually runs. Lighter than saveToActiveProject(): it
   // touches only the view fields, not lines/crop/chat, and doesn't bump the Dock "recent"
   // list — a pan/zoom is not the kind of change that belongs in either.
   void MainWindow::saveActiveProjectView() {
-    if (incognito_ || activeProjectId_.isEmpty() || restoringView_) return;
-    // Edit-in-memory-only states (mirrors saveToActiveProject's own gates): nothing local
-    // to write back to.
-    if (!remoteSession_->link().address.isEmpty() && !settings_.syncToServer) return;
+    if (!SessionController::wantsViewWrite(sessionGates(), session_.restoring())) return;
     Project* pr = findProject(activeProjectId_.toStdString());
     if (!pr || !canvas_ || !scroll_) return;
     const double zoom = canvas_->scale();
     const int left = scroll_->horizontalScrollBar()->value();
     const int top = scroll_->verticalScrollBar()->value();
-    // Nothing actually moved (a layout-induced scrollbar valueChanged — resize, panel
-    // fold — also trips the debounce): don't rewrite the store or toast "Saved".
-    if (pr->zoomScale == zoom && pr->scrollLeft == left && pr->scrollTop == top) return;
+    if (!SessionController::viewMoved(zoom, left, top, pr->zoomScale, pr->scrollLeft,
+                                      pr->scrollTop))
+      return;
     pr->zoomScale = zoom;
     pr->scrollLeft = left;
     pr->scrollTop = top;

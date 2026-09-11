@@ -80,6 +80,12 @@ stencil_headless_test(stencil_fullscreencontroller_headless
   SOURCES tests/fullscreenController.headless.cpp
   LIBS Qt6::Core)
 
+# Persistence gates + debounces (app/sessionController.hpp) — what stops a write, and
+# that a burst of edits coalesces into one; header-only, so the test is the only unit.
+stencil_headless_test(stencil_sessioncontroller_headless
+  SOURCES tests/sessionController.headless.cpp
+  LIBS Qt6::Core)
+
 # Scroll-reveal curve (app/scrollReveal.hpp) — how dim a row is at a given spot in its
 # scroller; header-only, so the test is the only extra compile unit.
 stencil_headless_test(stencil_scrollreveal_headless

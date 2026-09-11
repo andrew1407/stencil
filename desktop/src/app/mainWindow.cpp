@@ -605,13 +605,7 @@ namespace stencil::gui {
     // returns from the just-closed popup (which would loop).
     zoom_->lineEdit()->installEventFilter(this);
 
-    autosaveTimer_ = new QTimer(this);
-    autosaveTimer_->setSingleShot(true);
-    connect(autosaveTimer_, &QTimer::timeout, this, &MainWindow::saveSessionNow);
-
-    viewSaveTimer_ = new QTimer(this);
-    viewSaveTimer_->setSingleShot(true);
-    connect(viewSaveTimer_, &QTimer::timeout, this, &MainWindow::saveActiveProjectView);
+    session_.attach(this, [this] { saveSessionNow(); }, [this] { saveActiveProjectView(); });
 
     // Live co-edit push/pull engine (remoteSyncController.hpp): owns the debounce/poll/reload
     // timers + the LiveFeed. It composes remoteSession_ directly for the link state + connections;
