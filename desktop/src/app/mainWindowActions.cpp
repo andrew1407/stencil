@@ -126,7 +126,7 @@ namespace stencil::gui {
     tip(actCycleCompare_,
         "Cycle the compare view (none → original → vertical split → horizontal split); "
         "hold Alt+Shift+O to peek at the original");
-    // Start/Stop drawing (S5): mirrors hotkeysConfig startDraw=Alt+A,
+    // Start/Stop drawing: mirrors hotkeysConfig startDraw=Alt+A,
     // stopDraw=Alt+S. actNewLine_ keeps "commit + begin a fresh line" but loses
     // its shortcut to avoid colliding with Stop (Alt+S now drives stopDraw).
     actStartDraw_ = mk("Start Drawing", hotkey("startDraw", "Alt+A"));
@@ -207,14 +207,14 @@ namespace stencil::gui {
     actIncognito_ = mk("Incognito", hotkey("toggleIncognito", "Alt+I"));
     actTooltip_ = mk("Show Tooltips", QString());   // browser label parity (was "Hover Tooltip")
     actTooltip_->setCheckable(true);
-    // Allow-formulas toggle (S11), also reachable from the View menu so the
+    // Allow-formulas toggle, also reachable from the View menu so the
     // f(x,y) inputs aren't lost when the toolbar overflows. Two-way synced with
     // the toolbar allowFormulas_ checkbox below.
     actAllowFormulas_ = mk("Allow Formulas", QString());
     actAllowFormulas_->setCheckable(true);
     actQuit_ = mk("Quit", "Ctrl+Q");
 
-    // Data actions (S9). The clipboard hotkeys come from hotkeysConfig.json
+    // Data actions. The clipboard hotkeys come from hotkeysConfig.json
     // (copyImage=Ctrl+C, copyLayout=Alt+J, paste=Ctrl+V) so a rebind re-applies
     // live; the JSON file export/import are menu-only (no browser hotkey).
     actDownloadJson_ = mk("Export Layout JSON…", hotkey("downloadJson", "Ctrl+Shift+J"));
@@ -240,17 +240,15 @@ namespace stencil::gui {
     // (same as the browser and same as Ctrl+C below, always has). actSaveImageSplit_ is a
     // separate "With Compare" action, hidden until a split compare view is active —
     // syncSplitCopyDownloadSlot() shows it and moves the real Ctrl+Shift+D shortcut onto
-    // it then, back onto actSaveImage_ when compare turns off (user report — a broken
-    // earlier version relabeled/repurposed "Current" into "With Compare" instead of
-    // giving split its own action). No initial shortcut here: it only ever borrows
-    // actSaveImage_'s.
+    // it then, back onto actSaveImage_ when compare turns off. No initial shortcut here:
+    // it only ever borrows actSaveImage_'s.
     actSaveImage_ = mk("Current (Tint + Lines/Points)", hotkey("saveImage", "Ctrl+Shift+D"));
     actSaveImageSplit_ = mk("With Compare", QString());
     actSaveImageSplit_->setVisible(false);
     actSaveImageOriginal_ = mk("Original (No Tint, No Lines/Points)", hotkey("saveImageOriginal", "Ctrl+Alt+D"));
     // "Filter Only" would render byte-identical to "Original" with no filter applied —
     // hidden until one actually is (Settings{}'s default imageFilter is "none"; kept live
-    // by applyImageFilter()/refreshActions()/syncContextActions() — user report).
+    // by applyImageFilter()/refreshActions()/syncContextActions().
     actSaveImageTint_ = mk("Filter Only (No Lines/Points)", hotkey("saveImageTint", "Ctrl+Shift+Alt+D"));
     actSaveImageTint_->setVisible(settings_.imageFilter != QLatin1String("none"));
     // actCopyImage_ owns Ctrl+C and the toolbar Copy button — mirrors actSaveImage_ above:
@@ -326,7 +324,7 @@ namespace stencil::gui {
     });
     connect(actPasteImage_, &QAction::triggered, this, &MainWindow::pasteImage);
 
-    // Incognito (S6): edit without saving. Togglable only before an image is
+    // Incognito: edit without saving. Togglable only before an image is
     // loaded (browser behavior), so it gets disabled once content exists.
     actIncognito_->setCheckable(true);
     // Through tip(), not setToolTip(): a plain set would drop the ⌥I that mk() had put on
@@ -478,7 +476,7 @@ namespace stencil::gui {
     tip(actContextMenu_, "Open the canvas context menu at the pointer (or the canvas centre)");
     connect(actContextMenu_, &QAction::triggered, this, &MainWindow::showContextMenuFromKeyboard);
 
-    // Map hotkey ids -> their actions so a rebind can re-apply live (S13). Only
+    // Map hotkey ids -> their actions so a rebind can re-apply live. Only
     // ids present in hotkeysConfig.json are rebindable.
     hotkeyActions_["rotateImageLeft"] = actRotateLeft_;
     hotkeyActions_["rotateImageRight"] = actRotateRight_;
@@ -501,7 +499,7 @@ namespace stencil::gui {
     hotkeyActions_["zoomOut"] = actZoomOut_;
     hotkeyActions_["undo"] = actUndo_;
     hotkeyActions_["redo"] = actRedo_;
-    // Data clipboard hotkeys (S9; hotkeysConfig.json copyImage/copyLayout/paste).
+    // Data clipboard hotkeys (hotkeysConfig.json copyImage/copyLayout/paste).
     hotkeyActions_["copyImage"] = actCopyImage_;
     hotkeyActions_["copyImageOriginal"] = actCopyImageOriginal_;
     hotkeyActions_["copyImageTint"] = actCopyImageTint_;
@@ -534,7 +532,7 @@ namespace stencil::gui {
     hotkeyActions_["toggleLiveSync"] = actStencilLiveSync_;
     hotkeyActions_["deleteProject"] = actDeleteProjectFile_;
 
-    // ── Tooltips: the browser's words, verbatim (toolbar.js data-title) —
+    // Tooltips: the browser's words, verbatim (toolbar.js data-title) —
     // menu LABELS stay untouched; desktop-only affordances keep their own wording.
     tip(actOpen_, "Open an image — local file, URL, or new blank");
     tip(actOpenAnother_, "Open another image — local file, URL, or new blank");
@@ -614,13 +612,13 @@ namespace stencil::gui {
     connect(actQuit_, &QAction::triggered, this, &QWidget::close);
   }
 
-  // Persistent context-menu submenu actions (S11). Port of the wiring done once
+  // Persistent context-menu submenu actions. Port of the wiring done once
   // in browser/js/ui/contextMenu.js wire() (~112-605): the instant line/rect
   // items, and the Style / Image-Filter / Tooltip submenus.
   // Built once and reused on every right-click; showContextMenu() only re-syncs
   // their checked/enabled/visible state before exec (mirroring syncState ~239).
   void MainWindow::buildContextActions() {
-    // ── Instant line/rect (contextMenu.js ctx-draw-line/ctx-draw-rect): set the
+    // Instant line/rect (contextMenu.js ctx-draw-line/ctx-draw-rect): set the
     // mode and begin drawing immediately. Two fixed actions rather than a toggle
     // that only picked the mode — each row always does exactly what it says, and
     // each carries its own animated outline glyph (browser parity).
@@ -646,7 +644,7 @@ namespace stencil::gui {
       notify_->info("Drag to draw a rectangle");
     });
 
-    // ── Style submenu (contextMenu.js:39-57): spinboxes in QWidgetActions + an
+    // Style submenu (contextMenu.js:39-57): spinboxes in QWidgetActions + an
     // exclusive line-style radio group; all push canvas DEFAULTS only.
     // Row scaffold: returns the layout to fill (host QWidget = parentWidget()); sets `act`.
     auto makeMenuRow = [this](QWidgetAction*& act, int topM = 4, int botM = 4) {
@@ -725,7 +723,7 @@ namespace stencil::gui {
     actStyleDashed_ = mkStyle("Dashed", "dashed");
     actStyleDotted_ = mkStyle("Dotted", "dotted");
 
-    // ── Image Filter submenu (contextMenu.js:59-74, 504-526). Exclusive radio
+    // Image Filter submenu (contextMenu.js:59-74, 504-526). Exclusive radio
     // group + a custom-tint picker action shown only when "custom" is active.
     filterButtons_ = new QButtonGroup(this);
     filterButtons_->setExclusive(true);
@@ -768,7 +766,7 @@ namespace stencil::gui {
       if (c.isValid()) applyTintColor(c);
     });
 
-    // ── Tooltip toggles (contextMenu.js:96-107, 546-557). Hosted as real QCheckBoxes
+    // Tooltip toggles (contextMenu.js:96-107, 546-557). Hosted as real QCheckBoxes
     // in QWidgetActions (like the point/thickness spinbox rows) so a click flips them
     // WITHOUT dismissing the menu — the browser's context menu likewise keeps its inline
     // checkboxes/sliders live — and so they render as checkboxes, not the action's icon.
@@ -815,7 +813,7 @@ namespace stencil::gui {
     mkRowToggle("Screen (px)", settings_.tooltipShowScreen, ttScreenCheck_, actTtScreen_);
     mkRowToggle("To Edge (cm)", settings_.tooltipShowCoords, ttCoordsCheck_, actTtCoords_);
 
-    // ── Transformation submenu formula controls (contextMenu.js:84-100): an "Allow Formulas"
+    // Transformation submenu formula controls (contextMenu.js:84-100): an "Allow Formulas"
     // checkbox and x(x)/y(y) inputs, hosted so the submenu stays open. They are twins of the
     // toolbar formula widgets — edits here drive those (setChecked/setText), so the existing
     // validate/apply/persist/co-edit-push pipeline runs unchanged. Seeded in syncContextActions.
@@ -847,7 +845,7 @@ namespace stencil::gui {
       if (formulaY_->text() != t) formulaY_->setText(t);
     });
 
-    // ── Units (View ▸ Units): cm | inches, exclusive, persisted in settings_.
+    // Units (View ▸ Units): cm | inches, exclusive, persisted in settings_.
     // Switching re-renders every length readout (status bar, tooltip, selection
     // panel) and the custom page spinboxes, which stay backed by cm internally.
     auto* unitGroup = new QActionGroup(this);

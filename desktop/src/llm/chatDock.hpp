@@ -74,7 +74,7 @@ namespace stencil::gui {
   // QToolButton[chatAccent] rules.
   QToolButton* makeChatAccentButton(QWidget* parent, const QString& tooltip);
 
-  // ── Transcript card rendering, SHARED by the dock and the context menu's
+  // Transcript card rendering, SHARED by the dock and the context menu's
   // assistant panel (browser .chat-msg parity). The role is carried by the
   // card's object name — colour + side — never by a caption; the body is the
   // full text, wrapped and selectable, never elided.
@@ -84,8 +84,8 @@ namespace stencil::gui {
   // label so the caller can extend the card (warnings, notes, thumbnails).
   QLabel* fillChatCard(QFrame* card, QVBoxLayout* lay, const QString& role,
                        const QString& text, ChatCardKind kind, const QColor& danger);
-  // ── "Swap message sides" (Settings::chatSwapSides; browser/extension
-  // chatLayoutPrefs.js parity) ─────────────────────────────────────────────
+  // "Swap message sides" (Settings::chatSwapSides; browser/extension
+  // chatLayoutPrefs.js parity)
   // Which side a bubble draws on given the CURRENT preference: `swapped` flips it,
   // `user` alone decides it at rest (user right, everything else left — today's
   // layout). Pure.
@@ -108,7 +108,7 @@ namespace stencil::gui {
   void applyChatSwapToCards(QWidget* transcript, QLayout* layout, bool swapped,
                             const QColor& accent, const QColor& chip, const QColor& border,
                             const QColor& danger, const QColor& pageBg);
-  // ── Per-message row menu: the hover "…" plus the right-click menu, SHARED by
+  // Per-message row menu: the hover "…" plus the right-click menu, SHARED by
   // the dock and the context menu's assistant panel (browser chatView.js
   // chatRowMenuItems: EVERY settled row — errors included — offers Copy message /
   // Select all / Insert into prompt, and user rows add Resend). Only these hooks
@@ -178,7 +178,6 @@ namespace stencil::gui {
    public:
     explicit ChatDock(QWidget* parent = nullptr);
 
-    // ── transcript ──
     // `images` are what the USER attached to this turn (never the working image,
     // which rides every turn — contract §7); they render as thumbnails inside the
     // user's own bubble, mirroring the browser/extension .chat-attached strip.
@@ -230,7 +229,6 @@ namespace stencil::gui {
     // model-side history lives in MainWindow, which clears it on clearRequested.
     void clearConversation();
 
-    // ── state ──
     void setBusy(bool on);
     bool isBusy() const;
     // "Swap message sides": re-skins every EXISTING card (alignment + tail side,
@@ -268,7 +266,7 @@ namespace stencil::gui {
     // like SelectionPanel::restyleIcons, with the current theme palette.
     void restyleIcons(const Palette& pal);
 
-    // ── attachments (owned by the dock; MainWindow reads them on send) ──
+    // attachments (owned by the dock; MainWindow reads them on send)
     const QList<QImage>& attachedImages() const { return images_; }
     // Filenames in lockstep with attachedImages() ("" where unnamed).
     const QStringList& attachedImageNames() const { return imageNames_; }

@@ -17,8 +17,7 @@ namespace stencil::gui {
   // Where the menu bar lives. Native means the platform's own bar — the macOS
   // global bar, or a Unity/GNOME appmenu; non-native keeps it inside the window.
   // Default native, because that is what each platform expects; the opt-out
-  // exists because Qt's export leaves an EMPTY in-window bar on some GNOME
-  // setups, which is why this used to be hardcoded off everywhere but macOS.
+  // exists because Qt's export leaves an EMPTY in-window bar on some GNOME setups.
   // Windows has no global bar, so Qt ignores the flag there.
   void MainWindow::applyMenuBarPlacement() {
     menuBar()->setNativeMenuBar(settings_.nativeMenuBar);
@@ -68,7 +67,7 @@ namespace stencil::gui {
     edit->addAction(actDeselect_);
     support::revealMenuBarMenu(*edit, *menuBar());
 
-    // Data menu (S9): layout JSON file + clipboard, and image save/copy/paste.
+    // Data menu: layout JSON file + clipboard, and image save/copy/paste.
     // Mirrors the browser toolbar's Image/Layout button cluster (toolbar.js).
     auto* data = menuBar()->addMenu("&Data");
     data->addAction(actDownloadJson_);

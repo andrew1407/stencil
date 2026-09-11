@@ -94,7 +94,7 @@ namespace stencil::gui {
     // the gap) and may only SHRINK from there. Expanding made this cluster swallow the row's
     // leftover width — a long empty stretch after the fields, with DATA and SETTINGS shoved
     // to the far edge — and, once the fields hid, left the lone pill floating in the middle
-    // of that empty box instead of sitting under its caption (user report, with pictures).
+    // of that empty box instead of sitting under its caption.
     formulaGroup_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
     auto* fl = new QHBoxLayout(formulaGroup_);
     fl->setContentsMargins(0, 0, 0, 0);
@@ -175,8 +175,8 @@ namespace stencil::gui {
     row->setSpacing(5);
     // Dialog-opening buttons answer the popover gestures (Alt-peek / dblclick /
     // right-click → the compact anchored shape). One wiring, shared by the action
-    // loop below AND leading widgets like the labelled Open Image button — which
-    // opens the same dialog as the icons and used to miss the gestures entirely.
+    // loop below AND leading widgets like the labelled Open Image button, which opens
+    // the same dialog as the icons.
     const auto wirePopover = [this](QToolButton* btn, QAction* a) {
       if (!a || !popoverDialogActions_.contains(a)) return;
       popoverButtons_.insert(btn, a);
@@ -267,7 +267,7 @@ namespace stencil::gui {
   }
 
   void MainWindow::buildMainToolbar() {
-    // ── Header row (always visible): the "Controls" collapse pill + the project-name group.
+    // Header row (always visible): the "Controls" collapse pill + the project-name group.
     // This row stays put while the tool rows below (Main / Page&Formula / Style) slide open/closed,
     // exactly like the browser's header that keeps the "⌃ Controls" pill + title when the body hides.
     headerToolbar_ = addToolBar("Header");
@@ -280,7 +280,7 @@ namespace stencil::gui {
     logoBtn_->setIconSize(QSize(kHeaderLogo, kHeaderLogo));
     // Size the BUTTON to the mark: a QToolBar otherwise lays an added widget out at the
     // toolbar's default icon metric, so the badge stayed ~40px however large its icon
-    // (user report: the logo would not grow). The margin leaves the hover fx room.
+    // (the logo would not grow). The margin leaves the hover fx room.
     logoBtn_->setFixedSize(kHeaderLogo + 6, kHeaderLogo + 6);
     logoBtn_->setIcon(QIcon(makeLogoPixmap(kHeaderLogo)));
     // LogoHoverFx paints the resting mark and blanks this icon — QToolButton draws it at
@@ -343,7 +343,7 @@ namespace stencil::gui {
     // View-menu entry + Alt+C hotkey stay in sync). Icon (chevron) themed in styleActionIcons.
     // ControlsPill paints its own chevron + label: a stock icon+text QToolButton reserves
     // ~36px for the icon slot however small the chevron, leaving a wide gap beside the
-    // label (user reports).
+    // label.
     controlsPill_ = new ControlsPill(this);
     controlsPill_->setObjectName("controlsPill");   // outlined pill, styled in theme.cpp
     // Its chevron's angle is STATE (toolbars shown/hidden), not hover feedback — the
@@ -352,7 +352,7 @@ namespace stencil::gui {
     controlsPill_->setProperty(kShimmerRadiusProperty, 12);   // its QSS radius (shimmerOverlay.hpp)
     static_cast<ControlsPill*>(controlsPill_)->setLabel("Controls");
     // Capped, so the pill is never stretched to the header row the logo now makes tall —
-    // a QToolBar filled it to 41px with a big rounded border (user report: "huge border").
+    // a QToolBar filled it to 41px with a big rounded border ("huge border").
     controlsPill_->setMaximumHeight(28);
     controlsPill_->setAutoRaise(true);
     controlsPill_->setCursor(Qt::PointingHandCursor);
@@ -369,7 +369,7 @@ namespace stencil::gui {
     // contentsMargins, not stylesheet `padding` — QLabel's sizeHint()/paint don't reliably
     // pick it up. 10px left/right (browser parity: css/layout.css .info padding: 10px);
     // 11px top/bottom, so the readout sits in a band of its own rather than pressed
-    // between the toolbars and the canvas (user report, with a picture).
+    // between the toolbars and the canvas.
     imageSizeInfo_->setContentsMargins(10, 11, 10, 11);
     imageSizeInfo_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     addToolBarBreak();
@@ -399,7 +399,6 @@ namespace stencil::gui {
     blankColorBtn_->setVisible(false);
     connect(blankColorBtn_, &QToolButton::clicked, this, [this] { setActiveBlankColor(); });
 
-    // ── Modal popovers ──
     // The dialog-opening icons answer dblclick / right-click with the COMPACT anchored
     // shape of their dialog (execMaybePopover). A plain click keeps the full dialog, but
     // deferred one double-click interval (the logo pattern): the dialog's exec() blocks,
@@ -513,21 +512,21 @@ namespace stencil::gui {
     // Connections & chat · Edit there too.
   }
 
-  // ── Project name field + inline-rename ✓/✗ (mirrors the browser topbar). The field shows the
+  // Project name field + inline-rename ✓/✗ (mirrors the browser topbar). The field shows the
   // active project's name and renames it inline, validated live: ✓ is enabled only for a changed,
   // valid (non-empty, ≤80, unique) name, with the reason on its tooltip when disabled. Enter = ✓,
-  // Escape / click-away = ✗. Lives in the always-visible header row beside the "Controls" pill. ──
+  // Escape / click-away = ✗. Lives in the always-visible header row beside the "Controls" pill.
   void MainWindow::buildProjectNameGroup(QToolBar* tbName) {
     // (no "Project:" caption — the field alone reads as the project name, browser parity)
     // ONE container for the field + its affordances (browser .project-name-field
     // parity): hover is the container's own gap-free rect, so sweeping between the
     // field and the ✎/🎨 buttons can never flicker the reveal (which replayed the
-    // dust and re-armed the tooltip — user report). RowCard (connectDialog) pattern.
+    // dust and re-armed the tooltip). RowCard (connectDialog) pattern.
     nameGroup_ = new QWidget(this);
     auto* nameLay = new QHBoxLayout(nameGroup_);
     nameLay->setContentsMargins(0, 0, 0, 0);
     // Air between the name and its two chips: at 4 they sat right against the field's
-    // edge (user report, with a picture). Browser twin: .project-name-field's `gap`.
+    // edge. Browser twin: .project-name-field's `gap`.
     nameLay->setSpacing(8);
     projectName_ = new QLineEdit(nameGroup_);
     projectName_->setObjectName("projectNameField");   // theme.cpp: no hover ring on a title
@@ -561,11 +560,11 @@ namespace stencil::gui {
     const auto sizeToRow = [](QToolButton* b) {
       // The app's two hover treatments, explicitly: this group is built after the sweep that
       // installs the shimmer across the toolbar rows, so these four were the only controls in
-      // the bar without it (user report). The icon-motion filter is app-wide and needs no
+      // the bar without it. The icon-motion filter is app-wide and needs no
       // hand — a themedIcon glyph is all it asks for.
       installHoverShimmer(b);
       // The browser's box with a glyph to match — at 26/15 the pair read as small, faint
-      // marks beside the name (user report, with pictures of both surfaces).
+      // marks beside the name.
       b->setFixedSize(kNameChipBox, kNameChipBox);
       b->setIconSize(QSize(kNameChipGlyph, kNameChipGlyph));
       b->setProperty("nameAffordance", true);
@@ -611,7 +610,7 @@ namespace stencil::gui {
     sizeToRow(projectNameAccept_);   // ✓/✗ replace ✎/🎨 in edit mode — same box, no jump
     // …but their WIDTH must be free to animate: revealControls slides maximumWidth from 0,
     // and a fixed size pins the minimum too, so the pair simply blinked in and out with no
-    // sand at all (user report; the browser's markIn/markOut pair).
+    // sand at all (the browser's markIn/markOut pair).
     const auto letItSlide = [](QToolButton* b) {
       b->setMinimumWidth(0);
       b->setFixedHeight(kNameChipBox);
@@ -657,7 +656,7 @@ namespace stencil::gui {
   }
 
   void MainWindow::buildPageFormulaToolbar() {
-    // ── Zoom · Page · Formula · Data · Settings — the tail of the browser's sequence. ──
+    // Zoom · Page · Formula · Data · Settings — the tail of the browser's sequence.
     QToolBar* row = toolRow();
 
     // Units switch on the toolbar (mirrors View ▸ Units, kept in sync). data
@@ -680,7 +679,7 @@ namespace stencil::gui {
     addWrapped(row,
         makeToolSection("Zoom", { actZoomOut_, actZoomIn_ }, { zoom_ }, { zoomFitBtn_ }));
     addWrappedSeparator(row);
-    // Inline custom W x H inputs (S10), shown only for the "custom" page size. Built BEFORE
+    // Inline custom W x H inputs, shown only for the "custom" page size. Built BEFORE
     // the section so they can go INSIDE it: added straight to the toolbar they were centred
     // on its full height while the two combos sat under the section caption, so the row
     // never shared a baseline (the same trap the formula fields fell into, below).
@@ -695,7 +694,7 @@ namespace stencil::gui {
       customW_->setDecimals(1);
       customW_->setValue(21.0);
       customW_->setToolTip("Custom page width in the selected units");
-      // Width-tightening (S8 req 7): keep the custom-page spinboxes compact
+      // Width-tightening: keep the custom-page spinboxes compact
       // (browser style width:96px, toolbar.js:110/112) — trimmed a little further
       // with the rest of this row so the SETTINGS cluster always fits after DATA.
       customW_->setMaximumWidth(76);
@@ -727,7 +726,7 @@ namespace stencil::gui {
     // each spells its own answer out ("A4 (21 × 29.7 cm)", "cm").
     addWrapped(row, makeToolSection("Page", {}, { pageSize_, unitCombo_, customGroup_ }));
 
-    // Inline formula controls (S11): an enable checkbox + fx/fy inputs + error.
+    // Inline formula controls: an enable checkbox + fx/fy inputs + error.
     allowFormulas_ = new QCheckBox("𝑓(x,y)", this);
     // Styled as an accent PILL toggle (theme.cpp QCheckBox#formulaPill): accent outline + text
     // when off, accent-filled with contrasting text when on — matching the browser toolbar.
@@ -778,7 +777,7 @@ namespace stencil::gui {
   }
 
   void MainWindow::buildDrawViewToolbar() {
-    // ── Draw · View, continuing the one run — the wrap points are the layout's to choose. ──
+    // Draw · View, continuing the one run — the wrap points are the layout's to choose.
     QToolBar* row = toolRow();
     addWrappedSeparator(row);
     addWrapped(row, makeToolSection("Draw", {actStartDraw_}, {drawModeBtn_}));
@@ -873,9 +872,9 @@ namespace stencil::gui {
     // The host carries the gaps around the styled bar so neither paints as part of its
     // background/border: no left/right margin (full-bleed, unlike the canvas column), an
     // adaptive top gap (0 while "Selected Line:" is shown, 8 otherwise — onSelectionChanged
-    // keeps this in sync) and a 3px bottom gap: half the old one, so the readout sits close
+    // keeps this in sync) and a 3px bottom gap, so the readout sits close
     // to the row it describes instead of floating in a black band above the canvas and the
-    // assistant dock (user report, with a picture).
+    // assistant dock.
     imageInfoHost_ = new QWidget(this);
     imageInfoHost_->setObjectName("imageInfoHost");
     auto* hostLay = new QVBoxLayout(imageInfoHost_);
@@ -896,8 +895,8 @@ namespace stencil::gui {
   }
 
   void MainWindow::buildStyleToolbar() {
-    // ── Line · Point, continuing the one run. The filter combo they used to carry now
-    // opens the EDIT group ahead of them, like the browser's.
+    // Line · Point, continuing the one run. The filter combo opens the EDIT group ahead
+    // of them, like the browser's.
     QToolBar* row = toolRow();
     styleToolbar_ = row;
 
@@ -906,9 +905,9 @@ namespace stencil::gui {
     lineColorBtn_->setToolTip("Line color");
     updateColorSwatch(lineColorBtn_, lineColorValue_);
 
-    // Default point colour swatch (toolbar.js #point-color) — previously settable only by
-    // editing settings.json. Empty means inherit (core pointColorOr), so the swatch shows the
-    // EFFECTIVE colour: the line colour until a distinct one is picked.
+    // Default point colour swatch (toolbar.js #point-color). Empty means inherit (core
+    // pointColorOr), so the swatch shows the EFFECTIVE colour: the line colour until a
+    // distinct one is picked.
     pointColorBtn_ = new QToolButton(this);
     pointColorBtn_->setToolTip("Point color — new lines");
     updateColorSwatch(pointColorBtn_, effectiveDefaultPointColor());
@@ -953,7 +952,6 @@ namespace stencil::gui {
     // syncWrappedSeparators). Draw · View take the row after this one, Zoom · Page ·
     // Formula · Data · Settings the one after that, as in the browser's own sequence.
 
-    // ── wiring ──
     // Draw-mode toggle (#draw-mode-toggle; button built in buildMainToolbar):
     // flip the canvas mode only — the drawModeChanged handler below echoes back
     // the label/tooltip.

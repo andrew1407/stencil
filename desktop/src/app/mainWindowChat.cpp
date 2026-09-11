@@ -43,7 +43,7 @@
 
 namespace stencil::gui {
 
-  // ── AI assistant (llm-contract.md) ─────────────────────────────────────
+  // AI assistant (llm-contract.md)
   // Chat glue: history + attachments (§7), the LlmClient call, and op-plan
   // execution against the live editor through ChatPlanTarget (chatPlanTarget.cpp).
 
@@ -121,7 +121,7 @@ namespace stencil::gui {
       }
     }
 
-    // ── completion toast (browser chatPanel closedToast parity) ──
+    // completion toast (browser chatPanel closedToast parity)
     constexpr int kToastMaxChars = 90;  // shared truncation bound
     constexpr int kToastMs = 6000;      // auto-hide
     constexpr int kToastMargin = 18;    // bottom-left anchor inset
@@ -1279,7 +1279,7 @@ namespace stencil::gui {
     return QString::fromStdString(pr.meta.id);
   }
 
-  // ── §2.1 `save` ─────────────────────────────────────────────────────────────
+  // §2.1 `save`
 
   QString MainWindow::uniqueLocalProjectName(const QString& wanted) const {
     std::vector<core::ProjectMeta> metas;

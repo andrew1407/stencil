@@ -23,7 +23,6 @@
 
 namespace stencil::gui {
 
-  // ── shared toolbar metrics ──
   inline constexpr int kToolIcon = 18;   // toolbar glyph box
   // Air between the glyph and the word on the two FACE buttons (Start/Stop, Line/Rect).
   // Qt's text-beside-icon gap is a fixed 4px and QSS `spacing` does nothing for a

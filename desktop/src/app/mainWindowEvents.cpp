@@ -110,7 +110,7 @@ namespace stencil::gui {
     // The grip must FOLLOW the panel through every geometry change — a separator
     // drag, a dock split with the chat panel, a float/redock — not only the canvas
     // viewport's resizes: anchored to a stale panel rect it ends up painting its bar
-    // stranded INSIDE the widened panel (user report).
+    // stranded INSIDE the widened panel.
     if (obj == selPanel_ && panelGrip_) {
       const QEvent::Type t = event->type();
       if (t == QEvent::Resize || t == QEvent::Move || t == QEvent::Show || t == QEvent::Hide)
@@ -515,7 +515,7 @@ namespace stencil::gui {
     }
     // …and a pointer that has landed ANYWHERE ELSE has left the group, whether or not the
     // group's own Leave arrived: crossing straight onto another row's icon left the ✎/🎨
-    // lit while the pointer was three clusters away (user report, with a picture). Only
+    // lit while the pointer was three clusters away. Only
     // while the hover is actually held, so this costs nothing the rest of the time.
     if (nameHover_ && obj != nameGroup_ && obj != projectName_ && obj != projectNameEdit_
         && obj != projectColorBtn_

@@ -22,7 +22,7 @@
 
 namespace stencil::support {
 
-  // ── Particle styles (browser dustCloud.js styleFrame — keep the numbers in step) ──
+  // Particle styles (browser dustCloud.js styleFrame — keep the numbers in step)
   // A style is a touch laid over ANY flight, gone at both ends: an offset (px), a size
   // multiplier, a brightness (`glow`) and `mix`, where between the main colour (0) and its
   // shade (1) the grain is painted. Dust is the identity.
@@ -151,7 +151,7 @@ namespace stencil::support {
     std::array<double, kSteps + 1> curve_{};
   };
 
-  // ── Grain shapes (browser dustCloud.js grainShape / shapePolygon / addGrainPath) ──
+  // Grain shapes (browser dustCloud.js grainShape / shapePolygon / addGrainPath)
   // Dust is a round speck; water ovals and short wave lines; fire triangles and streaking
   // sparks, each lying along its heading. Geometry in radii — keep the browser's numbers.
   enum class GrainShape { Disc, Oval, Wave, Triangle, Streak };
@@ -200,7 +200,6 @@ namespace stencil::support {
     return out;
   }
 
-  // ── The sprite cache ──
   // A grain is an antialiased disc a few pixels across, and QPainter::drawEllipse
   // rasterises every one from scratch: ~9ms for a dialog's 4000 at 2x, which is why the
   // desktop's clouds ticked at 60Hz and still lagged. Blitting a pre-drawn disc is ~18x
@@ -211,7 +210,11 @@ namespace stencil::support {
    public:
     static constexpr double kRadiusStep = 0.25;   // logical px between cached radii
     static constexpr int kMaxRadiusSteps = 63;    // 15.75px — far past any grain
-    static constexpr int kMaxCached = 16000;      // shapes × headings × colours × radii, then drawn direct
+    // Bound: shapes × headings × colours × radii is unbounded in the colour axis, and a
+    // theme swap walks a gradient of them. Over the cap the whole set is dropped and
+    // refilled from what is actually on screen — an LRU's eviction scan has no business
+    // in a 60 Hz paint loop, and never evicting left every later grain on the slow path.
+    static constexpr int kMaxCached = 4096;
     // A shaped grain lies along its heading; the cache holds it at this many headings
     // round the clock (15° apart — finer than the eye tracks a moving speck at).
     static constexpr int kHeadingSteps = 24;
@@ -238,15 +241,7 @@ namespace stencil::support {
                         | quint32(hs << 2) | quint32(py << 1) | quint32(px);
       auto it = cache_.find(key);
       if (it == cache_.end()) {
-        if (cache_.size() >= kMaxCached) {   // out of room: the slow, exact way
-          p.save();
-          p.setRenderHint(QPainter::Antialiasing, true);
-          p.setPen(Qt::NoPen);
-          p.setBrush(colour);
-          drawExact(p, shape, at, radius, a);
-          p.restore();
-          return;
-        }
+        if (cache_.size() >= kMaxCached) cache_.clear();
         it = cache_.insert(key, build(rb * step, px, py, colour, shape, hs * 2 * style::kPi / kHeadingSteps));
       }
       const QImage& img = it.value();
@@ -312,7 +307,6 @@ namespace stencil::support {
     double dpr_ = 0;
   };
 
-  // ── The frame clock ──
   // Qt's animation timer ticks every 16ms whatever the screen does; a browser's motes
   // ride the compositor at the display's own rate. A cloud ticks on this instead: one
   // frame per refresh of the screen it is on, floored at 4ms.

@@ -1,5 +1,6 @@
 #pragma once
 #include "fileStore.hpp"
+#include "lruCache.hpp"
 #include "serverClient.hpp"
 #include "tooltipRows.hpp"  // core::UnitFormat for the tooltip's "Line: <len> <unit>" row
 #include <QColor>
@@ -124,7 +125,7 @@ namespace stencil::gui {
     // The overload carries the window's session state IN THE SAME repaint: a removal can
     // empty the list and blank the editor in one breath, and two repaints showed the
     // batch bar for the stale row and took it away a beat later — the list, and the row
-    // arriving in it, visibly jumped (user report).
+    // arriving in it, visibly jumped.
     void setProjects(const std::vector<Project>& projects);
     void setProjects(const std::vector<Project>& projects, bool temporary, bool incognito);
 
@@ -219,7 +220,7 @@ namespace stencil::gui {
     void showRowMenu(QListWidgetItem* it, const QPoint& globalPos);
     void openSelected();
     void openSelectedInNewWindow();
-    // ── row-open gestures (browser parity) ──
+    // row-open gestures (browser parity)
     //   single click            → confirm, then open in the CURRENT window
     //   double click            → open immediately, no confirmation
     //   Ctrl/⌘ + single click   → confirm, then open in a NEW window
@@ -308,8 +309,9 @@ namespace stencil::gui {
     // id -> pre-rendered local-project preview (edited result), shown as the row icon.
     QHash<QString, QPixmap> thumbs_;
     // Cached server-project previews, keyed "serverUrl|id|version" so the periodic
-    // remote re-list reuses them instead of re-downloading unchanged projects.
-    QHash<QString, QPixmap> remoteThumbs_;
+    // remote re-list reuses them instead of re-downloading unchanged projects. Bounded:
+    // every edit anywhere bumps a version, and the re-list timer would cache them all.
+    LruCache<QString, QPixmap> remoteThumbs_{128};
     QVector<stencil::net::ServerProject> remote_;
     // Cache keys with an in-flight async source fetch, so a re-list doesn't kick off
     // a duplicate download for the same project.

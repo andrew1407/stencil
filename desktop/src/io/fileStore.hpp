@@ -23,7 +23,7 @@ namespace stencil::gui {
   // DEFAULT_VISUALS the modals edit).
   struct Settings {
     // themeMode follows the browser's tri-state (system|light|dark); "system"
-    // tracks the OS color scheme (S14). The legacy `theme` key is migrated on
+    // tracks the OS color scheme. The legacy `theme` key is migrated on
     // load. Default "system" (per the confirmed decision).
     QString themeMode = "system";     // "system" | "light" | "dark"
     // Brand accent preset key (theme.hpp accentPresets); "violet" is the default.
@@ -76,7 +76,7 @@ namespace stencil::gui {
     QString filterColor = "#7c3aed";
     // Hold-to-draw hold/dwell delay in ms (browser holdDrawDelay; clamped 100–3000).
     int holdDrawDelay = 500;
-    // ── Motion (browser js/ui/motionPrefs.js; support/modalReveal.hpp drives them) ──
+    // Motion (browser js/ui/motionPrefs.js; support/modalReveal.hpp drives them)
     // The canvas stroke animation — a new vertex flying to where it was put, its landing
     // pop and ripple. On by default, exactly as in the browser.
     bool drawingAnimations = true;
@@ -90,12 +90,10 @@ namespace stencil::gui {
     // keeps its equivalents in js/config/openInConfig.json.
     QString browserBaseUrl = "http://localhost:8080";
     QString telegramBotUsername;
-    // ── AI assistant (llm-contract.md §5; the desktop persistence row of
-    // the provider-config table: llmProvider/llmBaseUrl/llmModel/llmApiKey/
-    // llmServerUrl). Defaults pre-fill the first run: ollama at its canon URL
-    // (the settings dialog re-fills the openai-compat default on a switch). An
-    // empty llmServerUrl resolves at use time to the first saved connection
-    // (net/connectionStore).
+    // AI assistant (llm-contract.md §5; the desktop persistence row of the
+    // provider-config table). Defaults pre-fill the first run: ollama at its canon URL
+    // (the settings dialog re-fills the openai-compat default on a switch). An empty
+    // llmServerUrl resolves at use time to the first saved connection (net/connectionStore).
     QString llmProvider = "ollama";     // "ollama" | "openai-compat" | "stencil-server"
     QString llmBaseUrl = stencil::llm::defaultLlmBaseUrl(QStringLiteral("ollama"));
     QString llmModel;
@@ -174,8 +172,8 @@ namespace stencil::gui {
     QString settingsPath();
     QString sessionPath();
     QString projectsPath();
-    // Owner-only (0600) sidecar for stored SECRETS — today the saved connection tokens,
-    // which used to sit in plaintext QSettings (settings.json's protection, own file).
+    // Owner-only (0600) sidecar for stored SECRETS — today the saved connection tokens.
+    // Never QSettings: these must not sit in plaintext beside the ordinary settings.
     QString secretsPath();
     QJsonObject loadSecrets();
     void saveSecrets(const QJsonObject& o);
@@ -194,8 +192,9 @@ namespace stencil::gui {
     void saveSession(const Session& s);
     void clearSession();
 
-    std::vector<Project> loadProjects();
-    void saveProjects(const std::vector<Project>& projects);
+    std::vector<Project> loadProjects();   // flushes any pending saveProjects first
+    void saveProjects(const std::vector<Project>& projects);   // io/deferredWrite.hpp
+    void flushWrites();   // …force those out: on the way out of the app
 
     // One project <-> JSON (a projects.json array element). Promoted from the .cpp
     // so the per-project `color` round-trip is unit-testable without touching disk.
@@ -203,7 +202,7 @@ namespace stencil::gui {
     QJsonObject projectToJson(const Project& pr);
     Project projectFromJson(const QJsonObject& o);
 
-    // ── Line <-> JSON helpers (promoted from the .cpp anon namespace so the
+    // Line <-> JSON helpers (promoted from the .cpp anon namespace so the
     // layout-import/export data actions can reuse them). Mirror the browser
     // line object fields (storage.js).
     QJsonObject lineToJson(const core::Line& line);
@@ -221,12 +220,10 @@ namespace stencil::gui {
       QString formulaY;
     };
 
-    // ── Layout-JSON envelope (mirrors browser layout.js buildLayoutPayload).
-    // Emits {imageWidth,imageHeight,lines,imageFilter,filterColor} plus optional
-    // cropRect (rotated-image pixels) + rotationQuarters, so a reopened project
-    // restores its filter and exact geometry. cropRect is omitted when empty and
-    // rotationQuarters when 0, keeping old file exports byte-identical; parseLayoutJson
-    // fills the out-pointers when supplied, leaving them untouched when absent.
+    // Layout-JSON envelope (mirrors browser layout.js buildLayoutPayload).
+    // {imageWidth,imageHeight,lines,imageFilter,filterColor} plus cropRect (rotated-image
+    // pixels, omitted when empty) + rotationQuarters (omitted when 0), so old exports stay
+    // byte-identical; parseLayoutJson leaves an out-pointer untouched when absent.
     // `meta` adds the page format + formulas (server save passes it; file export omits it).
     QJsonObject buildLayoutJson(int w, int h, const core::Lines& lines,
                                 const QString& imageFilter = "none",
@@ -239,7 +236,7 @@ namespace stencil::gui {
     core::Lines parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut,
                                 core::CropRect* cropOut = nullptr, int* rotOut = nullptr);
 
-    // ── .stencil portable project files (image + layout + metadata + optional theme) ──
+    // .stencil portable project files (image + layout + metadata + optional theme)
     // One self-contained JSON doc shared by every Stencil surface; QtCore-only (image as base64, no QImage) so it stays headless-testable. Mirrors browser/js/core/projectFile.js.
     inline constexpr int kStencilFileVersion = 1;
     struct ProjectFileData {
@@ -267,7 +264,7 @@ namespace stencil::gui {
     // on success `out.imageBytes` holds the DECODED image and `out.layout` the layout object.
     bool parseProjectFile(const QByteArray& bytes, ProjectFileData& out, QString* err = nullptr);
 
-    // ── Persisted-chat document (llm-contract.md §12.1) ──
+    // Persisted-chat document (llm-contract.md §12.1)
     // {version:1, savedAt:<ms>, messages:[{role:"user"|"assistant", text}]} —
     // text-only (images never persisted), most recent 32 turns. Both helpers
     // sanitize: unknown roles/fields and non-string texts are dropped, and an
@@ -279,7 +276,7 @@ namespace stencil::gui {
 
     QString hotkeysPath();
     // Shortcut overrides (id -> key sequence), layered over hotkeysConfig.json
-    // defaults. Mirrors the browser STORAGE_KEYS.hotkeys blob (S13).
+    // defaults. Mirrors the browser STORAGE_KEYS.hotkeys blob.
     QHash<QString, QString> loadHotkeys();
     void saveHotkeys(const QHash<QString, QString>& overrides);
   }

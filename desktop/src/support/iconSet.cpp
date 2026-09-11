@@ -1,5 +1,6 @@
 #include "iconSet.hpp"
 
+#include "lruCache.hpp"
 #include <algorithm>
 #include <QApplication>
 #include <QGuiApplication>
@@ -61,9 +62,10 @@ namespace stencil::gui {
                  R"(stroke-linejoin="round">%2</svg>)")
           .arg(hex, resolved);
     }
-    // cacheKey → what themedIcon was asked for. See iconRequestForKey().
-    QHash<qint64, IconRequest>& requestIndex() {
-      static QHash<qint64, IconRequest> m;
+    // cacheKey → what themedIcon was asked for. See iconRequestForKey(). Bounded: an
+    // accent preview cycles hues, and every hue mints a fresh QIcon (and key) per glyph.
+    LruCache<qint64, IconRequest>& requestIndex() {
+      static LruCache<qint64, IconRequest> m(512);
       return m;
     }
   }  // namespace
@@ -77,9 +79,9 @@ namespace stencil::gui {
   }
 
   bool iconRequestForKey(qint64 cacheKey, IconRequest* out) {
-    const auto it = requestIndex().constFind(cacheKey);
-    if (it == requestIndex().constEnd()) return false;
-    if (out) *out = it.value();
+    const IconRequest* req = requestIndex().find(cacheKey);
+    if (!req) return false;
+    if (out) *out = *req;
     return true;
   }
 
@@ -116,7 +118,7 @@ namespace stencil::gui {
     // stylesheet's `QToolButton:disabled { color: MUTED }` does for the label beside it,
     // and what the browser does (its .ic is currentColor, so a disabled button's icon is
     // --disabled-text at full opacity). Fading the enabled colour instead left a light
-    // theme's dark glyph a ghost on the pale disabled chip (user report).
+    // theme's dark glyph a ghost on the pale disabled chip.
     QPixmap off(pm.size());
     off.fill(Qt::transparent);
     {
@@ -138,13 +140,14 @@ namespace stencil::gui {
     // Cache by (name, color, size): the same glyph is requested for many
     // actions on every theme change, so rasterizing once per key keeps it cheap.
     const qreal dpr = dprIn > 0 ? dprIn : (qApp ? qApp->devicePixelRatio() : 1.0);
-    static QHash<QString, QIcon> cache;
+    // Bounded: the key carries the accent, and the logo's picker cycles accents on hover,
+    // so an unbounded map minted a whole new icon set per hue it passed through.
+    static LruCache<QString, QIcon> cache(512);
     const QString key = name + '|' + color.name() + '|' + QString::number(size)
                         + '@' + QString::number(dpr)
                         + (gap > 0 ? "|g" + QString::number(gap) : QString())
                         + '/' + mutedInk().name();   // …the disabled glyph's ink moves with the theme
-    const auto it = cache.constFind(key);
-    if (it != cache.constEnd()) return it.value();
+    if (const QIcon* hit = cache.find(key)) return *hit;
 
     const QIcon icon = iconFromMarkup(inner, color, size, dpr, true, gap);
     cache.insert(key, icon);

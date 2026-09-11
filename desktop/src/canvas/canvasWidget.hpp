@@ -28,7 +28,6 @@ namespace stencil::gui {
 
   struct Palette;  // theme.hpp; used by the drawLineScaled paint helpers below
 
-
   class CanvasWidget : public QWidget {
     Q_OBJECT
    public:
@@ -38,9 +37,12 @@ namespace stencil::gui {
 
     explicit CanvasWidget(QWidget* parent = nullptr);
 
-    bool loadImage(const QString& path);
+    // `decoded` = pixels the caller already read (the open path decodes off the GUI
+    // thread), so a file is never decoded twice.
+    bool loadImage(const QString& path, const QImage& decoded = QImage());
     void restore(const QString& path, const core::Lines& lines, double scale,
-                 const core::CropRect& cropRect = {}, int rotationQuarters = 0);
+                 const core::CropRect& cropRect = {}, int rotationQuarters = 0,
+                 const QImage& decoded = QImage());   // …pixels, if the caller has them
     const QString& imagePath() const { return imagePath_; }
     // Adopt an on-disk path for the current in-memory original (pixels unchanged).
     // Used when a generated/remote/video image is written to the state dir so the
@@ -50,7 +52,7 @@ namespace stencil::gui {
     int imageWidth() const { return image_.width(); }
     int imageHeight() const { return image_.height(); }
 
-    // ── crop (shared cropGeometry; mirrors browser DrawingApp.applyCrop) ──
+    // crop (shared cropGeometry; mirrors browser DrawingApp.applyCrop)
     // The untouched original; the working `image_` is just the cropped region.
     const QImage& originalImage() const { return originalImage_; }
     // The original with the current rotation baked in (== originalImage_ when not
@@ -128,7 +130,6 @@ namespace stencil::gui {
     void setPointCoord(int index, int axis, double value);
     void deselect();
 
-    // ── selected-line + draw-mode state ──
     DrawMode drawMode() const { return drawMode_; }
     void setDrawMode(DrawMode mode);
     // Hit-test the committed lines at image-space (x, y) and select the topmost
@@ -137,7 +138,7 @@ namespace stencil::gui {
     int selectedLineIdx() const { return selectedLineIdx_; }
     core::Line* selectedLine();
     const core::Line* selectedLine() const;
-    // ── multi-line selection (Ctrl+Shift+click) ──
+    // multi-line selection (Ctrl+Shift+click)
     // The full selection set (single or multi); [] when nothing is selected.
     std::vector<int> selectedIndices() const;
     // Number of selected lines (MainWindow gates the single-line panel when this is >= 2).
@@ -146,16 +147,16 @@ namespace stencil::gui {
     bool isLineSelected(int i) const;
     // Add/remove the line under image-space `ip` from the multi-select set (Ctrl+Shift+click).
     void toggleLineSelection(const core::Point& ip);
-    // ── index-keyed selection (Lines tab list) — twins of the hit-test paths above ──
+    // index-keyed selection (Lines tab list) — twins of the hit-test paths above
     void selectLineByIndex(int idx);            // single-select line `idx`
     void toggleLineSelectionByIndex(int idx);   // Ctrl+Shift+click a list row
     void removeLineByIndex(int idx);            // delete line `idx` (list 🗑)
-    // ── keyboard transforms of the selection (MainWindow arrow-key handler) ──
+    // keyboard transforms of the selection (MainWindow arrow-key handler)
     void rotateSelectedLine(double angleRad);   // Alt+R+←/→ and Ctrl+Shift+wheel
     void flipSelectedLine(bool horizontal);     // Alt+Shift+↑/↓ mirror about the bbox centre
     void nudgeSelected(double dx, double dy);   // arrow-key translate (image-space px)
 
-    // ── image filters (port of browser/js/core/renderer.js) ──
+    // image filters (port of browser/js/core/renderer.js)
     void setFilter(const QString& mode);
     void setFilterColor(const QColor& tint);
     // Unified entrypoint: set both filter mode + tint with a single repaint.
@@ -163,7 +164,7 @@ namespace stencil::gui {
     const QString& imageFilter() const { return imageFilter_; }
     const QColor& filterColor() const { return filterColor_; }
 
-    // ── compare view (port of browser DrawingApp.compareMode) ──
+    // compare view (port of browser DrawingApp.compareMode)
     // Hold the edited result against the untouched original (crop + rotation only —
     // no filter, lines, points or layout). "none" = normal; "original" = original
     // alone; "vertical"/"horizontal" = split with a movable divider (original on the
@@ -192,30 +193,23 @@ namespace stencil::gui {
     // covers isn't on screen, so there is nothing to label.
     bool compareShowsEdited(double imageX, double imageY) const;
 
-    // ── render-to-image + image accessors ──
-    // Native-resolution render of an export variant — mirrors the browser's
-    // exportService.js renderExportCanvas/renderSplitExportCanvas:
-    //   "current"  (default) — active filter/tint + visible lines/points, honoring the
-    //               current show flags (the original single-arg behavior below)
+    // Native-resolution render of an export variant (browser exportService.js parity):
+    //   "current"  (default) — filter/tint + visible lines/points, per the show flags
     //   "original" — the cropped+rotated original alone: no filter, no annotations
     //   "tint"     — active filter/tint, but no lines/points
-    //   "split"    — the split-compare composite (edited half + original half); only
-    //               meaningful while a split compare view is active. `withDivider`
-    //               bakes the movable divider bar in (download) or leaves a clean
-    //               split with no divider element (clipboard copy while comparing).
+    //   "split"    — the split-compare composite, only while a split view is active;
+    //               `withDivider` bakes the divider bar in (download) or not (copy).
     QImage renderToImage(const QString& variant, bool withDivider = false) const;
-    // Back-compat convenience most call sites use: true == "current" (filter + overlay),
-    // false == "tint" (filter only, no overlay) — the two forms this call originally took.
+    // Convenience most call sites use: true == "current" (filter + overlay),
+    // false == "tint" (filter only, no overlay).
     QImage renderToImage(bool withOverlay) const;
     const QImage& image() const { return image_; }
     QString imageBaseName() const;
     QString imageExt() const;
-    // Adopt an in-memory image (clipboard paste / generated): replaces the
-    // current image, clears the file path, and resets lines/history/scale.
-    // `keepZoom` skips the scale reset — a blank recolor (applyBlankColor)
-    // regenerates the SAME dimensions in place, so there is nothing to refit and
-    // resetting anyway threw away whatever zoom/pan the user had (browser parity:
-    // drawingApp.js loadImageFromFile's opts.keepZoom).
+    // Adopt an in-memory image (clipboard paste / generated): replaces the current image,
+    // clears the file path, and resets lines/history/scale. `keepZoom` skips the scale
+    // reset — a blank recolor regenerates the SAME dimensions in place, so there is
+    // nothing to refit (browser parity: drawingApp.js loadImageFromFile's opts.keepZoom).
     void loadFromImage(const QImage& img, bool keepZoom = false);
     // Adopt an in-memory image with a known geometry (a reopened server project):
     // applies rotation FIRST, then the crop (which lives in rotated-original space),
@@ -234,8 +228,8 @@ namespace stencil::gui {
     QRect idleCardGlobalRect() const;
     bool idleHintHidden() const { return idleHintHidden_; }
 
-    // ── selected-line mutators + delete (port of applySelectionChange
-    // ~1674 and canvasDblClick delete ~1515) ──
+    // selected-line mutators + delete (port of applySelectionChange
+    // ~1674 and canvasDblClick delete ~1515)
     // `preview` = a colour still being chosen in the picker: the line changes at once, but
     // the undo step is debounced (scheduleEditCommit) so a drag doesn't bury the stack.
     void setSelectedLineColor(const QString& color, bool preview = false);
@@ -247,20 +241,18 @@ namespace stencil::gui {
     void setSelectedLineFill(const QString& fillColor, bool preview = false);
     void deleteSelectedLine();
 
-    // ── drawing-mode state machine (port of drawingApp.js) ──
+    // drawing-mode state machine (port of drawingApp.js)
     bool isDrawing() const { return isDrawing_; }
 
-    // ── hold-to-draw (alternative flow; port of browser holdDraw.js) ──
+    // hold-to-draw (alternative flow; port of browser holdDraw.js)
     // A near-stationary plain-left press-and-hold auto-enters drawing and drops
     // the first point; dwelling drops more; release commits + exits drawing.
     // The delay (ms) is the hold/dwell threshold, surfaced in Settings.
     void setHoldDrawDelay(int ms);
     int holdDrawDelay() const { return holdDelayMs_; }
 
-    // ── interactive editing (port of drawingApp.js Alt-drag + Alt/Ctrl wheel) ──
-    // Move a point/segment/whole line by Alt / Alt+Shift drag; bump thickness with
-    // Alt+wheel; rotate the selected line with Ctrl+Shift+wheel. Exposed only via
-    // mouse/wheel handlers — no extra public API.
+    // interactive editing (port of drawingApp.js Alt-drag + Alt/Ctrl wheel) — lives
+    // entirely in the mouse/wheel handlers; no extra public API.
 
    signals:
     void hovered(double imageX, double imageY);  // image-space cursor position
@@ -328,16 +320,25 @@ namespace stencil::gui {
     // and emit selectionChanged. Backs the setSelectedLine* mutators.
     void mutateSelectedLine(const std::function<void(core::Line&)>& set, bool commit = true);
 
+    // Widget-space bounds of one line (-1 = the in-progress line), padded for its stroke,
+    // point rings and the flight flourishes riding outside them — the rect update() needs
+    // to repaint just that line. strokeFxRect() unions the ones with a vertex in flight;
+    // dragRect() the ones an Alt-drag moves (a multi-selection moves as one).
+    QRect lineRect(int lineIdx) const;
+    QRect strokeFxRect() const;
+    QRect dragRect() const;
+    // The empty canvas: page fill + the "＋ Blank image" card (canvas/idleCard.cpp).
+    void paintIdleCard(QPainter& p, const Palette& pal);
     // Scale-parameterized so renderToImage can draw the overlay at native resolution
     // (1.0) while the live view uses scale_. `lineIdx` (-1 = in-progress) and `highlight`
     // drive the hover/selection rings — never baked into exports. `live` separates the
     // screen from an export: only the live view flies a freshly-added vertex.
     void drawLineScaled(class QPainter& p, const core::Line& line, int lineIdx,
                         double scale, bool highlight, bool live = true) const;
-    // The line's points as they are DRAWN this frame — its own, unless a vertex on it
-    // is still in flight.
-    QPolygonF flownPolygon(const core::Line& line, int lineIdx, double scale,
-                           bool live) const;
+    // The line's points as they are DRAWN this frame — its own, unless a vertex on it is
+    // still in flight. Fills the caller's buffer, which is reused across lines.
+    void flownPolygon(const core::Line& line, int lineIdx, double scale, bool live,
+                      QPolygonF& poly) const;
     // The heat a flying vertex drags behind it (under the stroke), and the spark riding
     // it + the ring its landing pushes out (over everything).
     void drawStrokeWake(QPainter& p, const core::Line& line, const QPolygonF& poly,
@@ -396,19 +397,16 @@ namespace stencil::gui {
     const core::Point* holdAnchor() const;
 
     // Compare view (port of renderer.js drawCompareSplit + pointerController divider drag).
-    // Paint the untouched original over the "original" half of a split and, unless
-    // `withDivider` is false (the export path's clean split), the movable divider on
-    // top. Scale-parameterized like drawLineScaled: the live view passes scale_, a
-    // renderToImage("split") export passes 1.0. Hit-testing the divider drag stays in
-    // widget space (nearCompareDivider), which always means the live view's scale_.
+    // Paints the untouched original over the "original" half, plus the movable divider
+    // unless `withDivider` is false (the export path's clean split). Scale-parameterized
+    // like drawLineScaled; the divider hit-test stays in widget space, i.e. scale_.
     void paintCompareSplit(QPainter& p, const QString& mode, double scale, bool withDivider = true) const;
     bool nearCompareDivider(const QPoint& widgetPos) const;
     // What the compare "original" side shows: the raw pixels for a picture, but a
     // BLANK page as currently coloured (fill + tint) — there is no earlier
     // picture to reveal. Caller rebuilds the filter cache first.
     const QImage& compareBaseImage() const {
-      return (blankPage_ && imageFilter_ != QLatin1String("none") &&
-              !filteredImage_.isNull())
+      return (blankPage_ && imageFilter_ != QLatin1String("none") && !filteredImage_.isNull())
                  ? filteredImage_
                  : image_;
     }
@@ -490,11 +488,10 @@ namespace stencil::gui {
     // Hover glass sweep (browser ui-shimmer). -1 = no sweep in flight.
     double idleShimmerT_ = -1.0;
     QVariantAnimation* idleShimmerAnim_ = nullptr;
-    // …and the GLYPH's own hover motion, which every other icon in the app gets from the
-    // app-wide watcher (support/iconMotion.hpp). This card paints its glyph by hand — the
-    // watcher only knows QAbstractButtons, and including that header here would drag
-    // Qt6::Svg into every headless target that compiles this file — so the `image` entry
-    // of the canon table is evaluated by hand below. Elapsed ms into the play, -1 at rest.
+    // …and the GLYPH's own hover motion. This card strokes its glyph by hand (the app-wide
+    // watcher knows only QAbstractButtons, and its header would drag Qt6::Svg into every
+    // headless target), so iconMotion.json's `image` entry is evaluated in idleCard.cpp.
+    // Elapsed ms into the play, -1 at rest.
     double idleGlyphMs_ = -1.0;
     QVariantAnimation* idleGlyphAnim_ = nullptr;
     // Drive idleCardHoverT_ toward `on`, repainting as it goes.

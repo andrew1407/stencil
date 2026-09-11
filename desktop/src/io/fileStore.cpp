@@ -1,4 +1,5 @@
 #include "fileStore.hpp"
+#include "deferredWrite.hpp"
 #include "layoutCanon.hpp"
 #include "localeUnit.hpp"
 #include <QDir>
@@ -14,9 +15,8 @@ namespace stencil::gui {
 
   namespace {
 
-    // Seed the default display unit from the system locale: US customary →
-    // inches, everything else (incl. the UK) → cm. Only a default — a saved
-    // "units" preference always overrides it (see loadSettings).
+    // Default display unit from the system locale: US customary → inches, everything
+    // else (incl. the UK) → cm. A saved "units" preference always wins (loadSettings).
     QString localeDefaultUnit() {
       using MS = core::localeUnit::MeasurementSystem;
       const auto qsys = QLocale::system().measurementSystem();
@@ -26,9 +26,8 @@ namespace stencil::gui {
       return QString::fromStdString(core::localeUnit::defaultUnit(sys));
     }
 
-    // Baked at build time to <repo>/desktop/.stencil (see CMakeLists). Falls back
-    // to the per-user config dir if the define is somehow absent. The env var wins
-    // over both: ctest points it at an isolated dir so tests never touch dev state.
+    // Baked at build time to <repo>/desktop/.stencil (see CMakeLists), else the per-user
+    // config dir. The env var wins over both: ctest points it at an isolated dir.
 #ifdef STENCIL_STATE_DIR
     QString baseDir() {
       const QString env = qEnvironmentVariable("STENCIL_STATE_DIR");
@@ -43,14 +42,9 @@ namespace stencil::gui {
     }
 #endif
 
-    // `ownerOnly` narrows the file to 0600 (settings holds llmApiKey in the clear).
-    // Re-applied on every write, so a file from an older build is tightened on save.
+    // Atomic (temp + rename); `ownerOnly` narrows it to 0600 (settings holds the key).
     bool writeJson(const QString& path, const QJsonDocument& doc, bool ownerOnly = false) {
-      QFile f(path);
-      if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
-      if (ownerOnly) f.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);
-      f.write(doc.toJson(QJsonDocument::Indented));
-      return true;
+      return deferredWrite::atomic(path, doc.toJson(QJsonDocument::Indented), ownerOnly);
     }
 
     QJsonDocument readJson(const QString& path) {
@@ -61,8 +55,8 @@ namespace stencil::gui {
 
   }  // namespace
 
-  // ── Line <-> JSON (mirrors the browser line object fields). Promoted to
-  // fileStore:: so the layout data actions can reuse them. ──
+  // Line <-> JSON (mirrors the browser line object fields). Promoted to
+  // fileStore:: so the layout data actions can reuse them.
   QJsonObject fileStore::lineToJson(const core::Line& line) {
     QJsonArray pts;
     for (const auto& p : line.points) {
@@ -115,9 +109,8 @@ namespace stencil::gui {
     return lines;
   }
 
-  // Crop rectangle <-> JSON (original-image pixels). Written with the browser's
-  // canonical {x,y,w,h} keys; the reader still accepts the legacy {width,height}
-  // spelling (old sessions/projects, co-edit peers), canonical wins.
+  // Crop rectangle <-> JSON (original-image pixels), the browser's canonical {x,y,w,h}
+  // keys; the reader still accepts the legacy {width,height} spelling, canonical wins.
   static QJsonObject cropRectToJson(const core::CropRect& r) {
     QJsonObject o;
     o["x"] = r.x;
@@ -184,7 +177,6 @@ namespace stencil::gui {
     return m;
   }
 
-  // ── .stencil portable project files ──────────────────────────────────────────
   namespace {
     QString stencilMimeForExt(const QString& ext) {
       const QString e = ext.toLower();
@@ -572,6 +564,7 @@ namespace stencil::gui {
   }
 
   std::vector<Project> fileStore::loadProjects() {
+    deferredWrite::flush();   // a debounced saveProjects may still be in the air
     std::vector<Project> out;
     for (const auto& v : readJson(projectsPath()).array())
       out.push_back(projectFromJson(v.toObject()));
@@ -642,10 +635,15 @@ namespace stencil::gui {
     return o;
   }
 
+  // Debounced off the GUI thread: the WHOLE registry is re-serialised for any change,
+  // down to one row's rename, and those arrive in bursts. 600 ms is the house window.
   void fileStore::saveProjects(const std::vector<Project>& projects) {
-    QJsonArray arr;
-    for (const auto& pr : projects) arr.append(projectToJson(pr));
-    writeJson(projectsPath(), QJsonDocument(arr));
+    deferredWrite::schedule(projectsPath(), 600, [copy = projects] {
+      QJsonArray arr;
+      for (const auto& pr : copy) arr.append(projectToJson(pr));
+      return QJsonDocument(arr).toJson(QJsonDocument::Indented);
+    });
   }
+  void fileStore::flushWrites() { deferredWrite::flush(); }
 
 }

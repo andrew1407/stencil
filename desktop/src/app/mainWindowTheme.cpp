@@ -42,9 +42,8 @@
 
 namespace stencil::gui {
 
-  // ── theme + settings ──
   void MainWindow::applyTheme() {
-    // Tri-state resolution (S14): system follows the OS scheme.
+    // Tri-state resolution: system follows the OS scheme.
     const bool dark = resolveDark(settings_.themeMode);
     // A real palette change gets the browser's flood-from-the-centre wipe: snapshot the
     // window as it looks now, restyle, then erase the snapshot with a growing circle.
@@ -366,8 +365,8 @@ namespace stencil::gui {
     // The theme toggle shows the destination scheme (sun when dark, moon when light),
     // matching the browser's toggle glyph. Through `set`, not setIcon: only a REGISTERED
     // glyph can be re-inked for the button it sits on, and this one is accent-filled now,
-    // so it needs the white-on-fill pass like every other filled button (user report: it
-    // kept the menu's dark glyph on the accent).
+    // so it needs the white-on-fill pass like every other filled button, or it keeps the
+    // menu's dark glyph on the accent.
 
     // Toolbuttons that aren't backed by a QAction. The rename ✓/✗ take the SAME chip as the
     // ✎/🎨 they replace — accent-filled, white glyph, one size — rather than a green tick and
@@ -377,14 +376,14 @@ namespace stencil::gui {
     // Browser-style name affordances: a ✎ rename pencil + a 🎨 colour icon. Their chips are
     // accent-FILLED (theme.cpp QToolButton[nameAffordance="true"]), so both glyphs take
     // the accent's own ink in every state — in the theme's ink one of them read as
-    // greyed-out beside its twin (user report). A QIcon is the only way in; QSS cannot
+    // greyed-out beside its twin. A QIcon is the only way in; QSS cannot
     // recolour one.
     const QColor affordanceInk = themePalette(dark, settings_.accentColor).onAccent;
     const auto affordanceIcon = [&](const char* glyph) {
       // A PLAIN themedIcon, not a composed pixmap: the app-wide icon-motion filter traces a
       // button's glyph back through QIcon::cacheKey (iconSet::iconRequestForKey), and a
       // hand-built pixmap has no entry — so the ✎ never drew itself and the ✗ was never
-      // struck through on hover (user report). Nothing to compose any more either: these
+      // struck through on hover. Nothing to compose any more either: these
       // chips are accent-filled in every state, so the glyph is that ink throughout.
       return themedIcon(glyph, affordanceInk, kNameChipGlyph);
     };
@@ -400,7 +399,6 @@ namespace stencil::gui {
     restyleContextToggles(iconColor);  // theme-text (not accent) checkbox/radio indicators
   }
 
-  // ── the two Draw toggles' faces ──
   // Start ▶ / Stop ■. The FUNCTIONAL half lands at once — which action a click fires, the
   // tooltip and shortcut it carries, whether it is enabled — while the face (glyph + word)
   // and the accent state cross over through the shared swap. Idle is the OUTLINED accent

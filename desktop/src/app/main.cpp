@@ -1,4 +1,5 @@
 #include "launchOptions.hpp"
+#include "deferredWrite.hpp"
 #include "mainWindow.hpp"
 #include "tipContent.hpp"
 #include <QApplication>
@@ -126,7 +127,7 @@ int main(int argc, char** argv) {
 #endif
   // Fusion honors widget-level QSS + palettes uniformly across the whole app,
   // unlike the native Adwaita/gtk style on Fedora which leaves the menubar /
-  // toolbar unthemed. Set it before constructing the window (S14).
+  // toolbar unthemed. Set it before constructing the window.
   // Wrap Fusion in the snappy-tooltip proxy (QProxyStyle takes ownership of the base style).
   if (auto* fusion = QStyleFactory::create("Fusion")) {
     QApplication::setStyle(new SnappyTooltipStyle(fusion));
@@ -145,5 +146,7 @@ int main(int argc, char** argv) {
   app.setMainWindow(&window);
   window.show();
   window.applyLaunchOptions(opts);
-  return app.exec();
+  const int code = app.exec();
+  stencil::gui::deferredWrite::flush();   // nothing debounced leaves the app unwritten
+  return code;
 }
