@@ -29,6 +29,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "support/connectNow.hpp"
 
 using namespace stencil::gui;
 
@@ -46,7 +47,7 @@ int main(int argc, char** argv) {
 
   stencil::net::ConnectionManager mgr;
   QString err;
-  if (!mgr.connectTo(serverUrl, QString(), err)) {
+  if (!stencil::test::connectNow(mgr, serverUrl, QString(), err)) {
     std::printf("SKIP: no reachable stencil server at %s (%s)\n",
                 serverUrl.toUtf8().constData(), err.toUtf8().constData());
     return 0;  // self-skip, mirroring the gated go store/bus integration tests

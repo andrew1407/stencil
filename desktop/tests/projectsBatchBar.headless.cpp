@@ -55,6 +55,7 @@ using stencil::gui::ProjectsDialog;
 using stencil::net::ConnectionManager;
 
 #include "support/check.hpp"
+#include "support/connectNow.hpp"
 
 static void pumpFor(int ms) {
   QElapsedTimer t;
@@ -150,7 +151,7 @@ int main(int argc, char** argv) {
 
   ConnectionManager mgr;
   QString err;
-  check(mgr.connectTo(url, QString(), err), "connects to the mock server");
+  check(stencil::test::connectNow(mgr, url, QString(), err), "connects to the mock server");
 
   std::vector<Project> locals;
   locals.push_back(makeLocal("l1", "alpha", 3000));
@@ -223,11 +224,9 @@ int main(int argc, char** argv) {
     const QVariant settled = list->item(1)->data(kFilterDustRole);
     check(!settled.isValid() || settled.toDouble() >= 1.0,
           "…while a row that was already listed does not replay its own arrival");
-    // …and those motes are made of the ROW. A delegate-painted row draws nothing at all
-    // while it is veiled, so photographing it after the veil went up handed the cloud a
-    // flat slab of list background: the flight played, and nothing was seen to arrive
-    // (user report — "it just appears"). The picture the cloud carries must have the
-    // row's own ink in it, not one uniform colour.
+    // …and those motes are made of the ROW. A delegate-painted row draws nothing while it
+    // is veiled, so photographing it after the veil went up handed the cloud a flat slab
+    // of list background: the picture must carry the row's own ink.
     // Q_OBJECT-free (header-only, no MOC), so it is found as the widget it is: nothing
     // else ever wears the filter dust's object name.
     auto* cloud = static_cast<DisintegrateOverlay*>(

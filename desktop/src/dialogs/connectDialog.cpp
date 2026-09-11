@@ -290,8 +290,8 @@ namespace stencil::gui {
       batchCount_->setVisible(false);
       bh->addWidget(batchCount_);
       // Accent-filled batch actions, glyph + label at 13 (browser .btn-icon-text), with
-      // the destructive one in the danger fill. Left-packed after the count, exactly
-      // as the browser lays them (the stretch used to fling them to the far edge).
+      // the destructive one in the danger fill. Left-packed after the count (no stretch),
+      // exactly as the browser lays them.
       auto* actions = new QWidget(batchBar_);
       auto* ah = new FlowLayout(actions, 0, 6, 6);   // browser .connect-batch-actions gap
       ah->setLineSizeHint(true);   // asks for its one line; wraps inside when refused
@@ -393,7 +393,7 @@ namespace stencil::gui {
 
     // Footer (browser settings-footer): the saved-connections hint under a hairline.
     // The browser footer's exact sentence (connectModal.js .footer-hint) — the longer
-    // invite-token clause made the desktop hint wrap to a second line (user report).
+    // invite-token clause made the desktop hint wrap to a second line.
     addModalFooter(chrome,
                    tr("Connections are saved and (optionally) restored on open · "
                       "server projects show a golden outline."));
@@ -422,21 +422,20 @@ namespace stencil::gui {
       emit toast(tr("Enter a server URL"), true);
       return;
     }
-    QString err;
-    if (manager_->connectTo(url, tokenEdit_->text().trimmed(), err)) {
-      urlEdit_->clear();
-      tokenEdit_->clear();
-    } else {
-      emit toast(tr("Could not connect — %1").arg(err), true);
+    QPointer<ConnectDialog> self(this);
+    manager_->connectToAsync(url, tokenEdit_->text().trimmed(), [this, self, url](bool ok, QString err) {
+      if (!self) return;
       // A refused CREDENTIAL still leaves a row behind (the client is kept at
       // Status::Expired, with a Reconnect on it), so the fields that put it there are done
       // — leaving them typed in invites adding the same server twice. An attempt that left
       // NOTHING keeps its text, so a typo can be corrected where it was made.
-      if (manager_->find(url)) {
+      if (!ok) emit toast(tr("Could not connect — %1").arg(err), true);
+      if (ok || manager_->find(url)) {
         urlEdit_->clear();
         tokenEdit_->clear();
       }
-    }
+      rebuildList();
+    });
     rebuildList();
   }
 
@@ -650,7 +649,7 @@ namespace stencil::gui {
       spec.confirmLabel = tr("Reconnect");
       spec.confirmIcon = QStringLiteral("link");
       // Shown, not echoed as dots: the Token field a few rows above is plain text too,
-      // and a pasted token you cannot read is one you cannot check (user report). Empty is
+      // and a pasted token you cannot read is one you cannot check. Empty is
       // refused outright — the button would otherwise be a dead click (browser parity:
       // the same `validate` on app.prompt).
       spec.validate = [](const QString& t) {
@@ -658,12 +657,12 @@ namespace stencil::gui {
       };
       const auto token = promptModal(this, spec);
       if (!self || !token || token->isEmpty()) return;
-      QString cerr;
-      const bool signedIn = manager_->reauthenticate(url, *token, cerr);
-      if (!self) return;
-      emit toast(signedIn ? tr("Reconnected to %1").arg(url) : tr("Reconnect failed — %1").arg(cerr),
-                 !signedIn);
-      rebuildList();
+      manager_->reauthenticateAsync(url, *token, [this, self, url](bool ok, QString cerr) {
+        if (!self) return;
+        emit toast(ok ? tr("Reconnected to %1").arg(url) : tr("Reconnect failed — %1").arg(cerr),
+                   !ok);
+        rebuildList();
+      });
     });
   }
 
@@ -1047,7 +1046,7 @@ namespace stencil::gui {
           if (!w->isVisible()) w->show();   // the view may not have polished it yet
           // On the CONTROL clock, not the row's: Select all arrives in the same turn (the
           // bar opens with the first row), and a row still forming after the button had
-          // landed read as the two appearing one after the other (user report).
+          // landed read as the two appearing one after the other.
           if (DisintegrateOverlay::over(w, this, DisintegrateOverlay::Sweep::Gather, 0, 0,
                                         kConnArriveMs)) {
             w->setVisible(false);   // the slot stays; the motes are what the eye follows

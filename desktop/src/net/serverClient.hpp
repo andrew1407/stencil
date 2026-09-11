@@ -1,5 +1,4 @@
 #pragma once
-// ── Collaboration-server client (desktop) ───────────────────────────────────
 // Mirrors server/internal/protocol over REST using QNetworkAccessManager. The
 // desktop deliberately uses Qt Network (already linked) rather than a WebSocket
 // library; live editing uses a raw QTcpSocket NDJSON transport (see the server's
@@ -54,11 +53,10 @@ namespace stencil::net {
     QString serverUrl;
   };
 
-  // One connected server. The REST surface is ASYNCHRONOUS (non-blocking, driven by
-  // QNetworkAccessManager): each *Async method kicks off the request and invokes its completion
-  // on the GUI thread, so a slow/hostile server never freezes the UI. The initial connect/reconnect
-  // handshake is the one synchronous path retained (ConnectionManager::connectTo uses it inline at
-  // startup + in the connect dialog); on-failure completions set lastError().
+  // One connected server. The REST surface is ASYNCHRONOUS throughout (non-blocking, driven
+  // by QNetworkAccessManager): each *Async method kicks off the request and invokes its
+  // completion on the GUI thread, so a slow/hostile server never freezes the UI and no nested
+  // event loop re-enters paint or input. On-failure completions set lastError().
   class ServerClient {
    public:
     // Connection status for the UI dot: Connecting (yellow) | Connected (green) |
@@ -96,7 +94,6 @@ namespace stencil::net {
     // and sets `token` to the fragment's value ("" when there is none). Call it
     // BEFORE normalizeBase, which silently drops any fragment.
     static QString splitInviteToken(const QString& raw, QString& token);
-    // Build one: "<base>#token=<tok>".
     static QString inviteLink(const QString& base, const QString& token);
     // True for a loopback/localhost host (127.0.0.0/8, ::1, "localhost", "*.localhost"),
     // where plaintext http is safe because the bytes never hit the network.
@@ -104,14 +101,6 @@ namespace stencil::net {
     // True when `base` would send the bearer token + image bytes in CLEARTEXT to a remote
     // host (scheme http and not loopback) — the UI warns on these.
     static bool isInsecureRemote(const QString& base);
-
-    // Validate a supplied token (GET /projects) or issue a fresh one
-    // (POST /auth/token). Returns true when the connection is usable. Synchronous: the initial
-    // connect handshake stays inline (ConnectionManager::connectTo drives it at startup + in the
-    // connect dialog); every other REST call below is async. `hint` is a PREVIOUSLY PROVEN kind
-    // (restored from the saved connections): Admin mints straight away instead of spending a
-    // doomed probe on a token that can never list projects.
-    bool connect(const QString& token = QString(), CredentialKind hint = CredentialKind::None);
 
     const QString& base() const { return base_; }
     const QString& token() const { return token_; }
@@ -128,13 +117,10 @@ namespace stencil::net {
     static QString kindTag(CredentialKind k);
     static CredentialKind kindFromTag(const QString& tag);
 
-    // ── Async REST surface ───────────────────────────────────────────────────
-    // Non-blocking: each kicks off the request and invokes `done` on the GUI thread
-    // when the reply completes (no nested event loop, so a slow/hostile server never
-    // freezes the UI or re-enters the app). Behaviour, error strings and 409→conflict
-    // semantics match the REST wire contract. The callback captures the caller's
-    // context — callers must guard it (QPointer) so a reply finishing after the caller
-    // is destroyed is a safe no-op; a reply finishing after THIS client is destroyed is
+    // Each kicks off the request and invokes `done` on the GUI thread when the reply
+    // completes; error strings and 409→conflict semantics match the REST wire contract.
+    // Callers must guard the callback's captures (QPointer) so a reply finishing after the
+    // caller is destroyed is a safe no-op; one finishing after THIS client is destroyed is
     // already safe (the connection is bound to nam_, which dies with the client).
     void connectAsync(const QString& token, std::function<void(bool ok)> done,
                       CredentialKind hint = CredentialKind::None);
@@ -193,11 +179,6 @@ namespace stencil::net {
         std::function<void(GuardOutcome)> done);
 
    private:
-    // Perform an HTTP request; returns the body and sets `status`. `method` is an HTTP verb;
-    // `contentType` is empty for none. Synchronous (nested event loop) — used only by the retained
-    // connect() handshake; every other REST call goes through requestAsync.
-    QByteArray request(const QByteArray& method, const QString& path,
-                       const QByteArray& body, const QString& contentType, int& status);
     // Build the authorized QNetworkRequest for `path` (shared by the sync + async paths).
     // `bearer` overrides the session token (used by the invite mint); empty = token_.
     QNetworkRequest buildRequest(const QString& path, const QString& contentType,
@@ -232,10 +213,11 @@ namespace stencil::net {
     explicit ConnectionManager(QObject* parent = nullptr);
     ~ConnectionManager() override;
 
-    // Connect (and add) a server. Returns true on success; sets `err` otherwise.
+    // Connect (and add) a server, reporting (ok, err) when the handshake resolves.
     // `kindHint` carries a previously proven CredentialKind (from the saved set).
-    bool connectTo(const QString& url, const QString& token, QString& err,
-                   ServerClient::CredentialKind kindHint = ServerClient::CredentialKind::None);
+    void connectToAsync(const QString& url, const QString& token,
+                        std::function<void(bool ok, QString err)> done,
+                        ServerClient::CredentialKind kindHint = ServerClient::CredentialKind::None);
     // Disconnect a url, or (empty url) the most recently added connection.
     void disconnectFrom(const QString& url = QString());
     // Reorder the live connection set: move the client at index `from` to index `to`
@@ -243,16 +225,17 @@ namespace stencil::net {
     // window's changed()→saveServers hook) and the UI refreshes — mirrors the browser
     // ConnectionManager.reorder().
     void reorder(int from, int to);
-    // Async: re-establish one connection (by url) without blocking; emits changed() and reports
-    // (ok, err) via `done`. `done`'s captures must be guarded by the caller for its own lifetime.
+    // Re-establish one connection (by url); emits changed() and reports (ok, err) via `done`,
+    // whose captures the caller must guard for its own lifetime.
     void reconnectAsync(const QString& url, std::function<void(bool ok, QString err)> done);
     // Sign an EXISTING connection in again with a freshly supplied credential — the
-    // expired row's token prompt. connectTo() cannot do this: a refused client keeps its
-    // place in the list on purpose, so that path trips its own "already connected" guard.
-    // Falls back to connectTo when the url is not listed at all.
-    bool reauthenticate(const QString& url, const QString& token, QString& err);
-    // Async: re-establish every connection (best-effort) without blocking; emits changed() once all
-    // resolve and then invokes `done`.
+    // expired row's token prompt. connectToAsync() cannot do this: a refused client keeps
+    // its place on purpose, so that path trips its own "already connected" guard. Falls
+    // back to connectToAsync when the url is not listed at all.
+    void reauthenticateAsync(const QString& url, const QString& token,
+                             std::function<void(bool ok, QString err)> done);
+    // Re-establish every connection (best-effort); emits changed() once all resolve, then
+    // invokes `done`.
     void reconnectAllAsync(std::function<void()> done = {});
 
     QStringList urls() const;
@@ -265,8 +248,8 @@ namespace stencil::net {
 
     // Aggregate shared projects (with images) across every connection, asynchronously: fans out
     // listProjectsAsync to each client and delivers the merged set to `done` once all resolve
-    // (empty when there are no connections). Non-blocking replacement for the old sync
-    // sharedProjects(); callers must guard `done`'s captures for their own lifetime.
+    // (empty when there are no connections). Callers must guard `done`'s captures for
+    // their own lifetime.
     void sharedProjectsAsync(std::function<void(QVector<ServerProject> projects)> done) const;
 
    signals:
@@ -274,6 +257,9 @@ namespace stencil::net {
 
    private:
     QVector<ServerClient*> clients_;
+    // Clients still shaking hands: held so this manager's destruction takes their network
+    // access managers with them, which severs the in-flight reply's callback.
+    QVector<ServerClient*> pending_;
   };
 
 }  // namespace stencil::net

@@ -44,6 +44,7 @@ using stencil::gui::kFilterFullHeightRole;
 using stencil::net::ConnectionManager;
 
 #include "support/check.hpp"
+#include "support/connectNow.hpp"
 
 static void pumpFor(int ms) {
   QElapsedTimer t;
@@ -95,7 +96,7 @@ int main(int argc, char** argv) {
 
   ConnectionManager mgr;
   QString err;
-  check(mgr.connectTo(longUrl, QString(), err), "connects the long-URL server");
+  check(stencil::test::connectNow(mgr, longUrl, QString(), err), "connects the long-URL server");
 
   ConnectDialog dlg(&mgr);
   dlg.resize(480, 420);
@@ -234,6 +235,7 @@ int main(int argc, char** argv) {
   if (urlEdit && connectBtn) {
     urlEdit->setText(shortUrl);
     connectBtn->click();
+    pumpUntil([&] { return mgr.urls().contains(shortUrl); });   // the connect is async now
     check(mgr.urls().contains(shortUrl), "connects the second server");
     pumpUntil([&] {
       QWidget* w = list->count() == 1 ? list->itemWidget(list->item(0)) : nullptr;
@@ -251,11 +253,9 @@ int main(int argc, char** argv) {
     check(fresh && fresh->isVisible(), "row materializes once the gather completes");
   }
 
-  // ── Compact POPOVER shape (mainWindow execMaybePopover): the dialog-level
-  // minimumWidth is dropped and the box shrinks to sizeHint. The row's fixed controls
-  // (grip/checkbox/status/icon/reconnect/disconnect) used to eat that budget, leaving
-  // the URL ~70px ("htt…090"); the list's own minimum keeps the mini form wide enough
-  // for the URL to take real width. Same rows, same styling as the full dialog.
+  // ── Compact POPOVER shape (mainWindow execMaybePopover): the dialog-level minimumWidth
+  // is dropped and the box shrinks to sizeHint. The row's fixed controls used to eat that
+  // budget, leaving the URL ~70px; the list's own minimum keeps the mini form wide enough.
   {
     ConnectDialog mini(&mgr);
     mini.setWindowFlags(mini.windowFlags() | Qt::FramelessWindowHint);
@@ -294,7 +294,7 @@ int main(int argc, char** argv) {
     ConnectionManager many;
     QString e;
     for (int i = 0; i < 8; ++i)
-      many.connectTo(QStringLiteral("http://row%1@127.0.0.1:%2").arg(i).arg(port), QString(), e);
+      stencil::test::connectNow(many, QStringLiteral("http://row%1@127.0.0.1:%2").arg(i).arg(port), QString(), e);
     ConnectDialog tall(&many);
     // Shorter than eight rows, so the list has to scroll — but tall enough that a few
     // fit whole below the modal chrome (header pill + footer hint) the dialog now wears.
@@ -536,7 +536,7 @@ int main(int argc, char** argv) {
     ConnectionManager fresh;
     QString rerr;
     const QString url = QStringLiteral("http://127.0.0.1:%1").arg(port);
-    check(fresh.connectTo(url, QString(), rerr), "connects the server to reconnect");
+    check(stencil::test::connectNow(fresh, url, QString(), rerr), "connects the server to reconnect");
     ConnectDialog d(&fresh);
     d.resize(480, 420);
     d.show();

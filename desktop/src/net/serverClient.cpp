@@ -1,6 +1,5 @@
 #include "serverClient.hpp"
 
-#include <QEventLoop>
 #include <QHostAddress>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -105,27 +104,6 @@ namespace stencil::net {
     return req;
   }
 
-  QByteArray ServerClient::request(const QByteArray& method, const QString& path,
-                                   const QByteArray& body, const QString& contentType,
-                                   int& status) {
-    status = 0;
-    QNetworkRequest req = buildRequest(path, contentType);
-    // Synchronous: blocks on a nested event loop until the reply finishes. Retained only
-    // for the not-yet-converted call sites; prefer requestAsync (no re-entrancy).
-    QNetworkReply* reply = nam_->sendCustomRequest(req, method, body);
-    QEventLoop loop;
-    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    loop.exec();
-
-    status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    const QByteArray data = reply->readAll();
-    if (status < 200 || status >= 300)
-      err_ = restError(method, path, status, data,
-                       reply->error() == QNetworkReply::NoError ? QString() : reply->errorString());
-    reply->deleteLater();
-    return data;
-  }
-
   void ServerClient::requestAsync(const QByteArray& method, const QString& path,
                                   const QByteArray& body, const QString& contentType,
                                   std::function<void(int status, QByteArray body)> done,
@@ -190,78 +168,6 @@ namespace stencil::net {
                      });
   }
 
-  bool ServerClient::connect(const QString& token, CredentialKind hint) {
-    credential_ = token;
-    kind_ = CredentialKind::None;   // re-proven below by whichever path gets in
-    status_ = Status::Connecting;
-    // A refused credential is Expired, not Error: see the enum's note.
-    const auto failAuth = [this](const QString& msg = QString()) {
-      if (!msg.isEmpty()) err_ = msg;
-      status_ = Status::Expired;
-      qWarning("stencil: session on %s needs re-authentication (%s)", qPrintable(base_),
-               qPrintable(msg));   // ONE warning, never a repeated error
-      return false;
-    };
-    const auto fail = [this](const QString& msg = QString()) {
-      if (!msg.isEmpty()) err_ = msg;
-      status_ = Status::Error;
-      return false;
-    };
-    if (base_.isEmpty()) return fail("empty server URL");
-    int status = 0;
-    if (token.isEmpty()) {
-      const QByteArray body =
-          request("POST", "/auth/token", "{}", "application/json", status);
-      if (status < 200 || status >= 300)
-        return status == 401 || status == 403
-                   ? failAuth(QString("this server gates token minting (ADMIN_TOKEN) — paste a "
-                                      "session token, or the admin token, into the Token field"))
-                   : fail();
-      const QJsonObject obj = QJsonDocument::fromJson(body).object();
-      token_ = obj.value("token").toString();
-      if (token_.isEmpty()) return fail("server returned no token");
-    } else if (hint == CredentialKind::Admin) {
-      // A credential already PROVEN to be an admin token mints straight away — probing
-      // it as a session token can only 401 (browser handshake parity). If the server has
-      // since stopped accepting it, this lands in the same Expired state as any refusal.
-      token_ = token;   // the mint carries the credential as bearer
-      int mint = 0;
-      const QByteArray minted =
-          request("POST", "/auth/token", "{}", "application/json", mint);
-      if (mint < 200 || mint >= 300) {
-        token_.clear();
-        return failAuth();
-      }
-      token_ = QJsonDocument::fromJson(minted).object().value("token").toString();
-      if (token_.isEmpty()) return fail("server returned no token");
-      kind_ = CredentialKind::Admin;
-    } else {
-      token_ = token;
-      request("GET", "/projects", {}, {}, status);
-      if (status >= 200 && status < 300) {
-        kind_ = CredentialKind::Session;   // the token IS a session token
-      } else {
-        // Not a session token — but it may be the server's ADMIN token (the gate
-        // operators hold): try minting a session WITH it. Entering ADMIN_TOKEN in
-        // the Token field then just works, instead of a bare 401.
-        int mint = 0;
-        const QByteArray minted =
-            request("POST", "/auth/token", "{}", "application/json", mint);
-        if (mint >= 200 && mint < 300) {
-          token_ = QJsonDocument::fromJson(minted).object().value("token").toString();
-          if (token_.isEmpty()) return fail("server returned no token");
-          kind_ = CredentialKind::Admin;   // it minted: an admin credential
-        } else {
-          token_.clear();
-          return failAuth();
-        }
-      }
-    }
-    status_ = Status::Connected;
-    return true;
-  }
-
-  // ── Async REST surface (mirrors the synchronous methods above op-for-op) ──
 
   void ServerClient::connectAsync(const QString& token, std::function<void(bool)> done,
                                   CredentialKind hint) {
@@ -663,10 +569,14 @@ namespace stencil::net {
 
   ConnectionManager::ConnectionManager(QObject* parent) : QObject(parent) {}
 
-  ConnectionManager::~ConnectionManager() { qDeleteAll(clients_); }
+  ConnectionManager::~ConnectionManager() {
+    qDeleteAll(clients_);
+    qDeleteAll(pending_);   // severs any handshake still in flight
+  }
 
-  bool ConnectionManager::connectTo(const QString& url, const QString& token, QString& err,
-                                    ServerClient::CredentialKind kindHint) {
+  void ConnectionManager::connectToAsync(const QString& url, const QString& token,
+                                        std::function<void(bool, QString)> done,
+                                        ServerClient::CredentialKind kindHint) {
     // Invite link: a "#token=<tok>" fragment supplies the credential — split it off
     // before normalization (which drops fragments). An explicitly-typed token wins.
     QString linkToken;
@@ -674,28 +584,28 @@ namespace stencil::net {
     const QString cred = token.isEmpty() ? linkToken : token;
     const QString base = ServerClient::normalizeBase(stripped);
     if (find(base)) {
-      err = "already connected";
-      return false;
+      done(false, QStringLiteral("already connected"));
+      return;
     }
     auto* client = new ServerClient(base);
+    pending_.push_back(client);
     // The hint is only ever supplied by a caller REUSING a proven credential (the saved
     // set); a freshly typed or invite-link token arrives without one and probes first.
-    if (!client->connect(cred, kindHint)) {
-      err = client->lastError();
+    client->connectAsync(cred, [this, client, done](bool ok) {
+      pending_.removeOne(client);
       // A REFUSED CREDENTIAL keeps its place: the server is fine and the URL worth
       // keeping, so the row can offer a sign-in. An unreachable host is still
       // dropped — there is nothing to sign in to.
-      if (client->needsReauth()) {
-        clients_.push_back(client);
-        emit changed();
-        return false;
+      if (!ok && !client->needsReauth()) {
+        const QString err = client->lastError();
+        delete client;
+        done(false, err);
+        return;
       }
-      delete client;
-      return false;
-    }
-    clients_.push_back(client);
-    emit changed();
-    return true;
+      clients_.push_back(client);
+      emit changed();
+      done(ok, ok ? QString() : client->lastError());
+    }, kindHint);
   }
 
   void ConnectionManager::disconnectFrom(const QString& url) {
@@ -724,20 +634,20 @@ namespace stencil::net {
     emit changed();
   }
 
-  bool ConnectionManager::reauthenticate(const QString& url, const QString& token,
-                                        QString& err) {
+  void ConnectionManager::reauthenticateAsync(const QString& url, const QString& token,
+                                             std::function<void(bool, QString)> done) {
     ServerClient* c = find(url);
-    if (!c) return connectTo(url, token, err);   // nothing listed: an ordinary connect
-    // The client is REUSED, credential and all (ServerClient::connect re-proves the kind),
-    // so the row keeps its place and its identity. connectTo() answered "already connected"
-    // and left the session expired however good the pasted token was (user report).
-    if (!c->connect(token)) {
-      err = c->lastError();
-      emit changed();
-      return false;
+    if (!c) {
+      connectToAsync(url, token, std::move(done));   // nothing listed: an ordinary connect
+      return;
     }
-    emit changed();
-    return true;
+    // The client is REUSED, credential and all (connectAsync re-proves the kind), so the row
+    // keeps its place and its identity. connectToAsync() answered "already connected" and
+    // left the session expired however good the pasted token was.
+    c->connectAsync(token, [this, c, done](bool ok) {
+      emit changed();
+      done(ok, ok ? QString() : c->lastError());
+    });
   }
 
   void ConnectionManager::reconnectAsync(const QString& url,

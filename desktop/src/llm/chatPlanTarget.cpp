@@ -18,6 +18,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QEventLoop>
 #include <QJsonObject>
 #include <QLineEdit>
 #include <QSpinBox>
@@ -183,9 +184,8 @@ namespace stencil::gui {
   // No confirmation — the plan already said so, and a modal would stall the turn.
   void ChatPlanTarget::clearImage() { w_.resetToBlankEditor(); }
   bool ChatPlanTarget::connectServer(const QString& server, QString* err) {
-    // Resolve ONLY against the user's SAVED servers (exact URL, else unique
-    // host); the stored connection's own token authenticates — plans never
-    // carry tokens or introduce hosts (contract §10).
+    // Resolve ONLY against the user's SAVED servers (exact URL, else unique host); their
+    // stored token authenticates — plans never carry tokens or hosts (contract §10).
     const auto saved = stencil::net::connectionStore::loadSavedServers();
     QStringList urls;
     for (const auto& s : saved) urls << s.url;
@@ -202,9 +202,18 @@ namespace stencil::gui {
     auto kind = stencil::net::ServerClient::CredentialKind::None;
     for (const auto& s : saved)
       if (s.url == url) { token = s.token; kind = stencil::net::ServerClient::kindFromTag(s.kind); break; }
+    // The executor runs its ops in order, so this one waits out the handshake — the same
+    // bounded local loop chatLoadSource uses, not a blocking call inside the client.
     QString cerr;
-    if (!w_.ensureConnections()->connectTo(url, token, cerr, kind)) {
-      if (err) *err = QStringLiteral("connect: %1").arg(cerr);
+    bool done = false, ok = false;
+    QEventLoop loop;
+    QTimer::singleShot(20000, &loop, [&loop] { loop.quit(); });   // never hang the plan
+    w_.ensureConnections()->connectToAsync(url, token, [&](bool o, QString e) {
+      ok = o; cerr = std::move(e); done = true; loop.quit();
+    }, kind);
+    if (!done) loop.exec();
+    if (!ok) {
+      if (err) *err = QStringLiteral("connect: %1").arg(cerr.isEmpty() ? QStringLiteral("timed out") : cerr);
       return false;
     }
     w_.notify_->success(QStringLiteral("Connected to %1").arg(url));
@@ -224,10 +233,8 @@ namespace stencil::gui {
     return true;
   }
 
-  // §10 openUrl: the user-echo guard already ran in the executor; loading rides
-  // the SAME async URL/source path as the open-image dialog's "open here". The
-  // executor AWAITS the load (chatLoadSource blocks on a local event loop) so
-  // the next action edits the fetched picture instead of racing it.
+  // §10 openUrl: the user-echo guard already ran in the executor; loading rides the SAME
+  // async path as the dialog's "open here", and the executor awaits it (chatLoadSource).
   bool ChatPlanTarget::openUrl(const QString& url, bool incognito, QString* err) {
     // Say what happened in OUR words — a silent download plus a vague model
     // reply reads as "nothing happened".
@@ -292,10 +299,9 @@ namespace stencil::gui {
     }
     return picks.front();
   }
-  // §10 removeProject: resolve among the saved LOCAL projects (or take the
-  // ACTIVE one for current:true, falling back to the `clear` flow when nothing
-  // is saved but an image is open) — then the projects dialog's Delete flow.
-  // A miss/decline is a note, not a failure.
+  // §10 removeProject: resolve among the saved LOCAL projects (or the ACTIVE one for
+  // current:true, falling back to `clear` when nothing is saved but an image is open),
+  // then the projects dialog's Delete flow. A miss/decline is a note, not a failure.
   bool ChatPlanTarget::removeProjectNamed(const QString& name, bool current,
                                           QString* note) {
     QString id, nm;
@@ -343,9 +349,8 @@ namespace stencil::gui {
     w_.notify_->info("Project deleted");
     return true;
   }
-  // §10 renameProject: the commitProjectName path (local rename or the
-  // server-linked live push), pre-validated so a duplicate name surfaces the
-  // store's own reason as a note.
+  // §10 renameProject: the commitProjectName path (local rename or the server-linked live
+  // push), pre-validated so a duplicate name surfaces the store's own reason as a note.
   bool ChatPlanTarget::renameActiveProject(const QString& name, QString* note) {
     const bool remote = !w_.remoteSession_->link().id.isEmpty();
     if (!remote && w_.activeProjectId_.isEmpty()) {
@@ -390,13 +395,11 @@ namespace stencil::gui {
     w_.applyBlankColor(c);
     return true;
   }
-  // §10 openProject: removeProject's resolution, then the projects dialog's
-  // open path — including its unsaved-replace confirm when the editor holds
-  // work no saved project backs.
+  // §10 openProject: removeProject's resolution, then the projects dialog's open path —
+  // including its unsaved-replace confirm when no saved project backs the editor's work.
   bool ChatPlanTarget::openProjectNamed(const QString& name, bool last, QString* note) {
-    // "the last project I worked on": the most recently edited one, resolved HERE off
-    // the store's own updatedAt — the model is never shown the project list, so it must
-    // never have to ask which one that is (browser chatSession.js openProjectNamed).
+    // "the last project I worked on": the most recently edited one, resolved HERE off the
+    // store's updatedAt — the model never sees the project list (chatSession.js parity).
     const Project* pick = nullptr;
     if (last) {
       for (const auto& p : w_.projectList_)
@@ -449,11 +452,9 @@ namespace stencil::gui {
       w_.actIncognito_->setChecked(on);  // its toggled handler applies + notifies
     return true;
   }
-  // §10 chatPanel: the panel's OWN placement, through the very calls its title-bar
-  // buttons make (dockChatTo / toggleChatFloat / the Assistant toggle), so a spoken
-  // "put the chat on the right" lands exactly where a click would have put it.
-  // A dock with no "open" shows the panel too — moving one nobody can see is not
-  // what was asked for (browser chatSession.js setChatPlacement parity).
+  // §10 chatPanel: the panel's OWN placement, through the very calls its title-bar buttons
+  // make, so a spoken "put the chat on the right" lands where a click would have. A dock
+  // with no "open" shows the panel too (browser chatSession.js setChatPlacement parity).
   bool ChatPlanTarget::setChatPlacement(int open, const QString& dock, QString* note) {
     if (!w_.chatDock_ || !w_.actChat_) {
       *note = QStringLiteral("there is no assistant panel here");
@@ -480,10 +481,9 @@ namespace stencil::gui {
     return true;
   }
 
-  // §10 dialog: the editor's own windows, through the very QActions their toolbar
-  // buttons drive. Opened on the NEXT event-loop turn, never inline: these dialogs
-  // exec() modally, which would park the whole plan (and the reply that goes with it)
-  // behind a window the user has not been told about yet.
+  // §10 dialog: the editor's own windows, through the very QActions their toolbar buttons
+  // drive. Opened on the NEXT event-loop turn, never inline: they exec() modally, which
+  // would park the whole plan behind a window the user has not been told about yet.
   bool ChatPlanTarget::openDialog(const QString& name, QString* note) {
     if (name.isEmpty()) {
       QWidget* open = QApplication::activeModalWidget();
@@ -510,9 +510,9 @@ namespace stencil::gui {
   // §10 clearProjects: every LOCAL project through the same machinery as the
   // dialog's "Clear All (Local)" — server projects are never touched from chat.
   bool ChatPlanTarget::clearProjects(bool keepCurrent, QString* note) {
-    // `keepCurrent` = "delete the others": the open project stays where it is. Without
-    // it the model used to clear the lot and try to save the working image back, which
-    // lost the project outright when there was no image to re-save (user report).
+    // `keepCurrent` = "delete the others": the open project stays where it is. Without it
+    // the model clears the lot, then loses the project outright when no working image is
+    // left to re-save.
     const QString keepId = keepCurrent ? w_.activeProjectId_ : QString();
     const bool keeping = !keepId.isEmpty();
     const int total = static_cast<int>(w_.projectList_.size());
