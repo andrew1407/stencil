@@ -12,7 +12,6 @@ const ttyWrite = sc.ttyWrite;
 const reveal_speed_default = sc.reveal_speed_default;
 const parseRevealSpeed = sc.parseRevealSpeed;
 
-
 // One byte from `fd` within `ms`, or null (timeout / closed). Used only by the startup
 // colour query — the line editor does its own polling.
 pub fn readByteTimeout(fd: std.posix.fd_t, ms: i32) ?u8 {

@@ -6,7 +6,6 @@ const std = @import("std");
 const Window = sc.Screen.Window;
 const wheel_step = sc.wheel_step;
 
-
 pub fn headerRows(self: *Screen) u16 {
     return @intCast(self.header.items.len);
 }

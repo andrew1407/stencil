@@ -7,6 +7,23 @@ const std = @import("std");
 const logo = @import("../logo.zig");
 const ansi = @import("ansi.zig");
 const logoFx = @import("logoFx.zig");
+const tty = @import("screen/tty.zig");
+const prefs = @import("screen/prefs.zig");
+const mouse = @import("screen/mouse.zig");
+
+pub const ttyWrite = tty.ttyWrite;
+pub const gotoRow = tty.gotoRow;
+pub const gotoClear = tty.gotoClear;
+pub const pushChunk = tty.pushChunk;
+
+pub const parseRevealSpeed = prefs.parseRevealSpeed;
+pub const speed_min = prefs.speed_min;
+pub const speed_max = prefs.speed_max;
+pub const speed_default = prefs.speed_default;
+pub const nextAccentKey = prefs.nextAccentKey;
+
+pub const Mouse = mouse.Mouse;
+pub const parseMouse = mouse.parseMouse;
 
 // One active screen at a time; handlers reach it (for a theme repaint) via `current()`.
 pub var g_screen: ?*Screen = null;
@@ -133,7 +150,7 @@ pub const Screen = struct {
     pub const maxPromptRows = @import("screen/model.zig").maxPromptRows;
     // The half-open slice [first,end) of `lines` that the body viewport currently shows, honouring
     // the scroll offset. The single source of truth for every paint/extract loop.
-    pub const Window  = struct { first: usize, end: usize };
+    pub const Window = struct { first: usize, end: usize };
     pub const window = @import("screen/model.zig").window;
     pub const contentShown = @import("screen/model.zig").contentShown;
     pub const statusRow = @import("screen/model.zig").statusRow;
@@ -192,161 +209,7 @@ pub const Screen = struct {
 
 // free helpers (pure, unit-tested)
 
-/// libc write to a raw fd (std.posix.write is unavailable here the same way line_edit uses).
-pub fn ttyWrite(fd: std.posix.fd_t, bytes: []const u8) void {
-    var i: usize = 0;
-    while (i < bytes.len) {
-        const n = std.c.write(fd, bytes[i..].ptr, bytes.len - i);
-        if (n <= 0) return;
-        i += @intCast(n);
-    }
-}
-
-/// Move the cursor to (row,1) without clearing — for in-place overwrites during the animation.
-pub fn gotoRow(fd: std.posix.fd_t, row: u16) void {
-    var b: [16]u8 = undefined;
-    const s = std.fmt.bufPrint(&b, "\x1b[{d};1H", .{row}) catch return;
-    ttyWrite(fd, s);
-}
-
-/// Move the cursor to (row,1) and clear the whole line.
-pub fn gotoClear(fd: std.posix.fd_t, row: u16) void {
-    var b: [24]u8 = undefined;
-    const s = std.fmt.bufPrint(&b, "\x1b[{d};1H\x1b[2K", .{row}) catch return;
-    ttyWrite(fd, s);
-}
-
-/// Append `bytes` to `pending`, flushing a completed owned line into `dst` on each '\n'
-/// (the trailing '\r' of a CRLF is dropped). Allocation failures silently drop the line.
-pub fn pushChunk(gpa: std.mem.Allocator, dst: *std.ArrayList([]u8), pending: *std.ArrayList(u8), bytes: []const u8) void {
-    for (bytes) |ch| {
-        if (ch == '\n') {
-            var line = pending.items;
-            if (line.len != 0 and line[line.len - 1] == '\r') line = line[0 .. line.len - 1];
-            const owned = gpa.dupe(u8, line) catch {
-                pending.clearRetainingCapacity();
-                continue;
-            };
-            dst.append(gpa, owned) catch gpa.free(owned);
-            pending.clearRetainingCapacity();
-        } else {
-            pending.append(gpa, ch) catch {};
-        }
-    }
-}
-
-/// Parse a `/reveal-speed` value: a number on the 0.01 … 1 scale, where 1 means "instantly" and
-/// smaller is slower. Null for anything unparseable or out of range — 0 included, since a
-/// speed of zero is an animation that never ends; 0.01 is as slow as the scale goes.
-pub fn parseRevealSpeed(text: []const u8) ?f64 {
-    const v = std.fmt.parseFloat(f64, std.mem.trim(u8, text, " \t")) catch return null;
-    if (std.math.isNan(v) or v < reveal_speed_min or v > reveal_speed_max) return null;
-    return v;
-}
-
-/// The scale's ends and default, for the `/reveal-speed` command's messages.
-pub const speed_min = reveal_speed_min;
-pub const speed_max = reveal_speed_max;
-pub const speed_default = reveal_speed_default;
-
-pub const Mouse = struct {
-    btn: u16, // full SGR button code: low 2 bits = button, +64 = wheel, higher bits = modifiers
-    col: u16, // 1-based
-    row: u16, // 1-based
-    press: bool, // true = press ('M'), false = release ('m')
-
-    pub fn isWheelUp(m: Mouse) bool {
-        return (m.btn & 64) != 0 and (m.btn & 1) == 0;
-    }
-    pub fn isWheelDown(m: Mouse) bool {
-        return (m.btn & 64) != 0 and (m.btn & 1) == 1;
-    }
-    // A wheel notch has bit 64; drag-motion has bit 32. A plain left-button press is neither.
-    pub fn isLeftPress(m: Mouse) bool {
-        return m.press and (m.btn & 64) == 0 and (m.btn & 32) == 0 and (m.btn & 3) == 0;
-    }
-    // Motion while the left button is held (SGR sets bit 32 on drag reports) — a text drag.
-    pub fn isLeftDrag(m: Mouse) bool {
-        return m.press and (m.btn & 32) != 0 and (m.btn & 64) == 0 and (m.btn & 3) == 0;
-    }
-    pub fn isRelease(m: Mouse) bool {
-        return !m.press;
-    }
-};
-
-/// Parse the body of an SGR mouse report — the bytes after the `ESC [ <` intro, including the
-/// terminating 'M' (press) or 'm' (release): `btn ; col ; row (M|m)`. Returns null on garbage.
-pub fn parseMouse(seq: []const u8) ?Mouse {
-    if (seq.len < 6) return null;
-    const last = seq[seq.len - 1];
-    if (last != 'M' and last != 'm') return null;
-    var it = std.mem.splitScalar(u8, seq[0 .. seq.len - 1], ';');
-    const btn = std.fmt.parseInt(u16, it.next() orelse return null, 10) catch return null;
-    const col = std.fmt.parseInt(u16, it.next() orelse return null, 10) catch return null;
-    const row = std.fmt.parseInt(u16, it.next() orelse return null, 10) catch return null;
-    if (it.next() != null) return null;
-    return .{ .btn = btn, .col = col, .row = row, .press = last == 'M' };
-}
-
-// accent cycle (mirrors browser/js/ui/toolbar.js cycleAccent)
-
-const theme = @import("../theme.zig");
-
-/// The next accent key when the logo is single-clicked: advance through the preset list
-/// (wrapping), or reset to the default when a custom colour (`current` is a '#hex') is active
-/// — exactly what the browser does. `current` is the active accent key.
-pub fn nextAccentKey(cur: []const u8) []const u8 {
-    if (cur.len != 0 and cur[0] == '#') return theme.default_key;
-    var idx: usize = 0;
-    const all = theme.accents();
-    for (all, 0..) |a, i| {
-        if (std.ascii.eqlIgnoreCase(a.key, cur)) {
-            idx = i;
-            break;
-        }
-    }
-    return all[(idx + 1) % all.len].key;
-}
-
-// tests (pure helpers only; the terminal path never runs in CI)
-
 const testing = std.testing;
-
-test "pushChunk: splits on newline, drops CR, buffers partials" {
-    var lines: std.ArrayList([]u8) = .empty;
-    var pending: std.ArrayList(u8) = .empty;
-    defer {
-        for (lines.items) |l| testing.allocator.free(l);
-        lines.deinit(testing.allocator);
-        pending.deinit(testing.allocator);
-    }
-    pushChunk(testing.allocator, &lines, &pending, "one\r\ntwo\n");
-    pushChunk(testing.allocator, &lines, &pending, "par");
-    pushChunk(testing.allocator, &lines, &pending, "tial\n");
-    try testing.expectEqual(@as(usize, 3), lines.items.len);
-    try testing.expectEqualStrings("one", lines.items[0]);
-    try testing.expectEqualStrings("two", lines.items[1]);
-    try testing.expectEqualStrings("partial", lines.items[2]);
-}
-
-test "parseMouse: SGR press/release, wheel classification" {
-    const p = parseMouse("0;10;3M").?;
-    try testing.expect(p.press and p.isLeftPress());
-    try testing.expectEqual(@as(u16, 10), p.col);
-    try testing.expectEqual(@as(u16, 3), p.row);
-    try testing.expect(parseMouse("0;10;3m").?.press == false);
-    try testing.expect(parseMouse("64;5;5M").?.isWheelUp());
-    try testing.expect(parseMouse("65;5;5M").?.isWheelDown());
-    try testing.expect(parseMouse("garbage") == null);
-    try testing.expect(parseMouse("1;2X") == null);
-}
-
-test "nextAccentKey: advances presets, wraps, resets from custom" {
-    try testing.expectEqualStrings("pink", nextAccentKey("violet")); // first -> second
-    try testing.expectEqualStrings("violet", nextAccentKey("grey")); // last wraps to first
-    try testing.expectEqualStrings("violet", nextAccentKey("#ff8800")); // custom -> default
-    try testing.expectEqualStrings("pink", nextAccentKey("VIOLET")); // case-insensitive
-}
 
 test "a speed change forgets the burst, so its own confirmation runs at the NEW speed" {
     const a = testing.allocator;
@@ -381,20 +244,6 @@ test "skipRevealOnce: the echo of a typed line lands at once, and only that line
     s.skipRevealOnce();
     s.append("");
     try testing.expect(!s.skip_reveal_once);
-}
-
-test "parseRevealSpeed: the 0.01 … 1 scale, and what is not on it" {
-    try testing.expectEqual(@as(f64, 0.5), parseRevealSpeed("0.5").?);
-    try testing.expectEqual(@as(f64, 1.0), parseRevealSpeed("1").?);
-    try testing.expectEqual(@as(f64, 0.01), parseRevealSpeed("0.01").?);
-    try testing.expectEqual(@as(f64, 0.25), parseRevealSpeed(" .25 ").?); // padded, leading dot
-    try testing.expect(parseRevealSpeed("0") == null); // never finishes — 0.01 is the floor
-    try testing.expect(parseRevealSpeed("0.009") == null);
-    try testing.expect(parseRevealSpeed("1.5") == null); // 1 is already instant
-    try testing.expect(parseRevealSpeed("-1") == null);
-    try testing.expect(parseRevealSpeed("fast") == null);
-    try testing.expect(parseRevealSpeed("") == null);
-    try testing.expect(parseRevealSpeed("nan") == null);
 }
 
 test "selection covers the INPUT rows too, not just the output above them" {
@@ -461,4 +310,7 @@ test {
     _ = @import("screen/select.zig");
     _ = @import("screen/paint.zig");
     _ = @import("screen/input.zig");
+    _ = tty;
+    _ = prefs;
+    _ = mouse;
 }

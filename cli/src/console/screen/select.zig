@@ -9,7 +9,6 @@ const std = @import("std");
 const logo = @import("../../logo.zig");
 const ansi = @import("../ansi.zig");
 
-
 pub fn selActive(self: *Screen) bool {
     return self.sel_active;
 }

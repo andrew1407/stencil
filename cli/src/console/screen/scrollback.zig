@@ -7,7 +7,6 @@ const logoFx = @import("../logoFx.zig");
 const pushChunk = sc.pushChunk;
 const max_lines = sc.max_lines;
 
-
 /// Feed captured output into the scrollback (one logical line per '\n'), then repaint.
 pub fn append(self: *Screen, bytes: []const u8) void {
     self.has_sel = false; // new output invalidates any highlight
