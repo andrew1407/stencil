@@ -6,6 +6,17 @@ import { applyContourRGBA } from './contourFilter.js';
 const DASH_PATTERN = [10, 5];
 const DOT_PATTERN = [2, 5];
 
+// hexToRgba builds a fresh string per call, and the glow/ring colours are asked for once
+// per selected line and once per highlighted point EVERY frame. The (colour, alpha) pairs
+// are few and fixed, so memoize them; the cap keeps a runaway accent sweep bounded.
+const RGBA = new Map();
+const rgba = (hex, a) => {
+  const key = hex + a;
+  let v = RGBA.get(key);
+  if (v === undefined) { if (RGBA.size > 64) RGBA.clear(); RGBA.set(key, v = hexToRgba(hex, a)); }
+  return v;
+};
+
 // The colour a line's points draw in: its own pointColor when set, else its stroke
 // colour. JS twin of core's pointColorOr (core/models.hpp) — keep the two identical;
 // "unset" must include '' (how the field serialises when a line has no point colour).
@@ -217,30 +228,15 @@ export class Renderer {
       this.app.ctx.restore();
     }
 
-    // List-row hover glow: hovering a Lines-list row glows its line — thinner and fainter
-    // than the selection glow so the two states stay distinguishable.
-    if (!isSelected && !this.#suppressHighlight && lineIdx >= 0 &&
-        lineIdx === (this.app.listHoverLineIdx ?? -1) && line.points.length >= 2) {
+    // One glow pass, drawn beneath the stroke: the selection's, or — on an unselected line —
+    // the thinner, fainter one a Lines-list row hover paints, so the two stay distinguishable.
+    const glow = isSelected ? { color: this.app.selGlowColor, alpha: 0.6, pad: 8 }
+      : (!this.#suppressHighlight && lineIdx >= 0 && lineIdx === (this.app.listHoverLineIdx ?? -1)
+        && line.points.length >= 2 ? { color: this.app.hoverRingColor, alpha: 0.35, pad: 6 } : null);
+    if (glow) {
       this.app.ctx.save();
-      this.app.ctx.strokeStyle = hexToRgba(this.app.hoverRingColor, 0.35);
-      this.app.ctx.lineWidth = line.thickness + 6;
-      this.app.ctx.lineCap = 'round';
-      this.app.ctx.lineJoin = 'round';
-      this.app.ctx.setLineDash([]);
-      this.app.ctx.beginPath();
-      this.app.ctx.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < line.points.length; i++)
-        this.app.ctx.lineTo(pts[i].x, pts[i].y);
-      if (line.locked) this.app.ctx.closePath();
-      this.app.ctx.stroke();
-      this.app.ctx.restore();
-    }
-
-    // Selection highlight glow
-    if (isSelected) {
-      this.app.ctx.save();
-      this.app.ctx.strokeStyle = hexToRgba(this.app.selGlowColor, 0.6);
-      this.app.ctx.lineWidth = line.thickness + 8;
+      this.app.ctx.strokeStyle = rgba(glow.color, glow.alpha);
+      this.app.ctx.lineWidth = line.thickness + glow.pad;
       this.app.ctx.lineCap = 'round';
       this.app.ctx.lineJoin = 'round';
       this.app.ctx.setLineDash([]);
@@ -295,7 +291,7 @@ export class Renderer {
   drawPoint(point, color, pointSize = 4, isSelected = false, highlightState = 0) {
     const r = pointSize;
     if (isSelected) {
-      this.app.ctx.fillStyle = hexToRgba(this.app.selGlowColor, 0.5);
+      this.app.ctx.fillStyle = rgba(this.app.selGlowColor, 0.5);
       this.app.ctx.beginPath();
       this.app.ctx.arc(point.x, point.y, r + 4, 0, Math.PI * 2);
       this.app.ctx.fill();
@@ -303,7 +299,7 @@ export class Renderer {
     if (highlightState === 1) {
       // Hover — thin translucent ring
       this.app.ctx.save();
-      this.app.ctx.strokeStyle = hexToRgba(this.app.hoverRingColor, 0.55);
+      this.app.ctx.strokeStyle = rgba(this.app.hoverRingColor, 0.55);
       this.app.ctx.lineWidth = 1.8;
       this.app.ctx.beginPath();
       this.app.ctx.arc(point.x, point.y, r + 4, 0, Math.PI * 2);
@@ -312,7 +308,7 @@ export class Renderer {
     } else if (highlightState === 2) {
       // Focused/click — bold ring with glow shadow
       this.app.ctx.save();
-      this.app.ctx.shadowColor = hexToRgba(this.app.focusRingColor, 0.9);
+      this.app.ctx.shadowColor = rgba(this.app.focusRingColor, 0.9);
       this.app.ctx.shadowBlur = 12;
       this.app.ctx.strokeStyle = this.app.focusRingColor;
       this.app.ctx.lineWidth = 3;
@@ -337,7 +333,11 @@ export class Renderer {
     const image = this.app.image;
     const c = this.#filtered;
     if (c && c.image === image && c.filter === filter && c.color === color) return c.canvas;
-    const canvas = document.createElement('canvas');
+    // Never in the document — an OffscreenCanvas where there is one, so the pixels do not
+    // cost a DOM node (and the raster can live off the main thread's element bookkeeping).
+    const canvas = typeof OffscreenCanvas === 'function'
+      ? new OffscreenCanvas(image.width, image.height)
+      : document.createElement('canvas');
     canvas.width = image.width;
     canvas.height = image.height;
     const fctx = canvas.getContext('2d');

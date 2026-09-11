@@ -1,3 +1,4 @@
+import { timeoutSignal } from '../net/abortable.js';
 // Pure helper: pull an image URL out of a cross-page drag's payloads. An <img> dragged
 // from another website lands NOT as a File but as a URL in text/uri-list, text/html
 // (an <img src>), or text/plain; `read(type)` returns the drag's string for that MIME
@@ -45,7 +46,7 @@ export const extractDraggedImageUrl = (read) => {
 // what the callers surface. `accept` bounds the MIME types: the canvas takes images,
 // the chat also takes video (its attachments sample frames from one).
 export const fetchDraggedMediaFile = async (url, { accept = /^image\// } = {}) => {
-  const resp = await fetch(url, { mode: 'cors' }).catch(() => {
+  const resp = await fetch(url, { mode: 'cors', signal: timeoutSignal() }).catch(() => {
     throw new Error('the request was blocked (CORS or an unreachable host)');
   });
   if (!resp.ok) throw new Error(`the server answered HTTP ${resp.status}`);

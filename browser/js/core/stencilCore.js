@@ -191,6 +191,15 @@ class StencilCore {
       }
     };
 
+    // ONE image-sized scratch buffer, grown on demand: a _malloc + _free of the whole raster
+    // per filter call churned the heap on every repaint of a filtered image. The two copies
+    // across the ABI stay (the heap is not the canvas's), and HEAPU8 is re-read at each use.
+    let scratch = { ptr: 0, bytes: 0 };
+    const pixelScratch = (bytes) => {
+      if (bytes > scratch.bytes) { if (scratch.ptr) core._free(scratch.ptr); scratch = { ptr: core._malloc(bytes), bytes }; }
+      return scratch.ptr;
+    };
+
     // FilterMode enum codes (must match core/imageFilter.hpp).
     const FILTER_MODE = { none: 0, bw: 1, sepia: 2, custom: 3, invert: 4, contour: 5 };
 
@@ -315,30 +324,21 @@ class StencilCore {
       },
 
       applyFilterRGBA(mode, data, pixelCount, r, g, b) {
-        const code = FILTER_MODE[mode] ?? FILTER_MODE.custom;
         const bytes = pixelCount * 4;
-        const ptr = core._malloc(bytes);
-        try {
-          core.HEAPU8.set(data, ptr);
-          cFilter(code, ptr, pixelCount, r, g, b);
-          data.set(core.HEAPU8.subarray(ptr, ptr + bytes));
-        } finally {
-          core._free(ptr);
-        }
+        const ptr = pixelScratch(bytes);
+        core.HEAPU8.set(data, ptr);
+        cFilter(FILTER_MODE[mode] ?? FILTER_MODE.custom, ptr, pixelCount, r, g, b);
+        data.set(core.HEAPU8.subarray(ptr, ptr + bytes));
       },
 
       // Contour needs the pixel neighborhood, so it crosses the ABI with
       // width/height instead of applyFilterRGBA's flat pixel count.
       applyContourRGBA(data, width, height) {
         const bytes = width * height * 4;
-        const ptr = core._malloc(bytes);
-        try {
-          core.HEAPU8.set(data, ptr);
-          cContour(ptr, width, height);
-          data.set(core.HEAPU8.subarray(ptr, ptr + bytes));
-        } finally {
-          core._free(ptr);
-        }
+        const ptr = pixelScratch(bytes);
+        core.HEAPU8.set(data, ptr);
+        cContour(ptr, width, height);
+        data.set(core.HEAPU8.subarray(ptr, ptr + bytes));
       },
 
       // ── crop geometry (cropGeometry.js) ──

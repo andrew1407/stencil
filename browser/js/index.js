@@ -13,6 +13,7 @@ import { installControlSwap } from './ui/controlSwap.js';
 import { installVoiceModes } from './llm/voiceModes.js';
 import { applyMotionAttr } from './ui/motionPrefs.js';
 import EVENTS from './config/events.json' with { type: 'json' };
+import { publishReady } from './bus/appBus.js';
 // ── Application entrypoint ──────────────────────────────────────
 // Loaded LAST (importing layout registers every custom element). On load: init the
 // shared C++ core (wasm), mount component hosts, construct the app, then dispatch
@@ -36,12 +37,12 @@ window.onload = async () => {
   // first paint; restating it costs nothing and keeps the attribute right on any host
   // that loads the module graph without that classic script.
   applyMotionAttr();
-  await core.init();
+  // Independent boots, so they run together: the wasm core compiles while the projects
+  // backend hydrates (its IndexedDB payload mirror + the one-time localStorage payload
+  // migration). BOTH must finish before the app constructs — Storage reads the backend
+  // synchronously (see core/projectsBackend.js) and every module asks core for its ops.
+  await Promise.all([core.init(), initProjectsBackend()]);
   console.info(`[stencil] core: ${core.ready ? 'WebAssembly (shared C++)' : 'JavaScript fallback'}`);
-  // Hydrate the projects backend (IndexedDB payload mirror + the one-time
-  // localStorage payload migration) BEFORE the app constructs — Storage reads it
-  // synchronously (see core/projectsBackend.js).
-  await initProjectsBackend();
   const root = document.getElementById('root');
   mountHTML(root, layout());      // DOM first (custom elements upgrade synchronously)
   const app = new DrawingApp();   // construct AFTER mount
@@ -57,11 +58,12 @@ window.onload = async () => {
   installControlSwap();
   // The app instance is shared with every component via the stencil:ready
   // detail below — no window global needed.
-  document.dispatchEvent(new CustomEvent(EVENTS.ready, { detail: { app } }));
+  publishReady(app);
   // Confirm before leaving an active editing session (image loaded or unsaved drawing) —
   // the browser shows its native "Leave site?" prompt. Mirrors the desktop quit dialog;
   // beforeunload is synchronous, so it can't use the in-app confirm() modal.
   window.addEventListener('beforeunload', (e) => {
+    app.storage.saveSoon.flush();   // a point committed in the last debounce window still lands
     if (!app.hasEditingSession()) return;
     e.preventDefault();
     e.returnValue = '';   // Chrome/Firefox require a set returnValue to show the prompt
