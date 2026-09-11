@@ -70,10 +70,10 @@ namespace stencil::gui {
   void MainWindow::updateNameHover() {
     // The container's own rect (browser .project-name-field parity): one solid box with
     // the inter-widget gaps INSIDE it, so the sweep can never flicker the hover.
-    const bool over = nameGroup_ && nameGroup_->isVisible()
-        && nameGroup_->rect().contains(nameGroup_->mapFromGlobal(QCursor::pos()));
-    if (over != nameHover_) {
-      nameHover_ = over;
+    const bool over = nameBar_.group && nameBar_.group->isVisible()
+        && nameBar_.group->rect().contains(nameBar_.group->mapFromGlobal(QCursor::pos()));
+    if (over != nameBar_.hover) {
+      nameBar_.hover = over;
       refreshProjectNameButtons();
     }
   }
@@ -94,17 +94,17 @@ namespace stencil::gui {
   }
 
   void MainWindow::enterNameEdit() {
-    if (!projectName_ || !projectName_->isEnabled() || nameEditing_) return;
-    nameEditing_ = true;
-    projectName_->setReadOnly(false);
+    if (!nameBar_.field || !nameBar_.field->isEnabled() || nameBar_.editing) return;
+    nameBar_.editing = true;
+    nameBar_.field->setReadOnly(false);
     applyProjectNameStyle(true);  // show the accent-outlined input look
-    projectName_->setFocus();
-    projectName_->selectAll();
+    nameBar_.field->setFocus();
+    nameBar_.field->selectAll();
     refreshProjectNameButtons();  // reveal ✓/✗, hide ✎
   }
 
   void MainWindow::commitProjectName() {
-    const QString newName = projectName_->text().trimmed();
+    const QString newName = nameBar_.field->text().trimmed();
     // Server-linked session (no local id): push the rename straight to the server so peers see it
     // live, version-guarded — mirrors setActiveProjectColor's remote branch. Otherwise rename the
     // local project. (Previously a server project couldn't be renamed at all from the toolbar.)
@@ -131,16 +131,16 @@ namespace stencil::gui {
             });
       }
     } else if (!activeProjectId_.isEmpty()) {
-      renameProjectById(activeProjectId_, projectName_->text());
+      renameProjectById(activeProjectId_, nameBar_.field->text());
     }
-    nameEditing_ = false;   // leave edit mode → field back to read-only, ✎ returns
-    projectName_->clearFocus();
+    nameBar_.editing = false;   // leave edit mode → field back to read-only, ✎ returns
+    nameBar_.field->clearFocus();
     updateProjectTitle();   // force the field/title back to the stored name
   }
 
   void MainWindow::cancelProjectName() {
-    nameEditing_ = false;   // leave edit mode
-    projectName_->clearFocus();
+    nameBar_.editing = false;   // leave edit mode
+    nameBar_.field->clearFocus();
     updateProjectTitle();   // revert the field to the stored name
   }
 

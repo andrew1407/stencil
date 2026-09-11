@@ -36,28 +36,26 @@ namespace stencil::gui {
   // Browser-like: the ✓/✗ buttons show only IN edit mode; the ✎ pencil shows only OUT of it.
   // ✓ is enabled only for a changed, valid name (its tooltip carries the reason when disabled).
   void MainWindow::refreshProjectNameButtons() {
-    if (!projectName_ || !projectNameAccept_ || !projectNameCancel_) return;
-    const bool editable = projectName_->isEnabled();
-    // Toggle the QWidgetActions (not the widgets) so the toolbar actually re-lays-out. In edit
-    // mode only ✓/✗ show; out of it only ✎ + 🎨 show — exactly like the browser topbar.
-    // They arrive and leave as SAND, like the browser's ✓/✗ (markIn / markOut) — a bare
-    // setVisible blinked them in and out. revealControls is a no-op when the
-    // state already matches, so refreshActions may call this as often as it likes.
-    revealControls(projectNameAccept_, nameEditing_);
-    revealControls(projectNameCancel_, nameEditing_);
-    // ✎/🎨 reveal only on name-group hover (✓/✗ replace them while editing) and
-    // must not MOVE anything: they keep their slots and are merely painted out —
+    if (!nameBar_.field || !nameBar_.accept || !nameBar_.cancel) return;
+    // Toggle the QWidgetActions (not the widgets) so the toolbar actually re-lays-out.
+    // The marks arrive and leave as SAND, like the browser's ✓/✗ (markIn / markOut) — a
+    // bare setVisible blinked them in and out. revealControls is a no-op when the state
+    // already matches, so refreshActions may call this as often as it likes.
+    const auto chips = nameBar_.chips(nameBar_.field->isEnabled(), !blankColor_.isEmpty());
+    revealControls(nameBar_.accept, chips.marks);
+    revealControls(nameBar_.cancel, chips.marks);
+    // ✎/🎨 keep their slots and are merely painted out when the group is not hovered —
     // the browser's `visibility: hidden`. Removing slots shoved the "?" sideways.
-    const bool affordable = editable && !nameEditing_;
+    const bool affordable = chips.affordances;
     const auto placeAffordances = [this](bool on) {
-      if (projectNameEdit_) projectNameEdit_->setVisible(on);
-      if (projectColorBtn_) projectColorBtn_->setVisible(on);
-      setPaintedOut(projectNameEdit_, on && !nameHover_);
-      setPaintedOut(projectColorBtn_, on && !nameHover_);
+      if (nameBar_.edit) nameBar_.edit->setVisible(on);
+      if (nameBar_.colorBtn) nameBar_.colorBtn->setVisible(on);
+      setPaintedOut(nameBar_.edit, on && !nameBar_.hover);
+      setPaintedOut(nameBar_.colorBtn, on && !nameBar_.hover);
     };
     if (!affordable) {
       placeAffordances(false);
-    } else if (projectNameEdit_ && projectNameEdit_->isVisible()) {
+    } else if (nameBar_.edit && nameBar_.edit->isVisible()) {
       placeAffordances(true);   // already there: nothing is coming or going
     } else {
       // Leaving edit mode: the ✓/✗ are still sliding out, and giving ✎/🎨 their slots now
@@ -68,25 +66,24 @@ namespace stencil::gui {
       QPointer<MainWindow> self(this);
       QTimer::singleShot(kControlRevealOutMs, this, [self, placeAffordances] {
         if (!self) return;
-        placeAffordances(self->projectName_ && self->projectName_->isEnabled()
-                         && !self->nameEditing_);
+        placeAffordances(self->nameBar_.field && self->nameBar_.field->isEnabled()
+                         && !self->nameBar_.editing);
       });
     }
     // Blank-colour button: shown only when this session is a blank image (recolourable), regardless
     // of whether it's a saved/editable project (in-memory recolour works for unsaved blanks too).
     // Paint its icon as a live swatch of the current fill colour.
-    if (blankColorBtn_) {
-      const bool showBlank = !blankColor_.isEmpty() && !nameEditing_;
-      blankColorBtn_->setVisible(showBlank);   // now a plain layout widget, gated directly
-      if (showBlank) {
+    if (nameBar_.blankColorBtn) {
+      nameBar_.blankColorBtn->setVisible(chips.blankSwatch);   // a plain layout widget, gated directly
+      if (chips.blankSwatch) {
         // Same input-palette chip recipe as the line-style colour button
         // (inset swatch rect + luminance-tuned outline, theme/accent tracked).
         const QColor c(blankColor_);
-        updateColorSwatch(blankColorBtn_, c.isValid() ? c : QColor("#ffffff"));
+        updateColorSwatch(nameBar_.blankColorBtn, c.isValid() ? c : QColor("#ffffff"));
       }
     }
-    if (!nameEditing_) return;
-    const QString v = projectName_->text().trimmed();
+    if (!nameBar_.editing) return;
+    const QString v = nameBar_.field->text().trimmed();
     // Compare against the CURRENT name — remoteSession_->link().name for a server-linked session (no local id),
     // else the local name.
     const QString current = !remoteSession_->link().id.isEmpty() ? remoteSession_->link().name : activeProjectName();
@@ -103,16 +100,16 @@ namespace stencil::gui {
       ok = !v.isEmpty();
       if (!ok) reason = QStringLiteral("Enter a name");
     }
-    projectNameAccept_->setEnabled(ok);
-    projectNameAccept_->setCursor(ok ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
-    projectNameAccept_->setToolTip(reason);
+    nameBar_.accept->setEnabled(ok);
+    nameBar_.accept->setCursor(ok ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
+    nameBar_.accept->setToolTip(reason);
   }
 
   // Paint the name field for its mode. Editing → accent-outlined input (focus ring visible);
   // read-only → a plain title with NO border/focus ring (matches the browser's title look), so a
   // stray single-click focus never shows an editable-looking box. Project colour is kept in both.
   void MainWindow::applyProjectNameStyle(bool editing) {
-    if (!projectName_) return;
+    if (!nameBar_.field) return;
     const QString color = incognito_ ? QString() : currentProjectColor();
     const QColor c(color);
     // Default (no custom colour): a brighter grey than the browser's #80868f + bold, since Qt can't
@@ -122,7 +119,7 @@ namespace stencil::gui {
         (!color.isEmpty() && c.isValid()) ? c.name() : QStringLiteral("#9aa0a8");
     if (editing) {
       const QColor accent = accentPrimary(settings_.accentColor);
-      projectName_->setStyleSheet(
+      nameBar_.field->setStyleSheet(
           QString("QLineEdit{color:%1;font-weight:600;border:1px solid %2;border-radius:6px;"
                   "background:palette(base);padding:2px 6px;}"
                   "QLineEdit:focus{border:1px solid %2;}")
@@ -142,7 +139,7 @@ namespace stencil::gui {
                                .arg(accent.red())
                                .arg(accent.green())
                                .arg(accent.blue());
-      projectName_->setStyleSheet(
+      nameBar_.field->setStyleSheet(
           QString("QLineEdit{color:%1;font-weight:600;border:1px solid transparent;"
                   "border-radius:6px;background:transparent;padding:3px 8px;}"
                   "QLineEdit:hover{border:2px solid %2;padding:2px 7px;}"

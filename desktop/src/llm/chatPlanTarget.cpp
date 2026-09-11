@@ -364,7 +364,7 @@ namespace stencil::gui {
         return true;
       }
     }
-    w_.projectName_->setText(name);
+    w_.nameBar_.field->setText(name);
     w_.commitProjectName();
     return true;
   }
@@ -377,7 +377,7 @@ namespace stencil::gui {
     w_.setActiveProjectColor(color);
     return true;
   }
-  // §10 blankColor: the blankColorBtn_ path minus its dialog — blanks only
+  // §10 blankColor: the nameBar_.blankColorBtn path minus its dialog — blanks only
   // (note+skip otherwise), keeps every drawn line.
   bool ChatPlanTarget::setBlankColor(const QString& color, QString* note) {
     if (w_.blankColor_.isEmpty() || !w_.canvas_->hasImage()) {

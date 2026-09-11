@@ -483,13 +483,13 @@ class MainWindowGuiTest : public QObject {
     QToolBar* hdr = win.headerToolbar_;
     QVERIFY(hdr);
     const int before = hdr->height();
-    win.nameHover_ = true;
+    win.nameBar_.hover = true;
     win.refreshProjectNameButtons();
     QTest::qWait(200);
     QCOMPARE(hdr->height(), before);
     // …and the same going into edit mode, where ✓/✗ take their place.
-    win.projectName_->setEnabled(true);
-    QTest::mouseClick(win.projectNameEdit_, Qt::LeftButton);
+    win.nameBar_.field->setEnabled(true);
+    QTest::mouseClick(win.nameBar_.edit, Qt::LeftButton);
     QTest::qWait(200);
     QCOMPARE(hdr->height(), before);
   }
@@ -546,19 +546,19 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(rename, "Rename Project is discoverable as an action, not just a chord");
     QCOMPARE(rename->shortcut(), QKeySequence("Ctrl+Alt+N"));
     // Gated by the name field itself: a fresh window has no project, so nothing to rename.
-    QVERIFY(!win.projectName_->isEnabled());
+    QVERIFY(!win.nameBar_.field->isEnabled());
     QVERIFY(!rename->isEnabled());
     // An active project makes the name editable (updateProjectTitle), and the action follows.
     win.activeProjectId_ = QStringLiteral("test-project");
     win.refreshActions();
-    QVERIFY(win.projectName_->isEnabled());
+    QVERIFY(win.nameBar_.field->isEnabled());
     QVERIFY2(rename->isEnabled(), "the action did not follow the name field");
-    QVERIFY(!win.nameEditing_);
+    QVERIFY(!win.nameBar_.editing);
     rename->trigger();
     QTest::qWait(50);
-    QVERIFY2(win.nameEditing_, "the chord did not enter inline rename");
-    QVERIFY(!win.projectName_->isReadOnly());
-    QCOMPARE(win.projectName_, win.focusWidget());
+    QVERIFY2(win.nameBar_.editing, "the chord did not enter inline rename");
+    QVERIFY(!win.nameBar_.field->isReadOnly());
+    QCOMPARE(win.nameBar_.field, win.focusWidget());
     win.cancelProjectName();
   }
 
@@ -625,7 +625,7 @@ class MainWindowGuiTest : public QObject {
         {nullptr, win.imageFilter_, "image-filter"},
         {nullptr, win.compareCombo_, "compare-mode"},
         {nullptr, win.filterColorBtn_, "filter-color"},
-        {nullptr, win.blankColorBtn_, "blank-color-btn"},
+        {nullptr, win.nameBar_.blankColorBtn, "blank-color-btn"},
         {nullptr, win.zoom_, "zoom-input"},
         {nullptr, win.pageSize_, "page-size"},
         {nullptr, win.unitCombo_, "unit-select"},
@@ -635,10 +635,10 @@ class MainWindowGuiTest : public QObject {
         {nullptr, win.pointColorBtn_, "point-color"},
         {nullptr, win.pointSize_, "point-size"},
         {nullptr, win.drawModeBtn_, "draw-mode-toggle"},
-        {nullptr, win.projectNameEdit_, "project-name-edit"},
-        {nullptr, win.projectColorBtn_, "project-color-btn"},
-        {nullptr, win.projectNameAccept_, "project-name-accept"},
-        {nullptr, win.projectNameCancel_, "project-name-cancel"},
+        {nullptr, win.nameBar_.edit, "project-name-edit"},
+        {nullptr, win.nameBar_.colorBtn, "project-color-btn"},
+        {nullptr, win.nameBar_.accept, "project-name-accept"},
+        {nullptr, win.nameBar_.cancel, "project-name-cancel"},
     };
     for (const Pair& p : pairs) {
       // Both sides go through textOf: the browser writes its key into the data-title
@@ -9195,19 +9195,19 @@ class MainWindowGuiTest : public QObject {
     QTest::qWait(300);
     const auto paintedOut = [](QWidget* w) { return w->property("stencilPaintedOut").toBool(); };
 
-    QCursor::setPos(win.nameGroup_->mapToGlobal(win.nameGroup_->rect().center()));
+    QCursor::setPos(win.nameBar_.group->mapToGlobal(win.nameBar_.group->rect().center()));
     win.updateNameHover();
-    QTRY_VERIFY(!paintedOut(win.projectNameEdit_));
-    QVERIFY(!paintedOut(win.projectColorBtn_));
+    QTRY_VERIFY(!paintedOut(win.nameBar_.edit));
+    QVERIFY(!paintedOut(win.nameBar_.colorBtn));
 
     // Onto another control, and the pair goes — driven by the same recompute the app runs
     // when a pointer enters anything else (here: called directly, as the poll would).
     QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 60, 200)));
     win.updateNameHover();
-    QTRY_VERIFY_WITH_TIMEOUT(paintedOut(win.projectNameEdit_), 2000);
-    QVERIFY(paintedOut(win.projectColorBtn_));
+    QTRY_VERIFY_WITH_TIMEOUT(paintedOut(win.nameBar_.edit), 2000);
+    QVERIFY(paintedOut(win.nameBar_.colorBtn));
     // …and they keep their slots either way: painting out must never move the row.
-    QVERIFY(win.projectNameEdit_->isVisible() && win.projectColorBtn_->isVisible());
+    QVERIFY(win.nameBar_.edit->isVisible() && win.nameBar_.colorBtn->isVisible());
     beat();
   }
 
@@ -9228,11 +9228,11 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(!id.isEmpty());
     QVERIFY(win.loadProjectIntoCanvas(id, false));
     QTest::qWait(300);
-    win.nameHover_ = true;   // ✎/🎨 are hover-revealed; pin them on for the swap
+    win.nameBar_.hover = true;   // ✎/🎨 are hover-revealed; pin them on for the swap
     const auto held = [&win] {
       int n = 0;
-      for (QToolButton* b : { win.projectNameEdit_, win.projectColorBtn_,
-                              win.projectNameAccept_, win.projectNameCancel_ })
+      for (QToolButton* b : { win.nameBar_.edit, win.nameBar_.colorBtn,
+                              win.nameBar_.accept, win.nameBar_.cancel })
         if (b && b->isVisible()) ++n;
       return n;
     };
@@ -9242,15 +9242,15 @@ class MainWindowGuiTest : public QObject {
       QTest::qWait(50);
       QVERIFY2(held() <= 2, qPrintable(QString("entering: %1 chips held a slot").arg(held())));
     }
-    QVERIFY(win.projectNameAccept_->isVisible() && win.projectNameCancel_->isVisible());
+    QVERIFY(win.nameBar_.accept->isVisible() && win.nameBar_.cancel->isVisible());
 
     win.cancelProjectName();
     for (int i = 0; i < 10; ++i) {   // …and the whole way back
       QTest::qWait(50);
       QVERIFY2(held() <= 2, qPrintable(QString("leaving: %1 chips held a slot").arg(held())));
     }
-    QTRY_VERIFY(win.projectNameEdit_->isVisible() && win.projectColorBtn_->isVisible());
-    QVERIFY(!win.projectNameAccept_->isVisible() && !win.projectNameCancel_->isVisible());
+    QTRY_VERIFY(win.nameBar_.edit->isVisible() && win.nameBar_.colorBtn->isVisible());
+    QVERIFY(!win.nameBar_.accept->isVisible() && !win.nameBar_.cancel->isVisible());
     beat();
   }
 
@@ -9272,15 +9272,15 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(!id.isEmpty());
     QVERIFY(win.loadProjectIntoCanvas(id, false));
     QTest::qWait(300);
-    QVERIFY(win.projectName_ && win.projectNameEdit_ && win.projectColorBtn_);
+    QVERIFY(win.nameBar_.field && win.nameBar_.edit && win.nameBar_.colorBtn);
 
     // The chips: the browser's box, and its 4px gaps either side.
-    QCOMPARE(win.projectNameEdit_->size(), QSize(stencil::gui::kNameChipBox,
+    QCOMPARE(win.nameBar_.edit->size(), QSize(stencil::gui::kNameChipBox,
                                                  stencil::gui::kNameChipBox));
-    QCOMPARE(win.projectColorBtn_->size(), win.projectNameEdit_->size());
-    const QRect f(win.projectName_->mapTo(&win, QPoint(0, 0)), win.projectName_->size());
-    const QRect e(win.projectNameEdit_->mapTo(&win, QPoint(0, 0)), win.projectNameEdit_->size());
-    const QRect c(win.projectColorBtn_->mapTo(&win, QPoint(0, 0)), win.projectColorBtn_->size());
+    QCOMPARE(win.nameBar_.colorBtn->size(), win.nameBar_.edit->size());
+    const QRect f(win.nameBar_.field->mapTo(&win, QPoint(0, 0)), win.nameBar_.field->size());
+    const QRect e(win.nameBar_.edit->mapTo(&win, QPoint(0, 0)), win.nameBar_.edit->size());
+    const QRect c(win.nameBar_.colorBtn->mapTo(&win, QPoint(0, 0)), win.nameBar_.colorBtn->size());
     // 8px of air either side — at 4 the chips sat right against the field's edge (user
     // report, with a picture). Browser twin: .project-name-field's `gap`.
     QCOMPARE(e.left() - f.right() - 1, 8);
@@ -9303,17 +9303,17 @@ class MainWindowGuiTest : public QObject {
                        qRound(0.45 * accent.green() + 0.55 * rest.green()),
                        qRound(0.45 * accent.blue() + 0.55 * rest.blue()));
     QVERIFY2(!near(rest, accent, 60), "the title wears the ring at rest");
-    win.projectName_->setAttribute(Qt::WA_UnderMouse, true);
-    QEnterEvent enter(QPointF(5, 5), QPointF(5, 5), win.projectName_->mapToGlobal(QPointF(5, 5)));
-    QApplication::sendEvent(win.projectName_, &enter);
-    win.projectName_->update();
+    win.nameBar_.field->setAttribute(Qt::WA_UnderMouse, true);
+    QEnterEvent enter(QPointF(5, 5), QPointF(5, 5), win.nameBar_.field->mapToGlobal(QPointF(5, 5)));
+    QApplication::sendEvent(win.nameBar_.field, &enter);
+    win.nameBar_.field->update();
     QTest::qWait(150);
     const QColor hovered = edge();
     QVERIFY2(!near(hovered, rest, 24), "no ring appeared under the pointer");
     QVERIFY2(near(hovered, blend, 40),
              qPrintable(QString("the ring is not the shared 45%% accent: %1 (wanted ~%2)")
                             .arg(hovered.name(), blend.name())));
-    win.projectName_->setAttribute(Qt::WA_UnderMouse, false);
+    win.nameBar_.field->setAttribute(Qt::WA_UnderMouse, false);
     beat();
   }
 
@@ -15280,7 +15280,7 @@ class MainWindowGuiTest : public QObject {
     win.openPathFromOS(png_);
     QTest::qWait(200);
     const auto motion = withMotion();   // the slide is the whole point here
-    const int box = win.projectNameAccept_->maximumWidth();
+    const int box = win.nameBar_.accept->maximumWidth();
     QVERIFY(box > 20);
     for (int i = 0; i < 6; ++i) {   // in and straight back out, mid-slide every time
       win.enterNameEdit();
@@ -15289,9 +15289,9 @@ class MainWindowGuiTest : public QObject {
       QTest::qWait(60);
     }
     win.enterNameEdit();
-    QTRY_COMPARE(win.projectNameAccept_->width(), box);
-    QCOMPARE(win.projectNameCancel_->width(), box);
-    QVERIFY2(!win.projectNameAccept_->icon().isNull(), "the tick lost its glyph");
+    QTRY_COMPARE(win.nameBar_.accept->width(), box);
+    QCOMPARE(win.nameBar_.cancel->width(), box);
+    QVERIFY2(!win.nameBar_.accept->icon().isNull(), "the tick lost its glyph");
     win.cancelProjectName();
   }
 

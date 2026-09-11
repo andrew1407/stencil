@@ -125,11 +125,11 @@ namespace stencil::gui {
     // so only the field is tinted — mirroring the browser's coloured #project-name-input.
     const bool hasProject = !incognito_ && (!activeProjectId_.isEmpty() || remote);
     // Don't clobber the field while the user is typing in it.
-    if (projectName_ && !projectName_->hasFocus()) {
-      projectName_->setText(name);
-      projectName_->setEnabled(editable);
-      projectName_->setReadOnly(true);  // back to read-only after any edit (enter edit via ✎/dbl-click)
-      projectName_->setPlaceholderText(
+    if (nameBar_.field && !nameBar_.field->hasFocus()) {
+      nameBar_.field->setText(name);
+      nameBar_.field->setEnabled(editable);
+      nameBar_.field->setReadOnly(true);  // back to read-only after any edit (enter edit via ✎/dbl-click)
+      nameBar_.field->setPlaceholderText(
           incognito_ ? QStringLiteral("Incognito (unsaved)") : QStringLiteral("No project"));
       // Custom colour when set; otherwise the shared neutral grey (#80868f), readable on
       // light and dark — mirrors the browser's --project-name-fg (Qt has no text-shadow). The
@@ -149,13 +149,13 @@ namespace stencil::gui {
     // its enabled state at construction (these two start disabled — no project yet),
     // and nothing else re-reads it, so an enabled ✎/🎨 kept the forbidden cursor
     // forever.
-    if (projectColorBtn_) {
-      projectColorBtn_->setEnabled(hasProject);
-      projectColorBtn_->setCursor(hasProject ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
+    if (nameBar_.colorBtn) {
+      nameBar_.colorBtn->setEnabled(hasProject);
+      nameBar_.colorBtn->setCursor(hasProject ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
     }
-    if (projectNameEdit_) {
-      projectNameEdit_->setEnabled(editable);
-      projectNameEdit_->setCursor(editable ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
+    if (nameBar_.edit) {
+      nameBar_.edit->setEnabled(editable);
+      nameBar_.edit->setCursor(editable ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
     }
     // DESCRIPTION & ATTRIBUTES edits a saved LOCAL project's metadata (browser:
     // activeProjectId && !incognito); the tooltips carry the reason while greyed out.

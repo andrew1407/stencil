@@ -92,6 +92,12 @@ stencil_headless_test(stencil_popoverhost_headless
   SOURCES tests/popoverHost.headless.cpp
   LIBS Qt6::Widgets)
 
+# The project-name group's chip visibility (app/projectNameBar.hpp) — which of ✓/✗/✎/🎨
+# belong in the header row per state; header-only, so the test is the only compile unit.
+stencil_headless_test(stencil_projectnamebar_headless
+  SOURCES tests/projectNameBar.headless.cpp
+  LIBS Qt6::Core)
+
 # Scroll-reveal curve (app/scrollReveal.hpp) — how dim a row is at a given spot in its
 # scroller; header-only, so the test is the only extra compile unit.
 stencil_headless_test(stencil_scrollreveal_headless

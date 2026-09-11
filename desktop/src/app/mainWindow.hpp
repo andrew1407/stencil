@@ -2,6 +2,7 @@
 #include "chatDock.hpp"  // ChatDock::ProviderStatus (chatMirrorProviderStatus)
 #include "fullscreenController.hpp"
 #include "popoverHost.hpp"
+#include "projectNameBar.hpp"
 #include "sessionController.hpp"
 #include "formulaParser.hpp"
 #include "llmClient.hpp"
@@ -1002,9 +1003,9 @@ namespace stencil::gui {
     // doesn't clobber a peer's filter change). Cleared on save / reload.
     bool filterDirty_ = false;
 
-    // Project-name field (toolbar) + its inline-rename ✓/✗ buttons. Mirrors the
-    // browser topbar name field: shows the active project name, validated inline.
-    QLineEdit* projectName_ = nullptr;
+    // The header row's project-name group and its chip-visibility rule
+    // (app/projectNameBar.hpp).
+    ProjectNameBar nameBar_;
     // Compact "?" beside the name (browser parity): its tooltip carries the two
     // facts that would otherwise be unreadable with the tool rows collapsed —
     // the image size and, while incognito, "Incognito — not saved". Nothing else.
@@ -1012,20 +1013,7 @@ namespace stencil::gui {
     QAction* statusHintAction_ = nullptr;   // its slot in the header row (hides with it)
     bool toolbarsShown_ = true;             // the "?" is the collapsed state's readout
 
-    QToolButton* projectNameEdit_ = nullptr;    // ✎ rename affordance (enters edit mode)
-    bool tearingDown_ = false;                  // set in ~MainWindow: ignore late child signals
-    bool nameEditing_ = false;                  // true while the name field is in edit mode
-    bool nameHover_ = false;                     // cursor is over the name field / ✎ / 🎨 group
-    QToolButton* projectNameAccept_ = nullptr;
-    QToolButton* projectNameCancel_ = nullptr;
-    // Per-project accent swatch next to the name field (browser's color control):
-    // its popup chooses a custom name colour or reverts to the theme accent.
-    QToolButton* projectColorBtn_ = nullptr;
-    QToolButton* blankColorBtn_ = nullptr;   // recolour a blank project's background (blanks only)
-    // QToolBar::addWidget wraps each button in a QWidgetAction; show/hide must toggle THESE
-    // actions (not just the widgets) or the toolbar ignores it. Used by refreshProjectNameButtons.
-    QWidget* nameGroup_ = nullptr;   // field + ✎/🎨/✓/✗ in one hover region
-    QAction* blankColorBtnAction_ = nullptr;
+    bool tearingDown_ = false;   // set in ~MainWindow: ignore late child signals
 
     // inline toolbar widget groups (custom page, formulas)
     // The QWidgetAction handle (…Act_) is toggled, not the widget, so the

@@ -144,9 +144,9 @@ namespace stencil::gui {
     if (lineColorBtn_) updateColorSwatch(lineColorBtn_, lineColorValue_);
     if (pointColorBtn_) updateColorSwatch(pointColorBtn_, effectiveDefaultPointColor());
     if (filterColorBtn_) updateColorSwatch(filterColorBtn_, filterColorValue_);
-    if (blankColorBtn_ && blankColorBtn_->isVisible()) {
+    if (nameBar_.blankColorBtn && nameBar_.blankColorBtn->isVisible()) {
       const QColor blank(blankColor_);
-      updateColorSwatch(blankColorBtn_, blank.isValid() ? blank : QColor("#ffffff"));
+      updateColorSwatch(nameBar_.blankColorBtn, blank.isValid() ? blank : QColor("#ffffff"));
     }
     if (chatDock_) chatDock_->restyleIcons(themePalette(dark, settings_.accentColor));
     // The context-menu assistant row tracks the theme too (its rows/composer
@@ -387,11 +387,11 @@ namespace stencil::gui {
       // chips are accent-filled in every state, so the glyph is that ink throughout.
       return themedIcon(glyph, affordanceInk, kNameChipGlyph);
     };
-    if (projectNameEdit_) projectNameEdit_->setIcon(affordanceIcon("pencil"));
-    if (projectColorBtn_) projectColorBtn_->setIcon(affordanceIcon("palette"));
-    if (projectNameAccept_) projectNameAccept_->setIcon(affordanceIcon("check"));
-    if (projectNameCancel_) projectNameCancel_->setIcon(affordanceIcon("x"));
-    // blankColorBtn_'s icon is a live colour swatch (set in updateProjectTitle), not a themed glyph.
+    if (nameBar_.edit) nameBar_.edit->setIcon(affordanceIcon("pencil"));
+    if (nameBar_.colorBtn) nameBar_.colorBtn->setIcon(affordanceIcon("palette"));
+    if (nameBar_.accept) nameBar_.accept->setIcon(affordanceIcon("check"));
+    if (nameBar_.cancel) nameBar_.cancel->setIcon(affordanceIcon("x"));
+    // nameBar_.blankColorBtn's icon is a live colour swatch (set in updateProjectTitle), not a themed glyph.
     // Both Draw toggles own their own glyph (support/faceSwap.hpp), so they are repainted
     // through their face — instantly, this is a theme change and not a toggle.
     syncDrawModeFace(canvas_ && canvas_->drawMode() == CanvasWidget::DrawMode::Rect, false);

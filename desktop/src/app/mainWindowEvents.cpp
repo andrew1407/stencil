@@ -507,8 +507,8 @@ namespace stencil::gui {
     }
     // Hover-reveal for the name group: any Enter/Leave on the field or the ✎/🎨 buttons recomputes
     // hover (deferred so underMouse() settles — moving field→button stays "hovered", no flicker).
-    if (obj == nameGroup_ || obj == projectName_ || obj == projectNameEdit_
-        || obj == projectColorBtn_) {
+    if (obj == nameBar_.group || obj == nameBar_.field || obj == nameBar_.edit
+        || obj == nameBar_.colorBtn) {
       const QEvent::Type t = event->type();
       if (t == QEvent::Enter || t == QEvent::Leave)
         QTimer::singleShot(0, this, [this] { updateNameHover(); });
@@ -517,32 +517,32 @@ namespace stencil::gui {
     // group's own Leave arrived: crossing straight onto another row's icon left the ✎/🎨
     // lit while the pointer was three clusters away. Only
     // while the hover is actually held, so this costs nothing the rest of the time.
-    if (nameHover_ && obj != nameGroup_ && obj != projectName_ && obj != projectNameEdit_
-        && obj != projectColorBtn_
+    if (nameBar_.hover && obj != nameBar_.group && obj != nameBar_.field && obj != nameBar_.edit
+        && obj != nameBar_.colorBtn
         && (event->type() == QEvent::Enter || event->type() == QEvent::HoverEnter
             || event->type() == QEvent::MouseMove || event->type() == QEvent::HoverMove))
       QTimer::singleShot(0, this, [this] { updateNameHover(); });
-    if (obj == projectName_) {
+    if (obj == nameBar_.field) {
       const QEvent::Type t = event->type();
       if (t == QEvent::MouseButtonDblClick) {
         // Double-click a read-only name → enter edit mode (browser parity).
-        if (!nameEditing_) {
+        if (!nameBar_.editing) {
           enterNameEdit();
           return true;
         }
       } else if (t == QEvent::KeyPress) {
         if (static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape) {
           // Escape always drops focus (clears the outline). If mid-edit, revert too.
-          if (nameEditing_) cancelProjectName();
-          else projectName_->clearFocus();
+          if (nameBar_.editing) cancelProjectName();
+          else nameBar_.field->clearFocus();
           return true;
         }
       } else if (t == QEvent::FocusOut) {
         // Clicking away leaves the edit: revert. Deferred so a click on ✓ commits first
-        // (after which the field no longer has focus AND nameEditing_ is already false → no-op).
-        if (nameEditing_) {
+        // (after which the field no longer has focus AND nameBar_.editing is already false → no-op).
+        if (nameBar_.editing) {
           QTimer::singleShot(0, this, [this] {
-            if (nameEditing_ && projectName_ && !projectName_->hasFocus()) cancelProjectName();
+            if (nameBar_.editing && nameBar_.field && !nameBar_.field->hasFocus()) cancelProjectName();
           });
         }
       }

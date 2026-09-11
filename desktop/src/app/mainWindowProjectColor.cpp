@@ -67,7 +67,7 @@ namespace stencil::gui {
     // Non-native (helper) — the macOS shared NSColorPanel gets dismissed by our event
     // filters; Qt's own modal dialog stays put. Anchored on the 🎨 button that opened it.
     const QColor picked =
-        support::pickColorAnimated(seed, this, "Project name color", projectColorBtn_);
+        support::pickColorAnimated(seed, this, "Project name color", nameBar_.colorBtn);
     if (!picked.isValid()) return;   // user cancelled
     setActiveProjectColor(picked.name());
   }
@@ -91,9 +91,9 @@ namespace stencil::gui {
     // report) — and the same glass shimmer the context menu's rows sweep (browser
     // .project-menu-item parity; icon motion rides the app-wide filter).
     support::MenuShimmer shimmer(&menu);
-    support::revealMenuFrom(menu, projectColorBtn_);
+    support::revealMenuFrom(menu, nameBar_.colorBtn);
     QAction* chosen =
-        menu.exec(projectColorBtn_->mapToGlobal(QPoint(0, projectColorBtn_->height())));
+        menu.exec(nameBar_.colorBtn->mapToGlobal(QPoint(0, nameBar_.colorBtn->height())));
     if (chosen == pick) {
       // Defer so the menu's mouse grab is fully released before the modal picker opens — a live
       // grab is exactly what dismissed the dialog in the earlier direct-popup attempts.

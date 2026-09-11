@@ -56,7 +56,7 @@ namespace stencil::gui {
     if (!init.isValid()) init = QColor("#ffffff");
     // Qt's own dialog (not the OS-native one), anchored on the Blank swatch button.
     const QColor c =
-        support::pickColorAnimated(init, this, "Blank background color", blankColorBtn_);
+        support::pickColorAnimated(init, this, "Blank background color", nameBar_.blankColorBtn);
     if (!c.isValid()) return;
     applyBlankColor(c);
   }

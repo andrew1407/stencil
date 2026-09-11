@@ -182,7 +182,7 @@ namespace stencil::gui {
     updateProjectTitle();   // keep the window title + toolbar name field in sync
     // Rename follows the name field itself: only a project that CAN be renamed offers it
     // (the field is disabled for no project / incognito), so the menu entry and the ✎ agree.
-    if (actRenameProject_) actRenameProject_->setEnabled(projectName_ && projectName_->isEnabled());
+    if (actRenameProject_) actRenameProject_->setEnabled(nameBar_.field && nameBar_.field->isEnabled());
   }
 
 }  // namespace stencil::gui
