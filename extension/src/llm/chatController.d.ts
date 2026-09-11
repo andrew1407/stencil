@@ -1,6 +1,8 @@
 // Shapes for llm/chatController.js — the surface-independent half of the assistant turn
 // (llm-contract.md §7–§11). The page injects its capabilities; the controller owns the
-// history, the prompt, the plan validation and the rounds.
+// history, the prompt, the plan validation and the rounds. Its listing (chatListing.js),
+// open-action translation (openActions.js) and op executors (opExecutors.js) re-export
+// through it, so this file is the whole module's contract.
 import type { ChatMessage, LlmClient, ChatImage } from './llmClient.js';
 import type { OpPlan } from './opPlan.js';
 
