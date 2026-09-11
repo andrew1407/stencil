@@ -9,7 +9,7 @@
     "cli/src/console/attachments.zig": 362,
     "cli/src/console/handlers.zig": 77,
     "cli/src/console/llmPrompt.zig": 18,
-    "cli/src/console/logoFx.zig": 440,
+    "cli/src/console/logoFx.zig": 14,
     "cli/src/console/remoteEvents.zig": 257,
     "cli/src/console/screen.zig": 318,
     "cli/src/console/session.zig": 357,
