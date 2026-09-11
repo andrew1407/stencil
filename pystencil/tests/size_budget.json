@@ -4,7 +4,7 @@
   "files": {
     "pystencil/pystencil/_opschema.py": 398,
     "pystencil/pystencil/core.py": 366,
-    "pystencil/pystencil/layout.py": 272,
+    "pystencil/pystencil/layout.py": 217,
     "pystencil/tests/test_editor.py": 397,
     "pystencil/tests/test_fixture_conformance.py": 459,
     "pystencil/tests/test_image.py": 254,

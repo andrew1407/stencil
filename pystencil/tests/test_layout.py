@@ -9,26 +9,9 @@ when absent).
 
 from __future__ import annotations
 
-import importlib.util
-import sys
 import unittest
-from pathlib import Path
 
-
-# Load layout.py directly from its file path instead of `from pystencil.layout
-# import ...`. Importing through the package would run pystencil/__init__.py,
-# which eagerly imports sibling modules (core/image/...) added by other agents
-# and not yet present; this keeps the layout tests self-contained.
-_LAYOUT_PATH = Path(__file__).resolve().parents[1] / "pystencil" / "layout.py"
-_spec = importlib.util.spec_from_file_location("pystencil_layout", _LAYOUT_PATH)
-_layout = importlib.util.module_from_spec(_spec)
-# Register before exec: @dataclass resolves the module's __dict__ from
-# sys.modules[cls.__module__] when checking string annotations (PEP 563).
-sys.modules[_spec.name] = _layout
-_spec.loader.exec_module(_layout)
-Layout = _layout.Layout
-Line = _layout.Line
-Point = _layout.Point
+from pystencil.layout import Layout, Line, Point
 
 
 class LineSerializationTests(unittest.TestCase):
