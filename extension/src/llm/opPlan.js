@@ -199,15 +199,13 @@ const firstJsonObject = (text) => {
 // Extension rules (§8): §2 core ops at the top level DROP with a warning, and so do
 // "variants" (§1's leniency clause). Invalid plans THROW.
 // ── §11 interactive replies (`ask`) ─────────────────────────────────────────
-// A question put back to the user as a choice card, validated as strictly as an action.
-// The extension is not an editor, so an option's PREVIEW can only be an existing image
-// (`image.scanIndex`); an option carrying preview `actions` or a model-supplied
-// `image.url` keeps its label but loses the picture, with a warning (§11.2).
-// Validate the optional `ask` object → the normalised card, or null when absent. The
-// card's STRUCTURE (keys, caps, the image reference's exactly-one-of url / projectId /
-// scanIndex, http(s)-only urls) is the registry's ask schema; what this surface can SHOW
-// is decided here: an option carrying preview `actions` or a model-supplied `image.url`
-// keeps its label but loses the picture, with a warning (§11.2).
+// A question put back to the user as a choice card, validated as strictly as an action:
+// null when absent. The card's STRUCTURE (keys, caps, the image reference's
+// exactly-one-of url / projectId / scanIndex, http(s)-only urls) is the registry's ask
+// schema; what this surface can SHOW is decided here — the extension is not an editor, so
+// an option's PREVIEW can only be an existing image (`image.scanIndex`), and one carrying
+// preview `actions` or a model-supplied `image.url` keeps its label but loses the picture,
+// with a warning (§11.2).
 export const validateAsk = (ask, listingLength, warnings) => {
   if (ask == null) return null;
   SCHEMA.validateAsk(ask);
