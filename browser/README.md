@@ -264,7 +264,7 @@ This is the one place the browser app uses a build step, and it stays strictly o
 the app itself is unchanged and `npm run serve` never touches it. It needs the sole dev
 dependency, **vite** (`npm install` in this directory); the bundling rules are written out
 inline in [`vite.config.js`](vite.config.js) so no plugin packages come with it. Its
-No lockfile is tracked, so CI installs with `npm install` and resolves vite's own
+`package-lock.json` IS tracked, so CI installs with `npm ci`, which pins vite's own
 dependency ranges fresh on each run.
 
 Every build ends by re-reading what it just wrote ([`tools/assertSelfContained.js`](tools/assertSelfContained.js)):

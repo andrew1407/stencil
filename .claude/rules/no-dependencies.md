@@ -14,7 +14,8 @@ always the wrong move here. Match what each subproject already does:
   agreed with the user: `vite` as a **local dev dependency** powering the optional
   `npm run build` single-file bundle (`browser/vite.config.js` → `stencil.html`). Its
   bundling rules are written out inline in that config — **don't add vite plugins** — no
-  lockfile is tracked, and nothing in the app may come to depend on the build.
+  lockfile is tracked (`browser/package-lock.json`, installed with `npm ci`), and nothing in
+  the app may come to depend on the build.
 - **extension/** — same: plain MV3, `node --test`, no deps.
 - **core/** — **STL-only, codec-free, GUI-free** C++17. No Qt, no image codec, no DOM, no
   third-party libs. The one exception is Doctest — a single pinned header fetched at

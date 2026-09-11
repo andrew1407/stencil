@@ -132,10 +132,3 @@ bot/**/obj/
 bot/.env
 bot/packages/
 
-# Dependency lock files — not tracked (user decision): resolvers regenerate them on
-# install, so CI installs with `npm install` / plain `cargo build` / `go mod vendor`
-# rather than the lockfile-pinned `npm ci`.
-browser/package-lock.json
-e2e/package-lock.json
-mcp/Cargo.lock
-server/go.sum

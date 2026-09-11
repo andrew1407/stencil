@@ -42,7 +42,7 @@ Doctest; each other surface uses its platform's default.
 | **mcp** | `cd mcp && cargo build` (→ `target/debug/stencil-mcp`) | `cargo test` (e2e self-skips without the CLI binary) | `claude mcp add stencil -- $(pwd)/target/debug/stencil-mcp` |
 | **server** | `cd server && go build ./...` | `go test ./...`; `go test -race ./internal/hub/...` (store/bus e2e self-skip without `TEST_DATABASE_URL`/`REDIS_URL`) | `go run ./cmd/stencil-server`; needs `DATABASE_URL` — see the sample env file in `server/` |
 | **bot** | `cd bot && dotnet build Stencil.TelegramBot.slnx` | `dotnet test Stencil.TelegramBot.slnx` (offline: no token, server, CLI or Redis) | `dotnet run --project src/Stencil.TelegramBot.Bot` (needs `TELEGRAM_BOT_TOKEN` + the CLI) |
-| **e2e** | `cd e2e && npm install && npx playwright install chromium` | `npm test` | `npm run test:ui`; full stack: `E2E_STACK=1 npm test` (docker compose) |
+| **e2e** | `cd e2e && npm ci && npx playwright install chromium` | `npm test` | `npm run test:ui`; full stack: `E2E_STACK=1 npm test` (docker compose) |
 
 - `node --test` **never loads wasm** — it always runs the JS fallback path.
 - **wasm build** (needs Emscripten): `cd browser && npm run build-wasm` → the gitignored

@@ -131,7 +131,7 @@ needs the built binary — `(cd cli && zig build)` or point `STENCIL_CLI` at one
 
 ```bash
 cd e2e
-npm install
+npm ci
 npx playwright install chromium        # add --with-deps on Linux CI
 
 # UI surfaces only — no Docker needed:
@@ -183,6 +183,6 @@ E2E_STACK=1 E2E_SKIP_COMPOSE=1 npm test   # uses whatever is on SERVER_URL (defa
 ## CI
 
 The `e2e` job in `.github/workflows/ci.yml` runs this harness on push/PR to `main`,
-parallel to the nine unit jobs: `npm install` → `playwright install --with-deps chromium`
+parallel to the nine unit jobs: `npm ci` → `playwright install --with-deps chromium`
 → `docker compose up -d --wait db redis server` → `xvfb-run -a npm test` with `E2E_STACK=1`.
 The Playwright HTML report is uploaded as an artifact on failure.

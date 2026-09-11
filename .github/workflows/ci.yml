@@ -127,12 +127,10 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '22'
-      # No lockfile is tracked, so this resolves vite's own dependency ranges (rolldown,
-      # lightningcss, …) fresh on every run — `npm ci` needs a lockfile, `npm install`
-      # does not, and setup-node's npm cache cannot be keyed without one either.
+      # browser/package-lock.json is tracked, so install exactly what it pins.
       - name: Install vite (the only dev dependency)
         working-directory: browser
-        run: npm install
+        run: npm ci
       - name: Build + verify stencil.html
         working-directory: browser
         run: npm run build
@@ -291,10 +289,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       - name: Build
         working-directory: mcp
-        run: cargo build --verbose
+        run: cargo build --locked --verbose
       - name: Test
         working-directory: mcp
-        run: cargo test --verbose
+        run: cargo test --locked --verbose
         env:
           STENCIL_CLI: ${{ github.workspace }}/cli/zig-out/bin/stencil
 
@@ -336,13 +334,12 @@ jobs:
           go-version: '1.26'
           # No go.sum is tracked, so there is nothing to key the module cache on.
           cache: false
-      # Neither go.sum nor vendor/ is tracked, so rebuild both: `go mod tidy` writes the
-      # checksums (plain `go mod download` leaves them incomplete and vendoring then fails),
-      # and vendor/ is what every build/vet/test step uses via -mod=vendor.
+      # go.sum is tracked; verify it matches go.mod, then vendor from it (vendor/ is what
+      # every build/vet/test step uses via -mod=vendor).
       - name: Vendor dependencies
         working-directory: server
         run: |
-          go mod tidy
+          go mod verify
           go mod vendor
       - name: Build
         working-directory: server
@@ -382,7 +379,7 @@ jobs:
         run: zig build
       - name: Install harness deps
         working-directory: e2e
-        run: npm install
+        run: npm ci
       - name: Install Chromium + system deps
         working-directory: e2e
         run: npx playwright install --with-deps chromium

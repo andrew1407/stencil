@@ -17,7 +17,7 @@ its own tree, plus the cross-tree inputs it compiles, embeds, or pins parity aga
 | Job | What it does |
 |---|---|
 | **browser** | `npm test` (Node's runner). wasm-parity self-skips here — no wasm artifact. |
-| **single-file** | `npm install` + `npm run build` in `browser/`. The build self-verifies that the emitted `stencil.html` needs no sibling file and embeds no local path. No lockfile is tracked, so it installs with `npm install` — `npm ci` would need one. |
+| **single-file** | `npm install` + `npm run build` in `browser/`. The build self-verifies that the emitted `stencil.html` needs no sibling file and embeds no local path. `browser/package-lock.json` is tracked, so it installs with `npm ci`. |
 | **extension** | `npm test` over the chrome/DOM-free modules. |
 | **core** | CMake + Doctest via `ctest`. |
 | **desktop** | Qt build + the headless ctest cases, **including the `stencil_mainwindow_gui` QtTest e2e**. |
