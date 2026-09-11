@@ -1,12 +1,10 @@
 // ── Shared UI motion helpers (mirror of browser/js/ui/motion.js) ────────────
-// Pure decoration: without an IntersectionObserver/MutationObserver nothing here
-// runs and every list simply shows normally. CSS owns the keyframes
-// (lib/animations.css); this file only toggles classes.
+// Pure decoration: with no IntersectionObserver/MutationObserver nothing runs and lists
+// show normally. CSS owns the keyframes (lib/animations.css); this only toggles classes.
 import { startCloud, resolveColour, PARTICLE_STYLES, paletteCss } from './dustCloud.js';
 
-// Rows only dissolve by the amount the scroller is ALREADY clipping them — a row you
-// can see in full is never touched. Decoration must never cost legibility (the grain
-// is finer than a glyph's strokes), so only the part already being cut off dissolves.
+// Rows dissolve only by the amount the scroller is ALREADY clipping them: decoration
+// must never cost legibility (the grain is finer than a glyph's strokes).
 export const REVEAL_ITEM_CLASS = 'reveal-item';
 export const REVEAL_IN_CLASS = 'reveal-in';
 export const REVEAL_ENTERING_CLASS = 'reveal-entering';
@@ -24,8 +22,8 @@ export const revealDissolve = (top, bottom, viewH) => {
 };
 
 // Grain for a row. The dot screen covers the whole element, so the clipped share won't
-// do: a row taller than the scroller is clipped by definition and would stay speckled.
-// Showing as much as the viewport holds counts as fully visible. Pure.
+// do — a row taller than the scroller would stay speckled. Showing as much as the
+// viewport holds counts as fully visible. Pure.
 export const revealGrain = (top, bottom, viewH) => {
   const h = bottom - top;
   if (viewH <= 0 || h <= 0) return 0;
@@ -35,8 +33,7 @@ export const revealGrain = (top, bottom, viewH) => {
 
 // Watch `root` and ramp every child matching `selector` as it scrolls. Returns a
 // disconnect function; safe in any environment. Scrolling must stay cheap: geometry is
-// measured once per list change (per-frame getBoundingClientRect forces a layout and
-// stutters), and the mask is mounted only on rows actually straddling an edge.
+// measured once per list change, never per frame (rect reads force a layout).
 export function observeReveal(root, selector) {
   const noop = () => {};
   if (!root?.addEventListener || typeof requestAnimationFrame === 'undefined') return noop;
@@ -62,8 +59,6 @@ export function observeReveal(root, selector) {
       const top = row.top - scrollTop;             // pure arithmetic — no layout read
       const bottom = top + row.h;
       const d = revealDissolve(top, bottom, viewH);
-      // Only a row straddling an edge needs the mask; everything else is either fully
-      // readable or fully clipped away by the scroller.
       const masked = d > 0.001 && d < 0.999;
       if (masked !== row.masked) {
         row.masked = masked;
@@ -117,25 +112,23 @@ export function observeReveal(root, selector) {
 }
 
 // ── Leaving ─────────────────────────────────────────────────────────────────
-// A row about to be destroyed collapses and fades out first, so a delete reads as
-// the row going away rather than the list jumping. The caller does the actual
-// removal in the callback — this only buys it the time. Mirrors the browser twin.
+// A row about to be destroyed collapses and fades first, so a delete reads as the row
+// going away rather than the list jumping. The caller still does the removal in the
+// callback — this only buys it the time. Mirrors the browser twin.
 export const LEAVE_MS = 220;
-// Chat entries leave more slowly and in a finer grid than a list row (browser
-// motion.js twin): a message is something you deleted on purpose, and the extra time
-// + particles are what make that read as "it dissolved" rather than "it blinked out".
+// Chat entries leave more slowly and in a finer grid than a list row (browser twin):
+// the extra time reads as "it dissolved" rather than "it blinked out".
 export const CHAT_LEAVE_MS = 260;
 export const CHAT_DISINTEGRATE_COLS = 32;
 export const CHAT_DISINTEGRATE_ROWS = 16;
 export const LEAVING_CLASS = 'leaving';
 
-// A single removal scatters ONE element, but a WIPE scatters every row at once — and
-// the cost is the sum, not the per-row grid. So the mesh is budgeted: one row keeps the
-// full fine grain, a mass clear coarsens each row until the total fits. Pure — unit-tested.
+// A wipe scatters every row at once and the cost is the sum, not the per-row grid, so
+// the mesh is budgeted: one row keeps the fine grain, a mass clear coarsens each row
+// until the total fits. Pure — unit-tested.
 export const SCATTER_TILE_BUDGET = 1200;   // browser motion.js twin
-// …and past this many simultaneous rows the extra ones simply fade: a dozen scatters
-// at once is already more than the eye resolves, and 200 of them would blow any mesh
-// budget however coarse it got.
+// …and past this many simultaneous rows the extra ones simply fade: no mesh budget,
+// however coarse, survives 200 of them.
 export const SCATTER_MAX_ROWS = 12;
 export const scatterGridFor = (count, index = 0) => {
   const n = Math.min(Math.max(1, count | 0), SCATTER_MAX_ROWS);
@@ -143,8 +136,8 @@ export const scatterGridFor = (count, index = 0) => {
   const fine = { cols: CHAT_DISINTEGRATE_COLS, rows: CHAT_DISINTEGRATE_ROWS };
   const total = n * fine.cols * fine.rows;
   if (total <= SCATTER_TILE_BUDGET) return fine;
-  // Scale both axes by the same factor, so the cells stay square-ish, and keep a floor
-  // — below it the "dust" reads as broken glass instead.
+  // Both axes by the same factor so cells stay square-ish; below the floor the "dust"
+  // reads as broken glass.
   const k = Math.sqrt(SCATTER_TILE_BUDGET / total);
   return { cols: Math.max(8, Math.round(fine.cols * k)), rows: Math.max(4, Math.round(fine.rows * k)) };
 };
@@ -160,9 +153,8 @@ export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows
     const h = el.getBoundingClientRect().height;
     if (h) el.style.setProperty('--leave-h', `${h}px`);
   }
-  // The row's own box collapses (the list closes the gap immediately) while a copy
-  // scatters into particles in their OWN fixed layer with their own lifetime — the row
-  // never waits for them. cols === 0 is the budget's "fade only" (scatterGridFor).
+  // The box collapses (the list closes the gap at once) while a copy scatters in its OWN
+  // fixed layer — the row never waits for it. cols === 0 is scatterGridFor's "fade only".
   if (cols !== 0) disintegrate(el, { ...(cols ? { cols } : {}), ...(rows ? { rows } : {}) });
   el.classList.add(LEAVING_CLASS);
   return new Promise((resolve) => setTimeout(() => { finish(); resolve(); }, ms));
@@ -170,19 +162,17 @@ export function leaveThenRemove(el, done = () => {}, { ms = LEAVE_MS, cols, rows
 
 // How long a wipe REALLY lasts on screen (browser motion.js twin): leaveThenRemove
 // resolves on the short collapse while particles fall for DISINTEGRATE_MS, so a caller
-// swapping in a placeholder must wait for the longer one. 0 under reduced motion; just
-// the collapse when the mode flies no particles ('slide').
+// swapping in a placeholder must wait for the longer one.
 export const wipeDurationMs = () => {
   if (motionReduced()) return 0;
   return dustEnabled() ? Math.max(LEAVE_MS, DISINTEGRATE_MS) : LEAVE_MS;
 };
 
 // ── List hold: wipes in flight (browser motion.js twin) ─────────────────────
-// begin() opens one hold per playing leave/materialize and returns a settle fn: await
-// it AFTER the removal — it waits out the REAL wipe (wipeDurationMs) and runs `settle`
-// exactly once. While any hold is pending, out-of-band re-render triggers must wait —
-// their rebuild cuts the leave short. finalizeAll() settles everything NOW, for a view
-// closing mid-animation. Timers injectable, so the semantics are unit-tested.
+// begin() opens one hold per playing leave/materialize and returns a settle fn: await it
+// AFTER the removal — it waits out the REAL wipe (wipeDurationMs) and runs `settle` once.
+// While a hold is pending an out-of-band re-render must wait; its rebuild cuts the leave
+// short. finalizeAll() settles everything NOW, for a view closing mid-animation.
 export const createListHold = ({ settle = () => {}, wait = wipeDurationMs, setTimer = setTimeout } = {}) => {
   const pending = new Set();
   const begin = () => {
@@ -210,8 +200,7 @@ export const emptyStateVisible = (count, holding = false) => count === 0 && !hol
 
 // ── Filtering a list, in and out ────────────────────────────────────────────
 // A row the FILTER stopped admitting is not a row that was DELETED: no particles, and a
-// shorter, lighter collapse than the destructive leave above — narrowing a list must
-// never read as destroying part of it. Arrivals play the mirror of it.
+// lighter collapse — narrowing a list must never read as destroying part of it.
 export const FILTER_LEAVE_MS = 150;
 export const FILTER_ENTER_MS = 180;
 export const FILTER_OUT_CLASS = 'filter-out';
@@ -222,8 +211,8 @@ export const prefersReducedMotion = () => {
   try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
 };
 // ── The motion mode (browser motionPrefs.js twin) ───────────────────────────
-// The user's own switch, kept by the pre-paint classic script lib/accent.js
-// (window.StencilMotion), asked live so a change on the options page reaches an open popup
+// The user's switch, kept by the pre-paint classic script lib/accent.js
+// (window.StencilMotion), asked live so an options-page change reaches an open popup
 // without a reload. Without the script only the OS preference speaks.
 const motionPref = () => globalThis.StencilMotion || null;
 export const motionMode = () => motionPref()?.get?.() ?? 'particles';
@@ -245,8 +234,8 @@ export const diffListKeys = (prev = [], next = []) => {
 };
 
 // Play ONE row out as a filter exclusion (no particles, the light collapse), then run
-// `done`. Like leaveThenRemove, `done` ALWAYS runs — no element or reduced motion just
-// skips the animation. For a whole re-render use createFilterTransition below.
+// `done` — which ALWAYS runs, as in leaveThenRemove. For a whole re-render use
+// createFilterTransition below.
 export function filterLeave(el, done = () => {}, { ms = FILTER_LEAVE_MS,
                                                    reduced = prefersReducedMotion, setTimer = setTimeout } = {}) {
   const finish = () => { try { done(); } catch { /* the caller owns its own errors */ } };
@@ -260,16 +249,11 @@ export function filterLeave(el, done = () => {}, { ms = FILTER_LEAVE_MS,
 }
 
 // Wrap a list that re-renders WHOLESALE (`innerHTML = ''` + rebuild) so a filter change
-// animates both ways: call begin() before the wipe and end() after the rebuild. Rows
-// whose key is new ramp in; rows whose key is gone are put back where they stood purely
-// to play their exit ("ghosts") and dropped when it ends. Rows are matched by
+// animates both ways: begin() before the wipe, end() after the rebuild. New keys ramp in;
+// gone keys are put back where they stood purely to play their exit ("ghosts"). Matched by
 // `el.dataset[keyAttr]`; anything without one (an empty-state row) is ignored.
-//
-// Correctness outranks the decoration: begin() kills every ghost still on screen first,
-// so a burst of filter changes can neither stack animations nor strand a row — after
-// end() the list holds exactly the rebuilt set, plus ghosts that are on their way out
-// and belong to nothing. Under reduced motion nothing is added at all. Timers and the
-// media query are injectable, so the semantics are unit-tested.
+// Correctness outranks the decoration: begin() kills every ghost first, so a burst of
+// filter changes can neither stack animations nor strand a row.
 export const createFilterTransition = ({
   list, keyAttr = 'key', ms = FILTER_LEAVE_MS, enterMs = FILTER_ENTER_MS,
   reduced = prefersReducedMotion, setTimer = setTimeout, clearTimer = clearTimeout,
@@ -285,8 +269,7 @@ export const createFilterTransition = ({
     g.el.remove?.();
     ghosts = ghosts.filter((x) => x !== g);
   };
-  // Every ghost goes NOW: before each render (the same row must never animate twice)
-  // and on teardown.
+  // Every ghost goes NOW: the same row must never animate twice.
   const clear = () => {
     for (const g of [...ghosts]) drop(g);
     ghosts = [];
@@ -317,8 +300,7 @@ export const createFilterTransition = ({
     before.forEach(({ el, key }, i) => {
       if (!gone.has(key) || !el.classList) return;
       onLeave(el);
-      // Freeze the height so the collapse has a start value — `height: auto` has none
-      // (the same trick leaveThenRemove plays with --leave-h).
+      // Freeze the height so the collapse has a start value — `height: auto` has none.
       const h = el.getBoundingClientRect ? el.getBoundingClientRect().height : 0;
       if (h) el.style?.setProperty?.('--leave-h', `${h}px`);
       el.classList.remove(FILTER_IN_CLASS);
@@ -337,24 +319,20 @@ export const createFilterTransition = ({
 };
 
 // ── Disintegration ("the snap") ─────────────────────────────────────────────
-// A removed element comes apart into MOTES: one round speck per grid cell, painted in
-// the element's own colours (speckPainter), drifting off in a staggered sweep. Never
-// clones of the element — a clone per cell was hundreds of copies of a row's whole
-// subtree, and at mote size it showed nothing a speck does not. Mirror of browser
-// motion.js; the tiles live in a FIXED layer because the row is collapsing under them.
-// Half again the app's original 900ms wipe, in step with the browser's DISINTEGRATE_MS:
-// 520 and 260 were both tried and read as hurried.
+// A removed element comes apart into MOTES: one round speck per grid cell in the
+// element's own colours (speckPainter), drifting off in a staggered sweep. Never clones
+// of the element — hundreds of copies of a row's subtree show nothing a speck does not.
+// Mirror of browser motion.js; the layer is FIXED because the row collapses under it.
 export const DISINTEGRATE_MS = 1350;
-// A fine grid: at 8x4 the cells read as big rectangles sliding apart. Small cells are
-// what make it read as ash rather than a broken window (browser DISINTEGRATE_*).
+// A fine grid: at 8x4 the cells read as big rectangles sliding apart, not as ash
+// (browser DISINTEGRATE_*).
 export const DISINTEGRATE_COLS = 34;
 export const DISINTEGRATE_ROWS = 16;
 // However late a mote sets off, it still gets this long to fly: the floor keeps the last
 // grains of a short flight from being a blink rather than a flight (browser twin).
 export const MIN_TILE_MS = 160;
-// A gathering tile's flight, and a mote's own jitter, as SHARES of the span (the CSS
-// defaults' 0.48s and 60ms of 0.9s) — not divisions by it: shortening DISINTEGRATE_MS
-// must shorten both with it, not hand them a bigger slice of a smaller flight.
+// A gathering tile's flight and a mote's jitter as SHARES of the span, not divisions by
+// it: shortening DISINTEGRATE_MS must shorten both with it.
 export const TILE_GATHER_SHARE = 480 / 900;
 export const TILE_JITTER_SHARE = 60 / 900;
 
@@ -366,10 +344,9 @@ export const tileNoise = (cx, cy) => {
 };
 
 // ── The waypoint: no mote flies a straight line (browser motion.js twin) ────
-// Part-way along its throw each mote is pushed off its line by its own amount, to its
-// own side — a bend, not a beam — so a cloud churns instead of radiating in spokes.
-// CSS plays it as the mid keyframe (--mx/--my; animations.css stTileScatter and kin).
-// The push is a share of the throw, capped. Pure — unit-tested.
+// Part-way along its throw each mote is pushed off its line by its own amount, to its own
+// side, so a cloud churns instead of radiating in spokes. CSS plays it as the mid keyframe
+// (--mx/--my; animations.css stTileScatter and kin). Pure — unit-tested.
 export const WAYPOINT_ALONG = 0.62;
 export const SWIRL_SHARE = 0.32;
 export const SWIRL_MAX_PX = 44;
@@ -383,27 +360,23 @@ export const tileWaypoint = (dx, dy, q) => {
   };
 };
 
-// Where a cell goes and when it starts. The sweep erodes the element from one edge
-// (delay grows with progress) and every cell drifts, further the later it goes.
-// `reverse` inverts only the SWEEP (for the gather — see reintegrate): the flight
-// path itself is shared, merely played backwards. Pure.
-// `span` is the flight's own length: the sweep and its jitter are SHARES of it, so a
-// chat entry arriving on a shorter clock (CHAT_ENTER_MS) still lands every mote in time.
+// Where a cell goes and when it starts. The sweep erodes the element from one edge and
+// every cell drifts, further the later it goes. `reverse` inverts only the SWEEP (the
+// gather — see reintegrate); the path is shared, played backwards. `span` is the flight's
+// length, and the sweep and jitter are SHARES of it, so a shorter clock still lands. Pure.
 export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS, reverse = false,
                            span = DISINTEGRATE_MS) => {
   const n = tileNoise(cx, cy);
-  // A second, decorrelated noise so a mote's SIDEWAYS drift is independent of its fall
-  // and its spin — one hash drove all three, which made whole diagonals move as one and
-  // read as a sheet tearing rather than a thing coming apart. A third bends the path.
+  // Decorrelated noises: one hash driving drift, fall and spin moves whole diagonals as
+  // one and reads as a sheet tearing. A third bends the path.
   const m = tileNoise(cx + 41, cy + 17);
   const q = tileNoise(cx + 97, cy + 53);
   // 0 at the TOP row (goes first), 1 at the bottom (goes last): the row crumbles from
   // its top edge downward, the way the cleared image does.
   const progress = rows > 1 ? cy / (rows - 1) : 0;
-  // A SCATTER's sweep is half the gather's: the row itself is gone in LEAVE_MS, and a
-  // mote still at its 0% pose past that is a dot screen sitting where the row was, not
-  // sand leaving (the same halving surfaceMotion's delayScale does). The gather keeps
-  // the full sweep — its motes are the row forming, and there is nothing under them.
+  // A SCATTER's sweep is half the gather's: the row is gone in LEAVE_MS, and a mote still
+  // at its 0% pose past that reads as a dot screen sitting where the row was. The gather
+  // keeps the full sweep — its motes ARE the row forming.
   const sweep = span * (reverse ? 0.4 : 0.2);
   const delay = Math.round((reverse ? 1 - progress : progress) * sweep + n * span * TILE_JITTER_SHARE);
   // …and the motes FALL, fanning out as they go. Signed drift, so they spread both
@@ -418,9 +391,9 @@ export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
   };
 };
 
-// Motes sized in PIXELS, not as a share of the element — a fixed grid over a wide row
-// gives slivers, over a small card gives real dust. Aim for MOTE_PX; the quoted grid's
-// cell COUNT is the frame-budget ceiling. Pure — unit-tested (browser motion.js twin).
+// Motes sized in PIXELS, not as a share of the element — a fixed grid gives slivers on a
+// wide row. Aim for MOTE_PX; the quoted grid's cell COUNT is the frame-budget ceiling.
+// Pure — unit-tested (browser motion.js twin).
 export const MOTE_PX = 7;
 export const reshapeGrid = (cols, rows, w, h, px = MOTE_PX) => {
   const budget = Math.max(1, cols * rows);
@@ -435,9 +408,8 @@ export const reshapeGrid = (cols, rows, w, h, px = MOTE_PX) => {
   return { cols: c, rows: r };
 };
 
-// Re-anchor a still-flying cloud to `el`'s CURRENT box (browser motion.js twin). The
-// host's left/top are pinned once, at launch — a scroll or layout change that moves `el`
-// afterwards leaves the cloud stranded at the old spot. A no-op when `el` owns no cloud.
+// Re-anchor a still-flying cloud to `el`'s CURRENT box (browser motion.js twin): the
+// host's left/top are pinned once, at launch, so a scroll strands it at the old spot.
 export function retargetDust(el) {
   if (!el?.__dustHost || !el.getBoundingClientRect) return;
   const r = el.getBoundingClientRect();
@@ -446,8 +418,8 @@ export function retargetDust(el) {
   el.__dustHost.style.top = `${r.top}px`;
 }
 
-// Drop the dust layer an element still owns, if any. A superseding open/close calls
-// this, so a double-clicked menu never strands a cloud over the page.
+// Drop the dust layer an element still owns. A superseding open/close calls this, so a
+// double-clicked menu never strands a cloud over the page.
 export function cancelDust(el) {
   if (!el) return;
   clearTimeout(el.__dustTimer);
@@ -468,7 +440,7 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
                                    hostClass = '', paintTile = null } = {}) {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect || !document.body) return false;
   // Every element-sized cloud is built here, so this is where the mode turns particles
-  // off: a `false` return leaves the caller on its own CSS entrance, as it always has.
+  // off: a `false` return leaves the caller on its own CSS entrance.
   if (!dustEnabled()) return false;
   try {
     cancelDust(el);   // one cloud per element: the newest gesture owns it
@@ -484,9 +456,8 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     host.inert = true;
     const span = ms || DISINTEGRATE_MS;
     // A surface flies on its own (shorter) clock; a row keeps the defaults. A ROW gather
-    // on its own clock (a chat entry) keeps the default's proportions: the grain's
-    // flight is the span less the reversed sweep (0.48s of 0.9s), so the last mote to
-    // set off still lands before the veil lifts.
+    // on its own clock keeps the default's proportions, so the last mote to set off still
+    // lands before the veil lifts.
     const gatherMs = toward || !gather ? span : Math.round(span * TILE_GATHER_SHARE);
     if (ms) {
       host.style.setProperty('--dust-ms', `${ms}ms`);
@@ -498,10 +469,9 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     host.style.height = `${r.height}px`;
     const cellW = r.width / cols;
     const cellH = r.height / rows;
-    // Every grain, computed once: its home (the cell's centre), its throw and bend
-    // (tileMotion / surfaceMotion), its colour, size and clock. The cloud is then ONE
-    // canvas evaluating these per frame (dustCloud.js) — no node per mote, so a
-    // dialog-sized cloud costs a few batched fills rather than hundreds of layers.
+    // Every grain computed once: home, throw and bend (tileMotion / surfaceMotion),
+    // colour, size, clock. ONE canvas then evaluates these per frame (dustCloud.js) — no
+    // node per mote, so a dialog-sized cloud costs batched fills, not hundreds of layers.
     const motes = [];
     for (let cy = 0; cy < rows; cy++) {
       for (let cx = 0; cx < cols; cx++) {
@@ -512,9 +482,7 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
         // The speck's size, opacity and glint; its colour comes from the palette below.
         const speck = paint({ cx, cy, cols, rows, cellW, cellH });
         // The sweep is INSIDE the span, never added to it: a late mote flies the window
-        // it has left, so the whole cloud is done at `span` instead of trailing
-        // stragglers past it. Gathers already fit — their flight is the short gather
-        // clock and the sweep is what fills the rest.
+        // it has left, so the whole cloud is done at `span` with no stragglers.
         motes.push({
           x: r.left + (cx + 0.5) * cellW, y: r.top + (cy + 0.5) * cellH,
           dx: m.dx, dy: m.dy, mx: m.mx, my: m.my, r: speck.px / 2, s: m.scale, a: speck.alpha,
@@ -531,23 +499,20 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
     const style = styleCode();
     const paints = paletteCss();
     host.__cloud = { motes, colours: paints, flight: kind, span, style };   // what a test reads
-    // Appended to the element's own PARENT, not <body>: a row's cloud is torn down with
-    // the list it belongs to. The host stays position:fixed, so it still escapes the
-    // scroller's clipping. A SURFACE goes on <body> outright: its own parent (a dialog
-    // backdrop) is about to be removed under it. `hostEl` is the middle ground a chat
-    // entry asks for: outside the transcript, so nothing that walks it (the clear gate,
-    // the reveal observer) meets the layer, but still inside its section.
+    // The element's own PARENT, not <body>: a row's cloud is torn down with its list, and
+    // position:fixed still escapes the scroller's clipping. A SURFACE goes on <body> —
+    // its parent (a dialog backdrop) is about to be removed under it. `hostEl` is the chat
+    // entry's middle ground: outside the transcript nothing that walks it meets the layer.
     (toBody ? document.body : (hostEl || el.parentElement || document.body)).appendChild(host);
-    // …but only if that parent can actually host it: an ancestor with a transform /
-    // filter / backdrop-filter becomes the containing block for position:fixed, which
-    // re-anchors the layer AND lets overflow:hidden clip it away. Detected by MEASURING
-    // — if the layer did not land where told, re-home it on <body> (unstyled but visible).
+    // …but only if that parent can host it: an ancestor with a transform/filter becomes
+    // the containing block for position:fixed, re-anchoring the layer and letting
+    // overflow:hidden clip it. Detected by MEASURING; if it missed, re-home on <body>.
     const got = host.getBoundingClientRect();
     if (Math.abs(got.left - r.left) > 1 || Math.abs(got.top - r.top) > 1) {
       document.body.appendChild(host);
     }
-    // Colours resolved ONCE per cloud through one probe, after the host is in the
-    // document (a `var(--…)` needs the page's own scope to mean anything).
+    // Colours resolved ONCE per cloud, after the host is in the document — a `var(--…)`
+    // needs the page's own scope to mean anything.
     const probe = document.createElement('span');
     host.appendChild(probe);
     const fills = paints.map((css) => resolveColour(document, css, probe));
@@ -566,22 +531,19 @@ export function disintegrate(el, { cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
 }
 
 // ── Reintegration: the snap played backwards (browser motion.js twin) ───────
-// The same tile layer as disintegrate, but every mote starts where the scatter would
-// have flung it and flies HOME (stTileGather in animations.css), with the sweep
-// reversed so the first mote out is the last one in. Used by materialize below.
+// Every mote starts where the scatter would have flung it and flies HOME (stTileGather in
+// animations.css), sweep reversed so the first mote out is the last one in.
 export const reintegrate = (el, opts = {}) => disintegrate(el, { ...opts, gather: true });
 
 // ── Materialize: leaveThenRemove reversed, for a freshly-ADDED row ──────────
-// Call on the new row right after the render that inserted it: its box expands on the
-// short timer while a dust copy gathers into its final rect over the full wipe; the
-// row stays veiled until the motes land (the dust IS the row forming). Resolves once
-// the veil lifts; decoration only — no element / reduced motion resolve immediately.
+// Call right after the render that inserted the row: its box expands on the short timer
+// while a dust copy gathers into its final rect, and it stays veiled until the motes land
+// (the dust IS the row forming). Decoration only — reduced motion resolves at once.
 export const MATERIALIZE_CLASS = 'materializing';
 export const MATERIALIZE_VEIL_CLASS = 'materialize-veil';
 export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
   if (!el?.classList || motionReduced()) return Promise.resolve();
-  // Freeze the natural height (the row is already laid out) so the expansion has
-  // something to animate to — the same trick the leave plays with --leave-h.
+  // Freeze the natural height so the expansion has something to animate to.
   if (el.getBoundingClientRect) {
     const h = el.getBoundingClientRect().height;
     if (h) el.style.setProperty('--enter-h', `${h}px`);
@@ -597,29 +559,23 @@ export function materialize(el, { ms = LEAVE_MS, cols, rows } = {}) {
 }
 
 // ── A chat entry ARRIVES as dust (the mirror of leaveThenRemove) ────────────
-// Browser motion.js twin. A message appearing is a message being deleted, played
-// backwards: the same fine mesh (scatterGridFor), the same flight, flown HOME
-// (reintegrate). The entry itself is HELD BACK for the whole flight — the motes ARE it
-// forming, and fading it up underneath them showed the message first and the animation
-// after, which is the one thing an arrival must not do.
-// On a clock of its own, well short of a row's flight (browser twin): the motes carry no
-// text, so a long answer is unreadable until the veil lifts. A fixed FRACTION of that
-// flight (520 of the old 900), so shortening DISINTEGRATE_MS shortens this with it.
+// Browser motion.js twin: the same mesh and flight, flown HOME (reintegrate). The entry is
+// HELD BACK for the whole flight — fading it up underneath shows the message before its
+// own animation. On a clock well short of a row's: the motes carry no text, so a long
+// answer is unreadable until the veil lifts. A FRACTION, so shortening the span shortens
+// this with it.
 export const CHAT_ENTER_MS = Math.round(DISINTEGRATE_MS * 0.58);
 export const CHAT_ENTERING_CLASS = 'chat-entering';
 
-// Two frames, so the measure below happens on a SETTLED transcript: frame one is the new
-// entry's own layout, frame two is the scroll that follows it (assistant.js scrollDown
-// pins on a rAF). No rAF (node) ⇒ a macrotask, which is still after the caller returns.
+// Two frames, so the measure below happens on a SETTLED transcript: frame one is the
+// entry's layout, frame two the scroll that follows it. No rAF (node) ⇒ a macrotask.
 const afterLayout = (fn) => (typeof requestAnimationFrame === 'function'
   ? requestAnimationFrame(() => requestAnimationFrame(fn))
   : setTimeout(fn, 0));
 
 // Is `el` a whole entry sitting inside its scroller right now? The cloud is
-// position:fixed, so the transcript does NOT clip it: an entry still below the fold
-// would scatter its motes over the composer under it. Taller than the scroller ⇒ no
-// dust either, for the same reason. Pure enough to unit-test.
-// Shared with trackDust below, which measures each box once per frame.
+// position:fixed, so the transcript does NOT clip it: an entry below the fold — or taller
+// than the scroller — would scatter motes over the composer. Shared with trackDust.
 const rectInScroller = (r, s) => !!(r && s && r.width > 0 && r.height > 0
   && r.top >= s.top - 1 && r.bottom <= s.bottom + 1);
 
@@ -628,12 +584,10 @@ export const dustFitsScroller = (el, scroller = el?.parentElement) => {
   return rectInScroller(el.getBoundingClientRect(), scroller.getBoundingClientRect());
 };
 
-// Confine a flying cloud to its SCROLLER. On the desktop the overlay is a real widget, so
-// it paints only inside its own box and a mote can never land on the composer; here the
-// tiles translate freely out of a `overflow: visible` host, so a gather next to the input
-// rained motes across it (reported). The clip is expressed against the host's own border
-// box — negative insets EXPAND it, so a mote may still fly anywhere inside the transcript,
-// just never outside it. Re-applied per frame by trackDust, since both boxes move.
+// Confine a flying cloud to its SCROLLER: the tiles translate freely out of an
+// `overflow: visible` host, so a gather next to the input rains motes across it. The clip
+// is against the host's own border box — negative insets EXPAND it, so a mote may fly
+// anywhere inside the transcript. Re-applied per frame by trackDust: both boxes move.
 const dustClipInset = (r, s) => {
   const px = (n) => `${Math.round(n)}px`;
   return `inset(${px(s.top - r.top)} ${px(r.right - s.right)} ${px(r.bottom - s.bottom)} ${px(s.left - r.left)})`;
@@ -645,36 +599,29 @@ const clipDustToScroller = (el, scroller = el?.parentElement) => {
 };
 
 // Keep a flying cloud pinned to its entry until the motes land. The layer is
-// position:fixed at the box measured when it launched, but a transcript SCROLLS under it:
-// scrollDown pins again on a 220ms timer (and a later turn appends more rows), so a
-// cloud left where it started ends up drawn over whatever has since moved into those
-// coordinates — the reported "text appears mid-animation and breaks the UI". Re-anchored
-// per frame; if the entry leaves the scroller entirely the cloud is dropped rather than
-// drawn outside it. Returns a stop function.
+// position:fixed at its launch box, but the transcript SCROLLS under it, so a cloud left
+// there is drawn over whatever has since moved into those coordinates. Re-anchored per
+// frame; an entry that leaves the scroller drops its cloud. Returns a stop function.
 const trackDust = (el, ms, onDrop = () => {}) => {
   if (typeof requestAnimationFrame !== 'function') return () => {};
   let raf = 0;
   let live = true;
   const started = Date.now();
-  // The box the cloud was photographed at. A tile is a fixed-size clone, so a subject
-  // that RESIZES mid-flight (a wrapped label re-reserving its height, a font finishing
-  // loading, the panel being dragged wider) leaves a cloud that no longer matches the
-  // entry it is standing in for — visibly narrower or shorter than what lands. There is
-  // no re-photographing it, so the stale copy is dropped instead: decoration missing
-  // beats decoration lying.
+  // The box the cloud was photographed at. A subject that RESIZES mid-flight (a rewrap, a
+  // font landing, a drag) leaves a cloud that no longer matches what arrives, and there is
+  // no re-photographing it: the stale copy is dropped. Missing beats lying.
   const shot = el.getBoundingClientRect?.();
   let last = {};   // the anchor/clip already written — an unchanged frame writes nothing
   const step = () => {
     if (!live) return;
     if (Date.now() - started >= ms) return;
-    // Each box measured ONCE per frame; the helpers each re-measured, with host writes
-    // interleaved — one forced layout per frame per flying cloud.
+    // Each box measured ONCE per frame: reads first, writes batched below, or every
+    // flying cloud costs a forced layout per frame.
     const r = el.getBoundingClientRect?.();
     const s = el.parentElement?.getBoundingClientRect?.();
     const resized = !r || !shot || Math.abs(r.width - shot.width) > 1 || Math.abs(r.height - shot.height) > 1;
-    // Dropping the cloud must HAND THE ENTRY OVER in the same frame: the veil is lifted
-    // by a timer at the end of the full flight, so a cancel that only killed the motes
-    // left the message invisible with nothing standing in for it until that timer fired.
+    // Dropping the cloud must HAND THE ENTRY OVER in the same frame: the veil lifts on a
+    // timer at the end of the flight, so killing only the motes leaves nothing on screen.
     if (!rectInScroller(r, s) || resized) { cancelDust(el); live = false; onDrop(); return; }
     // Re-anchor + re-clip (retargetDust/clipDustToScroller), reads done, writes batched.
     const host = el.__dustHost;
@@ -691,33 +638,29 @@ const trackDust = (el, ms, onDrop = () => {}) => {
   return () => { live = false; if (raf) cancelAnimationFrame(raf); };
 };
 
-// A chat entry is the one surface whose ONLY entrance was its dust, so in 'slide' it gets
-// the rise the others already have (browser css/animations.css chatRiseIn twin).
+// A chat entry's only entrance is its dust, so in 'slide' it gets the rise the others
+// already have (browser css/animations.css chatRiseIn twin).
 export const CHAT_SLIDE_CLASS = 'chat-slide-in';
 export const CHAT_SLIDE_MS = 320;
 export function chatIn(el, count = 1, index = 0, { host = null } = {}) {
   if (!el?.classList || motionReduced()) return Promise.resolve();
   if (!dustEnabled()) { flashLanding(el, CHAT_SLIDE_CLASS, CHAT_SLIDE_MS); return Promise.resolve(); }
   const { cols, rows } = scatterGridFor(count, index);
-  // Veiled from the FIRST frame, before anything is painted: the entry keeps its height
-  // (so the transcript grows and scrolls to it as usual) but is never seen ahead of its
-  // own motes. Lifted below the moment they land — or at once if none can fly.
+  // Veiled from the FIRST frame: the entry keeps its height (so the transcript grows and
+  // scrolls as usual) but is never seen ahead of its own motes.
   el.classList.add(CHAT_ENTERING_CLASS);
   const unveil = () => el.classList.remove(CHAT_ENTERING_CLASS);
   return new Promise((resolve) => {
     // Fonts first, when the platform offers the promise: a webfont landing after the
-    // photograph re-wraps the entry and widens it, and the cloud is then visibly the
-    // wrong size for what arrives. Already-loaded fonts resolve this in the same tick,
-    // so only the very first arrival of a session ever waits on it.
+    // photograph re-wraps the entry, so the cloud is the wrong size for what arrives.
+    // Loaded fonts resolve in the same tick, so only a session's first arrival waits.
     const ready = globalThis.document?.fonts?.ready;
     const go = () => afterLayout(() => {
-      // `host` is the caller's ancestor its bubble rules are scoped to (assistant.js
-      // passes its section): outside the transcript, so nothing that walks it sees `.msg`
-      // clones as live conversation (which is exactly why syncClearBtn had to be :scope-d
-      // against the scatter's clones), but still inside the ancestor the rules reach —
-      // on <body> the motes lost their fill, border and radius and arrived as bare text.
-      // Browser parity: there `.chat-msg` is styled standalone, so its cloud can sit on
-      // <body> and still look like the bubble. No host given = the entry's own parent.
+      // `host` is the ancestor the bubble rules are scoped to (assistant.js passes its
+      // section): outside the transcript, so nothing walking it sees `.msg` clones as live
+      // conversation, but inside the ancestor those rules reach — on <body> the motes lose
+      // their fill, border and radius. Browser parity: `.chat-msg` is styled standalone
+      // there, so its cloud can sit on <body>. No host = the entry's own parent.
       const flying = cols !== 0 && dustFitsScroller(el)
         && reintegrate(el, { cols, rows, hostEl: host || el.parentElement || null, ms: CHAT_ENTER_MS });
       if (!flying) { unveil(); resolve(); return; }
@@ -732,9 +675,8 @@ export function chatIn(el, count = 1, index = 0, { host = null } = {}) {
       };
       const stop = trackDust(el, CHAT_ENTER_MS, handOver);
       setTimeout(() => {
-        // The motes have landed, so the entry takes their place in the SAME frame the
-        // cloud goes. Left to its own grace period the layer holds its finished state —
-        // opaque, at identity — which is an exact second copy over the real entry.
+        // The entry takes their place in the SAME frame the cloud goes: left to its
+        // grace period the layer holds its finished state, an exact second copy.
         stop();
         handOver();
       }, CHAT_ENTER_MS);
@@ -745,59 +687,50 @@ export function chatIn(el, count = 1, index = 0, { host = null } = {}) {
 
 
 // ── Surfaces: a menu, a dialog and a mini popup are dust too ────────────────
-// Browser motion.js twin. A modal and the ⋯/context/dropdown popups play the SAME
-// scatter a deleted row does — only every mote flies INTO (or out of) the point that
-// owns the surface: the icon that opened it, or the click a context menu grew from.
-// Origin and direction are exactly what the old scale had; what changed is that the
-// flight is rendered as particles instead of a moving rectangle.
-// The way IN is the slower half on purpose: a surface forming is the thing you watch,
-// and it has to arrive gently enough to read as sand gathering rather than a flash.
-// Going out is brisk — you have already decided.
+// Browser motion.js twin. A modal and the ⋯/context/dropdown popups play the SAME scatter
+// a deleted row does, only every mote flies into (or out of) the point that owns the
+// surface. IN is the slower half on purpose — a surface forming is the thing you watch;
+// going out is brisk, you have already decided.
 export const SURFACE_IN_MS = 620;
 export const SURFACE_OUT_MS = 380;
-// A MENU is not a window: it is opened to be clicked, often blind, so it may not spend
-// half a second forming. Its own, brisker clock — the flight is the same one.
+// A MENU is opened to be clicked, often blind, so it may not spend half a second forming.
+// Its own, brisker clock — the flight is the same one.
 export const SURFACE_MENU_IN_MS = 340;
 export const SURFACE_MENU_OUT_MS = 220;
-// A hover TIP is brisker still: re-triggered fast mid-sweep, its flight must be over
-// before the next one begins (hoverPreview.js and the chat status tip share this clock;
-// names shared with browser motion.js so the ported modules import them unchanged).
+// A hover TIP is brisker still: re-triggered mid-sweep, its flight must be over before the
+// next begins. Names shared with browser motion.js so the ported modules import them as-is.
 export const TIP_DUST_IN_MS = 260;
 export const TIP_DUST_OUT_MS = 190;
 // …and wakes on one delay across surfaces (desktop SnappyTooltipStyle, main.cpp).
 export const TIP_SHOW_DELAY_MS = 200;
 
-// The centre of an element (or of a rect): the point a popup's dust belongs to.
-// Null for a detached/unmeasurable owner — the flight then settles instead.
+// The centre of an element (or rect): the point a popup's dust belongs to. Null for a
+// detached owner — the flight then settles instead.
 export const rectCenter = (elOrRect) => {
   const r = typeof elOrRect?.getBoundingClientRect === 'function'
     ? elOrRect.getBoundingClientRect() : elOrRect;
   if (!r || !(r.width > 0 || r.height > 0)) return null;
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 };
-// The grain a mote AIMS for, and the ceiling on how many of them a flight may cost.
-// A window is tens of times a row's area, so the budget is what actually sizes its
-// cells: at 1200 an options dialog came apart into 20px slabs — a mosaic, not sand.
+// The grain a mote AIMS for, and the ceiling on how many a flight may cost. A window is
+// tens of times a row's area, so the budget is what sizes its cells: at 1200 an options
+// dialog comes apart into 20px slabs — a mosaic, not sand.
 export const SURFACE_MOTE_PX = 6;
 export const SURFACE_COLS = 46;
-export const SURFACE_ROWS = 30;      // 1380 motes — a few thousand individually
-                                     // compositor-promoted motes is what read as lag
-                                     // on a big surface (see browser js/ui/motion.js)
-// …and past that ceiling the CELL is bigger than the grain we want, so the speck drawn
-// inside it is capped instead of filling it. What you see is the speck, not the cell.
+export const SURFACE_ROWS = 30;      // 1380 motes; a few thousand promoted layers is lag
+// …past that ceiling the CELL is bigger than the grain we want, so the speck inside it is
+// capped instead of filling it.
 export const SURFACE_SPECK_PX = 7;
 export const SURFACE_SPREAD = 34;    // how far a mote may fan off its line to the point
 export const SURFACE_FORMING_CLASS = 'surface-forming';
 export const SURFACE_LEAVING_CLASS = 'surface-leaving';
-// Permanent once a surface has been dusted: its old CSS pop must stay off for good, or
-// removing the forming class at the end of the flight would replay it.
+// Permanent once a surface has been dusted: its CSS pop must stay off, or dropping the
+// forming class at the end of the flight replays it.
 export const SURFACE_DRIVEN_CLASS = 'dust-driven';
 
 // One mote's flight when a whole surface gathers into — or bursts out of — a single
-// POINT. The path is the cell's own offset to that point, so every mote converges there
-// instead of falling; the two decorrelated noises only fan the arrival. The delay rides
-// the DISTANCE, so the edge nearest the point goes first and the far one last — a menu
-// draining into its icon, and pouring back out of it. Pure — unit-tested.
+// POINT: the path is the cell's offset to it, and the delay rides the DISTANCE, so the
+// near edge goes first and the far one last. Pure — unit-tested.
 export const surfaceMotion = (cx, cy, cols, rows, box, point, { span = SURFACE_OUT_MS, spread = SURFACE_SPREAD } = {}) => {
   const n = tileNoise(cx, cy);
   const m = tileNoise(cx + 41, cy + 17);
@@ -808,8 +741,8 @@ export const surfaceMotion = (cx, cy, cols, rows, box, point, { span = SURFACE_O
   const homeY = (box?.top || 0) + (cy + 0.5) * h;
   const toX = (point?.x || 0) - homeX;
   const toY = (point?.y || 0) - homeY;
-  // Normalised against the longest trip any cell in this box makes, so the sweep fills
-  // the whole flight whatever the point's distance is.
+  // Normalised against the longest trip any cell makes, so the sweep fills the flight
+  // whatever the point's distance is.
   const far = Math.hypot(box?.width || 0, box?.height || 0) + Math.hypot(toX, toY);
   const progress = far > 0 ? Math.min(1, Math.hypot(toX, toY) / far) : 0;
   const dx = Math.round(toX + (m - 0.5) * spread);
@@ -823,8 +756,8 @@ export const surfaceMotion = (cx, cy, cols, rows, box, point, { span = SURFACE_O
   };
 };
 
-// The centre of the control a surface was opened from — the point its motes fly out of
-// and back into. Null (no rect) leaves the caller to pick one. Pure.
+// The centre of the control a surface was opened from. Null (no rect) leaves the caller
+// to pick one. Pure.
 export const centerOf = (elOrRect) => {
   const r = elOrRect?.getBoundingClientRect ? elOrRect.getBoundingClientRect() : elOrRect;
   if (!r || !Number.isFinite(r.left) || !Number.isFinite(r.top)) return null;
@@ -834,21 +767,14 @@ export const centerOf = (elOrRect) => {
 // Is `c` a colour that paints nothing? An unset background, or a fully transparent one.
 const blankPaint = (c) => !c || c === 'transparent' || /,\s*0\s*\)$/.test(c);
 
-// How far a mote is lifted off the surface's own background, towards its own ink: the
-// body of the cloud, and its rim. See surfacePaint.
+// How far a mote is lifted off the surface's background towards its ink — body, then rim.
 export const MOTE_INK = 42;
 export const MOTE_RIM_INK = 66;
 
-// What the motes are PAINTED in. The element's own background, else the nearest
-// ancestor that actually paints one — a surface whose box is transparent (a panel that
-// leaves the colour to a child) would otherwise dust in a fallback nobody chose.
-//
-// …and then LIFTED towards that surface's own ink, because the background alone is
-// invisible: a surface and the page under it are the same family of colour, so a cloud
-// painted in the surface's exact background dissolved into nothing at all. Mixing in the
-// ink keeps every mote the surface's own colour and gives it something to read against,
-// and it flips with the theme for free — dark surfaces lighten, light ones darken,
-// because ink always contrasts with the background it is written on.
+// What the motes are PAINTED in: the element's own background, else the nearest ancestor
+// that actually paints one (a transparent box would dust in a fallback nobody chose), then
+// LIFTED towards that surface's ink — the background alone is the same family of colour as
+// the page and dissolves into it. Mixing in the ink flips with the theme for free.
 const surfacePaint = (el) => {
   const get = typeof getComputedStyle === 'function' ? getComputedStyle : null;
   const own = get ? get(el) : null;
@@ -858,24 +784,17 @@ const surfacePaint = (el) => {
   bg = bg || 'var(--panel)';
   const ink = own && !blankPaint(own.color) ? own.color : 'var(--text)';
   const grain = (pct) => `color-mix(in srgb, ${bg} ${pct}%, ${ink})`;
-  // An element with `border-style: none` still COMPUTES a border colour, and its
-  // initial value is `currentColor` — the TEXT colour. Reading it unguarded painted
-  // every rim mote near-white on a dark theme, whatever the theme actually was; a real
-  // border is used as drawn, and without one the rim is simply a stronger grain, so the
-  // cloud keeps the box's outline for its first frames either way.
+  // `border-style: none` still COMPUTES a border colour, and its initial value is
+  // `currentColor` — the TEXT colour, which paints every rim mote near-white on a dark
+  // theme. Without a real border the rim is simply a stronger grain.
   const bordered = own && own.borderTopStyle !== 'none' && parseFloat(own.borderTopWidth) > 0;
   return { fill: grain(100 - MOTE_INK), edge: bordered ? own.borderTopColor : grain(100 - MOTE_RIM_INK) };
 };
 
-// Round speck in the surface's own colours; the rim cells take its border instead, so
-// the cloud keeps the window's outline for the first frames, and a few inner grains take
-// the rim's stronger tone too, so the field glints rather than reading flat. The speck
-// is a GRAIN, not the cell it sits in: past the mote budget a cell can be several times
-// the grain we want, and a cell-filling square is the "huge rectangles" a scatter must
-// never show.
-//
-// A painter answers per cell with the grain's colour, its own opacity and its size;
-// disintegrate seats it at the cell's centre and dustCloud.js draws it.
+// Round speck in the surface's own colours; rim cells take its border, so the cloud keeps
+// the window's outline for the first frames, and a few inner grains take that tone too so
+// the field glints. The speck is a GRAIN, not the cell it sits in: past the mote budget a
+// cell-filling square is the "huge rectangles" a scatter must never show.
 const speckPainter = (el) => {
   const { fill, edge } = surfacePaint(el);
   return ({ cx, cy, cols, rows, cellW, cellH }) => {
@@ -888,13 +807,10 @@ const speckPainter = (el) => {
   };
 };
 
-// A surface NEVER dusts as clones of itself, however small it is. A row scatter can
-// afford to (a list row is one element in one place), but a surface's cloud lands on
-// <body> — and a cloud of a few hundred copies of a menu is a few hundred more elements
-// answering to `.accent-dd-menu`, `.action-menu`, `#…`. Everything that queries the page
-// — the surface's own code, and every test that drives it — would have to know about a
-// decoration. Flat specks in the surface's own colours carry no identity at all, and at
-// a 6px grain that is very nearly all a clone would have shown anyway.
+// A surface NEVER dusts as clones of itself: its cloud lands on <body>, so a few hundred
+// copies of a menu is a few hundred more elements answering to `.action-menu` and kin, and
+// everything that queries the page would have to know about a decoration. Flat specks
+// carry no identity, and at a 6px grain show all a clone would.
 const surfaceDust = (el, point, { ms, gather }) => {
   if (typeof document === 'undefined' || !el?.getBoundingClientRect) return false;
   if (!(Number.isFinite(point?.x) && Number.isFinite(point?.y))) return false;
@@ -908,9 +824,9 @@ const surfaceDust = (el, point, { ms, gather }) => {
   });
 };
 
-// Drop whatever a surface has in flight — the cloud AND the classes driving its own
-// opacity — leaving the end state untouched. Every open/close begins here, so a
-// double-clicked menu or a swept-past dialog always converges on the true state.
+// Drop whatever a surface has in flight — the cloud AND the classes driving its opacity —
+// leaving the end state untouched. Every open/close begins here, so a double-clicked menu
+// converges on the true state.
 export function settleSurface(el) {
   if (!el?.classList) return;
   clearTimeout(el.__surfaceTimer);
@@ -924,11 +840,9 @@ const playSurface = (el, point, { ms, gather }) => {
   if (!el?.classList) return false;
   settleSurface(el);
   if (motionReduced()) return false;
-  // The marker goes on BEFORE the measure. The element's own entrance (action-menu-pop,
-  // stMenuFromAnchor) fills its from-state — an icon-sized scale — so a box measured
-  // under it is the ICON's box, and every mote would be built from a 30px menu.
-  // `.dust-driven` kills that keyframe outright. Off again if the dust declines, so a
-  // surface that never plays it keeps the CSS entrance it always had.
+  // The marker goes on BEFORE the measure: the element's own entrance (action-menu-pop,
+  // stMenuFromAnchor) holds an icon-sized from-state, so a box measured under it is the
+  // ICON's. `.dust-driven` kills that keyframe; off again if the dust declines.
   el.classList.add(SURFACE_DRIVEN_CLASS);
   if (!surfaceDust(el, point, { ms, gather })) {
     el.classList.remove(SURFACE_DRIVEN_CLASS);
@@ -947,13 +861,12 @@ const playSurface = (el, point, { ms, gather }) => {
 // The surface waits behind its own dust and fades up as the last motes land.
 export const surfaceIn = (el, point, { ms = SURFACE_IN_MS } = {}) =>
   playSurface(el, point, { ms, gather: true });
-// …and hands over to it at once on the way out. The caller still owns the real
-// hide/remove: like leaveThenRemove, the end state never depends on the animation.
+// …and hands over to it at once on the way out. The caller still owns the real hide/remove
+// — the end state never depends on the animation.
 export const surfaceOut = (el, point, { ms = SURFACE_OUT_MS } = {}) =>
   playSurface(el, point, { ms, gather: false });
 
-// One-shot "it landed here" flash — restart-safe, so two drops in a row replay the
-// animation instead of the second one silently doing nothing.
+// One-shot "it landed here" flash — restart-safe, so two drops in a row both play.
 export function flashLanding(el, cls = 'just-dropped', ms = 900) {
   if (!el?.classList) return;
   clearTimeout(el._landingTimer);
