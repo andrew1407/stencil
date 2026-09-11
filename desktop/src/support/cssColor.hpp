@@ -3,10 +3,15 @@
 // QColor and back.
 //
 // Colours are stored as CSS, because the browser writes them straight into a canvas
-// context. `#rrggbb` Qt understands; `#rrggbbaa` it does not — QColor's hex forms put
-// alpha FIRST — so the eight-digit form is unpacked and written back by hand here.
-// core's parseHex checks only `size() < 7`, so the CLI and pystencil read the RGB and
-// ignore the alpha. Header-only, Q_OBJECT-free.
+// context. The SAME parser the export path uses resolves them (core::parseColor, the
+// 148-name CSS Level 4 table + #rgb/#rgba/#rrggbb/#rrggbbaa): QColor's own vocabulary
+// differs — it has no `rebeccapurple` and no 4-digit hex, and its hex alpha comes
+// FIRST — so parsing on screen with QColor drew a different colour from the one
+// rasterize.cpp exported. QColor is kept only as the fallback for the forms core
+// declines (`#rrrgggbbb`), so nothing that renders today stops rendering.
+// Header-only, Q_OBJECT-free.
+#include "colorNames.hpp"
+
 #include <QColor>
 #include <QString>
 
@@ -14,18 +19,11 @@
 
 namespace stencil::gui {
 
-  // A stored colour string → QColor, honouring a trailing CSS alpha byte. Anything Qt
-  // already parses (names, #rgb, #rrggbb, rgba(...)) falls through to QColor untouched.
+  // A stored colour string → QColor, honouring a trailing CSS alpha byte. core answers
+  // first so the screen and the export agree; what it declines falls through to QColor.
   inline QColor cssColor(const QString& text) {
     const QString t = text.trimmed();
-    if (t.size() == 9 && t.startsWith(QLatin1Char('#'))) {
-      bool ok = false;
-      const uint v = t.mid(1).toUInt(&ok, 16);
-      if (ok) {
-        return QColor(int((v >> 24) & 0xFF), int((v >> 16) & 0xFF),
-                      int((v >> 8) & 0xFF), int(v & 0xFF));
-      }
-    }
+    if (const auto c = core::parseColor(t.toStdString())) return QColor(c->r, c->g, c->b, c->a);
     return QColor(t);
   }
   inline QColor cssColor(const std::string& text) { return cssColor(QString::fromStdString(text)); }
