@@ -26,13 +26,13 @@
     "bot/src/Stencil.TelegramBot.Infrastructure/Server/HttpStencilServerClient.cs": 197,
     "bot/tests/Stencil.TelegramBot.Tests/ChatModeTests.cs": 395,
     "bot/tests/Stencil.TelegramBot.Tests/ChatPersistenceTests.cs": 296,
-    "bot/tests/Stencil.TelegramBot.Tests/CliArgvBuilderTests.cs": 565,
+    "bot/tests/Stencil.TelegramBot.Tests/CliArgvBuilderTests.cs": 205,
     "bot/tests/Stencil.TelegramBot.Tests/CliOutcomeParserTests.cs": 234,
     "bot/tests/Stencil.TelegramBot.Tests/EditingServiceTests.cs": 383,
     "bot/tests/Stencil.TelegramBot.Tests/HttpLlmClientTests.cs": 305,
     "bot/tests/Stencil.TelegramBot.Tests/HttpStencilServerClientTests.cs": 334,
     "bot/tests/Stencil.TelegramBot.Tests/PromptHandlerTests.cs": 275,
-    "bot/tests/Stencil.TelegramBot.Tests/ServerServiceTests.cs": 451
+    "bot/tests/Stencil.TelegramBot.Tests/ServerServiceTests.cs": 167
   },
   "commentPct": {
     "bot/src/Stencil.TelegramBot.Application/DependencyInjection": 35,
