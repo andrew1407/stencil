@@ -16,7 +16,6 @@ const extractLinesJson = @import("../session.zig").extractLinesJson;
 const mergeLinesJson = @import("../session.zig").mergeLinesJson;
 const parseLayoutInto = @import("../session.zig").parseLayoutInto;
 
-
 // editing ops (each pushes a snapshot + rebuilds)
 
 /// Rotate by `n` quarter-turns (clockwise). The crop rect rides along into the new space.

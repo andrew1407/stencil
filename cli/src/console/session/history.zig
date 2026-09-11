@@ -7,7 +7,6 @@ const max_states = @import("../session.zig").max_states;
 const freeImg = @import("../session.zig").freeImg;
 const rasterizeLinesJson = @import("../session.zig").rasterizeLinesJson;
 
-
 pub fn hasImage(self: *Session) bool {
     return self.original != null;
 }

@@ -6,7 +6,6 @@ const image = @import("../../image.zig");
 const llm = @import("../../llm.zig");
 const Attachment = @import("../session.zig").Attachment;
 
-
 // §2.1 turn attachments
 /// Remember an uploaded image as an attachment of the current turn (taking ownership
 /// of `label_src`'s copy and `bytes`). A previous turn's list is dropped first, so

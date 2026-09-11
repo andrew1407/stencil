@@ -5,7 +5,6 @@ const std = @import("std");
 const server = @import("../../serverClient.zig");
 const llm = @import("../../llm.zig");
 
-
 /// True when a fetched server project is active (a target for sync / manual push).
 pub fn hasRemote(self: *const Session) bool {
     return self.remote_id != null and self.remote_url != null;

@@ -12,7 +12,7 @@
     "cli/src/console/logoFx.zig": 14,
     "cli/src/console/remoteEvents.zig": 257,
     "cli/src/console/screen.zig": 318,
-    "cli/src/console/session.zig": 357,
+    "cli/src/console/session.zig": 196,
     "cli/src/console/ui.zig": 209,
     "cli/src/line_edit.zig": 207,
     "cli/src/llm/opSchema.zig": 183,

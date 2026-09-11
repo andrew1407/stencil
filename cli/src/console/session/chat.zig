@@ -3,7 +3,6 @@
 const Session = @import("../session.zig").Session;
 const llm = @import("../../llm.zig");
 
-
 /// Drop every saved conversation turn (the `/chat clear` local half; §12).
 pub fn clearChat(self: *Session) void {
     for (self.chat_history.items) |t| self.gpa.free(t.text);

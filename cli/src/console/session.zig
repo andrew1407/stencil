@@ -12,57 +12,26 @@ const pipeline = @import("../pipeline.zig");
 const layout_mod = @import("../layout.zig");
 const llm = @import("../llm.zig");
 const derivedView = @import("derivedView.zig");
+const geom = @import("session/geom.zig");
+const layoutJson = @import("session/layoutJson.zig");
+const state_mod = @import("session/state.zig");
 
-pub const max_states = 64; // pristine + up to 63 undoable edits; older edits drop off the front
+pub const max_states = state_mod.max_states;
+pub const EditState = state_mod.EditState;
+pub const Attachment = state_mod.Attachment;
 
-/// One editing snapshot, mirroring the browser layout: a rotation (0..3 clockwise quarters,
-/// applied to the original FIRST), a crop rect in rotated-original pixels, an image filter
-/// (mode "none"|"bw"|"sepia"|"custom" + custom hex color), and the drawn lines as a JSON array
-/// string (browser line schema). All owned. Empty `lines_json` means "[]".
-pub const EditState = struct {
-    rotation: i32 = 0,
-    crop: ?core.Rect = null,
-    filter_mode: []u8 = &.{},
-    filter_color: []u8 = &.{},
-    lines_json: []u8 = &.{},
+pub const freeImg = geom.freeImg;
+pub const clampRect = geom.clampRect;
+pub const rotateRectQuarters = geom.rotateRectQuarters;
 
-    pub fn deinit(self: *EditState, gpa: std.mem.Allocator) void {
-        if (self.filter_mode.len != 0) gpa.free(self.filter_mode);
-        if (self.filter_color.len != 0) gpa.free(self.filter_color);
-        if (self.lines_json.len != 0) gpa.free(self.lines_json);
-        self.* = .{};
-    }
-
-    pub fn dupe(self: EditState, gpa: std.mem.Allocator) !EditState {
-        var out = EditState{ .rotation = self.rotation, .crop = self.crop };
-        errdefer out.deinit(gpa);
-        out.filter_mode = try gpa.dupe(u8, self.filter_mode);
-        out.filter_color = try gpa.dupe(u8, self.filter_color);
-        out.lines_json = try gpa.dupe(u8, self.lines_json);
-        return out;
-    }
-
-    pub fn lines(self: EditState) []const u8 {
-        return if (self.lines_json.len == 0) "[]" else self.lines_json;
-    }
-};
-
-/// One image the user brought into the turn with `/upload` (contract §2.1/§7): its
-/// label (the path/URL it came from), the raw ENCODED bytes — kept instead of pixels so
-/// a whole turn of attachments costs kilobytes, and so a `save` embeds the untouched
-/// original — plus how to re-encode it. All owned by the session.
-pub const Attachment = struct {
-    label: []u8,
-    bytes: []u8,
-    fmt: image.Format = .png,
-    temp: bool = false, // came from a URL/in-memory source, not a file on disk
-
-    pub fn deinit(self: *Attachment, gpa: std.mem.Allocator) void {
-        gpa.free(self.label);
-        gpa.free(self.bytes);
-        self.* = undefined;
-    }
-};
+pub const rasterizeLinesJson = layoutJson.rasterizeLinesJson;
+pub const extractLinesJson = layoutJson.extractLinesJson;
+pub const mergeLinesJson = layoutJson.mergeLinesJson;
+pub const innerArray = layoutJson.innerArray;
+pub const parseLayoutInto = layoutJson.parseLayoutInto;
+pub const jsonStr = layoutJson.jsonStr;
+pub const jsonInt = layoutJson.jsonInt;
+pub const jsonNum = layoutJson.jsonNum;
 
 pub const Session = struct {
     gpa: std.mem.Allocator,
@@ -225,178 +194,13 @@ pub const Session = struct {
     pub const clearFormat = @import("session/edits.zig").clearFormat;
 };
 
-pub fn freeImg(gpa: std.mem.Allocator, img: image.Rgba8, e: anyerror) anyerror {
-    var m = img;
-    m.deinit(gpa);
-    return e;
-}
-
-/// Clamp a rect to lie within a `w`×`h` image (width/height ≥ 1).
-pub fn clampRect(r: core.Rect, w: i32, h: i32) core.Rect {
-    var out = r;
-    out.w = std.math.clamp(r.w, 1, w);
-    out.h = std.math.clamp(r.h, 1, h);
-    out.x = std.math.clamp(r.x, 0, w - out.w);
-    out.y = std.math.clamp(r.y, 0, h - out.h);
-    return out;
-}
-
-/// Map a rect through `n` clockwise quarter-turns of its `w`×`h` containing image, returning
-/// the rect in the rotated image's pixel space. Pure (axis-aligned 90° steps). Unit-tested.
-pub fn rotateRectQuarters(rect: core.Rect, w: i32, h: i32, n: i32) core.Rect {
-    var r = rect;
-    var cw = w;
-    var ch = h;
-    var q = core.normalizeQuarters(n);
-    while (q > 0) : (q -= 1) {
-        // One clockwise step: new dims (ch, cw); (x,y) → (ch - y - rh, x). Compute into a
-        // temp first — assigning a struct literal that reads `r` would alias the in-place write.
-        const nr = core.Rect{ .x = ch - r.y - r.h, .y = r.x, .w = r.h, .h = r.w };
-        r = nr;
-        const t = cw;
-        cw = ch;
-        ch = t;
-    }
-    return r;
-}
-
-/// Rasterize the lines in a JSON array string onto `img` (best-effort; bad JSON draws nothing).
-pub fn rasterizeLinesJson(gpa: std.mem.Allocator, img: *image.Rgba8, lines_json: []const u8) void {
-    const wrapped = std.fmt.allocPrint(gpa, "{{\"lines\":{s}}}", .{lines_json}) catch return;
-    defer gpa.free(wrapped);
-    var parsed = layout_mod.parse(gpa, wrapped) catch return;
-    defer parsed.deinit();
-    for (parsed.lines) |line| {
-        core.rasterizeLine(img.pixels, @intCast(img.width), @intCast(img.height), line);
-    }
-}
-
-/// Extract the `lines` array of a layout JSON document as an owned JSON array string ("[]" if
-/// absent). Caller owns the result.
-pub fn extractLinesJson(gpa: std.mem.Allocator, layout_bytes: []const u8) ![]u8 {
-    var parsed = std.json.parseFromSlice(std.json.Value, gpa, layout_bytes, .{}) catch return gpa.dupe(u8, "[]");
-    defer parsed.deinit();
-    if (parsed.value == .object) {
-        if (parsed.value.object.get("lines")) |lv| {
-            if (lv == .array) return std.json.Stringify.valueAlloc(gpa, lv, .{});
-        }
-    }
-    return gpa.dupe(u8, "[]");
-}
-
-/// Concatenate two JSON array strings ("[...]") into one. Pure string work. Caller owns it.
-pub fn mergeLinesJson(gpa: std.mem.Allocator, a: []const u8, b: []const u8) ![]u8 {
-    const ai = innerArray(a);
-    const bi = innerArray(b);
-    if (ai.len == 0) return gpa.dupe(u8, if (bi.len == 0) "[]" else b);
-    if (bi.len == 0) return gpa.dupe(u8, a);
-    return std.fmt.allocPrint(gpa, "[{s},{s}]", .{ ai, bi });
-}
-
-/// The contents between the outermost `[` `]` of a JSON array string, trimmed (empty if none).
-pub fn innerArray(s: []const u8) []const u8 {
-    const t = std.mem.trim(u8, s, " \t\r\n");
-    if (t.len < 2 or t[0] != '[' or t[t.len - 1] != ']') return "";
-    return std.mem.trim(u8, t[1 .. t.len - 1], " \t\r\n");
-}
-
-/// Read a server layout document into an EditState (rotation, crop, filter, lines).
-pub fn parseLayoutInto(gpa: std.mem.Allocator, layout_bytes: []const u8, out: *EditState) !void {
-    out.lines_json = try extractLinesJson(gpa, layout_bytes);
-    var parsed = std.json.parseFromSlice(std.json.Value, gpa, layout_bytes, .{}) catch return;
-    defer parsed.deinit();
-    if (parsed.value != .object) return;
-    const obj = parsed.value.object;
-    if (jsonStr(obj, "imageFilter")) |m| out.filter_mode = try gpa.dupe(u8, m);
-    if (jsonStr(obj, "filterColor")) |c| out.filter_color = try gpa.dupe(u8, c);
-    if (jsonInt(obj, "rotationQuarters")) |r| out.rotation = core.normalizeQuarters(@intCast(r));
-    if (obj.get("cropRect")) |cv| {
-        if (cv == .object) {
-            const co = cv.object;
-            out.crop = .{
-                .x = @intFromFloat(jsonNum(co, "x")),
-                .y = @intFromFloat(jsonNum(co, "y")),
-                .w = @intFromFloat(jsonNum(co, "width")),
-                .h = @intFromFloat(jsonNum(co, "height")),
-            };
-        }
-    }
-}
-
-pub fn jsonStr(obj: std.json.ObjectMap, key: []const u8) ?[]const u8 {
-    if (obj.get(key)) |v| {
-        if (v == .string) return v.string;
-    }
-    return null;
-}
-
-pub fn jsonInt(obj: std.json.ObjectMap, key: []const u8) ?i64 {
-    if (obj.get(key)) |v| {
-        return switch (v) {
-            .integer => |i| i,
-            .float => |f| @intFromFloat(f),
-            else => null,
-        };
-    }
-    return null;
-}
-
-pub fn jsonNum(obj: std.json.ObjectMap, key: []const u8) f64 {
-    if (obj.get(key)) |v| {
-        return switch (v) {
-            .integer => |i| @floatFromInt(i),
-            .float => |f| f,
-            else => 0,
-        };
-    }
-    return 0;
-}
-
-const testing = std.testing;
-
-test "rotateRectQuarters maps a rect through clockwise quarter-turns" {
-    // A 10x4 rect at (1,2) in a 100x50 image, rotated once clockwise → 50x100 image.
-    const r1 = rotateRectQuarters(.{ .x = 1, .y = 2, .w = 10, .h = 4 }, 100, 50, 1);
-    // new x = ch - y - rh = 50 - 2 - 4 = 44; new y = x = 1; w=rh=4; h=rw=10.
-    try testing.expectEqual(@as(i32, 44), r1.x);
-    try testing.expectEqual(@as(i32, 1), r1.y);
-    try testing.expectEqual(@as(i32, 4), r1.w);
-    try testing.expectEqual(@as(i32, 10), r1.h);
-    // Four turns returns to the original.
-    const r4 = rotateRectQuarters(.{ .x = 1, .y = 2, .w = 10, .h = 4 }, 100, 50, 4);
-    try testing.expectEqual(@as(i32, 1), r4.x);
-    try testing.expectEqual(@as(i32, 2), r4.y);
-    try testing.expectEqual(@as(i32, 10), r4.w);
-    try testing.expectEqual(@as(i32, 4), r4.h);
-}
-
-test "mergeLinesJson concatenates arrays, handles empties" {
-    const a = testing.allocator;
-    const m1 = try mergeLinesJson(a, "[{\"a\":1}]", "[{\"b\":2}]");
-    defer a.free(m1);
-    try testing.expectEqualStrings("[{\"a\":1},{\"b\":2}]", m1);
-    const m2 = try mergeLinesJson(a, "[]", "[{\"b\":2}]");
-    defer a.free(m2);
-    try testing.expectEqualStrings("[{\"b\":2}]", m2);
-    const m3 = try mergeLinesJson(a, "[{\"a\":1}]", "[]");
-    defer a.free(m3);
-    try testing.expectEqualStrings("[{\"a\":1}]", m3);
-}
-
-test "extractLinesJson pulls the lines array, defaults to []" {
-    const a = testing.allocator;
-    const l = try extractLinesJson(a, "{\"lines\":[{\"color\":\"#f00\"}],\"imageFilter\":\"bw\"}");
-    defer a.free(l);
-    try testing.expectEqualStrings("[{\"color\":\"#f00\"}]", l);
-    const none = try extractLinesJson(a, "{\"imageFilter\":\"bw\"}");
-    defer a.free(none);
-    try testing.expectEqualStrings("[]", none);
-}
-
 test {
     _ = @import("session/attachments.zig");
     _ = @import("session/chat.zig");
     _ = @import("session/servers.zig");
     _ = @import("session/history.zig");
     _ = @import("session/edits.zig");
+    _ = geom;
+    _ = layoutJson;
+    _ = state_mod;
 }
