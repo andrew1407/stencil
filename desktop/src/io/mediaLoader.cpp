@@ -28,18 +28,6 @@ namespace stencil::gui {
     }
   }  // namespace
 
-  bool isVideoFileName(const QString& path) {
-    static const QStringList kVideoExt = {
-        "mp4", "m4v", "mov", "webm", "mkv", "avi", "wmv",
-        "flv", "mpg", "mpeg", "ogv", "3gp", "ts"};
-    return kVideoExt.contains(QFileInfo(path).suffix().toLower());
-  }
-
-  bool isImageFileName(const QString& path) {
-    static const QStringList kImageExt = {"png", "jpg", "jpeg", "webp", "gif", "bmp"};
-    return kImageExt.contains(QFileInfo(path).suffix().toLower());
-  }
-
   MediaLoader::MediaLoader(QObject* parent) : QObject(parent) {}
 
   MediaLoader::~MediaLoader() { cleanupVideo(); }

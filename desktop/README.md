@@ -68,7 +68,8 @@ src/                  # Qt GUI, grouped by role (headers included bare across gr
   support/            # theme, notifications, guiHelpers
 tests/                # Qt headless integration tests (crop + image fixture)
   fixtures/           # sample.png used by the image test
-resources/  packaging/
+resources/            # app.qrc: app.qss (the whole stylesheet) + the browser's shared config JSON
+packaging/
 CMakeLists.txt        # builds stencil; pulls the core via add_subdirectory(../core)
 ```
 

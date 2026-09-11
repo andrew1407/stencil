@@ -23,30 +23,20 @@ static void ensureAppResources() { Q_INIT_RESOURCE(app); }
 // surface cannot run and adding/removing an op is one row here.
 namespace stencil::llm {
 
-  namespace {
-
-  // §4 prose core, parsed once from the qrc canon. "head" carries its trailing
-  // newline and "tail" its leading blank line, so assembly is plain
-  // head + bullets + tail. Empty strings on a broken alias — the configCanon
-  // pins and the llmClient byte-stability test fail fast on that.
-  struct PromptProse { QString head; QString tail; };
-
-  const PromptProse& promptProse() {
-    static const PromptProse prose = [] {
+  // Any string field of the §4 prompt canon, parsed once from the qrc asset. "head"
+  // carries its trailing newline and "tail" its leading blank line, so assembly is plain
+  // head + bullets + tail; the contextSuffix* templates keep their Qt %1/%2 placeholders.
+  // Empty on a broken alias — the configCanon pins and the llmClient byte-stability test
+  // fail fast on that.
+  QString promptText(const QString& key) {
+    static const QJsonObject canon = [] {
       ensureAppResources();
-      PromptProse p;
       QFile f(QStringLiteral(":/config/llm/systemPrompt.json"));
-      if (f.open(QIODevice::ReadOnly)) {
-        const QJsonObject o = QJsonDocument::fromJson(f.readAll()).object();
-        p.head = o.value(QStringLiteral("head")).toString();
-        p.tail = o.value(QStringLiteral("tail")).toString();
-      }
-      return p;
+      if (!f.open(QIODevice::ReadOnly)) return QJsonObject();
+      return QJsonDocument::fromJson(f.readAll()).object();
     }();
-    return prose;
+    return canon.value(key).toString();
   }
-
-  }  // namespace
 
   namespace {
     struct OpRow { OpKind kind; const char* name; unsigned capability; };
@@ -247,7 +237,8 @@ namespace stencil::llm {
   }
 
   QString assembleSystemPrompt(unsigned caps) {
-    return promptProse().head + assembleOpsSection(caps) + promptProse().tail;
+    return promptText(QStringLiteral("head")) + assembleOpsSection(caps)
+           + promptText(QStringLiteral("tail"));
   }
 
   const QString& assembledSystemPrompt() {

@@ -6,6 +6,7 @@
 // sampling toolbar/panel geometry over time to assert the reveals animate smoothly (no flicker).
 // Runs offscreen (QT_QPA_PLATFORM=offscreen), so it needs no display; registered with CTest.
 #include "mainWindow.hpp"
+#include "support/browserCopy.hpp"
 #include "../src/support/themeSwapOverlay.hpp"
 #include "../src/support/notifications.hpp"
 #include "../src/support/disintegrateOverlay.hpp"
@@ -569,28 +570,14 @@ class MainWindowGuiTest : public QObject {
   // This is what drifted: the live-sync button described itself in its own words and,
   // having been built with no shortcut, showed no keycap at all (user report).
   void toolbarTooltipsMatchTheBrowser() {
-    QFile f(QStringLiteral(__FILE__).section('/', 0, -4) + "/browser/js/ui/toolbar.js");
-    QVERIFY2(f.open(QIODevice::ReadOnly), qPrintable("cannot read " + f.fileName()));
-    const QString js = QString::fromUtf8(f.readAll());
-    QVERIFY(!js.isEmpty());
-
-    // The browser's markup for one control id, and one attribute of it (HTML entities
-    // back to their characters).
-    auto browserTag = [&js](const QString& id) {
-      const QRegularExpression tag("<[a-zA-Z]+[^>]*\\bid=\"" + id + "\"[^>]*>");
-      return tag.match(js).captured(0);
+    // The browser's toolbar markup + the shared copy canon it interpolates from.
+    stencil::test::BrowserMarkup browser;
+    QVERIFY2(browser.load("browser/js/ui/toolbar.js"), "cannot read the browser's toolbar");
+    const auto browserTag = [&browser](const QString& id) { return browser.tag(id); };
+    const auto attrOf = [&browser](const QString& t, const QString& a) {
+      return browser.attr(t, a);
     };
-    auto attrOf = [](const QString& tag, const QString& attr) {
-      QString v = QRegularExpression(attr + "=\"([^\"]*)\"").match(tag).captured(1);
-      return v.replace("&amp;", "&").replace("&#10;", "\n");
-    };
-    // The browser's hover text: data-title when it has one (the rich tooltip), else the
-    // plain title.
-    auto browserTip = [&](const QString& id) {
-      const QString t = browserTag(id);
-      const QString v = attrOf(t, "data-title");
-      return v.isEmpty() ? attrOf(t, "\\stitle") : v;
-    };
+    const auto browserTip = [&browser](const QString& id) { return browser.tip(id); };
     // A desktop tooltip is "<text> (<shortcut>)" plus a "— reason" line while the control
     // is disabled (browser composeControlTitle) — the shortcut is drawn as a keycap and the
     // reason is checked on its own below, so only the text takes part in the comparison.

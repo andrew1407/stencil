@@ -24,7 +24,8 @@ namespace stencil::gui {
   // dock's clipboard-paste / drag-drop attach routing: video by container
   // extension (the same list load() uses), image by the common raster
   // extensions QImageReader decodes. Pure (path string only) so they are
-  // headless-testable.
+  // headless-testable. Defined in mediaTypes.cpp, off the shared canon
+  // (browser/js/config/mediaTypes.json `surfaces.desktop`).
   bool isVideoFileName(const QString& path);
   bool isImageFileName(const QString& path);
 

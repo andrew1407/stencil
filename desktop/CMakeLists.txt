@@ -138,6 +138,7 @@ if(Qt6_FOUND)
     src/net/fetchGuard.cpp
     src/io/fileStore.cpp
     src/io/mediaLoader.cpp
+    src/io/mediaTypes.cpp
     src/support/theme.cpp
     src/support/notifications.cpp
     src/support/guiHelpers.cpp
@@ -908,6 +909,25 @@ if(Qt6_FOUND)
     stencil_core Qt6::Widgets Qt6::Svg)
   add_test(NAME stencil_configcanon_headless COMMAND stencil_configcanon_headless)
   set_tests_properties(stencil_configcanon_headless PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+  # Drift guards for the assets the desktop reads instead of embedding: themeTokens.json
+  # against the Palette, resources/app.qss against buildStylesheet's token map,
+  # mediaTypes.json against the suffix sniffers, and the prompt canon's context suffixes.
+  add_executable(stencil_canonassets_headless
+    tests/canonAssets.headless.cpp
+    src/app/launchOptions.cpp
+    src/io/fileStore.cpp
+    src/io/mediaTypes.cpp
+    src/llm/opRegistry.cpp
+    src/llm/opSchema.cpp
+    src/support/theme.cpp
+    resources/app.qrc)
+  target_include_directories(stencil_canonassets_headless PRIVATE ${STENCIL_GUI_DIRS})
+  target_link_libraries(stencil_canonassets_headless PRIVATE
+    stencil_core Qt6::Widgets Qt6::Svg)
+  add_test(NAME stencil_canonassets_headless COMMAND stencil_canonassets_headless)
+  set_tests_properties(stencil_canonassets_headless PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
   # Saved-connection secrets (net/connectionStore + io/fileStore): the token never lands

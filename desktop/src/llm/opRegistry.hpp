@@ -55,6 +55,11 @@ namespace stencil::llm {
   const QVector<OpAddendum>& opAddenda();
 
   // Wire name of a kind ("" if somehow unregistered), and the reverse.
+  // One string field of the shared prompt canon (config/llm/systemPrompt.json), by
+  // name: the §4 prose seams this file assembles from, and the contextSuffix*
+  // templates the chat's per-turn context line is written with (Qt %1/%2 intact).
+  QString promptText(const QString& key);
+
   QString opName(OpKind kind);
   bool opKindFor(const QString& name, OpKind* out);
 

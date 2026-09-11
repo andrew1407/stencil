@@ -11,6 +11,7 @@
 #include "mediaLoader.hpp"
 #include "notifications.hpp"
 #include "opPlan.hpp"
+#include "opRegistry.hpp"   // promptText() — the §4 canon
 #include "planExecutor.hpp"
 #include "qtLlmTransport.hpp"
 #include "remoteSession.hpp"
@@ -378,18 +379,16 @@ namespace stencil::gui {
 
 
   QString MainWindow::chatSystemSuffix() const {
+    // Wording from the prompt canon (llm/systemPrompt.json contextSuffix*), %1/%2 and all.
+    const auto tpl = [](const char* key) { return llm::promptText(QLatin1String(key)); };
     QStringList parts;
-    if (canvas_->hasImage())
-      parts << QStringLiteral("Current context: the working image is %1×%2 px.")
-                   .arg(canvas_->imageWidth())
-                   .arg(canvas_->imageHeight());
-    else
-      parts << QStringLiteral("Current context: there is no working image yet.");
+    parts << (canvas_->hasImage() ? tpl("contextSuffixImage")
+                                        .arg(canvas_->imageWidth())
+                                        .arg(canvas_->imageHeight())
+                                  : tpl("contextSuffixNoImage"));
     if (!chatVideoPath_.isEmpty())
-      parts << (chatVideoFrames_ > 0
-                    ? QStringLiteral("The current input is a video with about %1 frames.")
-                          .arg(chatVideoFrames_)
-                    : QStringLiteral("The current input is a video."));
+      parts << (chatVideoFrames_ > 0 ? tpl("contextSuffixVideoFrames").arg(chatVideoFrames_)
+                                     : tpl("contextSuffixVideo"));
     return parts.join(QLatin1Char(' '));
   }
 
