@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 // Pure image-filter math, shared by the Qt desktop and the WebAssembly browser
 // build. Port of browser/js/core/renderer.js drawImageWithFilter (~9) +
@@ -60,5 +61,30 @@ namespace stencil::core {
   // Degenerate input (null buffer, non-positive dimension) is a no-op; 1x1 /
   // 1xN images work via the clamping (gx/gy vanish where neighbors are equal).
   void applyContourRGBA(std::uint8_t* data, int width, int height);
+
+  // Half-open [y0, y1) row slices of the ops above, so a native adapter can spread an
+  // image over its own thread pool (core owns no threading policy). Each whole-image
+  // entry point runs the same kernel over the full range, so tiled and untiled output
+  // is the same bytes. An empty or inverted range is a no-op.
+
+  // applyFilterRGBA over rows [y0, y1) of a `width`-wide image; rows are disjoint.
+  // There is no height here (its whole-image twin counts PIXELS, not rows), so y1 is
+  // trusted: pass rows that exist. y0 < 0 clamps to 0.
+  void applyFilterRows(FilterMode mode, std::uint8_t* data, int width, int y0, int y1,
+                       int tintR, int tintG, int tintB);
+
+  // Contour, split into its two passes over a caller-owned `luma` plane of width*height
+  // bytes. The Sobel pass reads a 3x3 NEIGHBOURHOOD — one row outside its range on each
+  // side — so EVERY luma row must be built before ANY sobelRows call: two separate
+  // parallel phases, never interleaved per tile, or the tiles disagree at their seams.
+  void buildLumaRows(const std::uint8_t* data, int width, int height, int y0, int y1,
+                     std::uint8_t* luma);
+  void sobelRows(const std::uint8_t* luma, std::uint8_t* data, int width, int height,
+                 int y0, int y1);
+
+  // applyContourRGBA with a caller-supplied luma plane (resized as needed), so a
+  // batch reuses one allocation instead of one per image.
+  void applyContourRGBA(std::uint8_t* data, int width, int height,
+                        std::vector<std::uint8_t>& scratch);
 
 }

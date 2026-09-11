@@ -106,10 +106,10 @@ fully exercised even on a machine without `emcc`.
 
 ### Benchmarks
 
-`tests/bench.test.cpp` holds perf-regression benchmarks for the heavy per-pixel /
-per-element hotspots (large-image filters/crop/rotate, many-line rasterisation, editing
-history growth). They are decorated `doctest::skip()`, so the normal `ctest` run — and CI —
-**never** executes them; no timing number gates a merge. Run them on demand:
+`tests/bench.test.cpp` (+ `benchGeometry` / `benchLogic`, sharing `benchSupport.hpp`) holds
+perf-regression benchmarks for the heavy per-pixel / per-element hotspots. They are
+decorated `doctest::skip()`, so the normal `ctest` run — and CI — **never** executes them;
+no timing number gates a merge. Run them on demand:
 
 ```bash
 core/build/stencil_tests -ts=bench --no-skip
@@ -118,8 +118,19 @@ core/build/stencil_tests -ts=bench --no-skip -tc="*rasterize*"   # one case
 
 Assertions are deliberately **relative** (ratios between ops, or scaling as input doubles)
 with generous ceilings, so they flag algorithmic regressions rather than machine noise; each
-case also prints a throughput line. The CLI drives the same code end-to-end (with codec
-encode) via `zig build bench` — see [`../cli/README.md`](../cli/README.md).
+case also prints a throughput line. The eleven cases guard: contour vs. the cheap per-pixel
+filter; rotate staying a tiled transpose; rasterising a big layout staying linear in line
+**count**, and one stroke staying O(length x thickness²) (its disc-px/s is what a span-based
+rewrite must beat); `fillPolygon`'s per-scanline edge walk staying linear in edge count;
+`findLineAt`/`findNearestSegment` — the desktop's per-mouse-move hit test — staying linear in
+line count; `projectsStore::list()`'s deep copy and `sweepExpired` per dialog refresh;
+`formulaParser` at `kMaxDepth` nesting from untrusted layout JSON / `--formula`; `parseColor`
+keyword vs. hex, called per line per rasterised/painted frame; the two `luma.hpp` Rec. 709
+forms against each other (with the invariant that they differ by at most 1 — the number that
+settles any attempt to unify them); and `HistoryStack::push` staying amortised O(1).
+
+The CLI drives the same code end-to-end (with codec encode) via `zig build bench` — see
+[`../cli/README.md`](../cli/README.md).
 
 > The Zig CLI recompiles the core's `.cpp` files directly rather than linking the CMake
 > library, so the file list in [`../cli/build.zig`](../cli/build.zig) must stay in sync with

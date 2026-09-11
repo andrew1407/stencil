@@ -59,6 +59,27 @@ void stencil_cli_rotateImageRGBA(const uint8_t* src, int w, int h, int quarters,
 /* Fill `pixelCount` RGBA8 pixels of dst with one colour. */
 void stencil_cli_fillRGBA(uint8_t* dst, int pixelCount, int r, int g, int b, int a);
 
+/* ── Row ranges ─────────────────────────────────────────────────────────────── */
+/* Half-open [y0,y1) row slices of the whole-buffer ops, for a caller that owns a
+ * thread pool (core owns no threading policy). Same bytes as the whole-image call,
+ * which is these over every row. An empty range is a no-op. Ranges clamp to the
+ * image, EXCEPT stencil_cli_applyFilterRows, which is not told the height: its y1
+ * is trusted, so pass rows that exist. */
+void stencil_cli_cropImageRows(const uint8_t* src, int srcW, int srcH,
+                               int rx, int ry, int rw, int rh, uint8_t* dst,
+                               int dy0, int dy1);
+void stencil_cli_rotateImageRows(const uint8_t* src, int w, int h, int quarters,
+                                 uint8_t* dst, int oy0, int oy1);
+void stencil_cli_applyFilterRows(const char* mode, uint8_t* data, int width,
+                                 int y0, int y1, int tintR, int tintG, int tintB);
+/* Contour in two passes over a caller-owned `luma` plane of width*height bytes.
+ * The Sobel pass reads one row OUTSIDE its range on each side, so every luma row
+ * must be built before any sobel row runs — two phases, never interleaved. */
+void stencil_cli_buildLumaRows(const uint8_t* data, int width, int height,
+                               int y0, int y1, uint8_t* luma);
+void stencil_cli_sobelRows(const uint8_t* luma, uint8_t* data, int width, int height,
+                           int y0, int y1);
+
 /* ── Filter ─────────────────────────────────────────────────────────────────── */
 /* Apply an image filter in place to a `pixelCount`-pixel RGBA8 buffer. `mode` is
  * "none" | "bw" | "sepia" | "invert" | any other (a custom duotone toward

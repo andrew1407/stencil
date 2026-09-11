@@ -31,12 +31,28 @@ namespace stencil::core {
   // iteration so the topmost (last-drawn) line wins on overlap. Per line we test
   // every point at radius `threshold + 4`, then every segment at `threshold`.
   int findLineAt(const Lines& lines, double x, double y, double threshold) {
+    const double margin = threshold + 4.0;  // the wider of the two radii
     for (std::size_t i = lines.size(); i-- > 0;) {
       const std::vector<Point>& pts = lines[i].points;
+      if (pts.empty()) continue;
+
+      // Bounding-box reject before the per-point scan: every candidate lies inside the
+      // bbox, so a hit implies (x, y) is within `margin` of it — a rejected line cannot
+      // match and topmost-first is untouched. (Non-finite coords fail these compares.)
+      double minX = pts[0].x, maxX = minX, minY = pts[0].y, maxY = minY;
+      for (const Point& p : pts) {
+        minX = std::min(minX, p.x);
+        maxX = std::max(maxX, p.x);
+        minY = std::min(minY, p.y);
+        maxY = std::max(maxY, p.y);
+      }
+      if (x < minX - margin || x > maxX + margin || y < minY - margin ||
+          y > maxY + margin)
+        continue;
 
       // Check points (drawingApp.js:1534-1535).
       for (const Point& p : pts)
-        if (std::hypot(p.x - x, p.y - y) <= threshold + 4.0)
+        if (std::hypot(p.x - x, p.y - y) <= margin)
           return static_cast<int>(i);
 
       // Check segments (drawingApp.js:1538-1539).

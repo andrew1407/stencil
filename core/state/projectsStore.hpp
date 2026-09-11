@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 // In-memory project registry + expiry logic. Port of the *pure* parts of
@@ -96,12 +97,28 @@ namespace stencil::core {
     // All projects, most-recently-updated first.
     std::vector<ProjectMeta> list() const;
 
+    // list() without copying 18 fields per project: pointers into the registry, same
+    // filter and same order. Valid until the next mutation.
+    std::vector<const ProjectMeta*> listRefs() const;
+
+    // The whole registry in insertion order, no copy. Unsorted, and it still holds the
+    // id-less rows list() drops — use listRefs() for the list order.
+    const std::vector<ProjectMeta>& registry() const { return registry_; }
+
     // Metadata for `id`, or nullopt.
     std::optional<ProjectMeta> getMeta(const std::string& id) const;
+
+    // getMeta without the copy: the stored row, or nullptr. Valid until the next
+    // mutation. Lookups go through an id index, so a batch is not O(N^2).
+    const ProjectMeta* find(const std::string& id) const;
 
     // Insert or replace `meta`, stamping updatedAt = now (and createdAt if unset).
     // Returns the stored metadata.
     ProjectMeta upsert(ProjectMeta meta, long long now);
+
+    // upsert without copying the meta in or the stored row out. Same stamping and
+    // same insert/replace rule; returns the stored row (valid until the next mutation).
+    const ProjectMeta& upsertMoved(ProjectMeta&& meta, long long now);
 
     // Bump updatedAt without otherwise changing the entry. False if not found.
     bool touch(const std::string& id, long long now);
@@ -158,11 +175,16 @@ namespace stencil::core {
 
    private:
     // Locate a project by id in the registry (end() iterator if absent). Both
-    // overloads so const and mutating callers share one linear scan.
+    // overloads so const and mutating callers share one index lookup.
     std::vector<ProjectMeta>::iterator findById(const std::string& id);
     std::vector<ProjectMeta>::const_iterator findById(const std::string& id) const;
 
+    // Rebuild index_ from registry_. First occurrence of an id wins, exactly like the
+    // linear scan it replaces — duplicate and empty ids resolve the same way.
+    void reindex();
+
     std::vector<ProjectMeta> registry_;
+    std::unordered_map<std::string, std::size_t> index_;  // id -> position in registry_
   };
 
 }

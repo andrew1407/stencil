@@ -115,6 +115,33 @@ extern "C" {
     applyContourRGBA(data, width, height);
   }
 
+  void stencil_cli_cropImageRows(const uint8_t* src, int srcW, int srcH,
+                                 int rx, int ry, int rw, int rh, uint8_t* dst,
+                                 int dy0, int dy1) {
+    cropImageRows(src, srcW, srcH, rx, ry, rw, rh, dst, dy0, dy1);
+  }
+
+  void stencil_cli_rotateImageRows(const uint8_t* src, int w, int h, int quarters,
+                                   uint8_t* dst, int oy0, int oy1) {
+    rotateImageRows(src, w, h, quarters, dst, oy0, oy1);
+  }
+
+  void stencil_cli_applyFilterRows(const char* mode, uint8_t* data, int width,
+                                   int y0, int y1, int tintR, int tintG, int tintB) {
+    const FilterMode fm = filterModeFromString(mode ? std::string(mode) : std::string());
+    applyFilterRows(fm, data, width, y0, y1, tintR, tintG, tintB);
+  }
+
+  void stencil_cli_buildLumaRows(const uint8_t* data, int width, int height,
+                                 int y0, int y1, uint8_t* luma) {
+    buildLumaRows(data, width, height, y0, y1, luma);
+  }
+
+  void stencil_cli_sobelRows(const uint8_t* luma, uint8_t* data, int width, int height,
+                             int y0, int y1) {
+    sobelRows(luma, data, width, height, y0, y1);
+  }
+
   // `pointColor` is the point colour, appended LAST so the parameter order of every
   // earlier argument is unchanged. NULL or "" means "inherit the stroke colour", which is
   // what a caller that does not know about the field passes — see Line::pointColor.

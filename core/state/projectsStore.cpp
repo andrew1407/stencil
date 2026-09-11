@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>  // std::isdigit in untitledIndex
+#include <utility>  // std::move
 
 namespace stencil::core {
 
@@ -61,44 +62,77 @@ namespace stencil::core {
 
   void ProjectsStore::load(std::vector<ProjectMeta> registry) {
     registry_ = std::move(registry);
+    reindex();
   }
 
-  std::vector<ProjectMeta> ProjectsStore::list() const {
-    std::vector<ProjectMeta> out;
+  void ProjectsStore::reindex() {
+    index_.clear();
+    index_.reserve(registry_.size());
+    for (std::size_t i = 0; i < registry_.size(); ++i)
+      index_.emplace(registry_[i].id, i);  // emplace keeps the FIRST occurrence
+  }
+
+  std::vector<const ProjectMeta*> ProjectsStore::listRefs() const {
+    std::vector<const ProjectMeta*> out;
+    out.reserve(registry_.size());
     for (const auto& m : registry_) {
-      if (!m.id.empty()) out.push_back(m);
+      if (!m.id.empty()) out.push_back(&m);
     }
     std::stable_sort(out.begin(), out.end(),
-                     [](const ProjectMeta& a, const ProjectMeta& b) {
-                       return a.updatedAt > b.updatedAt;
+                     [](const ProjectMeta* a, const ProjectMeta* b) {
+                       return a->updatedAt > b->updatedAt;
                      });
     return out;
   }
 
+  std::vector<ProjectMeta> ProjectsStore::list() const {
+    // Same filter, same comparator, same stable order — just sorted before copying.
+    const std::vector<const ProjectMeta*> refs = listRefs();
+    std::vector<ProjectMeta> out;
+    out.reserve(refs.size());
+    for (const ProjectMeta* m : refs) out.push_back(*m);
+    return out;
+  }
+
   std::vector<ProjectMeta>::iterator ProjectsStore::findById(const std::string& id) {
-    return std::find_if(registry_.begin(), registry_.end(),
-                        [&](const ProjectMeta& m) { return m.id == id; });
+    const auto at = index_.find(id);
+    if (at == index_.end()) return registry_.end();
+    return registry_.begin() + static_cast<std::ptrdiff_t>(at->second);
   }
 
   std::vector<ProjectMeta>::const_iterator ProjectsStore::findById(
       const std::string& id) const {
-    return std::find_if(registry_.begin(), registry_.end(),
-                        [&](const ProjectMeta& m) { return m.id == id; });
+    const auto at = index_.find(id);
+    if (at == index_.end()) return registry_.end();
+    return registry_.begin() + static_cast<std::ptrdiff_t>(at->second);
+  }
+
+  const ProjectMeta* ProjectsStore::find(const std::string& id) const {
+    const auto it = findById(id);
+    return it == registry_.end() ? nullptr : &*it;
   }
 
   std::optional<ProjectMeta> ProjectsStore::getMeta(const std::string& id) const {
-    const auto it = findById(id);
-    if (it == registry_.end()) return std::nullopt;
-    return *it;
+    const ProjectMeta* m = find(id);
+    if (m == nullptr) return std::nullopt;
+    return *m;
   }
 
   ProjectMeta ProjectsStore::upsert(ProjectMeta meta, long long now) {
+    return upsertMoved(std::move(meta), now);
+  }
+
+  const ProjectMeta& ProjectsStore::upsertMoved(ProjectMeta&& meta, long long now) {
     meta.updatedAt = now;
     if (meta.createdAt == 0) meta.createdAt = now;
     const auto it = findById(meta.id);
-    if (it == registry_.end()) registry_.push_back(meta);
-    else *it = meta;
-    return meta;
+    if (it != registry_.end()) {
+      *it = std::move(meta);
+      return *it;
+    }
+    index_.emplace(meta.id, registry_.size());  // before the move empties meta.id
+    registry_.push_back(std::move(meta));
+    return registry_.back();
   }
 
   bool ProjectsStore::touch(const std::string& id, long long now) {
@@ -121,11 +155,14 @@ namespace stencil::core {
 
   void ProjectsStore::remove(const std::string& id) {
     const auto it = findById(id);
-    if (it != registry_.end()) registry_.erase(it);
+    if (it == registry_.end()) return;
+    registry_.erase(it);
+    reindex();  // every later position shifted; a duplicate id may have surfaced
   }
 
   void ProjectsStore::clearAll() {
     registry_.clear();
+    index_.clear();
   }
 
   bool ProjectsStore::isExpired(const ProjectMeta& meta, long long now) const {

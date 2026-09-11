@@ -26,6 +26,14 @@ namespace stencil::core {
   void rotateImageRGBA(const std::uint8_t* src, int w, int h, int quarters,
                        std::uint8_t* dst);
 
+  // Half-open [dy0, dy1) DESTINATION-row slices of the two ops above, for an adapter's
+  // pool (core owns no threading). Disjoint rows, so ranges may run concurrently; the
+  // whole-image ops are these over every destination row.
+  void cropImageRows(const std::uint8_t* src, int srcW, int srcH, int rx, int ry,
+                     int rw, int rh, std::uint8_t* dst, int dy0, int dy1);
+  void rotateImageRows(const std::uint8_t* src, int w, int h, int quarters,
+                       std::uint8_t* dst, int oy0, int oy1);
+
   // Fill an RGBA8 buffer of `pixelCount` pixels with one colour.
   void fillRGBA(std::uint8_t* dst, std::size_t pixelCount, int r, int g, int b, int a);
 
