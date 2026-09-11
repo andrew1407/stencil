@@ -2,7 +2,6 @@
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
   "files": {
-    "pystencil/pystencil/_opschema.py": 398,
     "pystencil/pystencil/core.py": 151,
     "pystencil/pystencil/layout.py": 217,
     "pystencil/tests/test_editor.py": 397,
@@ -13,6 +12,7 @@
   "commentPct": {
     "pystencil": 8,
     "pystencil/pystencil": 3,
+    "pystencil/pystencil/_opschema": 2,
     "pystencil/pystencil/cli": 6,
     "pystencil/pystencil/cli/commands": 9,
     "pystencil/pystencil/codecs": 5,
