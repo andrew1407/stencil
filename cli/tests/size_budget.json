@@ -3,7 +3,7 @@
   "maxNewFileLines": 230,
   "files": {
     "cli/src/args.zig": 14,
-    "cli/src/clipboard.zig": 298,
+    "cli/src/clipboard.zig": 28,
     "cli/src/console.zig": 73,
     "cli/src/console/ansi.zig": 30,
     "cli/src/console/attachments.zig": 71,
