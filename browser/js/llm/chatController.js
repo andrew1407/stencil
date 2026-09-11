@@ -1,10 +1,8 @@
 // ── Chat controller: history, attachments, and the send loop ────────────────
-// Owns the client-side conversation state (contract §7): history is replayed in
-// full on every call (bounded to 32 messages), images follow the replay rule, and
-// attachments are downscaled before base64-encoding. Every capability that needs a
-// DOM (canvas downscale, video frames, image export) is INJECTED so `node --test`
-// can drive the controller with stubs.
-import { EDITOR_SYSTEM_PROMPT, LLM_SYSTEM_PROMPT, parseOpPlan, executeOpPlan, renderAskPreviews } from './opPlan.js';
+// Owns the client-side conversation state (contract §7): history is replayed in full on
+// every call (bounded to 32 messages), images follow the replay rule, and attachments are
+// downscaled before base64-encoding. Every DOM capability is INJECTED for `node --test`.
+import { EDITOR_SYSTEM_PROMPT, parseOpPlan, executeOpPlan, renderAskPreviews } from './opPlan.js';
 import { CONTINUATION_NOTE } from './chatStore.js';
 import PROMPT_ASSET from '../config/llm/systemPrompt.json' with { type: 'json' };
 import { isVideoFile } from '../core/videoFrame.js';

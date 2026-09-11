@@ -1,9 +1,9 @@
 // ── Voice input settings ───────────────────────────────────────────────────
-// The two knobs the speech-to-text feature exposes (js/llm/voiceModes.js): how long a
-// pause ends an utterance, and which language the recognizer listens for. Persisted
-// under their own key so the §5 LLM settings blob stays exactly the contract's shape.
-// All localStorage access is guarded so importing this leaf in Node stays inert.
-import EVENTS from '../config/events.json' with { type: 'json' };
+// The two knobs speech-to-text exposes (voiceModes.js): how long a pause ends an utterance,
+// and which language the recognizer listens for. Persisted under their own key so the §5
+// blob keeps the contract's shape; every localStorage access is guarded for Node.
+import { clamp } from '../utils/math.js';
+import { publish, EVENTS } from '../bus/appBus.js';
 
 const VOICE_SETTINGS_KEY = 'drawingApp_voiceSettings';
 export const VOICE_SETTINGS_EVENT = EVENTS.voiceSettingsChanged;
@@ -41,7 +41,7 @@ export const isLanguageTag = (v) => typeof v === 'string' && LANG_TAG_RE.test(v.
 export const clampSilenceMs = (v) => {
   const n = Number(v);
   if (!Number.isFinite(n)) return SILENCE_MS_DEFAULT;
-  return Math.min(SILENCE_MS_MAX, Math.max(SILENCE_MS_MIN, Math.round(n)));
+  return clamp(Math.round(n), SILENCE_MS_MIN, SILENCE_MS_MAX);
 };
 
 // '' / 'default' → 'default'; a tag stays as typed (trimmed); anything else → 'default'.
@@ -82,5 +82,5 @@ export const saveVoiceSettings = (s) => {
   } catch {
     /* storage blocked — settings live for this session only */
   }
-  try { window.dispatchEvent(new Event(VOICE_SETTINGS_EVENT)); } catch { /* no DOM */ }
+  publish(VOICE_SETTINGS_EVENT);
 };

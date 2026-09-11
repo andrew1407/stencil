@@ -1,8 +1,7 @@
 // ── Per-project chat persistence: the stored document + the IndexedDB store ──
-// llm-contract.md §12: an OPT-IN, text-only chat transcript saved per project. Lives in
-// IndexedDB (not localStorage) to stay out of the projects' quota budget; every operation
-// is best-effort — a failure means "not persisted", never a thrown error in the editor.
-// The backend is injected so `node --test` drives the store with an async Map shim.
+// llm-contract.md §12: an OPT-IN, text-only chat transcript saved per project. IndexedDB,
+// not localStorage, to stay out of the projects' quota budget; every operation is
+// best-effort. The backend is injected so `node --test` drives it with an async Map shim.
 
 import PROMPT_ASSET from '../config/llm/systemPrompt.json' with { type: 'json' };
 

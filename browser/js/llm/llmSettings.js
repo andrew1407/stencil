@@ -1,7 +1,6 @@
 // ── LLM assistant settings (llm-contract.md §5) ────────────────────────
-// Persisted provider configuration for the chat panel, in the contract's shape:
-// { provider, baseUrl, model, apiKey, serverUrl }. All localStorage access is
-// guarded so importing this leaf in Node (the test runner) stays inert.
+// Persisted provider configuration in the contract's shape: { provider, baseUrl, model,
+// apiKey, serverUrl }. Every localStorage access is guarded so the leaf is inert in Node.
 import PROVIDERS_ASSET from '../config/llm/providers.json' with { type: 'json' };
 import { loadSavedServers } from '../net/connectionStore.js';
 
@@ -25,10 +24,9 @@ export const PROVIDER_BASE_URLS = Object.fromEntries(
 export const URL_KEYS = ['baseUrl', 'serverUrl'];
 export const isHttpUrl = (v) => /^https?:\/\//i.test(String(v == null ? '' : v));
 
-// Switch `settings` to `provider`, pre-filling the new provider's default base URL
-// unless the user has overridden it (a URL that isn't just the previous provider's
-// default). THE provider-switch rule — the settings modal and the stencil.llm()
-// facade both apply this one helper so they can never drift.
+// Switch `settings` to `provider`, pre-filling its default base URL unless the user
+// overrode it. THE provider-switch rule: the settings modal and the stencil.llm facade
+// both apply this one helper, so they cannot drift.
 export const withProvider = (settings, provider) => {
   const wasDefault = !settings.baseUrl || settings.baseUrl === PROVIDER_BASE_URLS[settings.provider];
   return {
