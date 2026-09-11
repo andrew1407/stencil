@@ -1,134 +1,78 @@
+using Stencil.TelegramBot.Domain.Configuration;
 using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Infrastructure.Configuration;
 
-/// <summary>
-/// Process-wide configuration, read from the environment (mirrors the env-driven
-/// configuration of the other adapters — <c>mcp/</c>'s <c>STENCIL_CLI</c> override and
-/// <c>pystencil</c>'s server/TLS knobs). Plain data so it can be injected as a singleton.
-/// </summary>
-public sealed record BotOptions
+// Process-wide configuration read from the environment, like the other adapters (mcp's
+// STENCIL_CLI override, pystencil's server/TLS knobs). Plain data: injected as a singleton.
+// FromEnvironment at the bottom is the property -> env key map.
+public sealed record BotOptions : IBotPolicy
 {
-    /// <summary>Telegram bot API token (<c>TELEGRAM_BOT_TOKEN</c>).</summary>
     public string BotToken { get; init; } = "";
 
-    /// <summary>Explicit CLI binary path (<c>STENCIL_CLI</c>), or null to auto-discover.</summary>
+    // Null auto-discovers.
     public string? CliPath { get; init; }
 
-    /// <summary>Redis connection string (<c>REDIS_URL</c>); null/blank ⇒ in-memory sessions.</summary>
+    // Null/blank = in-memory sessions.
     public string? RedisUrl { get; init; }
 
-    /// <summary>Per-user scratch directory root (<c>STENCIL_BOT_DATA_DIR</c>).</summary>
     public string DataDir { get; init; } = "";
 
-    /// <summary>When true, skip TLS certificate validation for collaboration servers.</summary>
     public bool TlsInsecure { get; init; }
 
-    /// <summary>
-    /// Base URL of the served browser app (<c>STENCIL_BOT_BROWSER_URL</c>), e.g.
-    /// <c>https://stencil.example/app</c>. It is what <c>/link</c> builds its desktop hand-off
-    /// links from — they ride through that app's <c>launch.html</c> bounce page. Defaults to the
-    /// dev server, like the desktop app's "Browser app URL", the extension's editor URL and
-    /// mcp's <c>STENCIL_BROWSER_URL</c> — but a bot link is tapped on someone ELSE's machine, so
-    /// a public address (a Pages deployment, say) is what an operator normally wants here.
-    /// </summary>
+    // What /link builds hand-off links from, through launch.html. A bot link is tapped on
+    // someone ELSE's machine, so an operator normally wants a public address here.
     public string BrowserAppUrl { get; init; } = DefaultBrowserAppUrl;
 
-    /// <summary>
-    /// Maximum number of stencil CLI processes allowed to run at once, process-wide
-    /// (<c>STENCIL_BOT_MAX_CONCURRENT_CLI</c>). Each edit/probe is a separate OS process, so this
-    /// caps process/CPU pressure when many users edit at the same time. Defaults to the CPU count;
-    /// values below 1 are clamped up to 1.
-    /// </summary>
+    // Each edit/probe is its own OS process. Values below 1 clamp up to 1.
     public int MaxConcurrentCli { get; init; } = DefaultMaxConcurrentCli;
 
-    /// <summary>
-    /// Maximum number of LLM calls in flight at once, process-wide
-    /// (<c>STENCIL_BOT_MAX_CONCURRENT_LLM</c>). Each call can run for minutes holding image
-    /// payloads, so this bounds memory and upstream spend when many users prompt at once; a
-    /// full gate answers "busy" immediately rather than queueing. Default 8 (the server's
-    /// <c>LLM_MAX_IN_FLIGHT</c> default); 0 = unlimited.
-    /// </summary>
+    // Each call can run for minutes holding image payloads, so a full gate answers "busy"
+    // rather than queueing. 0 = unlimited.
     public int MaxConcurrentLlm { get; init; } = DefaultMaxConcurrentLlm;
 
-    /// <summary>
-    /// Timeout for a single collaboration-server REST request (<c>STENCIL_BOT_HTTP_TIMEOUT_SECONDS</c>).
-    /// Bounds how long a slow/hung server can block an update handler. Default 30s.
-    /// </summary>
+    // Bounds how long a hung server blocks a handler.
     public TimeSpan ServerHttpTimeout { get; init; } = TimeSpan.FromSeconds(DefaultHttpTimeoutSeconds);
 
-    /// <summary>
-    /// Maximum size, in bytes, of a file the bot will download from Telegram
-    /// (<c>STENCIL_BOT_MAX_DOWNLOAD_MB</c>). Caps memory/disk from an oversized upload. Default 50 MB.
-    /// </summary>
+    // Bounds memory/disk against a file downloaded from Telegram.
     public long MaxDownloadBytes { get; init; } = (long)DefaultMaxDownloadMb * 1024 * 1024;
 
-    /// <summary>
-    /// Cap for a NON-image upload — a layout <c>.json</c> or a <c>.stencil</c> project. Those are
-    /// parsed whole, so they get a far tighter bound than a photo: 4 MB, or
-    /// <see cref="MaxDownloadBytes"/> when the operator configured something smaller.
-    /// </summary>
+    // A NON-image upload (a layout .json / .stencil project) is parsed WHOLE, hence the far
+    // tighter cap — or MaxDownloadBytes when that is smaller.
     public long MaxDocumentBytes => Math.Min(MaxDownloadBytes, (long)DefaultMaxDocumentMb * 1024 * 1024);
 
-    /// <summary>
-    /// Maximum wall-clock time a single stencil CLI invocation may run
-    /// (<c>STENCIL_BOT_CLI_TIMEOUT_SECONDS</c>) before it is killed. A scrape fetches a page plus
-    /// N media downloads, so without a bound a slow/hung host could pin a scarce
-    /// <see cref="MaxConcurrentCli"/> slot indefinitely and starve the bot. Default 120s.
-    /// </summary>
+    // Without it a slow host could pin a scarce MaxConcurrentCli slot forever.
     public TimeSpan CliTimeout { get; init; } = TimeSpan.FromSeconds(DefaultCliTimeoutSeconds);
 
-    /// <summary>
-    /// How long an unreferenced per-user scratch file may sit before the janitor sweeps it
-    /// (<c>STENCIL_BOT_WORKSPACE_TTL_MINUTES</c>). The active image/video are never swept, only the
-    /// orphaned render/layout artifacts. Default 60 min.
-    /// </summary>
+    // How long an ORPHANED scratch file may sit; the active image/video are never swept.
     public TimeSpan WorkspaceTtl { get; init; } = TimeSpan.FromMinutes(DefaultWorkspaceTtlMinutes);
 
-    /// <summary>
-    /// LLM assistant configuration (<c>llm-contract.md</c> §5), read from the same
-    /// <c>STENCIL_LLM_PROVIDER</c> / <c>STENCIL_LLM_BASE_URL</c> / <c>STENCIL_LLM_MODEL</c> /
-    /// <c>STENCIL_LLM_API_KEY</c> / <c>STENCIL_LLM_SERVER_URL</c> keys as <c>pystencil</c>.
-    /// Defaults to a local ollama at its native port.
-    /// </summary>
+    // §5, read from the same STENCIL_LLM_* keys as pystencil; defaults to a local ollama.
     public LlmOptions Llm { get; init; } = new();
 
-    /// <summary>
-    /// The chat APIs <c>/chatapi</c> offers, in the operator's configured order. Empty = the
-    /// picker is off and every turn uses <see cref="Llm"/>. See LlmProfilesFromEnvironment.
-    /// </summary>
+    // In the operator's configured order. Empty = the picker is off and every turn uses Llm.
     public IReadOnlyList<LlmProfile> LlmProfiles { get; init; } = [];
 
-    /// <summary>
-    /// The configuration a user's picked profile selects, or <see cref="Llm"/> when they have
-    /// picked nothing — or picked something the operator has since removed.
-    /// </summary>
+    // Falls back to Llm when there is no pick, or the operator has since removed it.
     public LlmOptions LlmFor(string? profileName) =>
         profileName is null ? Llm : FindProfile(profileName)?.Options ?? Llm;
 
-    /// <summary>The profile by name (case-insensitively), or null when it is not configured.</summary>
     public LlmProfile? FindProfile(string? name) =>
         name is null ? null : LlmProfiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>
-    /// Telegram user ids allowed to use the bot (<c>STENCIL_BOT_ALLOWED_USERS</c>, a
-    /// comma/space-separated list). Empty = the bot is OFF for everyone. Anyone who finds the bot
-    /// can message it and every command spends the operator's resources — a CLI process, disk in
-    /// the data dir, an outbound fetch, the single LLM API key — so the whole bot is opt-in per
-    /// user and fails closed; only <c>/start</c> and <c>/help</c> answer an unlisted user.
-    /// </summary>
+    // A comma/space-separated list. Empty = OFF for everyone: every command spends the
+    // operator's resources, so the bot fails closed and a stranger gets only /start and /help.
     public IReadOnlySet<long> AllowedUsers { get; init; } = new HashSet<long>();
 
-    /// <summary>Whether <paramref name="userId"/> may use the bot at all.</summary>
     public bool AllowedFor(long userId) => AllowedUsers.Contains(userId);
 
-    /// <summary>The default CLI concurrency cap: one process per logical CPU (at least one).</summary>
+    // One CLI process per logical CPU, at least one.
     private static readonly int DefaultMaxConcurrentCli = Math.Max(1, Environment.ProcessorCount);
 
-    /// <summary>The default LLM in-flight cap: the server's <c>LLM_MAX_IN_FLIGHT</c> default.</summary>
+    // The server's LLM_MAX_IN_FLIGHT default.
     private const int DefaultMaxConcurrentLlm = 8;
 
-    /// <summary>The browser-app base every surface defaults to: the served dev app.</summary>
+    // The served dev app, the base every surface defaults to.
     public const string DefaultBrowserAppUrl = "http://localhost:8080";
 
     private const int DefaultHttpTimeoutSeconds = 30;
@@ -137,182 +81,28 @@ public sealed record BotOptions
     private const int DefaultWorkspaceTtlMinutes = 60;
     private const int DefaultCliTimeoutSeconds = 120;
 
-    /// <summary>
-    /// Build options from the current process environment. The data-dir defaults to
-    /// <c>&lt;temp&gt;/stencil-bot</c>; <see cref="TlsInsecure"/> is the truthy reading of
-    /// <c>STENCIL_TLS_INSECURE</c> (<c>1</c>/<c>true</c>/<c>yes</c>, case-insensitive).
-    /// </summary>
-    public static BotOptions FromEnvironment()
+    public static BotOptions FromEnvironment() => new()
     {
-        string token = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN") ?? "";
-        string? cliPath = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_CLI"));
-        string? redisUrl = NullIfBlank(Environment.GetEnvironmentVariable("REDIS_URL"));
-        string dataDir = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_BOT_DATA_DIR"))
-            ?? Path.Combine(Path.GetTempPath(), "stencil-bot");
-        bool tlsInsecure = IsTruthy(Environment.GetEnvironmentVariable("STENCIL_TLS_INSECURE"));
-        string browserAppUrl = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_BOT_BROWSER_URL"))
-            ?? DefaultBrowserAppUrl;
-        int maxConcurrentCli = ParsePositiveInt(
-            Environment.GetEnvironmentVariable("STENCIL_BOT_MAX_CONCURRENT_CLI"),
-            DefaultMaxConcurrentCli);
-        int maxConcurrentLlm = ParseNonNegativeInt(
-            Environment.GetEnvironmentVariable("STENCIL_BOT_MAX_CONCURRENT_LLM"),
-            DefaultMaxConcurrentLlm);
-        int httpTimeoutSeconds = ParsePositiveInt(
-            Environment.GetEnvironmentVariable("STENCIL_BOT_HTTP_TIMEOUT_SECONDS"),
-            DefaultHttpTimeoutSeconds);
-        int maxDownloadMb = ParsePositiveInt(
-            Environment.GetEnvironmentVariable("STENCIL_BOT_MAX_DOWNLOAD_MB"),
-            DefaultMaxDownloadMb);
-        int workspaceTtlMinutes = ParsePositiveInt(
-            Environment.GetEnvironmentVariable("STENCIL_BOT_WORKSPACE_TTL_MINUTES"),
-            DefaultWorkspaceTtlMinutes);
-        int cliTimeoutSeconds = ParsePositiveInt(
-            Environment.GetEnvironmentVariable("STENCIL_BOT_CLI_TIMEOUT_SECONDS"),
-            DefaultCliTimeoutSeconds);
-        return new BotOptions
-        {
-            BotToken = token,
-            CliPath = cliPath,
-            RedisUrl = redisUrl,
-            DataDir = dataDir,
-            TlsInsecure = tlsInsecure,
-            BrowserAppUrl = browserAppUrl,
-            MaxConcurrentCli = maxConcurrentCli,
-            MaxConcurrentLlm = maxConcurrentLlm,
-            ServerHttpTimeout = TimeSpan.FromSeconds(httpTimeoutSeconds),
-            MaxDownloadBytes = (long)maxDownloadMb * 1024 * 1024,
-            WorkspaceTtl = TimeSpan.FromMinutes(workspaceTtlMinutes),
-            CliTimeout = TimeSpan.FromSeconds(cliTimeoutSeconds),
-            Llm = LlmFromEnvironment(),
-            LlmProfiles = LlmProfilesFromEnvironment(),
-            AllowedUsers = ParseUserIds(Environment.GetEnvironmentVariable("STENCIL_BOT_ALLOWED_USERS")),
-        };
-    }
-
-    /// <summary>
-    /// The selectable chat APIs, from <c>STENCIL_LLM_PROFILES</c> (a comma-separated list of
-    /// names) plus one <c>STENCIL_LLM_PROFILE_&lt;NAME&gt;_*</c> group each — <c>LABEL</c>,
-    /// <c>PROVIDER</c>, <c>BASE_URL</c>, <c>MODEL</c>, <c>API_KEY</c>, <c>SERVER_URL</c>,
-    /// <c>SERVER_TOKEN</c>. Anything a group leaves out falls back to the plain
-    /// <c>STENCIL_LLM_*</c> value, so a profile that only changes the model is three lines.
-    /// Empty (the default) = no picker; the bot has exactly the one configured provider.
-    /// </summary>
-    private static IReadOnlyList<LlmProfile> LlmProfilesFromEnvironment()
-    {
-        string? names = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_LLM_PROFILES"));
-        if (names is null)
-        {
-            return [];
-        }
-        LlmOptions fallback = LlmFromEnvironment();
-        List<LlmProfile> profiles = [];
-        foreach (string raw in names.Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            string name = raw.ToLowerInvariant();
-            string key = $"STENCIL_LLM_PROFILE_{name.ToUpperInvariant().Replace('-', '_')}_";
-            string? provider = NullIfBlank(Environment.GetEnvironmentVariable(key + "PROVIDER"))?.Trim().ToLowerInvariant();
-            // A named profile with no group behind it is a typo in the list, not a silent
-            // duplicate of the default — skip it rather than offer a button that changes nothing.
-            if (provider is null)
-            {
-                continue;
-            }
-            profiles.Add(new LlmProfile
-            {
-                Name = name,
-                Label = NullIfBlank(Environment.GetEnvironmentVariable(key + "LABEL")) ?? raw,
-                Options = new LlmOptions
-                {
-                    Provider = provider,
-                    BaseUrl = NullIfBlank(Environment.GetEnvironmentVariable(key + "BASE_URL"))
-                        ?? LlmOptions.DefaultBaseUrlFor(provider),
-                    Model = NullIfBlank(Environment.GetEnvironmentVariable(key + "MODEL")) ?? "",
-                    ApiKey = NullIfBlank(Environment.GetEnvironmentVariable(key + "API_KEY")) ?? "",
-                    ServerUrl = NullIfBlank(Environment.GetEnvironmentVariable(key + "SERVER_URL")) ?? fallback.ServerUrl,
-                    ServerToken = NullIfBlank(Environment.GetEnvironmentVariable(key + "SERVER_TOKEN")) ?? fallback.ServerToken,
-                },
-            });
-        }
-        return profiles;
-    }
-
-    /// <summary>
-    /// Read the <c>STENCIL_LLM_*</c> keys with the contract's defaults: provider
-    /// <c>ollama</c>, and a base URL that follows the chosen provider when not overridden
-    /// (ollama <c>http://localhost:11434</c>, openai-compat <c>http://localhost:1234/v1</c>).
-    /// </summary>
-    private static LlmOptions LlmFromEnvironment()
-    {
-        string provider = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_LLM_PROVIDER"))
-            ?.Trim().ToLowerInvariant() ?? LlmOptions.DefaultProvider;
-        return new LlmOptions
-        {
-            Provider = provider,
-            BaseUrl = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_LLM_BASE_URL"))
-                ?? LlmOptions.DefaultBaseUrlFor(provider),
-            Model = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_LLM_MODEL")) ?? "",
-            ApiKey = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_LLM_API_KEY")) ?? "",
-            ServerUrl = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_LLM_SERVER_URL")),
-            ServerToken = NullIfBlank(Environment.GetEnvironmentVariable("STENCIL_LLM_SERVER_TOKEN")) ?? "",
-        };
-    }
-
-    /// <summary>
-    /// Parse a comma/space/semicolon-separated list of Telegram user ids. An unparseable entry is
-    /// dropped: a typo must neither widen the list nor stop the bot from starting.
-    /// </summary>
-    private static IReadOnlySet<long> ParseUserIds(string? value)
-    {
-        HashSet<long> ids = [];
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return ids;
-        }
-        foreach (string part in value.Split([',', ' ', ';', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            if (long.TryParse(part, System.Globalization.NumberStyles.AllowLeadingSign,
-                    System.Globalization.CultureInfo.InvariantCulture, out long id)
-                && id != 0)
-            {
-                ids.Add(id);
-            }
-        }
-        return ids;
-    }
-
-    /// <summary>Parse a positive integer, falling back to <paramref name="fallback"/> when unset or invalid.</summary>
-    private static int ParsePositiveInt(string? value, int fallback)
-    {
-        if (int.TryParse(value, out int parsed) && parsed >= 1)
-        {
-            return parsed;
-        }
-        return fallback;
-    }
-
-    /// <summary>Parse a non-negative integer (0 allowed), falling back when unset or invalid.</summary>
-    private static int ParseNonNegativeInt(string? value, int fallback)
-    {
-        if (int.TryParse(value, out int parsed) && parsed >= 0)
-        {
-            return parsed;
-        }
-        return fallback;
-    }
-
-    /// <summary>Treat <c>1</c>/<c>true</c>/<c>yes</c> (any case, trimmed) as true.</summary>
-    private static bool IsTruthy(string? value)
-    {
-        if (value is null)
-        {
-            return false;
-        }
-        string trimmed = value.Trim().ToLowerInvariant();
-        return trimmed is "1" or "true" or "yes";
-    }
-
-    /// <summary>Collapse a missing/whitespace value to null.</summary>
-    private static string? NullIfBlank(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value;
+        BotToken = Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN") ?? "",
+        CliPath = EnvRead.Var("STENCIL_CLI"),
+        RedisUrl = EnvRead.Var("REDIS_URL"),
+        DataDir = EnvRead.Var("STENCIL_BOT_DATA_DIR") ?? Path.Combine(Path.GetTempPath(), "stencil-bot"),
+        TlsInsecure = EnvRead.Truthy(Environment.GetEnvironmentVariable("STENCIL_TLS_INSECURE")),
+        BrowserAppUrl = EnvRead.Var("STENCIL_BOT_BROWSER_URL") ?? DefaultBrowserAppUrl,
+        MaxConcurrentCli = EnvRead.PositiveInt(
+            EnvRead.Var("STENCIL_BOT_MAX_CONCURRENT_CLI"), DefaultMaxConcurrentCli),
+        MaxConcurrentLlm = EnvRead.NonNegativeInt(
+            EnvRead.Var("STENCIL_BOT_MAX_CONCURRENT_LLM"), DefaultMaxConcurrentLlm),
+        ServerHttpTimeout = TimeSpan.FromSeconds(EnvRead.PositiveInt(
+            EnvRead.Var("STENCIL_BOT_HTTP_TIMEOUT_SECONDS"), DefaultHttpTimeoutSeconds)),
+        MaxDownloadBytes = (long)EnvRead.PositiveInt(
+            EnvRead.Var("STENCIL_BOT_MAX_DOWNLOAD_MB"), DefaultMaxDownloadMb) * 1024 * 1024,
+        WorkspaceTtl = TimeSpan.FromMinutes(EnvRead.PositiveInt(
+            EnvRead.Var("STENCIL_BOT_WORKSPACE_TTL_MINUTES"), DefaultWorkspaceTtlMinutes)),
+        CliTimeout = TimeSpan.FromSeconds(EnvRead.PositiveInt(
+            EnvRead.Var("STENCIL_BOT_CLI_TIMEOUT_SECONDS"), DefaultCliTimeoutSeconds)),
+        Llm = LlmProfileOptions.FromEnvironment(),
+        LlmProfiles = LlmProfileOptions.ProfilesFromEnvironment(),
+        AllowedUsers = EnvRead.UserIds(Environment.GetEnvironmentVariable("STENCIL_BOT_ALLOWED_USERS")),
+    };
 }

@@ -2,7 +2,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Sessions;
-using Stencil.TelegramBot.Infrastructure.Configuration;
+using Stencil.TelegramBot.Domain.Configuration;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
@@ -11,20 +11,20 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 /// render/probe writes a fresh file, but only the current original image (and any source video)
 /// stays referenced by the session — the rest are orphans the moment a newer render supersedes
 /// them. This loop periodically deletes those orphans once they age past
-/// <see cref="BotOptions.WorkspaceTtl"/>, while always keeping the session-referenced files.
+/// <see cref="IBotPolicy.WorkspaceTtl"/>, while always keeping the session-referenced files.
 /// Hosted, so it starts with the app and unwinds on a graceful shutdown.
 /// </summary>
 public sealed class WorkspaceJanitor : BackgroundService
 {
     private readonly IUserWorkspace _workspace;
     private readonly ISessionStore _store;
-    private readonly BotOptions _options;
+    private readonly IBotPolicy _options;
     private readonly ILogger<WorkspaceJanitor> _logger;
 
     public WorkspaceJanitor(
         IUserWorkspace workspace,
         ISessionStore store,
-        BotOptions options,
+        IBotPolicy options,
         ILogger<WorkspaceJanitor> logger)
     {
         _workspace = workspace;
@@ -62,7 +62,6 @@ public sealed class WorkspaceJanitor : BackgroundService
         }
     }
 
-    /// <summary>One pass: prune every on-disk user's orphaned artifacts older than the TTL.</summary>
     private async Task SweepAsync(CancellationToken ct)
     {
         DateTime cutoffUtc = DateTime.UtcNow - _options.WorkspaceTtl;

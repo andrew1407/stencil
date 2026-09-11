@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
 using Stencil.TelegramBot.Domain.Abstractions;
+using Stencil.TelegramBot.Domain.Configuration;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Infrastructure.Cli;
 using Stencil.TelegramBot.Infrastructure.Configuration;
@@ -27,6 +28,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddStencilInfrastructure(this IServiceCollection services, BotOptions options)
     {
         services.AddSingleton(options);
+        // Handlers and the janitor name the Domain contract, not the record: register both.
+        services.AddSingleton<IBotPolicy>(options);
         services.AddSingleton(options.Llm);
         // The selectable chat APIs (/chatapi). Registered as the list PromptService asks for;
         // empty when the operator configured none, which leaves every turn on options.Llm.

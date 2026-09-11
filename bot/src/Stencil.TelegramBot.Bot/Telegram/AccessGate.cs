@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
-using Stencil.TelegramBot.Infrastructure.Configuration;
+using Stencil.TelegramBot.Domain.Configuration;
 using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
@@ -18,13 +18,15 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 /// </remarks>
 public sealed class AccessGate
 {
-    private readonly BotOptions _options;
+    private readonly IBotPolicy _options;
     private readonly ITelegramBotClient _bot;
     private readonly ILogger _logger;
-    // User ids whose refusal already carried the operator hint to the log.
+    // User ids whose refusal already carried the operator hint to the log. Capped: a flood of
+    // unknown ids must not grow it without bound, and a reset only repeats a hint.
+    private const int MaxRefusalsLogged = 1024;
     private readonly ConcurrentDictionary<long, byte> _refusalsLogged = new();
 
-    public AccessGate(BotOptions options, ITelegramBotClient bot, ILogger logger)
+    public AccessGate(IBotPolicy options, ITelegramBotClient bot, ILogger logger)
     {
         _options = options;
         _bot = bot;
@@ -48,6 +50,10 @@ public sealed class AccessGate
         if (_options.AllowedFor(userId))
         {
             return true;
+        }
+        if (_refusalsLogged.Count >= MaxRefusalsLogged)
+        {
+            _refusalsLogged.Clear();
         }
         if (_refusalsLogged.TryAdd(userId, 0))
         {
