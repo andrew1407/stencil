@@ -25,7 +25,7 @@
     "cli/src/pipeline.zig": 473,
     "cli/src/project.zig": 341,
     "cli/src/scrape.zig": 22,
-    "cli/src/serverClient.zig": 584
+    "cli/src/serverClient.zig": 140
   },
   "commentPct": {
     "cli/src": 14,
