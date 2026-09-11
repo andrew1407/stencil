@@ -31,14 +31,14 @@ fn edit_params(value: serde_json::Value) -> EditParams {
     serde_json::from_value(value).expect("params should deserialize")
 }
 
+/// A local PNG answers out of its own header; the CLI render is the fallback. The two must
+/// agree — `edit_rotate_swaps_dimensions` below is the CLI's reading of the same fixture.
 #[tokio::test]
 async fn probe_reports_fixture_dimensions() {
     if !cli_present() {
         return;
     }
-    let (w, h) = pipeline::run_probe(FIXTURE)
-        .await
-        .expect("probe should succeed");
+    let (w, h) = pipeline::run_probe(FIXTURE).await.expect("probe should succeed");
     assert_eq!((w, h), (16, 12));
 }
 

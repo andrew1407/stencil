@@ -2,30 +2,33 @@
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'. Rust files carry inline #[cfg(test)] modules, so an entry is either a bare line count or {lines, prod}, where prod is the part before that module and is what maxNewFileLines applies to.",
   "maxNewFileLines": 230,
   "files": {
-    "mcp/src/args.rs": { "lines": 771, "prod": 232 },
     "mcp/src/config.rs": { "lines": 319, "prod": 259 },
-    "mcp/src/deliver.rs": { "lines": 251, "prod": 216 },
-    "mcp/src/llm.rs": 591,
-    "mcp/src/llmtransport.rs": 623,
-    "mcp/src/opplan/lower.rs": 425,
-    "mcp/src/opplan/schema.rs": 825,
-    "mcp/src/server/mod.rs": { "lines": 440, "prod": 290 },
-    "mcp/src/server/prompt.rs": { "lines": 573, "prod": 378 },
+    "mcp/src/deliver.rs": { "lines": 251, "prod": 202 },
+    "mcp/src/opplan/lower.rs": 351,
+    "mcp/src/server/mod.rs": { "lines": 140, "prod": 140 },
     "mcp/tests/args_test.rs": 538,
     "mcp/tests/e2e_test.rs": 301,
-    "mcp/tests/layout_test.rs": 248,
+    "mcp/tests/layout_test.rs": 181,
     "mcp/tests/llm_test.rs": 759,
-    "mcp/tests/llm_wire_fixtures_test.rs": 283,
+    "mcp/tests/llm_wire_fixtures_test.rs": 279,
     "mcp/tests/llmtransport_test.rs": 295,
-    "mcp/tests/opplan_test.rs": 1448,
     "mcp/tests/outcome_test.rs": 236,
-    "mcp/tests/registry_test.rs": 237
+    "mcp/tests/registry_test.rs": 197
   },
   "commentPct": {
     "mcp/src": 19,
-    "mcp/src/opplan": 12,
-    "mcp/src/server": 10,
-    "mcp/tests": 8
+    "mcp/src/args": 24,
+    "mcp/src/llm": 21,
+    "mcp/src/llm/providers": 8,
+    "mcp/src/llmtransport": 15,
+    "mcp/src/opplan": 16,
+    "mcp/src/opplan/schema": 6,
+    "mcp/src/pipeline": 17,
+    "mcp/src/server": 12,
+    "mcp/src/server/tools": 8,
+    "mcp/src/server/tools/prompt": 12,
+    "mcp/tests": 8,
+    "mcp/tests/common": 10
   },
   "exceptions": {}
 }

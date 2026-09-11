@@ -21,6 +21,8 @@ use stencil_mcp::llm::{
 };
 use stencil_mcp::llmtransport::{error_code, error_reason, sanitize_detail, LlmError, LlmTransport};
 
+mod common;
+
 const WIRE_DIR: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/../browser/js/config/llm/fixtures/providerWire");
 const SANITIZER_CASES: &str = concat!(
@@ -35,12 +37,6 @@ fn load_array(path: &str) -> Vec<Value> {
     // for mcp via an override, so the browser literal is never compared here.
     let raw = raw.replace("\\ud83d", "\\ufffd");
     serde_json::from_str(&raw).unwrap_or_else(|e| panic!("{path} is not a JSON array: {e}"))
-}
-
-fn overrides(family: &str) -> Value {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixture_overrides.json");
-    let raw = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {path}: {e}"));
-    serde_json::from_str::<Value>(&raw).expect("fixture_overrides.json parses")[family].clone()
 }
 
 // ── providerWire ──
@@ -137,7 +133,7 @@ fn system_slot<'a>(provider: Provider, body: &'a mut Value) -> &'a mut Value {
 }
 
 fn walk_wire_file(file: &str) {
-    let overrides = overrides("providerWire");
+    let overrides = common::overrides("providerWire");
     for case in load_array(&format!("{WIRE_DIR}/{file}")) {
         let name = case["name"].as_str().expect("case name");
         let ov = &overrides[name];
@@ -261,7 +257,7 @@ fn wire_http_errors() {
 /// output — pinned or shared — must keep the no-URL and bounded-length invariants.
 #[test]
 fn sanitizer_cases() {
-    let overrides = overrides("sanitizer");
+    let overrides = common::overrides("sanitizer");
     let mut walked = 0usize;
     let mut failures: Vec<String> = Vec::new();
     for case in load_array(SANITIZER_CASES) {

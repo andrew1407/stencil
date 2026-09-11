@@ -85,32 +85,61 @@ mcp/
     lib.rs             # module surface (so integration tests can reach the wrapper)
     server/
       mod.rs           # the MCP surface: StencilServer + the #[tool] methods + get_info
-      prompt.rs        # the stencil_prompt flow: one LLM turn → validated plan → CLI runs
+      tools/           # one file per tool — the whole body each #[tool] delegates to
+        mod.rs         #   the shared ok_result / err_result wrappers
+        edit.rs        #   stencil_edit: run, deliver, report
+        probe.rs       #   stencil_probe: pixel dimensions
+        source_site.rs #   source_site: scrape a page, report every file
+        prompt/        #   stencil_prompt: one LLM turn → validated plan → CLI runs
+          mod.rs       #     the §7 auto-continuation loop
+          execute.rs   #     the round's four steps: attach · chat · prepare · execute
+          response.rs  #     the payload types + the response assembly
     config.rs          # Surface enum + Config (defaults ← .env ← env ← --surface arg)
-    args.rs            # typed tool params (EditParams/ProbeParams) → CLI argv  (mirrors cli/src/args.zig)
-    pipeline.rs        # orchestration: locate → spawn → parse           (mirrors cli/src/pipeline.zig)
+    args/              # typed tool params → CLI argv  (mirrors cli/src/args.zig)
+      params.rs        #   the DTOs schemars publishes
+      tables.rs        #   the canonical page-format + colour-name tables
+      flags.rs         #   the CLI's option strings, single-sourced
+      errors.rs        #   EditError: one Display per failure
+      argv.rs          #   ArgvBuilder + the normalized Source + build_argv
+      scrape.rs        #   the source_site params, surface guard and argv
+    pipeline/          # orchestration: locate → spawn → parse       (mirrors cli/src/pipeline.zig)
+      mod.rs           #   the results + the entry points, bound to the real runner
+      runner.rs        #   CliRunner: the one place this crate spawns a process
+      run.rs           #   the guards, temp files and parsing around the spawn
     deliver.rs         # deliver a result to surfaces: file · desktop launch · browser URL
     locate.rs          # find the stencil binary (STENCIL_CLI → repo cli/zig-out/bin → PATH)
+    imagesize.rs       # pixel size from an image header (PNG/GIF/BMP/JPEG/WebP) — probe's fast path
     layout.rs          # Layout/Line/Point types + write an inline layout to a temp file
     outcome.rs         # parse the CLI's `wrote …` success line and `error:` lines (stderr)
     confine.rs         # rewrite a run to spawn inside its sandbox root, under `--confine-output`
-    llmtransport.rs    # hand-rolled plain-http HTTP/1.1 POST transport (no TLS, no deps)
-    llm.rs             # LLM providers, system prompt + wire mappings (llm-contract.md)
+    llmtransport/      # hand-rolled plain-http HTTP/1.1 POST transport (no TLS, no deps)
+      url.rs · guards.rs · client.rs · response.rs · sanitize.rs
+    llm/               # LLM providers, system prompt + wire mappings (llm-contract.md)
+      config.rs · message.rs · error.rs · attach.rs
+      providers/       #   one §6 wire mapping per file, behind one ProviderMapping trait
     registry.rs        # the §13 op registry: the ops this server may plan + the prompt's ops section
     opplan/
       mod.rs           # the op-plan surface the rest of the crate calls
       types.rs         # the validated plan types + the one error enum
       parse.rs         # §1 extraction: fences, the first balanced JSON object, plan shape
-      schema.rs        # the registry-driven schema engine (port of browser/js/llm/opSchema.js)
+      schema/          # the registry-driven schema engine (port of browser/js/llm/opSchema.js)
+        json.rs · path.rs · grammars.rs · rules.rs · load.rs · checks.rs · fields.rs
       actions.rs       # §2–§3 per-op validation, registry-gated
       lower.rs         # map a validated plan onto EditParams runs
+      fold.rs          # the per-op folds the registry entries dispatch on
       ask.rs           # §11 `ask` cards: validation + text rendering
   tests/
     args_test.rs       # param → argv mapping + surface resolution + guards (pure)
     outcome_test.rs    # stderr parsing (pure)
-    opplan_test.rs     # op-plan parse tables + EditParams mapping (pure)
-    schema_test.rs     # the schema engine against the registry's own grammars
-    registry_test.rs   # the registry loads and the prompt's ops section assembles from it
+    opplan_*_test.rs   # op-plan parse tables + EditParams mapping, banded per file (pure)
+    lowering_test.rs   # one table: a validated op is an op with a lowering to run it
+    pipeline_test.rs   # the tool summary an edit reports back (pure)
+    pipeline_run_test.rs # edit/project/scrape against a fake CliRunner — no CLI binary
+    pipeline_probe_test.rs # the probe + edge-map renders, same fake runner
+    dispatch_test.rs   # a real tools/call reaches the tool body (ServerHandler::call_tool)
+    registry_test.rs   # the registry + the schema engine it drives, against the contract
+    prompt_assembly_test.rs # the prompt's ops section generated from the registry
+    timing_test.rs     # #[ignore]d timing floors — `cargo test -- --ignored`
     llmtransport_test.rs # HTTP transport against a canned local TcpListener
     llm_test.rs        # provider wire shapes via a mock recording transport
     guards_test.rs     # the spawn deadline, the response-body cap, and output confinement (negative tests)
@@ -118,12 +147,13 @@ mcp/
     tool_prose_test.rs # toolDescriptions.json → the committed shards + README's Tools table
     size_budget_test.rs # the per-file size + comment-share ratchet
     *_fixtures_test.rs # the shared cross-surface fixtures under browser/js/config/
+    common/            # helpers: the corpus/override loaders + the recording CliRunner
     e2e_test.rs        # real CLI runs (incl. a canned-LLM prompt flow), self-skipping when the binary is absent
   Dockerfile           # builds the Zig CLI + the Rust server into one runtime image
 ```
 
 `src/` mirrors `cli/src/` — the module names (`args`, `pipeline`) echo the CLI's so the two
-wrappers read the same way; only the two large surfaces (`server/`, `opplan/`) are directories.
+wrappers read the same way; a module becomes a directory once it holds more than one job.
 
 > **stdout is the JSON-RPC channel.** All logging goes to **stderr** (writing to stdout
 > would corrupt the protocol). `main.rs` logs with plain `eprintln!` — no logging crate.
@@ -492,14 +522,21 @@ a surface that's unavailable (e.g. the desktop binary isn't built) yields a fail
 cargo test
 ```
 
-Two layers run together:
+Two layers run together (plus an opt-in third):
 
 - **Pure unit/integration tests** (`src/config.rs`, `src/deliver.rs`, `tests/args_test.rs`,
   `tests/outcome_test.rs`) — surface parsing, the `.env`/arg config, the `encodeURIComponent`
   + launch-URL building, the parameter→argv mapping, surface resolution, and stderr parsing.
-  No binary needed.
+  No binary needed. `tests/pipeline_run_test.rs` and `tests/pipeline_probe_test.rs` take this
+  as far as the spawn itself: `pipeline::run` is generic over `CliRunner`, so a recording
+  runner drives the clobber guard, the inline-layout temp file, the confinement rewrite and
+  the outcome parsing with no toolchain present; `tests/dispatch_test.rs` enters through the
+  real `tools/call` handler.
 - **End-to-end tests** (`tests/e2e_test.rs`) — drive the **real CLI** against the shared
   `../cli/tests/fixtures/sample.png`: probe its dimensions, rotate (dimensions swap), crop +
   filter + inline-layout in one call, and the clobber guard. They **self-skip** when the
   `stencil` binary isn't built or findable, so `cargo test` stays green without a Zig
   toolchain (set `STENCIL_CLI`, or build the CLI, to exercise them — CI does both).
+- **Timing floors** (`tests/timing_test.rs`) — `#[ignore]`d, so out of CI. Run them with
+  `cargo test -- --ignored` to print ns/call for `validate_action`, `sanitize_detail` and
+  `build_argv`; the assertions catch only an order-of-magnitude regression.

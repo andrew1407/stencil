@@ -1,13 +1,14 @@
-//! Walk the shared layout conformance vectors (`browser/js/config/fixtures/layout/`)
-//! through mcp's real layout types (`layout::Layout` / `layout::Line`, plain serde).
-//! mcp has no `buildLayoutPayload`/`sanitizeLines` — its analog is the serde round-trip
-//! the `--layout` temp file goes through — so this PINS what that round-trip does:
-//! which corpus fields survive, which are silently invisible, and which inputs the
-//! strict (non-tolerant) serde parser rejects. Measured disagreements with the corpus
-//! expectations live in `tests/fixture_overrides.json` (family `layout`).
+//! What mcp ACCEPTS as layout JSON: the hand-written documents the CLI and the browser
+//! also parse, then the shared corpus (`browser/js/config/fixtures/layout/`) walked through
+//! the real types. mcp has no `buildLayoutPayload`/`sanitizeLines` — its analog is the serde
+//! round-trip the `--layout` temp file goes through — so this PINS what that round-trip
+//! does: which corpus fields survive, which are invisible, and which inputs the strict
+//! parser rejects. Disagreements live in `tests/fixture_overrides.json` (family `layout`).
 
 use serde_json::{json, Value};
 use stencil_mcp::layout::{Layout, Line};
+
+mod common;
 
 const FIXTURES_DIR: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/../browser/js/config/fixtures/layout");
@@ -25,19 +26,12 @@ fn load(file: &str) -> Vec<Value> {
         .unwrap_or_else(|e| panic!("{file} is not a JSON array: {e}"))
 }
 
-fn overrides() -> Value {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixture_overrides.json");
-    let raw = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {path}: {e}"));
-    serde_json::from_str::<Value>(&raw).expect("fixture_overrides.json parses")["layout"].clone()
-}
-
-/// `payload.json`: the browser's export-payload vectors, replayed as a `Layout` serde
-/// round-trip. An override `verdict: "reject"` pins a vector serde refuses; an override
-/// `payload` pins a round-trip that differs from the browser's `expectPayload` (the diff
-/// is exactly the keys invisible to mcp, plus the always-emitted `lines`).
+/// `payload.json` replayed as a `Layout` round-trip. Override `verdict: "reject"` pins a
+/// vector serde refuses; override `payload` pins a round-trip that differs from the
+/// browser's `expectPayload` by exactly the keys mcp cannot see, plus `lines`.
 #[test]
 fn payload_vectors_pin_the_layout_round_trip() {
-    let overrides = overrides();
+    let overrides = common::overrides("layout");
     for vector in load("payload.json") {
         let name = vector["name"].as_str().expect("vector name");
         let ov = &overrides[name];
@@ -108,7 +102,7 @@ fn structurally_equal(a: &Value, b: &Value) -> bool {
 /// vectors that parse must fill to the cross-surface `expectFilled` defaults.
 #[test]
 fn sparse_vectors_pin_the_strict_line_parser() {
-    let overrides = overrides();
+    let overrides = common::overrides("layout");
     for vector in load("sparse.json") {
         let name = vector["name"].as_str().expect("vector name");
         let ov = &overrides[name];
@@ -125,4 +119,72 @@ fn sparse_vectors_pin_the_strict_line_parser() {
             vector["expectFilled"]
         );
     }
+}
+
+// ── Hand-written documents ──
+
+/// The exact document the CLI's own parser test feeds `cli/src/layout.zig` (legacy `filter`
+/// key included). If the two ends ever disagree about a key, this stops parsing.
+#[test]
+fn parses_the_document_the_cli_parser_test_uses() {
+    let doc = r#"{ "imageWidth": 10, "imageHeight": 20, "filter": "bw",
+        "lines": [ { "points": [{"x":1,"y":2},{"x":3,"y":4}],
+                     "color": "red", "thickness": 3, "locked": true } ] }"#;
+    let layout: Layout = serde_json::from_str(doc).expect("the CLI's fixture parses here too");
+
+    assert_eq!(layout.image_width, Some(10.0));
+    assert_eq!(layout.image_height, Some(20.0));
+    assert_eq!(layout.filter.as_deref(), Some("bw"));
+    assert_eq!(layout.lines.len(), 1);
+
+    let line = &layout.lines[0];
+    assert_eq!(line.points.len(), 2);
+    assert_eq!(line.color.as_deref(), Some("red"));
+    assert_eq!(line.thickness, Some(3.0));
+    assert_eq!(line.locked, Some(true));
+    // Absent in the document → None here, so the CLI supplies its documented defaults
+    // (pointSize 4, style solid, fillColor transparent).
+    assert_eq!(line.point_size, None);
+    assert_eq!(line.style, None);
+    assert_eq!(line.fill_color, None);
+}
+
+/// Canonical `imageFilter` and legacy `filter` both deserialize into the same field;
+/// spelling BOTH is a serde duplicate-field error (no both-present precedence here).
+#[test]
+fn filter_reads_canonical_and_legacy_keys() {
+    let canonical: Layout = serde_json::from_str(r#"{"imageFilter":"bw"}"#).expect("parses");
+    assert_eq!(canonical.filter.as_deref(), Some("bw"));
+    let legacy: Layout = serde_json::from_str(r#"{"filter":"sepia"}"#).expect("parses");
+    assert_eq!(legacy.filter.as_deref(), Some("sepia"));
+    let both: Result<Layout, _> = serde_json::from_str(r#"{"filter":"a","imageFilter":"b"}"#);
+    assert!(both.is_err(), "both spellings at once is a duplicate-field error");
+}
+
+/// A layout with no `lines` key is legal (`#[serde(default)]`) and means "draw nothing" —
+/// a filter-only layout is a real use of the flag.
+#[test]
+fn missing_lines_defaults_to_empty() {
+    let layout: Layout = serde_json::from_str(r#"{"filter":"sepia"}"#).expect("parses");
+    assert!(layout.lines.is_empty());
+    assert_eq!(layout.filter.as_deref(), Some("sepia"));
+}
+
+/// A line with no points is legal on the wire; the CLI skips it rather than erroring.
+#[test]
+fn a_line_with_no_points_round_trips() {
+    let layout: Layout = serde_json::from_str(r#"{"lines":[{"points":[]}]}"#).expect("parses");
+    assert_eq!(layout.lines.len(), 1);
+    assert!(layout.lines[0].points.is_empty());
+}
+
+/// Unknown keys from a newer browser export must be ignored, never rejected — an older
+/// server should still draw the lines it understands.
+#[test]
+fn unknown_fields_are_ignored() {
+    let doc = r#"{"imageWidth":10,"futureKey":{"a":1},
+                  "lines":[{"points":[{"x":0,"y":0}],"futureLineKey":true}]}"#;
+    let layout: Layout = serde_json::from_str(doc).expect("unknown keys must not be fatal");
+    assert_eq!(layout.image_width, Some(10.0));
+    assert_eq!(layout.lines.len(), 1);
 }

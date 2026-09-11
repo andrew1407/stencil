@@ -4,8 +4,12 @@
 //! behavior; measured disagreements live in `tests/fixture_overrides.json`, never as
 //! edits to the shared fixtures or to production code.
 
+use std::sync::LazyLock;
+
 use serde_json::Value;
 use stencil_mcp::opplan::parse_op_plan;
+
+mod common;
 
 const FIXTURES_DIR: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/../browser/js/config/llm/fixtures/opPlan");
@@ -13,7 +17,10 @@ const FIXTURES_DIR: &str =
 const PROFILES: [&str; 6] = ["editor", "console", "bot", "mcp", "extension", "all"];
 const SURFACES: [&str; 7] = ["browser", "desktop", "cli", "pystencil", "bot", "mcp", "extension"];
 
-/// The corpus, as (file name, parsed fixture) pairs, sorted by file name.
+/// The corpus as (file name, fixture) pairs, sorted. ~190 files plus a 212 KB generated
+/// bundle — read once per test binary, not once per test function.
+static CORPUS: LazyLock<Vec<(String, Value)>> = LazyLock::new(load_corpus);
+
 fn load_corpus() -> Vec<(String, Value)> {
     let mut files: Vec<String> = std::fs::read_dir(FIXTURES_DIR)
         .unwrap_or_else(|e| panic!("cannot read the opPlan corpus at {FIXTURES_DIR}: {e}"))
@@ -44,24 +51,16 @@ fn load_corpus() -> Vec<(String, Value)> {
     corpus
 }
 
-/// The mcp-side override table (`tests/fixture_overrides.json`, family `opPlan`).
-fn overrides() -> Value {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixture_overrides.json");
-    let raw = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("cannot read {path}: {e}"));
-    serde_json::from_str::<Value>(&raw).expect("fixture_overrides.json parses")["opPlan"].clone()
-}
-
 /// Port of the reference walker's corpus-shape check.
 #[test]
 fn corpus_is_well_formed() {
-    let corpus = load_corpus();
+    let corpus = &*CORPUS;
     assert!(
         corpus.len() >= 80,
         "expected a real corpus, found {} fixtures",
         corpus.len()
     );
-    for (file, fx) in &corpus {
+    for (file, fx) in corpus {
         // Strip the NNN- prefix of a hand-written file; generated cases carry none.
         let slug = match file.split_once('-') {
             Some((num, rest)) if num.chars().all(|c| c.is_ascii_digit()) => rest,
@@ -114,10 +113,10 @@ fn corpus_is_well_formed() {
 /// Verdict precedence: local override > knownDivergence.mcp > expect.
 #[test]
 fn mcp_verdicts_match_the_corpus() {
-    let overrides = overrides();
+    let overrides = common::overrides("opPlan");
     let mut walked = 0usize;
     let mut failures: Vec<String> = Vec::new();
-    for (file, fx) in load_corpus() {
+    for (file, fx) in &*CORPUS {
         let applies = fx["profiles"]
             .as_array()
             .is_some_and(|p| p.iter().any(|p| matches!(p.as_str(), Some("mcp" | "all"))));

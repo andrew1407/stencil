@@ -416,7 +416,7 @@ fn scrape_hostile_url_stays_one_argv_token() {
     let argv = build_scrape_argv(&p).unwrap();
     let i = argv.iter().position(|a| a == "--source-site").unwrap();
     assert_eq!(argv[i + 1], hostile);
-    assert_eq!(argv.iter().filter(|a| a.as_str() == hostile).count(), 1);
+    assert_eq!(argv.iter().filter(|a| *a == hostile).count(), 1);
 }
 
 #[test]
@@ -523,7 +523,7 @@ fn hostile_input_with_shell_metacharacters_stays_one_argv_token() {
         }));
         let argv = build_argv(&p, Some(hostile)).unwrap();
 
-        let count = argv.iter().filter(|a| a.as_str() == hostile).count();
+        let count = argv.iter().filter(|a| *a == hostile).count();
         assert_eq!(count, 4, "hostile {hostile:?} should appear as 4 whole tokens (-i/-c/-l/--filter values)");
 
         let i = argv.iter().position(|a| a == "-i").unwrap();
