@@ -1,5 +1,6 @@
 import { wireNameEditor } from '../../utils.js';
 import { markIn, markOut } from '../motion.js';
+import { validateProjectName } from '../../core/validation.js';
 export function wireProjectNameField(app) {
   // Topbar project-name field: double-click (or hover ✎) edits inline; ✓/✗ show ONLY
   // while editing — ✓ enabled for a changed, valid (non-empty, unique) name; ✓/Enter
@@ -41,7 +42,7 @@ export function wireProjectNameField(app) {
     app.nameEditor = wireNameEditor(nameInput, nameAccept, nameCancel, {
       alwaysShow: true,                // edit-mode controls ✓/✗ visibility, not change-detection
       current: currentName,
-      validate: (v) => app.storage.store.validateName(v, app.activeProjectId),
+      validate: (v) => validateProjectName(app.storage.store, v, app.activeProjectId),
       commit: (v) => {
         if (app.activeProjectId != null) app.renameProject(app.activeProjectId, v);   // syncs imageBaseName itself
         endEdit();

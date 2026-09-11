@@ -3,6 +3,7 @@
 // apiKey, serverUrl }. Every localStorage access is guarded so the leaf is inert in Node.
 import PROVIDERS_ASSET from '../config/llm/providers.json' with { type: 'json' };
 import { loadSavedServers } from '../net/connectionStore.js';
+import { validateHttpUrl } from '../core/validation.js';
 
 const LLM_SETTINGS_KEY = 'drawingApp_llmSettings';
 
@@ -18,11 +19,10 @@ export const PROVIDER_BASE_URLS = Object.fromEntries(
   Object.entries(PROVIDERS_ASSET.providers).map(([id, p]) => [id, p.defaultBaseUrl || '']),
 );
 
-// Endpoint keys are http(s) ONLY — the one scheme check, shared by loadLlmSettings
-// below and the stencil.llm setup facade, so a poisoned store and a scripted setter
-// can never aim the client at javascript:/file:/chrome-extension:.
+// Endpoint keys are http(s) ONLY. The gate itself is core/validation.js, so this module,
+// the stencil.llm facade and every other caller share one rule.
 export const URL_KEYS = ['baseUrl', 'serverUrl'];
-export const isHttpUrl = (v) => /^https?:\/\//i.test(String(v == null ? '' : v));
+export const isHttpUrl = (v) => validateHttpUrl(v).ok;
 
 // Switch `settings` to `provider`, pre-filling its default base URL unless the user
 // overrode it. THE provider-switch rule: the settings modal and the stencil.llm facade

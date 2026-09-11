@@ -5,6 +5,7 @@
 import { ACCENTS, isAccent, normalizeHex, toHexColor } from '../core/accents.js';
 import { motionPrefs, MOTION_MODES } from '../ui/motionPrefs.js';
 import { loadVoiceSettings, saveVoiceSettings, isLanguageTag, clampSilenceMs, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voiceSettings.js';
+import { validateHexColor } from '../core/validation.js';
 import { str } from './coerce.js';
 
 export const createSettingsFacade = ({ app, guard }) => {
@@ -53,7 +54,7 @@ export const createSettingsFacade = ({ app, guard }) => {
       const id = app.activeProjectId;
       if (id == null) throw new Error('No active project to color');
       const s = str(v).trim();
-      if (s && !normalizeHex(s)) throw new Error(`Invalid project color "${v}" — use a hex like #ff5623, or '' to clear`);
+      if (!validateHexColor(s, { allowEmpty: true }).ok) throw new Error(`Invalid project color "${v}" — use a hex like #ff5623, or '' to clear`);
       app.setProjectColor(id, s);
     },
     // Active project's free-text description ('' when unset) and search keywords (string[]).

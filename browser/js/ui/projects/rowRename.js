@@ -1,5 +1,6 @@
 import { icon } from '../icons.js';
 import { wireNameEditor } from '../../utils.js';
+import { validateProjectName } from '../../core/validation.js';
 import { markIn, markOut } from '../motion.js';
 
 // The row's inline rename editor: ✓/✗ form out of dust, live validation against the store's
@@ -54,7 +55,7 @@ export function beginRowRename({ meta, name, app, render, gesture }) {
   wireNameEditor(input, accept, cancel, {
     alwaysShow: true,
     current: () => meta.name || '',
-    validate: (v) => app.storage.store.validateName(v, meta.id),
+    validate: (v) => validateProjectName(app.storage.store, v, meta.id),
     commit: (v) => finish(true, v),
     cancel: () => finish(false),
   });
