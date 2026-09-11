@@ -23,7 +23,7 @@
     "cli/src/logo.zig": 223,
     "cli/src/net.zig": 138,
     "cli/src/pipeline.zig": 43,
-    "cli/src/project.zig": 341,
+    "cli/src/project.zig": 34,
     "cli/src/scrape.zig": 22,
     "cli/src/serverClient.zig": 140
   },
