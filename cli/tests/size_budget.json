@@ -6,7 +6,7 @@
     "cli/src/clipboard.zig": 298,
     "cli/src/console.zig": 73,
     "cli/src/console/ansi.zig": 345,
-    "cli/src/console/attachments.zig": 362,
+    "cli/src/console/attachments.zig": 71,
     "cli/src/console/handlers.zig": 77,
     "cli/src/console/llmPrompt.zig": 18,
     "cli/src/console/logoFx.zig": 14,
