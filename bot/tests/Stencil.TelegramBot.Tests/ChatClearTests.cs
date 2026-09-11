@@ -9,8 +9,7 @@ namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
 /// Forgetting the conversation: <c>/chat clear</c>, the 🧹 button, §10's <c>clearChat</c> plan
-/// (which only ever asks — the user's button clears), <c>/drop</c>, and the pending free-text
-/// flow that outranks chat mode.
+/// (which only asks — the user's button clears), <c>/drop</c>, and pending free text.
 /// </summary>
 public sealed class ChatClearTests : ChatModeTestBase
 {
