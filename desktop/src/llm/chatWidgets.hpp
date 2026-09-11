@@ -97,7 +97,7 @@ namespace stencil::gui {
   void placeChatCardMore(QFrame* card, QToolButton* more, QScrollArea* scroll,
                          const QRect& avoidGlobal = QRect());
 
-  // ── Card-arrival dust, shared by both chat surfaces (browser motion.js chatIn) ──
+  // Card-arrival dust, shared by both chat surfaces (browser motion.js chatIn)
   // A message arriving or leaving is the surface's main event, so it plays on a finer grid
   // than a list row. On the way in these only cap overSurface's own grid.
   inline constexpr int kChatScatterCols = 32;
@@ -131,7 +131,7 @@ namespace stencil::gui {
   void trackChatCardDust(QWidget* card, DisintegrateOverlay* overlay, QScrollArea* scroll,
                          std::function<void()> settle);
 
-  // ── Hover preview for a small attachment thumbnail ────────────────────────
+  // Hover preview for a small attachment thumbnail
   // Tray chips show 28px and message bubbles 160px — too small to tell two
   // screenshots apart, so hovering pops the picture up at a readable size next to
   // it (browser chatView.js wireThumbPreview / extension chatUi.js parity). The

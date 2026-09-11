@@ -4,7 +4,7 @@
 
 // Small Qt-coupled scaffolding helpers shared across the GUI dialogs/widgets.
 // Qt-only by design — must NOT live in core/ (which is GUI-free + compiled to
-// WebAssembly). Verified by the stencil build, not doctest.
+// WebAssembly).
 class QAbstractButton;
 class QColor;
 class QComboBox;
@@ -25,8 +25,7 @@ namespace stencil::gui {
                          const QString& suggested, const QString& filter);
 
   // Create a standard QDialogButtonBox parented to `parent` and wire its
-  // accepted()->accept() / rejected()->reject() to the dialog. Replaces the
-  // identical 3-line pattern in settings/shortcuts/info dialogs.
+  // accepted()->accept() / rejected()->reject() to the dialog.
   QDialogButtonBox* makeButtonBox(QDialog* parent,
                                   QDialogButtonBox::StandardButtons buttons);
 

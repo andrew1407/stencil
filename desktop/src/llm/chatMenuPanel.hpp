@@ -42,7 +42,7 @@ namespace stencil::gui {
 
     QWidget* input() const;
 
-    // ── transcript (MainWindow mirrors the dock's lines here) ──
+    // transcript (MainWindow mirrors the dock's lines here)
     // `configure` adds a "Configure provider" action beside Retry (browser
     // unreachable-card parity) — it re-uses the panel's own settings callback,
     // the same one the gear already opens through.

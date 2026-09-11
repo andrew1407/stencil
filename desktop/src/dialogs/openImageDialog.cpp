@@ -95,9 +95,9 @@ namespace stencil::gui {
     ModalChrome chrome = installModalChrome(this, "image", tr("Open Image"));
     QVBoxLayout* layout = chrome.body;
 
-    // ── Source tabs: Local file / URL link / Blank — the browser .oi-tab strip
+    // Source tabs: Local file / URL link / Blank — the browser .oi-tab strip
     // (underlineTabBar.hpp): animated hover, sliding accent underline, and the
-    // selected tab's GLYPH tinted accent along with its label. ──
+    // selected tab's GLYPH tinted accent along with its label.
     tabs_ = new OiTabWidget(this);
     // No pane box (browser .oi-tabs: an underlined tab strip over plain rows — the
     // .vs-rows carry their own hairlines, so the generic rounded pane doubled up).
@@ -248,10 +248,10 @@ namespace stencil::gui {
     previewHint_->setVisible(false);   // an empty hint keeps no line of its own
     layout->addWidget(previewHint_);
 
-    // ── Quick pre-load crop (mirrors LinksDialog quick-crop) as the browser's Crop
+    // Quick pre-load crop (mirrors LinksDialog quick-crop) as the browser's Crop
     // .vs-row (#open-image-crop-row): the toggle, its caption, then — only while
     // cropping — the Album/Portrait toggle and the page the aspect comes from. Crop is
-    // OFF by default; shown only once a preview resolves an image/frame. ──
+    // OFF by default; shown only once a preview resolves an image/frame.
     {
       auto* qc = new QHBoxLayout;
       qc->setContentsMargins(0, 0, 0, 0);
@@ -321,8 +321,8 @@ namespace stencil::gui {
     // split the URL row from the Incognito row with a band of empty space.
     layout->addStretch(1);
 
-    // ── Footer actions (browser settings-footer: every enabled button accent-filled,
-    // Cancel included; a disabled one drops to the grey chip) ── file/URL: Cancel /
+    // Footer actions (browser settings-footer: every enabled button accent-filled,
+    // Cancel included; a disabled one drops to the grey chip) — file/URL: Cancel /
     // Replace? / Open here / Open in new window. blank: Cancel / Create blank.
     QHBoxLayout* btnRow = addModalFooter(chrome);
     auto* cancel = new QPushButton("Cancel", this);
@@ -349,7 +349,7 @@ namespace stencil::gui {
     btnRow->addWidget(newWindow_);
     btnRow->addWidget(createBlank_);
 
-    // ── Preview wiring (mirrors LinksDialog) ──
+    // Preview wiring (mirrors LinksDialog)
     preview_ = new MediaLoader(this);
     connect(preview_, &MediaLoader::loaded, this,
             [this](const QImage& img, const QString&) {

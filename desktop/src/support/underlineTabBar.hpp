@@ -1,15 +1,12 @@
 #pragma once
 // The browser's .oi-tab source-tab strip (components.css): flat tabs on a hairline —
-// 13px medium labels beside a 15px glyph, 8px/16px padding, muted at rest, accent
-// (text AND glyph) when selected with a 2px accent underline. Hover matches the
-// browser's generic button:hover: an accent-2 pill fades in UNDER the tab and the
-// ink flips to the app-wide on-accent white (accent text over the accent pill was
-// unreadable — user report) — plus the two moves QSS cannot express on a QTabBar:
-// that hover fade, and the underline SLIDING from the old tab to the new one.
-// Everything is painted; no box ever changes, so the dialog cannot reflow.
-//
-// Colours come from the widget palette buildQPalette() installs (WindowText = text,
-// Mid = muted, Highlight = accent), so the strip tracks theme and accent flips free.
+// 13px medium labels beside a 15px glyph, 8px/16px padding, muted at rest, accent (text
+// AND glyph) when selected with a 2px accent underline. Hover matches the browser's
+// generic button:hover: an accent-2 pill fades in UNDER the tab and the ink flips to the
+// on-accent white (accent text over the accent pill is unreadable). That fade and the
+// underline SLIDING between tabs are the two moves QSS cannot express on a QTabBar.
+// Everything is painted; no box ever changes, so the dialog cannot reflow. Colours come
+// from the palette buildQPalette() installs, so the strip tracks theme and accent free.
 //
 // Header-only and Q_OBJECT-free (no signals/slots of its own), so it needs no MOC.
 #include "iconSet.hpp"

@@ -2,14 +2,13 @@
 // Disintegration ("the snap") — the desktop port of disintegrate() in
 // browser/js/ui/motion.js.
 //
-// The browser paints one round mote per grid cell in the element's own colours and
-// lets CSS fly them. Qt does the same off a photograph: the widget is grabbed ONCE,
-// its colour is sampled per cell (sampleCells), and every frame draws the snapshot
-// whole, cuts out the cells that have left it, and flies those as round grains of
-// their own colour — offset, bent, shrunk and faded by their own progress. One
-// clock drives the lot, so it stays a single repaint per frame however many cells
-// there are; the grains are blitted from a sprite cache (dustKit.hpp MoteSprites),
-// and the clock ticks at the screen's own refresh rate.
+// The browser paints one round mote per grid cell in the element's own colours and lets
+// CSS fly them. Qt does the same off a photograph: the widget is grabbed ONCE, its colour
+// sampled per cell (sampleCells), and every frame draws the snapshot whole, cuts out the
+// cells that have left it, and flies those as round grains — offset, bent, shrunk and
+// faded by their own progress. One clock drives the lot, so it stays a single repaint per
+// frame however many cells there are; grains are blitted from a sprite cache (dustKit.hpp
+// MoteSprites) and the clock ticks at the screen's own refresh rate.
 //
 // Header-only and Q_OBJECT-free (no signals/slots), so it needs no MOC.
 #include <QColor>
@@ -41,7 +40,7 @@
 
 namespace stencil::gui {
 
-  // ── The floating-tip clock family (browser controlTooltip.js / exportPreview.js):
+  // The floating-tip clock family (browser controlTooltip.js / exportPreview.js):
   // tooltips, the export preview and popup menus gather/leave on this shared clock.
   inline constexpr int kTipDustInMs = 213;
   inline constexpr int kTipDustOutMs = 157;
@@ -111,7 +110,7 @@ namespace stencil::gui {
     static constexpr int kDustCellPx = 7;   // browser motion.js MOTE_PX — keep the two in step
     static constexpr int kDustMaxCells = 7000;
     static constexpr const char* kObjectName = "stencilDisintegrate";
-    // ── A whole SURFACE is dust too (browser motion.js surfaceIn / surfaceOut) ──
+    // A whole SURFACE is dust too (browser motion.js surfaceIn / surfaceOut)
     // A dialog, a popup menu and the tooltip form from motes streaming out of the control
     // that opened them and come apart into motes pouring back in. Same snapshot, same
     // hashes; only the flight differs — every mote aims at ONE point instead of falling.
@@ -140,7 +139,7 @@ namespace stencil::gui {
     // The grain a mote is drawn at: the smaller of its cell and this, times 0.62..1.12
     // by its own hash (browser motion.js SURFACE_SPECK_PX / speckPainter).
     static constexpr int kSpeckPx = 7;
-    // ── The bend (browser motion.js tileWaypoint) ──
+    // The bend (browser motion.js tileWaypoint)
     // No mote flies a straight line: each is pushed off its throw's own line, peaking
     // mid-flight, by a share of the throw (capped) to the side its third hash picks —
     // so a cloud churns instead of radiating in spokes.
@@ -154,7 +153,7 @@ namespace stencil::gui {
     // However late a mote sets off it still gets this long to fly (browser MIN_TILE_MS):
     // the floor keeps the last grains of a short flight from being a blink.
     static constexpr int kMinTileMs = 160;
-    // ── Turbulence and twinkle (browser dustCloud.js turbulenceAt / twinkleAt) ──
+    // Turbulence and twinkle (browser dustCloud.js turbulenceAt / twinkleAt)
     // A grain is pushed off its line SIDEWAYS by a slow wave of its own, strongest
     // mid-flight and gone at both ends, so the cloud churns as it goes and still lands
     // where it would; a GLINT (a rim cell, or one inner cell in seven) breathes in
@@ -251,7 +250,7 @@ namespace stencil::gui {
     static constexpr double kRowSplit = 0.38;
     // A surface's motes are the ACCENT now, not the window's own pixels, so a cloud over a
     // near-opaque window adds coloured light and the window "blinks lighter" at the
-    // hand-off (user report). The cloud must be clear while the window is substantially
+    // hand-off. The cloud must be clear while the window is substantially
     // opaque: the gather fades out early, the scatter holds off until the window cuts out.
     static constexpr double kSurfaceMoteFadeFrac = 0.55;   // of the post-hold span (in)
     static constexpr double kSurfaceMoteRiseDelay = 0.5;   // × split before motes rise (out)
@@ -461,7 +460,7 @@ namespace stencil::gui {
       if (!host || snap.isNull() || picture.width() < 8 || picture.height() < 8) return nullptr;
       // The TRUE window pixels, NOT liftedToInk(): the motes are the accent now, but the
       // snapshot is still the cross-fade the window forms out of, and lifting it toward the
-      // ink flashed the wrong tone at the hand-off (user report). The lift survives on the
+      // ink flashed the wrong tone at the hand-off. The lift survives on the
       // non-surface flights (over/overRect), whose at-home cells still read it.
       auto* fx = new DisintegrateOverlay(host, snap);
       fx->ink_ = ink;
@@ -479,8 +478,7 @@ namespace stencil::gui {
 
     // What a SURFACE flight is aimed at (the centre of the control it belongs to, in
     // HOST coordinates), where its snapshot sits, and which way it is going. The GUI
-    // test reads these to prove a window really does come out of the icon that opened
-    // it — the property the old ghost's start geometry used to carry.
+    // test reads these to prove a window really does come out of the icon that opened it.
     QPoint surfaceTarget() const { return target_.toPoint(); }
     QRect surfacePicture() const { return picture_; }
     bool gathering() const { return sweep_ == Sweep::SurfaceIn; }
@@ -790,7 +788,7 @@ namespace stencil::gui {
       if (!gather && t <= 0.0) return false;   // still the surface
       *out = Mote{};
       // A gathering grain is NOTHING until it sets off: parked at the point with hundreds
-      // of others it filled the icon with a solid blob of the accent (user report).
+      // of others it filled the icon with a solid blob of the accent.
       if (gather && t <= 0.0) return true;     // cut from the picture, nothing drawn yet
       t = std::clamp(t, 0.0, 1.0);
       if (!gather && t >= 1.0) return true;    // a scattered mote that has finished is gone
@@ -821,7 +819,7 @@ namespace stencil::gui {
       // FLIGHTS surfaceGather / surfaceScatter), not the eased distance — see scatterAlpha.
       // A SCATTER fades to nothing by 82%, not at the very end: every mote converges on the
       // one icon point, so a tail still at ~0.2 opacity piled into a solid accent blob that
-      // blinked out (user report). Matches surfaceScatter's alpha stops.
+      // blinked out. Matches surfaceScatter's alpha stops.
       const double alpha = host * (gather ? (t < 0.45 ? 0.55 + 0.45 * (t / 0.45) : 1.0)
                                           : (t < 0.5 ? 1.0 - t * 0.3
                                                      : std::max(0.0, 0.85 * (1.0 - (t - 0.5) / 0.32))));

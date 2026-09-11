@@ -2,7 +2,6 @@
 #include <QRect>
 #include <QSize>
 
-// ── Modal popovers: placement for the compact, icon-anchored dialog shape ────
 // Double-click / right-click on a dialog-opening toolbar icon opens the SAME dialog as a
 // small frameless popover pinned next to the icon instead of centred over the window
 // (mainWindow.cpp execMaybePopover). This is the desktop port of the browser's

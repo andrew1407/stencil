@@ -91,7 +91,7 @@ namespace stencil::gui {
     void showEvent(QShowEvent* event) override;
     // A theme flip repaints the panel, but the empty row's ink is an ITEM foreground —
     // baked when the row was made, so it kept the old theme's colour and went invisible
-    // on the new one (user report). Re-tinted here.
+    // on the new one. Re-tinted here.
     void changeEvent(QEvent* event) override;
 
    private:

@@ -1,15 +1,12 @@
 #pragma once
-// Grain dissolve — the desktop port of the .reveal-item mask in
-// browser/css/animations.css.
+// Grain dissolve — the desktop port of the .reveal-item mask in browser/css/animations.css.
 //
 // The browser masks a row with two layers UNIONed: a tiled dot grain whose dots shrink,
 // plus a bottom→top wipe marking the region still fully intact. Qt has no CSS masks, so
-// the same two layers are painted into an alpha mask here and composited over the
-// widget with DestinationIn. Union, not intersect — intersect would punch dot-holes
-// through a settled row.
-//
-// `dissolve` is 0 (whole) to 1 (gone). At 0 the effect short-circuits to a plain
-// drawSource, so a settled row costs nothing beyond the effect's own indirection.
+// the same two layers are painted into an alpha mask here and composited with
+// DestinationIn. Union, not intersect — intersect would punch dot-holes through a settled
+// row. `dissolve` is 0 (whole) to 1 (gone); at 0 it short-circuits to a plain drawSource,
+// so a settled row costs nothing.
 //
 // Header-only and Q_OBJECT-free (no signals/slots), so it needs no MOC. Callers reach
 // it with dynamic_cast, since qobject_cast needs the metaobject a Q_OBJECT would add.

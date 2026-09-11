@@ -1,5 +1,4 @@
 #pragma once
-// ── The idle "＋ Blank image" card's glyph motion ──────────────────────────────
 // The card paints its `image` glyph by hand (canvas/canvasWidget.cpp) rather than through
 // support/iconSet — that would drag Qt6::Svg into every headless target compiling the
 // canvas — so the app-wide hover watcher, which knows QAbstractButtons and the QIcons they

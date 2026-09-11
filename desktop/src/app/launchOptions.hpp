@@ -59,7 +59,7 @@ namespace stencil::gui {
     // suffix-sniffing open path as drag-and-drop. Lower priority than --src.
     QString file;
 
-    // ── stencil:// deep-link fields (parseStencilUrl) ──
+    // stencil:// deep-link fields (parseStencilUrl)
     // serverUrl+serverProjectId: open that project from that collaboration server,
     // connecting like a fresh client (reuse a saved token, else mint one via
     // POST /auth/token — no token ever rides the link). Wins over src/file.

@@ -1,32 +1,17 @@
 #pragma once
 // Form-control state swaps — what a checkbox and a select do when their VALUE changes.
 //
-// Two motions, one app-wide installer, no new vocabulary:
+//   * QCheckBox — the checked indicator comes APART into particles and FORMS back out of
+//     them: disintegrateOverlay's row scatter shrunk to a 16px box, Sweep::Fall out /
+//     Sweep::Gather in, the pair the browser's ghostOut/ghostIn already uses.
+//   * QComboBox — the outgoing option comes apart and the incoming one forms in place, in
+//     SEQUENCE so two values are never legible at once. Clipped by the combo's edit field.
+//   * The LIST a combo drops is a surface like every other popup (menuReveal.hpp
+//     revealPopup — the same flight context menus and dialogs play).
 //
-//   * QCheckBox — the checked indicator (accent fill + tick) comes APART into particles
-//     when it goes away and FORMS out of them when it arrives. Same engine as a deleted
-//     row's scatter (disintegrateOverlay.hpp), shrunk to a 16px box: a fine grid, a
-//     short throw and about a quarter of the runtime, so it reads as particles rather
-//     than as a handful of slabs sliding off. Sweep::Fall out, Sweep::Gather in — the
-//     pair the browser already uses for ghostOut/ghostIn.
-//
-//   * QComboBox — the outgoing option comes APART into particles and the incoming one
-//     FORMS out of them, in place: the same sand, on the same sequential timing the old
-//     odometer had (the outgoing word is well on its way out before the incoming one
-//     starts arriving), so two values are never legible at once. Clipped by the combo's
-//     own edit field, so a mote can no more leave the field than the word could.
-//
-//   * The LIST a combo drops is a surface like every other popup: it forms out of motes
-//     streaming from the combo and comes apart into them (support/menuReveal.hpp
-//     revealPopup — the same flight the context menus and dialogs play).
-//
-// None of these motions moves a box: the checkbox's particles fly in an overlay parented
-// to the window, and the combo's two clouds inside a child overlay pinned to it. No
-// control is ever resized, so no dialog can reflow mid-effect.
-//
-// The trigger is one application-wide event filter (installControlSwap()), the same
-// reason iconMotion.hpp has one: checkboxes and combos are built in a dozen dialogs and
-// no call site should have to know. A control opts out with kNoControlSwapProperty.
+// No motion moves or resizes a box: the clouds live in overlays, so no dialog can reflow
+// mid-effect. One application-wide event filter (installControlSwap()) is the trigger, as
+// in iconMotion.hpp — no call site should have to know. Opt out with kNoControlSwapProperty.
 //
 // Header-only and Q_OBJECT-free (no signals/slots of its own), so it needs no MOC.
 #include "disintegrateOverlay.hpp"
@@ -66,7 +51,6 @@
 
 namespace stencil::gui {
 
-  // ── the checkbox's particles ─────────────────────────────────────────────────
   // Click feedback, not a show: a fifth of a removed row's 900ms.
   inline constexpr int kCheckSwapMs = 213;
   // Cells per side over a 16px indicator — ~2px each, which still reads as grit at
@@ -81,7 +65,6 @@ namespace stencil::gui {
   inline constexpr const char* kCheckSwapObjectName = "stencilCheckSwap";
   inline constexpr const char* kCheckSwapOwnerProperty = "stencilCheckSwapOwner";
 
-  // ── the combo's value exchange ───────────────────────────────────────────────
   // Motes about this big on screen — a word is small, and a word's grain has to be
   // smaller still or the exchange reads as two halves sliding.
   inline constexpr int kValueSwapCellPx = 3;
@@ -105,14 +88,12 @@ namespace stencil::gui {
   inline constexpr const char* kValueSwapCountProperty = "stencilValueSwapCount";
   inline constexpr const char* kValueSwapSheetProperty = "stencilValueSwapBaseSheet";
 
-  // ── shared ───────────────────────────────────────────────────────────────────
   inline constexpr const char* kNoControlSwapProperty = "stencilNoControlSwap";
   inline constexpr const char* kControlSwapWiredProperty = "stencilControlSwapWired";
   inline constexpr const char* kControlSwapFilterName = "stencilControlSwapFilter";
 
   namespace ctl {
 
-    // ── checkbox ──────────────────────────────────────────────────────────────
     inline QRect indicatorRect(const QCheckBox* box) {
       QStyleOptionButton opt;
       opt.initFrom(box);
@@ -181,7 +162,6 @@ namespace stencil::gui {
 
   namespace ctl {
 
-    // ── combo ─────────────────────────────────────────────────────────────────
     inline QStyleOptionComboBox comboOption(const QComboBox* cb, const QString& text) {
       QStyleOptionComboBox o;
       o.initFrom(cb);
@@ -259,7 +239,6 @@ namespace stencil::gui {
       repolish(cb);
     }
 
-    // ── the list a combo drops ────────────────────────────────────────────────
     // It is a surface like every other popup in the app, so it forms out of motes
     // streaming from the control that owns it (support/menuReveal.hpp revealPopup — the
     // same flight the context menus and the dialogs play). A QComboBox places and shows
@@ -524,7 +503,7 @@ namespace stencil::gui {
     support::MoteSprites sprites_;   // shaped grains only — the word's discs draw direct, antialiased
     // The style and palette the exchange plays in, read at its FIRST FRAME rather than at
     // build time: a combo that changes the motion mode swaps its face in the same call
-    // that applies it, and read early the swap played in the old mode (user report).
+    // that applies it, and read early the swap played in the old mode.
     bool styled_ = false;
     support::ParticleStyle style_ = support::ParticleStyle::Dust;
     QColor accent_, shade_;

@@ -1,5 +1,4 @@
 #pragma once
-// ── The composer's resize grip, shared by every chat surface ────────────────
 // A QSplitter whose handle paints the browser's .chat-input-sizer pill: a SHORT
 // centred bar (44px, 68px under the cursor), hairline at rest and accent while
 // hovered or dragged, with the colour lerping as it grows. It lives here because

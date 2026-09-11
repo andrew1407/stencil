@@ -42,7 +42,7 @@ namespace stencil::gui {
   // True if `name` is a known glyph — lets callers skip assigning an empty icon.
   bool hasIcon(const QString& name);
 
-  // ── Seams for support/iconMotion.hpp ────────────────────────────────────────
+  // Seams for support/iconMotion.hpp
   // The hover motions pose a NAMED SUB-PART of a glyph per frame (the trash lid, the
   // download arrow), which QSvgRenderer cannot do on its own. So the motion rewrites the
   // markup — injecting a `transform` on the hooked element — and rasterizes that. These

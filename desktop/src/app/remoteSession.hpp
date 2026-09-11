@@ -12,7 +12,7 @@ namespace stencil::gui {
 
   class Notifications;
 
-  // ── RemoteLink: the current session's server linkage ────────────────────────
+  // RemoteLink: the current session's server linkage
   // Value bundle (empty address = a purely-local project). Bundled so binding/unbinding is a
   // single call that can't set-or-clear only some of the fields. Mirrors the browser's
   // DrawingApp.remoteLink { address, remoteId, version }.
@@ -30,7 +30,7 @@ namespace stencil::gui {
     void unbind() { address.clear(); id.clear(); name.clear(); color.clear(); version = 0; }
   };
 
-  // ── RemoteSession: the server-project session domain ────────────────────────
+  // RemoteSession: the server-project session domain
   // Extracted from MainWindow. Owns the current session's remote-link state and the window's
   // ConnectionManager handle, and hosts the version-guarded write helpers (requireClient /
   // putVersionGuarded). The live-sync controller (RemoteSyncController) composes it DIRECTLY —

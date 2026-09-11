@@ -12,8 +12,7 @@ class QFrame;
 
 // The "Selected Line:" bar shown above the canvas while a line is selected — port of
 // browser/js/ui/selectionPanel.js's #selection-panel: one flat, amber-bordered row of
-// inline controls, split out of the old dock-panel editor so its layout AND style match
-// the browser's instead of a vertical, gradient-styled QFormLayout.
+// inline controls, so its layout AND style match the browser's.
 namespace stencil::gui {
 
   class SelectedLineBar : public QWidget {

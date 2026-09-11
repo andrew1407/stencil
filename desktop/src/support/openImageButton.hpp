@@ -7,7 +7,7 @@
 
 // The empty-state "Open Image" button (browser #load-image-btn). A stock
 // ToolButtonTextBesideIcon reserves a wide fixed icon slot, so the glyph sat cramped
-// against the label (user report). This paints the icon + label itself as one centred
+// against the label. This paints the icon + label itself as one centred
 // group with an explicit kGap, and sizes to just that; the style still draws the QSS fill
 // and hover, from a label-stripped option. Q_OBJECT-free, so no MOC.
 namespace stencil::gui {

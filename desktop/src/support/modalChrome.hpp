@@ -114,8 +114,8 @@ namespace stencil::gui {
   // The browser's confirm dialog (ui/confirmModal.js): the same chrome shell —
   // alert glyph + title + Close pill over a hairline, the question in the body,
   // and a footer with Cancel + the named action as accent CTAs (danger = red).
-  // Modal; true on Confirm, false on Cancel / Close / Escape. Replaces the native
-  // QMessageBox question wherever the browser shows its styled modal instead.
+  // Modal; true on Confirm, false on Cancel / Close / Escape. Used wherever the browser
+  // shows its styled modal instead of a native QMessageBox question.
   struct ConfirmSpec {
     QString title;                                  // header title
     // The header glyph (browser opts.titleIcon): the alert triangle by default.

@@ -55,7 +55,7 @@ namespace stencil::gui {
     logo_->installEventFilter(this);
     // Paint the mark at ALL times, not only on hover: QToolButton draws its icon at half
     // size on Retina, so the RESTING logo looked tiny beside the full-size hover fx
-    // (repeated user reports). Only the pulse / glow / rays stay hover-gated. Deferred so
+    //. Only the pulse / glow / rays stay hover-gated. Deferred so
     // the button is laid out first.
     QTimer::singleShot(0, this, [this] { showStatic(); });
   }
@@ -97,7 +97,7 @@ namespace stencil::gui {
           // …and the RESTING mark goes with the button. stop() returns early when no loop
           // was running, so a logo hidden while the overlay merely SAT there (fullscreen
           // hides the header row) left the mark floating over whatever took its place —
-          // it covered the label beside it (user report, with a picture).
+          // it covered the label beside it.
           if (!logo_ || !logo_->isVisible()) hide();
           break;
         case QEvent::Move:
@@ -245,7 +245,7 @@ namespace stencil::gui {
     // …and the mark goes wherever the button has gone. Fullscreen's edge reveal SLIDES the
     // toolbars' height instead of hiding them, so the logo is clipped away without a Hide
     // event ever arriving — the mark hung on over whatever the collapsed row uncovered,
-    // and nothing could take it down (user report, with a picture). visibleRegion() is the
+    // and nothing could take it down. visibleRegion() is the
     // honest question: is any of the button actually on screen?
     if (logo_->visibleRegion().isEmpty()) hide();
   }

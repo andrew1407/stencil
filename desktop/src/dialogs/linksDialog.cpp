@@ -62,7 +62,7 @@ namespace stencil::gui {
     ModalChrome chrome = installModalChrome(this, "link", tr("Image links"));
     QVBoxLayout* layout = chrome.body;
 
-    // ── Current project + links: edit / open / remove (only with an image loaded) ──
+    // Current project + links: edit / open / remove (only with an image loaded)
     auto* linksBox = new QWidget(this);
     auto* linksCol = new QVBoxLayout(linksBox);
     linksCol->setContentsMargins(0, 0, 0, 0);
@@ -110,7 +110,7 @@ namespace stencil::gui {
                "Open resource page in the default browser", "Remove resource link");
     layout->addWidget(linksBox);
 
-    // ── Add image by URL: preview first, then load the previewed pixels ──
+    // Add image by URL: preview first, then load the previewed pixels
     auto* addBox = new QWidget(this);
     auto* addCol = new QVBoxLayout(addBox);
     addCol->setContentsMargins(0, 0, 0, 0);
@@ -175,9 +175,9 @@ namespace stencil::gui {
     previewHint_->setWordWrap(true);
     addForm->addRow(previewHint_);
 
-    // ── Quick pre-load edits (mirrors browser linksModal quick-crop): open the
+    // Quick pre-load edits (mirrors browser linksModal quick-crop): open the
     // editor already cropped to a page aspect/orientation, or uncropped. Shown only
-    // once a preview resolves an image/frame. ──
+    // once a preview resolves an image/frame.
     quickcropRow_ = new QWidget(this);
     {
       auto* qc = new QHBoxLayout(quickcropRow_);
@@ -212,7 +212,6 @@ namespace stencil::gui {
     addForm->addRow(QString(), loadBtn_);
     layout->addWidget(addBox);
 
-    // ── Preview wiring ──
     preview_ = new MediaLoader(this);
     connect(preview_, &MediaLoader::loaded, this,
             [this](const QImage& img, const QString&) {

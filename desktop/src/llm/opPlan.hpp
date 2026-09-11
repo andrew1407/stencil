@@ -151,7 +151,7 @@ namespace stencil::llm {
     QVector<Action> actions;
   };
 
-  // ── §11 interactive replies ──
+  // §11 interactive replies
   // One choice on an `ask` card. An option either previews a render (`actions`, applied to a
   // COPY of the working image) or names an existing image (`imageUrl` / `projectId`), never
   // both; with neither it is a plain text choice.

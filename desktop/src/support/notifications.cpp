@@ -164,7 +164,7 @@ namespace stencil::gui {
     // A repeat of the same message can land while the LAST one is already leaving (e.g. a
     // debounced "Saved" firing again mid-exit-flight). liveToasts() above only coalesces into
     // a standing one, so the fresh, fully-opaque label buried the leaving one's still-running
-    // dust — reading as the message vanishing with no dust (user report). Finish the old
+    // dust — reading as the message vanishing with no dust. Finish the old
     // label outright instead; its dust cloud (a separate overlay this doesn't touch) keeps
     // playing on its own.
     for (const QPointer<QLabel>& t : stack_) {

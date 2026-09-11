@@ -1,12 +1,10 @@
 #pragma once
 // The canvas ↔ points-panel separator grip — the desktop take on the browser's
 // .panel-resizer::before (layout.css): a slim centred bar that turns accent and
-// grows under the cursor. The separator itself is QMainWindow chrome (no widget,
-// and QSS cannot animate an image swap — the old static swap read as a harsh
-// jump, user report), so the grip is painted by this mouse-transparent overlay
-// positioned over the separator; MainWindow's app-wide eventFilter drives the
-// hot state from the hover/drag events the QMainWindow receives for the
-// separator, on the same lerp the chat composer's PillSplitterHandle uses.
+// grows under the cursor. The separator itself is QMainWindow chrome (no widget, and QSS
+// cannot animate an image swap), so the grip is painted by this mouse-transparent overlay
+// over the separator; MainWindow's app-wide eventFilter drives the hot state from the
+// hover/drag events the QMainWindow receives, on the same lerp PillSplitterHandle uses.
 //
 // Header-only and Q_OBJECT-free (no signals/slots of its own), so it needs no MOC.
 #include "modalReveal.hpp"   // support::motionReduced()
@@ -90,7 +88,7 @@ namespace stencil::gui {
     QColor accent_;
   };
 
-  // ── The chat dock's resize EDGE (browser .chat-resizer) ───────────────────
+  // The chat dock's resize EDGE (browser .chat-resizer)
   // The browser tints the whole draggable strip on the panel's docked edge — accent at
   // 30%, on hover and for the drag. The desktop's strip is QMainWindow chrome with no
   // widget of its own, so this paints a mouse-transparent band over the separator, driven

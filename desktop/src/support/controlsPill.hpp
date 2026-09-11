@@ -9,7 +9,7 @@
 #include <QPalette>
 
 // The "Controls" show/hide pill. A stock icon+text QToolButton reserves ~36px for the icon
-// slot however small the chevron, leaving a wide gap beside the label (user reports). This
+// slot however small the chevron, leaving a wide gap beside the label. This
 // paints the chevron and the label itself, as one centred group, and sizes to just that.
 // The base still draws the QSS background / border / hover; its own text stays empty.
 // Q_OBJECT-free (virtual overrides only), so no MOC.

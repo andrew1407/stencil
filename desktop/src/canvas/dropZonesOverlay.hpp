@@ -82,9 +82,8 @@ namespace stencil::gui {
       const QRect left(10, 10, w / 2 - 15, zoneH);
       const QRect right(w / 2 + 5, 10, w / 2 - 15, zoneH);
       // The SAME two glyphs the browser paints in #global-drop-overlay (ui/dropOverlay.js):
-      // upload for the saving half, incognito for the other. They used to be the text
-      // characters "↑" and "◐", which render as whatever the system font has — a stray
-      // arrow and a half-moon that mean nothing.
+      // upload for the saving half, incognito for the other. NOT the text characters
+      // "↑"/"◐", which render as whatever the system font has.
       drawZone(p, left, accent_, QStringLiteral("upload"), QStringLiteral("Upload & save"),
                QStringLiteral("Load the image and keep it in your projects"), activeLeft_);
       drawZone(p, right, muted_, QStringLiteral("incognito"), QStringLiteral("Upload incognito"),

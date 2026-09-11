@@ -11,7 +11,7 @@ namespace stencil::gui {
   class CanvasWidget;
   class Notifications;
 
-  // ── DataExportController: layout/image export + clipboard IO ────────────────
+  // DataExportController: layout/image export + clipboard IO
   // Extracted from MainWindow (the layout JSON download/upload/copy/paste + image save/copy
   // methods). A plain (non-QObject) helper matching the desktop's collaborator idiom: it takes
   // its dependencies in the constructor and holds NO back-pointer to MainWindow. MainWindow's
@@ -38,7 +38,7 @@ namespace stencil::gui {
     // compare view — the composite, no divider/knob baked in either).
     void saveImageFile(const QString& variant = "current");
     // Same four variants as saveImageFile, same meaning each — deliberately explicit
-    // (browser/desktop parity, user report): "current" is always the plain edited
+    // (browser/desktop parity): "current" is always the plain edited
     // image, split compare view or not; picking "split" is the only way to copy that
     // composite instead, exactly mirroring how "download" needs its own explicit row.
     void copyImageToClipboard(const QString& variant = "current");

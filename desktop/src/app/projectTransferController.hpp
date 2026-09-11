@@ -17,7 +17,7 @@ namespace stencil::gui {
   class CanvasWidget;
   class Notifications;
 
-  // ── ProjectTransferController: move/copy projects local ↔ server ────────────
+  // ProjectTransferController: move/copy projects local ↔ server
   // Extracted from MainWindow (the local↔server transfer subsystem). A plain (non-QObject)
   // service holding NO MainWindow back-pointer: it operates on the shared project list + store
   // and reports through Notifications, reaching the session/UI bits it can't own (the remote-link
@@ -68,7 +68,7 @@ namespace stencil::gui {
     stencil::net::ServerClient* requireClient(const QString& url);
     bool localProjectOriginal(const Project& pr, QByteArray& bytes, QString& ext, int& w, int& h);
     // Create `pr` on the server under `name` (create + upload original + push layout), reporting
-    // (ok, newId, newVersion) via `done`. Async twin of the old createServerFromLocal.
+    // (ok, newId, newVersion) via `done`.
     void createServerFromLocal(stencil::net::ServerClient* c, const Project& pr, const QString& name,
                                const QByteArray& bytes, const QString& ext, int w, int h,
                                std::function<void(bool ok, QString newId, qint64 newVersion)> done);

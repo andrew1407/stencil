@@ -42,15 +42,14 @@ namespace stencil::gui {
     }
 
     // The browser's preview box (cropModal.js #crop-image-el: max-width calc(96vw - 60px),
-    // max-height calc(82vh - 180px)) taken of that screen — never below the old 760×540,
-    // so a small screen keeps what it had (fitToScreen still caps the window itself).
+    // max-height calc(82vh - 180px)) taken of that screen — never below 760×540, so a
+    // small screen keeps a usable box (fitToScreen still caps the window itself).
     QSize previewFitBox(const QRect& avail) {
       return QSize(qMax(kMinDispW, qRound(avail.width() * 0.96) - 60),
                    qMax(kMinDispH, qRound(avail.height() * 0.82) - 180));
     }
   }  // namespace
 
-  // ── CropPreview ──────────────────────────────────────────────────────────
   CropPreview::CropPreview(const QImage& original, double pageWidthCm,
                            double pageHeightCm, const core::CropRect& initial,
                            QWidget* parent)
@@ -214,7 +213,6 @@ namespace stencil::gui {
     return QWidget::event(e);
   }
 
-  // ── CropDialog ───────────────────────────────────────────────────────────
   // The browser's crop modal on the shared shell (modalChrome): crop glyph + "Crop
   // Image" over the hairline, the preview and its size line centred in the body, and
   // a footer of hint · Album/Portrait · Cancel · Apply Crop, every button an accent CTA.

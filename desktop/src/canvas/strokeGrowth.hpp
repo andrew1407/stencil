@@ -154,7 +154,7 @@ namespace stencil::gui::stroke {
     return QPointF(a.x + t * dx, a.y + t * dy);
   }
 
-  // ── The flights themselves (browser js/core/strokeFx.js) ──────────────────
+  // The flights themselves (browser js/core/strokeFx.js)
   struct Flight {
     int lineIdx = -1;      // index into lines_, or -1 for the in-progress line
     QPointF to;            // the vertex's resting place — also its identity

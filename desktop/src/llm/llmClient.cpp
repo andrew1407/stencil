@@ -195,7 +195,7 @@ namespace stencil::llm {
     }
   }
 
-  // ── reachability probe (chat-dock status dot) ─────────────────────────────
+  // reachability probe (chat-dock status dot)
 
   void LlmClient::probe(const LlmSettings& cfg, std::function<void(LlmProbeResult)> done) {
     const auto fail = [&done](const QString& detail) {
@@ -239,7 +239,7 @@ namespace stencil::llm {
         }));
   }
 
-  // ── model suggestions (settings UI; browser listModels parity) ─────────────
+  // model suggestions (settings UI; browser listModels parity)
 
   void LlmClient::listModels(const LlmSettings& cfg, std::function<void(QStringList)> done) {
     using Pick = QStringList (*)(const QJsonObject&);
@@ -301,7 +301,7 @@ namespace stencil::llm {
                 })));
   }
 
-  // ── ollama — native chat (contract §6.1) ───────────────────────────────────
+  // ollama — native chat (contract §6.1)
 
   void LlmClient::chatOllama(const LlmSettings& cfg, const QVector<ChatMessage>& messages,
                              const QString& system, std::function<void(LlmReply)> done) {
@@ -326,7 +326,7 @@ namespace stencil::llm {
             "malformed ollama response (no message.content)"));
   }
 
-  // ── openai-compat — LM Studio & friends (contract §6.2) ────────────────────
+  // openai-compat — LM Studio & friends (contract §6.2)
 
   void LlmClient::chatOpenAi(const LlmSettings& cfg, const QVector<ChatMessage>& messages,
                              const QString& system, std::function<void(LlmReply)> done) {
@@ -366,7 +366,7 @@ namespace stencil::llm {
             "malformed response (no choices[0].message.content)"));
   }
 
-  // ── stencil-server — Anthropic proxy (contract §6.3) ───────────────────────
+  // stencil-server — Anthropic proxy (contract §6.3)
 
   void LlmClient::chatServer(const LlmSettings& cfg, const QVector<ChatMessage>& messages,
                              const QString& system, std::function<void(LlmReply)> done) {

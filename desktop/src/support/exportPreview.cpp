@@ -22,7 +22,7 @@ namespace stencil::support {
 
   namespace {
     constexpr int kPreviewMax = 220;  // px, longest edge of the rendered thumbnail
-    // ── The preview is sand too (browser js/ui/exportPreview.js) ────────────────
+    // The preview is sand too (browser js/ui/exportPreview.js)
     // It forms from motes streaming out of the row it previews and comes apart into
     // motes pouring back into it, on the shared tip clock (disintegrateOverlay.hpp):
     // short, so a flight is over before an Alt-hover sweep reaches the next row.
@@ -73,7 +73,7 @@ namespace stencil::support {
     // The layer the flight is drawn in. The OWNER (a QMenu popup) is its own tiny
     // top-level window — a child overlay there was clipped to the menu's rect, and
     // the journey to the tip (floating beside the cursor, mostly OFF the menu) was
-    // simply cropped away (user report: the animation was nearly invisible). The
+    // simply cropped away (the animation was nearly invisible). The
     // chain's real window, under every popup, hosts it instead; a top-level layer
     // stays off the table — it steals the menu's platform grab (see the escapeHost
     // note in dust()).
@@ -151,7 +151,7 @@ namespace stencil::support {
       return;
     }
     // The tip waits behind its own gathering motes and fades up as the last of them
-    // land — shown at once, it covered the very flight that forms it (user report).
+    // land — shown at once, it covered the very flight that forms it.
     w->setWindowOpacity(0.0);
     w->show();
     if (dust(owner, ownerRect, /*gather=*/true, dustFromGlobal)) {

@@ -11,7 +11,7 @@ class QWidget;
 // point. Sibling of modalReveal's dialog flight, tuned for menus.
 namespace stencil::support {
 
-  // Menu/submenu dust clock (browser SURFACE_MENU_IN_MS ×1.5 — user report: too brisk).
+  // Menu/submenu dust clock (browser SURFACE_MENU_IN_MS ×1.5 — too brisk).
   inline constexpr int kMenuPopupDustMs = 340;
   // A SELECT's own popup reads slower next to the browser's — 1.5x this clock.
   inline constexpr int kSelectPopupDustMs = 510;

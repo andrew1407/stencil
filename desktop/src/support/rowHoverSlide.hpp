@@ -4,8 +4,7 @@
 // port of the browser's `.accent-dd-opt:hover { transform: translateX(2px) }`: the row
 // under the pointer eases a couple of pixels right and back as it leaves, on the browser's
 // own clock. Pairs with installRowShimmer — a popup row gets the same two hover
-// treatments every other item in the app has (user report: the desktop's page-size and
-// other select popups had neither).
+// treatments every other item in the app has; the select popups had neither.
 //
 // The offset is applied by WRAPPING whatever delegate the view already has, so a view with
 // its own painter (the motion modes' animated glyphs) keeps it.

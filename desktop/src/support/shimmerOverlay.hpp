@@ -34,13 +34,13 @@
 namespace stencil::gui {
 
   // The sweep is clipped to the control's own rounded shape — a plain band spilled across
-  // the corners of a pill (user report). C++ cannot read a QSS border-radius back, so the
+  // the corners of a pill. C++ cannot read a QSS border-radius back, so the
   // common control radius (theme.cpp: buttons, combos, rows) is the default and anything
   // rounder — the modal Close pill, the Controls pill — carries its own on this property.
   inline constexpr const char* kShimmerRadiusProperty = "_shimmerRadius";
   inline constexpr int kShimmerRadius = 7;
 
-  // ── Hover "glass shimmer": a left→right light sweep played on hover — the desktop match for
+  // Hover "glass shimmer": a left→right light sweep played on hover — the desktop match for
   // the browser/extension CSS shimmer. Qt style sheets can't animate a sweep, so this is a
   // transparent, mouse-through child overlay that paints an animated diagonal highlight.
   // installHoverShimmer(w) attaches one to any button; it lives/dies with its target.

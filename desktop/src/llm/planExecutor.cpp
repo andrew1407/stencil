@@ -252,8 +252,8 @@ namespace stencil::llm {
           frame.reset();  // the loaded picture is a fresh frame
           return true;
         }
-        // ── §2.1 multi-image ops (parse-banned in variants; the guards here
-        // are defensive only) ──
+        // §2.1 multi-image ops (parse-banned in variants; the guards here
+        // are defensive only)
         case OpKind::Image: {
           if (inVariant) {
             *err = QStringLiteral("image: not allowed inside a variant");
@@ -296,8 +296,8 @@ namespace stencil::llm {
           // means a variant/preview slipped through the parse ban.
           *err = QStringLiteral("editor-settings ops are not allowed inside a variant");
           return false;
-        // ── §10 editor-settings ops (parse-banned in variants; the inVariant
-        // guard below is defensive only) ──
+        // §10 editor-settings ops (parse-banned in variants; the inVariant
+        // guard below is defensive only)
         case OpKind::Theme:
         case OpKind::Accent:
         case OpKind::LineStyle:
@@ -592,7 +592,6 @@ namespace stencil::llm {
     return found;
   }
 
-  // ── CanvasPlanTarget ────────────────────────────────────────────────────────
 
   CanvasPlanTarget::CanvasPlanTarget(const QImage& image, const core::PageSize& pageCm)
       : canvas_(std::make_unique<gui::CanvasWidget>()), page_(pageCm) {
@@ -758,7 +757,6 @@ namespace stencil::llm {
     return canvas_->renderToImage(/*withOverlay=*/true);
   }
 
-  // ── executePlan ─────────────────────────────────────────────────────────────
 
   ExecResult executePlan(const OpPlan& plan, PlanTarget& target) {
     ExecResult res;

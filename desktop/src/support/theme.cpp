@@ -238,7 +238,7 @@ namespace stencil::gui {
     p.hoverRing = displayColor(QColor("#7c3aed"));
     // The accent-derived three. --accent / --text-key are in the canon too, but only as
     // the violet default: the chosen accent is what the app actually wears.
-    const QColor accent = accentPrimary(accentKey);   // already display-space
+    const QColor accent = accentPrimary(accentKey);
     p.accent = accent;
     p.textKey = accentShade(accent, dark);
     p.onAccent = onAccentInk(accent);
@@ -275,9 +275,8 @@ namespace stencil::gui {
       return path;
     }
 
-    // The stylesheet template, read once from qrc. resources/app.qss is the literal
-    // this file used to carry inline, whitespace included — tests/pins/stylesheets.txt
-    // hashes the finished sheet, so the move is provably byte-for-byte.
+    // The stylesheet template, read once from qrc (resources/app.qss).
+    // tests/pins/stylesheets.txt hashes the finished sheet, whitespace included.
     const QString& stylesheetTemplate() {
       static const QString tpl = [] {
         ensureAppResources();
@@ -308,9 +307,8 @@ namespace stencil::gui {
     }
   }
 
-  // The browser's own thumb grey (css/theme.css --sb-thumb), lighter than the border
-  // colour the bars used to borrow; under the pointer it takes the theme's accent, exactly
-  // as the browser's --sb-thumb-hover: var(--accent) does (user decision).
+  // The browser's own thumb grey (css/theme.css --sb-thumb); under the pointer it takes
+  // the theme's accent, as the browser's --sb-thumb-hover: var(--accent) does.
   QColor canvasScrollThumb(bool dark) { return themeToken("--sb-thumb", dark); }
   QColor canvasScrollThumbHover(bool dark, const QString& accentKey) {
     return themePalette(dark, accentKey).accent;
@@ -377,7 +375,7 @@ namespace stencil::gui {
         {"%ACCENT_SOFT%", rgba(p.accent, dark ? 0.18 : 0.11)},
         {"%ACCENT_RING%", rgba(p.accent, 0.45)},
         // The line an input or icon button draws around itself: its OWN ink, well down —
-        // full ink was hard and half still read heavy (user report, twice). A quarter keeps
+        // full ink was hard and half still read heavy. A quarter keeps
         // the colour family while landing light-grey on the light theme and dark-grey on
         // the dark one, which is what a border should be in each.
         {"%UI_OUTLINE%", rgba(p.textMain, 0.25)},

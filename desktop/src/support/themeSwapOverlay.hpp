@@ -72,7 +72,7 @@ namespace stencil::gui {
     // else) locate a live wipe by this name instead.
     static constexpr const char* kObjectName = "stencilThemeSwap";
 
-    // ── The front (browser motion.js swapEdgePolygon ← dustCloud.js edgeJitter) ──
+    // The front (browser motion.js swapEdgePolygon ← dustCloud.js edgeJitter)
     // The wipe's edge wears the particle style: a polygon ring whose vertices ride the same
     // easing, each pushed off the nominal radius by the style's own recipe. Keep the
     // numbers in step with the browser's EDGE table.
@@ -108,7 +108,7 @@ namespace stencil::gui {
       return e * full * edgeBaseOf(s) * (1 + edgeJitter(s, k));
     }
 
-    // ── Dust in the wipe's wake (browser motion.js swapDustSpecs — keep in step) ──
+    // Dust in the wipe's wake (browser motion.js swapDustSpecs — keep in step)
     // The torn front kicks up specks that ignite along its edge and settle just behind
     // it, painted in the OLD palette (seedDust) — the paint the front grinds away.
     // Always just INSIDE the clip (behind even the deepest tooth, the 1 − amp band):
@@ -240,9 +240,8 @@ namespace stencil::gui {
         // every control it touched, and each one lands on top of an overlay that is never
         // told to cover it again. That is how the colour chips showed their new dark border
         // while the snapshot around them was still light. Redrawing the full frame puts the
-        // snapshot back over anything that surfaced, and it is only a clipped pixmap blit —
-        // the expensive version this optimisation was added for was the old PATH clip, which
-        // rasterised a subtracted circle over the window every frame.
+        // snapshot back over anything that surfaced, and it is only a clipped pixmap blit
+        // (a PATH clip, rasterising a subtracted circle every frame, is the expensive one).
         update();
         if (timeMs_ >= total) {
           tick->stop();

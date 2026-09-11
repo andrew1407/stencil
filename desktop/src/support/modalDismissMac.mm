@@ -47,7 +47,7 @@ namespace stencil::support {
       QTimer::singleShot(0, dlg, [guard] { if (guard) guard->reject(); });
     }
 
-    // ── Window-modal case: the raw NSEvent still reaches us ──────────────────────────
+    // Window-modal case: the raw NSEvent still reaches us
     class MacModalDismiss : public QAbstractNativeEventFilter {
      public:
       bool nativeEventFilter(const QByteArray& type, void* message, qintptr*) override {
@@ -78,7 +78,7 @@ namespace stencil::support {
       }
     };
 
-    // ── Application-modal case: a transparent backdrop under the dialog ──────────────
+    // Application-modal case: a transparent backdrop under the dialog
     constexpr const char* kBackdropAttachedProp = "stencilModalBackdropAttached";
 
     // Rejects its dialog on any press that reaches the backdrop.

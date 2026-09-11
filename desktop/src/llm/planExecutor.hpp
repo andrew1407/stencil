@@ -69,7 +69,7 @@ namespace stencil::llm {
     // Video frame extraction; only the live MainWindow target implements it.
     virtual bool extractFrames(const QVector<int>& indices, QString* err);
 
-    // ── §10 editor-settings ops (GUI editors; parse-banned inside variants).
+    // §10 editor-settings ops (GUI editors; parse-banned inside variants).
     // Empty/0/-1 arguments mean "field absent — leave alone". Defaults no-op
     // (CanvasPlanTarget records them for tests); connect/disconnect default to
     // a typed failure — only the live MainWindow target reaches the stores.
@@ -147,7 +147,7 @@ namespace stencil::llm {
     // openFile may echo from. Empty (the default) blocks both.
     virtual QString userTypedText() const { return QString(); }
 
-    // ── §2.1 multi-image ops (top-level only; parse-banned inside variants) ──
+    // §2.1 multi-image ops (top-level only; parse-banned inside variants)
     // Switch the working image to the turn's `index`-th attachment (1-based).
     // false + *err = this turn has no such attachment, which costs the ACTION
     // (a plan note), never the whole plan.

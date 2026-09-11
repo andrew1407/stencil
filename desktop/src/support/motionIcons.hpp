@@ -1,5 +1,4 @@
 #pragma once
-// ── The motion modes' icons (browser js/ui/motionIcons.js twin) ─────────────
 // One glyph per interface-motion mode, painted with QPainter from the same 16-unit
 // drawings the browser's SVGs carry, for the Settings dialog's combo rows and trigger.
 // The `ms` argument is how far into the browser's `.mm-*` hover keyframes the glyph is,
@@ -179,12 +178,12 @@ namespace stencil::support {
       const bool hovered = index.row() == hoverRow_;
       const double ms = hovered ? double(clock_.elapsed()) : 1e9;
       // The browser's 16px glyph, not the combo's own icon size — a Mac's PM_SmallIconSize
-      // drew them half again as big as the browser's rows (user report).
+      // drew them half again as big as the browser's rows.
       opt.decorationSize = QSize(kMotionIconPx, kMotionIconPx);
       const double dpr = p->device() ? p->device()->devicePixelRatio() : 1.0;
       // Always the row's TEXT colour — the picked row keeps its label's ink over the soft
       // accent wash (theme.cpp searchComboList::item:selected), so HighlightedText's white
-      // left the glyph all but invisible on it in the light theme (user report).
+      // left the glyph all but invisible on it in the light theme.
       opt.icon = motionIconFrame(mode, opt.palette.color(QPalette::Text), ms, kMotionIconPx, dpr);
       opt.features |= QStyleOptionViewItem::HasDecoration;
       const QWidget* w = opt.widget;
@@ -233,7 +232,7 @@ namespace stencil::support {
 
     // Every row's glyph, re-inked in the theme that just arrived. A QIcon bakes its
     // pixels, so a flip repainted the combo but left these in the OLD theme's ink —
-    // invisible on the new one (user report). The popup's rows are painted live by
+    // invisible on the new one. The popup's rows are painted live by
     // MotionIconDelegate, so only the items' own icons need this.
     void reink() {
       const QColor ink = combo_->palette().color(QPalette::Text);

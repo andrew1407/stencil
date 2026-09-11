@@ -75,7 +75,7 @@ namespace stencil::gui {
       return true;
     }
     // A secondary line reads as a sentence of its own: a lowercase fragment under the
-    // heading looks unfinished (user report). Only a plain lowercase first WORD is lifted
+    // heading looks unfinished. Only a plain lowercase first WORD is lifted
     // — a token carrying a dot, slash, colon, bracket or quote is a URL, a filename or a
     // code fragment ("http://…", ".stencil file", "f(x,y) …") and means what it is written
     // as, and a lone word is a value, not a sentence. Term/description rows read as one
@@ -246,7 +246,6 @@ namespace stencil::gui {
       if (!l.trimmed().isEmpty()) lines << l.trimmed();
     if (lines.isEmpty()) return tip;
 
-    // ── the shortcut ──
     // The app appends " (combo)" to the END of the base text with the "— reason"
     // line after it, so the shortcut sits on the last non-reason line — not the
     // heading. A line that was nothing but the combo goes away with it.
@@ -271,7 +270,6 @@ namespace stencil::gui {
     }
     if (lines.isEmpty()) return tip;
 
-    // ── heading ──
     QString head = lines[0];
     const QStringList headParts = dotParts(head);          // "a · b" → heading + bullets
     const QStringList tail = headParts.mid(1);
@@ -291,7 +289,6 @@ namespace stencil::gui {
       tip.blocks.push_back({TipBlock::Kind::Hint, {}, sentenceCase(tail.first())});
     }
 
-    // ── body ──
     for (int i = 1; i < lines.size(); i++) {
       const QString raw = lines[i];
       static const QRegularExpression note("^[\u2014\u2013-]{1,2}\\s+(.*)$");
@@ -450,7 +447,7 @@ namespace stencil::gui {
     return renderTip(plain, g_pal, kOnMac, font);
   }
 
-  // ── Composed control tooltips (browser utils.js composeControlTitle) ──
+  // Composed control tooltips (browser utils.js composeControlTitle)
 
   QString composeControlTitle(const QString& base, const QString& combo, bool disabled,
                               const QString& reason) {

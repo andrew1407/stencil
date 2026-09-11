@@ -1,5 +1,4 @@
 #pragma once
-// ── Collaboration-server live events feed (desktop) ─────────────────────────
 // A read-only subscription to a server's GLOBAL project-events feed over the raw-TCP
 // edit channel (REST port + 1). It connects, sends a hello with an empty projectId —
 // which the server routes to the events feed (see hub.serveEvents) — and emits

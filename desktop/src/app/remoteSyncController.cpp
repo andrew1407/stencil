@@ -36,7 +36,7 @@ namespace stencil::gui {
       // A reload is still in flight (async): wait it out, then converge. openServerProject holds
       // remoteReloading_ true for its whole async lifetime, so we can't run a second reload on top;
       // keep the pending flag and re-poll shortly — when the flag clears this timer reloads the
-      // latest. (Replaces the old synchronous "re-check reloadPending_ after the nested loop" tail.)
+      // latest.
       if (*remoteReloading_) {
         if (reloadPending_) reloadTimer_->start(50);
         return;

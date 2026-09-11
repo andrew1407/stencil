@@ -57,7 +57,6 @@ namespace stencil::gui {
                              const QString& pageSeed = QStringLiteral("A3"),
                              const QString& units = QStringLiteral("cm"));
 
-    // ── File / URL source ──
     // The chosen source: the URL when one is typed, else the browsed local path.
     QString source() const;
     bool isUrl() const;     // a URL was typed (vs a local file)
@@ -72,12 +71,10 @@ namespace stencil::gui {
     void setServerTargets(const QStringList& urls);
     QString serverTarget() const;
 
-    // ── New-blank source ──
     QColor blankColor() const;
     int blankWidth() const;
     int blankHeight() const;
 
-    // ── Preview + quick-crop (file / URL source) ──
     // The image/frame decoded for the preview — null until a preview succeeds. When
     // set, the caller adopts these exact pixels (no second download/seek), so what was
     // previewed is exactly what loads (mirrors LinksDialog::previewedImage()).

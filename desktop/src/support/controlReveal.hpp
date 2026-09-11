@@ -123,7 +123,7 @@ namespace stencil::gui {
     // The picture that flies is the CONTROLS, never the strip behind them. QWidget::grab()
     // renders the window background under its children (the palette's Window brush — the
     // page colour), so a group photographed on a toolbar flew as a dark slab over a lighter
-    // bar: the "black lines next to the inputs" in the user report. Rendering only the
+    // bar: the "black lines next to the inputs". Rendering only the
     // CHILDREN onto a cleared surface leaves the gaps — a group is wider than its fields
     // whenever the row hands it slack — genuinely empty, so nothing but the fields flies.
     inline QPixmap groupShot(QWidget* w) {
@@ -271,7 +271,7 @@ namespace stencil::gui {
       // With the cap lifted and the parent laid out, that is its live box — and for an
       // EXPANDING group (the f(x,y) pair takes the slack its row hands it) that is wider
       // than its own size hint, which is only what its contents ask for. Flying the hint
-      // made the fields widen the instant the dust handed over (user report). The hint is
+      // made the fields widen the instant the dust handed over. The hint is
       // still the floor: the surrounding layouts reflow asynchronously, so mid-swap the
       // live width can be 0 or a stale sliver, and a flight sized off THAT was silently
       // declined (no dust) or eased to the sliver and snapped wide when the cap lifted.
@@ -374,7 +374,7 @@ namespace stencil::gui {
   // Pin the bar's slot at the height it has RIGHT NOW. Its controls are about to fly out,
   // and the last one to be hidden takes the strip's content height with it — the bar
   // collapsing to nothing in that one frame IS the jump, before any slide of ours could
-  // start (user report). Frozen, the strip keeps its shape while they leave.
+  // start. Frozen, the strip keeps its shape while they leave.
   inline void holdBarSlot(QWidget* bar) {
     if (!bar || !bar->isVisible()) return;
     const int h = bar->height();
@@ -422,7 +422,7 @@ namespace stencil::gui {
   // only its controls do — so on the way IN this is a plain show (the slot they fly into),
   // and on the way OUT it is deferred by their flight and then closes its slot. Taking the
   // strip away at once took Select all's own out-flight off the screen before a frame of
-  // it showed (user report). `want()` is the single source of whether the bar belongs,
+  // it showed. `want()` is the single source of whether the bar belongs,
   // asked now and again on arrival, so a selection made mid-flight keeps it.
   // Browser twin: motion.js revealBar.
   template <typename Want>   // a template, so the predicate never lands on the heap
@@ -449,8 +449,7 @@ namespace stencil::gui {
   // (the close flight re-photographs it as it hides — modalReveal — and a live cloud would
   // be carried on after the window is gone) and whenever the layout under the clouds is
   // pulled away: entering or leaving fullscreen hides every toolbar, and a cloud started
-  // by one of those controls was left flying over the bare canvas (user report, with a
-  // picture).
+  // by one of those controls was left flying over the bare canvas.
   inline void stopDustClouds(QWidget* host) {
     if (!host) return;
     for (const char* name : {DisintegrateOverlay::kObjectName, kControlRevealObjectName,

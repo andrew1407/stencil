@@ -92,7 +92,7 @@ namespace stencil::gui {
   // `font` is the type it will be drawn in (see renderTip).
   QString enrichedToolTip(const QString& plain, const QFont* font = nullptr);
 
-  // ── Composed control tooltips — browser utils.js composeControlTitle ──
+  // Composed control tooltips — browser utils.js composeControlTitle
   // A control's hover text is ONE string of up to three parts: the heading (data-title),
   // " (combo)" for the shortcut it carries, and a "— reason" line shown only while it is
   // disabled (data-disabled-reason). The parts live as properties on the QAction/QWidget,

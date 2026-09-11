@@ -165,7 +165,7 @@ namespace stencil::gui {
     status_->setObjectName("llmStatus");
     status_->setWordWrap(true);
     // Dot then text, side by side — the reading is one thing ("● failed to fetch"), and
-    // pinning the text to the right edge left a row of nothing between them (user report).
+    // pinning the text to the right edge left a row of nothing between them.
     status_->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     // It takes the rest of the row (no trailing stretch): a word-wrapped label handed only
     // its sizeHint width breaks an easily-fitting sentence into three lines. Left-aligned,
@@ -215,7 +215,7 @@ namespace stencil::gui {
       noteBox_ = new QFrame(this);
       noteBox_->setObjectName("llmNoteBox");
       // Tight to its text: it is a note, not a panel, and Fixed height stops the column
-      // stretching it into one (user report — too much air above and below the line).
+      // stretching it into one (too much air above and below the line).
       QSizePolicy boxSp(QSizePolicy::Preferred, QSizePolicy::Fixed);
       boxSp.setHeightForWidth(true);   // …and the frame sizes to the wrapped label, not past it
       noteBox_->setSizePolicy(boxSp);

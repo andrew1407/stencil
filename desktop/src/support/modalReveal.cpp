@@ -138,7 +138,7 @@ namespace stencil::support {
       group->start(QAbstractAnimation::DeleteWhenStopped);
     }
 
-    // ── The dust flight (browser js/ui/motion.js surfaceIn / surfaceOut) ──────
+    // The dust flight (browser js/ui/motion.js surfaceIn / surfaceOut)
     // A window does not SCALE out of its icon any more: it forms from motes streaming
     // out of that icon, and comes apart into motes pouring back into it. Same origin,
     // same direction, same clock family as the ghost it replaces — what changed is that
@@ -164,7 +164,7 @@ namespace stencil::support {
       // Painted NOW on a close, not on the next posted frame — the same synchronous
       // first paint the ghost fallback does (CloseFlight's ghost->repaint()). The dialog
       // window unmaps in this very turn; one deferred frame here is exactly the gap in
-      // which it blinked out bare before the cloud appeared (user report). At t=0 the
+      // which it blinked out bare before the cloud appeared. At t=0 the
       // overlay draws the full snapshot in place, so the hand-off is seamless.
       if (fx && !opening) fx->repaint();
       return fx != nullptr;
@@ -196,7 +196,7 @@ namespace stencil::support {
 
   // Bring `w`'s layout to what it will show as, so a snapshot of it is the window that
   // lands: a scroll area decides its scrollbar on a posted layout pass that grab() ran
-  // ahead of, so the flight flew a picture a scrollbar too wide (user report).
+  // ahead of, so the flight flew a picture a scrollbar too wide.
   void settleLayout(QWidget& w) {
     QCoreApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
     if (QLayout* l = w.layout()) l->activate();

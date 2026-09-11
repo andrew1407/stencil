@@ -118,7 +118,7 @@ namespace stencil::gui {
     // to be parented to the scrolled content (the per-row "…" trigger) is not a
     // transcript row. Fading it at the viewport edge — where it is pinned by
     // design — washed the glyph and its outline out, and the dissolve effect
-    // REPLACED the button's own accent glow on the way (user report).
+    // REPLACED the button's own accent glow on the way.
     static constexpr const char* kExemptProperty = "stencilRevealExempt";
 
     explicit ScrollReveal(QScrollArea* area) : QObject(area), area_(area) {

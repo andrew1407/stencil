@@ -1,19 +1,13 @@
 #pragma once
 // Toggle FACE swap — one shared exchange for the controls whose glyph and word change
 // together (Draw's Start ▶ / Stop ■, and its Line/Rect neighbour). Port of the browser's
-// js/ui/motion.js swapContent (.swapping / .swap-ghost in animations.css): the outgoing
-// face turns away, shrinking and fading; the incoming one arrives from a quarter-turn back
-// and rises to rest. The browser overlays a ghost of the old face; a QAbstractButton has
-// one text and one icon, so the halves run in SEQUENCE instead and the face is exchanged at
-// the pivot — where nothing is on screen, which is also where a caller's state flip (the
-// accent fill) hides.
-//
-// Nothing new in the motion vocabulary: the turn is guiHelpers::spinIcon's (rotatedIcon,
-// re-rendered per frame), the fade is dissolveEffect's/filterFade's, and motionReduced()
-// lands on the end state at once, as everywhere else.
+// js/ui/motion.js swapContent (.swapping / .swap-ghost in animations.css). The browser
+// overlays a ghost of the old face; a QAbstractButton has one text and one icon, so the
+// halves run in SEQUENCE and the face is exchanged at the pivot — where nothing is on
+// screen, which is also where a caller's state flip (the accent fill) hides.
 //
 // The label cannot be moved (Qt lays a button's text out itself), so its share of the
-// motion is the fade — pushed through a widget stylesheet, the only per-widget lever that
+// motion is a fade pushed through a widget stylesheet — the only per-widget lever that
 // outranks the app-wide QSS colour.
 //
 // Header-only and Q_OBJECT-free (no signals/slots), so it needs no MOC.
@@ -77,7 +71,7 @@ namespace stencil::gui {
     int iconSize = 16;
     // Transparent air carried on the glyph's RIGHT, so the label is not welded to it. Qt's
     // text-beside-icon gap is a fixed 4px (pixmap width + 4) and QSS `spacing` does nothing
-    // for a QToolButton, so the room has to be in the PIXMAP (user report, with a picture).
+    // for a QToolButton, so the room has to be in the PIXMAP.
     int gapPx = 0;
   };
 

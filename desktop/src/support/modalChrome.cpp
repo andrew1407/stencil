@@ -607,7 +607,7 @@ namespace stencil::gui {
     chrome.root->addWidget(modalDivider(dlg));
     // Hint left, buttons right, on ONE row (browser .settings-footer). The hint takes all
     // the slack, so at a normal width it wraps at most a line or two instead of being
-    // squeezed into a tall column of two-word lines (user report, with a picture).
+    // squeezed into a tall column of two-word lines.
     auto* footer = new QHBoxLayout;
     footer->setSpacing(8);
     if (hint.isEmpty() && !liveHint) {

@@ -2,17 +2,15 @@
 // The app's own control tooltip — the desktop port of #app-tooltip in
 // browser/css/components.css, which fades over 90 ms instead of snapping.
 //
-// Qt's tooltip is a private QTipLabel: QSS has no transitions, and there is no supported
-// hook to animate the label Qt shows. So QEvent::ToolTip is swallowed app-wide and this
-// frameless panel is shown in its place. Qt still owns the TIMING — a ToolTip event only
-// arrives after SH_ToolTip_WakeUpDelay (main.cpp pins it at 200 ms) — and the content is
-// still tipContent's rendering, so nothing but the motion changes: the fade, plus one
-// brief shake of the KEYCAPS as a tip carrying them appears, to point at the shortcut
+// Qt's tooltip is a private QTipLabel: QSS has no transitions and there is no supported
+// hook to animate the label Qt shows, so QEvent::ToolTip is swallowed app-wide and this
+// frameless panel is shown in its place. Qt still owns the TIMING (SH_ToolTip_WakeUpDelay,
+// pinned at 200 ms in main.cpp) and the content is still tipContent's rendering: only the
+// motion changes — the fade, plus one shake of the KEYCAPS as a tip carrying them appears
 // (browser/extension: .tip-key.key-shake). The panel itself never moves.
 //
-// Only a widget with its OWN non-empty toolTip() is taken over. Item views resolve
-// per-index tooltips inside viewportEvent and have no widget tooltip of their own, so
-// those keep Qt's path untouched.
+// Only a widget with its OWN non-empty toolTip() is taken over; item views resolve
+// per-index tooltips inside viewportEvent, so those keep Qt's path untouched.
 //
 // Header-only and Q_OBJECT-free (no signals/slots of its own), so it needs no MOC.
 #include <QApplication>
@@ -200,7 +198,7 @@ namespace stencil::gui {
     static constexpr int kMaxTipWidth = 380;   // browser: #app-tooltip max-width
     static constexpr int kShakeMs = 320;    // browser: keycapShake 0.32s, one per appearance
                                             // (TipBody holds its steps — the CAPS move, not this)
-    // ── The tooltip is sand too (browser js/ui/controlTooltip.js) ──────────────
+    // The tooltip is sand too (browser js/ui/controlTooltip.js)
     // It forms from motes streaming out of the control it describes and comes apart into
     // motes pouring back into it — on the shared tip clock (disintegrateOverlay.hpp):
     // short, so a flight is over before a toolbar sweep reaches the next control.
@@ -222,7 +220,7 @@ namespace stencil::gui {
       body_->setObjectName(QStringLiteral("stencilAppTooltipBody"));
       // Wraps at the browser's own tooltip ceiling (#app-tooltip max-width: 380px). Without
       // one a long sentence rendered as a single line the width of the screen instead of a
-      // few readable ones (user report, the "save chats" tip).
+      // few readable ones.
       body_->setWordWrap(true);
       body_->setMaximumWidth(kMaxTipWidth);
       lay->addWidget(body_);

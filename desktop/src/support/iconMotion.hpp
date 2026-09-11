@@ -1,27 +1,19 @@
 #pragma once
-// Per-icon hover motion — every glyph mimes its OWN action.
+// Per-icon hover motion — every glyph mimes its OWN action. Port of
+// browser/js/config/iconMotion.json (the canonical table, qrc-embedded here) and its CSS
+// realisation in browser/css/animations.css. One generic tilt for everything is worse than
+// none — a minus that swells reads as "increase".
 //
-// Port of browser/js/config/iconMotion.json (the canonical table, qrc-embedded here) and
-// its CSS realisation in browser/css/animations.css. One generic tilt for everything is
-// worse than none — a minus that swells reads as "increase" — so the trash lid lifts, the
-// download arrow travels down and upload's up, the folder tips open, the chain links join,
-// the sun shakes, the fullscreen corners extend (and RETRACT on the control that leaves
-// fullscreen), plus grows, minus shrinks, the layers assemble, the sparkle dots type.
+// QSvgRenderer has no CSS engine and cannot address a class, so a frame is produced by
+// REWRITING the glyph's markup: a `transform` (and, for draw-on marks, a stroke-dasharray/
+// dashoffset) is injected into the start tag of each element carrying the table's `ic-*`
+// hook, and the result goes down iconSet's ordinary rasterize path. Those hooks are in the
+// shared canon (browser/js/config/icons.json) and inert at rest.
 //
-// How it works in Qt. QSvgRenderer has no CSS engine and cannot address a class, so a frame
-// is produced by REWRITING the glyph's markup: a `transform` (and, for the draw-on marks, a
-// stroke-dasharray/dashoffset) is injected into the start tag of each element carrying the
-// table's `ic-*` hook, and the result goes down iconSet's ordinary rasterize path. The hooks
-// are already in the shared canon (browser/js/config/icons.json) and are inert at rest.
-//
-// The trigger is one application-wide event filter (installIconMotion()): a button carries
-// no glyph name, but iconSet::iconRequestForKey() traces its QIcon back to the glyph, colour
-// and size it was built from — so no icon call site has to change. Nothing here moves a box:
-// only the icon's own pixels change, so no control can reflow, and it composes with the
-// shimmer sweep and the button lift instead of fighting them.
-//
-// Reduced motion (support::motionReduced() / STENCIL_NO_ANIM=1) cancels every motion: the
-// rest pose IS each design's end state, so nothing is lost.
+// One application-wide event filter (installIconMotion()) is the trigger: a button carries
+// no glyph name, but iconSet::iconRequestForKey() traces its QIcon back to the glyph,
+// colour and size it was built from, so no call site changes. Only the icon's own pixels
+// move, so nothing reflows. Reduced motion cancels it all: the rest pose IS the end state.
 //
 // Header-only and Q_OBJECT-free (no signals or slots of its own), so it needs no MOC.
 #include "faceSwap.hpp"      // faceSwapping() — a face mid-swap owns the glyph
@@ -67,7 +59,6 @@ namespace stencil::gui {
   // Set on a QMenu once its hovered() signal has been wired to the row motion.
   inline constexpr const char* kMenuHoverWiredProperty = "stencilIcmHovered";
 
-  // ── The table ───────────────────────────────────────────────────────────────
   // A pose in the glyph's own 24-unit space. Absent fields are identity.
   struct IconPose {
     double tx = 0, ty = 0;
@@ -175,7 +166,6 @@ namespace stencil::gui {
       return out;
     }
 
-    // ── Markup surgery ────────────────────────────────────────────────────────
     // One start tag in the canon's inner markup: where an attribute can be injected,
     // its class list, and the tag text itself (for the originSelf centre).
     struct Tag {
@@ -322,7 +312,6 @@ namespace stencil::gui {
       return t;
     }
 
-    // ── Pose maths ────────────────────────────────────────────────────────────
     inline double mix(double a, double b, double u) { return a + (b - a) * u; }
 
     inline IconPose lerpPose(const IconPose& a, const IconPose& b, double u) {
@@ -457,7 +446,6 @@ namespace stencil::gui {
     return it == icm::table().constEnd() ? nullptr : &it.value();
   }
 
-  // ── The driver ──────────────────────────────────────────────────────────────
   // One per hovered button, parented to it. Holds the elapsed clock the parts read and
   // repaints the button's icon from the posed markup each frame.
   class IconMotionRunner : public QObject {

@@ -80,7 +80,7 @@ namespace stencil::llm {
       return isFiniteNum(v) && std::floor(v.toDouble()) == v.toDouble();
     }
 
-    // ── native cross-field rules an entry may name in `rules` ─────────────
+    // native cross-field rules an entry may name in `rules`
     // §3.2 tolerance: "aspect" beside "spec" folds into the spec when it lacks one; a
     // conflicting duplicate fails. The folded copy is what gets validated + normalized.
     bool cropAspectFold(QJsonObject& a, QString* err) {
@@ -196,7 +196,6 @@ namespace stencil::llm {
     return d.isEmpty() ? regexName : d;
   }
 
-  // ── value checks ──────────────────────────────────────────────────────────
 
   bool OpSchema::checkString(const QJsonValue& v, const QJsonObject& spec, const Path& path,
                              const QJsonObject* parent, QString* err) const {
@@ -395,7 +394,7 @@ namespace stencil::llm {
     return true;
   }
 
-  // ── normalization: the declared keys only, defaults applied, trims honoured ──
+  // normalization: the declared keys only, defaults applied, trims honoured
   QJsonValue OpSchema::pick(const QJsonValue& v, const QJsonObject& spec) const {
     const QString type = spec.value("type").toString();
     if (type == "object" && spec.contains("fields") && v.isObject())
@@ -421,7 +420,6 @@ namespace stencil::llm {
     return out;
   }
 
-  // ── public surface ────────────────────────────────────────────────────────
 
   bool OpSchema::validateAction(const QJsonObject& action, const OpEntry& entry,
                                 QJsonObject* validated, QString* err) const {

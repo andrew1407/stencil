@@ -37,7 +37,7 @@ namespace stencil::gui {
     int stepHistory(bool redo, int steps) override;
     bool extractFrames(const QVector<int>& indices, QString* err) override;
 
-    // ── §10 editor-settings ops: the SAME code paths the settings UI drives ──
+    // §10 editor-settings ops: the SAME code paths the settings UI drives
     void setTheme(const QString& mode) override;
     void setAccent(const QString& hex) override;
     void setAccentPreset(const QString& preset, QString* note) override;
@@ -64,7 +64,7 @@ namespace stencil::gui {
     bool openDialog(const QString& name, QString* note) override;
     bool clearProjects(bool keepCurrent, QString* note) override;
     bool clearChat(QString*) override;
-    // ── §2.1 multi-image ops ──
+    // §2.1 multi-image ops
     bool loadAttachment(int index, QString* err) override;
     bool saveProject(const QString& name, const QString& dest, QString* err) override;
 

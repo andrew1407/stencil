@@ -15,7 +15,6 @@ namespace stencil::llm {
 
   namespace {
 
-    // ── extraction ───────────────────────────────────────────────────────────
 
     // Remove Markdown code-fence points (``` with an optional language tag) so
     // a fenced JSON block parses like bare JSON.
@@ -72,8 +71,8 @@ namespace stencil::llm {
       return !v.isUndefined() && !v.isNull();
     }
 
-    // ── desktop extras: checks the registry does not carry (see each op's
-    //    `divergence`), run AFTER the generic check ────────────────────────────
+    // desktop extras: checks the registry does not carry (see each op's
+    //    `divergence`), run AFTER the generic check
 
     // A colour NAME must be one the core recognizes (fixture 137
     // knownDivergence.desktop); "#rrggbb" already passed the grammar.
@@ -98,7 +97,6 @@ namespace stencil::llm {
       return kExts.contains(path.mid(dot + 1).toLower());
     }
 
-    // ── struct filling ────────────────────────────────────────────────────────
     // The validated + normalized action (declared keys, registry defaults, trims) →
     // the typed Action. Types, enums, ranges, grammars and presence rules are the
     // generic check's; only the desktop extras above can still fail here.
@@ -331,7 +329,7 @@ namespace stencil::llm {
       return true;
     }
 
-    // ── §11 interactive replies (`ask`) ──
+    // §11 interactive replies (`ask`)
     // The card's structure (keys, caps, 2..5 options, the image reference's exactly-one-of
     // url / projectId / scanIndex, http(s)-only urls) is the registry's ask schema; a card
     // nobody can answer fails the whole plan. Only the preview actions need this module.

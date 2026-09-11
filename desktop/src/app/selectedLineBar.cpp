@@ -38,7 +38,7 @@ namespace stencil::gui {
     // is what the outer margins below inset.
     auto* outer = new QVBoxLayout(this);
     // Bottom inset halved (10 -> 5): the gap down to the Image Size bar below it read as
-    // twice what the browser's own #selection-panel -> #image-info gap does (user report).
+    // twice what the browser's own #selection-panel -> #image-info gap does.
     outer->setContentsMargins(12, 8, 12, 5);
     outer->setSpacing(0);
 
@@ -168,8 +168,8 @@ namespace stencil::gui {
     deselectBtn_->setObjectName("selectedLineDeselect");
     flow->addWidget(deselectBtn_);
 
-    // ── wiring — each lambda early-returns while showLine is repopulating the
-    // controls (updating_), matching the browser which guards via selectedLineIdx. ──
+    // wiring — each lambda early-returns while showLine is repopulating the
+    // controls (updating_), matching the browser which guards via selectedLineIdx.
     // Every colour well in the bar behaves the same: the line follows the picker as it is
     // dragged (Cancel is handed the original back by pickColorAnimated, so only the
     // accepted value lands here), and the swatch tracks it either way. `emit` is the one

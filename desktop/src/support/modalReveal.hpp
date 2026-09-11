@@ -63,8 +63,8 @@ namespace stencil::support {
 
   // Install the application-wide watcher that gives EVERY dialog the flight — including
   // the ones nobody wires by hand: QMessageBox::question and friends, which are built and
-  // exec'd in one expression from a dozen call sites and used to appear with no motion at
-  // all. A dialog revealDialog() already owns is skipped; one that has neither an anchor
+  // exec'd in one expression from a dozen call sites. A dialog revealDialog() already
+  // owns is skipped; one that has neither an anchor
   // widget nor a caller who knows where the command came from flies out of the point the
   // user last pressed, which is the honest origin for a question you just provoked.
   // Idempotent — every MainWindow calls it, and only the first one takes.
@@ -75,7 +75,7 @@ namespace stencil::support {
 
   // Click-outside dismissal, the browser's rule (ui/base.js: a press on the modal overlay
   // closes the box). Qt hands a modal's blocked windows nothing, so a click on the main
-  // window did nothing at all here (user report) — this watches the press before
+  // window did nothing at all here — this watches the press before
   // QApplication drops it and rejects the modal instead. Idempotent.
   void installModalDismiss();
 
@@ -94,10 +94,9 @@ namespace stencil::support {
 
   // A window-sized dust cloud's mote budget — the SAME ceiling every other surface flight
   // uses (DisintegrateOverlay::kSurfaceMaxCells, the browser's SURFACE_COLS * SURFACE_ROWS
-  // = 46 * 30; modalReveal.cpp static_asserts the two agree). It used to override that
-  // default with 4000, which packed nearly three times the grains into the icon the window
-  // pours out of: at the far end they overlapped into a solid chunk of the accent instead
-  // of dust (user report). Also used by execMaybePopover's popover flight.
+  // = 46 * 30; modalReveal.cpp static_asserts the two agree). A bigger budget packs the
+  // grains into the icon the window pours out of until they overlap into a solid chunk of
+  // the accent. Also used by execMaybePopover's popover flight.
   inline constexpr int kDialogDustMaxCells = 46 * 30;
 
   // The motion preferences every helper here checks — motionReduced(), dustAllowed(),

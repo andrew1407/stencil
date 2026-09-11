@@ -67,7 +67,7 @@ namespace stencil::support {
     // (MenuFlight's controls). No isVisible() gate: QMenu emits aboutToHide from its
     // hideEvent, when the popup is ALREADY hidden — the gate silently skipped every
     // close Qt made itself (← on a submenu, hovering away), leaving those with no
-    // flight at all (user report). grab() still renders a just-hidden popup.
+    // flight at all. grab() still renders a just-hidden popup.
     bool dustMenuOut(QMenu* m, const QPoint& originGlobal) {
       return dustPopupOut(m, menuHostWindow(m->parentWidget()), originGlobal, kMenuPopupDustMs);
     }
@@ -78,7 +78,7 @@ namespace stencil::support {
     // parent is laid out. A submenu built once and hover-opened/closed repeatedly within
     // one right-click session is the SAME QMenu instance shown many times — re-arming
     // is what makes the growth+dust replay every time instead of just the very first
-    // (user report: no animation "after the first opening").
+    // (no animation "after the first opening").
     class MenuReveal : public QObject {
      public:
       MenuReveal(QMenu* menu, std::function<QPoint()> origin)
@@ -98,7 +98,7 @@ namespace stencil::support {
           played_ = true;
           // Veiled NOW, on the Show itself: play() below runs a tick later, and a
           // keyboard-opened submenu (Right on its row) gets a frame on screen in
-          // between — a full-size flash, then the dust (user report). play() and the
+          // between — a full-size flash, then the dust. play() and the
           // Hide path's settle() both bring the opacity back.
           menu_->setWindowOpacity(0.0);
           // Deferred one tick: a submenu's Show can fire from deep inside Qt's own

@@ -1,19 +1,15 @@
 #pragma once
 // Filter transitions — the LIGHT twin of disintegrateOverlay's scatter.
 //
-// A filter is a QUESTION being re-answered, not a removal. A row it excludes was never
-// destroyed — it is simply not the answer any more — so it does not play OUT at all: its
-// slot closes the instant the answer changes. The whole effect belongs to the rows that
-// are LEFT, which arrive as the new answer: a row already listed stays exactly where it
-// is and re-forms in place, a row the filter reveals opens its slot first. Playing the
-// excluded rows out put the eye on what you had just ruled out, and made every keystroke
-// in a search box wait on an exit before showing you what you had asked for.
+// A filter is a QUESTION being re-answered, not a removal: a row it excludes was never
+// destroyed, so it does not play OUT at all — its slot closes the instant the answer
+// changes. The effect belongs to the rows that are LEFT: one already listed re-forms in
+// place, one the filter reveals opens its slot first. Playing the excluded rows out put
+// the eye on what you had just ruled out and made every keystroke wait on an exit.
 //
-// Two consumers, one curve:
-//   ListFilterFade — QListWidget rows (connectDialog's widget rows, projectsDialog's
-//                    painted ones); it owns the clock and the per-row bookkeeping.
-//   fadeFiltered   — a plain laid-out widget row with no slot to open
-//                    (shortcutsDialog's grid cells): the fade alone.
+// Two consumers, one curve: ListFilterFade (QListWidget rows — connectDialog's widget
+// rows, projectsDialog's painted ones) owns the clock and the per-row bookkeeping;
+// fadeFiltered is the fade alone for a laid-out row with no slot (shortcutsDialog).
 //
 // Header-only and Q_OBJECT-free (no signals/slots), so it needs no MOC.
 #include "disintegrateOverlay.hpp"   // the arrival dust (dustRowIn)
@@ -228,7 +224,7 @@ namespace stencil::gui {
         // the photograph alone — grab() renders into a pixmap, never to the screen, and
         // nothing repaints in between — then put it straight back. Photographing the
         // veiled row made the cloud out of the list's bare background: the row simply
-        // appeared, with no arrival to see (user report).
+        // appeared, with no arrival to see.
         const auto setVeil = [&](double v) {
           if (self->beforeFrame) self->beforeFrame();
           row->setData(kFilterDustRole, v);

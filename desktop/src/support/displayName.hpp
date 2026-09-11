@@ -1,7 +1,6 @@
 #pragma once
 #include <QString>
 
-// ── Display-shortening for project / image names ─────────────────────────────
 // Names are often derived from a URL basename, and CDNs hand out opaque 60-char slugs
 // ("MV5BODg3MzYwMjE4N15BMl5BanBnXkFtZTcwMjU5NzAzNw@@._V1_"). A list cell can elide on
 // its own, but a name interpolated into a QMessageBox SENTENCE cannot — it wrapped

@@ -1,5 +1,4 @@
 #pragma once
-// ── Motion preferences (browser twin: browser/js/ui/motionPrefs.js) ─────────
 // The two switches every animation in the app asks before it plays, and the one place
 // they live. Header-only and free of the rest of the motion machinery on purpose: the
 // canvas, the dust overlays and the dialog flights all sit in different link targets

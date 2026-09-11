@@ -92,7 +92,7 @@ namespace stencil::gui {
       connect(box, &QCheckBox::toggled, this, [this] { applyLive(); });
     };
 
-    // ── App appearance (browser order: Main theme, then Appearance) ──
+    // App appearance (browser order: Main theme, then Appearance)
     section(tr("App appearance"));
 
     accent_ = combo("Accent color used for highlights across the app");
@@ -146,7 +146,7 @@ namespace stencil::gui {
     row(tr("Appearance"), theme_);
     connect(theme_, &QComboBox::activated, this, [this] { applyLive(); });
 
-    // ── Motion (browser visualsModal.js "Motion", same two rows in the same order) ──
+    // Motion (browser visualsModal.js "Motion", same two rows in the same order)
     // Live-applied like everything else here, so the dialog's OWN closing flight is
     // already the mode you just picked.
     section(tr("Motion"));
@@ -182,7 +182,7 @@ namespace stencil::gui {
     row(tr("Interface animation"), motionMode_);
     connect(motionMode_, &QComboBox::activated, this, [this] { applyLive(); });
 
-    // ── Drawing defaults (applied to new lines) ──
+    // Drawing defaults (applied to new lines)
     section(tr("Drawing defaults (applied to new lines)"));
 
     well(color_, colorHex_, "Default color for newly drawn lines — click to change",
@@ -220,7 +220,6 @@ namespace stencil::gui {
          "Area fill color");
     row(tr("Area fill (new locked areas)"), fillColor_);
 
-    // ── Drawing behavior ──
     section(tr("Drawing behavior"));
 
     holdDelay_ = new QSpinBox(host);
@@ -231,7 +230,6 @@ namespace stencil::gui {
     row(tr("Hold-to-draw delay (ms)"), holdDelay_);
     connect(holdDelay_, &QAbstractSpinBox::editingFinished, this, [this] { applyLive(); });
 
-    // ── Highlight styles ──
     section(tr("Highlight styles"));
 
     well(selGlow_, selGlowHex_, "Selected line/point glow — click to change",
@@ -244,7 +242,7 @@ namespace stencil::gui {
          "Point focus ring color");
     row(tr("Point focus ring"), focusRing_);
 
-    // ── App preferences (desktop-only; browser has no home for these) ──
+    // App preferences (desktop-only; browser has no home for these)
     section(tr("App preferences"));
 
     check(nativeMenuBar_, current.nativeMenuBar,
@@ -273,7 +271,7 @@ namespace stencil::gui {
     row(tr("Show lines"), showLines_, /*column=*/false);
 
     page_ = new SearchComboBox(host);
-    // S10 — same options as the toolbar combo: Custom… + the full ISO A/B/C
+    // Same options as the toolbar combo: Custom… + the full ISO A/B/C
     // series, labels with physical sizes in the user's display unit, item data
     // = the canonical name (read back via currentData in result()).
     fillPageSizeCombo(page_, /*includeCustom=*/true, current.units);

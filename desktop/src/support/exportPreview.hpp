@@ -6,7 +6,6 @@
 class QImage;
 class QWidget;
 
-// ── Alt-hover export preview ──────────────────────────────────────────────
 // A small floating thumbnail near the cursor, shown while Alt is held over a
 // copy/download-image variant menu row — desktop port of the browser's
 // js/ui/exportPreview.js. The canvas context menu's nested Copy/Download Image

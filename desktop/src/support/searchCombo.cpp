@@ -104,7 +104,7 @@ namespace stencil::gui {
     // No QFrame chrome, and no scroll-area MINIMUM: QAbstractScrollArea's
     // minimumSizeHint (~66px each way) outranked positionPopup()'s tight
     // geometry through the popup layout, leaving a blank band under a short
-    // list's last option (the 2-row All/Local filter popup — user report).
+    // list's last option (the 2-row All/Local filter popup).
     list_->setFrameShape(QFrame::NoFrame);
     list_->setMinimumSize(1, 1);
     list_->setModel(proxy_);
@@ -116,7 +116,7 @@ namespace stencil::gui {
     list_->setMouseTracking(true);
     if (delegate_) list_->setItemDelegate(delegate_);
     // The two hover treatments every other item in the app has, which these rows were
-    // missing entirely (user report): the glass sweep, and the 2px ease right. The slide
+    // missing entirely: the glass sweep, and the 2px ease right. The slide
     // WRAPS whatever delegate is installed, so a popup with its own painter keeps it.
     installRowShimmer(list_);
     installRowHoverSlide(list_);

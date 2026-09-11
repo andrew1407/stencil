@@ -110,14 +110,14 @@ namespace stencil::gui {
 
   // A QPalette matching the theme, set on qApp so native bits (menu/toolbar
   // popups, scrollbars) follow the theme alongside the stylesheet — needed on
-  // Fedora where the native style otherwise leaves the chrome unthemed (S14).
+  // Fedora where the native style otherwise leaves the chrome unthemed.
   QPalette buildQPalette(bool dark, const QString& accentKey = "violet");
 
   // Does the OS currently prefer a dark scheme? Uses Qt 6.5+ QStyleHints::
   // colorScheme(). Mirrors the browser matchMedia('(prefers-color-scheme:dark)').
   bool systemPrefersDark();
 
-  // Resolve a tri-state theme mode (S14): "dark"->true, "light"->false, anything
+  // Resolve a tri-state theme mode: "dark"->true, "light"->false, anything
   // else (i.e. "system") -> the OS preference. Port of the browser theme toggle's
   // "follow system when no manual override" behavior.
   bool resolveDark(const QString& mode);

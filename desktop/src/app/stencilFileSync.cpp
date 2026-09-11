@@ -108,7 +108,6 @@ namespace stencil::gui {
     notify_->success(tr("Deleted “%1”").arg(shown));
   }
 
-  // ── .stencil live sync ───────────────────────────────────────────────────────
   namespace {
     // Union two line lists, de-duplicating by the compact JSON of each line (a merge that keeps
     // both editors' annotations without duplicating a round-tripped twin — mirrors browser mergeLines).

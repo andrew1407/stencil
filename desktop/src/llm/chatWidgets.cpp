@@ -29,9 +29,8 @@ namespace stencil::gui {
   }
 
   // Where an arriving card's motes are gathered from: a point off the side the card sits
-  // against, so the user's messages stream in from the right and the assistant's from the
-  // left. Read off the geometry, not the role, so an attachment strip follows the message
-  // it rides with. Both rects are in host coordinates.
+  // against, read off the GEOMETRY (not the role), so an attachment strip follows the
+  // message it rides with. Both rects are in host coordinates.
   QPoint chatArrivalPoint(const QRect& card, const QRect& view) {
     const double reach = 0.9;   // browser motion.js CHAT_ENTER_REACH
     const bool right = (view.right() - card.right()) <= (card.left() - view.left());
@@ -154,10 +153,8 @@ namespace stencil::gui {
     // already drawn the bubble into place, so fading it up would double the arrival.
     QPointer<QWidget> cp(card);
     // A long HAND-OVER, not a cut at the end: the motes draw the same pixels onto the same
-    // box, so the real card showing underneath them is invisible and the overlap is free.
-    // Waiting for it was not — the cloud reads as finished well before its last stragglers
-    // land, and that gap is what the eye calls a delay (user report). The card takes over
-    // at three quarters of the flight; the remaining motes settle on top of it.
+    // box, so the card showing underneath them is invisible and the overlap free. The card
+    // takes over at three quarters of the flight; the last motes settle on top of it.
     QTimer::singleShot(kChatArriveMs * 3 / 4, card, [cp, settle] { if (cp) settle(); });
   }
 
@@ -195,11 +192,10 @@ namespace stencil::gui {
     return label;
   }
 
-  // ── Message bubble tail (browser .chat-msg-user::before/::after parity) ─────
-  // Two right triangles from a QPainterPath — Qt has no CSS border-triangle
-  // trick, so the shape is built directly: the border copy behind, the 1px
-  // smaller fill in front, its anchor pushed out on BOTH axes so the outline
-  // grows past the fill evenly on all three edges. See components.css for the CSS.
+  // Message bubble tail (browser .chat-msg-user::before/::after parity)
+  // Two right triangles from a QPainterPath — Qt has no CSS border-triangle trick: the
+  // border copy behind, the 1px smaller fill in front, its anchor pushed out on BOTH axes
+  // so the outline grows past the fill evenly on all three edges (components.css).
   static constexpr int kTailLeg = 9;        // border (::before) leg length
   static constexpr int kTailFillLeg = 8;    // fill (::after) leg length — 1px smaller
   static constexpr int kTailShift = 1;      // border anchor's extra outward push, both axes
@@ -349,13 +345,10 @@ namespace stencil::gui {
       // anchor point, and on both sides (a user row hangs left, the rest right).
       y = qBound(vp.top() + kMorePad, y, vp.bottom() - more->height() - kMorePad);
       x = qBound(vp.left() + kMorePad, x, vp.right() - more->width() - kMorePad);
-      // …and it never straddles the NEIGHBOURING message. With only a sliver of
-      // this row on screen the clamp above would push the pill up (or down) over
-      // the card next to it, which reads as a bug — so for such a row it simply
-      // does not show. A fully visible row always keeps its button: the pill sits
-      // inside that row's own y-band, where no neighbour can reach it.
-      // Hysteresis (one pad to appear, a smaller one to stay) keeps a row
-      // crossing the threshold mid-scroll from flickering.
+      // …and it never straddles the NEIGHBOURING message: with only a sliver of this row
+      // on screen the clamp above would push the pill over the card next to it, so for
+      // such a row it simply does not show. Hysteresis (one pad to appear, a smaller one
+      // to stay) keeps a row crossing the threshold mid-scroll from flickering.
       const int pad = more->isVisible() ? kMorePad : kMorePad + 2;
       QRect want(x, y, more->width(), more->height());
       if (vis.height() < more->height() + pad) { more->hide(); return; }
@@ -377,11 +370,9 @@ namespace stencil::gui {
           want = lifted;
         }
       }
-      // The neighbours are tested against their PLAIN rects: rows sit as little
-      // as 2px apart (the menu panel's transcript), so padding them out would
-      // suppress every pill — and it is unnecessary, because a pill that fits its
-      // own row's slice is inside that row's band, where no neighbour reaches.
-      // This fires exactly when the clamp above pushed it out of the slice.
+      // Neighbours are tested against their PLAIN rects: rows sit as little as 2px apart,
+      // so padding them out would suppress every pill — and a pill that fits its own row's
+      // slice is inside that row's band anyway. This fires when the clamp pushed it out.
       for (QFrame* sib : host->findChildren<QFrame*>(QString(), Qt::FindDirectChildrenOnly)) {
         if (sib == card || !sib->isVisible()) continue;
         if (!sib->property("chatMoreBtn").isValid()) continue;   // rows only

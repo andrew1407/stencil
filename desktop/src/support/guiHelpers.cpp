@@ -151,7 +151,7 @@ namespace stencil::gui {
   namespace {
     // A colour well's frame is per-widget QSS, so it is baked in the theme that was live
     // when it was written — switching the app to the other theme left the wells in the old
-    // one (user report: dark wells in a light Settings dialog). Each well re-swatches
+    // one (dark wells in a light Settings dialog). Each well re-swatches
     // itself off the application palette change instead.
     class SwatchRestyler : public QObject {
      public:

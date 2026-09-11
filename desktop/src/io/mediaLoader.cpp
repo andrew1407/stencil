@@ -105,7 +105,6 @@ namespace stencil::gui {
     const bool video = looksLikeVideo(src_, url_);
 
     if (!isHttp(url_)) {
-      // ── Local file ──
       if (video) {
         startVideo(url_);
         return;
@@ -122,7 +121,7 @@ namespace stencil::gui {
       return;
     }
 
-    // ── Remote URL ── refuse an internal target before EITHER branch reaches it.
+    // Remote URL — refuse an internal target before EITHER branch reaches it.
     const QString why = guard::blockedReason(url_, /*strict=*/false);
     if (!why.isEmpty()) {
       fail(QStringLiteral("Could not fetch --src: %1").arg(why));

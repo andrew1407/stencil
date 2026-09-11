@@ -14,7 +14,7 @@ namespace stencil::gui {
 
   class RemoteSession;
 
-  // ── RemoteSyncController: live co-edit push/pull engine ─────────────────────
+  // RemoteSyncController: live co-edit push/pull engine
   // Extracted from MainWindow. A QObject that owns the three sync timers (debounced push,
   // backstop poll, coalesced reload) and the LiveFeed subscription, mirroring the browser's
   // remoteSyncController.js. It composes the RemoteSession DIRECTLY — reading the remote-link

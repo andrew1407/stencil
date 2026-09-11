@@ -1,6 +1,5 @@
 #pragma once
 
-// ── Arithmetic in numeric inputs ────────────────────────────────────────────
 // Numeric fields take an expression, not just a number: "45 + 9" → 54, "* 9" on 3 → 27.
 // QAbstractSpinBox owns its line edit, so overriding validate()/valueFromText() adds
 // this while the step arrows and clamping keep working.
