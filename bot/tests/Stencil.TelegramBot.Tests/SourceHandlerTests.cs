@@ -1,0 +1,189 @@
+using Stencil.TelegramBot.Application.Editing;
+using Stencil.TelegramBot.Bot.Telegram;
+using Stencil.TelegramBot.Domain.Editing;
+using Stencil.TelegramBot.Domain.Sessions;
+using Stencil.TelegramBot.Infrastructure.Configuration;
+using Stencil.TelegramBot.Infrastructure.Sessions;
+using Stencil.TelegramBot.Tests.Doubles;
+using Telegram.Bot.Requests;
+
+namespace Stencil.TelegramBot.Tests;
+
+/// <summary>
+/// The two scrape commands end-to-end through the real <see cref="CommandHandlers"/> +
+/// <see cref="EditingService"/> over one shared rig, CLI and Telegram mocked: <c>/sourcesite</c>
+/// sends every scraped file plus a summary, <c>/sourceupload</c> isolates one still and makes it
+/// the working image. Offline — the URL is a public IP literal, so the SSRF check needs no DNS.
+/// </summary>
+public sealed class SourceHandlerTests : IDisposable
+{
+    private const long UserId = 42;
+    private const long ChatId = 99;
+    private const string PublicUrl = "https://93.184.216.34/gallery";
+
+    private readonly string _dataDir;
+    private readonly MockStencilCli _cli = new();
+    private readonly MockBotClient _bot = new();
+    private readonly InMemorySessionStore _store = new();
+    private readonly CommandHandlers _handlers;
+
+    public SourceHandlerTests()
+    {
+        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-source-" + Guid.NewGuid().ToString("N"));
+        _handlers = TestHandlers.Create(new BotOptions { DataDir = _dataDir }, _store, _cli, _bot);
+    }
+
+    public void Dispose()
+    {
+        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
+    }
+
+    private Task Dispatch(string text) =>
+        _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
+
+    // ── shared by both commands ──
+
+    [Theory]
+    [InlineData("/sourcesite")]
+    [InlineData("/sourceupload")]
+    public async Task NoArgsSendsUsageHintAndNeverScrapes(string command)
+    {
+        await Dispatch(command);
+
+        SendMessageRequest usage = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
+        Assert.Contains($"Usage: {command}", usage.Text);
+        Assert.Equal(0, _cli.ScrapeCalls);
+    }
+
+    [Theory]
+    [InlineData("/sourcesite")]
+    [InlineData("/sourceupload")]
+    public async Task ABadOptionRepliesWithTheUsageHintAndDoesNotScrape(string command)
+    {
+        await Dispatch($"{command} {PublicUrl} minw=wide");
+
+        SendMessageRequest reply = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
+        Assert.Contains("minw", reply.Text);
+        Assert.Contains($"Usage: {command}", reply.Text);
+        Assert.Equal(0, _cli.ScrapeCalls);
+    }
+
+    // ── /sourcesite ──
+
+    [Fact]
+    public async Task SiteSendsEachScrapedFileAndASummary()
+    {
+        await Dispatch($"/sourcesite {PublicUrl}");
+
+        // The image stub goes out as a photo (with its measured dimensions in the caption)…
+        SendPhotoRequest photo = Assert.Single(_bot.Requests.OfType<SendPhotoRequest>());
+        Assert.Contains("logo.png", photo.Caption);
+        Assert.Contains("200x80", photo.Caption);
+
+        // …and the video stub as a document.
+        SendDocumentRequest document = Assert.Single(_bot.Requests.OfType<SendDocumentRequest>());
+        Assert.Contains("clip.mp4", document.Caption);
+
+        // The final message is the summary (count + host).
+        SendMessageRequest summary = _bot.Requests.OfType<SendMessageRequest>().Last();
+        Assert.Contains("Scraped 2 file(s) from 93.184.216.34", summary.Text);
+    }
+
+    [Fact]
+    public async Task SitePassesParsedFiltersAndAServiceOwnedOutputDirToTheCli()
+    {
+        await Dispatch($"/sourcesite {PublicUrl} 6 filter=img format=png|jpg name=cat.*\\.jpg minw=200 group=1");
+
+        ScrapeRequest req = LastScrape();
+        Assert.Equal(PublicUrl, req.Url);
+        Assert.Equal(6, req.Count);
+        Assert.Equal(1, req.Group);
+        Assert.Equal("img", req.Filter);
+        Assert.Equal("png|jpg", req.Format);
+        Assert.Equal("cat.*\\.jpg", req.Name);
+        Assert.Equal(200, req.MinWidth);
+        // The Application layer fills the output dir with a per-user scratch path under DataDir.
+        Assert.StartsWith(_dataDir, req.OutputDir);
+        Assert.NotEqual(_dataDir, req.OutputDir);
+    }
+
+    [Fact]
+    public async Task SiteNoCountDefaultsToFive()
+    {
+        await Dispatch($"/sourcesite {PublicUrl}");
+
+        Assert.Equal(5, LastScrape().Count);
+    }
+
+    [Fact]
+    public async Task SiteCountZeroRidesThroughAsAll()
+    {
+        // An explicit 0 means "all" — it is NOT re-defaulted to 5, and passes straight through
+        // (the CLI reads `--source-count 0` as every match).
+        await Dispatch($"/sourcesite {PublicUrl} 0");
+
+        Assert.Equal(0, LastScrape().Count);
+    }
+
+    // ── /sourceupload ──
+
+    [Fact]
+    public async Task UploadLoadsTheScrapedStillAsTheWorkingImageAndSendsAPhoto()
+    {
+        await Dispatch($"/sourceupload {PublicUrl}");
+
+        // The scrape isolates exactly one still: image-category only, Count=1, Group=index(0).
+        ScrapeRequest req = LastScrape();
+        Assert.Equal(PublicUrl, req.Url);
+        Assert.Equal("img|background|poster", req.Filter);
+        Assert.Equal(1, req.Count);
+        Assert.Equal(0, req.Group);
+
+        // The session now carries an editable working image, labelled from the URL, and remembers
+        // the scraped page as its source (shown in /status + the caption).
+        UserSession session = await _store.GetAsync(UserId, CancellationToken.None);
+        Assert.True(session.HasImage);
+        Assert.Equal("gallery", session.ImageLabel);
+        Assert.Equal(PublicUrl, session.SourceUrl);
+
+        // …and the rendered result went out as a photo with the edit menu.
+        Assert.Single(_bot.Requests.OfType<SendPhotoRequest>());
+    }
+
+    [Fact]
+    public async Task UploadIndexAndBoundOptionsRideIntoTheScrapeRequest()
+    {
+        await Dispatch($"/sourceupload {PublicUrl} index=0 format=png minw=200 maxh=1000");
+
+        ScrapeRequest req = LastScrape();
+        Assert.Equal(0, req.Group);       // index → Group
+        Assert.Equal(1, req.Count);       // always isolate one
+        Assert.Equal("png", req.Format);
+        Assert.Equal(200, req.MinWidth);
+        Assert.Equal(1000, req.MaxHeight);
+        Assert.Equal("img|background|poster", req.Filter);
+    }
+
+    [Fact]
+    public async Task UploadOutOfRangeIndexRepliesWithTheNoImageHintAndSendsNoPhoto()
+    {
+        // Only two stubs exist, so index 999 isolates nothing — the handler replies, not renders.
+        await Dispatch($"/sourceupload {PublicUrl} 999");
+
+        // The last message is the "no image" reply (the first is the interim "Scraping…" notice,
+        // which the mock records as a SendMessage but never deletes — its Message return is null).
+        SendMessageRequest reply = _bot.Requests.OfType<SendMessageRequest>().Last();
+        Assert.Contains("No image at index 999", reply.Text);
+        Assert.Contains("Usage: /sourceupload", reply.Text);
+        Assert.Empty(_bot.Requests.OfType<SendPhotoRequest>());
+
+        UserSession session = await _store.GetAsync(UserId, CancellationToken.None);
+        Assert.False(session.HasImage);
+    }
+
+    private ScrapeRequest LastScrape()
+    {
+        Assert.NotNull(_cli.LastScrapeRequest);
+        return _cli.LastScrapeRequest!;
+    }
+}

@@ -11,11 +11,17 @@ namespace Stencil.TelegramBot.Tests.Doubles;
 /// </summary>
 public sealed class MockStencilCli : IStencilCli
 {
+    // Variant renders run in parallel, so the recorded calls are guarded.
+    private readonly List<EditRequest> _requests = [];
+
+    /// <summary>Every request passed to <see cref="EditAsync"/>, in call order.</summary>
+    public IReadOnlyList<EditRequest> Requests { get { lock (_requests) { return [.. _requests]; } } }
+
     /// <summary>The most recent request passed to <see cref="EditAsync"/> (null until first call).</summary>
-    public EditRequest? LastRequest { get; private set; }
+    public EditRequest? LastRequest { get { lock (_requests) { return _requests.Count == 0 ? null : _requests[^1]; } } }
 
     /// <summary>How many times <see cref="EditAsync"/> ran.</summary>
-    public int EditCalls { get; private set; }
+    public int EditCalls { get { lock (_requests) { return _requests.Count; } } }
 
     /// <summary>The dimensions the mock reports for both edits and probes.</summary>
     public ImageSize CannedSize { get; set; } = new(640, 480);
@@ -23,11 +29,20 @@ public sealed class MockStencilCli : IStencilCli
     /// <summary>When set, <see cref="EditAsync"/> throws for any request this predicate matches.</summary>
     public Func<EditRequest, bool>? FailWhen { get; set; }
 
+    /// <summary>When set, awaited inside every edit — a test can hold calls open to see them overlap.</summary>
+    public Func<Task>? BeforeEdit { get; set; }
+
     /// <summary>Capture the request, materialise the output file and return a canned result.</summary>
     public async Task<RenderResult> EditAsync(EditRequest request, CancellationToken ct = default)
     {
-        LastRequest = request;
-        EditCalls++;
+        lock (_requests)
+        {
+            _requests.Add(request);
+        }
+        if (BeforeEdit is not null)
+        {
+            await BeforeEdit();
+        }
         if (FailWhen?.Invoke(request) == true)
         {
             throw new InvalidOperationException("canned CLI failure");
@@ -36,9 +51,17 @@ public sealed class MockStencilCli : IStencilCli
         return new RenderResult(request.Output, CannedSize.Width, CannedSize.Height);
     }
 
+    /// <summary>How many times <see cref="ProbeAsync"/> ran (each is a whole CLI process).</summary>
+    public int ProbeCalls => _probeCalls;
+
+    private int _probeCalls;
+
     /// <summary>Return the canned dimensions for any probed source.</summary>
-    public Task<ImageSize> ProbeAsync(string input, CancellationToken ct = default) =>
-        Task.FromResult(CannedSize);
+    public Task<ImageSize> ProbeAsync(string input, CancellationToken ct = default)
+    {
+        Interlocked.Increment(ref _probeCalls);
+        return Task.FromResult(CannedSize);
+    }
 
     /// <summary>The most recent request passed to <see cref="ScrapeAsync"/> (null until first call).</summary>
     public ScrapeRequest? LastScrapeRequest { get; private set; }

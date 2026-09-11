@@ -38,9 +38,9 @@ public sealed class UserWorkspacePruneTests : IDisposable
         _workspace.DirectoryFor(42);
         Directory.CreateDirectory(Path.Combine(_root, "not-a-user"));
 
-        IReadOnlyList<long> ids = _workspace.ActiveUserIds();
+        long[] ids = [.. _workspace.ActiveUserIds().OrderBy(x => x)];
 
-        Assert.Equal(new[] { 7L, 42L }, ids.OrderBy(x => x));
+        Assert.Equal(new[] { 7L, 42L }, ids);
     }
 
     [Fact]

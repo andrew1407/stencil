@@ -1,12 +1,12 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
-/// Locates the shared, language-neutral fixture corpus under <c>browser/js/config/</c> by
-/// walking up from the test binary's directory to the repo root (marker: the <c>browser/</c>
-/// front-end), and loads this suite's local <c>FixtureOverrides.json</c> — the pinned list of
-/// cases where the bot's measured behavior diverges from the corpus expectation.
+/// Locates the shared fixture corpus under <c>browser/js/config/</c> (walking up to the repo
+/// root) and this suite's <c>FixtureOverrides.json</c> — the pinned cases where the bot's
+/// measured behavior diverges from the corpus expectation.
 /// </summary>
 internal static class SharedFixtures
 {
@@ -43,14 +43,51 @@ internal static class SharedFixtures
     public static JsonDocument Load(string path) =>
         JsonDocument.Parse(File.ReadAllText(path));
 
+    private static readonly ConcurrentDictionary<string, IReadOnlyList<FixtureCase>> CaseCache = new();
+
+    /// <summary>One element of a JSON-array fixture file: its "name" and its raw JSON text.</summary>
+    internal sealed record FixtureCase(string Name, string Json)
+    {
+        public JsonDocument Parse() => JsonDocument.Parse(Json);
+    }
+
+    /// <summary>
+    /// Every case in a JSON-array fixture file, read once and cached. Walkers pass only the
+    /// name through <c>[MemberData]</c>, so discovery never serializes a fixture.
+    /// </summary>
+    public static IEnumerable<string> CaseNames(string path) =>
+        Cases(path).Select(c => c.Name);
+
+    internal static IReadOnlyList<FixtureCase> Cases(string path) =>
+        CaseCache.GetOrAdd(path, static p =>
+        {
+            using JsonDocument doc = Load(p);
+            return [.. doc.RootElement.EnumerateArray()
+                .Select(e => new FixtureCase(e.GetProperty("name").GetString()!, e.GetRawText()))];
+        });
+
+    /// <summary>Wrap names as xUnit theory rows — one discovered test per fixture case.</summary>
+    public static TheoryData<string> TheoryNames(IEnumerable<string> names)
+    {
+        TheoryData<string> data = new();
+        foreach (string name in names)
+        {
+            data.Add(name);
+        }
+        return data;
+    }
+
+    /// <summary>The named case of a JSON-array fixture file (caller disposes the document).</summary>
+    internal static JsonDocument Case(string path, string name) =>
+        Cases(path).First(c => c.Name == name).Parse();
+
     private static readonly Lazy<JsonDocument> Overrides = new(() =>
         JsonDocument.Parse(File.ReadAllText(PathOf(
             "bot", "tests", "Stencil.TelegramBot.Tests", "FixtureOverrides.json"))));
 
     /// <summary>
     /// The local override for a fixture, or null when the bot agrees with the corpus. Keyed
-    /// family → case name; the entry's fields are family-specific (verdict / message / kind /
-    /// expectParsed) plus a mandatory human note.
+    /// family → case name; fields are family-specific, plus a mandatory human note.
     /// </summary>
     public static JsonElement? OverrideFor(string family, string name)
     {

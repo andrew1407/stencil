@@ -13,10 +13,9 @@ using Telegram.Bot.Types;
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
-/// The reply-tone convention (<see cref="Replies.Tag"/>): every reply the bot can categorise
-/// wears one glyph — 🔴 for "this didn't happen", 🟡 for "it did, with a caveat", ✅ for a
-/// confirmed action, ℹ️ for a plain notice. Single-sourced in <see cref="Replies"/>, so this
-/// fixture pins both the mapping and one representative reply per category.
+/// The reply-tone convention (<see cref="Replies.Tag"/>) as the user meets it: one
+/// representative reply per category, driven through the real handlers. The glyph mapping
+/// itself needs no rig and lives in <see cref="RepliesTests"/>.
 /// </summary>
 public sealed class ReplyTonesTests : IDisposable
 {
@@ -64,55 +63,6 @@ public sealed class ReplyTonesTests : IDisposable
         _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
 
     private string LastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
-
-    // ── the mapping ──
-
-    [Theory]
-    [InlineData(Replies.Tone.Error, "🔴")]
-    [InlineData(Replies.Tone.Warning, "🟡")]
-    [InlineData(Replies.Tone.Success, "✅")]
-    [InlineData(Replies.Tone.Notice, "ℹ️")]
-    public void EachToneHasItsOwnGlyph(Replies.Tone tone, string expected)
-    {
-        Assert.Equal(expected, Replies.Glyph(tone));
-        Assert.Equal($"{expected} hello", Replies.Tag(tone, "hello"));
-    }
-
-    [Fact]
-    public void TheFourGlyphsAreDistinct()
-    {
-        string[] glyphs =
-        [
-            Replies.Glyph(Replies.Tone.Error),
-            Replies.Glyph(Replies.Tone.Warning),
-            Replies.Glyph(Replies.Tone.Success),
-            Replies.Glyph(Replies.Tone.Notice),
-        ];
-
-        Assert.Equal(glyphs.Length, glyphs.Distinct().Count());
-    }
-
-    // A message that already opens with a glyph of its own keeps it — never two in a row.
-    [Theory]
-    [InlineData("🗑 Removed 'x' from the server.")]
-    [InlineData("↑ synced to 'x' (v2).")]
-    [InlineData("💾 Chat saving on — …")]
-    [InlineData("🟡 already a warning")]
-    public void TagNeverStacksASecondGlyph(string message)
-    {
-        Assert.Equal(message, Replies.Tag(Replies.Tone.Success, message));
-        Assert.Equal(message, Replies.Tag(Replies.Tone.Error, message));
-    }
-
-    [Fact]
-    public void PlainTextStillGetsItsGlyph()
-    {
-        Assert.Equal("🔴 Nope.", Replies.Tag(Replies.Tone.Error, "Nope."));
-        // Punctuation is not a glyph — only a leading symbol rune counts as one.
-        Assert.StartsWith("🟡 —", Replies.Tag(Replies.Tone.Warning, "— careful"));
-    }
-
-    // ── one representative reply per category, through the real handlers ──
 
     // The reported case: /connect against a server that rejects the token.
     [Fact]

@@ -4,7 +4,8 @@ namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
 /// The per-user serialization gate: same-user work runs one at a time, different users run
-/// concurrently, and disposing the handle (once, or redundantly) releases exactly one permit.
+/// concurrently, disposing the handle (once, or redundantly) releases exactly one permit, and a
+/// user's semaphore is forgotten once nobody holds it.
 /// </summary>
 public sealed class UserGateTests
 {
@@ -70,5 +71,47 @@ public sealed class UserGateTests
         again.Dispose();
         IDisposable unblocked = await blocked.WaitAsync(TimeSpan.FromSeconds(1));
         unblocked.Dispose();
+    }
+
+    [Fact]
+    public async Task TheSemaphoreIsForgottenWhenTheLastHolderReleases()
+    {
+        UserGate gate = new();
+        for (long user = 1; user <= 50; user++)
+        {
+            using IDisposable handle = await gate.AcquireAsync(user);
+            Assert.Equal(1, gate.TrackedUsers);
+        }
+
+        Assert.Equal(0, gate.TrackedUsers);
+    }
+
+    [Fact]
+    public async Task AWaiterKeepsTheSemaphoreAliveAndStillSerializes()
+    {
+        UserGate gate = new();
+        IDisposable first = await gate.AcquireAsync(1);
+        Task<IDisposable> second = gate.AcquireAsync(1);
+
+        first.Dispose();   // one waiter left, so the gate must NOT be evicted under it
+        IDisposable handle = await second.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.Equal(1, gate.TrackedUsers);
+
+        handle.Dispose();
+        Assert.Equal(0, gate.TrackedUsers);
+    }
+
+    [Fact]
+    public async Task ACancelledWaitDoesNotLeakAGate()
+    {
+        UserGate gate = new();
+        using IDisposable held = await gate.AcquireAsync(1);
+        using CancellationTokenSource cts = new();
+        Task<IDisposable> queued = gate.AcquireAsync(1, cts.Token);
+
+        await cts.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => queued);
+
+        Assert.Equal(1, gate.TrackedUsers);   // still held by the caller above
     }
 }

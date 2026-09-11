@@ -5,6 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- The [Trait("Category","Bench")] timing tripwires are opt-in; run them with a Category=Bench filter. -->
+    <VSTestTestCaseFilter>Category!=Bench</VSTestTestCaseFilter>
   </PropertyGroup>
 
   <ItemGroup>

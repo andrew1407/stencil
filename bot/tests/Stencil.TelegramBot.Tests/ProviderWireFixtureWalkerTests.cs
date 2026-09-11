@@ -9,46 +9,42 @@ using Stencil.TelegramBot.Tests.Doubles;
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
-/// Walks the shared provider wire-mapping vectors
-/// (<c>browser/js/config/llm/fixtures/providerWire/</c>, see <c>_schema.md</c>) through the
-/// REAL <see cref="HttpLlmClient"/> pointed at a capturing
-/// <see cref="CannedHttpMessageHandler"/> — zero network. Request URL, Authorization header
-/// (absence included) and the exact JSON body are deep-compared; the canned
-/// response/errorResponse then drives reply extraction / typed errors. Message wording
-/// divergences are pinned per-case in <c>FixtureOverrides.json</c> (the one structural
-/// gap left: <see cref="LlmException"/> carries no HTTP status, so expectError.status is
-/// untestable here).
+/// The shared wire-mapping vectors through the real <see cref="HttpLlmClient"/> over a
+/// capturing <see cref="CannedHttpMessageHandler"/> — zero network, one test per vector. URL,
+/// Authorization (absence included) and the exact body are deep-compared; the canned response
+/// then drives reply extraction / typed errors. Wording divergences are pinned in
+/// <c>FixtureOverrides.json</c>; expectError.status is untestable (LlmException carries none).
 /// </summary>
 public sealed class ProviderWireFixtureWalkerTests
 {
     private static readonly string[] Files = ["ollama.json", "openai.json", "server.json", "httpErrors.json"];
 
+    private static string PathFor(string file) =>
+        Path.Combine(SharedFixtures.LlmFixtureDir("providerWire"), file);
+
+    public static TheoryData<string> Vectors() =>
+        SharedFixtures.TheoryNames(Files.SelectMany(f => SharedFixtures.CaseNames(PathFor(f))));
+
     [Fact]
-    public async Task EveryWireVectorMatches()
+    public void TheCorpusHasEveryVector() =>
+        Assert.Equal(26, Files.Sum(f => SharedFixtures.Cases(PathFor(f)).Count));
+
+    [Theory]
+    [MemberData(nameof(Vectors))]
+    public async Task VectorMatches(string name)
     {
+        string file = Files.First(f => SharedFixtures.CaseNames(PathFor(f)).Contains(name));
+        using JsonDocument doc = SharedFixtures.Case(PathFor(file), name);
         List<string> failures = new();
-        int walked = 0;
-        foreach (string file in Files)
+        try
         {
-            using JsonDocument doc = SharedFixtures.Load(
-                Path.Combine(SharedFixtures.LlmFixtureDir("providerWire"), file));
-            foreach (JsonElement fx in doc.RootElement.EnumerateArray())
-            {
-                walked++;
-                string name = fx.GetProperty("name").GetString()!;
-                try
-                {
-                    await RunCaseAsync(fx, name, failures);
-                }
-                catch (Exception ex)
-                {
-                    failures.Add($"{file}/{name}: unexpected {ex.GetType().Name}: {ex.Message}");
-                }
-            }
+            await RunCaseAsync(doc.RootElement, name, failures);
         }
-        Assert.Equal(26, walked);
-        Assert.True(failures.Count == 0,
-            $"{failures.Count} wire mismatches (walked {walked}):\n" + string.Join("\n", failures));
+        catch (Exception ex)
+        {
+            failures.Add($"{file}/{name}: unexpected {ex.GetType().Name}: {ex.Message}");
+        }
+        Assert.True(failures.Count == 0, string.Join("\n", failures));
     }
 
     private static async Task RunCaseAsync(JsonElement fx, string name, List<string> failures)

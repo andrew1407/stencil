@@ -4,9 +4,8 @@ using Xunit.Abstractions;
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
-/// The bot's size + comment ratchet, budgeted by <c>SizeBudget.json</c>: no new oversized
-/// <c>.cs</c> file appears, no listed file grows past its recorded count, and no directory
-/// gets comment-heavier. Paths are repo-relative so every surface's numbers read alike.
+/// The bot's size + comment ratchet, budgeted by <c>SizeBudget.json</c>: no new oversized file,
+/// no listed file grows, no directory gets comment-heavier. Paths are repo-relative.
 /// </summary>
 public sealed class SizeBudgetTests
 {
@@ -14,7 +13,6 @@ public sealed class SizeBudgetTests
 
     public SizeBudgetTests(ITestOutputHelper output) => _output = output;
 
-    /// <summary>One measured source file: repo-relative path, total lines, comment lines.</summary>
     private readonly record struct Measured(string Path, int Lines, int CommentLines);
 
     private static readonly Lazy<Measured[]> Sources = new(MeasureAll);
@@ -105,7 +103,6 @@ public sealed class SizeBudgetTests
 
     private static string DirOf(string path) => path[..path.LastIndexOf('/')];
 
-    /// <summary>Measure every in-scope <c>.cs</c> file: bot/src + bot/tests, minus obj/ and bin/.</summary>
     private static Measured[] MeasureAll()
     {
         List<Measured> measured = [];
@@ -127,9 +124,8 @@ public sealed class SizeBudgetTests
     }
 
     /// <summary>
-    /// Lines that open with <c>//</c> or <c>/*</c>, plus lines inside a block comment. The
-    /// scanner tracks string, verbatim-string, raw-string and char literals so a <c>//</c>
-    /// inside one is never counted.
+    /// Lines opening with <c>//</c> or <c>/*</c>, plus lines inside a block comment. String,
+    /// verbatim, raw-string and char literals are tracked so a <c>//</c> inside one never counts.
     /// </summary>
     private static int CountCommentLines(string[] lines)
     {
@@ -150,7 +146,6 @@ public sealed class SizeBudgetTests
         return comments;
     }
 
-    /// <summary>Walk one line, carrying the block-comment and literal state to the next.</summary>
     private static void Scan(string line, ref bool inBlock, ref bool inVerbatim, ref int rawQuotes)
     {
         for (int i = 0; i < line.Length;)
@@ -215,7 +210,6 @@ public sealed class SizeBudgetTests
         return j - i;
     }
 
-    /// <summary>Skip a single-line <c>"…"</c> / <c>'…'</c> literal, honouring backslash escapes.</summary>
     private static int SkipLiteral(string line, int i, char quote)
     {
         for (int j = i + 1; j < line.Length; j++)
