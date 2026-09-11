@@ -176,6 +176,19 @@ public sealed class OpRegistryTests
     }
 
     [Fact]
+    public void EveryRegistryOpIsBoundToAnApplier()
+    {
+        // The visible half of OpRegistry's static ctor: membership, prompt bullet and dispatch
+        // are one structure, so a registry edit cannot add an op nothing executes.
+        string[] unbound = [.. OpSchema.Bot.Ops.Keys
+            .Where(name => OpRegistry.HandlerFor(name) is null)
+            .Order(StringComparer.Ordinal)];
+        Assert.Empty(unbound);
+        Assert.All(OpRegistry.Names, name => Assert.NotNull(OpRegistry.HandlerFor(name)));
+        Assert.Null(OpRegistry.HandlerFor("notAnOp"));
+    }
+
+    [Fact]
     public void NoRegistryEntryUsesAForbiddenName()
     {
         // §13 tooth #1 — plus a pin that the list covers each never-model-drivable family.
