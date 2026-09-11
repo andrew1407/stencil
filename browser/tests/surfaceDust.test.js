@@ -324,7 +324,7 @@ test('modals: the dust point IS the icon centre setOriginVars already measured',
 test('the chat panel keeps its dock edge, and a float keeps its icon', () => {
   assert.match(chatPanelJs, /if \(host\.classList\.contains\('chat-dock-float'\)\) \{[\s\S]*?anchorBtn\(\)/,
     'a float flies out of the toolbar icon, like a modal');
-  assert.match(chatPanelJs, /return dockAwayPoint\(r, dock\) \|\| \{ x: r\.left \+ r\.width \/ 2, y: -Math\.max\(48, r\.height \* 0\.3\) \};/);
+  assert.match(chatPanelJs, /return dockAwayPoint\(r, chatDock\.mode\(\)\) \|\| \{ x: r\.left \+ r\.width \/ 2, y: -Math\.max\(48, r\.height \* 0\.3\) \};/);
   // Opened AFTER the class, or the panel is display:none and measures nothing.
   assert.match(chatPanelJs, /host\.classList\.toggle\('chat-open', on\);[\s\S]{0,160}if \(on\) playDust\(true\);/);
   // Closed BEFORE it leaves the screen, and on the same clock the class swap uses.
