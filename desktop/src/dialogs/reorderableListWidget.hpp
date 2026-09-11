@@ -1,15 +1,10 @@
 #pragma once
-// A QListWidget whose rows can be drag-REORDERED and dragged OUT (dropped outside the
-// list) to trigger a caller-supplied action — the desktop analogue of the browser
-// connectModal/projectsModal HTML5-draggable rows. Rows may host itemWidgets, so we never
-// let Qt move items itself: on an in-list drop we report (from,to) row indices and expect
-// the caller to permute its model + rebuild the rows; on a drop outside the list we invoke
-// onDragOut(row) so the caller can confirm-and-remove.
-//
-// Header-only and deliberately Q_OBJECT-free (it uses std::function callbacks, not signals),
-// so it needs no MOC and can be included from multiple dialogs. Drags are initiated from a
-// DragGrip handle placed in each row (itemWidgets otherwise swallow the press that would
-// start a view-driven drag).
+// A QListWidget whose rows can be drag-REORDERED and dragged OUT — the desktop analogue
+// of the browser modals' HTML5-draggable rows. Rows host itemWidgets, so Qt never moves
+// items itself: an in-list drop reports (from,to) for the caller to permute and rebuild,
+// a drop outside invokes onDragOut(row). Header-only and deliberately Q_OBJECT-free
+// (std::function callbacks, no MOC). Drags start from a DragGrip handle in each row,
+// which itemWidgets would otherwise swallow.
 #include <QAbstractItemView>
 #include <QByteArray>
 #include <QCursor>

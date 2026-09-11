@@ -359,7 +359,7 @@ int main(int argc, char** argv) {
 
     // What FLIES is the controls, not the strip behind them: QWidget::grab() paints the
     // palette's Window brush under the children, and a group photographed on a toolbar
-    // then flew as a dark slab over a lighter bar (user report: "black lines next to the
+    // then flew as a dark slab over a lighter bar ("black lines next to the
     // inputs"). The gaps a group carries — it is wider than its fields whenever the row
     // hands it slack — must come out CLEAR.
     {
@@ -381,7 +381,7 @@ int main(int argc, char** argv) {
     // A group the row hands SLACK to (Expanding — the f(x,y) pair) must FLY at the width
     // the layout really gives it, not at its own size hint: the hint is only what its
     // contents ask for, so the picture flew narrow and the fields jumped wider the instant
-    // the dust handed over (user report).
+    // the dust handed over.
     {
       auto* row = new QWidget(&host);
       auto* rowLay = new QHBoxLayout(row);

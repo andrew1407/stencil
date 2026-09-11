@@ -24,19 +24,12 @@ class QAudioOutput;
 class QVideoSink;
 class QVideoFrame;
 
-// Unified "Open Image" dialog. Mirrors browser/js/ui/openImageModal.js: the single way
-// to get an image into the editor — a local FILE, a web URL/reference, or a NEW BLANK
-// canvas — chosen with the Source selector. For a file/URL source, a live PREVIEW shows
-// the decoded image (or the chosen video frame, seek-able) before committing, and an
-// optional page-aspect CROP (off by default) can be applied on open. Choose to replace
-// the current editor ("Open here") or launch it in a new window. For the blank source,
-// pick a fill color + size and "Create blank". exec(); on QDialog::Accepted read
-// outcome() and the matching getters (rejected = canceled).
-//
-// The preview + video-scrub + quick-crop machinery deliberately mirrors LinksDialog's
-// add-by-URL section (same QVideoSink scrubbing, same crop model + accessor names —
-// previewedImage()/cropToPage()/cropAlbum()/cropPageSize()), so MainWindow consumes the
-// two dialogs identically.
+// Unified "Open Image" dialog (browser/js/ui/openImageModal.js): the single way into the
+// editor — a local FILE, a web URL/reference, or a NEW BLANK canvas — with a live preview
+// (video frames seek-able) and an optional page-aspect crop, opening here or in a new
+// window. exec(); on Accepted read outcome() and the matching getters.
+// The preview + scrub + quick-crop machinery mirrors LinksDialog's add-by-URL section,
+// accessor names included, so MainWindow consumes the two dialogs identically.
 namespace stencil::gui {
 
   class MediaLoader;

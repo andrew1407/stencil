@@ -1,12 +1,9 @@
 #pragma once
 // A read-only subscription to a server's GLOBAL project-events feed over the raw-TCP
-// edit channel (REST port + 1). It connects, sends a hello with an empty projectId —
-// which the server routes to the events feed (see hub.serveEvents) — and emits
-// projectUpdated() for each "project-event" NDJSON frame. This is the desktop's push
-// replacement for version polling: a peer's save reaches us in tens of ms instead of
-// on the next poll tick. Plaintext only — an https server's edit channel is TLS-wrapped,
-// so subscribe() declines an https base and the poll backstop covers it. Mirrors the
-// CLI's EditConn (cli/src/server.zig) and the browser's WebSocket feed.
+// edit channel (REST port + 1): an empty-projectId hello routes to the events feed,
+// and each "project-event" NDJSON frame becomes projectUpdated(). Plaintext only — an
+// https edit channel is TLS-wrapped, so an https base is declined and polling covers
+// it. Mirrors the CLI's EditConn (cli/src/server.zig).
 #include <QByteArray>
 #include <QObject>
 #include <QString>

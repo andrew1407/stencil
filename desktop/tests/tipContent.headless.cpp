@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
 
   {  // A secondary line reads as a sentence of its own: "Servers — a saved session
      // expired, …" showed a lowercase fragment under the heading, as if someone had
-     // forgotten to finish it (user report, with a picture). What must NOT be lifted is
+     // forgotten to finish it. What must NOT be lifted is
      // anything whose first token is a value rather than a word. Browser twin:
      // tipContent.js sentenceCase, pinned by the same cases in tests/tipContent.test.js.
     const auto firstBlock = [](const QString& title) {

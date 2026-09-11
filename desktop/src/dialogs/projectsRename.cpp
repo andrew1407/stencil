@@ -66,13 +66,10 @@ namespace stencil::gui {
     edit->setToolTip(tr("Project name"));
     edit->setFixedHeight(kRenameBox);   // …the chips' own height: one control, three parts
     lay->addWidget(edit, 1);
-    // ✓/✗ are the browser's .name-edit-btn chips: accent-filled with a WHITE glyph, the
-    // same pair the toolbar's rename shows (a green tick and a red cross read as a warning
-    // on the fill, not as the two halves of one edit — user decision, with a picture). The
-    // shared objectName carries their QSS; themedIcon feeds the app-wide iconMotion filter,
-    // so hovering DRAWS the check / strikes the cross exactly like the browser's icons.
-    // The same chip the toolbar's ✎/🎨/✓/✗ wear (mainWindowHelpers kNameChip*): one size for
-    // every name affordance in the app.
+    // ✓/✗ are the browser's .name-edit-btn chips: accent-filled with a WHITE glyph (a
+    // green tick and a red cross read as a warning, not as two halves of one edit). The
+    // shared objectName carries their QSS and themedIcon feeds the iconMotion filter, so
+    // hover draws the check / strikes the cross. Sized by mainWindowHelpers kNameChip*.
     auto* okBtn = new QToolButton(renameBox_);
     okBtn->setObjectName("projectsRenameBtn");
     okBtn->setIcon(themedIcon("check", QColor("#ffffff"), kRenameGlyph));

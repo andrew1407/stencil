@@ -1,10 +1,8 @@
 #pragma once
-// SSRF guard for UNTRUSTED http(s) fetches — the desktop port of cli/src/net.zig
-// (isBlockedFetchHost / isBlockedV4 / isBlockedV6 / parseInetAtonV4 /
-// hostResolvesToBlocked), with the same two-tier `strict` design: the internal ranges
-// are always blocked, loopback only when `strict` (a URL taken from scanned or shared
-// content rather than one the user typed). The server-connect path is deliberately
-// exempt — users name their own servers (net.zig:71).
+// SSRF guard for UNTRUSTED http(s) fetches — the desktop port of cli/src/net.zig,
+// with the same two-tier `strict`: internal ranges always blocked, loopback only when
+// strict (a URL from scanned/shared content, not one the user typed). The
+// server-connect path is exempt — users name their own servers (net.zig:71).
 #include <QByteArray>
 #include <QNetworkRequest>
 #include <QString>

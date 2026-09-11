@@ -9,11 +9,9 @@
 #include <QStringList>
 
 // The layout export field list lives in the shared canon browser/js/config/
-// layoutFields.json (qrc-embedded as :/config/layoutFields.json) — the same table the
-// browser's buildLayoutPayload walks. fileStore::buildLayoutJson builds its values per
-// field and emits them through here, so adding or dropping an exported field is a canon
-// edit rather than a second hard-coded list. A key the canon doesn't declare still goes
-// out (last), so a writer/canon mismatch reads as a diff, never as a dropped field.
+// layoutFields.json (qrc-embedded), the same table browser buildLayoutPayload walks, so
+// adding or dropping an exported field is a canon edit, not a second hard-coded list. A
+// key the canon doesn't declare still goes out (last) — a mismatch is a diff, never a loss.
 namespace stencil::gui::layoutCanon {
 
   // Keys tagged with an `export` index, in that index's order. Read once; empty when

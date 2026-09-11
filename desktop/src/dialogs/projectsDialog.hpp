@@ -30,14 +30,11 @@ namespace stencil::net {
   class ConnectionManager;
 }
 
-// Saved-projects browser. Mirrors browser/js/ui/projectsModal.js: list projects,
-// open / delete one, or create a new one. exec() then read action()/selectedId()/
-// newName() to apply the choice; removals (Delete / batch Remove / Clear All) are
-// instead confirmed in-dialog and signalled, so the window stays open (see signals).
-// When a ConnectionManager is supplied, server
-// (shared) projects are listed alongside the local ones with a golden outline and
-// a server badge, refreshed live on a short timer (the desktop analogue of the
-// browser modal's WebSocket project-event feed → periodic listProjects refresh).
+// Saved-projects browser. Mirrors browser/js/ui/projectsModal.js: exec(), then read
+// action()/selectedId()/newName(). Removals are confirmed in-dialog and signalled
+// instead, so the window stays open (see signals). With a ConnectionManager, server
+// projects are listed alongside the local ones and refreshed on a short timer (the
+// desktop analogue of the browser modal's WebSocket project-event feed).
 namespace stencil::gui {
 
   class ProjectDragZones;
@@ -65,41 +62,28 @@ namespace stencil::gui {
       openInServerOk_ = server;
     }
 
-    // NewBlank: create a blank solid-color image (the main window opens its
-    // BlankImageDialog after this dialog closes).
-    // OpenInNewWindow: like Open, but the main window loads the project into a
-    // fresh top-level window instead of replacing the current canvas.
-    // OpenRemote: open a server-stored project (read selectedServerUrl()+selectedId()).
-    // MoveToServer: store a LOCAL project on a server, then drop the local copy
-    //   (read selectedId() + selectedServerUrl()).
-    // MoveToLocal: copy a SERVER project into local storage, then delete it from the
-    //   server (read selectedServerUrl() + selectedId()).
-    // MakeLocalCopy: copy a SERVER project into local storage (named "<name>-local")
-    //   and open it, leaving the server copy in place (read selectedServerUrl()+selectedId()).
-    // CopyToServer: copy a LOCAL project to a server, leaving the local one in place
-    //   (read selectedId() + selectedServerUrl() + newName()).
-    // MakeLocalCopy now carries newName() (the copy's name, default "<name>-copy").
-    // Batch* act on the checked rows (read batchItems()): BatchMoveToServer
-    //   / BatchCopyToServer (local-only checked + selectedServerUrl()), BatchMoveToLocal /
-    //   BatchCopyToLocal (server-only checked). BatchRemove never reaches action() —
-    //   it confirms in-dialog and emits removeRequested (kept as runBatch's dispatch tag).
-    // SetColor: set (or clear) a project's accent colour — read selectedId() +
-    //   selectedServerUrl() (empty = local) + selectedColor() ("" = theme default).
+    // What the owner must read per action, beyond action() itself:
+    //   OpenInNewWindow  — like Open, into a fresh top-level window.
+    //   OpenRemote       — selectedServerUrl() + selectedId().
+    //   MoveToServer / CopyToServer  — selectedId() + selectedServerUrl() (+ newName()
+    //     for a copy); Move drops the local original, Copy leaves it.
+    //   MoveToLocal / MakeLocalCopy  — selectedServerUrl() + selectedId() + newName();
+    //     Move deletes the server copy, MakeLocalCopy leaves it and opens the copy.
+    //   Batch*           — batchItems() (BatchRemove never reaches action(): it confirms
+    //     in-dialog and emits removeRequested, and stays as runBatch's dispatch tag).
+    //   SetColor         — selectedId() + selectedServerUrl() ("" = local) +
+    //     selectedColor() ("" = theme default).
     enum class Action { None, Open, OpenInNewWindow, New, Rename, NewBlank,
                         OpenRemote, MoveToServer, MoveToLocal, MakeLocalCopy, CopyToServer,
                         SetColor,
                         BatchRemove, BatchMoveToServer, BatchCopyToServer,
                         BatchMoveToLocal, BatchCopyToLocal, ClearAll };
 
-    // `now` (epoch ms) is the reference point for the per-row expiry labels and
-    // their warning/expired colouring; the caller passes its clock so the dialog
-    // stays free of time sources. `connections` (nullable) supplies the shared
-    // server projects shown with a golden outline. `thumbs` maps a local project
-    // id to its pre-rendered EDITED-result preview (filtered image + drawn lines),
-    // shown as the row icon; the caller renders them via the canvas/export path.
-    // `activeProjectId` (nullable-empty) is the project open in THIS editor right now —
-    // its row gets the browser-parity "(Current)" mark right after its origin badge,
-    // painted in the installed palette's accent (`accentColor` is unused, kept for ABI).
+    // `now` (epoch ms) is the reference point for the per-row expiry labels; the caller
+    // passes its clock so the dialog stays free of time sources. `connections` (nullable)
+    // supplies the shared server projects. `thumbs` maps a local project id to its
+    // pre-rendered EDITED-result preview, shown as the row icon. `activeProjectId` marks
+    // the row open in THIS editor "(Current)" (`accentColor` is unused, kept for ABI).
     explicit ProjectsDialog(const std::vector<Project>& projects, long long now,
                             stencil::net::ConnectionManager* connections = nullptr,
                             const QHash<QString, QPixmap>& thumbs = {},
@@ -121,11 +105,9 @@ namespace stencil::gui {
     const QVector<QPair<QString, QString>>& batchItems() const { return batchItems_; }
 
     // Replace the listed projects and repaint — the owner calls this after acting on a
-    // request signalled below, so the dialog STAYS OPEN and simply shows the new state.
-    // The overload carries the window's session state IN THE SAME repaint: a removal can
-    // empty the list and blank the editor in one breath, and two repaints showed the
-    // batch bar for the stale row and took it away a beat later — the list, and the row
-    // arriving in it, visibly jumped.
+    // request signalled below, so the dialog STAYS OPEN on the new state. The overload
+    // carries the window's session state IN THE SAME repaint: a removal that also blanks
+    // the editor must not repaint twice, or the batch bar and the rows visibly jump.
     void setProjects(const std::vector<Project>& projects);
     void setProjects(const std::vector<Project>& projects, bool temporary, bool incognito);
 

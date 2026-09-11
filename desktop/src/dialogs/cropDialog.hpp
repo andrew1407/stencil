@@ -7,12 +7,10 @@
 class QHBoxLayout;
 class QPushButton;
 
-// Image-crop dialog. Mirrors browser/js/ui/cropModal.js: shows the full ORIGINAL
-// image with an overlaid crop rectangle locked to the page aspect ratio (A3/A4 =
-// √2, or the custom W×H). The rectangle can be moved and resized from its four
-// corners, with an Album/Portrait toggle; exec(), then read cropRect() (in
-// original-image pixels). The geometry math is the shared C++ core (cropGeometry);
-// the window wears the shared modal shell (support/modalChrome).
+// Image-crop dialog (browser/js/ui/cropModal.js): the full ORIGINAL image under a crop
+// rectangle locked to the page aspect, movable and corner-resizable with an
+// Album/Portrait toggle. exec(), then read cropRect() in original-image pixels. The
+// geometry is the shared core (cropGeometry); the chrome is support/modalChrome.
 namespace stencil::gui {
 
   struct ModalChrome;

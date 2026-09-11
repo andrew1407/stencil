@@ -13,12 +13,10 @@ namespace stencil::net {
     constexpr auto kTokensKey = "serverTokens";
   }  // namespace
 
-  // The URL + kind list stays in QSettings, stored as a flat tab-separated string per
-  // server (a QStringList): "url\t", or "url\t\tkind" once the credential's kind is
-  // known ("admin"/"session"). The middle field holds a LEGACY cleartext token, migrated
-  // on load into fileStore's owner-only secrets file, keyed by url. The kind is only read
-  // when the row's LAST field is one of those two tags, so legacy rows (and tokens that
-  // contain a tab) still load.
+  // One tab-separated row per server: "url\t", or "url\t\tkind" once the credential's
+  // kind is known. The middle field is a LEGACY cleartext token, migrated on load into
+  // fileStore's secrets file; kind is read only when it is the row's LAST field, so
+  // legacy rows (and tokens containing a tab) still load.
   QVector<SavedServer> connectionStore::loadSavedServers() {
     QSettings s;
     const QStringList rows = s.value(kServersKey).toStringList();

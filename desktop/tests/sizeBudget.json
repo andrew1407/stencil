@@ -89,12 +89,12 @@
   "commentPct": {
     "desktop/src/app": 23,
     "desktop/src/canvas": 18,
-    "desktop/src/dialogs": 17,
-    "desktop/src/io": 18,
+    "desktop/src/dialogs": 16,
+    "desktop/src/io": 17,
     "desktop/src/llm": 20,
-    "desktop/src/net": 16,
+    "desktop/src/net": 15,
     "desktop/src/support": 22,
-    "desktop/tests": 15,
+    "desktop/tests": 14,
     "desktop/tests/support": 11
   },
   "exceptions": {

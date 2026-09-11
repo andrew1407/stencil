@@ -11,21 +11,14 @@ class QVideoSink;
 class QVideoFrame;
 class QTimer;
 
-// Resolves a launch --src into a single QImage, asynchronously. It unifies three
-// open paths behind one signal:
-//   • a local image file            (QImage::load)
-//   • a remote image URL            (Qt Network download → QImage)
-//   • a video file or direct URL    (Qt Multimedia: seek to a frame and grab it)
-// This is the desktop equivalent of the extension's video-frame capture +
-// fetch-and-open behavior, driven from the command line instead of the page.
+// Resolves a launch --src into a single QImage, asynchronously: a local image file, a
+// remote image URL (Qt Network) or a video file/URL (Qt Multimedia seek + grab), all
+// behind one signal. The desktop's take on the extension's video-frame capture.
 namespace stencil::gui {
 
-  // File-suffix sniffers shared by MediaLoader's own resolution and the chat
-  // dock's clipboard-paste / drag-drop attach routing: video by container
-  // extension (the same list load() uses), image by the common raster
-  // extensions QImageReader decodes. Pure (path string only) so they are
-  // headless-testable. Defined in mediaTypes.cpp, off the shared canon
-  // (browser/js/config/mediaTypes.json `surfaces.desktop`).
+  // File-suffix sniffers shared by MediaLoader's resolution and the chat dock's
+  // paste / drag-drop attach routing. Pure (path string only), defined in
+  // mediaTypes.cpp off the canon (browser/js/config/mediaTypes.json `surfaces.desktop`).
   bool isVideoFileName(const QString& path);
   bool isImageFileName(const QString& path);
 
@@ -66,12 +59,10 @@ namespace stencil::gui {
     // Lets the links dialog hand the same source to its persistent scrub player.
     QUrl resolvedUrl() const { return url_; }
 
-    // Extract several video frames by SEQUENTIAL seeks, reusing load()'s
-    // single-frame pipeline once per index (frames arrive in `indices` order;
-    // the first failure aborts with its message). The desktop side of the LLM
-    // contract's `frame` op and of chat video attachments
-    // (llm-contract.md §2/§7). Cancels any in-flight load(); don't issue
-    // another load() on this loader until `done` fires.
+    // Extract several video frames by SEQUENTIAL seeks, reusing load()'s single-frame
+    // pipeline once per index (frames arrive in `indices` order; the first failure aborts
+    // with its message). Cancels any in-flight load(); don't issue another load() on this
+    // loader until `done` fires.
     void extractFrames(const QString& src, const QList<int>& indices,
                        std::function<void(QList<QImage> frames, QString error)> done);
 

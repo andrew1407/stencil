@@ -11,12 +11,10 @@ class QScrollArea;
 class QToolButton;
 class QWidget;
 
-// Shortcut rebinding dialog — the browser's "Keyboard Shortcuts" modal
-// (browser/js/ui/settingsModal.js): the shared shell, a search box, and an Action /
+// Shortcut rebinding dialog — the browser's "Keyboard Shortcuts" modal: an Action /
 // Shortcut / Default table drawn in the tooltips' keycaps (support/keycapChip.hpp).
-// Click a combo and press the new one; per-row reset glyph, Reset All in the footer.
-// Edits apply LIVE: overridesChanged() fires on each change and the owner persists +
-// re-applies overrides(). A combo already used elsewhere is refused (conflict()).
+// Edits apply LIVE — overridesChanged() fires on each change and the owner persists and
+// re-applies overrides(); a combo already used elsewhere is refused (conflict()).
 // Mirrors the browser's STORAGE_KEYS.hotkeys layered over hotkeysConfig.json.
 namespace stencil::gui {
 

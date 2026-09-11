@@ -402,11 +402,9 @@ namespace stencil::gui {
       if (manager_) manager_->reconnectAllAsync();  // changed() → rebuildList() as each resolves
       rebuildList();
     });
-    // Return is the DEFAULT button's (connectBtn, setDefault above), from either field or
-    // from anywhere else in the dialog. Deliberately no returnPressed wiring beside it: a
-    // QLineEdit emits that signal AND lets the key travel on to the default button, so the
-    // pair fired doConnect twice — the first connected and cleared the field, the second
-    // found it empty and toasted "Enter a server URL" over the connection just made.
+    // Return belongs to the DEFAULT button (connectBtn), from either field or anywhere
+    // else. Deliberately no returnPressed wiring beside it: a QLineEdit emits that AND
+    // lets the key travel on to the default button, firing doConnect twice.
     QObject::connect(connectBtn, &QPushButton::clicked, this, &ConnectDialog::doConnect);
     if (manager_)
       QObject::connect(manager_, &stencil::net::ConnectionManager::changed, this,

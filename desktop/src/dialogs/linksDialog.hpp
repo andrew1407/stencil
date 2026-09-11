@@ -18,13 +18,11 @@ class QAudioOutput;
 class QVideoSink;
 class QVideoFrame;
 
-// Source/resource links dialog. Mirrors browser/js/ui/linksModal.js: view, edit,
-// open, and remove the active image's provenance — the image/video's own URL
-// (source) and the web page it came from (resource) — and add a new image BY URL
-// (extracting a video frame when needed). "Open in browser" launches the OS
-// default browser (QDesktopServices); the add-by-URL load previews the URL in the
-// dialog and, on "Load into editor", hands the already-decoded pixels back to the
-// caller (so what was previewed is exactly what loads).
+// Source/resource links dialog (browser/js/ui/linksModal.js): view, edit, open and
+// remove the active image's provenance — its own URL (source) and the page it came from
+// (resource) — and add a new image BY URL, extracting a video frame when needed. The
+// add-by-URL load hands the already-decoded preview pixels back, so what was previewed
+// is exactly what loads.
 namespace stencil::gui {
 
   class MediaLoader;

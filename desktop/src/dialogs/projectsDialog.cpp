@@ -223,11 +223,9 @@ namespace stencil::gui {
       bh->addWidget(batchSelectedGroup_);
       batchBar_->setVisible(false);
       // The bar and the list share ONE zero-spacing slot, and the gap under the bar is the
-      // bar's OWN bottom margin (the body layout's spacing, moved inside it). So when the
-      // strip closes, its whole footprint slides away together (support/controlReveal
-      // closeBarSlot) and the rows glide up — the layout's spacing dropping in one frame
-      // at the end is exactly the jump this removes. Both states look
-      // exactly as they did: 10px above the bar, 10px between it and the list.
+      // bar's OWN bottom margin. So a closing strip slides its whole footprint away
+      // together (support/controlReveal closeBarSlot) instead of dropping the layout's
+      // spacing in one frame at the end. Metrics unchanged: 10px above, 10px below.
       bh->setContentsMargins(0, 0, 0, kBodySpacing);
       barSlot_ = new QVBoxLayout;
       barSlot_->setContentsMargins(0, 0, 0, 0);
@@ -431,13 +429,10 @@ namespace stencil::gui {
   }
 
   bool ProjectsDialog::eventFilter(QObject* obj, QEvent* ev) {
-    // The hover preview is a ToolTip window: switching window or app delivers the
-    // list no Leave, and the popup would float on over whatever came to the front.
-    // Verified against the CURSOR, not taken on faith: our own preview window
-    // materializing under a stationary pointer (the clamped Alt glance reaches it)
-    // makes the platform emit spurious Leave/deactivate to the widget below, and an
-    // unconditional hide then loops show-dust/hide-dust on every move while the
-    // pointer never actually left the thumbnail.
+    // The hover preview is a ToolTip window: switching window or app delivers the list no
+    // Leave, and the popup would float over whatever came forward. Verified against the
+    // CURSOR — the preview materializing under a stationary pointer makes the platform
+    // emit spurious Leave/deactivate, and an unconditional hide loops the dust.
     if (hoverPreview_ && obj == this &&
         (ev->type() == QEvent::WindowDeactivate || ev->type() == QEvent::ApplicationDeactivate) &&
         !(QGuiApplication::applicationState() == Qt::ApplicationActive &&
@@ -673,11 +668,9 @@ namespace stencil::gui {
     // Preserve the selected row across a live remote re-list so the polling timer
     // doesn't yank the user's selection out from under them.
     const int prevRow = list_->currentRow();
-    // What this list holds RIGHT NOW: a row the rebuild ADDS to it (the pinned session
-    // row a removal reveals, a project a server listing brings in) arrives out of the
-    // filter's sand at the end, rather than simply being there next frame — the browser's
-    // arrival for the same event (motion.js filterDust / playFilterEnter). The very first
-    // build dusts nothing: the dialog has its own opening flight.
+    // What this list holds RIGHT NOW: a row the rebuild ADDS arrives out of the filter's
+    // sand at the end rather than simply being there next frame (browser motion.js
+    // filterDust). The very first build dusts nothing — the dialog has its own flight.
     QSet<QString> keysBefore;
     for (int i = 0; i < list_->count(); ++i) {
       const QString k = rebuildKeyOf(list_->item(i));
@@ -910,12 +903,10 @@ namespace stencil::gui {
     applyFilter();   // re-hide rows the current filter excludes (survives the live re-list)
     building_ = false;
     updateBatchBar();
-    // …and every row this rebuild ADDED forms out of sand, on the filter's own shared
-    // budget (applyFilter just reset it) but the longer ARRIVAL clock — a row the list
-    // gained is not a filter keeping up with a keystroke (browser twin: materialize, not
-    // the filter animator). A row that was already listed is untouched. Last, with the
-    // bookkeeping settled: dustRowIn writes a role per row, and it guards that write with
-    // the same beforeFrame/afterFrame the filter's own frames use.
+    // …and every row this rebuild ADDED forms out of sand on the filter's shared budget
+    // but the longer ARRIVAL clock (browser twin: materialize, not the filter animator).
+    // Last, with the bookkeeping settled: dustRowIn writes a role per row under the same
+    // beforeFrame/afterFrame guard the filter's own frames use.
     if (wasBuilt)
       for (int i = 0; i < list_->count(); ++i) {
         QListWidgetItem* it = list_->item(i);

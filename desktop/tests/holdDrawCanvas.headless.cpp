@@ -127,7 +127,7 @@ int main(int argc, char** argv) {
                         canvas.lines()[0].fillColor.empty()),
           "…fillable, and transparent until a colour is picked");
     // …and NOTHING is selected: finishing a shape ends like finishing an ordinary line,
-    // with no selected-line bar popping up over the picture just drawn (user report).
+    // with no selected-line bar popping up over the picture just drawn.
     check(canvas.selectedLineIdx() == -1, "closing a shape selects nothing");
     QMouseEvent rel(QEvent::MouseButtonRelease, QPointF(first), canvas.mapToGlobal(first),
                     Qt::LeftButton, Qt::NoButton, Qt::NoModifier);

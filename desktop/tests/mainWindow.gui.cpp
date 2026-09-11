@@ -568,7 +568,7 @@ class MainWindowGuiTest : public QObject {
   // differ — a menu row and a tooltip are different jobs — and so are desktop-only
   // affordances (Cycle Filter/Compare, the page/unit fields, the Settings dialog).
   // This is what drifted: the live-sync button described itself in its own words and,
-  // having been built with no shortcut, showed no keycap at all (user report).
+  // having been built with no shortcut, showed no keycap at all.
   void toolbarTooltipsMatchTheBrowser() {
     // The browser's toolbar markup + the shared copy canon it interpolates from.
     stencil::test::BrowserMarkup browser;
@@ -988,7 +988,7 @@ class MainWindowGuiTest : public QObject {
 
   // Every selector opens the app's OWN popup, never the platform one: macOS draws a
   // native combo popup itself — centred over the control, in its own palette — so a
-  // toolbar of themed controls answered a click with a system menu (user report). The
+  // toolbar of themed controls answered a click with a system menu. The
   // browser makes the same swap (js/ui/customSelect.js, e2e custom-selects.spec.js).
   // The ONE exception on both sides is zoom: a number field with a preset list attached,
   // which works as it is.
@@ -1308,7 +1308,7 @@ class MainWindowGuiTest : public QObject {
   }
 
   // The open flight photographs the dialog before its scroll area has decided its
-  // scrollbar, so the picture that flew was a scrollbar too wide (user report).
+  // scrollbar, so the picture that flew was a scrollbar too wide.
   // settleLayout brings the scrollbar in before the shot.
   void revealSnapshotWaitsForTheScrollbar() {
     MainWindow win(nullptr, /*restoreLast=*/false);
@@ -1331,18 +1331,10 @@ class MainWindowGuiTest : public QObject {
     dlg.reject();
   }
 
-  // The Interface-animation combo's rows wear ONE glyph each (support/motionIcons.hpp),
-  // handed to the style AS the row's icon — never painted beside its own (that drew two).
-  // Rendered offscreen: the glyph column lights no wider than one 16px icon.
-  // A press outside a modal dismisses it, the way a press on the browser's modal overlay
-  // does (ui/base.js).
-  //
-  // WHAT THIS COVERS: the decision — outside dismisses, inside and the dialog's own popup
-  // do not, and an opted-out dialog never does. NOT the delivery: QTest::mouseClick hands
-  // the widget a QMouseEvent directly, while a REAL press on a window a modal blocks never
-  // becomes a QEvent at all (QtGui drops it in processMouseEvent). That half is
-  // modalDismissMac.mm reading the NSEvent, and no offscreen test can reach it — this
-  // passing does not mean a real click works.
+  // A press outside a modal dismisses it, like a press on the browser's modal overlay
+  // (ui/base.js). This covers the decision only: QTest hands the widget a QMouseEvent,
+  // while a real press on a window a modal blocks never becomes one — that half is
+  // modalDismissMac.mm reading the NSEvent, which no offscreen test can reach.
   void clickOutsideAModalDismissesIt() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(900, 700);
@@ -1625,7 +1617,7 @@ class MainWindowGuiTest : public QObject {
   // Qt delivers that press or not: exec() is application-modal, so the platform DROPS
   // presses aimed at the blocked main window and the app-wide filter never sees them.
   // That is why the theme-colour popup ignored outside clicks on a real desktop while
-  // every test synthesising a press straight into a widget passed (user report).
+  // every test synthesising a press straight into a widget passed.
   void accentPopoverClosesOnOutsideClick() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 700);
@@ -1825,14 +1817,9 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(deactClosedSticky, "losing focus must close even a STICKY popover");
     QVERIFY(!win.activePopover_);
 
-    // ── One open, one close, both animated, nothing re-shown ──
-    // The popover used to be a small frameless TOP-LEVEL window, and on the user's macOS
-    // build nothing animated it: a ghost flown under it (it stayed hidden behind the
-    // window until that unmapped — the "blink"), its own windowOpacity, and its own
-    // geometry were all driven correctly in Qt and rendered by nobody. It is a CHILD
-    // WIDGET of the main window now, so its grow/shrink are ordinary in-window
-    // animations, like the toasts and the logo overlay. (Animations are off for the
-    // suite; this case needs them.)
+    // One open, one close, both animated, nothing re-shown. The popover is a CHILD
+    // widget of the main window, so its grow/shrink are ordinary in-window animations.
+    // (Animations are off for the suite; this case needs them.)
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
     const auto restoreAnim = qScopeGuard([&] {
@@ -1937,19 +1924,10 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Logo accent-preset picker as a FIRST-CLASS popover (openAccentPicker via
-  // execMaybePopover; logoBtn_ registered in popoverButtons_ with actAccent_):
-  //  • right-click opens it STICKY (rows = accentPresets, chip + label, one ✓-marked
-  //    current row; Alt gymnastics don't close it; a row click applies via the
-  //    click-cycle's applySettings path and closes);
-  //  • hold-Alt PEEKS it exactly like every other popover icon (prompt open on the
-  //    keypress, Alt release rejects it at once);
-  //  • Alt-GLIDE logo → Connections swaps popovers with a single instance at a time;
-  //  • mid-peek, a LEFT-click on the logo is a no-op and a RIGHT-press PROMOTES the
-  //    same popover to sticky; the popover's own WindowDeactivate ends a peek;
-  //  • plain click still cycles, Alt+click stays inert.
-  // The popovers are modal (exec), so every mid-open interaction runs from timers
-  // scheduled before the blocking call.
+  // Logo accent-preset picker as a first-class popover: right-click opens it sticky,
+  // hold-Alt peeks it, Alt-glide swaps popovers one at a time, a mid-peek right-press
+  // promotes the peek to sticky, plain click still cycles. The popovers are modal (exec),
+  // so every mid-open interaction runs from timers scheduled before the blocking call.
   void logoAccentPopoverPicksDirectly() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1000, 700);
@@ -2373,7 +2351,7 @@ class MainWindowGuiTest : public QObject {
   // The colour chips (updateColorSwatch) carry a palette-coloured frame, and applySettings
   // used to re-issue them BEFORE applyTheme() grabbed its snapshot — so the pickers were
   // baked into the snapshot already light while the window around them was still dark, and
-  // stayed that way until the wipe finally reached them (user report).
+  // stayed that way until the wipe finally reached them.
   void themeSwapSnapshotStillWearsTheOldPalette() {
     const auto motion = withMotion();
     MainWindow win(nullptr, /*restoreLast=*/false);
@@ -2409,11 +2387,6 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(overlays() == 0, 3000);
   }
 
-  // Clearing the image must leave the idle affordance REACHABLE. The scroll area is not
-  // widgetResizable, so relaxing the canvas's size constraints does not shrink a widget
-  // already sized to a big image — the "Open an image / create a blank one" hint then
-  // paints centred in a huge off-screen rect and the editor looks like a dead scrolling
-  // void with no way to start again.
   // The incognito frame DRAWS ON clockwise from the top-left rather than blinking into
   // place, and retracts the same way — the desktop half of the browser's four staggered
   // .ig-edge elements. framePath is pure, so the order is checkable without a display.
@@ -3896,14 +3869,10 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The chat toolbar icon answers the same popover gestures as every dialog-opening
-  // icon (browser chat-btn parity, chatPanel.js openCompact): a double-click opens
-  // the chat as a COMPACT FLOATING window pinned next to the icon by the shared
-  // popover placement — never the docked edge slide — and the gesture while it is
-  // already open re-pins it there instead of hiding it. A plain click still
-  // toggles, deferred one double-click interval by the shared gesture machinery
-  // (whose trailing-release swallow this exercises: without it the deferred click
-  // re-armed and toggled the just-opened chat straight back off).
+  // The chat toolbar icon answers the same popover gestures as every dialog icon
+  // (browser chatPanel.js openCompact): a double-click opens a COMPACT FLOATING chat
+  // pinned by the icon, and re-pins it when already open. A plain click still toggles,
+  // deferred one double-click interval (whose trailing-release swallow this exercises).
   void chatIconPopoverGesture() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -4231,16 +4200,8 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // "Clear the conversation" (browser parity): a trash ghost in the branded
-  // title bar, AHEAD of the four placement chevrons, disabled while a turn is
-  // in flight. Clicking wipes every transcript card + the attachments, brings
-  // the empty-state suggestion chips back, and drops the model-side
-  // conversation state (chatHistory_ and the per-conversation caches) — while
-  // deliberately leaving the provider settings and the working image alone.
-  // Also covers the card APPEAR animation: each new card fades in from an
-  // opacity effect and lands fully visible, overlapping appends included.
   // Copy-to-clipboard ships the RENDERED image: filter plus drawn lines (browser
-  // renderExportCanvas parity). The old no-overlay copy dropped the user's edits.
+  // renderExportCanvas parity).
   void copyImageIncludesTheDrawnLines() {
     MainWindow win(nullptr, false);
     win.resize(1000, 700);
@@ -4270,7 +4231,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(sawLine, "expected the drawn red line in the copied image");
   }
 
-  // FEATURE (user report): Cmd+C / the toolbar Copy button's plain click default to
+  // FEATURE: Cmd+C / the toolbar Copy button's plain click default to
   // the CURRENT image (tint + lines/points) — same as the browser, same as download,
   // always has (an earlier desktop-only "Ctrl+C defaults to tint" swap was reverted).
   // actCopyImageTint_ ("Filter Only", Ctrl+Alt+C) stays its own separate, fixed variant.
@@ -4307,7 +4268,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(current != tinted, "current and tint must actually render differently here");
   }
 
-  // FEATURE (user report): "Filter Only" would render byte-identical to "Original" with
+  // FEATURE: "Filter Only" would render byte-identical to "Original" with
   // no filter applied, so it's hidden (not just greyed) until one actually is — live as
   // the filter is toggled, not just on the next unrelated refresh.
   void filterOnlyHiddenWithNoFilterApplied() {
@@ -4331,7 +4292,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!win.actSaveImageTint_->isVisible(), "Filter Only should hide again once the filter clears");
   }
 
-  // FEATURE (user report): "Current"'s OWN row (actCopyImageCurrentRow_/
+  // FEATURE: "Current"'s OWN row (actCopyImageCurrentRow_/
   // actSaveImageCurrentRow_) would render byte-identical to Original/Filter Only with
   // nothing drawn — hidden until there's something to overlay, same reasoning as Filter
   // Only. A SEPARATE action from actCopyImage_/actSaveImage_ (the toolbar buttons' own,
@@ -4375,7 +4336,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(win.actCopyImage_->isVisible(), "the toolbar's own Copy action is still untouched");
   }
 
-  // REGRESSION (user report, screenshot): MenuHotkeyChips only ever placed/hid a row's
+  // REGRESSION: MenuHotkeyChips only ever placed/hid a row's
   // chip on the menu's OWN aboutToShow — an action going invisible out from under an
   // ALREADY-OPEN menu (e.g. turning the filter off while its download-options popup is
   // still up) left that chip floating at its last valid position, overlapping whatever
@@ -4425,7 +4386,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!stillChippedAfter, "Filter Only's chip is still floating after the filter cleared");
   }
 
-  // FEATURE (user report): "With Compare" is a SEPARATE action (actCopyImageSplit_/
+  // FEATURE: "With Compare" is a SEPARATE action (actCopyImageSplit_/
   // actSaveImageSplit_), not a relabeling of "Current" — actCopyImage_/actSaveImage_
   // always read/perform "Current", comparing or not. The split action is only VISIBLE
   // while a split compare view is active, and only then does it borrow the real
@@ -4493,7 +4454,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(win.copyImageOptionsMenu_->actions().first(), win.actCopyImageSplit_);  // leads
     QCOMPARE(win.saveImageOptionsMenu_->actions().first(), win.actSaveImageSplit_);  // leads
 
-    // REGRESSION (user report): MenuHotkeyChips never deleted a row's chip widget on
+    // REGRESSION: MenuHotkeyChips never deleted a row's chip widget on
     // teardown (menuHotkeys.hpp's destructor only restored the action's text/shortcut) —
     // it just sat there, orphaned but still parented (and visible) on the persistent
     // menu. Reopening the SAME popup here, now with a 4th row ahead of it shifting every
@@ -5303,16 +5264,10 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The canvas context menu carries an "Assistant ▸" submenu (browser parity):
-  // a nested entry alongside Style / Image Filter / Transformation / Tooltip,
-  // present only when a provider is configured, hosting a compact chat that
-  // drives the SAME pipeline and the SAME history as the dock — and never
-  // dismissing the menu while you type, send or receive.
-  //
-  // Regression guard baked in: the classic submenus must still hover-open. They
-  // stopped doing so when the chat lived in the ROOT menu and its live-input
-  // interception ran over every row; the chat now owns its own child menu, so
-  // the root keeps stock QMenu behaviour.
+  // The canvas context menu carries an "Assistant ▸" submenu (browser parity): present
+  // only when a provider is configured, driving the SAME pipeline and history as the
+  // dock, and never dismissing the menu while you type, send or receive — while the
+  // classic submenus still hover-open (the chat owns its own child menu to keep that).
   void contextMenuAssistantSubmenu() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -6031,7 +5986,7 @@ class MainWindowGuiTest : public QObject {
   // The error card's Resend glyph is NEUTRAL in both themes, never the card's own
   // red: the browser's retry is a .chat-hbtn, which sets `color: var(--text-muted)`
   // itself and does not inherit the bubble's --danger. Painted red it sat red-on-red
-  // in the danger wash and barely read (user report).
+  // in the danger wash and barely read.
   void chatErrorRetryGlyphIsNeutral() {
     for (const QString mode : {QStringLiteral("light"), QStringLiteral("dark")}) {
       MainWindow win(nullptr, false);
@@ -6069,16 +6024,8 @@ class MainWindowGuiTest : public QObject {
     }
   }
 
-  // The destructive project action: dead when there is nothing to clear, and its
-  // MENU glyph neutral — the red is the toolbar button's fill (browser
-  // `.danger.btn-icon`), never a red mark on a plain menu row. It used to stay
-  // enabled on an empty editor, where it only asked a question and then "cleared"
-  // a canvas that was already empty.
   // A dialog opened from the MENU BAR must know which row it came out of, so
   // support::revealDialog can grow the window from there when the toolbar icon is hidden.
-  // Regression: the row used to be read off QApplication::activePopupWidget() inside the
-  // triggered() handler — but Qt hides the menu first, so the rect was always empty and
-  // every menu-opened dialog fell back to "drops in from above".
   void menuOpenedDialogRemembersItsRow() {
     MainWindow win;
     win.show();
@@ -6117,13 +6064,8 @@ class MainWindowGuiTest : public QObject {
   }
 
   // Destructive toolbar buttons wear the browser's `.danger.btn-icon` face: a SOLID red
-  // fill with a WHITE glyph. Two things have to hold at once — the stylesheet property
-  // that paints the fill, and a glyph that is not itself red (a red glyph on a red fill
-  // is an empty button, which is exactly how this first shipped).
-  //
-  // Regression: a QToolButton re-copies its default action's icon on every
-  // QEvent::ActionChanged, so the first setEnabled/setVisible out of refreshActions put
-  // the menu's red glyph back and the button went blank.
+  // fill with a glyph that is not itself red (a red glyph on a red fill is an empty
+  // button). A QToolButton re-copies its action's icon on every QEvent::ActionChanged.
   void dangerToolButtonsAreFilledRed() {
     MainWindow win;
     win.show();
@@ -6184,14 +6126,10 @@ class MainWindowGuiTest : public QObject {
     }
   }
 
-  // A disabled toolbar icon must READ as disabled: the stylesheet greys the chip and its
-  // text, but `color: MUTED` never reaches a rasterised pixmap (the browser's `.ic` gets
-  // it from currentColor). themedIcon carries a faded QIcon::Disabled variant.
-  //
-  // Checked at 1x AND 2x. The first version of this composited the faded copy from a
-  // dpr-tagged pixmap, which paints at LOGICAL size into a device-sized target — every
-  // disabled glyph came out half-size in the top-left corner, invisible at 1x where the
-  // two sizes coincide.
+  // A disabled toolbar icon must READ as disabled: `color: MUTED` never reaches a
+  // rasterised pixmap (the browser's `.ic` gets it from currentColor), so themedIcon
+  // carries a faded QIcon::Disabled variant. Checked at 1x AND 2x — a dpr-tagged pixmap
+  // paints at LOGICAL size into a device-sized target.
   void disabledIconsTakeTheMutedInk() {
     const auto inkBox = [](const QImage& im) {
       int minx = im.width(), miny = im.height(), maxx = -1, maxy = -1;
@@ -6221,7 +6159,7 @@ class MainWindowGuiTest : public QObject {
                               .arg(at, QDebug::toString(inkBox(off)), QDebug::toString(inkBox(on)))));
       // …and at FULL strength, re-inked rather than faded: the browser's disabled button
       // paints its .ic in --disabled-text at opacity 1, and a faded dark glyph was a ghost
-      // on the light theme's pale disabled chip (user report).
+      // on the light theme's pale disabled chip.
       const double a = meanAlpha(on), b = meanAlpha(off);
       QVERIFY2(b > 0.0, qPrintable("a disabled glyph must still be visible" + at));
       QVERIFY2(b > a * 0.9, qPrintable(QString("faded, not re-inked%1: %2 vs %3").arg(at).arg(a).arg(b)));
@@ -6288,14 +6226,9 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(rowsChecked >= 2, "expected at least two populated toolbar rows");
   }
 
-  // The dialog reveal must START at the icon that opened it. This checks the flight
-  // itself: support::revealDialog dusts a snapshot of the dialog across the window, every
-  // mote streaming out of that icon — so the flight's target point IS the origin the user
-  // sees the window come out of.
-  //
-  // Regression: only eight actions recorded an anchor, so a dialog opened from the menu
-  // bar, a shortcut, or any other icon grew out of whichever of those eight was used last
-  // — or out of a box above the dialog when none had been.
+  // The dialog reveal must START at the icon that opened it: support::revealDialog dusts
+  // a snapshot of the dialog across the window, every mote streaming out of that icon, so
+  // the flight's target point IS the origin the user sees the window come out of.
   void dialogRevealStartsAtTheIconThatOpenedIt() {
     MainWindow win;
     win.resize(1400, 700);
@@ -6677,7 +6610,7 @@ class MainWindowGuiTest : public QObject {
 
   // Every accent-BACKED control wears the ink the ACCENT picked (theme.hpp onAccentInk).
   // The bug this locks down: a fixed white glyph, which a yellow or sky accent all but
-  // swallowed (user report). Browser twin: --on-accent.
+  // swallowed. Browser twin: --on-accent.
   void filledControlsWearTheAccentsOwnInk() {
     MainWindow win(nullptr, false);
     CanvasWidget* canvas = openLoaded(win);
@@ -7776,7 +7709,7 @@ class MainWindowGuiTest : public QObject {
 
   // "＋ Blank image" is a BUTTON, not the whole empty page. A left-click anywhere on the
   // empty canvas used to create a blank image — the card was only the drawing that
-  // advertised it (user report), and the hand cursor covered the whole area too. Only
+  // advertised it, and the hand cursor covered the whole area too. Only
   // the card's own rect clicks, and only over it is the cursor a hand.
   void blankImageCardIsTheOnlyClickTarget() {
     MainWindow win(nullptr, /*restoreLast=*/false);
@@ -8192,7 +8125,7 @@ class MainWindowGuiTest : public QObject {
                "the well should draw a colour CHIP inside its frame, like the toolbar's");
       // …in the theme's own input chrome, exactly as the toolbar's wells are. Read from
       // the widget's palette instead, the frame resolved to the LIGHT theme's #dddddd and
-      // the wells sat in the dark bar ringed in near-white (user report).
+      // the wells sat in the dark bar ringed in near-white.
       const stencil::gui::Palette chrome = stencil::gui::themePalette(
           stencil::gui::resolveDark(win.settings_.themeMode), win.settings_.accentColor);
       QVERIFY2(swatch2->styleSheet().contains(chrome.borderMain.name()),
@@ -8689,11 +8622,6 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Model output is DATA on every surface that shows it: dock, menu mirror, ask
-  // card. Without an explicit format QLabel's Qt::AutoText would let
-  // mightBeRichText() render a model's markup per reply; tooltips have no format
-  // at all and need escaping instead. A label added without makePlainLabel fails
-  // here.
   // The panel is built LAZILY and lives hidden inside a QWidgetAction, so rows
   // mirrored before it is first shown were measured against the default 100px
   // viewport and stayed collapsed to about a tenth of the panel. It re-measures
@@ -9191,7 +9119,7 @@ class MainWindowGuiTest : public QObject {
   // The Start/Stop and Line/Rect faces read as WORDS: a size up from the toolbar's dense
   // default, with the glyph+label pair CENTRED in the button. Qt anchors a text-beside-icon
   // label at the left of the content rect and keeps its own slack on the right, so equal
-  // padding drew the pair off-centre in its box (user report, with a picture) — the theme
+  // padding drew the pair off-centre in its box — the theme
   // moves that slack to the left. Pins both halves.
   void drawFaceButtonsAreCentredAndReadable() {
     MainWindow win(nullptr, false);
@@ -9251,7 +9179,7 @@ class MainWindowGuiTest : public QObject {
 
   // The ✎/🎨 are hover-revealed over the name group, and a pointer that lands anywhere else
   // has left it — even when the group's own Leave never arrives (crossing straight onto
-  // another row's icon left the pair lit three clusters away: user report, with a picture).
+  // another row's icon left the pair lit three clusters away).
   void nameAffordancesGoWhenThePointerLeavesTheGroup() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
@@ -9286,7 +9214,7 @@ class MainWindowGuiTest : public QObject {
   // Edit mode SWAPS the name affordances in place: ✎/🎨 out, ✓/✗ in, and back again. The
   // pair returning while the marks were still flying out put all four in the row at once —
   // it widened, and the ✎/🎨 appeared BESIDE the leaving marks instead of in their place
-  // (user report, with a picture). Never more than two hold a slot at any moment.
+  //. Never more than two hold a slot at any moment.
   void nameChipsSwapInPlaceWithoutWideningTheRow() {
     const auto motion = withMotion();   // the flights below ARE the thing under test
     MainWindow win(nullptr, false);
@@ -9330,7 +9258,7 @@ class MainWindowGuiTest : public QObject {
   // under the pointer, as the browser's read-only #project-name-input does. The ring has
   // to live in that field's OWN stylesheet (applyProjectNameStyle): a per-widget sheet
   // outranks the themed one for every property it names, so the rule in theme.cpp was
-  // simply ignored and the title stayed inert (user report, three times over). Watched in
+  // simply ignored and the title stayed inert. Watched in
   // PIXELS for that reason — a stylesheet that exists is not a ring that paints.
   void projectNameTitleRingsOnHoverOnly() {
     MainWindow win(nullptr, false);
@@ -9367,7 +9295,7 @@ class MainWindowGuiTest : public QObject {
     const QColor rest = edge();
     // The ring is the accent at the shared 45% (the browser's two stacked layers come to
     // the same on screen), so the edge lands between the ground and the accent — never the
-    // flat accent, which read far brighter than the browser's (user report).
+    // flat accent, which read far brighter than the browser's.
     const auto near = [](const QColor& a, const QColor& b, int tol) {
       return qAbs(a.red() - b.red()) + qAbs(a.green() - b.green()) + qAbs(a.blue() - b.blue()) < tol;
     };
@@ -9392,7 +9320,7 @@ class MainWindowGuiTest : public QObject {
   // Fullscreen pulls every toolbar out from under whatever they had in the air, and takes
   // the logo's own overlay with it: a cloud started by a toolbar control was left flying
   // over the bare canvas, and the logo's resting mark sat on over the label that took its
-  // place (user report, with pictures of both).
+  // place.
   void fullscreenLeavesNothingBehindIt() {
     if (qApp->platformName() != QLatin1String("offscreen"))
       QSKIP("fullscreen gestures need the offscreen platform");
@@ -9438,7 +9366,7 @@ class MainWindowGuiTest : public QObject {
   // A select popup's rows hover like every other item in the app: the glass sweep, and the
   // 2px ease right the browser's `.accent-dd-opt:hover { transform: translateX(2px) }`
   // plays. The desktop's popups had NEITHER — a page-size row lit up and that was all
-  // (user report). The slide WRAPS whatever delegate the popup already has, so a list with
+  //. The slide WRAPS whatever delegate the popup already has, so a list with
   // its own painter (the motion modes' animated glyphs) keeps it.
   void selectPopupRowsSweepAndSlideOnHover() {
     if (qApp->platformName() != QLatin1String("offscreen"))
@@ -9490,7 +9418,7 @@ class MainWindowGuiTest : public QObject {
   // select. Removing every project takes both away, and the row underneath must GLIDE up
   // into the space, not be dropped into it: the strip used to lose its height the frame
   // its last control was hidden, and the layout's own spacing went in one more frame
-  // after that (user report — "it should smoothly move"). Pins the whole close as a
+  // after that ("it should smoothly move"). Pins the whole close as a
   // continuous slide: no single frame moves the row more than a few pixels.
   void closingTheBatchBarGlidesTheRowsUp() {
     if (qApp->platformName() != QLatin1String("offscreen"))
@@ -9563,7 +9491,7 @@ class MainWindowGuiTest : public QObject {
   // "Temporary (unsaved)" row, never "No projects yet": the removal reset this window to a
   // blank unsaved editor (eraseLocalProject → resetToBlankEditor), exactly the state the
   // browser's list pins that row for. The window was asked once, at open time, so the row
-  // never came and the emptied list read "No projects yet" (user report). Driven through
+  // never came and the emptied list read "No projects yet". Driven through
   // Clear All, the removal path that keeps the dialog up.
   void removingTheOpenProjectPinsTheTemporaryRow() {
     if (qApp->platformName() != QLatin1String("offscreen"))
@@ -9616,7 +9544,7 @@ class MainWindowGuiTest : public QObject {
       // the filter's light cloud in flight, never the removal's scatter. The rebuild that
       // answers a removal finds the list EMPTY — the doomed row left the view when its
       // scatter ended — and reading that as the dialog's opening build skipped the
-      // arrival outright: the row simply appeared (user report).
+      // arrival outright: the row simply appeared.
       arrivedVeiled = list->item(0)->data(Qt::UserRole + 43).toDouble() == 0.0;
       cloudInFlight = !dlg->findChildren<QWidget*>("stencilFilterDust").isEmpty();
       for (int i = 0; i < 200 && list->item(0)->data(Qt::UserRole + 43).toDouble() < 1.0; ++i)
@@ -9626,7 +9554,7 @@ class MainWindowGuiTest : public QObject {
       // …and it arrives WHERE IT BELONGS. The list's own top moves with the batch bar
       // above it, and answering the removal in two repaints showed that bar again for the
       // stale row: the pinned row appeared a bar's height too low and jumped up a beat
-      // later (user report). Its screen position at arrival must be its final one.
+      // later. Its screen position at arrival must be its final one.
       if (tempPinned) {
         const auto rowTop = [&] {
           return list->viewport()->mapToGlobal(list->visualItemRect(list->item(0)).topLeft()).y();
@@ -9951,16 +9879,10 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // REGRESSION: holding Alt over an export-variant row (to peek its live preview,
-  // exportPreview.cpp) used to close the menu instantly instead of showing the
-  // preview. The preview's own dust flight span an ESCAPING top-level window while
-  // the menu still held the platform pointer/keyboard grab, which killed that grab
-  // (menuReveal.cpp's dustMenuIn/dustMenuOut hit and solved the identical problem
-  // for a menu's own reveal/dismiss dust — exportPreview.cpp now follows suit).
-  // The escaping window only exists on a REAL platform (disintegrateOverlay.hpp
-  // skips it under offscreen, where the gui suite normally runs), so this only
-  // actually exercises the bug outside of `QT_QPA_PLATFORM=offscreen`; it still
-  // documents and checks the expected behavior either way.
+  // Holding Alt over an export-variant row peeks its live preview instead of closing the
+  // menu: the preview's dust must not span an ESCAPING top-level window while the menu
+  // holds the platform grab (menuReveal.cpp's dustMenuIn/dustMenuOut solved the same for
+  // a menu's own dust). That window exists only on a real platform, not offscreen.
   void altHoldOverExportRowDoesNotCloseTheMenu() {
     // The offscreen QPA plugin doesn't honor Qt::ToolTip's real-platform contract
     // of coexisting with an open popup's grab — showing exportPreview.cpp's own
@@ -10085,15 +10007,10 @@ class MainWindowGuiTest : public QObject {
     QTest::qWait(260);
   }
 
-  // REGRESSION: still closed the menu even after the fix above, because a DIFFERENT
-  // mechanism was doing it. The nested Copy/Download Image flyout paints right OVER
-  // the toolbar it grew from, so the REAL cursor sits, in plain screen coordinates, on
-  // top of whatever toolbar button happens to be underneath — and mainWindowEvents.cpp's
-  // qApp-wide Alt-KeyPress filter (altPeekExportMenu_/popoverButtons_, entirely
-  // unrelated to exportPreview's own row preview) read that as "Alt held over an icon"
-  // and popped ITS OWN popover open on top, stealing the platform grab the context menu
-  // chain depended on. Fixed by skipping that whole block outright whenever a QMenu
-  // popup is already active.
+  // A nested flyout paints over the toolbar it grew from, so the real cursor sits on a
+  // toolbar button underneath and mainWindowEvents.cpp's qApp-wide Alt filter would pop
+  // ITS own popover on top, stealing the grab. That block is skipped while a QMenu popup
+  // is already active.
   void altHoldOverNestedRowAboveAToolbarButtonDoesNotHijackTheMenu() {
     if (QGuiApplication::platformName() == QLatin1String("offscreen"))
       QSKIP("needs a real platform's popup-grab handling");
@@ -10210,15 +10127,9 @@ class MainWindowGuiTest : public QObject {
     QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));   // leave it parked for whatever runs next
   }
 
-  // REGRESSION: under Fusion (main.cpp forces it app-wide) a chipped row's icon-to-
-  // label gap blew out to ~3x normal. Root cause: MenuHotkeyChips pads the action's
-  // TEXT with its own "\t"+spaces to blank the native shortcut column for the chip
-  // widget to paint over, but never touched the action's real shortcut() — with
-  // AA_DontShowShortcutsInContextMenus off (main.cpp), QMenuPrivate/Fusion then
-  // double up the reserved shortcut width (already-tabbed text + a still-live
-  // native shortcut), regardless of how much padding follows the tab. Fixed by
-  // silencing shortcut() for the duration of the chip (the row still SHOWS it —
-  // that's what the chip paints) and restoring it when the chip is torn down.
+  // Under Fusion a chipped row's icon-to-label gap blows out unless the action's real
+  // shortcut() is silenced for the life of the chip: with already-tabbed text AND a live
+  // shortcut, QMenuPrivate reserves the shortcut column twice.
   void hotkeyChipDoesNotWidenTheIconGapUnderFusion() {
     QApplication::setStyle(QStyleFactory::create("Fusion"));
     MainWindow win(nullptr, false);
@@ -10314,15 +10225,9 @@ class MainWindowGuiTest : public QObject {
       if (auto* c = dynamic_cast<stencil::gui::TipBody*>(l))
         if (!c->isHidden() && c->geometry().intersects(r)) chip = c;
     QVERIFY2(chip, "no chip found for the Current row");
-    // NOT chip->capCount() here — calling it is what LAZILY hunts the keycap regions
-    // (appTooltip.hpp's own findCaps()), and doing so from the test would prime the
-    // exact state menuHotkeys.hpp's wire() must prime ITSELF, silently passing even if
-    // production never does (the actual regression: nothing in menuHotkeys.hpp ever
-    // called capCount(), so caps_ stayed empty forever and paintEvent()'s own "nothing
-    // to shake" guard ate every shake in every real run of the app — capOffset() alone
-    // still read correctly since dx_ itself was never in question, only whether
-    // anything ever painted it; user report). The REST snapshot below is taken first,
-    // grab()ing the chip exactly as wire() left it — untouched by this test.
+    // NOT chip->capCount() here — calling it is what LAZILY hunts the keycap regions, so
+    // the test would prime the state menuHotkeys.hpp's wire() must prime ITSELF. The rest
+    // snapshot below is taken first, grab()ing the chip exactly as wire() left it.
     const QImage rest = chip->grab().toImage();
 
     bool sawNonZero = false;
@@ -10344,18 +10249,10 @@ class MainWindowGuiTest : public QObject {
     menu->close();
   }
 
-  // REGRESSION (user report): QMenu::hovered(QAction*) re-fires for the action ALREADY
-  // being hovered — confirmed here via setActiveAction() on an already-active row,
-  // which genuinely re-emits the signal, exactly what a repaint or plain mouse jitter
-  // within the same row's bounds does for real — and shakeRow() restarted the
-  // animation from frame one on every single re-fire, reading as the caps
-  // continuously shaking on any mouse movement rather than once per hover.
-  // REGRESSION: the re-fire guard above only advances on a genuinely NEW hovered(QAction*)
-  // — but the mouse leaving a row WITHOUT landing on another one first (out past the menu
-  // edge, then back onto the SAME row) never fires hovered() again either, so the guard
-  // stayed stuck on that row and ate the second, perfectly legitimate hover (user report:
-  // "plays only once, and don't [play] again on another hover"). Fixed the way
-  // menuShimmer.hpp's RowOverlay already had to: reset the guard on QEvent::Leave.
+  // QMenu::hovered(QAction*) re-fires for the row already hovered (setActiveAction here
+  // re-emits it exactly as mouse jitter does), and a mouse leaving a row without landing
+  // on another never fires it again — so the guard advances only on a genuinely new row
+  // and resets on QEvent::Leave, like menuShimmer.hpp's RowOverlay.
   void hotkeyChipShakeReplaysAfterTheMouseLeavesAndComesBackToTheSameRow() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -10465,18 +10362,10 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(settledOffset, 0);
   }
 
-  // REGRESSION: the copy/download-image variant popups (and their canvas-context-menu
-  // and top-Data-menu counterparts) used to size themselves off theme.cpp's generic
-  // QMenu::item padding (24px left / 26px right) — sized for the menu BAR's own wider
-  // checkable/submenu column — leaving a visible gap after the icon and a dead band
-  // past the hotkey chip on these short rows (reported: roughly a third of the row's
-  // width sitting empty on both sides of the chip). Fixed by MenuHotkeyChips' own
-  // `compact` mode: a tighter local stylesheet plus an ACCURATE "\t"+spaces run sized
-  // to the chip's own real width (no setFixedWidth — that only clips the outer widget
-  // frame, not QMenuPrivate's own sizeHint-driven row layout, which stayed at the OLD
-  // wider size and clipped every combo's last keycap when tried — menuHotkeys.hpp's
-  // own comment has the full story). This test only bounds the SLACK; the per-chip
-  // "does it actually fit" check lives in downloadPopupChipsAreNotClipped.
+  // The variant popups take MenuHotkeyChips' `compact` mode — a tighter local stylesheet
+  // plus a "\t"+spaces run sized to the chip's own width — rather than theme.cpp's generic
+  // QMenu::item padding, which is sized for the menu bar's wider rows. This bounds the
+  // SLACK only; per-chip fit is downloadPopupChipsAreNotClipped.
   void exportOptionsPopupIsNotWiderThanItsContent() {
     QApplication::setStyle(QStyleFactory::create("Fusion"));   // main.cpp forces this app-wide
     MainWindow win(nullptr, false);
@@ -10524,17 +10413,10 @@ class MainWindowGuiTest : public QObject {
                             .arg(menu->width()).arg(widestLabel).arg(widestChip).arg(slack)));
   }
 
-  // REGRESSION: the download popup's own combos are the widest (3 modifiers + D) — an
-  // explicit per-chip "does it actually fit inside the menu" check, not just the
-  // aggregate slack bound exportOptionsPopupIsNotWiderThanItsContent already checks.
-  // A setFixedWidth()-based fix tried here first clipped every combo's last keycap: it
-  // only clips the outer WIDGET frame, not QMenuPrivate's own (independently sizeHint-
-  // driven) row layout, so the row — and this class's chip, positioned from that SAME
-  // row rect — kept the wider natural size while the frame around it shrank underneath
-  // (menuHotkeys.hpp's own comment has the full story). Menu closed BEFORE asserting,
-  // not after — an early QVERIFY2 return must never leave it open, or a QMenu that
-  // outlives `win` crashes on teardown (styleDangerToolButtons fires off a QAction
-  // signal from MenuHotkeyChips' destructor mid `~MainWindow`, reported).
+  // Per-chip "does it actually fit inside the menu", not just the aggregate slack the
+  // case above bounds: setFixedWidth clips only the outer widget frame, never
+  // QMenuPrivate's own sizeHint-driven row layout. The menu is closed BEFORE asserting —
+  // a QMenu outliving `win` crashes on teardown.
   void downloadPopupChipsAreNotClipped() {
     QApplication::setStyle(QStyleFactory::create("Fusion"));
     MainWindow win(nullptr, false);
@@ -10565,16 +10447,10 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!anyOverflow, "a chip's right edge overflows the menu's own width");
   }
 
-  // REGRESSION (hard crash): clicking a CHECKABLE row in the canvas context
-  // menu used to overflow the stack. StayOpenMenu re-dispatched mouse events
-  // into the hosted chat panel, and QApplication::notify propagates an
-  // unaccepted press up the parent chain — straight back into the menu, which
-  // re-dispatched it again, forever (crash reports showed ~6600 frames of
-  // mousePressEvent → deliverToArea → sendEvent → QMenu::event).
-  //
-  // Clicks on ordinary and checkable rows must survive, toggle in place, and
-  // keep the menu open — with the assistant BOTH on and off, since only the
-  // enabled case has an interactive area at all.
+  // Clicking a CHECKABLE row in the canvas context menu must not recurse: StayOpenMenu
+  // re-dispatches mouse events into the hosted chat panel and QApplication::notify walks
+  // an unaccepted press back up into the menu. Checked with the assistant on AND off,
+  // since only the enabled case has an interactive area at all.
   void contextMenuCheckableClickDoesNotRecurse() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -10736,17 +10612,9 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Drag dock zones (browser parity): while the FLOATING dock is title-dragged
-  // the four NON-overlapping bands cover the CENTRAL dockable area (not the
-  // chrome) for the whole drag; releasing inside the left/right/bottom bands
-  // docks to that edge, releasing mid-area keeps floating, and the overlay
-  // hides either way. Tracking is POLL-based (QCursor + mouseButtons), so the
-  // drag is simulated via QTest press/release (which update the button state)
-  // plus QCursor::setPos — real event delivery is NOT required, exactly like
-  // a native macOS drag where moves never reach the widget.
-  // The REAL input path (no probes): the title bar consumes press/move/release
-  // itself, so a drag works even where Qt would hand the floating window to the
-  // window server (macOS) and never deliver the release.
+  // The REAL input path (no probes): the floating dock's title bar consumes
+  // press/move/release itself, so a drag works even where Qt hands the window to the
+  // window server (macOS) and never delivers the release.
   void chatDockDragViaMouseEvents() {
     MainWindow win;
     win.resize(1100, 800);
@@ -10990,7 +10858,7 @@ class MainWindowGuiTest : public QObject {
   // The hover shimmer must genuinely ANIMATE: after a hover-enter, the
   // overlay's sweep progress ADVANCES between two samples inside the 325 ms
   // window and clears (-1) on completion — not a band that pops in at a fixed
-  // position and sits there (user report on text-entry fields). Exercised on a
+  // position and sits there, on text-entry fields too. Exercised on a
   // shimmered text-entry control (toolbar spinbox) when visible, else any
   // shimmered toolbutton.
   void hoverShimmerAnimates() {
@@ -11126,18 +10994,10 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(!sawDialog);
     beat();
   }
-  // Pasting a layout over existing lines asks Combine / Replace / Cancel. Each answer
-  // carries a glyph, and the two REAL answers carry glyphs that describe them (layers =
-  // stack the incoming lines on the existing ones, swap = trade one layout for the other)
-  // rather than a generic tick. Browser parity: exportService.js confirmIcon / altIcon.
-  // ── Menu-bar coverage: the browser's toolbar sections must all be reachable ──
-  // The bug this locks down: Start/Stop Drawing were in the Edit menu but the instant
-  // line/rect items were not (only the rect one existed, and only on the toolbar and in
-  // the canvas context menu) — the menu bar gave no way to draw a shape instantly (the
-  // browser's Draw section has both). The same held for the line-style set and the image
-  // filter. Walking the real menu bar also proves the shared plain QActions did not get
-  // moved OUT of the context menu, which is exactly what would happen if a QWidgetAction
-  // were reused this way.
+  // Menu-bar coverage: every browser toolbar section must be reachable from the menu bar
+  // — Draw (start/stop plus the instant line and rect), the line-style set and the image
+  // filter. Walking the real menu bar also proves the shared plain QActions were not
+  // moved OUT of the context menu, which reusing a QWidgetAction would do.
   void menuBarExposesTheDrawAndStyleControls() {
     MainWindow win(nullptr, /*restoreLast=*/false);
 
@@ -12015,15 +11875,9 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // REGRESSION: the compare combo's connect() lived in buildStyleToolbar(), which
-  // buildToolbar() calls BEFORE buildDrawViewToolbar() — the function that actually
-  // constructs compareCombo_. Every click there wired to a still-null combo (Qt drops
-  // a connect() with a null sender, warning "invalid nullptr parameter"), so every row
-  // in the popup looked selectable but never touched the canvas (reported: "none of
-  // the options work"). Fixed by moving the connect() into buildDrawViewToolbar,
-  // right after compareCombo_ is built. A REAL click through the combo's own themed
-  // popup, not win.setCompareModeUi() called directly — that bypasses the exact wiring
-  // that was broken.
+  // A REAL click through the compare combo's own themed popup, not setCompareModeUi():
+  // the connect() has to live in buildDrawViewToolbar, after compareCombo_ is built —
+  // wired from buildStyleToolbar it was a connect() on a null sender, silently dropped.
   void compareComboClickActuallyChangesTheCanvas() {
     MainWindow win(nullptr, false);
     win.resize(1200, 800);
@@ -12285,16 +12139,10 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // REGRESSION (user report): MenuHotkeyChips shares ONE rows_ list across the WHOLE
-  // recursive wire() tree (root menu + every submenu level), but installPlacer() gives
-  // each level its OWN aboutToShow/live-poll calling place() with THAT level's `menu`.
-  // Without a "does this row actually belong to `menu`" check, opening ANY submenu
-  // (e.g. Style, which carries no hotkey rows of its own) called place(styleMenu),
-  // which asked styleMenu->actionGeometry() for a ROOT-level row like "Fit to Window"
-  // — got an invalid rect back (that action isn't IN Style's list) — and hid the
-  // root's own chip out from under it, even though the root menu was still showing
-  // behind it. With several submenu levels each polling on their own timer, no
-  // chip anywhere stayed shown long enough to shake, preview, or shimmer.
+  // MenuHotkeyChips shares ONE rows_ list across the whole recursive wire() tree while
+  // each level's placer calls place() with THAT level's `menu`, so every row must be
+  // checked against that menu — otherwise opening any submenu asks it for a root-level
+  // row's geometry, gets an invalid rect, and hides the root menu's own chips.
   void openingASubmenuDoesNotHideTheRootMenusOwnChips() {
     MainWindow win(nullptr, false);
     win.resize(1000, 700);
@@ -12849,15 +12697,9 @@ class MainWindowGuiTest : public QObject {
       // A slice tall enough to CARRY the pill (a shorter one deliberately hides
       // it — that rule has its own checks below).
       const int room = 21 + 8;
-      // Bubbles that all wrap to the same line count (browser shrink-to-fit
-      // parity: every long turn here stretches to the same cap width) land in
-      // exact lockstep — a card pitch that divides the viewport height evenly
-      // leaves the middle sitting BETWEEN two cards instead of straddling one,
-      // or leaves a clipped candidate's slice barely at `room` — just enough to
-      // pass the clip check, but too tight to also clear the jump pills sharing
-      // that same bottom-right corner (its own, correct, hide rule). Walk scroll
-      // positions out from the middle until BOTH clipped rows actually show
-      // their "…", not merely until each looks clipped.
+      // Bubbles that all wrap to the same line count land in exact lockstep, so a card
+      // pitch that divides the viewport evenly can leave no row both clipped and clear of
+      // the jump pills. Walk out from the middle until BOTH clipped rows show their "…".
       for (int v = bar->maximum() / 2; v <= bar->maximum(); v += 12) {
         bar->setValue(v);
         QTest::qWait(30);
@@ -13046,14 +12888,10 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // The transcript's jump pills float in the bottom-right corner — exactly where
-  // an assistant row's "…" lands when that row is the one being clipped. Two
-  // round controls stacked are unclickable, so the pills yield to the button and
-  // come straight back when it moves on.
-  // The pills are the higher-priority control (user report: they used to vanish
-  // under a row's "…", which read as broken scrolling) — they stay up regardless,
-  // and the TRIGGER gets out of their way: it shifts clear, or hides if a bubble
-  // too short leaves nowhere to shift it to (browser/extension parity).
+  // The transcript's jump pills float in the bottom-right corner — exactly where a
+  // clipped row's "…" lands, and two round controls stacked are unclickable. The pills
+  // are the higher-priority control: they stay, and the row trigger shifts clear, or
+  // hides when a bubble too short leaves nowhere to shift it to (browser parity).
   void chatJumpPillsYieldToTheRowMenu() {
     MainWindow win(nullptr, false);
     win.resize(1100, 700);
@@ -13696,7 +13534,7 @@ class MainWindowGuiTest : public QObject {
 
   // Deliberate NON-round-trip: the image filter/tint (and the compare split view,
   // which was never persisted to begin with) must NOT carry over into a freshly
-  // reopened desktop app (user report) — unlike everything else a session restores
+  // reopened desktop app — unlike everything else a session restores
   // (image, lines, page size, scale, crop, rotation, draw mode), which still does.
   void sessionRestoreDoesNotCarryOverTheFilterOrTint() {
     MainWindow win(nullptr, false);
@@ -14248,17 +14086,10 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // A reply bubble must HUG its text: the reserved label height is measured at
-  // the width the layout actually gives it. Measuring a freshly appended card
-  // at its default 100×30 child geometry reserved several times the needed
-  // height and left ~50 px dead bands above and below the centered text.
   // A tail's WIDGET geometry can look perfectly flush (chatSwapSidesReskinsRetroactively
-  // checks exactly that) while the pixels underneath still show a gap, if the
-  // card's own corner render ever stopped actually being flat under its tail —
-  // this checks the rendered PIXEL at that corner, not just the geometry, so a
-  // future edit that broke chatCardStyleSheet()'s flattened-corner radii would
-  // fail loudly here instead of only failing a user's eyeball (user report: a
-  // tail rendering as "a triangle with a visible gap from the message").
+  // checks that) while the pixels underneath still show a gap, so this samples the
+  // rendered PIXEL at the card's corner: a broken flattened-corner radius in
+  // chatCardStyleSheet() fails here rather than only on a user's eyeball.
   void chatBubbleTailRendersFlushNoGap() {
     // This case PAINTS: it samples the bubble's own corner. With motion on, the card is
     // hidden behind its arrival dust for the whole flight, so the grab caught motes and
@@ -14866,7 +14697,7 @@ class MainWindowGuiTest : public QObject {
 
   // Tab inside a flyout that hosts real controls (Style's spinners here) walks those
   // controls, wrapping, instead of QMenu's default "Tab is ↓" that never reached them
-  // (user report). The keyboard-opened submenu is the active popup, so keys go to it.
+  //. The keyboard-opened submenu is the active popup, so keys go to it.
   void ctxFlyoutTabWalksItsControls() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);
@@ -15224,7 +15055,7 @@ class MainWindowGuiTest : public QObject {
   // A flyout the first → only revealed still belongs to the parent's walk: ↓ moves the
   // ROOT highlight and folds the flyout (browser parity), and only after the second →
   // do ↑/↓ work inside it. Before, Qt walked the revealed flyout's rows, which for the
-  // radio flyout read as "the keys only move the radio focus" (user report).
+  // radio flyout read as "the keys only move the radio focus".
   void ctxRevealedFlyoutArrowsWalkTheParent() {
     MainWindow win(nullptr, false);
     win.resize(1000, 760);

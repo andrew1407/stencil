@@ -402,7 +402,7 @@ int main(int argc, char** argv) {
   // A QLineEdit emits returnPressed and then lets the key reach the dialog's DEFAULT
   // button, so wiring both fired doConnect twice: the first call connected and cleared
   // the field, the second found it empty and toasted "Enter a server URL" over the
-  // connection that had just been made (user report).
+  // connection that had just been made.
   {
     ConnectionManager fresh;
     ConnectDialog d(&fresh);
@@ -455,7 +455,7 @@ int main(int argc, char** argv) {
   // ── A refused credential clears the fields; an unreachable host does not ─────
   // The refused one still leaves a row (Status::Expired, URL intact, Reconnect on it), so
   // the fields that put it there are done — leaving them typed in invited adding the same
-  // server twice (user report). Nothing left behind keeps its text, to be corrected.
+  // server twice. Nothing left behind keeps its text, to be corrected.
   {
     ConnectionManager fresh;
     ConnectDialog d(&fresh);
@@ -501,7 +501,7 @@ int main(int argc, char** argv) {
   // ── Return connects even with NO focus widget ────────────────────────────────
   // Removing a row destroys the trash button that had the focus, leaving the dialog with
   // none at all — and a Return handler that lives on the fields never sees the key then
-  // (user report: after removing a connection, Enter stopped adding one).
+  // (after removing a connection, Enter stopped adding one).
   {
     ConnectionManager fresh;
     ConnectDialog d(&fresh);
@@ -530,7 +530,7 @@ int main(int argc, char** argv) {
 
   // ── The row's Reconnect toast NAMES the server ───────────────────────────────
   // A bare "Reconnected" never said which one signed back in — with more than one saved
-  // connection the toast was useless (user report, with a picture). Browser twin:
+  // connection the toast was useless. Browser twin:
   // connectModal.js `Reconnected to ${url}`.
   {
     ConnectionManager fresh;
@@ -557,7 +557,7 @@ int main(int argc, char** argv) {
   // ── FlowLayout's own hint is what it needs ──────────────────────────────────
   // The bar hands `actions` exactly its sizeHint, so a hint one pixel under what the
   // layout really needs makes it wrap EVERY item onto its own line — the connections
-  // batch bar's three buttons in a column (user report, with a picture). Two off-by-ones
+  // batch bar's three buttons in a column. Two off-by-ones
   // caused it, in the same direction: `QSize size;` is (-1,-1), so the width sum started
   // short, and the wrap test read `x + w > right()` when an item that ENDS on right()
   // still fits. Pinned together, because either alone still misses by one.

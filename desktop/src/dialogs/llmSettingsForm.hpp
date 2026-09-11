@@ -16,17 +16,12 @@ namespace stencil::llm {
   class QtLlmTransport;
 }
 
-// The LLM assistant rows (llm-contract.md §5) shared by the full
-// SettingsDialog and the assistant-only AssistantSettingsDialog: provider
-// (incl. "None (turned off)"), base URL, model, API key, saved-server
-// combo, and a live Status row (dot + text fed by the same LlmClient::probe
-// behind the chat dock's gear dot, re-probed as the fields change). The base
-// URL pre-fills with the provider default and re-fills on a provider switch
-// unless the user edited it; the model combo is editable with async
-// provider-supplied suggestions (free-typed text always wins). The two hosts
-// differ only in how irrelevant per-provider rows are treated: HideRows
-// removes them (browser assistant-modal parity, incl. the local-provider
-// note); DisableRows greys them out so the full sheet's row grid stays stable.
+// The LLM assistant rows (llm-contract.md §5) shared by SettingsDialog and the
+// assistant-only AssistantSettingsDialog: provider, base URL, model, API key, saved-server
+// combo and a live Status row (the same LlmClient::probe behind the chat dock's gear dot).
+// The base URL re-fills on a provider switch unless the user edited it; the model combo
+// takes async suggestions but free-typed text wins. The hosts differ only in irrelevant
+// rows: HideRows removes them (browser assistant-modal parity), DisableRows greys them.
 namespace stencil::gui {
 
   class LlmSettingsForm : public QWidget {

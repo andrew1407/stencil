@@ -426,13 +426,10 @@ namespace stencil::gui {
     constructed_ = true;   // tab switches from here on are USER switches — they fade
   }
 
-  // One dialog height across the source tabs (browser parity: the shell is sized for
-  // the tallest tab — Blank — and the shorter tabs keep the slack above the footer).
-  // Measured on FIRST SHOW, not in the constructor: updateGeometry() is a no-op on a
-  // hidden widget, so pre-show every tab reports the same stale sizeHint. A top-level
-  // window never shrinks on its own, so opening at the tallest keeps it constant; a
-  // preview landing later still grows it (no explicit minimum is pinned, which would
-  // override the layout's real minimum and let content squeeze).
+  // One dialog height across the source tabs, sized for the tallest (browser parity).
+  // Measured on FIRST SHOW: updateGeometry() is a no-op on a hidden widget, so pre-show
+  // every tab reports the same stale sizeHint. No explicit minimum is pinned — that would
+  // override the layout's own and let the content squeeze.
   void OpenImageDialog::showEvent(QShowEvent* event) {
     QDialog::showEvent(event);
     if (measured_) return;

@@ -1,10 +1,7 @@
 #pragma once
-// Mirrors server/internal/protocol over REST using QNetworkAccessManager. The
-// desktop deliberately uses Qt Network (already linked) rather than a WebSocket
-// library; live editing uses a raw QTcpSocket NDJSON transport (see the server's
-// TCP listener) so no third-party dependency is added. This header covers the
-// REST surface (connect/list/create/upload/download) plus a small manager that
-// holds multiple connections for one window.
+// Mirrors server/internal/protocol over REST using QNetworkAccessManager, plus a
+// small manager holding one window's connections. Live editing rides a raw QTcpSocket
+// NDJSON transport rather than a WebSocket library, so no dependency is added.
 #include "connectionStore.hpp"
 #include <QByteArray>
 #include <QJsonArray>
@@ -60,12 +57,9 @@ namespace stencil::net {
   class ServerClient {
    public:
     // Connection status for the UI dot: Connecting (yellow) | Connected (green) |
-    // Expired (amber) | Error (red).
-    //
-    // Expired is deliberately NOT Error: the credential was refused (401/403), the
-    // server itself is fine, and the saved connection (URL + label) is kept so the
-    // user can sign in again from the row. Retrying it in a loop would only burn
-    // requests against a token the server has already rejected.
+    // Expired (amber) | Error (red). Expired is deliberately NOT Error: the credential
+    // was refused (401/403), the server is fine, and the saved connection is kept so the
+    // user can sign in again from the row instead of retrying a rejected token.
     enum class Status { Connecting, Connected, Expired, Error };
 
     // Outcome of one guarded PUT (and of the guarded-write loop as a whole): the write
@@ -73,9 +67,7 @@ namespace stencil::net {
     enum class GuardOutcome { Committed, Conflict, Failed };
 
     // What the stored credential IS (browser parity: ServerConnection.credentialKind):
-    //   Admin   — PROVEN able to mint a session token: the /projects probe failed (or
-    //             was skipped for a known admin credential) and minting WITH it worked,
-    //             at connect OR mid-session. Only these can mint invites.
+    //   Admin   — PROVEN able to mint a session token; only these can mint invites.
     //   Session — the supplied token passed the /projects probe directly.
     //   None    — no credential at all: the session was minted anonymously.
     enum class CredentialKind { None, Session, Admin };
@@ -118,10 +110,9 @@ namespace stencil::net {
     static CredentialKind kindFromTag(const QString& tag);
 
     // Each kicks off the request and invokes `done` on the GUI thread when the reply
-    // completes; error strings and 409→conflict semantics match the REST wire contract.
-    // Callers must guard the callback's captures (QPointer) so a reply finishing after the
-    // caller is destroyed is a safe no-op; one finishing after THIS client is destroyed is
-    // already safe (the connection is bound to nam_, which dies with the client).
+    // completes. Callers must guard the callback's captures (QPointer): a reply finishing
+    // after the caller dies must be a no-op (after the CLIENT dies it already is — the
+    // connection is bound to nam_).
     void connectAsync(const QString& token, std::function<void(bool ok)> done,
                       CredentialKind hint = CredentialKind::None);
     void reconnectAsync(std::function<void(bool ok)> done);

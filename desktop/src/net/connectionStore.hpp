@@ -1,11 +1,7 @@
 #pragma once
 // Persisted server connections + the auto-connect preference — the desktop
-// counterpart of browser/js/net/connectionStore.js (which uses localStorage).
-// Backed by QSettings (org/app set in main()), so the connected server set and
-// the "auto-connect on open" toggle survive across launches — except each token,
-// which is a secret and lives in fileStore's owner-only secrets file. Kept out of
-// fileStore's Settings struct because the connect UI persists these on every
-// change (not via the Settings dialog).
+// counterpart of browser/js/net/connectionStore.js. Backed by QSettings, except
+// each token: a secret, so it lives in fileStore's owner-only secrets file.
 #include <QString>
 #include <QVector>
 

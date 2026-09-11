@@ -269,12 +269,10 @@ namespace stencil::gui {
     fitToScreen(chrome, footer);
   }
 
-  // The browser shell is `width:auto` here: the preview sets the width, and the footer
-  // its floor — the modal is as wide as its footer's ONE line, so the hint opens beside
-  // the buttons rather than wrapped above them and the preview centres in the wider
-  // body. Never under kMinDialogW, never narrower than the preview itself — and never
-  // past the screen: the chrome around the preview (header, size line, footer, padding)
-  // is measured and the preview re-fitted to what the screen leaves for it.
+  // The browser shell is `width:auto` here: the preview sets the width and the footer its
+  // floor (one line, so the hint sits beside the buttons). Never under kMinDialogW, never
+  // narrower than the preview, never past the screen — the chrome is measured and the
+  // preview re-fitted to what is left.
   void CropDialog::fitToScreen(const ModalChrome& chrome, const QHBoxLayout* footer) {
     const QRect avail = screenAvail(this);
     const QSize box = previewFitBox(avail);

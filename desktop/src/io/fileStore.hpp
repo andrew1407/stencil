@@ -12,11 +12,9 @@
 #include <optional>
 #include <vector>
 
-// File persistence adapter — the desktop counterpart of browser/js/core/
-// storage.js + projectsStore.js (which use localStorage / IndexedDB). All state
-// lives in a single repo-local, gitignored directory (desktop/.stencil/), as the
-// user requested: settings.json, session.autosave (the "last edited" blob), and
-// projects.json. JSON parsing uses Qt here so the core/ library stays STL-only.
+// File persistence adapter — the desktop counterpart of browser/js/core/storage.js +
+// projectsStore.js. All state lives in one repo-local, gitignored directory
+// (desktop/.stencil/). JSON parsing is Qt's here, so core/ stays STL-only.
 namespace stencil::gui {
 
   // Persisted user settings + default visuals (mirrors the browser settings /
@@ -109,10 +107,7 @@ namespace stencil::gui {
     // lib/chatLayoutPrefs.js, one boolean apart from their string enum.
     bool chatSwapSides = false;
     // Put the menu bar where the PLATFORM does (macOS/Unity global bar) instead of
-    // inside the window. Default true. It is off-by-default only in effect on the
-    // desktops where Qt's native export leaves an empty in-window bar — the reason
-    // this was hardcoded before it became a choice. Windows has no global bar, so
-    // the value is inert there.
+    // inside the window. Inert on Windows, which has no global bar.
     bool nativeMenuBar = true;
     // QMainWindow::saveState() bytes, base64 — restores the chat/selection dock
     // areas + floating geometry on boot ("" = never saved).
@@ -220,10 +215,9 @@ namespace stencil::gui {
       QString formulaY;
     };
 
-    // Layout-JSON envelope (mirrors browser layout.js buildLayoutPayload).
-    // {imageWidth,imageHeight,lines,imageFilter,filterColor} plus cropRect (rotated-image
-    // pixels, omitted when empty) + rotationQuarters (omitted when 0), so old exports stay
-    // byte-identical; parseLayoutJson leaves an out-pointer untouched when absent.
+    // Layout-JSON envelope (mirrors browser layout.js buildLayoutPayload): cropRect
+    // (rotated-image pixels) and rotationQuarters are omitted when empty/0 so old exports
+    // stay byte-identical, and parseLayoutJson leaves an out-pointer untouched when absent.
     // `meta` adds the page format + formulas (server save passes it; file export omits it).
     QJsonObject buildLayoutJson(int w, int h, const core::Lines& lines,
                                 const QString& imageFilter = "none",
@@ -264,11 +258,9 @@ namespace stencil::gui {
     // on success `out.imageBytes` holds the DECODED image and `out.layout` the layout object.
     bool parseProjectFile(const QByteArray& bytes, ProjectFileData& out, QString* err = nullptr);
 
-    // Persisted-chat document (llm-contract.md §12.1)
-    // {version:1, savedAt:<ms>, messages:[{role:"user"|"assistant", text}]} —
-    // text-only (images never persisted), most recent 32 turns. Both helpers
-    // sanitize: unknown roles/fields and non-string texts are dropped, and an
-    // unknown version reads as "no saved chat" (never an error).
+    // Persisted-chat document (llm-contract.md §12.1): text-only (images are never
+    // persisted), most recent 32 turns. Both helpers sanitize — unknown roles/fields and
+    // non-string texts are dropped, and an unknown version reads as "no saved chat".
     inline constexpr int kChatDocVersion = 1;
     inline constexpr int kChatDocMessageLimit = 32;
     QJsonObject buildChatDoc(const QJsonArray& messages, qint64 savedAt);
