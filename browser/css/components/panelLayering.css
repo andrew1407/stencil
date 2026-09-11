@@ -1,0 +1,156 @@
+/* ── In-panel layering (inside stencil-chat-panel's own stacking context) ──
+   Everything here is ordered against its SIBLINGS, not the page: the panel itself sits
+   at 90000, so these numbers only ever compete with each other.
+     1  message rows and their chrome
+     5  the composer's drop cue (inside the input box)
+     6  .chat-jumps — the floating ⌃/⌄ pills, a transient AFFORDANCE
+    10  in-panel POPUPS — the composer's "…" menu. A popup is a deliberate act and must
+        cover the affordances; at 5 the ⌃ pill drew straight over "Add image" (user
+        report). Anything new that pops open inside the panel belongs at this level.
+   Body-level popups (the per-message row menu, the status tip) are a separate story:
+   they are appended to <body> in the app's 100003 popup tier, above the panel entirely. */
+.chat-more-menu {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    min-width: 168px;
+    padding: 4px;
+    gap: 2px;
+    border: 1px solid var(--border-main);
+    border-radius: 8px;
+    background: var(--bg-container);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.chat-more-menu[hidden] { display: none; }
+.chat-more-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-main);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+.chat-more-item:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+/* An item that cannot act right now (attach at the §7 cap or mid-turn, clear on an
+   empty conversation) leaves the menu instead of greying out (user decision; the
+   desktop … menu hides its actions the same way). */
+.chat-more-item:disabled { display: none; }
+/* Commit/discard pair in a settings footer (assistant modal — desktop dialog
+   parity: edits reach storage only on Save). */
+.chat-settings-actions { display: inline-flex; gap: 8px; flex: 0 0 auto; }
+.chat-settings-actions .primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.settings-footer .footer-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    flex: 1;
+}
+/* Reset All — this footer's and the visuals modal's: the affirmative action of the
+   dialog, so it wears the accent fill every plain <button> gets (layout.css) rather
+   than an outline, matching the desktop twins (makeModalCta in shortcutsDialog.cpp /
+   settingsDialog.cpp). Only the compact footer sizing is its own; the hover lift
+   (--accent-2) and the on-accent ink come from the shared button rules. */
+#reset-all-hotkeys, #vs-reset {
+    font-size: 12.5px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+/* A grid, not a <table>: a row must be a real box to wear the .shimmer sweep (a <tr>
+   hosts no ::after). Subgrid keeps every row on the head's four columns. */
+.hotkey-table {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content max-content 30px;
+    width: 100%;
+    font-size: 13px;
+}
+.hotkey-rows { display: contents; }
+.hotkey-head, .hotkey-row {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: 1 / -1;
+    align-items: center;
+    border-bottom: 1px solid var(--border-coord);
+}
+.hotkey-head > span, .hotkey-td { padding: 7px 10px; text-align: left; }
+/* The two keycap columns centre their contents, head included. */
+.hotkey-head > span:nth-child(2), .hotkey-head > span:nth-child(3),
+.hotkey-td:nth-child(2), .hotkey-td:nth-child(3) { text-align: center; }
+/* Table/info keycaps wear no face: the container fill read as a dark box on a hovered row. */
+.hotkey-table .tip-key, .info-key .tip-key { background: transparent; }
+/* Pin the head while the body scrolls (above the rows' shimmer layer). */
+.hotkey-head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--bg-coord-even);
+    font-weight: bold;
+    box-shadow: 0 1px 0 var(--border-coord);
+}
+/* Half the row-hover tint — at full strength the keycaps' border vanished into it. */
+.hotkey-row:hover { background: color-mix(in srgb, var(--bg-coord-hover) 50%, var(--bg-container)); }
+.hotkey-row.shimmer::after { border-radius: 0; }
+.hotkey-no-match { grid-column: 1 / -1; }
+.hotkey-td-reset { text-align: center; }
+/* The combo: the tooltips' keycaps in a quiet click target that wears the accent while capturing. */
+.hotkey-cell {
+    cursor: pointer;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border-radius: 6px;
+    padding: 3px 8px;
+    min-width: 110px;
+    box-sizing: border-box;
+    border: 1px solid transparent;
+    color: var(--text-main);
+}
+/* No hover frame of its own — the row's tint and the caps' shake say "hover". */
+.hotkey-cell:hover .tip-key, .hotkey-default:hover .tip-key, .info-item:hover .info-key .tip-key {
+    animation: keycapShake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+.hotkey-unset { font-family: 'Menlo','Consolas',monospace; font-size: 12.5px; color: var(--text-muted); }
+/* Phone: trim the cell chrome and let the caps wrap rather than widen their column. */
+@media (max-width: 680px) {
+    /* The keycap columns may shrink below their content, so Action keeps a readable floor. */
+    .hotkey-table { font-size: 12.5px; grid-template-columns: minmax(90px, 1fr) minmax(0, max-content) minmax(0, max-content) 26px; }
+    .hotkey-head > span, .hotkey-td { padding: 7px 5px; }
+    .hotkey-cell { min-width: 0; padding: 3px 4px; flex-wrap: wrap; }
+    .hotkey-cell .tip-key, .hotkey-default .tip-key { font-size: 12px; padding: 2px 4px; }
+    .hotkey-default { min-width: 0; }
+}
+.hotkey-cell.capturing {
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent);
+    color: var(--text-main);
+    font-family: 'Menlo','Consolas',monospace;
+    font-size: 12.5px;
+}
+/* The default: the same caps as the current combo (one size, one look), centred. */
+.hotkey-default { display: inline-flex; align-items: center; justify-content: center; gap: 2px; flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) {
+    .hotkey-cell:hover .tip-key, .hotkey-default:hover .tip-key, .info-item:hover .info-key .tip-key { animation: none; }
+}
+.hotkey-reset-btn {
+    background: transparent;
+    border: none !important;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 14px;
+    border-radius: 4px;
+}
+.hotkey-reset-btn:hover { color: var(--text-main); background: var(--bg-coord-hover); }
+
+/* nested ctx items inside a submenu — keep them visually distinct  */
+.ctx-sub .ctx-item.ctx-sub-item { margin: 0 4px; }

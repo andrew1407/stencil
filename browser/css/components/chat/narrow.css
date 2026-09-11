@@ -1,0 +1,377 @@
+/* ── Narrow column: below this the left/right split has no room to READ as one —
+   88% max-width either squeezes the text into a sliver or the two sides sit close
+   enough to look accidental. Both roles go near-full-width and STACK instead, one
+   under the other; colour + the tail still carry which side spoke. Measured off the
+   TRANSCRIPT's own box (container query), so a resized dock/float answers correctly
+   without a resize listener — the ctx-assist flyout (no container-type) is
+   unaffected, it already renders at a fixed compact width. */
+@container chat-transcript (max-width: 300px) {
+    /* flex-start, not stretch: a short "ok" still sizes to its content — only the
+       alternating LEFT/RIGHT indent goes away, not the bubble's own shape. The doubled
+       class matches the swap rules' specificity above and sits later, so column mode
+       wins with no !important on align-self; max-width keeps its !important because it
+       must also outrank the inline shrink-wrap pin (chatView.js applyShrinkWrap). */
+    .chat-msg.chat-msg-user, .chat-msg.chat-msg-assistant, .chat-msg.chat-msg-error {
+        max-width: 96% !important;
+        align-self: flex-start;
+    }
+}
+
+/* Variant / frame result cards: thumbnail + label + download / open-as-working. */
+/* §11 choice card: the model's question rendered as pick-one / pick-many, with the option
+   previews it rendered. Sits in the transcript flow like a result row. */
+.chat-ask {
+    align-self: flex-start;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 9px 11px;
+    border: 1px solid var(--border-main);
+    border-radius: 10px;
+    background: var(--bg-container);
+    font-size: 12.5px;
+}
+.chat-ask-q { font-weight: 600; }
+.chat-ask-options { display: flex; flex-direction: column; gap: 4px; }
+.chat-ask-option {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 6px; border-radius: 7px; cursor: pointer;
+}
+.chat-ask-option:hover { background: var(--bg-hover, rgba(127, 127, 127, .12)); }
+.chat-ask-option input { cursor: pointer; margin: 0; flex: 0 0 auto; }
+/* A rendered preview of that choice — bigger than a favicon, small enough for five in a row. */
+.chat-ask-thumb {
+    width: 56px; height: 56px; object-fit: contain; flex: 0 0 auto;
+    border: 1px solid var(--border-main); border-radius: 6px; background: var(--bg-main);
+}
+.chat-ask-label { min-width: 0; overflow-wrap: anywhere; }
+.chat-ask-custom-text {
+    flex: 1 1 auto; min-width: 0; font: inherit; padding: 3px 6px;
+    border: 1px solid var(--border-main); border-radius: 6px;
+    background: var(--bg-main); color: var(--text-main);
+}
+.chat-ask-actions { display: flex; align-items: center; gap: 8px; }
+/* An affirmative action like any other in the app: the accent fill, the hover lift and the
+   glass sweep all come from the shared `button` rules (layout.css) — only the card's
+   tighter metrics are its own. It used to paint itself from `--accent-color`, a variable
+   that does not exist: the whole declaration was invalid, so the button came out as bare
+   white text on the card with no box at all (user report, with a picture). */
+.chat-ask-submit {
+    font: inherit; padding: 3px 12px; border-radius: 7px; cursor: pointer;
+}
+.chat-ask-submit:disabled { opacity: .5; cursor: default; }
+/* Answered: the card stops being a control and becomes the record of what was sent. */
+.chat-ask-answered { opacity: .8; }
+.chat-ask-answered .chat-ask-option { cursor: default; }
+.chat-ask-sent { color: var(--text-muted); font-style: italic; }
+
+.chat-results { display: flex; flex-wrap: wrap; gap: 8px; align-self: flex-start; }
+.chat-result {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 7px;
+    border: 1px solid var(--border-main);
+    border-radius: 8px;
+    background: var(--bg-container);
+    font-size: 12px;
+}
+.chat-result-thumb {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 5px;
+    border: 1px solid var(--border-main);
+}
+.chat-result-label { color: var(--text-muted); max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-result-btn { display: inline-flex; }
+
+/* What the USER attached to a turn: thumbnails above their own message, so they sit
+   on the user's side of the transcript (flex-end) like the bubble they belong to. */
+.chat-attached { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; align-self: flex-end; max-width: 88%; }
+.chat-attached-item { position: relative; display: inline-flex; }
+.chat-attached-thumb {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border-main);
+    background: var(--bg-container);
+}
+/* Hover preview: the thumbnail is deliberately small, so hovering shows the picture
+   at a readable size. On the BODY (the panel clips its overflow), above everything.
+   Sized by the SAME rule as the projects modal's row zoom (.project-thumb-zoom img):
+   a hover preview is a GLANCE, not a lightbox — unclamped it filled most of the
+   window and buried the conversation it belongs to. */
+.chat-thumb-preview {
+    position: fixed;
+    left: -9999px;                 /* measured, then placed by wireThumbPreview */
+    z-index: 100010;               /* over the panel (90000) and its cue */
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px;
+    border: 1px solid var(--border-main);
+    border-radius: 10px;
+    background: var(--bg-controls);
+    box-shadow: 0 10px 30px var(--shadow);
+    pointer-events: none;          /* never steals the hover that opened it */
+    opacity: 0;
+}
+.chat-thumb-preview-in { opacity: 1; }
+.chat-thumb-preview img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 25vw;
+    max-height: 20vh;
+    object-fit: contain;
+    border-radius: 6px;
+}
+.chat-thumb-preview-cap { max-width: 25vw; color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; }
+/* Alt held while hovering: the glance doubles (chatView altPreview). */
+.chat-thumb-preview.chat-thumb-preview-xl img { max-width: 50vw; max-height: 40vh; }
+.chat-thumb-preview.chat-thumb-preview-xl .chat-thumb-preview-cap { max-width: 50vw; }
+
+/* A video attachment shows its first sampled frame — the badge says so, since the
+   video itself never goes to the model (contract §7). */
+.chat-attached-badge {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 10px;
+    line-height: 1.4;
+    color: var(--text-key);
+    background: color-mix(in srgb, var(--accent) 85%, transparent);
+}
+
+/* Jump pills riding the transcript's bottom edge: a zero-height strip between the
+   transcript and the tray anchors them, so they float over the log without owning
+   layout. ⌃ = the very beginning, ⌄ = the latest message; each shows only while
+   there is somewhere to go (can-up / can-down, chatPanel syncJumps). */
+.chat-jumps { position: relative; height: 0; overflow: visible; z-index: 6; }
+/* …6 is only ever contested INSIDE the panel: every popup that can cover this corner
+   (the row menu, the tooltip) sits in the 100003 tier, far above the panel's own 90000. */
+.chat-jump-btn {
+    position: absolute;
+    bottom: 8px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--border-main);
+    background: var(--bg-controls);
+    color: var(--text-muted);
+    cursor: pointer;
+    box-shadow: 0 2px 8px var(--shadow);
+    /* Translucent at rest so a short bubble under a pill stays readable; the cursor
+       brings it back to full (the same .7 rest the row "…" triggers take). */
+    opacity: .7;
+    transition: opacity .12s ease;
+}
+.chat-jump-btn:hover { color: var(--text-main); border-color: var(--accent); opacity: 1; }
+#chat-jump-bottom { right: 14px; }
+#chat-jump-top { right: 48px; }
+.chat-jumps.can-up #chat-jump-top, .chat-jumps.can-down #chat-jump-bottom { display: inline-flex; }
+.chat-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 10px 0;
+    flex: 0 0 auto;
+}
+.chat-attach-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 7px 3px 3px;
+    border: 1px solid var(--border-main);
+    border-radius: 12px;
+    background: var(--bg-container);
+    font-size: 12px;
+}
+/* The queued picture, small: what you dropped is recognisable at a glance, and
+   hovering magnifies it (.chat-thumb-preview). */
+.chat-attach-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;   /* rounded square — 9px read as a circle at this size */
+    object-fit: cover;
+    border: 1px solid var(--border-main);
+}
+/* Ellipsised — the full name lives on the title, since a fetched data: URL can have
+   no name worth showing and a page's filenames run long. */
+.chat-attach-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Input row: the textarea stretches; the compact action icons (attach · gear · send)
+   group on the RIGHT. */
+.chat-input-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    padding: 8px 10px;
+    border-top: 1px solid var(--border-main);
+    flex: 0 0 auto;
+}
+.chat-input-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex: 0 0 auto;
+    align-self: flex-end;
+    padding-bottom: 2px;
+}
+#chat-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    /* Height driven by the slider strip above the row (.chat-input-sizer) — the
+       native corner grip is off (the textarea is bottom-anchored, so only its top
+       edge can actually move). Clamped here, persisted by the panel. */
+    resize: none;
+    /* Tall enough that the whole placeholder (three short lines at 14px line
+       height ~19px, plus padding and border) reads without clipping — 64px cut
+       the first line in the compact float; the sizer strip above still
+       grows/shrinks it. */
+    min-height: 76px;
+    max-height: 40vh;
+    font-size: 14px;   /* matches the transcript and the app base size */
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border-main);
+    background: var(--input-bg);
+    color: var(--input-text);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+/* Same focus glow as the app's text/number inputs (animations.css), which the
+   bare textarea selector there doesn't cover. */
+#chat-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+/* Slider-style input-height handle: same pill affordance as the float handles. */
+.chat-input-sizer { flex: 0 0 auto; height: 8px; position: relative; cursor: ns-resize; touch-action: none; user-select: none; }
+.chat-input-sizer::before, .ctx-assist-sizer::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--border-main);
+    transition: background 0.15s, width 0.15s;
+}
+stencil-chat-panel:not(.chat-gesturing) .chat-input-sizer:hover::before, .chat-input-sizer.dragging::before,
+.ctx-assist-sizer:hover::before, .ctx-assist-sizer.dragging::before { background: var(--accent); width: 68px; }
+/* Drop-to-attach cue. The target is the TEXT BOX, not the whole row: a drop there
+   means "take this into the message I'm writing", while the buttons beside it and
+   the transcript above stay out of it (the panel swallows those and says where to
+   aim). The cue is an icon + label drawn OVER the box (pointer-events: none keeps
+   the drop on the wrap), never a tint the input shows through. Extension parity:
+   popup.css .chat-composer.drop-over. */
+.chat-input-wrap { position: relative; display: flex; flex: 1 1 auto; min-width: 0; }
+.chat-drop-cue {
+    position: absolute;
+    inset: 2px;
+    z-index: 5;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 2px dashed var(--accent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--accent) 16%, var(--bg-controls));
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    pointer-events: none;
+}
+.chat-input-wrap.chat-drop-target .chat-drop-cue { display: flex; }
+.chat-input-wrap.chat-drop-target textarea { caret-color: transparent; }
+.chat-drop-cue-icon { display: inline-flex; }
+
+/* Resize handle: an edge strip while docked, the bottom-right corner while floating
+   (same wirePanelResizer feel as the coordinates panel splitter). touch-action off
+   so the pointer drag owns the gesture on touch devices too. */
+.chat-resizer { position: absolute; background: transparent; touch-action: none; user-select: none; }
+/* Hover affordances are gated on :not(.chat-gesturing): while ONE handle drags,
+   the others must not light up as the pointer sweeps them. .dragging always shows. */
+stencil-chat-panel:not(.chat-gesturing) .chat-resizer:hover, .chat-resizer.dragging { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+stencil-chat-panel.chat-dock-left   .chat-resizer { top: 0; right: 0;  bottom: 0; width: 6px;  cursor: col-resize; }
+stencil-chat-panel.chat-dock-right  .chat-resizer { top: 0; left: 0;   bottom: 0; width: 6px;  cursor: col-resize; }
+stencil-chat-panel.chat-dock-top    .chat-resizer { left: 0; right: 0; bottom: 0; height: 6px; cursor: row-resize; }
+stencil-chat-panel.chat-dock-bottom .chat-resizer { left: 0; right: 0; top: 0;    height: 6px; cursor: row-resize; }
+stencil-chat-panel.chat-dock-float  .chat-resizer { right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; border-radius: 10px 0 10px 0; }
+/* …and the SE corner shows the same dot the other three do. #chat-resizer owns that
+   corner in every mode, so it never picked up .chat-float-handle::before and sat blank.
+   Anchored 7px in, like the 14px handle box's centred dot; the block tint is dropped
+   in float so all four read alike. */
+stencil-chat-panel.chat-dock-float .chat-resizer::before {
+    content: '';
+    position: absolute;
+    right: 7px;
+    bottom: 7px;
+    transform: translate(50%, 50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border-main);
+    transition: background 0.15s, width 0.15s, height 0.15s;
+}
+stencil-chat-panel.chat-dock-float:not(.chat-gesturing) .chat-resizer:hover,
+stencil-chat-panel.chat-dock-float .chat-resizer.dragging { background: transparent; }
+stencil-chat-panel.chat-dock-float:not(.chat-gesturing) .chat-resizer:hover::before,
+stencil-chat-panel.chat-dock-float .chat-resizer.dragging::before { background: var(--accent); width: 8px; height: 8px; }
+
+/* Float-mode edge/corner resize handles (#chat-resizer stays the SE corner grip).
+   Kept fully inside the host rect — the panel is overflow:hidden. Affordance follows
+   #fs-panel-resizer: a centered pill, resting border-main, accent + grow on hover/drag. */
+.chat-float-handle { display: none; position: absolute; background: transparent; touch-action: none; user-select: none; }
+.chat-dock-float .chat-float-handle { display: block; }
+.chat-float-handle::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 2px;
+    background: var(--border-main);
+    transition: background 0.15s, width 0.15s, height 0.15s;
+}
+.chat-float-handle-n::before, .chat-float-handle-s::before { width: 44px; height: 3px; }
+.chat-float-handle-e::before, .chat-float-handle-w::before { width: 3px; height: 44px; }
+.chat-float-handle-nw::before, .chat-float-handle-ne::before, .chat-float-handle-sw::before { width: 6px; height: 6px; border-radius: 50%; }
+stencil-chat-panel:not(.chat-gesturing) .chat-float-handle:hover::before, .chat-float-handle.dragging::before { background: var(--accent); }
+stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-n:hover::before, stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-s:hover::before,
+.chat-float-handle-n.dragging::before, .chat-float-handle-s.dragging::before { width: 68px; }
+stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-e:hover::before, stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-w:hover::before,
+.chat-float-handle-e.dragging::before, .chat-float-handle-w.dragging::before { height: 68px; }
+stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-nw:hover::before, stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-ne:hover::before, stencil-chat-panel:not(.chat-gesturing) .chat-float-handle-sw:hover::before,
+.chat-float-handle-nw.dragging::before, .chat-float-handle-ne.dragging::before, .chat-float-handle-sw.dragging::before { width: 8px; height: 8px; }
+.chat-float-handle-n  { top: 0; left: 14px; right: 14px; height: 6px; cursor: ns-resize; }
+.chat-float-handle-s  { bottom: 0; left: 14px; right: 20px; height: 6px; cursor: ns-resize; }
+.chat-float-handle-e  { right: 0; top: 14px; bottom: 20px; width: 6px; cursor: ew-resize; }
+.chat-float-handle-w  { left: 0; top: 14px; bottom: 14px; width: 6px; cursor: ew-resize; }
+.chat-float-handle-nw { top: 0; left: 0; width: 14px; height: 14px; cursor: nwse-resize; border-radius: 10px 0 0 0; }
+.chat-float-handle-ne { top: 0; right: 0; width: 14px; height: 14px; cursor: nesw-resize; border-radius: 0 10px 0 0; }
+.chat-float-handle-sw { bottom: 0; left: 0; width: 14px; height: 14px; cursor: nesw-resize; border-radius: 0 0 0 10px; }
+
+/* Phone-modal backdrop; display:none (so it swallows no taps) on every viewport
+   where the panel is a dock/float. Mirrors .app-modal-overlay's dim + blur. */
+#chat-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 89998;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}

@@ -1,0 +1,387 @@
+/* ── Projects modal rows ────────────────────────────────────────── */
+/* The projects modal keeps a real working height even with one row (desktop-dialog
+   parity): the list body flexes and scrolls inside. The compact popover shape and
+   short viewports keep their own caps. */
+#projects-modal-overlay:not(.modal-popover) .app-modal { min-height: min(560px, 82vh); }
+.project-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 10px; border: 1px solid var(--border-main); border-radius: 8px;
+    margin-bottom: 8px; cursor: pointer; background: var(--input-bg);
+}
+.project-row:hover { background: var(--bg-info); }
+.project-row.project-active { border-color: var(--text-key); }
+/* The row for whatever's open in THIS editor right now — "(Current)" in the accent,
+   right after the origin badge it already sits beside (js/ui/projectsModal.js) — no
+   icon or separate mark of its own. */
+.project-current-badge { color: var(--accent); font-weight: 600; }
+.project-row.project-temp { cursor: default; opacity: 0.92; border-style: dashed; }
+.project-row.project-selected { border-color: var(--accent); background: var(--bg-info); }
+/* Drag-reorder cues (Manual sort): the dragged row dims; a bar marks the edge it would
+   land before/after. Skeleton/temp rows aren't draggable. */
+/* Touch drag (touchDrag.js): allow the list to still scroll vertically by finger (pan-y) while a
+   long-press picks a row up for drag; suppress the long-press text-selection / callout menu. */
+.project-row, .connect-row { touch-action: pan-y; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.project-row.project-dragging { opacity: 0.3; }
+/* The row is a real button for the keyboard (Enter/Space open it) — give it the app's
+   focus ring instead of the browser default outline. */
+.project-row:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+/* Insertion line showing WHERE the dragged row will land (a bright bar in the gap above/below). */
+.project-row.project-drop-before { box-shadow: 0 -4px 0 -1px var(--accent); }
+.project-row.project-drop-after { box-shadow: 0 4px 0 -1px var(--accent); }
+/* Drag-out drop zones (feature #4): painted BEHIND the dialog card while a project row is
+   dragged. Top 70% split Open here / Open in a new tab; bottom 30% (full width) red Remove —
+   the two bands abut (no dead gap). Thick dashes + a pulsing icon make them catchy on drag. */
+.project-dropzones { position: absolute; inset: 0; display: none; pointer-events: none; }
+.project-dropzones.is-dragging { display: block; }
+.project-dropzones .pdz {
+    position: absolute; box-sizing: border-box;
+    display: flex; align-items: center; justify-content: center; padding: 8px;
+    /* Each zone has its OWN identity colour via --pdz: grey (here), blue (new tab), red (remove). */
+    border: 5px dashed color-mix(in srgb, var(--pdz) 72%, transparent); border-radius: 12px;
+    /* Mostly-opaque panel with a slight see-through (≈0.9 alpha of the zone-colour-blended fill). */
+    background: color-mix(in srgb, color-mix(in srgb, var(--pdz) 28%, var(--bg-container)) 90%, transparent);
+    color: color-mix(in srgb, var(--pdz) 65%, white);
+}
+/* Small gaps between the three zones so they read as separate targets. */
+/* Labels sit in each zone's OUTER CORNER (here → top-left, new-tab → top-right, remove →
+   bottom-centre) so the centred modal card — which spans most of the width/height — never
+   overlaps a zone's icon/text. The card sits in the empty middle between them. */
+.project-dropzones .pdz-here   { --pdz: #64748b; left: 0;  top: 0; width: calc(50% - 8px); height: 70%; align-items: flex-start; justify-content: flex-start; padding: 26px 0 0 30px; }
+.project-dropzones .pdz-newtab { --pdz: #2563eb; right: 0; top: 0; width: calc(50% - 8px); height: 70%; align-items: flex-start; justify-content: flex-end; padding: 26px 30px 0 0; }
+.project-dropzones .pdz-remove { --pdz: var(--danger); left: 0; bottom: 0; width: 100%; height: calc(30% - 10px); align-items: flex-end; justify-content: center; padding-bottom: 20px; }
+.project-dropzones .pdz-over { background: color-mix(in srgb, color-mix(in srgb, var(--pdz) 48%, var(--bg-container)) 92%, transparent); }
+.project-dropzones .pdz-label { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; pointer-events: none; }
+/* Catchy pulsing zone icon while dragging (shared keyframe with the image drop overlay). */
+.project-dropzones.is-dragging .pdz-label svg { transform-origin: center; animation: dropZonePulse 0.9s ease-in-out infinite; }
+/* Phone: the card is nearly full-bleed, so each zone shows only as a thin strip past its
+   edge. Lay the labels out in a ROW tight against that edge — a stacked icon-over-caption
+   is taller than the strip and the card clips its text away. */
+@media (max-width: 680px) {
+    .project-dropzones .pdz-here   { padding: 10px 0 0 16px; }
+    .project-dropzones .pdz-newtab { padding: 10px 16px 0 0; }
+    .project-dropzones .pdz-remove { padding-bottom: 10px; }
+    .project-dropzones .pdz-label  { flex-direction: row; gap: 6px; font-size: 13px; }
+}
+.project-select { flex: 0 0 auto; width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+/* Filter dropdown sits beside the search field. */
+.modal-search-bar { display: flex; align-items: center; gap: 8px; }
+.modal-search-bar .modal-search { flex: 1; }
+/* Projects modal: the selects live on their own second row under the search bar —
+   tighter top padding so the two rows read as one control block. */
+.projects-filter-row { padding-top: 0; }
+.modal-filter {
+    flex: 0 0 auto; padding: 6px 8px; border-radius: 6px;
+    /* background-COLOR, not the shorthand — the shorthand resets the hover sweep's
+       background-size/position (layout.css), freezing the shine band mid-select. */
+    background-color: var(--input-bg); color: var(--input-text); border: 1px solid var(--border-main);
+}
+/* ── Narrow viewports: the shared modal search bar + footer must not overflow ──
+   Both are single, NON-wrapping flex rows sized for the 560px dialog. On a phone the
+   dialog is full-bleed (~393px) and they don't fit: the Projects modal's third select
+   ("Name + keywords") was laid out ~45px past the right edge — clipped away entirely by
+   .app-modal's overflow:hidden — while the search box collapsed to ~25px, and the footer
+   hint was squeezed to ~52px beside its three buttons, wrapping one word per line.
+   Below the 680px phone breakpoint both rows wrap: the search field and the (non-empty)
+   hint each claim a full line, and the selects grow into what's left instead of
+   overflowing at their intrinsic, label-driven widths. Wide layouts are untouched. */
+@media (max-width: 680px) {
+    .modal-search-bar { flex-wrap: wrap; }
+    .modal-search-bar .modal-search { flex: 1 1 100%; min-width: 0; }
+    .modal-search-bar .modal-filter { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+    /* An enhanced select hides behind its .cs-dd wrap (customSelect.js) — the wrap
+       takes the flex slot the native had, and the trigger fills the wrap. */
+    .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+    .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
+    /* …and on a phone the hint takes the whole line, buttons under it. The 110px floor
+       above still fits beside a full set of footer buttons at this width, so the row never
+       wraps on its own and the hint is squeezed to a fifth of the footer. On its own line
+       it stays left-aligned, the buttons right — the wide layout, stacked. */
+    .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; text-align: left; }
+}
+/* The compact popover shape (ui/popover.js) squeezes the box to 420px at ANY viewport
+   width, so it needs the same wrapping the phone breakpoint applies — keyed on the
+   shape class instead of the media query (which never fires on a wide screen). */
+.modal-popover .modal-search-bar { flex-wrap: wrap; }
+.modal-popover .modal-search-bar .modal-search { flex: 1 1 100%; min-width: 0; }
+.modal-popover .modal-search-bar .modal-filter { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+.modal-popover .modal-search-bar .cs-dd { flex: 1 1 auto; min-width: 0; max-width: 100%; }
+.modal-popover .modal-search-bar .cs-dd .accent-dd-trigger { width: 100%; }
+.modal-popover .settings-footer .footer-hint:not(:empty) { flex: 1 1 100%; text-align: left; }
+/* Three action buttons overrun 420px by a few pixels at the footer's trimmed padding,
+   dropping the last onto a third row — tighten the gap too so they keep the one row the
+   hint's own line was meant to give them. */
+.modal-popover .settings-footer { gap: 6px; }
+/* Touch: the modal's search/filter controls and footer actions meet the app's ≥40px
+   tap-target convention (same rule the chat panel's compact buttons follow). */
+@media (hover: none) and (pointer: coarse) {
+    .modal-search, .modal-filter { min-height: 40px; }
+    /* The trigger IS the control once a select is enhanced — same tap-target floor. */
+    .modal-search-bar .cs-dd .accent-dd-trigger { min-height: 40px; }
+    .settings-footer button { min-height: 40px; }
+}
+/* Batch-select toolbar — appears once rows are checked. */
+.projects-batch-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 8px 18px; border-bottom: 1px solid var(--border-main); background: var(--bg-info);
+}
+/* Never re-flows while its slot closes: the count and Select all collapse by animating
+   max-width to zero under `overflow: hidden`, and wrapping text broke onto a second line
+   instead of being wiped. Same reason .projects-batch-selected stays on one line. */
+.projects-batch-count { font-size: 13px; font-weight: 600; color: var(--text-key); white-space: nowrap; }
+.projects-batch-actions > button { white-space: nowrap; flex: 0 0 auto; }
+.projects-batch-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* The selection-only actions, revealed as one group (projectsModal updateBatchBar).
+   At rest the group WRAPS, so a narrow modal (a phone, a squeezed window) never cuts
+   "Remove selected" off at the modal's edge (user report, with a picture). Only while
+   its slot slides open/closed (motion.js reveal-group-transition: max-width animated
+   to zero under `overflow: hidden`) does it hold one line — a wrapping row re-flowed
+   into a column on the way out. */
+.projects-batch-selected {
+    display: inline-flex; align-items: center; gap: 6px;
+    flex-wrap: wrap; white-space: nowrap;
+}
+.projects-batch-selected.reveal-group-transition { flex-wrap: nowrap; }
+.projects-batch-selected > button { flex: 0 0 auto; }
+.projects-batch-actions button:disabled { opacity: 0.45; cursor: default; }
+.project-thumb {
+    width: 56px; height: 56px; flex: 0 0 56px; border-radius: 6px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg-info); border: 1px solid var(--border-main);
+}
+.project-thumb img { width: 100%; height: 100%; object-fit: cover; cursor: zoom-in; }
+.project-thumb-placeholder { font-size: 24px; color: var(--text-muted); }
+/* Magnified hover preview of a row thumbnail — follows the cursor (positioned in JS).
+   z-index must clear the modal overlay (100001), else it renders behind the modal. */
+.project-thumb-zoom {
+    position: fixed; z-index: 100002; display: none; pointer-events: none;
+    padding: 4px; background: var(--input-bg); border-radius: 8px;
+    border: 2px solid var(--remote-gold); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+    /* projectsModal.js's positionZoom pins max-width/height to the live window every move —
+       without a clip, a picture the JS couldn't shrink in time would still poke past that box. */
+    overflow: hidden;
+}
+/* The width is set per-thumbnail (a multiple of its own pixels); these clamp it on
+   screen. A hover preview is a GLANCE, not a lightbox — since the stored thumbnail got
+   big enough to magnify sharply, an unclamped zoom filled most of the window. Quarter
+   width / fifth height keeps the list underneath readable. `width: auto` lets the
+   height cap win on portrait images, where the width cap alone never binds. */
+.project-thumb-zoom img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 25vw;
+    max-height: 20vh;
+    object-fit: contain;
+}
+/* Alt held while hovering: the glance doubles (projectsModal applyZoomScale) — the
+   caps double with it, or they clamp the explicit width straight back down. */
+.project-thumb-zoom-xl img { max-width: 50vw; max-height: 40vh; }
+.project-info { flex: 1; min-width: 0; position: relative; }   /* holds the colour swatch (below) */
+.project-name { font-weight: 600; font-size: 14px; color: var(--project-name-fg, #80868f); text-shadow: var(--project-name-shadow, 0 1px 2px rgba(0,0,0,0.55)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Flex row so the date, expiry, and the gold server badge sit on one baseline with
+   a consistent gap (instead of the inline-flex badge gluing to / overlapping the date). */
+.project-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; }
+/* Free-text description line under a project's metadata — one truncated line. */
+.project-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.project-sub.project-expired { color: var(--danger); font-weight: 600; }
+.project-sub.project-expiring { color: var(--warning); font-weight: 600; }
+.project-open-elsewhere { display: inline-flex; align-items: center; gap: 4px; color: var(--accent); }
+.project-actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+/* Whole row opens the project on click; "⋯" (and its menu) stop propagation. */
+.project-row.project-clickable { cursor: pointer; }
+.project-row.is-opening { opacity: 0.6; pointer-events: none; }
+.project-switch:disabled { opacity: 0.6; cursor: default; }
+.project-row.project-incognito { border-color: var(--accent); border-style: dashed; }
+.project-row.project-incognito .project-name { color: var(--accent); }
+/* Server-stored (shared) projects: a golden outline + a small server badge so
+   they're visually distinct from local projects. --remote-gold defaults to the
+   logo yellow; theme.css may override it. */
+:root { --remote-gold: #d4a017; }
+.project-row.project-remote {
+    border-color: var(--remote-gold);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--remote-gold) 55%, transparent);
+}
+/* Golden cue lives on the row block only — the thumbnail keeps its neutral border. */
+.project-remote-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--remote-gold); font-weight: 600;
+}
+.project-remote-badge .ic { color: var(--remote-gold); }
+
+/* File-origin (imported from a .stencil) projects: a bronze outline + a small file badge,
+   so an offline project file reads as distinct from both plain-local rows and the golden
+   server rows. Bronze is warmer/coppery vs the server gold, so the two don't blur together. */
+:root { --file-bronze: #c1783c; }
+.project-row.project-file {
+    border-color: var(--file-bronze);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--file-bronze) 60%, transparent);
+}
+.project-file-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--file-bronze); font-weight: 600;
+}
+.project-file-badge .ic { color: var(--file-bronze); }
+
+/* Pill toggle: an accent-OUTLINED chip when off (transparent fill, accent text), and
+   accent-FILLED with contrasting text when on. The native checkbox is the (hidden) state
+   source; the label chrome shows it. Used for the f(x,y) formula toggle. */
+.pill-toggle {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 13px; font-weight: 600; cursor: pointer; user-select: none;
+    padding: 5px 10px; border-radius: 6px;
+    /* An accent OUTLINE around the theme's own ink — the word is read, so it takes the
+       colour every other label does, light on a dark theme and dark on a light one (user
+       decision; desktop twin: QCheckBox#formulaPill). The fill and white text arrive with
+       `.on`. */
+    border: 1px solid var(--ui-outline); color: var(--text-main);
+    background: transparent;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.pill-toggle:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.pill-toggle > input[type="checkbox"] { position: absolute; opacity: 0; width: 0; height: 0; margin: 0; }
+/* ON: accent-filled with contrasting text. Driven by a JS class toggle (settingsController
+   .syncFormulaUI / the change handler) — deterministic across programmatic state changes. */
+.pill-toggle.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+
+/* Plain local (browser-storage) projects: a muted globe badge (no row outline) — the
+   neutral third state next to the golden server + bronze file rows. */
+.project-local-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    color: var(--text-muted, #8b93a7); font-weight: 500;
+}
+.project-local-badge .ic { color: var(--text-muted, #8b93a7); }
+
+/* Move-between-storage buttons: gold tint to read as "to/from server". */
+.project-to-server:hover, .project-to-local:hover { color: var(--remote-gold); border-color: var(--remote-gold); }
+.project-to-server:disabled, .project-to-local:disabled { opacity: 0.6; cursor: default; }
+
+/* Per-row "⋯" overflow menu (secondary actions) — floats above the modal. */
+.project-more.is-loading .ic, .project-switch.is-loading .ic { animation: spin 0.8s linear infinite; }
+/* .chat-row-menu (right-click on a chat message, chatView.js) is the SAME menu
+   shape — aliased onto this block so the two small row menus can never drift. That
+   includes the STACKING LEVEL: both live in the app's popup tier (100003, shared with
+   #app-tooltip and the confirm dialog), which is above the chat panel (90000) and so
+   above the jump pills (z-index 6) that float inside it. The pills also stand down
+   entirely while a menu is open (chatPanel syncJumps) — belt and braces, because an
+   arrow showing around a menu's edge reads as broken whatever the stacking says. */
+.project-menu, .chat-row-menu {
+    /* Sized to its own widest row, not to a floor: at 184px the menu was wider than anything
+       in it. `max-content` hugs the labels, the smaller floor keeps a two-item menu from
+       looking pinched, and the cap stops a long label running away. */
+    position: fixed; z-index: 100003; width: max-content;
+    min-width: 148px; max-width: min(340px, 90vw); padding: 5px;
+    background: var(--bg-container); border: 1px solid var(--border-main); border-radius: 10px;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 2px;
+}
+.project-menu-item, .chat-row-menu-item {
+    display: flex; align-items: center; gap: 9px; width: 100%;
+    background: transparent; border: 0; color: var(--text-main); border-radius: 7px;
+    padding: 8px 10px; font-size: 13px; cursor: pointer; text-align: left;
+}
+.project-menu-item .ic, .chat-row-menu-item .ic { flex: 0 0 auto; color: var(--text-muted); }
+.project-menu-item:hover, .chat-row-menu-item:hover { background: var(--accent); color: var(--on-accent); }
+.project-menu-item:hover .ic, .chat-row-menu-item:hover .ic { color: var(--on-accent); }
+/* Destructive item: red TEXT on the menu background (a dedicated class, NOT the
+   global `.danger`, which would fill the whole button red). */
+.project-menu-item.is-danger { color: var(--danger); }
+.project-menu-item.is-danger .ic { color: var(--danger); }
+.project-menu-item.is-danger:hover { background: var(--danger); color: #fff; }
+.project-menu-item.is-danger:hover .ic { color: #fff; }
+/* The list's one hidden colour field (projectsModal openColorPicker), moved under the
+   button that opens it. Invisible and inert but never `display: none` — an input with no
+   box sends the picker to the page corner. Cf. #project-color-input. */
+.project-color-picker {
+    position: fixed; width: 1px; height: 1px;
+    opacity: 0; pointer-events: none;
+}
+/* The chat variant hugs its content — the 184px floor stays projects-only. */
+.chat-row-menu { min-width: 0; }
+.chat-row-menu-item { padding: 7px 9px; }
+
+/* Hover "…" trigger on a chat bubble (chatView.js chatRowMenuButton): a ghost dot
+   button on the bottom corner facing the panel centre. Hidden wherever hover does
+   not exist — touch surfaces open the menu with a long-press / double-tap instead. */
+.chat-row-menu-btn {
+    /* Anchored to the bottom of the row's VISIBLE slice, not to the row: motion.js
+       publishes --visible-bottom per scroll frame, so a message the scroller cuts still
+       shows its trigger instead of parking it below the fold. 0 = nothing is cut.
+       --row-menu-lift (chatPanel.js syncRowMenuLift) adds on top of that: pushed up
+       clear of the jump pills when this row's trigger would otherwise sit under them. */
+    position: absolute; bottom: calc(var(--visible-bottom, 0px) + var(--row-menu-lift, 0px)); z-index: 2;
+    display: none; align-items: center; justify-content: center;
+    width: 21px; height: 21px; padding: 0; border-radius: 50%;
+    border: 1px solid var(--border-main); background: var(--bg-container);
+    color: var(--text-muted); cursor: pointer;
+    opacity: 0; transition: opacity .12s ease, transform .12s ease, box-shadow .12s ease;
+    -webkit-user-select: none; user-select: none;
+}
+/* Fully beside the bubble (21px button + 6px gap), never overlapping it. */
+.chat-row-menu-btn-left { left: -27px; }
+.chat-row-menu-btn-right { right: -27px; }
+@media (hover: hover) {
+    .chat-row-menu-btn { display: inline-flex; }
+    /* Revealed translucent — a ghost that does not compete with the message it sits
+       beside — and only the one under the cursor goes fully opaque. The second rule
+       needs the row in its selector to outweigh the first. */
+    .chat-msg:hover .chat-row-menu-btn { opacity: .7; }
+    .chat-msg:hover .chat-row-menu-btn:hover { opacity: 1; }
+    /* Beat the generic button:hover accent fill — hover keeps the chrome and
+       adds a small full-accent glow + a 1px lift. */
+    .chat-row-menu-btn:hover {
+        background: var(--bg-container); color: var(--text-muted);
+        box-shadow: 0 1px 6px var(--accent);
+        transform: translateY(-1px);
+    }
+    .chat-row-menu-btn::after { display: none; }   /* no shimmer sweep either */
+}
+/* …and no trigger at all on a row whose visible slice is too short to hold one: pinned
+   to the bottom of that slice it overflows its own bubble and is drawn across the
+   neighbouring message, which reads as a rendering bug (user report). motion.js
+   (revealTriggerFits) publishes the class per scroll frame. Higher specificity than the
+   hover rule above, so it wins wherever it lands. */
+.chat-msg.reveal-no-trigger .chat-row-menu-btn { display: none; }
+/* The jump pills win: on a bubble too short to lift the trigger clear of them
+   (chatPanel.js rowMenuLiftFits), the trigger yields and hides instead of sitting
+   under them — never the other way around (an earlier rule hid the PILLS instead,
+   inverted per user report: the arrows are the higher-priority control). */
+.chat-msg.chat-row-menu-yield .chat-row-menu-btn { opacity: 0 !important; pointer-events: none !important; }
+
+/* Server picker injected into the confirm modal (app.choose). */
+.confirm-choose-row { margin-top: 12px; }
+.confirm-choose-select {
+    width: 100%; padding: 7px 10px; border-radius: 8px;
+    /* background-COLOR — the shorthand would reset the hover sweep sizing (layout.css). */
+    border: 1px solid var(--border-main); background-color: var(--input-bg); color: var(--text-main);
+    font-size: 13px; cursor: pointer;
+}
+/* Text input injected into the confirm modal (app.prompt — copy-with-name). */
+.confirm-prompt-input {
+    width: 100%; padding: 7px 10px; border-radius: 8px;
+    border: 1px solid var(--border-main); background: var(--input-bg); color: var(--text-main);
+    font-size: 13px;
+}
+/* Why the typed value cannot be accepted (app.prompt { validate }), under the field and
+   only while it applies — the desktop's QLabel#modalPromptReason. */
+.confirm-prompt-reason { color: var(--danger); font-size: 12px; margin-top: 6px; }
+/* The multi-line shape (app.prompt { multiline: true } — keywords, description): the
+   same field, several rows tall. A one-line bar read as "type a word" for values that
+   are routinely a sentence or a list (user report). */
+textarea.confirm-prompt-input {
+    font-family: inherit;
+    line-height: 1.45;
+    resize: vertical;
+    min-height: 62px;
+    /* Dragged past this the field outgrew the modal (capped at 82vh) and its bottom border
+       was clipped by the scrolling body. The cap leaves room for the header, caption,
+       footer and body padding at every window height. */
+    max-height: 50vh;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+/* The accent focus ring the single-line field gets for free — animations.css lists the
+   input TYPES that wear it, and a textarea is not one of them, so it fell back to the
+   browser's own blue outline. */
+textarea.confirm-prompt-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}

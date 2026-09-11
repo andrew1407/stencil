@@ -1,0 +1,146 @@
+/* ── Chat panel on phones & touch (breakpoints follow animations.css: 680px = phones,
+   hover:none+coarse = touch). Side docks / floating / resizing don't fit a phone:
+   whatever the mode says, the OPEN panel presents as an ORDINARY MODAL — a CENTRED
+   card over the dimmed #chat-backdrop, with every interactive placement affordance
+   hidden (the header drag is also gated in JS, and the backdrop/Escape close it like
+   any other modal). Centring is inset:0 + margin:auto, not a translate(-50%,-50%) —
+   transform belongs to the open/close animation. The !important beats float mode's
+   inline rect. ── */
+@media (max-width: 680px) {
+    stencil-chat-panel.chat-open {
+        inset: 0 !important;
+        margin: auto !important;
+        /* dvh first-class, vh as the fallback for browsers without dynamic units:
+           a phone's collapsing URL bar must not push the composer off-screen. */
+        width: min(420px, calc(100vw - 24px)) !important;
+        height: min(560px, calc(100vh - 24px)) !important;
+        height: min(560px, calc(100dvh - 24px)) !important;
+        min-width: 0;
+        border-radius: 14px;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+    }
+    body:has(stencil-chat-panel.chat-open) #chat-backdrop { display: block; }
+    /* Placement buttons and every resize handle are meaningless in the modal. */
+    stencil-chat-panel .chat-dock-btns, stencil-chat-panel .chat-resizer, .chat-dock-float .chat-float-handle,
+    stencil-chat-panel .chat-input-sizer { display: none; }
+    stencil-chat-panel .chat-input-row { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+    /* The floating install button would otherwise sit ON the modal's backdrop. */
+    body:has(stencil-chat-panel.chat-open) #install-host { display: none; }
+    /* One suggestion per line: the chips are full sentences, and a wrapped
+       two-column grid at 366px turns them into ragged fragments. */
+    .chat-empty { flex-direction: column; align-items: stretch; }
+    .chat-suggest { text-align: left; }
+}
+/* Touch devices: ≥40px targets for the compact icon buttons (the installButton.js
+   convention); the fiddly resize handles hide — the sheet/dock sizes itself. */
+@media (hover: none) and (pointer: coarse) {
+    .chat-hbtn, .chat-abtn { width: 40px; height: 40px; }
+    .chat-resizer { display: none; }
+    .chat-dock-float .chat-float-handle { display: none; }
+}
+
+/* The floating install button must never sit on top of the chat panel: drop it
+   beneath the panel whenever the chat is open, and step it out of a right/bottom
+   dock's band (the panel's live size rides the same --chat-size var). */
+body:has(stencil-chat-panel.chat-open) #install-host { z-index: 89999; }
+/* In fullscreen the slide-in strips (#fs-controls-panel / #fs-points-panel, 10000+)
+   ARE the toolbar, and a docked chat at 90000 sat over the strip's own fullscreen
+   toggle. The chat goes beneath them there; modal overlays stay above both. */
+body.fullscreen-mode stencil-chat-panel { z-index: 9990; }
+/* A DOCKED chat shares the page instead of covering it: the panel is fixed, so
+   the body gives up exactly its band as padding and the whole editor reflows
+   beside it. Driven by the same --chat-size the panel and its resizer use, so
+   dragging the edge moves the content live. Float mode is deliberately absent —
+   a floating panel is meant to overlay, and so is fullscreen (edge-to-edge by
+   design, hence the :not(.fullscreen-mode) guard — :has() would otherwise
+   out-specify body.fullscreen-mode's padding:0). The transition matches the
+   panel's own open/close slide so the two move together. */
+body { transition: background 0.3s, color 0.3s, padding 0.34s ease; }
+/* Phones excluded on purpose: the modal overlays the page, and a 340px band on a
+   390px viewport overflows the document sideways — which makes a mobile browser
+   widen the LAYOUT VIEWPORT, so the fixed panel then hangs off the screen. */
+@media (min-width: 681px) {
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-left) { padding-left: calc(var(--chat-size, 340px) + 20px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-right) { padding-right: calc(var(--chat-size, 340px) + 20px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-top) { padding-top: calc(var(--chat-size, 300px) + 20px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-bottom) { padding-bottom: calc(var(--chat-size, 300px) + 20px); }
+    /* …and the drop overlay gives up the same band, for the same reason: a DOCKED
+       panel shares the page rather than being covered by it. The panel wires its own
+       drop (drop an image on the chat to attach it — [data-drop-owner]), so leaving
+       it uncovered keeps both drop targets readable during one drag. A float/
+       fullscreen panel deliberately overlays, so it keeps the full-bleed overlay. */
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-left) #global-drop-overlay { left: var(--chat-size, 340px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-right) #global-drop-overlay { right: var(--chat-size, 340px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-top) #global-drop-overlay { top: var(--chat-size, 300px); }
+    body:not(.fullscreen-mode):has(stencil-chat-panel.chat-open.chat-dock-bottom) #global-drop-overlay { bottom: var(--chat-size, 300px); }
+}
+/* Closing plays the reverse slide (.chat-closing keeps .chat-open), so the
+   padding releases on the shorter out-duration in step with the panel. */
+body:has(stencil-chat-panel.chat-closing) { transition: background 0.3s, color 0.3s, padding 0.26s ease; }
+
+body:has(stencil-chat-panel.chat-open.chat-dock-right) #install-host { right: calc(var(--chat-size, 340px) + 18px); }
+body:has(stencil-chat-panel.chat-open.chat-dock-bottom) #install-host { bottom: calc(var(--chat-size, 300px) + 18px); }
+
+/* Gear provider-status tooltip: a themed TABLE (label column muted, status cell
+   coloured by state) + a pre-line footer, fixed-positioned above the gear. Uses
+   the shared theme vars, so it follows light/dark like #app-tooltip. */
+.chat-status-tip {
+    position: fixed;
+    z-index: 100003;
+    max-width: 340px;
+    padding: 8px 10px;
+    background: var(--bg-info);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border-main));
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 90ms ease;
+}
+.chat-status-tip.visible { opacity: 1; }
+/* Once the real motes have flown (js/ui/chatPanel.js showGearTip/hideGearTip), the
+   plain fade steps aside for good — same reasoning as #app-tooltip.dust-driven — so
+   it can never fight the surfaceForm/surfaceLeave keyframes over the same property. */
+.chat-status-tip.dust-driven { transition: none; }
+.chat-status-tip table { border-collapse: collapse; font-size: 12px; line-height: 1.45; }
+.chat-status-tip th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-muted);
+    padding-right: 12px;
+    vertical-align: top;
+    white-space: nowrap;
+}
+.chat-status-tip td { color: var(--text-key); word-break: break-word; }
+.chat-status-tip td.chat-status-ok { color: #28a745; }
+.chat-status-tip td.chat-status-error { color: #dc3545; }
+.chat-status-tip td.chat-status-connecting { color: #e0a800; }
+.chat-status-tip-foot {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border-main);
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: pre-line;
+}
+
+/* Assistant settings modal extras. */
+.chat-server-status { font-size: 12px; color: var(--text-muted); }
+/* Dot then text, side by side — the reading is one thing ("● failed to fetch"), and the
+   row's default space-between threw them to opposite edges with 400px of nothing between
+   (user report, with a picture). Desktop twin: llmSettingsForm's llmStatusRow. */
+#chat-server-status-row { justify-content: flex-start; gap: 8px; }
+.chat-cors-note {
+    margin-top: 10px;
+    /* Tight to its text: it is a note, not a panel (user report — too much air above and
+       below the line). Desktop twin: llmNoteBox's 10/6 margins. */
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: var(--bg-drop-hint);
+    border: 1px solid var(--border-hint);
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.chat-cors-note code { font-size: 11px; }
+/* The one merged note box (user decision): its lines stack with a small gap. */
+.chat-cors-note > div + div { margin-top: 4px; }

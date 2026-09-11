@@ -1,0 +1,248 @@
+/* ── Icon buttons in the Settings section (gear/palette/help + fullscreen + incognito):
+   one shared flat, square box, so the whole row reads as a set. The gear, palette and
+   help OPEN DIALOGS, exactly as Projects and Servers do, so they wear those buttons'
+   accent fill (below) — a filled square says "this opens something". The two beside them
+   are TOGGLES: they stay ghosts until they are on, and then fill. ── */
+#settings-btn, #visuals-btn, #info-btn, #fullscreen-toggle, #incognito-toggle {
+    background: transparent;
+    /* The box is drawn in the ink of the glyph inside it (user report: a --border-main
+       outline vanished on the dark theme and smudged on the light one). */
+    border: 1px solid var(--ui-outline) !important;
+    color: var(--text-main);
+    font-size: 18px;
+    padding: 7px 11px;
+    line-height: 1;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+/* #chat-btn keeps the ghost/active colours above, but sits in CONNECTIONS & LINKS, so it
+   takes its siblings' box: base padding (40x32), no border. The Settings row's tighter
+   4px 10px made it shorter than its neighbours with a cropped fill. The idle outline is
+   an inset shadow, not a border — a border would add 2px when idle only, and the icon
+   would jump on toggle. */
+#chat-btn {
+    background: transparent;
+    border: none !important;
+    box-shadow: inset 0 0 0 1px var(--ui-outline);
+    color: var(--text-main);
+    line-height: 1;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s, color 0.2s;
+}
+#chat-btn.active { box-shadow: none; }
+/* The voice-chat toggle beside it: the same ghost box, the same accent fill while on
+   (its level-driven glow lives in animations.css). */
+#voice-chat-btn {
+    background: transparent;
+    border: none !important;
+    box-shadow: inset 0 0 0 1px var(--ui-outline);
+    color: var(--text-main);
+    line-height: 1;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s, color 0.2s;
+}
+#voice-chat-btn:not(.active):hover { background: var(--bg-info); }
+#voice-chat-btn.active { background: var(--accent); color: var(--on-accent); }
+#voice-chat-btn.active:hover { background: var(--accent-2); }
+#voice-chat-btn:disabled { opacity: 0.45; cursor: not-allowed; background: transparent; }
+/* Work IN FLIGHT behind a closed chat: a quiet pulsing dot on the icon's own corner, so
+   nothing in the toolbar moves. Accent-coloured with a ring in the toolbar's ground, so it
+   reads on the idle box AND on the accent fill; mirrored onto the fullscreen toolbar clone
+   (chatPanel markChatBusy). There is deliberately no UNREAD dot beside it — an answer that
+   lands while the chat is away toasts, and the toast opens the chat. */
+#chat-btn { position: relative; }
+#chat-btn.chat-working::before {
+    content: "";
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--bg-controls);
+    pointer-events: none;
+}
+/* On the accent-filled (open) state the dot inverts, so it stays visible either way. */
+#chat-btn.active.chat-working::before {
+    background: var(--on-accent);
+    box-shadow: 0 0 0 2px var(--accent);
+}
+#chat-btn.chat-working::before { animation: statusPulse 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+    #chat-btn.chat-working::before { animation: none; }
+}
+/* A saved server session the server refuses says so in the Servers button's TOOLTIP
+   (connectModal.js) — no corner dot: a badge stuck on the icon read as damage, and the
+   desktop's own toolbar has never worn one. */
+
+/* #zoom-fit gets the same ghost box for the same reason: it ends the ZOOM row after the %
+   input, and an accent-filled square there reads as a third zoom step rather than the "fit
+   the whole image" action it is. Its own rule, not #chat-btn's — different row, and only
+   this one is ever disabled. The id selector outranks `button:disabled`'s grey fill, so the
+   disabled look is the fade the other ghost buttons use (#incognito-toggle). */
+#zoom-fit {
+    background: var(--accent);
+    border: none !important;
+    box-shadow: inset 0 0 0 1px var(--accent);
+    color: var(--on-accent);
+    line-height: 1;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s, color 0.2s;
+}
+#zoom-fit:disabled { opacity: 0.45; cursor: not-allowed; }
+/* Their glyphs stay the plain text ink — an idle control is not a themed one. The accent
+   belongs to the HOVER, as a border, exactly as a field's hover ring does (user decision;
+   desktop twin: theme.cpp QToolButton:hover). `!important` because the resting border of
+   the Settings ghosts is itself declared that way, a few rules up. */
+/* The three dialog-openers: the standard accent fill, white glyph and accent-2 hover —
+   the same treatment #projects-btn and #connect-btn get from the plain `button` rules,
+   which the ghost box above would otherwise cover. */
+#settings-btn, #visuals-btn, #info-btn {
+    background: var(--accent);
+    border-color: var(--accent) !important;
+    color: var(--on-accent);
+}
+#settings-btn:not(:disabled):hover, #visuals-btn:not(:disabled):hover,
+#info-btn:not(:disabled):hover {
+    background: var(--accent-2);
+    border-color: var(--accent-2) !important;
+}
+#incognito-toggle:not(.active):hover,
+#chat-btn:not(.active):hover { background: var(--bg-info); }
+#zoom-fit:not(:disabled):hover { background: var(--accent-2); box-shadow: inset 0 0 0 1px var(--accent-2); }
+/* An idle TOGGLE shows the accent on its hover border alone — it is not on, so it must
+   not look filled (user decision). Desktop twin: theme.cpp QToolButton:hover. */
+#incognito-toggle:not(.active):not(:disabled):hover { border-color: var(--accent) !important; }
+/* The three with an inset ring instead of a border (their box must not grow on toggle)
+   take the same accent on that ring. */
+#chat-btn:not(.active):not(:disabled):hover,
+#voice-chat-btn:not(.active):not(:disabled):hover { box-shadow: inset 0 0 0 1px var(--accent); }
+/* Fullscreen is FILLED either way: it acts the moment it is pressed, like the dialog-openers
+   beside it, and its glyph — not its fill — says which way it goes. */
+#fullscreen-toggle {
+    background: var(--accent);
+    border-color: var(--accent) !important;
+    color: var(--on-accent);
+}
+#fullscreen-toggle:not(:disabled):hover {
+    background: var(--accent-2);
+    border-color: var(--accent-2) !important;
+}
+/* Active toggle → accent fill (matches the primary toolbar icons). */
+#fullscreen-toggle.active, #incognito-toggle.active, #chat-btn.active {
+    background: var(--accent);
+    border-color: var(--accent) !important;
+    color: var(--on-accent);
+}
+#fullscreen-toggle.active:hover, #incognito-toggle.active:hover,
+#chat-btn.active:hover { background: var(--accent-2); border-color: var(--accent-2) !important; }
+
+/* ── Settings modal ── */
+#settings-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100001;
+    background: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
+}
+#settings-modal-overlay.modal-open { display: flex; }
+#settings-modal-overlay.modal-closing { display: flex; }
+#settings-modal {
+    background: var(--bg-container);
+    color: var(--text-main);
+    border: 1px solid var(--border-main);   /* .app-modal's hairline (desktop #modalShell parity) */
+    border-radius: 10px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+    width: 620px;
+    max-width: calc(100vw - 40px);
+    max-height: min(82vh, 760px);   /* the absolute cap the desktop shell also stops at (modalChrome sizeModalTall) */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-main);
+}
+.settings-header h2 { margin: 0; font-size: 16px; font-weight: bold; }
+#settings-close {
+    background: transparent;
+    border: 1px solid var(--border-main) !important;
+    color: var(--text-main);
+    font-size: 13px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+}
+#settings-close:hover { background: var(--bg-info); }
+.settings-body {
+    padding: 14px 18px;
+    overflow-y: auto;
+    flex: 1;
+    /* Reserve the bar's slot up front (the same trick #coord-body uses): without it the
+       body is laid out one scrollbar WIDER until the rows overflow, so the picture the
+       dust flies is wider than the window that lands and the two sets of column headers
+       sit side by side mid-flight (user report). Overlay scrollbars take no layout space,
+       so this costs nothing where there is nothing to reserve. */
+    scrollbar-gutter: stable;
+}
+/* Hotkey table has a sticky header; drop the body's top padding so it pins flush
+   to the body top (else scrolled rows show above it and overlap the modal title
+   bar). Scoped to #settings-modal so other modals' .settings-body is untouched. */
+#settings-modal .settings-body { padding-top: 0; }
+/* The list dialogs (shortcuts, info, visuals, connections, links) keep one height while
+   a filter thins their rows or the list grows (desktop parity: modalChrome sizeModalTall
+   resizes to the same 82% share once and the QDialog holds it) — the floor equals the
+   ceiling, so the .settings-body scrolls or leaves slack below instead of the box
+   resizing with each keystroke. The compact popover shape keeps its own small cap;
+   the projects modal has its own floor further down. */
+#settings-modal-overlay:not(.modal-popover) #settings-modal,
+#info-modal-overlay:not(.modal-popover) .app-modal,
+#visuals-modal-overlay:not(.modal-popover) .app-modal,
+#connect-modal-overlay:not(.modal-popover) .app-modal,
+#links-modal-overlay:not(.modal-popover) .app-modal { min-height: min(82vh, 760px); }
+/* Shared modal search bar (settings + visuals; sits above the scrolling body). */
+.modal-search-bar { padding: 12px 18px 6px; }
+.modal-search {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-main);
+    border-radius: 6px;
+    background-color: var(--input-bg);   /* not the shorthand — keeps the hover sweep sizing */
+    color: var(--input-text);
+    font-size: 13px;
+}
+.settings-footer {
+    padding: 12px 18px;
+    border-top: 1px solid var(--border-main);
+    display: flex;
+    /* Hint left, buttons right, on one line. The basis is the hint's floor, not its
+       comfortable width: the buttons keep their own row (desktop parity) and the hint
+       wraps over two or three short lines beside them; only below that floor does the row
+       wrap and the buttons take their own line. `:not(:empty)` spares the empty hint span
+       the confirm/open-in dialogs carry purely as a spacer. */
+    flex-wrap: wrap;
+    /* flex-end: the hint's own grow fills a shared row so the buttons sit at the right
+       edge, and once the hint wraps onto its own line the buttons STAY right under it —
+       the same picture at every width, only stacked (desktop FooterWrap parity). */
+    justify-content: flex-end;
+    gap: 8px;
+    align-items: center;
+}
+.settings-footer .footer-hint:not(:empty) { flex: 1 1 110px; text-align: left; }
+/* 10px sides, not the .btn-icon-text 12: three footer actions at full padding left the
+   hint ~126px, which wraps it into a column of two-word lines ("unopened projects" /
+   "expire after 7 days"). The 12px this frees hands the hint the desktop dialog's own
+   wrap — the same trim the popover shape already made for the same reason. */
+.settings-footer button { padding-left: 10px; padding-right: 10px; }
+/* Composer overflow: only Send stays inline, the rest live behind the … button.
+   The menu is anchored to the trigger and floats above the composer. */
+.chat-more-wrap { position: relative; display: inline-flex; }

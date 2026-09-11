@@ -1,0 +1,52 @@
+/* ── Open Image dialog: source tabs (Local file / URL link / Blank). A simple
+   underline tab bar; the active tab is accent-colored with an accent underline. */
+.oi-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border-main); margin-bottom: 14px; }
+.oi-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; margin-bottom: -1px;
+  background: transparent; border: none; border-bottom: 2px solid transparent;
+  color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer;
+}
+/* The generic button:hover paints the accent-2 pill under a hovered tab, so the tab's
+   own colors must flip to the app-wide on-accent ink (white + the light-accent glyph
+   shadow, same as every filled button) — accent text over the accent pill made the
+   hovered active tab unreadable (user report). The :hover rule must ALSO carry
+   .is-active's specificity, or the active tab's accent text wins the tie. */
+.oi-tab:hover, .oi-tab.is-active:hover { color: var(--on-accent); }
+.oi-tab.is-active { color: var(--accent); border-bottom-color: var(--accent); }
+.oi-panel { margin-bottom: 2px; }
+/* One dialog height across the source tabs (desktop parity): the shell is sized for
+   the tallest tab (Blank), so switching Local file / URL link / Blank never resizes
+   the window — the shorter tabs keep the slack below their rows, footer pinned. The
+   compact popover shape keeps its own small cap instead. */
+#open-image-modal-overlay:not(.modal-popover) .app-modal { min-height: min(430px, 82vh); }
+/* Open Image dialog: live preview + inline crop editor. The media is centered in a
+   column; the crop-options row keeps the toggle, hint, and orientation button in one line. */
+.oi-preview { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 10px 0 4px; }
+.oi-crop-opt { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.oi-crop-opt .btn-icon-text { padding: 3px 8px; }
+/* ── Open-another-image + Open-in modals: a fixed label column with the controls
+   left-aligned against it. The default .vs-row space-between (right for the
+   settings toggles) scatters these mixed-width controls — the file input lands at
+   the far right while each checkbox group starts wherever its label ends. ── */
+stencil-open-image-modal .vs-row,
+stencil-open-in-modal .vs-row { justify-content: flex-start; }
+stencil-open-image-modal .vs-row > label,
+stencil-open-in-modal .vs-row > label { flex: 0 0 auto; min-width: 88px; }
+stencil-open-image-modal .vs-row > input[type="file"] { flex: 1 1 auto; min-width: 0; }
+/* Open-in modal: the "Project" description and the "Incognito" control+description
+   sit in a shared 3-column grid — label · fixed checkbox slot · text — so the two
+   description texts share one left edge (a lone checkbox would otherwise push the
+   incognito text right of the status text). The empty .oi-slot span reserves the
+   checkbox column in the checkbox-less status row. */
+stencil-open-in-modal .vs-row.oi-row {
+    display: grid;
+    grid-template-columns: 88px 1.25rem 1fr;
+    align-items: center;
+    column-gap: 8px;
+}
+stencil-open-in-modal .vs-row.oi-row > label { min-width: 0; }
+stencil-open-in-modal .oi-slot { justify-self: start; margin: 0; }
+.oi-fallback { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.links-quickcrop-controls select { width: auto; min-width: 64px; }
+.links-inline-check input:disabled + *, .links-quickcrop-controls select:disabled { opacity: .5; }

@@ -1,0 +1,279 @@
+/* ── AI assistant chat panel (stencil-chat-panel) ──
+   Dockable overlay panel driven by chatPanel.js. Docked size lives in --chat-size;
+   float mode gets an inline rect from JS. Both are session-only — nothing persists.
+   Theme-aware via the shared vars — no per-theme rules needed. */
+stencil-chat-panel {
+    display: none;
+    position: fixed;
+    z-index: 90000;               /* above the page, below every .app-modal-overlay */
+    flex-direction: column;
+    min-width: 280px;             /* the compact header row always fits — no clipped buttons */
+    background: var(--bg-controls);
+    color: var(--text-main);
+    border: 1px solid var(--border-main);
+    box-shadow: 0 8px 32px var(--shadow);
+    overflow: hidden;
+}
+stencil-chat-panel.chat-open { display: flex; }
+stencil-chat-panel.chat-dock-left   { top: 0; left: 0;  bottom: 0; width: var(--chat-size, 340px);  border-radius: 0 10px 10px 0; }
+stencil-chat-panel.chat-dock-right  { top: 0; right: 0; bottom: 0; width: var(--chat-size, 340px);  border-radius: 10px 0 0 10px; }
+stencil-chat-panel.chat-dock-top    { top: 0; left: 0;  right: 0;  height: var(--chat-size, 300px); border-radius: 0 0 10px 10px; }
+stencil-chat-panel.chat-dock-bottom { bottom: 0; left: 0; right: 0; height: var(--chat-size, 300px); border-radius: 10px 10px 0 0; }
+stencil-chat-panel.chat-dock-float  { border-radius: 10px; }
+
+/* The whole header strip is the drag handle (grab → grabbing while dragging);
+   the compact buttons keep their own pointer cursor. */
+.chat-header {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border-main);
+    background: var(--bg-info);
+    flex: 0 0 auto;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+.chat-header.chat-dragging { cursor: grabbing; }
+/* The title yields (truncating with an ellipsis) so the buttons NEVER clip. */
+.chat-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: bold;
+    /* Chrome, not a badge: the same text colour as the rest of the header. */
+    color: var(--text-main);
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-right: auto;
+    white-space: nowrap;
+    overflow: hidden;
+}
+/* Optical vertical centering: the bubble glyph's tail row is mostly empty, so the
+   box-centered icon reads ~1px high next to the title's cap height. */
+.chat-title .ic { flex: 0 0 auto; transform: translateY(1px); }
+.chat-title-text { overflow: hidden; text-overflow: ellipsis; }
+/* Compact ghost header buttons (the coord-panel-header look, not big filled squares). */
+.chat-hbtn {
+    flex: 0 0 auto;
+    width: 23px;
+    height: 23px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+.chat-hbtn:hover { background: var(--bg-container); color: var(--text-main); }
+/* The Resend/Retry icon under a failed turn (chatView.js chatConfigureButton's sibling,
+   the .chat-hbtn shape) reads on the DANGER wash a plain error card sits on — the
+   header ghosts' bg-container fill (near-black in dark mode) landed as a stray dark
+   square there (user report). No fill at all: just its own muted glyph colour traced
+   as a thin outline, so hovering it never looks like it grew a background. Border
+   reserved at rest (transparent) so gaining it on hover costs no layout shift. */
+.chat-retry-cta { border: 1px solid transparent; }
+.chat-retry-cta:hover { background: transparent; border-color: var(--text-muted); color: var(--text-muted); }
+.chat-dock-btns { display: inline-flex; gap: 1px; flex: 0 0 auto; }
+.chat-dock-btn-active, .chat-hbtn.chat-dock-btn-active { color: var(--accent); background: var(--bg-container); }
+/* The toolbar toggle (#chat-btn) shares the Settings-section ghost/active rules —
+   its open state toggles the same `active` class as fullscreen/incognito (white
+   glyph on the accent fill), see the group styling above. */
+/* Disabled ghost buttons follow the app's disabled palette. */
+.chat-hbtn:disabled {
+    color: var(--disabled-text);
+    background: transparent;
+    cursor: not-allowed;
+}
+a.chat-hbtn { text-decoration: none; }
+/* Input-row action buttons (send / attach / gear): the app's standard accent
+   btn-icon treatment — order is send first, then media, then settings. */
+.chat-abtn, .ctx-assist-abtn { width: 34px; height: 34px; padding: 0; flex: 0 0 auto; border-radius: 6px; }
+.chat-abtn .ic, .ctx-assist-abtn .ic { flex: 0 0 auto; }
+/* Send with nothing typed, where voice input exists: not :disabled (a disabled button
+   hears no double-click / hold — the gesture that switches an EMPTY composer to
+   dictation), but drawn as one. Same palette as layout.css's button:disabled. */
+.chat-abtn.chat-send-idle, .ctx-assist-abtn.chat-send-idle {
+    background: var(--disabled-bg);
+    color: var(--disabled-text);
+    cursor: default;
+}
+/* The mic's outer sound waves reach past its 24-unit frame: the glyph keeps its box (the
+   buttons around it have the room), only its ink may spill. */
+.ic-mic { overflow: visible; }
+/* The mic face: a plain ghost while paused (no accent — the chat button's idle look),
+   accent-filled while listening. Its glow, ray ring and swell — the logo's own shine,
+   driven by the voice — live in animations.css beside the logo's rules. */
+.chat-abtn.chat-voice-on, .ctx-assist-abtn.chat-voice-on {
+    background: transparent;
+    color: var(--text-main);
+    box-shadow: inset 0 0 0 1px var(--border-main);
+}
+.chat-abtn.chat-voice-on:not(.chat-voice-listening):hover,
+.ctx-assist-abtn.chat-voice-on:not(.chat-voice-listening):hover { background: var(--bg-info); }
+.chat-abtn.chat-voice-listening, .ctx-assist-abtn.chat-voice-listening {
+    background: var(--accent);
+    color: var(--on-accent);
+}
+/* The configure gear carries the provider-status dot (.conn-status palette:
+   green/amber/red) as a corner badge; its tooltip explains the state. */
+.chat-config-btn, .ctx-assist-config { position: relative; }
+.chat-config-btn .conn-status, .ctx-assist-config .conn-status {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    width: 7px;
+    height: 7px;
+    box-shadow: none;
+}
+
+/* Edge drop zones shown only while a header drag is live (transient DOM): four
+   accent-tinted bands; the hovered one highlights stronger. Pointer events stay
+   off — the header's pointer capture owns the gesture. Below the panel (90000):
+   the zones say where the PANEL would land, so the panel itself must ride over
+   them instead of being painted on. */
+.chat-dock-zones {
+    position: fixed;
+    inset: 0;
+    z-index: 89999;
+    pointer-events: none;
+}
+/* Tint + blur, the image drop zones' recipe (#global-drop-overlay): the band
+   reads as a surface over the page rather than a wash the page shows through. */
+.chat-dock-zone {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed color-mix(in srgb, var(--accent) 70%, transparent);
+    background: color-mix(in srgb, var(--accent) 32%, transparent);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    border-radius: 10px;
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+.chat-dock-zone-left   { left: 8px;  top: 8px; bottom: 8px; width: 56px; --zone-nudge-x: -4px; --zone-nudge-y: 0px; }
+.chat-dock-zone-right  { right: 8px; top: 8px; bottom: 8px; width: 56px; --zone-nudge-x: 4px;  --zone-nudge-y: 0px; }
+.chat-dock-zone-top    { top: 8px;    left: 72px; right: 72px; height: 56px; --zone-nudge-x: 0px; --zone-nudge-y: -4px; }
+.chat-dock-zone-bottom { bottom: 8px; left: 72px; right: 72px; height: 56px; --zone-nudge-x: 0px; --zone-nudge-y: 4px; }
+/* Stays DASHED when hovered/targeted — only the tint and the arrow strengthen. */
+.chat-dock-zone-active {
+    background: color-mix(in srgb, var(--accent) 52%, transparent);
+    border-color: var(--accent);
+}
+/* Directional "dock here" chevron, nudging into the edge (animations.css). A soft
+   contrast halo keeps it legible over whatever the zone overlays. */
+.chat-zone-arrow {
+    display: inline-flex;
+    color: var(--accent);
+    opacity: 0.9;
+    filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.55));
+    animation: chatZoneNudge 0.7s ease-in-out infinite alternate;
+}
+.chat-dock-zone-active .chat-zone-arrow { opacity: 1; color: var(--text-key); }
+
+.chat-transcript {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    /* Measured for the narrow-column rule below (a docked/floating panel resizes
+       independently of the viewport, so a plain media query would answer the wrong
+       question). */
+    container-type: inline-size;
+    container-name: chat-transcript;
+}
+/* Empty-state: one subtle line — ALL provider detail lives in the gear's tooltip. */
+/* Empty-state: prompt SUGGESTION chips (click → prefill the input) instead of an
+   explanation paragraph. The block is removed with the first message. */
+.chat-empty { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 4px; }
+/* The conventional assistant suggestion-chip look: quiet solid pill, accent on hover. */
+.chat-suggest {
+    padding: 6px 12px;
+    font-size: 13px;
+    border: 1px solid var(--border-main);
+    border-radius: 16px;
+    background: var(--bg-container);
+    color: var(--text-main);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.chat-suggest:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg-container)); }
+/* Unreachable-provider chat card: message + a configure call-to-action. */
+.chat-error-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+.chat-config-cta, .chat-retry-cta, .chat-reconnect-cta { align-self: flex-start; margin-top: 6px; }
+/* The two labelled CTAs read as a small pill, not a full-size toolbar button: less
+   side padding than the base button, and a touch more room between the glyph and
+   its label than the shared .btn-icon-text gap gives (the gear crowded "Configure"
+   at 6px — user report). Hover stays the SOLID accent instead of lightening to
+   --accent-2: on a pill this small the lighten washed out the glass shimmer sweep
+   riding under it (layout.css), reading as if no hover animation played at all. */
+.chat-config-cta, .chat-reconnect-cta { padding: 7px 10px; gap: 8px; }
+.chat-config-cta:hover:not(:disabled), .chat-reconnect-cta:hover:not(:disabled) { background: var(--accent); }
+/* An error bubble carrying a call-to-action becomes a column, so the button
+   sits under the text instead of dangling inline after it (.chat-msg alone is
+   a plain pre-wrap block). */
+.chat-msg-cta { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.chat-msg {
+    position: relative;   /* anchors the hover "…" trigger without moving the bubble */
+    max-width: 88%;
+    padding: 7px 10px;
+    border-radius: 10px;
+    font-size: 14px;   /* the app's base text size — chat output must not read smaller */
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+    /* Message text is for copying too: selectable EXPLICITLY, so no ancestor
+       user-select:none (the ctx-menu flyout lives inside one) and no future
+       panel chrome can take manual select-and-copy away. */
+    -webkit-user-select: text;
+    user-select: text;
+    cursor: text;
+}
+/* The message text itself: ONE node per row (chatView.js), so a repaint has exactly
+   one thing to write and can never leave a second copy beside the row's buttons.
+   min-width:0 so it still wraps as a flex item on the rows that become columns. */
+.chat-msg-text { min-width: 0; }
+.chat-msg-user {
+    align-self: flex-end;
+    /* Named so the tail below can reach the SAME colours without repeating the
+       color-mix() expressions — and so the swap rule further down only has to flip
+       which corner reads them, never restate them. */
+    --msg-fill: color-mix(in srgb, var(--accent) 14%, var(--bg-container));
+    --msg-border: color-mix(in srgb, var(--accent) 32%, transparent);
+    background: var(--msg-fill);
+    border: 1px solid var(--msg-border);
+    /* Flattened at the tail's corner — the base 10px radius fought the tail's
+       own curve there and left a visible notch (user report). */
+    border-bottom-right-radius: 0;
+}
+.chat-msg-assistant {
+    align-self: flex-start;
+    --msg-fill: var(--bg-container);
+    --msg-border: var(--border-main);
+    background: var(--msg-fill);
+    border: 1px solid var(--msg-border);
+    border-bottom-left-radius: 0;   /* the tail's corner — see .chat-msg-user */
+}
+/* A failed / stopped turn reads as one at a glance: danger text and border over a
+   faint danger wash, rather than an ordinary bubble that merely happens to be red. */
+.chat-msg-error {
+    --msg-fill: color-mix(in srgb, var(--danger) 10%, var(--bg-container));
+    --msg-border: color-mix(in srgb, var(--danger) 45%, transparent);
+    color: var(--danger);
+    border-color: var(--msg-border);
+    background: var(--msg-fill);
+    border-bottom-left-radius: 0;   /* the tail's corner — see .chat-msg-user */
+}

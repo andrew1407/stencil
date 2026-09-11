@@ -1,0 +1,172 @@
+/* ── Server connections modal ───────────────────────────────────── */
+/* A connection row is a .project-row sibling: same padding/gap/radius/border,
+   same resting fill and hover lift. Only the connection-specific bits differ. */
+/* The connections area keeps a real default height even while empty — the modal
+   otherwise collapsed to a stub the moment no server was connected (user report;
+   desktop parity: its list box holds the same room). */
+#connect-list { min-height: 170px; }
+.connect-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 10px; border: 1px solid var(--border-main); border-radius: 8px;
+    margin-bottom: 8px; background: var(--input-bg);
+}
+.connect-row:hover { background: var(--bg-info); }
+/* Admin credential: the golden outline + badge server projects wear (--remote-gold) —
+   this connection can mint session tokens. Transient row states (selected, expired)
+   are declared after it, so they still win the border. */
+.connect-row.connect-admin {
+    border-color: var(--remote-gold);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--remote-gold) 55%, transparent);
+}
+.connect-admin-badge {
+    display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
+    color: var(--remote-gold); font-weight: 600; font-size: 12px;
+}
+.connect-admin-badge .ic { color: var(--remote-gold); }
+/* Heading row: the filter sits inline at the right rather than on its own line.
+   It wraps below the heading before it can crowd it on a narrow modal. */
+.connect-section-row { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin: 14px 0 6px; }
+/* The heading's own margins move to the row, so the filter centres against it. */
+.connect-section-row .vs-section { flex: 1 1 auto; min-width: 0; margin: 0; }
+/* Sized to the heading, not to a form field — the native select AND the trigger
+   customSelect.js swaps in for it (which is what actually shows). */
+.connect-section-row .modal-filter,
+.connect-section-row .cs-dd .accent-dd-trigger {
+    flex: 0 0 auto; max-width: 100%; padding: 3px 8px; font-size: 12px; border-radius: 6px;
+}
+.connect-section-row .cs-dd { flex: 0 0 auto; max-width: 100%; }
+/* Touch keeps the app's ≥40px tap target; the row wraps to make room. */
+@media (hover: none) and (pointer: coarse) {
+    .connect-section-row .cs-dd .accent-dd-trigger { min-height: 40px; padding: 6px 10px; }
+}
+.connect-row.connect-selected { border-color: var(--accent); background: var(--bg-info); }
+.connect-select { flex: 0 0 auto; width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+/* Drag-reorder affordance: the grip is grab-cursored; the dragged row dims; a drop cue
+   underlines the edge the dragged row would land before/after. */
+.connect-grip { flex: 0 0 auto; cursor: grab; color: var(--text-muted); letter-spacing: -3px; user-select: none; font-size: 12px; line-height: 1; padding: 0 2px; }
+.connect-row.connect-dragging { opacity: 0.3; }
+/* Insertion line showing where the dragged connection will land. */
+.connect-row.connect-drop-before { box-shadow: 0 -4px 0 -1px var(--accent); }
+.connect-row.connect-drop-after { box-shadow: 0 4px 0 -1px var(--accent); }
+/* Batch-select toolbar for connections (mirrors the projects batch bar). */
+/* One line, the count first: a wrapping bar dropped the action row under the count the
+   moment it appeared, so the bar leapt a line taller mid-reveal. If anything wraps it is
+   the actions, among themselves. */
+.connect-batch-bar {
+    display: flex; align-items: center; gap: 10px; flex-wrap: nowrap;
+    padding: 6px 10px; margin-bottom: 8px; border-radius: 8px; background: var(--bg-info);
+    border: 1px solid var(--border-main);
+}
+/* The count and the selection group slide their slot open/closed under `overflow:
+   hidden` (motion.js revealControls), so neither may wrap or shrink on the way —
+   cf. .projects-batch-selected. */
+.connect-batch-count { font-size: 13px; font-weight: 600; color: var(--text-key); white-space: nowrap; }
+.connect-batch-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* Compact (6px 10px, like the row's own buttons): at the default 8px 12px the four
+   actions plus "Deselect all" overran the modal's width by a few pixels and wrapped.
+   Every button under the strip, not only direct children: Reconnect/Disconnect live one
+   level down in .connect-batch-selected, and at the default padding they stood 4px taller
+   than Select all, so the bar (and the modal) grew when they appeared (user report). */
+.connect-batch-actions button { white-space: nowrap; flex: 0 0 auto; padding: 6px 10px; }
+.connect-batch-selected {
+    display: inline-flex; align-items: center; gap: 6px;
+    flex-wrap: nowrap; white-space: nowrap;
+}
+.connect-batch-selected > button { flex: 0 0 auto; }
+.connect-row .connect-url { flex: 1 1 auto; display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* Connection-status dot: green=connected, yellow=connecting/refreshing, red=error. */
+.conn-status { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; background: var(--text-muted); box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 18%, transparent); }
+.conn-status-connected { background: #28a745; color: #28a745; }
+.conn-status-connecting { background: #e0a800; color: #e0a800; animation: statusPulse 1s ease-in-out infinite; }
+.conn-status-error, .conn-status-disconnected { background: #dc3545; color: #dc3545; }
+/* Expired session: amber, NOT red — the server is up and answering, it is the saved
+   token it no longer knows. Its own state so the row can say what actually helps. */
+.conn-status-expired { background: #e0a800; color: #e0a800; }
+.connect-row.connect-expired { border-color: #e0a800; background: color-mix(in srgb, #e0a800 8%, var(--input-bg)); }
+/* The row's action keeps its icon-only shape here (desktop parity) and says which
+   state it is in by colour alone: amber-filled to match the row, not the accent every
+   other row button wears. */
+.connect-row.connect-expired .connect-reconnect-one:not(:disabled) { background: #e0a800; color: #1f1f1f; }
+.connect-row.connect-expired .connect-reconnect-one:hover:not(:disabled) { background: #c99400; }
+@keyframes statusPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+.connect-row .connect-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; }
+.connect-row .connect-url .ic { color: var(--remote-gold); flex: 0 0 auto; }
+/* Per-row icon buttons (invite / reconnect / disconnect): the projects modal's row
+   actions — the app's filled button chrome (.danger for disconnect), just compact.
+   The bordered subtle variant read as already-disabled at rest; now hover is an
+   enhancement and only a real :disabled looks dead (button:disabled, layout.css). */
+.connect-row .connect-reconnect-one,
+.connect-row .connect-invite,
+.connect-row .connect-disconnect {
+    flex: 0 0 auto;
+    padding: 5px 8px;
+    border-radius: 4px;
+}
+/* Inline rename input shown in place of .project-name */
+/* `input[type="text"]` is an ATTRIBUTE selector, so the shared field padding (8px 12px)
+   outranked this class and the row's editor stood 34px tall — a fat box over the line
+   below it, where the top editor and the desktop's are compact (user report, with
+   pictures of all three). Scoped to the wrap so the weight is beyond doubt. */
+.project-rename-wrap input.project-name-edit {
+    padding: 1px 6px;
+    height: 24px;          /* the chips beside it */
+    font-size: 13px;
+    line-height: 1;
+}
+.project-name-edit {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-key);
+    background: var(--bg-info);
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    padding: 1px 6px;
+    /* Takes the slack its wrap has, leaving only the ✓/✗ chips beside it. min-width: 0
+       so a long name shrinks the field instead of pushing the chips out of the row. */
+    flex: 1 1 auto;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* ── Links modal (source/resource + add-by-URL) ─────────────────── */
+.links-field { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 0; }
+.links-field input[type="text"] { flex: 1 1 auto; min-width: 0; }
+.vs-row input[type="text"],
+.vs-row input[type="url"],
+.vs-row input[type="password"] {
+    flex: 1 1 auto;
+    min-width: 0;
+    background-color: var(--bg-info);   /* not the shorthand — keeps the hover sweep sizing */
+    color: var(--text-main);
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    padding: 4px 7px;
+    font-size: 12.5px;
+}
+.links-open, .links-clear {
+    flex: 0 0 auto;
+    padding: 4px 8px;
+    font-size: 12px;
+    border: 1px solid var(--border-main) !important;
+    border-radius: 4px;
+    cursor: pointer;
+    background: var(--bg-info);
+    color: var(--text-main);
+}
+/* Solid danger chip: the glyph stays WHITE on hover — a red glyph on the red hover fill
+   was the "greyed-out ×" of the user's report. */
+.links-clear.danger { color: #fff; border-color: var(--danger) !important; }
+.links-clear.danger:hover { border-color: var(--danger-2) !important; color: #fff; }
+.links-preview-wrap {
+    margin: 8px 4px 0;
+    padding: 8px;
+    border: 1px solid var(--border-coord);
+    border-radius: 6px;
+    text-align: center;
+}
+.links-preview-wrap img, .links-preview-wrap video { max-width: 100%; max-height: 240px; border-radius: 4px; }
+.links-preview-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+.links-frame-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.links-frame-row input[type="range"] { flex: 1 1 auto; min-width: 0; }
+.links-frame-num { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.links-frame-num input[type="number"] { width: 5.5em; }

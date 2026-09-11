@@ -1,0 +1,279 @@
+/* ── Modal appearance: backdrop fade + content pop ──────────────────── */
+#settings-modal-overlay.modal-open,
+.app-modal-overlay.modal-open {
+    animation: overlayFadeIn 0.22s ease both;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+/* The POPOVER shape keeps the page readable: no dim (components.css) and no blur —
+   the point of anchoring it at the icon is working with the page still in view. */
+#settings-modal-overlay.modal-open.modal-popover,
+.app-modal-overlay.modal-open.modal-popover {
+    animation: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+/* easeOutCubic: the window leaves the icon quickly and visibly SLOWS as it settles into
+   place. Deliberately NOT the app's usual cubic-bezier(0.16, 1, …), which is ~50% done in
+   its first 30 ms — that hides the whole point, the small window leaving the icon. */
+#settings-modal-overlay.modal-open #settings-modal,
+.app-modal-overlay.modal-open .app-modal {
+    animation: modalFromIcon 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    will-change: transform, opacity;
+}
+/* One beat with no animation, so ui/base.js measures where the box lands rather than
+   where its own keyframe already moved it. */
+#settings-modal-overlay.modal-measuring #settings-modal,
+.app-modal-overlay.modal-measuring .app-modal {
+    animation: none !important;
+}
+/* Closing: the window shrinks into its icon. `modal-closing` is visual only — `modal-open`
+   is already gone — and pointer-transparent so it can't swallow the next click. */
+#settings-modal-overlay.modal-closing,
+.app-modal-overlay.modal-closing {
+    animation: overlayFadeOut 0.34s ease both;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    pointer-events: none;
+}
+#settings-modal-overlay.modal-closing.modal-popover,
+.app-modal-overlay.modal-closing.modal-popover {
+    animation: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+/* Closing accelerates INTO the icon, the mirror of the opening flight — but only
+   gently: a strong ease-in spends its first 200 ms barely moving and then snaps, which
+   reads as a glitch rather than a return trip. */
+#settings-modal-overlay.modal-closing #settings-modal,
+.app-modal-overlay.modal-closing .app-modal {
+    animation: modalToIcon 0.34s cubic-bezier(0.45, 0.05, 0.6, 0.9) both;
+    will-change: transform, opacity;
+}
+
+/* ── Context menu + submenus: scale/fade pop ────────────────────────── */
+/* Both floating menus (the canvas context menu and the chat row menu) GROW OUT
+   of the open point: JS stamps transform-origin with the click point relative
+   to the placed box (motion.js menuPopOrigin), after viewport clamping. */
+@keyframes menuPop { from { opacity: 0; transform: scale(0.62); } to { opacity: 1; transform: none; } }
+#ctx-menu.ctx-open {
+    /* No `both` fill: keeping the animation's filled end-state leaves a
+       `transform: matrix(1,0,0,1,0,0)` on the menu, which (even as an identity)
+       makes it the containing block for its position:fixed submenus — so they
+       anchor to the menu instead of the viewport and land off-screen. Letting the
+       transform revert to none after the pop keeps submenu positioning correct. */
+    animation: menuPop 0.14s ease-out;
+    transform-origin: top left;   /* fallback — contextMenu.js sets the click point */
+}
+.chat-row-menu { animation: menuPop 0.14s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+    #ctx-menu.ctx-open, .chat-row-menu { animation: none; }
+}
+.ctx-sub.ctx-sub-visible {
+    animation: popIn 0.13s ease both;
+    transform-origin: top left;
+}
+/* Slight slide of the menu items' hover highlight already comes from the
+   background transition in components.css; nudge the row content on hover.
+   The 3px gained on the left is taken back on the right (14+14 → 17+11) so the
+   item's TOTAL width never changes — the menu is shrink-to-fit over nowrap
+   items, and a left-only nudge on the widest row jittered the whole menu wider. */
+.ctx-item { transition: background 0.12s, padding-left 0.12s, padding-right 0.12s; }
+.ctx-item:hover, .ctx-item.ctx-kb { padding-left: 17px; padding-right: 11px; }
+
+/* ── Tooltip: fade/slide in (size-neutral so JS positioning stays exact) ─ */
+/* Tooltip stays display:block while tracking the cursor, so the entrance
+   animation only fires on first appear (none→block), not every mousemove.
+   opacity/translateY don't alter the measured box, so position() keeps working. */
+.tooltip {
+    animation: tooltipIn 0.13s ease both;
+    box-shadow: 0 6px 22px var(--shadow);
+    /* No transition on left/top: the tooltip must snap to the cursor each frame.
+       An eased position transition makes it trail behind on fast cursor moves. */
+}
+
+/* ── Popups: hints bubble + install menu fade up ────────────────────── */
+#hints-btn:hover .hints-popup {
+    animation: popIn 0.16s ease both;
+}
+#install-host:hover #install-menu,
+#install-host:focus-within #install-menu {
+    animation: menuRise 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* ── Anchored menus: grow OUT OF the control they hang off, shrink back INTO it ──
+   The desktop's popovers fly out of their icon (modalFromIcon/modalToIcon do the same
+   for modals here), and an 8px menuRise on a 141×370 panel read as no motion at all —
+   2% of its own height, centre-anchored, with the eased curve spending 77% of it in the
+   first 40ms. These scale from the anchor CORNER instead, so the panel visibly emerges
+   from the mark. Shared + named: any menu that hangs off a control can use the pair,
+   it only has to point transform-origin at the edge it is anchored to.
+   The opacity stops are modalFromIcon's trick — full opacity while the box is still
+   small, so you watch a menu grow rather than a rectangle fade. */
+@keyframes menuFromAnchor {
+    0%   { opacity: 0; transform: translateY(-6px) scale(0.66); }
+    22%  { opacity: 1; }
+    100% { opacity: 1; transform: none; }
+}
+@keyframes menuToAnchor {
+    0%   { opacity: 1; transform: none; }
+    60%  { opacity: 0.85; }
+    100% { opacity: 0; transform: translateY(-6px) scale(0.66); }
+}
+/* Origin = the corner nearest the control. The shared rule hangs the menu right-aligned
+   under its trigger (components.css right:0); the logo copy and the toolbar's custom
+   selects are left-aligned, so theirs is the other corner. Declared after, and on the
+   base selector, so the exit scales toward the same point as the entrance came from. */
+.accent-dd-menu { transform-origin: right top; }
+.logo-accent-menu, .cs-dd .accent-dd-menu { transform-origin: left top; }
+/* …and a list that flipped above its trigger (dropdownMenu.js placeMenu) grows out of its
+   bottom edge, so the motion still starts at the corner nearest the control. */
+.accent-dd-menu.dd-above { transform-origin: left bottom; }
+.accent-dd-menu:not([hidden]) { animation: menuFromAnchor 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* The logo's right-click copy also LEAVES, shrinking back into the logo instead of
+   blinking off — the modal open/close idea, minus the backdrop. Declared after the
+   entrance rule so it wins while .dd-closing is up; toolbar.js hides the menu when the
+   exit finishes (animationend, with a fallback timer). */
+.logo-accent-menu.dd-closing { animation: menuToAnchor 0.18s ease both; }
+@media (prefers-reduced-motion: reduce) {
+    /* No growth, no shrink — toolbar.js hides the menu outright instead of waiting for
+       an exit that never plays (same idea as #ctx-menu / .chat-row-menu above). */
+    .accent-dd-menu:not([hidden]), .logo-accent-menu.dd-closing { animation: none; }
+}
+.accent-dd-opt { transition: background 0.15s ease, transform 0.12s ease; }
+/* `.dd-hover` is accentPicker.js's LATCH of that hover: a preview's flood drops real
+   :hover, so the row slid back to rest and in again after every one. */
+.accent-dd-opt:hover, .accent-dd-opt.dd-hover { transform: translateX(2px); }
+#install-menu [role="menuitem"] { transition: background 0.15s ease, transform 0.12s ease, padding-left 0.15s ease; }
+#install-menu [role="menuitem"]:hover { transform: translateX(2px); }
+/* #install-toggle uses the shared hover shimmer — no magnify (consistent hover). */
+
+/* ── AI assistant chat panel: slide in from its dock edge on open (and when the
+   dock side changes — the class swap restarts the matching animation); float pops
+   like the other popups. Close is instant (display:none can't transition), and the
+   global prefers-reduced-motion block below neutralises all of these. ─ */
+@keyframes chatSlideLeft   { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+@keyframes chatSlideRight  { from { opacity: 0; transform: translateX(28px); }  to { opacity: 1; transform: none; } }
+@keyframes chatSlideTop    { from { opacity: 0; transform: translateY(-28px); } to { opacity: 1; transform: none; } }
+@keyframes chatSlideBottom { from { opacity: 0; transform: translateY(28px); }  to { opacity: 1; transform: none; } }
+stencil-chat-panel.chat-open.chat-dock-left   { animation: chatSlideLeft 0.34s cubic-bezier(0.16, 1, 0.3, 1) both; }
+stencil-chat-panel.chat-open.chat-dock-right  { animation: chatSlideRight 0.34s cubic-bezier(0.16, 1, 0.3, 1) both; }
+stencil-chat-panel.chat-open.chat-dock-top    { animation: chatSlideTop 0.34s cubic-bezier(0.16, 1, 0.3, 1) both; }
+stencil-chat-panel.chat-open.chat-dock-bottom { animation: chatSlideBottom 0.34s cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* Float = its own window: it grows out of the toolbar icon and shrinks back into
+   it, exactly like a modal (chatPanel.js feeds --modal-dx/dy/sx/sy). */
+stencil-chat-panel.chat-open.chat-dock-float  { animation: modalFromIcon 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+/* Closing: the same slide in reverse (chatPanel.js keeps .chat-open until it
+   finishes, then drops both classes — display:none can't animate on its own). */
+@keyframes chatSlideOutLeft   { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(-28px); } }
+@keyframes chatSlideOutRight  { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(28px); } }
+@keyframes chatSlideOutTop    { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-28px); } }
+@keyframes chatSlideOutBottom { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(28px); } }
+@keyframes chatPopOut         { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(0.94) translateY(-6px); } }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-left   { animation: chatSlideOutLeft 0.26s ease both; }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-right  { animation: chatSlideOutRight 0.26s ease both; }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-top    { animation: chatSlideOutTop 0.26s ease both; }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-bottom { animation: chatSlideOutBottom 0.26s ease both; }
+stencil-chat-panel.chat-open.chat-closing.chat-dock-float  { animation: modalToIcon 0.34s ease both; }
+/* Phones render the panel as a CENTRED MODAL (components.css), so it takes the
+   app-wide modal motion — backdrop fade + content pop — instead of a dock slide,
+   whatever dock mode the session happens to hold. */
+@media (max-width: 680px) {
+    stencil-chat-panel.chat-open.chat-dock-left,
+    stencil-chat-panel.chat-open.chat-dock-right,
+    stencil-chat-panel.chat-open.chat-dock-top,
+    stencil-chat-panel.chat-open.chat-dock-bottom,
+    stencil-chat-panel.chat-open.chat-dock-float {
+        animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    stencil-chat-panel.chat-open.chat-closing.chat-dock-left,
+    stencil-chat-panel.chat-open.chat-closing.chat-dock-right,
+    stencil-chat-panel.chat-open.chat-closing.chat-dock-top,
+    stencil-chat-panel.chat-open.chat-closing.chat-dock-bottom,
+    stencil-chat-panel.chat-open.chat-closing.chat-dock-float {
+        animation: chatPopOut 0.24s ease both;
+    }
+    body:has(stencil-chat-panel.chat-open) #chat-backdrop { animation: overlayFadeIn 0.22s ease both; }
+    body:has(stencil-chat-panel.chat-closing) #chat-backdrop { animation: overlayFadeOut 0.24s ease both; }
+}
+@keyframes overlayFadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+/* ── Notification toasts: springy entrance, and an exit of its own ─────
+   Each toast is created in place (js/ui/notifications.js), so the entrance is an
+   animation rather than a class flip — and `backwards`, not `both`: filling the END
+   state forward would pin transform:none and kill the clickable toast's hover lift.
+   Without .notify-leaving the exit would just replay the spring backwards, which reads
+   as the toast bouncing back INTO view. Instead it drops away and shrinks. The
+   survivors close the gap by themselves — the column is a flex stack. */
+.notify-toast {
+    animation: notifyEnter 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+    transition: transform 0.2s ease;
+}
+@keyframes notifyEnter {
+    from { opacity: 0; transform: translateY(10px) scale(0.98); }
+    to   { opacity: 1; transform: none; }
+}
+.notify-toast.notify-leaving {
+    animation: notifyLeave 0.26s cubic-bezier(0.4, 0, 1, 1) both;
+    pointer-events: none;
+}
+@keyframes notifyLeave {
+    from { opacity: 1; transform: none; }
+    to   { opacity: 0; transform: translateY(14px) scale(0.94); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .notify-toast { animation: none; }
+    .notify-toast.notify-leaving { animation: none; }
+}
+
+/* ── Coordinate table: smooth row hover + attention pulse ───────────── */
+.coordinates-table tbody tr { transition: background 0.15s ease; }
+.coordinates-table tbody tr.row-highlighted { animation: rowPulse 0.5s ease; }
+.coordinates-table tbody tr.row-focused      { animation: focusPulse 0.5s ease; }
+
+/* ── Projects modal rows: hover lift ────────────────────────────────── */
+.project-row { transition: background 0.18s ease, border-color 0.18s ease, transform 0.14s ease, box-shadow 0.18s ease; }
+.project-row:not(.project-temp):hover { transform: translateX(3px); box-shadow: 0 3px 12px var(--shadow); }
+.project-thumb img { transition: transform 0.3s ease; }
+.project-row:hover .project-thumb img { transform: scale(1.06); }
+
+/* ── Hotkey cells + visuals/info rows: gentle hover ─────────────────── */
+.hotkey-cell { transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; }
+.hotkey-table tr td { transition: background 0.15s ease; }
+.vs-row, .info-item { transition: background 0.15s ease; }
+/* .vs-actions rows and the connect dialog's form rows are plain containers of
+   inputs/buttons, not data rows — no hover wash on any of them. */
+.vs-row:not(.vs-actions):not(stencil-connect-modal *):hover,
+.info-item:hover { background: var(--bg-coord-hover); }
+
+/* ── Idle "create blank image" affordance: invite a click ───────────── */
+.idle-create-btn { transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease; }
+.idle-create-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 24px var(--shadow); }
+.idle-create-icon { transition: transform 0.3s ease; }
+.idle-create-btn:hover .idle-create-icon { transform: scale(1.12) translateY(-2px); }
+
+/* ── Inputs & selects: focus glow ───────────────────────────────────── */
+input[type="text"],
+input[type="number"],
+input[type="color"],
+input[type="password"],
+input[type="url"],
+input[type="search"],
+select {
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.2s ease;
+}
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="password"]:focus,
+input[type="url"]:focus,
+input[type="search"]:focus,
+select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+/* ── Checkboxes / toggles: subtle scale on the label hover ──────────── */
+.ctx-checkbox-item, .ctx-radio-item { transition: background 0.12s ease; }
+
+/* ── Selection panel deselect button: keep the lift consistent ──────── */
+.deselect-btn { transition: background 0.2s ease, transform 0.12s ease; }

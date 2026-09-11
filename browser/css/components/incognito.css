@@ -1,0 +1,59 @@
+/* ── Incognito mode ─────────────────────────────────────────────── */
+/* A neutral ghost button when off; fills with the chosen theme accent when on, so
+   the "edits aren't saved" state reads in whatever accent the user picked. */
+/* Base + active styling shared with the other Settings ghost buttons above. */
+#incognito-toggle:disabled { opacity: 0.45; cursor: default; }
+/* A dashed outline + corner badge make it obvious nothing here is being saved —
+   both tinted to the current accent. */
+.canvas-section { position: relative; }
+/* The frame is four edges, each GROWING along its own axis, so the dash pattern is
+   revealed rather than stretched — scaleX() on a repeating gradient would smear the
+   dashes into stripes. Length, not transform, is what animates here for that reason.
+   Sequenced clockwise from the top-left; the OFF state mirrors the delays so it
+   retracts last-edge-first, i.e. the exact reverse of how it drew. */
+/* Traces the VIEWPORT — the whole bordered canvas region, the picture and the empty
+   ground beside it alike: the mode belongs to the EDITOR, and a box drawn around the
+   image alone read as a selection round the picture (user report). Sticky at the
+   scrollport's top-left corner, so it holds that edge at any zoom and scroll offset,
+   sized in px from --vp-w/--vp-h (mainContent publishes them on resize): a percentage
+   would resolve against the SCROLLABLE content, which is the image's box. The negative
+   margin cancels its height again, so nothing in the viewport moves. */
+.incognito-frame {
+    position: sticky;
+    top: 0;
+    left: 0;
+    width: var(--vp-w, 100%);
+    height: var(--vp-h, 100%);
+    margin-bottom: calc(-1 * var(--vp-h, 0px));
+    /* The viewport is a flex column (layout.css), so the frame is a flex item: without
+       this it would be shrunk by an overflowing canvas and stop tracing the viewport. */
+    flex: none;
+    z-index: 6;
+    pointer-events: none;
+}
+.ig-edge {
+    position: absolute;
+    --dash: repeating-linear-gradient(var(--ig-angle), var(--accent) 0 9px, transparent 9px 16px);
+    background-image: var(--dash);
+    transition: width var(--ig-draw, 170ms) ease-out var(--ig-delay, 0ms),
+                height var(--ig-draw, 170ms) ease-out var(--ig-delay, 0ms);
+}
+.ig-t { top: 0; left: 0; height: 3px; width: 0; --ig-angle: 90deg; }
+.ig-r { top: 0; right: 0; width: 3px; height: 0; --ig-angle: 180deg; }
+.ig-b { bottom: 0; right: 0; height: 3px; width: 0; --ig-angle: 270deg; }
+.ig-l { bottom: 0; left: 0; width: 3px; height: 0; --ig-angle: 0deg; }
+/* Retract: the LAST edge drawn is the first to go. */
+.ig-t { --ig-delay: 330ms; } .ig-r { --ig-delay: 220ms; }
+.ig-b { --ig-delay: 110ms; } .ig-l { --ig-delay: 0ms; }
+body.incognito-mode .ig-t { --ig-delay: 0ms; }
+body.incognito-mode .ig-r { --ig-delay: 110ms; }
+body.incognito-mode .ig-b { --ig-delay: 220ms; }
+body.incognito-mode .ig-l { --ig-delay: 330ms; }
+body.incognito-mode .ig-t, body.incognito-mode .ig-b { width: 100%; }
+body.incognito-mode .ig-r, body.incognito-mode .ig-l { height: 100%; }
+
+/* The "Incognito — not saved" wording lives in the toolbar "?" bubble (.hints-incognito),
+   not on a pill over the picture — the frame alone is the on-canvas mode marker. */
+@media (prefers-reduced-motion: reduce) {
+    .ig-edge { transition: none !important; }
+}

@@ -1,0 +1,88 @@
+/* ── Blank-image creator ── */
+/* Idle-canvas entry point: centered over the empty viewport, hidden by
+   DrawingApp.updateButtons() once an image is loaded. */
+.idle-create {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+.idle-create-btn {
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 16px 26px;
+    font-size: 13px;
+    cursor: pointer;
+    background: var(--bg-info);
+    color: var(--text-main);
+    border: 2px dashed var(--border-hint);
+    border-radius: 10px;
+}
+.idle-create-btn:hover { border-color: var(--border-main); }
+.idle-create-icon { font-size: 32px; line-height: 1; }
+/* White/black preset chips in the blank-image modal */
+.bi-presets { display: flex; gap: 8px; }
+.bi-preset {
+    width: 54px;
+    height: 30px;
+    padding: 0;
+    font-size: 11px;
+    border: 1px solid var(--border-main) !important;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.bi-preset-white { background: #ffffff; color: #333333; }
+.bi-preset-black { background: #000000; color: #eeeeee; }
+/* Info dialog */
+.info-group-title {
+    font-weight: bold;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin: 14px 0 4px;
+}
+.info-group-title:first-child { margin-top: 0; }
+.info-item {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 5px 4px;
+    border-bottom: 1px solid var(--border-coord);
+    font-size: 13px;
+}
+/* Tints and sweeps on hover like a hotkey row, at the same half tint. */
+.info-item:hover { background: color-mix(in srgb, var(--bg-coord-hover) 50%, var(--bg-container)); }
+.info-item.shimmer::after { border-radius: 0; }
+/* The term's key combos wear the tooltips' keycaps; they wrap inside the column. */
+.info-key .tip-key { font-size: 12px; padding: 2px 5px; }
+.info-key .tip-plus { font-size: 12px; }
+.info-key {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 0;
+    flex: 0 0 188px;
+    font-family: 'Menlo','Consolas',monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-key);
+    letter-spacing: 0.02em;
+}
+.info-desc { flex: 1; color: var(--text-info); font-weight: 400; }
+.info-empty { padding: 16px 4px; color: var(--text-muted); font-size: 13px; }
+/* Skeleton placeholder rows shown while server projects load (shimmer keyframe in
+   animations.css), so a modal opens instantly instead of blocking on the network. */
+.project-skeleton { pointer-events: none; cursor: default; }
+.project-skeleton .project-thumb { border: none; }
+.skel {
+    background: linear-gradient(90deg, var(--bg-info) 25%, var(--border-main) 37%, var(--bg-info) 63%);
+    background-size: 200% 100%; animation: shimmerSweep 1.2s linear infinite; border-radius: 4px;
+}
+.skel-line { height: 12px; width: 60%; }
+.skel-line.short { width: 35%; margin-top: 8px; }
