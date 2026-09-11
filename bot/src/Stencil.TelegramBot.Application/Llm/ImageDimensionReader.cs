@@ -1,18 +1,37 @@
 using System.Buffers.Binary;
+using Stencil.TelegramBot.Domain.Editing;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
 /// <summary>
 /// Cheap pixel-dimension sniffing from the headers of the LLM contract's accepted image
 /// formats (§7: PNG, JPEG, WebP, GIF) — so an already-small attachment can skip the ffmpeg
-/// downscale entirely. Returns false for anything it can't read; callers then fall back to a
-/// shrink-only rescale, which is harmless on small images.
+/// downscale, and adopting an image needs no CLI probe. Returns false/null for anything it
+/// can't read; callers then fall back to that decode, which is harmless if slower.
 /// </summary>
 public static class ImageDimensionReader
 {
     private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
-    /// <summary>Read the pixel dimensions from an image file's leading bytes.</summary>
+    // A JPEG's frame header sits past any EXIF/ICC segments, so sniff a generous prefix.
+    private const int PrefixBytes = 64 * 1024;
+
+    /// <summary>
+    /// Dimensions of a local image file, or null when its header isn't one we read — the caller
+    /// then falls back to decoding the file (a whole CLI process) to learn the same two numbers.
+    /// </summary>
+    public static async Task<ImageSize?> TryReadFileAsync(string path, CancellationToken ct = default)
+    {
+        if (!File.Exists(path))
+        {
+            return null;
+        }
+        await using FileStream stream = File.OpenRead(path);
+        byte[] head = new byte[(int)Math.Min(stream.Length, PrefixBytes)];
+        int read = await stream.ReadAtLeastAsync(head, head.Length, throwOnEndOfStream: false, ct);
+        return TryRead(head.AsSpan(0, read), out int width, out int height) ? new ImageSize(width, height) : null;
+    }
+
     public static bool TryRead(ReadOnlySpan<byte> data, out int width, out int height) =>
         TryReadPng(data, out width, out height)
         || TryReadGif(data, out width, out height)

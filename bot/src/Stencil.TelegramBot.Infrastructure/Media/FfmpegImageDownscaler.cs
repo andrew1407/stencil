@@ -16,10 +16,15 @@ namespace Stencil.TelegramBot.Infrastructure.Media;
 public sealed class FfmpegImageDownscaler : IImageDownscaler
 {
     private readonly BotOptions _options;
+    private readonly Func<string, IReadOnlyList<string>, TimeSpan, CancellationToken, Task<ProcessOutcome>> _run;
 
-    public FfmpegImageDownscaler(BotOptions options)
+    /// <summary>The runner is injectable so tests can pin the argv without spawning ffmpeg.</summary>
+    public FfmpegImageDownscaler(
+        BotOptions options,
+        Func<string, IReadOnlyList<string>, TimeSpan, CancellationToken, Task<ProcessOutcome>>? run = null)
     {
         _options = options;
+        _run = run ?? ((file, argv, timeout, ct) => ProcessRunner.RunAsync(file, argv, timeout, ct));
     }
 
     /// <inheritdoc />
@@ -39,8 +44,7 @@ public sealed class FfmpegImageDownscaler : IImageDownscaler
             // Reuse the CLI's per-invocation deadline so a hung ffmpeg can't pin the turn. A
             // start failure (ffmpeg not installed) or a timeout degrades to null; a caller
             // cancel propagates like every other async path.
-            ProcessOutcome outcome = await ProcessRunner
-                .RunAsync("ffmpeg", argv, _options.CliTimeout, ct)
+            ProcessOutcome outcome = await _run("ffmpeg", argv, _options.CliTimeout, ct)
                 .ConfigureAwait(false);
             if (outcome is not ProcessCompleted { ExitCode: 0 } || !File.Exists(output))
             {

@@ -1,47 +1,85 @@
-using System.Collections.Concurrent;
-
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// Per-user serialization gate: hands out a one-at-a-time async lock keyed by Telegram user id,
-/// so a single user's operations never interleave while different users still run concurrently.
-/// </summary>
-/// <remarks>
-/// The bot's session mutations are read-modify-write — load the
-/// <see cref="Domain.Sessions.UserSession"/>, fold in an edit, save it back. Two updates from the
-/// same user racing that sequence let a later save clobber an earlier one (a lost edit). Both
-/// inbound entry points — the <see cref="UpdateRouter"/> for interactive updates and the
-/// <see cref="SyncWatcher"/>'s background pull — acquire this gate around a user's work, making the
-/// sequence serial per user without a lock in every service method. Cross-user throughput is
-/// unaffected (each user has an independent semaphore).
-///
-/// One <see cref="SemaphoreSlim"/> is kept per user id for the process lifetime; each is a few
-/// dozen bytes, so the map is left to grow rather than risk an acquire/evict race by pruning it.
-/// This is a single-instance gate — horizontal scaling would need a distributed lock (e.g. Redis).
-/// </remarks>
+// A one-at-a-time async lock keyed by Telegram user id. The bot's session mutations are
+// read-modify-write — load the UserSession, fold in an edit, save it back — so two updates from
+// the same user racing that sequence lose an edit. Both inbound entry points (UpdateRouter and
+// SyncWatcher's background pull) take this, which makes the sequence serial per user without a
+// lock in every service method; different users keep their own semaphore and stay concurrent.
+// Each semaphore is reference-counted and dropped once its last holder releases, so the map
+// holds the users acting now, not everyone who ever wrote. Single-instance: horizontal scaling
+// would need a distributed lock.
 public sealed class UserGate
 {
-    private readonly ConcurrentDictionary<long, SemaphoreSlim> _gates = new();
+    private readonly Dictionary<long, Gate> _gates = [];
 
-    /// <summary>
-    /// Acquire the given user's gate, waiting if another operation for that user holds it. Dispose
-    /// the returned handle (via <c>using</c>) to release it.
-    /// </summary>
-    public async Task<IDisposable> AcquireAsync(long userId, CancellationToken ct = default)
+    // How many users hold or await a gate; the map never outgrows this.
+    public int TrackedUsers
     {
-        SemaphoreSlim gate = _gates.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
-        await gate.WaitAsync(ct).ConfigureAwait(false);
-        return new Releaser(gate);
+        get
+        {
+            lock (_gates)
+            {
+                return _gates.Count;
+            }
+        }
     }
 
-    /// <summary>Releases the held gate exactly once when disposed (double-dispose is a no-op).</summary>
+    // Dispose the returned handle (via `using`) to release it.
+    public async Task<IDisposable> AcquireAsync(long userId, CancellationToken ct = default)
+    {
+        Gate gate;
+        lock (_gates)
+        {
+            if (!_gates.TryGetValue(userId, out gate!))
+            {
+                _gates[userId] = gate = new Gate();
+            }
+            gate.Holders++;
+        }
+        try
+        {
+            await gate.Semaphore.WaitAsync(ct).ConfigureAwait(false);
+        }
+        catch
+        {
+            Drop(userId, gate);
+            throw;
+        }
+        return new Releaser(this, userId, gate);
+    }
+
+    // The semaphore is forgotten only when no holder is left, so a caller that took it before
+    // the eviction can never be handed a replacement while it still holds this one.
+    private void Drop(long userId, Gate gate)
+    {
+        lock (_gates)
+        {
+            if (--gate.Holders == 0 && _gates.TryGetValue(userId, out Gate? current) && current == gate)
+            {
+                _gates.Remove(userId);
+                gate.Semaphore.Dispose();
+            }
+        }
+    }
+
+    private sealed class Gate
+    {
+        public readonly SemaphoreSlim Semaphore = new(1, 1);
+        public int Holders;
+    }
+
+    // Releases exactly once; double-dispose is a no-op.
     private sealed class Releaser : IDisposable
     {
-        private readonly SemaphoreSlim _gate;
+        private readonly UserGate _owner;
+        private readonly long _userId;
+        private readonly Gate _gate;
         private bool _released;
 
-        public Releaser(SemaphoreSlim gate)
+        public Releaser(UserGate owner, long userId, Gate gate)
         {
+            _owner = owner;
+            _userId = userId;
             _gate = gate;
         }
 
@@ -52,7 +90,8 @@ public sealed class UserGate
                 return;
             }
             _released = true;
-            _gate.Release();
+            _gate.Semaphore.Release();
+            _owner.Drop(_userId, _gate);
         }
     }
 }

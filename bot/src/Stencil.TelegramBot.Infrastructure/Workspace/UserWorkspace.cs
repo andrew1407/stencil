@@ -25,7 +25,6 @@ public sealed class UserWorkspace : IUserWorkspace
         return dir;
     }
 
-    /// <summary>A fresh, unique file path for <paramref name="userId"/> with the given extension.</summary>
     public string NewFilePath(long userId, string extension)
     {
         string dir = DirectoryFor(userId);
@@ -33,7 +32,6 @@ public sealed class UserWorkspace : IUserWorkspace
         return Path.Combine(dir, name);
     }
 
-    /// <summary>Write bytes to a fresh file and return its path.</summary>
     public async Task<string> WriteAsync(long userId, byte[] data, string extension, CancellationToken ct = default)
     {
         string path = NewFilePath(userId, extension);
@@ -41,7 +39,6 @@ public sealed class UserWorkspace : IUserWorkspace
         return path;
     }
 
-    /// <summary>Delete every file for a user (the user's directory), ignoring a missing one.</summary>
     public void Clear(long userId)
     {
         string dir = Path.Combine(_options.DataDir, userId.ToString());
@@ -59,21 +56,19 @@ public sealed class UserWorkspace : IUserWorkspace
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<long> ActiveUserIds()
+    public IEnumerable<long> ActiveUserIds()
     {
         if (!Directory.Exists(_options.DataDir))
         {
-            return Array.Empty<long>();
+            yield break;
         }
-        List<long> ids = new();
         foreach (string dir in Directory.EnumerateDirectories(_options.DataDir))
         {
             if (long.TryParse(Path.GetFileName(dir), out long userId))
             {
-                ids.Add(userId);
+                yield return userId;
             }
         }
-        return ids;
     }
 
     /// <inheritdoc />
