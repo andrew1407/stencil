@@ -147,18 +147,32 @@ stencil_headless_test(stencil_iconmotion_headless
   LIBS Qt6::Widgets Qt6::Svg
   INCLUDE_TESTS)
 
+# The whole GUI, compiled ONCE for every target below that needs it instead of once per
+# binary. OBJECT (not STATIC) so app.qrc's resource initialiser links in directly. The
+# app keeps its own compile: only it bakes STENCIL_STATE_DIR, which a test must never
+# pick up (every test writes to the isolated state dir set at the bottom of this file).
+add_library(stencil_gui_objs OBJECT ${STENCIL_GUI_SOURCES})
+target_include_directories(stencil_gui_objs PUBLIC ${STENCIL_GUI_DIRS})
+target_link_libraries(stencil_gui_objs PUBLIC stencil_core Qt6::Widgets Qt6::Network
+  Qt6::Multimedia Qt6::Svg ${STENCIL_SHARE_LIBS})
+
 # GUI end-to-end (Qt Test framework): drives the REAL MainWindow — load via the OS-open
 # path, trigger the actual Rotate/Undo/Start-Drawing QActions, and send real mouse clicks
-# to the live canvas. Links the whole GUI (STENCIL_GUI_SOURCES) + Qt6::Test. Offscreen.
-# STENCIL_NO_ANIM: this test opens dialogs and acts on them at once, so the
+# to the live canvas. One binary per feature area (tests/mainWindow.<area>.gui.cpp), not
+# one binary over several TUs: ctest then runs the areas in parallel, and each area keeps
+# the single MainWindowGuiTest class name the two production headers befriend.
+# STENCIL_NO_ANIM: these tests open dialogs and act on them at once, so the
 # grow-from-the-icon flight (support/modalReveal) is off here — it would resize the
 # window under the test for its first ~200 ms, which is exactly the kind of timing the
 # suite must not depend on.
-stencil_headless_test(stencil_mainwindow_gui
-  SOURCES tests/mainWindow.gui.cpp ${STENCIL_GUI_SOURCES}
-  LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Multimedia Qt6::Svg Qt6::Test
-    ${STENCIL_SHARE_LIBS}
-  ENV STENCIL_NO_ANIM=1)
+foreach(area chatDock chatTurns canvas chrome menus menuKeys motion projects theme
+             toolbar tooltips)
+  string(TOLOWER ${area} _area_lc)
+  stencil_headless_test(stencil_mainwindow_${_area_lc}_gui
+    SOURCES tests/mainWindow.${area}.gui.cpp
+    LIBS stencil_gui_objs Qt6::Test
+    ENV STENCIL_NO_ANIM=1)
+endforeach()
 
 
 # Appearance pins: the app stylesheet hashed per theme x accent, plus twelve rendered
@@ -167,10 +181,9 @@ stencil_headless_test(stencil_mainwindow_gui
 # 1, so the hi-dpi pass forces dpr 2 with QT_SCALE_FACTOR, which is read once at
 # QApplication construction and so needs its own process.
 stencil_headless_test(stencil_uipins_headless
-  SOURCES tests/uiPins.headless.cpp tests/uiPins.states.cpp ${STENCIL_GUI_SOURCES}
+  SOURCES tests/uiPins.headless.cpp tests/uiPins.states.cpp
   DEFS "STENCIL_UI_PINS_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/tests/pins\""
-  LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Multimedia Qt6::Svg Qt6::Test
-    ${STENCIL_SHARE_LIBS}
+  LIBS stencil_gui_objs Qt6::Test
   ENV STENCIL_NO_ANIM=1)
 add_test(NAME stencil_uipins_hidpi_headless COMMAND stencil_uipins_headless)
 set_tests_properties(stencil_uipins_hidpi_headless PROPERTIES

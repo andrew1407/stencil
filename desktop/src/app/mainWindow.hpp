@@ -65,7 +65,7 @@ namespace stencil::llm {
   struct OpPlan;
 }
 
-class MainWindowGuiTest;  // QtTest e2e (tests/mainWindow.gui.cpp)
+class MainWindowGuiTest;  // QtTest e2e (tests/mainWindow.<area>.gui.cpp)
 class QScrollBar;
 
 // Top-level window. Mirrors the composition done by browser/js/ui/layout.js +

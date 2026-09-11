@@ -271,10 +271,12 @@ Doctest is a single header (pinned **v2.4.11**), fetched into `../core/third_par
 at configure time with SHA-256 verification — nothing to commit or install.
 
 The **desktop** build registers several Qt offscreen CTest cases of its own. Most exercise a
-component in isolation; `stencil_mainwindow_gui` is a full GUI **end-to-end** built with the
-**Qt Test framework** — it drives the real `MainWindow`:
+component in isolation; the `stencil_mainwindow_*_gui` targets are a full GUI **end-to-end**
+built with the **Qt Test framework** — they drive the real `MainWindow`:
 
-- `stencil_mainwindow_gui` — GUI e2e (QtTest): loads an image via the OS-open path, then
+- `stencil_mainwindow_<area>_gui` — GUI e2e (QtTest), one binary per feature area
+  (`tests/mainWindow.<area>.gui.cpp`, shared ground in `tests/mainWindow.gui.hpp`), so ctest
+  runs the areas in parallel: loads an image via the OS-open path, then
   drives the **real, shared QActions** (menu bar / toolbar / context menu reuse the same
   objects) and sends real mouse clicks to the live canvas, asserting on observable widget
   state. Five flows: action-enablement on load, a **Rotate** round-trip (asserting the

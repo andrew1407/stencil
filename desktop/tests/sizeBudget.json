@@ -76,7 +76,17 @@
     "desktop/tests/llmExecutor.headless.cpp": 1257,
     "desktop/tests/llmOpPlan.headless.cpp": 1180,
     "desktop/tests/llmWireFixtures.headless.cpp": 262,
-    "desktop/tests/mainWindow.gui.cpp": 15530,
+    "desktop/tests/mainWindow.canvas.gui.cpp": 1056,
+    "desktop/tests/mainWindow.chatDock.gui.cpp": 2473,
+    "desktop/tests/mainWindow.chatTurns.gui.cpp": 3149,
+    "desktop/tests/mainWindow.chrome.gui.cpp": 1051,
+    "desktop/tests/mainWindow.menuKeys.gui.cpp": 570,
+    "desktop/tests/mainWindow.menus.gui.cpp": 1766,
+    "desktop/tests/mainWindow.motion.gui.cpp": 881,
+    "desktop/tests/mainWindow.projects.gui.cpp": 1013,
+    "desktop/tests/mainWindow.theme.gui.cpp": 937,
+    "desktop/tests/mainWindow.toolbar.gui.cpp": 1570,
+    "desktop/tests/mainWindow.tooltips.gui.cpp": 634,
     "desktop/tests/modalChrome.headless.cpp": 354,
     "desktop/tests/motionPrefs.headless.cpp": 288,
     "desktop/tests/projectsBatchBar.headless.cpp": 617,
@@ -99,6 +109,7 @@
   },
   "exceptions": {
     "desktop/src/support": "comment share was raised 21 -> 23 with no comment added: theme.cpp's 817-line QSS literal moved to resources/app.qss, so the directory lost that many non-comment lines from the denominator. The phase-7 comment sweep took it back to 22; keep ratcheting as the support/ files shrink. Raised 22 -> 23 again by the same mechanism: scrollReveal.hpp and pillSplitter.hpp moved in from app/, and both are comment-dense header widgets.",
-    "desktop/src/llm": "comment share was raised 20 -> 21 with no comment added: chatPlanTarget.cpp, a 605-line low-comment file, moved to app/ where it belongs in the layer order, so llm/ lost those lines from the denominator."
+    "desktop/src/llm": "comment share was raised 20 -> 21 with no comment added: chatPlanTarget.cpp, a 605-line low-comment file, moved to app/ where it belongs in the layer order, so llm/ lost those lines from the denominator.",
+    "desktop/tests": "the MainWindow GUI e2e is one QtTest binary per feature area (mainWindow.<area>.gui.cpp). Each area is still far over 230 lines: a QtTest binary runs one QObject of slots, so an area cannot be split further without splitting the binary again. The budget numbers above are the ratchet — drive them down as cases merge."
   }
 }

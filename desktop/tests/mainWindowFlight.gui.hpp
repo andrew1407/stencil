@@ -1,0 +1,75 @@
+#pragma once
+// Reading a surface flight, for the MainWindow GUI suites: the dust/ghost overlay a
+// window, menu or tooltip forms out of, and the point it is aimed at.
+#include "../src/support/disintegrateOverlay.hpp"
+#include <QEvent>
+#include <QLabel>
+#include <QObject>
+#include <QPoint>
+#include <QWidget>
+
+namespace stencil::guitest {
+  // ── Reading a surface flight ────────────────────────────────────────────────
+  // A window, a popup menu and the tooltip form from motes streaming out of the control
+  // that owns them and come apart into motes pouring back in (support/modalReveal.cpp,
+  // menuReveal.cpp, appTooltip.hpp — the browser's js/ui/motion.js surfaceIn/surfaceOut).
+  // The flight is a DisintegrateOverlay child of the window, and it carries the point it
+  // is aimed at: that point IS "where the window comes out of", which is what these tests
+  // are about. Q_OBJECT-free, so it is found by object name and cast statically.
+  inline stencil::gui::DisintegrateOverlay* surfaceFlight(const QWidget* host) {
+    stencil::gui::DisintegrateOverlay* found = nullptr;
+    for (QWidget* w : host->findChildren<QWidget*>(
+             QString::fromLatin1(stencil::gui::DisintegrateOverlay::kObjectName))) {
+      auto* fx = static_cast<stencil::gui::DisintegrateOverlay*>(w);
+      if (fx->surfacePicture().isValid()) found = fx;   // the newest one wins
+    }
+    return found;
+  }
+
+  // Where the live flight is aimed, in `host` coordinates; an invalid point = nothing
+  // is flying.
+  inline QPoint surfaceFlightTarget(const QWidget* host) {
+    auto* fx = surfaceFlight(host);
+    return fx ? fx->surfaceTarget() : QPoint(-1, -1);
+  }
+
+  // The GHOST twin of the above: the fallback for whatever the dust engine declines
+  // outright (an unmeasurable box, a snapshot that failed to grab) — every dialog,
+  // including the big `.app-modal` ones, dusts first (support/modalReveal.cpp
+  // kDialogDustMaxCells). Found the same way, by its own object name (makeGhost).
+  inline QLabel* modalGhost(const QWidget* host) {
+    QLabel* found = nullptr;
+    for (QLabel* g : host->findChildren<QLabel*>(QStringLiteral("stencilModalGhost")))
+      if (g->isVisible()) found = g;   // the newest one wins
+    return found;
+  }
+
+  // Where either flight mechanism (dust or ghost) STARTS, caught on its QEvent::Show
+  // rather than polled later — a ghost's geometry is an active tween, so reading it even
+  // 50ms in is already off. Only the FIRST match sticks, so an immediate accept/close's
+  // CLOSE flight (same object name, starts at the dialog box, not the icon) can't clobber it.
+  struct RevealOriginWatcher : QObject {
+    QPoint origin{-1, -1};
+    bool captured = false;
+    void reset() { origin = QPoint(-1, -1); captured = false; }
+    bool eventFilter(QObject* o, QEvent* e) override {
+      if (captured || e->type() != QEvent::Show) return false;
+      auto* w = qobject_cast<QWidget*>(o);
+      if (!w) return false;
+      if (w->objectName() == QLatin1String(stencil::gui::DisintegrateOverlay::kObjectName)) {
+        auto* fx = static_cast<stencil::gui::DisintegrateOverlay*>(w);
+        if (fx->surfacePicture().isValid()) { origin = fx->surfaceTarget(); captured = true; }
+      } else if (w->objectName() == QLatin1String("stencilModalGhost")) {
+        origin = w->geometry().center();
+        captured = true;
+      }
+      return false;
+    }
+  };
+
+  // A control's centre in the window's coordinates — what a flight out of it aims at.
+  inline QPoint flightPointOf(const QWidget* control, const QWidget* host) {
+    return control->mapTo(host, control->rect().center());
+  }
+}  // namespace stencil::guitest
+

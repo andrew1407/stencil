@@ -27,7 +27,7 @@ class QTimer;
 class QVariantAnimation;
 class QMimeData;
 class QPlainTextEdit;
-class MainWindowGuiTest;  // QtTest e2e (tests/mainWindow.gui.cpp)
+class MainWindowGuiTest;  // QtTest e2e (tests/mainWindow.<area>.gui.cpp)
 class QProgressBar;
 class QPushButton;
 class QScrollArea;
@@ -174,7 +174,7 @@ namespace stencil::gui {
 
   class ChatDock : public QDockWidget {
     Q_OBJECT
-    friend class ::MainWindowGuiTest;   // QtTest e2e reaches the input box (tests/mainWindow.gui.cpp)
+    friend class ::MainWindowGuiTest;   // QtTest e2e reaches the input box (tests/mainWindow.<area>.gui.cpp)
    public:
     explicit ChatDock(QWidget* parent = nullptr);
 
