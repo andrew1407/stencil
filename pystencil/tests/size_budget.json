@@ -5,7 +5,6 @@
     "pystencil/pystencil/core.py": 151,
     "pystencil/pystencil/layout.py": 217,
     "pystencil/tests/test_editor.py": 397,
-    "pystencil/tests/test_fixture_conformance.py": 459,
     "pystencil/tests/test_image.py": 254,
     "pystencil/tests/test_projectfile.py": 254
   },
