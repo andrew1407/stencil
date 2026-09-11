@@ -860,8 +860,8 @@ namespace stencil::gui {
       });
       return a;
     };
-    actUnitCm_ = mkUnit("Centimeters (cm)", "cm");
-    actUnitIn_ = mkUnit("Inches (in)", "in");
+    units_.unitCm = mkUnit("Centimeters (cm)", "cm");
+    units_.unitIn = mkUnit("Inches (in)", "in");
   }
 
   // The rendered preview image for one export-variant QAction — maps the action

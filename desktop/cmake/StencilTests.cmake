@@ -98,6 +98,12 @@ stencil_headless_test(stencil_projectnamebar_headless
   SOURCES tests/projectNameBar.headless.cpp
   LIBS Qt6::Core)
 
+# Display-unit and px→cm arithmetic (app/unitsController.hpp) — the twin of the browser's
+# units.js length rule; header-only, so the test is the only compile unit.
+stencil_headless_test(stencil_unitscontroller_headless
+  SOURCES tests/unitsController.headless.cpp
+  LIBS Qt6::Core)
+
 # Scroll-reveal curve (support/scrollReveal.hpp) — how dim a row is at a given spot in its
 # scroller; header-only, so the test is the only extra compile unit.
 stencil_headless_test(stencil_scrollreveal_headless

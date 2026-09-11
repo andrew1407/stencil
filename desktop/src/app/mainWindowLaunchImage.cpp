@@ -129,8 +129,8 @@ namespace stencil::gui {
     // Page mode: reflect the chosen page in the toolbar control (keeps coords/crop
     // dialog consistent), then crop to that page in the chosen orientation.
     if (!opts.page.isEmpty()) {
-      const int idx = pageSize_->findData(opts.page);
-      if (idx >= 0) pageSize_->setCurrentIndex(idx);  // → onPageSizeChanged
+      const int idx = units_.pageSize->findData(opts.page);
+      if (idx >= 0) units_.pageSize->setCurrentIndex(idx);  // → onPageSizeChanged
     }
     const core::PageSize pg = naturalPageCm(pageSizeValue(),
                                             settings_.customPageWidth,

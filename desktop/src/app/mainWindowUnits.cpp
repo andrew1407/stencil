@@ -26,14 +26,14 @@ namespace stencil::gui {
   // label — the item DATA, never the label text (which carries the physical
   // size in the display unit and, while searching, whatever the user typed).
   QString MainWindow::pageSizeValue() const {
-    return pageSize_->currentData().toString();
+    return units_.pageSize->currentData().toString();
   }
 
   // Re-render the page-format combo labels in the active display unit. Items,
   // data, and the selection are untouched, so no change handlers fire.
   void MainWindow::applyUnitToPageCombo() {
-    if (!pageSize_) return;
-    fillPageSizeCombo(pageSize_, /*includeCustom=*/true, settings_.units);
+    if (!units_.pageSize) return;
+    fillPageSizeCombo(units_.pageSize, /*includeCustom=*/true, settings_.units);
   }
 
   // Page dimensions for the current selection, honoring custom W x H.
@@ -62,8 +62,7 @@ namespace stencil::gui {
   // Active display unit (cm by default; inches scales cm by 1/2.54). Shared with
   // the hover tooltip via core::buildTooltipRows.
   core::UnitFormat MainWindow::unitFormat() const {
-    if (settings_.units == "in") return {1.0 / 2.54, "in"};
-    return {1.0, "cm"};
+    return {UnitsController::factor(settings_.units), UnitsController::label(settings_.units)};
   }
 
   // Total real-world length of every drawn line segment, in centimetres. Uses the raw
@@ -73,14 +72,14 @@ namespace stencil::gui {
   // time to feed the projects-list tooltip cheaply. 0 when nothing is measurable.
   double MainWindow::currentLineLengthCm() const {
     const core::PageSize dims = currentPageDimensions();  // cm; already landscape-swaps
-    const int cw = canvas_->imageWidth(), ch = canvas_->imageHeight();
-    if (cw <= 0 || ch <= 0) return 0.0;
-    const double sx = dims.width / cw, sy = dims.height / ch;
+    const auto scale = UnitsController::pxToCm(dims.width, dims.height, canvas_->imageWidth(),
+                                               canvas_->imageHeight());
+    if (!scale.measurable()) return 0.0;
     const auto sumLine = [&](const core::Line& ln) {
       double t = 0.0;
       const auto& pts = ln.points;
       for (std::size_t i = 1; i < pts.size(); ++i)
-        t += std::hypot((pts[i].x - pts[i - 1].x) * sx, (pts[i].y - pts[i - 1].y) * sy);
+        t += UnitsController::segmentCm(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y, scale);
       return t;
     };
     // Sum committed lines by const-ref (no allLines() copy), then the in-progress line if any.
@@ -103,34 +102,34 @@ namespace stencil::gui {
   // Model values stay in cm; signals are blocked so the programmatic setValue
   // here doesn't feed back through the valueChanged handlers.
   void MainWindow::applyUnitToPageInputs() {
-    if (!customW_ || !customH_) return;
+    if (!units_.customW || !units_.customH) return;
     const auto u = unitFormat();
-    const bool inches = (settings_.units == "in");
-    QSignalBlocker bw(customW_), bh(customH_);
-    customW_->setDecimals(inches ? 2 : 1);
-    customH_->setDecimals(inches ? 2 : 1);
-    customW_->setValue(settings_.customPageWidth * u.factor);
-    customH_->setValue(settings_.customPageHeight * u.factor);
+    const int decimals = UnitsController::decimalsFor(settings_.units);
+    QSignalBlocker bw(units_.customW), bh(units_.customH);
+    units_.customW->setDecimals(decimals);
+    units_.customH->setDecimals(decimals);
+    units_.customW->setValue(settings_.customPageWidth * u.factor);
+    units_.customH->setValue(settings_.customPageHeight * u.factor);
   }
 
   // Reflect settings_.units in both unit controls without firing their handlers.
   void MainWindow::syncUnitControls() {
-    const bool inches = settings_.units == "in";
-    if (actUnitCm_ && actUnitIn_) {
-      QSignalBlocker bc(actUnitCm_), bi(actUnitIn_);
-      actUnitIn_->setChecked(inches);
-      actUnitCm_->setChecked(!inches);
+    const bool inches = UnitsController::isInches(settings_.units);
+    if (units_.unitCm && units_.unitIn) {
+      QSignalBlocker bc(units_.unitCm), bi(units_.unitIn);
+      units_.unitIn->setChecked(inches);
+      units_.unitCm->setChecked(!inches);
     }
-    if (unitCombo_) {
-      QSignalBlocker b(unitCombo_);
-      unitCombo_->setCurrentIndex(inches ? 1 : 0);
+    if (units_.unitCombo) {
+      QSignalBlocker b(units_.unitCombo);
+      units_.unitCombo->setCurrentIndex(inches ? 1 : 0);
     }
   }
 
   // Change the active display unit from any surface (menu or toolbar combo):
   // persist, keep both controls in sync, and refresh every length readout.
   void MainWindow::applyUnits(const QString& code) {
-    const QString c = (code == "in") ? "in" : "cm";
+    const QString c = UnitsController::canonicalUnit(code);
     if (settings_.units == c) return;
     settings_.units = c;
     persistSettings();
@@ -172,7 +171,7 @@ namespace stencil::gui {
   // Show/hide the custom inputs and recompute when the page size changes.
   void MainWindow::onPageSizeChanged() {
     const bool custom = pageSizeValue() == "custom";
-    revealControls(customGroup_, custom);
+    revealControls(units_.customGroup, custom);
     settings_.pageSize = pageSizeValue();
     // Keep the canvas's default-crop aspect in sync with the selected page.
     {

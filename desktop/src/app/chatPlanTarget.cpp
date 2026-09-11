@@ -69,20 +69,20 @@ namespace stencil::gui {
       w_.allowFormulas_->setChecked(on);  // applies + persists via its handler
   }
   void ChatPlanTarget::setPageFormat(const QString& isoName) {
-    const int idx = w_.pageSize_->findData(isoName);
-    if (idx >= 0) w_.pageSize_->setCurrentIndex(idx);  // fires onPageSizeChanged
+    const int idx = w_.units_.pageSize->findData(isoName);
+    if (idx >= 0) w_.units_.pageSize->setCurrentIndex(idx);  // fires onPageSizeChanged
   }
   // §2 page custom dims: the SAME controls the toolbar drives — the custom
   // spinboxes (edited in the active unit) + the "custom" combo entry.
   void ChatPlanTarget::setPageCustom(double widthCm, double heightCm) {
     const double f = w_.unitFormat().factor;
-    if (w_.customW_) w_.customW_->setValue(widthCm * f);
-    if (w_.customH_) w_.customH_->setValue(heightCm * f);
+    if (w_.units_.customW) w_.units_.customW->setValue(widthCm * f);
+    if (w_.units_.customH) w_.units_.customH->setValue(heightCm * f);
     // The spinboxes round to their display precision; keep the model exact.
     w_.settings_.customPageWidth = widthCm;
     w_.settings_.customPageHeight = heightCm;
-    const int idx = w_.pageSize_->findData(QStringLiteral("custom"));
-    if (idx >= 0) w_.pageSize_->setCurrentIndex(idx);
+    const int idx = w_.units_.pageSize->findData(QStringLiteral("custom"));
+    if (idx >= 0) w_.units_.pageSize->setCurrentIndex(idx);
     w_.onPageSizeChanged();  // idempotent when the combo change already fired
   }
   bool ChatPlanTarget::newBlank(const QString& color, const QString& isoName,

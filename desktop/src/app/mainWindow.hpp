@@ -4,6 +4,7 @@
 #include "popoverHost.hpp"
 #include "projectNameBar.hpp"
 #include "sessionController.hpp"
+#include "unitsController.hpp"
 #include "formulaParser.hpp"
 #include "llmClient.hpp"
 #include "pageMetrics.hpp"
@@ -977,7 +978,6 @@ namespace stencil::gui {
     DropZonesOverlay* dropZones_ = nullptr;   // split image-drop overlay (save | incognito)
     ProjectDragZones* projectZones_ = nullptr;  // 3-zone overlay for dragging a project out of the dialog
     QLabel* status_ = nullptr;
-    QComboBox* pageSize_ = nullptr;
     QComboBox* zoom_ = nullptr;
     // Debounced session + pan/zoom persistence, and the gates on both
     // (app/sessionController.hpp); its restoring() guard keeps loadProjectIntoCanvas /
@@ -1015,13 +1015,11 @@ namespace stencil::gui {
 
     bool tearingDown_ = false;   // set in ~MainWindow: ignore late child signals
 
-    // inline toolbar widget groups (custom page, formulas)
-    // The QWidgetAction handle (…Act_) is toggled, not the widget, so the
-    // toolbar re-lays-out and actually makes room for the inputs.
-    QWidget* customGroup_ = nullptr;
-    QDoubleSpinBox* customW_ = nullptr;
-    QDoubleSpinBox* customH_ = nullptr;
-    QComboBox* unitCombo_ = nullptr;     // toolbar cm/in switch (mirrors the menu)
+    // Page format, its custom W×H inputs, the cm/in switch in both of its places, and
+    // the unit arithmetic they share (app/unitsController.hpp).
+    UnitsController units_;
+    // inline toolbar widget groups (formulas). The QWidgetAction handle (…Act_) is
+    // toggled, not the widget, so the toolbar re-lays-out and makes room for the inputs.
     QCheckBox* allowFormulas_ = nullptr;
     QWidget* formulaGroup_ = nullptr;
     QLineEdit* formulaX_ = nullptr;
@@ -1385,9 +1383,6 @@ namespace stencil::gui {
     QCheckBox* ttScreenCheck_ = nullptr;
     QCheckBox* ttCoordsCheck_ = nullptr;
 
-    // Units submenu (View ▸ Units): cm | inches, persisted via settings_.units.
-    QAction* actUnitCm_ = nullptr;
-    QAction* actUnitIn_ = nullptr;
 
     // hotkeys (defaults + user overrides, live re-apply)
     QHash<QString, QString> hotkeys_;

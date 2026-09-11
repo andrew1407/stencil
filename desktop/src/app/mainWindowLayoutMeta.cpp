@@ -52,17 +52,17 @@ namespace stencil::gui {
       if (m.customPageWidth > 0) settings_.customPageWidth = m.customPageWidth;
       if (m.customPageHeight > 0) settings_.customPageHeight = m.customPageHeight;
       {
-        QSignalBlocker bs(pageSize_);
-        const int idx = pageSize_->findData(m.pageSize);
-        if (idx >= 0) pageSize_->setCurrentIndex(idx);
+        QSignalBlocker bs(units_.pageSize);
+        const int idx = units_.pageSize->findData(m.pageSize);
+        if (idx >= 0) units_.pageSize->setCurrentIndex(idx);
       }
       settings_.pageSize = pageSizeValue();
-      revealControls(customGroup_, settings_.pageSize == "custom");
-      if (customW_ && customH_) {
-        QSignalBlocker bw(customW_), bh(customH_);
+      revealControls(units_.customGroup, settings_.pageSize == "custom");
+      if (units_.customW && units_.customH) {
+        QSignalBlocker bw(units_.customW), bh(units_.customH);
         const double f = unitFormat().factor;
-        customW_->setValue(settings_.customPageWidth * f);
-        customH_->setValue(settings_.customPageHeight * f);
+        units_.customW->setValue(settings_.customPageWidth * f);
+        units_.customH->setValue(settings_.customPageHeight * f);
       }
     }
     if (layout.contains("allowFormulas") || layout.contains("formulaX") ||

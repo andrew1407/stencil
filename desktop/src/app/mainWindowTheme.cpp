@@ -308,8 +308,8 @@ namespace stencil::gui {
     set(actFullscreen_, fs_.active ? "minimize" : "maximize");
     set(actTooltip_, "message");
     set(actAllowFormulas_, "function");
-    set(actUnitCm_, "ruler");
-    set(actUnitIn_, "ruler");
+    set(units_.unitCm, "ruler");
+    set(units_.unitIn, "ruler");
     // Incognito: always the mask glyph (browser parity — the browser keeps the same icon and
     // just dims it when disabled). Qt auto-greys the icon for the disabled/locked state, so we
     // don't swap in a separate lock glyph.

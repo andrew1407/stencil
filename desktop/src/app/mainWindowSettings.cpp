@@ -109,14 +109,14 @@ namespace stencil::gui {
     canvas_->setShowPoints(s.showPoints);
     canvas_->setShowLines(s.showLines);
     {
-      QSignalBlocker b(pageSize_);
-      const int idx = pageSize_->findData(s.pageSize);
-      if (idx >= 0) pageSize_->setCurrentIndex(idx);
+      QSignalBlocker b(units_.pageSize);
+      const int idx = units_.pageSize->findData(s.pageSize);
+      if (idx >= 0) units_.pageSize->setCurrentIndex(idx);
     }
     // Sync custom page-size inputs in the active display unit.
-    if (customW_) {
+    if (units_.customW) {
       applyUnitToPageInputs();
-      revealControls(customGroup_, s.pageSize == "custom");
+      revealControls(units_.customGroup, s.pageSize == "custom");
     }
     if (allowFormulas_) {
       QSignalBlocker ba(allowFormulas_);

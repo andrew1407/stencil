@@ -87,9 +87,9 @@ namespace stencil::gui {
       activeProjectId_ = sess->activeProjectId;
     }
     {
-      QSignalBlocker b(pageSize_);
-      const int idx = pageSize_->findData(sess->pageSize);
-      if (idx >= 0) pageSize_->setCurrentIndex(idx);
+      QSignalBlocker b(units_.pageSize);
+      const int idx = units_.pageSize->findData(sess->pageSize);
+      if (idx >= 0) units_.pageSize->setCurrentIndex(idx);
     }
     // The filter/tint deliberately does NOT carry over into a relaunch (user decision);
     // saveSessionNow still writes it (format unchanged) and .stencil files round-trip it.

@@ -661,12 +661,12 @@ namespace stencil::gui {
 
     // Units switch on the toolbar (mirrors View ▸ Units, kept in sync). data
     // carries the canonical code; both surfaces route through applyUnits().
-    unitCombo_ = new SearchComboBox(this, /*searchable=*/false);
-    unitCombo_->addItem("cm", "cm");
-    unitCombo_->addItem("in", "in");
-    unitCombo_->setToolTip("Display units (cm / inches)");   // its own caption
-    connect(unitCombo_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
-            [this](int) { applyUnits(unitCombo_->currentData().toString()); });
+    units_.unitCombo = new SearchComboBox(this, /*searchable=*/false);
+    units_.unitCombo->addItem("cm", "cm");
+    units_.unitCombo->addItem("in", "in");
+    units_.unitCombo->setToolTip("Display units (cm / inches)");   // its own caption
+    connect(units_.unitCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+            [this](int) { applyUnits(units_.unitCombo->currentData().toString()); });
     // ZOOM and PAGE follow VIEW, keeping the browser's sequence.
     addWrappedSeparator(row);
     // The browser's cluster exactly: [−] [+] [value %] [fit] (toolbar.js .zoom-controls).
@@ -683,48 +683,48 @@ namespace stencil::gui {
     // the section so they can go INSIDE it: added straight to the toolbar they were centred
     // on its full height while the two combos sat under the section caption, so the row
     // never shared a baseline (the same trap the formula fields fell into, below).
-    customGroup_ = new QWidget(this);
+    units_.customGroup = new QWidget(this);
     {
-      auto* cl = new QHBoxLayout(customGroup_);
+      auto* cl = new QHBoxLayout(units_.customGroup);
       cl->setContentsMargins(2, 0, 0, 0);
       cl->setSpacing(5);   // the section row's own gap
-      customW_ = new ExprDoubleSpinBox(customGroup_);
-      customW_->setRange(0.1, 500.0);  // browser LIMITS custom page bounds
-      customW_->setSingleStep(0.1);
-      customW_->setDecimals(1);
-      customW_->setValue(21.0);
-      customW_->setToolTip("Custom page width in the selected units");
+      units_.customW = new ExprDoubleSpinBox(units_.customGroup);
+      units_.customW->setRange(0.1, 500.0);  // browser LIMITS custom page bounds
+      units_.customW->setSingleStep(0.1);
+      units_.customW->setDecimals(1);
+      units_.customW->setValue(21.0);
+      units_.customW->setToolTip("Custom page width in the selected units");
       // Width-tightening: keep the custom-page spinboxes compact
       // (browser style width:96px, toolbar.js:110/112) — trimmed a little further
       // with the rest of this row so the SETTINGS cluster always fits after DATA.
-      customW_->setMaximumWidth(76);
+      units_.customW->setMaximumWidth(76);
       // Capped at 76 as before, but the row may squeeze them: a spin box's own
       // minimumSizeHint (89) is a floor the toolbar layout cannot go under, and with the
       // zoom steppers added this row asked for more than a 1000px window has. Ignored +
       // an explicit minimum makes 56 the floor instead; the maximum above still stops
       // them growing. Both boxes only show at all for a CUSTOM page size.
-      customW_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
-      customW_->setMinimumWidth(56);
-      customH_ = new ExprDoubleSpinBox(customGroup_);
-      customH_->setRange(0.1, 500.0);
-      customH_->setSingleStep(0.1);
-      customH_->setDecimals(1);
-      customH_->setValue(29.7);
-      customH_->setToolTip("Custom page height in the selected units");
-      customH_->setMaximumWidth(76);
-      customH_->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
-      customH_->setMinimumWidth(56);
-      cl->addWidget(customW_, 0, Qt::AlignVCenter);
-      cl->addWidget(new QLabel("×", customGroup_), 0, Qt::AlignVCenter);
-      cl->addWidget(customH_, 0, Qt::AlignVCenter);
+      units_.customW->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+      units_.customW->setMinimumWidth(56);
+      units_.customH = new ExprDoubleSpinBox(units_.customGroup);
+      units_.customH->setRange(0.1, 500.0);
+      units_.customH->setSingleStep(0.1);
+      units_.customH->setDecimals(1);
+      units_.customH->setValue(29.7);
+      units_.customH->setToolTip("Custom page height in the selected units");
+      units_.customH->setMaximumWidth(76);
+      units_.customH->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+      units_.customH->setMinimumWidth(56);
+      cl->addWidget(units_.customW, 0, Qt::AlignVCenter);
+      cl->addWidget(new QLabel("×", units_.customGroup), 0, Qt::AlignVCenter);
+      cl->addWidget(units_.customH, 0, Qt::AlignVCenter);
       // No unit suffix after the boxes (user decision; browser twin: the same span is gone
       // from toolbar.js) — the units combo two controls left already says cm / in.
     }
-    customGroup_->setVisible(false);   // revealed by the "custom" page size
+    units_.customGroup->setVisible(false);   // revealed by the "custom" page size
     // One NAMED section, like every group in the main row and like the browser's PAGE
     // cluster. Neither combo carries an inline caption (user decision, browser twin):
     // each spells its own answer out ("A4 (21 × 29.7 cm)", "cm").
-    addWrapped(row, makeToolSection("Page", {}, { pageSize_, unitCombo_, customGroup_ }));
+    addWrapped(row, makeToolSection("Page", {}, { units_.pageSize, units_.unitCombo, units_.customGroup }));
 
     // Inline formula controls: an enable checkbox + fx/fy inputs + error.
     allowFormulas_ = new QCheckBox("𝑓(x,y)", this);

@@ -578,16 +578,16 @@ namespace stencil::gui {
     // browser-style themed popup with the pinned "Search…" filter (the port of
     // enhanceSelect({ search: true }) on #page-size) — the trigger itself stays
     // a plain, non-editable combo.
-    pageSize_ = new SearchComboBox(this);
-    fillPageSizeCombo(pageSize_, /*includeCustom=*/true);
-    pageSize_->setToolTip("Page size");
+    units_.pageSize = new SearchComboBox(this);
+    fillPageSizeCombo(units_.pageSize, /*includeCustom=*/true);
+    units_.pageSize->setToolTip("Page size");
     // The CLOSED combo is sized by the longest entry ("B0 (100 × 141.4 cm)"), which
     // made this the widest control on the row and pushed the SETTINGS cluster past
     // the window edge on an ordinary laptop screen. The dimensions are a reminder,
     // not the label — the popup (and the tooltip) still show them in full.
-    pageSize_->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    pageSize_->setMinimumContentsLength(11);
-    pageSize_->setMaximumWidth(150);
+    units_.pageSize->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    units_.pageSize->setMinimumContentsLength(11);
+    units_.pageSize->setMaximumWidth(150);
     zoom_ = new QComboBox(this);
     zoom_->addItems({"10%", "25%", "50%", "75%", "100%", "125%", "150%", "200%", "300%", "400%", "500%", "800%", "1600%", "3200%"});
     setTipBase(zoom_, "Zoom %");   // browser #zoom-input: greyed with nothing to zoom
@@ -788,7 +788,7 @@ namespace stencil::gui {
   }
 
   // Signal wiring extracted from the ctor. The connect() ORDER is observable
-  // (e.g. the allowFormulas_ handler drives actAllowFormulas_; customW_/customH_
+  // (e.g. the allowFormulas_ handler drives actAllowFormulas_; units_.customW/units_.customH
   // handlers call onSelectionChanged) and is preserved verbatim here. Must run
   // after the widgets/actions are built and before the persisted-state load.
   void MainWindow::wireSignals() {
@@ -880,9 +880,9 @@ namespace stencil::gui {
     // Page size + custom inputs. Index-based (not text): the editable
     // search field mutates the text on every keystroke, but a page change is
     // only a change of the selected item.
-    connect(pageSize_, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+    connect(units_.pageSize, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             [this](int) { onPageSizeChanged(); });
-    connect(customW_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+    connect(units_.customW, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
             [this](double v) {
               // Spinboxes are edited in the active unit; store the model in cm.
               settings_.customPageWidth = v / unitFormat().factor;
@@ -891,7 +891,7 @@ namespace stencil::gui {
               onSelectionChanged();  // refresh panel cm
               remoteSync_->scheduleRemotePush();  // page format rides the layout — push it to peers
             });
-    connect(customH_, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
+    connect(units_.customH, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
             [this](double v) {
               settings_.customPageHeight = v / unitFormat().factor;
               persistSettings();

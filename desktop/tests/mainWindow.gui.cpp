@@ -627,8 +627,8 @@ class MainWindowGuiTest : public QObject {
         {nullptr, win.filterColorBtn_, "filter-color"},
         {nullptr, win.nameBar_.blankColorBtn, "blank-color-btn"},
         {nullptr, win.zoom_, "zoom-input"},
-        {nullptr, win.pageSize_, "page-size"},
-        {nullptr, win.unitCombo_, "unit-select"},
+        {nullptr, win.units_.pageSize, "page-size"},
+        {nullptr, win.units_.unitCombo, "unit-select"},
         {nullptr, win.lineColorBtn_, "line-color"},
         {nullptr, win.lineThickness_, "line-thickness"},
         {nullptr, win.lineStyle_, "line-style"},
@@ -1024,14 +1024,14 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!popup->findChild<QLineEdit*>("searchComboSearch"), "a 3-row list grew a search box");
     win.lineStyle_->hidePopup();
     // The long ISO page list keeps its search box, which is what it was built for.
-    win.pageSize_->showPopup();
+    win.units_.pageSize->showPopup();
     QTest::qWait(60);
     QWidget* pagePopup = nullptr;
     for (QWidget* w : QApplication::topLevelWidgets())
       if (w->isVisible() && w->findChild<QWidget*>("searchComboPopup")) pagePopup = w;
     QVERIFY(pagePopup);
     QVERIFY2(pagePopup->findChild<QLineEdit*>("searchComboSearch"), "page formats lost their search");
-    win.pageSize_->hidePopup();
+    win.units_.pageSize->hidePopup();
   }
 
   // The window opens at the size it asked for. The wrapping tool run (support/wrapRow.hpp)
@@ -12275,11 +12275,11 @@ class MainWindowGuiTest : public QObject {
     // row too wide.
     QToolBar* row = win.findChild<QToolBar*>("mainToolbar");   // the one wrapping run
     QVERIFY(row);
-    const int custom = win.pageSize_->findData(QStringLiteral("custom"));
+    const int custom = win.units_.pageSize->findData(QStringLiteral("custom"));
     QVERIFY(custom >= 0);
     for (const int width : {1950, 1400, 1100, 975}) {
       win.resize(width, 850);
-      win.pageSize_->setCurrentIndex(custom);   // the widest state of this row
+      win.units_.pageSize->setCurrentIndex(custom);   // the widest state of this row
       QTest::qWait(200);
       const QString at = QString("at %1px: ").arg(width);
       QVERIFY2(section->isVisible(), qPrintable(at + "the SETTINGS section is not visible"));
@@ -14378,7 +14378,7 @@ class MainWindowGuiTest : public QObject {
                  Qt::FindDirectChildrenOnly),
              "MainWindow never installed the app-wide control-swap filter");
     auto* box = win.showPointsCheck_;
-    auto* combo = win.pageSize_;
+    auto* combo = win.units_.pageSize;
     QVERIFY(box && combo);
     QTRY_VERIFY(box->property(stencil::gui::kControlSwapWiredProperty).toBool());
     QVERIFY2(combo->property(stencil::gui::kControlSwapWiredProperty).toBool(),
@@ -15232,11 +15232,11 @@ class MainWindowGuiTest : public QObject {
     // window on its own. With the formula fields showing and the widest page state chosen,
     // none of them may fall back on QToolBar's "»", which is how SETTINGS once vanished.
     win.allowFormulas_->setChecked(true);
-    const int custom = win.pageSize_->findData(QStringLiteral("custom"));
+    const int custom = win.units_.pageSize->findData(QStringLiteral("custom"));
     QVERIFY(custom >= 0);
-    const int a3 = win.pageSize_->findData(QStringLiteral("A3"));
+    const int a3 = win.units_.pageSize->findData(QStringLiteral("A3"));
     QVERIFY(a3 >= 0);
-    win.pageSize_->setCurrentIndex(a3);   // the everyday state, whatever the settings hold
+    win.units_.pageSize->setCurrentIndex(a3);   // the everyday state, whatever the settings hold
     QTest::qWait(150);
     for (const int width : {1400, 1100, 1000}) {
       win.resize(width, 950);
@@ -15252,7 +15252,7 @@ class MainWindowGuiTest : public QObject {
     }
     // …and once more with the custom page's W × H boxes out — they add ~160px to the PAGE
     // cluster (squeezable, but only so far), so that state is checked one step wider.
-    win.pageSize_->setCurrentIndex(custom);
+    win.units_.pageSize->setCurrentIndex(custom);
     QTest::qWait(150);
     for (const int width : {1400, 1100}) {
       win.resize(width, 950);
@@ -15266,7 +15266,7 @@ class MainWindowGuiTest : public QObject {
                                     .arg(width).arg(tb->objectName())));
       }
     }
-    win.pageSize_->setCurrentIndex(a3);   // this suite shares the real settings file
+    win.units_.pageSize->setCurrentIndex(a3);   // this suite shares the real settings file
   }
 
   // The rename ✓/✗ slide their slots open by animating maximumWidth, so the layout's own
