@@ -1,3 +1,5 @@
+import { normalizeUrl } from './connectionManager.js';
+import { loadSavedServers } from './connectionStore.js';
 // ── Remote project sync helpers (browser ↔ collaboration server) ─────────────
 // Create-on-server after a local create + version-guarded save-back on save. Used by
 // the modals and the window.stencil facade alike; each takes a resolved ServerConnection.
@@ -24,6 +26,26 @@ export const shouldReloadFromEvent = (msg, link, opts = {}) => {
   if (typeof v !== 'number' || v <= (link.version || 0)) return false;
   if (now - lastLocalSaveAt < echoWindowMs) return false;
   return true;
+};
+
+// Delete a server project even when this tab's live connection object is gone (dropped
+// feed, listing served from cache): fall back to a direct authenticated DELETE with the
+// token saved for that server. Lives here, not in a view — it speaks the wire.
+export const deleteRemoteProject = async (connMgr, serverUrl, id) => {
+  const conn = connMgr?.get(serverUrl);
+  if (conn) { await conn.deleteProject(id); return; }
+  const saved = loadSavedServers().find((s) => {
+    try { return normalizeUrl(s.url) === normalizeUrl(serverUrl); } catch { return false; }
+  });
+  if (!saved) throw new Error(`not connected to ${serverUrl}`);
+  const res = await fetch(`${normalizeUrl(serverUrl)}/projects/${encodeURIComponent(id)}`, {
+    method: 'DELETE', headers: { Authorization: `Bearer ${saved.token}` },
+  });
+  if (!res.ok && res.status !== 404) {   // already-gone counts as removed
+    let msg = `HTTP ${res.status}`;
+    try { const body = await res.json(); if (body && body.message) msg = body.message; } catch { /* not JSON */ }
+    throw new Error(msg);
+  }
 };
 
 // Resolve + validate the connection for `address` from a ConnectionManager.

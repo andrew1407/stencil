@@ -2,6 +2,7 @@
 // Each ServerConnection owns a token, a live /ws events feed, and the REST surface
 // (server/internal/protocol); fetch + WebSocket are injected for `node --test`.
 import { Emitter } from '../core/emitter.js';
+import { timeoutSignal } from './abortable.js';
 
 // Remote project ids are namespaced so they never collide with local base36 ids;
 // each remote meta carries `serverUrl` with `remote: true` (golden outline in the UI).
@@ -112,7 +113,7 @@ export class ServerConnection {
       headers['Content-Type'] = 'application/json';
       payload = JSON.stringify(body);
     }
-    const resp = await this._fetch(url, { method, headers, body: payload });
+    const resp = await this._fetch(url, { method, headers, body: payload, signal: timeoutSignal() });
     if (!resp.ok) {
       // A minted session token dies with a server restart — while the user's
       // credential is at hand, re-mint with it once and retry the request in
@@ -135,9 +136,7 @@ export class ServerConnection {
       }
       let msg = `HTTP ${resp.status}`;
       try { const e = await resp.json(); if (e && e.message) msg = e.message; } catch { /* non-JSON */ }
-      const err = new Error(`${method} ${path}: ${msg}`);
-      err.status = resp.status;
-      throw err;
+      throw Object.assign(new Error(`${method} ${path}: ${msg}`), { status: resp.status });
     }
     if (resp.status === 204) return null;
     if (raw) return resp;
