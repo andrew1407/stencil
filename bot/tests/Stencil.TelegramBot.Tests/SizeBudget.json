@@ -11,7 +11,7 @@
     "bot/src/Stencil.TelegramBot.Application/Servers/ServerService.cs": 162,
     "bot/src/Stencil.TelegramBot.Bot/Telegram/CallbackAction.cs": 214,
     "bot/src/Stencil.TelegramBot.Bot/Telegram/CommandHandlers.Assistant.cs": 178,
-    "bot/src/Stencil.TelegramBot.Bot/Telegram/CommandHandlers.Editing.cs": 424,
+    "bot/src/Stencil.TelegramBot.Bot/Telegram/CommandHandlers.Editing.cs": 191,
     "bot/src/Stencil.TelegramBot.Bot/Telegram/CommandHandlers.Projects.cs": 414,
     "bot/src/Stencil.TelegramBot.Bot/Telegram/CommandHandlers.Sources.cs": 300,
     "bot/src/Stencil.TelegramBot.Bot/Telegram/CommandHandlers.cs": 226,

@@ -1,27 +1,15 @@
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
-using Microsoft.Extensions.Logging;
 using Stencil.TelegramBot.Application.Editing;
-using Stencil.TelegramBot.Application.Llm;
-using Stencil.TelegramBot.Application.Servers;
-using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Editing;
-using Stencil.TelegramBot.Domain.Exceptions;
 using Stencil.TelegramBot.Domain.Layout;
-using Stencil.TelegramBot.Domain.Llm;
-using Stencil.TelegramBot.Domain.Projects;
 using Stencil.TelegramBot.Domain.Sessions;
-using Stencil.TelegramBot.Infrastructure.Links;
 using Telegram.Bot;
-using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// CommandHandlers — image-editing commands: layout/blank/format, crop/rotate/filter,
-// draw + pen settings, undo/redo/reset/drop. Class doc lives in CommandHandlers.cs.
+// CommandHandlers — what the whole image is: layout/blank/format, crop, frame, rotate and
+// filter. Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
     /// <summary>
@@ -179,202 +167,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    private async Task DrawAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0)
-        {
-            await _bot.SendMessage(chatId, Replies.DrawHelp(), cancellationToken: ct);
-            return;
-        }
-        string shape = cmd.Args[0];
-        IReadOnlyList<string> pointTokens = cmd.Args.Skip(1).ToList();
-        await DrawShapeAsync(userId, chatId, shape, pointTokens, ct);
-    }
-
-    private async Task DrawShapeAsync(long userId, long chatId, string shape, IReadOnlyList<string> pointTokens, CancellationToken ct)
-    {
-        UserSession session = await _store.GetAsync(userId, ct);
-        if (!session.HasImage)
-        {
-            await _bot.SendMessage(chatId, "Upload an image (or use /blank) before drawing.", cancellationToken: ct);
-            return;
-        }
-        string kind = shape.ToLowerInvariant();
-        bool closed = kind is "rect" or "rectangle" or "poly" or "polygon";
-        if (!DrawArguments.TryParsePoints(pointTokens, session.OriginalWidth, session.OriginalHeight, out List<LayoutPoint> points, out string? error))
-        {
-            await _bot.SendMessage(chatId, $"{error}\n\n{Replies.DrawHelp()}", cancellationToken: ct);
-            return;
-        }
-        IReadOnlyList<LayoutPoint> shapePoints = points;
-        if (kind is "rect" or "rectangle")
-        {
-            if (points.Count != 2)
-            {
-                await _bot.SendMessage(chatId, "A rectangle needs exactly two corner points: /draw rect x1,y1 x2,y2", cancellationToken: ct);
-                return;
-            }
-            shapePoints = DrawArguments.Rectangle(points[0], points[1]);
-        }
-        else if (kind is "poly" or "polygon")
-        {
-            if (points.Count < 3)
-            {
-                await _bot.SendMessage(chatId, "A polygon needs at least three points.", cancellationToken: ct);
-                return;
-            }
-        }
-        else if (kind is "line" or "polyline")
-        {
-            if (points.Count < 2)
-            {
-                await _bot.SendMessage(chatId, "A line needs at least two points.", cancellationToken: ct);
-                return;
-            }
-        }
-        else
-        {
-            await _bot.SendMessage(chatId, Replies.DrawHelp(), cancellationToken: ct);
-            return;
-        }
-        await _editing.AddLineAsync(userId, shapePoints, closed, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    private async Task PenColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0)
-        {
-            await _bot.SendMessage(chatId, "Usage: /color <#hex|name>, e.g. /color #ff5623", cancellationToken: ct);
-            return;
-        }
-        await _editing.ConfigurePenAsync(userId, color: cmd.Args[0], thickness: null, pointSize: null, style: null, fill: null, ct);
-        await _bot.SendMessage(chatId, $"Pen colour set to {cmd.Args[0]}.", cancellationToken: ct);
-    }
-
-    private async Task PenThicknessAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (!TryParseNonNegative(cmd.Args, out double value))
-        {
-            await _bot.SendMessage(chatId, "Usage: /thickness <n> (pixels, e.g. 4)", cancellationToken: ct);
-            return;
-        }
-        await _editing.ConfigurePenAsync(userId, color: null, thickness: value, pointSize: null, style: null, fill: null, ct);
-        await _bot.SendMessage(chatId, $"Pen thickness set to {value}.", cancellationToken: ct);
-    }
-
-    private async Task PenPointsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (!TryParseNonNegative(cmd.Args, out double value))
-        {
-            await _bot.SendMessage(chatId, "Usage: /points <n> (radius in pixels; 0 hides points), e.g. /points 6", cancellationToken: ct);
-            return;
-        }
-        await _editing.ConfigurePenAsync(userId, color: null, thickness: null, pointSize: value, style: null, fill: null, ct);
-        await _bot.SendMessage(chatId, $"Point size set to {value}.", cancellationToken: ct);
-    }
-
-    /// <summary>Parse a non-negative invariant-culture number from the first argument.</summary>
-    private static bool TryParseNonNegative(IReadOnlyList<string> args, out double value)
-    {
-        value = 0;
-        return args.Count > 0
-            && double.TryParse(args[0], NumberStyles.Float, CultureInfo.InvariantCulture, out value)
-            && value >= 0;
-    }
-
-    private async Task PenStyleAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        string style = cmd.Args.Count == 0 ? "" : cmd.Args[0].ToLowerInvariant();
-        if (style is not ("solid" or "dashed" or "dotted"))
-        {
-            await _bot.SendMessage(chatId, "Usage: /style <solid|dashed|dotted>, e.g. /style dashed", cancellationToken: ct);
-            return;
-        }
-        await _editing.ConfigurePenAsync(userId, color: null, thickness: null, pointSize: null, style: style, fill: null, ct);
-        await _bot.SendMessage(chatId, $"Line style set to {style}.", cancellationToken: ct);
-    }
-
-    private async Task PenFillAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
-    {
-        if (cmd.Args.Count == 0)
-        {
-            await _bot.SendMessage(chatId, "Usage: /fill <#hex|name|none>, e.g. /fill #00ff00 (none clears it)", cancellationToken: ct);
-            return;
-        }
-        string fill = cmd.Args[0];
-        bool clear = fill.Equals("none", StringComparison.OrdinalIgnoreCase)
-            || fill.Equals("clear", StringComparison.OrdinalIgnoreCase)
-            || fill.Equals("transparent", StringComparison.OrdinalIgnoreCase);
-        await _editing.ConfigurePenAsync(userId, color: null, thickness: null, pointSize: null, style: null, fill: clear ? "none" : fill, ct);
-        await _bot.SendMessage(
-            chatId,
-            clear ? "Fill cleared (closed shapes are unfilled)." : $"Fill set to {fill} (applies to closed shapes).",
-            cancellationToken: ct);
-    }
-
-    private async Task PenAsync(long userId, long chatId, CancellationToken ct)
-    {
-        UserSession session = await _store.GetAsync(userId, ct);
-        await _bot.SendMessage(chatId, Replies.PenText(session.Edits.Pen), cancellationToken: ct);
-    }
-
-    private async Task UndoAsync(long userId, long chatId, CancellationToken ct)
-    {
-        UserSession before = await _store.GetAsync(userId, ct);
-        if (!before.HasImage)
-        {
-            await _bot.SendMessage(chatId, "No working image — upload a photo or use /blank first.", cancellationToken: ct);
-            return;
-        }
-        if (before.EditHistory.Count == 0)
-        {
-            await _bot.SendMessage(chatId, "Nothing to undo.", replyMarkup: Keyboards.EditMenu(before.ActiveProjectId is not null), cancellationToken: ct);
-            return;
-        }
-        await _editing.UndoAsync(userId, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    private async Task RedoAsync(long userId, long chatId, CancellationToken ct)
-    {
-        UserSession before = await _store.GetAsync(userId, ct);
-        if (!before.HasImage)
-        {
-            await _bot.SendMessage(chatId, "No working image — upload a photo or use /blank first.", cancellationToken: ct);
-            return;
-        }
-        if (before.EditRedo.Count == 0)
-        {
-            await _bot.SendMessage(chatId, "Nothing to redo.", replyMarkup: Keyboards.EditMenu(before.ActiveProjectId is not null), cancellationToken: ct);
-            return;
-        }
-        await _editing.RedoAsync(userId, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    private async Task UndoLineAsync(long userId, long chatId, CancellationToken ct)
-    {
-        UserSession session = await _editing.RemoveLastLineAsync(userId, ct);
-        if (!session.HasImage)
-        {
-            await _bot.SendMessage(chatId, "No working image — upload a photo or use /blank first.", cancellationToken: ct);
-            return;
-        }
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    private async Task ClearLinesAsync(long userId, long chatId, CancellationToken ct)
-    {
-        UserSession session = await _editing.ClearLinesAsync(userId, ct);
-        if (!session.HasImage)
-        {
-            await _bot.SendMessage(chatId, "No working image — upload a photo or use /blank first.", cancellationToken: ct);
-            return;
-        }
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
     private async Task RotateAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0 || !int.TryParse(cmd.Args[0], out int turns))
@@ -396,29 +188,4 @@ public sealed partial class CommandHandlers
         await _editing.SetFilterAsync(userId, cmd.ArgumentText, ct);
         await RenderAndSendAsync(userId, chatId, ct);
     }
-
-    private async Task ResetAsync(long userId, long chatId, CancellationToken ct)
-    {
-        await _editing.ResetEditsAsync(userId, ct);
-        await RenderAndSendAsync(userId, chatId, ct);
-    }
-
-    /// <summary>
-    /// Drop the working image and active project entirely — a full "start over", so the
-    /// assistant's conversation (which talks about that image) is forgotten along with it.
-    /// </summary>
-    private async Task DropAsync(long userId, long chatId, CancellationToken ct)
-    {
-        await _editing.DropImageAsync(userId, ct);
-        _prompts.ClearHistory(userId);
-        await _bot.SendMessage(
-            chatId,
-            "Dropped the working image. Send a photo or use /blank to start again.",
-            replyMarkup: Keyboards.MainMenu(),
-            cancellationToken: ct);
-    }
-
-    /// <summary>Re-render and send the current result (non-mutating — never triggers auto-sync).</summary>
-    private Task ImageAsync(long userId, long chatId, CancellationToken ct) =>
-        RenderAndSendAsync(userId, chatId, ct, mutating: false);
 }
