@@ -88,14 +88,20 @@ namespace stencil::gui {
     // A card already out of the layout is leaving (a clear takes it out before fading
     // it): an entrance here would fight the fade for the same effect.
     if (layout->indexOf(card) < 0) return;
+    // Every widget the retry touches is guarded, not just the card: a nested event loop
+    // (QMenu::exec) can fire this timer after the HOST window is gone while the card is
+    // still alive, and the raw host then reached QWidget::setParent as a dangling parent.
     const auto retry = [card, layout, scroll, host, cols, rows, settle, onFlight,
                         tries](QSize sizeNow) {
       QPointer<QWidget> cp(card);
+      QPointer<QVBoxLayout> lp(layout);
+      QPointer<QScrollArea> sp(scroll);
+      QPointer<QWidget> hp(host);
       QTimer::singleShot(kChatGatherSettleMs, card,
-                         [cp, layout, scroll, host, cols, rows, settle, onFlight, tries,
+                         [cp, lp, sp, hp, cols, rows, settle, onFlight, tries,
                           sizeNow] {
-        if (cp)
-          gatherChatCardIn(cp, layout, scroll, host, cols, rows, settle, onFlight,
+        if (cp && lp && hp)
+          gatherChatCardIn(cp, lp, sp, hp, cols, rows, settle, onFlight,
                            tries - 1, sizeNow);
       });
     };
