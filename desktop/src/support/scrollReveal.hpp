@@ -17,7 +17,7 @@
 #include <QEvent>
 #include <QGraphicsOpacityEffect>
 
-#include "../support/dissolveEffect.hpp"
+#include "dissolveEffect.hpp"
 #include <QObject>
 #include <QPoint>
 #include <QRect>

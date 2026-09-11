@@ -1,7 +1,7 @@
 #include "chatMenuPanel.hpp"
 
 #include "chatWidgets.hpp"   // placeChatBubbleTail / ChatBubbleTail
-#include "../app/pillSplitter.hpp"
+#include "../support/pillSplitter.hpp"
 #include "../support/disintegrateOverlay.hpp"
 #include "../support/iconSet.hpp"
 #include "../support/modalReveal.hpp"   // support::motionReduced()

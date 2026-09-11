@@ -1,6 +1,6 @@
 #include "chatDockShared.hpp"
 
-#include "../app/scrollReveal.hpp"        // kEnteringProperty — the entrance claims the effect
+#include "../support/scrollReveal.hpp"        // kEnteringProperty — the entrance claims the effect
 #include "../support/shimmerOverlay.hpp"  // the shared hover sweep on every ghost button
 
 #include <QEasingCurve>

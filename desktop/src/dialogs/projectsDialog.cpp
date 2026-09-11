@@ -10,7 +10,7 @@
 #include "projectDragZones.hpp"
 #include "projectsStore.hpp"
 #include "reorderableListWidget.hpp"
-#include "../app/scrollReveal.hpp"  // revealOpacityForItem (scroll edge fade)
+#include "../support/scrollReveal.hpp"  // revealOpacityForItem (scroll edge fade)
 #include "../app/mainWindowHelpers.hpp"   // kNameChipBox / kNameChipGlyph — the shared chip
 #include "../support/controlReveal.hpp"       // the rename ✓/✗ form/come apart as dust
 #include "../support/flowLayout.hpp"           // the filter row + batch bar wrap, never clip

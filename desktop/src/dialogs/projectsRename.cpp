@@ -7,7 +7,7 @@
 #include "guiHelpers.hpp"
 #include "iconSet.hpp"
 #include "expirationDialog.hpp"
-#include "../app/scrollReveal.hpp"
+#include "../support/scrollReveal.hpp"
 #include "../support/controlReveal.hpp"
 #include "../support/flowLayout.hpp"
 #include "../support/disintegrateOverlay.hpp"

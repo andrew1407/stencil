@@ -1,5 +1,5 @@
 // Walks the shared deep-link conformance vectors (browser/js/config/fixtures/
-// deepLink) against the desktop codec (src/app/deepLink.cpp).
+// deepLink) against the desktop codec (src/io/deepLink.cpp).
 //
 // Desktop's module is BUILDERS only, so only telegramStart.json applies:
 // encodeTelegramStartPayload against the golden vectors (expectPayload null =

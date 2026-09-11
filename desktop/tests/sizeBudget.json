@@ -2,6 +2,7 @@
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
   "files": {
+    "desktop/src/app/chatPlanTarget.cpp": 605,
     "desktop/src/app/dataExportController.cpp": 278,
     "desktop/src/app/logoHoverFx.cpp": 253,
     "desktop/src/app/mainWindow.cpp": 1616,
@@ -34,7 +35,6 @@
     "desktop/src/llm/chatDock.cpp": 542,
     "desktop/src/llm/chatDock.hpp": 550,
     "desktop/src/llm/chatMenuPanel.cpp": 539,
-    "desktop/src/llm/chatPlanTarget.cpp": 605,
     "desktop/src/llm/chatWidgets.cpp": 389,
     "desktop/src/llm/chatWidgets.hpp": 410,
     "desktop/src/llm/llmClient.cpp": 438,
@@ -91,13 +91,14 @@
     "desktop/src/canvas": 18,
     "desktop/src/dialogs": 16,
     "desktop/src/io": 17,
-    "desktop/src/llm": 20,
+    "desktop/src/llm": 21,
     "desktop/src/net": 15,
-    "desktop/src/support": 22,
+    "desktop/src/support": 23,
     "desktop/tests": 14,
     "desktop/tests/support": 11
   },
   "exceptions": {
-    "desktop/src/support": "comment share was raised 21 -> 23 with no comment added: theme.cpp's 817-line QSS literal moved to resources/app.qss, so the directory lost that many non-comment lines from the denominator. The phase-7 comment sweep took it back to 22; keep ratcheting as the support/ files shrink."
+    "desktop/src/support": "comment share was raised 21 -> 23 with no comment added: theme.cpp's 817-line QSS literal moved to resources/app.qss, so the directory lost that many non-comment lines from the denominator. The phase-7 comment sweep took it back to 22; keep ratcheting as the support/ files shrink. Raised 22 -> 23 again by the same mechanism: scrollReveal.hpp and pillSplitter.hpp moved in from app/, and both are comment-dense header widgets.",
+    "desktop/src/llm": "comment share was raised 20 -> 21 with no comment added: chatPlanTarget.cpp, a 605-line low-comment file, moved to app/ where it belongs in the layer order, so llm/ lost those lines from the denominator."
   }
 }

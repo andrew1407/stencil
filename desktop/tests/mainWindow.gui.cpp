@@ -19,14 +19,14 @@
 #include "pillSplitter.hpp"
 #include "../src/app/selectionPanel.hpp"
 #include "../src/app/selectedLineBar.hpp"
-#include "../src/app/scrollReveal.hpp"
+#include "../src/support/scrollReveal.hpp"
 #include "fileStore.hpp"
 #include "connectDialog.hpp"
 #include "../src/support/appTooltip.hpp"
 #include "../src/support/shareImage.hpp"   // shareSheetAvailable — the Share button's gate
 #include "serverClient.hpp"
 #include "llmSettingsForm.hpp"
-#include "../src/llm/chatPlanTarget.hpp"   // §10 chatPanel: the plan target that places the dock
+#include "../src/app/chatPlanTarget.hpp"   // §10 chatPanel: the plan target that places the dock
 #include "../src/llm/opPlan.hpp"
 #include "../src/llm/planExecutor.hpp"
 #include "mediaLoader.hpp"

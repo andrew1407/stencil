@@ -1,4 +1,4 @@
-// Headless check of the scroll-reveal curve (src/app/scrollReveal.hpp) — the desktop
+// Headless check of the scroll-reveal curve (src/support/scrollReveal.hpp) — the desktop
 // port of the browser's .reveal-item / .reveal-in rules (browser/css/animations.css,
 // driven by browser/js/ui/motion.js). The widget/delegate plumbing needs a live view,
 // but the curve that decides how dim a row is does not, so that is what is pinned here:

@@ -1,10 +1,10 @@
 #include "chatPlanTarget.hpp"
 
-#include "../app/mainWindow.hpp"
+#include "mainWindow.hpp"
 #include "../support/modalChrome.hpp"  // confirmModal — the browser-styled question
-#include "../app/mainWindowHelpers.hpp"
-#include "../app/dataExportController.hpp"
-#include "../app/remoteSession.hpp"
+#include "mainWindowHelpers.hpp"
+#include "dataExportController.hpp"
+#include "remoteSession.hpp"
 #include "../canvas/canvasWidget.hpp"
 #include "../net/connectionStore.hpp"
 #include "../net/serverClient.hpp"

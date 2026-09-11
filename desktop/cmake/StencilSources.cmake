@@ -122,7 +122,7 @@ set(STENCIL_GUI_SOURCES
   src/app/remoteSyncController.cpp
   src/app/projectTransferController.cpp
   src/app/launchOptions.cpp
-  src/app/deepLink.cpp
+  src/io/deepLink.cpp
   src/app/selectionPanel.cpp
   src/app/selectedLineBar.cpp
   src/llm/chatDock.cpp
@@ -145,7 +145,7 @@ set(STENCIL_GUI_SOURCES
   src/llm/chatWidgets.cpp
   src/llm/chatCardRenderer.cpp
   src/llm/chatMenuPanel.cpp
-  src/llm/chatPlanTarget.cpp
+  src/app/chatPlanTarget.cpp
   src/llm/opPlan.cpp
   src/llm/opRegistry.cpp
   src/llm/opSchema.cpp

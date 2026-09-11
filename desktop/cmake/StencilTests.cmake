@@ -98,7 +98,7 @@ stencil_headless_test(stencil_projectnamebar_headless
   SOURCES tests/projectNameBar.headless.cpp
   LIBS Qt6::Core)
 
-# Scroll-reveal curve (app/scrollReveal.hpp) — how dim a row is at a given spot in its
+# Scroll-reveal curve (support/scrollReveal.hpp) — how dim a row is at a given spot in its
 # scroller; header-only, so the test is the only extra compile unit.
 stencil_headless_test(stencil_scrollreveal_headless
   SOURCES tests/scrollReveal.headless.cpp
@@ -228,7 +228,7 @@ stencil_headless_test(stencil_projecttransfer_headless
 # deepLink.test.js and the bot's DeepLinkCodecTests.cs) + the browser-fragment
 # URL builder's percent-encoding.
 stencil_headless_test(stencil_deeplink_headless
-  SOURCES tests/deepLink.headless.cpp src/app/deepLink.cpp src/app/launchOptions.cpp
+  SOURCES tests/deepLink.headless.cpp src/io/deepLink.cpp src/app/launchOptions.cpp
     src/net/serverClient.cpp
   LIBS stencil_core Qt6::Network)
 
@@ -270,7 +270,7 @@ stencil_headless_test(stencil_connectrow_headless
 # titleIcon, and the Open In… dialog's in-modal Telegram fallback row.
 stencil_headless_test(stencil_modalchrome_headless
   SOURCES tests/modalChrome.headless.cpp src/support/modalChrome.cpp
-    src/dialogs/openInDialog.cpp src/app/deepLink.cpp
+    src/dialogs/openInDialog.cpp src/io/deepLink.cpp
     src/net/serverClient.cpp      # deepLink's origin normalisation
     src/support/iconSet.cpp
     src/support/modalReveal.cpp resources/app.qrc
@@ -384,7 +384,7 @@ stencil_headless_test(stencil_storefixtures_headless
 # Deep-link corpus walker: the shared telegramStart golden vectors through the
 # real codec (the launchPayload receiver vectors don't apply — builders only).
 stencil_headless_test(stencil_deeplinkfixtures_headless
-  SOURCES tests/deepLinkFixtures.headless.cpp src/app/deepLink.cpp src/net/serverClient.cpp
+  SOURCES tests/deepLinkFixtures.headless.cpp src/io/deepLink.cpp src/net/serverClient.cpp
   DEFS ${STENCIL_FIXTURE_WALKER_DEFS}
   LIBS stencil_core Qt6::Network)
 
@@ -445,6 +445,13 @@ stencil_headless_test(stencil_connectionsecrets_headless
 stencil_headless_test(stencil_fetchguard_headless
   SOURCES tests/fetchGuard.headless.cpp src/net/fetchGuard.cpp
   LIBS Qt6::Network)
+
+# Import-direction lint (tests/layerBoundary.headless.cpp): reads the #include lines of
+# desktop/src and fails on a layer reaching right — app/ from below, canvas/ from
+# dialogs/, core/ from anywhere but the listed seam. Compiles no app source.
+stencil_headless_test(stencil_layerboundary_headless
+  SOURCES tests/layerBoundary.headless.cpp
+  LIBS Qt6::Core)
 
 # Size + comment ratchet (tests/sizeBudget.json): reads the desktop .cpp/.hpp tree
 # itself, so it compiles no app source — no new oversized file, no budgeted file

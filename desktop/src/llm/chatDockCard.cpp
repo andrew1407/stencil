@@ -2,7 +2,7 @@
 // Split out of chatDock.cpp; see chatDockShared.hpp for the shared constants.
 #include "chatDock.hpp"
 #include "chatDockShared.hpp"
-#include "../app/scrollReveal.hpp"
+#include "../support/scrollReveal.hpp"
 #include "../support/disintegrateOverlay.hpp"
 #include "../support/modalReveal.hpp"
 #include "chatWidgets.hpp"

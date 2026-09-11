@@ -1,5 +1,5 @@
 #include "connectDialog.hpp"
-#include "../app/scrollReveal.hpp"             // revealDissolve (scroll edge fade)
+#include "../support/scrollReveal.hpp"             // revealDissolve (scroll edge fade)
 #include "../support/disintegrateOverlay.hpp"  // disconnected rows come apart
 #include "../support/dissolveEffect.hpp"       // scroll-edge grain dissolve
 #include "../support/filterFade.hpp"           // filtered-out rows fade + collapse
