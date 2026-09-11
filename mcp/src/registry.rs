@@ -15,6 +15,7 @@
 
 use std::sync::OnceLock;
 
+use crate::opplan::fold::{self, Lower};
 use crate::opplan::schema::schema;
 
 /// One op this surface executes: name + verbatim prompt bullet + flags (contract §13).
@@ -35,6 +36,28 @@ pub struct OpDescriptor {
     /// generation and validation — the op falls to §1's unknown-op skip, and the model
     /// was never promised it (§13 capability truth).
     pub capability: Option<&'static str>,
+    /// How a validated action of this op folds into a CLI run. Carrying it HERE is what
+    /// makes validation and dispatch one table — the same pairing pystencil's `OpSpec`
+    /// keeps as `validator` + `applier`. An entry with no lowering is excluded exactly
+    /// like an unwired capability: never promised, never validated, never run.
+    pub lower: Lower,
+}
+
+/// The lowering registered for an op, or `None` when this surface cannot run it.
+fn lowering(name: &str) -> Option<Lower> {
+    Some(match name {
+        "crop" => fold::crop,
+        "rotate" => fold::rotate,
+        "filter" => fold::filter,
+        "layout" => fold::layout,
+        "formula" => fold::formula,
+        "page" => fold::page,
+        "blank" => fold::blank,
+        "frame" => fold::frame,
+        // §2.1 ops split the plan instead of riding a run.
+        "image" | "save" => fold::split,
+        _ => return None,
+    })
 }
 
 /// The runtime capabilities wired on THIS surface. A headless MCP tool has none of the
@@ -58,12 +81,15 @@ pub fn op_registry() -> &'static [OpDescriptor] {
         schema()
             .entries
             .iter()
-            .map(|e| OpDescriptor {
-                name: leak(&e.name),
-                bullet: leak(e.bullet.as_deref().unwrap_or_default()),
-                top_level_only: e.flag("topLevelOnly"),
-                video_only: VIDEO_ONLY_OPS.contains(&e.name.as_str()),
-                capability: None,
+            .filter_map(|e| {
+                Some(OpDescriptor {
+                    name: leak(&e.name),
+                    bullet: leak(e.bullet.as_deref().unwrap_or_default()),
+                    top_level_only: e.flag("topLevelOnly"),
+                    video_only: VIDEO_ONLY_OPS.contains(&e.name.as_str()),
+                    capability: None,
+                    lower: lowering(&e.name)?,
+                })
             })
             .collect()
     })

@@ -1,10 +1,9 @@
 //! Deliver a finished edit to the selected surface(s).
 //!
 //! The CLI has already done the pixel work and written the output file; this module just
-//! presents that result somewhere: launches the desktop app, builds/opens a browser-editor
-//! launch URL, or (for the live/scan surfaces) returns a hand-off note pointing at the
-//! stencil-operator agent. Each surface yields a `DeliveryNote` instead of failing the whole
-//! call, so one unavailable surface never sinks the others.
+//! presents that result somewhere: the desktop app, a browser-editor launch URL, or a
+//! hand-off note for the live/scan surfaces. Each surface yields a `DeliveryNote` rather
+//! than failing the call, so one unavailable surface never sinks the others.
 
 use std::path::Path;
 
@@ -14,8 +13,7 @@ use serde::Serialize;
 use crate::config::{Config, Surface};
 use crate::pipeline::EditResult;
 
-/// The outcome of delivering to one surface. `Serialize` produces the tool payload's
-/// per-delivery object (`{"surface":…,"ok":…,"detail":…,"url":…}`) directly.
+/// One surface's outcome; its `Serialize` IS the payload's per-delivery object.
 #[derive(Debug, Clone, Serialize)]
 pub struct DeliveryNote {
     pub surface: &'static str,
@@ -27,26 +25,16 @@ pub struct DeliveryNote {
 
 impl DeliveryNote {
     fn ok(surface: &'static str, detail: String, url: Option<String>) -> Self {
-        Self {
-            surface,
-            ok: true,
-            detail,
-            url,
-        }
+        Self { surface, ok: true, detail, url }
     }
 
     fn fail(surface: &'static str, detail: String) -> Self {
-        Self {
-            surface,
-            ok: false,
-            detail,
-            url: None,
-        }
+        Self { surface, ok: false, detail, url: None }
     }
 }
 
-/// Deliver `result` to each surface, in order. The output file already has the crop,
-/// rotation, layout, and filter baked in by the CLI, so every surface just opens that file.
+/// Deliver `result` to each surface, in order. The CLI baked the crop, rotation, layout and
+/// filter into the output file, so every surface just opens that file.
 pub async fn deliver(
     surfaces: &[Surface],
     result: &EditResult,
@@ -137,7 +125,7 @@ fn handoff_note(
 }
 
 /// Build `<browser_url>/#stencil=<encodeURIComponent(JSON)>` carrying the result as a data
-/// URL, the same fragment the extension uses to hand images to the editor.
+/// URL — the fragment the extension uses to hand images to the editor.
 fn build_launch_url(output_path: &str, browser_url: &str) -> Result<String, String> {
     let bytes = std::fs::read(output_path).map_err(|e| format!("reading '{output_path}': {e}"))?;
     let mime = mime_for(output_path);
@@ -191,27 +179,25 @@ fn encode_uri_component(input: &str) -> String {
 }
 
 fn hex_digit(nibble: u8) -> char {
-    match nibble {
-        0..=9 => (b'0' + nibble) as char,
-        _ => (b'A' + (nibble - 10)) as char,
-    }
+    (if nibble < 10 { b'0' + nibble } else { b'A' + nibble - 10 }) as char
 }
 
-/// Open a URL with the platform opener (`open` on macOS, `xdg-open` on Linux, `cmd /c start`
-/// on Windows).
-fn open_in_os(url: &str) -> Result<(), String> {
+/// The platform opener and its argv. Split out because the spawn half cannot be tested
+/// without launching a browser — this half can.
+fn opener_argv(url: &str) -> (&'static str, Vec<&str>) {
     #[cfg(target_os = "macos")]
-    let (program, args): (&str, &[&str]) = ("open", &[url]);
+    return ("open", vec![url]);
+    // The empty argument is `start`'s window title; without it a quoted URL becomes one.
     #[cfg(target_os = "windows")]
-    let (program, args): (&str, &[&str]) = ("cmd", &["/c", "start", "", url]);
+    return ("cmd", vec!["/c", "start", "", url]);
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let (program, args): (&str, &[&str]) = ("xdg-open", &[url]);
+    return ("xdg-open", vec![url]);
+}
 
-    std::process::Command::new(program)
-        .args(args)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| e.to_string())
+/// Open a URL with the platform opener.
+fn open_in_os(url: &str) -> Result<(), String> {
+    let (program, args) = opener_argv(url);
+    std::process::Command::new(program).args(args).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -235,6 +221,20 @@ mod tests {
         assert_eq!(mime_for("a.jpeg"), "image/jpeg");
         assert_eq!(mime_for("a.bmp"), "image/bmp");
         assert_eq!(mime_for("a.unknown"), "image/png");
+    }
+
+    /// The half of `open_in_os` that can be asserted: the opener and its argv, with the URL
+    /// always last.
+    #[test]
+    fn opener_argv_names_the_platform_opener_with_the_url_last() {
+        let url = "http://localhost:8080/#stencil=%7B%7D";
+        let (program, args) = opener_argv(url);
+        let expected: (&str, Vec<&str>) = match (cfg!(target_os = "macos"), cfg!(target_os = "windows")) {
+            (true, _) => ("open", vec![url]),
+            (_, true) => ("cmd", vec!["/c", "start", "", url]),
+            _ => ("xdg-open", vec![url]),
+        };
+        assert_eq!((program, args), expected);
     }
 
     #[test]

@@ -1,18 +1,12 @@
-//! The `stencil_prompt` flow: one LLM turn, its validated op-plan executed through the
-//! CLI pipeline, wrapped in the contract-§7 auto-continuation loop — plus the payload
-//! types and response assembly that shape the tool's reply.
+//! What a `stencil_prompt` turn reports back: the payload types, the single success
+//! exit, and the §7 round-1/round-2 merges.
 
 use rmcp::model::CallToolResult;
 use rmcp::ErrorData as McpError;
 use serde::Serialize;
 
-use crate::args::PromptParams;
-use crate::config::Config;
-use crate::llm::{self, ChatMessage, Role};
-use crate::llmtransport::{clip, LlmTransport, SNIPPET_LEN};
-use crate::{opplan, pipeline};
-
-use super::{err_result, ok_result};
+use crate::opplan;
+use crate::server::tools::{err_result, ok_result};
 
 /// One written result of a `stencil_prompt` plan: the base result (`label` null), a variant
 /// (its sanitized label), or a §2.1 `save`'s `.stencil` project — a document, so it reports
@@ -62,7 +56,7 @@ fn prompt_ask(card: &opplan::AskCard) -> PromptAsk<'_> {
 /// The single success exit of `stencil_prompt`: the chat reply, any notes, one `wrote`
 /// line per written result (none on a chat-only turn), and — since a plan may both edit
 /// and ask (§11.3) — the ask card riding out last.
-fn prompt_response(
+pub(super) fn prompt_response(
     plan: &opplan::OpPlan,
     notes: &[String],
     results: &[PromptResult],
@@ -97,7 +91,7 @@ fn prompt_response(
 
 /// A round-2 failure never costs round 1's work: fold the failure into a note and answer
 /// with what the first round already wrote. With no first round it stays a hard error.
-fn kept_or_error(
+pub(super) fn kept_or_error(
     first: Option<(String, Vec<PromptResult>)>,
     mut notes: Vec<String>,
     detail: String,
@@ -121,7 +115,7 @@ fn kept_or_error(
 
 /// Fold a §7 round-1 outcome (when there was one) into the final response: the replies
 /// join in order, and round 1's written files survive unless round 2 rewrote the path.
-fn merged_response(
+pub(super) fn merged_response(
     first: Option<(String, Vec<PromptResult>)>,
     plan: &opplan::OpPlan,
     notes: &[String],
@@ -146,228 +140,6 @@ fn merged_response(
         ..plan.clone()
     };
     prompt_response(&plan, notes, &merged)
-}
-
-/// The whole `stencil_prompt` flow: one LLM turn, its validated op-plan executed through
-/// the CLI pipeline — wrapped in the contract-§7 auto-continuation loop: a plan that only
-/// LOADED a picture (`opplan::loads_without_tracing`) is applied and the turn re-sent
-/// exactly once with the freshly rendered result attached (plus its edge map), the
-/// follow-up plan executed normally, whatever it contains — round 2 never continues
-/// again, so a second load-only answer cannot loop. Public with the transport injected so
-/// tests drive the flow over a mock.
-pub async fn run_prompt(
-    config: &Config,
-    transport: std::sync::Arc<dyn LlmTransport>,
-    params: PromptParams,
-) -> Result<CallToolResult, McpError> {
-    let PromptParams {
-        prompt,
-        input,
-        output_dir,
-        model,
-    } = params;
-
-    // Resolve the provider config: the STENCIL_LLM_* env, with `model` as the only
-    // per-call override. The endpoint stays operator-configured on purpose — a
-    // caller-supplied base URL would redirect STENCIL_LLM_API_KEY to any host.
-    let settings = match llm::LlmConfig::resolve(&config.llm, model.as_deref()) {
-        Ok(settings) => settings,
-        Err(message) => return Ok(err_result(message)),
-    };
-    if output_dir.trim().is_empty() {
-        return Ok(err_result("`output_dir` must not be empty".to_string()));
-    }
-
-    let mut notes: Vec<String> = Vec::new();
-    // §7 continuation state: round 2 re-sends the SAME prompt (plus the note) over the
-    // image round 1 rendered; `first` keeps round 1's reply + written results.
-    let mut text = prompt.clone();
-    let mut round_input = input;
-    let mut first: Option<(String, Vec<PromptResult>)> = None;
-
-    for round in 0..2 {
-        // Attach a local input image for vision (all three providers accept images).
-        let mut images = Vec::new();
-        let mut system_suffix = String::new();
-        if let Some(input) = &round_input {
-            let (attachment, note) = llm::attach_local_image(input);
-            let snapshot_attached = attachment.is_some();
-            if let Some(attachment) = attachment {
-                images.push(attachment);
-            }
-            if let Some(note) = note {
-                notes.push(note);
-            }
-            // §7 edge map: a contour render of the input, right after the snapshot and only
-            // when the snapshot rides; a missing CLI or failed/oversized render just skips it.
-            if snapshot_attached {
-                if let Some(edge) = pipeline::render_edge_map(input)
-                    .await
-                    .as_deref()
-                    .and_then(llm::edge_map_attachment)
-                {
-                    images.push(edge);
-                    system_suffix = llm::edge_map_suffix().to_string();
-                }
-            }
-        }
-        let messages = vec![ChatMessage {
-            role: Role::User,
-            text: text.clone(),
-            images,
-        }];
-
-        // The transport is deliberately synchronous (std::net + OS timeouts); run it on
-        // the blocking pool so the stdio protocol loop stays responsive.
-        let chat_settings = settings.clone();
-        let chat_transport = transport.clone();
-        let chat = tokio::task::spawn_blocking(move || {
-            llm::chat(
-                chat_transport.as_ref(),
-                &chat_settings,
-                &messages,
-                &system_suffix,
-            )
-        })
-        .await;
-        let reply = match chat {
-            Ok(Ok(reply)) => reply,
-            Ok(Err(error)) => {
-                // The error already says the reason once (§6.3) — no preamble around it.
-                return kept_or_error(first, notes, error.to_string());
-            }
-            Err(join_error) => {
-                return kept_or_error(first, notes, format!("the LLM request could not be run: {join_error}"));
-            }
-        };
-
-        // Parse + validate the op-plan (contract §1–§3); unknown ops become notes.
-        let mut plan = match opplan::parse_op_plan(&reply) {
-            Ok(plan) => plan,
-            Err(error) => {
-                return kept_or_error(
-                    first,
-                    notes,
-                    format!(
-                        "the LLM returned an invalid op-plan: {error}\nraw reply:\n{}",
-                        clip(&reply, SNIPPET_LEN)
-                    ),
-                );
-            }
-        };
-        notes.append(&mut plan.warnings);
-
-        // Chat-only turn: return the text, write nothing. A turn that only ASKS lands here.
-        if plan.actions.is_empty() && plan.variants.is_empty() {
-            return merged_response(first, &plan, &notes, Vec::new());
-        }
-
-        // Execute: one CLI run for the base result, one per variant. Plan coordinates
-        // are snapshot-frame (contract §1), so layout-drawing runs pass the CLI
-        // `--layout-frame source` to re-map them through the run's crop/rotate.
-        let requests = match opplan::to_edit_requests(
-            &plan,
-            round_input.as_deref(),
-            &output_dir,
-            &mut notes,
-        ) {
-            Ok(requests) => requests,
-            Err(error) => return kept_or_error(first, notes, error.to_string()),
-        };
-        // A plan that was ONLY §2.1 ops this turn cannot satisfy (a second attachment that
-        // does not exist here) leaves nothing to run — the notes above already say why.
-        if requests.is_empty() {
-            return merged_response(first, &plan, &notes, Vec::new());
-        }
-        if let Err(error) = std::fs::create_dir_all(&output_dir) {
-            return kept_or_error(
-                first,
-                notes,
-                format!("could not create output_dir '{output_dir}': {error}"),
-            );
-        }
-        // A §10 save `path` may nest inside output_dir — create each output's parent.
-        for request in &requests {
-            if let Some(parent) = std::path::Path::new(&request.params.output).parent() {
-                if let Err(error) = std::fs::create_dir_all(parent) {
-                    return kept_or_error(
-                        first,
-                        notes,
-                        format!("could not create '{}': {error}", parent.display()),
-                    );
-                }
-            }
-        }
-        // The runs are independent — each variant replays the base actions from the original
-        // input onto its own deduped path — so they run concurrently, joined before the reply;
-        // results keep request order, and the failure reported is the first in that order.
-        let mut handles = Vec::with_capacity(requests.len());
-        for request in requests {
-            let params = request.params;
-            let project = request.project;
-            handles.push((
-                request.label,
-                tokio::spawn(async move {
-                    // A §2.1 `save` writes a `.stencil` document (no dimensions reported).
-                    if project {
-                        pipeline::run_project(&params)
-                            .await
-                            .map(|path| (path, None, None))
-                    } else {
-                        pipeline::run_edit(&params)
-                            .await
-                            .map(|r| (r.path, Some(r.width), Some(r.height)))
-                    }
-                }),
-            ));
-        }
-        let mut outcomes = Vec::with_capacity(handles.len());
-        for (label, handle) in handles {
-            outcomes.push((label, handle.await));
-        }
-        let mut results: Vec<PromptResult> = Vec::new();
-        let mut failed: Option<String> = None;
-        for (label, outcome) in outcomes {
-            // Flatten the JoinError (panic/cancel) and the run error into one path.
-            let outcome = match outcome {
-                Ok(run) => run.map_err(|e| e.to_string()),
-                Err(join_error) => Err(join_error.to_string()),
-            };
-            match outcome {
-                Ok((path, width, height)) => results.push(PromptResult {
-                    label,
-                    path,
-                    width,
-                    height,
-                }),
-                Err(error) => {
-                    let what = label.as_deref().unwrap_or("the base result");
-                    failed = Some(format!("executing the plan failed at {what}: {error}"));
-                    break;
-                }
-            }
-        }
-        if let Some(detail) = failed {
-            return kept_or_error(first, notes, detail);
-        }
-
-        // §7 auto-continuation: a plan that only loaded a picture cannot have finished
-        // the looking-work — the snapshot rode along before it existed. Re-send the turn
-        // once over the rendered base result; round 2 answers here whatever it planned.
-        if round == 0 && opplan::loads_without_tracing(&plan) {
-            if let Some(base) = results.iter().find(|r| r.label.is_none() && r.width.is_some()) {
-                round_input = Some(base.path.clone());
-                // §7 auto-continuation: the cli console's wording — this tool is
-                // single-turn like it, so no history carries the request.
-                let note = llm::prompt_field("continuationNoteConsole");
-                text = format!("{prompt}\n\n{note}");
-                first = Some((plan.reply.clone(), results));
-                continue;
-            }
-        }
-        return merged_response(first, &plan, &notes, results);
-    }
-    unreachable!("the §7 continuation loop answers by round 2")
 }
 
 #[cfg(test)]

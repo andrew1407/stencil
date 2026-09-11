@@ -6,9 +6,11 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use crate::args::{Blank, Crop, EditParams, LayoutArg};
-use crate::layout::{Layout, Line};
+use crate::layout::Layout;
 
-use super::{Action, Dir, FilterMode, FormulaOp, OpPlan, OpPlanError, PageSize, MAX_LABEL_CHARS};
+use super::fold::Fold;
+use super::{Action, FormulaOp, OpPlan, OpPlanError, PageSize, MAX_LABEL_CHARS};
+use crate::registry;
 
 /// One CLI run derived from the plan: the base result (`label` = `None`,
 /// `{output_dir}/result.png`), a variant (`label` = its sanitized name,
@@ -241,100 +243,24 @@ fn cm_to_blank_px(cm: f64) -> u32 {
     ((cm / 2.54 * 96.0 + 0.5) as u32).max(1)
 }
 
-/// Collapse one action list into a single `EditParams` (the CLI's fixed pipeline order
-/// source → frame → crop → rotate → filter → layout makes rotations sum, layout lines
-/// concatenate, the last filter win). Ops it cannot express in one run are rejected.
+/// Collapse one action list into a single `EditParams`. Each action is folded by the
+/// lowering its §13 registry entry carries, so the ops this stage executes are exactly the
+/// ops the validator accepted. Ops it cannot express in one run are rejected.
 fn collapse<'a>(
     actions: impl IntoIterator<Item = &'a Action>,
     input: Option<&str>,
     output: String,
     output_dir: &str,
 ) -> Result<EditParams, OpPlanError> {
-    let mut crop: Option<String> = None;
-    let mut quarters: i64 = 0;
-    let mut filter: Option<String> = None;
-    let mut lines: Vec<Line> = Vec::new();
-    let mut blank: Option<(String, Option<PageSize>)> = None;
-    let mut page: Option<PageSize> = None;
-    let mut frame: Option<u32> = None;
-
+    let mut fold = Fold::default();
     for action in actions {
-        match action {
-            Action::Crop { x1, x2, y1, y2, aspect } => {
-                if crop.is_some() {
-                    return Err(OpPlanError::Unsupported(
-                        "two crop actions cannot be combined into one CLI run — use one \
-                         crop per image/variant"
-                            .to_string(),
-                    ));
-                }
-                let spec = [("x1", x1), ("x2", x2), ("y1", y1), ("y2", y2), ("aspect", aspect)]
-                    .iter()
-                    .filter_map(|(name, edge)| edge.as_ref().map(|v| format!("{name}={v}")))
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                crop = Some(spec);
-            }
-            Action::Rotate { dir, times } => {
-                // CLI `-r n` is n quarter-turns clockwise; `right` is clockwise.
-                quarters += match dir {
-                    Dir::Right => i64::from(*times),
-                    Dir::Left => -i64::from(*times),
-                };
-            }
-            Action::Filter { mode, tint } => {
-                filter = match mode {
-                    FilterMode::None => None,
-                    FilterMode::Bw => Some("bw".to_string()),
-                    FilterMode::Sepia => Some("sepia".to_string()),
-                    FilterMode::Invert => Some("invert".to_string()),
-                    FilterMode::Contour => Some("contour".to_string()),
-                    // `custom` ⇒ pass the tint color as the CLI --filter value.
-                    FilterMode::Custom => tint.clone(),
-                };
-            }
-            Action::Layout { lines: more } => lines.extend(more.iter().cloned()),
-            Action::Formula(FormulaOp::Set { .. }) => {
-                return Err(OpPlanError::Unsupported(
-                    "the `formula` op cannot run headlessly here — the stencil CLI has no \
-                     formula flag (use the browser or desktop editor for formulas)"
-                        .to_string(),
-                ));
-            }
-            // The clear/disable forms are inert — `to_edit_requests` already noted them.
-            Action::Formula(_) => {}
-            Action::Page { size } => page = Some(size.clone()),
-            Action::Blank {
-                color,
-                format,
-                dims_cm,
-            } => {
-                // §2: the blank's own explicit cm dims override its format.
-                let own = dims_cm
-                    .map(|(width, height)| PageSize::Cm { width, height })
-                    .or_else(|| format.clone().map(PageSize::Format));
-                blank = Some((color.clone(), own));
-            }
-            Action::Frame { indices } => {
-                if indices.len() != 1 {
-                    return Err(OpPlanError::Unsupported(
-                        "multiple frame indices cannot be combined into one CLI run — ask \
-                         for one frame, or one variant per frame"
-                            .to_string(),
-                    ));
-                }
-                if frame.is_some() {
-                    return Err(OpPlanError::Unsupported(
-                        "two frame actions cannot be combined into one CLI run".to_string(),
-                    ));
-                }
-                frame = Some(indices[0]);
-            }
-            // §2.1 ops never reach a single run: `to_edit_requests` splits the plan at each
-            // `image` switch and turns every `save` into its own `.stencil` write.
-            Action::Image { .. } | Action::Save { .. } => {}
-        }
+        let name = action.op_name();
+        let descriptor = registry::descriptor(name).ok_or_else(|| {
+            OpPlanError::Unsupported(format!("the `{name}` op has no lowering on this surface"))
+        })?;
+        (descriptor.lower)(action, &mut fold)?;
     }
+    let Fold { crop, quarters, filter, lines, blank, page, frame } = fold;
 
     // Source: a blank action replaces the input; a page action needs a blank to land on
     // (the CLI applies page sizing only when creating a blank page). The blank's own

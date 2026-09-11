@@ -5,7 +5,10 @@
 //! other local path in the argv is made absolute first — the working-directory change must
 //! not silently re-point an input or a layout file.
 
+use std::borrow::Cow;
 use std::path::{Component, Path, PathBuf};
+
+use crate::args::Argv;
 
 /// The flag `cli/src/args.zig` parses.
 const FLAG_CONFINE_OUTPUT: &str = "--confine-output";
@@ -16,28 +19,34 @@ const PATH_FLAGS: [&str; 2] = ["-i", "-l"];
 /// One run rewritten for a sandbox root: spawn in `dir`, with `argv`.
 pub struct Confined {
     pub dir: PathBuf,
-    pub argv: Vec<String>,
+    pub argv: Argv,
 }
 
 /// Rewrite `argv` (whose LAST token is the output path) to run inside `root`. `None` when
 /// the output does not sit under `root` — the caller's own sandbox has failed and the run
 /// must not happen at all.
-pub fn confine(root: &str, argv: &[String]) -> Option<Confined> {
+pub fn confine(root: &str, argv: &[Cow<'static, str>]) -> Option<Confined> {
     let dir = absolute(Path::new(root));
     let (output, head) = argv.split_last()?;
-    let relative = absolute(Path::new(output)).strip_prefix(&dir).ok()?.to_path_buf();
+    let relative = absolute(Path::new(output.as_ref()))
+        .strip_prefix(&dir)
+        .ok()?
+        .to_path_buf();
     if relative.as_os_str().is_empty() {
         return None;
     }
 
-    let mut out: Vec<String> = Vec::with_capacity(argv.len() + 1);
+    let mut out: Argv = Vec::with_capacity(argv.len() + 1);
     let mut expect_path = false;
     for token in head {
-        out.push(if expect_path { local_absolute(token) } else { token.clone() });
-        expect_path = PATH_FLAGS.contains(&token.as_str());
+        out.push(match expect_path {
+            true => Cow::Owned(local_absolute(token)),
+            false => token.clone(),
+        });
+        expect_path = PATH_FLAGS.contains(&token.as_ref());
     }
-    out.push(FLAG_CONFINE_OUTPUT.to_string());
-    out.push(relative.to_string_lossy().into_owned());
+    out.push(Cow::Borrowed(FLAG_CONFINE_OUTPUT));
+    out.push(Cow::Owned(relative.to_string_lossy().into_owned()));
     Some(Confined { dir, argv: out })
 }
 
