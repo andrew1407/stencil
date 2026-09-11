@@ -151,10 +151,23 @@ function bashDecision(cmd, ctx) {
   if (/\bsudo\b/.test(c)) return ask('runs with sudo');
   if (/\b(brew|apt|apt-get|dnf|yum|pacman|npm|pnpm|yarn|pip|pip3|cargo|go|dotnet|gem|choco|winget)\b[^\n]*\b(install|add)\b/i.test(c) ||
       /\bnpm\s+i\b/.test(c)) return ask('installs packages');
+  // force-push first, so the prompt names the history rewrite rather than a plain push
+  if (/\bgit\s+push\b[^\n;|&]*(--force-with-lease|--force\b|\s-f\b)/.test(c)) {
+    return ask('git push --force rewrites remote history');
+  }
   if (/\bgit\s+push\b/.test(c)) return ask('git push');
   if (/\bgit\s+reset\s+--hard\b/.test(c)) return ask('git reset --hard discards changes');
   if (/\bgit\s+clean\s+-[a-z]*f/i.test(c)) return ask('git clean -f deletes untracked files');
   if (/\bgit\s+checkout\s+(--|\.)/.test(c)) return ask('git checkout discards local changes');
+  // `-D` only: `git branch -d` refuses to drop unmerged work, `-D` does not
+  if (/\bgit\s+branch\b[^\n;|&]*\s-D\b/.test(c)) return ask('git branch -D deletes an unmerged branch');
+  if (/\bgit\s+stash\s+(drop|clear)\b/.test(c)) return ask('git stash drop/clear discards stashed work');
+  // `docker compose down -v` removes the named volumes — i.e. the local Postgres the
+  // server/e2e stack keeps its data in. Plain `down` (no -v) stays allowed.
+  if (/\bdocker(-compose\b|\s+compose\b)[^\n;|&]*\bdown\b[^\n;|&]*(\s-[a-zA-Z]*v\b|--volumes\b)/.test(c) ||
+      /\bdocker\s+volume\s+rm\b/.test(c)) {
+    return ask("destroys a docker volume (the local database's data)");
+  }
   if (/\b(chmod|chown)\b/.test(c)) return ask('changes file ownership/permissions');
   if (/\bkill\s+-9\b/.test(c) || /\b(pkill|killall)\b/.test(c)) return ask('force-kills processes');
   if (/\b(crontab|launchctl|schtasks|systemctl)\b/.test(c)) return ask('schedules/daemonizes a process');
