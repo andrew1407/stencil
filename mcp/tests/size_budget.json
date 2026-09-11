@@ -9,7 +9,6 @@
     "mcp/tests/args_test.rs": 538,
     "mcp/tests/e2e_test.rs": 301,
     "mcp/tests/layout_test.rs": 181,
-    "mcp/tests/llm_test.rs": 759,
     "mcp/tests/llm_wire_fixtures_test.rs": 279,
     "mcp/tests/llmtransport_test.rs": 295,
     "mcp/tests/outcome_test.rs": 236,
@@ -28,7 +27,7 @@
     "mcp/src/server/tools": 8,
     "mcp/src/server/tools/prompt": 12,
     "mcp/tests": 8,
-    "mcp/tests/common": 10
+    "mcp/tests/common": 8
   },
   "exceptions": {}
 }
