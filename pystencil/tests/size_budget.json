@@ -3,7 +3,7 @@
   "maxNewFileLines": 230,
   "files": {
     "pystencil/pystencil/_opschema.py": 398,
-    "pystencil/pystencil/core.py": 366,
+    "pystencil/pystencil/core.py": 151,
     "pystencil/pystencil/layout.py": 217,
     "pystencil/tests/test_editor.py": 397,
     "pystencil/tests/test_fixture_conformance.py": 459,
