@@ -3,7 +3,6 @@
 const std = @import("std");
 const testing = std.testing;
 
-
 // command history (a small ring of owned strings, oldest first)
 
 /// The tallest the wrapped input block can grow (screen.maxPromptRows clamps to this too).

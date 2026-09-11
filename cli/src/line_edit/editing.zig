@@ -14,7 +14,6 @@ const copyInto = le.copyInto;
 const marker_open = le.marker_open;
 const setCommand = le.setCommand;
 
-
 // One Backspace. On an image marker it takes the WHOLE picture back, not one byte of its
 // name — the marker is one thing on screen, so it is one thing to delete.
 pub fn backspace(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize) void {

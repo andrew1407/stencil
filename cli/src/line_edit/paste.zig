@@ -13,7 +13,6 @@ const marker_open = le.marker_open;
 const max_line = le.max_line;
 const sanitizeInline = le.sanitizeInline;
 
-
 // Read a bracketed paste (`ESC [ 200 ~` consumed) up to the `ESC [ 201 ~` terminator and insert
 // it at the cursor. Control bytes (notably newlines) become spaces, so it lands as one line.
 pub fn readPaste(self: *Editor, prompt: []const u8, buf: []u8, len: *usize, pos: *usize) void {

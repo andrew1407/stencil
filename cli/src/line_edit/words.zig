@@ -4,7 +4,6 @@ const setCommand = @import("../line_edit.zig").setCommand;
 const std = @import("std");
 const testing = std.testing;
 
-
 // A word character for cursor motion: anything non-whitespace. Word jumps skip a run of
 // separators, then the run of word characters (bash/emacs-style).
 fn isWordChar(c: u8) bool {

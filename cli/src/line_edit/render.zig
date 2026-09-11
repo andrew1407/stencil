@@ -8,7 +8,6 @@ const wrappedRows = le.wrappedRows;
 const max_prompt_rows = le.max_prompt_rows;
 const rowSlice = le.rowSlice;
 
-
 pub fn writeAll(self: *Editor, bytes: []const u8) void {
     var i: usize = 0;
     while (i < bytes.len) {

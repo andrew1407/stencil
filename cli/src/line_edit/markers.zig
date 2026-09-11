@@ -3,7 +3,6 @@
 const PasteResult = @import("../line_edit.zig").PasteResult;
 const std = @import("std");
 
-
 /// The widest name a marker shows — the host elides longer ones into this.
 pub const max_marker_label = 20;
 // What a pasted image leaves in the line: "[Image #N <label>]", the index at a fixed offset

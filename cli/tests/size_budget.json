@@ -14,7 +14,7 @@
     "cli/src/console/screen.zig": 318,
     "cli/src/console/session.zig": 357,
     "cli/src/console/ui.zig": 209,
-    "cli/src/line_edit.zig": 453,
+    "cli/src/line_edit.zig": 207,
     "cli/src/llm/opSchema.zig": 183,
     "cli/src/llm/opplan.zig": 39,
     "cli/src/llm/registry.zig": 440,

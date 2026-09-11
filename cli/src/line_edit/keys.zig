@@ -10,7 +10,6 @@ const wordRight = le.wordRight;
 const wordLeft = le.wordLeft;
 const markerEnd = le.markerEnd;
 
-
 pub fn nowMs(self: *Editor) i64 {
     const io = self.io orelse return 0;
     return std.Io.Clock.now(.awake, io).toMilliseconds();
