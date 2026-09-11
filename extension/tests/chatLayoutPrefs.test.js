@@ -9,37 +9,37 @@ import { readFileSync } from 'node:fs';
 // (a distinct query string) so it starts from a clean module-level variable, the same
 // way a real page open would.
 
-test('loadChatSide defaults to normal, and round-trips through saveChatSide', async () => {
-  const { loadChatSide, saveChatSide, CHAT_SIDE_NORMAL, CHAT_SIDE_SWAPPED } =
+test('chatSide defaults to normal, and round-trips through setChatSide', async () => {
+  const { chatSide, setChatSide, CHAT_SIDE_NORMAL, CHAT_SIDE_SWAPPED } =
     await import('../src/lib/chatLayoutPrefs.js?prefs1');
-  assert.strictEqual(loadChatSide(), CHAT_SIDE_NORMAL);
-  saveChatSide(CHAT_SIDE_SWAPPED);
-  assert.strictEqual(loadChatSide(), CHAT_SIDE_SWAPPED);
-  saveChatSide(CHAT_SIDE_NORMAL);
-  assert.strictEqual(loadChatSide(), CHAT_SIDE_NORMAL);
-  saveChatSide('garbage');
-  assert.strictEqual(loadChatSide(), CHAT_SIDE_NORMAL);
+  assert.strictEqual(chatSide(), CHAT_SIDE_NORMAL);
+  setChatSide(CHAT_SIDE_SWAPPED);
+  assert.strictEqual(chatSide(), CHAT_SIDE_SWAPPED);
+  setChatSide(CHAT_SIDE_NORMAL);
+  assert.strictEqual(chatSide(), CHAT_SIDE_NORMAL);
+  setChatSide('garbage');
+  assert.strictEqual(chatSide(), CHAT_SIDE_NORMAL);
 });
 
 // The core of the user report: a fresh module instance — what a reopened popup/side
 // panel/DevTools panel actually gets — never inherits a PRIOR instance's swapped side.
 test('the side is per-module-instance — a fresh import never inherits an earlier one\'s swap', async () => {
   const first = await import('../src/lib/chatLayoutPrefs.js?prefs-reopen-a');
-  first.saveChatSide(first.CHAT_SIDE_SWAPPED);
-  assert.strictEqual(first.loadChatSide(), first.CHAT_SIDE_SWAPPED);
+  first.setChatSide(first.CHAT_SIDE_SWAPPED);
+  assert.strictEqual(first.chatSide(), first.CHAT_SIDE_SWAPPED);
 
   const second = await import('../src/lib/chatLayoutPrefs.js?prefs-reopen-b');
-  assert.strictEqual(second.loadChatSide(), second.CHAT_SIDE_NORMAL,
+  assert.strictEqual(second.chatSide(), second.CHAT_SIDE_NORMAL,
     'a fresh instance (a reopened popup/side panel/DevTools panel) starts at the default');
 });
 
 test('toggleChatSide flips — a same-session load agrees', async () => {
-  const { loadChatSide, toggleChatSide, CHAT_SIDE_NORMAL, CHAT_SIDE_SWAPPED } =
+  const { chatSide, toggleChatSide, CHAT_SIDE_NORMAL, CHAT_SIDE_SWAPPED } =
     await import('../src/lib/chatLayoutPrefs.js?prefs3');
   assert.strictEqual(toggleChatSide(), CHAT_SIDE_SWAPPED);
-  assert.strictEqual(loadChatSide(), CHAT_SIDE_SWAPPED);
+  assert.strictEqual(chatSide(), CHAT_SIDE_SWAPPED);
   assert.strictEqual(toggleChatSide(), CHAT_SIDE_NORMAL);
-  assert.strictEqual(loadChatSide(), CHAT_SIDE_NORMAL);
+  assert.strictEqual(chatSide(), CHAT_SIDE_NORMAL);
 });
 
 test('applyChatSide stamps the class the CSS swap rules key off, only when swapped', async () => {

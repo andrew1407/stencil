@@ -28,6 +28,9 @@ const MANIFEST = [
   // The registry-driven validation engine: pure, registry-in/verdict-out, so the copy
   // is the whole file.
   ['opSchema', '../../browser/js/llm/opSchema.js', '../src/llm/opSchema.js'],
+  // The un-persisted "Swap message sides" preference: pure module state, so the copy is
+  // the whole file.
+  ['chatLayoutPrefs', '../../browser/js/ui/chatLayoutPrefs.js', '../src/lib/chatLayoutPrefs.js'],
 ];
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
@@ -81,21 +84,34 @@ const FUNCTIONS = [
     'MATERIALIZE_CLASS', 'MATERIALIZE_VEIL_CLASS', 'CHAT_ENTERING_CLASS', 'CHAT_SLIDE_CLASS',
     'SURFACE_FORMING_CLASS', 'SURFACE_LEAVING_CLASS', 'SURFACE_DRIVEN_CLASS',
   ]],
+  // opPlan.js parses to the SAME §1 mechanics as the app, then applies the extension's
+  // own §8/§11.2 rules — so only the shared mechanics are pinned. `validateAsk` and
+  // `parseOpPlan` are deliberately per-surface and stay out.
+  ['planParser', '../../browser/js/llm/planParser.js', '../src/llm/opPlan.js',
+    ['firstJsonObject', 'askAnswerText']],
 ];
 
-// One top-level `export const NAME = …` / `export function NAME …` statement, from its
-// first line to the line that closes it: brackets balance and the line ends the statement.
+// One top-level `const NAME = …` / `function NAME …` statement — exported or not, since a
+// shared helper may be module-private on either side — from its first line to the line
+// that closes it: brackets balance and the line ends the statement.
 const declaration = (src, name) => {
   const lines = src.split('\n');
-  const start = lines.findIndex((l) => new RegExp(`^export (?:const|function) ${name}\\b`).test(l));
+  const start = lines.findIndex((l) => new RegExp(`^(?:export )?(?:const|function) ${name}\\b`).test(l));
   if (start < 0) return null;
   let depth = 0;
   for (let i = start; i < lines.length; i++) {
-    for (const c of lines[i]) {
+    const line = lines[i];
+    // Brackets inside a string literal or a trailing `//` comment are text, not structure
+    // (`text.indexOf('{')` would otherwise leave the count permanently open).
+    for (let j = 0, quote = ''; j < line.length; j++) {
+      const c = line[j];
+      if (quote) { if (c === '\\') j++; else if (c === quote) quote = ''; continue; }
+      if (c === '"' || c === "'" || c === '`') { quote = c; continue; }
+      if (c === '/' && line[j + 1] === '/') break;
       if ('([{'.includes(c)) depth++;
       else if (')]}'.includes(c)) depth--;
     }
-    if (depth <= 0 && /[;}]\s*$/.test(lines[i])) return lines.slice(start, i + 1).join('\n');
+    if (depth <= 0 && /[;}]\s*$/.test(line)) return lines.slice(start, i + 1).join('\n');
   }
   return null;
 };

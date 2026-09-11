@@ -243,9 +243,9 @@ export const validateAsk = (ask, listingLength, warnings) => {
 export const askAnswerText = (ask, { picked = [], custom = '' } = {}) => {
   const typed = String(custom || '').trim();
   if (typed) return typed.slice(0, ASK_LIMITS.answer);
-  return (Array.isArray(picked) ? picked : [picked])
-    .map((p) => (isObj(p) ? p.label : p)).filter((l) => isStr(l) && l.trim())
-    .join(', ').slice(0, ASK_LIMITS.answer);
+  const labels = (Array.isArray(picked) ? picked : [picked])
+    .map((p) => (isObj(p) ? p.label : p)).filter((l) => isStr(l) && l.trim());
+  return labels.join(', ').slice(0, ASK_LIMITS.answer);
 };
 
 export const parseOpPlan = (text, { listingLength = 0, tabsLength = 0 } = {}) => {
