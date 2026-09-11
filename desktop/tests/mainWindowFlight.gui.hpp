@@ -2,11 +2,16 @@
 // Reading a surface flight, for the MainWindow GUI suites: the dust/ghost overlay a
 // window, menu or tooltip forms out of, and the point it is aimed at.
 #include "../src/support/disintegrateOverlay.hpp"
+#include <QCoreApplication>
 #include <QEvent>
 #include <QLabel>
 #include <QObject>
 #include <QPoint>
+#include <QElapsedTimer>
+#include <QPointer>
+#include <QSignalSpy>
 #include <QWidget>
+#include <QtTest>
 
 namespace stencil::guitest {
   // ── Reading a surface flight ────────────────────────────────────────────────
@@ -70,6 +75,31 @@ namespace stencil::guitest {
   // A control's centre in the window's coordinates — what a flight out of it aims at.
   inline QPoint flightPointOf(const QWidget* control, const QWidget* host) {
     return control->mapTo(host, control->rect().center());
+  }
+
+  // ── Waiting a motion out ───────────────────────────────────────────────────
+  // Wait for the animation held in `slot` on its OWN finished(), which a state that
+  // predates the action cannot satisfy — and for any that replaces it, since a
+  // placement change leaves one edge and then arrives at the next. Empty slot = over.
+  template <class Anim>
+  bool awaitAnim(Anim*& slot, int capMs = 3000) {
+    QElapsedTimer t;
+    t.start();
+    while (slot && t.elapsed() < capMs) {
+      QSignalSpy done(slot, &QAbstractAnimation::finished);
+      if (!done.wait(int(capMs - t.elapsed()))) return false;
+    }
+    return !slot;
+  }
+
+  // The dust has no such signal: DisintegrateOverlay is Q_OBJECT-free and ticks a plain
+  // QTimer at the screen's refresh rate, retiring itself with deleteLater. Its absence
+  // is the only completion there is, so this one polls — and flushes the deletes.
+  inline bool awaitFlights(QWidget* host, int capMs = 3000) {
+    return QTest::qWaitFor([host] {
+      QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+      return surfaceFlight(host) == nullptr;
+    }, capMs);
   }
 }  // namespace stencil::guitest
 

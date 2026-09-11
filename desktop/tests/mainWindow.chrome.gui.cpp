@@ -602,7 +602,7 @@ class MainWindowGuiTest : public QObject {
       // canvas rather than a hidden widget whose geometry means nothing.
       win.actChat_->setChecked(true);
       QTRY_VERIFY(win.chatDock_->isVisible());
-      settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
+      awaitAnim(win.chatAnim_);
 
       // Every widget the tag could possibly push around, in window coordinates.
       const auto snapshot = [&win] {

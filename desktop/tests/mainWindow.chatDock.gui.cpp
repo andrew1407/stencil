@@ -749,12 +749,14 @@ class MainWindowGuiTest : public QObject {
 
     // Sample the docked extent every ~16 ms across the slide (a hidden dock
     // counts as 0 — that IS its contribution to the layout).
-    auto sample = [dock] {
+    auto sample = [&] {
       QList<int> s;
-      for (int i = 0; i < 26; ++i) {
+      QElapsedTimer t;
+      t.start();
+      do {
         s.append(dock->isVisible() ? dock->width() : 0);
         QTest::qWait(16);
-      }
+      } while (win.chatAnim_ && t.elapsed() < 1200);
       return s;
     };
     auto hasIntermediate = [](const QList<int>& s, int full) {
@@ -789,7 +791,7 @@ class MainWindowGuiTest : public QObject {
     // Reopening restores the extent it was dismissed at.
     chat->setChecked(true);
     QTRY_VERIFY(dock->width() > 200);
-    settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
+    awaitAnim(win.chatAnim_);
     QVERIFY2(qAbs(dock->width() - full) <= 8, "reopen lost the remembered width");
 
     // Floating: no edge to slide from — plain show/hide, and the tear-off size
@@ -1168,7 +1170,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.actChat_->setChecked(true);
-    settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
+    awaitAnim(win.chatAnim_);
     auto* dock = win.findChild<stencil::gui::ChatDock*>();
     QVERIFY2(dock, "no chat dock");
     QLabel* title = dock->findChild<QLabel*>("chatHeaderTitle");
@@ -1250,7 +1252,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(chat && dock);
     chat->setChecked(true);
     QTRY_VERIFY(dock->isVisible() && !dock->isFloating());
-    settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
+    awaitAnim(win.chatAnim_);
     const int settled = dock->width();
     QVERIFY2(settled > 80, "the dock never reached its full width");
     // Ask for the opposite side and watch the extent actually move mid-flight.
@@ -1267,13 +1269,13 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(sawCollapse, "the dock jumped to the new side without sliding out");
     QTRY_COMPARE(win.dockWidgetArea(dock), Qt::RightDockWidgetArea);
     QTRY_VERIFY2(dock->width() > settled / 2, "it never grew back at the new edge");
-    settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
+    awaitAnim(win.chatAnim_);
 
     // …and coming back from FLOAT slides in at the side you picked, rather than
     // appearing at full width (the floating branch used to skip the animation).
     dock->setFloating(true);
     QTRY_VERIFY(dock->isFloating());
-    settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
+    awaitAnim(win.chatAnim_);
     emit static_cast<stencil::gui::ChatDock*>(dock)->dockRequested(Qt::LeftDockWidgetArea);
     bool sawNarrow = false;
     for (int i = 0; i < 20 && !sawNarrow; ++i) {
@@ -1308,7 +1310,7 @@ class MainWindowGuiTest : public QObject {
     // whatever incidental size it had straight out of construction) and let it settle.
     win.actChat_->setChecked(true);
     QTRY_VERIFY(win.chatDock_->isVisible() && !win.chatDock_->isFloating());
-    settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
+    awaitAnim(win.chatAnim_);
     const int panelBefore = win.selPanel_->width();
     QVERIFY2(panelBefore > 120, "the points panel never reached its natural width");
 
@@ -1316,7 +1318,10 @@ class MainWindowGuiTest : public QObject {
     // width through the whole flight.
     emit static_cast<stencil::gui::ChatDock*>(win.chatDock_)->dockRequested(Qt::RightDockWidgetArea);
     int maxSeen = 0, minSeen = win.width();
-    for (int i = 0; i < 60; ++i) {
+    QVERIFY2(win.chatAnim_, "the placement change did not animate");
+    QElapsedTimer flightClock;
+    flightClock.start();
+    while (win.chatAnim_ && flightClock.elapsed() < 1500) {   // the flight's own length
       QTest::qWait(15);
       if (win.selPanel_->isHidden()) continue;
       const int w = win.selPanel_->width();
@@ -1324,7 +1329,7 @@ class MainWindowGuiTest : public QObject {
       minSeen = std::min(minSeen, w);
     }
     QTRY_COMPARE(win.dockWidgetArea(win.chatDock_), Qt::RightDockWidgetArea);
-    settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
+    awaitAnim(win.chatAnim_);
     // They must land SIDE BY SIDE (same row, chat to the right of the panel) —
     // never stacked vertically (Qt's plain, unsplit addDockWidget default).
     QCOMPARE(win.selPanel_->mapTo(&win, QPoint(0, 0)).y(), win.chatDock_->mapTo(&win, QPoint(0, 0)).y());
@@ -1340,7 +1345,7 @@ class MainWindowGuiTest : public QObject {
     // Close the chat: the panel should hand its width right back...
     win.actChat_->setChecked(false);
     QTRY_VERIFY(!win.chatDock_->isVisible());
-    settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
+    awaitAnim(win.chatAnim_);
     QVERIFY2(win.selPanel_->width() >= panelBefore - 8,
              qPrintable(QString("panel stayed narrow after chat closed: %1 (was %2)")
                             .arg(win.selPanel_->width()).arg(panelBefore)));
@@ -1350,7 +1355,7 @@ class MainWindowGuiTest : public QObject {
     // never "very wide".
     win.actChat_->setChecked(true);
     QTRY_VERIFY(win.chatDock_->isVisible());
-    settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
+    awaitAnim(win.chatAnim_);
     QVERIFY2(win.selPanel_->width() <= panelBefore + 8,
              qPrintable(QString("panel reopened very wide: %1 (was %2)")
                             .arg(win.selPanel_->width()).arg(panelBefore)));
@@ -1380,7 +1385,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.chatDock_->isVisible() && !win.chatDock_->isFloating());
     emit static_cast<stencil::gui::ChatDock*>(win.chatDock_)->dockRequested(Qt::RightDockWidgetArea);
     QTRY_COMPARE(win.dockWidgetArea(win.chatDock_), Qt::RightDockWidgetArea);
-    settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
+    awaitAnim(win.chatAnim_);
 
     // Now reveal the panel again — it must come back BESIDE the chat, not squashed
     // underneath it.
@@ -1416,7 +1421,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(dock->isVisible());
     dock->setFloating(true);
     QTRY_VERIFY(dock->isFloating());
-    settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
+    awaitAnim(win.chatAnim_);
     QWidget* icon = win.buttonForAction(win.actChat_);
     QVERIFY2(icon && icon->isVisible(), "no chat icon to fly from");
     const QPoint iconPoint = flightPointOf(icon, &win);
@@ -1429,7 +1434,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(closing, "closing a floating chat did not animate");
     QCOMPARE(closing->surfaceTarget(), iconPoint);
     QVERIFY2(!closing->gathering(), "the close flight scatters INTO the icon, it does not gather");
-    settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
+    awaitAnim(win.chatAnim_);
     win.actChat_->setChecked(true);           // open: it forms out of the icon
     QTest::qWait(60);
     auto* opening = surfaceFlight(&win);
@@ -1771,12 +1776,10 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(closeBtn, "no X in the chat title bar");
     win.chatDock_->appendUser(QStringLiteral("kept across the close"));
 
-    // The float's exit is a snapshot flown inside the main window.
     // The float's exit is a cloud of its own pixels flown inside the main window, every
     // mote pouring back into the icon.
     const auto flight = [&win] { return surfaceFlight(&win); };
-    const auto settle = [] { QTest::qWait(700);
-                             QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete); };
+    const auto settle = [&win] { awaitAnim(win.chatAnim_); awaitFlights(&win); };
 
     struct Area { Qt::DockWidgetArea area; const char* name; };
     const QVector<Area> areas{{Qt::LeftDockWidgetArea, "left"},
@@ -1800,13 +1803,13 @@ class MainWindowGuiTest : public QObject {
                qPrintable(QString("%1: the dock vanished before the slide").arg(a.name)));
       // …the slide runs toward that edge: width for left/right, height for top/bottom.
       const bool horiz = a.area == Qt::LeftDockWidgetArea || a.area == Qt::RightDockWidgetArea;
-      const int before = horiz ? dock->width() : dock->height();
-      QTest::qWait(120);
-      const int during = horiz ? dock->width() : dock->height();
-      QVERIFY2(during < before,
-               qPrintable(QString("%1: the %2 never shrank (%3 -> %4)")
-                              .arg(a.name, horiz ? "width" : "height")
-                              .arg(before).arg(during)));
+      const auto extent = [&] { return horiz ? dock->width() : dock->height(); };
+      const int before = extent();
+      // Caught while it is STILL on screen: a blink-out leaves nothing to shrink.
+      QTRY_VERIFY2_WITH_TIMEOUT(dock->isVisible() && extent() < before,
+                                qPrintable(QString("%1: the %2 never shrank from %3")
+                                               .arg(a.name, horiz ? "width" : "height")
+                                               .arg(before)), 1500);
       QTRY_VERIFY2_WITH_TIMEOUT(!dock->isVisible(),
                                 qPrintable(QString("%1: it never finished closing").arg(a.name)), 3000);
       QVERIFY2(!win.actChat_->isChecked(),
@@ -1830,9 +1833,8 @@ class MainWindowGuiTest : public QObject {
     settle();
     const QRect windowBox(dock->mapToGlobal(QPoint(0, 0)), dock->size());
     closeBtn->click();
-    QTest::qWait(60);
-    auto* from = flight();
-    QVERIFY2(from, "floating: the X closed with no flight");
+    stencil::gui::DisintegrateOverlay* from = nullptr;
+    QTRY_VERIFY2((from = flight()) != nullptr, "floating: the X closed with no flight");
     QWidget* icon = win.buttonForAction(win.actChat_);
     QVERIFY(icon);
     QVERIFY2(!from->gathering(), "floating: the X must scatter the window INTO the icon");
@@ -1867,10 +1869,7 @@ class MainWindowGuiTest : public QObject {
     const auto flight = [&win] { return surfaceFlight(&win); };
     // Past the whole surface flight, so a cloud from the LAST swap can never be mistaken
     // for the next one's (the gather is the longer of the two clocks).
-    const auto flushGhosts = [] {
-      QTest::qWait(stencil::gui::DisintegrateOverlay::kSurfaceInMs + 300);
-      QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-    };
+    const auto flushGhosts = [&win] { awaitAnim(win.chatAnim_); awaitFlights(&win); };
 
     // Put the chat in `floating` shape with a message in it, ready to be swapped.
     const auto arm = [&](bool floating, const QString& mark) {
