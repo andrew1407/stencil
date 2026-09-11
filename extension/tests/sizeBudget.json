@@ -20,7 +20,7 @@
     "extension/src/llm/opPlan.js": 314,
     "extension/src/options/options.js": 32,
     "extension/src/popup/assistant.js": 109,
-    "extension/src/popup/editorMode.js": 595,
+    "extension/src/popup/editorMode.js": 157,
     "extension/src/popup/popup.js": 173,
     "extension/tests/accent.test.js": 642,
     "extension/tests/actionMenu.test.js": 195,
