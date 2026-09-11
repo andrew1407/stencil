@@ -11,6 +11,8 @@ test {
     _ = @import("tests/pipeline_e2e_test.zig");
     _ = @import("tests/net_guard_test.zig");
     _ = @import("tests/console_test.zig");
+    _ = @import("tests/help_flags_test.zig");
+    _ = @import("tests/repl_text_test.zig");
     _ = @import("tests/tui_pins_test.zig");
     _ = @import("tests/opplan_fixtures_test.zig");
     _ = @import("tests/sanitizer_fixtures_test.zig");
@@ -20,5 +22,7 @@ test {
     _ = @import("tests/stencil_project_fixtures_test.zig");
     _ = @import("tests/color_names_drift_test.zig");
     _ = @import("tests/page_sizes_drift_test.zig");
+    _ = @import("tests/theme_tokens_drift_test.zig");
+    _ = @import("tests/media_types_drift_test.zig");
     _ = @import("tests/size_budget_test.zig");
 }

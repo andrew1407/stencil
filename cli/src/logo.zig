@@ -4,17 +4,30 @@
 //! when NO_COLOR is set, and the `error:`/`note:` prefixes (see err/note below) also need
 //! stderr to be a terminal.
 const std = @import("std");
+const brand = @import("brand.zig");
 
+// Every colour below is the brand triple from themeTokens.json (via brand.zig), turned into
+// its SGR escape at compile time — no hex is spelled out twice.
 const Ansi = struct {
     const reset = "\x1b[0m";
     const bold = "\x1b[1m";
-    const purple = "\x1b[38;2;124;58;237m"; // #7c3aed panel stroke (favicon border)
-    const yellow = "\x1b[38;2;255;255;0m"; // #FFFF00 polyline (favicon annotation)
-    const frame_bg = "\x1b[48;2;43;47;58m"; // #2b2f3a app panel
-    const field_bg = "\x1b[48;2;58;63;75m"; // #3a3f4b inner image frame
-    const grid = "\x1b[38;2;90;96;110m"; // faint point outline / grid dots
-    const red = "\x1b[1;38;2;239;68;68m"; // #ef4444 `error:` prefix
+    const purple = fg(brand.accent); // panel stroke (favicon border)
+    const yellow = fg(brand.annotation); // polyline (favicon annotation)
+    const frame_bg = bg(brand.panel); // app panel
+    const field_bg = bg(brand.panel_inner); // inner image frame
+    const grid = fg(brand.panel_grid); // faint point outline / grid dots
+    const red = boldFg(brand.error_red); // `error:` prefix
 };
+
+fn fg(comptime rgb: [3]u8) []const u8 {
+    return std.fmt.comptimePrint("\x1b[38;2;{d};{d};{d}m", .{ rgb[0], rgb[1], rgb[2] });
+}
+fn bg(comptime rgb: [3]u8) []const u8 {
+    return std.fmt.comptimePrint("\x1b[48;2;{d};{d};{d}m", .{ rgb[0], rgb[1], rgb[2] });
+}
+fn boldFg(comptime rgb: [3]u8) []const u8 {
+    return std.fmt.comptimePrint("\x1b[1;38;2;{d};{d};{d}m", .{ rgb[0], rgb[1], rgb[2] });
+}
 
 var use_color: bool = true;
 
@@ -26,9 +39,9 @@ var severity_color: bool = false;
 // Whether stderr is a terminal at all (init's `tty`), for output that redraws a row in place.
 var human_tty: bool = false;
 
-// The brand accent (logo panel outline, prompt, echoed commands). Defaults to violet
-// (#7c3aed); the console's `/theme` swaps it. `accent_slice` caches its SGR escape.
-var accent_rgb: [3]u8 = .{ 124, 58, 237 };
+// The brand accent (logo panel outline, prompt, echoed commands). Defaults to the canonical
+// brand violet; the console's `/theme` swaps it. `accent_slice` caches its SGR escape.
+var accent_rgb: [3]u8 = brand.accent;
 var accent_buf: [20]u8 = undefined;
 var accent_slice: []const u8 = "";
 
@@ -396,66 +409,32 @@ fn emitBanner(comptime compact: bool) void {
 }
 
 pub fn usage() void {
-    const b = c(Ansi.bold);
-    const r = c(Ansi.reset);
-    print(
-        \\{s}Usage{s}
-        \\  stencil [options] <output>
-        \\
-        \\{s}Source (choose one){s}
-        \\  -i, --input <path|url>     Image or video file/URL to load
-        \\      --blank [fmt] [w h] [color]
-        \\                             Create a blank page: a page format (a0..c10, e.g. b5)
-        \\                             OR explicit dims, default A4; color name/#hex (white)
-        \\
-        \\{s}Options{s}
-        \\  -f, --frame <n>            Video frame index to grab (default 0)
-        \\  -c, --crop "<spec>"        Crop, e.g. "x1=10% x2=90% y1=10% y2=90%"
-        \\                             (units: px, cm, mm, in, %, or a bare pixel delta)
-        \\      --album                With one crop axis, derive the other (landscape)
-        \\  -r, --rotate <int>         Rotate int*90 deg (e.g. -1 = -90, 3 = 270)
-        \\  -l, --layout <path|url>    Layout JSON to draw onto the image
-        \\      --layout-frame <current|source>
-        \\                             Frame the layout's coordinates are in: 'current'
-        \\                             (default) = the cropped/rotated image; 'source' =
-        \\                             the source image — points are re-mapped through
-        \\                             the crop/rotation and clamped into the output
-        \\      --filter <f>           Apply bw | sepia | invert | contour | <color>;
-        \\                             overrides the layout filter
-        \\      --console              Interactive console: /upload, /crop, /rotate, /save, ...
-        \\      --console-full-screen  Console in a full-screen TUI: pinned logo header,
-        \\                             scrollback (wheel/PgUp/PgDn), click logo to change theme
-        \\      --confine-output       Refuse an output path outside the working directory
-        \\                             (absolute or ~); for adapters forwarding chosen paths
-        \\  -h, --help                 Show this help
-        \\
-        \\{s}Scrape a web page (mutually exclusive with the source flags){s}
-        \\      --source-site <url>    Fetch a page, extract + download its media into <output>
-        \\                             (a DIRECTORY, created if missing; default '.')
-        \\      --source-count <n>     Items per page/group (default 5; 0 = all)
-        \\      --group <g>            0-based page index over the filtered list (default 0)
-        \\      --source-filter <s>    Category tokens, '|'-joined: img|video|background|poster
-        \\      --source-format <s>    Format tokens, '|'-joined: png|jpg|webp|gif|svg|mp4|...
-        \\      --source-name <re>     Keep media whose URL matches this regex (POSIX ERE,
-        \\                             case-insensitive; substring match on Windows)
-        \\      --source-min-width <px>  /  --source-max-width <px>
-        \\      --source-min-height <px> /  --source-max-height <px>
-        \\                             Inclusive pixel bounds (0 = unset; images measured)
-        \\
-        \\{s}Output{s}
-        \\  <output>                   Result path (or, in scrape mode, the destination
-        \\                             directory). A missing extension is filled in from
-        \\                             the input/format (png, jpg, bmp, tga).
-        \\
-        \\{s}Examples{s}
-        \\  stencil -i photo.jpg -c "x1=10% x2=90% y1=10% y2=90%" -r 1 out.png
-        \\  stencil --blank 800 600 red --layout notes.json --filter sepia out
-        \\  stencil --blank b5 pink page.png
-        \\  stencil -i clip.mp4 -f 24 frame.png
-        \\  stencil --source-site https://example.com --source-filter img --source-min-width 200 out/
-        \\  stencil --console          (then: /upload photo.png / /crop ... / /rotate 1 / /save out.png)
-        \\
-    , .{ b, r, b, r, b, r, b, r, b, r, b, r });
+    emitMarked(help_text, c(Ansi.bold), c(Ansi.reset));
+}
+
+// The `--help` prose lives in help.txt (embedded), not in this file: one list of flags for
+// people, cross-checked against args.zig's flag table by tests/help_flags_test.zig. `{b}` /
+// `{r}` are the only markers — bold on, bold off — and both are "" when colour is off.
+const help_text = @embedFile("help.txt");
+
+/// Print `text`, expanding the `{b}`/`{r}` markers; any other `{` is literal.
+fn emitMarked(text: []const u8, bold: []const u8, reset: []const u8) void {
+    var rest = text;
+    while (std.mem.indexOfScalar(u8, rest, '{')) |at| {
+        if (at != 0) print("{s}", .{rest[0..at]});
+        const tail = rest[at..];
+        if (std.mem.startsWith(u8, tail, "{b}")) {
+            print("{s}", .{bold});
+            rest = tail[3..];
+        } else if (std.mem.startsWith(u8, tail, "{r}")) {
+            print("{s}", .{reset});
+            rest = tail[3..];
+        } else {
+            print("{{", .{});
+            rest = tail[1..];
+        }
+    }
+    if (rest.len != 0) print("{s}", .{rest});
 }
 
 // ── tests ──────────────────────────────────────────────────────────────────────

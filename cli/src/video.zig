@@ -4,20 +4,18 @@
 //! image pipeline. If ffmpeg isn't installed the caller surfaces a clear hint.
 const std = @import("std");
 const child = @import("child.zig");
+const mediaTypes = @import("mediaTypes.zig");
 
 pub const Error = error{ FfmpegMissing, FfmpegFailed };
 
-const video_exts = [_][]const u8{
-    ".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v", ".mpg", ".mpeg", ".wmv", ".flv", ".ts", ".gifv",
-};
-
-/// Heuristic: does this path/URL look like a video (by extension)?
+/// Heuristic: does this path/URL look like a video (by extension)? The list is the shared
+/// canon's `surfaces.cli.video` (mediaTypes.zig), not a copy kept here.
 pub fn looksLikeVideo(path: []const u8) bool {
     // Trim any URL query/fragment before checking the extension.
     var end = path.len;
     if (std.mem.indexOfAny(u8, path, "?#")) |q| end = q;
     const p = path[0..end];
-    for (video_exts) |ext| {
+    for (mediaTypes.videoExts()) |ext| {
         if (p.len >= ext.len and std.ascii.eqlIgnoreCase(p[p.len - ext.len ..], ext)) return true;
     }
     return false;

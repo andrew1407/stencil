@@ -18,6 +18,7 @@ const pipeline = @import("pipeline.zig");
 const args = @import("args.zig");
 const logo = @import("logo.zig");
 const confine = @import("confine.zig");
+const mediaTypes = @import("mediaTypes.zig");
 
 const MAX_HTML = 32 << 20; // sanity cap on a scraped page (fetch itself is unbounded)
 
@@ -112,10 +113,12 @@ pub fn formatOf(buf: []u8, url: []const u8) []const u8 {
     if (std.ascii.startsWithIgnoreCase(url, "data:")) {
         // data:(image|video)/<subtype>[;...]
         const rest = url["data:".len..];
-        const sub = if (std.ascii.startsWithIgnoreCase(rest, "image/"))
-            rest["image/".len..]
-        else if (std.ascii.startsWithIgnoreCase(rest, "video/"))
-            rest["video/".len..]
+        const img_pfx = mediaTypes.imagePrefix();
+        const vid_pfx = mediaTypes.videoPrefix();
+        const sub = if (std.ascii.startsWithIgnoreCase(rest, img_pfx))
+            rest[img_pfx.len..]
+        else if (std.ascii.startsWithIgnoreCase(rest, vid_pfx))
+            rest[vid_pfx.len..]
         else
             return "";
         var n: usize = 0;
@@ -129,24 +132,20 @@ pub fn formatOf(buf: []u8, url: []const u8) []const u8 {
     const path = pathnameOf(url);
     const dot = std.mem.lastIndexOfScalar(u8, path, '.') orelse return "";
     const ext = path[dot + 1 ..];
-    if (ext.len < 2 or ext.len > 5) return "";
+    if (!mediaTypes.extLenOk(ext.len)) return "";
     for (ext) |c| if (!std.ascii.isAlphanumeric(c)) return "";
     return norm(buf, ext);
 }
 
-/// Lowercase `ext` into `buf`, then apply the SUBSTRING normalizations jpeg→jpg, svg+xml→svg,
-/// quicktime→mov — matching the extension's chained `String.replace` and the pystencil port
-/// (a `data:` subtype `x-jpeg` normalizes to `x-jpg`). Every replacement shrinks, so it fits.
+/// Lowercase `ext` into `buf`, then apply mediaTypes.json's SUBSTRING normalizations, in its
+/// order — matching the extension's chained `String.replace` and the pystencil port (a `data:`
+/// subtype `x-jpeg` normalizes to `x-jpg`). Every replacement shrinks, so it fits.
 fn norm(buf: []u8, ext: []const u8) []const u8 {
     const n = @min(ext.len, buf.len);
     _ = std.ascii.lowerString(buf[0..n], ext[0..n]);
     var scratch: [64]u8 = undefined;
     var cur: []const u8 = buf[0..n];
-    inline for (.{
-        .{ "jpeg", "jpg" },
-        .{ "svg+xml", "svg" },
-        .{ "quicktime", "mov" },
-    }) |pair| {
+    for (mediaTypes.normalizations()) |pair| {
         if (std.mem.indexOf(u8, cur, pair[0]) != null) {
             const sz = std.mem.replacementSize(u8, cur, pair[0], pair[1]);
             _ = std.mem.replace(u8, cur, pair[0], pair[1], scratch[0..sz]);
@@ -731,7 +730,7 @@ pub fn deriveName(alloc: std.mem.Allocator, url: []const u8, ext: []const u8, in
 fn hasNameExt(name: []const u8) bool {
     const dot = std.mem.lastIndexOfScalar(u8, name, '.') orelse return false;
     const ext = name[dot + 1 ..];
-    if (ext.len < 2 or ext.len > 5) return false;
+    if (!mediaTypes.extLenOk(ext.len)) return false;
     for (ext) |c| if (!std.ascii.isAlphanumeric(c)) return false;
     return true;
 }

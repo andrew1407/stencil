@@ -56,6 +56,8 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
     mod.addAnonymousImport("accents.json", .{ .root_source_file = b.path("../browser/js/config/accents.json") });
     mod.addAnonymousImport("colorNames.json", .{ .root_source_file = b.path("../browser/js/config/colorNames.json") });
     mod.addAnonymousImport("constants.json", .{ .root_source_file = b.path("../browser/js/config/constants.json") });
+    mod.addAnonymousImport("mediaTypes.json", .{ .root_source_file = b.path("../browser/js/config/mediaTypes.json") });
+    mod.addAnonymousImport("themeTokens.json", .{ .root_source_file = b.path("../browser/js/config/themeTokens.json") });
     mod.addAnonymousImport("systemPrompt.json", .{ .root_source_file = b.path("../browser/js/config/llm/systemPrompt.json") });
     mod.addAnonymousImport("opRegistry.json", .{ .root_source_file = b.path("../browser/js/config/llm/opRegistry.json") });
     mod.addAnonymousImport("providers.json", .{ .root_source_file = b.path("../browser/js/config/llm/providers.json") });
