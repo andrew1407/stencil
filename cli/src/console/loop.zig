@@ -31,7 +31,7 @@ const logoCustom = hooks.logoCustom;
 
 const LINE_BUF = 64 * 1024; // piped-input line cap: long crop specs / URLs fit on one line
 
-fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed: *line_edit.Editor, scr: ?*screen.Screen) void {
+pub fn runInteractive(gpa: std.mem.Allocator, io: std.Io, session: *Session, ed: *line_edit.Editor, scr: ?*screen.Screen) void {
     var hist = line_edit.History{ .gpa = gpa };
     defer hist.deinit();
     // A deferred plan clearChat confirms through the same TTY keypress prompt /upload uses.

@@ -46,7 +46,7 @@ pub fn confirm(self: *Editor, question: []const u8) bool {
     }
 }
 
-fn finishConfirm(self: *Editor, question: []const u8, yes: bool) void {
+pub fn finishConfirm(self: *Editor, question: []const u8, yes: bool) void {
     if (self.screen != null) {
         logo.print("{s} {s}\n", .{ question, if (yes) "yes" else "no" }); // record in scrollback
         self.gotoLineStart();

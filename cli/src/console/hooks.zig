@@ -75,7 +75,7 @@ pub fn copySelection(raw: *anyopaque, text: []const u8) void {
     logo.print("copied {d} chars to the clipboard\n", .{text.len});
 }
 
-fn pollCancel(ctx: *anyopaque, timeout_ms: i32) bool {
+pub fn pollCancel(ctx: *anyopaque, timeout_ms: i32) bool {
     const ed: *line_edit.Editor = @ptrCast(@alignCast(ctx));
     return ed.pollInterrupt(timeout_ms);
 }
