@@ -50,7 +50,7 @@ over:
 
 - **cli**: `chatSeconds: 600` — the console waiter allows long local-model runs;
   unification to 120 is deliberately deferred (the change is one constant,
-  `cli/src/llm.zig` `request_timeout_ms`).
+  `request_timeout_ms` in `cli/src/llm/transport.zig`, re-exported by the `src/llm.zig` façade).
 - **browser**: `chatSeconds: null` — abort-driven (the user's stop button), no fixed
   chat deadline.
 

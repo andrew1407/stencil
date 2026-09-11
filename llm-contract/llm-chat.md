@@ -123,18 +123,16 @@ which is a plan-level error per §2. A preview is a suggestion; an edit is a com
 
 ### 11.4 Per-surface rendering
 
-The card is the same contract everywhere; only its widgets differ.
+The card is the same contract everywhere; only its widgets differ — the GUIs render a
+radio/checkbox list with inline thumbnails, the consoles a numbered list answered by number
+(or comma-separated numbers for `multi`), the bot an inline keyboard with a media group when
+previews exist. The normative record of the rendering split is
+[`opRegistry.json`](../browser/js/config/llm/opRegistry.json) → `ask.divergence`; validation is
+identical everywhere.
 
-| surface | single | multi | previews |
-|---|---|---|---|
-| browser / desktop | radio list | checkbox list | rendered thumbnails inline |
-| extension | radio list | checkbox list | rendered thumbnails inline |
-| cli / pystencil console | numbered list, answer by number | numbered list, comma-separated numbers | omitted (a console cannot show them); labels only |
-| bot | inline keyboard, one button per option | tap to toggle, then a Send button | sent as a media group when previews exist |
-
-A surface that cannot render an image preview (the consoles) drops the preview and keeps
-the option — it never drops the option itself. A surface that cannot render `ask` at all
-appends the question text to the reply so the turn is still answerable in prose.
+A surface that cannot render an image preview (the consoles) drops the preview and keeps the
+option — it never drops the option itself. A surface that cannot render `ask` at all appends the
+question text to the reply so the turn is still answerable in prose.
 
 ## 12. Chat persistence (per-project, opt-in)
 
