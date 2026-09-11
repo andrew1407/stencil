@@ -4,7 +4,6 @@
   "files": {
     "mcp/src/config.rs": { "lines": 319, "prod": 259 },
     "mcp/src/deliver.rs": { "lines": 251, "prod": 202 },
-    "mcp/src/opplan/lower.rs": 351,
     "mcp/src/server/mod.rs": { "lines": 140, "prod": 140 },
     "mcp/tests/args_test.rs": 538,
     "mcp/tests/e2e_test.rs": 301,
@@ -20,14 +19,18 @@
     "mcp/src/llm": 21,
     "mcp/src/llm/providers": 8,
     "mcp/src/llmtransport": 15,
-    "mcp/src/opplan": 16,
+    "mcp/src/opplan": 17,
+    "mcp/src/opplan/lower": 16,
     "mcp/src/opplan/schema": 6,
     "mcp/src/pipeline": 17,
     "mcp/src/server": 12,
     "mcp/src/server/tools": 8,
     "mcp/src/server/tools/prompt": 12,
     "mcp/tests": 8,
-    "mcp/tests/common": 8
+    "mcp/tests/common": 7
   },
-  "exceptions": {}
+  "exceptions": {},
+  "_notes": {
+    "mcp/src/opplan commentPct 16 -> 17": "Splitting lower.rs into opplan/lower/ moved 351 comment-sparse lines out of mcp/src/opplan. The directory's ABSOLUTE comment count FELL; only the denominator moved. No comment was added."
+  }
 }
