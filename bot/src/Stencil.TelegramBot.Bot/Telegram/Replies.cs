@@ -36,13 +36,7 @@ public static class Replies
     }
 
     /// <summary>The glyph a tone wears — the one place the convention is defined.</summary>
-    public static string Glyph(Tone tone) => tone switch
-    {
-        Tone.Error => "🔴",
-        Tone.Warning => "🟡",
-        Tone.Success => "✅",
-        _ => "ℹ️",
-    };
+    public static string Glyph(Tone tone) => BotStrings.Tone(tone.ToString());
 
     /// <summary>
     /// Prefix a reply with its tone glyph. A message that already opens with one of its own
@@ -58,64 +52,7 @@ public static class Replies
             or UnicodeCategory.ModifierSymbol or UnicodeCategory.CurrencySymbol;
 
     /// <summary>The full slash-command reference, noting that the inline buttons mirror them.</summary>
-    public static string HelpText()
-    {
-        StringBuilder sb = new();
-        sb.AppendLine("Stencil bot — edit images with the same core as the browser/desktop/CLI.");
-        sb.AppendLine();
-        sb.AppendLine("Set the working image by sending a photo, an image file, or just an image link.");
-        sb.AppendLine("Add a caption command to apply it at once, e.g. a photo captioned /crop … or /filter bw.");
-        sb.AppendLine("Send a video to grab a frame (caption /frame n to pick one); or a .json file with caption /apply.");
-        sb.AppendLine();
-        sb.AppendLine("Image commands:");
-        sb.AppendLine("/prompt <request> — ask the AI assistant to plan and apply edits (/p for short)");
-        sb.AppendLine("/chat [on|off|clear] — chat mode: keep talking to the assistant without typing /prompt (clear forgets the conversation)");
-        sb.AppendLine("/chat save [on|off] — store the conversation with the active server project and restore it on /fetch (off by default)");
-        sb.AppendLine("/blank [format] [w h] [color] — start a blank canvas, e.g. /blank b5 pink");
-        sb.AppendLine("/format [name | custom w h] — page format for /blank and the saved layout (bare = list)");
-        sb.AppendLine("/url <link> — load an http(s) image");
-        sb.AppendLine("/sourcesite <link> [count] [filter=…] [format=…] — scrape a page's media into the chat");
-        sb.AppendLine("/sourceupload <link> [index=0] [format=…] — scrape a page and load one image to edit");
-        sb.AppendLine("/frame [n] — grab frame n of the loaded video (needs ffmpeg)");
-        sb.AppendLine("/crop <spec> [album] — crop, e.g. x1=10% x2=90% y1=10% y2=90%");
-        sb.AppendLine("/rotate <n> — rotate n quarter-turns clockwise, e.g. /rotate -1");
-        sb.AppendLine("/filter <bw|sepia|invert|contour|none|color> — recolour / tint (a colour = duotone)");
-        sb.AppendLine("/undo · /redo — step back / forward one edit   /reset — clear all edits");
-        sb.AppendLine("/drop — discard the working image");
-        sb.AppendLine("/image — re-render and re-send the current result image");
-        sb.AppendLine("/layout <json | link> — apply a layout JSON (or upload the .json file)");
-        sb.AppendLine("/json — download the layout JSON");
-        sb.AppendLine("/project — download the whole project as a .stencil file (send one back to open it)");
-        sb.AppendLine("/status — show the working image, edits and connections");
-        sb.AppendLine();
-        sb.AppendLine("Drawing (annotate the image — coords are pixels or x%,y%):");
-        sb.AppendLine("/draw line x1,y1 x2,y2 … — a polyline");
-        sb.AppendLine("/draw rect x1,y1 x2,y2 — a rectangle (two corners)");
-        sb.AppendLine("/draw poly x1,y1 x2,y2 x3,y3 … — a closed polygon");
-        sb.AppendLine("/color <#hex|name>   /thickness <n>   /points <n>");
-        sb.AppendLine("/style <solid|dashed|dotted>   /fill <#hex|name|none>");
-        sb.AppendLine("/pen — show the current pen   /undoline   /clearlines");
-        sb.AppendLine();
-        sb.AppendLine("Server commands:");
-        sb.AppendLine("/connect <url> [token] — connect to a collaboration server");
-        sb.AppendLine("/disconnect [url] — forget a connection");
-        sb.AppendLine("/connections [admin|session] — list connected servers (filter by credential)");
-        sb.AppendLine("/projects [url] — list projects (as buttons)");
-        sb.AppendLine("/fetch <name|id> — load a project as the working image");
-        sb.AppendLine("/create [name] — save the result as a new project");
-        sb.AppendLine("/save — save back to the active project");
-        sb.AppendLine("/sync [on|off] — live mode: auto-upload edits + pull peers' changes");
-        sb.AppendLine("/link — a link that opens the active project in the desktop app");
-        sb.AppendLine("/project-name <text> — rename the working image (or the active project)");
-        sb.AppendLine("/project-color <#hex|name|clear> — set the project's accent colour");
-        sb.AppendLine("/project-description <text> — set the description (empty clears; saved on /create)");
-        sb.AppendLine("/expire <n unit | never> — set the project's expiry, e.g. /expire 3 days");
-        sb.AppendLine("/delete — remove the active project from the server (asks to confirm)");
-        sb.AppendLine();
-        sb.AppendLine("/help — this message   /cancel — never mind");
-        sb.Append("The inline buttons mirror these commands.");
-        return sb.ToString();
-    }
+    public static string HelpText() => BotCommands.HelpText;
 
     /// <summary>A short status block: working image label/size, pending edits, active project.</summary>
     public static string StatusText(UserSession session)
@@ -125,231 +62,158 @@ public static class Replies
         {
             ImageSize size = new(session.OriginalWidth, session.OriginalHeight);
             string label = session.ImageLabel ?? "image";
-            sb.AppendLine($"Working image: {label} ({size})");
+            sb.AppendLine(BotStrings.Reply("statusImage", label, size));
             if (session.SourceUrl is string src)
             {
-                sb.AppendLine($"  source: {src}");
+                sb.AppendLine(BotStrings.Reply("statusSource", src));
             }
             // The description belongs to the working image whether or not it's saved to a server yet
             // (set via /project-description; carried into /create), so show it here in both cases.
             if (!string.IsNullOrEmpty(session.ActiveProjectDescription))
             {
-                sb.AppendLine($"  description: {session.ActiveProjectDescription}");
+                sb.AppendLine(BotStrings.Reply("statusDescription", session.ActiveProjectDescription));
             }
         }
         else
         {
-            sb.AppendLine("Working image: none — send a photo or use /blank.");
+            sb.AppendLine(BotStrings.Reply("statusNoImage"));
         }
-        sb.AppendLine($"Pending edits: {DescribeEdits(session.Edits)}");
+        sb.AppendLine(BotStrings.Reply("statusEdits", DescribeEdits(session.Edits)));
         if (session.ActiveProjectId is not null)
         {
             string name = session.ActiveProjectName ?? session.ActiveProjectId;
-            sb.AppendLine($"Active project: {name} @ {session.ActiveServerUrl} (v{session.ActiveProjectVersion})");
+            sb.AppendLine(BotStrings.Reply("statusProject", name, session.ActiveServerUrl, session.ActiveProjectVersion));
             string created = FmtDate(session.ActiveProjectCreatedAt);
             if (created.Length != 0)
             {
-                sb.AppendLine($"  created {created}");
+                sb.AppendLine(BotStrings.Reply("statusCreated", created));
             }
             string expires = FmtDate(session.ActiveProjectExpiresAt);
             if (expires.Length != 0)
             {
-                sb.AppendLine($"  expires {expires}");
+                sb.AppendLine(BotStrings.Reply("statusExpires", expires));
             }
         }
         else
         {
-            sb.AppendLine("Active project: none");
+            sb.AppendLine(BotStrings.Reply("statusNoProject"));
         }
         if (session.VideoSourcePath is not null)
         {
-            sb.AppendLine("Video loaded — use /frame n to pick a frame.");
+            sb.AppendLine(BotStrings.Reply("statusVideo"));
         }
-        sb.AppendLine($"Pen: {PenSummary(session.Edits.Pen)}");
+        sb.AppendLine(BotStrings.Reply("statusPen", PenSummary(session.Edits.Pen)));
         if (session.ChatMode)
         {
-            sb.AppendLine("Chat mode: on — plain messages go to the assistant (/chat off to stop).");
+            sb.AppendLine(BotStrings.Reply("statusChatMode"));
         }
         if (session.SaveChats)
         {
-            sb.AppendLine("Chat saving: on — the conversation is stored with the active server project (/chat save off to stop).");
+            sb.AppendLine(BotStrings.Reply("statusChatSaving"));
         }
-        sb.Append($"Connections: {session.Connections.Count}");
+        sb.Append(BotStrings.Reply("statusConnections", session.Connections.Count));
         return sb.ToString();
     }
 
     /// <summary>Confirmation shown when chat mode is switched on (rides the "Chat off" button).</summary>
-    public static string ChatModeOn() =>
-        "💬 Chat mode on — just send a message and the assistant answers (and edits the image). "
-        + "Slash commands still work as usual. /chat off to stop, /chat clear to forget the conversation.";
+    public static string ChatModeOn() => BotStrings.Reply("chatModeOn");
 
     /// <summary>Confirmation shown when chat mode is switched off.</summary>
-    public static string ChatModeOff() =>
-        "Chat mode off. Use /prompt <request> for a one-off question, or /chat to start again.";
+    public static string ChatModeOff() => BotStrings.Reply("chatModeOff");
 
     /// <summary>
     /// Confirmation for <c>/chat clear</c> — the assistant's conversation is forgotten; chat mode
     /// itself is untouched, which the reply spells out when it is on.
     /// </summary>
     public static string ChatHistoryCleared(bool chatModeOn) =>
-        chatModeOn
-            ? "🧹 Conversation cleared — the assistant has forgotten the previous turns. Chat mode is still on."
-            : "🧹 Conversation cleared — the assistant has forgotten the previous turns.";
+        BotStrings.Reply(chatModeOn ? "chatClearedModeOn" : "chatCleared");
 
     /// <summary>
     /// What the spinning <see cref="ProgressNotice"/> says while an assistant turn runs — the
     /// model call, the edits it plans and every render it asks for.
     /// </summary>
-    public static string PromptWorking() => "Working on your request… this can take a minute.";
+    public static string PromptWorking() => BotStrings.Reply("promptWorking");
 
     /// <summary>
-    /// A turn ended by the ⏹ Stop button. The user asked for the stop and got it, so this is a
-    /// <see cref="Tone.Notice"/>, never an error. A stop during the model call leaves the image
-    /// untouched; one during a long plan stops between ops, so what already applied stays — and
-    /// /undo walks it back like any other edit. It rides a 🔄 Retry button: the request itself
-    /// went unanswered, and re-running it is the usual next step after calling one off — which
-    /// is also why the line says so rather than just "Stopped.": Telegram lays a bubble out at
-    /// its keyboard's width, and one bare word under a full-width button reads as a mistake.
+    /// A turn ended by the ⏹ Stop button: asked for and delivered, so a notice, never an error.
+    /// Ops already applied stay (/undo walks them back) and a 🔄 Retry button rides along.
     /// </summary>
-    public static string PromptStopped() =>
-        Tag(Tone.Notice, "Stopped. That request went unanswered — tap Retry to run it again.");
+    public static string PromptStopped() => Tag(Tone.Notice, BotStrings.Reply("promptStopped"));
 
     /// <summary>Acknowledges the ⏹ tap; the turn's own "Stopped." lands when it unwinds.</summary>
-    public static string PromptStopping() => Tag(Tone.Notice, "Stopping…");
+    public static string PromptStopping() => Tag(Tone.Notice, BotStrings.Reply("promptStopping"));
 
     /// <summary>/chatapi on a bot whose operator configured no alternatives.</summary>
-    public static string ChatApiNoProfiles() => Tag(
-        Tone.Notice,
-        "This bot offers one chat API, set by its operator — there is nothing to switch between.");
+    public static string ChatApiNoProfiles() => Tag(Tone.Notice, BotStrings.Reply("chatApiNoProfiles"));
 
     /// <summary>The picker's text: every configured API, with the caller's current one marked.</summary>
     public static string ChatApiList(IReadOnlyList<LlmProfile> profiles, LlmProfile? current)
     {
         StringBuilder sb = new();
-        sb.Append("Chat APIs on this bot:\n");
+        sb.Append(BotStrings.Reply("chatApiListHeader"));
         foreach (LlmProfile p in profiles)
         {
-            sb.Append(p.Name == current?.Name ? "\n• " : "\n  ");
-            sb.Append(p.Label).Append(" — ").Append(p.Summary());
+            sb.Append(BotStrings.Reply(p.Name == current?.Name ? "chatApiListCurrentPrefix" : "chatApiListOtherPrefix"));
+            sb.Append(p.Label).Append(BotStrings.Reply("chatApiListSeparator")).Append(p.Summary());
         }
-        sb.Append("\n\nNow using: ").Append(current?.Label ?? "the bot's default");
+        sb.Append(BotStrings.Reply("chatApiListNowUsing")).Append(current?.Label ?? BotStrings.Reply("chatApiListDefault"));
         return sb.ToString();
     }
 
     /// <summary>Confirmation after a pick.</summary>
     public static string ChatApiSelected(LlmProfile picked) =>
-        Tag(Tone.Success, $"Chat API: {picked.Label} ({picked.Summary()}).");
+        Tag(Tone.Success, BotStrings.Reply("chatApiSelected", picked.Label, picked.Summary()));
 
     /// <summary>A name that is not configured — with the ones that are.</summary>
     public static string ChatApiUnknown(string wanted, IReadOnlyList<LlmProfile> profiles) => Tag(
-        Tone.Error,
-        $"No chat API called \"{wanted}\". Configured: {string.Join(", ", profiles.Select(p => p.Name))}.");
+        Tone.Error, BotStrings.Reply("chatApiUnknown", wanted, string.Join(", ", profiles.Select(p => p.Name))));
 
     /// <summary>
     /// The §10 <c>clearChat</c> in-app confirmation, sent at the END of the plan's turn — the
     /// model can ask, but only the user's Yes button clears anything.
     /// </summary>
-    public static string ClearChatConfirm() =>
-        "🧹 The assistant asked to clear this conversation. Clear it?";
+    public static string ClearChatConfirm() => BotStrings.Reply("clearChatConfirm");
 
     /// <summary>The declined <c>clearChat</c> confirm — a note, never a failed plan (§10).</summary>
-    public static string ClearChatCanceled() =>
-        "Clear canceled — the conversation is kept.";
+    public static string ClearChatCanceled() => BotStrings.Reply("clearChatCanceled");
 
     /// <summary>Usage hint for <c>/chat</c> with an unrecognised argument.</summary>
-    public static string ChatUsage() =>
-        "Use /chat to start chatting with the assistant, /chat off to stop, and /chat clear to make "
-        + "it forget the conversation so far. /chat save on|off stores the conversation with the "
-        + "active server project (off by default; bare /chat save shows the setting). For a single "
-        + "question without switching modes, use /prompt <request>.";
+    public static string ChatUsage() => BotStrings.Reply("chatUsage");
 
     /// <summary>Confirmation for <c>/chat save on</c> (contract §12.3 — the server project is the store).</summary>
-    public static string ChatSaveOn() =>
-        "💾 Chat saving on — after each assistant turn the conversation (text only, never images) "
-        + "is stored with the active server project and restored when you /fetch it again. "
-        + "The bot's only store IS the server project, so anyone that project is shared with "
-        + "can read the conversation (§12.2). /chat save off to stop.";
+    public static string ChatSaveOn() => BotStrings.Reply("chatSaveOn");
 
     /// <summary>Confirmation for <c>/chat save off</c> (§12.2: no retroactive delete).</summary>
-    public static string ChatSaveOff() =>
-        "Chat saving off. An already-saved chat stays with its project until /chat clear removes it.";
+    public static string ChatSaveOff() => BotStrings.Reply("chatSaveOff");
 
     /// <summary>The current chat-saving setting, for a bare <c>/chat save</c>.</summary>
     public static string ChatSaveStatus(bool on) =>
-        on
-            ? "Chat saving is on — the conversation is stored with the active server project, where "
-              + "anyone it is shared with can read it. /chat save off to stop."
-            : "Chat saving is off (the default). /chat save on stores the conversation with the active "
-              + "server project, where anyone it is shared with can read it.";
+        BotStrings.Reply(on ? "chatSaveStatusOn" : "chatSaveStatusOff");
 
     /// <summary>The fetch-reply line for a restored persisted chat (only shown when N &gt; 0).</summary>
     public static string ChatRestored(int count) =>
-        $"💾 Restored {count} saved chat message{(count == 1 ? "" : "s")} — the assistant remembers this project's conversation.";
+        BotStrings.Reply(count == 1 ? "chatRestoredOne" : "chatRestoredMany", count);
 
     /// <summary>The once-per-streak warning when the best-effort chat save-back fails (§12).</summary>
-    public static string ChatSaveFailed() =>
-        Tag(Tone.Warning,
-            "Couldn't store the conversation with the server project this time — the chat itself "
-            + "continues; the next successful turn will save it again.");
+    public static string ChatSaveFailed() => Tag(Tone.Warning, BotStrings.Reply("chatSaveFailed"));
 
     /// <summary>Usage hint for adding a working image from a link or web page (the Sources button).</summary>
-    public static string SourcesHelp()
-    {
-        StringBuilder sb = new();
-        sb.AppendLine("Load a working image from the web — or just send a photo, or paste an image link:");
-        sb.AppendLine("/url <link> — load a single image from a direct link");
-        sb.AppendLine("/sourcesite <link> [count] [filter=img|video|…] [format=…] [name=<regex>] [group=N] — scrape a page's media into the chat");
-        sb.AppendLine("/sourceupload <link> [index] [format=jpg|png|…] [name=<regex>] — scrape a page and load one image to edit");
-        sb.Append("e.g. /sourceupload https://en.wikipedia.org/wiki/Cat 0 format=jpg");
-        return sb.ToString();
-    }
+    public static string SourcesHelp() => BotStrings.Reply("sourcesHelp");
 
     /// <summary>Usage hint for the <c>/draw</c> family.</summary>
-    public static string DrawHelp()
-    {
-        StringBuilder sb = new();
-        sb.AppendLine("Draw onto the image (coordinates are pixels, or x%,y% of the image):");
-        sb.AppendLine("/draw line x1,y1 x2,y2 …   — a polyline (2+ points)");
-        sb.AppendLine("/draw rect x1,y1 x2,y2     — a rectangle (two opposite corners)");
-        sb.AppendLine("/draw poly x1,y1 x2,y2 x3,y3 … — a closed polygon (3+ points)");
-        sb.AppendLine();
-        sb.Append("Style first with /color /thickness /points /style /fill — see /pen.");
-        return sb.ToString();
-    }
+    public static string DrawHelp() => BotStrings.Reply("drawHelp");
 
     /// <summary>The filter variants for a bare <c>/filter</c> (mirrors the CLI console's list).</summary>
-    public static string FilterVariants() =>
-        """
-        Filter the image: /filter <mode>
-        bw — black & white
-        sepia — sepia tone
-        invert — invert the colours
-        contour — edge-detect outline
-        none — clear the filter
-        …or a colour name/#hex for a duotone tint, e.g. /filter #ff5623
-        """;
+    public static string FilterVariants() => BotStrings.Reply("filterVariants");
 
     /// <summary>The quarter-turn variants for a bare <c>/rotate</c>.</summary>
-    public static string RotateVariants() =>
-        """
-        Rotate by quarter-turns: /rotate <n>
-        /rotate 1 — 90° clockwise
-        /rotate 2 — 180°
-        /rotate -1 — 90° counter-clockwise
-        """;
+    public static string RotateVariants() => BotStrings.Reply("rotateVariants");
 
     /// <summary>The crop-spec vocabulary for a bare <c>/crop</c> (and the Crop… button).</summary>
-    public static string CropUsage() =>
-        """
-        Crop: /crop <spec> [album]
-        Edges: x1= x2= y1= y2= — each a % of the image, px, or cm.
-        e.g. /crop x1=10% x2=90% y1=10% y2=90%
-        Add 'album' to derive a missing axis from the page proportion (landscape).
-        """;
+    public static string CropUsage() => BotStrings.Reply("cropUsage");
 
     /// <summary>Usage hint for <c>/connect</c> (a bare command and the Connect… button).</summary>
-    public static string ConnectUsage() =>
-        "Use /connect <url> [token] to connect to a server, e.g. /connect http://localhost:8090";
+    public static string ConnectUsage() => BotStrings.Reply("connectUsage");
 
     /// <summary>
     /// The bare <c>/expire</c> / Expiration-button header: the active project's current expiry
@@ -358,25 +222,19 @@ public static class Replies
     public static string ExpiryPrompt(long expiresAtMs)
     {
         string current = expiresAtMs > 0
-            ? $"Current expiry: {FmtDate(expiresAtMs)}."
-            : "This project has no expiry (kept forever).";
-        return $"{current}\nChoose a new expiry:";
+            ? BotStrings.Reply("expiryCurrent", FmtDate(expiresAtMs))
+            : BotStrings.Reply("expiryNone");
+        return BotStrings.Reply("expiryChoose", current);
     }
 
     /// <summary>Usage hint for <c>/expire</c> (an unparseable duration argument).</summary>
-    public static string ExpireUsage() =>
-        """
-        Set the active project's expiry: /expire <amount>
-        e.g. /expire 3 days · /expire 1 week · /expire 2 weeks · /expire 1 month · /expire 3 months
-        Units: day(s), week(s), fortnight, month(s) — the number may lead or follow (e.g. "week 4").
-        /expire never — keep the project forever.
-        """;
+    public static string ExpireUsage() => BotStrings.Reply("expireUsage");
 
     /// <summary>The delete-project confirmation question (bare <c>/delete</c> and the 🗑 Remove button).</summary>
     public static string DeleteConfirmPrompt(string name, string? serverUrl)
     {
-        string where = serverUrl is null ? "" : $" from {Host(serverUrl)}";
-        return $"Delete '{name}'{where}? This permanently removes the project for everyone and can't be undone.";
+        string where = serverUrl is null ? "" : BotStrings.Reply("deleteConfirmWhere", Host(serverUrl));
+        return BotStrings.Reply("deleteConfirm", name, where);
     }
 
     /// <summary>
@@ -384,19 +242,11 @@ public static class Replies
     /// loopback link resolves on whoever taps it, so say so rather than let it look shareable.
     /// </summary>
     public static string DesktopLink(string name, string url, bool loopback) =>
-        $"🔗 Open '{name}' in the Stencil desktop app:\n{url}\n\n"
-        + "The page it opens hands the link to the desktop app. It carries no token — whoever "
-        + "follows it connects to the server with their own."
-        + (loopback
-            ? "\n\n" + Glyph(Tone.Notice) + " It points at localhost, so it only works on this "
-              + "machine — set STENCIL_BOT_BROWSER_URL to a public browser app to share it."
-            : "");
+        BotStrings.Reply("desktopLinkHead", name, url)
+        + (loopback ? BotStrings.Reply("desktopLinkLoopback", Glyph(Tone.Notice)) : "");
 
     /// <summary>The <c>/link</c> reply when the configured browser app isn't a usable address.</summary>
-    public static string DesktopLinkUnusable() =>
-        Tag(Tone.Notice,
-            "Desktop links are off — STENCIL_BOT_BROWSER_URL has to be an http(s) address of the "
-            + "served browser app, whose launch.html page carries the hand-off.");
+    public static string DesktopLinkUnusable() => Tag(Tone.Notice, BotStrings.Reply("desktopLinkUnusable"));
 
     /// <summary>
     /// All named page formats with their portrait cm sizes (canonical order), plus the custom
@@ -405,14 +255,14 @@ public static class Replies
     public static string PageFormatList()
     {
         StringBuilder sb = new();
-        sb.AppendLine("Page formats (portrait, cm) — set one with /format <name>:");
+        sb.AppendLine(BotStrings.Reply("pageFormatsHeader"));
         foreach (var (name, w, h) in PageFormats.All)
         {
-            sb.AppendLine($"{name} ({PageFormats.Cm(w)}×{PageFormats.Cm(h)} cm)");
+            sb.AppendLine(BotStrings.Reply("pageFormatsEntry", name, PageFormats.Cm(w), PageFormats.Cm(h)));
         }
         sb.AppendLine();
-        sb.AppendLine("Custom dims: /format custom <w> <h> (cm), e.g. /format custom 10 15.");
-        sb.Append("The chosen format is the /blank default page and rides the saved project layout.");
+        sb.AppendLine(BotStrings.Reply("pageFormatsCustom"));
+        sb.Append(BotStrings.Reply("pageFormatsFooter"));
         return sb.ToString();
     }
 
@@ -420,18 +270,18 @@ public static class Replies
     public static string PenText(LineStyle pen)
     {
         StringBuilder sb = new();
-        sb.AppendLine("Current pen (applied to new lines):");
-        sb.AppendLine($"• colour: {pen.Color}");
-        sb.AppendLine($"• thickness: {pen.Thickness}");
-        sb.AppendLine($"• points: {pen.PointSize}");
-        sb.AppendLine($"• style: {pen.Style}");
-        sb.Append($"• fill (closed shapes): {pen.FillColor}");
+        sb.AppendLine(BotStrings.Reply("penHeader"));
+        sb.AppendLine(BotStrings.Reply("penColor", pen.Color));
+        sb.AppendLine(BotStrings.Reply("penThickness", pen.Thickness));
+        sb.AppendLine(BotStrings.Reply("penPoints", pen.PointSize));
+        sb.AppendLine(BotStrings.Reply("penStyle", pen.Style));
+        sb.Append(BotStrings.Reply("penFill", pen.FillColor));
         return sb.ToString();
     }
 
     /// <summary>A one-line pen summary for the status block.</summary>
     private static string PenSummary(LineStyle pen) =>
-        $"{pen.Color}, {pen.Thickness}px, {pen.Style}, points {pen.PointSize}, fill {pen.FillColor}";
+        BotStrings.Reply("penSummary", pen.Color, pen.Thickness, pen.Style, pen.PointSize, pen.FillColor);
 
     /// <summary>One-line human summary of the pending <see cref="EditState"/>.</summary>
     public static string DescribeEdits(EditState edits)
@@ -468,46 +318,41 @@ public static class Replies
     }
 
     /// <summary>Usage hint for <c>/connections</c> with an unrecognised filter argument.</summary>
-    public static string ConnectionsUsage() =>
-        "Use /connections to list every connection, /connections admin for the ones connected "
-        + "with the server's admin token, and /connections session for the rest.";
+    public static string ConnectionsUsage() => BotStrings.Reply("connectionsUsage");
 
     /// <summary>
-    /// List the remembered connections (or a hint when none). <paramref name="filter"/> is the
-    /// applied <c>admin</c>/<c>session</c> narrowing (empty = all), and admin-token connections
-    /// are marked — never the token itself.
+    /// The remembered connections (or a hint when none), narrowed by an <c>admin</c>/<c>session</c>
+    /// <paramref name="filter"/>. Admin connections are marked — never the token itself.
     /// </summary>
     public static string ConnectionsText(IReadOnlyList<ServerConnectionInfo> connections, string filter = "")
     {
         if (connections.Count == 0)
         {
             return filter.Length == 0
-                ? "No connections. Use /connect <url> [token] to add one."
-                : $"No {filter}-token connections. /connections lists them all.";
+                ? BotStrings.Reply("connectionsEmpty")
+                : BotStrings.Reply("connectionsEmptyFiltered", filter);
         }
         string header = filter switch
         {
-            "admin" => $"Admin-token connections ({connections.Count}):",
-            "session" => $"Session-token connections ({connections.Count}):",
-            _ => $"Connections ({connections.Count}):",
+            "admin" => BotStrings.Reply("connectionsHeaderAdmin", connections.Count),
+            "session" => BotStrings.Reply("connectionsHeaderSession", connections.Count),
+            _ => BotStrings.Reply("connectionsHeader", connections.Count),
         };
         StringBuilder sb = new();
         sb.AppendLine(header);
         for (int i = 0; i < connections.Count; i++)
         {
             ServerConnectionInfo c = connections[i];
-            string tls = c.VerifyTls ? "" : " (TLS verification off)";
-            string kind = c.CredentialKind == CredentialKind.Admin ? " [admin]" : "";
-            sb.AppendLine($"{i + 1}. {c.Url}{kind}{tls}");
+            string tls = c.VerifyTls ? "" : BotStrings.Reply("connectionsTlsOff");
+            string kind = c.CredentialKind == CredentialKind.Admin ? BotStrings.Reply("connectionsAdminMark") : "";
+            sb.AppendLine(BotStrings.Reply("connectionsEntry", i + 1, c.Url, kind, tls));
         }
         return sb.ToString().TrimEnd();
     }
 
     /// <summary>
-    /// The most projects the bot renders in one list message / keyboard. Telegram caps a message
-    /// at 4096 chars and an inline keyboard at ~100 buttons, so a server with many projects would
-    /// otherwise overflow (a 400 "message is too long"). The overflow is called out, not silently
-    /// dropped — narrow with <c>/projects &lt;url&gt;</c> or open directly with <c>/fetch</c>.
+    /// The most projects one list message / keyboard renders — Telegram caps both. The overflow
+    /// is called out, never silently dropped (narrow with <c>/projects &lt;url&gt;</c>).
     /// </summary>
     public const int MaxProjectsListed = 20;
 
@@ -516,38 +361,37 @@ public static class Replies
     {
         if (projects.Count == 0)
         {
-            return "No projects found. Connect to a server with /connect first.";
+            return BotStrings.Reply("projectsEmpty");
         }
         int shown = Math.Min(projects.Count, MaxProjectsListed);
         StringBuilder sb = new();
-        sb.AppendLine($"Projects ({projects.Count}) — tap one to load it:");
+        sb.AppendLine(BotStrings.Reply("projectsHeader", projects.Count));
         for (int i = 0; i < shown; i++)
         {
             ServerProjectInfo p = projects[i];
-            string size = p.Record.HasImage ? $" {p.Record.ImageW}x{p.Record.ImageH}" : "";
+            string size = p.Record.HasImage ? BotStrings.Reply("projectsSize", p.Record.ImageW, p.Record.ImageH) : "";
             string dot = ColorDot(p.Record.Color);
             string prefix = dot.Length == 0 ? "•" : dot;
             string created = FmtDate(p.Record.CreatedAt);
-            string createdBit = created.Length == 0 ? "" : $" · created {created}";
+            string createdBit = created.Length == 0 ? "" : BotStrings.Reply("projectsCreated", created);
             string expires = FmtDate(p.Record.ExpiresAt);
-            string expiresBit = expires.Length == 0 ? "" : $" · expires {expires}";
-            sb.AppendLine($"{prefix} {p.Record.Name}{size}{createdBit}{expiresBit} @ {Host(p.ServerUrl)}");
+            string expiresBit = expires.Length == 0 ? "" : BotStrings.Reply("projectsExpires", expires);
+            sb.AppendLine(BotStrings.Reply("projectsEntry", prefix, p.Record.Name, size, createdBit, expiresBit, Host(p.ServerUrl)));
             if (!string.IsNullOrEmpty(p.Record.Description))
             {
-                sb.AppendLine($"    {p.Record.Description}");
+                sb.AppendLine(BotStrings.Reply("projectsDescription", p.Record.Description));
             }
         }
         if (projects.Count > shown)
         {
-            sb.AppendLine($"…and {projects.Count - shown} more — narrow with /projects <url> or open one with /fetch <name|id>.");
+            sb.AppendLine(BotStrings.Reply("projectsOverflow", projects.Count - shown));
         }
         return sb.ToString().TrimEnd();
     }
 
     /// <summary>
-    /// A coloured-circle emoji approximating a project's accent colour (Telegram can't tint text).
-    /// A <c>#rgb</c>/<c>#rrggbb</c> maps to the nearest palette dot; a CSS name falls back to 🎨;
-    /// empty/unset yields "".
+    /// A coloured-circle emoji for a project's accent (Telegram can't tint text): a hex maps to
+    /// the nearest palette dot, a CSS name falls back to 🎨, empty yields "".
     /// </summary>
     public static string ColorDot(string? color)
     {

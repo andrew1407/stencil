@@ -1,0 +1,333 @@
+{
+  "_doc": "The bot's chat copy: reply text (keyed; {0}-style placeholders are filled in order) and inline-button labels with their callback tokens ([label, token]). Bot-specific, so it lives here rather than in browser/js/config. Pinned byte-for-byte by the Goldens/ text goldens.",
+  "tones": {
+    "Error": "🔴",
+    "Warning": "🟡",
+    "Success": "✅",
+    "Notice": "ℹ️"
+  },
+  "replies": {
+    "statusImage": "Working image: {0} ({1})",
+    "statusSource": "  source: {0}",
+    "statusDescription": "  description: {0}",
+    "statusNoImage": "Working image: none — send a photo or use /blank.",
+    "statusEdits": "Pending edits: {0}",
+    "statusProject": "Active project: {0} @ {1} (v{2})",
+    "statusCreated": "  created {0}",
+    "statusExpires": "  expires {0}",
+    "statusNoProject": "Active project: none",
+    "statusVideo": "Video loaded — use /frame n to pick a frame.",
+    "statusPen": "Pen: {0}",
+    "statusChatMode": "Chat mode: on — plain messages go to the assistant (/chat off to stop).",
+    "statusChatSaving": "Chat saving: on — the conversation is stored with the active server project (/chat save off to stop).",
+    "statusConnections": "Connections: {0}",
+    "chatModeOn": "💬 Chat mode on — just send a message and the assistant answers (and edits the image). Slash commands still work as usual. /chat off to stop, /chat clear to forget the conversation.",
+    "chatModeOff": "Chat mode off. Use /prompt <request> for a one-off question, or /chat to start again.",
+    "chatClearedModeOn": "🧹 Conversation cleared — the assistant has forgotten the previous turns. Chat mode is still on.",
+    "chatCleared": "🧹 Conversation cleared — the assistant has forgotten the previous turns.",
+    "chatUsage": "Use /chat to start chatting with the assistant, /chat off to stop, and /chat clear to make it forget the conversation so far. /chat save on|off stores the conversation with the active server project (off by default; bare /chat save shows the setting). For a single question without switching modes, use /prompt <request>.",
+    "chatSaveOn": "💾 Chat saving on — after each assistant turn the conversation (text only, never images) is stored with the active server project and restored when you /fetch it again. The bot's only store IS the server project, so anyone that project is shared with can read the conversation (§12.2). /chat save off to stop.",
+    "chatSaveOff": "Chat saving off. An already-saved chat stays with its project until /chat clear removes it.",
+    "chatSaveStatusOn": "Chat saving is on — the conversation is stored with the active server project, where anyone it is shared with can read it. /chat save off to stop.",
+    "chatSaveStatusOff": "Chat saving is off (the default). /chat save on stores the conversation with the active server project, where anyone it is shared with can read it.",
+    "chatRestoredOne": "💾 Restored {0} saved chat message — the assistant remembers this project's conversation.",
+    "chatRestoredMany": "💾 Restored {0} saved chat messages — the assistant remembers this project's conversation.",
+    "chatSaveFailed": "Couldn't store the conversation with the server project this time — the chat itself continues; the next successful turn will save it again.",
+    "promptWorking": "Working on your request… this can take a minute.",
+    "promptStopped": "Stopped. That request went unanswered — tap Retry to run it again.",
+    "promptStopping": "Stopping…",
+    "chatApiNoProfiles": "This bot offers one chat API, set by its operator — there is nothing to switch between.",
+    "chatApiListHeader": "Chat APIs on this bot:\n",
+    "chatApiListCurrentPrefix": "\n• ",
+    "chatApiListOtherPrefix": "\n  ",
+    "chatApiListSeparator": " — ",
+    "chatApiListNowUsing": "\n\nNow using: ",
+    "chatApiListDefault": "the bot's default",
+    "chatApiSelected": "Chat API: {0} ({1}).",
+    "chatApiUnknown": "No chat API called \"{0}\". Configured: {1}.",
+    "clearChatConfirm": "🧹 The assistant asked to clear this conversation. Clear it?",
+    "clearChatCanceled": "Clear canceled — the conversation is kept.",
+    "sourcesHelp": "Load a working image from the web — or just send a photo, or paste an image link:\n/url <link> — load a single image from a direct link\n/sourcesite <link> [count] [filter=img|video|…] [format=…] [name=<regex>] [group=N] — scrape a page's media into the chat\n/sourceupload <link> [index] [format=jpg|png|…] [name=<regex>] — scrape a page and load one image to edit\ne.g. /sourceupload https://en.wikipedia.org/wiki/Cat 0 format=jpg",
+    "drawHelp": "Draw onto the image (coordinates are pixels, or x%,y% of the image):\n/draw line x1,y1 x2,y2 …   — a polyline (2+ points)\n/draw rect x1,y1 x2,y2     — a rectangle (two opposite corners)\n/draw poly x1,y1 x2,y2 x3,y3 … — a closed polygon (3+ points)\n\nStyle first with /color /thickness /points /style /fill — see /pen.",
+    "filterVariants": "Filter the image: /filter <mode>\nbw — black & white\nsepia — sepia tone\ninvert — invert the colours\ncontour — edge-detect outline\nnone — clear the filter\n…or a colour name/#hex for a duotone tint, e.g. /filter #ff5623",
+    "rotateVariants": "Rotate by quarter-turns: /rotate <n>\n/rotate 1 — 90° clockwise\n/rotate 2 — 180°\n/rotate -1 — 90° counter-clockwise",
+    "cropUsage": "Crop: /crop <spec> [album]\nEdges: x1= x2= y1= y2= — each a % of the image, px, or cm.\ne.g. /crop x1=10% x2=90% y1=10% y2=90%\nAdd 'album' to derive a missing axis from the page proportion (landscape).",
+    "connectUsage": "Use /connect <url> [token] to connect to a server, e.g. /connect http://localhost:8090",
+    "expireUsage": "Set the active project's expiry: /expire <amount>\ne.g. /expire 3 days · /expire 1 week · /expire 2 weeks · /expire 1 month · /expire 3 months\nUnits: day(s), week(s), fortnight, month(s) — the number may lead or follow (e.g. \"week 4\").\n/expire never — keep the project forever.",
+    "connectionsUsage": "Use /connections to list every connection, /connections admin for the ones connected with the server's admin token, and /connections session for the rest.",
+    "expiryCurrent": "Current expiry: {0}.",
+    "expiryNone": "This project has no expiry (kept forever).",
+    "expiryChoose": "{0}\nChoose a new expiry:",
+    "deleteConfirmWhere": " from {0}",
+    "deleteConfirm": "Delete '{0}'{1}? This permanently removes the project for everyone and can't be undone.",
+    "desktopLinkHead": "🔗 Open '{0}' in the Stencil desktop app:\n{1}\n\nThe page it opens hands the link to the desktop app. It carries no token — whoever follows it connects to the server with their own.",
+    "desktopLinkLoopback": "\n\n{0} It points at localhost, so it only works on this machine — set STENCIL_BOT_BROWSER_URL to a public browser app to share it.",
+    "desktopLinkUnusable": "Desktop links are off — STENCIL_BOT_BROWSER_URL has to be an http(s) address of the served browser app, whose launch.html page carries the hand-off.",
+    "pageFormatsHeader": "Page formats (portrait, cm) — set one with /format <name>:",
+    "pageFormatsEntry": "{0} ({1}×{2} cm)",
+    "pageFormatsCustom": "Custom dims: /format custom <w> <h> (cm), e.g. /format custom 10 15.",
+    "pageFormatsFooter": "The chosen format is the /blank default page and rides the saved project layout.",
+    "penHeader": "Current pen (applied to new lines):",
+    "penColor": "• colour: {0}",
+    "penThickness": "• thickness: {0}",
+    "penPoints": "• points: {0}",
+    "penStyle": "• style: {0}",
+    "penFill": "• fill (closed shapes): {0}",
+    "penSummary": "{0}, {1}px, {2}, points {3}, fill {4}",
+    "connectionsEmpty": "No connections. Use /connect <url> [token] to add one.",
+    "connectionsEmptyFiltered": "No {0}-token connections. /connections lists them all.",
+    "connectionsHeaderAdmin": "Admin-token connections ({0}):",
+    "connectionsHeaderSession": "Session-token connections ({0}):",
+    "connectionsHeader": "Connections ({0}):",
+    "connectionsTlsOff": " (TLS verification off)",
+    "connectionsAdminMark": " [admin]",
+    "connectionsEntry": "{0}. {1}{2}{3}",
+    "projectsEmpty": "No projects found. Connect to a server with /connect first.",
+    "projectsHeader": "Projects ({0}) — tap one to load it:",
+    "projectsSize": " {0}x{1}",
+    "projectsCreated": " · created {0}",
+    "projectsExpires": " · expires {0}",
+    "projectsEntry": "{0} {1}{2}{3}{4} @ {5}",
+    "projectsDescription": "    {0}",
+    "projectsOverflow": "…and {0} more — narrow with /projects <url> or open one with /fetch <name|id>."
+  },
+  "buttons": {
+    "askSend": [
+      "✅ Send",
+      "ask:send"
+    ],
+    "askCustom": [
+      "✍️ Type my own",
+      "ask:custom"
+    ],
+    "retryPrompt": [
+      "🔄 Retry",
+      "retry:prompt"
+    ],
+    "stopPrompt": [
+      "⏹ Stop",
+      "stop:prompt"
+    ],
+    "rename": [
+      "✏️ Rename",
+      "name:menu"
+    ],
+    "describe": [
+      "📝 Describe",
+      "desc:menu"
+    ],
+    "link": [
+      "🔗 Link",
+      "link"
+    ],
+    "expiration": [
+      "⏳ Expiration",
+      "exp:menu"
+    ],
+    "remove": [
+      "🗑 Remove",
+      "del:menu"
+    ],
+    "deleteConfirm": [
+      "🗑 Yes, delete permanently",
+      "del:confirm"
+    ],
+    "deleteCancel": [
+      "« Cancel",
+      "del:cancel"
+    ],
+    "clearChatConfirm": [
+      "🧹 Yes, clear it",
+      "chatclear:confirm"
+    ],
+    "clearChatCancel": [
+      "« Cancel",
+      "chatclear:cancel"
+    ],
+    "chatClear": [
+      "🧹 Clear chat",
+      "chat:clear"
+    ],
+    "chatOff": [
+      "🚪 Chat off",
+      "chat:off"
+    ],
+    "chatSaveOn": [
+      "💾 Save chats: on",
+      "chat:save-off"
+    ],
+    "chatSaveOff": [
+      "💾 Save chats: off",
+      "chat:save-on"
+    ],
+    "chatWithAssistant": [
+      "💬 Chat with assistant",
+      "chat:on"
+    ],
+    "help": [
+      "❓ Help",
+      "help"
+    ],
+    "status": [
+      "ℹ️ Status",
+      "status"
+    ],
+    "sources": [
+      "🖼 Sources",
+      "sources"
+    ],
+    "blank": [
+      "🆕 Blank",
+      "blank"
+    ],
+    "connect": [
+      "🔌 Connect",
+      "connect"
+    ],
+    "projects": [
+      "📁 Projects",
+      "projects"
+    ],
+    "create": [
+      "➕ Create",
+      "create"
+    ],
+    "save": [
+      "💾 Save",
+      "save"
+    ],
+    "expire1d": [
+      "⏳ 1 day",
+      "exp:1d"
+    ],
+    "expire3d": [
+      "📅 3 days",
+      "exp:3d"
+    ],
+    "expire1w": [
+      "🗓 1 week",
+      "exp:1w"
+    ],
+    "expire2w": [
+      "🗓 Fortnight",
+      "exp:2w"
+    ],
+    "expire1mo": [
+      "🗓 1 month",
+      "exp:1mo"
+    ],
+    "expire3mo": [
+      "🗓 3 months",
+      "exp:3mo"
+    ],
+    "expireCustom": [
+      "✏️ Custom…",
+      "exp:custom"
+    ],
+    "expireNever": [
+      "♾ Never",
+      "exp:never"
+    ],
+    "menuEdit": [
+      "🎛 Edit",
+      "m:edit"
+    ],
+    "menuFilter": [
+      "🎨 Filter",
+      "m:filter"
+    ],
+    "menuDraw": [
+      "✏️ Draw",
+      "m:draw"
+    ],
+    "undo": [
+      "↩️ Undo",
+      "undo"
+    ],
+    "redo": [
+      "↪️ Redo",
+      "redo"
+    ],
+    "chat": [
+      "💬 Chat",
+      "chat:on"
+    ],
+    "menuDownload": [
+      "⬇️ Download",
+      "m:download"
+    ],
+    "reset": [
+      "🧼 Reset",
+      "reset"
+    ],
+    "image": [
+      "🖼 Image",
+      "image"
+    ],
+    "project": [
+      "📦 Project",
+      "project"
+    ],
+    "layoutJson": [
+      "📄 Layout JSON",
+      "json"
+    ],
+    "rotatePlus90": [
+      "🔄 Rotate +90°",
+      "rot90"
+    ],
+    "rotateMinus90": [
+      "🔃 Rotate −90°",
+      "rotneg90"
+    ],
+    "crop": [
+      "✂️ Crop…",
+      "crophelp"
+    ],
+    "filterBw": [
+      "⚫ B&W",
+      "f:bw"
+    ],
+    "filterSepia": [
+      "🟤 Sepia",
+      "f:sepia"
+    ],
+    "filterInvert": [
+      "🌓 Invert",
+      "f:invert"
+    ],
+    "filterContour": [
+      "〰️ Contour",
+      "f:contour"
+    ],
+    "filterTint": [
+      "🎨 Tint…",
+      "tinthelp"
+    ],
+    "filterNone": [
+      "🚫 None",
+      "f:none"
+    ],
+    "draw": [
+      "✏️ Draw…",
+      "drawhelp"
+    ],
+    "undoLine": [
+      "🩹 Undo line",
+      "undoline"
+    ],
+    "clearLines": [
+      "🧹 Clear lines",
+      "clearlines"
+    ],
+    "back": [
+      "« Back",
+      "m:main"
+    ]
+  },
+  "marks": {
+    "askPicked": "☑️ ",
+    "askUnpicked": "⬜️ ",
+    "chatApiCurrent": "✅ "
+  }
+}

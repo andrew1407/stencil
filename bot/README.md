@@ -112,6 +112,7 @@ bot/
       Configuration/ BotOptions · DotEnv
     Stencil.TelegramBot.Bot/              the Telegram presentation + console host
       Program.cs · Telegram/{UpdateRouter, CommandParser, CommandHandlers, CallbackAction, Keyboards, Replies, PageFormats}
+      Assets/        botCommands.json · botStrings.json   (the command vocabulary + the chat copy)
   tests/
     Stencil.TelegramBot.Tests/            xUnit — offline (no token, server, CLI or Redis)
 ```
@@ -146,6 +147,13 @@ bot/
   which streams to disk instead of into a `byte[]`) to bound memory/disk; and a background
   `WorkspaceJanitor` sweeps each user's orphaned render/layout artifacts once they age past
   `STENCIL_BOT_WORKSPACE_TTL_MINUTES` (the session's live image/video are never swept).
+- **One command vocabulary, one copy deck.** [`Assets/botCommands.json`](src/Stencil.TelegramBot.Bot/Assets/botCommands.json)
+  is the single source for the dispatch table, the `/` menu Telegram registers, `/help` and this
+  README's command tables (the generated block below — `BOT_UPDATE_PROSE=1 dotnet test` rewrites
+  it); [`Assets/botStrings.json`](src/Stencil.TelegramBot.Bot/Assets/botStrings.json) holds the
+  reply wording and every inline button's label + callback token. Both are `<EmbeddedResource>`s
+  like the shared `constants.json`, read through `BotCommands` / `BotStrings`, and the goldens
+  under `tests/…/Goldens/` pin the rendered text byte-for-byte.
 - **Hosted background loops.** `SyncWatcher` and `WorkspaceJanitor` run as `IHostedService`s under
   a generic host, so Ctrl+C / SIGTERM cancels *and awaits* them instead of tearing a sweep down
   mid-flight. The update pump itself stays deliberately detached (see `Program.cs`).
@@ -283,6 +291,7 @@ results back as **one** media album. Captionless members are never echoed indivi
 batch, the **last** photo's edited result is the working image (the bot holds one working image at
 a time). An album with no caption at all adopts only its last photo, with a single note saying so.
 
+<!-- generated from src/Stencil.TelegramBot.Bot/Assets/botCommands.json — rewrite with `BOT_UPDATE_PROSE=1 dotnet test` -->
 **Image**
 
 | Command | Effect |
@@ -327,6 +336,7 @@ a time). An album with no caption at all adopts only its last photo, with a sing
 | `/link` (`/desktop`, `/open-in`) | **Outbound deep link** — the reverse of `/start`: an `https` link (also the 🔗 Link button on the `/status` and edit menus) that opens the active project in the **desktop app**. Chat apps only linkify `http(s)`, so it points at the browser app's `launch.html` bounce page, which forwards to `stencil://open?server=…&id=…&version=…`. Server projects only (a link carries a reference, not image bytes) and **no token rides it** — whoever follows it connects with their own credential. The bounce page comes from `STENCIL_BOT_BROWSER_URL` |
 | `/expire <n unit \| never>` | Set the active project's expiry (version-guarded) — bare `/expire` (or the ⏳ Expiration button in `/status`) opens a duration picker: **1 day · 3 days · 1 week · Fortnight · 1 month · 3 months · Custom · Never**; **Custom** awaits a free-text span like `3 days`, `week 4`, `2 weeks`, `1 month` |
 | `/start <payload>` | Inbound deep link: t.me `?start=` payloads from the browser/desktop **"Open in… → Telegram"** button decode to (server, project id); the bot connects like a fresh client (token minted via `POST /auth/token`) and fetches the project into the chat. Failures reply with the manual `/connect` + `/fetch` recipe |
+<!-- /generated -->
 
 ## Docker
 

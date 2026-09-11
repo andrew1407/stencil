@@ -58,11 +58,10 @@ public sealed partial class PromptService
     private const int MaxLabelChars = 40;
 
     /// <summary>
-    /// The §10 profile block's closing sentence — prose, not a bullet, so it lives outside
-    /// the registry (its rule is enforced by the parser's variant ban on the §10 ops).
+    /// The §10 profile block's closing sentence — contract prose, not a registry bullet, so it
+    /// comes from the shared asset (its rule is enforced by the parser's variant ban on §10 ops).
     /// </summary>
-    private const string BotOpsFooter =
-        """These ops are not image edits and cannot appear inside "variants".""";
+    private static string BotOpsFooter => SystemPromptAsset.Text("botOpsFooter");
 
     /// <summary>
     /// The canonical §4 system prompt: the shared prose asset around the "Available ops" section
@@ -98,12 +97,10 @@ public sealed partial class PromptService
     }
 
     /// <summary>
-    /// The §7 edge-map suffix sentence, appended verbatim to the system-prompt suffix when —
-    /// and only when — the edge map is actually attached.
+    /// The §7 edge-map suffix sentence (shared asset prose), appended verbatim to the
+    /// system-prompt suffix when — and only when — the edge map is actually attached.
     /// </summary>
-    public const string EdgeMapSentence =
-        "The second attached image is an edge-map render of the working image at the same pixel "
-        + "coordinates: use it to place outline points on real edges.";
+    public static string EdgeMapSentence => SystemPromptAsset.Text("edgeMapSentence");
 
     /// <summary>
     /// Bound on how many users' conversations are held in memory at once: beyond it, the

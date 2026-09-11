@@ -24,7 +24,8 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 /// One handler per slash command, plus the shared render-and-send helper. Each command folds its
 /// intent through <see cref="IEditingService"/> / <see cref="IServerService"/> — the same
 /// Application services the callback buttons use — then replies over Telegram. Split by command
-/// group into partial files: Projects, Editing, Sources, and Assistant (LLM).
+/// group into partial files: Routes (the dispatch table), Projects, Editing, Sources, and
+/// Assistant (LLM).
 /// </summary>
 public sealed partial class CommandHandlers
 {
@@ -65,65 +66,6 @@ public sealed partial class CommandHandlers
         _cancellations = cancellations;
         _logger = logger;
     }
-
-    /// <summary>Route a parsed command to its handler (unknown verbs fall back to a /help hint).</summary>
-    public Task DispatchAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct) =>
-        cmd.Verb switch
-        {
-            "start" => StartAsync(userId, chatId, cmd, ct),
-            "help" => HelpAsync(chatId, ct),
-            // "/p" is normalised to "prompt" by CommandParser, so one verb covers both.
-            "prompt" => PromptAsync(userId, chatId, cmd, ct),
-            "chat" => ChatAsync(userId, chatId, cmd, ct),
-            "chatapi" => ChatApiAsync(userId, chatId, cmd, ct),
-            "connect" => ConnectAsync(userId, chatId, cmd, ct),
-            "disconnect" => DisconnectAsync(userId, chatId, cmd, ct),
-            "connections" => ConnectionsAsync(userId, chatId, cmd, ct),
-            "projects" => ProjectsAsync(userId, chatId, cmd, ct),
-            "fetch" => FetchAsync(userId, chatId, cmd, ct),
-            "create" => CreateAsync(userId, chatId, cmd, ct),
-            "save" => SaveAsync(userId, chatId, ct),
-            "sync" => SyncAsync(userId, chatId, cmd, ct),
-            "link" or "openin" or "open_in" or "open-in" or "desktop" => LinkAsync(userId, chatId, ct),
-            "projectcolor" or "project_color" or "project-color" or "pcolor" => ProjectColorAsync(userId, chatId, cmd, ct),
-            "projectname" or "project_name" or "project-name" or "pname" or "rename" => ProjectNameAsync(userId, chatId, cmd, ct),
-            "projectdescription" or "project_description" or "project-description" or "pdesc" => ProjectDescriptionAsync(userId, chatId, cmd, ct),
-            "blankcolor" or "blank_color" or "blank-color" or "bcolor" => BlankColorAsync(userId, chatId, cmd, ct),
-            "expire" or "expiry" or "expiration" => ExpireAsync(userId, chatId, cmd, ct),
-            "delete" or "remove" or "deleteproject" or "delete_project" => DeleteProjectAsync(userId, chatId, cmd, ct),
-            "blank" => BlankAsync(userId, chatId, cmd, ct),
-            "format" => FormatAsync(userId, chatId, cmd, ct),
-            "url" => UrlAsync(userId, chatId, cmd, ct),
-            "sourcesite" or "source_site" or "source-site" or "scrape" => SourceSiteAsync(userId, chatId, cmd, ct),
-            "sourceupload" or "source_upload" or "source-upload" => SourceUploadAsync(userId, chatId, cmd, ct),
-            "frame" => FrameAsync(userId, chatId, cmd, ct),
-            "crop" => CropAsync(userId, chatId, cmd, ct),
-            "rotate" => RotateAsync(userId, chatId, cmd, ct),
-            "filter" => FilterAsync(userId, chatId, cmd, ct),
-            "draw" => DrawAsync(userId, chatId, cmd, ct),
-            "line" or "polyline" => DrawShapeAsync(userId, chatId, "line", cmd.Args, ct),
-            "rect" or "rectangle" => DrawShapeAsync(userId, chatId, "rect", cmd.Args, ct),
-            "poly" or "polygon" => DrawShapeAsync(userId, chatId, "poly", cmd.Args, ct),
-            "color" or "colour" => PenColorAsync(userId, chatId, cmd, ct),
-            "thickness" => PenThicknessAsync(userId, chatId, cmd, ct),
-            "points" or "point" => PenPointsAsync(userId, chatId, cmd, ct),
-            "style" => PenStyleAsync(userId, chatId, cmd, ct),
-            "fill" => PenFillAsync(userId, chatId, cmd, ct),
-            "pen" => PenAsync(userId, chatId, ct),
-            "undo" => UndoAsync(userId, chatId, ct),
-            "redo" => RedoAsync(userId, chatId, ct),
-            "undoline" or "undo_line" => UndoLineAsync(userId, chatId, ct),
-            "clearlines" or "clear_lines" => ClearLinesAsync(userId, chatId, ct),
-            "reset" => ResetAsync(userId, chatId, ct),
-            "drop" => DropAsync(userId, chatId, ct),
-            "image" => ImageAsync(userId, chatId, ct),
-            "layout" => LayoutAsync(userId, chatId, cmd, ct),
-            "json" => JsonAsync(userId, chatId, ct),
-            "project" => ProjectAsync(userId, chatId, ct),
-            "status" => StatusAsync(userId, chatId, ct),
-            "cancel" => CancelAsync(chatId, ct),
-            _ => UnknownAsync(chatId, ct),
-        };
 
     /// <summary>
     /// The shared send-photo tail: stream a rendered result file from disk as a "result.png"

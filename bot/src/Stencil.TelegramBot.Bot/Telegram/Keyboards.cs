@@ -13,40 +13,35 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 public static class Keyboards
 {
     /// <summary>
-    /// The §11 choice card: one button per option, plus a Send button when the card takes
-    /// several picks. A ticked option shows ✓ — the selection and the labels live in the
-    /// session (see <c>UserSession.AskOptions</c> for why callback data cannot carry them).
-    /// Tapping never applies an edit; it only composes the answer sent as the user's next turn.
+    /// The §11 choice card: one button per option (ticked when picked), plus Send on a multi-pick
+    /// card. Labels live in the session; a tap only composes the answer, it never edits.
     /// </summary>
     public static InlineKeyboardMarkup AskCardKeyboard(IReadOnlyList<string> options, bool multi, IReadOnlyList<int> picked, bool allowCustom)
     {
         List<InlineKeyboardButton[]> rows = new();
         for (int i = 0; i < options.Count; i++)
         {
-            string tick = multi && picked.Contains(i) ? "☑️ " : multi ? "⬜️ " : "";
+            string tick = multi && picked.Contains(i) ? BotStrings.Mark("askPicked") : multi ? BotStrings.Mark("askUnpicked") : "";
             rows.Add([InlineKeyboardButton.WithCallbackData($"{tick}{Trim(options[i])}", $"ask:{i}")]);
         }
         if (multi)
         {
-            rows.Add([InlineKeyboardButton.WithCallbackData("✅ Send", "ask:send")]);
+            rows.Add([BotStrings.Button("askSend")]);
         }
         if (allowCustom)
         {
             // No button: a custom answer IS just typing, which chat mode already forwards.
-            rows.Add([InlineKeyboardButton.WithCallbackData("✍️ Type my own", "ask:custom")]);
+            rows.Add([BotStrings.Button("askCustom")]);
         }
         return new InlineKeyboardMarkup(rows);
     }
 
     /// <summary>
-    /// The one-button keyboard on an assistant turn that did not deliver — it failed, or the user
-    /// stopped it. Re-runs the same prompt (its text is held in
-    /// <c>UserSession.LastRetryablePrompt</c>, since callback data cannot carry it). A timed-out or
-    /// unreachable endpoint is the common case, and retyping the prompt on a phone is the worst way
-    /// to recover from it.
+    /// The one-button keyboard on a turn that did not deliver (it failed, or was stopped): re-runs
+    /// the same prompt, held in <c>UserSession.LastRetryablePrompt</c> since a token cannot carry it.
     /// </summary>
     public static InlineKeyboardMarkup RetryPrompt() =>
-        new(new[] { new[] { InlineKeyboardButton.WithCallbackData("🔄 Retry", "retry:prompt") } });
+        new(new[] { new[] { BotStrings.Button("retryPrompt") } });
 
     /// <summary>
     /// The one-button keyboard on the assistant's working notice. A turn can run for minutes and
@@ -54,7 +49,7 @@ public static class Keyboards
     /// see <see cref="PromptCancellations"/> for why the tap bypasses that gate.
     /// </summary>
     public static InlineKeyboardMarkup StopPrompt() =>
-        new(new[] { new[] { InlineKeyboardButton.WithCallbackData("⏹ Stop", "stop:prompt") } });
+        new(new[] { new[] { BotStrings.Button("stopPrompt") } });
 
     /// <summary>
     /// The <c>/chatapi</c> picker: one button per configured chat API, the current one ticked.
@@ -66,7 +61,7 @@ public static class Keyboards
         List<InlineKeyboardButton[]> rows = new();
         foreach (LlmProfile p in profiles)
         {
-            string tick = string.Equals(p.Name, current, StringComparison.OrdinalIgnoreCase) ? "✅ " : "";
+            string tick = string.Equals(p.Name, current, StringComparison.OrdinalIgnoreCase) ? BotStrings.Mark("chatApiCurrent") : "";
             rows.Add([InlineKeyboardButton.WithCallbackData($"{tick}{Trim(p.Label)}", $"api:{p.Name}")]);
         }
         return new InlineKeyboardMarkup(rows);
@@ -94,12 +89,9 @@ public static class Keyboards
 
     /// <summary>
     /// The project-actions rows shared by <see cref="StatusMenu"/> and <see cref="EditMenu"/>.
-    /// Rename and Describe are always offered (they also apply to a not-yet-saved working image,
-    /// carried into <c>/create</c>); Link, Expiration and Remove need a saved server project, so
-    /// they ride a second row only when <paramref name="hasActiveProject"/> — five buttons abreast
-    /// squeeze their labels away on a phone. Each token dispatches the equivalent command (which
-    /// replies with the link / prompt / picker / confirmation as a fresh message), so they work
-    /// identically from either menu.
+    /// Rename and Describe always show (they carry into <c>/create</c>); Link, Expiration and
+    /// Remove need a saved project, so they ride a second row — five abreast squeeze on a phone.
+    /// Each token dispatches the equivalent command, so both menus behave alike.
     /// </summary>
     private static List<InlineKeyboardButton[]> ProjectActionsRows(bool hasActiveProject)
     {
@@ -107,8 +99,8 @@ public static class Keyboards
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("✏️ Rename", "name:menu"),
-                InlineKeyboardButton.WithCallbackData("📝 Describe", "desc:menu"),
+                BotStrings.Button("rename"),
+                BotStrings.Button("describe"),
             },
         };
         if (hasActiveProject)
@@ -116,9 +108,9 @@ public static class Keyboards
             rows.Add(new[]
             {
                 // Bare verb token: CallbackAction dispatches it as /link.
-                InlineKeyboardButton.WithCallbackData("🔗 Link", "link"),
-                InlineKeyboardButton.WithCallbackData("⏳ Expiration", "exp:menu"),
-                InlineKeyboardButton.WithCallbackData("🗑 Remove", "del:menu"),
+                BotStrings.Button("link"),
+                BotStrings.Button("expiration"),
+                BotStrings.Button("remove"),
             });
         }
         return rows;
@@ -132,8 +124,8 @@ public static class Keyboards
     public static InlineKeyboardMarkup DeleteConfirmMenu() =>
         new(new[]
         {
-            new[] { InlineKeyboardButton.WithCallbackData("🗑 Yes, delete permanently", "del:confirm") },
-            new[] { InlineKeyboardButton.WithCallbackData("« Cancel", "del:cancel") },
+            new[] { BotStrings.Button("deleteConfirm") },
+            new[] { BotStrings.Button("deleteCancel") },
         });
 
     /// <summary>
@@ -144,30 +136,26 @@ public static class Keyboards
     public static InlineKeyboardMarkup ClearChatConfirmMenu() =>
         new(new[]
         {
-            new[] { InlineKeyboardButton.WithCallbackData("🧹 Yes, clear it", "chatclear:confirm") },
-            new[] { InlineKeyboardButton.WithCallbackData("« Cancel", "chatclear:cancel") },
+            new[] { BotStrings.Button("clearChatConfirm") },
+            new[] { BotStrings.Button("clearChatCancel") },
         });
 
     /// <summary>
-    /// The chat-mode keyboard sent with the chat-mode confirmation (and with a clear): the visible
-    /// way back out of chat mode (token <c>chat:off</c>) plus "forget the conversation"
-    /// (<c>chat:clear</c>) — the same two things <c>/chat off</c> and <c>/chat clear</c> do — and
-    /// the §12 chat-persistence toggle, whose label shows the current setting and whose token
-    /// (<c>chat:save-on</c>/<c>chat:save-off</c>) flips it like <c>/chat save on|off</c> would.
+    /// The chat-mode keyboard: the way back out (<c>chat:off</c>), "forget the conversation"
+    /// (<c>chat:clear</c>), and the §12 persistence toggle whose label shows the current setting
+    /// and whose token flips it — the same three things <c>/chat off|clear|save</c> do.
     /// </summary>
     public static InlineKeyboardMarkup ChatModeMenu(bool saveChats = false) =>
         new(new[]
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🧹 Clear chat", "chat:clear"),
-                InlineKeyboardButton.WithCallbackData("🚪 Chat off", "chat:off"),
+                BotStrings.Button("chatClear"),
+                BotStrings.Button("chatOff"),
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData(
-                    saveChats ? "💾 Save chats: on" : "💾 Save chats: off",
-                    saveChats ? "chat:save-off" : "chat:save-on"),
+                BotStrings.Button(saveChats ? "chatSaveOn" : "chatSaveOff"),
             },
         });
 
@@ -179,27 +167,27 @@ public static class Keyboards
             // the token is the same command (/chat on) the slash surface exposes.
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("💬 Chat with assistant", "chat:on"),
+                BotStrings.Button("chatWithAssistant"),
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("❓ Help", "help"),
-                InlineKeyboardButton.WithCallbackData("ℹ️ Status", "status"),
+                BotStrings.Button("help"),
+                BotStrings.Button("status"),
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🖼 Sources", "sources"),
-                InlineKeyboardButton.WithCallbackData("🆕 Blank", "blank"),
+                BotStrings.Button("sources"),
+                BotStrings.Button("blank"),
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🔌 Connect", "connect"),
-                InlineKeyboardButton.WithCallbackData("📁 Projects", "projects"),
+                BotStrings.Button("connect"),
+                BotStrings.Button("projects"),
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("➕ Create", "create"),
-                InlineKeyboardButton.WithCallbackData("💾 Save", "save"),
+                BotStrings.Button("create"),
+                BotStrings.Button("save"),
             },
         };
 
@@ -213,23 +201,23 @@ public static class Keyboards
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("⏳ 1 day", "exp:1d"),
-                InlineKeyboardButton.WithCallbackData("📅 3 days", "exp:3d"),
+                BotStrings.Button("expire1d"),
+                BotStrings.Button("expire3d"),
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🗓 1 week", "exp:1w"),
-                InlineKeyboardButton.WithCallbackData("🗓 Fortnight", "exp:2w"),
+                BotStrings.Button("expire1w"),
+                BotStrings.Button("expire2w"),
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🗓 1 month", "exp:1mo"),
-                InlineKeyboardButton.WithCallbackData("🗓 3 months", "exp:3mo"),
+                BotStrings.Button("expire1mo"),
+                BotStrings.Button("expire3mo"),
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("✏️ Custom…", "exp:custom"),
-                InlineKeyboardButton.WithCallbackData("♾ Never", "exp:never"),
+                BotStrings.Button("expireCustom"),
+                BotStrings.Button("expireNever"),
             },
         });
 
@@ -244,21 +232,21 @@ public static class Keyboards
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🎛 Edit", "m:edit"),
-                InlineKeyboardButton.WithCallbackData("🎨 Filter", "m:filter"),
-                InlineKeyboardButton.WithCallbackData("✏️ Draw", "m:draw"),
+                BotStrings.Button("menuEdit"),
+                BotStrings.Button("menuFilter"),
+                BotStrings.Button("menuDraw"),
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("↩️ Undo", "undo"),
-                InlineKeyboardButton.WithCallbackData("↪️ Redo", "redo"),
-                InlineKeyboardButton.WithCallbackData("💬 Chat", "chat:on"),
+                BotStrings.Button("undo"),
+                BotStrings.Button("redo"),
+                BotStrings.Button("chat"),
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("⬇️ Download", "m:download"),
-                InlineKeyboardButton.WithCallbackData("🧼 Reset", "reset"),
-                InlineKeyboardButton.WithCallbackData("💾 Save", "save"),
+                BotStrings.Button("menuDownload"),
+                BotStrings.Button("reset"),
+                BotStrings.Button("save"),
             },
         };
         // The edit menu always rides a rendered image, so Rename is always available here; the
@@ -275,13 +263,13 @@ public static class Keyboards
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🖼 Image", "image"),
-                InlineKeyboardButton.WithCallbackData("📦 Project", "project"),
+                BotStrings.Button("image"),
+                BotStrings.Button("project"),
             },
         };
         if (hasEdits)
         {
-            rows.Add(new[] { InlineKeyboardButton.WithCallbackData("📄 Layout JSON", "json") });
+            rows.Add(new[] { BotStrings.Button("layoutJson") });
         }
         rows.Add(BackRow());
         return new InlineKeyboardMarkup(rows);
@@ -293,9 +281,9 @@ public static class Keyboards
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🔄 Rotate +90°", "rot90"),
-                InlineKeyboardButton.WithCallbackData("🔃 Rotate −90°", "rotneg90"),
-                InlineKeyboardButton.WithCallbackData("✂️ Crop…", "crophelp"),
+                BotStrings.Button("rotatePlus90"),
+                BotStrings.Button("rotateMinus90"),
+                BotStrings.Button("crop"),
             },
             BackRow(),
         });
@@ -306,18 +294,18 @@ public static class Keyboards
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("⚫ B&W", "f:bw"),
-                InlineKeyboardButton.WithCallbackData("🟤 Sepia", "f:sepia"),
+                BotStrings.Button("filterBw"),
+                BotStrings.Button("filterSepia"),
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🌓 Invert", "f:invert"),
-                InlineKeyboardButton.WithCallbackData("〰️ Contour", "f:contour"),
+                BotStrings.Button("filterInvert"),
+                BotStrings.Button("filterContour"),
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🎨 Tint…", "tinthelp"),
-                InlineKeyboardButton.WithCallbackData("🚫 None", "f:none"),
+                BotStrings.Button("filterTint"),
+                BotStrings.Button("filterNone"),
             },
             BackRow(),
         });
@@ -328,16 +316,16 @@ public static class Keyboards
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("✏️ Draw…", "drawhelp"),
-                InlineKeyboardButton.WithCallbackData("🩹 Undo line", "undoline"),
-                InlineKeyboardButton.WithCallbackData("🧹 Clear lines", "clearlines"),
+                BotStrings.Button("draw"),
+                BotStrings.Button("undoLine"),
+                BotStrings.Button("clearLines"),
             },
             BackRow(),
         });
 
     /// <summary>A single-row "back to the main edit menu" button.</summary>
     private static InlineKeyboardButton[] BackRow() =>
-        new[] { InlineKeyboardButton.WithCallbackData("« Back", "m:main") };
+        new[] { BotStrings.Button("back") };
 
     /// <summary>One button per project, labelled with its name + server host, callback <c>fetch:&lt;id&gt;</c>.</summary>
     public static InlineKeyboardMarkup ProjectList(IEnumerable<ServerProjectInfo> projects)
