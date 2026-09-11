@@ -1,10 +1,11 @@
-import { setVal, setRadioGroup, cmToUnit } from '../utils.js';
-import { icon } from '../ui/icons.js';
+import { setVal, cmToUnit } from '../utils.js';
 import { COMMIT_DEBOUNCE_MS } from '../ui/numericInput.js';
 import { normalizePageSize } from './units.js';
-import { setChecked, swapCheckGlyph } from '../ui/controlSwap.js';
-import { revealControls } from '../ui/motion.js';
 import { MOTION_MODES, setMotionPrefs, motionPrefs } from '../ui/motionPrefs.js';
+import {
+  applyMirror, paintTintControls, paintCustomSizeGroup, paintFormulaToggle, paintFormulaError,
+  readControl, forEachControl, paintTooltipOption, paintMotionMode, paintMotionDrawing,
+} from '../ui/settingMirrors.js';
 
 // Shared `parse` guards for the settings registry below: the numeric ones return
 // undefined on NaN to ABORT the set (matching the old per-setter guards).
@@ -14,27 +15,6 @@ const toStr = v => String(v);
 
 // Compare-view modes, in cycle order (Alt+O steps through them). See DrawingApp.compareMode.
 export const COMPARE_MODES = ['none', 'original', 'vertical', 'horizontal'];
-
-// ── Mirror kinds: how one bound DOM element reflects a setting value ──
-// Each migrated setting lists its bound elements as { id, kind }; applyMirror writes the
-// value the way that element expects. Tolerant of missing elements (same guards the old
-// per-setter bodies had). 'valueSkipFocus' leaves the element alone while the user is typing
-// in it (the ctx-* number twins), matching the old `document.activeElement !== ctx` guard.
-// 'radio' addresses a *group* by name (its `id` is the input[name] of a ctx radio group,
-// not an element id) and checks the member whose value matches — see setRadioGroup.
-const applyMirror = ({ id, kind }, value) => {
-  if (kind === 'radio') { setRadioGroup(id, value); return; }
-  const el = document.getElementById(id);
-  if (!el) return;
-  switch (kind) {
-    case 'value': el.value = value; break;
-    case 'valueSkipFocus': if (document.activeElement !== el) el.value = value; break;
-    // Both marks come and go as sand (ui/controlSwap.js): a programmatic change — Alt+P,
-    // the context-menu twin, a restored project — animates exactly as a click does.
-    case 'checked': setChecked(el, value); break;
-    case 'checkIcon': swapCheckGlyph(el, value ? icon('check', { size: 14 }) : ''); break;
-  }
-};
 
 // ── The observer-driven setting registry ─────────────────────────────
 // One descriptor per simple setting collapses the near-identical setter bodies (write the
@@ -98,10 +78,7 @@ const SETTINGS = {
     mirror: [{ id: 'image-filter', kind: 'value' }, { id: 'ctxFilter', kind: 'radio' }],
     afterSet: (self) => {
       const app = self.app;
-      const picker = document.getElementById('filter-color');
-      if (picker) picker.style.display = app.imageFilter === 'custom' ? 'inline-block' : 'none';
-      const tintRow = document.getElementById('ctx-tint-row');
-      if (tintRow) tintRow.classList.toggle('ctx-tint-visible', app.imageFilter === 'custom');
+      paintTintControls(app.imageFilter === 'custom');
     },
     redraw: true, save: true, remoteSync: true, filterDirty: true,
   },
@@ -128,9 +105,7 @@ const SETTINGS = {
     mirror: [{ id: 'page-size', kind: 'value' }],
     afterSet: (self) => {
       const app = self.app;
-      // The W/H boxes a custom page needs form out of motes, and come apart into them
-      // when a named format takes over (ui/motion.js revealControls).
-      revealControls(document.getElementById('custom-size-group'), app.pageSize === 'custom');
+      paintCustomSizeGroup(app.pageSize === 'custom');
       app.coordTable.update();
     },
     redraw: true, save: true, remoteSync: true,   // page format rides the layout — push it to peers/server too
@@ -264,26 +239,9 @@ export class SettingsController {
   setUnit(u) { this.set('unit', u); }
 
   // ── Formula controls (shared with #wireFormulaControls + #adoptServerFormulas) ──
-  syncFormulaUI(checked) {
-    revealControls(document.getElementById('formula-inputs'), checked);
-    revealControls(document.getElementById('ctx-formula-inputs'), checked, 'block');
-    setChecked(document.getElementById('ctx-allow-formulas'), checked);
-    // Main toolbar pill: reflect the checked state as the accent-filled `.on` class (a
-    // deterministic toggle — the CSS :has() selector doesn't restyle reliably on programmatic
-    // state changes).
-    const mainCb = document.getElementById('allow-formulas');
-    if (mainCb) {
-      setChecked(mainCb, checked);
-      mainCb.closest('.pill-toggle')?.classList.toggle('on', checked);
-    }
-  }
+  syncFormulaUI(checked) { paintFormulaToggle(checked); }
 
-  showFormulaError(hasError) {
-    const el = document.getElementById('formula-error');
-    const ctxEl = document.getElementById('ctx-formula-error');
-    if (el) el.style.display = hasError ? 'inline' : 'none';
-    if (ctxEl) ctxEl.style.display = hasError ? 'block' : 'none';
-  }
+  showFormulaError(hasError) { paintFormulaError(hasError); }
 
   refreshFormulaCoords() {
     const app = this.app;
@@ -304,7 +262,7 @@ export class SettingsController {
   // so the caret stays put. Returns the commit fn (for tests / programmatic flushes).
   wireFormulaInputs({ x, y, mirrorX, mirrorY }) {
     const app = this.app;
-    const read = (id) => (document.getElementById(id)?.value || '').trim();
+    const read = (id) => readControl(id);
     const bothValid = () => app.formula.validate(read(x), 'x') && app.formula.validate(read(y), 'y');
     let timer = null;
 
@@ -327,9 +285,7 @@ export class SettingsController {
       app.remoteSync.scheduleRemoteSync();   // push the formula change to peers/server
     };
 
-    for (const id of [x, y]) {
-      const el = document.getElementById(id);
-      if (!el) continue;
+    forEachControl([x, y], (el) => {
       el.addEventListener('input', () => {
         clearTimeout(timer);
         // Typing your way back to something valid clears a stale error immediately; a wrong
@@ -339,7 +295,7 @@ export class SettingsController {
       });
       el.addEventListener('blur', () => commit());
       el.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } });
-    }
+    });
     return commit;
   }
 
@@ -367,8 +323,7 @@ export class SettingsController {
     const prop = propMap[key];
     if (!prop) throw new Error(`Unknown tooltip option: ${key}`);
     app[prop] = !!on;
-    const el = document.getElementById(idMap[key]);
-    if (el) el.checked = !!on;
+    paintTooltipOption(idMap[key], on);
     app.storage.save();
     try { app.tooltipMgr?.refresh?.(); } catch { /* tooltip not mounted */ }
   }
@@ -384,10 +339,10 @@ export class SettingsController {
       if (!MOTION_MODES.includes(m))
         throw new Error(`Unknown motion mode: ${value} (use ${MOTION_MODES.join(' | ')})`);
       setMotionPrefs({ mode: m });
-      setVal('vs-motion-mode', m);
+      paintMotionMode(m);
     } else if (key === 'drawing') {
       setMotionPrefs({ drawing: !!value });
-      setChecked(document.getElementById('vs-draw-anim'), !!value);
+      paintMotionDrawing(value);
     } else {
       throw new Error(`Unknown motion setting: ${key} (use mode | drawing)`);
     }
