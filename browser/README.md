@@ -649,7 +649,7 @@ fallback — used when the module hasn't been built or fails to load, and by
 | This app | C++ core |
 |---|---|
 | `js/core/formulaEngine.js` | `core/parse/formulaParser.*` |
-| `js/utils/geometry.js` (`distToSegment`), `js/utils/color.js` | `core/geometry/geometry.*`, `core/color/color.*` |
+| `js/utils/geometry.js` (`distToSegment`), `js/utils/color.js` | `core/geometry/pointMath.*`, `core/color/color.*` |
 | `js/core/pageMetrics.js` (`pixelToPageCoords`) | `core/page/pageMetrics.*` |
 | `js/core/historyStack.js` | `core/state/historyStack.*` |
 | `js/core/projectsStore.js` | `core/state/projectsStore.*` |

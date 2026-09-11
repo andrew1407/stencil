@@ -55,7 +55,7 @@ loop — routes through `stencil_applyFilterRGBA` (grayscale + tint in one pass)
 and the contour filter — a Sobel convolution over the whole image — through
 `stencil_applyContourRGBA`.
 
-The image-filter math lives once in `core/color/imageFilter.{hpp,cpp}`
+The image-filter math lives once in `core/raster/imageFilter.{hpp,cpp}`
 (`filterPixel` / `applyFilterRGBA` / `applyContourRGBA`); the desktop canvas
 routes its bw / sepia / invert / duotone-tint pixels through it, and
 `stencil_applyFilterRGBA` is the same code for the browser. `applyFilterRGBA`

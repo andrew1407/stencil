@@ -7,7 +7,7 @@ import { distToSegment } from '../utils.js';
 //
 // Every scan below runs 2-3x per mouse-move over EVERY point in the document, so each one
 // is allocation-free and takes the same bounding-box early reject the C++ twin does
-// (core/geometry/geometry.cpp findLineAt): a candidate lies inside its line's bbox, so a
+// (core/geometry/hitTest.cpp findLineAt): a candidate lies inside its line's bbox, so a
 // line whose bbox is further than `margin` away cannot hold one. Results — and
 // topmost-first order — are unchanged. Non-finite coords fail these compares, which only
 // costs the full scan they would have had.

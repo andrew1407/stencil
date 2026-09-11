@@ -52,27 +52,33 @@ Sources are grouped by role; headers are included bare across groups.
 models.hpp            # shared Point / Line / Lines value types (mirror the browser line object)
 text.hpp              # header-only ASCII string helpers (toLowerAscii, trim, …) shared by groups
 geometry/
-  geometry            # distToSegment · shouldCloseShape · findLineAt / nearest point / segment
+  pointMath           # distToSegment · rotate / flip points · bounding-box centre
+  hitTest             # findLineAt · nearest point / segment · shouldCloseShape · holdDrawTarget
   cropGeometry        # axis-aligned crop window math (page-locked aspect, lossless re-edit)
+raster/
   imageOps            # whole-image RGBA8 transforms: crop · quarter-turn rotate · solid fill
   rasterize           # software rasteriser: burns layout Lines into an RGBA8 buffer
-color/
-  color               # hex parse (#rrggbb) + hexToRgba — port of utils.js colour helpers
-  colorNames          # CSS keyword / #rgb..#rrggbbaa / 'transparent' → RGBA resolver
   imageFilter         # bw / sepia / invert / duotone-tint per-pixel math + Sobel contour (canonical, shared)
+color/
+  color               # hex parse (#rrggbb) + hexToRgba — port of utils/color.js helpers
+  colorNames          # CSS keyword / #rgb..#rrggbbaa / 'transparent' → RGBA resolver
+  luma                # the two deliberately different luma formulas, named once
 parse/
   formulaParser       # safe recursive-descent f(x)/f(y) parser (the eval-free replacement)
+  durationParser      # free-form retention spec ("days 23", "2 weeks") → milliseconds
   lengthTokens        # '3cm' '-4in' '50%' '120px' bare-number length tokens
   cropSpec            # parse + resolve the CLI crop string ("x1=.. x2=.. y1=.. y2=..")
 page/
   pageMetrics         # pixel ↔ page (cm) conversion + the PAGE_SIZES table (full ISO A0–C10)
-  tooltipRows         # builder for the hover-tooltip coordinate rows (Pixel / Page / To edge)
   localeUnit          # metric vs imperial default display unit (cm / in)
+format/
+  tooltipRows         # builder for the hover-tooltip coordinate rows (Pixel / Page / To edge)
   hotkeyFormat        # portable key-sequence ("Ctrl+Shift+Z") → native / macOS (⇧⌘Z) display
 state/
   historyStack        # line-snapshot undo/redo with the browser's exact cursor semantics
   projectsStore       # in-memory project registry + one-week expiry sweep (I/O lives in the GUI)
   zoomPan             # zoom clamp + anchored / rect zoom math
+  holdDraw            # hold-to-draw tick/seed state machine shared with the GUIs
 wasmApi.cpp           # extern "C" ABI compiled to WebAssembly for the browser (see WASM.md)
 cliApi.{h,cpp}        # extern "C" ABI consumed by the Zig CLI (RGBA8 buffers + C strings)
 tests/                # Doctest suite — one suite per module, plus the wasm and CLI ABIs

@@ -33,19 +33,19 @@ set(STENCIL_CORE_SOURCES
   geometry/pointMath.cpp
   geometry/hitTest.cpp
   geometry/cropGeometry.cpp
-  geometry/imageOps.cpp
-  geometry/rasterize.cpp
   color/color.cpp
   color/colorNames.cpp
-  color/imageFilter.cpp
+  raster/imageOps.cpp
+  raster/rasterize.cpp
+  raster/imageFilter.cpp
   parse/formulaParser.cpp
   parse/durationParser.cpp
   parse/lengthTokens.cpp
   parse/cropSpec.cpp
   page/pageMetrics.cpp
-  page/tooltipRows.cpp
   page/localeUnit.cpp
-  page/hotkeyFormat.cpp
+  format/tooltipRows.cpp
+  format/hotkeyFormat.cpp
   state/historyStack.cpp
   state/projectsStore.cpp
   state/zoomPan.cpp
@@ -59,9 +59,11 @@ set(STENCIL_CORE_SOURCES
 set(STENCIL_CORE_INCLUDE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/geometry
+  ${CMAKE_CURRENT_SOURCE_DIR}/raster
   ${CMAKE_CURRENT_SOURCE_DIR}/color
   ${CMAKE_CURRENT_SOURCE_DIR}/parse
   ${CMAKE_CURRENT_SOURCE_DIR}/page
+  ${CMAKE_CURRENT_SOURCE_DIR}/format
   ${CMAKE_CURRENT_SOURCE_DIR}/state)
 
 # ── stencil_core: the shared, GUI-free logic library (STL only) ───────────────

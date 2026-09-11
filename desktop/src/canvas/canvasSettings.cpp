@@ -159,7 +159,7 @@ namespace stencil::gui {
     if (mode == core::FilterMode::Contour) {
       // Sobel reads one row OUTSIDE its range on each side, so every luma row must
       // exist before any sobel slice runs: two separate phases, never interleaved
-      // per tile (core/color/imageFilter.hpp).
+      // per tile (core/raster/imageFilter.hpp).
       std::vector<std::uint8_t> luma(static_cast<std::size_t>(w) * h);
       support::forEachSlice(h, kMinRowsPerSlice, [&](int y0, int y1) {
         core::buildLumaRows(bits, w, h, y0, y1, luma.data());

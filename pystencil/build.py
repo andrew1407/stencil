@@ -38,19 +38,19 @@ STENCIL_CORE_SOURCES = [
     "geometry/pointMath.cpp",
     "geometry/hitTest.cpp",
     "geometry/cropGeometry.cpp",
-    "geometry/imageOps.cpp",
-    "geometry/rasterize.cpp",
     "color/color.cpp",
     "color/colorNames.cpp",
-    "color/imageFilter.cpp",
+    "raster/imageOps.cpp",
+    "raster/rasterize.cpp",
+    "raster/imageFilter.cpp",
     "parse/formulaParser.cpp",
     "parse/durationParser.cpp",
     "parse/lengthTokens.cpp",
     "parse/cropSpec.cpp",
     "page/pageMetrics.cpp",
-    "page/tooltipRows.cpp",
     "page/localeUnit.cpp",
-    "page/hotkeyFormat.cpp",
+    "format/tooltipRows.cpp",
+    "format/hotkeyFormat.cpp",
     "state/historyStack.cpp",
     "state/projectsStore.cpp",
     "state/zoomPan.cpp",
@@ -62,7 +62,7 @@ ABI_SOURCE = "cliApi.cpp"
 
 # Include dirs mirror STENCIL_CORE_INCLUDE_DIRS: the core root (for models.hpp + the ABI
 # headers) plus each concern group, so headers are included bare regardless of group.
-INCLUDE_DIRS = [".", "geometry", "color", "parse", "page", "state"]
+INCLUDE_DIRS = [".", "geometry", "raster", "color", "parse", "page", "format", "state"]
 
 
 def lib_filename() -> str:

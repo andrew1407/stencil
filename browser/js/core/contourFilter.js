@@ -1,5 +1,5 @@
 // ── Contour (Sobel edge-detection) filter — JS reference + fallback ─────────
-// Port of core/color/imageFilter.cpp applyContourRGBA. The renderer prefers the
+// Port of core/raster/imageFilter.cpp applyContourRGBA. The renderer prefers the
 // wasm build of that function; this body is the fallback and must stay
 // byte-identical to the C++ (the pinned integer-only math):
 //   1. luma plane L = trunc((2126*r + 7152*g + 722*b) / 10000), computed from the
