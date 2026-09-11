@@ -9,10 +9,12 @@ import {
   MATERIALIZE_CLASS, MATERIALIZE_VEIL_CLASS, LEAVE_MS, DISINTEGRATE_MS,
   FILTER_ENTERING_CLASS, FILTER_ENTER_MS, TILE_JITTER_SHARE,
 } from '../js/ui/motion.js';
-import { canRefreshList } from '../js/ui/projectsModal.js';
+import { canRefreshList } from '../js/core/projectOpenGesture.js';
 import { StencilConnectModal, matchesConnFilter, batchNote } from '../js/ui/connectModal.js';
 import { createStubElement, installDom } from './helpers/dom.js';
 import { FLIGHTS, moteFrame, alphaAt } from '../js/ui/dustCloud.js';
+import { motionSource } from './helpers/motionSource.js';
+import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 
 const markup = layout();
 const count = (needle) => markup.split(needle).length - 1;
@@ -201,7 +203,7 @@ test('materialize: a missing element resolves without touching anything', async 
 // shapes: the expand mirrors rowLeave's collapse, the gather mirrors tileScatter.
 
 test('animations.css: materialize is the leave reversed, veil outranks keyframes', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   assert.match(css, /\.materializing \{[^}]*animation: rowMaterialize 0\.22s/,
     'the box expands on the collapse’s own 220ms timer');
   assert.match(css, /@keyframes rowMaterialize \{\s*from \{ opacity: 0;[^}]*max-height: 0/,
@@ -455,7 +457,7 @@ test('with nothing connected the plain empty state is kept', () => {
 });
 
 test('components.css: the admin row reuses the server-projects gold', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.match(css, /\.connect-row\.connect-admin \{[^}]*border-color: var\(--remote-gold\)/,
     'the same custom property .project-row.project-remote uses');
   assert.match(css, /\.connect-admin-badge \{[^}]*color: var\(--remote-gold\)/);
@@ -468,7 +470,7 @@ test('components.css: the admin row reuses the server-projects gold', () => {
 // can for remove, filled row-action buttons that look enabled at rest, .project-row's
 // box, and a filter sized to the heading it sits beside.
 
-const cssText = () => readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+const cssText = () => COMPONENTS_CSS;
 // A rule body by its exact opening selector text (line breaks in the selector list
 // make a single regex brittle).
 const ruleAfter = (css, selector) => {
@@ -799,14 +801,14 @@ test('the connections list dusts on its own finer grid, smaller throw and brisk 
 // wrong every way: motes a whole throw away, hanging through a slow-start curve, and the
 // row surfacing inside a cloud plainly bigger than itself (user report, with pictures).
 test('materialize gathers a row the way the projects list re-forms one', () => {
-  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const src = motionSource();
   const body = src.slice(src.indexOf('export function materialize'), src.indexOf('// ── A chat entry ARRIVES'));
   assert.match(body, /dustMs = FILTER_DUST_MS,\s*\n\s*drift = FILTER_DUST_DRIFT/);
   assert.match(body, /gather: true, ms: dustMs, drift, toBody: true, hostClass: 'dust-forming',\s*\n\s*paintTile: speckPainter\(el\),/);
   assert.ok(!/reintegrate\(/.test(body), 'not the row gather');
   // …and nothing brings a curve of its own any more: the row and the surface flights each
   // keep the one shared shape.
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   assert.ok(!/--row-ease|--gather-ease/.test(css));
   assert.ok(!/--row-ease|--gather-ease/.test(src));
 });

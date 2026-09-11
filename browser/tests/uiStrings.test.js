@@ -93,6 +93,6 @@ test('every §10 dialog button is a window opener, and the module reads the asse
     assert.ok(UI_STRINGS.windows.some((w) => w.key === name || (w.aliases || []).includes(name)),
       `dialog "${name}" names no window`);
   }
-  const src = readFileSync(resolve(ROOT, 'js/llm/chatSession.js'), 'utf8');
+  const src = readFileSync(resolve(ROOT, 'js/llm/adapters/dialog.js'), 'utf8');
   assert.ok(src.includes('const DIALOG_BUTTON_IDS = UI_STRINGS.dialogButtonIds;'));
 });

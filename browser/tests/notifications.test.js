@@ -8,6 +8,7 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
 import { StencilNotifications, MAX_VISIBLE } from '../js/ui/notifications.js';
+import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 
 const mkEl = () => {
   const classes = new Set();
@@ -120,7 +121,7 @@ test('the cap matches the desktop stack, and the CSS stacks the column', () => {
   assert.equal(MAX_VISIBLE, Number(/kMaxVisible = (\d+)/.exec(hpp)[1]),
     'browser and desktop must agree on how many toasts are too many');
 
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const host = css.slice(css.indexOf('#notify-balloon {'));
   const hostBlock = host.slice(0, host.indexOf('}'));
   assert.match(hostBlock, /flex-direction: column/, 'the host is the column, not a toast');
@@ -132,7 +133,7 @@ test('the cap matches the desktop stack, and the CSS stacks the column', () => {
 
   // The entrance must not fill FORWARDS: pinning transform:none would kill the
   // clickable toast's hover lift.
-  const anims = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const anims = ANIMATIONS_CSS;
   assert.match(anims, /animation: notifyEnter [^;]*backwards;/, 'entrance fills backwards only');
   assert.match(anims, /\.notify-toast\.notify-leaving \{\n\s*animation: notifyLeave/, 'and the exit is its own');
 });

@@ -12,6 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ZoomPan } from '../js/core/zoomPan.js';
+import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 
 const MIN_VIEWPORT_H = 120;
 const MIN_PANEL_H = 120;
@@ -318,18 +319,18 @@ test('the untouched panel width is one token, and every fallback reads it', () =
   const layout = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
   const px = Number(/--coord-panel-default:\s*(\d+)px/.exec(layout)?.[1]);
   assert.ok(px >= 240 && px <= 640, `--coord-panel-default ${px}px sits inside the clamp range`);
-  for (const file of ['layout.css', 'components.css', 'animations.css']) {
-    const css = readFileSync(new URL(`../css/${file}`, import.meta.url), 'utf8');
+  for (const [file, css] of [['layout.css', readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8')],
+                            ['components.css', COMPONENTS_CSS], ['animations.css', ANIMATIONS_CSS]]) {
     assert.ok(!/var\(--coord-panel-width,\s*\d/.test(css),
       `${file}: a hard-coded fallback beside the token is how the two drifted apart`);
   }
 });
 
 test('the panel width is re-clamped when the window changes, keeping the preference', () => {
-  const src = readFileSync(new URL('../js/utils.js', import.meta.url), 'utf8');
-  const fn = src.slice(src.indexOf('export const wirePanelResizer'), src.indexOf('// ── Notification balloon'));
-  assert.match(fn, /window\.addEventListener\('resize', applyStored\)/,
-    'a window narrowed after the drag re-clamps');
+  const src = readFileSync(new URL('../js/utils/panelResizer.js', import.meta.url), 'utf8');
+  const fn = src.slice(src.indexOf('export const wirePanelResizer'));
+  assert.match(fn, /onWindowResize\(applyStored\)/,
+    'a window narrowed after the drag re-clamps (via the shared resize coalescer)');
   // The STORED value is never rewritten by a clamp — only by a real drag — so the width
   // comes back when the window is big enough for it again.
   const stores = fn.match(/sessionStorage\.setItem/g) || [];

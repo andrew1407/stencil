@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 // Layout transitively requires every ui component and wires them into globalThis.
 import { layout } from '../js/ui/layout.js';
+import { COMPONENTS_CSS } from './helpers/css.js';
 
 const markup = layout();
 
@@ -326,23 +327,23 @@ test('the ? bubble carries the size and the incognito line — and nothing else'
 });
 
 // The mode has to read where the image facts are read, empty editor included: the info
-// line carries its own tag (drawingApp.updateInfo), beside the "?" bubble's line.
+// line carries its own tag (ui/projectTitle.updateInfo), beside the "?" bubble's line.
 test('the info line carries the incognito tag, and keeps its size text separable', () => {
     const app = readFileSync(new URL('../js/core/drawingApp.js', import.meta.url), 'utf8');
-    const fn = app.slice(app.indexOf('  updateInfo() {'), app.indexOf('\n  }', app.indexOf('  updateInfo() {')));
+    const fn = readFileSync(new URL('../js/ui/projectTitle.js', import.meta.url), 'utf8');
     assert.match(fn, /info\.dataset\.size = info\.textContent;/, 'the size stays readable on its own');
     assert.match(fn, /class[Nn]ame = 'info-incognito'/, 'the tag is an ELEMENT, so it survives no text rewrite');
     assert.match(fn, /Incognito — not saved/);
     // The divider is built WITH the tag, so it can never appear alone.
     assert.match(fn, /class[Nn]ame = 'info-divider'/);
-    const pair = fn.slice(fn.indexOf("if (this.storage.incognito)"));
+    const pair = fn.slice(fn.indexOf("if (app.storage.incognito)"));
     assert.ok(pair.indexOf("'info-divider'") > -1 && pair.indexOf("'info-incognito'") > -1,
         'both live inside the one incognito branch');
     assert.match(pair, /info\.append\(sep, tag\)/, 'and they are appended together');
     // The app's own glyph, not an emoji.
     assert.match(fn, /icon\('incognito', \{ size: 13 \}\)/);
     assert.ok(!/🕶/.test(fn), 'the emoji is gone from the info line');
-    assert.match(fn, /this\.storage\.incognito/, 'off the one state flag');
+    assert.match(fn, /app\.storage\.incognito/, 'off the one state flag');
     // Toggling the mode repaints the line (the toggle only ever calls updateIncognitoUI).
     const ui = app.slice(app.indexOf('  updateIncognitoUI() {'), app.indexOf('\n  }', app.indexOf('  updateIncognitoUI() {')));
     assert.match(ui, /this\.updateInfo\(\)/);
@@ -377,7 +378,7 @@ test('the incognito frame traces the canvas VIEWPORT, not the picture', () => {
     const containerAt = markup.indexOf('id="canvas-container"');
     assert.ok(vpAt > -1 && frameAt > vpAt && frameAt < containerAt,
         'the frame is a child of the viewport, ahead of the canvas container');
-    const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+    const css = COMPONENTS_CSS;
     const frame = css.slice(css.indexOf('.incognito-frame {'), css.indexOf('}', css.indexOf('.incognito-frame {')));
     // Sticky: an absolute box scrolls away with the content, which is what the frame must
     // NOT do — the viewport edge is the same edge however far the picture is scrolled.
@@ -458,12 +459,12 @@ test('the status row is the same box with the incognito tag and without it', () 
     // pixel-or-two that moved the canvas on the desktop.
     assert.match(css, /\.info-incognito \.ic \{ display: block; flex: 0 0 auto; \}/);
     // 13px inside a 20px line box: it cannot exceed what is reserved for it.
-    const app = readFileSync(new URL('../js/core/drawingApp.js', import.meta.url), 'utf8');
+    const app = readFileSync(new URL('../js/ui/projectTitle.js', import.meta.url), 'utf8');
     const size = /icon\('incognito', \{ size: (\d+) \}\)/.exec(app);
     assert.ok(size && Number(size[1]) < 20, `the glyph (${size?.[1]}px) must fit the line box`);
     // …and nothing compensates by resizing the canvas: the frame is an overlay, and no
     // rule keys the viewport off the incognito state.
-    const comp = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+    const comp = COMPONENTS_CSS;
     assert.ok(!/body\.incognito-mode[^{]*\.canvas-(viewport|container)[^{]*\{[^}]*(height|width|margin|padding)/.test(comp),
         'incognito must not resize the canvas to make room');
 });
@@ -487,7 +488,7 @@ test('the points-table row ring is drawn inside the row, not around it', () => {
 // needed 149, so every row ended in dead space. It is content-sized now, with a smaller
 // floor for short menus and a cap so a long label cannot run away.
 test('the row menus are sized to their content, not to a wide floor', () => {
-    const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+    const css = COMPONENTS_CSS;
     const rule = css.slice(css.indexOf('.project-menu, .chat-row-menu {'),
                            css.indexOf('}', css.indexOf('.project-menu, .chat-row-menu {')));
     assert.match(rule, /width: max-content/, 'the menu hugs its widest row');

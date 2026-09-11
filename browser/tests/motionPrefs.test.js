@@ -4,7 +4,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { motionSource } from './helpers/motionSource.js';
 import { installDom } from './helpers/dom.js';
+import { ANIMATIONS_CSS } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
@@ -127,7 +129,7 @@ test('prefers-reduced-motion wins over any stored mode', () => {
 
 // ── The wiring: who asks which gate ─────────────────────────────────────────
 test('every cloud in the app is built behind the dust gate, and the strokes behind the drawing one', () => {
-  const motion = read('../js/ui/motion.js');
+  const motion = motionSource();
   // disintegrate() is the one door every element-sized cloud goes through.
   const body = motion.slice(motion.indexOf('export function disintegrate('),
                             motion.indexOf('export const reintegrate'));
@@ -155,7 +157,7 @@ test('the mode reaches the CSS before first paint, and stops what CSS alone driv
   assert.ok(prePaint.includes("localStorage.getItem('drawingApp_motion')"), 'same key as motionPrefs.js');
   assert.match(prePaint, /root\.setAttribute\('data-motion',/);
   assert.ok(prePaint.includes(`[${MOTION_MODES.map((m) => `'${m}'`).join(', ')}]`), 'the inlined mode list is the module\'s');
-  const css = read('../css/animations.css');
+  const css = ANIMATIONS_CSS;
   assert.match(css, /:root\[data-motion="none"\] \*,/);
   assert.match(css, /animation-duration: 0\.01ms !important;/);
   // 'slide' needs no rules of its own — each surface keeps its own entrance — except the
@@ -172,7 +174,7 @@ test('both switches are in the Visuals modal and on the console facade', () => {
   assert.match(modal, /app\.settings\.setMotion\('mode', motionMode\.value\)/);
   // Reset All restores them along with the colours.
   assert.match(modal, /setMotion\('mode', DEFAULT_MOTION_MODE\)/);
-  const api = read('../js/console/stencilApi.js');
+  const api = read('../js/console/settingsFacade.js');   // the facade's settings namespace
   assert.match(api, /get drawingAnimations\(\) \{ return motionPrefs\(\)\.drawing; \}/);
   assert.match(api, /set motionMode\(v\) \{ app\.settings\.setMotion\('mode', v\); \}/);
   // Both surfaces come through the ONE setter, which is also what rejects a bad mode.

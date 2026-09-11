@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { ctxKeyStep, CTX_NAV_KEYS, ctxFocusables } from '../js/ui/contextMenu.js';
+import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
+import { contextMenuSource } from './helpers/contextMenuSource.js';
 
 // The context menu walks with the keyboard like the desktop's QMenu: ↑/↓ over the rows
 // of the deepest open level, → opens a flyout, ← closes it, Enter/Space picks. The
@@ -18,7 +20,7 @@ test('ctxKeyStep wraps at both ends and starts from the first/last row when noth
 });
 
 test('the open menu owns the arrow keys in the capture phase, so the pan never sees them', () => {
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   for (const k of ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Enter', ' ']) assert.ok(CTX_NAV_KEYS.includes(k), k);
   // Registered as a capturing document listener, gated on the menu being open, and
   // stopping propagation — the pan binding is a bubbling document listener.
@@ -43,9 +45,9 @@ test('the open menu owns the arrow keys in the capture phase, so the pan never s
 });
 
 test('the keyboard row wears the hover look, and the pointer takes it back on a real move', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.match(css, /\.ctx-item:hover, \.ctx-item\.ctx-open-sub, \.ctx-item\.ctx-kb \{\s*background: var\(--bg-coord-hover\);/);
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   assert.ok(src.includes('if (moved) setKbItem(null);'), 'a pointer move clears the keyboard highlight');
   // Opening and closing the menu both start clean, and so does a Tab onto a control.
   assert.strictEqual(src.split('setKbItem(null);').length - 1, 5, 'cleared on open, close, pointer move, Tab and entering a control');
@@ -53,7 +55,7 @@ test('the keyboard row wears the hover look, and the pointer takes it back on a 
 
 test('Tab walks the open flyout\'s own controls, wrapping, and only falls back to the rows without any', () => {
   assert.ok(CTX_NAV_KEYS.includes('Tab'), 'Tab is owned by the open menu');
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   // Controls first (a flyout with spinners/inputs/checkboxes), BEFORE the typing-target
   // exemption — Tab must leave the chat input for its buttons, not stay stuck in it.
   const tab = src.indexOf("if (e.key === 'Tab') {");
@@ -73,8 +75,8 @@ test('Tab walks the open flyout\'s own controls, wrapping, and only falls back t
 });
 
 test('the keyboard row plays the hover motion too: icon, keycap shake and the content nudge', () => {
-  const anim = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
-  const comp = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const anim = ANIMATIONS_CSS;
+  const comp = COMPONENTS_CSS;
   assert.ok(anim.includes('.ctx-item:not(.is-loading):not(.swapping):not([id^="toggle-"]).ctx-kb\n    > :is(.ctx-icon, .ctx-check)'), 'icon motion on .ctx-kb');
   assert.ok(anim.includes('.ctx-item:hover, .ctx-item.ctx-kb { padding-left: 17px; padding-right: 11px; }'), 'the row nudge');
   assert.ok(comp.includes('.ctx-item.ctx-kb > .ctx-hotkey .tip-key'), 'the keycap shake');

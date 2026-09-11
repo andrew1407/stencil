@@ -11,6 +11,10 @@ import {
   chatArrivalPoint, CHAT_ENTER_REACH,
 } from '../js/ui/motion.js';
 import { shrinkWrapWidth } from '../js/ui/chatView.js';
+import { motionSource } from './helpers/motionSource.js';
+import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
+import { chatViewSource } from './helpers/chatViewSource.js';
+import { contextMenuSource } from './helpers/contextMenuSource.js';
 
 // ── A DOM-lite live tree, enough to actually RUN renderChatLog ───────────────
 // The other chat views are pinned against their source; the bugs this file guards
@@ -265,8 +269,8 @@ test('ONE turn at a time: the shared in-flight flag every surface reads', async 
   // Both retry/resend entry points consult it, so a click in one surface cannot start
   // a second turn over a turn the OTHER surface is running (that is what logged the
   // user's prompt twice).
-  for (const [name, path] of [['panel', '../js/ui/chatPanel.js'], ['flyout', '../js/ui/contextMenu.js']]) {
-    const src = readFileSync(new URL(path, import.meta.url), 'utf8');
+  for (const [name, src] of [['panel', readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8')],
+    ['flyout', contextMenuSource()]]) {
     assert.ok(src.includes('chatTurnInFlight()'), `${name} guards on the shared flag`);
     assert.strictEqual(src.split('chatTurnInFlight()').length - 1, 2,
       `${name} guards BOTH retry and resend`);
@@ -292,7 +296,7 @@ test('revealFeather softens only the edge the scroller is really clipping', () =
 });
 
 test('the mask wipe reads those feathers, and the observer publishes them', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const rest = css.slice(css.indexOf('.reveal-item.reveal-masked {'),
     css.indexOf('\n}', css.indexOf('.reveal-item.reveal-masked {')));
   // Both spellings of the mask (the -webkit- one included) take the widths as vars.
@@ -302,7 +306,7 @@ test('the mask wipe reads those feathers, and the observer publishes them', () =
   assert.ok(!/\+ 10%\)/.test(rest) && !/- 10%\)/.test(rest), 'no unconditional feather is left');
   const base = css.slice(css.indexOf('.reveal-item {'), css.indexOf('\n}', css.indexOf('.reveal-item {')));
   assert.ok(/--fade-in: 10%/.test(base) && /--fade-out: 10%/.test(base), 'the entering state softens both ways');
-  const motion = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const motion = motionSource();
   assert.ok(motion.includes("row.el.style.setProperty('--fade-in', fade.in);"));
   assert.ok(motion.includes("row.el.style.setProperty('--fade-out', fade.out);"));
 });
@@ -310,7 +314,7 @@ test('the mask wipe reads those feathers, and the observer publishes them', () =
 test('a repaint keeps the motion classes motion.js owns, mask state included', async () => {
   stubDom();
   const { renderChatLog } = await import('../js/ui/chatView.js?render-motion');
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   // Taken from motion.js's constants — a retyped list is what dropped .reveal-masked,
   // and the observer's "changed?" cache then never put it back.
   assert.ok(view.includes('const MOTION_CLASSES = [REVEAL_ITEM_CLASS, REVEAL_IN_CLASS, REVEAL_MASKED_CLASS, REVEAL_ENTERING_CLASS,\n  REVEAL_SMOOTH_CLASS, REVEAL_NO_TRIGGER_CLASS, CHAT_ENTERING_CLASS];'));
@@ -421,18 +425,18 @@ test('revealTriggerFits: hidden on a slice too short to hold it, always on a who
 });
 
 test('the chat transcript takes the SMOOTH fade; other reveal targets keep the grain', () => {
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   assert.match(view, /observeReveal\(transcript, '\[data-row\]', \{ smooth: true \}\)/,
     'text rows opt out of the dot grain');
   const projects = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
   assert.match(projects, /observeReveal\(list, '\.project-row'\)/, 'project rows are untouched');
-  const motion = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const motion = motionSource();
   const apply = motion.slice(motion.indexOf('const apply = ()'), motion.indexOf('const schedule'));
   assert.match(apply, /if \(!smooth\) row\.el\.style\.setProperty\('--dissolve'/, 'no grain ramp on text');
   assert.match(apply, /smooth \? REVEAL_SMOOTH_FEATHER : REVEAL_FEATHER/, 'a fixed band, not 10%');
   // The mask itself: one linear layer, no radial grain tiles, and it still reaches the
   // chrome the row paints outside its box.
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const smooth = css.slice(css.indexOf('.reveal-item.reveal-smooth.reveal-masked {'),
     css.indexOf('.reveal-item.reveal-entering'));
   assert.ok(!smooth.includes('radial-gradient'), 'no dot grain on text rows');
@@ -442,13 +446,13 @@ test('the chat transcript takes the SMOOTH fade; other reveal targets keep the g
   // …while the grainy original is still there for everything else.
   assert.match(css, /\.reveal-item\.reveal-masked \{[\s\S]*?radial-gradient/);
   // A row that cannot place its trigger hides it outright.
-  const comp = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const comp = COMPONENTS_CSS;
   assert.match(comp, /\.chat-msg\.reveal-no-trigger \.chat-row-menu-btn \{ display: none; \}/);
   assert.match(apply, /classList\.toggle\(REVEAL_NO_TRIGGER_CLASS, hide\)/);
 });
 
 test('the trigger reads --visible-bottom, and the observer publishes it for EVERY row', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const btn = /\.chat-row-menu-btn \{([\s\S]*?)\n\}/.exec(css)[1];
   assert.match(btn, /bottom: calc\(var\(--visible-bottom, 0px\) \+ var\(--row-menu-lift, 0px\)\)/,
     'anchored to the visible slice, plus the jump-pill clearance lift');
@@ -458,7 +462,7 @@ test('the trigger reads --visible-bottom, and the observer publishes it for EVER
   // …revealed translucent, with only the hovered trigger itself going fully opaque.
   assert.match(css, /\.chat-msg:hover \.chat-row-menu-btn \{ opacity: \.7; \}/);
   assert.match(css, /\.chat-msg:hover \.chat-row-menu-btn:hover \{ opacity: 1; \}/);
-  const motion = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const motion = motionSource();
   const apply = motion.slice(motion.indexOf('const apply = ()'), motion.indexOf('const schedule'));
   const published = apply.indexOf("setProperty('--visible-bottom'");
   assert.ok(published > 0, 'apply() publishes it');
@@ -467,14 +471,14 @@ test('the trigger reads --visible-bottom, and the observer publishes it for EVER
   assert.ok(apply.includes('if (vb !== row.visBottom)'), 'written only when it moves');
   // One scroll listener, not two: it rides the reveal observer already bound per
   // transcript (chatView.js), so nothing else has to watch the scroller.
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   assert.ok(view.includes("observeReveal(transcript, '[data-row]'"));
   assert.ok(!view.includes("transcript.addEventListener('scroll'"),
     'the renderer adds no scroll listener of its own');
 });
 
 test('the reveal mask reaches the chrome a row paints OUTSIDE its box', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const rest = css.slice(css.indexOf('.reveal-item.reveal-masked {'),
     css.indexOf('\n}', css.indexOf('.reveal-item.reveal-masked {')));
   // The "…" trigger sits BESIDE the bubble, so it is outside the masked box. Clipping
@@ -489,7 +493,7 @@ test('the reveal mask reaches the chrome a row paints OUTSIDE its box', () => {
 });
 
 test('the row text node is what CSS and the renderer agree on', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.match(css, /\.chat-msg-text \{ min-width: 0; \}/);
 });
 
@@ -518,9 +522,9 @@ test('a settled reply carries no progress line and no cancel — the turn is ove
   assert.strictEqual(descendants(row).filter((d) => d.classList.contains('chat-aux')).length, 0);
   assert.strictEqual(row.textContent, 'Outlined all seventeen.');
   // The view no longer knows the concept at all.
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   assert.ok(!/syncAuxNote|auxNoteText|onAuxCancel|chat-aux/.test(view));
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.ok(!/\.chat-aux/.test(css), 'and neither does the stylesheet');
 });
 
@@ -579,7 +583,7 @@ test('an appearing entry plays the gather; a transcript’s FIRST paint does not
 test('the arrivals share ONE mesh budget with the wipe, and run after the scroll', () => {
   // The dust is a clone per cell, so a Clear that also lands a fresh turn would put two
   // full meshes in the air at once — the count handed to chatIn is both sides together.
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   assert.match(view, /entering\.forEach\(\(el, i\) => chatIn\(el, entering\.length \+ going\.length, i\)\)/);
   // …and it runs at the END: a cloud taken mid-build would be missing the row's own
   // text and CTAs, which are appended after the element exists.
@@ -589,7 +593,7 @@ test('the arrivals share ONE mesh budget with the wipe, and run after the scroll
   // ends up stranded above where the entry actually lands (the reported bug).
   assert.ok(view.indexOf('entering.forEach') > view.indexOf('stickToBottom(transcript)'),
     'the arrivals are armed after the transcript has been told to scroll');
-  const motion = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const motion = motionSource();
   // An arrival is a TOAST arriving: the same speck cloud (surfaceDust — which flies on
   // <body> and paints specks, not clones carrying .chat-msg/[data-row] that everything
   // walking the transcript would read as live rows), gathered out of the row's OWN side.
@@ -640,7 +644,7 @@ test('dustFitsScroller: only a whole entry inside its scroller may fly', () => {
 });
 
 test('animations.css: an arriving entry is VEILED, never faded up under its own dust', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const rule = css.slice(css.indexOf('.chat-transcript > .chat-entering'));
   // A veil, not a keyframed fade: the entry is not seen at all until the motes land, so
   // the animation can never play over an already-visible message (the reported bug).
@@ -697,7 +701,7 @@ test('a flying cloud is re-anchored to its entry, and dropped if the entry leave
   // appends more rows. A cloud left where it started is drawn over whatever has since
   // moved into those coordinates: the reported "text appears mid-animation, breaking the
   // UI" (a user bubble's motes rendered on top of the error card below it).
-  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const src = motionSource();
   assert.match(src, /const trackDust = \(el, ms, onDrop = \(\) => \{\}\) => \{/);
   assert.match(src, /retargetDust\(el, r\);/, 'the cloud follows its entry per frame');
   assert.ok(/dustFitsScroller\(el\)/.test(src),
@@ -718,13 +722,11 @@ test('a flying cloud is re-anchored to its entry, and dropped if the entry leave
 });
 
 test('a flying cloud is clipped to its scroller, so no mote lands on the composer', () => {
-  // On the desktop the overlay is a real widget and paints only inside its own box, so a
-  // mote can never reach the composer. Here the tiles translate freely out of an
-  // `overflow: visible` host, and a gather next to the input rained motes across it
-  // (reported). The clip is against the host's OWN border box, so the insets are signed:
-  // negative EXPANDS it, letting a mote fly anywhere inside the transcript and nowhere
-  // outside it.
-  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  // On the desktop the overlay paints only inside its own box, so a mote can never reach
+  // the composer. Here the tiles translate freely out of an `overflow: visible` host, and a
+  // gather next to the input rained motes across it (reported). The clip is against the
+  // host's OWN border box, so the insets are signed: negative EXPANDS it.
+  const src = motionSource();
   assert.match(src, /const clipDustToScroller = \(el, scroller = el\?\.parentElement, r = null, s = null\) => \{/);
   assert.match(src, /host\.style\.clipPath =/);
   assert.match(src, /inset\(\$\{px\(s\.top - r\.top\)\} \$\{px\(r\.right - s\.right\)\} \$\{px\(r\.bottom - s\.bottom\)\} \$\{px\(s\.left - r\.left\)\}\)/);
@@ -737,7 +739,7 @@ test('dropping the cloud hands the entry over in the SAME frame', () => {
   // The veil is lifted by a timer at the end of the FULL flight. A cancel that only killed
   // the motes therefore left the message invisible, with nothing standing in for it, until
   // that timer fired — up to the whole gather. Found by resizing a live entry mid-flight.
-  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const src = motionSource();
   assert.match(src, /const trackDust = \(el, ms, onDrop = \(\) => \{\}\) => \{/);
   assert.match(src, /cancelDust\(el\); live = false; onDrop\(\); return;/);
   assert.match(src, /const stop = trackDust\(el, CHAT_ENTER_MS, handOver\);/);

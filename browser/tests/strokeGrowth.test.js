@@ -22,6 +22,8 @@ import { StrokeFx } from '../js/core/strokeFx.js';
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const drawingAppJs = read('../js/core/drawingApp.js');
 const inputJs = read('../js/core/inputController.js');
+const shapeJs = read('../js/core/shapeBuilder.js');   // insert / rect routes
+const clickJs = read('../js/core/canvasClick.js');   // the click router
 const rendererJs = read('../js/core/renderer.js');
 const exportJs = read('../js/core/exportService.js');
 
@@ -250,20 +252,18 @@ test('a line with nothing in the air is not copied, and paints no overlay', () =
 // ── 3. The wiring ───────────────────────────────────────────────────────────
 
 test('every route that adds a point sends it flying', () => {
-  // drawing-mode click on a fresh line, continuation click, insert-on-segment,
-  // connect-to-selection (both branches), and a rect's corners.
-  // Five click/insert routes plus the Alt+Ctrl pull-out, which adds a point too.
-  assert.equal((drawingAppJs.match(/this\.strokeFx\.flyIn\(/g) || []).length, 6,
-    'drawingApp: every single-point route');
+  // Five click/insert routes, plus the Alt+Ctrl pull-out, which adds a point too.
+  const flights = (src) => (src.match(/(this|app)\.strokeFx\.flyIn\(/g) || []).length;
+  assert.equal(flights(drawingAppJs) + flights(shapeJs) + flights(clickJs), 6, 'every route');
   assert.match(drawingAppJs, /this\.strokeFx\.flyIn\(line, idx, \{ x, y \}\)/,
     'a pulled-out point flies out of the spot it was pulled from');
   // …and all THREE rect routes: appended to a continued line, appended to the selected
   // line, and a standalone one drawn on empty space.
-  assert.equal((drawingAppJs.match(/this\.strokeFx\.flyInRange\(/g) || []).length, 3,
-    'drawingApp: every rect draws itself corner by corner');
-  assert.match(drawingAppJs, /this\.strokeFx\.flyInRange\(rect, 0, corners\.length\)/,
+  assert.equal((shapeJs.match(/app\.strokeFx\.flyInRange\(/g) || []).length, 3,
+    'shapeBuilder: every rect draws itself corner by corner');
+  assert.match(shapeJs, /app\.strokeFx\.flyInRange\(rect, 0, corners\.length\)/,
     'a standalone rect starts at its own first corner');
-  assert.match(drawingAppJs, /flyIn\(line, insertIdx, strokeFoot\(/,
+  assert.match(shapeJs, /flyIn\(line, insertIdx, strokeFoot\(/,
     'an inserted vertex comes out of its foot on the segment');
   // the hold-draw seed, a hold drop on a continued line, and one on a fresh stroke
   assert.equal((inputJs.match(/app\.strokeFx\.flyIn\(/g) || []).length, 3,

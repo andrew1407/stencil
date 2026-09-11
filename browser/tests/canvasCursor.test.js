@@ -12,6 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { installDom } from './helpers/dom.js';
+import { COMPONENTS_CSS } from './helpers/css.js';
 
 const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
 const blockAt = (at) => css.slice(at, css.indexOf('}', at));
@@ -134,7 +135,7 @@ test('a transition drops the inline cursor a hover left behind, so the styleshee
 
 // ── The empty-editor placeholder ────────────────────────────────────────
 test('the "＋ Blank image" card owns only its own box — no click/cursor overreach', async () => {
-  const comp = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const comp = COMPONENTS_CSS;
   const at = comp.indexOf('.idle-create {');
   const btnAt = comp.indexOf('.idle-create-btn {');
   assert.ok(at >= 0 && btnAt >= 0);

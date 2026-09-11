@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
+import { contextMenuSource } from './helpers/contextMenuSource.js';
 import { spawnCount, newMote, edgePoint, stepMote, moteAlpha, parseRgb, mixRgb, dustPalette, ringRadius, ringAlpha, ringAngles, layerAbove,
          DUST_SILENCE, DUST_RATE, DUST_LIFE_MS, DUST_TINTS, RING_SPOKES, RING_SPIN_MS, RING_BEAT_MS } from '../js/ui/voiceDust.js';
 
@@ -52,9 +53,9 @@ test('stepMote drifts with drag and dies at the end of its life; alpha rises fas
 // toolbar's live --voice-level, so no second voice subscription exists.
 test('every mic face attaches the dust off its listening class; the level is --voice-level', () => {
   const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-  assert.ok(read('../js/ui/toolbar.js').includes("attachVoiceDust(btn, () => btn.classList.contains('active'))"));
+  assert.ok(read('../js/ui/voiceToggle.js').includes("attachVoiceDust(btn, () => btn.classList.contains('active'))"));
   assert.ok(read('../js/ui/chatPanel.js').includes("attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'))"));
-  assert.ok(read('../js/ui/contextMenu.js').includes("attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'))"));
+  assert.ok(contextMenuSource().includes("attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'))"));
   const dust = read('../js/ui/voiceDust.js');
   assert.ok(dust.includes("getPropertyValue('--voice-level')"));
   assert.ok(dust.includes('dustEnabled()'), 'no dust under reduced motion, nor in a mode without particles');

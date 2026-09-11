@@ -19,11 +19,13 @@ import { tileMotion, MARK_IN_MS, MARK_OUT_MS, MARK_MOTE_PX, MARK_DRIFT, MARK_COL
          FILTER_DUST_MS, FILTER_DUST_DRIFT, FILTER_ENTER_MS, REVEAL_GROUP_IN_MS, REVEAL_GROUP_OUT_MS,
          reshapeGrid, markIn, markOut, markSwap, revealControls, revealBar, settleMark, filterDust,
          BAR_HELD_CLASS, BAR_CLOSING_CLASS } from '../js/ui/motion.js';
+import { motionSource } from './helpers/motionSource.js';
+import { ANIMATIONS_CSS } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const motionJs = read('../js/ui/motion.js');
+const motionJs = motionSource();
 const swapJs = read('../js/ui/controlSwap.js');
-const animCss = read('../css/animations.css');
+const animCss = ANIMATIONS_CSS;
 const selectJs = read('../js/ui/customSelect.js');
 
 test('the throw scales with the control: a 15px tick cannot fling motes like a list row', () => {
@@ -299,7 +301,7 @@ test('revealBar defers the CLOSE by its contents\' flight, but opens at once', (
   // padding standing as a bare grey line on the way out (user report, with pictures).
   // Only the controls fly — the desktop's updateBatchBar exactly.
   assert.equal(bar.style.maxHeight, undefined);
-  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const src = motionSource();
   const body = src.slice(src.indexOf('export const revealBar'), src.indexOf('const REVEAL_GROUP_TRANSITION_CLASS'));
   assert.ok(!/revealControls|slideRevealSize|maxHeight/.test(body), 'a display flip, nothing more');
 });
@@ -355,7 +357,7 @@ test('a leaving bar HOLDS its slot, then closes the whole footprint', () => {
 // The CSS half of that close: whatever the bar's footprint is made of has to go with the
 // height, or the list below still drops by the leftovers in the frame it is hidden.
 test('the closing bar zeroes its padding and divider, not just its height', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const rule = css.match(/\.bar-held\.bar-closing \{[^}]*\}/)?.[0] || '';
   for (const prop of ['height: 0', 'max-height: 0', 'padding-top: 0', 'padding-bottom: 0',
                       'border-bottom-width: 0']) {

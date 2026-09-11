@@ -3,12 +3,14 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
 // Opening a project row: the gesture → intent mapping and the deferred-single-click
-// machine behind it (browser/js/ui/projectsModal.js). Both are pure/injected, so the
+// machine behind it (browser/js/core/projectOpenGesture.js). Both are pure/injected, so the
 // whole matrix — mouse and touch — is exercised without a DOM.
 import {
   rowOpenIntent, createOpenGesture, DOUBLE_CLICK_MS, DRAG_SLOP_PX, canRefreshList,
-} from '../js/ui/projectsModal.js';
+} from '../js/core/projectOpenGesture.js';
 import { isTouchLike, TOUCH_MEDIA } from '../js/utils.js';
+import { COMPONENTS_CSS } from './helpers/css.js';
+import { contextMenuSource } from './helpers/contextMenuSource.js';
 
 // A controllable clock: timers fire only when the test advances it.
 const stubTimers = () => {
@@ -236,14 +238,14 @@ test('the touch rule is the app-wide media query, shared with the chat surfaces'
   assert.strictEqual(isTouchLike(null), false, 'no matchMedia (Node) → desktop mapping');
   assert.strictEqual(isTouchLike(() => { throw new Error('bad query'); }), false);
   // The context menu's assistant gate is the very same rule (one helper, one behaviour).
-  const ctx = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const ctx = contextMenuSource();
   assert.ok(ctx.includes('const plain = isTouchLike();'));
 });
 
 test('constants + focus ring; the hold stays the reorder pickup, unstyled by us', () => {
   assert.strictEqual(DOUBLE_CLICK_MS, 250);
   assert.strictEqual(DRAG_SLOP_PX, 10);
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.ok(css.includes('.project-row:focus-visible'), 'keyboard focus is visible');
   assert.strictEqual(css.split('.project-row.project-holding').length - 1, 0,
     'no press state of ours — the drag ghost is the hold feedback');
@@ -266,7 +268,7 @@ test('the metadata tooltip is on the text column, not the row', () => {
 // The stored thumbnail is only ~160 px wide, so a max-width can never enlarge it: the
 // preview sets an explicit width, scaled from the thumbnail's own pixels.
 test('the hover preview renders larger than the thumbnail', () => {
-  const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/projectThumbZoom.js', import.meta.url), 'utf8');
   assert.match(src, /const PREVIEW_ZOOM = 1\.67;/, 'the factor is named, not buried');
   assert.match(src, /const PREVIEW_MAX_VW = 0\.25;/, 'and so is the width ceiling');
   assert.match(src, /const PREVIEW_MAX_VH = 0\.20;/, 'and the height ceiling');
@@ -278,7 +280,7 @@ test('the hover preview renders larger than the thumbnail', () => {
   assert.match(src, /img\.style\.height = `\$\{Math\.round\(zoomSize\.nh \* scale\)\}px`/, 'height from the SAME factor');
   // Alt held doubles the glance — the factor rides both the zoom cap and the ceilings.
   assert.match(src, /const f = zoomAlt \? 2 : 1;/, 'the Alt factor is named');
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   // A hover preview is a GLANCE, not a lightbox. Once the stored thumbnail grew big
   // enough to magnify sharply, 90vw/80vh let it swallow the window — so it is capped
   // to a quarter of the width and a fifth of the height, with the list still readable
@@ -337,10 +339,9 @@ test('the projects batch bar opens and closes on the shared control flight', () 
 });
 
 // The rows and the selection bar must come apart TOGETHER. The batch removal used to hold
-// the checked set until every delete had run, so the count, the batch buttons and Select
-// all only started their own flight after the whole row scatter had finished — the items
-// went, and the buttons went a beat later (user report). The connections modal and the
-// desktop dialog both retire the rows and re-ask the bar in ONE turn.
+// the checked set until every delete had run, so the bar only started its own flight after
+// the whole row scatter (user report). The connections modal and the desktop dialog both
+// retire the rows and re-ask the bar in ONE turn.
 test('a batch removal retires the rows and re-asks the bar in the same turn', () => {
   const src = readFileSync(new URL('../js/ui/projectsModal.js', import.meta.url), 'utf8');
   const body = src.slice(src.indexOf('batchBtns.remove.addEventListener'),

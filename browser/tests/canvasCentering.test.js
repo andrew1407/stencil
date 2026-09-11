@@ -18,10 +18,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ZoomPan, canvasOrigin } from '../js/core/zoomPan.js';
+import { COMPONENTS_CSS } from './helpers/css.js';
 
 // ── The CSS contract ─────────────────────────────────────────────────────────
 const layoutCss = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
-const componentsCss = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+const componentsCss = COMPONENTS_CSS;
 // The DECLARATIONS of a rule: comments are stripped, so prose about the traps below
 // (which every one of these blocks carries) is never mistaken for a declaration.
 const blockOf = (css, sel) => {
@@ -237,17 +238,17 @@ test('zoomToImagePoint pins the focal pixel through the centring margins', () =>
 // only while the frame HUGGED the picture. In a full-height frame the vertical margin is
 // real, so the pixel under the cursor would slide the moment a zoom crossed into overflow.
 test('the wheel zoom pins the cursor through the centring margins (source pin)', () => {
-  const src = readFileSync(new URL('../js/core/controlsBinder.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/bindings/smoothZoom.js', import.meta.url), 'utf8');
   const fn = src.slice(src.indexOf('const runSmoothZoom'), src.indexOf("document.addEventListener('wheel'"));
   assert.equal((fn.match(/zoomPan\.originAt\(/g) || []).length, 2,
     'both the per-frame write and the final snap go through originAt');
   assert.ok(!/style\.maxHeight/.test(fn), 'and it no longer resizes the frame per frame');
 });
 
-// Sizing is syncViewportHeight's job alone now: zoomAroundCenter used to write its own
-// hugging height up front, and then read clientHeight out of the box it had just changed.
+// Sizing is syncViewportHeight's job alone (utils/viewportMetrics.js) now: zoomAroundCenter
+// used to write its own hugging height, then read clientHeight out of the box it just changed.
 test('only syncViewportHeight sizes the frame (source pin)', () => {
-  const src = readFileSync(new URL('../js/core/zoomPan.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/utils/viewportMetrics.js', import.meta.url), 'utf8');
   const writes = src.match(/vp\.style\.(max|min)Height\s*=/g) || [];
   assert.equal(writes.length, 1, 'one writer, inside syncViewportHeight');
   assert.ok(!/viewportMaxHeightPx/.test(src), 'the image-hugging cap is gone');

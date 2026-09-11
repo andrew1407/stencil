@@ -37,13 +37,14 @@ test('single-file build: index.html loads nothing the single-file build ignores'
   // or <link> outside this set would ship as a sibling file next to stencil.html.
   const handled = new Set([
     'js/index.js',                                                                   // vite: the module graph
-    'css/theme.css', 'css/layout.css', 'css/components.css', 'css/animations.css',   // vite: the stylesheets
+    'css/theme.css', 'css/layout.css',                                              // vite: the stylesheets
     'js/prePaintTheme.js', 'favicon.svg', 'manifest.webmanifest',                    // vite.config.js: inlined or dropped
   ]);
   const refs = [...read('index.html').matchAll(/(?:src|href)="([^"]+)"/g)]
     .map(m => m[1])
     .filter(v => !/^(?:https?:|data:|#|\/)/.test(v));
   for (const ref of refs) {
+    if (/^css\/(?:components|animations)\//.test(ref)) continue;   // the split stylesheets — vite folds them all in
     assert.ok(handled.has(ref), `index.html loads "${ref}", which the single-file build does not handle — teach vite.config.js about it`);
   }
 });

@@ -5,6 +5,7 @@ import {
 } from '../js/llm/voiceModes.js';
 import { VOICE_SETTINGS_EVENT } from '../js/llm/voiceSettings.js';
 import { stubClock } from './helpers/speech.js';
+import { ANIMATIONS_CSS } from './helpers/css.js';
 
 // An engine double with the real engine's surface: the test drives transcripts,
 // levels and fatal errors through the session it was last started with.
@@ -348,7 +349,7 @@ test('level subscribers hear every frame and can unsubscribe', () => {
 // clip they gave up; the ring's radius and the tile's glow follow --voice-level.
 test('a listening mic uncovers its ray ring: no overflow clip, isolated stacking, no glass sweep, level-sized', async () => {
   const { readFileSync } = await import('node:fs');
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const rule = (selector) => {
     const at = css.indexOf(selector);
     assert.ok(at >= 0, selector);
@@ -405,7 +406,7 @@ test('a voice answer that asks a question opens the chat; a plain one still just
 test('activating the microphone never latches the logo shine', async () => {
   const { readFileSync } = await import('node:fs');
   const toolbar = readFileSync(new URL('../js/ui/toolbar.js', import.meta.url), 'utf8');
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   assert.ok(!toolbar.includes('voice-live'), 'no voice latch on the logo wrap');
   assert.ok(!css.includes('voice-live'), 'no voice rule targets the logo');
   const dust = readFileSync(new URL('../js/ui/voiceDust.js', import.meta.url), 'utf8');

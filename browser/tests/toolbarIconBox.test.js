@@ -8,8 +8,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 
-const read = (f) => readFileSync(new URL(`../css/${f}`, import.meta.url), 'utf8');
+const read = (f) => (f === 'components.css' ? COMPONENTS_CSS
+  : f === 'animations.css' ? ANIMATIONS_CSS
+  : readFileSync(new URL(`../css/${f}`, import.meta.url), 'utf8'));
 // The declaration block for a selector, as written.
 const ruleFor = (css, selector) => {
   const at = css.indexOf(selector + ' {');
@@ -42,7 +45,7 @@ test('the ghost buttons all agree with each other', () => {
 // back into it — the same modalFromIcon/modalToIcon motion the modals use — instead of the
 // old pop-in-place. chatPanel.js feeds the keyframes the icon→panel delta.
 test('the floating chat panel animates from the toolbar icon', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const open = css.match(/stencil-chat-panel\.chat-open\.chat-dock-float\s*\{([^}]*)\}/)?.[1] || '';
   const close = css.match(/stencil-chat-panel\.chat-open\.chat-closing\.chat-dock-float\s*\{([^}]*)\}/)?.[1] || '';
   assert.match(open, /modalFromIcon/, `float open is "${open.trim()}"`);

@@ -4,8 +4,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { chatViewSource } from './helpers/chatViewSource.js';
 
-const SRC = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+const SRC = chatViewSource();
 const INNER_HTML = [...SRC.matchAll(/[\w.$]+\.innerHTML\s*=\s*([^;]+);/g)].map((m) => m[1].trim());
 
 test('the model reply lands in the row text node via textContent', () => {

@@ -23,6 +23,10 @@ import { buildChatDoc, rowsToMessages } from '../js/llm/chatStore.js';
 import { fileNameForUrl } from '../js/core/dragImageUrl.js';
 import { scatterGridFor, SCATTER_TILE_BUDGET, SCATTER_MAX_ROWS } from '../js/ui/motion.js';
 import { LlmError } from '../js/llm/llmClient.js';
+import { motionSource } from './helpers/motionSource.js';
+import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
+import { chatViewSource } from './helpers/chatViewSource.js';
+import { contextMenuSource } from './helpers/contextMenuSource.js';
 
 const ASSIST_IDS = [
   'ctx-assist-menu', 'ctx-assist-sub', 'ctx-assist', 'ctx-assist-transcript',
@@ -52,7 +56,7 @@ test('the Assistant entry markup carries each id once, above Start Drawing', () 
   assert.ok(html.includes('placeholder="Ask the assistant… (Enter sends, Shift+Enter newline)"'));
   // The entry is built by syncAssistant, directly ABOVE Start Drawing (no separator
   // of its own — the layoutWith test below pins that gating changes nothing else).
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   assert.ok(src.includes("const anchor = document.getElementById('ctx-draw-toggle');"), 'anchored to Start Drawing');
   assert.ok(src.includes("anchor.insertAdjacentHTML('beforebegin', assistantItemHtml());"), 'inserted immediately above it');
   // Send ships disabled (nothing typed yet) and becomes Stop at runtime.
@@ -81,7 +85,7 @@ test('the Assistant entry is a submenu PARENT, structured like Style / Image Fil
 });
 
 test('the root menu is never re-positioned/observed while open (submenu-killer guard)', () => {
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   // A ResizeObserver on the MENU re-clamps it as the chat grows → the hovered item
   // slides out from under the cursor → mouseleave → the flyout closes. Only the
   // FLYOUTS may be observed.
@@ -92,17 +96,17 @@ test('the root menu is never re-positioned/observed while open (submenu-killer g
   assert.ok(src.includes('placeMenu(x, y);'), 'called from openAt with the anchor');
   // Every submenu parent (incl. a late-built Assistant) goes through one wiring path.
   assert.ok(src.includes('const wireSubmenu = (item, sub) => {'));
-  assert.ok(src.includes('if (item && sub) wireSubmenu(item, sub);'), 'the built-later Assistant is wired like the rest');
+  assert.ok(src.includes('if (item && sub) host.wireSubmenu(item, sub);'), 'the built-later Assistant is wired like the rest');
 });
 
 test('flyouts survive the menu moving under a stationary cursor', () => {
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   // 1. A flyout placed while the entry pop still holds a transform anchors to the MENU
   //    (transformed ancestor = containing block for position:fixed) — finish the pop
   //    before measuring. animations.css documents the same hazard.
   assert.ok(src.includes('for (const a of menu.getAnimations?.() || []) a.finish();'), 'entry pop is settled before placing a flyout');
   assert.ok(src.indexOf('a.finish()') < src.indexOf("sub.style.left = '-9999px'"), 'settled BEFORE the measurement');
-  const anims = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const anims = ANIMATIONS_CSS;
   assert.ok(/#ctx-menu\.ctx-open \{[^}]*animation: menuPop[^}]*\}/.test(anims), 'the pop is still there…');
   assert.ok(!/#ctx-menu\.ctx-open \{[^}]*animation: menuPop[^;]*both/.test(anims), '…and still not `both`-filled');
   // 2. The pop moves items under a still cursor, which fires SYNTHETIC boundary events.
@@ -117,11 +121,11 @@ test('flyouts survive the menu moving under a stationary cursor', () => {
 });
 
 test('the menu pops out of the click point, and Escape (consumed) closes it', () => {
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   // placeMenu stamps transform-origin from the click point vs the PLACED (clamped) box.
   assert.ok(src.includes('menuPopOrigin(x, y, { left, top, width: mw, height: mh })'),
     'the origin is the click point relative to the clamped position');
-  const anims = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const anims = ANIMATIONS_CSS;
   assert.match(anims, /@keyframes menuPop \{ from \{ opacity: 0; transform: scale\(0\.62\); \} to \{ opacity: 1; transform: none; \} \}/,
     'the pop scales up from the origin');
   assert.match(anims, /prefers-reduced-motion: reduce\) \{\s*#ctx-menu\.ctx-open, \.chat-row-menu \{ animation: none; \}/,
@@ -142,7 +146,7 @@ test('assistantEnabled gates on the provider only', () => {
   }
   // A configured-but-unreachable provider still gets the entry (the failure shows
   // up in the reply, like the panel) — the gate never probes the endpoint.
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   assert.ok(src.includes('const on = assistantEnabled(loadLlmSettings());'), 'syncAssistant gates on the saved settings');
 });
 
@@ -175,18 +179,18 @@ test('plain mode rides the app-wide touch rule (utils.js), not a private query',
   assert.strictEqual(isTouchLike(null), false);
   assert.strictEqual(isTouchLike(() => { throw new Error('bad query'); }), false);
   // The menu consults the shared helper — no alias, no duplicate media string.
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   assert.ok(src.includes('const plain = isTouchLike();'));
   assert.ok(!src.includes('(max-width: 680px)'), 'no private copy of the breakpoint');
 });
 
 test('plain mode is applied per open and hands over to the chat panel', () => {
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   // Decided at open time (syncAssistant runs from openAt) and on resize while open.
   assert.ok(src.includes('const plain = isTouchLike();'));
   assert.ok(src.includes("item.dataset.noSub = plain ? '1' : '0';"));
   assert.ok(src.includes("item.classList.toggle('ctx-assist-plain', plain);"));
-  assert.ok(src.includes("window.addEventListener('resize', () => { if (menuIsOpen()) syncAssistant(); });"));
+  assert.ok(src.includes("onWindowResize(() => { if (host.menuIsOpen()) syncAssistant(); });"));
   // Hover can't open a flyout in plain mode; a click closes the menu and opens the panel.
   assert.ok(src.includes("if (item.dataset.noSub === '1') { closeActiveSub(); return; }"));
   assert.match(src, /if \(item\.dataset\.noSub === '1'\) \{[\s\S]{0,160}closeMenu\(\);[\s\S]{0,80}openChatPanel\(\);/);
@@ -194,7 +198,7 @@ test('plain mode is applied per open and hands over to the chat panel', () => {
   assert.ok(src.includes("if (typeof app?.chat?.open === 'function') app.chat.open();"));
   assert.ok(src.includes("document.getElementById('chat-btn')?.click();"));
   // CSS drops the caret and hard-blocks the flyout in plain mode.
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.ok(css.includes('.ctx-assist-plain .ctx-arrow { display: none; }'));
   assert.ok(css.includes('.ctx-assist-plain > .ctx-sub { display: none !important; }'));
 });
@@ -218,7 +222,7 @@ test('composer action row: send + a … menu holding attach · clear · settings
   assert.ok(html.includes('accept="image/*,video/*"') && html.includes('multiple'), 'the panel\'s picker filter');
   // Only send + the … trigger stay inline, both the same size (no bespoke ones).
   assert.strictEqual(html.split('ctx-assist-abtn').length - 1, 2, 'two identically-sized inline buttons');
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.ok(css.includes('.chat-abtn, .ctx-assist-abtn { width: 34px; height: 34px;'), 'the panel\'s 34px treatment, shared');
   // The flyout adds NO disabled treatment of its own: send inherits the app-wide
   // `button:disabled` styling, exactly like the panel's send does (verified identical
@@ -236,15 +240,15 @@ test('composer action row: send + a … menu holding attach · clear · settings
 });
 
 test('attach queues into the shared controller; the gear opens the one settings modal', () => {
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   // The picker wiring is the SHARED composer helper (chatView.js), fed by the shared
   // queueing helper on the SHARED controller, then both rows repaint.
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   assert.ok(view.includes("attachBtn.addEventListener('click', () => attachInput.click());"), 'picker wiring lives in the shared composer');
   assert.ok(src.includes('wireChatComposer({ input, sendBtn, attachBtn, attachInput }'), 'the flyout wires through it');
   assert.match(src, /await queueAttachments\(sharedChatController\(app\),\s*files,/);
   assert.ok(src.includes('notifyAttachmentsChanged();'), 'the panel row repaints too');
-  assert.ok(src.includes('window.addEventListener(CHAT_ATTACHMENTS_EVENT, renderAttachments);'), 'and this one listens back');
+  assert.ok(src.includes('subscribe(CHAT_ATTACHMENTS_EVENT, renderAttachments);'), 'and this one listens back');
   assert.ok(view.includes('attachBtn.disabled = sending || attachFull;'), 'attach pauses mid-turn (and at the queue cap) — the shared control sync');
   // Gear → its own rect is captured (this popup is about to hide it) and handed to
   // the ONE settings modal directly, so it flies from THIS gear, not the panel's.
@@ -315,7 +319,7 @@ test('BOTH surfaces ship the SAME suggestion chips, from one list', () => {
   // Both templates interpolate the shared helper — neither hand-rolls its own chips.
   for (const [name, src] of [
     ['panel', readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8')],
-    ['flyout', readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8')],
+    ['flyout', contextMenuSource()],
   ]) {
     assert.ok(src.includes('${chatSuggestionsHtml()}'), `${name} uses the shared chip markup`);
     assert.strictEqual(src.split('class="chat-suggest"').length - 1, 0, `${name} hand-rolls no chips`);
@@ -324,7 +328,7 @@ test('BOTH surfaces ship the SAME suggestion chips, from one list', () => {
 });
 
 test('renderChatLog OWNS the empty state: chips whenever the log is empty', () => {
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   // One rule, in the renderer: non-empty log ⇒ no chips; empty log ⇒ chips (rebuilt if
   // the block was already dropped — that is what brings them back after Clear), but
   // only AFTER the rows have finished leaving (restoreEmptyState).
@@ -334,7 +338,7 @@ test('renderChatLog OWNS the empty state: chips whenever the log is empty', () =
   // No per-surface restore hack left: neither surface passes its own empty-state node.
   for (const [name, src] of [
     ['panel', readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8')],
-    ['flyout', readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8')],
+    ['flyout', contextMenuSource()],
   ]) {
     assert.strictEqual(src.split('emptyState').length - 1, 0, `${name} no longer owns an empty state`);
     // Chips are delegated on the (stable) transcript, so a rebuilt block stays clickable.
@@ -489,15 +493,15 @@ test('a surface renders the history that already exists (not only live appends)'
   const src = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
   assert.ok(src.includes('paint();   // renders whatever the conversation already holds'),
     'the panel paints once at wire time, not only on change');
-  const ctx = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
-  assert.ok(ctx.includes('onChatLog(paint);') && ctx.includes('      paint();'), 'and so does the flyout');
+  const ctx = contextMenuSource();
+  assert.ok(ctx.includes('onChatLog(paint);') && ctx.includes('\n  paint();'), 'and so does the flyout');
   resetChatLog();
   assert.strictEqual(painted.length, 0, 'no spurious notifications from reading');
 });
 
 test('both send loops run the SAME shared logged-turn frame', () => {
   const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
-  const menu = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const menu = contextMenuSource();
   for (const [name, src] of [['panel', panel], ['flyout', menu]]) {
     assert.ok(src.includes('await runLoggedChatTurn('), `${name} runs the shared logged-turn frame`);
     assert.ok(src.includes('renderChatLog('), `${name} renders the log, never its own private DOM`);
@@ -528,7 +532,7 @@ test('a dropped image URL is fetched into an attachment, not silently dropped', 
   // The fetch itself is the canvas's, shared rather than re-implemented.
   const drag = readFileSync(new URL('../js/core/dragImageUrl.js', import.meta.url), 'utf8');
   assert.match(drag, /export const fetchDraggedMediaFile = async \(url, \{ accept = \/\^image\\\/\/ \} = \{\}\)/);
-  const binder = readFileSync(new URL('../js/core/controlsBinder.js', import.meta.url), 'utf8');
+  const binder = readFileSync(new URL('../js/ui/bindings/dropPaste.js', import.meta.url), 'utf8');
   assert.ok(binder.includes('const fetchUrlToFile = (url) => fetchDraggedMediaFile(url);'),
     'the canvas drop uses the same helper (no second copy)');
 });
@@ -551,13 +555,13 @@ test('the composer ACTS on a drop; the panel SWALLOWS one (never the canvas)', (
 });
 
 test('the attachment chip is a thumbnail, a name and a remove — nothing else', () => {
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   assert.ok(view.includes("thumb.className = 'chat-attach-thumb';"), 'the queued picture is shown');
   assert.ok(view.includes('wireThumbPreview(thumb, label);'), 'and magnifies on hover');
   assert.ok(view.includes('name.dataset.title = label;'), 'the ellipsised name keeps the full one on the tooltip');
   assert.ok(view.includes('chip.append(name, rm);'), 'name + remove, no analyze/working pill');
   assert.ok(!view.includes('chat-attach-use'), 'the analyze ↔ working toggle is gone from the chip');
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.match(css, /\.chat-attach-thumb \{[^}]*object-fit: cover/);
   assert.match(css, /\.chat-attach-name \{[^}]*text-overflow: ellipsis/);
 });
@@ -579,14 +583,14 @@ test('a fetched data: URL gets a readable filename, not its base64 payload', () 
 });
 
 test('hovering a small attachment thumbnail shows it large', () => {
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   assert.ok(view.includes('export const wireThumbPreview = (img, caption = '), 'the preview helper exists');
   assert.ok(view.includes("wireThumbPreview(img, a.kind === 'video' ? `${a.name} (first frame)` : a.name);"),
     'and every transcript thumbnail is wired to it');
   assert.ok(view.includes("cap.textContent = caption;"), 'the filename is text, never markup');
   // On the BODY: the panel clips its overflow, so an in-place popup would be cut off.
   assert.ok(view.includes('document.body.appendChild(box);'));
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.match(css, /\.chat-thumb-preview \{[^}]*position: fixed;/);
   assert.match(css, /\.chat-thumb-preview \{[^}]*pointer-events: none;/, 'it must not steal its own hover');
   // A GLANCE, not a lightbox: the same clamp the projects modal's row zoom uses.
@@ -620,7 +624,7 @@ test('the scatter mesh is budgeted by how many rows leave at once', () => {
 
 // ── Clearing: the rows leave FIRST, the empty state comes back after ──
 test('the empty state waits out the wipe instead of appearing under the falling rows', () => {
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   // The placeholder is never painted in the same tick as the removal…
   assert.match(view, /const restoreEmptyState = \(transcript, log, wiped\) => \{/);
   assert.ok(view.includes('setTimeout(paint, wipeDurationMs());'), 'it waits for the wipe to finish');
@@ -631,7 +635,7 @@ test('the empty state waits out the wipe instead of appearing under the falling 
   assert.ok(view.includes('if (transcript._emptyWaiting) return;'));
   // The wipe's true length is the SCATTER, not the row collapse: leaveThenRemove
   // resolves on LEAVE_MS while the particles keep falling for DISINTEGRATE_MS.
-  const motion = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const motion = motionSource();
   assert.match(motion, /export const wipeDurationMs = \(dustMs = 0\) => \{[\s\S]*Math\.max\(LEAVE_MS, DISINTEGRATE_MS\)/);
   // …and a caller on its OWN dust clock (a chat entry, a project row — ITEM_DUST_MS)
   // waits out THAT instead, or the placeholder lands under motes still falling.
@@ -679,7 +683,7 @@ test('the logged turn hangs the attachments on the user row, and §12.1 still pe
 });
 
 test('renderChatLog paints the attachments as the user\'s own strip, above their message', () => {
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   // Keyed like the result cards, so a repaint updates rows in place instead of
   // reloading every thumbnail…
   assert.ok(view.includes('const attachId = `${row.id}-attachments`;'));
@@ -687,13 +691,13 @@ test('renderChatLog paints the attachments as the user\'s own strip, above their
   // …and inserted BEFORE the message row (the images come with what was said).
   assert.ok(view.includes('el.before(strip);'), 'the strip precedes the message it belongs to');
   // The strip sits on the user's side — assistant-side would read as the model's.
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.match(css, /\.chat-attached \{[^}]*align-self: flex-end/);
   assert.match(css, /\.chat-attached-thumb \{[^}]*object-fit: cover/);
 });
 
 test('the drop target is the COMPOSER, cued by an animated icon over it', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const cue = /\.chat-drop-cue \{([^}]*)\}/.exec(css);
   assert.ok(cue, 'a drag over the composer paints a labelled overlay');
   assert.match(cue[1], /position: absolute;/);
@@ -704,7 +708,7 @@ test('the drop target is the COMPOSER, cued by an animated icon over it', () => 
   // Icon beside the label, and it animates (motion lives in animations.css).
   assert.ok(chatDropCueHtml().includes('chat-drop-cue-icon'));
   assert.match(chatDropCueHtml(), /Drop to attach/);
-  const anims = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const anims = ANIMATIONS_CSS;
   assert.match(anims, /\.chat-drop-cue-icon \{ animation: chat-drop-bob/);
   assert.match(anims, /@keyframes chat-drop-bob/);
   assert.match(anims, /prefers-reduced-motion: reduce\) \{\n    \.chat-drop-cue-icon \{ animation: none/);
@@ -743,7 +747,7 @@ test('a successful turn with warnings stays one NON-error assistant row', async 
   assert.ok(!assistantRow.error, 'a warning is not an error — the row must stay neutral');
   resetChatLog();
   // And the view applies the red style only off that flag — never off warnings.
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   assert.ok(view.includes("(row.error ? ' chat-msg-error' : '')"), 'chat-msg-error is gated on row.error alone');
 });
 
@@ -792,7 +796,7 @@ test('runChatTurn surfaces a rejected turn instead of throwing', async () => {
 
 // ── Styling: the section must theme with the menu and fit its width ──
 test('components.css sizes the assistant section for the menu in both themes', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const block = css.slice(css.indexOf('.ctx-assist {'), css.indexOf('/* Hotkey hint shown'));
   assert.ok(block.includes('user-select: text'), 'chat text is selectable inside the user-select:none menu');
   assert.ok(/max-width: calc\(100vw - 40px\)/.test(block), 'never wider than the viewport');
@@ -819,10 +823,10 @@ test('the flyout composer is resizable with the panel\'s slider handle', () => {
   assert.ok(iAttach < iSizer && iSizer < iRow, 'sizer strip above the input, below the chips');
   // No tooltip: a grab handle explains itself, and the panel's carries none either.
   assert.ok(!/id="ctx-assist-sizer"[^>]*title=/.test(html), 'the sizer needs no tooltip');
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   // Wired with the SAME helper as the panel; a drag re-places the FLYOUT only…
   assert.ok(src.includes("wireInputSizer(document.getElementById('ctx-assist-sizer'), input, {"));
-  assert.ok(src.includes('onDrag: () => { if (flyout.classList.contains(\'ctx-sub-visible\')) positionSub(item, flyout); },'),
+  assert.ok(src.includes('onDrag: () => { if (flyout.classList.contains(\'ctx-sub-visible\')) host.positionSub(item, flyout); },'),
     'the flyout re-places itself as the composer grows');
   assert.strictEqual(src.split('placeMenu').length - 1, 2, 'and the ROOT menu is still placed once per open');
   // …and the drag marks the surface engaged, so a moving flyout is never "left".
@@ -830,7 +834,7 @@ test('the flyout composer is resizable with the panel\'s slider handle', () => {
   const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
   assert.ok(panel.includes('wireInputSizer(inputSizer, input, { host });'), 'the panel uses the same helper');
   // Clamped by CSS (session-only: the drag writes an inline height, nothing persists).
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const inputRule = css.slice(css.indexOf('#ctx-assist-input {'), css.indexOf('}', css.indexOf('#ctx-assist-input {')));
   assert.ok(inputRule.includes('resize: none') && inputRule.includes('min-height: 44px'), 'no native grip; two-row floor');
   // A px cap, deliberately: a percentage max-height resolves against the content-sized
@@ -842,7 +846,7 @@ test('the flyout composer is resizable with the panel\'s slider handle', () => {
 
 // ── Menu-open guards (the behaviour that makes chatting in a menu possible) ──
 test('contextMenu.js keeps the menu open while chatting', () => {
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   // Scroll-close ignores scrolls that originate INSIDE the menu (the transcript).
   assert.match(src, /if \(e\.target && e\.target\.nodeType && menu\.contains\(e\.target\)\) return;/);
   // Inside clicks never reach the document mousedown close handler.
@@ -852,11 +856,11 @@ test('contextMenu.js keeps the menu open while chatting', () => {
   assert.ok(src.includes('if (assistantBusy()) return;'), 'assistant-caused scrolls are exempt');
   assert.match(src, /const assistantBusy = \(\) => assistSending \|\| Date\.now\(\) < assistBusyUntil;/);
   // The entry is (re)built and re-moded on open and when the provider changes.
-  assert.ok(src.includes('window.addEventListener(EVENTS.llmSettingsChanged, syncAssistant)'));
+  assert.ok(src.includes('subscribe(EVENTS.llmSettingsChanged, syncAssistant)'));
   assert.ok(src.includes('syncAssistant();\n      menu.style.left'), 'entry settled before the menu is measured');
   // Typing in the flyout (or a running turn) suppresses the hover-out close, but
   // hovering a SIBLING parent still closes it like any other flyout.
-  assert.ok(src.includes("flyout._keepOpen = () => assistSending || resizing || chatRowMenuOpen() || flyout.contains(document.activeElement);"),
+  assert.ok(src.includes("flyout._keepOpen = () => host.sending() || resizing || chatRowMenuOpen() || flyout.contains(document.activeElement);"),
     'typing, resizing the composer, an open row menu, or a running turn all count as engaged');
   assert.match(src, /const keepSubOpen = \(sub\) => !!sub\._keepOpen\?\.\(\);/);
   assert.ok(src.includes('if (keepSubOpen(sub)) return;'), 'hideSub honours the engaged flyout');
@@ -864,7 +868,7 @@ test('contextMenu.js keeps the menu open while chatting', () => {
   // else on top: the settings gear, the Configure-provider CTA in an error card, the
   // Reconnect CTA on an expired-session card, and the phone hand-over to the panel.
   // Chatting itself never closes it.
-  const assist = src.slice(src.indexOf('const wireAssistant ='), src.indexOf('const openChatPanel ='));
+  const assist = src.slice(src.indexOf('export const wireCtxAssistantChat ='));
   assert.strictEqual(assist.split('closeMenu').length - 1, 4,
     'gear + settings CTA + reconnect CTA + phone hand-over only');
 });
@@ -905,16 +909,15 @@ test('stopping a turn leaves a Retry with the original text', async () => {
 });
 
 test('every bare identifier contextMenu.js uses from other llm modules is imported', () => {
-  const src = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const src = contextMenuSource();
   // Regression: attachFull referenced MAX_ATTACHMENTS without importing it (runtime-only crash).
   assert.ok(src.includes("import { MAX_ATTACHMENTS } from '../llm/chatController.js';"),
     'MAX_ATTACHMENTS is imported where the attach-cap check uses it');
 });
 
 // ── The closed-chat balloon, built ONCE for every surface ───────────────────
-// The panel framed the outcome ("Assistant finished (2 images) — …") and offered a way
-// back; the context-menu flyout toasted a bare truncated reply with no framing and no
-// click action. Both now build the same thing.
+// The panel framed the outcome and offered a way back; the flyout toasted a bare
+// truncated reply with no framing and no click action. Both now build the same thing.
 test('closedTurnToast: one framing for both surfaces, and silence for an abort', async () => {
   const { closedTurnToast, CHAT_TOAST_CHARS, EMPTY_REPLY_TEXT } = await import('../js/llm/chatSession.js');
   assert.deepStrictEqual(closedTurnToast({ ok: true, entry: { reply: 'Cropped it.', results: [] } }),
@@ -939,7 +942,7 @@ test('closedTurnToast: one framing for both surfaces, and silence for an abort',
 
 test('both surfaces toast through the shared builder, each with a way back to the chat', () => {
   const panel = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
-  const menu = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
+  const menu = contextMenuSource();
   for (const [name, src] of [['panel', panel], ['flyout', menu]]) {
     assert.ok(src.includes('closedTurnToast('), `${name} builds its toast from the shared helper`);
     assert.ok(!/truncateForToast\(/.test(src), `${name} no longer frames its own`);
@@ -966,7 +969,7 @@ test('a turn landing on a closed chat toasts, and only WORK IN FLIGHT marks the 
   assert.ok(panel.includes('markChatBusy(!panelIsOpen());'));
   assert.ok(panel.includes('markChatBusy(false);'));
   // A pure pseudo-element dot: the button's box never moves.
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.ok(!css.includes('chat-unread'), 'and no unread rule is left in the stylesheet');
   const dot = css.slice(css.indexOf('#chat-btn.chat-working::before'), css.indexOf('/* On the accent-filled'));
   assert.match(dot, /position: absolute/);
@@ -975,9 +978,8 @@ test('a turn landing on a closed chat toasts, and only WORK IN FLIGHT marks the 
 });
 
 // ── The chat provider hits the same dead session ───────────────────────────
-// stencil-server posts to /llm/chat with the same bearer the projects list uses, so a
-// stale token 401s there too. It is not "the provider is unreachable" — the server is
-// answering; the session is over, and the cure is the same reconnect.
+// stencil-server posts to /llm/chat with the same bearer the projects list uses, so a stale
+// token 401s there too — not "unreachable": the session is over, and reconnect is the cure.
 test('an expired stencil-server session is named as such in the chat card', async () => {
   const { describeChatError } = await import('../js/llm/chatSession.js');
   const { LlmError } = await import('../js/llm/llmClient.js');
@@ -999,7 +1001,7 @@ test('an expired stencil-server session is named as such in the chat card', asyn
 });
 
 test('the expired card carries a Reconnect CTA instead of Configure provider', async () => {
-  const view = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const view = chatViewSource();
   // The row patch marks it, the renderer picks the CTA off that mark…
   const session = readFileSync(new URL('../js/llm/chatSession.js', import.meta.url), 'utf8');
   assert.match(session, /card: res\.kind === 'unreachable' \|\| res\.kind === 'expired'/);
@@ -1010,8 +1012,8 @@ test('the expired card carries a Reconnect CTA instead of Configure provider', a
   assert.ok(view.includes("if (!row.card || row.reconnect) el.querySelector('.chat-config-cta')?.remove();"));
   assert.ok(view.includes("if (!row.card || !row.reconnect) el.querySelector('.chat-reconnect-cta')?.remove();"));
   // Both surfaces route it to the Connections modal.
-  for (const f of ['../js/ui/chatPanel.js', '../js/ui/contextMenu.js']) {
-    const src = readFileSync(new URL(f, import.meta.url), 'utf8');
+  for (const [f, src] of [['chatPanel.js', readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8')],
+    ['contextMenu.js', contextMenuSource()]]) {
     assert.ok(/onReconnect: \(\) =>/.test(src), `${f} wires the hook`);
     assert.ok(src.includes("document.getElementById('connect-btn')?.click()"), `${f} opens Connections`);
   }

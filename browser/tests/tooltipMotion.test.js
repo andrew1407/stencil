@@ -15,9 +15,10 @@ import { readFileSync } from 'node:fs';
 
 import { parseCombo, eventCombo, comboMatchesEvent, dustOrigin, DUST_CURSOR_PX } from '../js/ui/controlTooltip.js';
 import { TIP_SHOW_DELAY_MS } from '../js/ui/motion.js';
+import { COMPONENTS_CSS } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const componentsCss = read('../css/components.css');
+const componentsCss = COMPONENTS_CSS;
 const tooltipJs = read('../js/ui/controlTooltip.js');
 
 // A keydown as the DOM reports it. `code` is the PHYSICAL key, which is the only side

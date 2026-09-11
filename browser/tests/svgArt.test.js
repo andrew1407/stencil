@@ -51,13 +51,13 @@ test('%1 is the only placeholder, and it is the accent-stroked panel outline', (
 // The extension paints the same mark from a pre-paint CLASSIC script, which cannot import
 // JSON — so its copy is string concatenation in the source. Compare the drawing, not the
 // source text: what must never drift is the art.
-test('the extension paints the same favicon (src/lib/accent.js)', () => {
-  const src = read('../extension/src/lib/accent.js');
+test('the extension paints the same favicon (src/lib/prefs.js)', () => {
+  const src = read('../extension/src/lib/prefs.js');
   const body = src.slice(src.indexOf('var faviconSvg ='), src.indexOf('var applyFavicon'));
   const copy = [...body.matchAll(/'([^']*)'/g)].map((m) => m[1]).join('');
   assert.ok(copy.includes('<svg'), 'failed to read the extension copy');
   assert.deepEqual(elements(copy), elements(ART.favicon.replace('%1', '')),
-    'extension/src/lib/accent.js faviconSvg drifted from config/svgArt.json');
+    'extension/src/lib/prefs.js faviconSvg drifted from config/svgArt.json');
 });
 
 test('the draw-mode pair is the canonical line/rect pair, x1.5 smaller', () => {

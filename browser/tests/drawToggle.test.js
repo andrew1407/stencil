@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { installDom, createStubElement, createStubDocument } from './helpers/dom.js';
 import { swapContent, pinWidestFace, SWAP_CLASS, SWAP_GHOST_CLASS, SWAP_MS } from '../js/ui/motion.js';
+import { ANIMATIONS_CSS } from './helpers/css.js';
 
 // The two sync methods are instance methods that only touch the DOM + hotkeys, so they are
 // driven via `.call(mock)` on a stub document (the drawingApp-launch.test.js convention).
@@ -24,7 +25,7 @@ const { DrawingApp } = await import('../js/core/drawingApp.js');
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const layoutCss = read('../css/layout.css');
-const animCss = read('../css/animations.css');
+const animCss = ANIMATIONS_CSS;
 
 // Every rule block in a sheet whose SELECTOR mentions `needle`.
 const blocksFor = (css, needle) => [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)]
@@ -150,12 +151,12 @@ test('a face swap never changes the button’s width', () => {
 });
 
 test('both Draw-group toggles pin themselves from their own two faces', () => {
-  const src = read('../js/core/drawingApp.js');
+  const src = read('../js/ui/drawToggleUI.js');
   for (const [sync, faces] of [
     ['syncDrawToggleUI', /pinWidestFace\(btn, \[face\(false\), face\(true\)\]\);/],
     ['syncDrawModeUI', /pinWidestFace\(btn, \[face\(false\), face\(true\)\]\);/],
   ]) {
-    const body = src.slice(src.indexOf(`${sync}()`), src.indexOf(`${sync}()`) + 1200);
+    const body = src.slice(src.indexOf(`${sync} = (app)`), src.indexOf(`${sync} = (app)`) + 1200);
     assert.match(body, faces, `${sync} pins from BOTH faces, not the one on show`);
     assert.ok(body.indexOf('pinWidestFace') < body.indexOf('swapContent'),
       `${sync} pins the box before the face moves into it`);
@@ -392,8 +393,7 @@ test('updateButtons seeds BOTH faces, so the session’s first Line↔Rect switc
 });
 
 test('the sync methods write the face through the shared swap, not innerHTML (source pin)', () => {
-  const src = read('../js/core/drawingApp.js');
-  const body = src.slice(src.indexOf('syncDrawToggleUI() {'), src.indexOf('stopDrawingMode() {'));
+  const body = read('../js/ui/drawToggleUI.js');
   assert.ok(!/btn\.innerHTML\s*=/.test(body),
     'a raw innerHTML write cannot animate — that is what the green-button bug fix replaced');
   assert.equal((body.match(/swapContent\(/g) || []).length, 2, 'both toggles share one transition');
@@ -465,7 +465,7 @@ test('the rect tool starts its sweep on the press, turning drawing on by itself'
     assert.ok(branch.indexOf('startDrawingMode') < branch.indexOf('isRectDrawDragging = true'),
         'drawing goes on before the band starts');
     // The desktop press does the same, so the two tools behave alike.
-    const cpp = readFileSync(new URL('../../desktop/src/canvas/canvasWidget.cpp', import.meta.url), 'utf8');
+    const cpp = readFileSync(new URL('../../desktop/src/canvas/canvasDrawClick.cpp', import.meta.url), 'utf8');
     const dbranch = cpp.slice(cpp.indexOf('// rect-draw press'), cpp.indexOf('// when not drawing, a left-click'));
     assert.match(dbranch, /if \(drawMode_ == DrawMode::Rect && mods == Qt::NoModifier\)/);
     assert.match(dbranch, /if \(!isDrawing_\) startDrawingMode\(\);/);
