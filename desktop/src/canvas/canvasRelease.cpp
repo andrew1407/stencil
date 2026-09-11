@@ -1,7 +1,7 @@
 #include "canvasWidget.hpp"
 #include "canvasPaintCache.hpp"
 #include "canvasWidget.hpp"
-#include "geometry.hpp"
+#include "hitTest.hpp"
 
 #include <QMouseEvent>
 #include <QNativeGestureEvent>

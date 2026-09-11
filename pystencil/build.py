@@ -35,7 +35,8 @@ NATIVE_DIR = _HERE / "pystencil" / "_native"
 # role wasmApi.cpp plays for the browser. CMake lists it separately for the test exe.)
 # ──────────────────────────────────────────────────────────────────────────────
 STENCIL_CORE_SOURCES = [
-    "geometry/geometry.cpp",
+    "geometry/pointMath.cpp",
+    "geometry/hitTest.cpp",
     "geometry/cropGeometry.cpp",
     "geometry/imageOps.cpp",
     "geometry/rasterize.cpp",

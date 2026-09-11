@@ -1,6 +1,6 @@
 #include "canvasWidget.hpp"
 #include "canvasWidget.hpp"
-#include "geometry.hpp"
+#include "hitTest.hpp"
 
 // A click while drawing: closing the shape, or adding the next point.
 

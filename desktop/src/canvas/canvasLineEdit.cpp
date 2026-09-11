@@ -1,6 +1,6 @@
 #include "canvasWidget.hpp"
 #include "canvasWidget.hpp"
-#include "geometry.hpp"
+#include "hitTest.hpp"
 
 // Editing the selected line, and the hover cache the panels read.
 

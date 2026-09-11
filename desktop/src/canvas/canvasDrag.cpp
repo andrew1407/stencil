@@ -1,6 +1,6 @@
 #include "canvasWidget.hpp"
 #include "canvasWidget.hpp"
-#include "geometry.hpp"
+#include "hitTest.hpp"
 
 // The drags a press can begin: Alt-drag, pull-out, zoom rect, Ctrl-click.
 

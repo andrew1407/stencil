@@ -26,7 +26,6 @@
 #include "incognitoOverlay.hpp"
 #include "projectDragZones.hpp"
 #include "cropGeometry.hpp"
-#include "geometry.hpp"
 #include "imageFilter.hpp"
 #include "pageMetrics.hpp"
 #include "cropDialog.hpp"

@@ -1,6 +1,7 @@
 #include "canvasWidget.hpp"
 #include "canvasWidget.hpp"
-#include "geometry.hpp"
+#include "hitTest.hpp"
+#include "pointMath.hpp"
 
 // Transforming a selection, and growing a line a point at a time.
 

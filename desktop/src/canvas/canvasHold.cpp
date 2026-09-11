@@ -1,6 +1,6 @@
 #include "canvasWidget.hpp"
 #include "canvasWidget.hpp"
-#include "geometry.hpp"
+#include "hitTest.hpp"
 
 // Hold-to-draw: the delay, the drop and the anchor it continues from.
 

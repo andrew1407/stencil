@@ -1,6 +1,6 @@
 #include "canvasWidget.hpp"
 #include "canvasWidget.hpp"
-#include "geometry.hpp"
+#include "hitTest.hpp"
 #include "../support/motionPrefs.hpp"
 
 #include <QCursor>

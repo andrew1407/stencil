@@ -4,7 +4,8 @@ const std = @import("std");
 // the CMake static library, so the CLI stays a self-contained `zig build`). KEEP IN
 // SYNC with STENCIL_CORE_SOURCES in ../core/CMakeLists.txt.
 const core_sources = [_][]const u8{
-    "geometry/geometry.cpp",
+    "geometry/pointMath.cpp",
+    "geometry/hitTest.cpp",
     "geometry/cropGeometry.cpp",
     "geometry/imageOps.cpp",
     "geometry/rasterize.cpp",

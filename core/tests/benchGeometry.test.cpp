@@ -3,7 +3,7 @@
 
 #include "benchSupport.hpp"
 #include "colorNames.hpp"
-#include "geometry.hpp"
+#include "hitTest.hpp"
 #include "models.hpp"
 #include "rasterize.hpp"
 

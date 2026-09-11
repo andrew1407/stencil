@@ -1,10 +1,8 @@
-// WebAssembly API surface for the shared Stencil core (S15).
+// WebAssembly API surface for the shared Stencil core.
 //
-// Thin extern "C" wrappers over the GUI-free core logic so the browser app can
-// replace its JS engines (formulaEngine.js, the geometry parts of utils.js, and
-// the page-calc parts of drawingApp.js) with this compiled core. STL-only — no
-// Qt, never linked into the desktop binary (see CMakeLists EMSCRIPTEN branch).
-// See desktop/WASM.md for the build + browser-wiring instructions.
+// Thin extern "C" wrappers over the GUI-free core, so the browser runs the
+// compiled core in place of its JS fallbacks. STL-only, never linked into the
+// desktop binary (CMakeLists EMSCRIPTEN branch). Wiring: core/WASM.md.
 //
 // extern "C" (not embind) was chosen to keep the surface minimal and ABI-stable:
 // every export is a plain C function over doubles / C strings, which Emscripten
@@ -14,9 +12,10 @@
 #include "cropGeometry.hpp"
 #include "durationParser.hpp"
 #include "formulaParser.hpp"
-#include "geometry.hpp"
+#include "hitTest.hpp"
 #include "imageFilter.hpp"
 #include "pageMetrics.hpp"
+#include "pointMath.hpp"
 #include "zoomPan.hpp"
 #include <cstdint>
 #include <vector>

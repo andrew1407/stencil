@@ -5,7 +5,7 @@
 #include "planExecutor.hpp"
 #include "canvasTooltip.hpp"
 #include "canvasWidget.hpp"
-#include "geometry.hpp"
+#include "pointMath.hpp"
 #include "selectionPanel.hpp"
 #include "selectedLineBar.hpp"
 

@@ -30,7 +30,8 @@ endif()
 # so the static library, the WebAssembly target, and the Zig CLI compile exactly the same
 # files. Keep this list in sync with cli/build.zig, which recompiles these directly.
 set(STENCIL_CORE_SOURCES
-  geometry/geometry.cpp
+  geometry/pointMath.cpp
+  geometry/hitTest.cpp
   geometry/cropGeometry.cpp
   geometry/imageOps.cpp
   geometry/rasterize.cpp
@@ -92,7 +93,8 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
   enable_testing()
   add_executable(stencil_tests
     tests/testMain.cpp
-    tests/geometry.test.cpp
+    tests/pointMath.test.cpp
+    tests/hitTest.test.cpp
     tests/holdDraw.test.cpp
     tests/color.test.cpp
     tests/pageMetrics.test.cpp
