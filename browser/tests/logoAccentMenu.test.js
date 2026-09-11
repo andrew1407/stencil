@@ -580,5 +580,5 @@ test('an accent change announced while the menu shows moves the ✓; a closed me
   const src = readFileSync(new URL('../js/core/accentController.js', import.meta.url), 'utf8');
   assert.match(src, /setAccent\(key, originEl = null\) \{[\s\S]*?this\.announce\(next\);/);
   assert.match(src, /this\.announce\(norm\);/);
-  assert.match(src, /new CustomEvent\('stencil:accent-changed', \{ detail: value \}\)/);
+  assert.match(src, /new CustomEvent\(EVENTS\.accentChanged, \{ detail: value \}\)/);
 });

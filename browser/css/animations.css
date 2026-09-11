@@ -76,8 +76,9 @@ button:not(:disabled):active {
 }
 /* Primary action buttons get a faint sheen sweep on hover. Scoped to the
    accent-coloured controls/toolbar buttons so icon/ghost buttons (theme toggle,
-   settings gear, close ✕) stay flat. */
-.controls button:not(#toggle-controls):not(#incognito-toggle):not(#fullscreen-toggle):not(:disabled) {
+   settings gear, close ✕) stay flat — and #blank-color-btn, a flat info-coloured chip
+   that paints its own ground (layout.css), carries no sheen to sweep. */
+.controls button:not(#toggle-controls):not(#incognito-toggle):not(#fullscreen-toggle):not(#blank-color-btn):not(:disabled) {
     background-image: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.22) 50%, transparent 70%);
     background-size: 220% 100%;
     background-repeat: no-repeat;

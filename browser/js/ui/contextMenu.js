@@ -21,6 +21,7 @@ import { menuPopOrigin, surfaceIn, surfaceOut, settleSurface, motionReduced, rev
 import { setChecked, swapCheckGlyph } from './controlSwap.js';
 import { wireAltPreview, hideExportPreview, clearAltPreviewHover } from './exportPreview.js';
 import { keysHtml } from './tipContent.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
 import { EXPORT_VARIANTS, EXPORT_VARIANT_LABELS, EXPORT_VARIANT_ICONS,
          exportVariantState } from './exportVariants.js';
 // ── Component: custom right-click context menu ──────────────────
@@ -201,11 +202,11 @@ export class StencilContextMenu extends StencilElement {
                     <div style="margin-top:4px;display:flex;flex-direction:column;gap:5px;">
                         <div style="display:flex;align-items:center;gap:6px;">
                             <label style="font-size:12px;color:var(--text-muted);min-width:36px;font-weight:normal;">x(x)=</label>
-                            <input type="text" id="ctx-formula-x" placeholder="e.g. x + 9" style="width:140px;font-family:monospace;font-size:12px;padding:3px 6px;border:1px solid var(--border-main);border-radius:4px;background:var(--input-bg);color:var(--input-text);">
+                            <input type="text" id="ctx-formula-x" class="ctx-formula-input" placeholder="e.g. x + 9">
                         </div>
                         <div style="display:flex;align-items:center;gap:6px;">
                             <label style="font-size:12px;color:var(--text-muted);min-width:36px;font-weight:normal;">y(y)=</label>
-                            <input type="text" id="ctx-formula-y" placeholder="e.g. (y-7)*4" style="width:140px;font-family:monospace;font-size:12px;padding:3px 6px;border:1px solid var(--border-main);border-radius:4px;background:var(--input-bg);color:var(--input-text);">
+                            <input type="text" id="ctx-formula-y" class="ctx-formula-input" placeholder="e.g. (y-7)*4">
                         </div>
                         <div id="ctx-formula-error" style="font-size:11px;color:var(--danger);display:none;align-items:center;gap:5px;">${icon('alert', { size: 13 })} Invalid formula</div>
                     </div>
@@ -1287,9 +1288,8 @@ export class StencilContextMenu extends StencilElement {
         if (item && sub) wireSubmenu(item, sub);
       }
       if (!item) return;
-      // Built once, then only hidden — so the menu session's transcript survives a
-      // provider switch (and the wiring is never duplicated). It owns no separator,
-      // so hiding it leaves the menu's original grouping exactly as it was.
+      // Built once, then only hidden — the menu session's transcript survives a provider
+      // switch, and it owns no separator, so hiding it leaves the grouping as it was.
       item.style.display = on ? '' : 'none';
       if (on && !assistWired) { assistWired = true; wireAssistant(); }
       // Plain (no flyout) on phones and coarse pointers: no caret, click opens the
@@ -1301,7 +1301,7 @@ export class StencilContextMenu extends StencilElement {
         closeAllSubs();   // a resize while open collapses the flyout instead of stranding it
       }
     };
-    window.addEventListener('stencil:llm-settings-changed', syncAssistant);
+    window.addEventListener(EVENTS.llmSettingsChanged, syncAssistant);
     // A resize WHILE the menu is open re-evaluates the mode (and drops a flyout that
     // no longer fits) — the next open re-evaluates anyway.
     window.addEventListener('resize', () => { if (menuIsOpen()) syncAssistant(); });

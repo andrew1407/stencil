@@ -3,6 +3,8 @@
 // Model output is DATA — every string lands via textContent, never innerHTML. The
 // context menu scopes these with .ctx-assist; structure and affordances are identical.
 import { icon } from './icons.js';
+import MEDIA_TYPES from '../config/mediaTypes.json' with { type: 'json' };
+import UI_STRINGS from '../config/uiStrings.json' with { type: 'json' };
 import { escapeHtml } from './base.js';
 import { notify } from '../utils.js';
 import { sanitizeLabel, askAnswerText } from '../llm/opPlan.js';
@@ -34,16 +36,10 @@ const ATTACH_SETTLE_STEP_MS = 120;
 const ATTACH_SETTLE_TRIES = 12;
 
 // ── The empty state: ONE set of suggestion chips for every chat surface ─────
-// Clicking a chip prefills that surface's input (each wires a delegated listener on
-// its transcript, which survives the re-renders below). The list lives here so the
-// panel and the context-menu flyout can never drift apart. One string per chip: what's
-// written on the button is exactly what lands in the input — no separate longer prompt.
-export const CHAT_SUGGESTIONS = [
-  { prompt: 'Make it sepia', label: 'Make it sepia' },
-  { prompt: '3 variants: rotated · tinted · cropped', label: '3 variants: rotated · tinted · cropped' },
-  { prompt: 'Extract the lines from this image', label: 'Extract the lines from this image' },
-  { prompt: 'Crop 10% off every edge, rotate right', label: 'Crop 10% off every edge, rotate right' },
-];
+// Clicking a chip prefills that surface's input, so the panel and the context-menu flyout
+// can never drift apart. One string per chip (config/uiStrings.json): what's written on
+// the button is exactly what lands in the input — no separate longer prompt.
+export const CHAT_SUGGESTIONS = UI_STRINGS.chat.suggestions.map((s) => ({ prompt: s, label: s }));
 // The chips as markup, for the two static templates (so the first paint already has
 // them, before any JS runs).
 export const chatSuggestionsHtml = () => CHAT_SUGGESTIONS
@@ -89,10 +85,8 @@ export const chatEmptyState = () => {
 // controls stay in the DOM inside the menu, so existing ids and listeners keep working.
 // The send button's tooltips: one per face. `·` reads as bullets (tipContent.js); no
 // "(Enter)" keycap any more — the Enter convention lives in the textarea placeholder.
-export const SEND_TITLE = 'Send · Double-click or hold for voice input';
-export const SEND_TITLE_PLAIN = 'Send';
-export const VOICE_TITLE_LISTENING = 'Listening · Say “send” to send, a pause stops · Click or Escape to pause · Double-click or hold to type';
-export const VOICE_TITLE_PAUSED = 'Voice input paused · Click to listen · Double-click or hold to type';
+export const { sendTitle: SEND_TITLE, sendTitlePlain: SEND_TITLE_PLAIN,
+  voiceTitleListening: VOICE_TITLE_LISTENING, voiceTitlePaused: VOICE_TITLE_PAUSED } = UI_STRINGS.chat;
 
 export const chatComposerActionsHtml = ({ prefix, actionsClass, gearClass, trailingHtml = '' }) => `<span class="${actionsClass}">
                 <button id="${prefix}-send" disabled class="btn-icon ${prefix}-abtn" data-title="${SEND_TITLE}">${icon('send', { size: 14 })}</button>
@@ -106,7 +100,7 @@ export const chatComposerActionsHtml = ({ prefix, actionsClass, gearClass, trail
                         <button id="${prefix}-settings-btn" class="chat-more-item" aria-label="Assistant settings — provider &amp; model">${icon('gear', { size: 14 })}<span>Settings</span></button>
                     </span>
                 </span>
-                <input type="file" id="${prefix}-attach-input" accept="image/*,video/*" multiple style="display:none;">${trailingHtml}
+                <input type="file" id="${prefix}-attach-input" accept="${MEDIA_TYPES.accept.imageOrVideo}" multiple style="display:none;">${trailingHtml}
             </span>`;
 
 // The "…" the user last opened, so a window raised from inside it knows which composer
@@ -928,6 +922,7 @@ export const chatAskCard = (ask, { onSubmit, previews = [] } = {}) => {
 // the other: whoever mutates attachments fires this. The name lives with the
 // controller (chatController.js), which also fires it when a send drains the queue.
 import { CHAT_ATTACHMENTS_EVENT } from '../llm/chatController.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
 export { CHAT_ATTACHMENTS_EVENT };
 export const notifyAttachmentsChanged = () => window.dispatchEvent(new Event(CHAT_ATTACHMENTS_EVENT));
 
@@ -1112,7 +1107,7 @@ const closeChatRowMenu = () => { rowMenuClose?.(); };
 // The jump pills stand down while ANY chat popup is up. One event on both edges; a
 // listener re-reads chatPopupOpen() rather than tracking its own state, so nothing can
 // latch. Covers the row menu (body-level) and every composer "…" menu (in-panel).
-export const CHAT_POPUP_EVENT = 'stencil:chat-popup';
+export const CHAT_POPUP_EVENT = EVENTS.chatPopup;
 const openComposerMenus = new Set();
 export const chatPopupOpen = () => !!rowMenuEl || openComposerMenus.size > 0;
 const announcePopup = () => {

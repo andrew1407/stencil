@@ -10,6 +10,7 @@ import { leaveThenRemove, materialize, createListHold, emptyStateVisible,
   createFilterAnimator, revealControls, revealBar, CONN_DUST_MS, rowDustGrid, rowLeaveDust,
   wipeDurationMs } from './motion.js';
 import { canRefreshList } from './projectsModal.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
 
 // Three-way credential filter over the connections list: all | admin | non-admin.
 // An ADMIN connection is one whose stored credential can mint session tokens.
@@ -103,8 +104,7 @@ export class StencilConnectModal extends StencilElement {
     const reconnectBtn = $('connect-reconnect');
     const list = $('connect-list');
     // Read app.connections lazily on each use: the connection manager is created by
-    // createStencil() AFTER `stencil:ready` wires this modal, so capturing it once here
-    // would pin `undefined` and break Connect forever.
+    // createStencil() AFTER stencil:ready wires this modal — capturing it here pins undefined.
     const mgr = () => app.connections;
 
     // ── Multi-select state ──
@@ -575,7 +575,7 @@ export class StencilConnectModal extends StencilElement {
 
     syncExpiredBadge();
     // Keep the list live when connections change from the console facade or events.
-    window.addEventListener('stencil:connections-changed', () => {
+    window.addEventListener(EVENTS.connectionsChanged, () => {
       syncExpiredBadge();
       // Guard against a live event re-rendering the list mid-drag (destroying the
       // dragged element) or mid-wipe (projectsModal's canRefreshList gate; the hold's

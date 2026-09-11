@@ -4,6 +4,7 @@
 // messages so the projects UI knows tab count, peers, and when another tab changed projects.
 import { MSG } from '../worker/messages.js';
 import { Emitter } from './emitter.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
 
 const CHANNEL_NAME = 'stencil_projects';
 const READY_TIMEOUT_MS = 400;
@@ -68,10 +69,9 @@ export class TabsCoordinator {
   }
 
   projectsChanged(detail = {}) {
-    // Nudge the Stencil extension's in-page editor bridge (present only when opened by the
-    // extension) to re-read the registry and prune its opened-ledger. Detail-free — the bridge
-    // reads localStorage itself, so no project data crosses — and a no-op when no one listens.
-    try { window.dispatchEvent(new Event('stencil:registry-changed')); } catch { /* no DOM (e.g. worker) — the bridge nudge is best-effort */ }
+    // Nudge the Stencil extension's in-page editor bridge to re-read the registry and prune
+    // its opened-ledger. Detail-free — the bridge reads localStorage itself, so nothing crosses.
+    try { window.dispatchEvent(new Event(EVENTS.registryChanged)); } catch { /* no DOM (e.g. worker) — the bridge nudge is best-effort */ }
     if (this.#port) return this.#post({ type: MSG.PROJECTS_CHANGED, ...detail });
     if (this.#channel) this.#channel.postMessage({ type: MSG.PROJECTS_CHANGED, peerId: this.#peerId, ...detail });
   }

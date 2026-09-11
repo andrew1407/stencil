@@ -12,6 +12,7 @@ import { watchNumericInputs } from './ui/numericInput.js';
 import { installControlSwap } from './ui/controlSwap.js';
 import { installVoiceModes } from './llm/voiceModes.js';
 import { applyMotionAttr } from './ui/motionPrefs.js';
+import EVENTS from './config/events.json' with { type: 'json' };
 // ── Application entrypoint ──────────────────────────────────────
 // Loaded LAST (importing layout registers every custom element). On load: init the
 // shared C++ core (wasm), mount component hosts, construct the app, then dispatch
@@ -56,7 +57,7 @@ window.onload = async () => {
   installControlSwap();
   // The app instance is shared with every component via the stencil:ready
   // detail below — no window global needed.
-  document.dispatchEvent(new CustomEvent('stencil:ready', { detail: { app } }));
+  document.dispatchEvent(new CustomEvent(EVENTS.ready, { detail: { app } }));
   // Confirm before leaving an active editing session (image loaded or unsaved drawing) —
   // the browser shows its native "Leave site?" prompt. Mirrors the desktop quit dialog;
   // beforeunload is synchronous, so it can't use the in-app confirm() modal.

@@ -751,6 +751,31 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 /* …unless the row wrapped between its two sections (ui/toolbar.js syncWrappedSeparators):
    a hairline at the head of a row is a stray, not a divider. */
 .ctrl-sep.ctrl-sep-wrapped { display: none; }
+/* Blank-image fill chip (js/ui/toolbar.js; drawingApp.js sets `display` on a blank
+   project). A flat info-coloured control, not an accent action, so it also opts out of
+   the toolbar sheen — see the :not() list in animations.css. Descendant-of-.controls so
+   it outranks the shared `button` and narrow-viewport `.controls button` rules. */
+.controls .blank-color-btn {
+    display: none;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: var(--bg-info);
+    padding: 5px 9px;
+    border-radius: 4px;
+    border: 1px solid var(--border-main);
+    white-space: nowrap;
+    cursor: pointer;
+}
+.blank-color-swatch {
+    width: 30px;
+    height: 22px;
+    border-radius: 3px;
+    border: 1px solid var(--border-main);
+    display: inline-block;
+    flex: 0 0 auto;
+}
 
 /* ── Controls collapsible ── */
 .controls-wrapper { margin-bottom: 12px; }
@@ -845,6 +870,20 @@ input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border-main)
 /* Collapsed: the fold itself (grid-template-rows + visibility) lives in animations.css,
    so the toolbar animates away instead of vanishing between two frames. */
 
+/* The "?" chip beside the project name (js/ui/toolbar.js, which sets `display` to
+   reveal it once there is something for the bubble to say). */
+.hints-btn {
+    display: none;
+    flex: 0 0 auto;
+    position: relative;
+    cursor: default;
+    font-size: 12px;
+    color: var(--text-muted);
+    border: 1px solid var(--border-main);
+    border-radius: 12px;
+    padding: 2px 8px;
+    user-select: none;
+}
 /* hints popup on ? icon */
 .hints-popup {
     display: none;

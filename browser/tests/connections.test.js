@@ -916,7 +916,7 @@ test('the Servers button says a session needs signing in again — in its toolti
   // Runs at wire time AND on every connections change, and covers the fullscreen clone.
   assert.ok(src.includes("document.querySelectorAll('#fs-controls-panel #connect-btn')"));
   const at = src.indexOf('syncExpiredBadge();');
-  assert.ok(at > -1 && at < src.indexOf("window.addEventListener('stencil:connections-changed'"),
+  assert.ok(at > -1 && at < src.indexOf('window.addEventListener(EVENTS.connectionsChanged'),
     'the tooltip is correct before any event fires');
   // No corner badge on the icon (desktop parity: its toolbar wears none).
   assert.ok(!src.includes('conn-needs-auth'), 'no badge class is set on the button');

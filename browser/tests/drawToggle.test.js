@@ -405,7 +405,7 @@ test('the sync methods write the face through the shared swap, not innerHTML (so
 // only the shape joining them different. Before this they were different families: the
 // line carried endpoint dots, the rect was a bare outline with none.
 test('the Line and Rect glyphs are siblings, not two different families', async () => {
-  const { DRAW_MODE_ICON } = await import('../js/core/drawingApp.js');
+  const { DRAW_MODE_ICON } = await import('../js/ui/icons.js');
   const svgs = [DRAW_MODE_ICON.line, DRAW_MODE_ICON.rect];
   for (const [name, svg] of Object.entries(DRAW_MODE_ICON)) {
     assert.match(svg, /class="draw-mode-icon"/, `${name} keeps the class the swap targets`);
@@ -429,7 +429,7 @@ test('the Line and Rect glyphs are siblings, not two different families', async 
 // drawing on the shared 24-grid, scaled x1.5. The desktop paired a pencil with a solid
 // slab before it landed, which is exactly the drift this pins.
 test('the canonical line/rect pair is the inline pair, scaled onto the 24-grid', async () => {
-  const { DRAW_MODE_ICON } = await import('../js/core/drawingApp.js');
+  const { DRAW_MODE_ICON } = await import('../js/ui/icons.js');
   const ICONS = JSON.parse(readFileSync(new URL('../js/config/icons.json', import.meta.url), 'utf8'));
   // Every geometry number in the inline face, x1.5 (16-grid → 24-grid).
   const scaled = (svg, attrs) => attrs.map((a) => {

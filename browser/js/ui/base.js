@@ -1,6 +1,7 @@
 import { popoverPosition, wireModalOpenGestures } from './popover.js';
 import { surfaceIn, surfaceOut, settleSurface, sweepDust, SURFACE_OUT_MS, motionReduced } from './motion.js';
 import { isTypingTarget } from '../utils.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
 // ── Web Component base: light-DOM custom elements ───────────────
 // Each UI region owns its markup (static inner()) and behavior (wire(app)). Light
 // DOM keeps global-id wiring, global CSS, and fullscreen cloneNode working. wire()
@@ -21,7 +22,7 @@ export class StencilElement extends ElementBase {
     if (this.#wired) return;
     this.#wired = true;
     if (!this.firstElementChild && this.constructor.inner) this.innerHTML = this.constructor.inner();
-    document.addEventListener('stencil:ready', e => this.wire(e.detail.app), { once: true });
+    document.addEventListener(EVENTS.ready, e => this.wire(e.detail.app), { once: true });
   }
 
   // Overridden by subclasses that need behavior. `app` is the DrawingApp.

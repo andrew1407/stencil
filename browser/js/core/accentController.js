@@ -1,6 +1,7 @@
 import { icon } from '../ui/icons.js';
 import { themeSwap, originOf, originOfId } from '../ui/motion.js';
 import { ACCENT_STORAGE_KEY, DEFAULT_ACCENT, isAccent, applyAccentFavicon, applyFaviconHex, normalizeHex, accentHex, needsDarkGlyph } from './accents.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
 
 // ── Appearance mode ────────────────────────────────────────────────
 // Three states, like the desktop and the extension: 'system' follows the OS and is the
@@ -46,7 +47,7 @@ export class AccentController {
     if (resolveThemeMode(next) === painted) {
       localStorage.setItem(THEME_STORAGE_KEY, next);
       this.updateThemeIcon();
-      try { window.dispatchEvent(new CustomEvent('stencil:theme-changed', { detail: next })); } catch { /* no DOM */ }
+      try { window.dispatchEvent(new CustomEvent(EVENTS.themeChanged, { detail: next })); } catch { /* no DOM */ }
       return;
     }
     themeSwap(() => {
@@ -57,7 +58,7 @@ export class AccentController {
       this.updateThemeIcon();
       // Anything showing the MODE (the Appearance row in Default Visuals) has to hear it:
       // the toolbar's toggle moves the same setting from the other side.
-      try { window.dispatchEvent(new CustomEvent('stencil:theme-changed', { detail: next })); } catch { /* no DOM — best-effort UI nudge */ }
+      try { window.dispatchEvent(new CustomEvent(EVENTS.themeChanged, { detail: next })); } catch { /* no DOM — best-effort UI nudge */ }
     }, () => originOf(originEl) || themeOrigin());
   }
 
@@ -96,7 +97,7 @@ export class AccentController {
   // moved. The NEW value rides in `detail` — themeSwap writes the attribute a beat later,
   // so a listener reading app.accent at once would still see the old preset.
   announce(value) {
-    try { window.dispatchEvent(new CustomEvent('stencil:accent-changed', { detail: value })); } catch { /* no DOM — best-effort UI nudge */ }
+    try { window.dispatchEvent(new CustomEvent(EVENTS.accentChanged, { detail: value })); } catch { /* no DOM — best-effort UI nudge */ }
   }
 
   // Paint + persist the accent in THIS tab; returns the resolved key. Used by setAccent

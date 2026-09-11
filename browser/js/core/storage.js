@@ -346,8 +346,8 @@ export class Storage {
     if (!banner) {
       banner = document.createElement('div');
       banner.id = 'image-missing-banner';
-      banner.style.cssText = 'background:#fff3cd;border:2px solid #ffc107;border-radius:6px;padding:10px 16px;margin-bottom:12px;font-size:14px;color:#856404;display:flex;align-items:center;gap:10px;';
-      banner.innerHTML = '⚠️ <strong>Image too large to save in browser storage.</strong> Your drawing lines are saved. Please re-upload the same image after refreshing — your lines will reappear automatically. <button onclick="document.getElementById(\'imageUpload\').click();this.closest(\'div\').style.display=\'none\'" style="margin-left:auto;padding:5px 12px;background:#ffc107;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">Re-upload Image</button>';
+      banner.className = 'image-missing-banner';   // presentation: css/components.css
+      banner.innerHTML = '⚠️ <strong>Image too large to save in browser storage.</strong> Your drawing lines are saved. Please re-upload the same image after refreshing — your lines will reappear automatically. <button class="image-missing-reupload" onclick="document.getElementById(\'imageUpload\').click();this.closest(\'div\').style.display=\'none\'">Re-upload Image</button>';
       const selPanel = document.getElementById('selection-panel');
       selPanel.parentNode.insertBefore(banner, selPanel);
     }

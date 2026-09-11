@@ -6,24 +6,24 @@
 // can drive the controller with stubs.
 import { EDITOR_SYSTEM_PROMPT, LLM_SYSTEM_PROMPT, parseOpPlan, executeOpPlan, renderAskPreviews } from './opPlan.js';
 import { CONTINUATION_NOTE } from './chatStore.js';
-// §7: appended to a turn's system prompt when — and only when — that turn actually
-// attaches the working image's edge map.
-export const EDGE_MAP_SENTENCE = 'The second attached image is an edge-map render of the working image at the same pixel coordinates: use it to place outline points on real edges.';
+import PROMPT_ASSET from '../config/llm/systemPrompt.json' with { type: 'json' };
 import { isVideoFile } from '../core/videoFrame.js';
 import { core } from '../core/stencilCore.js';
 import { applyContourRGBA } from '../core/contourFilter.js';
 import { loadSavedServers } from '../net/connectionStore.js';
 import { scaledDataUrl } from '../utils.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
 
 export const HISTORY_LIMIT = 32;
 export const MAX_IMAGE_EDGE = 1568;
 // How many images ONE message may carry: replayed and paid for per turn (§7); past this
 // the queue is refused with a message rather than silently trimmed on the way out.
 export const MAX_ATTACHMENTS = 3;
-
-// Window-event name the chat UIs listen on to repaint the composer's attachment
-// chips. Lives here (DOM-free constant) so the session glue and the views share it.
-export const CHAT_ATTACHMENTS_EVENT = 'stencil:chat-attachments-changed';
+// §7: appended to a turn's system prompt when — and only when — that turn attaches the
+// working image's edge map. Verbatim from the shared prose asset every surface embeds.
+export const EDGE_MAP_SENTENCE = PROMPT_ASSET.edgeMapSentence;
+// Window-event the chat UIs listen on to repaint the composer's attachment chips.
+export const CHAT_ATTACHMENTS_EVENT = EVENTS.chatAttachmentsChanged;
 
 // §2.1 `save` with no name: the attachment the plan is working on names the project.
 // Empty means "no idea from here" — the surface falls back to the editor's own name.

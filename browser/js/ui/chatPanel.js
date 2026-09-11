@@ -13,6 +13,7 @@ import {
 import { rowsToMessages } from '../llm/chatStore.js';
 import { MAX_ATTACHMENTS } from '../llm/chatController.js';
 import { mediaFilesFromData, extractDraggedImageUrl, fetchDraggedMediaFile } from '../core/dragImageUrl.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
 import { surfaceIn, surfaceOut, settleSurface, dockAwayPoint, motionReduced, rectCenter,
          TIP_DUST_IN_MS, TIP_DUST_OUT_MS } from './motion.js';
 import {
@@ -389,7 +390,7 @@ export class StencilChatPanel extends StencilElement {
       }
     };
     // Re-probe when the settings modal persists a change (it fires this event).
-    window.addEventListener('stencil:llm-settings-changed', () => refreshStatus());
+    window.addEventListener(EVENTS.llmSettingsChanged, () => refreshStatus());
 
     // ── Attachments row (shared renderer — the context-menu composer paints the
     // very same queue, so both repaint on the shared change event) ──
@@ -632,7 +633,7 @@ export class StencilChatPanel extends StencilElement {
     if (typeof ResizeObserver !== 'undefined') new ResizeObserver(updateNotifyInset).observe(host);
     const announceLayout = () => {
       updateNotifyInset();
-      try { window.dispatchEvent(new Event('stencil:chat-layout-changed')); } catch { /* no DOM */ }
+      try { window.dispatchEvent(new Event(EVENTS.chatLayoutChanged)); } catch { /* no DOM */ }
     };
     const setDock = (mode) => {
       dock = mode;
@@ -829,10 +830,9 @@ export class StencilChatPanel extends StencilElement {
       host.addEventListener('mouseenter', () => gestures.boxEnter());
       host.addEventListener('mouseleave', () => gestures.boxLeave());
     }
-    // Entering or leaving fullscreen swaps which toolbar is on screen, stranding a
-    // compact popover on an icon that no longer exists — drop the popover shape. The
-    // freshly cloned toolbar also needs the open state stamped onto it (snapshot).
-    window.addEventListener('stencil:fullscreen-changed', () => {
+    // Entering or leaving fullscreen swaps which toolbar is on screen, stranding a compact
+    // popover — drop the popover shape and stamp the open state onto the fresh clone.
+    window.addEventListener(EVENTS.fullscreenChanged, () => {
       if (compactPopover) restoreFromCompact();
       syncFsCloneActive(panelIsOpen());
     });

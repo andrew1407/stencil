@@ -14,6 +14,7 @@ import {
 import { normalizeHex } from '../core/accents.js';
 import { normalizeUrl } from '../net/connectionManager.js';
 import { loadSavedServers } from '../net/connectionStore.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
 
 // ── Opening a project row: gesture → intent ─────────────────────────────────
 // MOUSE   click            → confirm, this tab      dblclick        → open now, this tab
@@ -1796,10 +1797,9 @@ export class StencilProjectsModal extends StencilElement {
       updateBatchBar();
     });
 
-    window.addEventListener('stencil:connections-changed', () => {
-      // A connect/disconnect or live server project-event invalidates the cached listing
-      // so the next render re-fetches it. Guard against a mid-drag or mid-removal
-      // re-render destroying the dragged/leaving row (mayRefresh).
+    window.addEventListener(EVENTS.connectionsChanged, () => {
+      // A connect/disconnect or live server project-event invalidates the cached listing, so
+      // the next render re-fetches it — never mid-drag or mid-removal (mayRefresh).
       invalidateRemotes();
       if (mayRefresh()) render();
     });

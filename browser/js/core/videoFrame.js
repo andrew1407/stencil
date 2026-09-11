@@ -1,20 +1,27 @@
 // Shared video-frame capture: decode a video and grab a still frame to an image.
 // Used by both `stencil.load(videoUrl)` and the open-image modal. Browser-only.
 import { scaledDataUrl } from '../utils.js';
+import MEDIA_TYPES from '../config/mediaTypes.json' with { type: 'json' };
+
+// The extensions each test matches come from config/mediaTypes.json (`surfaces.browser`),
+// where the desktop's and the cli's lists live too. The two below differ from each other
+// and from every other surface — deliberately recorded, see the asset's `drift` note.
+const { videoFile, videoUrl } = MEDIA_TYPES.surfaces.browser;
+const VIDEO_FILE_RE = new RegExp(`\\.(${videoFile.join('|')})$`, 'i');
+const VIDEO_URL_RE = new RegExp(`\\.(${videoUrl.join('|')})(\\?|#|$)`, 'i');
 
 // Is this File a video (by MIME, falling back to a common video extension)? Pure.
 export function isVideoFile(file) {
   if (!file) return false;
   if (typeof file.type === 'string' && file.type.startsWith('video/')) return true;
-  return /\.(mp4|webm|ogg|ogv|mov|m4v|mkv|avi)$/i.test(file.name || '');
+  return VIDEO_FILE_RE.test(file.name || '');
 }
 
 // Does this URL point at a video (by its path extension, tolerating a ?query / #hash)?
 // Pure — the open-image dialog uses it to decide whether a URL source needs a frame
 // picker (a URL carries no MIME up front, so extension is the only signal we have).
 export function isVideoUrl(url) {
-  return typeof url === 'string'
-    && /\.(mp4|mov|webm|mkv|avi|m4v|ogv|mpe?g)(\?|#|$)/i.test(url.trim());
+  return typeof url === 'string' && VIDEO_URL_RE.test(url.trim());
 }
 
 const VIDEO_STEP_TIMEOUT_MS = 8000;   // per load/seek step, matching the original single-frame budget

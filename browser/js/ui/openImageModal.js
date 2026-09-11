@@ -2,6 +2,7 @@ import { StencilElement, hostTag, define, wireModalShell, fillTargetSelect } fro
 import { wireModalOpenGestures } from './popover.js';
 import { notify } from '../utils.js';
 import constants from '../config/constants.json' with { type: 'json' };
+import MEDIA_TYPES from '../config/mediaTypes.json' with { type: 'json' };
 import { defaultBlankSizePx } from '../core/layout.js';
 import { icon } from './icons.js';
 import { isVideoFile, isVideoUrl, videoFileToImageFile, videoFrameDataUrl } from '../core/videoFrame.js';
@@ -10,9 +11,8 @@ const { PAGE_SIZES } = constants;
 
 // ── Component: unified "Open Image" dialog ──────────────────────
 // The SINGLE way to get an image into the editor: Local file / URL link / Blank tabs.
-// The blank shortcuts (idle canvas + projects footer) open it on the Blank tab.
-// The modal DOM is built once and reused for the app's lifetime, so onOpen MUST reset
-// every field — otherwise the previous open's input leaks into the next.
+// The blank shortcuts (idle canvas + projects footer) open it on the Blank tab. The DOM is
+// built once and reused, so onOpen MUST reset every field or the last open's input leaks in.
 export class StencilOpenImageModal extends StencilElement {
   static inner() {
     return `
@@ -31,7 +31,7 @@ export class StencilOpenImageModal extends StencilElement {
 
                 <!-- Tab: Local file -->
                 <div class="oi-panel" id="oi-panel-file">
-                    <div class="vs-row"><label>Choose</label><input type="file" id="open-image-file" accept="image/*,video/*"></div>
+                    <div class="vs-row"><label>Choose</label><input type="file" id="open-image-file" accept="${MEDIA_TYPES.accept.imageOrVideo}"></div>
                 </div>
 
                 <!-- Tab: URL link. Preview is explicit (button / Enter) after validation — not

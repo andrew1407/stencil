@@ -28,6 +28,8 @@ import {
   chatSide, setChatSide, applyChatSide, CHAT_SIDE_SWAPPED,
 } from '../ui/chatLayoutPrefs.js';
 import { closeOpenModal } from '../ui/base.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
+import UI_STRINGS from '../config/uiStrings.json' with { type: 'json' };
 
 // A layout argument may be an OBJECT or a raw JSON string — parse the latter so callers
 // can hand over clipboard/file text directly. A non-object (or bad JSON) throws, since
@@ -42,26 +44,10 @@ const toLayoutObject = (data) => {
 
 const str = (v) => (v == null ? '' : String(v));
 
-// The editor's windows, for stencil.openWindow(title) and the per-window openers. `title`
-// is the window's own heading (its <h2>); `aliases` are the other names people call it by;
-// the hotkey id and the key match too. `opener` is the toolbar/menu control the window
-// flies out of — its disabled state (and data-disabled-reason) gates the script route
-// exactly as it gates the click, so a window that can't open by hand can't open by script.
-export const WINDOWS = Object.freeze([
-  { key: 'projects', title: 'Projects', overlay: 'projects-modal-overlay', opener: 'projects-btn', hotkey: 'openProjects' },
-  { key: 'servers', title: 'Servers', aliases: ['connections', 'connect', 'connection'], overlay: 'connect-modal-overlay', opener: 'connect-btn', hotkey: 'openServers' },
-  { key: 'links', title: 'Image links', aliases: ['image links', 'links'], overlay: 'links-modal-overlay', opener: 'links-btn', hotkey: 'openLinks' },
-  { key: 'description', title: 'Project description', overlay: 'description-overlay', opener: 'description-btn', hotkey: 'openDescription' },
-  { key: 'keywords', title: 'Project keywords', overlay: 'keywords-overlay', opener: 'keywords-btn', hotkey: 'openKeywords' },
-  { key: 'assistant-settings', title: 'Assistant', aliases: ['assistant settings', 'ai assistant settings', 'ai settings', 'llm', 'llm settings'],
-    overlay: 'chat-settings-overlay', opener: 'chat-settings-btn', hotkey: 'openAssistantSettings' },
-  { key: 'shortcuts', title: 'Keyboard Shortcuts', aliases: ['hotkeys'], overlay: 'settings-modal-overlay', opener: 'settings-btn', hotkey: 'openHotkeys' },
-  { key: 'visuals', title: 'Visuals & Settings', aliases: ['visuals', 'settings'], overlay: 'visuals-modal-overlay', opener: 'visuals-btn', hotkey: 'openVisuals' },
-  { key: 'help', title: 'Controls & Shortcuts Info', aliases: ['help', 'info', 'controls'], overlay: 'info-modal-overlay', opener: 'info-btn', hotkey: 'openHelp' },
-  { key: 'open-image', title: 'Open Image', aliases: ['image', 'load image', 'open'], overlay: 'open-image-modal-overlay', opener: ['open-image-btn', 'load-image-btn'], hotkey: 'loadImage' },
-  { key: 'open-in', title: 'Open In…', aliases: ['open in'], overlay: 'open-in-modal-overlay', opener: 'open-in-btn', hotkey: 'openIn' },
-  { key: 'crop', title: 'Crop Image', aliases: ['crop'], overlay: 'crop-modal-overlay', opener: 'crop-image', hotkey: 'cropImage' },
-]);
+// The editor's windows, for stencil.openWindow(title) and the per-window openers — the
+// table is config/uiStrings.json (`rules.windows` describes the fields). An opener's
+// disabled state gates the script route exactly as it gates the click.
+export const WINDOWS = Object.freeze(UI_STRINGS.windows);
 // Loose title matching: case-insensitive, punctuation/whitespace-free, so 'Visuals',
 // 'visuals & settings', 'open-in' and 'Open In…' all land.
 const windowNameKey = (v) => str(v).toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -96,7 +82,7 @@ export const createStencil = (app) => {
         try { app.remoteSync?.onServerProjectEvent?.(change.message, change.connection); } catch { /* editor not ready */ }
       }
       try {
-        window.dispatchEvent(new Event('stencil:connections-changed'));
+        window.dispatchEvent(new Event(EVENTS.connectionsChanged));
       } catch { /* no DOM */ }
     },
   }));
@@ -338,7 +324,7 @@ export const createStencil = (app) => {
         app[appKey] = val;
         app.storage.save();
         // Refresh any open links modal immediately (save's broadcast is debounced ~400ms).
-        try { window.dispatchEvent(new Event('stencil:registry-changed')); } catch { /* no DOM */ }
+        try { window.dispatchEvent(new Event(EVENTS.registryChanged)); } catch { /* no DOM */ }
         return;
       }
       const proj = store().get(id);
@@ -649,7 +635,7 @@ export const createStencil = (app) => {
     if (opts.apiKey != null) next.apiKey = str(opts.apiKey);
     saveLlmSettings(next);
     // Same live-refresh signal the settings modal fires (panel re-probes status).
-    try { window.dispatchEvent(new Event('stencil:llm-settings-changed')); } catch { /* no DOM */ }
+    try { window.dispatchEvent(new Event(EVENTS.llmSettingsChanged)); } catch { /* no DOM */ }
     return next;
   };
 

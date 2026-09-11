@@ -3,8 +3,10 @@
 // pause ends an utterance, and which language the recognizer listens for. Persisted
 // under their own key so the §5 LLM settings blob stays exactly the contract's shape.
 // All localStorage access is guarded so importing this leaf in Node stays inert.
+import EVENTS from '../config/events.json' with { type: 'json' };
+
 const VOICE_SETTINGS_KEY = 'drawingApp_voiceSettings';
-export const VOICE_SETTINGS_EVENT = 'stencil:voice-settings-changed';
+export const VOICE_SETTINGS_EVENT = EVENTS.voiceSettingsChanged;
 
 export const SILENCE_MS_DEFAULT = 1000;
 export const SILENCE_MS_MIN = 500;

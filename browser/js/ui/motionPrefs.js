@@ -22,9 +22,11 @@
 // read is guarded: private/disabled storage throws, and the defaults are then correct.
 // The mode is also mirrored onto <html data-motion> for the CSS half (animations.css).
 
+import EVENTS from '../config/events.json' with { type: 'json' };
+
 export const MOTION_STORAGE_KEY = 'drawingApp_motion';
 // Fired on <window> after every change, so an open dialog can restate its controls.
-export const MOTION_EVENT = 'stencil:motion-changed';
+export const MOTION_EVENT = EVENTS.motionChanged;
 const MOTION_ATTR = 'data-motion';
 
 const MOTION_PARTICLES = 'particles';

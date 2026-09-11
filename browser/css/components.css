@@ -582,6 +582,19 @@ body.fullscreen-mode #fs-points-panel {
 #ctx-tint-row { display: none; padding: 5px 14px 7px; align-items: center; gap: 8px; }
 #ctx-tint-row.ctx-tint-visible { display: flex; }
 #ctx-tint-row label { font-size: 12px; color: var(--text-muted); min-width: 70px; font-weight: normal; }
+/* The x()/y() coordinate-formula fields. Scoped by the wrapper id so they keep the flat
+   field face inside a menu — the shared input[type=text] sheen/hover rules outrank a
+   bare class. */
+#ctx-formula-inputs .ctx-formula-input {
+    width: 140px;
+    font-family: monospace;
+    font-size: 12px;
+    padding: 3px 6px;
+    border: 1px solid var(--border-main);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--input-text);
+}
 
 /* ── Context-menu assistant: "Assistant ▸" and its chat FLYOUT ──
    An ordinary submenu parent (same hover-open/placement machinery as Style, Image
@@ -706,6 +719,32 @@ body.fullscreen-mode #fs-points-panel {
 }
 @media (prefers-reduced-motion: reduce) {
     .ctx-item:hover > .ctx-hotkey .tip-key, .ctx-item.ctx-kb > .ctx-hotkey .tip-key, .accent-dd-opt:hover > .ctx-hotkey .tip-key { animation: none; }
+}
+
+/* ── Image-too-large warning banner (js/core/storage.js) ──
+   Fixed warning colours, not theme tokens: the same amber in either theme, as it always
+   was. storage.js sets `display` to raise and drop it. */
+.image-missing-banner {
+    background: #fff3cd;
+    border: 2px solid #ffc107;
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #856404;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+/* Scoped by the banner so it outranks the shared `button`/`button:hover` accent rules. */
+.image-missing-banner .image-missing-reupload {
+    margin-left: auto;
+    padding: 5px 12px;
+    background: #ffc107;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
 }
 
 /* ── Notification stack (bottom-left) ──

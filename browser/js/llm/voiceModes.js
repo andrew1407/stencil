@@ -8,15 +8,15 @@
 //   'chat'      the toolbar's hands-free VOICE CHAT — listens with the chat closed,
 //               each utterance becomes a logged turn, toasts stand in for a surface; a
 //               pause OR the spoken phrase sends, and it keeps listening after a send.
-// Exactly one mode listens at a time (turning one on turns the other off).
-// The engine (voiceInput.js) and every clock are injected for `node --test`.
+// One mode listens at a time; the engine and every clock are injected for `node --test`.
 import { createVoiceInput, voiceErrorText } from './voiceInput.js';
 import { loadVoiceSettings, recognitionLang, VOICE_SETTINGS_EVENT } from './voiceSettings.js';
 import { loadLlmSettings } from './llmSettings.js';
 import { sharedChatController, runLoggedChatTurn, closedTurnToast, spokenEcho } from './chatSession.js';
 import { notify as appNotify } from '../utils.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
 
-export const VOICE_STATE_EVENT = 'stencil:voice-state-changed';
+export const VOICE_STATE_EVENT = EVENTS.voiceStateChanged;
 export const VOICE_ACTIVE_LEVEL = 0.2;   // speech reads 0.4–1.0, room noise stays under 0.1
 export const UNSUPPORTED_TEXT = 'Voice input is not supported in this browser';
 

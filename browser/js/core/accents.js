@@ -1,4 +1,5 @@
 import ACCENTS_DATA from '../config/accents.json' with { type: 'json' };
+import SVG_ART from '../config/svgArt.json' with { type: 'json' };
 
 // Accent (brand-colour) presets — theme-colour choices in the Visuals modal (🎨). First
 // (violet) is the default. Each preset is just one primary hex; --accent-2 (hover-active
@@ -15,17 +16,10 @@ export const isAccent = (key) => ACCENTS.some((a) => a.key === key);
 export const accentHex = (key) =>
   (ACCENTS.find((a) => a.key === key) || ACCENTS[0]).hex;
 
-// The app favicon as an SVG string, with the panel outline painted in `hex` (the
-// rest is fixed brand art). Mirrors favicon.svg — kept in sync by hand.
-export const faviconSvg = (hex) =>
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
-  '<rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>' +
-  `<rect x="2.75" y="2.75" width="58.5" height="58.5" rx="12.25" fill="none" stroke="${hex}" stroke-width="1.5"/>` +
-  '<rect x="12" y="12" width="40" height="40" rx="4" fill="#3a3f4b"/>' +
-  '<polyline points="44,20 32,16 20,24 32,32 44,40 32,48 20,44" fill="none" stroke="#FFFF00" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>' +
-  '<g fill="#FFFF00" stroke="#000000" stroke-width="1.25">' +
-  '<circle cx="44" cy="20" r="2.6"/><circle cx="32" cy="16" r="2.6"/><circle cx="20" cy="24" r="2.6"/><circle cx="32" cy="32" r="2.6"/><circle cx="44" cy="40" r="2.6"/><circle cx="32" cy="48" r="2.6"/><circle cx="20" cy="44" r="2.6"/>' +
-  '</g></svg>';
+// The app favicon as an SVG string, with the panel outline painted in `hex` (the rest
+// is fixed brand art). The art itself lives in config/svgArt.json — one home for it,
+// pinned against favicon.svg by tests/svgArt.test.js.
+export const faviconSvg = (hex) => SVG_ART.favicon.replace('%1', hex);
 
 // Validate/normalize a hex colour: '#rgb' or '#rrggbb' (the leading '#' optional) →
 // '#rrggbb' lower-case, or null when it isn't a hex. Used by the custom (non-preset)

@@ -1131,7 +1131,7 @@ test('theme mode: picking a mode that resolves to the painted palette does not a
   // …and the setting is still stored + announced on that path, or the picker would snap back.
   const noop = body.slice(body.indexOf('=== painted'), body.indexOf('themeSwap('));
   assert.match(noop, /localStorage\.setItem\(THEME_STORAGE_KEY, next\)/, 'the mode is still stored');
-  assert.match(noop, /stencil:theme-changed/, 'and still announced');
+  assert.match(noop, /EVENTS\.themeChanged/, 'and still announced');
   const ext = readFileSync(new URL('../../extension/src/lib/accent.js', import.meta.url), 'utf8');
   assert.match(ext, /var repaints = resolveTheme\(next\) !== resolveTheme\(readTheme\(\)\)/,
     'the extension makes the same check');

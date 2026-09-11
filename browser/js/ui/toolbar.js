@@ -1,7 +1,6 @@
 import { StencilElement, hostTag, define } from './base.js';
-import { DRAW_MODE_ICON } from '../core/drawingApp.js';
 import { hotkeys } from '../core/hotkeys.js';
-import { icon } from './icons.js';
+import { icon, DRAW_MODE_ICON } from './icons.js';
 import { ACCENTS, DEFAULT_ACCENT, accentHex, normalizeHex } from '../core/accents.js';
 import { fillAccentMenu, markSelected } from './accentPicker.js';
 import { createModalOpenGesture } from './popover.js';
@@ -11,6 +10,8 @@ import { isTypingTarget, notify } from '../utils.js';
 import { VOICE_STATE_EVENT } from '../llm/voiceModes.js';
 import { attachVoiceDust } from './voiceDust.js';
 import { pageFormatOptions } from '../core/units.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
+import UI_STRINGS from '../config/uiStrings.json' with { type: 'json' };
 // ── Component: toolbar (controls-wrapper + all control sections) ──────
 // Owns the controls markup and the collapse/hints behavior. The individual
 // inputs/buttons are wired by DrawingApp via global ids.
@@ -52,7 +53,7 @@ export class StencilToolbar extends StencilElement {
                          text), so the "?" reads as belonging to this project rather than
                          floating off in the toolbar. Owns its own hover bubble
                          (.hints-popup), so it opts OUT of the shared floating tooltip. -->
-                    <span id="hints-btn" data-no-tooltip style="display:none;flex:0 0 auto;position:relative;cursor:default;font-size:12px;color:var(--text-muted);border:1px solid var(--border-main);border-radius:12px;padding:2px 8px;user-select:none;">
+                    <span id="hints-btn" class="hints-btn" data-no-tooltip>
                         ?
                         <span class="hints-popup" id="hints-popup"></span>
                     </span>
@@ -141,8 +142,8 @@ export class StencilToolbar extends StencilElement {
                     <!-- Blank-image fill colour (EDIT action: recolours the current blank, keeps lines).
                          Shown only for blank projects; the swatch is a proper colour rect matching the
                          line-colour picker's proportions. -->
-                    <button id="blank-color-btn" type="button" data-title="Blank background color — recolor this blank image (keeps your lines)" style="display:none;align-items:center;gap:7px;font-size:12px;color:var(--text-muted);background:var(--bg-info);padding:5px 9px;border-radius:4px;border:1px solid var(--border-main);white-space:nowrap;cursor:pointer;">
-                        <span id="blank-color-swatch" style="width:30px;height:22px;border-radius:3px;border:1px solid var(--border-main);display:inline-block;flex:0 0 auto;"></span>Blank
+                    <button id="blank-color-btn" class="blank-color-btn" type="button" data-title="Blank background color — recolor this blank image (keeps your lines)">
+                        <span id="blank-color-swatch" class="blank-color-swatch"></span>Blank
                     </button>
                     <input id="blank-color-input" type="color" tabindex="-1" aria-hidden="true" style="position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;">
                 </div>
@@ -205,7 +206,7 @@ export class StencilToolbar extends StencilElement {
                     <!-- Compare LEADS the section (desktop twin: mainWindowToolbar.cpp's View
                          cluster), on the row's own gap — the extra air was for two bare words. -->
                     <label for="compare-mode" style="font-weight:normal;font-size:13px;color:var(--text-muted);">Compare</label>
-                    <select id="compare-mode" data-hk-title="cycleCompare" data-title="Compare with original&#10;• None — normal editing&#10;• Original — the original only (crop + rotation)&#10;• Vertical split — original left, edit right&#10;• Horizontal split — original top, edit bottom&#10;(hold Alt+Shift+O to peek)" data-disabled-reason="Load an image to compare">
+                    <select id="compare-mode" data-hk-title="cycleCompare" data-title="${UI_STRINGS.toolbar.compareTooltip}" data-disabled-reason="Load an image to compare">
                         <option value="none">None</option>
                         <option value="original">Original</option>
                         <option value="vertical">Split ↔</option>
@@ -402,7 +403,7 @@ export class StencilToolbar extends StencilElement {
       for (const sec of this.querySelectorAll('.ctrl-section')) ro.observe(sec);
     }
     window.addEventListener('resize', syncSeps);
-    window.addEventListener('stencil:fullscreen-changed', () => setTimeout(syncSeps, 0));
+    window.addEventListener(EVENTS.fullscreenChanged, () => setTimeout(syncSeps, 0));
     syncSeps();
   }
 }
@@ -569,7 +570,7 @@ export function wireLogoColorPicker(logo, app) {
     // Idempotent (same refs), so a reopen can't double-register.
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('keydown', onMenuKey);
-    window.addEventListener('stencil:accent-changed', onAccentMoved);
+    window.addEventListener(EVENTS.accentChanged, onAccentMoved);
   };
   const closeMenu = () => {
     if (!menu || menu.hidden || menu.classList.contains('dd-closing')) return;
@@ -578,17 +579,15 @@ export function wireLogoColorPicker(logo, app) {
     resetRowHover?.();
     app.endAccentPreview?.();
     menuKind = null;
-    // However it closes, the machine must not keep believing a popover shows — a
-    // leaked mode would let a later Alt glide "close" a menu that is already gone.
+    // A leaked popover mode would let a later Alt glide "close" a menu already gone.
     g.notifyClosed();
     document.removeEventListener('pointerdown', onDocDown, true);
     document.removeEventListener('keydown', onMenuKey);
-    window.removeEventListener('stencil:accent-changed', onAccentMoved);
+    window.removeEventListener(EVENTS.accentChanged, onAccentMoved);
     menuCloseDone = (e) => {
-      // animationend BUBBLES: every row runs the hover shimmer on its ::after and the
-      // pointer is always over a row at close — an unfiltered listener ended the exit
-      // on the first shimmer. Only the menu's OWN animation (or the fallback timer /
-      // reduced motion, which pass no event) counts.
+      // animationend BUBBLES: every row shimmers on its ::after and the pointer is always
+      // over a row at close, so an unfiltered listener ended the exit on the first shimmer.
+      // Only the menu's OWN animation (or the fallback timer / reduced motion) counts.
       if (e && e.target !== menu) return;
       clearTimeout(menuCloseTimer);
       menu.removeEventListener('animationend', menuCloseDone);

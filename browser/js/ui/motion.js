@@ -2,19 +2,21 @@
 // Pure decoration: a missing IntersectionObserver/MutationObserver (node tests,
 // old engines) simply means no animation — never a broken or hidden view. CSS
 // owns the actual keyframes (css/animations.css); this file only toggles classes.
+import MOTION from '../config/motion.json' with { type: 'json' };
 import { dustEnabled, motionReduced, particleStyle } from './motionPrefs.js';
 import { startCloud, resolveColour, PARTICLE_STYLES, paletteCss, styleFrame, tintOf, stopOfTint, dustMix,
          grainShape, headingOf, fillGrains, edgeJitter, edgeBaseOf, edgeDipOf, STYLED_CELL_SCALE } from './dustCloud.js';
 
 // The two gates every helper below asks: `motionReduced()` is "nothing may move"
-// (the OS preference, or the user's own 'none'), `dustEnabled()` is "and it may be
-// made of particles" — false in 'slide', where each surface keeps its own plain
-// CSS entrance instead. Re-exported so a caller needs one import, not two.
+// (the OS preference, or the user's own 'none'), `dustEnabled()` is "and it may be made
+// of particles" — false in 'slide', where each surface keeps its own plain CSS entrance.
+// Re-exported so a caller needs one import, not two.
 export { dustEnabled, motionReduced };
+// Every duration, count and easing below: config/motion.json, the one home for the tuning.
+const TUNE = MOTION.ui;
 
 // Rows only dissolve by the amount the scroller is ALREADY clipping them; a row you can
-// see in full is never touched — the grain is finer than a glyph's strokes, and
-// decoration must never cost legibility.
+// see in full is never touched — decoration must never cost legibility.
 export const REVEAL_ITEM_CLASS = 'reveal-item';
 export const REVEAL_IN_CLASS = 'reveal-in';
 export const REVEAL_ENTERING_CLASS = 'reveal-entering';
@@ -22,9 +24,9 @@ export const REVEAL_ENTERING_CLASS = 'reveal-entering';
 export const REVEAL_MASKED_CLASS = 'reveal-masked';
 export const REVEAL_SMOOTH_CLASS = 'reveal-smooth';
 export const REVEAL_NO_TRIGGER_CLASS = 'reveal-no-trigger';
-export const REVEAL_ENTER_MS = 700;
+export const REVEAL_ENTER_MS = TUNE.REVEAL_ENTER_MS;
 // How far the wipe softens into the cut — a share of the ROW, matching animations.css.
-export const REVEAL_FEATHER = '10%';
+export const REVEAL_FEATHER = TUNE.REVEAL_FEATHER;
 
 // How dissolved a row spanning [top, bottom) is in a scroller `viewH` tall: 0 while
 // wholly on screen, rising with the clipped share, 1 once it is gone. Pure.
@@ -46,7 +48,7 @@ export const revealFeather = (top, bottom, viewH, feather = REVEAL_FEATHER) => (
 // Text rows (the chat transcript) fade over a FIXED band instead — see the smooth
 // option on observeReveal. A constant is also what the bottom-anchored trigger below
 // clears, so the two agree by construction.
-export const REVEAL_SMOOTH_FEATHER_PX = 12;
+export const REVEAL_SMOOTH_FEATHER_PX = TUNE.REVEAL_SMOOTH_FEATHER_PX;
 export const REVEAL_SMOOTH_FEATHER = `${REVEAL_SMOOTH_FEATHER_PX}px`;
 
 // Distance UP from the row's own bottom where bottom-anchored chrome (the chat "…"
@@ -67,9 +69,9 @@ export const revealVisibleBottom = (top, bottom, viewH) => {
 // …and whether it may be shown AT ALL: on a short visible slice the pill overflows onto
 // the neighbouring bubble, so a row that cannot hold it cleanly gets none; a fully
 // visible row always does. `hidden` gives the threshold hysteresis against flutter. Pure.
-export const REVEAL_TRIGGER_SIZE = 21;    // .chat-row-menu-btn is 21×21
-export const REVEAL_TRIGGER_PAD = 4;      // clearance from the neighbouring bubble
-const REVEAL_TRIGGER_HYSTERESIS = 2;
+export const REVEAL_TRIGGER_SIZE = TUNE.REVEAL_TRIGGER_SIZE;    // .chat-row-menu-btn is 21×21
+export const REVEAL_TRIGGER_PAD = TUNE.REVEAL_TRIGGER_PAD;      // clearance from the neighbouring bubble
+const REVEAL_TRIGGER_HYSTERESIS = TUNE.REVEAL_TRIGGER_HYSTERESIS;
 export const revealTriggerFits = (top, bottom, viewH, hidden = false) => {
   const h = bottom - top;
   if (h <= 0) return false;
@@ -214,8 +216,8 @@ export const menuPopOrigin = (x, y, rect) => {
 // minimises back into the new one. Call AFTER the layout change, with the rect
 // measured BEFORE it. Transform-only, so it never re-triggers layout.
 // Long and hard-eased-out, so a full-window stretch reads as deliberate.
-export const FLIP_MS = 560;
-export const FLIP_EASING = 'cubic-bezier(0.16, 1, 0.22, 1)';
+export const FLIP_MS = TUNE.FLIP_MS;
+export const FLIP_EASING = TUNE.FLIP_EASING;
 // Held on the element for the whole flight. CSS uses it to lift the element above the
 // page and stop its scrollbars flashing while it is scaled — without it, an element
 // scaled UP out of its in-flow box paints behind the toolbars around it.
@@ -272,7 +274,7 @@ export function flipFrom(el, from, { ms = FLIP_MS, activeClass = FLIP_ACTIVE_CLA
 // Either way `apply` runs exactly once and synchronously.
 // Drives both the wipe (as --swap-ms) and the colour cross-fade. One length across
 // all three surfaces (extension accent.js SWAP_MS, desktop themeSwapOverlay.hpp kSwapMs).
-export const THEME_SWAP_MS = 280;
+export const THEME_SWAP_MS = TUNE.THEME_SWAP_MS;
 export const THEME_SWAP_CLASS = 'theme-swapping';
 // Held on <html> only while the view transition captures the new state, so the snapshot
 // is the FINAL palette rather than one caught mid colour-transition.
@@ -318,7 +320,7 @@ export const swapEase = (t) => bezierY(t, 0.4, 0.25, 0.95, 1);
 // The wipe's edge wears the particle style (dustCloud.js edgeJitter): a polygon ring whose
 // vertices ride the wipe's easing, each pushed off the nominal radius by the style's own
 // recipe. Twins: themeSwapOverlay.hpp edgeRadiusAt, extension accent.js edgePolygon.
-export const SWAP_EDGE_POINTS = 240;
+export const SWAP_EDGE_POINTS = TUNE.SWAP_EDGE_POINTS;
 
 // The per-vertex reach multiplier of vertex k: 1 + the style's jitter. Pure.
 const swapEdgeJitter = (k, style = styleCode()) => edgeJitter(style, k, SWAP_EDGE_POINTS);
@@ -348,12 +350,12 @@ export function swapEdgePolygon(x, y, w, h, grow, style = styleCode()) {
 // ::view-transition-new(root), so a mote ahead of the front simply would not be seen —
 // they spawn behind even the deepest tooth (the 1 − amp band).
 // (Desktop twin: themeSwapOverlay.hpp dustMoteAt.)
-export const SWAP_DUST_MOTES = 4500;
-export const SWAP_DUST_LIFE_MS = 340;
+export const SWAP_DUST_MOTES = TUNE.SWAP_DUST_MOTES;
+export const SWAP_DUST_LIFE_MS = TUNE.SWAP_DUST_LIFE_MS;
 // A mote never ignites at the very ends of the wipe: at t=0 the ring is a point (nothing
 // to ride), and the last ones still get their whole life before the layer is reaped.
-export const SWAP_DUST_MIN_T = 0.06;
-export const SWAP_DUST_MAX_T = 0.94;
+export const SWAP_DUST_MIN_T = TUNE.SWAP_DUST_MIN_T;
+export const SWAP_DUST_MAX_T = TUNE.SWAP_DUST_MAX_T;
 
 // The style the particles wear right now, as dustCloud.js's code (0 = dust, the flight
 // as tabulated). Every cloud builder below reads it once, when the cloud is built.
@@ -413,7 +415,7 @@ export function swapDustSpecs(x, y, w, h, count = SWAP_DUST_MOTES, style = style
 // live: the same cubic-bezier, the same three opacity stops, the same throw and shrink.
 // Sampled into a table — the bisection is far too dear to run three times per grain per
 // frame. (Desktop twin: themeSwapOverlay.hpp dustMoteAt, which evaluates them by hand.)
-const SWAP_DUST_STEPS = 256;
+const SWAP_DUST_STEPS = TUNE.SWAP_DUST_STEPS;
 const swapDustCurve = Float32Array.from({ length: SWAP_DUST_STEPS + 1 },
   (_, i) => bezierY(i / SWAP_DUST_STEPS, 0.22, 0.55, 0.3, 1));
 // Both ends exactly: the solver bisects to within a hair of 0 and 1, and that hair is
@@ -424,7 +426,7 @@ export const swapDustEase = (t) =>
   swapDustCurve[Math.min(SWAP_DUST_STEPS, Math.max(0, Math.round(t * SWAP_DUST_STEPS)))];
 
 // Opacity flares over the first 18% of a grain's life and falls away across the rest.
-export const SWAP_DUST_FLARE = 0.18;
+export const SWAP_DUST_FLARE = TUNE.SWAP_DUST_FLARE;
 
 // Where grain `s` is at life-fraction `p` (0 = ignition, 1 = burnt out), how big and how
 // bright. Writes into `out` rather than returning a fresh object: this runs once per
@@ -673,7 +675,7 @@ export function originOf(el) {
 // The counterpart to leaveThenRemove: dropped content plays IN out of the drop point.
 // Without one (the Open dialog, a paste, a fetched URL) there is no place to come
 // from, so it keeps the plain landing: a scale-up plus the accent pulse.
-const ARRIVE_MS = 620;
+const ARRIVE_MS = TUNE.ARRIVE_MS;
 export const ARRIVE_GLOW_CLASS = 'drop-arriving';   // glow only — the FLIP owns the transform
 export const ARRIVE_ACTIVE_CLASS = 'arrive-active';
 export const LANDING_CLASS = 'drop-landing';        // scale-up + glow, for the no-point case
@@ -703,27 +705,27 @@ export function arriveFrom(el, point = null, { ms = ARRIVE_MS } = {}) {
 // A row that is about to be destroyed collapses and fades out first, so a delete
 // reads as the row going away rather than the list jumping. The caller does the
 // actual removal in the callback — this only buys it the time.
-export const LEAVE_MS = 220;
+export const LEAVE_MS = TUNE.LEAVE_MS;
 // Chat entries come apart into a finer grid than a list row — the extra particles are
 // what make a delete read as "it dissolved" rather than "it blinked out"; the fade
 // stays SHORT. Kept here so the panel, the flyout and the extension use one number.
-export const CHAT_LEAVE_MS = 260;
+export const CHAT_LEAVE_MS = TUNE.CHAT_LEAVE_MS;
 // Attachment chips leave on a LONGER clock: the row holds the doomed chip's slot for
 // an opening beat (css chipLeave's hold phase) so the dust reads before the survivors
 // slide over — the removal must not fire until the collapse really ends
-export const CHIP_LEAVE_MS = 420;
-export const CHAT_DISINTEGRATE_COLS = 32;
-export const CHAT_DISINTEGRATE_ROWS = 16;
+export const CHIP_LEAVE_MS = TUNE.CHIP_LEAVE_MS;
+export const CHAT_DISINTEGRATE_COLS = TUNE.CHAT_DISINTEGRATE_COLS;
+export const CHAT_DISINTEGRATE_ROWS = TUNE.CHAT_DISINTEGRATE_ROWS;
 export const LEAVING_CLASS = 'leaving';
 
 // A WIPE scatters every row at once and the cost is the sum, not the per-row grid —
 // so the mesh is budgeted: one row keeps the full fine grain, a mass clear coarsens
 // each row until the total fits. Pure — unit-tested.
-export const SCATTER_TILE_BUDGET = 1200;
+export const SCATTER_TILE_BUDGET = TUNE.SCATTER_TILE_BUDGET;
 // …and past this many simultaneous rows the extra ones simply fade: a dozen scatters
 // at once is already more than the eye resolves, and 200 of them would blow any mesh
 // budget however coarse it got.
-export const SCATTER_MAX_ROWS = 12;
+export const SCATTER_MAX_ROWS = TUNE.SCATTER_MAX_ROWS;
 // `fine` is the one-row grid to start from — the chat's by default; the lists bring a
 // finer one (ROW_DUST_GRID), still under the same total budget.
 export const scatterGridFor = (count, index = 0, fine = { cols: CHAT_DISINTEGRATE_COLS, rows: CHAT_DISINTEGRATE_ROWS }) => {
@@ -803,16 +805,16 @@ export const createListHold = ({ settle = () => {}, wait = wipeDurationMs, setTi
 // ── Filtering a list ────────────────────────────────────────────────────────
 // A filter is a question re-answered, not a removal: dropped rows just vanish with the
 // rebuild, and the whole effect belongs to the rows that are LEFT, which assemble anew.
-export const FILTER_ENTER_MS = 340;
+export const FILTER_ENTER_MS = TUNE.FILTER_ENTER_MS;
 // Small enough that a long list still settles in one beat.
-const FILTER_STAGGER_MS = 22;
+const FILTER_STAGGER_MS = TUNE.FILTER_STAGGER_MS;
 // Past this many rows the effect is noise (and a cost) — the rest simply appear.
-const FILTER_MAX_ANIMATED = 16;
+const FILTER_MAX_ANIMATED = TUNE.FILTER_MAX_ANIMATED;
 export const FILTER_ENTERING_CLASS = 'filter-entering';
 // The kept rows form from anonymous specks (speckPainter) on a shorter, non-destructive
 // throw — a filter is a view change, never mistakable for a deletion's scatter.
-export const FILTER_DUST_MS = 560;
-export const FILTER_DUST_DRIFT = 0.5;
+export const FILTER_DUST_MS = TUNE.FILTER_DUST_MS;
+export const FILTER_DUST_DRIFT = TUNE.FILTER_DUST_DRIFT;
 // `index`/`count` share ONE mesh budget across every row a change moves (scatterGridFor),
 // so a filter that leaves a dozen rows costs about what one deletion does. Past the
 // budget's row ceiling a row simply fades, as it always did.
@@ -898,7 +900,7 @@ export const emptyStateVisible = (count, holding = false) => count === 0 && !hol
 // appearing / vanishing. CSS: `.voice-waves-in` / `.voice-waves-out` in animations.css.
 const WAVES_IN_CLASS = 'voice-waves-in';
 const WAVES_OUT_CLASS = 'voice-waves-out';
-const WAVES_FLIGHT_MS = 500;
+const WAVES_FLIGHT_MS = TUNE.WAVES_FLIGHT_MS;
 export function replayWaves(el, on, { setTimer = setTimeout } = {}) {
   if (!el?.classList) return;
   el.classList.remove(WAVES_IN_CLASS, WAVES_OUT_CLASS);
@@ -921,7 +923,7 @@ export function replayWaves(el, on, { setTimer = setTimeout } = {}) {
 // the toggling) and the decoration plays around it: the new glyph turns in, the new
 // word rises, and the outgoing face leaves as a ghost stacked on top of it. CSS owns
 // the keyframes (animations.css .swapping / .swap-ghost).
-export const SWAP_MS = 260;
+export const SWAP_MS = TUNE.SWAP_MS;
 export const SWAP_CLASS = 'swapping';
 export const SWAP_GHOST_CLASS = 'swap-ghost';
 
@@ -1024,15 +1026,15 @@ export function pinWidestFace(el, faces, { doc = el?.ownerDocument, force = fals
 // Every dust clock in this file runs about a quarter longer than the desktop's twin of
 // it: the browser's grains are flat specks where the desktop flies the window's own
 // pixels, and the same span read as hurried here (user report, 2026-09-08).
-export const DISINTEGRATE_MS = 1650;
+export const DISINTEGRATE_MS = TUNE.DISINTEGRATE_MS;
 // A fine grid — small cells read as ash rather than a broken window; one node per
 // cell, so this is the practical ceiling for a list row. (Matched by the desktop's
 // DisintegrateOverlay::kDustCellPx, which sizes its motes in pixels instead.)
-export const DISINTEGRATE_COLS = 34;
-export const DISINTEGRATE_ROWS = 16;
+export const DISINTEGRATE_COLS = TUNE.DISINTEGRATE_COLS;
+export const DISINTEGRATE_ROWS = TUNE.DISINTEGRATE_ROWS;
 // However late a mote sets off, it still gets this long to fly: the floor keeps the last
 // grains of a short flight (a mark swap, a menu) from being a blink rather than a flight.
-export const MIN_TILE_MS = 160;
+export const MIN_TILE_MS = TUNE.MIN_TILE_MS;
 // The clock a list passes for its own items — the row clock today, named apart because
 // the two have been parted before (desktop twin: kItemMs).
 export const ITEM_DUST_MS = DISINTEGRATE_MS;
@@ -1042,11 +1044,11 @@ export const CONN_DUST_MS = Math.round(DISINTEGRATE_MS / 1.5);
 // ── A LIST ROW's dust: the connections and projects lists ───────────────────
 // The throw, as a share of the row default. That default is a fixed pixel count, so over
 // a 44px row it is two and a half times its height; this is the desktop's row ratio.
-const ROW_DUST_DRIFT = 0.8;
+const ROW_DUST_DRIFT = TUNE.ROW_DUST_DRIFT;
 // …and the grain: at the row default a short row holds a mosaic of big dots rather than
 // sand (user report). Finer cells, twice as many, still inside SCATTER_TILE_BUDGET.
-const ROW_DUST_PX = 5;
-const ROW_DUST_GRID = { cols: 40, rows: 30 };   // 1200 = SCATTER_TILE_BUDGET
+const ROW_DUST_PX = TUNE.ROW_DUST_PX;
+const ROW_DUST_GRID = TUNE.ROW_DUST_GRID;   // 1200 = SCATTER_TILE_BUDGET
 // The grain and budgeted grid every list row's dust shares (connections + projects) —
 // `index` of `count` rows leaving at once. An ARRIVAL keeps materialize's own clock and
 // throw, so it takes this alone; a REMOVAL adds the list's clock and the row throw.
@@ -1076,9 +1078,9 @@ export const tileNoise = (cx, cy) => {
 // the desktop as a sine bulge on the same throw (disintegrateOverlay.hpp swirlAt).
 // The push is a share of the throw, capped: a window's 400px trip must not swing its
 // motes across half the page. Pure — unit-tested.
-export const WAYPOINT_ALONG = 0.62;
-export const SWIRL_SHARE = 0.32;
-export const SWIRL_MAX_PX = 44;
+export const WAYPOINT_ALONG = TUNE.WAYPOINT_ALONG;
+export const SWIRL_SHARE = TUNE.SWIRL_SHARE;
+export const SWIRL_MAX_PX = TUNE.SWIRL_MAX_PX;
 export const tileWaypoint = (dx, dy, q) => {
   const len = Math.hypot(dx, dy);
   if (!(len > 0.5)) return { mx: 0, my: 0 };
@@ -1129,7 +1131,7 @@ export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
 // Motes sized in PIXELS, not as a share of the element — a fixed grid over a wide row
 // gives slivers, over a small card gives real dust. Aim for MOTE_PX; the quoted grid's
 // cell COUNT is the frame-budget ceiling. Pure — unit-tested. (Desktop: kDustCellPx.)
-export const MOTE_PX = 7;
+export const MOTE_PX = TUNE.MOTE_PX;
 export const reshapeGrid = (cols, rows, w, h, px = MOTE_PX) => {
   const budget = Math.max(1, cols * rows);
   // At least three bands each way: two reads as a thing splitting in half, not crumbling.
@@ -1336,23 +1338,23 @@ export const reintegrate = (el, opts = {}) => disintegrate(el, { ...opts, gather
 // The way IN is the slower half on purpose: a window forming is the thing you watch,
 // and it has to arrive gently enough to read as sand gathering rather than a flash.
 // Going out is brisk — you have already decided.
-export const SURFACE_IN_MS = 760;
-export const SURFACE_OUT_MS = 470;   // ui/base.js CLOSE_MS rides this
+export const SURFACE_IN_MS = TUNE.SURFACE_IN_MS;
+export const SURFACE_OUT_MS = TUNE.SURFACE_OUT_MS;   // ui/base.js CLOSE_MS rides this
 // A MENU is not a window: it is opened to be clicked, often blind, so it may not spend
 // half a second forming. Its own, brisker clock — the flight is the same one.
-export const SURFACE_MENU_IN_MS = 420;
-export const SURFACE_MENU_OUT_MS = 270;
+export const SURFACE_MENU_IN_MS = TUNE.SURFACE_MENU_IN_MS;
+export const SURFACE_MENU_OUT_MS = TUNE.SURFACE_MENU_OUT_MS;
 // The grain a mote AIMS for, and the mote-budget ceiling. The ceiling was 672 when a
 // mote was a compositor layer of its own; on one canvas (dustCloud.js) a grain costs a
 // few arcs, so it now matches the extension's and the desktop's (kSurfaceMaxCells).
 // The speck is still sized separately (SURFACE_SPECK_PX) — air between grains is sand.
-export const SURFACE_MOTE_PX = 6;
-export const SURFACE_COLS = 46;
-export const SURFACE_ROWS = 30;      // 1380 motes
+export const SURFACE_MOTE_PX = TUNE.SURFACE_MOTE_PX;
+export const SURFACE_COLS = TUNE.SURFACE_COLS;
+export const SURFACE_ROWS = TUNE.SURFACE_ROWS;      // 1380 motes
 // …and past that ceiling the CELL is bigger than the grain we want, so the speck drawn
 // inside it is capped instead of filling it. What you see is the speck, not the cell.
-export const SURFACE_SPECK_PX = 7;
-export const SURFACE_SPREAD = 34;    // how far a mote may fan off its line to the point
+export const SURFACE_SPECK_PX = TUNE.SURFACE_SPECK_PX;
+export const SURFACE_SPREAD = TUNE.SURFACE_SPREAD;    // how far a mote may fan off its line to the point
 export const SURFACE_FORMING_CLASS = 'surface-forming';
 export const SURFACE_LEAVING_CLASS = 'surface-leaving';
 // Permanent once a surface has been dusted: its old CSS pop/slide must stay off for
@@ -1417,8 +1419,8 @@ const blankPaint = (c) => !c || c === 'transparent' || /,\s*0\s*\)$/.test(c);
 
 // How far a mote is lifted off the surface's own background, towards its own ink: the
 // body of the cloud, and its rim. See surfacePaint.
-export const MOTE_INK = 42;
-export const MOTE_RIM_INK = 66;
+export const MOTE_INK = TUNE.MOTE_INK;
+export const MOTE_RIM_INK = TUNE.MOTE_RIM_INK;
 
 // What the motes are PAINTED in. The element's own background, else the nearest
 // ancestor that actually paints one — a surface whose box is transparent (a panel that
@@ -1582,10 +1584,10 @@ export const surfaceOut = (el, point, { ms = SURFACE_OUT_MS, box = null, delaySc
 // Every cursor-adjacent popup (the control tooltip, the Alt-hover export preview, the
 // chat gear tip, the projects thumb zoom) dusts in and out of the control it describes,
 // fast enough to be over before a sweep reaches the next one.
-export const TIP_DUST_IN_MS = 320;
-export const TIP_DUST_OUT_MS = 235;
+export const TIP_DUST_IN_MS = TUNE.TIP_DUST_IN_MS;
+export const TIP_DUST_OUT_MS = TUNE.TIP_DUST_OUT_MS;
 // …and wakes on one delay across surfaces (desktop SnappyTooltipStyle, main.cpp).
-export const TIP_SHOW_DELAY_MS = 200;
+export const TIP_SHOW_DELAY_MS = TUNE.TIP_SHOW_DELAY_MS;
 
 // The centre of an element (or of a rect): the point a popup's dust belongs to.
 // Null for a detached/unmeasurable owner — the flight then settles instead.
@@ -1619,7 +1621,7 @@ export const FOLD_INSTANT_CLASS = 'fold-instant';
 // reason it has its own exit clock: with no icon to shrink into, the fold itself is the
 // only thing that reads as the menu leaving, so a brisk exit registered as a snap.
 // 1.5x SURFACE_OUT_MS, matching --fold-out-ms against --fold-ms in css/animations.css.
-export const FOLD_DUST_OUT_MS = 705;   // 1.5x SURFACE_OUT_MS, as the CSS fold's --fold-out-ms is of --fold-ms
+export const FOLD_DUST_OUT_MS = TUNE.FOLD_DUST_OUT_MS;   // 1.5x SURFACE_OUT_MS, as the CSS fold's --fold-out-ms is of --fold-ms
 
 // The whole fold-with-dust ritual (toolbar rows, points panel): measure the SHOWN box
 // before the fold runs (foldBox), let `toggle` flip the fold class, then stream the
@@ -1638,7 +1640,7 @@ export function foldDust(el, scope, cls, hiding, dock, { inMs = SURFACE_IN_MS, t
 // `:hover` is gone and the popup is already display:none, so there is nothing left to
 // copy. The hold class puts the box back for exactly as long as the motes need.
 const HOVER_DUST_HOLD_CLASS = 'dust-hold';
-const HOVER_DUST_HOLD_MS = 120;
+const HOVER_DUST_HOLD_MS = TUNE.HOVER_DUST_HOLD_MS;
 // `anchor` is what the sand flies out of, defaulting to the hover host — a host that WRAPS
 // its popup needs to name its trigger instead, or the box it measures covers the open popup
 // and the motes form out of the middle of their own cloud (installButton.js).
@@ -1660,16 +1662,16 @@ export function wireHoverDust(host, popup, { inMs = 300, outMs = 200, anchor = h
 // control whose box stays put. A row's fall-and-fan flight (tileMotion; desktop
 // controlSwap.hpp parity) with the throw and grain scaled down — and no default veil,
 // since a checkbox keeps its outline while only its fill goes.
-export const MARK_IN_MS = 400;
-export const MARK_OUT_MS = 300;
-export const MARK_MOTE_PX = 3;
-export const MARK_DRIFT = 0.3;        // desktop kCheckSwapSpread
+export const MARK_IN_MS = TUNE.MARK_IN_MS;
+export const MARK_OUT_MS = TUNE.MARK_OUT_MS;
+export const MARK_MOTE_PX = TUNE.MARK_MOTE_PX;
+export const MARK_DRIFT = TUNE.MARK_DRIFT;        // desktop kCheckSwapSpread
 // …under a ceiling of its own, well below a window's: a 15px indicator wants every mote
 // the grain gives it (25 of them), but the f(x,y) row is 380px wide and gridded at the
 // same 3px would have built over 1300 nodes for a 320ms decoration. Past the ceiling the
 // cell grows and the speck grows with it, which is what keeps the grain honest.
-export const MARK_COLS = 40;
-export const MARK_ROWS = 15;          // 600 motes
+export const MARK_COLS = TUNE.MARK_COLS;
+export const MARK_ROWS = TUNE.MARK_ROWS;          // 600 motes
 export const MARK_FORMING_CLASS = 'mark-forming';
 // …and the veil a GROUP goes behind: hidden while its dust flies and its slot closes,
 // so the buttons are never seen squeezing shut.
@@ -1748,8 +1750,8 @@ export function markIn(el, { ms = MARK_IN_MS, paint = null, px = MARK_MOTE_PX,
 // `display: 'block'` collapses HEIGHT instead of width; everything else is a flex row.
 // A group's slot is a wider move than a single mark and reads as a snap at the mark's
 // clock, so it gets its own longer one — handed to the dust too, so the two land together.
-export const REVEAL_GROUP_IN_MS = 520;
-export const REVEAL_GROUP_OUT_MS = 400;
+export const REVEAL_GROUP_IN_MS = TUNE.REVEAL_GROUP_IN_MS;
+export const REVEAL_GROUP_OUT_MS = TUNE.REVEAL_GROUP_OUT_MS;
 
 // A BAR holding revealed controls (the selection strips): the BAR ITSELF never flies —
 // only its controls do, so this is a display flip, deferred on the way OUT by their
@@ -1818,8 +1820,8 @@ const REVEAL_GROUP_TRANSITION_CLASS = 'reveal-group-transition';
 // `ease` is the slot's own curve: the app's usual cubic-bezier(0.16, 1, .3, 1) is half done
 // in 30ms, which makes a whole group's slot jump open and then crawl. Opening rides
 // easeOutCubic, closing the gentle S the modal flight closes on.
-const REVEAL_EASE_IN = 'cubic-bezier(0.22, 0.61, 0.36, 1)';
-const REVEAL_EASE_OUT = 'cubic-bezier(0.45, 0.05, 0.6, 0.9)';
+const REVEAL_EASE_IN = TUNE.REVEAL_EASE_IN;
+const REVEAL_EASE_OUT = TUNE.REVEAL_EASE_OUT;
 const slideRevealSize = (el, sizeProp, from, to, ms, { defer = false, slack = 0, cleanup = null, ease = REVEAL_EASE_IN } = {}) => {
   el.classList.add(REVEAL_GROUP_TRANSITION_CLASS);
   el.style.setProperty('--reveal-ease', ease);
@@ -1981,7 +1983,7 @@ export const CHAT_ENTERING_CLASS = 'chat-entering';
 // How far off the row's own edge its motes are gathered from. The cloud is clipped to
 // the transcript (clipDustToScroller), so a point outside it simply means the sand
 // streams in over the edge — exactly what a toast does off the window's.
-export const CHAT_ENTER_REACH = 0.9;
+export const CHAT_ENTER_REACH = TUNE.CHAT_ENTER_REACH;
 
 // The point an arriving entry's dust flies out of: the edge it sits against, read off the
 // geometry rather than the role class, so an attachment strip or result card follows the
@@ -2064,7 +2066,7 @@ const trackDust = (el, ms, onDrop = () => {}) => {
 };
 
 export const CHAT_SLIDE_CLASS = 'chat-slide-in';
-export const CHAT_SLIDE_MS = 320;
+export const CHAT_SLIDE_MS = TUNE.CHAT_SLIDE_MS;
 export function chatIn(el, count = 1, index = 0) {
   if (!el?.classList || motionReduced() || typeof setTimeout === 'undefined') return Promise.resolve();
   // No particles ('slide'): the entry has no entrance of its own to fall back on — the
@@ -2117,14 +2119,14 @@ export function chatIn(el, count = 1, index = 0) {
 // a failed ghost must never block the clear itself.
 // Cut to 730 once for briskness and half again as long since, which lands it back near
 // the 1100ms it started at: the picture is worth watching arrive and leave.
-export const GHOST_MS = 1350;
+export const GHOST_MS = TUNE.GHOST_MS;
 // Dust motes are sized on SCREEN, not as a share of the image: a fixed grid over a
 // big canvas gives big rectangles, which is what stopped it reading as dust.
-export const DUST_CELL_PX = 6;
+export const DUST_CELL_PX = TUNE.DUST_CELL_PX;
 // Halving the cell quadruples the count, so the ceiling has to rise with it — but it
 // still exists: past this, a frame costs more than the effect is worth and the grid is
 // thinned back instead.
-export const DUST_MAX_PARTICLES = 7000;
+export const DUST_MAX_PARTICLES = TUNE.DUST_MAX_PARTICLES;
 
 // The grid the ghost dust flies on: aim for `cellPx` per mote ON SCREEN (a water / fire
 // ghost grids coarser), thinned evenly once the particle ceiling bites. Pure.
@@ -2275,7 +2277,7 @@ const sampleDustColours = (st) => {
 // How many alpha steps a fading grain is drawn in. The stage batches every grain of one
 // colour AND one alpha step into a single fill — thousands of tiny fills a frame was the
 // cost, not the arcs — and eight steps on a 3px grain are below what the eye resolves.
-export const DUST_ALPHA_LEVELS = 8;
+export const DUST_ALPHA_LEVELS = TUNE.DUST_ALPHA_LEVELS;
 
 // Every grain of a flight. `gather` picks the arrival's sweep and throw; the fall is
 // shared, the sideways fan differs (the arrival fans less). Grains are small source cells
@@ -2508,16 +2510,16 @@ export function flashLanding(el, cls = 'drop-landing', ms = 700) {
 // The flight's own length: a short hop is nearly instant, a reach across the page
 // still lands promptly. Lengths are IMAGE pixels on both sides, so zoom does not
 // change the timing. Pure.
-export const STROKE_FLY_MIN_MS = 150;
-export const STROKE_FLY_MAX_MS = 420;
-export const STROKE_FLY_PX_PER_MS = 2.4;
+export const STROKE_FLY_MIN_MS = TUNE.STROKE_FLY_MIN_MS;
+export const STROKE_FLY_MAX_MS = TUNE.STROKE_FLY_MAX_MS;
+export const STROKE_FLY_PX_PER_MS = TUNE.STROKE_FLY_PX_PER_MS;
 export const strokeFlyMs = (len) => Math.min(
   STROKE_FLY_MAX_MS, STROKE_FLY_MIN_MS + Math.max(0, len) / STROKE_FLY_PX_PER_MS);
 
 // Ease-out-back: the vertex shoots a little past its target and comes back, which is
 // what makes the segment read as REACHING for the point rather than being switched on.
 // Weaker than the textbook 1.70158 — on a 3px stroke a big overshoot reads as a glitch.
-const STROKE_FLY_BACK = 1.28;
+const STROKE_FLY_BACK = TUNE.STROKE_FLY_BACK;
 export const strokeFlyEase = (t) => {
   if (t <= 0) return 0;
   if (t >= 1) return 1;
@@ -2528,8 +2530,8 @@ export const strokeFlyEase = (t) => {
 // No vertex flies a straight line (the same rule the dust follows — tileWaypoint): it
 // is pushed off its path by a share of the trip, capped, and back by the time it
 // lands. `bow` is the signed side, -1..1. Pure.
-const STROKE_BOW_SHARE = 0.13;
-export const STROKE_BOW_MAX = 22;
+const STROKE_BOW_SHARE = TUNE.STROKE_BOW_SHARE;
+export const STROKE_BOW_MAX = TUNE.STROKE_BOW_MAX;
 export const strokeBow = (len) => Math.min(len * STROKE_BOW_SHARE, STROKE_BOW_MAX);
 
 // Which side, and how far off, THIS vertex swings — a hash of where it landed, so the
@@ -2560,9 +2562,9 @@ export const strokeFlyPoint = (from, to, t, bow = 0) => {
 // The landing: the vertex arrives half again its size and settles. POP is the settle;
 // the swell itself happens in flight (strokeFlyRadius), so there is no jump between
 // the two — a size that snaps on arrival reads as a redraw, not a landing.
-const STROKE_POP_MS = 240;
-export const STROKE_POP_PEAK = 1.5;
-export const STROKE_FLY_R0 = 0.5;
+const STROKE_POP_MS = TUNE.STROKE_POP_MS;
+export const STROKE_POP_PEAK = TUNE.STROKE_POP_PEAK;
+export const STROKE_FLY_R0 = TUNE.STROKE_FLY_R0;
 export const strokeFlyRadius = (t) =>
   STROKE_FLY_R0 + (STROKE_POP_PEAK - STROKE_FLY_R0) * Math.min(1, Math.max(0, t)) ** 2;
 export const strokePopScale = (u) => {
@@ -2573,29 +2575,27 @@ export const strokePopScale = (u) => {
 
 // The ring the landing pushes out — the one part of this that is not the line itself,
 // so it stays faint and brief.
-export const STROKE_RIPPLE_MS = 420;
-export const STROKE_RIPPLE_REACH = 4.2;
-const STROKE_RIPPLE_ALPHA = 0.55;
+export const STROKE_RIPPLE_MS = TUNE.STROKE_RIPPLE_MS;
+export const STROKE_RIPPLE_REACH = TUNE.STROKE_RIPPLE_REACH;
 export const strokeRipple = (u) => {
   const k = Math.min(1, Math.max(0, u));
   return {
     scale: 1 + (STROKE_RIPPLE_REACH - 1) * (1 - (1 - k) ** 2),
-    alpha: STROKE_RIPPLE_ALPHA * (1 - k) ** 1.6,
+    alpha: TUNE.STROKE_RIPPLE_ALPHA * (1 - k) ** 1.6,
   };
 };
 
 // The glow riding the vertex in flight: nothing at either end (it must not smudge the
 // anchor it left or the point it became), brightest mid-trip.
-const STROKE_SPARK_REACH = 2.8;
-const STROKE_SPARK_ALPHA = 0.6;
+const STROKE_SPARK_REACH = TUNE.STROKE_SPARK_REACH;
 export const strokeSpark = (t) => {
   const k = strokeArc(t);
-  return { scale: 1 + (STROKE_SPARK_REACH - 1) * k, alpha: STROKE_SPARK_ALPHA * k ** 0.7 };
+  return { scale: 1 + (STROKE_SPARK_REACH - 1) * k, alpha: TUNE.STROKE_SPARK_ALPHA * k ** 0.7 };
 };
 
 // How hot the segments the vertex is dragging burn, over the whole flight + settle:
 // full as it leaves, out by the time it has landed.
-export const STROKE_WAKE_ALPHA = 0.5;
+export const STROKE_WAKE_ALPHA = TUNE.STROKE_WAKE_ALPHA;
 export const strokeWake = (t) => STROKE_WAKE_ALPHA * (1 - Math.min(1, Math.max(0, t))) ** 1.3;
 
 // The whole timeline of one vertex, from an elapsed time. `land` drives the settle,

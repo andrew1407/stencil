@@ -34,30 +34,14 @@ import { readOpenProjectId, buildExternalLaunchUrl, normalizeLaunchPayload, LAUN
 import { StencilSync } from './stencilSync.js';
 import { wireExtensionBridge } from './extensionBridge.js';
 import { normalizePageSize, pageFormatLabel } from './units.js';
-import { icon } from '../ui/icons.js';
+import { icon, DRAW_MODE_ICON } from '../ui/icons.js';
 import { enhanceSelect, enhanceAllSelects } from '../ui/customSelect.js';
 import { playCanvasArrival, leaveThenRemove, swapContent, pinWidestFace, revealControls, strokeFoot } from '../ui/motion.js';
 import { requireConnection, createRemoteProject, saveRemoteProject } from '../net/remoteSync.js';
 import { getSyncToServer, loadSavedServers } from '../net/connectionStore.js';
 import { normalizeUrl } from '../net/connectionManager.js';
 import { OPEN_IN_DEFAULTS, loadOpenInConfig } from '../config/openInConfig.js';
-
-// Inline SVG glyphs for the draw-mode toggle. `currentColor` makes them inherit
-// the button's text color (theme + label match).
-// A matched PAIR, because they are one toggle: both anchor the same two handles —
-// (3,13) and (13,3), the corners a drag actually starts and ends on — in the same
-// 1.5 stroke. Only what joins them changes, a segment or the box it spans, so
-// Line↔Rect swaps between two siblings instead of two different families.
-// The hooks are the canon's own (icons.json `line`/`rect`), so both faces play the
-// canonical draw-on: the shape draws itself between the handles, which then pop.
-export const DRAW_MODE_ICON = {
-  line: '<svg class="draw-mode-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">' +
-    '<line class="ic-stroke" x1="3" y1="13" x2="13" y2="3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
-    '<circle class="ic-handle" cx="3" cy="13" r="2" fill="currentColor"/><circle class="ic-handle" cx="13" cy="3" r="2" fill="currentColor"/></svg>',
-  rect: '<svg class="draw-mode-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">' +
-    '<rect class="ic-box" x="3" y="3" width="10" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
-    '<circle class="ic-handle" cx="3" cy="13" r="2" fill="currentColor"/><circle class="ic-handle" cx="13" cy="3" r="2" fill="currentColor"/></svg>',
-};
+import EVENTS from '../config/events.json' with { type: 'json' };
 
 // Base name without its file extension (for project naming / source matching).
 const stripExt = (name) => {
@@ -293,7 +277,7 @@ export class DrawingApp {
     this.tabs.onAccent(key => {
       if (this.customAccent) return;
       const next = this.accents.applyAccent(key);
-      try { window.dispatchEvent(new CustomEvent('stencil:accent-changed', { detail: next })); } catch { /* no DOM — best-effort UI nudge */ }
+      try { window.dispatchEvent(new CustomEvent(EVENTS.accentChanged, { detail: next })); } catch { /* no DOM — best-effort UI nudge */ }
     });
     this.coordTable = new CoordTable(this);
     // Image/layout export, clipboard, and file IO (see exportService.js).
@@ -372,7 +356,7 @@ export class DrawingApp {
       if (typeof requestAnimationFrame === 'function') requestAnimationFrame(syncViewport);
       else syncViewport();
     };
-    window.addEventListener('stencil:chat-layout-changed', syncViewportSoon);
+    window.addEventListener(EVENTS.chatLayoutChanged, syncViewportSoon);
     // …and once body's padding finishes ANIMATING (components.css slides it over ~340ms):
     // the events above fire at the start of the slide and measure the old geometry.
     document.body.addEventListener('transitionend', (e) => {
@@ -455,11 +439,10 @@ export class DrawingApp {
     wireExtensionBridge(this);
   }
 
-  // The extension's editorBridge dispatches `stencil:switch-to-source` when the user picks
-  // "resume in the open editor tab": switch to the matching project here (no reload) instead
-  // of the extension spawning a new tab. Ignored while incognito (those images never persist).
+  // The extension's editorBridge dispatches switchToSource for "resume in the open editor
+  // tab": switch to the matching project here, no reload. Ignored while incognito.
   #wireExternalResume() {
-    window.addEventListener('stencil:switch-to-source', (e) => {
+    window.addEventListener(EVENTS.switchToSource, (e) => {
       if (this.storage.incognito) return;
       const { source = '', name = '' } = e?.detail || {};
       if (!source && !name) return;

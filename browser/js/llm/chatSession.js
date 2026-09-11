@@ -10,16 +10,13 @@ import { createLlmClient, LlmError, PROVIDER_LABELS } from './llmClient.js';
 import { loadLlmSettings, serverBearerToken } from './llmSettings.js';
 import { videoFrameSamples, videoFrameByIndex } from '../core/videoFrame.js';
 import { isAuthStatus } from '../net/connectionManager.js';
+import UI_STRINGS from '../config/uiStrings.json' with { type: 'json' };
 
 const CONTROLLERS = new WeakMap();
 
-// §10 dialog: the toolbar button behind each editor window the assistant may open — the
-// very ids controlsBinder's openProjects/openServers/… hotkey actions press, so the plan
-// and the shortcut take exactly the same path. Keys are the op's `name` enum (opPlan.js).
-const DIALOG_BUTTON_IDS = {
-  projects: 'projects-btn', servers: 'connect-btn', shortcuts: 'settings-btn',
-  visuals: 'visuals-btn', help: 'info-btn',
-};
+// §10 dialog: op `name` (opPlan.js) -> the toolbar button behind that window, from
+// config/uiStrings.json — the very ids controlsBinder's hotkey actions press.
+const DIALOG_BUTTON_IDS = UI_STRINGS.dialogButtonIds;
 
 // Project names are unique (projectsStore.nameExists), and a batch of saves routinely
 // wants the same base — suffix until it is free rather than losing the save to a clash.

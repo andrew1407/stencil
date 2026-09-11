@@ -6,12 +6,13 @@ import { loadSavedServers } from '../net/connectionStore.js';
 import { visibleChatMoreBtn } from './chatView.js';
 import { enhanceSelect } from './customSelect.js';
 import { loadVoiceSettings, saveVoiceSettings, VOICE_LANGUAGES, SILENCE_MS_MIN, SILENCE_MS_MAX } from '../llm/voiceSettings.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
+import UI_STRINGS from '../config/uiStrings.json' with { type: 'json' };
 
 // ── Component: assistant (LLM) settings modal ───────────────────
-// Provider + endpoint configuration for the chat panel (llm-contract.md §5),
-// persisted as drawingApp_llmSettings. Modeled on connectModal's settings-modal
-// pattern. Endpoints come ONLY from here (explicit user configuration) — never
-// from fetched or scanned content.
+// Provider + endpoint configuration for the chat panel (llm-contract.md §5), persisted as
+// drawingApp_llmSettings, on connectModal's settings-modal pattern. Endpoints come ONLY
+// from here (explicit user configuration) — never from fetched or scanned content.
 export class StencilLlmSettingsModal extends StencilElement {
   static inner() {
     return `
@@ -52,7 +53,7 @@ export class StencilLlmSettingsModal extends StencilElement {
                      split across the row it was neither obviously a checkbox nor obviously tied
                      to that label. Same shape as the desktop's (llmSettingsForm.cpp). -->
                 <div class="vs-row vs-checks">
-                    <label class="vs-inline-check" for="chat-save-chats" data-title="Save the assistant conversation with the active project and restore it when the project is reopened. Text only, most recent 32 turns; incognito never saves.&#10;&#10;For a project on a server the transcript is stored with it, so everyone that project is shared with can read it. Local projects stay on this machine.">
+                    <label class="vs-inline-check" for="chat-save-chats" data-title="${UI_STRINGS.assistantSettings.saveChatsTooltip}">
                         <input type="checkbox" id="chat-save-chats"> Save chats with projects
                     </label>
                 </div>
@@ -63,8 +64,7 @@ export class StencilLlmSettingsModal extends StencilElement {
                     <span class="vs-ctrl"><select id="chat-voice-lang">${VOICE_LANGUAGES.map(([v, label]) => `<option value="${v}">${label}</option>`).join('')}</select></span></div>
                 <div class="chat-cors-note" id="chat-settings-note">
                     <div id="chat-save-chats-note">
-                        Chats saved with a server project are <strong>readable by everyone
-                        the project is shared with</strong>; local projects stay on this machine.
+                        ${UI_STRINGS.assistantSettings.saveChatsNote}
                     </div>
                     <div id="chat-cors-note">
                         Local providers must allow this app's origin — Ollama via
@@ -114,7 +114,7 @@ export class StencilLlmSettingsModal extends StencilElement {
     // Persist AND tell the chat panel so it re-probes the provider status live.
     const persist = () => {
       saveLlmSettings(settings);
-      try { window.dispatchEvent(new Event('stencil:llm-settings-changed')); } catch { /* no DOM */ }
+      try { window.dispatchEvent(new Event(EVENTS.llmSettingsChanged)); } catch { /* no DOM */ }
     };
 
     // Server dropdown: live connections first, then saved-but-closed servers.
