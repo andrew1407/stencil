@@ -331,7 +331,17 @@ js/
   index.js            # bootstraps the app on window load
   pwa.js              # registers the service worker (best-effort)
   utils.js            # shared DOM / geometry / color / hotkey helpers
-  config/             # constants, hotkey + help-text registries
+  config/             # constants, hotkey + help-text registries, and the
+                      #   cross-surface assets the other front-ends read:
+                      #   themeTokens.json (css/theme.css's tokens, keyed),
+                      #   mediaTypes.json (image/video extensions + format
+                      #   normalisation), uiStrings.json (chat chips, the §12
+                      #   disclosure, the windows registry), events.json (the
+                      #   stencil:* channels — see events.README.md),
+                      #   motion.json (every tuned duration/count/easing
+                      #   js/ui/motion.js + dustCloud.js run on),
+                      #   svgArt.json (the inline art that is not a 24-grid
+                      #   glyph: the draw-mode pair + the accent favicon)
   core/               # DrawingApp and its collaborators (renderer, storage,
                       #   history, zoom/pan, coord table, formulas, projects store)
   llm/                # AI-assistant chat: provider client, op-plan parser/executor,
