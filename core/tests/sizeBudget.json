@@ -4,7 +4,7 @@
   "files": {
     "core/raster/rasterize.cpp": 247,
     "core/tests/wasmApi.test.cpp": 283,
-    "core/wasmApi.cpp": 261
+    "core/wasmApi.cpp": 250
   },
   "commentPct": {
     "core": 23,

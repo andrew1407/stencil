@@ -38,7 +38,7 @@ namespace {
 
 extern "C" {
 
-  // ── color (utils.js parseHex / hexToRgba) ──
+  // ── color (utils/color.js parseHex / hexToRgba) ──
   // Parse "#rrggbb" -> out[0..2] = {r, g, b}. Returns 1 on success, 0 if the
   // string is not a 7-char hex (out is left untouched). The browser builds the
   // "rgba(...)" string itself from these components, matching utils.js hexToRgba.
@@ -51,13 +51,13 @@ extern "C" {
     return 1;
   }
 
-  // ── geometry (utils.js distToSegment) ──
+  // ── geometry (utils/geometry.js distToSegment) ──
   double stencil_distToSegment(double px, double py, double ax, double ay,
                                double bx, double by) {
     return distToSegment(px, py, Point{ax, ay}, Point{bx, by});
   }
 
-  // ── drawing gate (drawingApp.js #closeCurrentShape) ──
+  // ── drawing gate (lineTransforms.js shouldCloseShape) ──
   // Returns 1 if a click at (cx,cy) closes a shape built from a flat [x0,y0,...]
   // array of `count` points with the given pointSize, else 0.
   int stencil_shouldCloseShape(const double* pts, int count, double cx,
@@ -66,7 +66,7 @@ extern "C" {
     return shouldCloseShape(v, Point{cx, cy}, pointSize) ? 1 : 0;
   }
 
-  // ── page metrics (drawingApp.js getPageDimensions / pixelToPageCoords) ──
+  // ── page metrics (pageMetrics.js getPageDimensions / pixelToPageCoords) ──
   // `name` is any canonical ISO format name from stencil_pageFormats ("A0".."C10")
   // or "custom"; custom* used only when name=="custom". Results are written to
   // outW/outH (page cm) for pageDimensions, and outX/outY (page cm, raw) for
@@ -88,9 +88,6 @@ extern "C" {
     *outY = p.y;
   }
 
-  // The canonical page-format names ("A0 A1 … C10", space-separated, no
-  // "custom") in the canonical A/B/C-series order. Static storage — the
-  // browser reads it as a string, never frees it.
   // ── formula engine (formulaEngine.js validate / apply / evaluate) ──
   // varName is the ASCII code of 'x' or 'y'.
   // Returns 1 and writes the result to *out on success; returns 0 on a parse
@@ -104,10 +101,6 @@ extern "C" {
     return 1;
   }
 
-  // ── duration parser (durationParser.js parse) ──
-  // Parse a human duration ("days 23", "fortnight", "off") into milliseconds
-  // written to *out (0 for off/never). Returns 1 on a valid spec, 0 otherwise
-  // (leaving *out untouched). The browser adds *out to Date.now() for the expiry.
   // ── image filters (renderer.js drawImageWithFilter / #applyTintFilter) ──
   // Apply a filter in place to an interleaved RGBA8 buffer of `pixelCount`
   // pixels (a canvas ImageData.data layout). `mode`: 0 none, 1 bw, 2 sepia,
@@ -121,11 +114,7 @@ extern "C" {
                     tintR, tintG, tintB);
   }
 
-  // Sobel edge detection ("contour") in place on a w x h RGBA8 buffer: dark
-  // edges on a white page, alpha preserved. Pinned integer math — the JS
-  // fallback (contourFilter.js) must stay byte-identical. Degenerate sizes /
-  // null data are a no-op.
-  // ── geometry transforms (drawingApp.js #rotateSelectedLine) ──
+  // ── geometry transforms (lineTransforms.js rotatePointsAbout) ──
   // Rotate a flat [x0,y0,x1,y1,...] array of `count` points in place about
   // (cx,cy) by `angle` radians.
   void stencil_rotatePoints(double* pts, int count, double cx, double cy,
@@ -139,7 +128,7 @@ extern "C" {
     }
   }
 
-  // ── geometry transforms (drawingApp.js #flipSelectedLine) ──
+  // ── geometry transforms (lineTransforms.js flipPointsAbout) ──
   // Mirror a flat [x0,y0,x1,y1,...] array of `count` points in place about
   // (cx,cy): horizontal != 0 reflects x, else reflects y.
   void stencil_flipPoints(double* pts, int count, int horizontal, double cx,
@@ -154,7 +143,7 @@ extern "C" {
   }
 
   // Center of the axis-aligned bounding box of a flat point array -> out[0..1].
-  // The rotation pivot used by #rotateSelectedLine when no point is focused.
+  // The rotation pivot lineTransforms.js uses when no point is focused.
   void stencil_boundingBoxCenter(const double* pts, int count, double* out) {
     const std::vector<Point> v = toPoints(pts, count);
     const Point c = boundingBoxCenter(v);

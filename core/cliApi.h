@@ -1,11 +1,26 @@
 #ifndef STENCIL_CORE_CLIAPI_H
 #define STENCIL_CORE_CLIAPI_H
 
-/* extern "C" surface over the shared core for the Zig CLI (cli/). Mirrors the role of
- * wasmApi.cpp for the browser, but shaped for a native image pipeline: it operates on
- * caller-owned interleaved RGBA8 buffers (byte order R,G,B,A) and plain C strings.
- * The host (Zig) owns all allocation, file/codec/video I/O and JSON parsing; this ABI
- * only transforms buffers and parses geometry / colour / length tokens. */
+/* extern "C" surface over the shared core for the Zig CLI (cli/) and pystencil. Mirrors
+ * the role of wasmApi.cpp for the browser, but shaped for a native image pipeline: it
+ * operates on caller-owned interleaved RGBA8 buffers (byte order R,G,B,A) and plain C
+ * strings. The host owns all allocation, file/codec/video I/O and JSON parsing; this ABI
+ * only transforms buffers and parses geometry / colour / length tokens.
+ *
+ * Buffer contract — the ABI trusts these and bounds-checks NOTHING:
+ *   - A `w`/`h` (or `width`/`height`) pixel buffer is exactly w*h*4 bytes; a
+ *     `pixelCount` buffer is pixelCount*4 bytes. Rows are contiguous, no stride.
+ *   - A `pts` array is 2*nPts doubles, [x0,y0,x1,y1,…].
+ *   - A `luma` plane is width*height bytes (1 per pixel).
+ *   - Row-range calls take a half-open [y0,y1); see the Row ranges section for which
+ *     ones clamp and which trust y1.
+ *   - `src` and `dst` must not overlap; in-place ops say so and take one buffer.
+ * Ownership: nothing here allocates or frees caller memory, and no pointer argument is
+ * retained past the call — strings are read (and copied if needed) before returning.
+ * Any `const char*` in is NUL-terminated or NULL (NULL reads as ""); every `const char*`
+ * returned is static storage the caller must not free. Out-pointers may be NULL (the
+ * value is simply not written) unless a function says otherwise; on a 0/failure return
+ * the out-pointers are left untouched. */
 
 #include <stdint.h>
 
@@ -42,7 +57,9 @@ int stencil_cli_resolveCrop(const char* spec, double imageW, double imageH,
                             int* outX, int* outY, int* outW, int* outH);
 
 /* ── RGBA8 buffer transforms ────────────────────────────────────────────────── */
-/* Copy sub-rectangle (rx,ry,rw,rh) of src (srcW x srcH) into dst (rw*rh*4 bytes). */
+/* Copy sub-rectangle (rx,ry,rw,rh) of src (srcW x srcH) into dst, which is rw*rh*4
+ * bytes — a different size from src. The rect may hang off the source: dst is always
+ * written in full, and any pixel outside src is zero-filled (transparent). */
 void stencil_cli_cropImageRGBA(const uint8_t* src, int srcW, int srcH,
                                int rx, int ry, int rw, int rh, uint8_t* dst);
 
@@ -52,7 +69,8 @@ int stencil_cli_normalizeQuarters(int quarters);
 /* Output dims after rotating w x h by `quarters` quarter-turns (writes *outW,*outH). */
 void stencil_cli_rotatedDims(int w, int h, int quarters, int* outW, int* outH);
 
-/* Rotate src (w x h) by `quarters` quarter-turns clockwise into dst (rotated dims). */
+/* Rotate src (w x h) by `quarters` quarter-turns clockwise into dst, which is sized by
+ * stencil_cli_rotatedDims (still w*h*4 bytes, but the dims swap on odd quarters). */
 void stencil_cli_rotateImageRGBA(const uint8_t* src, int w, int h, int quarters,
                                  uint8_t* dst);
 
@@ -72,9 +90,9 @@ void stencil_cli_rotateImageRows(const uint8_t* src, int w, int h, int quarters,
                                  uint8_t* dst, int oy0, int oy1);
 void stencil_cli_applyFilterRows(const char* mode, uint8_t* data, int width,
                                  int y0, int y1, int tintR, int tintG, int tintB);
-/* Contour in two passes over a caller-owned `luma` plane of width*height bytes.
- * The Sobel pass reads one row OUTSIDE its range on each side, so every luma row
- * must be built before any sobel row runs — two phases, never interleaved. */
+/* Contour in two passes over a caller-owned `luma` plane (width*height bytes, allocated
+ * by the host). The Sobel pass reads one row OUTSIDE its range on each side, so every
+ * luma row must be built before any sobel row runs — two phases, never interleaved. */
 void stencil_cli_buildLumaRows(const uint8_t* data, int width, int height,
                                int y0, int y1, uint8_t* luma);
 void stencil_cli_sobelRows(const uint8_t* luma, uint8_t* data, int width, int height,
@@ -94,8 +112,8 @@ void stencil_cli_applyFilter(const char* mode, uint8_t* data, int pixelCount,
 void stencil_cli_applyContour(uint8_t* data, int width, int height);
 
 /* ── Rasterise a layout line ────────────────────────────────────────────────── */
-/* Burn one polyline into an RGBA8 buffer (w x h). `pts` holds nPts (x,y) pairs
- * (2*nPts doubles). `style` is "solid"|"dashed"|"dotted"; `locked` (0/1) closes the
+/* Burn one polyline into an RGBA8 buffer (w x h), in place. `pts` holds nPts (x,y) pairs
+ * (2*nPts doubles); nPts <= 0 or a NULL `pts` is a no-op. `style` is "solid"|"dashed"|"dotted"; `locked` (0/1) closes the
  * shape and enables the `fillColor` fill. Colours are CSS strings (see parseColor).
  * `pointColor` colours the points independently of the stroke; NULL or "" means
  * inherit `color`, which is the pre-field behaviour. */

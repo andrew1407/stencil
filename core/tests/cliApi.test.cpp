@@ -122,3 +122,44 @@ TEST_CASE("stencil_cli_rasterizeLine takes an independent point colour") {
   CHECK(nulled[(12 * w + 4) * 4 + 0] > 150);
   CHECK(nulled[(12 * w + 4) * 4 + 2] < 100);
 }
+
+// Pins the ownership half of the buffer contract stated at the top of cliApi.h:
+// every out-pointer is optional, and a failing call leaves the caller's slots alone.
+TEST_CASE("cliApi contract: NULL out-pointers are tolerated, failures write nothing") {
+  CHECK(stencil_cli_parseColor("red", nullptr, nullptr, nullptr, nullptr) == 1);
+  CHECK(stencil_cli_namedPageSize("A4", nullptr, nullptr) == 1);
+  stencil_cli_defaultBlankSizePx(21.0, 29.7, 96.0, nullptr, nullptr);
+  stencil_cli_rotatedDims(3, 7, 1, nullptr, nullptr);
+  CHECK(stencil_cli_colorNameAt(0, nullptr) != nullptr);
+  CHECK(stencil_cli_parseDuration("week", nullptr) == 1);
+
+  int r = -7, g = -7, b = -7, a = -7;
+  CHECK(stencil_cli_parseColor("notacolour", &r, &g, &b, &a) == 0);
+  CHECK((r == -7 && g == -7 && b == -7 && a == -7));
+
+  double wcm = -7, hcm = -7;
+  CHECK(stencil_cli_namedPageSize("nope", &wcm, &hcm) == 0);
+  CHECK((wcm == -7 && hcm == -7));
+
+  long long ms = -7;
+  CHECK(stencil_cli_parseDuration("banana", &ms) == 0);
+  CHECK(ms == -7);
+
+  int cx = -7, cy = -7, cw = -7, ch = -7;
+  CHECK(stencil_cli_resolveCrop("nonsense", 100, 100, 1, 1, 21, 29.7, 0,
+                                &cx, &cy, &cw, &ch) == 0);
+  CHECK((cx == -7 && cy == -7 && cw == -7 && ch == -7));
+
+  // A crop rect hanging off the source fills dst in full, zeroing what is outside.
+  const std::vector<std::uint8_t> src(2 * 2 * 4, 0xAB);
+  std::vector<std::uint8_t> out(2 * 2 * 4, 0x11);
+  stencil_cli_cropImageRGBA(src.data(), 2, 2, 1, 1, 2, 2, out.data());
+  CHECK(out[0] == 0xAB);                      // the one overlapping pixel
+  CHECK((out[4] == 0 && out[8] == 0 && out[12] == 0));  // the three outside it
+
+  // A NULL / empty point list is a no-op rasterise, not a crash.
+  std::vector<std::uint8_t> buf(4 * 4 * 4, 9);
+  const std::vector<std::uint8_t> before = buf;
+  stencil_cli_rasterizeLine(buf.data(), 4, 4, nullptr, 0, "red", 1, 1, "solid", 0, "", "");
+  CHECK(buf == before);
+}
