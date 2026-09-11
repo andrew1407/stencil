@@ -77,6 +77,7 @@ format/
 state/
   historyStack        # line-snapshot undo/redo with the browser's exact cursor semantics
   projectsStore       # in-memory project registry + one-week expiry sweep (I/O lives in the GUI)
+  projectMeta         # the ProjectMeta value type the store and every adapter exchange
   zoomPan             # zoom clamp + anchored / rect zoom math
   holdDraw            # hold-to-draw tick/seed state machine shared with the GUIs
 wasmApi.cpp           # extern "C" ABI compiled to WebAssembly for the browser (see WASM.md)
