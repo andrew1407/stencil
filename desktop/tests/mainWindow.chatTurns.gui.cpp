@@ -2268,6 +2268,15 @@ class MainWindowGuiTest : public QObject {
     dunes.fill(Qt::darkMagenta);
     dock->addAttachmentImage(shore, "shore.jpg");
     dock->addAttachmentImage(dunes, "dunes.png");
+    // An unnamed save takes its attachment's name, and a TAKEN name suffixes — so a
+    // leftover "shore" in the shared state dir would rename everything asserted below.
+    QStringList stale;
+    for (const auto& p : win.projectList_) {
+      const QString name = QString::fromStdString(p.meta.name);
+      if (name.startsWith(QStringLiteral("shore")) || name.startsWith(QStringLiteral("second")))
+        stale << QString::fromStdString(p.meta.id);
+    }
+    for (const QString& id : stale) win.eraseLocalProject(id);
     const int before = int(win.projectList_.size());
     win.onChatSend("make the first b&w and the second sepia, then save both");
     QTRY_VERIFY(!dock->isBusy());
@@ -2882,7 +2891,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
+    openTranscript(win);   // the dock's real width: a card appended into a sliver lays out wrong
     win.chatDock_->appendUser(QStringLiteral("Give me 3 variants"), {});
     win.chatHistory_.append({QStringLiteral("user"), QStringLiteral("Give me 3 variants"), {}});
     win.chatError(QStringLiteral("not connected to http://localhost:8090 (no token)"), QString());

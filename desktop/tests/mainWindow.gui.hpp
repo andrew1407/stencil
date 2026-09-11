@@ -80,9 +80,7 @@
 #include <QDialog>
 #include <QDoubleSpinBox>
 #include <QSpinBox>
-#include <QRadioButton>
 #include <QWidgetAction>
-#include <QCursor>
 #include <QDateTime>
 #include <QDockWidget>
 #include <QGraphicsEffect>
@@ -100,7 +98,6 @@
 #include <QDialogButtonBox>
 #include <QListWidget>
 #include <QTableWidget>
-#include <QMenu>
 #include <QTimer>
 #include <QToolBar>
 #include <QVariantAnimation>
@@ -116,14 +113,6 @@ using stencil::gui::Settings;
 #include "mainWindowChat.gui.hpp"
 
 namespace stencil::guitest {
-  // Comfortably past the f(x,y) idle-commit delay (mainWindow.cpp kFormulaCommitMs), so a
-  // "stopped typing" wait can't race the timer on a loaded machine.
-  inline constexpr int kFormulaSettleMs = 1600;
-
-  // The shared box of the panel's two collapse chevrons (mainWindow kPanelToggleBox /
-  // selectionPanel kToggleBox) — asserted equal so the pair can't drift apart.
-  inline constexpr int kPanelChevronBox = 24;
-
   // Find a shared QAction by its visible label (the menu bar, toolbar, and context menu
   // all reuse the same QAction objects, so this reaches the real UI wiring).
   inline QAction* actionByText(const QWidget* w, const QString& text) {
@@ -147,12 +136,9 @@ namespace stencil::guitest {
     if (ok && ms > 0) QTest::qWait(ms);
   }
 
-  // A confirmation is a modal dialog that blocks the triggering call (Quit, Delete Project
-  // File, …) — a QMessageBox, or the chrome-styled confirmModal (modalChrome.cpp) the
-  // projects flows use. Arm this BEFORE triggering the action: it polls until a modal
-  // CARRYING the named button appears (an unrelated modal — e.g. the projects dialog the
-  // question will sit over — is skipped, not clicked) and clicks it, letting the
-  // otherwise-blocked trigger() return with that answer.
+  // Arm BEFORE triggering an action that blocks on a confirmation (QMessageBox or the
+  // chrome-styled confirmModal): it polls until a modal CARRYING that button appears — an
+  // unrelated modal it may sit over is skipped, not clicked — and answers it.
   inline void dismissModal(const QString& buttonText) {
     QTimer::singleShot(0, [buttonText]() {
       for (int i = 0; i < 200; ++i) {
@@ -168,17 +154,21 @@ namespace stencil::guitest {
     });
   }
 
-  // The image every case opens: a generous album-orientation PNG (larger than the tiny
-  // shared fixture) so the fit-scaled canvas has room for well-separated draw clicks.
+  // The image every case opens: album-orientation and larger than the tiny shared
+  // fixture, so the fit-scaled canvas has room for well-separated draw clicks.
   inline QString& guiTestImage() {
     static QString path;
     return path;
   }
 
   // Shared initTestCase body. The quit-confirmation case closes its window; keep that
-  // from ending the shared QApplication (and the rest of the run) with it.
+  // from ending the shared QApplication with it.
   inline void prepareGuiTestCase() {
     qApp->setQuitOnLastWindowClosed(false);
+    // Write the defaults out before any case runs: a state dir that has never been
+    // written leaves every unset key at whatever the loader defaults to THIS run, so a
+    // first run and a second run of the same binary were not the same UI.
+    stencil::gui::fileStore::saveSettings(stencil::gui::fileStore::loadSettings());
     QImage img(240, 160, QImage::Format_RGB32);
     img.fill(Qt::white);
     guiTestImage() = QDir::temp().filePath(QStringLiteral("stencil_e2e_input.png"));
@@ -202,6 +192,25 @@ namespace stencil::guitest {
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
     qunsetenv("STENCIL_NO_ANIM");
     return qScopeGuard([noAnim] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
+  }
+
+  // Poll until `cond` holds, giving up after `capMs`: the early-exit stand-in for a fixed
+  // sleep. Most callers pin motion off, so the first look usually already answers.
+  template <class F>
+  void settle(F cond, int capMs = 1000) { (void)QTest::qWaitFor(cond, capMs); }
+
+  // After clearImage() the "＋ Blank image" card is held back while the clear dust flies,
+  // and PAINTING is what records its rect — so each look repaints. Polls the hold out.
+  inline bool waitForIdleCard(MainWindow& win, int capMs = 2200) {
+    CanvasWidget* canvas = win.findChild<CanvasWidget*>();
+    QElapsedTimer t;
+    t.start();
+    for (;;) {
+      canvas->grab();
+      if (canvas->idleCardGlobalRect().isValid()) return true;
+      if (t.elapsed() >= capMs) return false;
+      QTest::qWait(40);
+    }
   }
 
   // Build a shown MainWindow with our test image loaded; returns its live canvas.

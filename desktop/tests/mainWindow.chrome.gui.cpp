@@ -3,6 +3,13 @@
 // Shared ground (helpers, the loaded window, the motion pins) is in mainWindow.gui.hpp.
 #include "mainWindow.gui.hpp"
 
+// Comfortably past the f(x,y) idle-commit delay (mainWindow.cpp kFormulaCommitMs), so a
+// "stopped typing" wait can't race the timer on a loaded machine.
+constexpr int kFormulaSettleMs = 1600;
+// The shared box of the panel's two collapse chevrons (mainWindow kPanelToggleBox /
+// selectionPanel kToggleBox) — asserted equal so the pair can't drift apart.
+constexpr int kPanelChevronBox = 24;
+
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
 
@@ -95,8 +102,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 500);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(200);
-    QCOMPARE(win.width(), 1400);
+    QTRY_COMPARE_WITH_TIMEOUT(win.width(), 1400, 500);
     QVERIFY2(win.height() < 700,
              qPrintable(QString("opened %1px tall, asked for 500").arg(win.height())));
     // The run really does wrap, and the minimum tracks it: a narrower window needs more
@@ -104,10 +110,10 @@ class MainWindowGuiTest : public QObject {
     auto* row = win.findChild<QWidget*>("toolWrapRow");
     QVERIFY(row);
     win.resize(1500, 500);
-    QTest::qWait(200);
+    settle([&] { return win.width() == 1500; }, 500);
     const int wideRow = row->height(), wideMin = win.minimumSizeHint().height();
     win.resize(900, 500);
-    QTest::qWait(200);
+    settle([&] { return row->height() > wideRow; }, 500);
     QVERIFY2(row->height() > wideRow, "the run did not wrap onto more lines when narrowed");
     QVERIFY2(win.minimumSizeHint().height() > wideMin, "…and the minimum did not follow it");
   }
@@ -293,7 +299,7 @@ class MainWindowGuiTest : public QObject {
 
     // --- Exit: everything restored, no lingering graphics effect ---
     fs->trigger();
-    QTest::qWait(250);
+    settle([&] { return win.isVisible() && anyBarVisible(); }, 500);
     QVERIFY(win.isVisible());
     QVERIFY(anyBarVisible());
     for (QToolBar* b : win.findChildren<QToolBar*>()) QVERIFY(b->graphicsEffect() == nullptr);
@@ -596,7 +602,7 @@ class MainWindowGuiTest : public QObject {
       // canvas rather than a hidden widget whose geometry means nothing.
       win.actChat_->setChecked(true);
       QTRY_VERIFY(win.chatDock_->isVisible());
-      QTest::qWait(300);
+      settle([&] { return !win.chatAnim_ || win.chatAnim_->state() != QAbstractAnimation::Running; }, 600);
 
       // Every widget the tag could possibly push around, in window coordinates.
       const auto snapshot = [&win] {
@@ -614,6 +620,19 @@ class MainWindowGuiTest : public QObject {
         for (QToolBar* tb : win.findChildren<QToolBar*>())
           add(QStringLiteral("toolbar ") + tb->objectName(), tb);
         return out;
+      };
+      // Under load the opening layout can be a pass short when the baseline is taken, and
+      // the settle that follows then reads as a move. Read it only once it holds still.
+      const auto steady = [&] {
+        QMap<QString, QRect> a = snapshot();
+        for (int i = 0, held = 0; i < 60; ++i) {
+          QTest::qWait(25);
+          const QMap<QString, QRect> b = snapshot();
+          held = (a == b) ? held + 1 : 0;
+          a = b;
+          if (held >= 4) break;   // four quiet looks: the opening passes are done
+        }
+        return a;
       };
       const auto same = [&](const QMap<QString, QRect>& a, const QMap<QString, QRect>& b,
                             const QString& what) {
@@ -637,22 +656,27 @@ class MainWindowGuiTest : public QObject {
           QTRY_VERIFY(win.canvas_->hasImage());
           win.updateImageSizeInfo();
         }
-        QTest::qWait(150);
         const QString state = QStringLiteral("%1/%2").arg(mode, loaded ? "loaded" : "empty");
-        const QMap<QString, QRect> before = snapshot();
+        // Baseline after ONE round: the info bar reserves the tallest box it has ever
+        // needed, so the first tag it is ever shown can still grow that reserve by a
+        // pixel. What must never move is every toggle after that.
+        win.actIncognito_->setChecked(true);
+        QTest::qWait(150);
+        win.actIncognito_->setChecked(false);
+        const QMap<QString, QRect> before = steady();
         const int hintBefore = win.imageSizeInfo_->sizeHint().height();
 
         win.actIncognito_->setChecked(true);
         QTest::qWait(150);
         QVERIFY2(win.imageSizeInfo_->text().contains(QStringLiteral("Incognito")),
                  qPrintable(state + ": the tag never appeared — the check would be vacuous"));
-        same(before, snapshot(), state + " on");
+        same(before, steady(), state + " on");
         QCOMPARE(win.imageSizeInfo_->sizeHint().height(), hintBefore);
 
         win.actIncognito_->setChecked(false);
         QTest::qWait(150);
         QVERIFY(!win.imageSizeInfo_->text().contains(QStringLiteral("Incognito")));
-        same(before, snapshot(), state + " off again");
+        same(before, steady(), state + " off again");
         QCOMPARE(win.imageSizeInfo_->sizeHint().height(), hintBefore);
       }
     }
@@ -684,7 +708,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.actPanel_->setChecked(false);
-    QTest::qWait(400);
+    settle([&] { return win.panelReopenBtn_ != nullptr; }, 600);
     QVERIFY(win.panelReopenBtn_);
     QCOMPARE(win.panelReopenBtn_->focusPolicy(), Qt::NoFocus);
     QCOMPARE(win.panelReopenBtn_->size(), QSize(kPanelChevronBox, kPanelChevronBox));
@@ -860,7 +884,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     openLoaded(win);
-    QTest::qWait(200);
+    settle([&] { return win.canvas_->hasImage(); }, 500);
     QVERIFY(win.logoBtn_);
     QWidget* fx = win.logoFx_;
     QVERIFY(fx);
@@ -887,7 +911,6 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!fx->isVisible(), "the logo's mark stayed up with its button gone");
 
     win.toggleFullscreen();   // …and back, with the header row and its mark restored
-    QTest::qWait(200);
     QTRY_VERIFY_WITH_TIMEOUT(win.logoBtn_->isVisible(), 2000);
     QTRY_VERIFY_WITH_TIMEOUT(fx->isVisible(), 2000);
     beat();
@@ -907,7 +930,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     openLoaded(win);
-    QTest::qWait(200);
+    settle([&] { return win.canvas_->hasImage(); }, 500);
     stencil::gui::SearchComboBox* combo = nullptr;
     for (QComboBox* c : win.findChildren<QComboBox*>())
       if (c->isVisible() && c->count() > 2) {
@@ -916,7 +939,7 @@ class MainWindowGuiTest : public QObject {
       }
     QVERIFY2(combo, "no themed select on the toolbar");
     combo->showPopup();
-    QTest::qWait(250);
+    settle([&] { return combo->popupList() != nullptr; }, 500);
     QListView* list = combo->popupList();
     QVERIFY(list);
     QCOMPARE(list->itemDelegate()->objectName(), QStringLiteral("stencilSlidingRows"));
@@ -1029,7 +1052,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.openPathFromOS(guiTestImage());
-    QTest::qWait(200);
+    settle([&] { return win.canvas_->hasImage(); }, 500);
     const auto motion = withMotion();   // the slide is the whole point here
     const int box = win.nameBar_.accept->maximumWidth();
     QVERIFY(box > 20);

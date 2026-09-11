@@ -366,8 +366,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.canvas_->clearImage();
     win.refreshActions();
-    QTest::qWait(1800);            // past the clear hold, so the card is laid out
-    win.canvas_->grab();           // painting is what records the card's rect
+    QVERIFY2(waitForIdleCard(win), "the blank-image card never came back after the clear");
     const QRect card = win.canvas_->idleCardGlobalRect();
     QVERIFY2(card.isValid(), "the blank-image card is not on screen");
 

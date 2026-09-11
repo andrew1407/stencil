@@ -595,7 +595,7 @@ class MainWindowGuiTest : public QObject {
           if (list->item(i)->data(Qt::UserRole).toString() == id) return true;
         return false;
       };
-      for (int i = 0; i < 300 && rowPresent(); ++i) QTest::qWait(10);
+      settle([&] { return !(rowPresent()); }, 3000);
       goneAfter = !rowPresent();
       bailOut();
     });
@@ -730,7 +730,7 @@ class MainWindowGuiTest : public QObject {
       const auto pinned = [&] {
         return list->count() == 1 && list->item(0)->data(Qt::UserRole + 11).toBool();
       };
-      for (int i = 0; i < 300 && !pinned(); ++i) QTest::qWait(10);
+      settle([&] { return pinned(); }, 3000);
       tempPinned = pinned() && list->item(0)->text() == QStringLiteral("Temporary (unsaved)");
       for (int i = 0; i < list->count(); ++i)
         if (list->item(i)->text() == QStringLiteral("No projects yet")) noPlaceholder = false;
@@ -815,7 +815,7 @@ class MainWindowGuiTest : public QObject {
       // below is unambiguously the close flight's. Bounded wait for a loaded machine.
       QTest::qWait(50);
       const auto openFlightLive = [&] { return surfaceFlight(&win) || modalGhost(&win); };
-      for (int i = 0; i < 250 && openFlightLive(); ++i) QTest::qWait(10);
+      settle([&] { return !(openFlightLive()); }, 2500);
       if (openFlightLive()) { bailOut(); return; }
       // Where the row sits, in DIALOG coordinates — the ghost photographs the dialog.
       const QRect rowInDlg =
@@ -946,7 +946,7 @@ class MainWindowGuiTest : public QObject {
       QTest::qWait(400);
       openAfterYes = dlg->isVisible() && !hasProject(idA);
       // The scattered row leaves the list once the dust lands (setProjects repaint).
-      for (int i = 0; i < 300 && rowFor(idA); ++i) QTest::qWait(10);
+      settle([&] { return !(rowFor(idA)); }, 3000);
       rowGone = !rowFor(idA) && rowFor(idB) != nullptr;
       bailOut();
     });

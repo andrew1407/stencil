@@ -383,7 +383,7 @@ class MainWindowGuiTest : public QObject {
     }
     win.canvas_->clearImage();
     win.refreshActions();
-    QTest::qWait(1800);   // past the clear-dust hold that hides the card (kMs + a beat)
+    QVERIFY(waitForIdleCard(win));   // past the clear-dust hold that hides the card
     // Brightest column of the card's mid row — where the band is right now.
     const auto bandX = [&] {
       const QImage im = win.canvas_->grab().toImage();
@@ -1012,8 +1012,9 @@ class MainWindowGuiTest : public QObject {
       win.scrollbarHovered_ = false;
       win.revealCanvasScrollbars();   // re-arm the reveal our synthetic Leave just cancelled
     }
-    QTest::qWait(1200);   // past the 900ms idle timer
-    QVERIFY(vbar->testAttribute(Qt::WA_TransparentForMouseEvents));   // hidden = not there
+    // Out on its own after the 900ms idle timer — polled, so the wait is the timer and
+    // not a guess at it.
+    QTRY_VERIFY_WITH_TIMEOUT(vbar->testAttribute(Qt::WA_TransparentForMouseEvents), 1500);
     QCOMPARE(win.vScrollOpacity_->opacity(), 0.0);
     QCOMPARE(win.hScrollOpacity_->opacity(), 0.0);
 
@@ -1021,8 +1022,7 @@ class MainWindowGuiTest : public QObject {
     // drives — see MainWindow::scrollTo) reveals it again, and it fades back out the same way.
     win.scroll_->verticalScrollBar()->setValue(50);
     QCOMPARE(win.vScrollOpacity_->opacity(), 1.0);
-    QTest::qWait(1200);
-    QCOMPARE(win.vScrollOpacity_->opacity(), 0.0);
+    QTRY_COMPARE_WITH_TIMEOUT(win.vScrollOpacity_->opacity(), 0.0, 1500);
 
     // Hovering the bar itself (to grab it) must never let it fade out from under the cursor.
     QEvent enter(QEvent::Enter);
@@ -1034,8 +1034,7 @@ class MainWindowGuiTest : public QObject {
     QEvent leave(QEvent::Leave);
     QCoreApplication::sendEvent(win.canvasScrollBar(Qt::Vertical), &leave);
     QVERIFY(!win.scrollbarHovered_);
-    QTest::qWait(1200);
-    QCOMPARE(win.vScrollOpacity_->opacity(), 0.0);
+    QTRY_COMPARE_WITH_TIMEOUT(win.vScrollOpacity_->opacity(), 0.0, 1500);
     // Dragging the floating bar drives the real scroll model, and vice versa.
     vbar->setValue(120);
     QCOMPARE(win.scroll_->verticalScrollBar()->value(), 120);

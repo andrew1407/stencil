@@ -622,9 +622,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.canvas_->clearImage();
     win.refreshActions();
-    QTest::qWait(1800);   // past the clear-dust hold, so the card is painted
     // Painting the card is what used to install the tooltip.
-    win.canvas_->grab();
+    QVERIFY(waitForIdleCard(win));
     QVERIFY2(win.canvas_->toolTip().isEmpty(),
              qPrintable("the empty canvas still has a tooltip: " + win.canvas_->toolTip()));
   }

@@ -26,7 +26,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     const QPoint at = win.mapToGlobal(QPoint(500, 400));
     QCursor::setPos(at);   // the pointer rests where the menu opens, as after a right-click
-    QTest::qWait(100);
+    QTest::qWait(20);   // the pointer lands before the menu asks where it is
     bool opened = false, stillOpen = false, walkedInside = false, leftClosed = false,
          reopened = false, closedByPointer = false, reachedPoints = false, enterClosed = false,
          pointsBefore = false, noFlash = false, enteredRow = false, leftDusted = false;
@@ -37,7 +37,7 @@ class MainWindowGuiTest : public QObject {
         if (!root) QTest::qWait(10);
       }
       if (!root) return;
-      QTest::qWait(400);   // let the reveal land
+      settle([&] { return root->windowOpacity() >= 1.0; }, 400);   // the reveal, when one plays
       QAction* layoutAct = nullptr;
       for (QAction* a : root->actions()) if (a->text() == "Image / Layout") layoutAct = a;
       if (!layoutAct || !layoutAct->menu()) { root->close(); return; }
@@ -52,7 +52,7 @@ class MainWindowGuiTest : public QObject {
       // paints solid for a frame and THEN plays its reveal reads as a flash.
       noFlash = !stencil::support::dustMotionOk() || !layoutMenu->isVisible() ||
                 layoutMenu->windowOpacity() < 1.0;
-      for (int i = 0; i < 100 && !layoutMenu->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return layoutMenu->isVisible(); }, 1000);
       opened = layoutMenu->isVisible();
       QTest::qWait(900);   // well past the guard's 220/480ms grace
       stillOpen = layoutMenu->isVisible();
@@ -78,7 +78,7 @@ class MainWindowGuiTest : public QObject {
       if (dustSeen()) leftDusted = true;
       leftClosed = !layoutMenu->isVisible() && root->isVisible() && root->activeAction() == layoutAct;
       QTest::keyClick(root, Qt::Key_Right);
-      for (int i = 0; i < 100 && !layoutMenu->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return layoutMenu->isVisible(); }, 1000);
       reopened = layoutMenu->isVisible();
       // …while a real pointer move onto another row still closes it (the guard's job).
       QAction* plainRow = nullptr;
@@ -96,7 +96,7 @@ class MainWindowGuiTest : public QObject {
           QApplication::sendEvent(root, &e);
           QTest::qWait(15);
         }
-        for (int i = 0; i < 80 && layoutMenu->isVisible(); ++i) QTest::qWait(10);
+        settle([&] { return !(layoutMenu->isVisible()); }, 800);
         closedByPointer = !layoutMenu->isVisible();
       }
       // Enter picks a row: walk the root to Show Points and toggle it, which also
@@ -108,7 +108,7 @@ class MainWindowGuiTest : public QObject {
       }
       reachedPoints = root->activeAction() == win.actShowPoints_;
       QTest::keyClick(root, Qt::Key_Return);
-      for (int i = 0; i < 100 && root->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return !(root->isVisible()); }, 1000);
       enterClosed = !root->isVisible();
       if (root->isVisible()) root->close();
     });
@@ -125,7 +125,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(reachedPoints, "the keyboard walk never reached Show Points");
     QVERIFY2(enterClosed, "Return did not pick the row and close the menu");
     QCOMPARE(win.actShowPoints_->isChecked(), !pointsBefore);
-    QTest::qWait(260);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
   }
 
   // Tab inside a flyout that hosts real controls (Style's spinners here) walks those
@@ -140,7 +140,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     const QPoint at = win.mapToGlobal(QPoint(500, 400));
     QCursor::setPos(at);
-    QTest::qWait(100);
+    QTest::qWait(20);   // the pointer lands before the menu asks where it is
     bool opened = false, revealedOnly = false, foldedBack = false, wrappedToLastRow = false;
     QWidget *first = nullptr, *second = nullptr, *backAgain = nullptr, *wrapped = nullptr;
     QTimer::singleShot(0, [&] {
@@ -150,24 +150,24 @@ class MainWindowGuiTest : public QObject {
         if (!root) QTest::qWait(10);
       }
       if (!root) return;
-      QTest::qWait(400);
+      settle([&] { return root->windowOpacity() >= 1.0; }, 400);   // the reveal, when one plays
       QAction* styleAct = nullptr;
       for (QAction* a : root->actions()) if (a->text() == "Style") styleAct = a;
       if (!styleAct || !styleAct->menu()) { root->close(); return; }
       root->setActiveAction(styleAct);
       QTest::keyClick(root, Qt::Key_Right);
       QMenu* style = styleAct->menu();
-      for (int i = 0; i < 100 && !style->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return style->isVisible(); }, 1000);
       opened = style->isVisible();
       QTest::qWait(60);
       // The first → only revealed it: no control has focus yet, so ← can fold it back.
       QWidget* popup = QApplication::activePopupWidget();
       revealedOnly = QApplication::focusWidget() != win.pointSpin_ && QApplication::focusWidget() != win.thickSpin_;
       QTest::keyClick(popup, Qt::Key_Left);
-      for (int i = 0; i < 100 && style->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return !(style->isVisible()); }, 1000);
       foldedBack = !style->isVisible() && root->isVisible();
       QTest::keyClick(root, Qt::Key_Right);
-      for (int i = 0; i < 100 && !style->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return style->isVisible(); }, 1000);
       QTest::qWait(60);
       // The second → enters it, onto the first control; Tab walks on from there.
       popup = QApplication::activePopupWidget();
@@ -198,7 +198,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!wrapped || (wrapped != win.pointSpin_ && wrapped != win.thickSpin_),
              "Shift+Tab off the first control left a spinner focused");
     QVERIFY2(wrappedToLastRow, "Shift+Tab off the first control did not land on the last row");
-    QTest::qWait(260);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
   }
 
   // The Assistant flyout's own version of the rule above: the first → reveals the chat,
@@ -214,7 +214,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     const QPoint at = win.mapToGlobal(QPoint(500, 400));
     QCursor::setPos(at);
-    QTest::qWait(100);
+    QTest::qWait(20);   // the pointer lands before the menu asks where it is
     bool opened = false, revealedOnly = false, entered = false;
     QTimer::singleShot(0, [&] {
       QMenu* root = nullptr;
@@ -223,14 +223,14 @@ class MainWindowGuiTest : public QObject {
         if (!root) QTest::qWait(10);
       }
       if (!root) return;
-      QTest::qWait(400);
+      settle([&] { return root->windowOpacity() >= 1.0; }, 400);   // the reveal, when one plays
       QAction* assistAct = nullptr;
       for (QAction* a : root->actions()) if (a->text() == "Assistant") assistAct = a;
       if (!assistAct || !assistAct->menu()) { root->close(); return; }
       root->setActiveAction(assistAct);
       QTest::keyClick(root, Qt::Key_Right);
       QMenu* chat = assistAct->menu();
-      for (int i = 0; i < 100 && !chat->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return chat->isVisible(); }, 1000);
       opened = chat->isVisible();
       QTest::qWait(80);
       revealedOnly = QApplication::focusWidget() != win.chatMenuInput_;
@@ -243,7 +243,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(opened, "Right on the Assistant row did not open the chat flyout");
     QVERIFY2(revealedOnly, "the first Right already put the caret in the chat input");
     QVERIFY2(entered, "the second Right did not focus the chat input");
-    QTest::qWait(260);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
   }
 
 
@@ -260,7 +260,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     const QPoint at = win.mapToGlobal(QPoint(500, 400));
     QCursor::setPos(at);
-    QTest::qWait(100);
+    QTest::qWait(20);   // the pointer lands before the menu asks where it is
     const auto checkedFilter = [&win] {
       for (QAbstractButton* b : win.filterButtons_->buttons())
         if (b->isChecked()) return b->property("filterValue").toString();
@@ -277,7 +277,7 @@ class MainWindowGuiTest : public QObject {
         if (!root) QTest::qWait(10);
       }
       if (!root) return;
-      QTest::qWait(400);
+      settle([&] { return root->windowOpacity() >= 1.0; }, 400);   // the reveal, when one plays
       auto rowNamed = [&](const QString& title) -> QAction* {
         for (QAction* a : root->actions()) if (a->text().startsWith(title)) return a;
         return nullptr;
@@ -298,9 +298,9 @@ class MainWindowGuiTest : public QObject {
                      || stencil::gui::icm::runnerOfAction(filterAct) != nullptr;
       QTest::keyClick(root, Qt::Key_Right);
       QMenu* filter = filterAct->menu();
-      for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return filter->isVisible(); }, 1000);
       filterOpened = filter->isVisible();
-      QTest::qWait(600);
+      QTest::qWait(600);   // past the flyout guard's 220/480ms grace — a real hold, not a settle
       if (QWidget* p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Right);   // enter
       QTest::qWait(50);
       auto* focused = qobject_cast<QRadioButton*>(QApplication::focusWidget());
@@ -318,14 +318,14 @@ class MainWindowGuiTest : public QObject {
       upPicked = afterUp == "bw";
       stayedOpen = filter->isVisible() && root->isVisible();
       QTest::keyClick(QApplication::focusWidget(), Qt::Key_Left);
-      for (int i = 0; i < 100 && filter->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return !(filter->isVisible()); }, 1000);
 
       // The other route: a flyout opened the way a HOVER opens it leaves the keyboard
       // with the root. Its keys must still reach the focused radio (stayOpenMenu.cpp
       // forwards them), so → enters and ↓ picks exactly as above.
       root->setActiveAction(filterAct);
-      for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
-      QTest::qWait(600);
+      settle([&] { return filter->isVisible(); }, 1000);
+      QTest::qWait(600);   // past the flyout guard's 220/480ms grace — a real hold, not a settle
       QTest::keyClick(root, Qt::Key_Right);
       QTest::qWait(50);
       rootRouteEntered = qobject_cast<QRadioButton*>(QApplication::focusWidget()) != nullptr;
@@ -334,7 +334,7 @@ class MainWindowGuiTest : public QObject {
       afterRootDown = checkedFilter();
       rootRoutePicked = afterRootDown == "sepia";
       QTest::keyClick(root, Qt::Key_Left);
-      for (int i = 0; i < 100 && filter->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return !(filter->isVisible()); }, 1000);
       rootRouteFolded = !filter->isVisible() && root->isVisible();
 
       // Style: reveal it, enter it (the point-size spinner), Tab past both spinners
@@ -353,9 +353,9 @@ class MainWindowGuiTest : public QObject {
       }
       QTest::keyClick(root, Qt::Key_Right);
       QMenu* style = styleAct->menu();
-      for (int i = 0; i < 100 && !style->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return style->isVisible(); }, 1000);
       styleOpened = style->isVisible();
-      QTest::qWait(600);
+      QTest::qWait(600);   // past the flyout guard's 220/480ms grace — a real hold, not a settle
       keyTo(Qt::Key_Right);   // enter: the point-size spinner
       QTest::qWait(40);
       keyTo(Qt::Key_Tab);     // thickness
@@ -385,7 +385,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(styleApplied, "walking onto Dashed did not apply the dashed style");
     QVERIFY2(styleStayedOpen, "applying a style with the arrows closed the menu");
     win.applyImageFilter("none");
-    QTest::qWait(260);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
   }
 
 
@@ -401,7 +401,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     const QPoint at = win.mapToGlobal(QPoint(500, 400));
     QCursor::setPos(at);
-    QTest::qWait(100);
+    QTest::qWait(20);   // the pointer lands before the menu asks where it is
     bool opened = false, hiddenAtStart = false, shownOnCustom = false, rowLaidOut = false, hiddenAgain = false;
     QTimer::singleShot(0, [&] {
       QMenu* root = nullptr;
@@ -410,16 +410,16 @@ class MainWindowGuiTest : public QObject {
         if (!root) QTest::qWait(10);
       }
       if (!root) return;
-      QTest::qWait(400);
+      settle([&] { return root->windowOpacity() >= 1.0; }, 400);   // the reveal, when one plays
       QAction* filterAct = nullptr;
       for (QAction* a : root->actions()) if (a->text().startsWith("Image Filter")) filterAct = a;
       if (!filterAct || !filterAct->menu()) { root->close(); return; }
       for (int i = 0; i < 40 && root->activeAction() != filterAct; ++i) { QTest::keyClick(root, Qt::Key_Down); QTest::qWait(20); }
       QTest::keyClick(root, Qt::Key_Right);
       QMenu* filter = filterAct->menu();
-      for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return filter->isVisible(); }, 1000);
       opened = filter->isVisible();
-      QTest::qWait(600);
+      QTest::qWait(600);   // past the flyout guard's 220/480ms grace — a real hold, not a settle
       hiddenAtStart = !win.tintColorAction_->isVisible();
       if (QWidget* p = QApplication::activePopupWidget()) QTest::keyClick(p, Qt::Key_Right);   // enter: None
       QTest::qWait(50);
@@ -440,7 +440,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(rowLaidOut, "the tint row is visible but the flyout did not make room for it");
     QVERIFY2(hiddenAgain, "moving off Custom Tint did not hide the tint row");
     win.applyImageFilter("none");
-    QTest::qWait(260);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
 
     // Against the screen's bottom edge: the flyout that grows for the tint row must be
     // re-placed to stay on screen, or the new row lands below it, never seen.
@@ -449,7 +449,7 @@ class MainWindowGuiTest : public QObject {
     QTest::qWait(200);
     const QPoint low = win.mapToGlobal(QPoint(500, win.height() - 60));
     QCursor::setPos(low);
-    QTest::qWait(100);
+    QTest::qWait(20);   // the pointer lands before the menu asks where it is
     bool lowOpened = false, onScreen = false, rowOnScreen = false;
     QTimer::singleShot(0, [&] {
       QMenu* root = nullptr;
@@ -458,15 +458,15 @@ class MainWindowGuiTest : public QObject {
         if (!root) QTest::qWait(10);
       }
       if (!root) return;
-      QTest::qWait(400);
+      settle([&] { return root->windowOpacity() >= 1.0; }, 400);   // the reveal, when one plays
       QAction* filterAct = nullptr;
       for (QAction* a : root->actions()) if (a->text().startsWith("Image Filter")) filterAct = a;
       if (!filterAct || !filterAct->menu()) { root->close(); return; }
       root->setActiveAction(filterAct);   // hover-style open
       QMenu* filter = filterAct->menu();
-      for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return filter->isVisible(); }, 1000);
       lowOpened = filter->isVisible();
-      QTest::qWait(600);
+      QTest::qWait(600);   // past the flyout guard's 220/480ms grace — a real hold, not a settle
       QAbstractButton* custom = nullptr;
       for (QAbstractButton* b : win.filterButtons_->buttons()) if (b->property("filterValue") == "custom") custom = b;
       QTest::mouseClick(custom, Qt::LeftButton, Qt::NoModifier, custom->rect().center());
@@ -481,7 +481,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(onScreen, "the flyout grew off the bottom of the screen");
     QVERIFY2(rowOnScreen, "the tint row landed off screen");
     win.applyImageFilter("none");
-    QTest::qWait(260);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
   }
 
 
@@ -498,7 +498,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
     const QPoint at = win.mapToGlobal(QPoint(500, 400));
     QCursor::setPos(at);
-    QTest::qWait(100);
+    QTest::qWait(20);   // the pointer lands before the menu asks where it is
     bool revealed = false, downFolded = false, upBack = false, reRevealed = false, enteredPick = false;
     QString rootAfterDown;
     QTimer::singleShot(0, [&] {
@@ -508,7 +508,7 @@ class MainWindowGuiTest : public QObject {
         if (!root) QTest::qWait(10);
       }
       if (!root) return;
-      QTest::qWait(400);
+      settle([&] { return root->windowOpacity() >= 1.0; }, 400);   // the reveal, when one plays
       QAction* filterAct = nullptr;
       QAction* transformAct = nullptr;
       for (QAction* a : root->actions()) {
@@ -527,12 +527,12 @@ class MainWindowGuiTest : public QObject {
       for (int i = 0; i < 40 && root->activeAction() != filterAct; ++i) { QTest::keyClick(root, Qt::Key_Down); QTest::qWait(20); }
       QTest::keyClick(root, Qt::Key_Right);
       QMenu* filter = filterAct->menu();
-      for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return filter->isVisible(); }, 1000);
       revealed = filter->isVisible();
-      QTest::qWait(600);
+      QTest::qWait(600);   // past the flyout guard's 220/480ms grace — a real hold, not a settle
       // ↓ while only revealed: the parent walks on (to Transformation) and the flyout folds.
       if (!toPopup(Qt::Key_Down)) { root->close(); return; }
-      for (int i = 0; i < 100 && filter->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return !(filter->isVisible()); }, 1000);
       rootAfterDown = root->activeAction() ? root->activeAction()->text() : QString();
       downFolded = !filter->isVisible() && root->activeAction() == transformAct;
       if (!toPopup(Qt::Key_Up)) { root->close(); return; }
@@ -540,9 +540,9 @@ class MainWindowGuiTest : public QObject {
       upBack = root->activeAction() == filterAct && !filter->isVisible();
       // → reveals again, a second → enters, and now ↓ picks inside.
       if (!toPopup(Qt::Key_Right)) { root->close(); return; }
-      for (int i = 0; i < 100 && !filter->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return filter->isVisible(); }, 1000);
       reRevealed = filter->isVisible();
-      QTest::qWait(600);
+      QTest::qWait(600);   // past the flyout guard's 220/480ms grace — a real hold, not a settle
       QWidget* popup = toPopup(Qt::Key_Right);
       if (!popup) { root->close(); return; }
       QTest::qWait(50);
@@ -562,7 +562,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(reRevealed, "Right did not reveal the flyout again");
     QVERIFY2(enteredPick, "after the second Right, Down did not pick inside the flyout");
     win.applyImageFilter("none");
-    QTest::qWait(260);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
   }
 };
 

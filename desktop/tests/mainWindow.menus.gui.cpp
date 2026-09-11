@@ -48,12 +48,12 @@ class MainWindowGuiTest : public QObject {
         }
         QTest::qWait(30);
         QTest::mouseMove(menu, menu->actionGeometry(parent).center());
-        for (int i = 0; i < 40 && !parent->menu()->isVisible(); ++i) QTest::qWait(10);
+        settle([&] { return !(!parent->menu()->isVisible()); }, 400);
       }
       if (!parent->menu()->isVisible()) {  // keyboard fallback
         menu->setActiveAction(parent);
         QTest::keyClick(menu, Qt::Key_Right);
-        for (int i = 0; i < 100 && !parent->menu()->isVisible(); ++i) QTest::qWait(10);
+        settle([&] { return !(!parent->menu()->isVisible()); }, 1000);
       }
       return parent->menu()->isVisible() ? parent->menu() : nullptr;
     };
@@ -66,7 +66,7 @@ class MainWindowGuiTest : public QObject {
       if (!parent || !parent->menu()) return nullptr;
       menu->setActiveAction(parent);
       QTest::keyClick(menu, Qt::Key_Right);
-      for (int i = 0; i < 100 && !parent->menu()->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return !(!parent->menu()->isVisible()); }, 1000);
       return parent->menu()->isVisible() ? parent->menu() : nullptr;
     };
     auto findMenu = []() -> QMenu* {
@@ -537,7 +537,7 @@ class MainWindowGuiTest : public QObject {
       for (int attempt = 0; attempt < 4 && !sub->isVisible(); ++attempt) {
         moveTo(menu, plainCenter); QTest::qWait(30);
         moveTo(menu, parentCenter);
-        for (int i = 0; i < 40 && !sub->isVisible(); ++i) QTest::qWait(10);
+        settle([&] { return sub->isVisible(); }, 400);
       }
       if (!sub->isVisible()) { menu->close(); return; }
       dustOnFirstOpen = dustSeen();
@@ -552,7 +552,7 @@ class MainWindowGuiTest : public QObject {
 
       // Open #2 — the SAME QMenu instance, reopened.
       hoverPath(menu, plainCenter, parentCenter);
-      for (int i = 0; i < 60 && !sub->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return sub->isVisible(); }, 600);
       dustOnSecondOpen = dustSeen();
 
       menu->close();
@@ -883,14 +883,14 @@ class MainWindowGuiTest : public QObject {
       root->setActiveAction(layoutAct);
       QTest::keyClick(root, Qt::Key_Right);
       QMenu* layoutMenu = layoutAct->menu();
-      for (int i = 0; i < 100 && !layoutMenu->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return layoutMenu->isVisible(); }, 1000);
       QAction* copyAct = nullptr;
       for (QAction* a : layoutMenu->actions()) if (a->text().startsWith("Copy Image")) copyAct = a;
       if (!copyAct || !copyAct->menu()) { root->close(); return; }
       layoutMenu->setActiveAction(copyAct);
       QTest::keyClick(layoutMenu, Qt::Key_Right);
       QMenu* copyMenu = copyAct->menu();
-      for (int i = 0; i < 100 && !copyMenu->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return copyMenu->isVisible(); }, 1000);
       if (!copyMenu->isVisible()) { root->close(); return; }
 
       // actCopyImageOriginal_, not actCopyImage_ itself: the latter is no longer a row
@@ -949,14 +949,14 @@ class MainWindowGuiTest : public QObject {
       root->setActiveAction(layoutAct);
       QTest::keyClick(root, Qt::Key_Right);
       QMenu* layoutMenu = layoutAct->menu();
-      for (int i = 0; i < 100 && !layoutMenu->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return layoutMenu->isVisible(); }, 1000);
       QAction* copyAct = nullptr;
       for (QAction* a : layoutMenu->actions()) if (a->text().startsWith("Copy Image")) copyAct = a;
       if (!copyAct || !copyAct->menu()) { root->close(); return; }
       layoutMenu->setActiveAction(copyAct);
       QTest::keyClick(layoutMenu, Qt::Key_Right);
       QMenu* copyMenu = copyAct->menu();
-      for (int i = 0; i < 100 && !copyMenu->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return copyMenu->isVisible(); }, 1000);
       if (!copyMenu->isVisible()) { root->close(); return; }
       // actCopyImageOriginal_, not actCopyImage_ itself: the latter is no longer a row
       // in this submenu at all (actCopyImageCurrentRow_ is — hidden with nothing
@@ -1422,7 +1422,7 @@ class MainWindowGuiTest : public QObject {
       menu->setActiveAction(parent);
       QTest::keyClick(menu, Qt::Key_Right);
       QMenu* sub = parent->menu();
-      for (int i = 0; i < 100 && !sub->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return sub->isVisible(); }, 1000);
       auto* panel = sub->findChild<QWidget*>("chatMenuPanel");
       QLabel* row = nullptr;
       if (panel)
@@ -1486,7 +1486,7 @@ class MainWindowGuiTest : public QObject {
       menu->setActiveAction(parent);
       QTest::keyClick(menu, Qt::Key_Right);
       QMenu* sub = parent->menu();
-      for (int i = 0; i < 100 && !sub->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return sub->isVisible(); }, 1000);
       auto* gear = sub->findChild<QToolButton*>("chatMenuGear");
       gearFound = gear != nullptr;
       if (!gear) { menu->close(); return; }
@@ -1580,7 +1580,7 @@ class MainWindowGuiTest : public QObject {
       if (!parent || !parent->menu()) return nullptr;
       menu->setActiveAction(parent);
       QTest::keyClick(menu, Qt::Key_Right);
-      for (int i = 0; i < 100 && !parent->menu()->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return !(!parent->menu()->isVisible()); }, 1000);
       return parent->menu()->isVisible() ? parent->menu() : nullptr;
     };
 
@@ -1715,7 +1715,7 @@ class MainWindowGuiTest : public QObject {
       if (!parent || !parent->menu()) return nullptr;
       menu->setActiveAction(parent);
       QTest::keyClick(menu, Qt::Key_Right);
-      for (int i = 0; i < 100 && !parent->menu()->isVisible(); ++i) QTest::qWait(10);
+      settle([&] { return !(!parent->menu()->isVisible()); }, 1000);
       return parent->menu()->isVisible() ? parent->menu() : nullptr;
     };
     // Direct children only: findChildren() recurses into the SUBMENUS, whose own
