@@ -10,14 +10,14 @@ const testing = std.testing;
 const budget_json = @embedFile("size_budget.json");
 const scopes = [_][]const u8{ "cli/src", "cli/tests" };
 
-const Counts = struct { total: usize, comment: usize, prod: usize };
+const Counts = struct { total: usize, comment: usize, prod: usize, tests: usize };
 const Entry = struct { path: []const u8, counts: Counts };
 
 /// Total lines, comment lines and production lines. A comment line's first
 /// non-whitespace is `//` — Zig has no block comments, and a multiline string's
 /// lines start with `\\`, so a `//` inside a literal never counts.
 fn count(bytes: []const u8) Counts {
-    var c = Counts{ .total = 0, .comment = 0, .prod = 0 };
+    var c = Counts{ .total = 0, .comment = 0, .prod = 0, .tests = 0 };
     var body = bytes;
     if (std.mem.endsWith(u8, body, "\n")) body = body[0 .. body.len - 1];
     if (body.len == 0) return c;
@@ -27,6 +27,7 @@ fn count(bytes: []const u8) Counts {
         c.total += 1;
         if (std.mem.startsWith(u8, std.mem.trimStart(u8, line, " \t\r"), "//")) c.comment += 1;
         const opens = std.mem.startsWith(u8, line, "test \"") or std.mem.startsWith(u8, line, "test {");
+        c.tests += @intFromBool(opens);
         if (opens and !seen_test) {
             c.prod = c.total - 1;
             seen_test = true;
@@ -135,4 +136,31 @@ test "size budget: every cli .zig stays within its pinned production line count"
     }
 
     try testing.expectEqual(@as(usize, 0), failures);
+}
+
+/// Raise it when the suite grows a lot; additions must never trip it, a collapse must.
+const test_floor = 365;
+
+// Zig's runner has no introspection from inside a test, so the count is a static scan of every
+// column-0 `test "…"` / `test { }` under cli/src + cli/tests: it catches deleted or unbuilt
+// test files, not a test that is built but never executed.
+test "test floor: the cli suite still declares at least its floor of tests" {
+    var arena = std.heap.ArenaAllocator.init(testing.allocator);
+    defer arena.deinit();
+    const a = arena.allocator();
+    var threaded = std.Io.Threaded.init(testing.allocator, .{});
+    defer threaded.deinit();
+    const io = threaded.io();
+
+    var root = try openRepoRoot(io);
+    defer root.close(io);
+    var found: std.ArrayList(Entry) = .empty;
+    for (scopes) |scope| try collect(a, io, root, scope, &found);
+
+    var declared: usize = 0;
+    for (found.items) |f| declared += f.counts.tests;
+    if (declared < test_floor) {
+        std.debug.print("cli suite collapsed to {d} tests, floor is {d}\n", .{ declared, test_floor });
+        return error.TestSuiteCollapsed;
+    }
 }

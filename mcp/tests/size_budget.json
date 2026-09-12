@@ -11,7 +11,8 @@
       "prod": 91
     },
     "mcp/tests/layout_test.rs": 181,
-    "mcp/tests/registry_test.rs": 197
+    "mcp/tests/registry_test.rs": 197,
+    "mcp/tests/test_floor_test.rs": 122
   },
   "commentPct": {
     "mcp/src": 23,
