@@ -466,7 +466,7 @@ class MainWindowGuiTest : public QObject {
       QMouseEvent move(QEvent::MouseMove, QPointF(p), canvas->mapToGlobal(p), Qt::NoButton,
                        Qt::NoButton, Qt::NoModifier);
       QApplication::sendEvent(canvas, &move);
-      QTest::qWait(240);
+      settle([&win] { return win.tooltip_->isVisible(); }, 240);
       return win.tooltip_->isVisible() ? body->text() : QString();
     };
     const auto compareAt = [&](const char* mode, double split) {

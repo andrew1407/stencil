@@ -1517,7 +1517,7 @@ class MainWindowGuiTest : public QObject {
         QTest::qWait(10);
       }
     });
-    QTest::qWait(800);
+    settle([&] { return !dialogName.isEmpty(); }, 800);
     QCOMPARE(dialogName, QString("assistantSettingsDialog"));
     QVERIFY2(dialogLive, "the assistant dialog came up hidden, disabled, or under a popup");
     beat();

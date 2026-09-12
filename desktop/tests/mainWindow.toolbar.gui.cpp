@@ -1167,7 +1167,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     openLoaded(win);
-    QTest::qWait(300);
+    settleLayout(&win, 300);
     for (QToolButton* b : { win.startDrawBtn_, win.drawModeBtn_ }) {
       QVERIFY(b);
       const QString who = b->text();
@@ -1291,7 +1291,7 @@ class MainWindowGuiTest : public QObject {
     for (const int width : {1950, 1400, 1100, 975}) {
       win.resize(width, 850);
       win.units_.pageSize->setCurrentIndex(custom);   // the widest state of this row
-      QTest::qWait(200);
+      settleLayout(&win, 200);
       const QString at = QString("at %1px: ").arg(width);
       QVERIFY2(section->isVisible(), qPrintable(at + "the SETTINGS section is not visible"));
       QVERIFY2(section->width() > 0 && section->height() > 0,
@@ -1472,10 +1472,10 @@ class MainWindowGuiTest : public QObject {
     const int a3 = win.units_.pageSize->findData(QStringLiteral("A3"));
     QVERIFY(a3 >= 0);
     win.units_.pageSize->setCurrentIndex(a3);   // the everyday state, whatever the settings hold
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     for (const int width : {1400, 1100, 1000}) {
       win.resize(width, 950);
-      QTest::qWait(250);
+      settleLayout(&win, 250);
       for (QToolBar* tb : bars) {
         if (tb->objectName() == QLatin1String("headerToolbar")) continue;
         for (QWidget* c : tb->findChildren<QWidget*>())
@@ -1488,10 +1488,10 @@ class MainWindowGuiTest : public QObject {
     // …and once more with the custom page's W × H boxes out — they add ~160px to the PAGE
     // cluster (squeezable, but only so far), so that state is checked one step wider.
     win.units_.pageSize->setCurrentIndex(custom);
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     for (const int width : {1400, 1100}) {
       win.resize(width, 950);
-      QTest::qWait(250);
+      settleLayout(&win, 250);
       for (QToolBar* tb : bars) {
         if (tb->objectName() == QLatin1String("headerToolbar")) continue;
         for (QWidget* c : tb->findChildren<QWidget*>())
@@ -1511,7 +1511,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1500, 950);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(200);
+    settleLayout(&win, 200);
 
     QStringList captions;
     for (QLabel* l : win.findChildren<QLabel*>("sectionLabel"))
@@ -1523,7 +1523,7 @@ class MainWindowGuiTest : public QObject {
 
     for (const int width : {1100, 900, 760}) {
       win.resize(width, 950);
-      QTest::qWait(300);
+      settleLayout(&win, 300);
       for (QLabel* l : win.findChildren<QLabel*>("sectionLabel")) {
         if (!captions.contains(l->text())) continue;
         QVERIFY2(l->isVisible(),

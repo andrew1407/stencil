@@ -998,12 +998,12 @@ class MainWindowGuiTest : public QObject {
       QEnterEvent enter(QPointF(slider.center()), QPointF(vbar->mapTo(&win, slider.center())),
                         QPointF(vbar->mapToGlobal(slider.center())));
       QCoreApplication::sendEvent(vbar, &enter);
-      QTest::qWait(300);   // the 150ms swell
-      const QImage hot = vbar->grab().toImage();
-      QVERIFY2(!near(hot.pixelColor(side * dpr), slot), "the thumb did not swell under the pointer");
+      const auto swollen = [&] { return !near(vbar->grab().toImage().pixelColor(side * dpr), slot); };
+      settle(swollen, 300);   // the 150ms swell
+      QVERIFY2(swollen(), "the thumb did not swell under the pointer");
       QEvent leave0(QEvent::Leave);
       QCoreApplication::sendEvent(vbar, &leave0);
-      QTest::qWait(300);
+      settle([&] { return !swollen(); }, 300);
       QVERIFY2(near(vbar->grab().toImage().pixelColor(side * dpr), slot), "the thumb did not settle back after the pointer left");
       win.scrollbarHovered_ = false;
       win.revealCanvasScrollbars();   // re-arm the reveal our synthetic Leave just cancelled

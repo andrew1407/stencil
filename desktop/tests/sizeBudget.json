@@ -79,7 +79,7 @@
     "desktop/tests/mainWindow.canvas.gui.cpp": 1054,
     "desktop/tests/mainWindow.chatDock.gui.cpp": 2473,
     "desktop/tests/mainWindow.chatTurns.gui.cpp": 3158,
-    "desktop/tests/mainWindow.chrome.gui.cpp": 1073,
+    "desktop/tests/mainWindow.chrome.gui.cpp": 1072,
     "desktop/tests/mainWindow.menuKeys.gui.cpp": 570,
     "desktop/tests/mainWindow.menus.gui.cpp": 1766,
     "desktop/tests/mainWindow.motion.gui.cpp": 880,

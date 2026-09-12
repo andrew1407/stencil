@@ -413,8 +413,9 @@ class MainWindowGuiTest : public QObject {
             d->reject();
         };
         QListWidget* list = nullptr;
+        QWidget* opener = nullptr;   // the projects dialog: what an opening gesture leaves
         for (int i = 0; i < 200 && !list; ++i) {
-          if (auto* dlg = qobject_cast<QDialog*>(QApplication::activeModalWidget()))
+          if (auto* dlg = qobject_cast<QDialog*>(opener = QApplication::activeModalWidget()))
             list = dlg->findChild<QListWidget*>("projectsList");
           if (!list) QTest::qWait(10);
         }
@@ -449,9 +450,10 @@ class MainWindowGuiTest : public QObject {
         } else {
           QTest::mouseClick(list->viewport(), Qt::LeftButton, mods, hit);
         }
-        // Outlast the deferred single-click open either way, so the "no dialog"
-        // cases are genuinely observed and not just raced past.
-        QTest::qWait(QApplication::doubleClickInterval() + 250);
+        // Outlast the deferred open so "no dialog" is really observed, but stop early
+        // once the gesture HAS opened something.
+        settle([opener] { return QApplication::activeModalWidget() != opener; },
+               QApplication::doubleClickInterval() + 250);
         bailOut();  // gesture did not open anything → don't hang the test
       });
       win.openProjects();
@@ -734,11 +736,9 @@ class MainWindowGuiTest : public QObject {
       tempPinned = pinned() && list->item(0)->text() == QStringLiteral("Temporary (unsaved)");
       for (int i = 0; i < list->count(); ++i)
         if (list->item(i)->text() == QStringLiteral("No projects yet")) noPlaceholder = false;
-      // …and it ARRIVES: veiled behind its own motes (the sand IS the row forming) with
-      // the filter's light cloud in flight, never the removal's scatter. The rebuild that
-      // answers a removal finds the list EMPTY — the doomed row left the view when its
-      // scatter ended — and reading that as the dialog's opening build skipped the
-      // arrival outright: the row simply appeared.
+      // …and it ARRIVES: veiled behind its own motes with the filter's light cloud in
+      // flight, never the removal's scatter. The rebuild answering a removal finds the
+      // list EMPTY, and reading that as the opening build skipped the arrival outright.
       arrivedVeiled = list->item(0)->data(Qt::UserRole + 43).toDouble() == 0.0;
       cloudInFlight = !dlg->findChildren<QWidget*>("stencilFilterDust").isEmpty();
       for (int i = 0; i < 200 && list->item(0)->data(Qt::UserRole + 43).toDouble() < 1.0; ++i)

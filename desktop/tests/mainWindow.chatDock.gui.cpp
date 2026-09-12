@@ -1591,7 +1591,7 @@ class MainWindowGuiTest : public QObject {
       return out;
     };
     const auto same = [&](const char* what) {
-      QTest::qWait(120);
+      settle([&] { return cardsOf(win.chatMenuPanel_) == cardsOf(win.chatDock_); }, 120);
       QVERIFY2(cardsOf(win.chatMenuPanel_) == cardsOf(win.chatDock_),
                qPrintable(QStringLiteral("%1: the two surfaces disagree\n  dock : %2\n  panel: %3")
                               .arg(QString::fromLatin1(what),

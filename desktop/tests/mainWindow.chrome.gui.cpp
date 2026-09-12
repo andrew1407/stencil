@@ -27,9 +27,9 @@ class MainWindowGuiTest : public QObject {
     win.resize(1400, 900);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(300);
+    settleLayout(&win, 300);
     win.actToolbars_->setChecked(false);   // collapsed: the header is all there is
-    QTest::qWait(400);
+    settleLayout(&win, 400);
     QToolBar* hdr = win.headerToolbar_;
     QVERIFY(hdr);
     const int before = hdr->height();
@@ -595,7 +595,7 @@ class MainWindowGuiTest : public QObject {
       QVERIFY(QTest::qWaitForWindowExposed(&win));
       win.settings_.themeMode = mode;
       win.applyTheme();
-      QTest::qWait(150);
+      settleLayout(&win, 150);
       QVERIFY(win.actIncognito_ && !win.actIncognito_->isChecked());
       // With the assistant OPEN, so the dock is a real on-screen neighbour of the
       // canvas rather than a hidden widget whose geometry means nothing.
@@ -666,15 +666,14 @@ class MainWindowGuiTest : public QObject {
         const int hintBefore = win.imageSizeInfo_->sizeHint().height();
 
         win.actIncognito_->setChecked(true);
-        QTest::qWait(150);
+        QTRY_VERIFY_WITH_TIMEOUT(win.imageSizeInfo_->text().contains(QStringLiteral("Incognito")), 150);
         QVERIFY2(win.imageSizeInfo_->text().contains(QStringLiteral("Incognito")),
                  qPrintable(state + ": the tag never appeared — the check would be vacuous"));
         same(before, steady(), state + " on");
         QCOMPARE(win.imageSizeInfo_->sizeHint().height(), hintBefore);
 
         win.actIncognito_->setChecked(false);
-        QTest::qWait(150);
-        QVERIFY(!win.imageSizeInfo_->text().contains(QStringLiteral("Incognito")));
+        QTRY_VERIFY_WITH_TIMEOUT(!win.imageSizeInfo_->text().contains(QStringLiteral("Incognito")), 150);
         same(before, steady(), state + " off again");
         QCOMPARE(win.imageSizeInfo_->sizeHint().height(), hintBefore);
       }

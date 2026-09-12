@@ -735,7 +735,7 @@ class MainWindowGuiTest : public QObject {
       glideClosed = !win.pop_.active || win.pop_.active->isHidden();
       if (win.pop_.active && !win.pop_.active->isHidden()) win.pop_.active->reject();
     });
-    QTest::qWait(700);   // lets the deferred altPeekOpen(Connections) run + close
+    settle([&] { return glideClosed; }, 700);   // the deferred altPeekOpen ran and closed
     QVERIFY2(swapped, "the glide did not swap to the Connections popover (single instance)");
     QVERIFY2(glideClosed, "Alt release did not close the glided-to popover");
     QVERIFY(!win.pop_.active);
