@@ -44,7 +44,7 @@ export function wireToolbarButtons(app) {
         app.storage.newTemporary();
         app.tabs.reportActive(null);
         // The clear worked, so it reads as a success — a red ✕ said the opposite.
-        // Wording matches the desktop's two branches (mainWindow.cpp clearProject).
+        // Wording matches the desktop's two branches (MainWindow.cpp clearProject).
         app.showSaveStatus('Editor cleared', 'var(--success)', 'check');
       }
       return;

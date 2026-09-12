@@ -1,7 +1,7 @@
 #pragma once
-// The open dialog's tab indices, preview box and row shims, private to the openImageDialog*.cpp TUs.
+// The open dialog's tab indices, preview box and row shims, private to the OpenImageDialog*.cpp TUs.
 #include "modalChrome.hpp"
-#include "underlineTabBar.hpp"
+#include "UnderlineTabBar.hpp"
 
 #include <QFileInfo>
 #include <QHBoxLayout>
@@ -32,7 +32,7 @@ namespace stencil::gui {
   }
 
   // QTabWidget::setTabBar is protected — this shim installs the browser-parity
-  // underline tab strip (support/underlineTabBar.hpp) before any tab is added.
+  // underline tab strip (support/UnderlineTabBar.hpp) before any tab is added.
   struct OiTabWidget : QTabWidget {
     explicit OiTabWidget(QWidget* parent) : QTabWidget(parent) {
       setTabBar(new UnderlineTabBar(this));

@@ -15,8 +15,8 @@
 //     buttons that cannot share a line even alone wrap onto further right-packed lines.
 // Offscreen; every modal is answered from a 0-timer inside its own exec() loop.
 #include "modalChrome.hpp"
-#include "openInDialog.hpp"
-#include "shimmerOverlay.hpp"
+#include "OpenInDialog.hpp"
+#include "ShimmerOverlay.hpp"
 
 #include <QApplication>
 #include <QComboBox>

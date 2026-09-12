@@ -755,7 +755,7 @@ test('the connection row labels the dot and the URL separately', () => {
 // The row and the selection bar must leave TOGETHER. The removal used to await the whole
 // row flight before disconnecting, so the bar only re-asked a flight later and Select all
 // went visibly after the row (user report). The desktop retires the row, disconnects and
-// re-asks the bar in ONE turn (connectDialog.cpp: rebuildList skips the list while rows
+// re-asks the bar in ONE turn (ConnectDialog.cpp: rebuildList skips the list while rows
 // are doomed but still calls updateBatchBar), and so does this now.
 test('removing a connection retires the row and re-asks the bar in the same turn', () => {
   const src = readFileSync(new URL('../js/ui/connectModal.js', import.meta.url), 'utf8');

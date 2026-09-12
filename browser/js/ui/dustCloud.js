@@ -1,7 +1,7 @@
 // ── A cloud of dust on ONE canvas ────────────────────────────────────────────
 // Every element-sized cloud in the app is one <canvas> and a rAF loop rather than a <div>
 // per grain: the keyframes are tabulated below (FLIGHTS), evaluated per grain per frame
-// and drawn in a handful of batched fills. Desktop twin: disintegrateOverlay.hpp legAt.
+// and drawn in a handful of batched fills. Desktop twin: DisintegrateOverlay.hpp legAt.
 //
 // A cloud wears one of three STYLES (motionPrefs.js particleStyle) — dust, water (grains
 // sag and sway like drops) or fire (they lift and waver like embers) — always painted from
@@ -86,7 +86,7 @@ export const alphaAt = (stops, p) => {
 // ── Turbulence and twinkle ──────────────────────────────────────────────────
 // A grain WOBBLES sideways off its rail (strongest mid-flight, gone at both ends, so it
 // still lands where the flight says) and a GLINT twinkles. Both keyed off the grain's own
-// hash, so a cloud is lively but reproducible. Desktop twin: disintegrateOverlay.hpp.
+// hash, so a cloud is lively but reproducible. Desktop twin: DisintegrateOverlay.hpp.
 export const TURBULENCE_SHARE = TUNE.TURBULENCE_SHARE;     // of the throw…
 export const TURBULENCE_MAX_PX = TUNE.TURBULENCE_MAX_PX;   // …capped, so a window's trip does not swing wide
 export const TURBULENCE_WAVES = TUNE.TURBULENCE_WAVES;     // waves per flight, by the grain's hash

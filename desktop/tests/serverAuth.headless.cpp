@@ -15,11 +15,11 @@
 // the row's golden band, its Invite button, and the All / Admin / Non-admin filter, whose
 // changes play as a question re-answered (support/filterFade).
 // A mock QTcpServer stands in for the collaboration server, so no Go server is needed.
-#include "connectDialog.hpp"
+#include "ConnectDialog.hpp"
 #include "connectionStore.hpp"
-#include "disintegrateOverlay.hpp"  // the DESTRUCTIVE effect a filter-out must not use
+#include "DisintegrateOverlay.hpp"  // the DESTRUCTIVE effect a filter-out must not use
 #include "filterFade.hpp"           // the light filter transition it uses instead
-#include "serverClient.hpp"
+#include "ServerClient.hpp"
 
 #include <QApplication>
 #include <QClipboard>

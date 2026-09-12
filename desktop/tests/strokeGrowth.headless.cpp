@@ -5,7 +5,7 @@
 // bookkeeping. Pure QtCore geometry; no display needed.
 #include "strokeGrowth.hpp"
 
-#include "canvasWidget.hpp"
+#include "CanvasWidget.hpp"
 #include "motionPrefs.hpp"
 
 #include <QApplication>

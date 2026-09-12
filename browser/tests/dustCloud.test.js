@@ -1,6 +1,6 @@
 // js/ui/dustCloud.js — the one-canvas cloud every element-sized flight rides. The
 // flights are the old tile keyframes as numbers; these pin the contract the desktop
-// overlay (disintegrateOverlay.hpp legAt) and the extension's copy share.
+// overlay (DisintegrateOverlay.hpp legAt) and the extension's copy share.
 import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';

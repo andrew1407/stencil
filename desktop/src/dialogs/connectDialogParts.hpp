@@ -1,5 +1,5 @@
 #pragma once
-// The connect list's palette, row metrics and hover card, private to the connectDialog*.cpp TUs.
+// The connect list's palette, row metrics and hover card, private to the ConnectDialog*.cpp TUs.
 #include "controlReveal.hpp"
 
 #include <QToolTip>
@@ -11,7 +11,7 @@
 #include <QLabel>
 #include <QIcon>
 #include <QPushButton>
-#include "serverClient.hpp"
+#include "ServerClient.hpp"
 #include <QColor>
 #include <QEvent>
 #include <QWidget>

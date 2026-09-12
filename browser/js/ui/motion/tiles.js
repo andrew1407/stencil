@@ -18,7 +18,7 @@ export const scatterGridFor = (count, index = 0, fine = { cols: CHAT_DISINTEGRAT
 };
 
 // Motes fly in a FIXED layer over the page (the row collapsing under them would clip
-// them). Desktop twin: disintegrateOverlay.hpp; a quarter longer than the desktop's.
+// them). Desktop twin: DisintegrateOverlay.hpp; a quarter longer than the desktop's.
 export const DISINTEGRATE_MS = TUNE.DISINTEGRATE_MS;
 // Fine grid: small cells read as ash, not a broken window (desktop: DUST_CELL_PX).
 export const DISINTEGRATE_COLS = TUNE.DISINTEGRATE_COLS;
@@ -53,7 +53,7 @@ export const tileNoise = (cx, cy) => {
 };
 
 // Part-way along its throw each mote is bent off its line by a share of the throw, capped
-// (desktop twin: disintegrateOverlay.hpp swirlAt), so a cloud churns instead of radiating.
+// (desktop twin: DisintegrateOverlay.hpp swirlAt), so a cloud churns instead of radiating.
 export const WAYPOINT_ALONG = TUNE.WAYPOINT_ALONG;
 export const SWIRL_SHARE = TUNE.SWIRL_SHARE;
 export const SWIRL_MAX_PX = TUNE.SWIRL_MAX_PX;

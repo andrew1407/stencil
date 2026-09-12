@@ -23,7 +23,7 @@ export class CoordTable {
       const row = document.createElement('tr');
       row.dataset.ptIdx = index;
       // Focusable so a bare Delete/Backspace is scoped to this table, as the desktop's points
-      // table scopes it to widget focus (selectionPanel.cpp eventFilter).
+      // table scopes it to widget focus (SelectionPanel.cpp eventFilter).
       row.tabIndex = 0;
       if (index === this.app.focusedPtIdx) row.classList.add('row-focused');
 

@@ -1,9 +1,9 @@
 // The per-row card menu (shared by both chat surfaces).
-#include "chatDock.hpp"
+#include "ChatDock.hpp"
 #include "chatDockShared.hpp"
 #include "../support/scrollReveal.hpp"
 #include "../support/menuReveal.hpp"
-#include "../support/menuShimmer.hpp"
+#include "../support/MenuShimmer.hpp"
 #include "../support/guiHelpers.hpp"
 #include "iconSet.hpp"
 #include "chatWidgets.hpp"

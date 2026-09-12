@@ -150,7 +150,7 @@ namespace stencil::gui {
         }
       }
     }
-    // A clip on the blit, never a clear (disintegrateOverlay.hpp paintEvent).
+    // A clip on the blit, never a clear (DisintegrateOverlay.hpp paintEvent).
     QRegion keep(rect());
     if (!cut.empty()) {
       QRegion gone;

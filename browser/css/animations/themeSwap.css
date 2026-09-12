@@ -34,7 +34,7 @@
        a creep followed by a jump. Held to the area profile, not to the control points, by
        browser/tests/motion.test.js.
        All three surfaces run this same wipe now — the desktop evaluates these very control
-       points as a Qt easing (support/themeSwapOverlay.hpp swapEase) over the same duration,
+       points as a Qt easing (support/ThemeSwapOverlay.hpp swapEase) over the same duration,
        so the length and the shape are one decision, not three. */
     animation: themeSwapReveal var(--swap-ms, 280ms) cubic-bezier(0.4, 0.25, 0.95, 1) both;
 }

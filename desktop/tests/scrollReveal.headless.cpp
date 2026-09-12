@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
   check(near(revealOpacityForItem(nullptr, QRect(0, 0, 100, 40)), 1.0),
         "a delegate with no viewport paints at full opacity");
 
-  // ── The dissolve mapping (support/dissolveEffect.hpp is driven by this) ──
+  // ── The dissolve mapping (support/DissolveEffect.hpp is driven by this) ──
   // The reveal ramp bottoms out at REVEAL_MIN_OPACITY, not 0, so it has to be RESCALED:
   // an out-of-view row must reach a FULL dissolve, not stop 18% short of one.
   using stencil::gui::ScrollReveal;

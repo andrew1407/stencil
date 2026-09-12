@@ -38,22 +38,22 @@ namespace {
   // Source files that may include a core/ header until Wave 3 introduces model/. Paths
   // are relative to desktop/src. Shrink this list; never add to it.
   const char* CORE_INCLUDE_ALLOWANCE[] = {
-      "app/chatPlanTarget.cpp",         "app/mainWindow.cpp",
-      "app/selectedLineBar.hpp",        "app/selectionPanel.hpp",
+      "app/ChatPlanTarget.cpp",         "app/MainWindow.cpp",
+      "app/SelectedLineBar.hpp",        "app/SelectionPanel.hpp",
       "canvas/chainEdit.hpp",           "canvas/strokeGrowth.hpp",
       "llm/opPlan.hpp",
-      "app/mainWindow.hpp",             "app/mainWindowBlank.cpp",
-      "app/mainWindowChat.cpp",         "app/mainWindowFullscreenZoom.cpp",
-      "app/mainWindowHelpers.hpp",      "app/mainWindowHoverDetail.cpp",
-      "app/mainWindowLaunchImage.cpp",  "app/mainWindowProjectLoad.cpp",
-      "app/mainWindowZoom.cpp",         "app/projectTransferController.hpp",
-      "canvas/canvasDrag.cpp",          "canvas/canvasDrawClick.cpp",
-      "canvas/canvasHold.cpp",          "canvas/canvasHover.cpp",
-      "canvas/canvasLineEdit.cpp",      "canvas/canvasRelease.cpp",
-      "canvas/canvasSelection.cpp",     "canvas/canvasSettings.cpp",
-      "canvas/canvasTransform.cpp",     "canvas/canvasWidget.hpp",
-      "dialogs/cropDialog.hpp",         "dialogs/expirationDialog.cpp",
-      "dialogs/projectsDialog.cpp",     "dialogs/projectsDialog.hpp",
+      "app/MainWindow.hpp",             "app/MainWindowBlank.cpp",
+      "app/MainWindowChat.cpp",         "app/MainWindowFullscreenZoom.cpp",
+      "app/mainWindowHelpers.hpp",      "app/MainWindowHoverDetail.cpp",
+      "app/MainWindowLaunchImage.cpp",  "app/MainWindowProjectLoad.cpp",
+      "app/MainWindowZoom.cpp",         "app/ProjectTransferController.hpp",
+      "canvas/CanvasDrag.cpp",          "canvas/CanvasDrawClick.cpp",
+      "canvas/CanvasHold.cpp",          "canvas/CanvasHover.cpp",
+      "canvas/CanvasLineEdit.cpp",      "canvas/CanvasRelease.cpp",
+      "canvas/CanvasSelection.cpp",     "canvas/CanvasSettings.cpp",
+      "canvas/CanvasTransform.cpp",     "canvas/CanvasWidget.hpp",
+      "dialogs/CropDialog.hpp",         "dialogs/ExpirationDialog.cpp",
+      "dialogs/ProjectsDialog.cpp",     "dialogs/ProjectsDialog.hpp",
       "dialogs/projectsRowChrome.hpp",  "io/fileStore.cpp",
       "io/fileStore.hpp",               "llm/opPlan.cpp",
       "llm/planExecutor.cpp",           "llm/planExecutor.hpp",
@@ -64,7 +64,7 @@ namespace {
   // (NAME_CHIP_BOX / NAME_CHIP_GLYPH) that the projects list draws its rows with. They
   // belong in support/; moving them is its own commit.
   const char* APP_INCLUDE_ALLOWANCE[] = {
-      "dialogs/projectsDialog.cpp:mainWindowHelpers.hpp",
+      "dialogs/ProjectsDialog.cpp:mainWindowHelpers.hpp",
   };
 
   QStringList headersIn(const QDir& dir) {
@@ -89,10 +89,10 @@ int main(int argc, char** argv) {
   QHash<QString, QString> owner;   // basename → group dir ("app", "canvas", …)
   for (const QFileInfo& g : src.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot))
     for (const QString& h : headersIn(QDir(g.absoluteFilePath()))) owner.insert(h, g.fileName());
-  check(owner.value(QStringLiteral("mainWindow.hpp")) == QStringLiteral("app"),
-        "the header index found app/mainWindow.hpp");
-  check(owner.value(QStringLiteral("canvasWidget.hpp")) == QStringLiteral("canvas"),
-        "…and canvas/canvasWidget.hpp");
+  check(owner.value(QStringLiteral("MainWindow.hpp")) == QStringLiteral("app"),
+        "the header index found app/MainWindow.hpp");
+  check(owner.value(QStringLiteral("CanvasWidget.hpp")) == QStringLiteral("canvas"),
+        "…and canvas/CanvasWidget.hpp");
 
   QSet<QString> coreHeaders;
   QDirIterator ci(root.filePath(QStringLiteral("core")), {QStringLiteral("*.hpp"), QStringLiteral("*.h")},

@@ -18,7 +18,7 @@
 // SELF-SKIPS (exit 0) when no server is reachable, like the transfer/store integration
 // tests: point it at one with STENCIL_TEST_SERVER (default http://localhost:8090). Built
 // only when Qt is present; not part of the Qt-free core stencil_tests.
-#include "serverClient.hpp"
+#include "ServerClient.hpp"
 
 #include <QBuffer>
 #include <QElapsedTimer>

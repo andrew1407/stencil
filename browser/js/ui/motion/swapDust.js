@@ -6,7 +6,7 @@ import { tileNoise } from './tiles.js';
 import { TUNE, styleCode } from './tune.js';
 // The torn front kicks up dust in the OLD palette's colours, always just inside the clip:
 // the page renders through ::view-transition-new(root), so a mote ahead of the front is
-// never seen. (Desktop twin: themeSwapOverlay.hpp dustMoteAt.)
+// never seen. (Desktop twin: ThemeSwapOverlay.hpp dustMoteAt.)
 export const SWAP_DUST_MOTES = TUNE.SWAP_DUST_MOTES;
 export const SWAP_DUST_LIFE_MS = TUNE.SWAP_DUST_LIFE_MS;
 // Never at the very ends: at t=0 the ring is a point, and the last motes need their whole life.
@@ -54,7 +54,7 @@ export function swapDustSpecs(x, y, w, h, count = SWAP_DUST_MOTES, style = style
 }
 
 // The `swapDustMote` keyframes, sampled into a table: the same bezier, opacity stops, throw
-// and shrink, evaluated by the stage per grain per frame (desktop: themeSwapOverlay.hpp).
+// and shrink, evaluated by the stage per grain per frame (desktop: ThemeSwapOverlay.hpp).
 const SWAP_DUST_STEPS = TUNE.SWAP_DUST_STEPS;
 const swapDustCurve = Float32Array.from({ length: SWAP_DUST_STEPS + 1 },
   (_, i) => bezierY(i / SWAP_DUST_STEPS, 0.22, 0.55, 0.3, 1));

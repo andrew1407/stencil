@@ -2,7 +2,7 @@
 // Form-control value swaps: a checkbox indicator and a combo's text come apart into
 // particles and re-form (browser ghostOut/ghostIn). Clouds live in overlays, so no dialog
 // reflows mid-effect; installControlSwap() is the one trigger. Q_OBJECT-free, no MOC.
-#include "disintegrateOverlay.hpp"
+#include "DisintegrateOverlay.hpp"
 #include "faceSwap.hpp"
 #include "menuReveal.hpp"
 #include "modalReveal.hpp"

@@ -10,7 +10,7 @@
 // A broken app.qrc alias parses to nothing, so every block fails fast.
 #include "fileStore.hpp"
 #include "launchOptions.hpp"
-#include "mediaLoader.hpp"
+#include "MediaLoader.hpp"
 #include "opRegistry.hpp"
 #include "theme.hpp"
 

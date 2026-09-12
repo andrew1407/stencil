@@ -5,7 +5,7 @@
 // skip-with-warning, and the shared limits (16 actions / 8 variants / 200
 // lines / 5000 chars / 32 frame indices). Pure QtCore; no display needed.
 #include "opPlan.hpp"
-#include "opSchema.hpp"
+#include "OpSchema.hpp"
 
 #include <QCoreApplication>
 #include <QString>

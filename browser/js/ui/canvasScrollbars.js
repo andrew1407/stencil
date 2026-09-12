@@ -1,4 +1,4 @@
-// The canvas viewport's overlay scrollbars (desktop parity: canvas/overlayScrollArea.hpp).
+// The canvas viewport's overlay scrollbars (desktop parity: canvas/OverlayScrollArea.hpp).
 // The native bars are hidden (layout/scrollbars.css): scrollbar-color is one colour for
 // both bars and the webkit pseudo-elements are ignored once scrollbar-width is set.
 import { motionReduced } from './motion.js';

@@ -236,7 +236,7 @@ test('reduced motion: the tooltip appears at once and the cap answers without mo
 // connection row, a list item — has its content at one end and its centre in empty
 // space, so sand arriving from the middle of the row read as coming from nowhere (user
 // report). Past DUST_CURSOR_PX the pointer is the origin instead, which is what the
-// desktop already does (appTooltip.hpp's `stretched` test).
+// desktop already does (AppTooltip.hpp's `stretched` test).
 test('the dust forms at the control centre, or at the cursor once that is far from it', () => {
   const centre = { x: 100, y: 100 };
   // A toolbar icon: the pointer is on it, so the centre IS the cursor, near enough.

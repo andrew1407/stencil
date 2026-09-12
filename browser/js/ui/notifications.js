@@ -15,7 +15,7 @@ const ENTER_DUST_MS = SURFACE_MENU_IN_MS * 2;   // 680
 // Shorter than the entrance: a departure has nothing left to look at, and a longer one
 // left the final grains crawling after the toast was gone.
 const LEAVE_DUST_MS = 420;
-// Desktop parity: Notifications::MAX_VISIBLE in desktop/src/support/notifications.cpp.
+// Desktop parity: Notifications::MAX_VISIBLE in desktop/src/support/Notifications.cpp.
 export const MAX_VISIBLE = 3;
 
 // A whitespace-free run (a filename, a URL) longer than `max` gets a middle ellipsis.
@@ -34,7 +34,7 @@ const freeLeft = () => {
 
 // Past the free area's left edge at the toast's own height; only 0.15 toast-widths past
 // it (not dockAwayPoint's 1.2), or every grain is off screen within the exit's first beat
-// (desktop notifications.cpp twin).
+// (desktop Notifications.cpp twin).
 const TOAST_REACH = 0.15;
 const toastDustPoint = (toast) => {
   const r = toast.getBoundingClientRect?.();

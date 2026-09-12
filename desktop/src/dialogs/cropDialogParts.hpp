@@ -1,5 +1,5 @@
 #pragma once
-// The crop preview's handle metrics, shade and screen fit, private to the cropDialog*.cpp TUs.
+// The crop preview's handle metrics, shade and screen fit, private to the CropDialog*.cpp TUs.
 #include <QColor>
 #include <QWidget>
 #include <QScreen>

@@ -1,6 +1,6 @@
 #include "launchOptions.hpp"
 #include "deferredWrite.hpp"
-#include "mainWindow.hpp"
+#include "MainWindow.hpp"
 #include "tipContent.hpp"
 #include <QApplication>
 #include <QFileOpenEvent>

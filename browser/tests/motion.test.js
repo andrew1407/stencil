@@ -609,7 +609,7 @@ test('swapPercent expresses the circle as percentages of the viewport', () => {
 
 // ── The ring the dust rides ─────────────────────────────────────────────────
 // swapEase is the JS evaluation of the wipe's own control points — the desktop solves
-// the same bezier (themeSwapOverlay.hpp swapEase, pinned by themeSwapEase.headless.cpp).
+// the same bezier (ThemeSwapOverlay.hpp swapEase, pinned by themeSwapEase.headless.cpp).
 // The dust is seeded off this curve, so it and the clip-path can never disagree.
 test('swapEase walks the wipe’s own curve, easing in slightly and never backwards', () => {
   assert.ok(Math.abs(swapEase(0)) < 1e-6, 'starts at the origin');
@@ -946,7 +946,7 @@ test('originOf declines a control parked outside the viewport', () => {
 });
 
 // ── The origin is a control, or the centre — never the cursor ───────────────
-// desktop/src/app/mainWindow.cpp learned this first: driving the change from a menu
+// desktop/src/app/MainWindow.cpp learned this first: driving the change from a menu
 // leaves the cursor near the screen corner, and the circle appears to come out of the
 // window corner. A stale click in the page is exactly the same trap.
 test('with no control to anchor to, themeSwap blooms from the viewport centre', () => {

@@ -1,5 +1,5 @@
 #include "modalReveal.hpp"
-#include "disintegrateOverlay.hpp"
+#include "DisintegrateOverlay.hpp"
 #include <QEvent>
 
 #include <QAbstractAnimation>

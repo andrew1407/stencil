@@ -1,5 +1,5 @@
 #include "menuReveal.hpp"
-#include "disintegrateOverlay.hpp"
+#include "DisintegrateOverlay.hpp"
 #include "modalReveal.hpp"  // motionReduced()
 
 #include <algorithm>

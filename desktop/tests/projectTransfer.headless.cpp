@@ -7,10 +7,10 @@
 // SELF-SKIPS (exit 0) when no server is reachable, like the gated store/bus tests: point it at one with
 // STENCIL_TEST_SERVER (default http://localhost:8090). Built only when Qt is present (Qt-coupled, like the
 // other *.headless tests); not part of the Qt-free core stencil_tests.
-#include "projectTransferController.hpp"
-#include "serverClient.hpp"
-#include "canvasWidget.hpp"
-#include "notifications.hpp"
+#include "ProjectTransferController.hpp"
+#include "ServerClient.hpp"
+#include "CanvasWidget.hpp"
+#include "Notifications.hpp"
 #include "fileStore.hpp"
 #include "projectsStore.hpp"
 

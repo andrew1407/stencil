@@ -160,7 +160,7 @@ export class StencilToolbar extends StencilElement {
                  mixed row where the two same-yellow swatches and two bare numbers blur
                  together. Within a section the captions can stay short (Color / Thickness ·
                  Color / Size) because the section label carries the noun. Mirrored by the
-                 desktop style toolbar (mainWindow.cpp buildStyleToolbar). -->
+                 desktop style toolbar (MainWindow.cpp buildStyleToolbar). -->
             <div class="ctrl-section">
                 <div class="ctrl-section-label">Line</div>
                 <div class="ctrl-section-row">
@@ -206,7 +206,7 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-section">
                 <div class="ctrl-section-label">View</div>
                 <div class="ctrl-section-row">
-                    <!-- Compare LEADS the section (desktop twin: mainWindowToolbar.cpp's View
+                    <!-- Compare LEADS the section (desktop twin: MainWindowToolbar.cpp's View
                          cluster), on the row's own gap — the extra air was for two bare words. -->
                     <label for="compare-mode" style="font-weight:normal;font-size:13px;color:var(--text-muted);">Compare</label>
                     <select id="compare-mode" data-hk-title="cycleCompare" data-title="${UI_STRINGS.toolbar.compareTooltip}" data-disabled-reason="Load an image to compare">
@@ -275,7 +275,7 @@ export class StencilToolbar extends StencilElement {
             <div class="ctrl-sep"></div>
 
             <!-- ── Section: Formula ──
-                 Its OWN section, not a tail of Page (desktop parity: mainWindowToolbar.cpp
+                 Its OWN section, not a tail of Page (desktop parity: MainWindowToolbar.cpp
                  builds the same named cluster between PAGE and DATA). The two fields are
                  wide, so inside Page every toggle of the pill resized that section and the
                  whole wrapping row re-flowed around it — the sections after it jumped a row

@@ -40,7 +40,7 @@ export const llmSettingsModalInner = () => `
                 <div class="vs-section">Chat history</div>
                 <!-- Box FIRST, its label right beside it: a checkbox reads as one control, and
                      split across the row it was neither obviously a checkbox nor obviously tied
-                     to that label. Same shape as the desktop's (llmSettingsForm.cpp). -->
+                     to that label. Same shape as the desktop's (LlmSettingsForm.cpp). -->
                 <div class="vs-row vs-checks">
                     <label class="vs-inline-check" for="chat-save-chats" data-title="${UI_STRINGS.assistantSettings.saveChatsTooltip}">
                         <input type="checkbox" id="chat-save-chats"> Save chats with projects

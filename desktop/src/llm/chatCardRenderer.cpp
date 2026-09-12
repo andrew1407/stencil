@@ -1,4 +1,4 @@
-#include "chatDock.hpp"
+#include "ChatDock.hpp"
 #include "chatWidgets.hpp"
 #include "../support/theme.hpp"
 

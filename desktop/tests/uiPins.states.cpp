@@ -1,15 +1,15 @@
 // The rendered appearance pins — see uiPins.headless.cpp for what they cover and how
 // the baselines are rewritten.
-#include "mainWindow.hpp"
-#include "canvasWidget.hpp"
-#include "chatDock.hpp"
-#include "connectDialog.hpp"
+#include "MainWindow.hpp"
+#include "CanvasWidget.hpp"
+#include "ChatDock.hpp"
+#include "ConnectDialog.hpp"
 #include "connectionStore.hpp"
-#include "cropDialog.hpp"
+#include "CropDialog.hpp"
 #include "fileStore.hpp"
-#include "projectsDialog.hpp"
-#include "selectionPanel.hpp"
-#include "settingsDialog.hpp"
+#include "ProjectsDialog.hpp"
+#include "SelectionPanel.hpp"
+#include "SettingsDialog.hpp"
 #include "uiPins.states.hpp"
 
 #include <QAction>

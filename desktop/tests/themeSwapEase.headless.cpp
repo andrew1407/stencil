@@ -1,4 +1,4 @@
-// The theme wipe's easing (src/support/themeSwapOverlay.hpp swapEase) — the desktop half
+// The theme wipe's easing (src/support/ThemeSwapOverlay.hpp swapEase) — the desktop half
 // of the contract browser/tests/motion.test.js holds the browser and extension to.
 //
 // The wipe is a CIRCLE, so the area it has recoloured grows as r². A plain ease-out on the
@@ -6,7 +6,7 @@
 // the duration and then spends the rest creeping over a sliver in the far corner — which
 // reads as a snap followed by nothing, and is why the animation felt too quick. The curve
 // is therefore judged on the AREA it sweeps, not on the radius it moves.
-#include "themeSwapOverlay.hpp"
+#include "ThemeSwapOverlay.hpp"
 
 #include <QApplication>
 #include <cmath>

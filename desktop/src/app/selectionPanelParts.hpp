@@ -1,5 +1,5 @@
 #pragma once
-// The points table's columns, chevron metrics and row delegate, private to the selectionPanel*.cpp TUs.
+// The points table's columns, chevron metrics and row delegate, private to the SelectionPanel*.cpp TUs.
 #include <QModelIndex>
 #include <QPainter>
 #include <QPen>

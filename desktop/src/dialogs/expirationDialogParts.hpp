@@ -1,5 +1,5 @@
 #pragma once
-// The expiry presets, calendar labels and day-boundary maths, private to the expirationDialog*.cpp TUs.
+// The expiry presets, calendar labels and day-boundary maths, private to the ExpirationDialog*.cpp TUs.
 #include "modalChrome.hpp"
 #include <QLabel>
 #include <QHBoxLayout>

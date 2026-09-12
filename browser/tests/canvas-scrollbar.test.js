@@ -6,7 +6,7 @@ import { thumbMetrics, SB_MIN_THUMB_PX } from '../js/ui/canvasScrollbars.js';
 import { LAYOUT_CSS } from './helpers/css.js';
 
 // The canvas viewport draws its own overlay scrollbars (js/ui/canvasScrollbars.js, the
-// desktop's overlayScrollArea.hpp): the native bars cannot colour ONE thumb on hover —
+// desktop's OverlayScrollArea.hpp): the native bars cannot colour ONE thumb on hover —
 // scrollbar-color is a single colour for both — and the webkit pseudo-elements are
 // ignored once scrollbar-width is set (user reports).
 

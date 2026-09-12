@@ -198,7 +198,7 @@ test('line and point styling are two separate captioned sections', () => {
 });
 
 // The toolbar's clusters, in the one order both surfaces build them (desktop:
-// mainWindowToolbar.cpp — Image · Description & attributes · Projects · Connections & chat ·
+// MainWindowToolbar.cpp — Image · Description & attributes · Projects · Connections & chat ·
 // Edit / Line · Point / Draw · View / Zoom · Page · Formula · Data · Settings).
 test('the sections are the same set, in the same order, as the desktop toolbar rows', () => {
     const order = ['Image', 'Description &amp; attributes', 'Projects', 'Connections &amp; chat',

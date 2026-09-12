@@ -150,7 +150,7 @@ tests/
   the `cli` project above.
 - **Desktop (Qt) e2e lives elsewhere, on purpose.** The desktop app is a native Qt binary, not
   a wire-protocol surface this Node harness can drive, so its end-to-end test is a QtTest target
-  built with the desktop CMake project: [`../desktop/tests/mainWindow.gui.cpp`](../desktop/tests/mainWindow.gui.cpp)
+  built with the desktop CMake project: [`../desktop/tests/MainWindow.<area>.gui.cpp`](../desktop/tests/)
   (run via `ctest --test-dir desktop/build`). It drives the real `MainWindow` offscreen.
 
 ## Test projects

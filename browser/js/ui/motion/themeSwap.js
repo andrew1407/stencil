@@ -2,14 +2,14 @@ import { edgeJitter, edgeBaseOf } from '../dustCloud.js';
 import { TUNE, styleCode } from './tune.js';
 // The new palette floods out of the control that changed it: View Transitions where they
 // exist, a cross-fade elsewhere; `apply` runs exactly once, synchronously. One length across
-// all three surfaces (extension accent.js SWAP_MS, desktop themeSwapOverlay.hpp SWAP_MS).
+// all three surfaces (extension accent.js SWAP_MS, desktop ThemeSwapOverlay.hpp SWAP_MS).
 export const THEME_SWAP_MS = TUNE.THEME_SWAP_MS;
 export const THEME_SWAP_CLASS = 'theme-swapping';
 // Held on <html> while the view transition captures, so the snapshot is the FINAL palette.
 export const THEME_INSTANT_CLASS = 'theme-instant';
 
 // The origin is the control that owns the change (originOfId), never the last pointerdown;
-// desktop mainWindow.cpp applyTheme() agrees. No control on screen → the viewport centre.
+// desktop MainWindow.cpp applyTheme() agrees. No control on screen → the viewport centre.
 
 export const swapRadius = (x, y, w, h) => Math.hypot(Math.max(x, w - x), Math.max(y, h - y));
 
@@ -22,7 +22,7 @@ export function swapPercent(x, y, w, h) {
            r: pc((100 * Math.SQRT2 * swapRadius(x, y, w, h)) / Math.hypot(w, h)) };
 }
 
-// The Y of the wipe's cubic-bezier at t, solved as the desktop does (themeSwapOverlay.hpp
+// The Y of the wipe's cubic-bezier at t, solved as the desktop does (ThemeSwapOverlay.hpp
 // swapEase): bisection on the monotonic X. The dust is seeded off this curve.
 export const bezierY = (t, x1, y1, x2, y2) => {
   let lo = 0, hi = 1, u = t;
@@ -36,7 +36,7 @@ export const bezierY = (t, x1, y1, x2, y2) => {
 export const swapEase = (t) => bezierY(t, 0.4, 0.25, 0.95, 1);
 
 // The wipe's edge wears the particle style (dustCloud.js edgeJitter). Twins:
-// themeSwapOverlay.hpp edgeRadiusAt, extension accent.js edgePolygon.
+// ThemeSwapOverlay.hpp edgeRadiusAt, extension accent.js edgePolygon.
 export const SWAP_EDGE_POINTS = TUNE.SWAP_EDGE_POINTS;
 
 const swapEdgeJitter = (k, style = styleCode()) => edgeJitter(style, k, SWAP_EDGE_POINTS);

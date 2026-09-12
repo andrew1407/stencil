@@ -1,11 +1,11 @@
 #pragma once
 // The headless stand-in for a synchronous connect. ConnectionManager only hands out
-// async handshakes now (net/serverClient.hpp: a nested event loop inside the client
+// async handshakes now (net/ServerClient.hpp: a nested event loop inside the client
 // re-entered paint and input), so a test that wants one drives the loop itself — which
 // is exactly what a test may do and a GUI may not.
 #include <QCoreApplication>
 #include <QDeadlineTimer>
-#include "serverClient.hpp"
+#include "ServerClient.hpp"
 
 namespace stencil::test {
 

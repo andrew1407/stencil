@@ -14,7 +14,7 @@
 #include <QWidget>
 #include <algorithm>
 
-#include "disintegrateOverlay.hpp"
+#include "DisintegrateOverlay.hpp"
 #include "modalReveal.hpp"
 #include "tipContent.hpp"
 

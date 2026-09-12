@@ -1,5 +1,5 @@
 #include "deepLink.hpp"
-#include "serverClient.hpp"
+#include "ServerClient.hpp"
 #include <QJsonDocument>
 #include <QUrl>
 

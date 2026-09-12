@@ -105,7 +105,7 @@ never reads `../browser` at runtime.
 platform helpers, currently one flat directory) → `canvas/`, `dialogs/`, `llm/` → `app/`.
 The model ring is the one part of this that is still a *target*: a `CoreFacade` +
 `DocumentModel` pair was attempted and deliberately backed out, because the signatures in
-`mainWindow.hpp` speak `core::PageSize`/`Point`/`UnitFormat`/`ProjectMeta`/`ProjectsStore`, so a
+`MainWindow.hpp` speak `core::PageSize`/`Point`/`UnitFormat`/`ProjectMeta`/`ProjectsStore`, so a
 facade that actually removes those includes is a type-vocabulary change across ~40 call sites.
 `tests/layerBoundary.headless.cpp` enforces the rest, and its allowance list is the worklist
 for that change whenever someone takes it on.
@@ -187,7 +187,7 @@ Files over 230 lines, after the decomposition rounds. Clean means nothing over t
 | desktop/src | 31 | from 64. What remains needs **extract-method**, not a move: a single function over 230 makes any new file illegal (`MainWindow::MainWindow` 565, `buildActions` 543, `eventFilter` 493) |
 | desktop/tests | 32 | the 14 GUI area binaries, exempt by reason in the budget |
 
-`mainWindow.hpp` (1547 lines, 51% comments) is the architectural item, not a size item: MOC
+`MainWindow.hpp` (1547 lines, 51% comments) is the architectural item, not a size item: MOC
 runs on the header, so splitting it is the risk that splitting method definitions across TUs
 is not.
 
@@ -287,7 +287,7 @@ Use the name the repo already uses; don't introduce a synonym.
    reveal from `support/modalReveal.hpp`. Measure per-state heights in `showEvent`, not from
    a constructor `sizeHint` (a hidden widget's hint is stale).
 2. Add the sources to `desktop/CMakeLists.txt`.
-3. Wire the action in `desktop/src/app/mainWindowActions.cpp` and `mainWindowMenus.cpp`.
+3. Wire the action in `desktop/src/app/MainWindowActions.cpp` and `MainWindowMenus.cpp`.
 4. A shortcut goes in `browser/js/config/hotkeysConfig.json` — canonical — and reaches the
    desktop through the qrc alias.
 5. Styling goes in the shared sheet in `support/theme.cpp`, never `setStyleSheet` on the
@@ -302,11 +302,11 @@ Use the name the repo already uses; don't introduce a synonym.
 2. `llm-contract/llm-providers.md` — the wire mapping, normatively.
 3. The mapping in each client, using its platform's built-in HTTP (**no new dependency**):
    browser `js/llm/llmClient.js`; extension `src/llm/llmClient.js`; desktop
-   `src/llm/llmClient.cpp`; cli `src/llm/wire.zig` + `transport.zig`; mcp
+   `src/llm/LlmClient.cpp`; cli `src/llm/wire.zig` + `transport.zig`; mcp
    `src/llmtransport.rs`; bot `Infrastructure` ring, `Llm/HttpLlmClient.cs`; pystencil
    `pystencil/llm.py`; server `server/internal/llm/`.
 4. Settings UI per surface (browser `js/llm/llmSettings.js`, desktop
-   `dialogs/llmSettingsForm.cpp`, extension `src/llm/llmSettings.js`, cli `/llm`).
+   `dialogs/LlmSettingsForm.cpp`, extension `src/llm/llmSettings.js`, cli `/llm`).
 5. Fixtures under `browser/js/config/llm/fixtures/providerWire/`, plus each surface's walker.
 6. An endpoint is **always explicit user configuration** — never discovered from fetched or
    scanned content. Keys live in env, never in a URL. See `.claude/rules/security.md`.

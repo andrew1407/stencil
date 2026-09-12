@@ -1,6 +1,6 @@
 #pragma once
 
-// Memoised lookups for the canvas paint path, shared by the canvas*.cpp partials:
+// Memoised lookups for the canvas paint path, shared by the Canvas*.cpp partials:
 // themePalette() rebuilds 23 colours and cssColor() reparses a string, and the paint
 // path wants both per line per frame. One cache each, in one TU.
 

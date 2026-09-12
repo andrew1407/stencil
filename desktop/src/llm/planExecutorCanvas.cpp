@@ -1,6 +1,6 @@
 #include "planExecutor.hpp"
 
-#include "canvasWidget.hpp"
+#include "CanvasWidget.hpp"
 #include "opRegistry.hpp"
 
 #include <QColor>

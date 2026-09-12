@@ -12,7 +12,7 @@ class QObject;
 
 namespace stencil::net::fetchGuard {
 
-  // serverClient.cpp bounds its own requests with the same 20s.
+  // ServerClient.cpp bounds its own requests with the same 20s.
   inline constexpr qint64 MAX_FETCH_BYTES = 64 * 1024 * 1024;
   inline constexpr int FETCH_TIMEOUT_MS = 20000;
 

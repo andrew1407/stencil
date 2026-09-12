@@ -23,7 +23,7 @@
         width: 1px; background: %BORDER%; margin: 5px 6px; border-radius: 1px;
       }
       /* The wrapping rows carry their own hairlines: a QToolBar separator is an item of the
-         toolbar's layout, and these rows have only one (support/wrapRow.hpp). */
+         toolbar's layout, and these rows have only one (support/WrapRow.hpp). */
       QWidget#toolWrapRow { background: transparent; }
       QFrame#toolWrapSep { background: %BORDER%; border: none; border-radius: 1px; }
       QToolBar QLabel { color: %MUTED%; background: transparent; padding: 0 2px; }
@@ -75,7 +75,7 @@
          strip), consistently-sized controls. Docked (selectedLineDock_ —
          Qt::TopDockWidgetArea), not a toolbar: a QDockWidget stretches its one content
          widget (selectedLineBar) to fill the whole dock, so `this` stays a plain, unstyled
-         strip and its "selectedLineCard" child (see selectedLineBar.cpp) — inset by
+         strip and its "selectedLineCard" child (see SelectedLineBar.cpp) — inset by
          selectedLineBar's own outer-layout margins — is what actually carries the
          border/radius/background, giving the border room to render on all four sides. */
       QDockWidget#selectedLineDock { border: 0; }
@@ -138,7 +138,7 @@
          #toggle-controls (1px border, 16px radius, 12px label). */
       QToolButton#controlsPill {
         /* ControlsPill paints the chevron + label itself, centred, and sizes to them
-           (support/controlsPill.hpp) — so this rule is just the oval: border + fill. */
+           (support/ControlsPill.hpp) — so this rule is just the oval: border + fill. */
         color: %TEXT%; background: transparent; font-size: 12px;
         border: 1px solid %BORDER%; border-radius: 12px; padding: 0px;
       }
@@ -167,7 +167,7 @@
       }
       /* Under the cursor it takes the app's own accent, SOLID — the browser's
          `button:hover { background: var(--accent-2) }` — with the glyph flipping to white
-         through QIcon::Active (mainWindowTheme.cpp). The soft tint every other tool button
+         through QIcon::Active (MainWindowTheme.cpp). The soft tint every other tool button
          wears was barely visible on these two (user report). Restated at this rule's own
          weight because an attribute selector outranks the plain `QToolButton:hover`. */
       QToolButton[nameAffordance="true"]:hover {
@@ -325,7 +325,7 @@
         background: %DISABLED_BG%; color: %MUTED%; border-color: %BORDER%;
       }
       /* Muted, spaced section caption (selection panel "POINTS"/"MEASUREMENTS", and
-         the context menu's own — mainWindowActions.cpp's makeSectionLabel), mirroring
+         the context menu's own — MainWindowActions.cpp's makeSectionLabel), mirroring
          the browser's uppercased .ctx-sub-label. No padding of its own: every caller
          hosts it in a row whose OWN layout margins already place it (padding here
          would double up with those). */
@@ -356,7 +356,7 @@
         border: 2px solid %ACCENT_RING%; padding: 2px 7px;
       }
       /* The project NAME at the top is a TITLE at rest — no box — that rings under the
-         pointer. Its look is NOT set here: mainWindow.cpp's applyProjectNameStyle gives that
+         pointer. Its look is NOT set here: MainWindow.cpp's applyProjectNameStyle gives that
          field a stylesheet of its own (it carries the per-project colour), and a widget's own
          sheet outranks this one for every property it names. Rules here were simply ignored
          (user report). The rest/hover pair lives beside the colour, in that function. */
@@ -401,7 +401,7 @@
         background: %ACCENT%; border-color: %ACCENT%; image: url(%RADIO_IMG%);
       }
       QCheckBox::indicator:hover, QRadioButton::indicator:hover { border-color: %ACCENT2%; }
-      /* Keyboard focus (a menu flyout's second → / Tab, stayOpenMenu.cpp): the box itself
+      /* Keyboard focus (a menu flyout's second → / Tab, StayOpenMenu.cpp): the box itself
          shows nothing for :focus, so the whole control takes a soft accent wash — the
          browser's #ctx-menu :focus-visible ring. */
       QCheckBox:focus, QRadioButton:focus {
@@ -465,7 +465,7 @@
          top: -1px tucks that border under the tab bar's last pixel row, so the
          active tab's accent underline OVERLAPS it exactly as the browser's
          margin-bottom: -1px does — instead of a grey line under the accent one.
-         The tabs themselves are painted by support/underlineTabBar.hpp, not QSS. */
+         The tabs themselves are painted by support/UnderlineTabBar.hpp, not QSS. */
       QTabWidget#oiTabs::pane { border: 0; border-radius: 0; border-top: 1px solid %BORDER%; top: -1px; }
 
       /* ── Lists / tables ── */
@@ -594,7 +594,7 @@
       QLabel#openInFallbackCmds {
         font-family: Menlo, Consolas, monospace; font-size: 12px; background: transparent;
       }
-      /* The logo's accent-preset popover (mainWindow.cpp openAccentPicker): menu-tight
+      /* The logo's accent-preset popover (MainWindow.cpp openAccentPicker): menu-tight
          rows — a left-aligned label hugging its colour chip, a row-wide hover fill. */
       QDialog#accentPopover QPushButton {
         background: transparent; border: none; border-radius: 6px; text-align: left;
@@ -607,7 +607,7 @@
       QDialog#accentPopover QPushButton:hover {
         background: %ACCENT_SOFT%; color: %TEXT%;
       }
-      /* ── Expiration dialog (dialogs/expirationDialog.cpp) — the browser's own
+      /* ── Expiration dialog (dialogs/ExpirationDialog.cpp) — the browser's own
          calendar, not Qt's: .exp-calendar is a bordered card on the controls fill,
          its head a ‹ month year › row, and each day a small transparent cell that
          tints on hover. Today and the expiry day carry the two outlines the legend
@@ -644,7 +644,7 @@
       }
       QLabel#expProjectName { font-weight: bold; background: transparent; }
       QLabel#expLegend { color: %MUTED%; font-size: 11px; background: transparent; }
-      /* Assistant modal extras (llmSettingsForm.cpp): the tinted help note
+      /* Assistant modal extras (LlmSettingsForm.cpp): the tinted help note
          (browser .chat-cors-note — accent-tinted fill, solid hint border, muted
          12px type) and the label-less status row's muted text
          (.chat-server-status). */
@@ -702,7 +702,7 @@
       QWidget[infoRow="true"]:hover { background: %BG_ROW_HOVER_SOFT%; }
       QLabel#hotkeyAction { font-size: 13px; background: transparent; }
       QLabel#hotkeyDefault { color: %MUTED%; background: transparent; padding: 3px 0px; }
-      /* The combo (keycapChip.hpp ComboCell): a quiet click target with no frame of its
+      /* The combo (KeycapChip.hpp ComboCell): a quiet click target with no frame of its
          own — the row's tint and the caps' shake say "hover" — accented while capturing. */
       QLabel#hotkeyCell {
         background: transparent; border: 1px solid transparent; border-radius: 6px;
@@ -749,7 +749,7 @@
 
       /* ── Scrollbars: QSS only SIZES them — browser layout.css parity, a 12px slot
          (10px + 1px margin) with a transparent track and the handle's minimum length.
-         The thumb itself is painted on every bar by support/pillScrollBars.hpp: a rounded
+         The thumb itself is painted on every bar by support/PillScrollBars.hpp: a rounded
          pill in --sb-thumb's grey that swells and takes the theme accent under the
          pointer (--sb-thumb-hover: var(--accent)). QSS on macOS drew the handle square
          whatever radius it was given, and its `::handle:hover` never lit the dialogs'
@@ -772,7 +772,7 @@
         background: %BG_CONTROLS%; color: %TEXT%; border: 1px solid %ACCENT_RING%;
         border-radius: 6px; padding: 2px;
       }
-      /* …and the FADING twin that replaces it on controls (support/appTooltip.hpp). An
+      /* …and the FADING twin that replaces it on controls (support/AppTooltip.hpp). An
          ordinary QFrame, so it counts its box once — hence the browser's real padding
          here rather than QTipLabel's doubled 2px. */
       QFrame#stencilAppTooltip {

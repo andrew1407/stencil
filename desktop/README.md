@@ -67,8 +67,8 @@ src/                  # Qt GUI, grouped by role (headers included bare across gr
                       #   no logic file over 230 lines except the list in
                       #   tests/sizeBudget.json, which may not grow
   app/                # main.cpp, launchOptions, the controllers, and MainWindow:
-                      #   ONE mainWindow.hpp (moc runs on the header) with its method
-                      #   groups spread over mainWindow*.cpp TUs
+                      #   ONE MainWindow.hpp (moc runs on the header) with its method
+                      #   groups spread over MainWindow*.cpp TUs
   canvas/             # canvasWidget (QPainter rendering) + canvasTooltip
   dialogs/            # settings / projects / blank / links / crop / info / shortcuts /
                       #   connect / expiration / assistantSettings
@@ -79,7 +79,7 @@ src/                  # Qt GUI, grouped by role (headers included bare across gr
                       #   server, and fetchGuard (the surface's one SSRF guard)
   support/            # theme + the motion, widget and platform helpers
 tests/                # 66 ctest targets: headless Qt suites per concern, 15 QtTest GUI
-                      #   binaries (mainWindow.<area>.gui.cpp, one object library), the
+                      #   binaries (MainWindow.<area>.gui.cpp, one object library), the
                       #   layer-boundary lint, the size/comment ratchet and the UI pins
   pins/               # 24 PNG renders at @1x+@2x (pins/macos/) + stylesheets.txt —
                       #   the desktop half of the UI freeze; re-record only deliberately
@@ -293,7 +293,7 @@ component in isolation; the `stencil_mainwindow_*_gui` targets are a full GUI **
 built with the **Qt Test framework** — they drive the real `MainWindow`:
 
 - `stencil_mainwindow_<area>_gui` — GUI e2e (QtTest), one binary per feature area
-  (`tests/mainWindow.<area>.gui.cpp`, shared ground in `tests/mainWindow.gui.hpp`), so ctest
+  (`tests/MainWindow.<area>.gui.cpp`, shared ground in `tests/MainWindow.gui.hpp`), so ctest
   runs the areas in parallel: loads an image via the OS-open path, then
   drives the **real, shared QActions** (menu bar / toolbar / context menu reuse the same
   objects) and sends real mouse clicks to the live canvas, asserting on observable widget
@@ -518,17 +518,17 @@ The desktop app mirrors the browser app's interaction surface:
   (outlined, glyph in the text colour), and anything unavailable — buttons *and* combos, e.g.
   the image filter with no image — drops to the muted disabled face.
 - **Removal motion**: a cleared chat card and a cleared image don't blink out — a snapshot
-  is scattered cell by cell (`support/disintegrateOverlay.hpp`, the port of the browser's
+  is scattered cell by cell (`support/DisintegrateOverlay.hpp`, the port of the browser's
   `disintegrate()`), and toasts rise in and drop away instead of only fading.
 - **Palette swap**: changing theme or accent snapshots the window, restyles, then erases the
-  snapshot with a circle growing from the centre (`support/themeSwapOverlay.hpp`).
+  snapshot with a circle growing from the centre (`support/ThemeSwapOverlay.hpp`).
 - **Drag-and-drop motion**: the split drop-zones overlay leaves on a fade rather than
   blinking out, and a dropped image's canvas fades up into place — so the file is visibly
   the thing that just arrived. Entering fullscreen plays the canvas **stretching** out of
   the viewport box it had, and leaving **minimises** it back (`beginFullscreenZoom`); the
   ramp only ever ends on the zoom you picked, so the motion never changes your view. Both
   mirror `browser/js/ui/motion.js`.
-- **Toast notifications** and **autosave**: the in-progress drawing (points, page
+- **Toast Notifications** and **autosave**: the in-progress drawing (points, page
   format, zoom, image path) is autosaved to a gitignored temp config
   (`desktop/.stencil/session.autosave`) and **restored on next launch**; settings and
   projects live alongside it in `desktop/.stencil/` (path baked via the

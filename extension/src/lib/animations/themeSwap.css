@@ -26,7 +26,7 @@
        the traps on either side are recorded over the same declaration in
        browser/css/animations/themeSwap.css; keep the two identical.
        All three surfaces run this same wipe — the desktop evaluates these very control
-       points as a Qt easing (support/themeSwapOverlay.hpp swapEase) over the same duration.
+       points as a Qt easing (support/ThemeSwapOverlay.hpp swapEase) over the same duration.
        browser/tests/motion.test.js holds this file and the browser's to each other, and
        desktop/tests/themeSwapEase.headless.cpp holds the desktop's curve to the same
        area-sweep contract. */

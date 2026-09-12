@@ -1,4 +1,4 @@
-// One committed (or in-flight) line and one point; `r` is the Renderer. Desktop twin: canvasWidget.cpp.
+// One committed (or in-flight) line and one point; `r` is the Renderer. Desktop twin: CanvasWidget.cpp.
 import { hexToRgba } from '../utils.js';
 
 const DASH_PATTERN = [10, 5];

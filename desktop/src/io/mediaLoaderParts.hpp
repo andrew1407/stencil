@@ -1,8 +1,8 @@
 #pragma once
-// The loader's video timeouts and scheme/extension tests, private to the mediaLoader*.cpp TUs.
+// The loader's video timeouts and scheme/extension tests, private to the MediaLoader*.cpp TUs.
 
 #include <QString>
-#include "mediaLoader.hpp"
+#include "MediaLoader.hpp"
 #include <QUrl>
 
 namespace stencil::gui {

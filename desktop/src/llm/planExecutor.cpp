@@ -1,6 +1,6 @@
 #include "planExecutor.hpp"
 
-#include "canvasWidget.hpp"
+#include "CanvasWidget.hpp"
 #include "colorNames.hpp"
 #include "cropSpec.hpp"
 #include "formulaParser.hpp"

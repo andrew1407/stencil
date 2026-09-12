@@ -1,10 +1,10 @@
 #pragma once
-// Row polish (menuHotkeys.hpp / menuShimmer.hpp) for a menu built ONCE and reused.
+// Row polish (MenuHotkeys.hpp / MenuShimmer.hpp) for a menu built ONCE and reused.
 // MenuShimmer is parented to `menu`; MenuHotkeyChips mutates shared QAction text and
 // closes over a chip child by raw pointer, so it is rebuilt on every aboutToShow and
 // torn down on every aboutToHide, BEFORE the menu's children go.
-#include "menuHotkeys.hpp"
-#include "menuShimmer.hpp"
+#include "MenuHotkeys.hpp"
+#include "MenuShimmer.hpp"
 
 #include <QMenu>
 #include <QObject>

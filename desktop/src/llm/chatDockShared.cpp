@@ -1,7 +1,7 @@
 #include "chatDockShared.hpp"
 
 #include "../support/scrollReveal.hpp"        // ENTERING_PROPERTY — the entrance claims the effect
-#include "../support/shimmerOverlay.hpp"  // the shared hover sweep on every ghost button
+#include "../support/ShimmerOverlay.hpp"  // the shared hover sweep on every ghost button
 
 #include <QEasingCurve>
 #include <QGraphicsOpacityEffect>

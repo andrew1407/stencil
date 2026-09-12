@@ -51,7 +51,7 @@
 
 /* Clear-fill: the app's ordinary control button, not a coloured CTA — a small correction
    beside the swatch, not an action to draw the eye. Tight box + an 11px glyph, matching
-   the desktop's own (selectedLineBar.cpp restyleIcons). */
+   the desktop's own (SelectedLineBar.cpp restyleIcons). */
 .fill-clear { padding: 0 10px; }
 
 /* inline pixel-coord input */

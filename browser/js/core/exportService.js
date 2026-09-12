@@ -70,7 +70,7 @@ export class ExportService {
       notify('Turn on split compare to download with the splitter', 'fail');
       return;
     }
-// 'split' is its own explicit variant (desktop parity: dataExportController.cpp
+// 'split' is its own explicit variant (desktop parity: DataExportController.cpp
 // saveImageFile); the call site decides which to ask for, this never substitutes.
     const offscreen = this.renderExportCanvas(variant);
 

@@ -1,6 +1,6 @@
 // The "Selected Line:" bar's entrance/exit (showSelectionPanel/hideSelectionPanels): forms
 // from, and disperses back into, sand like other surfaces (js/ui/motion.js surfaceIn/
-// surfaceOut). Desktop mirrors it via DisintegrateOverlay over SelectedLineBar (mainWindow.cpp).
+// surfaceOut). Desktop mirrors it via DisintegrateOverlay over SelectedLineBar (MainWindow.cpp).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

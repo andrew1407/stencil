@@ -1,6 +1,6 @@
 #pragma once
 // The .stencil merge rule, private to the stencilFileSync*.cpp TUs.
-#include "mainWindow.hpp"
+#include "MainWindow.hpp"
 
 namespace stencil::gui {
 

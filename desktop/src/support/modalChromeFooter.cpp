@@ -2,7 +2,7 @@
 #include "modalChromeShared.hpp"
 #include "iconSet.hpp"
 #include "modalReveal.hpp"
-#include "shimmerOverlay.hpp"
+#include "ShimmerOverlay.hpp"
 
 #include <QColor>
 #include <QComboBox>

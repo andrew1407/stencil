@@ -962,7 +962,7 @@ test('a turn landing on a closed chat toasts, and only WORK IN FLIGHT marks the 
   assert.ok(closed.includes('if (panelIsOpen() || !toast) return;'), 'never while the chat is visible');
   assert.ok(closed.includes('onClick: () => setOpen(true)'), 'and the toast itself opens the chat');
   // …and it leaves NOTHING behind on the icon: no unread badge on either surface
-  // (the desktop's twin went with it — mainWindowChat.cpp).
+  // (the desktop's twin went with it — MainWindowChat.cpp).
   assert.ok(!panel.includes('chat-unread') && !panel.includes('markChatUnread'),
     'no unread dot is marked anywhere');
   // In-flight behind a closed chat still gets the quiet pulse, cleared in cleanup.

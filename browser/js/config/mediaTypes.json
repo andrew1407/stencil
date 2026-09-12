@@ -1,5 +1,5 @@
 {
-  "about": "What counts as an image or a video, and how a format name is normalised. One asset for the four copies that used to be hand-kept: browser js/core/videoFrame.js, extension lib/filters.js + content/pageApiMain.js, desktop src/io/mediaLoader.cpp, cli src/video.zig + src/scrape.zig.",
+  "about": "What counts as an image or a video, and how a format name is normalised. One asset for the four copies that used to be hand-kept: browser js/core/videoFrame.js, extension lib/filters.js + content/pageApiMain.js, desktop src/io/MediaLoader.cpp, cli src/video.zig + src/scrape.zig.",
   "rules": {
     "extensions": "Lowercase, WITHOUT the leading dot. `image.extensions` / `video.extensions` are the CONTRACT set — what Stencil claims to recognise.",
     "surfaces": "What each surface recognises TODAY. Several are strict subsets of the contract set and no two agree; they are recorded verbatim so a surface can be wired to this asset with ZERO behaviour change, and the divergence is visible in one place instead of five. Converging them is a behaviour change and belongs to its own commit — see `drift`.",
@@ -165,8 +165,8 @@
     "extension.videoScan": "src/content/pageApiMain.js VIDEO_FMTS — which scanned entries the page API counts as video.",
     "extension.videoFilter": "src/lib/filters.js VIDEO_FORMATS — the popup's video filter.",
     "extension.imageFilter": "src/lib/filterUi.js COMMON_FORMATS — the popup's format chips, IN DISPLAY ORDER.",
-    "desktop.video": "src/io/mediaLoader.cpp isVideoFileName().",
-    "desktop.image": "src/io/mediaLoader.cpp isImageFileName() — what the Qt image plugins are relied on to decode.",
+    "desktop.video": "src/io/MediaLoader.cpp isVideoFileName().",
+    "desktop.image": "src/io/MediaLoader.cpp isImageFileName() — what the Qt image plugins are relied on to decode.",
     "cli.video": "src/video.zig video_exts (stored there with a leading dot)."
   },
   "drift": "No two surfaces recognise the same video set, and none matches `video.extensions`: the browser's own two lists disagree (isVideoFile has `ogg` and no `mpg`/`mpeg`; isVideoUrl the reverse), only the desktop knows `3gp`, only the cli knows `gifv`, and only the desktop and cli know `wmv`/`flv`/`ts`. Every list predates this asset. Wiring a surface to its OWN entry above is behaviour-neutral; pointing it at `video.extensions` changes what it accepts and must be its own, stated change."

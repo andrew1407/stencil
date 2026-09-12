@@ -6,12 +6,12 @@
 // watch, the rows that are LEFT arrive, none of the removal's dust is spent, and reduced
 // motion skips to the end. A mock
 // QTcpServer stands in for the collaboration server, so no Go server is needed.
-#include "connectDialog.hpp"
+#include "ConnectDialog.hpp"
 #include "theme.hpp"   // the app stylesheet these metrics are measured under
-#include "disintegrateOverlay.hpp"
-#include "dissolveEffect.hpp"   // the scroll-edge fade the rows carry
+#include "DisintegrateOverlay.hpp"
+#include "DissolveEffect.hpp"   // the scroll-edge fade the rows carry
 #include "filterFade.hpp"       // …and the lighter one a FILTER change plays
-#include "serverClient.hpp"
+#include "ServerClient.hpp"
 
 #include <QApplication>
 #include <QComboBox>
@@ -21,7 +21,7 @@
 #include <QHostAddress>
 #include <QCheckBox>
 #include <QLabel>
-#include "flowLayout.hpp"
+#include "FlowLayout.hpp"
 #include <QKeyEvent>
 #include <QLineEdit>
 #include <QListWidget>

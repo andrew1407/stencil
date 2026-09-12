@@ -403,7 +403,7 @@ These effects share one import point — `js/ui/motion.js` is a barrel over
   chrome and suppresses its scrollbars for the flight.
 
 The desktop app mirrors these (`desktop/src/support/scrollReveal.hpp`,
-`themeSwapOverlay.hpp`, `dustKit.hpp`, and `MainWindow::consumeDropReveal` /
+`ThemeSwapOverlay.hpp`, `dustKit.hpp`, and `MainWindow::consumeDropReveal` /
 `beginFullscreenZoom`); the extension ports the reveal and the disintegration into
 `extension/src/lib/motion/`, behind the same barrel shape (`lib/motion.js`).
 

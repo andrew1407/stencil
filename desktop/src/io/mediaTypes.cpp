@@ -1,4 +1,4 @@
-#include "mediaLoader.hpp"
+#include "MediaLoader.hpp"
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>

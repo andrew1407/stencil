@@ -1,6 +1,6 @@
 #pragma once
 
-// Constants and helpers shared by the mainWindow*.cpp partials; bodies live in
+// Constants and helpers shared by the MainWindow*.cpp partials; bodies live in
 // mainWindowShared.cpp.
 
 #include <QByteArray>

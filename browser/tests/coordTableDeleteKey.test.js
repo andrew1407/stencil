@@ -1,7 +1,7 @@
 // Regression tests for the bare Delete/Backspace on a focused coordinates row
 // (js/ui/coordTable.js) — the parity port of the desktop points table, whose
 // SelectionPanel::eventFilter takes the same key when that table has focus
-// (desktop/src/app/selectionPanel.cpp).
+// (desktop/src/app/SelectionPanel.cpp).
 //
 // What must hold, and what these lock down:
 //   1. Delete AND Backspace on a focused row remove that point, through the same

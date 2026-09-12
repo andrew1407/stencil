@@ -1,5 +1,5 @@
 // The browser app's own markup, read straight from its source, so the desktop can pin
-// the hover copy the two front-ends share (mainWindow.tooltips.gui.cpp toolbarTooltipsMatchThe-
+// the hover copy the two front-ends share (MainWindow.tooltips.gui.cpp toolbarTooltipsMatchThe-
 // Browser). Copy that lives in the shared canon (config/uiStrings.json) reaches the
 // markup as a `${UI_STRINGS.a.b}` template, so resolving those is part of reading it.
 #pragma once

@@ -35,7 +35,7 @@ schema of its own. These were retyped in five clients each before they moved her
   the strings moved into this asset** — this file records the divergence rather than
   hiding it, and converging them is a behaviour change that belongs to its own commit:
   - `continuationNote` — the editors' (browser `chatStore.js`, desktop
-    `mainWindowChat.cpp`). This is the wording llm-chat.md §12.1 quotes.
+    `MainWindowChat.cpp`). This is the wording llm-chat.md §12.1 quotes.
   - `continuationNoteConsole` — cli `wire.zig` + mcp `prompt.rs` (`…loaded — continue
     with it, using its real pixel size.]`).
   - `continuationNoteBot` — bot `ChatDocument.cs` (`…those actions just made — …`).

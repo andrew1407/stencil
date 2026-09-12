@@ -53,7 +53,7 @@
        belt to squeezeLongTokens' braces (notifications.js). */
     overflow-wrap: anywhere;
     /* One inner box on both surfaces: 12px beside the content, 10px above and below,
-       8px between glyph and text (desktop notifications.cpp mirrors it). */
+       8px between glyph and text (desktop Notifications.cpp mirrors it). */
     padding: 10px 12px;
     border-radius: 8px;
     font-size: 13.5px;
@@ -67,7 +67,7 @@
 /* TWO colours, not three: red means something went wrong, and everything else — a save, a
    clear, a plain notice — carries the theme accent. A green success sat outside the palette
    and made routine confirmations shout as loudly as failures. The ✓ / ✕ / ℹ glyph is what
-   still separates the kinds. Mirrored in desktop/src/support/notifications.cpp. */
+   still separates the kinds. Mirrored in desktop/src/support/Notifications.cpp. */
 .notify-toast.notify-ok,
 .notify-toast.notify-info  { background: var(--accent); color: var(--on-accent); }
 .notify-toast.notify-fail  { background: var(--danger); }

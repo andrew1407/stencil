@@ -115,7 +115,7 @@ export class StencilConnectModal extends StencilElement {
     let filterMode = 'all';
     let shownUrls = new Set();
     // …minus rows playing their removal dust: gone as far as the bar is concerned, so Select
-    // all leaves with the row. The desktop's `doomed_` (connectDialog.cpp).
+    // all leaves with the row. The desktop's `doomed_` (ConnectDialog.cpp).
     const doomed = new Set();
     const anyLiveShown = () => {
       for (const u of shownUrls) if (!doomed.has(u)) return true;

@@ -1,5 +1,5 @@
 #pragma once
-// The focusable stops inside one hosted menu row, private to the stayOpenMenu*.cpp TUs.
+// The focusable stops inside one hosted menu row, private to the StayOpenMenu*.cpp TUs.
 #include <QAction>
 #include <QList>
 #include <QWidget>

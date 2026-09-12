@@ -8,7 +8,7 @@
 
 // LLM op-plan parser, llm-contract.md §1–2; twins: browser js/llm/opPlan.js, pystencil llm.py,
 // the bot's OpPlanParser, mcp's opplan.rs — the parse matrix must stay identical. Limits come
-// from the registry (opSchema.hpp); an UNKNOWN op is dropped with a warning, a known bad one fails.
+// from the registry (OpSchema.hpp); an UNKNOWN op is dropped with a warning, a known bad one fails.
 namespace stencil::llm {
 
   // §2 image ops + §10 editor-settings ops (banned in variants) + §2 history + §2.1 multi-image.

@@ -470,9 +470,9 @@ int main(int argc, char** argv) {
   }
 
   // ── The idle "＋ Blank image" card mirrors the `image` entry by hand ──────────
-  // Its glyph is stroked by the canvas itself (canvasWidget.cpp), out of reach of the
+  // Its glyph is stroked by the canvas itself (CanvasWidget.cpp), out of reach of the
   // app-wide hover watcher, so the two parts of that entry are evaluated there from the
-  // constants in canvasWidget.hpp. They must BE the canon's numbers.
+  // constants in CanvasWidget.hpp. They must BE the canon's numbers.
   std::printf("idle card glyph:\n");
   {
     const IconMotionSpec* image = iconMotionFor(QStringLiteral("image"));

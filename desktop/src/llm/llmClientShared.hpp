@@ -1,6 +1,6 @@
 #pragma once
-// The provider wire helpers — endpoint tags, failure replies and text sanitising — private to the llmClient*.cpp TUs.
-#include "llmClient.hpp"
+// The provider wire helpers — endpoint tags, failure replies and text sanitising — private to the LlmClient*.cpp TUs.
+#include "LlmClient.hpp"
 
 #include <QJsonDocument>
 #include <QJsonObject>

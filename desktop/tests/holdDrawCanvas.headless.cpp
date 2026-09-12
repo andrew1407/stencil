@@ -4,7 +4,7 @@
 // machine is covered exhaustively by core/tests/holdDraw.test.cpp; here we just
 // confirm the CanvasWidget wiring (delay clamp + delete API) on the real widget.
 // Returns non-zero on any failed expectation.
-#include "canvasWidget.hpp"
+#include "CanvasWidget.hpp"
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QImage>

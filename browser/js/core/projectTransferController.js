@@ -5,7 +5,7 @@ import * as meta from './projectMetaOps.js';
 import * as xfer from './projectServerTransfer.js';
 
 // Project lifecycle + local ↔ server transfer: the meta writes live in projectMetaOps.js,
-// the move/copy flows in projectServerTransfer.js. Desktop twin: projectTransferController.cpp,
+// the move/copy flows in projectServerTransfer.js. Desktop twin: ProjectTransferController.cpp,
 // whose Hooks pattern the `host` facade mirrors. Explicit deps, so it unit-tests without a
 // DrawingApp: storage, tabs, remoteSync, getConnections (a getter — stencilApi creates it
 // lazily) and host (activeProjectId + remoteLink, blankColor/imageBaseName, chatPersistence,

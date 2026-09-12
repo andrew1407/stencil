@@ -1,7 +1,7 @@
 #pragma once
 // Filter transitions (browser js/ui/motion.js filterDust): an excluded row never plays
 // OUT — its slot closes at once; the rows LEFT re-form in place. Q_OBJECT-free, no MOC.
-#include "disintegrateOverlay.hpp"
+#include "DisintegrateOverlay.hpp"
 #include "modalReveal.hpp"
 
 #include <QGraphicsOpacityEffect>

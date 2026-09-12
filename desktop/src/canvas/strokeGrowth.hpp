@@ -8,7 +8,7 @@
 #include <cmath>
 #include <vector>
 
-#include "disintegrateOverlay.hpp"   // cellNoise: the app's one scatter hash
+#include "DisintegrateOverlay.hpp"   // cellNoise: the app's one scatter hash
 #include "models.hpp"
 
 namespace stencil::gui::stroke {

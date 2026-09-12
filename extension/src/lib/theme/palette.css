@@ -71,7 +71,7 @@
   --sb-thumb-active: var(--accent-2);
 }
 /* ── Scrollbars, every scrollable on every page (browser css/layout.css parity, desktop
-   support/pillScrollBars.hpp): thin native bars in the thumb grey, the thumb taking the
+   support/PillScrollBars.hpp): thin native bars in the thumb grey, the thumb taking the
    accent ONLY while the pointer is on the bar's own strip — `.sb-hover`, set by
    lib/scrollbarHover.js (one document listener per page) — not whenever the panel is
    hovered: scrollbar-color has no thumb-hover of its own, and a panel-wide :hover would

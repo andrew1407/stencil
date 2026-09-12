@@ -3,11 +3,11 @@
 // crop, and apply the core image filter to the actual pixels. The desktop counterpart
 // of the CLI's decode -> crop -> filter integration test (cli/tests/). Runs offscreen,
 // returns non-zero on any failed expectation. Built only when Qt is present.
-#include "canvasWidget.hpp"
+#include "CanvasWidget.hpp"
 #include "imageFilter.hpp"
 #include "iconSet.hpp"
 #include "numericInput.hpp"
-#include "incognitoOverlay.hpp"
+#include "IncognitoOverlay.hpp"
 #include "theme.hpp"
 
 #include <QApplication>

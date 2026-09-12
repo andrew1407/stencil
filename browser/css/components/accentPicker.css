@@ -14,7 +14,7 @@
     transition: background 0.2s ease;
 }
 /* The ✓ marking the ACTIVE preset, baked into its own chip — desktop parity
-   (mainWindow.cpp openAccentPicker draws the same tick into the current swatch), and a
+   (MainWindow.cpp openAccentPicker draws the same tick into the current swatch), and a
    marker the row tint can't be: that tint is the same affordance :hover uses, so on the
    logo menu (opened under the pointer) the active row read no differently from the row
    being hovered. It inherits the chip's own on-accent ink (accentPicker.js sets it per

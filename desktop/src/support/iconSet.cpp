@@ -1,6 +1,6 @@
 #include "iconSet.hpp"
 
-#include "lruCache.hpp"
+#include "LruCache.hpp"
 #include <algorithm>
 #include <QApplication>
 #include <QGuiApplication>

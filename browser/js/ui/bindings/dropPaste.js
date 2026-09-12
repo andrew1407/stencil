@@ -20,7 +20,7 @@ export function wireDropPaste(app) {
   const handleImageDrop = async (file, incognito, from = null) => {
     if (app.image) {
       // Three BUTTONS, not a picker: two answers and a way out, each one click. Desktop
-      // parity — mainWindow.cpp asks the same question with This window / New window / Cancel.
+      // parity — MainWindow.cpp asks the same question with This window / New window / Cancel.
       const where = await app.askAlt('An image is already open. Where should the dropped image open?', {
         title: 'Open dropped image',
         confirmLabel: 'Open in the current page', confirmIcon: 'image',

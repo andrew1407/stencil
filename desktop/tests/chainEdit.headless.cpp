@@ -2,7 +2,7 @@
 // desktop port of browser/js/core/dragGestures.js, carrying that suite's cases, plus the
 // wiring on the real widget: Alt+Ctrl+drag pulls a new point out of the line under the
 // cursor and breaks a closed area open at that spot. Runs offscreen.
-#include "canvasWidget.hpp"
+#include "CanvasWidget.hpp"
 #include "chainEdit.hpp"
 
 #include <QApplication>

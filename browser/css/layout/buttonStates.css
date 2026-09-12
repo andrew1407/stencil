@@ -5,7 +5,7 @@ button:disabled, select:disabled, input:disabled { pointer-events: auto; }
 /* Theme toggle button. It ACTS (it flips the theme) rather than reporting a state, so it
    wears the accent fill the other acting buttons in its row do — the ghost box is for the
    two toggles beside it, which fill only while they are on (user decision; desktop twin:
-   the SETTINGS cluster's toolFill in mainWindowTheme.cpp). Box unchanged, so the row's
+   the SETTINGS cluster's toolFill in MainWindowTheme.cpp). Box unchanged, so the row's
    six squares stay one size. */
 #theme-toggle {
     background: var(--accent);

@@ -24,7 +24,7 @@ four front-ends**, plus four adapters that wrap the CLI or the collaboration ser
 parity contract below does **not** reach them. `mcp/` and `bot/` depend on the CLI's argv
 contract and its `wrote {path} ({w}x{h})` / `error:` stderr output; `server/`'s contract is
 `server/internal/protocol`. The desktop's own GUI e2e is a QtTest target
-(`desktop/tests/mainWindow.gui.cpp`), not in `e2e/`.
+(`desktop/tests/MainWindow.<area>.gui.cpp`), not in `e2e/`.
 
 ## Commands
 

@@ -5,7 +5,7 @@
 // hundred call sites. The persisted keys round-trip through the same
 // settingsToJson/settingsFromJson pair the settings file uses.
 #include "fileStore.hpp"
-#include "disintegrateOverlay.hpp"
+#include "DisintegrateOverlay.hpp"
 #include "motionIcons.hpp"
 #include "motionPrefs.hpp"
 

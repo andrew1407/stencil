@@ -27,7 +27,7 @@ export function wireLogoColorPicker(logo, app) {
   const { menuShowing, closeMenu, altPeek, menuKind } = wireLogoAccentMenu(logo, wrap, app);
 
 // Single-click cycles the preset (a custom colour resets to the default), deferred so a
-// double-click cancels it; the logo is the swap origin (desktop: mainWindow.cpp too).
+// double-click cancels it; the logo is the swap origin (desktop: MainWindow.cpp too).
   const cycleAccent = () => {
     if (app.customAccent) { app.setAccent(DEFAULT_ACCENT, logo); return; }
     const keys = ACCENTS.map((a) => a.key);

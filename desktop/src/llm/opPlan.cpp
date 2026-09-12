@@ -2,7 +2,7 @@
 
 #include "colorNames.hpp"
 #include "opRegistry.hpp"
-#include "opSchema.hpp"
+#include "OpSchema.hpp"
 
 #include <QJsonArray>
 #include <QJsonDocument>

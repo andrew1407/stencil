@@ -23,7 +23,7 @@ const PARTICLE_STYLE_OF = { [MOTION_PARTICLES]: 'dust', [MOTION_WATER]: 'water',
 export const DEFAULT_MOTION_MODE = MOTION_PARTICLES;
 export const DEFAULT_DRAWING_ANIMATIONS = true;
 
-// One list for the desktop combo (dialogs/settingsDialog.cpp) and the extension's options
+// One list for the desktop combo (dialogs/SettingsDialog.cpp) and the extension's options
 // page (src/lib/accent.js StencilMotion) to mirror.
 export const MOTION_MODE_LABELS = Object.freeze([
   [MOTION_PARTICLES, 'Dust'],

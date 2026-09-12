@@ -1,5 +1,5 @@
 /* ── The canvas viewport's scrollbars are its OWN overlay bars (js/ui/canvasScrollbars.js,
-   desktop parity: canvas/overlayScrollArea.hpp) — the native ones are hidden here. The
+   desktop parity: canvas/OverlayScrollArea.hpp) — the native ones are hidden here. The
    native scrollbar-color property is one colour for BOTH bars, so a hover on one lit the
    other, and the webkit pseudo-elements are ignored once scrollbar-width is set. */
 .canvas-viewport::-webkit-scrollbar { display: none; width: 0; height: 0; }
@@ -42,7 +42,7 @@
    whenever the panel is hovered: the standard scrollbar-color property Chrome/Firefox
    read has no thumb-hover of its own, and a panel-wide :hover painted the thumb accent
    on every scroll (user report). The canvas keeps its overlay bars above (scrollbar-width
-   none there outranks this). Desktop parity: support/pillScrollBars.hpp. */
+   none there outranks this). Desktop parity: support/PillScrollBars.hpp. */
 * {
     scrollbar-width: thin;
     scrollbar-color: var(--sb-thumb) transparent;

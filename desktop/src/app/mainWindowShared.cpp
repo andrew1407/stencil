@@ -1,6 +1,6 @@
 #include "mainWindowShared.hpp"
 
-#include "../support/disintegrateOverlay.hpp"
+#include "../support/DisintegrateOverlay.hpp"
 #include "fetchGuard.hpp"
 
 #include <QJsonObject>

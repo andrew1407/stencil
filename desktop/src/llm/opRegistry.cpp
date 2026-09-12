@@ -1,5 +1,5 @@
 #include "opRegistry.hpp"
-#include "opSchema.hpp"
+#include "OpSchema.hpp"
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>

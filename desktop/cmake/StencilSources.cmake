@@ -16,65 +16,65 @@ set(STENCIL_GUI_DIRS
 
 # The full GUI translation-unit set MINUS the entry point (main.cpp), shared between
 # the app and the MainWindow GUI e2e test target below so the two never drift.
-# CanvasWidget is split across canvas*.cpp partials, all defining CanvasWidget::
+# CanvasWidget is split across Canvas*.cpp partials, all defining CanvasWidget::
 # members; every target that draws a canvas needs the whole set, so they travel
 # together under one name.
 set(STENCIL_CANVAS_SOURCES
-  src/canvas/canvasWidget.cpp
-  src/canvas/canvasDrag.cpp
-  src/canvas/canvasDraw.cpp
-  src/canvas/canvasDrawClick.cpp
-  src/canvas/canvasDrawMode.cpp
-  src/canvas/canvasGeometry.cpp
-  src/canvas/canvasHold.cpp
-  src/canvas/canvasHover.cpp
-  src/canvas/canvasImage.cpp
-  src/canvas/canvasLineEdit.cpp
-  src/canvas/canvasMove.cpp
-  src/canvas/canvasPaint.cpp
+  src/canvas/CanvasWidget.cpp
+  src/canvas/CanvasDrag.cpp
+  src/canvas/CanvasDraw.cpp
+  src/canvas/CanvasDrawClick.cpp
+  src/canvas/CanvasDrawMode.cpp
+  src/canvas/CanvasGeometry.cpp
+  src/canvas/CanvasHold.cpp
+  src/canvas/CanvasHover.cpp
+  src/canvas/CanvasImage.cpp
+  src/canvas/CanvasLineEdit.cpp
+  src/canvas/CanvasMove.cpp
+  src/canvas/CanvasPaint.cpp
   src/canvas/canvasPaintCache.cpp
-  src/canvas/canvasPress.cpp
-  src/canvas/canvasRelease.cpp
-  src/canvas/canvasRender.cpp
-  src/canvas/canvasSelection.cpp
-  src/canvas/canvasSettings.cpp
-  src/canvas/canvasStrokeFx.cpp
-  src/canvas/canvasTransform.cpp
+  src/canvas/CanvasPress.cpp
+  src/canvas/CanvasRelease.cpp
+  src/canvas/CanvasRender.cpp
+  src/canvas/CanvasSelection.cpp
+  src/canvas/CanvasSettings.cpp
+  src/canvas/CanvasStrokeFx.cpp
+  src/canvas/CanvasTransform.cpp
   src/canvas/strokeGrowth.cpp)
 
-# The projects dialog is split across projects*.cpp partials (plus its row delegate),
+# The projects dialog is split across Projects*.cpp partials (plus its row delegate),
 # all defining ProjectsDialog:: / ProjectRowDelegate:: members; they travel together.
 set(STENCIL_PROJECTS_DIALOG_SOURCES
-  src/dialogs/projectsDialog.cpp
-  src/dialogs/projectsDialogBuild.cpp
-  src/dialogs/projectsDialogEvents.cpp
-  src/dialogs/projectsDialogList.cpp
-  src/dialogs/projectsDialogRefresh.cpp
-  src/dialogs/projectsDialogRows.cpp
-  src/dialogs/projectsDialogViewport.cpp
-  src/dialogs/projectRowDelegate.cpp
-  src/dialogs/projectRowDelegateRow.cpp
-  src/dialogs/projectsBatchBar.cpp
-  src/dialogs/projectsFilter.cpp
-  src/dialogs/projectsHoverPreview.cpp
-  src/dialogs/projectsOpen.cpp
-  src/dialogs/projectsRename.cpp
+  src/dialogs/ProjectsDialog.cpp
+  src/dialogs/ProjectsDialogBuild.cpp
+  src/dialogs/ProjectsDialogEvents.cpp
+  src/dialogs/ProjectsDialogList.cpp
+  src/dialogs/ProjectsDialogRefresh.cpp
+  src/dialogs/ProjectsDialogRows.cpp
+  src/dialogs/ProjectsDialogViewport.cpp
+  src/dialogs/ProjectRowDelegate.cpp
+  src/dialogs/ProjectRowDelegateRow.cpp
+  src/dialogs/ProjectsBatchBar.cpp
+  src/dialogs/ProjectsFilter.cpp
+  src/dialogs/ProjectsHoverPreview.cpp
+  src/dialogs/ProjectsOpen.cpp
+  src/dialogs/ProjectsRename.cpp
   src/dialogs/projectsRowChrome.cpp
-  src/dialogs/projectsRowIcons.cpp
-  src/dialogs/projectsRowMenu.cpp
-  src/dialogs/projectsRows.cpp
-  src/dialogs/projectsThumbs.cpp
-  src/dialogs/projectsTransfer.cpp)
+  src/dialogs/ProjectsRowIcons.cpp
+  src/dialogs/ProjectsRowMenu.cpp
+  src/dialogs/ProjectsRows.cpp
+  src/dialogs/ProjectsThumbs.cpp
+  src/dialogs/ProjectsTransfer.cpp)
 
-# The disintegration cloud (support/disintegrateOverlay.hpp) is split across five TUs
+# The disintegration cloud (support/DisintegrateOverlay.hpp) is split across five TUs
 # defining one class: the maths, the factories, the per-instance state, the paint and the
 # three mote flights. Every target that flies dust needs the whole set.
 set(STENCIL_DISINTEGRATE_SOURCES
-  src/support/disintegrateOverlay.cpp
-  src/support/disintegrateFactory.cpp
-  src/support/disintegrateState.cpp
-  src/support/disintegratePaint.cpp
-  src/support/disintegrateMotes.cpp)
+  src/support/DisintegrateOverlay.cpp
+  src/support/DisintegrateFactory.cpp
+  src/support/DisintegrateState.cpp
+  src/support/DisintegratePaint.cpp
+  src/support/DisintegrateMotes.cpp)
 
 # Per-icon hover motion (support/iconMotion.hpp) is split across four TUs: the spec
 # table read off the glyph canon, the pose maths and markup, the two runners, and the
@@ -85,31 +85,31 @@ set(STENCIL_ICONMOTION_SOURCES
   src/support/iconMotionRunner.cpp
   src/support/iconMotionFilter.cpp)
 
-# The connect list (dialogs/connectDialog.hpp) is seven TUs behind a private parts header:
+# The connect list (dialogs/ConnectDialog.hpp) is seven TUs behind a private parts header:
 # the build and row rebuild, the filter and row QSS, the row actions and the re-auth.
 set(STENCIL_CONNECTDIALOG_SOURCES
-  src/dialogs/connectDialog.cpp
-  src/dialogs/connectDialogBatchBar.cpp
-  src/dialogs/connectDialogRow.cpp
-  src/dialogs/connectDialogRowActions.cpp
-  src/dialogs/connectDialogFilter.cpp
-  src/dialogs/connectDialogActions.cpp
-  src/dialogs/connectDialogAuth.cpp)
+  src/dialogs/ConnectDialog.cpp
+  src/dialogs/ConnectDialogBatchBar.cpp
+  src/dialogs/ConnectDialogRow.cpp
+  src/dialogs/ConnectDialogRowActions.cpp
+  src/dialogs/ConnectDialogFilter.cpp
+  src/dialogs/ConnectDialogActions.cpp
+  src/dialogs/ConnectDialogAuth.cpp)
 
-# The links dialog (dialogs/linksDialog.hpp) is three TUs behind a private parts header:
+# The links dialog (dialogs/LinksDialog.hpp) is three TUs behind a private parts header:
 # the build, the preview/scrub player and the show path.
 set(STENCIL_LINKSDIALOG_SOURCES
-  src/dialogs/linksDialog.cpp
-  src/dialogs/linksDialogPreview.cpp
-  src/dialogs/linksDialogShow.cpp)
+  src/dialogs/LinksDialog.cpp
+  src/dialogs/LinksDialogPreview.cpp
+  src/dialogs/LinksDialogShow.cpp)
 
-# The open dialog (dialogs/openImageDialog.hpp) is four TUs behind a private parts
+# The open dialog (dialogs/OpenImageDialog.hpp) is four TUs behind a private parts
 # header: the build, the preview/scrub player, the tab state and the read-out.
 set(STENCIL_OPENIMAGE_SOURCES
-  src/dialogs/openImageDialog.cpp
-  src/dialogs/openImageDialogPreview.cpp
-  src/dialogs/openImageDialogState.cpp
-  src/dialogs/openImageDialogResult.cpp)
+  src/dialogs/OpenImageDialog.cpp
+  src/dialogs/OpenImageDialogPreview.cpp
+  src/dialogs/OpenImageDialogState.cpp
+  src/dialogs/OpenImageDialogResult.cpp)
 
 # Local persistence (io/fileStore.hpp) is four TUs behind a private io header: the layout
 # JSON, the project file and chat doc, the settings, and the session/projects/hotkeys.
@@ -119,15 +119,15 @@ set(STENCIL_FILESTORE_SOURCES
   src/io/fileStoreSettings.cpp
   src/io/fileStoreSession.cpp)
 
-# The REST client and connection manager (net/serverClient.hpp) are five TUs: the request
+# The REST client and connection manager (net/ServerClient.hpp) are five TUs: the request
 # plumbing, the project calls, the file calls, the guarded writes and invites, and the
 # ConnectionManager.
 set(STENCIL_SERVERCLIENT_SOURCES
-  src/net/serverClient.cpp
-  src/net/serverClientProjects.cpp
-  src/net/serverClientFiles.cpp
-  src/net/serverClientWrites.cpp
-  src/net/serverClientManager.cpp)
+  src/net/ServerClient.cpp
+  src/net/ServerClientProjects.cpp
+  src/net/ServerClientFiles.cpp
+  src/net/ServerClientWrites.cpp
+  src/net/ServerClientManager.cpp)
 
 # The plan executor (llm/planExecutor.hpp) is three TUs: the action dispatch, the
 # MainWindow plan target and the canvas plan target.
@@ -136,12 +136,12 @@ set(STENCIL_PLANEXECUTOR_SOURCES
   src/llm/planExecutorOps.cpp
   src/llm/planExecutorCanvas.cpp)
 
-# The op-schema validator (llm/opSchema.hpp) is three TUs behind a private checks header:
+# The op-schema validator (llm/OpSchema.hpp) is three TUs behind a private checks header:
 # the table and limits, the per-kind field checks, and the action/ask validation.
 set(STENCIL_OPSCHEMA_SOURCES
-  src/llm/opSchema.cpp
-  src/llm/opSchemaChecks.cpp
-  src/llm/opSchemaValidate.cpp)
+  src/llm/OpSchema.cpp
+  src/llm/OpSchemaChecks.cpp
+  src/llm/OpSchemaValidate.cpp)
 
 # The theme (support/theme.hpp) is three TUs: the accent resolution, the palette and the
 # stylesheet build.
@@ -161,9 +161,9 @@ set(STENCIL_MODALCHROME_SOURCES
 # Motion and widget support split out of their headers: each group is several TUs
 # defining one header's members, so every target that uses the header needs the group.
 set(STENCIL_APPTOOLTIP_SOURCES
-  src/support/appTooltip.cpp
-  src/support/appTooltipShow.cpp
-  src/support/appTooltipFilter.cpp)
+  src/support/AppTooltip.cpp
+  src/support/AppTooltipShow.cpp
+  src/support/AppTooltipFilter.cpp)
 
 set(STENCIL_CONTROLREVEAL_SOURCES
   src/support/controlReveal.cpp
@@ -179,8 +179,8 @@ set(STENCIL_FILTERFADE_SOURCES
   src/support/filterFadeList.cpp)
 
 set(STENCIL_THEMESWAP_SOURCES
-  src/support/themeSwapOverlay.cpp
-  src/support/themeSwapOverlayPaint.cpp)
+  src/support/ThemeSwapOverlay.cpp
+  src/support/ThemeSwapOverlayPaint.cpp)
 
 # Form-control state swaps (support/controlSwap.hpp) are split across three TUs: the
 # checkbox/combo pixmaps and bookkeeping, the value-swap cloud overlay, and the app-wide
@@ -198,190 +198,190 @@ set(STENCIL_FACESWAP_SOURCES
   src/support/faceSwapDriver.cpp)
 
 set(STENCIL_GUI_SOURCES
-  src/app/mainWindow.cpp
-  src/app/mainWindowActions.cpp
-  src/app/mainWindowActionsData.cpp
-  src/app/mainWindowActionsTips.cpp
-  src/app/mainWindowActionsWiring.cpp
-  src/app/mainWindowExportMenu.cpp
-  src/app/mainWindowToolbar.cpp
-  src/app/mainWindowToolbarHeader.cpp
-  src/app/mainWindowToolbarRows.cpp
-  src/app/mainWindowToolbarSections.cpp
-  src/app/mainWindowToolbarName.cpp
-  src/app/mainWindowToolbarPage.cpp
-  src/app/mainWindowToolbarStyle.cpp
-  src/app/mainWindowToolbarView.cpp
-  src/app/mainWindowMenus.cpp
-  src/app/mainWindowTheme.cpp
-  src/app/mainWindowThemeIcons.cpp
-  src/app/mainWindowThemeFaces.cpp
-  src/app/mainWindowThemeButtons.cpp
-  src/app/stencilFileSync.cpp
-  src/app/stencilFileSyncWatch.cpp
-  src/app/mainWindowChat.cpp
-  src/app/mainWindowChatReply.cpp
-  src/app/mainWindowChatClient.cpp
-  src/app/mainWindowChatSend.cpp
-  src/app/mainWindowChatNotices.cpp
-  src/app/mainWindowChatState.cpp
-  src/app/mainWindowChatPersist.cpp
-  src/app/mainWindowChatMedia.cpp
-  src/app/mainWindowChatSave.cpp
-  src/app/mainWindowEvents.cpp
-  src/app/mainWindowEventsCanvas.cpp
-  src/app/mainWindowEventsChrome.cpp
-  src/app/mainWindowEventsPopover.cpp
-  src/app/mainWindowAccent.cpp
-  src/app/mainWindowBlank.cpp
-  src/app/mainWindowBlankColor.cpp
-  src/app/mainWindowChatDock.cpp
-  src/app/mainWindowChatPopover.cpp
-  src/app/mainWindowChatShow.cpp
-  src/app/mainWindowChrome.cpp
-  src/app/mainWindowContextActions.cpp
-  src/app/mainWindowContextMenu.cpp
-  src/app/mainWindowContextRows.cpp
-  src/app/mainWindowDnd.cpp
-  src/app/mainWindowDust.cpp
-  src/app/mainWindowFullscreen.cpp
-  src/app/mainWindowFullscreenZoom.cpp
-  src/app/mainWindowHelp.cpp
-  src/app/mainWindowHoverDetail.cpp
-  src/app/mainWindowHoverTip.cpp
-  src/app/mainWindowImageInfo.cpp
-  src/app/mainWindowKeys.cpp
-  src/app/mainWindowLaunch.cpp
-  src/app/mainWindowLaunchImage.cpp
-  src/app/mainWindowLayoutMeta.cpp
-  src/app/mainWindowMeta.cpp
-  src/app/mainWindowNameBar.cpp
-  src/app/mainWindowNameEdit.cpp
-  src/app/mainWindowOpen.cpp
-  src/app/mainWindowOpenIn.cpp
-  src/app/mainWindowPanelToggle.cpp
-  src/app/mainWindowPopover.cpp
-  src/app/mainWindowProjectClose.cpp
-  src/app/mainWindowProjectColor.cpp
-  src/app/mainWindowProjectCreate.cpp
-  src/app/mainWindowProjectCrud.cpp
-  src/app/mainWindowProjectLoad.cpp
-  src/app/mainWindowProjectName.cpp
-  src/app/mainWindowRefresh.cpp
-  src/app/mainWindowReplace.cpp
-  src/app/mainWindowServerProject.cpp
-  src/app/mainWindowServerSave.cpp
-  src/app/mainWindowSession.cpp
-  src/app/mainWindowSetupCanvas.cpp
-  src/app/mainWindowSetupChat.cpp
-  src/app/mainWindowSetupState.cpp
-  src/app/mainWindowSetupWidgets.cpp
-  src/app/mainWindowSettings.cpp
+  src/app/MainWindow.cpp
+  src/app/MainWindowActions.cpp
+  src/app/MainWindowActionsData.cpp
+  src/app/MainWindowActionsTips.cpp
+  src/app/MainWindowActionsWiring.cpp
+  src/app/MainWindowExportMenu.cpp
+  src/app/MainWindowToolbar.cpp
+  src/app/MainWindowToolbarHeader.cpp
+  src/app/MainWindowToolbarRows.cpp
+  src/app/MainWindowToolbarSections.cpp
+  src/app/MainWindowToolbarName.cpp
+  src/app/MainWindowToolbarPage.cpp
+  src/app/MainWindowToolbarStyle.cpp
+  src/app/MainWindowToolbarView.cpp
+  src/app/MainWindowMenus.cpp
+  src/app/MainWindowTheme.cpp
+  src/app/MainWindowThemeIcons.cpp
+  src/app/MainWindowThemeFaces.cpp
+  src/app/MainWindowThemeButtons.cpp
+  src/app/StencilFileSync.cpp
+  src/app/StencilFileSyncWatch.cpp
+  src/app/MainWindowChat.cpp
+  src/app/MainWindowChatReply.cpp
+  src/app/MainWindowChatClient.cpp
+  src/app/MainWindowChatSend.cpp
+  src/app/MainWindowChatNotices.cpp
+  src/app/MainWindowChatState.cpp
+  src/app/MainWindowChatPersist.cpp
+  src/app/MainWindowChatMedia.cpp
+  src/app/MainWindowChatSave.cpp
+  src/app/MainWindowEvents.cpp
+  src/app/MainWindowEventsCanvas.cpp
+  src/app/MainWindowEventsChrome.cpp
+  src/app/MainWindowEventsPopover.cpp
+  src/app/MainWindowAccent.cpp
+  src/app/MainWindowBlank.cpp
+  src/app/MainWindowBlankColor.cpp
+  src/app/MainWindowChatDock.cpp
+  src/app/MainWindowChatPopover.cpp
+  src/app/MainWindowChatShow.cpp
+  src/app/MainWindowChrome.cpp
+  src/app/MainWindowContextActions.cpp
+  src/app/MainWindowContextMenu.cpp
+  src/app/MainWindowContextRows.cpp
+  src/app/MainWindowDnd.cpp
+  src/app/MainWindowDust.cpp
+  src/app/MainWindowFullscreen.cpp
+  src/app/MainWindowFullscreenZoom.cpp
+  src/app/MainWindowHelp.cpp
+  src/app/MainWindowHoverDetail.cpp
+  src/app/MainWindowHoverTip.cpp
+  src/app/MainWindowImageInfo.cpp
+  src/app/MainWindowKeys.cpp
+  src/app/MainWindowLaunch.cpp
+  src/app/MainWindowLaunchImage.cpp
+  src/app/MainWindowLayoutMeta.cpp
+  src/app/MainWindowMeta.cpp
+  src/app/MainWindowNameBar.cpp
+  src/app/MainWindowNameEdit.cpp
+  src/app/MainWindowOpen.cpp
+  src/app/MainWindowOpenIn.cpp
+  src/app/MainWindowPanelToggle.cpp
+  src/app/MainWindowPopover.cpp
+  src/app/MainWindowProjectClose.cpp
+  src/app/MainWindowProjectColor.cpp
+  src/app/MainWindowProjectCreate.cpp
+  src/app/MainWindowProjectCrud.cpp
+  src/app/MainWindowProjectLoad.cpp
+  src/app/MainWindowProjectName.cpp
+  src/app/MainWindowRefresh.cpp
+  src/app/MainWindowReplace.cpp
+  src/app/MainWindowServerProject.cpp
+  src/app/MainWindowServerSave.cpp
+  src/app/MainWindowSession.cpp
+  src/app/MainWindowSetupCanvas.cpp
+  src/app/MainWindowSetupChat.cpp
+  src/app/MainWindowSetupState.cpp
+  src/app/MainWindowSetupWidgets.cpp
+  src/app/MainWindowSettings.cpp
   src/app/mainWindowShared.cpp
-  src/app/mainWindowSource.cpp
-  src/app/mainWindowState.cpp
-  src/app/mainWindowStyleOps.cpp
-  src/app/mainWindowUnits.cpp
-  src/app/mainWindowWindows.cpp
-  src/app/mainWindowZoom.cpp
-  src/app/stayOpenMenu.cpp
-  src/app/stayOpenMenuKeys.cpp
-  src/app/stayOpenMenuWalk.cpp
-  src/app/logoHoverFx.cpp
-  src/app/logoHoverFxPaint.cpp
-  src/app/dockZonesOverlay.cpp
-  src/app/dataExportController.cpp
-  src/app/dataExportImage.cpp
-  src/app/remoteSession.cpp
-  src/app/remoteSyncController.cpp
-  src/app/projectTransferController.cpp
-  src/app/projectTransferImport.cpp
+  src/app/MainWindowSource.cpp
+  src/app/MainWindowState.cpp
+  src/app/MainWindowStyleOps.cpp
+  src/app/MainWindowUnits.cpp
+  src/app/MainWindowWindows.cpp
+  src/app/MainWindowZoom.cpp
+  src/app/StayOpenMenu.cpp
+  src/app/StayOpenMenuKeys.cpp
+  src/app/StayOpenMenuWalk.cpp
+  src/app/LogoHoverFx.cpp
+  src/app/LogoHoverFxPaint.cpp
+  src/app/DockZonesOverlay.cpp
+  src/app/DataExportController.cpp
+  src/app/DataExportImage.cpp
+  src/app/RemoteSession.cpp
+  src/app/RemoteSyncController.cpp
+  src/app/ProjectTransferController.cpp
+  src/app/ProjectTransferImport.cpp
   src/app/launchOptions.cpp
   src/io/deepLink.cpp
-  src/app/selectionPanel.cpp
-  src/app/selectionPanelRows.cpp
-  src/app/selectionPanelState.cpp
-  src/app/selectedLineBar.cpp
-  src/app/selectedLineBarRow.cpp
-  src/llm/chatDock.cpp
-  src/llm/chatDockChrome.cpp
+  src/app/SelectionPanel.cpp
+  src/app/SelectionPanelRows.cpp
+  src/app/SelectionPanelState.cpp
+  src/app/SelectedLineBar.cpp
+  src/app/SelectedLineBarRow.cpp
+  src/llm/ChatDock.cpp
+  src/llm/ChatDockChrome.cpp
   src/llm/chatDockShared.cpp
-  src/llm/chatDockEvents.cpp
-  src/llm/chatDockDrag.cpp
-  src/llm/chatDockAttach.cpp
-  src/llm/chatDockJumpPills.cpp
-  src/llm/chatDockCompose.cpp
-  src/llm/chatDockTray.cpp
-  src/llm/chatDockCard.cpp
+  src/llm/ChatDockEvents.cpp
+  src/llm/ChatDockDrag.cpp
+  src/llm/ChatDockAttach.cpp
+  src/llm/ChatDockJumpPills.cpp
+  src/llm/ChatDockCompose.cpp
+  src/llm/ChatDockTray.cpp
+  src/llm/ChatDockCard.cpp
   src/llm/chatDockCardMenu.cpp
-  src/llm/chatDockCardParts.cpp
-  src/llm/chatDockBubbleWidth.cpp
-  src/llm/chatDockPending.cpp
-  src/llm/chatDockAppend.cpp
-  src/llm/chatDockNotices.cpp
-  src/llm/chatDockVariants.cpp
-  src/llm/chatDockState.cpp
+  src/llm/ChatDockCardParts.cpp
+  src/llm/ChatDockBubbleWidth.cpp
+  src/llm/ChatDockPending.cpp
+  src/llm/ChatDockAppend.cpp
+  src/llm/ChatDockNotices.cpp
+  src/llm/ChatDockVariants.cpp
+  src/llm/ChatDockState.cpp
   src/llm/chatWidgets.cpp
   src/llm/chatWidgetsOverlays.cpp
   src/llm/chatCardRenderer.cpp
-  src/llm/chatMenuPanel.cpp
-  src/llm/chatMenuPanelRows.cpp
-  src/llm/chatMenuPanelState.cpp
-  src/app/chatPlanTarget.cpp
-  src/app/chatPlanTargetServer.cpp
-  src/app/chatPlanTargetProjects.cpp
+  src/llm/ChatMenuPanel.cpp
+  src/llm/ChatMenuPanelRows.cpp
+  src/llm/ChatMenuPanelState.cpp
+  src/app/ChatPlanTarget.cpp
+  src/app/ChatPlanTargetServer.cpp
+  src/app/ChatPlanTargetProjects.cpp
   src/llm/opPlan.cpp
   src/llm/opRegistry.cpp
   ${STENCIL_OPSCHEMA_SOURCES}
-  src/llm/llmClient.cpp
-  src/llm/llmClientProbe.cpp
-  src/llm/llmClientChat.cpp
+  src/llm/LlmClient.cpp
+  src/llm/LlmClientProbe.cpp
+  src/llm/LlmClientChat.cpp
   ${STENCIL_PLANEXECUTOR_SOURCES}
-  src/llm/qtLlmTransport.cpp
+  src/llm/QtLlmTransport.cpp
   src/support/tipContent.cpp
   ${STENCIL_CANVAS_SOURCES}
-  src/canvas/idleCard.cpp
-  src/canvas/canvasTooltip.cpp
-  src/canvas/incognitoOverlay.cpp
-  src/dialogs/settingsDialog.cpp
-  src/dialogs/settingsDialogState.cpp
-  src/dialogs/assistantSettingsDialog.cpp
-  src/dialogs/llmSettingsForm.cpp
-  src/dialogs/llmSettingsFormRows.cpp
-  src/dialogs/llmSettingsFormState.cpp
+  src/canvas/IdleCard.cpp
+  src/canvas/CanvasTooltip.cpp
+  src/canvas/IncognitoOverlay.cpp
+  src/dialogs/SettingsDialog.cpp
+  src/dialogs/SettingsDialogState.cpp
+  src/dialogs/AssistantSettingsDialog.cpp
+  src/dialogs/LlmSettingsForm.cpp
+  src/dialogs/LlmSettingsFormRows.cpp
+  src/dialogs/LlmSettingsFormState.cpp
   ${STENCIL_PROJECTS_DIALOG_SOURCES}
-  src/dialogs/expirationDialog.cpp
-  src/dialogs/expirationDialogCalendar.cpp
+  src/dialogs/ExpirationDialog.cpp
+  src/dialogs/ExpirationDialogCalendar.cpp
   ${STENCIL_OPENIMAGE_SOURCES}
   ${STENCIL_LINKSDIALOG_SOURCES}
-  src/dialogs/descriptionDialog.cpp
-  src/dialogs/keywordsDialog.cpp
-  src/dialogs/cropDialog.cpp
-  src/dialogs/cropDialogDrag.cpp
-  src/dialogs/infoDialog.cpp
-  src/dialogs/shortcutsDialog.cpp
-  src/dialogs/shortcutsDialogRows.cpp
+  src/dialogs/DescriptionDialog.cpp
+  src/dialogs/KeywordsDialog.cpp
+  src/dialogs/CropDialog.cpp
+  src/dialogs/CropDialogDrag.cpp
+  src/dialogs/InfoDialog.cpp
+  src/dialogs/ShortcutsDialog.cpp
+  src/dialogs/ShortcutsDialogRows.cpp
   ${STENCIL_CONNECTDIALOG_SOURCES}
-  src/dialogs/openInDialog.cpp
+  src/dialogs/OpenInDialog.cpp
   ${STENCIL_SERVERCLIENT_SOURCES}
-  src/net/liveFeed.cpp
+  src/net/LiveFeed.cpp
   src/net/connectionStore.cpp
   src/net/fetchGuard.cpp
   ${STENCIL_FILESTORE_SOURCES}
   src/io/deferredWrite.cpp
-  src/io/mediaLoader.cpp
-  src/io/mediaLoaderVideo.cpp
+  src/io/MediaLoader.cpp
+  src/io/MediaLoaderVideo.cpp
   src/io/mediaTypes.cpp
   ${STENCIL_THEME_SOURCES}
-  src/support/notifications.cpp
-  src/support/notificationsStack.cpp
+  src/support/Notifications.cpp
+  src/support/NotificationsStack.cpp
   src/support/guiHelpers.cpp
   src/support/guiHelpersColor.cpp
   src/support/menuReveal.cpp
   src/support/modalReveal.cpp
   ${STENCIL_MODALCHROME_SOURCES}
-  src/support/searchCombo.cpp
-  src/support/searchComboPopup.cpp
+  src/support/SearchCombo.cpp
+  src/support/SearchComboPopup.cpp
   ${STENCIL_APPTOOLTIP_SOURCES}
   ${STENCIL_CONTROLREVEAL_SOURCES}
   ${STENCIL_CONTROLSWAP_SOURCES}
@@ -392,9 +392,9 @@ set(STENCIL_GUI_SOURCES
   ${STENCIL_ICONMOTION_SOURCES}
   ${STENCIL_FACESWAP_SOURCES}
   src/support/iconSet.cpp
-  src/support/menuHotkeys.cpp
+  src/support/MenuHotkeys.cpp
   src/support/motionIcons.cpp
-  src/support/underlineTabBar.cpp
+  src/support/UnderlineTabBar.cpp
   src/support/numericInput.cpp
   src/support/exportPreview.cpp
   resources/app.qrc)

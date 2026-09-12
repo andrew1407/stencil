@@ -2,7 +2,7 @@
 // A GROUP of controls shown/hidden as sand — port of browser js/ui/motion.js
 // revealControls / markIn / markOut. Visibility is written SYNCHRONOUSLY both ways and
 // the flight is a snapshot, so an interrupted flight leaves nothing half-shown.
-#include "disintegrateOverlay.hpp"
+#include "DisintegrateOverlay.hpp"
 #include "filterFade.hpp"
 #include "modalReveal.hpp"
 

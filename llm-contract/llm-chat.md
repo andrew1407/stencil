@@ -211,7 +211,7 @@ everywhere** — persisting a chat is always an explicit user opt-in, per surfac
   | Surface | Test |
   |---|---|
   | browser | `tests/chat-markup.test.js` — the `chat-save-chats-note` div, rendered next to the checkbox |
-  | desktop | `tests/mainWindow.gui.cpp` `chatSaveDisclosureSitsAtTheToggle` — the `llmSaveChatsHint` label (visible, not hover-only) + the checkbox tooltip |
+  | desktop | `tests/MainWindow.chatPanel.gui.cpp` `chatSaveDisclosureSitsAtTheToggle` — the `llmSaveChatsHint` label (visible, not hover-only) + the checkbox tooltip |
   | cli | `tests/console_test.zig` "`/chat on` says who can read a saved chat" — captured over the `logo` sink |
   | pystencil | `tests/test_cli_chat.py` `test_chat_on_says_who_can_read_a_saved_chat` |
   | bot | `ChatPersistenceTests` — the `/chat save on` confirmation, the status read BEFORE opting in, and the 💾 button |

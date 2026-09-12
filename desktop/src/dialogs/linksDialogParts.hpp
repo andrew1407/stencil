@@ -1,5 +1,5 @@
 #pragma once
-// The links dialog's row shim and preview box, private to the linksDialog*.cpp TUs.
+// The links dialog's row shim and preview box, private to the LinksDialog*.cpp TUs.
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QPushButton>

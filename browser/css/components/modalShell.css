@@ -158,7 +158,7 @@ stencil-visuals-modal .vs-ctrl.vs-color input[type="color"] {
 stencil-visuals-modal .vs-hex { flex: 1 1 auto; letter-spacing: 0.02em; }
 /* A checkbox in that column keeps its own 15px box instead of being stretched to it by
    the rule above, and sits flush with the column's RIGHT edge — the desktop dialog's own
-   rule for its `column=false` rows (settingsDialog.cpp), so the two dialogs read alike. */
+   rule for its `column=false` rows (SettingsDialog.cpp), so the two dialogs read alike. */
 stencil-visuals-modal .vs-ctrl.vs-ctrl-check { justify-content: flex-end; }
 stencil-visuals-modal .vs-ctrl.vs-ctrl-check > input[type="checkbox"] {
     width: 15px;

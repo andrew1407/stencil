@@ -26,7 +26,7 @@ namespace stencil::gui {
   // Browser PREVIEW_ZOOM (1.67) × its 160px thumbnails, so the popped preview matches.
   inline constexpr int HOVER_PREVIEW_PX = 178;
   inline constexpr int HOVER_PREVIEW_ALT_PX = 324;
-  // On the SHARED floating-tip clock (disintegrateOverlay.hpp TIP_DUST_*/DUST_HOLD/DUST_HAND_OVER_MS).
+  // On the SHARED floating-tip clock (DisintegrateOverlay.hpp TIP_DUST_*/DUST_HOLD/DUST_HAND_OVER_MS).
   inline constexpr int HOVER_FADE_MS = 90;
 
   // Per-session, deliberately NOT persisted (the browser modal's sessionStorage).

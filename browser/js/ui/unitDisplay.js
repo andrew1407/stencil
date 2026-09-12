@@ -7,14 +7,14 @@ import { getPageDimensions, pixelToPageCoords } from '../core/pageMetrics.js';
 // and the unit relabelling across the toolbar + coord table. Model values never change here.
 
 // Live cursor-coordinate readout in the status bar below the canvas. Mirrors the desktop
-// status bar (mainWindow.cpp onHovered): ALWAYS shows Pixel + Page (cm) regardless of the
+// status bar (MainWindow.cpp onHovered): ALWAYS shows Pixel + Page (cm) regardless of the
 // tooltip's per-row toggles; appends To edge (cm). No args / no image → idle hint.
 export const updateCoordStatus = (app, x, y) => {
   const el = app.coordStatus ??= document.getElementById('coord-status');
   if (!el) return;
   if (!app.image || x === undefined) {
     // Empty either way: this bar reads out the cursor, and off-canvas / imageless there is
-    // nothing to read (desktop parity — support/mainWindow.cpp updateStatusIdle).
+    // nothing to read (desktop parity — support/MainWindow.cpp updateStatusIdle).
     el.textContent = '';
     return;
   }

@@ -1,6 +1,6 @@
 #include "chatWidgets.hpp"
 
-#include "../support/disintegrateOverlay.hpp"
+#include "../support/DisintegrateOverlay.hpp"
 #include "../support/modalReveal.hpp"
 
 #include <QFrame>
@@ -114,7 +114,7 @@ namespace stencil::gui {
     const QPixmap snap = card->grab();
     if (fx) fx->setEnabled(true);
     if (snap.isNull()) { settle(); return; }
-    // The toast's flight (notifications.cpp dustToastIn); cols/rows only cap overSurface's grid.
+    // The toast's flight (Notifications.cpp dustToastIn); cols/rows only cap overSurface's grid.
     const QRect box(card->mapTo(host, QPoint(0, 0)), card->size());
     auto* dust = DisintegrateOverlay::overSurface(
         snap, box, host, chatArrivalPoint(box, scrollViewportInHost(scroll, host)),

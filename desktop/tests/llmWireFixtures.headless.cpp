@@ -11,9 +11,9 @@
 // before the deep body compare. Everything else is compared exactly; measured
 // desktop divergences live in tests/fixtureOverrides.json (never in the corpus).
 //
-// llmClient.cpp is #included (not linked) so the file-local
+// LlmClient.cpp is #included (not linked) so the file-local
 // sanitizeProviderText is directly walkable against sanitizer/cases.json.
-#include "llmClient.cpp"  // NOLINT — grants access to the anon-namespace sanitizer
+#include "LlmClient.cpp"  // NOLINT — grants access to the anon-namespace sanitizer
 
 #include <QCoreApplication>
 #include <QJsonArray>
@@ -29,7 +29,7 @@ using namespace stencil::llm;
 namespace {
 
   // Captures the request and replies synchronously with the canned response
-  // (the tests/llmClient.headless.cpp mock, trimmed to what the walker needs).
+  // (the tests/LlmClient.headless.cpp mock, trimmed to what the walker needs).
   struct MockTransport : LlmTransport {
     QUrl url;
     QList<QPair<QByteArray, QByteArray>> headers;

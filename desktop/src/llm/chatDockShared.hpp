@@ -1,6 +1,6 @@
 #pragma once
 
-// Shared by the chatDock*.cpp partials. Nested in `chatdock`: names like repolish and APPEAR_MS
+// Shared by the ChatDock*.cpp partials. Nested in `chatdock`: names like repolish and APPEAR_MS
 // also live in other files' anonymous namespaces.
 
 #include <QSize>

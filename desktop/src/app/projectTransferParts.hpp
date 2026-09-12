@@ -1,5 +1,5 @@
 #pragma once
-// The transfer controller's clock, salt and PNG encode, private to the projectTransfer*.cpp TUs.
+// The transfer controller's clock, salt and PNG encode, private to the ProjectTransfer*.cpp TUs.
 #include <QByteArray>
 #include <QRandomGenerator>
 #include <QBuffer>

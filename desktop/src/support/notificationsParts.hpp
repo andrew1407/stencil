@@ -1,6 +1,6 @@
 #pragma once
-// Toast timings, margins and dust flights, private to the notifications*.cpp TUs.
-#include "disintegrateOverlay.hpp"
+// Toast timings, margins and dust flights, private to the Notifications*.cpp TUs.
+#include "DisintegrateOverlay.hpp"
 #include "modalReveal.hpp"
 
 #include <QEasingCurve>

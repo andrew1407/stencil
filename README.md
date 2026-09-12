@@ -100,7 +100,7 @@ browser/              # the browser app
 desktop/              # the desktop app (links the shared core via add_subdirectory)
   src/                # Qt GUI by role: app · canvas · dialogs · io · llm · net · support
   tests/              # Qt offscreen headless tests + the QtTest MainWindow GUI e2e,
-                      #   one binary per feature area (mainWindow.<area>.gui.cpp)
+                      #   one binary per feature area (MainWindow.<area>.gui.cpp)
   resources/  packaging/
   CMakeLists.txt
   README.md
@@ -150,7 +150,7 @@ e2e/                  # cross-surface Playwright smoke harness (drives the REAL 
 ```
 
 > The **desktop app's own end-to-end test** lives with the desktop build, not in `e2e/`: it is
-> a set of QtTest targets, one per feature area (`desktop/tests/mainWindow.<area>.gui.cpp`,
+> a set of QtTest targets, one per feature area (`desktop/tests/MainWindow.<area>.gui.cpp`,
 > built from a shared `stencil_gui_objs` library), driving the real `MainWindow` offscreen. The
 > `e2e/` harness covers the browser, extension, cli and server surfaces.
 

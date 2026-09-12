@@ -1,5 +1,5 @@
 #pragma once
-// The search combo's popup bounds and filter proxy, private to the searchCombo*.cpp TUs.
+// The search combo's popup bounds and filter proxy, private to the SearchCombo*.cpp TUs.
 #include <QSortFilterProxyModel>
 #include <QString>
 

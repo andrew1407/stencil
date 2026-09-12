@@ -1,5 +1,5 @@
 #pragma once
-// The shortcut table's column widths, keycap HTML and form clock, private to the shortcutsDialog*.cpp TUs.
+// The shortcut table's column widths, keycap HTML and form clock, private to the ShortcutsDialog*.cpp TUs.
 #include "modalChrome.hpp"
 #include "theme.hpp"
 #include "tipContent.hpp"
