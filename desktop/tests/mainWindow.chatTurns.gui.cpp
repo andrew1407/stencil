@@ -777,101 +777,96 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // A chat card arrives the way a toast does: its dust gathers into place out of a point
-  // off the side it sits against, while the bubble is held back behind the motes (which
-  // side is chatCardDustArrivesFromTheCardsOwnSide's job — this is that it flies at all).
-  // Browser twin: motion.js chatIn.
-  void chatCardsArriveOutOfDust() {
-    const auto motion = withMotion();   // the suite runs with STENCIL_NO_ANIM on
-    MainWindow win(nullptr, false);
-    win.resize(1000, 760);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat_->setChecked(true);
-    QTRY_VERIFY(win.chatDock_->isVisible());
-    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
-    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
-                             stencil::gui::DisintegrateOverlay::kMs + 2000);
-
-    // The message you send, the "…" holding the turn, the reply, and a failure — every
-    // one of them is a card appearing, so every one of them gathers.
-    for (const auto& append : QVector<std::function<void()>>{
-             [&win] { win.chatDock_->appendUser(QStringLiteral("crop it square"), {}); },
-             [&win] { win.chatDock_->showPending(); },
-             [&win] { win.chatDock_->appendAssistant(QStringLiteral("Cropped.")); },
-             [&win] { win.chatDock_->appendError(QStringLiteral("Couldn't reach Ollama at localhost:11434 (fetch failed)"),
-                                                 QStringLiteral("crop it square")); }}) {
-      append();
-      // The grab is deferred (appendTranscriptCard hands the caller an EMPTY card — the
-      // dust has to be a photograph of the FINISHED bubble, laid out at its real width),
-      // so the cloud shows up a beat later, not in this tick.
-      QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
-      QFrame* card = nullptr;
-      for (QFrame* f : win.chatDock_->findChildren<QFrame*>())
-        if (f->objectName().startsWith(QLatin1String("chatCard"))) card = f;
-      QVERIFY(card);
-      // Held FULLY hidden while the motes fly — they ARE the bubble forming. Fading it up
-      // underneath them drew the finished card first and played the animation over the
-      // top of it, which is the one thing an arrival must not do (the reported bug).
-      auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect());
-      QVERIFY2(fx && fx->opacity() == 0.0, "the card is invisible until its motes land");
-      QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
-                               stencil::gui::DisintegrateOverlay::kMs + 2000);
-      win.chatDock_->clearPending();   // the "…" must not outlive its own case
-    }
-
-    // …and every card lands on its resting state: full opacity, resting margins, and the
-    // effect handed back to the scroll-edge reveal (kEnteringProperty dropped).
-    int settled = 0;
-    for (QFrame* card : win.chatDock_->findChildren<QFrame*>()) {
-      if (!card->objectName().startsWith(QLatin1String("chatCard"))) continue;
-      ++settled;
-      if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect()))
-        QTRY_COMPARE(fx->opacity(), 1.0);
-      QTRY_COMPARE(card->property(stencil::gui::ScrollReveal::kEnteringProperty).toBool(), false);
-      QTRY_COMPARE(card->layout()->contentsMargins().top(), 6);
-    }
-    QVERIFY2(settled > 0, "no card was found — the checks above would be vacuous");
-    beat();
-  }
-
-  // …and so does a row in the context menu's assistant panel — the third chat surface on
-  // this front-end. It mirrors the dock's transcript, so an arrival there is an arrival
+  // A chat card arrives the way a toast does: its dust gathers into place out of a point off
+  // the side it sits against, while the bubble is held back behind the motes (which side is
+  // chatCardDustArrivesFromTheCardsOwnSide's job — this is that it flies at all). Browser
+  // twin: motion.js chatIn. The context menu's assistant panel is the third chat surface on
+  // this front-end and mirrors the dock's transcript, so a row arriving there is an arrival
   // too (ChatMenuPanel::gatherRow, the dock's animateCardIn in miniature).
-  void chatMenuPanelRowsArriveOutOfDust() {
-    const auto motion = withMotion();
-    MainWindow win(nullptr, false);
-    win.resize(1200, 850);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.ensureChatMenuPanel();
-    QVERIFY(win.chatMenuPanel_);
-    win.chatMenuPanel_->setGeometry(20, 20, 340, 640);
-    win.chatMenuPanel_->show();
-    QTest::qWait(300);   // the panel's own width has to arrive before the grab can read it
+  void chatCardsArriveOutOfDustOnEverySurface() {
+    const auto motion = withMotion();   // the suite runs with STENCIL_NO_ANIM on
     const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
-    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
-                             stencil::gui::DisintegrateOverlay::kMs + 2000);
+    for (const bool panel : {false, true}) {
+      MainWindow win(nullptr, false);
+      win.resize(panel ? 1200 : 1000, panel ? 850 : 760);
+      win.show();
+      QVERIFY(QTest::qWaitForWindowExposed(&win));
+      if (panel) {
+        win.ensureChatMenuPanel();
+        QVERIFY(win.chatMenuPanel_);
+        win.chatMenuPanel_->setGeometry(20, 20, 340, 640);
+        win.chatMenuPanel_->show();
+        settleLayout(win.chatMenuPanel_, 300);   // its width arrives before a grab can read it
+      } else {
+        win.actChat_->setChecked(true);
+        QTRY_VERIFY(win.chatDock_->isVisible());
+      }
+      // A dock card's cloud is a SURFACE flight parented to the window; the panel gathers
+      // its rows inside itself. A row counts as a card on either surface: the dock's carry a
+      // "chatCard…" object name, the panel's mirrored rows the "chatMoreBtn" property.
+      const auto dust = [&win, panel, kDust] {
+        return panel ? win.chatMenuPanel_->findChild<QWidget*>(kDust)
+                     : win.findChild<QWidget*>(kDust);
+      };
+      const auto rows = [&win, panel] {
+        QList<QFrame*> out;
+        QWidget* surface = panel ? static_cast<QWidget*>(win.chatMenuPanel_) : win.chatDock_;
+        for (QFrame* f : surface->findChildren<QFrame*>())
+          if (panel ? f->property("chatMoreBtn").isValid()
+                    : f->objectName().startsWith(QLatin1String("chatCard")))
+            out.append(f);
+        return out;
+      };
+      QTRY_VERIFY_WITH_TIMEOUT(!dust(), stencil::gui::DisintegrateOverlay::kMs + 2000);
 
-    win.chatMirror(QStringLiteral("You"), QStringLiteral("crop it square"), false);
-    QTRY_VERIFY_WITH_TIMEOUT(win.chatMenuPanel_->findChild<QWidget*>(kDust) != nullptr, 3000);
-    // …with the row itself held back behind them, never faded up underneath.
-    for (QFrame* row : win.chatMenuPanel_->findChildren<QFrame*>()) {
-      if (!row->property("chatMoreBtn").isValid()) continue;
-      if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(row->graphicsEffect()))
-        QVERIFY2(fx->opacity() == 0.0, "the row is invisible until its motes land");
+      // The message you send, the "…" holding the turn, the reply, and a failure — every one
+      // of them is a card appearing, so every one of them gathers. The panel is fed the same
+      // turn through the mirror instead, which is the only way a row reaches it.
+      QVector<std::function<void()>> appends;
+      if (panel) {
+        appends = {[&win] {
+          win.chatMirror(QStringLiteral("You"), QStringLiteral("crop it square"), false);
+        }};
+      } else {
+        appends = {
+            [&win] { win.chatDock_->appendUser(QStringLiteral("crop it square"), {}); },
+            [&win] { win.chatDock_->showPending(); },
+            [&win] { win.chatDock_->appendAssistant(QStringLiteral("Cropped.")); },
+            [&win] {
+              win.chatDock_->appendError(
+                  QStringLiteral("Couldn't reach Ollama at localhost:11434 (fetch failed)"),
+                  QStringLiteral("crop it square"));
+            }};
+      }
+      for (const auto& append : appends) {
+        append();
+        // The grab is deferred (appendTranscriptCard hands the caller an EMPTY card — the
+        // dust has to be a photograph of the FINISHED bubble, laid out at its real width),
+        // so the cloud shows up a beat later, not in this tick.
+        QTRY_VERIFY_WITH_TIMEOUT(dust() != nullptr, 3000);
+        QFrame* card = rows().isEmpty() ? nullptr : rows().last();
+        QVERIFY(card);
+        // Held FULLY hidden while the motes fly — they ARE the bubble forming. Fading it up
+        // underneath them drew the finished card first and played the animation over the top
+        // of it, which is the one thing an arrival must not do (the reported bug).
+        auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect());
+        QVERIFY2(fx && fx->opacity() == 0.0, "the card is invisible until its motes land");
+        QTRY_VERIFY_WITH_TIMEOUT(!dust(), stencil::gui::DisintegrateOverlay::kMs + 2000);
+        if (!panel) win.chatDock_->clearPending();   // the "…" must not outlive its own case
+      }
+
+      // …and every card lands on its resting state: full opacity, resting margins, and the
+      // effect handed back to the scroll-edge reveal (kEnteringProperty dropped).
+      int settled = 0;
+      for (QFrame* card : rows()) {
+        ++settled;
+        if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect()))
+          QTRY_COMPARE(fx->opacity(), 1.0);
+        QTRY_COMPARE(card->property(stencil::gui::ScrollReveal::kEnteringProperty).toBool(), false);
+        if (!panel) QTRY_COMPARE(card->layout()->contentsMargins().top(), 6);
+      }
+      QVERIFY2(settled > 0, "no card was found — the checks above would be vacuous");
     }
-    QTRY_VERIFY_WITH_TIMEOUT(win.chatMenuPanel_->findChild<QWidget*>(kDust) == nullptr,
-                             stencil::gui::DisintegrateOverlay::kMs + 2000);
-    // The row lands visible — held back behind the motes, never left behind them.
-    int settled = 0;
-    for (QFrame* row : win.chatMenuPanel_->findChildren<QFrame*>()) {
-      if (!row->property("chatMoreBtn").isValid()) continue;
-      ++settled;
-      if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(row->graphicsEffect()))
-        QTRY_COMPARE(fx->opacity(), 1.0);
-    }
-    QVERIFY2(settled > 0, "no mirrored row was found — the check would be vacuous");
     beat();
   }
 
@@ -916,10 +911,19 @@ class MainWindowGuiTest : public QObject {
     arrivesFrom("chatCardAssistant", -1, "an assistant message must gather from the LEFT");
   }
 
-  void chatCardDustNeverEscapesTheScrolledTranscript() {
+  // REGRESSION (two of them, one fixture — both need a transcript long enough that every
+  // further append really scrolls). A card's cloud was photographed before the scroll landed,
+  // so the motes flew at the card's pre-scroll box and rained over the composer; the entrance
+  // now waits a frame for scrollToBottom() and refuses to fly for a card not wholly inside
+  // the viewport. And a card's dust is a SNAPSHOT placed once while the transcript keeps
+  // moving under it — appending the next card scrolls the view, a wrapped label re-reserves
+  // its height, the dock is resized. Left where it launched, that snapshot was drawn over a
+  // NEIGHBOURING bubble, which reads as one message overlapping the one below it (reported).
+  // The overlay now follows its own card, and is dropped the moment the card moves or resizes.
+  void chatCardDustStaysWithItsCardInAScrolledTranscript() {
     const auto motion = withMotion();
     MainWindow win(nullptr, false);
-    win.resize(1000, 620);
+    win.resize(1000, 660);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.actChat_->setChecked(true);
@@ -936,6 +940,7 @@ class MainWindowGuiTest : public QObject {
                              stencil::gui::DisintegrateOverlay::kMs + 4000);
     QVERIFY2(scroll->verticalScrollBar()->maximum() > 0, "the transcript never became scrollable");
 
+    // ── 1. no mote may reach the composer ──
     win.chatDock_->appendUser(QStringLiteral("one more, which has to scroll into view"), {});
     // The cloud that belongs to THIS card. The fill above can still have arrivals in
     // flight (gatherChatCardIn waits the layout out in hops), and grabbing whichever
@@ -972,36 +977,7 @@ class MainWindowGuiTest : public QObject {
                              stencil::gui::DisintegrateOverlay::kMs + 2000);
     if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect()))
       QTRY_COMPARE(fx->opacity(), 1.0);
-    beat();
-  }
-
-  // REGRESSION: a card's dust is a SNAPSHOT placed once, but the transcript keeps moving
-  // under it — appending the next card scrolls the view, a wrapped label re-reserves its
-  // height, the dock is resized. Left where it launched, that snapshot was drawn over a
-  // NEIGHBOURING bubble, which reads as one message overlapping the one below it
-  // (reported). The overlay now follows its own card, and is dropped outright the moment
-  // the card moves out of view or changes size.
-  void chatCardDustFollowsItsOwnCard() {
-    const auto motion = withMotion();
-    MainWindow win(nullptr, false);
-    win.resize(1000, 700);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.actChat_->setChecked(true);
-    QScrollArea* scroll = openTranscript(win);
-    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
-
-    // Enough traffic that every further append really does scroll the transcript — the
-    // whole point here is that the card moves UNDER its own snapshot.
-    for (int i = 0; i < 8; ++i) {
-      win.chatDock_->appendUser(QStringLiteral("Give me 3 variants: rotated, tinted, cropped %1").arg(i), {});
-      win.chatDock_->appendAssistant(QStringLiteral("reply %1, long enough to take real height").arg(i));
-    }
-    fillUntilScrollable(win, scroll);
-    QVERIFY2(scroll->verticalScrollBar()->maximum() > 0, "the transcript never scrolled");
-    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
-                             stencil::gui::DisintegrateOverlay::kMs + 4000);
-
+    // ── 2. the cloud follows its own card, never stranding between two ──
     // A turn's two cards land back to back — the second one's append is what scrolls the
     // first one's snapshot off its subject.
     win.chatDock_->appendUser(QStringLiteral("Give me 3 variants: rotated, tinted, cropped"), {});

@@ -568,127 +568,93 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // …and the mirror image: an arriving image ASSEMBLES out of dust (Sweep::Gather) rather
-  // than appearing all at once, with the real canvas held back until the motes land.
-  // Any fresh image, not just a dropped one — a created blank is covered below.
-  void droppedImageAssemblesOutOfDust() {
+  // Every way a picture lands on the canvas ASSEMBLES out of dust (Sweep::Gather) instead of
+  // appearing all at once, with the real canvas held back until the motes land: a fresh open
+  // (the OS-open / drop path — a hand-built QDropEvent never routes through Qt's drag
+  // session), a created BLANK (it used to pop into place while a dropped one animated), and
+  // a REOPEN of a saved project, the everyday route that once had no arrival at all.
+  void imageArrivalAssemblesOnEveryRoute() {
     const auto motion = withMotion();
-    MainWindow win(nullptr, false);
-    win.resize(1000, 760);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    CanvasWidget* canvas = win.findChild<CanvasWidget*>();
-    QVERIFY(canvas);
-
-    // The real OS-open / drop path (synthesising a QDropEvent by hand does not route
-    // through Qt's drag session, so the window never sees it). No arming needed: EVERY
-    // fresh image assembles now, dropped or not.
-    win.openPathFromOS(guiTestImage());
-    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-
-    // The dust layer exists and the canvas is behind it (opacity effect at 0), so the
-    // picture is the motes, not a canvas that popped in under them.
-    auto* fx = win.findChild<QGraphicsOpacityEffect*>();
-    QTRY_VERIFY_WITH_TIMEOUT(
-        win.findChild<QWidget*>(stencil::gui::DisintegrateOverlay::kObjectName) != nullptr, 3000);
-    if (fx) QVERIFY2(fx->opacity() < 0.01, "the real canvas waits behind the motes");
-
-    // Both are gone when it lands, leaving no effect on a canvas that repaints per stroke.
-    QTRY_VERIFY_WITH_TIMEOUT(
-        win.findChild<QWidget*>(stencil::gui::DisintegrateOverlay::kObjectName) == nullptr,
-        stencil::gui::DisintegrateOverlay::kMs + 2000);
-    QTRY_VERIFY_WITH_TIMEOUT(canvas->graphicsEffect() == nullptr, 2000);
-    beat();
-  }
-
-  // A blank image is an image APPEARING, so it assembles like any other — it used to pop
-  // into place while a dropped one animated, which is the inconsistency that was reported.
-  void createdBlankImageAssemblesToo() {
-    const auto motion = withMotion();
-    MainWindow win(nullptr, false);
-    win.resize(1000, 760);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    CanvasWidget* canvas = win.findChild<CanvasWidget*>();
-    QVERIFY(canvas);
     const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
-    QVERIFY(!win.findChild<QWidget*>(kDust));
-
-    win.createBlankImageFromDialog(QColor("#3366cc"), 320, 240);
-    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
-    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
-                             stencil::gui::DisintegrateOverlay::kMs + 2000);
-    QTRY_VERIFY_WITH_TIMEOUT(canvas->graphicsEffect() == nullptr, 2000);
+    enum Route { FreshOpen, CreatedBlank, ReopenedProject };
+    for (const Route route : {FreshOpen, CreatedBlank, ReopenedProject}) {
+      const char* name = route == FreshOpen ? "fresh open"
+                         : route == CreatedBlank ? "created blank" : "reopened project";
+      MainWindow win(nullptr, false);
+      win.resize(1000, 760);
+      win.show();
+      QVERIFY2(QTest::qWaitForWindowExposed(&win), name);
+      CanvasWidget* canvas = win.findChild<CanvasWidget*>();
+      QVERIFY2(canvas, name);
+      if (route == ReopenedProject) {
+        // Let the OPEN's own arrival finish, so what we see next belongs to the reopen.
+        win.openPathFromOS(guiTestImage());
+        QTRY_VERIFY2_WITH_TIMEOUT(canvas->hasImage(), name, 5000);
+        QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr, name,
+                                  stencil::gui::DisintegrateOverlay::kMs + 2000);
+      }
+      QVERIFY2(!win.findChild<QWidget*>(kDust), name);   // nothing flying before the route runs
+      switch (route) {
+        case FreshOpen:
+          win.openPathFromOS(guiTestImage());
+          break;
+        case CreatedBlank:
+          win.createBlankImageFromDialog(QColor("#3366cc"), 320, 240);
+          break;
+        case ReopenedProject:
+          QVERIFY2(!win.activeProjectId_.isEmpty(), "the loaded image was adopted as a project");
+          QVERIFY2(win.loadProjectIntoCanvas(win.activeProjectId_), name);
+          break;
+      }
+      QTRY_VERIFY2_WITH_TIMEOUT(canvas->hasImage(), name, 5000);
+      // The dust layer exists and the canvas is behind it (opacity effect at 0), so the
+      // picture is the motes, not a canvas that popped in under them.
+      QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, name, 3000);
+      if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(canvas->graphicsEffect()))
+        QVERIFY2(fx->opacity() < 0.01, "the real canvas waits behind the motes");
+      // Both are gone when it lands, leaving no effect on a canvas that repaints per stroke.
+      QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr, name,
+                                stencil::gui::DisintegrateOverlay::kMs + 2000);
+      QTRY_VERIFY2_WITH_TIMEOUT(canvas->graphicsEffect() == nullptr, name, 2000);
+    }
     beat();
   }
 
-  // REGRESSION: REOPENING a saved project put its picture on screen with no arrival at all —
-  // the everyday way an image appears, and the one path that never played. Every user-facing
-  // "a picture lands on the canvas" now goes through playImageArrival.
-  void reopenedProjectAssemblesLikeAFreshImage() {
-    const auto motion = withMotion();
-    MainWindow win(nullptr, false);
-    CanvasWidget* canvas = openLoaded(win);
-    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
+  // …and the two shapes that must NOT flourish. A REBIND is not an arrival: the same
+  // picture is already on screen (a move-to-local relinks the open editor). Under reduced
+  // motion the image is simply THERE — the bug pinned there is not the missing dust but the
+  // opacity effect, which used to stay on at 0 and leave the canvas blank for 900 ms.
+  void arrivalIsSkippedWhenNothingIsArriving() {
     const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
-    // Let the OPEN's own arrival finish, so what we see next belongs to the reopen.
-    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
-                             stencil::gui::DisintegrateOverlay::kMs + 2000);
-    const QString id = win.activeProjectId_;
-    QVERIFY2(!id.isEmpty(), "the loaded image was adopted as a local project");
+    for (const bool reduced : {false, true}) {
+      const char* name = reduced ? "reduced motion" : "rebind";
+      const auto motion = motionPinned(!reduced);
+      MainWindow win(nullptr, false);
+      CanvasWidget* canvas = openLoaded(win);
+      QTRY_VERIFY2_WITH_TIMEOUT(canvas->hasImage(), name, 5000);
+      if (reduced) {
+        QVERIFY2(!win.findChild<QWidget*>(kDust), "no dust under reduced motion");
+      } else {
+        // The open's own arrival has to land first, or the rebind inherits its dust.
+        QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr, name,
+                                  stencil::gui::DisintegrateOverlay::kMs + 2000);
+        QVERIFY2(win.loadProjectIntoCanvas(win.activeProjectId_, /*animate=*/false), name);
+        settle([&] { return win.findChild<QWidget*>(kDust) != nullptr; }, 150);
+        QVERIFY2(!win.findChild<QWidget*>(kDust), "a rebind is not an image appearing");
+      }
+      QVERIFY2(!canvas->graphicsEffect(), "the end state, immediately: a visible canvas");
+      if (!reduced) continue;
 
-    QVERIFY(win.loadProjectIntoCanvas(id));
-    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
-    if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(canvas->graphicsEffect()))
-      QVERIFY2(fx->opacity() < 0.01, "the real canvas waits behind the motes");
-    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
-                             stencil::gui::DisintegrateOverlay::kMs + 2000);
-    QTRY_VERIFY_WITH_TIMEOUT(canvas->graphicsEffect() == nullptr, 2000);
-    beat();
-  }
-
-  // …but a REBIND is not an arrival: the same picture is already on screen (a move-to-local
-  // relinks the open editor), so it must not flourish.
-  void rebindingTheOpenProjectDoesNotReplayTheArrival() {
-    const auto motion = withMotion();
-    MainWindow win(nullptr, false);
-    CanvasWidget* canvas = openLoaded(win);
-    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
-    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
-                             stencil::gui::DisintegrateOverlay::kMs + 2000);
-
-    QVERIFY(win.loadProjectIntoCanvas(win.activeProjectId_, /*animate=*/false));
-    QTest::qWait(150);
-    QVERIFY2(!win.findChild<QWidget*>(kDust), "a rebind is not an image appearing");
-    QVERIFY2(!canvas->graphicsEffect(), "…and it must never hide the canvas");
-    beat();
-  }
-
-  // Reduced motion: the image is simply THERE. The bug this pins is not the missing dust —
-  // it is the opacity effect, which used to stay on at 0 and leave the canvas blank for the
-  // whole 900 ms flight, i.e. "nothing plays and then it pops".
-  void reducedMotionShowsTheImageAtOnce() {
-    qputenv("STENCIL_NO_ANIM", "1");   // the suite's own default; set explicitly for the reader
-    MainWindow win(nullptr, false);
-    CanvasWidget* canvas = openLoaded(win);
-    QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
-    QTest::qWait(120);
-    QVERIFY2(!win.findChild<QWidget*>(stencil::gui::DisintegrateOverlay::kObjectName),
-             "no dust under reduced motion");
-    QVERIFY2(!canvas->graphicsEffect(), "the end state, immediately: a visible canvas");
-
-    // The clear counterpart lands on its end state too — no scatter, and the empty-canvas
-    // invitation is back at once instead of waiting out an animation that never ran.
-    QAction* clear = actionByText(&win, "Clear Project");
-    QVERIFY(clear);
-    dismissModal("OK");
-    clear->trigger();
-    QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);
-    QVERIFY2(!win.findChild<QWidget*>(stencil::gui::DisintegrateOverlay::kObjectName),
-             "no dust on the clear either");
-    QVERIFY2(!canvas->idleHintHidden(), "the invitation is not held back by a missing animation");
+      // The clear counterpart lands on its end state too — no scatter, and the empty-canvas
+      // invitation is back at once instead of waiting out an animation that never ran.
+      QAction* clear = actionByText(&win, "Clear Project");
+      QVERIFY(clear);
+      dismissModal("OK");
+      clear->trigger();
+      QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);
+      QVERIFY2(!win.findChild<QWidget*>(kDust), "no dust on the clear either");
+      QVERIFY2(!canvas->idleHintHidden(), "the invitation is not held back by a missing animation");
+    }
     beat();
   }
 

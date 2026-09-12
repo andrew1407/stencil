@@ -792,199 +792,130 @@ class MainWindowGuiTest : public QObject {
 
   // Holding Alt over an export-variant row peeks its live preview instead of closing the
   // menu: the preview's dust must not span an ESCAPING top-level window while the menu
-  // holds the platform grab (menuReveal.cpp's dustMenuIn/dustMenuOut solved the same for
-  // a menu's own dust). That window exists only on a real platform, not offscreen.
-  void altHoldOverExportRowDoesNotCloseTheMenu() {
-    // The offscreen QPA plugin doesn't honor Qt::ToolTip's real-platform contract
-    // of coexisting with an open popup's grab — showing exportPreview.cpp's own
-    // preview tooltip closes the menu there regardless of this fix, which is about
-    // a REAL platform (verified: reverting it reproduces the exact same failure
-    // for real, but this offscreen quirk persists even with the fix in place and
-    // even with the tooltip's own dust flight removed entirely). Nothing to check
-    // here without a real windowing platform.
+  // holds the platform grab (menuReveal.cpp's dustMenuIn/dustMenuOut solved the same for a
+  // menu's own dust). Three routes reach such a row — the toolbar button's single-level
+  // options popup, and the canvas menu's doubly-nested Image/Layout ▸ Copy Image ▸ … chain,
+  // where a hover-opened submenu never grabs the keyboard, so a bare Alt lands on the
+  // chain's ROOT (AltPreviewFilter used to watch only the leaf and threw it away) — once
+  // plainly, and once with the cursor resting on the toolbar button the flyout paints over,
+  // where mainWindowEvents.cpp's qApp-wide Alt filter would pop ITS popover and steal the grab.
+  void altHoldOverAnExportRowNeverClosesTheMenu() {
+    // The offscreen QPA plugin doesn't honor Qt::ToolTip's real-platform contract of
+    // coexisting with an open popup's grab, so exportPreview.cpp's preview tooltip closes
+    // the menu there regardless of the fix (verified: reverting it reproduces the same
+    // failure for real, and the quirk persists with the fix in place and with the tooltip's
+    // own dust removed). Nothing to check here without a real windowing platform.
     if (QGuiApplication::platformName() == QLatin1String("offscreen"))
       QSKIP("Alt-hover's preview tooltip needs a real platform's popup-grab handling");
-    MainWindow win(nullptr, false);
-    win.resize(1000, 760);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    // Away from every icon before touching Alt at all — see the sibling test below
-    // for why a stray pop_.buttons match here would be a real, hang-the-suite bug.
-    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
-    win.openPathFromOS(guiTestImage());
-    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
-    // "Current"'s own row (actCopyImageCurrentRow_) only shows once something is
-    // drawn — see currentRowHiddenWithNoLinesButToolbarButtonStays.
-    {
-      stencil::core::Line line;
-      line.points.push_back({4.0, 20.0});
-      line.points.push_back({36.0, 20.0});
-      win.canvas_->setLines({line});
-      win.refreshActions();
+    enum Route { ToolbarPopup, NestedRoot, NestedOverToolbarButton };
+    for (const Route route : {ToolbarPopup, NestedRoot, NestedOverToolbarButton}) {
+      const char* name = route == ToolbarPopup ? "toolbar options popup"
+                         : route == NestedRoot ? "nested chain, Alt on the root"
+                                               : "nested chain, cursor on the toolbar button";
+      MainWindow win(nullptr, false);
+      win.resize(1000, 760);
+      win.show();
+      QVERIFY2(QTest::qWaitForWindowExposed(&win), name);
+      // Away from every icon before Alt is touched at all: QCursor::pos() is one
+      // process-wide value outliving any window, and a stray pop_.buttons match opens a
+      // modal that blocks forever in execMaybePopover's event loop (it hung the suite once).
+      QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
+      win.openPathFromOS(guiTestImage());
+      QTRY_VERIFY2(win.findChild<CanvasWidget*>()->hasImage(), name);
+      QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+      QVERIFY2(copyBtn, name);
+
+      if (route == ToolbarPopup) {
+        // "Current"'s own row (actCopyImageCurrentRow_) only shows once something is
+        // drawn — see currentRowHiddenWithNoLinesButToolbarButtonStays.
+        stencil::core::Line line;
+        line.points.push_back({4.0, 20.0});
+        line.points.push_back({36.0, 20.0});
+        win.canvas_->setLines({line});
+        win.refreshActions();
+        QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
+                              copyBtn->mapToGlobal(copyBtn->rect().center()));
+        QApplication::sendEvent(copyBtn, &ctx);
+        QMenu* menu = win.copyImageOptionsMenu_;
+        QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
+        // Hover the first row (QMenu::hovered is what wireExportPreviewHover listens on) so
+        // AltPreviewFilter has an activeAction() to render a preview for. A synthetic
+        // mouseMove doesn't reliably drive QMenu's own hover tracking on a real platform
+        // popup, so set it directly — exactly what QMenu does internally on a real hover.
+        menu->setActiveAction(win.actCopyImageCurrentRow_);
+        QCOMPARE(menu->activeAction(), win.actCopyImageCurrentRow_);
+        QTest::keyPress(menu, Qt::Key_Alt);
+        QVERIFY2(menu->isVisible(), "holding Alt over an export row closed the menu");
+        QTest::keyRelease(menu, Qt::Key_Alt);
+        QVERIFY2(menu->isVisible(), "releasing Alt closed the menu");
+        menu->close();
+        // Let the preview's dust-out flight (kDustOutMs, exportPreview.cpp) finish and its
+        // DisintegrateOverlay — parented to this popup — be collected before `win` dies.
+        QTest::qWait(260);
+        continue;
+      }
+
+      const bool overButton = route == NestedOverToolbarButton;
+      bool reached = false, survived = false, previewShown = false, hijacked = false;
+      QTimer::singleShot(0, [&] {
+        QMenu* root = nullptr;
+        for (int i = 0; i < 200 && !root; ++i) {
+          root = qobject_cast<QMenu*>(QApplication::activePopupWidget());
+          if (!root) QTest::qWait(10);
+        }
+        if (!root) return;
+        QAction* layoutAct = nullptr;
+        for (QAction* a : root->actions()) if (a->text() == "Image / Layout") layoutAct = a;
+        if (!layoutAct || !layoutAct->menu()) { root->close(); return; }
+        root->setActiveAction(layoutAct);
+        QTest::keyClick(root, Qt::Key_Right);
+        QMenu* layoutMenu = layoutAct->menu();
+        settle([&] { return layoutMenu->isVisible(); }, 1000);
+        QAction* copyAct = nullptr;
+        for (QAction* a : layoutMenu->actions()) if (a->text().startsWith("Copy Image")) copyAct = a;
+        if (!copyAct || !copyAct->menu()) { root->close(); return; }
+        layoutMenu->setActiveAction(copyAct);
+        QTest::keyClick(layoutMenu, Qt::Key_Right);
+        QMenu* copyMenu = copyAct->menu();
+        settle([&] { return copyMenu->isVisible(); }, 1000);
+        if (!copyMenu->isVisible()) { root->close(); return; }
+        // actCopyImageOriginal_, not actCopyImage_ itself: the latter is no longer a row in
+        // this submenu at all (actCopyImageCurrentRow_ is — hidden with nothing drawn),
+        // while Original is always there, and this route's point is Alt-key ROUTING rather
+        // than which specific row it lands on.
+        copyMenu->setActiveAction(win.actCopyImageOriginal_);
+        reached = true;
+        // underMouse() backs up the cursor-position check in mainWindowEvents.cpp (same
+        // answer a real resting pointer leaves) and is what an offscreen-adjacent test can
+        // mock — a real QCursor::setPos warp is not guaranteed to land in time.
+        if (overButton) copyBtn->setAttribute(Qt::WA_UnderMouse, true);
+        QTest::keyPress(root, Qt::Key_Alt);
+        if (overButton) {
+          QTest::qWait(30);
+          hijacked = win.copyImageOptionsMenu_ && win.copyImageOptionsMenu_->isVisible();
+        } else {
+          // Checked directly, not just "did the menu survive" — a filter that does nothing
+          // at all would trivially pass that half too.
+          for (QWidget* w : QApplication::topLevelWidgets())
+            if (w->objectName() == QLatin1String("exportPreviewTip") && w->isVisible())
+              previewShown = true;
+        }
+        survived = copyMenu->isVisible() && layoutMenu->isVisible() && root->isVisible();
+        QTest::keyRelease(root, Qt::Key_Alt);
+        if (overButton) copyBtn->setAttribute(Qt::WA_UnderMouse, false);
+        root->close();
+        if (overButton && win.copyImageOptionsMenu_) win.copyImageOptionsMenu_->close();
+      });
+      win.showContextMenu(win.mapToGlobal(QPoint(500, 400)));
+      QVERIFY2(reached, "never reached the nested Copy Image submenu");
+      if (overButton)
+        QVERIFY2(!hijacked, "Alt over the row opened the toolbar button's OWN options popup on top");
+      else
+        QVERIFY2(previewShown,
+                 "Alt delivered to the chain's ROOT never reached the leaf's preview at all");
+      QVERIFY2(survived, qPrintable(QString("%1: holding Alt closed the menu chain").arg(name)));
+      QTest::qWait(260);
     }
-
-    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
-    QVERIFY(copyBtn);
-    QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
-                          copyBtn->mapToGlobal(copyBtn->rect().center()));
-    QApplication::sendEvent(copyBtn, &ctx);
-    QMenu* menu = win.copyImageOptionsMenu_;
-    QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
-
-    // Hover the first row (QMenu::hovered is what wireExportPreviewHover listens
-    // on) so AltPreviewFilter has an activeAction() to render a preview for. A
-    // synthetic mouseMove doesn't reliably drive QMenu's own hover tracking on a
-    // real platform popup, so set it directly — exactly what QMenu does internally
-    // on a real hover.
-    QAction* row = win.actCopyImageCurrentRow_;
-    menu->setActiveAction(row);
-    QCOMPARE(menu->activeAction(), row);
-
-    QTest::keyPress(menu, Qt::Key_Alt);
-    QVERIFY2(menu->isVisible(), "holding Alt over an export row closed the menu");
-    QTest::keyRelease(menu, Qt::Key_Alt);
-    QVERIFY2(menu->isVisible(), "releasing Alt closed the menu");
-    menu->close();
-    // Let the preview's dust-out flight (kDustOutMs, exportPreview.cpp) actually
-    // finish and its DisintegrateOverlay (parented to this popup) get cleaned up
-    // before `win` — and the popup with it — is destroyed underneath it.
-    QTest::qWait(260);
-  }
-
-  // REGRESSION: same bug class as altHoldOverExportRowDoesNotCloseTheMenu, but through
-  // the CANVAS CONTEXT MENU's doubly-nested Copy Image submenu (Image/Layout ▸ Copy
-  // Image ▸ Current/Original/Tint) rather than the toolbar's single-level options
-  // popup. A submenu opened by hovering never grabs its own keyboard — the ROOT of the
-  // chain keeps holding it — so a raw Alt keypress can land there instead of on the
-  // leaf; AltPreviewFilter used to watch only the leaf and threw such a keypress away.
-  // Sent to `root` here, not the leaf, to exercise exactly that routing (mainWindowActions.cpp).
-  void altHoldOverNestedCtxMenuRowDoesNotCloseTheMenu() {
-    if (QGuiApplication::platformName() == QLatin1String("offscreen"))
-      QSKIP("Alt-hover's preview tooltip needs a real platform's popup-grab handling");
-    MainWindow win(nullptr, false);
-    win.resize(1000, 760);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
-    win.openPathFromOS(guiTestImage());
-    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
-
-    bool reached = false, survived = false, previewShown = false;
-    QTimer::singleShot(0, [&] {
-      QMenu* root = nullptr;
-      for (int i = 0; i < 200 && !root; ++i) {
-        root = qobject_cast<QMenu*>(QApplication::activePopupWidget());
-        if (!root) QTest::qWait(10);
-      }
-      if (!root) return;
-      QAction* layoutAct = nullptr;
-      for (QAction* a : root->actions()) if (a->text() == "Image / Layout") layoutAct = a;
-      if (!layoutAct || !layoutAct->menu()) { root->close(); return; }
-      root->setActiveAction(layoutAct);
-      QTest::keyClick(root, Qt::Key_Right);
-      QMenu* layoutMenu = layoutAct->menu();
-      settle([&] { return layoutMenu->isVisible(); }, 1000);
-      QAction* copyAct = nullptr;
-      for (QAction* a : layoutMenu->actions()) if (a->text().startsWith("Copy Image")) copyAct = a;
-      if (!copyAct || !copyAct->menu()) { root->close(); return; }
-      layoutMenu->setActiveAction(copyAct);
-      QTest::keyClick(layoutMenu, Qt::Key_Right);
-      QMenu* copyMenu = copyAct->menu();
-      settle([&] { return copyMenu->isVisible(); }, 1000);
-      if (!copyMenu->isVisible()) { root->close(); return; }
-
-      // actCopyImageOriginal_, not actCopyImage_ itself: the latter is no longer a row
-      // in this submenu at all (actCopyImageCurrentRow_ is — hidden with nothing
-      // drawn), while Original is always there — this test's own point is Alt-key
-      // ROUTING, not which specific row it lands on.
-      copyMenu->setActiveAction(win.actCopyImageOriginal_);
-      reached = true;
-      // The real bug: a bare Alt landing on the ROOT of the chain (not the leaf) —
-      // with only the leaf watched, AltPreviewFilter threw this away entirely and the
-      // preview never fired. Checked directly (not just "did the menu survive" — a
-      // filter that does nothing at all would trivially pass that half too).
-      QTest::keyPress(root, Qt::Key_Alt);
-      previewShown = false;
-      for (QWidget* w : QApplication::topLevelWidgets())
-        if (w->objectName() == QLatin1String("exportPreviewTip") && w->isVisible()) previewShown = true;
-      survived = copyMenu->isVisible() && layoutMenu->isVisible() && root->isVisible();
-      QTest::keyRelease(root, Qt::Key_Alt);
-      root->close();
-    });
-    win.showContextMenu(win.mapToGlobal(QPoint(500, 400)));
-    QVERIFY2(reached, "never reached the nested Copy Image submenu");
-    QVERIFY2(previewShown, "Alt delivered to the chain's ROOT never reached the leaf's preview at all");
-    QVERIFY2(survived, "holding Alt (delivered to the chain's ROOT) over a nested export row closed the menu");
-    QTest::qWait(260);
-  }
-
-  // A nested flyout paints over the toolbar it grew from, so the real cursor sits on a
-  // toolbar button underneath and mainWindowEvents.cpp's qApp-wide Alt filter would pop
-  // ITS own popover on top, stealing the grab. That block is skipped while a QMenu popup
-  // is already active.
-  void altHoldOverNestedRowAboveAToolbarButtonDoesNotHijackTheMenu() {
-    if (QGuiApplication::platformName() == QLatin1String("offscreen"))
-      QSKIP("needs a real platform's popup-grab handling");
-    MainWindow win(nullptr, false);
-    win.resize(1000, 760);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QCursor::setPos(win.mapToGlobal(QPoint(win.width() - 5, win.height() - 5)));
-    win.openPathFromOS(guiTestImage());
-    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
-    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
-    QVERIFY(copyBtn);
-
-    bool reached = false, survived = false, hijacked = false;
-    QTimer::singleShot(0, [&] {
-      QMenu* root = nullptr;
-      for (int i = 0; i < 200 && !root; ++i) {
-        root = qobject_cast<QMenu*>(QApplication::activePopupWidget());
-        if (!root) QTest::qWait(10);
-      }
-      if (!root) return;
-      QAction* layoutAct = nullptr;
-      for (QAction* a : root->actions()) if (a->text() == "Image / Layout") layoutAct = a;
-      if (!layoutAct || !layoutAct->menu()) { root->close(); return; }
-      root->setActiveAction(layoutAct);
-      QTest::keyClick(root, Qt::Key_Right);
-      QMenu* layoutMenu = layoutAct->menu();
-      settle([&] { return layoutMenu->isVisible(); }, 1000);
-      QAction* copyAct = nullptr;
-      for (QAction* a : layoutMenu->actions()) if (a->text().startsWith("Copy Image")) copyAct = a;
-      if (!copyAct || !copyAct->menu()) { root->close(); return; }
-      layoutMenu->setActiveAction(copyAct);
-      QTest::keyClick(layoutMenu, Qt::Key_Right);
-      QMenu* copyMenu = copyAct->menu();
-      settle([&] { return copyMenu->isVisible(); }, 1000);
-      if (!copyMenu->isVisible()) { root->close(); return; }
-      // actCopyImageOriginal_, not actCopyImage_ itself: the latter is no longer a row
-      // in this submenu at all (actCopyImageCurrentRow_ is — hidden with nothing
-      // drawn), while Original is always there — this test's own point is Alt-key
-      // ROUTING, not which specific row it lands on.
-      copyMenu->setActiveAction(win.actCopyImageOriginal_);
-      reached = true;
-
-      // The exact repro: the cursor sits over the toolbar's own Copy button — right
-      // where the flyout is actually painted on screen — while Alt is pressed.
-      // underMouse() backs up the cursor-position check in mainWindowEvents.cpp (same
-      // answer for a real resting pointer); it's also what an offscreen-adjacent test
-      // can reliably mock — a real QCursor::setPos warp is not guaranteed to land in time.
-      copyBtn->setAttribute(Qt::WA_UnderMouse, true);
-      QTest::keyPress(root, Qt::Key_Alt);
-      QTest::qWait(30);
-      hijacked = win.copyImageOptionsMenu_ && win.copyImageOptionsMenu_->isVisible();
-      survived = copyMenu->isVisible() && layoutMenu->isVisible() && root->isVisible();
-      QTest::keyRelease(root, Qt::Key_Alt);
-      copyBtn->setAttribute(Qt::WA_UnderMouse, false);
-      root->close();
-      if (win.copyImageOptionsMenu_) win.copyImageOptionsMenu_->close();
-    });
-    win.showContextMenu(win.mapToGlobal(QPoint(500, 400)));
-    QVERIFY2(reached, "never reached the nested Copy Image submenu");
-    QVERIFY2(!hijacked, "Alt over the row opened the toolbar button's OWN options popup on top");
-    QVERIFY2(survived, "holding Alt with the cursor over a toolbar button closed the context menu chain");
-    QTest::qWait(260);
   }
 
   // Alt+hover over the copy/download-image toolbar buttons themselves opens their
@@ -1088,189 +1019,130 @@ class MainWindowGuiTest : public QObject {
 
   // A chipped row's keycaps shake once on hover (browser: .ctx-item:hover .tip-key /
   // keycapShake) — verified via capOffset(), "what the tests watch" per its own comment
-  // (appTooltip.hpp), and driven with setActiveAction() rather than QTest::mouseMove:
-  // the latter does not reliably reach a shown popup's own hover tracking (confirmed —
-  // it left QMenu::hovered's own spy at 0 — so it isn't a usable probe for this or any
-  // other hover-driven popup behaviour), exactly the same limitation
-  // contextMenuRowShimmersOnHover already worked around for the sibling shimmer sweep.
-  void hotkeyChipShakesOnHover() {
-    MainWindow win(nullptr, false);
-    win.resize(1000, 760);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.openPathFromOS(guiTestImage());
-    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
-    // "Current"'s own row (actCopyImageCurrentRow_) only shows once something is
-    // drawn — see currentRowHiddenWithNoLinesButToolbarButtonStays.
-    {
-      stencil::core::Line line;
-      line.points.push_back({4.0, 20.0});
-      line.points.push_back({36.0, 20.0});
-      win.canvas_->setLines({line});
-      win.refreshActions();
+  // (appTooltip.hpp), and driven with setActiveAction() rather than QTest::mouseMove: the
+  // latter does not reliably reach a shown popup's own hover tracking (confirmed — it left
+  // QMenu::hovered's own spy at 0 — so it isn't a usable probe for this or any other
+  // hover-driven popup behaviour), exactly the limitation contextMenuRowShimmersOnHover
+  // already worked around for the sibling shimmer sweep. The guard around the shake
+  // advances only on a genuinely NEW row: QMenu::hovered(QAction*) re-fires for the row
+  // already hovered (setActiveAction re-emits it exactly as mouse jitter does) and a mouse
+  // leaving a row without landing on another never fires it again, so it resets on
+  // QEvent::Leave, like menuShimmer.hpp's RowOverlay.
+  void hotkeyChipShakeFollowsTheHoveredRow() {
+    enum Case { Shakes, ReplaysAfterLeave, NoRestartOnReFire };
+    for (const Case which : {Shakes, ReplaysAfterLeave, NoRestartOnReFire}) {
+      const char* name = which == Shakes ? "shakes on hover"
+                         : which == ReplaysAfterLeave ? "replays after a leave and return"
+                                                      : "no restart on a re-fire";
+      MainWindow win(nullptr, false);
+      win.resize(1000, 760);
+      win.show();
+      QVERIFY2(QTest::qWaitForWindowExposed(&win), name);
+      win.openPathFromOS(guiTestImage());
+      QTRY_VERIFY2(win.findChild<CanvasWidget*>()->hasImage(), name);
+      // "Current"'s own row (actCopyImageCurrentRow_) only shows once something is
+      // drawn — see currentRowHiddenWithNoLinesButToolbarButtonStays.
+      {
+        stencil::core::Line line;
+        line.points.push_back({4.0, 20.0});
+        line.points.push_back({36.0, 20.0});
+        win.canvas_->setLines({line});
+        win.refreshActions();
+      }
+
+      QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
+      QVERIFY2(copyBtn, name);
+      QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
+                            copyBtn->mapToGlobal(copyBtn->rect().center()));
+      QApplication::sendEvent(copyBtn, &ctx);
+      QMenu* menu = win.copyImageOptionsMenu_;
+      QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
+
+      QAction* row = win.actCopyImageCurrentRow_;
+      QAction* other = nullptr;
+      // Skip invisible rows too (actCopyImageSplit_ leads this same menu but stays hidden
+      // outside compare mode) — setActiveAction on a row with no real geometry wouldn't
+      // make the later move onto `row` a genuine transition.
+      for (QAction* a : menu->actions())
+        if (a != row && !a->isSeparator() && a->isVisible()) { other = a; break; }
+      QVERIFY2(other, name);
+      const QRect r = menu->actionGeometry(row);
+
+      // NOT c->isHidden(): an action that's currently invisible (e.g. "Filter Only" with no
+      // filter applied) still has its OWN chip widget parked wherever it was last valid —
+      // geometry().intersects() alone can't tell a genuinely-showing chip from a hidden one
+      // sitting in the same spot (menuHotkeys.hpp's place() hides, never destroys them).
+      stencil::gui::TipBody* chip = nullptr;
+      for (QLabel* l : menu->findChildren<QLabel*>())
+        if (auto* c = dynamic_cast<stencil::gui::TipBody*>(l))
+          if (!c->isHidden() && c->geometry().intersects(r)) chip = c;
+      QVERIFY2(chip, "no chip found for the Current row");
+      // NOT chip->capCount() here — calling it is what LAZILY hunts the keycap regions, so
+      // the test would prime the state menuHotkeys.hpp's wire() must prime ITSELF. The rest
+      // snapshot is taken first, grab()ing the chip exactly as wire() left it.
+      const QImage rest = chip->grab().toImage();
+
+      if (which == Shakes) {
+        bool sawNonZero = false;
+        QImage midShake;
+        // Land on a KNOWN different row first, so the move onto `row` is a genuine
+        // transition (a freshly-opened QMenu can already be hovering its first row).
+        menu->setActiveAction(other);
+        menu->setActiveAction(row);
+        for (int i = 0; i < 40 && !sawNonZero; ++i) {
+          QTest::qWait(10);
+          if (chip->capOffset() != 0) { sawNonZero = true; midShake = chip->grab().toImage(); }
+        }
+        menu->close();
+        QVERIFY2(sawNonZero, "the chip's keycaps never moved during the shake window");
+        QVERIFY2(!midShake.isNull() && midShake != rest,
+                 "the shake changed capOffset() but never actually painted anything different "
+                 "— the caps were never hunted, so paintEvent() had nothing to draw it with");
+        continue;
+      }
+
+      if (which == ReplaysAfterLeave) {
+        menu->setActiveAction(row);   // first hover: starts the shake
+        QTRY_VERIFY2(chip->capOffset() != 0, "the shake should have started");
+        // A plain wait long past the cycle's own length, not QTRY on ==0: the curve crosses
+        // zero mid-cycle (see the re-fire case below), so QTRY would happily accept a
+        // passing zero-crossing as "settled" while the shake is still running underneath.
+        QTest::qWait(stencil::gui::AppTooltip::kShakeMs + 300);
+        QCOMPARE(chip->capOffset(), 0);
+        // The mouse leaves the row WITHOUT ever landing on another one — no second
+        // hovered(QAction*) fires for that, only a real Leave.
+        QEvent leave(QEvent::Leave);
+        QApplication::sendEvent(menu, &leave);
+        menu->setActiveAction(row);   // back onto the SAME row — must shake again
+        QTRY_VERIFY2(chip->capOffset() != 0, "the shake should replay after the mouse came back");
+        menu->close();
+        continue;
+      }
+
+      // The shake curve crosses zero mid-cycle (it's a wiggle, not a one-way ramp), so a
+      // single fixed-instant sample can land on a crossing and misread a live shake as
+      // settled. QTRY catches it on the way up, and the re-fire and settle checkpoints are
+      // timed off a real clock rather than guessed delays.
+      QElapsedTimer timer;
+      menu->setActiveAction(other);
+      timer.start();
+      menu->setActiveAction(row);   // first hover: starts the shake
+      QTRY_VERIFY2(chip->capOffset() != 0, "the shake should have started");
+      while (timer.elapsed() < 120) QTest::qWait(10);   // well clear of the start
+      menu->setActiveAction(row);   // the re-fire — must NOT restart it
+      // Wait to (a hair past) the ORIGINAL shake's own finish line, measured from when it
+      // actually started. A wrongly-restarted shake would still be running here (its own
+      // clock reset at the re-fire, well under kShakeMs old by this checkpoint); the
+      // correctly-unbothered one has already settled back to rest.
+      const int remaining = int(stencil::gui::AppTooltip::kShakeMs + 60 - timer.elapsed());
+      if (remaining > 0) QTest::qWait(remaining);
+      // Read the chip BEFORE closing: menu->close() tears down MenuHotkeyChips, which
+      // deletes the chip widgets outright — reading through the pointer after that is a
+      // use-after-free (previously the source of this test's own flakiness).
+      const int settledOffset = chip->capOffset();
+      menu->close();
+      QCOMPARE(settledOffset, 0);
     }
-
-    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
-    QVERIFY(copyBtn);
-    QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
-                          copyBtn->mapToGlobal(copyBtn->rect().center()));
-    QApplication::sendEvent(copyBtn, &ctx);
-    QMenu* menu = win.copyImageOptionsMenu_;
-    QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
-
-    QAction* row = win.actCopyImageCurrentRow_;
-    QAction* other = nullptr;
-    // Skip invisible rows too (actCopyImageSplit_ leads this same menu but stays
-    // hidden outside compare mode) — setActiveAction on a row with no real geometry
-    // wouldn't make the later move onto `row` a genuine transition.
-    for (QAction* a : menu->actions()) if (a != row && !a->isSeparator() && a->isVisible()) { other = a; break; }
-    QVERIFY(other);
-    const QRect r = menu->actionGeometry(row);
-
-    // NOT c->isHidden(): an action that's currently invisible (e.g. "Filter Only" with
-    // no filter applied) still has its OWN chip widget parked wherever it was last valid
-    // — geometry().intersects() alone can't tell a genuinely-showing chip from a hidden
-    // one sitting in the same spot (menuHotkeys.hpp's place() hides, never destroys them).
-    stencil::gui::TipBody* chip = nullptr;
-    for (QLabel* l : menu->findChildren<QLabel*>())
-      if (auto* c = dynamic_cast<stencil::gui::TipBody*>(l))
-        if (!c->isHidden() && c->geometry().intersects(r)) chip = c;
-    QVERIFY2(chip, "no chip found for the Current row");
-    // NOT chip->capCount() here — calling it is what LAZILY hunts the keycap regions, so
-    // the test would prime the state menuHotkeys.hpp's wire() must prime ITSELF. The rest
-    // snapshot below is taken first, grab()ing the chip exactly as wire() left it.
-    const QImage rest = chip->grab().toImage();
-
-    bool sawNonZero = false;
-    QImage midShake;
-    // Land on a KNOWN different row first, so the move onto `row` is a genuine
-    // transition (a freshly-opened QMenu can already be hovering its first row).
-    menu->setActiveAction(other);
-    menu->setActiveAction(row);
-    for (int i = 0; i < 40 && !sawNonZero; ++i) {
-      QTest::qWait(10);
-      if (chip->capOffset() != 0) { sawNonZero = true; midShake = chip->grab().toImage(); }
-    }
-    menu->close();
-    QVERIFY2(sawNonZero, "the chip's keycaps never moved during the shake window");
-    QVERIFY2(!midShake.isNull() && midShake != rest,
-             "the shake changed capOffset() but never actually painted anything different "
-             "— the caps were never hunted, so paintEvent() had nothing to draw the shake with");
-    QTest::qWait(50);
-    menu->close();
-  }
-
-  // QMenu::hovered(QAction*) re-fires for the row already hovered (setActiveAction here
-  // re-emits it exactly as mouse jitter does), and a mouse leaving a row without landing
-  // on another never fires it again — so the guard advances only on a genuinely new row
-  // and resets on QEvent::Leave, like menuShimmer.hpp's RowOverlay.
-  void hotkeyChipShakeReplaysAfterTheMouseLeavesAndComesBackToTheSameRow() {
-    MainWindow win(nullptr, false);
-    win.resize(1000, 760);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.openPathFromOS(guiTestImage());
-    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
-    {
-      stencil::core::Line line;
-      line.points.push_back({4.0, 20.0});
-      line.points.push_back({36.0, 20.0});
-      win.canvas_->setLines({line});
-      win.refreshActions();
-    }
-
-    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
-    QVERIFY(copyBtn);
-    QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
-                          copyBtn->mapToGlobal(copyBtn->rect().center()));
-    QApplication::sendEvent(copyBtn, &ctx);
-    QMenu* menu = win.copyImageOptionsMenu_;
-    QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
-
-    QAction* row = win.actCopyImageCurrentRow_;
-    const QRect r = menu->actionGeometry(row);
-    stencil::gui::TipBody* chip = nullptr;
-    for (QLabel* l : menu->findChildren<QLabel*>())
-      if (auto* c = dynamic_cast<stencil::gui::TipBody*>(l))
-        if (!c->isHidden() && c->geometry().intersects(r)) chip = c;
-    QVERIFY2(chip, "no chip found for the Current row");
-
-    menu->setActiveAction(row);   // first hover: starts the shake
-    QTRY_VERIFY2(chip->capOffset() != 0, "the shake should have started");
-    // A plain wait long past the cycle's own length, not QTRY on ==0: the curve crosses
-    // zero mid-cycle (hotkeyChipShakeDoesNotRestartOnAReFireForTheSameRow's own comment),
-    // so QTRY would happily accept a passing zero-crossing as "settled" while the shake
-    // is still actually running underneath it.
-    QTest::qWait(stencil::gui::AppTooltip::kShakeMs + 300);
-    QCOMPARE(chip->capOffset(), 0);
-
-    // The mouse leaves the row WITHOUT ever landing on another one — no second
-    // hovered(QAction*) fires for that, only a real Leave.
-    QEvent leave(QEvent::Leave);
-    QApplication::sendEvent(menu, &leave);
-
-    menu->setActiveAction(row);   // back onto the SAME row — must shake again
-    QTRY_VERIFY2(chip->capOffset() != 0, "the shake should replay after the mouse came back");
-    menu->close();
-  }
-
-  void hotkeyChipShakeDoesNotRestartOnAReFireForTheSameRow() {
-    MainWindow win(nullptr, false);
-    win.resize(1000, 760);
-    win.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&win));
-    win.openPathFromOS(guiTestImage());
-    QTRY_VERIFY(win.findChild<CanvasWidget*>()->hasImage());
-    {
-      stencil::core::Line line;
-      line.points.push_back({4.0, 20.0});
-      line.points.push_back({36.0, 20.0});
-      win.canvas_->setLines({line});
-      win.refreshActions();
-    }
-
-    QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
-    QVERIFY(copyBtn);
-    QContextMenuEvent ctx(QContextMenuEvent::Mouse, copyBtn->rect().center(),
-                          copyBtn->mapToGlobal(copyBtn->rect().center()));
-    QApplication::sendEvent(copyBtn, &ctx);
-    QMenu* menu = win.copyImageOptionsMenu_;
-    QVERIFY2(menu && menu->isVisible(), "the copy-image options popup never opened");
-
-    QAction* row = win.actCopyImageCurrentRow_;
-    QAction* other = nullptr;
-    for (QAction* a : menu->actions()) if (a != row && !a->isSeparator() && a->isVisible()) { other = a; break; }
-    QVERIFY(other);
-    const QRect r = menu->actionGeometry(row);
-    stencil::gui::TipBody* chip = nullptr;
-    for (QLabel* l : menu->findChildren<QLabel*>())
-      if (auto* c = dynamic_cast<stencil::gui::TipBody*>(l))
-        if (!c->isHidden() && c->geometry().intersects(r)) chip = c;
-    QVERIFY2(chip, "no chip found for the Current row");
-
-    // The shake curve crosses zero mid-cycle (it's a wiggle, not a one-way ramp), so a
-    // single fixed-instant sample can land on a crossing and misread a live shake as
-    // settled. Use QTRY to catch it on the way up instead of a single qWait+assert, and
-    // time the re-fire and the settle check off a real clock rather than guessed delays.
-    QElapsedTimer timer;
-    menu->setActiveAction(other);
-    timer.start();
-    menu->setActiveAction(row);   // first hover: starts the shake
-    QTRY_VERIFY2(chip->capOffset() != 0, "the shake should have started");
-    while (timer.elapsed() < 120) QTest::qWait(10);   // well clear of the start
-    menu->setActiveAction(row);   // the re-fire — must NOT restart it
-    // Wait to (a hair past) the ORIGINAL shake's own finish line, measured from when it
-    // actually started. A wrongly-restarted shake would still be running here (its own
-    // clock reset at the re-fire, well under kShakeMs old by this checkpoint); the
-    // correctly-unbothered one has already settled back to rest.
-    const int remaining = int(stencil::gui::AppTooltip::kShakeMs + 60 - timer.elapsed());
-    if (remaining > 0) QTest::qWait(remaining);
-    // Read the chip BEFORE closing: menu->close() tears down MenuHotkeyChips, which
-    // deletes the chip widgets outright — reading through the pointer after that is a
-    // use-after-free (previously the source of this test's own flakiness).
-    const int settledOffset = chip->capOffset();
-    menu->close();
-    QCOMPARE(settledOffset, 0);
   }
 
   // The variant popups take MenuHotkeyChips' `compact` mode — a tighter local stylesheet

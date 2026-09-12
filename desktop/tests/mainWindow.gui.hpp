@@ -175,24 +175,19 @@ namespace stencil::guitest {
     QVERIFY(img.save(guiTestImage(), "PNG"));
   }
 
-  // The suite runs with STENCIL_NO_ANIM=1, but a case that turns motion on can leave it
-  // on for whatever runs next, and then a fixed wait races a flight. Pins it off for the
-  // caller's own scope.
-  [[nodiscard]] inline auto withoutMotion() {
+  // The suite runs with STENCIL_NO_ANIM=1, and a case that moves that pin either way must
+  // put back what it found — otherwise the next case's waits race a flight that should not
+  // be playing. One guard for both directions, so a case can pin it from a loop variable.
+  [[nodiscard]] inline auto motionPinned(bool on) {
     const QByteArray had = qgetenv("STENCIL_NO_ANIM");
-    qputenv("STENCIL_NO_ANIM", "1");
+    if (on) qunsetenv("STENCIL_NO_ANIM"); else qputenv("STENCIL_NO_ANIM", "1");
     return qScopeGuard([had] {
       if (had.isEmpty()) qunsetenv("STENCIL_NO_ANIM"); else qputenv("STENCIL_NO_ANIM", had);
     });
   }
 
-  // The counterpart: a case that drives real motion turns the suite's pin off for as
-  // long as it holds the returned guard.
-  [[nodiscard]] inline auto withMotion() {
-    const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
-    qunsetenv("STENCIL_NO_ANIM");
-    return qScopeGuard([noAnim] { if (!noAnim.isEmpty()) qputenv("STENCIL_NO_ANIM", noAnim); });
-  }
+  [[nodiscard]] inline auto withoutMotion() { return motionPinned(false); }
+  [[nodiscard]] inline auto withMotion() { return motionPinned(true); }
 
   // Poll until `cond` holds, giving up after `capMs`: the early-exit stand-in for a fixed
   // sleep. Most callers pin motion off, so the first look usually already answers.
