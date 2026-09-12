@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { animationsCss } from './helpers/sources.js';
+import { animationsCss, browserAnimationsCss } from './helpers/sources.js';
 
 import { ICONS } from '../src/lib/icons.js';
 
@@ -23,7 +23,7 @@ const section = (css, from, to) => {
 };
 const EXT = section(animationsCss(),
   '/* ── Icon hover: every glyph mimes its own action', '/* ── Header logo hover');
-const APP = section(read('../../browser/css/animations/iconHover.css'),
+const APP = section(browserAnimationsCss(),
   '/* ── Icon hover: every glyph mimes its own action', '/* ── App logo hover');
 
 // Glyphs lib/icons.js carries that the browser has no twin for (dataParity.test.js

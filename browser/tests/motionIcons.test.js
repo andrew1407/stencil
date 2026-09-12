@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { MOTION_ICONS, motionModeIcon, NONE_LINE_LEN } from '../js/ui/motionIcons.js';
 import { MOTION_MODES } from '../js/ui/motionPrefs.js';
-import { ANIMATIONS_CSS } from './helpers/css.js';
+import { ANIMATIONS_CSS, extensionAnimationsCss } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
@@ -48,7 +48,7 @@ test('the CSS plays each mode on hover, in the direction asked for', () => {
   for (const part of ['mm-line', 'mm-shaft', 'mm-head', 'mm-drop', 'mm-flame', 'mm-mote'])
     assert.match(css, new RegExp(`\\.accent-dd-opt:hover \\.${part}, \\.accent-dd-trigger:hover \\.${part}, \\.mm-play \\.${part} \\{ animation:`), part);
   // The extension keeps the same rules.
-  const ext = read('../../extension/src/lib/animations.css');
+  const ext = extensionAnimationsCss();
   for (const k of ['mmLineDraw', 'mmShaft', 'mmHead', 'mmDrop', 'mmFlame', 'mmDust']) assert.ok(ext.includes(`@keyframes ${k}`), `extension ${k}`);
 });
 

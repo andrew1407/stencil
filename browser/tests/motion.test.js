@@ -24,7 +24,7 @@ import {
 import { STYLE_DUST, STYLE_WATER, STYLE_FIRE, edgeBaseOf, FILL_CHUNK } from '../js/ui/dustCloud.js';
 import { FLIGHTS, moteFrame } from '../js/ui/dustCloud.js';
 import { motionSource } from './helpers/motionSource.js';
-import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
+import { COMPONENTS_CSS, ANIMATIONS_CSS, extensionAnimationsCss } from './helpers/css.js';
 
 const box = (left, top, width, height) => ({ left, top, width, height });
 
@@ -973,7 +973,7 @@ test('with no control to anchor to, themeSwap blooms from the viewport centre', 
 // IN, which is what made the circle appear to creep before it moved.
 test('the wipe: browser and extension share one duration and one ease-out curve', () => {
   const decls = [['browser', ANIMATIONS_CSS],
-                 ['extension', readFileSync(new URL('../../extension/src/lib/animations.css', import.meta.url), 'utf8')]]
+                 ['extension', extensionAnimationsCss()]]
     .map(([name, text]) => {
       const decl = /animation: themeSwapReveal var\(--swap-ms, (\d+)ms\) cubic-bezier\(([^)]*)\)/
         .exec(text);

@@ -14,3 +14,7 @@ const concat = (dir) => [...html.matchAll(/<link\s+rel="stylesheet"\s+href="([^"
 
 export const COMPONENTS_CSS = concat('components');
 export const ANIMATIONS_CSS = concat('animations');
+
+// The extension's twin sheets are sheet sets too; re-exported here so a parity assertion
+// reaches both surfaces' stylesheets through one helper.
+export { extensionAnimationsCss, extensionThemeCss } from './extensionCss.js';

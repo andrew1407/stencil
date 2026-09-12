@@ -10,12 +10,12 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { COMPONENTS_CSS } from './helpers/css.js';
+import { COMPONENTS_CSS, extensionThemeCss } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const layout = read('../css/layout.css');
 const components = COMPONENTS_CSS;
-const extTheme = read('../../extension/src/lib/theme.css');
+const extTheme = extensionThemeCss();
 
 const ringRuleOf = (css) =>
   css.match(/input\[type="text"\]:hover:not\(:disabled\):not\(:focus\),[\s\S]*?\}/)?.[0] || '';
