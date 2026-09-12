@@ -9,7 +9,7 @@
     "browser/js/core/pointerController.js": 330,
     "browser/js/core/projectTransferController.js": 510,
     "browser/js/core/projectsStore.js": 436,
-    "browser/js/core/remoteSyncController.js": 272,
+    "browser/js/core/remoteSyncController.js": 221,
     "browser/js/core/renderer.js": 418,
     "browser/js/core/settingsController.js": 367,
     "browser/js/core/stencilCore.js": 393,

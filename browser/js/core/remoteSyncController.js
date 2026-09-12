@@ -1,6 +1,5 @@
-import { notify, setVal, setRadioGroup, cmToUnit } from '../utils.js';
-import { normalizePageSize } from './units.js';
-import { revealControls } from '../ui/motion.js';
+import { notify } from '../utils.js';
+import { adoptServerFilter, adoptServerPageFormat, adoptServerFormulas } from '../ui/serverLayoutPaint.js';
 import { mergeLines } from './layout.js';
 import { getSyncToServer } from '../net/connectionStore.js';
 import { requireConnection, saveRemoteProject, shouldReloadFromEvent } from '../net/remoteSync.js';
@@ -144,63 +143,13 @@ export class RemoteSyncController {
     return blob;
   }
 
-  // Adopt a server layout's filter/tint into the editor + filter UI, and clear the
-  // dirty flag (the server's filter is now ours). Used by conflict-merge so a line-only
-  // edit preserves a peer's filter change instead of clobbering it.
-  adoptServerFilter(layout) {
-    const app = this.app;
-    if (!layout) return;
-    app.imageFilter = layout.imageFilter || (layout.blackAndWhite ? 'bw' : 'none');
-    if (layout.filterColor) app.filterColor = layout.filterColor;
-    setVal('image-filter', app.imageFilter);
-    setRadioGroup('ctxFilter', app.imageFilter);
-    const fp = document.getElementById('filter-color');
-    if (fp) {
-      fp.value = app.filterColor;
-      fp.style.display = app.imageFilter === 'custom' ? 'inline-block' : 'none';
-    }
-    app.filterDirty = false;
-  }
+  // The three adopt paths are one step: the editor state a server layout names, and the
+  // controls that show it (ui/serverLayoutPaint.js owns the element ids).
+  adoptServerFilter(layout) { adoptServerFilter(this.app, layout); }
 
-  // Restore a server layout's page format (A3/A4/custom + cm dims) into state + the page UI.
-  adoptServerPageFormat(layout) {
-    const app = this.app;
-    if (!layout) return;
-    const n = normalizePageSize(layout.pageSize);
-    if (n) {
-      app.pageSize = n;
-      setVal('page-size', n);
-      revealControls(document.getElementById('custom-size-group'), n === 'custom');
-    }
-    if (Number.isFinite(layout.customPageWidth)) {
-      app.customPageWidth = layout.customPageWidth;
-      setVal('custom-page-width', cmToUnit(layout.customPageWidth, app.unit));
-    }
-    if (Number.isFinite(layout.customPageHeight)) {
-      app.customPageHeight = layout.customPageHeight;
-      setVal('custom-page-height', cmToUnit(layout.customPageHeight, app.unit));
-    }
-  }
+  adoptServerPageFormat(layout) { adoptServerPageFormat(this.app, layout); }
 
-  // Restore a server layout's x/y formulas into state + the formula UI. The expressions are
-  // kept regardless of the toggle (allow only gates visibility + whether they're applied).
-  adoptServerFormulas(layout) {
-    const app = this.app;
-    const allow = !!(layout && layout.allowFormulas);
-    app.allowFormulas = allow;
-    const cb = document.getElementById('allow-formulas');
-    if (cb) cb.checked = allow;
-    app.settings.syncFormulaUI(allow);
-    const fx = layout && typeof layout.formulaX === 'string' ? layout.formulaX : '';
-    const fy = layout && typeof layout.formulaY === 'string' ? layout.formulaY : '';
-    app.formulaX = fx;
-    app.formulaY = fy;
-    setVal('formula-x', app.formulaX);
-    setVal('formula-y', app.formulaY);
-    setVal('ctx-formula-x', app.formulaX);
-    setVal('ctx-formula-y', app.formulaY);
-    app.settings.showFormulaError(false);
-  }
+  adoptServerFormulas(layout) { adoptServerFormulas(this.app, layout); }
 
   // Save the current annotated result + layout back to the linked server project.
   // On a 409 version conflict, pull latest, union-merge the peer's lines with ours, and
