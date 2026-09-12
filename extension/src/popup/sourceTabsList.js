@@ -1,7 +1,4 @@
-// ── "Images from another page": the open pages whose images the list merges ──
-// A MULTI-select list, not a one-of dropdown: comparing tabs is the ordinary case, and
-// the list below merges whatever is ticked. Nothing is ticked to begin with — the list
-// stays empty until you choose, rather than guessing at a page for you.
+// "Images from another page": a multi-select of open pages; nothing is ticked to begin with.
 import { MSG } from '../lib/messages.js';
 import { matchSourceTabs } from '../lib/editorTabs.js';
 import { icon } from '../lib/icons.js';
@@ -12,13 +9,11 @@ export const createSourceTabs = ({ listedEl, srcFilterEl, srcRegexEl, allBtn, no
                                    noteEl, ask, menu, setStatus, dismiss, onSourceTab }) => {
   const srcTransition = createFilterTransition({ list: listedEl });
   let choices = [];             // the last SOURCE_TABS choices
-  const selected = new Set();   // tabIds ticked in the list (empty = list nothing)
+  const selected = new Set();   // ticked tabIds
   const menuItem = menu.item;
 
-  // Ticked pages, in the order they are listed. popup.js scans exactly these.
   const pickedChoices = () => choices.filter((c) => selected.has(c.tabId));
 
-  // The choices the URL filter currently admits (regex when the pill is on).
   const visibleChoices = () => matchSourceTabs(choices, srcFilterEl ? srcFilterEl.value : '',
     { regex: !!(srcRegexEl && srcRegexEl.checked) });
 
@@ -28,8 +23,6 @@ export const createSourceTabs = ({ listedEl, srcFilterEl, srcRegexEl, allBtn, no
     onSourceTab(pickedChoices());
   };
 
-  // ⋯ per page: tick/untick (the same thing the row click does, named), go look at that tab,
-  // and copy its URL — the three things you want from a list of pages you are not on.
   const choiceMenuNodes = (c) => [
     menuItem(icon(selected.has(c.tabId) ? 'x' : 'check', { size: 15 }),
       selected.has(c.tabId) ? 'Deselect this page' : 'Select this page',
@@ -64,9 +57,7 @@ export const createSourceTabs = ({ listedEl, srcFilterEl, srcRegexEl, allBtn, no
       setPicked(c.tabId, box.checked);
     });
 
-    // The tab's own favicon, so a list of same-site tabs is still tellable apart at a glance.
-    // It is a page-controlled URL, so it only ever becomes an <img src> — never markup — and
-    // a broken one collapses to the neutral slot rather than an icon-shaped hole.
+    // The favicon is a page-controlled URL: only ever an <img src>, never markup.
     const fav = document.createElement('img');
     fav.className = 'src-fav';
     fav.alt = '';
@@ -77,7 +68,7 @@ export const createSourceTabs = ({ listedEl, srcFilterEl, srcRegexEl, allBtn, no
     meta.className = 'meta';
     const name = document.createElement('div');
     name.className = 'name';
-    name.textContent = c.title || c.host || c.url;      // page data → text
+    name.textContent = c.title || c.host || c.url;
     const host = document.createElement('div');
     host.className = 'sub';
     const dim = document.createElement('span');
@@ -95,8 +86,6 @@ export const createSourceTabs = ({ listedEl, srcFilterEl, srcRegexEl, allBtn, no
       menu.open(more, choiceMenuNodes(c));
     });
 
-    // Clicking the row IS "add this page" (and clicking a ticked one drops it again) — the
-    // default action, so the common case never costs a trip through the ⋯ menu.
     el.addEventListener('click', () => setPicked(c.tabId, !selected.has(c.tabId)));
     el.append(box, fav, meta, more);
     li.appendChild(el);
@@ -104,7 +93,7 @@ export const createSourceTabs = ({ listedEl, srcFilterEl, srcRegexEl, allBtn, no
   };
 
   const renderChoices = () => {
-    // Drop ticks for tabs that have since closed, so the count can't outrun the list.
+    // Ticks for tabs that have since closed are dropped, so the count cannot outrun the list.
     for (const id of [...selected]) if (!choices.some((c) => c.tabId === id)) selected.delete(id);
     srcTransition.begin();
     listedEl.textContent = '';
@@ -131,8 +120,6 @@ export const createSourceTabs = ({ listedEl, srcFilterEl, srcRegexEl, allBtn, no
     if (noneBtn) noneBtn.disabled = !n;
   };
 
-  // The pages worth offering (lib/editorTabs.js `sourceTabChoices`, applied in the worker):
-  // every open http(s) tab that isn't an editor and isn't a blocked scheme.
   const refreshChoices = async () => {
     const res = await ask({ type: MSG.SOURCE_TABS });
     choices = res.ok ? (res.tabs || []) : [];

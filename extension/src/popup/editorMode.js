@@ -1,18 +1,15 @@
-// ── Editor mode: the panel while it stands ON the Stencil editor ─────────────
-// Wires the two sections popup.js hands over on an editor tab — editorList.js ("Open
-// editors") and sourceTabsList.js ("Images from another page") — to the panel's clock,
-// the browser's tab events and editorImport.js. Decisions stay pure in lib/editorTabs.js.
+// Editor mode: the panel while it stands on the Stencil editor. Wires editorList.js and
+// sourceTabsList.js to the panel's clock and the browser's tab events; decisions stay
+// pure in lib/editorTabs.js.
 import { MSG } from '../lib/messages.js';
 import { pollClock } from '../lib/pollClock.js';
 import { createEditorList } from './editorList.js';
 import { createSourceTabs } from './sourceTabsList.js';
 import { createImportHere } from './editorImport.js';
 
-// Debounce for tab open/close/navigate bursts before the source-page list refreshes.
 const TABS_REFRESH_DEBOUNCE_MS = 300;
 
-// One request/response round-trip to the service worker, normalising a missing receiver
-// (sleeping worker, reloading extension) to the same `{ok:false,error}` every handler uses.
+// A missing receiver (sleeping worker, reloading extension) normalises to `{ok:false,error}`.
 const ask = async (message) => {
   try {
     return (await chrome.runtime.sendMessage(message)) || { ok: false, error: 'no receiver' };
@@ -21,9 +18,6 @@ const ask = async (message) => {
   }
 };
 
-// Build the editor surface from popup.js's injected pieces (setStatus, run, dismiss, the
-// SHARED ⋯ menu, onSourceTab, imageDataUrl, the floating preview) so this holds none of its state.
-// Returns { available, isLiveEditor, setEditorTab, sourceTab, importHere, refresh }.
 export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, imageDataUrl, preview }) => {
   const listEl = document.getElementById('ed-list');
   const searchEl = document.getElementById('ed-search');
@@ -36,10 +30,9 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
   const noneBtn = document.getElementById('src-none');
   const rescanBtn = document.getElementById('src-rescan');
   const noteEl = document.getElementById('src-note');
-  // The DevTools panel has no editor sections (it is pinned to one tab), so every method
-  // no-ops there and popup.js keeps the classic surface.
+  // The DevTools panel has no editor sections, so every method no-ops there.
   const present = !!(listEl && listedEl);
-  let editorTabId = null;   // the editor tab this panel stands on (null = page mode)
+  let editorTabId = null;   // null = page mode
 
   const editorList = createEditorList({ listEl, searchEl, regexEl, ask, menu, setStatus,
     dismiss, run, preview, getEditorTabId: () => editorTabId });
@@ -48,13 +41,10 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
   const importHere = createImportHere({ ask, setStatus, imageDataUrl, dismiss,
     getEditorTabId: () => (present ? editorTabId : null), refreshEditors: editorList.refresh });
 
-  // ── Live source-page list ───────────────────────────────────────────────────
-  // The choices follow the browser: opening, closing, or navigating a tab
-  // refreshes the list (debounced — a burst of tab events is one refresh). A
-  // TICKED tab that went away also drops its images from the merged list.
+  // A ticked tab that went away also drops its images from the merged list.
   let tabsRefreshTimer = null;
   const refreshChoicesLive = () => {
-    if (editorTabId == null) return;   // the section only exists in editor mode
+    if (editorTabId == null) return;
     if (tabsRefreshTimer) clearTimeout(tabsRefreshTimer);
     tabsRefreshTimer = setTimeout(() => {
       tabsRefreshTimer = null;
@@ -67,13 +57,10 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
     }, TABS_REFRESH_DEBOUNCE_MS);
   };
 
-  // ── Poll-while-open (previews) ─────────────────────────────────────────────
-  // Rides the panel's shared clock (lib/pollClock.js) — the same tick the shared pins use,
-  // an MV3 panel being too short-lived for a background channel.
+  // Rides the panel's shared clock: an MV3 panel is too short-lived for a background channel.
   const poll = () => {
     editorList.refresh();
-    // The DevTools panel has no chrome.tabs events — its page list rides the
-    // same poll instead (popup/side panel refresh on the events below).
+    // The DevTools panel has no chrome.tabs events, so its page list rides the poll.
     if (!chrome.tabs?.onCreated) refreshChoicesLive();
   };
   const startPolling = () => pollClock.add(poll);
@@ -81,14 +68,10 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
 
   if (present) {
     window.addEventListener('pagehide', stopPolling);
-    // Keep the source-page list in step with the browser's tabs. chrome.tabs
-    // events exist in the popup and side panel; the DevTools panel lacks the
-    // API entirely (optional chaining) and refreshes via the poll instead.
     chrome.tabs?.onCreated?.addListener(refreshChoicesLive);
     chrome.tabs?.onRemoved?.addListener(refreshChoicesLive);
     chrome.tabs?.onUpdated?.addListener((tabId, info) => {
-      // Only changes the list can SHOW: a navigation, a retitle, or a load
-      // settling — not every favicon/audible/status flicker.
+      // Only changes the list can show, not every favicon/audible flicker.
       if (info.url || info.title || info.status === 'complete') refreshChoicesLive();
     });
     searchEl.addEventListener('input', editorList.render);
@@ -96,11 +79,11 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
     refreshBtn.addEventListener('click', () => run(editorList.refresh));
     rescanBtn.addEventListener('click', () => run(async () => {
       await sources.refresh();
-      onSourceTab(sources.picked());   // re-scan whatever is still ticked (nothing = clear the list)
+      onSourceTab(sources.picked());
     }));
     srcFilterEl?.addEventListener('input', sources.render);
     srcRegexEl?.addEventListener('change', sources.render);
-    // Select all applies to what the FILTER shows, so "regex + select all" is one gesture.
+    // Select all applies to what the FILTER shows.
     allBtn?.addEventListener('click', () => {
       sources.selectAll();
       onSourceTab(sources.picked());
@@ -112,20 +95,16 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
   }
 
   return {
-    // False on a surface without the editor-mode markup (the DevTools panel), so popup.js
-    // never flips into a mode this document can't render.
     available: present,
 
-    // Is this tab REALLY a Stencil editor — does its bridge answer? Origin matching alone
-    // also matches ordinary pages served beside the editor (popup.js resolveScanTab).
+    // Does the tab's bridge answer? Origin matching alone also matches pages served beside the editor.
     async isLiveEditor(tabId) {
       if (!present || tabId == null) return false;
       const res = await ask({ type: MSG.EDITOR_STATE, tabId, thumbnail: false });
       return !!(res && res.ok);
     },
 
-    // Enter (or leave) editor mode. Called from every scan, so it stays synchronous:
-    // the refreshes it starts are deliberately not awaited.
+    // Called from every scan, so it stays synchronous: the refreshes are not awaited.
     setEditorTab(tabId) {
       if (!present) return;
       editorTabId = tabId == null ? null : tabId;
@@ -139,15 +118,12 @@ export const createEditorMode = ({ setStatus, run, dismiss, menu, onSourceTab, i
       startPolling();
     },
 
-    // The pages whose images the ordinary list shows — [] while none is ticked. popup.js
-    // scans each and merges the results, tagging every row with the tab it came from.
     sourceTabs() {
       return sources.picked();
     },
 
     importHere,
 
-    // Re-pull both lists (the source page went away mid-scan, or a manual refresh).
     refresh() {
       if (!present || editorTabId == null) return;
       run(sources.refresh);

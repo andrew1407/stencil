@@ -1,14 +1,6 @@
-// ── Embedded AI assistant section (llm-contract.md §8) ─────────────────
-// The collapsed-by-default "Assistant" section of the popup / side panel / DevTools
-// panel (all driven by popup.js), chatting about the surface's LIVE scan items.
-// Boots lazily; conversation state lives with this document only — never persisted.
-// src/llm/chatController owns history/listing/plan execution; ./assistant/ wires the
-// chrome capabilities (focus highlight, `#stencil=` hand-off, authed fetch + downscale).
-// LLM output is DATA: everything the model produces renders via textContent, never innerHTML.
-//
-// This file composes the collaborators and owns nothing else: `state` is the handful of
-// values they share (busy, the controller, the working scan), and each factory takes the
-// ones it needs. The order below is a dependency order, not a preference.
+// The panel's "Assistant" section (llm-contract.md §8): composes ./assistant/* around
+// src/llm/chatController. Conversation state lives with this document only, never
+// persisted. LLM output is DATA: it renders via textContent, never innerHTML.
 import { getSettings } from '../lib/stencil.js';
 import { bindShrinkWrapResize } from '../lib/chatUi.js';
 import { observeReveal } from '../lib/motion.js';
@@ -20,7 +12,7 @@ import { createResults } from './assistant/results.js';
 import { createTurnRunner } from './assistant/turnRunner.js';
 import { createBoot } from './assistant/boot.js';
 
-// Options needs no reload. A hidden section is not a collapsed one (drag spring skips it).
+// A hidden section is not a collapsed one (the drag spring skips it).
 export const applyAssistantVisibility = (enabled, { section, button } = {}) => {
   const on = !!enabled;
   if (section) section.hidden = !on;
@@ -28,13 +20,7 @@ export const applyAssistantVisibility = (enabled, { section, button } = {}) => {
   return on;
 };
 
-// Build the assistant for this surface. The injected accessors are live, per call:
-// getItems/getTabId/getPageUrl expose popup.js's current scan (the §8 listing source);
-// openHere imports into the editor tab the panel stands on (false = classic new-tab
-// hand-off stays in charge); pinImage/unpinImage/rescan/setTheme/setFilters/setAccent
-// wire §8 ops to the host's own controls (absent = "not supported here").
-// Returns { handleToggle(collapsed), reveal() } — boot the chat UI on first expansion,
-// and the ✦ header button's expand + scroll + focus.
+// The injected accessors are live, per call; an absent §8 op means "not supported here".
 export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () => false,
                                  pinImage: pinEntry, unpinImage: unpinEntry,
                                  rescan: rescanPage, setTheme, setFilters, setAccent }) => {
@@ -44,23 +30,17 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
   const sendBtn = document.getElementById('chat-send');
   const trayEl = document.getElementById('chat-tray');
   const clearBtn = document.getElementById('chat-clear');
-  // A bubble rendered while the (collapsed-by-default) section was closed measures
-  // zero rects and skips its shrink-wrap pin — catch it (and any later resize) the
-  // moment the transcript itself gains a real size.
+  // A bubble rendered while the section was collapsed measures zero and skips its
+  // shrink-wrap pin; re-pin once the transcript has a real size.
   bindShrinkWrapResize(transcriptEl);
 
-  // Transcript entries fade + lift in as they arrive and dissolve at the top edge
-  // as the conversation scrolls past them (browser parity, css/animations/reveal.css). The
-  // dust layers are excluded: they are position:fixed clouds owning their own alpha,
-  // not rows, and the scroll curve masking them sanded the particles away (the browser
-  // twin selects '[data-row]', which never matched them either).
+  // The dust layers are position:fixed clouds owning their own alpha, not rows: the
+  // scroll-edge mask would sand their particles away.
   observeReveal(transcriptEl, ':scope > *:not(.disintegrate-host)');
 
-  // Jump pills over the transcript's bottom edge — ./assistant/jumpPills.js.
   const { resync: resyncJumps } = createJumpPills(transcriptEl);
 
-  // The handful of values the collaborators share. `send` and `controller` are late-bound
-  // (the ask card starts the next turn; the controller is built from the capabilities).
+  // `send` and `controller` are late-bound.
   const state = {
     booted: false,
     busy: false,
@@ -75,8 +55,6 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
     addMsgMenuBtn: () => {},   // wired at boot, once the message menu exists
   };
 
-  // General (non-LLM) extension settings, read repeatedly by focus/open — cached
-  // and invalidated when they change (they live in chrome.storage.sync).
   const cachedSettings = () => (state.settingsPromise ||= getSettings());
 
   const ops = createCapabilities({ getItems, getTabId, getPageUrl, openHere, pinEntry,
@@ -93,13 +71,10 @@ export const createAssistant = ({ getItems, getTabId, getPageUrl, openHere = () 
                             view, tray, send, state });
 
   return {
-    // Wired into popup.js's generic section toggler for #sec-assistant. A collapsed
-    // section is display:none, so the transcript measures zero — re-sync the pills
-    // once expanding gives it a real height.
+    // A collapsed section is display:none, so the pills re-sync once it has a height.
     handleToggle(collapsed) { if (!collapsed) { boot(); resyncJumps(); } },
 
-    // The ✦ header button: expand (through the section head, so aria-expanded and
-    // the toggle hook stay in sync), scroll into view, focus the input.
+    // Expands through the section head so aria-expanded and the toggle hook stay in sync.
     reveal() {
       if (sectionEl.classList.contains('collapsed')) sectionEl.querySelector('.section-head').click();
       sectionEl.scrollIntoView({ block: 'end' });

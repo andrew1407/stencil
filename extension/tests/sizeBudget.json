@@ -19,9 +19,9 @@
     "extension/src/llm/chatController.js": 230,
     "extension/src/llm/opPlan.js": 156,
     "extension/src/options/options.js": 32,
-    "extension/src/popup/assistant.js": 109,
-    "extension/src/popup/editorMode.js": 157,
-    "extension/src/popup/popup.js": 173,
+    "extension/src/popup/assistant.js": 84,
+    "extension/src/popup/editorMode.js": 133,
+    "extension/src/popup/popup.js": 143,
     "extension/tests/accent.test.js": 642,
     "extension/tests/actionMenu.test.js": 195,
     "extension/tests/assistantHostMarkup.test.js": 230,
@@ -53,7 +53,7 @@
     "extension/src/lib/motion": 27,
     "extension/src/llm": 21,
     "extension/src/options": 17,
-    "extension/src/popup": 22,
+    "extension/src/popup": 8,
     "extension/src/popup/assistant": 20,
     "extension/tests": 10,
     "extension/tests/helpers": 23
@@ -69,9 +69,7 @@
     "extension/src/llm/llmClient.js": "byte-pinned port of browser/js/llm/llmClient.js (portParity.test.js) — split it there first",
     "extension/src/llm/opSchema.js": "byte-pinned port of browser/js/llm/opSchema.js (portParity.test.js) — split it there first"
   },
-  "commentPctNotes": {
-    "extension/src/popup": "Raised 18 → 22 as a CORRECTION, not a concession: the measure() scanner read the backtick inside results.js's /^\\s*[{`]/ regex as a template-literal opening, so the last 550 lines of the old 991-line assistant.js were never counted. With the regex-aware scanner this directory measured 22% BEFORE this refactor too (795/3597). No prose was added."
-  },
+  "commentPctNotes": {},
   "filesNotes": {
     "extension/src/content/pageApiMain.js": "MAIN-world classic content script: no import, and a module graph would need web_accessible_resources widened (Phase 1 narrowed it to one file) or a shared global on the PAGE's window. Not splittable without giving up one of the two.",
     "extension/src/content/editorApiMain.js": "Same MAIN-world constraint as pageApiMain.js.",

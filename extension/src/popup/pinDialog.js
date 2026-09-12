@@ -8,7 +8,6 @@ import { applyFilters } from './filters.js';
 import { loadShared } from './sharedPins.js';
 import { setPinnedState } from './pinActions.js';
 
-// Store an already-pinned image on a server as a shared project.
 const storeOnServer = async (image, serverUrl) => {
   const conn = serverUrl ? connectionByUrl(state.connections, serverUrl) : null;
   if (!conn) return;
@@ -23,19 +22,13 @@ const storeOnServer = async (image, serverUrl) => {
   }
 };
 
-// Pin an image, asking WHERE via the target-selector dialog (Cancel aborts entirely).
-// `anchor` is the control that asked — the row's pin button or the ⋯ menu's button —
-// so the dialog opens next to it rather than covering the panel.
 export const pinWithPrompt = async (image, anchor) => {
   const target = await promptPinTarget(anchor);   // undefined = cancel, '' = local, url = server
-  if (target === undefined) return;            // cancelled — don't pin
+  if (target === undefined) return;
   if (!image.pinned) await setPinnedState(image, true);
   if (target) await storeOnServer(image, target);
 };
 
-// In-popup dialog asking WHERE to pin (Pin locally / Store on each connected server).
-// Resolves the chosen server URL, '' for local, or undefined when cancelled. With an
-// `anchor` it opens as a popover next to that control instead of the centred dialog.
 const promptPinTarget = (anchor) => openPanelDialog({
   anchor,
   build: (finish) => {
@@ -47,8 +40,7 @@ const promptPinTarget = (anchor) => openPanelDialog({
     sel.className = 'dialog-select';
     sel.innerHTML = '<option value="">Pin locally only</option>'
       + state.connections.map((c) => `<option value="${c.url}">Pin & store on ${hostLabel(c.url)}</option>`).join('');
-    // Built after the page's own pass, so it asks for its custom list itself — otherwise
-    // this one dialog would still open the OS's centred grey popup over the panel.
+    // Built after the page's own enhanceSelect pass, so it asks for its custom list itself.
     queueMicrotask(() => enhanceSelect(sel));
 
     const row = document.createElement('div');
