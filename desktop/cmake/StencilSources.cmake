@@ -277,6 +277,8 @@ set(STENCIL_GUI_SOURCES
   src/llm/opRegistry.cpp
   src/llm/opSchema.cpp
   src/llm/llmClient.cpp
+  src/llm/llmClientProbe.cpp
+  src/llm/llmClientChat.cpp
   src/llm/planExecutor.cpp
   src/llm/qtLlmTransport.cpp
   src/support/tipContent.cpp

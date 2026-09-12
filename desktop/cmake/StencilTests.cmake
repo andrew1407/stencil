@@ -419,9 +419,11 @@ stencil_headless_test(stencil_opplanfixtures_headless
 
 # Provider-wire + sanitizer corpus walker: the shared §6 wire vectors and the
 # sanitizer vectors through the real LlmClient (mock transport, no network).
-# llmClient.cpp is #included by the test TU for sanitizer access, not compiled here.
+# llmClient.cpp is #included by the test TU for sanitizer access, not compiled here; its
+# sibling TUs (the probes and the per-provider chat calls) still are.
 stencil_headless_test(stencil_llmwirefixtures_headless
-  SOURCES tests/llmWireFixtures.headless.cpp src/llm/opPlan.cpp src/llm/opRegistry.cpp
+  SOURCES tests/llmWireFixtures.headless.cpp src/llm/llmClientProbe.cpp
+    src/llm/llmClientChat.cpp src/llm/opPlan.cpp src/llm/opRegistry.cpp
     src/llm/opSchema.cpp ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp resources/app.qrc
@@ -431,7 +433,8 @@ stencil_headless_test(stencil_llmwirefixtures_headless
 # LLM client check (src/llm/llmClient) — the contract §6 wire mappings driven
 # through a mock transport (canned responses; no network).
 stencil_headless_test(stencil_llmclient_headless
-  SOURCES tests/llmClient.headless.cpp src/llm/llmClient.cpp src/llm/opPlan.cpp
+  SOURCES tests/llmClient.headless.cpp src/llm/llmClient.cpp src/llm/llmClientProbe.cpp
+    src/llm/llmClientChat.cpp src/llm/opPlan.cpp
     src/llm/opRegistry.cpp src/llm/opSchema.cpp ${STENCIL_SERVERCLIENT_SOURCES}
     src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
