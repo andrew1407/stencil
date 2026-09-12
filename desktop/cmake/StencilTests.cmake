@@ -120,7 +120,8 @@ stencil_headless_test(stencil_displayname_headless
 # Start/Stop and Line/Rect: the curve, plus the driver on a live QToolButton (converges,
 # flips the caller's state once, survives rapid supersession, obeys reduced motion).
 stencil_headless_test(stencil_faceswap_headless
-  SOURCES tests/faceSwap.headless.cpp src/support/iconSet.cpp       # the glyphs it turns
+  SOURCES tests/faceSwap.headless.cpp ${STENCIL_FACESWAP_SOURCES}
+    src/support/iconSet.cpp       # the glyphs it turns
     src/support/modalReveal.cpp   # motionReduced()
     resources/app.qrc
   LIBS Qt6::Widgets Qt6::Svg)
@@ -133,7 +134,8 @@ stencil_headless_test(stencil_faceswap_headless
 # for motionReduced().
 stencil_headless_test(stencil_controlswap_headless
   SOURCES tests/controlSwap.headless.cpp src/support/theme.cpp src/support/iconSet.cpp
-    src/support/menuReveal.cpp src/support/modalReveal.cpp resources/app.qrc
+    ${STENCIL_FACESWAP_SOURCES} src/support/menuReveal.cpp src/support/modalReveal.cpp
+    resources/app.qrc
   LIBS Qt6::Widgets Qt6::Svg
   INCLUDE_TESTS)
 
@@ -143,7 +145,7 @@ stencil_headless_test(stencil_controlswap_headless
 # glyphs it poses and modalReveal for motionReduced().
 stencil_headless_test(stencil_iconmotion_headless
   SOURCES tests/iconMotion.headless.cpp src/support/iconSet.cpp src/support/modalReveal.cpp
-    resources/app.qrc
+    ${STENCIL_FACESWAP_SOURCES} resources/app.qrc
   LIBS Qt6::Widgets Qt6::Svg
   INCLUDE_TESTS)
 

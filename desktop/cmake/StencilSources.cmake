@@ -59,6 +59,13 @@ set(STENCIL_PROJECTS_DIALOG_SOURCES
   src/dialogs/projectsThumbs.cpp
   src/dialogs/projectsTransfer.cpp)
 
+# The toggle face swap is split across two TUs defining one header's functions (the
+# frame maths and painting, then the live driver); every target that swaps a face needs
+# both, so they travel under one name.
+set(STENCIL_FACESWAP_SOURCES
+  src/support/faceSwap.cpp
+  src/support/faceSwapDriver.cpp)
+
 set(STENCIL_GUI_SOURCES
   src/app/mainWindow.cpp
   src/app/mainWindowActions.cpp
@@ -186,6 +193,7 @@ set(STENCIL_GUI_SOURCES
   src/support/modalReveal.cpp
   src/support/modalChrome.cpp
   src/support/searchCombo.cpp
+  ${STENCIL_FACESWAP_SOURCES}
   src/support/iconSet.cpp
   src/support/numericInput.cpp
   src/support/exportPreview.cpp

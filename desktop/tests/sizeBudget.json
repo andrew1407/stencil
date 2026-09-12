@@ -51,7 +51,7 @@
     "desktop/src/support/controlSwap.hpp": 621,
     "desktop/src/support/disintegrateOverlay.hpp": 1011,
     "desktop/src/support/dustKit.hpp": 322,
-    "desktop/src/support/faceSwap.hpp": 325,
+    "desktop/src/support/faceSwap.hpp": 121,
     "desktop/src/support/filterFade.hpp": 362,
     "desktop/src/support/guiHelpers.cpp": 257,
     "desktop/src/support/iconMotion.hpp": 797,
