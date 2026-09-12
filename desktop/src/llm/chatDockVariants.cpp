@@ -1,5 +1,4 @@
 // Variant thumbnails and clearing the conversation.
-// Split out of chatDock.cpp; see chatDockShared.hpp for the shared constants.
 #include "chatDock.hpp"
 #include "chatDockShared.hpp"
 #include "../support/disintegrateOverlay.hpp"
@@ -32,7 +31,7 @@ namespace stencil::gui {
       row->addWidget(thumb);
       auto* meta = new QVBoxLayout;
       meta->setSpacing(2);
-      auto* name = makePlainLabel(v.label, card);   // model-written variant label
+      auto* name = makePlainLabel(v.label, card);
       name->setWordWrap(true);
       meta->addWidget(name);
       auto* btns = new QHBoxLayout;
@@ -66,51 +65,33 @@ namespace stencil::gui {
     }
   }
 
-  // Wipe the conversation surface: every transcript card (a pending "…"
-  // included) plus the attachment state, then the empty state returns. The
-  // provider settings and the working image are deliberately NOT touched; the
-  // model-side history is the owner's to clear (clearRequested).
+  // Provider settings and the working image are NOT touched; the owner clears the model history.
   void ChatDock::clearConversation() {
-    clearPending();  // the in-flight card is a transcript card too
-    // Walk backwards so the indices stay valid; suggest_ and the bottom stretch
-    // ARE the empty state, so they survive.
+    clearPending();
+    // Backwards so the indices stay valid; suggest_ and the bottom stretch ARE the empty state.
     bool wiped = false;
     for (int i = transcriptLayout_->count() - 1; i >= 0; --i) {
       QLayoutItem* item = transcriptLayout_->itemAt(i);
       QWidget* w = item ? item->widget() : nullptr;
       if (!w || w == suggest_) continue;
-      // Scatter a snapshot of the card over the dock BEFORE it leaves the layout —
-      // the particles can't live inside a widget that is about to be destroyed.
-      // Hosted on the WINDOW, not the dock: the dock's own content widget paints
-      // over its children, so particles parented to the dock never show.
-      // Fall, not Rows: a cleared message comes apart from its top edge and drops, the
-      // way the cleared IMAGE does — the two removals now read as the same gesture.
+      // Snapshot BEFORE the card leaves the layout, hosted on the WINDOW (the dock's content widget
+      // paints over its children). Fall, not Rows: the same gesture as the cleared IMAGE.
       DisintegrateOverlay::over(w, window(), DisintegrateOverlay::Sweep::Fall,
                                 kChatScatterCols, kChatScatterRows,
-                                DisintegrateOverlay::kItemMs,   // a message is read, not glanced at
+                                DisintegrateOverlay::kItemMs,
                                 w->palette().color(QPalette::WindowText));
-      // Anything REMOVED means the empty state waits, whether or not the scatter
-      // could play (over() declines what it cannot grab — an off-screen dock, a
-      // zero-sized card). Keying the wait off the animation instead made the wait
-      // silently vanish in exactly the cases hardest to reason about, and the chips
-      // came back over a transcript that was still emptying.
+      // Anything REMOVED means the empty state waits, even when over() declined the grab.
       wiped = true;
       delete transcriptLayout_->takeAt(i);
-      // Out of the layout (so the transcript closes up) but still painted while it
-      // fades under its own dust; the fade owns the delete.
+      // Out of the layout but still painted while it fades; the fade owns the delete.
       fadeOutAndDelete(w);
     }
     clearAttachments();
-    // The empty state comes back only once the particles have landed. Showing it in
-    // the same tick put the hint + chips on screen underneath a scatter that was
-    // still playing, so the clear read as happening twice and the panel flickered.
-    // Rows out first, THEN the placeholder — the browser (chatView.js
-    // restoreEmptyState) and the cleared canvas sequence it exactly this way.
+    // Rows out first, THEN the placeholder (browser chatView.js restoreEmptyState).
     if (wiped) {
-      // A hair past the scatter's own duration, so the last particle is gone before
-      // the empty state lands (the overlay deletes itself on its animation's finish).
+      // A hair past the scatter's duration; the overlay deletes itself on finish.
       QTimer::singleShot(DisintegrateOverlay::kItemMs + 60, this, [this] {
-        // A turn may have started while the wipe played — then the chips are wrong.
+        // A turn may have started while the wipe played.
         if (transcriptHasCards()) return;
         suggest_->show();
         scrollToBottom();
@@ -121,8 +102,7 @@ namespace stencil::gui {
     scrollToBottom();
   }
 
-  // Any real transcript card present (the empty state and the bottom stretch don't
-  // count) — what tells a deferred empty state whether it is still wanted.
+  // The empty state and the bottom stretch don't count.
   bool ChatDock::transcriptHasCards() const {
     for (int i = 0; i < transcriptLayout_->count(); ++i) {
       QLayoutItem* item = transcriptLayout_->itemAt(i);
