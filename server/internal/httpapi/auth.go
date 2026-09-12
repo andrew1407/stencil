@@ -34,7 +34,7 @@ func (a *API) handleIssueToken(rw http.ResponseWriter, req *http.Request) {
 
 	token, hash, err := auth.GenerateToken()
 	if err != nil {
-		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgTokenGenFailed)
+		writeInternalError(rw, msgTokenGenFailed)
 		return
 	}
 	now := clock.NowMs()
@@ -42,7 +42,7 @@ func (a *API) handleIssueToken(rw http.ResponseWriter, req *http.Request) {
 	ctx, cancel := a.opCtx(req)
 	defer cancel()
 	if _, err := a.deps.Sessions.CreateSession(ctx, hash, body.Label, now, expires); err != nil {
-		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgPersistSession)
+		writeInternalError(rw, msgPersistSession)
 		return
 	}
 	writeJSON(rw, http.StatusOK, protocol.TokenResponse{Token: token, ExpiresAt: expires})

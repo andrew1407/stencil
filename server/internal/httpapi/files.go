@@ -27,18 +27,18 @@ func (a *API) handleGetFile(rw http.ResponseWriter, req *http.Request) {
 	id := req.PathValue("id")
 	kind := req.PathValue("kind")
 	if !protocol.IsFileKind(kind) {
-		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgUnknownFileKind)
+		writeBadRequest(rw, msgUnknownFileKind)
 		return
 	}
 	ctx, cancel := a.opCtx(req)
 	defer cancel()
 	got := a.lookupFile(ctx, id, kind)
 	if errors.Is(got.recErr, store.ErrNotFound) {
-		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
+		writeNotFound(rw, msgProjectNotFound)
 		return
 	}
 	if got.recErr != nil {
-		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgLoadProject)
+		writeInternalError(rw, msgLoadProject)
 		return
 	}
 	rel := got.rel
@@ -49,21 +49,21 @@ func (a *API) handleGetFile(rw http.ResponseWriter, req *http.Request) {
 		rel = got.rec.ResultPath
 	default:
 		if got.relErr != nil && !errors.Is(got.relErr, filestore.ErrNotFound) {
-			writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgListFiles)
+			writeInternalError(rw, msgListFiles)
 			return
 		}
 	}
 	if rel == "" {
-		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgNoFileOfKind(kind))
+		writeNotFound(rw, msgNoFileOfKind(kind))
 		return
 	}
 	f, err := a.deps.Files.OpenByRelPath(rel)
 	if errors.Is(err, filestore.ErrNotFound) {
-		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgFileMissing)
+		writeNotFound(rw, msgFileMissing)
 		return
 	}
 	if err != nil {
-		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgReadFile)
+		writeInternalError(rw, msgReadFile)
 		return
 	}
 	defer f.Close()
@@ -119,7 +119,7 @@ func (a *API) handlePutFile(rw http.ResponseWriter, req *http.Request) {
 	id := req.PathValue("id")
 	kind := req.PathValue("kind")
 	if !protocol.IsFileKind(kind) {
-		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgUnknownFileKind)
+		writeBadRequest(rw, msgUnknownFileKind)
 		return
 	}
 	ctx, cancel := a.opCtx(req)
@@ -132,10 +132,10 @@ func (a *API) handlePutFile(rw http.ResponseWriter, req *http.Request) {
 	resp, err := a.files.Store(ctx, put, http.MaxBytesReader(rw, req.Body, a.deps.MaxBodyBytes))
 	switch {
 	case errors.Is(err, store.ErrNotFound):
-		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
+		writeNotFound(rw, msgProjectNotFound)
 		return
 	case errors.Is(err, service.ErrRecordFile):
-		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgRecordFile)
+		writeInternalError(rw, msgRecordFile)
 		return
 	case err != nil:
 		writeStoreFileErr(rw, err)
@@ -153,24 +153,24 @@ func (a *API) handleDeleteFile(rw http.ResponseWriter, req *http.Request) {
 	id := req.PathValue("id")
 	kind := req.PathValue("kind")
 	if !protocol.IsFileKind(kind) {
-		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgUnknownFileKind)
+		writeBadRequest(rw, msgUnknownFileKind)
 		return
 	}
 	if !protocol.IsFilestoreOnlyKind(kind) {
-		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgKindGoesWithProject(kind))
+		writeBadRequest(rw, msgKindGoesWithProject(kind))
 		return
 	}
 	ctx, cancel := a.opCtx(req)
 	defer cancel()
 	if _, err := a.deps.Projects.GetProject(ctx, id); errors.Is(err, store.ErrNotFound) {
-		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
+		writeNotFound(rw, msgProjectNotFound)
 		return
 	} else if err != nil {
-		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgLoadProject)
+		writeInternalError(rw, msgLoadProject)
 		return
 	}
 	if err := a.deps.Files.RemoveKind(id, kind); err != nil {
-		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgDeleteFile)
+		writeInternalError(rw, msgDeleteFile)
 		return
 	}
 	rw.WriteHeader(http.StatusNoContent)
@@ -184,14 +184,14 @@ func writeStoreFileErr(rw http.ResponseWriter, err error) {
 	case errors.As(err, &tooBig):
 		writeErr(rw, http.StatusRequestEntityTooLarge, protocol.CodeBadRequest, msgBodyTooLarge)
 	case errors.Is(err, filestore.ErrEmpty):
-		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgEmptyBody)
+		writeBadRequest(rw, msgEmptyBody)
 	case errors.As(err, &unsafe):
-		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgRejectedPath)
+		writeBadRequest(rw, msgRejectedPath)
 	case errors.Is(err, filestore.ErrQuotaExceeded):
 		// STORAGE_QUOTA_BYTES: the server is full, not the request malformed.
 		writeErr(rw, http.StatusInsufficientStorage, protocol.CodeInternal, msgQuotaExceeded)
 	default:
-		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgStoreFile)
+		writeInternalError(rw, msgStoreFile)
 	}
 }
 

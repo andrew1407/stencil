@@ -32,14 +32,14 @@ func listPage(req *http.Request) (store.ProjectPage, error) {
 func (a *API) handleListProjects(rw http.ResponseWriter, req *http.Request) {
 	page, err := listPage(req)
 	if err != nil {
-		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, err.Error())
+		writeBadRequest(rw, err.Error())
 		return
 	}
 	ctx, cancel := a.opCtx(req)
 	defer cancel()
 	projects, err := a.deps.Projects.ListProjects(ctx, page)
 	if err != nil {
-		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgListProjects)
+		writeInternalError(rw, msgListProjects)
 		return
 	}
 	resp := protocol.ProjectListResponse{Projects: projects}
@@ -56,11 +56,11 @@ func (a *API) handleGetProject(rw http.ResponseWriter, req *http.Request) {
 	defer cancel()
 	rec, err := a.deps.Projects.GetProject(ctx, req.PathValue("id"))
 	if errors.Is(err, store.ErrNotFound) {
-		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
+		writeNotFound(rw, msgProjectNotFound)
 		return
 	}
 	if err != nil {
-		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgLoadProject)
+		writeInternalError(rw, msgLoadProject)
 		return
 	}
 	resp := protocol.ProjectResponse{
@@ -90,10 +90,10 @@ func (a *API) handleCreateProject(rw http.ResponseWriter, req *http.Request) {
 	rec, err := a.projects.Create(ctx, owner, body)
 	switch {
 	case errors.Is(err, service.ErrImageRequired):
-		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgImageRequired)
+		writeBadRequest(rw, msgImageRequired)
 		return
 	case err != nil:
-		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgCreateProject)
+		writeInternalError(rw, msgCreateProject)
 		return
 	}
 	writeJSON(rw, http.StatusCreated, rec)
@@ -117,13 +117,13 @@ func (a *API) handleUpdateProject(rw http.ResponseWriter, req *http.Request) {
 	}, body.Version)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
-		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
+		writeNotFound(rw, msgProjectNotFound)
 		return
 	case errors.Is(err, store.ErrConflict):
 		writeErr(rw, http.StatusConflict, protocol.CodeConflict, msgStaleVersion)
 		return
 	case err != nil:
-		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgUpdateProject)
+		writeInternalError(rw, msgUpdateProject)
 		return
 	}
 	bus.PublishProjectEvent(ctx, a.deps.Bus, protocol.EventUpdated, rec)
@@ -141,7 +141,7 @@ func (a *API) handleDeleteProject(rw http.ResponseWriter, req *http.Request) {
 		writeErr(rw, http.StatusConflict, protocol.CodeConflict, msgProjectInUse)
 		return
 	case err != nil:
-		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgDeleteProject)
+		writeInternalError(rw, msgDeleteProject)
 		return
 	}
 	rw.WriteHeader(http.StatusNoContent)

@@ -139,6 +139,18 @@ func writeErr(rw http.ResponseWriter, status int, code, msg string) {
 	writeJSON(rw, status, protocol.ErrorResponse{Code: code, Message: msg})
 }
 
+func writeBadRequest(rw http.ResponseWriter, msg string) {
+	writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msg)
+}
+
+func writeNotFound(rw http.ResponseWriter, msg string) {
+	writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msg)
+}
+
+func writeInternalError(rw http.ResponseWriter, msg string) {
+	writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msg)
+}
+
 // decodeJSON reads a JSON body with a size cap and strict unknown-field
 // rejection.
 func (a *API) decodeJSON(rw http.ResponseWriter, req *http.Request, dst any) bool {
@@ -146,7 +158,7 @@ func (a *API) decodeJSON(rw http.ResponseWriter, req *http.Request, dst any) boo
 	dec := json.NewDecoder(req.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
-		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgInvalidJSONPre+err.Error())
+		writeBadRequest(rw, msgInvalidJSONPre+err.Error())
 		return false
 	}
 	return true

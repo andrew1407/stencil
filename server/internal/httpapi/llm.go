@@ -39,7 +39,7 @@ func (a *API) handleLLMChat(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if msg := validate.LLMChat(body, hasStencilPromptHead); msg != "" {
-		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msg)
+		writeBadRequest(rw, msg)
 		return
 	}
 	release, ok := a.llmGate.enter()
