@@ -2,39 +2,31 @@
 #include <cstddef>
 #include <cstdint>
 
-// Whole-image RGBA8 buffer transforms for the headless pipeline: crop, quarter-turn
-// rotation, and solid fill. GUI-free and codec-free — buffers are caller-owned
-// (the Zig CLI allocates them via zigimg); core only moves bytes. Byte order is
-// R,G,B,A interleaved, matching imageFilter.hpp and a browser ImageData.
+// Whole-image RGBA8 transforms for the headless pipeline over caller-owned buffers
+// (the Zig CLI allocates them); byte order R,G,B,A like imageFilter.hpp.
 namespace stencil::core {
 
-  // Normalize a signed quarter-turn count to 0..3 (clockwise). e.g. -1 -> 3, 5 -> 1.
+  // Signed quarter-turn count -> 0..3 clockwise (-1 -> 3, 5 -> 1).
   int normalizeQuarters(int quarters);
 
-  // Output dimensions after rotating a w x h image by `quarters` quarter-turns
-  // (odd turns swap width/height).
   void rotatedDims(int w, int h, int quarters, int& outW, int& outH);
 
-  // Copy an axis-aligned sub-rectangle (rx,ry,rw,rh) of an RGBA8 source into dst,
-  // which must hold rw*rh*4 bytes. Pixels of the rect that fall outside the source
-  // are written transparent (0,0,0,0), so the rect may exceed the image bounds.
+  // dst holds rw*rh*4 bytes; rect pixels outside the source are written transparent,
+  // so the rect may exceed the image bounds.
   void cropImageRGBA(const std::uint8_t* src, int srcW, int srcH,
                      int rx, int ry, int rw, int rh, std::uint8_t* dst);
 
-  // Rotate an RGBA8 image by `quarters` quarter-turns clockwise into dst, which must
-  // hold rotatedDims(w,h,quarters)*4 bytes.
+  // Clockwise; dst holds rotatedDims(w,h,quarters)*4 bytes.
   void rotateImageRGBA(const std::uint8_t* src, int w, int h, int quarters,
                        std::uint8_t* dst);
 
-  // Half-open [dy0, dy1) DESTINATION-row slices of the two ops above, for an adapter's
-  // pool (core owns no threading). Disjoint rows, so ranges may run concurrently; the
-  // whole-image ops are these over every destination row.
+  // Half-open [dy0, dy1) DESTINATION-row slices for an adapter's pool (core owns no
+  // threading); disjoint rows, so ranges may run concurrently.
   void cropImageRows(const std::uint8_t* src, int srcW, int srcH, int rx, int ry,
                      int rw, int rh, std::uint8_t* dst, int dy0, int dy1);
   void rotateImageRows(const std::uint8_t* src, int w, int h, int quarters,
                        std::uint8_t* dst, int oy0, int oy1);
 
-  // Fill an RGBA8 buffer of `pixelCount` pixels with one colour.
   void fillRGBA(std::uint8_t* dst, std::size_t pixelCount, int r, int g, int b, int a);
 
 }

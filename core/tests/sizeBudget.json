@@ -2,7 +2,7 @@
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
   "files": {
-    "core/raster/rasterize.cpp": 247
+    "core/raster/rasterize.cpp": 223
   },
   "commentPct": {
     "core": 11,
@@ -12,7 +12,7 @@
     "core/geometry": 21,
     "core/page": 18,
     "core/parse": 17,
-    "core/raster": 21,
+    "core/raster": 10,
     "core/state": 18,
     "core/tests": 7
   },
@@ -20,6 +20,6 @@
     "core": "the ABI contract prose at the top of cliApi.h is pinned by core/tests/cliApi.test.cpp and stays",
     "core/format": "regroup artifact: the comment-dense tooltipRows/hotkeyFormat left core/page (20 -> 18) for their own dir",
     "core/geometry": "regroup artifact: the comment-light imageOps/rasterize left for core/raster; no comment was added",
-    "core/raster": "regroup artifact: imageFilter arrived from core/color (19 -> 11); no comment was added"
+    "core/raster": "the kMaxCoord/clamp hardening and the pinned-Sobel and two-phase notes stay"
   }
 }

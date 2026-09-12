@@ -11,24 +11,19 @@ namespace stencil::core {
 
   namespace {
 
-    // Largest coordinate / size magnitude a layout line may carry. Real image
-    // coordinates are a few thousand pixels; anything past this is non-physical
-    // (and, unbounded, would overflow int casts and spin near-infinite scan/step
-    // loops on untrusted layout input). Lines beyond it are skipped as inert.
+    // Largest coordinate / size a layout line may carry: real images are a few thousand
+    // px, and unbounded untrusted input would overflow the int casts and spin the
+    // scan/step loops. Lines beyond it are skipped as inert.
     constexpr double kMaxCoord = 1e6;
 
-    // Clamp a coordinate double to the inclusive pixel range [lo, hi] and cast to
-    // int without UB. `!(v >= lo)` also catches NaN. Clamping scan bounds is output-
-    // preserving (blendPixel already skips out-of-bounds writes) and caps the loop
-    // length so a far-off-canvas or huge-radius stamp can't spin.
+    // `!(v >= lo)` also catches NaN. Clamping scan bounds is output-preserving (blendPixel
+    // skips out-of-bounds writes) and caps the loop length of a far-off or huge stamp.
     inline int clampToInt(double v, int lo, int hi) {
       if (!(v >= static_cast<double>(lo))) return lo;
       if (v > static_cast<double>(hi)) return hi;
       return static_cast<int>(v);
     }
 
-    // Reject a line whose points/sizes are non-finite or absurdly large before any
-    // int cast or scan/step loop runs on them.
     bool lineWithinBounds(const Line& line) {
       if (!std::isfinite(line.thickness) || std::abs(line.thickness) > kMaxCoord) return false;
       if (!std::isfinite(line.pointSize) || std::abs(line.pointSize) > kMaxCoord) return false;
@@ -46,10 +41,8 @@ namespace stencil::core {
       return static_cast<std::uint8_t>((v + (v >> 8)) >> 8);
     }
 
-    // Source-over blend one pixel. `coverage` (0..1) is the geometric coverage, combined
-    // with the colour's own alpha. Out-of-bounds writes are ignored. Integer fixed-point:
-    // the effective alpha is quantised to 8 bits and channels blend via the divide-free
-    // div255 above — one multiply-add per channel, no double math / lround.
+    // Source-over with `coverage` (0..1) folded into the colour's alpha, quantised to 8
+    // bits; out-of-bounds writes are ignored.
     void blendPixel(std::uint8_t* buf, int w, int h, int x, int y, const Rgba& c,
                     double coverage) {
       if (x < 0 || x >= w || y < 0 || y >= h) return;
@@ -64,7 +57,6 @@ namespace stencil::core {
       p[3] = div255(255 * a + p[3] * ia);
     }
 
-    // Stamp a filled, anti-aliased disc of `radius` centred at (cx,cy).
     void stampDisc(std::uint8_t* buf, int w, int h, double cx, double cy,
                    double radius, const Rgba& c) {
       if (radius <= 0.0) return;
@@ -72,9 +64,8 @@ namespace stencil::core {
       const int x1 = clampToInt(std::ceil(cx + radius + 1.0), 0, w - 1);
       const int y0 = clampToInt(std::floor(cy - radius - 1.0), 0, h - 1);
       const int y1 = clampToInt(std::ceil(cy + radius + 1.0), 0, h - 1);
-      // Coverage = clamp(radius + 0.5 - d, 0, 1) only needs d in the 1px AA rim. Compare
-      // squared distances to skip the sqrt for the full interior (cov 1) and empty exterior
-      // (cov 0) — byte-identical to evaluating the formula at every pixel.
+      // Coverage = clamp(radius + 0.5 - d, 0, 1) needs the sqrt only in the 1px AA rim;
+      // squared-distance culling of interior/exterior is byte-identical.
       const double rIn = radius - 0.5;
       const double rInSq = rIn > 0.0 ? rIn * rIn : -1.0;
       const double rOut = radius + 0.5;
@@ -95,7 +86,6 @@ namespace stencil::core {
       }
     }
 
-    // Stamp an anti-aliased ring (outline) of the given line width at `radius`.
     void stampRing(std::uint8_t* buf, int w, int h, double cx, double cy,
                    double radius, double lineWidth, const Rgba& c) {
       const double outer = radius + lineWidth * 0.5 + 1.0;
@@ -103,9 +93,7 @@ namespace stencil::core {
       const int x1 = clampToInt(std::ceil(cx + outer), 0, w - 1);
       const int y0 = clampToInt(std::floor(cy - outer), 0, h - 1);
       const int y1 = clampToInt(std::ceil(cy + outer), 0, h - 1);
-      // Non-zero coverage only within [radius - half, radius + half] of the centre,
-      // where half = lineWidth/2 + 0.5. Cull the interior and outer field by squared
-      // distance so the sqrt runs only on the ring band itself.
+      // Coverage is non-zero only in the band [radius - half, radius + half].
       const double half = lineWidth * 0.5 + 0.5;
       const double bandOut = radius + half;
       const double bandOutSq = bandOut * bandOut;
@@ -124,7 +112,7 @@ namespace stencil::core {
       }
     }
 
-    // Is `pos` (arc length along the path) on an "ink" portion of the dash pattern?
+    // `pos` is arc length along the path.
     bool dashOn(double pos, const std::string& style, double thickness) {
       if (style == "dashed") {
         const double on = std::max(thickness * 3.0, 1.0);
@@ -141,8 +129,7 @@ namespace stencil::core {
       return true;  // solid (and any unknown style)
     }
 
-    // Stroke a polyline by stamping discs of radius `thickness/2` along it every ~0.5px,
-    // skipping the gaps of dashed/dotted patterns.
+    // Discs of radius thickness/2 stamped every ~0.5px, skipping dash gaps.
     void strokePolyline(std::uint8_t* buf, int w, int h, const std::vector<Point>& pts,
                         bool closed, double thickness, const std::string& style,
                         const Rgba& c) {
@@ -171,27 +158,21 @@ namespace stencil::core {
 
   void rasterizeLine(std::uint8_t* buf, int w, int h, const Line& line) {
     if (line.points.empty()) return;
-    // Untrusted layout coords: a non-finite or absurd point/thickness/pointSize
-    // would make the int casts below UB and spin the step/scan loops near-forever.
-    // Such a line is skipped as inert (nothing drawn), leaving the buffer intact.
+    // Untrusted layout: a non-finite or absurd value is skipped as inert, buffer intact
+    // (the int casts and scan loops below assume the bound).
     if (!lineWithinBounds(line)) return;
 
-    // Fill first (a locked/closed area with a non-transparent fill colour).
     if (line.locked && line.points.size() >= 3) {
       if (const auto fill = parseColor(line.fillColor); fill && fill->a > 0)
-        fillPolygonRows(buf, w, h, line.points, *fill, 0, h);  // whole image
+        fillPolygonRows(buf, w, h, line.points, *fill, 0, h);
     }
 
-    // Stroke the polyline.
     if (const auto stroke = parseColor(line.color); stroke && stroke->a > 0) {
       strokePolyline(buf, w, h, line.points, line.locked, line.thickness, line.style,
                      *stroke);
 
-      // Points: a filled disc with a thin dark outline (matching the editor's
-      // signature yellow-on-black handles). The disc takes the line's OWN point colour,
-      // which pointColorOr() resolves to the stroke colour when unset — so a line that
-      // never set one looks exactly as it did before the field existed. An unparseable
-      // point colour falls back to the stroke rather than dropping the points.
+      // Points: a filled disc with a thin dark outline (the editor's yellow-on-black
+      // handles). An unparseable point colour falls back to the stroke, not to no points.
       if (line.pointSize > 0.0) {
         const auto pointFill = parseColor(pointColorOr(line));
         const Rgba fill = (pointFill && pointFill->a > 0) ? *pointFill : *stroke;
@@ -204,7 +185,6 @@ namespace stencil::core {
     }
   }
 
-  // Even-odd scanline fill of a closed polygon, over rows [rowFrom, rowTo).
   void fillPolygonRows(std::uint8_t* buf, int w, int h, const std::vector<Point>& pts,
                        const Rgba& c, int rowFrom, int rowTo) {
     if (pts.size() < 3) return;
@@ -226,11 +206,9 @@ namespace stencil::core {
       }
       std::sort(xs.begin(), xs.end());
       for (std::size_t i = 0; i + 1 < xs.size(); i += 2) {
-        // Asymmetric clamp, NOT clampToInt: this fill loop blends every x in
-        // [xa, xb] unconditionally (no per-pixel coverage guard), so a span lying
-        // wholly off-canvas must stay EMPTY (xa > xb). clampToInt would collapse
-        // both ends onto the same edge pixel and paint a spurious border stripe.
-        // (xs are finite: lineWithinBounds rejected non-finite/huge points up front.)
+        // Asymmetric clamp, NOT clampToInt: every x in [xa, xb] is blended unguarded, so
+        // a span wholly off-canvas must stay EMPTY (xa > xb) — clampToInt would collapse
+        // both ends onto one edge pixel and paint a border stripe. xs are finite here.
         const int xa = std::max(0, static_cast<int>(std::ceil(xs[i] - 0.5)));
         const int xb = std::min(w - 1, static_cast<int>(std::floor(xs[i + 1] - 0.5)));
         for (int x = xa; x <= xb; ++x) blendPixel(buf, w, h, x, y, c, 1.0);
@@ -238,8 +216,6 @@ namespace stencil::core {
     }
   }
 
-  // Order-dependent: later lines blend OVER earlier ones and two lines may cover the
-  // same pixel, so this must NOT be split per line. Only the fill is row-parallel.
   void rasterizeLines(std::uint8_t* buf, int w, int h, const Lines& lines) {
     for (const Line& line : lines) rasterizeLine(buf, w, h, line);
   }
