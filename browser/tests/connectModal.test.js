@@ -14,7 +14,7 @@ import { StencilConnectModal, matchesConnFilter, batchNote } from '../js/ui/conn
 import { createStubElement, installDom } from './helpers/dom.js';
 import { FLIGHTS, moteFrame, alphaAt } from '../js/ui/dustCloud.js';
 import { motionSource } from './helpers/motionSource.js';
-import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
+import { LAYOUT_CSS, COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 
 const markup = layout();
 const count = (needle) => markup.split(needle).length - 1;
@@ -536,7 +536,7 @@ test('components.css: an idle row button reads as enabled, not disabled', () => 
   assert.ok(!/border:/.test(btn), 'no bordered ghost variant either');
   assert.ok(btn.includes('padding: 5px 8px'), 'compact is the only difference');
   // Genuinely disabled still looks disabled — via the shared rule, not a local override.
-  const layout = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+  const layout = LAYOUT_CSS;
   assert.match(layout, /button:disabled,[\s\S]*?background: var\(--disabled-bg\)/);
   assert.ok(!css.includes('.connect-row .connect-disconnect:disabled'),
     'the row buttons defer to it');

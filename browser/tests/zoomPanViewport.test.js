@@ -12,7 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ZoomPan } from '../js/core/zoomPan.js';
-import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
+import { LAYOUT_CSS, COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 
 const MIN_VIEWPORT_H = 120;
 const MIN_PANEL_H = 120;
@@ -316,10 +316,10 @@ test('clampPanelWidth: never leaves the canvas less than its minimum', async () 
 // drawer's resizer rail and its off-screen transform. Written out at each site they drifted
 // apart and the drawer opened a different width than the panel it stands in for.
 test('the untouched panel width is one token, and every fallback reads it', () => {
-  const layout = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+  const layout = LAYOUT_CSS;
   const px = Number(/--coord-panel-default:\s*(\d+)px/.exec(layout)?.[1]);
   assert.ok(px >= 240 && px <= 640, `--coord-panel-default ${px}px sits inside the clamp range`);
-  for (const [file, css] of [['layout.css', readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8')],
+  for (const [file, css] of [['layout.css', LAYOUT_CSS],
                             ['components.css', COMPONENTS_CSS], ['animations.css', ANIMATIONS_CSS]]) {
     assert.ok(!/var\(--coord-panel-width,\s*\d/.test(css),
       `${file}: a hard-coded fallback beside the token is how the two drifted apart`);
@@ -335,7 +335,7 @@ test('the panel width is re-clamped when the window changes, keeping the prefere
   // comes back when the window is big enough for it again.
   const stores = fn.match(/sessionStorage\.setItem/g) || [];
   assert.equal(stores.length, 1, 'only the drag persists a width');
-  const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+  const css = LAYOUT_CSS;
   // Declarations only — the comment above this rule NAMES the trap it avoids, and matching
   // the prose would pass (or fail) for the wrong reason.
   const container = css.slice(css.indexOf('.container {'), css.indexOf('}', css.indexOf('.container {')))

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 // Layout transitively requires every ui component and wires them into globalThis.
 import { layout } from '../js/ui/layout.js';
-import { COMPONENTS_CSS } from './helpers/css.js';
+import { LAYOUT_CSS, COMPONENTS_CSS } from './helpers/css.js';
 
 const markup = layout();
 
@@ -319,7 +319,7 @@ test('the ? bubble carries the size and the incognito line — and nothing else'
     // away with the rows, so the bubble is what is left.
     assert.match(src, /const live = \(hasImage \|\| incognito\) && collapsed;/);
     assert.match(src, /classList\.contains\('controls-collapsed'\)/);
-    const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+    const css = LAYOUT_CSS;
     assert.match(css, /body\.controls-collapsed \.info \{ display: none; \}/,
       'the size line folds away with the rows it belongs to');
     // The bubble reads the info line's own text, never its incognito tag as well.
@@ -347,7 +347,7 @@ test('the info line carries the incognito tag, and keeps its size text separable
     // Toggling the mode repaints the line (the toggle only ever calls updateIncognitoUI).
     const ui = app.slice(app.indexOf('  updateIncognitoUI() {'), app.indexOf('\n  }', app.indexOf('  updateIncognitoUI() {')));
     assert.match(ui, /this\.updateInfo\(\)/);
-    const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+    const css = LAYOUT_CSS;
     assert.match(css, /\.info-incognito \{/, 'and it is styled like the bubble line');
     // The glyph sits on the words, and the divider is muted + unselectable.
     const tag = css.slice(css.indexOf('.info-incognito {'), css.indexOf('}', css.indexOf('.info-incognito {')));
@@ -401,7 +401,7 @@ test('the incognito frame traces the canvas VIEWPORT, not the picture', () => {
     // The old container-stretching workaround is gone with the container dependency.
     assert.ok(!css.includes('body.incognito-mode.canvas-empty .canvas-container'),
         'the empty-state stretch is obsolete now the frame owns the viewport');
-    const layout = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+    const layout = LAYOUT_CSS;
     const base = layout.slice(layout.indexOf('\n.canvas-container {'), layout.indexOf('}', layout.indexOf('\n.canvas-container {')));
     // …and the container still shrink-wraps the canvas: as a flex item, `flex: none` with
     // no width of its own is the inline-block's replacement (see canvasCentering.test.js).
@@ -433,7 +433,7 @@ test('the app logo sits inside its ray-layer wrap, with the accent menu beside i
 // report). Geometry is pinned in CSS so both states are the identical box; the live
 // bounding-rect proof is in the browser probe (reported alongside).
 test('the status row is the same box with the incognito tag and without it', () => {
-    const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+    const css = LAYOUT_CSS;
     const row = css.slice(css.indexOf('\n.info {'), css.indexOf('}', css.indexOf('\n.info {')));
     // A FLEX row is what actually guarantees it: measured, an inline tag with
     // vertical-align:middle still stretched the line box by ~1.4px however tightly its
@@ -473,7 +473,7 @@ test('the status row is the same box with the incognito tag and without it', () 
 // an outline paints outside the border box, and the sticky column header covered that
 // edge. Inset by its own width it is always whole, matching the desktop's delegate.
 test('the points-table row ring is drawn inside the row, not around it', () => {
-    const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+    const css = LAYOUT_CSS;
     for (const cls of ['row-highlighted', 'row-focused']) {
         const rule = css.slice(css.indexOf(`.coordinates-table tbody tr.${cls} {`),
                                css.indexOf('}', css.indexOf(`.coordinates-table tbody tr.${cls} {`)));
@@ -512,7 +512,7 @@ test('the bar separators part it in four, and the fill one follows its group', (
     assert.match(show, /revealControls\(fillSep, true, 'block'\)/, 'shown with the group');
     assert.match(show, /revealControls\(fillSep, false\)/, 'and hidden with it');
     // Deselect wears the bar's own amber token, not an orange literal of its own.
-    const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+    const css = LAYOUT_CSS;
     const cta = css.slice(css.indexOf('.deselect-btn {'), css.indexOf('}', css.indexOf('.deselect-btn {')));
     assert.match(cta, /var\(--bg-sel-btn\)/, 'the same token its sibling buttons use');
     assert.ok(!/#e67e22/.test(cta), 'and no hardcoded orange left');

@@ -8,11 +8,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
+import { LAYOUT_CSS, COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 
-const read = (f) => (f === 'components.css' ? COMPONENTS_CSS
-  : f === 'animations.css' ? ANIMATIONS_CSS
-  : readFileSync(new URL(`../css/${f}`, import.meta.url), 'utf8'));
+const SHEETS = { 'layout.css': LAYOUT_CSS, 'components.css': COMPONENTS_CSS, 'animations.css': ANIMATIONS_CSS };
+const read = (f) => SHEETS[f] ?? readFileSync(new URL(`../css/${f}`, import.meta.url), 'utf8');
 // The declaration block for a selector, as written.
 const ruleFor = (css, selector) => {
   const at = css.indexOf(selector + ' {');
@@ -138,7 +137,7 @@ test('newTemporary resets the canvas size/zoom and the viewport scroll, not just
 // — 24x25 with the glyph riding high and dead space beneath it inside the rail. An
 // explicit flex square takes text metrics out of the box entirely.
 test('the points-panel chevron is one centred square in both states', () => {
-  const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+  const css = LAYOUT_CSS;
   const base = css.match(/\n#toggle-coord-panel \{([^}]*)\}/)?.[1] || '';
   assert.ok(base, 'the chevron rule is gone');
   // The box has to come from the RULE, not from font metrics — a 16px glyph in a text

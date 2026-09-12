@@ -24,7 +24,7 @@ import { fileNameForUrl } from '../js/core/dragImageUrl.js';
 import { scatterGridFor, SCATTER_TILE_BUDGET, SCATTER_MAX_ROWS } from '../js/ui/motion.js';
 import { LlmError } from '../js/llm/llmClient.js';
 import { motionSource } from './helpers/motionSource.js';
-import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
+import { LAYOUT_CSS, COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 import { chatViewSource } from './helpers/chatViewSource.js';
 import { contextMenuSource } from './helpers/contextMenuSource.js';
 
@@ -228,7 +228,7 @@ test('composer action row: send + a … menu holding attach · clear · settings
   // `button:disabled` styling, exactly like the panel's send does (verified identical
   // at runtime), so the two surfaces can't drift.
   assert.strictEqual(css.split('.ctx-assist-abtn:disabled').length - 1, 0, 'no bespoke disabled rule');
-  assert.ok(readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8').includes('button:disabled,'),
+  assert.ok(LAYOUT_CSS.includes('button:disabled,'),
     'the shared disabled palette is what both surfaces use');
   assert.ok(css.includes('.chat-config-btn, .ctx-assist-config { position: relative; }'), 'gear hosts the dot badge');
   const row = css.slice(css.indexOf('.ctx-assist-actions {'), css.indexOf('}', css.indexOf('.ctx-assist-actions {')));

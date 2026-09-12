@@ -14,6 +14,7 @@ import ASSET from '../js/config/themeTokens.json' with { type: 'json' };
 import ACCENTS from '../js/config/accents.json' with { type: 'json' };
 import CONSTANTS from '../js/config/constants.json' with { type: 'json' };
 import { splitThemeTokens } from './helpers/themeCss.js';
+import { LAYOUT_CSS } from './helpers/css.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => readFileSync(resolve(ROOT, rel), 'utf8');
@@ -72,5 +73,5 @@ test('brand colours agree with the art and the tables that also carry them', () 
   // Recorded drift, deliberately: the cli's `error:` red is NOT --danger. Pinned so the
   // day someone converges them, this test is the reminder to say so.
   assert.notEqual(ASSET.brand.errorRed, ASSET.tokens['--danger'].light);
-  assert.ok(read('css/layout.css').includes(`var(--danger, ${ASSET.brand.errorRed})`));
+  assert.ok(LAYOUT_CSS.includes(`var(--danger, ${ASSET.brand.errorRed})`));
 });

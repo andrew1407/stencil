@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { installDom, createStubElement, createStubDocument } from './helpers/dom.js';
 import { swapContent, pinWidestFace, SWAP_CLASS, SWAP_GHOST_CLASS, SWAP_MS } from '../js/ui/motion.js';
-import { ANIMATIONS_CSS } from './helpers/css.js';
+import { LAYOUT_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 
 // The two sync methods are instance methods that only touch the DOM + hotkeys, so they are
 // driven via `.call(mock)` on a stub document (the drawingApp-launch.test.js convention).
@@ -24,7 +24,7 @@ const doc = installDom({}, { location: { hash: '', pathname: '/app', search: '' 
 const { DrawingApp } = await import('../js/core/drawingApp.js');
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const layoutCss = read('../css/layout.css');
+const layoutCss = LAYOUT_CSS;
 const animCss = ANIMATIONS_CSS;
 
 // Every rule block in a sheet whose SELECTOR mentions `needle`.

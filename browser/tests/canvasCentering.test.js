@@ -18,10 +18,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ZoomPan, canvasOrigin } from '../js/core/zoomPan.js';
-import { COMPONENTS_CSS } from './helpers/css.js';
+import { LAYOUT_CSS, COMPONENTS_CSS } from './helpers/css.js';
 
 // ── The CSS contract ─────────────────────────────────────────────────────────
-const layoutCss = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+const layoutCss = LAYOUT_CSS;
 const componentsCss = COMPONENTS_CSS;
 // The DECLARATIONS of a rule: comments are stripped, so prose about the traps below
 // (which every one of these blocks carries) is never mistaken for a declaration.

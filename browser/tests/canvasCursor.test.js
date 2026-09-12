@@ -10,11 +10,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { installDom } from './helpers/dom.js';
-import { COMPONENTS_CSS } from './helpers/css.js';
+import { LAYOUT_CSS, COMPONENTS_CSS } from './helpers/css.js';
 
-const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+const css = LAYOUT_CSS;
 const blockAt = (at) => css.slice(at, css.indexOf('}', at));
 const cursorIn = (at) => /cursor:\s*([a-z-]+)/.exec(blockAt(at))?.[1];
 
