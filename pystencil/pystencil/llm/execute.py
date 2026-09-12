@@ -4,17 +4,18 @@ from __future__ import annotations
 point that walks a validated plan (and its variants) against an editor.
 """
 
-import os
-import re
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Any, Optional, Sequence
 
-from typing import Any, List, Optional, Sequence
-
+from .._parallel import map_parallel
 from .errors import LlmExecutionError
 from .frame import _FrameMap
 from .registry import FORBIDDEN_OPS, _ACTION_APPLIERS
 from .run import _PlanRun
 from .types import OpPlan
+
+# 4 already saturates the memory bandwidth one image walk needs.
+MAX_VARIANT_WORKERS = 4
+
 
 def _apply_action(action: dict, editor: Any, frame: Optional[_FrameMap] = None,
                  run: Optional["_PlanRun"] = None) -> None:
@@ -91,11 +92,24 @@ def execute_op_plan(
             return outputs
         if base is None:
             base = editor.result()  # snapshot AFTER the top-level actions
+        branches = []
         for variant in plan.variants:
             branch = type(editor)()
             branch.load(base, name=variant.label)
-            vframe = frame.branch()
-            for action in variant.actions:
-                _apply_action(action, branch, vframe)
-            outputs.append(branch.result())
+            branches.append((branch, variant, frame.branch()))
+        outputs.extend(map_parallel(branches, _render_branch, MAX_VARIANT_WORKERS))
     return outputs
+
+
+def _render_branch(job) -> Any:
+    """Apply one variant's actions to its own editor and render it — the unit of fan-out.
+
+    Runnable on any thread by construction: the branch editor, its pixels and its
+    coordinate frame are this job's alone, and a variant's ops are pure edits (no
+    attachments, no save, no console hooks). The branches themselves are built in plan
+    order by the caller, so a branch's identity never depends on when it finished.
+    """
+    branch, variant, vframe = job
+    for action in variant.actions:
+        _apply_action(action, branch, vframe)
+    return branch.result()
