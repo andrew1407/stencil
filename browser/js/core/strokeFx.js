@@ -5,10 +5,8 @@ import {
 import { drawMotionEnabled } from '../ui/motionPrefs.js';
 import { pointColorOf } from './renderer.js';
 
-// ── StrokeFx: the vertices currently in flight ──────────────────────────────
-// One record per point just added, flying from where it came from to where it was put
-// (maths in ui/motion.js). A record holds the point OBJECT, not its index — a later
-// insert shifts every index after it. Desktop twin: canvas/strokeGrowth.hpp.
+// The vertices currently in flight (maths in ui/motion.js). A record holds the point
+// OBJECT, not its index — a later insert shifts every index. Desktop twin: canvas/strokeGrowth.hpp.
 
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 const TAU = Math.PI * 2;
@@ -18,28 +16,25 @@ export class StrokeFx {
   #now;
   #schedule;
   #fx = [];        // { line, pt, from, to, bow, flyMs, start }
-  #byPt = new Map();   // pt object -> its record, so a per-point lookup is not a scan
+  #byPt = new Map();
   #suspended = false;
   #raf = 0;
 
   constructor(app, { now = nowMs, schedule = null } = {}) {
     this.#app = app;
     this.#now = now;
-    // Wrapped, never stored bare: called as `this.#schedule(...)` the host's own rAF
-    // would receive the StrokeFx as its receiver and throw "Illegal invocation".
+    // Wrapped, never stored bare: the host's own rAF would throw "Illegal invocation".
     this.#schedule = schedule
       || (typeof requestAnimationFrame === 'function' ? ((fn) => requestAnimationFrame(fn)) : null);
   }
 
   get active() { return this.#fx.length > 0; }
 
-  // Nothing is drawn in flight while suspended — an export is the RESTING picture, and a
-  // vertex still travelling would otherwise be baked in mid-air with its spark.
+  // An export is the RESTING picture: nothing is drawn in flight while suspended.
   suspend() { this.#suspended = true; }
   resume() { this.#suspended = false; }
 
-  // Every read below is asked per line (and per point) on every redraw, so the idle
-  // answer must cost nothing: no records in the air, no work.
+  // Asked per line and per point on every redraw, so the idle answer must cost nothing.
   get #idle() { return this.#suspended || this.#fx.length === 0; }
 
   #setFlights(fx) {
@@ -47,11 +42,9 @@ export class StrokeFx {
     this.#byPt = new Map(fx.map((f) => [f.pt, f]));
   }
 
-  // Send the point at `idx` on its way. `from` defaults to the neighbour it hangs off
-  // (the one before, else the one after); a line's first point has none and only pops.
+  // `from` defaults to the neighbour it hangs off; a line's first point has none and only pops.
   flyIn(line, idx, from = null) {
-    // "Drawing animation" off (Visuals modal / stencil.drawingAnimations) puts the
-    // vertex straight where it was put — as does any motion mode that stops the app.
+    // "Drawing animation" off puts the vertex straight where it was put.
     if (!this.#schedule || !drawMotionEnabled()) return null;
     const pts = line?.points;
     const pt = pts?.[idx];
@@ -59,8 +52,7 @@ export class StrokeFx {
     const src = from || pts[idx - 1] || pts[idx + 1] || pt;
     const to = { x: pt.x, y: pt.y };
     const len = Math.hypot(to.x - src.x, to.y - src.y);
-    // Same vertex sent again (a rapid re-add) replaces its own record rather than
-    // stacking two clocks on one point.
+    // A rapid re-add replaces its own record rather than stacking two clocks on one point.
     const rec = {
       line, pt, to, from: { x: src.x, y: src.y },
       bow: strokeBowSign(to.x, to.y), flyMs: strokeFlyMs(len), start: this.#now(),
@@ -70,9 +62,7 @@ export class StrokeFx {
     return rec;
   }
 
-  // Several points at once (a rect's corners): each leaves the one before it and waits
-  // for it to land, so the shape draws itself edge by edge. A range starting at the head
-  // has nothing before it, so that first vertex only pops.
+  // Each leaves the one before it and waits for it to land, so a rect draws edge by edge.
   flyInRange(line, startIdx, count, from = null) {
     let prev = from || (startIdx === 0 ? line.points[0] : null);
     let delay = 0;
@@ -87,17 +77,14 @@ export class StrokeFx {
 
   cancel() { this.#setFlights([]); }
 
-  // Does anything on this line move? Cheap enough to ask per line, per frame.
   has(line) { return !this.#idle && this.#fx.some((f) => f.line === line); }
 
   #recOf(pt) { return this.#idle ? null : this.#byPt.get(pt) || null; }
 
-  // Each pass below reads the clock ONCE and hands `t` down, so every point it touches
-  // is placed at the same instant (desktop twin: canvasWidget's `const double now`).
+  // Each pass reads the clock ONCE and hands `t` down (desktop twin: canvasWidget's `const double now`).
   #phase(f, t) { return strokePhase(t - f.start, f.flyMs); }
 
-  // The line's points as they should be DRAWN this frame — the array itself when
-  // nothing on it moves, so the common case allocates nothing.
+  // The array itself when nothing on the line moves, so the common case allocates nothing.
   pointsOf(line) {
     if (!this.has(line)) return line.points;
     const t = this.#now();
@@ -109,15 +96,13 @@ export class StrokeFx {
     });
   }
 
-  // How much bigger than its resting size a vertex is drawn right now.
   scaleAt(pt) {
     const f = this.#recOf(pt);
     return f ? strokeVertexScale(this.#phase(f, this.#now())) : 1;
   }
 
 
-  // The heat of the segments a flying vertex is dragging behind it — a fat, faint
-  // stroke in the line's own colour, under the real one.
+  // The heat behind a flying vertex: a fat, faint stroke under the real one.
   paintUnder(ctx, line, pts) {
     if (!this.has(line)) return;
     const t = this.#now();
@@ -144,8 +129,7 @@ export class StrokeFx {
     });
   }
 
-  // The glow riding the vertex, and the ring its landing pushes out — both on top of
-  // everything the line drew, in the colour its points are drawn in.
+  // The glow riding the vertex, and the ring its landing pushes out.
   paintOver(ctx, line, pts) {
     if (!this.has(line)) return;
     const t = this.#now();
@@ -181,8 +165,7 @@ export class StrokeFx {
     });
   }
 
-  // Repaint while anything is in the air, and once more after the last one lands so
-  // the frame that gets left on screen is the resting picture.
+  // Once more after the last one lands, so the frame left on screen is the resting picture.
   #kick() {
     if (this.#raf || !this.#schedule) return;
     const step = () => {

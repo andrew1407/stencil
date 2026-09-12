@@ -1,7 +1,5 @@
-// ── TabsCoordinator: window-side cross-tab coordination ─────────
-// Talks to the SharedWorker coordinator when available, else a BroadcastChannel roll-call,
-// else single-tab assumptions. Never touches localStorage — only relays small control
-// messages so the projects UI knows tab count, peers, and when another tab changed projects.
+// Cross-tab coordination: the SharedWorker coordinator when available, else a
+// BroadcastChannel roll-call, else single-tab assumptions. Never touches localStorage.
 import { MSG } from '../worker/messages.js';
 import { Emitter } from './emitter.js';
 import { PeerRoster } from './peerRoster.js';
@@ -15,28 +13,26 @@ export class TabsCoordinator {
   #port = null;
   #channel = null;
   #peerId = Math.random().toString(36).slice(2);
-  #bus = new Emitter();   // channels: tabCount | peers | projectsChanged | accent | incognitoPeers
+  #bus = new Emitter();
 
   #activeId = null;
-  #incognito = null;           // this tab's incognito session ({ name, updatedAt }) or null
+  #incognito = null;
   #lastTabCount = { count: 1, youAreOnly: true };
   #readyResolve = null;
   #readyPromise = null;
   #resolvedReady = false;
 
-  // BroadcastChannel roll-call bookkeeping
   #peers = new PeerRoster();
 
   constructor() {
     this.#readyPromise = new Promise(resolve => { this.#readyResolve = resolve; });
 
-    // Always resolve whenReady() even if no coordinator exists / answers.
+    // whenReady() resolves even if no coordinator exists / answers.
     setTimeout(() => this.#resolveReady(), READY_TIMEOUT_MS);
 
     if (!this.#trySharedWorker()) this.#tryBroadcastChannel();
   }
 
-  // ── subscriptions ─────────────────────────────────────────────
   onTabCount(cb) { return this.#bus.on('tabCount', cb); }
   onPeers(cb) { return this.#bus.on('peers', cb); }
   onProjectsChanged(cb) { return this.#bus.on('projectsChanged', cb); }
@@ -45,37 +41,32 @@ export class TabsCoordinator {
 
   whenReady() { return this.#readyPromise; }
 
-  // ── outgoing ──────────────────────────────────────────────────
   reportActive(id) {
     this.#activeId = id ?? null;
     if (this.#port) return this.#post({ type: MSG.ACTIVE, activeId: this.#activeId });
     if (this.#channel) this.#channel.postMessage({ type: MSG.ACTIVE, peerId: this.#peerId, activeId: this.#activeId });
   }
 
-  // Report this tab's incognito session (a small { name, updatedAt }) or null when it ends,
-  // so other tabs can list "incognito open in another tab".
+  // A small { name, updatedAt }, or null when the session ends.
   reportIncognito(session) {
     this.#incognito = session || null;
     if (this.#port) return this.#post({ type: MSG.INCOGNITO, session: this.#incognito });
     if (this.#channel) this.#channel.postMessage({ type: MSG.INCOGNITO, peerId: this.#peerId, session: this.#incognito });
   }
 
-  // Tell every other tab the main accent changed so they repaint live. The key
-  // is the only payload — peers apply it themselves (and read localStorage on load).
+  // The key is the only payload — peers apply it themselves.
   broadcastAccent(key) {
     if (this.#port) return this.#post({ type: MSG.ACCENT, key });
     if (this.#channel) this.#channel.postMessage({ type: MSG.ACCENT, peerId: this.#peerId, key });
   }
 
   projectsChanged(detail = {}) {
-    // Nudge the Stencil extension's in-page editor bridge to re-read the registry and prune
-    // its opened-ledger. Detail-free — the bridge reads localStorage itself, so nothing crosses.
+    // Nudge the extension's editor bridge to re-read the registry; detail-free, it reads localStorage itself.
     try { window.dispatchEvent(new Event(EVENTS.registryChanged)); } catch { /* no DOM (e.g. worker) — the bridge nudge is best-effort */ }
     if (this.#port) return this.#post({ type: MSG.PROJECTS_CHANGED, ...detail });
     if (this.#channel) this.#channel.postMessage({ type: MSG.PROJECTS_CHANGED, peerId: this.#peerId, ...detail });
   }
 
-  // ── SharedWorker path ─────────────────────────────────────────
   #trySharedWorker() {
     if (typeof SharedWorker === 'undefined') return false;
     try {
@@ -100,7 +91,7 @@ export class TabsCoordinator {
     try {
       this.#port.postMessage(msg);
     } catch {
-      /* worker port closed (shutting down) — coordination is best-effort */
+      /* worker port closed — coordination is best-effort */
     }
   }
 
@@ -117,7 +108,6 @@ export class TabsCoordinator {
     if (data.type === MSG.ACCENT) return this.#emitAccent(data.key);
   }
 
-  // ── BroadcastChannel fallback ─────────────────────────────────
   #tryBroadcastChannel() {
     if (typeof BroadcastChannel === 'undefined') return false;
     try {
@@ -130,8 +120,7 @@ export class TabsCoordinator {
     this.#peers.see(this.#peerId);
     this.#channel.onmessage = e => this.#onChannelMessage(e.data || {});
 
-    // Roll call: announce presence and ask who else is here. Peers reply with
-    // HERE. After a short window we estimate count/youAreOnly best-effort.
+    // Roll call: peers reply with HERE; after a short window count/youAreOnly is estimated.
     this.#channel.postMessage({ type: MSG.HELLO, peerId: this.#peerId, activeId: this.#activeId, incognito: this.#incognito });
     setTimeout(() => {
       this.#lastTabCount = this.#peers.tabCount();
@@ -144,7 +133,7 @@ export class TabsCoordinator {
       try {
         this.#channel.postMessage({ type: MSG.BYE, peerId: this.#peerId });
       } catch {
-        /* channel already closed during unload — peers time us out anyway */
+        /* channel already closed — peers time us out anyway */
       }
     });
     return true;
@@ -157,7 +146,6 @@ export class TabsCoordinator {
       this.#peers.see(peerId);
       if (data.activeId != null) this.#peers.setActive(peerId, data.activeId);
       this.#peers.setIncognito(peerId, data.incognito);
-      // Reply so the newcomer can count us, and share our active + incognito state.
       this.#channel.postMessage({ type: MSG.HERE, peerId: this.#peerId, activeId: this.#activeId, incognito: this.#incognito });
       this.#recountChannel();
       this.#emitIncognitoFromMap();
@@ -203,7 +191,6 @@ export class TabsCoordinator {
 
   #emitPeersFromMap() { this.#emitPeers(this.#peers.activeIds()); }
 
-  // ── emit helpers (thin wrappers over the shared bus) ──────────
   #emitTabCount() { this.#bus.emit('tabCount', this.#lastTabCount); }
   #emitPeers(ids) { this.#bus.emit('peers', ids); }
   #emitProjectsChanged(detail = {}) { this.#bus.emit('projectsChanged', detail); }

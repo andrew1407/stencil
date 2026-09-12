@@ -1,43 +1,34 @@
-// Shared video-frame capture: decode a video and grab a still frame to an image.
-// Used by both `stencil.load(videoUrl)` and the open-image modal. Browser-only.
+// Video-frame capture for `stencil.load(videoUrl)` and the open-image modal. Browser-only.
 import { scaledDataUrl } from '../utils.js';
 import MEDIA_TYPES from '../config/mediaTypes.json' with { type: 'json' };
 
-// The extensions each test matches come from config/mediaTypes.json (`surfaces.browser`),
-// where the desktop's and the cli's lists live too. The two below differ from each other
-// and from every other surface — deliberately recorded, see the asset's `drift` note.
+// From config/mediaTypes.json (`surfaces.browser`); the two lists deliberately differ from
+// each other and from every other surface — see the asset's `drift` note.
 const { videoFile, videoUrl } = MEDIA_TYPES.surfaces.browser;
 const VIDEO_FILE_RE = new RegExp(`\\.(${videoFile.join('|')})$`, 'i');
 const VIDEO_URL_RE = new RegExp(`\\.(${videoUrl.join('|')})(\\?|#|$)`, 'i');
 
-// Is this File a video (by MIME, falling back to a common video extension)? Pure.
 export function isVideoFile(file) {
   if (!file) return false;
   if (typeof file.type === 'string' && file.type.startsWith('video/')) return true;
   return VIDEO_FILE_RE.test(file.name || '');
 }
 
-// Does this URL point at a video (by its path extension, tolerating a ?query / #hash)?
-// Pure — the open-image dialog uses it to decide whether a URL source needs a frame
-// picker (a URL carries no MIME up front, so extension is the only signal we have).
+// By path extension (a URL carries no MIME up front), tolerating a ?query / #hash.
 export function isVideoUrl(url) {
   return typeof url === 'string' && VIDEO_URL_RE.test(url.trim());
 }
 
-const VIDEO_STEP_TIMEOUT_MS = 8000;   // per load/seek step, matching the original single-frame budget
+const VIDEO_STEP_TIMEOUT_MS = 8000;
 const FRAME_MAX_EDGE = 1920;
 const FRAME_JPEG_QUALITY = 0.92;
 
-// Draw the video's CURRENT frame to a JPEG data URL (≤ FRAME_MAX_EDGE on the long
-// edge). Throws on a tainted/cross-origin canvas.
+// The CURRENT frame as a JPEG data URL. Throws on a tainted/cross-origin canvas.
 const captureCurrentFrame = (v) =>
   scaledDataUrl(v, v.videoWidth, v.videoHeight, FRAME_MAX_EDGE, 'image/jpeg', FRAME_JPEG_QUALITY);
 
-// The one <video> lifecycle every capture path shares: decode `srcUrl` ONCE, seek
-// sequentially through the times `timesFor(duration)` returns, and capture each
-// frame as a JPEG data URL. The per-step timeout is re-armed on every load/seek so
-// the total budget scales with the frame count. Revokes `srcUrl` when done
-// (success or failure). Rejects on load/seek/taint/timeout.
+// Decode `srcUrl` ONCE, seek sequentially through `timesFor(duration)`, capture each frame.
+// The per-step timeout is re-armed on every load/seek. Revokes `srcUrl` when done.
 function captureFramesAt(srcUrl, timesFor) {
   return new Promise((resolve, reject) => {
     const v = document.createElement('video');
@@ -74,16 +65,14 @@ function captureFramesAt(srcUrl, timesFor) {
   });
 }
 
-// Decode a video blob/object URL and capture the frame at `timeSec` to a JPEG data
-// URL. Revokes `srcUrl` when done (success or failure). Rejects on load/seek/taint.
+// The frame at `timeSec` as a JPEG data URL. Revokes `srcUrl` when done.
 export async function videoFrameDataUrl(srcUrl, timeSec) {
   const [dataUrl] = await captureFramesAt(srcUrl, (duration) =>
     [Math.min(Number(timeSec) || 0, Math.max(0, (duration || 0) - 0.01))]);
   return dataUrl;
 }
 
-// Capture a frame from a local video File into an image File (a JPEG), reusing the
-// file's base name. `timeSec` selects the frame (default the first frame).
+// The frame at `timeSec` as an image File (a JPEG) with the file's base name.
 export async function videoFileToImageFile(file, timeSec = 0) {
   const dataUrl = await videoFrameDataUrl(URL.createObjectURL(file), Number(timeSec) || 0);
   const blob = await (await fetch(dataUrl)).blob();
@@ -91,10 +80,8 @@ export async function videoFileToImageFile(file, timeSec = 0) {
   return new File([blob], `${base}.jpg`, { type: 'image/jpeg' });
 }
 
-// Capture `count` evenly-spaced frames of a video File as JPEG data URLs (first frame
-// included). The chat panel attaches these as images — videos themselves are never
-// sent to the LLM (llm-contract.md §7). Decodes the video ONCE and seeks
-// sequentially (not one full reload per frame).
+// `count` evenly-spaced frames (first included). The chat panel attaches these as images —
+// videos themselves are never sent to the LLM (llm-contract.md §7).
 export function videoFrameSamples(file, count = 4) {
   const n = Math.max(1, Math.round(count) || 1);
   return captureFramesAt(URL.createObjectURL(file), (rawDuration) => {
@@ -103,9 +90,8 @@ export function videoFrameSamples(file, count = 4) {
   });
 }
 
-// Nominal fps for mapping a frame INDEX onto a seek time: the browser cannot read a
-// video's true frame rate, so index / 30 s approximates the CLI's exact frame pick
-// (ffmpeg select=eq(n, index)). Used by the assistant's "frame" op.
+// The browser cannot read a video's true frame rate, so index / 30 s approximates the
+// CLI's exact frame pick (ffmpeg select=eq(n, index)).
 const FRAME_INDEX_FPS = 30;
 export function videoFrameByIndex(file, index) {
   return videoFrameDataUrl(URL.createObjectURL(file), Math.max(0, Number(index) || 0) / FRAME_INDEX_FPS);

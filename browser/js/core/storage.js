@@ -14,30 +14,25 @@ import { upsertWithQuota } from './quotaWriter.js';
 import { buildLayoutState, buildProjectMeta } from './projectMeta.js';
 import { createThumbnailScheduler } from './thumbnail.js';
 
-// ── Storage: thin DOM adapter over ProjectsStore for the ACTIVE project ──
-// Window-side bridge over the DOM-free ProjectsStore: builds the layout/payload from live
-// app state, compresses the image, regenerates a thumbnail, reads payloads back into the
-// DOM. `save()` writes the active project; no-op in temporary mode.
+// Thin DOM adapter over the DOM-free ProjectsStore for the ACTIVE project: builds the
+// payload from live app state and reads payloads back into the DOM. `save()` is a no-op
+// in temporary mode.
 export class Storage {
   constructor(app) {
     this.app = app;
-    // Backend: payload keys ride an IndexedDB mirror, the registry stays in
-    // localStorage (see projectsBackend.js). Hydrated at boot by index.js.
+    // Payload keys ride an IndexedDB mirror, the registry stays in localStorage (projectsBackend.js).
     const backend = getProjectsBackend();
     this.store = new ProjectsStore(backend);
-    // Payload writes land in the sync mirror and persist to IndexedDB async — surface a
-    // failed persist on the save-status line (the mirror holds the bytes; the next save retries).
+    // A failed async IndexedDB persist surfaces on the save-status line (the mirror holds the bytes).
     if (backend && 'onWriteError' in backend) {
       backend.onWriteError = () =>
         this.app.showSaveStatus('Save failed (browser storage error)', 'var(--danger)', 'x');
     }
     this.activeId = null;
     this.temporary = false;
-    // Incognito: a deliberately unsaved editor. Unlike a plain temporary editor (which
-    // promotes to a saved project the moment an image loads), incognito NEVER persists —
-    // adding an image/lines stays in memory only.
+    // Incognito NEVER persists — unlike a temporary editor, which promotes to a project when an image loads.
     this.incognito = false;
-    // saveHistory() rides this trailing window, like the zoom persist; flush() forces one now.
+    // saveHistory() rides this trailing window; flush() forces one now.
     this.saveSoon = createTrailingSave(() => this.save());
     this.thumbs = createThumbnailScheduler(this);
   }
@@ -45,10 +40,9 @@ export class Storage {
   #tempStatusTimer = null;
   #syncTimer = null;
 
-  // Persist the active project. No-op (with a throttled hint) in temp mode.
+  // No-op (with a throttled hint) in temp mode.
   save() {
-    // The two states that persist nothing: sync off + a fetched server project is edit-in-
-    // memory only ("stored nowhere"), and a temporary editor has no project yet. Throttled.
+    // Nothing persists when sync is off on a fetched server project, or in a temporary editor.
     const blocked = (this.app.remoteLink && !getSyncToServer()) ? 'Sync off — not saved'
       : (shouldPersist(this.activeId, this.temporary) ? null : 'Temporary — not saved');
     if (blocked) {
@@ -60,20 +54,17 @@ export class Storage {
     }
 
     const layout = buildLayoutState(this.app);
-    const prev = this.store.getMeta(this.activeId) || {};   // read ONCE: getMeta re-parses the registry
-    // The row keeps its last thumbnail; the fresh one is rendered in idle time (thumbnail.js).
+    const prev = this.store.getMeta(this.activeId) || {};
+    // The row keeps its last thumbnail; a fresh one renders in idle time (thumbnail.js).
     const meta = buildProjectMeta(this.app, { prev, id: this.activeId, layout, thumbnail: prev.thumbnail ?? null });
     upsertWithQuota(this, meta, { image: this.app.imageDataUrl || null, layout });
     this.thumbs.schedule(this.activeId);
 
-    // Tell other tabs this project changed so any tab viewing it re-syncs its
-    // editor. Debounced so a burst of edits coalesces into one broadcast.
+    // Debounced so a burst of edits coalesces into one cross-tab broadcast.
     this.#scheduleSyncBroadcast();
-    // Auto-save the linked .stencil file too, when live file sync is on (debounced, no-op otherwise).
     this.app.stencilSync?.onEdit();
   }
 
-  // Trailing-edge debounce of the "project updated" cross-tab broadcast.
   #scheduleSyncBroadcast() {
     const id = this.activeId;
     clearTimeout(this.#syncTimer);
@@ -81,23 +72,21 @@ export class Storage {
       try {
         this.app.tabs?.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
       } catch {
-        /* coordinator gone — cross-tab sync is best-effort, the local save already succeeded */
+        /* coordinator gone — cross-tab sync is best-effort */
       }
     }, 400);
   }
 
-  // Re-read the active project from storage after another tab saved it. Uses a
-  // light path (lines/view only) when the image is unchanged so line-edits don't
-  // re-decode the image or reset the viewport; full reload if the image differs.
+  // After another tab saved: the light path (lines/view only) when the image is unchanged,
+  // so line-edits don't re-decode the image or reset the viewport.
   syncActiveFromStorage() {
     if (this.activeId == null) return;
     const proj = this.store.get(this.activeId);
-    if (!proj) return; // gone — removal is handled by the REMOVED action
+    if (!proj) return;
     const payload = proj.payload || {};
     const sameImage = (payload.image || null) === (this.app.imageDataUrl || null);
-    // A crop change keeps the same image but resizes the working canvas, so the light
-    // path (lines only) can't represent it — full reload when the stored crop differs.
-    // Normalize both sides so a canonical {w,h} stored rect compares equal to the live one.
+    // A crop change keeps the image but resizes the canvas, so it needs the full reload;
+    // both sides normalized so a canonical {w,h} stored rect compares equal.
     const sameCrop = JSON.stringify(normalizeCropRect((payload.layout || {}).cropRect)) === JSON.stringify(normalizeCropRect(this.app.cropRect));
     if (!sameImage || !sameCrop || !this.app.image) {
       this.loadPayloadIntoApp(payload);
@@ -120,11 +109,9 @@ export class Storage {
     this.app.showSaveStatus('Synced from another tab', 'var(--accent)', 'refresh');
   }
 
-  // The banner itself is a view (ui/imageMissingBanner.js); Storage decides WHEN.
   showImageMissingBanner(show) { paintImageMissingBanner(show); }
 
-  // Boot-time: migrate legacy single-project keys + sweep expired projects.
-  // Does NOT auto-load a project — the projects component/coordinator decides.
+  // Boot-time migration + expiry sweep. Does NOT auto-load a project.
   restore() {
     const now = Date.now();
     try {
@@ -135,28 +122,24 @@ export class Storage {
     }
   }
 
-  // Load a saved project into the live app (DOM rebuild). Guards against stale
-  // async image loads if the active project changes mid-load.
+  // Guards against stale async image loads if the active project changes mid-load.
   loadProject(id) {
     const proj = this.store.get(id);
     if (!proj) return false;
-    this.saveSoon.flush();      // the project we are leaving keeps its last edit…
-    this.thumbs.flush();        // …and its thumbnail
+    this.saveSoon.flush();
+    this.thumbs.flush();
     this.activeId = id;
     this.temporary = false;
     this.incognito = false;
     this.app.activeProjectId = id;
-    // An OPEN is an image appearing, so it arrives the same way a loaded file does.
-    // (The cross-tab sync path below shares this method and stays still: a peer's edit
-    // must not dissolve the picture out from under the person reading it.)
+    // An OPEN arrives the way a loaded file does; the cross-tab sync path shares this method
+    // and stays still (a peer's edit must not dissolve the picture under the reader).
     this.loadPayloadIntoApp(proj.payload, { landing: true });
     this.#autoRefreshOnOpen(id);
     return true;
   }
 
-  // When a project has "refresh on open" enabled and an expiration set, opening it
-  // restarts its window: expiresAt = now + its refresh period. Keep-forever
-  // (expiresAt 0) is left untouched. Broadcasts so other tabs re-render the date.
+  // "Refresh on open": expiresAt = now + its refresh period; keep-forever (0) is left alone.
   #autoRefreshOnOpen(id) {
     const meta = this.store.getMeta(id);
     if (!meta || !meta.autoRefresh || !meta.expiresAt) return;
@@ -165,18 +148,15 @@ export class Storage {
     this.#scheduleSyncBroadcast();
   }
 
-  // Apply a payload {image, layout} into app state + DOM; shared by loadProject()
-  // and the migration paths. `landing` plays the arrival once the image is on the
-  // canvas — on by an explicit open only (see loadProject).
+  // `landing` plays the arrival once the image is on the canvas — an explicit open only.
   loadPayloadIntoApp(payload, { landing = false } = {}) {
     try {
       const layout = (payload && payload.layout) || {};
       const imageDataUrl = (payload && payload.image) || null;
-      const targetId = this.activeId; // capture for stale-load guard
+      const targetId = this.activeId;
 
-      // Restore UI settings. The page size goes through the same validator as the
-      // other adoption paths — an unknown stored name keeps the current page rather
-      // than poisoning getPageDimensions with an off-table string.
+      // The same validator as the other adoption paths: an unknown stored name keeps the
+      // current page rather than poisoning getPageDimensions.
       const pageSize = normalizePageSize(layout.pageSize);
       if (pageSize) {
         this.app.pageSize = pageSize;
@@ -184,13 +164,11 @@ export class Storage {
       }
       if (layout.customPageWidth) this.app.customPageWidth = layout.customPageWidth;
       if (layout.customPageHeight) this.app.customPageHeight = layout.customPageHeight;
-      // Restore the display unit, then render the custom page inputs + labels in
-      // it (stored values are cm; applyUnitToUI converts for display).
+      // Stored values are cm; applyUnitToUI converts for display.
       if (layout.unit) this.app.unit = layout.unit;
       this.app.applyUnitToUI();
       if (layout.color) this.app.color = layout.color;
-      // '' is a MEANINGFUL value here ("points follow the line colour"), so this restores
-      // on a typeof check rather than truthiness the way the others do.
+      // '' is MEANINGFUL ("points follow the line colour"), hence the typeof check.
       if (typeof layout.pointColor === 'string') this.app.pointColor = layout.pointColor;
       if (layout.thickness) this.app.thickness = layout.thickness;
       if (layout.pointSize) this.app.pointSize = layout.pointSize;
@@ -208,8 +186,7 @@ export class Storage {
       if (layout.tooltipShowPage !== undefined) this.app.tooltipShowPage = layout.tooltipShowPage;
       if (layout.tooltipShowScreen !== undefined) this.app.tooltipShowScreen = layout.tooltipShowScreen;
       if (layout.tooltipShowCoords !== undefined) this.app.tooltipShowCoords = layout.tooltipShowCoords;
-      // The shared sync (settingsController.js), so the toolbar pill's .on class stays
-      // in step here too.
+      // The shared sync (settingsController.js) keeps the toolbar pill's .on class in step.
       this.app.allowFormulas = layout.allowFormulas !== undefined ? layout.allowFormulas : false;
       this.app.settings.syncFormulaUI(this.app.allowFormulas);
       this.app.formulaX = layout.formulaX || '';
@@ -217,39 +194,33 @@ export class Storage {
       paintFormulaFields(this.app);
       if (layout.drawMode) this.app.drawMode = layout.drawMode;
       if (Number.isFinite(layout.holdDrawDelay))
-        this.app.input.setHoldDrawDelay(layout.holdDrawDelay, { persist: false });   // clamps in one place
+        this.app.input.setHoldDrawDelay(layout.holdDrawDelay, { persist: false });
       if (layout.selGlowColor) this.app.selGlowColor = layout.selGlowColor;
       if (layout.hoverRingColor) this.app.hoverRingColor = layout.hoverRingColor;
       if (layout.focusRingColor) this.app.focusRingColor = layout.focusRingColor;
       if (layout.defaultFillColor) this.app.defaultFillColor = layout.defaultFillColor;
       this.app.syncDrawModeUI();
 
-      // Reset any pending-image state from a prior project.
       this.app.pendingLines = null;
       this.app.pendingImageSize = null;
 
       if (imageDataUrl) {
-        // Full restore: original image + crop + lines
         this.app.imageDataUrl = imageDataUrl;
         this.app.originalImage = new Image();
         this.app.originalImage.onload = () => {
-          // Stale-load guard: ignore if the user switched projects mid-load.
+          // The user may have switched projects mid-load.
           if (this.activeId !== targetId) return;
-          // Re-apply the stored rotation + crop (or default-crop legacy projects
-          // saved before cropping existed) and build the working canvas from it.
-          // Rotation must be set first: defaultCropRect and rebuild both read it.
+          // Rotation first: defaultCropRect and rebuild both read it.
           this.app.rotationQuarters = layout.rotationQuarters || 0;
           this.app.cropRect = normalizeCropRect(layout.cropRect) || this.app.imageModel.defaultCropRect();
           this.app.imageModel.rebuildCroppedImage();
           this.app.lines = layout.lines || [];
-          // Empty lines → step -1 (no phantom undo on a brand-new/blank project); only seed
-          // a current snapshot when there are real lines to undo back to.
+          // Empty lines → step -1, so a brand-new project has no phantom undo.
           this.app.history.reset(this.app.lines, this.app.lines.length ? 0 : -1);
 
           if (layout.zoom) {
-            this.app.zoomPan.setZoom(layout.zoom);   // also sizes the viewport (syncViewportHeight)
-            // Synchronously, BEFORE the arrival below, so the dust forms over the very
-            // slice the user will see (scrollViewportTo says why that reflow matters).
+            this.app.zoomPan.setZoom(layout.zoom);
+            // BEFORE the arrival, so the dust forms over the slice the user will see.
             scrollViewportTo(layout.scrollLeft, layout.scrollTop);
           } else {
             this.app.zoomPan.fitToWindow();
@@ -257,8 +228,7 @@ export class Storage {
 
           this.app.updateInfo();
           this.app.renderer.redraw();
-          // Same beat as the file loader: the picture is in the backing store, so the
-          // arrival goes up in THIS tick or a frame of the finished image flashes first.
+          // Same beat as the file loader: in THIS tick, or a frame of the finished image flashes first.
           if (landing) playCanvasArrival(this.app.canvas);
           this.app.updateButtons();
           this.app.updateCoordStatus();
@@ -269,7 +239,7 @@ export class Storage {
         };
         this.app.originalImage.src = imageDataUrl;
       } else if ((layout.lines || []).length > 0) {
-        // Lines saved but image was too large for storage: keep lines pending.
+        // The image was too large for storage: keep the lines pending.
         this.app.image = null;
         this.app.originalImage = null;
         this.app.cropRect = null;
@@ -285,7 +255,6 @@ export class Storage {
         this.showImageMissingBanner(true);
         this.app.showSaveStatus('Re-upload image to restore drawing', 'var(--warning)', 'alert');
       } else {
-        // Settings only.
         this.app.image = null;
         this.app.originalImage = null;
         this.app.cropRect = null;
@@ -303,22 +272,19 @@ export class Storage {
     }
   }
 
-  // Switch the editor to a fresh, blank, unsaved state. No storage writes.
-  // `keepChat` leaves the live conversation alone — the assistant resets the editor
-  // MID-TURN (openUrl incognito adoption), and swapping the chat scope under it would
-  // wipe the very exchange that asked for the reset.
+  // Fresh, blank, unsaved; no storage writes. `keepChat` is for the assistant resetting the
+  // editor MID-TURN (openUrl incognito adoption): swapping the chat scope would wipe the
+  // exchange that asked for the reset.
   newTemporary({ keepChat = false } = {}) {
-    this.saveSoon.flush(); this.thumbs.flush();   // …and so does the one being cleared away
+    this.saveSoon.flush(); this.thumbs.flush();
     this.activeId = null;
     this.temporary = true;
     this.incognito = false;
     this.app.activeProjectId = null;
-    // Chat persistence (§12): a temporary editor has no project to file a chat
-    // under — with saving on, the conversation resets to a fresh scope.
+    // Chat persistence (§12): no project to file a chat under → a fresh scope.
     if (!keepChat) this.app.chatPersistence?.projectOpened(null);
 
-    // Was there anything on screen to clear? Boot calls this to start blank, and the
-    // dust/hold below would then flash the empty-state card off and back on for no reason.
+    // Boot starts blank: no dust/hold when there was nothing on screen.
     const hadImage = !!this.app.image;
 
     this.app.image = null;
@@ -339,19 +305,15 @@ export class Storage {
     this.app.history.reset([], -1);
 
     const ctx = this.app.ctx;
-    // Copy the pixels into a throwaway overlay FIRST — clearRect is instant and would
-    // leave nothing to animate. The empty state is ALSO held back for the animation,
-    // or the blank editor pops in underneath while the dust is still falling.
-    // …and ONLY while there really are motes in front of it: ghostOut says so (the same
-    // contract as the arrival's ghostIn). Under reduced motion nothing falls, and holding
-    // the empty editor back anyway just blanked it for a second for no reason.
+    // Copy the pixels into a throwaway overlay FIRST (clearRect leaves nothing to animate)
+    // and hold the empty state back while motes are in front of it — only when ghostOut
+    // says so (the arrival's ghostIn contract); under reduced motion nothing falls.
     if (ctx && hadImage && ghostOut(this.app.canvas)) {
       const vp = document.getElementById('canvas-viewport');
       if (vp) flashLanding(vp, 'canvas-clearing', GHOST_MS);
     }
     if (ctx) ctx.clearRect(0, 0, this.app.canvas.width, this.app.canvas.height);
-    // Collapse the backing store + any inline CSS size left by the last zoom — otherwise the
-    // blank canvas keeps its footprint and the idle "+ Blank image" card lands off-centre.
+    // Collapse the backing store + inline CSS size, or the "+ Blank image" card lands off-centre.
     this.app.canvas.width = 0;
     this.app.canvas.height = 0;
     this.app.canvas.style.width = '';
@@ -369,8 +331,7 @@ export class Storage {
     this.app.renderer.redraw();
   }
 
-  // A temp editor just received its first image → promote to a real project.
-  // The caller subsequently calls save() to persist.
+  // A temp editor received its first image → a real project. The caller then calls save().
   promoteTemporaryToProject() {
     this.activeId = this.store.createId();
     this.temporary = false;
