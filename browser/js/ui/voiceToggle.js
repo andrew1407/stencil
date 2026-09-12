@@ -7,7 +7,7 @@ import { subscribe } from '../bus/appBus.js';
 // carries the live loudness (css/animations/voice.css sizes the mics' shine from it), and
 // .active marks this button while voice chat is on — mirrored onto the fullscreen
 // toolbar clone like the chat button's own state. The LOGO is not a wearer: its shine
-// is its own hover (and its accent popover's), never the microphone's (user report).
+// is its own hover (and its accent popover's), never the microphone's.
 export function wireVoiceChatToggle(btn, app) {
   if (!btn || !app) return;
   const voice = () => app.voice;

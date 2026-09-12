@@ -108,7 +108,7 @@ export function showSelectionPanel(app, line) {
     } else {
       revealControls(fillGroup, false);
       // …and so does its separator, or the one before it and the one after the group
-      // end up side by side with nothing between them (user report).
+      // end up side by side with nothing between them.
       if (fillSep) revealControls(fillSep, false);
     }
   }
