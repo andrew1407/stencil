@@ -1,7 +1,6 @@
 //! The console's user-facing message strings, one named constant each — handlers.zig
-//! carries the logic and names the message, not the wording. Phase-6 splits the layers;
-//! this is the text moving out ahead of it. Same text, same `logo.err/note/print` call
-//! shape: tests/pins/*.txt pin what several of these render to, byte for byte.
+//! carries the logic and names the message, not the wording. Same `logo.err/note/print`
+//! call shape: tests/pins/*.txt pin what several of these render to, byte for byte.
 
 pub const upload_needs_path = "upload needs a path or URL — e.g. '/upload photo.png' (or copy an image and run a bare '/upload')\n";
 pub const source_upload_needs_url = "source-upload needs a URL — e.g. '/source-upload https://example.com'\n";

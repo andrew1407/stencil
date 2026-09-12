@@ -1,12 +1,12 @@
 """Drift tests pinning pystencil's mirrored canonical data to the source of truth.
 
-The Phase-4 audit found no canonical-table duplication in pystencil: page
-formats/sizes come from the native core over ctypes, and no accent, color-name,
-or icon tables exist here. What IS hand-mirrored are a few scalar constants —
-asserted equal to ``browser/js/config/constants.json`` so any upstream change
-fails loudly while the package stays relocatable. The checked-in ``_data/``
-copies are the LLM system-prompt asset (Phase 5) and the LLM providers asset
-(Phase 7), byte-pinned below against their ``browser/js/config/llm/`` originals.
+pystencil duplicates no canonical table: page formats/sizes come from the native
+core over ctypes, and no accent, color-name or icon tables exist here. What IS
+hand-mirrored are a few scalar constants — asserted equal to
+``browser/js/config/constants.json`` so any upstream change fails loudly while the
+package stays relocatable. The checked-in ``_data/`` copies are the LLM
+system-prompt and providers assets, byte-pinned below against their
+``browser/js/config/llm/`` originals.
 """
 
 from __future__ import annotations
