@@ -22,7 +22,7 @@ namespace stencil::net {
     if (host.compare("localhost", Qt::CaseInsensitive) == 0) return true;
     if (host.endsWith(".localhost", Qt::CaseInsensitive)) return true;
     const QHostAddress addr(host);
-    return !addr.isNull() && addr.isLoopback();  // 127.0.0.0/8, ::1
+    return !addr.isNull() && addr.isLoopback();
   }
 
   bool ServerClient::isInsecureRemote(const QString& base) {
@@ -35,14 +35,11 @@ namespace stencil::net {
     if (s.isEmpty()) return s;
     if (!s.startsWith("http://", Qt::CaseInsensitive) &&
         !s.startsWith("https://", Qt::CaseInsensitive)) {
-      // Secure by default: a bare host gets https, EXCEPT loopback (localhost dev servers
-      // speak plaintext http and never leave the machine). An explicit "http://<remote>"
-      // still works — the user opts into cleartext and the UI warns about it.
+      // Bare host gets https, EXCEPT loopback (dev servers speak plaintext and never leave the machine).
       const QString host = QUrl("http://" + s).host();
       s = (isLoopbackHost(host) ? QStringLiteral("http://") : QStringLiteral("https://")) + s;
     }
     QUrl u(s);
-    // Keep scheme + authority only (drop any path / trailing slash).
     QString origin = u.scheme() + "://" + u.authority();
     return origin;
   }
@@ -53,7 +50,6 @@ namespace stencil::net {
     if (hash < 0) return raw;
     const QString frag = raw.mid(hash + 1);
     if (!frag.startsWith(QLatin1String("token="))) return raw;
-    // Decode a browser-encoded token; a plain one passes through unchanged.
     token = QUrl::fromPercentEncoding(frag.mid(6).toUtf8());
     return raw.left(hash);
   }
@@ -74,10 +70,8 @@ namespace stencil::net {
     return CredentialKind::None;
   }
 
-  // The browser's own failure text (net/connectionManager.js _req): "<METHOD> <path>: <why>",
-  // where <why> is the server's JSON `message` when it sent one, else "HTTP <status>". A
-  // request that never reached the server has no status at all, and the browser's fetch
-  // rejection carries the transport's own message — so that is what is shown, never "HTTP 0".
+  // Browser parity (net/connectionManager.js _req): "<METHOD> <path>: <why>", <why> = the server's JSON
+  // `message` or "HTTP <status>"; a request that never reached the server shows the transport's message, never "HTTP 0".
   static QString restError(const QByteArray& method, const QString& path, int status,
                            const QByteArray& body, const QString& transport) {
     if (status == 0)
@@ -93,8 +87,7 @@ namespace stencil::net {
                                              const QString& contentType,
                                              const QString& bearer) const {
     QNetworkRequest req{QUrl(base_ + path)};
-    // Bound every request so a hung/malicious server can't wedge a transfer forever; the
-    // reply then finishes with a timeout error.
+    // Bounded so a hung/malicious server cannot wedge a transfer forever.
     req.setTransferTimeout(20000);
     const QString& tok = bearer.isEmpty() ? token_ : bearer;
     if (!tok.isEmpty())
@@ -110,9 +103,8 @@ namespace stencil::net {
                                   bool retried) {
     QNetworkRequest req = buildRequest(path, contentType);
     QNetworkReply* reply = nam_->sendCustomRequest(req, method, body);
-    // Context object is nam_ (a QObject owned by this client): if the client is destroyed
-    // nam_ dies with it, the connection is severed and this slot never runs on a dangling
-    // `this`. deleteLater keeps the reply alive until the slot returns.
+    // Context object is nam_ (owned by this client): when the client dies nam_ goes with it, the
+    // connection is severed and this slot never runs on a dangling `this`.
     QObject::connect(reply, &QNetworkReply::finished, nam_,
                      [this, reply, method, path, body, contentType, retried,
                       done = std::move(done)]() mutable {
@@ -126,27 +118,24 @@ namespace stencil::net {
                                               : reply->errorString());
                        reply->deleteLater();
                        const bool refused = status == 401 || status == 403;
-                       // A minted session dies with a server restart — while the user's
-                       // credential is at hand, re-mint with it once and retry the
-                       // request in place (browser/extension parity).
+                       // A minted session dies with a server restart — re-mint with the credential once and retry in place.
                        if (refused && status_ == Status::Connected && !retried &&
                            !credential_.isEmpty() && path != QLatin1String("/auth/token")) {
-                         token_ = credential_;  // the mint carries the credential as bearer
+                         token_ = credential_;
                          requestAsync("POST", "/auth/token", "{}", "application/json",
                                       [this, method, path, body, contentType,
                                        done = std::move(done)](int mint, QByteArray mb) mutable {
                                         const QString tok = QJsonDocument::fromJson(mb)
                                                                 .object().value("token").toString();
                                         if (mint < 200 || mint >= 300 || tok.isEmpty()) {
-                                          done(mint, {});  // expired was marked by the mint's 401
+                                          done(mint, {});
                                           return;
                                         }
                                         token_ = tok;
                                         requestAsync(
                                             method, path, body, contentType,
                                             [this, done = std::move(done)](int st, QByteArray rb) {
-                                              // It minted AND the session works: this
-                                              // credential is an admin token (browser parity).
+                                              // It minted AND the session works: an admin token (browser parity).
                                               if (st >= 200 && st < 300)
                                                 kind_ = CredentialKind::Admin;
                                               done(st, rb);
@@ -156,9 +145,7 @@ namespace stencil::net {
                                       /*retried=*/true);
                          return;
                        }
-                       // A live session refused mid-flight (and past rescue) is EXPIRED,
-                       // not a dead server: the row offers a reconnect instead of
-                       // pretending the host is down. One warning, on the way in.
+                       // Refused mid-flight and past rescue is EXPIRED, not a dead server. One warning, on the way in.
                        if (refused && status_ == Status::Connected) {
                          status_ = Status::Expired;
                          qWarning("stencil: session on %s expired — reconnect to sign in again",
@@ -174,8 +161,7 @@ namespace stencil::net {
       done(false, QString());
       return;
     }
-    // The mint carries the CREDENTIAL as bearer (never the session token) so the
-    // invited session outlives this one; token_ stays untouched throughout.
+    // The mint carries the CREDENTIAL as bearer so the invited session outlives this one.
     QNetworkRequest req = buildRequest("/auth/token", "application/json", credential_);
     QNetworkReply* reply =
         nam_->sendCustomRequest(req, "POST", QByteArray("{\"label\":\"invite\"}"));

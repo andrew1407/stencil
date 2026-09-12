@@ -1,7 +1,5 @@
 #pragma once
-// Connect dialog (mirrors browser connectModal.js): connect to one or more
-// collaboration servers, list them, and disconnect. Backed by the window's
-// net::ConnectionManager, so the same connections drive shared-project access.
+// Connect dialog (browser connectModal.js), backed by the window's net::ConnectionManager.
 #include <QDialog>
 #include <QSet>
 #include <QString>
@@ -31,70 +29,49 @@ namespace stencil::gui {
     Q_OBJECT
    public:
     explicit ConnectDialog(stencil::net::ConnectionManager* manager, QWidget* parent = nullptr);
-    // Close-early finalize: pending removal slots collapse at once (the dust dies with
-    // the dialog), so nothing stale survives into a later show.
+    // Pending removal slots collapse at once so nothing stale survives into a later show.
     void done(int r) override;
-    // "Sync changes to server" lives here beside Auto-connect (browser connectModal.js
-    // #connect-sync). The setting itself is MainWindow's (Settings.syncToServer), so the
-    // window seeds the box and hears every toggle.
+    // Browser connectModal.js #connect-sync; the setting is MainWindow's (Settings.syncToServer).
     void setSyncToServer(bool on);
 
    signals:
     void syncToServerToggled(bool on);
-    // Failures are reported the way the browser reports them: a toast on the app's stack
-    // (connectModal.js notify(..., 'fail')), not a native alert box. MainWindow owns the
-    // stack, so the dialog just says what happened.
+    // Browser parity: a toast on the app's stack (MainWindow owns it), not a native alert box.
     void toast(const QString& text, bool failed);
 
    protected:
-    // Watches the list viewport: rows are re-capped to its width on resize.
     bool eventFilter(QObject* watched, QEvent* event) override;
-    // Return connects, wherever the focus is (see the definition — a removed row can
-    // leave the dialog with no focus widget at all).
+    // Return connects wherever the focus is — a removed row can leave the dialog with no focus widget.
     void keyPressEvent(QKeyEvent* e) override;
 
    private:
-    // The ctor's phases, in exactly this call order — the tab order and the order
-    // findChildren reports follow construction order. buildConnectForm hands back its Connect
-    // button, which stays the dialog's default.
+    // Construction order is observable (tab order, findChildren); buildConnectForm hands back the default button.
     QPushButton* buildConnectForm(QVBoxLayout* root);
     void buildConnectionPrefs(QVBoxLayout* root);
     void buildConnectBatchBar(QVBoxLayout* root);
     void buildConnectionList(QVBoxLayout* root);
     void rebuildList();
-    // One connection card, and its own row of controls. `rowIndex` is the drag-reorder slot.
+    // `rowIndex` is the drag-reorder slot.
     void addConnectionRow(const QString& url, int rowIndex);
     void addConnectionRowActions(QHBoxLayout* h, const QString& url,
                                  stencil::net::ServerClient* cl, bool expired, bool admin);
-    // The row cards' QSS (projects-row look + the gold/amber connection states),
-    // set once on the list so it cascades to every row widget.
     QString rowStyleSheet() const;
-    // Width a row slot may take: the viewport minus the list's spacing on both sides.
     int rowWidth() const;
-    // Fade rows toward the list's edges as it scrolls, instead of cutting one
-    // mid-outline (the widget twin of the projects delegate's reveal dissolve).
+    // The widget twin of the projects delegate's reveal dissolve.
     void applyRowReveal();
-    // Fade + collapse the rows the All / Admin / Non-admin picker excludes (view state
-    // only — never persisted) and show the "nothing matches" line when none survive.
+    // View state only — never persisted.
     void applyKindFilter();
-    // Lazily build the filter transition and its per-row writers (support/filterFade).
     ListFilterFade* filterFade();
-    // Sign in again on a row whose session expired: fresh session first, then a
-    // token prompt (session OR admin token) if the server refuses.
+    // Fresh session first, then a token prompt if the server refuses.
     void reauthenticate(const QString& url);
-    // Scatter the given server rows before they go, matching the projects list and the chat
-    // cards — a painted list row has no widget of its own, so its RECT comes apart.
+    // A painted list row has no widget of its own, so its RECT comes apart.
     void scatterRows(const QStringList& urls);
     void doConnect();
-    // Show/hide the batch toolbar + update its count from the current selection.
     void updateBatchBar();
-    // Select all's pool: the urls whose rows the kind filter leaves on view.
     QStringList shownUrls() const;
     bool allShownSelected() const;
-    // Select every row on view / clear the whole selection (browser connect-select-all).
     void toggleSelectAll();
-    // Yes/No confirm, then disconnect + refresh — the single remove path shared by the
-    // per-row ✕, the batch Disconnect, and the drag-out-of-the-dialog gesture.
+    // The single remove path: per-row ✕, batch Disconnect, and the drag-out gesture.
     void confirmDisconnect(const QString& url);
 
     stencil::net::ConnectionManager* manager_;
@@ -102,27 +79,19 @@ namespace stencil::gui {
     QLineEdit* tokenEdit_ = nullptr;
     QListWidget* list_ = nullptr;
     QPushButton* reconnectAllBtn_ = nullptr;
-    // "Auto-connect on open" — moved here from Settings (it's a connection
-    // preference); persisted to net::connectionStore on toggle.
+    // A connection preference (net::connectionStore), not a Settings one.
     QCheckBox* autoConnect_ = nullptr;
     QCheckBox* syncToServer_ = nullptr;
-    // "Show:" All / Admin / Non-admin — a view filter over the rows, not a setting.
     QComboBox* kindFilter_ = nullptr;
-    // Multi-select: urls checked for a batch reconnect/disconnect, + the toolbar.
     QSet<QString> selected_;
-    // Retire-then-finalize (projectsDialog parity): urls whose removal dust is playing.
-    // Their blanked rows hold their slots — and rebuildList (so also the empty state)
-    // waits — until the dust settles.
+    // Retire-then-finalize (projectsDialog parity): rebuildList waits until the dust settles.
     QSet<QString> doomed_;
-    // Urls already shown as rows, so rebuildList can gather-in only the NEW ones.
     QSet<QString> known_;
     QWidget* batchBar_ = nullptr;
     QLabel* batchCount_ = nullptr;
-    QPushButton* selectAllBtn_ = nullptr;  // Select all / Deselect all over the filtered view
-    // The selection-only actions, in ONE group so the bar's reveal is a single flight
-    // (projectsDialog's batchSelectedGroup_ / browser .connect-batch-actions).
+    QPushButton* selectAllBtn_ = nullptr;
+    // ONE group so the bar's reveal is a single flight (browser .connect-batch-actions).
     QWidget* batchSelectedGroup_ = nullptr;
-    // The kind picker's enter/exit transition (owned by the list).
     ListFilterFade* filterFade_ = nullptr;
   };
 

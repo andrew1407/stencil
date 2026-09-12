@@ -1,6 +1,5 @@
-// The Projects dialog's list rebuild: what survives a live re-list, the combined local+server
-// sort order, and the placeholder rows. The per-row data is projectsDialogRows.cpp; both are
-// pinned by tests/projectsDialogRows.headless.cpp.
+// The Projects dialog's list rebuild; the per-row data is projectsDialogRows.cpp; both are pinned by
+// tests/projectsDialogRows.headless.cpp.
 #include "projectsDialog.hpp"
 #include "projectsRowChrome.hpp"
 #include "serverClient.hpp"
@@ -14,9 +13,7 @@
 #include "../support/filterFade.hpp"
 namespace stencil::gui {
 
-  // A row's identity across a rebuild: the server url + id it stands for, "temp" for the
-  // pinned session row. Placeholders ("Loading…", "No projects yet") have none — they are
-  // never counted as arrivals.
+  // Identity across a rebuild: server url + id, "temp" for the pinned row; placeholders have none.
   static QString rebuildKeyOf(const QListWidgetItem* it) {
     if (!it) return QString();
     if (it->data(kTempRole).toBool()) return QStringLiteral("temp");
@@ -26,46 +23,36 @@ namespace stencil::gui {
   }
 
   void ProjectsDialog::refresh() {
-    // Preserve the selected row across a live remote re-list so the polling timer
-    // doesn't yank the user's selection out from under them.
     const int prevRow = list_->currentRow();
-    // What this list holds RIGHT NOW: a row the rebuild ADDS arrives out of the filter's
-    // sand at the end rather than simply being there next frame (browser motion.js
-    // filterDust). The very first build dusts nothing — the dialog has its own flight.
+    // A row the rebuild ADDS arrives out of the filter's sand (browser motion.js filterDust); the very
+    // first build dusts nothing.
     QSet<QString> keysBefore;
     for (int i = 0; i < list_->count(); ++i) {
       const QString k = rebuildKeyOf(list_->item(i));
       if (!k.isEmpty()) keysBefore.insert(k);
     }
-    // Whether this dialog has EVER built its list — not whether the list has rows in it
-    // right now. A removal takes its row out of the view when the scatter ends, so the
-    // rebuild that answers it can find the list empty; reading that as "this is the
-    // opening build" is what made the pinned row simply appear, with no arrival at all.
+    // EVER built, not "has rows now": a removal empties the view when its scatter ends, and reading
+    // that as the opening build made the pinned row appear with no arrival.
     const bool wasBuilt = built_;
     built_ = true;
-    // Keep the "Show:" per-server entries in step if servers were connected/disconnected.
     if (filter_ && connections_ && connections_->urls() != knownServerUrls_)
       rebuildFilterOptions();
-    building_ = true;   // ignore the itemChanged storm from setCheckState below
-    hideHoverPreview();   // clear() is about to delete whatever hoverItem_ points to
-    closeInlineRename();  // …and the row the inline editor floats over
+    building_ = true;
+    hideHoverPreview();
+    closeInlineRename();
     list_->clear();
-    const core::ProjectsStore store;  // pure helpers only; reads meta, no state
+    const core::ProjectsStore store;
     buildSortedRows(store);
 
-    // While the first server listing is still in flight, show a loading hint rather
-    // than a misleading "No projects yet" — the dialog itself already opened (the
-    // remote fetch is deferred); this row is replaced when the listing resolves.
+    // While the first server listing is in flight, a loading hint rather than a misleading "No projects yet".
     if (connections_ && !connections_->urls().isEmpty() && !remoteLoaded_) {
       auto* it = new QListWidgetItem(QStringLiteral("Loading shared projects…"), list_);
       it->setFlags(Qt::NoItemFlags);
       it->setForeground(palette().brush(QPalette::Disabled, QPalette::Text));
     }
 
-    // Drop selections whose project is GONE — removed here, or from another window: the
-    // bar reads checked_.size(), so a dead key kept "1 selected" on screen over an empty
-    // list. A LOCAL key is "|<id>" (UserRole+1, its server url, is empty);
-    // a remote key is left alone — a listing that has not answered is not proof it is gone.
+    // Drop LOCAL keys whose project is GONE (the bar reads checked_.size()); a remote key is left
+    // alone — a listing that has not answered is not proof it is gone.
     if (!checked_.isEmpty()) {
       QSet<QString> liveIds;
       liveIds.reserve(projects_.size());
@@ -86,13 +73,11 @@ namespace stencil::gui {
       return;
     }
     list_->setCurrentRow(prevRow >= 0 && prevRow < list_->count() ? prevRow : 0);
-    applyFilter();   // re-hide rows the current filter excludes (survives the live re-list)
+    applyFilter();
     building_ = false;
     updateBatchBar();
-    // …and every row this rebuild ADDED forms out of sand on the filter's shared budget
-    // but the longer ARRIVAL clock (browser twin: materialize, not the filter animator).
-    // Last, with the bookkeeping settled: dustRowIn writes a role per row under the same
-    // beforeFrame/afterFrame guard the filter's own frames use.
+    // Rows this rebuild ADDED form out of sand on the ARRIVAL clock (browser materialize), last, so
+    // dustRowIn writes its role under the same beforeFrame/afterFrame guard the filter uses.
     if (wasBuilt)
       for (int i = 0; i < list_->count(); ++i) {
         QListWidgetItem* it = list_->item(i);
@@ -102,9 +87,8 @@ namespace stencil::gui {
       }
   }
 
-  // A combined, sortable entry list (local + server) ordered by the active sort mode, so the
-  // name/date modes interleave local and server rows (browser twin: js/ui/projectSort.js).
-  // The pinned unsaved-session row goes above all of them.
+  // Local + server interleaved by the active sort mode (browser js/ui/projectSort.js); the pinned
+  // unsaved-session row goes above all of them.
   void ProjectsDialog::buildSortedRows(const core::ProjectsStore& store) {
     struct Entry { bool remote; int idx; QString key; QString name; long long date; };
     std::vector<Entry> entries;
@@ -124,7 +108,7 @@ namespace stencil::gui {
     auto cmpName = [](const Entry& a, const Entry& b) -> int {
       int c = QString::localeAwareCompare(a.name, b.name);
       if (c) return c;
-      if (a.date != b.date) return a.date > b.date ? -1 : 1;  // newest first on a name tie
+      if (a.date != b.date) return a.date > b.date ? -1 : 1;
       return QString::compare(a.key, b.key);
     };
     std::stable_sort(entries.begin(), entries.end(), [&](const Entry& a, const Entry& b) {
@@ -138,19 +122,18 @@ namespace stencil::gui {
         if (pa != pb) return pa < pb;
         return cmpName(a, b) < 0;
       }
-      return cmpName(a, b) < 0;  // name (default): server + local interleaved
+      return cmpName(a, b) < 0;
     });
-    // This window's own unsaved session, pinned above the sorted rows (browser parity).
-    // Inert: no id, so no open, rename, checkbox, drag or "⋯".
+    // Inert (browser parity): no id, so no open, rename, checkbox, drag or "⋯".
     if (temporary_) {
       auto* it = new QListWidgetItem(incognito_ ? QStringLiteral("Incognito (unsaved)")
                                                 : QStringLiteral("Temporary (unsaved)"), list_);
       it->setFlags(Qt::ItemIsEnabled);
       it->setData(kTempRole, true);
-      it->setData(Qt::UserRole + 3, it->text());   // the search key, like every row's
+      it->setData(Qt::UserRole + 3, it->text());
       it->setData(kMetaRole, incognito_ ? QStringLiteral("Current window · incognito · never saved")
                                         : QStringLiteral("Current window · not saved to storage"));
-      it->setData(Qt::UserRole + 4, QColor("#80868f"));   // the shared name grey, like every row
+      it->setData(Qt::UserRole + 4, QColor("#80868f"));
       it->setIcon(QIcon(temporaryIcon(incognito_)));
     }
     for (const auto& e : entries) {

@@ -11,21 +11,18 @@
 namespace stencil::net {
 
   LiveFeed::LiveFeed(QObject* parent) : QObject(parent) {
-    // A stable per-feed id for the hello frame (the server only relays it back as
-    // fromClientId; we never read it). Mirrors the CLI/browser client-id contract.
+    // The server only relays this id back as fromClientId; mirrors the CLI/browser client-id contract.
     clientId_ = QStringLiteral("desktop-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
   }
 
   LiveFeed::~LiveFeed() { unsubscribe(); }
 
   bool LiveFeed::subscribe(const QString& base, const QString& token) {
-    // The plaintext feed can't ride TLS — decline an https origin and let the poll
-    // backstop cover peer changes there (mirrors the CLI's EditConn.open).
+    // The plaintext feed cannot ride TLS; the poll backstop covers https (CLI EditConn.open parity).
     if (base.startsWith(QLatin1String("https://"), Qt::CaseInsensitive)) {
       unsubscribe();
       return false;
     }
-    // Already pointed at this origin — keep the live socket, just refresh the token.
     if (base_ == base && sock_) {
       token_ = token;
       return true;
@@ -71,8 +68,7 @@ namespace stencil::net {
 
   void LiveFeed::onConnected() {
     if (!sock_) return;
-    // An empty projectId selects the global events feed (hub.serveEvents). Compact JSON
-    // + '\n' is the NDJSON frame the TCP edit channel expects.
+    // An empty projectId selects the global events feed (hub.serveEvents).
     const QJsonObject hello{
         {QLatin1String("type"), QLatin1String("hello")},
         {QLatin1String("token"), token_},
@@ -82,16 +78,13 @@ namespace stencil::net {
     sock_->write(QJsonDocument(hello).toJson(QJsonDocument::Compact) + '\n');
   }
 
-  // A project-event frame is tiny (id + version); anything past this with no newline is a
-  // misbehaving/hostile peer streaming bytes unboundedly. Cap the buffer to bound memory.
+  // A frame is tiny (id + version); a longer newline-less stream is a hostile peer.
   static constexpr int kMaxBufferBytes = 1 << 20;  // 1 MiB
 
   void LiveFeed::onReadyRead() {
     if (!sock_) return;
     rbuf_ += sock_->readAll();
-    // No frame delimiter within the cap → drop the abusive stream rather than grow without
-    // bound. abort() trips onError(), which schedules a reconnect; the poll backstop covers
-    // the gap. (A well-behaved feed never approaches this — its frames are well under 1 KiB.)
+    // abort() trips onError(), which schedules a reconnect; the poll backstop covers the gap.
     if (rbuf_.size() > kMaxBufferBytes && !rbuf_.contains('\n')) {
       rbuf_.clear();
       if (sock_) sock_->abort();
@@ -121,8 +114,7 @@ namespace stencil::net {
   }
 
   void LiveFeed::onError() {
-    // A drop/refusal while we still have a target: schedule one reconnect. The poll
-    // backstop covers the gap until it lands; unsubscribe() clears base_ so this stops.
+    // One reconnect per drop; unsubscribe() clears base_ so this stops.
     if (base_.isEmpty()) return;
     if (!retry_) {
       retry_ = new QTimer(this);

@@ -13,7 +13,6 @@
 #include <QStyleOptionViewItem>
 #include <algorithm>
 
-// paintRow: one row's background, thumbnail, name, meta line and origin badge.
 
 namespace stencil::gui {
 
@@ -25,14 +24,11 @@ namespace stencil::gui {
     const bool temp = idx.data(kTempRole).toBool();
     QStyle* st = o.widget ? o.widget->style() : QApplication::style();
     if (!realRow && !temp) {
-      QStyledItemDelegate::paint(p, o, idx);  // placeholder rows: default rendering
+      QStyledItemDelegate::paint(p, o, idx);
       return;
     }
-    // Draw bg/selection/checkbox/icon WITHOUT the text via the style directly.
-    // State_Selected is cleared too: the style repaints a selected item's ICON in
-    // QIcon::Selected mode — blended with the highlight colour — which washed a
-    // white thumbnail lilac. The selection FILL is already
-    // transparent (theme.cpp #projectsList::item:selected), so nothing is lost.
+    // State_Selected is cleared: the style repaints a selected item's ICON in QIcon::Selected mode
+    // (blended with the highlight), which washed a white thumbnail lilac. The fill is already transparent.
     QStyleOptionViewItem bg(o);
     bg.text.clear();
     bg.state &= ~QStyle::State_Selected;
@@ -41,25 +37,21 @@ namespace stencil::gui {
     const bool remote = !idx.data(Qt::UserRole + 1).toString().isEmpty();
     const bool fileOrigin = idx.data(Qt::UserRole + 6).toBool();
     const bool current = idx.data(kActiveRole).toBool();
-    // The live theme accent, from the installed palette: Highlight = accent,
-    // Link = the accent-2 shade (--text-key) — theme.cpp buildQPalette.
+    // Highlight = accent, Link = the accent-2 shade (--text-key) — theme.cpp buildQPalette.
     const QColor accent = o.palette.color(QPalette::Highlight);
 
-    // Row card outline — 1px hairlines like the browser's .project-row borders:
-    // gold = server (+ a soft 1px outer ring, its box-shadow), bronze = .stencil
-    // file (same ring), the accent-2 SHADE (--text-key, not the raw accent — less
-    // shouty) for the project open in THIS editor, neutral hairline otherwise.
+    // Browser .project-row borders: gold = server, bronze = .stencil file (each with a soft 1px ring),
+    // the accent-2 SHADE for the project open in THIS editor, neutral hairline otherwise.
     QColor edge;
-    QColor ring;   // browser box-shadow 0 0 0 1px @55% — server/file rows only
+    QColor ring;
     if (remote) { edge = kGoldEdge; ring = edge; ring.setAlpha(140); }
     else if (fileOrigin) { edge = kBronzeEdge; ring = edge; ring.setAlpha(140); }
     else if (current) { edge = o.palette.color(QPalette::Link); }
-    else { edge = o.palette.color(QPalette::Dark); }   // the browser's --border-main
+    else { edge = o.palette.color(QPalette::Dark); }
     p->save();
     p->setRenderHint(QPainter::Antialiasing, true);
     p->setBrush(Qt::NoBrush);
-    // The temporary row's outline is DASHED (browser .project-temp): a card that is
-    // not a saved thing yet.
+    // DASHED, as the browser's .project-temp.
     p->setPen(QPen(edge, 1, temp ? Qt::DashLine : Qt::SolidLine));
     p->drawRoundedRect(QRectF(opt.rect).adjusted(1.5, 1.5, -1.5, -1.5), 8, 8);
     if (ring.isValid()) {
@@ -68,8 +60,7 @@ namespace stencil::gui {
     }
     p->restore();
 
-    // Stacked text column (browser row layout): bold name over the muted meta
-    // line over the origin badge — not one long "name · created · expires" line.
+    // Stacked column (browser row layout): name / meta / origin.
     const QRect base = st->subElementRect(QStyle::SE_ItemViewItemText, &o, o.widget);
     const int colLeft = base.left() + kThumbTextGap;
     const int colWidth = kebabZone(opt.rect).left() - 8 - colLeft;
@@ -80,25 +71,19 @@ namespace stencil::gui {
       const QColor def = o.palette.color(QPalette::Text);
       QColor nameCol = idx.data(Qt::UserRole + 4).value<QColor>();
       if (!nameCol.isValid()) nameCol = def;
-      // The browser's .project-name / .project-sub sizes (14 / 12 px), not the app
-      // font: at the system size the two lines sat noticeably tighter than the
-      // browser's rows.
+      // Browser .project-name / .project-sub sizes (14 / 12 px), not the app font.
       QFont nameF(o.font);
       nameF.setBold(true);
       nameF.setPixelSize(14);
       QFont metaF(o.font);
       metaF.setPixelSize(12);
       const QFontMetrics nfm(nameF), mfm(metaF);
-      // A little more air under the name than between the lines below it: with the
-      // inline editor up, the field sat right on top of the "Created …" line (user
-      // report, with a picture), and even at rest the name read as crowded.
+      // More air under the name: the inline editor otherwise sat on the "Created …" line.
       constexpr int kLineGap = 6;
-      // Centred on the lines this row actually draws: the origin line is a real row's
-      // only, so counting it on the temporary row (which returns before it) reserved a
-      // line that is never painted and pushed the pair up off centre.
+      // Centred on the lines this row actually draws — the temporary row has no origin line.
       int totalH = nfm.height();
       if (!meta.isEmpty()) totalH += kLineGap + mfm.height();
-      if (!temp) totalH += kLineGap + mfm.height();   // …the origin line below
+      if (!temp) totalH += kLineGap + mfm.height();
       int y = opt.rect.top() + (opt.rect.height() - totalH) / 2;
       p->save();
       p->setFont(nameF);
@@ -117,10 +102,8 @@ namespace stencil::gui {
                     mfm.elidedText(meta, Qt::ElideRight, colWidth));
         y += mfm.height() + kLineGap;
       }
-      // Origin line: glyph + word — `server` (gold) with the address, `file-text`
-      // (bronze) with ".stencil", `monitor` (grey) with "computer" — plus the
-      // accent "(Current)" for the project open in this editor (browser parity).
-      // The temporary row has none: it is nowhere yet — and no "⋯" either.
+      // Origin line: server (gold) / .stencil (bronze) / computer (grey), plus the accent "(Current)".
+      // The temporary row has none, and no "⋯" either.
       if (temp) { p->restore(); return; }
       const QString gname = remote ? QStringLiteral("server")
                                    : (fileOrigin ? QStringLiteral("file-text")
@@ -138,9 +121,7 @@ namespace stencil::gui {
         p->setPen(gcol);
         int tx = colLeft + gs + 4;
         const int gw = std::min(mfm.horizontalAdvance(gtext), colWidth - (gs + 4));
-        // Only a server ADDRESS is ellipsised — it can be any length. The other two are
-        // short fixed words that always fit, and cutting one to "local…" reads as a bug
-        // rather than as a truncation.
+        // Only a server ADDRESS is ellipsised; the other two are short words that always fit.
         p->drawText(QRect(tx, y, gw, mfm.height()),
                     Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine,
                     remote ? mfm.elidedText(gtext, Qt::ElideRight, gw) : gtext);
@@ -155,9 +136,7 @@ namespace stencil::gui {
       p->restore();
     }
 
-    // Kebab: an accent-filled rounded chip with white dots (the browser row's
-    // "…" more-actions button). It reacts to ITS OWN hover only — row hover leaves it
-    // alone — and then a band of glass sweeps across it.
+    // Browser "…" more-actions button: reacts to ITS OWN hover only, then a band of glass sweeps across it.
     const QRect chip = kebabChip(opt.rect);
     const bool onKebab = idx.row() == kebabRow_;
     p->save();

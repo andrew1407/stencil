@@ -18,11 +18,8 @@ class QAudioOutput;
 class QVideoSink;
 class QVideoFrame;
 
-// Source/resource links dialog (browser/js/ui/linksModal.js): view, edit, open and
-// remove the active image's provenance — its own URL (source) and the page it came from
-// (resource) — and add a new image BY URL, extracting a video frame when needed. The
-// add-by-URL load hands the already-decoded preview pixels back, so what was previewed
-// is exactly what loads.
+// Source/resource links dialog (browser/js/ui/linksModal.js). The add-by-URL load hands the
+// already-decoded preview pixels back, so what was previewed is exactly what loads.
 namespace stencil::gui {
 
   class MediaLoader;
@@ -30,99 +27,84 @@ namespace stencil::gui {
   class LinksDialog : public QDialog {
     Q_OBJECT
    public:
-    // `source`/`resource` seed the current-links fields. `hasImage` selects the
-    // mode: with an image loaded the dialog only edits its links; with no image it
-    // only offers the add-by-URL loader (the URL becomes the source). `pageSeed`
-    // (a canonical format name, e.g. "A3"/"B5") preselects the quick-crop page
-    // size (unknown names — incl. "custom" — fall back to A3); `units` is the
-    // display unit ("cm"/"in") the page-size option labels render in.
+    // `hasImage` selects the mode: edit the links, or (no image) the add-by-URL loader only. `pageSeed`
+    // preselects the quick-crop page size (unknown names fall back to A3); `units` is "cm"/"in".
     explicit LinksDialog(const QString& source, const QString& resource,
                          bool hasImage, const QString& pageSeed = "A3",
                          const QString& units = "cm",
                          QWidget* parent = nullptr);
 
-    // Edited current-image fields (browser parity: edits apply on ANY close —
-    // there is no Cancel/Save pair; the caller persists what it reads here).
+    // Browser parity: edits apply on ANY close — there is no Cancel/Save pair.
     QString source() const;
     QString resource() const;
 
-    // Add-by-URL request: true when the user clicked "Load into editor" instead of
-    // OK. The caller adopts previewedImage() (the pixels already decoded for the
-    // preview), tagging it with urlSource()/urlResource() as provenance.
+    // True when the user clicked "Load into editor"; the caller adopts previewedImage().
     bool loadRequested() const { return loadRequested_; }
     QString urlSource() const;
     QString urlResource() const;
     int urlFrame() const;
 
-    // Quick pre-load edits (mirrors browser linksModal): open the editor already
-    // cropped to a page aspect/orientation, or uncropped. Read on loadRequested().
-    // cropToPage() off ⇒ load the full frame; on ⇒ crop to cropPageSize() in
-    // album() (landscape) or portrait orientation.
+    // Browser linksModal parity; read on loadRequested(). cropToPage() off ⇒ the full frame.
     bool cropToPage() const;
     bool cropAlbum() const;
     QString cropPageSize() const;
 
-    // The image/frame decoded for the preview — null until a preview succeeds.
-    // Load is only enabled once this is set, so on loadRequested() it is non-null.
+    // Null until a preview succeeds; Load is only enabled once set.
     QImage previewedImage() const { return previewImage_; }
 
    protected:
-    // Pressing Enter in the URL fields triggers Preview (not the dialog's default
-    // button, which would close it). Consumed via an event filter on those fields.
+    // Enter in the URL fields triggers Preview, not the dialog's default button (which would close it).
     bool eventFilter(QObject* obj, QEvent* event) override;
 
    private:
     void openInBrowser(const QLineEdit* field) const;
     void requestLoad();
-    void doPreview();             // fetch/decode the URL into the preview area
-    void resetPreviewState();     // clear preview + disable Load (URL changed)
-    void updateVideoPreview();    // choose embedded preview vs frame for a video
-    void showPreview(const QImage& img, const QString& hint);  // render + enable Load
-    void setFrame(int n);         // sync slider + spin box to a frame, then debounce a seek
-    void applyFrameBounds();      // bound slider/spin box to the video's frame count
-    void setupScrubPlayer(const QUrl& url);  // persistent player loaded once for scrubbing
+    void doPreview();
+    void resetPreviewState();
+    void updateVideoPreview();
+    void showPreview(const QImage& img, const QString& hint);
+    void setFrame(int n);
+    void applyFrameBounds();
+    void setupScrubPlayer(const QUrl& url);
     void teardownScrubPlayer();
-    void seekScrub(int frame);    // seek the persistent player to a frame and render it
-    void onScrubFrame(const QVideoFrame& frame);  // adopt a rendered frame into the preview
-    void showQuickcrop(int w, int h);  // reveal + default the quick-crop row for a preview
-    void syncQuickcropEnabled();       // album/page enabled only while cropping to page
+    void seekScrub(int frame);
+    void onScrubFrame(const QVideoFrame& frame);
+    void showQuickcrop(int w, int h);
+    void syncQuickcropEnabled();
 
     QLineEdit* sourceEdit_ = nullptr;
     QLineEdit* resourceEdit_ = nullptr;
     QLineEdit* urlEdit_ = nullptr;
     QLineEdit* urlResourceEdit_ = nullptr;
     QSpinBox* frame_ = nullptr;
-    QSlider* frameSlider_ = nullptr;    // scrub the frame; synced with frame_ (video only)
-    QLabel* frameTotal_ = nullptr;      // "/ N" total-frames hint
-    QCheckBox* usePreview_ = nullptr;   // "use the video's preview image" (video only)
-    QWidget* frameRow_ = nullptr;       // "Video frame" controls — shown only for video
-    QLabel* previewLabel_ = nullptr;    // the rendered image/frame
-    QLabel* previewHint_ = nullptr;     // status / dimensions / errors
-    // Quick pre-load edits row (shown once a preview resolves): crop-to-page toggle,
-    // album/portrait toggle, and the page-size choice.
+    QSlider* frameSlider_ = nullptr;
+    QLabel* frameTotal_ = nullptr;
+    QCheckBox* usePreview_ = nullptr;
+    QWidget* frameRow_ = nullptr;
+    QLabel* previewLabel_ = nullptr;
+    QLabel* previewHint_ = nullptr;
     QWidget* quickcropRow_ = nullptr;
     QCheckBox* cropPage_ = nullptr;
     QCheckBox* cropAlbum_ = nullptr;
     QComboBox* cropPageSize_ = nullptr;
-    QString pageSeed_ = "A3";  // canonical format name (findData miss ⇒ A3)
+    QString pageSeed_ = "A3";
     QPushButton* loadBtn_ = nullptr;
-    MediaLoader* preview_ = nullptr;    // detects image vs video, grabs the first frame
-    QTimer* fetchTimer_ = nullptr;      // debounce seeks while scrubbing
+    MediaLoader* preview_ = nullptr;
+    QTimer* fetchTimer_ = nullptr;
 
-    // Persistent player for live scrubbing: loaded once, then seeked per frame so the
-    // preview updates immediately (re-streaming per frame never seeks reliably).
+    // Loaded once, then seeked per frame — re-streaming per frame never seeks reliably.
     QMediaPlayer* scrubPlayer_ = nullptr;
     QAudioOutput* scrubAudio_ = nullptr;
     QVideoSink* scrubSink_ = nullptr;
     double scrubFps_ = 30.0;
     qint64 scrubDurationMs_ = 0;
     qint64 scrubTargetMs_ = 0;
-    bool scrubPending_ = false;         // awaiting a rendered frame at the seek target
+    bool scrubPending_ = false;
 
-    QImage previewImage_;               // pixels that Load will adopt (frame or preview)
-    QImage frameImage_;                 // last grabbed video frame
-    QImage thumbImage_;                 // video's embedded preview image, if any
-    bool previewIsVideo_ = false;       // last preview resolved as a video
+    QImage previewImage_;
+    QImage frameImage_;
+    QImage thumbImage_;
+    bool previewIsVideo_ = false;
     bool loadRequested_ = false;
   };
 

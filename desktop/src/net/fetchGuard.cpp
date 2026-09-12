@@ -84,8 +84,7 @@ namespace stencil::net::fetchGuard {
       return ok;
     }
 
-    // Emulate inet_aton for 1–4 numeric parts, packing the IPv4 bytes into `out`. Covers
-    // the encodings a resolver accepts but QHostAddress (dotted-decimal) may reject.
+    // inet_aton for 1–4 numeric parts: the encodings a resolver accepts but QHostAddress rejects.
     bool parseInetAtonV4(const QString& host, quint8* out) {
       if (host.isEmpty() || hexVal(host[0]) < 0 || hexVal(host[0]) > 9) return false;
       const QStringList parts = host.split(QLatin1Char('.'));
@@ -93,7 +92,6 @@ namespace stencil::net::fetchGuard {
       quint64 p[4] = {0, 0, 0, 0};
       for (int i = 0; i < parts.size(); ++i)
         if (!parseAtonPart(parts[i], p[i])) return false;
-      // inet_aton: the LAST part fills the remaining low bytes, earlier ones are octets.
       const int n = parts.size();
       quint64 value = 0;
       for (int i = 0; i < n - 1; ++i) {
@@ -121,8 +119,6 @@ namespace stencil::net::fetchGuard {
       return status >= 300 && status < 400;
     }
 
-    // Issue the guarded request itself, once the host has cleared: capped body, no
-    // redirect, and a hard deadline that aborts the reply into a normal error finish.
     void send(QObject* ctx, const QUrl& url, int deadlineMs,
               std::function<void(QByteArray, QString)> done) {
       auto* nam = new QNetworkAccessManager(ctx);
@@ -150,8 +146,7 @@ namespace stencil::net::fetchGuard {
 
   bool isBlockedHost(const QString& host, bool strict) {
     if (host.isEmpty()) return true;
-    // Both readings must clear: QHostAddress and inet_aton (what a resolver uses) agree on
-    // the numeric forms today, so a host is refused if EITHER lands on an internal target.
+    // QHostAddress and inet_aton agree today; a host is refused if EITHER reads internal.
     quint8 v4[4];
     if (parseInetAtonV4(host, v4) && isBlockedV4(v4, strict)) return true;
     QHostAddress addr;
@@ -170,7 +165,6 @@ namespace stencil::net::fetchGuard {
 
   bool resolvesToBlocked(const QString& host, bool strict) {
     const QHostInfo info = QHostInfo::fromName(host);
-    // A failed lookup is not a block: let the fetch itself surface the error.
     if (info.error() != QHostInfo::NoError) return false;
     for (const QHostAddress& a : info.addresses())
       if (classify(a, strict)) return true;

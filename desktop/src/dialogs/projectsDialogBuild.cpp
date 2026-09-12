@@ -1,6 +1,5 @@
-// The Projects dialog's construction phases: the search row, the multi-select batch bar, and
-// the live re-list timer for shared projects. Call order lives in projectsDialog.cpp's ctor and
-// is pinned by tests/projectsDialogRows.headless.cpp — re-cut these, reorder nothing.
+// The Projects dialog's construction phases; call order in projectsDialog.cpp's ctor, pinned by
+// tests/projectsDialogRows.headless.cpp — re-cut these, reorder nothing.
 #include "projectsDialog.hpp"
 #include "projectsRowChrome.hpp"
 #include "serverClient.hpp"
@@ -16,14 +15,12 @@
 #include <QPushButton>
 #include <QTimer>
 #include <QVBoxLayout>
-#include "iconSet.hpp"   // labelIcon
-#include "../support/shimmerOverlay.hpp"   // installHoverShimmerIn
+#include "iconSet.hpp"
+#include "../support/shimmerOverlay.hpp"
 namespace stencil::gui {
 
   void ProjectsDialog::buildSearchRow(QVBoxLayout* layout) {
-    // Search sits on its own full-width row, ABOVE the filter selects — mirroring the
-    // browser modal's layout (a shared single-row bar squeezed the search box; the
-    // browser resolved that by giving search the whole row first).
+    // Search on its own full-width row ABOVE the filter selects, as the browser modal lays it.
     {
       auto* srow = new QHBoxLayout;
       search_ = new QLineEdit(this);
@@ -34,10 +31,7 @@ namespace stencil::gui {
       connect(search_, &QLineEdit::textChanged, this, [this](const QString&) { applyFilter(); });
     }
 
-    // Filter row: a compact "Show:" dropdown (All / Local / all-servers / a specific connected
-    // server) + sort/search-mode selects + Select all (mirrors the browser modal's row below).
-    // A FlowLayout: squeezed, the selects wrap onto a second line at their natural widths
-    // instead of being crushed or cut off at the edge (browser .modal-search-bar flex-wrap).
+    // A FlowLayout (browser .modal-search-bar flex-wrap): squeezed, the selects wrap at their natural widths.
     {
       auto* frow = new FlowLayout(nullptr, 0, 8, 6);
       filter_ = new SearchComboBox(this, /*searchable=*/false);
@@ -45,8 +39,7 @@ namespace stencil::gui {
       filter_->setMaximumWidth(260);
       filter_->setToolTip("Filter the list: all, local only, or a specific server");
       rebuildFilterOptions();
-      frow->addWidget(filter_);                       // natural width — no stretch
-      // Sort mode (mirrors the browser modal): the data role carries the mode key.
+      frow->addWidget(filter_);
       sortCombo_ = new SearchComboBox(this, /*searchable=*/false);
       sortCombo_->setToolTip("Sort projects (drag a row to set a manual order)");
       sortCombo_->addItem(tr("Name"), QStringLiteral("name"));
@@ -60,7 +53,6 @@ namespace stencil::gui {
         sortCombo_->setCurrentIndex(mi >= 0 ? mi : 0);
       }
       frow->addWidget(sortCombo_);
-      // Search-mode (what the search box matches): name+keywords (default), names, keywords.
       searchModeCombo_ = new SearchComboBox(this, /*searchable=*/false);
       searchModeCombo_->setToolTip("What the search box matches");
       searchModeCombo_->addItem(tr("Name + keywords"), QStringLiteral("common"));
@@ -78,20 +70,14 @@ namespace stencil::gui {
   }
 
   void ProjectsDialog::buildBatchBar(QVBoxLayout* layout) {
-    // Batch-select toolbar — shown whenever the filtered view has selectable rows
-    // (it hosts Select all), with the selection-only controls coming and going with
-    // the checked set. Labels + glyphs mirror the browser modal's batch bar; direction
-    // buttons show by selection homogeneity (all-local → to-server; all-server → to-local).
-    // The bar WRAPS (browser .projects-batch-bar flex-wrap, gap 10): a narrow dialog
-    // never cuts "Remove selected" off at its edge.
+    // Shown whenever the filtered view has selectable rows (it hosts Select all); direction buttons show by
+    // selection homogeneity. WRAPS (browser .projects-batch-bar flex-wrap, gap 10).
     {
       batchBar_ = new QWidget(this);
       auto* bh = new FlowLayout(batchBar_, 0, 10, 6);
       batchCount_ = new QLabel("0 selected", this);
       bh->addWidget(batchCount_);
-      // Select/deselect every row in the CURRENT filtered view (browser: `selectables`).
-      // Accent-filled batch actions (browser parity): the accent rides the shared
-      // accentCta property (theme.cpp), leaving objectNames free for the tests.
+      // The accent rides the shared accentCta property (theme.cpp), leaving objectNames free for the tests.
       const auto accentBtn = [this](const QString& label, const QString& icon,
                                     const QString& tip) {
         auto* b = new QPushButton(label, this);
@@ -102,7 +88,7 @@ namespace stencil::gui {
       };
       selectAllBtn_ = accentBtn(tr("Select all"), "check",
                                 "Select every project in the current filtered view");
-      selectAllBtn_->setObjectName("projectsSelectAll");   // the batch-bar test finds it
+      selectAllBtn_->setObjectName("projectsSelectAll");
       bh->addWidget(selectAllBtn_);
       connect(selectAllBtn_, &QPushButton::clicked, this, &ProjectsDialog::toggleSelectAll);
       batchToServer_ = accentBtn(tr("Move to server"), "server",
@@ -118,11 +104,8 @@ namespace stencil::gui {
       batchRemove_->setObjectName("dangerButton");
       batchRemove_->setIcon(labelIcon("trash", QColor("#ffffff"), 13));
       batchClear_ = accentBtn("Clear", "x", "Clear the current checkbox selection");
-      // The selection-only actions live in ONE group so the bar's swap is a single flight,
-      // not one per button: a control's dust is photographed where it sits at that instant,
-      // and siblings revealed in the same turn are still animating their own width.
-      // Browser twin: .projects-batch-selected in projectsModal.js. At rest the group
-      // wraps too (gap 6); only while its slot slides open or shut does it hold one line.
+      // ONE group so the bar's swap is a single flight: a control's dust is photographed where it sits, and
+      // siblings revealed in the same turn are still animating their width. Browser: .projects-batch-selected.
       batchSelectedGroup_ = new QWidget(batchBar_);
       auto* gh = new FlowLayout(batchSelectedGroup_, 0, 6, 6);
       gh->setLineSizeHint(true);
@@ -132,20 +115,18 @@ namespace stencil::gui {
       gh->addWidget(batchToLocal_);
       gh->addWidget(batchCopyLocal_);
       gh->addWidget(batchClear_);
-      gh->addWidget(batchRemove_);   // destructive last, as in the browser's bar
+      gh->addWidget(batchRemove_);
       batchSelectedGroup_->setVisible(false);
       bh->addWidget(batchSelectedGroup_);
       batchBar_->setVisible(false);
-      // The bar and the list share ONE zero-spacing slot, and the gap under the bar is the
-      // bar's OWN bottom margin. So a closing strip slides its whole footprint away
-      // together (support/controlReveal closeBarSlot) instead of dropping the layout's
-      // spacing in one frame at the end. Metrics unchanged: 10px above, 10px below.
+      // The bar and the list share ONE zero-spacing slot; the gap under the bar is the bar's OWN bottom
+      // margin, so a closing strip slides its whole footprint away (controlReveal closeBarSlot). 10px above, 10px below.
       bh->setContentsMargins(0, 0, 0, kBodySpacing);
       barSlot_ = new QVBoxLayout;
       barSlot_->setContentsMargins(0, 0, 0, 0);
       barSlot_->setSpacing(0);
       barSlot_->addWidget(batchBar_);
-      layout->addLayout(barSlot_, 1);   // the list joins it below (see addWidget(list_))
+      layout->addLayout(barSlot_, 1);
       connect(batchToServer_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchMoveToServer); });
       connect(batchCopyServer_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchCopyToServer); });
       connect(batchToLocal_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchMoveToLocal); });
@@ -156,18 +137,11 @@ namespace stencil::gui {
   }
 
   void ProjectsDialog::startRemotePolling() {
-    // Every control in the window gets the app's glass hover sweep, the way the toolbar
-    // and the selection panel do; the list already had its row version. The browser's rule
-    // covers the same set: `button, .btn-icon, .btn-icon-text` plus its text inputs.
     installHoverShimmerIn(this);
 
-    // Server (shared) projects: list them now and keep them live with a periodic
-    // re-list while the dialog is open. The desktop talks REST only, so this
-    // polling stands in for the browser modal's WebSocket project-event feed.
+    // REST only: this polling stands in for the browser modal's WebSocket project-event feed.
     if (connections_ && !connections_->urls().isEmpty()) {
-      // Defer the (synchronous) first listing to the next event-loop turn so the
-      // dialog paints immediately with local rows + a "Loading shared projects…"
-      // placeholder, instead of freezing on the network before it even shows.
+      // Deferred a turn so the dialog paints at once with local rows + the "Loading shared projects…" placeholder.
       QTimer::singleShot(0, this, &ProjectsDialog::refreshRemote);
       remoteTimer_ = new QTimer(this);
       remoteTimer_->setInterval(5000);

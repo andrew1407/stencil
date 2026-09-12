@@ -18,37 +18,28 @@
 
 namespace stencil::gui {
 
-  // A new row's gather — the flight of the control (Select all) that appears WITH it, so
-  // the two land together (rebuildList says why). Its removal keeps kConnMs.
+  // The flight of the control (Select all) that appears WITH a new row, so the two land together.
   inline constexpr int kConnArriveMs = kControlRevealInMs;
 
-  // The collaboration gold used for server points throughout the app (mirrors the
-  // browser's --remote-gold), so shared servers read the same on every front-end.
+  // The browser's --remote-gold.
   inline const QColor kGold("#d4a017");
-  // The amber of "the credential, not the server, is the problem": the dot, the
-  // expired note, and that row's outline.
+  // "The credential, not the server, is the problem": the dot, the expired note, the outline.
   inline const QColor kAmber("#e0a800");
-  // The amber's own hover shade (browser .connect-expired .connect-reconnect-one:hover).
   inline const QColor kAmberHover("#c99400");
-  // Row height: the browser's .connect-row, measured — 25px buttons inside its
-  // 8px/10px padding and 1px outline come to 43.
+  // Browser .connect-row, measured: 25px buttons + 8px/10px padding + 1px outline = 43.
   inline constexpr int kRowHeight = 43;
-  // The row's url, on the item (Qt::UserRole is the kind filter's admin flag).
   inline constexpr int kRowUrlRole = Qt::UserRole + 2;
-  // The kind picker's rule: All, or the row's admin flag agreeing with the pick.
   inline bool kindMatches(const QString& mode, bool admin) {
     return mode == QLatin1String("all") || (mode == QLatin1String("admin")) == admin;
   }
 
-  // A row that hovers as ONE card: Qt sends Enter/Leave to the child under the
-  // pointer, so a bare :hover rule blinks off over a label.
+  // Qt sends Enter/Leave to the child under the pointer, so a bare :hover rule blinks off over a label.
   class RowCard : public QWidget {
    public:
     RowCard() {
-      setAttribute(Qt::WA_StyledBackground, true);  // a bare QWidget won't paint one
+      setAttribute(Qt::WA_StyledBackground, true);
       setProperty("hovered", false);
     }
-    // Call once the row's children exist.
     void watchChildren() {
       for (QWidget* w : findChildren<QWidget*>()) w->installEventFilter(this);
     }
@@ -63,8 +54,7 @@ namespace stencil::gui {
 
    private:
     void syncHover() {
-      // The cursor test covers the gap between two children (Leave lands before the
-      // next Enter); underMouse() is what a synthesized hover sets.
+      // Covers the gap between two children (Leave lands before the next Enter).
       bool on = underMouse() || rect().contains(mapFromGlobal(QCursor::pos()));
       if (!on)
         for (const QWidget* w : findChildren<QWidget*>())
@@ -76,19 +66,14 @@ namespace stencil::gui {
     }
   };
 
-  // A filled status dot: green=connected, amber=connecting, red=error — mirrors the
-  // browser's connection-status dot.
   inline QPixmap statusDot(stencil::net::ServerClient::Status s) {
     using S = stencil::net::ServerClient::Status;
-    // Amber for BOTH "connecting" and "expired": the server is fine either way,
-    // only the credential is missing (browser parity — an expired row is amber,
-    // never the red of an unreachable host).
+    // Amber for BOTH connecting and expired: only the credential is missing (browser parity).
     QColor c = s == S::Connected  ? QColor("#28a745")
              : s == S::Connecting ? kAmber
              : s == S::Expired    ? kAmber
                                   : QColor("#dc3545");
-    // Browser .conn-status: a 9px disc inside a 2px halo of its own colour at 18%
-    // (box-shadow: 0 0 0 2px color-mix(currentColor 18%, transparent)).
+    // Browser .conn-status: a 9px disc inside a 2px halo of its own colour at 18%.
     QPixmap pm(13, 13);
     pm.fill(Qt::transparent);
     QPainter p(&pm);
@@ -103,20 +88,16 @@ namespace stencil::gui {
     return pm;
   }
 
-  // A label that elides to whatever width the row gives it (browser: CSS
-  // text-overflow). Its size hint stays narrow so a long URL can never force a
-  // horizontal scrollbar; the full text lives on the tooltip.
-  // A row action: the app's filled button chrome, compact — the browser's
-  // .connect-reconnect-one / .connect-invite / .connect-disconnect are ordinary
-  // accent-filled .btn-icons. `text` is empty for all but the expired row's fix.
+  // Browser text-overflow; the size hint stays narrow so a long URL can never force a scrollbar.
+  // The browser's row actions are ordinary accent-filled .btn-icons; `text` is empty for all but the expired row's fix.
   inline QPushButton* makeRowActionButton(const QIcon& ic, const QString& tip,
                                           const QString& text = QString()) {
     auto* b = new QPushButton(text);
     b->setIcon(ic);
-    b->setIconSize(QSize(15, 15));   // browser: icon({ size: 15 })
+    b->setIconSize(QSize(15, 15));
     b->setToolTip(tip);
     b->setCursor(Qt::PointingHandCursor);
-    b->setProperty("rowAction", true);   // styled by rowStyleSheet()
+    b->setProperty("rowAction", true);
     return b;
   }
 

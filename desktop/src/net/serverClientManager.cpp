@@ -22,8 +22,7 @@ namespace stencil::net {
   void ConnectionManager::connectToAsync(const QString& url, const QString& token,
                                         std::function<void(bool, QString)> done,
                                         ServerClient::CredentialKind kindHint) {
-    // Invite link: a "#token=<tok>" fragment supplies the credential — split it off
-    // before normalization (which drops fragments). An explicitly-typed token wins.
+    // The "#token=<tok>" fragment is split off before normalization drops it; a typed token wins.
     QString linkToken;
     const QString stripped = ServerClient::splitInviteToken(url, linkToken);
     const QString cred = token.isEmpty() ? linkToken : token;
@@ -34,13 +33,9 @@ namespace stencil::net {
     }
     auto* client = new ServerClient(base);
     pending_.push_back(client);
-    // The hint is only ever supplied by a caller REUSING a proven credential (the saved
-    // set); a freshly typed or invite-link token arrives without one and probes first.
     client->connectAsync(cred, [this, client, done](bool ok) {
       pending_.removeOne(client);
-      // A REFUSED CREDENTIAL keeps its place: the server is fine and the URL worth
-      // keeping, so the row can offer a sign-in. An unreachable host is still
-      // dropped — there is nothing to sign in to.
+      // A REFUSED CREDENTIAL keeps its place so the row can offer a sign-in; an unreachable host is dropped.
       if (!ok && !client->needsReauth()) {
         const QString err = client->lastError();
         delete client;
@@ -86,9 +81,7 @@ namespace stencil::net {
       connectToAsync(url, token, std::move(done));   // nothing listed: an ordinary connect
       return;
     }
-    // The client is REUSED, credential and all (connectAsync re-proves the kind), so the row
-    // keeps its place and its identity. connectToAsync() answered "already connected" and
-    // left the session expired however good the pasted token was.
+    // The client is REUSED so the row keeps its place; connectToAsync() would answer "already connected".
     c->connectAsync(token, [this, c, done](bool ok) {
       emit changed();
       done(ok, ok ? QString() : c->lastError());
@@ -128,9 +121,7 @@ namespace stencil::net {
   QVector<SavedServer> ConnectionManager::snapshot() const {
     QVector<SavedServer> out;
     out.reserve(clients_.size());
-    // Persist the CREDENTIAL, never the minted session token — sessions die
-    // with a server restart; the credential re-mints on the next connect. Its KIND
-    // rides along so the next launch knows an admin credential without re-probing.
+    // Persist the CREDENTIAL (a minted session dies with a server restart) and its KIND.
     for (auto* c : clients_)
       out.push_back({c->base(), c->credential(), ServerClient::kindTag(c->credentialKind())});
     return out;
@@ -142,8 +133,6 @@ namespace stencil::net {
       done({});
       return;
     }
-    // Fan out an async list to every client; merge the image-bearing projects and fire `done` once
-    // the last list resolves. Heap-managed counter + accumulator survive across the async hops.
     auto remaining = std::make_shared<int>(clients_.size());
     auto out = std::make_shared<QVector<ServerProject>>();
     for (auto* c : clients_) {

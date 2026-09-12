@@ -32,7 +32,6 @@ namespace stencil::net {
                        if (refused)
                          err_ = QStringLiteral("this server gates token minting (ADMIN_TOKEN) — paste a "
                                                "session token, or the admin token, into the Token field");
-                       // A gate is a credential problem, not a dead server.
                        status_ = refused ? Status::Expired : Status::Error;
                        if (refused)
                          qWarning("stencil: %s needs a token (ADMIN_TOKEN gate)", qPrintable(base_));
@@ -83,8 +82,6 @@ namespace stencil::net {
                        done(true);
                        return;
                      }
-                     // Same admin-token fallback as the sync path: token_ still holds
-                     // the entered value, so the mint request carries it as bearer.
                      requestAsync("POST", "/auth/token", "{}", "application/json",
                                   [this, status, done = std::move(done)](int mint, QByteArray body) {
                                     if (mint >= 200 && mint < 300) {
@@ -101,9 +98,7 @@ namespace stencil::net {
                                       done(false);
                                       return;
                                     }
-                                    // The token is not a session token and not the
-                                    // admin token: a refused CREDENTIAL, so the row
-                                    // offers a sign-in rather than a dead server.
+                                    // Neither a session nor the admin token: a refused CREDENTIAL, so the row offers a sign-in.
                                     token_.clear();
                                     status_ = Status::Expired;
                                     qWarning("stencil: token refused by %s — reconnect to sign in again",
@@ -115,16 +110,12 @@ namespace stencil::net {
   }
 
   void ServerClient::reconnectAsync(std::function<void(bool)> done) {
-    // The CREDENTIAL is what outlives a server restart — reconnect with it when one
-    // exists (connectAsync probes it, then mint-falls-back). Reconnecting with the
-    // minted session token instead would also overwrite credential_ with it.
+    // Reconnect with the CREDENTIAL (it outlives a restart); the session token would overwrite credential_.
     if (!credential_.isEmpty()) {
-      // A REUSED credential keeps what we learned about it, so a known admin one
-      // never probes again (browser reconnectOne parity).
+      // A REUSED credential keeps its kind (browser reconnectOne parity).
       connectAsync(credential_, std::move(done), kind_);
       return;
     }
-    // Re-validate the token we hold; if it's been rejected/cleared, issue a fresh one.
     if (token_.isEmpty()) {
       connectAsync(QString(), std::move(done));
       return;

@@ -13,10 +13,8 @@ namespace stencil::net {
     constexpr auto kTokensKey = "serverTokens";
   }  // namespace
 
-  // One tab-separated row per server: "url\t", or "url\t\tkind" once the credential's
-  // kind is known. The middle field is a LEGACY cleartext token, migrated on load into
-  // fileStore's secrets file; kind is read only when it is the row's LAST field, so
-  // legacy rows (and tokens containing a tab) still load.
+  // Row: "url\t" or "url\t\tkind". The middle field is a LEGACY cleartext token migrated into
+  // the secrets file on load; kind is read only as the LAST field so legacy rows still load.
   QVector<SavedServer> connectionStore::loadSavedServers() {
     QSettings s;
     const QStringList rows = s.value(kServersKey).toStringList();
@@ -50,7 +48,7 @@ namespace stencil::net {
     QJsonObject tokens;
     for (const SavedServer& srv : servers) {
       if (srv.url.isEmpty()) continue;
-      QString row = srv.url + '\t';  // the token field stays empty — see above
+      QString row = srv.url + '\t';
       if (!srv.kind.isEmpty()) row += '\t' + srv.kind;  // omitted when unknown → old shape
       rows << row;
       if (!srv.token.isEmpty()) tokens.insert(srv.url, srv.token);
@@ -64,7 +62,7 @@ namespace stencil::net {
 
   bool connectionStore::getAutoConnect() {
     QSettings s;
-    return s.value(kAutoConnectKey, true).toBool();  // default on
+    return s.value(kAutoConnectKey, true).toBool();
   }
 
   void connectionStore::setAutoConnect(bool on) {
