@@ -46,6 +46,12 @@ set(STENCIL_CANVAS_SOURCES
 # all defining ProjectsDialog:: / ProjectRowDelegate:: members; they travel together.
 set(STENCIL_PROJECTS_DIALOG_SOURCES
   src/dialogs/projectsDialog.cpp
+  src/dialogs/projectsDialogBuild.cpp
+  src/dialogs/projectsDialogEvents.cpp
+  src/dialogs/projectsDialogList.cpp
+  src/dialogs/projectsDialogRefresh.cpp
+  src/dialogs/projectsDialogRows.cpp
+  src/dialogs/projectsDialogViewport.cpp
   src/dialogs/projectRowDelegate.cpp
   src/dialogs/projectRowDelegateRow.cpp
   src/dialogs/projectsBatchBar.cpp
