@@ -23,22 +23,22 @@ import (
 // ever involved. Bytes are served via http.ServeContent over the confined
 // *os.File, so large files (video) stream instead of being read fully into
 // memory per request, and Range requests work for free.
-func (a *API) handleGetFile(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	kind := r.PathValue("kind")
+func (a *API) handleGetFile(rw http.ResponseWriter, req *http.Request) {
+	id := req.PathValue("id")
+	kind := req.PathValue("kind")
 	if !protocol.IsFileKind(kind) {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, msgUnknownFileKind)
+		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgUnknownFileKind)
 		return
 	}
-	ctx, cancel := a.opCtx(r)
+	ctx, cancel := a.opCtx(req)
 	defer cancel()
 	got := a.lookupFile(ctx, id, kind)
 	if errors.Is(got.recErr, store.ErrNotFound) {
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
+		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
 		return
 	}
 	if got.recErr != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgLoadProject)
+		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgLoadProject)
 		return
 	}
 	rel := got.rel
@@ -49,31 +49,31 @@ func (a *API) handleGetFile(w http.ResponseWriter, r *http.Request) {
 		rel = got.rec.ResultPath
 	default:
 		if got.relErr != nil && !errors.Is(got.relErr, filestore.ErrNotFound) {
-			writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgListFiles)
+			writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgListFiles)
 			return
 		}
 	}
 	if rel == "" {
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, msgNoFileOfKind(kind))
+		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgNoFileOfKind(kind))
 		return
 	}
 	f, err := a.deps.Files.OpenByRelPath(rel)
 	if errors.Is(err, filestore.ErrNotFound) {
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, msgFileMissing)
+		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgFileMissing)
 		return
 	}
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgReadFile)
+		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgReadFile)
 		return
 	}
 	defer f.Close()
-	w.Header().Set("Content-Type", contentTypeForExt(path.Ext(rel)))
+	rw.Header().Set("Content-Type", contentTypeForExt(path.Ext(rel)))
 	// Client-uploaded bytes served from our own origin: pin the declared type, or a
 	// browser may sniff an "image" as something scriptable and run it here.
-	w.Header().Set("X-Content-Type-Options", "nosniff")
+	rw.Header().Set("X-Content-Type-Options", "nosniff")
 	// The zero modtime suppresses Last-Modified/conditional handling, keeping
 	// the response shape otherwise unchanged (plus Accept-Ranges).
-	http.ServeContent(w, r, "", time.Time{}, f)
+	http.ServeContent(rw, req, "", time.Time{}, f)
 }
 
 // fileLookup holds the two reads a download needs. Each goroutine below writes
@@ -115,33 +115,33 @@ func (a *API) lookupFile(ctx context.Context, id, kind string) fileLookup {
 // is codec-free and never decodes images — clients render and measure. The
 // three-step, two-store write itself (and the compensating deletes that undo a
 // half-done one) is the service's saga.
-func (a *API) handlePutFile(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	kind := r.PathValue("kind")
+func (a *API) handlePutFile(rw http.ResponseWriter, req *http.Request) {
+	id := req.PathValue("id")
+	kind := req.PathValue("kind")
 	if !protocol.IsFileKind(kind) {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, msgUnknownFileKind)
+		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgUnknownFileKind)
 		return
 	}
-	ctx, cancel := a.opCtx(r)
+	ctx, cancel := a.opCtx(req)
 	defer cancel()
-	put := service.FilePut{ID: id, Kind: kind, Ext: strings.TrimPrefix(r.URL.Query().Get("ext"), ".")}
-	put.W, _ = strconv.Atoi(r.URL.Query().Get("w"))
-	put.H, _ = strconv.Atoi(r.URL.Query().Get("h"))
+	put := service.FilePut{ID: id, Kind: kind, Ext: strings.TrimPrefix(req.URL.Query().Get("ext"), ".")}
+	put.W, _ = strconv.Atoi(req.URL.Query().Get("w"))
+	put.H, _ = strconv.Atoi(req.URL.Query().Get("h"))
 
 	// The body streams straight to disk: a 32 MiB upload never sits in the heap.
-	resp, err := a.files.Store(ctx, put, http.MaxBytesReader(w, r.Body, a.deps.MaxBodyBytes))
+	resp, err := a.files.Store(ctx, put, http.MaxBytesReader(rw, req.Body, a.deps.MaxBodyBytes))
 	switch {
 	case errors.Is(err, store.ErrNotFound):
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
+		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
 		return
 	case errors.Is(err, service.ErrRecordFile):
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgRecordFile)
+		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgRecordFile)
 		return
 	case err != nil:
-		writeStoreFileErr(w, err)
+		writeStoreFileErr(rw, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, resp)
+	writeJSON(rw, http.StatusCreated, resp)
 }
 
 // handleDeleteFile removes the stored bytes for a filestore-only kind
@@ -149,49 +149,49 @@ func (a *API) handlePutFile(w http.ResponseWriter, r *http.Request) {
 // the project record and are only removed with the project, so deleting them
 // here is rejected. Deleting a kind with no stored bytes still answers 204
 // (idempotent), and a file delete never bumps the project version.
-func (a *API) handleDeleteFile(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	kind := r.PathValue("kind")
+func (a *API) handleDeleteFile(rw http.ResponseWriter, req *http.Request) {
+	id := req.PathValue("id")
+	kind := req.PathValue("kind")
 	if !protocol.IsFileKind(kind) {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, msgUnknownFileKind)
+		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgUnknownFileKind)
 		return
 	}
 	if !protocol.IsFilestoreOnlyKind(kind) {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, msgKindGoesWithProject(kind))
+		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgKindGoesWithProject(kind))
 		return
 	}
-	ctx, cancel := a.opCtx(r)
+	ctx, cancel := a.opCtx(req)
 	defer cancel()
 	if _, err := a.deps.Projects.GetProject(ctx, id); errors.Is(err, store.ErrNotFound) {
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
+		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
 		return
 	} else if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgLoadProject)
+		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgLoadProject)
 		return
 	}
 	if err := a.deps.Files.RemoveKind(id, kind); err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgDeleteFile)
+		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgDeleteFile)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	rw.WriteHeader(http.StatusNoContent)
 }
 
 // writeStoreFileErr maps one failed upload onto its response.
-func writeStoreFileErr(w http.ResponseWriter, err error) {
+func writeStoreFileErr(rw http.ResponseWriter, err error) {
 	var unsafe filestore.ErrUnsafePath
 	var tooBig *http.MaxBytesError
 	switch {
 	case errors.As(err, &tooBig):
-		writeErr(w, http.StatusRequestEntityTooLarge, protocol.CodeBadRequest, msgBodyTooLarge)
+		writeErr(rw, http.StatusRequestEntityTooLarge, protocol.CodeBadRequest, msgBodyTooLarge)
 	case errors.Is(err, filestore.ErrEmpty):
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, msgEmptyBody)
+		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgEmptyBody)
 	case errors.As(err, &unsafe):
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, msgRejectedPath)
+		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgRejectedPath)
 	case errors.Is(err, filestore.ErrQuotaExceeded):
 		// STORAGE_QUOTA_BYTES: the server is full, not the request malformed.
-		writeErr(w, http.StatusInsufficientStorage, protocol.CodeInternal, msgQuotaExceeded)
+		writeErr(rw, http.StatusInsufficientStorage, protocol.CodeInternal, msgQuotaExceeded)
 	default:
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgStoreFile)
+		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgStoreFile)
 	}
 }
 

@@ -13,8 +13,8 @@ import (
 )
 
 // listPage reads the opt-in keyset paging params; both absent = every project.
-func listPage(r *http.Request) (store.ProjectPage, error) {
-	q := r.URL.Query()
+func listPage(req *http.Request) (store.ProjectPage, error) {
+	q := req.URL.Query()
 	page := store.ProjectPage{}
 	limit, err := validate.ListLimit(q.Get("limit"))
 	if err != nil {
@@ -29,17 +29,17 @@ func listPage(r *http.Request) (store.ProjectPage, error) {
 	return page, nil
 }
 
-func (a *API) handleListProjects(w http.ResponseWriter, r *http.Request) {
-	page, err := listPage(r)
+func (a *API) handleListProjects(rw http.ResponseWriter, req *http.Request) {
+	page, err := listPage(req)
 	if err != nil {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, err.Error())
+		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, err.Error())
 		return
 	}
-	ctx, cancel := a.opCtx(r)
+	ctx, cancel := a.opCtx(req)
 	defer cancel()
 	projects, err := a.deps.Projects.ListProjects(ctx, page)
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgListProjects)
+		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgListProjects)
 		return
 	}
 	resp := protocol.ProjectListResponse{Projects: projects}
@@ -48,19 +48,19 @@ func (a *API) handleListProjects(w http.ResponseWriter, r *http.Request) {
 		last := projects[len(projects)-1]
 		resp.NextCursor = store.ProjectCursor{UpdatedAt: last.UpdatedAt, ID: last.ID}.String()
 	}
-	writeJSON(w, http.StatusOK, resp)
+	writeJSON(rw, http.StatusOK, resp)
 }
 
-func (a *API) handleGetProject(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := a.opCtx(r)
+func (a *API) handleGetProject(rw http.ResponseWriter, req *http.Request) {
+	ctx, cancel := a.opCtx(req)
 	defer cancel()
-	rec, err := a.deps.Projects.GetProject(ctx, r.PathValue("id"))
+	rec, err := a.deps.Projects.GetProject(ctx, req.PathValue("id"))
 	if errors.Is(err, store.ErrNotFound) {
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
+		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
 		return
 	}
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgLoadProject)
+		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgLoadProject)
 		return
 	}
 	resp := protocol.ProjectResponse{
@@ -71,78 +71,78 @@ func (a *API) handleGetProject(w http.ResponseWriter, r *http.Request) {
 	// Avoid duplicating the payload inside Project too.
 	resp.Project.Layout = nil
 	resp.Project.OriginalContent = ""
-	writeJSON(w, http.StatusOK, resp)
+	writeJSON(rw, http.StatusOK, resp)
 }
 
 // handleCreateProject decodes the request; the image rule and the PROJECT_TTL
 // stamping are policy and live in the service.
-func (a *API) handleCreateProject(w http.ResponseWriter, r *http.Request) {
-	var req protocol.CreateProjectRequest
-	if !a.decodeJSON(w, r, &req) {
+func (a *API) handleCreateProject(rw http.ResponseWriter, req *http.Request) {
+	var body protocol.CreateProjectRequest
+	if !a.decodeJSON(rw, req, &body) {
 		return
 	}
 	owner := ""
-	if sess, ok := auth.SessionFromContext(r.Context()); ok {
+	if sess, ok := auth.SessionFromContext(req.Context()); ok {
 		owner = sess.ID
 	}
-	ctx, cancel := a.opCtx(r)
+	ctx, cancel := a.opCtx(req)
 	defer cancel()
-	rec, err := a.projects.Create(ctx, owner, req)
+	rec, err := a.projects.Create(ctx, owner, body)
 	switch {
 	case errors.Is(err, service.ErrImageRequired):
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, msgImageRequired)
+		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgImageRequired)
 		return
 	case err != nil:
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgCreateProject)
+		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgCreateProject)
 		return
 	}
-	writeJSON(w, http.StatusCreated, rec)
+	writeJSON(rw, http.StatusCreated, rec)
 }
 
-func (a *API) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
-	var req protocol.UpdateProjectRequest
-	if !a.decodeJSON(w, r, &req) {
+func (a *API) handleUpdateProject(rw http.ResponseWriter, req *http.Request) {
+	var body protocol.UpdateProjectRequest
+	if !a.decodeJSON(rw, req, &body) {
 		return
 	}
-	ctx, cancel := a.opCtx(r)
+	ctx, cancel := a.opCtx(req)
 	defer cancel()
-	rec, err := a.deps.Projects.UpdateProject(ctx, r.PathValue("id"), store.ProjectPatch{
-		Name:        req.Name,
-		Color:       req.Color,
-		Description: req.Description,
-		Keywords:    req.Keywords,
-		BlankColor:  req.BlankColor,
-		ExpiresAt:   req.ExpiresAt,
-		Layout:      req.Layout,
-	}, req.Version)
+	rec, err := a.deps.Projects.UpdateProject(ctx, req.PathValue("id"), store.ProjectPatch{
+		Name:        body.Name,
+		Color:       body.Color,
+		Description: body.Description,
+		Keywords:    body.Keywords,
+		BlankColor:  body.BlankColor,
+		ExpiresAt:   body.ExpiresAt,
+		Layout:      body.Layout,
+	}, body.Version)
 	switch {
 	case errors.Is(err, store.ErrNotFound):
-		writeErr(w, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
+		writeErr(rw, http.StatusNotFound, protocol.CodeNotFound, msgProjectNotFound)
 		return
 	case errors.Is(err, store.ErrConflict):
-		writeErr(w, http.StatusConflict, protocol.CodeConflict, msgStaleVersion)
+		writeErr(rw, http.StatusConflict, protocol.CodeConflict, msgStaleVersion)
 		return
 	case err != nil:
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgUpdateProject)
+		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgUpdateProject)
 		return
 	}
 	bus.PublishProjectEvent(ctx, a.deps.Bus, protocol.EventUpdated, rec)
-	writeJSON(w, http.StatusOK, rec)
+	writeJSON(rw, http.StatusOK, rec)
 }
 
 // handleDeleteProject defers to the service: the live-session guard and the
 // row-then-bytes-then-announce ordering are shared with the expiry sweep.
-func (a *API) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := a.opCtx(r)
+func (a *API) handleDeleteProject(rw http.ResponseWriter, req *http.Request) {
+	ctx, cancel := a.opCtx(req)
 	defer cancel()
-	err := a.projects.Delete(ctx, r.PathValue("id"))
+	err := a.projects.Delete(ctx, req.PathValue("id"))
 	switch {
 	case errors.Is(err, service.ErrProjectInUse):
-		writeErr(w, http.StatusConflict, protocol.CodeConflict, msgProjectInUse)
+		writeErr(rw, http.StatusConflict, protocol.CodeConflict, msgProjectInUse)
 		return
 	case err != nil:
-		writeErr(w, http.StatusInternalServerError, protocol.CodeInternal, msgDeleteProject)
+		writeErr(rw, http.StatusInternalServerError, protocol.CodeInternal, msgDeleteProject)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	rw.WriteHeader(http.StatusNoContent)
 }

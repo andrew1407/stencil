@@ -142,8 +142,8 @@ const defaultOpTimeout = 10 * time.Second
 // opCtx bounds one store operation: the request context alone runs to the
 // server's 5-minute write timeout, which is a long time to pin a pool
 // connection. Streaming a download still uses the request itself.
-func (a *API) opCtx(r *http.Request) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(r.Context(), a.deps.OpTimeout)
+func (a *API) opCtx(req *http.Request) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(req.Context(), a.deps.OpTimeout)
 }
 
 // Register mounts the REST routes onto mux. Project/file routes are gated by the
@@ -175,24 +175,24 @@ func (a *API) Handler() *http.ServeMux {
 
 // ----- shared response helpers -----
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
+func writeJSON(rw http.ResponseWriter, status int, v any) {
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(status)
+	_ = json.NewEncoder(rw).Encode(v)
 }
 
-func writeErr(w http.ResponseWriter, status int, code, msg string) {
-	writeJSON(w, status, protocol.ErrorResponse{Code: code, Message: msg})
+func writeErr(rw http.ResponseWriter, status int, code, msg string) {
+	writeJSON(rw, status, protocol.ErrorResponse{Code: code, Message: msg})
 }
 
 // decodeJSON reads a JSON body with a size cap and strict unknown-field
 // rejection.
-func (a *API) decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
-	r.Body = http.MaxBytesReader(w, r.Body, a.deps.MaxBodyBytes)
-	dec := json.NewDecoder(r.Body)
+func (a *API) decodeJSON(rw http.ResponseWriter, req *http.Request, dst any) bool {
+	req.Body = http.MaxBytesReader(rw, req.Body, a.deps.MaxBodyBytes)
+	dec := json.NewDecoder(req.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
-		writeErr(w, http.StatusBadRequest, protocol.CodeBadRequest, msgInvalidJSONPre+err.Error())
+		writeErr(rw, http.StatusBadRequest, protocol.CodeBadRequest, msgInvalidJSONPre+err.Error())
 		return false
 	}
 	return true

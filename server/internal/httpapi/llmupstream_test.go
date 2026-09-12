@@ -68,9 +68,9 @@ func TestLLMChatUpstreamFailuresSayWhy(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(c.status)
-				w.Write([]byte(c.body))
+			up := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+				rw.WriteHeader(c.status)
+				rw.Write([]byte(c.body))
 			}))
 			defer up.Close()
 			api := llmAPI(t, llm.New(c.provider, up.URL, "sk-secret-key-value", "m", 1024, 5*time.Second))
@@ -102,9 +102,9 @@ func TestLLMChatUpstreamFailuresSayWhy(t *testing.T) {
 // A shape nothing matches is the one case that still forwards the upstream's own
 // (bounded, sanitized) text plus its status — there is no reason to say instead.
 func TestLLMChatUnknownUpstreamShapeKeepsItsText(t *testing.T) {
-	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(418)
-		w.Write([]byte(`{"type":"error","error":{"type":"teapot_error","message":"I am a teapot"}}`))
+	up := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		rw.WriteHeader(418)
+		rw.Write([]byte(`{"type":"error","error":{"type":"teapot_error","message":"I am a teapot"}}`))
 	}))
 	defer up.Close()
 
@@ -141,10 +141,10 @@ func TestLLMChatUnreachableUpstream(t *testing.T) {
 
 // A slow upstream is a timeout, and the client is told so.
 func TestLLMChatUpstreamTimeout(t *testing.T) {
-	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	slow := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		select {
 		case <-time.After(2 * time.Second):
-		case <-r.Context().Done():
+		case <-req.Context().Done():
 		}
 	}))
 	defer slow.Close()
@@ -163,9 +163,9 @@ func TestLLMChatUpstreamTimeout(t *testing.T) {
 // Whatever an upstream echoes back, the key never rides out to a client.
 func TestLLMChatNeverLeaksTheKeyFromAnUpstreamError(t *testing.T) {
 	const key = "sk-ant-api03-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789"
-	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(418)
-		fmt.Fprintf(w, `{"type":"error","error":{"type":"weird","message":"key %s (%s) rejected"}}`, key, key[8:24])
+	up := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		rw.WriteHeader(418)
+		fmt.Fprintf(rw, `{"type":"error","error":{"type":"weird","message":"key %s (%s) rejected"}}`, key, key[8:24])
 	}))
 	defer up.Close()
 

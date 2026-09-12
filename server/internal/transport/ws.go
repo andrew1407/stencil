@@ -30,13 +30,13 @@ type wsConn struct {
 // disabled because authentication is performed by the in-band hello frame
 // (a bearer token), not by the browser origin — any origin may attempt to
 // connect but cannot join a session without a valid token.
-func AcceptWS(w http.ResponseWriter, r *http.Request) (Conn, error) {
-	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
+func AcceptWS(rw http.ResponseWriter, req *http.Request) (Conn, error) {
+	c, err := websocket.Accept(rw, req, &websocket.AcceptOptions{InsecureSkipVerify: true})
 	if err != nil {
 		return nil, err
 	}
 	c.SetReadLimit(MaxMessageBytes)
-	x := &wsConn{c: c, remote: r.RemoteAddr, done: make(chan struct{})}
+	x := &wsConn{c: c, remote: req.RemoteAddr, done: make(chan struct{})}
 	go x.keepalive()
 	return x, nil
 }

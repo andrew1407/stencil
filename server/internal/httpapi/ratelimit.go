@@ -16,35 +16,35 @@ import (
 // clientIP is the key a per-IP limiter spends against: the peer, or the
 // forwarded client when the peer is in TRUSTED_PROXY_CIDRS — without which
 // every request behind a TLS-terminating proxy shares the proxy's one bucket.
-func (a *API) clientIP(r *http.Request) string {
-	return ratelimit.ClientIP(r.RemoteAddr, r.Header.Get("X-Forwarded-For"), a.deps.TrustedProxies)
+func (a *API) clientIP(req *http.Request) string {
+	return ratelimit.ClientIP(req.RemoteAddr, req.Header.Get("X-Forwarded-For"), a.deps.TrustedProxies)
 }
 
 // limitByIP gates an unauthenticated route by client IP (the only stable key
 // before a session exists).
 func (a *API) limitByIP(l *ratelimit.Limiter, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if !l.Allow(a.clientIP(r)) {
-			tooManyRequests(w, msgTooManyTokenRequests)
+	return func(rw http.ResponseWriter, req *http.Request) {
+		if !l.Allow(a.clientIP(req)) {
+			tooManyRequests(rw, msgTooManyTokenRequests)
 			return
 		}
-		next(w, r)
+		next(rw, req)
 	}
 }
 
 // limitBySession gates a write route by session id. It runs inside the auth
 // guard, so the session is always on the context.
 func limitBySession(l *ratelimit.Limiter, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if sess, ok := auth.SessionFromContext(r.Context()); ok && !l.Allow(sess.ID) {
-			tooManyRequests(w, msgWriteRateExceeded)
+	return func(rw http.ResponseWriter, req *http.Request) {
+		if sess, ok := auth.SessionFromContext(req.Context()); ok && !l.Allow(sess.ID) {
+			tooManyRequests(rw, msgWriteRateExceeded)
 			return
 		}
-		next(w, r)
+		next(rw, req)
 	}
 }
 
-func tooManyRequests(w http.ResponseWriter, msg string) {
-	w.Header().Set("Retry-After", "60")
-	writeErr(w, http.StatusTooManyRequests, protocol.CodeRateLimited, msg+msgRetryLater)
+func tooManyRequests(rw http.ResponseWriter, msg string) {
+	rw.Header().Set("Retry-After", "60")
+	writeErr(rw, http.StatusTooManyRequests, protocol.CodeRateLimited, msg+msgRetryLater)
 }

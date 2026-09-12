@@ -20,8 +20,8 @@ func wsPair(t *testing.T) (client, server Conn) {
 	// The handler must not return while the test is using the connection —
 	// returning would tear the upgraded conn down — so it parks on `release`.
 	release := make(chan struct{})
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := AcceptWS(w, r)
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		c, err := AcceptWS(rw, req)
 		if err != nil {
 			close(accepted)
 			return

@@ -185,13 +185,13 @@ func TestChatTransportErrorNeverLeaksKey(t *testing.T) {
 
 // TestChatAgainstHTTPServer exercises the real *http.Client path built by New.
 func TestChatAgainstHTTPServer(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/v1/messages" || r.Header.Get("x-api-key") != "k" {
-			w.WriteHeader(http.StatusUnauthorized)
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != "/v1/messages" || req.Header.Get("x-api-key") != "k" {
+			rw.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(okResponse))
+		rw.Header().Set("Content-Type", "application/json")
+		_, _ = rw.Write([]byte(okResponse))
 	}))
 	defer srv.Close()
 

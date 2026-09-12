@@ -38,9 +38,9 @@ func httpServer(cfg config.Config, api *httpapi.API, h *hub.Hub, tlsConf *tls.Co
 	mux := http.NewServeMux()
 	api.Register(mux)
 	mux.Handle("/ws", h.WSHandler())
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
+	mux.HandleFunc("GET /healthz", func(rw http.ResponseWriter, _ *http.Request) {
+		rw.WriteHeader(http.StatusOK)
+		_, _ = rw.Write([]byte("ok"))
 	})
 	return &http.Server{
 		Addr:              cfg.ListenAddr,

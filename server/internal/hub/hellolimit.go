@@ -53,8 +53,8 @@ func withClientIP(ctx context.Context, ip string) context.Context {
 }
 
 // requestIP resolves the client IP of a WebSocket upgrade request.
-func (g helloGuard) requestIP(r *http.Request) string {
-	return ratelimit.ClientIP(r.RemoteAddr, r.Header.Get("X-Forwarded-For"), g.trusted)
+func (g helloGuard) requestIP(req *http.Request) string {
+	return ratelimit.ClientIP(req.RemoteAddr, req.Header.Get("X-Forwarded-For"), g.trusted)
 }
 
 // connIP is the limiter key for a connection: the IP resolved at the WS

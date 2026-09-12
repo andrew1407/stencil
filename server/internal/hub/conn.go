@@ -22,12 +22,12 @@ import (
 // WSHandler returns an http.Handler that upgrades to WebSocket and joins a
 // session/feed. The route carries no id; the hello frame selects the target.
 func (h *Hub) WSHandler() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		conn, err := transport.AcceptWS(w, r)
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		conn, err := transport.AcceptWS(rw, req)
 		if err != nil {
 			return // Accept already wrote a response
 		}
-		ctx := withClientIP(r.Context(), h.hello.requestIP(r))
+		ctx := withClientIP(req.Context(), h.hello.requestIP(req))
 		if err := h.HandleConn(ctx, conn); err != nil {
 			log.Printf("hub: ws connection ended: %v", err)
 		}

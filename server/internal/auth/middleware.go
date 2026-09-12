@@ -19,15 +19,15 @@ const sessionKey ctxKey = 0
 // failure it writes a 401 JSON error and does not call next.
 func Middleware(resolver SessionResolver) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token := BearerToken(r)
-			sess, err := Verify(r.Context(), resolver, token, clock.NowMs())
+		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+			token := BearerToken(req)
+			sess, err := Verify(req.Context(), resolver, token, clock.NowMs())
 			if err != nil {
-				writeUnauthorized(w)
+				writeUnauthorized(rw)
 				return
 			}
-			ctx := context.WithValue(r.Context(), sessionKey, sess)
-			next.ServeHTTP(w, r.WithContext(ctx))
+			ctx := context.WithValue(req.Context(), sessionKey, sess)
+			next.ServeHTTP(rw, req.WithContext(ctx))
 		})
 	}
 }
@@ -36,26 +36,26 @@ func Middleware(resolver SessionResolver) func(http.Handler) http.Handler {
 // "Bearer " prefix in any case. Only WebSocket upgrade requests may fall back
 // to a `token` query param (the browser WebSocket API cannot set headers);
 // on plain REST a URL token is ignored — it would leak via logs and referrers.
-func BearerToken(r *http.Request) string {
-	h := r.Header.Get("Authorization")
+func BearerToken(req *http.Request) string {
+	h := req.Header.Get("Authorization")
 	if h != "" {
 		if len(h) >= 7 && strings.EqualFold(h[:7], "bearer ") {
 			return strings.TrimSpace(h[7:])
 		}
 		return strings.TrimSpace(h)
 	}
-	if isWebSocketUpgrade(r) {
-		return r.URL.Query().Get("token")
+	if isWebSocketUpgrade(req) {
+		return req.URL.Query().Get("token")
 	}
 	return ""
 }
 
 // isWebSocketUpgrade reports whether r is an RFC6455 upgrade handshake.
-func isWebSocketUpgrade(r *http.Request) bool {
-	if !strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+func isWebSocketUpgrade(req *http.Request) bool {
+	if !strings.EqualFold(req.Header.Get("Upgrade"), "websocket") {
 		return false
 	}
-	for _, tok := range strings.Split(r.Header.Get("Connection"), ",") {
+	for _, tok := range strings.Split(req.Header.Get("Connection"), ",") {
 		if strings.EqualFold(strings.TrimSpace(tok), "upgrade") {
 			return true
 		}
@@ -69,11 +69,11 @@ func SessionFromContext(ctx context.Context) (Session, bool) {
 	return sess, ok
 }
 
-func writeUnauthorized(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("WWW-Authenticate", "Bearer")
-	w.WriteHeader(http.StatusUnauthorized)
-	_ = json.NewEncoder(w).Encode(protocol.ErrorResponse{
+func writeUnauthorized(rw http.ResponseWriter) {
+	rw.Header().Set("Content-Type", "application/json")
+	rw.Header().Set("WWW-Authenticate", "Bearer")
+	rw.WriteHeader(http.StatusUnauthorized)
+	_ = json.NewEncoder(rw).Encode(protocol.ErrorResponse{
 		Code:    protocol.CodeUnauthorized,
 		Message: "missing or invalid token",
 	})

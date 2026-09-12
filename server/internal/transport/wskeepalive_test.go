@@ -15,8 +15,8 @@ import (
 )
 
 func TestDialWSFailsAgainstANonWebSocketEndpoint(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK) // a plain 200, no upgrade
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, _ *http.Request) {
+		rw.WriteHeader(http.StatusOK) // a plain 200, no upgrade
 	}))
 	defer srv.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -37,8 +37,8 @@ func TestDialWSFailsAgainstANonWebSocketEndpoint(t *testing.T) {
 func TestAcceptWSUpgradesFromAForeignOrigin(t *testing.T) {
 	accepted := make(chan error, 1)
 	release := make(chan struct{})
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := AcceptWS(w, r)
+	srv := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		c, err := AcceptWS(rw, req)
 		accepted <- err
 		if err == nil {
 			// The client hard-closes first (below), so this never waits on a
