@@ -6,29 +6,23 @@
 
 namespace stencil::gui {
 
-  // Alt+left (port of startPan ~721/~764): drag the point, segment, or (with
-  // Shift) whole line under the cursor, else pan. Takes precedence over drawing —
-  // no points are added while editing/panning. Every path sets state + returns.
+  // Alt+left (browser startPan): point, segment or (Shift) whole line under the cursor, else pan.
   void CanvasWidget::beginAltDrag(const core::Point& ip,
                                   Qt::KeyboardModifiers mods,
                                   const QPoint& globalPos) {
     dragStart_ = ip;
     dragMoved_ = false;
 
-    // Alt+Ctrl -> pull a new point out of whatever is under the cursor and drag it; on a
-    // closed area the same pull breaks the shape open there. Checked before the plain Alt
-    // drags, which would otherwise move the point already there.
+    // Alt+Ctrl pull-out is checked before the plain Alt drags, which would move the point already there.
     if ((mods & Qt::ControlModifier) && !(mods & Qt::ShiftModifier) && beginPullOut(ip)) return;
 
-    // Alt+Shift over a line -> whole-line drag (always translates EVERY point).
     if (mods & Qt::ShiftModifier) {
       const int li = core::findLineAt(lines_, ip.x, ip.y, hitRadius(8.0));
       if (li != -1) {
         dragKind_ = DragKind::Line;
         dragLineIdx_ = li;
         dragOrig_ = lines_[li].points;
-        // If the grabbed line is part of a multi-selection, snapshot EVERY selected line so the
-        // drag translates them all together (whole-line move).
+        // A multi-selection drags as one: snapshot EVERY selected line.
         dragMultiOrig_.clear();
         const auto sel = selectedIndices();
         if (sel.size() >= 2 && std::find(sel.begin(), sel.end(), li) != sel.end())
@@ -39,7 +33,6 @@ namespace stencil::gui {
       }
     }
 
-    // Priority 1: near a point (in-progress line first) -> drag the point.
     if (auto idx = core::nearestPointInLine(currentLine_.points, ip.x, ip.y,
                                             hitRadius(12.0))) {
       dragKind_ = DragKind::Point;
@@ -55,7 +48,6 @@ namespace stencil::gui {
       setCursor(Qt::SizeAllCursor);
       return;
     }
-    // Priority 2: near a segment -> drag that segment.
     if (auto seg = core::findNearestSegment(lines_, ip.x, ip.y, hitRadius(12.0))) {
       dragKind_ = DragKind::Segment;
       dragLineIdx_ = seg->lineIdx;
@@ -65,15 +57,12 @@ namespace stencil::gui {
       setCursor(Qt::SizeAllCursor);
       return;
     }
-    // Otherwise: pan (drawingApp.js startPan ~797).
     panning_ = true;
     lastPanPos_ = globalPos;  // global: see middle-button note
     setCursor(Qt::ClosedHandCursor);
   }
 
-  // Pull a new point out of the line under `ip` and start dragging it. A locked area is
-  // opened at that spot first, so the seam appears where the user grabbed rather than
-  // always at point 0 (chainEdit.hpp). False when there is nothing to pull out of.
+  // A locked area is opened at the grab spot first (chainEdit.hpp). False when nothing is under `ip`.
   bool CanvasWidget::beginPullOut(const core::Point& ip) {
     chain::PullTarget target;
     int lineIdx = -1;
@@ -105,7 +94,6 @@ namespace stencil::gui {
     return true;
   }
 
-  // Turn the selected area back into an open line (the selection bar's Unchain button).
   void CanvasWidget::unchainSelectedLine() {
     if (compareReadOnly()) return;
     if (selectedLineIdx_ < 0 || selectedLineIdx_ >= static_cast<int>(lines_.size())) return;
@@ -118,23 +106,19 @@ namespace stencil::gui {
     emit statusMessage(tr("Area unchained — it is an open line again"));
   }
 
-  // Zoom-to-rect: Shift+left-drag sweeps a rubber band (drawingApp.js
-  // startPan shift branch ~746). No points added while sweeping. widgetPos is
-  // widget space (NOT image space).
+  // Shift+left-drag rubber band (browser startPan shift branch); widgetPos is widget space.
   void CanvasWidget::beginZoomRect(const QPoint& widgetPos) {
     zoomRectActive_ = true;
     zoomRectStart_ = zoomRectEnd_ = widgetPos;
     update();
   }
 
-  // Ctrl+left (drawingApp.js canvasClick ~1187/1239): insert a point onto the
-  // nearest segment, else (when not drawing) add a point connected to the selection.
-  // Returns false only for drawing+Ctrl+no-segment, which falls through to append.
+  // Ctrl+left (browser canvasClick): insert on the nearest segment, else add a connected point.
+  // False only for drawing + Ctrl + no segment, which falls through to append.
   bool CanvasWidget::handleCtrlClick(const core::Point& ip) {
     if (auto seg = core::findNearestSegment(lines_, ip.x, ip.y, hitRadius(12.0))) {
       insertPointOnSegment(seg->lineIdx, seg->ptIdx2, ip.x, ip.y);
-      // Inserting shifts later indices right by one; keep the continuation
-      // tail anchored to the same spot (drawingApp.js ~1193).
+      // Inserting shifts later indices right; keep the continuation tail anchored.
       if (seg->lineIdx == continueLineIdx_ &&
           seg->ptIdx2 <= continueInsertIdx_) {
         ++continueInsertIdx_;
@@ -145,17 +129,11 @@ namespace stencil::gui {
       addConnectedPoint(ip.x, ip.y);
       return true;
     }
-    // drawing + Ctrl + no segment -> normal append handled by the caller.
     return false;
   }
 
-  // Plain left-click drawing: rect-draw press, select-when-not-drawing, rect-mode
-  // no-op, continuation extend/close, the close-shape gate, and the normal point
-  // append. widgetPos seeds the rect-draw rubber band (widget space).
-  // core::shouldCloseShape grabs within `pointSize + 8` image pixels, where every other
-  // hit test here is a screen radius over the zoom (hitRadius) — at 25% the first point
-  // was a three-pixel target. core adds its own +8, so hand it the size that makes the
-  // total screen-constant. Zoomed out only: magnifying must not shrink the targets.
+  // core::shouldCloseShape grabs within `pointSize + 8` IMAGE px, every other hit test is a screen
+  // radius over the zoom — at 25% the first point was a three-pixel target. Zoomed out only.
   double CanvasWidget::closeGrabSize(const core::Line& line) const {
     const double ps = line.pointSize;
     const double scale = scale_ > 0 ? scale_ : 1.0;

@@ -11,18 +11,13 @@
 #include <QPolygonF>
 #include <QVector>
 
-// The empty canvas: the page fill and the "＋ Blank image" invitation card, lifted out of
-// CanvasWidget::paintEvent. Port of the browser's .idle-create-btn (layout.css) plus the
-// iconMotion.json "image" glyph play, evaluated by hand — see the notes inline.
+// The empty canvas: page fill + the "＋ Blank image" card (browser .idle-create-btn, layout.css).
 namespace stencil::gui {
 
   void CanvasWidget::paintIdleCard(QPainter& p, const Palette& pal) {
     p.fillRect(rect(), pal.bgPage);
-    // The clear's dust is still falling: paint the bare page and nothing else, so the
-    // invitation does not appear underneath the particles (setIdleHintHidden).
+    // The clear's dust is still falling: bare page only (setIdleHintHidden).
     if (idleHintHidden_) { unsetCursor(); return; }
-    // The idle card (port of the browser's .idle-create-btn): a dashed box with
-    // the 32 px `image` glyph over a "＋ Blank image" label, accent fill on hover.
     // The card alone is the click/cursor target, never the whole page.
     const QString label = QStringLiteral("＋ Blank image");
     constexpr int kIconPx = 32;
@@ -43,10 +38,7 @@ namespace stencil::gui {
 
     QColor accent = accentPrimary(accentKey_);
     if (!accent.isValid()) accent = pal.textMuted;
-    // The whole hover is a blend on `t`, mirroring the browser transition: panel fill →
-    // solid accent, the dashed edge hint-grey → border-grey (components.css
-    // .idle-create-btn:hover), text → white, plus a 3 px lift, a drop shadow and a
-    // 1.12× icon (.idle-create-btn / .idle-create-icon in animations.css).
+    // The whole hover is a blend on `t` (components.css .idle-create-btn:hover + animations.css).
     const double t = idleCardHoverT_;
     // --border-hint as theme.cpp derives it for %BORDER_HINT% (css/theme.css).
     const QColor borderHint = dark_ ? mixSrgb(QColor("#2a2a2a"), accent, 0.50)
@@ -54,14 +46,11 @@ namespace stencil::gui {
     const QColor fill = mixSrgb(pal.bgControls, accent, t);
     const QColor edge = mixSrgb(borderHint, pal.borderMain, t);
     const QColor ink = mixSrgb(pal.textMain, QColor(Qt::white), t);
-    // Hit-test against the RESTING rect, never the lifted one: if the hover target rose
-    // with the card, a cursor on its bottom edge would fall out of it, drop the hover,
-    // fall back in, and oscillate. Only the painted box moves.
+    // Hit-test the RESTING rect, never the lifted one, or a cursor on the bottom edge oscillates.
     idleCardRect_ = box;
     box.translate(0, -3.0 * t);
 
-    // Drop shadow (0 8px 24px): a few expanding rounded rects, since QPainter has no
-    // blur. Only while lifted, and skipped entirely at rest so the idle card is flat.
+    // Drop shadow (0 8px 24px) as expanding rounded rects — QPainter has no blur. Lifted only.
     if (t > 0.01) {
       constexpr int kLayers = 6;
       for (int i = kLayers; i >= 1; --i) {
@@ -74,9 +63,7 @@ namespace stencil::gui {
                           10 + spread, 10 + spread);
       }
     }
-    // Fill first with NO pen, then stroke the dashed border as a separate rounded path.
-    // Filling + dash-stroking in one drawRoundedRect call drops the vertical dashed edges
-    // on some Qt/macOS builds (leaving only the top/bottom rules), so keep the two apart.
+    // Fill and dashed stroke as two calls: one drawRoundedRect drops the vertical dashes on some Qt/macOS builds.
     p.setPen(Qt::NoPen);
     p.setBrush(fill);
     p.drawRoundedRect(box, 10, 10);
@@ -88,8 +75,7 @@ namespace stencil::gui {
     border.addRoundedRect(box, 10, 10);
     p.drawPath(border);
 
-    // Glass sweep: a soft diagonal light band crossing the card, clipped to its
-    // rounded box (browser layout.css ::after + @keyframes ui-shimmer).
+    // Glass sweep (browser layout.css ::after + @keyframes ui-shimmer).
     if (idleShimmerT_ >= 0.0) {
       const double w = box.width();
       const double x = box.left() - 1.35 * w + idleShimmerT_ * 2.7 * w;
@@ -108,12 +94,8 @@ namespace stencil::gui {
     }
 
     const QRectF content = box.adjusted(kPadX, kPadY, -kPadX, -kPadY);
-    // The `image` glyph's own hover motion — iconMotion.json "image", mode "settle":
-    // the ridge DRAWS ITSELF on, and the little sun drops in a beat later, once per
-    // hover-enter (a settle is left to finish on leave: its end state IS the rest pose,
-    // exactly as IconMotionRunner::leave has it). Hand-evaluated for the same reason the
-    // glyph itself is hand-stroked below; kIdleGlyph* mirror the canon and are pinned
-    // against it by tests/idleCardMotion.headless.cpp.
+    // iconMotion.json "image", mode "settle", hand-evaluated (see the glyph note below); kIdleGlyph*
+    // mirror the canon, pinned by tests/idleCardMotion.headless.cpp. A settle finishes on leave: its end IS rest.
     const double gm = idleGlyphMs_;
     // The sun: keyframes 0 → −1.6, 70% → +0.3, 100% → 0 on the settle default (OutBack).
     const auto orbDy = [](double ms) {
@@ -148,9 +130,8 @@ namespace stencil::gui {
     const double iconScale = 1.0 + 0.12 * t;
     const QRectF iconBox(content.center().x() - kIconPx / 2.0,
                          content.top() - 2.0 * t, kIconPx, kIconPx);
-    // The shared `image` glyph, stroked inline rather than via support/iconSet
-    // (that would drag Qt6::Svg into the headless targets compiling this file).
-    // Same 0 0 24 24 geometry + 2px stroke as iconSet.cpp / icons.js; keep in sync.
+    // Stroked inline rather than via support/iconSet (that would drag Qt6::Svg into the headless
+    // targets). Same 0 0 24 24 geometry + 2px stroke as iconSet.cpp / icons.js; keep in sync.
     p.save();
     p.translate(iconBox.center());
     p.scale(iconScale, iconScale);

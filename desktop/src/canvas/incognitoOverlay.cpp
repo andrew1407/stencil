@@ -13,9 +13,7 @@
 namespace stencil::gui {
 
   IncognitoOverlay::IncognitoOverlay(QWidget* viewport) : QWidget(viewport) {
-    // Click-through and non-focusable: the canvas underneath stays fully
-    // interactive. WA_NoSystemBackground + a translucent background let the
-    // canvas show through everywhere we don't paint the outline/badge.
+    // Click-through, non-focusable; WA_NoSystemBackground lets the canvas show through.
     setAttribute(Qt::WA_TransparentForMouseEvents);
     setAttribute(Qt::WA_NoSystemBackground);
     setAttribute(Qt::WA_TranslucentBackground);
@@ -25,15 +23,11 @@ namespace stencil::gui {
     hide();
   }
 
-  // The clockwise perimeter, revealed in four equal quarters starting at the top-left:
-  // top → right → bottom → left. Each quarter is a straight run, so `t` maps linearly
-  // onto it. Port of the four staggered .ig-edge elements in the browser, and the reason
-  // both surfaces draw the dashes in the same direction rather than just fading a box in.
+  // Four equal quarters from the top-left, each a straight run so `t` maps linearly (browser .ig-edge).
   QPainterPath IncognitoOverlay::framePath(const QRectF& box, double t) {
     QPainterPath path;
     t = std::clamp(t, 0.0, 1.0);
     if (t <= 0.0 || box.isEmpty()) return path;
-    // Quarter q spans [q/4, (q+1)/4); `run` is how far into the current quarter we are.
     const auto run = [t](int q) { return std::clamp(t * 4.0 - q, 0.0, 1.0); };
     const qreal w = box.width(), h = box.height();
     path.moveTo(box.topLeft());
@@ -59,21 +53,15 @@ namespace stencil::gui {
         progress_ = v.toDouble();
         update();
       });
-      // Only hide once the frame has finished retracting — hiding on the toggle would
-      // cut the animation off at its first frame.
+      // Hide only once the frame has finished retracting.
       connect(anim_, &QVariantAnimation::finished, this, [this] {
         if (!active_) hide();
       });
     }
-    // Capture where the frame actually is BEFORE touching the animation. Both
-    // setStartValue and setEndValue recalculate the current interval and emit
-    // valueChanged, which lands right back in progress_ via the connection below — so
-    // reading progress_ after them yields the new END value, and the duration below
-    // would come out as "no distance to cover", i.e. an instant snap on every toggle
-    // after the first.
+    // Capture the frame's position BEFORE touching the animation: setStartValue/setEndValue emit
+    // valueChanged into progress_, so reading it after them yields the END value (an instant snap).
     const double from = progress_;
     const double to = on ? 1.0 : 0.0;
-    // Scale the time to the distance left, so a fast re-toggle doesn't crawl.
     const int ms = std::max(1, int(kDrawMs * std::abs(to - from)));
     anim_->stop();
     anim_->setDuration(ms);
@@ -107,14 +95,9 @@ namespace stencil::gui {
     p.setRenderHint(QPainter::Antialiasing, true);
     const QColor accent = themePalette(dark_, accentKey_).accent;
 
-    // 3px dashed accent outline sitting FLUSH on the viewport edge — mirrors
-    //   body.incognito-mode .canvas-viewport { outline: 3px dashed var(--accent);
-    //                                           outline-offset: -3px; }
-    // which puts the outline's OUTER edge on the box. Qt strokes centred, so the
-    // only inset is the pen's half-width (kPenPx/2) — anything more leaves a gap
-    // of bare canvas outside the dashes.
-    // Stroke only the part of the perimeter drawn so far. The dash pattern rides ON the
-    // partial path, so the dashes are REVEALED in order rather than stretched into place.
+    // Browser: outline 3px dashed, outline-offset -3px puts the OUTER edge on the box. Qt strokes
+    // centred, so the only inset is kPenPx/2 — more leaves bare canvas outside the dashes.
+    // The dash pattern rides ON the partial path, so dashes are REVEALED in order, not stretched.
     QPen pen(accent);
     pen.setStyle(Qt::DashLine);
     pen.setWidth(kPenPx);
@@ -122,8 +105,6 @@ namespace stencil::gui {
     p.setPen(pen);
     p.setBrush(Qt::NoBrush);
     p.drawPath(framePath(frameBox(QRectF(rect())), progress_));
-    // No badge over the picture: the "Incognito — not saved" fact lives on the
-    // toolbar's "?" hint beside the project name, where it covers no content.
   }
 
 }

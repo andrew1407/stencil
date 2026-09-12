@@ -11,14 +11,10 @@ class QVideoSink;
 class QVideoFrame;
 class QTimer;
 
-// Resolves a launch --src into a single QImage, asynchronously: a local image file, a
-// remote image URL (Qt Network) or a video file/URL (Qt Multimedia seek + grab), all
-// behind one signal. The desktop's take on the extension's video-frame capture.
+// Resolves a launch --src (local image, remote URL via fetchGuard, or a video frame) into one QImage.
 namespace stencil::gui {
 
-  // File-suffix sniffers shared by MediaLoader's resolution and the chat dock's
-  // paste / drag-drop attach routing. Pure (path string only), defined in
-  // mediaTypes.cpp off the canon (browser/js/config/mediaTypes.json `surfaces.desktop`).
+  // Pure suffix sniffers off the canon (browser/js/config/mediaTypes.json `surfaces.desktop`).
   bool isVideoFileName(const QString& path);
   bool isImageFileName(const QString& path);
 
@@ -28,49 +24,30 @@ namespace stencil::gui {
     explicit MediaLoader(QObject* parent = nullptr);
     ~MediaLoader() override;
 
-    // Begin resolving `src` (path or URL). `frame` is the 0-based video frame to
-    // grab (ignored for still images). Emits loaded() or failed() exactly once.
-    // Calling load() again cancels any in-flight resolution.
+    // `frame` is the 0-based video frame. Emits loaded() or failed() exactly once; a new load() cancels.
     void load(const QString& src, int frame);
 
-    // True when the most recent load() resolved the source as a video (so the
-    // emitted image is a grabbed frame rather than a decoded still). Valid when
-    // loaded() fires; lets callers (the links dialog) reveal frame controls only
-    // for videos, mirroring the browser modal's image-vs-video preview branch.
+    // Valid when loaded() fires.
     bool isVideoSource() const { return isVideo_; }
 
-    // A video's embedded preview/cover image (QMediaMetaData ThumbnailImage, else
-    // CoverArtImage), if the container carries one — independent of the decoded
-    // frames. Null when the source isn't a video or embeds no such image. Valid
-    // when loaded() fires; lets the links dialog offer "use the preview image".
+    // Embedded cover/thumbnail (QMediaMetaData), null when absent. Valid when loaded() fires.
     QImage embeddedThumbnail() const { return thumbnail_; }
 
-    // Video timeline, captured while seeking (valid when loaded() fires for a
-    // video). frameRate() falls back to an assumed fps when metadata omits it;
-    // frameCount() is the estimated total frame count (0 when unknown). Lets the
-    // links dialog bound its frame slider / spin box and validate input.
+    // Valid when loaded() fires for a video; frameCount() 0 = unknown.
     double frameRate() const { return fps_; }
     qint64 durationMs() const { return durationMs_; }
     int frameCount() const {
       return (fps_ > 0 && durationMs_ > 0) ? static_cast<int>(durationMs_ / 1000.0 * fps_) : 0;
     }
 
-    // The URL the last load() resolved to (local file → file URL, else fromUserInput).
-    // Lets the links dialog hand the same source to its persistent scrub player.
     QUrl resolvedUrl() const { return url_; }
 
-    // Extract several video frames by SEQUENTIAL seeks, reusing load()'s single-frame
-    // pipeline once per index (frames arrive in `indices` order; the first failure aborts
-    // with its message). Cancels any in-flight load(); don't issue another load() on this
-    // loader until `done` fires.
+    // SEQUENTIAL seeks reusing load()'s pipeline; the first failure aborts. No other load() until `done`.
     void extractFrames(const QString& src, const QList<int>& indices,
                        std::function<void(QList<QImage> frames, QString error)> done);
 
    signals:
-    // image  : the decoded pixels.
-    // localPath : the originating file path when `src` was a LOCAL image file
-    //             (so the editor can keep it for session/project saves); empty
-    //             for remote images and video frames (no on-disk original).
+    // localPath: the originating LOCAL file, empty for remote images and video frames.
     void loaded(const QImage& image, const QString& localPath);
     void failed(const QString& message);
 
@@ -95,7 +72,6 @@ namespace stencil::gui {
     double fps_ = 0;        // video frame rate (assumed fallback when unknown)
     qint64 durationMs_ = 0; // video duration in ms
 
-    // Video pipeline (lazily constructed in startVideo()).
     QMediaPlayer* player_ = nullptr;
     QAudioOutput* audio_ = nullptr;
     QVideoSink* sink_ = nullptr;

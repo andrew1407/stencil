@@ -8,13 +8,11 @@ namespace stencil::gui {
 
   void CanvasWidget::mouseMoveEvent(QMouseEvent* event) {
     if (image_.isNull()) {
-      // Idle: the only thing tracking the cursor is the "＋ Blank image" card's hover fill.
       setIdleCardHover(!idleHintHidden_ && idleCardRect_.contains(event->position()));
       return;
     }
     setIdleCardHover(false);
 
-    // Compare divider drag takes priority over every other gesture.
     if (draggingCompareSplit_) {
       const double f = compareMode_ == "vertical"
                            ? event->pos().x() / (image_.width() * scale_)
@@ -24,9 +22,7 @@ namespace stencil::gui {
       return;
     }
 
-    // Hold-to-draw: while armed/drawing, feed the controller. Moving past the
-    // tolerance before the hold fires aborts (a normal click/drag); moving while
-    // drawing updates the ghost-line preview. Suppress hover while engaged.
+    // Moving past the tolerance before the hold fires aborts; while drawing it updates the ghost preview.
     if (hold_.engaged()) {
       const core::HoldEvent ev =
           hold_.pointerMove(event->pos().x(), event->pos().y(), holdNowMs());
@@ -41,15 +37,12 @@ namespace stencil::gui {
       return;
     }
 
-    // Active Alt-drag gesture (port of drawingApp.js #dragMove ~1701). One of the
-    // point/segment/line moves; Shift switches segment/line modes live from the
-    // original snapshot so toggling Shift never accumulates.
+    // Shift switches segment/line modes live from the original snapshot so toggling never accumulates.
     if (dragKind_ != DragKind::None) {
       const core::Point ip = toImageSpace(event->pos().x(), event->pos().y());
       const bool shift = bool(event->modifiers() & Qt::ShiftModifier);
       dragMoved_ = true;
-      // Only the lines that move: a whole-widget repaint per mouse move redraws the
-      // entire zoomed page to follow one stroke.
+      // Repaint only the lines that move, not the whole zoomed page.
       const QRect before = dragRect();
       updateDrag(ip, shift);
       update(before.united(dragRect()));
@@ -58,9 +51,7 @@ namespace stencil::gui {
     }
 
     if (panning_) {
-      // Drag pan: scrollLeft -= dx (Shift = faster; MainWindow applies the speed).
-      // Delta in global cursor coords so the scroll we trigger — which moves this
-      // widget under the pointer — doesn't feed back into the next sample (jitter).
+      // Delta in GLOBAL coords: the scroll we trigger moves this widget under the pointer.
       const QPoint gp = event->globalPosition().toPoint();
       const QPoint d = gp - lastPanPos_;
       lastPanPos_ = gp;
@@ -77,7 +68,6 @@ namespace stencil::gui {
       return;
     }
 
-    // extend the rect-draw rubber band (drawingApp.js mousemove ~815).
     if (rectDrawActive_) {
       const QRect before = bandRect(rectDrawStart_, rectDrawEnd_);
       rectDrawEnd_ = event->pos();
@@ -86,8 +76,6 @@ namespace stencil::gui {
       return;
     }
 
-    // Compare split: show a resize cursor over the movable divider (skip the normal hover
-    // cursor + tooltip so the affordance reads clearly).
     if (!compareHoldOriginal_ && event->modifiers() == Qt::NoModifier &&
         (compareMode_ == "vertical" || compareMode_ == "horizontal") &&
         nearCompareDivider(event->pos())) {
@@ -99,9 +87,8 @@ namespace stencil::gui {
     const core::Point ip = toImageSpace(event->pos().x(), event->pos().y());
 
     if (compareReadOnly()) {
-      // Comparing is read-only EDITING: no hover ring or cursor affordance, but
-      // the coordinate readout and hover tooltips are information and must keep
-      // following the cursor (MainWindow drops tooltips the "before" half covers).
+      // Comparing is read-only EDITING: no ring or cursor affordance, but the coordinate readout
+      // and hover tooltip keep following the cursor.
       unsetCursor();
       emit hovered(ip.x, ip.y);
       emit hoverDetail(ip.x, ip.y, event->globalPosition().toPoint(),
@@ -109,9 +96,7 @@ namespace stencil::gui {
       return;
     }
 
-    // Hover ring: track the point under the cursor and repaint when it changes
-    // (drawingApp.js canvasMouseMove ~1463 -> renderer point hover ring). Only the lines
-    // whose ring or tint moved are repainted, not the whole zoomed page.
+    // Repaint only the lines whose ring or tint moved (browser canvasMouseMove -> point hover ring).
     const int wasHover = hoverLineIdx_, wasOver = hoverOverLineIdx_;
     if (updateHover(ip.x, ip.y)) {
       QRect dirty;
@@ -120,7 +105,6 @@ namespace stencil::gui {
       update(dirty);
     }
 
-    // Cursor affordance (drawingApp.js canvasMouseMove ~1476).
     applyHoverCursor(ip, event->modifiers());
 
     emit hovered(ip.x, ip.y);
@@ -128,9 +112,7 @@ namespace stencil::gui {
                      event->modifiers());
   }
 
-  // Active Alt-drag move (port of drawingApp.js #dragMove ~1701): point/segment/
-  // line; `shift` switches segment/line modes live from the original snapshot so
-  // toggling Shift never accumulates. Caller sets dragMoved_ and repaints.
+  // `shift` switches segment/line modes live from the original snapshot. Caller sets dragMoved_ and repaints.
   void CanvasWidget::updateDrag(const core::Point& ip, bool shift) {
     if (dragKind_ == DragKind::Point) {
       core::Line* line =
@@ -142,7 +124,6 @@ namespace stencil::gui {
     } else {
       const double dx = ip.x - dragStart_.x;
       const double dy = ip.y - dragStart_.y;
-      // Multi-select whole-line drag: translate EVERY selected line together.
       if (dragKind_ == DragKind::Line && !dragMultiOrig_.empty()) {
         for (auto& entry : dragMultiOrig_) {
           const int li = entry.first;
@@ -156,8 +137,7 @@ namespace stencil::gui {
         }
         return;
       }
-      // Segment / Line drags translate from the snapshot by (dx, dy). A LINE drag
-      // always moves the whole line even when Shift lifts a beat before the mouse —
+      // A LINE drag always moves the whole line even when Shift lifts a beat before the mouse —
       // degrading to the grabbed segment would snap the rest back on commit.
       core::Line& line = lines_[dragLineIdx_];
       const bool whole = (dragKind_ == DragKind::Line) ? true : shift;

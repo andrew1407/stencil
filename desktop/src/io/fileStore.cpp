@@ -14,8 +14,7 @@
 
 namespace stencil::gui {
 
-  // Default display unit from the system locale: US customary → inches, everything
-  // else (incl. the UK) → cm. A saved "units" preference always wins (loadSettings).
+  // US customary → inches, everything else (incl. the UK) → cm; a saved preference wins.
   QString localeDefaultUnit() {
     using MS = core::localeUnit::MeasurementSystem;
     const auto qsys = QLocale::system().measurementSystem();
@@ -26,8 +25,6 @@ namespace stencil::gui {
   }
 
 
-  // Line <-> JSON (mirrors the browser line object fields). Promoted to
-  // fileStore:: so the layout data actions can reuse them.
   QJsonObject fileStore::lineToJson(const core::Line& line) {
     QJsonArray pts;
     for (const auto& p : line.points) {
@@ -44,9 +41,7 @@ namespace stencil::gui {
     o["style"] = QString::fromStdString(line.style);
     o["locked"] = line.locked;
     o["fillColor"] = QString::fromStdString(line.fillColor);
-    // Point colour. Written ONLY when set: an absent key is how "inherit the line
-    // colour" round-trips, and emitting "" for every line would bloat every project file
-    // and change the bytes of files that predate the field.
+    // Written ONLY when set: an absent key is how "inherit" round-trips without changing old files' bytes.
     if (!line.pointColor.empty()) o["pointColor"] = QString::fromStdString(line.pointColor);
     return o;
   }
@@ -63,7 +58,6 @@ namespace stencil::gui {
     line.style = o.value("style").toString("solid").toStdString();
     line.locked = o.value("locked").toBool(false);
     line.fillColor = o.value("fillColor").toString("transparent").toStdString();
-    // Absent (every pre-field project) → empty → points follow the line colour.
     line.pointColor = o.value("pointColor").toString("").toStdString();
     return line;
   }
@@ -80,11 +74,8 @@ namespace stencil::gui {
     return lines;
   }
 
-  // Crop rectangle <-> JSON (original-image pixels), the browser's canonical {x,y,w,h}
-  // keys; the reader still accepts the legacy {width,height} spelling, canonical wins.
-  // Build the layout export envelope (browser drawingApp.js:2078-2079). The
-  // image filter + custom tint ride along (browser storage.js #buildLayout) so a
-  // reopened project restores the same filter result, not just the lines.
+  // Crop keys are the browser's {x,y,w,h}; legacy {width,height} still reads. Filter + tint ride
+  // along (browser storage.js #buildLayout) so a reopened project restores the same look.
   QJsonObject fileStore::buildLayoutJson(int w, int h, const core::Lines& lines,
                                          const QString& imageFilter,
                                          const QString& filterColor,
@@ -97,10 +88,8 @@ namespace stencil::gui {
     vals["lines"] = linesToJson(lines);
     vals["imageFilter"] = imageFilter;
     vals["filterColor"] = filterColor;
-    // Geometry is optional on the wire: a non-crop and a zero rotation are omitted.
     if (cropRect.width > 0 && cropRect.height > 0) vals["cropRect"] = cropRectToJson(cropRect);
     if (rotationQuarters != 0) vals["rotationQuarters"] = rotationQuarters;
-    // Page format + formulas (server save only): omit-when-default, same reason.
     if (!meta.pageSize.isEmpty()) vals["pageSize"] = meta.pageSize;
     if (meta.customPageWidth != 0) vals["customPageWidth"] = meta.customPageWidth;
     if (meta.customPageHeight != 0) vals["customPageHeight"] = meta.customPageHeight;
@@ -110,8 +99,7 @@ namespace stencil::gui {
     return layoutCanon::emitExport(vals);  // the canon's key set, not this function's
   }
 
-  // Read the layout envelope back, reporting stored image size (browser
-  // drawingApp.js:2111 dimension check) and, when requested, crop/rotation.
+  // Reports the stored image size (browser dimension check) and, when requested, crop/rotation.
   core::Lines fileStore::parseLayoutJson(const QJsonObject& o, int& wOut, int& hOut,
                                          core::CropRect* cropOut, int* rotOut) {
     wOut = o.value("imageWidth").toInt(0);
@@ -121,7 +109,6 @@ namespace stencil::gui {
     return linesFromJson(o.value("lines").toArray());
   }
 
-  // Read the page format + x/y formulas out of a layout (absent fields stay at defaults).
   fileStore::LayoutMeta fileStore::parseLayoutMeta(const QJsonObject& o) {
     LayoutMeta m;
     m.pageSize = o.value("pageSize").toString();
@@ -173,8 +160,7 @@ namespace stencil::gui {
       if (!pf.themeAccent.isEmpty()) theme["accent"] = pf.themeAccent;
       if (!theme.isEmpty()) root["theme"] = theme;
     }
-    // Persisted chat rides along only when the save-chats opt-in produced one
-    // (llm-contract.md §12.3); omitted otherwise so plain files are unchanged.
+    // llm-contract.md §12.3; omitted otherwise so plain files are unchanged.
     if (!pf.chat.isEmpty()) root["chat"] = pf.chat;
     return QJsonDocument(root).toJson(QJsonDocument::Indented);
   }
