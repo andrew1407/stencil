@@ -6,14 +6,13 @@ from __future__ import annotations
 
 import io
 import os
-import tempfile
 import unittest
 
 from pystencil import cli
 from pystencil.editor import Editor
 from pystencil.llm import CONSOLE_SYSTEM_PROMPT
 
-from tests.clicase import _MockLlmClient, _StubConn, _wire_repl
+from tests.clicase import _CwdCase, _MockLlmClient, _StubConn, _wire_repl
 
 
 class ReplDisconnectCommandTest(unittest.TestCase):
@@ -75,17 +74,8 @@ class ReplDisconnectCommandTest(unittest.TestCase):
         self.assertIn("/delete <x.stencil>", out.getvalue())
 
 
-class ReplDeleteCommandTest(unittest.TestCase):
+class ReplDeleteCommandTest(_CwdCase):
     """The new /delete REPL command: the cli console's full guard set + wording."""
-
-    def setUp(self) -> None:
-        self._dir = tempfile.TemporaryDirectory()
-        self._old_cwd = os.getcwd()
-        os.chdir(self._dir.name)
-
-    def tearDown(self) -> None:
-        os.chdir(self._old_cwd)
-        self._dir.cleanup()
 
     def _run(self, script: str) -> str:
         out = io.StringIO()
