@@ -79,6 +79,13 @@ set(STENCIL_ICONMOTION_SOURCES
   src/support/iconMotionRunner.cpp
   src/support/iconMotionFilter.cpp)
 
+# The links dialog (dialogs/linksDialog.hpp) is three TUs behind a private parts header:
+# the build, the preview/scrub player and the show path.
+set(STENCIL_LINKSDIALOG_SOURCES
+  src/dialogs/linksDialog.cpp
+  src/dialogs/linksDialogPreview.cpp
+  src/dialogs/linksDialogShow.cpp)
+
 # The open dialog (dialogs/openImageDialog.hpp) is four TUs behind a private parts
 # header: the build, the preview/scrub player, the tab state and the read-out.
 set(STENCIL_OPENIMAGE_SOURCES
@@ -256,7 +263,7 @@ set(STENCIL_GUI_SOURCES
   ${STENCIL_PROJECTS_DIALOG_SOURCES}
   src/dialogs/expirationDialog.cpp
   ${STENCIL_OPENIMAGE_SOURCES}
-  src/dialogs/linksDialog.cpp
+  ${STENCIL_LINKSDIALOG_SOURCES}
   src/dialogs/descriptionDialog.cpp
   src/dialogs/keywordsDialog.cpp
   src/dialogs/cropDialog.cpp
