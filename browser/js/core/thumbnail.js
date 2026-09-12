@@ -8,6 +8,9 @@ const THUMB_MAX_PX = 480;
 // 0.6 put visible JPEG blocking on faces at this size; 0.85 is where that stops.
 const THUMB_QUALITY = 0.85;
 const OPTS = { maxEdge: THUMB_MAX_PX, type: 'image/jpeg', quality: THUMB_QUALITY, halve: true };
+// An idle slot usually comes within a frame; past this the render runs regardless, so a
+// thumbnail always lands before the 400ms cross-tab "project updated" broadcast.
+const IDLE_TIMEOUT_MS = 300;
 
 // The EDITED result (filter + lines), so the projects list previews what the user drew.
 const source = (app) => (app.image ? app.renderResultCanvas() : null);
@@ -30,4 +33,49 @@ export const renderThumbnail = async (app) => {
   } catch {
     return null;
   }
+};
+
+const requestIdle = (fn) => (typeof requestIdleCallback === 'function'
+  ? { idle: requestIdleCallback(fn, { timeout: IDLE_TIMEOUT_MS }) }
+  : { timer: setTimeout(fn, 0) });
+const cancelIdle = (h) => (h.idle != null ? cancelIdleCallback(h.idle) : clearTimeout(h.timer));
+
+// The save path's thumbnail scheduler: save() keeps the row's last thumbnail and calls
+// schedule(); the new one renders in idle time and lands with store.setThumbnail. A burst
+// of saves renders once. flush() renders NOW, inline — a project switch or an unload
+// cannot wait for an idle slot. `io` is the Storage instance (store / activeId / app).
+export const createThumbnailScheduler = (io, { idle = requestIdle, cancel = cancelIdle } = {}) => {
+  let handle = null;
+  let id = null;
+  let gen = 0;   // bumped by every schedule/flush: an in-flight render older than it is dropped
+
+  const land = (projectId, url) => {
+    if (!url || io.activeId !== projectId) return;
+    io.store.setThumbnail(projectId, url);
+    try { io.app.tabs?.projectsChanged(); } catch { /* cross-tab refresh is best-effort */ }
+  };
+
+  const run = async () => {
+    handle = null;
+    const projectId = id, mine = ++gen;
+    if (io.activeId !== projectId) return;
+    const url = await renderThumbnail(io.app);
+    if (mine === gen) land(projectId, url);
+  };
+
+  return {
+    schedule(projectId) {
+      id = projectId;
+      if (handle) cancel(handle);
+      handle = idle(run);
+    },
+    flush() {
+      if (!handle) return;
+      cancel(handle);
+      handle = null;
+      gen++;
+      land(id, makeThumbnail(io.app));
+    },
+    pending: () => handle != null,
+  };
 };

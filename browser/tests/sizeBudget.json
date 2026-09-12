@@ -8,7 +8,7 @@
     "browser/js/core/inputController.js": 465,
     "browser/js/core/pointerController.js": 330,
     "browser/js/core/projectTransferController.js": 187,
-    "browser/js/core/projectsStore.js": 436,
+    "browser/js/core/projectsStore.js": 415,
     "browser/js/core/remoteSyncController.js": 221,
     "browser/js/core/renderer.js": 198,
     "browser/js/core/settingsController.js": 219,

@@ -95,6 +95,8 @@ export declare class ProjectsStore {
   setKeywords(id: string, keywords: unknown): ProjectMeta | null;
   setDescription(id: string, description: unknown): ProjectMeta | null;
   setBlankColor(id: string, color: string): ProjectMeta | null;
+  /** The idle-time thumbnail landing after the save that scheduled it. */
+  setThumbnail(id: string, dataUrl: string): ProjectMeta | null;
   findByImage(source: string | null | undefined, name: string | null | undefined): ProjectMeta[];
   copyName(baseName: string | null | undefined, source: string | null | undefined): string;
   defaultName(): string;

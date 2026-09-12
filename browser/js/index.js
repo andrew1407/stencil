@@ -64,6 +64,7 @@ window.onload = async () => {
   // beforeunload is synchronous, so it can't use the in-app confirm() modal.
   window.addEventListener('beforeunload', (e) => {
     app.storage.saveSoon.flush();   // a point committed in the last debounce window still lands
+    app.storage.thumbs.flush();     // …with its thumbnail rendered now, not in idle time
     if (!app.hasEditingSession()) return;
     e.preventDefault();
     e.returnValue = '';   // Chrome/Firefox require a set returnValue to show the prompt

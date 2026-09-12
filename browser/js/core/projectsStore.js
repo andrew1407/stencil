@@ -189,52 +189,31 @@ export class ProjectsStore {
 
   // rename and the set* methods below: no-op (return null) on an unknown id, and leave
   // the payload + updatedAt untouched.
-  rename(id, name) {
+  #patchMeta(id, field, value) {
     const arr = this.#readRegistry();
     const i = arr.findIndex(m => m && m.id === id);
     if (i === -1) return null;
-    arr[i].name = name;
+    arr[i][field] = value;
     this.#writeRegistry(arr);
     return arr[i];
   }
+
+  rename(id, name) { return this.#patchMeta(id, 'name', name); }
 
   // `color` is "" (theme fallback) or a normalised "#rrggbb"; DrawingApp validates first.
-  setColor(id, color) {
-    const arr = this.#readRegistry();
-    const i = arr.findIndex(m => m && m.id === id);
-    if (i === -1) return null;
-    arr[i].color = color;
-    this.#writeRegistry(arr);
-    return arr[i];
-  }
+  setColor(id, color) { return this.#patchMeta(id, 'color', color); }
 
-  setKeywords(id, keywords) {
-    const arr = this.#readRegistry();
-    const i = arr.findIndex(m => m && m.id === id);
-    if (i === -1) return null;
-    arr[i].keywords = normalizeKeywords(keywords);
-    this.#writeRegistry(arr);
-    return arr[i];
-  }
+  setKeywords(id, keywords) { return this.#patchMeta(id, 'keywords', normalizeKeywords(keywords)); }
 
   setDescription(id, description) {
-    const arr = this.#readRegistry();
-    const i = arr.findIndex(m => m && m.id === id);
-    if (i === -1) return null;
-    arr[i].description = String(description == null ? '' : description).trim();
-    this.#writeRegistry(arr);
-    return arr[i];
+    return this.#patchMeta(id, 'description', String(description == null ? '' : description).trim());
   }
 
   // Only meaningful for `blank` projects (the caller gates this).
-  setBlankColor(id, color) {
-    const arr = this.#readRegistry();
-    const i = arr.findIndex(m => m && m.id === id);
-    if (i === -1) return null;
-    arr[i].blankColor = color;
-    this.#writeRegistry(arr);
-    return arr[i];
-  }
+  setBlankColor(id, color) { return this.#patchMeta(id, 'blankColor', color); }
+
+  // The idle-time thumbnail lands after the save that scheduled it (thumbnail.js).
+  setThumbnail(id, dataUrl) { return this.#patchMeta(id, 'thumbnail', dataUrl); }
 
   // Projects from the same image, most-recently-updated first. Match = identical non-empty
   // `source` URL; when `source` is empty, fall back to base-name match (so a local "photo"

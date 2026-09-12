@@ -3,6 +3,7 @@
 // temporary / incognito flags. save() is a no-op (with a throttled hint) in temp mode.
 import type { DrawingApp } from './drawingApp.js';
 import type { ProjectsStore, ProjectPayload } from './projectsStore.js';
+import type { ThumbnailScheduler } from './thumbnail.js';
 
 export declare class Storage {
   constructor(app: DrawingApp);
@@ -14,6 +15,8 @@ export declare class Storage {
   incognito: boolean;
   /** The trailing-window save; flush() forces one now. */
   saveSoon: { (): void; flush(): void };
+  /** The idle-time thumbnail render each save() schedules; flush() renders it now. */
+  thumbs: ThumbnailScheduler;
   save(): void;
   /** Re-read the active project after another tab saved it (light path when the image is unchanged). */
   syncActiveFromStorage(): void;

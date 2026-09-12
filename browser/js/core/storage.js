@@ -12,6 +12,7 @@ import { paintPageSize, paintDrawingControls, paintVisibilityChecks, paintFormul
          hideSelectionPanels, resetViewportScroll, scrollViewportTo } from '../ui/layoutControls.js';
 import { upsertWithQuota } from './quotaWriter.js';
 import { buildLayoutState, buildProjectMeta } from './projectMeta.js';
+import { createThumbnailScheduler } from './thumbnail.js';
 
 // ── Storage: thin DOM adapter over ProjectsStore for the ACTIVE project ──
 // Window-side bridge over the DOM-free ProjectsStore: builds the layout/payload from live
@@ -24,9 +25,8 @@ export class Storage {
     // localStorage (see projectsBackend.js). Hydrated at boot by index.js.
     const backend = getProjectsBackend();
     this.store = new ProjectsStore(backend);
-    // Payload writes land in the sync mirror and persist to IndexedDB async —
-    // surface a failed persist on the save-status line (the mirror still holds
-    // the bytes, so the next save retries naturally).
+    // Payload writes land in the sync mirror and persist to IndexedDB async — surface a
+    // failed persist on the save-status line (the mirror holds the bytes; the next save retries).
     if (backend && 'onWriteError' in backend) {
       backend.onWriteError = () =>
         this.app.showSaveStatus('Save failed (browser storage error)', 'var(--danger)', 'x');
@@ -37,9 +37,9 @@ export class Storage {
     // promotes to a saved project the moment an image loads), incognito NEVER persists —
     // adding an image/lines stays in memory only.
     this.incognito = false;
-    // A full save (layout + thumbnail + image write) ran per committed point. saveHistory()
-    // rides this trailing window instead, like the zoom persist; flush() forces one now.
+    // saveHistory() rides this trailing window, like the zoom persist; flush() forces one now.
     this.saveSoon = createTrailingSave(() => this.save());
+    this.thumbs = createThumbnailScheduler(this);
   }
 
   #tempStatusTimer = null;
@@ -60,9 +60,11 @@ export class Storage {
     }
 
     const layout = buildLayoutState(this.app);
-    // Read ONCE: getMeta re-parses the whole registry, and this block asked it seven times.
-    const meta = buildProjectMeta(this.app, { prev: this.store.getMeta(this.activeId) || {}, id: this.activeId, layout });
+    const prev = this.store.getMeta(this.activeId) || {};   // read ONCE: getMeta re-parses the registry
+    // The row keeps its last thumbnail; the fresh one is rendered in idle time (thumbnail.js).
+    const meta = buildProjectMeta(this.app, { prev, id: this.activeId, layout, thumbnail: prev.thumbnail ?? null });
     upsertWithQuota(this, meta, { image: this.app.imageDataUrl || null, layout });
+    this.thumbs.schedule(this.activeId);
 
     // Tell other tabs this project changed so any tab viewing it re-syncs its
     // editor. Debounced so a burst of edits coalesces into one broadcast.
@@ -138,7 +140,8 @@ export class Storage {
   loadProject(id) {
     const proj = this.store.get(id);
     if (!proj) return false;
-    this.saveSoon.flush();      // the project we are leaving keeps its last edit
+    this.saveSoon.flush();      // the project we are leaving keeps its last edit…
+    this.thumbs.flush();        // …and its thumbnail
     this.activeId = id;
     this.temporary = false;
     this.incognito = false;
@@ -305,7 +308,7 @@ export class Storage {
   // MID-TURN (openUrl incognito adoption), and swapping the chat scope under it would
   // wipe the very exchange that asked for the reset.
   newTemporary({ keepChat = false } = {}) {
-    this.saveSoon.flush();      // …and so does the one being cleared away
+    this.saveSoon.flush(); this.thumbs.flush();   // …and so does the one being cleared away
     this.activeId = null;
     this.temporary = true;
     this.incognito = false;
@@ -347,11 +350,8 @@ export class Storage {
       if (vp) flashLanding(vp, 'canvas-clearing', GHOST_MS);
     }
     if (ctx) ctx.clearRect(0, 0, this.app.canvas.width, this.app.canvas.height);
-    // Collapse the backing store + any inline CSS size left by the last zoom — otherwise
-    // the (now blank) canvas keeps its old footprint, .canvas-container (flex: none) stays
-    // that size, and the idle "+ Blank image" card (position: absolute; inset: 0, anchored
-    // to the viewport's SCROLLED content box) can render off past the visible edge instead
-    // of centred — a stale zoom/scroll left it invisible or above the fold (user report).
+    // Collapse the backing store + any inline CSS size left by the last zoom — otherwise the
+    // blank canvas keeps its footprint and the idle "+ Blank image" card lands off-centre.
     this.app.canvas.width = 0;
     this.app.canvas.height = 0;
     this.app.canvas.style.width = '';
