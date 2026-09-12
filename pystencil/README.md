@@ -90,12 +90,14 @@ pystencil/
     _rasterops.py         # its pixel-buffer half — crop + the RGBA8 kernels
     _bindings.py          # the ctypes .argtypes/.restype table for that ABI
     _marshal.py           # str/bytes/bytearray → C views, and the buffer guards
+    _parallel.py          # the one bounded fan-out both parallel paths share
     _opschema/            # the registry-driven op-plan schema engine
                           #   (path · rules · checks · schema)
     image.py              # class Image (RGBA8 buffer)
     layout.py             # Point / Line / Layout dataclasses (camelCase JSON),
                           #   parsed through _coerce.py's tolerant coercions
-    codecs/               # pure-python PNG + BMP encode/decode (png · bmp · sniff)
+    codecs/               # pure-python PNG + BMP encode/decode
+                          #   (png · pngfilter · bmp · sniff)
     editor/               # class Editor — the chainable facade, over its history,
                           #   derive, project, layout_io and source collaborators
     llm/                  # the op-plan contract: config · plan · registry ·
@@ -108,6 +110,7 @@ pystencil/
     test_codecs.py test_layout.py test_core.py test_image*.py
     test_editor*.py test_projectfile*.py test_fixture_*.py
     test_llm_*.py test_server_*.py test_sitesource_*.py test_cli_*.py
+    bench_*.py            # opt-in timing tripwires, never run by `discover`
 ```
 
 > The core stays STL-only, codec-free, GUI-free: `pystencil` never pushes Qt, a codec, or
