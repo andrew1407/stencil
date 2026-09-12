@@ -45,9 +45,8 @@ class MainWindowGuiTest : public QObject {
   }
 
   // Every selector opens the app's OWN popup, never the platform one: macOS draws a
-  // native combo popup itself — centred over the control, in its own palette — so a
-  // toolbar of themed controls answered a click with a system menu. The
-  // browser makes the same swap (js/ui/customSelect.js, e2e custom-selects.spec.js).
+  // native combo popup itself, so a toolbar of themed controls answered a click with a
+  // system menu. The browser makes the same swap (js/ui/customSelect.js).
   // The ONE exception on both sides is zoom: a number field with a preset list attached,
   // which works as it is.
   void everySelectorUsesTheAppsOwnPopup() {
@@ -93,10 +92,8 @@ class MainWindowGuiTest : public QObject {
   }
 
   // The window opens at the size it asked for. The wrapping tool run (support/wrapRow.hpp)
-  // hints its WRAPPED height from the very first pass — it used to hint the STACKED one, a
-  // control per line, which QToolBarLayout took as the bar's minimum: the window was sized
-  // to fit ~840px of toolbar, opened 1145px tall whatever it asked for, and never gave the
-  // height back once the row settled a beat later.
+  // hints its WRAPPED height from the very first pass — hinting the STACKED one gave
+  // QToolBarLayout a minimum that opened the window 1145px tall whatever it asked for.
   void theWindowOpensAtTheHeightItAsksFor() {
     MainWindow win(nullptr, /*restoreLast=*/false);
     win.resize(1400, 500);
@@ -202,24 +199,26 @@ class MainWindowGuiTest : public QObject {
     // A window restores the persisted formulas, so start from a known-empty field and let
     // that clear settle (leaving no pending commit to race the assertions below).
     fx->clear();
-    QTest::qWait(kFormulaSettleMs);
+    QVERIFY(awaitTimer(win.formulaCommitTimer_, kFormulaSettleMs));
     QVERIFY(!err->isVisible());
 
     fx->setFocus();
     QTest::keyClicks(fx, "(x+", Qt::NoModifier, 40);   // half-written, a key at a time
     QVERIFY2(!err->isVisible(), "an expression still being typed must not be flagged");
-    QTest::qWait(kFormulaSettleMs);                    // stop typing → the pair commits
+    QVERIFY2(win.formulaCommitTimer_->isActive()
+                 && awaitTimer(win.formulaCommitTimer_, kFormulaSettleMs),
+             "typing then pausing armed no commit");
     QVERIFY2(err->isVisible(), "a settled, unparseable expression IS flagged");
 
     QTest::keyClicks(fx, "1)", Qt::NoModifier, 40);    // finish it: valid again
     QCOMPARE(fx->text(), QStringLiteral("(x+1)"));
     QVERIFY2(!err->isVisible(), "fixing the expression clears the error indicator on the spot");
-    QTest::qWait(kFormulaSettleMs);
+    QVERIFY(awaitTimer(win.formulaCommitTimer_, kFormulaSettleMs));
     QVERIFY(!err->isVisible());
 
     // Leave the persisted formula as we found it — the settings are shared across tests.
     fx->clear();
-    QTest::qWait(kFormulaSettleMs);
+    QVERIFY(awaitTimer(win.formulaCommitTimer_, kFormulaSettleMs));
   }
 
   // Fullscreen edge-hover: prove the top toolbars and the right points panel REVEAL WITH AN

@@ -289,9 +289,9 @@ class MainWindowGuiTest : public QObject {
         dock->appendUser(QStringLiteral("question %1").arg(i));
         dock->appendAssistant(QStringLiteral("a reply long enough to wrap and take real height %1").arg(i));
       }
-      // Long enough for every ENTRANCE animation to finish and drop its own claim on
-      // the effect — otherwise the assertion below passes for the wrong reason.
-      QTest::qWait(400);
+      // Every entrance has landed and dropped its own claim on the effect — otherwise
+      // the assertion below passes for the wrong reason.
+      QTRY_VERIFY(noneEntering(transcript));
       dock->clearConversation();          // every card starts fading…
       // …and the INVARIANT holds from the first frame: every leaving card claims its
       // graphics effect, which is the flag ScrollReveal::apply() skips on. Without the
@@ -1088,7 +1088,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.actChat_->setChecked(true);
     QTRY_VERIFY(win.chatDock_->isVisible());
-    QTest::qWait(300);
+    awaitAnim(win.chatAnim_);   // the open slide, on its own end
     QWidget* chips = win.chatDock_->findChild<QWidget*>(QStringLiteral("chatSuggest"));
     QVERIFY(chips);
     const auto btns = chips->findChildren<QPushButton*>(QStringLiteral("chatSuggestChip"));
@@ -1217,7 +1217,7 @@ class MainWindowGuiTest : public QObject {
         QStringLiteral("A note long enough to wrap over a couple of lines in the dock.");
     dock->appendNote(sample);
     dock->appendAssistant(sample);
-    QTest::qWait(400);  // let the appear animations land their margins
+    QTRY_VERIFY(noneEntering(scrollArea->widget()));   // the appear animations landed
     const auto after = cards();
     QCOMPARE(after.size(), 4);
     QFrame* noteCard = after.at(2);
@@ -1432,7 +1432,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(!dock->isVisible());
     win.actChat_->setChecked(true);
     QTRY_VERIFY(dock->isVisible());
-    QTest::qWait(400);
+    awaitAnim(win.chatAnim_);   // the open slide, on its own end
 
     // (c) the card is DELETED while its own menu is up — nothing may touch it
     // after exec() returns.
@@ -1917,7 +1917,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(dock);
     win.actChat_->setChecked(true);   // the menu only pops on a VISIBLE surface
     QTRY_VERIFY(dock->isVisible());
-    QTest::qWait(400);
+    awaitAnim(win.chatAnim_);   // the open slide, on its own end
     QImage att(24, 24, QImage::Format_RGB32);
     att.fill(Qt::green);
     dock->addAttachmentImage(att, "cat.png");
@@ -2033,7 +2033,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(dock);
     win.actChat_->setChecked(true);   // the menu only pops on a VISIBLE surface
     QTRY_VERIFY(dock->isVisible());
-    QTest::qWait(400);
+    awaitAnim(win.chatAnim_);   // the open slide, on its own end
     dock->appendNote(QStringLiteral("escape me"));
     QFrame* noteCard = nullptr;
     for (QFrame* f : dock->findChildren<QFrame*>("chatCardMuted")) noteCard = f;

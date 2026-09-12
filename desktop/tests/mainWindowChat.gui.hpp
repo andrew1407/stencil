@@ -4,6 +4,8 @@
 #include "mainWindow.hpp"
 #include "chatDock.hpp"
 #include "../src/llm/llmClient.hpp"
+#include "../src/support/scrollReveal.hpp"
+#include <QFrame>
 #include <QImage>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -124,6 +126,15 @@ namespace stencil::guitest {
       }
     }
     return out;
+  }
+
+  // No card under `transcript` is still mid-entrance: animateCardIn claims the card's
+  // opacity effect for the whole arrival and drops the claim when it settles, so this is
+  // the arrival's own completion flag — the entrance animation itself is card-owned.
+  inline bool noneEntering(const QWidget* transcript) {
+    for (const QFrame* c : transcript->findChildren<QFrame*>())
+      if (c->property(stencil::gui::ScrollReveal::kEnteringProperty).toBool()) return false;
+    return true;
   }
 
   // The chat dock slides open, so isVisible() is true while it is still a zero-width

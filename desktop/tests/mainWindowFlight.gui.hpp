@@ -10,6 +10,7 @@
 #include <QElapsedTimer>
 #include <QPointer>
 #include <QSignalSpy>
+#include <QTimer>
 #include <QWidget>
 #include <QtTest>
 
@@ -90,6 +91,14 @@ namespace stencil::guitest {
       if (!done.wait(int(capMs - t.elapsed()))) return false;
     }
     return !slot;
+  }
+
+  // A single-shot debounce/idle QTimer announces its own end too: wait for that
+  // timeout() rather than for a span guessed longer than it. Not armed = already past.
+  inline bool awaitTimer(QTimer* t, int capMs = 3000) {
+    if (!t || !t->isActive()) return true;
+    QSignalSpy fired(t, &QTimer::timeout);
+    return fired.wait(capMs);
   }
 
   // The dust has no such signal: DisintegrateOverlay is Q_OBJECT-free and ticks a plain

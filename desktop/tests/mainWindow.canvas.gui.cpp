@@ -989,13 +989,9 @@ class MainWindowGuiTest : public QObject {
       const QColor corner = shot.pixelColor(QPoint(slider.left(), slider.top()) * dpr);
       QVERIFY2(near(mid, thumb), qPrintable("the thumb's top-edge midpoint is not the thumb grey: " + mid.name()));
       QVERIFY2(!near(corner, thumb), "the thumb's corner is filled — the thumb is not rounded");
-      // Thin at rest, a little thicker under the pointer (browser parity: the thumb
-      // grows into its slot on hover): a pixel 4px off the slot's centre line is slot
-      // background at rest and thumb once the pointer is on the bar.
-      // FOUR, not three: the pill is centred on the slot's true half-pixel centre, so at
-      // rest (6px) it spans centre−2.5 … centre+3.5 and the column at centre−3 is half
-      // covered — an antialiased blend that is neither colour. centre−4 is the first
-      // column wholly outside the resting pill, and wholly inside the 9px hover one.
+      // Thin at rest, a little thicker under the pointer (browser parity). FOUR px off
+      // the centre line, not three: the pill is centred on the slot's half-pixel centre,
+      // so centre−3 is an antialiased blend and centre−4 the first column truly outside.
       const QPoint side(slider.center().x() - 4, slider.top() + 6);
       const QColor slot = corner;
       QVERIFY2(near(shot.pixelColor(side * dpr), slot), "the resting thumb is already wide");
@@ -1012,17 +1008,20 @@ class MainWindowGuiTest : public QObject {
       win.scrollbarHovered_ = false;
       win.revealCanvasScrollbars();   // re-arm the reveal our synthetic Leave just cancelled
     }
-    // Out on its own after the 900ms idle timer — polled, so the wait is the timer and
-    // not a guess at it.
-    QTRY_VERIFY_WITH_TIMEOUT(vbar->testAttribute(Qt::WA_TransparentForMouseEvents), 1500);
-    QCOMPARE(win.vScrollOpacity_->opacity(), 0.0);
-    QCOMPARE(win.hScrollOpacity_->opacity(), 0.0);
+    // Out on the idle timer's own timeout(), not on an opacity that may never have been
+    // 1: a QTRY_ on the value alone goes green on a fade that never ran.
+    const auto hidesOut = [&win] {
+      QSignalSpy fired(win.scrollbarHideTimer_, &QTimer::timeout);
+      return win.scrollbarHideTimer_->isActive() && fired.wait(1500)
+             && win.vScrollOpacity_->opacity() == 0.0 && win.hScrollOpacity_->opacity() == 0.0;
+    };
+    QVERIFY(hidesOut());
 
     // A pan (here: the vertical scrollbar's own value, exactly what a drag-pan/wheel-scroll
     // drives — see MainWindow::scrollTo) reveals it again, and it fades back out the same way.
     win.scroll_->verticalScrollBar()->setValue(50);
     QCOMPARE(win.vScrollOpacity_->opacity(), 1.0);
-    QTRY_COMPARE_WITH_TIMEOUT(win.vScrollOpacity_->opacity(), 0.0, 1500);
+    QVERIFY(hidesOut());
 
     // Hovering the bar itself (to grab it) must never let it fade out from under the cursor.
     QEvent enter(QEvent::Enter);
@@ -1034,7 +1033,7 @@ class MainWindowGuiTest : public QObject {
     QEvent leave(QEvent::Leave);
     QCoreApplication::sendEvent(win.canvasScrollBar(Qt::Vertical), &leave);
     QVERIFY(!win.scrollbarHovered_);
-    QTRY_COMPARE_WITH_TIMEOUT(win.vScrollOpacity_->opacity(), 0.0, 1500);
+    QVERIFY(hidesOut());
     // Dragging the floating bar drives the real scroll model, and vice versa.
     vbar->setValue(120);
     QCOMPARE(win.scroll_->verticalScrollBar()->value(), 120);
