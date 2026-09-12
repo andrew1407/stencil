@@ -269,26 +269,36 @@ test.describe('extension popup + side panel UI', () => {
       };
     });
 
+    const buttonCaughtUp = () => host.evaluate(() => {
+      const h = document.getElementById('stencil-ext-modal');
+      if (!h) return false;
+      const shellVar = (name) => {
+        const n = parseInt(getComputedStyle(h).getPropertyValue(name).trim().slice(1), 16);
+        return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+      };
+      const cs = getComputedStyle(h.shadowRoot.querySelector('.bar button'));
+      return cs.backgroundColor === shellVar('--st-panel2') && cs.color === shellVar('--st-text');
+    });
+
     const seen = {};
     for (const mode of ['dark', 'light']) {
       // Exactly what the header's moon button does (localStorage + the storage mirror).
       await ui.evaluate((m) => window.StencilTheme.set(m), mode);
+      // The mirror is async: a shell mounted before it lands reads the OLD palette, and
+      // the onChanged that would re-paint it has already fired. Wait for the commit.
+      await expect.poll(() => ui.evaluate(() => new Promise((r) =>
+        chrome.storage.local.get(['stencil_theme'], (v) => r(v.stencil_theme))))).toBe(mode);
       await host.evaluate(() => document.getElementById('stencil-ext-modal')?.remove());
       // Double-click a row → the quick-crop modal, mounted in the host page.
       await ui.evaluate(() => document.querySelector('.row .thumb')
         .dispatchEvent(new MouseEvent('dblclick', { bubbles: true })));
       await host.waitForFunction(() => !!document.getElementById('stencil-ext-modal'), null, { timeout: 15_000 });
       await expect.poll(async () => (await shell())?.theme, { timeout: 10_000 }).toBe(mode);
-      // The shell's colours transition (.bar button: background .15s), so read it once
-      // two consecutive reads agree — a snapshot mid-fade still wears the other theme.
-      let last = await shell();
-      await expect.poll(async () => {
-        const now = await shell();
-        const settled = JSON.stringify(now) === JSON.stringify(last);
-        last = now;
-        return settled;
-      }, { timeout: 10_000, intervals: [100, 100, 200] }).toBe(true);
-      seen[mode] = last;
+      // `.bar button` transitions background/color .15s when the live re-theme lands,
+      // and under load the transition starts LATE: wait until the rendered button has
+      // caught up with the shell's own --st-panel2 / --st-text, not for stable reads.
+      await expect.poll(buttonCaughtUp, { timeout: 10_000 }).toBe(true);
+      seen[mode] = await shell();
     }
 
     // The shell is painted from the SAME palette as the rest of the chrome (theme.css).

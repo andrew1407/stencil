@@ -75,22 +75,25 @@ test.describe('AI assistant chat panel', () => {
     }
     await expect(menu).toHaveClass(/ctx-open/);
   };
-  // Same, but with the panel possibly open and overlapping: right-click the first
-  // canvas corner the panel does NOT cover (a real right-click at viewport
-  // coordinates, so the topmost element there receives it).
+  // The first canvas corner the chat panel does NOT cover — a viewport point clear of
+  // the toolbar AND of the panel, so a click there reaches the canvas and a parked
+  // pointer rests on no toolbar icon.
+  const pointClearOfPanel = (page) => page.evaluate(() => {
+    const c = document.getElementById('canvas').getBoundingClientRect();
+    const panel = document.getElementById('chat-panel');
+    const pb = panel && panel.classList.contains('chat-open') ? panel.getBoundingClientRect() : null;
+    const covered = (x, y) => !!pb && x >= pb.left && x <= pb.right && y >= pb.top && y <= pb.bottom;
+    const corners = [[c.right - 8, c.top + 8], [c.left + 8, c.top + 8], [c.right - 8, c.bottom - 8], [c.left + 8, c.bottom - 8]];
+    const free = corners.find(([x, y]) => !covered(x, y));
+    return free ? { x: free[0], y: free[1] } : null;
+  });
+  // Same as openMenu, but with the panel possibly open and overlapping: right-click at
+  // viewport coordinates, so the topmost element there receives it.
   const openMenuClearOfPanel = async (page) => {
     await page.waitForTimeout(400);
     const menu = page.locator('#ctx-menu');
     for (let i = 0; i < 4; i++) {
-      const pt = await page.evaluate(() => {
-        const c = document.getElementById('canvas').getBoundingClientRect();
-        const panel = document.getElementById('chat-panel');
-        const pb = panel && panel.classList.contains('chat-open') ? panel.getBoundingClientRect() : null;
-        const covered = (x, y) => !!pb && x >= pb.left && x <= pb.right && y >= pb.top && y <= pb.bottom;
-        const corners = [[c.right - 8, c.top + 8], [c.left + 8, c.top + 8], [c.right - 8, c.bottom - 8], [c.left + 8, c.bottom - 8]];
-        const free = corners.find(([x, y]) => !covered(x, y));
-        return free ? { x: free[0], y: free[1] } : null;
-      });
+      const pt = await pointClearOfPanel(page);
       if (!pt) return false;
       await page.mouse.click(pt.x, pt.y, { button: 'right' });
       if (await menu.evaluate((el) => el.classList.contains('ctx-open'))) return true;
@@ -705,6 +708,11 @@ test.describe('AI assistant chat panel', () => {
     // would be no stranded shape left to assert about. Blur the composer first
     // (openCompact focuses it) or the hotkey is swallowed by the text field.
     await page.evaluate(() => document.activeElement?.blur());
+    // Alt DOWN while the pointer rests on a toolbar icon fires that icon's Alt-glide,
+    // which closes every other mini window (popover.js closeFromGlide) — this popover
+    // included. The dblclick left the cursor on #chat-btn, so park it off the toolbar.
+    const parked = await pointClearOfPanel(page);
+    if (parked) await page.mouse.move(parked.x, parked.y);
     await page.keyboard.press('Alt+f');
     await expect(page.locator('body')).toHaveClass(/fullscreen-mode/);
     // Reveal the fullscreen toolbar so the clone exists and is measurable.
