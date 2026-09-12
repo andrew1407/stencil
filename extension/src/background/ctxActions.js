@@ -19,7 +19,7 @@ const resolveSrc = (info, rec) => {
 const openFreshEditor = async (info) => {
   try {
     const { editorUrl } = await getSettings();
-    if (info.menuItemId === MENU.actionOpenIncognito) await chrome.windows.create({ url: editorUrl, incognito: true });
+    if (info.menuItemId === MENU.ACTION_OPEN_INCOGNITO) await chrome.windows.create({ url: editorUrl, incognito: true });
     else await chrome.tabs.create({ url: editorUrl });
   } catch (err) {
     console.error('[stencil] open-editor action failed:', err);
@@ -56,8 +56,8 @@ const togglePinFromMenu = async (info, tab, tabId) => {
   const rec = tabId != null ? lastTargetByTab.get(tabId) : null;
   const poster = tabId != null ? lastPosterByTab.get(tabId) : '';
   const byItem = {
-    [MENU.bgPin]: { source: (rec && rec.url) || info.srcUrl || '', kind: 'background' },
-    [MENU.framePin]: { source: info.srcUrl || poster || '', kind: 'video' },
+    [MENU.BG_PIN]: { source: (rec && rec.url) || info.srcUrl || '', kind: 'background' },
+    [MENU.FRAME_PIN]: { source: info.srcUrl || poster || '', kind: 'video' },
   };
   const { source, kind } = byItem[info.menuItemId]
     || { source: info.srcUrl || (rec && rec.url) || '', kind: 'image' };
@@ -139,7 +139,7 @@ const openImageOrFrame = async (info, tab, tabId) => {
 };
 
 export const resolveClickHandler = (info) => {
-  if (info.menuItemId === MENU.actionOpen || info.menuItemId === MENU.actionOpenIncognito) return openFreshEditor;
+  if (info.menuItemId === MENU.ACTION_OPEN || info.menuItemId === MENU.ACTION_OPEN_INCOGNITO) return openFreshEditor;
   if (typeof info.menuItemId === 'string' && info.menuItemId.startsWith('stencil-preview-')) return actOnPreview;
   if (PIN_ITEMS.includes(info.menuItemId)) return togglePinFromMenu;
   return openImageOrFrame;

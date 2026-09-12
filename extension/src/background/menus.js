@@ -20,7 +20,7 @@ export const buildMenus = () => {
 export let desktopSchemeSet = true;
 
 // Show/hide the desktop-app hand-off items to match the configured scheme. The STATIC items
-// (image / video-frame) toggle on the scheme alone; MENU.bgDesktop is revealed by the probe
+// (image / video-frame) toggle on the scheme alone; MENU.BG_DESKTOP is revealed by the probe
 // (CTX handler) gated on this flag, so it isn't touched here.
 export const syncDesktopMenuVisibility = async () => {
   try { const { desktopScheme } = await getSettings(); desktopSchemeSet = !!desktopScheme; }

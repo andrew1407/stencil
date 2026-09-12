@@ -27,7 +27,7 @@ export const ctxProbeHandlers = {
       chrome.contextMenus.update(id, { visible: showBg }, () => void chrome.runtime.lastError);
     // The background "Open in desktop app" item needs BOTH a background under the cursor AND a
     // configured scheme (unlike the rest of the bg group, which only needs the background).
-    chrome.contextMenus.update(MENU.bgDesktop, { visible: showBg && desktopSchemeSet }, () => void chrome.runtime.lastError);
+    chrome.contextMenus.update(MENU.BG_DESKTOP, { visible: showBg && desktopSchemeSet }, () => void chrome.runtime.lastError);
     // Reveal the video Preview submenu only when the probed <video> has a poster —
     // otherwise its actions would be silent no-ops.
     for (const id of PREVIEW_ITEMS)
@@ -40,8 +40,8 @@ export const ctxProbeHandlers = {
       chrome.contextMenus.update(id, { title: pinItemTitle(isPinnedIn(pinsCache, site, source), kind) },
         () => void chrome.runtime.lastError);
     };
-    relabel(MENU.pin, data && data.imgUrl, 'image');
-    relabel(MENU.bgPin, data && !data.video && data.url, 'image');
-    relabel(MENU.framePin, data && data.video && (data.videoUrl || data.poster), 'video');
+    relabel(MENU.PIN, data && data.imgUrl, 'image');
+    relabel(MENU.BG_PIN, data && !data.video && data.url, 'image');
+    relabel(MENU.FRAME_PIN, data && data.video && (data.videoUrl || data.poster), 'video');
   },
 };
