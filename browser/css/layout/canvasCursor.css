@@ -23,23 +23,3 @@ canvas:focus-visible {
 canvas.zoom-no-transition {
     transition: none !important;
 }
-/* The image-facts line. The incognito tag appended to it is passive DECOR: toggling
-   the mode must not move a single pixel of the app. The desktop's equivalent label grew
-   when the tag appeared and pushed the canvas and the points panel down (user report),
-   so this row's geometry is PINNED rather than left to the content:
-     · an explicit line-height the tag cannot exceed (an inline-flex child with a 13px
-       glyph would otherwise stretch the line box by a pixel or two on its own);
-     · a min-height of that same line box, so an empty editor and a tagged one match;
-     · no wrapping — at a narrow width the extra words would fold onto a second line
-       and grow the row, which is the same shift by another route.
-   Both incognito states therefore occupy the identical box. */
-/* Folded toolbar: the size line goes with it — the "?" beside the project name carries the
-   same two facts in its bubble (toolbar.js), and leaving the line behind put a full-width
-   band plus 27px of margin between the collapsed header and the canvas.
-   The margins that separated those rows go too: 8 (topbar) + 12 (toolbar card) + 10 (the
-   viewport's own gap under the info line) stacked to 30px of nothing under a header that is
-   itself only 33px tall. Collapsed, the canvas sits right under it. */
-body.controls-collapsed .info { display: none; }
-body.controls-collapsed .controls-topbar { margin-bottom: 0; }
-body.controls-collapsed .controls-wrapper { margin-bottom: 8px; }
-body.controls-collapsed .canvas-viewport { margin-top: 0; }
