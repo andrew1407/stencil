@@ -146,17 +146,9 @@ func Load() (Config, error) {
 	if err := loadLLM(get, &cfg); err != nil {
 		return Config{}, err
 	}
-	if cfg.DBMaxConns, err = positiveInt(get, "DB_MAX_CONNS", 0, 0); err != nil {
+	if err := loadDB(get, &cfg); err != nil {
 		return Config{}, err
 	}
-	if cfg.DBMinConns, err = positiveInt(get, "DB_MIN_CONNS", 0, 0); err != nil {
-		return Config{}, err
-	}
-	dbStatementSeconds, err := positiveInt(get, "DB_STATEMENT_TIMEOUT", 0, 0)
-	if err != nil {
-		return Config{}, err
-	}
-	cfg.DBStatementTimeout = time.Duration(dbStatementSeconds) * time.Second
 	if cfg.AuthRatePerMin, err = positiveInt(get, "AUTH_RATE_PER_MINUTE", defaultAuthRatePerMin, 0); err != nil {
 		return Config{}, err
 	}
