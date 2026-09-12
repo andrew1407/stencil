@@ -1,30 +1,11 @@
 import { StencilElement, hostTag, define } from './base.js';
-import { notify, supportsShareFiles, isTouchLike, pointInRect, isTypingTarget, onWindowResize } from '../utils.js';
 import { hotkeys } from '../core/hotkeys.js';
-import { icon } from './icons.js';
-import { attachVoiceDust } from './voiceDust.js';
-import { loadLlmSettings, serverBearerToken } from '../llm/llmSettings.js';
-import { probeProvider } from '../llm/llmClient.js';
-import { MAX_ATTACHMENTS } from '../llm/chatController.js';
-import {
-  sharedChatController, peekChatController, runLoggedChatTurn, closedTurnToast, queueAttachments, ATTACHMENT_CAP_NOTICE,
-  cacheProbe, cachedProbe, probeStatusClass,
-  chatLog, onChatLog, clearSharedConversation, requeueRowAttachments, chatTurnInFlight,
-} from '../llm/chatSession.js';
-import {
-  renderChatLog, chatAttachmentChips, wireInputSizer, wireChatSuggestions, wireChatMoreMenu, wireChatSideToggle,
-  chatSuggestionsHtml, chatComposerActionsHtml, syncComposerControls, wireChatComposer, wireComposerVoice,
-  notifyAttachmentsChanged, CHAT_ATTACHMENTS_EVENT, wireChatRowMenu, chatRowMenuOpen,
-} from './chatView.js';
+import { chatRowMenuOpen } from './chatView.js';
 import { menuPopOrigin, surfaceIn, surfaceOut, settleSurface, motionReduced,
          SURFACE_MENU_IN_MS, SURFACE_MENU_OUT_MS } from './motion.js';
-import { setChecked, swapCheckGlyph } from './controlSwap.js';
-import { wireAltPreview, hideExportPreview, clearAltPreviewHover } from './exportPreview.js';
-import { ctxArrow } from './ctxArrow.js';
+import { hideExportPreview, clearAltPreviewHover } from './exportPreview.js';
 import { assistantEnabled, assistantItemHtml } from './ctxAssistantItem.js';
 import { wireCtxAssistant } from './ctxAssistant.js';
-import { subscribe, EVENTS } from '../bus/appBus.js';
-import { EXPORT_VARIANTS, EXPORT_VARIANT_LABELS, EXPORT_VARIANT_ICONS } from './exportVariants.js';
 export { assistantEnabled, assistantItemHtml };
 // Keyboard navigation lives in ctxKeyboard.js; its three helpers stay reachable here.
 export { ctxKeyStep, CTX_NAV_KEYS, ctxFocusables } from './ctxKeyboard.js';
