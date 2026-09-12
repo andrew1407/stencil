@@ -110,5 +110,42 @@ namespace stencil::guitest {
       return surfaceFlight(host) == nullptr;
     }, capMs);
   }
+
+  // Every visible rect under `w` — the signature a relayout changes.
+  inline QList<QRect> layoutSig(QWidget* w) {
+    QList<QRect> r;
+    for (QWidget* c : w->findChildren<QWidget*>())
+      if (c->isVisible()) r.append(c->geometry());
+    return r;
+  }
+
+  // A relayout announces nothing, so poll that signature until it holds still for three
+  // looks. Capped at the fixed wait it replaces: a slow pass still gets the time it had.
+  inline void settleLayout(QWidget* w, int capMs) {
+    QElapsedTimer t;
+    t.start();
+    QList<QRect> a = layoutSig(w);
+    for (int held = 0; t.elapsed() < capMs;) {
+      QTest::qWait(16);
+      const QList<QRect> b = layoutSig(w);
+      held = (b == a) ? held + 1 : 0;
+      a = b;
+      if (held >= 3) return;
+    }
+  }
 }  // namespace stencil::guitest
+
+// QTRY looks every 50 ms, so a condition that lands in 5 costs 50 — across this suite
+// that was seconds of pure overshoot. Same timeout, same assertion, finer look.
+#undef QTRY_IMPL
+#define QTRY_IMPL(expr, timeoutAsGiven) \
+    const auto qt_test_timeoutAsMs = [&] { \
+            using namespace std::chrono_literals; \
+            return std::chrono::milliseconds{timeoutAsGiven}; \
+        }(); \
+    const auto qt_test_step = qt_test_timeoutAsMs < std::chrono::milliseconds(35) \
+                              ? qt_test_timeoutAsMs / 7 + std::chrono::milliseconds(1) \
+                              : std::chrono::milliseconds(5); \
+    { QTRY_LOOP_IMPL(expr, qt_test_timeoutAsMs, qt_test_step) } \
+    QTRY_TIMEOUT_DEBUG_IMPL(expr, qt_test_timeoutAsMs, qt_test_step)
 
