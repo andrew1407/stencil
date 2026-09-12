@@ -1,6 +1,6 @@
 #pragma once
 // Scroll reveal: the desktop port of browser/js/ui/motion.js + the .reveal-item rules
-// in browser/css/animations.css and extension/src/lib/animations.css. Items in a long
+// in browser/css/animations.css and extension/src/lib/animations/. Items in a long
 // scroller dissolve toward the viewport edges instead of being clipped hard, so
 // scrolling reads as motion.
 //
