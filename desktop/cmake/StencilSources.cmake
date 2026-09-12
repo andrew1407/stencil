@@ -191,6 +191,7 @@ set(STENCIL_FACESWAP_SOURCES
 set(STENCIL_GUI_SOURCES
   src/app/mainWindow.cpp
   src/app/mainWindowActions.cpp
+  src/app/mainWindowExportMenu.cpp
   src/app/mainWindowToolbar.cpp
   src/app/mainWindowToolbarSections.cpp
   src/app/mainWindowToolbarName.cpp
