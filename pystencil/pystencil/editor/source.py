@@ -10,7 +10,7 @@ from typing import Optional, Tuple
 
 from .. import _net
 from ..image import Image
-from ._snapshot import _A4_FALLBACK, _MAX_STATES, _Snapshot, LoadSource, _sniff_image_ext
+from ._snapshot import _A4_FALLBACK, _Snapshot, LoadSource, _sniff_image_ext
 
 
 class _SourceApi:

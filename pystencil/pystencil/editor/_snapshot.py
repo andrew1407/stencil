@@ -13,8 +13,9 @@ from ..image import Image
 from ..layout import Layout, Line
 
 
-# History depth cap — the pristine state plus up to 63 undoable edits, matching the CLI's
-# `max_states` (the bot's 25 is the outlier); belongs in the shared constants canon.
+# History depth cap: the pristine state plus up to 63 undoable edits. The canon value is
+# LIMITS.historyMax in browser/js/config/constants.json; cli/src/console/session/state.zig
+# carries the same 64 (the bot's 25 is a per-tenant memory budget, not this policy).
 _MAX_STATES = 64
 
 # Fallback A4 page (cm) if the core has no named page table — matches pipeline.zig's
