@@ -27,6 +27,9 @@ from pystencil.layout import (
 )
 
 _PROJECT_DIR = _FIXTURES / "fixtures" / "stencilProject"
+# Parsed once per module, not once per test method.
+_VALID = _load(_PROJECT_DIR / "valid.json")
+_INVALID = _load(_PROJECT_DIR / "invalid.json")
 
 
 def _png_1x1() -> bytes:
@@ -67,7 +70,7 @@ class TestStencilProjectFixtures(unittest.TestCase):
         # format-level content is untouched. Input is fed as bytes so a JSON
         # string is never mistaken for a path.
         overrides = _OVERRIDES["stencilProject"]
-        for case in _load(_PROJECT_DIR / "valid.json"):
+        for case in _VALID:
             with self.subTest(case=case["name"]):
                 text = re.sub(r"base64,[A-Za-z0-9+/=]*", "base64," + _PNG_B64, case["file"])
                 if overrides.get(case["name"], {}).get("verdict") == "error":
@@ -119,7 +122,7 @@ class TestStencilProjectFixtures(unittest.TestCase):
     def test_invalid(self):
         # Every corpus error case must fail here too; match on the CASE, not the
         # browser's message. dataUrl-non-string raises AttributeError (pinned).
-        for case in _load(_PROJECT_DIR / "invalid.json"):
+        for case in _INVALID:
             with self.subTest(case=case["name"]):
                 with self.assertRaises((ValueError, AttributeError)):
                     Editor().open_project(case["file"].encode("utf-8"))

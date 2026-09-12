@@ -22,6 +22,9 @@ from pystencil.layout import (
 )
 
 _LAYOUT_DIR = _FIXTURES / "fixtures" / "layout"
+# Parsed once per module, not once per test method.
+_SPARSE = _load(_LAYOUT_DIR / "sparse.json")
+_PAYLOAD = _load(_LAYOUT_DIR / "payload.json")
 
 
 class TestLayoutFixtures(unittest.TestCase):
@@ -39,7 +42,7 @@ class TestLayoutFixtures(unittest.TestCase):
         # pystencil is a tolerant parser: its parse of the sparse lines must
         # yield the corpus's expectFilled shape (empty-points lines kept).
         overrides = _OVERRIDES["layout/sparse"]
-        for case in _load(_LAYOUT_DIR / "sparse.json"):
+        for case in _SPARSE:
             with self.subTest(case=case["name"]):
                 raw = case["sparse"]
                 lines = [Line.from_dict(x) for x in raw] if isinstance(raw, list) else []
@@ -51,7 +54,7 @@ class TestLayoutFixtures(unittest.TestCase):
         # Layout.from_dict → to_dict is pystencil's export path; uses imageFilter
         # (aligned with the browser) and pins the top-level key order.
         overrides = _OVERRIDES["layout/payload"]
-        for case in _load(_LAYOUT_DIR / "payload.json"):
+        for case in _PAYLOAD:
             with self.subTest(case=case["name"]):
                 out = Layout.from_dict(case["layout"]).to_dict()
                 over = overrides.get(case["name"])

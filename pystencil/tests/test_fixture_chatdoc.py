@@ -13,13 +13,18 @@ from tests.fixturebase import _LLM_FIXTURES, _load
 
 from pystencil.llm import Chat
 
+_CHATDOC_DIR = _LLM_FIXTURES / "chatDoc"
+# Parsed once per module, not once per test method.
+_ROUNDTRIP = _load(_CHATDOC_DIR / "roundtrip.json")
+_TOLERANCE = _load(_CHATDOC_DIR / "tolerance.json")
+
 def _history_messages(chat: Chat) -> list:
     return [{"role": m["role"], "text": m["text"]} for m in chat.history]
 
 
 class TestChatDocFixtures(unittest.TestCase):
     def test_roundtrip(self):
-        for case in _load(_LLM_FIXTURES / "chatDoc" / "roundtrip.json"):
+        for case in _ROUNDTRIP:
             with self.subTest(case=case["name"]):
                 doc = case["doc"]
                 from_str = Chat.from_doc(json.dumps(doc))
@@ -33,7 +38,7 @@ class TestChatDocFixtures(unittest.TestCase):
     def test_tolerance(self):
         # Chat.from_doc never surfaces savedAt, so lenient reads are compared at
         # the message level; expectParsed null reads as an empty conversation.
-        for case in _load(_LLM_FIXTURES / "chatDoc" / "tolerance.json"):
+        for case in _TOLERANCE:
             with self.subTest(case=case["name"]):
                 exp = case["expectParsed"]
                 want = [] if exp is None else exp["messages"]

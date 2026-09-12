@@ -17,18 +17,18 @@ _URL_RE = re.compile(r"[a-z][a-z0-9+.-]*://", re.I)
 _TOKEN_RUN_RE = re.compile(r"[A-Za-z0-9_-]{24,}")
 
 
-class TestSanitizerFixtures(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.cases = _load(_LLM_FIXTURES / "sanitizer" / "cases.json")
+# Parsed once per module, not once per test method.
+_CASES = _load(_LLM_FIXTURES / "sanitizer" / "cases.json")
 
+
+class TestSanitizerFixtures(unittest.TestCase):
     def _divergent_surfaces(self, name: str):
         m = re.match(r"DIVERGENCE\(([^)]*)\)", name)
         return [s.strip() for s in m.group(1).split(",")] if m else []
 
     def test_walk(self):
         overrides = _OVERRIDES["sanitizer"]
-        for case in self.cases:
+        for case in _CASES:
             name = case["name"]
             with self.subTest(case=name):
                 if case["input"] is None:

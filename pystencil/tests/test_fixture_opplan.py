@@ -21,22 +21,19 @@ _SURFACES = {"browser", "desktop", "cli", "pystencil", "bot", "mcp", "extension"
 _MY_PROFILES = ("console", "all")
 
 
-class TestOpPlanFixtures(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.fixtures = [
-            (p.name, _load(p)) for p in sorted(_OPPLAN_DIR.glob("*.json"))
-        ]
-        # The registry-generated bundle (browser/tools/genOpPlanFixtures.mjs): one pseudo-file per case.
-        cls.fixtures += [
-            (fx["name"] + ".json", fx)
-            for fx in _load(_OPPLAN_DIR / "generated" / "cases.json")["cases"]
-        ]
+# Parsed once per module. The registry-generated bundle
+# (browser/tools/genOpPlanFixtures.mjs) contributes one pseudo-file per case.
+_FIXTURE_FILES = [(p.name, _load(p)) for p in sorted(_OPPLAN_DIR.glob("*.json"))] + [
+    (fx["name"] + ".json", fx)
+    for fx in _load(_OPPLAN_DIR / "generated" / "cases.json")["cases"]
+]
 
+
+class TestOpPlanFixtures(unittest.TestCase):
     def test_corpus_is_well_formed(self):
         # Port of the reference walker's corpus-shape check (opPlanFixtures.test.js).
-        self.assertGreaterEqual(len(self.fixtures), 80, "expected a real corpus")
-        for fname, fx in self.fixtures:
+        self.assertGreaterEqual(len(_FIXTURE_FILES), 80, "expected a real corpus")
+        for fname, fx in _FIXTURE_FILES:
             with self.subTest(fixture=fname):
                 self.assertEqual(fx["name"] + ".json", re.sub(r"^\d+-", "", fname))
                 self.assertIsInstance(fx["profiles"], list)
@@ -54,7 +51,7 @@ class TestOpPlanFixtures(unittest.TestCase):
     def test_walk(self):
         overrides = _OVERRIDES["opPlan"]
         walked = 0
-        for fname, fx in self.fixtures:
+        for fname, fx in _FIXTURE_FILES:
             if not any(p in _MY_PROFILES for p in fx["profiles"]):
                 continue
             walked += 1

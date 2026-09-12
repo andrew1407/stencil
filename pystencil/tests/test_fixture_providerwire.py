@@ -50,17 +50,21 @@ def _http_error(case) -> urllib.error.HTTPError:
     return urllib.error.HTTPError(case["expectUrl"], er["status"], "err", {}, io.BytesIO(raw))
 
 
+# Parsed once per module, not once per test method.
+_CASES = [
+    case
+    for fn in ("ollama.json", "openai.json", "server.json", "httpErrors.json")
+    for case in _load(_WIRE_DIR / fn)
+]
+
+
 class TestProviderWireFixtures(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.cases = []
-        for fn in ("ollama.json", "openai.json", "server.json", "httpErrors.json"):
-            cls.cases.extend(_load(_WIRE_DIR / fn))
-        assert len(cls.cases) >= 20
+    def test_the_corpus_is_real(self):
+        self.assertGreaterEqual(len(_CASES), 20)
 
     def test_request_building(self):
         # The builders are pure — no network, no seam patching needed.
-        for case in self.cases:
+        for case in _CASES:
             with self.subTest(case=case["name"]):
                 client = _wire_client(case)
                 req = client._build_request(_wire_messages(case["chat"]), case["chat"]["system"])
@@ -75,7 +79,7 @@ class TestProviderWireFixtures(unittest.TestCase):
 
     def test_reply_and_error_extraction(self):
         overrides = _OVERRIDES["providerWire"]
-        for case in self.cases:
+        for case in _CASES:
             with self.subTest(case=case["name"]):
                 client = _wire_client(case)
                 self.assertNotIn(case["name"], overrides)  # no pinned wire divergences remain
