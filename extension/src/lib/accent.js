@@ -1,23 +1,14 @@
-// The extension pages' accent: applied before first paint, and the window.StencilAccent
-// facade the options page and the logo gestures drive it through.
-//
-// This file is the sixth of SEVEN classic <script>s (MV3 forbids inline page scripts)
-// loaded in each extension page's <head> BEFORE lib/theme/, so the saved accent sits
-// on <html data-accent="…"> before first paint — a module would be deferred and flash.
-// In order: prefs.js, swapGeometry.js, dustGrains.js, dustWake.js, themeSwap.js, this,
-// shellPrefs.js. They share one page scope through window.StencilKit; each takes what it
-// needs from it at the top and publishes what the next ones use at the bottom.
-// --accent-2 shade and glows derive from --accent via color-mix() in lib/theme/palette.css.
+// The extension pages' accent, applied before first paint, plus the window.StencilAccent facade.
+// Sixth of SEVEN classic <script>s (MV3 forbids inline page scripts; a module would defer and
+// flash) loaded in each page's <head> BEFORE lib/theme/, sharing one scope through
+// window.StencilKit — in order: prefs, swapGeometry, dustGrains, dustWake, themeSwap, this, shellPrefs.
 (function () {
   var K = window.StencilKit;
   var ACCENTS = K.ACCENTS, DEFAULT = K.DEFAULT, KEY = K.KEY, applyFavicon = K.applyFavicon, faviconSvg = K.faviconSvg;
   var has = K.has, hexOf = K.hexOf, mirror = K.mirror, needsDarkGlyph = K.needsDarkGlyph, onAccentInk = K.onAccentInk;
   var read = K.read, swap = K.swap, writePref = K.writePref;
-  // The mirrored accent lets non-page contexts colour the on-page highlight to match
-  // the theme (lib/highlightColor.js).
-  // ── Custom accent + hover preview (browser parity: accentController) ──
-  // A double-clicked custom accent is PAGE-ONLY: an inline --accent override, gone on
-  // reload. A hover preview paints a preset and reverts on leave. Neither persists.
+  // A double-clicked custom accent is PAGE-ONLY (an inline --accent, gone on reload); a hover
+  // preview reverts on leave. Neither persists. Browser twin: accentController.
   var normalizeHex = function (v) {
     var m = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(String(v || '').trim());
     if (!m) return null;
@@ -37,8 +28,7 @@
     link.href = 'data:image/svg+xml,' + encodeURIComponent(faviconSvg(hex));
   };
   var previewSnap = null;   // {data, inline} captured on the first hover of an open menu
-  // Tell same-page listeners (the options accent dropdown) that the accent moved — the
-  // logo's own gestures change it out from under them. Browser twin: accentController.announce.
+  // Same-page listeners (the options accent dropdown) learn the logo's gestures moved the accent.
   var announce = function (v) {
     try { window.dispatchEvent(new CustomEvent('stencil:accent-changed', { detail: v })); } catch (e) { /* no DOM */ }
   };
@@ -59,26 +49,21 @@
     storageKey: KEY,
     get: read,
     hexOf: hexOf,
-    // The ink for a swatch that paints its own chip (the ✓ on a preset row), which
-    // no --on-accent var can reach.
+    // Ink for a swatch that paints its own chip, which no --on-accent var can reach.
     inkOn: onAccentInk,
     // `from` is the control that was pressed (element or id) — the options page has no
     // #theme-toggle, so without it the wipe would have to guess.
     set: function (k, from) {
       var next = has(k) ? k : DEFAULT;
-      // NOW, not inside the swap: `apply` clears it too, but the transition runs that
-      // callback a beat later and the menu's own close ends the preview in between, so a
-      // snapshot still standing there floods the page back to the previous accent.
-      // Browser twin: applyAccent.
+      // Cleared NOW, not inside the swap: the menu's close ends the preview before the
+      // deferred apply runs, and a standing snapshot would flood back the previous accent.
       previewSnap = null;
       writePref(KEY, next);
       swap(function () { apply(next); }, from || 'theme-toggle');
       announce(next);
       return next;
     },
-    // Page-only custom accent (the logo's double-click picker): an inline --accent that
-    // overrides the data-accent preset rule; NOT persisted, gone on reload. Returns the
-    // normalized '#rrggbb', or null for junk. Browser twin: accentController.setCustomAccent.
+    // Page-only custom accent: an inline --accent, NOT persisted. Returns '#rrggbb' or null.
     setCustom: function (hex, from) {
       var norm = normalizeHex(hex);
       if (!norm) return null;
@@ -91,10 +76,8 @@
       announce(norm);
       return norm;
     },
-    // Hover preview: paint a preset while the pointer rests on its row, WITH the same
-    // flood-from-the-control a real change plays (swap) — but no persist; endAccentPreview()
-    // floods back to the committed accent (preset or custom). The first call of an open
-    // menu snapshots what is committed. `from` is the control the wipe blooms from.
+    // Hover preview: the same flood as a real change, but no persist; the first call of an
+    // open menu snapshots what is committed and endAccentPreview() floods back to it.
     previewAccent: function (key, from) {
       if (!has(key)) return;
       var el = document.documentElement;
