@@ -252,6 +252,10 @@ set(STENCIL_GUI_SOURCES
   src/app/mainWindowServerProject.cpp
   src/app/mainWindowServerSave.cpp
   src/app/mainWindowSession.cpp
+  src/app/mainWindowSetupCanvas.cpp
+  src/app/mainWindowSetupChat.cpp
+  src/app/mainWindowSetupState.cpp
+  src/app/mainWindowSetupWidgets.cpp
   src/app/mainWindowSettings.cpp
   src/app/mainWindowShared.cpp
   src/app/mainWindowSource.cpp
