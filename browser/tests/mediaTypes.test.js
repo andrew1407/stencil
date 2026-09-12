@@ -53,7 +53,7 @@ test('the accept strings are the mime prefixes, and both pickers use the asset',
   assert.equal(MEDIA.accept.image, `${MEDIA.image.mimePrefix}*`);
   assert.equal(MEDIA.accept.video, `${MEDIA.video.mimePrefix}*`);
   assert.equal(MEDIA.accept.imageOrVideo, `${MEDIA.accept.image},${MEDIA.accept.video}`);
-  for (const rel of ['js/ui/openImageModal.js', 'js/ui/chatComposer.js']) {
+  for (const rel of ['js/ui/openImageMarkup.js', 'js/ui/chatComposer.js']) {
     const src = read(rel);
     assert.ok(src.includes('${MEDIA_TYPES.accept.imageOrVideo}'), `${rel} reads the asset`);
     assert.ok(!/accept="image\/\*/.test(src), `${rel} still hard-codes an accept list`);
