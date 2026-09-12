@@ -259,7 +259,7 @@ int main(int argc, char** argv) {
     LlmClient client(&t);
     LlmReply got;
     client.chat(LlmSettings{}, sampleMessages(), "", [&](LlmReply r) { got = r; });
-    check(!got.ok && got.failure == LlmFailure::BadResponse, "malformed ollama response");
+    check(!got.ok && got.failure == LlmFailure::BAD_RESPONSE, "malformed ollama response");
   }
 
   // ── openai-compat (contract §6.2) ──
@@ -320,7 +320,7 @@ int main(int argc, char** argv) {
     cfg.serverUrl = "http://localhost:8090";
     LlmReply got;
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
-    check(!got.ok && got.failure == LlmFailure::Expired, "401 → Expired, not a generic failure");
+    check(!got.ok && got.failure == LlmFailure::EXPIRED, "401 → Expired, not a generic failure");
     check(got.expiredHost == "localhost:8090", "the card knows which server to reconnect to");
     check(got.error.contains("has expired") && got.error.contains("localhost:8090") &&
               got.error.contains("reconnect"),
@@ -328,11 +328,11 @@ int main(int argc, char** argv) {
     // 403 lands in the same bucket (a refused credential either way).
     t.status = 403;
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
-    check(got.failure == LlmFailure::Expired, "403 is a refused credential too");
+    check(got.failure == LlmFailure::EXPIRED, "403 is a refused credential too");
     // …a 500 from the same provider is NOT an expiry.
     t.status = 500;
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
-    check(got.failure == LlmFailure::Http, "a server error is not an expired session");
+    check(got.failure == LlmFailure::HTTP, "a server error is not an expired session");
   }
   {
     // A LOCAL provider has no session to expire: its 401 is an ordinary error.
@@ -345,7 +345,7 @@ int main(int argc, char** argv) {
     cfg.baseUrl = "http://localhost:11434";
     LlmReply got;
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
-    check(got.failure == LlmFailure::Http && got.expiredHost.isEmpty(),
+    check(got.failure == LlmFailure::HTTP && got.expiredHost.isEmpty(),
           "a local provider's 401 stays an ordinary HTTP failure");
   }
 
@@ -392,7 +392,7 @@ int main(int argc, char** argv) {
     cfg.serverUrl = "https://s.example.com";
     LlmReply got;
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
-    check(!got.ok && got.failure == LlmFailure::Truncated,
+    check(!got.ok && got.failure == LlmFailure::TRUNCATED,
           "max_tokens -> typed Truncated error (never parsed as a plan)");
     check(got.text == "partial {", "truncated text still carried for display");
   }
@@ -406,7 +406,7 @@ int main(int argc, char** argv) {
     cfg.serverUrl = "https://s.example.com";
     LlmReply got;
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
-    check(!got.ok && got.failure == LlmFailure::Refusal, "refusal -> typed Refusal error");
+    check(!got.ok && got.failure == LlmFailure::REFUSAL, "refusal -> typed Refusal error");
     check(got.error.contains("can't help"), "refusal text surfaced as the error");
   }
   {
@@ -420,7 +420,7 @@ int main(int argc, char** argv) {
     cfg.serverUrl = "https://s.example.com";
     LlmReply got;
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
-    check(!got.ok && got.failure == LlmFailure::Disabled,
+    check(!got.ok && got.failure == LlmFailure::DISABLED,
           "503 llmDisabled -> typed Disabled failure");
     // The server's message IS the sentence (browser describeChatError "notice" parity):
     // raw, never wrapped in "<provider> at <host>:" — that wrapper is for actual
@@ -593,7 +593,7 @@ int main(int argc, char** argv) {
     cfg.provider = "none";
     LlmReply got;
     client.chat(cfg, sampleMessages(), "", [&](LlmReply r) { got = r; });
-    check(!got.ok && got.failure == LlmFailure::Off &&
+    check(!got.ok && got.failure == LlmFailure::OFF &&
               got.error.contains("turned off"),
           "chat with none -> typed Off config error");
     check(t.url.isEmpty(), "chat with none never touches the transport");
@@ -694,7 +694,7 @@ int main(int argc, char** argv) {
     LlmClient client(&t);
     LlmReply got;
     client.chat(LlmSettings{}, sampleMessages(), "", [&](LlmReply r) { got = r; });
-    check(!got.ok && got.failure == LlmFailure::Transport &&
+    check(!got.ok && got.failure == LlmFailure::TRANSPORT &&
               got.error.startsWith("Couldn't reach ") &&
               got.error.contains("(connection refused)"),
           "transport failure surfaced in the browser's is-it-running voice");
@@ -705,7 +705,7 @@ int main(int argc, char** argv) {
     LlmClient client(&t);
     LlmReply got;
     client.chat(LlmSettings{}, sampleMessages(), "", [&](LlmReply r) { got = r; });
-    check(!got.ok && got.failure == LlmFailure::Http && got.error.contains("404"),
+    check(!got.ok && got.failure == LlmFailure::HTTP && got.error.contains("404"),
           "HTTP error surfaced with the status");
   }
   {
@@ -816,11 +816,11 @@ int main(int argc, char** argv) {
 
     // The §10 also-accepts widenings ride as addenda on their ops.
     const QVector<QPair<OpKind, QString>> addendaPhrases = {
-        {OpKind::RemoveProject, "{\"op\":\"removeProject\",\"current\":true}"},
-        {OpKind::Copy, "{\"op\":\"copy\",\"what\":\"layout\"}"},
-        {OpKind::Accent, "{\"op\":\"accent\",\"preset\":\"green\"}"},
-        {OpKind::LineStyle, "\"fillColor\" for the defaults of NEW lines"},
-        {OpKind::OpenProject, "{\"op\":\"openProject\",\"last\":true}"},
+        {OpKind::REMOVE_PROJECT, "{\"op\":\"removeProject\",\"current\":true}"},
+        {OpKind::COPY, "{\"op\":\"copy\",\"what\":\"layout\"}"},
+        {OpKind::ACCENT, "{\"op\":\"accent\",\"preset\":\"green\"}"},
+        {OpKind::LINE_STYLE, "\"fillColor\" for the defaults of NEW lines"},
+        {OpKind::OPEN_PROJECT, "{\"op\":\"openProject\",\"last\":true}"},
     };
     bool addOk = opAddenda().size() == addendaPhrases.size();
     for (const auto& p : addendaPhrases) {
@@ -861,21 +861,21 @@ int main(int argc, char** argv) {
   // ── §13 capability truth: a reduced capability set drops the bullets ──
   std::printf("capability exclusion:\n");
   {
-    const QString noClipboard = assembleSystemPrompt(CapAllDesktop & ~CapClipboard);
+    const QString noClipboard = assembleSystemPrompt(CAP_ALL_DESKTOP & ~CAP_CLIPBOARD);
     check(!noClipboard.contains("{\"op\":\"copy\"") &&
               !noClipboard.contains("{\"op\":\"copy\",\"what\":\"layout\"}"),
           "no clipboard -> the copy bullet AND its widening are excluded");
     check(noClipboard.contains("{\"op\":\"theme\"") &&
               noClipboard.contains("{\"op\":\"removeProject\""),
           "the other editor bullets survive the reduced set");
-    const QString noServers = assembleSystemPrompt(CapAllDesktop & ~CapServers);
+    const QString noServers = assembleSystemPrompt(CAP_ALL_DESKTOP & ~CAP_SERVERS);
     check(!noServers.contains("{\"op\":\"connect\"") &&
               !noServers.contains("{\"op\":\"disconnect\""),
           "no server stores -> the shared connect/disconnect bullet is excluded");
-    const QString noVideo = assembleSystemPrompt(CapAllDesktop & ~CapVideo);
+    const QString noVideo = assembleSystemPrompt(CAP_ALL_DESKTOP & ~CAP_VIDEO);
     check(!noVideo.contains("{\"op\":\"frame\""),
           "no video -> the frame bullet is excluded");
-    check(assembleSystemPrompt(CapAllDesktop) == LlmClient::systemPrompt(QString()),
+    check(assembleSystemPrompt(CAP_ALL_DESKTOP) == LlmClient::systemPrompt(QString()),
           "the full desktop set assembles the shipped prompt");
   }
 
@@ -897,11 +897,11 @@ int main(int argc, char** argv) {
     poisoned.append(bad);
     QString censorError;
     const QString out =
-        assembleOpsBullets(poisoned, opAddenda(), CapAllDesktop, &censorError);
+        assembleOpsBullets(poisoned, opAddenda(), CAP_ALL_DESKTOP, &censorError);
     check(!censorError.isEmpty(), "a poisoned entry fails assembly with a censor error");
     check(!out.contains("sk-123"), "the poisoned bullet never reaches the prompt");
     QString cleanError;
-    assembleOpsBullets(opRegistry(), opAddenda(), CapAllDesktop, &cleanError);
+    assembleOpsBullets(opRegistry(), opAddenda(), CAP_ALL_DESKTOP, &cleanError);
     check(cleanError.isEmpty(), "the real registry assembles with no censor error");
   }
 

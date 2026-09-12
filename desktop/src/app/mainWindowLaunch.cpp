@@ -59,8 +59,8 @@ namespace stencil::gui {
       // Quick-crop override from the "Open in new window" handoff; consumed by applyQuickCrop().
       if (opts.hasCropOverride)
         pendingCrop_ = opts.cropToPage
-                           ? QuickCropOpts{QuickCropOpts::Mode::Page, opts.cropAlbum, opts.cropPage}
-                           : QuickCropOpts{QuickCropOpts::Mode::None, false, QString()};
+                           ? QuickCropOpts{QuickCropOpts::Mode::PAGE, opts.cropAlbum, opts.cropPage}
+                           : QuickCropOpts{QuickCropOpts::Mode::NONE, false, QString()};
       openImageSource(opts.src, opts.frame);
     } else if (!opts.file.isEmpty()) {
       pendingLaunchLayout_ = opts.layout;
@@ -94,7 +94,7 @@ namespace stencil::gui {
     if (!mgr->find(url)) {
       // Reuse the saved token for this origin; else connect tokenless and the server mints one.
       QString token;
-      auto kind = stencil::net::ServerClient::CredentialKind::None;
+      auto kind = stencil::net::ServerClient::CredentialKind::NONE;
       bool known = false;
       for (const auto& s : stencil::net::connectionStore::loadSavedServers()) {
         if (stencil::net::ServerClient::normalizeBase(s.url) == url) {

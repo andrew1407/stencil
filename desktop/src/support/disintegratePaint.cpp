@@ -11,7 +11,7 @@ namespace stencil::gui {
     const double len = std::hypot(dest.x() - out->at.x(), dest.y() - out->at.y());
     out->shape = support::grainShape(style_, w);
     out->heading = support::headingOf(tx, ty, fromFar);
-    if (style_ == support::ParticleStyle::Dust) {
+    if (style_ == support::ParticleStyle::DUST) {
       out->color = support::tintedStop(accent_, shade_, support::dustMix(w, glint), tint, dark_);
       out->color.setAlphaF(std::clamp(alpha * twinkleAt(glint, t_ * ms_, w), 0.0, 1.0));
       return;
@@ -50,7 +50,7 @@ namespace stencil::gui {
     // Source-mode clear, which punched a black hole through the window's backing store.
     const double cw = box.width() / cols_;
     const double ch = box.height() / rows_;
-    const bool surface = sweep_ == Sweep::SurfaceIn || sweep_ == Sweep::SurfaceOut;
+    const bool surface = sweep_ == Sweep::SURFACE_IN || sweep_ == Sweep::SURFACE_OUT;
     motes_.clear();
     cut_.clear();
     for (int cy = 0; cy < rows_; ++cy) {
@@ -62,7 +62,7 @@ namespace stencil::gui {
         Mote m;
         const bool away = cx < cols_
             && (surface ? surfaceMote(box, cx, cy, cw, ch, &m)
-                : sweep_ == Sweep::Rows ? rowMote(box, cx, cy, cw, ch, &m)
+                : sweep_ == Sweep::ROWS ? rowMote(box, cx, cy, cw, ch, &m)
                                         : fallingMote(box, cx, cy, cw, ch, &m));
         if (away) {
           if (runStart < 0) runStart = cx;
@@ -79,7 +79,7 @@ namespace stencil::gui {
     if (surface) {
       // A surface is never cut cell by cell (a blocky staircase): it fades up behind
       // the motes (browser surfaceForm) or cuts out over its first beat (surfaceLeave).
-      const double fade = sweep_ == Sweep::SurfaceIn
+      const double fade = sweep_ == Sweep::SURFACE_IN
           ? (t_ < DUST_HOLD ? 0.0 : (t_ - DUST_HOLD) / (1.0 - DUST_HOLD))
           : std::max(0.0, 1.0 - t_ / SURFACE_SCATTER_SPLIT);
       if (fade > 0.0) {

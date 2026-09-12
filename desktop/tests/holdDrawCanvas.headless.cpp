@@ -43,14 +43,14 @@ int main(int argc, char** argv) {
     };
     const auto release = [&] { send(QEvent::MouseButtonRelease, Qt::NoButton); };
 
-    canvas.setDrawMode(CanvasWidget::DrawMode::Rect);
+    canvas.setDrawMode(CanvasWidget::DrawMode::RECT);
     hold();
     // The rect tool never seeds a freehand LINE — that is the invariant. It does enter
     // drawing mode now, because its own press starts the rubber band (see below).
     check(canvas.currentLine().points.empty(), "holding with the rect tool starts no line");
     release();
 
-    canvas.setDrawMode(CanvasWidget::DrawMode::Line);
+    canvas.setDrawMode(CanvasWidget::DrawMode::LINE);
     hold();
     check(canvas.isDrawing() && canvas.currentLine().points.size() == 1,
           "…while the line tool still seeds its stroke on the hold");
@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
 
     // …and the rect tool is not left inert by that: its PRESS starts the sweep, turning
     // drawing on by itself. Before, it did nothing at all until Draw was pressed too.
-    canvas.setDrawMode(CanvasWidget::DrawMode::Rect);
+    canvas.setDrawMode(CanvasWidget::DrawMode::RECT);
     check(!canvas.isDrawing(), "starting from not-drawing");
     const QPoint from(30, 30), to(120, 90);
     QMouseEvent down(QEvent::MouseButtonPress, QPointF(from), canvas.mapToGlobal(from),
@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
     check(canvas.lines().size() == 1 && canvas.lines()[0].points.size() == 4 &&
               canvas.lines()[0].locked,
           "four corners, locked as an area");
-    canvas.setDrawMode(CanvasWidget::DrawMode::Line);
+    canvas.setDrawMode(CanvasWidget::DrawMode::LINE);
     canvas.stopDrawingMode();
     canvas.clearAll();
     canvas.setHoldDrawDelay(500);

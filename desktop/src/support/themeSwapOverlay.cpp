@@ -25,9 +25,9 @@ namespace stencil::gui {
 
   double ThemeSwapOverlay::edgeJitter(support::ParticleStyle s, int k, int points) {
     const double t = double(k) / points;
-    if (s == support::ParticleStyle::Water)
+    if (s == support::ParticleStyle::WATER)
       return WATER_AMP * std::sin(TAU * WATER_WAVES * t) + WATER_RIPPLE_AMP * std::sin(TAU * WATER_RIPPLE * t + 1);
-    if (s == support::ParticleStyle::Fire) {
+    if (s == support::ParticleStyle::FIRE) {
       const double tongue = std::floor(t * FIRE_TONGUES), u = t * FIRE_TONGUES - tongue;
       const double h = FIRE_BASE + FIRE_VARY * dustNoise(int(tongue), 5);
       return h * std::pow(std::sin(TAU / 2 * u), 3) - FIRE_DIP + FIRE_JAG * (dustNoise(k, 7) * 2 - 1);
@@ -38,8 +38,8 @@ namespace stencil::gui {
 
   // The ring's base overshoots by the deepest dip so the finished front clears the corner.
   double ThemeSwapOverlay::edgeDipOf(support::ParticleStyle s) {
-    if (s == support::ParticleStyle::Water) return WATER_AMP + WATER_RIPPLE_AMP;
-    if (s == support::ParticleStyle::Fire) return FIRE_DIP + FIRE_JAG;
+    if (s == support::ParticleStyle::WATER) return WATER_AMP + WATER_RIPPLE_AMP;
+    if (s == support::ParticleStyle::FIRE) return FIRE_DIP + FIRE_JAG;
     return 0.0;
   }
 

@@ -252,15 +252,15 @@ namespace stencil::gui {
     QString term, desc;
     if (dashSplit(head, &term, &desc)) {                   // "Shared project — <url>"
       tip.title = term;
-      if (!desc.isEmpty()) tip.blocks.push_back({TipBlock::Kind::Hint, {}, sentenceCase(desc)});
+      if (!desc.isEmpty()) tip.blocks.push_back({TipBlock::Kind::HINT, {}, sentenceCase(desc)});
     } else {
       tip.title = head;
     }
     // A single trailing piece reads as a hint, not a bullet list of one.
     if (tail.size() > 1) {
-      for (const QString& t : tail) tip.blocks.push_back({TipBlock::Kind::Bullet, {}, sentenceCase(t)});
+      for (const QString& t : tail) tip.blocks.push_back({TipBlock::Kind::BULLET, {}, sentenceCase(t)});
     } else if (tail.size() == 1) {
-      tip.blocks.push_back({TipBlock::Kind::Hint, {}, sentenceCase(tail.first())});
+      tip.blocks.push_back({TipBlock::Kind::HINT, {}, sentenceCase(tail.first())});
     }
 
     for (int i = 1; i < lines.size(); i++) {
@@ -268,7 +268,7 @@ namespace stencil::gui {
       static const QRegularExpression note("^[\u2014\u2013-]{1,2}\\s+(.*)$");
       const auto nm = note.match(raw);
       if (nm.hasMatch()) {  // the disabled-reason line the app appends
-        tip.blocks.push_back({TipBlock::Kind::Note, {}, sentenceCase(nm.captured(1))});
+        tip.blocks.push_back({TipBlock::Kind::NOTE, {}, sentenceCase(nm.captured(1))});
         continue;
       }
       static const QRegularExpression wrapped("^\\(([^()]*)\\)$");
@@ -280,20 +280,20 @@ namespace stencil::gui {
       bare.remove(marker);
       // A row wins over the "·" split: a description may list two halves.
       if (!isHint && dashSplit(bare, &term, &desc)) {
-        tip.blocks.push_back({TipBlock::Kind::Row, term, desc});
+        tip.blocks.push_back({TipBlock::Kind::ROW, term, desc});
         continue;
       }
       const QStringList parts = dotParts(bare);
       if (parts.size() > 1) {
         for (const QString& p : parts)
-          tip.blocks.push_back({isHint ? TipBlock::Kind::Hint : TipBlock::Kind::Bullet, {}, sentenceCase(p)});
+          tip.blocks.push_back({isHint ? TipBlock::Kind::HINT : TipBlock::Kind::BULLET, {}, sentenceCase(p)});
         continue;
       }
       if (bare != line) {  // a marked bullet with no description
-        tip.blocks.push_back({TipBlock::Kind::Bullet, {}, sentenceCase(bare)});
+        tip.blocks.push_back({TipBlock::Kind::BULLET, {}, sentenceCase(bare)});
         continue;
       }
-      tip.blocks.push_back({isHint ? TipBlock::Kind::Hint : TipBlock::Kind::Text, {}, sentenceCase(line)});
+      tip.blocks.push_back({isHint ? TipBlock::Kind::HINT : TipBlock::Kind::TEXT, {}, sentenceCase(line)});
     }
     return tip;
   }
@@ -313,7 +313,7 @@ namespace stencil::gui {
       open.clear();
     };
     for (const TipBlock& b : tip.blocks) {
-      if (b.kind == TipBlock::Kind::Row) {
+      if (b.kind == TipBlock::Kind::ROW) {
         if (open != "rows") {
           close();
           body += "<table cellspacing=\"0\" cellpadding=\"1\">";
@@ -323,7 +323,7 @@ namespace stencil::gui {
                 highlightKeys(b.text, pal, mac) + "</td></tr>";
         continue;
       }
-      if (b.kind == TipBlock::Kind::Bullet) {
+      if (b.kind == TipBlock::Kind::BULLET) {
         // A drawn "•", not a <ul>: Qt indents a real list by 40px and counts it in the width.
         close();
         body += "<div style=\"margin-top:2px;\">• " + highlightKeys(b.text, pal, mac) + "</div>";
@@ -331,9 +331,9 @@ namespace stencil::gui {
       }
       close();
       // Browser .tip-note: --warning, 5px above.
-      const bool note = b.kind == TipBlock::Kind::Note;
+      const bool note = b.kind == TipBlock::Kind::NOTE;
       const QString colour = note                             ? pal.warning.name()
-                             : b.kind == TipBlock::Kind::Hint ? pal.textMuted.name()
+                             : b.kind == TipBlock::Kind::HINT ? pal.textMuted.name()
                                                               : pal.textMain.name();
       body += "<div style=\"color:" + colour + "; margin-top:" + (note ? "5" : "3") + "px;\">" +
               highlightKeys(b.text, pal, mac) + "</div>";

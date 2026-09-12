@@ -88,7 +88,7 @@ namespace stencil::gui {
 
     // Rows: crumble top→bottom (browser tileScatter); Fall: an image drops; Gather is
     // Fall reversed (browser ghostIn vs ghostOut in js/ui/motion.js).
-    enum class Sweep { Rows, Fall, Gather, SurfaceIn, SurfaceOut };
+    enum class Sweep { ROWS, FALL, GATHER, SURFACE_IN, SURFACE_OUT };
 
     static double cellNoise(int cx, int cy);
 
@@ -127,12 +127,12 @@ namespace stencil::gui {
 
     static void dustGrid(const QSize& size, int cellPx, int maxCells, int* cols, int* rows);
 
-    static DisintegrateOverlay* over(QWidget* victim, QWidget* host, Sweep sweep = Sweep::Rows,
+    static DisintegrateOverlay* over(QWidget* victim, QWidget* host, Sweep sweep = Sweep::ROWS,
                                      int cols = 0, int rows = 0, int ms = 0,
                                      const QColor& ink = QColor());
 
     static DisintegrateOverlay* overRect(QWidget* source, const QRect& rect, QWidget* host,
-                                        Sweep sweep = Sweep::Rows, bool dust = false,
+                                        Sweep sweep = Sweep::ROWS, bool dust = false,
                                         int dustCells = DUST_MAX_CELLS, int ms = DUST_MS,
                                         const QColor& ink = QColor(),
                                         const QPixmap& shot = QPixmap());
@@ -156,7 +156,7 @@ namespace stencil::gui {
     // HOST coordinates; the GUI test reads these.
     QPoint surfaceTarget() const { return target_.toPoint(); }
     QRect surfacePicture() const { return picture_; }
-    bool gathering() const { return sweep_ == Sweep::SurfaceIn; }
+    bool gathering() const { return sweep_ == Sweep::SURFACE_IN; }
     const QPixmap& snapshot() const { return snap_; }
 
     // `hostRect` is in HOST coordinates: a toast beside the docked chat must not paint
@@ -173,7 +173,7 @@ namespace stencil::gui {
       QPointF at;
       double radius = 0;
       QColor color;
-      support::GrainShape shape = support::GrainShape::Disc;   // dustKit.hpp grainShape
+      support::GrainShape shape = support::GrainShape::DISC;   // dustKit.hpp grainShape
       double heading = 0;                                       // …lying along its travel
     };
 
@@ -222,7 +222,7 @@ namespace stencil::gui {
     std::vector<int8_t> tints_;    // -1 = the accent ramp
     std::vector<Mote> motes_;   // per-frame scratch
     std::vector<QRect> cut_;    // runs, Y-X sorted
-    Sweep sweep_ = Sweep::Rows;
+    Sweep sweep_ = Sweep::ROWS;
     int cols_ = COLS;
     int rows_ = ROWS;
     int pad_ = 0;

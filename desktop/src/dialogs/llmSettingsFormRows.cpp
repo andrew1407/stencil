@@ -21,7 +21,7 @@
 namespace stencil::gui {
 
   void LlmSettingsForm::buildProviderRows(const Settings& current) {
-    if (mode_ == RowMode::HideRows)
+    if (mode_ == RowMode::HIDE_ROWS)
       form_->addRow(modalSectionLabel(QStringLiteral("Provider"), this));
 
     // Labels come from the providers.json canon; "none" is the local-only assistant-off value (contract §5 note).
@@ -119,7 +119,7 @@ namespace stencil::gui {
 
   void LlmSettingsForm::buildChatHistoryRows(const Settings& current, QVBoxLayout* col) {
 
-    if (mode_ == RowMode::HideRows)
+    if (mode_ == RowMode::HIDE_ROWS)
       form_->addRow(modalSectionLabel(QStringLiteral("Chat history"), this));
 
     // llm-contract.md §12: provider-independent, ships OFF. Browser .vs-inline-check.
@@ -148,7 +148,7 @@ namespace stencil::gui {
       saveChatsHint->setSizePolicy(sp);
     }
 
-    if (mode_ == RowMode::HideRows) {
+    if (mode_ == RowMode::HIDE_ROWS) {
       // ONE tinted help note (browser .chat-cors-note, merged per user decision). The desktop calls the
       // endpoint over Qt Network, so CORS is not its problem.
       noteBox_ = new QFrame(this);

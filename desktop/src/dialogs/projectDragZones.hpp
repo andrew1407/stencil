@@ -24,7 +24,7 @@ namespace stencil::gui {
 
   class ProjectDragZones : public QWidget {
    public:
-    enum class Zone { None, Here, NewWindow, Remove };
+    enum class Zone { NONE, HERE, NEW_WINDOW, REMOVE };
 
     explicit ProjectDragZones(QWidget* parent) : QWidget(parent) {
       setAttribute(Qt::WA_TransparentForMouseEvents, true);
@@ -44,7 +44,7 @@ namespace stencil::gui {
     void begin(const QRect& dialogFrameGlobal) {
       dialogFrame_ = dialogFrameGlobal;
       if (parentWidget()) setGeometry(parentWidget()->rect());
-      hover_ = Zone::None;
+      hover_ = Zone::NONE;
       raise();
       show();
       poll_.start();
@@ -52,12 +52,12 @@ namespace stencil::gui {
     void end() { poll_.stop(); hide(); }
 
     Zone zoneAt(const QPoint& global) const {
-      if (dialogFrame_.contains(global)) return Zone::None;
-      if (!parentWidget()) return Zone::None;
+      if (dialogFrame_.contains(global)) return Zone::NONE;
+      if (!parentWidget()) return Zone::NONE;
       const QPoint p = parentWidget()->mapFromGlobal(global);
-      if (!rect().contains(p)) return Zone::None;
-      if (p.y() > height() * 0.68) return Zone::Remove;
-      return p.x() < width() / 2 ? Zone::Here : Zone::NewWindow;
+      if (!rect().contains(p)) return Zone::NONE;
+      if (p.y() > height() * 0.68) return Zone::REMOVE;
+      return p.x() < width() / 2 ? Zone::HERE : Zone::NEW_WINDOW;
     }
 
    protected:
@@ -70,11 +70,11 @@ namespace stencil::gui {
       const int top = static_cast<int>(h * 0.68);
       // Labels hug the OUTER edges so the centred dialog never overlaps a zone's icon/text.
       drawZone(g, QRect(10, 10, w / 2 - 15, top - 20), QColor("#64748b"), QStringLiteral("folder"),
-               QStringLiteral("Open here"), hover_ == Zone::Here, true);
+               QStringLiteral("Open here"), hover_ == Zone::HERE, true);
       drawZone(g, QRect(w / 2 + 5, 10, w / 2 - 15, top - 20), QColor("#2563eb"), QStringLiteral("external"),
-               QStringLiteral("Open in a new window"), hover_ == Zone::NewWindow, true);
+               QStringLiteral("Open in a new window"), hover_ == Zone::NEW_WINDOW, true);
       drawZone(g, QRect(10, top + 6, w - 20, h - top - 16), QColor("#dc3545"), QStringLiteral("trash"),
-               QStringLiteral("Remove"), hover_ == Zone::Remove, false);
+               QStringLiteral("Remove"), hover_ == Zone::REMOVE, false);
     }
 
    private:
@@ -122,7 +122,7 @@ namespace stencil::gui {
     }
 
     QTimer poll_;
-    Zone hover_ = Zone::None;
+    Zone hover_ = Zone::NONE;
     double phase_ = 0.0;
     QRect dialogFrame_;
   };

@@ -446,7 +446,7 @@ int main(int argc, char** argv) {
           list->item(i)->flags() != Qt::NoItemFlags)
         ++liveRows;
     check(liveRows == 0, "every checked row was found and retired on remove");
-    check(dlg.action() == ProjectsDialog::Action::None && removed.size() == 14,
+    check(dlg.action() == ProjectsDialog::Action::NONE && removed.size() == 14,
           "the remove was signalled (not accept()ed) with all 14 checked ids");
     dlg.reject();
   }

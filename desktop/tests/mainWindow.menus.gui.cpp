@@ -362,7 +362,7 @@ class MainWindowGuiTest : public QObject {
       win.chatMirrorBusy(false);
       stencil::llm::LlmReply canceled;
       canceled.ok = false;
-      canceled.failure = stencil::llm::LlmFailure::Transport;
+      canceled.failure = stencil::llm::LlmFailure::TRANSPORT;
       canceled.error = "Operation canceled";
       win.onChatReply(canceled);
       for (QLabel* l : panel->findChildren<QLabel*>())
@@ -807,10 +807,10 @@ class MainWindowGuiTest : public QObject {
     // own dust removed). Nothing to check here without a real windowing platform.
     if (QGuiApplication::platformName() == QLatin1String("offscreen"))
       QSKIP("Alt-hover's preview tooltip needs a real platform's popup-grab handling");
-    enum Route { ToolbarPopup, NestedRoot, NestedOverToolbarButton };
-    for (const Route route : {ToolbarPopup, NestedRoot, NestedOverToolbarButton}) {
-      const char* name = route == ToolbarPopup ? "toolbar options popup"
-                         : route == NestedRoot ? "nested chain, Alt on the root"
+    enum Route { TOOLBAR_POPUP, NESTED_ROOT, NESTED_OVER_TOOLBAR_BUTTON };
+    for (const Route route : {TOOLBAR_POPUP, NESTED_ROOT, NESTED_OVER_TOOLBAR_BUTTON}) {
+      const char* name = route == TOOLBAR_POPUP ? "toolbar options popup"
+                         : route == NESTED_ROOT ? "nested chain, Alt on the root"
                                                : "nested chain, cursor on the toolbar button";
       MainWindow win(nullptr, false);
       win.resize(1000, 760);
@@ -825,7 +825,7 @@ class MainWindowGuiTest : public QObject {
       QWidget* copyBtn = win.buttonForAction(win.actCopyImage_);
       QVERIFY2(copyBtn, name);
 
-      if (route == ToolbarPopup) {
+      if (route == TOOLBAR_POPUP) {
         // "Current"'s own row (actCopyImageCurrentRow_) only shows once something is
         // drawn — see currentRowHiddenWithNoLinesButToolbarButtonStays.
         stencil::core::Line line;
@@ -855,7 +855,7 @@ class MainWindowGuiTest : public QObject {
         continue;
       }
 
-      const bool overButton = route == NestedOverToolbarButton;
+      const bool overButton = route == NESTED_OVER_TOOLBAR_BUTTON;
       bool reached = false, survived = false, previewShown = false, hijacked = false;
       QTimer::singleShot(0, [&] {
         QMenu* root = nullptr;
@@ -1029,10 +1029,10 @@ class MainWindowGuiTest : public QObject {
   // leaving a row without landing on another never fires it again, so it resets on
   // QEvent::Leave, like menuShimmer.hpp's RowOverlay.
   void hotkeyChipShakeFollowsTheHoveredRow() {
-    enum Case { Shakes, ReplaysAfterLeave, NoRestartOnReFire };
-    for (const Case which : {Shakes, ReplaysAfterLeave, NoRestartOnReFire}) {
-      const char* name = which == Shakes ? "shakes on hover"
-                         : which == ReplaysAfterLeave ? "replays after a leave and return"
+    enum Case { SHAKES, REPLAYS_AFTER_LEAVE, NO_RESTART_ON_RE_FIRE };
+    for (const Case which : {SHAKES, REPLAYS_AFTER_LEAVE, NO_RESTART_ON_RE_FIRE}) {
+      const char* name = which == SHAKES ? "shakes on hover"
+                         : which == REPLAYS_AFTER_LEAVE ? "replays after a leave and return"
                                                       : "no restart on a re-fire";
       MainWindow win(nullptr, false);
       win.resize(1000, 760);
@@ -1082,7 +1082,7 @@ class MainWindowGuiTest : public QObject {
       // snapshot is taken first, grab()ing the chip exactly as wire() left it.
       const QImage rest = chip->grab().toImage();
 
-      if (which == Shakes) {
+      if (which == SHAKES) {
         bool sawNonZero = false;
         QImage midShake;
         // Land on a KNOWN different row first, so the move onto `row` is a genuine
@@ -1101,7 +1101,7 @@ class MainWindowGuiTest : public QObject {
         continue;
       }
 
-      if (which == ReplaysAfterLeave) {
+      if (which == REPLAYS_AFTER_LEAVE) {
         menu->setActiveAction(row);   // first hover: starts the shake
         QTRY_VERIFY2(chip->capOffset() != 0, "the shake should have started");
         // A plain wait long past the cycle's own length, not QTRY on ==0: the curve crosses

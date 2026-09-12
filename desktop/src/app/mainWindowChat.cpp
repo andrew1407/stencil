@@ -145,19 +145,19 @@ namespace stencil::gui {
       // Truncation / refusal are typed errors, never parsed as plans (§6.3). Off/Transport/Http → "unreachable" (Configure-provider CTA);
       // Disabled/Truncated → "notice" (red + Retry); Refusal/BadResponse → "Refused: "/"Error: ".
       switch (reply.failure) {
-        case llm::LlmFailure::Off:
-        case llm::LlmFailure::Transport:
-        case llm::LlmFailure::Http:
+        case llm::LlmFailure::OFF:
+        case llm::LlmFailure::TRANSPORT:
+        case llm::LlmFailure::HTTP:
           chatUnreachable(reply.error);
           break;
-        case llm::LlmFailure::Truncated:
-        case llm::LlmFailure::Disabled:
+        case llm::LlmFailure::TRUNCATED:
+        case llm::LlmFailure::DISABLED:
           chatError(reply.error);
           break;
-        case llm::LlmFailure::Refusal:
+        case llm::LlmFailure::REFUSAL:
           chatError(QStringLiteral("Refused: %1").arg(reply.error));
           break;
-        case llm::LlmFailure::Expired: {
+        case llm::LlmFailure::EXPIRED: {
           // A refused SESSION, not a broken assistant: say which server and give the way back in.
           const QString retryText = lastUserTurn(chatHistory_);
           chatDock_->appendExpiredSession(reply.error, reply.expiredHost, retryText);

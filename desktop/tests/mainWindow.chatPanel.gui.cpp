@@ -176,7 +176,7 @@ class MainWindowGuiTest : public QObject {
   void chatSaveDisclosureSitsAtTheToggle() {
     const stencil::gui::Settings defaults;
     stencil::gui::LlmSettingsForm form(defaults,
-                                       stencil::gui::LlmSettingsForm::RowMode::HideRows);
+                                       stencil::gui::LlmSettingsForm::RowMode::HIDE_ROWS);
 
     auto* cb = form.findChild<QCheckBox*>("llmSaveChats");
     QVERIFY2(cb, "the §12 save-chats opt-in is missing from the assistant settings");
@@ -305,7 +305,7 @@ class MainWindowGuiTest : public QObject {
     // ── 3. an error and a stop reach both, in order ──
     stencil::llm::LlmReply bad;
     bad.ok = false;
-    bad.failure = stencil::llm::LlmFailure::Http;
+    bad.failure = stencil::llm::LlmFailure::HTTP;
     bad.error = "boom";
     win.onChatReply(bad);
     QTRY_COMPARE(dockRows(), menuRows());
@@ -320,7 +320,7 @@ class MainWindowGuiTest : public QObject {
     win.chatMirrorBusy(false);
     stencil::llm::LlmReply canceled;
     canceled.ok = false;
-    canceled.failure = stencil::llm::LlmFailure::Transport;
+    canceled.failure = stencil::llm::LlmFailure::TRANSPORT;
     canceled.error = "Operation canceled";
     win.onChatReply(canceled);
     QTRY_COMPARE(dockRows(), menuRows());

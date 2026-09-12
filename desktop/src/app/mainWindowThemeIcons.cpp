@@ -161,7 +161,7 @@ namespace stencil::gui {
     if (nameBar_.cancel) nameBar_.cancel->setIcon(affordanceIcon("x"));
     // blankColorBtn's icon is a live swatch; the Draw toggles repaint through their face
     // (support/faceSwap.hpp).
-    syncDrawModeFace(canvas_ && canvas_->drawMode() == CanvasWidget::DrawMode::Rect, false);
+    syncDrawModeFace(canvas_ && canvas_->drawMode() == CanvasWidget::DrawMode::RECT, false);
     styleDangerToolButtons();          // filled-red trash buttons (browser .danger parity)
     restyleContextToggles(iconColor);  // theme-text (not accent) checkbox/radio indicators
   }

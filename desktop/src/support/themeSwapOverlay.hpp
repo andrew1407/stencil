@@ -48,7 +48,7 @@ namespace stencil::gui {
     static double edgeDipOf(support::ParticleStyle s);
     static double edgeBaseOf(support::ParticleStyle s) { return 1 + edgeDipOf(s) + 0.012; }
 
-    static double edgeRadiusAt(int k, double e, double full, support::ParticleStyle s = support::ParticleStyle::Dust);
+    static double edgeRadiusAt(int k, double e, double full, support::ParticleStyle s = support::ParticleStyle::DUST);
 
     // Dust in the wake (browser motion.js swapDustSpecs — keep in step). Always just INSIDE
     // the clip: the browser renders through the clip, so motes are never seen ahead of the front.
@@ -74,7 +74,7 @@ namespace stencil::gui {
     };
     static bool dustMoteAt(int i, double ms, const QPointF& origin, double full,
                            const QSizeF& bounds, DustMote* out,
-                           support::ParticleStyle s = support::ParticleStyle::Dust);
+                           support::ParticleStyle s = support::ParticleStyle::DUST);
 
     void seedDust(const QColor& accent, const QColor& shade = QColor(), bool dark = false);
 

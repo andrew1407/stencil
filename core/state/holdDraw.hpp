@@ -7,22 +7,22 @@
 namespace stencil::core {
 
   enum class HoldAction {
-    None,     // nothing to do
-    Armed,    // pointerDown accepted; hold timer running
-    Abort,    // moved too far before the hold completed → treat as click/drag
-    Start,    // hold completed → enable drawing + drop first point at (x, y)
-    Drop,     // dwell completed → drop a point at (x, y)
-    Preview,  // cursor moved while drawing → update the ghost line to (x, y)
-    Commit,   // released after drawing → commit the line + disable drawing
+    NONE,     // nothing to do
+    ARMED,    // pointerDown accepted; hold timer running
+    ABORT,    // moved too far before the hold completed → treat as click/drag
+    START,    // hold completed → enable drawing + drop first point at (x, y)
+    DROP,     // dwell completed → drop a point at (x, y)
+    PREVIEW,  // cursor moved while drawing → update the ghost line to (x, y)
+    COMMIT,   // released after drawing → commit the line + disable drawing
   };
 
   struct HoldEvent {
-    HoldAction action = HoldAction::None;
+    HoldAction action = HoldAction::NONE;
     double x = 0.0;
     double y = 0.0;
   };
 
-  enum class HoldState { Idle, Armed, Drawing, Aborted };
+  enum class HoldState { IDLE, ARMED, DRAWING, ABORTED };
 
   class HoldDrawController {
   public:
@@ -34,9 +34,9 @@ namespace stencil::core {
           rearm_(rearmDistance) {}
 
     HoldState state() const { return state_; }
-    bool active() const { return state_ == HoldState::Drawing; }
+    bool active() const { return state_ == HoldState::DRAWING; }
     bool engaged() const {
-      return state_ == HoldState::Armed || state_ == HoldState::Drawing;
+      return state_ == HoldState::ARMED || state_ == HoldState::DRAWING;
     }
     double holdDelay() const { return holdDelay_; }
     void setHoldDelay(double ms) {
@@ -44,7 +44,7 @@ namespace stencil::core {
     }
 
     void cancel() {
-      state_ = HoldState::Idle;
+      state_ = HoldState::IDLE;
       armedForDrop_ = false;
     }
 
@@ -54,7 +54,7 @@ namespace stencil::core {
     HoldEvent pointerUp(double t);
 
   private:
-    HoldState state_ = HoldState::Idle;
+    HoldState state_ = HoldState::IDLE;
     double holdDelay_;
     double moveTol_;
     double rearm_;

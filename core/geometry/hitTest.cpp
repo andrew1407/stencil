@@ -85,10 +85,10 @@ namespace stencil::core {
   HoldTarget holdDrawTarget(const Lines& lines, double x, double y,
                             double pointThreshold, double segThreshold) {
     if (auto p = findNearestPoint(lines, x, y, pointThreshold))
-      return HoldTarget{HoldTargetKind::ContinuePoint, p->lineIdx, p->ptIdx, -1};
+      return HoldTarget{HoldTargetKind::CONTINUE_POINT, p->lineIdx, p->ptIdx, -1};
     if (auto s = findNearestSegment(lines, x, y, segThreshold))
-      return HoldTarget{HoldTargetKind::InsertSegment, s->lineIdx, s->ptIdx1, s->ptIdx2};
-    return HoldTarget{HoldTargetKind::NewLine, -1, -1, -1};
+      return HoldTarget{HoldTargetKind::INSERT_SEGMENT, s->lineIdx, s->ptIdx1, s->ptIdx2};
+    return HoldTarget{HoldTargetKind::NEW_LINE, -1, -1, -1};
   }
 
 }

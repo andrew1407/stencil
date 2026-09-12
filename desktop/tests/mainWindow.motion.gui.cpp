@@ -568,7 +568,7 @@ class MainWindowGuiTest : public QObject {
     beat();
   }
 
-  // Every way a picture lands on the canvas ASSEMBLES out of dust (Sweep::Gather) instead of
+  // Every way a picture lands on the canvas ASSEMBLES out of dust (Sweep::GATHER) instead of
   // appearing all at once, with the real canvas held back until the motes land: a fresh open
   // (the OS-open / drop path — a hand-built QDropEvent never routes through Qt's drag
   // session), a created BLANK (it used to pop into place while a dropped one animated), and
@@ -576,17 +576,17 @@ class MainWindowGuiTest : public QObject {
   void imageArrivalAssemblesOnEveryRoute() {
     const auto motion = withMotion();
     const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;
-    enum Route { FreshOpen, CreatedBlank, ReopenedProject };
-    for (const Route route : {FreshOpen, CreatedBlank, ReopenedProject}) {
-      const char* name = route == FreshOpen ? "fresh open"
-                         : route == CreatedBlank ? "created blank" : "reopened project";
+    enum Route { FRESH_OPEN, CREATED_BLANK, REOPENED_PROJECT };
+    for (const Route route : {FRESH_OPEN, CREATED_BLANK, REOPENED_PROJECT}) {
+      const char* name = route == FRESH_OPEN ? "fresh open"
+                         : route == CREATED_BLANK ? "created blank" : "reopened project";
       MainWindow win(nullptr, false);
       win.resize(1000, 760);
       win.show();
       QVERIFY2(QTest::qWaitForWindowExposed(&win), name);
       CanvasWidget* canvas = win.findChild<CanvasWidget*>();
       QVERIFY2(canvas, name);
-      if (route == ReopenedProject) {
+      if (route == REOPENED_PROJECT) {
         // Let the OPEN's own arrival finish, so what we see next belongs to the reopen.
         win.openPathFromOS(guiTestImage());
         QTRY_VERIFY2_WITH_TIMEOUT(canvas->hasImage(), name, 5000);
@@ -595,13 +595,13 @@ class MainWindowGuiTest : public QObject {
       }
       QVERIFY2(!win.findChild<QWidget*>(DUST), name);   // nothing flying before the route runs
       switch (route) {
-        case FreshOpen:
+        case FRESH_OPEN:
           win.openPathFromOS(guiTestImage());
           break;
-        case CreatedBlank:
+        case CREATED_BLANK:
           win.createBlankImageFromDialog(QColor("#3366cc"), 320, 240);
           break;
-        case ReopenedProject:
+        case REOPENED_PROJECT:
           QVERIFY2(!win.activeProjectId_.isEmpty(), "the loaded image was adopted as a project");
           QVERIFY2(win.loadProjectIntoCanvas(win.activeProjectId_), name);
           break;
@@ -832,13 +832,13 @@ class MainWindowGuiTest : public QObject {
       return spy.seen;
     };
 
-    QVERIFY2(!flewOnClose(stencil::support::MotionMode::Particles,
-                          stencil::support::MotionMode::None),
+    QVERIFY2(!flewOnClose(stencil::support::MotionMode::PARTICLES,
+                          stencil::support::MotionMode::NONE),
              "motion turned OFF while the window was up: it must leave without a flight");
-    QVERIFY2(flewOnClose(stencil::support::MotionMode::None,
-                         stencil::support::MotionMode::Particles),
+    QVERIFY2(flewOnClose(stencil::support::MotionMode::NONE,
+                         stencil::support::MotionMode::PARTICLES),
              "motion turned ON while the window was up: it must leave WITH one");
-    stencil::support::setMotionMode(stencil::support::MotionMode::Particles);
+    stencil::support::setMotionMode(stencil::support::MotionMode::PARTICLES);
   }
 };
 

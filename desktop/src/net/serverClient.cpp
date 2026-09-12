@@ -59,15 +59,15 @@ namespace stencil::net {
   }
 
   QString ServerClient::kindTag(CredentialKind k) {
-    return k == CredentialKind::Admin     ? QStringLiteral("admin")
-           : k == CredentialKind::Session ? QStringLiteral("session")
+    return k == CredentialKind::ADMIN     ? QStringLiteral("admin")
+           : k == CredentialKind::SESSION ? QStringLiteral("session")
                                           : QString();
   }
 
   ServerClient::CredentialKind ServerClient::kindFromTag(const QString& tag) {
-    if (tag == QLatin1String("admin")) return CredentialKind::Admin;
-    if (tag == QLatin1String("session")) return CredentialKind::Session;
-    return CredentialKind::None;
+    if (tag == QLatin1String("admin")) return CredentialKind::ADMIN;
+    if (tag == QLatin1String("session")) return CredentialKind::SESSION;
+    return CredentialKind::NONE;
   }
 
   // Browser parity (net/connectionManager.js _req): "<METHOD> <path>: <why>", <why> = the server's JSON
@@ -119,7 +119,7 @@ namespace stencil::net {
                        reply->deleteLater();
                        const bool refused = status == 401 || status == 403;
                        // A minted session dies with a server restart — re-mint with the credential once and retry in place.
-                       if (refused && status_ == Status::Connected && !retried &&
+                       if (refused && status_ == Status::CONNECTED && !retried &&
                            !credential_.isEmpty() && path != QLatin1String("/auth/token")) {
                          token_ = credential_;
                          requestAsync("POST", "/auth/token", "{}", "application/json",
@@ -137,7 +137,7 @@ namespace stencil::net {
                                             [this, done = std::move(done)](int st, QByteArray rb) {
                                               // It minted AND the session works: an admin token (browser parity).
                                               if (st >= 200 && st < 300)
-                                                kind_ = CredentialKind::Admin;
+                                                kind_ = CredentialKind::ADMIN;
                                               done(st, rb);
                                             },
                                             /*retried=*/true);
@@ -146,8 +146,8 @@ namespace stencil::net {
                          return;
                        }
                        // Refused mid-flight and past rescue is EXPIRED, not a dead server. One warning, on the way in.
-                       if (refused && status_ == Status::Connected) {
-                         status_ = Status::Expired;
+                       if (refused && status_ == Status::CONNECTED) {
+                         status_ = Status::EXPIRED;
                          qWarning("stencil: session on %s expired — reconnect to sign in again",
                                   qPrintable(base_));
                        }

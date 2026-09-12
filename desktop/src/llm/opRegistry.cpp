@@ -44,41 +44,41 @@ namespace stencil::llm {
     // Emission order = final prompt order: the §2 core ops, then the §10 editor
     // block spliced between the frame and image bullets.
     constexpr OpRow ROWS[] = {
-        {OpKind::Crop, "crop", CapNone},
-        {OpKind::Rotate, "rotate", CapNone},
-        {OpKind::Filter, "filter", CapNone},
-        {OpKind::Layout, "layout", CapNone},
-        {OpKind::Formula, "formula", CapNone},
-        {OpKind::Page, "page", CapNone},
-        {OpKind::Blank, "blank", CapNone},
-        {OpKind::Undo, "undo", CapNone},
-        {OpKind::Redo, "redo", CapNone},
-        {OpKind::Frame, "frame", CapVideo},
-        {OpKind::Theme, "theme", CapNone},
-        {OpKind::Accent, "accent", CapNone},
-        {OpKind::LineStyle, "lineStyle", CapNone},
-        {OpKind::Units, "units", CapNone},
-        {OpKind::View, "view", CapNone},
-        {OpKind::Clear, "clear", CapNone},
-        {OpKind::OpenUrl, "openUrl", CapNone},
-        {OpKind::OpenFile, "openFile", CapFilesystem},
-        {OpKind::Connect, "connect", CapServers},
-        {OpKind::Disconnect, "disconnect", CapServers},
-        {OpKind::Copy, "copy", CapClipboard},
-        {OpKind::RemoveProject, "removeProject", CapNone},
-        {OpKind::ClearProjects, "clearProjects", CapNone},
-        {OpKind::Compare, "compare", CapNone},
-        {OpKind::Zoom, "zoom", CapNone},
-        {OpKind::RenameProject, "renameProject", CapNone},
-        {OpKind::ProjectColor, "projectColor", CapNone},
-        {OpKind::BlankColor, "blankColor", CapNone},
-        {OpKind::OpenProject, "openProject", CapNone},
-        {OpKind::Incognito, "incognito", CapNone},
-        {OpKind::ChatPanel, "chatPanel", CapNone},
-        {OpKind::Dialog, "dialog", CapNone},
-        {OpKind::ClearChat, "clearChat", CapNone},
-        {OpKind::Image, "image", CapNone},
-        {OpKind::Save, "save", CapNone},
+        {OpKind::CROP, "crop", CAP_NONE},
+        {OpKind::ROTATE, "rotate", CAP_NONE},
+        {OpKind::FILTER, "filter", CAP_NONE},
+        {OpKind::LAYOUT, "layout", CAP_NONE},
+        {OpKind::FORMULA, "formula", CAP_NONE},
+        {OpKind::PAGE, "page", CAP_NONE},
+        {OpKind::BLANK, "blank", CAP_NONE},
+        {OpKind::UNDO, "undo", CAP_NONE},
+        {OpKind::REDO, "redo", CAP_NONE},
+        {OpKind::FRAME, "frame", CAP_VIDEO},
+        {OpKind::THEME, "theme", CAP_NONE},
+        {OpKind::ACCENT, "accent", CAP_NONE},
+        {OpKind::LINE_STYLE, "lineStyle", CAP_NONE},
+        {OpKind::UNITS, "units", CAP_NONE},
+        {OpKind::VIEW, "view", CAP_NONE},
+        {OpKind::CLEAR, "clear", CAP_NONE},
+        {OpKind::OPEN_URL, "openUrl", CAP_NONE},
+        {OpKind::OPEN_FILE, "openFile", CAP_FILESYSTEM},
+        {OpKind::CONNECT, "connect", CAP_SERVERS},
+        {OpKind::DISCONNECT, "disconnect", CAP_SERVERS},
+        {OpKind::COPY, "copy", CAP_CLIPBOARD},
+        {OpKind::REMOVE_PROJECT, "removeProject", CAP_NONE},
+        {OpKind::CLEAR_PROJECTS, "clearProjects", CAP_NONE},
+        {OpKind::COMPARE, "compare", CAP_NONE},
+        {OpKind::ZOOM, "zoom", CAP_NONE},
+        {OpKind::RENAME_PROJECT, "renameProject", CAP_NONE},
+        {OpKind::PROJECT_COLOR, "projectColor", CAP_NONE},
+        {OpKind::BLANK_COLOR, "blankColor", CAP_NONE},
+        {OpKind::OPEN_PROJECT, "openProject", CAP_NONE},
+        {OpKind::INCOGNITO, "incognito", CAP_NONE},
+        {OpKind::CHAT_PANEL, "chatPanel", CAP_NONE},
+        {OpKind::DIALOG, "dialog", CAP_NONE},
+        {OpKind::CLEAR_CHAT, "clearChat", CAP_NONE},
+        {OpKind::IMAGE, "image", CAP_NONE},
+        {OpKind::SAVE, "save", CAP_NONE},
     };
   }  // namespace
 
@@ -95,7 +95,7 @@ namespace stencil::llm {
           if (src) d.bullet = src->bullet;
           d.editorSettings = e->flag("editorSetting");
           d.topLevelOnly = d.editorSettings || e->flag("topLevelOnly");
-          d.history = r.kind == OpKind::Undo || r.kind == OpKind::Redo;
+          d.history = r.kind == OpKind::UNDO || r.kind == OpKind::REDO;
         }
         out.append(d);
       }
@@ -242,7 +242,7 @@ namespace stencil::llm {
   }
 
   const QString& assembledSystemPrompt() {
-    static const QString prompt = assembleSystemPrompt(CapAllDesktop);
+    static const QString prompt = assembleSystemPrompt(CAP_ALL_DESKTOP);
     return prompt;
   }
 

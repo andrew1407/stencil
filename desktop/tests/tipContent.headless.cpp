@@ -44,7 +44,7 @@ int main(int argc, char** argv) {
 
   {  // The shortcut is appended AFTER the body, so it must be found on the last line.
     const Tip t = parseTip("Rotate image left\n— Load an image to rotate");
-    check(t.blocks.size() == 1 && t.blocks[0].kind == TipBlock::Kind::Note &&
+    check(t.blocks.size() == 1 && t.blocks[0].kind == TipBlock::Kind::NOTE &&
               t.blocks[0].text == "Load an image to rotate",
           "the disabled-reason line renders as the note");
     const Tip k = parseTip("Fit to window\n(⌥0)");
@@ -65,9 +65,9 @@ int main(int argc, char** argv) {
     check(t.keys == QStringList{"⌥O"}, "the combo appended after the body still reaches the heading");
     int rows = 0, hints = 0, notes = 0;
     for (const TipBlock& b : t.blocks) {
-      rows += b.kind == TipBlock::Kind::Row;
-      hints += b.kind == TipBlock::Kind::Hint;
-      notes += b.kind == TipBlock::Kind::Note;
+      rows += b.kind == TipBlock::Kind::ROW;
+      hints += b.kind == TipBlock::Kind::HINT;
+      notes += b.kind == TipBlock::Kind::NOTE;
     }
     check(rows == 3 && hints == 1 && notes == 1, "three rows, one hint, one note");
     check(t.blocks[0].term == "None" && t.blocks[0].text == "normal editing",
@@ -116,13 +116,13 @@ int main(int argc, char** argv) {
   {  // "·" lists and "term — description" on the heading line.
     const Tip d = parseTip("Drag to reorder · drag out of the modal to disconnect");
     check(d.title == "Drag to reorder" && d.blocks.size() == 1 &&
-              d.blocks[0].kind == TipBlock::Kind::Hint,
+              d.blocks[0].kind == TipBlock::Kind::HINT,
           "a single trailing · piece has nothing to enumerate against, so it's a hint, not a bulleted list of one");
     check(renderTip("a · b · c", pal).count(QString::fromUtf8("\u2022")) == 2,
           "each · part after the heading becomes its own bullet");
     const Tip s = parseTip("Shared server project — https://stencil.example/p/1");
     check(s.title == "Shared server project" && s.blocks.size() == 1 &&
-              s.blocks[0].kind == TipBlock::Kind::Hint,
+              s.blocks[0].kind == TipBlock::Kind::HINT,
           "\"term — description\" on the heading line splits into heading + muted subtitle");
     // A row's description keeps its own "·" list instead of being torn into bullets.
     const Tip r = parseTip("x\nV split — left: original · right: current edit");
@@ -284,7 +284,7 @@ int main(int argc, char** argv) {
           "a disabled widget says why");
     const Tip t = parseTip(filter.toolTip());
     check(t.title == "Image Filter" && t.keys == QStringList{sc} && t.blocks.size() == 1 &&
-              t.blocks[0].kind == TipBlock::Kind::Note,
+              t.blocks[0].kind == TipBlock::Kind::NOTE,
           "…and it all parses as heading + keycap + note");
     crop.setShortcut(QKeySequence("Ctrl+Shift+X"));
     check(filter.toolTip().contains("(" + crop.shortcut().toString(QKeySequence::NativeText) + ")"),

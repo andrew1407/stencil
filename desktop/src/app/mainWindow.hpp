@@ -828,8 +828,8 @@ namespace stencil::gui {
     QString pendingProvResource_;
     QString pendingServerTarget_;
     struct QuickCropOpts {
-      enum class Mode { Auto, Page, None };
-      Mode mode = Mode::Auto;
+      enum class Mode { AUTO, PAGE, NONE };
+      Mode mode = Mode::AUTO;
       bool album = false;
       QString page;
     };

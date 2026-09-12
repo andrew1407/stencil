@@ -53,11 +53,11 @@ namespace stencil::gui {
 
     // Beyond action(): OpenRemote → selectedServerUrl() + selectedId(); transfers add newName();
     // Batch* → batchItems(); SetColor → selectedColor(). BatchRemove emits removeRequested instead.
-    enum class Action { None, Open, OpenInNewWindow, New, Rename, NewBlank,
-                        OpenRemote, MoveToServer, MoveToLocal, MakeLocalCopy, CopyToServer,
-                        SetColor,
-                        BatchRemove, BatchMoveToServer, BatchCopyToServer,
-                        BatchMoveToLocal, BatchCopyToLocal, ClearAll };
+    enum class Action { NONE, OPEN, OPEN_IN_NEW_WINDOW, NEW, RENAME, NEW_BLANK,
+                        OPEN_REMOTE, MOVE_TO_SERVER, MOVE_TO_LOCAL, MAKE_LOCAL_COPY, COPY_TO_SERVER,
+                        SET_COLOR,
+                        BATCH_REMOVE, BATCH_MOVE_TO_SERVER, BATCH_COPY_TO_SERVER,
+                        BATCH_MOVE_TO_LOCAL, BATCH_COPY_TO_LOCAL, CLEAR_ALL };
 
     // `now` (epoch ms) is passed in so the dialog stays free of time sources; `accentColor` is kept for ABI.
     explicit ProjectsDialog(const std::vector<Project>& projects, long long now,
@@ -242,7 +242,7 @@ namespace stencil::gui {
     bool confirmOpen_ = true;
     bool rowDragging_ = false;
     QVector<QPair<QString, QString>> batchItems_;
-    Action action_ = Action::None;
+    Action action_ = Action::NONE;
     QString selectedId_;
     QString selectedServerUrl_;
     QString newName_;

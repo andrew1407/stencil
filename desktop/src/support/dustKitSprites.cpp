@@ -4,9 +4,9 @@ namespace stencil::support {
 
   GrainShape grainShape(ParticleStyle s, double w) {
     const double pick = fract(w * 7.31 + 0.17);
-    if (s == ParticleStyle::Water) return pick < shape::WATER_WAVE_SHARE ? GrainShape::Wave : GrainShape::Oval;
-    if (s == ParticleStyle::Fire) return pick < shape::FIRE_STREAK_SHARE ? GrainShape::Streak : GrainShape::Triangle;
-    return GrainShape::Disc;
+    if (s == ParticleStyle::WATER) return pick < shape::WATER_WAVE_SHARE ? GrainShape::WAVE : GrainShape::OVAL;
+    if (s == ParticleStyle::FIRE) return pick < shape::FIRE_STREAK_SHARE ? GrainShape::STREAK : GrainShape::TRIANGLE;
+    return GrainShape::DISC;
   }
 
 
@@ -22,12 +22,12 @@ namespace stencil::support {
     QPolygonF out;
     const double c = std::cos(a), sn = std::sin(a);
     const auto put = [&](double u, double v) { out << QPointF(at.x() + u * c - v * sn, at.y() + u * sn + v * c); };
-    if (s == GrainShape::Triangle) {
+    if (s == GrainShape::TRIANGLE) {
       put(TRI_TIP * r, 0); put(-TRI_BASE * r, TRI_HALF * r); put(-TRI_BASE * r, -TRI_HALF * r);
-    } else if (s == GrainShape::Streak) {
+    } else if (s == GrainShape::STREAK) {
       put(STREAK_HEAD * r, STREAK_HEAD_HALF * r); put(-STREAK_TAIL * r, STREAK_TAIL_HALF * r);
       put(-STREAK_TAIL * r, -STREAK_TAIL_HALF * r); put(STREAK_HEAD * r, -STREAK_HEAD_HALF * r);
-    } else if (s == GrainShape::Wave) {
+    } else if (s == GrainShape::WAVE) {
       for (int i = 0; i < WAVE_SAMPLES; i++) {
         const double k = double(i) / (WAVE_SAMPLES - 1);
         put((k - 0.5) * WAVE_LEN * r, std::sin(k * WAVE_WAVES * 2 * style::PI) * WAVE_AMP * r + WAVE_HALF * r);
@@ -50,7 +50,7 @@ namespace stencil::support {
     const double dpr = p.device()->devicePixelRatio();
     if (dpr != dpr_) { cache_.clear(); dpr_ = dpr; }
     // Cached at half the radius resolution: a quarter-pixel of size is invisible on a moving drop.
-    const bool disc = shape == GrainShape::Disc;
+    const bool disc = shape == GrainShape::DISC;
     const double step = disc ? RADIUS_STEP : RADIUS_STEP * 2;
     const int rb = std::min(MAX_RADIUS_STEPS, std::max(1, int(std::lround(radius / step))));
     const double xd = at.x() * dpr, yd = at.y() * dpr;
@@ -81,8 +81,8 @@ namespace stencil::support {
   // The cache's fallback, and what every sprite is rasterised from.
   void MoteSprites::drawExact(QPainter& q, GrainShape shape, const QPointF& at, double r,
                               double a) {
-    if (shape == GrainShape::Disc) { q.drawEllipse(at, r, r); return; }
-    if (shape == GrainShape::Oval) {
+    if (shape == GrainShape::DISC) { q.drawEllipse(at, r, r); return; }
+    if (shape == GrainShape::OVAL) {
       q.save();
       q.translate(at);
       q.rotate(a * 180.0 / style::PI);
@@ -98,11 +98,11 @@ namespace stencil::support {
   double MoteSprites::reachOf(GrainShape s) {
     using namespace shape;
     switch (s) {
-      case GrainShape::Oval: return OVAL_RX;
-      case GrainShape::Wave: return std::hypot(WAVE_LEN / 2, WAVE_AMP + WAVE_HALF);
-      case GrainShape::Triangle: return std::max(TRI_TIP, std::hypot(TRI_BASE, TRI_HALF));
-      case GrainShape::Streak: return STREAK_TAIL;
-      case GrainShape::Disc: break;
+      case GrainShape::OVAL: return OVAL_RX;
+      case GrainShape::WAVE: return std::hypot(WAVE_LEN / 2, WAVE_AMP + WAVE_HALF);
+      case GrainShape::TRIANGLE: return std::max(TRI_TIP, std::hypot(TRI_BASE, TRI_HALF));
+      case GrainShape::STREAK: return STREAK_TAIL;
+      case GrainShape::DISC: break;
     }
     return 1.0;
   }

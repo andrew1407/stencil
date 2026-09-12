@@ -127,11 +127,11 @@ namespace stencil::gui {
       barSlot_->setSpacing(0);
       barSlot_->addWidget(batchBar_);
       layout->addLayout(barSlot_, 1);
-      connect(batchToServer_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchMoveToServer); });
-      connect(batchCopyServer_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchCopyToServer); });
-      connect(batchToLocal_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchMoveToLocal); });
-      connect(batchCopyLocal_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchCopyToLocal); });
-      connect(batchRemove_, &QPushButton::clicked, this, [this] { runBatch(Action::BatchRemove); });
+      connect(batchToServer_, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_MOVE_TO_SERVER); });
+      connect(batchCopyServer_, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_COPY_TO_SERVER); });
+      connect(batchToLocal_, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_MOVE_TO_LOCAL); });
+      connect(batchCopyLocal_, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_COPY_TO_LOCAL); });
+      connect(batchRemove_, &QPushButton::clicked, this, [this] { runBatch(Action::BATCH_REMOVE); });
       connect(batchClear_, &QPushButton::clicked, this, [this] { checked_.clear(); refresh(); });
     }
   }

@@ -45,7 +45,7 @@ namespace stencil::gui {
     iconColor_ = iconColor;
     if (points_) {
       for (int r = 0; r < points_->rowCount(); ++r)
-        if (auto* b = qobject_cast<QPushButton*>(points_->cellWidget(r, ColDel)))
+        if (auto* b = qobject_cast<QPushButton*>(points_->cellWidget(r, COL_DEL)))
           b->setIcon(themedIcon("trash", iconColor_, 14));
     }
   }
@@ -82,8 +82,8 @@ namespace stencil::gui {
   void SelectionPanel::changeEvent(QEvent* event) {
     QDockWidget::changeEvent(event);
     if (event->type() != QEvent::PaletteChange && event->type() != QEvent::StyleChange) return;
-    if (points_ && points_->rowCount() == 1 && points_->columnSpan(0, ColIndex) == ColCount)
-      if (QTableWidgetItem* msg = points_->item(0, ColIndex))
+    if (points_ && points_->rowCount() == 1 && points_->columnSpan(0, COL_INDEX) == COL_COUNT)
+      if (QTableWidgetItem* msg = points_->item(0, COL_INDEX))
         msg->setForeground(palette().color(QPalette::PlaceholderText));
   }
 
@@ -100,8 +100,8 @@ namespace stencil::gui {
     // PlaceholderText is the role theme.cpp maps to --text-muted; Disabled/WindowText is invisible
     // in the dark theme.
     msg->setForeground(palette().color(QPalette::PlaceholderText));
-    points_->setItem(0, ColIndex, msg);
-    points_->setSpan(0, ColIndex, 1, ColCount);
+    points_->setItem(0, COL_INDEX, msg);
+    points_->setSpan(0, COL_INDEX, 1, COL_COUNT);
     points_->resizeRowsToContents();
   }
 

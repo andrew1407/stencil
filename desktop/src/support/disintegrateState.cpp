@@ -92,7 +92,7 @@ namespace stencil::gui {
 
   void DisintegrateOverlay::sizeGridForDust(const QSize& size, int maxCells, int cellPx) {
     // Water and fire grid coarser (browser motion.js makeDustStage).
-    if (style_ != support::ParticleStyle::Dust) cellPx = qRound(cellPx * support::STYLED_CELL_SCALE);
+    if (style_ != support::ParticleStyle::DUST) cellPx = qRound(cellPx * support::STYLED_CELL_SCALE);
     dustGrid(size, cellPx, maxCells, &cols_, &rows_);
   }
 

@@ -41,7 +41,7 @@ namespace stencil::gui {
                                              stencil::net::ServerClient* cl, bool expired,
                                              bool admin) {
     const QColor rowTxt("#ffffff");
-    const auto st = cl ? cl->status() : stencil::net::ServerClient::Status::Error;
+    const auto st = cl ? cl->status() : stencil::net::ServerClient::Status::ERROR;
     // One reconnect control per row, the SAME icon-only square in every state (browser
     // .connect-reconnect-one parity): an expired row says so with its amber fill and
     // the tooltip, not with a word its neighbours don't carry. On an expired session it
@@ -59,7 +59,7 @@ namespace stencil::gui {
     // "<url>#token=<tok>" on the clipboard. ADMIN rows only — a session-token
     // credential cannot mint (the server 401s it), and an anonymous session holds
     // no credential at all.
-    if (cl && st == stencil::net::ServerClient::Status::Connected && admin) {
+    if (cl && st == stencil::net::ServerClient::Status::CONNECTED && admin) {
       auto* invite = makeRowActionButton(themedIcon("link", rowTxt, 15),
                                tr("Copy an invite link (mints a fresh session token)"));
       invite->setObjectName(QStringLiteral("inviteBtn"));

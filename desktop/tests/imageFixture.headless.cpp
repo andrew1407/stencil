@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
 
   // 3) Apply the core image filter (bw) to the real pixels and confirm it greyscales.
   QImage rgba = img.convertToFormat(QImage::Format_RGBA8888);
-  stencil::core::applyFilterRGBA(stencil::core::FilterMode::Bw, rgba.bits(),
+  stencil::core::applyFilterRGBA(stencil::core::FilterMode::BW, rgba.bits(),
                                  static_cast<std::size_t>(rgba.width()) * rgba.height(),
                                  0, 0, 0);
   const QRgb after = rgba.pixel(0, 0);  // RGBA8888 read back as ARGB QRgb

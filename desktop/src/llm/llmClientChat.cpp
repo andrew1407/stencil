@@ -83,12 +83,12 @@ namespace stencil::llm {
                              const QString& system, std::function<void(LlmReply)> done) {
     const QString base = net::ServerClient::normalizeBase(cfg.serverUrl);
     if (base.isEmpty()) {
-      done(failReply(LlmFailure::Http, QStringLiteral("no collaboration server configured")));
+      done(failReply(LlmFailure::HTTP, QStringLiteral("no collaboration server configured")));
       return;
     }
     const QString token = tokenResolver_(cfg.serverUrl);
     if (token.isEmpty()) {
-      done(failReply(LlmFailure::Http,
+      done(failReply(LlmFailure::HTTP,
                      QStringLiteral("not connected to %1 (no token)").arg(base)));
       return;
     }
@@ -123,21 +123,21 @@ namespace stencil::llm {
           r.stopReason = o.value("stopReason").toString();
           // Truncation / refusal are typed errors — never parsed as plans.
           if (r.stopReason == QLatin1String("max_tokens")) {
-            r.failure = LlmFailure::Truncated;
+            r.failure = LlmFailure::TRUNCATED;
             r.error = QStringLiteral("Response truncated — the model hit its output "
                                      "limit; try a shorter request");
             done(r);
             return;
           }
           if (r.stopReason == QLatin1String("refusal")) {
-            r.failure = LlmFailure::Refusal;
+            r.failure = LlmFailure::REFUSAL;
             r.error = r.text.isEmpty() ? QStringLiteral("The model refused this request")
                                        : r.text;
             done(r);
             return;
           }
           if (r.text.isEmpty()) {
-            done(failReply(LlmFailure::BadResponse,
+            done(failReply(LlmFailure::BAD_RESPONSE,
                            QStringLiteral("malformed server response (no text)")));
             return;
           }

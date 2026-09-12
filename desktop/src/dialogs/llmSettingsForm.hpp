@@ -24,7 +24,7 @@ namespace stencil::gui {
   class LlmSettingsForm : public QWidget {
     Q_OBJECT
    public:
-    enum class RowMode { DisableRows, HideRows };
+    enum class RowMode { DISABLE_ROWS, HIDE_ROWS };
     explicit LlmSettingsForm(const Settings& current, RowMode mode,
                              QWidget* parent = nullptr);
     // Out-of-line so the unique_ptr member's forward-declared type is complete at destruction.

@@ -75,7 +75,7 @@ namespace stencil::support {
 
   // Grain shapes (browser dustCloud.js grainShape / shapePolygon / addGrainPath), each
   // lying along its heading. Geometry in radii — keep the browser's numbers.
-  enum class GrainShape { Disc, Oval, Wave, Triangle, Streak };
+  enum class GrainShape { DISC, OVAL, WAVE, TRIANGLE, STREAK };
   // browser dustCloud.js STYLED_CELL_SCALE: a styled grain blits more pixels.
   constexpr double STYLED_CELL_SCALE = 1.4;
   namespace shape {
@@ -103,7 +103,7 @@ namespace stencil::support {
     static constexpr int HEADING_STEPS = 24;   // 15° apart
 
     void draw(QPainter& p, const QPointF& at, double radius, const QColor& colour,
-              GrainShape shape = GrainShape::Disc, double a = 0.0);
+              GrainShape shape = GrainShape::DISC, double a = 0.0);
 
     int cached() const { return int(cache_.size()); }
 

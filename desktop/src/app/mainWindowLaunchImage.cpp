@@ -98,13 +98,13 @@ namespace stencil::gui {
   void MainWindow::applyQuickCrop() {
     const QuickCropOpts opts = pendingCrop_;
     pendingCrop_ = {};  // consume regardless of outcome
-    if (!canvas_->hasImage() || opts.mode == QuickCropOpts::Mode::Auto) return;
+    if (!canvas_->hasImage() || opts.mode == QuickCropOpts::Mode::AUTO) return;
     // A freshly loaded image is un-rotated, so the original IS the crop's pixel space.
     const QImage& orig = canvas_->originalImage();
     const double iw = orig.width();
     const double ih = orig.height();
     if (iw <= 0 || ih <= 0) return;
-    if (opts.mode == QuickCropOpts::Mode::None) {
+    if (opts.mode == QuickCropOpts::Mode::NONE) {
       canvas_->applyCrop({0.0, 0.0, iw, ih}, /*recalc=*/false);  // full frame, uncropped
       return;
     }

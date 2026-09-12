@@ -71,8 +71,8 @@ namespace stencil::gui {
     spec.altIcon = QStringLiteral("layers");
     spec.cancelLabel = tr("Keep mine (overwrite file)");
     const ConfirmChoice pick = confirmModalChoice(this, spec);
-    if (pick == ConfirmChoice::Confirm) applyStencilExternal(ext);
-    else if (pick == ConfirmChoice::Alt) applyStencilExternal(ext, /*merge=*/true);
+    if (pick == ConfirmChoice::CONFIRM) applyStencilExternal(ext);
+    else if (pick == ConfirmChoice::ALT) applyStencilExternal(ext, /*merge=*/true);
     else writeStencilNow(cur);   // keep mine → overwrite the file (reuse the bytes we built)
   }
 

@@ -332,7 +332,7 @@ class MainWindowGuiTest : public QObject {
         other = static_cast<QToolButton*>(it.key());
     QVERIFY2(other, "no visible Help button to press outside on");
 
-    enum Route { Sticky, Peek };
+    enum Route { STICKY, PEEK };
     // Open the picker by `route`, press outside on `target`, and report whether the
     // popover opened and then went.
     const auto outsidePressCloses = [&](Route route, QWidget* target, const char* what) {
@@ -360,7 +360,7 @@ class MainWindowGuiTest : public QObject {
         closed = !win.pop_.active || win.pop_.active->isHidden();
         if (win.pop_.active && !win.pop_.active->isHidden()) win.pop_.active->reject();
       });
-      if (route == Sticky) {
+      if (route == STICKY) {
         QContextMenuEvent ctx(QContextMenuEvent::Mouse, c, logo->mapToGlobal(c));
         QApplication::sendEvent(logo, &ctx);      // blocks in exec until the timer acts
       } else {
@@ -389,10 +389,10 @@ class MainWindowGuiTest : public QObject {
       QTRY_VERIFY2(alive, qPrintable(QString("%1: the nested event loop leaked").arg(what)));
     };
 
-    outsidePressCloses(Sticky, win.canvas_, "sticky + canvas press");
-    outsidePressCloses(Sticky, other, "sticky + toolbar press");
-    outsidePressCloses(Peek, win.canvas_, "peek + canvas press");
-    outsidePressCloses(Peek, other, "peek + toolbar press");
+    outsidePressCloses(STICKY, win.canvas_, "sticky + canvas press");
+    outsidePressCloses(STICKY, other, "sticky + toolbar press");
+    outsidePressCloses(PEEK, win.canvas_, "peek + canvas press");
+    outsidePressCloses(PEEK, other, "peek + toolbar press");
     // The logo itself is NOT outside: a left click on it with a STICKY popover up keeps
     // the list open and cycles the accent under it, the ✓ following (browser parity; user
     // report). The peek's own no-op rule is checked in logoAccentPopoverPicksDirectly.

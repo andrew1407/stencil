@@ -31,7 +31,7 @@ namespace stencil::gui {
       return false;
     }
     QString token;
-    auto kind = stencil::net::ServerClient::CredentialKind::None;
+    auto kind = stencil::net::ServerClient::CredentialKind::NONE;
     for (const auto& s : saved)
       if (s.url == url) { token = s.token; kind = stencil::net::ServerClient::kindFromTag(s.kind); break; }
     // The executor runs ops in order, so this waits out the handshake in the bounded local loop chatLoadSource uses.

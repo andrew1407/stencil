@@ -11,15 +11,15 @@ namespace stencil::support {
 
   // Particles (default) / Water / Fire / Slide (no particles, each surface's own ghost
   // flight) / None (what STENCIL_NO_ANIM has always meant).
-  enum class MotionMode { Particles, Water, Fire, Slide, None };
+  enum class MotionMode { PARTICLES, WATER, FIRE, SLIDE, NONE };
 
   // Browser dustCloud.js PARTICLE_STYLES.
-  enum class ParticleStyle { Dust, Water, Fire };
+  enum class ParticleStyle { DUST, WATER, FIRE };
 
   namespace detail {
     // One instance per program (C++17 inline-function statics); GUI thread only.
     inline MotionMode& motionModeState() {
-      static MotionMode mode = MotionMode::Particles;
+      static MotionMode mode = MotionMode::PARTICLES;
       return mode;
     }
     inline bool& drawingAnimationsState() {
@@ -47,19 +47,19 @@ namespace stencil::support {
 
   // Browser MOTION_MODES. An unknown key reads as Particles, so another build's file is never silent.
   inline MotionMode motionModeFromKey(const QString& key) {
-    if (key == QLatin1String("water")) return MotionMode::Water;
-    if (key == QLatin1String("fire")) return MotionMode::Fire;
-    if (key == QLatin1String("slide")) return MotionMode::Slide;
-    if (key == QLatin1String("none")) return MotionMode::None;
-    return MotionMode::Particles;
+    if (key == QLatin1String("water")) return MotionMode::WATER;
+    if (key == QLatin1String("fire")) return MotionMode::FIRE;
+    if (key == QLatin1String("slide")) return MotionMode::SLIDE;
+    if (key == QLatin1String("none")) return MotionMode::NONE;
+    return MotionMode::PARTICLES;
   }
   inline QString motionModeKey(MotionMode mode) {
     switch (mode) {
-      case MotionMode::Water: return QStringLiteral("water");
-      case MotionMode::Fire: return QStringLiteral("fire");
-      case MotionMode::Slide: return QStringLiteral("slide");
-      case MotionMode::None: return QStringLiteral("none");
-      case MotionMode::Particles: break;
+      case MotionMode::WATER: return QStringLiteral("water");
+      case MotionMode::FIRE: return QStringLiteral("fire");
+      case MotionMode::SLIDE: return QStringLiteral("slide");
+      case MotionMode::NONE: return QStringLiteral("none");
+      case MotionMode::PARTICLES: break;
     }
     return QStringLiteral("particles");
   }
@@ -79,7 +79,7 @@ namespace stencil::support {
 
   // Qt has no portable reduce-motion hint; this env var is the opt-out that overrides the mode.
   inline bool motionReduced() {
-    return motionMode() == MotionMode::None
+    return motionMode() == MotionMode::NONE
            || !qEnvironmentVariableIsEmpty("STENCIL_NO_ANIM");
   }
 
@@ -88,15 +88,15 @@ namespace stencil::support {
   // Checked inside the DisintegrateOverlay factories, so every cloud is behind it.
   inline bool dustAllowed() {
     const MotionMode m = motionMode();
-    return m != MotionMode::Slide && m != MotionMode::None && !motionReduced();
+    return m != MotionMode::SLIDE && m != MotionMode::NONE && !motionReduced();
   }
 
   // Dust for any mode that flies none — callers ask dustAllowed() first.
   inline ParticleStyle particleStyle() {
     switch (motionMode()) {
-      case MotionMode::Water: return ParticleStyle::Water;
-      case MotionMode::Fire: return ParticleStyle::Fire;
-      default: return ParticleStyle::Dust;
+      case MotionMode::WATER: return ParticleStyle::WATER;
+      case MotionMode::FIRE: return ParticleStyle::FIRE;
+      default: return ParticleStyle::DUST;
     }
   }
 

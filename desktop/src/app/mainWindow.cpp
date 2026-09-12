@@ -866,32 +866,32 @@ namespace stencil::gui {
 
     using Action = ProjectsDialog::Action;
     // Open is already confirmed IN-DIALOG (ProjectsDialog::finishOpen).
-    if (dlg.action() == Action::Open) {
+    if (dlg.action() == Action::OPEN) {
       loadProjectIntoCanvas(dlg.selectedId());
-    } else if (dlg.action() == Action::OpenRemote) {
+    } else if (dlg.action() == Action::OPEN_REMOTE) {
       openServerProject(dlg.selectedServerUrl(), dlg.selectedId());
-    } else if (dlg.action() == Action::OpenInNewWindow) {
+    } else if (dlg.action() == Action::OPEN_IN_NEW_WINDOW) {
       openProjectInNewWindow(dlg.selectedId());
-    } else if (dlg.action() == Action::MoveToServer) {
+    } else if (dlg.action() == Action::MOVE_TO_SERVER) {
       if (projectOpenInOtherWindow(dlg.selectedId())) {
         notify_->error("That project is open in another window — close it there first");
         return;
       }
       projectTransfer_->moveLocalProjectToServer(dlg.selectedServerUrl(), dlg.selectedId());
-    } else if (dlg.action() == Action::CopyToServer) {
+    } else if (dlg.action() == Action::COPY_TO_SERVER) {
       projectTransfer_->copyLocalProjectToServer(dlg.selectedServerUrl(), dlg.selectedId(), dlg.newName());
-    } else if (dlg.action() == Action::MoveToLocal) {
+    } else if (dlg.action() == Action::MOVE_TO_LOCAL) {
       // Move-to-local is allowed with a peer open: the server delete just ends their live link.
       projectTransfer_->moveServerProjectToLocal(dlg.selectedServerUrl(), dlg.selectedId());
-    } else if (dlg.action() == Action::MakeLocalCopy) {
+    } else if (dlg.action() == Action::MAKE_LOCAL_COPY) {
       projectTransfer_->makeLocalCopyOfServerProject(dlg.selectedServerUrl(), dlg.selectedId(), dlg.newName());
-    } else if (dlg.action() == Action::BatchMoveToServer) {
+    } else if (dlg.action() == Action::BATCH_MOVE_TO_SERVER) {
       for (const auto& pr : dlg.batchItems()) projectTransfer_->moveLocalProjectToServer(dlg.selectedServerUrl(), pr.first);
-    } else if (dlg.action() == Action::BatchCopyToServer) {
+    } else if (dlg.action() == Action::BATCH_COPY_TO_SERVER) {
       for (const auto& pr : dlg.batchItems()) projectTransfer_->copyLocalProjectToServer(dlg.selectedServerUrl(), pr.first, QString());
-    } else if (dlg.action() == Action::BatchMoveToLocal) {
+    } else if (dlg.action() == Action::BATCH_MOVE_TO_LOCAL) {
       for (const auto& pr : dlg.batchItems()) projectTransfer_->moveServerProjectToLocal(pr.second, pr.first);
-    } else if (dlg.action() == Action::BatchCopyToLocal) {
+    } else if (dlg.action() == Action::BATCH_COPY_TO_LOCAL) {
       // Each import is async; refresh + notify once the last one lands.
       const auto items = dlg.batchItems();
       const int total = static_cast<int>(items.size());
@@ -914,7 +914,7 @@ namespace stencil::gui {
               });
         }
       }
-    } else if (dlg.action() == Action::SetColor) {
+    } else if (dlg.action() == Action::SET_COLOR) {
       // Capture the selection by value — `dlg` dies when openProjects returns, before the async PUT completes.
       const QString cid = dlg.selectedId();
       const QString csrv = dlg.selectedServerUrl();
@@ -930,9 +930,9 @@ namespace stencil::gui {
           updateProjectTitle();
         }
       });
-    } else if (dlg.action() == Action::Rename) {
+    } else if (dlg.action() == Action::RENAME) {
       renameProjectById(dlg.selectedId(), dlg.newName());
-    } else if (dlg.action() == Action::New) {
+    } else if (dlg.action() == Action::NEW) {
       if (incognito_) {  // an explicit promotion out of incognito, not an app-side write
         const QString promoted = promoteIncognitoToLocal(dlg.newName());
         notify_->success(promoted.isEmpty()
@@ -942,7 +942,7 @@ namespace stencil::gui {
         return;
       }
       createProject(dlg.newName());
-    } else if (dlg.action() == Action::NewBlank) {
+    } else if (dlg.action() == Action::NEW_BLANK) {
       newBlankImage();
     }
   }

@@ -17,7 +17,7 @@ namespace stencil::gui {
     auto* fx = new DisintegrateOverlay(host, liftedToInk(snap, ink));
     fx->ink_ = ink;
     fx->sweep_ = sweep;
-    if (sweep != Sweep::Rows) fx->sizeGridForDust(victim->size());
+    if (sweep != Sweep::ROWS) fx->sizeGridForDust(victim->size());
     if (cols > 0) fx->cols_ = cols;
     if (rows > 0) fx->rows_ = rows;
     fx->setGeometry(QRect(at, victim->size()));
@@ -46,7 +46,7 @@ namespace stencil::gui {
     auto* fx = new DisintegrateOverlay(host, liftedToInk(snap, ink));
     fx->ink_ = ink;
     fx->sweep_ = sweep;
-    if (dust || sweep != Sweep::Rows) fx->sizeGridForDust(rect.size(), dustCells);
+    if (dust || sweep != Sweep::ROWS) fx->sizeGridForDust(rect.size(), dustCells);
     fx->setGeometry(QRect(at, rect.size()));
     fx->show();
     fx->raise();
@@ -106,7 +106,7 @@ namespace stencil::gui {
     // lifted one flashed the wrong tone at the hand-off.
     auto* fx = new DisintegrateOverlay(host, snap);
     fx->ink_ = ink;
-    fx->sweep_ = gather ? Sweep::SurfaceIn : Sweep::SurfaceOut;
+    fx->sweep_ = gather ? Sweep::SURFACE_IN : Sweep::SURFACE_OUT;
     fx->picture_ = picture;
     fx->target_ = QPointF(target);
     fx->sizeGridForDust(picture.size(), maxCells, SURFACE_CELL_PX);

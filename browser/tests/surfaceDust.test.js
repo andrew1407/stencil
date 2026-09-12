@@ -148,7 +148,7 @@ test('a surface is grained at least as fine as a row, under its own mote ceiling
   assert.ok(SURFACE_MOTE_PX <= MOTE_PX, 'a surface mote is no coarser than a row’s');
   // 1380 (the original ceiling) still cost ~35ms of build/style/paint on a full-height
   // docked panel, most of a close's own budget spent before the first mote had moved.
-  assert.equal(SURFACE_COLS * SURFACE_ROWS, 1380, 'the surface mote ceiling — the extension’s and the desktop’s (kSurfaceMaxCells)');
+  assert.equal(SURFACE_COLS * SURFACE_ROWS, 1380, 'the surface mote ceiling — the extension’s and the desktop’s (SURFACE_MAX_CELLS)');
   // Whatever the budget leaves, the SPECK drawn in a cell is capped at a grain — a
   // cell-filling square is the "huge rectangles" a scatter must never show.
   assert.ok(SURFACE_SPECK_PX <= MOTE_PX, 'the drawn grain never grows with the cell');

@@ -66,7 +66,7 @@ namespace stencil::gui {
     manager_->connectToAsync(url, tokenEdit_->text().trimmed(), [this, self, url](bool ok, QString err) {
       if (!self) return;
       // A refused CREDENTIAL still leaves a row behind (the client is kept at
-      // Status::Expired, with a Reconnect on it), so the fields that put it there are done
+      // Status::EXPIRED, with a Reconnect on it), so the fields that put it there are done
       // — leaving them typed in invites adding the same server twice. An attempt that left
       // NOTHING keeps its text, so a typo can be corrected where it was made.
       if (!ok) emit toast(tr("Could not connect — %1").arg(err), true);
@@ -97,7 +97,7 @@ namespace stencil::gui {
       QListWidgetItem* it = row >= 0 ? list_->item(row) : nullptr;
       if (!it) continue;
       if (!DisintegrateOverlay::overRect(list_->viewport(), list_->visualItemRect(it), this,
-                                         DisintegrateOverlay::Sweep::Rows, /*dust=*/true, budget,
+                                         DisintegrateOverlay::Sweep::ROWS, /*dust=*/true, budget,
                                          DisintegrateOverlay::CONN_MS,
                                          list_->palette().color(QPalette::Text)))   // lifted to the row's ink
         continue;   // nothing to animate (hidden/tiny) → this row just removes instantly

@@ -39,8 +39,8 @@ namespace stencil::gui {
     // ADMIN = a credential PROVEN able to mint session tokens; marked in the projects list's collaboration gold.
     const bool admin = client && client->isAdmin();
     stencil::net::ServerClient* cl = client;
-    const auto st = cl ? cl->status() : stencil::net::ServerClient::Status::Error;
-    const bool expired = st == stencil::net::ServerClient::Status::Expired;
+    const auto st = cl ? cl->status() : stencil::net::ServerClient::Status::ERROR;
+    const bool expired = st == stencil::net::ServerClient::Status::EXPIRED;
     const QString adminTip =
         tr("Admin credential — this connection can mint session tokens (invite links)");
     auto* row = new RowCard;
@@ -80,8 +80,8 @@ namespace stencil::gui {
     h->addWidget(cb);
     h->addSpacing(10);
     const QString statusText =
-        st == stencil::net::ServerClient::Status::Connected    ? tr("Connected")
-        : st == stencil::net::ServerClient::Status::Connecting ? tr("Connecting…")
+        st == stencil::net::ServerClient::Status::CONNECTED    ? tr("Connected")
+        : st == stencil::net::ServerClient::Status::CONNECTING ? tr("Connecting…")
         : expired ? tr("Session expired — reconnect to sign in again")
                   : tr("Disconnected");
     auto* dot = new QLabel;

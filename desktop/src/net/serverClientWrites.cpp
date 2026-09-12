@@ -46,17 +46,17 @@ namespace stencil::net {
     st->done = std::move(done);
     st->step = [st]() {
       st->attempt(st->version, [st](GuardOutcome o) {
-        if (o != GuardOutcome::Conflict) {  // Committed or Failed → done
+        if (o != GuardOutcome::CONFLICT) {  // Committed or Failed → done
           st->done(o);
           return;
         }
         if (st->i + 1 >= st->attempts) {  // last attempt still conflicted → exhausted
-          st->done(GuardOutcome::Conflict);
+          st->done(GuardOutcome::CONFLICT);
           return;
         }
         st->resolve(st->version, [st](bool ok, qint64 newVersion) {
           if (!ok) {  // resolve gave up (e.g. re-read failed)
-            st->done(GuardOutcome::Conflict);
+            st->done(GuardOutcome::CONFLICT);
             return;
           }
           st->version = newVersion;

@@ -165,12 +165,12 @@ namespace stencil::gui {
     dlg.adjustSize();
     okBtn->setFocus();
     armFlight(dlg, spec.flight);
-    if (dlg.exec() != QDialog::Accepted) return ConfirmChoice::Cancel;
-    return altPicked ? ConfirmChoice::Alt : ConfirmChoice::Confirm;
+    if (dlg.exec() != QDialog::Accepted) return ConfirmChoice::CANCEL;
+    return altPicked ? ConfirmChoice::ALT : ConfirmChoice::CONFIRM;
   }
 
   bool confirmModal(QWidget* parent, const ConfirmSpec& spec) {
-    return confirmModalChoice(parent, spec) == ConfirmChoice::Confirm;
+    return confirmModalChoice(parent, spec) == ConfirmChoice::CONFIRM;
   }
 }  // namespace stencil::gui
 

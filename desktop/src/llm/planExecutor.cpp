@@ -98,7 +98,7 @@ namespace stencil::llm {
       // pins that), but reject defensively even if one somehow appears.
       if (rejectForbiddenOp(opName(a.op), err)) return false;
       switch (a.op) {
-        case OpKind::Crop: {
+        case OpKind::CROP: {
           if (!target.hasImage()) {
             *err = QStringLiteral("crop: no working image");
             return false;
@@ -113,7 +113,7 @@ namespace stencil::llm {
           frame.composeCrop(rect);
           return true;
         }
-        case OpKind::Rotate: {
+        case OpKind::ROTATE: {
           if (!target.hasImage()) {
             *err = QStringLiteral("rotate: no working image");
             return false;
@@ -125,10 +125,10 @@ namespace stencil::llm {
           }
           return true;
         }
-        case OpKind::Filter:
+        case OpKind::FILTER:
           target.setImageFilter(a.mode, a.tint);
           return true;
-        case OpKind::Layout: {
+        case OpKind::LAYOUT: {
           if (!target.hasImage()) {
             *err = QStringLiteral("layout: no working image");
             return false;
@@ -146,7 +146,7 @@ namespace stencil::llm {
           target.setLayoutLines(lines);
           return true;
         }
-        case OpKind::Formula: {
+        case OpKind::FORMULA: {
           // §2 `enabled` form: the allow-formulas toggle, nothing per-axis.
           if (a.formulaEnabled >= 0) {
             target.setFormulasEnabled(a.formulaEnabled == 1);
@@ -164,22 +164,22 @@ namespace stencil::llm {
           target.setFormula(a.axis, a.expr);
           return true;
         }
-        case OpKind::Page:
+        case OpKind::PAGE:
           // §2: format OR custom cm dims (exactly one — the parser enforced it).
           if (a.widthCm > 0)
             target.setPageCustom(a.widthCm, a.heightCm);
           else
             target.setPageFormat(a.format.toUpper());
           return true;
-        case OpKind::Blank: {
+        case OpKind::BLANK: {
           if (!target.newBlank(a.color, a.format.toUpper(), a.widthCm, a.heightCm, err))
             return false;
           frame.reset();  // a fresh image is a fresh frame
           return true;
         }
-        case OpKind::Undo:
-        case OpKind::Redo: {
-          const bool redo = a.op == OpKind::Redo;
+        case OpKind::UNDO:
+        case OpKind::REDO: {
+          const bool redo = a.op == OpKind::REDO;
           const char* name = redo ? "redo" : "undo";
           if (inVariant) {  // parse-banned; defensive only
             *err = QStringLiteral("%1: not allowed inside a variant").arg(QLatin1String(name));
@@ -204,7 +204,7 @@ namespace stencil::llm {
           if (done > 0) frame.reset();
           return true;
         }
-        case OpKind::Frame: {
+        case OpKind::FRAME: {
           if (inVariant) {
             *err = QStringLiteral("frame: not valid inside a variant");
             return false;
@@ -217,7 +217,7 @@ namespace stencil::llm {
           frame.reset();
           return true;
         }
-        case OpKind::OpenUrl: {
+        case OpKind::OPEN_URL: {
           if (inVariant) {
             *err = QStringLiteral("openUrl: not allowed inside a variant");
             return false;
@@ -235,7 +235,7 @@ namespace stencil::llm {
           frame.reset();  // the loaded picture is a fresh frame
           return true;
         }
-        case OpKind::OpenFile: {
+        case OpKind::OPEN_FILE: {
           if (inVariant) {
             *err = QStringLiteral("openFile: not allowed inside a variant");
             return false;
@@ -254,7 +254,7 @@ namespace stencil::llm {
         }
         // §2.1 multi-image ops (parse-banned in variants; the guards here
         // are defensive only)
-        case OpKind::Image: {
+        case OpKind::IMAGE: {
           if (inVariant) {
             *err = QStringLiteral("image: not allowed inside a variant");
             return false;
@@ -268,7 +268,7 @@ namespace stencil::llm {
           frame.reset();  // the attachment is a fresh image, so a fresh frame
           return true;
         }
-        case OpKind::Save: {
+        case OpKind::SAVE: {
           if (inVariant) {
             *err = QStringLiteral("save: not allowed inside a variant");
             return false;
@@ -290,33 +290,33 @@ namespace stencil::llm {
           }
           return target.saveProject(a.name, dest, err);
         }
-        case OpKind::ClearChat:
-        case OpKind::Dialog:
+        case OpKind::CLEAR_CHAT:
+        case OpKind::DIALOG:
           // executePlan defers these past every other action; reaching here
           // means a variant/preview slipped through the parse ban.
           *err = QStringLiteral("editor-settings ops are not allowed inside a variant");
           return false;
         // §10 editor-settings ops (parse-banned in variants; the inVariant
         // guard below is defensive only)
-        case OpKind::Theme:
-        case OpKind::Accent:
-        case OpKind::LineStyle:
-        case OpKind::Units:
-        case OpKind::View:
-        case OpKind::Clear:
-        case OpKind::Connect:
-        case OpKind::Disconnect:
-        case OpKind::Copy:
-        case OpKind::RemoveProject:
-        case OpKind::ClearProjects:
-        case OpKind::Compare:
-        case OpKind::Zoom:
-        case OpKind::RenameProject:
-        case OpKind::ProjectColor:
-        case OpKind::BlankColor:
-        case OpKind::OpenProject:
-        case OpKind::ChatPanel:
-        case OpKind::Incognito: {
+        case OpKind::THEME:
+        case OpKind::ACCENT:
+        case OpKind::LINE_STYLE:
+        case OpKind::UNITS:
+        case OpKind::VIEW:
+        case OpKind::CLEAR:
+        case OpKind::CONNECT:
+        case OpKind::DISCONNECT:
+        case OpKind::COPY:
+        case OpKind::REMOVE_PROJECT:
+        case OpKind::CLEAR_PROJECTS:
+        case OpKind::COMPARE:
+        case OpKind::ZOOM:
+        case OpKind::RENAME_PROJECT:
+        case OpKind::PROJECT_COLOR:
+        case OpKind::BLANK_COLOR:
+        case OpKind::OPEN_PROJECT:
+        case OpKind::CHAT_PANEL:
+        case OpKind::INCOGNITO: {
           if (inVariant) {
             *err = QStringLiteral("editor-settings ops are not allowed inside a variant");
             return false;
@@ -331,8 +331,8 @@ namespace stencil::llm {
             return true;
           };
           switch (a.op) {
-            case OpKind::Theme: target.setTheme(a.mode); return true;
-            case OpKind::Accent: {
+            case OpKind::THEME: target.setTheme(a.mode); return true;
+            case OpKind::ACCENT: {
               // §10: a PRESET persists and syncs; unknown preset names are the
               // target's note+skip. A raw hex keeps the current behaviour.
               if (!a.preset.isEmpty()) {
@@ -345,7 +345,7 @@ namespace stencil::llm {
               target.setAccent(a.color);
               return true;
             }
-            case OpKind::LineStyle:
+            case OpKind::LINE_STYLE:
               // §10: fillColor is a BROWSER-only control — this editor notes
               // and skips that field, applying the rest.
               if (!a.fillColor.isEmpty() && notes)
@@ -353,11 +353,11 @@ namespace stencil::llm {
                     "lineStyle: fillColor is a browser-editor control — skipped here");
               target.setDefaultLineStyle(a);
               return true;
-            case OpKind::Units: target.setUnits(a.value); return true;
-            case OpKind::View: target.setViewVisibility(a.viewPoints, a.viewLines); return true;
-            case OpKind::Clear: target.clearImage(); frame.reset(); return true;
-            case OpKind::Connect: return target.connectServer(a.server, err);
-            case OpKind::Copy:
+            case OpKind::UNITS: target.setUnits(a.value); return true;
+            case OpKind::VIEW: target.setViewVisibility(a.viewPoints, a.viewLines); return true;
+            case OpKind::CLEAR: target.clearImage(); frame.reset(); return true;
+            case OpKind::CONNECT: return target.connectServer(a.server, err);
+            case OpKind::COPY:
               // §10: copy what:"layout" needs drawn lines; the default image
               // form needs a working image — both are a note+skip, never a
               // failed plan.
@@ -374,33 +374,33 @@ namespace stencil::llm {
                 return true;
               }
               return target.copyImage(err);
-            case OpKind::RemoveProject: {
+            case OpKind::REMOVE_PROJECT: {
               QString note;
               return noted("removeProject",
                            target.removeProjectNamed(a.name, a.current, &note), note);
             }
-            case OpKind::ClearProjects: {
+            case OpKind::CLEAR_PROJECTS: {
               QString note;
               return noted("clearProjects", target.clearProjects(a.current, &note), note);
             }
-            case OpKind::Compare:
+            case OpKind::COMPARE:
               return target.setCompare(a.mode, a.split, err);
-            case OpKind::Zoom:
+            case OpKind::ZOOM:
               return target.setZoom(a.percent, a.fit, err);
-            case OpKind::RenameProject: {
+            case OpKind::RENAME_PROJECT: {
               QString note;
               return noted("renameProject", target.renameActiveProject(a.name, &note),
                            note);
             }
-            case OpKind::ProjectColor: {
+            case OpKind::PROJECT_COLOR: {
               QString note;
               return noted("projectColor", target.setProjectColor(a.color, &note), note);
             }
-            case OpKind::BlankColor: {
+            case OpKind::BLANK_COLOR: {
               QString note;
               return noted("blankColor", target.setBlankColor(a.color, &note), note);
             }
-            case OpKind::OpenProject: {
+            case OpKind::OPEN_PROJECT: {
               QString note;
               if (!noted("openProject", target.openProjectNamed(a.name, a.current, &note), note))
                 return false;
@@ -410,11 +410,11 @@ namespace stencil::llm {
               if (note.isEmpty()) frame.reset();
               return true;
             }
-            case OpKind::Incognito: {
+            case OpKind::INCOGNITO: {
               QString note;
               return noted("incognito", target.setIncognito(a.incognito, &note), note);
             }
-            case OpKind::ChatPanel: {
+            case OpKind::CHAT_PANEL: {
               QString note;
               return noted("chatPanel", target.setChatPlacement(a.chatOpen, a.dock, &note), note);
             }
@@ -532,8 +532,8 @@ namespace stencil::llm {
     for (const Action& a : plan.actions) {
       // §10 clearChat is DEFERRED to the end of the plan — wherever the model
       // put it, every other action (and the variants) runs first.
-      if (a.op == OpKind::ClearChat) { clearChatLast = true; continue; }
-      if (a.op == OpKind::Dialog) { dialogLast = a; hasDialog = true; continue; }
+      if (a.op == OpKind::CLEAR_CHAT) { clearChatLast = true; continue; }
+      if (a.op == OpKind::DIALOG) { dialogLast = a; hasDialog = true; continue; }
       if (!applyAction(a, target, frame, /*inVariant=*/false, &res.notes, &err)) {
         res.error = err;
         return res;

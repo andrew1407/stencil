@@ -44,7 +44,7 @@ test('apply with invalid expr → original value', () => {
 // Security/robustness — mirrors core/tests/formula.test.cpp. Untrusted formulas
 // (layout JSON, the console facade, server co-edit) must never blow the stack or
 // hang; past the recursion cap they're invalid (→ identity). Kept in lockstep with
-// the core parser's kMaxDepth so wasm and this JS fallback agree.
+// the core parser's MAX_DEPTH so wasm and this JS fallback agree.
 test('deeply nested parens are invalid (identity), not a stack overflow', () => {
     assert.strictEqual(fe.validate('('.repeat(200000), 'x'), false);
     const balanced = '('.repeat(5000) + 'x' + ')'.repeat(5000);

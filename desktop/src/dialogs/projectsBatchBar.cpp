@@ -127,16 +127,16 @@ namespace stencil::gui {
       batchItems_.append({ k.mid(bar + 1), k.left(bar) });
     }
     if (batchItems_.isEmpty()) return;
-    if (act == Action::BatchMoveToServer || act == Action::BatchCopyToServer) {
+    if (act == Action::BATCH_MOVE_TO_SERVER || act == Action::BATCH_COPY_TO_SERVER) {
       if (!connections_ || connections_->urls().isEmpty()) return;
       const QString target = pickServer(
           this, connections_->urls(),
-          act == Action::BatchMoveToServer ? tr("Move the selected projects to which server?")
+          act == Action::BATCH_MOVE_TO_SERVER ? tr("Move the selected projects to which server?")
                                            : tr("Copy the selected projects to which server?"));
       if (target.isEmpty()) return;
       selectedServerUrl_ = target;
     }
-    if (act == Action::BatchRemove) {
+    if (act == Action::BATCH_REMOVE) {
       // Confirm HERE (like Clear All): the owner removes on removeRequested and repaints via setProjects().
       ConfirmSpec spec;
       spec.title = tr("Remove projects");

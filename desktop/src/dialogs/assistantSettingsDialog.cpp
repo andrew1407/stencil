@@ -17,7 +17,7 @@ namespace stencil::gui {
     // hairline, the form as the body, and the footer hint + Cancel/Save CTAs
     // under a second hairline (llmSettingsModal.js structure).
     ModalChrome chrome = installModalChrome(this, "sparkle", tr("Assistant"));
-    form_ = new LlmSettingsForm(current, LlmSettingsForm::RowMode::HideRows, this);
+    form_ = new LlmSettingsForm(current, LlmSettingsForm::RowMode::HIDE_ROWS, this);
     chrome.body->addWidget(form_);
 
     QHBoxLayout* footer = addModalFooter(

@@ -10,26 +10,26 @@
 namespace stencil::core {
 
   FilterMode filterModeFromString(const std::string& mode) {
-    if (mode.empty() || mode == "none") return FilterMode::None;
-    if (mode == "bw") return FilterMode::Bw;
-    if (mode == "sepia") return FilterMode::Sepia;
-    if (mode == "invert") return FilterMode::Invert;
-    if (mode == "contour") return FilterMode::Contour;
-    return FilterMode::Custom;  // renderer.js: any other value is the custom tint
+    if (mode.empty() || mode == "none") return FilterMode::NONE;
+    if (mode == "bw") return FilterMode::BW;
+    if (mode == "sepia") return FilterMode::SEPIA;
+    if (mode == "invert") return FilterMode::INVERT;
+    if (mode == "contour") return FilterMode::CONTOUR;
+    return FilterMode::CUSTOM;  // renderer.js: any other value is the custom tint
   }
 
   Rgb8 filterPixel(FilterMode mode, int r, int g, int b, int tintR, int tintG,
                    int tintB) {
     switch (mode) {
-      case FilterMode::None:
+      case FilterMode::NONE:
         return {r, g, b};
 
-      case FilterMode::Bw: {
+      case FilterMode::BW: {
         const int l = luma::rec709Truncated(r, g, b);
         return {l, l, l};
       }
 
-      case FilterMode::Sepia: {
+      case FilterMode::SEPIA: {
         const int sr =
             std::min(255, static_cast<int>(0.393 * r + 0.769 * g + 0.189 * b));
         const int sg =
@@ -39,7 +39,7 @@ namespace stencil::core {
         return {sr, sg, sb};
       }
 
-      case FilterMode::Custom: {
+      case FilterMode::CUSTOM: {
         const int l = luma::rec709Truncated(r, g, b);
         const double t = l / 255.0;  // 0 dark->color, 1 light->white
         return {
@@ -49,10 +49,10 @@ namespace stencil::core {
         };
       }
 
-      case FilterMode::Invert:
+      case FilterMode::INVERT:
         return {255 - r, 255 - g, 255 - b};
 
-      case FilterMode::Contour:
+      case FilterMode::CONTOUR:
         return {r, g, b};
     }
     return {r, g, b};  // unreachable; keeps the compiler happy
@@ -72,18 +72,18 @@ namespace stencil::core {
         }
       };
       switch (mode) {
-        case FilterMode::Bw:
-          run([](int r, int g, int b) { return filterPixel(FilterMode::Bw, r, g, b, 0, 0, 0); });
+        case FilterMode::BW:
+          run([](int r, int g, int b) { return filterPixel(FilterMode::BW, r, g, b, 0, 0, 0); });
           return;
-        case FilterMode::Sepia:
-          run([](int r, int g, int b) { return filterPixel(FilterMode::Sepia, r, g, b, 0, 0, 0); });
+        case FilterMode::SEPIA:
+          run([](int r, int g, int b) { return filterPixel(FilterMode::SEPIA, r, g, b, 0, 0, 0); });
           return;
-        case FilterMode::Invert:
-          run([](int r, int g, int b) { return filterPixel(FilterMode::Invert, r, g, b, 0, 0, 0); });
+        case FilterMode::INVERT:
+          run([](int r, int g, int b) { return filterPixel(FilterMode::INVERT, r, g, b, 0, 0, 0); });
           return;
-        case FilterMode::Custom:
+        case FilterMode::CUSTOM:
           run([&](int r, int g, int b) {
-            return filterPixel(FilterMode::Custom, r, g, b, tintR, tintG, tintB);
+            return filterPixel(FilterMode::CUSTOM, r, g, b, tintR, tintG, tintB);
           });
           return;
         default:
@@ -95,13 +95,13 @@ namespace stencil::core {
 
   void applyFilterRGBA(FilterMode mode, std::uint8_t* data, std::size_t pixelCount,
                        int tintR, int tintG, int tintB) {
-    if (mode == FilterMode::None || mode == FilterMode::Contour || data == nullptr) return;
+    if (mode == FilterMode::NONE || mode == FilterMode::CONTOUR || data == nullptr) return;
     filterRun(mode, data, pixelCount, tintR, tintG, tintB);
   }
 
   void applyFilterRows(FilterMode mode, std::uint8_t* data, int width, int y0, int y1,
                        int tintR, int tintG, int tintB) {
-    if (mode == FilterMode::None || mode == FilterMode::Contour || data == nullptr ||
+    if (mode == FilterMode::NONE || mode == FilterMode::CONTOUR || data == nullptr ||
         width <= 0)
       return;
     if (y0 < 0) y0 = 0;

@@ -312,7 +312,7 @@ class MainWindowGuiTest : public QObject {
     QCOMPARE(btn->defaultAction()->text(),
              canvas->isDrawing() ? QString("Stop Drawing") : QString("Start Drawing"));
     QCOMPARE(mode->text(),
-             canvas->drawMode() == CanvasWidget::DrawMode::Rect ? QString("Rect")
+             canvas->drawMode() == CanvasWidget::DrawMode::RECT ? QString("Rect")
                                                                 : QString("Line"));
     QCOMPARE(btn->size(), drawSize);
     QCOMPARE(mode->size(), modeSize);
@@ -330,7 +330,7 @@ class MainWindowGuiTest : public QObject {
     mode->click();
     QVERIFY2(!stencil::gui::faceSwapping(mode), "reduced motion still animated the mode swap");
     QCOMPARE(mode->text(),
-             canvas->drawMode() == CanvasWidget::DrawMode::Rect ? QString("Rect")
+             canvas->drawMode() == CanvasWidget::DrawMode::RECT ? QString("Rect")
                                                                 : QString("Line"));
     beat();
   }

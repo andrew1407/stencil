@@ -17,7 +17,7 @@ namespace stencil::gui {
   // normal send path (never auto-retried; the owner ignores it mid-turn). Icon-only —
   // a labelled button inside the bubble reads as part of the message.
   void ChatDock::appendError(const QString& text, const QString& retryText) {
-    addRetryButton(appendCard("Error", text, CardKind::Error), retryText);
+    addRetryButton(appendCard("Error", text, CardKind::ERROR), retryText);
   }
 
   void ChatDock::addRetryButton(QVBoxLayout* lay, const QString& retryText) {
@@ -34,7 +34,7 @@ namespace stencil::gui {
 
   void ChatDock::appendExpiredSession(const QString& text, const QString& host,
                                      const QString& retryText) {
-    QVBoxLayout* lay = appendCard("Error", text, CardKind::Error);
+    QVBoxLayout* lay = appendCard("Error", text, CardKind::ERROR);
     // The way back in, spelled out — an expired session is not something Resend
     // can fix, so the card leads with the reconnect (browser parity).
     auto* cta = new QPushButton(tr("Reconnect to %1").arg(host), lay->parentWidget());
@@ -48,7 +48,7 @@ namespace stencil::gui {
   }
 
   void ChatDock::appendUnreachable(const QString& text, const QString& retryText) {
-    QVBoxLayout* lay = appendCard("Error", text, CardKind::Error);
+    QVBoxLayout* lay = appendCard("Error", text, CardKind::ERROR);
     // The reveal flies from THIS button — it lives in the transcript and stays on
     // screen through the click, unlike the gear behind "…".
     QPointer<ChatDock> self(this);
@@ -60,7 +60,7 @@ namespace stencil::gui {
   }
 
   void ChatDock::appendNotice(const QString& text) {
-    appendCard("Assistant off", text, CardKind::Muted);
+    appendCard("Assistant off", text, CardKind::MUTED);
   }
 
   void ChatDock::appendLateNote(const QString& text) {
@@ -87,7 +87,7 @@ namespace stencil::gui {
   void ChatDock::appendNote(const QString& text) {
     // Informational, about work that SUCCEEDED — the danger style is reserved
     // for actual turn errors (appendError / a stopped turn).
-    appendCard("Note", text, CardKind::Muted);
+    appendCard("Note", text, CardKind::MUTED);
     emit notePosted(text);
   }
 }  // namespace stencil::gui

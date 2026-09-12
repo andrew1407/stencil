@@ -86,7 +86,7 @@ namespace stencil::gui {
     if (run(dlg) != QDialog::Accepted) return;
     const bool incog = dlg.incognito();
 
-    if (dlg.outcome() == OpenInDialog::Outcome::Telegram) {
+    if (dlg.outcome() == OpenInDialog::Outcome::TELEGRAM) {
       if (!serverProject) return;  // the dialog disables this outcome anyway
       const QString payload =
           deepLink::encodeTelegramStartPayload(src.serverUrl, src.serverId);

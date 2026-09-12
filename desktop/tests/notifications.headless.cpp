@@ -41,13 +41,13 @@ int main(int argc, char** argv) {
   Notifications notify(&host);
 
   // ── Same text twice quickly → one toast, same widget, lifetime extended.
-  notify.show(QStringLiteral("Saved"), Notifications::Level::Success, 600);   // expires ~t=600
+  notify.show(QStringLiteral("Saved"), Notifications::Level::SUCCESS, 600);   // expires ~t=600
   pumpFor(50);
   QList<QLabel*> live = standing(host);
   check(live.size() == 1, "first toast appears");
   QLabel* first = live.isEmpty() ? nullptr : live.first();
   pumpFor(250);                                                               // t ≈ 300
-  notify.show(QStringLiteral("Saved"), Notifications::Level::Success, 600);   // → expires ~t=900
+  notify.show(QStringLiteral("Saved"), Notifications::Level::SUCCESS, 600);   // → expires ~t=900
   pumpFor(50);
   live = standing(host);
   check(live.size() == 1, "identical text does not stack a second toast");
@@ -64,8 +64,8 @@ int main(int argc, char** argv) {
   pumpFor(300);  // let the exit animation finish and delete the label
 
   // ── Distinct texts still stack.
-  notify.show(QStringLiteral("Saved"), Notifications::Level::Success, 800);
-  notify.show(QStringLiteral("Synced to file"), Notifications::Level::Info, 800);
+  notify.show(QStringLiteral("Saved"), Notifications::Level::SUCCESS, 800);
+  notify.show(QStringLiteral("Synced to file"), Notifications::Level::INFO, 800);
   pumpFor(50);
   check(standing(host).size() == 2, "distinct texts stack as separate toasts");
 

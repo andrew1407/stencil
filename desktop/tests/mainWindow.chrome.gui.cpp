@@ -892,7 +892,7 @@ class MainWindowGuiTest : public QObject {
 
     // Something is in the air when the switch happens — a control's own cloud.
     stencil::gui::DisintegrateOverlay::over(win.logoBtn_, &win,
-                                           stencil::gui::DisintegrateOverlay::Sweep::Fall);
+                                           stencil::gui::DisintegrateOverlay::Sweep::FALL);
     const auto cloudsUp = [&win] {
       int n = 0;
       for (const char* name : {stencil::gui::DisintegrateOverlay::OBJECT_NAME,
@@ -1030,9 +1030,9 @@ class MainWindowGuiTest : public QObject {
     host.show();
     QVERIFY(QTest::qWaitForWindowExposed(&host));
     stencil::gui::Notifications toasts(&host);
-    toasts.show("Saved", stencil::gui::Notifications::Level::Success, /*msec=*/50);
+    toasts.show("Saved", stencil::gui::Notifications::Level::SUCCESS, /*msec=*/50);
     QTest::qWait(70);   // its life timer fires -> dismiss() -> mid-way through the 160ms fadeOut
-    toasts.show("Saved", stencil::gui::Notifications::Level::Success, /*msec=*/3000);
+    toasts.show("Saved", stencil::gui::Notifications::Level::SUCCESS, /*msec=*/3000);
     QTest::qWait(10);
     const auto ts = host.findChildren<QLabel*>("toast", Qt::FindDirectChildrenOnly);
     QCOMPARE(ts.size(), 1);

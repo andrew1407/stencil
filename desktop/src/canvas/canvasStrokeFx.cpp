@@ -35,7 +35,7 @@ namespace stencil::gui {
   }
 
   QRect CanvasWidget::dragRect() const {
-    if (dragKind_ == DragKind::None) return {};
+    if (dragKind_ == DragKind::NONE) return {};
     QRect r = lineRect(dragLineIdx_);
     for (const auto& entry : dragMultiOrig_) r = r.united(lineRect(entry.first));
     return r;

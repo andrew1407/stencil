@@ -27,7 +27,7 @@ namespace stencil::gui {
         notify_->error("Load an image first");
         return;
       }
-      canvas_->setDrawMode(CanvasWidget::DrawMode::Line);
+      canvas_->setDrawMode(CanvasWidget::DrawMode::LINE);
       canvas_->startDrawingMode();  // continues the selected line if one is set
       notify_->info("Drag to draw a line");
     });
@@ -38,7 +38,7 @@ namespace stencil::gui {
         notify_->error("Load an image first");
         return;
       }
-      canvas_->setDrawMode(CanvasWidget::DrawMode::Rect);
+      canvas_->setDrawMode(CanvasWidget::DrawMode::RECT);
       canvas_->startDrawingMode();  // continues the selected line if one is set
       notify_->info("Drag to draw a rectangle");
     });

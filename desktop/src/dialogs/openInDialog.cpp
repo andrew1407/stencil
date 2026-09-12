@@ -116,7 +116,7 @@ namespace stencil::gui {
       browser_ = new QPushButton(tr("Browser app"), this);
       makeModalCta(browser_, "external");
       connect(browser_, &QPushButton::clicked, this, [this] {
-        outcome_ = Outcome::Browser;
+        outcome_ = Outcome::BROWSER;
         accept();
       });
       btnRow->addWidget(browser_);
@@ -133,7 +133,7 @@ namespace stencil::gui {
           showTelegramFallback();
           return;
         }
-        outcome_ = Outcome::Telegram;
+        outcome_ = Outcome::TELEGRAM;
         accept();
       });
       btnRow->addWidget(telegram_);

@@ -66,14 +66,14 @@ namespace stencil::llm {
                   const QString& err, std::function<void(LlmReply)>& done,
                   const QString& serverHost = QString()) {
     if (status == 0) {
-      done(failReply(LlmFailure::Transport,
+      done(failReply(LlmFailure::TRANSPORT,
                      QStringLiteral("Couldn't reach %1 (%2)")
                          .arg(endpoint,
                               err.isEmpty() ? QStringLiteral("network error") : err)));
       return true;
     }
     if (!serverHost.isEmpty() && (status == 401 || status == 403)) {
-      LlmReply r = failReply(LlmFailure::Expired,
+      LlmReply r = failReply(LlmFailure::EXPIRED,
                              QStringLiteral("Your session on %1 has expired — reconnect to "
                                             "that server, then send this again.")
                                  .arg(serverHost));
@@ -95,7 +95,7 @@ namespace stencil::llm {
       // (browser describeChatError's "notice" text is the raw err.message,
       // never run through the "<provider> at <host>:" wrapper below).
       const bool disabled = o.value("code").toString() == QLatin1String("llmDisabled");
-      done(failReply(disabled ? LlmFailure::Disabled : LlmFailure::Http,
+      done(failReply(disabled ? LlmFailure::DISABLED : LlmFailure::HTTP,
                      disabled ? why : QStringLiteral("%1: %2").arg(endpoint, why)));
       return true;
     }
@@ -112,7 +112,7 @@ namespace stencil::llm {
       if (httpFailed(endpoint, status, resp, err, done)) return;
       const QJsonValue content = pick(QJsonDocument::fromJson(resp).object());
       if (!content.isString()) {
-        done(failReply(LlmFailure::BadResponse, QString::fromUtf8(malformedMsg)));
+        done(failReply(LlmFailure::BAD_RESPONSE, QString::fromUtf8(malformedMsg)));
         return;
       }
       LlmReply r;

@@ -316,7 +316,7 @@ namespace stencil::gui {
     });
     connect(this, &QDockWidget::dockLocationChanged, this,
             [this](Qt::DockWidgetArea) { updatePlacementState(); });
-    setProviderStatus(QString(), ProviderStatus::Unknown);
+    setProviderStatus(QString(), ProviderStatus::UNKNOWN);
   }
 }  // namespace stencil::gui
 

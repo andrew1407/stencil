@@ -575,7 +575,7 @@ class MainWindowGuiTest : public QObject {
 
     // Rect-draw mode, dragging out a box over the first point: no tooltip either.
     canvas->setLines({line});   // undo the point drag above — point 1 back at (40, 40)
-    canvas->setDrawMode(CanvasWidget::DrawMode::Rect);
+    canvas->setDrawMode(CanvasWidget::DrawMode::RECT);
     moveTo(40, 40);
     QTRY_VERIFY_WITH_TIMEOUT(win.tooltip_->isVisible(), 1000);
     sendMouse(QEvent::MouseButtonPress, QPointF(40 * s, 40 * s), Qt::LeftButton,
@@ -587,7 +587,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!win.tooltip_->isVisible(), "a rect-draw drag popped a tooltip mid-drag");
     sendMouse(QEvent::MouseButtonRelease, QPointF(90 * s, 90 * s), Qt::LeftButton,
              Qt::NoButton, Qt::NoModifier);
-    canvas->setDrawMode(CanvasWidget::DrawMode::Line);
+    canvas->setDrawMode(CanvasWidget::DrawMode::LINE);
     beat();
 
     // Shift-drag (zoom rect) over a point: still nothing.

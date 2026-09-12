@@ -7,11 +7,11 @@
 // leading '-' means "measured from the END of the axis", not a negative length.
 namespace stencil::core {
 
-  enum class LengthKind { Delta, Px, Cm, Percent };
+  enum class LengthKind { DELTA, PX, CM, PERCENT };
 
   // For Delta the sign is folded into `value`; for the absolute kinds `fromEnd` carries it.
   struct LengthToken {
-    LengthKind kind = LengthKind::Delta;
+    LengthKind kind = LengthKind::DELTA;
     double value = 0.0;
     bool fromEnd = false;
   };

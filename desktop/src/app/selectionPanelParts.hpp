@@ -9,7 +9,7 @@
 namespace stencil::gui {
 
   // One for one with the browser's coordinates table (mainContent.js <thead>).
-  enum PointCol { ColIndex = 0, ColX, ColY, ColPageX, ColPageY, ColDel, ColCount };
+  enum PointCol { COL_INDEX = 0, COL_X, COL_Y, COL_PAGE_X, COL_PAGE_Y, COL_DEL, COL_COUNT };
 
   // Also the floating re-open chevron's (mainWindow PANEL_TOGGLE_BOX).
   inline constexpr int TOGGLE_BOX = 24;
@@ -31,8 +31,8 @@ namespace stencil::gui {
       const QRect r = opt.rect.adjusted(0, 1, 0, -1);
       p->drawLine(r.topLeft(), r.topRight());
       p->drawLine(r.bottomLeft(), r.bottomRight());
-      if (idx.column() == ColIndex) p->drawLine(r.topLeft(), r.bottomLeft());
-      if (idx.column() == ColCount - 1) p->drawLine(r.topRight(), r.bottomRight());
+      if (idx.column() == COL_INDEX) p->drawLine(r.topLeft(), r.bottomLeft());
+      if (idx.column() == COL_COUNT - 1) p->drawLine(r.topRight(), r.bottomRight());
       p->restore();
     }
   };

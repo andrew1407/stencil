@@ -292,18 +292,18 @@ namespace stencil::gui {
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
     here_ = new QPushButton("Open here", this);
     makeModalCta(here_, "image");
-    connect(here_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::Here; accept(); });
+    connect(here_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::HERE; accept(); });
     newWindow_ = new QPushButton("Open in new window", this);
     makeModalCta(newWindow_, "external");
-    connect(newWindow_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::NewWindow; accept(); });
+    connect(newWindow_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::NEW_WINDOW; accept(); });
     createBlank_ = new QPushButton("Create blank", this);
     makeModalCta(createBlank_, "image");   // browser #blank-image-create
-    connect(createBlank_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::Blank; accept(); });
+    connect(createBlank_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::BLANK; accept(); });
     btnRow->addWidget(cancel);
     if (canReplace_) {
       replace_ = new QPushButton("Replace image", this);
       makeModalCta(replace_, "refresh");
-      connect(replace_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::Replace; accept(); });
+      connect(replace_, &QPushButton::clicked, this, [this] { outcome_ = Outcome::REPLACE; accept(); });
       btnRow->addWidget(replace_);
     }
     btnRow->addWidget(here_);

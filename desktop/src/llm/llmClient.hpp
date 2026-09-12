@@ -26,14 +26,14 @@ namespace stencil::llm {
   // Truncated/Refusal are NEVER parsed as plans (§6.3). Off = provider "none" (browser kind
   // "config", with the Configure CTA); Disabled = the server's 503 llmDisabled (no CTA);
   // Expired = the SERVER PROVIDER refused our session (401/403); a local 401 stays Http.
-  enum class LlmFailure { None, Transport, Http, BadResponse, Truncated, Refusal, Disabled, Off, Expired };
+  enum class LlmFailure { NONE, TRANSPORT, HTTP, BAD_RESPONSE, TRUNCATED, REFUSAL, DISABLED, OFF, EXPIRED };
 
   struct LlmReply {
     bool ok = false;
     QString text;
     QString model;
     QString stopReason;
-    LlmFailure failure = LlmFailure::None;
+    LlmFailure failure = LlmFailure::NONE;
     QString error;
     // Expired only: the server whose session lapsed, for the "Reconnect to <host>" action.
     QString expiredHost;

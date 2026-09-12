@@ -19,7 +19,7 @@ namespace stencil::gui {
     if (mods & Qt::ShiftModifier) {
       const int li = core::findLineAt(lines_, ip.x, ip.y, hitRadius(8.0));
       if (li != -1) {
-        dragKind_ = DragKind::Line;
+        dragKind_ = DragKind::LINE;
         dragLineIdx_ = li;
         dragOrig_ = lines_[li].points;
         // A multi-selection drags as one: snapshot EVERY selected line.
@@ -35,21 +35,21 @@ namespace stencil::gui {
 
     if (auto idx = core::nearestPointInLine(currentLine_.points, ip.x, ip.y,
                                             hitRadius(12.0))) {
-      dragKind_ = DragKind::Point;
+      dragKind_ = DragKind::POINT;
       dragLineIdx_ = -1;  // in-progress line
       dragPtIdx1_ = *idx;
       setCursor(Qt::SizeAllCursor);
       return;
     }
     if (auto pt = core::findNearestPoint(lines_, ip.x, ip.y, hitRadius(12.0))) {
-      dragKind_ = DragKind::Point;
+      dragKind_ = DragKind::POINT;
       dragLineIdx_ = pt->lineIdx;
       dragPtIdx1_ = pt->ptIdx;
       setCursor(Qt::SizeAllCursor);
       return;
     }
     if (auto seg = core::findNearestSegment(lines_, ip.x, ip.y, hitRadius(12.0))) {
-      dragKind_ = DragKind::Segment;
+      dragKind_ = DragKind::SEGMENT;
       dragLineIdx_ = seg->lineIdx;
       dragPtIdx1_ = seg->ptIdx1;
       dragPtIdx2_ = seg->ptIdx2;
@@ -83,7 +83,7 @@ namespace stencil::gui {
     flyInPoint(lineIdx, line, idx);
     selectedLineIdx_ = lineIdx;
     selectedPoint_ = idx;
-    dragKind_ = DragKind::Point;
+    dragKind_ = DragKind::POINT;
     dragLineIdx_ = lineIdx;
     dragPtIdx1_ = idx;
     setCursor(Qt::SizeAllCursor);

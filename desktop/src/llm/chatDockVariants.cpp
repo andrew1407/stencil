@@ -76,7 +76,7 @@ namespace stencil::gui {
       if (!w || w == suggest_) continue;
       // Snapshot BEFORE the card leaves the layout, hosted on the WINDOW (the dock's content widget
       // paints over its children). Fall, not Rows: the same gesture as the cleared IMAGE.
-      DisintegrateOverlay::over(w, window(), DisintegrateOverlay::Sweep::Fall,
+      DisintegrateOverlay::over(w, window(), DisintegrateOverlay::Sweep::FALL,
                                 CHAT_SCATTER_COLS, CHAT_SCATTER_ROWS,
                                 DisintegrateOverlay::ITEM_MS,
                                 w->palette().color(QPalette::WindowText));

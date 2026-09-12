@@ -35,7 +35,7 @@ namespace stencil::gui {
     // rect-draw press (browser pointerController.js startPan). Picking the rect tool is
     // the intent, so the press turns drawing on itself — it has no hold-to-draw flow to
     // fall back on (that one refuses in rect mode).
-    if (drawMode_ == DrawMode::Rect && mods == Qt::NoModifier) {
+    if (drawMode_ == DrawMode::RECT && mods == Qt::NoModifier) {
       if (!isDrawing_) startDrawingMode();
       if (!isDrawing_) return;   // declined (no image / read-only) — nothing to sweep
       rectDrawActive_ = true;
@@ -53,7 +53,7 @@ namespace stencil::gui {
 
     // in rect mode, areas are created by dragging, never click-to-add
     // (browser drawingApp.js ~1182).
-    if (drawMode_ == DrawMode::Rect) return;
+    if (drawMode_ == DrawMode::RECT) return;
 
     // Continuation drawing: extend the line being continued (drawingApp.js canvasClick
     // continuation branch ~1201). A click on the stroke's first point closes it into a

@@ -35,7 +35,7 @@ namespace stencil::gui {
     QTimer::singleShot(0, cell, [cell, host] {
       if (!cell->isVisible()) return;
       auto* fx = DisintegrateOverlay::overRect(cell, cell->rect(), host,
-                                               DisintegrateOverlay::Sweep::Gather,
+                                               DisintegrateOverlay::Sweep::GATHER,
                                                /*dust=*/true, FORM_CELLS, FORM_MS);
       if (!fx) return;
       auto* veil = new QGraphicsOpacityEffect(cell);

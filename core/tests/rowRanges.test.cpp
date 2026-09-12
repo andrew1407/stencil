@@ -71,7 +71,7 @@ TEST_SUITE("rowRanges") {
     const int w = 8, h = 6;
     const auto src = noise(w, h, 99u);
     std::vector<std::uint8_t> buf = src;
-    applyFilterRows(FilterMode::Invert, buf.data(), w, 2, 4, 0, 0, 0);
+    applyFilterRows(FilterMode::INVERT, buf.data(), w, 2, 4, 0, 0, 0);
     for (int y = 0; y < h; ++y) {
       const std::size_t off = static_cast<std::size_t>(y) * w * 4;
       const bool inRange = y >= 2 && y < 4;
@@ -84,8 +84,8 @@ TEST_SUITE("rowRanges") {
     }
     // An empty or inverted range is a no-op.
     std::vector<std::uint8_t> same = src;
-    applyFilterRows(FilterMode::Invert, same.data(), w, 3, 3, 0, 0, 0);
-    applyFilterRows(FilterMode::Invert, same.data(), w, 5, 2, 0, 0, 0);
+    applyFilterRows(FilterMode::INVERT, same.data(), w, 3, 3, 0, 0, 0);
+    applyFilterRows(FilterMode::INVERT, same.data(), w, 5, 2, 0, 0, 0);
     CHECK(same == src);
   }
 
@@ -180,10 +180,10 @@ TEST_SUITE("rowRanges") {
   TEST_CASE("row entry points shrug off degenerate arguments") {
     std::vector<std::uint8_t> buf(4 * 4 * 4, 0x11);
     const std::vector<std::uint8_t> before = buf;
-    applyFilterRows(FilterMode::Bw, nullptr, 4, 0, 4, 0, 0, 0);
-    applyFilterRows(FilterMode::Bw, buf.data(), 0, 0, 4, 0, 0, 0);
-    applyFilterRows(FilterMode::None, buf.data(), 4, 0, 4, 0, 0, 0);
-    applyFilterRows(FilterMode::Contour, buf.data(), 4, 0, 4, 0, 0, 0);
+    applyFilterRows(FilterMode::BW, nullptr, 4, 0, 4, 0, 0, 0);
+    applyFilterRows(FilterMode::BW, buf.data(), 0, 0, 4, 0, 0, 0);
+    applyFilterRows(FilterMode::NONE, buf.data(), 4, 0, 4, 0, 0, 0);
+    applyFilterRows(FilterMode::CONTOUR, buf.data(), 4, 0, 4, 0, 0, 0);
     buildLumaRows(nullptr, 4, 4, 0, 4, buf.data());
     sobelRows(nullptr, buf.data(), 4, 4, 0, 4);
     sobelRows(buf.data(), nullptr, 4, 4, 0, 4);

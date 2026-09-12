@@ -118,7 +118,7 @@ namespace stencil::gui {
                                            w->palette().color(QPalette::WindowText));
     DisintegrateOverlay* cloud = DisintegrateOverlay::overPixmaps(
         specks, QPixmap(), at, host,
-        out ? DisintegrateOverlay::Sweep::Fall : DisintegrateOverlay::Sweep::Gather,
+        out ? DisintegrateOverlay::Sweep::FALL : DisintegrateOverlay::Sweep::GATHER,
         cols, rows, out ? outMs : inMs, /*spread=*/1.0, /*pad=*/34,
         QString::fromLatin1(CONTROL_REVEAL_OBJECT_NAME));
     if (cloud) ctl::trackRevealFx(w, cloud);

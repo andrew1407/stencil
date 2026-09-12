@@ -103,7 +103,7 @@ namespace stencil::gui {
   };
   bool confirmModal(QWidget* parent, const ConfirmSpec& spec);
   // Browser confirmModal.js askAlt.
-  enum class ConfirmChoice { Cancel, Confirm, Alt };
+  enum class ConfirmChoice { CANCEL, CONFIRM, ALT };
   ConfirmChoice confirmModalChoice(QWidget* parent, const ConfirmSpec& spec);
 
   // Browser confirmModal.js `prompt`. `multiline` = the <textarea> shape (Ctrl/⌘+Enter

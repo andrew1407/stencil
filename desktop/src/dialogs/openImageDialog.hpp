@@ -37,7 +37,7 @@ namespace stencil::gui {
   class OpenImageDialog : public QDialog {
     Q_OBJECT
    public:
-    enum class Outcome { Here, NewWindow, Replace, Blank };
+    enum class Outcome { HERE, NEW_WINDOW, REPLACE, BLANK };
 
     // `canReplace` enables the "Replace image" outcome + its rename/keep-annotations
     // options (only meaningful when a saved/linked project is open). blankW/blankH seed
@@ -180,7 +180,7 @@ namespace stencil::gui {
     bool constructed_ = false;  // gates the tab-switch fade until the dialog is built
     bool measured_ = false;     // first-show tallest-tab measurement ran (showEvent)
     bool measuring_ = false;    // …and is running right now (no fade on its switches)
-    Outcome outcome_ = Outcome::Here;
+    Outcome outcome_ = Outcome::HERE;
   };
 
 }

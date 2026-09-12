@@ -65,7 +65,7 @@ namespace stencil::gui {
     if (connections_ && !incognito_) dlg.setServerTargets(connections_->urls());
     pendingServerTarget_.clear();
     if (execMaybePopover(dlg) != QDialog::Accepted) return;
-    if (dlg.outcome() == OpenImageDialog::Outcome::Blank) {
+    if (dlg.outcome() == OpenImageDialog::Outcome::BLANK) {
       createBlankImageFromDialog(dlg.blankColor(), dlg.blankWidth(), dlg.blankHeight());
       return;
     }
@@ -73,16 +73,16 @@ namespace stencil::gui {
     if (src.isEmpty()) return;
     const OpenImageDialog::Outcome outcome = dlg.outcome();
     // Consumed by adoptCanvasAsLocalProject once the image lands; a new window has no session to hand it to.
-    if (outcome == OpenImageDialog::Outcome::Here) pendingServerTarget_ = dlg.serverTarget();
+    if (outcome == OpenImageDialog::Outcome::HERE) pendingServerTarget_ = dlg.serverTarget();
 
     // Preview path: adopt the pixels the dialog already decoded (no re-download/seek) and honour its Crop toggle.
     // Replace keeps its own in-place path; no preview falls back to the async resolve.
     const QImage previewed = dlg.previewedImage();
     if (!previewed.isNull() &&
-        (outcome == OpenImageDialog::Outcome::Here ||
-         outcome == OpenImageDialog::Outcome::NewWindow)) {
+        (outcome == OpenImageDialog::Outcome::HERE ||
+         outcome == OpenImageDialog::Outcome::NEW_WINDOW)) {
       const bool localFile = !dlg.isUrl() && !dlg.isVideo() && QFileInfo(src).exists();
-      if (outcome == OpenImageDialog::Outcome::NewWindow) {
+      if (outcome == OpenImageDialog::Outcome::NEW_WINDOW) {
         // The fresh window re-resolves the same source and applies the same page-aspect crop.
         openSourceInNewWindow(src, dlg.frame(), dlg.incognito(), /*hasPreview=*/true,
                               dlg.cropToPage(), dlg.cropAlbum(), dlg.cropPageSize());
@@ -95,15 +95,15 @@ namespace stencil::gui {
     }
 
     if (dlg.isUrl() || dlg.isVideo()) {
-      if (outcome == OpenImageDialog::Outcome::NewWindow)
+      if (outcome == OpenImageDialog::Outcome::NEW_WINDOW)
         openSourceInNewWindow(src, dlg.frame(), dlg.incognito());
       else
         openSourceHere(src, dlg.frame(), dlg.incognito());
       return;
     }
-    if (outcome == OpenImageDialog::Outcome::NewWindow) {
+    if (outcome == OpenImageDialog::Outcome::NEW_WINDOW) {
       openImageInNewWindow(src, dlg.incognito());
-    } else if (outcome == OpenImageDialog::Outcome::Replace) {
+    } else if (outcome == OpenImageDialog::Outcome::REPLACE) {
       replaceProjectImage(src, dlg.rename(), dlg.keepAnnotations());
     } else {
       openImageHere(src, dlg.incognito());
@@ -170,9 +170,9 @@ namespace stencil::gui {
     }
     // Never the default page-aspect auto-crop: what was previewed is what opens.
     if (cropToPage)
-      pendingCrop_ = {QuickCropOpts::Mode::Page, cropAlbum, cropPage};
+      pendingCrop_ = {QuickCropOpts::Mode::PAGE, cropAlbum, cropPage};
     else
-      pendingCrop_ = {QuickCropOpts::Mode::None, false, QString()};
+      pendingCrop_ = {QuickCropOpts::Mode::NONE, false, QString()};
     pendingProvSource_ = provSource;
     onLaunchImageLoaded(image, localPath);
   }

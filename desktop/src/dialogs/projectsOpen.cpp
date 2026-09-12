@@ -57,11 +57,11 @@ namespace stencil::gui {
     const QString server = it->data(Qt::UserRole + 1).toString();
     if (!server.isEmpty()) {  // golden remote row → fetch + open from the server
       selectedServerUrl_ = server;
-      finishOpen(Action::OpenRemote, /*newWindow=*/false,
+      finishOpen(Action::OPEN_REMOTE, /*newWindow=*/false,
                  it->data(Qt::UserRole + 3).toString());
       return;
     }
-    finishOpen(Action::Open, /*newWindow=*/false, it->data(Qt::UserRole + 3).toString());
+    finishOpen(Action::OPEN, /*newWindow=*/false, it->data(Qt::UserRole + 3).toString());
   }
 
   void ProjectsDialog::openSelectedInNewWindow() {
@@ -70,7 +70,7 @@ namespace stencil::gui {
     // New-window / delete / rename / renew apply to LOCAL projects only.
     if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;
     selectedId_ = it->data(Qt::UserRole).toString();
-    finishOpen(Action::OpenInNewWindow, /*newWindow=*/true,
+    finishOpen(Action::OPEN_IN_NEW_WINDOW, /*newWindow=*/true,
                it->data(Qt::UserRole + 3).toString());
   }
 

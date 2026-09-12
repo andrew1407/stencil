@@ -128,7 +128,7 @@ namespace stencil::gui {
     if (!l) return false;
     // The same finer grid the dock's cards use (chatWidgets.hpp CHAT_SCATTER_*).
     const bool playing =
-        DisintegrateOverlay::over(l, window(), DisintegrateOverlay::Sweep::Fall,
+        DisintegrateOverlay::over(l, window(), DisintegrateOverlay::Sweep::FALL,
                                   CHAT_SCATTER_COLS, CHAT_SCATTER_ROWS, 0,
                                   l->palette().color(QPalette::WindowText))
         != nullptr;

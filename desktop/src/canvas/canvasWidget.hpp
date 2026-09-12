@@ -29,7 +29,7 @@ namespace stencil::gui {
   class CanvasWidget : public QWidget {
     Q_OBJECT
    public:
-    enum class DrawMode { Line, Rect };
+    enum class DrawMode { LINE, RECT };
 
     explicit CanvasWidget(QWidget* parent = nullptr);
 
@@ -352,7 +352,7 @@ namespace stencil::gui {
     QColor focusRing_{"#7c3aed"};
 
     // Canonical selection owner; filters/render/line-edit only consume selectedLineIdx_.
-    DrawMode drawMode_ = DrawMode::Line;
+    DrawMode drawMode_ = DrawMode::LINE;
     int selectedLineIdx_ = -1;
     // Empty in single-select mode; with 2+ entries selectedLineIdx_ is -1 (browser selectedLines).
     std::vector<int> selectedLines_;
@@ -399,8 +399,8 @@ namespace stencil::gui {
     // Cleared after any structural change — a stale index would ring a DIFFERENT point.
     void clearHoverCache();
 
-    enum class DragKind { None, Point, Segment, Line };
-    DragKind dragKind_ = DragKind::None;
+    enum class DragKind { NONE, POINT, SEGMENT, LINE };
+    DragKind dragKind_ = DragKind::NONE;
     int dragLineIdx_ = -1;   // line being edited (-1 = in-progress line, Point only)
     int dragPtIdx1_ = -1;    // dragged point (Point) / grabbed segment endpoint 1
     int dragPtIdx2_ = -1;    // grabbed segment endpoint 2 (Segment/Line fallback)

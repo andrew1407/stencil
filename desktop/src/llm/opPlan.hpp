@@ -13,31 +13,31 @@ namespace stencil::llm {
 
   // §2 image ops + §10 editor-settings ops (banned in variants) + §2 history + §2.1 multi-image.
   enum class OpKind {
-    Crop, Rotate, Filter, Layout, Formula, Page, Blank, Frame,
-    OpenUrl, OpenFile, Theme, Accent, LineStyle, Units, View, Clear, Connect, Disconnect, Copy,
-    RemoveProject, ClearProjects,
-    Compare, Zoom, RenameProject, ProjectColor, BlankColor, OpenProject, Incognito,
-    ChatPanel, Dialog, ClearChat,
-    Undo, Redo,
-    Image, Save
+    CROP, ROTATE, FILTER, LAYOUT, FORMULA, PAGE, BLANK, FRAME,
+    OPEN_URL, OPEN_FILE, THEME, ACCENT, LINE_STYLE, UNITS, VIEW, CLEAR, CONNECT, DISCONNECT, COPY,
+    REMOVE_PROJECT, CLEAR_PROJECTS,
+    COMPARE, ZOOM, RENAME_PROJECT, PROJECT_COLOR, BLANK_COLOR, OPEN_PROJECT, INCOGNITO,
+    CHAT_PANEL, DIALOG, CLEAR_CHAT,
+    UNDO, REDO,
+    IMAGE, SAVE
   };
 
   // §10 ops (and OpenUrl/OpenFile) are forbidden inside `variants`: parser drops the variant.
   inline bool isEditorSettingsOp(OpKind op) {
-    return op >= OpKind::OpenUrl && op <= OpKind::ClearChat;
+    return op >= OpKind::OPEN_URL && op <= OpKind::CLEAR_CHAT;
   }
 
   // §2 undo/redo: top-level only, with their own variant-ban message.
   inline bool isHistoryOp(OpKind op) {
-    return op == OpKind::Undo || op == OpKind::Redo;
+    return op == OpKind::UNDO || op == OpKind::REDO;
   }
 
   // Browser twin: opPlan.js TOP_LEVEL_ONLY_OPS.
-  inline bool isTopLevelOnlyOp(OpKind op) { return op >= OpKind::OpenUrl; }
+  inline bool isTopLevelOnlyOp(OpKind op) { return op >= OpKind::OPEN_URL; }
 
   // Tagged union on `op`; field semantics per contract §2.
   struct Action {
-    OpKind op = OpKind::Crop;
+    OpKind op = OpKind::CROP;
     // crop: "" = edge absent
     QString x1, x2, y1, y2;
     // crop: "W:H"; accepted in the spec or (§3.2) at the action level; resolved by core resolveCropRect.
@@ -154,15 +154,15 @@ namespace stencil::llm {
     if (!plan.variants.isEmpty()) return true;
     for (const Action& a : plan.actions) {
       switch (a.op) {
-        case OpKind::Crop:
-        case OpKind::Rotate:
-        case OpKind::Filter:
-        case OpKind::Layout:
-        case OpKind::Formula:
-        case OpKind::Page:
-        case OpKind::Blank:
-        case OpKind::Frame:
-        case OpKind::Clear:
+        case OpKind::CROP:
+        case OpKind::ROTATE:
+        case OpKind::FILTER:
+        case OpKind::LAYOUT:
+        case OpKind::FORMULA:
+        case OpKind::PAGE:
+        case OpKind::BLANK:
+        case OpKind::FRAME:
+        case OpKind::CLEAR:
           return true;
         default:
           break;

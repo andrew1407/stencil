@@ -61,7 +61,7 @@ namespace stencil::gui {
     // Only while idly hovering the canvas — never mid-gesture.
     if (image_.isNull() || !underMouse()) return;
     if (panning_ || rectDrawActive_ || zoomRectActive_ ||
-        dragKind_ != DragKind::None) {
+        dragKind_ != DragKind::NONE) {
       return;
     }
     const QPoint wp = mapFromGlobal(QCursor::pos());

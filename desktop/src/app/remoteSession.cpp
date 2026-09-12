@@ -30,16 +30,16 @@ namespace stencil::gui {
           // Each attempt re-reads the current version (identity policy).
           c->getProjectAsync(id, [put, outVersion, cb](bool ok, stencil::net::ServerProject meta,
                                                        QJsonObject) {
-            if (!ok) { cb(GO::Failed); return; }  // read failed; lastError() set
+            if (!ok) { cb(GO::FAILED); return; }  // read failed; lastError() set
             put(meta.version, [outVersion, cb](bool pok, qint64 nv, bool conflict) {
-              if (pok) { *outVersion = nv; cb(GO::Committed); return; }
-              cb(conflict ? GO::Conflict : GO::Failed);
+              if (pok) { *outVersion = nv; cb(GO::COMMITTED); return; }
+              cb(conflict ? GO::CONFLICT : GO::FAILED);
             });
           });
         },
         // `resolve` is a no-op, so the start version is unused.
         [](qint64, std::function<void(bool, qint64)> cb) { cb(true, 0); },
-        [done, outVersion](GO r) { done(r == GO::Committed, *outVersion); });
+        [done, outVersion](GO r) { done(r == GO::COMMITTED, *outVersion); });
   }
 
 }  // namespace stencil::gui

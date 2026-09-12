@@ -68,7 +68,7 @@ namespace stencil::llm {
 
     // Resolve an op inside a nested op set (§8 open.actions): an entry to validate
     // with, Fail for a listed-but-disallowed op, Unknown for anything else.
-    enum class Opset { Entry, Fail, Unknown };
+    enum class Opset { ENTRY, FAIL, UNKNOWN };
     Opset opsetEntry(const QString& opset, const QString& op, OpEntry* out) const;
 
     // Where a value sits, for messages (`"x1" in spec`); an engine detail.

@@ -140,13 +140,13 @@ namespace stencil::gui {
     const bool loadsNew =
         std::any_of(plan.actions.cbegin(), plan.actions.cend(), [](const llm::Action& a) {
           // Incognito openUrl COUNTS: the desktop adopts incognito in place, unlike the browser's new tab.
-          return a.op == llm::OpKind::OpenUrl ||
-                 a.op == llm::OpKind::Blank || a.op == llm::OpKind::Frame;
+          return a.op == llm::OpKind::OPEN_URL ||
+                 a.op == llm::OpKind::BLANK || a.op == llm::OpKind::FRAME;
         });
     // A zero-line layout op validates (§2) but draws nothing — it must not count as "drew".
     const bool drewLayout = std::any_of(
         plan.actions.cbegin(), plan.actions.cend(),
-        [](const llm::Action& a) { return a.op == llm::OpKind::Layout && !a.lines.empty(); });
+        [](const llm::Action& a) { return a.op == llm::OpKind::LAYOUT && !a.lines.empty(); });
     return loadsNew && !drewLayout;
   }
 

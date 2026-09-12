@@ -123,7 +123,7 @@ namespace stencil::gui {
       tint.setAlpha(45);
       const auto paintRow = [this, &tint](int r, bool on) {
         if (r < 0 || r >= points_->rowCount()) return;
-        for (int c = 0; c < ColCount; ++c)
+        for (int c = 0; c < COL_COUNT; ++c)
           if (auto* cell = points_->item(r, c))
             cell->setBackground(on ? QBrush(tint) : QBrush());
       };
@@ -157,18 +157,18 @@ namespace stencil::gui {
       auto* idx = new QTableWidgetItem(QString::number(i + 1));
       idx->setFlags(Qt::ItemIsEnabled);
       idx->setTextAlignment(Qt::AlignCenter);
-      points_->setItem(r, ColIndex, idx);
+      points_->setItem(r, COL_INDEX, idx);
       auto* xi = new QTableWidgetItem(QString::number(p.x, 'f', 1));
       xi->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
       xi->setToolTip("Double-click to edit X (px)");
-      points_->setItem(r, ColX, xi);
+      points_->setItem(r, COL_X, xi);
       auto* yi = new QTableWidgetItem(QString::number(p.y, 'f', 1));
       yi->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
       yi->setToolTip("Double-click to edit Y (px)");
-      points_->setItem(r, ColY, yi);
+      points_->setItem(r, COL_Y, yi);
       // Page coordinates as their own two columns, like the browser's `X cm` / `Y cm`.
       const PageRow page = i < pageRows.size() ? pageRows[i] : PageRow{};
-      for (const auto& [col, text] : {std::pair{ColPageX, page.x}, std::pair{ColPageY, page.y}}) {
+      for (const auto& [col, text] : {std::pair{COL_PAGE_X, page.x}, std::pair{COL_PAGE_Y, page.y}}) {
         auto* pg = new QTableWidgetItem(text);
         pg->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         points_->setItem(r, col, pg);
@@ -186,7 +186,7 @@ namespace stencil::gui {
         DisintegrateOverlay::overRect(points_->viewport(), rowRect, window());
         emit pointDeleteRequested(r);
       });
-      points_->setCellWidget(r, ColDel, del);
+      points_->setCellWidget(r, COL_DEL, del);
     }
     if (selectedPoint >= 0 && selectedPoint < points_->rowCount())
       points_->selectRow(selectedPoint);

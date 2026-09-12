@@ -90,7 +90,7 @@ namespace stencil::gui {
     auto* ptsTab = new QWidget(tabs_);
     auto* ptsLay = new QVBoxLayout(ptsTab);
     ptsLay->setContentsMargins(0, 6, 0, 0);
-    points_ = new QTableWidget(0, ColCount, ptsTab);
+    points_ = new QTableWidget(0, COL_COUNT, ptsTab);
     points_->setObjectName("pointsTable");
     points_->setItemDelegate(new PointRowDelegate(points_));  // outline-style selection
     applyUnitHeaders();
@@ -110,11 +110,11 @@ namespace stencil::gui {
     connect(points_, &QTableWidget::cellEntered, this,
             [this](int row, int) { emit pointRowHovered(row); });
     auto* hh = points_->horizontalHeader();
-    hh->setSectionResizeMode(ColIndex, QHeaderView::ResizeToContents);
-    for (int c : {ColX, ColY, ColPageX, ColPageY}) hh->setSectionResizeMode(c, QHeaderView::Stretch);
-    hh->setSectionResizeMode(ColDel, QHeaderView::Fixed);
+    hh->setSectionResizeMode(COL_INDEX, QHeaderView::ResizeToContents);
+    for (int c : {COL_X, COL_Y, COL_PAGE_X, COL_PAGE_Y}) hh->setSectionResizeMode(c, QHeaderView::Stretch);
+    hh->setSectionResizeMode(COL_DEL, QHeaderView::Fixed);
     // The browser's trailing cell (mainContent.js: `width:28px;padding:4px`).
-    points_->setColumnWidth(ColDel, 28);
+    points_->setColumnWidth(COL_DEL, 28);
     hh->setHighlightSections(false);
     // layout.css .coordinates-table th { text-align: left }
     hh->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
@@ -160,16 +160,16 @@ namespace stencil::gui {
     restyleIcons(palette().color(QPalette::WindowText));
 
     connect(points_, &QTableWidget::cellClicked, this, [this](int row, int col) {
-      if (col != ColDel) emit pointActivated(row);
+      if (col != COL_DEL) emit pointActivated(row);
     });
     // Guarded against showLine's repopulation.
     connect(points_, &QTableWidget::itemChanged, this, [this](QTableWidgetItem* it) {
       if (updating_ || !it) return;
       const int col = it->column();
-      if (col != ColX && col != ColY) return;
+      if (col != COL_X && col != COL_Y) return;
       bool ok = false;
       const double v = it->text().toDouble(&ok);
-      if (ok) emit pointCoordChanged(it->row(), col == ColX ? 0 : 1, v);
+      if (ok) emit pointCoordChanged(it->row(), col == COL_X ? 0 : 1, v);
     });
 
     showLine(nullptr, -1);

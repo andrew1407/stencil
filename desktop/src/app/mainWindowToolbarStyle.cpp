@@ -84,9 +84,9 @@ namespace stencil::gui {
 
     // Flip the canvas mode only; the drawModeChanged handler echoes back the label/tooltip.
     connect(drawModeBtn_, &QToolButton::clicked, this, [this] {
-      const auto next = canvas_->drawMode() == CanvasWidget::DrawMode::Rect
-                            ? CanvasWidget::DrawMode::Line
-                            : CanvasWidget::DrawMode::Rect;
+      const auto next = canvas_->drawMode() == CanvasWidget::DrawMode::RECT
+                            ? CanvasWidget::DrawMode::LINE
+                            : CanvasWidget::DrawMode::RECT;
       canvas_->setDrawMode(next);
       persistSettings();
     });
@@ -94,7 +94,7 @@ namespace stencil::gui {
     connect(canvas_, &CanvasWidget::drawModeChanged, this,
             [this](CanvasWidget::DrawMode mode) {
               // Glyph + word cross over together (support/faceSwap.hpp), like Start/Stop.
-              syncDrawModeFace(mode == CanvasWidget::DrawMode::Rect, true);
+              syncDrawModeFace(mode == CanvasWidget::DrawMode::RECT, true);
             });
 
     // drawingApp.js:155

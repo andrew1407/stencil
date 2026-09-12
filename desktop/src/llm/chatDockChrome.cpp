@@ -83,8 +83,8 @@ namespace stencil::gui {
                               ChatDock::ProviderStatus status,
                               const QPalette& pal) {
     const QString color =
-        status == ChatDock::ProviderStatus::Ok            ? QString(CHAT_STATUS_OK_COLOR)
-        : status == ChatDock::ProviderStatus::Unreachable ? QString(CHAT_STATUS_BAD_COLOR)
+        status == ChatDock::ProviderStatus::OK            ? QString(CHAT_STATUS_OK_COLOR)
+        : status == ChatDock::ProviderStatus::UNREACHABLE ? QString(CHAT_STATUS_BAD_COLOR)
                                                           : pal.color(QPalette::Mid).name();
     // Badge on the gear's corner: filled dot + a subtle ring for legibility.
     dot->setStyleSheet(

@@ -111,10 +111,10 @@ int main(int argc, char** argv) {
                                   [cb, winner](bool ok, qint64 nv, bool conflict) {
                                     if (ok) {
                                       *winner = nv;
-                                      cb(GO::Committed);
+                                      cb(GO::COMMITTED);
                                       return;
                                     }
-                                    cb(conflict ? GO::Conflict : GO::Failed);
+                                    cb(conflict ? GO::CONFLICT : GO::FAILED);
                                   });
         },
         [cli, id, myLines, lineKey](qint64 /*version*/,
@@ -138,7 +138,7 @@ int main(int argc, char** argv) {
             cb(true, meta.version);  // adopt the server version, then retry the PUT
           });
         },
-        [done, winner](GO o) { done(o == GO::Committed, *winner); });
+        [done, winner](GO o) { done(o == GO::COMMITTED, *winner); });
   };
 
   // A tiny PNG original so the open/load path has bytes to download + decode.

@@ -63,7 +63,7 @@ test('a mark is grained finer than a window, under a much smaller ceiling', () =
 });
 
 test('a mark FALLS like a row — it does not fly at a point like a window', () => {
-  // The desktop scatters its checkbox indicator with Sweep::Fall / Sweep::Gather
+  // The desktop scatters its checkbox indicator with Sweep::FALL / Sweep::GATHER
   // (support/controlSwap.hpp swapCheckIndicator); the browser has to mime the same thing,
   // so markDust passes no `toward` and disintegrate takes the tileMotion branch.
   const body = motionJs.slice(motionJs.indexOf('const markDust ='),

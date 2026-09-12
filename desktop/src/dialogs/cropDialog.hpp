@@ -56,8 +56,8 @@ namespace stencil::gui {
     int iw_ = 0, ih_ = 0;
 
     // Active gesture.
-    enum class Drag { None, Move, Resize };
-    Drag drag_ = Drag::None;
+    enum class Drag { NONE, MOVE, RESIZE };
+    Drag drag_ = Drag::NONE;
     int dragCorner_ = -1;
     core::Point dragStartImg_;
     core::CropRect dragStartRect_;

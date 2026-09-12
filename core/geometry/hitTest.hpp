@@ -42,9 +42,9 @@ namespace stencil::core {
                                                double y, double threshold = 12.0);
 
   // holdDraw.js holdDrawTarget: what an initial hold-to-draw press targets.
-  enum class HoldTargetKind { NewLine, ContinuePoint, InsertSegment };
+  enum class HoldTargetKind { NEW_LINE, CONTINUE_POINT, INSERT_SEGMENT };
   struct HoldTarget {
-    HoldTargetKind kind = HoldTargetKind::NewLine;
+    HoldTargetKind kind = HoldTargetKind::NEW_LINE;
     int lineIdx = -1;  // line to continue / insert into (-1 for NewLine)
     int ptIdx = -1;    // ContinuePoint: the point; InsertSegment: first endpoint
     int ptIdx2 = -1;   // InsertSegment: second endpoint

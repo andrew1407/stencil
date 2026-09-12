@@ -63,8 +63,8 @@ namespace stencil::gui {
       dismiss(live[i]);
 
     // Browser toast variants: --danger for a failure, --accent for everything else.
-    const QColor bg = level == Level::Error ? errorBg_ : normalBg_;
-    const char* glyph = level == Level::Success ? "check" : level == Level::Error ? "x" : "info";
+    const QColor bg = level == Level::ERROR ? errorBg_ : normalBg_;
+    const char* glyph = level == Level::SUCCESS ? "check" : level == Level::ERROR ? "x" : "info";
 
     auto* toast = new QLabel(host_);
     toast->setTextFormat(Qt::RichText);

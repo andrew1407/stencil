@@ -44,7 +44,7 @@ namespace stencil::llm {
     // Local-only "assistant off" (contract §5 note): a typed config error,
     // never a transport call.
     if (cfg.provider == QLatin1String("none")) {
-      done(failReply(LlmFailure::Off,
+      done(failReply(LlmFailure::OFF,
                      QStringLiteral("The assistant is turned off — choose a provider "
                                     "to enable it.")));
       return;
@@ -57,7 +57,7 @@ namespace stencil::llm {
     } else if (cfg.provider == QLatin1String("ollama")) {
       chatOllama(cfg, messages, system, std::move(done));
     } else {
-      done(failReply(LlmFailure::BadResponse,
+      done(failReply(LlmFailure::BAD_RESPONSE,
                      QStringLiteral("Unknown LLM provider \"%1\"").arg(cfg.provider)));
     }
   }

@@ -51,7 +51,7 @@ namespace stencil::gui {
     // Overlays FIRST (they snapshot the still-painted rows), then retire the lot.
     for (const QRect& r : rects)
       DisintegrateOverlay::overRect(list_->viewport(), r, this,
-                                    DisintegrateOverlay::Sweep::Rows, /*dust=*/true, budget,
+                                    DisintegrateOverlay::Sweep::ROWS, /*dust=*/true, budget,
                                     DisintegrateOverlay::ITEM_MS,   // a card is read, not glanced at
                                     list_->palette().color(QPalette::Text));
     for (QListWidgetItem* it : doomed)
@@ -126,7 +126,7 @@ namespace stencil::gui {
     selectedId_ = it->data(Qt::UserRole).toString();
     selectedServerUrl_ = it->data(Qt::UserRole + 1).toString();
     selectedColor_ = color;
-    action_ = Action::SetColor;
+    action_ = Action::SET_COLOR;
     accept();
   }
 
@@ -156,7 +156,7 @@ namespace stencil::gui {
   }
 
   void ProjectsDialog::createBlank() {
-    action_ = Action::NewBlank;
+    action_ = Action::NEW_BLANK;
     accept();
   }
 
@@ -165,7 +165,7 @@ namespace stencil::gui {
     const auto name = promptValidatedName(this, "New Project", seed, QString(), projects_);
     if (!name) return;
     newName_ = *name;
-    action_ = Action::New;
+    action_ = Action::NEW;
     accept();
   }
 

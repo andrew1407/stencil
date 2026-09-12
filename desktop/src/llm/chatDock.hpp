@@ -49,7 +49,7 @@ namespace stencil::gui {
 
   QToolButton* makeChatAccentButton(QWidget* parent, const QString& tooltip);
 
-  enum class ChatCardKind { Bubble, Error, Muted };
+  enum class ChatCardKind { BUBBLE, ERROR, MUTED };
   QLabel* fillChatCard(QFrame* card, QVBoxLayout* lay, const QString& role,
                        const QString& text, ChatCardKind kind, const QColor& danger);
   // Pure: `swapped` flips the side, `user` alone decides it at rest.
@@ -141,7 +141,7 @@ namespace stencil::gui {
     // Offscreen has no cursor/button state; tests stub how the drag poll reads them.
     void setDragProbesForTest(std::function<QPoint()> cursorPos,
                               std::function<bool()> leftButtonDown);
-    enum class ProviderStatus { Unknown, Ok, Unreachable };
+    enum class ProviderStatus { UNKNOWN, OK, UNREACHABLE };
     void setProviderStatus(const QString& richTooltip, ProviderStatus status);
     void restyleIcons(const Palette& pal);
 
@@ -214,7 +214,7 @@ namespace stencil::gui {
     // Each card owns its animation, so overlapping appends never interfere.
     void animateCardIn(QWidget* card, QVBoxLayout* lay);
     void startCardEntrance(QWidget* card, QVBoxLayout* lay);
-    enum class CardKind { Bubble, Error, Muted };
+    enum class CardKind { BUBBLE, ERROR, MUTED };
     QVBoxLayout* appendCard(const QString& role, const QString& text, CardKind kind);
     // Installed on the card AND its labels: a selectable QLabel pops Qt's own menu otherwise.
     void installCardMenu(QFrame* card);

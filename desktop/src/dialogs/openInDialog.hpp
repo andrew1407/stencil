@@ -18,7 +18,7 @@ namespace stencil::gui {
   class OpenInDialog : public QDialog {
     Q_OBJECT
    public:
-    enum class Outcome { Browser, Telegram };
+    enum class Outcome { BROWSER, TELEGRAM };
 
     // serverProject: the session is linked to a server project on `serverUrl` (shown
     // in the status line); `serverId` is its id, for the Telegram payload check.
@@ -51,7 +51,7 @@ namespace stencil::gui {
     QWidget* fallbackRow_ = nullptr;
     QLabel* fallbackCmds_ = nullptr;
     QLabel* hint_ = nullptr;
-    Outcome outcome_ = Outcome::Browser;
+    Outcome outcome_ = Outcome::BROWSER;
   };
 
 }

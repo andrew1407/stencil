@@ -43,17 +43,17 @@ namespace stencil::net {
   class ServerClient {
    public:
     // Expired (401/403) is deliberately not Error: the server is fine and the saved row is kept for re-sign-in.
-    enum class Status { Connecting, Connected, Expired, Error };
+    enum class Status { CONNECTING, CONNECTED, EXPIRED, ERROR };
 
-    enum class GuardOutcome { Committed, Conflict, Failed };
+    enum class GuardOutcome { COMMITTED, CONFLICT, FAILED };
 
     // Browser parity: ServerConnection.credentialKind. Admin has proven it can mint a session token.
-    enum class CredentialKind { None, Session, Admin };
+    enum class CredentialKind { NONE, SESSION, ADMIN };
 
     explicit ServerClient(const QString& url);
     ~ServerClient();
 
-    bool needsReauth() const { return status_ == Status::Expired; }
+    bool needsReauth() const { return status_ == Status::EXPIRED; }
 
     static QString normalizeBase(const QString& raw);
     // Split "<url>#token=<tok>" BEFORE normalizeBase, which drops the fragment.
@@ -71,7 +71,7 @@ namespace stencil::net {
     const QString& lastError() const { return err_; }
     Status status() const { return status_; }
     CredentialKind credentialKind() const { return kind_; }
-    bool isAdmin() const { return kind_ == CredentialKind::Admin; }
+    bool isAdmin() const { return kind_ == CredentialKind::ADMIN; }
 
     static QString kindTag(CredentialKind k);
     static CredentialKind kindFromTag(const QString& tag);
@@ -79,7 +79,7 @@ namespace stencil::net {
     // Completions run on the GUI thread; callers guard captures with QPointer. After the client
     // dies the reply is a no-op — the connection is bound to nam_.
     void connectAsync(const QString& token, std::function<void(bool ok)> done,
-                      CredentialKind hint = CredentialKind::None);
+                      CredentialKind hint = CredentialKind::NONE);
     void reconnectAsync(std::function<void(bool ok)> done);
     void listProjectsAsync(std::function<void(bool ok, QVector<ServerProject> projects)> done);
     void createProjectAsync(const QString& name, const QString& source, const QString& resource,
@@ -141,9 +141,9 @@ namespace stencil::net {
     QString base_;
     QString token_;
     QString credential_;
-    CredentialKind kind_ = CredentialKind::None;
+    CredentialKind kind_ = CredentialKind::NONE;
     QString err_;
-    Status status_ = Status::Connecting;
+    Status status_ = Status::CONNECTING;
   };
 
   class ConnectionManager : public QObject {
@@ -155,7 +155,7 @@ namespace stencil::net {
     // `kindHint` is a previously proven CredentialKind from the saved set.
     void connectToAsync(const QString& url, const QString& token,
                         std::function<void(bool ok, QString err)> done,
-                        ServerClient::CredentialKind kindHint = ServerClient::CredentialKind::None);
+                        ServerClient::CredentialKind kindHint = ServerClient::CredentialKind::NONE);
     void disconnectFrom(const QString& url = QString());
     // QList::move semantics; emits changed() so the order persists. Browser: ConnectionManager.reorder().
     void reorder(int from, int to);

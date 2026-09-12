@@ -10,12 +10,12 @@ namespace stencil::llm {
 
   // §13 "capability truth": assembling with a reduced set EXCLUDES the ops that need the missing ones.
   enum OpCapability : unsigned {
-    CapNone = 0u,
-    CapClipboard = 1u << 0,
-    CapServers = 1u << 1,
-    CapVideo = 1u << 2,
-    CapFilesystem = 1u << 3,
-    CapAllDesktop = CapClipboard | CapServers | CapVideo | CapFilesystem,
+    CAP_NONE = 0u,
+    CAP_CLIPBOARD = 1u << 0,
+    CAP_SERVERS = 1u << 1,
+    CAP_VIDEO = 1u << 2,
+    CAP_FILESYSTEM = 1u << 3,
+    CAP_ALL_DESKTOP = CAP_CLIPBOARD | CAP_SERVERS | CAP_VIDEO | CAP_FILESYSTEM,
   };
 
   // A `bullet` shared by two kinds (undo/redo, connect/disconnect) is emitted once.
@@ -58,9 +58,9 @@ namespace stencil::llm {
                              const QVector<OpAddendum>& addenda, unsigned caps,
                              QString* censorError = nullptr);
 
-  QString assembleOpsSection(unsigned caps = CapAllDesktop);
-  QString assembleEditorOpsBlock(unsigned caps = CapAllDesktop);
-  QString assembleSystemPrompt(unsigned caps = CapAllDesktop);
+  QString assembleOpsSection(unsigned caps = CAP_ALL_DESKTOP);
+  QString assembleEditorOpsBlock(unsigned caps = CAP_ALL_DESKTOP);
+  QString assembleSystemPrompt(unsigned caps = CAP_ALL_DESKTOP);
   const QString& assembledSystemPrompt();
 
 }  // namespace stencil::llm

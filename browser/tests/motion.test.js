@@ -1400,7 +1400,7 @@ test('every flight bends through the waypoint on its own first leg, and the clou
     // …at half its shrink, so nothing snaps at the bend.
     assert.ok(Math.abs(bend.r - 4 * (1 - (1 - 0.4) * 0.5)) < 1e-6, `${name}: half the shrink at the bend`);
     // The first leg carries its own curve, so the bend is a bend, not a stop-and-go
-    // (a mark's fall rides one curve throughout, like the desktop's Sweep::Fall).
+    // (a mark's fall rides one curve throughout, like the desktop's Sweep::FALL).
     if (name !== 'fall') assert.notEqual(f.leg(0.5), f.rest(0.5), `${name}: leg one eases on its own`);
   }
   // No node per grain any more: the layer holds ONE canvas (js/ui/dustCloud.js) and the

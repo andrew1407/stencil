@@ -21,7 +21,7 @@ namespace stencil::gui {
 
   using namespace chatdock;
   void ChatDock::appendUser(const QString& text, const QList<QImage>& images) {
-    QVBoxLayout* lay = appendCard("You", text, CardKind::Bubble);
+    QVBoxLayout* lay = appendCard("You", text, CardKind::BUBBLE);
     // Sending always lands the view at the very bottom, wherever it was.
     scrollToBottom();
     if (images.isEmpty()) return;
@@ -58,7 +58,7 @@ namespace stencil::gui {
                                  const QStringList& notes) {
     QString t = text;
     for (const QString& w : warnings) t += QStringLiteral("\n⚠ ") + w;
-    QVBoxLayout* lay = appendCard("Assistant", t, CardKind::Bubble);
+    QVBoxLayout* lay = appendCard("Assistant", t, CardKind::BUBBLE);
     lastAssistantCard_ = lay->parentWidget();   // late notes merge into THIS bubble
     // Executor notes ride WITH the reply — muted lines in the SAME bubble, never
     // a separate card (browser parity: they merge into the reply's warnings).

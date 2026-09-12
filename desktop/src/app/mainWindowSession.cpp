@@ -58,7 +58,7 @@ namespace stencil::gui {
     s.imageFilter = settings_.imageFilter;
     s.filterColor = settings_.filterColor;
     s.drawMode =
-        canvas_->drawMode() == CanvasWidget::DrawMode::Rect ? "rect" : "line";
+        canvas_->drawMode() == CanvasWidget::DrawMode::RECT ? "rect" : "line";
     s.cropRect = canvas_->cropRect();
     s.rotationQuarters = canvas_->rotationQuarters();
     s.activeProjectId = activeProjectId_;
@@ -89,8 +89,8 @@ namespace stencil::gui {
     // The filter/tint never carries over a relaunch; saveSessionNow still writes it and .stencil
     // files round-trip it.
     canvas_->setDrawMode(sess->drawMode == "rect"
-                             ? CanvasWidget::DrawMode::Rect
-                             : CanvasWidget::DrawMode::Line);
+                             ? CanvasWidget::DrawMode::RECT
+                             : CanvasWidget::DrawMode::LINE);
     // Guarded: a restoring setZoom would re-persist itself and pop a stray "Saved" toast on
     // launch.
     session_.setRestoring(true);

@@ -81,8 +81,8 @@ namespace stencil::gui {
   QLabel* fillChatCard(QFrame* card, QVBoxLayout* lay, const QString& role,
                        const QString& text, ChatCardKind kind, const QColor& danger) {
     const bool user = role == QLatin1String("You");
-    card->setObjectName(kind == ChatCardKind::Error ? QStringLiteral("chatCardError")
-                        : kind == ChatCardKind::Muted ? QStringLiteral("chatCardMuted")
+    card->setObjectName(kind == ChatCardKind::ERROR ? QStringLiteral("chatCardError")
+                        : kind == ChatCardKind::MUTED ? QStringLiteral("chatCardMuted")
                         : user ? QStringLiteral("chatCardUser")
                                : QStringLiteral("chatCardAssistant"));
     auto* bodyLabel = makePlainLabel(text, card);
@@ -90,9 +90,9 @@ namespace stencil::gui {
     bodyLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     bodyLabel->setProperty("chatRole", role);
     bodyLabel->setProperty("chatBody", text);
-    if (kind == ChatCardKind::Error)
+    if (kind == ChatCardKind::ERROR)
       applyDangerText(bodyLabel, danger.isValid() ? danger : QColor("#d6293e"));
-    if (kind == ChatCardKind::Muted) applyMutedText(bodyLabel);
+    if (kind == ChatCardKind::MUTED) applyMutedText(bodyLabel);
     lay->addWidget(bodyLabel);
     return bodyLabel;
   }
@@ -114,9 +114,9 @@ namespace stencil::gui {
     auto* card = qobject_cast<QFrame*>(lay->parentWidget());
     const bool user = role == QLatin1String("You");
     fillChatCard(card, lay, role, text,
-                 kind == CardKind::Error   ? ChatCardKind::Error
-                 : kind == CardKind::Muted ? ChatCardKind::Muted
-                                           : ChatCardKind::Bubble,
+                 kind == CardKind::ERROR   ? ChatCardKind::ERROR
+                 : kind == CardKind::MUTED ? ChatCardKind::MUTED
+                                           : ChatCardKind::BUBBLE,
                  dangerCache_);
     // pageBg is the transcript's REAL backdrop (bgControls), not chipCache_ — else the tail is a shade off.
     applyChatBubbleSide(card, transcriptLayout_, chatBubbleOnRight(user, chatSwapSides_),

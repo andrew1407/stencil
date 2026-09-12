@@ -49,7 +49,7 @@ namespace stencil::gui {
         DisintegrateOverlay::overRect(
             list_->viewport(),
             list_->visualItemRect(row).intersected(list_->viewport()->rect()),
-            this, DisintegrateOverlay::Sweep::Rows, /*dust=*/true,
+            this, DisintegrateOverlay::Sweep::ROWS, /*dust=*/true,
             DisintegrateOverlay::DUST_MAX_CELLS, DisintegrateOverlay::DUST_MS,
             list_->palette().color(QPalette::Text));   // lifted to the row's ink
         retireRow(row);  // blank the real row at once — the snapshot is what flies
@@ -73,7 +73,7 @@ namespace stencil::gui {
     if (target.isEmpty()) return;
     selectedId_ = it->data(Qt::UserRole).toString();
     selectedServerUrl_ = target;
-    action_ = Action::MoveToServer;
+    action_ = Action::MOVE_TO_SERVER;
     accept();
   }
 
@@ -104,7 +104,7 @@ namespace stencil::gui {
     selectedId_ = id;
     selectedServerUrl_ = target;
     newName_ = *name;
-    action_ = Action::CopyToServer;
+    action_ = Action::COPY_TO_SERVER;
     accept();
   }
 
@@ -115,7 +115,7 @@ namespace stencil::gui {
     if (server.isEmpty()) return;  // server (golden) rows only
     selectedId_ = it->data(Qt::UserRole).toString();
     selectedServerUrl_ = server;
-    action_ = Action::MoveToLocal;
+    action_ = Action::MOVE_TO_LOCAL;
     accept();
   }
 
@@ -139,7 +139,7 @@ namespace stencil::gui {
     selectedId_ = id;
     selectedServerUrl_ = server;
     newName_ = *name;
-    action_ = Action::MakeLocalCopy;
+    action_ = Action::MAKE_LOCAL_COPY;
     accept();
   }
 

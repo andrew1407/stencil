@@ -156,7 +156,7 @@ namespace stencil::gui {
     std::uint8_t* bits = img.bits();
     // Enough rows that a slice outweighs handing it to another thread.
     constexpr int MIN_ROWS_PER_SLICE = 64;
-    if (mode == core::FilterMode::Contour) {
+    if (mode == core::FilterMode::CONTOUR) {
       // Sobel reads one row OUTSIDE its range on each side, so every luma row must
       // exist before any sobel slice runs: two separate phases, never interleaved
       // per tile (core/raster/imageFilter.hpp).

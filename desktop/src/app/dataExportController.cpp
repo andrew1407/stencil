@@ -133,8 +133,8 @@ namespace stencil::gui {
       spec.altLabel = "Combine";
       spec.altIcon = QStringLiteral("layers");
       const ConfirmChoice pick = confirmModalChoice(parent_, spec);
-      if (pick == ConfirmChoice::Alt) combine = true;
-      else if (pick != ConfirmChoice::Confirm) {
+      if (pick == ConfirmChoice::ALT) combine = true;
+      else if (pick != ConfirmChoice::CONFIRM) {
         notify_->info("Import canceled");  // drawingApp.js:2107 "Upload canceled"
         return;
       }

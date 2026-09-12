@@ -72,7 +72,7 @@ namespace stencil::gui {
     revealGrid(at.size(), &cols, &rows);
     DisintegrateOverlay* fx = DisintegrateOverlay::overPixmaps(
         pm, QPixmap(), at, host,
-        gather ? DisintegrateOverlay::Sweep::Gather : DisintegrateOverlay::Sweep::Fall,
+        gather ? DisintegrateOverlay::Sweep::GATHER : DisintegrateOverlay::Sweep::FALL,
         cols, rows, ms, CONTROL_REVEAL_SPREAD, CONTROL_REVEAL_PAD_PX,
         QString::fromLatin1(CONTROL_REVEAL_OBJECT_NAME));
     if (fx) {

@@ -147,7 +147,7 @@ namespace stencil::gui {
       const QRect vis = canvas_->visibleRegion().boundingRect();
       if (!vis.isEmpty())
         DisintegrateOverlay::overRect(canvas_, vis, scroll_->viewport(),
-                                      DisintegrateOverlay::Sweep::Fall);
+                                      DisintegrateOverlay::Sweep::FALL);
     }
     canvas_->clearImage();
     updateStatusIdle();   // the last hovered pixel must not outlive the image it named

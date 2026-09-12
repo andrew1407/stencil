@@ -166,7 +166,7 @@ namespace stencil::gui {
     // Deferred a turn: the edge fade needs the rows' laid-out geometry.
     QTimer::singleShot(0, this, [this] { applyRowReveal(); });
     // Newly-connected rows materialize as the removal played backwards: the slot opens
-    // blank and the dust GATHERS into the row (Sweep::Gather — browser ghostIn parity).
+    // blank and the dust GATHERS into the row (Sweep::GATHER — browser ghostIn parity).
     if (!fresh.isEmpty() && isVisible() && !support::motionReduced()) {
       // Deferred a turn so the view has laid the new rows out (the grab needs geometry).
       QTimer::singleShot(0, this, [this, fresh] {
@@ -181,7 +181,7 @@ namespace stencil::gui {
           // On the CONTROL clock, not the row's: Select all arrives in the same turn (the
           // bar opens with the first row), and a row still forming after the button had
           // landed read as the two appearing one after the other.
-          if (DisintegrateOverlay::over(w, this, DisintegrateOverlay::Sweep::Gather, 0, 0,
+          if (DisintegrateOverlay::over(w, this, DisintegrateOverlay::Sweep::GATHER, 0, 0,
                                         CONN_ARRIVE_MS)) {
             w->setVisible(false);   // the slot stays; the motes are what the eye follows
             QPointer<QWidget> wp(w);

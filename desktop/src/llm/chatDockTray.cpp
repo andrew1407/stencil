@@ -75,7 +75,7 @@ namespace stencil::gui {
       connect(rm, &QToolButton::clicked, this, [this, remove, chip] {
         if (chip->property("chatChipLeaving").toBool()) return;   // one click is enough
         chip->setProperty("chatChipLeaving", true);
-        DisintegrateOverlay::over(chip, window(), DisintegrateOverlay::Sweep::Fall,
+        DisintegrateOverlay::over(chip, window(), DisintegrateOverlay::Sweep::FALL,
                                   CHAT_SCATTER_COLS, CHAT_SCATTER_ROWS, 0,
                                   chip->palette().color(QPalette::WindowText));
         // Fade the chip itself out (the scatter replaces it visually) WITHOUT hiding

@@ -177,9 +177,9 @@ namespace stencil::gui {
     auto* lay = new QVBoxLayout(card);
     lay->setContentsMargins(8, 6, 8, 6);
     lay->setSpacing(2);
-    const ChatCardKind kind = role == QLatin1String("Error") ? ChatCardKind::Error
-                              : muted                       ? ChatCardKind::Muted
-                                                            : ChatCardKind::Bubble;
+    const ChatCardKind kind = role == QLatin1String("Error") ? ChatCardKind::ERROR
+                              : muted                       ? ChatCardKind::MUTED
+                                                            : ChatCardKind::BUBBLE;
     fillChatCard(card, lay, role, text, kind, danger_);
     // Warnings / executor notes ride INSIDE the bubble, exactly as the dock
     // renders them — one card per turn, never extra rows.

@@ -7,11 +7,11 @@ namespace stencil::support {
   StyleFrame styleFrame(ParticleStyle s, double p, double away, double w, double len, double ms) {
     using namespace style;
     StyleFrame out;
-    if (s != ParticleStyle::Water && s != ParticleStyle::Fire) return out;
+    if (s != ParticleStyle::WATER && s != ParticleStyle::FIRE) return out;
     const double env = std::sin(PI * p);
     const double phase = w * 2 * PI;
     const double sec = ms / 1000.0;
-    if (s == ParticleStyle::Water) {
+    if (s == ParticleStyle::WATER) {
       out.sy = std::min(len * WATER_SAG_SHARE, WATER_SAG_MAX_PX) * (0.6 + 0.4 * w) * env;
       out.sx = std::min(len * WATER_SWAY_SHARE, WATER_SWAY_MAX_PX) * env
              * std::sin(p * wave(WATER_SWAY_WAVES, w) * 2 * PI + phase);

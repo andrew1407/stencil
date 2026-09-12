@@ -45,29 +45,29 @@ namespace stencil::gui {
   namespace {
     // A LOCAL file, a remote http(s) URL, or raw IMAGE bytes; the desktop has no CORS limit on remote drags.
     struct DropSrc {
-      enum Kind { None, LocalFile, Url, ImageData } kind = None;
+      enum Kind { NONE, LOCAL_FILE, URL, IMAGE_DATA } kind = NONE;
       QString value;  // path (LocalFile) or url (Url); ImageData carries no string
     };
     DropSrc droppableSource(const QMimeData* m) {
       if (!m) return {};
       for (const QUrl& u : m->urls())
-        if (u.isLocalFile()) return { DropSrc::LocalFile, u.toLocalFile() };
+        if (u.isLocalFile()) return { DropSrc::LOCAL_FILE, u.toLocalFile() };
       for (const QUrl& u : m->urls()) {
         const QString s = u.toString();
-        if (s.startsWith("http://") || s.startsWith("https://")) return { DropSrc::Url, s };
+        if (s.startsWith("http://") || s.startsWith("https://")) return { DropSrc::URL, s };
       }
       if (m->hasText()) {
         const QString t = m->text().trimmed();
-        if (t.startsWith("http://") || t.startsWith("https://")) return { DropSrc::Url, t };
+        if (t.startsWith("http://") || t.startsWith("https://")) return { DropSrc::URL, t };
       }
-      if (m->hasImage()) return { DropSrc::ImageData, QString() };
+      if (m->hasImage()) return { DropSrc::IMAGE_DATA, QString() };
       return {};
     }
   }  // namespace
 
   void MainWindow::dragEnterEvent(QDragEnterEvent* event) {
     // Show the split LEFT-save / RIGHT-incognito overlay.
-    if (droppableSource(event->mimeData()).kind == DropSrc::None) return;
+    if (droppableSource(event->mimeData()).kind == DropSrc::NONE) return;
     event->acceptProposedAction();
     if (dropZones_) {
       dropZones_->setActiveLeft(event->position().x() < width() / 2.0);
@@ -76,7 +76,7 @@ namespace stencil::gui {
   }
 
   void MainWindow::dragMoveEvent(QDragMoveEvent* event) {
-    if (droppableSource(event->mimeData()).kind == DropSrc::None) return;
+    if (droppableSource(event->mimeData()).kind == DropSrc::NONE) return;
     event->acceptProposedAction();
     if (dropZones_) dropZones_->setActiveLeft(event->position().x() < width() / 2.0);
   }
@@ -88,11 +88,11 @@ namespace stencil::gui {
   void MainWindow::dropEvent(QDropEvent* event) {
     if (dropZones_) dropZones_->hideZones();
     const DropSrc src = droppableSource(event->mimeData());
-    if (src.kind == DropSrc::None) return;
+    if (src.kind == DropSrc::NONE) return;
     event->acceptProposedAction();
 
     // A .json layout ignores the save/incognito split.
-    if (src.kind == DropSrc::LocalFile &&
+    if (src.kind == DropSrc::LOCAL_FILE &&
         QFileInfo(src.value).suffix().compare("json", Qt::CaseInsensitive) == 0) {
       applyLayoutFromSource(src.value);
       return;
@@ -103,8 +103,8 @@ namespace stencil::gui {
     // Raw pixels become a data: URL (openImageSource decodes them).
     QString source = src.value;
     bool isLocal = false;
-    if (src.kind == DropSrc::LocalFile) { isLocal = true; }
-    else if (src.kind == DropSrc::ImageData) {
+    if (src.kind == DropSrc::LOCAL_FILE) { isLocal = true; }
+    else if (src.kind == DropSrc::IMAGE_DATA) {
       const QImage img = qvariant_cast<QImage>(event->mimeData()->imageData());
       if (img.isNull()) return;
       source = QStringLiteral("data:image/png;base64,") + QString::fromLatin1(pngBytes(img).toBase64());
@@ -124,8 +124,8 @@ namespace stencil::gui {
       spec.altLabel = tr("New window");
       spec.altIcon = QStringLiteral("external");       // …opened in another window
       const ConfirmChoice pick = confirmModalChoice(this, spec);
-      if (pick == ConfirmChoice::Confirm) openHere();
-      else if (pick == ConfirmChoice::Alt) openNew();
+      if (pick == ConfirmChoice::CONFIRM) openHere();
+      else if (pick == ConfirmChoice::ALT) openNew();
       return;
     }
     openHere();
@@ -140,7 +140,7 @@ namespace stencil::gui {
     const bool dust = canvas_->hasImage() && scroll_ && scroll_->viewport()
         && !canvas_->visibleRegion().boundingRect().isEmpty()
         && DisintegrateOverlay::overRect(canvas_, canvas_->visibleRegion().boundingRect(),
-                                         scroll_->viewport(), DisintegrateOverlay::Sweep::Gather);
+                                         scroll_->viewport(), DisintegrateOverlay::Sweep::GATHER);
     auto* fx = new QGraphicsOpacityEffect(canvas_);
     fx->setOpacity(0.0);
     canvas_->setGraphicsEffect(fx);

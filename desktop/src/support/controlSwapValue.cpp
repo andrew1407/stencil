@@ -134,7 +134,7 @@ namespace stencil::gui {
               g.at += QPointF(sf.sx, sf.sy);
               g.r *= sf.scale;
               g.c = support::tintedStop(accent_, shade_,
-                                        style_ == support::ParticleStyle::Dust ? support::dustMix(w, false) : sf.mix,
+                                        style_ == support::ParticleStyle::DUST ? support::dustMix(w, false) : sf.mix,
                                         support::tintOf(w), dark_);
               g.c.setAlphaF(std::min(1.0, alpha * sf.glow));
               grains.push_back(g);
@@ -166,7 +166,7 @@ namespace stencil::gui {
     p.setRenderHint(QPainter::Antialiasing, true);
     p.setPen(Qt::NoPen);
     for (const Grain& g : grains) {
-      if (g.shape == support::GrainShape::Disc) {
+      if (g.shape == support::GrainShape::DISC) {
         p.setBrush(g.c);
         p.drawEllipse(g.at, g.r, g.r);
       } else {

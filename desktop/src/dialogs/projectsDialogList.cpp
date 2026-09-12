@@ -51,20 +51,20 @@ namespace stencil::gui {
     };
     // New-window + Remove are LOCAL-only (mirrors the ⋯ menu).
     reList->onDragOut = [this](int rowIdx) {
-      const auto zone = dragZones_ ? dragZones_->zoneAt(QCursor::pos()) : ProjectDragZones::Zone::None;
-      if (zone == ProjectDragZones::Zone::None) return;
+      const auto zone = dragZones_ ? dragZones_->zoneAt(QCursor::pos()) : ProjectDragZones::Zone::NONE;
+      if (zone == ProjectDragZones::Zone::NONE) return;
       QListWidgetItem* it = list_->item(rowIdx);
       if (!it || it->data(Qt::UserRole).isNull()) return;
       list_->setCurrentItem(it);
       const bool remote = !it->data(Qt::UserRole + 1).toString().isEmpty();
       using Zone = ProjectDragZones::Zone;
       // Open's confirm is shown by MainWindow AFTER the dialog closes — inside the drag release it was dismissed.
-      if (zone == Zone::Here) {
+      if (zone == Zone::HERE) {
         openSelected();
-      } else if (zone == Zone::NewWindow) {
+      } else if (zone == Zone::NEW_WINDOW) {
         if (remote) openSelected();
         else openSelectedInNewWindow();
-      } else if (zone == Zone::Remove) {
+      } else if (zone == Zone::REMOVE) {
         if (!remote) deleteSelected();
       }
     };

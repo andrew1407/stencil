@@ -44,9 +44,9 @@ namespace stencil::gui {
     if (dlg.loadRequested()) {
       // Quick pre-load edits, consumed once by onLaunchImageLoaded.
       if (dlg.cropToPage())
-        pendingCrop_ = {QuickCropOpts::Mode::Page, dlg.cropAlbum(), dlg.cropPageSize()};
+        pendingCrop_ = {QuickCropOpts::Mode::PAGE, dlg.cropAlbum(), dlg.cropPageSize()};
       else
-        pendingCrop_ = {QuickCropOpts::Mode::None, false, QString()};
+        pendingCrop_ = {QuickCropOpts::Mode::NONE, false, QString()};
       // Adopt the pixels the preview already decoded (no second download/seek).
       const QImage previewed = dlg.previewedImage();
       if (!previewed.isNull()) {

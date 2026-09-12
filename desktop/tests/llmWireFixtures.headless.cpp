@@ -56,12 +56,12 @@ namespace {
   };
 
   LlmFailure failureFromKind(const QString& kind) {
-    if (kind == "truncated") return LlmFailure::Truncated;
-    if (kind == "refusal") return LlmFailure::Refusal;
-    if (kind == "disabled") return LlmFailure::Disabled;
-    if (kind == "badReply" || kind == "badResponse") return LlmFailure::BadResponse;
-    if (kind == "expired") return LlmFailure::Expired;
-    return LlmFailure::Http;
+    if (kind == "truncated") return LlmFailure::TRUNCATED;
+    if (kind == "refusal") return LlmFailure::REFUSAL;
+    if (kind == "disabled") return LlmFailure::DISABLED;
+    if (kind == "badReply" || kind == "badResponse") return LlmFailure::BAD_RESPONSE;
+    if (kind == "expired") return LlmFailure::EXPIRED;
+    return LlmFailure::HTTP;
   }
 
   void walkWireFile(const char* rel, int& walked, int& overridden) {

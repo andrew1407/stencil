@@ -44,11 +44,11 @@ TEST_SUITE("bench") {
     auto buf = base;
     const double bw = best_ms(3, [&] {
       buf = base;
-      applyFilterRGBA(FilterMode::Bw, buf.data(), static_cast<std::size_t>(w) * h, 0, 0, 0);
+      applyFilterRGBA(FilterMode::BW, buf.data(), static_cast<std::size_t>(w) * h, 0, 0, 0);
     });
     const double sepia = best_ms(3, [&] {
       buf = base;
-      applyFilterRGBA(FilterMode::Sepia, buf.data(), static_cast<std::size_t>(w) * h, 0, 0, 0);
+      applyFilterRGBA(FilterMode::SEPIA, buf.data(), static_cast<std::size_t>(w) * h, 0, 0, 0);
     });
     const double contour = best_ms(3, [&] {
       buf = base;

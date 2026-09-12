@@ -74,7 +74,7 @@ namespace stencil::gui {
       if (!dustMoteAt(i, timeMs_, QPointF(c), full_, QSizeF(size()), &mote, style_)) continue;
       // Painted from the departing palette by mix and hash (browser spawnSwapDust).
       const support::StyleFrame sf = support::styleFrame(style_, mote.life, mote.life, mote.w, mote.len, timeMs_);
-      const double mix = style_ == support::ParticleStyle::Dust ? support::dustMix(mote.w, mote.accent) : sf.mix;
+      const double mix = style_ == support::ParticleStyle::DUST ? support::dustMix(mote.w, mote.accent) : sf.mix;
       QColor col = support::tintedStop(dustAccent_, dustShade_, mix, support::tintOf(mote.w), dustDark_);
       col.setAlphaF(std::clamp(mote.alpha * sf.glow, 0.0, 1.0));
       sprites_.draw(p, QPointF(mote.x + sf.sx, mote.y + sf.sy), mote.size / 2 * sf.scale, col,

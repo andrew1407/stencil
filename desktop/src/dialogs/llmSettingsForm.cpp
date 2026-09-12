@@ -37,11 +37,11 @@ namespace stencil::gui {
     form_ = new QFormLayout;
     // Browser .vs-row/.vs-field geometry: labels flush left and the fields
     // spanning the rest of the row (the modal's inputs run the full width).
-    alignModalForm(form_, /*growFields=*/mode_ == RowMode::HideRows);
+    alignModalForm(form_, /*growFields=*/mode_ == RowMode::HIDE_ROWS);
     // The browser rows breathe: a .vs-row is 7px padding + control + 7px + its
     // hairline (~49px pitch, measured live). The default form spacing packs the
     // same rows into ~37px, leaving the dialog visibly shorter than the modal.
-    if (mode_ == RowMode::HideRows) form_->setVerticalSpacing(9);
+    if (mode_ == RowMode::HIDE_ROWS) form_->setVerticalSpacing(9);
     col->addLayout(form_);
 
     buildProviderRows(current);
@@ -53,7 +53,7 @@ namespace stencil::gui {
   // hairline under it. A conditional row hands its divider back, so syncRows hides the
   // pair together.
   QFrame* LlmSettingsForm::rowDivider() {
-    if (mode_ != RowMode::HideRows) return nullptr;
+    if (mode_ != RowMode::HIDE_ROWS) return nullptr;
     auto* d = modalDivider(this);
     form_->addRow(d);
     return d;

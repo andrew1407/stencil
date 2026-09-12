@@ -231,7 +231,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(!dock->isVisible());
     stencil::llm::LlmReply bad;
     bad.ok = false;
-    bad.failure = stencil::llm::LlmFailure::Http;
+    bad.failure = stencil::llm::LlmFailure::HTTP;
     bad.error = QString(200, QChar('x'));
     win.onChatReply(bad);
     QTRY_VERIFY(toast->isVisible());

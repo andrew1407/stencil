@@ -75,7 +75,7 @@ namespace stencil::gui {
       const QPixmap shot = list->viewport()->grab(r);
       setVeil(0.0);
       auto* fx = DisintegrateOverlay::overRect(list->viewport(), r, hostP,
-                                               DisintegrateOverlay::Sweep::Gather,
+                                               DisintegrateOverlay::Sweep::GATHER,
                                                /*dust=*/true, cells, ms,
                                                QColor(), shot);
       if (!fx) { unveil(); return; }

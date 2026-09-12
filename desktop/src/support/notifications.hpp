@@ -17,7 +17,7 @@ namespace stencil::gui {
   class Notifications : public QObject {
     Q_OBJECT
    public:
-    enum class Level { Info, Success, Error };
+    enum class Level { INFO, SUCCESS, ERROR };
 
     // The browser shows ONE balloon; a fourth arrival retires the oldest early.
     static constexpr int MAX_VISIBLE = 3;
@@ -32,9 +32,9 @@ namespace stencil::gui {
     // The stack sits beside a left-docked chat and its dust is clipped to the free side.
     void setLeftInset(int px);
 
-    void info(const QString& text) { show(text, Level::Info); }
-    void success(const QString& text) { show(text, Level::Success); }
-    void error(const QString& text) { show(text, Level::Error); }
+    void info(const QString& text) { show(text, Level::INFO); }
+    void success(const QString& text) { show(text, Level::SUCCESS); }
+    void error(const QString& text) { show(text, Level::ERROR); }
 
     void show(const QString& text, Level level, int msec = 3000);
 

@@ -453,7 +453,7 @@ int main(int argc, char** argv) {
   }
 
   // ── A refused credential clears the fields; an unreachable host does not ─────
-  // The refused one still leaves a row (Status::Expired, URL intact, Reconnect on it), so
+  // The refused one still leaves a row (Status::EXPIRED, URL intact, Reconnect on it), so
   // the fields that put it there are done — leaving them typed in invited adding the same
   // server twice. Nothing left behind keeps its text, to be corrected.
   {

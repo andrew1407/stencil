@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
   {
     using stencil::support::ParticleStyle;
     const double R = fullRadius(90, 60, w, h);
-    for (const ParticleStyle s : {ParticleStyle::Dust, ParticleStyle::Water, ParticleStyle::Fire}) {
+    for (const ParticleStyle s : {ParticleStyle::DUST, ParticleStyle::WATER, ParticleStyle::FIRE}) {
       double lo = 1e18, hi = 0;
       bool collapsed = true;
       for (int k = 0; k < ThemeSwapOverlay::EDGE_POINTS; k++) {
@@ -109,14 +109,14 @@ int main(int argc, char** argv) {
       check(lo >= R, "every vertex of the finished front clears the furthest corner");
       check(hi <= R * 1.15, "no tongue overshoots wildly");
       check(collapsed, "the front starts collapsed at the origin");
-      if (s == ParticleStyle::Dust) check(hi - lo < 1e-9, "dust: a perfect circle");
+      if (s == ParticleStyle::DUST) check(hi - lo < 1e-9, "dust: a perfect circle");
       else check(hi - lo > R * 0.03, "water / fire: visibly not a circle");
     }
     // The browser's edgeJitter, op for op (values printed from node — dustCloud.js).
     const auto near = [](double a, double b) { return std::abs(a - b) < 1e-9; };
-    check(near(ThemeSwapOverlay::edgeJitter(ParticleStyle::Water, 17), -0.015235022) , "water vertex 17 matches the browser");
-    check(near(ThemeSwapOverlay::edgeJitter(ParticleStyle::Fire, 17), 0.043404486), "fire vertex 17 matches the browser");
-    check(ThemeSwapOverlay::edgeJitter(ParticleStyle::Dust, 17) == 0.0, "dust vertex 17 is on the circle");
+    check(near(ThemeSwapOverlay::edgeJitter(ParticleStyle::WATER, 17), -0.015235022) , "water vertex 17 matches the browser");
+    check(near(ThemeSwapOverlay::edgeJitter(ParticleStyle::FIRE, 17), 0.043404486), "fire vertex 17 matches the browser");
+    check(ThemeSwapOverlay::edgeJitter(ParticleStyle::DUST, 17) == 0.0, "dust vertex 17 is on the circle");
   }
 
   // ── Dust in the wipe's wake (dustMoteAt — browser motion.test.js pins swapDustSpecs

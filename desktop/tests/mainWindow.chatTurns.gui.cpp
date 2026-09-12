@@ -47,7 +47,7 @@ class MainWindowGuiTest : public QObject {
     win.chatDock_->setBusy(false);  // what the chat completion wrapper does
     stencil::llm::LlmReply canceled;
     canceled.ok = false;
-    canceled.failure = stencil::llm::LlmFailure::Transport;
+    canceled.failure = stencil::llm::LlmFailure::TRANSPORT;
     canceled.error = "Operation canceled";
     win.onChatReply(canceled);
 
@@ -637,7 +637,7 @@ class MainWindowGuiTest : public QObject {
 
     stencil::llm::LlmReply expired;
     expired.ok = false;
-    expired.failure = stencil::llm::LlmFailure::Expired;
+    expired.failure = stencil::llm::LlmFailure::EXPIRED;
     expired.expiredHost = QStringLiteral("localhost:8090");
     expired.error = QStringLiteral(
         "Your session on localhost:8090 has expired — reconnect to that server, then "
@@ -678,7 +678,7 @@ class MainWindowGuiTest : public QObject {
     // …and an ordinary failure keeps the plain card (no CTA).
     stencil::llm::LlmReply plain;
     plain.ok = false;
-    plain.failure = stencil::llm::LlmFailure::Http;
+    plain.failure = stencil::llm::LlmFailure::HTTP;
     plain.error = QStringLiteral("localhost:11434 answered: HTTP 401");
     win.onChatReply(plain);
     QTRY_COMPARE(win.chatDock_->findChildren<QFrame*>("chatCardError").size(), 2);

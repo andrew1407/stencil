@@ -136,7 +136,7 @@ namespace stencil::gui {
     // Read at the FIRST FRAME, not build time: the motion-mode combo swaps its face in
     // the same call that applies the new mode.
     bool styled_ = false;
-    support::ParticleStyle style_ = support::ParticleStyle::Dust;
+    support::ParticleStyle style_ = support::ParticleStyle::DUST;
     QColor accent_, shade_;
   };
 

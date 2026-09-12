@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
     ServerClient* cl = mgr.find(mock.url());
     check(cl != nullptr, "the connection is KEPT after a refusal");
     if (cl) {
-      check(cl->status() == ServerClient::Status::Expired,
+      check(cl->status() == ServerClient::Status::EXPIRED,
             "a refused credential is Expired, not Error");
       check(cl->needsReauth(), "…and says it needs re-authentication");
       check(cl->base() == ServerClient::normalizeBase(mock.url()), "the URL survives");
@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
       const int before = mock.tokenRequests;
       cl->listProjectsAsync([](bool, QVector<stencil::net::ServerProject>) {});
       pumpFor(150);
-      check(cl->status() == ServerClient::Status::Expired, "it stays expired");
+      check(cl->status() == ServerClient::Status::EXPIRED, "it stays expired");
       check(mock.tokenRequests == before,
             "an expired client does not re-auth behind the user's back");
     }
@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
     stencil::test::connectNow(mgr, dead, QString(), err);
     ServerClient* cl = mgr.find(dead);
     if (cl) {
-      check(cl->status() != ServerClient::Status::Expired,
+      check(cl->status() != ServerClient::Status::EXPIRED,
             "an unreachable host is not an expired session");
       check(!cl->needsReauth(), "…and offers no re-auth");
     } else {
@@ -183,13 +183,13 @@ int main(int argc, char** argv) {
     QString err;
     check(stencil::test::connectNow(mgr, mock.url(), QString(), err), "a fresh session connects");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->status() == ServerClient::Status::Connected, "…and reads as connected");
+    check(cl && cl->status() == ServerClient::Status::CONNECTED, "…and reads as connected");
     mock.projectsStatus = 401;   // the session lapses on the server
     const int mintsBefore = mock.tokenRequests;
     bool done = false;
     cl->listProjectsAsync([&](bool, QVector<stencil::net::ServerProject>) { done = true; });
     pumpUntil([&] { return done; });
-    check(cl->status() == ServerClient::Status::Expired,
+    check(cl->status() == ServerClient::Status::EXPIRED,
           "a live session refused mid-flight becomes Expired");
     check(mock.tokenRequests == mintsBefore,
           "…with no re-mint: an anonymous session has no credential to mint with");
@@ -204,7 +204,7 @@ int main(int argc, char** argv) {
     check(stencil::test::connectNow(mgr, mock.url(), QStringLiteral("admin-token"), err),
           "an admin token connects by minting a session");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->status() == ServerClient::Status::Connected, "…and lands Connected");
+    check(cl && cl->status() == ServerClient::Status::CONNECTED, "…and lands Connected");
   }
 
   // ── a valid token connects normally ──
@@ -216,7 +216,7 @@ int main(int argc, char** argv) {
     check(stencil::test::connectNow(mgr, mock.url(), QStringLiteral("good-token"), err),
           "a valid session token connects");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->status() == ServerClient::Status::Connected && !cl->needsReauth(),
+    check(cl && cl->status() == ServerClient::Status::CONNECTED && !cl->needsReauth(),
           "…with no re-auth needed");
   }
 
@@ -234,7 +234,7 @@ int main(int argc, char** argv) {
     check(stencil::test::connectNow(mgr, mock.url(), QStringLiteral("admin-token"), err),
           "an admin credential connects");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->credentialKind() == ServerClient::CredentialKind::Admin,
+    check(cl && cl->credentialKind() == ServerClient::CredentialKind::ADMIN,
           "a credential that MINTED the session is Admin");
     check(cl && cl->isAdmin(), "…and reads as admin");
     mock.mintBearer.clear();
@@ -247,7 +247,7 @@ int main(int argc, char** argv) {
     check(stencil::test::connectNow(mgr, mock.url(), QStringLiteral("good-token"), err),
           "a session token connects");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->credentialKind() == ServerClient::CredentialKind::Session,
+    check(cl && cl->credentialKind() == ServerClient::CredentialKind::SESSION,
           "a token that PASSED the probe is Session, never Admin");
     check(cl && !cl->isAdmin(), "…so it claims no admin powers");
     mock.goodBearer.clear();
@@ -258,7 +258,7 @@ int main(int argc, char** argv) {
     QString err;
     check(stencil::test::connectNow(mgr, mock.url(), QString(), err), "an anonymous session connects");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->credentialKind() == ServerClient::CredentialKind::None,
+    check(cl && cl->credentialKind() == ServerClient::CredentialKind::NONE,
           "an anonymous session holds no credential kind at all");
     check(cl && !cl->isAdmin(), "…and is not admin");
   }
@@ -271,7 +271,7 @@ int main(int argc, char** argv) {
     QString err;
     check(stencil::test::connectNow(mgr, mock.url(), QStringLiteral("sess-p"), err), "a session token connects");
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->credentialKind() == ServerClient::CredentialKind::Session,
+    check(cl && cl->credentialKind() == ServerClient::CredentialKind::SESSION,
           "…classified Session at connect");
     mock.goodBearer = "sess-q";   // the server restarts: it mints "sess-q" now
     mock.mintToken = "sess-q";
@@ -279,7 +279,7 @@ int main(int argc, char** argv) {
     cl->listProjectsAsync([&](bool o, QVector<stencil::net::ServerProject>) { ok = o; called = true; });
     pumpUntil([&] { return called; });
     check(ok, "the lapsed session is rescued by the credential");
-    check(cl->credentialKind() == ServerClient::CredentialKind::Admin,
+    check(cl->credentialKind() == ServerClient::CredentialKind::ADMIN,
           "…and a credential that minted mid-session is now known Admin");
     mock.goodBearer.clear();
     mock.mintToken = "tok";
@@ -293,7 +293,7 @@ int main(int argc, char** argv) {
     QString err;
     const int before = mock.requests;
     check(stencil::test::connectNow(mgr, mock.url(), QStringLiteral("admin-token"), err,
-                        ServerClient::CredentialKind::Admin),
+                        ServerClient::CredentialKind::ADMIN),
           "a RESTORED admin credential connects");
     ServerClient* cl = mgr.find(mock.url());
     check(cl && cl->isAdmin() && cl->token() == QStringLiteral("sess-h"),
@@ -328,8 +328,8 @@ int main(int argc, char** argv) {
       check(back[1].token == QStringLiteral("plain-tok") &&
                 back[1].kind == QStringLiteral("session"),
             "…and the session one with its own");
-      check(ServerClient::kindFromTag(back[0].kind) == ServerClient::CredentialKind::Admin &&
-                ServerClient::kindFromTag(back[1].kind) == ServerClient::CredentialKind::Session,
+      check(ServerClient::kindFromTag(back[0].kind) == ServerClient::CredentialKind::ADMIN &&
+                ServerClient::kindFromTag(back[1].kind) == ServerClient::CredentialKind::SESSION,
             "…both parsing back into the kind they were saved from");
     }
     mock.mintBearer.clear();
@@ -347,7 +347,7 @@ int main(int argc, char** argv) {
               legacy[0].token == QStringLiteral("old-tok") && legacy[0].kind.isEmpty(),
           "a pre-kind row loads unchanged, with no kind");
     check(!legacy.isEmpty() &&
-              ServerClient::kindFromTag(legacy[0].kind) == ServerClient::CredentialKind::None,
+              ServerClient::kindFromTag(legacy[0].kind) == ServerClient::CredentialKind::NONE,
           "…which reads as no kind (it probes, like it always did)");
     // …and only a RECOGNISED trailing tag is a kind, so a token with a tab survives.
     s.setValue(QStringLiteral("connections/servers"),
@@ -383,7 +383,7 @@ int main(int argc, char** argv) {
     check(ok, "a lapsed session re-mints with the credential and retries in place");
     check(cl->token() == QStringLiteral("sess2"), "…adopting the fresh session token");
     check(cl->credential() == QStringLiteral("admin-token"), "…never replacing the credential");
-    check(cl->status() == ServerClient::Status::Connected, "…without ever reading as expired");
+    check(cl->status() == ServerClient::Status::CONNECTED, "…without ever reading as expired");
     check(mock.tokenRequests == mintsBefore + 1, "exactly one mint for the rescue");
   }
 
@@ -404,7 +404,7 @@ int main(int argc, char** argv) {
     cl->listProjectsAsync([&](bool o, QVector<stencil::net::ServerProject>) { ok = o; called = true; });
     pumpUntil([&] { return called; });
     check(!ok, "the rescue fails when the credential no longer mints");
-    check(cl->status() == ServerClient::Status::Expired, "…and lands Expired");
+    check(cl->status() == ServerClient::Status::EXPIRED, "…and lands Expired");
     check(mock.tokenRequests == mintsBefore + 1, "…after exactly ONE mint attempt (no loop)");
     mock.goodBearer.clear();  // back to the scripted per-path statuses
     mock.mintToken = "tok";
@@ -419,7 +419,7 @@ int main(int argc, char** argv) {
     QString err;
     stencil::test::connectNow(mgr, mock.url(), QStringLiteral("stale-token"), err);
     ServerClient* cl = mgr.find(mock.url());
-    check(cl && cl->status() == ServerClient::Status::Expired, "the row's client is expired");
+    check(cl && cl->status() == ServerClient::Status::EXPIRED, "the row's client is expired");
 
     ConnectDialog dlg(&mgr);
     dlg.resize(520, 420);
@@ -460,10 +460,10 @@ int main(int argc, char** argv) {
     if (signIn) signIn->click();
     pumpUntil([&] {
       ServerClient* c = mgr.find(mock.url());
-      return c && c->status() == ServerClient::Status::Connected;
+      return c && c->status() == ServerClient::Status::CONNECTED;
     });
     ServerClient* after = mgr.find(mock.url());
-    check(after && after->status() == ServerClient::Status::Connected,
+    check(after && after->status() == ServerClient::Status::CONNECTED,
           "reconnect signs in again without a prompt");
     pumpFor(60);
     check(dlg.findChild<QLabel*>(QStringLiteral("expiredNote")) == nullptr,
@@ -482,7 +482,7 @@ int main(int argc, char** argv) {
     QString err0;
     stencil::test::connectNow(m2, mock.url(), QStringLiteral("stale-token"), err0);
     ServerClient* c = m2.find(mock.url());
-    check(c && c->status() == ServerClient::Status::Expired, "an expired row to sign in");
+    check(c && c->status() == ServerClient::Status::EXPIRED, "an expired row to sign in");
 
     QString cerr;
     check(!stencil::test::connectNow(m2, mock.url(), QStringLiteral("admin-token"), cerr),
@@ -495,7 +495,7 @@ int main(int argc, char** argv) {
     check(stencil::test::reauthNow(m2, mock.url(), QStringLiteral("admin-token"), rerr),
           "…but reauthenticate signs the same row in with the pasted token");
     ServerClient* back = m2.find(mock.url());
-    check(back && back->status() == ServerClient::Status::Connected,
+    check(back && back->status() == ServerClient::Status::CONNECTED,
           "…and the connection is live again");
     check(m2.urls().size() == 1, "…in the one row it always was");
   }
@@ -531,7 +531,7 @@ int main(int argc, char** argv) {
             "…with the fragment stripped from the base URL");
       check(cl->credential() == QStringLiteral("invite-tok"),
             "…and the fragment token as the credential");
-      check(cl->status() == ServerClient::Status::Connected, "…landing Connected");
+      check(cl->status() == ServerClient::Status::CONNECTED, "…landing Connected");
     }
     mock.goodBearer.clear();
   }
@@ -579,7 +579,7 @@ int main(int argc, char** argv) {
     ConnectionManager mgr2;
     check(stencil::test::connectNow(mgr2, link, QString(), err), "the minted link connects a fresh client");
     ServerClient* cl2 = mgr2.find(mock.url());
-    check(cl2 && cl2->status() == ServerClient::Status::Connected &&
+    check(cl2 && cl2->status() == ServerClient::Status::CONNECTED &&
               cl2->credential() == QStringLiteral("fresh-tok"),
           "…which holds the invited token as its credential");
 

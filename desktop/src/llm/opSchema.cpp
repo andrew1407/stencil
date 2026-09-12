@@ -128,7 +128,7 @@ namespace stencil::llm {
         out->spec = o;
         for (const QJsonValue& r : o.value("rules").toArray()) out->rules << r.toString();
       }
-      return Opset::Entry;
+      return Opset::ENTRY;
     }
     if (os.value("ops").toArray().contains(op)) {
       for (const QJsonValue& ev : registry_.value("ops").toArray()) {
@@ -141,12 +141,12 @@ namespace stencil::llm {
           out->spec = e;
           for (const QJsonValue& r : e.value("rules").toArray()) out->rules << r.toString();
         }
-        return Opset::Entry;
+        return Opset::ENTRY;
       }
-      return Opset::Unknown;
+      return Opset::UNKNOWN;
     }
-    if (os.value("failOps").toArray().contains(op)) return Opset::Fail;
-    return Opset::Unknown;
+    if (os.value("failOps").toArray().contains(op)) return Opset::FAIL;
+    return Opset::UNKNOWN;
   }
 }  // namespace stencil::llm
 

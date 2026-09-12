@@ -11,7 +11,7 @@ namespace stencil::core {
 
   // Mirrors the browser's `imageFilter` strings. The values cross the wasm ABI as int
   // codes: never reorder, only append.
-  enum class FilterMode { None, Bw, Sepia, Custom, Invert, Contour };
+  enum class FilterMode { NONE, BW, SEPIA, CUSTOM, INVERT, CONTOUR };
 
   // Any unknown non-"none" value maps to Custom (renderer.js's else branch).
   FilterMode filterModeFromString(const std::string& mode);

@@ -14,7 +14,7 @@ namespace stencil::test {
       stencil::net::ConnectionManager& mgr, const QString& url, const QString& token,
       QString& err,
       stencil::net::ServerClient::CredentialKind kind =
-          stencil::net::ServerClient::CredentialKind::None,
+          stencil::net::ServerClient::CredentialKind::NONE,
       int timeoutMs = 10000) {
     bool done = false, ok = false;
     mgr.connectToAsync(url, token, [&](bool o, QString e) {

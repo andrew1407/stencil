@@ -65,7 +65,7 @@ namespace stencil::gui {
     stencil::net::ServerClient::runGuardedWriteAsync(
         /*attempts=*/6, /*startVersion=*/remoteSession_->link().version,
         [this, self, c, w, h, pushGuard](qint64 version, std::function<void(GO)> cb) {
-          if (!self) { cb(GO::Failed); return; }
+          if (!self) { cb(GO::FAILED); return; }
           const QJsonObject layout =
               fileStore::buildLayoutJson(w, h, canvas_->allLines(),
                                          settings_.imageFilter, settings_.filterColor,
@@ -74,18 +74,18 @@ namespace stencil::gui {
           c->updateProjectAsync(
               remoteSession_->link().id, remoteSession_->link().name, layout, version,
               [this, self, c, cb](bool ok, qint64 newVersion, bool conflict) {
-                if (!self) { cb(GO::Failed); return; }
+                if (!self) { cb(GO::FAILED); return; }
                 if (ok) {
                   remoteSession_->link().version = newVersion;
-                  cb(GO::Committed);
+                  cb(GO::COMMITTED);
                   return;
                 }
                 if (!conflict) {
                   notify_->error(QString("Server save failed — %1").arg(c->lastError()));
-                  cb(GO::Failed);
+                  cb(GO::FAILED);
                   return;
                 }
-                cb(GO::Conflict);
+                cb(GO::CONFLICT);
               });
         },
         [this, self, c, pushGuard](qint64 /*version*/, std::function<void(bool, qint64)> cb) {
@@ -124,8 +124,8 @@ namespace stencil::gui {
           if (!self) return;
           // A hard failure already notified; a lingering Conflict means the attempts were
           // exhausted.
-          if (outcome == GO::Failed) return;
-          if (outcome != GO::Committed) {
+          if (outcome == GO::FAILED) return;
+          if (outcome != GO::COMMITTED) {
             notify_->error(
                 "This project was edited elsewhere — reload it from the server before "
                 "saving again");

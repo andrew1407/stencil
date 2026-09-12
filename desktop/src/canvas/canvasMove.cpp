@@ -26,9 +26,9 @@ namespace stencil::gui {
     if (hold_.engaged()) {
       const core::HoldEvent ev =
           hold_.pointerMove(event->pos().x(), event->pos().y(), holdNowMs());
-      if (ev.action == core::HoldAction::Abort) {
+      if (ev.action == core::HoldAction::ABORT) {
         stopHold();
-      } else if (ev.action == core::HoldAction::Preview) {
+      } else if (ev.action == core::HoldAction::PREVIEW) {
         holdPreview_ = core::Point{ev.x / scale_, ev.y / scale_};
         holdHasPreview_ = true;
         update();
@@ -38,7 +38,7 @@ namespace stencil::gui {
     }
 
     // Shift switches segment/line modes live from the original snapshot so toggling never accumulates.
-    if (dragKind_ != DragKind::None) {
+    if (dragKind_ != DragKind::NONE) {
       const core::Point ip = toImageSpace(event->pos().x(), event->pos().y());
       const bool shift = bool(event->modifiers() & Qt::ShiftModifier);
       dragMoved_ = true;
@@ -114,7 +114,7 @@ namespace stencil::gui {
 
   // `shift` switches segment/line modes live from the original snapshot. Caller sets dragMoved_ and repaints.
   void CanvasWidget::updateDrag(const core::Point& ip, bool shift) {
-    if (dragKind_ == DragKind::Point) {
+    if (dragKind_ == DragKind::POINT) {
       core::Line* line =
           (dragLineIdx_ < 0) ? &currentLine_ : &lines_[dragLineIdx_];
       if (dragPtIdx1_ >= 0 &&
@@ -124,7 +124,7 @@ namespace stencil::gui {
     } else {
       const double dx = ip.x - dragStart_.x;
       const double dy = ip.y - dragStart_.y;
-      if (dragKind_ == DragKind::Line && !dragMultiOrig_.empty()) {
+      if (dragKind_ == DragKind::LINE && !dragMultiOrig_.empty()) {
         for (auto& entry : dragMultiOrig_) {
           const int li = entry.first;
           if (li < 0 || li >= static_cast<int>(lines_.size())) continue;
@@ -140,7 +140,7 @@ namespace stencil::gui {
       // A LINE drag always moves the whole line even when Shift lifts a beat before the mouse —
       // degrading to the grabbed segment would snap the rest back on commit.
       core::Line& line = lines_[dragLineIdx_];
-      const bool whole = (dragKind_ == DragKind::Line) ? true : shift;
+      const bool whole = (dragKind_ == DragKind::LINE) ? true : shift;
       if (whole) {
         for (std::size_t i = 0; i < line.points.size(); ++i) {
           line.points[i].x = dragOrig_[i].x + dx;

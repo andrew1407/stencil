@@ -25,7 +25,7 @@ namespace stencil::gui {
     if (holdTimer_.isActive() || hold_.engaged()) {
       holdTimer_.stop();
       const core::HoldEvent ev = hold_.pointerUp(holdNowMs());
-      if (ev.action == core::HoldAction::Commit) {
+      if (ev.action == core::HoldAction::COMMIT) {
         holdCommit();
       } else if (holdHasPreview_) {
         holdHasPreview_ = false;
@@ -37,11 +37,11 @@ namespace stencil::gui {
     // Finish an Alt-drag gesture (drawingApp.js mouseup ~925-949). Commit one
     // undo step only when a committed line actually moved; an in-progress-line
     // point edit just refreshes the panel.
-    if (dragKind_ != DragKind::None) {
+    if (dragKind_ != DragKind::NONE) {
       const bool moved = dragMoved_;
       const bool committed = moved && dragLineIdx_ >= 0;
       const QRect dirty = dragRect();   // before the kind clears it
-      dragKind_ = DragKind::None;
+      dragKind_ = DragKind::NONE;
       dragLineIdx_ = dragPtIdx1_ = dragPtIdx2_ = -1;
       dragOrig_.clear();
       dragMultiOrig_.clear();

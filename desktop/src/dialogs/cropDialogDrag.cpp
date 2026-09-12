@@ -22,18 +22,18 @@ namespace stencil::gui {
     dragStartImg_ = toImage(e->pos());
     dragStartRect_ = rect_;
     if (corner >= 0) {
-      drag_ = Drag::Resize;
+      drag_ = Drag::RESIZE;
       dragCorner_ = corner;
     } else if (displayRect().contains(e->pos())) {
-      drag_ = Drag::Move;
+      drag_ = Drag::MOVE;
     } else {
-      drag_ = Drag::None;
+      drag_ = Drag::NONE;
     }
   }
 
   void CropPreview::mouseMoveEvent(QMouseEvent* e) {
     // Cursor feedback even when not dragging.
-    if (drag_ == Drag::None) {
+    if (drag_ == Drag::NONE) {
       const int c = cornerAt(e->pos());
       if (c == 0 || c == 2) setCursor(Qt::SizeFDiagCursor);
       else if (c == 1 || c == 3) setCursor(Qt::SizeBDiagCursor);
@@ -42,7 +42,7 @@ namespace stencil::gui {
       return;
     }
     const core::Point cur = toImage(e->pos());
-    if (drag_ == Drag::Move) {
+    if (drag_ == Drag::MOVE) {
       rect_ = core::moveCropClamped(dragStartRect_, cur.x - dragStartImg_.x,
                                     cur.y - dragStartImg_.y, iw_, ih_);
     } else {
@@ -54,7 +54,7 @@ namespace stencil::gui {
   }
 
   void CropPreview::mouseReleaseEvent(QMouseEvent*) {
-    drag_ = Drag::None;
+    drag_ = Drag::NONE;
     dragCorner_ = -1;
   }
 
@@ -65,7 +65,7 @@ namespace stencil::gui {
     if (iw_ <= 0 || dy == 0.0 || !displayRect().contains(pos)) { e->ignore(); return; }
     rect_ = core::scaleCropCentered(rect_, std::pow(1.0015, dy), aspect_, iw_, ih_);
     // Re-anchor an in-progress move/resize drag so the next mouse-move doesn't snap the size back.
-    if (drag_ != Drag::None) { dragStartRect_ = rect_; dragStartImg_ = toImage(pos); }
+    if (drag_ != Drag::NONE) { dragStartRect_ = rect_; dragStartImg_ = toImage(pos); }
     update();
     emit cropChanged();
     e->accept();
@@ -79,7 +79,7 @@ namespace stencil::gui {
         const QPoint pos = g->position().toPoint();
         if (displayRect().contains(pos)) {
           rect_ = core::scaleCropCentered(rect_, 1.0 + g->value(), aspect_, iw_, ih_);
-          if (drag_ != Drag::None) { dragStartRect_ = rect_; dragStartImg_ = toImage(pos); }
+          if (drag_ != Drag::NONE) { dragStartRect_ = rect_; dragStartImg_ = toImage(pos); }
           update();
           emit cropChanged();
           return true;

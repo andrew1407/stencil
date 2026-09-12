@@ -93,14 +93,14 @@ test('reset with empty lines leaves NO redo (no stray redo step after a blank)',
     assert.deepStrictEqual(h.redo(), [{ id: 'b' }]);
 });
 
-// Core parses no JSON, so kMaxSteps is pinned in its header instead; this is the drift
+// Core parses no JSON, so MAX_STEPS is pinned in its header instead; this is the drift
 // guard between that literal and the canonical LIMITS.historyMax.
 test('the depth cap is one value: constants.json, the JS twin and the core header', () => {
     assert.strictEqual(constants.LIMITS.historyMax, 64);
     assert.strictEqual(MAX_STEPS, constants.LIMITS.historyMax);
     const hpp = readFileSync(new URL('../../core/state/historyStack.hpp', import.meta.url), 'utf8');
-    const found = /kMaxSteps\s*=\s*(\d+)/.exec(hpp);
-    assert.ok(found, 'core/state/historyStack.hpp must declare kMaxSteps');
+    const found = /MAX_STEPS\s*=\s*(\d+)/.exec(hpp);
+    assert.ok(found, 'core/state/historyStack.hpp must declare MAX_STEPS');
     assert.strictEqual(Number(found[1]), constants.LIMITS.historyMax);
 });
 

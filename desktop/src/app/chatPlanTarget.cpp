@@ -154,8 +154,8 @@ namespace stencil::gui {
     }
     if (!a.drawMode.isEmpty()) {
       w_.canvas_->setDrawMode(a.drawMode == QLatin1String("rect")
-                                  ? CanvasWidget::DrawMode::Rect
-                                  : CanvasWidget::DrawMode::Line);
+                                  ? CanvasWidget::DrawMode::RECT
+                                  : CanvasWidget::DrawMode::LINE);
       w_.persistSettings();
     }
     if (a.thickness > 0 && w_.lineThickness_) w_.lineThickness_->setValue(a.thickness);

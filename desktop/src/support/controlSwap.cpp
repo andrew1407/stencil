@@ -55,7 +55,7 @@ namespace stencil::gui {
     const QRect at(box->mapTo(host, r.topLeft()), r.size());
     DisintegrateOverlay* fx = DisintegrateOverlay::overPixmaps(
         on, off, at, host,
-        checked ? DisintegrateOverlay::Sweep::Gather : DisintegrateOverlay::Sweep::Fall,
+        checked ? DisintegrateOverlay::Sweep::GATHER : DisintegrateOverlay::Sweep::FALL,
         CHECK_SWAP_CELLS, CHECK_SWAP_CELLS, CHECK_SWAP_MS, CHECK_SWAP_SPREAD, CHECK_SWAP_PAD_PX,
         QString::fromLatin1(CHECK_SWAP_OBJECT_NAME));
     if (fx) fx->setProperty(CHECK_SWAP_OWNER_PROPERTY, QVariant::fromValue<QObject*>(box));

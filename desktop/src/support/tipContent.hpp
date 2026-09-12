@@ -13,8 +13,8 @@ class QAction;
 namespace stencil::gui {
 
   struct TipBlock {
-    enum class Kind { Row, Bullet, Text, Hint, Note };
-    Kind kind = Kind::Text;
+    enum class Kind { ROW, BULLET, TEXT, HINT, NOTE };
+    Kind kind = Kind::TEXT;
     QString term;  // Row only: the bolded left column
     QString text;  // the description (Row) or the whole line (everything else)
   };

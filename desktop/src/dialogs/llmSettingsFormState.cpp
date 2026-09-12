@@ -28,7 +28,7 @@ namespace stencil::gui {
     const bool off = provider == "none";  // assistant off: every row irrelevant
     const bool viaServer = provider == "stencil-server";
     const bool direct = !off && !viaServer;  // called by us over the network
-    if (mode_ == RowMode::HideRows) {
+    if (mode_ == RowMode::HIDE_ROWS) {
       // Browser parity: irrelevant rows disappear rather than sitting greyed out —
       // each together with its .vs-row hairline.
       const auto showRow = [this](QWidget* row, QFrame* divider, bool on) {
@@ -57,7 +57,7 @@ namespace stencil::gui {
     // The host dialog shrinks/grows with the visible rows — but only once shown:
     // an adjustSize during construction (before the host installed its layout)
     // freezes a too-small size that paints the rows on top of each other.
-    if (mode_ == RowMode::HideRows && window()->isVisible()) window()->adjustSize();
+    if (mode_ == RowMode::HIDE_ROWS && window()->isVisible()) window()->adjustSize();
   }
 
   void LlmSettingsForm::refreshModels() {

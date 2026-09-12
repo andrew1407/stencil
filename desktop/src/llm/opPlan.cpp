@@ -129,7 +129,7 @@ namespace stencil::llm {
       const auto integer = [&](const char* k) { return n.value(QLatin1String(k)).toInt(); };
       const auto flag = [&](const char* k) { return n.value(QLatin1String(k)).toBool(); };
       switch (a.op) {
-        case OpKind::Crop: {
+        case OpKind::CROP: {
           const QJsonObject spec = n.value("spec").toObject();
           a.x1 = spec.value("x1").toString();
           a.x2 = spec.value("x2").toString();
@@ -138,17 +138,17 @@ namespace stencil::llm {
           a.aspect = spec.value("aspect").toString();
           break;
         }
-        case OpKind::Rotate:
+        case OpKind::ROTATE:
           a.rotateLeft = str("dir") == QLatin1String("left");
           a.times = integer("times");
           break;
-        case OpKind::Filter:
+        case OpKind::FILTER:
           a.mode = str("mode");
           a.tint = str("tint");
           break;
-        case OpKind::Layout:
+        case OpKind::LAYOUT:
           return fillLayout(n, a, e);
-        case OpKind::Formula:
+        case OpKind::FORMULA:
           if (present(n, "enabled")) {
             a.formulaEnabled = flag("enabled") ? 1 : 0;
           } else {
@@ -156,12 +156,12 @@ namespace stencil::llm {
             a.expr = str("expr").trimmed();   // blank = clear that axis
           }
           break;
-        case OpKind::Page:
+        case OpKind::PAGE:
           a.format = str("format");
           a.widthCm = num("width");
           a.heightCm = num("height");
           break;
-        case OpKind::Blank:
+        case OpKind::BLANK:
           a.color = str("color");
           if (!isKnownColor(a.color))
             return err(e, QStringLiteral("Invalid blank action: \"color\" must be #rrggbb or a CSS colour name"));
@@ -169,22 +169,22 @@ namespace stencil::llm {
           a.widthCm = num("width");
           a.heightCm = num("height");
           break;
-        case OpKind::Undo:
-        case OpKind::Redo:
+        case OpKind::UNDO:
+        case OpKind::REDO:
           a.steps = integer("steps");
           break;
-        case OpKind::Frame:
+        case OpKind::FRAME:
           if (present(n, "index")) a.indices.push_back(integer("index"));
           for (const QJsonValue& v : n.value("indices").toArray()) a.indices.push_back(v.toInt());
           break;
-        case OpKind::Theme:
+        case OpKind::THEME:
           a.mode = str("mode");
           break;
-        case OpKind::Accent:
+        case OpKind::ACCENT:
           a.color = str("color");
           a.preset = str("preset");
           break;
-        case OpKind::LineStyle:
+        case OpKind::LINE_STYLE:
           a.color = str("color");
           a.thickness = integer("thickness");
           a.pointSize = integer("pointSize");
@@ -195,24 +195,24 @@ namespace stencil::llm {
           a.drawMode = str("drawMode");
           a.fillColor = str("fillColor");
           break;
-        case OpKind::Units:
+        case OpKind::UNITS:
           a.value = str("value");
           break;
-        case OpKind::View:
+        case OpKind::VIEW:
           if (present(n, "points")) a.viewPoints = flag("points") ? 1 : 0;
           if (present(n, "lines")) a.viewLines = flag("lines") ? 1 : 0;
           break;
-        case OpKind::Clear:
-        case OpKind::ClearChat:
+        case OpKind::CLEAR:
+        case OpKind::CLEAR_CHAT:
           break;
-        case OpKind::Copy:
+        case OpKind::COPY:
           a.what = str("what");
           break;
-        case OpKind::OpenUrl:
+        case OpKind::OPEN_URL:
           a.url = str("url");
           a.incognito = flag("incognito");
           break;
-        case OpKind::OpenFile:
+        case OpKind::OPEN_FILE:
           // A LOCAL file (the registry rejects URL schemes) in a format this app
           // opens; whether the USER wrote it is the executor's echo guard.
           a.path = str("path");
@@ -221,55 +221,55 @@ namespace stencil::llm {
                                          ".json layout or .stencil project")
                               .arg(a.path));
           break;
-        case OpKind::Connect:
-        case OpKind::Disconnect:
+        case OpKind::CONNECT:
+        case OpKind::DISCONNECT:
           a.server = str("server").trimmed();
           break;
-        case OpKind::RemoveProject:
+        case OpKind::REMOVE_PROJECT:
           a.name = str("name");
           a.current = flag("current");
           break;
-        case OpKind::ClearProjects:
+        case OpKind::CLEAR_PROJECTS:
           a.current = flag("keepCurrent");   // the shared "the open one" presence flag
           break;
-        case OpKind::Compare:
+        case OpKind::COMPARE:
           a.mode = str("mode");
           a.split = num("split");
           break;
-        case OpKind::Zoom:
+        case OpKind::ZOOM:
           a.fit = flag("fit");
           a.percent = static_cast<int>(std::lround(num("percent")));
           break;
-        case OpKind::RenameProject:
+        case OpKind::RENAME_PROJECT:
           a.name = str("name");
           break;
-        case OpKind::ProjectColor:
+        case OpKind::PROJECT_COLOR:
           a.color = str("color");   // "" = the explicit clear
           break;
-        case OpKind::BlankColor:
+        case OpKind::BLANK_COLOR:
           a.color = str("color");
           if (!isKnownColor(a.color))
             return err(e, QStringLiteral("Invalid blankColor action: \"color\" must be #rrggbb or a CSS colour name"));
           break;
-        case OpKind::OpenProject:
+        case OpKind::OPEN_PROJECT:
           a.name = str("name");
           a.current = flag("last");   // "the latest one" rides removeProject's flag
           break;
-        case OpKind::Incognito:
+        case OpKind::INCOGNITO:
           a.incognito = flag("on");
           break;
-        case OpKind::ChatPanel:
+        case OpKind::CHAT_PANEL:
           if (present(n, "open")) a.chatOpen = flag("open") ? 1 : 0;
           a.dock = str("dock");
           break;
-        case OpKind::Dialog:
+        case OpKind::DIALOG:
           a.dialog = str("name");
           a.current = flag("close");   // "close what is open" rides the shared flag
           break;
-        case OpKind::Image:
+        case OpKind::IMAGE:
           a.index = integer("index");
           break;
-        case OpKind::Save:
+        case OpKind::SAVE:
           a.name = str("name");
           a.path = str("path");   // trimmed by the registry; "" = no destination
           break;
@@ -316,7 +316,7 @@ namespace stencil::llm {
             why = QStringLiteral("\"%1\" is a top-level action only (§2.1)").arg(op);
           } else {
             why = QStringLiteral("\"%1\" is an editor-settings op, not an image edit").arg(op);
-            if (a.op == OpKind::OpenUrl)
+            if (a.op == OpKind::OPEN_URL)
               why += QStringLiteral(" — open the URL as a top-level action; picking images "
                                     "off a web page is the browser extension assistant's job");
           }

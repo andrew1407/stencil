@@ -83,7 +83,7 @@ namespace stencil::gui {
       // Hold-to-draw arms only when not drawing, unmodified, and never with the rect tool (browser
       // inputController.js holdDrawEligible). handleDrawingClick runs first so a quick click still selects.
       const bool eligibleHold =
-          !isDrawing_ && mods == Qt::NoModifier && drawMode_ != DrawMode::Rect;
+          !isDrawing_ && mods == Qt::NoModifier && drawMode_ != DrawMode::RECT;
       handleDrawingClick(ip, mods, event->pos());
       if (eligibleHold && !isDrawing_) beginHold(event->pos());
     }

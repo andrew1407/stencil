@@ -241,7 +241,7 @@ int main(int argc, char** argv) {
     if (QPushButton* tg = btnByText(&dlg, "Telegram bot")) tg->click();
     pumpFor(20);
     check(!dlg.isVisible() && dlg.result() == QDialog::Accepted &&
-              dlg.outcome() == OpenInDialog::Outcome::Telegram,
+              dlg.outcome() == OpenInDialog::Outcome::TELEGRAM,
           "open-in: a link that fits accepts with the Telegram outcome");
     check(!dlg.fallbackShown(), "open-in: …with no fallback row");
   }

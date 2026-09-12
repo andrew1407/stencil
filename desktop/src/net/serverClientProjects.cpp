@@ -16,11 +16,11 @@ namespace stencil::net {
   void ServerClient::connectAsync(const QString& token, std::function<void(bool)> done,
                                   CredentialKind hint) {
     credential_ = token;
-    kind_ = CredentialKind::None;   // re-proven below by whichever path gets in
-    status_ = Status::Connecting;
+    kind_ = CredentialKind::NONE;   // re-proven below by whichever path gets in
+    status_ = Status::CONNECTING;
     if (base_.isEmpty()) {
       err_ = "empty server URL";
-      status_ = Status::Error;
+      status_ = Status::ERROR;
       done(false);
       return;
     }
@@ -32,7 +32,7 @@ namespace stencil::net {
                        if (refused)
                          err_ = QStringLiteral("this server gates token minting (ADMIN_TOKEN) — paste a "
                                                "session token, or the admin token, into the Token field");
-                       status_ = refused ? Status::Expired : Status::Error;
+                       status_ = refused ? Status::EXPIRED : Status::ERROR;
                        if (refused)
                          qWarning("stencil: %s needs a token (ADMIN_TOKEN gate)", qPrintable(base_));
                        done(false);
@@ -41,21 +41,21 @@ namespace stencil::net {
                      token_ = QJsonDocument::fromJson(body).object().value("token").toString();
                      if (token_.isEmpty()) {
                        err_ = "server returned no token";
-                       status_ = Status::Error;
+                       status_ = Status::ERROR;
                        done(false);
                        return;
                      }
-                     status_ = Status::Connected;
+                     status_ = Status::CONNECTED;
                      done(true);
                    });
-    } else if (hint == CredentialKind::Admin) {
+    } else if (hint == CredentialKind::ADMIN) {
       // Known admin credential: mint straight away, no doomed probe (sync-path parity).
       token_ = token;
       requestAsync("POST", "/auth/token", "{}", "application/json",
                    [this, done = std::move(done)](int mint, QByteArray body) {
                      if (mint < 200 || mint >= 300) {
                        token_.clear();
-                       status_ = Status::Expired;
+                       status_ = Status::EXPIRED;
                        qWarning("stencil: admin token refused by %s — reconnect to sign in again",
                                 qPrintable(base_));
                        done(false);
@@ -64,12 +64,12 @@ namespace stencil::net {
                      token_ = QJsonDocument::fromJson(body).object().value("token").toString();
                      if (token_.isEmpty()) {
                        err_ = "server returned no token";
-                       status_ = Status::Error;
+                       status_ = Status::ERROR;
                        done(false);
                        return;
                      }
-                     kind_ = CredentialKind::Admin;
-                     status_ = Status::Connected;
+                     kind_ = CredentialKind::ADMIN;
+                     status_ = Status::CONNECTED;
                      done(true);
                    });
     } else {
@@ -77,8 +77,8 @@ namespace stencil::net {
       requestAsync("GET", "/projects", {}, {},
                    [this, done = std::move(done)](int status, QByteArray) mutable {
                      if (status >= 200 && status < 300) {
-                       kind_ = CredentialKind::Session;   // the token IS a session token
-                       status_ = Status::Connected;
+                       kind_ = CredentialKind::SESSION;   // the token IS a session token
+                       status_ = Status::CONNECTED;
                        done(true);
                        return;
                      }
@@ -87,20 +87,20 @@ namespace stencil::net {
                                     if (mint >= 200 && mint < 300) {
                                       token_ = QJsonDocument::fromJson(body).object().value("token").toString();
                                       if (!token_.isEmpty()) {
-                                        kind_ = CredentialKind::Admin;  // it minted: admin
-                                        status_ = Status::Connected;
+                                        kind_ = CredentialKind::ADMIN;  // it minted: admin
+                                        status_ = Status::CONNECTED;
                                         done(true);
                                         return;
                                       }
                                       err_ = "server returned no token";
                                       token_.clear();
-                                      status_ = Status::Error;
+                                      status_ = Status::ERROR;
                                       done(false);
                                       return;
                                     }
                                     // Neither a session nor the admin token: a refused CREDENTIAL, so the row offers a sign-in.
                                     token_.clear();
-                                    status_ = Status::Expired;
+                                    status_ = Status::EXPIRED;
                                     qWarning("stencil: token refused by %s — reconnect to sign in again",
                                              qPrintable(base_));
                                     done(false);

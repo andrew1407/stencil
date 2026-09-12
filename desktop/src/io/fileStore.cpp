@@ -18,9 +18,9 @@ namespace stencil::gui {
   QString localeDefaultUnit() {
     using MS = core::localeUnit::MeasurementSystem;
     const auto qsys = QLocale::system().measurementSystem();
-    const MS sys = (qsys == QLocale::ImperialUSSystem) ? MS::ImperialUS
-                 : (qsys == QLocale::ImperialUKSystem) ? MS::ImperialUK
-                                                       : MS::Metric;
+    const MS sys = (qsys == QLocale::ImperialUSSystem) ? MS::IMPERIAL_US
+                 : (qsys == QLocale::ImperialUKSystem) ? MS::IMPERIAL_UK
+                                                       : MS::METRIC;
     return QString::fromStdString(core::localeUnit::defaultUnit(sys));
   }
 

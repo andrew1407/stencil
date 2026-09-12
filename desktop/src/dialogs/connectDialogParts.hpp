@@ -69,9 +69,9 @@ namespace stencil::gui {
   inline QPixmap statusDot(stencil::net::ServerClient::Status s) {
     using S = stencil::net::ServerClient::Status;
     // Amber for BOTH connecting and expired: only the credential is missing (browser parity).
-    QColor c = s == S::Connected  ? QColor("#28a745")
-             : s == S::Connecting ? AMBER
-             : s == S::Expired    ? AMBER
+    QColor c = s == S::CONNECTED  ? QColor("#28a745")
+             : s == S::CONNECTING ? AMBER
+             : s == S::EXPIRED    ? AMBER
                                   : QColor("#dc3545");
     // Browser .conn-status: a 9px disc inside a 2px halo of its own colour at 18%.
     QPixmap pm(13, 13);

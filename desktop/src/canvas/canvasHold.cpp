@@ -34,8 +34,8 @@ namespace stencil::gui {
 
   void CanvasWidget::handleHoldTick() {
     const core::HoldEvent ev = hold_.tick(holdNowMs());
-    if (ev.action == core::HoldAction::Start) holdStart(ev.x, ev.y);
-    else if (ev.action == core::HoldAction::Drop) holdDrop(ev.x, ev.y);
+    if (ev.action == core::HoldAction::START) holdStart(ev.x, ev.y);
+    else if (ev.action == core::HoldAction::DROP) holdDrop(ev.x, ev.y);
   }
 
   // Hold completed → auto-enter drawing and seed the stroke. The target under the
@@ -45,14 +45,14 @@ namespace stencil::gui {
     const core::Point ip{widgetX / scale_, widgetY / scale_};
     const core::HoldTarget t = core::holdDrawTarget(lines_, ip.x, ip.y);
     holdPrepend_ = false;
-    if (t.kind == core::HoldTargetKind::ContinuePoint) {
+    if (t.kind == core::HoldTargetKind::CONTINUE_POINT) {
       selectedLineIdx_ = t.lineIdx;
       selectedPoint_ = t.ptIdx;
       startDrawingMode();
       // Holding the FIRST point extends the line backward: prepend new points
       // before it (index 0) instead of inserting after it as the second point.
       if (t.ptIdx == 0) { holdPrepend_ = true; continueInsertIdx_ = 0; }
-    } else if (t.kind == core::HoldTargetKind::InsertSegment) {
+    } else if (t.kind == core::HoldTargetKind::INSERT_SEGMENT) {
       insertPointOnSegment(t.lineIdx, t.ptIdx2, ip.x, ip.y);
       startDrawingMode();
     } else {

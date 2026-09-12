@@ -91,7 +91,7 @@ namespace stencil::gui {
                  tipColored(TIP_ERROR_COLOR,
                             QStringLiteral("Assistant turned off — nothing is sent anywhere")));
       chatMirrorProviderStatus(tipPanel(rows, {clickHint}),
-                               ChatDock::ProviderStatus::Unreachable);
+                               ChatDock::ProviderStatus::UNREACHABLE);
       return;
     }
     const QString provider = cfg.provider == QLatin1String("openai-compat")
@@ -123,7 +123,7 @@ namespace stencil::gui {
     const QString checking =
         tipColored(TIP_CONNECTING_COLOR, QStringLiteral("Checking the configured LLM…"));
     chatMirrorProviderStatus(tooltip(cfg.model, checking, {clickHint}),
-                             ChatDock::ProviderStatus::Unknown);
+                             ChatDock::ProviderStatus::UNKNOWN);
     // Probe only while SOMETHING shows the result.
     if (!chatDock_->isVisible() && !chatMenuPanel_) return;
     ensureLlmClient();
@@ -151,8 +151,8 @@ namespace stencil::gui {
       }
       foot << clickHint;
       self->chatMirrorProviderStatus(tooltip(model, statusHtml, foot),
-                                     r.ok ? ChatDock::ProviderStatus::Ok
-                                          : ChatDock::ProviderStatus::Unreachable);
+                                     r.ok ? ChatDock::ProviderStatus::OK
+                                          : ChatDock::ProviderStatus::UNREACHABLE);
     };
     // Probe cache within a TTL (browser chatSession cacheProbe parity), keyed by the effective settings.
     const QString probeKey =
