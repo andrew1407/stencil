@@ -1,7 +1,5 @@
 import { core } from '../core/stencilCore.js';
-// ── Geometry helpers (pure) ─────────────────────────────────────
-// Distance from point (px,py) to the segment a→b. Delegates to the shared C++
-// core (wasm) when loaded; the JS body is the reference + fallback.
+// The shared C++ core (wasm) when loaded; the JS body is the reference + fallback.
 export const distToSegment = core.bind('distToSegment', (px, py, a, b) => {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -13,6 +11,5 @@ export const distToSegment = core.bind('distToSegment', (px, py, a, b) => {
 
 
 
-// Edges inclusive; takes anything with left/right/top/bottom (a DOMRect in practice).
 export const pointInRect = (x, y, rect) =>
   x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;

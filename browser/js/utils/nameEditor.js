@@ -1,9 +1,6 @@
-// ── Inline name editor (shared: topbar + projects list) ─────────
-// Wire a live-validated inline rename editor. ✓ enables only when the trimmed value
-// changed AND validates (rejection reason shows on ✓'s tooltip); Enter commits, Escape
-// cancels. mousedown preventDefault keeps focus so the click fires before any blur
-// handler (callers wire blur→cancel). `alwaysShow` keeps ✓/✗ visible (projects list);
-// otherwise they appear once the value differs (topbar). Returns { refresh }.
+// ✓ enables only when the trimmed value changed AND validates (the reason goes on its
+// tooltip). mousedown preventDefault keeps focus so the click fires before any blur
+// handler. `alwaysShow` keeps ✓/✗ visible (projects list). Returns { refresh }.
 export const wireNameEditor = (input, acceptBtn, cancelBtn, { current, validate, commit, cancel, alwaysShow = false }) => {
   const refresh = () => {
     const v = input.value.trim();
@@ -34,17 +31,14 @@ export const wireNameEditor = (input, acceptBtn, cancelBtn, { current, validate,
 };
 
 
-// ── Display-shortening for project / image names ─────────────────────────────
-// For names interpolated into dialog sentences/toasts, where CSS text-overflow can't help.
-// Middle ellipsis because both ends carry meaning: the head is what the user recognises,
-// the tail holds the extension / "-copy" suffix that says WHICH item this is.
-// Ported to extension/src/lib/displayName.js and desktop/src/support/displayName.hpp
-// — keep the three behaviourally identical (same limit, same head/tail split).
+// Middle ellipsis: the head is what the user recognises, the tail holds the extension /
+// "-copy" suffix. Ported to extension/src/lib/displayName.js and
+// desktop/src/support/displayName.hpp — same limit, same head/tail split.
 export const NAME_DISPLAY_CHARS = 28;
 export const shortName = (name, limit = NAME_DISPLAY_CHARS) => {
   const s = String(name ?? '');
   if (s.length <= limit) return s;
-  // Reserve one char for the ellipsis; give the extra char to the head on odd splits.
+// One char for the ellipsis; the extra char goes to the head on odd splits.
   const keep = limit - 1;
   const head = Math.ceil(keep / 2);
   const tail = keep - head;

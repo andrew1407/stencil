@@ -84,8 +84,8 @@
     "browser/tests/zoomPanViewport.test.js": 347
   },
   "commentPct": {
-    "browser/js": 44,
-    "browser/js/config": 27,
+    "browser/js": 37,
+    "browser/js/config": 12,
     "browser/js/console": 21,
     "browser/js/core": 20,
     "browser/js/llm": 20,
@@ -94,7 +94,7 @@
     "browser/js/ui/bindings": 23,
     "browser/js/ui/motion": 15,
     "browser/js/ui/projects": 14,
-    "browser/js/utils": 25,
+    "browser/js/utils": 14,
     "browser/js/worker": 16,
     "browser/tests": 12,
     "browser/tests/helpers": 25,

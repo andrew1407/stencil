@@ -1,6 +1,5 @@
-// ── Zoom/draw rect overlay + the zoom-percent inputs ─────────────
-// The DOM writers ZoomPan (core/zoomPan.js) drives; one element (#zoom-rect-overlay) is
-// reused for both the zoom-to-rect marquee and the rectangle being drawn.
+// The DOM writers ZoomPan (core/zoomPan.js) drives; #zoom-rect-overlay serves both the
+// zoom-to-rect marquee and the rectangle being drawn.
 
 export const updateZoomRectOverlay = (s, en) => {
   const overlay = document.getElementById('zoom-rect-overlay');
@@ -21,7 +20,6 @@ export const hideZoomRectOverlay = () => {
   if (overlay) overlay.style.display = 'none';
 };
 
-// Reuse the zoom-rect overlay element to preview a rectangle being drawn.
 export const updateRectDrawOverlay = (s, en) => {
   const overlay = document.getElementById('zoom-rect-overlay');
   if (!overlay || !s || !en) return;
@@ -32,9 +30,7 @@ export const updateRectDrawOverlay = (s, en) => {
   overlay.style.display = 'block';
 };
 
-// Update every zoom-percent input on the page (the original plus any
-// fullscreen clones still in the DOM). Skip the one the user is
-// currently editing so typing isn't interrupted.
+// Every zoom-percent input (the original plus fullscreen clones), except the one being edited.
 export const setZoomInputValue = (percent) => {
   const inputs = document.querySelectorAll('[id="zoom-input"]');
   inputs.forEach(el => {

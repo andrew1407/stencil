@@ -1,10 +1,7 @@
-// ── Utilities (consolidated): DOM, mount, notify, geometry, color, hotkeys ──
-// One import point over ./utils/, which holds a file per concern. The mutable hotkey
-// registry lives in ./core/hotkeys.js (the `hotkeys` singleton); the pure parse/match
-// helpers are in ./utils/keys.js.
+// One import point over ./utils/ (a file per concern); the mutable hotkey registry lives
+// in ./core/hotkeys.js.
 export { onWindowResize, perFrame } from './ui/frameSync.js';
-// Lives in ui/scrollbarHover.js (the extension ports that file); re-exported here for
-// the callers that always found it in utils.
+// Lives in ui/scrollbarHover.js (an extension port); re-exported for its old callers.
 export { SCROLLBAR_STRIP_PX, scrollbarHit, scrollbarOwnerAt, wireScrollbarHover } from './ui/scrollbarHover.js';
 export * from './utils/dom.js';
 export * from './utils/math.js';
