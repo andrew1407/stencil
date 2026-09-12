@@ -19,7 +19,8 @@ import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor
+
+from ._parallel import map_parallel
 
 
 # A browser-like User-Agent so plain static hosts (and CDNs that 403 the urllib default)
@@ -139,16 +140,8 @@ MAX_FETCH_WORKERS = 8
 
 
 def _fetch_all(jobs, work):
-    """Map ``work`` over ``jobs`` in a bounded thread pool; results come back in INPUT order.
-
-    Each job must be self-contained (its own guard, its own failure handling) — this is a
-    fan-out, not a scheduler: an exception from ``work`` propagates on iteration.
-    """
-    jobs = list(jobs)
-    if len(jobs) < 2:
-        return [work(job) for job in jobs]
-    with ThreadPoolExecutor(max_workers=min(MAX_FETCH_WORKERS, len(jobs))) as pool:
-        return list(pool.map(work, jobs))
+    """Run a batch of independent fetches at once, bounded by :data:`MAX_FETCH_WORKERS`."""
+    return map_parallel(jobs, work, MAX_FETCH_WORKERS)
 
 
 def _unverified_ssl_context() -> ssl.SSLContext:
