@@ -22,9 +22,13 @@ near your edit:
 - `cli/build.zig` → the core sources array
 - `pystencil/build.py` → the core sources list
 
-Note the ABI asymmetry: the CMake/wasm build compiles `wasmApi.cpp`; the CLI and pystencil
-each append **`cliApi.cpp`** (the `extern "C"` ABI they wrap) instead. Keep only the pure
-`core/*.cpp` modules synced across the three — the api file differs per surface by design.
+Note the ABI asymmetry: the CMake/wasm build compiles the `wasm*Api.cpp` files; the CLI and
+pystencil each append **`cliApi.cpp`** (the `extern "C"` ABI they wrap) instead. Keep only the
+pure `core/*.cpp` modules synced across the three — the api file differs per surface by design.
+**Consequence: splitting a wasm ABI file is a ONE-file edit.** `wasmApi.cpp`, `wasmCropApi.cpp`,
+`wasmStateApi.cpp` and `wasmProjectsApi.cpp` appear only in `core/CMakeLists.txt`, twice each —
+the `stencil_tests` exe and the `if(EMSCRIPTEN)` exe. Neither `cli/build.zig` nor
+`pystencil/build.py` mentions them.
 
 A **new wasm export** is a fourth, separate list: add `_stencil_x` to `EXPORTED_FUNCTIONS`
 in `core/CMakeLists.txt` or the browser cannot call it.
