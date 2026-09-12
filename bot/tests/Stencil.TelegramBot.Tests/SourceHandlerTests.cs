@@ -46,7 +46,7 @@ public sealed class SourceHandlerTests : IDisposable
     [Theory]
     [InlineData("/sourcesite")]
     [InlineData("/sourceupload")]
-    public async Task NoArgsSendsUsageHintAndNeverScrapes(string command)
+    public async Task Should_Send_The_Usage_Hint_And_Never_Scrape_Without_Args(string command)
     {
         await dispatch(command);
 
@@ -58,7 +58,7 @@ public sealed class SourceHandlerTests : IDisposable
     [Theory]
     [InlineData("/sourcesite")]
     [InlineData("/sourceupload")]
-    public async Task ABadOptionRepliesWithTheUsageHintAndDoesNotScrape(string command)
+    public async Task Should_Reply_With_The_Usage_Hint_And_Not_Scrape_On_A_Bad_Option(string command)
     {
         await dispatch($"{command} {_publicUrl} minw=wide");
 
@@ -71,7 +71,7 @@ public sealed class SourceHandlerTests : IDisposable
     // ── /sourcesite ──
 
     [Fact]
-    public async Task SiteSendsEachScrapedFileAndASummary()
+    public async Task Should_Send_Each_Scraped_File_And_A_Summary_On_Site()
     {
         await dispatch($"/sourcesite {_publicUrl}");
 
@@ -90,7 +90,7 @@ public sealed class SourceHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task SitePassesParsedFiltersAndAServiceOwnedOutputDirToTheCli()
+    public async Task Should_Pass_Parsed_Filters_And_A_Service_Owned_Output_Dir_To_The_Cli_On_Site()
     {
         await dispatch($"/sourcesite {_publicUrl} 6 filter=img format=png|jpg name=cat.*\\.jpg minw=200 group=1");
 
@@ -108,7 +108,7 @@ public sealed class SourceHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task SiteNoCountDefaultsToFive()
+    public async Task Should_Default_To_Five_On_Site_Without_A_Count()
     {
         await dispatch($"/sourcesite {_publicUrl}");
 
@@ -116,7 +116,7 @@ public sealed class SourceHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task SiteCountZeroRidesThroughAsAll()
+    public async Task Should_Pass_Count_Zero_Through_As_All_On_Site()
     {
         // An explicit 0 means "all" — it is NOT re-defaulted to 5, and passes straight through
         // (the CLI reads `--source-count 0` as every match).
@@ -128,7 +128,7 @@ public sealed class SourceHandlerTests : IDisposable
     // ── /sourceupload ──
 
     [Fact]
-    public async Task UploadLoadsTheScrapedStillAsTheWorkingImageAndSendsAPhoto()
+    public async Task Should_Load_The_Scraped_Still_As_The_Working_Image_And_Send_A_Photo_On_Upload()
     {
         await dispatch($"/sourceupload {_publicUrl}");
 
@@ -151,7 +151,7 @@ public sealed class SourceHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task UploadIndexAndBoundOptionsRideIntoTheScrapeRequest()
+    public async Task Should_Pass_Index_And_Bound_Options_Into_The_Scrape_Request_On_Upload()
     {
         await dispatch($"/sourceupload {_publicUrl} index=0 format=png minw=200 maxh=1000");
 
@@ -165,7 +165,7 @@ public sealed class SourceHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task UploadOutOfRangeIndexRepliesWithTheNoImageHintAndSendsNoPhoto()
+    public async Task Should_Reply_With_The_No_Image_Hint_And_Send_No_Photo_On_Upload_With_An_Out_Of_Range_Index()
     {
         // Only two stubs exist, so index 999 isolates nothing — the handler replies, not renders.
         await dispatch($"/sourceupload {_publicUrl} 999");

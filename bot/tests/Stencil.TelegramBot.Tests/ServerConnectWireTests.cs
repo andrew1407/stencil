@@ -14,7 +14,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class ServerConnectWireTests
 {
     [Fact]
-    public async Task ConnectWithoutTokenPostsAuthTokenAndReturnsIt()
+    public async Task Should_Post_Auth_Token_And_Return_It_When_Connecting_Without_Token()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json("{\"token\":\"minted-abc\",\"expiresAt\":999}"));
@@ -30,7 +30,7 @@ public sealed class ServerConnectWireTests
     }
 
     [Fact]
-    public async Task ConnectWithASessionTokenThatListsIsClassifiedAsASession()
+    public async Task Should_Classify_As_A_Session_When_Connecting_With_A_Session_Token_That_Lists()
     {
         List<string> paths = new();
         CannedHttpMessageHandler handler = new((req, _) =>
@@ -48,7 +48,7 @@ public sealed class ServerConnectWireTests
     }
 
     [Fact]
-    public async Task ConnectWithAdminTokenMintsSessionTokenAndRevalidates()
+    public async Task Should_Mint_Session_Token_And_Revalidate_When_Connecting_With_Admin_Token()
     {
         List<(string Path, string? Bearer)> calls = new();
         CannedHttpMessageHandler handler = new((req, _) =>
@@ -76,7 +76,7 @@ public sealed class ServerConnectWireTests
     }
 
     [Fact]
-    public async Task ConnectWithAKnownAdminCredentialSkipsTheDoomedProbe()
+    public async Task Should_Skip_The_Doomed_Probe_When_Connecting_With_A_Known_Admin_Credential()
     {
         List<(string Path, string? Bearer)> calls = new();
         CannedHttpMessageHandler handler = new((req, _) =>
@@ -102,7 +102,7 @@ public sealed class ServerConnectWireTests
     }
 
     [Fact]
-    public async Task ConnectWithWrongTokenSurfacesTheProbeRejection()
+    public async Task Should_Surface_The_Probe_Rejection_When_Connecting_With_Wrong_Token()
     {
         int requests = 0;
         CannedHttpMessageHandler handler = new((req, _) =>
@@ -124,7 +124,7 @@ public sealed class ServerConnectWireTests
     }
 
     [Fact]
-    public async Task ConnectNonAuthProbeErrorPropagatesWithoutMinting()
+    public async Task Should_Propagate_A_Non_Auth_Probe_Error_Without_Minting_On_Connect()
     {
         int requests = 0;
         CannedHttpMessageHandler handler = new((_, _) =>

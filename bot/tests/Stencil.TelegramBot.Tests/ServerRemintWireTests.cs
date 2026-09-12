@@ -15,7 +15,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class ServerRemintWireTests
 {
     [Fact]
-    public async Task StaleSessionTokenRemintsOnceWithTheCredentialAndRetries()
+    public async Task Should_Remint_Once_With_The_Credential_And_Retry_On_A_Stale_Session_Token()
     {
         List<string> bearers = new();
         CannedHttpMessageHandler handler = new((req, _) =>
@@ -39,7 +39,7 @@ public sealed class ServerRemintWireTests
     }
 
     [Fact]
-    public async Task MidSessionRemintPromotesTheCredentialToAdmin()
+    public async Task Should_Promote_The_Credential_To_Admin_On_A_Mid_Session_Remint()
     {
         CannedHttpMessageHandler handler = new((req, _) =>
         {
@@ -63,7 +63,7 @@ public sealed class ServerRemintWireTests
     }
 
     [Fact]
-    public async Task AuthTokenFailureDoesNotLoopAndKeepsTheOriginalError()
+    public async Task Should_Not_Loop_And_Keep_The_Original_Error_On_Auth_Token_Failure()
     {
         int requests = 0;
         CannedHttpMessageHandler handler = new((_, _) =>
@@ -82,7 +82,7 @@ public sealed class ServerRemintWireTests
     }
 
     [Fact]
-    public async Task AuthFailureWithoutACredentialDoesNotRemint()
+    public async Task Should_Not_Remint_On_Auth_Failure_Without_A_Credential()
     {
         int requests = 0;
         CannedHttpMessageHandler handler = new((_, _) =>

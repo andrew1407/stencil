@@ -16,15 +16,15 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class TextGoldenTests
 {
     [Fact]
-    public void RepliesFixedStringsMatchTheGolden() =>
+    public void Should_Match_The_Golden_For_Replies_Fixed_Strings() =>
         TextGolden.Check("replies.txt", buildReplies());
 
     [Fact]
-    public void KeyboardLabelsAndTokensMatchTheGolden() =>
+    public void Should_Match_The_Golden_For_Keyboard_Labels_And_Tokens() =>
         TextGolden.Check("keyboards.txt", buildKeyboards());
 
     [Fact]
-    public void BotCommandMenuMatchesTheGolden() =>
+    public void Should_Match_The_Golden_For_The_Bot_Command_Menu() =>
         TextGolden.Check("commands.txt", buildCommands());
 
     /// <summary>

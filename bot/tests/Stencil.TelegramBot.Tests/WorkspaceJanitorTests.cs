@@ -60,7 +60,7 @@ public sealed class WorkspaceJanitorTests : IDisposable
     }
 
     [Fact]
-    public async Task SweepsEveryUserAndKeepsWhatTheirSessionReferences()
+    public async Task Should_Sweep_Every_User_And_Keep_What_Their_Session_References()
     {
         string keptOrphan = stale(7);
         string sweptOrphan = stale(7);
@@ -76,7 +76,7 @@ public sealed class WorkspaceJanitorTests : IDisposable
     }
 
     [Fact]
-    public async Task AVideoSourceIsKeptTogetherWithTheOriginal()
+    public async Task Should_Keep_A_Video_Source_Together_With_The_Original()
     {
         string original = stale(9);
         string video = stale(9);
@@ -94,7 +94,7 @@ public sealed class WorkspaceJanitorTests : IDisposable
     }
 
     [Fact]
-    public async Task ASweepThatThrowsIsLoggedAndTheLoopStaysUp()
+    public async Task Should_Log_A_Sweep_That_Throws_And_Keep_The_Loop_Up()
     {
         stale(7);
         ThrowingStore store = new();
@@ -107,7 +107,7 @@ public sealed class WorkspaceJanitorTests : IDisposable
     }
 
     [Fact]
-    public async Task NothingToSweepLogsNothing()
+    public async Task Should_Log_Nothing_When_There_Is_Nothing_To_Sweep()
     {
         WorkspaceJanitor janitor = new(_workspace, _store, _options, _logger);
 

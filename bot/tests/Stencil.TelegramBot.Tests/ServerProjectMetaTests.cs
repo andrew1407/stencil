@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class ServerProjectMetaTests : ServerServiceTestBase
 {
     [Fact]
-    public async Task SetProjectColorUpdatesTheActiveProject()
+    public async Task Should_Update_The_Active_Project_On_Set_Project_Color()
     {
         _factory.ClientFor(ServerA).Seed(
             new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
@@ -24,14 +24,14 @@ public sealed class ServerProjectMetaTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task SetProjectColorThrowsWithoutAnActiveProject()
+    public async Task Should_Throw_Without_An_Active_Project_On_Set_Project_Color()
     {
         await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SetProjectColorAsync(UserId, "#fff"));
     }
 
     [Fact]
-    public async Task SetProjectNameRenamesTheActiveProjectAndRelabelsTheWorkingImage()
+    public async Task Should_Rename_The_Active_Project_And_Relabel_The_Working_Image_On_Set_Project_Name()
     {
         _factory.ClientFor(ServerA).Seed(
             new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
@@ -48,7 +48,7 @@ public sealed class ServerProjectMetaTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task SetProjectNameRejectsABlankName()
+    public async Task Should_Reject_A_Blank_Name_On_Set_Project_Name()
     {
         _factory.ClientFor(ServerA).Seed(
             new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
@@ -60,14 +60,14 @@ public sealed class ServerProjectMetaTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task SetProjectNameThrowsWithoutAnActiveProject()
+    public async Task Should_Throw_Without_An_Active_Project_On_Set_Project_Name()
     {
         await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SetProjectNameAsync(UserId, "New"));
     }
 
     [Fact]
-    public async Task SetProjectDescriptionStoresItOnTheSessionForStatus()
+    public async Task Should_Store_It_On_The_Session_For_Status_On_Set_Project_Description()
     {
         _factory.ClientFor(ServerA).Seed(
             new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
@@ -87,7 +87,7 @@ public sealed class ServerProjectMetaTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task SetProjectExpirySetsAndClearsTheActiveProject()
+    public async Task Should_Set_And_Clear_The_Active_Project_On_Set_Project_Expiry()
     {
         _factory.ClientFor(ServerA).Seed(
             new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
@@ -109,14 +109,14 @@ public sealed class ServerProjectMetaTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task SetProjectExpiryThrowsWithoutAnActiveProject()
+    public async Task Should_Throw_Without_An_Active_Project_On_Set_Project_Expiry()
     {
         await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.SetProjectExpiryAsync(UserId, 9_000));
     }
 
     [Fact]
-    public async Task SetProjectExpiryRetriesPastAConcurrentBump()
+    public async Task Should_Retry_Past_A_Concurrent_Bump_On_Set_Project_Expiry()
     {
         _factory.ClientFor(ServerA).Seed(
             new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
@@ -132,7 +132,7 @@ public sealed class ServerProjectMetaTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task CreateThenSetExpiryDoesNotConflict()
+    public async Task Should_Not_Conflict_On_Create_Then_Set_Expiry()
     {
         // Regression: the original upload bumps the server version, so a naive create that stored
         // the pre-upload version would 409 on this immediately-following expiry write.

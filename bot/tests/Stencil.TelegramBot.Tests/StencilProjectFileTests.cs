@@ -26,7 +26,7 @@ public class StencilProjectFileTests
     });
 
     [Fact]
-    public void RoundTripsImageLayoutAndMetadata()
+    public void Should_Round_Trip_Image_Layout_And_Metadata()
     {
         var project = new StencilProject
         {
@@ -58,7 +58,7 @@ public class StencilProjectFileTests
     }
 
     [Fact]
-    public void OmitsEmptyMetadataFromTheFile()
+    public void Should_Omit_Empty_Metadata_From_The_File()
     {
         string json = StencilProjectFile.Build(new StencilProject
         {
@@ -78,7 +78,7 @@ public class StencilProjectFileTests
     [InlineData("{ not json")]                                                             // bad JSON
     [InlineData("{\"format\":\"stencil-project\",\"version\":999,\"image\":{\"dataUrl\":\"data:image/png;base64,AAAA\"}}")] // too new
     [InlineData("{\"format\":\"stencil-project\",\"version\":1}")]                          // no image
-    public void RejectsForeignOrMalformed(string json)
+    public void Should_Reject_Foreign_Or_Malformed_Files(string json)
     {
         Assert.Null(StencilProjectFile.Parse(Encoding.UTF8.GetBytes(json)));
     }

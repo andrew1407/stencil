@@ -20,14 +20,14 @@ public sealed class RepliesTests
     [InlineData(Replies.Tone.WARNING, "🟡")]
     [InlineData(Replies.Tone.SUCCESS, "✅")]
     [InlineData(Replies.Tone.NOTICE, "ℹ️")]
-    public void EachToneHasItsOwnGlyph(Replies.Tone tone, string expected)
+    public void Should_Give_Each_Tone_Its_Own_Glyph(Replies.Tone tone, string expected)
     {
         Assert.Equal(expected, Replies.Glyph(tone));
         Assert.Equal($"{expected} hello", Replies.Tag(tone, "hello"));
     }
 
     [Fact]
-    public void TheFourGlyphsAreDistinct()
+    public void Should_Keep_The_Four_Glyphs_Distinct()
     {
         string[] glyphs =
         [
@@ -46,14 +46,14 @@ public sealed class RepliesTests
     [InlineData("↑ synced to 'x' (v2).")]
     [InlineData("💾 Chat saving on — …")]
     [InlineData("🟡 already a warning")]
-    public void TagNeverStacksASecondGlyph(string message)
+    public void Should_Never_Stack_A_Second_Glyph_On_Tag(string message)
     {
         Assert.Equal(message, Replies.Tag(Replies.Tone.SUCCESS, message));
         Assert.Equal(message, Replies.Tag(Replies.Tone.ERROR, message));
     }
 
     [Fact]
-    public void PlainTextStillGetsItsGlyph()
+    public void Should_Give_Plain_Text_Its_Glyph()
     {
         Assert.Equal("🔴 Nope.", Replies.Tag(Replies.Tone.ERROR, "Nope."));
         // Punctuation is not a glyph — only a leading symbol rune counts as one.
@@ -70,18 +70,18 @@ public sealed class RepliesTests
     [InlineData("#111111", "⚫")]
     [InlineData("#f0f0f0", "⚪")]
     [InlineData("#f00", "🔴")]      // 3-digit hex expands
-    public void ColorDotMapsHexToNearestDot(string hex, string expected) =>
+    public void Should_Map_Hex_To_The_Nearest_Dot_In_Color_Dot(string hex, string expected) =>
         Assert.Equal(expected, Replies.ColorDot(hex));
 
     [Fact]
-    public void UnsetColourYieldsNoDot()
+    public void Should_Yield_No_Dot_For_An_Unset_Colour()
     {
         Assert.Equal("", Replies.ColorDot(null));
         Assert.Equal("", Replies.ColorDot(""));
     }
 
     [Fact]
-    public void ANamedColourFallsBackToAPalette()
+    public void Should_Fall_Back_To_A_Palette_For_A_Named_Colour()
     {
         // A CSS name we don't resolve still signals "has a colour".
         Assert.Equal("🎨", Replies.ColorDot("teal"));
@@ -90,7 +90,7 @@ public sealed class RepliesTests
     // ── the bare-command variant lists ──
 
     [Fact]
-    public void FilterVariantsListEveryMode()
+    public void Should_List_Every_Mode_In_Filter_Variants()
     {
         string text = Replies.FilterVariants();
         foreach (string mode in new[] { "bw", "sepia", "invert", "contour", "none" })
@@ -101,7 +101,7 @@ public sealed class RepliesTests
     }
 
     [Fact]
-    public void RotateVariantsListTheQuarterTurns()
+    public void Should_List_The_Quarter_Turns_In_Rotate_Variants()
     {
         string text = Replies.RotateVariants();
         Assert.Contains("/rotate 1 — 90° clockwise", text);
@@ -110,7 +110,7 @@ public sealed class RepliesTests
     }
 
     [Fact]
-    public void CropUsageNamesTheSpecVocabulary()
+    public void Should_Name_The_Spec_Vocabulary_In_Crop_Usage()
     {
         string text = Replies.CropUsage();
         Assert.Contains("x1= x2= y1= y2=", text);
@@ -119,7 +119,7 @@ public sealed class RepliesTests
     }
 
     [Fact]
-    public void PageFormatListHasOneLinePerFormatPlusTheCustomHint()
+    public void Should_Have_One_Line_Per_Format_Plus_The_Custom_Hint_In_Page_Format_List()
     {
         string text = Replies.PageFormatList();
         Assert.Contains("A4 (21×29.7 cm)", text);
@@ -132,7 +132,7 @@ public sealed class RepliesTests
     }
 
     [Fact]
-    public void DescribeEditsIncludesThePageFormat()
+    public void Should_Include_The_Page_Format_In_Describe_Edits()
     {
         Assert.Contains("page B5", Replies.DescribeEdits(new EditState { PageFormat = "B5" }));
         Assert.Contains(
@@ -142,7 +142,7 @@ public sealed class RepliesTests
     }
 
     [Fact]
-    public void ProjectsTextCapsALongListAndNotesTheOverflow()
+    public void Should_Cap_A_Long_List_And_Note_The_Overflow_In_Projects_Text()
     {
         // A server with far more projects than the cap must not overflow Telegram's 4096-char
         // message limit; the extra ones are called out, not silently dropped.

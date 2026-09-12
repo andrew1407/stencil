@@ -10,7 +10,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class ServerListingTests : ServerServiceTestBase
 {
     [Fact]
-    public async Task ListProjectsAggregatesAndSkipsAThrowingServer()
+    public async Task Should_Aggregate_And_Skip_A_Throwing_Server_On_List_Projects()
     {
         _factory.ClientFor(ServerA).Seed(new ProjectRecord { Id = "p_a", Name = "Alpha" });
         _factory.ClientFor(ServerB).ThrowOnList = true;
@@ -25,7 +25,7 @@ public sealed class ServerListingTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task ListProjectsAsksEveryServerAtOnce()
+    public async Task Should_Ask_Every_Server_At_Once_On_List_Projects()
     {
         _factory.ClientFor(ServerA).Seed(new ProjectRecord { Id = "p_a", Name = "Alpha" });
         _factory.ClientFor(ServerB).Seed(new ProjectRecord { Id = "p_b", Name = "Beta" });

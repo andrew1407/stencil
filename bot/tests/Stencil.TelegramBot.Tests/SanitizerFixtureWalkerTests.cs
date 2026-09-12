@@ -20,11 +20,11 @@ public sealed class SanitizerFixtureWalkerTests
     public static TheoryData<string> Vectors() => SharedFixtures.TheoryNames(SharedFixtures.CaseNames(Corpus));
 
     [Fact]
-    public void TheCorpusHasEveryVector() => Assert.Equal(19, SharedFixtures.Cases(Corpus).Count);
+    public void Should_Have_Every_Vector_In_The_Corpus() => Assert.Equal(19, SharedFixtures.Cases(Corpus).Count);
 
     [Theory]
     [MemberData(nameof(Vectors))]
-    public void VectorMatches(string name)
+    public void Should_Match_Each_Vector(string name)
     {
         using JsonDocument doc = SharedFixtures.Case(Corpus, name);
         JsonElement fx = doc.RootElement;

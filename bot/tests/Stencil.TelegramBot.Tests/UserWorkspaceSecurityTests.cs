@@ -45,7 +45,7 @@ public sealed class UserWorkspaceSecurityTests : IDisposable
     [InlineData("no-extension")]
     [InlineData("")]
     [InlineData("weird.name.with.dots.jpg")]
-    public void UploadFileNameCannotEscapeTheUserDirectory(string hostileFileName)
+    public void Should_Not_Let_An_Upload_File_Name_Escape_The_User_Directory(string hostileFileName)
     {
         // Reproduce exactly what the router does with an uploaded document's name: take only
         // its extension. The name itself is discarded; a GUID becomes the real filename.
@@ -68,7 +68,7 @@ public sealed class UserWorkspaceSecurityTests : IDisposable
     [InlineData("/etc/cron.d/evil.png")]
     [InlineData("subdir/evil.png")]
     [InlineData(".png/../../escape")]
-    public void ExtensionDerivationNeverYieldsAPathSeparator(string hostileFileName)
+    public void Should_Never_Yield_A_Path_Separator_From_Extension_Derivation(string hostileFileName)
     {
         // The linchpin of the safety argument: Path.GetExtension (what the router uses) returns
         // the suffix after the last dot of the LAST path component, so it can hold no separator

@@ -66,7 +66,7 @@ public sealed class ReplyTonesTests : IDisposable
 
     // The reported case: /connect against a server that rejects the token.
     [Fact]
-    public async Task AConnectionFailureIsMarkedAsAnError()
+    public async Task Should_Mark_A_Connection_Failure_As_An_Error()
     {
         _servers.ConnectThrows = new ServerException("unauthorized", "missing or invalid token", 401);
 
@@ -78,7 +78,7 @@ public sealed class ReplyTonesTests : IDisposable
     }
 
     [Fact]
-    public async Task ACliFailureIsMarkedAsAnErrorToo()
+    public async Task Should_Mark_A_Cli_Failure_As_An_Error_Too()
     {
         _cli.FailWhen = _ => true;
 
@@ -88,7 +88,7 @@ public sealed class ReplyTonesTests : IDisposable
     }
 
     [Fact]
-    public async Task AnAssistantFailureIsMarkedAsAnError()
+    public async Task Should_Mark_An_Assistant_Failure_As_An_Error()
     {
         await dispatch("/blank");
         _llm.Throw = new LlmException("Could not reach the AI service.");
@@ -100,7 +100,7 @@ public sealed class ReplyTonesTests : IDisposable
 
     // A plan that half-ran: the reply stays plain, each warning line carries the warning glyph.
     [Fact]
-    public async Task PlanWarningsAreMarkedAsWarnings()
+    public async Task Should_Mark_Plan_Warnings_As_Warnings()
     {
         await dispatch("/blank");
         _llm.CannedReplies.Enqueue(new LlmReply(
@@ -115,7 +115,7 @@ public sealed class ReplyTonesTests : IDisposable
     }
 
     [Fact]
-    public async Task AConfirmedServerActionIsMarkedAsSuccess()
+    public async Task Should_Mark_A_Confirmed_Server_Action_As_Success()
     {
         await send("/connect https://stencil.example.com");
 
@@ -123,7 +123,7 @@ public sealed class ReplyTonesTests : IDisposable
     }
 
     [Fact]
-    public async Task APlainNoticeIsMarkedAsANotice()
+    public async Task Should_Mark_A_Plain_Notice_As_A_Notice()
     {
         // Nothing failed and nothing changed: /disconnect with no matching connection.
         _servers.DisconnectResult = false;

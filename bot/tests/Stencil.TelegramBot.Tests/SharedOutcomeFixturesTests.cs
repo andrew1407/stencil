@@ -59,7 +59,7 @@ public sealed class SharedOutcomeFixturesTests
 
     [Theory]
     [MemberData(nameof(WroteCases))]
-    public void WroteFixtureMatches(string name)
+    public void Should_Match_Each_Wrote_Fixture(string name)
     {
         JsonElement c = caseOf("wrote", name);
         RenderResult? got = CliOutcomeParser.ParseWrote(stderr(c));
@@ -77,7 +77,7 @@ public sealed class SharedOutcomeFixturesTests
 
     [Theory]
     [MemberData(nameof(RemoteCases))]
-    public void RemoteFixtureMatches(string name)
+    public void Should_Match_Each_Remote_Fixture(string name)
     {
         JsonElement c = caseOf("remotes", name);
         IReadOnlyList<RemoteDelivery> got = CliOutcomeParser.ParseRemotes(stderr(c));
@@ -111,7 +111,7 @@ public sealed class SharedOutcomeFixturesTests
 
     [Theory]
     [MemberData(nameof(ErrorCases))]
-    public void ErrorFixtureMatches(string name)
+    public void Should_Match_Each_Error_Fixture(string name)
     {
         JsonElement c = caseOf("errors", name);
         Assert.Equal(c.GetProperty("expected").GetString(), CliOutcomeParser.ExtractErrors(stderr(c)));

@@ -14,7 +14,7 @@ public sealed class RedisConnectionStringTests
         Assert.IsType<DnsEndPoint>(Assert.Single(options.EndPoints));
 
     [Fact]
-    public void TheDocumentedUrlFormParsesToHostPortAndDatabase()
+    public void Should_Parse_Host_Port_And_Database_From_The_Documented_Url_Form()
     {
         ConfigurationOptions options = RedisConnectionString.Parse("redis://localhost:6379/0");
 
@@ -26,13 +26,13 @@ public sealed class RedisConnectionStringTests
     }
 
     [Fact]
-    public void AUrlWithoutAPortGetsRedisDefault()
+    public void Should_Use_The_Redis_Default_Port_For_A_Url_Without_A_Port()
     {
         Assert.Equal(RedisConnectionString.DEFAULT_PORT, endpointOf(RedisConnectionString.Parse("redis://cache.internal")).Port);
     }
 
     [Fact]
-    public void TheRedissSchemeTurnsOnTls()
+    public void Should_Turn_On_Tls_For_The_Rediss_Scheme()
     {
         ConfigurationOptions options = RedisConnectionString.Parse("rediss://cache.example:6380/2");
 
@@ -42,7 +42,7 @@ public sealed class RedisConnectionStringTests
     }
 
     [Fact]
-    public void UserInfoBecomesTheUserAndPassword()
+    public void Should_Take_The_User_And_Password_From_User_Info()
     {
         ConfigurationOptions withBoth = RedisConnectionString.Parse("redis://alice:s3cr3t@cache:6379/1");
         Assert.Equal("alice", withBoth.User);
@@ -56,7 +56,7 @@ public sealed class RedisConnectionStringTests
     }
 
     [Fact]
-    public void AnEscapedPasswordSurvivesTheCharactersAConfigurationStringWouldEat()
+    public void Should_Preserve_An_Escaped_Password_With_The_Characters_A_Configuration_String_Would_Eat()
     {
         // ',' separates options and '=' separates key from value in the native syntax — a
         // password holding either only survives because it is set on the options object.
@@ -66,7 +66,7 @@ public sealed class RedisConnectionStringTests
     }
 
     [Fact]
-    public void TheNativeConfigurationStringStillWorks()
+    public void Should_Accept_The_Native_Configuration_String()
     {
         ConfigurationOptions options = RedisConnectionString.Parse("cache:6380,defaultDatabase=3,abortConnect=false");
 
@@ -76,7 +76,7 @@ public sealed class RedisConnectionStringTests
     }
 
     [Fact]
-    public void AnUnusableValueIsRejectedWithoutQuotingIt()
+    public void Should_Reject_An_Unusable_Value_Without_Quoting_It()
     {
         // The value can carry a password, so the message must describe the forms, not echo it.
         ArgumentException ex = Assert.Throws<ArgumentException>(

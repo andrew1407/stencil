@@ -77,7 +77,7 @@ public sealed class SyncWatcherTests : IDisposable
     }
 
     [Fact]
-    public async Task ANewerServerVersionPullsAndPushesTheRefreshedResult()
+    public async Task Should_Pull_And_Push_The_Refreshed_Result_On_A_Newer_Server_Version()
     {
         await seedSyncedUser(lastSeenVersion: 1);
         _servers.ActiveVersion = 2;
@@ -94,7 +94,7 @@ public sealed class SyncWatcherTests : IDisposable
     }
 
     [Fact]
-    public async Task AnUnchangedVersionPullsNothing()
+    public async Task Should_Pull_Nothing_On_An_Unchanged_Version()
     {
         await seedSyncedUser(lastSeenVersion: 3);
         _servers.ActiveVersion = 3; // the peer's version is ours
@@ -106,7 +106,7 @@ public sealed class SyncWatcherTests : IDisposable
     }
 
     [Fact]
-    public async Task AnUnreachableServerIsSkippedWithoutPulling()
+    public async Task Should_Skip_An_Unreachable_Server_Without_Pulling()
     {
         await seedSyncedUser(lastSeenVersion: 1);
         _servers.ActiveVersion = null; // the poll could not reach the server
@@ -120,7 +120,7 @@ public sealed class SyncWatcherTests : IDisposable
     }
 
     [Fact]
-    public async Task SyncTurnedOffDropsTheRegistryEntry()
+    public async Task Should_Drop_The_Registry_Entry_When_Sync_Is_Turned_Off()
     {
         await seedSyncedUser(lastSeenVersion: 1);
         await _store.SaveAsync(await _store.GetAsync(_userId) with { SyncEnabled = false });
@@ -132,7 +132,7 @@ public sealed class SyncWatcherTests : IDisposable
     }
 
     [Fact]
-    public async Task ADroppedProjectDropsTheRegistryEntryToo()
+    public async Task Should_Drop_The_Registry_Entry_Too_For_A_Dropped_Project()
     {
         await seedSyncedUser(lastSeenVersion: 1);
         await _store.SaveAsync(await _store.GetAsync(_userId) with { ActiveProjectId = null });
@@ -143,7 +143,7 @@ public sealed class SyncWatcherTests : IDisposable
     }
 
     [Fact]
-    public async Task AFailedTickIsLoggedAndTheLoopStaysUp()
+    public async Task Should_Log_A_Failed_Tick_And_Keep_The_Loop_Up()
     {
         await seedSyncedUser(lastSeenVersion: 1);
         _servers.VersionThrows = new InvalidOperationException("server is down");

@@ -12,7 +12,7 @@ public sealed class UpdatePumpTests
     private readonly MockLogger<UpdatePumpTests> _logger = new();
 
     [Fact]
-    public async Task QueuingDoesNotWaitForTheHandler()
+    public async Task Should_Not_Wait_For_The_Handler_When_Queuing()
     {
         await using UpdatePump pump = new(_logger);
         TaskCompletionSource release = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -30,7 +30,7 @@ public sealed class UpdatePumpTests
     }
 
     [Fact]
-    public async Task AThrowingHandlerIsLoggedAndTheWorkerKeepsGoing()
+    public async Task Should_Log_A_Throwing_Handler_And_Keep_The_Worker_Going()
     {
         TaskCompletionSource ran = new(TaskCreationOptions.RunContinuationsAsynchronously);
         await using (UpdatePump pump = new(_logger, workers: 1))
@@ -44,7 +44,7 @@ public sealed class UpdatePumpTests
     }
 
     [Fact]
-    public async Task DisposeDrainsWhatIsStillQueued()
+    public async Task Should_Drain_What_Is_Still_Queued_On_Dispose()
     {
         int ran = 0;
         UpdatePump pump = new(_logger, workers: 1);

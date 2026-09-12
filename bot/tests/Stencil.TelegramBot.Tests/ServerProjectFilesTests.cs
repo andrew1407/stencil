@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class ServerProjectFilesTests : ServerServiceTestBase
 {
     [Fact]
-    public async Task CreateProjectCreatesUploadsOriginalAndMarksActive()
+    public async Task Should_Create_Upload_Original_And_Mark_Active_On_Create_Project()
     {
         await SeedWorkingImageAsync();
         await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
@@ -30,7 +30,7 @@ public sealed class ServerProjectFilesTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task CreateProjectUploadsALocallyHeldDescription()
+    public async Task Should_Upload_A_Locally_Held_Description_On_Create_Project()
     {
         await SeedWorkingImageAsync();
         // A description set before saving (via /project-description) rides on the session.
@@ -46,7 +46,7 @@ public sealed class ServerProjectFilesTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task SaveActiveProjectUpdatesUnderTheVersionGuard()
+    public async Task Should_Update_Under_The_Version_Guard_On_Save_Active_Project()
     {
         await SeedWorkingImageAsync();
         await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
@@ -64,7 +64,7 @@ public sealed class ServerProjectFilesTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task SaveActiveProjectSurfacesAConflict()
+    public async Task Should_Surface_A_Conflict_On_Save_Active_Project()
     {
         await SeedWorkingImageAsync();
         await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
@@ -79,7 +79,7 @@ public sealed class ServerProjectFilesTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task DeleteActiveProjectRemovesItAndClearsTheSession()
+    public async Task Should_Remove_It_And_Clear_The_Session_On_Delete_Active_Project()
     {
         _factory.ClientFor(ServerA).Seed(
             new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
@@ -100,7 +100,7 @@ public sealed class ServerProjectFilesTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task DeleteActiveProjectThrowsWithoutAnActiveProject()
+    public async Task Should_Throw_Without_An_Active_Project_On_Delete_Active_Project()
     {
         await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.DeleteActiveProjectAsync(UserId));

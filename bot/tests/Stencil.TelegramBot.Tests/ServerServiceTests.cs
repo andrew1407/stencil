@@ -14,7 +14,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class ServerServiceTests : ServerServiceTestBase
 {
     [Fact]
-    public async Task ConnectStoresConnectionWithMintedToken()
+    public async Task Should_Store_Connection_With_Minted_Token_On_Connect()
     {
         _factory.ClientFor(ServerA).MintedToken = "minted-xyz";
 
@@ -28,7 +28,7 @@ public sealed class ServerServiceTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task ConnectPersistsTheCredentialAndReusesItForLaterClients()
+    public async Task Should_Persist_The_Credential_And_Reuse_It_For_Later_Clients_On_Connect()
     {
         ServerConnectionInfo info = await _service.ConnectAsync(UserId, ServerA, token: "adm-secret", verifyTls: true);
 
@@ -43,7 +43,7 @@ public sealed class ServerServiceTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task ConnectRecordsTheCredentialKindAndReusesItForLaterClients()
+    public async Task Should_Record_The_Credential_Kind_And_Reuse_It_For_Later_Clients_On_Connect()
     {
         _factory.ClientFor(ServerA).HandshakeKind = CredentialKind.ADMIN;
 
@@ -62,7 +62,7 @@ public sealed class ServerServiceTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task ConnectRecordsASessionCredentialAndATokenlessConnectRecordsNone()
+    public async Task Should_Record_A_Session_Credential_On_Connect_And_None_On_A_Tokenless_Connect()
     {
         // A supplied token that validated directly is a plain session token…
         ServerConnectionInfo session = await _service.ConnectAsync(UserId, ServerA, token: "sess-tok", verifyTls: true);
@@ -78,7 +78,7 @@ public sealed class ServerServiceTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task ConnectParsesInviteLinkFragmentToken()
+    public async Task Should_Parse_The_Invite_Link_Fragment_Token_On_Connect()
     {
         ServerConnectionInfo info = await _service.ConnectAsync(UserId, ServerA + "#token=inv-tok", token: null, verifyTls: true);
 
@@ -88,7 +88,7 @@ public sealed class ServerServiceTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task ConnectExplicitTokenWinsOverInviteFragment()
+    public async Task Should_Prefer_An_Explicit_Token_Over_The_Invite_Fragment_On_Connect()
     {
         ServerConnectionInfo info = await _service.ConnectAsync(UserId, ServerA + "#token=frag-tok", token: "explicit", verifyTls: true);
 
@@ -98,7 +98,7 @@ public sealed class ServerServiceTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task ConnectWithoutFragmentIsUnchanged()
+    public async Task Should_Leave_Connect_Unchanged_Without_A_Fragment()
     {
         _factory.ClientFor(ServerA).MintedToken = "minted-1";
 
@@ -110,7 +110,7 @@ public sealed class ServerServiceTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task ConnectPersistsInviteFragmentTokenAsCredential()
+    public async Task Should_Persist_The_Invite_Fragment_Token_As_Credential_On_Connect()
     {
         await _service.ConnectAsync(UserId, ServerA + "#token=inv-adm", token: null, verifyTls: true);
 
@@ -123,7 +123,7 @@ public sealed class ServerServiceTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task FetchSetsActiveProjectAndSeedsFilterFromLayout()
+    public async Task Should_Set_Active_Project_And_Seed_Filter_From_Layout_On_Fetch()
     {
         _factory.ClientFor(ServerA).Seed(
             new ProjectRecord { Id = "p_seed", Name = "Shared", ImageW = 320, ImageH = 240, Version = 4 },
@@ -142,7 +142,7 @@ public sealed class ServerServiceTests : ServerServiceTestBase
     }
 
     [Fact]
-    public async Task FetchThrowsWhenNoMatch()
+    public async Task Should_Throw_On_Fetch_When_Nothing_Matches()
     {
         await _service.ConnectAsync(UserId, ServerA, token: null, verifyTls: true);
         await Assert.ThrowsAsync<InvalidOperationException>(

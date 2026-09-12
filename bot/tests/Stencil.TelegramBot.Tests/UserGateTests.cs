@@ -10,7 +10,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class UserGateTests
 {
     [Fact]
-    public async Task SameUserRunsOneAtATime()
+    public async Task Should_Run_The_Same_User_One_At_A_Time()
     {
         UserGate gate = new();
         int active = 0;
@@ -31,7 +31,7 @@ public sealed class UserGateTests
     }
 
     [Fact]
-    public async Task DifferentUsersDoNotBlockEachOther()
+    public async Task Should_Not_Block_Different_Users_On_Each_Other()
     {
         UserGate gate = new();
         using IDisposable heldByUserOne = await gate.AcquireAsync(1);
@@ -42,7 +42,7 @@ public sealed class UserGateTests
     }
 
     [Fact]
-    public async Task SameUserSecondAcquireWaitsForRelease()
+    public async Task Should_Wait_For_Release_On_A_Second_Acquire_By_The_Same_User()
     {
         UserGate gate = new();
         IDisposable first = await gate.AcquireAsync(1);
@@ -56,7 +56,7 @@ public sealed class UserGateTests
     }
 
     [Fact]
-    public async Task DoubleDisposeReleasesOnlyOnePermit()
+    public async Task Should_Release_Only_One_Permit_On_Double_Dispose()
     {
         UserGate gate = new();
         IDisposable handle = await gate.AcquireAsync(1);
@@ -74,7 +74,7 @@ public sealed class UserGateTests
     }
 
     [Fact]
-    public async Task TheSemaphoreIsForgottenWhenTheLastHolderReleases()
+    public async Task Should_Forget_The_Semaphore_When_The_Last_Holder_Releases()
     {
         UserGate gate = new();
         for (long user = 1; user <= 50; user++)
@@ -87,7 +87,7 @@ public sealed class UserGateTests
     }
 
     [Fact]
-    public async Task AWaiterKeepsTheSemaphoreAliveAndStillSerializes()
+    public async Task Should_Keep_The_Semaphore_Alive_And_Still_Serialize_With_A_Waiter()
     {
         UserGate gate = new();
         IDisposable first = await gate.AcquireAsync(1);
@@ -102,7 +102,7 @@ public sealed class UserGateTests
     }
 
     [Fact]
-    public async Task ACancelledWaitDoesNotLeakAGate()
+    public async Task Should_Not_Leak_A_Gate_On_A_Cancelled_Wait()
     {
         UserGate gate = new();
         using IDisposable held = await gate.AcquireAsync(1);

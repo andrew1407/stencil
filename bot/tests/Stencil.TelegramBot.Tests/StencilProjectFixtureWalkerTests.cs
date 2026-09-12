@@ -22,12 +22,12 @@ public sealed class StencilProjectFixtureWalkerTests
         SharedFixtures.TheoryNames(_files.SelectMany(f => SharedFixtures.CaseNames(pathFor(f))));
 
     [Fact]
-    public void TheCorpusHasEveryVector() =>
+    public void Should_Have_Every_Vector_In_The_Corpus() =>
         Assert.Equal(21, _files.Sum(f => SharedFixtures.Cases(pathFor(f)).Count));
 
     [Theory]
     [MemberData(nameof(Vectors))]
-    public void VectorGetsItsVerdict(string name)
+    public void Should_Give_Each_Vector_Its_Verdict(string name)
     {
         string file = _files.First(f => SharedFixtures.CaseNames(pathFor(f)).Contains(name));
         using JsonDocument doc = SharedFixtures.Case(pathFor(file), name);
@@ -56,7 +56,7 @@ public sealed class StencilProjectFixtureWalkerTests
     }
 
     [Fact]
-    public void RejectionMechanismsArePinnedExactly()
+    public void Should_Pin_Rejection_Mechanisms_Exactly()
     {
         // version "1" (string): TryGetInt32 on a non-number THROWS — the reject is an
         // InvalidOperationException escaping Parse, not a null return.

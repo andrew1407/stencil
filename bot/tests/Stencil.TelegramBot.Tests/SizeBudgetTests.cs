@@ -29,7 +29,7 @@ public sealed class SizeBudgetTests
         Root.GetProperty("exceptions").TryGetProperty(path, out _);
 
     [Fact]
-    public void EveryOversizedFileIsListedInTheBudget()
+    public void Should_List_Every_Oversized_File_In_The_Budget()
     {
         JsonElement files = Root.GetProperty("files");
         string[] unlisted = _sources.Value
@@ -43,7 +43,7 @@ public sealed class SizeBudgetTests
     }
 
     [Fact]
-    public void ListedFilesDoNotGrow()
+    public void Should_Not_Let_Listed_Files_Grow()
     {
         JsonElement files = Root.GetProperty("files");
         List<string> grew = [];
@@ -67,7 +67,7 @@ public sealed class SizeBudgetTests
     }
 
     [Fact]
-    public void UnlistedFilesStayUnderTheCap()
+    public void Should_Keep_Unlisted_Files_Under_The_Cap()
     {
         JsonElement files = Root.GetProperty("files");
         string[] over = _sources.Value
@@ -80,7 +80,7 @@ public sealed class SizeBudgetTests
     }
 
     [Fact]
-    public void CommentShareDoesNotRise()
+    public void Should_Not_Let_The_Comment_Share_Rise()
     {
         List<string> risen = [];
         foreach (JsonProperty dir in Root.GetProperty("commentPct").EnumerateObject())
