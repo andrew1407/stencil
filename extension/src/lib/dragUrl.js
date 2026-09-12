@@ -1,16 +1,12 @@
 import { formatOf, VIDEO_FORMATS } from './filters.js';
 
-// Pull an image/video URL out of a drag's payloads. Dragging a page <img>/<video> onto
-// the side panel lands NOT a File but a URL in text/uri-list, text/html (an <img>/<source>
-// src), or text/plain. `read(type)` returns the drag's string for that MIME type
-// (''/throwing tolerated). Returns the first URL, or ''. DOM-free, so it's unit-testable.
+// A dragged page <img>/<video> lands NOT a File but a URL in text/uri-list, text/html or
+// text/plain. `read(type)` may return '' or throw. Returns the first URL, or ''.
 export const extractDraggedUrl = (read) => {
   const get = (t) => { try { return read(t) || ''; } catch { return ''; } };
 
-  // Prefer the actual media element in text/html FIRST: dragging an image wrapped in a
-  // link (e.g. a Wikipedia thumbnail — <a href="/wiki/File:…"><img src="…500px…"></a>)
-  // puts the LINK's href in text/uri-list but the real <img> src in text/html. We want
-  // to pin the image, not the page it links to.
+  // text/html FIRST: an image wrapped in a link puts the LINK's href in text/uri-list
+  // but the real <img> src in text/html.
   const html = get('text/html');
   const m = html && html.match(/<(?:img|source|video)[^>]+src\s*=\s*["']([^"']+)["']/i);
   if (m) return m[1];
@@ -27,7 +23,6 @@ export const extractDraggedUrl = (read) => {
   return '';
 };
 
-// Guess a pin kind from a URL's extension (video containers → 'video', else 'image'). The drag
-// gives no element tag, so the extension is the best signal available for a dropped URL.
+// The drag gives no element tag, so the URL's extension is the only kind signal.
 export const guessKindFromUrl = (url) =>
   VIDEO_FORMATS.includes(formatOf(String(url || ''))) ? 'video' : 'image';

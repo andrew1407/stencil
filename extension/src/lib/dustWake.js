@@ -11,19 +11,17 @@
     var R = Math.sqrt(Math.pow(Math.max(x, w - x), 2) + Math.pow(Math.max(y, h - y), 2));
     var specs = [];
     if (!(R > 0)) return specs;
-    var dip = edgeDipOf(style === undefined ? styleCode() : style);   // how deep the front bites inward
+    var dip = edgeDipOf(style === undefined ? styleCode() : style);
     for (var i = 0; i < DUST_MOTES; i++) {
       var n = dustNoise(i, 3), m = dustNoise(i + 57, 11), q = dustNoise(i + 13, 29);
       var angle = n * 2 * Math.PI;
       var u = DUST_MIN_T + m * (DUST_MAX_T - DUST_MIN_T);
-      // Hug the torn edge: just behind even its deepest tooth (1 − amp), so the band
-      // of grains and the ragged clip read as one crumbling front.
+      // Just behind the torn edge's deepest tooth, so grains and clip read as one front.
       var r = dustEase(u) * R * (1 - dip) - q * 6;
       if (r <= 0) continue;
       var cx = x + Math.cos(angle) * r, cy = y + Math.sin(angle) * r;
       if (cx < -16 || cy < -16 || cx > w + 16 || cy > h + 16) continue;
       var size = 2.5 + n * 3.5;
-      // Chase the front outward, slower than it, plus a sideways breath.
       var d = 8 + q * 14;
       var dx = Math.round(Math.cos(angle) * d + (m - 0.5) * 14);
       var dy = Math.round(Math.sin(angle) * d + (0.5 - q) * 14);
@@ -33,49 +31,43 @@
         dy: dy,
         delay: Math.round(u * SWAP_MS),
         alpha: 0.75 + q * 0.25,
-        // Every fourth grain is the departing accent; the rest the old surface's own
-        // grain (bg lifted towards ink — browser motion.js MOTE_INK), so an accent
-        // cycle still reads over an unchanged background.
+        // Every fourth grain is the departing accent, so an accent cycle still reads
+        // over an unchanged background.
         accent: i % 4 === 0,
-        // …and its own hash and throw length, for a water / fire wake's styleFrame.
         w: dustNoise(i + 71, 13),
         len: Math.sqrt(dx * dx + dy * dy),
       });
     }
     return specs;
   };
-  // Read BEFORE the palette flips, baked as literals: by the time a mote is on screen
-  // the variables already mean the NEW theme. This page's vars, not the browser app's.
+  // Read BEFORE the palette flips: by the time a mote is on screen the variables
+  // already mean the NEW theme.
   var dustPaint = function () {
     try {
       var s = getComputedStyle(document.documentElement);
       var v = function (name) { return (s.getPropertyValue(name) || '').replace(/^\s+|\s+$/g, ''); };
       if (!v('--accent')) return null;
-      // The wake is painted from the departing palette — the accent ramp plus its tints,
-      // what every cloud wears — resolved while they still mean the OLD theme.
       var palette = paletteCss();
       for (var pi = 0; pi < palette.length; pi++) palette[pi] = resolveColour(palette[pi]);
       return { palette: palette };
     } catch (e) { return null; }
   };
-  // Whatever the canvas makes of a colour: it normalizes what it accepts and silently
-  // keeps what it had for anything it cannot parse.
+  // The canvas silently keeps what it had for anything it cannot parse.
   var canvasColour = function (ctx, c, fallback) {
     ctx.fillStyle = fallback;
     ctx.fillStyle = c;
     return ctx.fillStyle;
   };
 
-  // ONE canvas, not a div per grain: grains are batched by colour and alpha step into a
-  // handful of fills a frame (browser motion.js spawnSwapDust).
+  // ONE canvas, never a div per grain: batched by colour and alpha step into a handful
+  // of fills a frame.
   var spawnDust = function (px, paint) {
     try {
       if (!px || !paint || typeof document === 'undefined' || !document.body || !document.body.appendChild) return;
-      // Only in a particle mode: 'slide' keeps the wipe and drops its grain (browser
-      // parity — motion.js spawnSwapDust is gated the same way).
+      // 'slide' keeps the wipe and drops its grain.
       if (typeof requestAnimationFrame !== 'function' || !particleStyle()) return;
       var root = document.documentElement;
-      // A second swap mid-wake starts a new wipe — the newest one owns the dust.
+      // The newest swap owns the dust.
       if (root._swapDustStop) root._swapDustStop();
       var style = styleCode();
       var specs = dustSpecs(px.x, px.y, px.w, px.h, style);
@@ -90,8 +82,7 @@
       stage.style.width = px.w + 'px';
       stage.style.height = px.h + 'px';
       ctx.scale(dpr, dpr);
-      // One run of one fillStyle per palette stop, so a frame is a handful of fills rather
-      // than a thousand switches — resolved already, before the palette moved under us.
+      // One fillStyle per palette stop: a handful of fills, not a thousand switches.
       var runs = [], k;
       for (k = 0; k < paint.palette.length; k++) runs.push({ colour: canvasColour(ctx, paint.palette[k], '#888') });
       document.body.appendChild(stage);
@@ -101,8 +92,6 @@
       var at = { x: 0, y: 0, r: 0, alpha: 0 };
       var sf = { sx: 0, sy: 0, scale: 1, glow: 1, mix: 0 };
       var poly = [];
-      // Every grain's frame, computed once and read by every run's sweep; its shape and
-      // heading never change.
       var stopOf = new Int8Array(specs.length);
       var fx = new Float32Array(specs.length * 4);
       var shapes = new Int8Array(specs.length), heads = new Float32Array(specs.length);
@@ -159,13 +148,11 @@
       };
       raf = requestAnimationFrame(frame);
       root._swapDustStop = stop;
-      // Belt and braces: a throttled or paused rAF (a backgrounded tab) would otherwise
-      // leave the stage sitting over the page for good.
+      // A paused rAF (a backgrounded tab) would otherwise leave the stage up for good.
       root._swapDustTimer = setTimeout(stop, total + 200);
-    } catch (e) { /* decoration only — the swap carries on regardless */ }
+    } catch (e) { /* decoration only */ }
   };
 
 
-  // Published for the scripts after this one (see accent.js).
   K.dustPaint = dustPaint; K.spawnDust = spawnDust;
 })();

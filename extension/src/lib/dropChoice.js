@@ -1,10 +1,6 @@
-// ── Injected confirm for a drop on an OCCUPIED editor ───────────────────────
-// Its own module because it is injected on its own — executeScript serialises the
-// function and nothing else, so it has to stay self-contained (no imports).
-
 // Injected confirm for a drop on an OCCUPIED editor: resolves 'replace' | 'newtab' |
-// 'cancel'. executeScript awaits the returned promise, so the SW just reads the answer.
-// Self-contained (no imports), like the overlay above.
+// 'cancel'. executeScript serialises the function and nothing else, so it stays
+// self-contained (no imports); the SW awaits the returned promise.
 export const mountDropChoice = (accent = '#7c3aed') => new Promise((resolve) => {
   const ID = 'stencil-ext-dropchoice';
   document.getElementById(ID)?.remove();

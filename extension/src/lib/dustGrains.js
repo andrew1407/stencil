@@ -1,16 +1,10 @@
-// One grain of the swap's wake: its flight curve, the three particle styles, the shapes
-// they are drawn as, and the palette they are tinted from. A hand-copied twin of
-// lib/dustCloud.js's grain maths (that module is an ES module this pre-paint classic
-// script cannot import); tests/accent.test.js pins the two against each other.
+// One grain of the swap's wake: a hand-copied twin of lib/dustCloud.js's grain maths (an
+// ES module this pre-paint classic script cannot import); tests/accent.test.js pins the two.
 (function () {
   var K = window.StencilKit;
   var STYLE_FIRE = K.STYLE_FIRE, STYLE_WATER = K.STYLE_WATER, bezierY = K.bezierY, fract = K.fract;
-  // ── One grain's flight (motion.js swapDustFrame) ──
-  // Never a div per grain: at this density that is thousands of composited layers and the
-  // swap drops half its frames, so the stage below paints them and the `swapDustMote`
-  // keyframes live here — same curve, same three opacity stops, same throw and shrink.
-  // Sampled into a table: the bisection is far too dear to run three times per grain per
-  // frame; both ends are pinned, since the solver only bisects to within a hair.
+  // The flight curve sampled into a table: the bisection is too dear to run three times
+  // per grain per frame. Both ends pinned, since the solver only bisects to within a hair.
   var TAU = Math.PI * 2;
   var GRAIN_STEPS = 256;
   var GRAIN_FLARE = 0.18;   // opacity flares over the first 18% of a life, then falls
@@ -21,10 +15,8 @@
   var grainEase = function (t) {
     return grainCurve[Math.min(GRAIN_STEPS, Math.max(0, Math.round(t * GRAIN_STEPS)))];
   };
-  // ── The particle styles (lib/dustCloud.js styleFrame, as a classic script) ──
-  // A water or fire wake is the same grains nudged, swollen and dimmed per frame, painted
-  // from the departing accent palette by each grain's mix. tests/accent.test.js pins this
-  // twin to dustCloud.js frame for frame.
+  // lib/dustCloud.js styleFrame: a water or fire wake is the same grains nudged, swollen
+  // and dimmed per frame.
   var PALETTE_STOPS = 6;
   var WATER = { sagShare: 0.45, sagMaxPx: 30, swayShare: 0.12, swayMaxPx: 5, swayWaves: [0.8, 1.4], swell: 0.3,
                 shimmerDepth: 0.25, shimmerHz: [1.2, 2.2], glistenHz: [0.6, 1.1] };
@@ -58,15 +50,12 @@
   var paletteIndex = function (mix, stops) {
     return Math.max(0, Math.min(stops - 1, Math.round(mix * (stops - 1))));
   };
-  // A DUST grain's mix, fixed for its flight (lib/dustCloud.js dustMix): plain grains
-  // spread from the main colour to halfway by hash, glints wear the shade.
+  // lib/dustCloud.js dustMix: plain grains spread to halfway by hash, glints wear the shade.
   var DUST_MIX_SPREAD = 0.5;
   var dustMix = function (w, glint) { return glint ? 1 : (w || 0) * DUST_MIX_SPREAD; };
-  // Two grains in three ride that accent ramp; the rest wear a TINT off their own hash —
-  // white, two greys, a pale and a deep accent (lib/dustCloud.js tintOf / stopOfTint).
+  // The rest wear a TINT off their own hash (lib/dustCloud.js tintOf / stopOfTint).
   var TINT_SHARE = 0.34;
-  // Two follow the theme (lib/theme/palette.css): a white speck cannot be seen on a pale surface,
-  // nor a deep accent one on a dark surface.
+  // Two follow the theme (lib/theme/palette.css): a white speck is invisible on a pale surface.
   var TINT_CSS = ['var(--dust-ink, #1f1f1f)', '#b4b4b4', '#6e6e6e',
                   'color-mix(in srgb, var(--accent) 55%, #ffffff)',
                   'var(--dust-accent-alt, #442082)'];
@@ -76,13 +65,10 @@
     if (pick >= TINT_SHARE) return -1;
     return Math.min(TINT_STOPS - 1, Math.floor((pick / TINT_SHARE) * TINT_STOPS));
   };
-  // A tint is fixed for a grain's flight, so the wake caches it and reads it back per frame.
   var stopOfTint = function (mix, tint) {
     return tint < 0 ? paletteIndex(mix, PALETTE_STOPS) : PALETTE_STOPS + tint;
   };
-  // ── Grain shapes (lib/dustCloud.js grainShape / shapePolygon / addGrainPath twin) ──
-  // Dust is a round speck; water ovals and wave lines; fire triangles and streaking
-  // sparks — each lying along its heading.
+  // lib/dustCloud.js grainShape / shapePolygon / addGrainPath: each shape lies along its heading.
   var SHAPE_DISC = 0, SHAPE_OVAL = 1, SHAPE_WAVE = 2, SHAPE_TRIANGLE = 3, SHAPE_STREAK = 4;
   var WATER_WAVE_SHARE = 0.3, FIRE_STREAK_SHARE = 0.4;
   var SHAPES = {
@@ -121,8 +107,7 @@
     }
     return out;
   };
-  // A path only so long (lib/dustCloud.js FILL_CHUNK): the engine's cost per grain climbs
-  // with the path's length, so every batch is filled in chunks of this many grains.
+  // The engine's cost per grain climbs with the path's length (lib/dustCloud.js FILL_CHUNK).
   var FILL_CHUNK = 32;
   var fillGrains = function (ctx, b, n, poly) {
     for (var i = 0; i < n; i += FILL_CHUNK) {
@@ -146,8 +131,7 @@
     ctx.closePath();
   };
 
-  // A CSS colour (a var(), a color-mix()) as the canvas will take it: the computed colour
-  // of a probe span wearing it. Unchanged when the page cannot compute it.
+  // A CSS colour as the canvas will take it; unchanged when the page cannot compute it.
   var resolveColour = function (css) {
     try {
       var span = document.createElement('span');
@@ -158,8 +142,7 @@
       return got || css;
     } catch (e) { return css; }
   };
-  // The palette a styled wake is painted in (lib/dustCloud.js paletteCss): the accent →
-  // shade ramp, then the tints.
+  // lib/dustCloud.js paletteCss: the accent → shade ramp, then the tints.
   var paletteCss = function () {
     var out = [], i;
     for (i = 0; i < PALETTE_STOPS; i++)
@@ -168,8 +151,7 @@
     return out;
   };
 
-  // Where grain `s` is at life-fraction `p`, how big and how bright. Writes into `out`:
-  // this runs once per grain per frame.
+  // Writes into `out`: this runs once per grain per frame.
   var grainAt = function (s, p, out) {
     var e = grainEase(p);
     var o = p < GRAIN_FLARE ? grainEase(p / GRAIN_FLARE)
@@ -179,11 +161,9 @@
     out.r = (s.size / 2) * (1 - 0.7 * e);
     out.alpha = s.alpha * o;
   };
-  // How many alpha steps a fading grain is drawn in: the stage batches every grain of
-  // one colour AND one step into a single fill (browser motion.js DUST_ALPHA_LEVELS).
+  // Alpha steps a fading grain is drawn in; one colour AND one step is a single fill.
   var DUST_ALPHA_LEVELS = 8;
 
-  // Published for the scripts after this one (see accent.js).
   K.DUST_ALPHA_LEVELS = DUST_ALPHA_LEVELS; K.dustMix = dustMix; K.fillGrains = fillGrains;
   K.grainAt = grainAt; K.grainShape = grainShape; K.headingOf = headingOf;
   K.paletteCss = paletteCss; K.resolveColour = resolveColour; K.shapePolygon = shapePolygon;
