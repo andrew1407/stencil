@@ -1,6 +1,4 @@
-// ── Markup: the fullscreen trigger zones and the slide-in panels ───────────
-// Empty shells: the controls strip and the points list are CLONED into them at runtime
-// (ui/fullscreenClones.js) from the live panels, so there is one source of truth.
+// Empty shells: the controls strip and points list are cloned in at runtime (fullscreenClones.js).
 export const fullscreenLayerInner = () => `
     <!-- Fullscreen hover trigger zones -->
     <div id="fs-top-trigger"></div>

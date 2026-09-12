@@ -1,6 +1,4 @@
-// ── "Image too large to save" banner ────────────────────────────
-// Extracted from storage.js — the one piece of it that paints. Built lazily above the
-// selection panel and then only shown/hidden.
+// The "image too large to save" banner: built lazily above the selection panel, then shown/hidden.
 
 export const showImageMissingBanner = (show) => {
   let banner = document.getElementById('image-missing-banner');

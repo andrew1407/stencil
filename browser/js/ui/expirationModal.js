@@ -3,13 +3,9 @@ import { expirationModalInner } from './expirationMarkup.js';
 import { notify } from '../utils.js';
 import { PERIOD_ORDER, DEFAULT_PERIOD, addPeriod } from '../core/projectsStore.js';
 
-// ── Component: project expiration modal ─────────────────────────
-// Sets a LOCAL project's expiration date. A period selector + Refresh button
-// seed "now + period"; a custom calendar grid lets the user pick any future day
-// (today outlined one colour, the expiry day another; past days are disabled).
-// A "keep forever" checkbox (confirmed) clears the date; an "auto-refresh on open"
-// checkbox restarts the window every time the project is opened. Opened per-row
-// from the projects modal via openFor(id). Mirrors desktop's ExpirationDialog.
+// A local project's expiration: period + Refresh seed "now + period", a calendar picks any
+// future day, keep-forever clears it, auto-refresh restarts the window on every open.
+// Opened per row from the projects modal via openFor(id). Mirrors desktop's ExpirationDialog.
 const PERIOD_LABELS = {
   day: '1 day',
   week: '1 week',
@@ -37,9 +33,8 @@ export class StencilExpirationModal extends StencilElement {
     return hostTag('stencil-expiration-modal', 'id="expiration-modal-overlay" class="app-modal-overlay"', StencilExpirationModal.inner());
   }
 
-  // Public entry point used by the projects modal row menu. `anchors` is the flight's two
-  // ends: `from` the clicked menu row, `backTo` the "⋯" it hung off (the row is gone by
-  // the time the window closes).
+// `anchors`: `from` the clicked menu row, `backTo` the "⋯" it hung off (the row is gone by
+// the time the window closes).
   openFor(id, anchors) { this._openFor?.(id, anchors); }
 
   wire(app) {
@@ -56,7 +51,6 @@ export class StencilExpirationModal extends StencilElement {
       save: el('expiration-save'),
     };
 
-    // Working state (committed on Save).
     let targetId = null;
     let keep = false;      // keep-forever (expiresAt === 0)
     let expiresAt = 0;     // working expiration, epoch ms
@@ -66,8 +60,7 @@ export class StencilExpirationModal extends StencilElement {
 
     els.period.innerHTML = PERIOD_ORDER.map(p => `<option value="${p}">${PERIOD_LABELS[p]}</option>`).join('');
 
-    // The calendar floor is the current month: every earlier day is disabled, so
-    // navigating below it is pointless (mirrors desktop's setMinimumDate(now)).
+// The calendar floor is the current month (mirrors desktop's setMinimumDate(now)).
     const atFloor = () => {
       const t = new Date();
       return viewY < t.getFullYear() || (viewY === t.getFullYear() && viewM <= t.getMonth());
@@ -77,7 +70,7 @@ export class StencilExpirationModal extends StencilElement {
       const d = expiresAt ? new Date(expiresAt) : new Date();
       viewY = d.getFullYear();
       viewM = d.getMonth();
-      // An already-expired project's date is in the past; don't open below the floor.
+// An already-expired date is in the past; don't open below the floor.
       const t = new Date();
       if (viewY < t.getFullYear() || (viewY === t.getFullYear() && viewM < t.getMonth())) {
         viewY = t.getFullYear();
@@ -99,7 +92,7 @@ export class StencilExpirationModal extends StencilElement {
 
     const renderCalendar = () => {
       els.calTitle.textContent = `${MONTHS[viewM]} ${viewY}`;
-      els.prev.disabled = atFloor(); // no navigating into fully-past months
+      els.prev.disabled = atFloor();
       const grid = els.calGrid;
       grid.innerHTML = '';
       for (const w of WEEKDAYS) {
@@ -154,8 +147,7 @@ export class StencilExpirationModal extends StencilElement {
       return true;
     };
 
-    // Stacked: raised from a row of the projects list, so it opens OVER it rather than
-    // replacing it — closing the list to ask about one of its rows lost the user their place.
+// Stacked: opens over the projects list rather than replacing it.
     const { open, close } = wireModalShell(overlay, null, els.close, { stacked: true });
     this._openFor = (id, { from = null, backTo = null } = {}) => { if (loadFrom(id)) { renderAll(); open(from, backTo); } };
 
@@ -202,8 +194,7 @@ export class StencilExpirationModal extends StencilElement {
       notify(keep ? 'Project kept forever' : `Expires ${fmtDay(expiresAt)}`, 'ok');
     });
 
-    // Live cross-tab: if another tab changes this project's expiration while the
-    // dialog is open, reflect the authoritative stored value.
+// Another tab may change this project's expiration while the dialog is open.
     app.tabs?.onProjectsChanged?.(() => {
       if (overlay.classList.contains('modal-open') && targetId != null && loadFrom(targetId)) renderAll();
     });

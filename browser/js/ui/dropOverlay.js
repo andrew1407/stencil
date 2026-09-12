@@ -1,6 +1,5 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { icon } from './icons.js';
-// ── Component: global drag-and-drop overlay ─────────────────────
 export class StencilDropOverlay extends StencilElement {
   static inner() {
     return `
@@ -23,10 +22,8 @@ export class StencilDropOverlay extends StencilElement {
 }
 define('stencil-drop-overlay', StencilDropOverlay);
 
-// The overlay appears instantly but LEAVES on an animation (.drop-closing, which is
-// pointer-events:none so it can't eat the drop it is dismissing for). Both helpers
-// are idempotent: dragover fires them continuously while the pointer sits over a
-// drop owner, and that must not restart the fade every frame.
+// Shown instantly, hidden on .drop-closing (pointer-events:none, so it cannot eat the drop).
+// Both helpers are idempotent: dragover fires them every frame.
 const DROP_CLOSE_MS = 220;   // matches .drop-closing in animations/dust.css
 
 export const showDropOverlay = (el) => {

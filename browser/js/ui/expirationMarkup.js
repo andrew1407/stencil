@@ -1,6 +1,3 @@
-// ── Markup: the project expiration modal ────────────────────────────────────
-// A period selector + Refresh, a custom calendar grid, and the keep-forever /
-// auto-refresh checkboxes. The grid's cells are rendered by the component.
 import { icon } from './icons.js';
 
 export const expirationModalInner = () => `

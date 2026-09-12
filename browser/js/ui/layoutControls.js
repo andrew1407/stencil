@@ -1,22 +1,18 @@
 import { setChecked } from './controlSwap.js';
 import { revealControls } from './motion.js';
 
-// ── Painting a restored layout onto the controls ────────────────
-// The form fields a saved (or peer-synced) layout has to be reflected in. Storage decides
-// WHAT the model is; these write it to the screen, so js/core keeps no element ids.
+// Writes a saved (or peer-synced) layout to the form fields, so js/core keeps no element ids.
 const el = (id) => document.getElementById(id);
 const setValue = (id, v) => { const n = el(id); if (n) n.value = v; };
 
-// Page size + the custom-width/height group it reveals. Called BEFORE applyUnitToUI, which
-// renders those inputs in the restored unit.
+// Called BEFORE applyUnitToUI, which renders the custom inputs in the restored unit.
 export const paintPageSize = (pageSize) => {
   setValue('page-size', pageSize);
   revealControls(el('custom-size-group'), pageSize === 'custom');
 };
 
-// Line/point styling, the two visibility checkboxes and the image filter. Reads the app,
-// which storage has already restored, except pointColor: '' there means "follow the line
-// colour", which the picker cannot show, so the field keeps its last value.
+// pointColor '' means "follow the line colour", which the picker cannot show, so the field
+// keeps its last value.
 export const paintDrawingControls = (app, layout) => {
   if (layout.color) setValue('line-color', layout.color);
   if (typeof layout.pointColor === 'string' && layout.pointColor) setValue('point-color', layout.pointColor);
@@ -31,7 +27,7 @@ export const paintDrawingControls = (app, layout) => {
   if (picker) picker.style.display = (app.imageFilter === 'custom') ? 'inline-block' : 'none';
 };
 
-// The two visibility checkboxes alone — a peer's layout arrives with nothing else to paint.
+// A peer's layout arrives with nothing else to paint.
 export const paintVisibilityChecks = (app) => {
   setChecked(el('show-points'), app.showPoints);
   setChecked(el('show-lines'), app.showLines);
@@ -45,7 +41,7 @@ export const paintFormulaFields = (app) => {
   }
 };
 
-// A layout arriving with no selection in it: both panels (docked + fullscreen) go away.
+// Both panels: docked + fullscreen.
 export const hideSelectionPanels = () => {
   for (const id of ['selection-panel', 'fs-selection-panel']) {
     const n = el(id);
@@ -53,12 +49,11 @@ export const hideSelectionPanels = () => {
   }
 };
 
-// Back to the top-left after the image goes: a stale scroll leaves the idle card off-screen.
+// A stale scroll leaves the idle card off-screen.
 export const resetViewportScroll = () => scrollViewportTo(0, 0);
 
-// Assigning scroll forces the reflow it needs, so callers restoring a saved position do it
-// SYNCHRONOUSLY, before any arrival motion: deferred a frame, the viewport jumped out from
-// under the freshly-raised cloud.
+// Assigning scroll forces the reflow it needs, so a restore runs synchronously before any
+// arrival motion — deferred a frame, the viewport jumped out from under the cloud.
 export const scrollViewportTo = (left, top) => {
   const vp = el('canvas-viewport');
   if (vp) { vp.scrollLeft = left || 0; vp.scrollTop = top || 0; }

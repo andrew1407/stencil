@@ -1,10 +1,7 @@
 import { createProjectMetaModal } from './projectMetaModal.js';
 
-// ── Component: project keywords modal ────────────────────────────
-// The ACTIVE project's search keywords, comma or space separated — the split the
-// projects list's "Add keywords" row item uses; the store normalizes. Shell, gating and
-// commit/discard come from projectMetaModal.js; the button is gated on a saved,
-// non-incognito project (ui/controlState.js).
+// The active project's search keywords, comma or space separated (the store normalizes).
+// Gated on a saved, non-incognito project.
 export const StencilKeywordsModal = createProjectMetaModal({
   name: 'keywords',
   title: 'Project keywords',

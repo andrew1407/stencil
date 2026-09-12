@@ -1,6 +1,5 @@
-// ── Cloning the live controls and coord panel into the fullscreen panels ────
-// The clones are display only: every interaction relays back to the original control, and
-// the original's own change keeps the clone in step, so state lives in exactly one place.
+// Clones of the live controls and coord panel for the fullscreen panels. Display only:
+// every interaction relays to the original, whose own change keeps the clone in step.
 export const populateFsControls = (fsControlsPanel) => {
   const existing = fsControlsPanel.querySelector('.controls');
   if (existing) existing.remove();
@@ -12,7 +11,6 @@ export const populateFsControls = (fsControlsPanel) => {
   }
 };
 
-// The clone is display only — every interaction relays to the original controls.
 export const bindClonedControls = (cloneRoot, srcRoot) => {
   srcRoot.querySelectorAll('[id]').forEach(srcEl => {
     const cloneEl = cloneRoot.querySelector('#' + srcEl.id);
@@ -21,11 +19,9 @@ export const bindClonedControls = (cloneRoot, srcRoot) => {
       cloneEl.addEventListener('click', () => srcEl.click());
       return;
     }
-    // Mirror only the input kinds the fs panel uses; ignore others (radio/text).
     const kind = cloneEl.tagName === 'SELECT' ? 'select' : cloneEl.type;
     if (!['checkbox', 'color', 'number', 'file', 'select'].includes(kind)) return;
 
-    // Relay clone → original: copy the relevant property, then fire change.
     cloneEl.addEventListener(kind === 'color' ? 'input' : 'change', () => {
       if (kind === 'checkbox') {
         srcEl.checked = cloneEl.checked;
@@ -38,7 +34,6 @@ export const bindClonedControls = (cloneRoot, srcRoot) => {
       }
       srcEl.dispatchEvent(new Event('change', { bubbles: true }));
     });
-    // Keep the clone in sync when the original changes (checkbox + select).
     if (kind === 'checkbox') srcEl.addEventListener('change', () => { cloneEl.checked = srcEl.checked; });
     else if (kind === 'select') srcEl.addEventListener('change', () => { cloneEl.value = srcEl.value; });
   });
@@ -49,7 +44,6 @@ export const populateFsPoints = (fsPointsPanel) => {
   const src = document.getElementById('coord-panel');
   if (src) {
     const clone = src.cloneNode(true);
-    // Give cloned elements new ids to avoid conflicts
     clone.id = 'fs-coord-panel-clone';
     clone.querySelectorAll('[id]').forEach(el => {
       el.id = 'fs-clone-' + el.id;
