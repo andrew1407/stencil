@@ -9,7 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"stencil/server/internal/bus"
+	"stencil/server/internal/filestore"
 	"stencil/server/internal/protocol"
+	"stencil/server/internal/testutil"
 )
 
 // Client-uploaded bytes on our own origin: the declared type must be pinned, not sniffed.
@@ -185,5 +188,37 @@ func TestFilestoreOnlyKindOnMissingProjectIsProjectNotFound(t *testing.T) {
 		if resp.Message != msgProjectNotFound {
 			t.Fatalf("%s: message %q, want %q", kind, resp.Message, msgProjectNotFound)
 		}
+	}
+}
+
+// An upload that would push the filestore past STORAGE_QUOTA_BYTES is refused
+// with 507; one that fits is stored, and replacing a file re-uses its budget.
+func TestUploadAgainstStorageQuota(t *testing.T) {
+	fs, err := filestore.NewWithQuota(t.TempDir(), 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := testutil.NewMemStore()
+	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), AdminToken: testAdmin})
+	tok := issueToken(t, api, "")
+
+	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"Q","source":"s","hasImage":true}`))
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create: code %d", rec.Code)
+	}
+	var created protocol.ProjectRecord
+	json.Unmarshal(rec.Body.Bytes(), &created)
+
+	under := make([]byte, 600)
+	if rec := do(t, api, http.MethodPost, "/projects/"+created.ID+"/files/original?ext=png&w=1&h=1", tok, under); rec.Code != http.StatusCreated {
+		t.Fatalf("under-quota upload: code %d body %s", rec.Code, rec.Body.String())
+	}
+	over := make([]byte, 600) // 600 + 600 > 1024
+	rec = do(t, api, http.MethodPost, "/projects/"+created.ID+"/files/result?ext=png", tok, over)
+	if rec.Code != http.StatusInsufficientStorage {
+		t.Fatalf("over-quota upload should 507, got %d body %s", rec.Code, rec.Body.String())
+	}
+	if rec := do(t, api, http.MethodPost, "/projects/"+created.ID+"/files/original?ext=png&w=1&h=1", tok, under); rec.Code != http.StatusCreated {
+		t.Fatalf("same-size replacement should fit, got %d", rec.Code)
 	}
 }
