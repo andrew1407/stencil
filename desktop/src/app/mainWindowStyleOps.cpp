@@ -32,9 +32,8 @@
 
 namespace stencil::gui {
 
-  // Push the current default visuals to the canvas and persist. Mirrors the
-  // browser change handlers that update this.color/thickness/pointSize/style then
-  // storage.save() (drawingApp.js:155-178). Defaults ONLY — never the selection.
+  // Mirrors the browser change handlers (drawingApp.js:155-178). Defaults only — never the
+  // selection.
   QColor MainWindow::effectiveDefaultPointColor() const {
     const QColor c(settings_.defaultPointColor);
     return (!settings_.defaultPointColor.isEmpty() && c.isValid()) ? c : lineColorValue_;
@@ -47,13 +46,9 @@ namespace stencil::gui {
     persistSettings();
   }
 
-  // Shared apply paths for controls duplicated in the toolbar AND context menu.
-  // Both UIs route through these so they never drift (the toolbar combo and the
-  // context-menu radio group stay mutually in sync) and the apply/persist logic
-  // lives once. Setting an exclusive QAction's checked state emits toggled(), not
-  // triggered(), so re-checking the group action here never re-enters this path.
-  // Single entry for a compare-mode change: apply to the canvas and keep the toolbar
-  // combo + View → Compare submenu radio set in sync. Transient view state — not persisted.
+  // One apply path for toolbar + context-menu twins. Setting an exclusive QAction's checked state
+  // emits toggled(), not triggered(), so no re-entry.
+  // Transient view state, not persisted.
   void MainWindow::setCompareModeUi(const QString& mode) {
     canvas_->setCompareMode(mode);
     if (compareCombo_) {
@@ -88,8 +83,7 @@ namespace stencil::gui {
         }
     }
     if (filterColorBtn_) filterColorBtn_->setVisible(mode == "custom");
-    // Re-gate the export rows live too, not just on the next refreshActions(), so
-    // toggling the filter shows/hides "Filter Only" immediately in every menu.
+    // Re-gate the export rows live so "Filter Only" shows/hides at once.
     syncExportActions();
     canvas_->setImageFilter(mode, filterColorValue_);
     persistSettings();
@@ -123,17 +117,12 @@ namespace stencil::gui {
     onLineStyleControlChanged();
   }
 
-  // Paint a flat color chip as the toolbutton's icon so swatches read as their
-  // current color (the browser uses <input type=color>).
+  // The browser uses <input type=color>.
   void MainWindow::updateColorSwatch(QToolButton* btn, const QColor& color) {
-    // Input-style chip for the Style-row colour pickers: the SAME shared input
-    // palette (background + border) as the spinboxes/combo beside it, with the
-    // colour swatch drawn INSIDE — not a colour-on-white chip that clashes with
-    // the dark inputs. Re-run from applyTheme, so it tracks light/dark.
+    // The same input palette as the spinboxes beside it, swatch drawn inside; re-run from
+    // applyTheme.
     const Palette pal =
         themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
-    // A labelled chip (the "Blank" swatch) keeps its caption beside the colour;
-    // bare chips stay the fixed 46×26 input shape.
     const bool labelled = !btn->text().isEmpty();
     btn->setFixedHeight(26);
     if (labelled) btn->setMinimumWidth(46);
@@ -146,8 +135,7 @@ namespace stencil::gui {
             "QToolButton:hover{border-color:%3;}")
             .arg(pal.inputBg.name(), pal.borderMain.name(), pal.accent.name(),
                  pal.textMain.name(), labelled ? QStringLiteral("6") : QStringLiteral("0")));
-    // The swatch: a rounded colour rect with a soft luminance-tuned outline so
-    // a colour close to the input background stays visible in either theme.
+    // A luminance-tuned outline keeps a colour near the input background visible in either theme.
     QPixmap pm(32, 16);
     pm.fill(Qt::transparent);
     {

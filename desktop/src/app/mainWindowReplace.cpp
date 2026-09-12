@@ -26,16 +26,14 @@
 
 namespace stencil::gui {
 
-  // True when the current editor holds a saved/linked project whose image can be swapped in
-  // place (not a blank or incognito session — there's nothing to keep the same).
+  // Not a blank or incognito session — there is nothing to keep the same.
   bool MainWindow::canReplaceActive() const {
     return canvas_->hasImage() && !incognito_
         && (!activeProjectId_.isEmpty() || !remoteSession_->link().address.isEmpty());
   }
 
-  // Replace the CURRENT project's image in place (same local id / server link), instead of
-  // making a new project. `rename` adopts the new file's name; `keepAnnotations` keeps the
-  // existing lines over the new image. Server sessions also re-upload the `original`.
+  // Same local id / server link; `rename` adopts the file's name, `keepAnnotations` keeps the
+  // lines. Server sessions re-upload the `original`.
   void MainWindow::replaceProjectImage(const QString& path, bool rename, bool keepAnnotations) {
     const core::Lines kept = keepAnnotations ? canvas_->allLines() : core::Lines{};
     if (!loadLocalImageReset(path)) return;   // loadImage clears lines + provenance, keeps binding
@@ -49,9 +47,8 @@ namespace stencil::gui {
       }
       updateProjectTitle();
     }
-    // Server-linked: re-upload the new original (saveToServer only pushes the result), THEN
-    // saveToActiveProject pushes the layout + rendered result. Ordering preserved: the original
-    // upload + version refresh must finish before saveToActiveProject (whose guard reads it).
+    // The original upload + version refresh must finish before saveToActiveProject, whose guard
+    // reads it.
     QPointer<MainWindow> self(this);
     auto save = [this, self]() { if (self) saveToActiveProject(); };
     if (!remoteSession_->link().address.isEmpty())
@@ -60,9 +57,7 @@ namespace stencil::gui {
       save();
   }
 
-  // Re-upload the linked server project's `original` with the current canvas image, refreshing
-  // the version guard, then invoke `done`. No-op (but `done` still fires) when not server-linked
-  // or sync is off (matches edit-in-memory).
+  // `done` still fires when not server-linked or sync is off.
   void MainWindow::replaceServerOriginal(std::function<void()> done) {
     if (remoteSession_->link().address.isEmpty() || !settings_.syncToServer) {
       if (done) done();
@@ -90,10 +85,8 @@ namespace stencil::gui {
                        });
   }
 
-  // Leave incognito and keep what is on screen as a LOCAL project (the local twin of
-  // publishIncognitoToServer). Incognito's promise is that the app writes nothing on its own —
-  // an explicit "save this" from the user is not the app deciding, so it is honoured here
-  // instead of being refused.
+  // The local twin of publishIncognitoToServer; an explicit user save is not the app writing on
+  // its own.
   QString MainWindow::promoteIncognitoToLocal(const QString& name) {
     if (!canvas_->hasImage()) return QString();
     if (incognito_) {
@@ -112,15 +105,12 @@ namespace stencil::gui {
     return unique;
   }
 
-  // Publish the current incognito session to a server: create the project there, upload the
-  // original, link the session, leave incognito, then push the annotated layout + result.
   // Mirrors the browser's publishIncognitoToServer (a server-backed project is not incognito).
   void MainWindow::publishIncognitoToServer(const QString& serverUrl) {
     if (!canvas_->hasImage()) {
       notify_->error("Open an image first");
       return;
     }
-    // Leave incognito first so the create/save paths persist normally.
     if (incognito_) {
       incognito_ = false;
       incognitoOverlay_->setActive(false);
@@ -131,13 +121,11 @@ namespace stencil::gui {
     QString name = canvas_->imageBaseName();
     if (name.isEmpty()) name = QStringLiteral("Untitled");
     QPointer<MainWindow> self(this);
-    // create + upload original + link the session; the tail runs once linked (creation failure
-    // notifies and never fires onLinked, so nothing is pushed).
+    // Creation failure notifies and never fires onLinked, so nothing is pushed.
     createServerProject(serverUrl, name, [this, self]() {
       if (!self) return;
-      // Push the annotated layout + result now, regardless of the sync toggle (explicit publish).
-      // saveToServer reads settings_.syncToServer only at entry (synchronously), so restoring it
-      // right after the async save is kicked off is safe.
+      // Pushed regardless of the sync toggle; saveToServer reads settings_.syncToServer only at
+      // entry, so restoring it right after is safe.
       const bool savedSync = settings_.syncToServer;
       settings_.syncToServer = true;
       saveToServer();

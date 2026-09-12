@@ -5,22 +5,18 @@
 
 namespace stencil::gui {
 
-  // The editor's debounced persistence: the two save timers, the guard that stops a
-  // restore re-saving the view it is still applying, and the rules that decide whether
-  // a write is wanted at all. The window supplies the save bodies; nothing here knows
-  // about the canvas or the store.
+  // The editor's debounced persistence and write gates; the window supplies the save bodies.
   class SessionController {
    public:
-    // Browser parity: storage.js's autosave and its own scroll/zoom save debounce.
+    // Browser parity: storage.js's autosave and scroll/zoom debounce.
     static constexpr int kAutosaveMs = 600;
     static constexpr int kViewSaveMs = 400;
 
-    // Everything that can veto a write, gathered so the four call sites can't drift.
     struct Gates {
-      // Incognito gates every write of the incognito editor's OWN state — a deliberate
-      // desktop-only widening of the browser rule.
+      // Incognito gates every write of the incognito editor's own state — a desktop-only widening
+      // of the browser rule.
       bool incognito = false;
-      // A fetched server project with sync off is edited in memory and stored nowhere.
+      // A fetched server project with sync off is edited in memory only.
       bool remoteUnsynced = false;
       bool hasActiveProject = false;
       bool hasImage = false;
@@ -33,8 +29,8 @@ namespace stencil::gui {
     static bool wantsViewWrite(const Gates& g, bool restoring) {
       return !g.incognito && g.hasActiveProject && !restoring && !g.remoteUnsynced;
     }
-    // A layout-induced scrollbar valueChanged (resize, panel fold) also trips the
-    // debounce; without this the store would be rewritten and "Saved" toasted for it.
+    // A layout-induced scrollbar valueChanged also trips the debounce; without this "Saved" toasts
+    // for a resize.
     static bool viewMoved(double zoom, int left, int top, double wasZoom, int wasLeft, int wasTop) {
       return zoom != wasZoom || left != wasLeft || top != wasTop;
     }
@@ -43,8 +39,7 @@ namespace stencil::gui {
       autosave_ = newTimer(owner, std::move(saveSession));
       viewSave_ = newTimer(owner, std::move(saveView));
     }
-    // Only incognito stops the timer arming; the remote-unsynced case is decided when
-    // it fires, so a project that gains sync mid-debounce still writes.
+    // Only incognito stops the timer arming; the remote-unsynced case is decided at fire time.
     void scheduleAutosave(bool autosaveEnabled, const Gates& g) {
       if (autosave_ && autosaveEnabled && !g.incognito) autosave_->start(kAutosaveMs);
     }

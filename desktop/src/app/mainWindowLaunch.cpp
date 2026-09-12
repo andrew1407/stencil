@@ -29,33 +29,25 @@
 
 namespace stencil::gui {
 
-  // Apply the parsed command-line options (gui/launchOptions.hpp). The desktop
-  // counterpart of the browser's URL launch (applyExternalLaunch '#stencil=' +
-  // applyProjectDeepLink '?open='). Runs after show(): the image/URL/video and
-  // layout resolution is async, so it relies on the running event loop.
+  // The desktop twin of the browser's URL launch (applyExternalLaunch + applyProjectDeepLink). Runs after show(): resolution is async.
   void MainWindow::applyLaunchOptions(const LaunchOptions& opts) {
     if (opts.empty()) return;
 
-    // Incognito is honored whenever we're NOT opening a saved project — a blank
-    // incognito editor, or an incognito image. Set FIRST so it gates the theme
-    // persist below and every write a subsequent load would trigger.
+    // Incognito set FIRST so it gates the theme persist and every later write.
     if (opts.incognito && opts.project.isEmpty() && actIncognito_->isEnabled())
       actIncognito_->setChecked(true);  // drives incognito_ via its toggled slot
 
-    // --theme dark|light: set + persist the default theme (persist is suppressed
-    // while incognito, like every other settings write).
     if (opts.hasTheme) {
       settings_.themeMode = (opts.theme == "dark") ? "dark" : "light";
       applySettings(settings_, /*persist=*/true);
     }
 
-    // Primary content priority: --project > a stencil:// server reference >
-    // --src > a bare positional file.
+    // Priority: --project > stencil:// server reference > --src > positional file.
     if (!opts.project.isEmpty()) {
       if (!openProjectByName(opts.project))
         notify_->error(QString("No project named \"%1\"").arg(opts.project));
     } else if (!opts.serverUrl.isEmpty() && !opts.serverProjectId.isEmpty()) {
-      // Queued so the connect + download run on the event loop after show().
+      // Queued so the connect + download run after show().
       const QString url = opts.serverUrl, id = opts.serverProjectId;
       const bool incog = opts.incognito;
       QTimer::singleShot(0, this, [this, url, id, incog] {
@@ -64,9 +56,7 @@ namespace stencil::gui {
     } else if (!opts.src.isEmpty()) {
       pendingLaunchLayout_ = opts.layout;  // applied after the image loads
       pendingLaunchLayoutJson_ = opts.layoutJson;
-      // A quick-crop override (Open-Image dialog "Open in new window" handoff): apply
-      // the same page-aspect crop / whole-frame choice the user made in the preview,
-      // instead of the default page-aspect auto-crop. Consumed by applyQuickCrop().
+      // Quick-crop override from the "Open in new window" handoff; consumed by applyQuickCrop().
       if (opts.hasCropOverride)
         pendingCrop_ = opts.cropToPage
                            ? QuickCropOpts{QuickCropOpts::Mode::Page, opts.cropAlbum, opts.cropPage}
@@ -77,13 +67,11 @@ namespace stencil::gui {
       openPathFromOS(opts.file, opts.frame);
     }
 
-    // --projects: open the Projects window at launch. Queued so it runs after the
-    // current call unwinds (and after a primary load has been kicked off).
+    // Queued so it runs after a primary load has been kicked off.
     if (opts.projects) QTimer::singleShot(0, this, &MainWindow::openProjects);
   }
 
-  // A stencil:// deep link arriving on a RUNNING app (macOS QFileOpenEvent url).
-  // Same fields as a launch, minus the theme/projects extras.
+  // A stencil:// deep link on a RUNNING app (macOS QFileOpenEvent url).
   void MainWindow::openStencilUrl(const QUrl& url) {
     const LaunchOptions opts = parseStencilUrl(url);
     if (opts.empty()) {
@@ -93,10 +81,9 @@ namespace stencil::gui {
     applyLaunchOptions(opts);
   }
 
-  // Deep-link server open: connect like a fresh manual client, then open the project.
   void MainWindow::openServerLaunch(const QString& serverUrl, const QString& id,
                                     bool incognito) {
-    // normalizeBase throws no exceptions but yields "" on junk — guard it.
+    // normalizeBase yields "" on junk.
     const QString url = stencil::net::ServerClient::normalizeBase(serverUrl);
     if (url.isEmpty()) {
       notify_->error("Bad server URL in the link");
@@ -105,8 +92,7 @@ namespace stencil::gui {
     if (incognito && actIncognito_->isEnabled()) actIncognito_->setChecked(true);
     auto* mgr = ensureConnections();
     if (!mgr->find(url)) {
-      // Reuse the saved token for this origin (the browser's saved-servers parity);
-      // else connect tokenless and the server mints one (POST /auth/token).
+      // Reuse the saved token for this origin; else connect tokenless and the server mints one.
       QString token;
       auto kind = stencil::net::ServerClient::CredentialKind::None;
       bool known = false;
@@ -118,9 +104,7 @@ namespace stencil::gui {
           break;
         }
       }
-      // A deep link can name ANY server — don't let a drive-by stencil:// URL
-      // silently add a (persisted) connection to an origin this machine has never
-      // used. Known origins (live or saved) skip the prompt.
+      // A drive-by stencil:// URL must not silently persist a connection to an unknown origin; known origins skip the prompt.
       if (!known) {
         ConfirmSpec spec;
         spec.title = tr("Open shared project");
@@ -134,8 +118,7 @@ namespace stencil::gui {
       mgr->connectToAsync(url, token, [this, self, url, id, incognito](bool ok, QString err) {
         if (!self) return;
         if (!ok) {
-          // The normal connect path: surface the failure and open the Servers dialog
-          // so the user can supply a token / fix the URL.
+          // The normal connect path: surface the failure and open the Servers dialog.
           notify_->error(QString("Could not connect to %1 — %2").arg(url, err));
           openConnections();
           return;

@@ -44,16 +44,11 @@
 namespace stencil::gui {
 
   void MainWindow::onChatSend(const QString& text) {
-    // Single turn at a time (the browser facade's "already answering"): the
-    // dock guards its own Enter/click paths; this covers programmatic sends.
+    // Single turn at a time; the dock guards its own paths, this covers programmatic sends.
     if (chatDock_->isBusy()) return;
     chatLastPrompt_ = text;   // a stopped turn offers this back as Retry
-    // Provider "none" = assistant off (browser "unreachable" kind — choosing a
-    // provider IS the fix): the same Configure-provider card + Retry a Transport/
-    // Http failure gets, just answered locally; nothing is encoded, recorded, or
-    // sent anywhere. Not routed through chatUnreachable() (it reads chatHistory_
-    // for the retry text, which this deliberately never touches) — `text` itself
-    // is the retry.
+    // Provider "none" = assistant off: the same Configure-provider card + Retry, answered locally — nothing is sent.
+    // Not routed through chatUnreachable(): `text` itself is the retry.
     if (currentLlmSettings().provider == QLatin1String("none")) {
       chatDock_->appendUser(text);
       chatMirror(QStringLiteral("You"), text, false);
@@ -61,17 +56,14 @@ namespace stencil::gui {
           QStringLiteral("The assistant is turned off — choose a provider to enable it.");
       chatDock_->appendUnreachable(off, text);
       chatMirror(QStringLiteral("Error"), off, true, text, {}, /*configure=*/true);
-      // This path never reaches onChatReply's own toast/unread handling (it
-      // returns before any reply is even requested) — mark it here instead.
+      // This path never reaches onChatReply's toast/unread handling — mark it here.
       return;
     }
     ensureLlmClient();
     llm::ChatMessage user;
     user.role = QStringLiteral("user");
     user.text = text;
-    // A model that already rejected images this session ("multimodal not
-    // supported") stops receiving the auto-attached working image — otherwise
-    // EVERY turn would fail with HTTP 400 on a text-only model.
+    // A model that already rejected images this session stops receiving the auto-attached working image.
     const llm::LlmSettings llmCfg = currentLlmSettings();
     const QString llmKey =
         QStringList{llmCfg.provider, llmCfg.baseUrl, llmCfg.model, llmCfg.serverUrl}
@@ -79,8 +71,7 @@ namespace stencil::gui {
     const bool textOnlyModel = !chatTextOnlyKey_.isEmpty() && chatTextOnlyKey_ == llmKey;
     bool edgeMapRides = false;   // §7: the edge map goes with the snapshot, wire-only
     if (!textOnlyModel && chatDock_->useCurrentImage() && canvas_->hasImage()) {
-      // Re-encode the working image only when its rendered pixels changed since
-      // the last turn (digest match reuses the downscale + PNG + base64).
+      // Re-encode only when the rendered pixels changed (digest match reuses the downscale + PNG + base64).
       const QImage rendered = canvas_->renderToImage(/*withOverlay=*/true);
       const QByteArray digest = imageDigest(rendered);
       if (digest != chatImageDigest_) {
@@ -93,9 +84,7 @@ namespace stencil::gui {
     }
     for (const QImage& img : chatDock_->attachedImages())
       user.images.append(encodeChatImage(img));
-    // Show only USER attachments (the working image rides every turn, §7).
-    // Kept past clearAttachments() AND across attachment-less turns: an editing
-    // plan on an empty canvas adopts these as the working image (onChatReply).
+    // USER attachments only (the working image rides every turn, §7). Kept across turns: a plan on an empty canvas adopts them.
     if (!chatDock_->attachedImages().isEmpty()) {
       chatTurnAttachments_ = chatDock_->attachedImages();
       chatTurnAttachmentNames_ = chatDock_->attachedImageNames();
@@ -112,9 +101,7 @@ namespace stencil::gui {
     chatMirrorBusy(true);
     QPointer<MainWindow> self(this);
     const bool hadImages = !user.images.isEmpty();
-    // §7 edge map: inserted into the WIRE copy of this turn only, directly
-    // after the snapshot — chatHistory_ never holds it, so it is never
-    // replayed or persisted, and the suffix sentence rides only with it.
+    // §7 edge map: WIRE copy only, never chatHistory_ — never replayed or persisted.
     QVector<llm::ChatMessage> wire = wireChatMessages();
     QString suffix = chatSystemSuffix();
     if (edgeMapRides) {
@@ -124,10 +111,7 @@ namespace stencil::gui {
     llmClient_->chat(currentLlmSettings(), wire, suffix,
                      [self, hadImages, llmKey](llm::LlmReply reply) {
                        if (!self) return;  // window closed while in flight
-                       // Text-only model rejected the attached image(s): strip
-                       // every image from the history, remember the model, and
-                       // retry ONCE without them — a text-only model must still
-                       // be able to plan text-only edits ("make it sepia").
+                       // Text-only model rejected the images: strip them from the history, remember the model, retry ONCE.
                        if (!reply.ok && hadImages && !self->chatStopRequested_ &&
                            reply.error.contains(QLatin1String("multimodal"), Qt::CaseInsensitive)) {
                          self->chatTextOnlyKey_ = llmKey;
@@ -151,35 +135,28 @@ namespace stencil::gui {
                      });
   }
 
-  // §7 shape test: continue once when the actions CONTAIN a load op (openUrl
-  // non-incognito / blank / frame) and drew NO layout — a plan that placed
-  // lines committed to its coordinates. Browser twin: chatController.js
-  // planLoadsWithoutTracing.
+  // §7 shape test: continue once when the actions CONTAIN a load op and drew NO layout. Browser twin: chatController.js planLoadsWithoutTracing.
   bool MainWindow::chatPlanLoadsWithoutTracing(const llm::OpPlan& plan) const {
     const bool loadsNew =
         std::any_of(plan.actions.cbegin(), plan.actions.cend(), [](const llm::Action& a) {
-          // Incognito openUrl COUNTS here: the desktop adopts incognito in place (same
-          // canvas), so the fresh picture is this editor's image — unlike the browser,
-          // where incognito opens another tab and is rightly excluded.
+          // Incognito openUrl COUNTS: the desktop adopts incognito in place, unlike the browser's new tab.
           return a.op == llm::OpKind::OpenUrl ||
                  a.op == llm::OpKind::Blank || a.op == llm::OpKind::Frame;
         });
-    // A zero-line layout op validates (§2) but draws nothing — it must not
-    // count as "drew" or it suppresses the very round meant to draw the lines.
+    // A zero-line layout op validates (§2) but draws nothing — it must not count as "drew".
     const bool drewLayout = std::any_of(
         plan.actions.cbegin(), plan.actions.cend(),
         [](const llm::Action& a) { return a.op == llm::OpKind::Layout && !a.lines.empty(); });
     return loadsNew && !drewLayout;
   }
 
-  // §7 auto-continuation. True when a second round was launched (the caller stops).
+  // §7 auto-continuation. True when a second round was launched.
   bool MainWindow::maybeContinueChat(const llm::OpPlan& plan) {
     if (chatContinued_ || plan.actions.isEmpty() || !chatDock_ || !llmClient_) return false;
     if (!chatPlanLoadsWithoutTracing(plan) || !canvas_->hasImage()) return false;
     const llm::LlmSettings cfg = currentLlmSettings();
     const QString llmKey =
         QStringList{cfg.provider, cfg.baseUrl, cfg.model, cfg.serverUrl}.join(QLatin1Char('|'));
-    // A text-only model has nothing to continue WITH.
     if (!chatTextOnlyKey_.isEmpty() && chatTextOnlyKey_ == llmKey) return false;
 
     llm::ChatMessage note;
@@ -198,8 +175,7 @@ namespace stencil::gui {
     chatDock_->setBusy(true);
     chatMirrorBusy(true);
     QPointer<MainWindow> self(this);
-    // §7 edge map, same wire-only rules as onChatSend: rides directly after
-    // the fresh snapshot with the sentence, never enters chatHistory_.
+    // §7 edge map, wire-only as in onChatSend.
     QVector<llm::ChatMessage> wire = wireChatMessages();
     wire.last().images.insert(1, chatEdgeMapEncoded_);
     const QString suffix =

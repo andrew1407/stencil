@@ -25,9 +25,7 @@ namespace stencil::gui {
     const qreal lift = 2.0 * beat;               // translateY(-2px) at the peak
     const qreal scale = 1.0 + 0.12 * beat;       // scale(1.12) at the peak
     const QPointF mc(c.x(), c.y() - lift);       // the levitating mark's centre
-    // Accent glow behind the mark, brightening on the beat. Radial soft falloff —
-    // the opaque mark covers the middle, so it reads as the CSS drop-shadow halo.
-    // Glow + rays are hover-only; at rest just the mark is painted.
+    // Accent glow, radial falloff — the CSS drop-shadow halo. Hover-only.
     if (anim) {
       const qreal r = mark.width() * 0.5 * scale + 2.0 + 5.0 * beat_;
       QRadialGradient g(mc, r);
@@ -40,10 +38,7 @@ namespace stencil::gui {
       p.setBrush(g);
       p.drawEllipse(mc, r, r);
     }
-    // Ray ring: 8 thin spokes just outside the mark, turning with spin_ while
-    // the ring shimmers on the SAME beat (logoRaysShimmer). Two strokes per
-    // spoke — a wide soft halo under a thin bright core — stand in for the CSS
-    // conic gradient's feathered edges.
+    // 8 spokes, two strokes each (soft halo + bright core) standing in for the CSS conic gradient.
     if (anim) {
       const qreal alpha = 0.14 + 0.26 * beat_;
       const qreal r1 = mark.width() * 0.5 + 3.0;
@@ -59,8 +54,7 @@ namespace stencil::gui {
         p.drawLine(c + dir * r1, c + dir * r2);
       }
     }
-    // The mark itself, pulsing + levitating (the only copy on screen — the
-    // button's icon is blanked while the loop runs).
+    // The mark itself — the button's icon is blanked while the loop runs.
     const QSizeF s(mark.width() * scale, mark.height() * scale);
     p.drawPixmap(QRectF(mc.x() - s.width() / 2, mc.y() - s.height() / 2,
                         s.width(), s.height()),
@@ -68,8 +62,7 @@ namespace stencil::gui {
   }
 
   void LogoHoverFx::start() {
-    // Reduced motion: no loop at all — it is pure hover feedback with no end state to
-    // reach, and the button keeps painting the plain mark (faceSwap / filterFade rule).
+    // Reduced motion: no loop; the button keeps the plain mark (faceSwap / filterFade rule).
     if (active() || support::motionReduced()) return;
     beat_ = 0.0;   // every hover begins at the loop's rest pose
     pm_ = makePixmap_();
@@ -91,8 +84,7 @@ namespace stencil::gui {
     showStatic();   // keep painting the resting mark (the button icon stays blanked)
   }
 
-  // The resting mark — no animation, just the pixmap centred at full size, so the logo is
-  // never at the mercy of QToolButton's icon rendering.
+  // The resting mark, never at the mercy of QToolButton's icon rendering.
   void LogoHoverFx::showStatic() {
     if (!logo_ || !logo_->isVisible()) { hide(); return; }
     beat_ = 0.0;
@@ -113,11 +105,7 @@ namespace stencil::gui {
   void LogoHoverFx::syncGeometry() {
     const QPoint tl = logo_->mapTo(parentWidget(), QPoint(0, 0));
     setGeometry(QRect(tl, logo_->size()).adjusted(-kMargin, -kMargin, kMargin, kMargin));
-    // …and the mark goes wherever the button has gone. Fullscreen's edge reveal SLIDES the
-    // toolbars' height instead of hiding them, so the logo is clipped away without a Hide
-    // event ever arriving — the mark hung on over whatever the collapsed row uncovered,
-    // and nothing could take it down. visibleRegion() is the
-    // honest question: is any of the button actually on screen?
+    // Fullscreen's edge reveal SLIDES the toolbars' height, so the logo is clipped without a Hide event; visibleRegion() is the honest question.
     if (logo_->visibleRegion().isEmpty()) hide();
   }
 }  // namespace stencil::gui

@@ -36,8 +36,8 @@
 
 namespace stencil::gui {
 
-  // One-shot first-show fade-in (browser appReveal counterpart). Ramps window
-  // opacity — no per-child graphics effect, so the canvas paint path is untouched.
+  // Browser appReveal counterpart: window opacity, no per-child effect, so the canvas paint path
+  // is untouched.
   void MainWindow::showEvent(QShowEvent* event) {
     QMainWindow::showEvent(event);
     if (!firstShow_) return;
@@ -51,43 +51,34 @@ namespace stencil::gui {
     fade->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
-  // Closing is IMMEDIATE on every path — ⌘Q / app-menu Quit / Dock Quit /
-  // window ✕ / Alt+F4 / window-manager close — with no confirmation modal
-  // (deliberate user decision); autosave/session persistence below preserves
-  // the work regardless.
+  // Closing is immediate on every path, no confirmation; autosave preserves the work.
   void MainWindow::closeEvent(QCloseEvent* event) {
-    // Persist the dock/toolbar layout (selection-panel area etc.). The chat
-    // dock rides along in the blob but is reset to hidden/default on boot —
-    // it is session-transient like the browser panel. Incognito never writes
-    // (persistSettings gates it).
+    // The chat dock rides along but resets on boot (session-transient); incognito never writes
+    // (persistSettings).
     settings_.windowState = QString::fromLatin1(saveState(kToolbarLayoutVersion).toBase64());
     persistSettings();
     fileStore::flushWrites();   // any debounced registry write still inside its window
     QMainWindow::closeEvent(event);
   }
 
-  // Ctrl+D sets an explicit light/dark and stops following the OS (browser
-  // behavior: a manual toggle overrides the system preference).
+  // A manual toggle stops following the OS (browser behaviour).
   void MainWindow::toggleTheme() {
-    // One flip at a time: a second press mid-wipe restyles the window under an overlay
-    // holding the PREVIOUS snapshot, and the two palettes tear across each other. The
-    // browser gets this from the View Transitions API (a new transition supersedes the
-    // one in flight); here the press is simply dropped until the wipe has finished.
+    // One flip at a time: a second press mid-wipe tears the two palettes across each other. The
+    // press is dropped until the wipe ends.
     if (themeSwapping()) return;
     settings_.themeMode = resolveDark(settings_.themeMode) ? "light" : "dark";
     applySettings(settings_, true);
   }
 
   void MainWindow::applySettings(const Settings& s, bool persist) {
-    // Re-probe the provider (a network round-trip) only when its config moved — the
-    // live-apply Settings dialog routes every unrelated control click through here.
+    // Re-probe the provider only when its config moved; the live-apply dialog routes every click
+    // through here.
     const bool llmChanged = settings_.llmProvider != s.llmProvider
         || settings_.llmBaseUrl != s.llmBaseUrl || settings_.llmModel != s.llmModel
         || settings_.llmApiKey != s.llmApiKey || settings_.llmServerUrl != s.llmServerUrl;
     settings_ = s;
-    // Motion, before anything below can play: the two switches every animation in the
-    // app asks (support/modalReveal.hpp). The dialog live-applies, so flipping the mode
-    // there takes effect on that dialog's own closing flight.
+    // Motion first: every animation asks these switches (support/modalReveal.hpp), the dialog's
+    // own closing flight included.
     support::setMotionMode(support::motionModeFromKey(s.motionMode));
     support::setDrawingAnimations(s.drawingAnimations);
     canvas_->setDefaults(s.defaultColor, s.defaultThickness, s.defaultPointSize,
@@ -113,7 +104,6 @@ namespace stencil::gui {
       const int idx = units_.pageSize->findData(s.pageSize);
       if (idx >= 0) units_.pageSize->setCurrentIndex(idx);
     }
-    // Sync custom page-size inputs in the active display unit.
     if (units_.customW) {
       applyUnitToPageInputs();
       revealControls(units_.customGroup, s.pageSize == "custom");
@@ -132,16 +122,11 @@ namespace stencil::gui {
         actAllowFormulas_->setChecked(s.allowFormulas);
       }
     }
-    // Seed the Style toolbar row: line defaults, image filter + tint. All
-    // under signal blockers so seeding doesn't re-trigger the change handlers /
-    // re-persist. The filter is applied to the canvas once at the end.
+    // Under signal blockers so seeding does not re-persist; the filter is applied once at the end.
     lineColorValue_ = QColor(s.defaultColor);
     filterColorValue_ = QColor(s.filterColor);
-    // The chips themselves are painted by applyTheme() at the end of this function, not
-    // here: their frame is palette-coloured, and `settings_ = s` above has ALREADY handed
-    // them the new theme — so repainting them now bakes the new border into the snapshot
-    // the wipe is about to take, and the pickers sit there light while the window around
-    // them is still dark until the circle finally reaches them. Only the values change here.
+    // The chips are repainted by applyTheme() at the end, not here: `settings_ = s` already holds
+    // the new theme, and painting now bakes it into the wipe's snapshot.
     if (lineThickness_) {
       QSignalBlocker bt(lineThickness_);
       lineThickness_->setValue(qRound(s.defaultThickness));
@@ -164,7 +149,6 @@ namespace stencil::gui {
     canvas_->setImageFilter(s.imageFilter, filterColorValue_);
     if (chatDock_ && llmChanged) refreshLlmStatus();  // re-describe + re-probe the AI provider
     applyTheme();
-    // Even an explicit Settings-dialog save is suppressed in incognito.
     if (persist && !incognito_) fileStore::saveSettings(settings_);
   }
 

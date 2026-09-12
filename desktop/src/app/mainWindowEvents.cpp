@@ -34,22 +34,16 @@
 #include <QWheelEvent>
 #include <optional>
 
-// MainWindow::eventFilter and its chain: the dispatcher, the key claims that belong to a
-// focused text box, and the focus helper they share. The pointer/dock chrome, the popover
-// gestures and the canvas/name-bar handlers are the mainWindowEvents*.cpp siblings.
+// MainWindow::eventFilter and its chain; the other handlers are the mainWindowEvents*.cpp siblings.
 
 namespace stencil::gui {
 
-  // True when `obj` is a widget that takes typed text — the chat box, a name field, any
-  // line edit in a dialog.
   static bool isTextEntry(QObject* obj) {
     return qobject_cast<QLineEdit*>(obj) || qobject_cast<QPlainTextEdit*>(obj) ||
            qobject_cast<QTextEdit*>(obj);
   }
 
-  // The filter is a chain of concern-sized handlers, run in THIS order. The void ones only
-  // observe — every later handler still sees the event — while an optional-returning one that
-  // answers ends the chain with that verdict, exactly as its own `return` did inline.
+  // A chain of handlers in THIS order: void ones observe, an optional-returning one that answers ends the chain.
   // tests/mainWindow.composition.gui.cpp pins the verdicts.
   bool MainWindow::eventFilter(QObject* obj, QEvent* event) {
     filterPointerChrome(obj, event);
@@ -64,10 +58,7 @@ namespace stencil::gui {
   }
 
   std::optional<bool> MainWindow::filterKeyClaims(QObject* obj, QEvent* event) {
-    // While a TEXT BOX has focus, the standard editing chords belong to it — not to a canvas
-    // shortcut that happens to share the chord. ⌥⌫ (deleteLine) is the one that bit: typing in
-    // the chat, it deleted the selected LINE instead of the word behind the cursor. Claiming
-    // ShortcutOverride hands the key back to the widget; the action still works everywhere else.
+    // While a TEXT BOX has focus the editing chords belong to it (⌥⌫ deleted the selected LINE mid-typing); claiming ShortcutOverride hands the key back.
     if (event->type() == QEvent::ShortcutOverride && isTextEntry(obj)) {
       auto* ke = static_cast<QKeyEvent*>(event);
       static const QKeySequence::StandardKey kEditing[] = {
@@ -85,10 +76,7 @@ namespace stencil::gui {
         }
       }
     }
-    // Escape, app-wide (KeyPress AND ShortcutOverride, so nothing swallows it):
-    // closes an open popover first (the compact chat follows the same mini-window
-    // contract — docked/user-adopted floats never dismiss this way), then leaves
-    // fullscreen (gated on fs_.active — isFullScreen() is unreliable on macOS).
+    // Escape, app-wide (KeyPress AND ShortcutOverride): closes a popover first, then leaves fullscreen (fs_.active — isFullScreen() is unreliable on macOS).
     if (pop_.active &&
         (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride) &&
         static_cast<QKeyEvent*>(event)->key() == Qt::Key_Escape) {

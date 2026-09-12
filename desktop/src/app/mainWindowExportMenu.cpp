@@ -39,17 +39,12 @@
 #include <QGuiApplication>
 #include <functional>
 
-// MainWindow's action set: buildActions() (the app-wide QActions + hotkeys) and
-// buildContextActions() (the canvas context-menu set). Split from mainWindow.cpp;
-// same class, definitions only.
+// The export-variant menus' Alt+hover previews and the toolbar buttons' export-options popups.
 
 namespace stencil::gui {
 
   namespace {
-    // Alt+hover preview for the same row (no new QMenu::hovered fires for a modifier
-    // change). Watches `menu` AND every ancestor QMenu: a hover-opened submenu holds no
-    // key grab of its own, so Qt can deliver a bare Alt to the chain's root instead.
-    // Consumes only the Alt press/release itself.
+    // Watches `menu` AND every ancestor QMenu: a hover-opened submenu holds no key grab, so Qt may deliver a bare Alt to the root.
     class AltPreviewFilter : public QObject {
      public:
       AltPreviewFilter(QMenu* menu, std::function<QImage(QAction*)> renderFor)
@@ -63,9 +58,7 @@ namespace stencil::gui {
      protected:
       bool eventFilter(QObject* obj, QEvent* e) override {
         if (!watched_.contains(qobject_cast<QWidget*>(obj))) return false;
-        // Gliding OFF the previewed row hides the preview (browser wireAltPreview
-        // mouseleave parity): the open menu owns all pointer traffic, so its own moves
-        // are the hover-out signal; landing on another previewable row re-shows it.
+        // Gliding OFF the previewed row hides the preview (browser wireAltPreview mouseleave parity).
         if (e->type() == QEvent::MouseMove && support::exportPreviewOwner() == menu_) {
           auto* mm = qobject_cast<QMenu*>(obj);
           QAction* act =
@@ -74,22 +67,17 @@ namespace stencil::gui {
             support::hideExportPreview();
         }
         if (e->type() == QEvent::KeyPress && static_cast<QKeyEvent*>(e)->key() == Qt::Key_Alt) {
-          // Autorepeats still consumed (bare Alt must stay off the menu bar), but they
-          // must not re-show — a platform that repeats a held modifier would replay
-          // the preview's appearance for as long as Alt is down.
+          // Autorepeats are consumed but must not re-show the preview.
           if (QAction* act = static_cast<QKeyEvent*>(e)->isAutoRepeat() ? nullptr
                                                                         : menu_->activeAction()) {
             const QImage img = renderFor_(act);
-            // A KEY-triggered appearance forms from the CURSOR (the row's centre is
-            // the pointer-driven flights' origin) — user decision, both surfaces.
+            // A KEY-triggered appearance forms from the CURSOR.
             if (!img.isNull())
               support::showExportPreview(img, menu_, menu_->actionGeometry(act), QCursor::pos());
           }
-          // Consumed: a bare Alt reaching the menu bar enters mnemonic mode, stealing
-          // focus and closing this popup (browser parity: popover.js preventDefault).
+          // Consumed: a bare Alt reaching the menu bar enters mnemonic mode and closes this popup.
           return true;
         } else if (e->type() == QEvent::KeyRelease && static_cast<QKeyEvent*>(e)->key() == Qt::Key_Alt) {
-          // Released Alt pours the preview back into the CURSOR, mirroring the press.
           if (!static_cast<QKeyEvent*>(e)->isAutoRepeat())
             support::hideExportPreview(QCursor::pos());
           return true;
@@ -103,12 +91,8 @@ namespace stencil::gui {
       std::function<QImage(QAction*)> renderFor_;
     };
 
-    // Double-click / right-click on a copy/download-image TOOLBAR button opens its
-    // export-options popup instead of the plain single-click action — the same split
-    // browser's toolbar copy/download buttons use (js/ui/exportOptionsMenu.js). A
-    // plain click is deferred (swallowed press/release + a short timer) so a following
-    // dblclick can still cancel it; the button's own defaultAction sync (icon/tooltip/
-    // enabled state) is untouched — only the trigger path is taken over.
+    // Double-click / right-click on a copy/download TOOLBAR button opens its export-options popup (browser exportOptionsMenu.js);
+    // a plain click is deferred so a following dblclick can cancel it. The button's defaultAction sync is untouched.
     class ExportPopupFilter : public QObject {
      public:
       ExportPopupFilter(QToolButton* btn, QAction* act, QMenu* menu)
@@ -155,12 +139,9 @@ namespace stencil::gui {
     };
   }  // namespace
 
-  // Wire the Alt+hover live preview onto one export-variant menu (a nested context-menu
-  // submenu, or a toolbar options popup) — call once, right after its actions are added.
+  // Wire the Alt+hover preview onto one export-variant menu — once, right after its actions are added.
   void MainWindow::wireExportPreviewHover(QMenu* menu) {
-    // One render per row per menu-open: QMenu::hovered re-fires on every mouse move,
-    // and renderToImage is a full native-resolution composite. Cleared on open AND
-    // close, so a fresh open always renders against the current canvas.
+    // One render per row per open: hovered re-fires on every move and renderToImage is a full composite.
     auto cache = std::make_shared<QHash<QAction*, QImage>>();
     auto renderFor = [this, cache](QAction* act) {
       const auto it = cache->constFind(act);
@@ -184,9 +165,7 @@ namespace stencil::gui {
     menu->installEventFilter(new AltPreviewFilter(menu, renderFor));
   }
 
-  // The two toolbar buttons' own export-options popups (browser parity:
-  // js/ui/exportOptionsMenu.js) — built once, reused on every double-click/right-click.
-  // Called once, right after buildToolbar() (needs the live buttons).
+  // The toolbar buttons' export-options popups (browser exportOptionsMenu.js), built once after buildToolbar().
   void MainWindow::wireExportOptionsPopups() {
     auto buildMenu = [this](bool copy) {
       auto* m = new QMenu(this);
@@ -197,11 +176,7 @@ namespace stencil::gui {
     copyImageOptionsMenu_ = buildMenu(/*copy=*/true);
     saveImageOptionsMenu_ = buildMenu(/*copy=*/false);
 
-    // NOT buttonForAction() — that only finds a CURRENTLY VISIBLE button, and with no
-    // image loaded yet (construction time) the Image cluster's buttons start hidden
-    // (mainWindowToolbar.cpp makeToolSection). The QToolButton object itself is built
-    // once and persists (only its visibility toggles later), so any match by
-    // defaultAction() — visible or not — is the right, permanent one to wire.
+    // NOT buttonForAction(): it finds only a VISIBLE button, and the Image cluster starts hidden. The QToolButton persists, so a defaultAction() match is permanent.
     auto wireButton = [this](QAction* act, QMenu* menu) {
       QToolButton* btn = nullptr;
       for (QToolButton* b : findChildren<QToolButton*>())

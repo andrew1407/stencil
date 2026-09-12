@@ -19,8 +19,7 @@
 
 namespace stencil::gui {
 
-  // Debounces the tooltip reveal by the target hovered (browser: tooltip.js
-  // scheduleShow); `immediate` (refreshHoverForModifiers) skips the wait outright.
+  // Debounced by target (browser tooltip.js scheduleShow); `immediate` skips the wait.
   void MainWindow::scheduleHoverShow(const QString& key, std::function<void()> revealFn,
                                      bool immediate) {
     if (immediate) {
@@ -33,8 +32,7 @@ namespace stencil::gui {
     }
     if (hoverShownKey_ == key) { revealFn(); return; }
     if (hoverPendingKey_ == key) { hoverPendingReveal_ = std::move(revealFn); return; }
-    // A different target: if one is actually ON SCREEN, take it down — otherwise
-    // nothing has appeared yet, so there's only a timer to drop, not a hide.
+    // A different target: hide only if one is actually ON SCREEN, else just drop the timer.
     if (!hoverShownKey_.isEmpty()) {
       hoverShownKey_.clear();
       tooltip_->hide();
@@ -46,8 +44,7 @@ namespace stencil::gui {
     if (!hoverTooltipTimer_) {
       hoverTooltipTimer_ = new QTimer(this);
       hoverTooltipTimer_->setSingleShot(true);
-      // Same wake-up delay as every other tooltip in the app (main.cpp pins the
-      // toolbar/menu one's SH_ToolTip_WakeUpDelay at the same 200 ms).
+      // Same 200 ms wake-up as every other tooltip (main.cpp SH_ToolTip_WakeUpDelay).
       hoverTooltipTimer_->setInterval(200);
       connect(hoverTooltipTimer_, &QTimer::timeout, this, [this] {
         hoverShownKey_ = hoverPendingKey_;
@@ -60,8 +57,7 @@ namespace stencil::gui {
     hoverTooltipTimer_->start();
   }
 
-  // Drops the tooltip AND any pending reveal for it — a target abandoned mid-wait must
-  // not pop in late, describing whatever the cursor has since moved on to.
+  // Drops the pending reveal too — an abandoned target must not pop in late.
   void MainWindow::hideHoverTooltip() {
     if (hoverTooltipTimer_) hoverTooltipTimer_->stop();
     hoverPendingKey_.clear();

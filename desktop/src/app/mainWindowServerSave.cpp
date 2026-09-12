@@ -27,13 +27,10 @@
 namespace stencil::gui {
 
   namespace {
-    // A stable value key for a line, for dedup when merging two editors' layouts on a
-    // save conflict (mirrors the browser's JSON-stringify dedup in mergeLines).
+    // Dedup key for merging two editors' layouts (mirrors the browser's mergeLines).
     QString lineKey(const core::Line& l) {
-      // pointColor rides second, matching the browser's lineDedupeKey field order: two
-      // lines alike but for their point colour are different lines, and an UNSET one keys
-      // as "" so a server round-trip (which omits the field) still dedupes against the
-      // local original.
+      // pointColor rides second (browser lineDedupeKey order); unset keys as "" so a server round-
+      // trip still dedupes.
       QString k = QString("%1|%2|%3|%4|%5|%6|%7")
                       .arg(QString::fromStdString(l.color))
                       .arg(QString::fromStdString(l.pointColor))
@@ -46,17 +43,15 @@ namespace stencil::gui {
     }
   }  // namespace
 
-  // Save a server-linked session back: version-guarded name/layout PUT, then upload
-  // the rendered result. A 409 surfaces a clear "edited elsewhere" message and
-  // leaves the link untouched. Mirrors the browser's saveToServer/saveRemoteProject.
+  // Version-guarded name/layout PUT, then the render upload; a 409 leaves the link untouched.
+  // Mirrors the browser's saveToServer.
   void MainWindow::saveToServer() {
     if (!settings_.syncToServer) return;  // sync off — fetched project stays edit-in-memory only
     stencil::net::ServerClient* c = remoteSession_->requireClient(
         remoteSession_->link().address, QString("Not connected to %1 — reconnect it first").arg(remoteSession_->link().address));
     if (!c) return;
-    // Guard the poll for the whole push (async in flight) so we don't reload our own change. The
-    // shared clearer sets remotePushing_ false once the last pending continuation is gone — every
-    // exit path (commit, conflict, hard error, or the client/window destroyed mid-flight).
+    // remotePushing_ guards the poll for the whole async push; the shared clearer drops it on
+    // every exit path.
     remotePushing_ = true;
     auto pushGuard = std::shared_ptr<void>(nullptr, [self = QPointer<MainWindow>(this)](void*) {
       if (self) self->remotePushing_ = false;
@@ -64,11 +59,8 @@ namespace stencil::gui {
     QPointer<MainWindow> self(this);
     const int w = canvas_->imageWidth();
     const int h = canvas_->imageHeight();
-    // Concurrent co-edit: on a version-guard conflict, merge the server's latest lines with
-    // ours and retry — looping (up to 6 attempts) so a tight race (incl. the result upload's
-    // extra version bump) still converges with both editors' annotations intact. The
-    // read→PUT→retry loop is the shared primitive; the line-union merge below is this save's
-    // conflict-resolution policy.
+    // On a version conflict, union-merge the server's lines with ours and retry (up to 6) so a
+    // tight race still converges.
     using GO = stencil::net::ServerClient::GuardOutcome;
     stencil::net::ServerClient::runGuardedWriteAsync(
         /*attempts=*/6, /*startVersion=*/remoteSession_->link().version,
@@ -98,8 +90,6 @@ namespace stencil::gui {
         },
         [this, self, c, pushGuard](qint64 /*version*/, std::function<void(bool, qint64)> cb) {
           if (!self) { cb(false, 0); return; }
-          // Pull the peer's latest, union-merge their lines into ours (deduped), adopt the
-          // server version, and retry.
           c->getProjectAsync(
               remoteSession_->link().id,
               [this, self, cb](bool ok, stencil::net::ServerProject meta, QJsonObject srvLayout) {
@@ -113,11 +103,11 @@ namespace stencil::gui {
                   if (!seen.contains(k)) { mlines.push_back(l); seen.insert(k); }
                 }
                 {  // apply merged lines (+ peer filter) locally without re-triggering a push.
-                  // Synchronous block: the reload flag brackets it (onCanvasChanged reads it).
+                  // The reload flag brackets the synchronous block (onCanvasChanged reads it).
                   remoteReloading_ = true;
                   canvas_->setLines(mlines);
-                  // Adopt the peer's filter UNLESS this user changed their own, so a line-only
-                  // edit doesn't clobber the peer's filter change (the scalar can't merge).
+                  // Adopt the peer's filter unless this user changed their own (the scalar cannot
+                  // merge).
                   if (!filterDirty_) {
                     QString sf, st;
                     parseLayoutFilter(srvLayout, settings_.filterColor, sf, st);
@@ -132,8 +122,8 @@ namespace stencil::gui {
         },
         [this, self, c, w, h, pushGuard](GO outcome) {
           if (!self) return;
-          // A hard (non-409) failure already notified inside the attempt and stops here; a
-          // lingering Conflict means the attempts were exhausted (or a re-read failed).
+          // A hard failure already notified; a lingering Conflict means the attempts were
+          // exhausted.
           if (outcome == GO::Failed) return;
           if (outcome != GO::Committed) {
             notify_->error(
@@ -142,15 +132,14 @@ namespace stencil::gui {
             return;
           }
           filterDirty_ = false;   // our filter (if any) is now the server's
-          // Confirm our own save (the union-merge kept both editors' annotations intact). Fired
-          // after the result upload + version refresh, matching the previous synchronous order.
+          // Fired after the result upload + version refresh, matching the previous synchronous
+          // order.
           auto announce = [this, self, pushGuard]() {
             if (self)
               notify_->success(QString("Saved \"%1\" to %2")
                                    .arg(remoteSession_->link().name, remoteSession_->link().address));
           };
-          // Upload the annotated render as the 'result'. The file write bumps the version, so
-          // re-read it to keep the guard accurate for the next save.
+          // The file write bumps the version, so re-read it for the next save's guard.
           if (canvas_->hasImage()) {
             const QByteArray bytes = pngBytes(canvas_->renderToImage(true));
             c->uploadFileAsync(

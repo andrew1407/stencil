@@ -45,9 +45,7 @@
 
 namespace stencil::gui {
 
-  // The top menu toggles from the "Controls" pill in the header row (kept in sync here). The panel
-  // hides from its own header chevron and re-opens from a single floating chevron that sits flush to
-  // the canvas' right edge — shown ONLY while the panel is hidden, so it's never a dead-end.
+  // The panel re-opens from a floating chevron flush to the canvas' right edge — shown ONLY while the panel is hidden.
   void MainWindow::buildOverlayArrows() {
     panelReopenBtn_ = new QToolButton(this);
     panelReopenBtn_->setCursor(Qt::PointingHandCursor);
@@ -56,21 +54,19 @@ namespace stencil::gui {
     panelReopenBtn_->setIconSize(QSize(kPanelToggleGlyph, kPanelToggleGlyph));
     panelReopenBtn_->setToolTip(QString("Show panel (%1)").arg(hotkey("togglePointsList", "Alt+X")));
     panelReopenBtn_->setStyleSheet(panelToggleQss());
-    // Its angle is STATE, like the panel-header chevron's — no icon-motion on hover.
+    // Its angle is STATE — no icon-motion on hover.
     panelReopenBtn_->setProperty(kNoIconMotionProperty, true);
     connect(panelReopenBtn_, &QToolButton::clicked, this,
             [this] { if (actPanel_) actPanel_->setChecked(true); });
     panelReopenBtn_->hide();
-    // The canvas↔panel separator grip (browser .panel-resizer parity, animated) — the
-    // separator is QMainWindow chrome with no widget of its own, so a decorative,
-    // mouse-transparent overlay paints the bar and eventFilter drives its hot state.
+    // The separator is QMainWindow chrome with no widget, so a mouse-transparent overlay paints the grip (browser .panel-resizer).
     panelGrip_ = new DockGripOverlay(this);
     {
       const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
       panelGrip_->setColors(pal.borderMain, pal.accent);
     }
     panelGrip_->hide();
-    // …and the chat dock's own resize edge (browser .chat-resizer), on the same trick.
+    // The chat dock's resize edge (browser .chat-resizer), same trick.
     chatEdge_ = new DockEdgeOverlay(this);
     chatEdge_->setObjectName(QStringLiteral("chatResizeEdge"));
     {
@@ -82,9 +78,7 @@ namespace stencil::gui {
     updatePanelReopenButton();
   }
 
-  // Place the grip over the separator beside the docked panel — the 9px strip the
-  // QSS sizes (theme.cpp QMainWindow::separator). Hidden with the panel (the reopen
-  // chevron owns that state) and while it floats or fullscreen hides the chrome.
+  // Over the 9px separator strip (theme.cpp QMainWindow::separator); hidden with the panel, while it floats, and in fullscreen.
   void MainWindow::positionPanelGrip() {
     if (!panelGrip_ || !selPanel_) return;
     const Qt::DockWidgetArea area = dockWidgetArea(selPanel_);
@@ -104,9 +98,7 @@ namespace stencil::gui {
     panelGrip_->raise();
   }
 
-  // Place the tint over the chat dock's resize separator, whichever area the dock is in
-  // (browser .chat-resizer). Horizontal separators are a hairline, so the band is drawn to
-  // kMinThickness while the hit rect stays the strip Qt really resizes on.
+  // Horizontal separators are a hairline, so the band is drawn to kMinThickness while the hit rect stays Qt's strip.
   void MainWindow::positionChatEdge() {
     if (!chatEdge_ || !chatDock_) return;
     const bool on = chatDock_->isVisible() && !chatDock_->isFloating() && !fs_.active;
@@ -138,21 +130,15 @@ namespace stencil::gui {
     chatEdge_->raise();
   }
 
-  // The toast stack hangs off the WINDOW's bottom-left, which puts the status bar's coord
-  // readout under it — so it is told to clear whatever that bar currently occupies (nothing
-  // in fullscreen, where the bar is hidden). Refreshed from positionOverlayArrows, which
-  // already runs on every resize, theme change and toolbar fold.
+  // The stack hangs off the WINDOW's bottom-left, so it is told to clear the status bar's coord readout.
   void MainWindow::syncToastInset() {
-    // Late dock signals during ~MainWindow land after the layout (and statusBar) died.
+    // Late dock signals during ~MainWindow land after the layout died.
     if (tearingDown_ || !notify_) return;
-    // findChild, not statusBar() — the accessor lazily CREATES a real QStatusBar on first
-    // call, which is exactly the empty strip this window deliberately doesn't keep
-    // (browser parity: nothing below .drop-hint).
+    // findChild, not statusBar() — the accessor lazily CREATES the empty strip this window deliberately doesn't keep.
     const QWidget* bar = findChild<QStatusBar*>();
     int bottom = bar && bar->isVisible() ? bar->height() : 0;
     int left = 0;
-    // A docked chat panel owns its corner: the stack moves beside (left dock) or
-    // above (bottom dock) it instead of overlapping the composer.
+    // A docked chat panel owns its corner: the stack moves beside or above it.
     if (chatDock_ && chatDock_->isVisible() && !chatDock_->isFloating()) {
       const Qt::DockWidgetArea area = dockWidgetArea(chatDock_);
       if (area == Qt::LeftDockWidgetArea) left = chatDock_->width();   // the gap is the stack's own

@@ -11,12 +11,8 @@ class QVariantAnimation;
 
 namespace stencil::gui {
 
-  // Logo hover fx: pulse + levitate + accent glow + orbiting rays — the desktop
-  // match for the browser/extension logo hover (css/animations.css logoPulse /
-  // logoRaysSpin / logoRaysShimmer). A mouse-through overlay child of the WINDOW
-  // (not the button) paints in a margin around the logo so the toolbar never
-  // reflows; while the loop runs the button's icon is blanked and the overlay
-  // draws the mark. Runs ONLY while hovered (hidden + stopped = no idle CPU).
+  // Logo hover fx (browser css/animations.css logoPulse / logoRaysSpin / logoRaysShimmer): a mouse-through overlay child
+  // of the WINDOW paints in a margin around the logo so the toolbar never reflows. Runs ONLY while hovered.
   class LogoHoverFx : public QWidget {
     Q_OBJECT
    public:
@@ -24,14 +20,10 @@ namespace stencil::gui {
     LogoHoverFx(QToolButton* logo, std::function<QPixmap()> makePixmap,
                 std::function<QColor()> accent);
 
-    // The accent can cycle from a click on the hovered logo (mid-animation):
-    // refresh the cached art and re-blank the button so the overlay keeps the pixels.
+    // The accent can cycle mid-animation: refresh the art and re-blank the button.
     void themeChanged();
     bool active() const;
-    // The logo's accent popover counts as hovering the logo (browser parity: the menu
-    // lives inside .app-logo-wrap, so the shine holds over it). Enter on `box` starts
-    // the loop, and leaving the logo/box only stops it once neither is under the cursor
-    // — after a short grace, so crossing the anchor gap never blinks the glow.
+    // The accent popover counts as hovering the logo (browser: the menu lives inside .app-logo-wrap); a short grace covers the anchor gap.
     void holdWhile(QWidget* box);
 
    protected:
@@ -59,7 +51,6 @@ namespace stencil::gui {
     qreal angle_ = 0.0;
   };
 
-  // MainWindow stores the overlay as a plain QWidget* member — this types it back.
   inline LogoHoverFx* asLogoFx(QWidget* w) { return static_cast<LogoHoverFx*>(w); }
 
 }  // namespace stencil::gui

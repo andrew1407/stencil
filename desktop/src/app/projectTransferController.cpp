@@ -65,21 +65,14 @@ namespace stencil::gui {
     return true;
   }
 
-  // Create `pr` on the server under `name`: upload the original bytes, then push the annotated
-  // layout (lines + filter + page/formulas) so the server holds the full project. Reports
-  // (ok, newId, newVersion) via `done`; notifies on failure.
-  //
-  // LIFETIME: the completion lambdas capture the controller's `this`, but every REST reply is bound
-  // to `c`'s network-access-manager. `c` is owned by the ConnectionManager, which is owned by the
-  // MainWindow that owns this controller — so a reply fires only while `c` (hence this controller)
-  // is alive. If the server is disconnected (or the window closed) mid-transfer, `c` dies, the
-  // reply is severed, and the chain is a safe no-op (the transfer simply stops). Same holds for
-  // every method below.
+  // Lifetime: every REST reply is bound to `c`'s network-access-manager, owned by the
+  // ConnectionManager under the MainWindow that owns this controller, so a reply never fires after
+  // `this` dies. Same for every method below.
   void ProjectTransferController::createServerFromLocal(
       stencil::net::ServerClient* c, const Project& pr, const QString& name, const QByteArray& bytes,
       const QString& ext, int w, int h,
       std::function<void(bool ok, QString newId, qint64 newVersion)> done) {
-    // Copy the layout inputs the async tail needs (pr may not outlive the chain).
+    // pr may not outlive the chain.
     const QJsonObject layout = fileStore::buildLayoutJson(
         w, h, pr.lines, settings_->imageFilter, settings_->filterColor,
         pr.cropRect, pr.rotationQuarters, h_.currentLayoutMeta());
@@ -98,9 +91,8 @@ namespace stencil::gui {
               done(false, QString(), 0);
               return;
             }
-            // Single-shot guarded write (no retry): a freshly created project has no concurrent
-            // editors, so a 409 is left as-is (newVersion keeps the create's version), matching the
-            // previous fire-and-forget updateProject call.
+            // Single-shot write: a freshly created project has no concurrent editors, so a 409 is
+            // left as-is.
             c->updateProjectAsync(newId, name, layout, version,
                                   [newId, version, done](bool pok, qint64 nv, bool /*conflict*/) {
               done(true, newId, pok ? nv : version);
@@ -109,8 +101,7 @@ namespace stencil::gui {
         });
   }
 
-  // Local → server: create the project on `serverUrl`, upload its original image, push the
-  // annotated layout, then drop the local copy. Mirrors the browser's moveProjectToServer().
+  // Mirrors the browser's moveProjectToServer().
   void ProjectTransferController::moveLocalProjectToServer(const QString& serverUrl,
                                                            const QString& id) {
     stencil::net::ServerClient* c = requireClient(serverUrl);
@@ -126,11 +117,10 @@ namespace stencil::gui {
     int h = 0;
     if (!localProjectOriginal(*pr, bytes, ext, w, h)) return;
     const QString name = QString::fromStdString(pr->meta.name);
-    // Carry the project's accent colour onto the server copy (create can't set it).
+    // create cannot set the colour.
     const QString localColor = QString::fromStdString(pr->meta.color);
     const std::string sid = id.toStdString();
     const bool wasActive = (h_.activeProjectId() == id);
-    // Drop the now-redundant local copy, link the editor if it was open, then notify.
     auto finish = [this, sid, name, serverUrl, localColor, wasActive](const QString& newId,
                                                                       qint64 newVersion) {
       projectList_->erase(
@@ -138,8 +128,8 @@ namespace stencil::gui {
                          [&](const Project& p) { return p.meta.id == sid; }),
           projectList_->end());
       fileStore::saveProjects(*projectList_);
-      // If it was the open project, keep the editor open and LINK the live session to the new
-      // server project (golden frame) instead of orphaning the canvas.
+      // Keep the editor open and link the live session to the new server project instead of
+      // orphaning the canvas.
       if (wasActive) h_.relinkActiveToServer(serverUrl, newId, name, localColor, newVersion);
       h_.afterChange();
       notify_->success(QString("Moved \"%1\" to %2").arg(name, serverUrl));

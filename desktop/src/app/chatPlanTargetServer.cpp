@@ -17,8 +17,7 @@
 
 namespace stencil::gui {
   bool ChatPlanTarget::connectServer(const QString& server, QString* err) {
-    // Resolve ONLY against the user's SAVED servers (exact URL, else unique host); their
-    // stored token authenticates — plans never carry tokens or hosts (contract §10).
+    // Resolve ONLY against the user's SAVED servers; plans never carry tokens or hosts (contract §10).
     const auto saved = stencil::net::connectionStore::loadSavedServers();
     QStringList urls;
     for (const auto& s : saved) urls << s.url;
@@ -35,8 +34,7 @@ namespace stencil::gui {
     auto kind = stencil::net::ServerClient::CredentialKind::None;
     for (const auto& s : saved)
       if (s.url == url) { token = s.token; kind = stencil::net::ServerClient::kindFromTag(s.kind); break; }
-    // The executor runs its ops in order, so this one waits out the handshake — the same
-    // bounded local loop chatLoadSource uses, not a blocking call inside the client.
+    // The executor runs ops in order, so this waits out the handshake in the bounded local loop chatLoadSource uses.
     QString cerr;
     bool done = false, ok = false;
     QEventLoop loop;
@@ -66,11 +64,9 @@ namespace stencil::gui {
     return true;
   }
 
-  // §10 openUrl: the user-echo guard already ran in the executor; loading rides the SAME
-  // async path as the dialog's "open here", and the executor awaits it (chatLoadSource).
+  // §10 openUrl: the SAME async path as the dialog's "open here"; the executor awaits it (chatLoadSource).
   bool ChatPlanTarget::openUrl(const QString& url, bool incognito, QString* err) {
-    // Say what happened in OUR words — a silent download plus a vague model
-    // reply reads as "nothing happened".
+    // Say what happened in OUR words — a silent download reads as "nothing happened".
     w_.notify_->info(QStringLiteral("Opening %1%2")
                          .arg(url, incognito ? QStringLiteral(" (incognito)") : QString()));
     QString why;
@@ -78,25 +74,21 @@ namespace stencil::gui {
     if (err) *err = QStringLiteral("openUrl: %1").arg(why);
     return false;
   }
-  // §10 openFile: the same await, pointed at a LOCAL path the user named (the
-  // executor checked the echo rule); a .stencil or .json takes its own path.
+  // §10 openFile: the same await for a LOCAL path; a .stencil or .json takes its own path.
   bool ChatPlanTarget::openFile(const QString& path, QString* err) {
     return w_.chatOpenFile(path, err);
   }
-  // §10 copy: the SAME path as the toolbar's "Copy Image to Clipboard"
-  // (DataExportController — image + filter, no overlay; it notifies too).
+  // §10 copy: the toolbar's "Copy Image to Clipboard" path (DataExportController).
   bool ChatPlanTarget::copyImage(QString*) {
     w_.dataExport_->copyImageToClipboard();
     return true;
   }
-  // §10 copy what:"layout": actCopyLayout_'s DataExportController path.
   bool ChatPlanTarget::copyLayout(QString*) {
     w_.dataExport_->copyLayout();
     return true;
   }
   bool ChatPlanTarget::hasDrawnLines() const { return !w_.canvas_->lines().empty(); }
-  // Shared §10 resolution: a saved LOCAL project by exact name, else unique
-  // case-insensitive prefix. nullptr + *note set on a miss/ambiguity.
+  // Shared §10 resolution: exact name, else unique case-insensitive prefix; nullptr + *note on a miss.
   const Project* ChatPlanTarget::resolveLocalProject(const QString& name,
                                                      QString* note) const {
     std::vector<const Project*> exact, prefixed;
@@ -119,9 +111,7 @@ namespace stencil::gui {
     }
     return picks.front();
   }
-  // §10 removeProject: resolve among the saved LOCAL projects (or the ACTIVE one for
-  // current:true, falling back to `clear` when nothing is saved but an image is open),
-  // then the projects dialog's Delete flow. A miss/decline is a note, not a failure.
+  // §10 removeProject: saved LOCAL projects (or the ACTIVE one for current:true), then the dialog's Delete flow. A decline is a note.
   bool ChatPlanTarget::removeProjectNamed(const QString& name, bool current,
                                           QString* note) {
     QString id, nm;
@@ -169,8 +159,7 @@ namespace stencil::gui {
     w_.notify_->info("Project deleted");
     return true;
   }
-  // §10 renameProject: the commitProjectName path (local rename or the server-linked live
-  // push), pre-validated so a duplicate name surfaces the store's own reason as a note.
+  // §10 renameProject: the commitProjectName path, pre-validated so a duplicate surfaces the store's reason.
   bool ChatPlanTarget::renameActiveProject(const QString& name, QString* note) {
     const bool remote = !w_.remoteSession_->link().id.isEmpty();
     if (!remote && w_.activeProjectId_.isEmpty()) {
@@ -188,7 +177,6 @@ namespace stencil::gui {
     w_.commitProjectName();
     return true;
   }
-  // §10 projectColor: the project name-colour control ("" = theme accent).
   bool ChatPlanTarget::setProjectColor(const QString& color, QString* note) {
     if (w_.remoteSession_->link().id.isEmpty() && w_.activeProjectId_.isEmpty()) {
       *note = QStringLiteral("no active project — open or save one first");

@@ -23,12 +23,11 @@ namespace stencil::gui {
                          std::function<void(bool ok, qint64 newVersion, bool conflict)> cb)> put,
       std::function<void(bool ok, qint64 outVersion)> done) {
     using GO = stencil::net::ServerClient::GuardOutcome;
-    // Winning version threaded through the heap-managed loop to the final `done`.
     auto outVersion = std::make_shared<qint64>(0);
     stencil::net::ServerClient::runGuardedWriteAsync(
         /*attempts=*/4, /*startVersion=*/0,
         [c, id, put, outVersion](qint64 /*version*/, std::function<void(GO)> cb) {
-          // Each attempt re-reads the current version itself (identity policy).
+          // Each attempt re-reads the current version (identity policy).
           c->getProjectAsync(id, [put, outVersion, cb](bool ok, stencil::net::ServerProject meta,
                                                        QJsonObject) {
             if (!ok) { cb(GO::Failed); return; }  // read failed; lastError() set
@@ -38,7 +37,7 @@ namespace stencil::gui {
             });
           });
         },
-        // `resolve` is a no-op (each attempt re-reads), so the start version is unused.
+        // `resolve` is a no-op, so the start version is unused.
         [](qint64, std::function<void(bool, qint64)> cb) { cb(true, 0); },
         [done, outVersion](GO r) { done(r == GO::Committed, *outVersion); });
   }

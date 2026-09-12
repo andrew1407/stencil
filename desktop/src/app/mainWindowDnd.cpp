@@ -43,10 +43,7 @@
 namespace stencil::gui {
 
   namespace {
-    // A droppable source resolved from a drag: a LOCAL file (keeps its path), a remote http(s)
-    // URL (an image dragged from a browser page), or raw IMAGE bytes. Desktop can fetch remote
-    // URLs freely (no browser CORS), so a cross-page image drag works here where the browser is
-    // CORS-limited.
+    // A LOCAL file, a remote http(s) URL, or raw IMAGE bytes; the desktop has no CORS limit on remote drags.
     struct DropSrc {
       enum Kind { None, LocalFile, Url, ImageData } kind = None;
       QString value;  // path (LocalFile) or url (Url); ImageData carries no string
@@ -69,8 +66,7 @@ namespace stencil::gui {
   }  // namespace
 
   void MainWindow::dragEnterEvent(QDragEnterEvent* event) {
-    // Accept a dragged local file (image / video / layout JSON), a remote image URL, or raw
-    // image bytes. Show the split LEFT-save / RIGHT-incognito overlay.
+    // Show the split LEFT-save / RIGHT-incognito overlay.
     if (droppableSource(event->mimeData()).kind == DropSrc::None) return;
     event->acceptProposedAction();
     if (dropZones_) {
@@ -95,18 +91,16 @@ namespace stencil::gui {
     if (src.kind == DropSrc::None) return;
     event->acceptProposedAction();
 
-    // A local .json layout ignores the save/incognito split (it applies drawing data).
+    // A .json layout ignores the save/incognito split.
     if (src.kind == DropSrc::LocalFile &&
         QFileInfo(src.value).suffix().compare("json", Qt::CaseInsensitive) == 0) {
       applyLayoutFromSource(src.value);
       return;
     }
 
-    // RIGHT half = incognito, LEFT half = upload + save.
     const bool incognito = event->position().x() >= width() / 2.0;
 
-    // Resolve a source string: local path, remote URL, or a data: URL for raw dropped pixels
-    // (openImageSource decodes data: URLs), plus whether new-window is offerable.
+    // Raw pixels become a data: URL (openImageSource decodes them).
     QString source = src.value;
     bool isLocal = false;
     if (src.kind == DropSrc::LocalFile) { isLocal = true; }
@@ -116,13 +110,11 @@ namespace stencil::gui {
       source = QStringLiteral("data:image/png;base64,") + QString::fromLatin1(pngBytes(img).toBase64());
     }
 
-    // Open the dropped image via the LEFT (save) or RIGHT (incognito) path. Local files keep
-    // their path (openImageHere/InNewWindow); URLs + raw pixels go through the async source path.
+    // Local files keep their path; URLs + raw pixels take the async source path.
     const auto openHere = [&] { if (isLocal) openImageHere(source, incognito); else openSourceHere(source, -1, incognito); };
     const auto openNew = [&] { if (isLocal) openImageInNewWindow(source, incognito); else openSourceInNewWindow(source, -1, incognito); };
 
-    // An image already open → ask this window vs a new one (the browser's askAlt:
-    // two real answers plus a way out, in the same styled shell).
+    // An image already open → ask this window vs a new one (the browser's askAlt).
     if (canvas_->hasImage()) {
       ConfirmSpec spec;
       spec.title = tr("Open dropped image");
@@ -139,14 +131,10 @@ namespace stencil::gui {
     openHere();
   }
 
-  // A fresh image ASSEMBLES from dust (Sweep::Gather; browser ghostIn). The
-  // canvas waits at opacity 0, effect torn down at the end (an opacity effect
-  // must never stay on a repainting canvas); snapshot BEFORE the effect goes on.
+  // A fresh image ASSEMBLES from dust (browser ghostIn). An opacity effect must never stay on a repainting canvas; snapshot BEFORE it goes on.
   void MainWindow::playImageArrival() {
     if (!canvas_) return;
-    // Reduced motion: the image is simply THERE. Not just "no dust" — the opacity effect
-    // has to go too, or the canvas sits blank for the whole flight and the arrival reads
-    // as the image failing to load.
+    // Reduced motion: the opacity effect has to go too, or the canvas sits blank for the whole flight.
     if (support::motionReduced()) { canvas_->setGraphicsEffect(nullptr); return; }
 
     const bool dust = canvas_->hasImage() && scroll_ && scroll_->viewport()
@@ -156,20 +144,17 @@ namespace stencil::gui {
     auto* fx = new QGraphicsOpacityEffect(canvas_);
     fx->setOpacity(0.0);
     canvas_->setGraphicsEffect(fx);
-    // Only ever tear down OUR effect: two images arriving inside one flight (open, then
-    // open again) would otherwise let the first timer reveal the second one's canvas.
+    // Only ever tear down OUR effect: a second arrival mid-flight has its own.
     const QPointer<QGraphicsOpacityEffect> mine(fx);
     const auto done = [this, mine] {
       if (canvas_ && canvas_->graphicsEffect() == mine) canvas_->setGraphicsEffect(nullptr);
     };
     if (dust) {
-      // Hidden for the whole flight, then simply revealed — the motes have already drawn
-      // it into place, so fading it up as well would double the arrival.
+      // The motes already drew it into place; fading it up as well would double the arrival.
       QTimer::singleShot(DisintegrateOverlay::kMs, canvas_, done);
       return;
     }
-    // No dust to play (a canvas not on screen yet, or too small to tile): fall back to
-    // the plain fade rather than to a hidden canvas.
+    // No dust to play: fall back to the plain fade, not to a hidden canvas.
     auto* anim = new QVariantAnimation(canvas_);
     anim->setDuration(360);
     anim->setStartValue(0.0);

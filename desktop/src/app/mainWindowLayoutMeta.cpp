@@ -32,7 +32,6 @@
 
 namespace stencil::gui {
 
-  // The current page format + x/y formulas (from global settings) as a layout-envelope meta.
   fileStore::LayoutMeta MainWindow::currentLayoutMeta() const {
     fileStore::LayoutMeta m;
     m.pageSize = settings_.pageSize;
@@ -44,8 +43,7 @@ namespace stencil::gui {
     return m;
   }
 
-  // Adopt a fetched layout's page format + formulas into the toolbar + settings (only the keys
-  // it carries, so older projects keep the user's current page/formulas). Signals blocked.
+  // Only the keys it carries, so older projects keep the current page/formulas. Signals blocked.
   void MainWindow::adoptServerLayoutMeta(const QJsonObject& layout) {
     if (layout.contains("pageSize")) {
       const fileStore::LayoutMeta m = fileStore::parseLayoutMeta(layout);
@@ -68,7 +66,7 @@ namespace stencil::gui {
     if (layout.contains("allowFormulas") || layout.contains("formulaX") ||
         layout.contains("formulaY")) {
       const bool allow = layout.value("allowFormulas").toBool(false);
-      // Keep the expressions regardless of the toggle (allow only gates visibility + applying).
+      // Keep the expressions regardless of the toggle.
       const QString fx = layout.value("formulaX").toString();
       const QString fy = layout.value("formulaY").toString();
       settings_.allowFormulas = allow;
@@ -94,8 +92,7 @@ namespace stencil::gui {
   }
 
   void MainWindow::openProjectInNewWindow(const QString& id) {
-    // A fresh window loads the saved projects from disk in its constructor, so it
-    // already knows this project. It owns itself and is destroyed on close.
+    // A fresh window loads the saved projects itself; it owns itself and dies on close.
     auto* win = new MainWindow();
     win->setAttribute(Qt::WA_DeleteOnClose);
     win->show();
@@ -114,7 +111,6 @@ namespace stencil::gui {
     return false;
   }
 
-  // Local↔server project transfer (move/copy to/from a server, + the import helper) lives in
-  // ProjectTransferController (projectTransferController.hpp), constructed as projectTransfer_.
+  // Local↔server transfer lives in ProjectTransferController (projectTransfer_).
 
 }  // namespace stencil::gui

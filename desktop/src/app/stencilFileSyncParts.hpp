@@ -4,8 +4,7 @@
 
 namespace stencil::gui {
 
-  // Union two line lists, de-duplicating by the compact JSON of each line (a merge that keeps
-  // both editors' annotations without duplicating a round-tripped twin — mirrors browser mergeLines).
+  // Union by the compact JSON of each line (mirrors browser mergeLines).
   inline core::Lines mergeLinesUnion(const core::Lines& base, const core::Lines& extra) {
     core::Lines out = base;
     QSet<QString> seen;

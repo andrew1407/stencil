@@ -64,8 +64,7 @@ namespace stencil::gui {
       return false;
     }
     pr->meta.name = name.toStdString();
-    // The project name is THE name: downloads use projectBaseName(), so there is no
-    // separate image name to keep in sync.
+    // Downloads use projectBaseName(), so there is no separate image name.
     fileStore::saveProjects(projectList_);
     refreshDockMenu();
     if (activeProjectId_ == id) updateProjectTitle();
@@ -73,13 +72,9 @@ namespace stencil::gui {
     return true;
   }
 
-  // Header-row "Image Size: W × H px" (+ "· blank"), or a neutral hint when no image is loaded.
-  // Always visible — the header row never collapses — mirroring the browser's #image-info bar.
-  // The incognito half of the image-info line: a muted "|" divider, then the app's OWN
-  // incognito glyph (the one the toolbar toggle wears — never an emoji, which rendered
-  // in the font's colour and style) tinted like the accent tag beside it. Divider and
-  // tag are one unit: nothing here is ever emitted without the rest, so a plain line
-  // can't end in a dangling separator.
+  // Always visible, mirroring the browser's #image-info bar.
+  // The incognito half is the toolbar's own glyph (an emoji took the font's colour); divider and
+  // tag are one unit, so no dangling separator.
   QString MainWindow::incognitoTagHtml() const {
     const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
     const int glyphPx = std::max(12, QFontMetrics(imageSizeInfo_->font()).height() - 2);
@@ -110,45 +105,32 @@ namespace stencil::gui {
       name = canvas_->imageBaseName();   // show the image name until it's a saved project
     setWindowTitle(name.isEmpty() ? QStringLiteral("Stencil")
                                   : QString("%1 — Stencil").arg(name));
-    // Server-editing indicator: a golden frame around the canvas (mirrors the browser
-    // badge/outline), so a server-backed session is unmistakable. A dynamic property
-    // (theme.cpp: QScrollArea#canvasViewport[remoteEditing="true"]) rather than a local
-    // stylesheet override, so it layers on top of the viewport's normal themed border
-    // instead of replacing the whole rule.
+    // Golden frame for a server-backed session (browser badge/outline); a dynamic property
+    // (theme.cpp [remoteEditing="true"]) so it layers on the themed border.
     if (scroll_) {
       scroll_->setProperty("remoteEditing", remote);
       scroll_->style()->unpolish(scroll_);
       scroll_->style()->polish(scroll_);
     }
-    // Per-project accent: the toolbar name field is painted in the project's colour by
-    // applyProjectNameStyle below (empty => theme default). The window title is OS-drawn,
-    // so only the field is tinted — mirroring the browser's coloured #project-name-input.
+    // Only the field is tinted — the title is OS-drawn (browser: coloured #project-name-input).
     const bool hasProject = !incognito_ && (!activeProjectId_.isEmpty() || remote);
-    // Don't clobber the field while the user is typing in it.
     if (nameBar_.field && !nameBar_.field->hasFocus()) {
       nameBar_.field->setText(name);
       nameBar_.field->setEnabled(editable);
       nameBar_.field->setReadOnly(true);  // back to read-only after any edit (enter edit via ✎/dbl-click)
       nameBar_.field->setPlaceholderText(
           incognito_ ? QStringLiteral("Incognito (unsaved)") : QStringLiteral("No project"));
-      // Custom colour when set; otherwise the shared neutral grey (#80868f), readable on
-      // light and dark — mirrors the browser's --project-name-fg (Qt has no text-shadow). The
-      // read-only look carries NO border/focus ring (applyProjectNameStyle); the bordered input
-      // appears only in edit mode.
+      // Custom colour, else the shared neutral #80868f (browser --project-name-fg); no border in
+      // read-only mode.
       applyProjectNameStyle(false);
       refreshProjectNameButtons();
     }
-    // Project-colour menu actions + the toolbar 🎨 icon enable with an active project; the ✎
-    // rename pencil only when the name is editable (a saved, non-incognito project).
     if (actProjectColor_) actProjectColor_->setEnabled(hasProject);
-    // "…default colour" clears a CUSTOM colour — with none set there is nothing to
-    // clear, so the menubar row greys out (setActiveProjectColor refreshes this).
+    // With no custom colour there is nothing to clear, so the row greys out.
     if (actProjectColorClear_)
       actProjectColorClear_->setEnabled(hasProject && !currentProjectColor().isEmpty());
-    // Cursor refreshed WITH the state: buildToolbars bakes every button's cursor from
-    // its enabled state at construction (these two start disabled — no project yet),
-    // and nothing else re-reads it, so an enabled ✎/🎨 kept the forbidden cursor
-    // forever.
+    // buildToolbars bakes each cursor from the enabled state at construction and nothing else re-
+    // reads it.
     if (nameBar_.colorBtn) {
       nameBar_.colorBtn->setEnabled(hasProject);
       nameBar_.colorBtn->setCursor(hasProject ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
@@ -157,8 +139,7 @@ namespace stencil::gui {
       nameBar_.edit->setEnabled(editable);
       nameBar_.edit->setCursor(editable ? Qt::PointingHandCursor : Qt::ForbiddenCursor);
     }
-    // DESCRIPTION & ATTRIBUTES edits a saved LOCAL project's metadata (browser:
-    // activeProjectId && !incognito); the tooltips carry the reason while greyed out.
+    // browser: activeProjectId && !incognito; the tooltips carry the reason while greyed out.
     const bool savedProject = !incognito_ && !activeProjectId_.isEmpty();
     for (QAction* a : {actDescription_, actKeywords_, actLinks_})
       if (a) a->setEnabled(savedProject);

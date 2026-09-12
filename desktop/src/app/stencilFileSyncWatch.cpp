@@ -17,9 +17,7 @@
 #include <QSet>
 #include <QTimer>
 
-// The .stencil project-file sync block: serialize (buildStencilBytes), Save-As /
-// delete, the file link + watcher, debounced auto-save, external-change merge,
-// and the live-sync toggle. Split from mainWindow.cpp; same class, definitions only.
+// The .stencil file watcher and external-change merge.
 
 namespace stencil::gui {
 
@@ -27,8 +25,8 @@ namespace stencil::gui {
     if (stencilLink_.isEmpty() || !stencilLiveSync_ || !canvas_->hasImage()) return;
     const QByteArray cur = buildStencilBytes();
     if (cur == stencilBaseline_) return;   // no local change
-    // Race: if the file changed externally since our baseline, route to the change handler
-    // (apply / prompt) instead of clobbering it — reusing `cur` so it needn't rebuild them.
+    // If the file changed externally since the baseline, route to the change handler instead of
+    // clobbering it.
     QByteArray ext;
     if (readFileBytes(stencilLink_, ext) && ext != stencilBaseline_) {
       onStencilFileChanged(cur);
@@ -46,7 +44,7 @@ namespace stencil::gui {
     wf.write(cur);
     wf.close();
     stencilBaseline_ = cur;
-    // QFileSystemWatcher drops a path once its file is replaced — re-add so we keep watching.
+    // QFileSystemWatcher drops a path once its file is replaced.
     if (stencilWatcher_ && !stencilWatcher_->files().contains(stencilLink_)) stencilWatcher_->addPath(stencilLink_);
   }
 
@@ -61,10 +59,8 @@ namespace stencil::gui {
       applyStencilExternal(ext);
       return;
     }
-    // Conflict: both changed since the baseline — the browser's styled 3-way choice
-    // (confirmModalChoice): take the file's copy, stack both line sets, or keep
-    // yours. "Keep mine" rides the Cancel slot — it is the do-nothing-to-the-editor
-    // answer — with the browser's glyphs on the two real actions.
+    // Both changed since the baseline: the browser's 3-way choice (confirmModalChoice); "Keep
+    // mine" rides the Cancel slot.
     ConfirmSpec spec;
     spec.title = tr("File changed");
     spec.message = tr("“%1” was changed outside the app and conflicts with your unsaved edits.")

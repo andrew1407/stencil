@@ -41,9 +41,8 @@ namespace stencil::gui {
     return {};
   }
 
-  // The colour of the project this editor is bound to: the linked server record for a
-  // server session (no local id), else the active local project. (Does not consider
-  // incognito — callers that paint apply that gate themselves.)
+  // The linked server record for a server session, else the active local project; callers apply
+  // the incognito gate.
   QString MainWindow::currentProjectColor() const {
     return !remoteSession_->link().id.isEmpty() ? remoteSession_->link().color : activeProjectColor();
   }
@@ -56,25 +55,22 @@ namespace stencil::gui {
   }
 
   void MainWindow::chooseProjectColor() {
-    // Direct modal picker — identical to the line-colour button, which works cleanly. (Earlier
-    // menu/InstantPopup/singleShot variants left a stray mouse grab that closed the dialog.)
+    // Direct modal picker: menu/InstantPopup/singleShot variants left a stray mouse grab that
+    // closed the dialog.
     const QString cur = currentProjectColor();
-    // No custom colour → seed with the neutral grey the name is actually painted in (the unset
-    // default), not the theme accent, so the picker reflects the real current state.
+    // Seed with the neutral grey the name is painted in, not the accent.
     const QColor seed = (!cur.isEmpty() && QColor(cur).isValid())
                             ? QColor(cur)
                             : QColor("#80868f");
-    // Non-native (helper) — the macOS shared NSColorPanel gets dismissed by our event
-    // filters; Qt's own modal dialog stays put. Anchored on the 🎨 button that opened it.
+    // Non-native: the macOS shared NSColorPanel gets dismissed by our event filters.
     const QColor picked =
         support::pickColorAnimated(seed, this, "Project name color", nameBar_.colorBtn);
     if (!picked.isValid()) return;   // user cancelled
     setActiveProjectColor(picked.name());
   }
 
-  // Browser-style 🎨 popup: with a custom colour set there are two real choices, so a tiny
-  // menu offers "Choose colour…" and "Use theme default colour". Without one there is
-  // nothing to clear — a one-row menu was a detour — so the picker opens directly.
+  // With a custom colour set there are two real choices, so a menu; without one the picker opens
+  // directly.
   void MainWindow::showProjectColorMenu() {
     if (currentProjectColor().isEmpty()) {
       chooseProjectColor();
@@ -83,20 +79,17 @@ namespace stencil::gui {
     QMenu menu(this);
     menu.setObjectName(QStringLiteral("projectColorMenu"));   // compact rows (theme.cpp)
     const QColor mtxt = palette().color(QPalette::WindowText);
-    // Browser project-color-menu parity: each row carries its glyph (palette / ✕),
-    // which also opts them into the shared menu icon motion.
+    // Browser project-color-menu parity; the glyphs opt the rows into the menu icon motion.
     QAction* pick = menu.addAction(themedIcon("palette", mtxt, 15), "Choose color…");
     QAction* def = menu.addAction(themedIcon("x", mtxt, 15), "Use theme default color");
-    // Same dust every other popup flies — this menu exec'd bare and just popped (user
-    // report) — and the same glass shimmer the context menu's rows sweep (browser
-    // .project-menu-item parity; icon motion rides the app-wide filter).
+    // The same dust and shimmer every other popup gets (browser .project-menu-item parity).
     support::MenuShimmer shimmer(&menu);
     support::revealMenuFrom(menu, nameBar_.colorBtn);
     QAction* chosen =
         menu.exec(nameBar_.colorBtn->mapToGlobal(QPoint(0, nameBar_.colorBtn->height())));
     if (chosen == pick) {
-      // Defer so the menu's mouse grab is fully released before the modal picker opens — a live
-      // grab is exactly what dismissed the dialog in the earlier direct-popup attempts.
+      // Defer so the menu's mouse grab is released before the modal picker opens, or it dismisses
+      // the dialog.
       QTimer::singleShot(0, this, [this] { chooseProjectColor(); });
     } else if (chosen == def) {   // guard: dismissed menu yields null, which != def here
       setActiveProjectColor(QString());

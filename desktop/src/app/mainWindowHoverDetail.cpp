@@ -15,9 +15,7 @@
 
 namespace stencil::gui {
 
-  // Build + show the hover tooltip. Port of tooltip.js applyHover:
-  //   Alt -> hide; Ctrl (no Shift) -> live cursor coords; else nearest point;
-  //   else hovered line (Start/End, or all points with Shift); else hide.
+  // Port of tooltip.js applyHover: Alt → hide; Ctrl → cursor coords; else nearest point; else hovered line; else hide.
   void MainWindow::onHoverDetail(double imageX, double imageY,
                                  const QPoint& globalPos,
                                  Qt::KeyboardModifiers mods, bool immediate) {
@@ -29,8 +27,7 @@ namespace stencil::gui {
       hideHoverTooltip();
       return;
     }
-    // Compare view: the layout is drawn only over the EDITED region, so nothing the
-    // "before" half covers can be labelled — the user cannot see it there.
+    // Compare view: nothing the "before" half covers can be labelled.
     const auto shown = [this](double x, double y) {
       return !canvas_->compareReadOnly() || canvas_->compareShowsEdited(x, y);
     };
@@ -41,12 +38,10 @@ namespace stencil::gui {
     const double scale = canvas_->scale();
     const auto dims = currentPageDimensions();
 
-    // By value: copies of this lambda outlive the enclosing frame in the 200ms
-    // hover-delay closures, so `dims` must not be a dangling stack reference.
+    // By value: copies outlive this frame in the hover-delay closures.
     auto rowsForPoint = [this, dims](double px, double py) {
       const auto page = pageCoords(px, py);
-      // Per-row visibility from the context-menu Tooltip submenu (mirrors
-      // contextMenu.js tooltipShowScreen/Page/Coords -> tooltip.js show()).
+      // Per-row visibility (contextMenu.js tooltipShowScreen/Page/Coords → tooltip.js show()).
       core::TooltipRowFlags flags;
       flags.showScreen = settings_.tooltipShowScreen;
       flags.showPage = settings_.tooltipShowPage;
@@ -60,8 +55,7 @@ namespace stencil::gui {
       return out;
     };
 
-    // Ctrl (no Shift) -> live cursor coords. Key is stable regardless of the exact
-    // pixel, so once it's showing it just keeps following the cursor without re-waiting.
+    // Key is stable regardless of pixel, so the tooltip keeps following without re-waiting.
     if ((mods & Qt::ControlModifier) && !(mods & Qt::ShiftModifier)) {
       scheduleHoverShow(QStringLiteral("coords"), [this, globalPos, imageX, imageY, rowsForPoint] {
         tooltip_->setRows(rowsForPoint(imageX, imageY));
@@ -86,8 +80,7 @@ namespace stencil::gui {
       }
     }
     if (nearest) {
-      // A point straddling the divider is hit from the edited side but sits on the
-      // original one — label it only where it is actually drawn.
+      // A point straddling the divider is labelled only where it is drawn.
       if (!shown(nearest->x, nearest->y)) {
         hideHoverTooltip();
         return;
@@ -101,7 +94,7 @@ namespace stencil::gui {
       return;
     }
 
-    // Hovered line within (thickness/2 + 5)/scale image px of any segment.
+    // Hovered line within (thickness/2 + 5)/scale image px.
     int hitLineIdx = -1;
     for (std::size_t li = 0; li < all.size(); ++li) {
       const auto& line = all[li];
@@ -119,13 +112,11 @@ namespace stencil::gui {
       return;
     }
 
-    // Line tooltip: Start/End, or ALL points with Shift (tooltip.js showLine).
+    // Start/End, or ALL points with Shift (tooltip.js showLine).
     const bool showAll = bool(mods & Qt::ShiftModifier);
     const QString key = QStringLiteral("line:%1:%2").arg(hitLineIdx).arg(showAll);
     scheduleHoverShow(key, [this, globalPos, hitLineIdx, showAll] {
-      // Read the lines fresh at reveal time (browser: tooltip.js reads app.lines[lineIdx]
-      // live too) rather than off a copy made when the delay was armed, and re-check the
-      // index in case the line was deleted while the tooltip was waiting.
+      // Read the lines fresh at reveal time (browser parity) and re-check the index — the line may be gone.
       const core::Lines fresh = canvas_->allLines();
       if (hitLineIdx < 0 || hitLineIdx >= int(fresh.size())) return;
       const auto& hitLine = fresh[hitLineIdx];

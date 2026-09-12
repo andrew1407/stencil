@@ -32,21 +32,16 @@
 
 namespace stencil::gui {
 
-  // Qt has no `visibility: hidden` — a hidden widget leaves its layout, taking its space with
-  // it. An opacity effect paints the widget out while it keeps its slot, which is what the
-  // browser's hover-revealed affordances do.
+  // Qt has no `visibility: hidden` — a hidden widget leaves its layout; an opacity effect paints it out while it keeps its slot.
   void MainWindow::setPaintedOut(QWidget* w, bool out) {
     static constexpr const char* kStateProp = "stencilPaintedOut";
     if (!w) return;
-    // The LOGICAL state lives in a property, not in the effect's opacity: a veil
-    // animation mid-flight reads as "half out", and detecting transitions off that
-    // desynced them so the dust only ever played once.
+    // The LOGICAL state lives in a property: a veil mid-flight reads as "half out" and desynced the transitions.
     const QVariant prev = w->property(kStateProp);
     const bool changed = !prev.isValid() || prev.toBool() != out;
     w->setProperty(kStateProp, out);
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(w->graphicsEffect());
-    // Same state again (updateProjectTitle & co. refresh liberally): touch nothing — a
-    // forming icon's veil must not be snapped to its end value by an unrelated refresh.
+    // Same state again: touch nothing, or an unrelated refresh snaps a forming veil to its end value.
     if (!changed && fx) return;
     if (!prev.isValid() || !changed || !support::dustMotionOk() || !w->isVisible()
         || w->width() < 8 || w->height() < 8) {
@@ -57,19 +52,13 @@ namespace stencil::gui {
       fx->setOpacity(out ? 0.0 : 1.0);
       return;
     }
-    // The shared in-place mark flight: specks over a veiled face, one flight per
-    // control (hover can flicker — settleReveal drops the previous one first).
+    // One flight per control; settleReveal drops the previous one first.
     paintRevealInPlace(w, this, out);
   }
 
-  // Recompute hover state over the name group (field + ✎ + 🎨). GEOMETRIC, not
-  // underMouse(): the three are separate toolbar widgets with gaps between them, and
-  // underMouse() dropped out in every gap — a slow sweep flickered the hover,
-  // replaying the reveal and deleting each dust cloud before a frame of it painted
-  // ("laggy, replaying, no dust"). One padded union rect is stable.
+  // GEOMETRIC, not underMouse(): the three widgets have gaps between them, and every gap flickered the hover.
   void MainWindow::updateNameHover() {
-    // The container's own rect (browser .project-name-field parity): one solid box with
-    // the inter-widget gaps INSIDE it, so the sweep can never flicker the hover.
+    // The container's own rect (browser .project-name-field parity), gaps INSIDE it.
     const bool over = nameBar_.group && nameBar_.group->isVisible()
         && nameBar_.group->rect().contains(nameBar_.group->mapFromGlobal(QCursor::pos()));
     if (over != nameBar_.hover) {
@@ -78,8 +67,7 @@ namespace stencil::gui {
     }
   }
 
-  // Exactly one override on the stack, ever: push/pop pairs are the whole risk of this
-  // approach, so the flag — not the caller — decides whether anything happens.
+  // Exactly one override on the stack, ever: the flag, not the caller, decides.
   void MainWindow::setBlockedCursor(bool on) {
     if (on == blockedCursorOn_) return;
     if (on) QApplication::setOverrideCursor(Qt::ForbiddenCursor);
@@ -88,8 +76,7 @@ namespace stencil::gui {
   }
 
   void MainWindow::setActionTip(QAction* a, const QString& desc) {
-    // tipContent composes "desc (shortcut)" + the disabled reason, and keeps it composed
-    // as the action's state or chord changes (browser composeControlTitle).
+    // tipContent keeps "desc (shortcut)" + the disabled reason composed (browser composeControlTitle).
     setTipBase(a, desc);
   }
 
@@ -105,9 +92,7 @@ namespace stencil::gui {
 
   void MainWindow::commitProjectName() {
     const QString newName = nameBar_.field->text().trimmed();
-    // Server-linked session (no local id): push the rename straight to the server so peers see it
-    // live, version-guarded — mirrors setActiveProjectColor's remote branch. Otherwise rename the
-    // local project. (Previously a server project couldn't be renamed at all from the toolbar.)
+    // Server-linked session: push the rename to the server, version-guarded (mirrors setActiveProjectColor); else rename locally.
     if (!remoteSession_->link().id.isEmpty()) {
       stencil::net::ServerClient* c = connections_ ? connections_->find(remoteSession_->link().address) : nullptr;
       if (!newName.isEmpty() && newName != remoteSession_->link().name && c) {

@@ -1,6 +1,4 @@
-// MainWindow's rebind map and action tooltips: hotkey id → action, so a rebind re-applies
-// live, then the browser's own wording plus each disabled reason. Part of the buildActions()
-// phase chain (mainWindowActions.cpp).
+// MainWindow's rebind map and action tooltips. Part of the buildActions() phase chain.
 #include "mainWindow.hpp"
 #include "mainWindowHelpers.hpp"
 #include "canvasTooltip.hpp"
@@ -12,8 +10,7 @@
 namespace stencil::gui {
 
   void MainWindow::mapHotkeyActions() {
-    // Map hotkey ids -> their actions so a rebind can re-apply live. Only
-    // ids present in hotkeysConfig.json are rebindable.
+    // Only ids present in hotkeysConfig.json are rebindable.
     hotkeyActions_["rotateImageLeft"] = actRotateLeft_;
     hotkeyActions_["rotateImageRight"] = actRotateRight_;
     hotkeyActions_["startDraw"] = actStartDraw_;
@@ -35,15 +32,12 @@ namespace stencil::gui {
     hotkeyActions_["zoomOut"] = actZoomOut_;
     hotkeyActions_["undo"] = actUndo_;
     hotkeyActions_["redo"] = actRedo_;
-    // Data clipboard hotkeys (hotkeysConfig.json copyImage/copyLayout/paste).
     hotkeyActions_["copyImage"] = actCopyImage_;
     hotkeyActions_["copyImageOriginal"] = actCopyImageOriginal_;
     hotkeyActions_["copyImageTint"] = actCopyImageTint_;
     hotkeyActions_["copyLayout"] = actCopyLayout_;
     hotkeyActions_["paste"] = actPasteImage_;
-    // File / project hotkeys whose defaults live in the shared hotkeysConfig.json
-    // (coordinated with the browser), wired so a rebind re-applies live and they
-    // appear in the Keyboard Shortcuts dialog.
+    // Defaults from the shared hotkeysConfig.json, so a rebind re-applies live and the Shortcuts dialog lists them.
     hotkeyActions_["cropImage"] = actCrop_;
     hotkeyActions_["saveImage"] = actSaveImage_;
     hotkeyActions_["saveImageOriginal"] = actSaveImageOriginal_;
@@ -70,8 +64,7 @@ namespace stencil::gui {
   }
 
   void MainWindow::setActionTooltips() {
-    // Tooltips: the browser's words, verbatim (toolbar.js data-title) —
-    // menu LABELS stay untouched; desktop-only affordances keep their own wording.
+    // The browser's words, verbatim (toolbar.js data-title); menu LABELS stay untouched.
     setActionTip(actOpen_, "Open an image — local file, URL, or new blank");
     setActionTip(actOpenAnother_, "Open another image — local file, URL, or new blank");
     setActionTip(actSaveImage_, "Download image · Right-click for download options");
@@ -87,8 +80,7 @@ namespace stencil::gui {
     setActionTip(actShareImage_, "Share image");
     setActionTip(actOpenIn_, "Open in another app");
     setActionTip(actProjects_, "Projects");
-    // The browser's twin adds "(Shift+click: without theme)"; this app has no such
-    // modifier on Save, so the note stays out rather than promising it.
+    // The browser's twin adds "(Shift+click: without theme)"; Save has no such modifier here.
     setActionTip(actSaveProjectFile_, "Save Project (.stencil) — image + layout + settings in one file");
     setActionTip(actOpenProjectFile_, "Open Project (.stencil)");
     setActionTip(actConnect_, "Servers — connect to share & co-edit projects");
@@ -105,8 +97,7 @@ namespace stencil::gui {
     setActionTip(actCopyLayout_, "Copy full Layout JSON (lines + all applied edits)");
     setActionTip(actTheme_, "Toggle dark / light theme");
     setActionTip(actInfo_, "Controls & shortcuts help");
-    // …and why each is greyed out, verbatim too (toolbar.js data-disabled-reason): the
-    // "— reason" line joins the tooltip while the action is disabled and leaves with it.
+    // The "— reason" line (toolbar.js data-disabled-reason) joins the tooltip while disabled.
     const auto why = [](QAction* a, const char* reason) { setTipReason(a, reason); };
     why(actSaveImage_, "Load an image to download it");
     why(actSaveImageCurrentRow_, "Load an image to download it");
@@ -115,7 +106,6 @@ namespace stencil::gui {
     why(actSaveProjectFile_, "Open an image first");
     why(actDeleteProjectFile_, "Open or save a .stencil file first");
     why(actStencilLiveSync_, "Open or save a .stencil file first");
-    // The DESCRIPTION & ATTRIBUTES trio edits a SAVED project's metadata (updateProjectTitle).
     why(actDescription_, "Save the project first to add a description");
     why(actKeywords_, "Save the project first to add keywords");
     why(actLinks_, "Save the project first to add links");

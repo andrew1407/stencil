@@ -170,15 +170,13 @@
 
 namespace stencil::gui {
 
-  // App-lifetime macOS Dock menu, shared by all windows (see header note).
+  // App-lifetime macOS Dock menu, shared by all windows.
   QMenu* MainWindow::sDockMenu_ = nullptr;
 
   MainWindow::MainWindow(QWidget* parent, bool restoreLast)
       : QMainWindow(parent) {
     setWindowTitle("Stencil");
     resize(1100, 760);
-    // Photoshop-style drop-to-open: a file dragged onto the window is opened
-    // (image/video) or applied (layout JSON) via openPathFromOS / dropEvent.
     setAcceptDrops(true);
 
     loadHotkeys();  // must precede buildActions() (it calls hotkey(...))
@@ -205,29 +203,22 @@ namespace stencil::gui {
     buildOverlayArrows();   // sync the Controls-pill chevron glyph (after the toolbar exists)
     bindRevealAnchors();    // every action records where its dialog should fly from
 
-    // Control tooltips FADE (support/appTooltip.hpp) instead of Qt's snapping QTipLabel.
-    // App-wide and idempotent, so a second window installs nothing new.
+    // App-wide and idempotent: a second window installs nothing new.
     installAppTooltips();
 
-    // wiring — (after buildToolbar so the referenced widgets/actions exist)
     wireSignals();
 
     restorePersistedState(restoreLast);
   }
 
-  // Defined here (not =default in the header) so unique_ptr members of forward-declared
-  // types are destroyed where their complete type is visible (dataExportController.hpp above).
-  // QWidget deletes its children BEFORE QObject drops their connections, so a
-  // dock's teardown signals can still reach a half-destroyed MainWindow; this
-  // flag lets those slots bail out.
+  // Defined here so unique_ptr members of forward-declared types see their complete type.
+  // QWidget deletes children BEFORE QObject drops connections: teardown slots must bail on this flag.
   MainWindow::~MainWindow() {
     tearingDown_ = true;
     setBlockedCursor(false);   // never leave the app-wide override pushed behind us
   }
 
-  // hotkeys map (ported from browser/js/config/hotkeysConfig.json)
-  // Defaults + labels from the embedded config, then user overrides layered on
-  // top (override wins), mirroring the browser STORAGE_KEYS.hotkeys merge.
+  // Defaults + labels from the embedded config, user overrides on top (browser STORAGE_KEYS.hotkeys merge).
   void MainWindow::loadHotkeys() {
     QFile hk(":/config/hotkeysConfig.json");
     if (hk.open(QIODevice::ReadOnly)) {
@@ -241,10 +232,7 @@ namespace stencil::gui {
         hotkeyOrder_.append(id);
       }
     }
-    // Selected-line flip / rotate-90 chords (Alt+Shift+arrow). These fire from
-    // keyPressEvent (like the Alt+R+arrow rotate), so they have no live QAction —
-    // register them as defaults + labels only, so the shortcuts dialog still lists
-    // them for discovery. Qt-style arrow tokens ("Up"…) so QKeySequence parses them.
+    // Alt+Shift+arrow chords fire from keyPressEvent (no QAction): defaults + labels only, so the shortcuts dialog lists them.
     struct ChordDef { const char* id; const char* seq; const char* label; };
     static const ChordDef kLineTransformChords[] = {
         {"flipLineHorizontal", "Alt+Shift+Up", "Flip Selected Line Horizontal"},
@@ -263,16 +251,10 @@ namespace stencil::gui {
       hotkeys_.insert(it.key(), it.value());
   }
 
-  // Signal wiring extracted from the ctor. The connect() ORDER is observable
-  // (e.g. the allowFormulas_ handler drives actAllowFormulas_; units_.customW/units_.customH
-  // handlers call onSelectionChanged) and is preserved verbatim here. Must run
-  // after the widgets/actions are built and before the persisted-state load.
+  // The connect() ORDER is observable (allowFormulas_ drives actAllowFormulas_; customW/H call onSelectionChanged) — keep it verbatim.
   void MainWindow::wireSignals() {
-    // Keep the AI-Assistant toggle in lockstep with the dock (the dock's own ✕
-    // close button, restoreState, tabbing — any visibility change re-syncs it),
-    // and probe provider reachability whenever the dock opens.
+    // Dock visibility → toggle sync + provider probe.
     connect(chatDock_, &QDockWidget::visibilityChanged, this, [this](bool visible) {
-      // Shown again ⇒ definitively not leaving (whatever interrupted the slide).
       if (visible) { chatClosing_ = false; chatDock_->setClosing(false); }
       if (actChat_ && actChat_->isChecked() != visible) {
         QSignalBlocker b(actChat_);
@@ -286,8 +268,7 @@ namespace stencil::gui {
             &MainWindow::onSelectionChanged);
     connect(canvas_, &CanvasWidget::contextRequested, this,
             &MainWindow::showContextMenu);
-    // Idle-canvas click (no image yet) opens the blank-image creator — growing out of
-    // the CARD that was clicked, not the toolbar icon the action normally flies from.
+    // Idle-canvas click grows the blank creator out of the CARD, not the toolbar icon.
     connect(canvas_, &CanvasWidget::blankImageRequested, this, [this] {
       const QRect card = canvas_ ? canvas_->idleCardGlobalRect() : QRect();
       if (card.isValid()) {
@@ -296,15 +277,12 @@ namespace stencil::gui {
       }
       openImageDialog(/*startBlank=*/true);
     });
-    // Reflect drawing mode in the Start/Stop actions.
     connect(canvas_, &CanvasWidget::drawingModeChanged, this,
             &MainWindow::refreshActions);
     connect(canvas_, &CanvasWidget::hoverDetail, this,
             &MainWindow::onHoverDetail);
     connect(canvas_, &CanvasWidget::hoverLeft, this,
             [this] { hideHoverTooltip(); });
-    // Off the canvas there is nothing to read out: clear the coord bar and re-arm
-    // the hover cache so unit/page refreshes don't repaint the stale numbers.
     connect(canvas_, &CanvasWidget::canvasLeft, this, [this] {
       lastHoverX_ = std::numeric_limits<double>::quiet_NaN();
       lastHoverY_ = std::numeric_limits<double>::quiet_NaN();
@@ -320,19 +298,16 @@ namespace stencil::gui {
     connect(canvas_, &CanvasWidget::fitRequested, this, &MainWindow::fitToWindow);
     connect(canvas_, &CanvasWidget::zoomAtCursor, this,
             [this](int dir, const QPoint& posInWidget, bool fast) {
-              // Step 0.1 (0.3 with Shift), additive, matching drawingApp.js wheel.
+              // Step 0.1 (0.3 with Shift), additive — drawingApp.js wheel.
               const double step = fast ? 0.3 : 0.1;
               const double target = canvas_->scale() + dir * step;
-              // posInWidget is canvas-space; convert to viewport coords for the
-              // anchored-zoom focal math (subtract the canvas origin in the vp).
+              // posInWidget is canvas-space; the focal math wants viewport coords.
               const QPoint inVp =
                   canvas_->mapTo(scroll_->viewport(), posInWidget);
               setZoomAnchored(target, inVp);
             });
     connect(canvas_, &CanvasWidget::zoomByFactorAt, this,
             [this](double factor, const QPoint& posInWidget) {
-              // Trackpad pinch: scale continuously about the cursor (same anchored
-              // path as Ctrl+wheel, but a smooth factor rather than a fixed step).
               const QPoint inVp = canvas_->mapTo(scroll_->viewport(), posInWidget);
               setZoomAnchored(canvas_->scale() * factor, inVp);
             });
@@ -345,22 +320,19 @@ namespace stencil::gui {
               scrollTo(qRound(z.scrollLeft), qRound(z.scrollTop));
             });
     connect(zoom_, &QComboBox::currentTextChanged, this, [this](const QString& t) {
-      // Accept an optional trailing "%"; parse the percent and apply (clamped in
-      // setZoom). syncCombo=false so we don't re-write the field we're reading.
+      // syncCombo=false: don't re-write the field being read.
       QString s = t;
       s.remove('%');
       bool ok = false;
       const double pct = s.trimmed().toDouble(&ok);
       if (ok) setZoom(pct / 100.0, false);
     });
-    // Page size + custom inputs. Index-based (not text): the editable
-    // search field mutates the text on every keystroke, but a page change is
-    // only a change of the selected item.
+    // Index-based: the editable search field mutates the text per keystroke.
     connect(units_.pageSize, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
             [this](int) { onPageSizeChanged(); });
     connect(units_.customW, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this,
             [this](double v) {
-              // Spinboxes are edited in the active unit; store the model in cm.
+              // Edited in the active unit; the model stores cm.
               settings_.customPageWidth = v / unitFormat().factor;
               persistSettings();
               onHovered(lastHoverX_, lastHoverY_);
@@ -375,9 +347,7 @@ namespace stencil::gui {
               onSelectionChanged();  // refresh panel cm
               remoteSync_->scheduleRemotePush();
             });
-    // Formula controls. The toolbar checkbox is the single source of
-    // truth; the View ▸ Allow Formulas action just drives it (and is kept in
-    // sync here), so the feature stays reachable when the toolbar overflows.
+    // The toolbar checkbox is the source of truth; the View action just drives it.
     connect(allowFormulas_, &QCheckBox::toggled, this, [this](bool on) {
       settings_.allowFormulas = on;
       revealControls(formulaGroup_, on);
@@ -385,8 +355,7 @@ namespace stencil::gui {
         QSignalBlocker ba(actAllowFormulas_);
         actAllowFormulas_->setChecked(on);
       }
-      // Toggling only shows/hides the inputs + gates whether formulas apply to the conversion
-      // (pageCm passes allowFormulas) — the expressions are KEPT so re-enabling restores them.
+      // Expressions are KEPT while disabled so re-enabling restores them.
       if (!on) formulaError_->setVisible(false);
       persistSettings();
       onHovered(lastHoverX_, lastHoverY_);
@@ -395,17 +364,13 @@ namespace stencil::gui {
     });
     connect(actAllowFormulas_, &QAction::toggled, this,
             [this](bool on) { allowFormulas_->setChecked(on); });
-    // The f(x,y) pair commits on an idle pause, not per keystroke (see the timer's
-    // declaration): applying every intermediate expression re-rendered the readouts,
-    // wrote settings and pushed a peer sync per character, and flashed the invalid
-    // indicator mid-word. Enter / focus-out still apply at once.
+    // The f(x,y) pair commits on an idle pause (see the timer); Enter / focus-out apply at once.
     formulaCommitTimer_ = new QTimer(this);
     formulaCommitTimer_->setSingleShot(true);
     formulaCommitTimer_->setInterval(kFormulaCommitMs);
     connect(formulaCommitTimer_, &QTimer::timeout, this, [this] { validateAndApplyFormulas(); });
     const auto onFormulaEdited = [this](const QString&) {
-      // Typing your way back to something valid clears a stale error at once; a wrong one
-      // is only flagged once you stop, so "(x" mid-expression doesn't flash red.
+      // A wrong expression is only flagged once typing stops.
       const bool okX = core::FormulaParser::validate(formulaX_->text().trimmed().toStdString(), 'x');
       const bool okY = core::FormulaParser::validate(formulaY_->text().trimmed().toStdString(), 'y');
       if (okX && okY) formulaError_->setVisible(false);
@@ -422,24 +387,18 @@ namespace stencil::gui {
     connect(selPanel_, &SelectionPanel::pointCoordChanged, this,
             [this](int i, int axis, double v) { canvas_->setPointCoord(i, axis, v); });
 
-    // Hover cross-highlight (browser parity, both directions). List rows → canvas
-    // ring/glow; canvas cursor → list row tints (never scrolls a list).
+    // Hover cross-highlight, both directions (browser parity); never scrolls a list.
     connect(selPanel_, &SelectionPanel::pointRowHovered, this,
             [this](int i) { canvas_->setListHoverPoint(i); });
     connect(selPanel_, &SelectionPanel::lineRowHovered, this,
             [this](int i) { canvas_->setListHoverLine(i); });
     connect(canvas_, &CanvasWidget::canvasHoverChanged, this,
             [this](int lineIdx, int ptIdx, int overLineIdx) {
-              // The points table shows panelLine(); only its own points tint a row.
               const bool onPanelLine = ptIdx >= 0 && lineIdx == canvas_->panelLineIdx();
               selPanel_->setCanvasHover(onPanelLine ? ptIdx : -1, overLineIdx);
             });
 
-    // "Selected Line:" bar (above the canvas) → canvas mutators (Step 10).
-    // Mirrors browser/js/core/drawingApp.js:181-195 applySelectionChange /
-    // applyFill / deselectLine wiring. No delete here (browser parity — the bar
-    // carries no Delete button); that stays Alt+Delete / actDeleteLine_ / the
-    // Lines tab's own row 🗑.
+    // "Selected Line:" bar → canvas mutators — drawingApp.js:181-195; no Delete here (browser parity).
     connect(selectedLineBar_, &SelectedLineBar::lineColorChanged, this,
             [this](const QString& v, bool preview) { canvas_->setSelectedLineColor(v, preview); });
     connect(selectedLineBar_, &SelectedLineBar::linePointColorChanged, this,
@@ -456,17 +415,14 @@ namespace stencil::gui {
             [this] { canvas_->unchainSelectedLine(); });
     connect(selectedLineBar_, &SelectedLineBar::deselectRequested, this,
             [this] { canvas_->deselect(); });
-    // Anything the canvas did on its own that deserves a word (chainEdit's unchain).
     connect(canvas_, &CanvasWidget::statusMessage, this,
             [this](const QString& text) { notify_->success(text); });
-    // Panel header chevron → hide the panel (routes through actPanel_ so the View menu / Alt+X and
-    // the re-open tab stay in sync). The animated slide runs from setPanelShown.
+    // Routes through actPanel_ so the View menu / Alt+X stay in sync.
     connect(selPanel_, &SelectionPanel::collapseRequested, this,
             [this] { if (actPanel_) actPanel_->setChecked(false); });
     selPanel_->setToggleHint(hotkey("togglePointsList", "Alt+X"));   // shortcut in the chevron tooltip
 
-    // Lines tab (SelectionPanel) → canvas index-keyed selection/removal.
-    // Click a row to single-select (Ctrl/⌘+Shift toggles multi-select); its 🗑 removes it.
+    // Lines tab → index-keyed selection (Ctrl/⌘+Shift toggles multi-select) and removal.
     connect(selPanel_, &SelectionPanel::lineListActivated, this,
             [this](int idx, bool multi) {
               if (multi) canvas_->toggleLineSelectionByIndex(idx);
@@ -480,19 +436,15 @@ namespace stencil::gui {
     return hotkeys_.value(id, fallback);
   }
 
-  // Live-sync the persistent submenu state before exec (mirrors the browser
-  // syncState() in contextMenu.js:239-297, which runs on open + on a timer).
+  // Live-sync the submenu state before exec — contextMenu.js:239-297 syncState().
   void MainWindow::syncContextActions() {
     const bool hasImg = canvas_->hasImage();
     const bool hasLines = !canvas_->allLines().empty();
-    // Browser ctx-fs-label parity: the row names the direction it will take.
     actFullscreen_->setText(isFullScreen() ? QStringLiteral("Exit Fullscreen")
                                            : QStringLiteral("Enter Fullscreen"));
-    // …and so does the tooltip: fullscreenLayer.js retitles the browser's button the same
-    // way on every toggle, so a stale "Enter Fullscreen" is not what the hover should say.
     setActionTip(actFullscreen_, isFullScreen() ? "Exit fullscreen" : "Fullscreen mode");
 
-    // Image / Layout enable-state (contextMenu.js:254-264).
+    // contextMenu.js:254-264
     syncExportActions();
     actPasteImage_->setEnabled(true);  // dispatch notifies "Load an image first"
     actCopyLayout_->setEnabled(hasLines);
@@ -501,8 +453,7 @@ namespace stencil::gui {
     actUploadJson_->setEnabled(hasImg);
     actSaveProjectFile_->setEnabled(hasImg);
 
-    // Style submenu values (contextMenu.js:274-276). Block so seeding the
-    // spinboxes/radios doesn't re-fire change handlers.
+    // contextMenu.js:274-276; blocked so seeding doesn't re-fire handlers.
     {
       QSignalBlocker bm(pointSpin_), bt(thickSpin_);
       pointSpin_->setValue(settings_.defaultPointSize);
@@ -511,17 +462,14 @@ namespace stencil::gui {
     for (QAction* a : lineStyleGroup_->actions())
       a->setChecked(a->data().toString() == settings_.defaultStyle);
 
-    // Image-filter submenu (contextMenu.js:278-282): check the active filter and
-    // show the tint action only for custom.
+    // contextMenu.js:278-282
     for (QAbstractButton* b : filterButtons_->buttons()) {
       QSignalBlocker bl(b);   // seeding the check state must not re-fire applyImageFilter
       b->setChecked(b->property("filterValue").toString() == settings_.imageFilter);
     }
     tintColorAction_->setVisible(settings_.imageFilter == "custom");
 
-    // Tooltip enable toggle + rows (contextMenu.js:289-293). Refresh the hosted checkboxes so
-    // their state is correct the moment the menu opens (blocked so seeding doesn't re-fire the
-    // toggle handlers). actTooltip_ (the View-menu twin) is kept in sync by the enable handler.
+    // contextMenu.js:289-293; blocked so seeding doesn't re-fire the toggle handlers.
     {
       QSignalBlocker be(tooltipEnableCheck_), bp(ttPageCheck_), bs(ttScreenCheck_), bc(ttCoordsCheck_);
       tooltipEnableCheck_->setChecked(settings_.tooltipEnabled);
@@ -530,8 +478,7 @@ namespace stencil::gui {
       ttCoordsCheck_->setChecked(settings_.tooltipShowCoords);
     }
 
-    // Transformation submenu (contextMenu.js:294-297): seed the formula twins from settings_ and
-    // show the x/y inputs only while formulas are enabled (blocked so seeding doesn't re-apply).
+    // contextMenu.js:294-297; blocked so seeding doesn't re-apply.
     {
       QSignalBlocker ba(ctxAllowFormulas_), bx(ctxFormulaX_), by(ctxFormulaY_);
       ctxAllowFormulas_->setChecked(settings_.allowFormulas);
@@ -542,14 +489,9 @@ namespace stencil::gui {
     ctxFormulaYAct_->setVisible(settings_.allowFormulas);
   }
 
-  // Layout/image export + clipboard IO (downloadLayout/uploadLayout/copyLayout/pasteLayout/
-  // applyLayoutJson/saveImageFile/copyImageToClipboard) live in DataExportController
-  // (dataExportController.hpp), constructed as dataExport_. pasteImage() stays here (it
-  // creates a project) and delegates its JSON-text fallback to dataExport_->pasteLayout().
+  // Layout/image export + clipboard IO live in DataExportController; pasteImage() stays here (it creates a project).
 
-  // Single Ctrl+V dispatch: an image on the clipboard wins, else fall back to a
-  // layout JSON text payload. Mirrors the browser paste listener priority
-  // (image first, then JSON — drawingApp.js :563-591).
+  // Ctrl+V: an image on the clipboard wins, else layout JSON text — drawingApp.js :563-591.
   void MainWindow::pasteImage() {
     const QClipboard* clip = QGuiApplication::clipboard();
     const QImage img = clip->image();
@@ -576,16 +518,11 @@ namespace stencil::gui {
       adoptCanvasAsLocalProject();
       return;
     }
-    // No image — try a layout JSON text payload (drawingApp.js :582-591).
     dataExport_->pasteLayout();
   }
 
-  // One window at a time, driven from the keyboard: while a dialog is up, the shortcut that
-  // opened it closes it again, and ANOTHER window's shortcut swaps to that window. A modal
-  // dialog runs its own event loop, so the main window's QActions never fire there — the
-  // dialog carries its own copies of those chords for as long as it is showing, and the
-  // originals are parked (an active QAction with the same chord would be ambiguous when the
-  // dialog is an in-window popover, and neither would fire).
+  // A modal dialog runs its own event loop, so the main window's QActions never fire there: the dialog carries copies
+  // of those chords while showing and the originals are parked (a live twin with the same chord would be ambiguous).
   template <typename Actions>
   static void wireWindowSwitching(QDialog& dlg, const Actions& actions, QAction* opener) {
     for (QAction* a : actions) {
@@ -593,28 +530,21 @@ namespace stencil::gui {
       auto* sc = new QShortcut(a->shortcut(), &dlg);
       sc->setContext(Qt::WidgetWithChildrenShortcut);
       QObject::connect(sc, &QShortcut::activated, &dlg, [&dlg, a, opener] {
-        // The same window: just close it. A different one: close, then open that instead
-        // once this dialog's event loop has actually unwound.
+        // A different window's chord: close, then open that one once this dialog's loop has unwound.
         if (a != opener) QTimer::singleShot(0, a, &QAction::trigger);
         dlg.reject();
       });
     }
   }
 
-  // The chat gear's dedicated dialog: provider/base URL/model/API key/server
-  // rows (llm-contract.md §5), commit/discard — same as the browser's own
-  // llmSettingsModal.js. The (live-apply) Settings dialog just links here.
+  // llm-contract.md §5; browser twin llmSettingsModal.js.
   void MainWindow::openAssistantSettings() {
-    // The gear that raises this sits INSIDE the dock's "…" menu, which has already
-    // closed by now — so the flight belongs to the "…" trigger itself, both ways. A
-    // hidden dock leaves no anchor and the window falls from above instead.
+    // The gear sits inside the dock's "…" menu, already closed — the flight belongs to the "…" trigger.
     openAssistantSettingsFrom(chatDock_ ? chatDock_->moreButton() : nullptr);
   }
 
   void MainWindow::openAssistantSettingsFrom(QWidget* anchor, const QRect& anchorRect) {
     AssistantSettingsDialog dlg(settings_, this);
-    // Its own chord closes it again and another window's chord swaps to that window,
-    // as for every toolbar window (execMaybePopover) — this one is plain exec()'d.
     wireWindowSwitching(dlg, pop_.dialogActions, actAssistantSettings_);
     support::revealDialog(dlg, anchor, anchorRect);
     if (dlg.exec() == QDialog::Accepted) {
@@ -624,28 +554,23 @@ namespace stencil::gui {
 
   void MainWindow::openSettings() {
     SettingsDialog dlg(settings_, this);
-    // execMaybePopover, not exec(): every other dialog-opening icon grows its window out
-    // of the icon (and answers dblclick/right-click with the compact anchored shape).
-    // Visuals live in here, so this one was the odd one out.
     // Live-apply: every row persists itself as it changes; no Save/Cancel.
     dlg.setOnChange([this](const Settings& s) { applySettings(s, true); });
     connect(&dlg, &SettingsDialog::visualsReset, this,
             [this] { notify_->success(QStringLiteral("Visual defaults reset")); });
     execMaybePopover(dlg, actSettings_);
-    // Settle-up: catches a field left mid-edit. Skipped when the result matches what
-    // the live-apply already applied — the common close costs no extra full pass/save.
+    // Settle-up catches a field left mid-edit; skipped when nothing changed.
     if (fileStore::settingsToJson(dlg.result()) != fileStore::settingsToJson(settings_))
       applySettings(dlg.result(), true);
   }
 
-  // The popover overlay's motion, matching the app's dialog reveal (modalReveal.cpp),
-  // ×1.5 (too brisk).
+  // The popover's motion: the dialog reveal (modalReveal.cpp) ×1.5.
   static constexpr int kPopoverOpenMs = 450;
   static constexpr int kPopoverCloseMs = 360;
 
   int MainWindow::execMaybePopover(QDialog& dlg, QAction* opener) {
     wireWindowSwitching(dlg, pop_.dialogActions, opener);
-    // Park the originals while the dialog owns those chords, and put them back after.
+    // Park the originals while the dialog owns those chords.
     QList<QPair<QAction*, Qt::ShortcutContext>> parked;
     for (QAction* a : pop_.dialogActions) {
       if (!a || a->shortcut().isEmpty()) continue;
@@ -658,16 +583,11 @@ namespace stencil::gui {
     QWidget* anchor = pop_.anchor.data();
     pop_.anchor.clear();
     if (!anchor) {
-      // Ordinary centred window: it still grows out of the icon that opened it — or,
-      // when that icon is hidden, out of the menu row that was clicked.
       support::revealDialog(dlg, pop_.dialogAnchor.data(), pop_.dialogAnchorRect);
       return dlg.exec();
     }
-    // The popover is a CHILD WIDGET, never a window of its own: a small frameless
-    // top-level simply does not animate on macOS. As a child, grow/shrink are
-    // ordinary widget animations; the dialog keeps its content/result identity.
-    // This branch flies itself (below) — opt out of the app-wide DialogRevealFilter,
-    // or its uninvited flight piles onto this same dlg with mismatched geometry/timing.
+    // A CHILD WIDGET, never its own window: a small frameless top-level does not animate on macOS.
+    // This branch flies itself — opt out of the app-wide DialogRevealFilter or its flight piles on.
     dlg.setProperty(support::kNoDialogRevealProperty, true);
     const QSize cap(470, 590);
     dlg.setMinimumSize(0, 0);
@@ -677,8 +597,7 @@ namespace stencil::gui {
 
     auto* overlay = new QWidget(this);
     overlay->setObjectName(QStringLiteral("popoverOverlay"));   // themed + found by tests
-    // The logo's own popover extends the logo's hover: the shine holds while the
-    // cursor is on the box (browser: the menu lives inside .app-logo-wrap).
+    // The popover extends the logo's hover (browser: the menu lives inside .app-logo-wrap).
     if (anchor == logoBtn_ && logoFx_) asLogoFx(logoFx_)->holdWhile(overlay);
     overlay->setAutoFillBackground(true);
     dlg.setParent(overlay);
@@ -686,21 +605,19 @@ namespace stencil::gui {
     dlg.setGeometry(QRect(QPoint(0, 0), want));
     dlg.show();
 
-    // Anchored beside the icon in WINDOW coordinates, and kept inside the window: the
-    // same popoverRect placement as before, with this window standing in for the screen.
+    // WINDOW coordinates, kept inside the window.
     const QRect anchorGlobal(anchor->mapToGlobal(QPoint(0, 0)), anchor->size());
     const QRect windowGlobal(mapToGlobal(QPoint(0, 0)), size());
     const QRect box(mapFromGlobal(support::popoverRect(anchorGlobal, want, windowGlobal)
                                       .topLeft()),
                     want);
     const QRect fromBox(mapFromGlobal(anchorGlobal.topLeft()), anchorGlobal.size());
-    // Final geometry up front — grab() below needs the popover at its landed size.
+    // Final geometry first — grab() below needs the landed size.
     overlay->setGeometry(box);
     overlay->raise();
     overlay->show();
     dlg.setFocus(Qt::PopupFocusReason);   // Escape and typing go to the popover
-    // Grow out of the icon via the shared particle dust; falls back to a plain
-    // grow+fade box when the flight declines (reduced motion, an unmeasurable box).
+    // Falls back to a plain grow+fade when the flight declines.
     if (!support::motionReduced()) {
       const QPixmap shot = overlay->grab();
       gui::DisintegrateOverlay* dust =
@@ -713,7 +630,6 @@ namespace stencil::gui {
       overlay->setGraphicsEffect(fx);
       fx->setOpacity(0.0);
       if (dust) {
-        // Fades up as the last motes land, like every other window's open flight.
         auto* fade = new QPropertyAnimation(fx, "opacity", overlay);
         fade->setDuration(kPopoverOpenMs);
         fade->setKeyValueAt(0.0, 0.0);
@@ -737,26 +653,19 @@ namespace stencil::gui {
     }
     pop_.active = &dlg;
     pop_.overlay = overlay;
-    // Alt-GLIDE: while any popover shows and Alt is HELD, the cursor landing on a
-    // DIFFERENT popover icon closes this dialog and opens that icon's peek. The
-    // modal loop blocks Enter/hover events, so a poll watches the cursor.
+    // Alt-GLIDE: the modal loop blocks Enter/hover events, so a poll watches the cursor.
     QTimer glide;
     glide.setInterval(80);
     connect(&glide, &QTimer::timeout, this, [this, anchor] {
       if (!pop_.active) return;
-      // altHeldForTest_: the offscreen GUI test's stand-in for a physically held Alt
-      // (QTest key events never reach the platform's modifier state).
+      // altHeldForTest_: the offscreen GUI test's stand-in for a held Alt (QTest never sets platform modifier state).
       if (!(QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier) && !altHeldForTest_)
         return;
-      // Whether the cursor rests ON the open box — see the fallback below.
       const bool onBox = popoverRectGlobal().contains(QCursor::pos());
       for (auto it = pop_.buttons.cbegin(); it != pop_.buttons.cend(); ++it) {
         auto* b = static_cast<QToolButton*>(it.key());
         if (b == anchor || !b->isVisible() || !it.value()->isEnabled()) continue;
-        // underMouse() as backup, same as the Alt KeyPress loop (and the test's mock).
-        // The cursor-rect half is pure GEOMETRY and blind to what COVERS the icon, so
-        // resting on the box read as resting on the icons under it. underMouse() has no
-        // such problem (the overlay takes the hover), so only the fallback is guarded.
+        // The cursor-rect half is blind to what COVERS the icon; underMouse() sees the overlay, so only the fallback is guarded.
         const bool hovering = b->underMouse() ||
                               (!onBox && b->rect().contains(b->mapFromGlobal(QCursor::pos())));
         if (!hovering) continue;
@@ -767,23 +676,17 @@ namespace stencil::gui {
       }
     });
     glide.start();
-    // A nested loop, not exec(): the caller still blocks here and still reads a
-    // QDialog::DialogCode, so no call site changes — but there is no modal window to
-    // block the app, and (now) no window at all.
+    // A nested loop, not exec(): the caller still blocks and reads a DialogCode, but there is no modal window at all.
     QPointer<QDialog> alive(&dlg);
     QPointer<QWidget> overlayAlive(overlay);
     QEventLoop loop;
     bool ended = false, closing = false;
     const auto end = [&ended, &loop] { ended = true; loop.quit(); };
-    // ONE close path, whatever ended the turn — an outside press, Escape, a row click,
-    // the Alt release, the glide. The dialog hides itself on its way to finished(), so
-    // its picture is frozen into the overlay first; then the box collapses back into the
-    // icon it grew from and the loop ends with it.
+    // ONE close path for every ending: freeze the picture into the overlay, then collapse it back into the icon.
     connect(&dlg, &QDialog::finished, &loop, [&] {
       if (closing) return;   // a second reject during the collapse is a no-op
       closing = true;
       if (!overlayAlive || support::motionReduced()) return end();
-      // grab() still renders a hidden widget — the dialog already hid on its way here.
       const QPixmap shot = alive ? alive->grab() : QPixmap();
       if (alive) {
         auto* frozen = new QLabel(overlayAlive);
@@ -791,7 +694,6 @@ namespace stencil::gui {
         frozen->setGeometry(alive->geometry());
         frozen->show();
       }
-      // Pours back into the icon it grew from, same dust as the open flight.
       if (!shot.isNull() && gui::DisintegrateOverlay::overSurface(
                                 shot, overlayAlive->geometry(), this, fromBox.center(),
                                 /*gather=*/false, kPopoverCloseMs,
@@ -826,14 +728,12 @@ namespace stencil::gui {
     pop_.active.clear();
     pop_.overlay.clear();
     const int result = alive ? alive->result() : int(QDialog::Rejected);
-    // Hand the dialog back to its caller — it is a stack object, so it must NOT be left
-    // parented to the overlay we are about to delete.
+    // The dialog is a stack object — never leave it parented to the overlay about to be deleted.
     if (alive) {
       alive->hide();
       alive->setParent(nullptr);
     }
     if (overlayAlive) overlayAlive->deleteLater();
-    // The glide picked the next icon: open its peek once this dialog unwinds.
     if (pop_.peekNextAction) {
       QTimer::singleShot(0, this, [this] {
         QToolButton* b = pop_.peekNextButton.data();
@@ -848,17 +748,14 @@ namespace stencil::gui {
 
   void MainWindow::openConnections() {
     ConnectDialog dlg(ensureConnections(), this);
-    // "Sync changes to server" sits beside Auto-connect there (browser parity); the
-    // setting stays ours, so a toggle runs the ordinary settings path.
+    // Sits beside Auto-connect there (browser parity).
     dlg.setSyncToServer(settings_.syncToServer);
     connect(&dlg, &ConnectDialog::syncToServerToggled, this, [this](bool on) {
       Settings s = settings_;
       s.syncToServer = on;
       applySettings(s, true);
     });
-    // The dialog reports on the app's toast stack, exactly as the browser does — never a
-    // native alert box in front of the window you are working in. It stays open behind
-    // the toast, like the projects dialog's own messages.
+    // Reports on the toast stack, never a native alert (browser parity).
     connect(&dlg, &ConnectDialog::toast, this, [this](const QString& text, bool failed) {
       if (!notify_) return;
       if (failed) notify_->error(text); else notify_->success(text);
@@ -868,7 +765,7 @@ namespace stencil::gui {
   }
 
   void MainWindow::openProjects() {
-    // Expiry sweep (one week), mirroring the browser store.
+    // Expiry sweep (one week).
     projectsStore_.clearAll();
     std::vector<core::ProjectMeta> metas;
     for (const auto& pr : projectList_) metas.push_back(pr.meta);
@@ -882,29 +779,20 @@ namespace stencil::gui {
                                             p.meta.id) != expired.end();
                          }),
           projectList_.end());
-      // Not gated by incognito: operates on other saved projects, not the
-      // incognito editor's content (see the incognito scope note above).
+      // Not gated by incognito: other saved projects, not the incognito editor's content.
       fileStore::saveProjects(projectList_);
     }
 
     ProjectsDialog dlg(projectList_, nowMs(), connections_, buildProjectThumbs(),
                        this, activeProjectId_, accentPrimary(settings_.accentColor));
-    // No project open here (and no server session standing in for one): the list shows
-    // this window as the pinned "Temporary (unsaved)" row, as the browser's does. Re-asked
-    // with every removal below — deleting the OPEN project resets this window to a blank
-    // unsaved editor (eraseLocalProject → resetToBlankEditor), so the pinned row must
-    // appear then, exactly as the browser's list does; a stale `false` left the emptied
-    // list reading "No projects yet" instead. It travels WITH the new
-    // project list, in one repaint: answering it separately showed the batch bar for the
-    // stale row and took it away a beat later, and the arriving row jumped with it.
+    // No project open: the list pins this window as "Temporary (unsaved)". Re-asked per removal — deleting the OPEN project
+    // resets this window to a blank editor — and it travels WITH the list so the batch bar and row repaint together.
     const auto unsavedSession = [this] {
       return activeProjectId_.isEmpty() && remoteSession_->link().id.isEmpty();
     };
     dlg.setTemporary(unsavedSession(), incognito_);
     dlg.setDragZones(projectZones_);   // the main-window drag-out zone overlay (open/new-window/remove)
-    // "Clear All (Local)" is handled WHILE the dialog is up: it confirms itself (over its
-    // own window), we remove the projects, and it repaints the now-empty list. Closing the
-    // window to ask, then leaving it closed, lost the user their place.
+    // Handled WHILE the dialog is up: it confirms itself, we remove, it repaints.
     connect(&dlg, &ProjectsDialog::clearAllRequested, this, [this, &dlg, unsavedSession] {
       const int n = static_cast<int>(projectList_.size());
       const bool hadActive = !activeProjectId_.isEmpty();
@@ -913,23 +801,19 @@ namespace stencil::gui {
       fileStore::saveProjects(projectList_);
       refreshActions();
       refreshDockMenu();
-      // The rows are already scattering (ProjectsDialog::scatterRows); emptying the list in
-      // the same turn pulled them out from under their own dust and dropped "No projects
-      // yet" in underneath it. Rebuild once the motes have landed (browser: beginRemoval).
+      // Rows are still scattering; rebuild once the motes have landed (browser: beginRemoval).
       QPointer<ProjectsDialog> live(&dlg);
       QTimer::singleShot(DisintegrateOverlay::kMs, this, [this, live, unsavedSession] {
         if (live) live->setProjects(projectList_, unsavedSession(), incognito_);
       });
       notify_->success(QString("Cleared %1 local project(s)").arg(n));
     });
-    // Single Delete / batch Remove: same stay-open pattern — the dialog confirmed and is
-    // scattering the rows; remove here, then repaint the still-open list once the dust lands.
+    // Same stay-open pattern: remove, then repaint once the dust lands.
     connect(&dlg, &ProjectsDialog::removeRequested, this,
             [this, &dlg, unsavedSession](const QVector<QPair<QString, QString>>& items) {
       QPointer<ProjectsDialog> live(&dlg);
       const bool single = items.size() == 1 && items.first().second.isEmpty();
-      // Block removing a project that's open in another window (matches the browser's
-      // "open in another tab" guard). Restore the scattered row right away.
+      // A project open in another window cannot be removed (browser "open in another tab" guard).
       if (single && projectOpenInOtherWindow(items.first().first)) {
         notify_->error("That project is open in another window — close it there first");
         if (live) live->setProjects(projectList_);
@@ -942,28 +826,21 @@ namespace stencil::gui {
           c->deleteProjectAsync(pr.first, [](bool) {});  // fire-and-forget; list refresh is independent
         }
       }
-      // Not gated by incognito: operates on other saved projects, not the
-      // incognito editor's content (see the incognito scope note above).
       fileStore::saveProjects(projectList_);
       refreshActions();
       refreshDockMenu();  // drop it from the Dock "recent" list
       if (single) notify_->info("Project deleted");
-      // Rebuild once the motes have landed (see the Clear All note above).
       QTimer::singleShot(DisintegrateOverlay::kMs, this, [this, live, unsavedSession] {
         if (live) live->setProjects(projectList_, unsavedSession(), incognito_);
       });
     });
-    // Inline rename (dblclick on the row's name): same stay-open pattern — the dialog
-    // already validated; rename here and repaint the still-open list.
+    // Inline rename: same stay-open pattern.
     connect(&dlg, &ProjectsDialog::renameRequested, this,
             [this, &dlg](const QString& id, const QString& name) {
       renameProjectById(id, name);
       dlg.setProjects(projectList_);
     });
-    // "Set expiration": the editor runs over the still-open list (browser parity), so
-    // write the meta here and repaint. Not gated by incognito — it operates on other
-    // saved projects, not the incognito editor's content (see the incognito scope note above).
-    // Per-row "Open in another app" — the list stays up while the hand-off dialog runs.
+    // "Set expiration" / "Open in another app": the list stays up.
     const QString botUser = settings_.telegramBotUsername.trimmed();
     const bool browserTarget = !settings_.browserBaseUrl.trimmed().isEmpty();
     dlg.setOpenInAvailable(browserTarget, browserTarget || !botUser.isEmpty());
@@ -988,8 +865,7 @@ namespace stencil::gui {
     if (execMaybePopover(dlg) != QDialog::Accepted) return;
 
     using Action = ProjectsDialog::Action;
-    // No open-confirm here: the dialog asks its own "Open this project?" question
-    // IN-DIALOG (ProjectsDialog::finishOpen), so an accepted Open is already confirmed.
+    // Open is already confirmed IN-DIALOG (ProjectsDialog::finishOpen).
     if (dlg.action() == Action::Open) {
       loadProjectIntoCanvas(dlg.selectedId());
     } else if (dlg.action() == Action::OpenRemote) {
@@ -997,7 +873,6 @@ namespace stencil::gui {
     } else if (dlg.action() == Action::OpenInNewWindow) {
       openProjectInNewWindow(dlg.selectedId());
     } else if (dlg.action() == Action::MoveToServer) {
-      // Can't move a project that's open in another window — it would vanish there.
       if (projectOpenInOtherWindow(dlg.selectedId())) {
         notify_->error("That project is open in another window — close it there first");
         return;
@@ -1006,8 +881,7 @@ namespace stencil::gui {
     } else if (dlg.action() == Action::CopyToServer) {
       projectTransfer_->copyLocalProjectToServer(dlg.selectedServerUrl(), dlg.selectedId(), dlg.newName());
     } else if (dlg.action() == Action::MoveToLocal) {
-      // Move-to-local is allowed even if a peer/other client has the project open (the
-      // server delete just ends their live link — they keep their in-memory copy).
+      // Move-to-local is allowed with a peer open: the server delete just ends their live link.
       projectTransfer_->moveServerProjectToLocal(dlg.selectedServerUrl(), dlg.selectedId());
     } else if (dlg.action() == Action::MakeLocalCopy) {
       projectTransfer_->makeLocalCopyOfServerProject(dlg.selectedServerUrl(), dlg.selectedId(), dlg.newName());
@@ -1018,8 +892,7 @@ namespace stencil::gui {
     } else if (dlg.action() == Action::BatchMoveToLocal) {
       for (const auto& pr : dlg.batchItems()) projectTransfer_->moveServerProjectToLocal(pr.second, pr.first);
     } else if (dlg.action() == Action::BatchCopyToLocal) {
-      // Bulk copy without opening each (empty name → keeps the server project's name). Each import
-      // is async; refresh + notify once the last one lands (count preserved as the item total).
+      // Each import is async; refresh + notify once the last one lands.
       const auto items = dlg.batchItems();
       const int total = static_cast<int>(items.size());
       if (total == 0) {
@@ -1042,9 +915,7 @@ namespace stencil::gui {
         }
       }
     } else if (dlg.action() == Action::SetColor) {
-      // Set/clear a project's accent colour (local meta or server PUT), then repaint the active
-      // name if it's the one that changed. Capture the dialog's selection by value — `dlg` is
-      // destroyed when openProjects returns, before the async server PUT completes.
+      // Capture the selection by value — `dlg` dies when openProjects returns, before the async PUT completes.
       const QString cid = dlg.selectedId();
       const QString csrv = dlg.selectedServerUrl();
       const QString ccol = dlg.selectedColor();
@@ -1060,7 +931,6 @@ namespace stencil::gui {
         }
       });
     } else if (dlg.action() == Action::Rename) {
-      // The dialog already validated, but re-validate here so any rename path is safe.
       renameProjectById(dlg.selectedId(), dlg.newName());
     } else if (dlg.action() == Action::New) {
       if (incognito_) {  // an explicit promotion out of incognito, not an app-side write

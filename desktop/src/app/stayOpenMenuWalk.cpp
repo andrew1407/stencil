@@ -19,13 +19,11 @@
 namespace stencil::gui {
 
   bool StayOpenMenu::eventFilter(QObject* watched, QEvent* event) {
-    // ↑/↓ on a focused radio row (the Image Filter group): move to the group's next radio
-    // and PICK it — QAbstractButton only clicks the neighbour when the one leaving was
-    // checked, which left the keys merely moving focus.
+    // ↑/↓ on a radio row picks the neighbour: QAbstractButton only clicks it when the one leaving
+    // was checked.
     if (event->type() == QEvent::KeyPress) {
       auto* ke = static_cast<QKeyEvent*>(event);
-      // Tab on a focused control is OUR walk, not QWidget's focus chain (a spinner
-      // swallowed it and the keys never left the point-size box).
+      // Tab on a focused control is our walk, not QWidget's focus chain (a spinner swallowed it).
       if (ke->key() == Qt::Key_Tab || ke->key() == Qt::Key_Backtab) {
         const bool back = ke->key() == Qt::Key_Backtab || (ke->modifiers() & Qt::ShiftModifier);
         if (walkTab(back)) return true;
@@ -62,11 +60,8 @@ namespace stencil::gui {
     return true;
   }
 
-  // One Tab step over the hosted controls (wrapping). The walk bridges into the
-  // flyout's plain rows too (Style: spinners, then Solid / Dashed / Dotted): Tab off
-  // the last control lands on the first row, Shift+Tab off the first control on the
-  // last, ↑/↓ then walk (and apply) the rows, and Tab from a row goes back to the
-  // first control. False when the menu hosts no controls (QMenu's default then).
+  // One Tab step, wrapping, bridging into the flyout's plain rows too. False when the menu hosts
+  // no controls.
   bool StayOpenMenu::walkTab(bool back) {
     const QList<QWidget*> stops = tabStops();
     if (stops.isEmpty()) return false;
@@ -97,8 +92,8 @@ namespace stencil::gui {
 
   void StayOpenMenu::mouseReleaseEvent(QMouseEvent* e) {
     if (e->button() == Qt::LeftButton) {
-      // A drag that wandered off the panel still ends on ITS target, or the
-      // splitter would stay latched to the cursor.
+      // A drag that wandered off the panel still ends on its target, or the splitter stays
+      // latched.
       if (pressTarget_ && !area_->geometry().contains(e->position().toPoint())) {
         QWidget* target = pressTarget_;
         pressTarget_ = nullptr;
@@ -113,7 +108,6 @@ namespace stencil::gui {
         return;                           // do NOT call base → the menu stays open
       }
       if (QAction* a = checkableAt(e->pos())) {
-        // Exclusive group → select (never uncheck); independent toggle → flip.
         if (QActionGroup* g = a->actionGroup(); g && g->isExclusive())
           a->setChecked(true);
         else

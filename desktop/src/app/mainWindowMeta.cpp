@@ -23,14 +23,9 @@
 
 namespace stencil::gui {
 
-  // View/edit/open/remove the current image's source & resource links, or add a
-  // new image by URL. Edits to the links persist to the active project (and the
-  // in-memory current* provenance); a URL load routes through loadImageByUrl().
+  // Link edits persist to the active project and the in-memory provenance; a URL load routes through loadImageByUrl().
   void MainWindow::openLinks() {
-    // Image Links only edits a loaded image's provenance; the action is disabled
-    // without one (refreshActions), so this is only reached with an image.
-    // Seed from the active project's stored provenance when available, else from
-    // the live current* provenance (e.g. an image just loaded by URL, not yet saved).
+    // Seed from the active project's stored provenance, else the live current* provenance.
     QString src = currentSource_, res = currentResource_;
     if (!activeProjectId_.isEmpty()) {
       Project* pr = findProject(activeProjectId_.toStdString());
@@ -40,24 +35,19 @@ namespace stencil::gui {
       }
     }
 
-    // The Name field's seed — the same the browser's linksModal shows: the bound
-    // project's stored name, else the image's base name.
+    // The Name seed the browser's linksModal shows: the bound project's name, else the image's base name.
 
     LinksDialog dlg(src, res, canvas_->hasImage(), settings_.pageSize,
                     settings_.units, this);
     execMaybePopover(dlg);
 
     if (dlg.loadRequested()) {
-      // Quick pre-load edits: crop to the chosen page aspect/orientation, or load
-      // the full frame uncropped — consumed once by onLaunchImageLoaded.
+      // Quick pre-load edits, consumed once by onLaunchImageLoaded.
       if (dlg.cropToPage())
         pendingCrop_ = {QuickCropOpts::Mode::Page, dlg.cropAlbum(), dlg.cropPageSize()};
       else
         pendingCrop_ = {QuickCropOpts::Mode::None, false, QString()};
-      // The dialog already fetched and decoded the exact image/frame for its
-      // preview — adopt those pixels directly (no second download/seek) so what
-      // was previewed is exactly what loads. Fall back to a fresh resolve only if
-      // the preview image is somehow absent.
+      // Adopt the pixels the preview already decoded (no second download/seek).
       const QImage previewed = dlg.previewedImage();
       if (!previewed.isNull()) {
         pendingProvSource_ = dlg.urlSource();
@@ -69,11 +59,10 @@ namespace stencil::gui {
       return;
     }
 
-    // No image → the dialog was in add-by-URL mode and just closed; nothing to save.
+    // No image → add-by-URL mode just closed; nothing to save.
     if (!canvas_->hasImage()) return;
 
-    // Browser parity: the modal has no Cancel/Save — whatever way it was dismissed,
-    // apply what changed.
+    // Browser parity: no Cancel/Save — apply whatever changed.
     if (dlg.source() == src && dlg.resource() == res) return;   // links untouched
     currentSource_ = dlg.source();
     currentResource_ = dlg.resource();
@@ -91,8 +80,7 @@ namespace stencil::gui {
     notify_->info("Links updated — save to a project to keep them");
   }
 
-  // The saved project's description: pre-filled from the store, written back through the
-  // Projects window's own store path (DescriptionDialog::apply ≙ commitRowEdit).
+  // Written back through the Projects window's store path (DescriptionDialog::apply ≙ commitRowEdit).
   void MainWindow::openDescription() {
     Project* pr = incognito_ ? nullptr : findProject(activeProjectId_.toStdString());
     if (!pr) { notify_->info("Save the project first to add a description"); return; }
@@ -105,7 +93,7 @@ namespace stencil::gui {
       notify_->success(text.isEmpty() ? "Description cleared" : "Description saved");
   }
 
-  // …and its search keywords, the same way (KeywordsDialog::apply ≙ commitRowEdit).
+  // Same way (KeywordsDialog::apply ≙ commitRowEdit).
   void MainWindow::openKeywords() {
     Project* pr = incognito_ ? nullptr : findProject(activeProjectId_.toStdString());
     if (!pr) { notify_->info("Save the project first to add keywords"); return; }
@@ -119,8 +107,7 @@ namespace stencil::gui {
       notify_->success(next.isEmpty() ? "Keywords cleared" : "Keywords saved");
   }
 
-  // Load an image/video by URL (reusing the --src resolver), remembering the URL +
-  // optional resource as provenance so the next project save records them.
+  // Remembers the URL + resource as provenance for the next project save.
   void MainWindow::loadImageByUrl(const QString& source, const QString& resource,
                                   int frame) {
     if (source.isEmpty()) return;

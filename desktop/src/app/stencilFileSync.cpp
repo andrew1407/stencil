@@ -17,9 +17,8 @@
 #include <QSet>
 #include <QTimer>
 
-// The .stencil project-file sync block: serialize (buildStencilBytes), Save-As /
-// delete, the file link + watcher, debounced auto-save, external-change merge,
-// and the live-sync toggle. Split from mainWindow.cpp; same class, definitions only.
+// The .stencil project-file sync block: serialize, Save-As / delete, the file link + watcher,
+// auto-save and merge.
 
 namespace stencil::gui {
 
@@ -57,8 +56,7 @@ namespace stencil::gui {
     pf.hasTheme = true;
     pf.themeMode = resolveDark(settings_.themeMode) ? "dark" : "light";
     pf.themeAccent = settings_.accentColor;
-    // Persisted chat rides into the portable file only when the opt-in is on
-    // (§12.3) — sharing the file then deliberately shares the conversation.
+    // Persisted chat rides into the portable file only with the opt-in on (§12.3).
     if (settings_.saveChatsWithProject && !incognito_) pf.chat = buildActiveChatDoc();
     return fileStore::buildProjectFile(pf);
   }
@@ -81,9 +79,8 @@ namespace stencil::gui {
     notify_->success("Project saved");
   }
 
-  // Delete the linked .stencil file from disk (after a confirm), then unlink so live-sync stops.
-  // The project itself stays open in the editor — only the on-disk file is removed. On a failed
-  // remove the link is kept. Mirrors the browser ExportService.deleteProjectFile.
+  // After a confirm; the project stays open, only the file goes. Mirrors the browser
+  // ExportService.deleteProjectFile.
   void MainWindow::deleteProjectFile() {
     if (stencilLink_.isEmpty()) {
       notify_->error("No linked .stencil file to delete");
@@ -91,8 +88,7 @@ namespace stencil::gui {
     }
     const QString path = stencilLink_;
     const QString shown = QFileInfo(path).fileName();
-    // The browser's styled confirm (exportService.js confirmIcon): a delete that
-    // can't be undone shows a bin, never the generic tick — and it's red.
+    // The browser's styled confirm (exportService.js confirmIcon): a bin, red.
     ConfirmSpec spec;
     spec.title = tr("Delete project file");
     spec.message = tr("Delete “%1” from disk? This can’t be undone. The project stays open here.").arg(shown);
@@ -123,9 +119,7 @@ namespace stencil::gui {
     if (actDeleteProjectFile_) actDeleteProjectFile_->setEnabled(!stencilLink_.isEmpty());
   }
 
-  // Drop the .stencil file link (mirrors the browser StencilSync.unlink()): stop the pending
-  // auto-save + the watcher and disable the file-linked actions. The project stays open; there is
-  // just no file to sync to anymore.
+  // Mirrors the browser StencilSync.unlink(): the project stays open, with no file to sync to.
   void MainWindow::unlinkStencilFile() {
     if (stencilAutosaveTimer_) stencilAutosaveTimer_->stop();
     if (stencilWatcher_ && !stencilWatcher_->files().isEmpty()) stencilWatcher_->removePaths(stencilWatcher_->files());

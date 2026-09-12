@@ -8,26 +8,21 @@
 
 namespace stencil::gui {
 
-  // Points-table columns, one for one with the browser's coordinates table
-  // (mainContent.js <thead>): index · X px (editable) · Y px (editable) · X page ·
-  // Y page (both read-only, in the app's current unit) · 🗑.
+  // One for one with the browser's coordinates table (mainContent.js <thead>).
   enum PointCol { ColIndex = 0, ColX, ColY, ColPageX, ColPageY, ColDel, ColCount };
 
-  // The header chevron's box + glyph. Also the floating re-open chevron's, which has to
-  // read as the same button (mainWindow kPanelToggleBox).
+  // Also the floating re-open chevron's (mainWindow kPanelToggleBox).
   inline constexpr int kToggleBox = 24;
   inline constexpr int kToggleGlyph = 15;
 
 
-  // Paints a selected row as a flat accent OUTLINE (not a filled background); hover tint + cell
-  // text come from QSS / the base. Mirrors the browser row treatment but with an outline.
+  // A selected row is a flat accent outline; hover tint + text come from QSS.
   class PointRowDelegate : public QStyledItemDelegate {
    public:
     using QStyledItemDelegate::QStyledItemDelegate;
     void paint(QPainter* p, const QStyleOptionViewItem& opt,
                const QModelIndex& idx) const override {
-      // The selection FILL is made transparent via QSS (selection-background-color); here we
-      // just stroke an accent outline around the selected row on top of the normal item paint.
+      // The selection fill is transparent via QSS; only the outline is stroked here.
       QStyledItemDelegate::paint(p, opt, idx);
       if (!(opt.state & QStyle::State_Selected)) return;
       p->save();

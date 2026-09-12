@@ -55,9 +55,7 @@ namespace stencil::gui {
   }
 
   void MainWindow::onChatReply(const llm::LlmReply& reply) {
-    // A completion landing while the dock is hidden surfaces as a bottom-left
-    // toast (click = open the chat) instead of vanishing silently; an open
-    // dock changes nothing.
+    // A completion landing while the dock is hidden surfaces as a toast (click = open the chat).
     const bool toastWanted = chatSurfaceHidden();
     if (settleFailedChatReply(reply, toastWanted)) return;
     const llm::OpPlanResult parsed = llm::parseOpPlan(reply.text);
@@ -81,25 +79,19 @@ namespace stencil::gui {
                        .arg(replyText)
                  : QStringLiteral("Assistant finished — %1").arg(replyText);
     };
-    // A no-op turn still falls through to the §11 ask card below (asking INSTEAD
-    // of acting is what §11 is for). An EDITING plan on an empty canvas adopts
-    // the just-attached picture as the working image (§7; browser planEditsTheImage).
+    // A no-op turn still falls through to the §11 ask card. An EDITING plan on an empty canvas adopts the attachment as the working image (§7).
     if (adoptAttachment) {
-      // The same entry the .stencil / server paths use to adopt a bare QImage; an empty
-      // layout means "just the picture", which is exactly what an attachment is.
+      // The same entry the .stencil / server paths use; an empty layout means "just the picture".
       loadImageWithLayout(chatTurnAttachments_.first(), QJsonObject());
       playImageArrival();   // it lands on the canvas like any other fresh image
     }
     ChatPlanTarget target(*this);
     llm::ExecResult res;
     if (hasWork) {
-      // §2.1: with exactly one attachment THAT is what the plan works on, so an
-      // unnamed `save` can name itself after it without an `image` op; with
-      // several, only an `image` op decides (browser parity).
+      // §2.1: with exactly one attachment an unnamed `save` names itself after it; with several, only an `image` op decides.
       chatActiveAttachment_ = chatTurnAttachments_.size() == 1 ? 1 : 0;
       res = llm::executePlan(plan, target);
-      // Skipped actions (§2.1: an attachment this turn cannot satisfy, a save
-      // with nothing loaded) are reported, never silent.
+      // Skipped actions (§2.1) are reported, never silent.
       for (const QString& n : res.notes) {
         if (chatReplyHeld_) {  // held turn: ride inside the eventual (one) bubble
           chatHeldNotes_ << n;
@@ -119,13 +111,9 @@ namespace stencil::gui {
         chatTurnSettled();
         return;
       }
-      // §3.0: the lines the model drew ARE the result. There is no self-check round
-      // and no re-trace at zoom — the turn is over once the plan has executed.
-      // §7 auto-continuation: the plan loaded a picture the model never saw (and
-      // drew no layout). Re-send once with the new working image attached.
+      // §3.0: the lines drawn ARE the result — no self-check round. §7 auto-continuation: the plan loaded a picture the model never saw.
       if (maybeContinueChat(plan)) return;
-      // The shape said "continue" but nothing launched (empty canvas, text-only
-      // model) — the held round-1 bubble posts right now, nothing is lost.
+      // The shape said "continue" but nothing launched — the held round-1 bubble posts now.
       flushHeldChatReply();
     }
     renderChatAskCard(plan, target);
@@ -139,13 +127,9 @@ namespace stencil::gui {
     chatTurnSettled();
   }
 
-  // The two ways a turn ends before a plan: the user stopped it, or the provider failed.
-  // True when the turn is over — the caller returns at once. Kinds mirror browser
-  // describeChatError: Off/Transport/Http are its "unreachable" (card + Configure-provider
-  // CTA, since the config IS the fix), Disabled/Truncated its red "notice" with Retry.
+  // The two ways a turn ends before a plan. True when the turn is over. Kinds mirror browser describeChatError.
   bool MainWindow::settleFailedChatReply(const llm::LlmReply& reply, bool toastWanted) {
-    // User-aborted turn: the pending card becomes "Stopped." — no error card,
-    // no assistant history push, no toast (stopping requires the open dock).
+    // User-aborted: the pending card becomes "Stopped." — no error card, no history push, no toast.
     if (chatStopRequested_) {
       chatStopRequested_ = false;
       flushHeldChatReply();  // a stopped continuation must not swallow round 1's reply
@@ -158,12 +142,8 @@ namespace stencil::gui {
     chatMirrorPending(false);
     if (!reply.ok) {
       flushHeldChatReply();  // a failed continuation must not swallow round 1's reply
-      // Truncation / refusal are typed errors — never parsed as plans (§6.3).
-      // Kinds mirror browser describeChatError: Off/Transport/Http are its
-      // "unreachable" (card + Configure-provider CTA, the config IS the fix);
-      // Disabled/Truncated are its "notice" (red + Retry, raw message, no CTA —
-      // the provider is fine, just not answering this way); Refusal/BadResponse
-      // are its "refusal"/generic "error" (red + Retry, "Refused: "/"Error: ").
+      // Truncation / refusal are typed errors, never parsed as plans (§6.3). Off/Transport/Http → "unreachable" (Configure-provider CTA);
+      // Disabled/Truncated → "notice" (red + Retry); Refusal/BadResponse → "Refused: "/"Error: ".
       switch (reply.failure) {
         case llm::LlmFailure::Off:
         case llm::LlmFailure::Transport:
@@ -178,8 +158,7 @@ namespace stencil::gui {
           chatError(QStringLiteral("Refused: %1").arg(reply.error));
           break;
         case llm::LlmFailure::Expired: {
-          // A refused SESSION, not a broken assistant: say which server and give
-          // the way back in. Mirrored to the menu panel like any other error.
+          // A refused SESSION, not a broken assistant: say which server and give the way back in.
           const QString retryText = lastUserTurn(chatHistory_);
           chatDock_->appendExpiredSession(reply.error, reply.expiredHost, retryText);
           chatMirror(QStringLiteral("Error"), reply.error, true, retryText);

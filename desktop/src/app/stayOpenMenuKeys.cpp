@@ -18,9 +18,8 @@
 
 namespace stencil::gui {
 
-  // The hosted controls Tab walks, in row order: every focusable widget inside this
-  // menu's QWidgetAction rows (the Style spinners, the formula inputs, the tooltip
-  // checkboxes, the chat's input and buttons), skipping hidden or disabled ones.
+  // Every focusable widget inside this menu's QWidgetAction rows, skipping hidden or disabled
+  // ones.
 
   QList<QWidget*> StayOpenMenu::tabStops() const {
     QList<QWidget*> stops;
@@ -32,8 +31,7 @@ namespace stencil::gui {
     return stops;
   }
 
-  // The first row the keyboard can land on: enabled, visible, not a separator and not
-  // a hosted row (a title, or a control row — those are entered, not highlighted).
+  // Not a hosted row (a title or a control row — those are entered, not highlighted).
   QList<QAction*> StayOpenMenu::rowActions() const {
     QList<QAction*> rows;
     for (QAction* a : actions()) {
@@ -49,8 +47,7 @@ namespace stencil::gui {
     return rows.isEmpty() ? nullptr : rows.first();
   }
 
-  // Focus one hosted control, installing this menu as its event filter once so a radio's
-  // ↑/↓ can be taken over below.
+  // The filter is installed once so a radio's ↑/↓ can be taken over below.
   void StayOpenMenu::focusStop(QWidget* w, Qt::FocusReason reason) {
     if (!w) return;
     if (!filteredStops_.contains(w)) {
@@ -62,9 +59,8 @@ namespace stencil::gui {
   }
 
   void StayOpenMenu::keyPressEvent(QKeyEvent* e) {
-    // The keyboard can stay with THIS menu while a control inside one of its flyouts has
-    // focus (a hover-opened flyout never takes the grab). Hand the key to the control
-    // exactly as Qt would if the flyout held the keys; Escape stays here.
+    // A hover-opened flyout never takes the grab, so the key is handed to its focused control as
+    // Qt would; Escape stays here.
     if (!redispatchingKey_ && e->key() != Qt::Key_Escape) {
       QWidget* fw = QApplication::focusWidget();
       auto* owner = fw ? qobject_cast<StayOpenMenu*>(fw->window()) : nullptr;
@@ -77,10 +73,8 @@ namespace stencil::gui {
         return;
       }
     }
-    // → on a parent row reveals its flyout (Qt); a SECOND → enters it — onto the chat's
-    // input, a Style spinner, the Transformation checkbox… — while ← still folds it
-    // back. Two routes, since the keyboard can be held by the parent (its row still
-    // current, the flyout already up) or by the flyout itself (Qt moved it there).
+    // → on a parent row reveals its flyout (Qt); a second → enters it. Two routes: the parent or
+    // the flyout may hold the keyboard.
     if (e->key() == Qt::Key_Right && !(e->modifiers() & ~Qt::KeypadModifier)) {
       QAction* cur = activeAction();
       QMenu* open = cur && cur->menu() && cur->menu()->isVisible() ? cur->menu() : nullptr;
@@ -92,9 +86,7 @@ namespace stencil::gui {
         return;
       }
       if (qobject_cast<QMenu*>(parentWidget()) && !(cur && cur->menu())) {
-        // Inside a flyout on a plain row: enter its controls if it has any, else land
-        // on its first real row. Never Qt's default here, which reads → on such a row
-        // as ← and closes the flyout.
+        // Never Qt's default here, which reads → on such a row as ← and closes the flyout.
         entered_ = true;
         if (!enterControls()) {
           if (QAction* a = firstRowAction()) setActiveAction(a);
@@ -103,17 +95,14 @@ namespace stencil::gui {
         return;
       }
     }
-    // A flyout the first → only REVEALED still belongs to its parent's walk: ↑/↓ go back
-    // to the parent, which moves its highlight and folds this flyout (browser parity —
-    // the highlight stays on the parent row until the second →).
+    // A flyout the first → only revealed still belongs to its parent's walk (browser parity).
     if (!entered_ && (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)) {
       if (auto* parent = qobject_cast<QMenu*>(parentWidget()); parent && parent->isVisible()) {
         QApplication::sendEvent(parent, e);
         return;
       }
     }
-    // ↑/↓ never rest on a title row: QMenu's own walk stops there (an invisible
-    // highlight, keys that seem dead) — step on past it in the same direction.
+    // QMenu's own walk stops on a title row with an invisible highlight; step past it.
     if (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down) {
       QMenu::keyPressEvent(e);
       const int rowCap = actions().size();   // a walk of every row is the most it can take
@@ -121,24 +110,20 @@ namespace stencil::gui {
         QKeyEvent again(QEvent::KeyPress, e->key(), Qt::NoModifier);
         QMenu::keyPressEvent(&again);
       }
-      // Landing on one option of an exclusive group (Style's Solid / Dashed / Dotted)
-      // picks it at once — browser parity, where arrowing a radio group applies the
-      // option as the focus moves. trigger() runs the row's handler without QMenu's
-      // own activate path, so the menu stays open.
+      // Arrowing an exclusive group applies the option (browser parity); trigger() bypasses
+      // QMenu's activate path so the menu stays open.
       if (QAction* a = activeAction(); a && a->isCheckable() && !a->isChecked()) {
         if (QActionGroup* g = a->actionGroup(); g && g->isExclusive()) a->trigger();
       }
       return;
     }
-    // Tab / Shift+Tab walk the hosted controls (wrapping) instead of QMenu's default,
-    // which reads Tab as ↓ and never reaches a spinner, input or checkbox inside a
-    // flyout. A menu with no controls keeps the default.
+    // QMenu reads Tab as ↓ and never reaches a control inside a flyout; a menu with no controls
+    // keeps the default.
     if (e->key() == Qt::Key_Tab || e->key() == Qt::Key_Backtab) {
       const bool back = e->key() == Qt::Key_Backtab || (e->modifiers() & Qt::ShiftModifier);
       if (walkTab(back)) { e->accept(); return; }
     }
-    // Escape always belongs to the menu. Same latch as the mouse path: a
-    // bounced key must never be re-forwarded.
+    // Escape always belongs to the menu. Same latch as the mouse path.
     if (keyTarget_ && !redispatchingKey_ && e->key() != Qt::Key_Escape) {
       QWidget* fw = focusWidget();  // this menu's own focus widget
       const bool ours = fw && fw != this && fw->window() == window() &&

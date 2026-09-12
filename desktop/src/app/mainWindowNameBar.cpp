@@ -33,19 +33,14 @@
 
 namespace stencil::gui {
 
-  // Browser-like: the ✓/✗ buttons show only IN edit mode; the ✎ pencil shows only OUT of it.
-  // ✓ is enabled only for a changed, valid name (its tooltip carries the reason when disabled).
+  // ✓/✗ only IN edit mode, ✎ only OUT of it; ✓ enabled only for a changed, valid name.
   void MainWindow::refreshProjectNameButtons() {
     if (!nameBar_.field || !nameBar_.accept || !nameBar_.cancel) return;
-    // Toggle the QWidgetActions (not the widgets) so the toolbar actually re-lays-out.
-    // The marks arrive and leave as SAND, like the browser's ✓/✗ (markIn / markOut) — a
-    // bare setVisible blinked them in and out. revealControls is a no-op when the state
-    // already matches, so refreshActions may call this as often as it likes.
+    // Toggle the QWidgetActions (not the widgets) so the toolbar re-lays-out. revealControls is a no-op when the state matches.
     const auto chips = nameBar_.chips(nameBar_.field->isEnabled(), !blankColor_.isEmpty());
     revealControls(nameBar_.accept, chips.marks);
     revealControls(nameBar_.cancel, chips.marks);
-    // ✎/🎨 keep their slots and are merely painted out when the group is not hovered —
-    // the browser's `visibility: hidden`. Removing slots shoved the "?" sideways.
+    // ✎/🎨 keep their slots and are painted out (the browser's `visibility: hidden`), or the "?" shifts sideways.
     const bool affordable = chips.affordances;
     const auto placeAffordances = [this](bool on) {
       if (nameBar_.edit) nameBar_.edit->setVisible(on);
@@ -58,11 +53,7 @@ namespace stencil::gui {
     } else if (nameBar_.edit && nameBar_.edit->isVisible()) {
       placeAffordances(true);   // already there: nothing is coming or going
     } else {
-      // Leaving edit mode: the ✓/✗ are still sliding out, and giving ✎/🎨 their slots now
-      // put all four in the row at once — it widened and the pair appeared BESIDE the marks
-      // still flying instead of in their place. Wait for the
-      // slots to close, then take them; re-checked on arrival, since anything may have
-      // changed in the meantime.
+      // Leaving edit mode: wait for the ✓/✗ slots to close before ✎/🎨 take them, or all four sit in the row at once.
       QPointer<MainWindow> self(this);
       QTimer::singleShot(kControlRevealOutMs, this, [self, placeAffordances] {
         if (!self) return;
@@ -70,27 +61,22 @@ namespace stencil::gui {
                          && !self->nameBar_.editing);
       });
     }
-    // Blank-colour button: shown only when this session is a blank image (recolourable), regardless
-    // of whether it's a saved/editable project (in-memory recolour works for unsaved blanks too).
-    // Paint its icon as a live swatch of the current fill colour.
+    // Shown only for a blank image (recolourable), saved or not; the icon is a live swatch of the fill.
     if (nameBar_.blankColorBtn) {
       nameBar_.blankColorBtn->setVisible(chips.blankSwatch);   // a plain layout widget, gated directly
       if (chips.blankSwatch) {
-        // Same input-palette chip recipe as the line-style colour button
-        // (inset swatch rect + luminance-tuned outline, theme/accent tracked).
+        // Same chip recipe as the line-style colour button.
         const QColor c(blankColor_);
         updateColorSwatch(nameBar_.blankColorBtn, c.isValid() ? c : QColor("#ffffff"));
       }
     }
     if (!nameBar_.editing) return;
     const QString v = nameBar_.field->text().trimmed();
-    // Compare against the CURRENT name — remoteSession_->link().name for a server-linked session (no local id),
-    // else the local name.
+    // The CURRENT name: the server link's for a server-linked session, else the local one.
     const QString current = !remoteSession_->link().id.isEmpty() ? remoteSession_->link().name : activeProjectName();
     const bool changed = v != current;
     bool ok = changed;
-    // No rest-state tooltip on the ✓ (user decision — the browser chips carry none);
-    // only a REJECTED name explains itself.
+    // No rest-state tooltip on ✓ (browser parity); only a REJECTED name explains itself.
     QString reason;
     if (changed && remoteSession_->link().id.isEmpty()) {
       const auto check = checkProjectName(v, activeProjectId_);
@@ -105,16 +91,12 @@ namespace stencil::gui {
     nameBar_.accept->setToolTip(reason);
   }
 
-  // Paint the name field for its mode. Editing → accent-outlined input (focus ring visible);
-  // read-only → a plain title with NO border/focus ring (matches the browser's title look), so a
-  // stray single-click focus never shows an editable-looking box. Project colour is kept in both.
+  // Editing → accent-outlined input; read-only → a plain title with NO border (browser title look).
   void MainWindow::applyProjectNameStyle(bool editing) {
     if (!nameBar_.field) return;
     const QString color = incognito_ ? QString() : currentProjectColor();
     const QColor c(color);
-    // Default (no custom colour): a brighter grey than the browser's #80868f + bold, since Qt can't
-    // give a QLineEdit the browser's legibility text-shadow — bold + a lighter grey matches the
-    // perceived brightness. A custom colour is used as-is (also bold).
+    // Bold + a lighter grey than the browser's #80868f: Qt can't give a QLineEdit the legibility text-shadow.
     const QString fg =
         (!color.isEmpty() && c.isValid()) ? c.name() : QStringLiteral("#9aa0a8");
     if (editing) {
@@ -125,15 +107,8 @@ namespace stencil::gui {
                   "QLineEdit:focus{border:1px solid %2;}")
               .arg(fg, accent.name()));
     } else {
-      // A TITLE at rest — no box — that rings under the pointer, exactly as the browser's
-      // read-only #project-name-input does (transparent border, the field ring on hover).
-      // The ring has to live HERE: this per-widget sheet outranks the app-wide one for
-      // every property it names, so the themed `QLineEdit#projectNameField:hover` never got
-      // a look in and the title stayed inert — the rule was in the stylesheet, just not
-      // the stylesheet that wins.
-      // The ring is the shared one: the accent at the ring's own strength, which is what the
-      // browser's two stacked 45% layers come to on screen — the solid accent read far
-      // brighter than the browser's beside it.
+      // The hover ring has to live HERE: this per-widget sheet outranks the app-wide one, so the themed
+      // `QLineEdit#projectNameField:hover` never applied. Same ring strength as the browser's two stacked 45% layers.
       const QColor accent = accentPrimary(settings_.accentColor);
       const QString ring = QString("rgba(%1,%2,%3,0.45)")
                                .arg(accent.red())

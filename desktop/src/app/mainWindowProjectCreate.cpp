@@ -20,15 +20,14 @@
 namespace stencil::gui {
 
   void MainWindow::adoptCanvasAsLocalProject() {
-    // Guards: incognito never persists; a server session owns its own saving; an
-    // already-active project means this canvas is that project (open/replace), not a
-    // fresh load; and there's nothing to save without an image.
+    // Incognito never persists; a server session owns its saving; an active project is
+    // open/replace, not a fresh load.
     const QString serverTarget = pendingServerTarget_;   // consumed either way
     pendingServerTarget_.clear();
     if (incognito_) return;
     if (!activeProjectId_.isEmpty() || !remoteSession_->link().address.isEmpty()) return;
     if (!canvas_->hasImage()) return;
-    // Name after the image file, else a unique "Untitled N" (mirrors newProjectFromCanvas).
+    // Mirrors newProjectFromCanvas.
     QString seed = canvas_->imageBaseName();
     if (seed.isEmpty()) {
       std::vector<core::ProjectMeta> metas;
@@ -37,20 +36,18 @@ namespace stencil::gui {
       tmp.load(metas);
       seed = QString::fromStdString(tmp.defaultName());
     }
-    // The Open dialog's "Save to" pick (browser openImageModal.js `address`): the
-    // project's home is that server, not this computer.
+    // The Open dialog's "Save to" pick (browser openImageModal.js `address`).
     if (!serverTarget.isEmpty()) {
       createServerProject(serverTarget, seed);
       return;
     }
     createLocalProject(seed, /*announce=*/false);  // the load path already notified
-    // Browser parity: storage.save() flashes "Saved" whenever a project persists.
+    // Browser parity: storage.save() flashes "Saved".
     notify_->success(QStringLiteral("Saved"));
   }
 
-  // Create the project on `serverUrl` (POST /projects), upload the current image as
-  // the 'original', and link the session so a later Save writes back. Mirrors the
-  // browser's createRemoteProject (remoteSync.js).
+  // POST /projects, upload the 'original', link the session. Mirrors the browser's
+  // createRemoteProject (remoteSync.js).
   void MainWindow::createServerProject(const QString& serverUrl, const QString& name,
                                        std::function<void()> onLinked) {
     stencil::net::ServerClient* c = remoteSession_->requireClient(serverUrl);
@@ -68,8 +65,7 @@ namespace stencil::gui {
             notify_->error(QString("Could not create on server — %1").arg(c->lastError()));
             return;
           }
-          // Link the session (this is now a server project, not a local one) + finish. A freshly
-          // created server project has no custom colour yet. `onLinked` fires only on success.
+          // A fresh server project has no custom colour; `onLinked` fires only on success.
           auto link = [this, self, serverUrl, id, name, onLinked](qint64 v) {
             if (!self) return;
             activeProjectId_.clear();
@@ -93,8 +89,8 @@ namespace stencil::gui {
                                  link(version);
                                  return;
                                }
-                               // The file write bumps the version; re-read it so the next save's
-                               // guard is accurate (mirrors remoteSync.currentVersion()).
+                               // The file write bumps the version; re-read it for the next guard
+                               // (mirrors remoteSync.currentVersion()).
                                c->getProjectAsync(id, [self, version, link](
                                                           bool gok, stencil::net::ServerProject meta,
                                                           QJsonObject) {

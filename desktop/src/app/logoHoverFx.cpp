@@ -12,9 +12,7 @@
 
 namespace stencil::gui {
 
-  // While hovered the mark breathes to ×1.12 and floats up 2px on a 1.2s
-  // ease-in-out beat, an accent glow brightens on the same beat, and a ring of
-  // 8 accent spokes turns once per 8s while shimmering 0.14 ↔ 0.4 on that beat.
+  // Hover: ×1.12 breath + 2px lift on a 1.2s beat, a glow on the same beat, 8 spokes turning once per 8s.
   LogoHoverFx::LogoHoverFx(QToolButton* logo, std::function<QPixmap()> makePixmap,
                            std::function<QColor()> accent)
       : QWidget(logo->window()), logo_(logo),
@@ -28,7 +26,7 @@ namespace stencil::gui {
     pulse_->setDuration(1200);
     pulse_->setLoopCount(-1);
     QObject::connect(pulse_, &QVariantAnimation::valueChanged, this, [this](const QVariant& v) {
-      // Raw loop time → an ease-in-out up-and-down: 0 → 1 → 0 across the beat.
+      // 0 → 1 → 0 across the beat.
       beat_ = 0.5 - 0.5 * std::cos(qDegreesToRadians(360.0 * v.toReal()));
       setProperty("pulseBeat", beat_);   // observable by the GUI test
       syncGeometry();                    // tracks the button between ticks too
@@ -53,10 +51,7 @@ namespace stencil::gui {
     setProperty("fxActive", false);
     hide();
     logo_->installEventFilter(this);
-    // Paint the mark at ALL times, not only on hover: QToolButton draws its icon at half
-    // size on Retina, so the RESTING logo looked tiny beside the full-size hover fx
-    //. Only the pulse / glow / rays stay hover-gated. Deferred so
-    // the button is laid out first.
+    // Paint the mark at ALL times: QToolButton draws its icon at half size on Retina. Deferred so the button is laid out first.
     QTimer::singleShot(0, this, [this] { showStatic(); });
   }
 
@@ -67,7 +62,6 @@ namespace stencil::gui {
   }
 
   void LogoHoverFx::themeChanged() {
-    // Refresh the cached art whether hovering or at rest — the resting mark is ours too now.
     pm_ = makePixmap_();
     blankButtonIcon();
     update();
@@ -83,21 +77,15 @@ namespace stencil::gui {
           if (logo_->isEnabled()) start();
           break;
         case QEvent::Leave:
-          // Bound for the open popover? Hold; the grace check settles it.
           if (box_ && box_->isVisible()) leaveSoon(); else stop();
           break;
         case QEvent::Hide:
         case QEvent::EnabledChange:
         case QEvent::WindowDeactivate:
-          // Mirror ShimmerOverlay: the button hiding / a modal opening mid-hover
-          // stops the LOOP (stop() falls back to the resting mark, or hides if the
-          // button itself went away).
+          // Mirror ShimmerOverlay: the button hiding / a modal opening mid-hover stops the LOOP.
           grace_->stop();
           stop();
-          // …and the RESTING mark goes with the button. stop() returns early when no loop
-          // was running, so a logo hidden while the overlay merely SAT there (fullscreen
-          // hides the header row) left the mark floating over whatever took its place —
-          // it covered the label beside it.
+          // The RESTING mark goes with the button too — stop() returns early with no loop running.
           if (!logo_ || !logo_->isVisible()) hide();
           break;
         case QEvent::Move:
@@ -132,8 +120,7 @@ namespace stencil::gui {
   }
 
   bool LogoHoverFx::hoveredAnywhere() const {
-    // underMouse() lags a synthetic Enter, and Qt delivers the logo's Leave before the
-    // popover's Enter — so the cursor position is the arbiter, as the Alt-glide poll does.
+    // Qt delivers the logo's Leave before the popover's Enter, so the cursor position is the arbiter.
     const auto under = [](const QWidget* w) {
       return w->isVisible() &&
              (w->underMouse() || w->rect().contains(w->mapFromGlobal(QCursor::pos())));

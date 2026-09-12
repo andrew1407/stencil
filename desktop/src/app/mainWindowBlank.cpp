@@ -25,17 +25,13 @@
 
 namespace stencil::gui {
 
-  // Replace this editor's image with `path`. Mirrors the browser's openImageHere:
-  // persist the current content first (unless incognito) so it isn't lost, then
-  // start a fresh editor in the requested incognito mode and load the image.
+  // Browser openImageHere: persist the current content first (unless incognito), then a fresh editor in the requested mode.
   void MainWindow::openImageHere(const QString& path, bool incognito) {
     if (!incognito_) {
       if (!activeProjectId_.isEmpty()) saveToActiveProject();
       else saveSessionNow();
     }
-    // Replacing the image wholesale resets the editor: drop the project binding and adopt
-    // the chosen incognito mode directly (the toggle is normally gated to before an image).
-    // Its signals are blocked so the toggle slot doesn't fire; we sync the title ourselves.
+    // Drop the project binding and adopt the incognito mode directly, signals blocked so the toggle slot doesn't fire.
     activeProjectId_.clear();
     if (incognito_ != incognito) {
       incognito_ = incognito;
@@ -48,13 +44,9 @@ namespace stencil::gui {
     if (loadLocalImageReset(path)) { playImageArrival(); adoptCanvasAsLocalProject(); }
   }
 
-  // Launch `path` in a fresh, self-owned window, leaving this editor untouched
-  // (the desktop analog of the browser's "open in new tab"). Reuses the launch
-  // path (--src/--incognito), which honors incognito and the page-aspect crop.
+  // A fresh window (the browser's "open in new tab"), via the launch path (--src/--incognito).
   void MainWindow::openImageInNewWindow(const QString& path, bool incognito) {
-    // The dialog only yields a local image file, and the new window's async launch path
-    // can't report a load failure back here — so validate up front and show the error on
-    // THIS window instead of spawning a blank one (mirrors openProjectInNewWindow's guard).
+    // The new window's async launch cannot report a failure back, so validate up front and report on THIS window.
     if (!QImageReader(path).canRead()) {
       notify_->error("Failed to load image");
       return;
@@ -68,15 +60,9 @@ namespace stencil::gui {
     win->applyLaunchOptions(opts);
   }
 
-  // Generate a solid-color image and adopt it exactly like a clipboard paste
-  // (confirm-replace guard included), so editing/persistence behave as if the
-  // image had been opened from disk. Mirrors browser blankImageModal.js.
-  // The idle-canvas + projects "new blank" shortcuts open the unified Open dialog
-  // straight in blank mode (blank creation is folded into the one Open dialog).
+  // A solid-colour image adopted like a clipboard paste (browser blankImageModal.js); blank creation lives in the one Open dialog.
   void MainWindow::newBlankImage() { openImageDialog(/*startBlank=*/true); }
 
-  // Generate a solid-color blank image from the unified dialog's blank mode and adopt
-  // it (was the body of the retired standalone blank-image dialog flow).
   void MainWindow::createBlankImageFromDialog(const QColor& color, int w, int h) {
     if (canvas_->hasImage()) {
       ConfirmSpec spec;
@@ -89,11 +75,9 @@ namespace stencil::gui {
     createBlankImage(color, w, h);
   }
 
-  // The blank itself, with no confirmation: an op-plan already said what to do, and a
-  // modal is something a plan cannot answer — it would stall the turn half-applied.
+  // No confirmation: a modal is something an op-plan cannot answer.
   void MainWindow::createBlankImage(const QColor& color, int w, int h) {
-    // A blank's colour IS the page: a filter left over from the previous image
-    // would repaint the fill (bw of a red page is flat gray), so start clean.
+    // A blank's colour IS the page: a leftover filter would repaint the fill, so start clean.
     if (settings_.imageFilter != QLatin1String("none")) applyImageFilter("none");
     QImage img(w, h, QImage::Format_RGB32);
     img.fill(color);
@@ -116,10 +100,7 @@ namespace stencil::gui {
     adoptCanvasAsLocalProject();  // persist so it appears in Projects (browser parity)
   }
 
-  // Open the crop dialog over the ORIGINAL image and apply the chosen page-shaped
-  // region. Mirrors browser cropModal.js: confirm before discarding lines when the
-  // orientation flips; the original image is never replaced. Resizing within the
-  // same orientation rescales the lines (the page relation is preserved).
+  // Browser cropModal.js: confirm before discarding lines when the orientation flips; the original is never replaced.
   void MainWindow::openCropDialog() {
     if (!canvas_->hasImage()) {
       notify_->error("Open an image first");
@@ -131,7 +112,7 @@ namespace stencil::gui {
 
     const core::CropRect cur = canvas_->cropRect();
     const bool album = core::isAlbumOrientation(cur.width, cur.height);
-    // Preview the rotated original — cropRect lives in that pixel space.
+    // cropRect lives in the rotated original's pixel space.
     CropDialog dlg(canvas_->effectiveOriginalImage(), page.width, page.height, album, cur, this);
     if (dlg.exec() != QDialog::Accepted) return;
 

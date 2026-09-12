@@ -13,8 +13,7 @@ namespace stencil::gui {
   inline std::string makeSalt() {
     return QString::number(QRandomGenerator::global()->bounded(1 << 24), 36).toStdString();
   }
-  // Encode a QImage as PNG bytes for upload (the server is codec-free, so the desktop hands it
-  // already-encoded image bytes + the dimensions separately).
+  // The server is codec-free, so the desktop hands it encoded bytes + dimensions separately.
   inline QByteArray pngBytes(const QImage& img) {
     QByteArray out;
     QBuffer buf(&out);

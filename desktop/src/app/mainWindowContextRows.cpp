@@ -1,6 +1,4 @@
-// The rest of the canvas context menu's persistent actions: instant Draw Line / Draw
-// Rectangle, the tooltip toggles with the formula twins, View ▸ Units, and the export-variant
-// rows every surface shares. Phase chain in mainWindowContextActions.cpp.
+// The rest of the canvas context menu's persistent actions. Phase chain in mainWindowContextActions.cpp.
 #include "mainWindow.hpp"
 #include "canvasTooltip.hpp"
 #include "canvasWidget.hpp"
@@ -22,10 +20,7 @@
 namespace stencil::gui {
 
   void MainWindow::buildDrawNowActions() {
-    // Instant line/rect (contextMenu.js ctx-draw-line/ctx-draw-rect): set the
-    // mode and begin drawing immediately. Two fixed actions rather than a toggle
-    // that only picked the mode — each row always does exactly what it says, and
-    // each carries its own animated outline glyph (browser parity).
+    // contextMenu.js ctx-draw-line/ctx-draw-rect: two fixed actions, each with its own outline glyph (browser parity).
     actDrawLineNow_ = new QAction("Draw Line", this);
     connect(actDrawLineNow_, &QAction::triggered, this, [this] {
       if (!canvas_->hasImage()) {
@@ -50,12 +45,8 @@ namespace stencil::gui {
   }
 
   void MainWindow::buildContextTooltipActions() {
-    // Tooltip toggles (contextMenu.js:96-107, 546-557). Hosted as real QCheckBoxes
-    // in QWidgetActions (like the point/thickness spinbox rows) so a click flips them
-    // WITHOUT dismissing the menu — the browser's context menu likewise keeps its inline
-    // checkboxes/sliders live — and so they render as checkboxes, not the action's icon.
-    // Per-row visibility is backed by the MainWindow booleans (consumed in onHoverDetail).
-    // Enable toggle: drives settings_.tooltipEnabled and mirrors the View-menu actTooltip_.
+    // contextMenu.js:96-107, 546-557. Real QCheckBoxes in QWidgetActions so a click flips them WITHOUT dismissing the menu.
+    // The enable toggle mirrors the View-menu actTooltip_.
     addContextCheckRow("Show Tooltips", settings_.tooltipEnabled, tooltipEnableCheck_, actTooltipEnable_);
     connect(tooltipEnableCheck_, &QCheckBox::toggled, this, [this](bool on) {
       settings_.tooltipEnabled = on;
@@ -69,16 +60,14 @@ namespace stencil::gui {
       else if (!QApplication::activePopupWidget())
         onHovered(lastHoverX_, lastHoverY_);  // re-show at the current hover (not while the menu's up)
     });
-    // The three per-row toggles write straight into settings_ (the source of truth), persist,
-    // and refresh the live tooltip. Binding `backing` to the settings_ field keeps them in sync.
+    // Binding `backing` to the settings_ field keeps the toggles in sync with the source of truth.
     auto mkRowToggle = [this](const QString& text, bool& backing,
                                            QCheckBox*& box, QWidgetAction*& act) {
       addContextCheckRow(text, backing, box, act);
       connect(box, &QCheckBox::toggled, this, [this, &backing](bool on) {
         backing = on;
         persistSettings();
-        // Don't refresh the live tooltip while the context menu is up — showing that top-level
-        // tooltip window would steal the popup's grab and dismiss the menu.
+        // Showing the tooltip window while the menu is up would steal the popup's grab and dismiss it.
         if (!QApplication::activePopupWidget()) onHovered(lastHoverX_, lastHoverY_);
       });
     };
@@ -86,10 +75,7 @@ namespace stencil::gui {
     mkRowToggle("Screen (px)", settings_.tooltipShowScreen, ttScreenCheck_, actTtScreen_);
     mkRowToggle("To Edge (cm)", settings_.tooltipShowCoords, ttCoordsCheck_, actTtCoords_);
 
-    // Transformation submenu formula controls (contextMenu.js:84-100): an "Allow Formulas"
-    // checkbox and x(x)/y(y) inputs, hosted so the submenu stays open. They are twins of the
-    // toolbar formula widgets — edits here drive those (setChecked/setText), so the existing
-    // validate/apply/persist/co-edit-push pipeline runs unchanged. Seeded in syncContextActions.
+    // contextMenu.js:84-100. Twins of the toolbar formula widgets — edits here drive those, so the validate/apply/persist pipeline runs unchanged.
     addContextCheckRow("Allow Formulas", settings_.allowFormulas, ctxAllowFormulas_, ctxAllowFormulasAct_);
     connect(ctxAllowFormulas_, &QCheckBox::toggled, this, [this](bool on) {
       allowFormulas_->setChecked(on);   // the canonical toolbar handler does settings/persist/apply
@@ -109,8 +95,7 @@ namespace stencil::gui {
     };
     mkFormulaRow("x(x)=", "e.g. x + 9", ctxFormulaX_, ctxFormulaXAct_);
     mkFormulaRow("y(y)=", "e.g. (y-7)*4", ctxFormulaY_, ctxFormulaYAct_);
-    // Mirror context edits into the canonical toolbar inputs (guarded to avoid a feedback loop),
-    // which fires validateAndApplyFormulas() with its inline error + persistence.
+    // Mirror into the canonical toolbar inputs (guarded against a feedback loop).
     connect(ctxFormulaX_, &QLineEdit::textChanged, this, [this](const QString& t) {
       if (formulaX_->text() != t) formulaX_->setText(t);
     });
@@ -120,9 +105,7 @@ namespace stencil::gui {
   }
 
   void MainWindow::buildUnitActions() {
-    // Units (View ▸ Units): cm | inches, exclusive, persisted in settings_.
-    // Switching re-renders every length readout (status bar, tooltip, selection
-    // panel) and the custom page spinboxes, which stay backed by cm internally.
+    // Units: cm | inches; the custom page spinboxes stay backed by cm internally.
     auto* unitGroup = new QActionGroup(this);
     unitGroup->setExclusive(true);
     auto mkUnit = [this, unitGroup](const QString& text, const QString& code) {
@@ -139,10 +122,7 @@ namespace stencil::gui {
     units_.unitIn = mkUnit("Inches (in)", "in");
   }
 
-  // The rendered preview image for one export-variant QAction — maps the action
-  // pointer to its variant string. Shared by the context menu's nested submenus and
-  // the toolbar popups (wireExportPreviewHover uses it for every Alt-hover). Null
-  // (and QImage::isNull()) for any action that isn't one of ours.
+  // The rendered preview for one export-variant QAction; null for any action that isn't one of ours.
   QImage MainWindow::exportVariantPreviewImage(QAction* act) const {
     struct Spec { QAction* action; const char* variant; };
     const Spec specs[] = {
@@ -162,11 +142,8 @@ namespace stencil::gui {
     return QImage();
   }
 
-  // One export-variant menu, identical on every surface: "With Compare" leads (visible
-  // only while comparing — syncSplitCopyDownloadSlot toggles it), then "Current"'s OWN
-  // row (hidden with nothing drawn; NOT actCopyImage_/actSaveImage_ themselves, which
-  // stay the toolbar buttons' real actions), then the two fixed variants — Copy lists
-  // Filter Only before Original, Download the reverse (browser exportOptionsMenu.js).
+  // One export-variant menu, identical on every surface: "With Compare" (only while comparing), "Current"'s OWN row,
+  // then the two fixed variants — Copy lists Filter Only before Original, Download the reverse (browser exportOptionsMenu.js).
   void MainWindow::populateExportVariantMenu(QMenu* menu, bool copy) {
     if (copy) {
       menu->addAction(actCopyImageSplit_);

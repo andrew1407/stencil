@@ -13,9 +13,8 @@ namespace stencil::gui {
 
   void fetchUrlBytesAsync(QObject* ctx, const QString& url,
                           std::function<void(QByteArray)> done) {
-    // The URL comes off a SHARED project record, so it is untrusted: the STRICT guard
-    // (loopback included, DNS answers classified), a capped body, no redirect off the
-    // host just cleared. A refusal or any failure lands as empty bytes, as before.
+    // The URL comes off a shared project record, so it is untrusted: the strict guard, a capped
+    // body, no redirect off the host. Failure lands as empty bytes.
     stencil::net::fetchGuard::get(
         ctx, QUrl(url), /*strict=*/true,
         [done = std::move(done)](const QByteArray& b, const QString&) { done(b); }, 10000);

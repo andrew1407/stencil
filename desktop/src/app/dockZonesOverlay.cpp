@@ -15,9 +15,7 @@ namespace stencil::gui {
     constexpr int kZoneNudgePx = 4;    // chevron travel (±px, browser chatZoneNudge)
     constexpr int kZoneNudgeMs = 1400; // full out-and-back cycle (0.7 s each way)
 
-    // Blur by smooth-scaling down and back up — Qt has no backdrop filter, and a
-    // real convolution over the whole dock region would cost more than the wash is
-    // worth. /4 lands close to the browser's blur(2px) at this size.
+    // Blur by smooth-scaling down and up — Qt has no backdrop filter; /4 lands close to the browser's blur(2px).
     QPixmap blurred(const QPixmap& src) {
       const QSize small = src.size() / 4;
       if (small.isEmpty()) return src;
@@ -47,8 +45,7 @@ namespace stencil::gui {
     watchdog_ = new QTimer(this);
     watchdog_->setInterval(120);
     connect(watchdog_, &QTimer::timeout, this, [this] {
-      // Fail-safe: the overlay exists only while the drag poll runs — it can
-      // never linger after a release, whatever events got swallowed.
+      // Fail-safe: the overlay can never linger after a release, whatever events got swallowed.
       if (stillDragging_ && !stillDragging_()) hide();
     });
     hide();
@@ -119,7 +116,6 @@ namespace stencil::gui {
     for (int i = 0; i < 4; ++i) {
       const bool hot = i == hover_;
       const QRect z = zoneRect(i);
-      // Blurred page under the band first, then the tint over it.
       if (!backdrop_.isNull()) {
         QPainterPath clip;
         clip.addRoundedRect(z, 10, 10);
@@ -139,8 +135,7 @@ namespace stencil::gui {
     }
   }
 
-  // NON-overlapping bands: top/bottom span the width; left/right fill the
-  // space BETWEEN them (no corner intersections).
+  // NON-overlapping: top/bottom span the width; left/right fill the space BETWEEN them.
   QRect DockZonesOverlay::zoneRect(int i) const {
     const QRect r = rect().adjusted(kZoneInset, kZoneInset, -kZoneInset, -kZoneInset);
     const int vTop = r.top() + kZoneBand + kZoneInset;
@@ -156,7 +151,6 @@ namespace stencil::gui {
   void DockZonesOverlay::drawChevron(QPainter& p, int i, const QRect& z, bool hot) {
     QPoint ctr = z.center();
     const int a = 7;  // chevron arm
-    // Continuous nudge toward the zone's edge (±kZoneNudgePx, animated).
     const int off = qRound(nudge_);
     QPoint pts[3];
     switch (i) {
@@ -181,7 +175,6 @@ namespace stencil::gui {
         pts[2] = {ctr.x() + a, ctr.y() - a};
         break;
     }
-    // Subtle dark halo under the accent stroke for legibility.
     p.setBrush(Qt::NoBrush);
     p.setPen(QPen(QColor(0, 0, 0, 90), 4.5, Qt::SolidLine, Qt::RoundCap,
                   Qt::RoundJoin));

@@ -8,24 +8,18 @@ class QAbstractButton;
 
 namespace stencil::gui {
 
-  // A QMenu whose hosted checkbox/radio rows toggle WITHOUT closing the menu
-  // (browser parity: the inline controls stay live). QMenu's own release handler
-  // closes the popup over a QWidgetAction, so hosted-button clicks are intercepted.
+  // A QMenu whose hosted rows toggle without closing (browser parity); QMenu's release handler
+  // closes over a QWidgetAction, so clicks are intercepted.
   class StayOpenMenu : public QMenu {
     Q_OBJECT
    public:
-    // Own constructors (not `using QMenu::QMenu;`) so every instance gets
-    // WA_TranslucentBackground: theme.cpp styles QMenu with a rounded
-    // border-radius, and without true window transparency a native popup's own
-    // opaque backing paints through as square black wedges outside that rounded
-    // shape — reading as a colder, blacker menu than the browser's DOM-rendered
-    // (already-composited) rounded div ever shows.
+    // Own constructors so every instance gets WA_TranslucentBackground: theme.cpp rounds QMenu,
+    // and an opaque native backing paints black wedges outside it.
     explicit StayOpenMenu(QWidget* parent = nullptr);
     explicit StayOpenMenu(const QString& title, QWidget* parent = nullptr);
 
-    // Register a hosted widget with LIVE keyboard + mouse input (the assistant
-    // chat row): real events are re-dispatched to the child under the cursor,
-    // and keys (except Escape) go to `keyTarget` while it holds focus.
+    // Live input for a hosted widget (the chat row): events re-dispatch to the child under the
+    // cursor, keys (except Escape) go to `keyTarget`.
     void setInteractiveArea(QWidget* area, QWidget* keyTarget);
     QList<QWidget*> tabStops() const;   // hosted focusable controls, in row order
 
@@ -53,7 +47,6 @@ namespace stencil::gui {
     void mouseReleaseEvent(QMouseEvent* e) override;
 
    private:
-    // Scoped true-while-alive flag for the re-dispatch guards.
     struct Latch {
       bool& flag;
       explicit Latch(bool& f) : flag(f) { flag = true; }

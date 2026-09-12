@@ -15,7 +15,6 @@ namespace stencil::gui {
                                             const bool* remotePushing, Hooks hooks)
       : QObject(parent), session_(session), remoteReloading_(remoteReloading),
         remotePushing_(remotePushing), h_(std::move(hooks)) {
-    // Live co-edit: debounced push of local edits + periodic poll for peer changes.
     pushTimer_ = new QTimer(this);
     pushTimer_->setSingleShot(true);
     connect(pushTimer_, &QTimer::timeout, this, [this] {
@@ -25,24 +24,21 @@ namespace stencil::gui {
     pollTimer_ = new QTimer(this);
     pollTimer_->setInterval(2000);   // backstop behind the live push feed
     connect(pollTimer_, &QTimer::timeout, this, [this] { pollRemoteForUpdate(); });
-    // Coalesce a burst of live-feed events into one reload, and run it off the socket read slot
-    // (openServerProject is async, so firing from a timer keeps it off the read slot and lets a
-    // burst coalesce). Re-checked against the remote version at fire time.
+    // Coalesce a burst of live-feed events into one reload, off the socket read slot; re-checked
+    // against the remote version at fire time.
     reloadTimer_ = new QTimer(this);
     reloadTimer_->setSingleShot(true);
     connect(reloadTimer_, &QTimer::timeout, this, [this] {
       if (session_->address().isEmpty() || session_->id().isEmpty()) return;
       if (!h_.syncToServer()) return;
-      // A reload is still in flight (async): wait it out, then converge. openServerProject holds
-      // remoteReloading_ true for its whole async lifetime, so we can't run a second reload on top;
-      // keep the pending flag and re-poll shortly — when the flag clears this timer reloads the
-      // latest.
+      // openServerProject holds remoteReloading_ for its whole async lifetime; keep the pending
+      // flag and re-poll until it clears.
       if (*remoteReloading_) {
         if (reloadPending_) reloadTimer_->start(50);
         return;
       }
-      // A local edit is pending/in-flight — don't clobber it; retry shortly (our push wins
-      // last-writer-wins, then we reload the merged result).
+      // A local edit is in flight: our push wins last-writer-wins, then we reload the merged
+      // result.
       if (*remotePushing_ || (pushTimer_ && pushTimer_->isActive())) {
         reloadPending_ = true;
         reloadTimer_->start(150);
@@ -50,17 +46,14 @@ namespace stencil::gui {
       }
       if (!reloadPending_) return;   // nothing queued → nothing to do
       reloadPending_ = false;
-      // Async reload of the linked project. An event that lands while it's in flight re-arms this
-      // timer (onRemoteProjectEvent) or trips the in-flight branch above, so we converge afterward.
+      // An event landing mid-reload re-arms this timer, so we converge afterward.
       h_.openServerProject(session_->address(), session_->id(), /*silent=*/true);
     });
   }
 
   void RemoteSyncController::scheduleRemotePush() {
-    // Sync off → a fetched project is edit-in-memory only: never auto-push to peers.
     if (h_.incognito() || *remoteReloading_ || session_->address().isEmpty() || !h_.syncToServer()) return;
-    // Trailing debounce (coalesce a burst of edits into one save) capped by a max-wait, so
-    // continuous editing still flushes to peers every ~1.5s instead of starving until a pause.
+    // Trailing debounce capped by a max-wait, so continuous editing still flushes every ~1.5s.
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
     if (pushBurstStart_ == 0) pushBurstStart_ = now;
     const int wait = std::clamp<int>(1500 - static_cast<int>(now - pushBurstStart_), 0, 350);
@@ -69,8 +62,7 @@ namespace stencil::gui {
 
   void RemoteSyncController::startRemotePoll() {
     if (pollTimer_ && !session_->address().isEmpty()) pollTimer_->start();
-    // Subscribe the live push feed so peer edits arrive in tens of ms; the poll above is
-    // now just a backstop (https servers / a dropped socket).
+    // The poll is a backstop for https servers / a dropped socket.
     ensureLiveFeed();
   }
 
@@ -80,9 +72,7 @@ namespace stencil::gui {
     if (liveFeed_) liveFeed_->unsubscribe();
   }
 
-  // Lazily build the push feed and (re)point it at the active server, authenticating with that
-  // connection's token. A no-op when the session isn't server-linked or the server isn't
-  // connected. subscribe() is idempotent for the same origin (token refresh only).
+  // No-op unless server-linked and connected; subscribe() is idempotent for the same origin.
   void RemoteSyncController::ensureLiveFeed() {
     const QString addr = session_->address();
     if (addr.isEmpty()) return;
@@ -97,16 +87,13 @@ namespace stencil::gui {
     liveFeed_->subscribe(addr, c->token());
   }
 
-  // A live-feed push frame arrived. Reload (debounced) when it's a genuine peer change to the
-  // project we're editing — newer version, not our own echo, not mid-push. Mirrors the browser's
-  // onServerProjectEvent + shouldReloadFromEvent guards; the actual reload runs from the reload
-  // timer so it lands off this slot and coalesces a burst.
+  // Mirrors the browser's onServerProjectEvent + shouldReloadFromEvent guards; the reload runs
+  // from the timer so a burst coalesces.
   void RemoteSyncController::onRemoteProjectEvent(const QString& id, qint64 version, bool deleted) {
     if (session_->address().isEmpty() || session_->id().isEmpty()) return;
     if (id != session_->id()) return;
-    // The linked project was deleted (by a peer, or this app's own projects dialog): the
-    // link is dead — detach fully, or the golden server frame outlives the project.
-    // Independent of the sync toggle: there is nothing left to sync with.
+    // The linked project was deleted: detach fully, sync toggle or not, or the golden frame
+    // outlives it.
     if (deleted) {
       stopRemotePoll();
       if (h_.serverProjectDeleted) h_.serverProjectDeleted();
@@ -114,17 +101,14 @@ namespace stencil::gui {
     }
     if (!h_.syncToServer()) return;
     if (version <= session_->version()) return;  // our own save echo, or stale
-    // Queue a reload and (re)arm the coalescing timer. Setting reloadPending_ here (rather than
-    // only in the timer) means an event arriving while an async reload is in flight is remembered:
-    // the timer's in-flight branch keeps polling until the reload clears, then converges to the
-    // latest. The timer slot re-checks the reload/push guards at fire time.
+    // reloadPending_ is set here, not only in the timer, so an event arriving mid-reload is
+    // remembered.
     reloadPending_ = true;
     if (reloadTimer_) reloadTimer_->start(40);
   }
 
-  // One poll tick: if a peer bumped the linked project's version, reload the canvas. Skipped
-  // while a local edit is pending/in-flight so we never clobber the user's work or reload our
-  // own change.
+  // Skipped while a local edit is pending, so we never clobber the user's work or reload our own
+  // change.
   void RemoteSyncController::pollRemoteForUpdate() {
     const QString addr = session_->address();
     const QString id = session_->id();
@@ -138,8 +122,8 @@ namespace stencil::gui {
     c->getProjectAsync(id, [this, self, addr, id](bool ok, stencil::net::ServerProject meta,
                                                   QJsonObject) {
       if (!self || !ok) return;
-      // Re-check at completion time: the session may have changed, or a local push may have
-      // started while the GET was in flight (don't clobber the user's work with a stale pull).
+      // Re-check at completion: the session may have changed or a push started while the GET was
+      // in flight.
       if (session_->address() != addr || session_->id() != id) return;
       if (*remotePushing_ || (pushTimer_ && pushTimer_->isActive())) return;
       if (meta.version > session_->version())

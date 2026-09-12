@@ -30,11 +30,8 @@
 
 namespace stencil::gui {
 
-  // "Open in…" — mirror the current session into the browser app or the Telegram
-  // bot. A server-linked session sends only the server reference (the receiver
-  // connects like a fresh client — no token in any link); a local/incognito session
-  // embeds the image + full layout inline in the browser fragment. Telegram is
-  // server-projects-only (image bytes can't ride a 64-char start payload).
+  // "Open in…": a server-linked session sends only the server reference (no token in any link); a local session embeds
+  // image + layout in the browser fragment. Telegram is server-projects-only (a 64-char start payload).
   void MainWindow::openInAnotherApp() {
     if (!canvas_->hasImage()) {
       notify_->error("Load an image first");
@@ -45,7 +42,7 @@ namespace stencil::gui {
     const bool browserAvailable = !settings_.browserBaseUrl.trimmed().isEmpty();
     const bool telegramAvailable = !botUsername.isEmpty() && serverProject;
     if (!browserAvailable && !telegramAvailable) {
-      // Shouldn't happen (actOpenIn_ is hidden when nothing's available), but guard.
+      // Guard (actOpenIn_ is hidden when nothing's available).
       notify_->info("Nothing to open into — set a browser URL in Settings "
                     "(or a Telegram bot for server projects).");
       return;
@@ -69,9 +66,7 @@ namespace stencil::gui {
                    [this](OpenInDialog& dlg) { return execMaybePopover(dlg); });
   }
 
-  // The hand-off itself, whichever side gathered the material: the dialog, the Telegram
-  // branch, the #stencil= payload and the size gates. `run` shows the dialog — the live
-  // session opens it as a popover off the toolbar, a projects row flies it out of the row.
+  // The hand-off itself; `run` shows the dialog as a popover off the toolbar, or out of a projects row.
   void MainWindow::dispatchOpenIn(const OpenInSource& src, bool browserAvailable,
                                   bool telegramAvailable,
                                   const std::function<int(OpenInDialog&)>& run) {
@@ -79,8 +74,7 @@ namespace stencil::gui {
     const bool serverProject = !src.serverUrl.isEmpty() && !src.serverId.isEmpty();
     OpenInDialog dlg(this, serverProject, src.serverUrl, browserAvailable, telegramAvailable,
                      src.startIncognito, src.serverId);
-    // The 64-char overflow (very long host) stays IN the dialog — the browser's
-    // fallback row with the two bot commands — while the bot chat opens alongside.
+    // The 64-char overflow stays IN the dialog (the browser's fallback row) while the bot chat opens alongside.
     connect(&dlg, &OpenInDialog::telegramFallback, this, [botUsername] {
       QDesktopServices::openUrl(QUrl(QStringLiteral("https://t.me/") + botUsername));
     });
@@ -101,7 +95,6 @@ namespace stencil::gui {
       return;
     }
 
-    // Browser app.
     QJsonObject payload;
     if (serverProject) {
       QJsonObject server;
@@ -125,8 +118,7 @@ namespace stencil::gui {
 
     const QString url =
         deepLink::buildBrowserLaunchUrl(settings_.browserBaseUrl, payload);
-    // Inline hand-offs ride the OS launcher's argv, which tolerates far less than an
-    // in-page URL: refuse absurd payloads, warn on large ones (server links stay tiny).
+    // The OS launcher's argv tolerates far less than an in-page URL: refuse absurd payloads, warn on large ones.
     if (!serverProject && url.size() > 1000000) {
       notify_->error(
           "Image too large to hand off inline — save it to a server and share the server link");
@@ -137,10 +129,7 @@ namespace stencil::gui {
     QDesktopServices::openUrl(QUrl(url));
   }
 
-  // The projects list's per-row hand-off (browser parity: projectsModal.js). The open
-  // project keeps the live path, unsaved edits and all; any other row is read from what is
-  // saved. The session's filter and page settings ride along, because a project does not
-  // persist its own — the same approximation made when reopening it.
+  // The projects list's per-row hand-off (browser projectsModal.js); the session's filter and page ride along since a project does not persist them.
   void MainWindow::openInAnotherAppFor(const QString& id, const QString& serverUrl,
                                       const QRect& closeRect) {
     const bool browserAvailable = !settings_.browserBaseUrl.trimmed().isEmpty();
@@ -151,7 +140,6 @@ namespace stencil::gui {
                     "(or a Telegram bot for server projects).");
       return;
     }
-    // The open project: hand over what is on the canvas, unsaved edits and all.
     if (!serverProject && id == activeProjectId_ && canvas_->hasImage()) {
       openInAnotherApp();
       return;
@@ -166,9 +154,7 @@ namespace stencil::gui {
       src.name = support::shortName(QString::fromStdString(pr->meta.name));
       src.source = QString::fromStdString(pr->meta.source);
       src.resource = QString::fromStdString(pr->meta.resource);
-      // The ORIGINAL bytes: lines, crop and rotation travel in the layout, exactly as the
-      // live path sends canvas_->originalImage(). A blank project has no file — it is its
-      // fill (buildProjectThumbs restores the same way).
+      // The ORIGINAL bytes: lines, crop and rotation travel in the layout. A blank project has no file — it is its fill.
       if (!pr->imagePath.isEmpty()) {
         src.image = QImage(pr->imagePath);
       } else if (pr->meta.blank && pr->meta.imageW > 0 && pr->meta.imageH > 0) {

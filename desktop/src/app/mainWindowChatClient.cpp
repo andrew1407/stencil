@@ -43,17 +43,14 @@
 
 namespace stencil::gui {
 
-  // AI assistant (llm-contract.md)
-  // Chat glue: history + attachments (§7), the LlmClient call, and op-plan
-  // execution against the live editor through ChatPlanTarget (chatPlanTarget.cpp).
+  // AI assistant glue (llm-contract.md): history + attachments (§7), the LlmClient call, op-plan execution via ChatPlanTarget.
 
 
   void MainWindow::ensureLlmClient() {
     if (llmClient_) return;
     llmTransport_ = new llm::QtLlmTransport(this);
     llmClient_ = std::make_unique<llm::LlmClient>(llmTransport_);
-    // Prefer the LIVE connection's token (it may have been re-issued since the
-    // save); fall back to the persisted one (llmClient's default behaviour).
+    // Prefer the LIVE connection's token (it may have been re-issued); fall back to the persisted one.
     llmClient_->setServerTokenResolver([this](const QString& url) -> QString {
       if (connections_)
         if (auto* c = connections_->find(url)) return c->token();
@@ -69,8 +66,7 @@ namespace stencil::gui {
     cfg.model = settings_.llmModel;
     cfg.apiKey = settings_.llmApiKey;
     cfg.serverUrl = settings_.llmServerUrl;
-    // Contract §5 default: an empty serverUrl means the first configured
-    // connection — live ones first, then the saved set.
+    // Contract §5: an empty serverUrl means the first configured connection — live first, then saved.
     if (cfg.provider == QLatin1String("stencil-server") && cfg.serverUrl.isEmpty()) {
       if (connections_ && !connections_->urls().isEmpty()) {
         cfg.serverUrl = connections_->urls().first();
@@ -87,9 +83,7 @@ namespace stencil::gui {
     if (!chatDock_) return;
     const llm::LlmSettings cfg = currentLlmSettings();
     const QString clickHint = QStringLiteral("Click to configure the assistant");
-    // Local-only "assistant off" (contract §5 note): nothing is probed or sent
-    // anywhere; the gear table shows only the Provider + Status rows (browser
-    // gearStatusRows parity for the off state).
+    // "assistant off" (§5): nothing probed or sent; only the Provider + Status rows (browser gearStatusRows parity).
     if (cfg.provider == QLatin1String("none")) {
       const QString rows =
           tipRow(QStringLiteral("Provider"), tipValue(QStringLiteral("None (turned off)"))) +
@@ -116,10 +110,7 @@ namespace stencil::gui {
       endpoint.remove(0, 8);
     else if (endpoint.startsWith(QLatin1String("http://"), Qt::CaseInsensitive))
       endpoint.remove(0, 7);
-    // Rich tooltip on the dock's gear + status dot: a table of
-    // Provider / Endpoint / Model / Status rows with the status cell coloured
-    // by state, then the footer lines — the desktop rendering of the browser's
-    // gearStatusRows / gearTipFootText (chatPanel.js).
+    // The desktop rendering of the browser's gearStatusRows / gearTipFootText (chatPanel.js).
     const auto tooltip = [provider, endpoint](const QString& model, const QString& statusHtml,
                                               const QStringList& foot) {
       QString rows = tipRow(QStringLiteral("Provider"), tipValue(provider));
@@ -133,8 +124,7 @@ namespace stencil::gui {
         tipColored(kTipConnectingColor, QStringLiteral("Checking the configured LLM…"));
     chatMirrorProviderStatus(tooltip(cfg.model, checking, {clickHint}),
                              ChatDock::ProviderStatus::Unknown);
-    // Probe only while SOMETHING shows the result: the dock, or the context
-    // menu's assistant panel (which carries the same gear + dot).
+    // Probe only while SOMETHING shows the result.
     if (!chatDock_->isVisible() && !chatMenuPanel_) return;
     ensureLlmClient();
     QPointer<MainWindow> self(this);
@@ -164,10 +154,7 @@ namespace stencil::gui {
                                      r.ok ? ChatDock::ProviderStatus::Ok
                                           : ChatDock::ProviderStatus::Unreachable);
     };
-    // Reuse the last probe within a short TTL (browser chatSession
-    // cacheProbe/cachedProbe parity): the menu gear and the dock dot share one
-    // result instead of an HTTP probe on every right-click. Keyed by the
-    // effective settings, so a config change misses the cache and re-probes.
+    // Probe cache within a TTL (browser chatSession cacheProbe parity), keyed by the effective settings.
     const QString probeKey =
         QStringList{cfg.provider, cfg.baseUrl, cfg.model, cfg.serverUrl}
             .join(QLatin1Char('|'));
@@ -187,7 +174,7 @@ namespace stencil::gui {
 
 
   QString MainWindow::chatSystemSuffix() const {
-    // Wording from the prompt canon (llm/systemPrompt.json contextSuffix*), %1/%2 and all.
+    // Wording from llm/systemPrompt.json contextSuffix*.
     const auto tpl = [](const char* key) { return llm::promptText(QLatin1String(key)); };
     QStringList parts;
     parts << (canvas_->hasImage() ? tpl("contextSuffixImage")
@@ -201,19 +188,14 @@ namespace stencil::gui {
   }
 
   QVector<llm::ChatMessage> MainWindow::wireChatMessages() const {
-    // Bound to the most recent 32 (chatHistory_ is already trimmed on append)
-    // and apply the image replay rule: the current turn (last message) keeps
-    // its images; among the earlier ones only the single most recent image
-    // survives; everything else is replayed text-only (contract §7).
+    // The most recent 32, with the §7 image replay rule: the current turn keeps its images, one earlier image survives.
     QVector<llm::ChatMessage> wire = chatHistory_;
     trimPriorImages(wire, wire.size() - 1);
     return wire;
   }
 
   void MainWindow::pushChatHistory(const llm::ChatMessage& m) {
-    // Drop prior images down to what the §7 replay rule would send anyway
-    // (first image of the most recent prior image-bearer, none older) instead
-    // of retaining every turn's base64 payloads. Wire output is unchanged.
+    // Drop prior images to what §7 would send anyway; wire output is unchanged.
     if (!m.images.isEmpty()) trimPriorImages(chatHistory_, chatHistory_.size());
     chatHistory_.append(m);
     while (chatHistory_.size() > kChatHistoryBound) chatHistory_.removeFirst();

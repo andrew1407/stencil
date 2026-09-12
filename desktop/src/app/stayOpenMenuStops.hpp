@@ -7,7 +7,6 @@
 
 namespace stencil::gui {
 
-  // The focusable widgets inside one hosted row, in child order.
   inline QList<QWidget*> stopsIn(QWidget* host) {
     QList<QWidget*> stops;
     QList<QWidget*> candidates = host->findChildren<QWidget*>();
@@ -21,8 +20,7 @@ namespace stencil::gui {
     return stops;
   }
 
-  // A hosted row with nothing to focus — the "IMAGE" / "LINE STYLE" section titles.
-  // Qt's keyboard walk treats one as a row, and the highlight then goes nowhere.
+  // A section title row: Qt's keyboard walk treats it as a row and the highlight goes nowhere.
   inline bool isLabelRow(QAction* a) {
     auto* wa = qobject_cast<QWidgetAction*>(a);
     return wa && wa->defaultWidget() && stopsIn(wa->defaultWidget()).isEmpty();

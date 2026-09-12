@@ -23,22 +23,15 @@
 
 namespace stencil::gui {
 
-  // ONE colour well across every surface: the 46x24 this app's toolbar already used, which
-  // the browser and extension now match too (browser css/layout.css input[type="color"]).
-  // A well as tall as the text fields beside it made the colour the loudest thing in the row.
+  // One 46x24 colour well across every surface (browser css/layout.css input[type="color"]).
 
   SelectedLineBar::SelectedLineBar(QWidget* parent) : QWidget(parent) {
     setObjectName("selectedLineBar");
 
-    // The dock stretches THIS widget to the window's full width, but the amber box
-    // itself must sit inset from all four edges with its border fully visible on
-    // every side — browser #selection-panel parity, not the flush/border-bottom-only
-    // treatment the other toolbar-style bars use. So this outer widget stays a plain,
-    // unstyled strip; a separate "card" child carries the border/radius/background and
-    // is what the outer margins below inset.
+    // The dock stretches this widget full-width; a separate card child carries the
+    // border/radius/background, inset by the margins (browser #selection-panel).
     auto* outer = new QVBoxLayout(this);
-    // Bottom inset halved (10 -> 5): the gap down to the Image Size bar below it read as
-    // twice what the browser's own #selection-panel -> #image-info gap does.
+    // Bottom inset 5, or the gap to the Image Size bar doubles the browser's.
     outer->setContentsMargins(12, 8, 12, 5);
     outer->setSpacing(0);
 
@@ -47,14 +40,12 @@ namespace stencil::gui {
     card_->setAttribute(Qt::WA_StyledBackground, true);
     outer->addWidget(card_);
 
-    // FlowLayout, not QHBoxLayout: the browser's row wraps rather than clip at a narrow
-    // width, and this wraps the same way, growing its own height to fit. Margins match
-    // #selection-panel's padding (10px 15px); spacings are its flex gaps (12px).
+    // FlowLayout: the browser's row wraps. Margins are #selection-panel's padding (10px 15px),
+    // spacings its gaps (12px).
     auto* flow = new FlowLayout(card_, 0, 12, 12);
     flow->setContentsMargins(15, 10, 15, 10);
 
-    // The bar's parts, told apart by a hairline in its own amber rather than by spacing
-    // alone — the browser's .sel-sep, in the same three places.
+    // The browser's .sel-sep, in the same three places.
     auto addSeparator = [&]() -> QFrame* {
       auto* sep = new QFrame(card_);
       sep->setObjectName("selectedLineSep");
@@ -70,8 +61,7 @@ namespace stencil::gui {
     flow->addWidget(label);
     addSeparator();
 
-    // Each field is its OWN label+control pair, wrapped as one unit — so the flow
-    // never splits a label onto one line and its control onto the next.
+    // Each label+control pair wraps as one unit.
     auto addField = [&](const QString& text, QWidget* control) {
       auto* group = new QWidget(card_);
       auto* pair = new QHBoxLayout(group);
@@ -92,7 +82,6 @@ namespace stencil::gui {
     setColorSwatch(colorSwatch_, currentColor_);
     addField("Line Color:", colorSwatch_);
 
-    // selPointColor — the point colour, set independently of the stroke.
     pointColorSwatch_ = new QPushButton(card_);
     setColorSwatch(pointColorSwatch_, currentPointColor_);
     addField("Point Color:", pointColorSwatch_);
@@ -121,8 +110,7 @@ namespace stencil::gui {
     addField("Style:", style_);
 
     fillSep_ = addSeparator();   // hidden with the group it introduces (see showLine)
-    // selFillGroup — locked-area fill, hidden unless line.locked
-    // (selectionPanel.js:29-33; drawingApp.js:1550-1560).
+    // selFillGroup — hidden unless line.locked (selectionPanel.js:29-33).
     fillGroup_ = new QWidget(card_);
     auto* fillRow = new QHBoxLayout(fillGroup_);
     fillRow->setContentsMargins(0, 0, 0, 0);
@@ -132,26 +120,17 @@ namespace stencil::gui {
     setColorSwatch(fillSwatch_, currentFill_);
     fillClear_ = new QPushButton(fillGroup_);  // selFillClear (x icon)
     fillClear_->setObjectName("selectedLineFillClear");
-    // Same words as the browser's #sel-fill-clear title and the same small glyph
-    // (restyleIcons). One line: the heading's "term — description" renders as a title plus
-    // a muted subtitle, where a second line would come out as a bullet of one.
+    // Browser's #sel-fill-clear title; one line, because a second renders as a bullet of one.
     fillClear_->setToolTip("Clear fill — make the area transparent again");
-    // The pixmap is 11px, but a button's icon BOX defaults to the style's 16 and scales it
-    // back up — the glyph stayed big however small the icon was drawn. Pin the box too.
+    // A button's icon box defaults to 16 and scales an 11px pixmap back up — pin the box too.
     fillClear_->setIconSize(QSize(13, 13));
-    // selUnchain — the way back OUT of an area, in the same group: it shows exactly when
-    // a line is closed, which is exactly when unchaining means anything (browser
-    // selectionPanel.js #sel-unchain).
+    // selUnchain shows exactly when a line is closed (browser selectionPanel.js #sel-unchain).
     unchainBtn_ = new QPushButton("Unchain", fillGroup_);
     unchainBtn_->setObjectName("selectedLineUnchain");
-    // Icon + label, like the browser's #sel-unchain (a `link` glyph beside the word) and
-    // like this bar's own Deselect — the icon itself is themed in restyleIcons.
     unchainBtn_->setIconSize(QSize(13, 13));
     unchainBtn_->setToolTip("Unchain area\nBreak the closed shape back into an open line.\n"
                             "Alt+Ctrl+drag on the line does the same, at the spot you pull.");
-    // No on/off tick: the fill IS a colour with an alpha, and 0 is what "none" means
-    // (browser selectionPanel.js applyFill). Just the label, its well and the clear
-    // button, so the label takes the colon every other field in this bar has.
+    // No on/off tick: the fill is a colour with an alpha, 0 means "none" (browser applyFill).
     auto* fillWord = new QLabel("Fill:", fillGroup_);
     fillWord->setObjectName("selectedLineFieldLabel");
     fillRow->addWidget(fillWord);
@@ -160,20 +139,16 @@ namespace stencil::gui {
     fillRow->addWidget(unchainBtn_);
     fillField_ = addField(QString(), fillGroup_);
 
-    // selDeselect (drawingApp.js:195 deselectLine) — the bar's own amber-accented CTA,
-    // browser parity (.deselect-btn): no "Delete Line" here, that stays a global action
-    // (Alt+Delete / the Lines tab's own row 🗑), matching the browser bar exactly.
+    // selDeselect (browser .deselect-btn); Delete Line stays a global action, as in the browser.
     addSeparator();
     deselectBtn_ = new QPushButton("Deselect", card_);
     deselectBtn_->setObjectName("selectedLineDeselect");
     flow->addWidget(deselectBtn_);
 
-    // wiring — each lambda early-returns while showLine is repopulating the
-    // controls (updating_), matching the browser which guards via selectedLineIdx.
-    // Every colour well in the bar behaves the same: the line follows the picker as it is
-    // dragged (Cancel is handed the original back by pickColorAnimated, so only the
-    // accepted value lands here), and the swatch tracks it either way. `emit` is the one
-    // difference — it takes the css value and whether this is still a preview.
+    // Each lambda early-returns while showLine repopulates (updating_), the browser's
+    // selectedLineIdx guard.
+    // The line follows the picker as it is dragged; Cancel hands the original back through
+    // pickColorAnimated.
     const auto wireColorWell = [this](QPushButton* well, QColor& current, const char* title,
                                       std::function<void(const QString&, bool)> send) {
       connect(well, &QPushButton::clicked, this, [this, well, &current, title, send] {
@@ -201,9 +176,8 @@ namespace stencil::gui {
     connect(style_, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) {
       if (!updating_) emit lineStyleChanged(style_->currentData().toString());
     });
-    // …and the fill is the same well with one extra rule: picking a colour on an UNFILLED
-    // area must also lift it off zero alpha, or the choice would apply invisibly (browser
-    // controlsBinder: the same nudge to 255).
+    // Picking a colour on an unfilled area also lifts it off zero alpha (browser controlsBinder:
+    // the nudge to 255).
     wireColorWell(fillSwatch_, currentFill_, "Area fill color",
                   [this](const QString& v, bool preview) {
                     if (!preview && currentFill_.alpha() == 0) {
@@ -225,8 +199,8 @@ namespace stencil::gui {
       if (!updating_) emit deselectRequested();
     });
 
-    // Polish up front: Qt polishes lazily (first show), so the still-hidden card's
-    // FlowLayout would centre rows against pre-QSS sizeHints and never re-align.
+    // Qt polishes lazily, and the hidden card's FlowLayout would centre rows against pre-QSS
+    // sizeHints.
     for (QWidget* w : card_->findChildren<QWidget*>()) w->ensurePolished();
 
     restyleIcons(QColor("#ffffff"));  // fillClear icon; deselect gets its own fixed white

@@ -9,11 +9,8 @@ class QWidget;
 
 namespace stencil::gui {
 
-  // The page-format and display-unit group: the format combo, the custom W×H inputs and
-  // the two places the cm/in switch appears (the toolbar combo and the View menu pair).
-  // The widgets are built by the toolbar; what lives here besides them is the arithmetic
-  // every length readout shares with browser/js/core/units.js. Core-free by design — the
-  // page metrics themselves stay behind the window's own core calls.
+  // The page-format and display-unit group; the arithmetic shared with browser/js/core/units.js.
+  // Core-free by design.
   class UnitsController {
    public:
     QComboBox* pageSize = nullptr;
@@ -27,20 +24,17 @@ namespace stencil::gui {
     static constexpr double kInchPerCm = 1.0 / 2.54;
 
     static bool isInches(const QString& code) { return code == QLatin1String("in"); }
-    // There are only two codes; anything unrecognised reads as centimetres.
     static QString canonicalUnit(const QString& code) {
       return isInches(code) ? QStringLiteral("in") : QStringLiteral("cm");
     }
-    // Model values are always centimetres; this is what the display multiplies by.
+    // Model values are always centimetres.
     static double factor(const QString& code) { return isInches(code) ? kInchPerCm : 1.0; }
     static const char* label(const QString& code) { return isInches(code) ? "in" : "cm"; }
-    // Inches need the extra digit to carry as much as one centimetre decimal does.
+    // Inches need the extra digit to carry as much as one centimetre decimal.
     static int decimalsFor(const QString& code) { return isInches(code) ? 2 : 1; }
 
-    // Raw per-axis px→cm scale for an image laid on a page box — the scale behind
-    // core::pixelToPageRaw, NOT the formula/pageCoords path, so lengths measured with it
-    // are independent of the display unit and of any coordinate formulas (browser parity:
-    // units.js layoutLineLengthCm). Both axes are 0 when there is nothing to measure.
+    // The scale behind core::pixelToPageRaw, not the formula path, so lengths are unit- and
+    // formula-independent (browser units.js layoutLineLengthCm). 0 when nothing to measure.
     struct Scale {
       double x = 0.0, y = 0.0;
       bool measurable() const { return x > 0.0 && y > 0.0; }

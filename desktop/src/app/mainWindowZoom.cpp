@@ -52,30 +52,23 @@ namespace stencil::gui {
     canvas_->setScale(scale);
     if (syncCombo) {
       const QString pct = QString::number(qRound(scale * 100)) + "%";
-      // setEditText (with NoInsert) only updates the visible text — it never
-      // appends list items, so Ctrl+wheel no longer accumulates entries. Block
-      // signals so reflecting a programmatic zoom doesn't re-trigger setZoom.
+      // setEditText with NoInsert never appends list items; signals blocked so a programmatic zoom
+      // does not re-trigger setZoom.
       QSignalBlocker block(zoom_);
       zoom_->setEditText(pct);
     }
-    // The single debounced persistence path for every zoom route (wheel/hold steps,
-    // fitToWindow, the zoom combo, the fullscreen zoom's final landing) — browser parity,
-    // zoomPan.js's own persistZoom called from this same central setZoom.
+    // The single debounced persistence path for every zoom route (browser zoomPan.js persistZoom).
     scheduleViewSave();
     revealCanvasScrollbars();   // a zoom can grow/shrink the scrollable range — show it
   }
 
-  // Fade both canvas scrollbars in — invisible until an actual pan/zoom, never just from
-  // hovering the canvas — and (re)start the idle timer that fades them back out.
+  // Invisible until an actual pan/zoom, never from hovering.
   void MainWindow::revealCanvasScrollbars() {
-    // A zoom resizes canvas_ without necessarily resizing scroll_ itself, so the overlay's
-    // own event-based recompute never sees it — call relayout() directly instead. scroll_ is
-    // always this concrete type (see the ctor); static_cast, not qobject_cast, since the
-    // subclass carries no Q_OBJECT/moc pass (see overlayScrollArea.hpp).
+    // A zoom resizes canvas_ without resizing scroll_, so relayout() directly; static_cast because
+    // the subclass has no Q_OBJECT (overlayScrollArea.hpp).
     if (scroll_) static_cast<OverlayScrollArea*>(scroll_)->relayout();
-    // Already revealed with the hide timer freshly armed: a pan tick fires this twice
-    // (both scrollbars) per frame — skip the opacity writes + timer restart until the
-    // timer has actually burnt some of its fuse.
+    // A pan tick fires this twice per frame (both scrollbars); skip until the timer has burnt some
+    // fuse.
     const bool shown = vScrollOpacity_ && vScrollOpacity_->opacity() >= 1.0
                        && hScrollOpacity_ && hScrollOpacity_->opacity() >= 1.0;
     if (shown && scrollbarHideTimer_ && scrollbarHideTimer_->isActive()
@@ -92,8 +85,7 @@ namespace stencil::gui {
     return static_cast<OverlayScrollArea*>(scroll_)->overlayBar(o);
   }
 
-  // (Re)arms the fade-out timer, unless the pointer is sitting on a bar right now — the
-  // Leave-event branch in eventFilter is what actually calls this once the pointer lifts.
+  // Unless the pointer sits on a bar; eventFilter's Leave branch calls this once it lifts.
   void MainWindow::scheduleScrollbarHide() {
     if (!scrollbarHideTimer_) return;
     if (scrollbarHovered_) { scrollbarHideTimer_->stop(); return; }
@@ -109,7 +101,6 @@ namespace stencil::gui {
   }
 
   void MainWindow::setToolbarsVisible(bool on) {
-    // Reset any leftover animated max-height (a mid-animation state) before showing/hiding.
     for (QToolBar* tb : findChildren<QToolBar*>()) { tb->setMaximumHeight(QWIDGETSIZE_MAX); tb->setVisible(on); }
     positionOverlayArrows();
   }
@@ -117,8 +108,7 @@ namespace stencil::gui {
   void MainWindow::setToolbarsShown(bool show, bool animate) {
     toolbarsShown_ = show;
     refreshStatusHintVisibility();
-    // The header row (Controls pill + project name) always stays — collapse only the tool rows,
-    // mirroring the browser where the header keeps the pill/title while the body hides.
+    // The header row always stays, as the browser's header keeps the pill/title.
     QList<QToolBar*> bars;
     for (QToolBar* b : findChildren<QToolBar*>())
       if (b != headerToolbar_) bars.append(b);
@@ -133,18 +123,16 @@ namespace stencil::gui {
     animateBarsHeight(bars, show);
   }
 
-  // Height slide shared by the pill collapse/expand and the fullscreen edge-hover reveal. Pure geometry
-  // (setFixedHeight pins min==max each frame so QMainWindow's layout can't override it) — no opacity /
-  // graphics effect, which is what keeps it flicker-free through QMainWindow's per-frame relayout.
+  // Pure geometry (setFixedHeight pins min==max each frame so QMainWindow's layout cannot override
+  // it); no opacity effect, so no flicker.
   void MainWindow::animateBarsHeight(const QList<QToolBar*>& bars, bool show) {
     if (bars.isEmpty()) return;
     if (barsAnim_) { barsAnim_->stop(); barsAnim_->deleteLater(); barsAnim_ = nullptr; }
     auto release = [bars] {
       for (QToolBar* b : bars) { b->setMinimumHeight(0); b->setMaximumHeight(QWIDGETSIZE_MAX); }
     };
-    // Natural height each bar expands to. The rows wrap, so it follows the width they are
-    // about to have — and a hidden bar's sizeHint carries the height pinned at the OLD one,
-    // so the show path lets the layout hand them the real width before measuring.
+    // A hidden bar's sizeHint carries the height pinned at the old width, so the show path lets
+    // the layout run before measuring.
     if (show) {
       release();
       for (QToolBar* b : bars) b->show();
@@ -158,9 +146,8 @@ namespace stencil::gui {
     if (full <= 0) full = 40;
     const int from = show ? 0 : (bars.first()->height() > 0 ? bars.first()->height() : full);
     const int to = show ? full : 0;
-    // Dust (barsSurfaceFlight): the rows come apart into motes streaming past the top
-    // edge and gather back out of it. A show has to photograph them at their full height
-    // BEFORE flattening them to zero, so the pin below runs after the flight.
+    // A show has to photograph the rows at full height before flattening them, so the pin below
+    // runs after the flight.
     QPointer<gui::DisintegrateOverlay> dustFx;
     if (show) {
       for (QToolBar* b : bars) { b->setFixedHeight(full); b->show(); }
@@ -185,7 +172,6 @@ namespace stencil::gui {
         });
   }
 
-  // precise scroll + anchored zoom (core/zoomPan math)
   void MainWindow::scrollTo(int x, int y) {
     auto* hb = scroll_->horizontalScrollBar();
     auto* vb = scroll_->verticalScrollBar();
@@ -193,8 +179,8 @@ namespace stencil::gui {
     vb->setValue(std::clamp(y, vb->minimum(), vb->maximum()));
   }
 
-  // Zoom toward a cursor position (viewport coords), keeping the image pixel under
-  // the cursor fixed. Mirrors zoomPan.js zoomToward via core::anchoredZoom.
+  // Keeps the image pixel under the cursor fixed; mirrors zoomPan.js zoomToward via
+  // core::anchoredZoom.
   void MainWindow::setZoomAnchored(double newScale,
                                    const QPoint& cursorInViewport) {
     if (!canvas_->hasImage()) {

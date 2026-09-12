@@ -17,31 +17,25 @@ namespace stencil::gui {
   class CanvasWidget;
   class Notifications;
 
-  // ProjectTransferController: move/copy projects local ↔ server
-  // Extracted from MainWindow (the local↔server transfer subsystem). A plain (non-QObject)
-  // service holding NO MainWindow back-pointer: it operates on the shared project list + store
-  // and reports through Notifications, reaching the session/UI bits it can't own (the remote-link
-  // relink, canvas reload, action/dock refresh, the current layout meta, findProject, the HTTP
-  // fallback fetch) through the Hooks callbacks. Mirrors the browser's moveProjectToServer /
-  // copyProjectToServer / moveProjectToLocal / copyServerProjectToLocal.
+  // Local ↔ server transfer service, no MainWindow back-pointer: session/UI reach through Hooks.
+  // Mirrors the browser's move/copyProjectToServer and
+  // moveProjectToLocal/copyServerProjectToLocal.
   class ProjectTransferController {
    public:
     struct Hooks {
       std::function<stencil::net::ConnectionManager*()> connections;
       std::function<Project*(const std::string& id)> findProject;
       std::function<fileStore::LayoutMeta()> currentLayoutMeta;
-      // Async HTTP fallback fetch (extension-added projects store only a web URL). Delivers the
-      // bytes (empty on failure) to `done` on the event loop.
+      // Async HTTP fallback for extension-added projects that store only a web URL; empty bytes on
+      // failure.
       std::function<void(const QString& url, std::function<void(QByteArray)> done)> fetchUrlBytes;
       std::function<QString()> activeProjectId;
       std::function<QString()> remoteAddress;
       std::function<QString()> remoteId;
-      // A move relinked the OPEN local project to a fresh server project: MainWindow clears the
-      // active id, sets the remote-link fields, starts polling, and repaints the title.
+      // A move relinked the open local project to a fresh server project.
       std::function<void(const QString& serverUrl, const QString& newId, const QString& name,
                          const QString& color, qint64 version)> relinkActiveToServer;
-      // `animate` plays the arrival: true when a picture really LANDS on the canvas,
-      // false for a rebind where the same image stays put.
+      // `animate` is true when a picture really lands, false for a rebind.
       std::function<void(const QString& id, bool animate)> loadProjectIntoCanvas;
       std::function<void()> afterChange;  // refreshActions + refreshDockMenu
     };
@@ -50,25 +44,20 @@ namespace stencil::gui {
                               core::ProjectsStore* store, std::vector<Project>* projectList,
                               Hooks hooks);
 
-    // All async now (each kicks off REST work and reports through Notifications on completion).
-    // Behaviour, notifications and ordering match the previous synchronous versions.
     void moveLocalProjectToServer(const QString& serverUrl, const QString& id);
     void copyLocalProjectToServer(const QString& serverUrl, const QString& id, const QString& name);
     void moveServerProjectToLocal(const QString& serverUrl, const QString& id);
     void makeLocalCopyOfServerProject(const QString& serverUrl, const QString& id, const QString& name);
-    // Fetch a server project's image + layout, persist a fresh detached local project, optionally
-    // delete the server copy; report (ok, newLocalId) via `done`.
+    // Reports (ok, newLocalId) via `done`.
     void importServerProjectToLocal(const QString& serverUrl, const QString& id,
                                     bool removeFromServer, const QString& name,
                                     std::function<void(bool ok, QString newId)> done = {});
 
    private:
-    // Resolve the live ServerClient for `url`, notifying "Not connected to that server" and
-    // returning nullptr on a miss — the transfer methods' shared find-or-notify guard.
+    // nullptr on a miss, after notifying.
     stencil::net::ServerClient* requireClient(const QString& url);
     bool localProjectOriginal(const Project& pr, QByteArray& bytes, QString& ext, int& w, int& h);
-    // Create `pr` on the server under `name` (create + upload original + push layout), reporting
-    // (ok, newId, newVersion) via `done`.
+    // Reports (ok, newId, newVersion) via `done`.
     void createServerFromLocal(stencil::net::ServerClient* c, const Project& pr, const QString& name,
                                const QByteArray& bytes, const QString& ext, int w, int h,
                                std::function<void(bool ok, QString newId, qint64 newVersion)> done);

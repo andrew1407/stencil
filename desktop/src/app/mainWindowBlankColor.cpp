@@ -29,7 +29,7 @@ namespace stencil::gui {
       notify_->error("Invalid color");
       return;
     }
-    // A server-linked session has no local id: push the colour straight to the server.
+    // A server-linked session has no local id: push straight to the server.
     if (!remoteSession_->link().id.isEmpty()) {
       const QString n = *norm;
       QPointer<MainWindow> self(this);
@@ -54,18 +54,17 @@ namespace stencil::gui {
     if (blankColor_.isEmpty() || !canvas_->hasImage()) return;  // blanks only
     QColor init(blankColor_);
     if (!init.isValid()) init = QColor("#ffffff");
-    // Qt's own dialog (not the OS-native one), anchored on the Blank swatch button.
+    // Qt's own dialog, anchored on the Blank swatch button.
     const QColor c =
         support::pickColorAnimated(init, this, "Blank background color", nameBar_.blankColorBtn);
     if (!c.isValid()) return;
     applyBlankColor(c);
   }
 
-  // The recolour itself, dialog-free — shared by the toolbar button above and
-  // the assistant's §10 blankColor op (ChatPlanTarget).
+  // Dialog-free; shared with the assistant's §10 blankColor op.
   void MainWindow::applyBlankColor(const QColor& c) {
     if (blankColor_.isEmpty() || !canvas_->hasImage() || !c.isValid()) return;  // blanks only
-    // Regenerate the solid fill at the current size, KEEPING the drawn lines (a separate overlay).
+    // KEEPING the drawn lines (a separate overlay).
     const core::Lines keep = canvas_->lines();
     QImage img(canvas_->imageWidth(), canvas_->imageHeight(), QImage::Format_RGB32);
     img.fill(c);
@@ -74,8 +73,7 @@ namespace stencil::gui {
     if (!keep.empty()) canvas_->setLines(keep);
     blankColor_ = c.name();
     canvas_->setBlankPage(true);  // loadFromImage reset the flag; still a blank
-    // Persist the new fill into the active local project's meta + raster so a reopen shows it.
-    // (A server-linked session pushes the recoloured original on the next Save.)
+    // Persist into the local project's meta + raster; a server-linked session pushes on the next Save.
     if (Project* pr = findProject(activeProjectId_.toStdString())) {
       pr->meta.blankColor = blankColor_.toStdString();
       pr->meta.blank = true;
@@ -93,8 +91,7 @@ namespace stencil::gui {
       if (done) done(false);
       return;
     }
-    // Server project: version-guarded PUT UpdateProject{color} (async). Refresh our linked
-    // version when it's the open session so a later save doesn't 409.
+    // Version-guarded PUT; refresh our linked version so a later save doesn't 409.
     if (!serverUrl.isEmpty()) {
       stencil::net::ServerClient* c = remoteSession_->requireClient(serverUrl);
       if (!c) { if (done) done(false); return; }
@@ -120,7 +117,6 @@ namespace stencil::gui {
           });
       return;
     }
-    // Local project: update the meta + persist (synchronous).
     Project* pr = findProject(id.toStdString());
     if (!pr) { if (done) done(false); return; }
     pr->meta.color = norm->toStdString();

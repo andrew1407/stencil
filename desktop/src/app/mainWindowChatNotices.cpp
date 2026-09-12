@@ -43,9 +43,7 @@
 
 namespace stencil::gui {
 
-  // A dock that is mid-close still reports isVisible() for the length of its
-  // slide, and the context-menu panel is a chat surface too — keying purely off
-  // the dock's visibility swallowed the toast in both cases.
+  // A dock mid-close still reports isVisible(), and the context-menu panel is a chat surface too.
   bool MainWindow::chatSurfaceHidden() const {
     const bool dockUp = chatDock_ && chatDock_->isVisible() && !chatClosing_;
     const bool panelUp = chatMenuPanel_ && chatMenuPanel_->isVisible();
@@ -58,7 +56,6 @@ namespace stencil::gui {
     if (t.size() > kToastMaxChars)
       t = t.left(kToastMaxChars - 1).trimmed() + QChar(0x2026);
     static_cast<ChatToast*>(chatToast_)->showToast(t, success, [this] {
-      // The normal open path: the checkable action shows the dock + stays in sync.
       if (actChat_) actChat_->setChecked(true);
       else if (chatDock_) chatDock_->setVisible(true);
     });
@@ -70,12 +67,10 @@ namespace stencil::gui {
     if (llmClient_) llmClient_->abort();  // the canceled reply lands in onChatReply
   }
 
-  // The failed/stopped turn's card offers it on BOTH surfaces, so the send path
-  // is a method rather than a lambda on the dock's signal.
+  // Offered on BOTH surfaces, so the send path is a method rather than a lambda.
   void MainWindow::chatRetryTurn(const QString& text) {
     if (!chatDock_ || chatDock_->isBusy()) return;
-    // Retry resends the whole turn: re-queue the drained attachments (latest
-    // turn only, and never over something the user queued since).
+    // Retry re-queues the drained attachments (latest turn only, never over something queued since).
     if (chatDock_->attachedImages().isEmpty() && text == chatLastPrompt_) {
       for (int i = 0; i < chatTurnAttachments_.size(); ++i)
         chatDock_->addAttachmentImage(
@@ -86,8 +81,7 @@ namespace stencil::gui {
     onChatSend(text);
   }
 
-  // The dock folds warnings into the reply's own text ("\n⚠ …"); the mirror uses
-  // the same helper so both bodies are literally the same string.
+  // The same helper as the dock, so both bodies are literally the same string.
   QString MainWindow::withChatWarnings(const QString& text, const QStringList& warnings) {
     QString t = text;
     for (const QString& w : warnings) t += QStringLiteral("\n⚠ ") + w;
@@ -97,17 +91,14 @@ namespace stencil::gui {
   void MainWindow::chatMirror(const QString& role, const QString& text, bool muted,
                               const QString& retryText, const QStringList& notes,
                               bool configure) {
-    // Recorded whether or not the panel exists yet: it is built lazily, and this
-    // log is what it replays when it finally does. One append here per row the
-    // dock displays — so the two surfaces cannot drift.
+    // Recorded whether or not the lazily-built panel exists: this log is what it replays. One append per dock row.
     chatMirrorLog_.append({role, text, retryText, notes, muted});
     while (chatMirrorLog_.size() > kChatHistoryBound) chatMirrorLog_.removeFirst();
     if (chatMenuPanel_)
       asChatMenu(chatMenuPanel_)->appendRow(role, text, muted, retryText, false, notes,
                                             configure);
   }
-  // A user-aborted turn never lands in chatError/chatUnreachable (it becomes
-  // "Stopped." instead).
+  // A user-aborted turn becomes "Stopped." instead.
   void MainWindow::chatError(const QString& text, const QString& toastError) {
     const QString retryText = lastUserTurn(chatHistory_);
     chatDock_->appendError(text, retryText);
@@ -138,12 +129,7 @@ namespace stencil::gui {
     if (chatDock_) chatDock_->setProviderStatus(richTooltip, status);
     if (chatMenuPanel_) asChatMenu(chatMenuPanel_)->setProviderStatus(richTooltip, status);
   }
-  // The dock reports a LATE note into the reply's own bubble (appendLateNote);
-  // the panel does the same, so neither grows a stray second card.
-  // The dock files a late note inside the last ASSISTANT bubble (never the row
-  // that happens to be last); when there is none it posts a standalone note
-  // card instead, and reports THAT as notePosted. Each signal lands here, so
-  // the panel copies the placement the dock chose.
+  // The dock files a late note inside the last ASSISTANT bubble, else a standalone note card reported as notePosted; the panel copies that placement.
   void MainWindow::chatMirrorLateNote(const QString& text) {
     for (int i = chatMirrorLog_.size() - 1; i >= 0; --i) {
       if (chatMirrorLog_[i].role != QLatin1String("Assistant") || chatMirrorLog_[i].muted)
@@ -153,9 +139,7 @@ namespace stencil::gui {
       return;
     }
   }
-  // Notes go to the DOCK; the mirror follows from its notePosted/lateNotePosted
-  // signals, so a note the dock posts on its own (the attachment cap) reaches
-  // the panel too and neither surface can grow a row the other lacks.
+  // Notes go to the DOCK; the mirror follows its signals, so neither surface can grow a row the other lacks.
   void MainWindow::chatLateNote(const QString& text) {
     if (chatDock_) chatDock_->appendLateNote(text);
   }

@@ -60,8 +60,7 @@ namespace stencil::gui {
 
   QString MainWindow::chatSaveBaseName(const QString& requested) const {
     QString name = requested.trimmed();
-    // The attachment the plan is working on names it — a 3-image plan then
-    // leaves 3 distinctly named projects.
+    // The attachment the plan works on names it — a 3-image plan leaves 3 named projects.
     if (name.isEmpty() && chatActiveAttachment_ >= 1)
       name = QFileInfo(chatTurnAttachmentNames_.value(chatActiveAttachment_ - 1))
                  .completeBaseName()
@@ -77,12 +76,8 @@ namespace stencil::gui {
       if (err) *err = QStringLiteral("save: there is no image to save");
       return false;
     }
-    // Incognito blocks what the app would write BY ITSELF, not what the user asks for: writing
-    // a file to a path they named is the Save Image… they can already do from the toolbar, and
-    // a pathless save promotes the session out of incognito (below) instead of refusing.
-    // §10: a destination the user named — a .stencil bundle, an image file, or a folder
-    // (which gets "<name>.png", the format Save-as offers). Anything else stays the
-    // editor's own project store, exactly as before.
+    // Incognito blocks what the app writes BY ITSELF, not a path the user named (§10: a .stencil, an image file, or a folder → "<name>.png");
+    // a pathless save promotes the session out of incognito.
     if (!dest.isEmpty()) {
       const QString base = chatSaveBaseName(name);
       QString path = support::expandHomePath(dest);
@@ -110,17 +105,14 @@ namespace stencil::gui {
                            .arg(support::shortName(promoted)));
       return true;
     }
-    // A FRESH project per save (the create-project path, minus its dialogs), so
-    // each image of a multi-image plan lands as its own project.
+    // A FRESH project per save, so each image of a multi-image plan lands as its own.
     const QString unique = uniqueLocalProjectName(chatSaveBaseName(name));
     createLocalProject(unique, /*announce=*/false);
     notify_->success(QStringLiteral("Saved \"%1\"").arg(support::shortName(unique)));
     return true;
   }
 
-  // §10 openFile: a user-named local file, dispatched by extension the way /upload does in
-  // the console — a project restores everything, a layout draws onto the current picture,
-  // and a picture/video goes through the same awaited source load openUrl uses.
+  // §10 openFile: dispatched by extension as /upload does in the console.
   bool MainWindow::chatOpenFile(const QString& raw, QString* err) {
     const QString path = support::expandHomePath(raw);
     if (!QFileInfo::exists(path)) {
@@ -146,8 +138,7 @@ namespace stencil::gui {
     return false;
   }
 
-  // Open `src` (a URL or a local path) here and BLOCK until MediaLoader resolves — the plan
-  // executor awaits its loads so the next action edits the new picture, not the old one.
+  // BLOCK until MediaLoader resolves — the executor awaits loads so the next action edits the new picture.
   bool MainWindow::chatLoadSource(const QString& src, bool incognito, QString* why) {
     constexpr int kSourceWaitMs = 20000;  // finite: a stalled load can't hang the plan
     ensureMediaLoader();  // before OUR connects, so the canvas adopts first

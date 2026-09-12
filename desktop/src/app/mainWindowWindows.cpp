@@ -25,10 +25,9 @@
 
 namespace stencil::gui {
 
-  // Each opens a fresh, self-owned top-level window so the action is independent
-  // of whichever window (or app-lifetime menu) triggered it.
+  // Each opens a self-owned top-level window, independent of the window that triggered it.
   void MainWindow::openIncognitoWindow() {
-    // restoreLast=false → a brand-new EMPTY editor, not the last session.
+    // restoreLast=false → a brand-new empty editor.
     auto* win = new MainWindow(nullptr, /*restoreLast=*/false);
     win->setAttribute(Qt::WA_DeleteOnClose);
     if (win->actIncognito_->isEnabled())
@@ -50,9 +49,7 @@ namespace stencil::gui {
     if (!win->loadProjectIntoCanvas(id)) win->close();
   }
 
-  // Rebuild the macOS Dock menu: New Incognito Editor · Open Projects · the most
-  // recently updated projects. Connected to qApp so the lambdas outlive the window
-  // that built the menu. A no-op off macOS (QMenu::setAsDockMenu is macOS-only).
+  // Connected to qApp so the lambdas outlive the window that built the menu. A no-op off macOS.
   void MainWindow::refreshDockMenu() {
 #ifdef Q_OS_MACOS
     if (!sDockMenu_) {
@@ -65,8 +62,7 @@ namespace stencil::gui {
     connect(sDockMenu_->addAction("Open Projects…"), &QAction::triggered, qApp,
             [] { MainWindow::openProjectsWindow(); });
 
-    // Recent projects: the most recently updated, newest first (proxy for
-    // "recently opened"). Each opens in its own window, leaving others untouched.
+    // Most recently updated first; each opens in its own window.
     std::vector<Project> recents = projectList_;
     std::sort(recents.begin(), recents.end(), [](const Project& a, const Project& b) {
       return a.meta.updatedAt > b.meta.updatedAt;

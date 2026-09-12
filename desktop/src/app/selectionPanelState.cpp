@@ -40,10 +40,8 @@ namespace stencil::gui {
   }
 
   void SelectionPanel::restyleIcons(const QColor& iconColor) {
-    // Chevron points toward the edge to hide (›) the panel — back at 0°, since any spin
-    // from the last click ended with the panel (and this button) hidden.
+    // Back at 0° (›): the last spin ended with the panel hidden.
     if (collapseBtn_) collapseBtn_->setIcon(themedIcon("chevron-right", iconColor, kToggleGlyph));
-    // Re-theme the per-row 🗑 buttons too (new ones in showLine use the stored colour).
     iconColor_ = iconColor;
     if (points_) {
       for (int r = 0; r < points_->rowCount(); ++r)
@@ -67,9 +65,7 @@ namespace stencil::gui {
                                             : QStringLiteral("Hide panel (%1)").arg(hint));
   }
 
-  // `#`, `X px`, `Y px`, `X <unit>`, `Y <unit>`, and the browser's own unnamed trailing
-  // cell for the row's 🗑 (mainContent.js <thead>). The unit rides the app's setting, the
-  // way drawingApp.js relabels ths[3]/ths[4] on every unit change.
+  // The browser's <thead> (mainContent.js), the unit relabelled like drawingApp.js ths[3]/ths[4].
   void SelectionPanel::applyUnitHeaders() {
     if (!points_) return;
     points_->setHorizontalHeaderLabels({"#", "X px", "Y px",
@@ -86,14 +82,12 @@ namespace stencil::gui {
   void SelectionPanel::changeEvent(QEvent* event) {
     QDockWidget::changeEvent(event);
     if (event->type() != QEvent::PaletteChange && event->type() != QEvent::StyleChange) return;
-    // Only the spanned empty row carries a baked foreground; a real row takes the table's.
     if (points_ && points_->rowCount() == 1 && points_->columnSpan(0, ColIndex) == ColCount)
       if (QTableWidgetItem* msg = points_->item(0, ColIndex))
         msg->setForeground(palette().color(QPalette::PlaceholderText));
   }
 
-  // The browser's `<td colspan="6" class="empty-message">No points yet.</td>`: one italic,
-  // muted row across the whole table, not a blank body that reads as a broken list.
+  // The browser's `<td colspan="6" class="empty-message">No points yet.</td>`.
   void SelectionPanel::showEmptyPoints() {
     points_->clearSpans();
     points_->setRowCount(1);
@@ -103,9 +97,8 @@ namespace stencil::gui {
     QFont f = msg->font();
     f.setItalic(true);
     msg->setFont(f);
-    // PlaceholderText is the muted role theme.cpp maps to --text-muted (theme.cpp:
-    // setColor(QPalette::PlaceholderText, p.textMuted)) — Disabled/WindowText is near the
-    // background in the dark theme, which made this line invisible.
+    // PlaceholderText is the role theme.cpp maps to --text-muted; Disabled/WindowText is invisible
+    // in the dark theme.
     msg->setForeground(palette().color(QPalette::PlaceholderText));
     points_->setItem(0, ColIndex, msg);
     points_->setSpan(0, ColIndex, 1, ColCount);
@@ -113,7 +106,6 @@ namespace stencil::gui {
   }
 
   bool SelectionPanel::eventFilter(QObject* obj, QEvent* event) {
-    // The cursor left a list entirely → clear its row → canvas hover highlight.
     if (event->type() == QEvent::Leave) {
       if (obj == points_) emit pointRowHovered(-1);
       else if (obj == lines_) emit lineRowHovered(-1);
@@ -126,8 +118,7 @@ namespace stencil::gui {
         emit pointDeleteRequested(points_->currentRow());
         return true;
       }
-      // Same key on the Lines tab removes the current line — the row's 🗑 path, and the
-      // browser's focused lines-row Delete (drawingApp.js renderLinesList).
+      // Same key on the Lines tab removes the current line (browser focused lines-row Delete).
       if (isDelete && obj == lines_ && lines_->currentRow() >= 0 &&
           lines_->currentRow() < lines_->count()) {
         emit lineListRemoveRequested(lines_->currentRow());

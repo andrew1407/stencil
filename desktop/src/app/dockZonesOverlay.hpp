@@ -10,24 +10,18 @@ class QVariantAnimation;
 
 namespace stencil::gui {
 
-  // Drag dock zones (browser chatPanel dockZoneAt parity): while the floating
-  // chat dock is dragged by its title bar, four NON-overlapping accent bands
-  // over the CENTRAL dockable area preview the dock targets; the targeted band
-  // is stronger. Transparent for input; the RELEASE position decides. A safety
-  // poll force-hides the overlay whenever the mouse button is no longer down.
+  // Drag dock zones (browser chatPanel dockZoneAt parity): four NON-overlapping bands over the CENTRAL dockable area.
+  // Transparent for input; a safety poll force-hides it once the mouse button is up.
   class DockZonesOverlay : public QWidget {
     Q_OBJECT
    public:
     explicit DockZonesOverlay(QWidget* parent);
 
-    // `targetRect` = the central dockable area in the parent's coordinates
-    // (below the toolbars, above the status bar) — never the window chrome.
-    // `stillDragging` = the drag poll's liveness (the watchdog's condition).
+    // `targetRect` = the central dockable area in parent coordinates; `stillDragging` = the watchdog's condition.
     void beginDrag(const QColor& accent, const QRect& targetRect,
                    std::function<bool()> stillDragging);
     void dragTo(const QPoint& globalPos);
-    // 0 left, 1 right, 2 top, 3 bottom; -1 none — in OVERLAY coordinates.
-    // Within reach of several edges (corners), the NEAREST edge wins.
+    // 0 left, 1 right, 2 top, 3 bottom; -1 none — OVERLAY coordinates. In a corner the NEAREST edge wins.
     int zoneAt(const QPoint& globalPos) const;
     static Qt::DockWidgetArea area(int zone);
 
@@ -41,9 +35,7 @@ namespace stencil::gui {
     void drawChevron(QPainter& p, int i, const QRect& z, bool hot);
 
     QColor accent_;
-    // The dock region as it looked when the drag started, pre-blurred: Qt has no
-    // backdrop filter, so the bands paint their own blurred copy of what is under
-    // them (browser parity: .chat-dock-zone backdrop-filter).
+    // Qt has no backdrop filter, so the bands paint their own blurred copy (browser .chat-dock-zone backdrop-filter).
     QPixmap backdrop_;
     int hover_ = -1;
     qreal nudge_ = 0.0;

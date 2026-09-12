@@ -47,8 +47,7 @@ namespace stencil::gui {
     chatVideoPath_ = path;
     chatVideoFrames_ = 0;
     if (!chatMedia_) chatMedia_ = new MediaLoader(this);
-    // Extract the first frame as an image attachment (videos are NEVER sent to
-    // the LLM — contract §7) and remember the timeline for the system suffix.
+    // Videos are NEVER sent to the LLM (contract §7): the first frame goes, the timeline feeds the system suffix.
     QPointer<MainWindow> self(this);
     chatMedia_->extractFrames(path, {0}, [self](QList<QImage> frames, QString err) {
       if (!self) return;
@@ -65,8 +64,7 @@ namespace stencil::gui {
   }
 
   void MainWindow::offerChatVideoUpload(const QString& path) {
-    // Optional server storage: offer uploading the video bytes to the linked
-    // project with kind "video" (contract §8; uploadFileAsync is kind-generic).
+    // Optional server storage with kind "video" (contract §8).
     const auto& link = remoteSession_->link();
     if (link.address.isEmpty() || !connections_) return;
     auto* c = connections_->find(link.address);
@@ -98,10 +96,8 @@ namespace stencil::gui {
       return false;
     }
     if (!chatMedia_) chatMedia_ = new MediaLoader(this);
-    // Sequential seeks are async; block on a local event loop (the MediaLoader
-    // timeout backstops a stuck seek) so the plan executes in order. `finished`
-    // guards the synchronous-failure path (e.g. the file vanished): quitting a
-    // loop that never started would otherwise leave exec() running forever.
+    // Sequential seeks are async; block on a local loop (the MediaLoader timeout backstops a stuck seek).
+    // `finished` guards the synchronous-failure path, or exec() on a never-started loop runs forever.
     QEventLoop loop;
     QList<QImage> frames;
     QString error;
@@ -140,8 +136,7 @@ namespace stencil::gui {
     if (img.isNull() || incognito_) return QString();  // incognito never persists
     Project pr;
     pr.meta.id = projectsStore_.createId(nowMs(), makeSalt());
-    // Unique-ify the name against the local list ("crop", "crop 2", …) with
-    // the shared collision rules (checkProjectName → core validateName).
+    // Unique-ify against the local list with the shared collision rules (checkProjectName → core validateName).
     QString name = baseName.isEmpty() ? QStringLiteral("variant") : baseName;
     {
       QString candidate = name;
@@ -154,7 +149,6 @@ namespace stencil::gui {
     pr.meta.createdAt = pr.meta.updatedAt = nowMs();
     pr.meta.expiresAt = core::ProjectsStore::addPeriod(pr.meta.updatedAt,
                                                        core::ProjectsStore::DEFAULT_PERIOD);
-    // Persist the pixels like createLocalProject does for pathless canvases.
     const QString imgDir = fileStore::stateDir() + "/images";
     QDir().mkpath(imgDir);
     const QString path = imgDir + "/" + QString::fromStdString(pr.meta.id) + ".png";

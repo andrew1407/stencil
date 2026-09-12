@@ -11,11 +11,7 @@ namespace stencil::gui {
   class MainWindow;
   struct Project;
 
-  // Live-editor PlanTarget: routes every op through the SAME appliers the
-  // toolbar / dialogs use (the crop path, applyImageFilter/applyTintColor, the
-  // formula pipeline, the page combo, the blank creator), so LLM-driven edits
-  // and UI edits are indistinguishable — including persistence and co-edit
-  // pushes, which those appliers already handle. Friend of MainWindow.
+  // Live-editor PlanTarget: every op goes through the SAME appliers the toolbar / dialogs use, persistence and co-edit pushes included. Friend of MainWindow.
   class ChatPlanTarget : public llm::PlanTarget {
    public:
     explicit ChatPlanTarget(MainWindow& w) : w_(w) {}

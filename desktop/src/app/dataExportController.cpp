@@ -54,8 +54,7 @@ namespace stencil::gui {
     notify_->success("Layout exported");
   }
 
-  // Import a layout JSON file and adopt it (with the confirm/dimension guards in
-  // applyLayoutJson). Mirrors browser uploadJSON (drawingApp.js ~2092-2130).
+  // Browser uploadJSON (drawingApp.js ~2092-2130).
   void DataExportController::uploadLayout() {
     if (!canvas_->hasImage()) {
       notify_->error("Load an image first");  // drawingApp.js:2102
@@ -79,15 +78,13 @@ namespace stencil::gui {
     applyLayoutJson(doc.object());
   }
 
-  // Copy the layout JSON text to the clipboard. Guards "no layout" like the
-  // browser (drawingApp.js copyLayoutToClipboard ~2181-2196).
+  // Browser copyLayoutToClipboard (drawingApp.js ~2181-2196).
   void DataExportController::copyLayout() {
     if (canvas_->allLines().empty()) {
       notify_->error("No layout to copy");  // drawingApp.js:2183
       return;
     }
-    // Copy the FULL layout (Ctrl+Alt+C): lines + filter/tint + crop + rotation +
-    // page meta, matching the server-save envelope so every applied edit travels.
+    // The FULL layout, matching the server-save envelope so every applied edit travels.
     const QJsonObject obj = fileStore::buildLayoutJson(
         canvas_->imageWidth(), canvas_->imageHeight(), canvas_->allLines(),
         settings_->imageFilter, settings_->filterColor,
@@ -99,8 +96,7 @@ namespace stencil::gui {
     notify_->success("Layout JSON copied");
   }
 
-  // Parse clipboard text as a layout JSON object and adopt it. Mirrors the
-  // text branch of the browser paste listener (drawingApp.js :582-591).
+  // The text branch of the browser paste listener (drawingApp.js :582-591).
   void DataExportController::pasteLayout() {
     if (!canvas_->hasImage()) {
       notify_->error("Load an image first");
@@ -119,24 +115,16 @@ namespace stencil::gui {
     applyLayoutJson(doc.object());
   }
 
-  // Confirm-replace + dimension-mismatch guard, then adopt the parsed layout.
-  // Shared by uploadLayout + pasteLayout, mirroring the browser's uploadJSON /
-  // applyPastedLayout flow (drawingApp.js ~2101-2222): replace prompt only when
-  // lines already exist, dimension prompt only on mismatch, then setLines +
-  // history. setLines emits changed(), so the panel/buttons refresh.
+  // Browser uploadJSON / applyPastedLayout (drawingApp.js ~2101-2222): replace prompt only with existing lines, dimension prompt only on mismatch.
   void DataExportController::applyLayoutJson(const QJsonObject& obj) {
     if (!canvas_->hasImage()) {
       notify_->error("Load an image first");
       return;
     }
-    // Existing lines: offer to KEEP them and add the incoming ones on top instead of
-    // forcing an all-or-nothing replace. Mirrors the browser's Combine/Replace/Cancel
-    // prompt (exportService.js #applyValidatedLayout).
+    // Existing lines: offer to KEEP them (browser Combine/Replace/Cancel, exportService.js #applyValidatedLayout).
     bool combine = false;
     if (!canvas_->allLines().empty()) {
-      // The browser's styled askAlt (exportService.js): Replace is the confirm
-      // (swap one layout for the other), Combine the alt (stack the incoming lines
-      // on the existing ones) — each button says what it does in word and picture.
+      // Replace is the confirm, Combine the alt.
       ConfirmSpec spec;
       spec.title = "Existing layout";
       spec.message = "Add the imported JSON on top of the current layout, or replace it?";

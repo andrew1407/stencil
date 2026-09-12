@@ -18,11 +18,9 @@
 #include <QTimer>
 
 namespace stencil::gui {
-  // §10 openProject: removeProject's resolution, then the projects dialog's open path —
-  // including its unsaved-replace confirm when no saved project backs the editor's work.
+  // §10 openProject: the projects dialog's open path, unsaved-replace confirm included.
   bool ChatPlanTarget::openProjectNamed(const QString& name, bool last, QString* note) {
-    // "the last project I worked on": the most recently edited one, resolved HERE off the
-    // store's updatedAt — the model never sees the project list (chatSession.js parity).
+    // "the last project I worked on" resolves HERE off updatedAt — the model never sees the list (chatSession.js parity).
     const Project* pick = nullptr;
     if (last) {
       for (const auto& p : w_.projectList_)
@@ -56,12 +54,10 @@ namespace stencil::gui {
     }
     return true;
   }
-  // §10 incognito: the actIncognito_ toggle — only togglable on a blank
-  // (imageless) editor, exactly like the action's own enabled gate.
+  // §10 incognito: only togglable on a blank editor, like the action's own gate.
   bool ChatPlanTarget::setIncognito(bool on, QString* note) {
     if (!on && w_.incognito_ && w_.canvas_->hasImage()) {
-      // "make this not incognito" with work on screen: keep the work — leave
-      // incognito and save it as a local project (publishIncognitoToServer's move).
+      // Leaving incognito with work on screen keeps it as a local project.
       const QString promoted = w_.promoteIncognitoToLocal();
       *note = QStringLiteral("left incognito — saved as the local project \"%1\"")
                   .arg(support::shortName(promoted));
@@ -75,17 +71,13 @@ namespace stencil::gui {
       w_.actIncognito_->setChecked(on);  // its toggled handler applies + notifies
     return true;
   }
-  // §10 chatPanel: the panel's OWN placement, through the very calls its title-bar buttons
-  // make, so a spoken "put the chat on the right" lands where a click would have. A dock
-  // with no "open" shows the panel too (browser chatSession.js setChatPlacement parity).
+  // §10 chatPanel: the panel's OWN placement calls (browser chatSession.js setChatPlacement parity).
   bool ChatPlanTarget::setChatPlacement(int open, const QString& dock, QString* note) {
     if (!w_.chatDock_ || !w_.actChat_) {
       *note = QStringLiteral("there is no assistant panel here");
       return true;
     }
-    // Show FIRST, then place: the placement paths animate the panel on screen (and
-    // toggleChatFloat only has a window to lift once it is showing), so a hidden dock
-    // asked to float would have stayed docked. Closing comes last, for the same reason.
+    // Show FIRST, then place: the placement paths animate a shown panel, and a hidden dock asked to float would stay docked.
     const bool show = open < 0 ? !dock.isEmpty() : open == 1;
     if (show && !w_.actChat_->isChecked()) w_.actChat_->setChecked(true);
     if (!dock.isEmpty()) {
@@ -99,14 +91,11 @@ namespace stencil::gui {
         w_.dockChatTo(area);
       }
     }
-    // The toggle's own handler runs the open/close flight, so this IS the click.
     if (!show && w_.actChat_->isChecked()) w_.actChat_->setChecked(false);
     return true;
   }
 
-  // §10 dialog: the editor's own windows, through the very QActions their toolbar buttons
-  // drive. Opened on the NEXT event-loop turn, never inline: they exec() modally, which
-  // would park the whole plan behind a window the user has not been told about yet.
+  // §10 dialog: opened on the NEXT event-loop turn — they exec() modally, which would park the plan behind an unannounced window.
   bool ChatPlanTarget::openDialog(const QString& name, QString* note) {
     if (name.isEmpty()) {
       QWidget* open = QApplication::activeModalWidget();
@@ -130,12 +119,9 @@ namespace stencil::gui {
     return true;
   }
 
-  // §10 clearProjects: every LOCAL project through the same machinery as the
-  // dialog's "Clear All (Local)" — server projects are never touched from chat.
+  // §10 clearProjects: LOCAL projects only, through the dialog's "Clear All (Local)" machinery.
   bool ChatPlanTarget::clearProjects(bool keepCurrent, QString* note) {
-    // `keepCurrent` = "delete the others": the open project stays where it is. Without it
-    // the model clears the lot, then loses the project outright when no working image is
-    // left to re-save.
+    // `keepCurrent` = "delete the others": without it the model clears the lot and loses the project outright.
     const QString keepId = keepCurrent ? w_.activeProjectId_ : QString();
     const bool keeping = !keepId.isEmpty();
     const int total = static_cast<int>(w_.projectList_.size());
@@ -185,15 +171,12 @@ namespace stencil::gui {
     w_.notify_->success(QString("Cleared %1 local project(s)").arg(n));
     return true;
   }
-  // §10 clearChat: only FLAG the request — the confirm + clear run once the
-  // whole turn settles (chatTurnSettled); a modal here would stall the plan.
+  // §10 clearChat: only FLAG it — the confirm runs once the turn settles; a modal here would stall the plan.
   bool ChatPlanTarget::clearChat(QString*) {
     w_.chatClearPending_ = true;
     return true;
   }
-  // `image`: the turn's Nth attachment becomes the working image, through the
-  // same bare-QImage adoption the empty-canvas case uses. An index this turn
-  // cannot satisfy is reported back (the executor's skipped-action note).
+  // `image`: the turn's Nth attachment becomes the working image; an unsatisfiable index is reported back.
   bool ChatPlanTarget::loadAttachment(int index, QString* err) {
     if (index < 1 || index > w_.chatTurnAttachments_.size()) {
       if (err)
@@ -208,14 +191,12 @@ namespace stencil::gui {
     w_.updateImageSizeInfo();
     return true;
   }
-  // `save`: a LOCAL project, never a server publish (that stays a user action).
-  // `dest` (already echo-checked) writes to that folder/file instead.
+  // `save`: a LOCAL project, never a server publish; `dest` (echo-checked) redirects it.
   bool ChatPlanTarget::saveProject(const QString& name, const QString& dest,
                                    QString* err) {
     return w_.chatSaveProject(name, dest, err);
   }
 
-  // The pool the executor's echo-guard checks: the user's OWN turns.
   QString ChatPlanTarget::userTypedText() const {
     QStringList parts;
     for (const auto& m : w_.chatHistory_)

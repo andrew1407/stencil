@@ -31,20 +31,18 @@
 
 namespace stencil::gui {
 
-  // Arrow keys pan the viewport (drawingApp.js arrow-pan ~497): 7 px, or 22
-  // with Shift. Alt/Ctrl/Meta+arrows are reserved (don't pan).
+  // Arrow pan (drawingApp.js ~497): 7 px, 22 with Shift; Alt/Ctrl/Meta+arrows are reserved.
   void MainWindow::keyPressEvent(QKeyEvent* event) {
     const auto mods = event->modifiers();
     const int key = event->key();
 
-    // Escape leaves fullscreen (browser parity) — restores the toolbars + panel.
+    // Escape leaves fullscreen (browser parity).
     if (key == Qt::Key_Escape && fs_.active) { toggleFullscreen(); event->accept(); return; }
 
-    // Track R held for the Alt+R+←/→ line-rotate chord (mirror of the browser #rHeld).
+    // R held for the Alt+R+←/→ chord (browser #rHeld).
     if (key == Qt::Key_R) { rKeyHeld_ = true; QMainWindow::keyPressEvent(event); return; }
 
-    // Alt+Shift+O — momentary "peek at the original" (mirror of the browser hold). Handled
-    // here rather than as a QAction because it needs key-up; auto-repeat is ignored.
+    // Alt+Shift+O peek needs key-up, so not a QAction; auto-repeat is ignored.
     if (key == Qt::Key_O && (mods & Qt::AltModifier) && (mods & Qt::ShiftModifier) &&
         !(mods & (Qt::ControlModifier | Qt::MetaModifier))) {
       if (!event->isAutoRepeat() && canvas_->hasImage()) {
@@ -55,8 +53,7 @@ namespace stencil::gui {
       return;
     }
 
-    // Alt+R + ←/→ → rotate the selected line(s) (← CCW, → CW), 3°/press. Mirrors the browser
-    // chord and the Ctrl+Shift+wheel rotate. Only fires when something is selected.
+    // Alt+R + ←/→ rotates the selection 3°/press (browser chord).
     if ((mods & Qt::AltModifier) && rKeyHeld_ && canvas_->selectionCount() >= 1 &&
         !canvas_->compareReadOnly() && (key == Qt::Key_Left || key == Qt::Key_Right)) {
       constexpr double kRotStep = 3.14159265358979323846 / 60.0;  // 3° (matches wheel rotate)
@@ -65,10 +62,7 @@ namespace stencil::gui {
       return;
     }
 
-    // Alt+Shift + arrow → flip / rotate-90 the selected line(s) about the selection's
-    // bounding-box centre (browser parity: ↑ flip horizontal, ↓ flip vertical,
-    // → rotate +90°, ← rotate −90°). Rotate-90 reuses the arbitrary-angle rotate path.
-    // Only fires with a selection and outside a read-only compare view (mirrors Alt+R).
+    // Alt+Shift + arrow flips / rotates-90 the selection (browser parity); needs a selection and no read-only compare view.
     if ((mods & Qt::AltModifier) && (mods & Qt::ShiftModifier) &&
         !(mods & (Qt::ControlModifier | Qt::MetaModifier)) &&
         canvas_->selectionCount() >= 1 && !canvas_->compareReadOnly() &&
@@ -83,7 +77,6 @@ namespace stencil::gui {
       return;
     }
 
-    // Other Alt/Ctrl/Meta+arrow combos stay reserved (e.g. zoom).
     if (mods & (Qt::AltModifier | Qt::ControlModifier | Qt::MetaModifier)) {
       QMainWindow::keyPressEvent(event);
       return;
@@ -102,19 +95,14 @@ namespace stencil::gui {
     }
     else { QMainWindow::keyPressEvent(event); return; }
 
-    // With a line selected, arrows NUDGE the selection (1px, Shift = 10px, image space) —
-    // one axis per key, matching the browser's own nudge (controlsBinder.js: also a plain
-    // if/else-if on e.key, not combined). A read-only compare view disables the nudge —
-    // arrows always pan there instead.
+    // With a selection, arrows NUDGE (1px, Shift = 10px), one axis per key (browser controlsBinder.js); a read-only compare view pans instead.
     if (canvas_->selectionCount() >= 1 && !canvas_->compareReadOnly()) {
       const int nStep = (mods & Qt::ShiftModifier) ? 10 : 1;
       canvas_->nudgeSelected(dirX * nStep, dirY * nStep);
       event->accept();
       return;
     }
-    // Panning: record which arrow is down and let arrowPanTimer_'s tick combine whatever's
-    // currently held — two arrows held together must pan diagonally, not stair-step (see the
-    // timer's own comment, ctor).
+    // Record which arrow is down; the timer tick combines the held set so two arrows pan diagonally.
     if (dirX < 0) panLeftHeld_ = true;
     else if (dirX > 0) panRightHeld_ = true;
     if (dirY < 0) panUpHeld_ = true;
@@ -124,8 +112,7 @@ namespace stencil::gui {
     event->accept();
   }
 
-  // Clear the R-held flag when it (or focus) is released, so the Alt+R+←/→ chord doesn't stick
-  // (and likewise the held-arrow pan flags, so a released key stops contributing to the tick).
+  // Clear the held flags on release (or focus loss) so the chord and the pan never stick.
   void MainWindow::keyReleaseEvent(QKeyEvent* event) {
     if (event->key() == Qt::Key_R) rKeyHeld_ = false;
     if (!event->isAutoRepeat()) {
@@ -138,7 +125,6 @@ namespace stencil::gui {
         default: break;
       }
     }
-    // End the Alt+Shift+O peek when the letter or any required modifier lifts.
     if (!event->isAutoRepeat() && canvas_->compareHoldOriginal() &&
         (event->key() == Qt::Key_O || event->key() == Qt::Key_Alt ||
          event->key() == Qt::Key_Shift || event->key() == Qt::Key_Meta ||
@@ -149,10 +135,7 @@ namespace stencil::gui {
     QMainWindow::keyReleaseEvent(event);
   }
 
-  // Should this section button be on screen? Its action's own visibility, except in the
-  // IMAGE cluster, which is empty-state aware: with no image only the labelled Open button
-  // shows (browser #load-image-btn ↔ #image-actions). Both the per-action mirror and
-  // refreshActions go through here, so whichever runs last agrees.
+  // Visible unless the IMAGE cluster is in its empty state: with no image only the labelled Open button shows (browser #image-actions).
   bool MainWindow::sectionButtonVisible(QAction* act, QToolButton* btn) const {
     if (act && !act->isVisible()) return false;
     if (imageSection_ && btn && btn != openImageBtn_ && imageSection_->isAncestorOf(btn))
@@ -160,18 +143,12 @@ namespace stencil::gui {
     return true;
   }
 
-  // Where the next dialog should grow from. Every action records its own origin when it
-  // fires: its visible toolbar icon, else the menu row that was clicked, else nothing.
-  // Clearing the anchor for a button-less action is the point — otherwise a dialog opened
-  // from the menu bar or a shortcut flies out of whichever icon was used last.
+  // Every action records its own origin when it fires; clearing it for a button-less action stops a dialog flying out of the last icon used.
   void MainWindow::bindRevealAnchors() {
     for (QAction* a : findChildren<QAction*>()) bindRevealAnchor(a);
   }
 
-  // Bound the moment the action is CREATED, so this is its first triggered() slot and runs
-  // before the handler. Bound later — after the handlers — it recorded the anchor only once
-  // exec() had returned, i.e. after the dialog had come and gone, so every dialog flew out
-  // of the icon used the time before (and the first one out of nowhere).
+  // Bound at creation so it is the first triggered() slot; bound after the handlers it ran only once exec() had returned.
   void MainWindow::bindRevealAnchor(QAction* a) {
     if (!a || a->property("revealBound").toBool()) return;
     a->setProperty("revealBound", true);
@@ -181,8 +158,7 @@ namespace stencil::gui {
     });
   }
 
-  // The visible toolbar button that presents `act`, if any — used to anchor the theme
-  // wipe at the icon the user actually pressed.
+  // The visible toolbar button presenting `act`, to anchor the theme wipe.
   QWidget* MainWindow::buttonForAction(QAction* act) const {
     if (!act) return nullptr;
     for (QToolButton* b : findChildren<QToolButton*>())

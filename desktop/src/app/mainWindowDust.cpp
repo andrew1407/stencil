@@ -32,10 +32,7 @@
 namespace stencil::gui {
 
   namespace {
-    // A gathering dock fades up UNDER the landing motes (the shared surfaceForm ramp,
-    // holdFadeKeys). Parented to the veil, so an interrupted flight (stopChatAnim
-    // deletes the effect) takes the fade with it. Returns the animation so a caller
-    // can hang a finished-handler on it (dustSelectedLineBarIn).
+    // Parented to the veil, so an interrupted flight (stopChatAnim deletes the effect) takes the fade with it.
     QPropertyAnimation* fadeVeilUp(QGraphicsOpacityEffect* veil, int ms) {
       auto* fade = new QPropertyAnimation(veil, "opacity", veil);
       holdFadeKeys(fade, ms);
@@ -44,7 +41,6 @@ namespace stencil::gui {
     }
   }  // namespace
 
-  // Contracts for both chat-slide helpers live on their header declarations.
   std::function<void(int)> MainWindow::chatExtentPin(bool horiz) {
     return [this, horiz](int v) {
       if (horiz) chatDock_->setFixedWidth(v);
@@ -74,10 +70,7 @@ namespace stencil::gui {
     return fx;
   }
 
-  // The points panel's own flight — chatSurfaceFlight for the other dock, with the panel's
-  // one axis inlined instead of a caller-supplied `pin`: it is photographed at its OPEN
-  // width whichever way the slide is about to run, and left there for the caller to size.
-  // The veil hides the real panel for the whole slide, so the motes ARE the panel.
+  // The points panel's flight: photographed at its OPEN width whichever way the slide runs; the veil hides the real panel, so the motes ARE the panel.
   QPointer<gui::DisintegrateOverlay> MainWindow::panelSurfaceFlight(bool gather, int ms, int full) {
     if (!selPanel_) return nullptr;
     QWidget* dustHost = selPanel_->window();
@@ -100,11 +93,7 @@ namespace stencil::gui {
     return fx;
   }
 
-  // The tool rows' flight. They collapse as ONE block, so their union rect is the
-  // picture and the motes stream past the window's top edge — the fold's own direction,
-  // matching the browser's dockAwayPoint(box, 'top'). Each bar is rendered into the
-  // shared snapshot at its own offset; a bar the caller has already flattened to zero
-  // height simply contributes nothing.
+  // The tool rows collapse as ONE block: their union rect is the picture and the motes stream past the top edge (browser dockAwayPoint(box, 'top')).
   QPointer<gui::DisintegrateOverlay> MainWindow::barsSurfaceFlight(
       const QList<QToolBar*>& bars, bool gather, int ms) {
     if (!support::dustMotionOk()) return nullptr;
@@ -128,11 +117,7 @@ namespace stencil::gui {
         palette().color(QPalette::WindowText));
   }
 
-  // Where the "Selected Line:" bar's motes land — see the header comment.
-  // x: `barPicture`'s own centre (both bars span the full window width, so this already IS
-  // the window's centre). y: imageInfoBar_'s rect, but `closing` predicts its post-close
-  // position (the dock's own top + the row's height) rather than reading its still-pre-close
-  // rect live — dustSelectedLineBarOut() calls this before the dock actually hides.
+  // Where the bar's motes land. `closing` predicts imageInfoBar_'s post-close position — dustSelectedLineBarOut() runs before the dock hides.
   QPoint MainWindow::selectedLineBarDustPoint(const QRect& barPicture, bool closing) {
     if (imageInfoBar_ && imageInfoBar_->isVisible()) {
       const QRect infoRect(imageInfoBar_->mapTo(this, QPoint(0, 0)), imageInfoBar_->size());
@@ -146,11 +131,7 @@ namespace stencil::gui {
     return dockAwayPoint(barPicture, Qt::BottomDockWidgetArea);
   }
 
-  // The "Selected Line:" bar's entrance (browser: selectionPanel.js surfaceIn). Call
-  // AFTER selectedLineDock_->setVisible(true) and layout()->activate(), so the grab
-  // sees the bar at its real, populated size rather than blank/zero-sized. Declines
-  // under reduced motion / offscreen — the caller's own instant show is what the user
-  // sees then, same as every other surface flight.
+  // Entrance (browser selectionPanel.js surfaceIn). Call AFTER setVisible(true) + layout()->activate(), so the grab sees the populated bar.
   void MainWindow::dustSelectedLineBarIn() {
     if (!selectedLineBar_) return;
     if (!support::dustMotionOk()) return;
@@ -160,9 +141,7 @@ namespace stencil::gui {
         snap, picture, this, selectedLineBarDustPoint(picture, /*closing=*/false), /*gather=*/true, 0,
         palette().color(QPalette::WindowText));
     if (!fx) return;
-    // The veil hides the real bar for the gather, so the motes ARE the bar — same
-    // technique as chatSurfaceFlight/panelSurfaceFlight, just released once landed
-    // instead of held for a caller-driven slide.
+    // The veil hides the real bar for the gather; released once landed.
     auto* veil = new QGraphicsOpacityEffect(selectedLineBar_);
     veil->setOpacity(0.0);
     selectedLineBar_->setGraphicsEffect(veil);
@@ -173,10 +152,7 @@ namespace stencil::gui {
     });
   }
 
-  // …and the exit (surfaceOut). Call BEFORE selectedLineDock_->setVisible(false), so
-  // the snapshot still shows the real bar — the cloud is its own flight from there, so
-  // the caller can hide the dock immediately after without a visible pop. Same target
-  // as the entrance: it scatters back down under the "Image Size: …" strip.
+  // Exit (surfaceOut). Call BEFORE setVisible(false), so the snapshot still shows the real bar.
   void MainWindow::dustSelectedLineBarOut() {
     if (!selectedLineBar_) return;
     if (!support::dustMotionOk()) return;

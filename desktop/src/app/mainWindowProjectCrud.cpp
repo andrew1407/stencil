@@ -40,8 +40,7 @@ namespace stencil::gui {
       notify_->info("Nothing to save yet");
       return;
     }
-    // Seed the name from the image filename (mirrors the browser, where a new project
-    // is named after the image), else a unique "Untitled N".
+    // Named after the image, as in the browser, else a unique "Untitled N".
     QString seed = canvas_->hasImage() ? canvas_->imageBaseName() : QString();
     if (seed.isEmpty()) {
       std::vector<core::ProjectMeta> metas;
@@ -50,8 +49,7 @@ namespace stencil::gui {
       tmp.load(metas);
       seed = QString::fromStdString(tmp.defaultName());
     }
-    // The name prompt on the shell, with the projects list's own live rules: Save
-    // goes dead with the reason until the name is saveable.
+    // Save goes dead with the reason until the name is saveable (the projects list's rules).
     PromptSpec spec;
     spec.title = tr("New Project");
     spec.titleIcon = QStringLiteral("plus-circle");
@@ -66,17 +64,14 @@ namespace stencil::gui {
     createProject(*name);
   }
 
-  // Find a loaded project by id, or nullptr when none matches.
   Project* MainWindow::findProject(const std::string& id) {
     auto it = std::find_if(projectList_.begin(), projectList_.end(),
                            [&](const Project& p) { return p.meta.id == id; });
     return it == projectList_.end() ? nullptr : &*it;
   }
 
-  // Remove ONE local project row, resetting the editor when it is the open one
-  // (browser removeProject → storage.newTemporary: clearing only the id left its
-  // image, lines and name sitting there as a project that no longer exists). The
-  // caller persists + refreshes after its batch.
+  // Resetting the editor when it is the open one (browser removeProject → storage.newTemporary).
+  // The caller persists + refreshes.
   void MainWindow::eraseLocalProject(const QString& id) {
     const std::string sid = id.toStdString();
     projectList_.erase(
@@ -86,22 +81,19 @@ namespace stencil::gui {
     if (activeProjectId_ == id) resetToBlankEditor();
   }
 
-  // Persist settings to disk unless this is an incognito window (which never writes).
   void MainWindow::persistSettings() {
     if (!incognito_) fileStore::saveSettings(settings_);
   }
 
-  // Create-project entry point. With ≥1 server connected, ask where to save it:
-  // this computer (local) or one of the connected servers. Otherwise save locally.
-  // The incognito guard lives at each call site. Mirrors the browser's local-vs-
-  // server target choice in the open/blank flows.
+  // With ≥1 server connected, ask where to save (browser local-vs-server target choice); the
+  // incognito guard lives at each call site.
   void MainWindow::createProject(const QString& name) {
     const QStringList servers = connections_ ? connections_->urls() : QStringList();
     if (servers.isEmpty()) {
       createLocalProject(name);
       return;
     }
-    // The browser's save-target select (base.js fillTargetSelect), in the picker shell.
+    // The browser's save-target select (base.js fillTargetSelect).
     ChooseSpec spec;
     spec.title = tr("Save project");
     spec.message = tr("Where should it be saved?");
@@ -118,8 +110,7 @@ namespace stencil::gui {
     }
   }
 
-  // Build a Project from the current canvas, persist it, mark it active, refresh,
-  // and notify. pr.meta.name == the passed name.
+  // pr.meta.name == the passed name.
   void MainWindow::createLocalProject(const QString& name, bool announce, bool fromFile) {
     remoteSession_->link().unbind();  // a freshly created local project is not server-linked
     remoteSync_->stopRemotePoll();   // no longer a server session
@@ -129,10 +120,8 @@ namespace stencil::gui {
     pr.meta.createdAt = pr.meta.updatedAt = nowMs();
     pr.meta.expiresAt = core::ProjectsStore::addPeriod(
         pr.meta.updatedAt, core::ProjectsStore::DEFAULT_PERIOD);
-    // A blank / remote / video-frame canvas has no on-disk path; write the original
-    // pixels to the state dir so the project reloads them (crop + rotation are stored
-    // separately as meta, so persist the UNCROPPED original). Also point the canvas at
-    // the new path so later session/project saves round-trip it.
+    // A blank / remote / video-frame canvas has no path: persist the uncropped original to the
+    // state dir (crop + rotation are meta) and repoint the canvas.
     QString path = canvas_->imagePath();
     if (path.isEmpty() && canvas_->hasImage()) {
       const QString imgDir = fileStore::stateDir() + "/images";
@@ -145,8 +134,8 @@ namespace stencil::gui {
     pr.lines = canvas_->allLines();
     pr.cropRect = canvas_->cropRect();
     pr.rotationQuarters = canvas_->rotationQuarters();
-    // Seed the pan/zoom the canvas is CURRENTLY sitting at — browser parity: #buildLayout()
-    // reads the live scale/scrollLeft/scrollTop on every save, including this first one.
+    // Seed the current pan/zoom (browser #buildLayout() reads the live scale/scroll on every
+    // save).
     pr.zoomScale = canvas_->scale();
     if (scroll_) {
       pr.scrollLeft = scroll_->horizontalScrollBar()->value();

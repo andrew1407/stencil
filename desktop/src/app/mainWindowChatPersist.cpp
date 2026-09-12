@@ -43,15 +43,11 @@
 
 namespace stencil::gui {
 
-  // §12.1: the persisted document is the DISPLAYED conversation, not chatHistory_
-  // (the model's view, which carries the §7 continuation note and every interim
-  // round's reply). The doc travels with the project to every other surface, so
-  // internal plumbing written here cannot be filtered out again there.
+  // §12.1: the persisted document is the DISPLAYED conversation, not chatHistory_ (the model's view); it travels to every surface.
   QJsonObject MainWindow::buildActiveChatDoc() const {
     QJsonArray messages;
     for (const MirrorRow& r : chatMirrorLog_) {
-      // Muted rows are errors/notices/attachment chatter, not conversation; the
-      // in-card notes are executor asides, not the reply text.
+      // Muted rows and in-card notes are not conversation.
       if (r.muted) continue;
       const bool user = r.role == QLatin1String("You");
       if (!user && r.role != QLatin1String("Assistant")) continue;
@@ -69,9 +65,7 @@ namespace stencil::gui {
     const QJsonObject doc = buildActiveChatDoc();
     const auto& link = remoteSession_->link();
     if (!link.address.isEmpty()) {
-      // Server-linked session: the chat lives on the server (kind "chat", §9).
-      // Fire-and-forget like the video upload — a failed push costs nothing but
-      // the server copy; the conversation itself is unaffected.
+      // Server-linked: the chat lives on the server (kind "chat", §9). Fire-and-forget; a failed push costs only the server copy.
       if (auto* c = connections_ ? connections_->find(link.address) : nullptr) {
         if (doc.isEmpty())
           c->deleteFileAsync(link.id, QStringLiteral("chat"), [](bool) {});
@@ -92,11 +86,7 @@ namespace stencil::gui {
   void MainWindow::restoreChatFromDoc(const QJsonObject& doc) {
     resetChatState();
     if (chatDock_) chatDock_->clearConversation();
-    // parseChatDoc launders the machinery on read (§12.1: the §7 continuation
-    // note and raw plans never come back from storage) — what is left reads as
-    // conversation, on screen AND in the model's replay history (browser
-    // chatPersistence parity: seedHistory gets the same filtered list). Both
-    // surfaces are fed from this single loop, so they cannot disagree.
+    // parseChatDoc launders the machinery on read (§12.1); both surfaces are fed from this loop (browser chatPersistence seedHistory parity).
     const QJsonArray msgs = fileStore::parseChatDoc(doc);
     for (const auto& v : msgs) {
       const QJsonObject m = v.toObject();

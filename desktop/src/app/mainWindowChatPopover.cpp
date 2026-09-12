@@ -35,29 +35,19 @@
 
 namespace stencil::gui {
 
-  // The chat icon's popover shape (browser chatPanel.js openCompact parity): the
-  // SAME dock — same conversation, same attachments — floated at its compact
-  // tear-off size and pinned next to the icon by the shared popover placement.
-  // Idempotent while already floating there; a docked/hidden chat is torn off.
+  // The chat icon's popover shape (browser chatPanel.js openCompact): the SAME dock, floated at its compact size next to the icon.
   void MainWindow::openChatCompact(QWidget* anchor) {
     if (!chatDock_ || tearingDown_ || !anchor) return;
     stopChatAnim();  // a popover open mid-slide wins outright (setChatShown rule)
-    // Swapping shapes is a popover swap like any other: a chat already on screen
-    // in its FULL shape (docked, or a float the user tore off) LEAVES through the
-    // animated path — sliding back into its edge, or flying into the icon — and
-    // the compact one opens once that has played, one window at a time. Without
-    // this the outgoing window simply vanished under setFloating() below.
-    // Already pinned exactly where this gesture wants it: raise and focus, and
-    // never re-play a flight for a window that does not move.
+    // A chat already on screen in its FULL shape LEAVES through the animated path first, one window at a time.
+    // Already pinned where this gesture wants it: raise and focus, no flight.
     if (chatCompactShowing() && chatDock_->geometry() == compactChatRect(anchor)) {
       chatDock_->raise();
       chatDock_->activateWindow();
       chatDock_->focusInput();
       return;
     }
-    // Anything else on screen LEAVES first — including a compact float that has to
-    // move (the user dragged it, or another icon anchors it now). Teleporting that
-    // window read as "the chat vanished", which is the bug this branch exists for.
+    // Anything else LEAVES first — a compact float that has to move included; teleporting it read as "the chat vanished".
     if (chatDock_->isVisible()) {
       const int outMs = chatDock_->isFloating() ? kWindowDismissMs : kChatSlideOutMs;
       chatCompactPopover_ = false;   // it is leaving; the next open re-establishes it
@@ -71,9 +61,7 @@ namespace stencil::gui {
     openChatCompactNow(anchor);
   }
 
-  // Where the compact popover sits for `anchor` (global): the shared popover
-  // placement at the dock's own tear-off size. Shared by the open and the
-  // already-there check above, so the two can never disagree.
+  // Shared by the open and the already-there check, so the two can never disagree.
   QRect MainWindow::compactChatRect(QWidget* anchor) const {
     if (!chatDock_ || !anchor) return {};
     const QRect anchorRect(anchor->mapToGlobal(QPoint(0, 0)), anchor->size());
@@ -81,9 +69,7 @@ namespace stencil::gui {
     return support::popoverRect(anchorRect, chatDock_->floatingDefaultSize(), screen);
   }
 
-  // Browser chatPanel.js FLOAT_DEFAULT/clampFloatRect parity: the Float button's first
-  // landing spot — a fixed inset from this window's top-left, clamped onto its screen.
-  // The insets clear the whole toolbar row (the browser's own 80px landed on it).
+  // Browser chatPanel.js FLOAT_DEFAULT/clampFloatRect parity; the insets clear the whole toolbar row.
   QRect MainWindow::defaultChatFloatRect() const {
     if (!chatDock_) return {};
     const QSize size = chatDock_->floatingDefaultSize();
@@ -103,8 +89,7 @@ namespace stencil::gui {
   void MainWindow::openChatCompactNow(QWidget* anchor) {
     if (!chatDock_ || tearingDown_ || !anchor) return;
     stopChatAnim();   // with motion reduced the slide-out may still be pinned
-    // Remember the docked layout this popover displaces, so a later full open
-    // (toolbar single click / hotkey) restores it instead of the popover rect.
+    // Remember the docked layout this popover displaces, so a later full open restores it.
     if (!chatDock_->isFloating()) {
       const Qt::DockWidgetArea area = dockWidgetArea(chatDock_);
       if (area != Qt::NoDockWidgetArea) chatCompactPrevArea_ = area;
@@ -112,9 +97,7 @@ namespace stencil::gui {
     chatDock_->setFloating(true);
     chatDock_->setGeometry(compactChatRect(anchor));
     chatDock_->show();
-    // …and the incoming one flies OUT of the icon, the same motion every other
-    // popover opens with (the caller above already returned for a window that is
-    // staying put, so reaching here always means a real open).
+    // The incoming one flies OUT of the icon; reaching here always means a real open.
     support::revealWindow(*chatDock_, buttonForAction(actChat_));
     chatDock_->raise();
     chatDock_->activateWindow();
@@ -127,12 +110,9 @@ namespace stencil::gui {
            chatDock_->isVisible();
   }
 
-  // The "?" is the COLLAPSED state's readout: while the tool rows are up they already show
-  // the image size, so it would just repeat them. Shown only with the rows hidden AND
-  // something worth reading — an image open, or incognito on.
+  // The "?" is the COLLAPSED state's readout: shown only with the rows hidden AND an image open or incognito on.
   void MainWindow::refreshStatusHintVisibility() {
-    // The size line belongs to the tool rows: it goes with them, and the "?" takes over as
-    // the place those facts can still be read. Two readouts of the same thing, one at a time.
+    // The size line goes with the tool rows; the "?" takes over. Two readouts, one at a time.
     if (imageSizeInfo_) imageSizeInfo_->setVisible(toolbarsShown_);
     if (!statusHintAction_) return;
     const bool live = (canvas_ && canvas_->hasImage()) || incognito_;

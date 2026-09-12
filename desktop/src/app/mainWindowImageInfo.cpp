@@ -35,9 +35,7 @@
 
 namespace stencil::gui {
 
-  // Hold the info row at its TALLER state's height: the incognito glyph is ~2px
-  // taller than plain text, and it must not shift the rows below. Measured on a
-  // throwaway twin (the live label would flicker); cached until font/theme changes.
+  // Hold the row at its TALLER state's height (the incognito glyph is ~2px taller). Measured on a throwaway twin; cached until font/theme changes.
   void MainWindow::reserveImageInfoHeight() {
     if (!imageSizeInfo_) return;
     const QString key = imageSizeInfo_->font().key() + QLatin1Char('|') +
@@ -59,15 +57,11 @@ namespace stencil::gui {
       imageInfoHeightKey_ = key;
       imageSizeInfo_->setFixedHeight(h);
     }
-    // The Image Size bar has its own dock (buildImageInfoBar) and the panel dock sits below
-    // that same stack, so the panel lands at the right height with no faked header gap.
+    // The panel dock sits below the Image Size dock in the same stack, so no faked header gap.
     syncImageInfoDockHeight();
   }
 
-  // Pins imageInfoDock_'s own height too, not just its content's — otherwise QMainWindow
-  // still treats it as resizable and draws a drag grip above the canvas for nothing.
-  // Brackets OUT to enter fullscreen, IN to leave it (browser twin: fullscreenLayer.js).
-  // The button repaints off actionIconNames_ on the icon change, keeping its glyph white.
+  // Pins the dock's own height too, or QMainWindow draws a drag grip above the canvas. Brackets OUT to enter, IN to leave (browser fullscreenLayer.js).
   void MainWindow::syncFullscreenGlyph() {
     if (!actFullscreen_) return;
     const QString name = fs_.active ? QStringLiteral("minimize") : QStringLiteral("maximize");
@@ -76,7 +70,6 @@ namespace stencil::gui {
     actFullscreen_->setIcon(themedIcon(name, ink, kToolIcon));
   }
 
-  // A deeper bottom band while the rows hang over the canvas (theme.cpp QToolBar[fsBar]).
   // Qt matches property selectors at polish time, so the flag needs a re-polish.
   void MainWindow::markFullscreenBars(bool on) {
     for (QToolBar* b : findChildren<QToolBar*>()) {
@@ -104,13 +97,9 @@ namespace stencil::gui {
       size = QStringLiteral("No image loaded");
     }
     if (imageSizeInfo_) {
-      // The row's height is RESERVED for the taller of its two states before either is
-      // shown, so switching between them cannot resize the info bar (see below).
+      // The row's height is RESERVED for the taller state, so switching cannot resize the bar.
       reserveImageInfoHeight();
-      // Browser parity (drawingApp.js updateInfo + layout.css .info-incognito):
-      // the incognito state rides INLINE on this line, accent-coloured and bold,
-      // in both the loaded and the empty state. It is our own text, never model
-      // output, so rich text is safe here.
+      // Browser parity (drawingApp.js updateInfo + .info-incognito): incognito rides INLINE. Our own text, never model output, so rich text is safe.
       if (incognito_) {
         imageSizeInfo_->setTextFormat(Qt::RichText);
         imageSizeInfo_->setText(size.toHtmlEscaped() + incognitoTagHtml());
@@ -119,10 +108,7 @@ namespace stencil::gui {
         imageSizeInfo_->setText(size);
       }
     }
-    // The "?" beside the project name carries the SAME size plus the incognito
-    // line — and only those two facts. It is the collapsed state's only readout,
-    // so it is refreshed from here (every incognito change ends in this call via
-    // updateProjectTitle).
+    // The "?" carries the SAME size plus the incognito line — the collapsed state's only readout.
     if (statusHint_) {
       QString tip = size;
       if (incognito_) tip += QStringLiteral("\nIncognito — not saved");
@@ -131,14 +117,9 @@ namespace stencil::gui {
     }
   }
 
-  // Mini S-mark logo — a QPainter port of the browser's app-logo SVG (toolbar.js): a dark rounded
-  // square with an ACCENT-coloured frame, an inner darker square, and a yellow polyline whose seven
-  // dots trace an S. Only the frame tracks the accent (like the browser), so it never looks garish.
-  // Repainted on theme/accent change from applyTheme.
+  // Mini S-mark logo, a QPainter port of the browser's app-logo SVG (toolbar.js); only the frame tracks the accent.
   QPixmap MainWindow::makeLogoPixmap(int size) const {
-    // At LEAST 2x, whatever devicePixelRatioF() says: it often reports 1 here (before the
-    // window is on its Retina screen), and a 1x pixmap in a 2x button draws at HALF size
-    // (a tiny resting logo). A 1x screen just downscales it, crisp.
+    // At LEAST 2x: devicePixelRatioF() often reports 1 before the window is on its Retina screen, and a 1x pixmap in a 2x button draws at HALF size.
     const qreal dpr = qMax(devicePixelRatioF(), 2.0);
     QPixmap pm(qRound(size * dpr), qRound(size * dpr));
     pm.setDevicePixelRatio(dpr);
@@ -148,7 +129,6 @@ namespace stencil::gui {
     const double u = size / 64.0;   // browser viewBox is 0..64
     QColor accent = accentPrimary(settings_.accentColor);
     if (!accent.isValid()) accent = QColor("#7c3aed");
-    // Outer rounded square (dark), then the accent frame stroke on top.
     p.setPen(Qt::NoPen);
     p.setBrush(QColor("#2b2f3a"));
     p.drawRoundedRect(QRectF(2 * u, 2 * u, 60 * u, 60 * u), 13 * u, 13 * u);
@@ -157,11 +137,9 @@ namespace stencil::gui {
     p.setPen(frame);
     p.setBrush(Qt::NoBrush);
     p.drawRoundedRect(QRectF(2.75 * u, 2.75 * u, 58.5 * u, 58.5 * u), 12.25 * u, 12.25 * u);
-    // Inner darker square.
     p.setPen(Qt::NoPen);
     p.setBrush(QColor("#3a3f4b"));
     p.drawRoundedRect(QRectF(12 * u, 12 * u, 40 * u, 40 * u), 4 * u, 4 * u);
-    // Yellow polyline + dots.
     const QPointF pts[7] = {QPointF(44 * u, 20 * u), QPointF(32 * u, 16 * u), QPointF(20 * u, 24 * u),
                             QPointF(32 * u, 32 * u), QPointF(44 * u, 40 * u), QPointF(32 * u, 48 * u),
                             QPointF(20 * u, 44 * u)};
