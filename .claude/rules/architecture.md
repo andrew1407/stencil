@@ -64,5 +64,9 @@ is being introduced — add one when you create a module or substantially rework
 - **Pins before motion.** Record the pins before moving UI code; they must be identical after.
 - **UI freeze in refactor commits.** A commit that moves code changes no pixel and no string.
   An intended visual change is its own commit, carrying its re-pin and nothing else.
-- Prove a move with `node tools/moveCheck.mjs <gitRef> <path…>` (`LOST 0  NEW 0`) and a
-  comment sweep with `node tools/commentOnlyDiff.mjs <gitRef> <path…>` (every file `OK`).
+- Prove a move with `node tools/moveCheck.mjs <gitRef> <path…>` and a comment sweep with
+  `node tools/commentOnlyDiff.mjs <gitRef> <path…>` (every file `OK`). `LOST 0  NEW 0` holds for
+  whole-function and data moves; an extract-class reports one LOST/NEW pair per converted method,
+  so the signal is **`LOST 0`, only the wrapper NEW**. For C++, `cppCommentDiff.sh` exits 2 where
+  `gcc` is the clang shim and a raw `-fpreprocessed` diff emits EMPTY files — a false pass; use
+  `normalizeLines` and check the stripped text is non-empty.

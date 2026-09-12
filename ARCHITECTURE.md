@@ -15,7 +15,7 @@ it, by three different mechanisms:
 
 | Surface | How it gets `core/` | ABI file |
 |---|---|---|
-| browser | compiled to wasm (`npm run build-wasm`), **plus a JS fallback that must match** | `core/wasmApi.cpp` |
+| browser | compiled to wasm (`npm run build-wasm`), **plus a JS fallback that must match** | `core/wasmApi.cpp` + `wasmCropApi`/`wasmStateApi`/`wasmProjectsApi.cpp` |
 | desktop | `add_subdirectory(../core)` — links the CMake library | (direct C++) |
 | cli | `cli/build.zig` **recompiles the sources** | `core/cliApi.cpp` |
 | pystencil | `pystencil/build.py` **recompiles the sources**, driven by ctypes | `core/cliApi.cpp` |
@@ -160,6 +160,27 @@ The ratchet enforces three things:
 Never raise a number without a note in the budget's `exceptions`. Lowering numbers as code
 moves out is the point of the mechanism.
 
+### Where the tree stands (2026-09-12)
+
+Files over 230 lines, after the decomposition rounds. Clean means nothing over the cap.
+
+| Surface | Over 230 | Notes |
+|---|---|---|
+| pystencil · bot · server | **0** | clean |
+| core | 1 | `raster/rasterize.cpp` 247 — in all three build lists; its seam is file-local statics on the byte-exact hot path |
+| mcp | 1 | `prompt/response.rs` — 91 production lines; mcp's ratchet measures production, not inline tests |
+| browser/css | 1 | `layout.css` 1211 — 13 test files pin it by path, 8 of them at their own cap |
+| e2e/tests | 4 | `chat.spec.js` 643 and three smoke specs |
+| cli/src | 19 raw | **0 real** — cli counts pre-`test {}` lines; `validate.zig` is 779 raw / 189 production |
+| extension/src | 11 | 6 are byte-pinned browser twins; 5 are MV3 content scripts / `executeScript` payloads that cannot take an import |
+| browser/js | 29 | `drawingApp.js` 1128 (its ~90 delegators serve the `window.stencil` facade `e2e/` drives), `chatPanel.js` 818 |
+| desktop/src | 31 | from 64. What remains needs **extract-method**, not a move: a single function over 230 makes any new file illegal (`MainWindow::MainWindow` 565, `buildActions` 543, `eventFilter` 493) |
+| desktop/tests | 32 | the 14 GUI area binaries, exempt by reason in the budget |
+
+`mainWindow.hpp` (1547 lines, 51% comments) is the architectural item, not a size item: MOC
+runs on the header, so splitting it is the risk that splitting method definitions across TUs
+is not.
+
 **Comment policy**: at most ~3 lines, and only what the code cannot say — an invariant, a
 unit, a cross-surface coupling, a reason a value is what it is. No sprint or phase tags, no
 `(user report)`, no "used to", no restating the next line.
@@ -187,11 +208,17 @@ An intended visual change is its own commit, with the re-pin in it and nothing e
 **Prove it mechanically** (`tools/README.md` has the details):
 
 - `node tools/moveCheck.mjs <gitRef> <path…>` — hashes every function/method body on both
-  sides. A pure move, even one that splits a file, prints `LOST 0  NEW 0`.
+  sides. A move of whole functions or data prints `LOST 0  NEW 0`. An **extract-class** does
+  not and cannot: converting a method to a function rewrites the enclosing body (`this.app`
+  becomes a parameter), so read the signal as **`LOST 0`, with only the enclosing wrapper
+  NEW** — the landed `chatDock` split prints `LOST 1  NEW 2`.
 - `node tools/commentOnlyDiff.mjs <gitRef> <path…>` — strips comments and normalizes
-  whitespace; every file must print `OK`.
+  whitespace; every file must print `OK`. Its `normalizeLines` is also the C++ fallback below.
 - `desktop/tools/cppCommentDiff.sh <gitRef> <file…>` — the same for C++, via a real gcc
-  preprocessor. Needs actual gcc; on macOS use `commentOnlyDiff.mjs`.
+  preprocessor. **It exits 2 wherever `gcc` is the Apple clang shim, and a hand-rolled
+  `gcc -fpreprocessed -dD -E -P` diff there emits two EMPTY files — a vacuous pass that looks
+  exactly like success.** On macOS use `normalizeLines` from `commentOnlyDiff.mjs` over a
+  multiset of lines, and assert the stripped text is non-empty before trusting it.
 
 ---
 
