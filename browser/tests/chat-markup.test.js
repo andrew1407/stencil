@@ -434,7 +434,8 @@ test('chatAskCard: answering locks the card — it can never fire twice', async 
 // ── Scripting surface: app.chat exposes history / abort / isSending ──
 // The wiring is DOM-bound, so assert the source registers the members and that
 // history rides the SETTLED-transcript path (rowsToMessages over the shared log)
-// while abort rides the Stop button's turnAbort.
+// while abort rides the Stop button's turnAbort. window.stencil.chat's side of the
+// same contract is driven for real in consoleChatFacade.test.js.
 test('app.chat exposes history (rowsToMessages over the log), abort, and isSending', () => {
   const src = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
   assert.ok(src.includes('history: () => rowsToMessages(chatLog()).map((m) => ({ role: m.role, text: m.text }))'));
@@ -442,10 +443,6 @@ test('app.chat exposes history (rowsToMessages over the log), abort, and isSendi
   assert.ok(src.includes('get isSending() { return sending; }'));
   // clear rides the same shared path as the trash button, refused mid-turn.
   assert.match(src, /clear: \(\) => \{[\s\S]{0,200}clearSharedConversation\(app\);/);
-  const facade = readFileSync(new URL('../js/console/stencilApi.js', import.meta.url), 'utf8');
-  assert.ok(facade.includes('get history() { return chatPanel().history(); }'));
-  assert.ok(facade.includes('abort() { return chatPanel().abort(); }'));
-  assert.ok(facade.includes('clear() { chatPanel().clear(); return stencil; }'));
 });
 
 // ── Assistant modal commits on Save (desktop dialog parity) ──

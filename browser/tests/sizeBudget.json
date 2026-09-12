@@ -46,7 +46,7 @@
     "browser/js/ui/voiceDust.js": 246,
     "browser/tests/accentPicker.test.js": 315,
     "browser/tests/canvasCentering.test.js": 266,
-    "browser/tests/chat-markup.test.js": 465,
+    "browser/tests/chat-markup.test.js": 462,
     "browser/tests/chatController.test.js": 1061,
     "browser/tests/chatPersistence.test.js": 304,
     "browser/tests/chatRowMenu.test.js": 668,
