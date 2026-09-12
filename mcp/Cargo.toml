@@ -10,8 +10,8 @@ name = "stencil-mcp"
 path = "src/main.rs"
 
 [dependencies]
-# Exact pins, not caret ranges: this repo does not track Cargo.lock, so the manifest is the
-# only pin there is. Resolve a bump with `cargo tree --depth 0` and write THAT version.
+# Exact pins, not caret ranges: Cargo.lock pins the transitive tree, this pins the direct
+# one. Resolve a bump with `cargo tree --depth 0` and write THAT version.
 # Official Rust MCP SDK. `server` brings ServerHandler/ToolRouter, `transport-io`
 # brings the stdio transport, `macros` brings the #[tool_router]/#[tool] attributes.
 rmcp = { version = "=1.8.0", features = ["server", "transport-io", "macros"] }

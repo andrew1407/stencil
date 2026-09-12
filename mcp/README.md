@@ -33,9 +33,9 @@ graph TD
     CLIENT["MCP client — Claude Code · Desktop · any agent"]
     subgraph MCP["mcp/ — Rust (rmcp over stdio)"]
       SERVER["server/ — stencil_edit / stencil_probe / source_site / stencil_prompt tools"]
-      ARGS["args.rs — params → argv (mirrors cli/args.zig)"]
-      PIPE["pipeline.rs — locate → spawn → parse"]
-      DEL["deliver.rs — surfaces: file · desktop launch · browser URL"]
+      ARGS["args/ — params → argv (mirrors cli/src/args.zig)"]
+      PIPE["pipeline/ — locate → spawn → parse, behind CliRunner"]
+      DEL["deliver/ — surfaces: file · desktop launch · browser URL"]
     end
     CLI["Zig CLI → core/"]
     SRV["Collaboration server"]
@@ -63,9 +63,10 @@ graph TD
 | Browser launch-URL data URLs | **base64** | encode the result image into the `#stencil=` fragment (already in the tree) |
 | The actual pixel/geometry work | **`../cli/`** (and through it, **`../core/`**) | invoked as a subprocess; **not** linked or recompiled here |
 
-Every crate is pinned **exactly** (`=x.y.z`) — the repo does not track `Cargo.lock`, so the
-manifest is the only pin there is. That list is the whole of it: logging is `eprintln!` to
-stderr and errors are hand-written, so there is no `tracing`, no `anyhow`, no `thiserror`.
+Every crate is pinned **exactly** (`=x.y.z`) in `Cargo.toml`, and `Cargo.lock` is committed
+so the transitive tree is pinned too — CI builds and tests with `--locked`. That list is the
+whole of it: logging is `eprintln!` to stderr and errors are hand-written, so there is no
+`tracing`, no `anyhow`, no `thiserror`.
 
 The server contains **no image logic** — it never touches `core/`, codecs, or the DOM. It
 maps tool parameters to the CLI's command line and parses the CLI's output back into
@@ -77,6 +78,7 @@ other front-ends share: its only contract is the CLI's documented flags.
 ```
 mcp/
   Cargo.toml           # package + exactly pinned deps (rmcp, tokio, serde, schemars, tempfile, base64)
+  Cargo.lock           # committed: CI builds and tests --locked
   .env.example         # config template; copy to .env (gitignored) and adjust
   toolDescriptions.json  # canonical tool + get_info prose (→ the shards and README's Tools table)
   toolDescriptions/    # generated, committed shards the #[tool] attributes include_str!
@@ -93,8 +95,12 @@ mcp/
         prompt/        #   stencil_prompt: one LLM turn → validated plan → CLI runs
           mod.rs       #     the §7 auto-continuation loop
           execute.rs   #     the round's four steps: attach · chat · prepare · execute
-          response.rs  #     the payload types + the response assembly
-    config.rs          # Surface enum + Config (defaults ← .env ← env ← --surface arg)
+          response.rs  #     the payload types + the single success exit
+          merge.rs     #     the §7 round merges: kept work, joined replies
+    config/            # defaults ← .env ← env ← --surface arg
+      mod.rs           #   Config + the resolution order
+      surface.rs       #   the Surface enum and its parsing
+      env.rs           #   the .env reader (one of this repo's four)
     args/              # typed tool params → CLI argv  (mirrors cli/src/args.zig)
       params.rs        #   the DTOs schemars publishes
       tables.rs        #   the canonical page-format + colour-name tables
@@ -102,11 +108,13 @@ mcp/
       errors.rs        #   EditError: one Display per failure
       argv.rs          #   ArgvBuilder + the normalized Source + build_argv
       scrape.rs        #   the source_site params, surface guard and argv
-    pipeline/          # orchestration: locate → spawn → parse       (mirrors cli/src/pipeline.zig)
+    pipeline/          # orchestration: locate → spawn → parse      (mirrors cli/src/pipeline.zig)
       mod.rs           #   the results + the entry points, bound to the real runner
       runner.rs        #   CliRunner: the one place this crate spawns a process
       run.rs           #   the guards, temp files and parsing around the spawn
-    deliver.rs         # deliver a result to surfaces: file · desktop launch · browser URL
+    deliver/           # deliver a result to surfaces: file · desktop launch · browser URL
+      mod.rs           #   DeliveryNote + the per-surface dispatch
+      launch.rs        #   the #stencil= launch URL, encodeURIComponent, the OS opener
     locate.rs          # find the stencil binary (STENCIL_CLI → repo cli/zig-out/bin → PATH)
     imagesize.rs       # pixel size from an image header (PNG/GIF/BMP/JPEG/WebP) — probe's fast path
     layout.rs          # Layout/Line/Point types + write an inline layout to a temp file
@@ -125,12 +133,15 @@ mcp/
       schema/          # the registry-driven schema engine (port of browser/js/llm/opSchema.js)
         json.rs · path.rs · grammars.rs · rules.rs · load.rs · checks.rs · fields.rs
       actions.rs       # §2–§3 per-op validation, registry-gated
-      lower.rs         # map a validated plan onto EditParams runs
+      lower/           # map a validated plan onto EditParams runs
+        mod.rs · names.rs (output naming) · collapse.rs (the run-fusing stage)
       fold.rs          # the per-op folds the registry entries dispatch on
       ask.rs           # §11 `ask` cards: validation + text rendering
   tests/
-    args_test.rs       # param → argv mapping + surface resolution + guards (pure)
-    outcome_test.rs    # stderr parsing (pure)
+    args_test.rs       # param → argv mapping + surface resolution (pure)
+    args_blank_test.rs · args_server_test.rs · args_scrape_test.rs  # the same, per flag band
+    args_hardening_test.rs # the dash guard, path rejection and length caps (negative)
+    outcome_test.rs · outcome_scrape_test.rs  # stderr parsing: edits, then scrape runs (pure)
     locate_test.rs     # find_cli's precedence: STENCIL_CLI, then the checkout, then PATH
     imagesize_test.rs  # header sniffing agrees with the CLI, and declines what it can't measure
     layout_test.rs     # the layout JSON mcp writes for --layout, pinned byte by byte
@@ -142,17 +153,20 @@ mcp/
     dispatch_test.rs   # a real tools/call reaches the tool body (ServerHandler::call_tool)
     registry_test.rs   # the registry + the schema engine it drives, against the contract
     prompt_assembly_test.rs # the prompt's ops section generated from the registry
-    timing_test.rs     # #[ignore]d timing floors — `cargo test -- --ignored`
+    timing_test.rs     # #[ignore]d benchmarks, ratio-asserted — `cargo test -- --ignored`
     llmtransport_test.rs # HTTP transport against a canned local TcpListener
+    llmtransport_guards_test.rs # the URL and request guards on their own (negative)
     llm_test.rs        # provider wire shapes via a mock recording transport
-    guards_test.rs     # the spawn deadline, the response-body cap, and output confinement (negative tests)
+    llm_server_test.rs · llm_prompt_test.rs · llm_turn_test.rs · llm_variant_test.rs
+    guards_test.rs     # the spawn deadline, the response-body cap, and output confinement (negative)
     text_golden_test.rs # goldens/*.txt: the wire descriptions + get_info instructions, byte-exact
     tool_prose_test.rs # toolDescriptions.json → the committed shards + README's Tools table
     size_budget_test.rs # the per-file size + comment-share ratchet
-    *_fixtures_test.rs # the shared cross-surface fixtures under browser/js/config/
+    *_fixtures_test.rs # the shared cross-surface corpora, one reported case per fixture
     fixtures_test.rs   # the CLI's stderr-grammar goldens (cli/testdata/), shared with the bot
-    common/            # helpers: the corpus/override loaders + the recording CliRunner
-    e2e_test.rs        # real CLI runs (incl. a canned-LLM prompt flow), self-skipping when the binary is absent
+    fixture_overrides.json # the measured, mcp-side divergences from those corpora
+    common/            # helpers: the corpus/override loaders, the recording CliRunner, walk.rs
+    e2e_test.rs · e2e_prompt_test.rs  # real CLI runs, self-skipping when the binary is absent
   Dockerfile           # builds the Zig CLI + the Rust server into one runtime image
 ```
 
@@ -528,7 +542,7 @@ cargo test
 
 Two layers run together (plus an opt-in third):
 
-- **Pure unit/integration tests** (`src/config.rs`, `src/deliver.rs`, `tests/args_test.rs`,
+- **Pure unit/integration tests** (`src/config/`, `src/deliver/`, `tests/args_test.rs`,
   `tests/outcome_test.rs`) — surface parsing, the `.env`/arg config, the `encodeURIComponent`
   + launch-URL building, the parameter→argv mapping, surface resolution, and stderr parsing.
   No binary needed. `tests/pipeline_run_test.rs` and `tests/pipeline_probe_test.rs` take this
