@@ -27,7 +27,7 @@ is not a pass.
 |---|---|---|---|
 | 1 | browser | `cd browser && npm test` | 2558 pass, 0 fail (~2 s) |
 | 2 | extension | `cd extension && npm test` | 1219 pass, 0 fail (~2 s) |
-| 3 | core | `cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && nice -n 10 cmake --build core/build -j 4 && ctest --test-dir core/build --output-on-failure` | 1/1 (249 doctest cases) |
+| 3 | core | `cmake -S core -B core/build -DCMAKE_BUILD_TYPE=Release && nice -n 10 cmake --build core/build -j 4 && ctest --test-dir core/build --output-on-failure` | 1/1 — **247 cases run, 12 skipped** (11 bench + 1 budget), 7208 assertions |
 | 4 | cli | `cd cli && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer zig build test --summary all` | 378 pass (~6 s) |
 | 5 | pystencil | `cd pystencil && python3 -m unittest discover -s tests` | 646 OK |
 | 6 | server | `cd server && go test ./...` then `go test -race ./internal/hub/...` | 18 pkgs, 16 with tests, all ok |
