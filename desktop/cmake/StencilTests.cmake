@@ -263,7 +263,7 @@ stencil_headless_test(stencil_projecttransfer_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/projectTransfer.headless.cpp src/app/projectTransferController.cpp
-    src/net/serverClient.cpp ${STENCIL_CANVAS_SOURCES} src/canvas/idleCard.cpp
+    ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_CANVAS_SOURCES} src/canvas/idleCard.cpp
     src/support/theme.cpp src/support/notifications.cpp src/support/iconSet.cpp
     src/support/modalReveal.cpp   # notifications' toast dust needs motionReduced()
     src/io/fileStore.cpp src/io/deferredWrite.cpp resources/app.qrc
@@ -275,13 +275,13 @@ stencil_headless_test(stencil_projecttransfer_headless
 # URL builder's percent-encoding.
 stencil_headless_test(stencil_deeplink_headless
   SOURCES tests/deepLink.headless.cpp src/io/deepLink.cpp src/app/launchOptions.cpp
-    src/net/serverClient.cpp
+    ${STENCIL_SERVERCLIENT_SOURCES}
   LIBS stencil_core Qt6::Network)
 
 # Live push-feed check (net/liveFeed) — drives LiveFeed against a mock QTcpServer that
 # speaks the NDJSON project-events protocol. Links Qt6::Network for QTcpServer/QTcpSocket.
 stencil_headless_test(stencil_livefeed_headless
-  SOURCES tests/liveFeed.headless.cpp src/net/liveFeed.cpp src/net/serverClient.cpp
+  SOURCES tests/liveFeed.headless.cpp src/net/liveFeed.cpp ${STENCIL_SERVERCLIENT_SOURCES}
   LIBS stencil_core Qt6::Network)
 
 # Toast coalescing (support/notifications): identical texts refresh the standing
@@ -306,7 +306,7 @@ stencil_headless_test(stencil_connectrow_headless
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/connectRow.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
-    src/dialogs/connectDialog.cpp src/net/serverClient.cpp src/net/connectionStore.cpp
+    src/dialogs/connectDialog.cpp ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     src/io/fileStore.cpp          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
@@ -325,7 +325,7 @@ stencil_headless_test(stencil_modalchrome_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/modalChrome.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/dialogs/openInDialog.cpp src/io/deepLink.cpp
-    src/net/serverClient.cpp      # deepLink's origin normalisation
+    ${STENCIL_SERVERCLIENT_SOURCES}      # deepLink's origin normalisation
     src/support/iconSet.cpp
     src/support/modalReveal.cpp resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
@@ -351,7 +351,7 @@ stencil_headless_test(stencil_serverauth_headless
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/serverAuth.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
-    src/dialogs/connectDialog.cpp src/net/serverClient.cpp src/net/connectionStore.cpp
+    src/dialogs/connectDialog.cpp ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     src/io/fileStore.cpp          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
@@ -378,7 +378,7 @@ stencil_headless_test(stencil_projectsbatch_headless
     src/support/tipContent.cpp    # the rows' rich tooltips (appTooltip.hpp calls into it)
     ${STENCIL_PROJECTS_DIALOG_SOURCES}
     src/dialogs/expirationDialog.cpp  # the ⋯ menu's "Expiration…" opens it in place now
-    src/net/serverClient.cpp src/net/fetchGuard.cpp        # the row thumbnails' SSRF guard
+    ${STENCIL_SERVERCLIENT_SOURCES} src/net/fetchGuard.cpp        # the row thumbnails' SSRF guard
     src/io/fileStore.cpp src/io/deferredWrite.cpp src/support/guiHelpers.cpp
     src/support/theme.cpp         # …and its colour wells take the theme's input chrome
     src/support/iconSet.cpp src/support/modalReveal.cpp
@@ -392,7 +392,7 @@ stencil_headless_test(stencil_projectsbatch_headless
 # connections as two editors (self-skips when no server is reachable — point it at one
 # with STENCIL_TEST_SERVER, default http://localhost:8090). Qt6::Gui for QImage decode.
 stencil_headless_test(stencil_coedit_headless
-  SOURCES tests/coEdit.headless.cpp src/net/serverClient.cpp
+  SOURCES tests/coEdit.headless.cpp ${STENCIL_SERVERCLIENT_SOURCES}
   LIBS stencil_core Qt6::Gui Qt6::Network)
 
 # LLM op-plan parser check (src/llm/opPlan) — the llm-contract.md §1-2
@@ -422,7 +422,7 @@ stencil_headless_test(stencil_opplanfixtures_headless
 # llmClient.cpp is #included by the test TU for sanitizer access, not compiled here.
 stencil_headless_test(stencil_llmwirefixtures_headless
   SOURCES tests/llmWireFixtures.headless.cpp src/llm/opPlan.cpp src/llm/opRegistry.cpp
-    src/llm/opSchema.cpp src/net/serverClient.cpp src/net/connectionStore.cpp
+    src/llm/opSchema.cpp ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     src/io/fileStore.cpp          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp resources/app.qrc
   DEFS ${STENCIL_FIXTURE_WALKER_DEFS}
@@ -432,7 +432,7 @@ stencil_headless_test(stencil_llmwirefixtures_headless
 # through a mock transport (canned responses; no network).
 stencil_headless_test(stencil_llmclient_headless
   SOURCES tests/llmClient.headless.cpp src/llm/llmClient.cpp src/llm/opPlan.cpp
-    src/llm/opRegistry.cpp src/llm/opSchema.cpp src/net/serverClient.cpp
+    src/llm/opRegistry.cpp src/llm/opSchema.cpp ${STENCIL_SERVERCLIENT_SOURCES}
     src/net/connectionStore.cpp
     src/io/fileStore.cpp          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp resources/app.qrc
@@ -449,7 +449,7 @@ stencil_headless_test(stencil_storefixtures_headless
 # Deep-link corpus walker: the shared telegramStart golden vectors through the
 # real codec (the launchPayload receiver vectors don't apply — builders only).
 stencil_headless_test(stencil_deeplinkfixtures_headless
-  SOURCES tests/deepLinkFixtures.headless.cpp src/io/deepLink.cpp src/net/serverClient.cpp
+  SOURCES tests/deepLinkFixtures.headless.cpp src/io/deepLink.cpp ${STENCIL_SERVERCLIENT_SOURCES}
   DEFS ${STENCIL_FIXTURE_WALKER_DEFS}
   LIBS stencil_core Qt6::Network)
 

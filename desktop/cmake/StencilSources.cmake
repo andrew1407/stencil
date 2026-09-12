@@ -79,6 +79,16 @@ set(STENCIL_ICONMOTION_SOURCES
   src/support/iconMotionRunner.cpp
   src/support/iconMotionFilter.cpp)
 
+# The REST client and connection manager (net/serverClient.hpp) are five TUs: the request
+# plumbing, the project calls, the file calls, the guarded writes and invites, and the
+# ConnectionManager.
+set(STENCIL_SERVERCLIENT_SOURCES
+  src/net/serverClient.cpp
+  src/net/serverClientProjects.cpp
+  src/net/serverClientFiles.cpp
+  src/net/serverClientWrites.cpp
+  src/net/serverClientManager.cpp)
+
 # The shared modal shell (support/modalChrome.hpp) is four TUs: the parts, the install
 # and confirm path, the prompt/choose dialogs and the footer.
 set(STENCIL_MODALCHROME_SOURCES
@@ -238,7 +248,7 @@ set(STENCIL_GUI_SOURCES
   src/dialogs/shortcutsDialog.cpp
   src/dialogs/connectDialog.cpp
   src/dialogs/openInDialog.cpp
-  src/net/serverClient.cpp
+  ${STENCIL_SERVERCLIENT_SOURCES}
   src/net/liveFeed.cpp
   src/net/connectionStore.cpp
   src/net/fetchGuard.cpp

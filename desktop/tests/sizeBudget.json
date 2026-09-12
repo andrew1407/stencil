@@ -43,7 +43,6 @@
     "desktop/src/llm/opSchema.cpp": 506,
     "desktop/src/llm/planExecutor.cpp": 833,
     "desktop/src/llm/planExecutor.hpp": 277,
-    "desktop/src/net/serverClient.cpp": 728,
     "desktop/src/net/serverClient.hpp": 270,
     "desktop/src/support/disintegrateOverlay.hpp": 319,
     "desktop/src/support/guiHelpers.cpp": 257,
