@@ -1,0 +1,128 @@
+/* ── Instant control tooltip (lib/controlTooltip.js + lib/tipContent.js) ──
+   Replaces the slow, disabled-control-skipping native `title` popup, and renders the
+   title as STRUCTURE rather than flat text — the desktop app's tooltip shape: a heading
+   with keycaps for its shortcut, term/description rows, bullets, and the muted
+   disabled-reason note. Mirrors #app-tooltip in browser/css/components/tooltip.css. ── */
+#app-tooltip {
+  position: fixed;
+  z-index: 100003;
+  max-width: 360px;
+  padding: 7px 10px;
+  font-size: 12px;
+  /* Roomy: a keycap is half again the type size, so a wrapped combo must not collide. */
+  line-height: 1.75;
+  color: var(--text);
+  background: var(--panel-2);
+  /* Accent outline, like the desktop's QToolTip — see browser components/tooltip.css. */
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
+  pointer-events: none;
+  opacity: 0;
+  /* ── The sand, in its lightest form ─────────────────────────────────────────
+     Every other overlay here forms from motes and comes apart into them (lib/motion.js
+     surfaceIn/surfaceOut). A tooltip cannot: it is re-pointed many times a second on a
+     toolbar sweep and it TRACKS THE CURSOR while it is up — a mote layer measured at one
+     position would be stranded a frame later, and a burst per show would be both a cost
+     and a mess. So it takes the same sand as a MASK on itself: the three coprime dot
+     grids of the scroll dissolve (animations.css .reveal-masked), which ride the box
+     wherever it goes, cost one composited layer, and can neither stack, strand, nor leak
+     a timer.
+     Still a TRANSITION, not keyframes, for the original reason: re-pointing simply
+     re-aims from wherever the grain is, with no animation to restart or half-play.
+     --dissolve: 1 = pure grain, 0 = solid. Registered in lib/animations.css, which is
+     why it can be transitioned at all; at 120% the dots overlap outright, so a settled
+     tooltip is solid to the pixel and nothing here costs legibility.
+     transform-origin sits at the top-left, where controlTooltip.js anchors the box, so
+     the grain gathers toward the cursor. Mirrors #app-tooltip in
+     browser/css/components/tooltip.css. */
+  --dissolve: 1;
+  transform: translate(3px, 6px) scale(0.96);
+  transform-origin: top left;
+  /* LEAVING (a transition is taken from the state it goes TO, so this rule is the exit):
+     the alpha eases IN — it holds up while the grain opens — so the tip visibly comes
+     apart instead of merely fading out. */
+  transition: opacity 190ms cubic-bezier(0.55, 0, 1, 0.45),
+              transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+              --dissolve 190ms ease-out;
+  -webkit-mask-image:
+      radial-gradient(circle at 50% 50%, #000 max(0%, calc(120% - var(--dissolve) * 160%)),
+                      transparent max(0%, calc(128% - var(--dissolve) * 160%))),
+      radial-gradient(circle at 50% 50%, #000 max(0%, calc(120% - var(--dissolve) * 140%)),
+                      transparent max(0%, calc(128% - var(--dissolve) * 140%))),
+      radial-gradient(circle at 50% 50%, #000 max(0%, calc(120% - var(--dissolve) * 125%)),
+                      transparent max(0%, calc(128% - var(--dissolve) * 125%)));
+  mask-image:
+      radial-gradient(circle at 50% 50%, #000 max(0%, calc(120% - var(--dissolve) * 160%)),
+                      transparent max(0%, calc(128% - var(--dissolve) * 160%))),
+      radial-gradient(circle at 50% 50%, #000 max(0%, calc(120% - var(--dissolve) * 140%)),
+                      transparent max(0%, calc(128% - var(--dissolve) * 140%))),
+      radial-gradient(circle at 50% 50%, #000 max(0%, calc(120% - var(--dissolve) * 125%)),
+                      transparent max(0%, calc(128% - var(--dissolve) * 125%)));
+  /* Three cell sizes at three phases: one lattice alone lines its dots up into joining
+     rectangles, which is exactly what stops it reading as sand. */
+  -webkit-mask-size: 4px 4px, 7px 7px, 11px 11px;
+  mask-size: 4px 4px, 7px 7px, 11px 11px;
+  -webkit-mask-position: 0 0, 2px 3px, 5px 1px;
+  mask-position: 0 0, 2px 3px, 5px 1px;
+  -webkit-mask-composite: source-over;   /* legacy spelling of "union" */
+  mask-composite: add;
+}
+/* …and once the real motes have flown for it (lib/controlTooltip.js surfaceIn), the
+   mask, the transition and the entry offset all step aside for good: the sand is a
+   cloud of actual particles now, streaming out of the control the tip describes and
+   pouring back into it, exactly as a menu or a dialog does. `.dust-driven` is permanent
+   by design (lib/motion.js), and surfaceForm / surfaceLeave own the alpha while a
+   flight is up. Under reduced motion the dust never plays, so this never applies. */
+#app-tooltip.dust-driven {
+  transition: none;
+  transform: none;
+  --dissolve: 0;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+/* ARRIVING: opaque by 100ms — a sweep must never wait to read it — and what you watch
+   for the rest is the sand closing up. */
+#app-tooltip.visible {
+  opacity: 1;
+  transform: none;
+  --dissolve: 0;
+  transition: opacity 100ms ease, transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+              --dissolve 220ms ease;
+}
+.tip-head { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
+.tip-title { font-weight: 600; }
+.tip-keys { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+/* Half again the prose size — see the note in browser/css/components/tooltip.css. */
+.tip-key {
+  display: inline-block; font: inherit; font-size: 14px; line-height: 1; font-weight: 600;
+  padding: 3px 6px; min-width: 12px; text-align: center;
+  color: var(--accent-2); background: var(--panel);
+  border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; white-space: nowrap;
+  vertical-align: middle;
+}
+.tip-plus { font-size: 13px; color: var(--muted); margin: 0 1px; vertical-align: middle; }
+/* Keycap shake (controlTooltip.js SHAKE_CLASS): a tooltip that carries a shortcut shakes
+   its caps once as it appears. Movement only — the cap keeps its resting colours. */
+@keyframes keycapShake {
+  0%, 100% { transform: none; }
+  15% { transform: translateX(-3px) rotate(-3deg); }
+  38% { transform: translateX(3px) rotate(3deg); }
+  62% { transform: translateX(-2px) rotate(-2deg); }
+  84% { transform: translateX(2px) rotate(1.5deg); }
+}
+.tip-key.key-shake {
+  animation: keycapShake 0.32s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+.tip-rows {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; margin-top: 5px; max-width: 100%;
+}
+.tip-term { font-weight: 600; padding-left: 12px; text-indent: -12px; }
+.tip-term::before { content: '•'; color: var(--muted); padding-right: 6px; }
+.tip-desc { color: var(--text); }
+.tip-bullets { margin: 5px 0 0; padding-left: 15px; }
+.tip-bullets li { margin: 1px 0; }
+.tip-line { margin-top: 4px; }
+.tip-hint { margin-top: 4px; color: var(--muted); }
+.tip-note { margin-top: 5px; color: var(--yellow); }
+.tip-head + .tip-rows, .tip-head + .tip-bullets { margin-top: 5px; }

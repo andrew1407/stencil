@@ -13,7 +13,8 @@ export const popupCss = () => ['popup.css', 'list.css', 'editorMode.css', 'chatP
   'chatComposer.css', 'chatControls.css'].map((f) => read(`../../src/popup/${f}`)).join('\n');
 
 // The two shared sheets every extension document links, in that link order.
-export const themeCss = () => ['theme.css'].map((f) => read(`../../src/lib/${f}`)).join('\n');
+export const themeCss = () => ['palette.css', 'controls.css', 'tooltip.css', 'select.css',
+  'fields.css'].map((f) => read(`../../src/lib/theme/${f}`)).join('\n');
 export const animationsCss = () => ['keyframes.css', 'iconHover.css', 'controls.css',
   'themeSwap.css', 'reveal.css', 'pages.css', 'motionModes.css', 'reducedMotion.css',
   'chat.css', 'overlays.css', 'motionIcons.css']

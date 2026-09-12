@@ -1,0 +1,105 @@
+/* ── Shared theme — OS light/dark, overridable in Options ─────────────────────
+   Single source of truth for the extension's own pages (popup, crop, options);
+   every document links the whole theme/ set, in the order below, BEFORE the
+   page's own stylesheet. Light is default; the dark palette hangs off
+   <html data-theme="dark">, which lib/accent.js stamps pre-paint from the saved
+   Appearance mode ('system' follows prefers-color-scheme live) — the same
+   data-theme contract as the browser app (js/prePaintTheme.js); the desktop app
+   follows QStyleHints::colorScheme. color-scheme also lets native bits (form
+   controls, scrollbars) match. The injected in-page modal (lib/overlay.js) can't
+   link these — it must be self-contained — so it carries the media query inline. */
+:root, :root[data-theme="light"] {
+  color-scheme: light;
+  /* Light (default) */
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --panel-2: #eceef3;
+  --line: #d4d8e2;
+  --text: #1d2230;
+  --muted: #6b7180;
+  /* Brand accent — violet by default, swappable via a data-accent preset (see
+     below + lib/accent.js). --accent-2 is the hover/active shade derived from
+     --accent (darker here, lighter in dark) so any chosen accent stays harmonised. */
+  --accent: #7c3aed;
+  --accent-2: color-mix(in srgb, var(--accent) 86%, black);
+  /* Two of a cloud's tints (lib/dustCloud.js TINT_CSS) are theme-aware: a white speck is
+     invisible on a pale surface, and a deep accent one on a dark surface. */
+  --dust-ink:        #1f1f1f;
+  --dust-accent-alt: color-mix(in srgb, var(--accent) 55%, #000000);
+  /* The ink an accent-BACKED control paints its label and its line-art in. A light
+     accent swallows white, so <html data-accent-light> — set in lib/accent.js from the
+     WCAG contrast — swaps this for the near-black below. Browser twin: --on-accent. */
+  --on-accent: #ffffff;
+  /* The ✓ inside an accent-filled checkbox: a data URL can't read a CSS var, so the
+     whole url() is the token and the light-accent block swaps the stroke. */
+  --accent-tick: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%23ffffff'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+  --yellow: #a67c00;
+  /* Failure tone (browser/css/theme.css --danger). It was USED by the assistant's error
+     bubble and never defined here, so every one of those declarations was invalid at
+     computed-value time: the text fell back to the ordinary body colour, the border to
+     none and the wash to transparent — a failed turn read as a plain message. */
+  --danger: #d6293e;
+  /* Reachability green (browser --success) — the status dot and the status tip cells. */
+  --ok: #2e9e4f;
+  --check-a: #e7eaf0;
+  --check-b: #dfe2ea;
+  /* Scrollbar thumb (browser css/theme.css --sb-thumb): a neutral grey at rest, the
+     accent under the pointer, --accent-2 for the about-to-drag state. */
+  --sb-thumb: #d4d8de;
+  --sb-thumb-hover: var(--accent);
+  --sb-thumb-active: var(--accent-2);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #21242d;
+  --panel: #2b2f3a;
+  --panel-2: #343948;
+  --line: #3d4354;
+  --text: #e8eaf0;
+  --muted: #9aa0b0;
+  /* Same accent (from :root / data-accent); only the shade flips lighter. */
+  --accent-2: color-mix(in srgb, var(--accent) 78%, white);
+  --dust-ink:        #ffffff;
+  --dust-accent-alt: color-mix(in srgb, var(--accent) 30%, #ffffff);
+  --yellow: #ffd400;
+  --danger: #f0697a;   /* lighter on dark, like the browser's dark palette */
+  --ok: #4cc471;       /* browser dark --success */
+  --check-a: #2a2e38;
+  --check-b: #262a33;
+  --sb-thumb: #6a6a6a;
+  --sb-thumb-hover: var(--accent);
+  --sb-thumb-active: var(--accent-2);
+}
+/* ── Scrollbars, every scrollable on every page (browser css/layout.css parity, desktop
+   support/pillScrollBars.hpp): thin native bars in the thumb grey, the thumb taking the
+   accent ONLY while the pointer is on the bar's own strip — `.sb-hover`, set by
+   lib/scrollbarHover.js (one document listener per page) — not whenever the panel is
+   hovered: scrollbar-color has no thumb-hover of its own, and a panel-wide :hover would
+   paint the accent on every scroll. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-thumb) transparent;
+}
+.sb-hover { scrollbar-color: var(--sb-thumb-hover) transparent; }
+/* Accent presets — set only --accent; --accent-2 and the glows derive from it.
+   Keys mirror lib/accent.js and apply as <html data-accent="…"> (lib/accent.js
+   sets it pre-paint). Violet is the :root default, so no attribute = violet. */
+:root[data-accent="violet"]  { --accent: #7c3aed; }
+:root[data-accent="pink"]    { --accent: #ec4899; }
+:root[data-accent="yellow"]  { --accent: #eab308; }
+:root[data-accent="orange"]  { --accent: #ea580c; }
+:root[data-accent="crimson"] { --accent: #be123c; }
+:root[data-accent="aqua"]    { --accent: #0891b2; }
+:root[data-accent="sky"]     { --accent: #0ea5e9; }
+:root[data-accent="blue"]    { --accent: #2563eb; }
+:root[data-accent="grass"]   { --accent: #16a34a; }
+:root[data-accent="green"]   { --accent: #047857; }
+:root[data-accent="brown"]   { --accent: #a87c50; }
+:root[data-accent="grey"]    { --accent: #64748b; }
+
+/* A light accent — one black reads better on than white does. Set from the RESOLVED
+   hex, so custom colours get it too. */
+:root[data-accent-light] {
+  --on-accent: #1a1a1a;
+  --accent-tick: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2016%2016'%3E%3Cpath%20d='M3.5%208.5L6.4%2011.4L12.5%204.5'%20fill='none'%20stroke='%231a1a1a'%20stroke-width='2.4'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+}
