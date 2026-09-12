@@ -1,7 +1,5 @@
-// The context menu's style, filter, view and tooltip rows — the second half of
-// contextMenu.js's "Actions" block (ctxActions.js is the first).
+// The context menu's style, filter, view and tooltip rows.
 export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
-  // Point size — live on input, commit on change
   document.getElementById('ctx-point-size').addEventListener('input', e => {
     const v = parseInt(e.target.value);
     if (!isNaN(v) && v >= 1 && v <= 30) {
@@ -19,7 +17,6 @@ export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
     app.renderer.redraw(); app.storage.save();
   });
 
-  // Line thickness — live on input, commit on change
   document.getElementById('ctx-thickness').addEventListener('input', e => {
     const v = parseInt(e.target.value);
     if (!isNaN(v) && v >= 1 && v <= 20) {

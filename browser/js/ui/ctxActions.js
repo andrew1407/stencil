@@ -4,18 +4,14 @@ import { setChecked, swapCheckGlyph } from './controlSwap.js';
 import { wireAltPreview } from './exportPreview.js';
 import { EXPORT_VARIANTS } from './exportVariants.js';
 
-// The context menu's image, layout, clipboard and draw rows — ported from contextMenu.js's
-// "Actions" block. The menu itself owns opening, placing, closing and the live-sync poll.
+// The context menu's image, layout, clipboard and draw rows.
 export const wireCtxActions = (app, { menu, closeMenu, wireSubmenu }) => {
 
-  // Copy Image / Download Image are now nested submenu parents — wire their
-  // flyouts explicitly (the top-level loop above only wires DIRECT menu children).
+  // Nested submenu parents: the top-level loop only wires direct menu children.
   wireSubmenu(document.getElementById('ctx-copy-img'), document.getElementById('ctx-copy-img-sub'));
   wireSubmenu(document.getElementById('ctx-dl-img'), document.getElementById('ctx-dl-img-sub'));
 
-  // Each variant row: click copies/downloads its OWN literal variant, Alt+hover
-  // previews it — 'split' (With Compare, hidden unless comparing) and 'current' are
-  // independent rows now, each always dispatching its own variant.
+  // Each variant row copies/downloads its own literal variant; Alt+hover previews it.
   const IMG_ACTIONS = [
     ['ctx-copy-img-', v => app.export.copyImageToClipboard(v)],
     ['ctx-dl-img-', v => app.export.saveImage(v)],
@@ -28,14 +24,10 @@ export const wireCtxActions = (app, { menu, closeMenu, wireSubmenu }) => {
     }
   }
 
-  // Share image — only revealed where the Web Share API can share files.
   const shareItem = document.getElementById('ctx-share-img');
   if (shareItem && supportsShareFiles()) shareItem.style.display = '';
-  // shareImage() FIRST, closeMenu() after: the Web Share API needs the call to land
-  // squarely inside the click's user-activation window, and the menu's own close
-  // flight (surfaceOut, js/ui/motion.js) is dead weight ahead of it that every other
-  // browser doesn't have to clear — the toolbar's plain #share-image button (no menu
-  // to close) calls shareImage() alone. Same order here removes that one difference.
+  // shareImage() first, closeMenu() after: the Web Share API needs the call inside the
+  // click's user-activation window, and the close flight is dead weight ahead of it.
   shareItem?.addEventListener('click', () => {
     app.export.shareImage(); closeMenu();
   });
@@ -103,13 +95,12 @@ export const wireCtxActions = (app, { menu, closeMenu, wireSubmenu }) => {
     else if (app.image) app.startDrawingMode();
   });
 
-  // Instant draw line / rectangle: switch to that mode and start drawing right away.
-  // If a line is selected, the next shape connects to it (one-shot).
+  // Switch to that mode and start drawing; a selected line is continued (one-shot).
   document.getElementById('ctx-draw-line').addEventListener('click', () => {
     closeMenu();
     if (!app.image) { notify('Load an image first', 'fail'); return; }
     app.setDrawMode('line');
-    app.startDrawingMode(); // continues the selected line if one is selected
+    app.startDrawingMode();
     notify('Drag to draw a line', 'info');
   });
 
@@ -117,7 +108,7 @@ export const wireCtxActions = (app, { menu, closeMenu, wireSubmenu }) => {
     closeMenu();
     if (!app.image) { notify('Load an image first', 'fail'); return; }
     app.setDrawMode('rect');
-    app.startDrawingMode(); // continues the selected line if one is selected
+    app.startDrawingMode();
     notify('Drag to draw a rectangle', 'info');
   });
 

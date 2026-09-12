@@ -1,17 +1,14 @@
-// ── The context menu's Assistant entry: gating + markup ─────────
-// A compact chat on the SAME conversation as the panel (one controller per app —
-// js/llm/chatSession.js). The wiring lives in ctxAssistant.js.
+// The context menu's Assistant entry: gating + markup. A compact chat on the same
+// conversation as the panel (js/llm/chatSession.js).
 import { icon } from './icons.js';
 import { ctxArrow } from './ctxArrow.js';
 import { chatSuggestionsHtml, chatComposerActionsHtml } from './chatView.js';
 
-// Exists ONLY when a provider is configured; an unreachable one still shows it — the
-// failure surfaces in the reply, exactly like the panel.
+// Exists only when a provider is configured; an unreachable one still shows it.
 export const assistantEnabled = (settings) => (settings?.provider ?? 'none') !== 'none';
 
-// The entry's markup, unconditionally (syncAssistant gates and builds it). It sits
-// directly ABOVE the drawing items with no separator of its own, so gating it off
-// leaves the menu's original separator set untouched — nothing dangles.
+// Sits directly above the drawing items with no separator of its own, so gating it off
+// leaves the separator set untouched.
 export const assistantItemHtml = () => `
         <!-- Assistant submenu: the flyout is a compact chat (chat panel's conversation) -->
         <div class="ctx-item" id="ctx-assist-menu">
