@@ -3,8 +3,7 @@
   "maxNewFileLines": 230,
   "files": {
     "desktop/src/app/mainWindow.cpp": 1080,
-    "desktop/src/app/mainWindow.hpp": 1263,
-    "desktop/src/app/mainWindowActions.cpp": 910,
+    "desktop/src/app/mainWindow.hpp": 1244,
     "desktop/src/app/mainWindowChat.cpp": 291,
     "desktop/src/app/mainWindowEvents.cpp": 553,
     "desktop/src/app/mainWindowToolbar.cpp": 385,
@@ -67,7 +66,7 @@
     "desktop/tests/tipContent.headless.cpp": 317
   },
   "commentPct": {
-    "desktop/src/app": 21,
+    "desktop/src/app": 20,
     "desktop/src/canvas": 18,
     "desktop/src/dialogs": 15,
     "desktop/src/io": 17,
@@ -80,6 +79,6 @@
   "exceptions": {
     "desktop/src/support": "comment share was raised 21 -> 23 with no comment added: theme.cpp's 817-line QSS literal moved to resources/app.qss, so the directory lost that many non-comment lines from the denominator. Ratcheted back to 21 once the header bodies moved into .cpp TUs: the declarations left behind are comment-dense, the moved bodies are not, and both live in support/.",
     "desktop/src/llm": "comment share was raised 20 -> 21 with no comment added: chatPlanTarget.cpp, a 605-line low-comment file, moved to app/ where it belongs in the layer order, so llm/ lost those lines from the denominator. Back to 20 after the llm/ TU splits.",
-    "desktop/tests": "the MainWindow GUI e2e is one QtTest binary per feature area (mainWindow.<area>.gui.cpp). Each area is still far over 230 lines: a QtTest binary runs one QObject of slots, so an area cannot be split further without splitting the binary again. The chat is four binaries for that reason \u2014 chatCards, chatCompact, chatDock and chatPanel/chatTurns \u2014 since one chat binary was longer than the whole rest of the suite run in parallel. The budget numbers above are the ratchet \u2014 drive them down as cases merge."
+    "desktop/tests": "the MainWindow GUI e2e is one QtTest binary per feature area (mainWindow.<area>.gui.cpp). Each area is still far over 230 lines: a QtTest binary runs one QObject of slots, so an area cannot be split further without splitting the binary again. The chat is four binaries for that reason — chatCards, chatCompact, chatDock and chatPanel/chatTurns — since one chat binary was longer than the whole rest of the suite run in parallel. The budget numbers above are the ratchet — drive them down as cases merge."
   }
 }

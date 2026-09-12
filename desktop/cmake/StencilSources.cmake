@@ -191,6 +191,9 @@ set(STENCIL_FACESWAP_SOURCES
 set(STENCIL_GUI_SOURCES
   src/app/mainWindow.cpp
   src/app/mainWindowActions.cpp
+  src/app/mainWindowActionsData.cpp
+  src/app/mainWindowActionsTips.cpp
+  src/app/mainWindowActionsWiring.cpp
   src/app/mainWindowExportMenu.cpp
   src/app/mainWindowToolbar.cpp
   src/app/mainWindowToolbarSections.cpp
@@ -221,7 +224,9 @@ set(STENCIL_GUI_SOURCES
   src/app/mainWindowChatPopover.cpp
   src/app/mainWindowChatShow.cpp
   src/app/mainWindowChrome.cpp
+  src/app/mainWindowContextActions.cpp
   src/app/mainWindowContextMenu.cpp
+  src/app/mainWindowContextRows.cpp
   src/app/mainWindowDnd.cpp
   src/app/mainWindowDust.cpp
   src/app/mainWindowFullscreen.cpp

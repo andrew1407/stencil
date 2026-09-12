@@ -28,6 +28,7 @@
 
 class QAction;
 class QComboBox;
+class QHBoxLayout;
 class QLabel;
 class QScrollArea;
 class QTimer;
@@ -160,10 +161,29 @@ namespace stencil::gui {
    private:
     // Catches Escape + focus-out on the project-name field so the user can always leave the edit.
     bool eventFilter(QObject* obj, QEvent* event) override;
+    // One action: its shortcut, the tooltip carrying it, the window registration that makes it
+    // fire, and the anchor its dialog flies from.
+    QAction* newAction(const QString& text, const QString& seq);
+    // buildActions' phases, in call order — the menus and toolbar iterate the actions in
+    // CREATION order, so these may be re-cut but never reordered.
     void buildActions();
+    void createCoreActions();     // image, draw, view, chat, project, quit
+    void createDataActions();     // clipboard + layout/image export, routed to dataExport_
+    void wireActionHandlers();    // checkable flags, then every triggered/toggled connect
+    void mapHotkeyActions();      // hotkey id → action, so a rebind re-applies live
+    void setActionTooltips();     // the browser's words, verbatim, plus the disabled reasons
     // The persistent grouped actions + QWidgetActions the nested right-click menu reuses.
     // Mirrors browser/js/ui/contextMenu.js wire(). Called once, right after buildActions().
     void buildContextActions();
+    void buildDrawNowActions();          // instant Draw Line / Draw Rectangle
+    void buildContextStyleActions();     // section captions, style spinboxes, filter radios
+    void buildContextTooltipActions();   // the tooltip toggles and the formula twins
+    void buildUnitActions();             // View ▸ Units, cm | inches
+    // One hosted row at the shared indent: the layout to fill (host lay->parentWidget()), with
+    // `act` set to its QWidgetAction. Hosted, so a click inside keeps the menu open.
+    QHBoxLayout* makeContextMenuRow(QWidgetAction*& act, int topM = 4, int botM = 4);
+    void addContextCheckRow(const QString& text, bool checked, QCheckBox*& box,
+                            QWidgetAction*& act);
     // The two toolbar buttons' export-options popups. Called once right after
     // buildToolbar() — it needs the buttons, resolved via buttonForAction.
     void wireExportOptionsPopups();
@@ -292,13 +312,11 @@ namespace stencil::gui {
     // `barPicture`'s centre for x, just under the "Image Size:" row for y; falls back to
     // dockAwayPoint off `barPicture` when that row is unmeasurable.
     QPoint selectedLineBarDustPoint(const QRect& barPicture, bool closing);
-    // Browser panel parity (~0.34 s in, ~0.26 s out). Slides the DOCKED extent — width for
-    // left/right, height for top/bottom — with the same min==max pinning setPanelShown uses.
-    // A floating dock is its own window, so it just shows/hides.
+    // Browser panel parity. Slides the DOCKED extent with the same min==max pinning
+    // setPanelShown uses; a floating dock is its own window, so it just shows/hides.
     void setChatShown(bool show, bool animate);
-    // While a chat flight shares `chatArea` with the points panel, hold the panel at a FIXED
-    // width so the slide eats into the CANVAS column only instead of letting Qt redistribute
-    // between the two docks. No-op when not sharing; stopChatAnim always releases the pin.
+    // Holds the panel at a FIXED width so a shared-area chat slide eats into the CANVAS column
+    // only, instead of Qt redistributing between the docks. stopChatAnim releases the pin.
     void pinPanelWhileSharing(Qt::DockWidgetArea chatArea);
     // Only when the panel is visible: splitting against a hidden dock can park it
     // off-screen. Called from wherever either dock's visibility changes. Idempotent.
@@ -314,8 +332,7 @@ namespace stencil::gui {
     // Width for L/R docks, height for T/B — the `pin` every chat slide hands on.
     std::function<void(int)> chatExtentPin(bool horiz);
     // Animated, unlike QDockWidget::setFloating(): docked leaves through chatSurfaceFlight's
-    // dust then flies out of the icon; floating leaves through dismissWindow then re-docks at
-    // the last area it held.
+    // dust and flies out of the icon; floating re-docks at the last area it held.
     void toggleChatFloat();
     // The chat icon's popover gesture (dblclick / right-click, like every dialog-opening
     // icon): float the dock compact, pinned beside the icon (chatPanel.js compactChatRect).
@@ -346,9 +363,8 @@ namespace stencil::gui {
     // red-on-menu-background in menus, so the button's glyph differs from the action's.
     void styleDangerToolButtons();
     bool sectionButtonVisible(QAction* act, QToolButton* btn) const;
-    // support/faceSwap.hpp. The Start/Stop toggle also takes the accent treatment (outlined
-    // idle, filled drawing). `animate=false` is the repaint path (theme/accent change),
-    // which must land on the end state at once.
+    // support/faceSwap.hpp; the Start/Stop toggle also takes the accent treatment. animate=false
+    // is the repaint path (theme/accent change), which must land on the end state at once.
     void syncDrawToggleFace(bool drawing, bool animate);
     void syncDrawModeFace(bool rect, bool animate);
     void bindRevealAnchors();
@@ -366,9 +382,8 @@ namespace stencil::gui {
     void toggleTheme();
     void applySettings(const Settings& s, bool persist);
     void openSettings();
-    // The chat gear's assistant-only dialog (browser llmSettingsModal), writing the same llm*
-    // keys through the same applySettings path. A named pair, NOT an overload:
-    // &MainWindow::openAssistantSettings is taken by address in several connect()s.
+    // Browser llmSettingsModal, writing the same llm* keys through applySettings. A named pair,
+    // NOT an overload: &MainWindow::openAssistantSettings is taken by address in connect()s.
     void openAssistantSettings();
     // `anchor` owns the dialog's dust flight. `anchorRect` (GLOBAL) is the fallback for a
     // caller whose own button is ABOUT to be hidden — opening the dialog closes the
@@ -377,9 +392,8 @@ namespace stencil::gui {
     // A persistent QWidgetAction parented to the WINDOW, so the transcript survives the menu
     // being rebuilt on every right-click. Only called while a provider is configured.
     void ensureChatMenuPanel();
-    // ONE pipeline (onChatSend/onChatReply, one history, one client, one executor) and two
-    // views: these mirror what the dock is told onto the context-menu panel, and are a no-op
-    // until that panel exists. No plan or execution logic lives here.
+    // ONE pipeline and two views: these mirror what the dock is told onto the context-menu
+    // panel, a no-op until it exists. No plan or execution logic lives here.
     void chatMirror(const QString& role, const QString& text, bool muted,
                     const QString& retryText = QString(), const QStringList& notes = {},
                     bool configure = false);
@@ -424,9 +438,8 @@ namespace stencil::gui {
     // stay the value model.
     QScrollBar* canvasScrollBar(Qt::Orientation o) const;
     void openProjects();
-    // Projects-dialog row icons, through the same canvas/export path the editor uses: the
-    // active project from the live canvas, the rest composited offscreen. A pathless
-    // (in-memory) source gets no preview.
+    // Projects-dialog row icons, through the editor's own canvas/export path: the active project
+    // from the live canvas, the rest composited offscreen. A pathless source gets no preview.
     QHash<QString, QPixmap> buildProjectThumbs() const;
     // Browser connectModal.js. Lazily creates the ConnectionManager.
     void openConnections();
@@ -443,9 +456,8 @@ namespace stencil::gui {
     // Browser "open in new tab". The new window owns itself (WA_DeleteOnClose) and reads
     // projects from disk.
     void openProjectInNewWindow(const QString& id);
-    // Local↔server transfer lives in ProjectTransferController (projectTransfer_).
-    // Blocks removing/moving a project open elsewhere — the browser's "open in another
-    // tab" guard.
+    // Local↔server transfer lives in ProjectTransferController. This blocks removing or moving
+    // a project open elsewhere — the browser's "open in another tab" guard.
     bool projectOpenInOtherWindow(const QString& id) const;
     // Shows OpenImageDialog and dispatches its outcome (here/new-window/replace/blank).
     void openImageDialog(bool startBlank);
@@ -464,16 +476,14 @@ namespace stencil::gui {
                                bool hasPreview = false, bool cropToPage = false,
                                bool cropAlbum = false,
                                const QString& cropPage = QString());
-    // Adopt the dialog's already-decoded preview pixels — no re-fetch or re-seek — honouring
-    // its quick-crop choice. `localPath` is the originating local file (kept for saves), empty
-    // for a URL/video frame; `provSource` records the URL as provenance.
+    // The dialog's already-decoded preview pixels, honouring its quick-crop choice. `localPath`
+    // is the originating local file, empty for a URL/video frame whose URL `provSource` records.
     void openPreviewedImageHere(const QImage& image, const QString& localPath,
                                 const QString& provSource, bool incognito,
                                 bool cropToPage, bool cropAlbum,
                                 const QString& cropPage);
-    // Swap the CURRENT project's image in place, keeping its local id / server link. Server
-    // sessions also re-upload the `original`. canReplaceActive() gates the outcome: a
-    // saved/linked, non-incognito project must be open.
+    // In place, keeping the local id / server link; a server session re-uploads the `original`
+    // too. canReplaceActive() gates it: a saved/linked, non-incognito project must be open.
     bool canReplaceActive() const;
     void replaceProjectImage(const QString& path, bool rename, bool keepAnnotations);
     void replaceServerOriginal(std::function<void()> done = {});
@@ -524,9 +534,8 @@ namespace stencil::gui {
     void createServerProject(const QString& serverUrl, const QString& name,
                              std::function<void()> onLinked = {});
     void saveToActiveProject();
-    // Browser #clear-storage: confirm, then clear the editor back to blank, removing the
-    // active LOCAL project first. Hidden for server-linked sessions, so it only ever runs for
-    // a local/temporary editor.
+    // Browser #clear-storage: confirm, then clear back to blank, removing the active LOCAL
+    // project first. Hidden for server-linked sessions, so only a local/temporary editor runs it.
     void clearCurrentProject();
     // Drops the image, lines, project binding and provenance — storage.newTemporary().
     void resetToBlankEditor();
@@ -543,9 +552,8 @@ namespace stencil::gui {
     void openServerLaunch(const QString& serverUrl, const QString& id, bool incognito);
     // Browser openInModal.js, for the current session.
     void openInAnotherApp();
-    // The same hand-off aimed at a projects-list row. A server row (`serverUrl` non-empty)
-    // sends only the reference; a local row sends its stored image + layout; the active
-    // project falls through to openInAnotherApp() so the live state is used.
+    // The same hand-off at a projects-list row: a server row sends only the reference, a local
+    // row its stored image + layout, and the active project falls through to openInAnotherApp().
     void openInAnotherAppFor(const QString& id, const QString& serverUrl,
                              const QRect& closeRect);
     // What either hand-off gathered. dispatchOpenIn does the rest — the dialog, the Telegram
@@ -560,9 +568,8 @@ namespace stencil::gui {
     };
     void dispatchOpenIn(const OpenInSource& src, bool browserAvailable, bool telegramAvailable,
                         const std::function<int(OpenInDialog&)>& run);
-    // A full envelope (crop + rotation + filter + lines + page/formulas) in the ORIGINAL
-    // image's pixel space. Unlike applyLayoutJson, the lines-only import path, this restores
-    // crop, rotation and filter too — so no dimension-mismatch prompt and nothing is dropped.
+    // A full envelope in the ORIGINAL image's pixel space. Unlike applyLayoutJson, the lines-only
+    // import path, it restores crop, rotation and filter too — so nothing is dropped or prompted.
     void loadImageWithLayout(const QImage& img, const QJsonObject& layout,
                              const QByteArray& sourceBytes = {}, const QString& sourceExt = {});
 
@@ -621,18 +628,15 @@ namespace stencil::gui {
     // The canceled reply still lands in onChatReply, which renders "Stopped." — no history
     // push, no toast.
     void onChatStop();
-    // The dock already emptied the transcript + attachments, so this drops the model-side
-    // per-conversation state and (§12.2) the persisted copy when save-chats is on. Provider
-    // settings and the working image itself are NOT touched.
+    // The dock already emptied the transcript + attachments, so this drops the model-side state
+    // and (§12.2) the persisted copy. Provider settings and the working image are NOT touched.
     void onChatClear();
-    // §10 clearChat is deferred: the op only flags chatClearPending_, and chatTurnSettled —
-    // every turn terminal, a turn ending once its plan executed and its reply showed (§3.0) —
-    // queues the confirm + clear.
+    // §10 clearChat is deferred: the op only flags chatClearPending_, and chatTurnSettled — every
+    // turn terminal, a turn ending once its plan ran and its reply showed — queues the clear.
     void chatTurnSettled();
     void runDeferredChatClear();
-    // Chat persistence (§12), all gated on settings_.saveChatsWithProject (default off) and
-    // never active in incognito. resetChatState is onChatClear minus the persisted-copy
-    // deletion, reused by restores, which must not delete what they read.
+    // Chat persistence (§12), gated on settings_.saveChatsWithProject and never active in
+    // incognito. resetChatState is onChatClear minus the deletion, for restores.
     void resetChatState();
     QJsonObject buildActiveChatDoc() const;   // the §12.1 document; empty object = no chat
     // To the local project record, or the linked server project's "chat" file kind. Called
@@ -657,9 +661,8 @@ namespace stencil::gui {
     // `frame` op: sequential MediaLoader seeks, blocking on a local event loop, each extracted
     // frame becoming a new project entry.
     bool chatExtractFrames(const QVector<int>& indices, QString* err);
-    // §2.1 `save`, through createLocalProject like the New Project flow. A FRESH project per
-    // save, so a multi-image plan leaves one project per image; publishing to a server stays a
-    // user action. Browser twin: chatSession.js saveProject.
+    // §2.1, through createLocalProject like the New Project flow. A FRESH project per save, so a
+    // multi-image plan leaves one per image; publishing to a server stays a user action.
     bool chatSaveProject(const QString& name, const QString& dest, QString* err);
     // The local twin of publishIncognitoToServer: incognito stops the app writing by itself,
     // it does not trap what is on screen. Returns the project name, "" when there is nothing.
@@ -711,9 +714,8 @@ namespace stencil::gui {
     // session is a blank image; persists blank/blankColor.
     void setActiveBlankColor();
     void applyBlankColor(const QColor& c);   // shared with the assistant's §10 blankColor op
-    // The Projects dialog "Set colour" path. A server project (serverUrl non-empty) PUTs
-    // UpdateProject{color} asynchronously, a local one updates the meta synchronously, so
-    // `done(ok)` is what lets callers repaint the title once the change lands.
+    // The Projects dialog "Set colour" path. A server project PUTs asynchronously and a local one
+    // resolves at once, so `done(ok)` is what lets callers repaint once the change lands.
     void setProjectColorById(const QString& id, const QString& serverUrl, const QString& color,
                              std::function<void(bool ok)> done = {});
     // Version-guarded server writes live on RemoteSession; the CRUD methods here call through it.
@@ -726,9 +728,8 @@ namespace stencil::gui {
     // Editing shows an accent-outlined input; read-only shows a plain title with NO
     // border/focus ring (browser parity). Keeps the project colour either way.
     void applyProjectNameStyle(bool editing);
-    // The description plus the shortcut it carries, in the platform's own notation — tipContent
-    // then draws that trailing "(⌘Z)" as a keycap. buildActions' local `tip` helper is this,
-    // and refreshActions re-states the ones that flip direction.
+    // The description plus its shortcut in the platform's own notation — tipContent draws that
+    // trailing "(⌘Z)" as a keycap. refreshActions re-states the ones that flip direction.
     void setActionTip(QAction* a, const QString& desc);
     void enterNameEdit();
     void commitProjectName();
@@ -739,9 +740,8 @@ namespace stencil::gui {
     void updateStatusIdle();
     void keyPressEvent(QKeyEvent* event) override;
     void keyReleaseEvent(QKeyEvent* event) override;  // clears the Alt+R rotate-chord flag
-    // A file dropped on the window (image / video / layout JSON) routes through
-    // openPathFromOS. dragMove tracks the cursor's half (LEFT save / RIGHT incognito) and
-    // highlights the split drop overlay.
+    // A dropped image / video / layout JSON routes through openPathFromOS; dragMove tracks the
+    // cursor's half (LEFT save / RIGHT incognito) and lights the split drop overlay.
     void dragEnterEvent(QDragEnterEvent* event) override;
     void dragMoveEvent(QDragMoveEvent* event) override;
     void dragLeaveEvent(QDragLeaveEvent* event) override;
@@ -770,8 +770,7 @@ namespace stencil::gui {
     SelectionPanel* selPanel_ = nullptr;
     SelectedLineBar* selectedLineBar_ = nullptr;  // "Selected Line:" bar above the canvas
     // A dock area, not a QToolBar row: it stretches its one content widget to the full window
-    // width, which selectedLineBar_'s FlowLayout needs to wrap against. QToolBarLayout instead
-    // sizes an added widget to its own content.
+    // width, which selectedLineBar_'s FlowLayout wraps against. QToolBarLayout would not.
     class QDockWidget* selectedLineDock_ = nullptr;
     class QVBoxLayout* centralLayout_ = nullptr;  // [image-info bar, scroll_]
     ChatDock* chatDock_ = nullptr;   // dockable on all four sides + free-floating
@@ -792,9 +791,8 @@ namespace stencil::gui {
     // app/sessionController.hpp. Its restoring() guard keeps loadProjectIntoCanvas /
     // restoreSession from re-saving the view they are still applying.
     SessionController session_;
-    // QPointer, not raw: QWidget::setGraphicsEffect DELETES the effect the widget had, so
-    // re-installing one leaves a raw pointer dangling — and the reveal path reads opacity()
-    // off it every pan tick (a SIGSEGV in the GUI suite).
+    // QPointer, not raw: QWidget::setGraphicsEffect DELETES the effect the widget had, so a
+    // re-install dangles — and the reveal path reads opacity() off it every pan tick.
     QPointer<QGraphicsOpacityEffect> vScrollOpacity_;
     QPointer<QGraphicsOpacityEffect> hScrollOpacity_;
     QTimer* scrollbarHideTimer_ = nullptr;
@@ -828,9 +826,8 @@ namespace stencil::gui {
     // "(x" and a field cleared to be retyped are states passed through, not values to apply.
     // Browser twin: settingsController.wireFormulaInputs, same delay.
     QTimer* formulaCommitTimer_ = nullptr;
-    // Transformation-submenu twins of the toolbar formula controls (browser contextMenu.js):
-    // edits here drive the canonical toolbar widgets above, so the validate/apply/persist
-    // pipeline runs unchanged. Seeded in syncContextActions.
+    // Transformation-submenu twins of the toolbar formula controls: edits here drive those, so
+    // the validate/apply/persist pipeline runs unchanged. Seeded in syncContextActions.
     QWidgetAction* ctxAllowFormulasAct_ = nullptr;
     QCheckBox* ctxAllowFormulas_ = nullptr;
     QWidgetAction* ctxFormulaXAct_ = nullptr;
@@ -904,18 +901,16 @@ namespace stencil::gui {
     // for the whole drag.
     class DockGripOverlay* panelGrip_ = nullptr;
     bool panelGripDrag_ = false;
-    // The same pair for the chat dock's resize edge (browser .chat-resizer). chatEdgeHit_ is
-    // the separator's real rect: the band is painted thicker than a hairline separator, but it
-    // may only light where Qt actually starts a resize.
+    // The same pair for the chat dock's resize edge. chatEdgeHit_ is the separator's real rect:
+    // the band is painted thicker, but may only light where Qt actually starts a resize.
     class DockEdgeOverlay* chatEdge_ = nullptr;
     QRect chatEdgeHit_;
     bool chatEdgeDrag_ = false;
     class QLabel* imageSizeInfo_ = nullptr;       // "Image Size: W × H px" — hides with the tool rows
     // selectedLineBarDustPoint reads THIS rect for the dust point's y (height/bottom only).
     QWidget* imageInfoBar_ = nullptr;
-    // The bar's host (adaptive top gap + fixed bottom gap) and the Qt::TopDockWidgetArea dock
-    // it lives in, stacked below selectedLineDock_ so the row spans the full window width above
-    // canvas AND panel — browser #image-info is a sibling of .main-content, not nested in it.
+    // Its host and the Qt::TopDockWidgetArea dock it lives in, stacked below selectedLineDock_ so
+    // the row spans above canvas AND panel — #image-info is .main-content's sibling, not its child.
     QWidget* imageInfoHost_ = nullptr;
     class QDockWidget* imageInfoDock_ = nullptr;
     QString imageInfoHeightKey_;   // font/theme key the reserved height was measured for
@@ -939,10 +934,9 @@ namespace stencil::gui {
     // The popover is a child widget of this window, so its own frameGeometry() is not a screen
     // rect; the hosting overlay's is.
     QRect popoverRectGlobal() const;
-    // ONE rule for "a press landed while a popover is open", shared by the app-wide event filter
-    // (the presses Qt delivers) and the popover's own poll (the presses a modal exec() makes the
-    // platform drop). `target` is nullptr when the poll saw it. True only when the press was
-    // CONSUMED as a gesture; a dismissal returns false, so the press travels on.
+    // ONE rule for "a press landed while a popover is open", shared by the app-wide filter (the
+    // presses Qt delivers) and the popover's poll (the ones a modal exec() makes the platform
+    // drop; `target` is then nullptr). True only when the press was CONSUMED as a gesture.
     bool handlePopoverPress(class QWidget* target, const QPoint& globalPos,
                             Qt::MouseButton button);
     FullscreenController fs_;   // app/fullscreenController.hpp
@@ -962,8 +956,7 @@ namespace stencil::gui {
     QPointer<QWidget> blockedRow_;
     void setBlockedCursor(bool on);
     // The wipe in flight: a second toggle is ignored while it plays, since the overlay is a
-    // snapshot taken BEFORE the restyle and re-theming under it tears the window. QPointer —
-    // the overlay deleteLater()s itself when the animation ends.
+    // snapshot taken BEFORE the restyle. QPointer — it deleteLater()s itself when it ends.
     QPointer<QWidget> themeWipe_;
     bool themeSwapping() const { return !themeWipe_.isNull(); }
 
@@ -979,15 +972,13 @@ namespace stencil::gui {
     static constexpr int kPanelMinWidth = 240;
     int panelRestoreWidth_ = kPanelDefaultWidth;   // remembered width for the expand animation
     QVariantAnimation* panelAnim_ = nullptr;
-    // The extent to reopen at (remembered just before each hide) and the dock's OWN minimum
-    // size — captured at construction, before any clamping, so the finish step restores it
-    // instead of releasing to 0.
+    // The extent to reopen at, and the dock's OWN minimum size — captured at construction before
+    // any clamping, so the finish step restores it instead of releasing to 0.
     QVariantAnimation* chatAnim_ = nullptr;
     int chatRestoreExtent_ = 0;
     QSize chatNaturalMin_;
-    // The real dock stays invisible behind its own dust flight: the motes ARE the panel forming
-    // or leaving. Tracked so stopChatAnim() can hand the dock back if the flight is interrupted;
-    // QPointer because setGraphicsEffect(nullptr) deletes it. panelVeil_ is panelSurfaceFlight's.
+    // The dock stays invisible behind its own dust flight: the motes ARE the panel forming or
+    // leaving. Tracked so stopChatAnim() can hand it back mid-flight; panelVeil_ is the panel's.
     QPointer<QGraphicsOpacityEffect> chatVeil_;
     QPointer<QGraphicsOpacityEffect> panelVeil_;
     // Settings key of a model that rejected images: while it still matches, the working image
@@ -1001,8 +992,7 @@ namespace stencil::gui {
     bool chatCompactPopover_ = false;
     bool chatClosing_ = false;          // the dock is mid-slide/flight OUT
     // What the DOCK displayed, in order: the panel is built lazily and replays THIS, never
-    // chatHistory_, which is what the MODEL sees — the §7 continuation note and every interim
-    // round's reply, none of it a message to a user.
+    // chatHistory_ — what the MODEL sees, none of which is a message to a user.
     struct MirrorRow {
       QString role;
       QString text;
@@ -1013,8 +1003,7 @@ namespace stencil::gui {
     QVector<MirrorRow> chatMirrorLog_;
     Qt::DockWidgetArea chatCompactPrevArea_ = Qt::LeftDockWidgetArea;
     // The title-bar Float button's rect for the session, NOT openChatCompact's icon-anchored
-    // popover. Invalid until the dock has floated once, and captured just before it leaves that
-    // shape, so a round-trip comes back where it was left.
+    // popover. Captured just before the dock leaves that shape, so a round-trip comes back.
     QRect chatFloatRect_;
     // Browser FLOAT_DEFAULT, ported to this window's top-left rather than the viewport's —
     // desktop has no single shared viewport origin. A fixed inset, clamped to its own screen.
@@ -1076,9 +1065,8 @@ namespace stencil::gui {
     QMenu* copyImageOptionsMenu_ = nullptr;
     QMenu* saveImageOptionsMenu_ = nullptr;
 
-    // Context-menu submenu actions (browser/js/ui/contextMenu.js), owned by `this` and reused
-    // on every right-click so their checked/enabled/visible state stays live. The toolbar and
-    // menu bar keep their own shared QActions; these are only what the context menu adds.
+    // Browser/js/ui/contextMenu.js, owned by `this` and reused on every right-click so their
+    // checked/enabled/visible state stays live. Only what the context menu adds on its own.
 
     // ctx-draw-line / ctx-draw-rect: set the mode and begin drawing immediately.
     QAction* actDrawLineNow_ = nullptr;
@@ -1095,9 +1083,8 @@ namespace stencil::gui {
     QSpinBox* pointSpin_ = nullptr;
     QSpinBox* thickSpin_ = nullptr;
 
-    // Browser .ctx-sub-label captions. Plain muted text, NOT QMenu::addSection(): a section is
-    // a separator with a label, and the theme's QSS separator rule paints a line the browser's
-    // caption does not have (addSection()'s QAction is still isSeparator()==true).
+    // Browser .ctx-sub-label captions. Plain muted text, NOT QMenu::addSection(): its QAction is
+    // still isSeparator(), so the theme's QSS paints a line the browser's caption never has.
     QWidgetAction* secImageAct_ = nullptr;
     QWidgetAction* secLayoutJsonAct_ = nullptr;
     QWidgetAction* secLineStyleAct_ = nullptr;
@@ -1118,9 +1105,8 @@ namespace stencil::gui {
     QWidgetAction* actFilterCustom_ = nullptr;
     QAction* tintColorAction_ = nullptr;
 
-    // Real QCheckBoxes in QWidgetActions, so a click flips them WITHOUT closing the menu and
-    // they render as checkboxes rather than the action's icon. actTooltip_ stays a plain
-    // QAction for the View menu; tooltipEnableCheck_ mirrors it here.
+    // Real QCheckBoxes in QWidgetActions, so a click flips them WITHOUT closing the menu.
+    // actTooltip_ stays a plain QAction for the View menu; tooltipEnableCheck_ mirrors it here.
     QWidgetAction* actTooltipEnable_ = nullptr;
     QCheckBox* tooltipEnableCheck_ = nullptr;
     QWidgetAction* actTtPage_ = nullptr;
@@ -1145,8 +1131,7 @@ namespace stencil::gui {
     // Lazily created. Owns the REST clients; shared projects are listed through it.
     stencil::net::ConnectionManager* connections_ = nullptr;
     // remoteSession.hpp: the session's remote-link state (empty address = purely local), the
-    // ConnectionManager handle, and the version-guarded write helpers. Reached through
-    // remoteSession_->link() here; RemoteSyncController composes it directly.
+    // ConnectionManager handle, and the version-guarded write helpers. Reached via ->link().
     RemoteSession* remoteSession_ = nullptr;
     // The canvas image's own URL and the page it came from. Set by loadImageByUrl(), cleared on
     // a plain local open / blank image, folded into the project meta on create/save.
@@ -1187,9 +1172,8 @@ namespace stencil::gui {
     };
     QuickCropOpts pendingCrop_;
     bool incognito_ = false;
-    // NaN until the cursor really hovers the canvas, and NaN again when it leaves: the
-    // unit/page refreshers replay onHovered(lastHoverX_, lastHoverY_), so anything else would
-    // resurrect stale numbers into an empty readout.
+    // NaN until the cursor really hovers the canvas, and NaN again when it leaves: the unit/page
+    // refreshers replay onHovered(lastHoverX_, lastHoverY_) into an otherwise empty readout.
     double lastHoverX_ = std::numeric_limits<double>::quiet_NaN();
     double lastHoverY_ = std::numeric_limits<double>::quiet_NaN();
     // What styleActionIcons last rasterized in, so live handlers can re-icon a widget in the
@@ -1212,9 +1196,8 @@ namespace stencil::gui {
     // canvas is empty (onChatReply, browser parity).
     QList<QImage> chatTurnAttachments_;
     QStringList chatTurnAttachmentNames_;
-    // §2.1: which attachment the plan is working on (1-based, 0 = none), so an unnamed `save`
-    // is named after it. Set to the sole attachment of a one-attachment turn, then moved by
-    // every `image` op.
+    // §2.1: which attachment the plan is working on (1-based, 0 = none), so an unnamed `save` is
+    // named after it. Set to a one-attachment turn's sole one, then moved by every `image` op.
     int chatActiveAttachment_ = 0;
     // The chat's current video input ("" = none); gates the `frame` op.
     QString chatVideoPath_;
@@ -1228,8 +1211,7 @@ namespace stencil::gui {
     stencil::llm::ChatImage chatEdgeMapEncoded_;
     QWidget* chatToast_ = nullptr;   // ChatToast in the .cpp, objectName "chatToast"
     // ChatMenuPanel in the .cpp. The ACTION is parented to the window, not the menu, so it
-    // outlives the per-right-click rebuild and keeps its transcript; the widget pointers are the
-    // StayOpenMenu interactive area and its key target.
+    // outlives the per-right-click rebuild; the widgets are the StayOpenMenu area and key target.
     QWidgetAction* chatMenuAction_ = nullptr;
     QWidget* chatMenuPanel_ = nullptr;
     QWidget* chatMenuInput_ = nullptr;
