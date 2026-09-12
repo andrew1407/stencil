@@ -15,7 +15,7 @@ export const renderChatLog = (transcript, log, { onConfigure, onAskSubmit, onRet
 // An empty conversation shows the chips; bringing them back waits for the rows to leave.
   if (log.length) transcript.querySelector('.chat-empty')?.remove();
 // One reveal observer per transcript. smooth: a grainy dissolve on text reads as corruption.
-  if (!transcript._revealBound) transcript._revealBound = observeReveal(transcript, '[data-row]', { smooth: true });
+  transcript._revealBound ??= observeReveal(transcript, '[data-row]', { smooth: true });
   bindShrinkWrapResize(transcript);
 // Arrivals are played at the end: the dust is a clone, so the row must be fully built,
 // and the count budgets the burst's mesh. The first paint of a transcript is silent.

@@ -474,7 +474,7 @@ export function startCloud(host, motes, { flight = 'scatter', span, colours, ori
   const started = now();
   let live = true;
   let handle = 0;
-  const cancel = globalThis.cancelAnimationFrame || noop;
+  const cancel = globalThis.cancelAnimationFrame ?? noop;
   const step = () => {
     if (!live) return;
     const t = now() - started;

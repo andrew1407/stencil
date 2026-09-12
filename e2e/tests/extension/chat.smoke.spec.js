@@ -7,6 +7,7 @@
 // (§5 shape). Persistent context + headed, like the other extension suites; CI wraps
 // the job in xvfb. Editor-internal state is deliberately NOT asserted — the hand-off
 // URL payload is the stable, headless-safe seam.
+import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { APP_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
@@ -38,7 +39,7 @@ test.describe('extension AI assistant (embedded section)', () => {
       editorUrl: APP_URL,
       llm: { ...stubLlmSettings(stub.url + '/v1'), serverToken: '' },
     });
-    await new Promise((r) => setTimeout(r, 500));
+    await sleep(500);
   });
 
   test.afterAll(async () => {

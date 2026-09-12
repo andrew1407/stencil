@@ -8,6 +8,7 @@
 // The synchronous window.stencil API does NOT fetch the web-app manifest (that needs an
 // async request), so manifest icons are covered by the pageImages.manifestIconUrls unit
 // test + the inline copy in lib/imageScan.js, not here.
+import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { APP_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
@@ -25,7 +26,7 @@ test.describe('extension image-source coverage', () => {
     const sw = await ext.background();
     await sw.evaluate((editorUrl) => new Promise((r) =>
       chrome.storage.sync.set({ exposeWindowStencil: true, editorUrl }, r)), EDITOR_URL);
-    await new Promise((r) => setTimeout(r, 800));
+    await sleep(800);
   });
 
   test.afterAll(async () => { await context?.close(); });

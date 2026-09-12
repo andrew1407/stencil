@@ -17,8 +17,8 @@ export class ServerConnection {
     // An admin token cannot list projects, so probing it as a session token always 401s;
     // once proven the kind is remembered. '' = not yet known: probe first.
     this.credentialKind = kind === 'admin' ? 'admin' : '';
-    this.#fetch = fetchImpl || globalThis.fetch?.bind(globalThis);
-    this.#WS = WebSocketImpl || globalThis.WebSocket;
+    this.#fetch = fetchImpl ?? globalThis.fetch?.bind(globalThis);
+    this.#WS = WebSocketImpl ?? globalThis.WebSocket;
     this.clientId = clientId || ('c_' + Math.random().toString(36).slice(2, 10));
     this.connected = false;
     // 'expired' is its own state: the server is up, this SESSION is dead — only a new token helps.

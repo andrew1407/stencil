@@ -56,7 +56,7 @@ export function wireArrowPan(app) {
 
     e.preventDefault();
     arrowsHeld.add(e.key);
-    if (!arrowPanRaf) arrowPanRaf = requestAnimationFrame(arrowPanTick);
+    arrowPanRaf ??= requestAnimationFrame(arrowPanTick);
   });
   document.addEventListener('keyup', e => {
     if (e.key === 'r' || e.key === 'R') rHeld = false;

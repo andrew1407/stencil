@@ -21,7 +21,7 @@ export class ConnectionManager {
   #lastSet = [];        // for reconnect()
   constructor({ fetchImpl, WebSocketImpl, onChange } = {}) {
     this.#fetch = fetchImpl; this.#WS = WebSocketImpl;
-    this.#onChange = onChange || (() => {});
+    this.#onChange = onChange ?? (() => {});
   }
 
   get urls() { return Array.from(this.#conns.keys()); }

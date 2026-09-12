@@ -18,7 +18,7 @@
     "browser/js/core/zoomPan.js": 115,
     "browser/js/llm/chatController.js": 481,
     "browser/js/llm/chatSession.js": 294,
-    "browser/js/llm/llmClient.js": 274,
+    "browser/js/llm/llmClient.js": 273,
     "browser/js/llm/opPlan.js": 114,
     "browser/js/llm/opSchema.js": 252,
     "browser/js/llm/voiceModes.js": 240,

@@ -7,6 +7,7 @@
 // opened as ordinary chrome-extension:// pages against a fixture host tab.
 //
 // Record/refresh the baselines with UPDATE_PINS=1 (see ../../README.md).
+import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { APP_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
@@ -28,7 +29,7 @@ test.describe('extension UI pins', () => {
     extId = ext.extId;
     const sw = await ext.background();
     await sw.evaluate((editorUrl) => new Promise((r) => chrome.storage.sync.set({ editorUrl }, r)), APP_URL);
-    await new Promise((r) => setTimeout(r, 500));
+    await sleep(500);
   });
 
   test.afterAll(async () => { await context?.close(); });

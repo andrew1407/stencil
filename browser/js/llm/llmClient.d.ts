@@ -19,6 +19,13 @@ export declare class LlmError extends Error {
   constructor(message: string, kind: LlmErrorKind);
   name: 'LlmError';
   kind: LlmErrorKind;
+  static config(message: string): LlmError;
+  static network(message: string): LlmError;
+  static http(message: string): LlmError;
+  static badReply(message: string): LlmError;
+  static truncated(message: string): LlmError;
+  static refusal(message: string): LlmError;
+  static disabled(message: string): LlmError;
 }
 
 export interface LlmClient {

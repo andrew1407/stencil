@@ -19,11 +19,14 @@ import { ASSISTANT_OFF_TEXT, defaultGetToken } from './llmSurface.js';
 //   kind 'network'   — fetch itself failed (DNS, refused, CORS), tagged at the call
 //   kind 'http'      — any other transport/HTTP failure
 export class LlmError extends Error {
-  constructor(message, kind) {
-    super(message);
-    this.name = 'LlmError';
-    this.kind = kind;
-  }
+  constructor(message, kind) { super(message); this.name = 'LlmError'; this.kind = kind; }
+  static config(message) { return new LlmError(message, 'config'); }
+  static network(message) { return new LlmError(message, 'network'); }
+  static http(message) { return new LlmError(message, 'http'); }
+  static badReply(message) { return new LlmError(message, 'badReply'); }
+  static truncated(message) { return new LlmError(message, 'truncated'); }
+  static refusal(message) { return new LlmError(message, 'refusal'); }
+  static disabled(message) { return new LlmError(message, 'disabled'); }
 }
 
 // Endpoint paths, display names and the probe timeout come from the shared
@@ -55,7 +58,7 @@ export const sanitizeProviderText = (text) => {
 };
 
 const postJson = async (fetchImpl, url, body, headers = {}, signal = undefined) => {
-  if (!fetchImpl) throw new LlmError('no fetch implementation available', 'http');
+  if (!fetchImpl) throw LlmError.http('no fetch implementation available');
   let resp;
   try {
     resp = await fetchImpl(url, {
@@ -69,7 +72,7 @@ const postJson = async (fetchImpl, url, body, headers = {}, signal = undefined) 
     // fetch's own failures (DNS, refused, CORS) are TypeErrors — tag them HERE
     // so the error mapping never has to guess from the exception type (a
     // TypeError thrown later in plan execution must not read as "unreachable").
-    throw new LlmError(err?.message || String(err), 'network');
+    throw LlmError.network(err?.message || String(err));
   }
   if (!resp.ok) {
     let msg = `HTTP ${resp.status}`;
@@ -85,7 +88,7 @@ const postJson = async (fetchImpl, url, body, headers = {}, signal = undefined) 
       // Only the provider's own words survive, bounded — never the raw body.
       msg = sanitizeProviderText(msg) || `HTTP ${resp.status}`;
     } catch { /* non-JSON error body */ }
-    const err = new LlmError(msg, code === 'llmDisabled' ? 'disabled' : 'http');
+    const err = code === 'llmDisabled' ? LlmError.disabled(msg) : LlmError.http(msg);
     err.answered = true;   // the endpoint responded — this is NOT "unreachable"
     err.status = resp.status;   // 401/403 = the SESSION is over, not the provider
     throw err;
@@ -126,12 +129,10 @@ export const createLlmClient = ({ settings, fetchImpl = globalThis.fetch?.bind(g
   const chat = async ({ system, messages, signal }) => {
     const msgs = messages || [];
 
-    if (s.provider === 'none') {
-      throw new LlmError(ASSISTANT_OFF_TEXT, 'config');
-    }
+    if (s.provider === 'none') throw LlmError.config(ASSISTANT_OFF_TEXT);
 
     if (s.provider === 'ollama') {
-      if (!s.baseUrl) throw new LlmError('No Ollama base URL configured', 'http');
+      if (!s.baseUrl) throw LlmError.http('No Ollama base URL configured');
       const r = await postJson(fetchImpl, `${s.baseUrl}${PROVIDER_INFO.ollama.chatPath}`, {
         model: s.model || '',
         stream: false,
@@ -140,12 +141,12 @@ export const createLlmClient = ({ settings, fetchImpl = globalThis.fetch?.bind(g
       // A 2xx body without a reply string (e.g. an error-shaped {"error":…}) is a
       // typed badReply, never a silent "" (parity with the other surfaces).
       const content = r.message?.content;
-      if (typeof content !== 'string') throw new LlmError('malformed ollama response (no message.content)', 'badReply');
+      if (typeof content !== 'string') throw LlmError.badReply('malformed ollama response (no message.content)');
       return content;
     }
 
     if (s.provider === 'openai-compat') {
-      if (!s.baseUrl) throw new LlmError('No base URL configured', 'http');
+      if (!s.baseUrl) throw LlmError.http('No base URL configured');
       const headers = s.apiKey ? { Authorization: 'Bearer ' + s.apiKey } : {};
       const r = await postJson(fetchImpl, `${s.baseUrl}${PROVIDER_INFO['openai-compat'].chatPath}`, {
         model: s.model || '',
@@ -153,25 +154,25 @@ export const createLlmClient = ({ settings, fetchImpl = globalThis.fetch?.bind(g
         messages: [{ role: 'system', content: system }, ...msgs.map(openaiMessage)],
       }, headers, signal);
       const content = r.choices?.[0]?.message?.content;
-      if (typeof content !== 'string') throw new LlmError('malformed response (no choices[0].message.content)', 'badReply');
+      if (typeof content !== 'string') throw LlmError.badReply('malformed response (no choices[0].message.content)');
       return content;
     }
 
     if (s.provider === 'stencil-server') {
-      if (!s.serverUrl) throw new LlmError('No Stencil server configured for the assistant', 'http');
+      if (!s.serverUrl) throw LlmError.http('No Stencil server configured for the assistant');
       const token = await resolveToken(s.serverUrl);
       const body = { system, messages: msgs.map(serverMessage) };
       if (s.model) body.model = s.model;
       const r = await postJson(fetchImpl, `${s.serverUrl}${PROVIDER_INFO['stencil-server'].chatPath}`, body, { Authorization: 'Bearer ' + token }, signal);
       // stopReason handling per contract §6.3: truncated/refused replies are typed
       // errors for the chat UI to render — NEVER parsed as an op-plan.
-      if (r.stopReason === 'max_tokens') throw new LlmError('Response truncated — the model hit its output limit; try a shorter request', 'truncated');
-      if (r.stopReason === 'refusal') throw new LlmError(r.text || 'The model refused this request', 'refusal');
-      if (typeof r.text !== 'string') throw new LlmError('malformed server response (no text)', 'badReply');
+      if (r.stopReason === 'max_tokens') throw LlmError.truncated('Response truncated — the model hit its output limit; try a shorter request');
+      if (r.stopReason === 'refusal') throw LlmError.refusal(r.text || 'The model refused this request');
+      if (typeof r.text !== 'string') throw LlmError.badReply('malformed server response (no text)');
       return r.text;
     }
 
-    throw new LlmError(`Unknown LLM provider "${s.provider}"`, 'http');
+    throw LlmError.http(`Unknown LLM provider "${s.provider}"`);
   };
 
   return { chat };
@@ -180,11 +181,9 @@ export const createLlmClient = ({ settings, fetchImpl = globalThis.fetch?.bind(g
 // GET {serverUrl}/llm/info → { enabled, model } so the settings UI can render
 // "via server X (model)". Errors propagate (the caller shows "unreachable").
 export const fetchLlmInfo = async (serverUrl, { token = '', fetchImpl = globalThis.fetch?.bind(globalThis) } = {}) => {
-  if (!fetchImpl) throw new LlmError('no fetch implementation available', 'http');
-  const resp = await fetchImpl(`${serverUrl}${PROVIDER_INFO['stencil-server'].infoPath}`, {
-    headers: { Authorization: 'Bearer ' + token },
-  });
-  if (!resp.ok) throw new LlmError(`HTTP ${resp.status}`, 'http');
+  if (!fetchImpl) throw LlmError.http('no fetch implementation available');
+  const resp = await fetchImpl(`${serverUrl}${PROVIDER_INFO['stencil-server'].infoPath}`, { headers: { Authorization: 'Bearer ' + token } });
+  if (!resp.ok) throw LlmError.http(`HTTP ${resp.status}`);
   return resp.json();
 };
 

@@ -8,6 +8,7 @@
 // ⋯ action menu with a submenu flyout that must stay fully on-screen (the fixed→absolute
 // positioning fix), Crop being a single flat action (no submenu), and the side panel's
 // re-scan when the active tab changes. Runs headed; CI wraps the job in xvfb (see ci.yml).
+import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { APP_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
@@ -28,7 +29,7 @@ test.describe('extension popup + side panel UI', () => {
     // Point the editor hand-off at the harness app so nothing reaches a real host.
     const sw = await ext.background();
     await sw.evaluate((editorUrl) => new Promise((r) => chrome.storage.sync.set({ editorUrl }, r)), APP_URL);
-    await new Promise((r) => setTimeout(r, 500));
+    await sleep(500);
   });
 
   test.afterAll(async () => { await context?.close(); });
@@ -91,8 +92,7 @@ test.describe('extension popup + side panel UI', () => {
       });
       expect(state.collapsed).toBe(true);
       expect(state.hidden).toBe(true);
-      await host.close();
-      await ui.close();
+      await Promise.all([host.close(), ui.close()]);
     });
   }
 
@@ -134,8 +134,7 @@ test.describe('extension popup + side panel UI', () => {
     expect(box.x + box.width).toBeLessThanOrEqual(vp.width + 1);
     expect(box.y + box.height).toBeLessThanOrEqual(vp.height + 1);
 
-    await host.close();
-    await ui.close();
+    await Promise.all([host.close(), ui.close()]);
   });
 
   // The header logo is SPRING-LOADED: hovering it with page media MID-DRAG (no drop)
@@ -238,8 +237,7 @@ test.describe('extension popup + side panel UI', () => {
     expect(await host.locator('iframe').count()).toBe(0);   // nothing new was launched
     expect(cropTabs()).toBe(0);
 
-    await host.close();
-    await ui.close();
+    await Promise.all([host.close(), ui.close()]);
   });
 
   // The in-page modal SHELL (lib/overlay.js — title bar, frame, pop-out/close buttons)
@@ -312,8 +310,7 @@ test.describe('extension popup + side panel UI', () => {
     }
 
     await ui.evaluate(() => window.StencilTheme.set('system'));   // leave no state behind
-    await host.close();
-    await ui.close();
+    await Promise.all([host.close(), ui.close()]);
   });
 
   test('side panel: re-scans and lists images when the active tab changes', async () => {
@@ -324,7 +321,6 @@ test.describe('extension popup + side panel UI', () => {
     await host.bringToFront();
     await ui.waitForFunction(() => document.querySelectorAll('.row').length > 0, null, { timeout: 15_000 });
     expect(await ui.locator('.row').count()).toBeGreaterThan(0);
-    await host.close();
-    await ui.close();
+    await Promise.all([host.close(), ui.close()]);
   });
 });

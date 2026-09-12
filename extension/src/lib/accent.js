@@ -80,8 +80,8 @@
     previewAccent: function (key, from) {
       if (!has(key)) return;
       const el = document.documentElement;
-      if (!previewSnap) previewSnap = { data: el.getAttribute('data-accent'),
-                                        inline: el.style.getPropertyValue('--accent') };
+      previewSnap ??= { data: el.getAttribute('data-accent'),
+                        inline: el.style.getPropertyValue('--accent') };
       swap(function () {
         el.style.removeProperty('--accent');
         el.setAttribute('data-accent', key);
