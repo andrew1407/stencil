@@ -83,8 +83,8 @@ graph TD
   open/incognito/here/crop on it, plus **Open in…** (Desktop app via the server reference,
   and — the only place it appears — the Telegram bot, when a bot username is configured).
 - **Real-time refresh:** the popup re-pulls shared pins on a light **poll while open**
-  (`SHARED_POLL_MS`, ~8 s) — MV3 popups are short-lived, so this is simpler and more robust
-  than holding a background `/ws` events socket open. It also reacts to `chrome.storage`
+  (the 8 s heartbeat in `lib/pollClock.js`) — MV3 popups are short-lived, so this is simpler
+  and more robust than holding a background `/ws` events socket open. It also reacts to `chrome.storage`
   connection changes immediately (add/remove a server in Options → the popup updates without
   a rescan).
 - **Pin target picker:** pinning an image (the 📌 button) always makes the local pin, and —
@@ -177,7 +177,7 @@ cropped part** (bake the region into a new image). Both honour an **incognito**
 checkbox; the chosen page size is carried into the editor.
 
 The in-page modal **shell** (title bar, frame, pop-out / close buttons) is injected into
-someone else's page, so it can't link `lib/theme.css` — its palette is handed to it as
+someone else's page, so it can't link the `lib/theme/` sheets — its palette is handed to it as
 data (`lib/shellTheme.js`: the same Appearance choice and accent every other surface
 follows, read from the `chrome.storage.local` mirrors that `lib/accent.js` writes). The
 mode travels unresolved so the target page answers `system` with its own OS preference,
@@ -216,11 +216,11 @@ both. `prefers-reduced-motion: reduce` keeps the ring and drops the motion.
 A URL dropped onto the list becomes a **new pinned row**, and that row announces itself:
 it drops in from the drag and pulses the accent ring once (`.row.just-dropped`) so it is
 findable mid-list — distinct from the plainer flash a row that was merely pinned gets. The
-list itself and the assistant transcript ride a **scroll reveal** (`src/lib/motion.js`,
-the mirror of `browser/js/ui/motion.js`): rows fade and lift in as they scroll into view
+list itself and the assistant transcript ride a **scroll reveal** (`src/lib/motion/`,
+the mirror of `browser/js/ui/motion/`): rows fade and lift in as they scroll into view
 and dissolve again at the top edge. Both collapse under `prefers-reduced-motion: reduce`,
 and neither runs at all without an `IntersectionObserver` — a row is never left dimmed. A row
-being **removed** comes apart instead of fading: `disintegrate()` (`src/lib/motion.js`, the
+being **removed** comes apart instead of fading: `disintegrate()` (`src/lib/motion/`, the
 mirror of the browser's) paints one grain per grid cell in the theme's accent and its
 shade and scatters them on bent paths, all on one canvas (`src/lib/dustCloud.js`, the
 browser's copy byte for byte). **Options → Interface animation** picks how all of that
@@ -314,7 +314,11 @@ LLM contract — [`llm-contract/llm-profiles.md`](../llm-contract/llm-profiles.m
   transcript says "Stopped."), 🗑 clears the conversation, empty-state **suggestion
   chips** prefill the input (they never send), and error/notice entries carry a **×** —
   attach failures also clear themselves after a few seconds.
-- Code: `src/llm/` (`llmSettings.js`, `llmClient.js`, `opPlan.js`, `opSchema.js` — the registry-driven validation engine, a byte-identical copy of the browser's, over `src/config/opRegistry.json`; `chatController.js`)
+- Code: `src/llm/` (`llmSettings.js`, `llmClient.js`, `llmSurface.js`; `opSchema.js` +
+  `opValidate.js` + `opPlan.js` — the registry-driven validation engine, a byte-identical copy
+  of the browser's, over `src/config/opRegistry.json` — with `opProfile.js` and `opPrompt.js`
+  for the extension profile's op set and system prompt; `chatController.js` + `chatListing.js`,
+  `openActions.js`, `opExecutors.js`)
   + `src/popup/assistant.js` (the embedded section), `src/lib/chatDrop.js`,
   `src/lib/chatUi.js`, `src/lib/rasterize.js`; unit tests in `tests/llm*.test.js`,
   `tests/chatDrop.test.js`, `tests/chatUi.test.js`, `tests/rasterize.test.js`.
@@ -344,8 +348,9 @@ injected bridge can never disagree.
   project ▸** (that tab's own projects, the active one ticked, switched in place — no
   navigation) and **Open in new tab**. Previews refresh when the surface enters editor
   mode, on the section's own refresh button, and on a light poll while the panel is open
-  (`EDITOR_POLL_MS`, the same ~8 s poll-while-open the shared pins use, for the same reason:
-  an MV3 popup is too short-lived to be worth a background channel). A tab whose
+  (the **same** `lib/pollClock.js` heartbeat the shared pins ride, for the same reason: an MV3
+  popup is too short-lived to be worth a background channel — and one interval serving both
+  jobs costs half the wakeups of two). A tab whose
   bridge doesn't answer — an older editor build, a page still loading — is still listed, just
   without a preview: hiding an editor the user is looking at would be worse than a blank row.
 - **Images from another page** — pick any other open tab from the picker, and the familiar
@@ -434,6 +439,20 @@ The fragment never reaches the server. The editor consumes it in
 `DrawingApp.applyExternalLaunch()` (`browser/js/core/drawingApp.js`), applies the
 page size, loads the image (with the crop), then strips the fragment.
 
+**One fetch guard.** Those bytes come from a URL harvested off an arbitrary page, so every
+fetch the extension makes — thumbnails, the hand-off, an LLM attachment, a scraped poster —
+goes through `lib/urlGuard.js` and nothing re-derives its checks: non-`http(s)` schemes,
+loopback, private and link-local ranges, CGNAT/ULA and the cloud metadata IP are refused
+(`data:`/`blob:` pass, they reach no host). Two narrow unlocks exist: `allowSameHostAs` lets a
+scanned intranet page's own host through (its images are already on screen), and
+`allowLoopback` covers a URL the **user** typed — neither ever unlocks the metadata IP.
+`tests/urlGuard.test.js` pins all of it.
+
+The surface is kept narrow the same way: the extension-pages CSP is `script-src 'self'` with
+no `unsafe-inline` for scripts, and `web_accessible_resources` exposes exactly **one** file
+(`src/crop/crop.html`, the in-page crop frame). Don't widen either to make something work —
+`tests/manifestSecurity.test.js` fails if you do.
+
 ## Install (unpacked)
 
 1. Serve the editor: from [`../browser/`](../browser/) run `npm run serve`
@@ -447,30 +466,85 @@ page size, loads the image (with the crop), then strips the fragment.
 ```
 manifest.json            MV3 manifest
 package.json             `npm test` → node --test
+jsconfig.json            editor/type tooling only — nothing builds or emits from it
+icons/                   icon-16/32/48/128.png — the action icon and the store listing
 src/
-  background/background.js  service worker: image context menu + tab-fallback relay
-  popup/    popup.html|css|js   image list, search/filters, floating actions, preview
-            editorMode.js       editor mode: open-editor list, source-tab picker, import here
-  sidepanel/ sidepanel.html|css  docked side-panel surface (reuses popup.js + popup.css)
+  config/   motion.json · opRegistry.json · providers.json · systemPrompt.json — copies of
+            browser/js/config/{,llm/} (systemPrompt is its extensionHead/Tail keys alone),
+            each pinned to the canonical table by tests/dataParity.test.js
+  background/ background.js  service worker: wiring only — menus.js, registrars.js,
+            tabState.js, editorRelay.js, handlers/*.js (one per message group),
+            frameCapture.js and ctxActions.js hold the work
+  content/  ctxTarget.js      the context-menu reveal probe (the one always-on content script)
+            pageApiMain.js + pageApiBridge.js   window.stencil (MAIN) ⇄ chrome.* (ISOLATED)
+            editorApiMain.js + editorBridge.js  stencil.extension, editor origin only
+  popup/    popup.html, popup.js  the controller is wiring only — panelDom/model/scan/
+            filters/row/rowMenu/preview/openActions/pinActions/pinDialog/sharedPins/
+            sections/gestures/dragWiring/storageSync/hoverHighlight/dialogShell hold the work
+            popup.css + list.css · editorMode.css · chatPanel|chatComposer|chatControls.css
+                                (linked in that order — see popup.html)
+            editorMode.js       editor mode: wires editorList.js (open editors),
+                                sourceTabsList.js (source-tab picker), editorImport.js,
+                                editorDialogs.js, editorSection.js and editorHandle.js
+            assistant.js + assistant/  the embedded AI chat (§8): transcript, attachments,
+                                results, turnRunner, capabilities, boot, the two menus
+  llm/      llmSettings.js · llmClient.js · llmSurface.js   provider config + the HTTP turn
+            opSchema.js + opValidate.js + opPlan.js   the plan validator, table-driven from
+                                ../config/opRegistry.json (byte-identical to the browser's)
+            opProfile.js · opPrompt.js   the extension profile's op set and system prompt
+            opExecutors.js · openActions.js   focus / open / attach, on the real surfaces
+            chatController.js + chatListing.js   the turn loop and the §4 image listing
+  sidepanel/ sidepanel.html|css  docked side-panel surface (reuses popup.js + the popup CSS set)
   devtools/ devtools.html|js, panel.html|css  DevTools "Stencil" panel (reuses popup.js)
-  crop/     crop.html|css|js    quick page-aspect crop (zoom, custom size)
-  options/  options.html|js     editor URL, page size, pinned-images viewer, server connections
+  crop/     crop.html|css|js    quick page-aspect crop; cropStage.js (zoom + drag),
+            cropControls.js (page/orientation) and cropHandoff.js (the editor payload)
+  options/  options.html|js     boot order only; appearance.js, general.js, llm.js,
+            pins.js (+ pinsDom/pinRow/confirmDialog), connections.js and scrollTop.js
+                                are the sections
   lib/
-    stencil.js       settings, fetch→dataURL, launch-URL builder, launchEditor
+    stencil.js       the shared-helper import point over settings.js (chrome.storage.sync),
+                     imageData.js (fetch→dataURL, guarded) and editorLaunch.js (the payload
+                     + the tab / in-page-modal launchers)
+    urlGuard.js      the extension's ONE fetch guard — every harvested URL goes through it
     overlay.js       in-page editor modal (also injected into pages)
     cropGeometry.js  port of the editor's crop math (kept behaviour-identical)
     imageScan.js     the page scanner (injected via chrome.scripting)
     filters.js       format / search / size filtering (pure)
     editorTabs.js    editor-tab detection, rows, search, source-tab choices, import mode (pure)
     actionMenu.js    the rows' floating ⋯ menu: item/submenu builders, flyout placement, Escape
+    contextMenu.js   click resolution + the visibility model over contextMenuItems.js (the ids,
+                     contexts and the two-root create() list)
+    dropZones.js     the injected on-page 4-quadrant overlay, with dropChoice.js (the occupied-
+                     editor confirm, injected on its own) and dropEntry.js (payload → scan row)
+    pollClock.js     ONE 8 s poll-while-open heartbeat, shared by the shared-pin and the
+                     editor-preview refresh (two timers would double the wakeups)
     hoverPreview.js · filterUi.js · rowModel.js · collapsibleSections.js · logoDragMenu.js
                      the popup controller's extracted pieces (each node-tested)
     pins.js          pinned-images store, keyed by (site, source URL) (pure + storage)
-    connections.js   collaboration-server connections + SHARED pins (REST mirror of server/internal/protocol)
+    connections.js   the import point for collaboration-server connections + SHARED pins —
+                     connectionModel.js (pure), connectionStore.js (chrome.storage.local) and
+                     connectionRest.js (the REST mirror of server/internal/protocol) behind it
     messages.js      cross-context message `type`/`source` constants (no magic strings)
-    theme.css        shared light/dark palette, keyed on <html data-theme> (linked by popup/crop/options)
-    accent.js        pre-paint accent + appearance (light/dark/system) resolver, localStorage-backed
+    *.d.ts           shape files beside the modules whose payloads cross a context
+                     (messages, imageScan, editorTabs, editorApiMain, llm/*) — read by an
+                     editor, guarded by tests/dts.test.js, never built or imported
+    theme/           the shared palette, keyed on <html data-theme>: palette.css, controls.css,
+                     tooltip.css, select.css, fields.css (linked in that order, before the
+                     surface's own sheets — see popup.html)
+    animations/      the shared motion layer, linked after theme/ (keyframes, iconHover,
+                     controls, themeSwap, reveal, pages, motionModes, reducedMotion, chat,
+                     overlays, motionIcons — in that cascade order)
+    accent.js        the accent facade — sixth of seven pre-paint CLASSIC scripts, loaded in
+                     this order: prefs.js, swapGeometry.js, dustGrains.js, dustWake.js,
+                     themeSwap.js, accent.js, shellPrefs.js (they share window.StencilKit);
+                     accentPreview.js is the logo accent menu's hover preview
+    videoFrames.js   a dropped video → evenly-spaced JPEG frames for the chat (contract §7)
+    motionPrefs.js + motion/  the motion layer, split along the browser's own
+                     js/ui/motion/ boundaries; motion.js is the single import point
 tests/                   node:test unit tests for the pure modules
+  helpers/               chromeStub.js (chrome.*), domStub.js (document/element/window),
+                         listDom.js, accentSandbox.js, sources.js
+  pins/css.json · sizeBudget.json · fixtureOverrides.json   the recorded baselines
 ```
 
 ## Page scripting API (`window.stencil`, opt-in)
@@ -604,5 +678,12 @@ Node's built-in runner — no dependencies:
 
 ```bash
 # from this directory (extension/)
-npm test        # or: node --test
+npm test        # or: node --test — 1219 tests
 ```
+
+Four of them guard the boundaries rather than a behaviour: `manifestSecurity.test.js` (the CSP
+keeps `script-src 'self'`, `web_accessible_resources` stays at exactly one file),
+`urlGuard.test.js` (the fetch guard above), `injectedFuncs.test.js` (every function handed to
+`chrome.scripting.executeScript` stays self-contained — an import added to one would fail only
+at run time, in someone else's page), and `portParity.test.js` + `dataParity.test.js` (the
+modules and `src/config/` tables copied from `browser/` are still byte-identical).

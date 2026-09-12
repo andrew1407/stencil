@@ -10,6 +10,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QUrl>
+#include <QUrlQuery>
 #include <cstdio>
 
 using namespace stencil::gui;
@@ -62,6 +63,20 @@ int main(int argc, char** argv) {
         QUrl("stencil://open?src=data%3Aimage%2Fpng%3Bbase64%2CAAA"));
     check(dataUrl.src == "data:image/png;base64,AAA", "data: src is kept");
   }
+  {
+    // The inline layout is parsed as JSON downstream, so it takes the same 32 MiB cap
+    // as the browser hand-off payload — one char over and the field is dropped.
+    QUrl u("stencil://open");
+    QUrlQuery q;
+    q.addQueryItem("layout",
+                   QString(deepLink::BROWSER_LAUNCH_PAYLOAD_MAX + 1, QLatin1Char('A')));
+    u.setQuery(q);
+    check(parseStencilUrl(u).layoutJson.isEmpty(), "over-limit inline layout is dropped");
+    QUrlQuery ok;
+    ok.addQueryItem("layout", QStringLiteral("{\"lines\":[]}"));
+    u.setQuery(ok);
+    check(parseStencilUrl(u).layoutJson == "{\"lines\":[]}", "…while a small one still rides");
+  }
 
   // ── Telegram start-payload codec (shared golden vectors) ──
   {
@@ -83,7 +98,7 @@ int main(int argc, char** argv) {
     for (const Vec& v : vectors) {
       const QString got = deepLink::encodeTelegramStartPayload(v.url, v.id);
       check(got == QString::fromLatin1(v.expected), v.url);
-      check(got.size() <= deepLink::kTelegramStartLimit, "within the 64-char limit");
+      check(got.size() <= deepLink::TELEGRAM_START_LIMIT, "within the 64-char limit");
     }
     // 48 plaintext bytes → 65 payload chars → overflow → empty
     const QString host = QStringLiteral("https://h") + QString(43, QLatin1Char('o'));
@@ -118,7 +133,7 @@ int main(int argc, char** argv) {
     // Over the shared 32 MiB payload cap → empty string, never a fragment URL.
     QJsonObject payload;
     payload["dataUrl"] = QStringLiteral("data:image/png;base64,") +
-                         QString(deepLink::kBrowserLaunchPayloadMax, QLatin1Char('A'));
+                         QString(deepLink::BROWSER_LAUNCH_PAYLOAD_MAX, QLatin1Char('A'));
     check(deepLink::buildBrowserLaunchUrl("http://localhost:8080/", payload).isEmpty(),
           "over-limit launch payload yields empty url");
   }

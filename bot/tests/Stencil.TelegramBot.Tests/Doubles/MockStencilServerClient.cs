@@ -31,12 +31,16 @@ public sealed class MockStencilServerClient : IStencilServerClient
     /// <summary>When true, <see cref="ListProjectsAsync"/> throws (an unreachable server).</summary>
     public bool ThrowOnList { get; set; }
 
+    /// <summary>Awaited inside <see cref="ListProjectsAsync"/>, so a test can hold several
+    /// servers open at once and observe whether the caller fans out or queues.</summary>
+    public Func<Task>? BeforeList { get; set; }
+
     /// <summary>The token the last <see cref="ConnectAsync"/> resolved to.</summary>
     public string? LastConnectToken { get; private set; }
 
     /// <summary>The credential kind <see cref="ConnectAsync"/> reports for a supplied token
-    /// (a tokenless connect always reports <see cref="CredentialKind.None"/>).</summary>
-    public CredentialKind HandshakeKind { get; set; } = CredentialKind.Session;
+    /// (a tokenless connect always reports <see cref="CredentialKind.NONE"/>).</summary>
+    public CredentialKind HandshakeKind { get; set; } = CredentialKind.SESSION;
 
     /// <summary>Every <see cref="PutFileAsync"/> call, in order.</summary>
     public List<(string Id, string Kind, byte[] Data, string Ext, int W, int H)> Puts { get; } = new();
@@ -77,7 +81,7 @@ public sealed class MockStencilServerClient : IStencilServerClient
         bool anonymous = string.IsNullOrEmpty(token);
         LastConnectToken = anonymous ? MintedToken : token;
         return Task.FromResult(new ServerHandshake(
-            LastConnectToken!, anonymous ? CredentialKind.None : HandshakeKind));
+            LastConnectToken!, anonymous ? CredentialKind.NONE : HandshakeKind));
     }
 
     /// <inheritdoc />
@@ -88,7 +92,13 @@ public sealed class MockStencilServerClient : IStencilServerClient
             throw new ServerException("unreachable", "server is down", 503);
         }
         IReadOnlyList<ProjectRecord> list = _projects.Values.ToList();
-        return Task.FromResult(list);
+        return BeforeList is null ? Task.FromResult(list) : Gated(list);
+
+        async Task<IReadOnlyList<ProjectRecord>> Gated(IReadOnlyList<ProjectRecord> records)
+        {
+            await BeforeList();
+            return records;
+        }
     }
 
     /// <inheritdoc />
@@ -171,7 +181,7 @@ public sealed class MockStencilServerClient : IStencilServerClient
         {
             return Task.FromResult(stored);
         }
-        if (kind is ProjectFileKind.Original or ProjectFileKind.Result)
+        if (kind is ProjectFileKind.ORIGINAL or ProjectFileKind.RESULT)
         {
             return Task.FromResult(FileBytes);
         }
@@ -191,7 +201,7 @@ public sealed class MockStencilServerClient : IStencilServerClient
         // The real server's SetFile bumps version/updated_at (store.go) but the response carries
         // no version — model that so clients that don't re-read the version afterwards are caught.
         // Filestore-only kinds (chat/video/variantN) never bump it (httpapi/files.go, contract §9).
-        if (kind is ProjectFileKind.Original or ProjectFileKind.Result
+        if (kind is ProjectFileKind.ORIGINAL or ProjectFileKind.RESULT
             && _projects.TryGetValue(id, out ProjectRecord? existing))
         {
             _projects[id] = existing with { Version = existing.Version + 1 };

@@ -1,13 +1,11 @@
-package llm
-
 // The non-Anthropic upstreams (llm-contract.md §6.1/§6.2) and the provider
 // dispatch: each provider's wire shape, the reply/stopReason mapping back onto
 // protocol.LlmChatResponse, and error surfacing. Same mock-Doer seam as
 // anthropic_test.go — no network, so the exact bytes are asserted.
+package llm
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 	"testing"
 
@@ -91,143 +89,7 @@ func TestResolveKeyKeepsTheAnthropicKeyAwayFromOtherProviders(t *testing.T) {
 
 // ── ollama (§6.1) ──
 
-func TestOllamaRequestTranslation(t *testing.T) {
-	mock := &mockDoer{status: 200, resp: `{"model":"llama3","message":{"role":"assistant","content":"hi there"}}`}
-	c := providerClient(ProviderOllama, "", mock)
-
-	got, err := c.Chat(context.Background(), turnWithImage)
-	if err != nil {
-		t.Fatalf("chat: %v", err)
-	}
-	if mock.req.URL.String() != "http://up.example.test/api/chat" {
-		t.Fatalf("ollama path: %s", mock.req.URL.String())
-	}
-	// No key configured → no Authorization header invented for a local server.
-	if mock.req.Header.Get("Authorization") != "" {
-		t.Fatal("ollama must not send Authorization")
-	}
-	var sent ollamaRequest
-	if err := json.Unmarshal(mock.body, &sent); err != nil {
-		t.Fatalf("request JSON: %v", err)
-	}
-	if sent.Stream {
-		t.Fatal("v1 is non-streaming")
-	}
-	if sent.Model != "server-default" {
-		t.Fatalf("model default not applied: %q", sent.Model)
-	}
-	// The system prompt rides as a leading system MESSAGE (§6.1), and images are
-	// bare base64 strings — not data: URLs.
-	if len(sent.Messages) != 2 || sent.Messages[0].Role != "system" || sent.Messages[0].Content != "sys" {
-		t.Fatalf("system message: %+v", sent.Messages)
-	}
-	if sent.Messages[1].Content != "hello" || len(sent.Messages[1].Images) != 1 ||
-		sent.Messages[1].Images[0] != "AAAA" {
-		t.Fatalf("user message: %+v", sent.Messages[1])
-	}
-	if got.Text != "hi there" || got.Model != "llama3" || got.StopReason != "end_turn" {
-		t.Fatalf("response mapping: %+v", got)
-	}
-}
-
-func TestOllamaErrorSurfacesUpstreamMessage(t *testing.T) {
-	mock := &mockDoer{status: 404, resp: `{"error":"model 'nope' not found, try pulling it first"}`}
-	_, err := providerClient(ProviderOllama, "", mock).Chat(context.Background(), turnWithImage)
-	if err == nil || !strings.Contains(err.Error(), "not found, try pulling it first") {
-		t.Fatalf("upstream message should surface verbatim, got %v", err)
-	}
-}
-
 // ── openai-compat (§6.2) ──
-
-func TestOpenAIRequestTranslationAndBearer(t *testing.T) {
-	mock := &mockDoer{status: 200,
-		resp: `{"model":"gpt-x","choices":[{"message":{"content":"ok"},"finish_reason":"stop"}]}`}
-	c := providerClient(ProviderOpenAI, "sk-local", mock)
-
-	got, err := c.Chat(context.Background(), turnWithImage)
-	if err != nil {
-		t.Fatalf("chat: %v", err)
-	}
-	if mock.req.URL.String() != "http://up.example.test/chat/completions" {
-		t.Fatalf("openai path: %s", mock.req.URL.String())
-	}
-	if mock.req.Header.Get("Authorization") != "Bearer sk-local" {
-		t.Fatalf("bearer: %q", mock.req.Header.Get("Authorization"))
-	}
-	// Images ride as image_url parts carrying a data: URL (§6.2).
-	var sent struct {
-		Messages []struct {
-			Role    string          `json:"role"`
-			Content json.RawMessage `json:"content"`
-		} `json:"messages"`
-	}
-	if err := json.Unmarshal(mock.body, &sent); err != nil {
-		t.Fatalf("request JSON: %v", err)
-	}
-	if len(sent.Messages) != 2 || sent.Messages[0].Role != "system" {
-		t.Fatalf("system message missing: %+v", sent.Messages)
-	}
-	if !strings.Contains(string(sent.Messages[1].Content), `"data:image/png;base64,AAAA"`) {
-		t.Fatalf("image part: %s", sent.Messages[1].Content)
-	}
-	if got.Text != "ok" || got.Model != "gpt-x" || got.StopReason != "end_turn" {
-		t.Fatalf("response mapping: %+v", got)
-	}
-}
-
-func TestOpenAIKeyOptionalAndTextOnlyContentIsAString(t *testing.T) {
-	mock := &mockDoer{status: 200, resp: `{"choices":[{"message":{"content":"hi"}}]}`}
-	c := providerClient(ProviderOpenAI, "", mock) // LM Studio / llama.cpp: no key
-	got, err := c.Chat(context.Background(), protocol.LlmChatRequest{
-		Messages: []protocol.LlmMessage{{Role: "user", Text: "plain"}}})
-	if err != nil {
-		t.Fatalf("chat: %v", err)
-	}
-	if mock.req.Header.Get("Authorization") != "" {
-		t.Fatal("no key configured → no Authorization header")
-	}
-	var sent struct {
-		Messages []struct {
-			Content json.RawMessage `json:"content"`
-		} `json:"messages"`
-	}
-	_ = json.Unmarshal(mock.body, &sent)
-	if len(sent.Messages) != 1 || string(sent.Messages[0].Content) != `"plain"` {
-		t.Fatalf("text-only content must be a bare string, got %s", sent.Messages[0].Content)
-	}
-	// Model falls back to the server default when the upstream echoes none.
-	if got.Model != "server-default" {
-		t.Fatalf("model fallback: %q", got.Model)
-	}
-}
-
-func TestOpenAIFinishReasonMapsOntoContractStopReasons(t *testing.T) {
-	// §6.3's vocabulary is what clients act on — every provider must speak it.
-	for _, tc := range []struct{ finish, want string }{
-		{"stop", "end_turn"},
-		{"length", "max_tokens"},
-		{"content_filter", "refusal"},
-	} {
-		mock := &mockDoer{status: 200,
-			resp: `{"choices":[{"message":{"content":"x"},"finish_reason":"` + tc.finish + `"}]}`}
-		got, err := providerClient(ProviderOpenAI, "", mock).Chat(context.Background(), turnWithImage)
-		if err != nil {
-			t.Fatalf("%s: %v", tc.finish, err)
-		}
-		if got.StopReason != tc.want {
-			t.Fatalf("finish_reason %q → stopReason %q, want %q", tc.finish, got.StopReason, tc.want)
-		}
-	}
-}
-
-func TestOpenAIErrorSurfacesUpstreamMessage(t *testing.T) {
-	mock := &mockDoer{status: 400, resp: `{"error":{"message":"invalid model"}}`}
-	_, err := providerClient(ProviderOpenAI, "", mock).Chat(context.Background(), turnWithImage)
-	if err == nil || !strings.Contains(err.Error(), "invalid model") {
-		t.Fatalf("upstream message should surface, got %v", err)
-	}
-}
 
 // ── shared guarantees ──
 

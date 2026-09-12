@@ -1,14 +1,14 @@
-// ── StencilSync: live two-way sync between a project and its linked .stencil file ──────────
-// Opt-in per session (Chromium File System Access only): debounced auto-save on edit + polled
-// watch that applies external writes in place, or prompts (mine/theirs/merge) on a conflict.
+// Live two-way sync between a project and its linked .stencil file (Chromium File System
+// Access only): debounced auto-save on edit + a polled watch that applies external writes
+// in place, or prompts (mine/theirs/merge) on a conflict.
 import { parseProjectFile, serializeProjectFile } from './projectFile.js';
 
 const LIVE_KEY = 'drawingApp_stencilLiveSync';
 const POLL_MS = 2000;
 const DEBOUNCE_MS = 800;
 
-// Pure watch-loop classifier (unit-tested) over 3 texts (baseline ancestor / current editor /
-// external file): 'none' | 'local' (editor only) | 'external' (file only) | 'conflict' (both).
+// Over 3 texts (baseline ancestor / current editor / external file):
+// 'none' | 'local' (editor only) | 'external' (file only) | 'conflict' (both).
 export const classifyFileChange = (baseline, current, external) => {
   const fileChanged = external !== baseline;
   const localChanged = current !== baseline;
@@ -32,7 +32,7 @@ export class StencilSync {
   #debounce;
   #poll;
 
-  // File System Access (retainable handle) — the whole feature needs it.
+  // A retainable handle — the whole feature needs it.
   get supported() { return typeof window !== 'undefined' && typeof window.showOpenFilePicker === 'function'; }
   get linked() { return !!this.handle; }
   get liveSync() { try { return localStorage.getItem(LIVE_KEY) === '1'; } catch { return false; } }
@@ -42,7 +42,7 @@ export class StencilSync {
     this.app.updateStencilSyncUI?.();
   }
 
-  // Link (or relink) the active project to `handle`; the file's current text becomes the baseline.
+  // The file's current text becomes the baseline.
   async link(handle, name = '') {
     this.handle = handle;
     this.name = name || handle?.name || '.stencil';
@@ -60,7 +60,7 @@ export class StencilSync {
     this.app.updateStencilSyncUI?.();
   }
 
-  // The editor's project serialized to .stencil text (the thing we compare/write).
+  // The editor's project as .stencil text (what is compared and written).
   #current() { return serializeProjectFile(this.app.projectFileState({ includeTheme: true })); }
 
   async #read() {
@@ -81,12 +81,11 @@ export class StencilSync {
     await w.write(text);
     await w.close();
     this.baseline = text;
-    // Refresh the mtime/size fingerprint so the next poll doesn't re-read our own write.
+    // So the next poll doesn't re-read our own write.
     try { const f = await this.handle.getFile(); this.lastMod = f.lastModified; this.lastSize = f.size; } catch { /* keep old */ }
     return true;
   }
 
-  // ── auto-save (edit → debounced write-back) ────────────────────────────────
   onEdit() {
     if (!this.linked || !this.liveSync) return;
     clearTimeout(this.#debounce);
@@ -104,13 +103,11 @@ export class StencilSync {
     } finally { this.busy = false; }
   }
 
-  // ── watch (poll → apply / prompt) ──────────────────────────────────────────
   startPoll() { if (this.#poll || !this.linked) return; this.#poll = setInterval(() => this.check(), POLL_MS); }
   stopPoll() { clearInterval(this.#poll); this.#poll = null; }
   async check() {
     if (!this.linked || !this.liveSync || this.busy) return;
-    // Cheap metadata probe first: if the file's mtime + size are unchanged since we last
-    // saw it, skip reading its (image-bearing, possibly multi-MB) contents entirely.
+    // mtime + size unchanged since last seen → skip reading the (possibly multi-MB) contents.
     let file;
     try { file = await this.handle.getFile(); } catch { return; }
     if (this.lastMod != null && file.lastModified === this.lastMod && file.size === this.lastSize) return;
@@ -142,7 +139,6 @@ export class StencilSync {
   }
 
   async #resolve(ext) {
-    // Prompt: keep mine (overwrite file) / take theirs (reload) / merge lines.
     const choice = await this.app.chooseFileConflict?.(this.name);
     if (choice === 'theirs') {
       this.#apply(ext);

@@ -7,7 +7,7 @@
 #include <QCoreApplication>
 #include <cstdio>
 
-using stencil::support::kNameDisplayChars;
+using stencil::support::NAME_DISPLAY_CHARS;
 using stencil::support::shortName;
 
 #include "support/check.hpp"
@@ -16,17 +16,17 @@ int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);
 
   // The shared limit — the three ports must agree on it.
-  check(kNameDisplayChars == 28, "limit matches the browser/extension helpers");
+  check(NAME_DISPLAY_CHARS == 28, "limit matches the browser/extension helpers");
 
   // At or under the limit: untouched.
   check(shortName("portrait") == QStringLiteral("portrait"), "short name untouched");
-  const QString exact(kNameDisplayChars, QLatin1Char('x'));
+  const QString exact(NAME_DISPLAY_CHARS, QLatin1Char('x'));
   check(shortName(exact) == exact, "exactly at the limit is not shortened");
 
   // The reported case: a 53-char Amazon CDN slug.
   const QString slug = QStringLiteral("MV5BODg3MzYwMjE4N15BMl5BanBnXkFtZTcwMjU5NzAzNw@@._V1_");
   const QString out = shortName(slug);
-  check(out.size() == kNameDisplayChars, "shortened to exactly the limit");
+  check(out.size() == NAME_DISPLAY_CHARS, "shortened to exactly the limit");
   check(out == QStringLiteral("MV5BODg3MzYwMj…NzAzNw@@._V1_"),
         "same output as the browser/extension ports");
 

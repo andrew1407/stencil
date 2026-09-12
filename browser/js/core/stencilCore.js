@@ -1,44 +1,35 @@
-// ── Shared C++ core singleton ───────────────────────────────────
-// Owns the WebAssembly build of the shared C++ core and typed wrappers over its raw
-// extern "C" exports, exposing clean JS functions via the `core` singleton. The wasm
-// artifact is generated (gitignored, built per core/WASM.md) and may be absent — so it's
-// imported dynamically inside init(), degrading to the JS fallback (a static import would
-// crash boot). Dynamic-only import keeps this a leaf module, so Node never loads wasm.
+// The WebAssembly build of the shared C++ core behind the `core` singleton. The artifact is
+// generated (core/WASM.md) and may be absent, so it is imported dynamically inside init(),
+// degrading to the JS fallback; the dynamic-only import keeps Node from ever loading wasm.
+import { buildStateOps, stateExports } from './coreHandles.js';
 
-// Generated artifact path, relative to this module. A named constant, not inlined into
-// import() (native ESM accepts a variable specifier; no build step requires a literal).
+// A named constant: native ESM accepts a variable import() specifier, so no build step needs a literal.
 const WASM_MODULE_PATH = '../wasm/stencilCore.js';
 
 class StencilCore {
-  // Installed wasm wrappers, keyed by op name. Empty until init() succeeds.
+  // Installed wasm wrappers, keyed by op name.
   #ops = {};
-  // Explicit readiness flag, flipped once wrappers are installed.
   #ready = false;
-  // Memoized init() promise (idempotent).
   #initPromise = null;
 
-  // True once the compiled C++ core is live (used for a boot-time status note).
   get ready() {
     return this.#ready;
   }
 
-  // Instantiate the wasm core once and install its wrappers. Resolves to true on
-  // success, false if the module could not load (the app then keeps using its JS
-  // reference implementations). Idempotent — returns the cached promise.
+  // Resolves to true, or false when the module could not load (JS fallback). Idempotent.
   init() {
     if (this.#initPromise) return this.#initPromise;
     this.#initPromise = import(WASM_MODULE_PATH)
       .then(({ default: createStencilCore }) => createStencilCore())
       .then(core => {
-        // Guard against a stale/incompatible artifact: an older build can load yet lack
-        // exports the wrappers cwrap. cwrap'ing a missing export yields a non-callable that
-        // throws at call time, so verify all required exports up front and fall back to JS refs.
+        // A stale artifact can load yet lack exports: cwrap'ing a missing one yields a
+        // non-callable that throws at call time, so verify up front and fall back to JS.
         const missing = this.#missingExports(core);
         if (missing.length) {
           console.warn(`[stencil] wasm core is stale (missing ${missing.length} export(s), e.g. ${missing[0]}) — rebuild per core/WASM.md; using JS fallback.`);
           return false;
         }
-        this.#installWrappers(this.#buildWrappers(core));
+        this.#installWrappers({ ...this.#buildWrappers(core), ...buildStateOps(core) });
         return true;
       })
       .catch(err => {
@@ -48,9 +39,7 @@ class StencilCore {
     return this.#initPromise;
   }
 
-  // C exports the wrappers depend on (emscripten exposes each as `_<symbol>`).
-  // Any absent → the artifact predates code that needs it, so we reject the whole
-  // core rather than install bindings that throw when called.
+  // Emscripten exposes each as `_<symbol>`; any absent rejects the whole core.
   #requiredExports = [
     'stencil_parseHex', 'stencil_distToSegment', 'stencil_formulaValidate',
     'stencil_formulaApply', 'stencil_parseDuration', 'stencil_clampScale', 'stencil_shouldCloseShape',
@@ -58,59 +47,50 @@ class StencilCore {
     'stencil_pageDimensions', 'stencil_pageFormats', 'stencil_pixelToPageRaw',
     'stencil_rotatePoints', 'stencil_flipPoints', 'stencil_boundingBoxCenter', 'stencil_applyFilterRGBA',
     'stencil_applyContourRGBA', 'stencil_centeredCrop', 'stencil_resizeCropFromCorner',
-    'stencil_moveCropClamped', 'stencil_scaleCropCentered', 'stencil_cropChange', 'stencil_rotateCropRectQuarter',
+    'stencil_moveCropClamped', 'stencil_scaleCropCentered', 'stencil_cropChange', 'stencil_rotateCropRectQuarter', ...stateExports,
   ];
 
-  // Names of required exports the instantiated module does not expose as callables.
   #missingExports(core) {
     return this.#requiredExports.filter(sym => typeof core[`_${sym}`] !== 'function');
   }
 
-  // Route calls to wasm op `name` when installed, else the JS reference. Read per call so a
-  // wrapper built at module-eval time picks up the post-load swap. Symmetric ops only (same
-  // args both paths); asymmetric sites use op(name) with their own guard.
+  // Read per call so a wrapper built at module-eval time picks up the post-load swap.
+  // Symmetric ops only; asymmetric sites use op(name) with their own guard.
   bind(name, jsRef) {
     return (...args) => (this.#ops[name] ?? jsRef)(...args);
   }
 
-  // Return the installed wasm fn for `name`, or null when not installed. For
-  // asymmetric consumers that keep their own guard/fallback shape.
+  // The installed wasm fn, or null. For consumers with their own guard/fallback shape.
   op(name) {
     return this.#ops[name] ?? null;
   }
 
-  // The op names this core installs — a stable list for tests/introspection
-  // without exposing the #private ops store.
+  // A stable list for tests/introspection.
   get opNames() {
     return [
       'parseHex', 'distToSegment', 'formulaValidate', 'formulaApply', 'parseDuration',
       'pageDimensions', 'pageFormats', 'pixelToPageRaw', 'rotatePoints', 'flipPoints', 'boundingBoxCenter',
       'clampScale', 'shouldCloseShape', 'applyFilterRGBA', 'applyContourRGBA',
       'isAlbumOrientation', 'cropAspect', 'centeredCrop', 'resizeCropFromCorner',
-      'moveCropClamped', 'scaleCropCentered', 'cropResizeScale', 'cropChange',
+      'moveCropClamped', 'scaleCropCentered', 'cropResizeScale', 'cropChange', 'HoldDrawController', 'HistoryStack',
+      'projectPeriodMs', 'projectAddPeriod', 'projectShouldPersist', 'projectIsExpired', 'projectIsExpiringSoon',
     ];
   }
 
-  // Install the built wrappers and flip the readiness flag. Internal only — no
-  // external Object.assign reaching in.
   #installWrappers(wrappers) {
     this.#ops = wrappers;
     this.#ready = true;
   }
 
-  // Build the typed wrappers over an instantiated Emscripten module. The raw
-  // exports speak only numbers and pointers, so this owns the marshalling.
+  // The raw exports speak only numbers and pointers, so this owns the marshalling.
   #buildWrappers(core) {
-    const F64 = 8;
-    const I32 = 4;
+    const F64 = 8, I64 = 8, I32 = 4;
 
-    // cwrap'd scalar exports (numbers / strings in, number out).
     const cParseHex       = core.cwrap('stencil_parseHex', 'number', ['string', 'number']);
     const cDist           = core.cwrap('stencil_distToSegment', 'number', ['number', 'number', 'number', 'number', 'number', 'number']);
-    // The formula expr is passed as a heap pointer, not a cwrap 'string' arg: cwrap
-    // marshals a string onto the fixed ~64KB wasm *stack* (stringToUTF8OnStack), which
-    // an untrusted, unbounded formula (layout JSON / console / co-edit) would overflow —
-    // corrupting the module — before the parser's depth cap can reject it. See writeExpr.
+    // The formula expr crosses as a heap pointer, not a cwrap 'string': cwrap marshals onto
+    // the fixed ~64KB wasm STACK, which an unbounded formula (layout JSON / console / co-edit)
+    // would overflow before the parser's depth cap could reject it. See withCString.
     const cFormulaValid   = core.cwrap('stencil_formulaValidate', 'number', ['number', 'number']);
     const cFormulaApply   = core.cwrap('stencil_formulaApply', 'number', ['number', 'number', 'number', 'number']);
     const cParseDuration  = (spec, out) => core.ccall('stencil_parseDuration', 'number', ['string', 'number'], [spec, out]);
@@ -121,7 +101,6 @@ class StencilCore {
     const cCropResizeScale = core.cwrap('stencil_cropResizeScale', 'number', ['number', 'number']);
     const cPageFormats    = core.cwrap('stencil_pageFormats', 'string', []);
 
-    // ccall'd exports that read/write through pointers.
     const cPageDims   = (name, cw, ch, cuW, cuH, out) =>
       core.ccall('stencil_pageDimensions', null, ['string', 'number', 'number', 'number', 'number', 'number', 'number'], [name, cw, ch, cuW, cuH, out, out + F64]);
     const cPixelRaw   = (x, y, dW, dH, cw, ch, out) =>
@@ -134,8 +113,7 @@ class StencilCore {
       core.ccall('stencil_boundingBoxCenter', null, ['number', 'number', 'number'], [ptr, n, out]);
     const cFilter     = (mode, ptr, n, r, g, b) =>
       core.ccall('stencil_applyFilterRGBA', null, ['number', 'number', 'number', 'number', 'number', 'number'], [mode, ptr, n, r, g, b]);
-    const cContour    = (ptr, w, h) =>
-      core.ccall('stencil_applyContourRGBA', null, ['number', 'number', 'number'], [ptr, w, h]);
+    const cContour    = (ptr, w, h) => core.ccall('stencil_applyContourRGBA', null, ['number', 'number', 'number'], [ptr, w, h]);
     const cCenteredCrop = (iw, ih, aspect, out) =>
       core.ccall('stencil_centeredCrop', null, ['number', 'number', 'number', 'number'], [iw, ih, aspect, out]);
     const cResizeCorner = (x, y, w, h, corner, cx, cy, aspect, iw, ih, minSize, out) =>
@@ -149,7 +127,7 @@ class StencilCore {
     const cRotateCrop = (x, y, w, h, iw, ih, cw, out) =>
       core.ccall('stencil_rotateCropRectQuarter', null, ['number', 'number', 'number', 'number', 'number', 'number', 'number', 'number'], [x, y, w, h, iw, ih, cw, out]);
 
-    // Read a CropRect {x,y,width,height} written to a 4-double out pointer.
+    // A CropRect {x,y,width,height} from a 4-double out pointer.
     const readRect = out => ({
       x: core.getValue(out, 'double'),
       y: core.getValue(out + F64, 'double'),
@@ -161,7 +139,7 @@ class StencilCore {
       try { fill(out); return readRect(out); } finally { core._free(out); }
     };
 
-    // Copy an array of {x,y} into a freshly malloc'd flat f64 buffer. Caller frees.
+    // {x,y}[] → a malloc'd flat f64 buffer. Caller frees.
     const allocPoints = points => {
       const n = points.length;
       const ptr = core._malloc(n * 2 * F64);
@@ -173,11 +151,9 @@ class StencilCore {
       return { ptr, n, view };
     };
 
-    // Copy a NUL-terminated UTF-8 copy of `str` into a freshly malloc'd heap buffer and
-    // run `fn(ptr)`, freeing after. Used to hand the formula parser its `const char*`
-    // over the heap (no ~64KB stack limit), so an arbitrarily long/adversarial expression
-    // is bounded by memory, not the wasm stack. HEAPU8 is re-read after _malloc since
-    // ALLOW_MEMORY_GROWTH can detach the old view.
+    // A NUL-terminated UTF-8 copy of `str` on the HEAP (no ~64KB stack limit), so an
+    // adversarial expression is bounded by memory, not the wasm stack. HEAPU8 is re-read
+    // after _malloc since ALLOW_MEMORY_GROWTH can detach the old view.
     const utf8 = new TextEncoder();
     const withCString = (str, fn) => {
       const bytes = utf8.encode(str ?? '');
@@ -191,7 +167,15 @@ class StencilCore {
       }
     };
 
-    // FilterMode enum codes (must match core/imageFilter.hpp).
+    // ONE image-sized scratch buffer, grown on demand: a _malloc/_free per filter call churned
+    // the heap on every repaint. HEAPU8 is re-read at each use (memory growth detaches it).
+    let scratch = { ptr: 0, bytes: 0 };
+    const pixelScratch = (bytes) => {
+      if (bytes > scratch.bytes) { if (scratch.ptr) core._free(scratch.ptr); scratch = { ptr: core._malloc(bytes), bytes }; }
+      return scratch.ptr;
+    };
+
+    // Must match core/imageFilter.hpp.
     const FILTER_MODE = { none: 0, bw: 1, sepia: 2, custom: 3, invert: 4, contour: 5 };
 
     return {
@@ -217,13 +201,12 @@ class StencilCore {
         return withCString(expr, p => cFormulaApply(p, varName.charCodeAt(0), val, allowFormulas ? 1 : 0));
       },
 
-      // Parse a human duration → milliseconds (0 = keep forever), or null if the
-      // spec is invalid. Writes the ms through a scratch out-pointer.
+      // ms (0 = keep forever), or null. The int64 out slot reads as two halves; exact below 2^53.
       parseDuration(spec) {
-        const out = core._malloc(F64);
+        const out = core._malloc(I64);
         try {
           if (cParseDuration(spec ?? '', out) !== 1) return null;
-          return core.getValue(out, 'double');
+          return core.getValue(out + 4, 'i32') * 4294967296 + (core.getValue(out, 'i32') >>> 0);
         } finally {
           core._free(out);
         }
@@ -252,8 +235,7 @@ class StencilCore {
         }
       },
 
-      // Space-separated canonical page-format names ("A0 … C10", no "custom") —
-      // the wasm twin of the PAGE_SIZES table keys in config/constants.json.
+      // "A0 … C10" (no "custom") — the wasm twin of PAGE_SIZES in config/constants.json.
       pageFormats() {
         return cPageFormats();
       },
@@ -284,7 +266,6 @@ class StencilCore {
         }
       },
 
-      // Mirror each point about (cx, cy): horizontal → x' = 2cx - x, vertical → y' = 2cy - y.
       // `horizontal` crosses the ABI as an int (1/0), like the other flag args.
       flipPoints(points, horizontal, cx, cy) {
         if (points.length === 0) return;
@@ -315,33 +296,22 @@ class StencilCore {
       },
 
       applyFilterRGBA(mode, data, pixelCount, r, g, b) {
-        const code = FILTER_MODE[mode] ?? FILTER_MODE.custom;
         const bytes = pixelCount * 4;
-        const ptr = core._malloc(bytes);
-        try {
-          core.HEAPU8.set(data, ptr);
-          cFilter(code, ptr, pixelCount, r, g, b);
-          data.set(core.HEAPU8.subarray(ptr, ptr + bytes));
-        } finally {
-          core._free(ptr);
-        }
+        const ptr = pixelScratch(bytes);
+        core.HEAPU8.set(data, ptr);
+        cFilter(FILTER_MODE[mode] ?? FILTER_MODE.custom, ptr, pixelCount, r, g, b);
+        data.set(core.HEAPU8.subarray(ptr, ptr + bytes));
       },
 
-      // Contour needs the pixel neighborhood, so it crosses the ABI with
-      // width/height instead of applyFilterRGBA's flat pixel count.
+      // Contour needs the pixel neighborhood, so it crosses with width/height.
       applyContourRGBA(data, width, height) {
         const bytes = width * height * 4;
-        const ptr = core._malloc(bytes);
-        try {
-          core.HEAPU8.set(data, ptr);
-          cContour(ptr, width, height);
-          data.set(core.HEAPU8.subarray(ptr, ptr + bytes));
-        } finally {
-          core._free(ptr);
-        }
+        const ptr = pixelScratch(bytes);
+        core.HEAPU8.set(data, ptr);
+        cContour(ptr, width, height);
+        data.set(core.HEAPU8.subarray(ptr, ptr + bytes));
       },
 
-      // ── crop geometry (cropGeometry.js) ──
       isAlbumOrientation(w, h) {
         return cIsAlbum(w, h) === 1;
       },
@@ -387,7 +357,6 @@ class StencilCore {
   }
 }
 
-// The single shared-core instance. Constructed at import time (cheap — no wasm
-// load happens until init()), so module-eval-time consumers (FormulaEngine
-// fields, utils/zoomPan consts via core.bind) can reference it immediately.
+// Constructed at import time (no wasm load until init()), so module-eval-time consumers
+// (FormulaEngine fields, core.bind consts) can reference it immediately.
 export const core = new StencilCore();

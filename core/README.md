@@ -14,7 +14,7 @@ One implementation, four consumers:
 ```mermaid
 graph TD
     CORE["<b>core/</b> — shared logic (C++17, STL-only, GUI-free)"]
-    CORE -->|"emcmake → WebAssembly · wasmApi.cpp"| WEB["<b>Browser</b> (vanilla ES modules)"]
+    CORE -->|"emcmake → WebAssembly · wasm*Api.cpp"| WEB["<b>Browser</b> (vanilla ES modules)"]
     CORE -->|"add_subdirectory(../core) + Qt 6"| DESK["<b>Desktop</b> (C++17 / Qt 6)"]
     CORE -->|"recompiled by build.zig · cliApi.h"| CLI["<b>CLI</b> (Zig + stb_image)"]
     CORE -->|"recompiled by build.py · cliApi.h via ctypes"| PY["<b>Python</b> (pystencil — stdlib only)"]
@@ -51,29 +51,45 @@ Sources are grouped by role; headers are included bare across groups.
 ```
 models.hpp            # shared Point / Line / Lines value types (mirror the browser line object)
 text.hpp              # header-only ASCII string helpers (toLowerAscii, trim, …) shared by groups
+rgba.hpp              # header-only helpers for the packed row-major RGBA8 buffers the ABI moves
+abi/                  # shared by BOTH extern "C" surfaces, never by the library itself:
+  marshal.hpp         #   flat [x0,y0,x1,y1,…] point arrays -> Point vectors
+  HandleTable.hpp     #   opaque-int handles for the stateful classes (stale/forged -> rejected)
+  linesCodec.hpp      #   flat (nums, text) Lines snapshot codec; twin of js/core/linesCodec.js
+  shared.inc          #   export bodies identical in both ABIs, emitted once per spelling
 geometry/
-  geometry            # distToSegment · shouldCloseShape · findLineAt / nearest point / segment
+  pointMath           # distToSegment · rotate / flip points · bounding-box centre
+  hitTest             # findLineAt · nearest point / segment · shouldCloseShape · holdDrawTarget
   cropGeometry        # axis-aligned crop window math (page-locked aspect, lossless re-edit)
+raster/
   imageOps            # whole-image RGBA8 transforms: crop · quarter-turn rotate · solid fill
   rasterize           # software rasteriser: burns layout Lines into an RGBA8 buffer
-color/
-  color               # hex parse (#rrggbb) + hexToRgba — port of utils.js colour helpers
-  colorNames          # CSS keyword / #rgb..#rrggbbaa / 'transparent' → RGBA resolver
   imageFilter         # bw / sepia / invert / duotone-tint per-pixel math + Sobel contour (canonical, shared)
+color/
+  color               # hex parse (#rrggbb) + hexToRgba — port of utils/color.js helpers
+  colorNames          # CSS keyword / #rgb..#rrggbbaa / 'transparent' → RGBA resolver
+  luma                # the two deliberately different luma formulas, named once
 parse/
   formulaParser       # safe recursive-descent f(x)/f(y) parser (the eval-free replacement)
+  durationParser      # free-form retention spec ("days 23", "2 weeks") → milliseconds
   lengthTokens        # '3cm' '-4in' '50%' '120px' bare-number length tokens
   cropSpec            # parse + resolve the CLI crop string ("x1=.. x2=.. y1=.. y2=..")
 page/
   pageMetrics         # pixel ↔ page (cm) conversion + the PAGE_SIZES table (full ISO A0–C10)
-  tooltipRows         # builder for the hover-tooltip coordinate rows (Pixel / Page / To edge)
   localeUnit          # metric vs imperial default display unit (cm / in)
+format/
+  tooltipRows         # builder for the hover-tooltip coordinate rows (Pixel / Page / To edge)
   hotkeyFormat        # portable key-sequence ("Ctrl+Shift+Z") → native / macOS (⇧⌘Z) display
 state/
-  historyStack        # line-snapshot undo/redo with the browser's exact cursor semantics
+  historyStack        # line-snapshot undo/redo, browser cursor semantics, 64-step cap (LIMITS.historyMax)
   projectsStore       # in-memory project registry + one-week expiry sweep (I/O lives in the GUI)
+  projectMeta         # the ProjectMeta value type the store and every adapter exchange
   zoomPan             # zoom clamp + anchored / rect zoom math
+  holdDraw            # hold-to-draw tick/seed state machine shared with the GUIs
 wasmApi.cpp           # extern "C" ABI compiled to WebAssembly for the browser (see WASM.md)
+wasmCropApi.cpp       # the same ABI, crop-geometry exports (split off wasmApi.cpp on size)
+wasmStateApi.cpp      #   "      "  , the handle-based holdDraw / history exports
+wasmProjectsApi.cpp   #   "      "  , the scalar projectsStore expiry exports
 cliApi.{h,cpp}        # extern "C" ABI consumed by the Zig CLI (RGBA8 buffers + C strings)
 tests/                # Doctest suite — one suite per module, plus the wasm and CLI ABIs
 third_party/          # vendored doctest.h (fetched on demand, gitignored)
@@ -95,21 +111,21 @@ Targets:
 
 - **`stencil_core`** — the static library of shared logic (the desktop app pulls this in
   via `add_subdirectory`; the CLI recompiles the sources instead of linking it).
-- **`stencil_tests`** — the Doctest binary (one suite per module, plus `wasmApi` and
-  `cliApi`). Built when `STENCIL_CORE_BUILD_TESTS=ON` (the default) and **off under
+- **`stencil_tests`** — the Doctest binary (one suite per module, plus the four wasm ABI
+  suites and `cliApi`). Built when `STENCIL_CORE_BUILD_TESTS=ON` (the default) and **off under
   Emscripten**; the desktop build turns it off and defers to this dedicated core build.
 - **`stencil_wasm`** — produced **only** when configured through `emcmake` (which defines
   `EMSCRIPTEN`); a normal native build never enters that branch. See [WASM.md](WASM.md).
 
-`wasmApi.cpp` is plain STL, so it is also compiled **natively into `stencil_tests`** and
-fully exercised even on a machine without `emcc`.
+The four `wasm*Api.cpp` translation units are plain STL, so they are also compiled
+**natively into `stencil_tests`** and fully exercised even on a machine without `emcc`.
 
 ### Benchmarks
 
-`tests/bench.test.cpp` holds perf-regression benchmarks for the heavy per-pixel /
-per-element hotspots (large-image filters/crop/rotate, many-line rasterisation, editing
-history growth). They are decorated `doctest::skip()`, so the normal `ctest` run — and CI —
-**never** executes them; no timing number gates a merge. Run them on demand:
+`tests/bench.test.cpp` (+ `benchGeometry` / `benchLogic`, sharing `benchSupport.hpp`) holds
+perf-regression benchmarks for the heavy per-pixel / per-element hotspots. They are
+decorated `doctest::skip()`, so the normal `ctest` run — and CI — **never** executes them;
+no timing number gates a merge. Run them on demand:
 
 ```bash
 core/build/stencil_tests -ts=bench --no-skip
@@ -118,8 +134,19 @@ core/build/stencil_tests -ts=bench --no-skip -tc="*rasterize*"   # one case
 
 Assertions are deliberately **relative** (ratios between ops, or scaling as input doubles)
 with generous ceilings, so they flag algorithmic regressions rather than machine noise; each
-case also prints a throughput line. The CLI drives the same code end-to-end (with codec
-encode) via `zig build bench` — see [`../cli/README.md`](../cli/README.md).
+case also prints a throughput line. The eleven cases guard: contour vs. the cheap per-pixel
+filter; rotate staying a tiled transpose; rasterising a big layout staying linear in line
+**count**, and one stroke staying O(length x thickness²) (its disc-px/s is what a span-based
+rewrite must beat); `fillPolygon`'s per-scanline edge walk staying linear in edge count;
+`findLineAt`/`findNearestSegment` — the desktop's per-mouse-move hit test — staying linear in
+line count; `projectsStore::list()`'s deep copy and `sweepExpired` per dialog refresh;
+`formulaParser` at `MAX_DEPTH` nesting from untrusted layout JSON / `--formula`; `parseColor`
+keyword vs. hex, called per line per rasterised/painted frame; the two `luma.hpp` Rec. 709
+forms against each other (with the invariant that they differ by at most 1 — the number that
+settles any attempt to unify them); and `HistoryStack::push` staying amortised O(1).
+
+The CLI drives the same code end-to-end (with codec encode) via `zig build bench` — see
+[`../cli/README.md`](../cli/README.md).
 
 > The Zig CLI recompiles the core's `.cpp` files directly rather than linking the CMake
 > library, so the file list in [`../cli/build.zig`](../cli/build.zig) must stay in sync with
@@ -128,7 +155,7 @@ encode) via `zig build bench` — see [`../cli/README.md`](../cli/README.md).
 ## Design principles
 
 **Behavioral parity with the browser app.** Each core module is a port of a specific
-browser JS call site (noted at the top of every header, e.g. `geometry` ← `utils.js`,
+browser JS call site (noted at the top of every header, e.g. `pointMath` ← `utils.js`,
 `pageMetrics` ← `drawingApp.js`, `historyStack` ← `historyStack.js`) and is kept
 **behaviorally identical** to it — down to edge cases like the history stack's "step 0 →
 empty lines, step -1" undo. The test cases are themselves ported from `browser/tests/`, so

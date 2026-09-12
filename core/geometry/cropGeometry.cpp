@@ -15,8 +15,7 @@ namespace stencil::core {
   CropRect centeredCrop(double imageW, double imageH, double aspectWoverH) {
     CropRect r;
     if (imageW <= 0.0 || imageH <= 0.0 || aspectWoverH <= 0.0) return r;
-    // Start as wide as the image, then shrink height to match the aspect; if that
-    // overflows the image height, pin to the height and derive the width instead.
+    // Width-bound first; if the height overflows, height-bound instead.
     double w = imageW;
     double h = w / aspectWoverH;
     if (h > imageH) {
@@ -35,24 +34,20 @@ namespace stencil::core {
                                 double imageW, double imageH, double minSize) {
     if (aspectWoverH <= 0.0 || imageW <= 0.0 || imageH <= 0.0) return cur;
 
-    // The moving corner's side; the diagonally-opposite corner stays anchored.
     const bool movingLeft = (corner == 0 || corner == 3);
     const bool movingTop = (corner == 0 || corner == 1);
     const double anchorX = movingLeft ? cur.x + cur.width : cur.x;
     const double anchorY = movingTop ? cur.y + cur.height : cur.y;
 
-    // Distance from the anchor to the cursor along each axis (the rectangle grows
-    // toward the cursor), clamped to be non-negative.
+    // Anchor-to-cursor distance per axis, non-negative.
     const double dx = std::max(0.0, movingLeft ? anchorX - cursorX
                                                 : cursorX - anchorX);
     const double dy = std::max(0.0, movingTop ? anchorY - cursorY
                                                : cursorY - anchorY);
 
-    // Take whichever axis demands the larger rectangle so the cursor stays on or
-    // inside the edge, then fold the aspect ratio back in.
+    // The axis demanding the larger rect wins, so the cursor stays on or inside the edge.
     double w = std::max(dx, dy * aspectWoverH);
 
-    // Room available from the anchor toward the moving direction, on both axes.
     const double availW = movingLeft ? anchorX : (imageW - anchorX);
     const double availH = movingTop ? anchorY : (imageH - anchorY);
     const double maxW = std::min(availW, availH * aspectWoverH);
@@ -89,18 +84,16 @@ namespace stencil::core {
     const double cy = cur.y + cur.height * 0.5;
     double w = cur.width * factor;
     double h = w / aspectWoverH;
-    // Lower bound: keep both sides >= minSize (aspect preserved).
     if (w < minSize) { w = minSize; h = w / aspectWoverH; }
     if (h < minSize) { h = minSize; w = h * aspectWoverH; }
-    // Upper bound: the largest centred rect of this aspect that stays in the image —
-    // with the centre fixed, each axis is limited by its NEARER edge.
+    // With the centre fixed, each axis is limited by its NEARER edge.
     const double maxHalfW = std::min(cx, imageW - cx);
     const double maxHalfH = std::min(cy, imageH - cy);
     const double wMax = std::min(2.0 * maxHalfW, 2.0 * maxHalfH * aspectWoverH);
     if (wMax > 0.0 && w > wMax) { w = wMax; h = w / aspectWoverH; }
     double x = cx - w * 0.5;
     double y = cy - h * 0.5;
-    // Guard floating-point drift so the rect is fully inside the image.
+    // Floating-point drift guard.
     if (x < 0.0) x = 0.0;
     if (y < 0.0) y = 0.0;
     if (x + w > imageW) x = imageW - w;
@@ -137,8 +130,7 @@ namespace stencil::core {
     out.width = r.height;
     out.height = r.width;
     if (clockwise) {
-      // Top-left of the picture moves to the top-right: x' spans down from the
-      // far edge (imageH), y' picks up the old x.
+      // The picture's top-left lands top-right: x' counts down from imageH.
       out.x = imageH - (r.y + r.height);
       out.y = r.x;
     } else {

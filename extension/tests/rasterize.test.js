@@ -210,3 +210,19 @@ test('decodeSize measures via the bitmap decoder, and via <img> for SVG', async 
   assert.deepEqual(await decodeSize({ dataUrl: SVG_DATA_URL }, { deps: svgDeps }), { width: 128, height: 64 });
   assert.equal(svgState.images.length, 1);
 });
+
+// ── SSRF guard (lib/urlGuard.js) ──
+// NEGATIVE: a page-harvested source naming a private/internal host is refused before
+// EITHER decoder touches the network (fetch, then <img src>); a public one still decodes.
+test('a private or internal source URL is refused before any decode', async () => {
+  for (const url of ['http://127.0.0.1/x.png', 'http://10.0.0.5/x.png', 'http://169.254.169.254/latest/',
+    'http://[::1]/x.png', 'http://localhost:8080/x.png', 'file:///etc/passwd']) {
+    const state = newState();
+    await assert.rejects(() => rasterizeToPngDataUrl({ dataUrl: url }, { deps: baseDeps(state) }), /blocked/, url);
+    await assert.rejects(() => decodeSize({ dataUrl: url }, { deps: baseDeps(state) }), /blocked/, url);
+    assert.equal(state.blobFetches, 0, url);
+    assert.equal(state.images.length, 0, url);
+  }
+  const ok = await rasterizeToPngDataUrl({ dataUrl: 'https://cdn.example/x.png' }, { deps: baseDeps(newState()) });
+  assert.match(ok, /^data:image\/png;base64,/);
+});

@@ -4,9 +4,9 @@ The canonical, single-source spec of the Stencil CLI's **argv (input) contract**
 **stderr line grammar (output) contract** — the surface that non-`core/` adapters parse to
 drive the CLI as a black box. Two adapters depend on it and must not silently drift from it:
 
-- **`mcp/`** — the Rust MCP server. Builds argv in `mcp/src/args.rs` (`build_argv`, flag
-  literals as `FLAG_*`); parses stderr in `mcp/src/outcome.rs` (`PREFIX_*` +
-  `parse_wrote` / `parse_remotes` / `extract_errors`).
+- **`mcp/`** — the Rust MCP server. Builds argv in `mcp/src/args/` (`build_argv` in
+  `argv.rs`, the flag literals as `FLAG_*` in `flags.rs`); parses stderr in
+  `mcp/src/outcome.rs` (`PREFIX_*` + `parse_wrote` / `parse_remotes` / `extract_errors`).
 - **`bot/`** — the .NET Telegram bot. Builds argv in
   `bot/src/Stencil.TelegramBot.Infrastructure/Cli/CliArgvBuilder.cs`; parses stderr in
   `.../Cli/CliOutcomeParser.cs`.
@@ -15,7 +15,7 @@ The `mcp/` literals are the **reference** for what the contract IS; this documen
 shared fixtures pin them to what the CLI (`cli/`) actually emits. When the CLI's flags or
 output lines change, update **this file, the shared fixtures, and both adapters together**.
 
-> This describes what the CLI does **today** (verified against `cli/src/args.zig` and
+> This describes what the CLI does **today** (verified against `cli/src/params/parse.zig` and
 > `cli/src/pipeline.zig`), not what it should do. The console/REPL mode (`--console`) is a
 > separate interactive surface and is **not** part of this adapter contract.
 
@@ -33,7 +33,7 @@ output lines change, update **this file, the shared fixtures, and both adapters 
 
 ## 1. Argv (input) contract
 
-Produced by `parse()` in **`cli/src/args.zig`**. The grammar is small and
+Produced by `parse()` in **`cli/src/params/parse.zig`** (re-exported as `args.parse`). The grammar is small and
 **order-independent** (flags may appear in any order); a bare token that isn't a flag or a
 flag's value is the positional **output** path (last one wins). There is **no `--`
 end-of-options terminator** — a bare `--` is rejected as an unknown flag — so an output path
@@ -60,9 +60,10 @@ that begins with `-` would misparse as a flag; adapters reject dash-leading outp
 | `--group` | `<u32>` value | 0-based page index; window = `filtered[G*N : G*N+N]` (default 0). |
 | `--source-filter` | `<s>` value | Category tokens, `\|`-joined: `img` \| `video` \| `background` \| `poster` (absent / `all` = every category). |
 | `--source-format` | `<s>` value | Format tokens, `\|`-joined, e.g. `png\|jpg\|webp\|gif\|svg\|mp4` (absent / `all` = every format; unknown-ext items bucket as `etc`). |
-| `--source-name` | `<s>` value | Regex matched against each media URL (**POSIX ERE, case-insensitive**; a Windows CLI build has no `regex.h` and degrades to a case-insensitive substring test). Absent / empty = every URL. An invalid regex is a hard error (`error: invalid --source-name regex …`, exit 1). Dialect note: only the common subset (`. * + ? [] ^ $ \| ()`) is guaranteed identical across the CLI (POSIX), pystencil (Python `re`) and the extension (JS `RegExp`). |
+| `--source-name` | `<s>` value | Regex matched against each media URL (**POSIX ERE, case-insensitive**; a Windows CLI build has no `regex.h` and degrades to a case-insensitive substring test). Absent / empty = every URL. An invalid regex is a hard error (`error: invalid --source-name regex …`, exit 1), as is a pattern longer than **200 characters** (`error: --source-name pattern is too long …` — a bound on regexec backtracking). Dialect note: only the common subset (`. * + ? [] ^ $ \| ()`) is guaranteed identical across the CLI (POSIX), pystencil (Python `re`) and the extension (JS `RegExp`). |
 | `--source-min-width` / `--source-max-width` | `<u32>` value | Inclusive pixel width bounds (`0` = unset; images measured from a header sniff). |
 | `--source-min-height` / `--source-max-height` | `<u32>` value | Inclusive pixel height bounds (`0` = unset). |
+| `--confine-output` | switch | Refuse an output path that leaves the working directory: an **absolute** path or a leading `~`, on top of the `..` traversal refused in every mode (`error: --confine-output: refusing to write outside the working directory: …`, exit 1). Off by default. Adapters that forward an LLM-chosen `<output>` (mcp, bot) pass it; it also confines the scrape destination directory. |
 | `--console`, `--repl` | switch | Interactive console mode (out of scope for this contract). |
 | `-h`, `--help` | switch | Show help. |
 | `<output>` | positional | Result path (last positional wins) — or, in scrape mode, the **destination directory** (created if missing; default `.`). A missing/unknown extension is auto-filled from the input format. |
@@ -107,7 +108,7 @@ line before matching.
 
 ### 2.1 Success line — `wrote …`
 
-Emitted by `writeOutputLabeled()` in `cli/src/pipeline.zig`:
+Emitted by `writeOutputLabeled()` in `cli/src/pipeline/steps.zig`:
 
 ```zig
 logo.print("wrote {s} ({d}x{d} px · {s})\n", .{ resolved.path, img.width, img.height, page_label });
@@ -153,7 +154,7 @@ parse both sides as unsigned integers. Any step failing ⇒ this line is not a s
 
 ### 2.2 Server-delivery lines — `updated …` / `created …`
 
-Emitted by `deliverToServer()` in `cli/src/pipeline.zig` **after** the `wrote` line, when
+Emitted by `deliverToServer()` in `cli/src/pipeline/oneshot.zig` **after** the `wrote` line, when
 `--remote-update` and/or `--remote` are given. A single run can emit both.
 
 **Update (`--remote-update`),** from
@@ -200,7 +201,7 @@ if stderr is empty, return the fixed message `the stencil CLI failed without a m
 
 ## 3. Scrape mode (`--source-site`) output contract
 
-Emitted by `run()` in **`cli/src/scrape.zig`**. Like §2, everything goes to **stderr**;
+Emitted by `runImpl()` in **`cli/src/scrape/run.zig`**. Like §2, everything goes to **stderr**;
 **stdout stays empty**. A run downloads zero or more files into the output directory and
 prints one line per file plus a final summary. Per-item fetch failures are **non-fatal**
 (the run continues); **zero files written** is a hard error (exit 1).

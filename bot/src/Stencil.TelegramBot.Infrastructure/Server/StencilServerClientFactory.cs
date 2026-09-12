@@ -5,19 +5,13 @@ using Stencil.TelegramBot.Infrastructure.Configuration;
 
 namespace Stencil.TelegramBot.Infrastructure.Server;
 
-/// <summary>
-/// Builds a <see cref="IStencilServerClient"/> for a given server origin, centralising URL
-/// normalisation and the TLS-verification choice (the dev-server self-signed-cert escape
-/// hatch). Mirrors <c>pystencil</c>'s <c>ConnectionManager</c> construction
-/// (<c>verify=False ⇒ unverified SSL context</c>).
-/// </summary>
+// Mirrors pystencil's ConnectionManager construction (verify=False ⇒ unverified SSL context).
 public sealed class StencilServerClientFactory : IStencilServerClientFactory
 {
-    // SocketsHttpHandler is thread-safe and pools its connections, so one handler is shared by
-    // every client (per TLS choice) instead of allocated per Create — the clients are transient
-    // and never disposed, so a per-call handler would leak its whole connection pool.
+    // One pooled SocketsHttpHandler per TLS choice: the clients are transient and never disposed,
+    // so a per-call handler would leak its whole connection pool.
     private readonly Lazy<SocketsHttpHandler> _verifying = new(() => new SocketsHttpHandler());
-    private readonly Lazy<SocketsHttpHandler> _insecure = new(CreateInsecureHandler);
+    private readonly Lazy<SocketsHttpHandler> _insecure = new(createInsecureHandler);
     private readonly TimeSpan _timeout;
 
     public StencilServerClientFactory(BotOptions options)
@@ -25,13 +19,10 @@ public sealed class StencilServerClientFactory : IStencilServerClientFactory
         _timeout = options.ServerHttpTimeout;
     }
 
-    /// <summary>
-    /// Create a client for <paramref name="url"/> over an <see cref="HttpClient"/> whose server
-    /// certificate validation is bypassed when <paramref name="verifyTls"/> is false. The client
-    /// carries the configured request timeout so a slow server can't block a handler indefinitely.
-    /// </summary>
+    // The client carries the configured timeout so a slow server can't block a handler
+    // indefinitely.
     public IStencilServerClient Create(string url, string? token = null, bool verifyTls = true, string? credential = null,
-        CredentialKind credentialKind = CredentialKind.None)
+        CredentialKind credentialKind = CredentialKind.NONE)
     {
         SocketsHttpHandler handler = (verifyTls ? _verifying : _insecure).Value;
         HttpClient http = new(handler, disposeHandler: false)
@@ -41,18 +32,14 @@ public sealed class StencilServerClientFactory : IStencilServerClientFactory
         return new HttpStencilServerClient(http, NormalizeUrl(url), token, credential, credentialKind);
     }
 
-    /// <summary>Normalise a raw URL to a stable origin (<c>scheme://host[:port]</c>).</summary>
     public string NormalizeUrl(string url) => UrlNormalizer.Normalize(url);
 
-    /// <summary>
-    /// A plain <see cref="HttpClient"/> over the shared pooled TLS-verifying handler, for
-    /// adapters (like the LLM client) that speak their own HTTP rather than the server REST
-    /// surface — so they reuse this factory's connection pool instead of growing their own.
-    /// </summary>
+    // For adapters that speak their own HTTP (the LLM client), so they reuse this pool instead of
+    // growing their own.
     public HttpClient CreateHttpClient(TimeSpan timeout) =>
         new(_verifying.Value, disposeHandler: false) { Timeout = timeout };
 
-    private static SocketsHttpHandler CreateInsecureHandler() => new()
+    private static SocketsHttpHandler createInsecureHandler() => new()
     {
         SslOptions = new SslClientAuthenticationOptions
         {

@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 // regions (the REGIONS order is load-bearing).
 import { layout } from '../js/ui/layout.js';
 import { clampFloatRect, resizeFloatRect, dockZoneAt, compactChatRect, gearStatusRows, gearTipFootText, FLOAT_MIN_W, FLOAT_MIN_H, DOCK_ZONE_BAND, COMPACT_CHAT_W, COMPACT_CHAT_H } from '../js/ui/chatPanel.js';
+import { COMPONENTS_CSS } from './helpers/css.js';
 
 const markup = layout();
 const count = (needle) => markup.split(needle).length - 1;
@@ -250,7 +251,7 @@ test('status dot ships in the connecting state on the gear', () => {
 // ── Install button vs chat panel: the CSS guard must exist (e2e found the floating
 // "Get Stencil" button intercepting clicks on the docked panel's send button). ──
 test('components.css guards the install button against the open chat panel', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.ok(/body:has\(stencil-chat-panel\.chat-open\) #install-host \{ z-index: 89999; \}/.test(css),
     'install button drops beneath the open panel');
   assert.ok(css.includes('body:has(stencil-chat-panel.chat-open.chat-dock-right) #install-host'),
@@ -266,7 +267,7 @@ test('components.css guards the install button against the open chat panel', () 
 // row it sits in — the Settings padding made it 38x26 beside its 40x32 siblings. Hence:
 // no padding/font-size override, and an inset-shadow outline so the box never jumps. ──
 test('components.css styles #chat-btn: ghost colours, CONNECTIONS-row geometry', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.match(css, /#settings-btn, #visuals-btn, #info-btn, #fullscreen-toggle, #incognito-toggle \{/,
     'the Settings-row ghost group still exists (without #chat-btn, which is not in that row)');
   assert.match(css, /#fullscreen-toggle\.active, #incognito-toggle\.active, #chat-btn\.active \{/,
@@ -285,7 +286,7 @@ test('components.css styles #chat-btn: ghost colours, CONNECTIONS-row geometry',
 
 // ── Disabled + resizable-input + mobile CSS (assertable without a DOM) ──
 test('components.css: disabled ghosts, resizable input, phone modal, touch targets', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   assert.ok(css.includes('.chat-hbtn:disabled'), 'disabled styling for the compact buttons');
   const inputRule = css.slice(css.indexOf('#chat-input {'), css.indexOf('}', css.indexOf('#chat-input {')));
   assert.ok(inputRule.includes('resize: none'), 'native corner grip is off — the sizer strip owns resizing');
@@ -433,7 +434,8 @@ test('chatAskCard: answering locks the card — it can never fire twice', async 
 // ── Scripting surface: app.chat exposes history / abort / isSending ──
 // The wiring is DOM-bound, so assert the source registers the members and that
 // history rides the SETTLED-transcript path (rowsToMessages over the shared log)
-// while abort rides the Stop button's turnAbort.
+// while abort rides the Stop button's turnAbort. window.stencil.chat's side of the
+// same contract is driven for real in consoleChatFacade.test.js.
 test('app.chat exposes history (rowsToMessages over the log), abort, and isSending', () => {
   const src = readFileSync(new URL('../js/ui/chatPanel.js', import.meta.url), 'utf8');
   assert.ok(src.includes('history: () => rowsToMessages(chatLog()).map((m) => ({ role: m.role, text: m.text }))'));
@@ -441,10 +443,6 @@ test('app.chat exposes history (rowsToMessages over the log), abort, and isSendi
   assert.ok(src.includes('get isSending() { return sending; }'));
   // clear rides the same shared path as the trash button, refused mid-turn.
   assert.match(src, /clear: \(\) => \{[\s\S]{0,200}clearSharedConversation\(app\);/);
-  const facade = readFileSync(new URL('../js/console/stencilApi.js', import.meta.url), 'utf8');
-  assert.ok(facade.includes('get history() { return chatPanel().history(); }'));
-  assert.ok(facade.includes('abort() { return chatPanel().abort(); }'));
-  assert.ok(facade.includes('clear() { chatPanel().clear(); return stencil; }'));
 });
 
 // ── Assistant modal commits on Save (desktop dialog parity) ──

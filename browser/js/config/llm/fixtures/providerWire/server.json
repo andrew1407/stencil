@@ -2,7 +2,7 @@
   {
     "name": "plain single turn — empty model is OMITTED, messages carry role+text only",
     "divergences": {
-      "desktop": "chatServer always sends a top-level model key (\"\" when unset, llmClient.cpp) — never omitted"
+      "desktop": "chatServer always sends a top-level model key (\"\" when unset, LlmClient.cpp) — never omitted"
     },
     "provider": "server",
     "settings": {

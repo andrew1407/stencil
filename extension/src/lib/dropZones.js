@@ -1,31 +1,14 @@
-// ── On-page 4-quadrant drop overlay ─────────────────────────────────────────
-// Injected into the active tab while a row is dragged out of the panel (feature: drag a
-// list row onto the page). Draws a full-viewport 2×2 grid; dropping in a quadrant runs an
-// action on the dragged image. Map (see popup drag / README):
-//   top-left = open in editor here   top-right = open incognito
-//   bottom-left = open image in new tab   bottom-right = crop
-// Injected via chrome.scripting.executeScript({func, args:[accent]}) (like overlay.js
-// mountStencilModal), so it must be SELF-CONTAINED — no imports. `accent` is the current theme
-// accent hex (resolved by the SW from the saved accent) so the zones match the extension's
-// theme, not a fixed violet. On drop it relays {type:'stencil-page-drop', action, url} to the
-// SW, which owns the hand-off machinery. The overlay shows the instant it's injected (on drag
-// start), so the zones are visible while the drag is still over the panel. NOTE: a drop only
-// completes from the SIDE PANEL (same window); popup/DevTools inject this too, but the browser
-// won't deliver them a page drop — the overlay is torn down by DROPZONES_DISARM on drag end.
-// Which quadrant a viewport point maps to. Pure + exported so it's unit-testable; the same
-// two lines are inlined inside mountDropZones (an injected func can't call module scope).
-//   top-left = here   top-right = incognito   bottom-left = newtab   bottom-right = crop
+// The on-page 2×2 drop overlay, injected while a row is dragged out of the panel via
+// executeScript({func}) — so mountDropZones must stay SELF-CONTAINED, no imports. A drop
+// only completes from the SIDE PANEL; DROPZONES_DISARM tears it down on drag end.
+// Inlined again inside mountDropZones (an injected func can't call module scope).
 export const quadrantAt = (x, y, w, h) => {
   const left = x < w / 2, top = y < h / 2;
   return top ? (left ? 'here' : 'incognito') : (left ? 'newtab' : 'crop');
 };
 
-// `mode` is the extension's Appearance choice, UNRESOLVED ('system' | 'light' | 'dark') —
-// only the target page can answer what the OS prefers, so 'system' is resolved here with
-// its own matchMedia (the same hand-off lib/shellTheme.js makes to the injected modal).
-// It used to be a bare `@media (prefers-color-scheme: light)`, which is why the zones came
-// up white on a light OS even with the extension set to dark: they followed the PAGE's
-// colour scheme rather than the extension's own theme.
+// `mode` is the Appearance choice UNRESOLVED: only the target page can answer what the OS
+// prefers. Never a bare `@media (prefers-color-scheme)` — that follows the PAGE's scheme.
 export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'system') => {
   if (window.__stencilDropZones) return;
   window.__stencilDropZones = true;
@@ -33,8 +16,7 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
   const ID = 'stencil-ext-dropzones';
   document.getElementById(ID)?.remove();
 
-  // [key, label, row, col] — row/col place it in the 2×2 grid. `editor` = this page
-  // IS a live editor: here/incognito/crop act on it, so the labels say so.
+  // `editor` = this page IS a live editor, so the labels say so.
   const QUADS = [
     { key: 'here', label: editor ? 'Open in this editor' : 'Open in editor here', row: 1, col: 1 },
     { key: 'incognito', label: editor ? 'Open incognito here' : 'Open incognito', row: 1, col: 2 },
@@ -47,16 +29,10 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
   host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;pointer-events:none;opacity:0;transition:opacity .12s ease;';
   const root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
 
-  // Mirrors the browser editor's drop overlay (browser/js/ui/dropOverlay.js + components.css):
-  // thick dashed border + monochrome line-art icon, BOTH painted in the theme `accent` (passed
-  // in), pulsing small↔large. The hovered quadrant fills with a translucent accent tint.
-  // Theme-aware light/dark for the surrounding card.
-  // Resolve the Appearance choice against THIS page's OS preference (only 'system' asks).
   let prefersDark = false;
   try { prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { /* no matchMedia */ }
   const dark = mode === 'dark' || (mode !== 'light' && prefersDark);
-  // Panel colours from lib/theme.css, at .69/.72 alpha — a fifth more see-through than
-  // they were, so the page underneath still reads while the zones are up.
+  // Panel colours from lib/theme/palette.css, at .69/.72 alpha so the page still reads.
   const cellBg = dark ? 'rgba(33,36,45,.69)' : 'rgba(244,245,247,.72)';
   const cellFg = dark ? '#e8eaf0' : '#1d2230';
   const scrim = dark ? 'rgba(0,0,0,.28)' : 'rgba(255,255,255,.3)';
@@ -82,8 +58,7 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
 
   const grid = document.createElement('div');
   grid.className = 'grid';
-  // Monochrome line-art (inlined from lib/icons.js — an injected func can't import): monitor /
-  // incognito / external / crop. Stroked with currentColor so they take the accent colour.
+  // Inlined from lib/icons.js (an injected func can't import): monitor / incognito / external / crop.
   const PATHS = {
     here: '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>',
     incognito: '<path d="M2 12h20"/><path d="M5 12l1.6-5.3A2 2 0 0 1 8.5 5.3h7a2 2 0 0 1 1.9 1.4L19 12"/><circle cx="6.5" cy="15.5" r="2.8"/><circle cx="17.5" cy="15.5" r="2.8"/><path d="M9.3 15a2.8 2.8 0 0 1 5.4 0"/>',
@@ -103,16 +78,14 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
   }
   root.append(style, grid);
 
-  // Which quadrant a viewport point falls in (matches the grid layout above).
   const quadAt = (x, y) => {
     const left = x < window.innerWidth / 2;
     const top = y < window.innerHeight / 2;
     return top ? (left ? 'here' : 'incognito') : (left ? 'newtab' : 'crop');
   };
 
-  // Standard-type URL extraction, mirrored from lib/dragUrl.js extractDraggedUrl (can't import
-  // into an injected function). Custom MIME types don't survive a cross-document drag, so only
-  // the standard text types are read.
+  // Mirrors lib/dragUrl.js extractDraggedUrl; custom MIME types don't survive a
+  // cross-document drag, so only the standard text types are read.
   const readUrl = (dt) => {
     const get = (t) => { try { return dt.getData(t) || ''; } catch { return ''; } };
     const html = get('text/html');
@@ -155,12 +128,11 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
     return !!(t && (t.includes('text/uri-list') || t.includes('text/html') || t.includes('text/plain')));
   };
 
-  // While our zones are up they OWN the drag: stopPropagation (capture phase)
-  // keeps the page's own drag UI out — on the editor page its native overlay
-  // otherwise showed underneath (and stranded) and the drop was handled twice.
+  // The zones OWN the drag: capture-phase stopPropagation keeps the page's own drag UI
+  // out, or the editor page's native overlay handles the drop twice.
   const onOver = (e) => {
     if (!carriesUrl(e.dataTransfer)) return;
-    e.preventDefault();                       // required to allow the drop
+    e.preventDefault();
     e.stopPropagation();
     try { e.dataTransfer.dropEffect = 'copy'; } catch { /* noop */ }
     show();
@@ -169,18 +141,16 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
   const onDrop = (e) => {
     if (!carriesUrl(e.dataTransfer)) { remove(); return; }
     e.preventDefault();
-    e.stopPropagation();                      // the page must not ALSO act on this drop
+    e.stopPropagation();
     const url = readUrl(e.dataTransfer);
     const action = quadAt(e.clientX, e.clientY);
     remove();
     if (url) {
-      // Literal MSG.PAGE_DROP (lib/messages.js): injected func can't import — keep in sync.
+      // Literal MSG.PAGE_DROP (lib/messages.js): an injected func can't import — keep in sync.
       try { chrome.runtime.sendMessage({ type: 'stencil-page-drop', action, url }); } catch { /* SW asleep */ }
     }
   };
-  // Leaving the page window (relatedTarget null) just clears the hover highlight — the overlay
-  // stays up so re-entering the page (e.g. drifting back from the panel) still works. Teardown
-  // is owned by drop / Escape / the panel's DROPZONES_DISARM on drag end / the safety timeout.
+  // Leaving the window only clears the highlight; the overlay stays up for a re-entry.
   const onLeave = (e) => { if (!e.relatedTarget) highlight(null); };
   const onKey = (e) => { if (e.key === 'Escape') remove(); };
 
@@ -189,62 +159,15 @@ export const mountDropZones = (accent = '#7c3aed', editor = false, mode = 'syste
   window.addEventListener('drop', onDrop, true);
   window.addEventListener('dragleave', onLeave, true);
   window.addEventListener('keydown', onKey, true);
-  // Safety net: never leave the overlay armed if the drag ends without a page event reaching us
-  // (e.g. a popup drag whose window closed before its dragend could DISARM).
-  const timer = setTimeout(remove, 12000);
+  // A popup drag whose window closed before its dragend could DISARM would strand the overlay.
+  const timer = setTimeout(remove, 12_000);
 
   (document.body || document.documentElement).appendChild(host);
-  show();   // visible immediately on drag start — not only once the cursor reaches the page
+  show();
 };
 
-// Remove an armed overlay (DROPZONES_DISARM): injected when the panel drag ends without a
-// page drop. Self-contained for the same reason as mountDropZones.
+// Injected on DROPZONES_DISARM; self-contained for the same reason as mountDropZones.
 export const unmountDropZones = () => {
   document.getElementById('stencil-ext-dropzones')?.remove();
   window.__stencilDropZones = false;
 };
-
-// Injected confirm for a drop on an OCCUPIED editor: resolves 'replace' | 'newtab' |
-// 'cancel'. executeScript awaits the returned promise, so the SW just reads the answer.
-// Self-contained (no imports), like the overlay above.
-export const mountDropChoice = (accent = '#7c3aed') => new Promise((resolve) => {
-  const ID = 'stencil-ext-dropchoice';
-  document.getElementById(ID)?.remove();
-  const host = document.createElement('div');
-  host.id = ID;
-  host.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.38);';
-  const root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
-  const style = document.createElement('style');
-  style.textContent = `
-    .card{background:rgba(33,36,45,.97);color:#e8eaf0;border:1px solid ${accent};border-radius:12px;
-      padding:18px 20px;max-width:340px;font:14px/1.45 system-ui,sans-serif;box-shadow:0 12px 40px rgba(0,0,0,.5);}
-    .card p{margin:0 0 12px;font-weight:600;}
-    .btns{display:flex;flex-direction:column;gap:8px;}
-    button{font:600 13px system-ui,sans-serif;padding:8px 12px;border-radius:8px;cursor:pointer;
-      border:1px solid ${accent};background:transparent;color:#e8eaf0;}
-    button:hover{background:color-mix(in srgb, ${accent} 25%, transparent);}
-    button.primary{background:${accent};color:#fff;}
-    @media (prefers-color-scheme: light){ .card{background:rgba(244,245,247,.98);color:#1d2230;} button{color:#1d2230;} button.primary{color:#fff;} }
-  `;
-  const card = document.createElement('div');
-  card.className = 'card';
-  const msg = document.createElement('p');
-  msg.textContent = 'This editor already holds an image. Where should the dropped image open?';
-  const done = (v) => { window.removeEventListener('keydown', onKey, true); host.remove(); resolve(v); };
-  const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done('cancel'); } };
-  const mk = (label, val, primary) => {
-    const b = document.createElement('button');
-    b.textContent = label;
-    if (primary) b.className = 'primary';
-    b.addEventListener('click', () => done(val));
-    return b;
-  };
-  const btns = document.createElement('div');
-  btns.className = 'btns';
-  btns.append(mk('Open here (replace the image)', 'replace', true), mk('Open in a new tab', 'newtab'), mk('Cancel', 'cancel'));
-  card.append(msg, btns);
-  root.append(style, card);
-  host.addEventListener('mousedown', (e) => { if (e.target === host) done('cancel'); });
-  window.addEventListener('keydown', onKey, true);
-  (document.body || document.documentElement).appendChild(host);
-});

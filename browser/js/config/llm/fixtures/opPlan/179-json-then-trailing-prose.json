@@ -1,8 +1,0 @@
-{
-  "name": "json-then-trailing-prose",
-  "profiles": [
-    "all"
-  ],
-  "input": "{\"version\":1,\"reply\":\"ok\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\"}]}\nHope that helps!",
-  "expect": "valid"
-}

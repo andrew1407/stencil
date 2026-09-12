@@ -1,5 +1,5 @@
 // ── Contour (Sobel edge-detection) filter — JS reference + fallback ─────────
-// Port of core/color/imageFilter.cpp applyContourRGBA. The renderer prefers the
+// Port of core/raster/imageFilter.cpp applyContourRGBA. The renderer prefers the
 // wasm build of that function; this body is the fallback and must stay
 // byte-identical to the C++ (the pinned integer-only math):
 //   1. luma plane L = trunc((2126*r + 7152*g + 722*b) / 10000), computed from the
@@ -20,7 +20,7 @@ export const applyContourRGBA = (data, width, height) => {
   const luma = new Uint8Array(count);
   for (let i = 0; i < count; i++) {
     const p = i * 4;
-    luma[i] = Math.trunc((2126 * data[p] + 7152 * data[p + 1] + 722 * data[p + 2]) / 10000);
+    luma[i] = Math.trunc((2126 * data[p] + 7152 * data[p + 1] + 722 * data[p + 2]) / 10_000);
   }
 
   // Edge-replicated (clamped) luma lookup — 1×1/1×N images work via the clamping

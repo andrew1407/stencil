@@ -1,9 +1,6 @@
-// Pins js/config/llm/opRegistry.json — the normative machine-readable op registry —
-// to the LIVE browser structures (js/llm/opPlan.js OPS/LIMITS/ASK_LIMITS/FORBIDDEN_OPS)
-// and to the shared op-plan fixture corpus. The registry documents CURRENT reality; until
-// table-driving lands it must not drift from the browser reference, so every browser-
-// baselined bullet, flag, limit and regex is compared programmatically, and the corpus
-// (the measured cross-surface truth) is cross-checked against the profile membership.
+// Pins js/config/llm/opRegistry.json to the LIVE browser structures (js/llm/opPlan.js
+// OPS/LIMITS/ASK_LIMITS/FORBIDDEN_OPS) and to the shared op-plan fixture corpus: the
+// registry is normative, so it must not drift from the reference it was measured against.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
@@ -30,7 +27,6 @@ test('registry is well-formed: unique ids, known profiles, profile lists ↔ op 
     assert.ok(Array.isArray(e.profiles) && e.profiles.length, `${e.id}: profiles required`);
     for (const p of e.profiles) assert.ok(ALL_PROFILES.includes(p), `${e.id}: unknown profile "${p}"`);
     assert.ok(e.keys && typeof e.keys === 'object', `${e.id}: keys map required`);
-    // A shared bullet points at a sibling that actually carries one.
     if (e.bulletSharedWith) {
       assert.equal(e.bullet, null, `${e.id}: a shared-bullet entry carries no bullet of its own`);
       assert.ok(entryById(e.bulletSharedWith)?.bullet, `${e.id}: bulletSharedWith names an entry with a bullet`);
@@ -38,8 +34,7 @@ test('registry is well-formed: unique ids, known profiles, profile lists ↔ op 
       assert.ok(typeof e.bullet === 'string' && e.bullet.startsWith('- {'), `${e.id}: bullet required`);
     }
   }
-  // profiles.X.ops lists exactly the entry names carrying profile X (by wire name —
-  // the extension's panel filter shares the name "filter" with the core image filter).
+  // profiles.X.ops lists the entry names carrying profile X, by WIRE name.
   for (const p of ALL_PROFILES) {
     const listed = registry.profiles[p].ops;
     assert.equal(new Set(listed).size, listed.length, `profiles.${p}.ops has duplicates`);
@@ -54,6 +49,13 @@ test('measured per-profile op counts', () => {
   assert.equal(registry.profiles.bot.ops.length, 24);        // 22 bullet groups, undo/redo + connect/disconnect shared
   assert.equal(registry.profiles.mcp.ops.length, 10);
   assert.equal(registry.profiles.extension.ops.length, 12);
+});
+
+// `filter` is the one wire name carried twice: the editor op and the extension's panel filter.
+test('the registry carries 49 entries under 48 wire names', () => {
+  const names = registry.ops.map((e) => e.name);
+  assert.equal(names.length, 49);
+  assert.deepEqual(names.filter((n, i) => names.indexOf(n) !== i), ['filter']);
 });
 
 // ── limits ──────────────────────────────────────────────────────────────────
@@ -182,9 +184,7 @@ test('declared keys are recognized by the live validators; a canary key is rejec
   for (const e of registry.ops) {
     if (e.baseline !== 'browser') continue;
     for (const key of Object.keys(e.keys)) {
-      // A recognized key given a nonsense value must fail on its TYPE/shape (or
-      // pass), never as `unknown field "<key>"` — that would mean the registry
-      // documents a key the browser validator does not accept.
+      // A documented key must fail on TYPE/shape (or pass), never as `unknown field`.
       let msg = null;
       try { OPS[e.name].validate({ op: e.name, [key]: {} }); } catch (err) { msg = err.message; }
       assert.ok(msg === null || !(UNKNOWN.test(msg) && msg.includes(`"${key}"`)),

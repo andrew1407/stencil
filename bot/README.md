@@ -51,6 +51,11 @@ cd bot
 dotnet restore Stencil.TelegramBot.slnx   # populates bot/packages/ (never ~/.nuget)
 ```
 
+Every project sets `RestorePackagesWithLockFile`, so a restore writes a **tracked**
+`packages.lock.json` beside its `.csproj`. CI restores with `--locked-mode`, which fails
+instead of resolving anything the lockfile does not pin — so commit the regenerated lockfiles
+whenever you change a `<PackageReference>`.
+
 That keeps the bot's dependencies self-contained and off the global cache. If you ever need
 to re-add one, do it against the project, e.g.:
 
@@ -73,6 +78,7 @@ graph TD
       INFRA["Infrastructure — Cli · Server · Sessions · Workspace"]
       DOMAIN["Domain — entities · abstractions<br/><i>(the frozen contract)</i>"]
       PRES --> APP
+      PRES -->|"composition root only"| INFRA
       APP --> DOMAIN
       INFRA --> DOMAIN
     end
@@ -94,26 +100,60 @@ bot/
   Stencil.TelegramBot.slnx
   src/
     Stencil.TelegramBot.Domain/          entities, value objects, abstractions — the frozen contract
-      Layout/        LayoutPoint · LayoutLine · StencilLayout  (the shared layout JSON schema)
-      Editing/       EditState · EditRequest · BlankSpec · RenderResult · ImageSize
-      Projects/      ProjectRecord · ProjectFull · Create/UpdateProjectRequest · FileWriteResult
-      Sessions/      UserSession · ServerConnectionInfo
-      Abstractions/  IStencilCli · IStencilServerClient(+Factory) · ISessionStore · IUserWorkspace
-      Serialization/ StencilJson  (one camelCase JsonSerializerOptions shared everywhere)
+      Abstractions/  IStencilCli · IStencilServerClient(+Factory) · ISessionStore · IUserWorkspace ·
+                     IImageDownscaler
+      Configuration/ IBotPolicy          (the operator policy the presentation layer reads)
+      Editing/       EditState · EditRequest · BlankSpec · RenderResult · ImageSize · HistoryStack ·
+                     CropSpecResolver (+.Tokens) · ColorSpec · RemoteDelivery ·
+                     Scrape{Request,Result} · ScrapedFile
       Exceptions/    StencilCliException · ServerException
+      Layout/        LayoutPoint · LayoutLine · LineStyle · StencilLayout · StencilLayoutParser
+      Llm/           OpPlan · PlanAction · AskCard · ChatDocument · ILlmClient · LlmGate ·
+                     LlmException · Llm{ChatRequest,Image,Message,Options,Profile,Reply} ·
+                     ProvidersAsset
+      Project/       StencilProjectFile  (the portable single-file .stencil format)
+      Projects/      ProjectRecord · ProjectFull · Create/UpdateProjectRequest · FileWriteResult
+      Serialization/ StencilJson (one camelCase JsonSerializerOptions shared everywhere) · JsonRead
+      Sessions/      UserSession · ServerConnectionInfo · CredentialKind · ServerHandshake ·
+                     PendingInputs
     Stencil.TelegramBot.Application/      use cases over the Domain abstractions
-      Editing/       IEditingService + EditingService   (one base image + a replayable EditState)
-      Servers/       IServerService + ServerService      (connect/list/fetch/create/save)
+      Editing/       IEditingService + EditingService (one base image + a replayable EditState) ·
+                     EditSessions · ProjectFileService · VideoFrames · RemoteImageUrl (the guard)
+      Llm/           OpSchema (+SchemaLoader/SchemaJson/SchemaPath/KeySpecChecker/PresenceRules/
+                     NativeRules) · OpRegistry · OpPlanParser (.Extract/.Actions/.Ask/.Validate) ·
+                     PromptService (ten partials, one per turn concern) · PlanFrameMapper ·
+                     ActionContext · LlmAttachmentLoader · ImageDimensionReader · SystemPromptAsset
+      Servers/       IServerService + ServerService (connect/list/fetch/create/save/sync, split
+                     .Connections/.Projects/.Metadata/.Sync) · ServerProjectInfo ·
+                     ProjectLayout{Mapper,Writer} · InviteLink
+      DependencyInjection/  ServiceCollectionExtensions (what the composition root binds)
     Stencil.TelegramBot.Infrastructure/   the adapters (depend only on Domain)
-      Cli/           StencilCliLocator · CliArgvBuilder · CliOutcomeParser · ProcessStencilCli
-      Server/        UrlNormalizer · HttpStencilServerClient · StencilServerClientFactory
+      Cli/           StencilCliLocator · CliArgvBuilder (+.Scrape) · CliOutcomeParser (+.Scrape) ·
+                     ProcessStencilCli
+      Configuration/ BotOptions (: IBotPolicy) · LlmProfileOptions · EnvRead · DotEnv ·
+                     RedisConnectionString
+      Links/         DeepLinkCodec · DesktopLinkBuilder · LayoutFetcher
+      Llm/           HttpLlmClient + one IProviderMapping per §6 wire shape
+      Media/         FfmpegImageDownscaler          Processes/  ProcessRunner (the spawn deadline)
+      Server/        UrlNormalizer · HttpStencilServerClient(+.Transport) · StencilServerClientFactory
       Sessions/      InMemorySessionStore · RedisSessionStore
-      Workspace/     UserWorkspace        (per-user scratch dir for working images)
-      Configuration/ BotOptions · DotEnv
+      Workspace/     UserWorkspace (per-user scratch dir for working images) · TempFiles
+      DependencyInjection/  ServiceCollectionExtensions (the adapter bindings)
     Stencil.TelegramBot.Bot/              the Telegram presentation + console host
-      Program.cs · Telegram/{UpdateRouter, CommandParser, CommandHandlers, CallbackAction, Keyboards, Replies, PageFormats}
+      Program.cs · BotComposition (the DI root) · UpdatePump (the bounded update queue)
+      Telegram/      AccessGate (the allowlist), UpdateRouter, MessageRouter + its IMessageHandler
+                     chain (TextLinks, UploadLinks), AlbumRouter, AlbumCollector, MediaIntake,
+                     DocumentIntake + DocumentKinds + CappingWriteStream, ErrorGuard,
+                     CommandParser, CommandHandlers (twelve partials by command group),
+                     CallbackAction + CallbackTokens, AskCardTaps, Keyboards (+.Menus),
+                     Replies (+.Editing/.Servers/.Chat), BotCommands + BotCommandList +
+                     BotStrings (the Assets readers), PageFormats, DrawArguments,
+                     DurationParser, ProgressNotice + PromptCancellations, UserGate,
+                     SyncWatcher + SyncRegistry, WorkspaceJanitor
+      Assets/        botCommands.json · botStrings.json   (the command vocabulary + the chat copy)
   tests/
     Stencil.TelegramBot.Tests/            xUnit — offline (no token, server, CLI or Redis)
+      Doubles/       the hand-written mocks every service suite shares
 ```
 
 - **`IStencilCli` → the Zig CLI.** `ProcessStencilCli` locates the binary (`STENCIL_CLI` →
@@ -123,7 +163,10 @@ bot/
   (`CliArgvBuilder.BuildScrapeArgv` + `CliOutcomeParser.ParseScraped`, whose multi-file
   `wrote …` / `scraped {n} file(s) from {host} into {dir}` grammar is pinned by the shared
   golden fixtures at `cli/testdata/scrape_fixtures.json`); the HTML parsing/fetch lives entirely
-  in the CLI, never in `core/`.
+  in the CLI, never in `core/`. **Every run passes `--confine-output`** — a destination a model
+  or a chat message chose can then never escape: since the flag refuses an absolute path, the
+  child is spawned *in* the output's own folder and handed only the leaf name, and the relative
+  paths it prints are re-rooted on the way back.
 - **`IStencilServerClient` → the Go server's REST API.** `HttpStencilServerClient` is a port
   of `pystencil/pystencil/server.py` (`/auth/token`, `/projects[...]`, file upload/download,
   `{code,message}` → `ServerException`, last-writer-wins version guard).
@@ -140,10 +183,22 @@ bot/
   simultaneous edits queues instead of forking an unbounded pile of processes. Both are
   single-instance; scaling out would move them to a distributed lock/limiter.
 - **Resource bounds.** Outbound REST calls carry a timeout (`STENCIL_BOT_HTTP_TIMEOUT_SECONDS`)
-  and `/url` host resolution a 5s cap, so a slow peer can't wedge a handler; Telegram downloads are
-  size-capped (`STENCIL_BOT_MAX_DOWNLOAD_MB`) to bound memory/disk; and a background `WorkspaceJanitor`
-  sweeps each user's orphaned render/layout artifacts once they age past
+  and `/url` host resolution a 5s cap, so a slow peer can't wedge a handler; a CLI run is killed
+  past `STENCIL_BOT_CLI_TIMEOUT_SECONDS` rather than pinning a concurrency slot; Telegram downloads
+  are size-capped (`STENCIL_BOT_MAX_DOWNLOAD_MB`, and a far tighter 4 MB for a non-image document,
+  which streams to disk instead of into a `byte[]`) to bound memory/disk; and a background
+  `WorkspaceJanitor` sweeps each user's orphaned render/layout artifacts once they age past
   `STENCIL_BOT_WORKSPACE_TTL_MINUTES` (the session's live image/video are never swept).
+- **One command vocabulary, one copy deck.** [`Assets/botCommands.json`](src/Stencil.TelegramBot.Bot/Assets/botCommands.json)
+  is the single source for the dispatch table, the `/` menu Telegram registers, `/help` and this
+  README's command tables (the generated block below — `BOT_UPDATE_PROSE=1 dotnet test` rewrites
+  it); [`Assets/botStrings.json`](src/Stencil.TelegramBot.Bot/Assets/botStrings.json) holds the
+  reply wording and every inline button's label + callback token. Both are `<EmbeddedResource>`s
+  like the shared `constants.json`, read through `BotCommands` / `BotStrings`, and the goldens
+  under `tests/…/Goldens/` pin the rendered text byte-for-byte.
+- **Hosted background loops.** `SyncWatcher` and `WorkspaceJanitor` run as `IHostedService`s under
+  a generic host, so Ctrl+C / SIGTERM cancels *and awaits* them instead of tearing a sweep down
+  mid-flight. The update pump itself stays deliberately detached (see `Program.cs`).
 
 ## Configuration
 
@@ -158,6 +213,7 @@ Real environment variables always win over `.env`. The real `bot/.env` is gitign
 | Variable | Default | Purpose |
 |---|---|---|
 | `TELEGRAM_BOT_TOKEN` | — (**required**) | Bot token from [@BotFather](https://t.me/BotFather) |
+| `STENCIL_BOT_ALLOWED_USERS` | empty (**required**) | Comma-separated Telegram user ids allowed to use the bot **at all** — see [the allowlist](#the-bot-is-opt-in-per-user) below. Empty = the bot is off for everyone |
 | `STENCIL_CLI` | auto-discovered | Path to the `stencil` CLI binary |
 | `REDIS_URL` | — (in-memory) | Redis for per-user session state. Either form works: `redis://[user:password@]host[:port][/db]` (`rediss://` for TLS) or StackExchange's own `host:port[,option=value]` |
 | `STENCIL_BOT_DATA_DIR` | `<temp>/stencil-bot` | Scratch dir for working images |
@@ -166,7 +222,8 @@ Real environment variables always win over `.env`. The real `bot/.env` is gitign
 | `STENCIL_BOT_MAX_CONCURRENT_CLI` | CPU count | Cap on concurrent CLI processes (per-process) |
 | `STENCIL_BOT_MAX_CONCURRENT_LLM` | `8` | Cap on concurrent LLM calls (per-process); full ⇒ an immediate "busy" reply; `0` = unlimited |
 | `STENCIL_BOT_HTTP_TIMEOUT_SECONDS` | `30` | Per-request timeout for server REST calls |
-| `STENCIL_BOT_MAX_DOWNLOAD_MB` | `50` | Max size of a Telegram download |
+| `STENCIL_BOT_MAX_DOWNLOAD_MB` | `50` | Max size of a Telegram photo/video download. A non-image document (`.json` layout, `.stencil` project) is parsed whole, so it caps at 4 MB — or this value when it is smaller |
+| `STENCIL_BOT_CLI_TIMEOUT_SECONDS` | `120` | Wall-clock limit on one CLI run before it is killed, so a hung fetch can't pin a `STENCIL_BOT_MAX_CONCURRENT_CLI` slot |
 | `STENCIL_BOT_WORKSPACE_TTL_MINUTES` | `60` | Age after which orphaned scratch files are swept |
 
 **AI assistant (`/prompt`, or `/chat` for hands-free chat mode)** — the same `STENCIL_LLM_*` keys as pystencil, per
@@ -176,7 +233,6 @@ these keys is the [root README](../README.md#ai-assistant--setting-up-a-model):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `STENCIL_BOT_ALLOWED_USERS` | empty | **Required to enable the assistant.** Comma-separated Telegram user ids allowed to use `/prompt` and `/chat`; empty = the assistant is off for everyone |
 | `STENCIL_LLM_PROVIDER` | `ollama` | `ollama` \| `openai-compat` \| `stencil-server` |
 | `STENCIL_LLM_BASE_URL` | `http://localhost:11434` (ollama) / `http://localhost:1234/v1` (openai-compat) | Endpoint origin for the local providers |
 | `STENCIL_LLM_MODEL` | empty | Model name (empty = provider/server default) |
@@ -209,21 +265,27 @@ through `ffmpeg` before being sent, per the contract's §7 — so `ffmpeg` on `P
 `/prompt` as well as `/frame`. It stays optional: without it, oversized images up to 8 MB are
 attached as-is and anything larger is skipped, leaving a text-only turn.
 
-**The assistant is opt-in per user.** An edit costs local CPU, but every LLM turn spends the one
-`STENCIL_LLM_API_KEY` the operator configured — and any Telegram user who finds the bot can
-message it. So `/prompt` and `/chat` answer with a short "not enabled" note unless the caller's
-id is listed in `STENCIL_BOT_ALLOWED_USERS`, and with the list unset they are off entirely. That
-note is all the user sees — the variable to set and the id to add go to the **server log**
-instead (one warning per user id), since configuring the bot is the operator's business, not the
-chat's. The editing commands are unaffected. (`/chat clear` is never gated, so anyone who used the assistant
-before the list tightened can still delete what it stored.)
+### The bot is opt-in per user
+
+`STENCIL_BOT_ALLOWED_USERS` gates **every** command, button and upload except `/start` and
+`/help`, and it **fails closed**: with the list unset the bot answers nobody. Anyone who finds a
+running bot can message it, and there is no command that costs the operator nothing — `/url` and
+`/sourcesite` fetch user-named hosts, every edit forks a CLI process, an upload writes to the data
+dir, `/connect` dials out, and each `/prompt` spends the one `STENCIL_LLM_API_KEY` configured.
+
+An unlisted caller gets one plain sentence and nothing else runs. That sentence is all they see —
+the variable to set and the id to add go to the **server log** instead (one warning per user id),
+since configuring the bot is the operator's business, not the chat's. Send `/start` to the bot and
+it reports your id (or ask [@userinfobot](https://t.me/userinfobot)); a `/start` carrying a deep
+link is gated like everything else, because it connects out and fetches a project.
 
 ## Build · test · run
 
 ```bash
 # from bot/
 dotnet build Stencil.TelegramBot.slnx          # build all five projects
-dotnet test  Stencil.TelegramBot.slnx          # 632 offline tests — no token/server/CLI/LLM/Redis needed
+dotnet test  Stencil.TelegramBot.slnx          # 2141 offline tests — no token/server/CLI/LLM/Redis needed
+dotnet test  Stencil.TelegramBot.slnx --filter Category=Bench   # the opt-in timing tripwires
 dotnet run --project src/Stencil.TelegramBot.Bot   # run the bot (needs TELEGRAM_BOT_TOKEN + the CLI)
 ```
 
@@ -234,6 +296,45 @@ MCP suites), URL normalisation (port of the pystencil suite), CLI locator, `.env
 layout/protocol JSON round-trips, the in-memory session store, the REST client against a
 stub `HttpMessageHandler`, and the editing/server services against hand-written mocks (they live in `tests/…/Doubles`). It
 never reads `TELEGRAM_BOT_TOKEN`.
+
+The background loops are covered the same way, on injected clocks and waits rather than real
+sleeps: `SyncWatcher` (a peer's version bump pulls and pushes into the chat), `AlbumCollector`
+(the settle window and where the caption sits), `WorkspaceJanitor` (an orphan ages out, a
+session-referenced file never does) and `UpdatePump` (the bounded hand-off and its drain).
+`CompositionRootTests` resolves the whole `BotComposition` graph, so a missing registration
+fails there rather than at start-up.
+
+### Benchmarks
+
+`BenchTests` is the opt-in timing suite; the project's `Category!=Bench` filter keeps it out of
+the default run, so it only runs on the `--filter Category=Bench` command above. Every
+assertion is **relative** — a ratio between two measurements, or how one measurement scales as
+its input doubles — never a wall-clock ceiling, so the same ceilings hold on CI and on a loaded
+laptop. The µs/op are reported, not asserted on; they are the baseline to compare a change
+against (`--logger "console;verbosity=detailed"` prints them).
+
+Baselines below: best of 5 reps, `dotnet test` Debug build, Apple M-series, 2026-09-12. The
+whole bench suite runs in ~9 s.
+
+| Measurement | µs/op | Relative assertion | Measured | Ceiling |
+|---|---|---|---|---|
+| `OpSchema.ValidateAction` — `rotate`, 1 key | 0.9 | — | — | — |
+| `OpSchema.ValidateAction` — `crop`, 5 sub-keys | 4.3 | vs `rotate` (key count only) | 4.7x | 10x |
+| `OpSchema.ValidateAction` — `layout` 40 lines x 20 points | 778 | — | — | — |
+| `OpSchema.ValidateAction` — `layout` 80 x 20 | 1535 | twice the lines | 1.97x | 3x |
+| `OpSchema.ValidateAction` — `layout` 40 x 40 | 1460 | twice the points | 1.88x | 3x |
+| `OpPlanParser.Parse` — per corpus case (369 bot cases) | 10.7 | whole vs half corpus, per case | 1.15x | 2.5x |
+| `CropSpecResolver.Resolve` — 4 keys, valid | 0.97 | — | — | — |
+| `CropSpecResolver.Resolve` — 4 keys, malformed | 0.76 | reject vs resolve (no throwing) | 0.77x | 3x |
+| `CropSpecResolver.Resolve` — 20 tokens | 2.0 | — | — | — |
+| `CropSpecResolver.Resolve` — 160 tokens | 12.0 | 8x the spec length (linear = 8x) | 5.85x | 16x |
+| `ImageDimensionReader.TryRead` — header only | 0.038 | — | — | — |
+| `ImageDimensionReader.TryRead` — + 256 KiB body | 0.041 | untouched body vs none | 1.08x | 3x |
+
+What each ceiling is actually guarding: the `layout` rows pin that validation is one pass over
+lines x points rather than a re-walk; the corpus row pins per-case, not per-corpus, cost; the
+malformed-spec row pins that rejection returns null instead of throwing; and the padded-header
+row pins the reader's whole purpose — it reads the header and never scans the body.
 
 ## Chat surface
 
@@ -272,6 +373,7 @@ results back as **one** media album. Captionless members are never echoed indivi
 batch, the **last** photo's edited result is the working image (the bot holds one working image at
 a time). An album with no caption at all adopts only its last photo, with a single note saying so.
 
+<!-- generated from src/Stencil.TelegramBot.Bot/Assets/botCommands.json — rewrite with `BOT_UPDATE_PROSE=1 dotnet test` -->
 **Image**
 
 | Command | Effect |
@@ -316,6 +418,7 @@ a time). An album with no caption at all adopts only its last photo, with a sing
 | `/link` (`/desktop`, `/open-in`) | **Outbound deep link** — the reverse of `/start`: an `https` link (also the 🔗 Link button on the `/status` and edit menus) that opens the active project in the **desktop app**. Chat apps only linkify `http(s)`, so it points at the browser app's `launch.html` bounce page, which forwards to `stencil://open?server=…&id=…&version=…`. Server projects only (a link carries a reference, not image bytes) and **no token rides it** — whoever follows it connects with their own credential. The bounce page comes from `STENCIL_BOT_BROWSER_URL` |
 | `/expire <n unit \| never>` | Set the active project's expiry (version-guarded) — bare `/expire` (or the ⏳ Expiration button in `/status`) opens a duration picker: **1 day · 3 days · 1 week · Fortnight · 1 month · 3 months · Custom · Never**; **Custom** awaits a free-text span like `3 days`, `week 4`, `2 weeks`, `1 month` |
 | `/start <payload>` | Inbound deep link: t.me `?start=` payloads from the browser/desktop **"Open in… → Telegram"** button decode to (server, project id); the bot connects like a fresh client (token minted via `POST /auth/token`) and fetches the project into the chat. Failures reply with the manual `/connect` + `/fetch` recipe |
+<!-- /generated -->
 
 ## Docker
 

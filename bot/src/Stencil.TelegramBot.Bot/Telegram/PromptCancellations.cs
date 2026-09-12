@@ -2,58 +2,39 @@ using System.Collections.Concurrent;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// The assistant turns currently in flight, one per user, so the ⏹ Stop button on the working
-/// notice can cancel the turn it decorates.
-/// </summary>
-/// <remarks>
-/// A turn can run for minutes (a vision plan over a big image), and while it runs it holds that
-/// user's <see cref="UserGate"/> — so the Stop tap cannot be routed like any other button, or it
-/// would queue behind the very turn it means to cancel. <see cref="UpdateRouter"/> therefore
-/// handles the stop token BEFORE acquiring the gate, and this registry is the only state it
-/// touches: cancelling is a flag flip, never a session read-modify-write, so it is safe to run
-/// alongside the turn.
-///
-/// One entry exists only while a turn is in flight (<see cref="Registration.Dispose"/> removes
-/// it), and a second turn for the same user cannot start while the first holds the gate, so the
-/// map holds at most one live entry per user with no pruning needed.
-/// </remarks>
+// The in-flight assistant turns, one per user, so the ⏹ Stop button can cancel the turn it
+// decorates. A turn holds the user's UserGate for minutes, so UpdateRouter handles the stop token
+// BEFORE the gate; cancelling is a flag flip, never a session read-modify-write. At most one live
+// entry per user, removed on Dispose.
 public sealed class PromptCancellations
 {
     private readonly ConcurrentDictionary<long, CancellationTokenSource> _running = new();
 
-    /// <summary>
-    /// Register an in-flight turn for <paramref name="userId"/>. The returned registration
-    /// carries the token the turn must run under — the caller's <paramref name="ct"/> (shutdown)
-    /// linked with this registry's stop signal — and unregisters on dispose.
-    /// </summary>
+    // The returned registration carries the token the turn must run under: the caller's ct linked
+    // with the stop signal.
     public Registration Begin(long userId, CancellationToken ct)
     {
         CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        // A turn that somehow overlaps an older one takes the slot; the stale source is
-        // cancelled so nothing is left running invisibly behind it.
+        // An overlapping older turn is cancelled so nothing is left running invisibly behind it.
         if (_running.TryRemove(userId, out CancellationTokenSource? stale))
         {
-            Cancel(stale);
+            cancelSource(stale);
         }
         _running[userId] = cts;
         return new Registration(this, userId, cts);
     }
 
-    /// <summary>
-    /// Cancel the user's in-flight turn. False when there is nothing running — the button
-    /// outlived its turn, which the caller reports rather than silently ignoring.
-    /// </summary>
+    // False when nothing is running — the button outlived its turn, which the caller reports.
     public bool Cancel(long userId)
     {
         if (!_running.TryGetValue(userId, out CancellationTokenSource? cts))
         {
             return false;
         }
-        return Cancel(cts);
+        return cancelSource(cts);
     }
 
-    private static bool Cancel(CancellationTokenSource cts)
+    private static bool cancelSource(CancellationTokenSource cts)
     {
         try
         {
@@ -66,7 +47,6 @@ public sealed class PromptCancellations
         }
     }
 
-    /// <summary>One registered turn; disposing it ends the registration and its token.</summary>
     public sealed class Registration : IDisposable
     {
         private readonly PromptCancellations _owner;
@@ -80,7 +60,6 @@ public sealed class PromptCancellations
             _cts = cts;
         }
 
-        /// <summary>The token the turn runs under: shutdown OR a Stop tap cancels it.</summary>
         public CancellationToken Token => _cts.Token;
 
         public void Dispose()

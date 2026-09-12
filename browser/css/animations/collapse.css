@@ -1,0 +1,119 @@
+/* ── Collapsing the toolbar (⌥C) and the coordinates panel ───────────────────
+   Both used to flip on a `display` / `width` switch, so half the page jumped in one
+   frame. They now fold on the SAME ease-out as the theme wipe — away at once, then
+   decelerating into place — so every collapse in the app settles the same way.
+   One token for both, and it is the wipe's curve: a fold that eases differently from
+   the palette flood reads as two unrelated apps.
+
+   The toolbar body is a one-row grid: `1fr → 0fr` is the only way to animate a box of
+   unknown, content-driven height without measuring it in JS (`height: auto` does not
+   transition). The row's child has to be allowed to be shorter than its own content —
+   hence min-height: 0 + overflow: hidden on it.
+   `#controls-body.hidden` used to be `display: none`; it is now visibility, held back
+   until the fold has finished (the delay MUST equal --fold-ms, or the toolbar blinks out
+   mid-fold), which keeps the collapsed toolbar out of the tab order and out of hit
+   testing exactly as before — and out of the theme wipe's origin lookup, which asks
+   checkVisibility (see js/ui/motion.js). */
+:root {
+    --fold-ms: 470ms;
+    /* Collapsing is the SLOWER half here, against the usual "going out is brisk" rule: a
+       fold has no icon to shrink into, so the only thing that reads as the menu leaving is
+       the fold itself — at the opening's pace it registered as a snap rather than a close.
+       Applied from the collapsed-state rules alone, which is the after-change style a
+       transition takes its timing from, so the way back in keeps --fold-ms. */
+    --fold-out-ms: 705ms;
+    --fold-fade-ms: 250ms;
+    /* A fold grows along ONE axis, so its area IS its height — it wants a plain ease-out
+       and deliberately does not take the wipe's area-corrected curve. */
+    --fold-ease: cubic-bezier(0.39, 0.575, 0.565, 1);   /* OutSine */
+}
+#controls-body {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--fold-ms) var(--fold-ease),
+                opacity var(--fold-fade-ms) var(--fold-ease),
+                visibility 0s;
+}
+/* The row can only reach zero if the child can: overflow clips the content, and the
+   child's own 12px block padding has to go with it — clipped content still leaves the
+   padding behind, which is what kept a 24px sliver of toolbar on screen. */
+#controls-body > * {
+    min-height: 0;
+    overflow: hidden;
+    transition: padding var(--fold-ms) var(--fold-ease);
+}
+#controls-body.hidden > * {
+    padding-top: 0; padding-bottom: 0;
+    transition: padding var(--fold-out-ms) var(--fold-ease);
+}
+#controls-body.hidden {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    visibility: hidden;
+    transition: grid-template-rows var(--fold-out-ms) var(--fold-ease),
+                opacity var(--fold-fade-ms) var(--fold-ease),
+                visibility 0s linear var(--fold-out-ms);   /* only once it has finished folding */
+}
+
+/* Both collapse toggles keep ONE chevron and turn it half a revolution (↑⇄↓, →⇄←) on the
+   fold's own curve, instead of swapping to the opposite glyph in a single frame. Mirrored
+   in the desktop app (MainWindow::positionOverlayArrows + SelectionPanel). */
+#toggle-controls .ic, #toggle-coord-panel .ic {
+    transition: transform var(--fold-ms) var(--fold-ease);
+}
+.controls-wrapper:has(#controls-body.hidden) #toggle-controls .ic,
+.coordinates-panel.coord-collapsed #toggle-coord-panel .ic { transform: rotate(180deg); }
+
+/* The coordinates panel slides between its resizable width and the 36px rail, and its
+   contents fade rather than blinking out. The width transition is SUPPRESSED while the
+   splitter is being dragged — an easing curve between the pointer and the panel edge
+   feels like lag, not polish. */
+.coordinates-panel {
+    transition: width var(--fold-ms) var(--fold-ease),
+                min-width var(--fold-ms) var(--fold-ease),
+                padding var(--fold-ms) var(--fold-ease);
+}
+.main-content:has(.panel-resizer.dragging) .coordinates-panel,
+.fullscreen-layer:has(.panel-resizer.dragging) .coordinates-panel { transition: none; }
+#coord-body, .coord-tabs {
+    opacity: 1;
+    /* `display` is what actually removes them (layout/coordPanel.css); allow-discrete keeps the
+       fade visible on the way out and @starting-style plays it on the way back in.
+       Where it is unsupported the panel still slides — only the fade is skipped. */
+    transition: opacity var(--fold-fade-ms) var(--fold-ease),
+                display var(--fold-fade-ms) allow-discrete;
+}
+.coordinates-panel.coord-collapsed #coord-body,
+.coordinates-panel.coord-collapsed .coord-tabs { opacity: 0; }
+/* Laid out inside the 36px rail they gave it the open panel's full height and pushed the
+   ⟩ button outside its right edge, so mainContent.js holds them out of the layout for the
+   slide. `transition: none` because a transitioned `display` flips only at the END —
+   which is that sliver. Not scoped to the stacked layout below 960px: nothing slides. */
+@media (min-width: 961px) {
+    .coordinates-panel.coord-folding #coord-body,
+    .coordinates-panel.coord-folding .coord-tabs {
+        display: none;
+        opacity: 0;
+        transition: none;
+    }
+}
+@starting-style {
+    .coordinates-panel:not(.coord-collapsed) #coord-body,
+    .coordinates-panel:not(.coord-collapsed) .coord-tabs { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #controls-body, #controls-body.hidden,
+    .coordinates-panel, #coord-body, .coord-tabs,
+    #toggle-controls .ic, #toggle-coord-panel .ic { transition: none !important; }
+}
+
+/* Both folds are dusted (js/ui/motion.js surfaceIn/surfaceOut): the tool rows stream up
+   past the top edge, the points table out past the right one, and gather back out of the
+   same point — the fold's own direction, made of sand like every other surface. The
+   flight needs the box the fold is ABOUT to reach, which is only readable with the
+   transitions off for one synchronous layout (motion.js foldBox). */
+#controls-body.fold-instant, #controls-body.fold-instant > *,
+.coordinates-panel.fold-instant,
+.coordinates-panel.fold-instant #coord-body,
+.coordinates-panel.fold-instant .coord-tabs { transition: none !important; }

@@ -1,0 +1,52 @@
+{
+  "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'. Zig convention: inline `test { }` blocks are idiomatic and not penalised, so 'files' records PRODUCTION lines (everything before the first column-0 `test \"` / `test {`), and maxNewFileLines applies to that count; 'commentPct' is over TOTAL lines.",
+  "maxNewFileLines": 230,
+  "files": {
+    "cli/src/args.zig": 14,
+    "cli/src/clipboard.zig": 28,
+    "cli/src/console.zig": 73,
+    "cli/src/console/ansi.zig": 30,
+    "cli/src/console/attachments.zig": 71,
+    "cli/src/console/handlers.zig": 77,
+    "cli/src/console/llmPrompt.zig": 18,
+    "cli/src/console/logoFx.zig": 14,
+    "cli/src/console/remoteEvents.zig": 25,
+    "cli/src/console/screen.zig": 213,
+    "cli/src/console/session.zig": 196,
+    "cli/src/console/ui.zig": 209,
+    "cli/src/line_edit.zig": 207,
+    "cli/src/llm/opSchema.zig": 183,
+    "cli/src/llm/opplan.zig": 39,
+    "cli/src/llm/registry.zig": 37,
+    "cli/src/llm/transport.zig": 221,
+    "cli/src/llm/wire.zig": 41,
+    "cli/src/logo.zig": 223,
+    "cli/src/net.zig": 138,
+    "cli/src/pipeline.zig": 43,
+    "cli/src/project.zig": 34,
+    "cli/src/scrape.zig": 22,
+    "cli/src/serverClient.zig": 140
+  },
+  "commentPct": {
+    "cli/src": 14,
+    "cli/src/bench": 11,
+    "cli/src/console": 15,
+    "cli/src/console/handlers": 12,
+    "cli/src/console/llm": 17,
+    "cli/src/console/screen": 16,
+    "cli/src/console/session": 15,
+    "cli/src/line_edit": 17,
+    "cli/src/llm": 12,
+    "cli/src/llm/opSchema": 6,
+    "cli/src/llm/opplan": 12,
+    "cli/src/params": 10,
+    "cli/src/scrape": 11,
+    "cli/src/server": 15,
+    "cli/tests": 10
+  },
+  "exceptions": {},
+  "_notes": {
+    "cli/src/llm commentPct 10 -> 12": "Splitting opSchema.zig into opSchema/ moved 666 comment-sparse lines out of cli/src/llm. The directory's ABSOLUTE comment count FELL from 288 to 254; only the denominator moved. No comment was added.",
+    "cli/src/console commentPct 14 -> 15": "Phase 6 moved ~4,600 lines of comment-sparse implementation out of cli/src/console into console/{handlers,llm,screen,session}/ (each newly pinned at its own measured share). The directory's ABSOLUTE comment count fell from ~1289 to 640; only the denominator moved. No comment was added to the files that stayed."
+  }
+}

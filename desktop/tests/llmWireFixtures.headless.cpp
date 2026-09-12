@@ -11,9 +11,9 @@
 // before the deep body compare. Everything else is compared exactly; measured
 // desktop divergences live in tests/fixtureOverrides.json (never in the corpus).
 //
-// llmClient.cpp is #included (not linked) so the file-local
+// LlmClient.cpp is #included (not linked) so the file-local
 // sanitizeProviderText is directly walkable against sanitizer/cases.json.
-#include "llmClient.cpp"  // NOLINT — grants access to the anon-namespace sanitizer
+#include "LlmClient.cpp"  // NOLINT — grants access to the anon-namespace sanitizer
 
 #include <QCoreApplication>
 #include <QJsonArray>
@@ -29,7 +29,7 @@ using namespace stencil::llm;
 namespace {
 
   // Captures the request and replies synchronously with the canned response
-  // (the tests/llmClient.headless.cpp mock, trimmed to what the walker needs).
+  // (the tests/LlmClient.headless.cpp mock, trimmed to what the walker needs).
   struct MockTransport : LlmTransport {
     QUrl url;
     QList<QPair<QByteArray, QByteArray>> headers;
@@ -56,12 +56,12 @@ namespace {
   };
 
   LlmFailure failureFromKind(const QString& kind) {
-    if (kind == "truncated") return LlmFailure::Truncated;
-    if (kind == "refusal") return LlmFailure::Refusal;
-    if (kind == "disabled") return LlmFailure::Disabled;
-    if (kind == "badReply" || kind == "badResponse") return LlmFailure::BadResponse;
-    if (kind == "expired") return LlmFailure::Expired;
-    return LlmFailure::Http;
+    if (kind == "truncated") return LlmFailure::TRUNCATED;
+    if (kind == "refusal") return LlmFailure::REFUSAL;
+    if (kind == "disabled") return LlmFailure::DISABLED;
+    if (kind == "badReply" || kind == "badResponse") return LlmFailure::BAD_RESPONSE;
+    if (kind == "expired") return LlmFailure::EXPIRED;
+    return LlmFailure::HTTP;
   }
 
   void walkWireFile(const char* rel, int& walked, int& overridden) {

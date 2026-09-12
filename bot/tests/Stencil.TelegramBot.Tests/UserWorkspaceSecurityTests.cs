@@ -13,7 +13,7 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class UserWorkspaceSecurityTests : IDisposable
 {
-    private const long UserId = 7;
+    private const long _userId = 7;
     private readonly string _root;
     private readonly IUserWorkspace _workspace;
 
@@ -45,15 +45,15 @@ public sealed class UserWorkspaceSecurityTests : IDisposable
     [InlineData("no-extension")]
     [InlineData("")]
     [InlineData("weird.name.with.dots.jpg")]
-    public void UploadFileNameCannotEscapeTheUserDirectory(string hostileFileName)
+    public void Should_Not_Let_An_Upload_File_Name_Escape_The_User_Directory(string hostileFileName)
     {
         // Reproduce exactly what the router does with an uploaded document's name: take only
         // its extension. The name itself is discarded; a GUID becomes the real filename.
         string extension = Path.GetExtension(hostileFileName);
 
-        string stored = _workspace.NewFilePath(UserId, extension);
+        string stored = _workspace.NewFilePath(_userId, extension);
 
-        string userDir = Path.GetFullPath(_workspace.DirectoryFor(UserId));
+        string userDir = Path.GetFullPath(_workspace.DirectoryFor(_userId));
         string storedFull = Path.GetFullPath(stored);
 
         // The stored file sits directly inside the user's own directory — no traversal.
@@ -68,13 +68,11 @@ public sealed class UserWorkspaceSecurityTests : IDisposable
     [InlineData("/etc/cron.d/evil.png")]
     [InlineData("subdir/evil.png")]
     [InlineData(".png/../../escape")]
-    public void ExtensionDerivationNeverYieldsAPathSeparator(string hostileFileName)
+    public void Should_Never_Yield_A_Path_Separator_From_Extension_Derivation(string hostileFileName)
     {
-        // The linchpin of the safety argument: Path.GetExtension (what the router uses) can
-        // never return a value containing a directory separator or a `..` segment — it is the
-        // suffix after the last dot of the *last* path component. So the extension that
-        // reaches NewFilePath is always separator-free, and a GUID basename + a separator-free
-        // suffix cannot climb out of the user directory.
+        // The linchpin of the safety argument: Path.GetExtension (what the router uses) returns
+        // the suffix after the last dot of the LAST path component, so it can hold no separator
+        // and no `..` — and a GUID basename plus that cannot climb out of the user directory.
         string extension = Path.GetExtension(hostileFileName);
 
         Assert.DoesNotContain('/', extension);

@@ -4,6 +4,7 @@ import { createSendGesture, syncComposerControls, SEND_TITLE, SEND_TITLE_PLAIN, 
 import { DOUBLE_CLICK_MS, LONG_PRESS_MS } from '../js/ui/popover.js';
 import { stubClock } from './helpers/speech.js';
 import { createStubElement } from './helpers/dom.js';
+import { chatViewSource } from './helpers/chatViewSource.js';
 
 // The send button's gesture (chatView.js createSendGesture): a plain click acts one
 // double-click interval later, a double-click or a hold switches typing ↔ dictation.
@@ -104,7 +105,7 @@ test('mic face: paused vs listening titles and classes; Stop wins while a turn r
 // moment the switch landed, catching people who only meant to switch (user report).
 test('switching to voice input lands on a paused mic face — nothing starts listening', async () => {
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const src = chatViewSource();
   const body = src.slice(src.indexOf('const toggleMode = () => {'), src.indexOf('const toggleListening'));
   assert.ok(!body.includes('startListening()'), 'the switch never starts the engine');
   assert.ok(body.includes('setFace(true);'), 'it only turns the face');
@@ -119,7 +120,7 @@ test('switching to voice input lands on a paused mic face — nothing starts lis
 // FATAL error returns the send plane — there is no mic left to resume.
 test('the composer keeps its mic face whenever listening ends', async () => {
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
+  const src = chatViewSource();
   assert.ok(src.includes("onStop: (reason) => { if (reason === 'error') setFace(false); else sync(); }"));
 });
 
@@ -128,10 +129,10 @@ test('the composer keeps its mic face whenever listening ends', async () => {
 // toolbar mic on used to swap the Send button they were about to click for a mic.
 test('the toolbar voice chat never turns the composer to the mic face by itself', async () => {
   const { readFileSync } = await import('node:fs');
-  const src = readFileSync(new URL('../js/ui/chatView.js', import.meta.url), 'utf8');
-  assert.ok(src.includes('win?.addEventListener?.(VOICE_STATE_EVENT, () => sync());'),
+  const src = chatViewSource();
+  assert.ok(src.includes('subscribe(VOICE_STATE_EVENT, () => sync(), { target: win });'),
     'the voice-state listener only re-syncs the controls');
-  const listener = src.slice(src.indexOf('win?.addEventListener?.(VOICE_STATE_EVENT'),
-    src.indexOf('return {', src.indexOf('win?.addEventListener?.(VOICE_STATE_EVENT')));
+  const listener = src.slice(src.indexOf('subscribe(VOICE_STATE_EVENT'),
+    src.indexOf('return {', src.indexOf('subscribe(VOICE_STATE_EVENT')));
   assert.ok(!listener.includes('setFace('), 'and never sets the face behind the user');
 });

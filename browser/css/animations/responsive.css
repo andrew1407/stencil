@@ -1,0 +1,92 @@
+/* ───────────────────────────────────────────────────────────────────────
+   Responsive layout — adapt to viewport / display size
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Tablets & small laptops: stack the canvas and coordinates panel. */
+@media (max-width: 960px) {
+    body { padding: 12px; }
+    .container { padding: 14px; }
+    /* Stacked layout: stretch children to the viewport width. Without this the
+       column's default flex-start sizing lets .canvas-section grow to the canvas's
+       intrinsic pixel width (a big zoomed image), overflowing the page sideways.
+       Stretch + the width caps below keep the viewport clipping the canvas (which
+       then scrolls/pans inside it) instead of widening the page. */
+    .main-content { flex-direction: column; align-items: stretch; }
+    .canvas-section { width: 100%; min-width: 0; max-width: 100%; }
+    .canvas-viewport { max-width: 100%; }
+    .coordinates-panel {
+        min-width: 0;
+        max-width: none;
+        width: 100%;
+        margin-top: 14px;
+    }
+    /* A side panel collapsed to its rail makes no sense once stacked. */
+    .coordinates-panel.coord-collapsed {
+        width: 100%;
+        padding: 10px 12px;
+    }
+    .coordinates-panel.coord-collapsed .coord-tabs { display: inline-flex; }
+    .coordinates-panel.coord-collapsed #coord-body { display: block; }
+    .coordinates-panel.coord-collapsed #toggle-coord-panel {
+        writing-mode: horizontal-tb;
+        transform: none;
+        border: 1px solid var(--border-main) !important;
+    }
+    /* Modals fill more of the narrow viewport. */
+    /* A CAP, not a width: a 560px modal in a 900px window stays 560 wide — only one
+       that would not fit is squeezed (user report: "too wide when the content is smaller"). */
+    #settings-modal, .app-modal { max-width: calc(100vw - 28px); }
+}
+
+/* Phones (landscape) & small tablets: tighten the control clusters. */
+@media (max-width: 680px) {
+    body { padding: 8px; }
+    .container { padding: 10px; border-radius: 6px; }
+    .controls { gap: 4px 4px; padding: 8px 10px; }
+    .ctrl-section { padding: 4px; }
+    .ctrl-sep { margin: 0 2px; }
+    /* Vertical separators read as clutter when controls wrap a lot. */
+    .ctrl-sep { display: none; }
+    #settings-modal, .app-modal { max-height: 88vh; }
+    .settings-header, .settings-footer { padding: 10px 12px; }
+    .settings-body { padding: 10px 12px; }
+    .info-key { flex: 0 0 130px; }
+    /* The fullscreen points drawer follows the user's resized panel width (--coord-panel-width,
+       set by the drag handle), clamped so it never exceeds the screen. */
+    #fs-points-panel { width: clamp(240px, var(--coord-panel-width, var(--coord-panel-default)), 86vw); }
+}
+
+/* Phones (portrait): compact typography & full-bleed modals. */
+@media (max-width: 460px) {
+    body { padding: 6px; }
+    .container { padding: 8px; }
+    button, input, select { font-size: 13px; }
+    .controls button { padding: 7px 9px; }
+    .coordinates-table { font-size: 11px; }
+    .coordinates-table th, .coordinates-table td { padding: 4px 4px; }
+    #settings-modal, .app-modal {
+        width: 100vw;
+        max-width: 100vw;
+        max-height: 92vh;
+        border-radius: 12px 12px 0 0;
+    }
+    /* The non-essential shortcut hints are the first thing to drop. */
+    .shortcut-hint, .ctx-hotkey { display: none; }
+    .info-key { flex: 0 0 110px; font-size: 11px; }
+}
+
+/* Coarse-pointer (touch) devices: enlarge tap targets, drop hover-only sheen. */
+@media (hover: none) and (pointer: coarse) {
+    .ctx-item { padding-top: 10px; padding-bottom: 10px; }
+    .ctx-checkbox-item, .ctx-radio-item { padding-top: 9px; padding-bottom: 9px; }
+    .del-pt-btn { opacity: 0.85; font-size: 16px; }
+    button:not(:disabled):not(.active):hover { transform: none; box-shadow: none; }
+}
+
+/* Print: hide chrome, show only the canvas/coords. */
+@media print {
+    .controls-wrapper, #install-host, #notify-balloon, #ctx-menu,
+    .tooltip, #theme-toggle, .drop-hint { display: none !important; }
+    body { padding: 0; background: #fff; }
+    .container { box-shadow: none; max-width: none; animation: none; }
+}

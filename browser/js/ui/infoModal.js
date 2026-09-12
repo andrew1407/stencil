@@ -2,7 +2,6 @@ import { StencilElement, hostTag, define, wireModalShell } from './base.js';
 import INFO from '../config/infoConfig.json' with { type: 'json' };
 import { icon } from './icons.js';
 import { isKeyCombo, keysHtml, escapeHtml } from './tipContent.js';
-// ── Component: controls & shortcuts info modal ──────────────────
 export class StencilInfoModal extends StencilElement {
   static inner() {
     return `
@@ -27,8 +26,7 @@ export class StencilInfoModal extends StencilElement {
     const search = document.getElementById('info-search');
     const body = document.getElementById('info-body');
 
-    // The term column wears the tooltips' keycaps: every token that is a key combo
-    // becomes caps, the rest stays prose. Mirrored by the desktop info dialog.
+// Every key-combo token becomes a keycap, the rest stays prose (mirrored by the desktop info dialog).
     const keyTermHtml = term => String(term).replace(/\s*\+\s*/g, '+')
       .split(/(\s+|[()\/])/)
       .map(tok => (tok && isKeyCombo(tok) ? keysHtml(tok) : escapeHtml(tok)))
@@ -53,8 +51,6 @@ export class StencilInfoModal extends StencilElement {
 
     search.addEventListener('input', () => render(search.value));
 
-    // The shared shell (open/close/outside-click/Escape + the icon's popover gestures) —
-    // this modal only adds its reset-search-and-focus on open.
     wireModalShell(overlay, openBtn, closeBtn, {
       onOpen: () => { search.value = ''; render(''); setTimeout(() => search.focus(), 30); },
     });

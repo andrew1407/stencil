@@ -533,7 +533,9 @@ test "console: /chat on says who can read a saved chat" {
     try testing.expect(std.mem.indexOf(u8, cap.text(), "server project") != null);
 }
 
-test "console: /llm shows and overrides the session's provider config" {
+test "console: /llm resolves the session config from the env and applies every setter" {
+    // Wiring only — the config semantics (env defaults, provider→url refill, sub-command
+    // grammar) are llm/config.zig's own units.
     const a = testing.allocator;
     var threaded = std.Io.Threaded.init(a, .{});
     defer threaded.deinit();
@@ -543,32 +545,26 @@ test "console: /llm shows and overrides the session's provider config" {
     var session = console.Session{ .gpa = a, .llm_env = .{ .base_url = "http://box:7777" } };
     defer session.deinit();
 
-    // Bare /llm resolves the config lazily (env url wins over the ollama default).
+    // Bare /llm resolves the config lazily, off llm_env.
     _ = try console.handle(&session, io, "/llm");
     try testing.expect(session.llm_cfg.?.provider == .ollama);
     try testing.expectEqualStrings("http://box:7777", session.llm_cfg.?.base_url);
 
-    // Changing the provider re-fills its default url (the env value was not a session
-    // override) …
+    // Every setter lands on the resolved config.
     _ = try console.handle(&session, io, "/llm provider openai-compat");
-    try testing.expect(session.llm_cfg.?.provider == .openai_compat);
-    try testing.expectEqualStrings("http://localhost:1234/v1", session.llm_cfg.?.base_url);
-
-    // … while a '/llm url' override survives later provider changes.
     _ = try console.handle(&session, io, "/llm url http://mine:9/v1/");
-    _ = try console.handle(&session, io, "/llm provider ollama");
-    try testing.expectEqualStrings("http://mine:9/v1", session.llm_cfg.?.base_url);
-
     _ = try console.handle(&session, io, "/llm model llava");
     _ = try console.handle(&session, io, "/llm key sk-secret");
     _ = try console.handle(&session, io, "/llm server https://s:8090/");
+    try testing.expect(session.llm_cfg.?.provider == .openai_compat);
+    try testing.expectEqualStrings("http://mine:9/v1", session.llm_cfg.?.base_url);
     try testing.expectEqualStrings("llava", session.llm_cfg.?.model);
     try testing.expectEqualStrings("sk-secret", session.llm_cfg.?.api_key);
     try testing.expectEqualStrings("https://s:8090", session.llm_cfg.?.server_url);
 
-    // Unknown provider / sub-command and a bare /prompt only print — nothing changes.
+    // A rejected sub-command and a bare /prompt only print — nothing changes, nothing pushes.
     _ = try console.handle(&session, io, "/llm provider gpt5");
-    try testing.expect(session.llm_cfg.?.provider == .ollama);
+    try testing.expect(session.llm_cfg.?.provider == .openai_compat);
     _ = try console.handle(&session, io, "/llm frobnicate x");
     _ = try console.handle(&session, io, "/prompt");
     try testing.expectEqual(@as(usize, 0), session.stateCount());

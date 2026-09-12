@@ -72,11 +72,10 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '22'
-      # No lockfile is tracked: `npm ci` needs one, `npm install` does not, and
-      # setup-node's npm cache cannot be keyed without one either.
+      # browser/package-lock.json is tracked, so install exactly what it pins.
       - name: Install vite (the only dev dependency)
         working-directory: browser
-        run: npm install
+        run: npm ci
       - name: Build + verify stencil.html
         working-directory: browser
         run: npm run build

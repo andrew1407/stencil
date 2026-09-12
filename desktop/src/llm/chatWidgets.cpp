@@ -1,7 +1,7 @@
 #include "chatWidgets.hpp"
 
-#include "../support/disintegrateOverlay.hpp"
-#include "../support/modalReveal.hpp"   // support::motionReduced()
+#include "../support/DisintegrateOverlay.hpp"
+#include "../support/modalReveal.hpp"
 
 #include <QFrame>
 #include <QPixmap>
@@ -12,28 +12,22 @@
 
 namespace stencil::gui {
 
-  // A chat card arrives 1.5x brisker than a list row's 900ms flight: an answer is the
-  // thing you are waiting to read, and it must not keep you waiting on its own dust.
-  // Off the ITEM clock, not the brisk row one: a message is read while it arrives.
-  constexpr int kChatArriveMs = DisintegrateOverlay::kItemMs * 2 / 3;
+  // 1.5x brisker than a list row's 900 ms flight, off the ITEM clock: a message is read as it arrives.
+  constexpr int CHAT_ARRIVE_MS = DisintegrateOverlay::ITEM_MS * 2 / 3;
 
-  // The scroller's viewport in HOST coordinates — the box a flying cloud may paint in.
   QRect scrollViewportInHost(QScrollArea* scroll, QWidget* host) {
     if (!scroll || !scroll->viewport() || !host) return host ? host->rect() : QRect();
     return QRect(scroll->viewport()->mapTo(host, QPoint(0, 0)), scroll->viewport()->size());
   }
 
-  // Confine a flying cloud to the transcript (browser motion.js clipDustToScroller).
+  // browser motion.js clipDustToScroller
   void clipChatDustToScroller(DisintegrateOverlay* dust, QScrollArea* scroll, QWidget* host) {
     if (dust) dust->setPaintClip(scrollViewportInHost(scroll, host));
   }
 
-  // Where an arriving card's motes are gathered from: a point off the side the card sits
-  // against, so the user's messages stream in from the right and the assistant's from the
-  // left. Read off the geometry, not the role, so an attachment strip follows the message
-  // it rides with. Both rects are in host coordinates.
+  // Gather point off the side the card sits against, read off the GEOMETRY, not the role. Host coords.
   QPoint chatArrivalPoint(const QRect& card, const QRect& view) {
-    const double reach = 0.9;   // browser motion.js CHAT_ENTER_REACH
+    const double reach = 0.9;
     const bool right = (view.right() - card.right()) <= (card.left() - view.left());
     const int cx = card.center().x();
     return QPoint(cx + int((right ? 1 : -1) * card.width() * reach), card.center().y());
@@ -54,28 +48,25 @@ namespace stencil::gui {
     QPointer<DisintegrateOverlay> op(overlay);
     const QSize shot = card->size();
     QWidget* host = overlay->parentWidget();
-    // A SURFACE cloud covers the whole host and carries the card's box inside it, so it
-    // follows a scroll by retargeting (picture AND flight point together), not by moving
-    // the layer — moving it would drag the point the motes fly from off with it.
+    // A SURFACE cloud follows a scroll by retargeting, never by moving the layer.
     auto at = std::make_shared<QPoint>(card->mapTo(host, QPoint(0, 0)));
-    // Parented to the CARD and stopped by the overlay's own death — a singleShot
-    // holding the timer by raw pointer is what crashed here once.
+    // Parented to the CARD and stopped by the overlay's own death — a raw-pointer singleShot crashed here.
     auto* timer = new QTimer(card);
-    timer->setInterval(kChatGatherSettleMs);
+    timer->setInterval(CHAT_GATHER_SETTLE_MS);
     QObject::connect(timer, &QTimer::timeout, card, [cp, op, scroll, shot, timer, settle, at] {
       if (!op || !cp) { timer->stop(); timer->deleteLater(); return; }
       if (!chatCardFullyInViewport(cp, scroll) || cp->size() != shot) {
-        op->deleteLater();          // the photograph no longer matches its subject
+        op->deleteLater();
         timer->stop();
         timer->deleteLater();
-        settle();                   // …and the card it was standing in for takes over NOW
+        settle();
         return;
       }
       QWidget* host = op->parentWidget();
       const QPoint now = cp->mapTo(host, QPoint(0, 0));
       op->retarget(now - *at);
       *at = now;
-      clipChatDustToScroller(op, scroll, host);   // the viewport moves with the dock
+      clipChatDustToScroller(op, scroll, host);
       op->raise();
     });
     timer->start();
@@ -85,91 +76,73 @@ namespace stencil::gui {
                         QWidget* host, int cols, int rows, std::function<void()> settle,
                         std::function<void()> onFlight, int tries, QSize lastSize) {
     if (!card || !layout || !host) return;
-    // A card already out of the layout is leaving (a clear takes it out before fading
-    // it): an entrance here would fight the fade for the same effect.
+    // A card already out of the layout is leaving; an entrance would fight the fade.
     if (layout->indexOf(card) < 0) return;
+    // Every widget is guarded, not just the card: a nested event loop (QMenu::exec) can fire this
+    // timer after the HOST window is gone while the card is still alive (a dangling parent).
     const auto retry = [card, layout, scroll, host, cols, rows, settle, onFlight,
                         tries](QSize sizeNow) {
       QPointer<QWidget> cp(card);
-      QTimer::singleShot(kChatGatherSettleMs, card,
-                         [cp, layout, scroll, host, cols, rows, settle, onFlight, tries,
+      QPointer<QVBoxLayout> lp(layout);
+      QPointer<QScrollArea> sp(scroll);
+      QPointer<QWidget> hp(host);
+      QTimer::singleShot(CHAT_GATHER_SETTLE_MS, card,
+                         [cp, lp, sp, hp, cols, rows, settle, onFlight, tries,
                           sizeNow] {
-        if (cp)
-          gatherChatCardIn(cp, layout, scroll, host, cols, rows, settle, onFlight,
+        if (cp && lp && hp)
+          gatherChatCardIn(cp, lp, sp, hp, cols, rows, settle, onFlight,
                            tries - 1, sizeNow);
       });
     };
-    // Geometry first — the grab is only as good as the layout behind it. A card
-    // inserted this very turn is still HIDDEN (a box layout skips hidden widgets),
-    // so the grab would photograph a 0-width box. Show it, then lay out.
+    // A card inserted this turn is still HIDDEN (a box layout skips hidden widgets): show, then lay out.
     if (!card->isVisible()) card->show();
     layout->activate();
-    // …and the surface may not have given it a real box yet. Wait it out, bounded:
-    // the message must never be held up behind a layout that may never come.
+    // Bounded wait: the message must never be held up behind a layout that may never come.
     if ((card->width() < 8 || card->height() < 8) && tries > 0) { retry(QSize()); return; }
     if (support::motionReduced()) { settle(); return; }
-    // sizeHint can still be one layout pass from final even past the degenerate-size
-    // check; a grab on that stale reading fed the tracker a mismatched picture, which
-    // it silently dropped (the "no dust" bug). Require two matching reads in a row.
+    // Require two matching size reads in a row; a stale grab was silently dropped by the tracker.
     if (card->size() != lastSize && tries > 0) { retry(card->size()); return; }
-    // Only a card wholly inside the viewport flies — the cloud is drawn on the window
-    // and the scroller does not clip it (dust over the composer was the reported bug).
+    // The cloud is drawn on the window, unclipped by the scroller.
     if (!chatCardFullyInViewport(card, scroll)) {
       if (tries > 0) { retry(lastSize); return; }
       settle();
       return;
     }
-    // grab() renders THROUGH the graphics effect — with the entrance's effect already
-    // at 0 the motes would be a cloud of nothing. Off for the photograph, back on
-    // before this returns, so no frame is ever painted with the card at full strength.
+    // grab() renders THROUGH the graphics effect; off for the photograph, back on before returning.
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect());
     if (fx) fx->setEnabled(false);
     const QPixmap snap = card->grab();
     if (fx) fx->setEnabled(true);
     if (snap.isNull()) { settle(); return; }
-    // The toast's flight (notifications.cpp dustToastIn), not the scatter the leave still
-    // plays: one speck cloud gathered out of the side the card belongs to. cols/rows only
-    // cap it — overSurface sizes its own grid to the bubble.
+    // The toast's flight (Notifications.cpp dustToastIn); cols/rows only cap overSurface's grid.
     const QRect box(card->mapTo(host, QPoint(0, 0)), card->size());
     auto* dust = DisintegrateOverlay::overSurface(
         snap, box, host, chatArrivalPoint(box, scrollViewportInHost(scroll, host)),
-        /*gather=*/true, kChatArriveMs, card->palette().color(QPalette::WindowText),
+        /*gather=*/true, CHAT_ARRIVE_MS, card->palette().color(QPalette::WindowText),
         cols * rows);
-    if (!dust) { settle(); return; }   // nothing to hide behind
-    // Confined to the transcript: the layer is drawn on the WINDOW, so an unclipped
-    // gather rained motes over the composer under it (the browser twin's reported bug,
-    // clipDustToScroller).
+    if (!dust) { settle(); return; }
+    // Confined to the transcript: the layer is drawn on the WINDOW (clipDustToScroller).
     clipChatDustToScroller(dust, scroll, host);
-    // The card stays FULLY HIDDEN for the whole flight and takes the motes' place when
-    // they land; the snapshot follows the card per frame, or is dropped as stale.
     trackChatCardDust(card, dust, scroll, settle);
     if (onFlight) onFlight();
-    // The reveal is a CUT in the frame the overlay deletes itself: the motes have
-    // already drawn the bubble into place, so fading it up would double the arrival.
+    // A CUT in the frame the overlay deletes itself: a fade-up would double the arrival.
     QPointer<QWidget> cp(card);
-    // A long HAND-OVER, not a cut at the end: the motes draw the same pixels onto the same
-    // box, so the real card showing underneath them is invisible and the overlap is free.
-    // Waiting for it was not — the cloud reads as finished well before its last stragglers
-    // land, and that gap is what the eye calls a delay (user report). The card takes over
-    // at three quarters of the flight; the remaining motes settle on top of it.
-    QTimer::singleShot(kChatArriveMs * 3 / 4, card, [cp, settle] { if (cp) settle(); });
+    // The card takes over at three quarters of the flight; the last motes settle on top of it.
+    QTimer::singleShot(CHAT_ARRIVE_MS * 3 / 4, card, [cp, settle] { if (cp) settle(); });
   }
 
-  // Theme-provided muted text (palette PlaceholderText, not a hardcoded hex).
   void applyMutedText(QLabel* label) {
     QPalette pal = label->palette();
     pal.setColor(QPalette::WindowText, pal.color(QPalette::PlaceholderText));
     label->setPalette(pal);
   }
 
-  // Error text in the theme's --danger (browser .chat-msg-error).
   void applyDangerText(QLabel* label, const QColor& danger) {
     QPalette pal = label->palette();
     pal.setColor(QPalette::WindowText, danger);
     label->setPalette(pal);
   }
 
-  // The small bold role caption every transcript card starts with.
   QLabel* makeRoleLabel(const QString& role, QWidget* card) {
     auto* roleLabel = new QLabel(role, card);
     QFont f = roleLabel->font();
@@ -179,36 +152,28 @@ namespace stencil::gui {
     return roleLabel;
   }
 
-  // A QLabel for UNTRUSTED text — model output, or a dropped filename. QLabel
-  // defaults to Qt::AutoText, so mightBeRichText() would decide per string whether
-  // to RENDER a model's markup (and QTextDocument resolves local file resources).
-  // The browser/extension use textContent only; this is the Qt spelling of that.
+  // Qt::AutoText would RENDER a model's markup (and QTextDocument resolves local file
+  // resources); the browser/extension use textContent only — this is the Qt spelling of that.
   QLabel* makePlainLabel(const QString& text, QWidget* parent) {
     auto* label = new QLabel(text, parent);
     label->setTextFormat(Qt::PlainText);
     return label;
   }
 
-  // ── Message bubble tail (browser .chat-msg-user::before/::after parity) ─────
-  // Two right triangles from a QPainterPath — Qt has no CSS border-triangle
-  // trick, so the shape is built directly: the border copy behind, the 1px
-  // smaller fill in front, its anchor pushed out on BOTH axes so the outline
-  // grows past the fill evenly on all three edges. See components.css for the CSS.
-  static constexpr int kTailLeg = 9;        // border (::before) leg length
-  static constexpr int kTailFillLeg = 8;    // fill (::after) leg length — 1px smaller
-  static constexpr int kTailShift = 1;      // border anchor's extra outward push, both axes
-  static constexpr int kTailW = kTailShift + kTailLeg;    // the SHAPE's own box (10 x 9) —
-  static constexpr int kTailH = kTailLeg;                 // tailTriangle()'s coordinate space
-  // Slack on every side: a path edge flush with its widget's own clip boundary is
-  // dropped or half-antialiased. paintEvent and placeChatBubbleTailAt both offset
-  // by it, so every drawn pixel keeps its unpadded absolute position.
-  static constexpr int kTailPad = kTailShift;
-  static constexpr int kTailBoxW = kTailW + 2 * kTailPad;
-  static constexpr int kTailBoxH = kTailH + 2 * kTailPad;
+  // Bubble tail (browser .chat-msg-user::before/::after): border copy behind, 1 px smaller fill in front.
+  static constexpr int TAIL_LEG = 9;
+  static constexpr int TAIL_FILL_LEG = 8;
+  static constexpr int TAIL_SHIFT = 1;
+  static constexpr int TAIL_W = TAIL_SHIFT + TAIL_LEG;
+  static constexpr int TAIL_H = TAIL_LEG;
+  // Slack on every side: a path edge flush with the widget's clip is dropped or half-antialiased.
+  static constexpr int TAIL_PAD = TAIL_SHIFT;
+  static constexpr int TAIL_BOX_W = TAIL_W + 2 * TAIL_PAD;
+  static constexpr int TAIL_BOX_H = TAIL_H + 2 * TAIL_PAD;
 
   ChatBubbleTail::ChatBubbleTail(QWidget* parent) : QWidget(parent) {
-    setAttribute(Qt::WA_TransparentForMouseEvents);   // decoration only, never eats a click/hover
-    setFixedSize(kTailBoxW, kTailBoxH);
+    setAttribute(Qt::WA_TransparentForMouseEvents);
+    setFixedSize(TAIL_BOX_W, TAIL_BOX_H);
     hide();
   }
 
@@ -225,11 +190,9 @@ namespace stencil::gui {
     update();
   }
 
-  // Right triangle whose right-angle vertex sits `shift`px diagonally out from the
-  // bubble's own corner (shift=0 puts it exactly on it), with `leg`px legs up the
-  // bubble's edge and out along its bottom.
+  // Right-angle vertex `shift` px diagonally out from the bubble's corner; `leg` px legs.
   static QPainterPath tailTriangle(bool right, qreal leg, qreal shift, qreal boxW) {
-    const qreal y = kTailFillLeg + shift;
+    const qreal y = TAIL_FILL_LEG + shift;
     QPainterPath path;
     if (right) {
       path.moveTo(shift, y - leg);
@@ -249,21 +212,18 @@ namespace stencil::gui {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
     p.setPen(Qt::NoPen);
-    p.translate(kTailPad, kTailPad);   // placeChatBubbleTailAt moves the widget back by it
+    p.translate(TAIL_PAD, TAIL_PAD);
     p.setBrush(border_);
-    p.drawPath(tailTriangle(right_, kTailLeg, kTailShift, kTailW));
+    p.drawPath(tailTriangle(right_, TAIL_LEG, TAIL_SHIFT, TAIL_W));
     p.setBrush(fill_);
-    p.drawPath(tailTriangle(right_, kTailFillLeg, 0, kTailW));
+    p.drawPath(tailTriangle(right_, TAIL_FILL_LEG, 0, TAIL_W));
   }
 
-  // The tail's box starts flush with the bubble's own bottom corner and runs
-  // kTailW/kTailH out from there, less kTailPad on every side.
   static void placeChatBubbleTailAt(QFrame* card, ChatBubbleTail* tail) {
     const QRect g = card->geometry();
-    // QRect::right() is x()+width()-1, already flush; left() is the true edge, so
-    // the left-side branch needs its own +1 to match.
-    const int left = (tail->isRight() ? g.right() : g.left() - kTailW + 1) - kTailPad;
-    tail->move(left, g.bottom() - kTailFillLeg - kTailPad);
+    // QRect::right() is x()+width()-1; left() is the true edge, so it needs its own +1.
+    const int left = (tail->isRight() ? g.right() : g.left() - TAIL_W + 1) - TAIL_PAD;
+    tail->move(left, g.bottom() - TAIL_FILL_LEG - TAIL_PAD);
   }
 
   void placeChatBubbleTail(QFrame* card, const QColor& fill, const QColor& border, bool right) {
@@ -275,8 +235,7 @@ namespace stencil::gui {
       tail = new ChatBubbleTail(host);
       card->setProperty("chatTail", QVariant::fromValue<QObject*>(tail));
       tail->setProperty("chatTailCard", QVariant::fromValue<QObject*>(card));
-      // The card owns the tail's lifetime — sever the link first, so a stray
-      // reposition pass on the (about to be freed) card never reaches a dangling tail.
+      // Sever the link first, so a stray reposition pass never reaches a dangling tail.
       QObject::connect(card, &QObject::destroyed, tail, [tail] {
         tail->setProperty("chatTailCard", QVariant());
         tail->deleteLater();
@@ -291,7 +250,6 @@ namespace stencil::gui {
 
   void repositionChatBubbleTails(QWidget* transcript) {
     if (!transcript) return;
-    // Direct children: placeChatBubbleTail parents every tail to the card's own parent.
     for (ChatBubbleTail* tail :
          transcript->findChildren<ChatBubbleTail*>(Qt::FindDirectChildrenOnly)) {
       if (auto* card = qobject_cast<QFrame*>(tail->property("chatTailCard").value<QObject*>()))
@@ -299,71 +257,54 @@ namespace stencil::gui {
     }
   }
 
-  // Park a card's "⋯" beside the bottom corner of its VISIBLE SLICE (user
-  // bubbles get it to the left, the rest to the right): the button anchors to
-  // the viewport-intersected rect, so ANY visible sliver of a row keeps its menu.
-  static constexpr int kMorePad = 4;
-  // Clearance the button keeps once lifted clear of `avoidGlobal` (browser
-  // CHAT_ROW_MENU_JUMP_GAP / extension MSG_MENU_JUMP_GAP — same number, all three).
-  static constexpr int kAvoidGap = 6;
+  // Anchors to the viewport-intersected rect, so ANY visible sliver of a row keeps its menu.
+  static constexpr int MORE_PAD = 4;
+  // browser CHAT_ROW_MENU_JUMP_GAP / extension MSG_MENU_JUMP_GAP — same number
+  static constexpr int AVOID_GAP = 6;
 
   void placeChatCardMore(QFrame* card, QToolButton* more, QScrollArea* scroll,
                          const QRect& avoidGlobal) {
     if (!card || !more) return;
     QWidget* host = card->parentWidget();
     if (!host) return;
-    // NOTE: setParent() HIDES a widget — re-show it, or the first placement of a
-    // button revealed by hover would silently swallow that reveal.
+    // setParent() HIDES a widget — re-show it, or a hover reveal is silently swallowed.
     if (more->parentWidget() != host) {
       const bool wasShown = more->isVisible();
       more->setParent(host);
       if (wasShown) more->show();
     }
-    // The side the card actually renders on (applyChatBubbleSide stashes it) —
-    // objectName() alone stopped answering that once a swap could flip either role
-    // to either side. Falls back to the unswapped rule for a card without it.
-    const QVariant onRight = card->property(kChatOnRightProperty);
+    // The side the card actually renders on; falls back to the unswapped rule without it.
+    const QVariant onRight = card->property(CHAT_ON_RIGHT_PROPERTY);
     const bool right = onRight.isValid() ? onRight.toBool()
                                          : card->objectName() == QLatin1String("chatCardUser");
-    const QRect g = card->geometry();   // in the content widget's coordinates
+    const QRect g = card->geometry();
     int x = right ? g.left() - more->width() - 6 : g.right() + 7;
     int y = g.bottom() - more->height() + 1;
     if (scroll && scroll->viewport()) {
-      // The viewport, in those same content coordinates (it scrolls under them)
-      // — intersected with the content widget's OWN rect, because that widget is
-      // the button's parent and Qt clips a child to it. Clamping to the viewport
-      // alone let the pill sit in a content-widget margin, half clipped.
+      // The viewport in content coordinates, intersected with the content widget's OWN rect: that
+      // widget is the button's parent and Qt clips a child to it.
       const QRect vp = QRect(host->mapFrom(scroll->viewport(), QPoint(0, 0)),
                              scroll->viewport()->size())
                            .intersected(host->rect());
       const QRect vis = g.intersected(vp);
-      if (vis.isEmpty()) { more->hide(); return; }   // scrolled clean out of view
+      if (vis.isEmpty()) { more->hide(); return; }
       y = vis.bottom() - more->height() + 1;
-      // The WHOLE button rect stays inside, with a hair of padding — not just the
-      // anchor point, and on both sides (a user row hangs left, the rest right).
-      y = qBound(vp.top() + kMorePad, y, vp.bottom() - more->height() - kMorePad);
-      x = qBound(vp.left() + kMorePad, x, vp.right() - more->width() - kMorePad);
-      // …and it never straddles the NEIGHBOURING message. With only a sliver of
-      // this row on screen the clamp above would push the pill up (or down) over
-      // the card next to it, which reads as a bug — so for such a row it simply
-      // does not show. A fully visible row always keeps its button: the pill sits
-      // inside that row's own y-band, where no neighbour can reach it.
-      // Hysteresis (one pad to appear, a smaller one to stay) keeps a row
-      // crossing the threshold mid-scroll from flickering.
-      const int pad = more->isVisible() ? kMorePad : kMorePad + 2;
+      // The WHOLE button rect stays inside, with a hair of padding, on both sides.
+      y = qBound(vp.top() + MORE_PAD, y, vp.bottom() - more->height() - MORE_PAD);
+      x = qBound(vp.left() + MORE_PAD, x, vp.right() - more->width() - MORE_PAD);
+      // Never straddles the NEIGHBOURING message; hysteresis (one pad to appear, a smaller one
+      // to stay) keeps a row crossing the threshold mid-scroll from flickering.
+      const int pad = more->isVisible() ? MORE_PAD : MORE_PAD + 2;
       QRect want(x, y, more->width(), more->height());
       if (vis.height() < more->height() + pad) { more->hide(); return; }
-      // The furniture (the dock's jump pills) wins: it never stands down for this
-      // button any more — the button lifts clear of it, or (nowhere left in this
-      // row's own visible slice to lift TO) hides instead, same as it already does
-      // for a neighbouring row below (browser/extension parity: "shift, else hide").
+      // The furniture (jump pills) wins: lift clear of it, else hide (browser/extension parity).
       if (!avoidGlobal.isNull()) {
         QRect avoid(host->mapFromGlobal(avoidGlobal.topLeft()), avoidGlobal.size());
-        avoid.adjust(-4, -4, 4, 4);   // a near miss still crowds it
+        avoid.adjust(-4, -4, 4, 4);
         if (avoid.intersects(want)) {
-          const int liftedY = avoid.top() - more->height() - kAvoidGap;
+          const int liftedY = avoid.top() - more->height() - AVOID_GAP;
           const QRect lifted(x, liftedY, more->width(), more->height());
-          if (liftedY < vis.top() + kMorePad || avoid.intersects(lifted)) {
+          if (liftedY < vis.top() + MORE_PAD || avoid.intersects(lifted)) {
             more->hide();
             return;
           }
@@ -371,14 +312,10 @@ namespace stencil::gui {
           want = lifted;
         }
       }
-      // The neighbours are tested against their PLAIN rects: rows sit as little
-      // as 2px apart (the menu panel's transcript), so padding them out would
-      // suppress every pill — and it is unnecessary, because a pill that fits its
-      // own row's slice is inside that row's band, where no neighbour reaches.
-      // This fires exactly when the clamp above pushed it out of the slice.
+      // Neighbours are tested against their PLAIN rects: rows sit as little as 2 px apart.
       for (QFrame* sib : host->findChildren<QFrame*>(QString(), Qt::FindDirectChildrenOnly)) {
         if (sib == card || !sib->isVisible()) continue;
-        if (!sib->property("chatMoreBtn").isValid()) continue;   // rows only
+        if (!sib->property("chatMoreBtn").isValid()) continue;
         if (sib->geometry().intersects(want)) {
           more->hide();
           return;

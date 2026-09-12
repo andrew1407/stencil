@@ -5,71 +5,55 @@ using Stencil.TelegramBot.Infrastructure.Llm;
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
-/// Walks the shared provider-error sanitizer vectors
-/// (<c>browser/js/config/llm/fixtures/sanitizer/cases.json</c>, see <c>_schema.md</c>)
-/// through <see cref="HttpLlmClient.SanitizeProviderText"/>. The bot slices UTF-16 code
-/// units exactly like the browser (`t[..199]` can split a surrogate pair the same way
-/// String.prototype.slice does), so every vector — the two <c>DIVERGENCE(...)</c> cases
-/// included — is asserted against the browser's literal <c>expect</c>; the DIVERGENCE cases
-/// additionally re-check the safety invariants (no URL, no token run, ≤ 200 units).
+/// The shared sanitizer vectors through <see cref="HttpLlmClient.SanitizeProviderText"/>, one
+/// test per vector. The bot slices UTF-16 code units exactly like the browser, so every vector
+/// — the two <c>DIVERGENCE(...)</c> cases included — is asserted against the browser's literal
+/// expect; those two also re-check the invariants (no URL, no token run, ≤ 200 units).
 /// </summary>
 public sealed class SanitizerFixtureWalkerTests
 {
-    private static readonly Regex Urlish = new(@"[a-z][a-z0-9+.-]*://\S+", RegexOptions.IgnoreCase);
-    private static readonly Regex BareTokenRun = new("[A-Za-z0-9_-]{24,}");
+    private static readonly Regex _urlish = new(@"[a-z][a-z0-9+.-]*://\S+", RegexOptions.IgnoreCase);
+    private static readonly Regex _bareTokenRun = new("[A-Za-z0-9_-]{24,}");
+
+    private static string Corpus => Path.Combine(SharedFixtures.LlmFixtureDir("sanitizer"), "cases.json");
+
+    public static TheoryData<string> Vectors() => SharedFixtures.TheoryNames(SharedFixtures.CaseNames(Corpus));
 
     [Fact]
-    public void EverySanitizerVectorMatches()
-    {
-        List<string> failures = new();
-        int walked = 0;
-        using JsonDocument doc = SharedFixtures.Load(
-            Path.Combine(SharedFixtures.LlmFixtureDir("sanitizer"), "cases.json"));
-        foreach (JsonElement fx in doc.RootElement.EnumerateArray())
-        {
-            walked++;
-            string name = fx.GetProperty("name").GetString()!;
-            JsonElement input = fx.GetProperty("input");
-            // null input: SanitizeProviderText takes a non-null string; the null case is
-            // JsonRead.ErrorDetail's "" — feed "" and expect "" per the schema.
-            string text = input.ValueKind == JsonValueKind.Null ? "" : LenientString(input);
-            string expect = LenientString(fx.GetProperty("expect"));
+    public void Should_Have_Every_Vector_In_The_Corpus() => Assert.Equal(19, SharedFixtures.Cases(Corpus).Count);
 
-            string got = HttpLlmClient.SanitizeProviderText(text);
-            if (got != expect)
-            {
-                failures.Add($"{name}: \"{got}\" != \"{expect}\"");
-            }
-            if (name.StartsWith("DIVERGENCE(", StringComparison.Ordinal))
-            {
-                // Recomputed invariants, independent of the literal: bounded, no URL, and no
-                // bare token-shaped run outside the redaction marker itself.
-                if (got.Length > HttpLlmClient.MaxProviderDetail)
-                {
-                    failures.Add($"{name}: output exceeds {HttpLlmClient.MaxProviderDetail} UTF-16 units ({got.Length})");
-                }
-                string unredacted = got.Replace("[redacted]", "");
-                if (Urlish.IsMatch(unredacted))
-                {
-                    failures.Add($"{name}: a URL survived sanitization");
-                }
-                if (BareTokenRun.IsMatch(unredacted))
-                {
-                    failures.Add($"{name}: a token-shaped run survived sanitization");
-                }
-            }
+    [Theory]
+    [MemberData(nameof(Vectors))]
+    public void Should_Match_Each_Vector(string name)
+    {
+        using JsonDocument doc = SharedFixtures.Case(Corpus, name);
+        JsonElement fx = doc.RootElement;
+        JsonElement input = fx.GetProperty("input");
+        // null input: SanitizeProviderText takes a non-null string; the null case is
+        // JsonRead.ErrorDetail's "" — feed "" and expect "" per the schema.
+        string text = input.ValueKind == JsonValueKind.Null ? "" : lenientString(input);
+
+        string got = HttpLlmClient.SanitizeProviderText(text);
+
+        Assert.Equal(lenientString(fx.GetProperty("expect")), got);
+        if (!name.StartsWith("DIVERGENCE(", StringComparison.Ordinal))
+        {
+            return;
         }
-        Assert.Equal(19, walked);
-        Assert.True(failures.Count == 0,
-            $"{failures.Count} sanitizer mismatches (walked {walked}):\n" + string.Join("\n", failures));
+        // Recomputed invariants, independent of the literal: bounded, no URL, and no bare
+        // token-shaped run outside the redaction marker itself.
+        Assert.True(got.Length <= HttpLlmClient.MAX_PROVIDER_DETAIL,
+            $"output exceeds {HttpLlmClient.MAX_PROVIDER_DETAIL} UTF-16 units ({got.Length})");
+        string unredacted = got.Replace("[redacted]", "");
+        Assert.False(_urlish.IsMatch(unredacted), "a URL survived sanitization");
+        Assert.False(_bareTokenRun.IsMatch(unredacted), "a token-shaped run survived sanitization");
     }
 
     /// <summary>
-    /// <see cref="JsonElement.GetString"/> refuses a lone surrogate escape — which one
-    /// DIVERGENCE vector's expect deliberately ends in (the browser's 199-code-unit cut
-    /// splits an emoji). Fall back to unescaping the raw JSON text code-unit by code-unit.
+    /// GetString refuses a lone surrogate escape, which one DIVERGENCE expect ends in; fall
+    /// back to unescaping the raw JSON text code-unit by code-unit.
     /// </summary>
-    private static string LenientString(JsonElement element)
+    private static string lenientString(JsonElement element)
     {
         try
         {
@@ -78,11 +62,11 @@ public sealed class SanitizerFixtureWalkerTests
         catch (InvalidOperationException)
         {
             string raw = element.GetRawText();
-            return UnescapeJson(raw[1..^1]);
+            return unescapeJson(raw[1..^1]);
         }
     }
 
-    private static string UnescapeJson(string s)
+    private static string unescapeJson(string s)
     {
         System.Text.StringBuilder sb = new(s.Length);
         for (int i = 0; i < s.Length; i++)

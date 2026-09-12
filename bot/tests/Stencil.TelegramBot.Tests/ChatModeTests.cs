@@ -1,88 +1,21 @@
-using Microsoft.Extensions.Logging.Abstractions;
-using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Domain.Llm;
 using Stencil.TelegramBot.Domain.Sessions;
-using Stencil.TelegramBot.Infrastructure.Configuration;
-using Stencil.TelegramBot.Infrastructure.Sessions;
-using Stencil.TelegramBot.Infrastructure.Workspace;
 using Stencil.TelegramBot.Tests.Doubles;
 using Telegram.Bot.Requests;
-using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
-/// Chat mode (<c>/chat</c> + the 💬 buttons) through the real <see cref="UpdateRouter"/> +
-/// <see cref="CommandHandlers"/> + <see cref="PromptService"/>, with the LLM, CLI and Telegram
-/// mocked: toggling the session flag on/off, plain text routed to the same prompt path (variants
-/// included), commands never swallowed, and a pending free-text flow winning over chat mode.
+/// Chat mode's toggle and routing: the session flag on/off through <c>/chat</c> and the 💬
+/// buttons, plain text taking the same prompt path (variants included), and commands never
+/// swallowed by it.
 /// </summary>
-public sealed class ChatModeTests : IDisposable
+public sealed class ChatModeTests : ChatModeTestBase
 {
-    private const long UserId = 91;
-    private const long ChatId = 92;
-
-    private readonly string _dataDir;
-    private readonly MockStencilCli _cli = new();
-    private readonly MockBotClient _bot = new();
-    private readonly MockLlmClient _llm = new();
-    private readonly InMemorySessionStore _store = new();
-    private readonly CommandHandlers _handlers;
-    private readonly CallbackAction _callbacks;
-    private readonly UpdateRouter _router;
-
-    public ChatModeTests()
-    {
-        _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-chatmode-" + Guid.NewGuid().ToString("N"));
-        BotOptions options = new() { DataDir = _dataDir };
-        EditingService editing = new(_cli, new UserWorkspace(options), _store);
-        _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, editing: editing);
-        _callbacks = new CallbackAction(_handlers, _bot, _store);
-        _router = new UpdateRouter(
-            _handlers,
-            _callbacks,
-            editing,
-            _store,
-            _bot,
-            new UserGate(),
-            options,
-            NullLogger<UpdateRouter>.Instance);
-    }
-
-    public void Dispose()
-    {
-        try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
-    }
-
-    /// <summary>Route a plain Telegram text message (command or not) exactly as the poller would.</summary>
-    private Task Send(string text) =>
-        _router.HandleMessageAsync(
-            new Message
-            {
-                Chat = new Chat { Id = ChatId },
-                From = new User { Id = UserId },
-                Text = text,
-            },
-            CancellationToken.None);
-
-    /// <summary>Tap an inline button (the 💬 Chat / 🚪 Chat off tokens).</summary>
-    private Task Tap(string data) =>
-        _callbacks.HandleAsync(
-            new CallbackQuery
-            {
-                Id = "cb",
-                From = new User { Id = UserId },
-                Message = new Message { Chat = new Chat { Id = ChatId } },
-                Data = data,
-            },
-            CancellationToken.None);
-
-    private IEnumerable<SendMessageRequest> Messages => _bot.Requests.OfType<SendMessageRequest>();
-
     [Fact]
-    public async Task ChatCommandTurnsTheModeOnConfirmsAndOffersTheWayBack()
+    public async Task Should_Turn_The_Mode_On_Confirm_And_Offer_The_Way_Back_On_Chat_Command()
     {
         await Send("/chat");
 
@@ -96,7 +29,7 @@ public sealed class ChatModeTests : IDisposable
     }
 
     [Fact]
-    public async Task ChatOffTurnsItBackOffAndConfirms()
+    public async Task Should_Turn_The_Mode_Back_Off_And_Confirm_On_Chat_Off()
     {
         await Send("/chat");
         await Send("/chat off");
@@ -107,7 +40,7 @@ public sealed class ChatModeTests : IDisposable
     }
 
     [Fact]
-    public async Task TheButtonsToggleTheSameFlagAsTheCommand()
+    public async Task Should_Toggle_The_Same_Flag_As_The_Command_From_The_Buttons()
     {
         await Tap("chat:on");
         Assert.True((await _store.GetAsync(UserId)).ChatMode);
@@ -117,14 +50,14 @@ public sealed class ChatModeTests : IDisposable
     }
 
     [Fact]
-    public void TheMainMenuAndEditMenuSurfaceTheChatButton()
+    public void Should_Surface_The_Chat_Button_In_The_Main_Menu_And_Edit_Menu()
     {
         Assert.Contains(Keyboards.MainMenu().InlineKeyboard.SelectMany(r => r), b => b.CallbackData == "chat:on");
         Assert.Contains(Keyboards.EditMenu(false).InlineKeyboard.SelectMany(r => r), b => b.CallbackData == "chat:on");
     }
 
     [Fact]
-    public async Task AnUnknownArgumentJustExplainsTheCommandAndChangesNothing()
+    public async Task Should_Just_Explain_The_Command_And_Change_Nothing_For_An_Unknown_Argument()
     {
         await Send("/chat whenever");
 
@@ -133,7 +66,7 @@ public sealed class ChatModeTests : IDisposable
     }
 
     [Fact]
-    public async Task AnImageLinkWithInstructionsLoadsItThenRunsThemThroughTheAssistant()
+    public async Task Should_Load_An_Image_Link_With_Instructions_Then_Run_Them_Through_The_Assistant()
     {
         await Send("/chat");
         _llm.CannedReplies.Enqueue(new LlmReply(
@@ -155,7 +88,7 @@ public sealed class ChatModeTests : IDisposable
     }
 
     [Fact]
-    public async Task ABareImageLinkStillJustLoadsItEvenInChatMode()
+    public async Task Should_Still_Just_Load_A_Bare_Image_Link_Even_In_Chat_Mode()
     {
         await Send("/chat");
 
@@ -166,7 +99,7 @@ public sealed class ChatModeTests : IDisposable
     }
 
     [Fact]
-    public async Task OutsideChatModeALinkWithWordsKeepsLoadingTheLinkOnly()
+    public async Task Should_Keep_Loading_Only_The_Link_For_A_Link_With_Words_Outside_Chat_Mode()
     {
         await Send("look at this https://example.com/a.jpg");
 
@@ -175,7 +108,7 @@ public sealed class ChatModeTests : IDisposable
     }
 
     [Fact]
-    public async Task PlainTextInChatModeGoesToTheAssistantAndRendersLikePrompt()
+    public async Task Should_Send_Plain_Text_To_The_Assistant_And_Render_Like_Prompt_In_Chat_Mode()
     {
         await Send("/blank");
         await Send("/chat");
@@ -194,7 +127,7 @@ public sealed class ChatModeTests : IDisposable
     }
 
     [Fact]
-    public async Task VariantsStillComeBackAsOneMediaGroupInChatMode()
+    public async Task Should_Still_Return_Variants_As_One_Media_Group_In_Chat_Mode()
     {
         await Send("/blank");
         await Send("/chat");
@@ -212,7 +145,7 @@ public sealed class ChatModeTests : IDisposable
     }
 
     [Fact]
-    public async Task WithoutChatModePlainTextStillGetsTheHintAndNeverReachesTheLlm()
+    public async Task Should_Still_Hint_On_Plain_Text_And_Never_Reach_The_Llm_Without_Chat_Mode()
     {
         await Send("make it black and white");
 
@@ -221,7 +154,7 @@ public sealed class ChatModeTests : IDisposable
     }
 
     [Fact]
-    public async Task CommandsAreNeverSwallowedByChatMode()
+    public async Task Should_Never_Swallow_Commands_In_Chat_Mode()
     {
         await Send("/chat");
 
@@ -234,162 +167,5 @@ public sealed class ChatModeTests : IDisposable
         Assert.True(session.HasImage);
         // …and chat mode survived the command.
         Assert.True(session.ChatMode);
-    }
-
-    [Fact]
-    public async Task APendingFreeTextFlowWinsOverChatMode()
-    {
-        await Send("/blank");
-        await Send("/chat");
-        // The Rename button arms the pending free-text prompt (see CallbackAction).
-        await Tap("name:menu");
-
-        await Send("Poster draft");
-
-        UserSession session = await _store.GetAsync(UserId);
-        Assert.Equal("Poster draft", session.ImageLabel);
-        Assert.Empty(_llm.Requests);
-        // The one-shot flow is spent; the next plain message goes to the assistant again.
-        Assert.Null(session.PendingInput);
-        Assert.True(session.ChatMode);
-
-        _llm.CannedReplies.Enqueue(new LlmReply("Nice name."));
-        await Send("what do you think?");
-        Assert.Single(_llm.Requests);
-        Assert.Equal("Nice name.", Messages.Last().Text);
-    }
-
-    [Fact]
-    public async Task ClearForgetsTheConversationWithoutLeavingChatMode()
-    {
-        await Send("/blank");
-        await Send("/chat");
-        await Send("first question");
-        await Send("second question");
-        // The second turn replayed the first exchange: user, assistant, user.
-        Assert.Equal(3, _llm.Requests[^1].Messages.Count);
-
-        await Send("/chat clear");
-
-        Assert.Contains("Conversation cleared", Messages.Last().Text);
-        Assert.Contains("Chat mode is still on", Messages.Last().Text);
-        UserSession session = await _store.GetAsync(UserId);
-        Assert.True(session.ChatMode);
-        // The working image survives a clear — only the conversation is forgotten.
-        Assert.True(session.HasImage);
-
-        await Send("third question");
-
-        LlmChatRequest fresh = _llm.Requests[^1];
-        LlmMessage only = Assert.Single(fresh.Messages);
-        Assert.Equal(LlmMessage.RoleUser, only.Role);
-        Assert.Equal("third question", only.Text);
-    }
-
-    [Fact]
-    public async Task TheClearButtonRunsTheSameClear()
-    {
-        await Send("/blank");
-        await Send("/chat");
-        await Send("first question");
-
-        await Tap("chat:clear");
-
-        Assert.Contains("Conversation cleared", Messages.Last().Text);
-        await Send("next question");
-        Assert.Single(_llm.Requests[^1].Messages);
-        Assert.True((await _store.GetAsync(UserId)).ChatMode);
-    }
-
-    // ── §10 clearChat (the model asks; only the user's button clears) ──
-
-    [Fact]
-    public async Task AClearChatPlanDefersToAConfirmSentAfterTheReplyAndEdits()
-    {
-        await Send("/blank");
-        await Send("/chat");
-        await Send("first question");
-        _llm.CannedReplies.Enqueue(new LlmReply(
-            """{"reply":"BW done.","actions":[{"op":"clearChat"},{"op":"filter","mode":"bw"}]}"""));
-
-        await Send("make it bw and clear the chat");
-
-        // The plan's edit ran regardless of clearChat's position…
-        Assert.Equal("bw", _cli.LastRequest!.Filter);
-        // …and the confirm is the LAST message of the turn, with the Yes/Cancel keyboard.
-        SendMessageRequest confirm = Messages.Last();
-        Assert.Contains("Clear it?", confirm.Text);
-        InlineKeyboardMarkup markup = Assert.IsType<InlineKeyboardMarkup>(confirm.ReplyMarkup);
-        Assert.Contains(markup.InlineKeyboard.SelectMany(r => r), b => b.CallbackData == "chatclear:confirm");
-        Assert.Contains(markup.InlineKeyboard.SelectMany(r => r), b => b.CallbackData == "chatclear:cancel");
-        // Nothing is forgotten until the user answers: the next turn replays every exchange
-        // (2 prior exchanges = 4 messages, plus the current one).
-        await Send("still here?");
-        Assert.Equal(5, _llm.Requests[^1].Messages.Count);
-    }
-
-    [Fact]
-    public async Task TheClearChatYesButtonRunsTheSameClearAsChatClear()
-    {
-        await Send("/blank");
-        await Send("/chat");
-        await Send("first question");
-        _llm.CannedReplies.Enqueue(new LlmReply("""{"reply":"ok","actions":[{"op":"clearChat"}]}"""));
-        await Send("clear this conversation");
-
-        await Tap("chatclear:confirm");
-
-        Assert.Contains("Conversation cleared", Messages.Last().Text);
-        // The history really cleared — the next turn starts fresh — and chat mode survives.
-        await Send("next question");
-        Assert.Single(_llm.Requests[^1].Messages);
-        Assert.True((await _store.GetAsync(UserId)).ChatMode);
-    }
-
-    [Fact]
-    public async Task TheClearChatCancelButtonKeepsTheConversationWithACanceledNote()
-    {
-        await Send("/blank");
-        await Send("/chat");
-        await Send("first question");
-        _llm.CannedReplies.Enqueue(new LlmReply("""{"reply":"ok","actions":[{"op":"clearChat"}]}"""));
-        await Send("clear this conversation");
-
-        await Tap("chatclear:cancel");
-
-        // The decline is a "clear canceled" note (the confirm edited in place), never an error…
-        EditMessageTextRequest note = _bot.Requests.OfType<EditMessageTextRequest>().Last();
-        Assert.Contains("Clear canceled", note.Text);
-        // …and nothing was forgotten: the next turn still replays every prior exchange.
-        await Send("next question");
-        Assert.Equal(5, _llm.Requests[^1].Messages.Count);
-    }
-
-    [Fact]
-    public async Task DropAlsoForgetsTheConversation()
-    {
-        await Send("/blank");
-        await Send("/chat");
-        await Send("first question");
-
-        await Send("/drop");
-
-        Assert.False((await _store.GetAsync(UserId)).HasImage);
-        await Send("a brand new question");
-        LlmMessage only = Assert.Single(_llm.Requests[^1].Messages);
-        Assert.Equal("a brand new question", only.Text);
-    }
-
-    [Fact]
-    public async Task ChatModeIsPerUserAndShowsUpInStatus()
-    {
-        await Send("/chat");
-
-        UserSession mine = await _store.GetAsync(UserId);
-        UserSession other = await _store.GetAsync(UserId + 1);
-        Assert.True(mine.ChatMode);
-        Assert.False(other.ChatMode);
-        Assert.Contains("Chat mode: on", Replies.StatusText(mine));
-        Assert.DoesNotContain("Chat mode", Replies.StatusText(other));
     }
 }

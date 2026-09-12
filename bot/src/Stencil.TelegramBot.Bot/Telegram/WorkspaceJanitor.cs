@@ -1,28 +1,24 @@
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Stencil.TelegramBot.Domain.Abstractions;
 using Stencil.TelegramBot.Domain.Sessions;
-using Stencil.TelegramBot.Infrastructure.Configuration;
+using Stencil.TelegramBot.Domain.Configuration;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// Background sweeper that keeps each user's scratch directory from growing without bound. Every
-/// render/probe writes a fresh file, but only the current original image (and any source video)
-/// stays referenced by the session — the rest are orphans the moment a newer render supersedes
-/// them. This loop periodically deletes those orphans once they age past
-/// <see cref="BotOptions.WorkspaceTtl"/>, while always keeping the session-referenced files.
-/// </summary>
-public sealed class WorkspaceJanitor
+// Deletes scratch files no session references once they age past WorkspaceTtl; the referenced
+// originals are kept.
+public sealed class WorkspaceJanitor : BackgroundService
 {
     private readonly IUserWorkspace _workspace;
     private readonly ISessionStore _store;
-    private readonly BotOptions _options;
+    private readonly IBotPolicy _options;
     private readonly ILogger<WorkspaceJanitor> _logger;
 
     public WorkspaceJanitor(
         IUserWorkspace workspace,
         ISessionStore store,
-        BotOptions options,
+        IBotPolicy options,
         ILogger<WorkspaceJanitor> logger)
     {
         _workspace = workspace;
@@ -31,15 +27,15 @@ public sealed class WorkspaceJanitor
         _logger = logger;
     }
 
-    /// <summary>Sweep on a cadence of half the TTL (floored at 5 minutes) until cancelled.</summary>
-    public async Task RunAsync(CancellationToken ct)
+    // Half the TTL, floored at 5 minutes.
+    protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        TimeSpan interval = Max(TimeSpan.FromTicks(_options.WorkspaceTtl.Ticks / 2), TimeSpan.FromMinutes(5));
+        TimeSpan interval = max(TimeSpan.FromTicks(_options.WorkspaceTtl.Ticks / 2), TimeSpan.FromMinutes(5));
         while (!ct.IsCancellationRequested)
         {
             try
             {
-                await SweepAsync(ct);
+                await sweepAsync(ct);
             }
             catch (OperationCanceledException)
             {
@@ -60,8 +56,7 @@ public sealed class WorkspaceJanitor
         }
     }
 
-    /// <summary>One pass: prune every on-disk user's orphaned artifacts older than the TTL.</summary>
-    private async Task SweepAsync(CancellationToken ct)
+    private async Task sweepAsync(CancellationToken ct)
     {
         DateTime cutoffUtc = DateTime.UtcNow - _options.WorkspaceTtl;
         int total = 0;
@@ -81,6 +76,5 @@ public sealed class WorkspaceJanitor
         }
     }
 
-    /// <summary>The larger of two spans (no <c>TimeSpan.Max</c> in the BCL).</summary>
-    private static TimeSpan Max(TimeSpan a, TimeSpan b) => a >= b ? a : b;
+    private static TimeSpan max(TimeSpan a, TimeSpan b) => a >= b ? a : b;
 }

@@ -15,9 +15,10 @@ import { readFileSync } from 'node:fs';
 
 import { parseCombo, eventCombo, comboMatchesEvent, dustOrigin, DUST_CURSOR_PX } from '../js/ui/controlTooltip.js';
 import { TIP_SHOW_DELAY_MS } from '../js/ui/motion.js';
+import { COMPONENTS_CSS } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const componentsCss = read('../css/components.css');
+const componentsCss = COMPONENTS_CSS;
 const tooltipJs = read('../js/ui/controlTooltip.js');
 
 // A keydown as the DOM reports it. `code` is the PHYSICAL key, which is the only side
@@ -235,7 +236,7 @@ test('reduced motion: the tooltip appears at once and the cap answers without mo
 // connection row, a list item — has its content at one end and its centre in empty
 // space, so sand arriving from the middle of the row read as coming from nowhere (user
 // report). Past DUST_CURSOR_PX the pointer is the origin instead, which is what the
-// desktop already does (appTooltip.hpp's `stretched` test).
+// desktop already does (AppTooltip.hpp's `stretched` test).
 test('the dust forms at the control centre, or at the cursor once that is far from it', () => {
   const centre = { x: 100, y: 100 };
   // A toolbar icon: the pointer is on it, so the centre IS the cursor, near enough.

@@ -14,6 +14,8 @@ import { ACCENTS } from '../js/core/accents.js';
 import { createModalOpenGesture, LINGER_CLOSE_MS } from '../js/ui/popover.js';
 import { wireLogoColorPicker } from '../js/ui/toolbar.js';
 import { createStubElement } from './helpers/dom.js';
+import { motionSource } from './helpers/motionSource.js';
+import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 
 // ── Stubs ── the shared element factory (dedup'd listeners + dispatch-with-target are
 // its defaults); contains() must always hit, so containment guards see dispatched
@@ -505,7 +507,7 @@ test('open flips [hidden] (the entrance hook) and close raises .dd-closing (the 
 
 // ── CSS contract pins (same style as motion.test.js) ────────────────────
 test('animations.css keys the logo loop on the latch, not :hover', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   assert.match(css, /\.app-logo-wrap\.logo-hover \.app-logo \{ animation: logoPulse/,
     'pulse keyed on .logo-hover (a :hover-gated animation is cancelled by the accent view transition)');
   assert.match(css, /\.app-logo-wrap\.logo-hover::before/,
@@ -515,7 +517,7 @@ test('animations.css keys the logo loop on the latch, not :hover', () => {
 });
 
 test('the menu grows OUT OF the logo and shrinks back INTO it — anchored, not a generic rise', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   // A shared, named pair: any menu hanging off a control can use it by pointing
   // transform-origin at the edge it is anchored to.
   const from = /@keyframes menuFromAnchor \{[^}]*\}[^}]*\}[^}]*\}/.exec(css)?.[0] || '';
@@ -544,14 +546,14 @@ test('the menu grows OUT OF the logo and shrinks back INTO it — anchored, not 
 });
 
 test('components.css lifts the shared 280px cap for the logo menu — toolbar.js re-caps per open', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const block = /\.logo-accent-menu \{[^}]*\}/.exec(css)?.[0] || '';
   assert.match(block, /max-height: none/,
     'without this the full preset list scrolls even in a tall window (the shared cap is sized for the Visuals dialog)');
 });
 
 test('motion.js raises theme-instant BEFORE startViewTransition — the latch depends on it', () => {
-  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const src = motionSource();
   const add = src.indexOf('root.classList.add(THEME_INSTANT_CLASS)');
   const svt = src.indexOf('document.startViewTransition(');
   assert.ok(add !== -1 && svt !== -1 && add < svt,
@@ -577,8 +579,8 @@ test('an accent change announced while the menu shows moves the ✓; a closed me
   win.dispatch('stencil:accent-changed', { detail: 'pink' });
   assert.deepEqual(marked(menu), ['brown'], 'no re-mark after close');
   // …and the controller really announces: setAccent / setCustomAccent both dispatch it.
-  const src = readFileSync(new URL('../js/core/accentController.js', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../js/ui/accentController.js', import.meta.url), 'utf8');
   assert.match(src, /setAccent\(key, originEl = null\) \{[\s\S]*?this\.announce\(next\);/);
   assert.match(src, /this\.announce\(norm\);/);
-  assert.match(src, /new CustomEvent\('stencil:accent-changed', \{ detail: value \}\)/);
+  assert.match(src, /publish\(EVENTS\.accentChanged, value\)/);
 });

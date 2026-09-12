@@ -4,8 +4,7 @@ import { hotkeys } from '../core/hotkeys.js';
 import { icon } from './icons.js';
 import { wirePanelResizer } from '../utils.js';
 import { foldDust, motionReduced } from './motion.js';
-// ── Component: main content (canvas section + coordinates panel) ──
-// Owns the canvas/coord-panel markup and the coord-panel collapse behavior.
+// Canvas section + coordinates panel, and the panel's collapse.
 export class StencilMainContent extends StencilElement {
   static inner() {
     return `
@@ -81,10 +80,8 @@ export class StencilMainContent extends StencilElement {
   static template() { return hostTag('stencil-main-content', 'class="main-content"', StencilMainContent.inner()); }
 
   wire(app) {
-    // The incognito frame is sticky INSIDE the scrolling viewport, so it needs the
-    // viewport's visible size in px — a percentage resolves against the scrollable
-    // content, exactly the box the frame must NOT trace. Resize only: sticky handles
-    // scrolling itself, so nothing runs per scroll frame.
+    // The sticky incognito frame needs the viewport's visible size in px: a percentage
+    // resolves against the scrollable content. Resize only; sticky handles scrolling.
     const vp = document.getElementById('canvas-viewport');
     if (vp) {
       const syncFrameBox = () => {
@@ -102,33 +99,27 @@ export class StencilMainContent extends StencilElement {
 
     btn.addEventListener('click', () => {
       hidden = !hidden;
-      // The shared fold-with-dust ritual (motion.js foldDust): the table pours out past
-      // the right edge the panel collapses towards and gathers back out of it. Its own
-      // gather clock (460): .coord-folding below takes the table out of the layout for
-      // half the slide, which restarts the surfaceForm fade — a window's 620ms gather
-      // would still be fading long after the panel had settled.
+      // foldDust: the table pours out past the edge the panel collapses towards. Its own
+      // gather clock (460): .coord-folding takes the table out of the layout for half the
+      // slide, which restarts the surfaceForm fade.
       clearTimeout(foldTimer);
       panel.classList.remove('coord-folding');
       foldDust(body, panel, 'coord-collapsed', hidden, 'right',
         { inMs: 460, toggle: () => panel.classList.toggle('coord-collapsed', hidden) });
-      // Hold the tabs/table out of the layout while the panel slides (.coord-folding,
-      // animations.css). Half the slide's OWN duration — the collapse takes the longer
-      // one — by which point the out-quart ease is ~94% done.
+      // Hold the table out of the layout for half the slide (.coord-folding,
+      // animations/collapse.css), by when the out-quart ease is ~94% done.
       const reduced = motionReduced();
       const token = hidden ? '--fold-out-ms' : '--fold-ms';
       const foldMs = parseFloat(getComputedStyle(document.documentElement).getPropertyValue(token))
                      || (hidden ? 600 : 400);
       panel.classList.add('coord-folding');
       foldTimer = setTimeout(() => panel.classList.remove('coord-folding'), reduced ? 0 : foldMs / 2);
-      // The panel collapses to a right-hand rail, so the chevron points RIGHT to hide and
-      // LEFT to show. Not swapped: animations.css spins the one glyph 180° with the slide.
+      // Not swapped: animations/collapse.css spins the one chevron 180° with the panel.
       btn.dataset.title = hidden ? 'Show Last Line Points' : 'Hide panel';
       btn.dataset.tip = hotkeys.hkTitle(hidden ? 'Show Last Line Points' : 'Hide panel', 'togglePointsList');
     });
 
-    // Points | Lines tabs — the Points tab is the existing per-line coordinate table;
-    // the Lines tab lists every committed line (select/inspect/remove). Switching to Lines
-    // reveals #lines-list and asks the app to (re)build it; back to Points restores the table.
+    // Switching to Lines reveals #lines-list and asks the app to rebuild it.
     const tabPoints = document.getElementById('coord-tab-points');
     const tabLines = document.getElementById('coord-tab-lines');
     const table = document.getElementById('coordinates-table');
@@ -146,9 +137,7 @@ export class StencilMainContent extends StencilElement {
     tabPoints.addEventListener('click', () => selectTab('points'));
     tabLines.addEventListener('click', () => selectTab('lines'));
 
-    // ── Resizable coordinates panel: drag #panel-resizer to set the panel width (persisted).
-    // Mirrors the desktop canvas↔panel splitter. The panel sits on the RIGHT, so dragging the
-    // handle LEFT widens it. Width lives in the --coord-panel-width CSS var on :root.
+    // Drag sets --coord-panel-width on :root (persisted); mirrors the desktop splitter.
     const resizer = document.getElementById('panel-resizer');
     if (resizer) wirePanelResizer(resizer, panel, { maxFactor: 0.7, restore: true });
   }

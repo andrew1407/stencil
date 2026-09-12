@@ -15,8 +15,8 @@
 //     buttons that cannot share a line even alone wrap onto further right-packed lines.
 // Offscreen; every modal is answered from a 0-timer inside its own exec() loop.
 #include "modalChrome.hpp"
-#include "openInDialog.hpp"
-#include "shimmerOverlay.hpp"
+#include "OpenInDialog.hpp"
+#include "ShimmerOverlay.hpp"
 
 #include <QApplication>
 #include <QComboBox>
@@ -241,7 +241,7 @@ int main(int argc, char** argv) {
     if (QPushButton* tg = btnByText(&dlg, "Telegram bot")) tg->click();
     pumpFor(20);
     check(!dlg.isVisible() && dlg.result() == QDialog::Accepted &&
-              dlg.outcome() == OpenInDialog::Outcome::Telegram,
+              dlg.outcome() == OpenInDialog::Outcome::TELEGRAM,
           "open-in: a link that fits accepts with the Telegram outcome");
     check(!dlg.fallbackShown(), "open-in: …with no fallback row");
   }
@@ -321,7 +321,7 @@ int main(int argc, char** argv) {
   {
     // The hover sweep is clipped to the control's own rounded shape: rendered on black
     // mid-sweep, the pill's corners stay untouched while its middle lights up. A plain
-    // fillRect spilled the band across them (user report).
+    // fillRect spilled the band across them.
     std::printf("the hover shimmer's rounded clip:\n");
     QDialog dlg;
     ModalChrome c = installModalChrome(&dlg, QString(), "Shimmer");

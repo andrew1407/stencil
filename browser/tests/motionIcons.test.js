@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { MOTION_ICONS, motionModeIcon, NONE_LINE_LEN } from '../js/ui/motionIcons.js';
 import { MOTION_MODES } from '../js/ui/motionPrefs.js';
+import { ANIMATIONS_CSS, extensionAnimationsCss } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
@@ -28,7 +29,7 @@ test('every motion mode has a glyph, and only the modes do', () => {
 });
 
 test('the CSS plays each mode on hover, in the direction asked for', () => {
-  const css = read('../css/animations.css');
+  const css = ANIMATIONS_CSS;
   assert.match(css, /\.accent-dd-opt:hover \.mm-line, \.accent-dd-trigger:hover \.mm-line, \.mm-play \.mm-line \{ animation: mmLineDraw/);
   assert.match(css, /@keyframes mmLineDraw \{ from \{ stroke-dashoffset: 11\.4; \} to \{ stroke-dashoffset: 0; \} \}/, 'drawn from the top-right end');
   assert.match(css, /@keyframes mmShaft \{ from \{ stroke-dashoffset: 9\.9; \} to \{ stroke-dashoffset: 0; \} \}/, 'drawn from the bottom-left end');
@@ -47,7 +48,7 @@ test('the CSS plays each mode on hover, in the direction asked for', () => {
   for (const part of ['mm-line', 'mm-shaft', 'mm-head', 'mm-drop', 'mm-flame', 'mm-mote'])
     assert.match(css, new RegExp(`\\.accent-dd-opt:hover \\.${part}, \\.accent-dd-trigger:hover \\.${part}, \\.mm-play \\.${part} \\{ animation:`), part);
   // The extension keeps the same rules.
-  const ext = read('../../extension/src/lib/animations.css');
+  const ext = extensionAnimationsCss();
   for (const k of ['mmLineDraw', 'mmShaft', 'mmHead', 'mmDrop', 'mmFlame', 'mmDust']) assert.ok(ext.includes(`@keyframes ${k}`), `extension ${k}`);
 });
 

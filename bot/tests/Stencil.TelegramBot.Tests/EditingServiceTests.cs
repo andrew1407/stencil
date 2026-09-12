@@ -1,48 +1,18 @@
-using Stencil.TelegramBot.Application.Editing;
 using Stencil.TelegramBot.Domain.Editing;
 using Stencil.TelegramBot.Domain.Layout;
 using Stencil.TelegramBot.Domain.Sessions;
-using Stencil.TelegramBot.Infrastructure.Configuration;
-using Stencil.TelegramBot.Infrastructure.Sessions;
-using Stencil.TelegramBot.Infrastructure.Workspace;
 using Stencil.TelegramBot.Tests.Doubles;
 
 namespace Stencil.TelegramBot.Tests;
 
 /// <summary>
-/// <see cref="EditingService"/> over a <see cref="MockStencilCli"/>, a real
-/// <see cref="InMemorySessionStore"/> and a real <see cref="UserWorkspace"/> rooted at a temp
-/// directory: the edit-state accumulation, rotate wrap, render-request mapping and JSON export.
+/// What an edit accumulates on the session: blank, crop/rotate/filter, the page-format rules
+/// and layout application (replace vs combine).
 /// </summary>
-public sealed class EditingServiceTests : IDisposable
+public sealed class EditingServiceTests : EditingServiceTestBase
 {
-    private const long UserId = 1234;
-
-    private readonly string _root;
-    private readonly MockStencilCli _cli;
-    private readonly InMemorySessionStore _store;
-    private readonly EditingService _service;
-
-    public EditingServiceTests()
-    {
-        _root = Path.Combine(Path.GetTempPath(), "stencil-editing-" + Guid.NewGuid().ToString("N"));
-        BotOptions options = new() { DataDir = _root };
-        UserWorkspace workspace = new(options);
-        _cli = new MockStencilCli();
-        _store = new InMemorySessionStore();
-        _service = new EditingService(_cli, workspace, _store);
-    }
-
-    public void Dispose()
-    {
-        if (Directory.Exists(_root))
-        {
-            Directory.Delete(_root, recursive: true);
-        }
-    }
-
     [Fact]
-    public async Task BlankSetsTheOriginal()
+    public async Task Should_Set_The_Original_On_Blank()
     {
         _cli.CannedSize = new ImageSize(595, 842);
         UserSession session = await _service.BlankAsync(UserId, new BlankSpec());
@@ -55,7 +25,7 @@ public sealed class EditingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CropRotateFilterAccumulateAndPersist()
+    public async Task Should_Accumulate_And_Persist_Crop_Rotate_Filter()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         await _service.SetCropAsync(UserId, "x1=10% x2=90%", album: true);
@@ -70,7 +40,7 @@ public sealed class EditingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task RotateWrapsModuloFour()
+    public async Task Should_Wrap_Rotate_Modulo_Four()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         await _service.RotateAsync(UserId, 3);
@@ -79,7 +49,7 @@ public sealed class EditingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task PageFormatAccumulatesOnTheEditState()
+    public async Task Should_Accumulate_Page_Format_On_The_Edit_State()
     {
         await _service.SetPageFormatAsync(UserId, "B5");
         UserSession named = await _store.GetAsync(UserId);
@@ -100,7 +70,7 @@ public sealed class EditingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task StoredFormatIsTheBlankDefaultPageAndSurvivesTheReset()
+    public async Task Should_Use_The_Stored_Format_As_The_Blank_Default_Page_And_Keep_It_Across_The_Reset()
     {
         await _service.SetPageFormatAsync(UserId, "B5");
         UserSession session = await _service.BlankAsync(UserId, new BlankSpec());
@@ -110,7 +80,7 @@ public sealed class EditingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ExplicitBlankPageWinsOverTheStoredFormat()
+    public async Task Should_Let_An_Explicit_Blank_Page_Win_Over_The_Stored_Format()
     {
         await _service.SetPageFormatAsync(UserId, "B5");
         UserSession session = await _service.BlankAsync(UserId, new BlankSpec(Page: "A5"));
@@ -120,7 +90,7 @@ public sealed class EditingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CustomFormatRidesTheBlankFlagAsPixelDims()
+    public async Task Should_Ride_A_Custom_Format_On_The_Blank_Flag_As_Pixel_Dims()
     {
         await _service.SetPageFormatAsync(UserId, "custom", 10, 15);
         UserSession session = await _service.BlankAsync(UserId, new BlankSpec());
@@ -136,7 +106,7 @@ public sealed class EditingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task CustomFormatWithoutDimsIsNotCarriedOntoTheDefaultBlank()
+    public async Task Should_Not_Carry_A_Custom_Format_Without_Dims_Onto_The_Default_Blank()
     {
         // A "custom" format missing its cm dims can't drive the raster, so the blank falls
         // back to the CLI's default page and must not be mislabeled custom in the layout.
@@ -150,7 +120,7 @@ public sealed class EditingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ExplicitBlankPageWinsOverTheStoredCustomFormat()
+    public async Task Should_Let_An_Explicit_Blank_Page_Win_Over_The_Stored_Custom_Format()
     {
         await _service.SetPageFormatAsync(UserId, "custom", 10, 15);
         UserSession session = await _service.BlankAsync(UserId, new BlankSpec(Page: "A5"));
@@ -162,7 +132,7 @@ public sealed class EditingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ExplicitBlankDimensionsKeepTheStoredFormat()
+    public async Task Should_Keep_The_Stored_Format_For_Explicit_Blank_Dimensions()
     {
         await _service.SetPageFormatAsync(UserId, "B5");
         UserSession session = await _service.BlankAsync(UserId, new BlankSpec(800, 600));
@@ -175,7 +145,7 @@ public sealed class EditingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task FilterNoneClearsTheFilter()
+    public async Task Should_Clear_The_Filter_On_Filter_None()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         await _service.SetFilterAsync(UserId, "bw");
@@ -185,28 +155,28 @@ public sealed class EditingServiceTests : IDisposable
 
     // `combine` mirrors the GUI editors' Combine/Replace prompt and the CLI console's
     // `apply … combine`: keep what is drawn and add the incoming lines after it.
-    private static StencilLayout LayoutWith(int x) => new()
+    private static StencilLayout layoutWith(int x) => new()
     {
         Lines = [new LayoutLine { Points = [new LayoutPoint(x, x), new LayoutPoint(x + 1, x + 1)] }],
     };
 
     [Fact]
-    public async Task ApplyLayoutReplacesTheCurrentLinesByDefault()
+    public async Task Should_Replace_The_Current_Lines_On_Apply_Layout_By_Default()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
-        await _service.ApplyLayoutAsync(UserId, LayoutWith(1));
-        UserSession session = await _service.ApplyLayoutAsync(UserId, LayoutWith(5));
+        await _service.ApplyLayoutAsync(UserId, layoutWith(1));
+        UserSession session = await _service.ApplyLayoutAsync(UserId, layoutWith(5));
 
         Assert.Single(session.Edits.Layout!.Lines);
         Assert.Equal(5, session.Edits.Layout!.Lines[0].Points[0].X);
     }
 
     [Fact]
-    public async Task ApplyLayoutCombineKeepsTheExistingLinesAndAddsTheNewOnTop()
+    public async Task Should_Keep_The_Existing_Lines_And_Add_The_New_On_Top_On_Apply_Layout_Combine()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
-        await _service.ApplyLayoutAsync(UserId, LayoutWith(1));
-        UserSession session = await _service.ApplyLayoutAsync(UserId, LayoutWith(5), combine: true);
+        await _service.ApplyLayoutAsync(UserId, layoutWith(1));
+        UserSession session = await _service.ApplyLayoutAsync(UserId, layoutWith(5), combine: true);
 
         Assert.Equal(2, session.Edits.Layout!.Lines.Count);
         Assert.Equal(1, session.Edits.Layout!.Lines[0].Points[0].X);   // existing first…
@@ -214,170 +184,12 @@ public sealed class EditingServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ApplyLayoutCombineOnAnEmptyDrawingJustAdoptsTheLayout()
+    public async Task Should_Just_Adopt_The_Layout_On_Apply_Layout_Combine_Over_An_Empty_Drawing()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
-        UserSession session = await _service.ApplyLayoutAsync(UserId, LayoutWith(3), combine: true);
+        UserSession session = await _service.ApplyLayoutAsync(UserId, layoutWith(3), combine: true);
 
         Assert.Single(session.Edits.Layout!.Lines);
         Assert.Equal(3, session.Edits.Layout!.Lines[0].Points[0].X);
-    }
-
-    [Fact]
-    public async Task RenderBuildsRequestCarryingEditsAndLayoutPath()
-    {
-        UserSession seeded = await _service.BlankAsync(UserId, new BlankSpec());
-        await _service.SetCropAsync(UserId, "x1=5% x2=95%", album: false);
-        await _service.RotateAsync(UserId, 1);
-        await _service.SetFilterAsync(UserId, "bw");
-        StencilLayout layout = new()
-        {
-            Lines = [new LayoutLine { Points = [new LayoutPoint(0, 0), new LayoutPoint(1, 1)] }],
-        };
-        await _service.ApplyLayoutAsync(UserId, layout);
-
-        RenderResult result = await _service.RenderAsync(UserId);
-
-        EditRequest request = _cli.LastRequest!;
-        Assert.Equal(seeded.OriginalImagePath, request.Input);
-        Assert.Equal("x1=5% x2=95%", request.CropSpec);
-        Assert.Equal(1, request.Rotate);
-        Assert.Equal("bw", request.Filter);
-        Assert.NotNull(request.LayoutPath);
-        Assert.True(File.Exists(request.LayoutPath));
-        Assert.True(File.Exists(result.Path));
-    }
-
-    [Fact]
-    public async Task RenderWithNoImageThrows()
-    {
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.RenderAsync(UserId));
-    }
-
-    [Fact]
-    public async Task DrawingAppendsLinesStyledWithThePen()
-    {
-        await _service.BlankAsync(UserId, new BlankSpec());
-        await _service.ConfigurePenAsync(UserId, color: "#ff0000", thickness: 5, pointSize: 0, style: "dashed", fill: "#00ff00");
-
-        await _service.AddLineAsync(UserId, [new LayoutPoint(0, 0), new LayoutPoint(10, 10)], closed: false);
-        UserSession afterOpen = await _store.GetAsync(UserId);
-        LayoutLine open = afterOpen.Edits.Layout!.Lines.Single();
-        Assert.Equal("#ff0000", open.Color);
-        Assert.Equal(5, open.Thickness);
-        Assert.Equal("dashed", open.Style);
-        Assert.False(open.Locked);
-        Assert.Equal(LayoutLine.DefaultFillColor, open.FillColor); // open lines are never filled
-
-        await _service.AddLineAsync(UserId, [new LayoutPoint(0, 0), new LayoutPoint(10, 0), new LayoutPoint(10, 10)], closed: true);
-        UserSession afterClosed = await _store.GetAsync(UserId);
-        Assert.Equal(2, afterClosed.Edits.LineCount);
-        LayoutLine closed = afterClosed.Edits.Layout!.Lines[1];
-        Assert.True(closed.Locked);
-        Assert.Equal("#00ff00", closed.FillColor);
-        Assert.Equal(new LayoutPoint(0, 0), closed.Points[^1]); // first point repeated to close
-    }
-
-    [Fact]
-    public async Task UndoStepsBackThroughEdits()
-    {
-        await _service.BlankAsync(UserId, new BlankSpec());
-        await _service.SetCropAsync(UserId, "x1=10%", album: false);
-        await _service.SetFilterAsync(UserId, "bw");
-
-        UserSession undo1 = await _service.UndoAsync(UserId);
-        Assert.Null(undo1.Edits.Filter);
-        Assert.Equal("x1=10%", undo1.Edits.CropSpec);
-
-        UserSession undo2 = await _service.UndoAsync(UserId);
-        Assert.Null(undo2.Edits.CropSpec);
-
-        UserSession undo3 = await _service.UndoAsync(UserId);
-        Assert.True(undo3.Edits.IsEmpty);           // nothing left to undo — no-op
-    }
-
-    [Fact]
-    public async Task RedoReappliesUndoneEditsUntilANewEditClearsIt()
-    {
-        await _service.BlankAsync(UserId, new BlankSpec());
-        await _service.SetFilterAsync(UserId, "bw");
-        await _service.UndoAsync(UserId);
-
-        UserSession redone = await _service.RedoAsync(UserId);
-        Assert.Equal("bw", redone.Edits.Filter);
-
-        await _service.UndoAsync(UserId);
-        await _service.SetFilterAsync(UserId, "sepia");          // a NEW edit clears the redo stack
-        UserSession after = await _service.RedoAsync(UserId);    // nothing to redo now
-        Assert.Equal("sepia", after.Edits.Filter);
-    }
-
-    [Fact]
-    public async Task RemoveLastLineThenClearLines()
-    {
-        await _service.BlankAsync(UserId, new BlankSpec());
-        await _service.AddLineAsync(UserId, [new LayoutPoint(0, 0), new LayoutPoint(1, 1)], closed: false);
-        await _service.AddLineAsync(UserId, [new LayoutPoint(2, 2), new LayoutPoint(3, 3)], closed: false);
-
-        UserSession afterRemove = await _service.RemoveLastLineAsync(UserId);
-        Assert.Equal(1, afterRemove.Edits.LineCount);
-
-        UserSession afterClear = await _service.ClearLinesAsync(UserId);
-        Assert.Equal(0, afterClear.Edits.LineCount);
-        Assert.Null(afterClear.Edits.Layout);
-    }
-
-    [Fact]
-    public async Task VideoFrameExtractionRemembersTheSource()
-    {
-        string video = Path.Combine(_root, "clip.mp4");
-        Directory.CreateDirectory(_root);
-        await File.WriteAllBytesAsync(video, new byte[] { 0x00, 0x01 });
-
-        UserSession loaded = await _service.SetImageFromVideoAsync(UserId, video, frame: 2, "clip");
-        Assert.True(loaded.HasImage);
-        Assert.NotNull(loaded.VideoSourcePath);
-        Assert.Equal(2, _cli.LastRequest!.Frame);
-        Assert.Equal(loaded.VideoSourcePath, _cli.LastRequest!.Input);
-
-        await _service.ExtractFrameAsync(UserId, frame: 5);
-        Assert.Equal(5, _cli.LastRequest!.Frame);
-        UserSession after = await _store.GetAsync(UserId);
-        Assert.Equal(loaded.VideoSourcePath, after.VideoSourcePath); // same video reused
-    }
-
-    [Fact]
-    public async Task ExtractFrameWithoutAVideoThrows()
-    {
-        await _service.BlankAsync(UserId, new BlankSpec()); // an image, not a video
-        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.ExtractFrameAsync(UserId, 0));
-    }
-
-    [Theory]
-    [InlineData("http://127.0.0.1/secret.png")] // SSRF to loopback
-    [InlineData("ftp://example.com/a.png")]      // non-http scheme
-    [InlineData("/etc/passwd.png")]              // bare local path (LFI)
-    public async Task SetImageFromUrlRejectsUnsafeSourcesWithoutInvokingTheCli(string url)
-    {
-        await Assert.ThrowsAsync<InvalidOperationException>(
-            () => _service.SetImageFromUrlAsync(UserId, url, "img"));
-        Assert.Equal(0, _cli.EditCalls); // the CLI never fetched it
-    }
-
-    [Fact]
-    public async Task ExportLayoutJsonEmitsExpectedFields()
-    {
-        UserSession session = new()
-        {
-            UserId = UserId,
-            OriginalWidth = 320,
-            OriginalHeight = 240,
-            Edits = new EditState { Filter = "sepia" },
-        };
-        string json = _service.ExportLayoutJson(session);
-        Assert.Contains("\"imageWidth\": 320", json);
-        Assert.Contains("\"imageHeight\": 240", json);
-        Assert.Contains("\"imageFilter\": \"sepia\"", json); // canonical key (Phase 6)
-        Assert.Contains("\"lines\"", json);
     }
 }

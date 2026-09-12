@@ -19,7 +19,7 @@ public sealed class ServerUrlGuardTests
     [InlineData("224.0.0.1")]           // multicast
     [InlineData("fe80::1")]             // IPv6 link-local
     [InlineData("::ffff:169.254.169.254")] // IPv4-mapped link-local
-    public void IsCloudMetadataOrLinkLocalBlocksMetadataAndLinkLocal(string ip)
+    public void Should_Block_Metadata_And_Link_Local_In_Is_Cloud_Metadata_Or_Link_Local(string ip)
     {
         Assert.True(RemoteImageUrl.IsCloudMetadataOrLinkLocal(IPAddress.Parse(ip)));
     }
@@ -36,7 +36,7 @@ public sealed class ServerUrlGuardTests
     [InlineData("fc00::1")]             // IPv6 unique-local
     [InlineData("2606:4700:4700::1111")] // public IPv6
     [InlineData("::ffff:127.0.0.1")]    // IPv4-mapped loopback
-    public void IsCloudMetadataOrLinkLocalAllowsLoopbackPrivateAndPublic(string ip)
+    public void Should_Allow_Loopback_Private_And_Public_In_Is_Cloud_Metadata_Or_Link_Local(string ip)
     {
         Assert.False(RemoteImageUrl.IsCloudMetadataOrLinkLocal(IPAddress.Parse(ip)));
     }
@@ -47,7 +47,7 @@ public sealed class ServerUrlGuardTests
     [InlineData("169.254.169.254")]                     // bare host, no scheme
     [InlineData("https://169.254.169.254/latest/meta-data/")]
     [InlineData("http://[fe80::1]:8090")]
-    public async Task ValidateServerUrlRejectsLinkLocalHosts(string raw)
+    public async Task Should_Reject_Link_Local_Hosts_On_Validate_Server_Url(string raw)
     {
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => RemoteImageUrl.ValidateServerUrlAsync(raw));
@@ -60,7 +60,7 @@ public sealed class ServerUrlGuardTests
     [InlineData("http://192.168.1.50:8090")]    // LAN server — allowed
     [InlineData("http://10.1.2.3:8090")]        // private server — allowed
     [InlineData("https://172.16.0.9")]          // private server — allowed
-    public async Task ValidateServerUrlAllowsLoopbackAndPrivateHosts(string raw)
+    public async Task Should_Allow_Loopback_And_Private_Hosts_On_Validate_Server_Url(string raw)
     {
         await RemoteImageUrl.ValidateServerUrlAsync(raw); // no throw
     }
@@ -68,14 +68,14 @@ public sealed class ServerUrlGuardTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    public async Task ValidateServerUrlRejectsEmptyInput(string raw)
+    public async Task Should_Reject_Empty_Input_On_Validate_Server_Url(string raw)
     {
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => RemoteImageUrl.ValidateServerUrlAsync(raw));
     }
 
     [Fact]
-    public async Task ValidateServerUrlAllowsUnresolvableHostWithoutBlocking()
+    public async Task Should_Allow_An_Unresolvable_Host_Without_Blocking_On_Validate_Server_Url()
     {
         // Unlike the /url guard, a host that won't resolve is not treated as an SSRF target: it
         // can't be reached, so the connection is allowed to proceed and fail on its own. A

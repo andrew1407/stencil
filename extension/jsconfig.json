@@ -1,0 +1,17 @@
+{
+  "_doc": "Editor/type tooling only — nothing builds, bundles or emits from this file. It tells an editor how to read the extension's ES modules and the .d.ts shape files beside them (src/**/*.d.ts, guarded by tests/dts.test.js).",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "types": []
+  },
+  "include": ["src/**/*.js", "src/**/*.d.ts", "tests/**/*.js"],
+  "exclude": ["node_modules"]
+}

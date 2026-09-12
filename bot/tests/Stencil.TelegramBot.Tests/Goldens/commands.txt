@@ -1,0 +1,46 @@
+/help — Show the commands and menu
+/prompt — Ask the AI assistant to edit the image
+/chat — Chat mode on/off (clear forgets; save on|off stores it with the project)
+/chatapi — Pick which chat API (model/provider) the assistant uses
+/blank — Start a blank canvas: [format] [w h] [color]
+/format — Page format: <name> | custom <w> <h> (bare lists)
+/url — Load an image from a link
+/sourcesite — Scrape a page's media: <link> [count] [filter=…]
+/sourceupload — Scrape a page and load one image to edit
+/frame — Grab a video frame: [n]
+/crop — Crop, e.g. x1=10% x2=90% y1=10% y2=90%
+/rotate — Rotate 90° × n, e.g. 1, 2 or -1
+/filter — bw | sepia | invert | contour | none | color
+/draw — Draw line|rect|poly x1,y1 x2,y2 …
+/color — Set the pen colour
+/thickness — Set the pen stroke width
+/points — Set vertex point size (0 hides)
+/style — Line style: solid | dashed | dotted
+/fill — Closed-shape fill (or none)
+/pen — Show the current pen
+/undo — Step back one edit
+/redo — Step forward one edit
+/undoline — Remove the last drawn line
+/clearlines — Remove all drawn lines
+/image — Re-render and resend the result
+/layout — Apply a layout: <json | link to .json>
+/json — Download the layout JSON
+/project — Download the whole project as a .stencil file
+/reset — Clear pending edits
+/drop — Discard the working image
+/status — Show image, edits and connections
+/connect — Connect a server: <url> [token]
+/disconnect — Forget a connection
+/connections — List connected servers
+/projects — List server projects
+/fetch — Open a project by name or id
+/create — Save the result as a new project
+/save — Save back to the active project
+/sync — Live sync on/off (auto-upload + pull)
+/link — Link that opens the project in the desktop app
+/projectcolor — Set the project accent colour
+/projectname — Rename the working image or project
+/projectdescription — Set the description (empty clears; saved on /create)
+/blankcolor — Recolour a blank project's background
+/expire — Set the project expiry: <n unit> | never
+/delete — Remove the active project from the server

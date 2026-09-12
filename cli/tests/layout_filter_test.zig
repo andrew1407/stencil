@@ -24,7 +24,7 @@ test "layout parses + rasterises; bw filter greyscales" {
     try testing.expect(buf[idx + 2] < 180); // blue reduced from white
 
     var px = [_]u8{ 100, 150, 200, 255 };
-    core.applyFilter(a, "bw", &px, 1, .{ .r = 0, .g = 0, .b = 0, .a = 255 });
+    core.applyFilter("bw", &px, 1, .{ .r = 0, .g = 0, .b = 0, .a = 255 });
     try testing.expectEqual(px[0], px[1]);
     try testing.expectEqual(px[1], px[2]);
     try testing.expectEqual(@as(u8, 255), px[3]);

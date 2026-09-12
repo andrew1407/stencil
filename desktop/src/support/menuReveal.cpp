@@ -1,5 +1,5 @@
 #include "menuReveal.hpp"
-#include "disintegrateOverlay.hpp"
+#include "DisintegrateOverlay.hpp"
 #include "modalReveal.hpp"  // motionReduced()
 
 #include <algorithm>
@@ -26,67 +26,49 @@
 namespace stencil::support {
 
   namespace {
-    // Snappier than the dialog flight — a menu should feel instant, not staged.
-    constexpr int kMenuMs = 140;
+    constexpr int MENU_MS = 140;
 
-    // The popup forms out of motes streaming from the point it was opened at — the same
-    // flight every other surface plays (browser js/ui/motion.js surfaceIn). Drawn inside
-    // the window the menu belongs to, since the overlay is a child widget; a menu with no
-    // such window (or one that declines) falls back to the grow-from-the-cursor pop.
-    // escapeHost: a submenu can open past the host's own border; safe because
-    // placeForSurface's escape layer is Qt::ToolTip, not a grab-stealing Qt::Window.
+    // Browser twin: js/ui/motion.js surfaceIn. escapeHost is safe because placeForSurface's
+    // escape layer is Qt::ToolTip, not a grab-stealing Qt::Window.
     bool dustPopupIn(QWidget* popup, QWidget* host, const QPoint& originGlobal, int ms) {
       if (!gui::flyTipDust(popup, host, originGlobal, /*gather=*/true, ms,
                            /*escapeHost=*/true))
         return false;
-      // The popup waits behind its own dust and fades up as the last motes land.
       gui::fadeUpBehindDust(popup, ms);
       return true;
     }
 
-    // …and the way back: the same box, pouring INTO `originGlobal`.
     bool dustPopupOut(QWidget* popup, QWidget* host, const QPoint& originGlobal, int ms) {
       return gui::flyTipDust(popup, host, originGlobal, /*gather=*/false, ms,
                              /*escapeHost=*/true)
              != nullptr;
     }
 
-    // The real top-level app window a menu chain hangs off: a submenu's parentWidget() is
-    // another QMenu, itself a popup (top-level), so plain ->window() stops there instead
-    // of reaching the app window. Walk past every QMenu ancestor first.
+    // A submenu's parentWidget() is another QMenu (a top-level popup), so plain ->window()
+    // stops there; walk past every QMenu ancestor first.
     QWidget* menuHostWindow(QWidget* w) {
       while (w && qobject_cast<QMenu*>(w)) w = w->parentWidget();
       return w ? w->window() : nullptr;
     }
 
     bool dustMenuIn(QMenu* m, const QPoint& originGlobal) {
-      return dustPopupIn(m, menuHostWindow(m->parentWidget()), originGlobal, kMenuPopupDustMs);
+      return dustPopupIn(m, menuHostWindow(m->parentWidget()), originGlobal, MENU_POPUP_DUST_MS);
     }
 
-    // Point-based sibling of the public dismissPopup(), which is anchor-widget-based
-    // (MenuFlight's controls). No isVisible() gate: QMenu emits aboutToHide from its
-    // hideEvent, when the popup is ALREADY hidden — the gate silently skipped every
-    // close Qt made itself (← on a submenu, hovering away), leaving those with no
-    // flight at all (user report). grab() still renders a just-hidden popup.
+    // No isVisible() gate: QMenu emits aboutToHide from its hideEvent, when the popup is
+    // ALREADY hidden; grab() still renders it.
     bool dustMenuOut(QMenu* m, const QPoint& originGlobal) {
-      return dustPopupOut(m, menuHostWindow(m->parentWidget()), originGlobal, kMenuPopupDustMs);
+      return dustPopupOut(m, menuHostWindow(m->parentWidget()), originGlobal, MENU_POPUP_DUST_MS);
     }
 
-    // Plays the growth on every Show, settles on finish or an early Hide, and re-arms
-    // on Hide so the NEXT Show plays again. `origin` is a resolver, not a fixed point —
-    // a submenu's true origin (its parent row) is only known once Show fires and the
-    // parent is laid out. A submenu built once and hover-opened/closed repeatedly within
-    // one right-click session is the SAME QMenu instance shown many times — re-arming
-    // is what makes the growth+dust replay every time instead of just the very first
-    // (user report: no animation "after the first opening").
+    // Re-arms on Hide: a submenu is the SAME QMenu instance shown many times per session.
+    // `origin` is a resolver because a submenu's origin is only known once Show fires.
     class MenuReveal : public QObject {
      public:
       MenuReveal(QMenu* menu, std::function<QPoint()> origin)
           : QObject(menu), menu_(menu), origin_(std::move(origin)) {
         menu->installEventFilter(this);
-        // aboutToHide, NOT QEvent::Hide: the popup must still be on screen to be
-        // photographed (MenuFlight's own close does the same). Covers both the
-        // top-level menu and every submenu, since both go through MenuReveal.
+        // aboutToHide, NOT QEvent::Hide: the popup must still be on screen to photograph.
         QObject::connect(menu, &QMenu::aboutToHide, this, [this] {
           if (menu_) dustMenuOut(menu_, origin_());
         });
@@ -96,24 +78,18 @@ namespace stencil::support {
       bool eventFilter(QObject* watched, QEvent* event) override {
         if (watched == menu_ && event->type() == QEvent::Show && !played_) {
           played_ = true;
-          // Veiled NOW, on the Show itself: play() below runs a tick later, and a
-          // keyboard-opened submenu (Right on its row) gets a frame on screen in
-          // between — a full-size flash, then the dust (user report). play() and the
-          // Hide path's settle() both bring the opacity back.
+          // Veiled on the Show itself: play() runs a tick later and a keyboard-opened
+          // submenu would get a full-size frame in between.
           menu_->setWindowOpacity(0.0);
-          // Deferred one tick: a submenu's Show can fire from deep inside Qt's own
-          // QMenu::popup()/internalDelayedPopup() (the hover-delay submenu open).
-          // Grabbing a pixmap, spawning the dust overlay's own top-level window and
-          // animating geometry reentrantly on THAT call stack corrupts QMenu's popup/
-          // sloppy-hover bookkeeping (crashed inside QMenuSloppyState::setSubMenuPopup).
-          // Posting it instead runs once that call has fully unwound to the event loop.
+          // Deferred one tick: Show can fire inside QMenu::popup()/internalDelayedPopup(),
+          // and grabbing/animating reentrantly there corrupts QMenu's sloppy-hover
+          // bookkeeping (crashed inside QMenuSloppyState::setSubMenuPopup).
           QPointer<QMenu> guard(menu_);
           QTimer::singleShot(0, menu_, [this, guard] {
             if (guard && guard->isVisible()) play();
           });
         } else if (watched == menu_ && event->type() == QEvent::Hide) {
           settle();
-          // Re-arm: the next Show of this SAME menu plays (and lands) again.
           played_ = false;
           settled_ = false;
         }
@@ -123,14 +99,11 @@ namespace stencil::support {
      private:
       void play() {
         QMenu* m = menu_;
-        // exec()/popup() has already placed the popup by Show time.
         target_ = m->geometry();
         if (!target_.isValid()) { m->setWindowOpacity(1.0); return; }
         const QPoint origin = origin_();
-        // Sand first; the grow-from-the-cursor pop below is what plays when it declines.
         if (dustMenuIn(m, origin)) { settled_ = true; return; }
-        // Start box: ~1/3 size, keeping the click point at the same fractional
-        // spot it has in the final rect, so the growth radiates from the cursor.
+        // ~1/3 size, keeping the click point at the same fractional spot as in the final rect.
         const QPoint a(qBound(target_.left(), origin.x(), target_.right()),
                        qBound(target_.top(), origin.y(), target_.bottom()));
         const int w = qMax(target_.width() / 3, 24);
@@ -138,20 +111,19 @@ namespace stencil::support {
         const double fx = double(a.x() - target_.left()) / qMax(target_.width(), 1);
         const double fy = double(a.y() - target_.top()) / qMax(target_.height(), 1);
         const QRect start(QPoint(a.x() - int(fx * w), a.y() - int(fy * h)), QSize(w, h));
-        // Lift the min-size for the flight (the chat menu is fixed-width, and
-        // setGeometry clamps to constraints); settle() puts it back.
+        // The chat menu is fixed-width and setGeometry clamps to constraints; settle() restores.
         savedMin_ = m->minimumSize();
         m->setMinimumSize(1, 1);
         m->setWindowOpacity(0.0);
         m->setGeometry(start);
 
         auto* geo = new QPropertyAnimation(m, "geometry", this);
-        geo->setDuration(kMenuMs);
+        geo->setDuration(MENU_MS);
         geo->setStartValue(start);
         geo->setEndValue(target_);
         geo->setEasingCurve(QEasingCurve::OutCubic);
         auto* fade = new QPropertyAnimation(m, "windowOpacity", this);
-        fade->setDuration(kMenuMs);
+        fade->setDuration(MENU_MS);
         fade->setStartValue(0.0);
         fade->setEndValue(1.0);
         fade->setEasingCurve(QEasingCurve::OutCubic);
@@ -162,7 +134,7 @@ namespace stencil::support {
         group_->start(QAbstractAnimation::DeleteWhenStopped);
       }
 
-      // Land at the real box and undo everything play() overrode. Idempotent.
+      // Idempotent.
       void settle() {
         if (group_) { group_->stop(); group_ = nullptr; }  // stop → DeleteWhenStopped
         if (!menu_ || !played_ || settled_) return;
@@ -181,15 +153,9 @@ namespace stencil::support {
       bool settled_ = false;
     };
 
-    // Backstop for Qt's own submenu-closing heuristic: closes `sub` once the pointer
-    // has settled on a different row of `parent`, off hovered() rather than native
-    // mouse-move delivery (which a WA_TranslucentBackground popup can lose track of).
-    // Always on — this is correctness, not decoration.
-    // Only hovers the POINTER made count: opening `sub` from the keyboard (Right on
-    // its row) makes Qt re-emit hovered() on the parent for a row nobody is on, and
-    // arming on that closed the flyout before its reveal had even landed (user
-    // report: "not opened, or opened and instantly closed"). The parent's own mouse
-    // moves are tracked here (browser parity: contextMenu.js pointerIdle/pointerOver).
+    // Backstop for Qt's own submenu-closing heuristic, off hovered() rather than native
+    // mouse moves (a WA_TranslucentBackground popup loses track of those). Only POINTER
+    // hovers count: a keyboard-opened flyout re-emits hovered() for a row nobody is on.
     class SubmenuCloseGuard : public QObject {
      public:
       SubmenuCloseGuard(QMenu* sub, QMenu* parent, QAction* parentAction)
@@ -199,29 +165,21 @@ namespace stencil::support {
         timer_.setSingleShot(true);
         connect(&timer_, &QTimer::timeout, this, [this] {
           if (!sub_ || !sub_->isVisible() || !parent_) return;
-          // The pointer may have already reached `sub` via a diagonal move that
-          // grazed a sibling row — check geometry, not Enter/Leave delivery.
+          // Check geometry, not Enter/Leave: a diagonal move may already have reached `sub`.
           if (sub_->geometry().contains(QCursor::pos())) return;
           if (sub_->geometry().contains(parent_->mapToGlobal(pointer_))) return;
-          // The flight rides the hide itself: MenuReveal's aboutToHide handler flies
-          // every close the same way, this one included (dustMenuOut has no
-          // visibility gate), so dusting here too would fly it twice.
+          // MenuReveal's aboutToHide handler already flies this close; dusting here flies it twice.
           sub_->hide();
         });
         connect(parent, &QMenu::hovered, this, [this](QAction* a) {
           if (a == parentAction_) { timer_.stop(); lastHovered_ = a; return; }
-          // hovered(QAction*) can re-fire for the action already being hovered (Qt's
-          // own sloppy-hover bookkeeping); only a genuinely new row restarts the clock.
+          // hovered(QAction*) re-fires for the row already hovered; only a new row restarts the clock.
           if (a == lastHovered_) return;
           lastHovered_ = a;
-          // Keyboard navigation and Qt's synthetic re-hovers move no pointer: the
-          // clock only starts for a row the pointer has actually moved onto since
-          // `sub` came up.
           if (!movedSinceShow_ || !pointerOnRow(a)) return;
           timer_.start(graceMs());
         });
-        // A click, Escape, or the parent closing outright must not leave this timer
-        // armed to fire against a `sub` that (or whose parent) is already gone.
+        // Never leave the timer armed against a `sub` (or parent) that is already gone.
         connect(parent, &QMenu::aboutToHide, this, [this] { timer_.stop(); });
       }
 
@@ -245,13 +203,10 @@ namespace stencil::support {
         return row.isValid() && row.contains(pointer_);
       }
 
-      // Grace before this backstop assumes a stray hover means the pointer left for good.
-      // A submenu flipped LEFT (no room on the right) sits across the parent's whole
-      // width instead of one short hop — a real mouse takes longer to cross that, so it
-      // needs a longer grace than the right-opening case.
+      // A submenu flipped LEFT sits across the parent's whole width, so it needs a longer grace.
       int graceMs() const {
         if (!sub_ || !parent_ || !parentAction_) return 220;
-        // actionGeometry() is parent-local; sub_->geometry() is global (its own popup).
+        // actionGeometry() is parent-local; sub_->geometry() is global.
         const QRect row = parent_->actionGeometry(parentAction_);
         if (!row.isValid()) return 220;
         const int rowGlobalLeft = parent_->mapToGlobal(row.topLeft()).x();
@@ -267,30 +222,23 @@ namespace stencil::support {
       bool movedSinceShow_ = false;  // …and whether it moved at all since `sub` came up
     };
 
-    // A menu owned by a button is built ONCE and popped many times, so its flight cannot
-    // be the one-shot MenuReveal above. This one plays on every Show and pours the motes
-    // back into the same control on the way out. Both halves re-check reduced motion and
-    // the anchor's own visibility, so a dock that closed under it simply stops flying.
+    // A button's menu is built ONCE and popped many times, so this plays on every Show.
     class MenuFlight : public QObject {
      public:
       MenuFlight(QMenu* menu, QWidget* anchor) : QObject(menu), menu_(menu), anchor_(anchor) {
-        // Named so a test can see the wiring: the flight itself is skipped offscreen
-        // (revealPopup), which is exactly where the gui suite runs.
+        // Named so a test can see the wiring; the flight itself is skipped offscreen.
         setObjectName(QStringLiteral("stencilMenuFlight"));
         menu->installEventFilter(this);
-        // aboutToHide, NOT QEvent::Hide: the popup has to still be on screen to be
-        // photographed. The cloud is a copy, so the menu itself still goes at once.
+        // aboutToHide, NOT QEvent::Hide: the popup must still be on screen to photograph.
         QObject::connect(menu, &QMenu::aboutToHide, this, [this] {
-          if (menu_ && anchor_) dismissPopup(*menu_, anchor_, kMenuPopupDustMs);
+          if (menu_ && anchor_) dismissPopup(*menu_, anchor_, MENU_POPUP_DUST_MS);
         });
       }
 
      protected:
       bool eventFilter(QObject* watched, QEvent* event) override {
-        // popup() has placed and sized the menu by Show time — before that there is
-        // nothing to grab (the same point MenuReveal::play relies on).
         if (watched == menu_ && event->type() == QEvent::Show && menu_ && anchor_)
-          revealPopup(*menu_, anchor_, kMenuPopupDustMs);
+          revealPopup(*menu_, anchor_, MENU_POPUP_DUST_MS);
         return QObject::eventFilter(watched, event);
       }
 
@@ -301,10 +249,8 @@ namespace stencil::support {
   }  // namespace
 
   namespace {
-    // Where a popup's motes stream out of / pour back into. For a COMBO that is the
-    // caret at its right edge — the arrow the user actually pressed (browser
-    // dropdownMenu.js dustPoint parity) — clamped to the centre for a control too
-    // narrow to have a distinct arrow zone; everything else keeps its centre.
+    // A COMBO's motes leave from the caret at its right edge (browser dropdownMenu.js
+    // dustPoint parity); everything else keeps its centre.
     QPoint popupOriginGlobal(QWidget* anchor) {
       const QRect r = anchor->rect();
       if (qobject_cast<QComboBox*>(anchor))
@@ -314,40 +260,32 @@ namespace stencil::support {
     }
   }  // namespace
 
-  // The list a QComboBox drops: not a QMenu, and it places itself, so there is nothing
-  // to grow — only the sand, streaming out of the control that owns it.
   bool revealPopup(QWidget& popup, QWidget* anchor, int ms) {
-    if (!dustMotionOk()) return false;
+    if (!isDustMotionOk()) return false;
     if (!anchor || !anchor->isVisible()) return false;
     QWidget* host = anchor->window();
     return dustPopupIn(&popup, host, popupOriginGlobal(anchor), ms);
   }
 
   bool dismissPopup(QWidget& popup, QWidget* anchor, int ms) {
-    if (!dustMotionOk()) return false;
+    if (!isDustMotionOk()) return false;
     if (!anchor || !anchor->isVisible()) return false;
-    // No popup.isVisible() gate: a Qt::Popup Qt closed itself (an outside click) is
-    // already hidden by the time its own Hide event tells a caller about it, and
-    // grab() still renders it correctly — see the header comment.
+    // No isVisible() gate: a Qt::Popup Qt closed itself is already hidden by its Hide event.
     return dustPopupOut(&popup, anchor->window(), popupOriginGlobal(anchor), ms);
   }
 
   void revealMenu(QMenu& menu, const QPoint& origin) {
-    // Offscreen has no compositor for windowOpacity, and the gui tests pick
-    // items the instant the popup lands — both want the plain pop.
-    if (!dustMotionOk()) return;
+    // Offscreen has no compositor for windowOpacity.
+    if (!isDustMotionOk()) return;
     new MenuReveal(&menu, [origin] { return origin; });  // owned by the menu
   }
 
   void revealSubmenu(QMenu& sub, QMenu& parent, QAction& parentAction) {
-    // Correctness, not decoration — wired regardless of reduced motion/offscreen.
     new SubmenuCloseGuard(&sub, &parent, &parentAction);   // owned by sub
-    if (!dustMotionOk()) return;
+    if (!isDustMotionOk()) return;
     QPointer<QMenu> parentGuard(&parent);
     QPointer<QAction> actionGuard(&parentAction);
-    // Out of — and back into — the row's ▸ caret at its RIGHT edge, where the flyout
-    // hangs off (browser parity: contextMenu.js subPoint is `r.right, r.top + h/2`),
-    // not the row's centre.
+    // The row's ▸ caret at its RIGHT edge (browser contextMenu.js subPoint parity).
     new MenuReveal(&sub, [parentGuard, actionGuard] {
       if (!parentGuard || !actionGuard) return QCursor::pos();
       const QRect row = parentGuard->actionGeometry(actionGuard);
@@ -357,9 +295,8 @@ namespace stencil::support {
   }
 
   void revealMenuBarMenu(QMenu& menu, QMenuBar& bar) {
-    if (!dustMotionOk()) return;
-    // Natively drawn (macOS global bar, GNOME/Unity appmenu): there is no Qt-rendered
-    // popup on screen to grab or fly, only the OS's own menu.
+    if (!isDustMotionOk()) return;
+    // Natively drawn (macOS global bar, GNOME appmenu): nothing Qt-rendered to grab.
     if (bar.isNativeMenuBar()) return;
     QPointer<QMenuBar> barGuard(&bar);
     QPointer<QMenu> menuGuard(&menu);
@@ -372,8 +309,6 @@ namespace stencil::support {
 
   void revealMenuFrom(QMenu& menu, QWidget* anchor) {
     if (!anchor) return;
-    // No reduced-motion / offscreen gate here: the filter is wired once but decides per
-    // show, and revealPopup/dismissPopup already refuse in both cases.
     new MenuFlight(&menu, anchor);  // owned by the menu
   }
 

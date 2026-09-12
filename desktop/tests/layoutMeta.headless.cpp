@@ -73,6 +73,39 @@ int main(int argc, char** argv) {
     check(r.pageSize == "B5", "B5 pageSize round-trips");
   }
 
+  // cropRect wire spellings (moved here from tests/configCanon.headless.cpp: this is a
+  // buildLayoutJson/parseLayoutJson round-trip, not a config-canon check).
+  {
+    const QJsonObject built = fileStore::buildLayoutJson(
+        4, 3, noLines, "bw", "#7c3aed", stencil::core::CropRect{1, 1, 2, 2}, 1, {});
+    // Phase 6: cropRect is written {x,y,w,h}; the reader takes both, canonical wins.
+    QStringList cropKeys = built.value("cropRect").toObject().keys();
+    cropKeys.sort();
+    check(cropKeys == QStringList({"h", "w", "x", "y"}),
+          "cropRect emits the canonical {x,y,w,h} keys (Phase 6)");
+
+    int lw = 0, lh = 0;
+    stencil::core::CropRect canonRect{};
+    fileStore::parseLayoutJson(built, lw, lh, &canonRect, nullptr);
+    check(canonRect.width == 2 && canonRect.height == 2, "canonical cropRect reads back");
+
+    QJsonObject legacyDoc = built;
+    legacyDoc["cropRect"] =
+        QJsonObject{{"x", 1.0}, {"y", 1.0}, {"width", 5.0}, {"height", 6.0}};
+    stencil::core::CropRect legacyRect{};
+    fileStore::parseLayoutJson(legacyDoc, lw, lh, &legacyRect, nullptr);
+    check(legacyRect.width == 5 && legacyRect.height == 6,
+          "legacy {width,height} cropRect still reads (read-both)");
+
+    QJsonObject bothDoc = built;
+    bothDoc["cropRect"] = QJsonObject{
+        {"x", 1.0}, {"y", 1.0}, {"w", 7.0}, {"h", 8.0}, {"width", 5.0}, {"height", 6.0}};
+    stencil::core::CropRect bothRect{};
+    fileStore::parseLayoutJson(bothDoc, lw, lh, &bothRect, nullptr);
+    check(bothRect.width == 7 && bothRect.height == 8,
+          "canonical {w,h} wins when both spellings are present");
+  }
+
   std::printf("%s (%d failure(s))\n", failures ? "FAILED" : "OK", failures);
   return failures ? 1 : 0;
 }

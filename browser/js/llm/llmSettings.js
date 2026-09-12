@@ -1,16 +1,16 @@
 // ── LLM assistant settings (llm-contract.md §5) ────────────────────────
-// Persisted provider configuration for the chat panel, in the contract's shape:
-// { provider, baseUrl, model, apiKey, serverUrl }. All localStorage access is
-// guarded so importing this leaf in Node (the test runner) stays inert.
+// Persisted provider configuration in the contract's shape: { provider, baseUrl, model,
+// apiKey, serverUrl }. Every localStorage access is guarded so the leaf is inert in Node.
 import PROVIDERS_ASSET from '../config/llm/providers.json' with { type: 'json' };
 import { loadSavedServers } from '../net/connectionStore.js';
+import { validateHttpUrl } from '../core/validation.js';
 
 const LLM_SETTINGS_KEY = 'drawingApp_llmSettings';
 
 const ls = () => (typeof localStorage !== 'undefined' ? localStorage : null);
 
 // 'none' is a local-only value: assistant switched off, nothing configured or sent.
-export const PROVIDERS = ['none', ...Object.keys(PROVIDERS_ASSET.providers)];
+export const PROVIDERS = Object.freeze(['none', ...Object.keys(PROVIDERS_ASSET.providers)]);
 
 // Provider → pre-filled default base URL (providers.json, contract §5 table).
 // stencil-server's is null there — it uses an already-configured collaboration
@@ -19,10 +19,14 @@ export const PROVIDER_BASE_URLS = Object.fromEntries(
   Object.entries(PROVIDERS_ASSET.providers).map(([id, p]) => [id, p.defaultBaseUrl || '']),
 );
 
-// Switch `settings` to `provider`, pre-filling the new provider's default base URL
-// unless the user has overridden it (a URL that isn't just the previous provider's
-// default). THE provider-switch rule — the settings modal and the stencil.llm()
-// facade both apply this one helper so they can never drift.
+// Endpoint keys are http(s) ONLY. The gate itself is core/validation.js, so this module,
+// the stencil.llm facade and every other caller share one rule.
+export const URL_KEYS = Object.freeze(['baseUrl', 'serverUrl']);
+export const isHttpUrl = (v) => validateHttpUrl(v).ok;
+
+// Switch `settings` to `provider`, pre-filling its default base URL unless the user
+// overrode it. THE provider-switch rule: the settings modal and the stencil.llm facade
+// both apply this one helper, so they cannot drift.
 export const withProvider = (settings, provider) => {
   const wasDefault = !settings.baseUrl || settings.baseUrl === PROVIDER_BASE_URLS[settings.provider];
   return {
@@ -52,7 +56,9 @@ export const loadLlmSettings = () => {
     const saved = raw ? JSON.parse(raw) : null;
     if (saved && typeof saved === 'object') {
       for (const k of ['provider', 'baseUrl', 'model', 'apiKey', 'serverUrl']) {
-        if (typeof saved[k] === 'string') out[k] = saved[k];
+        if (typeof saved[k] !== 'string') continue;
+        if (URL_KEYS.includes(k) && saved[k] && !isHttpUrl(saved[k])) continue;   // keep the default
+        out[k] = saved[k];
       }
       if (typeof saved.saveChats === 'boolean') out.saveChats = saved.saveChats;
     }

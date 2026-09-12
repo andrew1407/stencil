@@ -1,0 +1,28 @@
+/* ── A field's hover ring (browser twin: css/layout.css; desktop: theme.cpp
+   QLineEdit:hover) ───────────────────────────────────────────────────────────
+   A field RINGS on hover at twice its resting border, the second pixel an INSET shadow
+   rather than a thicker border so nothing moves (a field's height is content-driven).
+   Never on a disabled field, never over :focus, which has its own stronger ring. */
+input[type="text"]:hover:not(:disabled):not(:focus),
+input[type="number"]:hover:not(:disabled):not(:focus),
+input[type="search"]:hover:not(:disabled):not(:focus),
+input[type="url"]:hover:not(:disabled):not(:focus),
+input[type="password"]:hover:not(:disabled):not(:focus),
+textarea:hover:not(:disabled):not(:focus),
+select:hover:not(:disabled):not(:focus) {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent) !important;
+}
+
+/* …and the box an input or an icon button draws around itself is that control's OWN ink,
+   not a near-invisible grey: a --line outline vanished behind its glyph on the dark theme
+   and read as a smudge on the light one (user report, with pictures of both). Browser
+   twins: css/layout.css's input rule and the ghost buttons in components/settings.css. */
+input[type="text"], input[type="number"], input[type="search"], input[type="url"],
+input[type="password"], textarea, select,
+.icon-btn, .more-btn, .pin-btn, .num, .page-select, .dialog-select, .accent-dd-search {
+  /* Its OWN ink, well down: full ink was hard and half still read heavy (user report,
+     twice). A quarter lands light-grey on the light theme and dark-grey on the dark one.
+     Browser twin: --ui-outline in css/theme.css. */
+  border-color: color-mix(in srgb, var(--text) 25%, transparent);
+}

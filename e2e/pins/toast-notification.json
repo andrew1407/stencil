@@ -1,0 +1,93 @@
+{
+  "name": "toast-notification",
+  "root": "#notify-balloon",
+  "nodes": [
+    {
+      "path": ":root",
+      "tag": "stencil-notifications",
+      "classes": "",
+      "style": {
+        "display": "flex",
+        "position": "fixed",
+        "color": "rgb(0, 0, 0)",
+        "border-color": "rgb(0, 0, 0)",
+        "font-size": "16px",
+        "font-family": "Arial, sans-serif",
+        "gap": "8px",
+        "width": "123.1px",
+        "height": "36px",
+        "flex-direction": "column",
+        "align-items": "flex-start",
+        "z-index": "100002"
+      }
+    },
+    {
+      "path": ":root/div[1]",
+      "tag": "div",
+      "classes": "notify-ok notify-toast",
+      "style": {
+        "display": "flex",
+        "color": "rgb(255, 255, 255)",
+        "background-color": "rgb(124, 58, 237)",
+        "border-color": "rgb(255, 255, 255)",
+        "border-radius": "8px",
+        "font-size": "13.5px",
+        "font-weight": "500",
+        "font-family": "Arial, sans-serif",
+        "padding": "10px 12px",
+        "gap": "8px",
+        "width": "123.1px",
+        "height": "36px",
+        "box-shadow": "rgba(0, 0, 0, 0.28) 0px 6px 24px 0px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[1]",
+      "tag": "span",
+      "classes": "notify-icon",
+      "style": {
+        "display": "flex",
+        "color": "rgb(255, 255, 255)",
+        "border-color": "rgb(255, 255, 255)",
+        "font-size": "13.5px",
+        "font-weight": "500",
+        "font-family": "Arial, sans-serif",
+        "width": "16px",
+        "height": "16px",
+        "align-items": "center"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[1]/svg[1]",
+      "tag": "svg",
+      "classes": "ic ic-check",
+      "style": {
+        "display": "block",
+        "color": "rgb(255, 255, 255)",
+        "border-color": "rgb(255, 255, 255)",
+        "font-size": "13.5px",
+        "font-weight": "500",
+        "font-family": "Arial, sans-serif",
+        "width": "16px",
+        "height": "16px"
+      }
+    },
+    {
+      "path": ":root/div[1]/span[2]",
+      "tag": "span",
+      "classes": "notify-text",
+      "style": {
+        "display": "block",
+        "color": "rgb(255, 255, 255)",
+        "border-color": "rgb(255, 255, 255)",
+        "font-size": "13.5px",
+        "font-weight": "500",
+        "font-family": "Arial, sans-serif",
+        "width": "75.1px",
+        "height": "15px"
+      },
+      "text": "Pinned toast"
+    }
+  ]
+}

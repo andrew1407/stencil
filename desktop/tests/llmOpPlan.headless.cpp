@@ -5,7 +5,7 @@
 // skip-with-warning, and the shared limits (16 actions / 8 variants / 200
 // lines / 5000 chars / 32 frame indices). Pure QtCore; no display needed.
 #include "opPlan.hpp"
-#include "opSchema.hpp"
+#include "OpSchema.hpp"
 
 #include <QCoreApplication>
 #include <QString>
@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
         "Sure! {\"version\":1,\"reply\":\"done\",\"actions\":[{\"op\":\"rotate\","
         "\"dir\":\"left\"}]} hope that helps");
     check(r.ok && r.plan.actions.size() == 1, "first balanced object amid prose");
-    check(r.plan.actions[0].op == OpKind::Rotate && r.plan.actions[0].rotateLeft &&
+    check(r.plan.actions[0].op == OpKind::ROTATE && r.plan.actions[0].rotateLeft &&
               r.plan.actions[0].times == 1,
           "rotate defaults times=1");
   }
@@ -438,9 +438,9 @@ int main(int argc, char** argv) {
     const auto r = parseOpPlan(
         "{\"reply\":\"u\",\"actions\":[{\"op\":\"undo\"},{\"op\":\"redo\",\"steps\":20}]}");
     check(r.ok && r.plan.actions.size() == 2, "undo + redo parse");
-    check(r.plan.actions[0].op == OpKind::Undo && r.plan.actions[0].steps == 1,
+    check(r.plan.actions[0].op == OpKind::UNDO && r.plan.actions[0].steps == 1,
           "undo defaults steps=1");
-    check(r.plan.actions[1].op == OpKind::Redo && r.plan.actions[1].steps == 20,
+    check(r.plan.actions[1].op == OpKind::REDO && r.plan.actions[1].steps == 20,
           "redo keeps its steps");
   }
   check(!parseOpPlan("{\"reply\":\"u\",\"actions\":[{\"op\":\"undo\",\"steps\":0}]}").ok,
@@ -464,8 +464,8 @@ int main(int argc, char** argv) {
         "{\"label\":\"A\",\"actions\":[{\"op\":\"redo\"}]},{\"label\":\"B\"}]}}");
     check(p.ok && p.plan.ask.options.size() == 2 && p.plan.ask.options[0].actions.isEmpty(),
           "redo inside an ask-option preview drops the preview, keeps the option");
-    check(isTopLevelOnlyOp(OpKind::Undo) && isTopLevelOnlyOp(OpKind::Redo) &&
-              !isEditorSettingsOp(OpKind::Undo) && !isEditorSettingsOp(OpKind::Redo),
+    check(isTopLevelOnlyOp(OpKind::UNDO) && isTopLevelOnlyOp(OpKind::REDO) &&
+              !isEditorSettingsOp(OpKind::UNDO) && !isEditorSettingsOp(OpKind::REDO),
           "undo/redo are top-level only without being editor-settings ops");
   }
   {
@@ -474,7 +474,7 @@ int main(int argc, char** argv) {
     const auto r = parseOpPlan(
         "{\"reply\":\"r\",\"actions\":[{\"op\":\"reset\"},"
         "{\"op\":\"rotate\",\"dir\":\"left\"}]}");
-    check(r.ok && r.plan.actions.size() == 1 && r.plan.actions[0].op == OpKind::Rotate,
+    check(r.ok && r.plan.actions.size() == 1 && r.plan.actions[0].op == OpKind::ROTATE,
           "reset is dropped as an unknown op; the rest of the plan stands");
     check(r.plan.warnings.size() == 1 && r.plan.warnings[0].contains("reset"),
           "…with the unknown-op warning naming it");
@@ -515,7 +515,7 @@ int main(int argc, char** argv) {
   {
     const auto r = parseOpPlan(
         "{\"reply\":\"t\",\"actions\":[{\"op\":\"theme\",\"mode\":\"dark\"}]}");
-    check(r.ok && r.plan.actions[0].op == OpKind::Theme &&
+    check(r.ok && r.plan.actions[0].op == OpKind::THEME &&
               r.plan.actions[0].mode == "dark",
           "theme dark parses");
   }
@@ -577,7 +577,7 @@ int main(int argc, char** argv) {
   // §10 clear — "remove the image" means remove, not a white page from `blank`.
   {
     const auto r = parseOpPlan("{\"reply\":\"c\",\"actions\":[{\"op\":\"clear\"}]}");
-    check(r.ok && r.plan.actions.size() == 1 && r.plan.actions[0].op == OpKind::Clear,
+    check(r.ok && r.plan.actions.size() == 1 && r.plan.actions[0].op == OpKind::CLEAR,
           "clear parses with no fields");
   }
   check(!parseOpPlan("{\"reply\":\"c\",\"actions\":[{\"op\":\"clear\",\"color\":\"#fff\"}]}").ok,
@@ -589,7 +589,7 @@ int main(int argc, char** argv) {
     const auto r = parseOpPlan(
         "{\"reply\":\"c\",\"actions\":[{\"op\":\"connect\","
         "\"server\":\"stencil.example.com\"}]}");
-    check(r.ok && r.plan.actions[0].op == OpKind::Connect &&
+    check(r.ok && r.plan.actions[0].op == OpKind::CONNECT &&
               r.plan.actions[0].server == "stencil.example.com",
           "connect server reference parses");
   }
@@ -600,7 +600,7 @@ int main(int argc, char** argv) {
     const auto r = parseOpPlan(
         "{\"reply\":\"o\",\"actions\":[{\"op\":\"openUrl\","
         "\"url\":\"https://a.com/cat.jpg\",\"incognito\":true}]}");
-    check(r.ok && r.plan.actions[0].op == OpKind::OpenUrl &&
+    check(r.ok && r.plan.actions[0].op == OpKind::OPEN_URL &&
               r.plan.actions[0].url == "https://a.com/cat.jpg" &&
               r.plan.actions[0].incognito,
           "openUrl parses with incognito");
@@ -621,7 +621,7 @@ int main(int argc, char** argv) {
   // §10 copy — fieldless like clear; the working-image gate is the executor's.
   {
     const auto r = parseOpPlan("{\"reply\":\"c\",\"actions\":[{\"op\":\"copy\"}]}");
-    check(r.ok && r.plan.actions.size() == 1 && r.plan.actions[0].op == OpKind::Copy,
+    check(r.ok && r.plan.actions.size() == 1 && r.plan.actions[0].op == OpKind::COPY,
           "copy parses with no fields");
   }
   check(!parseOpPlan("{\"reply\":\"c\",\"actions\":[{\"op\":\"copy\",\"target\":\"x\"}]}").ok,
@@ -640,9 +640,9 @@ int main(int argc, char** argv) {
         "{\"reply\":\"p\",\"actions\":[{\"op\":\"removeProject\",\"name\":\" portrait 1 \"},"
         "{\"op\":\"clearProjects\"}]}");
     check(r.ok && r.plan.actions.size() == 2 &&
-              r.plan.actions[0].op == OpKind::RemoveProject &&
+              r.plan.actions[0].op == OpKind::REMOVE_PROJECT &&
               r.plan.actions[0].name == "portrait 1" &&
-              r.plan.actions[1].op == OpKind::ClearProjects,
+              r.plan.actions[1].op == OpKind::CLEAR_PROJECTS,
           "removeProject (name trimmed) + clearProjects parse");
   }
   check(!parseOpPlan("{\"reply\":\"p\",\"actions\":[{\"op\":\"removeProject\"}]}").ok,
@@ -674,7 +674,7 @@ int main(int argc, char** argv) {
   {
     const auto r = parseOpPlan(
         "{\"reply\":\"p\",\"actions\":[{\"op\":\"removeProject\",\"current\":true}]}");
-    check(r.ok && r.plan.actions[0].op == OpKind::RemoveProject &&
+    check(r.ok && r.plan.actions[0].op == OpKind::REMOVE_PROJECT &&
               r.plan.actions[0].current && r.plan.actions[0].name.isEmpty(),
           "removeProject current:true parses");
     check(!parseOpPlan("{\"reply\":\"p\",\"actions\":[{\"op\":\"removeProject\","
@@ -688,7 +688,7 @@ int main(int argc, char** argv) {
   {
     const auto r = parseOpPlan(
         "{\"reply\":\"c\",\"actions\":[{\"op\":\"copy\",\"what\":\"layout\"}]}");
-    check(r.ok && r.plan.actions[0].op == OpKind::Copy && r.plan.actions[0].what == "layout",
+    check(r.ok && r.plan.actions[0].op == OpKind::COPY && r.plan.actions[0].what == "layout",
           "copy what:layout parses");
     check(parseOpPlan("{\"reply\":\"c\",\"actions\":[{\"op\":\"copy\","
                       "\"what\":\"image\"}]}").ok,
@@ -745,7 +745,7 @@ int main(int argc, char** argv) {
     const auto r = parseOpPlan(
         "{\"reply\":\"v\",\"actions\":[{\"op\":\"compare\",\"mode\":\"vertical\","
         "\"split\":0.25}]}");
-    check(r.ok && r.plan.actions[0].op == OpKind::Compare &&
+    check(r.ok && r.plan.actions[0].op == OpKind::COMPARE &&
               r.plan.actions[0].mode == "vertical" && r.plan.actions[0].split == 0.25,
           "compare with split parses");
     check(parseOpPlan("{\"reply\":\"v\",\"actions\":[{\"op\":\"compare\","
@@ -772,7 +772,7 @@ int main(int argc, char** argv) {
   {
     const auto r = parseOpPlan(
         "{\"reply\":\"z\",\"actions\":[{\"op\":\"zoom\",\"percent\":150}]}");
-    check(r.ok && r.plan.actions[0].op == OpKind::Zoom && r.plan.actions[0].percent == 150,
+    check(r.ok && r.plan.actions[0].op == OpKind::ZOOM && r.plan.actions[0].percent == 150,
           "zoom percent parses");
     const auto f = parseOpPlan("{\"reply\":\"z\",\"actions\":[{\"op\":\"zoom\",\"fit\":true}]}");
     check(f.ok && f.plan.actions[0].fit, "zoom fit:true parses");
@@ -792,7 +792,7 @@ int main(int argc, char** argv) {
   {
     const auto r = parseOpPlan(
         "{\"reply\":\"r\",\"actions\":[{\"op\":\"renameProject\",\"name\":\" new name \"}]}");
-    check(r.ok && r.plan.actions[0].op == OpKind::RenameProject &&
+    check(r.ok && r.plan.actions[0].op == OpKind::RENAME_PROJECT &&
               r.plan.actions[0].name == "new name",
           "renameProject parses (trimmed)");
     check(!parseOpPlan(QStringLiteral("{\"reply\":\"r\",\"actions\":[{\"op\":\"renameProject\","
@@ -805,7 +805,7 @@ int main(int argc, char** argv) {
   {
     const auto r = parseOpPlan(
         "{\"reply\":\"c\",\"actions\":[{\"op\":\"projectColor\",\"color\":\"#ec4899\"}]}");
-    check(r.ok && r.plan.actions[0].op == OpKind::ProjectColor &&
+    check(r.ok && r.plan.actions[0].op == OpKind::PROJECT_COLOR &&
               r.plan.actions[0].color == "#ec4899",
           "projectColor hex parses");
     const auto clear = parseOpPlan(
@@ -819,7 +819,7 @@ int main(int argc, char** argv) {
   {
     const auto r = parseOpPlan(
         "{\"reply\":\"b\",\"actions\":[{\"op\":\"blankColor\",\"color\":\"lightblue\"}]}");
-    check(r.ok && r.plan.actions[0].op == OpKind::BlankColor &&
+    check(r.ok && r.plan.actions[0].op == OpKind::BLANK_COLOR &&
               r.plan.actions[0].color == "lightblue",
           "blankColor CSS name parses");
     check(!parseOpPlan("{\"reply\":\"b\",\"actions\":[{\"op\":\"blankColor\","
@@ -831,7 +831,7 @@ int main(int argc, char** argv) {
   {
     const auto r = parseOpPlan(
         "{\"reply\":\"o\",\"actions\":[{\"op\":\"openProject\",\"name\":\"portrait 1\"}]}");
-    check(r.ok && r.plan.actions[0].op == OpKind::OpenProject &&
+    check(r.ok && r.plan.actions[0].op == OpKind::OPEN_PROJECT &&
               r.plan.actions[0].name == "portrait 1",
           "openProject parses");
     check(!parseOpPlan(QStringLiteral("{\"reply\":\"o\",\"actions\":[{\"op\":\"openProject\","
@@ -842,7 +842,7 @@ int main(int argc, char** argv) {
   {
     const auto r = parseOpPlan(
         "{\"reply\":\"i\",\"actions\":[{\"op\":\"incognito\",\"on\":true}]}");
-    check(r.ok && r.plan.actions[0].op == OpKind::Incognito && r.plan.actions[0].incognito,
+    check(r.ok && r.plan.actions[0].op == OpKind::INCOGNITO && r.plan.actions[0].incognito,
           "incognito on:true parses");
     const auto off = parseOpPlan(
         "{\"reply\":\"i\",\"actions\":[{\"op\":\"incognito\",\"on\":false}]}");
@@ -872,7 +872,7 @@ int main(int argc, char** argv) {
         allDropped = false;
     }
     check(allDropped, "every new editor row drops its variant with a warning");
-    check(isEditorSettingsOp(OpKind::Compare) && isEditorSettingsOp(OpKind::Incognito),
+    check(isEditorSettingsOp(OpKind::COMPARE) && isEditorSettingsOp(OpKind::INCOGNITO),
           "the new rows carry the editor-settings property");
   }
   check(!parseOpPlan("{\"reply\":\"c\",\"actions\":[{\"op\":\"disconnect\","
@@ -917,11 +917,11 @@ int main(int argc, char** argv) {
         "{\"reply\":\"both\",\"actions\":[{\"op\":\"image\",\"index\":2},"
         "{\"op\":\"save\",\"name\":\"portrait 1\"},{\"op\":\"save\"}]}");
     check(r.ok && r.plan.actions.size() == 3, "image + save parse");
-    check(r.plan.actions[0].op == OpKind::Image && r.plan.actions[0].index == 2,
+    check(r.plan.actions[0].op == OpKind::IMAGE && r.plan.actions[0].index == 2,
           "image keeps its 1-based index");
-    check(r.plan.actions[1].op == OpKind::Save && r.plan.actions[1].name == "portrait 1",
+    check(r.plan.actions[1].op == OpKind::SAVE && r.plan.actions[1].name == "portrait 1",
           "save keeps its name");
-    check(r.plan.actions[2].op == OpKind::Save && r.plan.actions[2].name.isEmpty(),
+    check(r.plan.actions[2].op == OpKind::SAVE && r.plan.actions[2].name.isEmpty(),
           "a nameless save is allowed (the name is derived at execution)");
   }
   {
@@ -988,12 +988,12 @@ int main(int argc, char** argv) {
   {
     // The two enum predicates stay apart: §2.1 ops are top-level only WITHOUT
     // being editor-settings ops (the §10 variant message is not theirs).
-    check(isTopLevelOnlyOp(OpKind::Image) && isTopLevelOnlyOp(OpKind::Save),
+    check(isTopLevelOnlyOp(OpKind::IMAGE) && isTopLevelOnlyOp(OpKind::SAVE),
           "image/save are top-level only");
-    check(!isEditorSettingsOp(OpKind::Image) && !isEditorSettingsOp(OpKind::Save),
+    check(!isEditorSettingsOp(OpKind::IMAGE) && !isEditorSettingsOp(OpKind::SAVE),
           "…but they are not editor-settings ops");
-    check(isEditorSettingsOp(OpKind::Theme) && isEditorSettingsOp(OpKind::Disconnect) &&
-              isTopLevelOnlyOp(OpKind::OpenUrl),
+    check(isEditorSettingsOp(OpKind::THEME) && isEditorSettingsOp(OpKind::DISCONNECT) &&
+              isTopLevelOnlyOp(OpKind::OPEN_URL),
           "the §10 ops keep both properties");
   }
 
@@ -1025,7 +1025,7 @@ int main(int argc, char** argv) {
         "{\"label\":\"wiped\",\"actions\":[{\"op\":\"clear\"}]},"
         "{\"label\":\"sepia\",\"actions\":[{\"op\":\"filter\",\"mode\":\"sepia\"}]}]}");
     check(r.ok && r.error.isEmpty(), "a misplaced settings op no longer fails the plan");
-    check(r.plan.actions.size() == 1 && r.plan.actions[0].op == OpKind::Rotate,
+    check(r.plan.actions.size() == 1 && r.plan.actions[0].op == OpKind::ROTATE,
           "the top-level actions survive");
     check(r.plan.variants.size() == 1 && r.plan.variants[0].label == "sepia",
           "the well-formed variant survives");

@@ -1,0 +1,45 @@
+/* ──────────────────────────────────────────────────────────────────────
+   css/animations/ — motion, transitions, hovers, popups & responsive layer
+
+   This file leads the group; the rest follow it in index.html's link order.
+   Loaded LAST (after theme/layout/components) to enrich existing rules. Purely
+   cosmetic: removing it leaves the app fully functional, just static. All motion
+   disabled under prefers-reduced-motion (see bottom). Deliberately untouched:
+   .canvas-viewport scrolling (zoom/pan assign scrollLeft/scrollTop directly, so
+   scroll-behavior:smooth would fight the JS and break zoom-to-cursor — smooth
+   scroll is scoped to content panels only), and canvas width/height transition
+   (already tuned in layout/canvasCursor.css).
+   ────────────────────────────────────────────────────────────────────── */
+
+/* ── Keyframes ──────────────────────────────────────────────────────── */
+@keyframes appReveal      { from { opacity: 0; transform: translateY(8px); }  to { opacity: 1; transform: none; } }
+@keyframes overlayFadeIn  { from { opacity: 0; }                              to { opacity: 1; } }
+@keyframes modalPop       { from { opacity: 0; transform: translateY(18px) scale(0.965); } to { opacity: 1; transform: none; } }
+/* Modal open/close anchored on the icon that opened it (ui/base.js sets the vars).
+   The defaults are modalPop's own offsets, so an unmeasurable opener — or reduced
+   motion, where base.js sets no vars — animates as it always did.
+   The opacity stops are what make the flight READABLE: the box reaches full opacity
+   while it is still icon-sized (and only starts fading on the way back once it is
+   nearly home), so you watch a window travel rather than a rectangle fade in. */
+@keyframes modalFromIcon  {
+    0%   { opacity: 0; transform: translate(var(--modal-dx, 0px), var(--modal-dy, 18px)) scale(var(--modal-sx, 0.965), var(--modal-sy, 0.965)); }
+    18%  { opacity: 1; }
+    100% { opacity: 1; transform: none; }
+}
+@keyframes modalToIcon    {
+    0%   { opacity: 1; transform: none; }
+    70%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--modal-dx, 0px), var(--modal-dy, 18px)) scale(var(--modal-sx, 0.965), var(--modal-sy, 0.965)); }
+}
+@keyframes overlayFadeOut { from { opacity: 1; }                              to { opacity: 0; } }
+@keyframes popIn          { from { opacity: 0; transform: scale(0.94) translateY(-6px); }  to { opacity: 1; transform: none; } }
+@keyframes menuRise       { from { opacity: 0; transform: translateY(8px); }  to { opacity: 1; transform: none; } }
+@keyframes tooltipIn      { from { opacity: 0; transform: translateY(4px); }  to { opacity: 1; transform: none; } }
+@keyframes rowPulse       { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
+@keyframes focusPulse     { 0% { box-shadow: 0 0 0 0 rgba(230,184,0,0.5); }   100% { box-shadow: 0 0 0 8px rgba(230,184,0,0); } }
+@keyframes spinIn         { from { opacity: 0; transform: rotate(-90deg) scale(0.6); } to { opacity: 1; transform: none; } }
+@keyframes shimmerSweep   { from { background-position: 200% 0; }              to { background-position: -200% 0; } }
+@keyframes spin           { to { transform: rotate(360deg); } }
+@keyframes chatZoneNudge  { from { transform: translate(calc(var(--zone-nudge-x, 0px) * -1), calc(var(--zone-nudge-y, 0px) * -1)); } to { transform: translate(var(--zone-nudge-x, 0px), var(--zone-nudge-y, 0px)); } }
+/* Continuously spin the glyph inside any button marked busy (e.g. "Opening…"). */
+.is-loading .ic { animation: spin 0.8s linear infinite; }

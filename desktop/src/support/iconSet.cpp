@@ -1,5 +1,6 @@
 #include "iconSet.hpp"
 
+#include "LruCache.hpp"
 #include <algorithm>
 #include <QApplication>
 #include <QGuiApplication>
@@ -23,11 +24,8 @@ static void ensureAppResources() { Q_INIT_RESOURCE(app); }
 namespace stencil::gui {
 
   namespace {
-    // name → inner SVG markup (0 0 24 24 viewBox), parsed once from the shared
-    // canon (browser/js/config/icons.json, embedded via app.qrc — the same set
-    // the browser and extension render). Shapes that read as a solid fill carry
-    // `fill="currentColor" stroke="none"` (resolved by svgDoc() below). The few
-    // desktop-only glyphs with no browser counterpart are appended literally.
+    // Parsed once from the shared canon (browser/js/config/icons.json via app.qrc); the
+    // desktop-only glyphs are appended literally.
     const QHash<QString, QString>& iconTable() {
       static const QHash<QString, QString> t = [] {
         ensureAppResources();
@@ -50,8 +48,7 @@ namespace stencil::gui {
       return t;
     }
 
-    // Wrap the table's inner markup in a full document with `color` baked in — QSvgRenderer
-    // can't resolve the browser's `currentColor`.
+    // QSvgRenderer can't resolve the browser's `currentColor`.
     QString svgDoc(const QString& inner, const QString& hex) {
       QString resolved = inner;
       resolved.replace("currentColor", hex);
@@ -61,9 +58,9 @@ namespace stencil::gui {
                  R"(stroke-linejoin="round">%2</svg>)")
           .arg(hex, resolved);
     }
-    // cacheKey → what themedIcon was asked for. See iconRequestForKey().
-    QHash<qint64, IconRequest>& requestIndex() {
-      static QHash<qint64, IconRequest> m;
+    // Bounded: an accent preview cycles hues, and every hue mints a fresh QIcon per glyph.
+    LruCache<qint64, IconRequest>& requestIndex() {
+      static LruCache<qint64, IconRequest> m(512);
       return m;
     }
   }  // namespace
@@ -77,19 +74,19 @@ namespace stencil::gui {
   }
 
   bool iconRequestForKey(qint64 cacheKey, IconRequest* out) {
-    const auto it = requestIndex().constFind(cacheKey);
-    if (it == requestIndex().constEnd()) return false;
-    if (out) *out = it.value();
+    const IconRequest* req = requestIndex().find(cacheKey);
+    if (!req) return false;
+    if (out) *out = *req;
     return true;
   }
 
-  // The ink a disabled glyph is drawn in: the theme's --disabled-text (buildQPalette puts
-  // it in the DISABLED group), so icon and label grey out together — and to the same value
-  // the browser uses. Qt's own default palette until a theme lands.
-  static QColor mutedInk() {
-    const QColor c = QGuiApplication::palette().color(QPalette::Disabled, QPalette::WindowText);
-    return c.isValid() ? c : QColor("#8a8f98");
-  }
+  namespace {
+    // The theme's --disabled-text, so icon and label grey out together as in the browser.
+    QColor mutedInk() {
+      const QColor c = QGuiApplication::palette().color(QPalette::Disabled, QPalette::WindowText);
+      return c.isValid() ? c : QColor("#8a8f98");
+    }
+  }  // namespace
 
   QIcon iconFromMarkup(const QString& inner, const QColor& color, int size,
                        qreal dprIn, bool withDisabled, int gap) {
@@ -98,9 +95,7 @@ namespace stencil::gui {
     const QString hex = color.name();
     const qreal dpr = dprIn > 0 ? dprIn : (qApp ? qApp->devicePixelRatio() : 1.0);
     QSvgRenderer renderer(svgDoc(inner, hex).toUtf8());
-    // Rendered at the device pixel ratio so the line-art stays crisp on Retina /
-    // fractional-scale displays, then tagged with that ratio.
-    // The glyph fills the left size×size square; `gap` is transparent slack after it.
+    // Rendered at the device pixel ratio for Retina; `gap` is transparent slack after the glyph.
     QPixmap pm(QSize(size + gap, size) * dpr);
     pm.fill(Qt::transparent);
     const QRectF glyphBox(0, 0, size * dpr, size * dpr);
@@ -112,11 +107,8 @@ namespace stencil::gui {
 
     QIcon icon(pm);
     if (!withDisabled) return icon;   // a posed frame on an enabled control never shows it
-    // Disabled: the glyph RE-RENDERED in the muted ink, at full strength — what the
-    // stylesheet's `QToolButton:disabled { color: MUTED }` does for the label beside it,
-    // and what the browser does (its .ic is currentColor, so a disabled button's icon is
-    // --disabled-text at full opacity). Fading the enabled colour instead left a light
-    // theme's dark glyph a ghost on the pale disabled chip (user report).
+    // Disabled: RE-RENDERED in the muted ink at full strength, as the browser's currentColor
+    // does; fading left a light theme's dark glyph a ghost on the pale chip.
     QPixmap off(pm.size());
     off.fill(Qt::transparent);
     {
@@ -135,21 +127,18 @@ namespace stencil::gui {
     const QString inner = iconTable().value(name);
     if (inner.isEmpty()) return QIcon();
 
-    // Cache by (name, color, size): the same glyph is requested for many
-    // actions on every theme change, so rasterizing once per key keeps it cheap.
     const qreal dpr = dprIn > 0 ? dprIn : (qApp ? qApp->devicePixelRatio() : 1.0);
-    static QHash<QString, QIcon> cache;
+    // Bounded: the logo's picker cycles accents on hover, minting an icon set per hue.
+    static LruCache<QString, QIcon> cache(512);
     const QString key = name + '|' + color.name() + '|' + QString::number(size)
                         + '@' + QString::number(dpr)
                         + (gap > 0 ? "|g" + QString::number(gap) : QString())
                         + '/' + mutedInk().name();   // …the disabled glyph's ink moves with the theme
-    const auto it = cache.constFind(key);
-    if (it != cache.constEnd()) return it.value();
+    if (const QIcon* hit = cache.find(key)) return *hit;
 
     const QIcon icon = iconFromMarkup(inner, color, size, dpr, true, gap);
     cache.insert(key, icon);
-    // …and the way back: a QIcon copy keeps its cacheKey, so a button's icon can be
-    // traced to the glyph it was made from (iconMotion.hpp's hover lookup).
+    // A QIcon copy keeps its cacheKey (iconMotion.hpp's hover lookup).
     requestIndex().insert(icon.cacheKey(), IconRequest{name, color, size, dpr, gap});
     return icon;
   }

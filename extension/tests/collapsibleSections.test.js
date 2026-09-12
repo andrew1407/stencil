@@ -4,32 +4,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createCollapsibleSections } from '../src/lib/collapsibleSections.js';
+import { stubDoc, stubEl } from './helpers/domStub.js';
 
 const stubSection = (id, { collapsed = false, hidden = false } = {}) => {
-  const classes = new Set(['fsection', ...(collapsed ? ['collapsed'] : [])]);
-  const section = {
-    id, hidden,
-    classList: {
-      toggle: (c) => (classes.has(c) ? (classes.delete(c), false) : (classes.add(c), true)),
-      contains: (c) => classes.has(c),
-    },
-  };
-  const head = {
-    attrs: {}, handlers: {},
-    closest: () => section,
-    setAttribute: (k, v) => { head.attrs[k] = v; },
-    addEventListener: (t, fn) => { (head.handlers[t] || (head.handlers[t] = [])).push(fn); },
-    fire: (t, ev) => { for (const fn of head.handlers[t] || []) fn(ev); },
-  };
+  const section = stubEl('section', { id, hidden });
+  section.className = `fsection${collapsed ? ' collapsed' : ''}`;
+  const head = stubEl('div', { closest: () => section });
   return { section, head };
 };
 
 const build = (specs, deps = {}) => {
   const parts = specs.map(([id, opts]) => stubSection(id, opts));
-  const doc = {
+  const doc = stubDoc({
     querySelectorAll: () => parts.map((p) => p.head),
     getElementById: (id) => parts.find((p) => p.section.id === id)?.section || null,
-  };
+  });
   const sections = createCollapsibleSections({ doc, ...deps });
   return { sections, parts };
 };

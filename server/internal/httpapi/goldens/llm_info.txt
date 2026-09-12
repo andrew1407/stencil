@@ -1,0 +1,8 @@
+== GET /llm/info — disabled
+200 application/json
+{"enabled":false,"model":""}
+
+== GET /llm/info — enabled (model claude-test)
+200 application/json
+{"enabled":true,"model":"claude-test"}
+

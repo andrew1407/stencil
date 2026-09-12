@@ -1,14 +1,11 @@
 import { isLoopbackHost, normalizeUrl } from '../net/connectionManager.js';
 
-// ── Project deep links ──────────────────────────────────────────
-// A saved project can open in a NEW browser tab from the projects modal. The new tab carries
-// the target id in a query param (`?open=<id>`), which the booting app consumes once and
-// strips from the URL. Pure string helpers (no DOM) for direct unit-testing.
+// Project deep links: a new tab carries the target id in `?open=<id>`, which the booting
+// app consumes once and strips from the URL. Pure string helpers.
 
 export const OPEN_PARAM = 'open';
 
-// Read the requested project id from a location.search string (e.g.
-// "?open=p_1&x=2"). Returns the id, or null when the param is absent/empty.
+// The id from a location.search string, or null when absent/empty.
 export const readOpenProjectId = (search = '') => {
   let params;
   try {
@@ -20,29 +17,20 @@ export const readOpenProjectId = (search = '') => {
   return id ? id : null;
 };
 
-// Build the URL that opens `id` in a fresh tab. `base` is the page URL without a
-// query string (e.g. location.origin + location.pathname); `id` is appended as
-// the open param, URL-encoded.
+// `base` is the page URL without a query string.
 export const buildOpenProjectUrl = (base, id) =>
   `${base}?${OPEN_PARAM}=${encodeURIComponent(id)}`;
 
-// Build a URL that hands a full image to a fresh tab via the `#stencil=<JSON>` fragment
-// consumed by DrawingApp.applyExternalLaunch. The payload rides in the fragment (not the
-// query) so it stays off server logs and out of history; it is also the only vehicle for
-// incognito launches, which are never persisted and so cannot ride `?open=<id>`.
+// The payload rides in the `#stencil=` fragment (consumed by applyExternalLaunch), not the
+// query, so it stays off server logs and out of history; it is also the only vehicle for
+// incognito launches, which are never persisted.
 export const buildExternalLaunchUrl = (base, payload) =>
   `${base}#stencil=${encodeURIComponent(JSON.stringify(payload))}`;
 
-// ── Cross-front-end "Open in…" links ────────────────────────────
-// The desktop app registers the `stencil://` OS scheme (macOS/Linux); the Telegram bot
-// listens on `/start <payload>` deep links. These builders produce both link kinds from
-// the same project identity the fragment payload uses: either a server reference
-// ({ url, id, version? }, never a token — the receiver connects like a fresh client) or
-// inline image + layout for local/incognito sessions.
+// Cross-front-end "Open in…" links: the desktop's `stencil://` scheme and the Telegram
+// bot's `/start <payload>`, from the same identity the fragment uses — a server reference
+// ({ url, id, version? }, never a token) or inline image + layout.
 
-// Build a `stencil://open?…` URL for the desktop app. Recognized fields:
-// server+id[+version] (open a server project), src (path/URL/data: image),
-// layout (object or JSON string, applied after the image loads), frame, incognito.
 // server+id wins over src on the receiving side; empty/absent fields are omitted.
 export const buildStencilSchemeUrl = ({ scheme = 'stencil', server, id, version, src, layout, frame, incognito } = {}) => {
   const params = [];
@@ -60,12 +48,11 @@ export const buildStencilSchemeUrl = ({ scheme = 'stencil', server, id, version,
   return `${scheme}://open?${params.join('&')}`;
 };
 
-// Telegram caps `?start=` payloads at 64 chars from the charset [A-Za-z0-9_-].
+// Telegram caps `?start=` payloads at 64 chars from [A-Za-z0-9_-].
 export const TELEGRAM_START_LIMIT = 64;
 
-// Drop the scheme from a normalized origin when it matches what normalizeUrl would
-// infer for the bare host (https for remote hosts, http for loopback) — the decoder
-// re-normalizes, so the default scheme round-trips from just `host[:port]`.
+// Drop the scheme when it is what normalizeUrl infers for the bare host (https remote,
+// http loopback) — the decoder re-normalizes, so it round-trips from `host[:port]`.
 const compressOrigin = (origin) => {
   const u = new URL(origin);
   const defaultScheme = isLoopbackHost(u.hostname) ? 'http:' : 'https:';
@@ -76,13 +63,9 @@ const toBase64 = (bin) => (typeof btoa === 'function'
   ? btoa(bin)
   : Buffer.from(bin, 'binary').toString('base64'));
 
-// Encode (server origin, project id) into a t.me start payload:
-// "1" (version prefix) + base64url("host[:port]|projectId"), padding stripped.
-// Returns null when the result would exceed Telegram's 64-char limit — callers must
-// then fall back to showing copyable `/connect <url>` + `/fetch <id>` commands.
-// The identical codec exists in desktop/src/app/deepLink.cpp and
-// bot Application/Links/DeepLinkCodec.cs — keep the three in sync (shared golden
-// vectors in each suite's tests).
+// "1" + base64url("host[:port]|projectId"), padding stripped; null past Telegram's limit.
+// The identical codec lives in desktop/src/app/deepLink.cpp and bot
+// Application/Links/DeepLinkCodec.cs — shared golden vectors in each suite.
 export const encodeTelegramStartPayload = (serverUrl, projectId) => {
   const plain = `${compressOrigin(normalizeUrl(serverUrl))}|${projectId}`;
   const bytes = new TextEncoder().encode(plain);
@@ -95,26 +78,20 @@ export const encodeTelegramStartPayload = (serverUrl, projectId) => {
 export const buildTelegramLink = (botUsername, payload) =>
   `https://t.me/${botUsername}?start=${payload}`;
 
-// Telegram never linkifies custom schemes, so `stencil://` links sent through chat ride
-// inside launch.html (served next to the app), which forwards to the scheme URL.
+// Telegram never linkifies custom schemes, so `stencil://` rides launch.html, which forwards.
 export const buildDesktopBounceUrl = (browserBase, stencilUrl) =>
   `${String(browserBase || '').replace(/\/+$/, '')}/launch.html#stencil-desktop=${encodeURIComponent(stencilUrl)}`;
 
-// Largest inbound dataUrl accepted (chars ≈ bytes for base64): the server's 32 MiB
-// MaxBodyBytes — far above the extension's 1.8M-char fragment clamp, but a hard bound.
+// chars ≈ bytes for base64: the server's 32 MiB MaxBodyBytes.
 export const LAUNCH_DATA_URL_MAX = 32 * 1024 * 1024;
 
-// Validate + classify an inbound `#stencil=` payload. Returns null for junk, else
-// { kind: 'server'|'dataUrl'|'src', ...normalized fields }. Precedence when several
-// image sources are present: server > dataUrl > src (the server's copy is canonical).
-// Pure so the fragment schema is unit-testable without a DOM; applyExternalLaunch
-// consumes the result.
+// Null for junk, else { kind: 'server'|'dataUrl'|'src', ...normalized }. Precedence:
+// server > dataUrl > src (the server's copy is canonical).
 export const normalizeLaunchPayload = (payload) => {
   if (!payload || typeof payload !== 'object') return null;
   const str = (v) => (typeof v === 'string' && v ? v : null);
-  // Shallow-clone an object sub-payload onto a fresh plain object, dropping
-  // prototype-pollution keys (__proto__/constructor/prototype) at the door — a
-  // downstream Object.assign/[[Set]] of them would otherwise pollute Object.prototype.
+// Fresh plain object without __proto__/constructor/prototype: a downstream
+// Object.assign of them would pollute Object.prototype.
   const obj = (v) => {
     if (!v || typeof v !== 'object') return null;
     const clean = {};
@@ -126,8 +103,7 @@ export const normalizeLaunchPayload = (payload) => {
   const common = {
     name: str(payload.name),
     crop: obj(payload.crop),
-    // Load the full uncropped frame instead of the default page-aspect auto-crop (the Open
-    // Image dialog's Crop-off path). Ignored when an explicit `crop` is present.
+// The full uncropped frame instead of the page-aspect auto-crop; ignored with an explicit `crop`.
     noCrop: !!payload.noCrop,
     page: obj(payload.page),
     source: str(payload.source),
@@ -145,8 +121,7 @@ export const normalizeLaunchPayload = (payload) => {
       ...common,
     };
   }
-  // Only a real data: URL may ride the dataUrl slot (the receiver fetch()es it) — a remote
-  // image belongs in `src`, scheme-checked below.
+// Only a real data: URL may ride this slot (the receiver fetch()es it); remote images use `src`.
   const dataUrl = str(payload.dataUrl);
   if (dataUrl && dataUrl.length > LAUNCH_DATA_URL_MAX) return null;
   if (dataUrl && /^data:/i.test(dataUrl)) return { kind: 'dataUrl', dataUrl, ...common };

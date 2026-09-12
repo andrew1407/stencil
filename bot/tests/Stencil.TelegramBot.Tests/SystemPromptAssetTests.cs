@@ -12,7 +12,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class SystemPromptAssetTests
 {
     [Fact]
-    public void EmbeddedAssetMatchesCanonicalFileBytes()
+    public void Should_Match_Canonical_File_Bytes_For_Embedded_Asset()
     {
         // The embed copies the file at build time; catch drift against the repo's canonical copy.
         using Stream? stream = typeof(SystemPromptAsset).Assembly.GetManifestResourceStream(
@@ -26,7 +26,7 @@ public sealed class SystemPromptAssetTests
     }
 
     [Fact]
-    public void HeadAndTailKeepTheirPinnedShape()
+    public void Should_Keep_Pinned_Shape_For_Head_And_Tail()
     {
         Assert.Equal(1197, Encoding.UTF8.GetByteCount(SystemPromptAsset.Head));
         Assert.Equal(4930, Encoding.UTF8.GetByteCount(SystemPromptAsset.Tail));
@@ -39,7 +39,7 @@ public sealed class SystemPromptAssetTests
     }
 
     [Fact]
-    public void SystemPromptIsHeadPlusRegistryOpsPlusTail()
+    public void Should_Build_The_System_Prompt_As_Head_Plus_Registry_Ops_Plus_Tail()
     {
         Assert.Equal(
             SystemPromptAsset.Head + OpRegistry.CoreOpsSection + SystemPromptAsset.Tail,

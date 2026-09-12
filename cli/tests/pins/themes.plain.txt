@@ -1,0 +1,13 @@
+Themes (current: violet) — '/theme <name | #hex | default>' to switch:
+ * violet (default)
+   pink
+   yellow
+   orange
+   crimson
+   aqua
+   sky
+   blue
+   grass
+   green
+   brown
+   grey

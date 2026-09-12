@@ -14,8 +14,8 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class ConnectionsHandlerTests : IDisposable
 {
-    private const long UserId = 91;
-    private const long ChatId = 92;
+    private const long _userId = 91;
+    private const long _chatId = 92;
 
     private readonly string _dataDir;
     private readonly MockBotClient _bot = new();
@@ -34,15 +34,15 @@ public sealed class ConnectionsHandlerTests : IDisposable
                 Url = "http://a:8090",
                 Token = "sess-a",
                 Credential = "adm-secret",
-                CredentialKind = CredentialKind.Admin,
+                CredentialKind = CredentialKind.ADMIN,
             },
-            new ServerConnectionInfo { Url = "http://b:8090", Token = "sess-b", CredentialKind = CredentialKind.None },
+            new ServerConnectionInfo { Url = "http://b:8090", Token = "sess-b", CredentialKind = CredentialKind.NONE },
             new ServerConnectionInfo
             {
                 Url = "http://c:8090",
                 Token = "sess-c",
                 Credential = "sess-c",
-                CredentialKind = CredentialKind.Session,
+                CredentialKind = CredentialKind.SESSION,
             },
         ];
     }
@@ -52,17 +52,17 @@ public sealed class ConnectionsHandlerTests : IDisposable
         try { Directory.Delete(_dataDir, recursive: true); } catch { /* best effort */ }
     }
 
-    private Task Dispatch(string text) =>
-        _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
+    private Task dispatch(string text) =>
+        _handlers.DispatchAsync(_userId, _chatId, CommandParser.Parse(text), CancellationToken.None);
 
-    private string LastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
+    private string lastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
 
     [Fact]
-    public async Task BareCommandListsThemAllAndMarksTheAdminOneWithoutItsToken()
+    public async Task Should_List_Them_All_And_Mark_The_Admin_One_Without_Its_Token_On_A_Bare_Command()
     {
-        await Dispatch("/connections");
+        await dispatch("/connections");
 
-        string text = LastText();
+        string text = lastText();
         Assert.Contains("Connections (3):", text);
         Assert.Contains("http://a:8090 [admin]", text);
         Assert.Contains("http://b:8090", text);
@@ -72,11 +72,11 @@ public sealed class ConnectionsHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task AdminFilterKeepsOnlyTheAdminCredentialConnections()
+    public async Task Should_Keep_Only_The_Admin_Credential_Connections_For_The_Admin_Filter()
     {
-        await Dispatch("/connections admin");
+        await dispatch("/connections admin");
 
-        string text = LastText();
+        string text = lastText();
         Assert.Contains("Admin-token connections (1):", text);
         Assert.Contains("http://a:8090 [admin]", text);
         Assert.DoesNotContain("http://b:8090", text);
@@ -84,11 +84,11 @@ public sealed class ConnectionsHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task SessionFilterKeepsEverythingThatIsNotAnAdminCredential()
+    public async Task Should_Keep_Everything_That_Is_Not_An_Admin_Credential_For_The_Session_Filter()
     {
-        await Dispatch("/connections SESSION"); // case-insensitive, like the other arguments
+        await dispatch("/connections SESSION"); // case-insensitive, like the other arguments
 
-        string text = LastText();
+        string text = lastText();
         Assert.Contains("Session-token connections (2):", text);
         Assert.Contains("http://b:8090", text);
         Assert.Contains("http://c:8090", text);
@@ -96,21 +96,21 @@ public sealed class ConnectionsHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task FilteringOutEverythingSaysSoInsteadOfTheConnectHint()
+    public async Task Should_Say_So_Instead_Of_The_Connect_Hint_When_Filtering_Out_Everything()
     {
-        _servers.Connections = [new ServerConnectionInfo { Url = "http://b:8090", CredentialKind = CredentialKind.None }];
+        _servers.Connections = [new ServerConnectionInfo { Url = "http://b:8090", CredentialKind = CredentialKind.NONE }];
 
-        await Dispatch("/connections admin");
+        await dispatch("/connections admin");
 
-        Assert.Contains("No admin-token connections.", LastText());
+        Assert.Contains("No admin-token connections.", lastText());
     }
 
     [Fact]
-    public async Task UnknownArgumentRepliesWithUsageAndListsNothing()
+    public async Task Should_Reply_With_Usage_And_List_Nothing_For_An_Unknown_Argument()
     {
-        await Dispatch("/connections everything");
+        await dispatch("/connections everything");
 
-        string text = LastText();
+        string text = lastText();
         Assert.Contains("/connections admin", text);
         Assert.Contains("/connections session", text);
         Assert.DoesNotContain("http://a:8090", text);

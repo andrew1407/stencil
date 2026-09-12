@@ -88,10 +88,10 @@ public sealed class RecordingServerService : IServerService
 
     public Task<IReadOnlyList<ServerProjectInfo>> ListProjectsAsync(long userId, string? url, CancellationToken ct = default) =>
         Projects is null
-            ? Fail<Task<IReadOnlyList<ServerProjectInfo>>>()
+            ? fail<Task<IReadOnlyList<ServerProjectInfo>>>()
             : Task.FromResult<IReadOnlyList<ServerProjectInfo>>(Projects);
 
-    private static T Fail<T>() => throw new NotSupportedException("this server call is not part of the §2.1 save path");
+    private static T fail<T>() => throw new NotSupportedException("this server call is not part of the §2.1 save path");
 
     public Task<ServerConnectionInfo> ConnectAsync(long userId, string url, string? token, bool verifyTls, CancellationToken ct = default)
     {
@@ -114,16 +114,51 @@ public sealed class RecordingServerService : IServerService
     }
     public Task<IReadOnlyList<ServerConnectionInfo>> ConnectionsAsync(long userId, CancellationToken ct = default) =>
         Connections is null
-            ? Fail<Task<IReadOnlyList<ServerConnectionInfo>>>()
+            ? fail<Task<IReadOnlyList<ServerConnectionInfo>>>()
             : Task.FromResult<IReadOnlyList<ServerConnectionInfo>>(Connections);
-    public Task<UserSession> FetchAsync(long userId, string nameOrId, string? url, CancellationToken ct = default) => Fail<Task<UserSession>>();
-    public Task<ProjectRecord> CreateProjectAsync(long userId, string? name, string? url, CancellationToken ct = default) => Fail<Task<ProjectRecord>>();
-    public Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default) => Fail<Task<string>>();
-    public Task<long> SetProjectExpiryAsync(long userId, long expiresAtMs, CancellationToken ct = default) => Fail<Task<long>>();
-    public Task<string> DeleteActiveProjectAsync(long userId, CancellationToken ct = default) => Fail<Task<string>>();
-    public Task<long?> ActiveServerVersionAsync(long userId, CancellationToken ct = default) => Fail<Task<long?>>();
-    public Task<UserSession?> PullActiveAsync(long userId, CancellationToken ct = default) => Fail<Task<UserSession?>>();
-    public Task SaveChatAsync(long userId, string chatJson, CancellationToken ct = default) => Fail<Task>();
-    public Task<string?> LoadChatAsync(long userId, CancellationToken ct = default) => Fail<Task<string?>>();
-    public Task DeleteChatAsync(long userId, CancellationToken ct = default) => Fail<Task>();
+    public Task<UserSession> FetchAsync(long userId, string nameOrId, string? url, CancellationToken ct = default) => fail<Task<UserSession>>();
+    public Task<ProjectRecord> CreateProjectAsync(long userId, string? name, string? url, CancellationToken ct = default) => fail<Task<ProjectRecord>>();
+    public Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default) => fail<Task<string>>();
+    public Task<long> SetProjectExpiryAsync(long userId, long expiresAtMs, CancellationToken ct = default) => fail<Task<long>>();
+    public Task<string> DeleteActiveProjectAsync(long userId, CancellationToken ct = default) => fail<Task<string>>();
+    /// <summary>
+    /// The version SyncWatcher polls. Never assigned = this double is not standing in for the
+    /// poll path and the call fails loudly; assigned null = the server was unreachable.
+    /// </summary>
+    public long? ActiveVersion
+    {
+        get => _activeVersion;
+        set { _activeVersion = value; _servesVersion = true; }
+    }
+
+    private long? _activeVersion;
+    private bool _servesVersion;
+
+    /// <summary>Set to make the version poll throw (the unreachable-server path).</summary>
+    public Exception? VersionThrows { get; set; }
+
+    /// <summary>How many times <see cref="ActiveServerVersionAsync"/> ran.</summary>
+    public int VersionPolls { get; private set; }
+
+    /// <summary>How many times <see cref="PullActiveAsync"/> ran.</summary>
+    public int Pulls { get; private set; }
+
+    public Task<long?> ActiveServerVersionAsync(long userId, CancellationToken ct = default)
+    {
+        VersionPolls++;
+        if (VersionThrows is Exception failure)
+        {
+            throw failure;
+        }
+        return _servesVersion ? Task.FromResult(_activeVersion) : fail<Task<long?>>();
+    }
+
+    public Task<UserSession?> PullActiveAsync(long userId, CancellationToken ct = default)
+    {
+        Pulls++;
+        return Task.FromResult<UserSession?>(null);
+    }
+    public Task SaveChatAsync(long userId, string chatJson, CancellationToken ct = default) => fail<Task>();
+    public Task<string?> LoadChatAsync(long userId, CancellationToken ct = default) => fail<Task<string?>>();
+    public Task DeleteChatAsync(long userId, CancellationToken ct = default) => fail<Task>();
 }

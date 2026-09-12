@@ -30,21 +30,11 @@ internal static class TestHandlers
         IServerService? servers = null,
         EditingService? editing = null,
         LlmOptions? llmOptions = null,
-        bool openLlmAllowlist = true,
         PromptCancellations? cancellations = null,
         IReadOnlyList<LlmProfile>? profiles = null,
         ILogger<CommandHandlers>? logger = null)
     {
         editing ??= new EditingService(cli, new UserWorkspace(options), store);
-        // The assistant is allowlisted per Telegram user id and fails closed when the list is
-        // empty (BotOptions.LlmAllowedUsers). Fixtures exercising the handlers themselves opt
-        // out of the gate with an allow-everyone set, since each uses its own user id. The gate
-        // itself is covered by AssistantAllowlistTests, which passes openLlmAllowlist:false to
-        // get the real options through untouched.
-        if (openLlmAllowlist)
-        {
-            options = options with { LlmAllowedUsers = AnyUser.Instance };
-        }
         return new CommandHandlers(
             editing,
             servers ?? new ThrowingServerService(),

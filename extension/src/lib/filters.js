@@ -1,13 +1,8 @@
-// ── Image-list filtering (pure, dependency-free, unit-tested) ────────────────
-
-// Bucket label for media whose format can't be detected (no extension, opaque URL).
+// The bucket for media whose format cannot be detected.
 export const UNKNOWN_FORMAT = 'etc';
 
-// Video container formats offered in the filter. A video's format comes from its
-// media URL (item.videoUrl), not its opaque JPEG still — see formatOfItem.
-export const VIDEO_FORMATS = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v', 'ogv'];
+export const VIDEO_FORMATS = Object.freeze(['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v', 'ogv']);
 
-// Lowercase media "format" from a URL or data: URI ('' if unknown).
 export const formatOf = (src) => {
   if (!src) return '';
   if (src.startsWith('data:')) {
@@ -24,13 +19,12 @@ export const formatOf = (src) => {
   return m ? norm(m[1]) : '';
 };
 
-// The format used to filter an item: a video keys on its media URL, the rest on `src`.
+// A video's format comes from its media URL, not its opaque JPEG still.
 export const formatOfItem = (item) =>
   item && item.kind === 'video' ? formatOf(item.videoUrl) : formatOf(item && item.src);
 
 const norm = ext => ext.toLowerCase().replace('jpeg', 'jpg').replace('svg+xml', 'svg').replace('quicktime', 'mov');
 
-// Distinct, sorted formats present in the items.
 export const distinctFormats = (items) => {
   const set = new Set();
   for (const it of items) {
@@ -40,7 +34,6 @@ export const distinctFormats = (items) => {
   return [...set].sort();
 };
 
-// Extract every url(...) target from a CSS background(-image) value.
 export const extractCssUrls = (bg) => {
   const out = [];
   if (!bg || bg === 'none') return out;
@@ -50,10 +43,8 @@ export const extractCssUrls = (bg) => {
   return out;
 };
 
-// Does the item's name / src / videoUrl match the search text? With f.regex the query is a
-// case-insensitive RegExp (an invalid pattern matches nothing); otherwise a case-insensitive
-// substring. Empty query = always matches. Mirrored on the page API (pageApiMain.js) and by
-// the CLI/pystencil --source-name scrape filter (which match the media URL).
+// An invalid regex matches nothing. Mirrored in pageApiMain.js and by the CLI/pystencil
+// --source-name scrape filter.
 export const matchesSearch = (item, f = {}) => {
   const query = f.search;
   if (!query) return true;
@@ -67,13 +58,9 @@ export const matchesSearch = (item, f = {}) => {
   return fields.some(v => (v || '').toLowerCase().includes(q));
 };
 
-// Does an item pass the active filter state?
-//   f = { search, regex, formats, minW, maxW, minH, maxH, includeImg, includeBg, includeVideo, includePosters }
-// Undetectable formats bucket as UNKNOWN_FORMAT ('etc'); empty bounds are null;
-// unknown-size items (w/h <= 0) pass size filters (measured later).
+// Unknown-size items (w/h <= 0) pass the size filters — they are measured later.
 export const passesFilters = (item, f = {}) => {
-  // A video poster and an icon/metadata image both list as <img> but each has its own
-  // toggle (independent of the plain-image one), so they can be shown or hidden as a group.
+  // Posters and metadata images list as <img> but each has its own toggle.
   if (item.poster) {
     if (f.includePosters === false) return false;
   } else if (item.meta) {

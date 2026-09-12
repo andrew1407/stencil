@@ -16,14 +16,16 @@ const cli_profiles = [_][]const u8{ "console", "all" };
 
 const Entry = struct { file: []const u8, value: std.json.Value };
 
-// The hand-written files plus the registry-generated bundle (generated/cases.json,
-// browser/tools/genOpPlanFixtures.mjs), each generated case walking as "<name>.json".
-fn loadCorpus(a: std.mem.Allocator, io: std.Io) ![]Entry {
+// The hand-written bundle (each case carrying its stable "file" label) plus the
+// registry-generated one (generated/cases.json, browser/tools/genOpPlanFixtures.mjs),
+// whose cases walk as "<name>.json".
+fn loadCorpus(w: *fx.Walk) ![]Entry {
+    const a = w.alloc();
+    const io = w.io();
     var out: std.ArrayList(Entry) = .empty;
-    for (try fx.listJson(a, io, opplan_dir)) |file| {
-        if (std.mem.eql(u8, file, "_schema.md")) continue;
-        const sub = try std.fmt.allocPrint(a, "{s}{s}", .{ opplan_dir, file });
-        try out.append(a, .{ .file = file, .value = try fx.loadJson(a, io, sub) });
+    const hand = try fx.loadJson(a, io, opplan_dir ++ "cases.json");
+    for (fx.member(hand, "cases").?.array.items) |c| {
+        try out.append(a, .{ .file = fx.memberStr(c, "file").?, .value = c });
     }
     const bundle = try fx.loadJson(a, io, opplan_dir ++ "generated/cases.json");
     for (fx.member(bundle, "cases").?.array.items) |c| {
@@ -41,14 +43,17 @@ fn oneOf(s: []const u8, set: []const []const u8) bool {
 }
 
 test "opPlan corpus: exists and is well-formed (the reference walker's shape check)" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var w = fx.Walk.start();
+    defer w.stop();
 
-    const entries = try loadCorpus(a, io);
+    const entries = try loadCorpus(&w);
+    // Floors per bundle, not on the total: the generated cases alone clear a combined
+    // floor, so a vanished cases.json would otherwise walk green.
+    const a0 = w.alloc();
+    const hand = fx.member(try fx.loadJson(a0, w.io(), opplan_dir ++ "cases.json"), "cases").?;
+    const generated = fx.member(try fx.loadJson(a0, w.io(), opplan_dir ++ "generated/cases.json"), "cases").?;
+    try testing.expect(hand.array.items.len >= 180);
+    try testing.expect(generated.array.items.len >= 400);
     try testing.expect(entries.len >= 300); // a real corpus
 
     for (entries) |ent| {
@@ -87,20 +92,12 @@ test "opPlan corpus: exists and is well-formed (the reference walker's shape che
 }
 
 test "opPlan corpus: every console fixture parses to its pinned verdict" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var w = fx.Walk.start();
+    defer w.stop();
+    const a = w.alloc();
 
-    const overrides = try fx.parseOverrides(a);
-    const entries = try loadCorpus(a, io);
-    var walked: usize = 0;
-    var skipped: usize = 0;
-    var failures: usize = 0;
-
-    for (entries) |ent| {
+    try w.loadOverrides();
+    for (try loadCorpus(&w)) |ent| {
         const file = ent.file;
         const f = ent.value;
         const name = fx.memberStr(f, "name").?;
@@ -110,17 +107,17 @@ test "opPlan corpus: every console fixture parses to its pinned verdict" {
             if (oneOf(p.string, &cli_profiles)) applies = true;
         }
         if (!applies) {
-            skipped += 1;
+            w.skipped += 1; // the fixture's profiles exclude console/all
             continue;
         }
-        walked += 1;
+        w.walked += 1;
 
         // Verdict precedence: local override ?? knownDivergence.cli ?? expect.
         var want = fx.memberStr(f, "expect").?;
         if (fx.member(f, "knownDivergence")) |kd| {
             if (fx.memberStr(kd, "cli")) |v| want = v;
         }
-        if (fx.overrideFor(overrides, "opPlan", name)) |ov| {
+        if (w.override("opPlan", name)) |ov| {
             if (fx.memberStr(ov, "verdict")) |v| want = v;
         }
 
@@ -141,11 +138,8 @@ test "opPlan corpus: every console fixture parses to its pinned verdict" {
                 got = "invalid";
             },
         }
-        if (!std.mem.eql(u8, got, want)) {
-            std.debug.print("opPlan {s}: want {s}, cli says {s} {s}\n", .{ file, want, got, detail });
-            failures += 1;
-        }
+        if (!std.mem.eql(u8, got, want))
+            w.fail("opPlan {s}: want {s}, cli says {s} {s}\n", .{ file, want, got, detail });
     }
-    std.debug.print("opPlan corpus: walked {d}, skipped {d} (profiles exclude console/all)\n", .{ walked, skipped });
-    try testing.expectEqual(@as(usize, 0), failures);
+    try w.report("opPlan");
 }

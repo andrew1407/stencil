@@ -19,12 +19,8 @@ import { StencilChatPanel } from './chatPanel.js';
 import { StencilLlmSettingsModal } from './llmSettingsModal.js';
 import { StencilDescriptionModal } from './descriptionModal.js';
 import { StencilKeywordsModal } from './keywordsModal.js';
-// ── Top-level body composer (custom-element hosts, exact original body order) ──
-// Importing the modules above registers every customElements.define. Each template()
-// emits the host tag with markup inline, so layout() still produces the full static
-// markup string (143 ids) the app and tests expect.
-// The region order is LOAD-BEARING (document body order); keep this list in the exact
-// original sequence. layout() concatenates each region's template() in that order.
+// Importing the modules registers every customElements.define; layout() concatenates each
+// region's template() in this order, which is LOAD-BEARING (document body order).
 const REGIONS = [
   StencilContextMenu,
   StencilFullscreenLayer,

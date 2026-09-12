@@ -9,7 +9,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class DotEnvTests
 {
     [Fact]
-    public void ParseHandlesCommentsBlanksQuotesAndExport()
+    public void Should_Handle_Comments_Blanks_Quotes_And_Export_When_Parsing()
     {
         string text = string.Join(
             "\n",
@@ -32,7 +32,7 @@ public sealed class DotEnvTests
     }
 
     [Fact]
-    public void LoadDoesNotOverrideAPresetVariable()
+    public void Should_Not_Override_A_Preset_Variable_On_Load()
     {
         string key = "STENCIL_DOTENV_TEST_" + Guid.NewGuid().ToString("N");
         string file = Path.Combine(Path.GetTempPath(), "dotenv-" + Guid.NewGuid().ToString("N") + ".env");
@@ -51,7 +51,7 @@ public sealed class DotEnvTests
     }
 
     [Fact]
-    public void LoadSetsAnUnsetVariable()
+    public void Should_Set_An_Unset_Variable_On_Load()
     {
         string key = "STENCIL_DOTENV_TEST_" + Guid.NewGuid().ToString("N");
         string file = Path.Combine(Path.GetTempPath(), "dotenv-" + Guid.NewGuid().ToString("N") + ".env");
@@ -70,7 +70,7 @@ public sealed class DotEnvTests
     }
 
     [Fact]
-    public void LoadOfMissingFileIsNoOp()
+    public void Should_Do_Nothing_On_Load_Of_A_Missing_File()
     {
         string missing = Path.Combine(Path.GetTempPath(), "dotenv-missing-" + Guid.NewGuid().ToString("N") + ".env");
         DotEnv.Load(missing);

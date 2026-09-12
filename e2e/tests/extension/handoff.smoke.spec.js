@@ -3,6 +3,7 @@
 // modal hand-offs, pin/unpin, and the CSS-background scan path. Extensions require a
 // persistent context (the default `page` fixture can't provide one), so this suite
 // manages its own. Runs headed; CI wraps the job in xvfb (see ci.yml / README).
+import { setTimeout as sleep } from 'node:timers/promises';
 import { test, expect } from '@playwright/test';
 import { APP_URL } from '../../helpers/config.js';
 import { launchExtension } from '../../helpers/extension.js';
@@ -24,7 +25,7 @@ test.describe('extension', () => {
     const sw = await background();
     await sw.evaluate((editorUrl) => new Promise((r) =>
       chrome.storage.sync.set({ exposeWindowStencil: true, editorUrl }, r)), EDITOR_URL);
-    await new Promise((r) => setTimeout(r, 800));
+    await sleep(800);
   });
 
   test.afterAll(async () => { await context?.close(); });
@@ -68,8 +69,7 @@ test.describe('extension', () => {
     expect(editor.url()).toContain('#stencil=');
     await editor.waitForFunction(() => !!(/** @type {any} */ (window).stencil?.current?.imageName), null, { timeout: 15_000 });
     expect(await editor.evaluate(() => !!window.stencil.current.imageName)).toBeTruthy();
-    await editor.close();
-    await host.close();
+    await Promise.all([editor.close(), host.close()]);
   });
 
   test('hands an image off to an IN-PAGE modal iframe (default)', async () => {

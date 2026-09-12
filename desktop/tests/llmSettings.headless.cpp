@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
     msgs.append(junkRole);
     msgs.append(noText);
     const QJsonObject doc = fileStore::buildChatDoc(msgs, 1234);
-    check(doc.value("version").toInt() == fileStore::kChatDocVersion, "doc carries version 1");
+    check(doc.value("version").toInt() == fileStore::CHAT_DOC_VERSION, "doc carries version 1");
     check(doc.value("savedAt").toVariant().toLongLong() == 1234, "doc carries savedAt");
     const QJsonArray out = doc.value("messages").toArray();
     check(out.size() == 2, "junk roles / textless turns dropped");
@@ -166,7 +166,7 @@ int main(int argc, char** argv) {
       many.append(m);
     }
     const QJsonArray trimmed = fileStore::buildChatDoc(many, 0).value("messages").toArray();
-    check(trimmed.size() == fileStore::kChatDocMessageLimit, "trimmed to 32 messages");
+    check(trimmed.size() == fileStore::CHAT_DOC_MESSAGE_LIMIT, "trimmed to 32 messages");
     check(trimmed.first().toObject().value("text") == "t8", "the most recent 32 survive");
   }
 

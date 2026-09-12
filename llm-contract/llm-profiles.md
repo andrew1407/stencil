@@ -10,18 +10,18 @@ tables these sections once carried are gone. This file keeps the per-profile
 BEHAVIOUR: what each surface's profile is for, its execution model, and its security
 boundaries.
 
-Profile shape today (per the registry): **editor** 36 ops (browser 35 incl. browser-only
-`voiceChat`, + desktop-only `openFile`), **console** 23 (cli 23 ⊇ pystencil 19), **bot** 24,
-**mcp** 10, **extension** 12. An op outside a surface's profile falls to §1's unknown-op
-skip, by design.
+Read the profile's `ops` array for its membership — counts in prose rot. The shape:
+**editor** (browser + desktop, with `voiceChat` browser-only and `openFile` desktop-only),
+**console** (cli ⊇ pystencil — see `profiles.console.notes` for what pystencil skips),
+**bot**, **mcp** (core ops only) and **extension**. An op outside a surface's profile falls
+to §1's unknown-op skip, by design; a measured behavioural difference is recorded per
+§13.1, never by editing the shared fixtures.
 
 ## 8. Extension profile (extension-only ops)
 
 The Chrome extension is not an editor: its working set is the **images scanned from the
-current page**. Its chat therefore runs the shared contract with its own op set
-(`opRegistry.json` → `profiles.extension`: `focus`, `open`, `attach`, `pin`, `unpin`,
-`scanTab`, `rescan`, `openUrl`, `theme`, `accent`, the panel `filter`, `clearChat`) and
-these behaviours:
+current page**. Its chat runs the shared contract over its own op set
+(`opRegistry.json` → `profiles.extension`) with these behaviours:
 
 - **Context listing**: every turn's system-prompt suffix includes a compact numbered
   listing of the current scan results (index, kind `img|background|poster|video|icon`,
@@ -93,14 +93,12 @@ these behaviours:
 
 ## 10. Editor-settings profile (browser & desktop editors; partial profiles below)
 
-The two GUI editors extend §2 with ops that adjust the EDITOR itself, not the image:
-theme, accent, lineStyle, units, view, clear, openUrl, openFile (desktop-only), connect/
-disconnect, copy, removeProject, clearProjects, compare, zoom, renameProject,
-projectColor, blankColor, openProject, incognito, voiceChat (browser-only), chatPanel,
-dialog, clearChat —
-schemas, validation and bullets per `opRegistry.json` → `profiles.editor` and each op's
-entry. Everywhere else these are unknown ops — skipped with a warning per §1, by design —
-except where a partial profile below carries one explicitly.
+The two GUI editors extend §2 with ops that adjust the EDITOR itself, not the image —
+theme, accent, line style, units, view, project and connection management, the chat panel,
+the editor's own dialogs. Membership, schemas, validation and bullets are
+`opRegistry.json` → `profiles.editor` and each op's entry; the semantics below are what the
+registry cannot say. Everywhere else these are unknown ops — skipped with a warning per §1,
+by design — except where a partial profile below carries one explicitly.
 
 Semantics (profile-wide):
 
@@ -223,18 +221,16 @@ else.
 
 ### The mcp profile
 
-**mcp** runs the ten core ops (`profiles.mcp`: crop, rotate, filter, layout, formula,
-page, blank, frame, image, save) in a one-shot headless pipeline — no settings, no
-connections, no chat surface. Since the Phase-6 widening its validators accept the full
+**mcp** runs the core ops only (`profiles.mcp`) in a one-shot headless pipeline — no
+settings, no connections, no chat surface. Since the Phase-6 widening its validators accept the full
 core schemas rather than a subset: `page`/`blank` **custom centimetre dims
 (`width`/`height`) execute** (lowered onto the CLI pipeline like the editors' custom
 page size), and `formula`'s clears — `{"op":"formula","enabled":false}` and the
 empty-`expr` axis clear — are **accepted but execute as inert no-ops with a note** (a
-one-shot run has no persistent formula state to clear; `opRegistry.json` →
-`ops.formula.divergence`). `save.path` is honored **sandboxed**: the destination is
-resolved relative to the run's `output_dir` (absolute, `..` or `~` paths note-and-fall-
-back to the usual place; a `.stencil` path is a file, anything else a folder) — see
-`mcp/src/opplan/lower.rs`.
+one-shot run has no persistent formula state to clear; the registry's `formula` entry,
+`divergence`). `save.path` is honored **sandboxed**: the destination is resolved relative to
+the run's `output_dir` (absolute, `..` or `~` paths note-and-fall-back to the usual place; a
+`.stencil` path is a file, anything else a folder) — `mcp/src/opplan/lower.rs`.
 
 ### Never model-drivable (every surface, by design)
 

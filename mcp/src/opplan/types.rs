@@ -160,3 +160,22 @@ pub enum Action {
         path: Option<String>,
     },
 }
+
+impl Action {
+    /// The registry `"op"` this action came from — how a validated action finds its own
+    /// §13 entry again (and with it the lowering that folds it into a run).
+    pub fn op_name(&self) -> &'static str {
+        match self {
+            Action::Crop { .. } => "crop",
+            Action::Rotate { .. } => "rotate",
+            Action::Filter { .. } => "filter",
+            Action::Layout { .. } => "layout",
+            Action::Formula(_) => "formula",
+            Action::Page { .. } => "page",
+            Action::Blank { .. } => "blank",
+            Action::Frame { .. } => "frame",
+            Action::Image { .. } => "image",
+            Action::Save { .. } => "save",
+        }
+    }
+}

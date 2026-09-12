@@ -1,0 +1,195 @@
+/* ── Scroll reveal (js/ui/motion.js) ─────────────────────────────────────────
+   Rows in a long scroller fade + lift into place as they enter and dissolve again
+   as they leave, so scrolling reads as motion instead of a jump. motion.js only
+   adds .reveal-item once it has an IntersectionObserver to drive it, so a browser
+   without one never leaves a row stuck at the dimmed rest state. Mirrored in
+   extension/src/lib/animations.css and desktop/src/app/scrollReveal.hpp. */
+@property --dissolve { syntax: "<number>"; inherits: false; initial-value: 0; }
+
+.reveal-item {
+    /* 0 = fully assembled, 1 = fully dissolved. Registered above so it can be
+       TRANSITIONED — a plain custom property can't be, it would just jump. */
+    --dissolve: 1;
+    /* How far the wipe softens into each cut. motion.js (revealFeather) zeroes the end
+       the scroller is NOT clipping; these defaults are the entering state, which
+       assembles out of its own middle and so softens both ways. */
+    --fade-in: 10%;
+    --fade-out: 10%;
+    transform: none;
+    /* SHORT while scrolling: the dissolve now tracks scroll position continuously, and
+       a long transition would lag visibly behind the scrollbar. A row's FIRST ramp gets
+       the long one instead (.reveal-entering), so an arriving message still assembles
+       where you can see it. */
+    transition: --dissolve 0.14s linear, transform 0.14s linear;
+}
+.reveal-item.reveal-in { --dissolve: 0; transform: none; }
+/* Mounted ONLY while a row straddles an edge (motion.js) — normally one or two rows.
+   Every row carrying four gradient layers is what made a long transcript stutter, and a
+   row that is fully readable or fully clipped needs no mask at all. */
+.reveal-item.reveal-masked {
+    /* Four mask layers, UNIONed (`add`), so the row is solid when settled:
+         · THREE dot grains at different cell sizes (4/7/11px) and offsets. One grid
+           alone is a regular lattice — its dots line up and merge into joining
+           rectangles, which is exactly what stops it reading as sand. Three coprime
+           grids at different phases interfere, so the specks land irregularly and at
+           mixed sizes. Each dies at a different rate (80/95/110), so they thin out in
+           sequence rather than vanishing together.
+         · a bottom→top wipe: the region still fully intact. Its edge climbs as
+           --dissolve rises, so the row erodes upward — the same direction the
+           removal snap runs.
+       Union, not intersect: intersect would punch dot-holes through a settled row.
+       max() floors the radii, since a negative gradient stop is not meaningful. */
+    -webkit-mask-image:
+        radial-gradient(circle at 50% 50%, #000 max(0%, calc(78% - var(--dissolve) * 78%)),
+                        transparent max(0%, calc(84% - var(--dissolve) * 78%))),
+        radial-gradient(circle at 50% 50%, #000 max(0%, calc(74% - var(--dissolve) * 95%)),
+                        transparent max(0%, calc(80% - var(--dissolve) * 95%))),
+        radial-gradient(circle at 50% 50%, #000 max(0%, calc(70% - var(--dissolve) * 110%)),
+                        transparent max(0%, calc(76% - var(--dissolve) * 110%))),
+        linear-gradient(to bottom, transparent 0, transparent var(--vis-start, 0%),
+                        #000 calc(var(--vis-start, 0%) + var(--fade-in, 10%)),
+                        #000 calc(var(--vis-end, 100%) - var(--fade-out, 10%)),
+                        transparent var(--vis-end, 100%), transparent 100%);
+    mask-image:
+        radial-gradient(circle at 50% 50%, #000 max(0%, calc(78% - var(--dissolve) * 78%)),
+                        transparent max(0%, calc(84% - var(--dissolve) * 78%))),
+        radial-gradient(circle at 50% 50%, #000 max(0%, calc(74% - var(--dissolve) * 95%)),
+                        transparent max(0%, calc(80% - var(--dissolve) * 95%))),
+        radial-gradient(circle at 50% 50%, #000 max(0%, calc(70% - var(--dissolve) * 110%)),
+                        transparent max(0%, calc(76% - var(--dissolve) * 110%))),
+        linear-gradient(to bottom, transparent 0, transparent var(--vis-start, 0%),
+                        #000 calc(var(--vis-start, 0%) + var(--fade-in, 10%)),
+                        #000 calc(var(--vis-end, 100%) - var(--fade-out, 10%)),
+                        transparent var(--vis-end, 100%), transparent 100%);
+    /* The wipe is stretched to 3x the row's WIDTH and centred, so it also covers what a
+       row paints OUTSIDE its box — the chat "…" trigger sits beside the bubble, and with
+       the layer stopping at the box edge the mask erased it (and its hit-testing with it:
+       the row stayed clickable, the control did not). Only the vertical mapping matters
+       to a `to bottom` gradient, and that is unchanged. */
+    -webkit-mask-size: 4px 4px, 7px 7px, 11px 11px, 300% 100%;
+    mask-size: 4px 4px, 7px 7px, 11px 11px, 300% 100%;
+    -webkit-mask-position: 0 0, 2px 3px, 5px 1px, center top;
+    mask-position: 0 0, 2px 3px, 5px 1px, center top;
+    /* The wipe layer is the STILL-VISIBLE span, kept solid; the grain only ever shows
+       outside it. So a row you can read is untouched and the sanding happens on the
+       edge the scroller is already cutting off. */
+    -webkit-mask-repeat: repeat, repeat, repeat, no-repeat;
+    mask-repeat: repeat, repeat, repeat, no-repeat;
+    -webkit-mask-composite: source-over;   /* legacy spelling of "union" */
+    mask-composite: add;
+    /* …and the mask must not CLIP to the row's box, or a child painted beside the bubble
+       (the "…" trigger) is cut away wholesale — invisible AND un-clickable, which is how
+       a partially scrolled message lost its actions. */
+    -webkit-mask-clip: no-clip;
+    mask-clip: no-clip;
+}
+/* Rows made of TEXT (the chat transcript, motion.js `smooth`) take the wipe layer ALONE:
+   the dot grain above eats letters mid-word on the cut edge, which reads as corrupted
+   rendering rather than as a dissolve (user report). One clean alpha fade instead, over
+   a FIXED band (motion.js REVEAL_SMOOTH_FEATHER) — 10% of a tall bubble dissolved a
+   whole paragraph. Everything else (project rows, cards) keeps the grain. */
+.reveal-item.reveal-smooth { --fade-in: 12px; --fade-out: 12px; }
+.reveal-item.reveal-smooth.reveal-masked {
+    -webkit-mask-image:
+        linear-gradient(to bottom, transparent 0, transparent var(--vis-start, 0%),
+                        #000 calc(var(--vis-start, 0%) + var(--fade-in, 12px)),
+                        #000 calc(var(--vis-end, 100%) - var(--fade-out, 12px)),
+                        transparent var(--vis-end, 100%), transparent 100%);
+    mask-image:
+        linear-gradient(to bottom, transparent 0, transparent var(--vis-start, 0%),
+                        #000 calc(var(--vis-start, 0%) + var(--fade-in, 12px)),
+                        #000 calc(var(--vis-end, 100%) - var(--fade-out, 12px)),
+                        transparent var(--vis-end, 100%), transparent 100%);
+    /* 3× the width, centred: the "…" trigger sits BESIDE the bubble, and a layer stopping
+       at the box edge erases it (and its hit-testing). Vertical mapping is unchanged. */
+    -webkit-mask-size: 300% 100%;
+    mask-size: 300% 100%;
+    -webkit-mask-position: center top;
+    mask-position: center top;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-clip: no-clip;
+    mask-clip: no-clip;
+}
+.reveal-item.reveal-entering {
+    transition: --dissolve 0.7s ease, transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+    /* A half-dissolved row is a surprise, not motion — show it whole. */
+    .reveal-item { --dissolve: 0 !important; transform: none !important;
+                   -webkit-mask-image: none !important; mask-image: none !important; }
+}
+
+/* ── Leaving (js/ui/motion.js leaveThenRemove) ───────────────────────────────
+   A row about to be destroyed collapses and slides out first, so a delete reads as
+   the row going away instead of the list jumping. --leave-h is the row's measured
+   height, frozen by motion.js: `height: auto` has nothing to animate from. */
+.leaving {
+    pointer-events: none;
+    overflow: hidden;
+    animation: rowLeave 0.22s cubic-bezier(0.4, 0, 1, 1) both;
+}
+@keyframes rowLeave {
+    from { opacity: 1; transform: none; max-height: var(--leave-h, 200px); }
+    60%  { opacity: 0; transform: translateX(-14px) scale(0.97); max-height: var(--leave-h, 200px); }
+    to   { opacity: 0; transform: translateX(-14px) scale(0.97);
+           max-height: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+}
+/* Transcript rows and chips sit in flex columns where a height collapse fights the
+   gap; a <tr> ignores max-height outright. Both just dissolve in place instead —
+   the particles above them carry the effect either way. */
+.chat-transcript > .leaving, .chat-results.leaving,
+.coordinates-table tbody tr.leaving {
+    animation: cardLeave 0.22s ease both;
+}
+@keyframes cardLeave {
+    from { opacity: 1; transform: none; }
+    to   { opacity: 0; transform: translateY(-6px) scale(0.97); }
+}
+/* …a CHAT entry melts into its own dust: eased out, sinking and shrinking a little
+   further than a list row (motion.js CHAT_LEAVE_MS). Deliberately OPACITY + TRANSFORM
+   only — an animated blur is composited per frame, and next to hundreds of drifting
+   particles that was the jank that made the removal feel slow and heavy. */
+.chat-transcript > .leaving, .ctx-assist-transcript > .leaving,
+.chat-results.leaving, .chat-attached.leaving {
+    animation: chatCardLeave 0.26s cubic-bezier(0.33, 0, 0.2, 1) both;
+    will-change: opacity, transform;
+}
+@keyframes chatCardLeave {
+    from { opacity: 1; transform: none; }
+    to   { opacity: 0; transform: translateY(-8px) scale(0.95); }
+}
+/* …and it ARRIVES the same way, backwards (js/ui/motion.js chatIn): its own motes gather
+   over it (reintegrate) and the entry appears as they land. A VEIL, not a fade — the entry
+   keeps its height, so the transcript grows and scrolls to it exactly as it always did,
+   but it is never seen ahead of its own dust. Fading it up underneath the cloud instead
+   showed the message first and played the animation over it, which is the one thing an
+   arrival must not do. motion.js lifts this the same frame it drops the cloud, so the
+   motes hand straight over to the real entry. !important: the entry's own row rules (and
+   the scroll reveal's) must not out-rank being held back. */
+.chat-transcript > .chat-entering, .ctx-assist-transcript > .chat-entering,
+.chat-results.chat-entering, .chat-attached.chat-entering {
+    opacity: 0 !important;
+    /* The dust is a photograph of where the entry IS — nothing may move under it. */
+    animation: none !important;
+    transition: none !important;
+    pointer-events: none;
+}
+/* A queued-attachment chip leaves a HORIZONTAL row: it melts like a chat card but
+   ALSO collapses its width (frozen in --leave-w by motion.js), so the chips behind
+   it slide over during the leave instead of jumping when the node is removed. The
+   final negative margin swallows the container's flex gap the removed chip owned. */
+.chat-attach-chip.leaving {
+    animation: chipLeave 0.42s cubic-bezier(0.33, 0, 0.2, 1) both;
+    will-change: opacity, transform;
+}
+@keyframes chipLeave {
+    from { opacity: 1; transform: none; max-width: var(--leave-w, 240px); }
+    30%  { opacity: 0; transform: translateY(-8px) scale(0.95); }
+    /* Hold the slot while the scatter reads — the survivors wait, then glide. */
+    38%  { opacity: 0; transform: translateY(-8px) scale(0.95); max-width: var(--leave-w, 240px); }
+    to   { opacity: 0; transform: translateY(-8px) scale(0.95); max-width: 0;
+           padding-left: 0; padding-right: 0; border-left-width: 0; border-right-width: 0;
+           margin-right: calc(0px - var(--chip-gap, 6px)); }
+}
+

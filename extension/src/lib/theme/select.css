@@ -1,0 +1,77 @@
+/* ── Custom <select> dropdowns (lib/customSelect.js + lib/dropdownMenu.js) ──
+   The LIST a native <select> opens is drawn by the OS, not the page: on macOS it comes up
+   centred on the control in system type, ignoring this panel's theme entirely — and in a
+   400px popup it covers nearly everything. So every <select> here is replaced by the same
+   markup the options page's accent picker uses, and the pages keep the <select> itself as
+   the value source. Mirrors .cs-dd / .accent-dd in browser components/accentPicker.css. ── */
+.cs-native { display: none; }
+.accent-dd { position: relative; display: block; }
+/* enhanceSelect mirrors the <select>'s `hidden` onto this wrapper, and `display` above
+   out-specifies the UA's [hidden] rule — without this an empty, hidden dropdown (the
+   per-server filters, with no server connected) still paints an empty box in the row. */
+.accent-dd[hidden] { display: none; }
+.accent-dd-trigger {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px;
+  font: inherit; font-size: 14px; text-align: left; color: var(--text);
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; cursor: pointer;
+}
+.accent-dd-trigger:hover { border-color: var(--accent); }
+.accent-dd-name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.accent-dd-caret { color: var(--muted); font-size: 11px; flex: 0 0 auto; display: flex; }
+.accent-dd-menu {
+  position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 50;
+  margin: 0; padding: 4px; list-style: none; max-height: 280px; overflow-y: auto;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 9px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .35);
+}
+.accent-dd-menu[hidden] { display: none; }
+/* The logo's own accent menu (lib/logoAccent.js) hangs off the small logo badge, so it
+   sizes to its rows rather than stretching to the badge's width like the full-trigger
+   dropdown above. */
+.logo-accent-menu { right: auto; min-width: 168px; z-index: 100002; }
+/* .logo-wrap is a z-index:0 stacking context (its ray ring), which traps the menu below
+   the content beside it — raise the whole badge while the menu is open. */
+.logo-wrap.logo-menu-open { z-index: 100002; }
+/* Open: moved to <body> and placed in viewport coordinates, so a filter row near the
+   bottom of the popup drops its list upward instead of off the window. */
+.accent-dd-menu.dd-portal { position: fixed; right: auto; min-width: 0; z-index: 100002; }   /* no viewport-wide floor on <body> (browser components/accentPicker.css) */
+.accent-dd-opt {
+  display: flex; align-items: center; gap: 9px; padding: 6px 9px; border-radius: 6px;
+  cursor: pointer; white-space: nowrap; transition: background .15s ease, transform .12s ease;
+}
+/* The colour chip a theme row wears, and the ✓ the ACTIVE preset shows inside it — the
+   browser's components/accentPicker.css .accent-swatch / .accent-check, rule for rule. A tick, not
+   just the row's tint: that tint is the same affordance :hover uses, so on the logo's
+   menu (opened under the pointer) the active row read no differently from the row being
+   hovered. White over a dark halo, legible on light and dark chips in either theme.
+   Every chip carries the glyph and only the selected row reveals it, so a custom hex
+   accent — which selects no row — marks nothing. */
+.accent-swatch {
+  width: 16px; height: 16px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 4px; border: 1px solid var(--line);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .15); transition: background .2s ease;
+}
+.accent-check {
+  /* The ink is the chip's own on-accent one, set per preset where the row is built. */
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.accent-dd-opt[aria-selected="true"] .accent-check { opacity: 1; }
+/* `.dd-hover` mirrors :hover but is JS-driven (lib/logoAccent.js), so the previewed row's
+   highlight survives the accent flood's View Transition, which drops real :hover. */
+.accent-dd-opt:hover, .accent-dd-opt.dd-hover { background: var(--panel-2); transform: translateX(2px); }
+.accent-dd-opt[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+/* Searchable popups (enhanceSelect { search: true }, e.g. the page-size list): a filter
+   input pinned above the scrolling rows, and the "no match" row when it filters all out. */
+.accent-dd-search-row {
+  position: sticky; top: -4px; z-index: 1; margin: -4px -4px 4px; padding: 8px;
+  background: var(--panel); border-bottom: 1px solid var(--line); list-style: none;
+}
+.accent-dd-search {
+  width: 100%; padding: 6px 8px; font: inherit; font-size: 13px;
+  color: var(--text); background: var(--panel-2);
+  border: 1px solid var(--line); border-radius: 6px;
+}
+.accent-dd-search:focus { outline: none; border-color: var(--accent); }
+.accent-dd-no-match { padding: 8px 9px; color: var(--muted); font-size: 13px; list-style: none; }

@@ -19,11 +19,13 @@ import { tileMotion, MARK_IN_MS, MARK_OUT_MS, MARK_MOTE_PX, MARK_DRIFT, MARK_COL
          FILTER_DUST_MS, FILTER_DUST_DRIFT, FILTER_ENTER_MS, REVEAL_GROUP_IN_MS, REVEAL_GROUP_OUT_MS,
          reshapeGrid, markIn, markOut, markSwap, revealControls, revealBar, settleMark, filterDust,
          BAR_HELD_CLASS, BAR_CLOSING_CLASS } from '../js/ui/motion.js';
+import { motionSource } from './helpers/motionSource.js';
+import { ANIMATIONS_CSS } from './helpers/css.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const motionJs = read('../js/ui/motion.js');
+const motionJs = motionSource();
 const swapJs = read('../js/ui/controlSwap.js');
-const animCss = read('../css/animations.css');
+const animCss = ANIMATIONS_CSS;
 const selectJs = read('../js/ui/customSelect.js');
 
 test('the throw scales with the control: a 15px tick cannot fling motes like a list row', () => {
@@ -61,7 +63,7 @@ test('a mark is grained finer than a window, under a much smaller ceiling', () =
 });
 
 test('a mark FALLS like a row — it does not fly at a point like a window', () => {
-  // The desktop scatters its checkbox indicator with Sweep::Fall / Sweep::Gather
+  // The desktop scatters its checkbox indicator with Sweep::FALL / Sweep::GATHER
   // (support/controlSwap.hpp swapCheckIndicator); the browser has to mime the same thing,
   // so markDust passes no `toward` and disintegrate takes the tileMotion branch.
   const body = motionJs.slice(motionJs.indexOf('const markDust ='),
@@ -206,8 +208,12 @@ test('one delegated listener wires every checkbox, as one filter does on the des
 
 test('a select exchanges its chosen word, but only on a real change', () => {
   assert.match(selectJs, /markSwap\(cur, \(\) => \{ cur\.textContent = label; \}\)/);
-  assert.match(selectJs, /const changed = shown !== null && label !== shown;\s*\n\s*if \(!changed\) cur\.textContent = label;/,
+  assert.match(selectJs, /const changed = settled && shown !== null && label !== shown;\s*\n\s*if \(!changed\) cur\.textContent = label;/,
     'the first paint and a re-sync on open write straight through');
+  // …and so does BOOT: applyUnitToUI writes the restored page size and unit in the same
+  // task that wired the toolbar, and both dropdowns dealt themselves in as the page opened.
+  assert.match(selectJs, /requestAnimationFrame\(\(\) => \{ settled = true; \}\)/);
+  assert.match(selectJs, /else settled = true;/, 'off-browser, every set is a real one');
 });
 
 test('a filter brings its rows in as sand — and never plays one out', () => {
@@ -295,7 +301,7 @@ test('revealBar defers the CLOSE by its contents\' flight, but opens at once', (
   // padding standing as a bare grey line on the way out (user report, with pictures).
   // Only the controls fly — the desktop's updateBatchBar exactly.
   assert.equal(bar.style.maxHeight, undefined);
-  const src = readFileSync(new URL('../js/ui/motion.js', import.meta.url), 'utf8');
+  const src = motionSource();
   const body = src.slice(src.indexOf('export const revealBar'), src.indexOf('const REVEAL_GROUP_TRANSITION_CLASS'));
   assert.ok(!/revealControls|slideRevealSize|maxHeight/.test(body), 'a display flip, nothing more');
 });
@@ -351,7 +357,7 @@ test('a leaving bar HOLDS its slot, then closes the whole footprint', () => {
 // The CSS half of that close: whatever the bar's footprint is made of has to go with the
 // height, or the list below still drops by the leftovers in the frame it is hidden.
 test('the closing bar zeroes its padding and divider, not just its height', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   const rule = css.match(/\.bar-held\.bar-closing \{[^}]*\}/)?.[0] || '';
   for (const prop of ['height: 0', 'max-height: 0', 'padding-top: 0', 'padding-bottom: 0',
                       'border-bottom-width: 0']) {
@@ -401,10 +407,10 @@ test('sweepDust takes down the clouds a window started, and only those', async (
   }
 });
 
-// …and the shell is what calls it: every window closes the same way (base.js close()).
+// …and the shell is what calls it: every window closes the same way (modalShell.js close()).
 test('every modal shell sweeps its own dust as it closes', () => {
-  const base = read('../js/ui/base.js');
-  assert.match(base, /const close = \(\) => \{[\s\S]{0,400}sweepDust\(overlay\);/,
+  const shell = read('../js/ui/modalShell.js');
+  assert.match(shell, /const close = \(\) => \{[\s\S]{0,400}sweepDust\(overlay\);/,
     'the shared close sweeps, so no window has to remember to');
-  assert.match(base, /import \{[^}]*sweepDust[^}]*\} from '\.\/motion\.js'/);
+  assert.match(shell, /import \{[^}]*sweepDust[^}]*\} from '\.\/motion\.js'/);
 });

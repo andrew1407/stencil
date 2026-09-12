@@ -20,8 +20,8 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class AlbumTests : IDisposable
 {
-    private const long UserId = 71;
-    private const long ChatId = 72;
+    private const long _userId = 71;
+    private const long _chatId = 72;
 
     private readonly string _dataDir;
     private readonly MockStencilCli _cli = new();
@@ -36,7 +36,7 @@ public sealed class AlbumTests : IDisposable
     public AlbumTests()
     {
         _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-album-" + Guid.NewGuid().ToString("N"));
-        BotOptions options = new() { DataDir = _dataDir };
+        BotOptions options = new() { DataDir = _dataDir, AllowedUsers = AnyUser.Instance };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
         _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, editing: editing);
         _albums = new AlbumCollector(ct => _settle.Task.WaitAsync(ct));
@@ -58,31 +58,31 @@ public sealed class AlbumTests : IDisposable
     }
 
     /// <summary>Route one album member exactly as the poller would deliver it.</summary>
-    private Task SendAlbumPhoto(int messageId, string fileId, string? caption = null, string group = "album-1") =>
+    private Task sendAlbumPhoto(int messageId, string fileId, string? caption = null, string group = "album-1") =>
         _router.HandleMessageAsync(
             new Message
             {
                 Id = messageId,
-                Chat = new Chat { Id = ChatId },
-                From = new User { Id = UserId },
+                Chat = new Chat { Id = _chatId },
+                From = new User { Id = _userId },
                 Photo = [new PhotoSize { FileId = fileId, FileUniqueId = fileId, Width = 90, Height = 90 }],
                 MediaGroupId = group,
                 Caption = caption,
             },
             CancellationToken.None);
 
-    private Task Send(string text) =>
+    private Task send(string text) =>
         _router.HandleMessageAsync(
             new Message
             {
-                Chat = new Chat { Id = ChatId },
-                From = new User { Id = UserId },
+                Chat = new Chat { Id = _chatId },
+                From = new User { Id = _userId },
                 Text = text,
             },
             CancellationToken.None);
 
     /// <summary>Release the settle window and wait for the buffered group to flush.</summary>
-    private async Task SettleAsync()
+    private async Task settleAsync()
     {
         _settle.TrySetResult();
         await _albums.WhenIdleAsync();
@@ -91,12 +91,12 @@ public sealed class AlbumTests : IDisposable
     private IEnumerable<string> DownloadedFileIds => _bot.Requests.OfType<GetFileRequest>().Select(r => r.FileId);
 
     [Fact]
-    public async Task CaptionOnTheFirstMemberRunsThePerPhotoBatchInOrderAndRepliesWithOneAlbum()
+    public async Task Should_Run_The_Per_Photo_Batch_In_Order_And_Reply_With_One_Album_When_The_First_Member_Is_Captioned()
     {
-        await SendAlbumPhoto(1, "p1", caption: "/filter bw");
-        await SendAlbumPhoto(2, "p2");
-        await SendAlbumPhoto(3, "p3");
-        await SettleAsync();
+        await sendAlbumPhoto(1, "p1", caption: "/filter bw");
+        await sendAlbumPhoto(2, "p2");
+        await sendAlbumPhoto(3, "p3");
+        await settleAsync();
 
         // Each photo was downloaded and rendered once, in album order.
         Assert.Equal(["p1", "p2", "p3"], DownloadedFileIds);
@@ -110,18 +110,18 @@ public sealed class AlbumTests : IDisposable
         Assert.Equal(["photo 2/3", "photo 3/3"], captions.Skip(1).Select(c => c[..9]));
         Assert.Empty(_bot.Requests.OfType<SendPhotoRequest>());
         // The working image ends as the LAST photo's edited result.
-        UserSession session = await _store.GetAsync(UserId);
+        UserSession session = await _store.GetAsync(_userId);
         Assert.Equal("photo 3/3", session.ImageLabel);
         Assert.Equal("bw", session.Edits.Filter);
     }
 
     [Fact]
-    public async Task CaptionOnTheLastMemberBatchesTheSameWay()
+    public async Task Should_Batch_The_Same_Way_When_The_Last_Member_Is_Captioned()
     {
-        await SendAlbumPhoto(1, "p1");
-        await SendAlbumPhoto(2, "p2");
-        await SendAlbumPhoto(3, "p3", caption: "/rotate 1");
-        await SettleAsync();
+        await sendAlbumPhoto(1, "p1");
+        await sendAlbumPhoto(2, "p2");
+        await sendAlbumPhoto(3, "p3", caption: "/rotate 1");
+        await settleAsync();
 
         Assert.Equal(["p1", "p2", "p3"], DownloadedFileIds);
         Assert.Equal(3, _cli.EditCalls);
@@ -132,19 +132,19 @@ public sealed class AlbumTests : IDisposable
     }
 
     [Fact]
-    public async Task ChatModeAlbumCaptionGoesToTheAssistantOncePerPhotoInOrder()
+    public async Task Should_Send_An_Album_Caption_To_The_Assistant_Once_Per_Photo_In_Order_In_Chat_Mode()
     {
-        await Send("/chat");
+        await send("/chat");
         for (int i = 0; i < 3; i++)
         {
             _llm.CannedReplies.Enqueue(new LlmReply(
                 """{"reply":"Done.","actions":[{"op":"filter","mode":"bw"}]}"""));
         }
 
-        await SendAlbumPhoto(1, "p1", caption: "make these black and white");
-        await SendAlbumPhoto(2, "p2");
-        await SendAlbumPhoto(3, "p3");
-        await SettleAsync();
+        await sendAlbumPhoto(1, "p1", caption: "make these black and white");
+        await sendAlbumPhoto(2, "p2");
+        await sendAlbumPhoto(3, "p3");
+        await settleAsync();
 
         // One assistant turn per photo, each carrying the shared caption, in album order.
         Assert.Equal(3, _llm.Requests.Count);
@@ -154,18 +154,18 @@ public sealed class AlbumTests : IDisposable
         SendMediaGroupRequest album = Assert.Single(_bot.Requests.OfType<SendMediaGroupRequest>());
         Assert.Equal(3, album.Media.Count());
         Assert.Empty(_bot.Requests.OfType<SendPhotoRequest>());
-        UserSession session = await _store.GetAsync(UserId);
+        UserSession session = await _store.GetAsync(_userId);
         Assert.Equal("photo 3/3", session.ImageLabel);
         Assert.Equal("bw", session.Edits.Filter);
     }
 
     [Fact]
-    public async Task AnUncaptionedAlbumAdoptsOnlyTheLastPhotoWithOneNote()
+    public async Task Should_Adopt_Only_The_Last_Photo_With_One_Note_For_An_Uncaptioned_Album()
     {
-        await SendAlbumPhoto(1, "p1");
-        await SendAlbumPhoto(2, "p2");
-        await SendAlbumPhoto(3, "p3");
-        await SettleAsync();
+        await sendAlbumPhoto(1, "p1");
+        await sendAlbumPhoto(2, "p2");
+        await sendAlbumPhoto(3, "p3");
+        await settleAsync();
 
         // Only the last photo was downloaded/adopted — no per-photo echo spam.
         Assert.Equal(["p3"], DownloadedFileIds);
@@ -173,13 +173,13 @@ public sealed class AlbumTests : IDisposable
         Assert.Contains("only one can be the working image", note.Text);
         Assert.Single(_bot.Requests.OfType<SendPhotoRequest>());
         Assert.Empty(_bot.Requests.OfType<SendMediaGroupRequest>());
-        Assert.True((await _store.GetAsync(UserId)).HasImage);
+        Assert.True((await _store.GetAsync(_userId)).HasImage);
     }
 
     [Fact]
-    public async Task APlainCaptionOnASingleNonAlbumPhotoGoesToTheAssistantInChatMode()
+    public async Task Should_Send_A_Plain_Caption_On_A_Single_Non_Album_Photo_To_The_Assistant_In_Chat_Mode()
     {
-        await Send("/chat");
+        await send("/chat");
         _llm.CannedReplies.Enqueue(new LlmReply(
             """{"reply":"Sepia it is.","actions":[{"op":"filter","mode":"sepia"}]}"""));
 
@@ -187,8 +187,8 @@ public sealed class AlbumTests : IDisposable
             new Message
             {
                 Id = 9,
-                Chat = new Chat { Id = ChatId },
-                From = new User { Id = UserId },
+                Chat = new Chat { Id = _chatId },
+                From = new User { Id = _userId },
                 Photo = [new PhotoSize { FileId = "solo", FileUniqueId = "solo", Width = 90, Height = 90 }],
                 Caption = "make it sepia",
             },
@@ -196,7 +196,7 @@ public sealed class AlbumTests : IDisposable
 
         LlmChatRequest turn = Assert.Single(_llm.Requests);
         Assert.Equal("make it sepia", turn.Messages[^1].Text);
-        Assert.Equal("sepia", (await _store.GetAsync(UserId)).Edits.Filter);
+        Assert.Equal("sepia", (await _store.GetAsync(_userId)).Edits.Filter);
         Assert.Single(_bot.Requests.OfType<SendPhotoRequest>());
     }
 }

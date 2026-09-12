@@ -35,9 +35,8 @@ Identical shape in every client (naming adapted to each language's conventions):
   server proxies the upstream. The client authenticates with its **existing** bearer
   token for that server. `model` may be empty (server default).
 
-**Defaults** (pre-filled on first run; the user can manually edit every URL). The
-normative values are `providers.json` → `providers.<name>.defaultBaseUrl` /
-`displayName`; as recorded there today:
+**Defaults** (pre-filled on first run; the user can edit every URL). Normative values:
+`providers.json` → `providers.<name>`; as recorded there today:
 
 | Provider | Default `baseUrl` / `serverUrl` | Default `model` |
 |---|---|---|
@@ -51,7 +50,7 @@ over:
 
 - **cli**: `chatSeconds: 600` — the console waiter allows long local-model runs;
   unification to 120 is deliberately deferred (the change is one constant,
-  `cli/src/llm.zig` `request_timeout_ms`).
+  `request_timeout_ms` in `cli/src/llm/transport.zig`, re-exported by the `src/llm.zig` façade).
 - **browser**: `chatSeconds: null` — abort-driven (the user's stop button), no fixed
   chat deadline.
 
@@ -62,7 +61,7 @@ Per-client persistence of overrides:
 | browser | localStorage | `drawingApp_llmSettings` (JSON of the shape above) |
 | desktop | fileStore Settings JSON | `llmProvider`, `llmBaseUrl`, `llmModel`, `llmApiKey`, `llmServerUrl` |
 | pystencil | `LlmConfig(...)` args, env fallback | `STENCIL_LLM_PROVIDER`, `STENCIL_LLM_BASE_URL`, `STENCIL_LLM_MODEL`, `STENCIL_LLM_API_KEY`, `STENCIL_LLM_SERVER_URL`; its console mirrors the CLI console's `/prompt`, `/p`, and `/llm …` commands |
-| bot | env/.env via `BotOptions` | same `STENCIL_LLM_*` names as pystencil, plus `STENCIL_BOT_ALLOWED_USERS` — the Telegram user ids allowed to use the assistant at all (empty = off for everyone), since one shared key serves every chat — and `STENCIL_LLM_SERVER_TOKEN`, the operator's bearer for a pinned `STENCIL_LLM_SERVER_URL`, used when the invoking user has no `/connect` of their own to it (the cli console's rule) |
+| bot | env/.env via `BotOptions` | same `STENCIL_LLM_*` names as pystencil, plus `STENCIL_BOT_ALLOWED_USERS` — the bot's global, fail-closed allowlist of Telegram user ids (empty = off for everyone; it gates every command, not only the assistant, because one shared key serves every chat) — and `STENCIL_LLM_SERVER_TOKEN`, the operator's bearer for a pinned `STENCIL_LLM_SERVER_URL`, used when the invoking user has no `/connect` of their own to it (the cli console's rule) |
 | mcp | env/.env via `config.rs` | same `STENCIL_LLM_*` names, plus `STENCIL_LLM_SERVER_TOKEN` (mcp has no connection store). `stencil_prompt` takes a per-call `model` only — the provider and endpoint are not caller-settable, and its plain-http transport sends credentials to loopback peers only |
 | cli (console) | `STENCIL_LLM_*` env (same names, incl. `STENCIL_LLM_SERVER_TOKEN`) as initial values | in-session overrides via `/llm provider|url|model|key|server` console commands; stencil-server auth reuses the console's `/connect` token when URLs match |
 | extension | `chrome.storage` | `llmSettings` (JSON of the §5 shape) |
@@ -192,8 +191,9 @@ answers `429 {"code":"rateLimited"}` — `LLM_MODEL`
 (default `claude-opus-5`), `LLM_BASE_URL` (defaults per provider: Anthropic
 `https://api.anthropic.com`, Ollama `http://localhost:11434`, OpenAI-compatible
 `http://localhost:1234/v1`), `LLM_MAX_TOKENS` (default 32768), `LLM_TIMEOUT_SECONDS`
-(default 120). `ADMIN_TOKEN` must be set for ANY provider — open token issuance plus a
-usable upstream means anyone could spend it. The server calls
+(default 120). Token issuance is never silently open next to a usable upstream: an unset
+`ADMIN_TOKEN` gets a random per-boot token (printed once at startup), it is not ignored.
+The server calls
 `POST {LLM_BASE_URL}/v1/messages` with headers `x-api-key`,
 `anthropic-version: 2023-06-01` (the `providers.json` → `anthropicUpstream` constants);
 images become `{"type":"image","source":{"type":"base64","media_type":…,"data":…}}`

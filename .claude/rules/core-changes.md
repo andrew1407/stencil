@@ -22,9 +22,16 @@ near your edit:
 - `cli/build.zig` → the core sources array
 - `pystencil/build.py` → the core sources list
 
-Note the ABI asymmetry: the CMake/wasm build compiles `wasmApi.cpp`; the CLI and pystencil
-each append **`cliApi.cpp`** (the `extern "C"` ABI they wrap) instead. Keep only the pure
-`core/*.cpp` modules synced across the three — the api file differs per surface by design.
+Note the ABI asymmetry: the CMake/wasm build compiles the `wasm*Api.cpp` files; the CLI and
+pystencil each append **`cliApi.cpp`** (the `extern "C"` ABI they wrap) instead. Keep only the
+pure `core/*.cpp` modules synced across the three — the api file differs per surface by design.
+**Consequence: splitting a wasm ABI file is a ONE-file edit.** `wasmApi.cpp`, `wasmCropApi.cpp`,
+`wasmStateApi.cpp` and `wasmProjectsApi.cpp` appear only in `core/CMakeLists.txt`, twice each —
+the `stencil_tests` exe and the `if(EMSCRIPTEN)` exe. Neither `cli/build.zig` nor
+`pystencil/build.py` mentions them.
+
+A **new wasm export** is a fourth, separate list: add `_stencil_x` to `EXPORTED_FUNCTIONS`
+in `core/CMakeLists.txt` or the browser cannot call it.
 
 ## 2. Behavior parity — update the twin and the tests
 
@@ -33,9 +40,10 @@ of each core header) and the browser keeps a **JS fallback that must match the w
 op-for-op** (`browser/tests/wasm-parity.test.js` enforces it). So a behavioral change to a
 core module also means:
 
-- change the matching `browser/js/…` fallback so the two stay identical (the deliberate
-  exception is `formulaEngine.js` `new Function` vs `core/parse/formulaParser` — keep their
-  *contract* aligned, not their implementation; no `eval` in core),
+- change the matching `browser/js/…` fallback so the two stay identical — including
+  `browser/js/core/formulaEngine.js` ↔ `core/parse/formulaParser`, which are **both real
+  recursive-descent parsers** (no `eval`, no `new Function`, on either side) and must agree
+  operator for operator, down to the shared `MAX_DEPTH`,
 - update **both** test suites (`core/tests/*` are ports of `browser/tests/*`),
 - run `cd browser && npm run build-wasm && npm test` (the wasm-parity test) to confirm they
   didn't diverge.
@@ -43,5 +51,5 @@ core module also means:
 ## 3. Keep core pure
 
 `core/` stays **STL-only, codec-free, GUI-free**. Don't pull in Qt, an image codec, HTTP,
-JSON, or DOM access — those live in the adapters (Zig CLI, Qt/browser GUIs). See
+JSON, or DOM access — those live in the adapters (Zig CLI, GUIs). See
 `no-dependencies.md`.

@@ -60,60 +60,42 @@ fn expectLine(got: core.LineDraw, want: std.json.Value) !void {
     try testing.expectEqualStrings(fieldStr(want, "pointColor", line_defaults.point_color), got.point_color);
 }
 
-fn expectLines(name: []const u8, got: []const core.LineDraw, want: std.json.Value) !usize {
-    if (want.array.items.len != got.len) {
-        std.debug.print("layout '{s}': want {d} lines, cli parsed {d}\n", .{ name, want.array.items.len, got.len });
-        return 1;
-    }
-    for (want.array.items, got) |w, g| {
-        expectLine(g, w) catch {
-            std.debug.print("layout '{s}': line mismatch\n", .{name});
-            return 1;
-        };
-    }
-    return 0;
+fn expectLines(w: *fx.Walk, name: []const u8, got: []const core.LineDraw, want: std.json.Value) !void {
+    w.walked += 1;
+    if (want.array.items.len != got.len)
+        return w.fail("layout '{s}': want {d} lines, cli parsed {d}\n", .{ name, want.array.items.len, got.len });
+    for (want.array.items, got) |expected, g|
+        expectLine(g, expected) catch return w.fail("layout '{s}': line mismatch\n", .{name});
 }
 
 test "layout corpus: sparse.json — the tolerant parser's per-line defaults" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var w = fx.Walk.start();
+    defer w.stop();
+    const a = w.alloc();
 
-    const overrides = try fx.parseOverrides(a);
-    const cases = try fx.loadJson(a, io, "fixtures/layout/sparse.json");
-    var failures: usize = 0;
-
-    for (cases.array.items) |case| {
+    try w.loadOverrides();
+    for (try w.cases("fixtures/layout/sparse.json")) |case| {
         const name = fx.memberStr(case, "name").?;
         const doc = try std.fmt.allocPrint(a, "{{\"lines\":{s}}}", .{try fx.stringify(a, fx.member(case, "sparse").?)});
         var L = try layout.parse(testing.allocator, doc);
         defer L.deinit();
 
         var want = fx.member(case, "expectFilled").?;
-        if (fx.overrideFor(overrides, "layout", name)) |ov| {
+        if (w.override("layout", name)) |ov| {
             if (fx.member(ov, "cliLines")) |cl| want = cl;
         }
-        failures += try expectLines(name, L.lines, want);
+        try expectLines(&w, name, L.lines, want);
     }
-    try testing.expectEqual(@as(usize, 0), failures);
+    try w.report("layout sparse");
 }
 
 test "layout corpus: payload.json — exported payloads through the cli parse side" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var w = fx.Walk.start();
+    defer w.stop();
+    const a = w.alloc();
 
-    const overrides = try fx.parseOverrides(a);
-    const cases = try fx.loadJson(a, io, "fixtures/layout/payload.json");
-    var failures: usize = 0;
-
-    for (cases.array.items) |case| {
+    try w.loadOverrides();
+    for (try w.cases("fixtures/layout/payload.json")) |case| {
         const name = fx.memberStr(case, "name").?;
         const payload = fx.member(case, "expectPayload").?;
         var L = try layout.parse(testing.allocator, try fx.stringify(a, payload));
@@ -137,16 +119,16 @@ test "layout corpus: payload.json — exported payloads through the cli parse si
 
         // Lines through the same comparator; cli typing drift rides the override.
         var want = fx.member(payload, "lines");
-        if (fx.overrideFor(overrides, "layout", name)) |ov| {
+        if (w.override("layout", name)) |ov| {
             if (fx.member(ov, "cliLines")) |cl| want = cl;
         }
-        if (want) |w| {
-            failures += try expectLines(name, L.lines, w);
+        if (want) |lines| {
+            try expectLines(&w, name, L.lines, lines);
         } else {
             try testing.expectEqual(@as(usize, 0), L.lines.len);
         }
     }
-    try testing.expectEqual(@as(usize, 0), failures);
+    try w.report("layout payload");
 }
 
 test "layout filter key: read-both since Phase 6, canonical imageFilter wins" {

@@ -1,33 +1,29 @@
 // ── Chat controller: history, attachments, and the send loop ────────────────
-// Owns the client-side conversation state (contract §7): history is replayed in
-// full on every call (bounded to 32 messages), images follow the replay rule, and
-// attachments are downscaled before base64-encoding. Every capability that needs a
-// DOM (canvas downscale, video frames, image export) is INJECTED so `node --test`
-// can drive the controller with stubs.
-import { EDITOR_SYSTEM_PROMPT, LLM_SYSTEM_PROMPT, parseOpPlan, executeOpPlan, renderAskPreviews } from './opPlan.js';
+// Owns the client-side conversation state (contract §7): history is replayed in full on
+// every call (bounded to 32 messages), images follow the replay rule, and attachments are
+// downscaled before base64-encoding. Every DOM capability is INJECTED for `node --test`.
+import { EDITOR_SYSTEM_PROMPT, parseOpPlan, executeOpPlan, renderAskPreviews } from './opPlan.js';
 import { CONTINUATION_NOTE } from './chatStore.js';
-// §7: appended to a turn's system prompt when — and only when — that turn actually
-// attaches the working image's edge map.
-export const EDGE_MAP_SENTENCE = 'The second attached image is an edge-map render of the working image at the same pixel coordinates: use it to place outline points on real edges.';
+import PROMPT_ASSET from '../config/llm/systemPrompt.json' with { type: 'json' };
 import { isVideoFile } from '../core/videoFrame.js';
-import { core } from '../core/stencilCore.js';
-import { applyContourRGBA } from '../core/contourFilter.js';
 import { loadSavedServers } from '../net/connectionStore.js';
-import { scaledDataUrl } from '../utils.js';
+import { downscaleToDataUrl, contourToDataUrl } from '../worker/imageTasks.js';
+import EVENTS from '../config/events.json' with { type: 'json' };
 
 export const HISTORY_LIMIT = 32;
 export const MAX_IMAGE_EDGE = 1568;
 // How many images ONE message may carry: replayed and paid for per turn (§7); past this
 // the queue is refused with a message rather than silently trimmed on the way out.
 export const MAX_ATTACHMENTS = 3;
-
-// Window-event name the chat UIs listen on to repaint the composer's attachment
-// chips. Lives here (DOM-free constant) so the session glue and the views share it.
-export const CHAT_ATTACHMENTS_EVENT = 'stencil:chat-attachments-changed';
+// §7: appended to a turn's system prompt when — and only when — that turn attaches the
+// working image's edge map. Verbatim from the shared prose asset every surface embeds.
+export const EDGE_MAP_SENTENCE = PROMPT_ASSET.edgeMapSentence;
+// Window-event the chat UIs listen on to repaint the composer's attachment chips.
+export const CHAT_ATTACHMENTS_EVENT = EVENTS.chatAttachmentsChanged;
 
 // §2.1 `save` with no name: the attachment the plan is working on names the project.
 // Empty means "no idea from here" — the surface falls back to the editor's own name.
-export const attachmentSaveName = (attachment) =>
+const attachmentSaveName = (attachment) =>
   String(attachment?.name || '').replace(/\.[^.]+$/, '').trim();
 
 // Does this plan actually WORK ON the picture? Only then is an attached image worth
@@ -40,7 +36,7 @@ export const planEditsTheImage = (plan) =>
 export const VIDEO_FRAME_COUNT = 4;
 // Ask-option previews live in the shared chat log for the whole session but render
 // as small thumbs (no download/open affordance) — stored at thumbnail size.
-export const ASK_PREVIEW_MAX_EDGE = 256;
+const ASK_PREVIEW_MAX_EDGE = 256;
 
 // data:mediaType;base64,payload → { mediaType, data } (the LlmImage wire shape).
 export const splitDataUrl = (u) => {
@@ -49,12 +45,14 @@ export const splitDataUrl = (u) => {
 };
 
 // Downscale an image blob/File to ≤ maxEdge px on the long edge and re-encode as
-// PNG (contract §7). Browser-only default for the injected prepareAttachment.
+// PNG (contract §7) — in the image worker. Browser-only default for prepareAttachment.
 export const downscaleImageToDataUrl = async (blob, maxEdge = MAX_IMAGE_EDGE) => {
   const bmp = await createImageBitmap(blob);
-  const url = scaledDataUrl(bmp, bmp.width, bmp.height, maxEdge, 'image/png');
-  bmp.close?.();
-  return url;
+  try {
+    return await downscaleToDataUrl(bmp, bmp.width, bmp.height, { maxEdge, type: 'image/png' });
+  } finally {
+    bmp.close?.();
+  }
 };
 
 // Re-encode a data URL at thumbnail size (browser default for the injected
@@ -64,18 +62,15 @@ const thumbnailDataUrl = async (dataUrl, maxEdge = ASK_PREVIEW_MAX_EDGE) => {
     const img = new Image();
     img.src = dataUrl;
     await img.decode();
-    return scaledDataUrl(img, img.naturalWidth, img.naturalHeight, maxEdge, 'image/jpeg', 0.85);
+    return await downscaleToDataUrl(img, img.naturalWidth, img.naturalHeight, { maxEdge, type: 'image/jpeg', quality: 0.85 });
   } catch {
     return dataUrl;
   }
 };
 
-// The core contour pass in place over RGBA8 pixels — wasm stencil_applyContourRGBA
-// when loaded, else the JS reference. Shared with chatSession's crop-edge wiring.
-export const contourInPlace = (data, w, h) => (core.op('applyContourRGBA') || applyContourRGBA)(data, w, h);
-
 // Re-render a snapshot data URL with the core `contour` filter — the exact path the
-// user-facing "contour" filter mode uses. Browser-only default for the injected edgeMap.
+// user-facing "contour" filter mode uses (the Sobel pass runs in the image worker).
+// Browser-only default for the injected edgeMap.
 export const contourDataUrl = async (dataUrl) => {
   const img = new Image();
   img.src = dataUrl;
@@ -85,15 +80,12 @@ export const contourDataUrl = async (dataUrl) => {
   canvas.height = img.naturalHeight;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(img, 0, 0);
-  const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  contourInPlace(d.data, canvas.width, canvas.height);
-  ctx.putImageData(d, 0, 0);
-  return canvas.toDataURL('image/png');
+  return contourToDataUrl(() => ctx.getImageData(0, 0, canvas.width, canvas.height));
 };
 
 // A provider/model that has no vision, answering the auto-attached working image.
 // Providers word it differently, so match the shapes rather than one string.
-export const isImageRejection = (err) =>
+const isImageRejection = (err) =>
   /multimodal|vision|image input|does not support image|image_url|images are not/i.test(
     String(err?.message ?? err ?? ''));
 
@@ -121,7 +113,7 @@ export const replayMessages = (history) => {
 // containing one — that drew NO layout — is re-sent once with the new working image
 // attached: outlining needs pixels, and a plan that already placed lines committed to
 // its coordinates. `openUrl` counts with OR without incognito (adopted in this editor).
-export const LOAD_ONLY_OPS = new Set(['openUrl', 'blank', 'frame']);
+const LOAD_ONLY_OPS = new Set(['openUrl', 'blank', 'frame']);
 export const planLoadsWithoutTracing = (plan) =>
   !!plan && Array.isArray(plan.actions)
   && plan.actions.some((a) => LOAD_ONLY_OPS.has(a.op))

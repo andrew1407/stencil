@@ -3,9 +3,10 @@ import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { scrollbarHit } from '../js/utils.js';
 import { thumbMetrics, SB_MIN_THUMB_PX } from '../js/ui/canvasScrollbars.js';
+import { LAYOUT_CSS } from './helpers/css.js';
 
 // The canvas viewport draws its own overlay scrollbars (js/ui/canvasScrollbars.js, the
-// desktop's overlayScrollArea.hpp): the native bars cannot colour ONE thumb on hover —
+// desktop's OverlayScrollArea.hpp): the native bars cannot colour ONE thumb on hover —
 // scrollbar-color is a single colour for both — and the webkit pseudo-elements are
 // ignored once scrollbar-width is set (user reports).
 
@@ -20,7 +21,7 @@ test('thumbMetrics: proportional length with a floor, offset scaled over the fre
 });
 
 test('the canvas hides its native bars and styles its own, accent only on the hovered bar', () => {
-  const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+  const css = LAYOUT_CSS;
   assert.match(css, /\.canvas-viewport \{\s*overflow: auto;\s*scrollbar-width: none;/, 'native bars off (standard)');
   assert.ok(css.includes('.canvas-viewport::-webkit-scrollbar { display: none; width: 0; height: 0; }'), 'native bars off (webkit)');
   assert.ok(!/\.canvas-viewport[:.][^{]*scrollbar-color/.test(css), 'no native colouring left on the canvas');
@@ -36,8 +37,8 @@ test('the canvas hides its native bars and styles its own, accent only on the ho
   // siblings' heights, and a bar beside it collapsed the viewport on every zoom.
   const mod = readFileSync(new URL('../js/ui/canvasScrollbars.js', import.meta.url), 'utf8');
   assert.ok(mod.includes('const host = document.body;'), 'the bars are appended to the body');
-  const app = readFileSync(new URL('../js/core/drawingApp.js', import.meta.url), 'utf8');
-  assert.ok(app.includes("wireCanvasScrollbars(document.getElementById('canvas-viewport'));"), 'the canvas is wired');
+  const bindings = readFileSync(new URL('../js/ui/bindings/index.js', import.meta.url), 'utf8');
+  assert.ok(bindings.includes("wireCanvasScrollbars(document.getElementById('canvas-viewport'));"), 'the canvas is wired');
   const theme = readFileSync(new URL('../css/theme.css', import.meta.url), 'utf8');
   assert.strictEqual((theme.match(/--sb-thumb-hover:\s*var\(--accent\);/g) || []).length, 2, 'hover IS the accent, both themes');
 });
@@ -49,10 +50,10 @@ test('the other panels keep the native thin bars, accent only with the pointer o
   assert.strictEqual(scrollbarHit(box, 400, 200, { canY: true }), false, 'the middle of the panel is not the bar');
   assert.strictEqual(scrollbarHit(box, 400, 440, { canX: true }), true);
   assert.strictEqual(scrollbarHit(box, 800, 440, { canX: true }), false, 'outside the box is never a hit');
-  const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+  const css = LAYOUT_CSS;
   // App-wide: every scrollable gets the thin grey bar, and the accent only via .sb-hover.
   assert.match(css, /\n\* \{\s*scrollbar-width: thin;\s*scrollbar-color: var\(--sb-thumb\) transparent;\s*\}/);
   assert.match(css, /\.sb-hover \{ scrollbar-color: var\(--sb-thumb-hover\) transparent; \}/);
-  const app = readFileSync(new URL('../js/core/drawingApp.js', import.meta.url), 'utf8');
-  assert.ok(app.includes('wireScrollbarHover();'), 'one document-level wiring, no per-panel list');
+  const bindings = readFileSync(new URL('../js/ui/bindings/index.js', import.meta.url), 'utf8');
+  assert.ok(bindings.includes('wireScrollbarHover();'), 'one document-level wiring, no per-panel list');
 });

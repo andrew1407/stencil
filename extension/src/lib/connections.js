@@ -1,216 +1,20 @@
-// ── Server connections (extension) ──────────────────────────────────────────
-// Connected servers (server/internal/protocol over REST) expose their projects as SHARED
-// pins, persisted in chrome.storage.local; fetch/storage are injectable for `node --test`.
+// The single import point for server connections; model, store and REST client re-exported.
+import { normalizeUrl, sharedPinsFromProjects } from './connectionModel.js';
+import {
+  dropConnection, isAdminConnection, loadConnections, saveConnections, upsertConnection,
+} from './connectionStore.js';
+import { connect, fetchImpl, listProjects } from './connectionRest.js';
 
-export const CONNECTIONS_KEY = 'stencil-connections';
+export {
+  CONNECTIONS_KEY, isLoopbackHost, mergePins, normalizeUrl, parseInviteUrl,
+  sharedPinFromProject, sharedPinsFromProjects,
+} from './connectionModel.js';
+export {
+  dropConnection, filterConnections, isAdminConnection, loadConnections, upsertConnection,
+} from './connectionStore.js';
+export { connect, createProject, fetchProjectImage, listProjects } from './connectionRest.js';
 
-// True for a loopback host (localhost, *.localhost, 127.0.0.0/8, ::1), where plaintext
-// http is safe because the bytes never leave the machine. Port of the browser's
-// connectionManager.js isLoopbackHost.
-export const isLoopbackHost = (host) => {
-  if (!host) return false;
-  const h = host.toLowerCase().replace(/^\[|\]$/g, ''); // strip any IPv6 brackets
-  if (h === 'localhost' || h.endsWith('.localhost')) return true;
-  if (h === '::1') return true;
-  return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h);
-};
-
-// Normalize 'host:8090' / 'http://host:8090/' to a clean origin. Secure by default
-// (matches the browser's normalizeUrl): a bare REMOTE host gets https; loopback keeps
-// http (dev servers run plaintext on localhost). An explicit scheme is preserved — the
-// user opts into cleartext.
-export const normalizeUrl = (raw) => {
-  let s = String(raw == null ? '' : raw).trim();
-  if (!s) throw new Error('Server URL is required');
-  if (!/^https?:\/\//i.test(s)) {
-    const host = new URL('http://' + s).hostname;
-    s = (isLoopbackHost(host) ? 'http://' : 'https://') + s;
-  }
-  return new URL(s).origin;
-};
-
-// An invite link is a server URL carrying a session token in its FRAGMENT:
-// `<url>#token=<value>` (the fragment never goes over the wire). Split it before
-// normalizeUrl; any other fragment passes through untouched (origin drops it anyway).
-// Port of the browser's connectionManager.js parseInviteUrl.
-export const parseInviteUrl = (raw) => {
-  const s = String(raw == null ? '' : raw);
-  const at = s.indexOf('#');
-  const m = at < 0 ? null : /^token=(.+)$/.exec(s.slice(at + 1));
-  if (!m) return { url: s, token: '' };
-  let token = m[1];
-  try { token = decodeURIComponent(token); } catch { /* keep raw */ }
-  return { url: s.slice(0, at), token };
-};
-
-// Map a server project to a shared-pin record, keyed by server origin + image source;
-// `shared`/`serverUrl`/`projectId` drive the golden outline and route opens.
-export const sharedPinFromProject = (proj, serverUrl) => ({
-  source: `${serverUrl}/projects/${proj.id}/files/original`,
-  // The project's ORIGINAL web source URL (what was pinned), so a local pin of the
-  // same image can be matched to its server copy and shown with the golden outline.
-  origin: proj.source || '',
-  site: serverUrl,
-  resource: proj.resource || '',
-  name: proj.name || 'Untitled',
-  // Project's custom accent colour ("#rrggbb", or "" = default) for the popup's pin-row name.
-  color: proj.color || '',
-  kind: 'image',
-  t: proj.updatedAt || 0,
-  shared: true,
-  serverUrl,
-  projectId: proj.id,
-});
-
-// Map a project list to shared pins, keeping only those with an image.
-export const sharedPinsFromProjects = (projects, serverUrl) =>
-  (Array.isArray(projects) ? projects : [])
-    .filter((p) => p && p.hasImage)
-    .map((p) => sharedPinFromProject(p, serverUrl));
-
-// Merge local pins with shared pins (de-duped by serverUrl+projectId), newest-first
-// within each group, shared listed after local.
-export const mergePins = (local, shared) => {
-  const out = (Array.isArray(local) ? local : []).map((p) => ({ ...p, shared: false }));
-  const seen = new Set();
-  for (const s of (Array.isArray(shared) ? shared : [])) {
-    const k = `${s.serverUrl}\n${s.projectId}`;
-    if (seen.has(k)) continue;
-    seen.add(k);
-    out.push(s);
-  }
-  return out;
-};
-
-// ── connection persistence (chrome.storage.local) ──
-
-const storage = () => globalThis.chrome?.storage?.local;
-
-export const loadConnections = async () => {
-  try {
-    const o = await storage().get(CONNECTIONS_KEY);
-    return Array.isArray(o[CONNECTIONS_KEY]) ? o[CONNECTIONS_KEY] : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveConnections = async (list) => {
-  try { await storage().set({ [CONNECTIONS_KEY]: list }); } catch { /* storage unavailable */ }
-};
-
-// Pure: add/replace a connection record keyed by url (newest-first). credentialKind
-// rides along so the options list can tell an ADMIN connection from a session one.
-export const upsertConnection = (list, conn) => {
-  const out = (Array.isArray(list) ? list : []).filter((c) => c.url !== conn.url);
-  out.unshift({ url: conn.url, token: conn.token || '', credentialKind: conn.credentialKind === 'admin' ? 'admin' : '' });
-  return out;
-};
-
-export const dropConnection = (list, url) =>
-  (Array.isArray(list) ? list : []).filter((c) => c.url !== url);
-
-// True when the connection was established with an ADMIN credential — one that can mint
-// session tokens. Rows saved before the field existed simply aren't admin.
-export const isAdminConnection = (conn) => !!conn && conn.credentialKind === 'admin';
-
-// View-only three-way filter for the options list: 'all' | 'admin' | 'other'.
-export const CONNECTION_FILTERS = ['all', 'admin', 'other'];
-
-export const filterConnections = (list, mode = 'all') => {
-  const arr = (Array.isArray(list) ? list : []).filter(Boolean);
-  if (mode === 'admin') return arr.filter(isAdminConnection);
-  if (mode === 'other') return arr.filter((c) => !isAdminConnection(c));
-  return arr;
-};
-
-// ── REST ──
-
-const fetchImpl = () => globalThis.fetch?.bind(globalThis);
-
-const req = async (conn, method, path, { body, raw, query, fetch: f = fetchImpl(), retried = false } = {}) => {
-  let url = conn.url + path;
-  if (query) url += '?' + new URLSearchParams(query).toString();
-  const headers = { Authorization: 'Bearer ' + conn.token };
-  let payload = body;
-  if (body != null && !raw) { headers['Content-Type'] = 'application/json'; payload = JSON.stringify(body); }
-  const resp = await f(url, { method, headers, body: payload });
-  if (!resp.ok) {
-    // A stored session token dies with a server restart — when the connection
-    // carries its original credential, re-mint once and retry in place.
-    if (!retried && (resp.status === 401 || resp.status === 403)
-        && conn.credential && path !== '/auth/token') {
-      const r = await req({ url: conn.url, token: conn.credential }, 'POST', '/auth/token',
-        { body: {}, fetch: f, retried: true });
-      conn.token = r.token;
-      const out = await req(conn, method, path, { body, raw, query, fetch: f, retried: true });
-      // It minted AND the fresh session works: the credential is an admin token
-      // (browser parity: connectionManager _req).
-      conn.credentialKind = 'admin';
-      return out;
-    }
-    let msg = `HTTP ${resp.status}`;
-    try { const e = await resp.json(); if (e && e.message) msg = e.message; } catch { /* non-JSON */ }
-    const err = new Error(`${method} ${path}: ${msg}`);
-    err.status = resp.status;   // the connect() admin-mint fallback keys on this
-    throw err;
-  }
-  if (resp.status === 204) return null;
-  if (raw) return resp;
-  return resp.json();
-};
-
-// Connect: normalize, then validate a supplied token or issue a fresh one. An invite
-// link's `#token=` fragment is adopted as the credential — an explicit token wins.
-export const connect = async (rawUrl, token = '', f = fetchImpl()) => {
-  const inv = parseInviteUrl(rawUrl);
-  const url = normalizeUrl(inv.url);
-  const supplied = token || inv.token;
-  let tok = supplied;
-  // '' until the mint round below proves the supplied value is an admin token; no
-  // credential (or one that lists projects directly) is an ordinary session.
-  let kind = '';
-  if (!tok) {
-    const r = await req({ url, token: '' }, 'POST', '/auth/token', { body: {}, fetch: f });
-    tok = r.token;
-  } else {
-    try {
-      await req({ url, token: tok }, 'GET', '/projects', { fetch: f });
-    } catch (err) {
-      // Browser/desktop parity: the pasted value may be the ADMIN token — it
-      // can't list projects, but it can MINT a session token.
-      if (err.status !== 401 && err.status !== 403) throw err;
-      const r = await req({ url, token: tok }, 'POST', '/auth/token', { body: {}, fetch: f });
-      tok = r.token;
-      await req({ url, token: tok }, 'GET', '/projects', { fetch: f });
-      // It minted AND the session works: the supplied value is an admin credential.
-      kind = 'admin';
-    }
-  }
-  // credential = what the user supplied (explicit token or the invite fragment):
-  // it outlives server restarts (req() re-mints with it when a session goes stale).
-  return { url, token: tok, credential: supplied || '', credentialKind: kind };
-};
-
-export const listProjects = async (conn, f = fetchImpl()) => {
-  const r = await req(conn, 'GET', '/projects', { fetch: f });
-  return r.projects || [];
-};
-
-// Create a new project on a connection (used when pinning/adding to a server).
-export const createProject = async (conn, { name, source = '', resource = '' }, f = fetchImpl()) =>
-  req(conn, 'POST', '/projects', { body: { name, source, resource, hasImage: true }, fetch: f });
-
-// Fetch a shared project's bytes as a Blob (Bearer-authed, so callers data-URL them).
-// kind: 'original' (unedited, default — editor re-opens it to re-apply filter/lines) | 'result' (baked preview).
-export const fetchProjectImage = async (conn, projectId, kind = 'original', f = fetchImpl()) => {
-  const resp = await req(conn, 'GET', `/projects/${projectId}/files/${kind}`, { raw: true, fetch: f });
-  return resp.blob();
-};
-
-// ── pin-target selection (pure) ──
-// Route an incoming pin by connection count: 'none' (local only), 'one' (offer a
-// "store on server" checkbox), or 'many' (offer a server picker).
+// 'none' (local only) | 'one' (a "store on server" checkbox) | 'many' (a server picker).
 export const pinTargetMode = (connections) => {
   const n = Array.isArray(connections) ? connections.length : 0;
   if (n === 0) return 'none';
@@ -218,19 +22,17 @@ export const pinTargetMode = (connections) => {
   return 'many';
 };
 
-// Pure: find a connection by its url (the picker's selected value), or null.
 export const connectionByUrl = (connections, url) =>
   (Array.isArray(connections) ? connections : []).find((c) => c && c.url === url) || null;
 
-// Pure: map a scanned image / shared-pin row to a createProject body. `source`
-// is the image's own URL and `resource` the page it came from (provenance).
+// `source` is the image's own URL and `resource` the page it came from.
 export const projectRequestFromImage = (image = {}, resource = '') => ({
   name: image.name || 'Untitled',
   source: image.source || image.src || '',
   resource: image.resource || resource || '',
 });
 
-// Gather shared pins across every connected server (best-effort per server).
+// Best-effort per server.
 export const collectSharedPins = async (connections, f = fetchImpl()) => {
   const out = [];
   await Promise.all((connections || []).map(async (conn) => {
@@ -242,9 +44,6 @@ export const collectSharedPins = async (connections, f = fetchImpl()) => {
   return out;
 };
 
-// ── high-level async API (persisted) ──
-
-// Connect and persist; returns the updated connection list.
 export const addServer = async (rawUrl, token = '', f = fetchImpl()) => {
   const conn = await connect(rawUrl, token, f);
   const next = upsertConnection(await loadConnections(), conn);
@@ -252,26 +51,24 @@ export const addServer = async (rawUrl, token = '', f = fetchImpl()) => {
   return next;
 };
 
-// Re-establish a persisted connection: re-validate its token, or issue a fresh one if
-// that's rejected. Persists any new token. Throws if the server is unreachable.
+// Re-validates the stored token, or issues a fresh one if that's rejected.
 export const reconnectServer = async (rawUrl, f = fetchImpl()) => {
   const url = normalizeUrl(rawUrl);
   const existing = (await loadConnections()).find((c) => c.url === url);
   let conn;
   try {
-    conn = await connect(url, existing ? existing.token : '', f);  // re-validate token
-    // Only the minted SESSION token is persisted, so re-validating it can never re-prove
-    // the admin credential behind it — carry the known kind over instead of losing it.
+    conn = await connect(url, existing ? existing.token : '', f);
+    // Only the SESSION token is persisted, so re-validating it can never re-prove the
+    // admin credential behind it — carry the known kind over.
     if (isAdminConnection(existing)) conn.credentialKind = 'admin';
   } catch {
-    conn = await connect(url, '', f);  // token stale/rejected → request a fresh one
+    conn = await connect(url, '', f);
   }
   const next = upsertConnection(await loadConnections(), conn);
   await saveConnections(next);
   return next;
 };
 
-// Remove a persisted connection; returns the updated list.
 export const removeServer = async (rawUrl) => {
   const url = normalizeUrl(rawUrl);
   const next = dropConnection(await loadConnections(), url);

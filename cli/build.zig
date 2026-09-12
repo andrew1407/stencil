@@ -4,23 +4,24 @@ const std = @import("std");
 // the CMake static library, so the CLI stays a self-contained `zig build`). KEEP IN
 // SYNC with STENCIL_CORE_SOURCES in ../core/CMakeLists.txt.
 const core_sources = [_][]const u8{
-    "geometry/geometry.cpp",
+    "geometry/pointMath.cpp",
+    "geometry/hitTest.cpp",
     "geometry/cropGeometry.cpp",
-    "geometry/imageOps.cpp",
-    "geometry/rasterize.cpp",
     "color/color.cpp",
     "color/colorNames.cpp",
-    "color/imageFilter.cpp",
+    "raster/imageOps.cpp",
+    "raster/rasterize.cpp",
+    "raster/imageFilter.cpp",
     "parse/formulaParser.cpp",
-    "parse/durationParser.cpp",
+    "parse/DurationParser.cpp",
     "parse/lengthTokens.cpp",
     "parse/cropSpec.cpp",
     "page/pageMetrics.cpp",
-    "page/tooltipRows.cpp",
     "page/localeUnit.cpp",
-    "page/hotkeyFormat.cpp",
-    "state/historyStack.cpp",
-    "state/projectsStore.cpp",
+    "format/tooltipRows.cpp",
+    "format/hotkeyFormat.cpp",
+    "state/HistoryStack.cpp",
+    "state/ProjectsStore.cpp",
     "state/zoomPan.cpp",
     "state/holdDraw.cpp",
     "cliApi.cpp",
@@ -30,10 +31,13 @@ const core_sources = [_][]const u8{
 // cross-group includes ("cropGeometry.hpp") resolve. Mirrors STENCIL_CORE_INCLUDE_DIRS.
 const core_include_dirs = [_][]const u8{
     "../core",
+    "../core/abi",
     "../core/geometry",
+    "../core/raster",
     "../core/color",
     "../core/parse",
     "../core/page",
+    "../core/format",
     "../core/state",
 };
 
@@ -56,16 +60,24 @@ fn wireNative(b: *std.Build, mod: *std.Build.Module, stb: *std.Build.Dependency)
     mod.addAnonymousImport("accents.json", .{ .root_source_file = b.path("../browser/js/config/accents.json") });
     mod.addAnonymousImport("colorNames.json", .{ .root_source_file = b.path("../browser/js/config/colorNames.json") });
     mod.addAnonymousImport("constants.json", .{ .root_source_file = b.path("../browser/js/config/constants.json") });
+    mod.addAnonymousImport("mediaTypes.json", .{ .root_source_file = b.path("../browser/js/config/mediaTypes.json") });
+    mod.addAnonymousImport("themeTokens.json", .{ .root_source_file = b.path("../browser/js/config/themeTokens.json") });
     mod.addAnonymousImport("systemPrompt.json", .{ .root_source_file = b.path("../browser/js/config/llm/systemPrompt.json") });
     mod.addAnonymousImport("opRegistry.json", .{ .root_source_file = b.path("../browser/js/config/llm/opRegistry.json") });
     mod.addAnonymousImport("providers.json", .{ .root_source_file = b.path("../browser/js/config/llm/providers.json") });
+    // stb's DECODER (untrusted input) keeps UBSan on; regex_shim owns the POSIX regex_t for
+    // the --source-name filter (Zig can't embed the opaque translated regex_t by value).
     mod.addCSourceFiles(.{
         .root = b.path("src"),
-        // stb: the image codecs. regex_shim: owns POSIX regex_t for the --source-name filter
-        // (Zig can't embed the opaque translated regex_t by value).
-        .files = &.{ "stb_impl.c", "regex_shim.c" },
-        // stb's JPEG encoder relies on signed-shift wraparound that is technically UB;
-        // it's benign in C but Zig instruments C with UBSan in Debug and would trap.
+        .files = &.{ "stb_read_impl.c", "regex_shim.c" },
+        .flags = &.{"-std=c11"},
+    });
+    // stb's JPEG ENCODER relies on signed-shift wraparound that is technically UB; it's
+    // benign in C but Zig instruments C with UBSan in Debug and would trap. Its own TU so
+    // the exemption never reaches the decoder.
+    mod.addCSourceFiles(.{
+        .root = b.path("src"),
+        .files = &.{"stb_write_impl.c"},
         .flags = &.{ "-std=c11", "-fno-sanitize=undefined" },
     });
 }

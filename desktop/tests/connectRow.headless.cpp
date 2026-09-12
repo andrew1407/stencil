@@ -6,12 +6,12 @@
 // watch, the rows that are LEFT arrive, none of the removal's dust is spent, and reduced
 // motion skips to the end. A mock
 // QTcpServer stands in for the collaboration server, so no Go server is needed.
-#include "connectDialog.hpp"
+#include "ConnectDialog.hpp"
 #include "theme.hpp"   // the app stylesheet these metrics are measured under
-#include "disintegrateOverlay.hpp"
-#include "dissolveEffect.hpp"   // the scroll-edge fade the rows carry
+#include "DisintegrateOverlay.hpp"
+#include "DissolveEffect.hpp"   // the scroll-edge fade the rows carry
 #include "filterFade.hpp"       // …and the lighter one a FILTER change plays
-#include "serverClient.hpp"
+#include "ServerClient.hpp"
 
 #include <QApplication>
 #include <QComboBox>
@@ -21,7 +21,7 @@
 #include <QHostAddress>
 #include <QCheckBox>
 #include <QLabel>
-#include "flowLayout.hpp"
+#include "FlowLayout.hpp"
 #include <QKeyEvent>
 #include <QLineEdit>
 #include <QListWidget>
@@ -38,12 +38,13 @@
 using stencil::gui::ConnectDialog;
 using stencil::gui::DisintegrateOverlay;
 using stencil::gui::DissolveEffect;
-using stencil::gui::kFilterFadeMs;
-using stencil::gui::kFilterFadeProperty;
-using stencil::gui::kFilterFullHeightRole;
+using stencil::gui::FILTER_FADE_MS;
+using stencil::gui::FILTER_FADE_PROPERTY;
+using stencil::gui::FILTER_FULL_HEIGHT_ROLE;
 using stencil::net::ConnectionManager;
 
 #include "support/check.hpp"
+#include "support/connectNow.hpp"
 
 static void pumpFor(int ms) {
   QElapsedTimer t;
@@ -95,7 +96,7 @@ int main(int argc, char** argv) {
 
   ConnectionManager mgr;
   QString err;
-  check(mgr.connectTo(longUrl, QString(), err), "connects the long-URL server");
+  check(stencil::test::connectNow(mgr, longUrl, QString(), err), "connects the long-URL server");
 
   ConnectDialog dlg(&mgr);
   dlg.resize(480, 420);
@@ -212,9 +213,9 @@ int main(int argc, char** argv) {
   check(list->count() == 1, "the row's slot is held while the dust plays");
   check(list->itemWidget(list->item(0)) == nullptr, "retired row is blanked at once");
   check(list->item(0)->text().isEmpty(), "no premature empty-state during removal");
-  check(dlg.findChild<QWidget*>(DisintegrateOverlay::kObjectName) != nullptr,
+  check(dlg.findChild<QWidget*>(DisintegrateOverlay::OBJECT_NAME) != nullptr,
         "removal dust overlay is playing");
-  pumpFor(DisintegrateOverlay::kMs / 3);
+  pumpFor(DisintegrateOverlay::DUST_MS / 3);
   check(list->count() == 1 && list->item(0)->text().isEmpty(),
         "empty-state still absent mid-animation");
   pumpUntil([&] {
@@ -234,6 +235,7 @@ int main(int argc, char** argv) {
   if (urlEdit && connectBtn) {
     urlEdit->setText(shortUrl);
     connectBtn->click();
+    pumpUntil([&] { return mgr.urls().contains(shortUrl); });   // the connect is async now
     check(mgr.urls().contains(shortUrl), "connects the second server");
     pumpUntil([&] {
       QWidget* w = list->count() == 1 ? list->itemWidget(list->item(0)) : nullptr;
@@ -241,7 +243,7 @@ int main(int argc, char** argv) {
     }, 1000);
     QWidget* fresh = list->count() == 1 ? list->itemWidget(list->item(0)) : nullptr;
     check(fresh && !fresh->isVisible(), "new row starts hidden under the gather motes");
-    check(dlg.findChild<QWidget*>(DisintegrateOverlay::kObjectName) != nullptr,
+    check(dlg.findChild<QWidget*>(DisintegrateOverlay::OBJECT_NAME) != nullptr,
           "gather overlay is playing");
     pumpUntil([&] {
       QWidget* w = list->count() == 1 ? list->itemWidget(list->item(0)) : nullptr;
@@ -251,11 +253,9 @@ int main(int argc, char** argv) {
     check(fresh && fresh->isVisible(), "row materializes once the gather completes");
   }
 
-  // ── Compact POPOVER shape (mainWindow execMaybePopover): the dialog-level
-  // minimumWidth is dropped and the box shrinks to sizeHint. The row's fixed controls
-  // (grip/checkbox/status/icon/reconnect/disconnect) used to eat that budget, leaving
-  // the URL ~70px ("htt…090"); the list's own minimum keeps the mini form wide enough
-  // for the URL to take real width. Same rows, same styling as the full dialog.
+  // ── Compact POPOVER shape (mainWindow execMaybePopover): the dialog-level minimumWidth
+  // is dropped and the box shrinks to sizeHint. The row's fixed controls used to eat that
+  // budget, leaving the URL ~70px; the list's own minimum keeps the mini form wide enough.
   {
     ConnectDialog mini(&mgr);
     mini.setWindowFlags(mini.windowFlags() | Qt::FramelessWindowHint);
@@ -294,7 +294,7 @@ int main(int argc, char** argv) {
     ConnectionManager many;
     QString e;
     for (int i = 0; i < 8; ++i)
-      many.connectTo(QStringLiteral("http://row%1@127.0.0.1:%2").arg(i).arg(port), QString(), e);
+      stencil::test::connectNow(many, QStringLiteral("http://row%1@127.0.0.1:%2").arg(i).arg(port), QString(), e);
     ConnectDialog tall(&many);
     // Shorter than eight rows, so the list has to scroll — but tall enough that a few
     // fit whole below the modal chrome (header pill + footer hint) the dialog now wears.
@@ -332,7 +332,7 @@ int main(int argc, char** argv) {
     auto* kind = tall.findChild<QComboBox*>(QStringLiteral("connKindFilter"));
     check(kind != nullptr, "the tall list carries the kind filter");
     if (tl && kind && tl->count() == 8) {
-      const int fullH = tl->item(0)->data(kFilterFullHeightRole).toInt();
+      const int fullH = tl->item(0)->data(FILTER_FULL_HEIGHT_ROLE).toInt();
       check(fullH > 0, "rows record the slot height a filter opens");
       // Every one of these is non-admin, so "Admin" empties the whole list.
       kind->setCurrentIndex(kind->findData(QStringLiteral("admin")));
@@ -341,11 +341,11 @@ int main(int argc, char** argv) {
       for (int i = 0; i < 8; ++i)
         allGone = allGone && tl->item(i)->isHidden() && tl->item(i)->sizeHint().height() == 0;
       check(allGone, "Admin empties a list of non-admin rows at once, every slot closed");
-      check(w0 && !w0->property(kFilterFadeProperty).toBool(),
+      check(w0 && !w0->property(FILTER_FADE_PROPERTY).toBool(),
             "…owning no fade: a row that is out of the answer has nothing to play");
       check(w0 && w0->graphicsEffect() == nullptr,
             "…and no stale effect either, so the scroll-edge reveal gets it back");
-      check(tall.findChild<QWidget*>(DisintegrateOverlay::kObjectName) == nullptr,
+      check(tall.findChild<QWidget*>(DisintegrateOverlay::OBJECT_NAME) == nullptr,
             "…and it spends none of the removal's dust");
       check(tl->count() == 9 && tl->item(8)->text().contains(QStringLiteral("admin credential")),
             "…and the explanatory line sits after them");
@@ -356,15 +356,15 @@ int main(int argc, char** argv) {
         for (int i = 0; i < 8; ++i) {
           if (tl->item(i)->isHidden() || tl->item(i)->sizeHint().height() != fullH) return false;
           QWidget* w = tl->itemWidget(tl->item(i));
-          if (w && w->property(kFilterFadeProperty).toBool()) return false;
+          if (w && w->property(FILTER_FADE_PROPERTY).toBool()) return false;
         }
         return true;
       };
       kind->setCurrentIndex(kind->findData(QStringLiteral("all")));
       check(!tl->item(0)->isHidden() && tl->item(0)->sizeHint().height() < fullH,
             "…and the rows that are left arrive, still expanding");
-      pumpFor(kFilterFadeMs / 4);
-      check(w0 && w0->property(kFilterFadeProperty).toBool(),
+      pumpFor(FILTER_FADE_MS / 4);
+      check(w0 && w0->property(FILTER_FADE_PROPERTY).toBool(),
             "an arriving row owns its own fade while it comes in");
       check(w0 && dynamic_cast<QGraphicsOpacityEffect*>(w0->graphicsEffect()) != nullptr,
             "…a plain opacity fade, not the scroll edge's grain");
@@ -372,14 +372,14 @@ int main(int argc, char** argv) {
             "…so the two motions never fight over one effect");
       pumpUntil(settled);
       check(settled(), "every row returns to its full slot");
-      check(w0 && !w0->property(kFilterFadeProperty).toBool() &&
+      check(w0 && !w0->property(FILTER_FADE_PROPERTY).toBool() &&
                 dynamic_cast<QGraphicsOpacityEffect*>(w0->graphicsEffect()) == nullptr,
             "…handing its opacity back to the scroll-edge reveal");
 
       // Rapid changes: whatever is mid-flight, the LAST pick decides the visible set.
       for (const char* mode : {"admin", "nonadmin", "admin", "all"}) {
         kind->setCurrentIndex(kind->findData(QString::fromLatin1(mode)));
-        pumpFor(kFilterFadeMs / 6);   // each flip interrupts the one before it
+        pumpFor(FILTER_FADE_MS / 6);   // each flip interrupts the one before it
       }
       pumpUntil(settled);
       check(settled(), "no row is stuck hidden or part-collapsed after a rapid sequence");
@@ -402,7 +402,7 @@ int main(int argc, char** argv) {
   // A QLineEdit emits returnPressed and then lets the key reach the dialog's DEFAULT
   // button, so wiring both fired doConnect twice: the first call connected and cleared
   // the field, the second found it empty and toasted "Enter a server URL" over the
-  // connection that had just been made (user report).
+  // connection that had just been made.
   {
     ConnectionManager fresh;
     ConnectDialog d(&fresh);
@@ -453,9 +453,9 @@ int main(int argc, char** argv) {
   }
 
   // ── A refused credential clears the fields; an unreachable host does not ─────
-  // The refused one still leaves a row (Status::Expired, URL intact, Reconnect on it), so
+  // The refused one still leaves a row (Status::EXPIRED, URL intact, Reconnect on it), so
   // the fields that put it there are done — leaving them typed in invited adding the same
-  // server twice (user report). Nothing left behind keeps its text, to be corrected.
+  // server twice. Nothing left behind keeps its text, to be corrected.
   {
     ConnectionManager fresh;
     ConnectDialog d(&fresh);
@@ -501,7 +501,7 @@ int main(int argc, char** argv) {
   // ── Return connects even with NO focus widget ────────────────────────────────
   // Removing a row destroys the trash button that had the focus, leaving the dialog with
   // none at all — and a Return handler that lives on the fields never sees the key then
-  // (user report: after removing a connection, Enter stopped adding one).
+  // (after removing a connection, Enter stopped adding one).
   {
     ConnectionManager fresh;
     ConnectDialog d(&fresh);
@@ -530,13 +530,13 @@ int main(int argc, char** argv) {
 
   // ── The row's Reconnect toast NAMES the server ───────────────────────────────
   // A bare "Reconnected" never said which one signed back in — with more than one saved
-  // connection the toast was useless (user report, with a picture). Browser twin:
+  // connection the toast was useless. Browser twin:
   // connectModal.js `Reconnected to ${url}`.
   {
     ConnectionManager fresh;
     QString rerr;
     const QString url = QStringLiteral("http://127.0.0.1:%1").arg(port);
-    check(fresh.connectTo(url, QString(), rerr), "connects the server to reconnect");
+    check(stencil::test::connectNow(fresh, url, QString(), rerr), "connects the server to reconnect");
     ConnectDialog d(&fresh);
     d.resize(480, 420);
     d.show();
@@ -557,7 +557,7 @@ int main(int argc, char** argv) {
   // ── FlowLayout's own hint is what it needs ──────────────────────────────────
   // The bar hands `actions` exactly its sizeHint, so a hint one pixel under what the
   // layout really needs makes it wrap EVERY item onto its own line — the connections
-  // batch bar's three buttons in a column (user report, with a picture). Two off-by-ones
+  // batch bar's three buttons in a column. Two off-by-ones
   // caused it, in the same direction: `QSize size;` is (-1,-1), so the width sum started
   // short, and the wrap test read `x + w > right()` when an item that ENDS on right()
   // still fits. Pinned together, because either alone still misses by one.

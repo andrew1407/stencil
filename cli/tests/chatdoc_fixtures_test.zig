@@ -24,15 +24,12 @@ fn expectTurns(turns: []const llm.Turn, messages: std.json.Value) !void {
 }
 
 test "chatDoc corpus: roundtrip.json — parse ∘ serialize is the identity" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var w = fx.Walk.start();
+    defer w.stop();
+    const a = w.alloc();
 
-    const cases = try fx.loadJson(a, io, "llm/fixtures/chatDoc/roundtrip.json");
-    for (cases.array.items) |case| {
+    for (try w.cases("llm/fixtures/chatDoc/roundtrip.json")) |case| {
+        w.walked += 1;
         const doc = fx.member(case, "doc").?;
         const bytes = try fx.stringify(a, doc);
 
@@ -51,20 +48,16 @@ test "chatDoc corpus: roundtrip.json — parse ∘ serialize is the identity" {
         defer llm.freeTurns(testing.allocator, again);
         try expectTurns(again, fx.member(doc, "messages").?);
     }
+    try w.report("chatDoc roundtrip");
 }
 
 test "chatDoc corpus: tolerance.json — the lenient-read pins" {
-    var arena = std.heap.ArenaAllocator.init(testing.allocator);
-    defer arena.deinit();
-    const a = arena.allocator();
-    var threaded = std.Io.Threaded.init(testing.allocator, .{});
-    defer threaded.deinit();
-    const io = threaded.io();
+    var w = fx.Walk.start();
+    defer w.stop();
+    const a = w.alloc();
 
-    const cases = try fx.loadJson(a, io, "llm/fixtures/chatDoc/tolerance.json");
-    var walked: usize = 0;
-    for (cases.array.items) |case| {
-        walked += 1;
+    for (try w.cases("llm/fixtures/chatDoc/tolerance.json")) |case| {
+        w.walked += 1;
         const bytes = if (fx.memberStr(case, "docString")) |s|
             s
         else
@@ -85,5 +78,6 @@ test "chatDoc corpus: tolerance.json — the lenient-read pins" {
             try expectTurns(turns, fx.member(expected, "messages").?);
         }
     }
-    try testing.expectEqual(@as(usize, 17), walked);
+    try testing.expectEqual(@as(usize, 17), w.walked); // every tolerance pin walked
+    try w.report("chatDoc tolerance");
 }

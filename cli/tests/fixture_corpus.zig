@@ -20,6 +20,65 @@ pub fn overrideFor(overrides: std.json.Value, family: []const u8, name: []const 
     return member(fam, name);
 }
 
+/// The per-walk state every *_fixtures_test.zig needs: an arena + an io for the corpus
+/// loaders, the parsed local overrides, and a failure tally. Start it as
+/// `var w = fx.Walk.start(); defer w.stop();` — `alloc`/`io` hold self-pointers, so take
+/// them from the settled value, never from the returned temporary.
+pub const Walk = struct {
+    arena: std.heap.ArenaAllocator,
+    threaded: std.Io.Threaded,
+    overrides: std.json.Value = .null,
+    walked: usize = 0,
+    skipped: usize = 0,
+    failures: usize = 0,
+
+    pub fn start() Walk {
+        return .{
+            .arena = std.heap.ArenaAllocator.init(std.testing.allocator),
+            .threaded = std.Io.Threaded.init(std.testing.allocator, .{}),
+        };
+    }
+
+    pub fn stop(self: *Walk) void {
+        self.threaded.deinit();
+        self.arena.deinit();
+    }
+
+    pub fn alloc(self: *Walk) std.mem.Allocator {
+        return self.arena.allocator();
+    }
+
+    pub fn io(self: *Walk) std.Io {
+        return self.threaded.io();
+    }
+
+    /// Parse fixture_overrides.json into `overrides`; only walkers that pin cli drift need it.
+    pub fn loadOverrides(self: *Walk) !void {
+        self.overrides = try parseOverrides(self.alloc());
+    }
+
+    pub fn override(self: *Walk, family: []const u8, name: []const u8) ?std.json.Value {
+        return overrideFor(self.overrides, family, name);
+    }
+
+    /// The `cases` array of one corpus file (every walked corpus is a top-level array).
+    pub fn cases(self: *Walk, sub: []const u8) ![]std.json.Value {
+        return (try loadJson(self.alloc(), self.io(), sub)).array.items;
+    }
+
+    /// Record a case failure with its reason; the walk finishes so every diff is printed.
+    pub fn fail(self: *Walk, comptime fmt: []const u8, args: anytype) void {
+        std.debug.print(fmt, args);
+        self.failures += 1;
+    }
+
+    /// Print the tally under `label` and assert the walk was clean.
+    pub fn report(self: *Walk, label: []const u8) !void {
+        std.debug.print("{s} corpus: walked {d}, skipped {d}\n", .{ label, self.walked, self.skipped });
+        try std.testing.expectEqual(@as(usize, 0), self.failures);
+    }
+};
+
 pub fn readAlloc(a: std.mem.Allocator, io: std.Io, sub: []const u8) ![]u8 {
     var buf: [512]u8 = undefined;
     const path = try std.fmt.bufPrint(&buf, "{s}{s}", .{ corpus_root, sub });
@@ -76,27 +135,6 @@ fn surrogateAt(bytes: []const u8, i: usize) ?u16 {
     if (i + 6 > bytes.len or bytes[i] != '\\' or bytes[i + 1] != 'u') return null;
     const code = std.fmt.parseInt(u16, bytes[i + 2 .. i + 6], 16) catch return null;
     return if (code >= 0xD800 and code <= 0xDFFF) code else null;
-}
-
-/// The sorted *.json basenames of a corpus directory (all arena-owned).
-pub fn listJson(a: std.mem.Allocator, io: std.Io, sub: []const u8) ![][]const u8 {
-    var buf: [512]u8 = undefined;
-    const path = try std.fmt.bufPrint(&buf, "{s}{s}", .{ corpus_root, sub });
-    var dir = try std.Io.Dir.cwd().openDir(io, path, .{ .iterate = true });
-    defer dir.close(io);
-    var names: std.ArrayList([]const u8) = .empty;
-    var it = dir.iterate();
-    while (try it.next(io)) |entry| {
-        if (entry.kind != .file or !std.mem.endsWith(u8, entry.name, ".json")) continue;
-        try names.append(a, try a.dupe(u8, entry.name));
-    }
-    const slice = try names.toOwnedSlice(a);
-    std.mem.sort([]const u8, slice, {}, strLess);
-    return slice;
-}
-
-fn strLess(_: void, x: []const u8, y: []const u8) bool {
-    return std.mem.order(u8, x, y) == .lt;
 }
 
 pub fn member(v: std.json.Value, key: []const u8) ?std.json.Value {

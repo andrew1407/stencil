@@ -1,46 +1,28 @@
-// ── Quick crop page ─────────────────────────────────────────────────────────
-// Mirrors the editor's crop model: a rect in ORIGINAL-image pixels whose aspect is locked
-// to the page (any ISO A/B/C format, or custom). Drag to move, resize corner-only, scroll to
-// zoom. Then "Keep original" (full image + crop rect) or "Cut cropped part" (bake the
-// region), opening a tab.
-import {
-  cropAspect, centeredCrop, resizeCropFromCorner, moveCropClamped, scaleCropCentered,
-  roundRect, isAlbumOrientation, pageDims, pageSizeOptions
-} from '../lib/cropGeometry.js';
+// Quick crop page: a rect in ORIGINAL-image pixels, aspect locked to the page format. The
+// stage, the controls and the editor hand-off live beside this file; here: load, rotate, boot.
+import { cropAspect, isAlbumOrientation, pageDims } from '../lib/cropGeometry.js';
 import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY, CROP_META_KEY } from '../lib/stencil.js';
 import { SRC } from '../lib/messages.js';
 import { watchNumericInputs } from '../lib/numericInput.js';
 import { initTooltips } from '../lib/controlTooltip.js';
 import { wireScrollbarHover } from '../lib/scrollbarHover.js';
 import { enhanceSelect } from '../lib/customSelect.js';
+import { createCropStage } from './cropStage.js';
+import { createCropControls } from './cropControls.js';
+import { buildHandoffPayload } from './cropHandoff.js';
 
-// True when running inside the in-page crop modal (an iframe). We then notify the
-// host overlay when we booted (so it keeps the modal) and when to close.
+// Inside the in-page crop modal (an iframe): notify the host overlay on boot and on close.
 const FRAMED = window.parent && window.parent !== window;
 
 const postToHost = (type) => {
   if (FRAMED) window.parent.postMessage({ source: SRC.MODAL, type }, '*');
 };
 
-// Tell the host overlay we're alive AS SOON AS this script runs. Its watchdog asks
-// "did the frame load at all?" (a CSP / mixed-content block would stop it dead) — NOT
-// "did the image finish loading": answering only from imgEl.onload lets a slow image
-// trip the watchdog. The later ready (below) stays; the host handles it idempotently.
+// Answered as soon as this script runs: the host's watchdog asks "did the frame load at
+// all?" (a CSP / mixed-content block stops it dead), not "did the image finish loading".
 postToHost('ready');
 
-const viewport = document.getElementById('viewport');
-const imgEl = document.getElementById('image');
-const overlay = document.getElementById('overlay');
-const cropBox = document.getElementById('crop-box');
-const previewCanvas = document.getElementById('preview');
 const statusEl = document.getElementById('status');
-const cropInfo = document.getElementById('crop-info');
-const masks = {
-  top: overlay.querySelector('.mask-top'),
-  bottom: overlay.querySelector('.mask-bottom'),
-  left: overlay.querySelector('.mask-left'),
-  right: overlay.querySelector('.mask-right')
-};
 
 const state = {
   srcUrl: '',
@@ -58,6 +40,14 @@ const state = {
   fitScale: 1,
   zoom: 1
 };
+
+const aspect = () => {
+  const d = pageDims(state.page, state.customW, state.customH);
+  return cropAspect(d.width, d.height, state.album);
+};
+
+const { imgEl, overlay, fitToWindow, resetCrop, layoutOverlay } = stage;
+const { syncPageControls, syncOrientationButtons, onCustom } = createCropControls({ state, resetCrop });
 
 const init = async () => {
   if (!state.srcUrl) {
@@ -80,9 +70,8 @@ const init = async () => {
   }
 
   imgEl.onload = () => {
-    // An animated GIF keeps cycling frames (distracting while positioning the box).
-    // Freeze it to the current frame by baking onto a canvas and swapping in that static
-    // PNG; the reload re-enters onload, this time as a non-GIF.
+    // An animated GIF keeps cycling while positioning: bake the current frame onto a canvas and
+    // swap in that static PNG; the reload re-enters onload, this time as a non-GIF.
     if (!state.frozen && /^data:image\/gif/i.test(state.dataUrl)) {
       state.frozen = true;
       const c = document.createElement('canvas');
@@ -111,188 +100,7 @@ const init = async () => {
   });
 };
 
-// ── Page aspect ──
-const aspect = () => {
-  const d = pageDims(state.page, state.customW, state.customH);
-  return cropAspect(d.width, d.height, state.album);
-};
-
-const resetCrop = () => {
-  state.crop = roundRect(centeredCrop(state.imgW, state.imgH, aspect()), state.imgW, state.imgH);
-  layoutOverlay();
-  renderPreview();
-};
-
-// ── Zoom ──
-const VIEWPORT_PAD = 10;   // keep in sync with .viewport padding in crop.css
-const fitToWindow = () => {
-  // clientWidth/Height include the padding, so subtract both gutters (plus a small fudge).
-  const vw = viewport.clientWidth - VIEWPORT_PAD * 2 - 4;
-  const vh = (viewport.clientHeight - VIEWPORT_PAD * 2 - 4) || Math.round(window.innerHeight * 0.72);
-  state.fitScale = Math.min(vw / state.imgW, vh / state.imgH) || 1;
-  state.zoom = 1;
-  applyZoom();
-};
-
-const displayScale = () => state.fitScale * state.zoom;
-
-const applyZoom = () => {
-  const s = displayScale();
-  imgEl.style.width = `${state.imgW * s}px`;
-  imgEl.style.height = `${state.imgH * s}px`;
-  document.getElementById('zoom-label').textContent = `${Math.round(s * 100)}%`;
-  layoutOverlay();
-};
-
-const setZoom = (nextZoom, cx, cy) => {
-  const clamped = Math.max(0.1, Math.min(nextZoom, 16 / state.fitScale));
-  // Keep the image point under the cursor stable, when a cursor is given.
-  let anchor = null;
-  if (cx != null) {
-    const r = imgEl.getBoundingClientRect();
-    anchor = { ix: (cx - r.left) / displayScale(), iy: (cy - r.top) / displayScale(), cx, cy };
-  }
-  state.zoom = clamped;
-  applyZoom();
-  if (anchor) {
-    const vr = viewport.getBoundingClientRect();
-    viewport.scrollLeft = anchor.ix * displayScale() - (anchor.cx - vr.left);
-    viewport.scrollTop = anchor.iy * displayScale() - (anchor.cy - vr.top);
-  }
-};
-
-document.getElementById('zoom-in').addEventListener('click', () => setZoom(state.zoom * 1.25));
-document.getElementById('zoom-out').addEventListener('click', () => setZoom(state.zoom * 0.8));
-document.getElementById('zoom-fit').addEventListener('click', fitToWindow);
-viewport.addEventListener('wheel', (e) => {
-  if (!state.imgW) return;
-  e.preventDefault();
-  // Wheel / trackpad-pinch OVER the crop rect grows/shrinks it FROM ITS CENTRE (matching the
-  // editor's core scaleCropCentered); anywhere else it zooms the view as before. A pinch is a
-  // ctrl+wheel event in Chromium, so it flows through here too.
-  const box = cropBox.getBoundingClientRect();
-  const overBox = e.clientX >= box.left && e.clientX <= box.right &&
-                  e.clientY >= box.top && e.clientY <= box.bottom;
-  if (overBox) {
-    const factor = Math.pow(1.0015, -e.deltaY);   // wheel up / pinch out → grow
-    state.crop = roundRect(scaleCropCentered(state.crop, factor, aspect(), state.imgW, state.imgH), state.imgW, state.imgH);
-    // Re-anchor an in-progress drag so the next pointer-move doesn't snap the size back.
-    if (drag) { drag.startCrop = { ...state.crop }; drag.start = toImageSpace(e.clientX, e.clientY); }
-    layoutOverlay();
-    renderPreview();
-  } else {
-    setZoom(state.zoom * (e.deltaY < 0 ? 1.12 : 0.89), e.clientX, e.clientY);
-  }
-}, { passive: false });
-
-// The viewport only reaches its real size a moment after the modal iframe settles, so
-// re-fit whenever it resizes — but only at the default fit (zoom === 1), so a manual
-// zoom is never clobbered. This is what lets a small image scale up to fill the stage.
-new ResizeObserver(() => { if (state.imgW && state.zoom === 1) { fitToWindow(); layoutOverlay(); } }).observe(viewport);
-
-// ── Overlay layout (image-space → display px) ──
-const scale = () => (imgEl.getBoundingClientRect().width / state.imgW) || 1;
-
-const layoutOverlay = () => {
-  const s = scale();
-  const c = state.crop;
-  const left = c.x * s;
-  const top = c.y * s;
-  const w = c.width * s;
-  const h = c.height * s;
-  const W = state.imgW * s;
-  const H = state.imgH * s;
-  Object.assign(cropBox.style, { left: `${left}px`, top: `${top}px`, width: `${w}px`, height: `${h}px` });
-  Object.assign(masks.top.style, { left: 0, top: 0, width: `${W}px`, height: `${top}px` });
-  Object.assign(masks.bottom.style, { left: 0, top: `${top + h}px`, width: `${W}px`, height: `${H - top - h}px` });
-  Object.assign(masks.left.style, { left: 0, top: `${top}px`, width: `${left}px`, height: `${h}px` });
-  Object.assign(masks.right.style, { left: `${left + w}px`, top: `${top}px`, width: `${W - left - w}px`, height: `${h}px` });
-  cropInfo.textContent = `${c.width}×${c.height}px from ${state.imgW}×${state.imgH}`;
-};
-
-const renderPreview = () => {
-  const c = state.crop;
-  if (!c.width || !c.height) return;
-  const ratio = Math.min(320 / c.width, 320 / c.height, 1);
-  previewCanvas.width = Math.max(1, Math.round(c.width * ratio));
-  previewCanvas.height = Math.max(1, Math.round(c.height * ratio));
-  previewCanvas.getContext('2d').drawImage(imgEl, c.x, c.y, c.width, c.height, 0, 0, previewCanvas.width, previewCanvas.height);
-};
-
-// ── Pointer interaction ──
-let drag = null;
-
-const toImageSpace = (clientX, clientY) => {
-  const r = imgEl.getBoundingClientRect();
-  const s = scale();
-  return { x: (clientX - r.left) / s, y: (clientY - r.top) / s };
-};
-
-cropBox.addEventListener('pointerdown', (e) => {
-  const corner = e.target.dataset.corner;
-  drag = {
-    mode: corner != null ? 'resize' : 'move',
-    corner: corner != null ? Number(corner) : null,
-    start: toImageSpace(e.clientX, e.clientY),
-    startCrop: { ...state.crop }
-  };
-  e.target.setPointerCapture?.(e.pointerId);
-  e.preventDefault();
-});
-
-window.addEventListener('pointermove', (e) => {
-  if (!drag) return;
-  const p = toImageSpace(e.clientX, e.clientY);
-  const moved = drag.mode === 'move'
-    ? moveCropClamped(drag.startCrop, p.x - drag.start.x, p.y - drag.start.y, state.imgW, state.imgH)
-    : resizeCropFromCorner(drag.startCrop, drag.corner, p.x, p.y, aspect(), state.imgW, state.imgH);
-  state.crop = roundRect(moved, state.imgW, state.imgH);
-  layoutOverlay();
-  renderPreview();
-});
-
-window.addEventListener('pointerup', () => { drag = null; });
-
-// ── Controls ──
-// Page-size select: Custom… first, then every ISO A/B/C format from the shared
-// table (canonical order), labelled with its cm dimensions.
-const pageSel = document.getElementById('page-select');
-pageSel.innerHTML = '<option value="custom">Custom…</option>' + pageSizeOptions();
-
-const syncPageControls = () => {
-  pageSel.value = state.page;
-  document.getElementById('custom-dims').hidden = state.page !== 'custom';
-};
-
-const syncOrientationButtons = () => {
-  document.querySelectorAll('#orient-seg button').forEach(b => b.classList.toggle('active', (b.dataset.album === 'true') === state.album));
-};
-
-const onCustom = () => {
-  const w = parseFloat(document.getElementById('custom-w').value);
-  const h = parseFloat(document.getElementById('custom-h').value);
-  if (w > 0) state.customW = w;
-  if (h > 0) state.customH = h;
-  if (state.page === 'custom') resetCrop();
-};
-
-pageSel.addEventListener('change', () => {
-  state.page = pageSel.value;
-  syncPageControls();
-  resetCrop();
-});
-document.getElementById('orient-seg').addEventListener('click', (e) => {
-  const b = e.target.closest('button');
-  if (!b) return;
-  state.album = b.dataset.album === 'true';
-  syncOrientationButtons();
-  resetCrop();
-});
-
-// ── Rotate ──
-// Bake a 90° turn into the source image so the crop coords we hand the editor match the
-// rotated picture. Dimensions swap, so orientation follows the new shape and the crop
-// re-centers to the page.
+// Rotate is baked into the source image, so the crop coords the editor gets match the picture.
 const rotate = (clockwise) => {
   if (!state.imgW) return;
   const c = document.createElement('canvas');
@@ -334,36 +142,7 @@ document.getElementById('open').addEventListener('click', async (e) => {
   try {
     const incognito = document.getElementById('incognito').checked;
     const mode = document.querySelector('input[name="mode"]:checked').value;
-    const page = state.page === 'custom' ? { size: 'custom', width: state.customW, height: state.customH } : { size: state.page };
-    let payload;
-    if (mode === 'apply') {
-      const c = state.crop;
-      payload = {
-        dataUrl: state.dataUrl,
-        name: state.name,
-        crop: { x: c.x, y: c.y, w: c.width, h: c.height },   // canonical wire spelling
-        page,
-        source: state.source,
-        resource: state.resource,
-        incognito
-      };
-    } else {
-      const c = state.crop;
-      const canvas = document.createElement('canvas');
-      canvas.width = c.width;
-      canvas.height = c.height;
-      canvas.getContext('2d').drawImage(imgEl, c.x, c.y, c.width, c.height, 0, 0, c.width, c.height);
-      const dot = state.name.lastIndexOf('.');
-      payload = {
-        dataUrl: canvas.toDataURL('image/png'),
-        name: (dot > 0 ? state.name.slice(0, dot) : state.name) + '-crop.png',
-        crop: { x: 0, y: 0, w: c.width, h: c.height },   // canonical wire spelling
-        page,
-        source: state.source,
-        resource: state.resource,
-        incognito
-      };
-    }
+    const payload = buildHandoffPayload(state, imgEl, { mode, incognito });
     await openEditorTab(payload);   // full editor always opens in a new tab
     statusEl.textContent = 'Opened in editor.';
     postToHost('close');            // dismiss the quick-crop modal
@@ -374,8 +153,7 @@ document.getElementById('open').addEventListener('click', async (e) => {
   }
 });
 
-// ── Bootstrap (last, so every const above is defined before init runs) ──
-// Image source comes from session storage (set by launchCrop); fall back to ?src.
+// Bootstrap last, so every const above is defined. Source: session storage (launchCrop), else ?src.
 (async () => {
   let src = new URLSearchParams(location.search).get('src') || '';
   if (!src) {
@@ -383,8 +161,7 @@ document.getElementById('open').addEventListener('click', async (e) => {
     catch { /* leave empty → "No image URL provided." */ }
   }
   state.srcUrl = src;
-  // Provenance set by launchCrop (the image's own URL + the page it came from), so
-  // the post-crop editor hand-off keeps where the image came from. Empty otherwise.
+  // Provenance from launchCrop, so the post-crop editor hand-off keeps where the image came from.
   try {
     const m = await chrome.storage.session.get(CROP_META_KEY);
     state.source = (m[CROP_META_KEY] && m[CROP_META_KEY].source) || '';
@@ -398,10 +175,8 @@ document.getElementById('open').addEventListener('click', async (e) => {
   init();
 })();
 
-// Instant, structured tooltips everywhere on this page (the native `title` waits ~1s
-// and never shows on a disabled control). lib/tipContent.js gives them their shape.
+// Instant tooltips: the native `title` waits ~1 s and dies on a disabled control.
 initTooltips();
 wireScrollbarHover();   // the crop stage's bars take the accent under the pointer
 
-// The page-format list is long — our own list gets the filter input and the theme.
 for (const el of document.querySelectorAll('select')) enhanceSelect(el, { search: true });

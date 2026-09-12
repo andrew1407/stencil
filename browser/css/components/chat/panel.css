@@ -1,0 +1,134 @@
+/* ── AI assistant chat panel (stencil-chat-panel) ──
+   Dockable overlay panel driven by chatPanel.js. Docked size lives in --chat-size;
+   float mode gets an inline rect from JS. Both are session-only — nothing persists.
+   Theme-aware via the shared vars — no per-theme rules needed. */
+stencil-chat-panel {
+    display: none;
+    position: fixed;
+    z-index: 90000;               /* above the page, below every .app-modal-overlay */
+    flex-direction: column;
+    min-width: 280px;             /* the compact header row always fits — no clipped buttons */
+    background: var(--bg-controls);
+    color: var(--text-main);
+    border: 1px solid var(--border-main);
+    box-shadow: 0 8px 32px var(--shadow);
+    overflow: hidden;
+}
+stencil-chat-panel.chat-open { display: flex; }
+stencil-chat-panel.chat-dock-left   { top: 0; left: 0;  bottom: 0; width: var(--chat-size, 340px);  border-radius: 0 10px 10px 0; }
+stencil-chat-panel.chat-dock-right  { top: 0; right: 0; bottom: 0; width: var(--chat-size, 340px);  border-radius: 10px 0 0 10px; }
+stencil-chat-panel.chat-dock-top    { top: 0; left: 0;  right: 0;  height: var(--chat-size, 300px); border-radius: 0 0 10px 10px; }
+stencil-chat-panel.chat-dock-bottom { bottom: 0; left: 0; right: 0; height: var(--chat-size, 300px); border-radius: 10px 10px 0 0; }
+stencil-chat-panel.chat-dock-float  { border-radius: 10px; }
+
+/* The whole header strip is the drag handle (grab → grabbing while dragging);
+   the compact buttons keep their own pointer cursor. */
+.chat-header {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border-main);
+    background: var(--bg-info);
+    flex: 0 0 auto;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+.chat-header.chat-dragging { cursor: grabbing; }
+/* The title yields (truncating with an ellipsis) so the buttons NEVER clip. */
+.chat-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: bold;
+    /* Chrome, not a badge: the same text colour as the rest of the header. */
+    color: var(--text-main);
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-right: auto;
+    white-space: nowrap;
+    overflow: hidden;
+}
+/* Optical vertical centering: the bubble glyph's tail row is mostly empty, so the
+   box-centered icon reads ~1px high next to the title's cap height. */
+.chat-title .ic { flex: 0 0 auto; transform: translateY(1px); }
+.chat-title-text { overflow: hidden; text-overflow: ellipsis; }
+/* Compact ghost header buttons (the coord-panel-header look, not big filled squares). */
+.chat-hbtn {
+    flex: 0 0 auto;
+    width: 23px;
+    height: 23px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 5px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+.chat-hbtn:hover { background: var(--bg-container); color: var(--text-main); }
+/* The Resend/Retry icon under a failed turn (chatView.js chatConfigureButton's sibling,
+   the .chat-hbtn shape) reads on the DANGER wash a plain error card sits on — the
+   header ghosts' bg-container fill (near-black in dark mode) landed as a stray dark
+   square there (user report). No fill at all: just its own muted glyph colour traced
+   as a thin outline, so hovering it never looks like it grew a background. Border
+   reserved at rest (transparent) so gaining it on hover costs no layout shift. */
+.chat-retry-cta { border: 1px solid transparent; }
+.chat-retry-cta:hover { background: transparent; border-color: var(--text-muted); color: var(--text-muted); }
+.chat-dock-btns { display: inline-flex; gap: 1px; flex: 0 0 auto; }
+.chat-dock-btn-active, .chat-hbtn.chat-dock-btn-active { color: var(--accent); background: var(--bg-container); }
+/* The toolbar toggle (#chat-btn) shares the Settings-section ghost/active rules —
+   its open state toggles the same `active` class as fullscreen/incognito (white
+   glyph on the accent fill), see the group styling above. */
+/* Disabled ghost buttons follow the app's disabled palette. */
+.chat-hbtn:disabled {
+    color: var(--disabled-text);
+    background: transparent;
+    cursor: not-allowed;
+}
+a.chat-hbtn { text-decoration: none; }
+/* Input-row action buttons (send / attach / gear): the app's standard accent
+   btn-icon treatment — order is send first, then media, then settings. */
+.chat-abtn, .ctx-assist-abtn { width: 34px; height: 34px; padding: 0; flex: 0 0 auto; border-radius: 6px; }
+.chat-abtn .ic, .ctx-assist-abtn .ic { flex: 0 0 auto; }
+/* Send with nothing typed, where voice input exists: not :disabled (a disabled button
+   hears no double-click / hold — the gesture that switches an EMPTY composer to
+   dictation), but drawn as one. Same palette as layout/shell.css's button:disabled. */
+.chat-abtn.chat-send-idle, .ctx-assist-abtn.chat-send-idle {
+    background: var(--disabled-bg);
+    color: var(--disabled-text);
+    cursor: default;
+}
+/* The mic's outer sound waves reach past its 24-unit frame: the glyph keeps its box (the
+   buttons around it have the room), only its ink may spill. */
+.ic-mic { overflow: visible; }
+/* The mic face: a plain ghost while paused (no accent — the chat button's idle look),
+   accent-filled while listening. Its glow, ray ring and swell — the logo's own shine,
+   driven by the voice — live in animations/voice.css beside the logo's rules. */
+.chat-abtn.chat-voice-on, .ctx-assist-abtn.chat-voice-on {
+    background: transparent;
+    color: var(--text-main);
+    box-shadow: inset 0 0 0 1px var(--border-main);
+}
+.chat-abtn.chat-voice-on:not(.chat-voice-listening):hover,
+.ctx-assist-abtn.chat-voice-on:not(.chat-voice-listening):hover { background: var(--bg-info); }
+.chat-abtn.chat-voice-listening, .ctx-assist-abtn.chat-voice-listening {
+    background: var(--accent);
+    color: var(--on-accent);
+}
+/* The configure gear carries the provider-status dot (.conn-status palette:
+   green/amber/red) as a corner badge; its tooltip explains the state. */
+.chat-config-btn, .ctx-assist-config { position: relative; }
+.chat-config-btn .conn-status, .ctx-assist-config .conn-status {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    width: 7px;
+    height: 7px;
+    box-shadow: none;
+}
+

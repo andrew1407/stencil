@@ -6,15 +6,12 @@ namespace stencil::core {
 
   namespace {
 
-    // Recursive-descent evaluator over a single expression string. On any
-    // syntax error it sets `ok = false` and unwinds with a zero result; the
-    // caller treats !ok (or a non-finite value) as "invalid".
+    // On a syntax error `ok_` clears and the parse unwinds with a zero result.
     class Eval {
      public:
       Eval(const std::string& src, char varName, double varValue)
         : src_(src), var_(varName), val_(varValue) {}
 
-      // Parse a full expression and require that all input was consumed.
       bool run(double& out) {
         const double v = parseExpr();
         skipSpaces();
@@ -31,19 +28,16 @@ namespace stencil::core {
       bool ok_ = true;
       int depth_ = 0;
 
-      // Cap recursion depth so an adversarial deeply-nested input (e.g. thousands
-      // of '(' or unary signs, reachable from untrusted layout JSON / console /
-      // CLI --formula) can't overflow the stack. Past the cap the parse is invalid
-      // (→ identity), matching the "invalid input never misbehaves" contract. Kept
-      // identical to formulaEngine.js's MAX_DEPTH so wasm and the JS fallback agree.
-      static constexpr int kMaxDepth = 256;
+      // Recursion cap: thousands of '(' or unary signs from untrusted layout JSON /
+      // console / --formula must not overflow the stack — past it the parse is invalid
+      // (→ identity). Identical to formulaEngine.js MAX_DEPTH so wasm and JS agree.
+      static constexpr int MAX_DEPTH = 256;
 
-      // RAII depth counter: increments on entry, decrements on unwind so sibling
-      // subexpressions don't accumulate depth.
+      // Decrements on unwind, so sibling subexpressions don't accumulate depth.
       struct DepthGuard {
         int& d;
         bool ok;
-        explicit DepthGuard(int& depth) : d(depth), ok(++depth <= kMaxDepth) {}
+        explicit DepthGuard(int& depth) : d(depth), ok(++depth <= MAX_DEPTH) {}
         ~DepthGuard() { --d; }
       };
 
@@ -90,8 +84,7 @@ namespace stencil::core {
       }
 
       double parseTerm() {
-        // '**' is consumed inside parsePower (reached via parseUnary), so the
-        // cursor never sits on '**' when this loop tests for '*'.
+        // parsePower has already consumed any '**', so '*' here is never half of one.
         double v = parseUnary();
         while (ok_) {
           if (match('*')) v *= parseUnary();
@@ -177,8 +170,7 @@ namespace stencil::core {
           ++pos_;
         }
         const std::string ident = src_.substr(start, pos_ - start);
-        // Only the single bound variable is allowed; any other name (a function
-        // such as `foo`, or a stray identifier) is a parse error.
+        // Only the bound variable; any other name (`foo`) is a parse error.
         if (ident.size() == 1 && ident[0] == var_) return val_;
         ok_ = false;
         return 0.0;

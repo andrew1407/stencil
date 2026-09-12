@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
 
-import { createRemoteListing, showsRemoteSkeletons } from '../js/ui/projectsModal.js';
+import { createRemoteListing, showsRemoteSkeletons } from '../js/core/remoteListing.js';
 
 // The projects modal's server-listing cache — the state machine behind the two
 // shimmer skeleton rows. The regression pinned here (user screenshot): after

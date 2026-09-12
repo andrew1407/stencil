@@ -50,7 +50,7 @@ public sealed class ImageDimensionReaderTests
         return d;
     }
 
-    private static byte[] WebpLossless(int width, int height)
+    private static byte[] webpLossless(int width, int height)
     {
         byte[] d = new byte[30];
         "RIFF"u8.ToArray().CopyTo(d, 0);
@@ -62,7 +62,7 @@ public sealed class ImageDimensionReaderTests
         return d;
     }
 
-    private static byte[] WebpExtended(int width, int height)
+    private static byte[] webpExtended(int width, int height)
     {
         byte[] d = new byte[30];
         "RIFF"u8.ToArray().CopyTo(d, 0);
@@ -75,7 +75,7 @@ public sealed class ImageDimensionReaderTests
     }
 
     [Fact]
-    public void ReadsEveryAcceptedFormatsHeader()
+    public void Should_Read_Every_Accepted_Formats_Header()
     {
         foreach ((byte[] bytes, int w, int h) in new (byte[], int, int)[]
         {
@@ -83,8 +83,8 @@ public sealed class ImageDimensionReaderTests
             (Gif(320, 200), 320, 200),
             (Jpeg(2000, 1500), 2000, 1500),
             (WebpLossy(1024, 768), 1024, 768),
-            (WebpLossless(555, 44), 555, 44),
-            (WebpExtended(4000, 3000), 4000, 3000),
+            (webpLossless(555, 44), 555, 44),
+            (webpExtended(4000, 3000), 4000, 3000),
         })
         {
             Assert.True(ImageDimensionReader.TryRead(bytes, out int width, out int height));
@@ -94,7 +94,7 @@ public sealed class ImageDimensionReaderTests
     }
 
     [Fact]
-    public void RefusesTruncatedOrForeignBytes()
+    public void Should_Refuse_Truncated_Or_Foreign_Bytes()
     {
         Assert.False(ImageDimensionReader.TryRead([], out _, out _));
         Assert.False(ImageDimensionReader.TryRead(Png(640, 480).AsSpan(0, 20), out _, out _));
@@ -109,7 +109,7 @@ public sealed class ImageDimensionReaderTests
     }
 
     [Fact]
-    public void RefusesZeroDimensions()
+    public void Should_Refuse_Zero_Dimensions()
     {
         Assert.False(ImageDimensionReader.TryRead(Png(0, 480), out _, out _));
         Assert.False(ImageDimensionReader.TryRead(Gif(320, 0), out _, out _));

@@ -6,10 +6,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { ACCENTS } from '../js/core/accents.js';
 import { fillAccentMenu, markSelected, buildAccentPicker } from '../js/ui/accentPicker.js';
 import { createStubElement, installDom } from './helpers/dom.js';
+import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
 
 // ── Stubs ── the shared element factory; contains() must always hit, so the popover
 // containment guards see every dispatched target as "inside".
@@ -243,7 +243,7 @@ test('a row passing under the pointer as the list closes cannot start a new prev
 
 // ── CSS contract pins (same style as logoAccentMenu.test.js) ────────────
 test('components.css hides the ✓ by default and reveals it on the selected row only', () => {
-  const css = readFileSync(new URL('../css/components.css', import.meta.url), 'utf8');
+  const css = COMPONENTS_CSS;
   const base = /\.accent-check \{[^}]*\}/.exec(css)?.[0] || '';
   assert.match(base, /opacity: 0/, 'the glyph ships on every row, hidden');
   assert.doesNotMatch(base, /color:/, 'the ink is the chip\'s own on-accent one, set per preset in accentPicker.js');
@@ -254,7 +254,7 @@ test('components.css hides the ✓ by default and reveals it on the selected row
 });
 
 test('animations.css latches the row slide and the cursor across the flood', () => {
-  const css = readFileSync(new URL('../css/animations.css', import.meta.url), 'utf8');
+  const css = ANIMATIONS_CSS;
   assert.match(css, /\.accent-dd-opt:hover, \.accent-dd-opt\.dd-hover \{ transform: translateX\(2px\); \}/,
     'the JS latch wears the same 2px slide as :hover — the flood drops :hover mid-preview');
   assert.match(css, /\.accent-dd-menu\.dd-preview-hold \.accent-dd-opt::after \{ animation: none/,

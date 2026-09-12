@@ -8,22 +8,11 @@ import {
   AUTO_DISMISS_MS, SUGGESTIONS, makeDismissible, renderSuggestions,
   shrinkWrapWidth, applyShrinkWrap, bindShrinkWrapResize,
 } from '../src/lib/chatUi.js';
+import { installDom, stubDoc, stubEl } from './helpers/domStub.js';
 
-// ── Stub DOM ──
-const stubEl = (tag = 'div') => {
-  const el = {
-    tag, className: '', textContent: '', title: '', type: '',
-    children: [], attrs: {}, dataset: {}, removed: false, isConnected: true,
-    handlers: {},
-    appendChild: (c) => { el.children.push(c); return c; },
-    addEventListener: (t, fn) => { (el.handlers[t] || (el.handlers[t] = [])).push(fn); },
-    setAttribute: (k, v) => { el.attrs[k] = v; },
-    remove: () => { el.removed = true; el.isConnected = false; },
-    click: () => { for (const fn of el.handlers.click || []) fn({ stopPropagation: () => { el.stopped = true; } }); },
-  };
-  return el;
-};
-const stubDoc = () => ({ createElement: (tag) => stubEl(tag) });
+// The dismissal is what's under test, not the dissolve it plays out through: declare the
+// reduced-motion preference so leaveThenRemove finishes on the spot.
+installDom({ StencilMotion: { get: () => 'none', reduced: () => true, particles: () => false, style: () => null } });
 
 // ── makeDismissible ──
 

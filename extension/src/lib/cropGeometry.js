@@ -5,7 +5,7 @@
 
 // Page natural dimensions (cm, portrait). Mirrors browser/js/config/constants.json:
 // the full ISO 216 A/B + ISO 269 C series in canonical order (A0..A10, B0..B10, C0..C10).
-export const PAGE_SIZES = {
+export const PAGE_SIZES = Object.freeze({
   A0: { width: 84.1, height: 118.9 },
   A1: { width: 59.4, height: 84.1 },
   A2: { width: 42, height: 59.4 },
@@ -39,7 +39,7 @@ export const PAGE_SIZES = {
   C8: { width: 5.7, height: 8.1 },
   C9: { width: 4, height: 5.7 },
   C10: { width: 2.8, height: 4 }
-};
+});
 export const DEFAULT_PAGE = 'A3';
 
 // Selector label for a named format, e.g. "A4 (21 × 29.7 cm)" (extension UI copy

@@ -1,5 +1,6 @@
 #include "launchOptions.hpp"
-#include "mainWindow.hpp"
+#include "deferredWrite.hpp"
+#include "MainWindow.hpp"
 #include "tipContent.hpp"
 #include <QApplication>
 #include <QFileOpenEvent>
@@ -11,15 +12,8 @@
 
 namespace {
 
-  // QApplication subclass that catches the macOS QFileOpenEvent — emitted when a
-  // file is double-clicked in Finder, dropped on the Dock icon, or passed via
-  // "Open With" for a type declared in CFBundleDocumentTypes — and, since the
-  // bundle also registers the stencil:// scheme (CFBundleURLTypes), when a
-  // stencil:// deep link is opened (the event then carries a url, not a file).
-  // Either can arrive BEFORE the window exists (at launch), so entries are
-  // buffered until the window is registered, then flushed. On other platforms
-  // this event never fires (those shells pass the file/URL as an argv positional
-  // instead — handled in main() / parseLaunchOptions).
+  // Catches the macOS QFileOpenEvent (Finder / Dock / "Open With", and stencil:// via CFBundleURLTypes, which carries a url).
+  // Either can arrive BEFORE the window exists, so entries are buffered until a window registers. Other platforms pass argv.
   class StencilApplication : public QApplication {
    public:
     using QApplication::QApplication;
@@ -31,22 +25,17 @@ namespace {
     }
 
    protected:
-    // Cmd+Q must work while a modal dialog's exec() runs too (macOS disables
-    // the app menu then): catch the Quit chord app-wide and shut down cleanly.
+    // Cmd+Q must work while a modal exec() runs (macOS disables the app menu then).
     bool notify(QObject* receiver, QEvent* e) override {
-      // Every control in the app sets its tooltip as one plain string; Qt would print that
-      // flat. Catching the change here re-renders it as the rich tooltip the browser shows
-      // (heading + keycaps + rows/bullets), so no call site has to know about it. The
-      // re-set fires this event again, but the rendered text is already rich, and
-      // enrichedToolTip leaves that alone — so it settles after one pass.
+      // Re-renders every plain tooltip string as the rich tooltip the browser shows; the re-set fires this again,
+      // but enrichedToolTip leaves rich text alone, so it settles after one pass.
       if (e->type() == QEvent::ToolTipChange) {
         if (auto* w = qobject_cast<QWidget*>(receiver)) {
           const QString plain = w->toolTip();
           const QString rich = stencil::gui::enrichedToolTip(plain);
           if (!rich.isEmpty()) {
-            // Remember what it was written as: the rendering bakes in palette colours, so
-            // a theme change rebuilds every tooltip from this (tipContent setTooltipPalette).
-            w->setProperty(stencil::gui::kPlainTipProperty, plain);
+            // The rendering bakes in palette colours, so a theme change rebuilds from the plain source.
+            w->setProperty(stencil::gui::PLAIN_TIP_PROPERTY, plain);
             w->setToolTip(rich);
           }
         }
@@ -92,9 +81,7 @@ namespace {
     QStringList pending_;
   };
 
-  // Tooltips at the default ~700ms wake-up delay read as "not showing"; this proxy makes them
-  // appear promptly on hover (matching browser/js/ui/controlTooltip.js's SHOW_DELAY_MS) while
-  // deferring everything else to the wrapped base style (Fusion).
+  // Qt's ~700ms tooltip wake-up reads as "not showing"; match browser controlTooltip.js SHOW_DELAY_MS.
   class SnappyTooltipStyle : public QProxyStyle {
    public:
     using QProxyStyle::QProxyStyle;
@@ -114,36 +101,27 @@ int main(int argc, char** argv) {
   StencilApplication app(argc, argv);
   app.setApplicationName("Stencil");
   app.setOrganizationName("Stencil");
-  // Show each action's shortcut in the canvas context menu too (Qt hides shortcuts in context
-  // menus by default), matching the browser context menu's right-aligned hotkey hints.
+  // Qt hides shortcuts in context menus by default; the browser shows its hotkey hints.
   app.setAttribute(Qt::AA_DontShowShortcutsInContextMenus, false);
-  // Window/taskbar icon: the browser app's favicon as a Qt resource. Skipped on
-  // macOS, where setWindowIcon() would shadow the bundle's themed AppIcon in the
-  // Dock (macOS windows have no title-bar icon); desktop-file is X11/Wayland-only.
+  // Skipped on macOS, where setWindowIcon() would shadow the bundle's themed AppIcon in the Dock.
 #ifndef Q_OS_MACOS
   app.setWindowIcon(QIcon(QStringLiteral(":/icons/appicon.svg")));
   app.setDesktopFileName(QStringLiteral("stencil"));
 #endif
-  // Fusion honors widget-level QSS + palettes uniformly across the whole app,
-  // unlike the native Adwaita/gtk style on Fedora which leaves the menubar /
-  // toolbar unthemed. Set it before constructing the window (S14).
-  // Wrap Fusion in the snappy-tooltip proxy (QProxyStyle takes ownership of the base style).
+  // Fusion honours widget-level QSS uniformly (the native gtk style leaves the menubar unthemed). QProxyStyle owns the base.
   if (auto* fusion = QStyleFactory::create("Fusion")) {
     QApplication::setStyle(new SnappyTooltipStyle(fusion));
   }
-  // Parse CLI launch options before the window so --help/bad args exit cleanly,
-  // then apply them after show() (the image/URL/video + layout resolution is
-  // async and needs the running event loop). A plain launch is a no-op.
+  // Parse before the window so --help/bad args exit cleanly; apply after show() (resolution is async).
   const stencil::gui::LaunchOptions opts = stencil::gui::parseLaunchOptions(app);
-  // An incognito launch (not opening a saved project) starts empty — skip
-  // restoring the last session so `--incognito` gives a brand-new blank editor
-  // (and `--incognito --src` isn't briefly overlaid by the prior session).
+  // An incognito launch starts empty — no session restore.
   const bool restoreLast = !(opts.incognito && opts.project.isEmpty());
   stencil::gui::MainWindow window(nullptr, restoreLast);
-  // Register the window so any QFileOpenEvent buffered during launch is delivered
-  // (and future ones routed) before the event loop starts.
+  // Register before the event loop so buffered QFileOpenEvents are delivered.
   app.setMainWindow(&window);
   window.show();
   window.applyLaunchOptions(opts);
-  return app.exec();
+  const int code = app.exec();
+  stencil::gui::deferredWrite::flush();   // nothing debounced leaves the app unwritten
+  return code;
 }

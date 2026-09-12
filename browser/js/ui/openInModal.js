@@ -7,21 +7,18 @@ import {
 } from '../core/deepLink.js';
 
 // Inline hand-offs ride the OS launch machinery (LaunchServices / xdg-open argv), which
-// tolerates far less than an in-page URL. Warn on large embedded images; refuse absurd ones.
+// tolerates far less than an in-page URL.
 const INLINE_WARN_CHARS = 200_000;
 const INLINE_MAX_CHARS = 1_000_000;
 
-// ── Component: open-in-another-app modal ────────────────────────
-// Mirrors the CURRENT session into another Stencil front-end: the Desktop app via a
-// `stencil://` link (a server-linked session sends only the server reference — no
-// token; local/incognito embeds image + layout inline), or the Telegram bot via a
-// t.me link carrying (server, project id) in the 64-char `?start=` payload — server
-// projects only; overflow falls back to copyable /connect + /fetch commands.
-// "Incognito" means Stencil's own never-persisted mode on the receiving side.
+// Mirrors the current session into another front-end: the Desktop app via a `stencil://`
+// link (a server-linked session sends only the server reference — no token; local/incognito
+// embeds image + layout inline), or the Telegram bot via a t.me link whose 64-char `?start=`
+// payload carries (server, project id) — server projects only.
 export class StencilOpenInModal extends StencilElement {
+  #openFor;
   static inner() {
-    // The Telegram button is always in the markup but hidden until wire() confirms a
-    // bot username is configured (config loads async — see loadOpenInConfig).
+    // Hidden until wire() confirms a bot username is configured (config loads async).
     const telegram = `<button id="open-in-telegram" class="btn-icon-text" style="display:none;">${icon('message', { size: 14 })}<span>Telegram bot</span></button>`;
     return `
         <div class="app-modal">
@@ -61,10 +58,9 @@ export class StencilOpenInModal extends StencilElement {
   }
   static template() { return hostTag('stencil-open-in-modal', 'id="open-in-modal-overlay" class="app-modal-overlay"', StencilOpenInModal.inner()); }
 
-  // Hand off a project OTHER than the one being edited — the projects list's per-row
-  // "Open in another app". `anchors` is the flight's two ends, as everywhere a window is
-  // raised from a row menu (ui/base.js open(from, backTo)).
-  openFor(id, anchors) { this._openFor?.(id, anchors); }
+  // A project other than the one being edited (the projects list's row menu); `anchors` is
+  // the flight's two ends (ui/base.js open(from, backTo)).
+  openFor(id, anchors) { this.#openFor?.(id, anchors); }
 
   wire(app) {
     const overlay = document.getElementById('open-in-modal-overlay');
@@ -79,16 +75,12 @@ export class StencilOpenInModal extends StencilElement {
     const fallbackCmds = document.getElementById('open-in-fallback-cmds');
     const fallbackCopy = document.getElementById('open-in-fallback-copy');
 
-    // Operator config (desktop scheme + optional Telegram bot username) loads from the
-    // local openInConfig.json (shared with DrawingApp's toolbar-button gating).
+    // Shared with DrawingApp's toolbar-button gating.
     let cfg = { ...OPEN_IN_DEFAULTS };
     loadOpenInConfig().then(loaded => { cfg = loaded; });
 
-    // The project being handed off: null = the live session (the toolbar button), an id =
-    // that row of the projects list. Cleared on close so the toolbar button never inherits
-    // the last row's target.
+    // null = the live session, an id = a row of the projects list. Cleared on close.
     let targetId = null;
-    // Its server linkage, which decides the status line and whether Telegram can be offered.
     const targetRemote = () => {
       if (targetId == null) return app.remoteLink
         ? { address: app.remoteLink.address, remoteId: app.remoteLink.remoteId } : null;
@@ -99,8 +91,7 @@ export class StencilOpenInModal extends StencilElement {
 
     const { open, close } = wireModalShell(overlay, document.getElementById('open-in-btn'), closeBtn, {
       onOpen: () => {
-        // A row hand-off is never the session's incognito state — that belongs to what is
-        // open here, not to the saved project being sent.
+        // A row hand-off is never the session's incognito state.
         incog.checked = targetId == null && app.storage.incognito;
         fallbackRow.style.display = 'none';
         hintEl.textContent = '';
@@ -111,18 +102,16 @@ export class StencilOpenInModal extends StencilElement {
           : (targetId != null ? `"${name}" (image + layout sent inline)`
             : (app.storage.incognito ? 'Incognito session (image + layout sent inline)'
               : 'Local project (image + layout sent inline)'));
-        // Unusable targets are HIDDEN, not greyed: Desktop needs a configured scheme;
-        // Telegram needs a bot username AND a server project (64 chars can't carry
-        // image bytes). The toolbar's #open-in-btn hides when neither is available.
+        // Unusable targets are hidden, not greyed: Telegram needs a bot username AND a server
+        // project (64 chars can't carry image bytes). #open-in-btn hides when neither is available.
         desktopBtn.style.display = cfg.desktopScheme ? '' : 'none';
         telegramBtn.style.display = (cfg.telegramBotUsername && remote) ? '' : 'none';
       },
       onClose: () => { targetId = null; },
     });
     cancelBtn.addEventListener('click', close);
-    // Stacked: raised from a row of the projects list, so it opens OVER it. The toolbar
-    // button's own open() still replaces whatever is showing.
-    this._openFor = (id, { from = null, backTo = null } = {}) => {
+    // Stacked: opens over the projects list; the toolbar button's open() still replaces.
+    this.#openFor = (id, { from = null, backTo = null } = {}) => {
       targetId = id;
       open(from, backTo, { stacked: true });
     };
@@ -151,9 +140,7 @@ export class StencilOpenInModal extends StencilElement {
       if (!payload.server && url.length > INLINE_WARN_CHARS) {
         notify('Large image — the hand-off may fail; prefer saving to a server', 'info');
       }
-      // Hand the custom-scheme URL to the OS. The anchor MUST be in the document —
-      // Chrome ignores navigation clicks on a detached anchor. Appended, clicked,
-      // removed; the browser shows its own "Open Stencil?" prompt (no blank tab).
+      // The anchor MUST be in the document — Chrome ignores navigation clicks on a detached one.
       const a = document.createElement('a');
       a.href = url;
       a.style.display = 'none';
@@ -172,8 +159,7 @@ export class StencilOpenInModal extends StencilElement {
         close();
         return;
       }
-      // Payload can't fit Telegram's 64-char start limit (very long host) — show the
-      // manual recipe instead: open the bot chat and paste the two commands.
+      // The payload can't fit Telegram's 64-char start limit: show the manual recipe.
       fallbackRow.style.display = '';
       fallbackCmds.textContent = `/connect ${remote.address}\n/fetch ${remote.remoteId}`;
       hintEl.textContent = 'The link is too long for Telegram — open the bot and paste these commands.';

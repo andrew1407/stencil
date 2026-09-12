@@ -1,0 +1,111 @@
+/* Checkboxes & radios: a transparent box outlined in the brand accent, filled
+   with the accent (+ a white check / dot) when on — matching the desktop Qt
+   indicator. appearance:none so the look is ours (not the OS default), and the
+   box tracks the chosen main theme via var(--accent). */
+input[type=checkbox], input[type=radio] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    box-sizing: border-box;
+    flex: none;
+    width: 15px;
+    height: 15px;
+    min-width: 15px;
+    min-height: 15px;
+    margin: 0;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    vertical-align: middle;
+}
+input[type=radio] { border-radius: 50%; }
+input[type=checkbox]:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    background-image: var(--accent-tick);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 12px;
+}
+input[type=radio]:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    background-image: radial-gradient(circle, var(--on-accent) 0 2.6px, transparent 3.1px);
+}
+input[type=checkbox]:disabled, input[type=radio]:disabled { opacity: .5; cursor: default; }
+
+#global-drop-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    /* Above the chat panel (90000) and its dock zones (90001), below every modal
+       overlay (99999+). At 9999 the overlay painted BEHIND an open chat panel, so
+       dragging an image in with the chat docked showed the transcript's messages
+       where the drop zones should have been. */
+    z-index: 90002;
+    background: rgba(0, 100, 255, 0.2);
+    backdrop-filter: blur(2px);
+    flex-direction: column;
+    gap: 14px;
+    padding: 24px;
+    pointer-events: none;
+}
+/* Split drop target: LEFT = upload + save, RIGHT = upload incognito. Dashed borders +
+   labels; the half under the cursor highlights while dragging. */
+#global-drop-overlay .drop-split { flex: 1 1 auto; display: flex; gap: 16px; min-height: 0; }
+#global-drop-overlay .drop-zone {
+    flex: 1 1 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 6px;
+    border: 5px dashed var(--accent); border-radius: 16px;
+    background: color-mix(in srgb, var(--bg-container) 88%, transparent);
+    box-shadow: 0 8px 32px var(--shadow);
+}
+#global-drop-overlay .drop-zone-right { border-color: var(--text-muted); }
+#global-drop-overlay .drop-zone.drop-zone-active { background: color-mix(in srgb, var(--accent) 28%, var(--bg-container)); }
+#global-drop-overlay .drop-zone-right.drop-zone-active { background: color-mix(in srgb, var(--text-muted) 30%, var(--bg-container)); }
+/* The zone icon pulses (small → large → small) while dragging, to catch the eye. */
+#global-drop-overlay .drop-zone .drop-icon { font-size: 46px; color: var(--accent); transform-origin: center; animation: dropZonePulse 0.9s ease-in-out infinite; }
+@keyframes dropZonePulse { 0%, 100% { transform: scale(0.8); } 50% { transform: scale(1.25); } }
+#global-drop-overlay .drop-zone-right .drop-icon { color: var(--text-muted); }
+#global-drop-overlay .drop-zone p { font-size: 20px; font-weight: bold; color: var(--text-key); margin: 0; }
+#global-drop-overlay .drop-zone span { font-size: 13px; color: var(--text-muted); max-width: 90%; }
+#global-drop-overlay .drop-foot { flex: 0 0 auto; text-align: center; font-size: 13px; color: var(--text-muted); }
+/* Draw-mode toggle glyph (line / rect) — align with the button label. */
+.draw-mode-icon {
+    vertical-align: -2px;
+    margin-right: 1px;
+}
+.tooltip {
+    position: fixed;
+    background: var(--bg-tooltip);
+    border: 2px solid var(--border-tooltip);
+    border-radius: 6px;
+    padding: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 12px var(--shadow);
+}
+.tooltip-table {
+    border-collapse: collapse;
+    font-size: 15px;
+    color: var(--text-tooltip);
+    margin: 0;
+}
+.tooltip-table th,
+.tooltip-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border: 1px solid var(--border-tooltip);
+}
+.tooltip-table th {
+    background: var(--bg-tt-th);
+    font-weight: bold;
+    color: var(--text-tt-header);
+}
+.tooltip-table td {
+    background: var(--bg-tt-td);
+}

@@ -1,0 +1,172 @@
+/* ── Icon hover: every glyph mimes its own action ────────────────────────────
+   The shared shimmer (layout/shimmer.css) sweeps the BUTTON and the lift above moves its box,
+   but nothing moved the GLYPH. ONE generic move for all of them is worse than none —
+   a minus that swells reads as "increase" — so each icon gets the motion its own
+   action means: the trash lid lifts, download's arrow travels down and upload's up,
+   the folder tips open, the assistant's dots type, plus grows and minus shrinks (both
+   settling back to their default size), the chain links join, the sun shakes, the
+   fullscreen corners extend — or retract, on the control that LEAVES fullscreen.
+
+   The table is canonical data (js/config/iconMotion.json) because the desktop app and
+   the extension draw the same glyphs and must mime the same things; the part hooks it
+   addresses (class="ic-lid", "ic-arrow", "ic-rays"…) live in js/config/icons.json and
+   are inert for every non-CSS consumer — Qt's QSvgRenderer just ignores them.
+
+   Two modes, one trigger. `--ic-on` is a 0/1 latch the hovered control flips: a HOLD
+   motion multiplies its pose by it, so it eases out and back on the same curve. A
+   SETTLE motion (grow/shrink, typing dots, a spin) has to come back to rest at the end
+   of its own play, so it names a keyframe set in `--ic-play` and the same rule switches
+   that on. Everything rides `transform` / `stroke-dashoffset` on the <svg> or a part of
+   it: the button's own translateY never touches those, and no box changes, so no
+   control can reflow.
+   Opted out: the two fold chevrons (a rotation there IS their open/closed state), a
+   spinning busy glyph, and a face mid-swap — each already owns this property. */
+/* `--ic-play` is registered NON-INHERITING on purpose. The trigger below has to switch the
+   animation on for the glyph AND every element inside it, because a part hook can be any
+   of them — so an inherited value would run the SAME keyframes a second time on every
+   descendant of the element that named it, and the two compose. That doubled every pose
+   whose hook was a <g> or the whole glyph: the help mark turned 18° instead of 9° and swung
+   out of its ring, the sun's rays bloomed from scale 0.2 / -80° instead of 0.45 / -40°, and
+   the picture inside the `image` frame slid 7 units instead of 3.5. Non-inheriting puts
+   every design back on the canonical numbers — the ones the Qt port already applies. */
+@property --ic-play { syntax: "*"; inherits: false; }
+.ic, .draw-mode-icon {
+    --ic-on: 0;
+    /* A lifting lid or a shaken sun ray leaves the 24-unit box for a moment. At rest
+       every glyph is inside it, so nothing that isn't moving renders differently. */
+    overflow: visible;
+}
+.ic, .draw-mode-icon, .ic *, .draw-mode-icon * {
+    transition: transform var(--ic-ms, 0.2s) var(--ic-ease, cubic-bezier(0.16, 1, 0.3, 1));
+    animation-duration: var(--ic-ms, 0.32s);
+    animation-timing-function: var(--ic-ease, cubic-bezier(0.34, 1.2, 0.64, 1));
+    animation-delay: var(--ic-delay, 0s);
+    animation-fill-mode: both;
+}
+/* A part moves in the glyph's own 24-unit space, so 1px here is 1/24 of the icon at any
+   size. The root <svg> is an HTML box instead, so its whole-glyph moves are written as
+   percentages of that box (1 unit = 4.1667%) to stay size-independent.
+   transform-origin is pinned to the glyph CENTRE as well: an SVG child's initial
+   transform-origin is `0 0`, not the 50% 50% an HTML box gets, so every part that
+   SCALES or TURNS pivoted on the view-box corner instead — the fit icon's inner frame
+   swelled away into a corner rather than growing in place. The per-part overrides
+   below (a hinge, a part's own centre) still outrank this. */
+.ic * { transform-box: view-box; transform-origin: 50% 50%; }
+/* The `[id^=toggle-]` opt-out is written as an ATTRIBUTE, not an id selector, on purpose:
+   it keeps this rule at class specificity so the reduced-motion override below (and any
+   per-control rule) can still outrank it.
+   A DISABLED control is deliberately NOT excluded. It is still hovered, still shows its
+   tooltip and its disabled reason (layout/buttonStates.css keeps `pointer-events: auto` on it for
+   exactly that), and the glyph is what the pointer is on — leaving it frozen made the
+   greyed control read as a dead area of the toolbar rather than a control that cannot
+   act right now. The motion says what it WOULD do; the grey says it cannot yet. */
+/* `.ctx-item` uses a child combinator (`> .ctx-icon`/`> .ctx-check`), not the plain
+   descendant list above: a submenu parent carries its flyout as a DOM child, so a plain
+   `.ctx-item:hover .ic` would fire every icon inside it just from hovering the parent row. */
+:is(button, .btn-icon, .btn-icon-text, .idle-create-btn, .coord-tab, .pill-toggle,
+    .accent-dd-trigger, .accent-dd-opt, .name-edit-btn, .project-menu-item):not(.is-loading):not(.swapping):not([id^="toggle-"]):hover
+    :is(.ic, .draw-mode-icon, .ic *, .draw-mode-icon *),
+.ctx-item:not(.is-loading):not(.swapping):not([id^="toggle-"]):hover
+    > :is(.ctx-icon, .ctx-check) :is(.ic, .draw-mode-icon, .ic *, .draw-mode-icon *),
+/* …and the row the keyboard walk is on (contextMenu.js .ctx-kb): the arrows are a hover. */
+.ctx-item:not(.is-loading):not(.swapping):not([id^="toggle-"]).ctx-kb
+    > :is(.ctx-icon, .ctx-check) :is(.ic, .draw-mode-icon, .ic *, .draw-mode-icon *) {
+    --ic-on: 1;
+    animation-name: var(--ic-play, none);
+}
+
+/* ── HOLD: the pose is held while the pointer rests, and eases back on the way out ── */
+/* Direction is the meaning: a chevron goes the way it points, undo back, redo forward. */
+.ic-chevron-up    { transform: translateY(calc(var(--ic-on) * -8.33%)); }
+.ic-chevron-down  { transform: translateY(calc(var(--ic-on) * 8.33%)); }
+.ic-chevron-right { transform: translateX(calc(var(--ic-on) * 8.33%)); }
+.ic-chevron-left  { transform: translateX(calc(var(--ic-on) * -8.33%)); }
+.ic-play          { transform: translateX(calc(var(--ic-on) * 6.67%)); }
+.ic-send          { transform: translate(calc(var(--ic-on) * 7.5%), calc(var(--ic-on) * -7.5%)); }
+.ic-cloud         { transform: translate(calc(var(--ic-on) * 5.83%), calc(var(--ic-on) * -2.5%)); }
+.ic-ruler         { transform: translate(calc(var(--ic-on) * 5%), calc(var(--ic-on) * -5%)); }
+/* The gear turns exactly one tooth, the refresh wheel exactly half a revolution, and the
+   sun exactly one of its eight rays — each comes to rest looking untouched. (The
+   quarter-turn pair and the live-sync wheel turn WHOLE revolutions instead — settles,
+   below.) */
+.ic-gear          { --ic-ms: 0.3s; transform: rotate(calc(var(--ic-on) * 45deg)); }
+.ic-sun           { --ic-ms: 0.42s; transform: rotate(calc(var(--ic-on) * 45deg)); }
+.ic-refresh       { --ic-ms: 0.42s; transform: rotate(calc(var(--ic-on) * 180deg)); }
+.ic-stop          { transform: scale(calc(1 - var(--ic-on) * 0.15)); }   /* clamps down */
+/* The folder's front panel tips open towards you, hinged on its bottom edge. */
+.ic-folder {
+    transform-origin: 50% 100%;
+    transform: perspective(60px) rotateX(calc(var(--ic-on) * -22deg))
+               translateY(calc(var(--ic-on) * -1.67%));
+}
+/* The lid lifts off the can, hinged at its left end. */
+.ic-trash .ic-lid {
+    --ic-ms: 0.24s;
+    transform-origin: 5px 6px;
+    transform: rotate(calc(var(--ic-on) * -11deg)) translateY(calc(var(--ic-on) * -0.4px));
+}
+/* One arrow, two directions — the whole difference between the pair. */
+.ic-download .ic-arrow { transform: translateY(calc(var(--ic-on) * 2.2px)); }
+.ic-upload .ic-arrow   { transform: translateY(calc(var(--ic-on) * -2.2px)); }
+/* The layout FILE pair: the same travel, inside a blank page (icons.json file-down/up). */
+.ic-file-down .ic-arrow { transform: translateY(calc(var(--ic-on) * 2.2px)); }
+.ic-file-up .ic-arrow   { transform: translateY(calc(var(--ic-on) * -2.2px)); }
+.ic-paste .ic-arrow    { transform: translateY(calc(var(--ic-on) * 1.6px)); }
+.ic-external .ic-arrow { transform: translate(calc(var(--ic-on) * 1.4px), calc(var(--ic-on) * -1.4px)); }
+/* The two brackets close in on the region they'd keep. */
+.ic-crop .ic-crop-bl { transform: translate(calc(var(--ic-on) * 1px), calc(var(--ic-on) * -1px)); }
+.ic-crop .ic-crop-tr { transform: translate(calc(var(--ic-on) * -1px), calc(var(--ic-on) * 1px)); }
+/* The two sheets separate, so you can see there are two of them. */
+.ic-copy .ic-front { transform: translate(calc(var(--ic-on) * 1px), calc(var(--ic-on) * 1px)); }
+.ic-copy .ic-back  { transform: translate(calc(var(--ic-on) * -0.8px), calc(var(--ic-on) * -0.8px)); }
+.ic-clipboard .ic-clip { transform: translateY(calc(var(--ic-on) * -1.2px)); }
+/* The overflow dots spread — the menu about to open out. */
+.ic-more .ic-dot-l { transform: translateX(calc(var(--ic-on) * -1.4px)); }
+.ic-more .ic-dot-r { transform: translateX(calc(var(--ic-on) * 1.4px)); }
+/* The two chain links close together and join. */
+.ic-link .ic-link-a { transform: translate(calc(var(--ic-on) * -0.7px), calc(var(--ic-on) * 0.7px)); }
+.ic-link .ic-link-b { transform: translate(calc(var(--ic-on) * 0.7px), calc(var(--ic-on) * -0.7px)); }
+/* Each arrow slides the way it points — the swap itself. */
+.ic-swap .ic-arrow-top { transform: translateX(calc(var(--ic-on) * 1.4px)); }
+.ic-swap .ic-arrow-bot { transform: translateX(calc(var(--ic-on) * -1.4px)); }
+.ic-fit .ic-inner       { transform: scale(calc(1 + var(--ic-on) * 0.22)); }  /* grows out to fit the frame */
+.ic-globe .ic-meridian  { transform: scaleX(calc(1 - var(--ic-on) * 0.55)); } /* turning on its axis */
+/* The disguise comes apart: the hat lifts off, the glasses drop away from it. */
+.ic-incognito .ic-brim    { transform: translateY(calc(var(--ic-on) * -1px)); }
+.ic-incognito .ic-glasses { transform: translateY(calc(var(--ic-on) * 1px)); }
+.ic-lock .ic-shackle    { transform: translateY(calc(var(--ic-on) * -1.4px)); } /* about to unlatch */
+/* Fullscreen: the corner brackets EXTEND to enter it and RETRACT to leave it, so the
+   motion always shows where the click takes you (.active = already in fullscreen). */
+.ic-maximize .ic-corner-tl { transform: translate(calc(var(--ic-on) * -1.4px), calc(var(--ic-on) * -1.4px)); }
+.ic-maximize .ic-corner-tr { transform: translate(calc(var(--ic-on) * 1.4px), calc(var(--ic-on) * -1.4px)); }
+.ic-maximize .ic-corner-br { transform: translate(calc(var(--ic-on) * 1.4px), calc(var(--ic-on) * 1.4px)); }
+.ic-maximize .ic-corner-bl { transform: translate(calc(var(--ic-on) * -1.4px), calc(var(--ic-on) * 1.4px)); }
+.active .ic-maximize .ic-corner-tl { transform: translate(calc(var(--ic-on) * 1.4px), calc(var(--ic-on) * 1.4px)); }
+.active .ic-maximize .ic-corner-tr { transform: translate(calc(var(--ic-on) * -1.4px), calc(var(--ic-on) * 1.4px)); }
+.active .ic-maximize .ic-corner-br { transform: translate(calc(var(--ic-on) * -1.4px), calc(var(--ic-on) * -1.4px)); }
+.active .ic-maximize .ic-corner-bl { transform: translate(calc(var(--ic-on) * 1.4px), calc(var(--ic-on) * -1.4px)); }
+/* The mirror glyph, worn while fullscreen is on: the hover draws the brackets closer
+   still — the way out. */
+.ic-minimize .ic-corner-tl { transform: translate(calc(var(--ic-on) * 1.4px), calc(var(--ic-on) * 1.4px)); }
+.ic-minimize .ic-corner-tr { transform: translate(calc(var(--ic-on) * -1.4px), calc(var(--ic-on) * 1.4px)); }
+.ic-minimize .ic-corner-br { transform: translate(calc(var(--ic-on) * -1.4px), calc(var(--ic-on) * -1.4px)); }
+.ic-minimize .ic-corner-bl { transform: translate(calc(var(--ic-on) * 1.4px), calc(var(--ic-on) * -1.4px)); }
+/* The draw-mode pair's own faces, the canonical `line`/`rect` design at 16 units: the
+   shape DRAWS ITSELF between the two drag handles the way a drag would — the segment or
+   the box it spans — and the handles pop as it lands. The face swap owns everything
+   else about this button. Written as a settle, so both come back to rest. */
+.draw-mode-icon .ic-stroke {
+    --ic-ms: 0.34s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1);
+    stroke-dasharray: 15; --ic-play: icmDrawLine16;
+}
+.draw-mode-icon .ic-box {
+    --ic-ms: 0.34s; --ic-ease: cubic-bezier(0.33, 1, 0.68, 1);
+    stroke-dasharray: 39; --ic-play: icmDrawBox16;
+}
+.draw-mode-icon .ic-handle {
+    --ic-ms: 0.3s; --ic-delay: 0.09s; --ic-play: icmHandlePop;
+    transform-box: fill-box;
+    transform-origin: center;
+}
+.draw-mode-icon .ic-handle:nth-of-type(2) { --ic-delay: 0.17s; }
+

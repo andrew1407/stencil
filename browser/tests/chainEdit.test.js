@@ -16,8 +16,9 @@ const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 const drawingAppJs = read('../js/core/drawingApp.js');
 const pointerJs = read('../js/core/pointerController.js');
 const inputJs = read('../js/core/inputController.js');
+const shapeJs = read('../js/core/shapeBuilder.js');   // closing / inserting / rects
 const panelJs = read('../js/ui/selectionPanel.js');
-const binderJs = read('../js/core/controlsBinder.js');
+const binderJs = read('../js/ui/bindings/selectionPanel.js');
 
 const P = (...xy) => xy.map(([x, y]) => ({ x, y }));
 // A shape closed by clicking its first point: the closing DUPLICATE at the end.
@@ -124,8 +125,8 @@ test('the close check is reached from BOTH routes, not just the click', () => {
   // closed. The check lived only in canvasClick; both routes go through tryCloseShapeAt.
   assert.match(drawingAppJs, /tryCloseShapeAt\(x, y\)/, 'the click path asks');
   assert.match(inputJs, /app\.tryCloseShapeAt\(x, y\)/, 'and so does the hold-to-draw drop');
-  assert.equal((drawingAppJs.match(/#shouldCloseShape\(/g) || []).length, 3,
-    'the raw check has ONE caller (tryCloseShapeAt, twice) plus its own definition');
+  assert.equal((shapeJs.match(/shouldCloseShape\(/g) || []).length, 2,
+    'the raw check (lineTransforms.js) has ONE caller here — tryCloseShapeAt, twice');
   // Closing ends the gesture: the stroke is committed, so nothing may drop into it after.
   // From the DEFINITION, not the call site in #holdTick that appears earlier.
   const drop = inputJs.slice(inputJs.indexOf('#holdDrop(clientX, clientY)'),
@@ -139,14 +140,14 @@ test('closing a shape selects nothing — it ends like an ordinary line', () => 
   // A finished shape used to select itself and pop the selected-line bar over the picture
   // just drawn. Finishing an ordinary line (stopDrawingMode) selects nothing, and closing
   // one now ends the same way: the coordinate table follows it, the bar stays away.
-  const close = drawingAppJs.slice(drawingAppJs.indexOf('#closeShape({ line, idx, isContinuation })'),
-                                   drawingAppJs.indexOf('insertPointOnSegment(lineIdx'));
-  assert.ok(!/this\.selectedLineIdx = areaIdx/.test(close), 'it does not select the new area');
-  assert.ok(!/this\.focusedPtIdx = -1/.test(close), 'and focuses no point');
-  assert.match(close, /this\.coordLineIdx = areaIdx/, 'the coordinate table still follows it');
+  const close = shapeJs.slice(shapeJs.indexOf('closeShape = (app, { line, idx, isContinuation })'),
+                              shapeJs.indexOf('insertPointOnSegment = (app, lineIdx'));
+  assert.ok(!/app\.selectedLineIdx = areaIdx/.test(close), 'it does not select the new area');
+  assert.ok(!/app\.focusedPtIdx = -1/.test(close), 'and focuses no point');
+  assert.match(close, /app\.coordLineIdx = areaIdx/, 'the coordinate table still follows it');
   // The one showSelectionPanel left is a REFRESH of an already-open bar (a continued shape
   // was drawn on a selected line), never an opening.
-  assert.match(close, /if \(this\.selectedLineIdx === areaIdx\) this\.showSelectionPanel/);
+  assert.match(close, /if \(app\.selectedLineIdx === areaIdx\) app\.showSelectionPanel/);
   assert.equal((close.match(/showSelectionPanel/g) || []).length, 1);
 });
 
@@ -175,18 +176,18 @@ test('the close grab is a constant size ON SCREEN, not in image pixels', () => {
   // The other half of the same report: `pointSize + 8` image px is ~3 screen px at 25%
   // zoom, so the first point could not be hit. The grab now divides by the zoom, like
   // every other hit test here; the desktop's headless twin drives real clicks at 25%.
-  const fn = drawingAppJs.slice(drawingAppJs.indexOf('#closeGrabSize(line) {'),
-                                drawingAppJs.indexOf('tryCloseShapeAt(x, y) {'));
-  assert.match(fn, /this\.scale/, 'it reads the zoom');
+  const fn = shapeJs.slice(shapeJs.indexOf('closeGrabSize = (app, line) => {'),
+                           shapeJs.indexOf('tryCloseShapeAt = (app, x, y) => {'));
+  assert.match(fn, /app\.scale/, 'it reads the zoom');
   assert.match(fn, /\/ scale/, 'and divides by it');
   assert.match(fn, /Math\.max\(ps,/, 'never tighter than the honest image-space distance');
-  assert.match(fn, /DrawingApp\.#CLOSE_SLACK/, "core's own slack is named, not repeated as a literal");
+  assert.match(fn, /const slack = CLOSE_SLACK;/, "core's own slack is named, not repeated as a literal");
   // Both close routes size their grab this way — neither passes a raw pointSize.
-  const tryClose = drawingAppJs.slice(drawingAppJs.indexOf('tryCloseShapeAt(x, y) {'),
-                                      drawingAppJs.indexOf('#closeCurrentShape() {'));
-  assert.equal((tryClose.match(/#closeGrabSize\(/g) || []).length, 2,
+  const tryClose = shapeJs.slice(shapeJs.indexOf('tryCloseShapeAt = (app, x, y) => {'),
+                                 shapeJs.indexOf('closeCurrentShape = (app) => {'));
+  assert.equal((tryClose.match(/closeGrabSize\(/g) || []).length, 2,
     'the continued stroke and the fresh one both get the zoom-aware grab');
-  assert.ok(!/pointSize \?\? this\.pointSize\)\)/.test(tryClose), 'no raw pointSize left');
+  assert.ok(!/pointSize \?\? app\.pointSize\)\)/.test(tryClose), 'no raw pointSize left');
 });
 
 // ── The wiring ──────────────────────────────────────────────────────────────
@@ -195,7 +196,7 @@ test('the pull-out chord opens no context menu', () => {
   // On macOS Ctrl+click IS the secondary click, so the Alt+Ctrl drag fired `contextmenu`
   // too and the menu opened over the point being dragged (user report). Alt with it means
   // the gesture; a plain Ctrl+click still gets its menu.
-  const ctxJs = read('../js/ui/contextMenu.js');
+  const ctxJs = readFileSync(new URL('../js/ui/contextMenu.js', import.meta.url), 'utf8');
   const handler = ctxJs.slice(ctxJs.indexOf("el.addEventListener('contextmenu'"),
                               ctxJs.indexOf('// Close on outside click'));
   assert.match(handler, /if \(e\.altKey\) return;/, 'Alt means the gesture, not a menu');

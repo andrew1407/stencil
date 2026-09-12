@@ -2,14 +2,13 @@
 //! the guarded net.request path, and the sanitized provider error details.
 const std = @import("std");
 const net = @import("../net.zig");
-const logo = @import("../logo.zig");
+const report = @import("../report.zig");
 const wire = @import("wire.zig");
+const sanitize = @import("../sanitize.zig");
 
 // Symbols living in the sibling llm/ modules (facade: ../llm.zig).
 const member = wire.member;
 const memberStr = wire.memberStr;
-
-// ── Transport ────────────────────────────────────────────────────────────────
 
 /// `LlmDisabled` = the server's 503 llmDisabled (no LLM key configured) — typed so a
 /// caller can tell "configure the server" apart from a broken transport (browser
@@ -113,7 +112,7 @@ pub fn waitForJob(job: *Job, io: std.Io, waiter: Waiter) PostError!net.Response 
             if (job.claim(.cancelled)) {
                 // The user asked for the stop, so it is a note, not an `error:` — the command
                 // did exactly what was asked. The deadline below still is an error.
-                logo.note("cancelled — the assistant turn was stopped\n", .{});
+                report.note("cancelled — the assistant turn was stopped\n", .{});
                 return PostError.Cancelled;
             }
             break; // it landed in the same instant: use the answer we already paid for
@@ -122,7 +121,7 @@ pub fn waitForJob(job: *Job, io: std.Io, waiter: Waiter) PostError!net.Response 
         if (waiter.beat) |b| if (waiter.beat_ctx) |c| b(c, now);
         if (waiter.timeout_ms > 0 and now - started > waiter.timeout_ms) {
             if (job.claim(.cancelled)) {
-                logo.err("the LLM endpoint did not answer within {d}s\n", .{@divTrunc(waiter.timeout_ms, 1000)});
+                report.err("the LLM endpoint did not answer within {d}s\n", .{@divTrunc(waiter.timeout_ms, 1000)});
                 return PostError.TimedOut;
             }
             break;
@@ -171,9 +170,9 @@ fn finish(gpa: std.mem.Allocator, res: net.Response) PostError![]u8 {
         var buf: DetailBuf = undefined;
         const why = errorDetail(gpa, res.body, &buf);
         if (why.len != 0) {
-            logo.err("{s}\n", .{why});
+            report.err("{s}\n", .{why});
         } else {
-            logo.err("the LLM endpoint answered HTTP {d}\n", .{res.status});
+            report.err("the LLM endpoint answered HTTP {d}\n", .{res.status});
         }
         // Same printed message, typed: the server's llmDisabled is its own error.
         return if (isLlmDisabled(gpa, res.body)) PostError.LlmDisabled else PostError.HttpFailed;
@@ -208,198 +207,17 @@ fn rawRequest(gpa: std.mem.Allocator, io: std.Io, url: []const u8, auth: ?[]cons
     });
 }
 
-/// How much of a provider's own prose an error may quote (server upstream.go parity).
-const detail_limit = 200;
-const DetailBuf = [detail_limit + "…".len]u8;
+const detail = @import("transport/detail.zig");
 
-/// The provider's own message from a non-2xx body (the three §6 error shapes), sanitized
-/// by `sanitizeDetail`; empty when the body carries nothing usable. The raw body is
-/// NEVER printed.
-pub fn errorDetail(gpa: std.mem.Allocator, body: []const u8, out: *DetailBuf) []const u8 {
-    var parsed = std.json.parseFromSlice(std.json.Value, gpa, body, .{}) catch return "";
-    defer parsed.deinit();
-    const root = parsed.value;
-    const raw = memberStr(root, "message") orelse blk: {
-        const e = member(root, "error") orelse return "";
-        break :blk switch (e) {
-            .string => |s| s,
-            .object => memberStr(e, "message") orelse return "",
-            else => return "",
-        };
-    };
-    return sanitizeDetail(raw, out);
-}
-
-/// Untrusted provider prose made safe to print: control chars/newlines out (no forged
-/// console lines), URL- and token-shaped words redacted (an endpoint may echo the key
-/// back), whitespace collapsed, cut at `detail_limit` on a word boundary.
-pub fn sanitizeDetail(text: []const u8, out: *DetailBuf) []const u8 {
-    const src = text[0..@min(text.len, 4 * detail_limit)];
-    var n: usize = 0;
-    var i: usize = 0;
-    while (nextWord(src, &i)) |w| {
-        var word: []const u8 = if (secretish(w)) "[redacted]" else w;
-        // Browser parity: "bearer <cred>"/"basic <cred>" collapses to ONE [redacted].
-        if (isAuthScheme(w)) {
-            var j = i;
-            if (nextWord(src, &j)) |cred| {
-                if (credRun(cred) >= 8) {
-                    word = "[redacted]";
-                    i = j;
-                }
-            }
-        }
-        const sep: usize = if (n == 0) 0 else 1;
-        if (n + sep + word.len > detail_limit) {
-            @memcpy(out[n..][0.."…".len], "…");
-            return out[0 .. n + "…".len];
-        }
-        if (sep == 1) {
-            out[n] = ' ';
-            n += 1;
-        }
-        @memcpy(out[n..][0..word.len], word);
-        n += word.len;
-    }
-    return out[0..n];
-}
-
-/// Word separators: spaces and every control byte (DEL included).
-fn isDetailSep(c: u8) bool {
-    return c <= ' ' or c == 0x7f;
-}
-
-/// The next separator-delimited word from `src`, advancing `i` past it; null at the end.
-fn nextWord(src: []const u8, i: *usize) ?[]const u8 {
-    while (i.* < src.len and isDetailSep(src[i.*])) i.* += 1;
-    const start = i.*;
-    while (i.* < src.len and !isDetailSep(src[i.*])) i.* += 1;
-    return if (i.* == start) null else src[start..i.*];
-}
-
-/// The browser sanitizer's auth-scheme words: a following credential is redacted.
-fn isAuthScheme(word: []const u8) bool {
-    return std.ascii.eqlIgnoreCase(word, "bearer") or std.ascii.eqlIgnoreCase(word, "basic");
-}
-
-/// Leading run of the browser's bearer-credential chars (`A-Za-z0-9._~+/=-`).
-fn credRun(word: []const u8) usize {
-    for (word, 0..) |c, k| {
-        if (!std.ascii.isAlphanumeric(c) and std.mem.indexOfScalar(u8, "._~+/=-", c) == null) return k;
-    }
-    return word.len;
-}
-
-/// Leading run of token chars (`A-Za-z0-9._-`).
-fn tokenRun(word: []const u8) usize {
-    for (word, 0..) |c, k| {
-        if (!std.ascii.isAlphanumeric(c) and c != '.' and c != '_' and c != '-') return k;
-    }
-    return word.len;
-}
-
-/// True for a word that must not be echoed: an absolute URL (an internal endpoint is
-/// not the user's business), a long opaque run, or a credential pair — one of the
-/// browser's key heads (`sk|pk|api[-_]?key|key|token|secret`) + `-_=:` + a 6+ token run.
-fn secretish(word: []const u8) bool {
-    if (std.mem.indexOf(u8, word, "://") != null) return true;
-    if (word.len >= 24 and isTokenChars(word)) return true;
-    const names = [_][]const u8{ "api_key", "api-key", "apikey", "sk", "pk", "key", "token", "secret" };
-    for (names) |name| {
-        if (word.len < name.len + 1 + 6) continue;
-        if (!std.ascii.startsWithIgnoreCase(word, name)) continue;
-        if (std.mem.indexOfScalar(u8, "-_=:", word[name.len]) == null) continue;
-        if (tokenRun(word[name.len + 1 ..]) >= 6) return true;
-    }
-    return false;
-}
-
-/// True when every byte is a token character (`A-Za-z0-9._-`).
-fn isTokenChars(s: []const u8) bool {
-    for (s) |c| {
-        if (!std.ascii.isAlphanumeric(c) and c != '.' and c != '_' and c != '-') return false;
-    }
-    return true;
-}
-
-/// How much of a response body is quoted in error messages.
-pub const clip_limit = 300;
-pub const ClipBuf = [clip_limit + "…".len]u8;
-
-/// Bound a response body for inclusion in a message (≤ `clip_limit` bytes, backed off to a
-/// UTF-8 codepoint boundary, with an ellipsis). Returns a slice of `buf` or of `body` itself.
-pub fn clip(buf: *ClipBuf, body: []const u8) []const u8 {
-    const t = std.mem.trim(u8, body, " \t\r\n");
-    if (t.len <= clip_limit) return t;
-    var end: usize = clip_limit;
-    while (end > 0 and (t[end] & 0xC0) == 0x80) : (end -= 1) {}
-    @memcpy(buf[0..end], t[0..end]);
-    const ell = "…";
-    @memcpy(buf[end .. end + ell.len], ell);
-    return buf[0 .. end + ell.len];
-}
-
-// ── tests ────────────────────────────────────────────────────────────────────
+pub const detail_limit = detail.detail_limit;
+pub const DetailBuf = detail.DetailBuf;
+pub const sanitizeDetail = detail.sanitizeDetail;
+pub const errorDetail = detail.errorDetail;
+pub const clip_limit = detail.clip_limit;
+pub const ClipBuf = detail.ClipBuf;
+pub const clip = detail.clip;
 
 const testing = std.testing;
-
-test "errorDetail: the provider's reason, said once and never the raw body" {
-    const a = testing.allocator;
-    var buf: DetailBuf = undefined;
-    // stencil-server {code,message}: the reason alone — no status, no upstream prose.
-    try testing.expectEqualStrings(
-        "the LLM provider is out of credits or has no active billing",
-        errorDetail(a, "{\"code\":\"llmUpstream\",\"message\":\"the LLM provider is out of credits or has no active billing\"}", &buf),
-    );
-    // ollama {"error":"…"} and openai-compat {"error":{"message":"…"}}.
-    try testing.expectEqualStrings("model 'x' not found", errorDetail(a, "{\"error\":\"model 'x' not found\"}", &buf));
-    try testing.expectEqualStrings("invalid model", errorDetail(a, "{\"error\":{\"message\":\"invalid model\"}}", &buf));
-    // Nothing usable (or not JSON at all) quotes nothing — the caller prints the status.
-    try testing.expectEqualStrings("", errorDetail(a, "<html>gateway down</html>", &buf));
-    try testing.expectEqualStrings("", errorDetail(a, "{\"detail\":\"x\"}", &buf));
-}
-
-test "isLlmDisabled: only the server's llmDisabled code types as disabled" {
-    const a = testing.allocator;
-    try testing.expect(isLlmDisabled(a, "{\"code\":\"llmDisabled\",\"message\":\"LLM is not configured on this server\"}"));
-    try testing.expect(!isLlmDisabled(a, "{\"code\":\"llmUpstream\",\"message\":\"out of credits\"}"));
-    try testing.expect(!isLlmDisabled(a, "{\"error\":\"model not found\"}"));
-    try testing.expect(!isLlmDisabled(a, "<html>gateway down</html>"));
-}
-
-test "sanitizeDetail: bounded, control-free, and never echoing a key or URL" {
-    var buf: DetailBuf = undefined;
-    try testing.expectEqualStrings("model not found", sanitizeDetail("model\nnot\tfound", &buf));
-    try testing.expectEqualStrings(
-        "Incorrect API key provided: [redacted]",
-        sanitizeDetail("Incorrect API key provided: sk-abcdef1234567890", &buf),
-    );
-    try testing.expectEqualStrings("see [redacted] now", sanitizeDetail("see http://10.0.0.5:11434/api/chat now", &buf));
-    // Browser-parity rules: bearer/basic + credential collapse to one [redacted];
-    // compound api_key/api-key heads gate the pair rule too.
-    try testing.expectEqualStrings(
-        "authorization [redacted] was rejected",
-        sanitizeDetail("authorization Bearer abcdef1234567890 was rejected", &buf),
-    );
-    try testing.expectEqualStrings("Bearer abc kept", sanitizeDetail("Bearer abc kept", &buf));
-    try testing.expectEqualStrings(
-        "request had [redacted] attached",
-        sanitizeDetail("request had api_key=supersecretvalue1 attached", &buf),
-    );
-    try testing.expectEqualStrings(
-        "and [redacted] too",
-        sanitizeDetail("and api-key:secret99 too", &buf),
-    );
-    try testing.expectEqualStrings(
-        "Check your key and try again.",
-        sanitizeDetail("Check your key and try again.", &buf),
-    );
-    var long: [900]u8 = undefined;
-    for (&long, 0..) |*c, i| c.* = if (i % 5 == 4) ' ' else 'a';
-    const cut = sanitizeDetail(&long, &buf);
-    try testing.expect(cut.len <= detail_limit + "…".len);
-    try testing.expect(std.mem.endsWith(u8, cut, "…"));
-}
 
 test "waitForJob: a Ctrl-C mid-call cancels and hands the job to the worker" {
     const a = testing.allocator;
@@ -455,4 +273,8 @@ fn pressAlways(ctx: *anyopaque, _: i32) bool {
     const n: *u8 = @ptrCast(ctx);
     n.* += 1;
     return true;
+}
+
+test {
+    _ = detail;
 }
