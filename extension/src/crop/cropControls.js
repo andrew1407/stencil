@@ -1,10 +1,8 @@
-// ── Page format + orientation controls ──────────────────────────────────────
 // The two things that decide the crop's ASPECT; every change re-centres the rect.
 import { pageSizeOptions } from '../lib/cropGeometry.js';
 
 export const createCropControls = ({ state, resetCrop }) => {
-  // Page-size select: Custom… first, then every ISO A/B/C format from the shared
-  // table (canonical order), labelled with its cm dimensions.
+  // Custom… first, then every ISO A/B/C format from the shared table (canonical order).
   const pageSel = document.getElementById('page-select');
   pageSel.innerHTML = '<option value="custom">Custom…</option>' + pageSizeOptions();
 

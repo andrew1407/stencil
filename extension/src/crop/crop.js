@@ -1,7 +1,5 @@
-// ── Quick crop page ─────────────────────────────────────────────────────────
-// The editor's crop model: a rect in ORIGINAL-image pixels whose aspect is locked to the
-// page (any ISO A/B/C format, or custom). The stage, the controls and the editor hand-off
-// live beside this file; what is left is the load, the rotate and the boot.
+// Quick crop page: a rect in ORIGINAL-image pixels, aspect locked to the page format. The
+// stage, the controls and the editor hand-off live beside this file; here: load, rotate, boot.
 import { cropAspect, isAlbumOrientation, pageDims } from '../lib/cropGeometry.js';
 import { fetchAsDataUrl, filenameFromUrl, getSettings, openEditorTab, CROP_SRC_KEY, CROP_META_KEY } from '../lib/stencil.js';
 import { SRC } from '../lib/messages.js';
@@ -13,17 +11,15 @@ import { createCropStage } from './cropStage.js';
 import { createCropControls } from './cropControls.js';
 import { buildHandoffPayload } from './cropHandoff.js';
 
-// True when running inside the in-page crop modal (an iframe). We then notify the
-// host overlay when we booted (so it keeps the modal) and when to close.
+// Inside the in-page crop modal (an iframe): notify the host overlay on boot and on close.
 const FRAMED = window.parent && window.parent !== window;
 
 const postToHost = (type) => {
   if (FRAMED) window.parent.postMessage({ source: SRC.MODAL, type }, '*');
 };
 
-// Answered AS SOON AS this script runs: the host's watchdog asks "did the frame load at
+// Answered as soon as this script runs: the host's watchdog asks "did the frame load at
 // all?" (a CSP / mixed-content block stops it dead), not "did the image finish loading".
-// The later ready (below) stays; the host handles it idempotently.
 postToHost('ready');
 
 const statusEl = document.getElementById('status');
@@ -45,7 +41,6 @@ const state = {
   zoom: 1
 };
 
-// ── Page aspect ──
 const aspect = () => {
   const d = pageDims(state.page, state.customW, state.customH);
   return cropAspect(d.width, d.height, state.album);
@@ -75,9 +70,8 @@ const init = async () => {
   }
 
   imgEl.onload = () => {
-    // An animated GIF keeps cycling frames (distracting while positioning the box).
-    // Freeze it to the current frame by baking onto a canvas and swapping in that static
-    // PNG; the reload re-enters onload, this time as a non-GIF.
+    // An animated GIF keeps cycling while positioning: bake the current frame onto a canvas and
+    // swap in that static PNG; the reload re-enters onload, this time as a non-GIF.
     if (!state.frozen && /^data:image\/gif/i.test(state.dataUrl)) {
       state.frozen = true;
       const c = document.createElement('canvas');
@@ -106,9 +100,7 @@ const init = async () => {
   });
 };
 
-// ── Rotate ──
-// Baked into the source image, so the crop coords the editor gets match the rotated
-// picture. Dimensions swap, so orientation and the centred rect follow.
+// Rotate is baked into the source image, so the crop coords the editor gets match the picture.
 const rotate = (clockwise) => {
   if (!state.imgW) return;
   const c = document.createElement('canvas');
@@ -161,8 +153,7 @@ document.getElementById('open').addEventListener('click', async (e) => {
   }
 });
 
-// ── Bootstrap (last, so every const above is defined before init runs) ──
-// Image source comes from session storage (set by launchCrop); fall back to ?src.
+// Bootstrap last, so every const above is defined. Source: session storage (launchCrop), else ?src.
 (async () => {
   let src = new URLSearchParams(location.search).get('src') || '';
   if (!src) {
@@ -170,8 +161,7 @@ document.getElementById('open').addEventListener('click', async (e) => {
     catch { /* leave empty → "No image URL provided." */ }
   }
   state.srcUrl = src;
-  // Provenance set by launchCrop (the image's own URL + the page it came from), so
-  // the post-crop editor hand-off keeps where the image came from. Empty otherwise.
+  // Provenance from launchCrop, so the post-crop editor hand-off keeps where the image came from.
   try {
     const m = await chrome.storage.session.get(CROP_META_KEY);
     state.source = (m[CROP_META_KEY] && m[CROP_META_KEY].source) || '';
@@ -185,10 +175,8 @@ document.getElementById('open').addEventListener('click', async (e) => {
   init();
 })();
 
-// Instant, structured tooltips (the native `title` waits ~1s and dies on a disabled
-// control); lib/tipContent.js gives them their shape.
+// Instant tooltips: the native `title` waits ~1 s and dies on a disabled control.
 initTooltips();
 wireScrollbarHover();   // the crop stage's bars take the accent under the pointer
 
-// The page-format list is long — our own list gets the filter input and the theme.
 for (const el of document.querySelectorAll('select')) enhanceSelect(el, { search: true });

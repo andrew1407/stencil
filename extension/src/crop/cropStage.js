@@ -1,4 +1,3 @@
-// ── The crop stage: zoom, the overlay rect and the drag that moves it ───────
 // `aspect` is injected — the page format the rect is locked to belongs to the controls.
 import { centeredCrop, moveCropClamped, resizeCropFromCorner, roundRect, scaleCropCentered }
   from '../lib/cropGeometry.js';
@@ -67,9 +66,8 @@ export const createCropStage = ({ state, aspect }) => {
   viewport.addEventListener('wheel', (e) => {
     if (!state.imgW) return;
     e.preventDefault();
-    // Wheel / trackpad-pinch OVER the crop rect grows/shrinks it FROM ITS CENTRE (matching the
-    // editor's core scaleCropCentered); anywhere else it zooms the view as before. A pinch is a
-    // ctrl+wheel event in Chromium, so it flows through here too.
+    // Wheel over the crop rect scales it FROM ITS CENTRE (core scaleCropCentered); elsewhere it
+    // zooms the view. A trackpad pinch is a ctrl+wheel event in Chromium, so it flows through too.
     const box = cropBox.getBoundingClientRect();
     const overBox = e.clientX >= box.left && e.clientX <= box.right &&
                     e.clientY >= box.top && e.clientY <= box.bottom;
@@ -85,12 +83,10 @@ export const createCropStage = ({ state, aspect }) => {
     }
   }, { passive: false });
 
-  // The viewport only reaches its real size a moment after the modal iframe settles, so
-  // re-fit whenever it resizes — but only at the default fit (zoom === 1), so a manual
-  // zoom is never clobbered. This is what lets a small image scale up to fill the stage.
+  // The viewport reaches its real size a moment after the modal iframe settles: re-fit on
+  // resize, but only at the default fit (zoom === 1) so a manual zoom is never clobbered.
   new ResizeObserver(() => { if (state.imgW && state.zoom === 1) { fitToWindow(); layoutOverlay(); } }).observe(viewport);
 
-  // ── Overlay layout (image-space → display px) ──
   const scale = () => (imgEl.getBoundingClientRect().width / state.imgW) || 1;
 
   const layoutOverlay = () => {
@@ -119,7 +115,6 @@ export const createCropStage = ({ state, aspect }) => {
     previewCanvas.getContext('2d').drawImage(imgEl, c.x, c.y, c.width, c.height, 0, 0, previewCanvas.width, previewCanvas.height);
   };
 
-  // ── Pointer interaction ──
   let drag = null;
 
   const toImageSpace = (clientX, clientY) => {

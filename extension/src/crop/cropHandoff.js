@@ -1,4 +1,3 @@
-// ── The editor hand-off payload ─────────────────────────────────────────────
 // "Keep original" sends the image + the rect; "Cut cropped part" bakes the region.
 export const buildHandoffPayload = (state, imgEl, { mode, incognito }) => {
   const page = state.page === 'custom'
