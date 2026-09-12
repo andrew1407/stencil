@@ -15,7 +15,7 @@
     "extension/src/lib/logoAccent.js": 273,
     "extension/src/lib/motion.js": 18,
     "extension/src/lib/overlay.js": 234,
-    "extension/src/lib/stencil.js": 69,
+    "extension/src/lib/stencil.js": 72,
     "extension/src/llm/chatController.js": 230,
     "extension/src/llm/opPlan.js": 156,
     "extension/src/options/options.js": 32,

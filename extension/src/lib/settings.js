@@ -68,4 +68,3 @@ export const editorOriginPattern = async () => {
   }
 };
 
-// Bring a tab to the front: select it AND raise its window (two calls — selecting a tab

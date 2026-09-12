@@ -1,6 +1,7 @@
 // ── Shared extension helpers ────────────────────────────────────────────────
 // The pure helpers (buildLaunchUrl, filenameFromUrl, guessMime) are unit-tested;
-// the rest wrap chrome.* and are service-worker-safe (no FileReader / DOM).import { mountStencilModal } from './overlay.js';
+// the rest wrap chrome.* and are service-worker-safe (no FileReader / DOM).
+import { mountStencilModal } from './overlay.js';
 import { loadShellTheme } from './shellTheme.js';
 import { MSG } from './messages.js';
 import { editorOriginPattern } from './settings.js';
@@ -15,6 +16,8 @@ export {
   MAX_PAYLOAD, buildHandoff, buildLaunchUrl, launchEditorModal, openEditorTab,
 } from './editorLaunch.js';
 
+// Bring a tab to the front: select it AND raise its window (two calls — selecting a tab
+// in a background window leaves it hidden). Shared so "focus that editor" means one thing.
 export const focusTab = async (tab) => {
   await chrome.tabs.update(tab.id, { active: true });
   if (tab.windowId != null) await chrome.windows.update(tab.windowId, { focused: true });
