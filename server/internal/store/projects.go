@@ -172,7 +172,7 @@ func (s *Store) DeleteExpiredProjects(ctx context.Context, now int64, limit int)
 		return nil, err
 	}
 	defer rows.Close()
-	ids := []string{}
+	ids := make([]string, 0)
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {

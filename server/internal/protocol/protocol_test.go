@@ -162,7 +162,7 @@ func TestErrorResponseShape(t *testing.T) {
 
 // GET /projects always returns a projects array. A nil slice marshals to null,
 // which a client doing `for (const p of body.projects)` would throw on. Store
-// .ListProjects deliberately starts from `[]protocol.ProjectRecord{}` for that
+// .ListProjects deliberately starts from `make([]protocol.ProjectRecord, 0)` for that
 // reason; this pins the DTO behaviour that makes the precaution necessary.
 func TestProjectListResponseNilSliceIsNull(t *testing.T) {
 	raw, err := json.Marshal(ProjectListResponse{})

@@ -20,7 +20,7 @@ const (
 // drop blanks, dedupe case-insensitively, keep first-seen order. Never nil — a nil
 // slice would encode as SQL NULL, which the UPDATE reads as "unchanged".
 func normalizeKeywords(kw []string) []string {
-	out := []string{}
+	out := make([]string, 0)
 	seen := map[string]bool{}
 	for _, k := range kw {
 		k = strings.TrimSpace(k)

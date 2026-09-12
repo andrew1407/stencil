@@ -35,7 +35,7 @@ func positiveInt(get func(key, def string) string, key string, def, min int) (in
 // result means "loopback origins only" (the fail-closed dev default); a list
 // containing "*" means "any origin" and must be asked for explicitly.
 func parseOrigins(raw string) []string {
-	out := []string{}
+	out := make([]string, 0)
 	for _, part := range strings.Split(raw, ",") {
 		if p := strings.TrimSpace(part); p != "" {
 			out = append(out, p)
@@ -93,7 +93,7 @@ func loadDotEnv(path string) (map[string]string, error) {
 // addresses, taken as single hosts) whose X-Forwarded-For is believed. Empty =
 // trust nobody, so the header is ignored and limiters key on the peer.
 func parseCIDRs(raw string) ([]netip.Prefix, error) {
-	out := []netip.Prefix{}
+	out := make([]netip.Prefix, 0)
 	for _, part := range strings.Split(raw, ",") {
 		p := strings.TrimSpace(part)
 		if p == "" {

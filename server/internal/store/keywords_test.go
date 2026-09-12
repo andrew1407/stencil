@@ -76,7 +76,7 @@ func TestKeywordsBackfillFromLegacyColumn(t *testing.T) {
 		t.Fatalf("back-fill: %v %v", err, got.Keywords)
 	}
 	// Clearing keywords clears both columns, and the back-fill does not resurrect them.
-	empty := []string{}
+	empty := make([]string, 0)
 	if _, err := s.UpdateProject(ctx, "p_legacy_a", ProjectPatch{Keywords: &empty}, got.Version); err != nil {
 		t.Fatal(err)
 	}

@@ -82,7 +82,7 @@ func TestUpdateProjectKeywords(t *testing.T) {
 	}
 
 	// Empty slice explicitly clears the keywords.
-	empty := []string{}
+	empty := make([]string, 0)
 	upd, err = s.UpdateProject(ctx, p.ID, ProjectPatch{Keywords: &empty}, upd.Version)
 	if err != nil {
 		t.Fatalf("clear keywords: %v", err)

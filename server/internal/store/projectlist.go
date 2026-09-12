@@ -55,7 +55,7 @@ type ProjectPage struct {
 // first. The id tiebreak makes the order total, so a page cannot skip or repeat.
 func (s *Store) ListProjects(ctx context.Context, page ProjectPage) ([]protocol.ProjectRecord, error) {
 	q := `SELECT ` + projectListCols + ` FROM projects`
-	args := []any{}
+	args := make([]any, 0)
 	if page.After.ID != "" {
 		q += ` WHERE (updated_at, id) < ($1, $2)`
 		args = append(args, page.After.UpdatedAt, page.After.ID)
@@ -73,7 +73,7 @@ func (s *Store) ListProjects(ctx context.Context, page ProjectPage) ([]protocol.
 		return nil, err
 	}
 	defer rows.Close()
-	out := []protocol.ProjectRecord{}
+	out := make([]protocol.ProjectRecord, 0)
 	for rows.Next() {
 		rec, err := scanProject(rows, withoutPayload)
 		if err != nil {

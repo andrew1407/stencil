@@ -6,17 +6,12 @@ package filestore
 // the unlimited case costs neither a lock nor a directory walk.
 
 import (
-	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 )
-
-// ErrQuotaExceeded is returned by Put when a write would push the aggregate
-// stored bytes past the configured quota.
-var ErrQuotaExceeded = errors.New("filestore: storage quota exceeded")
 
 // usageMeter accounts the aggregate bytes held under the store root.
 type usageMeter interface {

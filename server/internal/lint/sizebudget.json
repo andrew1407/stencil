@@ -5,7 +5,7 @@
     "server/cmd/stencil-server/main.go": 91,
     "server/internal/config/config.go": 194,
     "server/internal/config/config_test.go": 155,
-    "server/internal/filestore/filestore.go": 228,
+    "server/internal/filestore/filestore.go": 225,
     "server/internal/filestore/filestore_test.go": 171,
     "server/internal/httpapi/api_test.go": 75,
     "server/internal/httpapi/llm_test.go": 98,

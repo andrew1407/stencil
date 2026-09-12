@@ -2,15 +2,11 @@ package filestore
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 )
-
-// ErrEmpty is returned when a write carries no bytes at all.
-var ErrEmpty = errors.New("filestore: empty file")
 
 // Put writes bytes for (id, kind) with the given extension, atomically. It
 // returns the store-relative path recorded in project metadata.

@@ -104,7 +104,7 @@ func (f *MemStore) CreateSession(_ context.Context, hash []byte, label string, c
 func (f *MemStore) ListProjects(_ context.Context, page store.ProjectPage) ([]protocol.ProjectRecord, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := []protocol.ProjectRecord{}
+	out := make([]protocol.ProjectRecord, 0)
 	for _, p := range f.projects {
 		p.Layout, p.OriginalContent = nil, ""
 		out = append(out, p)

@@ -12,9 +12,6 @@ import (
 	"strings"
 )
 
-// ErrNotFound is returned when a requested file does not exist.
-var ErrNotFound = errors.New("filestore: not found")
-
 // Store is a root-confined file store.
 type Store struct {
 	root  string

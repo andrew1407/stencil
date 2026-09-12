@@ -87,13 +87,8 @@ func serve(ctx context.Context, srv *http.Server, tcpLn net.Listener, h *hub.Hub
 		}
 	}()
 
-	select {
-	case <-ctx.Done():
-		log.Println("shutting down")
-	case err := <-errCh:
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			return err
-		}
+	if err := waitForTermination(ctx, errCh); err != nil {
+		return err
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -107,4 +102,19 @@ func serve(ctx context.Context, srv *http.Server, tcpLn net.Listener, h *hub.Hub
 	// finish instead of blocking until the timeout.
 	h.CloseAll()
 	return srv.Shutdown(shutdownCtx)
+}
+
+// waitForTermination blocks until a signal cancels ctx or the HTTP server
+// fails; a clean ErrServerClosed is not a failure.
+func waitForTermination(ctx context.Context, errCh <-chan error) error {
+	select {
+	case <-ctx.Done():
+		log.Println("shutting down")
+		return nil
+	case err := <-errCh:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+		return nil
+	}
 }
