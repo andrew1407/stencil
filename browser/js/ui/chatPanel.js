@@ -30,16 +30,13 @@ import {
   dockZoneAt, gearStatusRows, gearTipFootText,
 } from './chatGeometry.js';
 import { createChatDock } from './chatDock.js';
-// The geometry above is re-exported: the suites and the flyout found it here first.
 export {
   FLOAT_MIN_W, FLOAT_MIN_H, clampFloatRect, COMPACT_CHAT_W, COMPACT_CHAT_H, compactChatRect,
   resizeFloatRect, DOCK_ZONE_BAND, dockZoneAt, gearStatusRows, gearTipFootText,
 } from './chatGeometry.js';
 
-// ── Component: AI assistant chat panel ──────────────────────────
-// Dockable chat with the configured LLM (llm-contract.md). Plans execute against the
-// frozen window.stencil facade — the panel never edits pixels itself. Layout is
-// session-only; the header strip is the drag handle (drag undocks, edge zones re-dock).
+// The AI assistant chat panel (llm-contract.md). Plans execute against the frozen
+// window.stencil facade — the panel never edits pixels itself. Layout is session-only.
 
 export class StencilChatPanel extends StencilElement {
   static inner() {
@@ -88,8 +85,8 @@ export class StencilChatPanel extends StencilElement {
         <div class="chat-float-handle chat-float-handle-sw" data-dir="sw"></div>
     `;
   }
-  // Sibling (not ancestor) backdrop: a dock/float must leave the page clickable.
-  // CSS shows it only under the ≤680px modal shape.
+// Sibling (not ancestor) backdrop, so a dock/float leaves the page clickable; CSS shows
+// it only under the ≤680px modal shape.
   static template() {
     return `<div id="chat-backdrop"></div>`
       + hostTag('stencil-chat-panel', 'id="chat-panel" class="chat-panel"', StencilChatPanel.inner());
@@ -102,31 +99,21 @@ export class StencilChatPanel extends StencilElement {
     const attachList = $('chat-attachments');
     const input = $('chat-input');
     const sendBtn = $('chat-send');
-    attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'));   // voice motes off the mic face
+    attachVoiceDust(sendBtn, () => sendBtn.classList.contains('chat-voice-listening'));
 
     const tokenFor = (url) => serverBearerToken(app, url);
 
-    // ── The app's ONE controller (js/llm/chatSession.js), created lazily so it
-    // consumes the FROZEN window.stencil (createStencil runs after stencil:ready
-    // wires this panel). The context-menu chat shares it — same conversation. ──
+// The app's one controller (js/llm/chatSession.js), created lazily so it consumes the
+// frozen window.stencil. The context-menu chat shares it.
     const ctrl = () => sharedChatController(app);
 
-    // ── Transcript: a view of the SHARED row log (js/llm/chatSession.js), so the
-    // context-menu flyout and this panel always show the same messages in the same
-    // order — including the history a surface missed while it was closed. ──
+// A view of the shared row log, so both surfaces show the same messages.
     const paint = () => renderChatLog(transcript, chatLog(), {
-      // No pre-open step needed here: the CTA lives right in this panel (unlike the
-      // context-menu flyout's copy) and opens the settings modal itself, flying from
-      // its own position rather than the gear's.
-      // An expired collaboration-server session is fixed in Connections, not in the
-      // provider settings — the card's CTA goes straight there.
+// An expired collaboration-server session is fixed in Connections, not provider settings.
       onReconnect: () => document.getElementById('connect-btn')?.click(),
-      // §11: answering a choice card sends the answer as the user's next turn — the same
-      // path as typing it, so history, results and error handling are identical.
+// §11: a choice card's answer is the user's next turn, through the same path as typing.
       onAskSubmit: (answer) => { runTurn(answer).catch(() => { /* rendered in the transcript */ }); },
-      // Retry: the same text through the normal send path, attachments re-queued.
-      // Guarded on the SHARED in-flight flag too — a turn started from the other
-      // surface is just as much a turn, and re-sending over it logged the prompt twice.
+// Guarded on the shared in-flight flag: a turn from the other surface is a turn too.
       onRetry: (text) => {
         if (sending || chatTurnInFlight()) return;
         peekChatController(app)?.requeueLastTurnAttachments?.();
@@ -136,23 +123,19 @@ export class StencilChatPanel extends StencilElement {
     onChatLog(paint);
     paint();   // renders whatever the conversation already holds
 
-    // ── Jump pills over the transcript's bottom edge: ⌄ appears once the view has
-    // scrolled up from the latest message, ⌃ once it left the very beginning — both
-    // mid-log, neither while the log fits (desktop chatDock parity). ──
+// Jump pills over the transcript's bottom edge: ⌄ once scrolled up from the latest, ⌃
+// once past the beginning (desktop chatDock parity).
     const jumps = $('chat-jumps');
-    const jumpPills = [$('chat-jump-top'), $('chat-jump-bottom')];   // static markup, cached
-    // …and the hovered row's "…" yields to THEM when the two would overlap — it lifts
-    // clear of the pills, or (a bubble too short to lift it to) hides instead, rather
-    // than the pills standing down (desktop placeChatCardMore's "shift, else hide";
-    // the arrows are the higher-priority control and stay put either way).
+    const jumpPills = [$('chat-jump-top'), $('chat-jump-bottom')];
+// The hovered row's "…" yields to the pills: lifts clear, or hides when the bubble is
+// too short (desktop placeChatCardMore's "shift, else hide").
     let hoverRow = null;
     const clearRowMenuLift = (row) => {
       row?.style.removeProperty('--row-menu-lift');
       row?.classList.remove('chat-row-menu-yield');
     };
-    // The pills are anchored OUTSIDE the scroller, so their boxes survive a scroll tick:
-    // measured once and cached, invalidated when the pills show/hide (the can-up/down
-    // toggles in syncJumps), the window resizes, or the panel itself changes shape.
+// The pills sit outside the scroller, so their boxes are cached; invalidated when they
+// show/hide, the window resizes, or the panel changes shape.
     let pillRects = null;
     const invalidatePillRects = () => { pillRects = null; };
     onWindowResize(invalidatePillRects);
@@ -160,8 +143,7 @@ export class StencilChatPanel extends StencilElement {
       if (!hoverRow) return;
       const btn = hoverRow.querySelector('.chat-row-menu-btn')?.getBoundingClientRect?.();
       if (!btn) return;
-      // A hidden pill (display:none) measures 0×0 and is filtered out here, so this
-      // self-clears whenever the pills themselves are not shown — no separate check.
+// A hidden pill measures 0×0 and is filtered out, so this self-clears.
       const pills = pillRects ?? (pillRects = jumpPills
         .map((b) => b?.getBoundingClientRect?.()).filter((r) => r && r.width > 0));
       const lift = rowMenuLiftPx(btn, pills);
@@ -176,24 +158,21 @@ export class StencilChatPanel extends StencilElement {
     };
     const syncJumps = () => {
       const max = transcript.scrollHeight - transcript.clientHeight;
-      // The pills stand down for one reason now: any chat popup (a row menu / flyout)
-      // opens into this very corner too.
+// Any chat popup opens into this very corner.
       const standDown = chatPopupOpen();
       const up = transcript.scrollTop > 12 && !standDown;
       const down = max - transcript.scrollTop > 12 && !standDown;
       if (up !== jumps.classList.contains('can-up') || down !== jumps.classList.contains('can-down'))
-        invalidatePillRects();   // a pill just appeared/disappeared — its box changed
+        invalidatePillRects();
       jumps.classList.toggle('can-up', up);
       jumps.classList.toggle('can-down', down);
       syncRowMenuLift();
     };
-    // The pills float OVER the transcript, so a cursor on one leaves no row hovered —
-    // hovering a pill can never hide it.
+// The pills float over the transcript, so hovering one leaves no row hovered.
     transcript.addEventListener('mouseover', (e) => {
       const row = e.target?.closest?.('.chat-msg');
-      // A lifted trigger sits OUTSIDE its row's box, so reaching it crosses bare
-      // background — a mouseover with no row. Only an actual different row (or
-      // mouseleave, truly leaving) changes the hover, else the lift clears mid-reach.
+// A lifted trigger sits outside its row's box, so reaching it crosses bare background;
+// only a different row (or mouseleave) changes the hover.
       if (!row || !transcript.contains(row) || row === hoverRow) return;
       if (hoverRow) clearRowMenuLift(hoverRow);
       hoverRow = row;
@@ -204,28 +183,24 @@ export class StencilChatPanel extends StencilElement {
       hoverRow = null;
       syncJumps();
     });
-    // Both edges of any chat popup (chatView announces open AND close), from EITHER
-    // surface: the flyout shares the one row menu and has a composer "…" of its own.
+// Both edges of any chat popup, from either surface.
     subscribe(CHAT_POPUP_EVENT, syncJumps);
     transcript.addEventListener('scroll', syncJumps, { passive: true });
     new MutationObserver(syncJumps).observe(transcript, { childList: true, subtree: true });
     jumpPills[0].addEventListener('click', () => transcript.scrollTo({ top: 0, behavior: 'smooth' }));
     jumpPills[1].addEventListener('click', () => transcript.scrollTo({ top: transcript.scrollHeight, behavior: 'smooth' }));
 
-    // ── Provider status: a cheap probe on open / after settings change, surfaced as
-    // the coloured dot ON the configure gear plus the gear's rich tooltip (rendered
-    // by the app's shared instant tooltip via `title`). Never blocks sending. ──
+// Provider status: a cheap probe on open / after a settings change, shown as the dot on
+// the "…" trigger plus its tooltip. Never blocks sending.
     const statusDot = $('chat-status-dot');
     const gearBtn = $('chat-settings-btn');
-    // The rich provider-status tooltip now hangs off the … TRIGGER: the gear
-    // itself lives inside the menu, so it is hidden most of the time (the dot
-    // moved with it for the same reason).
+// The gear lives inside the menu and is hidden most of the time, so the "…" trigger
+// hosts the tooltip and the dot.
     const statusHost = $('chat-more-btn') || gearBtn;
 
-    // ── Gear status tooltip: a small themed TABLE (provider/endpoint/model/status,
-    // the status cell coloured), fixed-positioned above the gear like #app-tooltip.
-    // Content re-renders live if the probe lands while the tip is showing. ──
-    let lastProbe = null;   // null = probe in flight
+// A themed table fixed above the trigger like #app-tooltip; re-rendered live if the
+// probe lands while showing.
+    let lastProbe = null;
     const gearTip = document.createElement('div');
     gearTip.className = 'chat-status-tip';
     document.body.appendChild(gearTip);
@@ -256,9 +231,7 @@ export class StencilChatPanel extends StencilElement {
       gearTip.style.left = `${Math.round(x)}px`;
       gearTip.style.top = `${Math.round(above >= pad ? above : r.bottom + pad)}px`;
     };
-    // Dust in/out of the trigger it hangs off, same as every other hover tooltip
-    // (the shared tip clock, motion.js) — only on the none↔visible edge, never on a
-    // live re-render. surfaceIn/surfaceOut settle the tip themselves when they can't fly.
+// Dust in/out of the trigger on the none↔visible edge only, never on a live re-render.
     const gearTipDustPoint = () => rectCenter(statusHost);
     const showGearTip = () => {
       const wasHidden = !gearTip.classList.contains('visible');
@@ -273,14 +246,13 @@ export class StencilChatPanel extends StencilElement {
       gearTip.classList.remove('visible');
       surfaceOut(gearTip, gearTipDustPoint(), { ms: TIP_DUST_OUT_MS });
     };
-    // A click both focuses the trigger and opens its menu, so the `focus` listener
-    // re-showed the tip milliseconds after `pointerdown` hid it — the menu then opened
-    // under a tip that looked stuck. Only on the first click; later ones re-focus nothing.
+// A click focuses the trigger and opens its menu, so `focus` would re-show the tip
+// pointerdown just hid; suppressed for that first click only.
     let suppressFocusTip = false;
     statusHost.addEventListener('pointerenter', showGearTip);
     statusHost.addEventListener('focus', () => {
       if (suppressFocusTip) { suppressFocusTip = false; return; }
-      showGearTip();   // real keyboard-tab focus still discloses the tip
+      showGearTip();
     });
     statusHost.addEventListener('pointerleave', hideGearTip);
     statusHost.addEventListener('blur', () => { suppressFocusTip = false; hideGearTip(); });
@@ -289,13 +261,10 @@ export class StencilChatPanel extends StencilElement {
     const setDotState = (state, probe) => {
       statusDot.className = `conn-status conn-status-${state}`;
       lastProbe = probe;
-      // Publish it: the context-menu gear shows the same dot without its own probe.
       if (probe) cacheProbe(loadLlmSettings(), probe);
       if (gearTip.classList.contains('visible')) showGearTip();
     };
-    // One probe at a time, but a refresh requested MID-probe must not be lost — it
-    // queues and re-runs once, so the dot/tooltip reflect the LATEST settings, not
-    // the probe that happened to land last.
+// A refresh requested mid-probe queues and re-runs once, so the dot reflects the latest settings.
     let probing = false;
     let reprobe = false;
     const refreshStatus = async () => {
@@ -310,86 +279,74 @@ export class StencilChatPanel extends StencilElement {
         if (reprobe) { reprobe = false; refreshStatus(); }
       }
     };
-    // Re-probe when the settings modal persists a change (it fires this event).
     subscribe(EVENTS.llmSettingsChanged, () => refreshStatus());
 
-    // ── Attachments row (shared renderer — the context-menu composer paints the
-    // very same queue, so both repaint on the shared change event) ──
+// Attachments row: the context-menu composer paints the same queue.
     const renderAttachments = () => {
-      // peek, never create: the controller must not exist before window.stencil is frozen.
+// peek, never create: the controller must not exist before window.stencil is frozen.
       chatAttachmentChips(attachList, peekChatController(app));
     };
     subscribe(CHAT_ATTACHMENTS_EVENT, renderAttachments);
 
     renderAttachments();
 
-    // Queue Files (from the picker, clipboard paste, or a drop on the panel).
     const attachFiles = async (files) => {
       await queueAttachments(ctrl(), files, (err) => notify(`Attachment failed — ${err.message}`, 'fail'),
-        () => notify(ATTACHMENT_CAP_NOTICE, 'info'));   // the cap is a notice, not a failure
+        () => notify(ATTACHMENT_CAP_NOTICE, 'info'));
       renderAttachments();
       notifyAttachmentsChanged();
     };
     const attachBtn = $('chat-attach-btn');
 
-    // ── Disabled states (shared sync): while a turn is in flight the send button
-    // BECOMES the Stop button and attach pauses; the panel adds its Clear button.
-    // Only one turn at a time — send() and the facade both guard on `sending`.
+// While a turn is in flight the send button becomes Stop and attach pauses; one turn at
+// a time — send() and the facade both guard on `sending`.
     let sending = false;
     let turnAbort = null;
-    let voiceCtl = null;   // wireComposerVoice, below — the mic face's state for the sync
+    let voiceCtl = null;
     const updateControls = () => {
       const queued = peekChatController(app)?.attachments.length ?? 0;
       syncComposerControls({ sendBtn, attachBtn, input }, sending,
         { attachFull: queued >= MAX_ATTACHMENTS, voice: voiceCtl?.state(), voiceSupported: !!app.voice?.supported });
-      // Clear is pointless mid-turn AND on an empty conversation.
       clearBtn.disabled = sending || !!transcript.querySelector('.chat-empty');
     };
 
-    // Phone modal (components/chat/touch.css ≤680px) hides the drag sizer — the textarea
-    // auto-grows with its content there instead (clamped by its CSS max-height).
+// Phone modal (components/chat/touch.css ≤680px) hides the drag sizer; the textarea
+// auto-grows instead.
     const autoGrow = () => {
       if (typeof matchMedia === 'undefined' || !matchMedia(PHONE_MEDIA).matches) return;
       input.style.height = 'auto';
       input.style.height = `${input.scrollHeight + 2}px`;
     };
 
-    // Empty-state suggestion chips: click prefills the input (editable before sending).
-    // Delegated on the transcript, so the chips still work after the block is rebuilt.
+// Delegated on the transcript, so the chips still work after the block is rebuilt.
     wireChatSuggestions(transcript, (prompt) => {
       input.value = prompt;
       updateControls();
       input.focus();
     });
 
-    // A turn that lands while the panel is CLOSED must not vanish: surface a short
-    // status as a clickable toast (bottom-left balloon) that reopens the chat.
-    // Open = visible AND not mid-close (the closing slide keeps .chat-open).
+// A turn landing while the panel is closed surfaces as a clickable toast. Open = visible
+// and not mid-close (the closing slide keeps .chat-open).
     const panelIsOpen = () =>
       host.classList.contains('chat-open') && !host.classList.contains('chat-closing');
     const closedToast = (res) => {
-      const toast = closedTurnToast(res);   // one shape for every surface
+      const toast = closedTurnToast(res);
       if (panelIsOpen() || !toast) return;
       notify(toast.text, toast.type, { onClick: () => setOpen(true) });
     };
 
-    // ── Send loop: the shared logged-turn frame (rows in the SHARED log — this panel
-    // and the context-menu flyout both render them). runTurn rethrows a failed turn
-    // so the scripting path (stencil.prompt) gets the typed rejection too. ──
+// The shared logged-turn frame; runTurn rethrows a failed turn so stencil.prompt gets
+// the typed rejection too.
     const runTurn = async (text) => {
       sending = true;
       updateControls();
       markChatBusy(!panelIsOpen());
       const res = await runLoggedChatTurn(ctrl(), text, {
         settings: loadLlmSettings(),
-        // Sending is an explicit "take me to the newest" — pin to the bottom even
-        // if the user had scrolled up (the render's stickiness only follows when
-        // already at the bottom).
+// Sending is an explicit "take me to the newest": pin even if the user had scrolled up.
         begin: (abort) => { turnAbort = abort; stickToBottom(transcript); },
         onResult: (r) => {
-          if (!r.ok && r.kind === 'unreachable') refreshStatus();   // the dot + tooltip reflect it
-          // Framing, truncation and "an abort says nothing" all live in the shared
-          // builder, so this panel and the flyout can never drift apart again.
+          if (!r.ok && r.kind === 'unreachable') refreshStatus();
           closedToast(r);
         },
         cleanup: () => {
@@ -402,15 +359,13 @@ export class StencilChatPanel extends StencilElement {
           stickToBottom(transcript);
         },
       });
-      if (!res.ok) throw res.error;   // the scripting path gets the typed rejection
+      if (!res.ok) throw res.error;
       return res.entry;
     };
-    // hideGearTip alongside the focus guard above: the tip's 100003 tier sits over the
-    // menu's, so one left showing buries the menu the click just opened.
+// The tip's 100003 tier sits over the menu's, so one left showing buries the menu.
     wireChatMoreMenu('chat', document, { onOpen: () => { updateControls(); hideGearTip(); } });
     wireChatSideToggle('chat', transcript, document);
-    // Voice input (dictation into THIS composer) shares the send path: `send` below is
-    // the very closure Enter uses, handed back by wireChatComposer.
+// Dictation shares the send path: `send` is the very closure Enter uses.
     const voiceHooks = {
       isOn: () => !!voiceCtl?.isOn(),
       isListening: () => !!voiceCtl?.isListening(),
@@ -420,7 +375,6 @@ export class StencilChatPanel extends StencilElement {
     const send = wireChatComposer({ input, sendBtn, attachBtn, attachInput: $('chat-attach-input') }, {
       isSending: () => sending,
       abort: () => turnAbort?.abort(),
-      // autoGrow: phone modal — shrink the just-emptied textarea back down.
       submit: (text) => {
         updateControls();
         autoGrow();
@@ -431,9 +385,8 @@ export class StencilChatPanel extends StencilElement {
       voice: voiceHooks,
     });
     voiceCtl = wireComposerVoice({ prefix: 'chat', input, sendBtn, app, send, sync: updateControls });
-    // Right-click on a transcript row: the SHARED row menu (chatView.js). Insert
-    // appends into THIS composer; Resend re-queues the row's original attachments
-    // and re-sends through the same runTurn path a composer send takes.
+// The shared row menu: Insert appends into this composer; Resend re-queues the row's
+// attachments and goes through runTurn.
     wireChatRowMenu(transcript, {
       onInsert: (text) => {
         input.value = input.value ? `${input.value}\n${text}` : text;
@@ -450,37 +403,32 @@ export class StencilChatPanel extends StencilElement {
       },
     });
 
-    // ── Resizable input: a slider-style strip ABOVE the input row (the native
-    // corner grip is gone — the textarea is bottom-anchored, so only the top edge
-    // can move). Clamped in CSS; session-only, like the rest of the layout. ──
+// A slider-style strip above the input row (the textarea is bottom-anchored, so only the
+// top edge can move). Session-only.
     const inputSizer = $('chat-input-sizer');
     wireInputSizer(inputSizer, input, { host });
 
-    // ── Clipboard paste + drop-on-panel attach: image/video FILES land as chat
-    // attachments (mediaFilesFromData — the same extraction the global paste/drop
-    // wiring uses); text pastes stay native, non-file drops fall through. ──
+// Paste + drop on the panel: image/video files become attachments (mediaFilesFromData,
+// the global wiring's extraction); text pastes stay native.
     host.addEventListener('paste', async (e) => {
       if (!host.classList.contains('chat-open')) return;
-      const files = mediaFilesFromData(e.clipboardData);   // read SYNC, before any await
-      if (!files.length) return;   // plain text → native paste into the textarea
+      const files = mediaFilesFromData(e.clipboardData);
+      if (!files.length) return;
       e.preventDefault();
-      e.stopPropagation();         // never falls through to the global canvas paste
-      // No toast: the chip appearing in the composer IS the confirmation.
+      e.stopPropagation();
       await attachFiles(files);
     });
-    // ── Drop-to-attach: the COMPOSER acts on a drop, but the whole panel SWALLOWS
-    // one — letting it fall through popped the canvas's "Open dropped image" dialog,
-    // never what dragging onto a chat means. A miss says where to aim. ──
+// The composer acts on a drop, but the whole panel swallows one: falling through popped
+// the canvas's "Open dropped image" dialog. A miss says where to aim.
     host.addEventListener('dragover', (e) => {
       if (!host.classList.contains('chat-open')) return;
-      e.preventDefault();   // …and it must still BUBBLE: the document's drop-owner
-                            // branch is what hides the global overlay over the panel.
+      e.preventDefault();
+      // …and it must still bubble: the document's drop-owner branch hides the global overlay.
       try { e.dataTransfer.dropEffect = 'copy'; } catch { /* older DnD */ }
     });
     host.addEventListener('drop', (e) => {
       if (!host.classList.contains('chat-open')) return;
-      // The composer's own handler runs first (it is deeper) and stops propagation;
-      // reaching here means the drop landed on the transcript or the header.
+// The composer's own handler runs first and stops propagation.
       e.preventDefault();
       e.stopPropagation();
       if (mediaFilesFromData(e.dataTransfer).length
@@ -488,16 +436,12 @@ export class StencilChatPanel extends StencilElement {
         notify('Drop it on the message box to attach it', 'info');
       }
     });
-    // The TEXT BOX is the drop target, not the whole row: dragging over the send/…
-    // buttons neither lights the cue nor attaches — that drop bubbles to the panel's
-    // swallow above, which says where to aim (desktop showDropCue parity).
+// The text box is the drop target, not the whole row (desktop showDropCue parity).
     const dropRow = $('chat-input-wrap');
     dropRow.addEventListener('dragover', (e) => {
       if (!host.classList.contains('chat-open')) return;
       e.preventDefault();
-      // MUST bubble to the document dragover: its drop-owner branch is what hides
-      // the global drop overlay while the drag is over this row (the [data-drop-owner]
-      // attribute set below is how it knows this row handles its own drops).
+// Must bubble to the document dragover: [data-drop-owner] tells it this row handles its own drops.
       try { e.dataTransfer.dropEffect = 'copy'; } catch { /* older DnD */ }
       dropRow.classList.add('chat-drop-target');
     });
@@ -508,12 +452,10 @@ export class StencilChatPanel extends StencilElement {
       dropRow.classList.remove('chat-drop-target');
       if (!host.classList.contains('chat-open')) return;
       e.preventDefault();
-      e.stopPropagation();         // this drop belongs to the chat, not the canvas
+      e.stopPropagation();
       const files = mediaFilesFromData(e.dataTransfer);
       if (files.length) { await attachFiles(files); return; }
-      // An image dragged from another PAGE (or from the extension's list) carries no
-      // File at all — just a URL in uri-list/html. Fetching it here is what makes
-      // "drag a picture into the chat" work.
+// An image dragged from another page carries no File, just a URL in uri-list/html.
       const url = extractDraggedImageUrl((t) => e.dataTransfer.getData(t));
       if (!url) { notify('Nothing to attach from that drop', 'fail'); return; }
       try {
@@ -523,10 +465,8 @@ export class StencilChatPanel extends StencilElement {
       }
     });
 
-    let gestures = null;   // the icon's gesture machine, assigned below
-    // ── Where the panel lives: dock edge / float rect, its buttons and gestures ──
-    // ui/chatDock.js. playDust and the pill rects are declared below, so they cross as
-    // thunks; onAdopt resets the icon's gesture machine when a layout is chosen.
+    let gestures = null;
+// ui/chatDock.js; playDust and the pill rects are declared below, so they cross as thunks.
     const chatDock = createChatDock({
       host,
       resizer: $('chat-resizer'),
@@ -539,31 +479,22 @@ export class StencilChatPanel extends StencilElement {
     });
     const { setDock, announceLayout, adoptLayout, restoreFromCompact } = chatDock;
 
-    // ── Open / close, toggled by the toolbar button ──
     const openBtn = $('chat-btn');
-    // Closing plays the reverse dust flight (surfaceOut, motion.js): keep .chat-open
-    // until it finishes, since display:none can't animate. One clock for every dock.
+// Closing plays the reverse dust flight: keep .chat-open until it finishes, since
+// display:none cannot animate. One clock for every dock.
     const CLOSE_MS = 340;
-    // Fullscreen shows a CLONE of the toolbar (ui/fullscreenLayer.js), so toggling
-    // .active on the display:none original leaves the visible copy stuck — mirror onto
-    // the clone. Scoped querySelectorAll, not getElementById: the clone carries the
-    // same id, and getElementById only ever returns the original.
+// Fullscreen shows a clone of the toolbar (ui/fullscreenLayer.js) with the same id, so
+// the active state is mirrored onto it via a scoped querySelectorAll.
     const syncFsCloneActive = (on) => {
       for (const el of fsCloneBtns()) el.classList.toggle('active', on);
     };
-    // No UNREAD dot: a turn that lands while the chat is away already announces itself
-    // with a toast that opens the chat, and a badge left on the icon after it faded was
-    // one more thing to dismiss on both surfaces (user decision — the desktop's twin went
-    // with it). What IS still marked is work IN FLIGHT: a quiet pulse behind a closed
-    // chat, which is a live state rather than a leftover.
+// No unread dot (the toast already announces a landed turn); a quiet pulse marks work in flight.
     const markChatBusy = (on) => {
       openBtn?.classList.toggle('chat-working', on);
       for (const el of fsCloneBtns()) el.classList.toggle('chat-working', on);
     };
     const fsCloneBtns = () => document.querySelectorAll('#fs-controls-panel #chat-btn');
-    // The icon to PIN the compact popover to. In fullscreen the original is
-    // display:none and measures 0×0 at the origin, which would pin the panel to
-    // the top-left corner instead of the icon the user actually clicked.
+// The icon to pin the compact popover to: in fullscreen the original measures 0×0.
     const anchorBtn = () => {
       for (const el of fsCloneBtns()) {
         const r = el.getBoundingClientRect();
@@ -571,9 +502,8 @@ export class StencilChatPanel extends StencilElement {
       }
       return openBtn;
     };
-    // A FLOAT panel flies out of the toolbar icon and shrinks back into it (the
-    // modalFromIcon/modalToIcon motion every modal uses). Fed from floatRect, not a
-    // measured rect: the panel is display:none while closed — nothing to measure.
+// A float panel flies out of the toolbar icon and back (modalFromIcon/modalToIcon). Fed
+// from floatRect: the panel is display:none while closed.
     const setFloatOriginVars = () => {
       if (!host.classList.contains('chat-dock-float')) return;
       const a = anchorBtn()?.getBoundingClientRect?.();
@@ -586,17 +516,14 @@ export class StencilChatPanel extends StencilElement {
       host.style.setProperty('--modal-sx', String(onScreen ? Math.max(a.width / f.w, 0.05) : 0.4));
       host.style.setProperty('--modal-sy', String(onScreen ? Math.max(a.height / f.h, 0.05) : 0.4));
     };
-    // ── Dust (js/ui/motion.js): the panel forms from motes and comes apart into them,
-    // out of exactly where it used to come from — a FLOAT out of the toolbar icon, a
-    // docked panel from far past the edge it is docked to, so the stream still runs
-    // along the slide's own direction. Measured live; nothing is guessed.
+// The panel forms from motes out of where it comes from: a float out of the toolbar
+// icon, a docked panel from far past its edge. Measured live.
     const dustPoint = () => {
       if (host.classList.contains('chat-dock-float')) {
         const p = rectCenter(anchorBtn());
         if (p) return p;
       }
       const r = host.getBoundingClientRect();
-      // No icon and no dock edge to lean on: from above, the modal shell's own fallback.
       return dockAwayPoint(r, chatDock.mode()) || { x: r.left + r.width / 2, y: -Math.max(48, r.height * 0.3) };
     };
     const playDust = (enter) => {
@@ -604,20 +531,18 @@ export class StencilChatPanel extends StencilElement {
       (enter ? surfaceIn : surfaceOut)(host, dustPoint(), { ms: enter ? 420 : CLOSE_MS });
     };
     let closeTimer = null;
-    // A sequel queued to run once the CLOSE animation has finished (the float → compact
-    // shape swap). Any later setOpen supersedes it, so a close that gets interrupted
-    // never re-opens the panel behind the user's back.
+// A sequel to run once the close animation finishes (float → compact). Any later
+// setOpen supersedes it.
     let afterClose = null;
     const setOpen = (on) => {
       clearTimeout(closeTimer);
       afterClose = null;
       host.classList.remove('chat-closing');
-      // Any close resets the gesture machine (popover.js notifyClosed): a
-      // leaked 'sticky' mode would let a later Alt glide close a panel the
-      // user reopened docked.
+// Any close resets the gesture machine (popover.js notifyClosed), or a leaked 'sticky'
+// mode lets a later Alt glide close a reopened panel.
       if (!on) gestures?.notifyClosed();
       if (!on && host.classList.contains('chat-open')) {
-        setFloatOriginVars();   // shrink back into the icon it came from
+        setFloatOriginVars();
         playDust(false);        // …measured while it is still on screen
         host.classList.add('chat-closing');
         openBtn?.classList.remove('active');
@@ -625,49 +550,42 @@ export class StencilChatPanel extends StencilElement {
         closeTimer = setTimeout(() => {
           host.classList.remove('chat-open', 'chat-closing');
           host.removeAttribute('data-drop-owner');
-          restoreFromCompact();   // popover shape dies with the popover
+          restoreFromCompact();
           const next = afterClose;
           afterClose = null;
-          next?.();   // the shape swap re-opens from here, never on top of the close
+          next?.();
         }, CLOSE_MS);
         return;
       }
       if (on) setFloatOriginVars();
       host.classList.toggle('chat-open', on);
-      // After the class, or the panel is display:none and there is nothing to measure.
+// After the class, or the panel is display:none and there is nothing to measure.
       if (on) playDust(true);
       else settleSurface(host);
       announceLayout();
-      // Declares "drops over my rect are mine" to the global drag/drop wiring
-      // (controlsBinder's overDropOwner), in lockstep with .chat-open — the canvas
-      // must not light its drop zones under an open chat.
+// Declares "drops over my rect are mine" to controlsBinder's overDropOwner.
       host.toggleAttribute('data-drop-owner', on);
-      // The toolbar toggle uses the SAME `active` class as fullscreen/incognito, so
-      // it inherits their accent-fill + white-glyph styling in both themes.
+// Same `active` class as fullscreen/incognito, so it inherits their styling.
       openBtn?.classList.toggle('active', on);
       syncFsCloneActive(on);
       if (on) {
-        refreshStatus();   // async, never blocks the panel or sending
+        refreshStatus();
         input.focus();
       }
     };
-    // The toolbar icon answers the app-wide popover gestures (ui/popover.js): click
-    // toggles the panel; dblclick / right-click / long press open the COMPACT float
-    // pinned to the icon — same conversation, same DOM. `convert` = the deliberate
-    // compact gesture: the panel may already be open and must still re-shape.
+// The toolbar icon answers the app-wide popover gestures (ui/popover.js): click toggles,
+// dblclick / right-click / long press open the compact float. `convert` = the deliberate
+// compact gesture, which re-shapes an already-open panel.
     const showCompact = () => {
       const anchor = anchorBtn()?.getBoundingClientRect?.();
-      // The popover shape DISPLACES the panel's layout; chatDock remembers what to
-      // come back to (restoreFromCompact) when the popover goes.
+// The popover shape displaces the layout; chatDock restores it when the popover goes.
       if (anchor) chatDock.enterCompact(compactChatRect(anchor, window.innerWidth, window.innerHeight));
       setOpen(true);
     };
     const openCompact = (convert = false) => {
       if (panelIsOpen() && !(convert && !chatDock.isCompact())) { input.focus(); return; }
-      // Converting a panel ALREADY on screen: let the outgoing shape play its ordinary
-      // close, then open the compact one — re-pointing geometry under a live panel
-      // blinks the float out with no exit. Mid-close (the double-click's eager first
-      // click started the exit): ride it out via afterClose instead of cancelling.
+// Converting a live panel: let the outgoing shape close, then open the compact one;
+// mid-close, ride it out via afterClose.
       if (host.classList.contains('chat-closing')) { afterClose = showCompact; return; }
       if (panelIsOpen()) {
         setOpen(false);
@@ -680,52 +598,39 @@ export class StencilChatPanel extends StencilElement {
       gestures = wireModalOpenGestures(openBtn, {
         openFull: () => setOpen(!host.classList.contains('chat-open')),
         openPopover: () => openCompact(true),
-        // The toolbar toggle opens NOW: its popover gesture only re-shapes this same
-        // panel, so there is no open-and-shut flash to protect against, and waiting a
-        // double-click interval to find that out made every plain click feel laggy.
+// The popover gesture only re-shapes this same panel, so there is no open-and-shut flash to protect against.
         eagerClick: true,
-        // HOLD-to-peek: an Alt+hover-opened compact chat closes on Alt release; the
-        // isPopoverOpen guard keeps the peek from adopting a panel the user had open,
-        // and the glide only ever closes what the machine itself opened.
+// Hold-to-peek: an Alt+hover-opened compact chat closes on Alt release; the glide only
+// closes what the machine itself opened.
         closePopover: () => setOpen(false),
         isPopoverOpen: panelIsOpen,
-        // Engaged = pointer inside the panel, or something typed into the
-        // composer (openCompact auto-focuses the input, so focus alone must not
-        // count) — releasing Alt then keeps the chat open, hover-bound.
+// Engaged = pointer inside the panel or text typed (focus alone must not count).
         isPeekEngaged: () => host.matches(':hover') || input.value.trim() !== '',
-        // A lingering chat never hover-closes while the composer holds text.
         holdLinger: () => input.value.trim() !== '',
       });
-      // Crossing the panel edge drives the linger close.
       host.addEventListener('mouseenter', () => gestures.boxEnter());
       host.addEventListener('mouseleave', () => gestures.boxLeave());
     }
-    // Entering or leaving fullscreen swaps which toolbar is on screen, stranding a compact
-    // popover — drop the popover shape and stamp the open state onto the fresh clone.
+// Entering or leaving fullscreen swaps which toolbar is on screen.
     subscribe(EVENTS.fullscreenChanged, () => {
       restoreFromCompact();
       syncFsCloneActive(panelIsOpen());
     });
-    // The COMPACT shape follows the mini-window contract of every toolbar popover
-    // (base.js wireModalShell): outside press closes and is swallowed, Escape closes,
-    // an Alt glide closes via the shared registry. The panel's normal shapes —
-    // docked, or a float the user adopted — stay persistent.
+// The compact shape follows the mini-window contract of every toolbar popover
+// (wireModalShell): outside press closes and is swallowed, Escape closes, an Alt glide closes.
     const compactShowing = () => chatDock.isCompact() && panelIsOpen();
     document.addEventListener('pointerdown', (e) => {
       if (!compactShowing() || host.contains(e.target)) return;
-      // The chat icon keeps its own gestures (click toggles, dblclick reopens
-      // compact) — swallowing its press would turn the toggle into a reopen.
+// The chat icon keeps its own gestures: swallowing its press would turn the toggle into a reopen.
       if (openBtn && openBtn.contains(e.target)) return;
-      // The transcript's row menu floats on the BODY — pressing it is chat use,
-      // not "outside the compact panel".
+// The row menu floats on the body — pressing it is chat use.
       if (e.target.closest?.('.chat-row-menu')) return;
       e.preventDefault();
       e.stopPropagation();
       setOpen(false);
     }, true);
-    // Phones show the panel as a centred modal, so it takes the modal dismissals a
-    // dock/float deliberately lacks: backdrop press + Escape. The backdrop is
-    // display:none on wider viewports, so it can never fire for a dock/float.
+// Phones show the panel as a centred modal, so it takes backdrop press + Escape; the
+// backdrop is display:none on wider viewports.
     const phoneModal = () => typeof matchMedia !== 'undefined' && matchMedia(PHONE_MEDIA).matches;
     $('chat-backdrop')?.addEventListener('pointerdown', (e) => {
       if (!panelIsOpen()) return;
@@ -738,14 +643,10 @@ export class StencilChatPanel extends StencilElement {
     });
     $('chat-close').addEventListener('click', () => setOpen(false));
 
-    // Clear = a fresh conversation: model history, attachments and the rendered
-    // transcript go; the empty-state suggestions come back. Settings and the
-    // working image are untouched. Disabled mid-turn, like attach.
+// Clear = a fresh conversation; settings and the working image are untouched.
     const clearBtn = $('chat-clear');
     clearBtn.addEventListener('click', () => {
       if (sending) return;
-      // Shared state, shared repaint: the log + attachment listeners drop the
-      // rendered rows in BOTH surfaces and bring each one's empty state back.
       clearSharedConversation(app);
       updateControls();
       input.focus();
@@ -756,9 +657,8 @@ export class StencilChatPanel extends StencilElement {
     setDock(chatDock.mode());
     updateControls();
 
-    // ── Scripting surface: the stencil facade (console/stencilApi.js) drives the
-    // panel through these — the SAME code paths as the buttons. `app.chat` is THIS
-    // panel; §12 persistence wires later under `app.chatPersistence`.
+// Scripting surface (console/stencilApi.js): the same code paths as the buttons.
+// `app.chat` is this panel; §12 persistence wires later under `app.chatPersistence`.
     app.chat = {
       open: () => setOpen(true),
       close: () => setOpen(false),
@@ -766,16 +666,13 @@ export class StencilChatPanel extends StencilElement {
       dock: (mode) => {
         const m = String(mode || '').toLowerCase();
         if (!DOCKS.includes(m)) throw new Error(`Unknown dock mode "${mode}" — one of ${DOCKS.join(', ')}`);
-        adoptLayout();   // scripted dock = as deliberate as the dock buttons
+        adoptLayout();
         setDock(m);
       },
-      // One programmatic turn through the panel's pipeline: shared history, the
-      // exchange rendered in the transcript, typed LlmErrors rejecting through.
       prompt: async (text, images = []) => {
         if (sending) throw new Error('The assistant is already answering — wait for the current turn');
-        // Check the WHOLE batch against the remaining room first: adding one at a time
-        // would throw partway and leave the earlier ones queued, so a rejected call
-        // would still have changed the tray (§7 MAX_ATTACHMENTS).
+// The whole batch is checked against the remaining room first, so a rejected call never
+// changes the tray (§7 MAX_ATTACHMENTS).
         const room = MAX_ATTACHMENTS - (peekChatController(app)?.attachments.length || 0);
         if (images.length > room) {
           throw new Error(`up to ${MAX_ATTACHMENTS} images per message${room < MAX_ATTACHMENTS ? ` (${room} slot${room === 1 ? '' : 's'} left)` : ''}`);
@@ -784,20 +681,15 @@ export class StencilChatPanel extends StencilElement {
         renderAttachments();
         return runTurn(String(text ?? ''));
       },
-      // Read-only transcript in the §12.1 display form: settled user/assistant
-      // turns, text only — raw model JSON, error cards, and the in-flight "…"
-      // row never appear. Fresh copies per read; mutating them changes nothing.
+// The §12.1 display form: settled turns, text only; fresh copies per read.
       history: () => rowsToMessages(chatLog()).map((m) => ({ role: m.role, text: m.text })),
-      // Stop the in-flight turn — the Stop button's exact path. True when a
-      // turn was actually running; a no-op false when idle.
+// True when a turn was actually running.
       abort: () => {
         const had = !!turnAbort;
         turnAbort?.abort();
         return had;
       },
-      // A fresh conversation — the trash button's exact shared path (§12: the
-      // persisted copy clears with the emptied transcript). Refused mid-turn,
-      // with words where the button simply disables.
+// The trash button's shared path (§12: the persisted copy clears too); refused mid-turn.
       clear: () => {
         if (sending) throw new Error('The assistant is answering — stop the turn before clearing');
         clearSharedConversation(app);
@@ -805,8 +697,7 @@ export class StencilChatPanel extends StencilElement {
       },
       get isSending() { return sending; },
       controller: ctrl,
-      // Dictation into this panel's composer (the mic face) — the scripting peer of
-      // the "…" item / double-click / hold.
+// Dictation into this composer — the scripting peer of the "…" item / double-click / hold.
       get voiceInput() { return !!voiceCtl?.isOn(); },
       setVoiceInput: (on) => {
         if (on && !app.voice?.supported) throw new Error('Voice input is not supported in this browser');
