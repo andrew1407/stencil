@@ -2,7 +2,6 @@
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
   "files": {
-    "desktop/src/app/chatPlanTarget.cpp": 605,
     "desktop/src/app/dataExportController.cpp": 278,
     "desktop/src/app/logoHoverFx.cpp": 253,
     "desktop/src/app/mainWindow.cpp": 1616,

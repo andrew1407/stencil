@@ -262,6 +262,8 @@ set(STENCIL_GUI_SOURCES
   src/llm/chatCardRenderer.cpp
   src/llm/chatMenuPanel.cpp
   src/app/chatPlanTarget.cpp
+  src/app/chatPlanTargetServer.cpp
+  src/app/chatPlanTargetProjects.cpp
   src/llm/opPlan.cpp
   src/llm/opRegistry.cpp
   src/llm/opSchema.cpp
