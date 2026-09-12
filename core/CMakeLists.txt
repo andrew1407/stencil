@@ -128,10 +128,12 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     # compile and are exercised natively here — keeping both ABIs covered even on a
     # machine without Emscripten or Zig.
     tests/wasmApi.test.cpp
+    tests/wasmCropApi.test.cpp
     tests/wasmStateApi.test.cpp
     tests/wasmProjectsApi.test.cpp
     tests/cliApi.test.cpp
     wasmApi.cpp
+    wasmCropApi.cpp
     wasmStateApi.cpp
     wasmProjectsApi.cpp
     cliApi.cpp
@@ -148,7 +150,7 @@ endif()
 # native `cmake` build never enters this branch. The browser app loads the resulting
 # stencil_core.js (see WASM.md).
 if(EMSCRIPTEN)
-  add_executable(stencil_wasm ${STENCIL_CORE_SOURCES} wasmApi.cpp wasmStateApi.cpp wasmProjectsApi.cpp)
+  add_executable(stencil_wasm ${STENCIL_CORE_SOURCES} wasmApi.cpp wasmCropApi.cpp wasmStateApi.cpp wasmProjectsApi.cpp)
   target_include_directories(stencil_wasm PRIVATE ${STENCIL_CORE_INCLUDE_DIRS})
   # Export the extern "C" wrappers + ccall/cwrap helpers; ship an ES6 module.
   set_target_properties(stencil_wasm PROPERTIES

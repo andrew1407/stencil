@@ -2,9 +2,7 @@
   "_doc": "Size + comment ratchet. New files must stay under maxNewFileLines. Listed files must not grow. Comment share per directory must not rise. Lower these numbers as the refactor lands; never raise one without a note in 'exceptions'.",
   "maxNewFileLines": 230,
   "files": {
-    "core/raster/rasterize.cpp": 247,
-    "core/tests/wasmApi.test.cpp": 283,
-    "core/wasmApi.cpp": 250
+    "core/raster/rasterize.cpp": 247
   },
   "commentPct": {
     "core": 23,

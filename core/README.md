@@ -81,6 +81,7 @@ state/
   zoomPan             # zoom clamp + anchored / rect zoom math
   holdDraw            # hold-to-draw tick/seed state machine shared with the GUIs
 wasmApi.cpp           # extern "C" ABI compiled to WebAssembly for the browser (see WASM.md)
+wasmCropApi.cpp       # the same ABI, crop-geometry exports (split off wasmApi.cpp on size)
 cliApi.{h,cpp}        # extern "C" ABI consumed by the Zig CLI (RGBA8 buffers + C strings)
 tests/                # Doctest suite — one suite per module, plus the wasm and CLI ABIs
 third_party/          # vendored doctest.h (fetched on demand, gitignored)

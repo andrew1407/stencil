@@ -4,8 +4,9 @@ The `core/` library is GUI-free and STL-only, so the same sources that back the 
 desktop app (and the Zig CLI) can compile to WebAssembly and back the **browser** app —
 replacing its hand-written JS engines with one shared, tested implementation.
 
-`core/wasmApi.cpp` is a thin `extern "C"` surface over the core. The `if(EMSCRIPTEN)`
-block in `core/CMakeLists.txt` builds it into `stencil_core.js` + `stencil_core.wasm`.
+`core/wasmApi.cpp` (crop geometry in `core/wasmCropApi.cpp`) is a thin `extern "C"`
+surface over the core. The `if(EMSCRIPTEN)` block in `core/CMakeLists.txt` builds it
+into `stencil_core.js` + `stencil_core.wasm`.
 
 The browser app runs the shared C++ core via WebAssembly. The module is built with
 `SINGLE_FILE=1` (wasm embedded as base64 in the `.js`, so it loads under `file://`
@@ -81,8 +82,9 @@ Three layers, run by the three CI jobs (`.github/workflows/ci.yml`):
 
 1. **C++ side of the ABI** — `wasmApi.cpp` is plain STL, so it is compiled
    **natively into `stencil_tests`** and every export is exercised by
-   `tests/wasmApi.test.cpp` (the `core` job) — as are the handle and project ABIs,
-   by `tests/wasmStateApi.test.cpp` and `tests/wasmProjectsApi.test.cpp`. Covers the C++ marshalling (flat
+   `tests/wasmApi.test.cpp` plus `tests/wasmCropApi.test.cpp` (the `core` job) — as are
+   the handle and project ABIs, by `tests/wasmStateApi.test.cpp` and
+   `tests/wasmProjectsApi.test.cpp`. Covers the C++ marshalling (flat
    point arrays, output pointers, filter-mode enum codes, char-code var names)
    even on a machine without `emcc`. `core/imageFilter` has its own suite in
    `tests/imageFilter.test.cpp`.
