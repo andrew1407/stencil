@@ -3,14 +3,14 @@
 namespace stencil::gui::stroke {
 
   double flyMs(double len) {
-    return std::min(kFlyMaxMs, kFlyMinMs + std::max(0.0, len) / kFlyPxPerMs);
+    return std::min(FLY_MAX_MS, FLY_MIN_MS + std::max(0.0, len) / FLY_PX_PER_MS);
   }
 
   double flyEase(double t) {
     if (t <= 0.0) return 0.0;
     if (t >= 1.0) return 1.0;
     const double u = t - 1.0;
-    return 1.0 + (kFlyBack + 1.0) * u * u * u + kFlyBack * u * u;
+    return 1.0 + (FLY_BACK + 1.0) * u * u * u + FLY_BACK * u * u;
   }
 
   // Which side, and how far off, THIS vertex swings — the app's ONE scatter hash, the
@@ -42,38 +42,38 @@ namespace stencil::gui::stroke {
 
   double flyRadius(double t) {
     const double k = std::clamp(t, 0.0, 1.0);
-    return kFlyR0 + (kPopPeak - kFlyR0) * k * k;
+    return FLY_R0 + (POP_PEAK - FLY_R0) * k * k;
   }
 
   double popScale(double u) {
     if (u >= 1.0) return 1.0;
     const double k = 1.0 - std::clamp(u, 0.0, 1.0);
-    return 1.0 + (kPopPeak - 1.0) * k * k;
+    return 1.0 + (POP_PEAK - 1.0) * k * k;
   }
 
   Ring ripple(double u) {
     const double k = std::clamp(u, 0.0, 1.0);
-    return {1.0 + (kRippleReach - 1.0) * (1.0 - (1.0 - k) * (1.0 - k)),
-            kRippleAlpha * std::pow(1.0 - k, 1.6)};
+    return {1.0 + (RIPPLE_REACH - 1.0) * (1.0 - (1.0 - k) * (1.0 - k)),
+            RIPPLE_ALPHA * std::pow(1.0 - k, 1.6)};
   }
 
   Ring spark(double t) {
     const double k = arc(t);
-    return {1.0 + (kSparkReach - 1.0) * k, kSparkAlpha * std::pow(k, 0.7)};
+    return {1.0 + (SPARK_REACH - 1.0) * k, SPARK_ALPHA * std::pow(k, 0.7)};
   }
 
   double wake(double t) {
-    return kWakeAlpha * std::pow(1.0 - std::clamp(t, 0.0, 1.0), 1.3);
+    return WAKE_ALPHA * std::pow(1.0 - std::clamp(t, 0.0, 1.0), 1.3);
   }
 
   Phase phase(double elapsed, double fly) {
     Phase ph;
     ph.fly = fly > 0.0 ? std::clamp(elapsed / fly, 0.0, 1.0) : 1.0;
     const double after = std::max(0.0, elapsed - fly);
-    ph.land = std::min(1.0, after / kPopMs);
-    ph.ripple = std::min(1.0, after / kRippleMs);
-    ph.span = std::min(1.0, elapsed / (fly + kRippleMs));
-    ph.done = elapsed >= fly + kRippleMs;
+    ph.land = std::min(1.0, after / POP_MS);
+    ph.ripple = std::min(1.0, after / RIPPLE_MS);
+    ph.span = std::min(1.0, elapsed / (fly + RIPPLE_MS));
+    ph.done = elapsed >= fly + RIPPLE_MS;
     return ph;
   }
 

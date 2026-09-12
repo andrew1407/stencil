@@ -49,7 +49,7 @@ namespace stencil::gui {
     // The browser's shared modal width. The four-button footer a replaceable project
     // adds (Cancel / Replace image / Open here / Open in new window) paints tighter
     // than the layout's minimum reports, so that shape gets a little more room.
-    setMinimumWidth(canReplace ? 610 : kModalWidth);
+    setMinimumWidth(canReplace ? 610 : MODAL_WIDTH);
     const QString mutedCss = "color: gray; font-size: 11px;";
 
     // Browser openImageModal.js parity: the shared modal shell around the tabbed body.
@@ -167,7 +167,7 @@ namespace stencil::gui {
     // Rendered preview image / frame.
     previewLabel_ = new QLabel(this);
     previewLabel_->setAlignment(Qt::AlignCenter);
-    previewLabel_->setMaximumSize(kPreviewMaxW, kPreviewMaxH);
+    previewLabel_->setMaximumSize(PREVIEW_MAX_W, PREVIEW_MAX_H);
     previewLabel_->setFrameShape(QFrame::StyledPanel);
     // Hidden until a preview lands (the browser shows no preview area until there is one).
     previewLabel_->setVisible(false);

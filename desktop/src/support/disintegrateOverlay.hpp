@@ -32,11 +32,11 @@
 namespace stencil::gui {
 
   // The floating-tip clock family (browser controlTooltip.js / exportPreview.js).
-  inline constexpr int kTipDustInMs = 213;
-  inline constexpr int kTipDustOutMs = 157;
+  inline constexpr int TIP_DUST_IN_MS = 213;
+  inline constexpr int TIP_DUST_OUT_MS = 157;
   // browser surfaceForm's invisible hold while motes gather; surfaceLeave's hand-over beat.
-  inline constexpr double kDustHold = 0.55;
-  inline constexpr int kDustHandOverMs = 60;
+  inline constexpr double DUST_HOLD = 0.55;
+  inline constexpr int DUST_HAND_OVER_MS = 60;
 
   QPoint dockAwayPoint(const QRect& picture, Qt::DockWidgetArea area,
                        double reach = 1.2);
@@ -48,43 +48,43 @@ namespace stencil::gui {
   class DisintegrateOverlay : public QWidget {
    public:
     // Every dust clock runs 1.5x faster than its browser twin (DISINTEGRATE_MS 1650).
-    static constexpr int kMs = 1100;
-    static constexpr int kItemMs = kMs;         // browser ITEM_DUST_MS
-    static constexpr int kConnMs = kMs * 2 / 3; // browser CONN_DUST_MS
-    static constexpr int kCols = 22;     // browser DISINTEGRATE_COLS
-    static constexpr int kRows = 11;     // browser DISINTEGRATE_ROWS
-    static constexpr int kDustCellPx = 7;   // browser motion.js MOTE_PX — keep the two in step
-    static constexpr int kDustMaxCells = 7000;
-    static constexpr const char* kObjectName = "stencilDisintegrate";
+    static constexpr int DUST_MS = 1100;
+    static constexpr int ITEM_MS = DUST_MS;         // browser ITEM_DUST_MS
+    static constexpr int CONN_MS = DUST_MS * 2 / 3; // browser CONN_DUST_MS
+    static constexpr int COLS = 22;     // browser DISINTEGRATE_COLS
+    static constexpr int ROWS = 11;     // browser DISINTEGRATE_ROWS
+    static constexpr int DUST_CELL_PX = 7;   // browser motion.js MOTE_PX — keep the two in step
+    static constexpr int DUST_MAX_CELLS = 7000;
+    static constexpr const char* OBJECT_NAME = "stencilDisintegrate";
     // Surface flights (browser motion.js surfaceIn / surfaceOut): every mote aims at ONE point.
-    static constexpr int kSurfaceInMs = 507;    // browser SURFACE_IN_MS 760 / 1.5
-    static constexpr int kSurfaceOutMs = 313;   // browser SURFACE_OUT_MS 470 / 1.5
-    static constexpr int kSurfaceCellPx = 6;    // browser SURFACE_MOTE_PX
+    static constexpr int SURFACE_IN_MS = 507;    // browser SURFACE_IN_MS 760 / 1.5
+    static constexpr int SURFACE_OUT_MS = 313;   // browser SURFACE_OUT_MS 470 / 1.5
+    static constexpr int SURFACE_CELL_PX = 6;    // browser SURFACE_MOTE_PX
     // One paintEvent per frame scales with cell count; more than this read as lag on a
     // tall dialog. browser SURFACE_COLS*ROWS; overSurface() takes an override.
-    static constexpr int kSurfaceMaxCells = 1380;
-    static constexpr double kSurfaceSpreadPx = 34;   // browser SURFACE_SPREAD
+    static constexpr int SURFACE_MAX_CELLS = 1380;
+    static constexpr double SURFACE_SPREAD_PX = 34;   // browser SURFACE_SPREAD
     // Share of the way towards the window's INK a mote is lifted (browser MOTE_INK) —
     // without it a dark dialog's motes are invisible over a dark page.
-    static constexpr double kSurfaceInkMix = 0.42;
+    static constexpr double SURFACE_INK_MIX = 0.42;
     // Rim and glint cells go to 66% (browser MOTE_RIM_INK), expressed as the share of the
     // REMAINING way after the 42% lift.
-    static constexpr double kGlintMix = (0.66 - 0.42) / (1.0 - 0.42);
-    static constexpr double kGlintHash = 0.86;
-    static constexpr int kSpeckPx = 7;   // browser SURFACE_SPECK_PX; scaled 0.62..1.12 by hash
+    static constexpr double GLINT_MIX = (0.66 - 0.42) / (1.0 - 0.42);
+    static constexpr double GLINT_HASH = 0.86;
+    static constexpr int SPECK_PX = 7;   // browser SURFACE_SPECK_PX; scaled 0.62..1.12 by hash
     // The bend off the throw line (browser motion.js tileWaypoint), peaking mid-flight.
-    static constexpr double kSwirlShare = 0.32;
-    static constexpr double kSwirlMaxPx = 44;
-    static constexpr double kWaypointAlong = 0.62;   // browser WAYPOINT_ALONG: the two-leg turn
-    static constexpr int kMinTileMs = 160;           // browser MIN_TILE_MS: a late mote's floor
+    static constexpr double SWIRL_SHARE = 0.32;
+    static constexpr double SWIRL_MAX_PX = 44;
+    static constexpr double WAYPOINT_ALONG = 0.62;   // browser WAYPOINT_ALONG: the two-leg turn
+    static constexpr int MIN_TILE_MS = 160;           // browser MIN_TILE_MS: a late mote's floor
     // Turbulence and twinkle (browser dustCloud.js turbulenceAt / twinkleAt), off a fourth hash.
-    static constexpr double kTurbulenceShare = 0.06;   // of the throw…
-    static constexpr double kTurbulenceMaxPx = 6;      // …capped
-    static constexpr double kTurbulenceWaves[2] = {2.5, 4.5};   // waves per flight, by hash
-    static constexpr double kTwinkleDepth = 0.35;      // a glint's brightness swing
-    static constexpr double kTwinkleHz[2] = {4, 7};    // …flickers a second, by hash
+    static constexpr double TURBULENCE_SHARE = 0.06;   // of the throw…
+    static constexpr double TURBULENCE_MAX_PX = 6;      // …capped
+    static constexpr double TURBULENCE_WAVES[2] = {2.5, 4.5};   // waves per flight, by hash
+    static constexpr double TWINKLE_DEPTH = 0.35;      // a glint's brightness swing
+    static constexpr double TWINKLE_HZ[2] = {4, 7};    // …flickers a second, by hash
     // Alpha is coverage lifted: text covers a third of its cells (browser speckPainter "never faint").
-    static constexpr double kCoverageLift = 2.5;
+    static constexpr double COVERAGE_LIFT = 2.5;
 
     // Rows: crumble top→bottom (browser tileScatter); Fall: an image drops; Gather is
     // Fall reversed (browser ghostIn vs ghostOut in js/ui/motion.js).
@@ -106,13 +106,13 @@ namespace stencil::gui {
     static const support::EaseLut& surfaceEase();
     static const support::EaseLut& rowLegEase();
     static const support::EaseLut& rowEase();
-    static constexpr double kSurfaceGatherSplit = 0.16;
-    static constexpr double kSurfaceScatterSplit = 0.18;
-    static constexpr double kRowSplit = 0.38;
+    static constexpr double SURFACE_GATHER_SPLIT = 0.16;
+    static constexpr double SURFACE_SCATTER_SPLIT = 0.18;
+    static constexpr double ROW_SPLIT = 0.38;
     // Accent motes over a near-opaque window "blink lighter" at the hand-off, so the
     // gather fades out early and the scatter waits for the window to cut out.
-    static constexpr double kSurfaceMoteFadeFrac = 0.55;   // of the post-hold span (in)
-    static constexpr double kSurfaceMoteRiseDelay = 0.5;   // × split before motes rise (out)
+    static constexpr double SURFACE_MOTE_FADE_FRAC = 0.55;   // of the post-hold span (in)
+    static constexpr double SURFACE_MOTE_RISE_DELAY = 0.5;   // × split before motes rise (out)
 
     static QPointF turbulenceAt(double p, double tx, double ty, double w);
     static double twinkleAt(bool glint, double ms, double w);
@@ -133,7 +133,7 @@ namespace stencil::gui {
 
     static DisintegrateOverlay* overRect(QWidget* source, const QRect& rect, QWidget* host,
                                         Sweep sweep = Sweep::Rows, bool dust = false,
-                                        int dustCells = kDustMaxCells, int ms = kMs,
+                                        int dustCells = DUST_MAX_CELLS, int ms = DUST_MS,
                                         const QColor& ink = QColor(),
                                         const QPixmap& shot = QPixmap());
 
@@ -142,15 +142,15 @@ namespace stencil::gui {
                                             int cols, int rows, int ms, double spread,
                                             int pad = 0, const QString& name = QString());
 
-    // Slack past the picture/target: kSurfaceSpreadPx of jitter plus a rotated cell's corner.
-    static constexpr int kSurfacePadPx = 64;
+    // Slack past the picture/target: SURFACE_SPREAD_PX of jitter plus a rotated cell's corner.
+    static constexpr int SURFACE_PAD_PX = 64;
 
     static QRect surfaceLayerRect(const QRect& pictureGlobal, const QPoint& targetGlobal);
 
     static DisintegrateOverlay* overSurface(const QPixmap& snap, const QRect& picture,
                                             QWidget* host, const QPoint& target, bool gather,
                                             int ms = 0, const QColor& ink = QColor(),
-                                            int maxCells = kSurfaceMaxCells,
+                                            int maxCells = SURFACE_MAX_CELLS,
                                             bool escapeHost = false, bool alwaysEscape = false);
 
     // HOST coordinates; the GUI test reads these.
@@ -205,10 +205,10 @@ namespace stencil::gui {
 
     DisintegrateOverlay(QWidget* host, const QPixmap& snap);
 
-    void start(int ms = kMs);
+    void start(int ms = DUST_MS);
 
-    void sizeGridForDust(const QSize& size, int maxCells = kDustMaxCells,
-                         int cellPx = kDustCellPx);
+    void sizeGridForDust(const QSize& size, int maxCells = DUST_MAX_CELLS,
+                         int cellPx = DUST_CELL_PX);
 
     void syncFollow();
 
@@ -223,8 +223,8 @@ namespace stencil::gui {
     std::vector<Mote> motes_;   // per-frame scratch
     std::vector<QRect> cut_;    // runs, Y-X sorted
     Sweep sweep_ = Sweep::Rows;
-    int cols_ = kCols;
-    int rows_ = kRows;
+    int cols_ = COLS;
+    int rows_ = ROWS;
     int pad_ = 0;
     QRect picture_;         // invalid = the whole box
     QPointF target_;
@@ -238,7 +238,7 @@ namespace stencil::gui {
     bool dark_ = support::particleDark();
     support::MoteSprites sprites_;
     QElapsedTimer clock_;
-    int ms_ = kMs;
+    int ms_ = DUST_MS;
     double spread_ = 1.0;   // throw distance, as a share of a list row's
     double t_ = 0.0;
   };

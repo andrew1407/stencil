@@ -6,7 +6,7 @@
 // during the menu's own deleteChildren() reenters a findChildren() over the half-destroyed
 // tree (crashed via styleDangerToolButtons' changed() handler).
 #include "appTooltip.hpp"   // gui::TipBody
-#include "theme.hpp"        // gui::kMenuItemRightPadPx
+#include "theme.hpp"        // gui::MENU_ITEM_RIGHT_PAD_PX
 #include "tipContent.hpp"   // comboKeycapsHtml, currentPalette
 
 #include <QAction>

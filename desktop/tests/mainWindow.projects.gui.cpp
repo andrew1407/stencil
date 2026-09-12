@@ -833,7 +833,7 @@ class MainWindowGuiTest : public QObject {
       clearBtn->click();     // rows doomed, scatter playing
       closeBtn->click();     // …and the dialog closed IMMEDIATELY, mid-scatter
 
-      // Finalized on done(): the doomed row left the list at once, no kMs wait.
+      // Finalized on done(): the doomed row left the list at once, no DUST_MS wait.
       finalized = true;
       for (int i = 0; i < list->count(); ++i)
         if (list->item(i)->data(Qt::UserRole).toString() == id) finalized = false;

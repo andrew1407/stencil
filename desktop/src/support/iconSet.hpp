@@ -12,9 +12,9 @@ namespace stencil::gui {
   QIcon themedIcon(const QString& name, const QColor& color, int size = 18,
                    qreal dpr = 0, int gap = 0);
   // Browser .btn-icon-text gap 6 − Qt's hard-coded 4.
-  inline constexpr int kLabelIconGap = 2;
+  inline constexpr int LABEL_ICON_GAP = 2;
   inline QIcon labelIcon(const QString& name, const QColor& color, int size = 15) {
-    return themedIcon(name, color, size, 0, kLabelIconGap);
+    return themedIcon(name, color, size, 0, LABEL_ICON_GAP);
   }
 
   // Uncached — only called while an animation runs.

@@ -17,8 +17,8 @@ namespace stencil::gui {
 
   class ScrollBarPill : public QObject {
    public:
-    static constexpr qreal kRestThick = 6;    // thinner than the browser's 8 at rest…
-    static constexpr qreal kHoverThick = 9;   // …and 1.5× under the pointer, as there
+    static constexpr qreal REST_THICK = 6;    // thinner than the browser's 8 at rest…
+    static constexpr qreal HOVER_THICK = 9;   // …and 1.5× under the pointer, as there
 
     // Theme hook (MainWindow::applyTheme). Installs the app-wide adopter on first use.
     static void setColors(const QColor& thumb, const QColor& hover) {
@@ -34,8 +34,8 @@ namespace stencil::gui {
 
     // Idempotent.
     static void adopt(QScrollBar* bar) {
-      if (!bar || bar->property(kProperty).toBool()) return;
-      bar->setProperty(kProperty, true);
+      if (!bar || bar->property(PROPERTY).toBool()) return;
+      bar->setProperty(PROPERTY, true);
       new ScrollBarPill(bar);
     }
 
@@ -44,17 +44,17 @@ namespace stencil::gui {
       if (watched != bar_) return false;
       switch (e->type()) {
         case QEvent::Paint: return paint();
-        case QEvent::Enter: swellTo(kHoverThick); break;
+        case QEvent::Enter: swellTo(HOVER_THICK); break;
         // Qt withholds the Leave during a drag past the edge; settle once the pointer really left.
-        case QEvent::Leave: if (!bar_->isSliderDown()) swellTo(kRestThick); break;
-        case QEvent::MouseButtonRelease: if (!bar_->underMouse()) swellTo(kRestThick); break;
+        case QEvent::Leave: if (!bar_->isSliderDown()) swellTo(REST_THICK); break;
+        case QEvent::MouseButtonRelease: if (!bar_->underMouse()) swellTo(REST_THICK); break;
         default: break;
       }
       return false;
     }
 
    private:
-    static constexpr const char* kProperty = "stencilScrollBarPill";
+    static constexpr const char* PROPERTY = "stencilScrollBarPill";
     struct Colors { QColor thumb, hover; };
     static Colors& colors() { static Colors c; return c; }
 
@@ -128,7 +128,7 @@ namespace stencil::gui {
     }
 
     QScrollBar* bar_ = nullptr;
-    qreal thick_ = kRestThick;
+    qreal thick_ = REST_THICK;
     QVariantAnimation* swell_ = nullptr;
   };
 

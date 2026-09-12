@@ -76,7 +76,7 @@ namespace stencil::gui {
         if (!u.isLocalFile()) continue;
         const QString path = u.toLocalFile();
         if (isImageFileName(path)) {
-          if (images_.size() >= kMaxAttachments) { overCap = true; continue; }   // §7: three per message
+          if (images_.size() >= MAX_ATTACHMENTS) { overCap = true; continue; }   // §7: three per message
           const QImage img = readImageFile(path);
           if (!img.isNull()) {
             images_.append(img);
@@ -92,8 +92,8 @@ namespace stencil::gui {
         }
       }
     }
-    if (!any && mime->hasImage() && images_.size() >= kMaxAttachments) overCap = true;
-    if (!any && mime->hasImage() && images_.size() < kMaxAttachments) {
+    if (!any && mime->hasImage() && images_.size() >= MAX_ATTACHMENTS) overCap = true;
+    if (!any && mime->hasImage() && images_.size() < MAX_ATTACHMENTS) {
       const QImage img = qvariant_cast<QImage>(mime->imageData());
       if (!img.isNull()) {
         images_.append(img);

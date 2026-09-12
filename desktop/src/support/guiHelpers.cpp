@@ -28,7 +28,7 @@
 
 namespace stencil::gui {
 
-  static const QString kIconSpin = QStringLiteral("stencilIconSpin");
+  static const QString ICON_SPIN = QStringLiteral("stencilIconSpin");
 
   QString inlineIconHtml(const QString& name, const QColor& color, int px,
                          const QString& style, qreal dpr) {
@@ -104,7 +104,7 @@ namespace stencil::gui {
   void spinIcon(QAbstractButton* btn, const QString& name, const QColor& color, int size,
                 qreal fromDeg, qreal toDeg, int ms) {
     if (!btn) return;
-    for (QVariantAnimation* old : btn->findChildren<QVariantAnimation*>(kIconSpin)) {
+    for (QVariantAnimation* old : btn->findChildren<QVariantAnimation*>(ICON_SPIN)) {
       old->stop();
       old->deleteLater();
     }
@@ -114,7 +114,7 @@ namespace stencil::gui {
     // Reduced motion lands on the end state at once — the angle IS the panel's state.
     if (ms <= 0 || support::motionReduced()) { paint(toDeg); return; }
     auto* anim = new QVariantAnimation(btn);
-    anim->setObjectName(kIconSpin);
+    anim->setObjectName(ICON_SPIN);
     anim->setDuration(ms);
     anim->setEasingCurve(QEasingCurve::OutCubic);   // the extent slides' curve
     anim->setStartValue(fromDeg);

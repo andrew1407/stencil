@@ -24,8 +24,8 @@ namespace stencil::core {
     history_.push_back(lines);
     // Bound the depth: drop the oldest, shift the cursor down as far, so it still names
     // the snapshot just pushed. Undoing off the trimmed front still hits the step -1 stop.
-    if (history_.size() > kMaxSteps) {
-      const std::size_t drop = history_.size() - kMaxSteps;
+    if (history_.size() > MAX_STEPS) {
+      const std::size_t drop = history_.size() - MAX_STEPS;
       history_.erase(history_.begin(), history_.begin() + static_cast<std::ptrdiff_t>(drop));
       historyStep_ -= static_cast<int>(drop);
     }

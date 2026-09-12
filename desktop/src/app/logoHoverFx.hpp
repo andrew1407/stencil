@@ -16,7 +16,7 @@ namespace stencil::gui {
   class LogoHoverFx : public QWidget {
     Q_OBJECT
    public:
-    static constexpr int kMargin = 10;   // paint room around the button (ring + glow)
+    static constexpr int MARGIN = 10;   // paint room around the button (ring + glow)
     LogoHoverFx(QToolButton* logo, std::function<QPixmap()> makePixmap,
                 std::function<QColor()> accent);
 

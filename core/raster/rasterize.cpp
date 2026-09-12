@@ -14,7 +14,7 @@ namespace stencil::core {
     // Largest coordinate / size a layout line may carry: real images are a few thousand
     // px, and unbounded untrusted input would overflow the int casts and spin the
     // scan/step loops. Lines beyond it are skipped as inert.
-    constexpr double kMaxCoord = 1e6;
+    constexpr double MAX_COORD = 1e6;
 
     // `!(v >= lo)` also catches NaN. Clamping scan bounds is output-preserving (blendPixel
     // skips out-of-bounds writes) and caps the loop length of a far-off or huge stamp.
@@ -25,11 +25,11 @@ namespace stencil::core {
     }
 
     bool lineWithinBounds(const Line& line) {
-      if (!std::isfinite(line.thickness) || std::abs(line.thickness) > kMaxCoord) return false;
-      if (!std::isfinite(line.pointSize) || std::abs(line.pointSize) > kMaxCoord) return false;
+      if (!std::isfinite(line.thickness) || std::abs(line.thickness) > MAX_COORD) return false;
+      if (!std::isfinite(line.pointSize) || std::abs(line.pointSize) > MAX_COORD) return false;
       for (const Point& p : line.points) {
         if (!std::isfinite(p.x) || !std::isfinite(p.y)) return false;
-        if (std::abs(p.x) > kMaxCoord || std::abs(p.y) > kMaxCoord) return false;
+        if (std::abs(p.x) > MAX_COORD || std::abs(p.y) > MAX_COORD) return false;
       }
       return true;
     }

@@ -35,7 +35,7 @@ namespace stencil::gui {
       QStringList metaBits;
       if (!created.isEmpty()) metaBits << created;
       if (!expiry.isEmpty()) metaBits << expiry;
-      it->setData(kMetaRole, metaBits.join(QStringLiteral(" · ")));
+      it->setData(META_ROLE, metaBits.join(QStringLiteral(" · ")));
     }
     it->setFlags(it->flags() | Qt::ItemIsUserCheckable);
     it->setCheckState(checked_.contains("|" + QString::fromStdString(pr.meta.id))
@@ -65,7 +65,7 @@ namespace stencil::gui {
     it->setData(Qt::UserRole + 6, pr.meta.fromFile);
     // UserRole+8: the project open in THIS editor → the delegate's "(Current)" mark.
     if (!activeProjectId_.isEmpty() && QString::fromStdString(pr.meta.id) == activeProjectId_)
-      it->setData(kActiveRole, true);
+      it->setData(ACTIVE_ROLE, true);
     // A LOCAL row already carries the "computer" badge (the browser tip has no origin line); a .stencil
     // project keeps its note.
     it->setToolTip(projectRowTooltip(pr.meta.imageW, pr.meta.imageH,
@@ -90,7 +90,7 @@ namespace stencil::gui {
       QStringList metaBits;
       if (!spCreated.isEmpty()) metaBits << spCreated;
       if (!spExpires.isEmpty()) metaBits << spExpires;
-      it->setData(kMetaRole, metaBits.join(QStringLiteral(" · ")));
+      it->setData(META_ROLE, metaBits.join(QStringLiteral(" · ")));
     }
     it->setData(Qt::UserRole + 3, sp.name.isEmpty() ? QStringLiteral("Untitled") : sp.name);
     it->setFlags(it->flags() | Qt::ItemIsUserCheckable);

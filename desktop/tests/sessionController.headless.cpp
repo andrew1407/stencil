@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
       sc.scheduleViewSave(ready());
     }
     check(sessions == 0 && views == 0, "neither save runs synchronously");
-    pump(SessionController::kAutosaveMs + 250);
+    pump(SessionController::AUTOSAVE_MS + 250);
     check(sessions == 1, "five edits in a burst coalesce into one session write");
     check(views == 1, "…and one view write");
   }
@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
     sc.scheduleAutosave(true, off);
     sc.scheduleViewSave(off);
     sc.scheduleAutosave(false, ready());   // autosave turned off in Settings
-    pump(SessionController::kAutosaveMs + 250);
+    pump(SessionController::AUTOSAVE_MS + 250);
     check(sessions == 0 && views == 0, "a vetoed schedule arms no timer at all");
   }
   // A server project that gains sync mid-debounce still writes: the remote veto is
@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
     Gates g = ready();
     g.remoteUnsynced = true;
     sc.scheduleAutosave(true, g);
-    pump(SessionController::kAutosaveMs + 250);
+    pump(SessionController::AUTOSAVE_MS + 250);
     check(sessions == 1, "the autosave timer arms regardless of the remote sync setting");
   }
 

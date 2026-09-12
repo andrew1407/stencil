@@ -1,6 +1,6 @@
 #pragma once
 
-// Shared by the chatDock*.cpp partials. Nested in `chatdock`: names like repolish and kAppearMs
+// Shared by the chatDock*.cpp partials. Nested in `chatdock`: names like repolish and APPEAR_MS
 // also live in other files' anonymous namespaces.
 
 #include <QSize>
@@ -12,30 +12,30 @@ class QWidget;
 
 namespace stencil::gui::chatdock {
 
-  inline constexpr int kThumbEdge = 160;
-  inline constexpr int kButtonEdge = 23;
-  inline constexpr int kHeaderIcon = 13;
+  inline constexpr int THUMB_EDGE = 160;
+  inline constexpr int BUTTON_EDGE = 23;
+  inline constexpr int HEADER_ICON = 13;
   // The context menu's assistant panel mirrors these exact numbers.
-  inline constexpr int kAccentEdge = 30;
-  inline constexpr int kAccentIcon = 20;
+  inline constexpr int ACCENT_EDGE = 30;
+  inline constexpr int ACCENT_ICON = 20;
   // Qt draws a SQUARE box when border-radius exceeds half the height; 14 keeps the chip a pill.
-  inline constexpr int kSuggestChipRadius = 14;
+  inline constexpr int SUGGEST_CHIP_RADIUS = 14;
   // browser css/animations.css chatCardLeave, motion.js CHAT_LEAVE_MS
-  inline constexpr int kChatLeaveMs = 260;
-  inline constexpr int kChipNameMaxPx = 150;
+  inline constexpr int CHAT_LEAVE_MS = 260;
+  inline constexpr int CHIP_NAME_MAX_PX = 150;
   // A removed chip HOLDS its slot so the scatter reads before the neighbours slide.
-  inline constexpr int kChatChipHoldMs = 140;
+  inline constexpr int CHAT_CHIP_HOLD_MS = 140;
   // browser/extension chatController.js MAX_ATTACHMENTS; past it the queue is refused (§7).
-  inline constexpr int kMaxAttachments = 3;
+  inline constexpr int MAX_ATTACHMENTS = 3;
   // browser .chat-jump-btn / .chat-row-menu-btn rest opacity on all three surfaces
-  inline constexpr double kGhostRestOpacity = 0.7;
+  inline constexpr double GHOST_REST_OPACITY = 0.7;
   // The transcript follows new content only inside this band.
-  inline constexpr int kStickyBottomPx = 40;
+  inline constexpr int STICKY_BOTTOM_PX = 40;
 
-  inline constexpr int kAppearMs = 140;
-  inline constexpr int kAppearSlidePx = 6;
+  inline constexpr int APPEAR_MS = 140;
+  inline constexpr int APPEAR_SLIDE_PX = 6;
   // Compact default when torn off; 385 = 380 + 5 px so the per-row "…" clears the transcript edge.
-  inline constexpr QSize kFloatingSize{385, 480};
+  inline constexpr QSize FLOATING_SIZE{385, 480};
 
   // The snapshot was taken already, so the bubble melts into its own dust rather than vanishing.
   void fadeOutAndDelete(QWidget* w);

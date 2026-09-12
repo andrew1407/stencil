@@ -5,7 +5,7 @@ namespace stencil::gui {
 
   // DisintegrateOverlay::dustGrid on this family's cell size and ceiling.
   void ctl::revealGrid(const QSize& size, int* cols, int* rows) {
-    DisintegrateOverlay::dustGrid(size, kControlRevealCellPx, kControlRevealMaxCells,
+    DisintegrateOverlay::dustGrid(size, CONTROL_REVEAL_CELL_PX, CONTROL_REVEAL_MAX_CELLS,
                                   cols, rows);
   }
 
@@ -13,41 +13,41 @@ namespace stencil::gui {
   // The overlay self-deletes on landing; destroyed() clears the handle, so it never dangles.
   void ctl::trackRevealFx(QWidget* w, DisintegrateOverlay* fx) {
     fx->setProperty("stencilRevealOwner", QVariant::fromValue<QObject*>(w));
-    w->setProperty(kRevealFxProperty, QVariant::fromValue<QObject*>(fx));
+    w->setProperty(REVEAL_FX_PROPERTY, QVariant::fromValue<QObject*>(fx));
     QObject::connect(fx, &QObject::destroyed, w,
-                     [w] { w->setProperty(kRevealFxProperty, QVariant()); });
+                     [w] { w->setProperty(REVEAL_FX_PROPERTY, QVariant()); });
   }
 
 
   // The layout's own cap, parked while a slide holds maximumWidth at 0.
   int ctl::parkMaxWidth(QWidget* w) {
-    const QVariant had = w->property(kRevealMaxWidthProperty);
+    const QVariant had = w->property(REVEAL_MAX_WIDTH_PROPERTY);
     const int natural = had.isValid() ? had.toInt() : w->maximumWidth();
-    w->setProperty(kRevealMaxWidthProperty, natural);
+    w->setProperty(REVEAL_MAX_WIDTH_PROPERTY, natural);
     return natural;
   }
 
   void ctl::handBackMaxWidth(QWidget* w, int natural) {
     w->setMaximumWidth(natural);
-    w->setProperty(kRevealMaxWidthProperty, QVariant());
+    w->setProperty(REVEAL_MAX_WIDTH_PROPERTY, QVariant());
   }
 
 
   // Deleting a running animation emits no finished(), so a cancelled slide never runs its handler.
   void ctl::trackSlide(QWidget* w, QObject* anim, bool opening) {
-    anim->setProperty(kRevealOpeningProperty, opening);
-    w->setProperty(kRevealSlideProperty, QVariant::fromValue<QObject*>(anim));
+    anim->setProperty(REVEAL_OPENING_PROPERTY, opening);
+    w->setProperty(REVEAL_SLIDE_PROPERTY, QVariant::fromValue<QObject*>(anim));
     QObject::connect(anim, &QObject::destroyed, w,
-                     [w] { w->setProperty(kRevealSlideProperty, QVariant()); });
+                     [w] { w->setProperty(REVEAL_SLIDE_PROPERTY, QVariant()); });
   }
 
 
   void ctl::settleReveal(QWidget* w) {
     if (!w) return;
-    delete w->property(kRevealFxProperty).value<QObject*>();  // destroyed() clears the handle
-    delete w->property(kRevealSlideProperty).value<QObject*>();
+    delete w->property(REVEAL_FX_PROPERTY).value<QObject*>();  // destroyed() clears the handle
+    delete w->property(REVEAL_SLIDE_PROPERTY).value<QObject*>();
     if (w->graphicsEffect()) w->setGraphicsEffect(nullptr);
-    const QVariant parked = w->property(kRevealMaxWidthProperty);
+    const QVariant parked = w->property(REVEAL_MAX_WIDTH_PROPERTY);
     if (parked.isValid()) handBackMaxWidth(w, parked.toInt());
   }
 
@@ -73,8 +73,8 @@ namespace stencil::gui {
     DisintegrateOverlay* fx = DisintegrateOverlay::overPixmaps(
         pm, QPixmap(), at, host,
         gather ? DisintegrateOverlay::Sweep::Gather : DisintegrateOverlay::Sweep::Fall,
-        cols, rows, ms, kControlRevealSpread, kControlRevealPadPx,
-        QString::fromLatin1(kControlRevealObjectName));
+        cols, rows, ms, CONTROL_REVEAL_SPREAD, CONTROL_REVEAL_PAD_PX,
+        QString::fromLatin1(CONTROL_REVEAL_OBJECT_NAME));
     if (fx) {
       trackRevealFx(w, fx);
       fx->setFollow(w);   // a sibling's slot opening in the same turn moves this one

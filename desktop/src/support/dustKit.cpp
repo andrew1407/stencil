@@ -8,24 +8,24 @@ namespace stencil::support {
     using namespace style;
     StyleFrame out;
     if (s != ParticleStyle::Water && s != ParticleStyle::Fire) return out;
-    const double env = std::sin(kPi * p);
-    const double phase = w * 2 * kPi;
+    const double env = std::sin(PI * p);
+    const double phase = w * 2 * PI;
     const double sec = ms / 1000.0;
     if (s == ParticleStyle::Water) {
-      out.sy = std::min(len * kWaterSagShare, kWaterSagMaxPx) * (0.6 + 0.4 * w) * env;
-      out.sx = std::min(len * kWaterSwayShare, kWaterSwayMaxPx) * env
-             * std::sin(p * wave(kWaterSwayWaves, w) * 2 * kPi + phase);
-      out.scale = 1 + kWaterSwell * env;
-      out.glow = 1 - kWaterShimmerDepth * 0.5 * (1 + std::sin(sec * wave(kWaterShimmerHz, w) * 2 * kPi + phase));
-      out.mix = 0.5 + 0.5 * std::sin(sec * wave(kWaterGlistenHz, w) * 2 * kPi + phase);
+      out.sy = std::min(len * WATER_SAG_SHARE, WATER_SAG_MAX_PX) * (0.6 + 0.4 * w) * env;
+      out.sx = std::min(len * WATER_SWAY_SHARE, WATER_SWAY_MAX_PX) * env
+             * std::sin(p * wave(WATER_SWAY_WAVES, w) * 2 * PI + phase);
+      out.scale = 1 + WATER_SWELL * env;
+      out.glow = 1 - WATER_SHIMMER_DEPTH * 0.5 * (1 + std::sin(sec * wave(WATER_SHIMMER_HZ, w) * 2 * PI + phase));
+      out.mix = 0.5 + 0.5 * std::sin(sec * wave(WATER_GLISTEN_HZ, w) * 2 * PI + phase);
     } else {
-      out.sy = -std::min(len * kFireLiftShare, kFireLiftMaxPx) * (0.5 + 0.5 * w) * env;
-      out.sx = std::min(len * kFireWaverShare, kFireWaverMaxPx) * env
-             * std::sin(p * wave(kFireWaverWaves, w) * 2 * kPi + phase);
-      const double dim = 0.5 * (1 + std::sin(sec * wave(kFireFlickerHz, w) * 2 * kPi + phase));   // 0 bright … 1 dim
-      out.glow = 1 - kFireFlickerDepth * dim;
-      out.scale = 1 + kFireFlare * env * (1 - dim);
-      out.mix = std::clamp(kFireCoolHash * w + (1 - kFireCoolHash) * away, 0.0, 1.0);
+      out.sy = -std::min(len * FIRE_LIFT_SHARE, FIRE_LIFT_MAX_PX) * (0.5 + 0.5 * w) * env;
+      out.sx = std::min(len * FIRE_WAVER_SHARE, FIRE_WAVER_MAX_PX) * env
+             * std::sin(p * wave(FIRE_WAVER_WAVES, w) * 2 * PI + phase);
+      const double dim = 0.5 * (1 + std::sin(sec * wave(FIRE_FLICKER_HZ, w) * 2 * PI + phase));   // 0 bright … 1 dim
+      out.glow = 1 - FIRE_FLICKER_DEPTH * dim;
+      out.scale = 1 + FIRE_FLARE * env * (1 - dim);
+      out.mix = std::clamp(FIRE_COOL_HASH * w + (1 - FIRE_COOL_HASH) * away, 0.0, 1.0);
     }
     return out;
   }
@@ -43,8 +43,8 @@ namespace stencil::support {
 
   int tintOf(double w) {
     const double pick = fract(w * 13.73 + 0.41);
-    if (pick >= kTintShare) return -1;
-    return std::min(kTintStops - 1, int(std::floor(pick / kTintShare * kTintStops)));
+    if (pick >= TINT_SHARE) return -1;
+    return std::min(TINT_STOPS - 1, int(std::floor(pick / TINT_SHARE * TINT_STOPS)));
   }
 
 
@@ -61,8 +61,8 @@ namespace stencil::support {
     if (tint == 0) return dark ? QColor(255, 255, 255) : QColor(0x1f, 0x1f, 0x1f);
     if (tint == 1) return QColor(180, 180, 180);   // #b4b4b4
     if (tint == 2) return QColor(110, 110, 110);   // #6e6e6e
-    if (tint == 3) return towards(accent, 255, 1.0 - kTintAccentShare);
-    return dark ? towards(accent, 255, 1.0 - kTintPaleShare) : towards(accent, 0, 1.0 - kTintAccentShare);
+    if (tint == 3) return towards(accent, 255, 1.0 - TINT_ACCENT_SHARE);
+    return dark ? towards(accent, 255, 1.0 - TINT_PALE_SHARE) : towards(accent, 0, 1.0 - TINT_ACCENT_SHARE);
   }
 
 
@@ -84,7 +84,7 @@ namespace stencil::support {
   }
 
   EaseLut::EaseLut(double x1, double y1, double x2, double y2) {
-    for (int i = 0; i <= kSteps; i++) curve_[i] = bezierY(double(i) / kSteps, x1, y1, x2, y2);
+    for (int i = 0; i <= STEPS; i++) curve_[i] = bezierY(double(i) / STEPS, x1, y1, x2, y2);
     curve_.front() = 0.0;
     curve_.back() = 1.0;
   }

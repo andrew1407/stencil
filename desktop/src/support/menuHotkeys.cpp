@@ -115,8 +115,8 @@ namespace stencil::support {
       if (!r.isValid() || !row.action->isVisible()) { row.chip->hide(); continue; }
       if (row.chip->isHidden()) row.chip->show();
       // Right-pinned like the browser's .ctx-hotkey; compact menus have no submenu arrow.
-      const int kMenuRightPad = compact_ ? 10 : gui::kMenuItemRightPadPx;
-      const int x = r.right() - kMenuRightPad - row.chip->width();
+      const int MENU_RIGHT_PAD = compact_ ? 10 : gui::MENU_ITEM_RIGHT_PAD_PX;
+      const int x = r.right() - MENU_RIGHT_PAD - row.chip->width();
       const QPoint at(qMax(r.left(), x), r.top() + (r.height() - row.chip->height()) / 2);
       if (row.chip->pos() != at) row.chip->move(at);
     }
@@ -130,7 +130,7 @@ namespace stencil::support {
       if (row.action != a || !row.chip) continue;
       if (!row.shake) {
         row.shake = new QVariantAnimation(this);
-        row.shake->setDuration(gui::AppTooltip::kShakeMs);
+        row.shake->setDuration(gui::AppTooltip::SHAKE_MS);
         row.shake->setStartValue(0.0);
         row.shake->setEndValue(1.0);
         gui::TipBody* chip = row.chip;

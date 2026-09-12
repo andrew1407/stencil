@@ -3,7 +3,7 @@
 namespace stencil::gui {
 
   AppTooltip::AppTooltip(QWidget* parent) : QFrame(parent, Qt::ToolTip) {
-    setObjectName(QString::fromLatin1(kObjectName));
+    setObjectName(QString::fromLatin1(OBJECT_NAME));
     setAttribute(Qt::WA_TransparentForMouseEvents);
     setAttribute(Qt::WA_ShowWithoutActivating);
     setFocusPolicy(Qt::NoFocus);
@@ -14,12 +14,12 @@ namespace stencil::gui {
     body_->setObjectName(QStringLiteral("stencilAppTooltipBody"));
     // Browser #app-tooltip max-width: 380px.
     body_->setWordWrap(true);
-    body_->setMaximumWidth(kMaxTipWidth);
+    body_->setMaximumWidth(MAX_TIP_WIDTH);
     lay->addWidget(body_);
     hide();
 
     fade_ = new QVariantAnimation(this);
-    fade_->setDuration(kFadeMs);
+    fade_->setDuration(FADE_MS);
     QObject::connect(fade_, &QVariantAnimation::valueChanged, this,
                      [this](const QVariant& v) { setWindowOpacity(v.toDouble()); });
     QObject::connect(fade_, &QVariantAnimation::finished, this, [this] {
@@ -46,7 +46,7 @@ namespace stencil::gui {
     // in QToolTip's (11pt on macOS vs 13pt), which broke a ⇧⌘X chord onto two lines.
     body_->ensurePolished();
     const QFont font = body_->font();
-    const QVariant plain = owner ? owner->property(kPlainTipProperty) : QVariant();
+    const QVariant plain = owner ? owner->property(PLAIN_TIP_PROPERTY) : QVariant();
     const QString rich = plain.isValid()                    ? enrichedToolTip(plain.toString(), &font)
                          : text.trimmed().startsWith('<') ? text
                                                            : enrichedToolTip(text, &font);
@@ -74,13 +74,13 @@ namespace stencil::gui {
       dusted = appearing && dust(true);
       if (dusted) {
         setWindowOpacity(0.0);
-        holdFadeKeys(fade_, kDustInMs);
+        holdFadeKeys(fade_, DUST_IN_MS);
         // No cursor tracking mid-flight: the cloud was aimed where the tip was placed
         // (browser controlTooltip.js).
-        placeHold_.setRemainingTime(kDustInMs);
+        placeHold_.setRemainingTime(DUST_IN_MS);
       } else {
         fade_->setKeyValues({});
-        fade_->setDuration(kFadeMs);
+        fade_->setDuration(FADE_MS);
         fade_->setStartValue(from);
         fade_->setEndValue(1.0);
       }
@@ -88,7 +88,7 @@ namespace stencil::gui {
     }
     // The keycap nudge waits for the gather — a shake behind the motes cannot be seen.
     if (appearing && hasKeycaps(rich)) {
-      if (dusted) shakeDelay()->start(kDustInMs);
+      if (dusted) shakeDelay()->start(DUST_IN_MS);
       else shakeKeys();
     }
   }
@@ -109,7 +109,7 @@ namespace stencil::gui {
     owner_.clear();
     closing_ = true;
     fade_->setKeyValues({});
-    fade_->setDuration(dusted ? kDustHandOverMs : kFadeMs);
+    fade_->setDuration(dusted ? DUST_HAND_OVER_MS : FADE_MS);
     fade_->setStartValue(windowOpacity());
     fade_->setEndValue(0.0);
     fade_->start();
@@ -123,7 +123,7 @@ namespace stencil::gui {
     if (body_->capCount() == 0) return;
     if (!shake_) {
       shake_ = new QVariantAnimation(this);
-      shake_->setDuration(kShakeMs);
+      shake_->setDuration(SHAKE_MS);
       shake_->setStartValue(0.0);
       shake_->setEndValue(1.0);
       QObject::connect(shake_, &QVariantAnimation::valueChanged, this,
@@ -145,7 +145,7 @@ namespace stencil::gui {
     return flyTipDust(this, owner->window(),
                       origin_.isValid() ? origin_.center()
                                         : owner->mapToGlobal(owner->rect().center()), gather,
-                      gather ? kDustInMs : kDustOutMs,
+                      gather ? DUST_IN_MS : DUST_OUT_MS,
                       /*escapeHost=*/true, /*paintNow=*/!gather)
            != nullptr;
   }
@@ -154,10 +154,10 @@ namespace stencil::gui {
     const QScreen* scr = QGuiApplication::screenAt(cursor);
     if (!scr) scr = QGuiApplication::primaryScreen();
     const QRect avail = scr ? scr->availableGeometry() : QRect(0, 0, 1024, 768);
-    int left = cursor.x() + kGap;
-    int top = cursor.y() + kGap;
-    if (left + width() > avail.right()) left = cursor.x() - width() - kGap;
-    if (top + height() > avail.bottom()) top = cursor.y() - height() - kGap;
+    int left = cursor.x() + GAP;
+    int top = cursor.y() + GAP;
+    if (left + width() > avail.right()) left = cursor.x() - width() - GAP;
+    if (top + height() > avail.bottom()) top = cursor.y() - height() - GAP;
     left = qBound(avail.left() + 10, left, qMax(avail.left() + 10, avail.right() - width()));
     top = qBound(avail.top() + 10, top, qMax(avail.top() + 10, avail.bottom() - height()));
     move(left, top);

@@ -41,7 +41,7 @@ namespace stencil::gui {
       void apply() {
         const QList<QWidget*> all = buttons();
         if (all.isEmpty()) return;   // the caller has not added its buttons yet
-        const int avail = host_->width() - 2 - kPadX * 2;
+        const int avail = host_->width() - 2 - PAD_X * 2;
         const int gap = actions_->spacing();
         // Greedy lines (flex-wrap); hidden buttons ride along, taking no room.
         QList<QList<QWidget*>> lines{{}};
@@ -55,7 +55,7 @@ namespace stencil::gui {
           }
           lines.last().append(w);
         }
-        setWrapped(lines.size() > 1 || avail - firstLineW - gap < kFooterHintMinW);
+        setWrapped(lines.size() > 1 || avail - firstLineW - gap < FOOTER_HINT_MIN_W);
         setLines(lines);
       }
 
@@ -147,14 +147,14 @@ namespace stencil::gui {
     auto* footer = new QHBoxLayout;
     footer->setSpacing(8);
     if (hint.isEmpty() && !liveHint) {
-      footer->setContentsMargins(kPadX, kFooterPadY, kPadX, kFooterPadY);
+      footer->setContentsMargins(PAD_X, FOOTER_PAD_Y, PAD_X, FOOTER_PAD_Y);
       footer->addStretch(1);
       chrome.root->addLayout(footer);
       return footer;
     }
     // The padding moves to the stack so every line shares it.
     auto* stack = new QVBoxLayout;
-    stack->setContentsMargins(kPadX, kFooterPadY, kPadX, kFooterPadY);
+    stack->setContentsMargins(PAD_X, FOOTER_PAD_Y, PAD_X, FOOTER_PAD_Y);
     stack->setSpacing(8);
     footer->setContentsMargins(0, 0, 0, 0);
     auto* h = new QLabel(hint, dlg);
@@ -181,7 +181,7 @@ namespace stencil::gui {
         // Only while the dialog IS the window: as a popover it is re-parented into the main window.
         if (win && win == owner) {
           // The stack pads both lines; the root insets 1px a side.
-          const int need = kPadX * 2 + 2 + footerButtonsWidth(footer, h);
+          const int need = PAD_X * 2 + 2 + footerButtonsWidth(footer, h);
           if (need > win->minimumWidth()) win->setMinimumWidth(need);
         }
         if (wrap) wrap->apply();

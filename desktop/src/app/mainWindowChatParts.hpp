@@ -16,13 +16,13 @@
 
 namespace stencil::gui {
 
-  inline constexpr int kChatImageMaxEdge = 1568; // long-edge downscale bound (§7)
+  inline constexpr int CHAT_IMAGE_MAX_EDGE = 1568; // long-edge downscale bound (§7)
 
   // ≤1568 px on the long edge, PNG base64 (contract §7).
   inline llm::ChatImage encodeChatImage(const QImage& img) {
     QImage scaled = img;
-    if (std::max(img.width(), img.height()) > kChatImageMaxEdge)
-      scaled = img.scaled(kChatImageMaxEdge, kChatImageMaxEdge, Qt::KeepAspectRatio,
+    if (std::max(img.width(), img.height()) > CHAT_IMAGE_MAX_EDGE)
+      scaled = img.scaled(CHAT_IMAGE_MAX_EDGE, CHAT_IMAGE_MAX_EDGE, Qt::KeepAspectRatio,
                           Qt::SmoothTransformation);
     llm::ChatImage out;
     out.mediaType = QStringLiteral("image/png");
@@ -34,12 +34,12 @@ namespace stencil::gui {
   llm::ChatImage encodeEdgeMap(const QImage& img);
 
   // Appended only when the edge map is attached (llm-contract.md §7, verbatim).
-  constexpr char kEdgeMapSuffix[] =
+  constexpr char EDGE_MAP_SUFFIX[] =
       "The second attached image is an edge-map render of the working image at the "
       "same pixel coordinates: use it to place outline points on real edges.";
 
   // §7 auto-continuation user-text: a message to the MODEL. It rides in chatHistory_, so every display path filters it out.
-  constexpr char kChatContinuationNote[] =
+  constexpr char CHAT_CONTINUATION_NOTE[] =
       "[The working image is now the picture those actions loaded — continue with it.]";
 
   // Dims included so equal byte runs with different geometry can't collide.
@@ -70,9 +70,9 @@ namespace stencil::gui {
     }
   }
 
-  inline constexpr int kToastMaxChars = 90;  // shared truncation bound
-  inline constexpr int kToastMs = 6000;      // auto-hide
-  inline constexpr int kToastMargin = 18;    // bottom-left anchor inset
+  inline constexpr int TOAST_MAX_CHARS = 90;  // shared truncation bound
+  inline constexpr int TOAST_MS = 6000;      // auto-hide
+  inline constexpr int TOAST_MARGIN = 18;    // bottom-left anchor inset
 
   // Completion toast while the chat dock is hidden (browser chatPanel closedToast parity); auto-hides after 6 s.
   class ChatToast : public QWidget {
@@ -99,12 +99,12 @@ namespace stencil::gui {
               "#chatToast{background:rgba(40,46,60,242);border:1px solid rgba(255,255,255,42);"
               "border-left:3px solid %1;border-radius:8px;}"
               "#chatToast QLabel{color:white;background:transparent;}")
-              .arg(QLatin1String(success ? kChatStatusOkColor : kChatStatusBadColor)));
+              .arg(QLatin1String(success ? CHAT_STATUS_OK_COLOR : CHAT_STATUS_BAD_COLOR)));
       label_->setText(text);
       reposition();
       show();
       raise();
-      timer_->start(kToastMs);
+      timer_->start(TOAST_MS);
     }
 
    protected:
@@ -122,7 +122,7 @@ namespace stencil::gui {
     void reposition() {
       adjustSize();
       if (QWidget* p = parentWidget())
-        move(kToastMargin, p->height() - height() - kToastMargin);
+        move(TOAST_MARGIN, p->height() - height() - TOAST_MARGIN);
     }
 
     QLabel* label_ = nullptr;
@@ -138,12 +138,12 @@ namespace stencil::gui {
   }
 
   // Browser .chat-status-tip state colours, readable on both QToolTip backgrounds.
-  inline constexpr const char* kTipOkColor = "#28a745";
-  inline constexpr const char* kTipErrorColor = "#dc3545";
-  inline constexpr const char* kTipConnectingColor = "#e0a800";
+  inline constexpr const char* TIP_OK_COLOR = "#28a745";
+  inline constexpr const char* TIP_ERROR_COLOR = "#dc3545";
+  inline constexpr const char* TIP_CONNECTING_COLOR = "#e0a800";
 
   // Browser PROBE_TTL_MS (llm/chatSession.js).
-  inline constexpr qint64 kLlmProbeTtlMs = 15000;
+  inline constexpr qint64 LLM_PROBE_TTL_MS = 15000;
 
   inline QString tipColored(const char* color, const QString& text) {
     return QStringLiteral("<font color=\"%1\">%2</font>")

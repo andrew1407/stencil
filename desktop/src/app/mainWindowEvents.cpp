@@ -61,7 +61,7 @@ namespace stencil::gui {
     // While a TEXT BOX has focus the editing chords belong to it (⌥⌫ deleted the selected LINE mid-typing); claiming ShortcutOverride hands the key back.
     if (event->type() == QEvent::ShortcutOverride && isTextEntry(obj)) {
       auto* ke = static_cast<QKeyEvent*>(event);
-      static const QKeySequence::StandardKey kEditing[] = {
+      static const QKeySequence::StandardKey EDITING[] = {
           QKeySequence::DeleteStartOfWord, QKeySequence::DeleteEndOfWord,
           QKeySequence::DeleteCompleteLine, QKeySequence::MoveToPreviousWord,
           QKeySequence::MoveToNextWord,     QKeySequence::SelectPreviousWord,
@@ -69,7 +69,7 @@ namespace stencil::gui {
           QKeySequence::MoveToEndOfLine,    QKeySequence::SelectStartOfLine,
           QKeySequence::SelectEndOfLine,    QKeySequence::Undo,
           QKeySequence::Redo,               QKeySequence::SelectAll};
-      for (const auto key : kEditing) {
+      for (const auto key : EDITING) {
         if (ke->matches(key)) {
           event->accept();
           return true;

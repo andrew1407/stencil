@@ -87,7 +87,7 @@ namespace stencil::gui {
     headerW->setCursor(Qt::OpenHandCursor);
     new HeaderDrag(headerW, dlg);
     auto* header = new QHBoxLayout(headerW);
-    header->setContentsMargins(kPadX, kHeaderPadY, kPadX, kHeaderPadY);
+    header->setContentsMargins(PAD_X, HEADER_PAD_Y, PAD_X, HEADER_PAD_Y);
     header->setSpacing(8);
     if (!iconName.isEmpty()) {
       auto* glyph = new QLabel(dlg);
@@ -101,7 +101,7 @@ namespace stencil::gui {
     header->addStretch(1);
     c.close = new QPushButton(QObject::tr("Close"), dlg);
     c.close->setObjectName(QStringLiteral("modalClosePill"));
-    c.close->setProperty(kShimmerRadiusProperty, 13);   // its QSS radius, so the sweep stays inside
+    c.close->setProperty(SHIMMER_RADIUS_PROPERTY, 13);   // its QSS radius, so the sweep stays inside
     c.close->setIcon(labelIcon("x", dlg->palette().color(QPalette::WindowText), 14));
     c.close->setCursor(Qt::PointingHandCursor);
     // Never the default button: Enter in a form must not dismiss the dialog.
@@ -113,8 +113,8 @@ namespace stencil::gui {
     c.root->addWidget(modalDivider(dlg));
 
     c.body = new QVBoxLayout;
-    c.body->setContentsMargins(kPadX, kBodyPadY, kPadX, kBodyPadY);
-    c.body->setSpacing(kBodySpacing);
+    c.body->setContentsMargins(PAD_X, BODY_PAD_Y, PAD_X, BODY_PAD_Y);
+    c.body->setSpacing(BODY_SPACING);
     c.root->addLayout(c.body, 1);
     // Deferred a turn, because the caller fills the body after this returns.
     installHoverShimmerLater(dlg);
@@ -161,7 +161,7 @@ namespace stencil::gui {
     QObject::connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
     QObject::connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
     // Browser: shared .app-modal width, height sized to the question alone.
-    dlg.setFixedWidth(kModalWidth);
+    dlg.setFixedWidth(MODAL_WIDTH);
     dlg.adjustSize();
     okBtn->setFocus();
     armFlight(dlg, spec.flight);

@@ -17,13 +17,13 @@ namespace stencil::gui {
   // 150ms OutCubic (straight to the end state under reduced motion).
   class DockHoverOverlay : public QWidget {
    public:
-    static constexpr int kMs = 150;
+    static constexpr int HOVER_MS = 150;
 
     explicit DockHoverOverlay(QWidget* parent) : QWidget(parent) {
       setAttribute(Qt::WA_TransparentForMouseEvents, true);   // the separator keeps the drag
       setAttribute(Qt::WA_NoSystemBackground, true);
       anim_ = new QVariantAnimation(this);
-      anim_->setDuration(kMs);
+      anim_->setDuration(HOVER_MS);
       anim_->setEasingCurve(QEasingCurve::OutCubic);
       QObject::connect(anim_, &QVariantAnimation::valueChanged, this,
                        [this](const QVariant& v) { hot_ = v.toDouble(); update(); });
@@ -51,9 +51,9 @@ namespace stencil::gui {
    public:
     // Browser .panel-resizer::before: 3px bar, 34px at rest, 52px and accent hovered,
     // radius 2; the browser transitions 0.15s.
-    static constexpr double kBarW = 3.0;
-    static constexpr double kBarH = 34.0;
-    static constexpr double kBarHotH = 52.0;
+    static constexpr double BAR_W = 3.0;
+    static constexpr double BAR_H = 34.0;
+    static constexpr double BAR_HOT_H = 52.0;
 
     using DockHoverOverlay::DockHoverOverlay;
 
@@ -70,10 +70,10 @@ namespace stencil::gui {
       const auto ch = [this](int a, int b) { return int(std::lround(a + (b - a) * hot_)); };
       const QColor c(ch(rest_.red(), accent_.red()), ch(rest_.green(), accent_.green()),
                      ch(rest_.blue(), accent_.blue()));
-      const double h = kBarH + (kBarHotH - kBarH) * hot_;
+      const double h = BAR_H + (BAR_HOT_H - BAR_H) * hot_;
       p.setPen(Qt::NoPen);
       p.setBrush(c);
-      p.drawRoundedRect(QRectF((width() - kBarW) / 2.0, (height() - h) / 2.0, kBarW, h), 2, 2);
+      p.drawRoundedRect(QRectF((width() - BAR_W) / 2.0, (height() - h) / 2.0, BAR_W, h), 2, 2);
     }
 
    private:
@@ -85,9 +85,9 @@ namespace stencil::gui {
   // the separator, driven from MainWindow's eventFilter.
   class DockEdgeOverlay : public DockHoverOverlay {
    public:
-    static constexpr double kAlpha = 0.30;   // browser: color-mix(--accent 30%, transparent)
+    static constexpr double ALPHA = 0.30;   // browser: color-mix(--accent 30%, transparent)
     // The horizontal separators are a hairline (theme.cpp), and a 1px tint is no affordance.
-    static constexpr int kMinThickness = 6;
+    static constexpr int MIN_THICKNESS = 6;
 
     using DockHoverOverlay::DockHoverOverlay;
 
@@ -97,7 +97,7 @@ namespace stencil::gui {
     void paintEvent(QPaintEvent*) override {
       if (hot_ <= 0.001 || !accent_.isValid()) return;
       QColor c = accent_;
-      c.setAlphaF(kAlpha * hot_);
+      c.setAlphaF(ALPHA * hot_);
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing, true);
       p.fillRect(rect(), c);

@@ -33,13 +33,13 @@ namespace stencil::gui {
   }  // namespace
 
   bool isVideoFileName(const QString& path) {
-    static const QStringList kVideoExt = canonExtensions(QStringLiteral("video"));
-    return kVideoExt.contains(QFileInfo(path).suffix().toLower());
+    static const QStringList VIDEO_EXT = canonExtensions(QStringLiteral("video"));
+    return VIDEO_EXT.contains(QFileInfo(path).suffix().toLower());
   }
 
   bool isImageFileName(const QString& path) {
-    static const QStringList kImageExt = canonExtensions(QStringLiteral("image"));
-    return kImageExt.contains(QFileInfo(path).suffix().toLower());
+    static const QStringList IMAGE_EXT = canonExtensions(QStringLiteral("image"));
+    return IMAGE_EXT.contains(QFileInfo(path).suffix().toLower());
   }
 
 }

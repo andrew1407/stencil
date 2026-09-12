@@ -138,7 +138,7 @@ namespace stencil::gui {
     const double ps = line.pointSize;
     const double scale = scale_ > 0 ? scale_ : 1.0;
     if (scale >= 1.0) return ps;
-    return std::max(ps, (ps + kCloseSlack) / scale - kCloseSlack);
+    return std::max(ps, (ps + CLOSE_SLACK) / scale - CLOSE_SLACK);
   }
 
 }  // namespace stencil::gui

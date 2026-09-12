@@ -43,7 +43,7 @@ core module also means:
 - change the matching `browser/js/…` fallback so the two stay identical — including
   `browser/js/core/formulaEngine.js` ↔ `core/parse/formulaParser`, which are **both real
   recursive-descent parsers** (no `eval`, no `new Function`, on either side) and must agree
-  operator for operator, down to `MAX_DEPTH` ↔ `kMaxDepth`,
+  operator for operator, down to the shared `MAX_DEPTH`,
 - update **both** test suites (`core/tests/*` are ports of `browser/tests/*`),
 - run `cd browser && npm run build-wasm && npm test` (the wasm-parity test) to confirm they
   didn't diverge.

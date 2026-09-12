@@ -19,13 +19,13 @@ namespace stencil::gui {
 
   // Fade band per viewport edge, px. A real band at the top, a token one at the bottom:
   // the transcript's NEWEST card is pinned flush there and must not read as dimmed.
-  inline constexpr int kRevealTopBandPx = 64;
-  inline constexpr int kRevealBottomBandPx = 16;
+  inline constexpr int REVEAL_TOP_BAND_PX = 64;
+  inline constexpr int REVEAL_BOTTOM_BAND_PX = 16;
   // Browser .reveal-item: 0.18.
-  inline constexpr double kRevealMinOpacity = 0.18;
+  inline constexpr double REVEAL_MIN_OPACITY = 0.18;
   // Browser REVEAL_MAX_VISIBLE_DISSOLVE: a row you can still see WHOLE never dissolves
   // away completely (a 29px card inside a 64px band would vanish while on screen).
-  inline constexpr double kRevealMaxVisibleDissolve = 0.75;
+  inline constexpr double REVEAL_MAX_VISIBLE_DISSOLVE = 0.75;
 
   // 0 while wholly on screen, rising with the CLIPPED share, 1 once gone. Only the part
   // the viewport already cuts off dissolves — legibility first. Mirrors motion.js. Pure.
@@ -45,20 +45,20 @@ namespace stencil::gui {
     return 1.0 - static_cast<double>(visible) / std::min(h, viewH);
   }
 
-  // Overlap with the clear box, ramped from kRevealMinOpacity to 1.0. Measuring the
+  // Overlap with the clear box, ramped from REVEAL_MIN_OPACITY to 1.0. Measuring the
   // OVERLAP keeps a short row flush to the bottom edge readable. Pure.
   inline double revealOpacity(int top, int bottom, int viewH,
-                              int topBand = kRevealTopBandPx,
-                              int bottomBand = kRevealBottomBandPx) {
+                              int topBand = REVEAL_TOP_BAND_PX,
+                              int bottomBand = REVEAL_BOTTOM_BAND_PX) {
     if (viewH <= 0 || bottom <= top) return 1.0;
-    if (bottom <= 0 || top >= viewH) return kRevealMinOpacity;   // fully out of view
+    if (bottom <= 0 || top >= viewH) return REVEAL_MIN_OPACITY;   // fully out of view
     const int clearTop = topBand, clearBottom = viewH - bottomBand;
     if (clearBottom <= clearTop) return 1.0;   // viewport too short to have bands at all
     const int overlap = std::max(0, std::min(bottom, clearBottom) - std::max(top, clearTop));
     // Capped by the box's own height: a TALLER item counts as fully revealed once it fills it.
     const int den = std::min(bottom - top, clearBottom - clearTop);
     const double frac = std::min(1.0, static_cast<double>(overlap) / den);
-    return kRevealMinOpacity + frac * (1.0 - kRevealMinOpacity);
+    return REVEAL_MIN_OPACITY + frac * (1.0 - REVEAL_MIN_OPACITY);
   }
 
   // `itemRect` is the delegate's option.rect (viewport coords). Null viewport = no fade.
@@ -75,9 +75,9 @@ namespace stencil::gui {
   // for its entrance via "stencilEntering" — two writers on one effect would flicker.
   class ScrollReveal : public QObject {
    public:
-    static constexpr const char* kEnteringProperty = "stencilEntering";
+    static constexpr const char* ENTERING_PROPERTY = "stencilEntering";
     // …and permanently via "stencilRevealExempt": floating chrome pinned at the edge.
-    static constexpr const char* kExemptProperty = "stencilRevealExempt";
+    static constexpr const char* EXEMPT_PROPERTY = "stencilRevealExempt";
 
     explicit ScrollReveal(QScrollArea* area) : QObject(area), area_(area) {
       if (!area_) return;
@@ -98,8 +98,8 @@ namespace stencil::gui {
       for (QObject* o : content->children()) {
         auto* child = qobject_cast<QWidget*>(o);
         if (!child || child->isHidden()) continue;
-        if (child->property(kEnteringProperty).toBool()) continue;
-        if (child->property(kExemptProperty).toBool()) continue;
+        if (child->property(ENTERING_PROPERTY).toBool()) continue;
+        if (child->property(EXEMPT_PROPERTY).toBool()) continue;
         if (!scrollable) { setDissolveOn(child, 0.0, 0.0, 1.0); continue; }
         const int top = child->mapTo(area_->viewport(), QPoint(0, 0)).y();
         const int h = child->height();
@@ -122,7 +122,7 @@ namespace stencil::gui {
 
    private:
     // dynamic_cast, not qobject_cast: DissolveEffect is Q_OBJECT-free. A card mid-entrance
-    // still carries ChatDock's QGraphicsOpacityEffect (kEnteringProperty guards the gap).
+    // still carries ChatDock's QGraphicsOpacityEffect (ENTERING_PROPERTY guards the gap).
     static void setDissolveOn(QWidget* w, double dissolve, double visStart, double visEnd) {
       auto* fx = dynamic_cast<DissolveEffect*>(w->graphicsEffect());
       if (!fx) {
@@ -135,9 +135,9 @@ namespace stencil::gui {
     }
 
    public:
-    // The ramp bottoms out at kRevealMinOpacity; rescaled so an out-of-view row reaches a FULL dissolve.
+    // The ramp bottoms out at REVEAL_MIN_OPACITY; rescaled so an out-of-view row reaches a FULL dissolve.
     static double dissolveFor(double revealOpacity) {
-      const double span = 1.0 - kRevealMinOpacity;
+      const double span = 1.0 - REVEAL_MIN_OPACITY;
       if (span <= 0.0) return 0.0;
       return std::clamp((1.0 - revealOpacity) / span, 0.0, 1.0);
     }

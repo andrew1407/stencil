@@ -45,9 +45,9 @@ namespace stencil::gui {
 
    private:
     // Before layout, fall back to the WINDOW's width — what the toolbar will hand over.
-    static constexpr int kLaidOut = 200;
+    static constexpr int LAID_OUT = 200;
     int measureWidth() const {
-      if (width() > kLaidOut) return width();
+      if (width() > LAID_OUT) return width();
       const QWidget* top = window();
       return top ? top->width() : 0;
     }

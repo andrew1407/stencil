@@ -62,8 +62,8 @@ Doctest; each other surface uses its platform's default.
 2. **The browser runs `core/` via wasm with a JS fallback that must match it op-for-op.**
    `browser/tests/wasm-parity.test.js` enforces it; CI builds wasm fresh to run it.
 3. **No `eval` anywhere.** `browser/js/core/formulaEngine.js` and `core/parse/formulaParser`
-   are both real recursive-descent parsers (no `new Function`), aligned down to `MAX_DEPTH` ↔
-   `kMaxDepth`.
+   are both real recursive-descent parsers (no `new Function`), aligned down to the shared
+   `MAX_DEPTH`.
 4. **Three source lists.** Adding/removing/renaming a `core/*.cpp` means editing
    `STENCIL_CORE_SOURCES` (`core/CMakeLists.txt`), the array in `cli/build.zig`, **and** the
    list in `pystencil/build.py`.

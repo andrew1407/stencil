@@ -128,7 +128,7 @@ namespace stencil::gui {
     if (chatDock_) chatDock_->restyleIcons(themePalette(dark, settings_.accentColor));
     if (chatMenuPanel_)
       asChatMenu(chatMenuPanel_)->restyle(themePalette(dark, settings_.accentColor));
-    if (logoBtn_) logoBtn_->setIcon(QIcon(makeLogoPixmap(kHeaderLogo)));   // frame tracks the accent colour
+    if (logoBtn_) logoBtn_->setIcon(QIcon(makeLogoPixmap(HEADER_LOGO)));   // frame tracks the accent colour
     if (logoFx_) asLogoFx(logoFx_)->themeChanged();   // mid-hover accent cycle: fx keeps the pixels
     positionOverlayArrows();   // re-tint the Controls-pill chevron + the panel re-open tab
     sizeViewToggles();

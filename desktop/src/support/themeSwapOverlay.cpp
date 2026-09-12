@@ -11,26 +11,26 @@ namespace stencil::gui {
   }
 
   double ThemeSwapOverlay::grainEase(double t) {
-    static const std::array<double, kGrainSteps + 1> curve = [] {
-      std::array<double, kGrainSteps + 1> c{};
-      for (int i = 0; i <= kGrainSteps; i++)
-        c[i] = bezierY(double(i) / kGrainSteps, 0.22, 0.55, 0.3, 1.0);
+    static const std::array<double, GRAIN_STEPS + 1> curve = [] {
+      std::array<double, GRAIN_STEPS + 1> c{};
+      for (int i = 0; i <= GRAIN_STEPS; i++)
+        c[i] = bezierY(double(i) / GRAIN_STEPS, 0.22, 0.55, 0.3, 1.0);
       c.front() = 0.0;
       c.back() = 1.0;
       return c;
     }();
-    return curve[std::clamp(int(std::lround(t * kGrainSteps)), 0, kGrainSteps)];
+    return curve[std::clamp(int(std::lround(t * GRAIN_STEPS)), 0, GRAIN_STEPS)];
   }
 
 
   double ThemeSwapOverlay::edgeJitter(support::ParticleStyle s, int k, int points) {
     const double t = double(k) / points;
     if (s == support::ParticleStyle::Water)
-      return kWaterAmp * std::sin(kTau * kWaterWaves * t) + kWaterRippleAmp * std::sin(kTau * kWaterRipple * t + 1);
+      return WATER_AMP * std::sin(TAU * WATER_WAVES * t) + WATER_RIPPLE_AMP * std::sin(TAU * WATER_RIPPLE * t + 1);
     if (s == support::ParticleStyle::Fire) {
-      const double tongue = std::floor(t * kFireTongues), u = t * kFireTongues - tongue;
-      const double h = kFireBase + kFireVary * dustNoise(int(tongue), 5);
-      return h * std::pow(std::sin(kTau / 2 * u), 3) - kFireDip + kFireJag * (dustNoise(k, 7) * 2 - 1);
+      const double tongue = std::floor(t * FIRE_TONGUES), u = t * FIRE_TONGUES - tongue;
+      const double h = FIRE_BASE + FIRE_VARY * dustNoise(int(tongue), 5);
+      return h * std::pow(std::sin(TAU / 2 * u), 3) - FIRE_DIP + FIRE_JAG * (dustNoise(k, 7) * 2 - 1);
     }
     return 0.0;
   }
@@ -38,8 +38,8 @@ namespace stencil::gui {
 
   // The ring's base overshoots by the deepest dip so the finished front clears the corner.
   double ThemeSwapOverlay::edgeDipOf(support::ParticleStyle s) {
-    if (s == support::ParticleStyle::Water) return kWaterAmp + kWaterRippleAmp;
-    if (s == support::ParticleStyle::Fire) return kFireDip + kFireJag;
+    if (s == support::ParticleStyle::Water) return WATER_AMP + WATER_RIPPLE_AMP;
+    if (s == support::ParticleStyle::Fire) return FIRE_DIP + FIRE_JAG;
     return 0.0;
   }
 
@@ -60,10 +60,10 @@ namespace stencil::gui {
                                     const QSizeF& bounds, DustMote* out,
                                     support::ParticleStyle s) {
     const double n = dustNoise(i, 3), m = dustNoise(i + 57, 11), q = dustNoise(i + 13, 29);
-    const double u = kDustMinT + m * (kDustMaxT - kDustMinT);
-    const double life = (ms - u * kSwapMs) / kDustLifeMs;
+    const double u = DUST_MIN_T + m * (DUST_MAX_T - DUST_MIN_T);
+    const double life = (ms - u * SWAP_MS) / DUST_LIFE_MS;
     if (life <= 0.0 || life >= 1.0) return false;
-    const double angle = n * kTau;
+    const double angle = n * TAU;
     // Just behind even the deepest dip, so grains and clip read as one front.
     const double r = swapEase(u) * full * (1 - edgeDipOf(s)) - q * 6;
     if (r <= 0) return false;
@@ -72,9 +72,9 @@ namespace stencil::gui {
     if (hx < -16 || hy < -16 || hx > bounds.width() + 16 || hy > bounds.height() + 16) return false;
     // The browser's swapDustFrame, op for op.
     const double e = grainEase(life);
-    const double o = life < kGrainFlare
-                         ? grainEase(life / kGrainFlare)
-                         : 1.0 - grainEase((life - kGrainFlare) / (1.0 - kGrainFlare));
+    const double o = life < GRAIN_FLARE
+                         ? grainEase(life / GRAIN_FLARE)
+                         : 1.0 - grainEase((life - GRAIN_FLARE) / (1.0 - GRAIN_FLARE));
     const double alpha = (0.75 + q * 0.25) * o;
     if (alpha < 1.0 / 255) return false;   // below one 8-bit step — nothing to paint
     const double d = 8 + q * 14;

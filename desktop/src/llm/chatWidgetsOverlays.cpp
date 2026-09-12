@@ -49,7 +49,7 @@ namespace stencil::gui {
     hide();
     if (full_.isNull() || !thumb_ || !thumb_->isVisible()) return;
     // Already showing it large? Then there is nothing to magnify.
-    if (thumb_->width() >= kPreviewEdge * 3 / 4 || thumb_->height() >= kPreviewEdge * 3 / 4) return;
+    if (thumb_->width() >= PREVIEW_EDGE * 3 / 4 || thumb_->height() >= PREVIEW_EDGE * 3 / 4) return;
     popup_ = new QWidget(nullptr, Qt::ToolTip | Qt::FramelessWindowHint);
     popup_->setObjectName(QStringLiteral("chatThumbPreview"));
     popup_->setAttribute(Qt::WA_DeleteOnClose);
@@ -70,8 +70,8 @@ namespace stencil::gui {
     // Alt HELD doubles the glance (browser .chat-thumb-preview-xl parity) —
     // both the edge and the screen-fraction ceilings, so the doubling shows.
     const int f = (QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier) ? 2 : 1;
-    const QSize capSize(qMin(kPreviewEdge * f, int(avail.width() * kPreviewScreenW * f)),
-                        qMin(kPreviewEdge * f, int(avail.height() * kPreviewScreenH * f)));
+    const QSize capSize(qMin(PREVIEW_EDGE * f, int(avail.width() * PREVIEW_SCREEN_W * f)),
+                        qMin(PREVIEW_EDGE * f, int(avail.height() * PREVIEW_SCREEN_H * f)));
     auto* pic = new QLabel(popup_);
     pic->setPixmap(QPixmap::fromImage(
         full_.scaled(capSize, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
@@ -103,10 +103,10 @@ namespace stencil::gui {
   }
 
   TypingDots::TypingDots(QWidget* parent) : QWidget(parent) {
-    setFixedSize(kDotSpan * 3 + kDotGap * 2, kDotSpan + kLift + 2);
+    setFixedSize(DOT_SPAN * 3 + DOT_GAP * 2, DOT_SPAN + LIFT + 2);
     setAccessibleName(QObject::tr("Assistant is answering"));
     connect(&timer_, &QTimer::timeout, this, [this] {
-      phase_ = (phase_ + 1) % kSteps;
+      phase_ = (phase_ + 1) % STEPS;
       update();
     });
     timer_.start(60);
@@ -119,14 +119,14 @@ namespace stencil::gui {
     const QColor base = palette().color(QPalette::WindowText);
     for (int i = 0; i < 3; ++i) {
       // Each dot runs the same hop, a third of a cycle apart.
-      const double t = ((phase_ + i * (kSteps / 3.0)) / kSteps) * 2 * M_PI;
+      const double t = ((phase_ + i * (STEPS / 3.0)) / STEPS) * 2 * M_PI;
       const double hop = std::max(0.0, std::sin(t));
       QColor c = base;
       c.setAlphaF(0.45 + 0.55 * hop);
       p.setBrush(c);
-      p.drawEllipse(QPointF(kDotSpan / 2.0 + i * (kDotSpan + kDotGap),
-                            kLift + kDotSpan / 2.0 - hop * kLift),
-                    kDotSpan / 2.0, kDotSpan / 2.0);
+      p.drawEllipse(QPointF(DOT_SPAN / 2.0 + i * (DOT_SPAN + DOT_GAP),
+                            LIFT + DOT_SPAN / 2.0 - hop * LIFT),
+                    DOT_SPAN / 2.0, DOT_SPAN / 2.0);
     }
   }
 

@@ -32,11 +32,11 @@ namespace stencil::gui {
     // Clicking the logo cycles the accent preset (browser parity).
     logoBtn_ = new QToolButton(this);
     logoBtn_->setCursor(Qt::PointingHandCursor);
-    logoBtn_->setIconSize(QSize(kHeaderLogo, kHeaderLogo));
+    logoBtn_->setIconSize(QSize(HEADER_LOGO, HEADER_LOGO));
     // Size the button to the mark: a QToolBar lays an added widget out at its default icon metric
     // (~40px). The margin leaves the hover fx room.
-    logoBtn_->setFixedSize(kHeaderLogo + 6, kHeaderLogo + 6);
-    logoBtn_->setIcon(QIcon(makeLogoPixmap(kHeaderLogo)));
+    logoBtn_->setFixedSize(HEADER_LOGO + 6, HEADER_LOGO + 6);
+    logoBtn_->setIcon(QIcon(makeLogoPixmap(HEADER_LOGO)));
     // LogoHoverFx paints the resting mark and blanks this icon — QToolButton draws it at half size
     // on Retina.
     logoBtn_->setToolTip(QString());   // no tooltip on the logo
@@ -80,7 +80,7 @@ namespace stencil::gui {
     logoBtn_->installEventFilter(this);   // catch double-click → custom colour picker (see eventFilter)
     // LogoHoverFx: the browser's logo pulse/levitate/glow/ray loop, purely visual.
     logoFx_ = new LogoHoverFx(
-        logoBtn_, [this] { return makeLogoPixmap(kHeaderLogo); },
+        logoBtn_, [this] { return makeLogoPixmap(HEADER_LOGO); },
         [this] {
           const QColor a = accentPrimary(settings_.accentColor);
           return a.isValid() ? a : QColor("#7c3aed");
@@ -93,8 +93,8 @@ namespace stencil::gui {
     controlsPill_->setObjectName("controlsPill");   // outlined pill, styled in theme.cpp
     // The chevron's angle is state, not hover feedback — the browser's `[id^="toggle-"]` icon-
     // motion opt-out.
-    controlsPill_->setProperty(kNoIconMotionProperty, true);
-    controlsPill_->setProperty(kShimmerRadiusProperty, 12);   // its QSS radius (shimmerOverlay.hpp)
+    controlsPill_->setProperty(NO_ICON_MOTION_PROPERTY, true);
+    controlsPill_->setProperty(SHIMMER_RADIUS_PROPERTY, 12);   // its QSS radius (shimmerOverlay.hpp)
     static_cast<ControlsPill*>(controlsPill_)->setLabel("Controls");
     // Capped, or a QToolBar fills the pill to the logo's row height with a huge border.
     controlsPill_->setMaximumHeight(28);

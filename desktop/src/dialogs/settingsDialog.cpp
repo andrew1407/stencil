@@ -25,22 +25,22 @@ namespace stencil::gui {
 
   namespace {
     // The browser's ONE control column (components.css --vs-ctrl-w / --vs-ctrl-h).
-    constexpr int kCtrlW = 180;
-    constexpr int kCtrlH = 30;
+    constexpr int CTRL_W = 180;
+    constexpr int CTRL_H = 30;
     // The browser's VIS_DEFAULTS (visualsModal.js) — what Reset All restores.
-    constexpr const char* kDefColor = "#FFFF00";
-    constexpr double kDefThickness = 2;
-    constexpr double kDefPointSize = 4;
-    constexpr const char* kDefStyle = "solid";
-    constexpr const char* kDefFill = "#ffffff";
-    constexpr const char* kDefSelGlow = "#ffc800";
-    constexpr const char* kDefHoverRing = "#7c3aed";
-    constexpr const char* kDefFocusRing = "#7c3aed";
-    constexpr int kDefHoldDelay = 500;
-    constexpr const char* kDefAccent = "violet";
+    constexpr const char* DEF_COLOR = "#FFFF00";
+    constexpr double DEF_THICKNESS = 2;
+    constexpr double DEF_POINT_SIZE = 4;
+    constexpr const char* DEF_STYLE = "solid";
+    constexpr const char* DEF_FILL = "#ffffff";
+    constexpr const char* DEF_SEL_GLOW = "#ffc800";
+    constexpr const char* DEF_HOVER_RING = "#7c3aed";
+    constexpr const char* DEF_FOCUS_RING = "#7c3aed";
+    constexpr int DEF_HOLD_DELAY = 500;
+    constexpr const char* DEF_ACCENT = "violet";
     // ui/motionPrefs.js DEFAULT_DRAWING_ANIMATIONS / DEFAULT_MOTION_MODE.
-    constexpr bool kDefDrawAnim = true;
-    constexpr const char* kDefMotionMode = "particles";
+    constexpr bool DEF_DRAW_ANIM = true;
+    constexpr const char* DEF_MOTION_MODE = "particles";
   }  // namespace
 
   SettingsDialog::SettingsDialog(const Settings& current, QWidget* parent)
@@ -64,7 +64,7 @@ namespace stencil::gui {
     // Every control lands in the column at the column's size; checkboxes and the
     // assistant button keep their own shape, right-aligned in the same slot.
     const auto row = [&](const QString& label, QWidget* field, bool column = true) {
-      if (column) field->setFixedSize(kCtrlW, kCtrlH);
+      if (column) field->setFixedSize(CTRL_W, CTRL_H);
       QWidget* r = modalRow(host, label, field, /*grow=*/false);
       col->addWidget(r);
       groups_.last().rows.push_back({label, r});
@@ -80,7 +80,7 @@ namespace stencil::gui {
                           const QString& title) {
       btn = new QPushButton(host);
       btn->setFont(mono);
-      setColorSwatch(btn, QColor(hex), QSize(kCtrlW, kCtrlH), /*withHex=*/true);
+      setColorSwatch(btn, QColor(hex), QSize(CTRL_W, CTRL_H), /*withHex=*/true);
       btn->setToolTip(tip);
       connect(btn, &QPushButton::clicked, this,
               [this, &hex, title, b = btn] { pickColorInto(b, hex, title); });
@@ -338,26 +338,26 @@ namespace stencil::gui {
     connect(search_, &QLineEdit::textChanged, this,
             [this](const QString& q) { applyFilter(q); });
     // The browser's max-height: 82vh shell; the sections scroll inside it.
-    sizeModalTall(this, kModalWidth);
+    sizeModalTall(this, MODAL_WIDTH);
   }
 
   void SettingsDialog::resetVisuals() {
     const struct { QPushButton* btn; QString* hex; const char* def; } wells[] = {
-        {color_, &colorHex_, kDefColor},         {fillColor_, &fillHex_, kDefFill},
-        {selGlow_, &selGlowHex_, kDefSelGlow},   {hoverRing_, &hoverRingHex_, kDefHoverRing},
-        {focusRing_, &focusRingHex_, kDefFocusRing},
+        {color_, &colorHex_, DEF_COLOR},         {fillColor_, &fillHex_, DEF_FILL},
+        {selGlow_, &selGlowHex_, DEF_SEL_GLOW},   {hoverRing_, &hoverRingHex_, DEF_HOVER_RING},
+        {focusRing_, &focusRingHex_, DEF_FOCUS_RING},
     };
     for (const auto& w : wells) {
       *w.hex = QString::fromLatin1(w.def);
-      setColorSwatch(w.btn, QColor(*w.hex), QSize(kCtrlW, kCtrlH), /*withHex=*/true);
+      setColorSwatch(w.btn, QColor(*w.hex), QSize(CTRL_W, CTRL_H), /*withHex=*/true);
     }
-    thickness_->setValue(kDefThickness);
-    pointSize_->setValue(kDefPointSize);
-    holdDelay_->setValue(kDefHoldDelay);
-    style_->setCurrentIndex(qMax(0, style_->findData(kDefStyle)));
-    accent_->setCurrentIndex(qMax(0, accent_->findData(kDefAccent)));
-    drawAnim_->setChecked(kDefDrawAnim);
-    motionMode_->setCurrentIndex(qMax(0, motionMode_->findData(QLatin1String(kDefMotionMode))));
+    thickness_->setValue(DEF_THICKNESS);
+    pointSize_->setValue(DEF_POINT_SIZE);
+    holdDelay_->setValue(DEF_HOLD_DELAY);
+    style_->setCurrentIndex(qMax(0, style_->findData(DEF_STYLE)));
+    accent_->setCurrentIndex(qMax(0, accent_->findData(DEF_ACCENT)));
+    drawAnim_->setChecked(DEF_DRAW_ANIM);
+    motionMode_->setCurrentIndex(qMax(0, motionMode_->findData(QLatin1String(DEF_MOTION_MODE))));
     applyLive();
     emit visualsReset();
   }
@@ -367,7 +367,7 @@ namespace stencil::gui {
     const QColor c = support::pickColorAnimated(QColor(hex), this, title, btn);
     if (!c.isValid()) return;
     hex = c.name().toUpper();
-    setColorSwatch(btn, c, QSize(kCtrlW, kCtrlH), /*withHex=*/true);
+    setColorSwatch(btn, c, QSize(CTRL_W, CTRL_H), /*withHex=*/true);
     applyLive();
   }
 }

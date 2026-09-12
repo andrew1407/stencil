@@ -47,12 +47,12 @@ namespace stencil::gui {
     // SHARED — one row keeps the fine grain, a mass removal coarsens each (browser:
     // scatterGridFor). Only rows that actually animate share it.
     const int budget =
-        std::max<int>(1, DisintegrateOverlay::kDustMaxCells / std::max(1, int(rects.size())));
+        std::max<int>(1, DisintegrateOverlay::DUST_MAX_CELLS / std::max(1, int(rects.size())));
     // Overlays FIRST (they snapshot the still-painted rows), then retire the lot.
     for (const QRect& r : rects)
       DisintegrateOverlay::overRect(list_->viewport(), r, this,
                                     DisintegrateOverlay::Sweep::Rows, /*dust=*/true, budget,
-                                    DisintegrateOverlay::kItemMs,   // a card is read, not glanced at
+                                    DisintegrateOverlay::ITEM_MS,   // a card is read, not glanced at
                                     list_->palette().color(QPalette::Text));
     for (QListWidgetItem* it : doomed)
       retireRow(it);   // blank the real row at once; its slot outlives the dust
@@ -72,7 +72,7 @@ namespace stencil::gui {
     hideHoverPreview();   // the doomed-row sweep below may delete whatever it points to
     closeInlineRename();
     for (int i = list_->count() - 1; i >= 0; --i)
-      if (list_->item(i)->data(kDoomedRole).toBool()) delete list_->takeItem(i);
+      if (list_->item(i)->data(DOOMED_ROLE).toBool()) delete list_->takeItem(i);
     stopDustClouds(this);   // …the bar's controls' own clouds with them
     QDialog::done(result);
   }
@@ -83,13 +83,13 @@ namespace stencil::gui {
   void ProjectsDialog::retireRow(QListWidgetItem* it) {
     if (!it || it->data(Qt::UserRole).isNull()) return;
     const QString key = rowKeyAt(list_->row(it));
-    it->setData(kDoomedRole, true);   // the delegate paints nothing for it
+    it->setData(DOOMED_ROLE, true);   // the delegate paints nothing for it
     it->setFlags(Qt::NoItemFlags);    // no select/check mid-flight
     checked_.remove(key);             // …and it stops counting towards the selection bar
-    QTimer::singleShot(DisintegrateOverlay::kItemMs, this, [this, key] {
+    QTimer::singleShot(DisintegrateOverlay::ITEM_MS, this, [this, key] {
       // Re-found by key: a re-list may have rebuilt the rows (fresh ones aren't doomed).
       for (int i = 0; i < list_->count(); ++i)
-        if (rowKeyAt(i) == key && list_->item(i)->data(kDoomedRole).toBool()) {
+        if (rowKeyAt(i) == key && list_->item(i)->data(DOOMED_ROLE).toBool()) {
           // The hover preview may still be pointing at the very row about to go.
           if (list_->item(i) == hoverItem_) hideHoverPreview();
           delete list_->takeItem(i);

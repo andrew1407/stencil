@@ -19,16 +19,16 @@
 namespace stencil::gui {
 
   // The flight of the control (Select all) that appears WITH a new row, so the two land together.
-  inline constexpr int kConnArriveMs = kControlRevealInMs;
+  inline constexpr int CONN_ARRIVE_MS = CONTROL_REVEAL_IN_MS;
 
   // The browser's --remote-gold.
-  inline const QColor kGold("#d4a017");
+  inline const QColor GOLD("#d4a017");
   // "The credential, not the server, is the problem": the dot, the expired note, the outline.
-  inline const QColor kAmber("#e0a800");
-  inline const QColor kAmberHover("#c99400");
+  inline const QColor AMBER("#e0a800");
+  inline const QColor AMBER_HOVER("#c99400");
   // Browser .connect-row, measured: 25px buttons + 8px/10px padding + 1px outline = 43.
-  inline constexpr int kRowHeight = 43;
-  inline constexpr int kRowUrlRole = Qt::UserRole + 2;
+  inline constexpr int ROW_HEIGHT = 43;
+  inline constexpr int ROW_URL_ROLE = Qt::UserRole + 2;
   inline bool kindMatches(const QString& mode, bool admin) {
     return mode == QLatin1String("all") || (mode == QLatin1String("admin")) == admin;
   }
@@ -70,8 +70,8 @@ namespace stencil::gui {
     using S = stencil::net::ServerClient::Status;
     // Amber for BOTH connecting and expired: only the credential is missing (browser parity).
     QColor c = s == S::Connected  ? QColor("#28a745")
-             : s == S::Connecting ? kAmber
-             : s == S::Expired    ? kAmber
+             : s == S::Connecting ? AMBER
+             : s == S::Expired    ? AMBER
                                   : QColor("#dc3545");
     // Browser .conn-status: a 9px disc inside a 2px halo of its own colour at 18%.
     QPixmap pm(13, 13);

@@ -805,7 +805,7 @@ class MainWindowGuiTest : public QObject {
     // NOT clicked here: accepting it opens the blank-image creator, whose modal loop would
     // hold this test until it timed out (which is exactly what it did).
     QTRY_VERIFY_WITH_TIMEOUT(!canvas->idleHintHidden(),
-                             stencil::gui::DisintegrateOverlay::kMs + 1500);
+                             stencil::gui::DisintegrateOverlay::DUST_MS + 1500);
     QCOMPARE(asked.count(), 0);
     beat();
   }

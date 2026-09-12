@@ -15,7 +15,7 @@ namespace stencil::gui {
     return row;
   }
 
-  inline constexpr int kPreviewMaxW = 440;  // preview is scaled to fit this box,
-  inline constexpr int kPreviewMaxH = 300;  // keeping aspect ratio (browser parity).
+  inline constexpr int PREVIEW_MAX_W = 440;  // preview is scaled to fit this box,
+  inline constexpr int PREVIEW_MAX_H = 300;  // keeping aspect ratio (browser parity).
 
 }  // namespace stencil::gui

@@ -55,7 +55,7 @@ namespace stencil::gui {
       // A long filename must not widen the DOCK (the tray fed minimumSizeHint, which
       // both auto-grew the panel and blocked shrinking it) — elide, tooltip has it all.
       const QFontMetrics chipFm(text->font());
-      text->setText(chipFm.elidedText(label, Qt::ElideMiddle, kChipNameMaxPx));
+      text->setText(chipFm.elidedText(label, Qt::ElideMiddle, CHIP_NAME_MAX_PX));
       // The full name/size live here, on the LABEL. The thumbnail deliberately carries
       // no tooltip: it opens the hover preview, and a Qt tooltip on top of that put two
       // popups on screen at once, the tooltip covering the picture it described.
@@ -76,7 +76,7 @@ namespace stencil::gui {
         if (chip->property("chatChipLeaving").toBool()) return;   // one click is enough
         chip->setProperty("chatChipLeaving", true);
         DisintegrateOverlay::over(chip, window(), DisintegrateOverlay::Sweep::Fall,
-                                  kChatScatterCols, kChatScatterRows, 0,
+                                  CHAT_SCATTER_COLS, CHAT_SCATTER_ROWS, 0,
                                   chip->palette().color(QPalette::WindowText));
         // Fade the chip itself out (the scatter replaces it visually) WITHOUT hiding
         // or deleting it — an invisible chip still holds its slot for the hold+squeeze.
@@ -84,7 +84,7 @@ namespace stencil::gui {
         auto* fx = qobject_cast<QGraphicsOpacityEffect*>(chip->graphicsEffect());
         if (!fx) { fx = new QGraphicsOpacityEffect(chip); chip->setGraphicsEffect(fx); }
         auto* fade = new QVariantAnimation(chip);
-        fade->setDuration(kChatLeaveMs);
+        fade->setDuration(CHAT_LEAVE_MS);
         fade->setStartValue(fx->opacity());
         fade->setEndValue(0.0);
         fade->setEasingCurve(QEasingCurve::OutCubic);
@@ -94,16 +94,16 @@ namespace stencil::gui {
         fade->start(QAbstractAnimation::DeleteWhenStopped);
         // Hold the slot while the scatter reads, then collapse the width gently so the
         // surviving chips glide over (browser .chat-attach-chip.leaving parity).
-        QTimer::singleShot(kChatChipHoldMs, chip, [this, chip, remove] {
+        QTimer::singleShot(CHAT_CHIP_HOLD_MS, chip, [this, chip, remove] {
           auto* squeeze = new QVariantAnimation(chip);
-          squeeze->setDuration(kChatLeaveMs);
+          squeeze->setDuration(CHAT_LEAVE_MS);
           squeeze->setStartValue(chip->width());
           squeeze->setEndValue(0);
           squeeze->setEasingCurve(QEasingCurve::InOutCubic);
           connect(squeeze, &QVariantAnimation::valueChanged, chip,
                   [chip](const QVariant& v) { chip->setMaximumWidth(v.toInt()); });
           squeeze->start(QAbstractAnimation::DeleteWhenStopped);
-          QTimer::singleShot(kChatLeaveMs, this, [chip, remove] {
+          QTimer::singleShot(CHAT_LEAVE_MS, this, [chip, remove] {
             chip->deleteLater();
             remove();
           });

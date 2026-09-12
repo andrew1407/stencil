@@ -25,11 +25,11 @@ namespace stencil::gui {
     double progress() const { return progress_; }
     // Pure, so the draw order is testable without a display (browser: four staggered .ig-edge).
     static QPainterPath framePath(const QRectF& box, double t);
-    static constexpr int kDrawMs = 480;
+    static constexpr int DRAW_MS = 480;
     // FLUSH with the viewport edge, inset only by the pen's half-width (browser outline-offset: -3px).
-    static constexpr int kPenPx = 3;
+    static constexpr int PEN_PX = 3;
     static QRectF frameBox(const QRectF& widgetRect) {
-      return widgetRect.adjusted(kPenPx / 2.0, kPenPx / 2.0, -kPenPx / 2.0, -kPenPx / 2.0);
+      return widgetRect.adjusted(PEN_PX / 2.0, PEN_PX / 2.0, -PEN_PX / 2.0, -PEN_PX / 2.0);
     }
     void setTheme(bool dark, const QString& accentKey);
 

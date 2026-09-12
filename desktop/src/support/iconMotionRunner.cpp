@@ -5,7 +5,7 @@ namespace stencil::gui {
   IconMotionRunner::IconMotionRunner(QAbstractButton* btn, const IconRequest& req,
                                      const IconMotionSpec* spec,
                                      const QVector<IconMotionPart>* parts) : QObject(btn), btn_(btn), req_(req), spec_(spec), parts_(parts) {
-    setObjectName(QString::fromLatin1(kIconMotionAnimName));
+    setObjectName(QString::fromLatin1(ICON_MOTION_ANIM_NAME));
     anim_ = new QVariantAnimation(this);
     anim_->setStartValue(0.0);
     anim_->setEndValue(0.0);
@@ -119,7 +119,7 @@ namespace stencil::gui {
   ActionIconMotionRunner::ActionIconMotionRunner(QAction* act, const IconRequest& req,
                                                  const IconMotionSpec* spec,
                                                  const QVector<IconMotionPart>* parts) : QObject(act), act_(act), req_(req), spec_(spec), parts_(parts) {
-    setObjectName(QString::fromLatin1(kIconMotionAnimName));
+    setObjectName(QString::fromLatin1(ICON_MOTION_ANIM_NAME));
     anim_ = new QVariantAnimation(this);
     anim_->setStartValue(0.0);
     anim_->setEndValue(0.0);

@@ -22,25 +22,25 @@
 
 namespace stencil::gui {
 
-  inline constexpr int kToolIcon = 18;   // toolbar glyph box
+  inline constexpr int TOOL_ICON = 18;   // toolbar glyph box
   // Qt's text-beside-icon gap is a fixed 4px and QSS `spacing` does nothing for a QToolButton, so the air is
   // made in the icon RECT (browser twin: .btn-icon-text `gap: 6px`).
-  inline constexpr int kFaceIconGap = 3;
+  inline constexpr int FACE_ICON_GAP = 3;
   // The ✎/🎨/✓/✗ chips beside the project name. Browser twin: .name-edit-btn.
-  inline constexpr int kNameChipBox = 28;
+  inline constexpr int NAME_CHIP_BOX = 28;
   // Half the box, as .name-edit-btn draws it (28px chip, 14px glyph).
-  inline constexpr int kNameChipGlyph = 15;
+  inline constexpr int NAME_CHIP_GLYPH = 15;
   // One size for all four, so edit mode never resizes the row.
-  inline constexpr int kToolRowH = 33;   // icon-button height; every section row matches it
+  inline constexpr int TOOL_ROW_H = 33;   // icon-button height; every section row matches it
   // The "Controls" pill's chevron is sized against its label, not the toolbar icons.
-  inline constexpr int kPillChevron = 7;    // Controls show/hide arrow (1.5x smaller, user decision)
-  inline constexpr int kHeaderLogo = 33;   // header-row logo mark (user decision); sets the row height floor
+  inline constexpr int PILL_CHEVRON = 7;    // Controls show/hide arrow (1.5x smaller, user decision)
+  inline constexpr int HEADER_LOGO = 33;   // header-row logo mark (user decision); sets the row height floor
   // The browser's inline width (#formula-x / #formula-y); shrinks toward the floor rather than overflowing into "»".
-  inline constexpr int kFormulaFieldW = 180;
-  inline constexpr int kFormulaFieldMinW = 72;   // still shows a typical "x/2 + 10"
+  inline constexpr int FORMULA_FIELD_W = 180;
+  inline constexpr int FORMULA_FIELD_MIN_W = 72;   // still shows a typical "x/2 + 10"
   // centralLayout_'s RIGHT inset while the panel is docked (browser: the .main-content gap); collapsed,
-  // updatePanelReopenButton swaps in kCanvasRightMarginCollapsed.
-  inline constexpr int kCentralSideMargin = 14;
+  // updatePanelReopenButton swaps in CANVAS_RIGHT_MARGIN_COLLAPSED.
+  inline constexpr int CENTRAL_SIDE_MARGIN = 14;
 
   inline long long nowMs() { return QDateTime::currentMSecsSinceEpoch(); }
 

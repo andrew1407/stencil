@@ -109,7 +109,7 @@ namespace stencil::gui {
     auto* more = new QToolButton(card);
     more->setObjectName(QStringLiteral("chatCardMore"));
     // CHROME, not a row: the transcript's edge-reveal must not dissolve it.
-    more->setProperty(ScrollReveal::kExemptProperty, true);
+    more->setProperty(ScrollReveal::EXEMPT_PROPERTY, true);
     // The button lives OUTSIDE the card (placeChatCardMore reparents it): a property pair, not parentage.
     card->setProperty("chatMoreBtn", QVariant::fromValue<QObject*>(more));
     more->setProperty("chatMoreCard", QVariant::fromValue<QObject*>(card));
@@ -132,8 +132,8 @@ namespace stencil::gui {
     more->setStyleSheet(QStringLiteral("QToolButton{padding:1px;background:%1;"
                                        "border:1px solid %2;border-radius:10px;}"
                                        "QToolButton:hover{background:%3;border-color:%4;}")
-                            .arg(rgba(hooks.chip, kGhostRestOpacity),
-                                 rgba(hooks.border, kGhostRestOpacity),
+                            .arg(rgba(hooks.chip, GHOST_REST_OPACITY),
+                                 rgba(hooks.border, GHOST_REST_OPACITY),
                                  hooks.chip.name(), hooks.border.name()));
     auto* glow = new QGraphicsDropShadowEffect(more);
     glow->setOffset(0, 0);
@@ -145,7 +145,7 @@ namespace stencil::gui {
     more->setFocusPolicy(Qt::NoFocus);
     installHoverShimmer(more);
     // Blended, not translucent: themedIcon's cache is keyed on an alpha-less colour name.
-    more->setIcon(themedIcon("more", blendColors(hooks.muted, hooks.chip, kGhostRestOpacity), 16));
+    more->setIcon(themedIcon("more", blendColors(hooks.muted, hooks.chip, GHOST_REST_OPACITY), 16));
     more->hide();
     QObject::connect(more, &QToolButton::clicked, more, [cardRef, more, show] {
       if (!cardRef) return;

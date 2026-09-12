@@ -16,9 +16,9 @@ namespace stencil::gui {
    public:
     explicit DescriptionDialog(const QString& current, QWidget* parent = nullptr);
 
-    // The trimmed text, capped at kMaxChars (the row-menu prompt's own soft cap).
+    // The trimmed text, capped at MAX_CHARS (the row-menu prompt's own soft cap).
     QString text() const;
-    static constexpr int kMaxChars = 2000;
+    static constexpr int MAX_CHARS = 2000;
 
     // Write `text` onto project `id` and persist the list — the SAME store write the
     // Projects window's row-menu "Add description" makes (commitRowEdit's local branch).

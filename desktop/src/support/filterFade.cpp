@@ -5,7 +5,7 @@ namespace stencil::gui {
 
   // Presence → opacity. Pure.
   double filterOpacity(double presence) {
-    const double t = (std::clamp(presence, 0.0, 1.0) - kFilterFadeLead) / (1.0 - kFilterFadeLead);
+    const double t = (std::clamp(presence, 0.0, 1.0) - FILTER_FADE_LEAD) / (1.0 - FILTER_FADE_LEAD);
     return std::clamp(t, 0.0, 1.0);
   }
 
@@ -28,14 +28,14 @@ namespace stencil::gui {
 
   // Rows the filter has never touched are fully present.
   double filterPresenceOf(const QModelIndex& idx) {
-    const QVariant v = idx.data(kFilterPresenceRole);
+    const QVariant v = idx.data(FILTER_PRESENCE_ROLE);
     return v.isValid() ? std::clamp(v.toDouble(), 0.0, 1.0) : 1.0;
   }
 
 
   // A row with no dust in flight reads 1 and this is the fade alone.
   double filterInk(const QModelIndex& idx) {
-    const QVariant v = idx.data(kFilterDustRole);
+    const QVariant v = idx.data(FILTER_DUST_ROLE);
     const double veil = v.isValid() ? std::clamp(v.toDouble(), 0.0, 1.0) : 1.0;
     return filterOpacity(filterPresenceOf(idx)) * veil;
   }
@@ -44,7 +44,7 @@ namespace stencil::gui {
   // The TARGET of any transition in flight: a row fading out already counts as gone.
   bool filteredIn(const QListWidgetItem* it) {
     if (!it) return false;
-    const QVariant t = it->data(kFilterTargetRole);
+    const QVariant t = it->data(FILTER_TARGET_ROLE);
     return t.isValid() ? t.toDouble() > 0.5 : !it->isHidden();
   }
 
@@ -53,7 +53,7 @@ namespace stencil::gui {
   // changes retarget ONE animation per widget, so the last filter always wins.
   void fadeFiltered(QWidget* w, bool show) {
     if (!w) return;
-    auto* anim = w->findChild<QVariantAnimation*>(QString::fromLatin1(kFilterFadeAnimName),
+    auto* anim = w->findChild<QVariantAnimation*>(QString::fromLatin1(FILTER_FADE_ANIM_NAME),
                                                   Qt::FindDirectChildrenOnly);
     if (anim) anim->stop();   // mid-flight stop() never emits finished()
     if (support::motionReduced()) {   // straight to the end state
@@ -77,7 +77,7 @@ namespace stencil::gui {
     fx->setOpacity(from);
     if (!anim) {
       anim = new QVariantAnimation(w);
-      anim->setObjectName(QString::fromLatin1(kFilterFadeAnimName));
+      anim->setObjectName(QString::fromLatin1(FILTER_FADE_ANIM_NAME));
       QObject::connect(anim, &QVariantAnimation::valueChanged, w, [w](const QVariant& v) {
         if (auto* e = dynamic_cast<QGraphicsOpacityEffect*>(w->graphicsEffect()))
           e->setOpacity(v.toDouble());
@@ -87,7 +87,7 @@ namespace stencil::gui {
         w->setGraphicsEffect(nullptr);   // hand the widget back untouched
       });
     }
-    anim->setDuration(std::max(1, int(kFilterFadeMs * std::abs(to - from))));
+    anim->setDuration(std::max(1, int(FILTER_FADE_MS * std::abs(to - from))));
     anim->setStartValue(from);
     anim->setEndValue(to);
     anim->start();

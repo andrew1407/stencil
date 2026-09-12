@@ -31,7 +31,7 @@ namespace stencil::gui {
   int modalFooterLineWidth(const ModalChrome& chrome, const QHBoxLayout* footer) {
     if (!footer) return 0;
     int items = 0;
-    int need = kPadX * 2 + 2 + footerButtonsWidth(footer, chrome.footerHint, &items);
+    int need = PAD_X * 2 + 2 + footerButtonsWidth(footer, chrome.footerHint, &items);
     QLabel* hint = chrome.footerHint;
     if (hint && !hint->text().isEmpty()) {
       hint->ensurePolished();   // the QSS font, before it is measured
@@ -96,12 +96,12 @@ namespace stencil::gui {
   void sizeModalTall(QDialog* dlg, int width) {
     if (!dlg) return;
     // The browser's min(82vh, 760px), the 82% taken of the screen less a browser's own chrome.
-    constexpr int kModalMaxH = 760;
-    constexpr int kBrowserChromePx = 85;
+    constexpr int MODAL_MAX_H = 760;
+    constexpr int BROWSER_CHROME_PX = 85;
     const QScreen* screen = dlg->screen() ? dlg->screen() : QGuiApplication::primaryScreen();
-    const int avail = (screen ? screen->availableGeometry().height() : 900) - kBrowserChromePx;
+    const int avail = (screen ? screen->availableGeometry().height() : 900) - BROWSER_CHROME_PX;
     dlg->setMinimumSize(width, 360);
-    dlg->resize(width, qBound(360, int(avail * 0.82), kModalMaxH));
+    dlg->resize(width, qBound(360, int(avail * 0.82), MODAL_MAX_H));
   }
 
   QLineEdit* addModalSearchBar(ModalChrome& chrome, const QString& placeholder) {
@@ -111,7 +111,7 @@ namespace stencil::gui {
     search->setPlaceholderText(placeholder);
     search->setClearButtonEnabled(true);
     auto* bar = new QHBoxLayout;
-    bar->setContentsMargins(kPadX, 12, kPadX, 6);
+    bar->setContentsMargins(PAD_X, 12, PAD_X, 6);
     bar->addWidget(search, 1);
     chrome.root->insertLayout(2, bar);
     return search;
@@ -131,7 +131,7 @@ namespace stencil::gui {
     b.content = new QWidget(b.scroll);
     b.content->setAutoFillBackground(false);
     b.layout = new QVBoxLayout(b.content);
-    b.layout->setContentsMargins(kPadX, topPad, kPadX, kBodyPadY);
+    b.layout->setContentsMargins(PAD_X, topPad, PAD_X, BODY_PAD_Y);
     b.layout->setSpacing(0);
     b.scroll->setWidget(b.content);
     chrome.body->addWidget(b.scroll, 1);

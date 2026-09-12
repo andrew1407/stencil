@@ -41,9 +41,9 @@ namespace stencil::gui {
     shell->addWidget(frame);
 
     auto* layout = new QVBoxLayout(frame);
-    layout->setContentsMargins(kPopupPadding, kPopupPadding, kPopupPadding,
-                               kPopupPadding);
-    layout->setSpacing(kPopupPadding);
+    layout->setContentsMargins(POPUP_PADDING, POPUP_PADDING, POPUP_PADDING,
+                               POPUP_PADDING);
+    layout->setSpacing(POPUP_PADDING);
 
     // Browser .accent-dd-search-row hairline. A short list has no search row.
     if (searchable_) {
@@ -51,8 +51,8 @@ namespace stencil::gui {
       searchRow->setObjectName("searchComboSearchRow");
       searchRow->setAttribute(Qt::WA_StyledBackground);
       auto* searchLayout = new QVBoxLayout(searchRow);
-      searchLayout->setContentsMargins(kPopupPadding, kPopupPadding,
-                                       kPopupPadding, kPopupPadding * 2);
+      searchLayout->setContentsMargins(POPUP_PADDING, POPUP_PADDING,
+                                       POPUP_PADDING, POPUP_PADDING * 2);
       search_ = new QLineEdit(searchRow);
       search_->setObjectName("searchComboSearch");
       search_->setPlaceholderText(tr("Search…"));

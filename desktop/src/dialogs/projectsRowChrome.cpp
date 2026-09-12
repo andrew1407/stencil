@@ -22,8 +22,8 @@ namespace stencil::gui {
   const QCursor& zoomInCursor() {
     static const QCursor cursor = [] {
       const qreal dpr = qGuiApp ? qGuiApp->devicePixelRatio() : 1.0;
-      constexpr int kEdge = 22;
-      QPixmap pm(qRound(kEdge * dpr), qRound(kEdge * dpr));
+      constexpr int EDGE = 22;
+      QPixmap pm(qRound(EDGE * dpr), qRound(EDGE * dpr));
       pm.setDevicePixelRatio(dpr);
       pm.fill(Qt::transparent);
       QPainter p(&pm);

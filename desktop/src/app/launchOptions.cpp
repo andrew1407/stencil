@@ -103,7 +103,7 @@ namespace stencil::gui {
       }
       // Bounded: parsed as JSON downstream, so the same cap as the browser hand-off payload.
       const QString layout = q.queryItemValue("layout", QUrl::FullyDecoded).trimmed();
-      if (layout.size() <= deepLink::kBrowserLaunchPayloadMax) o.layoutJson = layout;
+      if (layout.size() <= deepLink::BROWSER_LAUNCH_PAYLOAD_MAX) o.layoutJson = layout;
       bool ok = false;
       const int n = q.queryItemValue("frame").toInt(&ok);
       o.frame = (ok && n > 0) ? n : 0;

@@ -52,7 +52,7 @@ namespace stencil::gui {
         const bool onKebab = it && !it->data(Qt::UserRole).isNull() &&
                              kebabZone(list_->visualItemRect(it)).contains(he->pos());
         const QString tip = !it ? QString()
-                                : (onKebab ? kKebabTip : it->toolTip());
+                                : (onKebab ? KEBAB_TIP : it->toolTip());
         if (tip.isEmpty()) { gui::appTooltip()->hideTip(); return true; }
         // …forming out of the CURSOR, where the browser's tooltip flies from (ui/tooltip.js dust).
         tipRowText_ = tip;
@@ -68,7 +68,7 @@ namespace stencil::gui {
         setKebabHover(onKebab ? list_->row(it) : -1);
         // While up, the tip SLIDES with the pointer: showFor per move re-ran its appearance and stuttered.
         if (auto* tip = gui::appTooltip(); tip->isVisible() && tip->owner() == list_->viewport()) {
-          const QString text = !it ? QString() : (onKebab ? kKebabTip : it->toolTip());
+          const QString text = !it ? QString() : (onKebab ? KEBAB_TIP : it->toolTip());
           if (text.isEmpty() || text != tipRowText_) tip->hideTip();
           else tip->moveTo(static_cast<QMouseEvent*>(ev)->globalPosition().toPoint());
         }
@@ -108,8 +108,8 @@ namespace stencil::gui {
             // Alt HELD magnifies (browser parity); the SOURCE rides along so the Alt toggle can re-scale without a move.
             const int edge =
                 (QGuiApplication::queryKeyboardModifiers() & Qt::AltModifier)
-                    ? kHoverPreviewAltPx
-                    : kHoverPreviewPx;
+                    ? HOVER_PREVIEW_ALT_PX
+                    : HOVER_PREVIEW_PX;
             hoverPreview_->setProperty("srcPixmap", src);
             hoverPreview_->setPixmap(
                 src.scaled(edge, edge, Qt::KeepAspectRatio, Qt::SmoothTransformation));

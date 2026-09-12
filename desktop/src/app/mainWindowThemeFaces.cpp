@@ -47,7 +47,7 @@ namespace stencil::gui {
     const bool sysDark = systemPrefersDark();
     if (sysDark == appDark) return;   // nothing to reconcile
     const QColor menuCol = themePalette(sysDark, settings_.accentColor).textMain;
-    const int s = kToolIcon;
+    const int s = TOOL_ICON;
     for (auto it = actionIconNames_.constBegin(); it != actionIconNames_.constEnd(); ++it) {
       if (it.key()) it.key()->setIcon(themedIcon(it.value(), menuCol, s));
     }
@@ -57,7 +57,7 @@ namespace stencil::gui {
       if (!a) continue;
       // A toggle that paints its own face (support/faceSwap.hpp) is re-synced below; its glyph
       // colour is its state.
-      if (b->property(kFaceGlyphProperty).isValid()) continue;
+      if (b->property(FACE_GLYPH_PROPERTY).isValid()) continue;
       const auto name = actionIconNames_.constFind(a);
       if (name != actionIconNames_.constEnd()) {
         const QColor ink = toolButtonIconColor(a, appIconColor);
@@ -84,8 +84,8 @@ namespace stencil::gui {
     FaceSpec face;
     face.glyph = drawing ? QStringLiteral("stop") : QStringLiteral("play");
     face.label = want->iconText();   // the short toolbar word; the menus keep the long one
-    face.iconSize = kToolIcon;
-    face.gapPx = kFaceIconGap;   // air between glyph and word (see mainWindowHelpers.hpp)
+    face.iconSize = TOOL_ICON;
+    face.gapPx = FACE_ICON_GAP;   // air between glyph and word (see mainWindowHelpers.hpp)
     // Idle: the theme's own ink, the accent outline says draw toggle; running: the fill's own ink.
     face.glyphColor = drawing ? pal.onAccent : pal.textMain;
     face.textColor = face.glyphColor;
@@ -97,7 +97,7 @@ namespace stencil::gui {
       startDrawBtn_->style()->unpolish(startDrawBtn_);
       startDrawBtn_->style()->polish(startDrawBtn_);
     };
-    swapFace(startDrawBtn_, face, applyFill, animate && flipped ? kFaceSwapMs : 0);
+    swapFace(startDrawBtn_, face, applyFill, animate && flipped ? FACE_SWAP_MS : 0);
   }
 
   // Line ✎ / Rect ▭: the same swap with a permanent accent fill, like the browser's bare
@@ -109,16 +109,16 @@ namespace stencil::gui {
     // hooks too.
     face.glyph = rect ? QStringLiteral("rect") : QStringLiteral("line");
     face.label = rect ? QStringLiteral("Rect") : QStringLiteral("Line");
-    face.iconSize = 16;   // a touch under kToolIcon: this glyph reads heavier than the rest
-    face.gapPx = kFaceIconGap;   // …and the same air before the word as its twin
+    face.iconSize = 16;   // a touch under TOOL_ICON: this glyph reads heavier than the rest
+    face.gapPx = FACE_ICON_GAP;   // …and the same air before the word as its twin
     const Palette pal = themePalette(resolveDark(settings_.themeMode), settings_.accentColor);
     face.glyphColor = pal.onAccent;
     face.textColor = pal.onAccent;
     setTipBase(drawModeBtn_, rect ? "Drawing mode: Rectangle (click to switch to Line)"
                                   : "Drawing mode: Line (click to switch to Rectangle)");
     const bool flipped =
-        drawModeBtn_->property(kFaceLabelProperty).toString() != face.label;
-    swapFace(drawModeBtn_, face, {}, animate && flipped ? kFaceSwapMs : 0);
+        drawModeBtn_->property(FACE_LABEL_PROPERTY).toString() != face.label;
+    swapFace(drawModeBtn_, face, {}, animate && flipped ? FACE_SWAP_MS : 0);
   }
 }  // namespace stencil::gui
 

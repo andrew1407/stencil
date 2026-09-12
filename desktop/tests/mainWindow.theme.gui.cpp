@@ -533,7 +533,7 @@ class MainWindowGuiTest : public QObject {
             hidAt = clock.isValid() ? clock.elapsed() : -1;
           }
         }
-        if (w && w->objectName() == QLatin1String(stencil::gui::DisintegrateOverlay::kObjectName)
+        if (w && w->objectName() == QLatin1String(stencil::gui::DisintegrateOverlay::OBJECT_NAME)
             && e->type() == QEvent::Show) {
           if (dismissed) ++dustClosing; else ++dustOpening;
         }
@@ -807,7 +807,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     // The overlay is deliberately MOC-free, so it is found by object name, not by type.
     auto overlays = [&win] {
-      return win.findChildren<QWidget*>(QString::fromLatin1(ThemeSwapOverlay::kObjectName),
+      return win.findChildren<QWidget*>(QString::fromLatin1(ThemeSwapOverlay::OBJECT_NAME),
                                         Qt::FindDirectChildrenOnly).size();
     };
     // Boot already ran applyTheme(); nothing should be mid-wipe.
@@ -848,7 +848,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     auto overlays = [&win] {
-      return win.findChildren<QWidget*>(QString::fromLatin1(ThemeSwapOverlay::kObjectName),
+      return win.findChildren<QWidget*>(QString::fromLatin1(ThemeSwapOverlay::OBJECT_NAME),
                                         Qt::FindDirectChildrenOnly).size();
     };
     const QString original = win.settings_.themeMode;
@@ -886,7 +886,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     auto overlays = [&win] {
-      return win.findChildren<QWidget*>(QString::fromLatin1(ThemeSwapOverlay::kObjectName),
+      return win.findChildren<QWidget*>(QString::fromLatin1(ThemeSwapOverlay::OBJECT_NAME),
                                         Qt::FindDirectChildrenOnly).size();
     };
     QTRY_COMPARE(overlays(), 0);

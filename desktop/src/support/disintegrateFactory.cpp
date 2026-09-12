@@ -25,7 +25,7 @@ namespace stencil::gui {
     fx->raise();
     // Again after the relayout removing the victim triggers — it restacks the host's children.
     QTimer::singleShot(0, fx, [fx] { fx->raise(); });
-    fx->start(ms > 0 ? ms : kMs);
+    fx->start(ms > 0 ? ms : DUST_MS);
     return fx;
   }
 
@@ -51,7 +51,7 @@ namespace stencil::gui {
     fx->show();
     fx->raise();
     QTimer::singleShot(0, fx, [fx] { fx->raise(); });
-    fx->start(ms > 0 ? ms : kMs);
+    fx->start(ms > 0 ? ms : DUST_MS);
     return fx;
   }
 
@@ -88,7 +88,7 @@ namespace stencil::gui {
                                               const QPoint& targetGlobal) {
     QRect need = pictureGlobal;
     need |= QRect(targetGlobal, QSize(1, 1));
-    return need.adjusted(-kSurfacePadPx, -kSurfacePadPx, kSurfacePadPx, kSurfacePadPx);
+    return need.adjusted(-SURFACE_PAD_PX, -SURFACE_PAD_PX, SURFACE_PAD_PX, SURFACE_PAD_PX);
   }
 
 
@@ -109,12 +109,12 @@ namespace stencil::gui {
     fx->sweep_ = gather ? Sweep::SurfaceIn : Sweep::SurfaceOut;
     fx->picture_ = picture;
     fx->target_ = QPointF(target);
-    fx->sizeGridForDust(picture.size(), maxCells, kSurfaceCellPx);
+    fx->sizeGridForDust(picture.size(), maxCells, SURFACE_CELL_PX);
     fx->placeForSurface(host, picture, target, escapeHost, alwaysEscape);
     fx->show();
     fx->raise();
     QTimer::singleShot(0, fx, [fx] { fx->raise(); });
-    fx->start(ms > 0 ? ms : (gather ? kSurfaceInMs : kSurfaceOutMs));
+    fx->start(ms > 0 ? ms : (gather ? SURFACE_IN_MS : SURFACE_OUT_MS));
     return fx;
   }
 
@@ -132,7 +132,7 @@ namespace stencil::gui {
     DisintegrateOverlay* fx = DisintegrateOverlay::overSurface(
         shot, box, host, host->mapFromGlobal(originGlobal), gather, ms,
         subject->palette().color(QPalette::WindowText),
-        DisintegrateOverlay::kSurfaceMaxCells, escapeHost, alwaysEscape);
+        DisintegrateOverlay::SURFACE_MAX_CELLS, escapeHost, alwaysEscape);
     if (fx && paintNow) fx->repaint();
     return fx;
   }

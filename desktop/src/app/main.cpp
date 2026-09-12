@@ -35,7 +35,7 @@ namespace {
           const QString rich = stencil::gui::enrichedToolTip(plain);
           if (!rich.isEmpty()) {
             // The rendering bakes in palette colours, so a theme change rebuilds from the plain source.
-            w->setProperty(stencil::gui::kPlainTipProperty, plain);
+            w->setProperty(stencil::gui::PLAIN_TIP_PROPERTY, plain);
             w->setToolTip(rich);
           }
         }

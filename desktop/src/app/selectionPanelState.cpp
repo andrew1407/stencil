@@ -41,7 +41,7 @@ namespace stencil::gui {
 
   void SelectionPanel::restyleIcons(const QColor& iconColor) {
     // Back at 0° (›): the last spin ended with the panel hidden.
-    if (collapseBtn_) collapseBtn_->setIcon(themedIcon("chevron-right", iconColor, kToggleGlyph));
+    if (collapseBtn_) collapseBtn_->setIcon(themedIcon("chevron-right", iconColor, TOGGLE_GLYPH));
     iconColor_ = iconColor;
     if (points_) {
       for (int r = 0; r < points_->rowCount(); ++r)
@@ -51,7 +51,7 @@ namespace stencil::gui {
   }
 
   void SelectionPanel::spinCollapseChevron(qreal fromDeg, qreal toDeg, int ms) {
-    if (collapseBtn_) spinIcon(collapseBtn_, "chevron-right", iconColor_, kToggleGlyph, fromDeg, toDeg, ms);
+    if (collapseBtn_) spinIcon(collapseBtn_, "chevron-right", iconColor_, TOGGLE_GLYPH, fromDeg, toDeg, ms);
   }
 
   void SelectionPanel::showEvent(QShowEvent* event) {

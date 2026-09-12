@@ -65,7 +65,7 @@ namespace stencil::gui {
     for (int i = 0; i < list_->count(); ++i) {
       const QListWidgetItem* it = list_->item(i);
       if (it->data(Qt::UserRole).isNull()) continue;
-      const QString url = it->data(kRowUrlRole).toString();
+      const QString url = it->data(ROW_URL_ROLE).toString();
       if (url.isEmpty() || doomed_.contains(url)) continue;
       if (kindMatches(mode, it->data(Qt::UserRole).toBool())) out << url;
     }
@@ -92,19 +92,19 @@ namespace stencil::gui {
     if (filterFade_ || !list_) return filterFade_;
     filterFade_ = new ListFilterFade(list_);
     filterFade_->writeRow = [this](QListWidgetItem* it, double p) {
-      const QVariant full = it->data(kFilterFullHeightRole);
+      const QVariant full = it->data(FILTER_FULL_HEIGHT_ROLE);
       if (full.isValid()) it->setSizeHint(QSize(rowWidth(), filterHeight(full.toInt(), p)));
       QWidget* w = list_->itemWidget(it);
       if (!w) return;
       // Settled either way, hand the row back to the scroll-edge reveal.
       if (p >= 1.0 || p <= 0.0) {
-        if (w->property(kFilterFadeProperty).toBool()) {
-          w->setProperty(kFilterFadeProperty, false);
+        if (w->property(FILTER_FADE_PROPERTY).toBool()) {
+          w->setProperty(FILTER_FADE_PROPERTY, false);
           w->setGraphicsEffect(nullptr);
         }
         return;
       }
-      w->setProperty(kFilterFadeProperty, true);
+      w->setProperty(FILTER_FADE_PROPERTY, true);
       auto* fx = dynamic_cast<QGraphicsOpacityEffect*>(w->graphicsEffect());
       if (!fx) {
         fx = new QGraphicsOpacityEffect(w);
@@ -185,10 +185,10 @@ namespace stencil::gui {
                "QPushButton#rowDisconnect:hover{background:%11;}"
                "QPushButton#expiredReconnect{background:%4;color:#1f1f1f;}"
                "QPushButton#expiredReconnect:hover{background:%12;}")
-        .arg(border.name(), input.name(), kGold.name(), kAmber.name(),
-             mixSrgb(input, kAmber, 0.08).name(), accent.name(), info.name(),
+        .arg(border.name(), input.name(), GOLD.name(), AMBER.name(),
+             mixSrgb(input, AMBER, 0.08).name(), accent.name(), info.name(),
              accentShade(accent, dark).name(), accentShade(accent, dark).name())
-        .arg(themePalette(dark).danger.name(), dangerHover(dark).name(), kAmberHover.name());
+        .arg(themePalette(dark).danger.name(), dangerHover(dark).name(), AMBER_HOVER.name());
   }
 }  // namespace stencil::gui
 

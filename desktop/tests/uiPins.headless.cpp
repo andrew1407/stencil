@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
   const bool haveBaselines = updating() || QDir(shotsDir()).exists();
   if (!haveBaselines) {
     std::printf("\nSKIP: no %s baselines under %s — rewrite them there with "
-                "STENCIL_UPDATE_UI_PINS=1\n", kPlatform, qPrintable(pinsDir()));
+                "STENCIL_UPDATE_UI_PINS=1\n", PLATFORM, qPrintable(pinsDir()));
   } else {
     QImage img(240, 160, QImage::Format_RGB32);
     img.fill(Qt::white);

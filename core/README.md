@@ -140,7 +140,7 @@ filter; rotate staying a tiled transpose; rasterising a big layout staying linea
 rewrite must beat); `fillPolygon`'s per-scanline edge walk staying linear in edge count;
 `findLineAt`/`findNearestSegment` — the desktop's per-mouse-move hit test — staying linear in
 line count; `projectsStore::list()`'s deep copy and `sweepExpired` per dialog refresh;
-`formulaParser` at `kMaxDepth` nesting from untrusted layout JSON / `--formula`; `parseColor`
+`formulaParser` at `MAX_DEPTH` nesting from untrusted layout JSON / `--formula`; `parseColor`
 keyword vs. hex, called per line per rasterised/painted frame; the two `luma.hpp` Rec. 709
 forms against each other (with the invariant that they differ by at most 1 — the number that
 settles any attempt to unify them); and `HistoryStack::push` staying amortised O(1).

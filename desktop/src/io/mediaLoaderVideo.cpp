@@ -45,7 +45,7 @@ namespace stencil::gui {
     connect(timeout_, &QTimer::timeout, this, [this] {
       fail(QStringLiteral("Timed out reading --src: %1").arg(src_));
     });
-    timeout_->start(kVideoTimeoutMs);
+    timeout_->start(VIDEO_TIMEOUT_MS);
 
     player_->setSource(url);
   }
@@ -57,7 +57,7 @@ namespace stencil::gui {
     seekIssued_ = true;
 
     double fps = player_->metaData().value(QMediaMetaData::VideoFrameRate).toDouble();
-    if (fps <= 0.0) fps = kAssumedFps;
+    if (fps <= 0.0) fps = ASSUMED_FPS;
     fps_ = fps;                       // expose for the dialog's slider / frame count
     targetMs_ = static_cast<qint64>(frame_ / fps * 1000.0 + 0.5);
     const qint64 dur = player_->duration();

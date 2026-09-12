@@ -104,7 +104,7 @@ namespace stencil::gui {
 
   void LogoHoverFx::syncGeometry() {
     const QPoint tl = logo_->mapTo(parentWidget(), QPoint(0, 0));
-    setGeometry(QRect(tl, logo_->size()).adjusted(-kMargin, -kMargin, kMargin, kMargin));
+    setGeometry(QRect(tl, logo_->size()).adjusted(-MARGIN, -MARGIN, MARGIN, MARGIN));
     // Fullscreen's edge reveal SLIDES the toolbars' height, so the logo is clipped without a Hide event; visibleRegion() is the honest question.
     if (logo_->visibleRegion().isEmpty()) hide();
   }

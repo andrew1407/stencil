@@ -8,17 +8,17 @@
 namespace stencil::net {
 
   namespace {
-    constexpr auto kServersKey = "connections/servers";
-    constexpr auto kAutoConnectKey = "connections/autoConnect";
-    constexpr auto kTokensKey = "serverTokens";
+    constexpr auto SERVERS_KEY = "connections/servers";
+    constexpr auto AUTO_CONNECT_KEY = "connections/autoConnect";
+    constexpr auto TOKENS_KEY = "serverTokens";
   }  // namespace
 
   // Row: "url\t" or "url\t\tkind". The middle field is a LEGACY cleartext token migrated into
   // the secrets file on load; kind is read only as the LAST field so legacy rows still load.
   QVector<SavedServer> connectionStore::loadSavedServers() {
     QSettings s;
-    const QStringList rows = s.value(kServersKey).toStringList();
-    const QJsonObject tokens = gui::fileStore::loadSecrets().value(kTokensKey).toObject();
+    const QStringList rows = s.value(SERVERS_KEY).toStringList();
+    const QJsonObject tokens = gui::fileStore::loadSecrets().value(TOKENS_KEY).toObject();
     QVector<SavedServer> out;
     bool plaintext = false;
     for (const QString& row : rows) {
@@ -54,20 +54,20 @@ namespace stencil::net {
       if (!srv.token.isEmpty()) tokens.insert(srv.url, srv.token);
     }
     QSettings s;
-    s.setValue(kServersKey, rows);
+    s.setValue(SERVERS_KEY, rows);
     QJsonObject secrets = gui::fileStore::loadSecrets();
-    secrets.insert(kTokensKey, tokens);
+    secrets.insert(TOKENS_KEY, tokens);
     gui::fileStore::saveSecrets(secrets);
   }
 
   bool connectionStore::getAutoConnect() {
     QSettings s;
-    return s.value(kAutoConnectKey, true).toBool();
+    return s.value(AUTO_CONNECT_KEY, true).toBool();
   }
 
   void connectionStore::setAutoConnect(bool on) {
     QSettings s;
-    s.setValue(kAutoConnectKey, on);
+    s.setValue(AUTO_CONNECT_KEY, on);
   }
 
 }  // namespace stencil::net

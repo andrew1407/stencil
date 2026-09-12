@@ -16,31 +16,31 @@
 namespace stencil::gui {
 
   // QGraphicsOpacityEffect on the label — no compositor dependency.
-  inline constexpr int kFadeInMs = 180;
-  inline constexpr int kFadeOutMs = 160;
+  inline constexpr int FADE_IN_MS = 180;
+  inline constexpr int FADE_OUT_MS = 160;
   // Browser notifyLeave's 14px — the plain fade+rise fallback only.
-  inline constexpr int kSlidePx = 14;
+  inline constexpr int SLIDE_PX = 14;
   // Tighter than the browser's 18px: the window frame already reads as an edge.
-  inline constexpr int kLeftMargin = 6;
-  inline constexpr int kStackGapPx = 6;
+  inline constexpr int LEFT_MARGIN = 6;
+  inline constexpr int STACK_GAP_PX = 6;
   // Set the moment a toast starts leaving, so the cap ignores it and the exit is never staged twice.
-  inline constexpr const char* kLeavingProperty = "stencilToastLeaving";
-  inline constexpr const char* kTextProperty = "stencilToastText";
+  inline constexpr const char* LEAVING_PROPERTY = "stencilToastLeaving";
+  inline constexpr const char* TEXT_PROPERTY = "stencilToastText";
 
   // Toast dust (browser motion.js surfaceIn/surfaceOut): 2x the shared menu clock.
-  inline constexpr int kToastInMs = 560;   // browser ENTER_DUST_MS 840 / 1.5
+  inline constexpr int TOAST_IN_MS = 560;   // browser ENTER_DUST_MS 840 / 1.5
   // Shorter than the entrance. Browser twin: js/ui/notifications.js LEAVE_DUST_MS.
-  inline constexpr int kToastOutMs = 420;
+  inline constexpr int TOAST_OUT_MS = 420;
 
 
   // Only 0.15 toast-widths past `freeLeft`: farther had every grain off screen within
   // 150ms and the exit read as a cut (browser notifications.js twin).
-  inline constexpr double kToastReach = 0.15;
+  inline constexpr double TOAST_REACH = 0.15;
   inline QPoint toastDustPoint(const QRect& r, int freeLeft) {
-    return QPoint(freeLeft - qRound(r.width() * kToastReach), r.center().y());
+    return QPoint(freeLeft - qRound(r.width() * TOAST_REACH), r.center().y());
   }
 
-  inline constexpr int kDockGapPx = 8;
+  inline constexpr int DOCK_GAP_PX = 8;
 
   // `freeLeft` = a left-docked chat's width, 0 without one (browser clipDustToFree twin).
   inline void clipToFree(stencil::gui::DisintegrateOverlay* overlay, QWidget* host, int freeLeft) {
@@ -55,13 +55,13 @@ namespace stencil::gui {
     const QPixmap shot = toast->grab();
     if (shot.isNull()) return nullptr;
     auto* overlay = stencil::gui::DisintegrateOverlay::overSurface(
-        shot, rest, host, toastDustPoint(rest, freeLeft), /*gather=*/true, kToastInMs,
+        shot, rest, host, toastDustPoint(rest, freeLeft), /*gather=*/true, TOAST_IN_MS,
         toast->palette().color(QPalette::WindowText));
     if (!overlay) return nullptr;
     clipToFree(overlay, host, freeLeft);
     fx->setOpacity(0.0);
     auto* fade = new QPropertyAnimation(fx, "opacity", toast);
-    stencil::gui::holdFadeKeys(fade, kToastInMs);
+    stencil::gui::holdFadeKeys(fade, TOAST_IN_MS);
     fade->start(QAbstractAnimation::DeleteWhenStopped);
     return overlay;
   }
@@ -78,7 +78,7 @@ namespace stencil::gui {
     if (shot.isNull()) return false;
     auto* overlay = stencil::gui::DisintegrateOverlay::overSurface(
         shot, toast->geometry(), host, toastDustPoint(toast->geometry(), freeLeft),
-        /*gather=*/false, kToastOutMs, toast->palette().color(QPalette::WindowText));
+        /*gather=*/false, TOAST_OUT_MS, toast->palette().color(QPalette::WindowText));
     if (!overlay) return false;
     // No easing override: one curve drives travel AND alpha, and Linear/InCubic both grew a tail.
     clipToFree(overlay, host, freeLeft);

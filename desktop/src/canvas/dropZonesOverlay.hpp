@@ -37,7 +37,7 @@ namespace stencil::gui {
       });
       fade_.setInterval(16);
       QObject::connect(&fade_, &QTimer::timeout, [this] {
-        opacity_ -= 16.0 / kFadeOutMs;
+        opacity_ -= 16.0 / FADE_OUT_MS;
         if (opacity_ <= 0.0) { opacity_ = 1.0; fade_.stop(); hide(); return; }
         update();
       });
@@ -67,7 +67,7 @@ namespace stencil::gui {
       p.setOpacity(opacity_);
       const int w = width(), h = height();
       // The footer is its own strip BELOW the zones (browser .drop-foot).
-      const int zoneH = h - 20 - kFootH - kFootGap;
+      const int zoneH = h - 20 - FOOT_H - FOOT_GAP;
       const QRect left(10, 10, w / 2 - 15, zoneH);
       const QRect right(w / 2 + 5, 10, w / 2 - 15, zoneH);
       // The SAME glyphs as ui/dropOverlay.js, not the text "↑"/"◐" (system-font dependent).
@@ -79,7 +79,7 @@ namespace stencil::gui {
       ff.setPointSizeF(p.font().pointSizeF() - 1);
       p.setFont(ff);
       p.setPen(QColor("#9aa3b2"));
-      p.drawText(QRect(20, h - 10 - kFootH, w - 40, kFootH), Qt::AlignHCenter | Qt::AlignVCenter,
+      p.drawText(QRect(20, h - 10 - FOOT_H, w - 40, FOOT_H), Qt::AlignHCenter | Qt::AlignVCenter,
                  QStringLiteral("…or drop a .json layout / .stencil project file "
                                 "(either side — the split above is for images)"));
     }
@@ -103,16 +103,16 @@ namespace stencil::gui {
       p.setPen(pen);
       p.setBrush(Qt::NoBrush);
       p.drawRoundedRect(r, 14, 14);
-      // Rasterized ONCE at kGlyphPx: re-rendering the SVG per frame would push ~60 entries/s into themedIcon's cache.
+      // Rasterized ONCE at GLYPH_PX: re-rendering the SVG per frame would push ~60 entries/s into themedIcon's cache.
       const double scale = 1.0 + 0.18 * std::sin(phase_);
-      const QPixmap px = themedIcon(iconName, col, kGlyphPx).pixmap(kGlyphPx, kGlyphPx);
+      const QPixmap px = themedIcon(iconName, col, GLYPH_PX).pixmap(GLYPH_PX, GLYPH_PX);
       if (!px.isNull()) {
         const QRect band(r.left(), r.top() + r.height() / 6, r.width(), r.height() / 3);
         p.save();
         p.translate(band.center());
-        const double k = (kGlyphDrawPx * scale) / kGlyphPx;
+        const double k = (GLYPH_DRAW_PX * scale) / GLYPH_PX;
         p.scale(k, k);
-        p.drawPixmap(QRect(-kGlyphPx / 2, -kGlyphPx / 2, kGlyphPx, kGlyphPx), px);
+        p.drawPixmap(QRect(-GLYPH_PX / 2, -GLYPH_PX / 2, GLYPH_PX, GLYPH_PX), px);
         p.restore();
       }
       QFont f = base;
@@ -129,12 +129,12 @@ namespace stencil::gui {
                  Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, sub);
     }
 
-    static constexpr double kFadeOutMs = 200.0;
-    static constexpr int kFootH = 24;
-    static constexpr int kFootGap = 6;
-    // Rasterized at this size, painted down to kGlyphDrawPx (the browser's 46px icon) so the pulse never upscales.
-    static constexpr int kGlyphPx = 96;
-    static constexpr double kGlyphDrawPx = 46.0;
+    static constexpr double FADE_OUT_MS = 200.0;
+    static constexpr int FOOT_H = 24;
+    static constexpr int FOOT_GAP = 6;
+    // Rasterized at this size, painted down to GLYPH_DRAW_PX (the browser's 46px icon) so the pulse never upscales.
+    static constexpr int GLYPH_PX = 96;
+    static constexpr double GLYPH_DRAW_PX = 46.0;
 
     QColor accent_{"#7c3aed"};
     QColor muted_{"#80868f"};

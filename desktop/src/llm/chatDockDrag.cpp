@@ -25,9 +25,9 @@ namespace stencil::gui {
   // .chat-dock-btn-active) — you can't dock where you already are.
   void ChatDock::updatePlacementState() {
     if (dockBtns_.size() < 4 || !floatBtn_ || !accentCache_.isValid()) return;
-    static const char* kGlyphs[] = {"chevron-left", "chevron-up", "chevron-down",
+    static const char* GLYPHS[] = {"chevron-left", "chevron-up", "chevron-down",
                                     "chevron-right"};
-    static const Qt::DockWidgetArea kAreas[] = {
+    static const Qt::DockWidgetArea AREAS[] = {
         Qt::LeftDockWidgetArea, Qt::TopDockWidgetArea, Qt::BottomDockWidgetArea,
         Qt::RightDockWidgetArea};
     auto* mw = qobject_cast<QMainWindow*>(parentWidget());
@@ -36,18 +36,18 @@ namespace stencil::gui {
     const QString activeQss = QStringLiteral("background:%1;border:none;border-radius:5px;")
                                   .arg(chipCache_.name());
     const auto paint = [&](QToolButton* b, const char* glyph, bool active) {
-      b->setIcon(themedIcon(glyph, active ? accentCache_ : textCache_, kHeaderIcon));
+      b->setIcon(themedIcon(glyph, active ? accentCache_ : textCache_, HEADER_ICON));
       b->setStyleSheet(active ? activeQss : QString());
       // The float button's `maximize` glyph has a second motion for the ALREADY-floating
       // state: its corners retract instead of extending (iconMotion.json variants.active).
-      b->setProperty(kIconStateProperty, active ? "active" : "");
+      b->setProperty(ICON_STATE_PROPERTY, active ? "active" : "");
       // Left ENABLED: docking where you already are is a no-op anyway, and disabling it
       // handed the button to QToolButton:disabled — a bordered grey chip with a dimmed
       // glyph, which is what made the row look dark and unclear.
       b->setEnabled(true);
     };
     for (int i = 0; i < 4; ++i)
-      paint(dockBtns_[i], kGlyphs[i], !isFloating() && current == kAreas[i]);
+      paint(dockBtns_[i], GLYPHS[i], !isFloating() && current == AREAS[i]);
     paint(floatBtn_, "maximize", isFloating());
   }
 

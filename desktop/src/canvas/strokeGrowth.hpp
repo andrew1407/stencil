@@ -14,19 +14,19 @@
 namespace stencil::gui::stroke {
 
   // Lengths are IMAGE px on both sides, so zoom does not change the timing (motion.js strokeFlyMs).
-  constexpr double kFlyMinMs = 150.0;
-  constexpr double kFlyMaxMs = 420.0;
-  constexpr double kFlyPxPerMs = 2.4;
+  constexpr double FLY_MIN_MS = 150.0;
+  constexpr double FLY_MAX_MS = 420.0;
+  constexpr double FLY_PX_PER_MS = 2.4;
   double flyMs(double len);
 
   // Ease-out-back, weaker than the textbook 1.70158: on a 3px stroke a big overshoot is a glitch.
-  constexpr double kFlyBack = 1.28;
+  constexpr double FLY_BACK = 1.28;
   double flyEase(double t);
 
   // Pushed off a straight path by a capped share of the trip, back by landing (the dust's tileWaypoint rule).
-  constexpr double kBowShare = 0.13;
-  constexpr double kBowMax = 22.0;
-  inline double bowAmp(double len) { return std::min(len * kBowShare, kBowMax); }
+  constexpr double BOW_SHARE = 0.13;
+  constexpr double BOW_MAX = 22.0;
+  inline double bowAmp(double len) { return std::min(len * BOW_SHARE, BOW_MAX); }
 
   double bowSign(double x, double y);
 
@@ -35,26 +35,26 @@ namespace stencil::gui::stroke {
   QPointF flyPoint(const QPointF& from, const QPointF& to, double t, double bow);
 
   // Arrives half again its size and settles; the swell happens in flight so nothing snaps on arrival.
-  constexpr double kPopMs = 240.0;
-  constexpr double kPopPeak = 1.5;
-  constexpr double kFlyR0 = 0.5;
+  constexpr double POP_MS = 240.0;
+  constexpr double POP_PEAK = 1.5;
+  constexpr double FLY_R0 = 0.5;
   double flyRadius(double t);
   double popScale(double u);
 
   // The landing ring: faint and brief.
-  constexpr double kRippleMs = 420.0;
-  constexpr double kRippleReach = 4.2;
-  constexpr double kRippleAlpha = 0.55;
+  constexpr double RIPPLE_MS = 420.0;
+  constexpr double RIPPLE_REACH = 4.2;
+  constexpr double RIPPLE_ALPHA = 0.55;
   struct Ring { double scale; double alpha; };
   Ring ripple(double u);
 
   // Nothing at either end (must not smudge the anchor or the landed point), brightest mid-trip.
-  constexpr double kSparkReach = 2.8;
-  constexpr double kSparkAlpha = 0.6;
+  constexpr double SPARK_REACH = 2.8;
+  constexpr double SPARK_ALPHA = 0.6;
   Ring spark(double t);
 
   // Segment heat: full as it leaves, out by landing.
-  constexpr double kWakeAlpha = 0.5;
+  constexpr double WAKE_ALPHA = 0.5;
   double wake(double t);
 
   // `land` drives the settle, `ripple` the ring; both start when the flight ends.
@@ -76,7 +76,7 @@ namespace stencil::gui::stroke {
     QPointF to;            // the vertex's resting place — also its identity
     QPointF from;
     double bow = 0.0;
-    double fly = kFlyMinMs;
+    double fly = FLY_MIN_MS;
     double start = 0.0;    // ms on the widget's clock; may be in the FUTURE (staggered)
   };
 

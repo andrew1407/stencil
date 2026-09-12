@@ -5,10 +5,10 @@ namespace stencil::core {
   // Zoom/pan math. Port of browser/js/core/zoomPan.js (clamp / zoomToward / zoomToRect).
 
   // zoomPan.js MIN/MAX/STEP/STEP_FAST.
-  constexpr double kZoomMin = 0.05;
-  constexpr double kZoomMax = 32.0;   // 3200% — headroom to magnify small images/pixels
-  constexpr double kZoomStep = 0.1;
-  constexpr double kZoomStepFast = 0.3;
+  constexpr double ZOOM_MIN = 0.05;
+  constexpr double ZOOM_MAX = 32.0;   // 3200% — headroom to magnify small images/pixels
+  constexpr double ZOOM_STEP = 0.1;
+  constexpr double ZOOM_STEP_FAST = 0.3;
 
   double clampScale(double scale);
 
@@ -23,7 +23,7 @@ namespace stencil::core {
   AnchoredZoom anchoredZoom(double scrollLeft, double scrollTop, double cursorX,
                             double cursorY, double oldScale, double newScale);
 
-  // A swept image-space rect fills the availW x availH viewport, centred, capped at kZoomMax.
+  // A swept image-space rect fills the availW x availH viewport, centred, capped at ZOOM_MAX.
   struct RectZoom {
     double scale = 1.0;
     double scrollLeft = 0.0;

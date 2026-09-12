@@ -40,8 +40,8 @@
 using stencil::gui::ConnectDialog;
 using stencil::gui::DisintegrateOverlay;
 using stencil::gui::filteredIn;
-using stencil::gui::kFilterFadeMs;
-using stencil::gui::kFilterFullHeightRole;
+using stencil::gui::FILTER_FADE_MS;
+using stencil::gui::FILTER_FULL_HEIGHT_ROLE;
 using stencil::net::ConnectionManager;
 using stencil::net::ServerClient;
 
@@ -699,7 +699,7 @@ int main(int argc, char** argv) {
             "…three ways, All by default");
       check(!lw->item(adminRow)->isHidden() && !lw->item(plainRow)->isHidden(),
             "…which shows every row");
-      const int fullH = lw->item(plainRow)->data(kFilterFullHeightRole).toInt();
+      const int fullH = lw->item(plainRow)->data(FILTER_FULL_HEIGHT_ROLE).toInt();
       check(fullH > 0 && lw->item(plainRow)->sizeHint().height() == fullH,
             "a settled row occupies its whole slot");
 
@@ -714,7 +714,7 @@ int main(int argc, char** argv) {
       check(!lw->item(adminRow)->isHidden() && lw->item(adminRow)->sizeHint().height() == fullH,
             "Admin leaves the surviving row where it was, at full height");
       // The semantics: a filter-out is NOT a removal, so it never spends the dust.
-      check(dlg.findChild<QWidget*>(DisintegrateOverlay::kObjectName) == nullptr,
+      check(dlg.findChild<QWidget*>(DisintegrateOverlay::OBJECT_NAME) == nullptr,
             "…with none of the destructive scatter a disconnect uses");
 
       // ── …and a row the filter REVEALS opens its slot: up at once, still growing.
@@ -730,7 +730,7 @@ int main(int argc, char** argv) {
       // ── Rapid changes: whatever is mid-flight, the LAST pick decides the visible set.
       for (const char* mode : {"admin", "nonadmin", "admin", "all"}) {
         filter->setCurrentIndex(filter->findData(QString::fromLatin1(mode)));
-        pumpFor(kFilterFadeMs / 6);   // each flip interrupts the one before it
+        pumpFor(FILTER_FADE_MS / 6);   // each flip interrupts the one before it
       }
       pumpUntil([&] {
         return !lw->item(adminRow)->isHidden() && !lw->item(plainRow)->isHidden() &&
@@ -776,7 +776,7 @@ int main(int argc, char** argv) {
       f2->setCurrentIndex(f2->findData(QStringLiteral("all")));
       check(!l2->item(0)->isHidden() &&
                 l2->item(0)->sizeHint().height() ==
-                    l2->item(0)->data(kFilterFullHeightRole).toInt(),
+                    l2->item(0)->data(FILTER_FULL_HEIGHT_ROLE).toInt(),
             "…and restores it whole, still without animating");
       qunsetenv("STENCIL_NO_ANIM");
     }

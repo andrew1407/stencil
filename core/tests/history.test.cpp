@@ -94,18 +94,18 @@ TEST_CASE("reset with empty lines leaves NO redo (no stray redo step after a bla
   CHECK(r->size() == 1);
 }
 
-TEST_CASE("push caps the depth at kMaxSteps, evicting the oldest snapshot") {
+TEST_CASE("push caps the depth at MAX_STEPS, evicting the oldest snapshot") {
   HistoryStack h;
-  const int cap = static_cast<int>(HistoryStack::kMaxSteps);
+  const int cap = static_cast<int>(HistoryStack::MAX_STEPS);
   CHECK(cap == 64);  // LIMITS.historyMax in browser/js/config/constants.json
   for (int i = 0; i < cap; ++i) h.push({lineWithX(i)});
-  CHECK(h.size() == HistoryStack::kMaxSteps);
+  CHECK(h.size() == HistoryStack::MAX_STEPS);
   CHECK(h.step() == cap - 1);
 
   // One past the cap: size holds, the cursor still names the snapshot just pushed,
   // and the oldest (x == 0) is gone — the deepest undo now reaches x == 1.
   h.push({lineWithX(cap)});
-  CHECK(h.size() == HistoryStack::kMaxSteps);
+  CHECK(h.size() == HistoryStack::MAX_STEPS);
   CHECK(h.step() == cap - 1);
   CHECK_FALSE(h.canRedo());
   for (int i = 0; i < cap - 1; ++i) h.undo();
@@ -121,10 +121,10 @@ TEST_CASE("push caps the depth at kMaxSteps, evicting the oldest snapshot") {
 
 TEST_CASE("the cap holds over a long run and leaves redo reachable") {
   HistoryStack h;
-  const int cap = static_cast<int>(HistoryStack::kMaxSteps);
+  const int cap = static_cast<int>(HistoryStack::MAX_STEPS);
   for (int i = 0; i < cap * 3; ++i) {
     h.push({lineWithX(i)});
-    CHECK(h.size() <= HistoryStack::kMaxSteps);
+    CHECK(h.size() <= HistoryStack::MAX_STEPS);
     CHECK(h.step() == static_cast<int>(h.size()) - 1);
   }
   h.undo();

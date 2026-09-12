@@ -16,12 +16,12 @@ namespace stencil::gui {
   }
 
 
-  // Browser surfaceForm ramp: 0 until kDustHold, then up to 1.
+  // Browser surfaceForm ramp: 0 until DUST_HOLD, then up to 1.
   void holdFadeKeys(QVariantAnimation* fade, int ms) {
     fade->setKeyValues({});
     fade->setDuration(ms);
     fade->setKeyValueAt(0.0, 0.0);
-    fade->setKeyValueAt(kDustHold, 0.0);
+    fade->setKeyValueAt(DUST_HOLD, 0.0);
     fade->setKeyValueAt(1.0, 1.0);
   }
 
@@ -46,11 +46,11 @@ namespace stencil::gui {
 
 
   QPointF DisintegrateOverlay::swirlAt(double away, double tx, double ty, double q) {
-    constexpr double kPi = 3.14159265358979323846;   // M_PI is not portable (MSVC)
+    constexpr double PI = 3.14159265358979323846;   // M_PI is not portable (MSVC)
     const double len = std::hypot(tx, ty);
     if (len < 0.5) return {};
-    const double amp = (q - 0.5) * 2.0 * std::min(len * kSwirlShare, kSwirlMaxPx);
-    const double s = std::sin(kPi * away) * amp;
+    const double amp = (q - 0.5) * 2.0 * std::min(len * SWIRL_SHARE, SWIRL_MAX_PX);
+    const double s = std::sin(PI * away) * amp;
     return QPointF(-ty / len * s, tx / len * s);
   }
 
@@ -59,8 +59,8 @@ namespace stencil::gui {
   QPointF DisintegrateOverlay::waypointOf(double tx, double ty, double q) {
     const double len = std::hypot(tx, ty);
     if (len < 0.5) return {};
-    const double amp = (q - 0.5) * 2.0 * std::min(len * kSwirlShare, kSwirlMaxPx);
-    return QPointF(tx * kWaypointAlong - ty / len * amp, ty * kWaypointAlong + tx / len * amp);
+    const double amp = (q - 0.5) * 2.0 * std::min(len * SWIRL_SHARE, SWIRL_MAX_PX);
+    return QPointF(tx * WAYPOINT_ALONG - ty / len * amp, ty * WAYPOINT_ALONG + tx / len * amp);
   }
 
 
@@ -110,26 +110,26 @@ namespace stencil::gui {
 
 
   QPointF DisintegrateOverlay::turbulenceAt(double p, double tx, double ty, double w) {
-    constexpr double kPi = 3.14159265358979323846;
+    constexpr double PI = 3.14159265358979323846;
     const double len = std::hypot(tx, ty);
     if (len < 0.5) return {};
-    const double waves = kTurbulenceWaves[0] + (kTurbulenceWaves[1] - kTurbulenceWaves[0]) * w;
-    const double s = std::min(len * kTurbulenceShare, kTurbulenceMaxPx) * std::sin(kPi * p)
-                   * std::sin(p * waves * 2 * kPi + w * 2 * kPi);
+    const double waves = TURBULENCE_WAVES[0] + (TURBULENCE_WAVES[1] - TURBULENCE_WAVES[0]) * w;
+    const double s = std::min(len * TURBULENCE_SHARE, TURBULENCE_MAX_PX) * std::sin(PI * p)
+                   * std::sin(p * waves * 2 * PI + w * 2 * PI);
     return QPointF(-ty / len * s, tx / len * s);
   }
 
 
   double DisintegrateOverlay::twinkleAt(bool glint, double ms, double w) {
-    constexpr double kPi = 3.14159265358979323846;
+    constexpr double PI = 3.14159265358979323846;
     if (!glint) return 1.0;
-    const double hz = kTwinkleHz[0] + (kTwinkleHz[1] - kTwinkleHz[0]) * w;
-    return 1.0 - kTwinkleDepth * 0.5 * (1.0 + std::sin(ms * hz * 2 * kPi / 1000.0 + w * 2 * kPi));
+    const double hz = TWINKLE_HZ[0] + (TWINKLE_HZ[1] - TWINKLE_HZ[0]) * w;
+    return 1.0 - TWINKLE_DEPTH * 0.5 * (1.0 + std::sin(ms * hz * 2 * PI / 1000.0 + w * 2 * PI));
   }
 
 
   double DisintegrateOverlay::moteRadius(double cw, double ch, double n) {
-    return std::min({cw, ch, double(kSpeckPx)}) * (0.62 + n * 0.5) * 0.5;
+    return std::min({cw, ch, double(SPECK_PX)}) * (0.62 + n * 0.5) * 0.5;
   }
 
 
@@ -156,7 +156,7 @@ namespace stencil::gui {
   QColor DisintegrateOverlay::cellColour(const QImage& cells, int cx, int cy) {
     if (cells.isNull() || cx < 0 || cy < 0 || cx >= cells.width() || cy >= cells.height()) return {};
     QColor c = cells.pixelColor(cx, cy);
-    c.setAlphaF(std::min(1.0, c.alphaF() * kCoverageLift));
+    c.setAlphaF(std::min(1.0, c.alphaF() * COVERAGE_LIFT));
     return c;
   }
 

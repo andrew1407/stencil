@@ -56,8 +56,8 @@ namespace stencil::gui {
     // Alt+R + ←/→ rotates the selection 3°/press (browser chord).
     if ((mods & Qt::AltModifier) && rKeyHeld_ && canvas_->selectionCount() >= 1 &&
         !canvas_->compareReadOnly() && (key == Qt::Key_Left || key == Qt::Key_Right)) {
-      constexpr double kRotStep = 3.14159265358979323846 / 60.0;  // 3° (matches wheel rotate)
-      canvas_->rotateSelectedLine((key == Qt::Key_Left ? -kRotStep : kRotStep));
+      constexpr double ROT_STEP = 3.14159265358979323846 / 60.0;  // 3° (matches wheel rotate)
+      canvas_->rotateSelectedLine((key == Qt::Key_Left ? -ROT_STEP : ROT_STEP));
       event->accept();
       return;
     }
@@ -68,11 +68,11 @@ namespace stencil::gui {
         canvas_->selectionCount() >= 1 && !canvas_->compareReadOnly() &&
         (key == Qt::Key_Up || key == Qt::Key_Down || key == Qt::Key_Left ||
          key == Qt::Key_Right)) {
-      constexpr double kQuarterTurn = 3.14159265358979323846 / 2.0;  // ±90° about the centre
+      constexpr double QUARTER_TURN = 3.14159265358979323846 / 2.0;  // ±90° about the centre
       if (key == Qt::Key_Up) canvas_->flipSelectedLine(true);
       else if (key == Qt::Key_Down) canvas_->flipSelectedLine(false);
-      else if (key == Qt::Key_Right) canvas_->rotateSelectedLine(kQuarterTurn);
-      else canvas_->rotateSelectedLine(-kQuarterTurn);  // Key_Left
+      else if (key == Qt::Key_Right) canvas_->rotateSelectedLine(QUARTER_TURN);
+      else canvas_->rotateSelectedLine(-QUARTER_TURN);  // Key_Left
       event->accept();
       return;
     }

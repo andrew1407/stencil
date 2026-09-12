@@ -34,13 +34,13 @@ namespace stencil::llm {
   }
 
   // How much of a provider's own prose an error may quote (server upstream.go parity).
-  inline constexpr int kMaxProviderDetail = 200;
+  inline constexpr int MAX_PROVIDER_DETAIL = 200;
 
   // Provider prose is untrusted: control characters out, URLs and token-shaped runs
   // redacted, whitespace collapsed, hard-truncated. Port of the browser client's
   // sanitizeProviderText — an error body never reaches the chat as itself.
   inline QString sanitizeProviderText(QString text) {
-    text.truncate(4 * kMaxProviderDetail);
+    text.truncate(4 * MAX_PROVIDER_DETAIL);
     for (QChar& c : text)
       if (!c.isPrint()) c = QLatin1Char(' ');
     static const QRegularExpression url(QStringLiteral(R"([a-zA-Z][a-zA-Z0-9+.-]*://\S+)"));
@@ -52,8 +52,8 @@ namespace stencil::llm {
     text.replace(url, QStringLiteral("[redacted]"));
     text.replace(secret, QStringLiteral("[redacted]"));
     text = text.simplified();
-    if (text.size() > kMaxProviderDetail)
-      text = text.left(kMaxProviderDetail - 1).trimmed() + QStringLiteral("…");
+    if (text.size() > MAX_PROVIDER_DETAIL)
+      text = text.left(MAX_PROVIDER_DETAIL - 1).trimmed() + QStringLiteral("…");
     return text;
   }
 

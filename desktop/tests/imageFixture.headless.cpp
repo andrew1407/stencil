@@ -127,14 +127,14 @@ int main(int argc, char** argv) {
   check(offAccent == 0, "overlay paints nothing while inactive");
 
   overlay->setActive(true);
-  // The frame DRAWS ON clockwise over kDrawMs rather than blinking into place, so the
+  // The frame DRAWS ON clockwise over DRAW_MS rather than blinking into place, so the
   // first frame is legitimately empty — pump the loop until it has closed before
   // measuring. (That it starts empty is itself the point of the animation.)
   check(countNear(host.grab().toImage(), accent, 24) == 0,
         "the frame starts empty and draws on, rather than appearing all at once");
   {
     QElapsedTimer t; t.start();
-    while (overlay->progress() < 1.0 && t.elapsed() < IncognitoOverlay::kDrawMs * 4)
+    while (overlay->progress() < 1.0 && t.elapsed() < IncognitoOverlay::DRAW_MS * 4)
       QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
   }
   check(overlay->progress() >= 1.0, "the frame reaches its closed state");
@@ -169,7 +169,7 @@ int main(int argc, char** argv) {
           "the stroke box is inset only by the pen's half-width");
     // Nothing is painted INSIDE the frame: the old "Incognito — not saved" pill
     // covered the picture, and that fact now lives on the toolbar "?" instead.
-    const int in = IncognitoOverlay::kPenPx + 2;
+    const int in = IncognitoOverlay::PEN_PX + 2;
     const QImage inner = shot.copy(in, in, shot.width() - 2 * in, shot.height() - 2 * in);
     check(countNear(inner, accent, 24) == 0,
           "no badge over the picture — only the frame paints");
@@ -184,9 +184,9 @@ int main(int argc, char** argv) {
     // Sample a quarter of the way in: mid-flight, so a snap shows up as 0 or 1.
     const auto cycle = [&](bool on) {
       overlay->setActive(on);
-      pump(IncognitoOverlay::kDrawMs / 4);
+      pump(IncognitoOverlay::DRAW_MS / 4);
       const double mid = overlay->progress();
-      pump(IncognitoOverlay::kDrawMs * 2);
+      pump(IncognitoOverlay::DRAW_MS * 2);
       return mid;
     };
     for (int round = 1; round <= 3; ++round) {
@@ -196,7 +196,7 @@ int main(int argc, char** argv) {
       check(on > 0.0 && on < 1.0, "the frame DRAWS ON gradually on this toggle");
     }
     overlay->setActive(true);
-    pump(IncognitoOverlay::kDrawMs * 2);
+    pump(IncognitoOverlay::DRAW_MS * 2);
   }
 
   // Most of the host area must still read as backdrop — proving the overlay is

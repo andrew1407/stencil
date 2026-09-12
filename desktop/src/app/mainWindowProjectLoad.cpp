@@ -49,7 +49,7 @@ namespace stencil::gui {
   QHash<QString, QPixmap> MainWindow::buildProjectThumbs() const {
     QHash<QString, QPixmap> out;
     // Larger than the 56px row icon so the hover-magnify preview stays crisp.
-    constexpr int kThumb = 320;
+    constexpr int THUMB = 320;
     const bool dark = resolveDark(settings_.themeMode);
     CanvasWidget off;
     off.setDark(dark);
@@ -83,7 +83,7 @@ namespace stencil::gui {
       }
       if (rendered.isNull()) continue;
       out.insert(id, QPixmap::fromImage(rendered.scaled(
-                         kThumb, kThumb, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+                         THUMB, THUMB, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
     }
     return out;
   }

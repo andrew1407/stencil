@@ -39,7 +39,7 @@ namespace stencil::gui {
     // the constraint rewrites the widget's minimum every pass, clobbering even a
     // setFixedWidth — so the constraint is gone and the width holds; the height
     // still follows the visible rows (LlmSettingsForm::syncRows adjustSize()).
-    setFixedWidth(kModalWidth);
+    setFixedWidth(MODAL_WIDTH);
     form_->focusProvider();
   }
 

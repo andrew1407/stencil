@@ -78,7 +78,7 @@ namespace stencil::gui {
     splitter_->addWidget(scroll_);
 
     auto* composer = new QWidget(splitter_);
-    composer->setMinimumHeight(kMenuChatComposerMin);
+    composer->setMinimumHeight(MENU_CHAT_COMPOSER_MIN);
     auto* ccol = new QVBoxLayout(composer);
     ccol->setContentsMargins(0, 0, 0, 0);
     ccol->setSpacing(4);
@@ -144,7 +144,7 @@ namespace stencil::gui {
     statusDot_->setObjectName(QStringLiteral("chatMenuStatusDot"));
     statusDot_->setFixedSize(7, 7);
     statusDot_->setAttribute(Qt::WA_TransparentForMouseEvents);
-    statusDot_->move(kMenuChatButtonEdge - statusDot_->width() - 1, 1);
+    statusDot_->move(MENU_CHAT_BUTTON_EDGE - statusDot_->width() - 1, 1);
     statusDot_->raise();
     ccol->addLayout(row, 1);
     splitter_->addWidget(composer);
@@ -156,12 +156,12 @@ namespace stencil::gui {
     // Line the drag pill up with the input column, not the whole row.
     splitter_->setPillReference(input_);
     updateSendEnabled();  // empty input ⇒ send starts disabled (dock parity)
-    splitter_->setFixedHeight(transcript + kMenuChatComposerHeight);
-    splitter_->setSizes({transcript, kMenuChatComposerHeight});
+    splitter_->setFixedHeight(transcript + MENU_CHAT_COMPOSER_HEIGHT);
+    splitter_->setSizes({transcript, MENU_CHAT_COMPOSER_HEIGHT});
     col->addWidget(splitter_);
 
-    setMinimumWidth(kMenuChatWidth);
-    setMaximumWidth(kMenuChatWidth + 120);
+    setMinimumWidth(MENU_CHAT_WIDTH);
+    setMaximumWidth(MENU_CHAT_WIDTH + 120);
   }
 
   QWidget* ChatMenuPanel::input() const { return input_; }
@@ -198,7 +198,7 @@ namespace stencil::gui {
     rowsAdded_.append(card);
     // Bounded like chatHistory_: past the cap the oldest mirrored row goes —
     // through the same scatter as any other row leaving, not a bare delete.
-    while (rowsAdded_.size() > kChatHistoryBound) dissolveRow(rowsAdded_.takeFirst());
+    while (rowsAdded_.size() > CHAT_HISTORY_BOUND) dissolveRow(rowsAdded_.takeFirst());
     applyChatBubbleWidths(body_, scroll_);   // the dock's wrap/measure pass
     scrollToBottom();
     // …and only THEN it arrives out of its own dust, the leave played backwards (the

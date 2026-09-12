@@ -25,15 +25,15 @@ namespace stencil::gui {
     // not draw it under ours; accessibleName carries it for a11y.
     void setLabel(const QString& t) { label_ = t; setAccessibleName(t); updateGeometry(); update(); }
     // `deg` 0 = chevron-up (rows shown), 180 = down; `ink` the label + chevron colour;
-    // `px` the chevron glyph size (kPillChevron).
+    // `px` the chevron glyph size (PILL_CHEVRON).
     void setChevron(qreal deg, const QColor& ink, int px) {
       chevronDeg_ = deg; ink_ = ink; chevronPx_ = px; update();
     }
 
     QSize sizeHint() const override {
       const QFontMetrics fm(font());
-      return QSize(kPadX * 2 + chevronPx_ + kGap + fm.horizontalAdvance(label_),
-                   fm.height() + kPadY * 2);
+      return QSize(PAD_X * 2 + chevronPx_ + GAP + fm.horizontalAdvance(label_),
+                   fm.height() + PAD_Y * 2);
     }
     QSize minimumSizeHint() const override { return sizeHint(); }
 
@@ -45,7 +45,7 @@ namespace stencil::gui {
       const QColor ink = ink_.isValid() ? ink_ : palette().color(QPalette::ButtonText);
       const QFontMetrics fm(font());
       const int tw = fm.horizontalAdvance(label_);
-      const qreal groupW = chevronPx_ + kGap + tw;
+      const qreal groupW = chevronPx_ + GAP + tw;
       const qreal x0 = (width() - groupW) / 2.0;   // chevron + label centred as ONE group
       const qreal cy = height() / 2.0;
       if (chevronPx_ > 0) {
@@ -61,14 +61,14 @@ namespace stencil::gui {
       }
       p.setPen(ink);
       p.setFont(font());
-      p.drawText(QRectF(x0 + chevronPx_ + kGap, 0, tw, height()),
+      p.drawText(QRectF(x0 + chevronPx_ + GAP, 0, tw, height()),
                  Qt::AlignLeft | Qt::AlignVCenter, label_);
     }
 
    private:
-    static constexpr int kPadX = 12;   // horizontal breathing room each side of the group
-    static constexpr int kPadY = 3;
-    static constexpr int kGap = 7;     // chevron → label
+    static constexpr int PAD_X = 12;   // horizontal breathing room each side of the group
+    static constexpr int PAD_Y = 3;
+    static constexpr int GAP = 7;     // chevron → label
     QString label_;
     qreal chevronDeg_ = 0.0;
     QColor ink_;

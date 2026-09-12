@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
     const bool pass = expect.isNull() ? got.isEmpty() : got == expect.toString();
     check(pass, qPrintable(name + (ov.present ? QStringLiteral(" [override]") : QString())));
     if (!pass) std::printf("       got: \"%s\"\n", qPrintable(got));
-    check(got.size() <= deepLink::kTelegramStartLimit, "within the 64-char limit");
+    check(got.size() <= deepLink::TELEGRAM_START_LIMIT, "within the 64-char limit");
   }
   std::printf("  walked %d vectors, %d local overrides\n", int(cases.size()), overridden);
   std::printf("  (skip) launchPayload.json — receiver-side normalizeLaunchPayload; "

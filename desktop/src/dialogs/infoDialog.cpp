@@ -23,7 +23,7 @@ namespace stencil::gui {
       if (!f.open(QIODevice::ReadOnly)) return {};
       return f.readAll();
     }
-    constexpr int kKeyColW = 188;   // .info-key flex-basis
+    constexpr int KEY_COL_W = 188;   // .info-key flex-basis
 
     // The term column wears the tooltips' keycaps: every token that is a key combo
     // becomes caps, the rest stays mono accent prose (browser infoModal's keyTermHtml).
@@ -40,7 +40,7 @@ namespace stencil::gui {
       };
       const auto piece = [&](const QString& tok) {
         if (tok.isEmpty()) return;
-        out += isKeyCombo(tok) ? comboKeycapsHtml(tok, pal, kOnMac, 0.8) : plain(tok);   // browser .info-key 12px caps
+        out += isKeyCombo(tok) ? comboKeycapsHtml(tok, pal, ON_MAC, 0.8) : plain(tok);   // browser .info-key 12px caps
       };
       for (auto it = split.globalMatch(s); it.hasNext();) {
         const QRegularExpressionMatch m = it.next();
@@ -68,7 +68,7 @@ namespace stencil::gui {
     connect(search_, &QLineEdit::textChanged, this,
             [this](const QString& q) { applyFilter(q); });
     // The browser's max-height: 82vh shell with the list scrolling inside it.
-    sizeModalTall(this, kModalWidth);
+    sizeModalTall(this, MODAL_WIDTH);
     // …and the caret lands in the search box, as the browser modal's onOpen does.
     QTimer::singleShot(0, search_, [s = search_] { s->setFocus(); });
   }
@@ -116,7 +116,7 @@ namespace stencil::gui {
         auto* key = new KeycapChip(row);
         key->setObjectName(QStringLiteral("infoKey"));
         key->setWordWrap(true);
-        key->setFixedWidth(kKeyColW);
+        key->setFixedWidth(KEY_COL_W);
         key->setAlignment(Qt::AlignLeft | Qt::AlignTop);
         key->setCaps(keyTermHtml(r.left, pal));
         auto* desc = new QLabel(r.right, row);

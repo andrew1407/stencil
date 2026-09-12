@@ -88,7 +88,7 @@ namespace stencil::gui {
       const QString rows =
           tipRow(QStringLiteral("Provider"), tipValue(QStringLiteral("None (turned off)"))) +
           tipRow(QStringLiteral("Status"),
-                 tipColored(kTipErrorColor,
+                 tipColored(TIP_ERROR_COLOR,
                             QStringLiteral("Assistant turned off — nothing is sent anywhere")));
       chatMirrorProviderStatus(tipPanel(rows, {clickHint}),
                                ChatDock::ProviderStatus::Unreachable);
@@ -121,7 +121,7 @@ namespace stencil::gui {
       return tipPanel(rows, foot);
     };
     const QString checking =
-        tipColored(kTipConnectingColor, QStringLiteral("Checking the configured LLM…"));
+        tipColored(TIP_CONNECTING_COLOR, QStringLiteral("Checking the configured LLM…"));
     chatMirrorProviderStatus(tooltip(cfg.model, checking, {clickHint}),
                              ChatDock::ProviderStatus::Unknown);
     // Probe only while SOMETHING shows the result.
@@ -136,12 +136,12 @@ namespace stencil::gui {
       QStringList foot;
       if (r.ok) {
         statusHtml = tipColored(
-            kTipOkColor, r.detail.isEmpty()
+            TIP_OK_COLOR, r.detail.isEmpty()
                              ? QStringLiteral("Connected")
                              : QStringLiteral("Connected — %1").arg(r.detail));
       } else {
         statusHtml = tipColored(
-            kTipErrorColor,
+            TIP_ERROR_COLOR,
             r.detail.isEmpty() ? QStringLiteral("Unreachable") : r.detail);
         foot << QStringLiteral("No LLM reachable%1 — %2configure another provider.")
                     .arg(url.isEmpty() ? QString() : QStringLiteral(" at %1").arg(url),
@@ -159,7 +159,7 @@ namespace stencil::gui {
         QStringList{cfg.provider, cfg.baseUrl, cfg.model, cfg.serverUrl}
             .join(QLatin1Char('|'));
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    if (probeKey == llmProbeKey_ && now - llmProbeAt_ <= kLlmProbeTtlMs) {
+    if (probeKey == llmProbeKey_ && now - llmProbeAt_ <= LLM_PROBE_TTL_MS) {
       applyProbe(llmProbeCache_);
       return;
     }
@@ -198,7 +198,7 @@ namespace stencil::gui {
     // Drop prior images to what §7 would send anyway; wire output is unchanged.
     if (!m.images.isEmpty()) trimPriorImages(chatHistory_, chatHistory_.size());
     chatHistory_.append(m);
-    while (chatHistory_.size() > kChatHistoryBound) chatHistory_.removeFirst();
+    while (chatHistory_.size() > CHAT_HISTORY_BOUND) chatHistory_.removeFirst();
   }
 }  // namespace stencil::gui
 

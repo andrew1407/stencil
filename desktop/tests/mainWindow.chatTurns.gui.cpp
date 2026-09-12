@@ -246,7 +246,7 @@ class MainWindowGuiTest : public QObject {
     // beat the wipe.
     QVERIFY2(!suggest->isVisible(), "the chips came back before the wipe finished");
     QTRY_VERIFY_WITH_TIMEOUT(suggest->isVisible(),
-                             stencil::gui::DisintegrateOverlay::kMs + 3000);
+                             stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
     QCOMPARE(dock->attachedImages().size(), 0);
     QVERIFY(dock->attachedVideoPath().isEmpty());
     QVERIFY(win.chatHistory_.isEmpty());
@@ -283,7 +283,7 @@ class MainWindowGuiTest : public QObject {
     // DissolveEffect on cards near a viewport edge, and setGraphicsEffect deletes the
     // effect already there — so the fade's animation was left writing to freed memory
     // and the app died in QGraphicsOpacityEffect::setOpacity one frame later. The fade
-    // now claims the card (kEnteringProperty) exactly as the entrance animation does.
+    // now claims the card (ENTERING_PROPERTY) exactly as the entrance animation does.
     {
       for (int i = 0; i < 6; i++) {
         dock->appendUser(QStringLiteral("question %1").arg(i));
@@ -304,7 +304,7 @@ class MainWindowGuiTest : public QObject {
       for (QFrame* card : transcript->findChildren<QFrame*>(QString(), Qt::FindDirectChildrenOnly)) {
         if (!card->graphicsEffect()) continue;
         fading++;
-        if (card->property(stencil::gui::ScrollReveal::kEnteringProperty).toBool()) claimed++;
+        if (card->property(stencil::gui::ScrollReveal::ENTERING_PROPERTY).toBool()) claimed++;
       }
       QVERIFY2(fading > 0, "no card was actually fading — the guard would be vacuous");
       QCOMPARE(claimed, fading);
@@ -313,7 +313,7 @@ class MainWindowGuiTest : public QObject {
         QTest::qWait(16);                 // one driver frame per relayout, no more
       }
       QTRY_VERIFY_WITH_TIMEOUT(cardCount() == 0,
-                               stencil::gui::DisintegrateOverlay::kMs + 3000);
+                               stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
     }
 
     // A LONG wrapped reply must not be cut off by its own bubble: the label's wrapped
@@ -328,7 +328,7 @@ class MainWindowGuiTest : public QObject {
                          "incognito tab: that needs a URL you gave me in this conversation.");
       dock->appendAssistant(essay);
       // The appear animation offsets the card's margins; it drops its own claim when it
-      // lands (kEnteringProperty), and the reserved wrap height follows one relayout later.
+      // lands (ENTERING_PROPERTY), and the reserved wrap height follows one relayout later.
       QTRY_VERIFY(noneEntering(transcript));
       settleLayout(transcript, 250);
       QLabel* body = nullptr;

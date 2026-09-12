@@ -17,7 +17,7 @@ class MainWindowGuiTest : public QObject {
   // too (ChatMenuPanel::gatherRow, the dock's animateCardIn in miniature).
   void chatCardsArriveOutOfDustOnEverySurface() {
     const auto motion = withMotion();   // the suite runs with STENCIL_NO_ANIM on
-    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
+    const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;
     for (const bool panel : {false, true}) {
       MainWindow win(nullptr, false);
       win.resize(panel ? 1200 : 1000, panel ? 850 : 760);
@@ -36,9 +36,9 @@ class MainWindowGuiTest : public QObject {
       // A dock card's cloud is a SURFACE flight parented to the window; the panel gathers
       // its rows inside itself. A row counts as a card on either surface: the dock's carry a
       // "chatCard…" object name, the panel's mirrored rows the "chatMoreBtn" property.
-      const auto dust = [&win, panel, kDust] {
-        return panel ? win.chatMenuPanel_->findChild<QWidget*>(kDust)
-                     : win.findChild<QWidget*>(kDust);
+      const auto dust = [&win, panel, DUST] {
+        return panel ? win.chatMenuPanel_->findChild<QWidget*>(DUST)
+                     : win.findChild<QWidget*>(DUST);
       };
       const auto rows = [&win, panel] {
         QList<QFrame*> out;
@@ -49,7 +49,7 @@ class MainWindowGuiTest : public QObject {
             out.append(f);
         return out;
       };
-      QTRY_VERIFY_WITH_TIMEOUT(!dust(), stencil::gui::DisintegrateOverlay::kMs + 2000);
+      QTRY_VERIFY_WITH_TIMEOUT(!dust(), stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
 
       // The message you send, the "…" holding the turn, the reply, and a failure — every one
       // of them is a card appearing, so every one of them gathers. The panel is fed the same
@@ -83,18 +83,18 @@ class MainWindowGuiTest : public QObject {
         // of it, which is the one thing an arrival must not do (the reported bug).
         auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect());
         QVERIFY2(fx && fx->opacity() == 0.0, "the card is invisible until its motes land");
-        QTRY_VERIFY_WITH_TIMEOUT(!dust(), stencil::gui::DisintegrateOverlay::kMs + 2000);
+        QTRY_VERIFY_WITH_TIMEOUT(!dust(), stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
         if (!panel) win.chatDock_->clearPending();   // the "…" must not outlive its own case
       }
 
       // …and every card lands on its resting state: full opacity, resting margins, and the
-      // effect handed back to the scroll-edge reveal (kEnteringProperty dropped).
+      // effect handed back to the scroll-edge reveal (ENTERING_PROPERTY dropped).
       int settled = 0;
       for (QFrame* card : rows()) {
         ++settled;
         if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect()))
           QTRY_COMPARE(fx->opacity(), 1.0);
-        QTRY_COMPARE(card->property(stencil::gui::ScrollReveal::kEnteringProperty).toBool(), false);
+        QTRY_COMPARE(card->property(stencil::gui::ScrollReveal::ENTERING_PROPERTY).toBool(), false);
         if (!panel) QTRY_COMPARE(card->layout()->contentsMargins().top(), 6);
       }
       QVERIFY2(settled > 0, "no card was found — the checks above would be vacuous");
@@ -114,16 +114,16 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.actChat_->setChecked(true);
     QTRY_VERIFY(win.chatDock_->isVisible());
-    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
-    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
-                             stencil::gui::DisintegrateOverlay::kMs + 4000);
+    const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;
+    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(DUST),
+                             stencil::gui::DisintegrateOverlay::DUST_MS + 4000);
 
     // `side` is +1 when the cloud must come from the right of the card, -1 from the left.
     const auto arrivesFrom = [&](const char* cardName, int side, const char* what) {
-      QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
+      QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) != nullptr, 3000);
       // No Q_OBJECT on the overlay (it needs no MOC), so its unique object name IS the
       // type check — qobject_cast will not compile for it.
-      auto* dust = static_cast<stencil::gui::DisintegrateOverlay*>(win.findChild<QWidget*>(kDust));
+      auto* dust = static_cast<stencil::gui::DisintegrateOverlay*>(win.findChild<QWidget*>(DUST));
       QVERIFY2(dust, what);
       QVERIFY2(dust->gathering(), what);   // an arrival, not a leave
       QFrame* card = nullptr;
@@ -134,8 +134,8 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(side * dx > 0, what);
       // …and clear of the card itself, so the motes visibly travel in over its edge.
       QVERIFY2(qAbs(dx) > box.width() / 2, what);
-      QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
-                               stencil::gui::DisintegrateOverlay::kMs + 2000);
+      QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) == nullptr,
+                               stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
     };
     win.chatDock_->appendUser(QStringLiteral("mine, on the right"), {});
     arrivesFrom("chatCardUser", +1, "a user message must gather from the RIGHT");
@@ -160,7 +160,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.actChat_->setChecked(true);
     QScrollArea* scroll = openTranscript(win);
-    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
+    const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;
 
     // Fill it well past one viewport, so every further append really does scroll.
     for (int i = 0; i < 10; ++i) {
@@ -168,8 +168,8 @@ class MainWindowGuiTest : public QObject {
       win.chatDock_->appendAssistant(QStringLiteral("reply %1, also long enough to take real height in the column").arg(i));
     }
     fillUntilScrollable(win, scroll);
-    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
-                             stencil::gui::DisintegrateOverlay::kMs + 4000);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(DUST),
+                             stencil::gui::DisintegrateOverlay::DUST_MS + 4000);
     QVERIFY2(scroll->verticalScrollBar()->maximum() > 0, "the transcript never became scrollable");
 
     // ── 1. no mote may reach the composer ──
@@ -184,7 +184,7 @@ class MainWindowGuiTest : public QObject {
       for (QFrame* f : win.chatDock_->findChildren<QFrame*>(QStringLiteral("chatCardUser"))) card = f;
       if (!card) return false;
       const QRect box(card->mapTo(&win, QPoint(0, 0)), card->size());
-      for (QWidget* w : win.findChildren<QWidget*>(QString::fromLatin1(kDust))) {
+      for (QWidget* w : win.findChildren<QWidget*>(QString::fromLatin1(DUST))) {
         auto* o = static_cast<stencil::gui::DisintegrateOverlay*>(w);
         if (o->surfacePicture() == box) { fx = o; return true; }
       }
@@ -205,15 +205,15 @@ class MainWindowGuiTest : public QObject {
     // transcript's viewport, so no mote reaches the composer however far it flies.
     QCOMPARE(fx->paintClip(),
              QRect(scroll->viewport()->mapTo(&win, QPoint(0, 0)), scroll->viewport()->size()));
-    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr,
-                             stencil::gui::DisintegrateOverlay::kMs + 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) == nullptr,
+                             stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
     if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect()))
       QTRY_COMPARE(fx->opacity(), 1.0);
     // ── 2. the cloud follows its own card, never stranding between two ──
     // A turn's two cards land back to back — the second one's append is what scrolls the
     // first one's snapshot off its subject.
     win.chatDock_->appendUser(QStringLiteral("Give me 3 variants: rotated, tinted, cropped"), {});
-    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) != nullptr, 3000);
     win.chatDock_->appendError(QStringLiteral("not connected to http://localhost:8090 (no token)"),
                                QStringLiteral("retry me"));
 
@@ -227,8 +227,8 @@ class MainWindowGuiTest : public QObject {
     int strandedFrames = 0, sampled = 0;
     for (int f = 0; f < 90; ++f) {
       QTest::qWait(16);
-      for (QWidget* d : win.findChildren<QWidget*>(kDust)) {
-        // kObjectName is the overlay's own, set nowhere else — and the class carries no
+      for (QWidget* d : win.findChildren<QWidget*>(DUST)) {
+        // OBJECT_NAME is the overlay's own, set nowhere else — and the class carries no
         // Q_OBJECT, so this is the cast available.
         auto* fx = static_cast<stencil::gui::DisintegrateOverlay*>(d);
         if (!fx->isVisible()) continue;
@@ -241,8 +241,8 @@ class MainWindowGuiTest : public QObject {
           const QPoint cTL = c->mapTo(&win, QPoint(0, 0));
           // The picture IS the card's box, retargeted by the exact delta, so a tracked
           // cloud lands on it to the pixel — the slack is for rounding, nothing else.
-          constexpr int kSlack = 2;
-          if (qAbs(pic.left() - cTL.x()) <= kSlack && qAbs(pic.top() - cTL.y()) <= kSlack) {
+          constexpr int SLACK = 2;
+          if (qAbs(pic.left() - cTL.x()) <= SLACK && qAbs(pic.top() - cTL.y()) <= SLACK) {
             onACard = true;
             break;
           }
@@ -259,10 +259,10 @@ class MainWindowGuiTest : public QObject {
     // full flight, so a cancel that just killed the motes left the message invisible with
     // nothing in its place (the browser twin had exactly this, found by resizing a live
     // entry mid-flight). Resizing the dock changes every card's width — the drop path.
-    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
-                             stencil::gui::DisintegrateOverlay::kMs + 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(DUST),
+                             stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
     win.chatDock_->appendUser(QStringLiteral("resized mid-flight"), {});
-    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) != nullptr, 3000);
     win.chatDock_->resize(win.chatDock_->width() - 90, win.chatDock_->height());
     settleLayout(win.chatDock_, 120);
     QFrame* resized = nullptr;
@@ -274,8 +274,8 @@ class MainWindowGuiTest : public QObject {
                                 1500);
 
     // …and nothing is left behind: every card lands visible, at its resting margins.
-    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(kDust),
-                             stencil::gui::DisintegrateOverlay::kMs + 3000);
+    QTRY_VERIFY_WITH_TIMEOUT(!win.findChild<QWidget*>(DUST),
+                             stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
     for (QFrame* c : win.chatDock_->findChildren<QFrame*>()) {
       if (!c->objectName().startsWith(QLatin1String("chatCard"))) continue;
       if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(c->graphicsEffect()))
@@ -345,7 +345,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.chatDock_->isVisible());
     win.chatDock_->appendUser(QStringLiteral("hi"), {});
     QTest::qWait(120);
-    QVERIFY2(!win.findChild<QWidget*>(stencil::gui::DisintegrateOverlay::kObjectName),
+    QVERIFY2(!win.findChild<QWidget*>(stencil::gui::DisintegrateOverlay::OBJECT_NAME),
              "no dust under reduced motion");
     QFrame* card = nullptr;
     for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardUser")) card = f;

@@ -37,7 +37,7 @@
 #include "theme.hpp"
 #include "modalReveal.hpp"
 #include "settingsDialog.hpp"
-#include "../src/app/mainWindowHelpers.hpp"   // kNameChipBox
+#include "../src/app/mainWindowHelpers.hpp"   // NAME_CHIP_BOX
 #include "../src/support/searchCombo.hpp"
 #include <QScopeGuard>
 #include <QtTest>

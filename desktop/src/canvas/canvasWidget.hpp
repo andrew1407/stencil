@@ -302,7 +302,7 @@ namespace stencil::gui {
     // Caller must have validated continueLineIdx_.
     void insertContinuationPoint(const core::Point& ip, bool advance);
     // core::shouldCloseShape's slack in image px; closeGrabSize undoes the zoom so it is constant on screen.
-    static constexpr double kCloseSlack = 8.0;
+    static constexpr double CLOSE_SLACK = 8.0;
     double closeGrabSize(const core::Line& line) const;
 
     bool updateHover(double imageX, double imageY);

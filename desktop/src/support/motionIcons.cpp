@@ -7,7 +7,7 @@ namespace stencil::support {
     if (mode == QLatin1String("water")) ms = 1125;
     else if (mode == QLatin1String("fire")) ms = 900;
     else if (mode == QLatin1String("particles")) ms = 825 + 4 * 90;
-    return ms / kMotionIconSpeedup;
+    return ms / MOTION_ICON_SPEEDUP;
   }
 
   // `box` is square, any size — the drawing is 16 units; a big `ms` = at rest.
@@ -109,7 +109,7 @@ namespace stencil::support {
     view_->viewport()->installEventFilter(this);
     tick_.setInterval(16);
     QObject::connect(&tick_, &QTimer::timeout, view_->viewport(), [this] {
-      if (clock_.elapsed() > kHoverMs) tick_.stop();
+      if (clock_.elapsed() > HOVER_MS) tick_.stop();
       view_->viewport()->update();
     });
   }
@@ -123,10 +123,10 @@ namespace stencil::support {
     const bool hovered = index.row() == hoverRow_;
     const double ms = hovered ? double(clock_.elapsed()) : 1e9;
     // The browser's 16px, not PM_SmallIconSize (half again as big on a Mac).
-    opt.decorationSize = QSize(kMotionIconPx, kMotionIconPx);
+    opt.decorationSize = QSize(MOTION_ICON_PX, MOTION_ICON_PX);
     const double dpr = p->device() ? p->device()->devicePixelRatio() : 1.0;
     // Always the row's TEXT colour: HighlightedText's white vanished on the light theme's accent wash.
-    opt.icon = motionIconFrame(mode, opt.palette.color(QPalette::Text), ms, kMotionIconPx, dpr);
+    opt.icon = motionIconFrame(mode, opt.palette.color(QPalette::Text), ms, MOTION_ICON_PX, dpr);
     opt.features |= QStyleOptionViewItem::HasDecoration;
     const QWidget* w = opt.widget;
     QStyle* style = w ? w->style() : QApplication::style();
@@ -169,7 +169,7 @@ namespace stencil::support {
     const double dpr = combo_->devicePixelRatioF();
     for (int i = 0; i < combo_->count(); ++i)
       combo_->setItemIcon(i, motionIconFrame(combo_->itemData(i).toString(), ink, 1e9,
-                                             kMotionIconPx, dpr));
+                                             MOTION_ICON_PX, dpr));
   }
 
   bool MotionIconFace::eventFilter(QObject* watched, QEvent* e) {

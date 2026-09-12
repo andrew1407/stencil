@@ -27,8 +27,8 @@ namespace stencil::gui {
 
   // C++ cannot read a QSS border-radius back, so the common control radius is the default
   // and anything rounder (the Close pill, the Controls pill) carries its own here.
-  inline constexpr const char* kShimmerRadiusProperty = "_shimmerRadius";
-  inline constexpr int kShimmerRadius = 7;
+  inline constexpr const char* SHIMMER_RADIUS_PROPERTY = "_shimmerRadius";
+  inline constexpr int SHIMMER_RADIUS = 7;
 
   // A transparent, mouse-through child overlay; it lives/dies with its target.
   class ShimmerOverlay : public QWidget {
@@ -120,8 +120,8 @@ namespace stencil::gui {
       g.setColorAt(1.0, QColor(255, 255, 255, 0));
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing);
-      const QVariant own = target_->property(kShimmerRadiusProperty);
-      const qreal r = std::min<qreal>(own.isValid() ? own.toReal() : kShimmerRadius,
+      const QVariant own = target_->property(SHIMMER_RADIUS_PROPERTY);
+      const qreal r = std::min<qreal>(own.isValid() ? own.toReal() : SHIMMER_RADIUS,
                                       std::min(b.width(), b.height()) / 2.0);
       if (r > 0.5) {
         QPainterPath clip;
@@ -176,7 +176,7 @@ namespace stencil::gui {
   }
 
   // A control opts out with this property.
-  inline constexpr const char* kNoShimmerProperty = "_noShimmer";
+  inline constexpr const char* NO_SHIMMER_PROPERTY = "_noShimmer";
 
   // Every control under `root` that the browser sweeps. installHoverShimmer is guarded, so
   // calling this twice on the same tree costs nothing.
@@ -184,7 +184,7 @@ namespace stencil::gui {
     if (!root) return;
     // ONE walk: findChildren<T*> per type is its own recursive descent, and this runs per row rebuild.
     for (QWidget* w : root->findChildren<QWidget*>()) {
-      if (w->property(kNoShimmerProperty).toBool()) continue;
+      if (w->property(NO_SHIMMER_PROPERTY).toBool()) continue;
       if (qobject_cast<QAbstractButton*>(w) || qobject_cast<QComboBox*>(w) ||
           qobject_cast<QLineEdit*>(w) || qobject_cast<QAbstractSpinBox*>(w))
         installHoverShimmer(w);

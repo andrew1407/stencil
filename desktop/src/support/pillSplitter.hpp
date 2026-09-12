@@ -14,11 +14,11 @@
 namespace stencil::gui {
 
   namespace {
-    constexpr int kPillW = 44;
-    constexpr int kPillHotW = 68;
-    constexpr int kPillH = 3;
-    constexpr int kPillMs = 120;
-    constexpr int kPillRadius = 2;
+    constexpr int PILL_W = 44;
+    constexpr int PILL_HOT_W = 68;
+    constexpr int PILL_H = 3;
+    constexpr int PILL_MS = 120;
+    constexpr int PILL_RADIUS = 2;
   }  // namespace
 
   class PillSplitterHandle : public QSplitterHandle {
@@ -27,7 +27,7 @@ namespace stencil::gui {
         : QSplitterHandle(o, parent) {
       setAttribute(Qt::WA_Hover, true);
       anim_ = new QVariantAnimation(this);
-      anim_->setDuration(kPillMs);
+      anim_->setDuration(PILL_MS);
       anim_->setEasingCurve(QEasingCurve::OutCubic);
       QObject::connect(anim_, &QVariantAnimation::valueChanged, this,
                        [this](const QVariant& v) {
@@ -79,7 +79,7 @@ namespace stencil::gui {
       if (!rest_.isValid()) return;
       QPainter p(this);
       p.setRenderHint(QPainter::Antialiasing);
-      const int w = qRound(kPillW + (kPillHotW - kPillW) * hot_);
+      const int w = qRound(PILL_W + (PILL_HOT_W - PILL_W) * hot_);
       int cx = width() / 2;
       if (ref_ && ref_->isVisible()) {
         // width()/2, NOT rect().center(): QRect::center() rounds DOWN for even widths.
@@ -90,10 +90,10 @@ namespace stencil::gui {
       c.setRed(qRound(rest_.red() + (accent_.red() - rest_.red()) * hot_));
       c.setGreen(qRound(rest_.green() + (accent_.green() - rest_.green()) * hot_));
       c.setBlue(qRound(rest_.blue() + (accent_.blue() - rest_.blue()) * hot_));
-      const QRect pill(cx - w / 2, (height() - kPillH) / 2, w, kPillH);
+      const QRect pill(cx - w / 2, (height() - PILL_H) / 2, w, PILL_H);
       p.setPen(Qt::NoPen);
       p.setBrush(c);
-      p.drawRoundedRect(pill, kPillRadius, kPillRadius);
+      p.drawRoundedRect(pill, PILL_RADIUS, PILL_RADIUS);
     }
 
    private:

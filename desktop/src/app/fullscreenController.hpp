@@ -27,11 +27,11 @@ namespace stencil::gui {
 
     // On macOS the top strip belongs to the auto-revealing system menu bar, so the band starts below it.
 #ifdef Q_OS_MACOS
-    static constexpr int kRevealTop = 26, kRevealBottom = 60;
+    static constexpr int REVEAL_TOP = 26, REVEAL_BOTTOM = 60;
 #else
-    static constexpr int kRevealTop = 0, kRevealBottom = 120;
+    static constexpr int REVEAL_TOP = 0, REVEAL_BOTTOM = 120;
 #endif
-    static constexpr int kPanelRevealPx = 28;
+    static constexpr int PANEL_REVEAL_PX = 28;
 
     // Keep-zones are the revealed widgets plus a grace, so a cursor still ON them never leaves.
     static int toolbarKeepBand(int toolbarBottom) { return std::max(toolbarBottom + 24, 150); }
@@ -42,11 +42,11 @@ namespace stencil::gui {
     // `p` in window coordinates; `panelWidth` 0 while hidden. Asked separately because the bars move first.
     bool wantBars(const QPoint& p, int toolbarBottom) const {
       return barsShown ? (p.y() < toolbarKeepBand(toolbarBottom))
-                       : (p.y() > kRevealTop && p.y() < kRevealBottom);
+                       : (p.y() > REVEAL_TOP && p.y() < REVEAL_BOTTOM);
     }
     bool wantPanel(const QPoint& p, const QSize& win, int panelWidth) const {
       return panelShown ? (p.x() > win.width() - panelKeepBand(win.width(), panelWidth))
-                        : (p.x() > win.width() - kPanelRevealPx);
+                        : (p.x() > win.width() - PANEL_REVEAL_PX);
     }
 
     // Cursor outside the window: skipped, not counted as a leave.
@@ -62,7 +62,7 @@ namespace stencil::gui {
       if (r < 0.05 || r > 20.0 || std::abs(r - 1.0) < 0.01) return std::nullopt;
       return r;
     }
-    static constexpr int kZoomWaitLimit = 12;   // bounded, so a WM that never resizes just skips
+    static constexpr int ZOOM_WAIT_LIMIT = 12;   // bounded, so a WM that never resizes just skips
   };
 
 }  // namespace stencil::gui

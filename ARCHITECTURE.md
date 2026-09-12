@@ -30,7 +30,7 @@ Four rules, all of them load-bearing:
 3. **No `eval`, either side.** `browser/js/core/formulaEngine.js` and `core/parse/formulaParser`
    are both real recursive-descent parsers: `+ - * / ** ( )`, one variable, `**`
    right-associative, empty = identity, div-by-zero/overflow = invalid, recursion capped at
-   the same depth (`MAX_DEPTH` ↔ `kMaxDepth`).
+   the same depth (`MAX_DEPTH` on both sides).
 4. **The source list lives in three files.** Adding/removing/renaming a `core/*.cpp` means
    editing `STENCIL_CORE_SOURCES` in `core/CMakeLists.txt`, the array in `cli/build.zig`, and
    the list in `pystencil/build.py`. A new wasm export also needs `_stencil_x` in

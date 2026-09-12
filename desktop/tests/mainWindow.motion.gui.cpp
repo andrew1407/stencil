@@ -72,7 +72,7 @@ class MainWindowGuiTest : public QObject {
 
     // …unless the dialog says it must be answered.
     QDialog must(&win);
-    must.setProperty(stencil::support::kNoOutsideDismissProperty, true);
+    must.setProperty(stencil::support::NO_OUTSIDE_DISMISS_PROPERTY, true);
     must.resize(200, 150);
     must.setModal(true);
     must.show();
@@ -470,7 +470,7 @@ class MainWindowGuiTest : public QObject {
     QToolButton* btn = nullptr;
     for (QToolButton* b : win.findChildren<QToolButton*>()) {
       if (!b->isVisible() || !b->isEnabled()
-          || b->property(stencil::gui::kNoIconMotionProperty).toBool())
+          || b->property(stencil::gui::NO_ICON_MOTION_PROPERTY).toBool())
         continue;
       stencil::gui::IconRequest r;
       if (!stencil::gui::iconRequestForKey(b->icon().cacheKey(), &r)) continue;
@@ -575,7 +575,7 @@ class MainWindowGuiTest : public QObject {
   // a REOPEN of a saved project, the everyday route that once had no arrival at all.
   void imageArrivalAssemblesOnEveryRoute() {
     const auto motion = withMotion();
-    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
+    const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;
     enum Route { FreshOpen, CreatedBlank, ReopenedProject };
     for (const Route route : {FreshOpen, CreatedBlank, ReopenedProject}) {
       const char* name = route == FreshOpen ? "fresh open"
@@ -590,10 +590,10 @@ class MainWindowGuiTest : public QObject {
         // Let the OPEN's own arrival finish, so what we see next belongs to the reopen.
         win.openPathFromOS(guiTestImage());
         QTRY_VERIFY2_WITH_TIMEOUT(canvas->hasImage(), name, 5000);
-        QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr, name,
-                                  stencil::gui::DisintegrateOverlay::kMs + 2000);
+        QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) == nullptr, name,
+                                  stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
       }
-      QVERIFY2(!win.findChild<QWidget*>(kDust), name);   // nothing flying before the route runs
+      QVERIFY2(!win.findChild<QWidget*>(DUST), name);   // nothing flying before the route runs
       switch (route) {
         case FreshOpen:
           win.openPathFromOS(guiTestImage());
@@ -609,12 +609,12 @@ class MainWindowGuiTest : public QObject {
       QTRY_VERIFY2_WITH_TIMEOUT(canvas->hasImage(), name, 5000);
       // The dust layer exists and the canvas is behind it (opacity effect at 0), so the
       // picture is the motes, not a canvas that popped in under them.
-      QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, name, 3000);
+      QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) != nullptr, name, 3000);
       if (auto* fx = qobject_cast<QGraphicsOpacityEffect*>(canvas->graphicsEffect()))
         QVERIFY2(fx->opacity() < 0.01, "the real canvas waits behind the motes");
       // Both are gone when it lands, leaving no effect on a canvas that repaints per stroke.
-      QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr, name,
-                                stencil::gui::DisintegrateOverlay::kMs + 2000);
+      QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) == nullptr, name,
+                                stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
       QTRY_VERIFY2_WITH_TIMEOUT(canvas->graphicsEffect() == nullptr, name, 2000);
     }
     beat();
@@ -625,7 +625,7 @@ class MainWindowGuiTest : public QObject {
   // motion the image is simply THERE — the bug pinned there is not the missing dust but the
   // opacity effect, which used to stay on at 0 and leave the canvas blank for 900 ms.
   void arrivalIsSkippedWhenNothingIsArriving() {
-    const char* kDust = stencil::gui::DisintegrateOverlay::kObjectName;
+    const char* DUST = stencil::gui::DisintegrateOverlay::OBJECT_NAME;
     for (const bool reduced : {false, true}) {
       const char* name = reduced ? "reduced motion" : "rebind";
       const auto motion = motionPinned(!reduced);
@@ -633,14 +633,14 @@ class MainWindowGuiTest : public QObject {
       CanvasWidget* canvas = openLoaded(win);
       QTRY_VERIFY2_WITH_TIMEOUT(canvas->hasImage(), name, 5000);
       if (reduced) {
-        QVERIFY2(!win.findChild<QWidget*>(kDust), "no dust under reduced motion");
+        QVERIFY2(!win.findChild<QWidget*>(DUST), "no dust under reduced motion");
       } else {
         // The open's own arrival has to land first, or the rebind inherits its dust.
-        QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) == nullptr, name,
-                                  stencil::gui::DisintegrateOverlay::kMs + 2000);
+        QTRY_VERIFY2_WITH_TIMEOUT(win.findChild<QWidget*>(DUST) == nullptr, name,
+                                  stencil::gui::DisintegrateOverlay::DUST_MS + 2000);
         QVERIFY2(win.loadProjectIntoCanvas(win.activeProjectId_, /*animate=*/false), name);
-        settle([&] { return win.findChild<QWidget*>(kDust) != nullptr; }, 150);
-        QVERIFY2(!win.findChild<QWidget*>(kDust), "a rebind is not an image appearing");
+        settle([&] { return win.findChild<QWidget*>(DUST) != nullptr; }, 150);
+        QVERIFY2(!win.findChild<QWidget*>(DUST), "a rebind is not an image appearing");
       }
       QVERIFY2(!canvas->graphicsEffect(), "the end state, immediately: a visible canvas");
       if (!reduced) continue;
@@ -652,7 +652,7 @@ class MainWindowGuiTest : public QObject {
       dismissModal("OK");
       clear->trigger();
       QTRY_VERIFY_WITH_TIMEOUT(!canvas->hasImage(), 5000);
-      QVERIFY2(!win.findChild<QWidget*>(kDust), "no dust on the clear either");
+      QVERIFY2(!win.findChild<QWidget*>(DUST), "no dust on the clear either");
       QVERIFY2(!canvas->idleHintHidden(), "the invitation is not held back by a missing animation");
     }
     beat();
@@ -700,14 +700,14 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     QVERIFY2(qApp->findChild<QObject*>(
-                 QString::fromLatin1(stencil::gui::kControlSwapFilterName),
+                 QString::fromLatin1(stencil::gui::CONTROL_SWAP_FILTER_NAME),
                  Qt::FindDirectChildrenOnly),
              "MainWindow never installed the app-wide control-swap filter");
     auto* box = win.showPointsCheck_;
     auto* combo = win.units_.pageSize;
     QVERIFY(box && combo);
-    QTRY_VERIFY(box->property(stencil::gui::kControlSwapWiredProperty).toBool());
-    QVERIFY2(combo->property(stencil::gui::kControlSwapWiredProperty).toBool(),
+    QTRY_VERIFY(box->property(stencil::gui::CONTROL_SWAP_WIRED_PROPERTY).toBool());
+    QVERIFY2(combo->property(stencil::gui::CONTROL_SWAP_WIRED_PROPERTY).toBool(),
              "a toolbar combo built before the window was shown went unwired");
 
     // This suite runs under STENCIL_NO_ANIM; lift it just here so the REAL motion runs in
@@ -723,7 +723,7 @@ class MainWindowGuiTest : public QObject {
     bool last = false;
     for (int i = 0; i < 6; ++i) { last = i % 2 == 0; box->setChecked(last); QTest::qWait(20); }
     QTRY_VERIFY(win.findChildren<QWidget*>(
-                       QString::fromLatin1(stencil::gui::kCheckSwapObjectName)).isEmpty());
+                       QString::fromLatin1(stencil::gui::CHECK_SWAP_OBJECT_NAME)).isEmpty());
     QCOMPARE(box->isChecked(), last);
     QCOMPARE(box->geometry(), boxGeom);
 
@@ -743,7 +743,7 @@ class MainWindowGuiTest : public QObject {
     box->setChecked(was);
     QCOMPARE(box->isChecked(), was);   // reduced motion still changes the state
     QVERIFY(win.findChildren<QWidget*>(
-                   QString::fromLatin1(stencil::gui::kCheckSwapObjectName)).isEmpty());
+                   QString::fromLatin1(stencil::gui::CHECK_SWAP_OBJECT_NAME)).isEmpty());
     beat();
   }
 
@@ -807,7 +807,7 @@ class MainWindowGuiTest : public QObject {
         if (e->type() == QEvent::Show) {
           auto* w = qobject_cast<QWidget*>(o);
           if (w && (w->objectName()
-                        == QLatin1String(stencil::gui::DisintegrateOverlay::kObjectName)
+                        == QLatin1String(stencil::gui::DisintegrateOverlay::OBJECT_NAME)
                     || w->objectName() == QLatin1String("stencilModalGhost")))
             seen = true;
         }

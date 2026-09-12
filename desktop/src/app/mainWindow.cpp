@@ -234,13 +234,13 @@ namespace stencil::gui {
     }
     // Alt+Shift+arrow chords fire from keyPressEvent (no QAction): defaults + labels only, so the shortcuts dialog lists them.
     struct ChordDef { const char* id; const char* seq; const char* label; };
-    static const ChordDef kLineTransformChords[] = {
+    static const ChordDef LINE_TRANSFORM_CHORDS[] = {
         {"flipLineHorizontal", "Alt+Shift+Up", "Flip Selected Line Horizontal"},
         {"flipLineVertical", "Alt+Shift+Down", "Flip Selected Line Vertical"},
         {"rotateLineCW90", "Alt+Shift+Right", "Rotate Selected Line +90°"},
         {"rotateLineCCW90", "Alt+Shift+Left", "Rotate Selected Line −90°"},
     };
-    for (const auto& c : kLineTransformChords) {
+    for (const auto& c : LINE_TRANSFORM_CHORDS) {
       hotkeyDefaults_.insert(c.id, c.seq);
       hotkeyLabels_.insert(c.id, c.label);
       hotkeys_.insert(c.id, c.seq);
@@ -367,7 +367,7 @@ namespace stencil::gui {
     // The f(x,y) pair commits on an idle pause (see the timer); Enter / focus-out apply at once.
     formulaCommitTimer_ = new QTimer(this);
     formulaCommitTimer_->setSingleShot(true);
-    formulaCommitTimer_->setInterval(kFormulaCommitMs);
+    formulaCommitTimer_->setInterval(FORMULA_COMMIT_MS);
     connect(formulaCommitTimer_, &QTimer::timeout, this, [this] { validateAndApplyFormulas(); });
     const auto onFormulaEdited = [this](const QString&) {
       // A wrong expression is only flagged once typing stops.
@@ -565,8 +565,8 @@ namespace stencil::gui {
   }
 
   // The popover's motion: the dialog reveal (modalReveal.cpp) ×1.5.
-  static constexpr int kPopoverOpenMs = 450;
-  static constexpr int kPopoverCloseMs = 360;
+  static constexpr int POPOVER_OPEN_MS = 450;
+  static constexpr int POPOVER_CLOSE_MS = 360;
 
   int MainWindow::execMaybePopover(QDialog& dlg, QAction* opener) {
     wireWindowSwitching(dlg, pop_.dialogActions, opener);
@@ -588,7 +588,7 @@ namespace stencil::gui {
     }
     // A CHILD WIDGET, never its own window: a small frameless top-level does not animate on macOS.
     // This branch flies itself — opt out of the app-wide DialogRevealFilter or its flight piles on.
-    dlg.setProperty(support::kNoDialogRevealProperty, true);
+    dlg.setProperty(support::NO_DIALOG_REVEAL_PROPERTY, true);
     const QSize cap(470, 590);
     dlg.setMinimumSize(0, 0);
     dlg.setMaximumSize(cap);
@@ -624,14 +624,14 @@ namespace stencil::gui {
           shot.isNull() ? nullptr
                         : gui::DisintegrateOverlay::overSurface(
                               shot, box, this, fromBox.center(), /*gather=*/true,
-                              kPopoverOpenMs, overlay->palette().color(QPalette::WindowText),
-                              support::kDialogDustMaxCells);
+                              POPOVER_OPEN_MS, overlay->palette().color(QPalette::WindowText),
+                              support::DIALOG_DUST_MAX_CELLS);
       auto* fx = new QGraphicsOpacityEffect(overlay);
       overlay->setGraphicsEffect(fx);
       fx->setOpacity(0.0);
       if (dust) {
         auto* fade = new QPropertyAnimation(fx, "opacity", overlay);
-        fade->setDuration(kPopoverOpenMs);
+        fade->setDuration(POPOVER_OPEN_MS);
         fade->setKeyValueAt(0.0, 0.0);
         fade->setKeyValueAt(0.55, 0.0);
         fade->setKeyValueAt(1.0, 1.0);
@@ -639,12 +639,12 @@ namespace stencil::gui {
       } else {
         overlay->setGeometry(fromBox);
         auto* grow = new QPropertyAnimation(overlay, "geometry", overlay);
-        grow->setDuration(kPopoverOpenMs);
+        grow->setDuration(POPOVER_OPEN_MS);
         grow->setStartValue(fromBox);
         grow->setEndValue(box);
         grow->setEasingCurve(QEasingCurve::OutCubic);
         auto* fade = new QPropertyAnimation(fx, "opacity", overlay);
-        fade->setDuration(kPopoverOpenMs);
+        fade->setDuration(POPOVER_OPEN_MS);
         fade->setStartValue(0.0);
         fade->setEndValue(1.0);
         grow->start(QAbstractAnimation::DeleteWhenStopped);
@@ -696,9 +696,9 @@ namespace stencil::gui {
       }
       if (!shot.isNull() && gui::DisintegrateOverlay::overSurface(
                                 shot, overlayAlive->geometry(), this, fromBox.center(),
-                                /*gather=*/false, kPopoverCloseMs,
+                                /*gather=*/false, POPOVER_CLOSE_MS,
                                 overlayAlive->palette().color(QPalette::WindowText),
-                                support::kDialogDustMaxCells)) {
+                                support::DIALOG_DUST_MAX_CELLS)) {
         overlayAlive->hide();
         return end();
       }
@@ -709,12 +709,12 @@ namespace stencil::gui {
       }
       fx->setOpacity(1.0);
       auto* shrink = new QPropertyAnimation(overlayAlive, "geometry", overlayAlive);
-      shrink->setDuration(kPopoverCloseMs);
+      shrink->setDuration(POPOVER_CLOSE_MS);
       shrink->setStartValue(overlayAlive->geometry());
       shrink->setEndValue(fromBox);
       shrink->setEasingCurve(QEasingCurve::InCubic);
       auto* fade = new QPropertyAnimation(fx, "opacity", overlayAlive);
-      fade->setDuration(kPopoverCloseMs);
+      fade->setDuration(POPOVER_CLOSE_MS);
       fade->setStartValue(1.0);
       fade->setEndValue(0.0);
       connect(shrink, &QAbstractAnimation::finished, &loop, end);
@@ -803,7 +803,7 @@ namespace stencil::gui {
       refreshDockMenu();
       // Rows are still scattering; rebuild once the motes have landed (browser: beginRemoval).
       QPointer<ProjectsDialog> live(&dlg);
-      QTimer::singleShot(DisintegrateOverlay::kMs, this, [this, live, unsavedSession] {
+      QTimer::singleShot(DisintegrateOverlay::DUST_MS, this, [this, live, unsavedSession] {
         if (live) live->setProjects(projectList_, unsavedSession(), incognito_);
       });
       notify_->success(QString("Cleared %1 local project(s)").arg(n));
@@ -830,7 +830,7 @@ namespace stencil::gui {
       refreshActions();
       refreshDockMenu();  // drop it from the Dock "recent" list
       if (single) notify_->info("Project deleted");
-      QTimer::singleShot(DisintegrateOverlay::kMs, this, [this, live, unsavedSession] {
+      QTimer::singleShot(DisintegrateOverlay::DUST_MS, this, [this, live, unsavedSession] {
         if (live) live->setProjects(projectList_, unsavedSession(), incognito_);
       });
     });

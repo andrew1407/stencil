@@ -63,19 +63,19 @@ namespace stencil::gui {
 
   // A card's resolved chatBubbleOnRight() (bool QVariant); objectName() alone stopped answering it
   // once "Swap message sides" could put either role on either side.
-  inline constexpr const char* kChatOnRightProperty = "chatOnRight";
+  inline constexpr const char* CHAT_ON_RIGHT_PROPERTY = "chatOnRight";
 
   // `avoidGlobal` (global coords, null ⇒ none) is furniture the button shifts clear of, or hides.
   void placeChatCardMore(QFrame* card, QToolButton* more, QScrollArea* scroll,
                          const QRect& avoidGlobal = QRect());
 
   // Card-arrival dust (browser motion.js chatIn): a finer grid than a list row.
-  inline constexpr int kChatScatterCols = 32;
-  inline constexpr int kChatScatterRows = 16;
+  inline constexpr int CHAT_SCATTER_COLS = 32;
+  inline constexpr int CHAT_SCATTER_ROWS = 16;
   // One frame: the callers' scrollToBottom() is a singleShot(0), so a 0 ms hop measures too early.
-  inline constexpr int kChatGatherSettleMs = 16;
+  inline constexpr int CHAT_GATHER_SETTLE_MS = 16;
   // A surface shown this very turn has no width yet; past the budget the card simply appears.
-  inline constexpr int kChatGatherTries = 6;
+  inline constexpr int CHAT_GATHER_TRIES = 6;
 
   // The dust layer is unclipped by the scroller, so a card past an edge would fly motes outside.
   bool chatCardFullyInViewport(QWidget* card, QScrollArea* scroll);
@@ -84,7 +84,7 @@ namespace stencil::gui {
   void gatherChatCardIn(QWidget* card, QVBoxLayout* layout, QScrollArea* scroll,
                         QWidget* host, int cols, int rows, std::function<void()> settle,
                         std::function<void()> onFlight = nullptr,
-                        int tries = kChatGatherTries, QSize lastSize = QSize());
+                        int tries = CHAT_GATHER_TRIES, QSize lastSize = QSize());
 
   // Drops the snapshot when the card leaves the viewport or resizes (browser motion.js trackDust).
   void trackChatCardDust(QWidget* card, DisintegrateOverlay* overlay, QScrollArea* scroll,
@@ -92,9 +92,9 @@ namespace stencil::gui {
 
   // Hover preview for a thumbnail (browser chatView.js wireThumbPreview): a top-level tooltip
   // window clamped to a fraction of the screen, like the browser's vw/vh.
-  constexpr int kPreviewEdge = 220;
-  constexpr double kPreviewScreenW = 0.25;
-  constexpr double kPreviewScreenH = 0.20;
+  constexpr int PREVIEW_EDGE = 220;
+  constexpr double PREVIEW_SCREEN_W = 0.25;
+  constexpr double PREVIEW_SCREEN_H = 0.20;
   class HoverPreview : public QObject {
     Q_OBJECT
    public:
@@ -123,10 +123,10 @@ namespace stencil::gui {
     void paintEvent(QPaintEvent*) override;
 
    private:
-    static constexpr int kDotSpan = 4;
-    static constexpr int kDotGap = 3;
-    static constexpr int kLift = 3;
-    static constexpr int kSteps = 20;
+    static constexpr int DOT_SPAN = 4;
+    static constexpr int DOT_GAP = 3;
+    static constexpr int LIFT = 3;
+    static constexpr int STEPS = 20;
     QTimer timer_;
     int phase_ = 0;
   };

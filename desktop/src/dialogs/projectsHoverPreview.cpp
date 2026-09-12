@@ -31,7 +31,7 @@ namespace stencil::gui {
     // layer's motes played underneath it; paintNow on a close, so the
     // preview never blinks out before any mote shows.
     return gui::flyTipDust(hoverPreview_, window(), origin, gather,
-                           gather ? gui::kTipDustInMs : gui::kTipDustOutMs,
+                           gather ? gui::TIP_DUST_IN_MS : gui::TIP_DUST_OUT_MS,
                            /*escapeHost=*/true, /*paintNow=*/!gather,
                            /*alwaysEscape=*/true) != nullptr;
   }
@@ -79,9 +79,9 @@ namespace stencil::gui {
       // The preview waits behind its own motes and fades up as the last of them land
       // (the shared surfaceForm ramp).
       hoverPreview_->setWindowOpacity(0.0);
-      gui::holdFadeKeys(fade, gui::kTipDustInMs);
+      gui::holdFadeKeys(fade, gui::TIP_DUST_IN_MS);
     } else {
-      fade->setDuration(kHoverFadeMs);
+      fade->setDuration(HOVER_FADE_MS);
       fade->setStartValue(hoverPreview_->windowOpacity());
       fade->setEndValue(1.0);
     }
@@ -104,7 +104,7 @@ namespace stencil::gui {
     fade->stop();
     fade->setKeyValues({});
     hoverClosing_ = true;
-    fade->setDuration(gui::kDustHandOverMs);
+    fade->setDuration(gui::DUST_HAND_OVER_MS);
     fade->setStartValue(hoverPreview_->windowOpacity());
     fade->setEndValue(0.0);
     fade->start();

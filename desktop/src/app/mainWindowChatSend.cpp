@@ -106,7 +106,7 @@ namespace stencil::gui {
     QString suffix = chatSystemSuffix();
     if (edgeMapRides) {
       wire.last().images.insert(1, chatEdgeMapEncoded_);
-      suffix += QLatin1Char(' ') + QString::fromUtf8(kEdgeMapSuffix);
+      suffix += QLatin1Char(' ') + QString::fromUtf8(EDGE_MAP_SUFFIX);
     }
     llmClient_->chat(currentLlmSettings(), wire, suffix,
                      [self, hadImages, llmKey](llm::LlmReply reply) {
@@ -161,7 +161,7 @@ namespace stencil::gui {
 
     llm::ChatMessage note;
     note.role = QStringLiteral("user");
-    note.text = QString::fromUtf8(kChatContinuationNote);
+    note.text = QString::fromUtf8(CHAT_CONTINUATION_NOTE);
     const QImage rendered = canvas_->renderToImage(/*withOverlay=*/true);
     chatImageEncoded_ = encodeChatImage(rendered);
     chatEdgeMapEncoded_ = encodeEdgeMap(rendered);
@@ -179,7 +179,7 @@ namespace stencil::gui {
     QVector<llm::ChatMessage> wire = wireChatMessages();
     wire.last().images.insert(1, chatEdgeMapEncoded_);
     const QString suffix =
-        chatSystemSuffix() + QLatin1Char(' ') + QString::fromUtf8(kEdgeMapSuffix);
+        chatSystemSuffix() + QLatin1Char(' ') + QString::fromUtf8(EDGE_MAP_SUFFIX);
     llmClient_->chat(cfg, wire, suffix, [self](llm::LlmReply r) {
       if (!self) return;
       self->chatDock_->setBusy(false);

@@ -23,10 +23,10 @@ class QWidget;
 namespace stencil::gui {
 
   // Browser .app-modal: 560px.
-  inline constexpr int kModalWidth = 560;
+  inline constexpr int MODAL_WIDTH = 560;
   // Public because a child that ANIMATES its slot must carry the gap itself — a layout's
   // spacing cannot be animated (projectsDialog's batch bar; controlReveal closeBarSlot).
-  inline constexpr int kBodySpacing = 10;
+  inline constexpr int BODY_SPACING = 10;
 
   struct ModalChrome {
     QVBoxLayout* root = nullptr;   // the dialog's own layout — margins 0, dividers full-bleed

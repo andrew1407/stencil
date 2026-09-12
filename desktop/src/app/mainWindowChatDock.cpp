@@ -153,20 +153,20 @@ namespace stencil::gui {
     if (!selPanel_) return;
     if (panelAnim_) { panelAnim_->stop(); panelAnim_->deleteLater(); panelAnim_ = nullptr; }
     releasePanelVeil();   // an interrupted flight must never leave the panel invisible
-    const int full = panelRestoreWidth_ > 120 ? panelRestoreWidth_ : kPanelDefaultWidth;
+    const int full = panelRestoreWidth_ > 120 ? panelRestoreWidth_ : PANEL_DEFAULT_WIDTH;
     if (!show && selPanel_->isVisible() && selPanel_->width() > 120)
       panelRestoreWidth_ = selPanel_->width();
     // The two chevrons are different buttons in different places, but they read as one
     // toggle: whichever is on screen turns half a revolution with the slide and lands on
     // the glyph the other one takes over with. Driven here, so Alt+X and the View menu
     // turn it too — not just a click on the chevron itself.
-    const int spinMs = animate ? (show ? kFoldMs : kFoldOutMs) : 0;
+    const int spinMs = animate ? (show ? FOLD_MS : FOLD_OUT_MS) : 0;
     if (show) spinIcon(panelReopenBtn_, "chevron-left", palette().color(QPalette::WindowText),
-                       kPanelToggleGlyph, 0, 180, spinMs);
+                       PANEL_TOGGLE_GLYPH, 0, 180, spinMs);
     else selPanel_->spinCollapseChevron(0, 180, spinMs);
     auto finish = [this, show] {
       releasePanelVeil();
-      selPanel_->setMinimumWidth(kPanelMinWidth);
+      selPanel_->setMinimumWidth(PANEL_MIN_WIDTH);
       selPanel_->setMaximumWidth(QWIDGETSIZE_MAX);
       if (!show) selPanel_->hide();
       panelAnim_ = nullptr;
@@ -182,18 +182,18 @@ namespace stencil::gui {
       // The flight is photographed at the OPEN width (it leaves the panel pinned there);
       // 1px, not 0, is what the slide then starts from: at exactly zero Qt treats the
       // split's anchor pane as vacated and drops the panel out of the layout tree.
-      if (animate) dustFx = panelSurfaceFlight(/*gather=*/true, kFoldDustInMs, full);
+      if (animate) dustFx = panelSurfaceFlight(/*gather=*/true, FOLD_DUST_IN_MS, full);
       selPanel_->setFixedWidth(1);
       from = 1; to = full;
     }
     else {
       from = selPanel_->width() > 0 ? selPanel_->width() : full;
-      if (animate) dustFx = panelSurfaceFlight(/*gather=*/false, kFoldDustOutMs, from);
+      if (animate) dustFx = panelSurfaceFlight(/*gather=*/false, FOLD_DUST_OUT_MS, from);
       to = 0;
     }
     if (!animate) { selPanel_->setFixedWidth(to); finish(); return; }
     panelAnim_ = startExtentSlide(
-        this, from, to, show ? kFoldMs : kFoldOutMs,
+        this, from, to, show ? FOLD_MS : FOLD_OUT_MS,
         pinAndRaiseDust([this](int v) { selPanel_->setFixedWidth(v); }, dustFx),
         finish);
   }

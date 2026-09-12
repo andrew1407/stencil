@@ -7,9 +7,9 @@ namespace stencil::gui {
 
 
   // Browser .accent-dd-menu max-height: 280px.
-  inline constexpr int kMaxPopupHeight = 280;
+  inline constexpr int MAX_POPUP_HEIGHT = 280;
   // .accent-dd-menu padding: 4px.
-  inline constexpr int kPopupPadding = 4;
+  inline constexpr int POPUP_PADDING = 4;
 
   // rowMatches(label + value, query): substring over the label AND the item DATA, so "a4" matches any unit.
   class LabelValueFilterProxy : public QSortFilterProxyModel {

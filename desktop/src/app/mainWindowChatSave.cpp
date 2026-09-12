@@ -68,7 +68,7 @@ namespace stencil::gui {
     if (name.isEmpty()) name = activeProjectName();
     if (name.isEmpty() && canvas_ && canvas_->hasImage()) name = canvas_->imageBaseName();
     if (name.isEmpty()) name = QStringLiteral("Untitled");
-    return name.left(core::ProjectsStore::kMaxNameLength);  // core validateName's cap
+    return name.left(core::ProjectsStore::MAX_NAME_LENGTH);  // core validateName's cap
   }
 
   bool MainWindow::chatSaveProject(const QString& name, const QString& dest, QString* err) {
@@ -140,7 +140,7 @@ namespace stencil::gui {
 
   // BLOCK until MediaLoader resolves — the executor awaits loads so the next action edits the new picture.
   bool MainWindow::chatLoadSource(const QString& src, bool incognito, QString* why) {
-    constexpr int kSourceWaitMs = 20000;  // finite: a stalled load can't hang the plan
+    constexpr int SOURCE_WAIT_MS = 20000;  // finite: a stalled load can't hang the plan
     ensureMediaLoader();  // before OUR connects, so the canvas adopts first
     QEventLoop loop;
     bool loaded = false, failed = false;
@@ -155,7 +155,7 @@ namespace stencil::gui {
                                             if (why) *why = msg;
                                             loop.quit();
                                           });
-    QTimer::singleShot(kSourceWaitMs, &loop, [&loop] { loop.quit(); });
+    QTimer::singleShot(SOURCE_WAIT_MS, &loop, [&loop] { loop.quit(); });
     openSourceHere(src, 0, incognito);
     if (!loaded && !failed) loop.exec();  // guards a synchronous outcome
     QObject::disconnect(cLoaded);

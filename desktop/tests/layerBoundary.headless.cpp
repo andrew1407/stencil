@@ -37,7 +37,7 @@ namespace {
 
   // Source files that may include a core/ header until Wave 3 introduces model/. Paths
   // are relative to desktop/src. Shrink this list; never add to it.
-  const char* kCoreIncludeAllowance[] = {
+  const char* CORE_INCLUDE_ALLOWANCE[] = {
       "app/chatPlanTarget.cpp",         "app/mainWindow.cpp",
       "app/selectedLineBar.hpp",        "app/selectionPanel.hpp",
       "canvas/chainEdit.hpp",           "canvas/strokeGrowth.hpp",
@@ -61,9 +61,9 @@ namespace {
   };
 
   // One app/ header a sibling still reaches for: the shared name-chip metrics
-  // (kNameChipBox / kNameChipGlyph) that the projects list draws its rows with. They
+  // (NAME_CHIP_BOX / NAME_CHIP_GLYPH) that the projects list draws its rows with. They
   // belong in support/; moving them is its own commit.
-  const char* kAppIncludeAllowance[] = {
+  const char* APP_INCLUDE_ALLOWANCE[] = {
       "dialogs/projectsDialog.cpp:mainWindowHelpers.hpp",
   };
 
@@ -110,11 +110,11 @@ int main(int argc, char** argv) {
         "the core header index is populated");
 
   QSet<QString> coreAllowed, appAllowed;
-  for (const char* p : kCoreIncludeAllowance) coreAllowed.insert(QString::fromLatin1(p));
-  for (const char* p : kAppIncludeAllowance) appAllowed.insert(QString::fromLatin1(p));
+  for (const char* p : CORE_INCLUDE_ALLOWANCE) coreAllowed.insert(QString::fromLatin1(p));
+  for (const char* p : APP_INCLUDE_ALLOWANCE) appAllowed.insert(QString::fromLatin1(p));
 
   // A quoted include, whether written bare ("x.hpp") or with a group prefix ("../app/x.hpp").
-  static const QRegularExpression kInclude(QStringLiteral("^\\s*#\\s*include\\s+\"([^\"]+)\""));
+  static const QRegularExpression INCLUDE(QStringLiteral("^\\s*#\\s*include\\s+\"([^\"]+)\""));
 
   QStringList intoApp, intoCanvas, intoCore, staleCore, staleApp;
   QSet<QString> sawCore, sawApp;
@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
     if (!f.open(QIODevice::ReadOnly)) continue;
     ++scanned;
     for (const QByteArray& line : f.readAll().split('\n')) {
-      const auto m = kInclude.match(QString::fromUtf8(line));
+      const auto m = INCLUDE.match(QString::fromUtf8(line));
       if (!m.hasMatch()) continue;
       const QString inc = QFileInfo(m.captured(1)).fileName();
 

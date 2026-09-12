@@ -504,7 +504,7 @@ class MainWindowGuiTest : public QObject {
     };
     const auto dustSeen = [&win] {
       for (QWidget* w : win.findChildren<QWidget*>(
-               QString::fromLatin1(stencil::gui::DisintegrateOverlay::kObjectName))) {
+               QString::fromLatin1(stencil::gui::DisintegrateOverlay::OBJECT_NAME))) {
         auto* fx = static_cast<stencil::gui::DisintegrateOverlay*>(w);
         if (fx->surfacePicture().isValid()) return true;
       }
@@ -849,7 +849,7 @@ class MainWindowGuiTest : public QObject {
         QTest::keyRelease(menu, Qt::Key_Alt);
         QVERIFY2(menu->isVisible(), "releasing Alt closed the menu");
         menu->close();
-        // Let the preview's dust-out flight (kDustOutMs, exportPreview.cpp) finish and its
+        // Let the preview's dust-out flight (DUST_OUT_MS, exportPreview.cpp) finish and its
         // DisintegrateOverlay — parented to this popup — be collected before `win` dies.
         QTest::qWait(260);
         continue;
@@ -1107,7 +1107,7 @@ class MainWindowGuiTest : public QObject {
         // A plain wait long past the cycle's own length, not QTRY on ==0: the curve crosses
         // zero mid-cycle (see the re-fire case below), so QTRY would happily accept a
         // passing zero-crossing as "settled" while the shake is still running underneath.
-        QTest::qWait(stencil::gui::AppTooltip::kShakeMs + 300);
+        QTest::qWait(stencil::gui::AppTooltip::SHAKE_MS + 300);
         QCOMPARE(chip->capOffset(), 0);
         // The mouse leaves the row WITHOUT ever landing on another one — no second
         // hovered(QAction*) fires for that, only a real Leave.
@@ -1132,9 +1132,9 @@ class MainWindowGuiTest : public QObject {
       menu->setActiveAction(row);   // the re-fire — must NOT restart it
       // Wait to (a hair past) the ORIGINAL shake's own finish line, measured from when it
       // actually started. A wrongly-restarted shake would still be running here (its own
-      // clock reset at the re-fire, well under kShakeMs old by this checkpoint); the
+      // clock reset at the re-fire, well under SHAKE_MS old by this checkpoint); the
       // correctly-unbothered one has already settled back to rest.
-      const int remaining = int(stencil::gui::AppTooltip::kShakeMs + 60 - timer.elapsed());
+      const int remaining = int(stencil::gui::AppTooltip::SHAKE_MS + 60 - timer.elapsed());
       if (remaining > 0) QTest::qWait(remaining);
       // Read the chip BEFORE closing: menu->close() tears down MenuHotkeyChips, which
       // deletes the chip widgets outright — reading through the pointer after that is a

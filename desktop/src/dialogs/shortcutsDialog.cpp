@@ -39,8 +39,8 @@ namespace stencil::gui {
     // Column geometry shared by the head and every row.
     const auto tableRow = [](QWidget* parent) {
       auto* h = new QHBoxLayout(parent);
-      h->setContentsMargins(kCellPadX, kCellPadY, kCellPadX, kCellPadY);
-      h->setSpacing(kCellPadX * 2);
+      h->setContentsMargins(CELL_PAD_X, CELL_PAD_Y, CELL_PAD_X, CELL_PAD_Y);
+      h->setSpacing(CELL_PAD_X * 2);
       return h;
     };
     const auto fixedCol = [](QWidget* w, int width) {
@@ -62,14 +62,14 @@ namespace stencil::gui {
         return l;
       };
       h->addWidget(th(tr("Action")), 1);
-      comboCol << fixedCol(th(tr("Current shortcut"), true), kComboColW);
-      defaultCol << fixedCol(th(tr("Default"), true), kDefaultColW);
+      comboCol << fixedCol(th(tr("Current shortcut"), true), COMBO_COL_W);
+      defaultCol << fixedCol(th(tr("Default"), true), DEFAULT_COL_W);
       h->addWidget(comboCol.last());
       h->addWidget(defaultCol.last());
-      h->addWidget(fixedCol(new QWidget(head_), kResetColW));
+      h->addWidget(fixedCol(new QWidget(head_), RESET_COL_W));
     }
     headWrap_ = new QHBoxLayout;
-    headWrap_->setContentsMargins(kSidePad, 0, kSidePad, 0);
+    headWrap_->setContentsMargins(SIDE_PAD, 0, SIDE_PAD, 0);
     headWrap_->addWidget(head_);
     chrome.body->insertLayout(0, headWrap_);
     // The scrollbar narrows the rows but not the head: watch the VIEWPORT (it resizes
@@ -99,16 +99,16 @@ namespace stencil::gui {
       cell->setAlignment(Qt::AlignCenter);
       cell->setToolTip("Click and press a new key combination to rebind");
       cell->setPlaceholder(mutedHtml(tr("press combination…")));
-      cell->setResting(capsHtml(e.currentSeq, kCapScale));
-      comboCol << fixedCol(cell, kComboColW);
+      cell->setResting(capsHtml(e.currentSeq, CAP_SCALE));
+      comboCol << fixedCol(cell, COMBO_COL_W);
       h->addWidget(cell);
 
       // The default: the same caps as the current combo, centred in its column.
       auto* def = new KeycapChip(row);
       def->setObjectName(QStringLiteral("hotkeyDefault"));
       def->setAlignment(Qt::AlignCenter);
-      def->setCaps(capsHtml(e.defaultSeq, kCapScale));
-      defaultCol << fixedCol(def, kDefaultColW);
+      def->setCaps(capsHtml(e.defaultSeq, CAP_SCALE));
+      defaultCol << fixedCol(def, DEFAULT_COL_W);
       h->addWidget(def);
 
       // Reset = the browser's rotate-ccw glyph, shown only while the row differs from
@@ -122,7 +122,7 @@ namespace stencil::gui {
       reset->setToolTip("Reset to default");
       reset->setCursor(Qt::PointingHandCursor);
       slotLay->addWidget(reset, 0, Qt::AlignCenter);
-      h->addWidget(fixedCol(slot, kResetColW));
+      h->addWidget(fixedCol(slot, RESET_COL_W));
 
       body.layout->addWidget(row);
       installHoverShimmer(row);   // the app-wide glass sweep, as on a list row
@@ -145,12 +145,12 @@ namespace stencil::gui {
       for (QWidget* x : col) x->setFixedWidth(w);
       return w;
     };
-    const int comboW = fit(comboCol, kComboColW);
-    const int defaultW = fit(defaultCol, kDefaultColW);
+    const int comboW = fit(comboCol, COMBO_COL_W);
+    const int defaultW = fit(defaultCol, DEFAULT_COL_W);
     // Wide enough for the two keycap columns and a readable Action column.
-    const int needW = 2 * kSidePad + 2 * kCellPadX + 3 * (2 * kCellPadX) + kResetColW +
-                      comboW + defaultW + kActionMinW;
-    dialogW_ = qMax(kShortcutsWidth, needW);
+    const int needW = 2 * SIDE_PAD + 2 * CELL_PAD_X + 3 * (2 * CELL_PAD_X) + RESET_COL_W +
+                      comboW + defaultW + ACTION_MIN_W;
+    dialogW_ = qMax(SHORTCUTS_WIDTH, needW);
 
     empty_ = modalEmptyLabel(tr("No matching shortcuts."), body.content);
     empty_->hide();
@@ -187,7 +187,7 @@ namespace stencil::gui {
     QScrollBar* vbar = scroll_->verticalScrollBar();
     const bool needed = vbar->maximum() > vbar->minimum();
     const int bar = needed ? vbar->sizeHint().width() : 0;
-    headWrap_->setContentsMargins(kSidePad, 0, kSidePad + bar, 0);
+    headWrap_->setContentsMargins(SIDE_PAD, 0, SIDE_PAD + bar, 0);
   }
 
   // A combo in the tooltips' keycaps (NativeText, so macOS draws ⌥⇧⌘ as glyphs), or
@@ -195,7 +195,7 @@ namespace stencil::gui {
   QString ShortcutsDialog::capsHtml(const QString& seq, qreal scale) const {
     const QString shown = native(seq);
     if (shown.isEmpty()) return mutedHtml(tr("(unset)"));
-    return comboKeycapsHtml(shown, tableCaps(), kOnMac, scale);
+    return comboKeycapsHtml(shown, tableCaps(), ON_MAC, scale);
   }
 }
 

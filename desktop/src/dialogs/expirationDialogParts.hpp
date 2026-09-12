@@ -17,12 +17,12 @@ namespace stencil::gui {
   // The browser modal is narrower than the shared 560px shell (.exp-modal: 400px):
   // the widest thing in it is the calendar, and at full width it sat in a band of
   // dead space either side.
-  inline constexpr int kExpWidth = 400;
-  inline constexpr int kCellMinH = 26;   // .exp-cal-cell min-height
+  inline constexpr int EXP_WIDTH = 400;
+  inline constexpr int CELL_MIN_H = 26;   // .exp-cal-cell min-height
 
   // Period presets, mirroring browser projectsStore.js PERIOD_ORDER + labels.
   struct Preset { const char* key; const char* label; };
-  const Preset kPresets[] = {
+  const Preset PRESETS[] = {
       {"day", "1 day"},
       {"week", "1 week"},
       {"fortnight", "2 weeks (fortnight)"},
@@ -31,8 +31,8 @@ namespace stencil::gui {
       {"6month", "6 months"},
       {"year", "1 year"},
   };
-  const char* const kWeekdays[] = {"Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"};
-  const char* const kMonths[] = {"January", "February", "March", "April", "May", "June",
+  const char* const WEEKDAYS[] = {"Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"};
+  const char* const MONTHS[] = {"January", "February", "March", "April", "May", "June",
                                  "July", "August", "September", "October", "November",
                                  "December"};
 

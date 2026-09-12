@@ -71,7 +71,7 @@ namespace stencil::gui {
                            const QColor& pageBg) {
     if (!card) return;
     if (layout) layout->setAlignment(card, right ? Qt::AlignRight : Qt::AlignLeft);
-    card->setProperty(kChatOnRightProperty, right);
+    card->setProperty(CHAT_ON_RIGHT_PROPERTY, right);
     QColor fill, tailBorder;
     if (chatBubbleColorsFor(card->objectName(), accent, chip, border, danger, pageBg,
                             fill, tailBorder))

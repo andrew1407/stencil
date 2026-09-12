@@ -70,8 +70,8 @@ namespace stencil::gui {
   QColor accentShade(const QColor& primary, bool dark);
 
   // QSS geometry the code also measures against — interpolated, so the two cannot drift.
-  inline constexpr int kMenuItemRightPadPx = 26;   // QMenu::item right padding
-  inline constexpr int kDockSeparatorPx = 9;       // QMainWindow::separator width
+  inline constexpr int MENU_ITEM_RIGHT_PAD_PX = 26;   // QMenu::item right padding
+  inline constexpr int DOCK_SEPARATOR_PX = 9;       // QMainWindow::separator width
 
   // The app-wide QMenu paddings are sized for the menu bar and read as dead space in flat icon menus.
   inline QString compactMenuQss() {

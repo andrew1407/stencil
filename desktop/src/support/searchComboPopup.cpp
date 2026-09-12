@@ -21,12 +21,12 @@ namespace stencil::gui {
   void SearchComboBox::positionPopup() {
     const int rows = proxy_->rowCount();
     const int rowH = rows > 0 ? list_->sizeHintForRow(0) : 0;
-    const int chromeH = kPopupPadding * 2 +
-                        (search_ ? search_->parentWidget()->sizeHint().height() + kPopupPadding : 0);
+    const int chromeH = POPUP_PADDING * 2 +
+                        (search_ ? search_->parentWidget()->sizeHint().height() + POPUP_PADDING : 0);
     const int bodyH = rows > 0 ? rowH * rows + 2 * list_->frameWidth()
                                : noMatch_->sizeHint().height();
-    const int h = qMin(kMaxPopupHeight, chromeH + bodyH);
-    const int w = qMax(width(), list_->sizeHintForColumn(0) + kPopupPadding * 4 +
+    const int h = qMin(MAX_POPUP_HEIGHT, chromeH + bodyH);
+    const int w = qMax(width(), list_->sizeHintForColumn(0) + POPUP_PADDING * 4 +
                                     list_->verticalScrollBar()->sizeHint().width());
     QPoint pos = mapToGlobal(QPoint(0, height() + 2));
     if (QScreen* scr = screen()) {
@@ -72,7 +72,7 @@ namespace stencil::gui {
     positionPopup();
     popup_->show();
     // 1.5x the menu clock.
-    support::revealPopup(*popup_, this, support::kSelectPopupDustMs);
+    support::revealPopup(*popup_, this, support::SELECT_POPUP_DUST_MS);
     if (cur.isValid()) list_->scrollTo(cur, QAbstractItemView::PositionAtCenter);
     (search_ ? static_cast<QWidget*>(search_) : static_cast<QWidget*>(list_))
         ->setFocus(Qt::PopupFocusReason);
@@ -91,7 +91,7 @@ namespace stencil::gui {
       restorePreview();   // however it closed without a pick, revert to the committed value
       lastHide_.start();
       // An outside click hides popup_ via Qt's grab-loss handling, which never calls hidePopup().
-      support::dismissPopup(*popup_, this, support::kSelectPopupDustMs);
+      support::dismissPopup(*popup_, this, support::SELECT_POPUP_DUST_MS);
     }
     if ((watched == search_ || (!searchable_ && watched == list_)) &&
         event->type() == QEvent::KeyPress) {

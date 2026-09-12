@@ -59,16 +59,16 @@ int main(int argc, char** argv) {
   QApplication app(argc, argv);   // offscreen via QT_QPA_PLATFORM
 
   // ── The constants the browser shares (motion.js) ──────────────────────────
-  check(near(fx::kFlyMinMs, 150.0) && near(fx::kFlyMaxMs, 420.0) && near(fx::kFlyPxPerMs, 2.4),
+  check(near(fx::FLY_MIN_MS, 150.0) && near(fx::FLY_MAX_MS, 420.0) && near(fx::FLY_PX_PER_MS, 2.4),
         "flight length matches motion.js STROKE_FLY_*");
-  check(near(fx::kPopMs, 240.0) && near(fx::kPopPeak, 1.5) && near(fx::kRippleMs, 420.0),
+  check(near(fx::POP_MS, 240.0) && near(fx::POP_PEAK, 1.5) && near(fx::RIPPLE_MS, 420.0),
         "landing + ring match motion.js STROKE_POP_* / STROKE_RIPPLE_MS");
-  check(near(fx::kBowShare, 0.13) && near(fx::kBowMax, 22.0), "the bow matches motion.js STROKE_BOW_*");
+  check(near(fx::BOW_SHARE, 0.13) && near(fx::BOW_MAX, 22.0), "the bow matches motion.js STROKE_BOW_*");
 
   // ── How long a flight takes: a hop is the floor, a long reach is capped.
-  check(near(fx::flyMs(0), fx::kFlyMinMs), "a zero-length hop is the floor");
+  check(near(fx::flyMs(0), fx::FLY_MIN_MS), "a zero-length hop is the floor");
   check(near(fx::flyMs(300), 275.0), "300px = 150 + 300/2.4");
-  check(near(fx::flyMs(4000), fx::kFlyMaxMs), "a reach across the page is capped");
+  check(near(fx::flyMs(4000), fx::FLY_MAX_MS), "a reach across the page is capped");
   check(fx::flyMs(80) < fx::flyMs(400), "further takes longer");
 
   // ── The easing: exact at both ends, and it OVERSHOOTS in between — that is what
@@ -89,25 +89,25 @@ int main(int argc, char** argv) {
   const QPointF other = fx::flyPoint(a, b, 0.5, -1.0);
   check((mid.y() - 10.0) * (other.y() - 10.0) < 0, "the sign of the bow picks the side");
   check(fx::flyPoint(a, b, 0.5, 0.0).y() == 10.0, "no bow → dead straight");
-  check(near(fx::bowAmp(1000.0), fx::kBowMax), "the bow is capped on a long trip");
+  check(near(fx::bowAmp(1000.0), fx::BOW_MAX), "the bow is capped on a long trip");
   check(std::fabs(fx::bowSign(31, 74)) <= 1.0, "the side is a signed unit share");
   check(fx::bowSign(31, 74) == fx::bowSign(31, 74), "…and it is a hash, so it is reproducible");
 
   // ── The vertex's size: it swells in flight and settles after landing — no jump
   // between the two, or the arrival reads as a redraw instead of a landing.
-  check(near(fx::flyRadius(0.0), fx::kFlyR0), "it leaves small");
-  check(near(fx::flyRadius(1.0), fx::kPopPeak), "…and arrives at the peak");
-  check(near(fx::popScale(0.0), fx::kPopPeak), "the settle starts where the flight ended");
+  check(near(fx::flyRadius(0.0), fx::FLY_R0), "it leaves small");
+  check(near(fx::flyRadius(1.0), fx::POP_PEAK), "…and arrives at the peak");
+  check(near(fx::popScale(0.0), fx::POP_PEAK), "the settle starts where the flight ended");
   check(near(fx::popScale(1.0), 1.0), "…and ends at the point's real size");
 
   // ── The ring and the spark: nothing at the ends, plenty in the middle.
   check(near(fx::ripple(0.0).scale, 1.0) && near(fx::ripple(1.0).alpha, 0.0),
         "the ring starts on the point and fades to nothing");
-  check(fx::ripple(0.5).scale > 1.0 && fx::ripple(0.5).scale < fx::kRippleReach, "…growing on the way");
+  check(fx::ripple(0.5).scale > 1.0 && fx::ripple(0.5).scale < fx::RIPPLE_REACH, "…growing on the way");
   check(near(fx::spark(0.0).alpha, 0.0) && near(fx::spark(1.0).alpha, 0.0),
         "the spark neither smudges the anchor nor the landing");
   check(fx::spark(0.5).alpha > 0.4, "…and is bright mid-trip");
-  check(near(fx::wake(0.0), fx::kWakeAlpha) && near(fx::wake(1.0), 0.0),
+  check(near(fx::wake(0.0), fx::WAKE_ALPHA) && near(fx::wake(1.0), 0.0),
         "the wake burns as the vertex leaves and is out once it has landed");
 
   // ── The timeline: the settle and the ring both start when the flight ends.
@@ -115,8 +115,8 @@ int main(int argc, char** argv) {
   check(near(mid2.fly, 0.25) && mid2.land == 0.0 && !mid2.done, "mid-flight: nothing has landed yet");
   const fx::Phase landed = fx::phase(320.0, 200.0);
   check(near(landed.fly, 1.0) && near(landed.land, 0.5), "120ms after landing the settle is half done");
-  check(fx::phase(200.0 + fx::kRippleMs, 200.0).done, "the record is finished once the ring has gone");
-  check(near(fx::vertexScale(fx::phase(0.0, 200.0)), fx::kFlyR0), "the scale follows the same timeline");
+  check(fx::phase(200.0 + fx::RIPPLE_MS, 200.0).done, "the record is finished once the ring has gone");
+  check(near(fx::vertexScale(fx::phase(0.0, 200.0)), fx::FLY_R0), "the scale follows the same timeline");
   check(near(fx::vertexScale(fx::phase(1000.0, 200.0)), 1.0), "…and rests at 1");
 
   // ── A vertex inserted into a segment comes out of its own foot on it.
@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
   // Landing empties the list; the frame loop stops when it does.
   // Past the LONGEST flight plus its ring: this vertex left (20,20) for (50,0), so its own
   // flight is longer than the minimum and stepping to that would still be mid-air.
-  check(!flights.step(100.0 + fx::kFlyMaxMs + fx::kRippleMs + 1.0), "a landed flight is dropped");
+  check(!flights.step(100.0 + fx::FLY_MAX_MS + fx::RIPPLE_MS + 1.0), "a landed flight is dropped");
   check(!flights.active(), "…and the loop has nothing left to draw");
 
   // A rect's corners are staggered, so the shape draws itself edge by edge.

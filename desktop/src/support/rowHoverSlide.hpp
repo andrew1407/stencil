@@ -21,25 +21,25 @@
 namespace stencil::gui {
 
   // Browser: translateX(2px) over `transform 0.12s ease`.
-  inline constexpr int kRowSlidePx = 2;
-  inline constexpr int kRowSlideMs = 120;
+  inline constexpr int ROW_SLIDE_PX = 2;
+  inline constexpr int ROW_SLIDE_MS = 120;
   // Q_OBJECT-free, so found by NAME rather than findChild<T>.
-  inline constexpr const char* kRowSlideName = "stencilRowSlide";
-  inline constexpr const char* kSlidingDelegateName = "stencilSlidingRows";
+  inline constexpr const char* ROW_SLIDE_NAME = "stencilRowSlide";
+  inline constexpr const char* SLIDING_DELEGATE_NAME = "stencilSlidingRows";
   // Mirrored onto the VIEW so the tests can read it.
-  inline constexpr const char* kRowSlidePxProperty = "rowSlidePx";
+  inline constexpr const char* ROW_SLIDE_PX_PROPERTY = "rowSlidePx";
 
   class RowHoverSlide : public QObject {
    public:
-    explicit RowHoverSlide(QAbstractItemView* view, int px = kRowSlidePx, int ms = kRowSlideMs)
+    explicit RowHoverSlide(QAbstractItemView* view, int px = ROW_SLIDE_PX, int ms = ROW_SLIDE_MS)
         : QObject(view), view_(view), px_(px), ms_(ms) {
-      setObjectName(QString::fromLatin1(kRowSlideName));
+      setObjectName(QString::fromLatin1(ROW_SLIDE_NAME));
       anim_.setEasingCurve(QEasingCurve::InOutQuad);   // CSS `ease`
       QObject::connect(&anim_, &QVariantAnimation::valueChanged, this,
                        [this](const QVariant& v) {
                          at_ = v.toDouble();
                          if (!view_) return;
-                         view_->setProperty(kRowSlidePxProperty, int(std::lround(px_ * at_)));
+                         view_->setProperty(ROW_SLIDE_PX_PROPERTY, int(std::lround(px_ * at_)));
                          view_->viewport()->update();
                        });
       view->setMouseTracking(true);
@@ -77,11 +77,11 @@ namespace stencil::gui {
       row_ = idx;
       at_ = 0.0;
       anim_.stop();
-      if (view_) view_->setProperty(kRowSlidePxProperty, 0);
+      if (view_) view_->setProperty(ROW_SLIDE_PX_PROPERTY, 0);
       if (!idx.isValid()) { if (view_) view_->viewport()->update(); return; }
       if (support::motionReduced()) {
         at_ = 1.0;
-        view_->setProperty(kRowSlidePxProperty, px_);
+        view_->setProperty(ROW_SLIDE_PX_PROPERTY, px_);
         view_->viewport()->update();
         return;
       }
@@ -103,7 +103,7 @@ namespace stencil::gui {
    public:
     SlidingRowDelegate(RowHoverSlide* slide, QAbstractItemDelegate* inner, QObject* parent)
         : QStyledItemDelegate(parent), slide_(slide), inner_(inner) {
-      setObjectName(QString::fromLatin1(kSlidingDelegateName));
+      setObjectName(QString::fromLatin1(SLIDING_DELEGATE_NAME));
     }
 
     QAbstractItemDelegate* inner() const { return inner_; }
@@ -130,10 +130,10 @@ namespace stencil::gui {
   inline void installRowHoverSlide(QAbstractItemView* view) {
     if (!view) return;
     auto* slide = static_cast<RowHoverSlide*>(
-        view->findChild<QObject*>(QString::fromLatin1(kRowSlideName)));
+        view->findChild<QObject*>(QString::fromLatin1(ROW_SLIDE_NAME)));
     if (!slide) slide = new RowHoverSlide(view);
     QAbstractItemDelegate* have = view->itemDelegate();
-    if (have && have->objectName() == QLatin1String(kSlidingDelegateName))
+    if (have && have->objectName() == QLatin1String(SLIDING_DELEGATE_NAME))
       have = static_cast<SlidingRowDelegate*>(have)->inner();
     view->setItemDelegate(new SlidingRowDelegate(slide, have, view));
   }

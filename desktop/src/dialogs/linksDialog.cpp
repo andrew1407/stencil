@@ -127,7 +127,7 @@ namespace stencil::gui {
     previewLabel_ = new QLabel(this);
     previewLabel_->setAlignment(Qt::AlignCenter);
     previewLabel_->setMinimumHeight(120);
-    previewLabel_->setMaximumSize(kPreviewMaxW, kPreviewMaxH);
+    previewLabel_->setMaximumSize(PREVIEW_MAX_W, PREVIEW_MAX_H);
     previewLabel_->setFrameShape(QFrame::StyledPanel);
     // Hidden until a preview lands (openImageDialog parity) — an empty bordered box
     // held a 120px void open in the middle of the dialog.

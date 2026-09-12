@@ -30,18 +30,18 @@
 namespace stencil::support {
 
   // One surface ceiling across the app: a dialog's cloud is a surface like any other.
-  static_assert(kDialogDustMaxCells == gui::DisintegrateOverlay::kSurfaceMaxCells,
+  static_assert(DIALOG_DUST_MAX_CELLS == gui::DisintegrateOverlay::SURFACE_MAX_CELLS,
                 "a dialog's mote budget is the shared surface ceiling");
 
   // Set once a call site or the watcher owns the dialog's flight.
-  static constexpr const char* kRevealedProperty = "stencilDialogRevealed";
+  static constexpr const char* REVEALED_PROPERTY = "stencilDialogRevealed";
 
   namespace {
     // Dialog clocks run 1.5x the shared surface clock; the close another 1.5x on top.
-    constexpr int kOpenMs = 450;
-    constexpr int kCloseMs = 360 * 3 / 2;
-    constexpr int kDialogDustInMs = gui::DisintegrateOverlay::kSurfaceInMs * 3 / 2;
-    constexpr int kDialogDustOutMs = gui::DisintegrateOverlay::kSurfaceOutMs * 9 / 4;
+    constexpr int OPEN_MS = 450;
+    constexpr int CLOSE_MS = 360 * 3 / 2;
+    constexpr int DIALOG_DUST_IN_MS = gui::DisintegrateOverlay::SURFACE_IN_MS * 3 / 2;
+    constexpr int DIALOG_DUST_OUT_MS = gui::DisintegrateOverlay::SURFACE_OUT_MS * 9 / 4;
 
     // Flight origin/target in GLOBAL coords: the icon, else a small box above the dialog.
     QRect originRect(QWidget* anchor, const QRect& target, const QRect& anchorRect = QRect()) {
@@ -65,9 +65,9 @@ namespace stencil::support {
           host ? host->findChild<QWidget*>(QStringLiteral("canvasViewport")) : nullptr;
       if (!canvas || !canvas->isVisible() || canvas->width() < 1 || canvas->height() < 1)
         return QRect();
-      constexpr int kHomePx = 40;   // a small box, so the shrink reads as collapsing INTO it
+      constexpr int HOME_PX = 40;   // a small box, so the shrink reads as collapsing INTO it
       const QRect g(canvas->mapToGlobal(QPoint(0, 0)), canvas->size());
-      return QRect(g.center() - QPoint(kHomePx / 2, kHomePx / 2), QSize(kHomePx, kHomePx));
+      return QRect(g.center() - QPoint(HOME_PX / 2, HOME_PX / 2), QSize(HOME_PX, HOME_PX));
     }
 
     // A CHILD of the main window, never a top-level: per-frame moves of a real window go
@@ -123,18 +123,18 @@ namespace stencil::support {
       const QRect box(host->mapFromGlobal(windowGlobal.topLeft()), windowGlobal.size());
       const QPoint point = host->mapFromGlobal(iconGlobal.center());
       auto* fx = gui::DisintegrateOverlay::overSurface(shot, box, host, point, opening,
-                                                       opening ? kDialogDustInMs : kDialogDustOutMs, ink,
-                                                       kDialogDustMaxCells,
+                                                       opening ? DIALOG_DUST_IN_MS : DIALOG_DUST_OUT_MS, ink,
+                                                       DIALOG_DUST_MAX_CELLS,
                                                        /*escapeHost=*/true);
       // Painted NOW: the dialog unmaps this turn, and one deferred frame is the blink.
       if (fx && !opening) fx->repaint();
       return fx != nullptr;
     }
 
-    // Motes are lifted towards the window's text colour (DisintegrateOverlay::kSurfaceInkMix).
+    // Motes are lifted towards the window's text colour (DisintegrateOverlay::SURFACE_INK_MIX).
     QColor inkOf(const QWidget& w) { return w.palette().color(QPalette::WindowText); }
 
-    void fadeUpBehindDust(QWidget* w) { gui::fadeUpBehindDust(w, kDialogDustInMs); }
+    void fadeUpBehindDust(QWidget* w) { gui::fadeUpBehindDust(w, DIALOG_DUST_IN_MS); }
 
     // Null only for an unparented dialog. Requiring the target to fit inside the host
     // silently turned the effect off for ordinary centred dialogs — do not add that.
@@ -178,7 +178,7 @@ namespace stencil::support {
         return;
       }
       QLabel* ghost = makeGhost(host, shot, from);
-      flyGhost(ghost, host, from, to, opening ? kOpenMs : kCloseMs,
+      flyGhost(ghost, host, from, to, opening ? OPEN_MS : CLOSE_MS,
                opening ? 0.0 : 1.0, opening ? 1.0 : 0.0, opening ? 0.18 : 0.7,
                opening ? QEasingCurve::OutCubic : QEasingCurve::InCubic,
                [guard, opening, after] {
@@ -228,7 +228,7 @@ namespace stencil::support {
         QLabel* ghost = makeGhost(host, shot, target);
         // Painted NOW: one deferred frame is the gap the dialog's disappearance shows through.
         ghost->repaint();
-        flyGhost(ghost, host, target, to, kCloseMs, 1.0, 0.0, 0.7,
+        flyGhost(ghost, host, target, to, CLOSE_MS, 1.0, 0.0, 0.7,
                  QEasingCurve::InCubic, nullptr);
       }
 
@@ -300,7 +300,7 @@ namespace stencil::support {
         if (from == target) { restore(); return; }
         if (flySurfaceDust(host, shot, target, from, true, inkOf(*guard))) { fadeUpBehindDust(guard); return; }
         QLabel* ghost = makeGhost(host, shot, from);
-        flyGhost(ghost, host, from, target, kOpenMs, 0.0, 1.0, 0.18,
+        flyGhost(ghost, host, from, target, OPEN_MS, 0.0, 1.0, 0.18,
                  QEasingCurve::OutCubic, restore);
       });
     }
@@ -316,20 +316,20 @@ namespace stencil::support {
 
   void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect,
                     const QRect& closeRect) {
-    dlg.setProperty(kRevealedProperty, true);
+    dlg.setProperty(REVEALED_PROPERTY, true);
     flyDialog(dlg, anchor, anchorRect, closeRect);
   }
 
   namespace {
     // The browser's GESTURE_ANCHOR_PX, so a question forms out of the gesture on both surfaces.
-    constexpr int kGestureAnchorPx = 26;
-    constexpr const char* kDialogRevealFilterName = "stencilDialogRevealFilter";
+    constexpr int GESTURE_ANCHOR_PX = 26;
+    constexpr const char* DIALOG_REVEAL_FILTER_NAME = "stencilDialogRevealFilter";
 
     // One application-wide watcher: `QMessageBox::question(this, …)` has nowhere to hang a reveal off.
     class DialogRevealFilter : public QObject {
      public:
       explicit DialogRevealFilter(QObject* parent) : QObject(parent) {
-        setObjectName(QString::fromLatin1(kDialogRevealFilterName));
+        setObjectName(QString::fromLatin1(DIALOG_REVEAL_FILTER_NAME));
       }
 
      protected:
@@ -337,8 +337,8 @@ namespace stencil::support {
         if (e->type() != QEvent::Show) return QObject::eventFilter(o, e);
         auto* dlg = qobject_cast<QDialog*>(o);
         auto* fileDlg = qobject_cast<QFileDialog*>(dlg);
-        if (!dlg || dlg->property(kRevealedProperty).toBool()
-            || dlg->property(kNoDialogRevealProperty).toBool()
+        if (!dlg || dlg->property(REVEALED_PROPERTY).toBool()
+            || dlg->property(NO_DIALOG_REVEAL_PROPERTY).toBool()
             // A NATIVE panel is placed by the OS; DontUseNativeDialog opts back in.
             || (fileDlg && !fileDlg->testOption(QFileDialog::DontUseNativeDialog)))
           return QObject::eventFilter(o, e);
@@ -351,8 +351,8 @@ namespace stencil::support {
 
   QRect gestureAnchorRect() {
     const QPoint p = QCursor::pos();
-    return QRect(p.x() - kGestureAnchorPx / 2, p.y() - kGestureAnchorPx / 2,
-                 kGestureAnchorPx, kGestureAnchorPx);
+    return QRect(p.x() - GESTURE_ANCHOR_PX / 2, p.y() - GESTURE_ANCHOR_PX / 2,
+                 GESTURE_ANCHOR_PX, GESTURE_ANCHOR_PX);
   }
 
   void modalDismissLog(const QString& line) {
@@ -364,14 +364,14 @@ namespace stencil::support {
   }
 
   namespace {
-    constexpr const char* kModalDismissFilterName = "stencilModalDismissFilter";
+    constexpr const char* MODAL_DISMISS_FILTER_NAME = "stencilModalDismissFilter";
 
     // Application-wide: the press goes to a BLOCKED window and QApplication drops it, but
     // an application filter still sees it first.
     class ModalDismissFilter : public QObject {
      public:
       explicit ModalDismissFilter(QObject* parent) : QObject(parent) {
-        setObjectName(QString::fromLatin1(kModalDismissFilterName));
+        setObjectName(QString::fromLatin1(MODAL_DISMISS_FILTER_NAME));
       }
 
      protected:
@@ -384,7 +384,7 @@ namespace stencil::support {
                                                        : o->metaObject()->className()),
                                  QString::fromLatin1(dlg ? dlg->metaObject()->className() : "(none)")));
         if (!dlg || !w || !dlg->isVisible() || qobject_cast<QFileDialog*>(dlg)
-            || dlg->property(kNoOutsideDismissProperty).toBool())
+            || dlg->property(NO_OUTSIDE_DISMISS_PROPERTY).toBool())
           return QObject::eventFilter(o, e);
         // Popups keep the widget they were built from as parent, so the walk reaches the dialog.
         for (const QWidget* p = w; p; p = p->parentWidget())
@@ -398,7 +398,7 @@ namespace stencil::support {
   void installModalDismiss() {
     QCoreApplication* app = QCoreApplication::instance();
     if (!app) return;
-    if (app->findChild<QObject*>(QString::fromLatin1(kModalDismissFilterName),
+    if (app->findChild<QObject*>(QString::fromLatin1(MODAL_DISMISS_FILTER_NAME),
                                  Qt::FindDirectChildrenOnly))
       return;
     app->installEventFilter(new ModalDismissFilter(app));
@@ -416,7 +416,7 @@ namespace stencil::support {
     QCoreApplication* app = QCoreApplication::instance();
     // Offscreen has no compositor for windowOpacity. Reduced motion is re-read per flight.
     if (!app || QGuiApplication::platformName() == QLatin1String("offscreen")) return;
-    if (app->findChild<QObject*>(QString::fromLatin1(kDialogRevealFilterName),
+    if (app->findChild<QObject*>(QString::fromLatin1(DIALOG_REVEAL_FILTER_NAME),
                                  Qt::FindDirectChildrenOnly))
       return;
     app->installEventFilter(new DialogRevealFilter(app));

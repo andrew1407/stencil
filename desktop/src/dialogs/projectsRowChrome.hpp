@@ -24,31 +24,31 @@ class QWidget;
 namespace stencil::gui {
 
   // Browser PREVIEW_ZOOM (1.67) × its 160px thumbnails, so the popped preview matches.
-  inline constexpr int kHoverPreviewPx = 178;
-  inline constexpr int kHoverPreviewAltPx = 324;
-  // On the SHARED floating-tip clock (disintegrateOverlay.hpp kTipDust*/kDustHold/kDustHandOverMs).
-  inline constexpr int kHoverFadeMs = 90;
+  inline constexpr int HOVER_PREVIEW_PX = 178;
+  inline constexpr int HOVER_PREVIEW_ALT_PX = 324;
+  // On the SHARED floating-tip clock (disintegrateOverlay.hpp TIP_DUST_*/DUST_HOLD/DUST_HAND_OVER_MS).
+  inline constexpr int HOVER_FADE_MS = 90;
 
   // Per-session, deliberately NOT persisted (the browser modal's sessionStorage).
   inline QString g_projectsSortMode = QStringLiteral("name");
   inline QStringList g_projectsManualOrder;
 
   // Browser projectsModal.js menuBtn.title.
-  inline const QString kKebabTip = QStringLiteral("More actions");
+  inline const QString KEBAB_TIP = QStringLiteral("More actions");
 
   // Parsed once — paintRow runs per row per frame.
-  inline const QColor kGoldEdge("#d4a017");
-  inline const QColor kBronzeEdge("#c1783c");
-  inline const QColor kGreyOrigin("#9aa4b2");
+  inline const QColor GOLD_EDGE("#d4a017");
+  inline const QColor BRONZE_EDGE("#c1783c");
+  inline const QColor GREY_ORIGIN("#9aa4b2");
 
   // UserRole+7: the removal scatter is playing; the delegate paints NOTHING (the overlay animates a snapshot).
-  inline constexpr int kDoomedRole = Qt::UserRole + 7;
+  inline constexpr int DOOMED_ROLE = Qt::UserRole + 7;
   // UserRole+8: the project open in THIS editor (browser "(Current)"); the accent comes from the palette's Highlight/Link.
-  inline constexpr int kActiveRole = Qt::UserRole + 8;
+  inline constexpr int ACTIVE_ROLE = Qt::UserRole + 8;
   // UserRole+10: the muted meta line under the bold name.
-  inline constexpr int kMetaRole = Qt::UserRole + 10;
+  inline constexpr int META_ROLE = Qt::UserRole + 10;
   // UserRole+11: the synthetic "Temporary (unsaved)" row (browser `project-temp`); its UserRole stays null.
-  inline constexpr int kTempRole = Qt::UserRole + 11;
+  inline constexpr int TEMP_ROLE = Qt::UserRole + 11;
 
   // Qt maps macOS ⌘ to ControlModifier; Meta is accepted too for a remapped keyboard.
   bool isNewWindowMod(Qt::KeyboardModifiers m);

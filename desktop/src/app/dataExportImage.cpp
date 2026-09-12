@@ -20,13 +20,13 @@ namespace stencil::gui {
   // Per-variant suffix and clipboard label (browser exportService.js #VARIANT_META).
   namespace {
     struct VariantMeta { const char* variant; const char* suffix; const char* copiedLabel; };
-    constexpr VariantMeta kVariantMeta[] = {
+    constexpr VariantMeta VARIANT_META[] = {
         {"original", "-original", "Original image copied to clipboard"},
         {"tint", "-tint", "Tinted image copied to clipboard"},
         {"split", "-split", "Split image copied to clipboard"},
     };
     const VariantMeta* variantMeta(const QString& variant) {
-      for (const auto& m : kVariantMeta)
+      for (const auto& m : VARIANT_META)
         if (variant == QLatin1String(m.variant)) return &m;
       return nullptr;
     }

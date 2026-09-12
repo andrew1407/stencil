@@ -44,7 +44,7 @@ namespace stencil::gui {
   // Glyph names mirror browser/js/ui/toolbar.js. Null-guarded.
   void MainWindow::styleActionIcons(bool dark, const QColor& iconColor) {
     iconColor_ = iconColor;
-    const int s = kToolIcon;
+    const int s = TOOL_ICON;
     auto set = [&](QAction* a, const char* name) {
       if (!a) return;
       a->setIcon(themedIcon(QString::fromLatin1(name), iconColor, s));
@@ -153,7 +153,7 @@ namespace stencil::gui {
     const auto affordanceIcon = [&](const char* glyph) {
       // A plain themedIcon, not a composed pixmap: the icon-motion filter finds a glyph via
       // QIcon::cacheKey.
-      return themedIcon(glyph, affordanceInk, kNameChipGlyph);
+      return themedIcon(glyph, affordanceInk, NAME_CHIP_GLYPH);
     };
     if (nameBar_.edit) nameBar_.edit->setIcon(affordanceIcon("pencil"));
     if (nameBar_.colorBtn) nameBar_.colorBtn->setIcon(affordanceIcon("palette"));

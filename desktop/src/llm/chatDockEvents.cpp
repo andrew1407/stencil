@@ -35,7 +35,7 @@ namespace stencil::gui {
         (event->type() == QEvent::Enter || event->type() == QEvent::Leave)) {
       auto* pill = static_cast<QToolButton*>(obj);
       auto* fx = qobject_cast<QGraphicsOpacityEffect*>(pill->graphicsEffect());
-      if (fx) fx->setOpacity(event->type() == QEvent::Enter ? 1.0 : kGhostRestOpacity);
+      if (fx) fx->setOpacity(event->type() == QEvent::Enter ? 1.0 : GHOST_REST_OPACITY);
       // …and the glyph brightens to --text-main under the cursor, dropping back
       // to --text-muted (browser .chat-jump-btn / :hover).
       const QColor glyph = event->type() == QEvent::Enter
@@ -129,8 +129,8 @@ namespace stencil::gui {
               // Tear off under the cursor, at the compact float default —
               // the browser's undock-at-the-pointer behaviour.
               setFloating(true);
-              resize(kFloatingSize);
-              manualGrabOffset_ = QPoint(qMin(kFloatingSize.width() / 2, 140), 12);
+              resize(FLOATING_SIZE);
+              manualGrabOffset_ = QPoint(qMin(FLOATING_SIZE.width() / 2, 140), 12);
             } else {
               manualGrabOffset_ = g - frameGeometry().topLeft();
             }

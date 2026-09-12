@@ -16,7 +16,7 @@ namespace stencil::gui {
   // Identity across a rebuild: server url + id, "temp" for the pinned row; placeholders have none.
   static QString rebuildKeyOf(const QListWidgetItem* it) {
     if (!it) return QString();
-    if (it->data(kTempRole).toBool()) return QStringLiteral("temp");
+    if (it->data(TEMP_ROLE).toBool()) return QStringLiteral("temp");
     const QVariant id = it->data(Qt::UserRole);
     if (id.isNull()) return QString();
     return it->data(Qt::UserRole + 1).toString() + "|" + id.toString();
@@ -83,7 +83,7 @@ namespace stencil::gui {
         QListWidgetItem* it = list_->item(i);
         const QString k = rebuildKeyOf(it);
         if (k.isEmpty() || it->isHidden() || keysBefore.contains(k)) continue;
-        if (auto* fade = filterFade()) fade->dustRowIn(it, window(), kRowArriveMs);
+        if (auto* fade = filterFade()) fade->dustRowIn(it, window(), ROW_ARRIVE_MS);
       }
   }
 
@@ -129,9 +129,9 @@ namespace stencil::gui {
       auto* it = new QListWidgetItem(incognito_ ? QStringLiteral("Incognito (unsaved)")
                                                 : QStringLiteral("Temporary (unsaved)"), list_);
       it->setFlags(Qt::ItemIsEnabled);
-      it->setData(kTempRole, true);
+      it->setData(TEMP_ROLE, true);
       it->setData(Qt::UserRole + 3, it->text());
-      it->setData(kMetaRole, incognito_ ? QStringLiteral("Current window · incognito · never saved")
+      it->setData(META_ROLE, incognito_ ? QStringLiteral("Current window · incognito · never saved")
                                         : QStringLiteral("Current window · not saved to storage"));
       it->setData(Qt::UserRole + 4, QColor("#80868f"));
       it->setIcon(QIcon(temporaryIcon(incognito_)));

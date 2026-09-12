@@ -111,9 +111,9 @@ namespace stencil::gui {
     if (on && !support::motionReduced()) {
       if (!idleGlyphAnim_) {
         idleGlyphAnim_ = new QVariantAnimation(this);
-        idleGlyphAnim_->setDuration(int(kIdleGlyphPlayMs));
+        idleGlyphAnim_->setDuration(int(IDLE_GLYPH_PLAY_MS));
         idleGlyphAnim_->setStartValue(0.0);
-        idleGlyphAnim_->setEndValue(kIdleGlyphPlayMs);
+        idleGlyphAnim_->setEndValue(IDLE_GLYPH_PLAY_MS);
         connect(idleGlyphAnim_, &QVariantAnimation::valueChanged, this,
                 [this](const QVariant& v) { idleGlyphMs_ = v.toDouble(); update(); });
         // Back to the canon's own rest markup, so nothing marks a settled glyph as posed.

@@ -27,13 +27,13 @@ class MainWindowGuiTest : public QObject {
     settleLayout(&win, 120);
     auto* edge = win.chatEdge_;
     QVERIFY(edge);
-    const struct { Qt::DockWidgetArea area; Qt::Orientation split; const char* name; } kAreas[] = {
+    const struct { Qt::DockWidgetArea area; Qt::Orientation split; const char* name; } AREAS[] = {
         {Qt::LeftDockWidgetArea, Qt::Horizontal, "left"},
         {Qt::RightDockWidgetArea, Qt::Horizontal, "right"},
         {Qt::TopDockWidgetArea, Qt::Vertical, "top"},
         {Qt::BottomDockWidgetArea, Qt::Vertical, "bottom"},
     };
-    for (const auto& a : kAreas) {
+    for (const auto& a : AREAS) {
       win.addDockWidget(a.area, win.chatDock_, a.split);
       settleLayout(&win, 120);
       const QRect dock = win.chatDock_->geometry();
@@ -50,7 +50,7 @@ class MainWindowGuiTest : public QObject {
       // …and the band is drawn AROUND that strip, never thinner than an affordance can
       // be seen at (the horizontal separators are a hairline by design, theme.cpp).
       QVERIFY2(band.contains(hit), a.name);
-      QVERIFY2(qMin(band.width(), band.height()) >= stencil::gui::DockEdgeOverlay::kMinThickness, a.name);
+      QVERIFY2(qMin(band.width(), band.height()) >= stencil::gui::DockEdgeOverlay::MIN_THICKNESS, a.name);
     }
     // Nothing to grab while it floats — the window frame owns that resize.
     win.chatDock_->setFloating(true);

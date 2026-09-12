@@ -8,12 +8,12 @@
 namespace stencil::gui {
 
   // Browser .settings-header / -body / -footer padding (14px 18px / 14px 18px / 12px 18px).
-  inline constexpr int kPadX = 18;
-  inline constexpr int kHeaderPadY = 12;
-  inline constexpr int kBodyPadY = 14;
-  inline constexpr int kFooterPadY = 12;
+  inline constexpr int PAD_X = 18;
+  inline constexpr int HEADER_PAD_Y = 12;
+  inline constexpr int BODY_PAD_Y = 14;
+  inline constexpr int FOOTER_PAD_Y = 12;
   // Below this the hint takes its own line above the buttons (browser: `flex: 1 1 110px`).
-  inline constexpr int kFooterHintMinW = 110;
+  inline constexpr int FOOTER_HINT_MIN_W = 110;
 
   // Every visible non-hint widget's minimum plus the gaps — what the reservation and the wrap size against.
   inline int footerButtonsWidth(const QHBoxLayout* row, const QWidget* hint, int* count = nullptr) {

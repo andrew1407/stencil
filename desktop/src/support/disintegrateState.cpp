@@ -55,13 +55,13 @@ namespace stencil::gui {
     QPainter p(&out);
     p.setCompositionMode(QPainter::CompositionMode_SourceAtop);   // tints, never spreads
     p.fillRect(out.rect(), QColor(ink.red(), ink.green(), ink.blue(),
-                                  qRound(255 * kSurfaceInkMix)));
+                                  qRound(255 * SURFACE_INK_MIX)));
     return out;
   }
 
   DisintegrateOverlay::DisintegrateOverlay(QWidget* host,
                                            const QPixmap& snap) : QWidget(host), snap_(snap) {
-    setObjectName(kObjectName);   // findable without a Q_OBJECT (this class stays MOC-free)
+    setObjectName(OBJECT_NAME);   // findable without a Q_OBJECT (this class stays MOC-free)
     setAttribute(Qt::WA_TransparentForMouseEvents, true);
     setAttribute(Qt::WA_NoSystemBackground, true);
     setAttribute(Qt::WA_TranslucentBackground, true);
@@ -92,7 +92,7 @@ namespace stencil::gui {
 
   void DisintegrateOverlay::sizeGridForDust(const QSize& size, int maxCells, int cellPx) {
     // Water and fire grid coarser (browser motion.js makeDustStage).
-    if (style_ != support::ParticleStyle::Dust) cellPx = qRound(cellPx * support::kStyledCellScale);
+    if (style_ != support::ParticleStyle::Dust) cellPx = qRound(cellPx * support::STYLED_CELL_SCALE);
     dustGrid(size, cellPx, maxCells, &cols_, &rows_);
   }
 

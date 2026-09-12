@@ -31,13 +31,13 @@ namespace stencil::core {
       // Recursion cap: thousands of '(' or unary signs from untrusted layout JSON /
       // console / --formula must not overflow the stack — past it the parse is invalid
       // (→ identity). Identical to formulaEngine.js MAX_DEPTH so wasm and JS agree.
-      static constexpr int kMaxDepth = 256;
+      static constexpr int MAX_DEPTH = 256;
 
       // Decrements on unwind, so sibling subexpressions don't accumulate depth.
       struct DepthGuard {
         int& d;
         bool ok;
-        explicit DepthGuard(int& depth) : d(depth), ok(++depth <= kMaxDepth) {}
+        explicit DepthGuard(int& depth) : d(depth), ok(++depth <= MAX_DEPTH) {}
         ~DepthGuard() { --d; }
       };
 

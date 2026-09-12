@@ -90,7 +90,7 @@ namespace stencil::gui {
     if (support::motionReduced()) return;        // no dust → removal finalizes at once
     const QStringList all = manager_->urls();   // rows are built in this order
     // Shared mote budget across the rows leaving together (projectsDialog says why).
-    const int budget = std::max<int>(1, DisintegrateOverlay::kDustMaxCells / int(urls.size()));
+    const int budget = std::max<int>(1, DisintegrateOverlay::DUST_MAX_CELLS / int(urls.size()));
     QStringList doomedNow;
     for (const QString& u : urls) {
       const int row = all.indexOf(u);
@@ -98,7 +98,7 @@ namespace stencil::gui {
       if (!it) continue;
       if (!DisintegrateOverlay::overRect(list_->viewport(), list_->visualItemRect(it), this,
                                          DisintegrateOverlay::Sweep::Rows, /*dust=*/true, budget,
-                                         DisintegrateOverlay::kConnMs,
+                                         DisintegrateOverlay::CONN_MS,
                                          list_->palette().color(QPalette::Text)))   // lifted to the row's ink
         continue;   // nothing to animate (hidden/tiny) → this row just removes instantly
       // Retire the row at once (projectsDialog::retireRow parity): the snapshot is what
@@ -113,7 +113,7 @@ namespace stencil::gui {
     // Finalize when the dust settles: slots collapse and (only now) the empty state may
     // appear. Dies with the dialog — done() covers an early close.
     updateBatchBar();   // the count and the buttons come apart WITH the rows, not after
-    QTimer::singleShot(DisintegrateOverlay::kConnMs, this, [this, doomedNow] {
+    QTimer::singleShot(DisintegrateOverlay::CONN_MS, this, [this, doomedNow] {
       for (const QString& u : doomedNow) doomed_.remove(u);
       if (doomed_.isEmpty()) rebuildList();
     });
@@ -149,7 +149,7 @@ namespace stencil::gui {
       QWidget* w = list_->itemWidget(list_->item(i));
       if (!w || w->isHidden()) continue;
       // A row mid-filter-fade owns its own opacity effect; two writers would flicker.
-      if (w->property(kFilterFadeProperty).toBool()) continue;
+      if (w->property(FILTER_FADE_PROPERTY).toBool()) continue;
       const int top = w->mapTo(vp, QPoint(0, 0)).y();
       const int h = w->height();
       const double d = scrollable ? revealDissolve(top, top + h, viewH) : 0.0;

@@ -97,8 +97,8 @@ class MainWindowGuiTest : public QObject {
       // place; this suite's plain QApplication does not).
       QObject* target = p.act ? static_cast<QObject*>(p.act) : p.widget;
       const QString plain = p.act ? p.act->toolTip()
-                            : target->property(stencil::gui::kPlainTipProperty).isValid()
-                                ? target->property(stencil::gui::kPlainTipProperty).toString()
+                            : target->property(stencil::gui::PLAIN_TIP_PROPERTY).isValid()
+                                ? target->property(stencil::gui::PLAIN_TIP_PROPERTY).toString()
                                 : p.widget->toolTip();
       const QString got = textOf(plain);
       QVERIFY2(got == want,
@@ -108,7 +108,7 @@ class MainWindowGuiTest : public QObject {
       // the browser gives one to, and on the tooltip exactly while the control is disabled.
       const QString tag = browserTag(QString::fromLatin1(p.browserId));
       const QString wantReason = attrOf(tag, "data-disabled-reason");
-      const QString gotReason = target->property(stencil::gui::kTipReasonProperty).toString();
+      const QString gotReason = target->property(stencil::gui::TIP_REASON_PROPERTY).toString();
       QVERIFY2(gotReason == wantReason,
                qPrintable(QString("#%1: desktop reason \"%2\", the browser's \"%3\"")
                               .arg(p.browserId, gotReason, wantReason)));
@@ -122,7 +122,7 @@ class MainWindowGuiTest : public QObject {
       const QString hk = attrOf(tag, "data-hk-title");
       if (p.widget && !hk.isEmpty()) {
         auto* bound = qobject_cast<QAction*>(
-            p.widget->property(stencil::gui::kTipHotkeyProperty).value<QObject*>());
+            p.widget->property(stencil::gui::TIP_HOTKEY_PROPERTY).value<QObject*>());
         QVERIFY2(bound, qPrintable(QString("#%1 wears no chord for %2").arg(p.browserId, hk)));
         QCOMPARE(bound->shortcut(), QKeySequence(win.hotkey(hk, QString())));
         QVERIFY2(plain.contains("(" + bound->shortcut().toString(QKeySequence::NativeText) + ")"),
@@ -285,7 +285,7 @@ class MainWindowGuiTest : public QObject {
              "the keycaps were neither shaken nor queued to shake");
     if (tip->shakePending())
       QVERIFY2(!tip->shaking(), "the caps moved while the tip was still forming");
-    QTRY_VERIFY_WITH_TIMEOUT(tip->shaking(), stencil::gui::AppTooltip::kDustInMs + 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(tip->shaking(), stencil::gui::AppTooltip::DUST_IN_MS + 2000);
     QVERIFY2(tip->keycapsShown() > 0, "the shake found no caps to move");
     QLabel* body = tip->findChild<QLabel*>();
     QVERIFY(body);
@@ -301,7 +301,7 @@ class MainWindowGuiTest : public QObject {
       if (tip->shakeOffset() != 0) midShake = body->grab().toImage();
     }
     QVERIFY2(!midShake.isNull(), "the caps never left their resting slot");
-    QTRY_VERIFY_WITH_TIMEOUT(!tip->shaking(), stencil::gui::AppTooltip::kShakeMs + 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(!tip->shaking(), stencil::gui::AppTooltip::SHAKE_MS + 2000);
     QCOMPARE(tip->pos(), home);
     QCOMPARE(tip->shakeOffset(), 0);
     const QImage settled = body->grab().toImage();
@@ -348,7 +348,7 @@ class MainWindowGuiTest : public QObject {
     }
     QCursor::setPos(btn->mapToGlobal(btn->rect().center()));
     sendToolTipTo(btn);
-    QTRY_VERIFY_WITH_TIMEOUT(!tip->shaking(), stencil::gui::AppTooltip::kShakeMs + 2000);
+    QTRY_VERIFY_WITH_TIMEOUT(!tip->shaking(), stencil::gui::AppTooltip::SHAKE_MS + 2000);
     QCOMPARE(tip->shakeOffset(), 0);
     // Settled back EXACTLY: the same picture as the first appearance left behind.
     QCOMPARE(body->grab().toImage(), settled);

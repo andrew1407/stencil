@@ -60,7 +60,7 @@ namespace stencil::gui {
       : QDialog(parent), manager_(manager) {
     setWindowTitle(tr("Servers"));
     // The browser .app-modal width — also what fits the footer hint on one line.
-    setMinimumWidth(kModalWidth);
+    setMinimumWidth(MODAL_WIDTH);
 
     // Browser connectModal.js parity: shared modal shell (glyph + title + Close pill).
     ModalChrome chrome = installModalChrome(this, "server", tr("Servers"));
@@ -182,10 +182,10 @@ namespace stencil::gui {
           // bar opens with the first row), and a row still forming after the button had
           // landed read as the two appearing one after the other.
           if (DisintegrateOverlay::over(w, this, DisintegrateOverlay::Sweep::Gather, 0, 0,
-                                        kConnArriveMs)) {
+                                        CONN_ARRIVE_MS)) {
             w->setVisible(false);   // the slot stays; the motes are what the eye follows
             QPointer<QWidget> wp(w);
-            QTimer::singleShot(kConnArriveMs, this, [wp] { if (wp) wp->setVisible(true); });
+            QTimer::singleShot(CONN_ARRIVE_MS, this, [wp] { if (wp) wp->setVisible(true); });
           }
         }
       });

@@ -9,8 +9,8 @@ namespace stencil::gui {
   class SessionController {
    public:
     // Browser parity: storage.js's autosave and scroll/zoom debounce.
-    static constexpr int kAutosaveMs = 600;
-    static constexpr int kViewSaveMs = 400;
+    static constexpr int AUTOSAVE_MS = 600;
+    static constexpr int VIEW_SAVE_MS = 400;
 
     struct Gates {
       // Incognito gates every write of the incognito editor's own state — a desktop-only widening
@@ -41,10 +41,10 @@ namespace stencil::gui {
     }
     // Only incognito stops the timer arming; the remote-unsynced case is decided at fire time.
     void scheduleAutosave(bool autosaveEnabled, const Gates& g) {
-      if (autosave_ && autosaveEnabled && !g.incognito) autosave_->start(kAutosaveMs);
+      if (autosave_ && autosaveEnabled && !g.incognito) autosave_->start(AUTOSAVE_MS);
     }
     void scheduleViewSave(const Gates& g) {
-      if (viewSave_ && wantsViewSchedule(g, restoring_)) viewSave_->start(kViewSaveMs);
+      if (viewSave_ && wantsViewSchedule(g, restoring_)) viewSave_->start(VIEW_SAVE_MS);
     }
 
     bool restoring() const { return restoring_; }

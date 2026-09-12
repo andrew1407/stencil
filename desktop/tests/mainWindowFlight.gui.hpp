@@ -25,7 +25,7 @@ namespace stencil::guitest {
   inline stencil::gui::DisintegrateOverlay* surfaceFlight(const QWidget* host) {
     stencil::gui::DisintegrateOverlay* found = nullptr;
     for (QWidget* w : host->findChildren<QWidget*>(
-             QString::fromLatin1(stencil::gui::DisintegrateOverlay::kObjectName))) {
+             QString::fromLatin1(stencil::gui::DisintegrateOverlay::OBJECT_NAME))) {
       auto* fx = static_cast<stencil::gui::DisintegrateOverlay*>(w);
       if (fx->surfacePicture().isValid()) found = fx;   // the newest one wins
     }
@@ -42,7 +42,7 @@ namespace stencil::guitest {
   // The GHOST twin of the above: the fallback for whatever the dust engine declines
   // outright (an unmeasurable box, a snapshot that failed to grab) — every dialog,
   // including the big `.app-modal` ones, dusts first (support/modalReveal.cpp
-  // kDialogDustMaxCells). Found the same way, by its own object name (makeGhost).
+  // DIALOG_DUST_MAX_CELLS). Found the same way, by its own object name (makeGhost).
   inline QLabel* modalGhost(const QWidget* host) {
     QLabel* found = nullptr;
     for (QLabel* g : host->findChildren<QLabel*>(QStringLiteral("stencilModalGhost")))
@@ -62,7 +62,7 @@ namespace stencil::guitest {
       if (captured || e->type() != QEvent::Show) return false;
       auto* w = qobject_cast<QWidget*>(o);
       if (!w) return false;
-      if (w->objectName() == QLatin1String(stencil::gui::DisintegrateOverlay::kObjectName)) {
+      if (w->objectName() == QLatin1String(stencil::gui::DisintegrateOverlay::OBJECT_NAME)) {
         auto* fx = static_cast<stencil::gui::DisintegrateOverlay*>(w);
         if (fx->surfacePicture().isValid()) { origin = fx->surfaceTarget(); captured = true; }
       } else if (w->objectName() == QLatin1String("stencilModalGhost")) {

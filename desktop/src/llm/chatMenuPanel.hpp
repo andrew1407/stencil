@@ -22,7 +22,7 @@ namespace stencil::gui {
 
   // Most recent messages replayed (contract §7) — and the cap on the panel's
   // mirrored transcript rows. Shared with MainWindow's chatHistory_/mirror log.
-  inline constexpr int kChatHistoryBound = 32;
+  inline constexpr int CHAT_HISTORY_BOUND = 32;
 
   // Assistant chat hosted INSIDE the canvas context menu (browser .ctx-assist
   // parity): a tall scrolling transcript over a composer. NOT a second chat

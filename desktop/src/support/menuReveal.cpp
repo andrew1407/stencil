@@ -26,7 +26,7 @@
 namespace stencil::support {
 
   namespace {
-    constexpr int kMenuMs = 140;
+    constexpr int MENU_MS = 140;
 
     // Browser twin: js/ui/motion.js surfaceIn. escapeHost is safe because placeForSurface's
     // escape layer is Qt::ToolTip, not a grab-stealing Qt::Window.
@@ -52,13 +52,13 @@ namespace stencil::support {
     }
 
     bool dustMenuIn(QMenu* m, const QPoint& originGlobal) {
-      return dustPopupIn(m, menuHostWindow(m->parentWidget()), originGlobal, kMenuPopupDustMs);
+      return dustPopupIn(m, menuHostWindow(m->parentWidget()), originGlobal, MENU_POPUP_DUST_MS);
     }
 
     // No isVisible() gate: QMenu emits aboutToHide from its hideEvent, when the popup is
     // ALREADY hidden; grab() still renders it.
     bool dustMenuOut(QMenu* m, const QPoint& originGlobal) {
-      return dustPopupOut(m, menuHostWindow(m->parentWidget()), originGlobal, kMenuPopupDustMs);
+      return dustPopupOut(m, menuHostWindow(m->parentWidget()), originGlobal, MENU_POPUP_DUST_MS);
     }
 
     // Re-arms on Hide: a submenu is the SAME QMenu instance shown many times per session.
@@ -118,12 +118,12 @@ namespace stencil::support {
         m->setGeometry(start);
 
         auto* geo = new QPropertyAnimation(m, "geometry", this);
-        geo->setDuration(kMenuMs);
+        geo->setDuration(MENU_MS);
         geo->setStartValue(start);
         geo->setEndValue(target_);
         geo->setEasingCurve(QEasingCurve::OutCubic);
         auto* fade = new QPropertyAnimation(m, "windowOpacity", this);
-        fade->setDuration(kMenuMs);
+        fade->setDuration(MENU_MS);
         fade->setStartValue(0.0);
         fade->setEndValue(1.0);
         fade->setEasingCurve(QEasingCurve::OutCubic);
@@ -231,14 +231,14 @@ namespace stencil::support {
         menu->installEventFilter(this);
         // aboutToHide, NOT QEvent::Hide: the popup must still be on screen to photograph.
         QObject::connect(menu, &QMenu::aboutToHide, this, [this] {
-          if (menu_ && anchor_) dismissPopup(*menu_, anchor_, kMenuPopupDustMs);
+          if (menu_ && anchor_) dismissPopup(*menu_, anchor_, MENU_POPUP_DUST_MS);
         });
       }
 
      protected:
       bool eventFilter(QObject* watched, QEvent* event) override {
         if (watched == menu_ && event->type() == QEvent::Show && menu_ && anchor_)
-          revealPopup(*menu_, anchor_, kMenuPopupDustMs);
+          revealPopup(*menu_, anchor_, MENU_POPUP_DUST_MS);
         return QObject::eventFilter(watched, event);
       }
 

@@ -38,12 +38,12 @@ namespace stencil::support {
 
   // The browser's per-mode durations (line/arrow 450, flame 900, drop 1125, specks 825
   // staggered 90ms), all scaled by one factor: desktop plays the hover 1.5x faster.
-  inline constexpr double kMotionIconSpeedup = 1.5;
+  inline constexpr double MOTION_ICON_SPEEDUP = 1.5;
   double motionIconMs(const QString& mode);
   // The longest — how long a row's hover keeps repainting.
-  constexpr int kMotionIconHoverMs = static_cast<int>(1200 / kMotionIconSpeedup);
+  constexpr int MOTION_ICON_HOVER_MS = static_cast<int>(1200 / MOTION_ICON_SPEEDUP);
   // Browser js/ui/motionIcons.js: viewBox 0 0 16 16.
-  constexpr int kMotionIconPx = 16;
+  constexpr int MOTION_ICON_PX = 16;
 
   void paintMotionIcon(QPainter& p, const QRectF& box, const QString& mode, const QColor& colour,
                        double ms = 1e9);
@@ -53,10 +53,10 @@ namespace stencil::support {
   QIcon motionModeIcon(const QString& mode, const QColor& colour, int px = 16, double dpr = 2.0);
 
   // Draws the row as usual, then the mode's glyph over its icon slot, animated over
-  // `kHoverMs` from hover. The mode key is the row's item DATA.
+  // `HOVER_MS` from hover. The mode key is the row's item DATA.
   class MotionIconDelegate : public QStyledItemDelegate {
    public:
-    static constexpr int kHoverMs = kMotionIconHoverMs;   // the longest glyph's hover
+    static constexpr int HOVER_MS = MOTION_ICON_HOVER_MS;   // the longest glyph's hover
     explicit MotionIconDelegate(QAbstractItemView* view, QObject* parent = nullptr);
     void paint(QPainter* p, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
 

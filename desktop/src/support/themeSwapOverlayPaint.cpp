@@ -24,7 +24,7 @@ namespace stencil::gui {
     full_ = std::hypot(std::max(c.x(), width() - c.x()),
                        std::max(c.y(), height() - c.y()));
     // The overlay outlives the snapshot by the wake so the last motes get their whole life.
-    const int total = kSwapMs + (dust_ ? kDustLifeMs : 0);
+    const int total = SWAP_MS + (dust_ ? DUST_LIFE_MS : 0);
     // A plain clock on a timer at the screen's refresh rate (dustKit.hpp frameIntervalMs,
     // not Qt's 60Hz animation timer); the wipe and the dust both read it.
     clock_.start();
@@ -51,13 +51,13 @@ namespace stencil::gui {
     // The hole is a QRegion, not a QPainterPath: path clipping is rasterised per frame
     // over the whole window and stuttered; region clipping is spans. Antialiasing off.
     const QPoint c = origin_.x() >= 0 ? origin_ : rect().center();
-    if (timeMs_ < kSwapMs) {
+    if (timeMs_ < SWAP_MS) {
       // A torn polygon still clips as cheap spans.
-      const double e = swapEase(std::min(1.0, timeMs_ / kSwapMs));
+      const double e = swapEase(std::min(1.0, timeMs_ / SWAP_MS));
       QPolygon front;
-      front.reserve(kEdgePoints);
-      for (int k = 0; k < kEdgePoints; k++) {
-        const double a = k * kTau / kEdgePoints;
+      front.reserve(EDGE_POINTS);
+      for (int k = 0; k < EDGE_POINTS; k++) {
+        const double a = k * TAU / EDGE_POINTS;
         const double r = edgeRadiusAt(k, e, full_, style_);
         front << QPoint(qRound(c.x() + std::cos(a) * r), qRound(c.y() + std::sin(a) * r));
       }
@@ -70,7 +70,7 @@ namespace stencil::gui {
     p.setRenderHint(QPainter::Antialiasing, false);
     p.setRenderHint(QPainter::SmoothPixmapTransform, false);
     DustMote mote;
-    for (int i = 0; i < kDustMotes; i++) {
+    for (int i = 0; i < DUST_MOTES; i++) {
       if (!dustMoteAt(i, timeMs_, QPointF(c), full_, QSizeF(size()), &mote, style_)) continue;
       // Painted from the departing palette by mix and hash (browser spawnSwapDust).
       const support::StyleFrame sf = support::styleFrame(style_, mote.life, mote.life, mote.w, mote.len, timeMs_);
@@ -85,7 +85,7 @@ namespace stencil::gui {
 
   ThemeSwapOverlay::ThemeSwapOverlay(QWidget* host,
                                      const QPixmap& snap) : QWidget(host), snap_(snap) {
-    setObjectName(kObjectName);   // findable without a Q_OBJECT (this class stays MOC-free)
+    setObjectName(OBJECT_NAME);   // findable without a Q_OBJECT (this class stays MOC-free)
     // Click-through: the wipe is decoration and must never eat input.
     setAttribute(Qt::WA_TransparentForMouseEvents, true);
     setAttribute(Qt::WA_NoSystemBackground, true);

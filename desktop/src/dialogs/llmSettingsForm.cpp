@@ -22,10 +22,10 @@ namespace stencil::gui {
   namespace {
     // Status-row state colours — the browser .chat-status-tip states
     // (ok | error | connecting), same values as the dock gear tooltip's
-    // (mainWindow.cpp kTip*Color).
-    constexpr const char* kStatusOkColor = "#28a745";
-    constexpr const char* kStatusErrorColor = "#dc3545";
-    constexpr const char* kStatusConnectingColor = "#e0a800";
+    // (mainWindow.cpp TIP_*_COLOR).
+    constexpr const char* STATUS_OK_COLOR = "#28a745";
+    constexpr const char* STATUS_ERROR_COLOR = "#dc3545";
+    constexpr const char* STATUS_CONNECTING_COLOR = "#e0a800";
 
   }
 
@@ -123,7 +123,7 @@ namespace stencil::gui {
     // "none" is local-only (contract §5): nothing is probed or sent anywhere.
     if (provider == QLatin1String("none")) {
       ++probeGen_;  // invalidate any probe still in flight
-      setStatus(kStatusErrorColor,
+      setStatus(STATUS_ERROR_COLOR,
                 QStringLiteral("Assistant turned off — nothing is sent anywhere"));
       return;
     }
@@ -132,7 +132,7 @@ namespace stencil::gui {
     cfg.baseUrl = baseUrl_->text().trimmed();
     cfg.apiKey = apiKey_->text().trimmed();
     cfg.serverUrl = server_->currentData().toString();
-    setStatus(kStatusConnectingColor, QStringLiteral("Checking the configured LLM…"));
+    setStatus(STATUS_CONNECTING_COLOR, QStringLiteral("Checking the configured LLM…"));
     const int gen = ++probeGen_;
     QPointer<LlmSettingsForm> self(this);
     client_->probe(cfg, [self, gen](stencil::llm::LlmProbeResult r) {
@@ -144,9 +144,9 @@ namespace stencil::gui {
         // stencil-server /llm/info reports the server-side model — show it, so
         // "server default" stops being a mystery.
         if (!r.model.isEmpty()) text += QStringLiteral(" · %1").arg(r.model);
-        self->setStatus(kStatusOkColor, text);
+        self->setStatus(STATUS_OK_COLOR, text);
       } else {
-        self->setStatus(kStatusErrorColor,
+        self->setStatus(STATUS_ERROR_COLOR,
                         r.detail.isEmpty() ? QStringLiteral("Unreachable") : r.detail);
       }
     });

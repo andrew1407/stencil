@@ -133,7 +133,7 @@ namespace stencil::guitest {
   // the arrival's own completion flag — the entrance animation itself is card-owned.
   inline bool noneEntering(const QWidget* transcript) {
     for (const QFrame* c : transcript->findChildren<QFrame*>())
-      if (c->property(stencil::gui::ScrollReveal::kEnteringProperty).toBool()) return false;
+      if (c->property(stencil::gui::ScrollReveal::ENTERING_PROPERTY).toBool()) return false;
     return true;
   }
 

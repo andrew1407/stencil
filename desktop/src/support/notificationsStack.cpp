@@ -43,8 +43,8 @@ namespace stencil::gui {
 
   // Called by its own timer AND by the cap in show(); the flag makes the second a no-op.
   void Notifications::dismiss(QLabel* toast) {
-    if (!toast || toast->property(kLeavingProperty).toBool()) return;
-    toast->setProperty(kLeavingProperty, true);
+    if (!toast || toast->property(LEAVING_PROPERTY).toBool()) return;
+    toast->setProperty(LEAVING_PROPERTY, true);
     entering_.remove(toast);   // no longer entering — reflow() must not chase it anymore
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(toast->graphicsEffect());
     if (!fx) {   // no effect to animate (defensive): drop it straight away
@@ -55,15 +55,15 @@ namespace stencil::gui {
     }
     const bool dusted = dustToastOut(toast, host_, leftInset_);
     auto* fadeOut = new QPropertyAnimation(fx, "opacity", toast);
-    fadeOut->setDuration(kFadeOutMs);
+    fadeOut->setDuration(FADE_OUT_MS);
     fadeOut->setStartValue(fx->opacity());
     fadeOut->setEndValue(0.0);
     fadeOut->setEasingCurve(QEasingCurve::InCubic);
     if (!dusted) {
       auto* dropOut = new QPropertyAnimation(toast, "geometry", toast);
-      dropOut->setDuration(kFadeOutMs);
+      dropOut->setDuration(FADE_OUT_MS);
       dropOut->setStartValue(toast->geometry());
-      dropOut->setEndValue(toast->geometry().translated(0, kSlidePx));
+      dropOut->setEndValue(toast->geometry().translated(0, SLIDE_PX));
       dropOut->setEasingCurve(QEasingCurve::InCubic);
       dropOut->start(QAbstractAnimation::DeleteWhenStopped);
     }
@@ -85,11 +85,11 @@ namespace stencil::gui {
     for (int i = toasts.size() - 1; i >= 0; --i) {
       QLabel* t = toasts[i];
       y -= t->height();
-      const QRect rest(kLeftMargin + leftInset_ + (leftInset_ > 0 ? kDockGapPx : 0),
+      const QRect rest(LEFT_MARGIN + leftInset_ + (leftInset_ > 0 ? DOCK_GAP_PX : 0),
                        std::max(8, y), t->width(), t->height());
       auto* rise = t->findChild<QPropertyAnimation*>("toastRise");
       if (rise && rise->state() == QAbstractAnimation::Running) {
-        rise->setStartValue(rest.translated(0, kSlidePx));
+        rise->setStartValue(rest.translated(0, SLIDE_PX));
         rise->setEndValue(rest);
       } else {
         // An entrance cloud grabbed at the OLD box is dragged along by the same delta.
@@ -98,7 +98,7 @@ namespace stencil::gui {
         t->move(rest.topLeft());
       }
       t->raise();
-      y -= kStackGapPx;              // gap between stacked toasts
+      y -= STACK_GAP_PX;              // gap between stacked toasts
     }
   }
 

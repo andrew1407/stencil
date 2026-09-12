@@ -146,7 +146,7 @@ namespace stencil::gui {
   }
 
   // The browser shell is `width:auto` here: the preview sets the width and the footer its
-  // floor (one line, so the hint sits beside the buttons). Never under kMinDialogW, never
+  // floor (one line, so the hint sits beside the buttons). Never under MIN_DIALOG_W, never
   // narrower than the preview, never past the screen — the chrome is measured and the
   // preview re-fitted to what is left.
   void CropDialog::fitToScreen(const ModalChrome& chrome, const QHBoxLayout* footer) {
@@ -165,19 +165,19 @@ namespace stencil::gui {
     measure();
     const QSize chrome_(minimumSizeHint().width() - preview_->width(),
                         sizeHint().height() - preview_->height());
-    const QSize room(avail.width() - 2 * kScreenMargin - chrome_.width(),
-                     avail.height() - 2 * kScreenMargin - chrome_.height());
+    const QSize room(avail.width() - 2 * SCREEN_MARGIN - chrome_.width(),
+                     avail.height() - 2 * SCREEN_MARGIN - chrome_.height());
     if (box.width() > room.width() || box.height() > room.height()) {
       preview_->setFitBox(QSize(qMin(box.width(), room.width()), qMin(box.height(), room.height())));
       measure();
     }
-    const int minW = std::max({kMinDialogW, minimumSizeHint().width(),
+    const int minW = std::max({MIN_DIALOG_W, minimumSizeHint().width(),
                                modalFooterLineWidth(chrome, footer)});
-    setMinimumWidth(qMin(minW, avail.width() - 2 * kScreenMargin));
+    setMinimumWidth(qMin(minW, avail.width() - 2 * SCREEN_MARGIN));
     const int w = qMax(minimumWidth(), sizeHint().width());
     const int h = layout()->hasHeightForWidth() ? layout()->totalHeightForWidth(w)
                                                 : sizeHint().height();
-    resize(w, qMin(h, avail.height() - 2 * kScreenMargin));
+    resize(w, qMin(h, avail.height() - 2 * SCREEN_MARGIN));
   }
 
   core::CropRect CropDialog::cropRect() const { return preview_->cropRect(); }

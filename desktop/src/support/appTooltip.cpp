@@ -26,10 +26,10 @@ namespace stencil::gui {
     double x = 0, deg = 0;
     if (t > 0.0 && t < 1.0 && !caps_.isEmpty()) {
       int i = 0;
-      while (i < kStops - 2 && t > kStopT[i + 1]) i++;
-      const double u = ease().valueForProgress((t - kStopT[i]) / (kStopT[i + 1] - kStopT[i]));
-      x = kStopX[i] + (kStopX[i + 1] - kStopX[i]) * u;
-      deg = kStopDeg[i] + (kStopDeg[i + 1] - kStopDeg[i]) * u;
+      while (i < STOPS - 2 && t > STOP_T[i + 1]) i++;
+      const double u = ease().valueForProgress((t - STOP_T[i]) / (STOP_T[i + 1] - STOP_T[i]));
+      x = STOP_X[i] + (STOP_X[i + 1] - STOP_X[i]) * u;
+      deg = STOP_DEG[i] + (STOP_DEG[i + 1] - STOP_DEG[i]) * u;
     }
     const int px = qRound(x);
     if (px == dx_ && qFuzzyCompare(deg + 1.0, deg_ + 1.0)) return;

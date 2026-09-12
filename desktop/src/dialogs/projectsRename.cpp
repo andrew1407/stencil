@@ -38,7 +38,7 @@ namespace stencil::gui {
   void ProjectsDialog::beginInlineRename(QListWidgetItem* it) {
     if (!it || it->data(Qt::UserRole).isNull()) return;
     if (!it->data(Qt::UserRole + 1).toString().isEmpty()) return;  // local rows only
-    if (it->data(kDoomedRole).toBool()) return;
+    if (it->data(DOOMED_ROLE).toBool()) return;
     closeInlineRename();
     if (clickTimer_) clickTimer_->stop();   // a rename is not an open
     const QString id = it->data(Qt::UserRole).toString();
@@ -59,34 +59,34 @@ namespace stencil::gui {
     lay->setSpacing(5);
     // A row's chips are the height of the FIELD beside them: the editor reads as one
     // control, and clears the row's top border instead of straddling it.
-    constexpr int kRenameGlyph = 12;
-    constexpr int kRenameBox = 22;
+    constexpr int RENAME_GLYPH = 12;
+    constexpr int RENAME_BOX = 22;
     auto* edit = new QLineEdit(current, renameBox_);
     edit->setObjectName("projectsRenameEdit");
     edit->setToolTip(tr("Project name"));
-    edit->setFixedHeight(kRenameBox);   // …the chips' own height: one control, three parts
+    edit->setFixedHeight(RENAME_BOX);   // …the chips' own height: one control, three parts
     lay->addWidget(edit, 1);
     // ✓/✗ are the browser's .name-edit-btn chips: accent-filled with a WHITE glyph (a
     // green tick and a red cross read as a warning, not as two halves of one edit). The
     // shared objectName carries their QSS and themedIcon feeds the iconMotion filter, so
-    // hover draws the check / strikes the cross. Sized by mainWindowHelpers kNameChip*.
+    // hover draws the check / strikes the cross. Sized by mainWindowHelpers NAME_CHIP_*.
     auto* okBtn = new QToolButton(renameBox_);
     okBtn->setObjectName("projectsRenameBtn");
-    okBtn->setIcon(themedIcon("check", QColor("#ffffff"), kRenameGlyph));
-    okBtn->setIconSize(QSize(kRenameGlyph, kRenameGlyph));
-    okBtn->setFixedHeight(kRenameBox);
+    okBtn->setIcon(themedIcon("check", QColor("#ffffff"), RENAME_GLYPH));
+    okBtn->setIconSize(QSize(RENAME_GLYPH, RENAME_GLYPH));
+    okBtn->setFixedHeight(RENAME_BOX);
     okBtn->setMinimumWidth(0);          // …so revealControls can slide its slot open
-    okBtn->setMaximumWidth(kRenameBox);
+    okBtn->setMaximumWidth(RENAME_BOX);
     okBtn->setFocusPolicy(Qt::NoFocus);
     installHoverShimmer(okBtn);   // the row's editor is built on demand, after the dialog's sweep
     lay->addWidget(okBtn);   // its cursor follows enabled/disabled — see makeNameValidator
     auto* cancelBtn = new QToolButton(renameBox_);
     cancelBtn->setObjectName("projectsRenameBtn");
-    cancelBtn->setIcon(themedIcon("x", QColor("#ffffff"), kRenameGlyph));
-    cancelBtn->setIconSize(QSize(kRenameGlyph, kRenameGlyph));
-    cancelBtn->setFixedHeight(kRenameBox);
+    cancelBtn->setIcon(themedIcon("x", QColor("#ffffff"), RENAME_GLYPH));
+    cancelBtn->setIconSize(QSize(RENAME_GLYPH, RENAME_GLYPH));
+    cancelBtn->setFixedHeight(RENAME_BOX);
     cancelBtn->setMinimumWidth(0);          // …so revealControls can slide its slot open
-    cancelBtn->setMaximumWidth(kRenameBox);
+    cancelBtn->setMaximumWidth(RENAME_BOX);
     cancelBtn->setFocusPolicy(Qt::NoFocus);
     cancelBtn->setToolTip(tr("Cancel (Esc)"));   // …and its key, as a keycap
     installHoverShimmer(cancelBtn);
@@ -98,9 +98,9 @@ namespace stencil::gui {
     // bottom — so it is at least a chip plus its air, and
     // wide enough for the field and both chips side by side.
     const int left = nr.left() - 4;
-    const int chips = 2 * kRenameBox + 3 * lay->spacing();
+    const int chips = 2 * RENAME_BOX + 3 * lay->spacing();
     const int width = std::max(160 + chips, kebabZone(vr).left() - 8 - left);
-    const int h = kRenameBox + 4;   // the field's height plus the box's own air
+    const int h = RENAME_BOX + 4;   // the field's height plus the box's own air
     // …centred on the name line, but never across the row's own edges.
     const int top = std::clamp(nr.center().y() - h / 2, vr.top() + 3, vr.bottom() - h - 3);
     renameBox_->setGeometry(left, top, width, h);

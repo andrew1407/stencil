@@ -46,8 +46,8 @@ int main(int argc, char** argv) {
   check(generated.size() >= 400,
         qPrintable(QStringLiteral("generated/cases.json holds %1 cases").arg(generated.size())));
 
-  static const QSet<QString> kProfiles = {"editor", "console", "bot", "mcp", "extension", "all"};
-  static const QSet<QString> kSurfaces = {"browser", "desktop", "cli", "pystencil",
+  static const QSet<QString> PROFILES = {"editor", "console", "bot", "mcp", "extension", "all"};
+  static const QSet<QString> SURFACES = {"browser", "desktop", "cli", "pystencil",
                                           "bot", "mcp", "extension"};
 
   // ── corpus-shape check (port of the browser walker's first test) ──
@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
     shape(fx.value("profiles").isArray() && !profiles.isEmpty(),
           file + ": \"profiles\" must be a non-empty array");
     for (const QJsonValue& p : profiles)
-      shape(kProfiles.contains(p.toString()), file + ": unknown profile \"" + p.toString() + "\"");
+      shape(PROFILES.contains(p.toString()), file + ": unknown profile \"" + p.toString() + "\"");
     const QString expect = fx.value("expect").toString();
     shape(expect == "valid" || expect == "invalid", file + ": \"expect\" must be valid|invalid");
     shape(!fx.value("input").isUndefined() && !fx.value("input").isNull(),
@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
             file + ": invalid cases need a \"reason\"");
     const QJsonObject kd = fx.value("knownDivergence").toObject();
     for (auto it = kd.begin(); it != kd.end(); ++it) {
-      shape(kSurfaces.contains(it.key()),
+      shape(SURFACES.contains(it.key()),
             file + ": unknown knownDivergence surface \"" + it.key() + "\"");
       const QString v = it.value().toString();
       shape(v == "valid" || v == "invalid", file + ": knownDivergence verdicts are valid|invalid");

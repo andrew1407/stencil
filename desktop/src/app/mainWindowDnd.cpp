@@ -151,7 +151,7 @@ namespace stencil::gui {
     };
     if (dust) {
       // The motes already drew it into place; fading it up as well would double the arrival.
-      QTimer::singleShot(DisintegrateOverlay::kMs, canvas_, done);
+      QTimer::singleShot(DisintegrateOverlay::DUST_MS, canvas_, done);
       return;
     }
     // No dust to play: fall back to the plain fade, not to a hidden canvas.

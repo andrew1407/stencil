@@ -7,7 +7,7 @@
 
 namespace stencil::core {
 
-  namespace { constexpr int kRotateTile = 32; }  // 32x32 RGBA8 = 4 KB/side, both stay hot
+  namespace { constexpr int ROTATE_TILE = 32; }  // 32x32 RGBA8 = 4 KB/side, both stay hot
 
   int normalizeQuarters(int quarters) {
     return ((quarters % 4) + 4) % 4;
@@ -73,10 +73,10 @@ namespace stencil::core {
       return;
     }
     // 90°/270°: a transpose — source-order writes would scatter a row apart, so tile.
-    for (int oyb = oy0; oyb < oy1; oyb += kRotateTile) {
-      const int oyEnd = std::min(oyb + kRotateTile, oy1);
-      for (int oxb = 0; oxb < outW; oxb += kRotateTile) {
-        const int oxEnd = std::min(oxb + kRotateTile, outW);
+    for (int oyb = oy0; oyb < oy1; oyb += ROTATE_TILE) {
+      const int oyEnd = std::min(oyb + ROTATE_TILE, oy1);
+      for (int oxb = 0; oxb < outW; oxb += ROTATE_TILE) {
+        const int oxEnd = std::min(oxb + ROTATE_TILE, outW);
         for (int oy = oyb; oy < oyEnd; ++oy) {
           // dst(ox,oy) reads one src column, walking y with the destination x.
           const std::uint8_t* col = src + rgbaOffset(q == 1 ? oy : w - 1 - oy, 0, w);

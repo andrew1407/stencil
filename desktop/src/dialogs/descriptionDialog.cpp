@@ -31,7 +31,7 @@ namespace stencil::gui {
   }
 
   QString DescriptionDialog::text() const {
-    return edit_->toPlainText().trimmed().left(kMaxChars);
+    return edit_->toPlainText().trimmed().left(MAX_CHARS);
   }
 
   bool DescriptionDialog::apply(std::vector<Project>& projects, const QString& id,

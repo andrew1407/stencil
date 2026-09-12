@@ -43,7 +43,7 @@ namespace stencil::gui {
         videoPath_ = p;
         emit videoAttached(p);
       } else {
-        if (images_.size() >= kMaxAttachments) { overCap = true; continue; }   // §7: three per message
+        if (images_.size() >= MAX_ATTACHMENTS) { overCap = true; continue; }   // §7: three per message
         const QImage img = readImageFile(p);
         if (!img.isNull()) {
           images_.append(img);
@@ -63,12 +63,12 @@ namespace stencil::gui {
     capToastAt_.start();
     emit toastRequested(
         QStringLiteral("Up to %1 images per message — the extra ones were not attached.")
-            .arg(kMaxAttachments));
+            .arg(MAX_ATTACHMENTS));
   }
 
   void ChatDock::addAttachmentImage(const QImage& img, const QString& name) {
     if (img.isNull()) return;
-    if (images_.size() >= kMaxAttachments) { warnAttachmentCap(); return; }
+    if (images_.size() >= MAX_ATTACHMENTS) { warnAttachmentCap(); return; }
     images_.append(img);
     // Kept in lockstep with images_ so a chip can say WHICH picture it holds. Empty
     // where there is nothing to say (a clipboard bitmap has no filename) — the chip

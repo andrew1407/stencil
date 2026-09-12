@@ -110,13 +110,13 @@ namespace stencil::gui {
       card->setGraphicsEffect(fx);
     }
     QPointer<QFrame> cp(card);
-    QTimer::singleShot(kChatGatherSettleMs, card, [this, cp] {
+    QTimer::singleShot(CHAT_GATHER_SETTLE_MS, card, [this, cp] {
       if (!cp) return;
       const auto settle = [cp] {
         if (auto* e = qobject_cast<QGraphicsOpacityEffect*>(cp->graphicsEffect()))
           e->setOpacity(1.0);
       };
-      gatherChatCardIn(cp, rows_, scroll_, window(), kChatScatterCols, kChatScatterRows,
+      gatherChatCardIn(cp, rows_, scroll_, window(), CHAT_SCATTER_COLS, CHAT_SCATTER_ROWS,
                        settle);
     });
   }
@@ -126,10 +126,10 @@ namespace stencil::gui {
   // panel is off screen, and then there is nothing for the empty state to wait for.
   bool ChatMenuPanel::dissolveRow(QFrame* l) {
     if (!l) return false;
-    // The same finer grid the dock's cards use (chatWidgets.hpp kChatScatter*).
+    // The same finer grid the dock's cards use (chatWidgets.hpp CHAT_SCATTER_*).
     const bool playing =
         DisintegrateOverlay::over(l, window(), DisintegrateOverlay::Sweep::Fall,
-                                  kChatScatterCols, kChatScatterRows, 0,
+                                  CHAT_SCATTER_COLS, CHAT_SCATTER_ROWS, 0,
                                   l->palette().color(QPalette::WindowText))
         != nullptr;
     rows_->removeWidget(l);
@@ -144,7 +144,7 @@ namespace stencil::gui {
       l->setGraphicsEffect(fx);
     }
     auto* anim = new QVariantAnimation(l);
-    anim->setDuration(kChatRowLeaveMs);
+    anim->setDuration(CHAT_ROW_LEAVE_MS);
     anim->setStartValue(1.0);
     anim->setEndValue(0.0);
     anim->setEasingCurve(QEasingCurve::OutCubic);
@@ -169,7 +169,7 @@ namespace stencil::gui {
     // The dock's sequencing (chatDock.cpp clearConversation): the rows leave
     // FIRST and the empty state returns only once the particles have landed.
     if (!wiped) { suggest_->show(); return; }
-    QTimer::singleShot(DisintegrateOverlay::kItemMs, this, [this] {
+    QTimer::singleShot(DisintegrateOverlay::ITEM_MS, this, [this] {
       // A turn may have started while the wipe played — then the chips are wrong.
       if (!rowsAdded_.isEmpty() || pending_) return;
       suggest_->show();

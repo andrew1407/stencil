@@ -6,10 +6,10 @@
 // twin Application/Links/DeepLinkCodec.cs; shared golden vectors in the three surfaces' tests.
 namespace stencil::gui::deepLink {
 
-  inline constexpr int kTelegramStartLimit = 64;
+  inline constexpr int TELEGRAM_START_LIMIT = 64;
 
   // The browser receiver caps inbound dataUrls at the same 32 MiB (LAUNCH_DATA_URL_MAX).
-  inline constexpr qsizetype kBrowserLaunchPayloadMax = 32 * 1024 * 1024;
+  inline constexpr qsizetype BROWSER_LAUNCH_PAYLOAD_MAX = 32 * 1024 * 1024;
 
   // "<browserBase>#stencil=<percent-encoded JSON>"; decodeURIComponent-compatible.
   QString buildBrowserLaunchUrl(const QString& browserBase, const QJsonObject& payload);

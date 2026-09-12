@@ -25,7 +25,7 @@ namespace stencil::gui {
 
   void ShortcutsDialog::setRowSeq(Row& row, const QString& seq, bool formed) {
     row.lastSeq = portable(QKeySequence(seq));
-    row.cell->setResting(capsHtml(row.lastSeq, kCapScale));
+    row.cell->setResting(capsHtml(row.lastSeq, CAP_SCALE));
     row.reset->setVisible(row.lastSeq != row.defaultSeq);
     if (!formed || support::motionReduced() || !isVisible()) return;
     // The new caps form out of dust gathered over the cell (browser markIn), the cell
@@ -36,12 +36,12 @@ namespace stencil::gui {
       if (!cell->isVisible()) return;
       auto* fx = DisintegrateOverlay::overRect(cell, cell->rect(), host,
                                                DisintegrateOverlay::Sweep::Gather,
-                                               /*dust=*/true, kFormCells, kFormMs);
+                                               /*dust=*/true, FORM_CELLS, FORM_MS);
       if (!fx) return;
       auto* veil = new QGraphicsOpacityEffect(cell);
       veil->setOpacity(0.0);
       cell->setGraphicsEffect(veil);
-      QTimer::singleShot(int(kFormMs * kFormVeil), cell, [cell] { cell->setGraphicsEffect(nullptr); });
+      QTimer::singleShot(int(FORM_MS * FORM_VEIL), cell, [cell] { cell->setGraphicsEffect(nullptr); });
     });
   }
 

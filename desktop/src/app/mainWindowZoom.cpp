@@ -48,7 +48,7 @@ namespace stencil::gui {
   void MainWindow::zoomOut() { setZoom(canvas_->scale() * 0.8); }
 
   void MainWindow::setZoom(double scale, bool syncCombo) {
-    scale = core::clampScale(scale);  // shared [kZoomMin, kZoomMax] bound (core/state/zoomPan)
+    scale = core::clampScale(scale);  // shared [ZOOM_MIN, ZOOM_MAX] bound (core/state/zoomPan)
     canvas_->setScale(scale);
     if (syncCombo) {
       const QString pct = QString::number(qRound(scale * 100)) + "%";
@@ -152,12 +152,12 @@ namespace stencil::gui {
     if (show) {
       for (QToolBar* b : bars) { b->setFixedHeight(full); b->show(); }
       if (QLayout* l = layout()) l->activate();
-      dustFx = barsSurfaceFlight(bars, /*gather=*/true, kFoldDustInMs);
+      dustFx = barsSurfaceFlight(bars, /*gather=*/true, FOLD_DUST_IN_MS);
       for (QToolBar* b : bars) b->setFixedHeight(0);
     }
-    else dustFx = barsSurfaceFlight(bars, /*gather=*/false, kFoldDustOutMs);
+    else dustFx = barsSurfaceFlight(bars, /*gather=*/false, FOLD_DUST_OUT_MS);
     barsAnim_ = startExtentSlide(
-        this, from, to, show ? kFoldMs : kFoldOutMs,
+        this, from, to, show ? FOLD_MS : FOLD_OUT_MS,
         pinAndRaiseDust(
             [bars, this](int v) {
               for (QToolBar* b : bars) b->setFixedHeight(v);  // pin min==max on every row

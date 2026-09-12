@@ -301,9 +301,9 @@ class MainWindowGuiTest : public QObject {
       QAction* live = btn->defaultAction();
       QVERIFY(live && live->isEnabled());
       live->trigger();
-      QTest::qWait(stencil::gui::kFaceSwapMs / 5);   // interrupt the swap in flight
+      QTest::qWait(stencil::gui::FACE_SWAP_MS / 5);   // interrupt the swap in flight
       mode->click();
-      QTest::qWait(stencil::gui::kFaceSwapMs / 5);
+      QTest::qWait(stencil::gui::FACE_SWAP_MS / 5);
     }
     QTRY_VERIFY(!stencil::gui::faceSwapping(btn) && !stencil::gui::faceSwapping(mode));
     QCOMPARE(btn->text(), canvas->isDrawing() ? QString("Stop") : QString("Start"));
@@ -344,15 +344,15 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY_WITH_TIMEOUT(canvas->hasImage(), 5000);
     QToolButton* mode = win.drawModeBtn_;
     QVERIFY(mode);
-    const char* kGlyph = stencil::gui::kFaceGlyphProperty;
-    QCOMPARE(mode->property(kGlyph).toString(), QString("line"));
+    const char* GLYPH = stencil::gui::FACE_GLYPH_PROPERTY;
+    QCOMPARE(mode->property(GLYPH).toString(), QString("line"));
     // The glyph is RECORDED when the swap settles, so let it land before reading it.
     mode->click();
     QTRY_COMPARE(mode->text(), QString("Rect"));
-    QTRY_COMPARE(mode->property(kGlyph).toString(), QString("rect"));
+    QTRY_COMPARE(mode->property(GLYPH).toString(), QString("rect"));
     mode->click();
     QTRY_COMPARE(mode->text(), QString("Line"));
-    QTRY_COMPARE(mode->property(kGlyph).toString(), QString("line"));
+    QTRY_COMPARE(mode->property(GLYPH).toString(), QString("line"));
 
     // …and they really are the same KIND of picture. An OUTLINE is hollow where a filled
     // slab is solid, and the two faces carry a comparable amount of ink — which is what
@@ -1199,7 +1199,7 @@ class MainWindowGuiTest : public QObject {
       QVERIFY2(left <= 16, qPrintable(QString("%1 is pushed in from the left (%2px)")
                                           .arg(who).arg(left)));
       // …and the word is not welded to the glyph: the widest empty column run INSIDE the
-      // face is the gap between them (Qt's own is a fixed 4px — kFaceIconGap adds the rest).
+      // face is the gap between them (Qt's own is a fixed 4px — FACE_ICON_GAP adds the rest).
       int gap = 0, run = 0;
       for (int x = left; x <= right; ++x) {
         bool ink = false;
@@ -1360,17 +1360,17 @@ class MainWindowGuiTest : public QObject {
 
     // No project: all three dead, each with its reason on the tooltip.
     const auto reasonShown = [](QAction* a) {
-      return a->toolTip().contains("\n— " + a->property(stencil::gui::kTipReasonProperty).toString());
+      return a->toolTip().contains("\n— " + a->property(stencil::gui::TIP_REASON_PROPERTY).toString());
     };
     for (QAction* a : want) {
       QVERIFY2(!a->isEnabled(), qPrintable(a->text() + " is enabled with no project"));
       QVERIFY2(reasonShown(a), qPrintable(a->text() + ": no reason on the tooltip"));
     }
-    QCOMPARE(win.actDescription_->property(stencil::gui::kTipReasonProperty).toString(),
+    QCOMPARE(win.actDescription_->property(stencil::gui::TIP_REASON_PROPERTY).toString(),
              QStringLiteral("Save the project first to add a description"));
-    QCOMPARE(win.actKeywords_->property(stencil::gui::kTipReasonProperty).toString(),
+    QCOMPARE(win.actKeywords_->property(stencil::gui::TIP_REASON_PROPERTY).toString(),
              QStringLiteral("Save the project first to add keywords"));
-    QCOMPARE(win.actLinks_->property(stencil::gui::kTipReasonProperty).toString(),
+    QCOMPARE(win.actLinks_->property(stencil::gui::TIP_REASON_PROPERTY).toString(),
              QStringLiteral("Save the project first to add links"));
 
     // A saved project: all three live, the reason gone.

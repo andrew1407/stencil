@@ -7,8 +7,8 @@
 
 namespace stencil::gui {
 
-  inline constexpr int kVideoTimeoutMs = 20000;  // give the decoder time to seek+render
-  inline constexpr double kAssumedFps = 30.0;    // fallback when fps metadata is absent
+  inline constexpr int VIDEO_TIMEOUT_MS = 20000;  // give the decoder time to seek+render
+  inline constexpr double ASSUMED_FPS = 30.0;    // fallback when fps metadata is absent
 
   inline bool isHttp(const QUrl& u) {
     const QString s = u.scheme();

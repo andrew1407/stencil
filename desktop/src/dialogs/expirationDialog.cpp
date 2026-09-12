@@ -48,7 +48,7 @@ namespace stencil::gui {
     periodLay->addWidget(periodLbl);
     periodLay->addStretch(1);
     period_ = new SearchComboBox(this, /*searchable=*/false);
-    for (const auto& p : kPresets) period_->addItem(p.label, QString::fromLatin1(p.key));
+    for (const auto& p : PRESETS) period_->addItem(p.label, QString::fromLatin1(p.key));
     periodLay->addWidget(period_);
     refresh_ = new QPushButton(tr("Refresh"), this);
     makeModalCta(refresh_, QStringLiteral("refresh"));
@@ -134,7 +134,7 @@ namespace stencil::gui {
       renderCalendar();
     });
 
-    setFixedWidth(kExpWidth);
+    setFixedWidth(EXP_WIDTH);
     adjustSize();
   }
 

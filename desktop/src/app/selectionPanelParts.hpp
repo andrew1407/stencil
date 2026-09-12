@@ -11,9 +11,9 @@ namespace stencil::gui {
   // One for one with the browser's coordinates table (mainContent.js <thead>).
   enum PointCol { ColIndex = 0, ColX, ColY, ColPageX, ColPageY, ColDel, ColCount };
 
-  // Also the floating re-open chevron's (mainWindow kPanelToggleBox).
-  inline constexpr int kToggleBox = 24;
-  inline constexpr int kToggleGlyph = 15;
+  // Also the floating re-open chevron's (mainWindow PANEL_TOGGLE_BOX).
+  inline constexpr int TOGGLE_BOX = 24;
+  inline constexpr int TOGGLE_GLYPH = 15;
 
 
   // A selected row is a flat accent outline; hover tint + text come from QSS.

@@ -43,14 +43,14 @@ namespace {
     return out;
   }
 
-  const int kDims[][2] = {{1, 1}, {1, 9}, {9, 1}, {2, 2}, {5, 4}, {17, 13}, {64, 48}, {33, 31}};
+  const int DIMS[][2] = {{1, 1}, {1, 9}, {9, 1}, {2, 2}, {5, 4}, {17, 13}, {64, 48}, {33, 31}};
 
 }  // namespace
 
 TEST_SUITE("rowRanges") {
 
   TEST_CASE("applyFilterRows tiled == applyFilterRGBA whole") {
-    for (const auto& d : kDims) {
+    for (const auto& d : DIMS) {
       const int w = d[0], h = d[1];
       const auto src = noise(w, h, 11u * w + h);
       for (int m = 0; m <= 5; ++m) {
@@ -90,7 +90,7 @@ TEST_SUITE("rowRanges") {
   }
 
   TEST_CASE("contour: two-phase tiled == applyContourRGBA whole (seam check)") {
-    for (const auto& d : kDims) {
+    for (const auto& d : DIMS) {
       const int w = d[0], h = d[1];
       const auto src = noise(w, h, 7u * w + 3u * h);
       std::vector<std::uint8_t> whole = src;
@@ -107,7 +107,7 @@ TEST_SUITE("rowRanges") {
 
   TEST_CASE("contour: caller-supplied scratch matches, and survives reuse") {
     std::vector<std::uint8_t> scratch;
-    for (const auto& d : kDims) {
+    for (const auto& d : DIMS) {
       const int w = d[0], h = d[1];
       const auto src = noise(w, h, 5u * w + h);
       std::vector<std::uint8_t> whole = src;
@@ -138,7 +138,7 @@ TEST_SUITE("rowRanges") {
   }
 
   TEST_CASE("rotateImageRows tiled == rotateImageRGBA whole") {
-    for (const auto& d : kDims) {
+    for (const auto& d : DIMS) {
       const int w = d[0], h = d[1];
       const auto src = noise(w, h, 13u * w + h);
       for (int q = -3; q <= 5; ++q) {

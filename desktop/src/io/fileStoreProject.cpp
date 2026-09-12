@@ -29,7 +29,7 @@ namespace stencil::gui {
       if (err) *err = QStringLiteral("Unrecognized project-file version.");
       return false;
     }
-    if (ver > kStencilFileVersion) {
+    if (ver > STENCIL_FILE_VERSION) {
       if (err) *err = QStringLiteral("This project needs a newer Stencil.");
       return false;
     }
@@ -105,21 +105,21 @@ namespace stencil::gui {
         out["text"] = text;
         clean.append(out);
       }
-      while (clean.size() > fileStore::kChatDocMessageLimit) clean.removeFirst();
+      while (clean.size() > fileStore::CHAT_DOC_MESSAGE_LIMIT) clean.removeFirst();
       return clean;
     }
   }  // namespace
 
   QJsonObject fileStore::buildChatDoc(const QJsonArray& messages, qint64 savedAt) {
     QJsonObject doc;
-    doc["version"] = kChatDocVersion;
+    doc["version"] = CHAT_DOC_VERSION;
     doc["savedAt"] = savedAt;
     doc["messages"] = sanitizeChatMessages(messages, /*dropEmpty=*/true);
     return doc;
   }
 
   QJsonArray fileStore::parseChatDoc(const QJsonObject& doc) {
-    if (doc.value("version").toInt(0) != kChatDocVersion) return {};
+    if (doc.value("version").toInt(0) != CHAT_DOC_VERSION) return {};
     return sanitizeChatMessages(doc.value("messages").toArray(), /*dropEmpty=*/false);
   }
 }

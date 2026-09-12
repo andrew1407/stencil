@@ -33,48 +33,48 @@ extern "C" {
 }
 
 // HoldAction codes (holdDraw.hpp order).
-static constexpr int kNone = 0, kArmed = 1, kAbort = 2, kStart = 3, kDrop = 4,
-                     kPreview = 5, kCommit = 6;
+static constexpr int HOLD_NONE = 0, ARMED = 1, ABORT = 2, START = 3, DROP = 4,
+                     PREVIEW = 5, COMMIT = 6;
 // HoldState codes.
-static constexpr int kIdle = 0, kStArmed = 1, kDrawing = 2, kAborted = 3;
+static constexpr int IDLE = 0, ST_ARMED = 1, DRAWING = 2, ABORTED = 3;
 
 TEST_CASE("holdDraw ABI: a hold runs armed → start → drop → commit") {
   double out[2] = {-1, -1};
   const int h = stencil_holdDraw_create(500, 6, 10);
   REQUIRE(h > 0);
-  CHECK(stencil_holdDraw_state(h) == kIdle);
+  CHECK(stencil_holdDraw_state(h) == IDLE);
   CHECK(stencil_holdDraw_holdDelay(h) == 500);
 
-  CHECK(stencil_holdDraw_pointerDown(h, 10, 10, 0, out) == kArmed);
-  CHECK(stencil_holdDraw_state(h) == kStArmed);
-  CHECK(stencil_holdDraw_tick(h, 100, out) == kNone);
+  CHECK(stencil_holdDraw_pointerDown(h, 10, 10, 0, out) == ARMED);
+  CHECK(stencil_holdDraw_state(h) == ST_ARMED);
+  CHECK(stencil_holdDraw_tick(h, 100, out) == HOLD_NONE);
 
-  CHECK(stencil_holdDraw_tick(h, 500, out) == kStart);
+  CHECK(stencil_holdDraw_tick(h, 500, out) == START);
   CHECK(out[0] == 10);
   CHECK(out[1] == 10);
-  CHECK(stencil_holdDraw_state(h) == kDrawing);
+  CHECK(stencil_holdDraw_state(h) == DRAWING);
 
   // Move past the re-arm distance, then dwell out the delay → a drop at the rest point.
-  CHECK(stencil_holdDraw_pointerMove(h, 60, 10, 520, out) == kPreview);
+  CHECK(stencil_holdDraw_pointerMove(h, 60, 10, 520, out) == PREVIEW);
   CHECK(out[0] == 60);
-  CHECK(stencil_holdDraw_tick(h, 1100, out) == kDrop);
+  CHECK(stencil_holdDraw_tick(h, 1100, out) == DROP);
   CHECK(out[0] == 60);
   CHECK(out[1] == 10);
 
-  CHECK(stencil_holdDraw_pointerUp(h, 1200, out) == kCommit);
-  CHECK(stencil_holdDraw_state(h) == kIdle);
+  CHECK(stencil_holdDraw_pointerUp(h, 1200, out) == COMMIT);
+  CHECK(stencil_holdDraw_state(h) == IDLE);
   stencil_holdDraw_destroy(h);
 }
 
 TEST_CASE("holdDraw ABI: moving past the tolerance before the hold aborts") {
   double out[2] = {0, 0};
   const int h = stencil_holdDraw_create(500, 6, 10);
-  CHECK(stencil_holdDraw_pointerDown(h, 0, 0, 0, out) == kArmed);
-  CHECK(stencil_holdDraw_pointerMove(h, 3, 3, 10, out) == kNone);   // inside tolerance
-  CHECK(stencil_holdDraw_pointerMove(h, 40, 0, 20, out) == kAbort);
-  CHECK(stencil_holdDraw_state(h) == kAborted);
-  CHECK(stencil_holdDraw_tick(h, 9000, out) == kNone);
-  CHECK(stencil_holdDraw_pointerUp(h, 9001, out) == kNone);
+  CHECK(stencil_holdDraw_pointerDown(h, 0, 0, 0, out) == ARMED);
+  CHECK(stencil_holdDraw_pointerMove(h, 3, 3, 10, out) == HOLD_NONE);   // inside tolerance
+  CHECK(stencil_holdDraw_pointerMove(h, 40, 0, 20, out) == ABORT);
+  CHECK(stencil_holdDraw_state(h) == ABORTED);
+  CHECK(stencil_holdDraw_tick(h, 9000, out) == HOLD_NONE);
+  CHECK(stencil_holdDraw_pointerUp(h, 9001, out) == HOLD_NONE);
   stencil_holdDraw_destroy(h);
 }
 
@@ -84,8 +84,8 @@ TEST_CASE("holdDraw ABI: handles are independent, and cancel resets one") {
   const int b = stencil_holdDraw_create(200, 6, 10);
   CHECK(a != b);
   stencil_holdDraw_pointerDown(a, 0, 0, 0, out);
-  CHECK(stencil_holdDraw_state(b) == kIdle);
-  CHECK(stencil_holdDraw_tick(b, 1000, out) == kNone);   // b was never pressed
+  CHECK(stencil_holdDraw_state(b) == IDLE);
+  CHECK(stencil_holdDraw_tick(b, 1000, out) == HOLD_NONE);   // b was never pressed
   CHECK(stencil_holdDraw_holdDelay(b) == 200);
 
   stencil_holdDraw_setHoldDelay(b, -5);                  // negative is ignored
@@ -94,7 +94,7 @@ TEST_CASE("holdDraw ABI: handles are independent, and cancel resets one") {
   CHECK(stencil_holdDraw_holdDelay(b) == 50);
 
   stencil_holdDraw_cancel(a);
-  CHECK(stencil_holdDraw_state(a) == kIdle);
+  CHECK(stencil_holdDraw_state(a) == IDLE);
   stencil_holdDraw_destroy(a);
   stencil_holdDraw_destroy(b);
 }
@@ -104,9 +104,9 @@ TEST_CASE("holdDraw ABI: an unknown or destroyed handle is inert, never a crash"
   const int h = stencil_holdDraw_create(500, 6, 10);
   stencil_holdDraw_destroy(h);
   CHECK(stencil_holdDraw_state(h) == -1);
-  CHECK(stencil_holdDraw_pointerDown(h, 1, 2, 3, out) == kNone);
-  CHECK(stencil_holdDraw_tick(h, 9, out) == kNone);
-  CHECK(stencil_holdDraw_pointerUp(h, 9, out) == kNone);
+  CHECK(stencil_holdDraw_pointerDown(h, 1, 2, 3, out) == HOLD_NONE);
+  CHECK(stencil_holdDraw_tick(h, 9, out) == HOLD_NONE);
+  CHECK(stencil_holdDraw_pointerUp(h, 9, out) == HOLD_NONE);
   CHECK(stencil_holdDraw_holdDelay(0) == 0);
   stencil_holdDraw_cancel(-1);                            // no-op
   stencil_holdDraw_destroy(h);                            // double destroy is a no-op

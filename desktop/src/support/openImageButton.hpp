@@ -17,8 +17,8 @@ namespace stencil::gui {
       const QFontMetrics fm(font());
       const int iw = iconSize().width();
       const int tw = fm.horizontalAdvance(text());
-      return QSize(kPadX * 2 + iw + kGap + tw,
-                   qMax(iconSize().height(), fm.height()) + kPadY * 2);
+      return QSize(PAD_X * 2 + iw + GAP + tw,
+                   qMax(iconSize().height(), fm.height()) + PAD_Y * 2);
     }
     QSize minimumSizeHint() const override { return sizeHint(); }
 
@@ -37,7 +37,7 @@ namespace stencil::gui {
       const QFontMetrics fm(font());
       const int iw = iconSize().width(), ih = iconSize().height();
       const int tw = fm.horizontalAdvance(text());
-      const qreal groupW = iw + kGap + tw;
+      const qreal groupW = iw + GAP + tw;
       const qreal x0 = (width() - groupW) / 2.0;   // icon + label centred as ONE group
       const qreal cy = height() / 2.0;
       const QRect iconRect(qRound(x0), qRound(cy - ih / 2.0), iw, ih);
@@ -47,14 +47,14 @@ namespace stencil::gui {
       // Always accent-filled: `QToolButton[toolFill="accent"] { color: … }` put the ink in the palette.
       sp.setPen(opt.palette.buttonText().color());
       sp.setFont(font());
-      sp.drawText(QRectF(x0 + iw + kGap, 0, tw, height()),
+      sp.drawText(QRectF(x0 + iw + GAP, 0, tw, height()),
                   Qt::AlignLeft | Qt::AlignVCenter, text());
     }
 
    private:
-    static constexpr int kPadX = 11;   // breathing room each side of the group
-    static constexpr int kPadY = 5;
-    static constexpr int kGap = 11;    // icon → label (stock reserve was ~4px; +7, as asked)
+    static constexpr int PAD_X = 11;   // breathing room each side of the group
+    static constexpr int PAD_Y = 5;
+    static constexpr int GAP = 11;    // icon → label (stock reserve was ~4px; +7, as asked)
   };
 
 }  // namespace stencil::gui

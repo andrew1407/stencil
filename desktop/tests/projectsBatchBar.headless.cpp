@@ -18,7 +18,7 @@
 //     visible set.
 // A mock QTcpServer stands in for the collaboration server (token + /projects list),
 // so the server-row compositions run without a Go server. Offscreen, like the others.
-#include "controlReveal.hpp"   // kControlRevealInMs: the batch group's slot timing
+#include "controlReveal.hpp"   // CONTROL_REVEAL_IN_MS: the batch group's slot timing
 #include "disintegrateOverlay.hpp"
 #include "fileStore.hpp"
 #include "filterFade.hpp"   // the light enter/exit transition the search/filter uses
@@ -47,9 +47,9 @@ using stencil::gui::BatchDirections;
 using stencil::gui::batchDirectionsFor;
 using stencil::gui::DisintegrateOverlay;
 using stencil::gui::filteredIn;
-using stencil::gui::kFilterDustObjectName;
-using stencil::gui::kFilterDustRole;
-using stencil::gui::kFilterFadeMs;
+using stencil::gui::FILTER_DUST_OBJECT_NAME;
+using stencil::gui::FILTER_DUST_ROLE;
+using stencil::gui::FILTER_FADE_MS;
 using stencil::gui::Project;
 using stencil::gui::ProjectsDialog;
 using stencil::net::ConnectionManager;
@@ -215,13 +215,13 @@ int main(int argc, char** argv) {
     QListWidgetItem* top = list->item(0);
     check(top && top->data(Qt::UserRole + 11).toBool(), "the pinned row is in the list at once");
     if (!top) return 1;
-    check(top->data(kFilterDustRole).toDouble() == 0.0,
+    check(top->data(FILTER_DUST_ROLE).toDouble() == 0.0,
           "…veiled while its motes gather — the sand IS the row arriving");
-    check(dlg.findChild<QWidget*>(QString::fromLatin1(kFilterDustObjectName)) != nullptr,
+    check(dlg.findChild<QWidget*>(QString::fromLatin1(FILTER_DUST_OBJECT_NAME)) != nullptr,
           "…out of the FILTER's light sand");
-    check(dlg.findChild<QWidget*>(DisintegrateOverlay::kObjectName) == nullptr,
+    check(dlg.findChild<QWidget*>(DisintegrateOverlay::OBJECT_NAME) == nullptr,
           "…never the removal's destructive scatter");
-    const QVariant settled = list->item(1)->data(kFilterDustRole);
+    const QVariant settled = list->item(1)->data(FILTER_DUST_ROLE);
     check(!settled.isValid() || settled.toDouble() >= 1.0,
           "…while a row that was already listed does not replay its own arrival");
     // …and those motes are made of the ROW. A delegate-painted row draws nothing while it
@@ -230,7 +230,7 @@ int main(int argc, char** argv) {
     // Q_OBJECT-free (header-only, no MOC), so it is found as the widget it is: nothing
     // else ever wears the filter dust's object name.
     auto* cloud = static_cast<DisintegrateOverlay*>(
-        dlg.findChild<QWidget*>(QString::fromLatin1(kFilterDustObjectName)));
+        dlg.findChild<QWidget*>(QString::fromLatin1(FILTER_DUST_OBJECT_NAME)));
     check(cloud != nullptr, "the arrival's cloud is on the dialog");
     if (cloud) {
       const QImage shot = cloud->snapshot().toImage();
@@ -241,15 +241,15 @@ int main(int argc, char** argv) {
           if (shot.pixel(x, y) != corner) ++varied;
       check(varied > 200, "…and it is made of the row's picture, not the bare background");
     }
-    pumpUntil([&] { return top->data(kFilterDustRole).toDouble() >= 1.0; });
-    check(top->data(kFilterDustRole).toDouble() >= 1.0 && !top->isHidden(),
+    pumpUntil([&] { return top->data(FILTER_DUST_ROLE).toDouble() >= 1.0; });
+    check(top->data(FILTER_DUST_ROLE).toDouble() >= 1.0 && !top->isHidden(),
           "…and the row is left whole once the motes have landed");
 
     // A repaint that adds nothing (a rename, a poll that changed no row) plays nothing.
     pumpUntil([&] { return dlg.findChild<QWidget*>(
-                        QString::fromLatin1(kFilterDustObjectName)) == nullptr; });
+                        QString::fromLatin1(FILTER_DUST_OBJECT_NAME)) == nullptr; });
     dlg.setProjects(locals, /*temporary=*/true, /*incognito=*/false);
-    check(dlg.findChild<QWidget*>(QString::fromLatin1(kFilterDustObjectName)) == nullptr,
+    check(dlg.findChild<QWidget*>(QString::fromLatin1(FILTER_DUST_OBJECT_NAME)) == nullptr,
           "an unchanged repaint animates nothing");
     dlg.reject();
   }
@@ -289,7 +289,7 @@ int main(int argc, char** argv) {
     // Squeezed narrow, the bar WRAPS (browser .projects-batch-bar / -selected flex-wrap):
     // "Remove selected" drops to a line of its own instead of being cut off at the edge.
     {
-      pumpFor(stencil::gui::kControlRevealInMs + 100);   // the group's slot has slid fully open
+      pumpFor(stencil::gui::CONTROL_REVEAL_IN_MS + 100);   // the group's slot has slid fully open
       dlg.setMinimumSize(0, 0);
       dlg.resize(420, dlg.height());
       pumpFor(80);
@@ -430,7 +430,7 @@ int main(int argc, char** argv) {
     // The animation precondition: one overlay per VISIBLE checked row, each clipped
     // inside the list viewport — never dropped onto the dialog chrome.
     const auto overlays =
-        dlg.findChildren<QWidget*>(QString::fromLatin1(DisintegrateOverlay::kObjectName));
+        dlg.findChildren<QWidget*>(QString::fromLatin1(DisintegrateOverlay::OBJECT_NAME));
     check(overlays.size() == expectedOverlays,
           "one DisintegrateOverlay per visible checked row (scrolled-out rows spawn none)");
     bool inside = !overlays.isEmpty();
@@ -505,16 +505,16 @@ int main(int argc, char** argv) {
     check(drop()->isHidden() && rowH(drop()) == 0, "an excluded row is gone at once");
     check(!filteredIn(drop()), "…and has left the filtered set");
     check(filteredIn(keep()), "…while the matching row is still in it");
-    check(dlg.findChild<QWidget*>(DisintegrateOverlay::kObjectName) == nullptr,
+    check(dlg.findChild<QWidget*>(DisintegrateOverlay::OBJECT_NAME) == nullptr,
           "…with none of the destructive scatter a removal uses");
     // The whole effect belongs to what is LEFT: the matching row keeps its slot (nothing
     // may jump under the pointer) and re-forms out of the filter's own, lighter sand,
     // named apart so nothing counting removals mistakes the two (support/filterFade.hpp).
     check(rowH(keep()) == fullH, "the matching row keeps its slot — no jump under the cursor");
-    check(dlg.findChild<QWidget*>(QString::fromLatin1(kFilterDustObjectName)) != nullptr,
+    check(dlg.findChild<QWidget*>(QString::fromLatin1(FILTER_DUST_OBJECT_NAME)) != nullptr,
           "…and arrives out of the filter's own dust");
     pumpUntil([&] { return dlg.findChild<QWidget*>(
-                        QString::fromLatin1(kFilterDustObjectName)) == nullptr; });
+                        QString::fromLatin1(FILTER_DUST_OBJECT_NAME)) == nullptr; });
     check(!keep()->isHidden() && rowH(keep()) == fullH, "…landing whole, where it always was");
 
     search->clear();
@@ -526,7 +526,7 @@ int main(int argc, char** argv) {
     // Rapid edits: the LAST needle decides, with nothing left stuck part-collapsed.
     for (const char* q : {"al", "be", "ga", "a", ""}) {
       search->setText(QString::fromLatin1(q));
-      pumpFor(kFilterFadeMs / 6);   // each edit interrupts the transition before it
+      pumpFor(FILTER_FADE_MS / 6);   // each edit interrupts the transition before it
     }
     pumpUntil([&] {
       for (int i = 0; i < list->count(); ++i)
@@ -566,10 +566,10 @@ int main(int argc, char** argv) {
     check(list && search, "finds the projects list and its search box");
     if (!list || !search) return 1;
     search->setText("alp");   // "alpha" arrives out of dust; its veil-lift timer is now pending
-    check(dlg.findChild<QWidget*>(QString::fromLatin1(kFilterDustObjectName)) != nullptr,
+    check(dlg.findChild<QWidget*>(QString::fromLatin1(FILTER_DUST_OBJECT_NAME)) != nullptr,
           "dust is in flight for the arriving row");
     dlg.setProjects(locals);   // the live re-list — clears and rebuilds every row mid-flight
-    // Pump well past the veil-lift timer (kFilterDustMs * kFilterDustVeilStop) without
+    // Pump well past the veil-lift timer (FILTER_DUST_MS * FILTER_DUST_VEIL_STOP) without
     // crashing — that's the whole regression.
     pumpFor(400);
     check(dlg.isVisible(), "the dialog survives a re-list landing mid dust-flight");

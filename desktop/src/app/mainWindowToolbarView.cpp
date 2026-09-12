@@ -90,7 +90,7 @@ namespace stencil::gui {
     clearLinesBtn->setDefaultAction(actClearAll_);
     clearLinesBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
     clearLinesBtn->setAutoRaise(true);
-    clearLinesBtn->setIconSize(QSize(kToolIcon, kToolIcon));
+    clearLinesBtn->setIconSize(QSize(TOOL_ICON, TOOL_ICON));
     // Compare leads (browser twin: toolbar.js View cluster), captioned with no colon.
     auto* compareLabel = new QLabel("Compare", this);
     compareLabel->setStyleSheet("padding-right: 2px;");

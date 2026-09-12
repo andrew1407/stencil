@@ -30,7 +30,7 @@ namespace stencil::gui {
     tb->setObjectName("mainToolbar");  // named for QMainWindow::saveState
     tb->setMovable(false);
     tb->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    tb->setIconSize(QSize(kToolIcon, kToolIcon));
+    tb->setIconSize(QSize(TOOL_ICON, TOOL_ICON));
 
     // Blank-background swatch (browser parity), shown only for blank projects; gated in
     // updateProjectTitle.
@@ -64,7 +64,7 @@ namespace stencil::gui {
     openImageBtn_->setDefaultAction(actOpen_);
     openImageBtn_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     openImageBtn_->setAutoRaise(true);
-    openImageBtn_->setIconSize(QSize(kToolIcon, kToolIcon));
+    openImageBtn_->setIconSize(QSize(TOOL_ICON, TOOL_ICON));
     {  // 14px label, matching the browser's #load-image-btn (its default button font).
       QFont f = openImageBtn_->font();
       f.setPixelSize(14);
@@ -113,7 +113,7 @@ namespace stencil::gui {
     drawModeBtn_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     drawModeBtn_->setText("Line");
     drawModeBtn_->setAutoRaise(true);
-    drawModeBtn_->setIconSize(QSize(kToolIcon + kFaceIconGap, kToolIcon));
+    drawModeBtn_->setIconSize(QSize(TOOL_ICON + FACE_ICON_GAP, TOOL_ICON));
     setTipBase(drawModeBtn_, "Drawing mode: Line (click to switch to Rectangle)");
     setTipReason(drawModeBtn_, "Load an image to switch line / rectangle");   // #draw-mode-toggle
     // Solid accent permanently: no QAction for styleDangerToolButtons to reach, and the browser's
@@ -128,7 +128,7 @@ namespace stencil::gui {
     zoomFitBtn_->setProperty("toolGhost", true);
     zoomFitBtn_->setToolButtonStyle(Qt::ToolButtonIconOnly);
     zoomFitBtn_->setAutoRaise(true);
-    zoomFitBtn_->setIconSize(QSize(kToolIcon, kToolIcon));
+    zoomFitBtn_->setIconSize(QSize(TOOL_ICON, TOOL_ICON));
     // Draw / Zoom / Settings sit on the rows below: all seven sections need ~1230px, and the
     // browser splits them the same way.
   }

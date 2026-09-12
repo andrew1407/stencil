@@ -18,7 +18,7 @@ namespace stencil::gui {
   // An item shows only while it can act (browser hides .chat-more-item the same way).
   void ChatDock::syncMoreMenuItems() {
     if (actAttach_)
-      actAttach_->setVisible(!busyFlag_ && images_.size() < kMaxAttachments
+      actAttach_->setVisible(!busyFlag_ && images_.size() < MAX_ATTACHMENTS
                              && videoPath_.isEmpty());
     if (actClear_) actClear_->setVisible(!busyFlag_ && transcriptHasCards());
   }
@@ -31,7 +31,7 @@ namespace stencil::gui {
     if (clearBtn_) clearBtn_->setEnabled(!on);
     syncMoreMenuItems();
     // While in flight, the send button IS the stop button.
-    send_->setIcon(themedIcon(on ? "stop" : "send", paletteCache_.onAccent, kAccentIcon));
+    send_->setIcon(themedIcon(on ? "stop" : "send", paletteCache_.onAccent, ACCENT_ICON));
     send_->setToolTip(on ? QStringLiteral("Stop the response")
                          : QString());
     updateSendEnabled();
@@ -39,7 +39,7 @@ namespace stencil::gui {
 
   bool ChatDock::isBusy() const { return busyFlag_; }
 
-  QSize ChatDock::floatingDefaultSize() const { return kFloatingSize.expandedTo(minimumSize()); }
+  QSize ChatDock::floatingDefaultSize() const { return FLOATING_SIZE.expandedTo(minimumSize()); }
 
   void ChatDock::focusInput() { input_->setFocus(); }
 
@@ -96,11 +96,11 @@ namespace stencil::gui {
         // The bubbles come from the SHARED sheet the context menu's panel applies too.
         + chatCardStyleSheet(pal, chatSwapSides_));
     const QColor onAccent = pal.onAccent;
-    send_->setIcon(themedIcon(isBusy() ? "stop" : "send", onAccent, kAccentIcon));
-    attach_->setIcon(themedIcon("image", onAccent, kAccentIcon));
-    gear_->setIcon(themedIcon("gear", onAccent, kAccentIcon));
-    clearBtn_->setIcon(themedIcon("trash", onAccent, kAccentIcon));
-    if (more_) more_->setIcon(themedIcon("dots", onAccent, kAccentIcon));
+    send_->setIcon(themedIcon(isBusy() ? "stop" : "send", onAccent, ACCENT_ICON));
+    attach_->setIcon(themedIcon("image", onAccent, ACCENT_ICON));
+    gear_->setIcon(themedIcon("gear", onAccent, ACCENT_ICON));
+    clearBtn_->setIcon(themedIcon("trash", onAccent, ACCENT_ICON));
+    if (more_) more_->setIcon(themedIcon("dots", onAccent, ACCENT_ICON));
     if (actAttach_) actAttach_->setIcon(themedIcon("image", pal.textMain, 14));
     if (actClear_) actClear_->setIcon(themedIcon("trash", pal.textMain, 14));
     if (actSwapSides_) actSwapSides_->setIcon(themedIcon("swap", pal.textMain, 14));

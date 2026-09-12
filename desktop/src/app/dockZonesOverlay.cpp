@@ -10,10 +10,10 @@
 namespace stencil::gui {
 
   namespace {
-    constexpr int kZoneBand = 56;      // band thickness
-    constexpr int kZoneInset = 8;      // inset from the area edges
-    constexpr int kZoneNudgePx = 4;    // chevron travel (±px, browser chatZoneNudge)
-    constexpr int kZoneNudgeMs = 1400; // full out-and-back cycle (0.7 s each way)
+    constexpr int ZONE_BAND = 56;      // band thickness
+    constexpr int ZONE_INSET = 8;      // inset from the area edges
+    constexpr int ZONE_NUDGE_PX = 4;    // chevron travel (±px, browser chatZoneNudge)
+    constexpr int ZONE_NUDGE_MS = 1400; // full out-and-back cycle (0.7 s each way)
 
     // Blur by smooth-scaling down and up — Qt has no backdrop filter; /4 lands close to the browser's blur(2px).
     QPixmap blurred(const QPixmap& src) {
@@ -31,12 +31,12 @@ namespace stencil::gui {
     setAttribute(Qt::WA_TransparentForMouseEvents);
     setAttribute(Qt::WA_NoSystemBackground);
     nudgeAnim_ = new QVariantAnimation(this);
-    nudgeAnim_->setDuration(kZoneNudgeMs);
+    nudgeAnim_->setDuration(ZONE_NUDGE_MS);
     nudgeAnim_->setLoopCount(-1);  // for the whole drag
     nudgeAnim_->setEasingCurve(QEasingCurve::InOutSine);
-    nudgeAnim_->setKeyValueAt(0.0, -double(kZoneNudgePx));
-    nudgeAnim_->setKeyValueAt(0.5, double(kZoneNudgePx));
-    nudgeAnim_->setKeyValueAt(1.0, -double(kZoneNudgePx));
+    nudgeAnim_->setKeyValueAt(0.0, -double(ZONE_NUDGE_PX));
+    nudgeAnim_->setKeyValueAt(0.5, double(ZONE_NUDGE_PX));
+    nudgeAnim_->setKeyValueAt(1.0, -double(ZONE_NUDGE_PX));
     connect(nudgeAnim_, &QVariantAnimation::valueChanged, this,
             [this](const QVariant& v) {
               nudge_ = v.toReal();
@@ -80,7 +80,7 @@ namespace stencil::gui {
     const QPoint p = mapFromGlobal(globalPos);
     const QRect r = rect();
     if (!r.contains(p)) return -1;
-    const int reach = kZoneInset + kZoneBand;
+    const int reach = ZONE_INSET + ZONE_BAND;
     const int d[4] = {p.x(), r.width() - p.x(), p.y(), r.height() - p.y()};
     int best = -1;
     for (int i = 0; i < 4; ++i)
@@ -137,14 +137,14 @@ namespace stencil::gui {
 
   // NON-overlapping: top/bottom span the width; left/right fill the space BETWEEN them.
   QRect DockZonesOverlay::zoneRect(int i) const {
-    const QRect r = rect().adjusted(kZoneInset, kZoneInset, -kZoneInset, -kZoneInset);
-    const int vTop = r.top() + kZoneBand + kZoneInset;
-    const int vH = r.height() - 2 * (kZoneBand + kZoneInset);
+    const QRect r = rect().adjusted(ZONE_INSET, ZONE_INSET, -ZONE_INSET, -ZONE_INSET);
+    const int vTop = r.top() + ZONE_BAND + ZONE_INSET;
+    const int vH = r.height() - 2 * (ZONE_BAND + ZONE_INSET);
     switch (i) {
-      case 0: return {r.left(), vTop, kZoneBand, vH};
-      case 1: return {r.right() - kZoneBand, vTop, kZoneBand, vH};
-      case 2: return {r.left(), r.top(), r.width(), kZoneBand};
-      default: return {r.left(), r.bottom() - kZoneBand, r.width(), kZoneBand};
+      case 0: return {r.left(), vTop, ZONE_BAND, vH};
+      case 1: return {r.right() - ZONE_BAND, vTop, ZONE_BAND, vH};
+      case 2: return {r.left(), r.top(), r.width(), ZONE_BAND};
+      default: return {r.left(), r.bottom() - ZONE_BAND, r.width(), ZONE_BAND};
     }
   }
 

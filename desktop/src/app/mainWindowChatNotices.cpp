@@ -53,8 +53,8 @@ namespace stencil::gui {
   void MainWindow::showChatToast(const QString& text, bool success) {
     if (!chatToast_) chatToast_ = new ChatToast(this);
     QString t = text;
-    if (t.size() > kToastMaxChars)
-      t = t.left(kToastMaxChars - 1).trimmed() + QChar(0x2026);
+    if (t.size() > TOAST_MAX_CHARS)
+      t = t.left(TOAST_MAX_CHARS - 1).trimmed() + QChar(0x2026);
     static_cast<ChatToast*>(chatToast_)->showToast(t, success, [this] {
       if (actChat_) actChat_->setChecked(true);
       else if (chatDock_) chatDock_->setVisible(true);
@@ -93,7 +93,7 @@ namespace stencil::gui {
                               bool configure) {
     // Recorded whether or not the lazily-built panel exists: this log is what it replays. One append per dock row.
     chatMirrorLog_.append({role, text, retryText, notes, muted});
-    while (chatMirrorLog_.size() > kChatHistoryBound) chatMirrorLog_.removeFirst();
+    while (chatMirrorLog_.size() > CHAT_HISTORY_BOUND) chatMirrorLog_.removeFirst();
     if (chatMenuPanel_)
       asChatMenu(chatMenuPanel_)->appendRow(role, text, muted, retryText, false, notes,
                                             configure);

@@ -44,8 +44,8 @@ namespace stencil::gui {
   QWidget* makeSuggestionChips(QWidget* parent, std::function<void(QString)> onPick);
   void styleSuggestionChips(QWidget* chips, const Palette& pal);
 
-  extern const char* const kChatStatusOkColor;
-  extern const char* const kChatStatusBadColor;
+  extern const char* const CHAT_STATUS_OK_COLOR;
+  extern const char* const CHAT_STATUS_BAD_COLOR;
 
   QToolButton* makeChatAccentButton(QWidget* parent, const QString& tooltip);
 

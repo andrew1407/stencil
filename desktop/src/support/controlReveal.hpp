@@ -25,21 +25,21 @@
 
 namespace stencil::gui {
 
-  inline constexpr int kControlRevealInMs = 347;   // browser REVEAL_GROUP_IN_MS 520 / 1.5
-  inline constexpr int kControlRevealOutMs = 267;  // browser REVEAL_GROUP_OUT_MS 400 / 1.5
-  inline constexpr int kControlRevealCellPx = 4;   // browser MARK_COLS x MARK_ROWS
-  inline constexpr int kControlRevealMaxCells = 600;
-  inline constexpr double kControlRevealSpread = 0.32;   // share of a list row's throw
-  inline constexpr int kControlRevealPadPx = 18;
-  inline constexpr double kControlRevealVeilStop = 0.62;   // browser `@keyframes markForm`
-  inline constexpr const char* kControlRevealObjectName = "stencilControlReveal";
-  inline constexpr const char* kNoControlRevealProperty = "stencilNoControlReveal";
+  inline constexpr int CONTROL_REVEAL_IN_MS = 347;   // browser REVEAL_GROUP_IN_MS 520 / 1.5
+  inline constexpr int CONTROL_REVEAL_OUT_MS = 267;  // browser REVEAL_GROUP_OUT_MS 400 / 1.5
+  inline constexpr int CONTROL_REVEAL_CELL_PX = 4;   // browser MARK_COLS x MARK_ROWS
+  inline constexpr int CONTROL_REVEAL_MAX_CELLS = 600;
+  inline constexpr double CONTROL_REVEAL_SPREAD = 0.32;   // share of a list row's throw
+  inline constexpr int CONTROL_REVEAL_PAD_PX = 18;
+  inline constexpr double CONTROL_REVEAL_VEIL_STOP = 0.62;   // browser `@keyframes markForm`
+  inline constexpr const char* CONTROL_REVEAL_OBJECT_NAME = "stencilControlReveal";
+  inline constexpr const char* NO_CONTROL_REVEAL_PROPERTY = "stencilNoControlReveal";
   // The owner's handle on its in-flight cloud: settleReveal runs several times per canvas edit.
-  inline constexpr const char* kRevealFxProperty = "stencilRevealFx";
-  inline constexpr const char* kRevealMaxWidthProperty = "stencilRevealSavedMax";
+  inline constexpr const char* REVEAL_FX_PROPERTY = "stencilRevealFx";
+  inline constexpr const char* REVEAL_MAX_WIDTH_PROPERTY = "stencilRevealSavedMax";
   // A slide going the wrong way must be cancelled first, or its finished handler undoes the call.
-  inline constexpr const char* kRevealSlideProperty = "stencilRevealSlide";
-  inline constexpr const char* kRevealOpeningProperty = "stencilRevealOpening";
+  inline constexpr const char* REVEAL_SLIDE_PROPERTY = "stencilRevealSlide";
+  inline constexpr const char* REVEAL_OPENING_PROPERTY = "stencilRevealOpening";
 
   namespace ctl {
 
@@ -64,14 +64,14 @@ namespace stencil::gui {
 
   }  // namespace ctl
 
-  inline constexpr const char* kMaxWidthProperty = "maximumWidth";
+  inline constexpr const char* MAX_WIDTH_PROPERTY = "maximumWidth";
 
   void revealControls(QWidget* w, bool show, bool dust = true);
 
   void paintRevealInPlace(QWidget* w, QWidget* host, bool out,
                           int outMs = 200, int inMs = 260);
 
-  inline constexpr const char* kBarSlotAnimName = "stencilBarSlot";
+  inline constexpr const char* BAR_SLOT_ANIM_NAME = "stencilBarSlot";
 
   void releaseBarSlot(QWidget* bar);
 
@@ -93,8 +93,8 @@ namespace stencil::gui {
     }
     holdBarSlot(bar);
     // `bar` is the context object: the job dies with its dialog.
-    QTimer::singleShot(kControlRevealOutMs, bar, [bar, want = std::move(want)] {
-      if (!want()) closeBarSlot(bar, kControlRevealOutMs);
+    QTimer::singleShot(CONTROL_REVEAL_OUT_MS, bar, [bar, want = std::move(want)] {
+      if (!want()) closeBarSlot(bar, CONTROL_REVEAL_OUT_MS);
       else releaseBarSlot(bar);
     });
   }

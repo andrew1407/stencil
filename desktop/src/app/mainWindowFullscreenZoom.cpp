@@ -49,7 +49,7 @@ namespace stencil::gui {
     if (now.isEmpty()) return;
     // showFullScreen()/showNormal() resize asynchronously on some platforms — wait for the new geometry, bounded.
     if (now == fs_.zoomFromViewport) {
-      if (++fs_.zoomWaits > FullscreenController::kZoomWaitLimit) return;
+      if (++fs_.zoomWaits > FullscreenController::ZOOM_WAIT_LIMIT) return;
       QTimer::singleShot(16, this, [this] { startFullscreenZoom(); });
       return;
     }

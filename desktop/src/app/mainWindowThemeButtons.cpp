@@ -82,7 +82,7 @@ namespace stencil::gui {
         const auto name = actionIconNames_.constFind(a);
         if (name != actionIconNames_.constEnd()) {
           const QColor ink = toolButtonIconColor(a, iconColor_);
-          b->setIcon(themedIcon(name.value(), ink, kToolIcon));
+          b->setIcon(themedIcon(name.value(), ink, TOOL_ICON));
         }
         // The compound [toolFill="danger"]:disabled selector needs a re-polish on every enabled
         // flip, or a disabled Clear keeps its red.

@@ -57,7 +57,7 @@ namespace stencil::gui {
     const QString smode = searchModeCombo_ ? searchModeCombo_->currentData().toString()
                                            : QStringLiteral("common");
     auto wanted = [&](QListWidgetItem* it) {
-      if (it->data(kTempRole).toBool()) {   // this window's session: a local thing, by name
+      if (it->data(TEMP_ROLE).toBool()) {   // this window's session: a local thing, by name
         if (mode != QLatin1String("all") && mode != QLatin1String("local")) return false;
         return needle.isEmpty() || it->data(Qt::UserRole + 3).toString().contains(needle, Qt::CaseInsensitive);
       }

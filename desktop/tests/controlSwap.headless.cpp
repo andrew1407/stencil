@@ -32,15 +32,15 @@
 #include "support/check.hpp"
 
 using stencil::gui::installControlSwap;
-using stencil::gui::kCheckSwapMs;
-using stencil::gui::kCheckSwapObjectName;
-using stencil::gui::kControlSwapWiredProperty;
-using stencil::gui::kNoControlSwapProperty;
-using stencil::gui::kValueSwapProperty;
+using stencil::gui::CHECK_SWAP_MS;
+using stencil::gui::CHECK_SWAP_OBJECT_NAME;
+using stencil::gui::CONTROL_SWAP_WIRED_PROPERTY;
+using stencil::gui::NO_CONTROL_SWAP_PROPERTY;
+using stencil::gui::VALUE_SWAP_PROPERTY;
 using stencil::gui::swapCheckIndicator;
-using stencil::gui::kControlRevealInMs;
-using stencil::gui::kFaceSwapMs;
-using stencil::gui::kControlRevealOutMs;
+using stencil::gui::CONTROL_REVEAL_IN_MS;
+using stencil::gui::FACE_SWAP_MS;
+using stencil::gui::CONTROL_REVEAL_OUT_MS;
 using stencil::gui::revealControls;
 using stencil::gui::ValueSwapOverlay;
 
@@ -65,7 +65,7 @@ static bool pumpUntil(const std::function<bool()>& done, int budgetMs = 4000) {
 // The checkbox's scatter lives in the WINDOW, not in the box (particles have to leave
 // the control's own 16px box to read as particles at all).
 static int liveCheckOverlays(QWidget* win) {
-  return int(win->findChildren<QWidget*>(QString::fromLatin1(kCheckSwapObjectName)).size());
+  return int(win->findChildren<QWidget*>(QString::fromLatin1(CHECK_SWAP_OBJECT_NAME)).size());
 }
 
 // How many pixels of `im` are neither transparent nor the backdrop — a cheap "is
@@ -101,8 +101,8 @@ int main(int argc, char** argv) {
   pumpUntil([box] { return box->isVisible(); });
   pumpFor(60);
 
-  check(box->property(kControlSwapWiredProperty).toBool()
-            && combo->property(kControlSwapWiredProperty).toBool(),
+  check(box->property(CONTROL_SWAP_WIRED_PROPERTY).toBool()
+            && combo->property(CONTROL_SWAP_WIRED_PROPERTY).toBool(),
         "the app-wide filter wires a checkbox and a combo it never heard about");
 
   // ── the checkbox's two states are actually DIFFERENT pictures ───────────────
@@ -129,19 +129,19 @@ int main(int argc, char** argv) {
   {
     // Mid-effect: particles are on their way in, so the overlay has ink but is not yet
     // the settled check.
-    pumpFor(kCheckSwapMs / 3);
-    QWidget* fx = host.findChild<QWidget*>(QString::fromLatin1(kCheckSwapObjectName));
+    pumpFor(CHECK_SWAP_MS / 3);
+    QWidget* fx = host.findChild<QWidget*>(QString::fromLatin1(CHECK_SWAP_OBJECT_NAME));
     const QSize ind = stencil::gui::ctl::indicatorRect(box).size();
     check(fx != nullptr
-              && fx->size() == ind + QSize(2 * stencil::gui::kCheckSwapPadPx,
-                                           2 * stencil::gui::kCheckSwapPadPx),
+              && fx->size() == ind + QSize(2 * stencil::gui::CHECK_SWAP_PAD_PX,
+                                           2 * stencil::gui::CHECK_SWAP_PAD_PX),
           "the overlay is the indicator plus slack — the motes leave the box, the box doesn't");
     check(fx != nullptr && fx->testAttribute(Qt::WA_TransparentForMouseEvents),
           "…and that slack overhangs its neighbours without ever taking a click");
     check(fx != nullptr && fx->parentWidget() == &host,
           "the scatter lives in the window, so nothing clips it to the control");
   }
-  check(pumpUntil([&host] { return liveCheckOverlays(&host) == 0; }, kCheckSwapMs + 3000),
+  check(pumpUntil([&host] { return liveCheckOverlays(&host) == 0; }, CHECK_SWAP_MS + 3000),
         "the gather converges and cleans itself up");
   check(box->isChecked() && box->geometry() == boxGeom,
         "…leaving the box checked, in the same place");
@@ -149,7 +149,7 @@ int main(int argc, char** argv) {
   // ── unchecking: the check disperses ─────────────────────────────────────────
   box->setChecked(false);
   check(liveCheckOverlays(&host) == 1, "unchecking scatters too");
-  check(pumpUntil([&host] { return liveCheckOverlays(&host) == 0; }, kCheckSwapMs + 3000),
+  check(pumpUntil([&host] { return liveCheckOverlays(&host) == 0; }, CHECK_SWAP_MS + 3000),
         "…and that scatter converges as well");
   check(!box->isChecked(), "the box ends unchecked");
 
@@ -159,10 +159,10 @@ int main(int argc, char** argv) {
   for (int i = 0; i < 9; ++i) {
     box->setChecked(i % 2 == 0);
     check(liveCheckOverlays(&host) <= 1, "one scatter at a time, however fast the clicks");
-    pumpFor(kCheckSwapMs / 8);
+    pumpFor(CHECK_SWAP_MS / 8);
   }
   const bool lastState = box->isChecked();
-  check(pumpUntil([&host] { return liveCheckOverlays(&host) == 0; }, kCheckSwapMs + 3000),
+  check(pumpUntil([&host] { return liveCheckOverlays(&host) == 0; }, CHECK_SWAP_MS + 3000),
         "a burst of toggles leaves nothing stranded");
   check(box->isChecked() == lastState && box->geometry() == boxGeom,
         "…and the box shows the state the LAST toggle asked for");
@@ -179,18 +179,18 @@ int main(int argc, char** argv) {
   check(combo->currentText() == QLatin1String("Letter"),
         "the value changes at once — the effect never owns the truth");
   check(ValueSwapOverlay::running(combo), "…and the exchange is running over it");
-  check(combo->property(kValueSwapProperty).toBool(),
+  check(combo->property(VALUE_SWAP_PROPERTY).toBool(),
         "the swap owns the combo's text colour while it runs, so only one word shows");
   check(combo->geometry() == comboGeom, "no layout shift, and no resize under the cursor");
   {
     QWidget* fx = combo->findChild<QWidget*>(QString::fromLatin1(
-        stencil::gui::kValueSwapObjectName));
+        stencil::gui::VALUE_SWAP_OBJECT_NAME));
     check(fx != nullptr && fx->geometry() == combo->rect(),
           "the exchange is pinned inside the combo — a mote can no more leave the field "
           "than the word could");
     // Mid-exchange the overlay is DRAWING: the outgoing word's sand is on its way out
     // and the incoming one's is arriving, so what is on screen is neither settled word.
-    pumpFor(kFaceSwapMs / 3);
+    pumpFor(FACE_SWAP_MS / 3);
     const QImage mid = fx ? fx->grab().toImage().convertToFormat(QImage::Format_ARGB32)
                           : QImage();
     check(inkedPixels(mid) > 0, "…and it really paints the sand, not an empty layer");
@@ -202,7 +202,7 @@ int main(int argc, char** argv) {
         "the exchange converges and stops");
   check(combo->currentText() == QLatin1String("Letter"),
         "…on the option that was picked");
-  check(!combo->property(kValueSwapProperty).toBool() && combo->styleSheet().isEmpty(),
+  check(!combo->property(VALUE_SWAP_PROPERTY).toBool() && combo->styleSheet().isEmpty(),
         "nothing of the swap survives: the combo gets its own stylesheet back");
   check(combo->geometry() == comboGeom, "…and its own geometry");
 
@@ -210,7 +210,7 @@ int main(int argc, char** argv) {
   for (int i = 0; i < 8; ++i) {
     combo->setCurrentIndex(i % 4);
     check(combo->findChildren<QWidget*>(
-              QString::fromLatin1(stencil::gui::kValueSwapObjectName)).size() <= 1,
+              QString::fromLatin1(stencil::gui::VALUE_SWAP_OBJECT_NAME)).size() <= 1,
           "one exchange at a time, however fast the picks");
     pumpFor(20);
   }
@@ -261,13 +261,13 @@ int main(int argc, char** argv) {
   }
 
   // ── opting out ──────────────────────────────────────────────────────────────
-  box->setProperty(kNoControlSwapProperty, true);
+  box->setProperty(NO_CONTROL_SWAP_PROPERTY, true);
   box->setChecked(true);
   check(liveCheckOverlays(&host) == 0 && box->isChecked(),
         "an opted-out control still changes state, it just does not scatter");
-  box->setProperty(kNoControlSwapProperty, false);
+  box->setProperty(NO_CONTROL_SWAP_PROPERTY, false);
   box->setChecked(false);
-  pumpUntil([&host] { return liveCheckOverlays(&host) == 0; }, kCheckSwapMs + 3000);
+  pumpUntil([&host] { return liveCheckOverlays(&host) == 0; }, CHECK_SWAP_MS + 3000);
 
   // ── reduced motion ──────────────────────────────────────────────────────────
   // The end state at once, and — the part that matters — the STATE still changes.
@@ -301,7 +301,7 @@ int main(int argc, char** argv) {
     check(popup != nullptr && popup != combo->window(),
           "a combo's list lives in a popup window of its own");
     // The watcher is parented to the combo, not to Qt's container.
-    const QString name = QString::fromLatin1(stencil::gui::ctl::kComboPopupFilterName);
+    const QString name = QString::fromLatin1(stencil::gui::ctl::COMBO_POPUP_FILTER_NAME);
     check(combo->findChild<QObject*>(name, Qt::FindDirectChildrenOnly) != nullptr,
           "…and the app-wide watcher armed its dust without any call site's help");
     stencil::gui::ctl::wireComboPopupDust(combo);   // idempotent: never a second filter
@@ -327,7 +327,7 @@ int main(int argc, char** argv) {
     pumpFor(60);
     const auto liveReveals = [&host] {
       return int(host.findChildren<QWidget*>(
-                     QString::fromLatin1(stencil::gui::kControlRevealObjectName)).size());
+                     QString::fromLatin1(stencil::gui::CONTROL_REVEAL_OBJECT_NAME)).size());
     };
 
     revealControls(group, true);
@@ -339,9 +339,9 @@ int main(int argc, char** argv) {
     check(pumpUntil([&] { return liveReveals() == 1; }, 2000),
           "…and its motes gather over it once the pending layout has placed it");
     check(group->graphicsEffect() != nullptr, "…with the real group veiled behind them");
-    check(pumpUntil([&] { return group->maximumWidth() >= 160; }, kControlRevealInMs + 3000),
+    check(pumpUntil([&] { return group->maximumWidth() >= 160; }, CONTROL_REVEAL_IN_MS + 3000),
           "…while its slot grows to the group's true width");
-    check(pumpUntil([&] { return liveReveals() == 0; }, kControlRevealInMs + 3000),
+    check(pumpUntil([&] { return liveReveals() == 0; }, CONTROL_REVEAL_IN_MS + 3000),
           "the gather converges and cleans itself up");
     check(pumpUntil([&] { return group->graphicsEffect() == nullptr; }, 2000),
           "…and the veil comes off, so the group is never left dimmed");
@@ -352,9 +352,9 @@ int main(int argc, char** argv) {
     // (still occupying its shrinking width) until the collapse actually finishes.
     check(group->isVisible(), "the group stays up while its slot closes");
     check(liveReveals() == 1, "…handing the picture to a cloud that outlives it");
-    check(pumpUntil([&] { return !group->isVisible(); }, kControlRevealOutMs + 3000),
+    check(pumpUntil([&] { return !group->isVisible(); }, CONTROL_REVEAL_OUT_MS + 3000),
           "…and hides once the slot has fully closed");
-    check(pumpUntil([&] { return liveReveals() == 0; }, kControlRevealOutMs + 3000),
+    check(pumpUntil([&] { return liveReveals() == 0; }, CONTROL_REVEAL_OUT_MS + 3000),
           "…the cloud converges too");
 
     // What FLIES is the controls, not the strip behind them: QWidget::grab() paints the
@@ -403,10 +403,10 @@ int main(int argc, char** argv) {
       revealControls(wideGroup, true);
       pumpUntil([&] { return liveReveals() == 1; }, 2000);
       const auto clouds = host.findChildren<QWidget*>(
-          QString::fromLatin1(stencil::gui::kControlRevealObjectName));
+          QString::fromLatin1(stencil::gui::CONTROL_REVEAL_OBJECT_NAME));
       const int pictureW =
-          clouds.isEmpty() ? -1 : clouds.first()->width() - 2 * stencil::gui::kControlRevealPadPx;
-      check(pumpUntil([&] { return liveReveals() == 0; }, kControlRevealInMs + 3000),
+          clouds.isEmpty() ? -1 : clouds.first()->width() - 2 * stencil::gui::CONTROL_REVEAL_PAD_PX;
+      check(pumpUntil([&] { return liveReveals() == 0; }, CONTROL_REVEAL_IN_MS + 3000),
             "the gather over a stretchy group converges");
       pumpUntil([&] { return wideGroup->width() > hintW; }, 2000);
       check(wideGroup->width() > hintW, "the row really does hand this group slack");

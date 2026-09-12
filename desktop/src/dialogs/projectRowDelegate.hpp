@@ -40,8 +40,8 @@ namespace stencil::gui {
     int kebabRow_ = -1;
     void recordIconRect(const QStyleOptionViewItem& o, const QModelIndex& idx) const;
 
-    static constexpr double kSlidePx = 3.0;
-    static constexpr int kSlideMs = 140;
+    static constexpr double SLIDE_PX = 3.0;
+    static constexpr int SLIDE_MS = 140;
     // Keyed by ROW: transient hover state, so no QPersistentModelIndex per row per paint.
     mutable QHash<int, double> slide_;
     mutable int slideHover_ = -1;
@@ -55,7 +55,7 @@ namespace stencil::gui {
     void paintRevealed(QPainter* p, const QStyleOptionViewItem& opt,
                        const QModelIndex& idx) const;
 
-    static constexpr int kThumbTextGap = 12;
+    static constexpr int THUMB_TEXT_GAP = 12;
     mutable QHash<int, QRect> nameRects_;
 
     void paintRow(QPainter* p, const QStyleOptionViewItem& opt, const QModelIndex& idx) const;

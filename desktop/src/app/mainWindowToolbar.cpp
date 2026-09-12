@@ -72,7 +72,7 @@ namespace stencil::gui {
      public:
       explicit FormulaField(QWidget* parent) : QLineEdit(parent) {}
       QSize sizeHint() const override {
-        return QSize(kFormulaFieldW, QLineEdit::sizeHint().height());
+        return QSize(FORMULA_FIELD_W, QLineEdit::sizeHint().height());
       }
     };
   }  // namespace
@@ -94,8 +94,8 @@ namespace stencil::gui {
       e->setFont(f);
       // Elastic between the browser's width and the floor, so a narrow window squeezes instead of
       // overflowing.
-      e->setMinimumWidth(kFormulaFieldMinW);
-      e->setMaximumWidth(kFormulaFieldW);
+      e->setMinimumWidth(FORMULA_FIELD_MIN_W);
+      e->setMaximumWidth(FORMULA_FIELD_W);
       e->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
       return e;
     };

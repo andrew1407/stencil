@@ -65,7 +65,7 @@ namespace stencil::gui {
       veil->setOpacity(0.0);
       chatDock_->setGraphicsEffect(veil);
       chatVeil_ = veil;
-      if (gather) fadeVeilUp(veil, ms > 0 ? ms : gui::DisintegrateOverlay::kSurfaceInMs);
+      if (gather) fadeVeilUp(veil, ms > 0 ? ms : gui::DisintegrateOverlay::SURFACE_IN_MS);
     }
     return fx;
   }
@@ -145,7 +145,7 @@ namespace stencil::gui {
     auto* veil = new QGraphicsOpacityEffect(selectedLineBar_);
     veil->setOpacity(0.0);
     selectedLineBar_->setGraphicsEffect(veil);
-    auto* fade = fadeVeilUp(veil, gui::DisintegrateOverlay::kSurfaceInMs);
+    auto* fade = fadeVeilUp(veil, gui::DisintegrateOverlay::SURFACE_IN_MS);
     QPointer<SelectedLineBar> bar = selectedLineBar_;
     connect(fade, &QPropertyAnimation::finished, this, [bar, veil] {
       if (bar && bar->graphicsEffect() == veil) bar->setGraphicsEffect(nullptr);

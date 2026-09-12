@@ -3,12 +3,12 @@
 // Shared ground (helpers, the loaded window, the motion pins) is in mainWindow.gui.hpp.
 #include "mainWindow.gui.hpp"
 
-// Comfortably past the f(x,y) idle-commit delay (mainWindow.cpp kFormulaCommitMs), so a
+// Comfortably past the f(x,y) idle-commit delay (mainWindow.cpp FORMULA_COMMIT_MS), so a
 // "stopped typing" wait can't race the timer on a loaded machine.
-constexpr int kFormulaSettleMs = 1600;
-// The shared box of the panel's two collapse chevrons (mainWindow kPanelToggleBox /
-// selectionPanel kToggleBox) — asserted equal so the pair can't drift apart.
-constexpr int kPanelChevronBox = 24;
+constexpr int FORMULA_SETTLE_MS = 1600;
+// The shared box of the panel's two collapse chevrons (mainWindow PANEL_TOGGLE_BOX /
+// selectionPanel TOGGLE_BOX) — asserted equal so the pair can't drift apart.
+constexpr int PANEL_CHEVRON_BOX = 24;
 
 class MainWindowGuiTest : public QObject {
   Q_OBJECT
@@ -199,26 +199,26 @@ class MainWindowGuiTest : public QObject {
     // A window restores the persisted formulas, so start from a known-empty field and let
     // that clear settle (leaving no pending commit to race the assertions below).
     fx->clear();
-    QVERIFY(awaitTimer(win.formulaCommitTimer_, kFormulaSettleMs));
+    QVERIFY(awaitTimer(win.formulaCommitTimer_, FORMULA_SETTLE_MS));
     QVERIFY(!err->isVisible());
 
     fx->setFocus();
     QTest::keyClicks(fx, "(x+", Qt::NoModifier, 40);   // half-written, a key at a time
     QVERIFY2(!err->isVisible(), "an expression still being typed must not be flagged");
     QVERIFY2(win.formulaCommitTimer_->isActive()
-                 && awaitTimer(win.formulaCommitTimer_, kFormulaSettleMs),
+                 && awaitTimer(win.formulaCommitTimer_, FORMULA_SETTLE_MS),
              "typing then pausing armed no commit");
     QVERIFY2(err->isVisible(), "a settled, unparseable expression IS flagged");
 
     QTest::keyClicks(fx, "1)", Qt::NoModifier, 40);    // finish it: valid again
     QCOMPARE(fx->text(), QStringLiteral("(x+1)"));
     QVERIFY2(!err->isVisible(), "fixing the expression clears the error indicator on the spot");
-    QVERIFY(awaitTimer(win.formulaCommitTimer_, kFormulaSettleMs));
+    QVERIFY(awaitTimer(win.formulaCommitTimer_, FORMULA_SETTLE_MS));
     QVERIFY(!err->isVisible());
 
     // Leave the persisted formula as we found it — the settings are shared across tests.
     fx->clear();
-    QVERIFY(awaitTimer(win.formulaCommitTimer_, kFormulaSettleMs));
+    QVERIFY(awaitTimer(win.formulaCommitTimer_, FORMULA_SETTLE_MS));
   }
 
   // Fullscreen edge-hover: prove the top toolbars and the right points panel REVEAL WITH AN
@@ -709,7 +709,7 @@ class MainWindowGuiTest : public QObject {
     settle([&] { return win.panelReopenBtn_ != nullptr; }, 600);
     QVERIFY(win.panelReopenBtn_);
     QCOMPARE(win.panelReopenBtn_->focusPolicy(), Qt::NoFocus);
-    QCOMPARE(win.panelReopenBtn_->size(), QSize(kPanelChevronBox, kPanelChevronBox));
+    QCOMPARE(win.panelReopenBtn_->size(), QSize(PANEL_CHEVRON_BOX, PANEL_CHEVRON_BOX));
     // …and its twin in the panel header, so the pair stays consistent.
     QWidget* bar = nullptr;
     for (QDockWidget* d : win.findChildren<QDockWidget*>())
@@ -725,7 +725,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(!chevrons.isEmpty(), "the panel header has no collapse chevron");
     for (QToolButton* b : chevrons) {
       QCOMPARE(b->focusPolicy(), Qt::NoFocus);
-      QCOMPARE(b->size(), QSize(kPanelChevronBox, kPanelChevronBox));
+      QCOMPARE(b->size(), QSize(PANEL_CHEVRON_BOX, PANEL_CHEVRON_BOX));
     }
   }
 
@@ -828,8 +828,8 @@ class MainWindowGuiTest : public QObject {
     settleLayout(&win, 300);
 
     // The chips: the browser's box, and its 4px gaps either side.
-    QCOMPARE(win.nameBar_.edit->size(), QSize(stencil::gui::kNameChipBox,
-                                                 stencil::gui::kNameChipBox));
+    QCOMPARE(win.nameBar_.edit->size(), QSize(stencil::gui::NAME_CHIP_BOX,
+                                                 stencil::gui::NAME_CHIP_BOX));
     QCOMPARE(win.nameBar_.colorBtn->size(), win.nameBar_.edit->size());
     const QRect f(win.nameBar_.field->mapTo(&win, QPoint(0, 0)), win.nameBar_.field->size());
     const QRect e(win.nameBar_.edit->mapTo(&win, QPoint(0, 0)), win.nameBar_.edit->size());
@@ -895,7 +895,7 @@ class MainWindowGuiTest : public QObject {
                                            stencil::gui::DisintegrateOverlay::Sweep::Fall);
     const auto cloudsUp = [&win] {
       int n = 0;
-      for (const char* name : {stencil::gui::DisintegrateOverlay::kObjectName,
+      for (const char* name : {stencil::gui::DisintegrateOverlay::OBJECT_NAME,
                                "stencilControlReveal", "stencilFilterDust"})
         for (QWidget* w : win.findChildren<QWidget*>(QString::fromLatin1(name)))
           if (w->isVisible()) ++n;
@@ -1010,14 +1010,14 @@ class MainWindowGuiTest : public QObject {
     for (int i = 1; i <= 6; ++i) toasts.info(QString("Toast %1").arg(i));
     // The retired ones play their exit first, so wait for the stack to settle rather
     // than asserting on the frame the sixth arrived in.
-    QTRY_COMPARE(stackTopDown().size(), stencil::gui::Notifications::kMaxVisible);
+    QTRY_COMPARE(stackTopDown().size(), stencil::gui::Notifications::MAX_VISIBLE);
     // The OLDEST three went; the newest is lowest, where the next one will appear.
     QCOMPARE(stackTopDown(), QStringList({"Toast 4", "Toast 5", "Toast 6"}));
 
     // Stacked bottom-left, and none of them ran off the top of the host — which is what
     // an uncapped stack eventually does.
     for (QLabel* l : host.findChildren<QLabel*>("toast", Qt::FindDirectChildrenOnly)) {
-      QCOMPARE(l->x(), 6);   // notifications.cpp kLeftMargin
+      QCOMPARE(l->x(), 6);   // notifications.cpp LEFT_MARGIN
       QVERIFY(l->y() >= 8);
       QVERIFY(l->geometry().bottom() <= host.height());
     }

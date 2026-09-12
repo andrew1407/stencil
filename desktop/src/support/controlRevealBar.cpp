@@ -4,7 +4,7 @@ namespace stencil::gui {
 
   void releaseBarSlot(QWidget* bar) {
     if (!bar) return;
-    if (auto* live = bar->findChild<QPropertyAnimation*>(QString::fromLatin1(kBarSlotAnimName))) {
+    if (auto* live = bar->findChild<QPropertyAnimation*>(QString::fromLatin1(BAR_SLOT_ANIM_NAME))) {
       live->stop();
       delete live;
     }
@@ -35,7 +35,7 @@ namespace stencil::gui {
       return;
     }
     auto* shrink = new QPropertyAnimation(bar, "minimumHeight", bar);
-    shrink->setObjectName(QString::fromLatin1(kBarSlotAnimName));
+    shrink->setObjectName(QString::fromLatin1(BAR_SLOT_ANIM_NAME));
     shrink->setDuration(ms);
     shrink->setStartValue(h);
     shrink->setEndValue(0);
@@ -57,8 +57,8 @@ namespace stencil::gui {
   // the layout under the clouds is pulled away (fullscreen hides every toolbar).
   void stopDustClouds(QWidget* host) {
     if (!host) return;
-    for (const char* name : {DisintegrateOverlay::kObjectName, kControlRevealObjectName,
-                             kFilterDustObjectName})
+    for (const char* name : {DisintegrateOverlay::OBJECT_NAME, CONTROL_REVEAL_OBJECT_NAME,
+                             FILTER_DUST_OBJECT_NAME})
       for (QWidget* fx : host->findChildren<QWidget*>(QString::fromLatin1(name))) {
         fx->hide();   // excluded from the ghost's render immediately; deleted safely after
         fx->deleteLater();

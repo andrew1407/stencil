@@ -2,7 +2,7 @@
 // nothing.
 #include "mainWindow.hpp"
 #include "canvasWidget.hpp"
-#include "mainWindowHelpers.hpp"   // kCentralSideMargin
+#include "mainWindowHelpers.hpp"   // CENTRAL_SIDE_MARGIN
 #include "overlayScrollArea.hpp"
 #include "chatDock.hpp"
 #include "selectionPanel.hpp"
@@ -35,7 +35,7 @@ namespace stencil::gui {
     centralLayout_ = new QVBoxLayout(central);
     // The Image Size dock owns the top gap; only the canvas gets a left inset (wrapper below);
     // right clears the panel chevron.
-    centralLayout_->setContentsMargins(0, 0, kCentralSideMargin, 14);
+    centralLayout_->setContentsMargins(0, 0, CENTRAL_SIDE_MARGIN, 14);
     centralLayout_->setSpacing(10);
     auto* scrollRow = new QHBoxLayout();
     scrollRow->setContentsMargins(6, 0, 0, 0);
@@ -129,7 +129,7 @@ namespace stencil::gui {
 
   void MainWindow::setupDocks() {
     selPanel_ = new SelectionPanel(this);
-    selPanel_->setMinimumWidth(kPanelMinWidth);   // the dock's drag handle stops here
+    selPanel_->setMinimumWidth(PANEL_MIN_WIDTH);   // the dock's drag handle stops here
     // Named so QMainWindow::saveState() persists the dock layout.
     selPanel_->setObjectName("selectionPanelDock");
     addDockWidget(Qt::RightDockWidgetArea, selPanel_);

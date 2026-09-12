@@ -30,7 +30,7 @@ namespace stencil::gui {
   }
 
   void ExpirationDialog::renderCalendar() {
-    calTitle_->setText(QString("%1 %2").arg(kMonths[viewM_]).arg(viewY_));
+    calTitle_->setText(QString("%1 %2").arg(MONTHS[viewM_]).arg(viewY_));
     prev_->setEnabled(!atFloor());   // no navigating into fully-past months
 
     // Rebuilt whole, like the browser rebuilds the grid's innerHTML: the day states are
@@ -40,7 +40,7 @@ namespace stencil::gui {
       delete item;
     }
     for (int i = 0; i < 7; ++i) {
-      auto* h = new QLabel(kWeekdays[i], calendar_);
+      auto* h = new QLabel(WEEKDAYS[i], calendar_);
       h->setObjectName(QStringLiteral("expCalWeekday"));
       h->setAlignment(Qt::AlignCenter);
       calGrid_->addWidget(h, 0, i);
@@ -58,7 +58,7 @@ namespace stencil::gui {
       cell->setObjectName(QStringLiteral("expCalDay"));
       cell->setText(QString::number(d));
       cell->setCursor(Qt::PointingHandCursor);
-      cell->setMinimumHeight(kCellMinH);
+      cell->setMinimumHeight(CELL_MIN_H);
       cell->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
       if (cellDate == expiry) cell->setProperty("expDay", "expiry");
       else if (cellDate == today) cell->setProperty("expDay", "today");

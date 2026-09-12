@@ -4,7 +4,7 @@
 namespace stencil::core {
 
   double clampScale(double scale) {
-    return std::max(kZoomMin, std::min(kZoomMax, scale));
+    return std::max(ZOOM_MIN, std::min(ZOOM_MAX, scale));
   }
 
   AnchoredZoom anchoredZoom(double scrollLeft, double scrollTop, double cursorX,
@@ -24,7 +24,7 @@ namespace stencil::core {
   RectZoom rectZoom(double x1, double y1, double rectW, double rectH,
                     double availW, double availH) {
     RectZoom r;
-    r.scale = clampScale(std::min({availW / rectW, availH / rectH, kZoomMax}));
+    r.scale = clampScale(std::min({availW / rectW, availH / rectH, ZOOM_MAX}));
     r.scrollLeft = std::max(0.0, x1 * r.scale - (availW - rectW * r.scale) / 2.0);
     r.scrollTop = std::max(0.0, y1 * r.scale - (availH - rectH * r.scale) / 2.0);
     return r;

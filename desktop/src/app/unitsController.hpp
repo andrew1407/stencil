@@ -21,14 +21,14 @@ namespace stencil::gui {
     QAction* unitCm = nullptr;
     QAction* unitIn = nullptr;
 
-    static constexpr double kInchPerCm = 1.0 / 2.54;
+    static constexpr double INCH_PER_CM = 1.0 / 2.54;
 
     static bool isInches(const QString& code) { return code == QLatin1String("in"); }
     static QString canonicalUnit(const QString& code) {
       return isInches(code) ? QStringLiteral("in") : QStringLiteral("cm");
     }
     // Model values are always centimetres.
-    static double factor(const QString& code) { return isInches(code) ? kInchPerCm : 1.0; }
+    static double factor(const QString& code) { return isInches(code) ? INCH_PER_CM : 1.0; }
     static const char* label(const QString& code) { return isInches(code) ? "in" : "cm"; }
     // Inches need the extra digit to carry as much as one centimetre decimal.
     static int decimalsFor(const QString& code) { return isInches(code) ? 2 : 1; }

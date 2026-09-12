@@ -5,7 +5,7 @@
 #include "chatDock.hpp"
 #include "selectionPanel.hpp"
 #include "guiHelpers.hpp"
-#include "mainWindowShared.hpp"   // fetchUrlBytesAsync, kToolbarLayoutVersion
+#include "mainWindowShared.hpp"   // fetchUrlBytesAsync, TOOLBAR_LAYOUT_VERSION
 #include "notifications.hpp"
 #include "remoteSession.hpp"
 #include "remoteSyncController.hpp"
@@ -79,13 +79,13 @@ namespace stencil::gui {
       const QPointer<QDockWidget> panel(selPanel_);
       QTimer::singleShot(0, this, [this, panel] {
         if (panel && !panel->isHidden())
-          resizeDocks({panel.data()}, {kPanelDefaultWidth}, Qt::Horizontal);
+          resizeDocks({panel.data()}, {PANEL_DEFAULT_WIDTH}, Qt::Horizontal);
       });
     }
     if (!settings_.windowState.isEmpty()) {
       // Versioned: a state saved against a different toolbar set restores stale row breaks. Bump
       // on every restructure.
-      restoreState(QByteArray::fromBase64(settings_.windowState.toLatin1()), kToolbarLayoutVersion);
+      restoreState(QByteArray::fromBase64(settings_.windowState.toLatin1()), TOOLBAR_LAYOUT_VERSION);
       for (QToolBar* tb : findChildren<QToolBar*>()) tb->setVisible(true);
       if (actPanel_) {
         QSignalBlocker b(actPanel_);

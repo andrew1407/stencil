@@ -11,7 +11,7 @@ namespace stencil::core {
    public:
     // Depth cap; canon is LIMITS.historyMax in browser/js/config/constants.json, drift-
     // tested in browser/tests/history.test.js. cli/pystencil match; bot's 25 is a budget.
-    static constexpr std::size_t kMaxSteps = 64;
+    static constexpr std::size_t MAX_STEPS = 64;
 
     HistoryStack();
 
@@ -19,7 +19,7 @@ namespace stencil::core {
     void reset(const Lines& lines);
     void reset(const Lines& lines, int baseStep);
 
-    // Past kMaxSteps the oldest snapshots drop off the front and the cursor shifts down.
+    // Past MAX_STEPS the oldest snapshots drop off the front and the cursor shifts down.
     void push(const Lines& lines);
 
     bool canUndo() const;

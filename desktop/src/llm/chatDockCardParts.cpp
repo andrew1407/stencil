@@ -42,20 +42,20 @@ namespace stencil::gui {
     auto* retry = makeGhostButton(lay->parentWidget(),
                                   QStringLiteral("Send this message again"));
     retry->setObjectName("chatRetry");
-    // Sized up from makeGhostButton's header-ghost default (kHeaderIcon/kButtonEdge):
+    // Sized up from makeGhostButton's header-ghost default (HEADER_ICON/BUTTON_EDGE):
     // a lone icon-only action at the foot of an error card — often the ONLY thing on
     // it (a plain failure has no Configure CTA beside it) — reads as an afterthought
     // at that size.
-    static constexpr int kRetryIcon = 18;
-    static constexpr int kRetryEdge = 30;
-    retry->setIconSize(QSize(kRetryIcon, kRetryIcon));
-    retry->setFixedSize(kRetryEdge, kRetryEdge);
+    static constexpr int RETRY_ICON = 18;
+    static constexpr int RETRY_EDGE = 30;
+    retry->setIconSize(QSize(RETRY_ICON, RETRY_ICON));
+    retry->setFixedSize(RETRY_EDGE, RETRY_EDGE);
     // Neutral glyph on EVERY card, error ones included: the browser's retry is a
     // .chat-hbtn, which sets `color: var(--text-muted)` of its own and never
     // inherits the bubble's --danger. Painted red it sat red-on-red in the error
     // card's danger wash and barely read; the red belongs to the card's ground
     // and border, not to the control offering the way out.
-    retry->setIcon(labelIcon("refresh", glyph, kRetryIcon));
+    retry->setIcon(labelIcon("refresh", glyph, RETRY_ICON));
     QObject::connect(retry, &QToolButton::clicked, retry,
                      [onClick] { if (onClick) onClick(); });
     lay->addWidget(retry, 0, Qt::AlignLeft);

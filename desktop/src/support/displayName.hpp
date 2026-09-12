@@ -8,9 +8,9 @@
 // Header-only and pure so the headless test drives it without a window.
 namespace stencil::support {
 
-  inline constexpr int kNameDisplayChars = 28;
+  inline constexpr int NAME_DISPLAY_CHARS = 28;
 
-  inline QString shortName(const QString& name, int limit = kNameDisplayChars) {
+  inline QString shortName(const QString& name, int limit = NAME_DISPLAY_CHARS) {
     if (name.size() <= limit) return name;
     // Reserve one char for the ellipsis; the extra goes to the head on odd splits.
     const int keep = limit - 1;

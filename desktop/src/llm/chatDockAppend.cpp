@@ -36,7 +36,7 @@ namespace stencil::gui {
       if (img.isNull()) continue;
       auto* thumb = new QLabel(card);
       thumb->setPixmap(QPixmap::fromImage(
-          img.scaled(kThumbEdge, kThumbEdge, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+          img.scaled(THUMB_EDGE, THUMB_EDGE, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
       // No tooltip: the bubble thumbnail is already big, and "Attached image (500×750)"
       // told you nothing the picture doesn't. The hover preview declines to open for a
       // thumbnail this size, so hovering here does nothing at all — which is right.

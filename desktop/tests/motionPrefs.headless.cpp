@@ -152,7 +152,7 @@ int main(int argc, char** argv) {
           "a triangle lies along its heading exactly as the browser's does");
     check(support::shapePolygon(GrainShape::Wave, QPointF(0, 0), 2, 0).size() == 18, "a wave line is a 9-sample ribbon");
     check(support::shapePolygon(GrainShape::Streak, QPointF(0, 0), 2, 0).size() == 4, "a spark is a tapering quad");
-    check(near(support::headingOf(0, 1, false), style::kPi / 2) && near(support::headingOf(0, 1, true), 3 * style::kPi / 2),
+    check(near(support::headingOf(0, 1, false), style::PI / 2) && near(support::headingOf(0, 1, true), 3 * style::PI / 2),
           "a gather flies its throw backwards");
   }
 

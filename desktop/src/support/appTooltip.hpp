@@ -39,10 +39,10 @@ namespace stencil::gui {
   class TipBody : public QLabel {
    public:
     // browser: @keyframes keycapShake (css/components.css) — one damped left/right flick.
-    static constexpr int kStops = 6;
-    static constexpr double kStopT[kStops] = {0.0, 0.15, 0.38, 0.62, 0.84, 1.0};
-    static constexpr double kStopX[kStops] = {0.0, -3.0, 3.0, -2.0, 2.0, 0.0};
-    static constexpr double kStopDeg[kStops] = {0.0, -3.0, 3.0, -2.0, 1.5, 0.0};
+    static constexpr int STOPS = 6;
+    static constexpr double STOP_T[STOPS] = {0.0, 0.15, 0.38, 0.62, 0.84, 1.0};
+    static constexpr double STOP_X[STOPS] = {0.0, -3.0, 3.0, -2.0, 2.0, 0.0};
+    static constexpr double STOP_DEG[STOPS] = {0.0, -3.0, 3.0, -2.0, 1.5, 0.0};
 
     explicit TipBody(QWidget* parent = nullptr) : QLabel(parent) {}
 
@@ -82,15 +82,15 @@ namespace stencil::gui {
 
   class AppTooltip : public QFrame {
    public:
-    static constexpr int kFadeMs = 90;      // browser: #app-tooltip transition (the fallback)
-    static constexpr int kMaxTipWidth = 380;   // browser: #app-tooltip max-width
-    static constexpr int kShakeMs = 320;    // browser: keycapShake 0.32s, one per appearance
+    static constexpr int FADE_MS = 90;      // browser: #app-tooltip transition (the fallback)
+    static constexpr int MAX_TIP_WIDTH = 380;   // browser: #app-tooltip max-width
+    static constexpr int SHAKE_MS = 320;    // browser: keycapShake 0.32s, one per appearance
     // The tooltip is sand too (browser js/ui/controlTooltip.js), on the shared tip clock.
-    static constexpr int kDustInMs = kTipDustInMs;
-    static constexpr int kDustOutMs = kTipDustOutMs;
-    static constexpr int kDustHandOverMs = gui::kDustHandOverMs;
-    static constexpr int kGap = 15;         // cursor offset, as Qt's own tooltip uses
-    static constexpr const char* kObjectName = "stencilAppTooltip";
+    static constexpr int DUST_IN_MS = TIP_DUST_IN_MS;
+    static constexpr int DUST_OUT_MS = TIP_DUST_OUT_MS;
+    static constexpr int DUST_HAND_OVER_MS = gui::DUST_HAND_OVER_MS;
+    static constexpr int GAP = 15;         // cursor offset, as Qt's own tooltip uses
+    static constexpr const char* OBJECT_NAME = "stencilAppTooltip";
 
     explicit AppTooltip(QWidget* parent = nullptr);
 

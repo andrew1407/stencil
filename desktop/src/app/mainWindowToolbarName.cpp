@@ -74,8 +74,8 @@ namespace stencil::gui {
       // Built after the sweep that installs the shimmer across the toolbar rows, so it is added by
       // hand here.
       installHoverShimmer(b);
-      b->setFixedSize(kNameChipBox, kNameChipBox);
-      b->setIconSize(QSize(kNameChipGlyph, kNameChipGlyph));
+      b->setFixedSize(NAME_CHIP_BOX, NAME_CHIP_BOX);
+      b->setIconSize(QSize(NAME_CHIP_GLYPH, NAME_CHIP_GLYPH));
       b->setProperty("nameAffordance", true);
     };
     nameBar_.edit = new QToolButton(nameBar_.group);
@@ -112,8 +112,8 @@ namespace stencil::gui {
     // pins the minimum too.
     const auto letItSlide = [](QToolButton* b) {
       b->setMinimumWidth(0);
-      b->setFixedHeight(kNameChipBox);
-      b->setMaximumWidth(kNameChipBox);
+      b->setFixedHeight(NAME_CHIP_BOX);
+      b->setMaximumWidth(NAME_CHIP_BOX);
     };
     letItSlide(nameBar_.accept);
     nameBar_.accept->setVisible(false);

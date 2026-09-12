@@ -11,7 +11,7 @@ namespace stencil::core {
 
     // JS Number.MAX_SAFE_INTEGER: the wasm path marshals ms through a double, and the
     // cap keeps this port identical to durationParser.js's Number.isSafeInteger checks.
-    constexpr long long kMaxSafe = 9007199254740991LL;  // 2^53 - 1
+    constexpr long long MAX_SAFE = 9007199254740991LL;  // 2^53 - 1
 
     std::vector<std::string> tokenize(const std::string& s) {
       std::vector<std::string> toks;
@@ -31,32 +31,32 @@ namespace stencil::core {
       const char* name;
       long long days;
     };
-    constexpr Unit kUnits[] = {{"day", 1}, {"week", 7}, {"fortnight", 14},
+    constexpr Unit UNITS[] = {{"day", 1}, {"week", 7}, {"fortnight", 14},
                                {"month", 30}, {"year", 365}};
-    constexpr const char* kOffAliases[] = {"off", "never", "none"};
+    constexpr const char* OFF_ALIASES[] = {"off", "never", "none"};
 
     bool unitMs(const std::string& word, long long& out) {
       std::string w = word;
       if (w.size() > 1 && w.back() == 's') w.pop_back();
-      for (const Unit& u : kUnits)
+      for (const Unit& u : UNITS)
         if (w == u.name) { out = u.days * DurationParser::DAY_MS; return true; }
       return false;
     }
 
     bool isOffAlias(const std::string& w) {
-      for (const char* a : kOffAliases)
+      for (const char* a : OFF_ALIASES)
         if (w == a) return true;
       return false;
     }
 
-    // Strictly positive, and capped at kMaxSafe.
+    // Strictly positive, and capped at MAX_SAFE.
     bool positiveInt(const std::string& s, long long& out) {
       if (s.empty()) return false;
       long long v = 0;
       for (char c : s) {
         if (!std::isdigit(static_cast<unsigned char>(c))) return false;
         const int d = c - '0';
-        if (v > (kMaxSafe - d) / 10) return false;  // overflow past 2^53 - 1
+        if (v > (MAX_SAFE - d) / 10) return false;  // overflow past 2^53 - 1
         v = v * 10 + d;
       }
       if (v <= 0) return false;
@@ -69,7 +69,7 @@ namespace stencil::core {
   const char* DurationParser::unitNames() {
     static const std::string s = [] {
       std::string out;
-      for (const Unit& u : kUnits) {
+      for (const Unit& u : UNITS) {
         if (!out.empty()) out += ' ';
         out += u.name;
       }
@@ -81,7 +81,7 @@ namespace stencil::core {
   const char* DurationParser::offAliases() {
     static const std::string s = [] {
       std::string out;
-      for (const char* a : kOffAliases) {
+      for (const char* a : OFF_ALIASES) {
         if (!out.empty()) out += ' ';
         out += a;
       }
@@ -110,7 +110,7 @@ namespace stencil::core {
     } else {
       return false;
     }
-    if (count > kMaxSafe / unit) return false;  // product past 2^53 - 1 (isSafeInteger parity)
+    if (count > MAX_SAFE / unit) return false;  // product past 2^53 - 1 (isSafeInteger parity)
     outMs = count * unit;
     return true;
   }

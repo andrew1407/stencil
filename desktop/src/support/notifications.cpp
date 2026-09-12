@@ -22,13 +22,13 @@ namespace stencil::gui {
 
   // Middle-ellipsize any whitespace-free run longer than 48 chars (browser squeezeLongTokens parity).
   static QString squeezeLongTokens(const QString& text) {
-    constexpr int kMax = 48;
+    constexpr int MAX_TOKEN_CHARS = 48;
     const QStringList parts = text.split(QLatin1Char(' '));
     QStringList out;
     out.reserve(parts.size());
     for (const QString& tok : parts) {
-      if (tok.size() <= kMax) { out << tok; continue; }
-      const int keep = (kMax - 1) / 2;
+      if (tok.size() <= MAX_TOKEN_CHARS) { out << tok; continue; }
+      const int keep = (MAX_TOKEN_CHARS - 1) / 2;
       out << tok.left(keep) + QChar(0x2026) + tok.right(keep);
     }
     return out.join(QLatin1Char(' '));
@@ -40,7 +40,7 @@ namespace stencil::gui {
 
     // Coalesce: an identical standing message just lives longer (browser parity).
     for (QLabel* t : liveToasts())
-      if (t->property(kTextProperty).toString() == text) {
+      if (t->property(TEXT_PROPERTY).toString() == text) {
         if (auto* life = t->findChild<QTimer*>("toastLife")) life->start(msec);
         return;
       }
@@ -48,8 +48,8 @@ namespace stencil::gui {
     // A repeat landing while the LAST one is leaving finishes that label outright; its
     // dust cloud is a separate overlay and keeps playing.
     for (const QPointer<QLabel>& t : stack_) {
-      if (!t || !t->property(kLeavingProperty).toBool()
-             || t->property(kTextProperty).toString() != text)
+      if (!t || !t->property(LEAVING_PROPERTY).toBool()
+             || t->property(TEXT_PROPERTY).toString() != text)
         continue;
       for (QPropertyAnimation* a : t->findChildren<QPropertyAnimation*>()) a->stop();
       stack_.removeAll(t);
@@ -59,7 +59,7 @@ namespace stencil::gui {
 
     // Cap BEFORE adding; only standing toasts count.
     const QList<QLabel*> live = liveToasts();
-    for (int i = 0; i < live.size() + 1 - kMaxVisible && i < live.size(); ++i)
+    for (int i = 0; i < live.size() + 1 - MAX_VISIBLE && i < live.size(); ++i)
       dismiss(live[i]);
 
     // Browser toast variants: --danger for a failure, --accent for everything else.
@@ -90,7 +90,7 @@ namespace stencil::gui {
         "</tr></table>")
                        .arg(QString::fromLatin1(png.toBase64()), text.toHtmlEscaped()));
     // The plain message, for anything reading a toast back (the GUI tests).
-    toast->setProperty(kTextProperty, text);
+    toast->setProperty(TEXT_PROPERTY, text);
     toast->setObjectName("toast");
     // Browser .notify-toast padding less the 4px the rich-text document adds itself.
     toast->setStyleSheet(QString("QLabel#toast { background: %1; color: white; "
@@ -123,7 +123,7 @@ namespace stencil::gui {
     } else {
       fx->setOpacity(0.0);
       auto* fadeIn = new QPropertyAnimation(fx, "opacity", toast);
-      fadeIn->setDuration(kFadeInMs);
+      fadeIn->setDuration(FADE_IN_MS);
       fadeIn->setStartValue(0.0);
       fadeIn->setEndValue(1.0);
       fadeIn->setEasingCurve(QEasingCurve::OutCubic);
@@ -132,8 +132,8 @@ namespace stencil::gui {
       // Named so reflow() can retarget it: an entrance left pointing at the OLD slot would
       // drag a restacked toast back down there when it finished.
       riseIn->setObjectName("toastRise");
-      riseIn->setDuration(kFadeInMs + 80);
-      riseIn->setStartValue(rest.translated(0, kSlidePx));
+      riseIn->setDuration(FADE_IN_MS + 80);
+      riseIn->setStartValue(rest.translated(0, SLIDE_PX));
       riseIn->setEndValue(rest);
       riseIn->setEasingCurve(QEasingCurve::OutBack);
       riseIn->start(QAbstractAnimation::DeleteWhenStopped);
@@ -147,11 +147,11 @@ namespace stencil::gui {
     life->start(msec);
   }
 
-  // Oldest first; the ones already leaving are filtered out by kLeavingProperty.
+  // Oldest first; the ones already leaving are filtered out by LEAVING_PROPERTY.
   QList<QLabel*> Notifications::liveToasts() const {
     QList<QLabel*> live;
     for (const QPointer<QLabel>& t : stack_)
-      if (t && !t->property(kLeavingProperty).toBool()) live.push_back(t.data());
+      if (t && !t->property(LEAVING_PROPERTY).toBool()) live.push_back(t.data());
     return live;
   }
 }

@@ -20,8 +20,8 @@ namespace stencil::gui {
     if (idleHintHidden_) { unsetCursor(); return; }
     // The card alone is the click/cursor target, never the whole page.
     const QString label = QStringLiteral("＋ Blank image");
-    constexpr int kIconPx = 32;
-    constexpr qreal kGap = 6, kPadX = 26, kPadY = 16;
+    constexpr int ICON_PX = 32;
+    constexpr qreal GAP = 6, PAD_X = 26, PAD_Y = 16;
 
     QFont cardFont = p.font();
     cardFont.setPixelSize(13);
@@ -29,8 +29,8 @@ namespace stencil::gui {
     const qreal textW = fm.horizontalAdvance(label);
     const qreal textH = fm.height();
     const QRectF wr(rect());
-    QRectF box(0, 0, std::max<qreal>(kIconPx, textW) + kPadX * 2,
-               kIconPx + kGap + textH + kPadY * 2);
+    QRectF box(0, 0, std::max<qreal>(ICON_PX, textW) + PAD_X * 2,
+               ICON_PX + GAP + textH + PAD_Y * 2);
     // Never wider/taller than the canvas it sits in, so the dashed border stays whole.
     box.setWidth(std::min(box.width(), wr.width() - 32.0));
     box.setHeight(std::min(box.height(), wr.height() - 32.0));
@@ -52,11 +52,11 @@ namespace stencil::gui {
 
     // Drop shadow (0 8px 24px) as expanding rounded rects — QPainter has no blur. Lifted only.
     if (t > 0.01) {
-      constexpr int kLayers = 6;
-      for (int i = kLayers; i >= 1; --i) {
+      constexpr int LAYERS = 6;
+      for (int i = LAYERS; i >= 1; --i) {
         const double spread = i * 2.4;
         QColor sh(0, 0, 0);
-        sh.setAlphaF(0.05 * t * (1.0 - double(i) / (kLayers + 1)));
+        sh.setAlphaF(0.05 * t * (1.0 - double(i) / (LAYERS + 1)));
         p.setPen(Qt::NoPen);
         p.setBrush(sh);
         p.drawRoundedRect(box.adjusted(-spread, -spread + 8, spread, spread + 8),
@@ -93,22 +93,22 @@ namespace stencil::gui {
       p.restore();
     }
 
-    const QRectF content = box.adjusted(kPadX, kPadY, -kPadX, -kPadY);
-    // iconMotion.json "image", mode "settle", hand-evaluated (see the glyph note below); kIdleGlyph*
+    const QRectF content = box.adjusted(PAD_X, PAD_Y, -PAD_X, -PAD_Y);
+    // iconMotion.json "image", mode "settle", hand-evaluated (see the glyph note below); IDLE_GLYPH_*
     // mirror the canon, pinned by tests/idleCardMotion.headless.cpp. A settle finishes on leave: its end IS rest.
     const double gm = idleGlyphMs_;
     // The sun: keyframes 0 → −1.6, 70% → +0.3, 100% → 0 on the settle default (OutBack).
     const auto orbDy = [](double ms) {
-      const double local = ms - kIdleGlyphOrbDelayMs;
-      if (local <= 0) return kIdleGlyphOrbDrop;
-      const double pct = 100.0 * local / kIdleGlyphOrbMs;
+      const double local = ms - IDLE_GLYPH_ORB_DELAY_MS;
+      if (local <= 0) return IDLE_GLYPH_ORB_DROP;
+      const double pct = 100.0 * local / IDLE_GLYPH_ORB_MS;
       if (pct >= 100.0) return 0.0;
       const QEasingCurve ease(QEasingCurve::OutBack);   // iconMotion.json defaults.settle
       if (pct <= 70.0) {
         const double u = ease.valueForProgress(pct / 70.0);
-        return kIdleGlyphOrbDrop + (kIdleGlyphOrbOvershoot - kIdleGlyphOrbDrop) * u;
+        return IDLE_GLYPH_ORB_DROP + (IDLE_GLYPH_ORB_OVERSHOOT - IDLE_GLYPH_ORB_DROP) * u;
       }
-      return kIdleGlyphOrbOvershoot
+      return IDLE_GLYPH_ORB_OVERSHOOT
              * (1.0 - ease.valueForProgress((pct - 70.0) / 30.0));
     };
     // The ridge: stroke-dashoffset 23 → 0 is the polyline revealed from its start.
@@ -116,7 +116,7 @@ namespace stencil::gui {
       const QVector<QPointF> pts{{21, 15}, {16, 10}, {5, 21}};
       QPolygonF drawn;
       drawn << pts.first();
-      double left = std::max(0.0, frac) * kIdleGlyphRidgeLen;
+      double left = std::max(0.0, frac) * IDLE_GLYPH_RIDGE_LEN;
       for (int i = 1; i < pts.size() && left > 0.0; ++i) {
         const QPointF d = pts[i] - pts[i - 1];
         const double len = std::hypot(d.x(), d.y());
@@ -128,15 +128,15 @@ namespace stencil::gui {
     };
     // The glyph grows 1.12x and rises 2px with the hover, about its own centre.
     const double iconScale = 1.0 + 0.12 * t;
-    const QRectF iconBox(content.center().x() - kIconPx / 2.0,
-                         content.top() - 2.0 * t, kIconPx, kIconPx);
+    const QRectF iconBox(content.center().x() - ICON_PX / 2.0,
+                         content.top() - 2.0 * t, ICON_PX, ICON_PX);
     // Stroked inline rather than via support/iconSet (that would drag Qt6::Svg into the headless
     // targets). Same 0 0 24 24 geometry + 2px stroke as iconSet.cpp / icons.js; keep in sync.
     p.save();
     p.translate(iconBox.center());
     p.scale(iconScale, iconScale);
     p.translate(-iconBox.width() / 2.0, -iconBox.height() / 2.0);
-    p.scale(kIconPx / 24.0, kIconPx / 24.0);
+    p.scale(ICON_PX / 24.0, ICON_PX / 24.0);
     QPen glyph(ink, 2);
     glyph.setCapStyle(Qt::RoundCap);
     glyph.setJoinStyle(Qt::RoundJoin);
@@ -147,12 +147,12 @@ namespace stencil::gui {
     const double ridgeT = gm < 0 ? 1.0
                                  : QEasingCurve(QEasingCurve::OutCubic)
                                        .valueForProgress(
-                                           std::clamp(gm / kIdleGlyphRidgeMs, 0.0, 1.0));
+                                           std::clamp(gm / IDLE_GLYPH_RIDGE_MS, 0.0, 1.0));
     p.drawPolyline(ridgeUpTo(ridgeT));
     p.restore();
     p.setFont(cardFont);
     p.setPen(ink);
-    p.drawText(QRectF(content.left(), iconBox.bottom() + kGap, content.width(), textH),
+    p.drawText(QRectF(content.left(), iconBox.bottom() + GAP, content.width(), textH),
                Qt::AlignCenter, label);
   }
 

@@ -67,14 +67,14 @@ namespace stencil::gui {
 
   using namespace chatdock;
 
-  const char* const kChatStatusOkColor = "#2e9e4f";
-  const char* const kChatStatusBadColor = "#d6293e";
+  const char* const CHAT_STATUS_OK_COLOR = "#2e9e4f";
+  const char* const CHAT_STATUS_BAD_COLOR = "#d6293e";
 
   QToolButton* makeChatAccentButton(QWidget* parent, const QString& tooltip) {
     QToolButton* b = makeGhostButton(parent, tooltip);
     b->setProperty("chatAccent", true);
-    b->setFixedSize(kAccentEdge, kAccentEdge);
-    b->setIconSize(QSize(kAccentIcon, kAccentIcon));  // fill the button like the browser's
+    b->setFixedSize(ACCENT_EDGE, ACCENT_EDGE);
+    b->setIconSize(QSize(ACCENT_ICON, ACCENT_ICON));  // fill the button like the browser's
     return b;
   }
 
@@ -83,8 +83,8 @@ namespace stencil::gui {
                               ChatDock::ProviderStatus status,
                               const QPalette& pal) {
     const QString color =
-        status == ChatDock::ProviderStatus::Ok            ? QString(kChatStatusOkColor)
-        : status == ChatDock::ProviderStatus::Unreachable ? QString(kChatStatusBadColor)
+        status == ChatDock::ProviderStatus::Ok            ? QString(CHAT_STATUS_OK_COLOR)
+        : status == ChatDock::ProviderStatus::Unreachable ? QString(CHAT_STATUS_BAD_COLOR)
                                                           : pal.color(QPalette::Mid).name();
     // Badge on the gear's corner: filled dot + a subtle ring for legibility.
     dot->setStyleSheet(
@@ -133,7 +133,7 @@ namespace stencil::gui {
       Qt::DockWidgetArea area;
       const char* tip;
     };
-    static const Place kPlaces[] = {
+    static const Place PLACES[] = {
         {Qt::LeftDockWidgetArea, "Dock left — or drag the header to an edge"},
         {Qt::TopDockWidgetArea, "Dock top — or drag the header to an edge"},
         {Qt::BottomDockWidgetArea, "Dock bottom — or drag the header to an edge"},
@@ -143,7 +143,7 @@ namespace stencil::gui {
     auto* dockRow = new QHBoxLayout(dockGroup);
     dockRow->setContentsMargins(0, 0, 0, 0);
     dockRow->setSpacing(1);   // .chat-dock-btns gap: 1px
-    for (const Place& p : kPlaces) {
+    for (const Place& p : PLACES) {
       QToolButton* b = makeGhostButton(dockGroup, p.tip);
       const Qt::DockWidgetArea area = p.area;
       connect(b, &QToolButton::clicked, this, [this, area] { emit dockRequested(area); });
@@ -178,13 +178,13 @@ namespace stencil::gui {
     auto* flow = new FlowLayout(box, 2, 6, 6);
     // One string per chip (browser CHAT_SUGGESTIONS parity): what's written on
     // the button is exactly what lands in the input.
-    static const char* const kChips[] = {
+    static const char* const CHIPS[] = {
         "Make it sepia",
         "3 variants: rotated \xc2\xb7 tinted \xc2\xb7 cropped",
         "Extract the lines from this image",
         "Crop 10% off every edge, rotate right",
     };
-    for (const char* c : kChips) {
+    for (const char* c : CHIPS) {
       const QString text = QString::fromUtf8(c);
       auto* chip = new QPushButton(text, box);
       chip->setObjectName(QStringLiteral("chatSuggestChip"));
@@ -210,7 +210,7 @@ namespace stencil::gui {
             .arg(pal.accent.red())
             .arg(pal.accent.green())
             .arg(pal.accent.blue())
-            .arg(kSuggestChipRadius);
+            .arg(SUGGEST_CHIP_RADIUS);
     for (QPushButton* chip : chips->findChildren<QPushButton*>(QStringLiteral("chatSuggestChip")))
       chip->setStyleSheet(qss);
   }

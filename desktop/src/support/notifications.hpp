@@ -20,7 +20,7 @@ namespace stencil::gui {
     enum class Level { Info, Success, Error };
 
     // The browser shows ONE balloon; a fourth arrival retires the oldest early.
-    static constexpr int kMaxVisible = 3;
+    static constexpr int MAX_VISIBLE = 3;
 
     explicit Notifications(QWidget* host);
 

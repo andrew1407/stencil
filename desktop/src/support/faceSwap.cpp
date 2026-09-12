@@ -17,14 +17,14 @@ namespace stencil::gui {
   // flips across the pivot (+115° out, -115° in), which reads as one continuous turn.
   FaceSwapFrame faceSwapFrame(double t) {
     t = std::clamp(t, 0.0, 1.0);
-    if (t < kFaceSwapPivot) {
-      const double u = faceEaseInCubic(t / kFaceSwapPivot);
-      return {false, 1.0 - u, kFaceSwapTurnDeg * u,
-              1.0 - (1.0 - kFaceSwapMinScale) * u};
+    if (t < FACE_SWAP_PIVOT) {
+      const double u = faceEaseInCubic(t / FACE_SWAP_PIVOT);
+      return {false, 1.0 - u, FACE_SWAP_TURN_DEG * u,
+              1.0 - (1.0 - FACE_SWAP_MIN_SCALE) * u};
     }
-    const double u = faceEaseOutExpo((t - kFaceSwapPivot) / (1.0 - kFaceSwapPivot));
-    return {true, u, -kFaceSwapTurnDeg * (1.0 - u),
-            kFaceSwapMinScale + (1.0 - kFaceSwapMinScale) * u};
+    const double u = faceEaseOutExpo((t - FACE_SWAP_PIVOT) / (1.0 - FACE_SWAP_PIVOT));
+    return {true, u, -FACE_SWAP_TURN_DEG * (1.0 - u),
+            FACE_SWAP_MIN_SCALE + (1.0 - FACE_SWAP_MIN_SCALE) * u};
   }
 
   // `gap` px of transparent air on the right (FaceSpec::gapPx).
@@ -85,47 +85,47 @@ namespace stencil::gui {
                              .arg(color.green())
                              .arg(color.blue())
                              .arg(q, 0, 'f', 2);
-    const bool already = btn->property(kFaceSwappingProperty).toBool();
-    if (already && btn->property(kFaceLabelColorProperty).toString() == rgba) return;
-    btn->setProperty(kFaceLabelColorProperty, rgba);
-    btn->setProperty(kFaceSwappingProperty, true);
+    const bool already = btn->property(FACE_SWAPPING_PROPERTY).toBool();
+    if (already && btn->property(FACE_LABEL_COLOR_PROPERTY).toString() == rgba) return;
+    btn->setProperty(FACE_LABEL_COLOR_PROPERTY, rgba);
+    btn->setProperty(FACE_SWAPPING_PROPERTY, true);
     btn->setStyleSheet(
         QStringLiteral("QToolButton[%1=\"true\"],QToolButton[%1=\"true\"]:hover,"
                        "QToolButton[%1=\"true\"]:pressed,QToolButton[%1=\"true\"]:disabled,"
                        "QPushButton[%1=\"true\"],QPushButton[%1=\"true\"]:hover"
                        "{color:%2;}")
-            .arg(QString::fromLatin1(kFaceSwappingProperty), rgba));
+            .arg(QString::fromLatin1(FACE_SWAPPING_PROPERTY), rgba));
     // Qt matches property selectors at POLISH time.
     if (!already) repolish(btn);
   }
 
   void detail::clearLabelAlpha(QAbstractButton* btn) {
-    if (!btn->property(kFaceSwappingProperty).toBool()) return;
-    btn->setProperty(kFaceSwappingProperty, false);
-    btn->setProperty(kFaceLabelColorProperty, QString());
-    btn->setStyleSheet(btn->property(kFaceBaseSheetProperty).toString());
+    if (!btn->property(FACE_SWAPPING_PROPERTY).toBool()) return;
+    btn->setProperty(FACE_SWAPPING_PROPERTY, false);
+    btn->setProperty(FACE_LABEL_COLOR_PROPERTY, QString());
+    btn->setStyleSheet(btn->property(FACE_BASE_SHEET_PROPERTY).toString());
     repolish(btn);   // …and the frame that turns it off, for the same reason
   }
 
   void detail::rememberFace(QAbstractButton* btn, const FaceSpec& f) {
-    btn->setProperty(kFaceGlyphProperty, f.glyph);
-    btn->setProperty(kFaceLabelProperty, f.label);
-    btn->setProperty(kFaceGlyphColorProperty, f.glyphColor);
-    btn->setProperty(kFaceTextColorProperty, f.textColor);
-    btn->setProperty(kFaceIconSizeProperty, f.iconSize);
-    btn->setProperty(kFaceGapProperty, f.gapPx);
+    btn->setProperty(FACE_GLYPH_PROPERTY, f.glyph);
+    btn->setProperty(FACE_LABEL_PROPERTY, f.label);
+    btn->setProperty(FACE_GLYPH_COLOR_PROPERTY, f.glyphColor);
+    btn->setProperty(FACE_TEXT_COLOR_PROPERTY, f.textColor);
+    btn->setProperty(FACE_ICON_SIZE_PROPERTY, f.iconSize);
+    btn->setProperty(FACE_GAP_PROPERTY, f.gapPx);
   }
 
   // `known` is false the first time, when there is no face to leave from.
   FaceSpec detail::paintedFace(const QAbstractButton* btn, bool* known) {
     FaceSpec f;
-    f.glyph = btn->property(kFaceGlyphProperty).toString();
+    f.glyph = btn->property(FACE_GLYPH_PROPERTY).toString();
     *known = !f.glyph.isEmpty();
-    f.label = btn->property(kFaceLabelProperty).toString();
-    f.glyphColor = btn->property(kFaceGlyphColorProperty).value<QColor>();
-    f.textColor = btn->property(kFaceTextColorProperty).value<QColor>();
-    f.iconSize = btn->property(kFaceIconSizeProperty).toInt();
-    f.gapPx = btn->property(kFaceGapProperty).toInt();
+    f.label = btn->property(FACE_LABEL_PROPERTY).toString();
+    f.glyphColor = btn->property(FACE_GLYPH_COLOR_PROPERTY).value<QColor>();
+    f.textColor = btn->property(FACE_TEXT_COLOR_PROPERTY).value<QColor>();
+    f.iconSize = btn->property(FACE_ICON_SIZE_PROPERTY).toInt();
+    f.gapPx = btn->property(FACE_GAP_PROPERTY).toInt();
     return f;
   }
 

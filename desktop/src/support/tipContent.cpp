@@ -24,23 +24,23 @@ namespace stencil::gui {
 
     // Character for character the browser's (tipContent.js). Case-SENSITIVE on purpose:
     // "Delete every saved project" must not put a keycap on its verb.
-    const QString kMod = QStringLiteral("Ctrl|Control|Cmd|Command|Meta|Win|Alt|Option|Shift");
-    const QString kNamed = QStringLiteral(
+    const QString MOD = QStringLiteral("Ctrl|Control|Cmd|Command|Meta|Win|Alt|Option|Shift");
+    const QString NAMED = QStringLiteral(
         "Enter|Return|Escape|Esc|Tab|Space|Backspace|Delete|Del|Home|End|PageUp|PageDown"
         "|Arrow(?:Up|Down|Left|Right)|F\\d{1,2}");
     // The gesture word comes BEFORE the single character so "Alt+click" is not "Alt+c"+"lick".
-    // kKeyGlyph must cover what QKeySequence::NativeText emits on macOS (⎋ ⇥ ↵ ⌤ ⇞ ⇟ ↖ ↘ ⌦ ⌫).
-    const QString kKeyGlyph = QStringLiteral(
+    // KEY_GLYPH must cover what QKeySequence::NativeText emits on macOS (⎋ ⇥ ↵ ⌤ ⇞ ⇟ ↖ ↘ ⌦ ⌫).
+    const QString KEY_GLYPH = QStringLiteral(
         "[\u232B\u2326\u2191\u2193\u2190\u2192\u238B\u21E5\u21B5\u2324"
         "\u21DE\u21DF\u2196\u2198\u2423]");
     QString atom() {
-      return "(?:" + kNamed + "|" + kMod + "|[a-z][a-z-]{1,11}|[A-Za-z0-9]"
-             "|" + kKeyGlyph + "|[-+=\\[\\]/\\\\.,;'`])";
+      return "(?:" + NAMED + "|" + MOD + "|[a-z][a-z-]{1,11}|[A-Za-z0-9]"
+             "|" + KEY_GLYPH + "|[-+=\\[\\]/\\\\.,;'`])";
     }
-    const QString kEnd = QStringLiteral("(?![\\w-])");
-    QString chained() { return "(?:(?:" + kMod + ")\\+)+" + atom() + kEnd; }          // Ctrl+Shift+Z
-    QString glyphs() { return "[\u2303\u2325\u21E7\u2318]+" + atom() + kEnd; }        // ⇧⌘Z
-    const QString kKeyProse = QStringLiteral("(?:hold|press|hit|tap|with|then|or)\\s+");
+    const QString END = QStringLiteral("(?![\\w-])");
+    QString chained() { return "(?:(?:" + MOD + ")\\+)+" + atom() + END; }          // Ctrl+Shift+Z
+    QString glyphs() { return "[\u2303\u2325\u21E7\u2318]+" + atom() + END; }        // ⇧⌘Z
+    const QString KEY_PROSE = QStringLiteral("(?:hold|press|hit|tap|with|then|or)\\s+");
 
     // " · " lists alternatives, " — " splits term from description — NOT inside parentheses.
     QStringList dotParts(const QString& line) {
@@ -88,11 +88,11 @@ namespace stencil::gui {
     // On a Mac a modifier is DRAWN. Ctrl → ⌃, not ⌘: a spelled "Ctrl" is a literal Control key.
     QString macGlyphFor(const QString& key, bool mac) {
       if (!mac) return key;
-      static const QHash<QString, QString> kMap{
+      static const QHash<QString, QString> MAP{
           {"Ctrl", "\u2303"},  {"Control", "\u2303"},  {"Alt", "\u2325"},     {"Option", "\u2325"},
           {"Shift", "\u21E7"}, {"Cmd", "\u2318"},      {"Command", "\u2318"}, {"Meta", "\u2318"},
       };
-      return kMap.value(key, key);
+      return MAP.value(key, key);
     }
 
     // PAINTED as an <img> data URI: Qt rich text gives a span only a background.
@@ -155,7 +155,7 @@ namespace stencil::gui {
                                           "style=\"vertical-align: middle;\" "
                                           "src=\"data:image/png;base64,%5\">")
                                .arg(label.toHtmlEscaped())
-                               .arg(QLatin1String(joiner ? kJoinerClass : kKeycapClass))
+                               .arg(QLatin1String(joiner ? JOINER_CLASS : KEYCAP_CLASS))
                                .arg(qRound(w + 2 * gapX))
                                .arg(qRound(h))
                                .arg(QString::fromLatin1(png.toBase64()));
@@ -185,8 +185,8 @@ namespace stencil::gui {
     // Combos with "+" (or Apple glyphs) always count; a lone "Shift"/"Enter" only in a key
     // context ("hold Shift"), or the app's own verbs would wear keycaps.
     QString highlightKeys(const QString& text, const Palette& pal, bool mac) {
-      const QRegularExpression re("(" + kKeyProse + ")?(" + chained() + "|" + glyphs() + "|" +
-                                  kMod + "|" + kNamed + ")");
+      const QRegularExpression re("(" + KEY_PROSE + ")?(" + chained() + "|" + glyphs() + "|" +
+                                  MOD + "|" + NAMED + ")");
       const QRegularExpression whole("^(?:" + chained() + "|" + glyphs() + ")$");
       QString out;
       int last = 0;
@@ -210,8 +210,8 @@ namespace stencil::gui {
 
   bool isKeyCombo(const QString& s) {
     // A lone key glyph counts here — "Close (⎋)" — but NOT in running prose (highlightKeys).
-    const QRegularExpression re("^(?:" + chained() + "|" + glyphs() + "|" + kMod + "|" + kNamed +
-                                "|" + kKeyGlyph + ")$");
+    const QRegularExpression re("^(?:" + chained() + "|" + glyphs() + "|" + MOD + "|" + NAMED +
+                                "|" + KEY_GLYPH + ")$");
     return re.match(s.trimmed()).hasMatch();
   }
 
@@ -369,7 +369,7 @@ namespace stencil::gui {
     // The html carries LITERAL colours, so every enriched tooltip is rebuilt from its plain text.
     for (QWidget* w : QApplication::allWidgets()) {
       if (!w) continue;
-      const QVariant plain = w->property(kPlainTipProperty);
+      const QVariant plain = w->property(PLAIN_TIP_PROPERTY);
       if (!plain.isValid()) continue;
       const QString rich = renderTip(plain.toString(), g_pal);
       if (!rich.isEmpty()) w->setToolTip(rich);
@@ -377,12 +377,12 @@ namespace stencil::gui {
   }
 
   bool hasKeycaps(const QString& richText) {
-    return richText.contains(QLatin1String(kKeycapClass));
+    return richText.contains(QLatin1String(KEYCAP_CLASS));
   }
 
   QString blankKeycaps(const QString& richText) {
     static const QRegularExpression cap("(<img alt=\"[^\"]*\" class=\"" +
-                                        QString::fromLatin1(kKeycapClass) +
+                                        QString::fromLatin1(KEYCAP_CLASS) +
                                         "\"[^>]*base64,)[^\"]*(\">)");
     static const QString empty = [] {  // 1x1 transparent, drawn to whatever the box asks
       QImage img(1, 1, QImage::Format_ARGB32);
@@ -401,7 +401,7 @@ namespace stencil::gui {
   QString enrichedToolTip(const QString& plain, const QFont* font) {
     const QString t = plain.trimmed();
     if (t.isEmpty() || t.startsWith('<')) return {};  // empty, or already someone's own HTML
-    return renderTip(plain, g_pal, kOnMac, font);
+    return renderTip(plain, g_pal, ON_MAC, font);
   }
 
   // Composed control tooltips (browser utils.js composeControlTitle)
@@ -418,9 +418,9 @@ namespace stencil::gui {
 
     // Or, for a plain-tooltip control, that tooltip stripped of "(combo)" and "— reason" (browser data-title).
     QString tipBaseOf(QObject* t) {
-      const QVariant v = t->property(kTipBaseProperty);
+      const QVariant v = t->property(TIP_BASE_PROPERTY);
       if (v.isValid()) return v.toString();
-      QString base = t->property(kPlainTipProperty).toString();
+      QString base = t->property(PLAIN_TIP_PROPERTY).toString();
       if (base.isEmpty()) {
         if (auto* a = qobject_cast<QAction*>(t)) base = a->toolTip();
         else if (auto* w = qobject_cast<QWidget*>(t)) base = w->toolTip();
@@ -431,13 +431,13 @@ namespace stencil::gui {
       static const QRegularExpression paren("\\s*\\(([^()]*)\\)\\s*$");
       const auto m = paren.match(base);
       if (m.hasMatch() && isKeyCombo(m.captured(1))) base = base.left(m.capturedStart()).trimmed();
-      t->setProperty(kTipBaseProperty, base);
+      t->setProperty(TIP_BASE_PROPERTY, base);
       return base;
     }
 
     QString tipComboOf(QObject* t) {
       QAction* a = qobject_cast<QAction*>(t);
-      if (!a) a = qobject_cast<QAction*>(t->property(kTipHotkeyProperty).value<QObject*>());
+      if (!a) a = qobject_cast<QAction*>(t->property(TIP_HOTKEY_PROPERTY).value<QObject*>());
       return a ? a->shortcut().toString(QKeySequence::NativeText) : QString();
     }
 
@@ -453,9 +453,9 @@ namespace stencil::gui {
     };
 
     void wireControlTip(QObject* t) {
-      static constexpr const char* kWired = "stencilTipWired";
-      if (t->property(kWired).toBool()) return;
-      t->setProperty(kWired, true);
+      static constexpr const char* WIRED = "stencilTipWired";
+      if (t->property(WIRED).toBool()) return;
+      t->setProperty(WIRED, true);
       if (auto* a = qobject_cast<QAction*>(t))
         QObject::connect(a, &QAction::changed, a, [a] { syncControlTip(a); });
       else if (auto* w = qobject_cast<QWidget*>(t))
@@ -466,7 +466,7 @@ namespace stencil::gui {
 
   void setTipBase(QObject* target, const QString& base) {
     if (!target) return;
-    target->setProperty(kTipBaseProperty, base);
+    target->setProperty(TIP_BASE_PROPERTY, base);
     wireControlTip(target);
     syncControlTip(target);
   }
@@ -474,7 +474,7 @@ namespace stencil::gui {
   void setTipReason(QObject* target, const QString& reason) {
     if (!target) return;
     tipBaseOf(target);   // pin the heading before the note can land on the tooltip
-    target->setProperty(kTipReasonProperty, reason);
+    target->setProperty(TIP_REASON_PROPERTY, reason);
     wireControlTip(target);
     syncControlTip(target);
   }
@@ -482,7 +482,7 @@ namespace stencil::gui {
   void setTipHotkey(QWidget* target, QAction* hotkey) {
     if (!target) return;
     tipBaseOf(target);
-    target->setProperty(kTipHotkeyProperty, QVariant::fromValue<QObject*>(hotkey));
+    target->setProperty(TIP_HOTKEY_PROPERTY, QVariant::fromValue<QObject*>(hotkey));
     wireControlTip(target);
     if (hotkey) {
       QPointer<QWidget> w(target);
@@ -493,8 +493,8 @@ namespace stencil::gui {
 
   void syncControlTip(QObject* target) {
     if (!target) return;
-    if (!target->property(kTipBaseProperty).isValid()) return;
-    const QString reason = target->property(kTipReasonProperty).toString();
+    if (!target->property(TIP_BASE_PROPERTY).isValid()) return;
+    const QString reason = target->property(TIP_REASON_PROPERTY).toString();
     QString tip;
     if (auto* a = qobject_cast<QAction*>(target)) {
       tip = composeControlTitle(tipBaseOf(a), tipComboOf(a), !a->isEnabled(), reason);
@@ -505,7 +505,7 @@ namespace stencil::gui {
     if (!w) return;
     tip = composeControlTitle(tipBaseOf(w), tipComboOf(w), !w->isEnabled(), reason);
     // The live tooltip may already be the RENDERED form of this text; compare against the plain.
-    if (w->property(kPlainTipProperty).toString() == tip || w->toolTip() == tip) return;
+    if (w->property(PLAIN_TIP_PROPERTY).toString() == tip || w->toolTip() == tip) return;
     w->setToolTip(tip);
   }
 

@@ -679,10 +679,10 @@ namespace stencil::gui {
     void beginFullscreenZoom();
     void startFullscreenZoom();
     // The browser's --coord-panel-default (css/layout.css).
-    static constexpr int kPanelDefaultWidth = 405;
+    static constexpr int PANEL_DEFAULT_WIDTH = 405;
     // The coordinate columns elide below this; browser .coordinates-panel has the same floor.
-    static constexpr int kPanelMinWidth = 240;
-    int panelRestoreWidth_ = kPanelDefaultWidth;
+    static constexpr int PANEL_MIN_WIDTH = 240;
+    int panelRestoreWidth_ = PANEL_DEFAULT_WIDTH;
     QVariantAnimation* panelAnim_ = nullptr;
     QVariantAnimation* chatAnim_ = nullptr;
     int chatRestoreExtent_ = 0;

@@ -45,7 +45,7 @@ namespace stencil::support {
   // Idempotent — every MainWindow calls it, and only the first one takes.
   void installDialogReveal();
 
-  inline constexpr const char* kNoDialogRevealProperty = "stencilNoDialogReveal";
+  inline constexpr const char* NO_DIALOG_REVEAL_PROPERTY = "stencilNoDialogReveal";
 
   // Click-outside dismissal (browser ui/base.js). Qt hands a modal's blocked windows
   // nothing, so this watches the press before QApplication drops it. Idempotent.
@@ -57,11 +57,11 @@ namespace stencil::support {
   // Written to the file named by STENCIL_MODAL_LOG; stderr is unreadable under LaunchServices.
   void modalDismissLog(const QString& line);
 
-  inline constexpr const char* kNoOutsideDismissProperty = "stencilNoOutsideDismiss";
+  inline constexpr const char* NO_OUTSIDE_DISMISS_PROPERTY = "stencilNoOutsideDismiss";
 
-  // The SAME ceiling as DisintegrateOverlay::kSurfaceMaxCells and the browser's
+  // The SAME ceiling as DisintegrateOverlay::SURFACE_MAX_CELLS and the browser's
   // SURFACE_COLS * SURFACE_ROWS = 46 * 30 (modalReveal.cpp static_asserts it).
-  inline constexpr int kDialogDustMaxCells = 46 * 30;
+  inline constexpr int DIALOG_DUST_MAX_CELLS = 46 * 30;
 
 
 }  // namespace stencil::support

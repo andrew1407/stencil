@@ -50,12 +50,12 @@ namespace stencil::gui {
     panelReopenBtn_ = new QToolButton(this);
     panelReopenBtn_->setCursor(Qt::PointingHandCursor);
     panelReopenBtn_->setFocusPolicy(Qt::NoFocus);   // ditto: no focus halo over the canvas
-    panelReopenBtn_->setFixedSize(kPanelToggleBox, kPanelToggleBox);   // same rounded square as the panel-header chevron
-    panelReopenBtn_->setIconSize(QSize(kPanelToggleGlyph, kPanelToggleGlyph));
+    panelReopenBtn_->setFixedSize(PANEL_TOGGLE_BOX, PANEL_TOGGLE_BOX);   // same rounded square as the panel-header chevron
+    panelReopenBtn_->setIconSize(QSize(PANEL_TOGGLE_GLYPH, PANEL_TOGGLE_GLYPH));
     panelReopenBtn_->setToolTip(QString("Show panel (%1)").arg(hotkey("togglePointsList", "Alt+X")));
     panelReopenBtn_->setStyleSheet(panelToggleQss());
     // Its angle is STATE — no icon-motion on hover.
-    panelReopenBtn_->setProperty(kNoIconMotionProperty, true);
+    panelReopenBtn_->setProperty(NO_ICON_MOTION_PROPERTY, true);
     connect(panelReopenBtn_, &QToolButton::clicked, this,
             [this] { if (actPanel_) actPanel_->setChecked(true); });
     panelReopenBtn_->hide();
@@ -91,14 +91,14 @@ namespace stencil::gui {
       return;
     }
     const QRect pr = selPanel_->geometry();
-    constexpr int kSepW = kDockSeparatorPx;   // the QSS QMainWindow::separator width
+    constexpr int SEP_W = DOCK_SEPARATOR_PX;   // the QSS QMainWindow::separator width
     panelGrip_->setGeometry(area == Qt::LeftDockWidgetArea
-                                ? QRect(pr.right() + 1, pr.top(), kSepW, pr.height())
-                                : QRect(pr.left() - kSepW, pr.top(), kSepW, pr.height()));
+                                ? QRect(pr.right() + 1, pr.top(), SEP_W, pr.height())
+                                : QRect(pr.left() - SEP_W, pr.top(), SEP_W, pr.height()));
     panelGrip_->raise();
   }
 
-  // Horizontal separators are a hairline, so the band is drawn to kMinThickness while the hit rect stays Qt's strip.
+  // Horizontal separators are a hairline, so the band is drawn to MIN_THICKNESS while the hit rect stays Qt's strip.
   void MainWindow::positionChatEdge() {
     if (!chatEdge_ || !chatDock_) return;
     const bool on = chatDock_->isVisible() && !chatDock_->isFloating() && !fs_.active;
@@ -111,17 +111,17 @@ namespace stencil::gui {
     }
     const QRect r = chatDock_->geometry();
     const Qt::DockWidgetArea area = dockWidgetArea(chatDock_);
-    constexpr int kSepW = kDockSeparatorPx;   // QSS QMainWindow::separator width
-    constexpr int kSepH = 1;                  // …and its height (theme.cpp)
+    constexpr int SEP_W = DOCK_SEPARATOR_PX;   // QSS QMainWindow::separator width
+    constexpr int SEP_H = 1;                  // …and its height (theme.cpp)
     switch (area) {
-      case Qt::LeftDockWidgetArea:   chatEdgeHit_ = QRect(r.right() + 1, r.top(), kSepW, r.height()); break;
-      case Qt::RightDockWidgetArea:  chatEdgeHit_ = QRect(r.left() - kSepW, r.top(), kSepW, r.height()); break;
-      case Qt::TopDockWidgetArea:    chatEdgeHit_ = QRect(r.left(), r.bottom() + 1, r.width(), kSepH); break;
-      case Qt::BottomDockWidgetArea: chatEdgeHit_ = QRect(r.left(), r.top() - kSepH, r.width(), kSepH); break;
+      case Qt::LeftDockWidgetArea:   chatEdgeHit_ = QRect(r.right() + 1, r.top(), SEP_W, r.height()); break;
+      case Qt::RightDockWidgetArea:  chatEdgeHit_ = QRect(r.left() - SEP_W, r.top(), SEP_W, r.height()); break;
+      case Qt::TopDockWidgetArea:    chatEdgeHit_ = QRect(r.left(), r.bottom() + 1, r.width(), SEP_H); break;
+      case Qt::BottomDockWidgetArea: chatEdgeHit_ = QRect(r.left(), r.top() - SEP_H, r.width(), SEP_H); break;
       default: chatEdgeHit_ = QRect(); chatEdge_->hide(); return;
     }
     QRect band = chatEdgeHit_;
-    const int grow = DockEdgeOverlay::kMinThickness;
+    const int grow = DockEdgeOverlay::MIN_THICKNESS;
     if (band.height() < grow && band.width() > band.height())
       band.adjust(0, -(grow - band.height()) / 2, 0, (grow - band.height() + 1) / 2);
     else if (band.width() < grow && band.height() > band.width())

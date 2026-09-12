@@ -67,7 +67,7 @@ class MainWindowGuiTest : public QObject {
     win.chatDock_->appendUser(QStringLiteral("hi"), {});
     win.chatDock_->appendAssistant(QStringLiteral("hello"));
     // The entrance holds each card's opacity effect and drops the claim when it lands
-    // (kEnteringProperty), so that IS the slide's own completion flag.
+    // (ENTERING_PROPERTY), so that IS the slide's own completion flag.
     QTRY_VERIFY(noneEntering(win.chatDock_));
     // A short bubble's width can still settle over a couple of extra layout
     // passes after the wait above (viewport/scrollbar interplay in
@@ -345,10 +345,10 @@ class MainWindowGuiTest : public QObject {
     // holds them back for the scatter's length, so this has to be a TRY).
     QTRY_VERIFY2_WITH_TIMEOUT(!dockChips->isHidden(),
                               "the dock's chips did not come back after Clear",
-                              stencil::gui::DisintegrateOverlay::kMs + 3000);
+                              stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
     QTRY_VERIFY2_WITH_TIMEOUT(!menuChips->isHidden(),
                               "the menu's chips did not come back after Clear",
-                              stencil::gui::DisintegrateOverlay::kMs + 3000);
+                              stencil::gui::DisintegrateOverlay::DUST_MS + 3000);
     QCOMPARE(menuChips->findChildren<QPushButton*>("chatSuggestChip").size(), 4);
 
     win.llmClient_.reset();

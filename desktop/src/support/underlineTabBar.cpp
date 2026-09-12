@@ -14,7 +14,7 @@ namespace stencil::gui {
     // hovered TAB over the strip's own overlay (external-band mode).
     sweep_ = new ShimmerOverlay(this, nullptr, /*externalBands=*/true);
     slide_ = new QVariantAnimation(this);
-    slide_->setDuration(kSlideMs);
+    slide_->setDuration(SLIDE_MS);
     slide_->setEasingCurve(QEasingCurve::OutCubic);
     QObject::connect(slide_, &QVariantAnimation::valueChanged, this,
                      [this](const QVariant& v) {
@@ -45,9 +45,9 @@ namespace stencil::gui {
 
   QSize UnderlineTabBar::tabSizeHint(int index) const {
     const QFontMetrics fm(tabFont());
-    int w = kPadX * 2 + fm.horizontalAdvance(tabText(index));
-    if (!glyphs_.value(index).isEmpty()) w += kGlyph + kGap;
-    const int h = kPadY * 2 + std::max(fm.height(), int(kGlyph)) + kUnderline;
+    int w = PAD_X * 2 + fm.horizontalAdvance(tabText(index));
+    if (!glyphs_.value(index).isEmpty()) w += GLYPH + GAP;
+    const int h = PAD_Y * 2 + std::max(fm.height(), int(GLYPH)) + UNDERLINE;
     return QSize(w, h);
   }
 
@@ -98,21 +98,21 @@ namespace stencil::gui {
       }
       const QColor base = i == currentIndex() ? accent : muted;
       const QColor c = mix(base, QColor(Qt::white), u);
-      int x = r.x() + kPadX;
-      const int contentH = r.height() - kUnderline;
+      int x = r.x() + PAD_X;
+      const int contentH = r.height() - UNDERLINE;
       const QString glyph = glyphs_.value(i);
       if (!glyph.isEmpty()) {
-        const int gy = r.y() + (contentH - kGlyph) / 2;
+        const int gy = r.y() + (contentH - GLYPH) / 2;
         // Cross-fade the two endpoint rasters: themedIcon caches each colour forever, and
         // a hover fade minted ~one per tick.
-        p.drawPixmap(x, gy, themedIcon(glyph, base, kGlyph).pixmap(kGlyph, kGlyph));
+        p.drawPixmap(x, gy, themedIcon(glyph, base, GLYPH).pixmap(GLYPH, GLYPH));
         if (u > 0.001) {
           p.setOpacity(u);
           p.drawPixmap(x, gy,
-                       themedIcon(glyph, QColor(Qt::white), kGlyph).pixmap(kGlyph, kGlyph));
+                       themedIcon(glyph, QColor(Qt::white), GLYPH).pixmap(GLYPH, GLYPH));
           p.setOpacity(1.0);
         }
-        x += kGlyph + kGap;
+        x += GLYPH + GAP;
       }
       p.setPen(c);
       p.drawText(QRect(x, r.y(), r.right() - x + 1, contentH),
@@ -145,7 +145,7 @@ namespace stencil::gui {
   QRectF UnderlineTabBar::underlineRect(int i) const {
     if (i < 0 || i >= count()) return QRectF();
     const QRect r = tabRect(i);
-    return QRectF(r.x(), height() - kUnderline, r.width(), kUnderline);
+    return QRectF(r.x(), height() - UNDERLINE, r.width(), UNDERLINE);
   }
 
   // One eased clock per tab, towards hovered (1) or rest (0).
@@ -167,7 +167,7 @@ namespace stencil::gui {
     QVariantAnimation*& a = hoverAnims_[i];
     if (!a) {
       a = new QVariantAnimation(this);
-      a->setDuration(kHoverMs);
+      a->setDuration(HOVER_MS);
       a->setEasingCurve(QEasingCurve::OutCubic);
       QObject::connect(a, &QVariantAnimation::valueChanged, this,
                        [this, i](const QVariant& v) {

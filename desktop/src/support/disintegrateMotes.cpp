@@ -11,7 +11,7 @@ namespace stencil::gui {
     // Top row first. The sweep is a fifth of the span plus the tile's jitter (browser twin).
     const double progress = rows_ > 1 ? double(cy) / (rows_ - 1) : 0.0;
     const double delay = progress * 0.2 + n * (60.0 / 900.0);
-    const double flight = std::max(double(kMinTileMs) / std::max(1, ms_), 1.0 - delay);
+    const double flight = std::max(double(MIN_TILE_MS) / std::max(1, ms_), 1.0 - delay);
     const double t = (t_ - delay) / flight;
     if (t <= 0.0) return false;
     *out = Mote{};
@@ -24,11 +24,11 @@ namespace stencil::gui {
     const double w = cellNoise(cx + 13, cy + 71);
     const QPointF far = home + QPointF(tx, ty);
     const QPointF bend = home + waypointOf(tx, ty, q);
-    out->at = legAt(t, kRowSplit, rowLegEase(), rowEase(), home, bend, far) + turbulenceAt(t, tx, ty, w);
+    out->at = legAt(t, ROW_SPLIT, rowLegEase(), rowEase(), home, bend, far) + turbulenceAt(t, tx, ty, w);
     // tileScatter's scale: 1 at home, 0.3..0.6 out there, halfway at the bend.
     const double farScale = 0.3 + n * 0.3;
     out->radius = moteRadius(cw, ch, n)
-        * legScalar(t, kRowSplit, rowLegEase(), rowEase(), 1.0, 1.0 - (1.0 - farScale) * 0.5, farScale);
+        * legScalar(t, ROW_SPLIT, rowLegEase(), rowEase(), 1.0, 1.0 - (1.0 - farScale) * 0.5, farScale);
     finishGrain(out, cell.alphaF() * (0.78 + n * 0.22) * scatterAlpha(t), glintAt(cx, cy), w,
                 tintAt(cx, cy), t, t, tx, ty, false, far);
     return true;
@@ -106,9 +106,9 @@ namespace stencil::gui {
     // The whole cloud's alpha (browser dustHostOut / dustHostIn): IN holds, then fades
     // under the window's fade-up; OUT waits for the window to begin cutting out.
     const double host = gather
-        ? (t_ < kDustHold ? 1.0
-           : std::max(0.0, 1.0 - (t_ - kDustHold) / ((1.0 - kDustHold) * kSurfaceMoteFadeFrac)))
-        : std::clamp((t_ - kSurfaceScatterSplit * kSurfaceMoteRiseDelay) / kSurfaceScatterSplit,
+        ? (t_ < DUST_HOLD ? 1.0
+           : std::max(0.0, 1.0 - (t_ - DUST_HOLD) / ((1.0 - DUST_HOLD) * SURFACE_MOTE_FADE_FRAC)))
+        : std::clamp((t_ - SURFACE_SCATTER_SPLIT * SURFACE_MOTE_RISE_DELAY) / SURFACE_SCATTER_SPLIT,
                      0.0, 1.0);
     if (gather && t >= 1.0) {
       out->at = home;
@@ -122,8 +122,8 @@ namespace stencil::gui {
     const double alpha = host * (gather ? (t < 0.45 ? 0.55 + 0.45 * (t / 0.45) : 1.0)
                                         : (t < 0.5 ? 1.0 - t * 0.3
                                                    : std::max(0.0, 0.85 * (1.0 - (t - 0.5) / 0.32))));
-    const double tx = toX + (m - 0.5) * kSurfaceSpreadPx;
-    const double ty = toY + (n - 0.5) * kSurfaceSpreadPx;
+    const double tx = toX + (m - 0.5) * SURFACE_SPREAD_PX;
+    const double ty = toY + (n - 0.5) * SURFACE_SPREAD_PX;
     // Two legs (the browser's mid keyframe): most of the distance goes early.
     const double w = cellNoise(cx + 13, cy + 71);
     const QPointF point = home + QPointF(tx, ty);
@@ -132,13 +132,13 @@ namespace stencil::gui {
     const double farScale = 0.12 + n * 0.25;
     const double midScale = 1.0 - (1.0 - farScale) * 0.5;
     if (gather) {
-      out->at = legAt(t, kSurfaceGatherSplit, surfaceLegEase(), surfaceEase(), point, bend, home) + wobble;
+      out->at = legAt(t, SURFACE_GATHER_SPLIT, surfaceLegEase(), surfaceEase(), point, bend, home) + wobble;
       out->radius = moteRadius(cw, ch, n)
-          * legScalar(t, kSurfaceGatherSplit, surfaceLegEase(), surfaceEase(), farScale, midScale, 1.0);
+          * legScalar(t, SURFACE_GATHER_SPLIT, surfaceLegEase(), surfaceEase(), farScale, midScale, 1.0);
     } else {
-      out->at = legAt(t, kSurfaceScatterSplit, surfaceLegEase(), surfaceEase(), home, bend, point) + wobble;
+      out->at = legAt(t, SURFACE_SCATTER_SPLIT, surfaceLegEase(), surfaceEase(), home, bend, point) + wobble;
       out->radius = moteRadius(cw, ch, n)
-          * legScalar(t, kSurfaceScatterSplit, surfaceLegEase(), surfaceEase(), 1.0, midScale, farScale);
+          * legScalar(t, SURFACE_SCATTER_SPLIT, surfaceLegEase(), surfaceEase(), 1.0, midScale, farScale);
     }
     finishGrain(out, cell.alphaF() * alpha * (0.78 + n * 0.22), glintAt(cx, cy), w,
                 tintAt(cx, cy), t, gather ? 1.0 - t : t, tx, ty, gather, gather ? home : point);

@@ -51,7 +51,7 @@ namespace {
 TEST_SUITE("bench") {
 
   // ── Deeply nested formulas ─────────────────────────────────────────────────
-  // kMaxDepth = 256 bounds recursion, not its COST — and formulas arrive from untrusted
+  // MAX_DEPTH = 256 bounds recursion, not its COST — and formulas arrive from untrusted
   // layout JSON, the console and --formula. Against a flat expression of the same token
   // count, depth must cost only a constant factor over width.
   TEST_CASE("bench: formulaParser deep nesting stays bounded" * doctest::skip()) {

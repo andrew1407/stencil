@@ -8,7 +8,7 @@
 namespace stencil::core {
 
   namespace {
-    constexpr double kCmPerInch = 2.54;  // mirrors CM_PER_INCH in browser/js/utils.js
+    constexpr double CM_PER_INCH = 2.54;  // mirrors CM_PER_INCH in browser/js/utils.js
   }  // namespace
 
   // Hand-rolled /^(-)?\s*(\d*\.?\d+)\s*(px|cm|mm|in|%)?$/ — no <regex> in the wasm build.
@@ -59,7 +59,7 @@ namespace stencil::core {
       t.value = value / 10.0;
     } else if (unit == "in") {
       t.kind = LengthKind::Cm;
-      t.value = value * kCmPerInch;
+      t.value = value * CM_PER_INCH;
     } else if (unit == "px") {
       t.kind = LengthKind::Px;
       t.value = value;

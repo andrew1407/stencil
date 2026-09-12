@@ -33,7 +33,7 @@ namespace stencil::gui {
   void ChatMenuPanel::setBusy(bool on) {
     busy_ = on;
     updateSendEnabled();
-    send_->setIcon(themedIcon(on ? "stop" : "send", paletteCache_.onAccent, kMenuChatIcon));
+    send_->setIcon(themedIcon(on ? "stop" : "send", paletteCache_.onAccent, MENU_CHAT_ICON));
     send_->setToolTip(on ? QStringLiteral("Stop the response")
                          : QString());
     attach_->setEnabled(!on);  // frozen mid-turn, exactly like the dock's
@@ -70,9 +70,9 @@ namespace stencil::gui {
         + chatCardStyleSheet(pal, chatSwapSides_));
     // The accent's own line-art ink on the accent fill — identical to the dock's.
     const QColor onAccent = pal.onAccent;
-    send_->setIcon(themedIcon(busy_ ? "stop" : "send", onAccent, kMenuChatIcon));
-    attach_->setIcon(themedIcon("image", onAccent, kMenuChatIcon));
-    gear_->setIcon(themedIcon("gear", onAccent, kMenuChatIcon));
+    send_->setIcon(themedIcon(busy_ ? "stop" : "send", onAccent, MENU_CHAT_ICON));
+    attach_->setIcon(themedIcon("image", onAccent, MENU_CHAT_ICON));
+    gear_->setIcon(themedIcon("gear", onAccent, MENU_CHAT_ICON));
     splitter_->setPillColors(pal.borderMain, pal.accent);
     styleSuggestionChips(suggest_, pal);
   }

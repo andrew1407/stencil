@@ -50,7 +50,7 @@ namespace stencil::gui {
             list_->viewport(),
             list_->visualItemRect(row).intersected(list_->viewport()->rect()),
             this, DisintegrateOverlay::Sweep::Rows, /*dust=*/true,
-            DisintegrateOverlay::kDustMaxCells, DisintegrateOverlay::kMs,
+            DisintegrateOverlay::DUST_MAX_CELLS, DisintegrateOverlay::DUST_MS,
             list_->palette().color(QPalette::Text));   // lifted to the row's ink
         retireRow(row);  // blank the real row at once — the snapshot is what flies
         updateBatchBar();   // …and it leaves the checked set with its own dust, not after it

@@ -18,12 +18,12 @@
 using stencil::gui::FaceSpec;
 using stencil::gui::faceSwapFrame;
 using stencil::gui::faceSwapping;
-using stencil::gui::kFaceGlyphProperty;
-using stencil::gui::kFaceSwapMinScale;
-using stencil::gui::kFaceSwapMs;
-using stencil::gui::kFaceSwapPivot;
-using stencil::gui::kFaceSwappingProperty;
-using stencil::gui::kFaceSwapTurnDeg;
+using stencil::gui::FACE_GLYPH_PROPERTY;
+using stencil::gui::FACE_SWAP_MIN_SCALE;
+using stencil::gui::FACE_SWAP_MS;
+using stencil::gui::FACE_SWAP_PIVOT;
+using stencil::gui::FACE_SWAPPING_PROPERTY;
+using stencil::gui::FACE_SWAP_TURN_DEG;
 using stencil::gui::swapFace;
 
 #include "support/check.hpp"
@@ -71,17 +71,17 @@ int main(int argc, char** argv) {
   const auto end = faceSwapFrame(1.0);
   check(end.incoming && near(end.alpha, 1.0) && near(end.deg, 0.0) && near(end.scale, 1.0),
         "t=1 is the NEW face at rest — the motion ends where the button lives");
-  const auto lastOut = faceSwapFrame(kFaceSwapPivot - 1e-6);
-  const auto firstIn = faceSwapFrame(kFaceSwapPivot);
+  const auto lastOut = faceSwapFrame(FACE_SWAP_PIVOT - 1e-6);
+  const auto firstIn = faceSwapFrame(FACE_SWAP_PIVOT);
   check(lastOut.alpha < 0.01 && firstIn.alpha < 0.01,
         "the pivot is invisible — which is what hides the exchange (and the fill flip)");
   check(lastOut.deg > 0.0 && firstIn.deg < 0.0,
         "the turn REVERSES across the pivot: out at +115°, in from -115°, one continuous turn");
-  check(near(std::fabs(firstIn.deg), kFaceSwapTurnDeg)
-            && near(firstIn.scale, kFaceSwapMinScale),
+  check(near(std::fabs(firstIn.deg), FACE_SWAP_TURN_DEG)
+            && near(firstIn.scale, FACE_SWAP_MIN_SCALE),
         "the arriving glyph starts a full quarter-turn back and small (browser swapGlyphIn)");
   check(faceSwapFrame(0.02).alpha > faceSwapFrame(0.2).alpha
-            && faceSwapFrame(0.2).alpha > faceSwapFrame(kFaceSwapPivot * 0.99).alpha,
+            && faceSwapFrame(0.2).alpha > faceSwapFrame(FACE_SWAP_PIVOT * 0.99).alpha,
         "the old face fades monotonically on its way out");
   check(faceSwapFrame(0.6).alpha < faceSwapFrame(0.8).alpha
             && faceSwapFrame(0.8).alpha < faceSwapFrame(0.99).alpha,
@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
         "the first face is painted at once");
   check(!faceSwapping(btn), "…with no animation to wait on");
   check(applied == 1, "the caller's state flip still ran");
-  check(btn->property(kFaceGlyphProperty).toString() == QLatin1String("play"),
+  check(btn->property(FACE_GLYPH_PROPERTY).toString() == QLatin1String("play"),
         "the painted face is remembered — setDefaultAction cannot be trusted to hold it");
 
   // A real swap: the OLD word is still up on the first frame, and the exchange happens
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
   check(btn->text() == QLatin1String("Start"),
         "the outgoing word is still the old one as the turn begins");
   check(applied == 1, "the state flip waits for the pivot, where the face is invisible");
-  check(btn->property(kFaceSwappingProperty).toBool(),
+  check(btn->property(FACE_SWAPPING_PROPERTY).toBool(),
         "the label fade owns the button's colour while it runs");
   check(pumpUntil([&applied] { return applied == 2; }),
         "…and runs at the pivot, before the swap has finished");
@@ -123,9 +123,9 @@ int main(int argc, char** argv) {
         "…which is mid-flight, not at the end");
   check(pumpUntil([btn] { return !faceSwapping(btn); }), "the animation converges and stops");
   check(btn->text() == QLatin1String("Stop"), "the button ends on the face it was asked for");
-  check(btn->property(kFaceGlyphProperty).toString() == QLatin1String("stop"),
+  check(btn->property(FACE_GLYPH_PROPERTY).toString() == QLatin1String("stop"),
         "…glyph included");
-  check(!btn->property(kFaceSwappingProperty).toBool() && btn->styleSheet().isEmpty(),
+  check(!btn->property(FACE_SWAPPING_PROPERTY).toBool() && btn->styleSheet().isEmpty(),
         "nothing of the fade survives: the button gets its own stylesheet back");
   check(applied == 2, "the state flip ran exactly once for the swap");
 
@@ -158,7 +158,7 @@ int main(int argc, char** argv) {
   // the button and shove the toolbar row sideways.
   const QSize box(18, 18);
   swapFace(btn, face("play", "Start", accent));
-  pumpFor(kFaceSwapMs / 3);
+  pumpFor(FACE_SWAP_MS / 3);
   check(btn->icon().actualSize(box).width() <= box.width()
             && btn->icon().actualSize(box).height() <= box.height(),
         "a mid-turn glyph stays inside the icon box — no resize under the cursor");
@@ -175,15 +175,15 @@ int main(int argc, char** argv) {
     state = toStop ? "Stop" : "Start";
     swapFace(btn, face(toStop ? "stop" : "play", state, toStop ? QColor(Qt::white) : accent),
              [&flips] { ++flips; });
-    pumpFor(kFaceSwapMs / 6);   // each toggle interrupts the one before it
+    pumpFor(FACE_SWAP_MS / 6);   // each toggle interrupts the one before it
   }
   check(pumpUntil([btn] { return !faceSwapping(btn); }),
         "a burst of toggles leaves no animation running");
   check(btn->text() == state, "…and the button shows the state the last toggle asked for");
-  check(btn->property(kFaceGlyphProperty).toString() == QLatin1String("stop"),
+  check(btn->property(FACE_GLYPH_PROPERTY).toString() == QLatin1String("stop"),
         "…with that state's glyph");
   check(flips >= 1, "the surviving swap's state flip ran");
-  check(!btn->property(kFaceSwappingProperty).toBool() && btn->styleSheet().isEmpty(),
+  check(!btn->property(FACE_SWAPPING_PROPERTY).toBool() && btn->styleSheet().isEmpty(),
         "…and the colour override is cleared, however many were interrupted");
 
   // Reduced motion: the end state at once, still exactly one state flip.

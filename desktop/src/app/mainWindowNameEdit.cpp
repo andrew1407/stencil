@@ -34,12 +34,12 @@ namespace stencil::gui {
 
   // Qt has no `visibility: hidden` — a hidden widget leaves its layout; an opacity effect paints it out while it keeps its slot.
   void MainWindow::setPaintedOut(QWidget* w, bool out) {
-    static constexpr const char* kStateProp = "stencilPaintedOut";
+    static constexpr const char* STATE_PROP = "stencilPaintedOut";
     if (!w) return;
     // The LOGICAL state lives in a property: a veil mid-flight reads as "half out" and desynced the transitions.
-    const QVariant prev = w->property(kStateProp);
+    const QVariant prev = w->property(STATE_PROP);
     const bool changed = !prev.isValid() || prev.toBool() != out;
-    w->setProperty(kStateProp, out);
+    w->setProperty(STATE_PROP, out);
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(w->graphicsEffect());
     // Same state again: touch nothing, or an unrelated refresh snaps a forming veil to its end value.
     if (!changed && fx) return;

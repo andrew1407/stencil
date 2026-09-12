@@ -67,8 +67,8 @@ namespace stencil::gui {
     std::sort(recents.begin(), recents.end(), [](const Project& a, const Project& b) {
       return a.meta.updatedAt > b.meta.updatedAt;
     });
-    constexpr std::size_t kMaxRecents = 8;
-    if (recents.size() > kMaxRecents) recents.resize(kMaxRecents);
+    constexpr std::size_t MAX_RECENTS = 8;
+    if (recents.size() > MAX_RECENTS) recents.resize(MAX_RECENTS);
     if (!recents.empty()) {
       sDockMenu_->addSeparator();
       for (const auto& pr : recents) {

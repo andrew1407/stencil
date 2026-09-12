@@ -80,8 +80,8 @@ namespace stencil::gui {
       // A surface is never cut cell by cell (a blocky staircase): it fades up behind
       // the motes (browser surfaceForm) or cuts out over its first beat (surfaceLeave).
       const double fade = sweep_ == Sweep::SurfaceIn
-          ? (t_ < kDustHold ? 0.0 : (t_ - kDustHold) / (1.0 - kDustHold))
-          : std::max(0.0, 1.0 - t_ / kSurfaceScatterSplit);
+          ? (t_ < DUST_HOLD ? 0.0 : (t_ - DUST_HOLD) / (1.0 - DUST_HOLD))
+          : std::max(0.0, 1.0 - t_ / SURFACE_SCATTER_SPLIT);
       if (fade > 0.0) {
         p.setOpacity(fade);
         p.drawPixmap(box, snap_, QRectF(snap_.rect()));
@@ -116,7 +116,7 @@ namespace stencil::gui {
 
   // Browser speckPainter's RIM and GLINT cells: the edge, and one inner cell in seven.
   bool DisintegrateOverlay::isGlint(int cx, int cy, double n) const {
-    return cx == 0 || cy == 0 || cx == cols_ - 1 || cy == rows_ - 1 || n > kGlintHash;
+    return cx == 0 || cy == 0 || cx == cols_ - 1 || cy == rows_ - 1 || n > GLINT_HASH;
   }
 
 
@@ -124,8 +124,8 @@ namespace stencil::gui {
     QColor c = cellColour(cells_, cx, cy);
     if (!ink_.isValid() || c.alphaF() <= 0.02) return c;
     if (!isGlint(cx, cy, n)) return c;
-    return QColor(qRound(c.red() + (ink_.red() - c.red()) * kGlintMix),
-                  qRound(c.green() + (ink_.green() - c.green()) * kGlintMix),
-                  qRound(c.blue() + (ink_.blue() - c.blue()) * kGlintMix), c.alpha());
+    return QColor(qRound(c.red() + (ink_.red() - c.red()) * GLINT_MIX),
+                  qRound(c.green() + (ink_.green() - c.green()) * GLINT_MIX),
+                  qRound(c.blue() + (ink_.blue() - c.blue()) * GLINT_MIX), c.alpha());
   }
 }  // namespace stencil::gui

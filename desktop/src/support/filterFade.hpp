@@ -24,35 +24,35 @@
 
 namespace stencil::gui {
 
-  // A fifth of DisintegrateOverlay::kMs: a filter has to keep up with typing.
-  inline constexpr int kFilterFadeMs = 170;
-  inline constexpr int kFilterFadeTickMs = 16;
+  // A fifth of DisintegrateOverlay::DUST_MS: a filter has to keep up with typing.
+  inline constexpr int FILTER_FADE_MS = 170;
+  inline constexpr int FILTER_FADE_TICK_MS = 16;
   // One mesh budget for the whole change; past the row ceiling the rest just fade
   // (browser scatterGridFor).
-  inline constexpr int kFilterDustMaxRows = 8;
-  inline constexpr int kFilterDustCells = 2400;
-  inline constexpr int kFilterDustMs = 253;   // browser FILTER_DUST_MS
+  inline constexpr int FILTER_DUST_MAX_ROWS = 8;
+  inline constexpr int FILTER_DUST_CELLS = 2400;
+  inline constexpr int FILTER_DUST_MS = 253;   // browser FILTER_DUST_MS
   // A row the list GAINS forms on the browser's arrival clock (motion.js materialize 560) / 1.5.
-  inline constexpr int kRowArriveMs = 373;
-  // Named apart from DisintegrateOverlay::kObjectName: tests counting removals must not
+  inline constexpr int ROW_ARRIVE_MS = 373;
+  // Named apart from DisintegrateOverlay::OBJECT_NAME: tests counting removals must not
   // mistake an arrival for one.
-  inline constexpr const char* kFilterDustObjectName = "stencilFilterDust";
-  inline constexpr double kFilterDustVeilStop = 0.62;   // browser `@keyframes markForm` stop
+  inline constexpr const char* FILTER_DUST_OBJECT_NAME = "stencilFilterDust";
+  inline constexpr double FILTER_DUST_VEIL_STOP = 0.62;   // browser `@keyframes markForm` stop
 
   // Row state lives ON the item so a rebuild never leaks a half-faded row; the dialogs'
   // own data sits at Qt::UserRole..+7.
-  inline constexpr int kFilterPresenceRole = Qt::UserRole + 40;    // 0 gone … 1 present
-  inline constexpr int kFilterTargetRole = Qt::UserRole + 41;
-  inline constexpr int kFilterFullHeightRole = Qt::UserRole + 42;
+  inline constexpr int FILTER_PRESENCE_ROLE = Qt::UserRole + 40;    // 0 gone … 1 present
+  inline constexpr int FILTER_TARGET_ROLE = Qt::UserRole + 41;
+  inline constexpr int FILTER_FULL_HEIGHT_ROLE = Qt::UserRole + 42;
   // The veil a delegate-painted row waits behind while its dust gathers (0 hidden … 1 shown).
-  inline constexpr int kFilterDustRole = Qt::UserRole + 43;
+  inline constexpr int FILTER_DUST_ROLE = Qt::UserRole + 43;
 
   // Set while the fade owns a row widget's opacity, so the scroll-edge reveal keeps off.
-  inline constexpr const char* kFilterFadeProperty = "stencilFiltering";
-  inline constexpr const char* kFilterFadeAnimName = "stencilFilterFade";
+  inline constexpr const char* FILTER_FADE_PROPERTY = "stencilFiltering";
+  inline constexpr const char* FILTER_FADE_ANIM_NAME = "stencilFilterFade";
 
   // The fade LEADS the slot: a row stays invisible while its slot is still opening.
-  inline constexpr double kFilterFadeLead = 0.4;
+  inline constexpr double FILTER_FADE_LEAD = 0.4;
 
   double filterOpacity(double presence);
 
@@ -80,7 +80,7 @@ namespace stencil::gui {
 
     bool running() const { return timer_ && timer_->isActive(); }
 
-    void dustRowIn(QListWidgetItem* it, QWidget* host, int ms = kFilterDustMs);
+    void dustRowIn(QListWidgetItem* it, QWidget* host, int ms = FILTER_DUST_MS);
 
     void finishNow();
 

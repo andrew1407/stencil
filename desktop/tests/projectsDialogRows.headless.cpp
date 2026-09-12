@@ -5,7 +5,7 @@
 // change re-records the strings below in its own commit. Offscreen, no server needed.
 #include "fileStore.hpp"
 #include "projectsDialog.hpp"
-#include "projectsRowChrome.hpp"   // kMetaRole / kTempRole / g_projectsSortMode
+#include "projectsRowChrome.hpp"   // META_ROLE / TEMP_ROLE / g_projectsSortMode
 
 #include <QApplication>
 #include <QColor>
@@ -19,8 +19,8 @@
 #include "support/check.hpp"
 
 using stencil::gui::g_projectsSortMode;
-using stencil::gui::kMetaRole;
-using stencil::gui::kTempRole;
+using stencil::gui::META_ROLE;
+using stencil::gui::TEMP_ROLE;
 using stencil::gui::Project;
 using stencil::gui::ProjectsDialog;
 
@@ -63,7 +63,7 @@ namespace {
     QStringList out;
     for (int i = 0; i < list->count(); ++i) {
       const QListWidgetItem* it = list->item(i);
-      if (it->data(kTempRole).toBool()) out << QStringLiteral("<temp>");
+      if (it->data(TEMP_ROLE).toBool()) out << QStringLiteral("<temp>");
       else out << it->data(Qt::UserRole).toString();
     }
     return out.join(u' ');
@@ -152,8 +152,8 @@ int main(int argc, char** argv) {
           "…and a per-project colour wins over it");
     check(alpha->toolTip() == QStringLiteral("800x600 px · landscape"),
           "the tooltip is the image size with its orientation, nothing more");
-    check(alpha->data(kMetaRole).toString().isEmpty() ||
-              !alpha->data(kMetaRole).toString().contains(u'\n'),
+    check(alpha->data(META_ROLE).toString().isEmpty() ||
+              !alpha->data(META_ROLE).toString().contains(u'\n'),
           "the muted middle line is a single ' · '-joined run");
 
     // Sort modes reorder the SAME rows; name is the default, date-desc is newest first.
@@ -173,7 +173,7 @@ int main(int argc, char** argv) {
     const QListWidgetItem* temp = list->item(0);
     check(temp->text() == QStringLiteral("Temporary (unsaved)"), "…with the browser's wording");
     check(temp->flags() == Qt::ItemIsEnabled, "…and no open, rename, checkbox or drag");
-    check(temp->data(kMetaRole).toString() ==
+    check(temp->data(META_ROLE).toString() ==
               QStringLiteral("Current window · not saved to storage"),
           "…reading as the current window's own row");
     dlg.setProjects(locals, true, /*incognito=*/true);

@@ -67,7 +67,7 @@ namespace stencil::gui {
     const QString name = fs_.active ? QStringLiteral("minimize") : QStringLiteral("maximize");
     actionIconNames_.insert(actFullscreen_, name);
     const QColor ink = toolButtonIconColor(actFullscreen_, iconColor_);
-    actFullscreen_->setIcon(themedIcon(name, ink, kToolIcon));
+    actFullscreen_->setIcon(themedIcon(name, ink, TOOL_ICON));
   }
 
   // Qt matches property selectors at polish time, so the flag needs a re-polish.

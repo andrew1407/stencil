@@ -21,7 +21,7 @@ namespace stencil::gui {
       s.setWidth(av->viewport()->width());
     // Three stacked text lines (name / meta / origin) need a floor the base
     // (icon + padding) does not guarantee on every platform.
-    if (!idx.data(Qt::UserRole).isNull() || idx.data(kTempRole).toBool())
+    if (!idx.data(Qt::UserRole).isNull() || idx.data(TEMP_ROLE).toBool())
       s.setHeight(std::max(s.height(), 76));
     // A row leaving the filtered set collapses its slot (support/filterFade), so the
     // rows below it close the gap instead of jumping once it disappears.
@@ -56,7 +56,7 @@ namespace stencil::gui {
     if (over) slideHover_ = key;
     else if (slideHover_ == key) slideHover_ = -1;
     if (support::motionReduced()) {  // the end state, at once
-      if (over) return kSlidePx;
+      if (over) return SLIDE_PX;
       slide_.remove(key);
       return 0.0;
     }
@@ -67,7 +67,7 @@ namespace stencil::gui {
         slideView_ = const_cast<QAbstractItemView*>(av);
       startSlideTick();
     }
-    return kSlidePx * v;
+    return SLIDE_PX * v;
   }
 
   void ProjectRowDelegate::startSlideTick() const {
@@ -76,7 +76,7 @@ namespace stencil::gui {
       slideTick_ = new QTimer(self);
       slideTick_->setInterval(16);
       QObject::connect(slideTick_, &QTimer::timeout, self, [this] {
-        const double step = 16.0 / kSlideMs;
+        const double step = 16.0 / SLIDE_MS;
         bool active = false;
         for (auto it = slide_.begin(); it != slide_.end();) {
           const bool toward = it.key() == slideHover_;
@@ -98,7 +98,7 @@ namespace stencil::gui {
 
   void ProjectRowDelegate::paintFaded(QPainter* p, const QStyleOptionViewItem& opt,
                                       const QModelIndex& idx) const {
-    if (idx.data(kDoomedRole).toBool()) return;   // scatter plays over the held-open slot
+    if (idx.data(DOOMED_ROLE).toBool()) return;   // scatter plays over the held-open slot
     // A filter fade rides one painter opacity over the whole row. Distinct from the
     // grain above on purpose: excluded is not deleted.
     const double fo = filterInk(idx);

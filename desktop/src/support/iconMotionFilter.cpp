@@ -6,7 +6,7 @@ namespace stencil::gui {
   const QVector<IconMotionPart>* icm::partsFor(const QAbstractButton* btn,
                                                const IconMotionSpec& spec) {
     const bool active = btn->isChecked()
-                        || btn->property(kIconStateProperty).toString()
+                        || btn->property(ICON_STATE_PROPERTY).toString()
                                == QLatin1String("active");
     return active && !spec.activeParts.isEmpty() ? &spec.activeParts : &spec.parts;
   }
@@ -15,7 +15,7 @@ namespace stencil::gui {
     // A DISABLED control is deliberately eligible (iconMotion.json trigger.disabled): the
     // motion says what it WOULD do, the grey says it cannot yet.
     if (!btn || support::motionReduced()) return false;
-    if (btn->property(kNoIconMotionProperty).toBool()) return false;
+    if (btn->property(NO_ICON_MOTION_PROPERTY).toBool()) return false;
     if (faceSwapping(btn)) return false;
     for (QVariantAnimation* a :
          btn->findChildren<QVariantAnimation*>(QStringLiteral("stencilIconSpin")))
@@ -26,13 +26,13 @@ namespace stencil::gui {
 
   // No MOC: found by unique object name and cast statically (logoHoverFx's asLogoFx idiom).
   IconMotionRunner* icm::runnerOf(QAbstractButton* btn) {
-    QObject* o = btn->findChild<QObject*>(QString::fromLatin1(kIconMotionAnimName),
+    QObject* o = btn->findChild<QObject*>(QString::fromLatin1(ICON_MOTION_ANIM_NAME),
                                           Qt::FindDirectChildrenOnly);
     return static_cast<IconMotionRunner*>(o);
   }
 
   ActionIconMotionRunner* icm::runnerOfAction(QAction* act) {
-    QObject* o = act->findChild<QObject*>(QString::fromLatin1(kIconMotionAnimName),
+    QObject* o = act->findChild<QObject*>(QString::fromLatin1(ICON_MOTION_ANIM_NAME),
                                           Qt::FindDirectChildrenOnly);
     return static_cast<ActionIconMotionRunner*>(o);
   }
@@ -41,13 +41,13 @@ namespace stencil::gui {
   const QVector<IconMotionPart>* icm::partsForAction(const QAction* act,
                                                      const IconMotionSpec& spec) {
     const bool active = act->isChecked()
-                        || act->property(kIconStateProperty).toString()
+                        || act->property(ICON_STATE_PROPERTY).toString()
                                == QLatin1String("active");
     return active && !spec.activeParts.isEmpty() ? &spec.activeParts : &spec.parts;
   }
 
   IconMotionFilter::IconMotionFilter(QObject* parent) : QObject(parent) {
-    setObjectName(QString::fromLatin1(kIconMotionFilterName));
+    setObjectName(QString::fromLatin1(ICON_MOTION_FILTER_NAME));
   }
 
   bool IconMotionFilter::eventFilter(QObject* o, QEvent* e) {
@@ -55,8 +55,8 @@ namespace stencil::gui {
     // Keyboard navigation is a hover too (browser .ctx-kb): hovered() fires for the arrowed row.
     if (type == QEvent::Show) {
       if (auto* menu = qobject_cast<QMenu*>(o);
-          menu && !menu->property(kMenuHoverWiredProperty).toBool()) {
-        menu->setProperty(kMenuHoverWiredProperty, true);
+          menu && !menu->property(MENU_HOVER_WIRED_PROPERTY).toBool()) {
+        menu->setProperty(MENU_HOVER_WIRED_PROPERTY, true);
         QObject::connect(menu, &QMenu::hovered, this,
                          [this, menu](QAction* a) { hoverMenuAction(menu, a); });
       }
@@ -117,7 +117,7 @@ namespace stencil::gui {
       if (ActionIconMotionRunner* r = icm::runnerOfAction(cur)) r->leave();
     cur = a;
     if (!a || a->isSeparator() || support::motionReduced()) return;
-    if (a->property(kNoIconMotionProperty).toBool()) return;
+    if (a->property(NO_ICON_MOTION_PROPERTY).toBool()) return;
     IconRequest req;
     // Same re-trace as the button path.
     if (!iconRequestForKey(a->icon().cacheKey(), &req)) {
@@ -144,7 +144,7 @@ namespace stencil::gui {
   void installIconMotion() {
     QCoreApplication* app = QCoreApplication::instance();
     if (!app
-        || app->findChild<QObject*>(QString::fromLatin1(kIconMotionFilterName),
+        || app->findChild<QObject*>(QString::fromLatin1(ICON_MOTION_FILTER_NAME),
                                     Qt::FindDirectChildrenOnly))
       return;
     app->installEventFilter(new IconMotionFilter(app));

@@ -79,13 +79,13 @@ namespace stencil::net {
   }
 
   // A frame is tiny (id + version); a longer newline-less stream is a hostile peer.
-  static constexpr int kMaxBufferBytes = 1 << 20;  // 1 MiB
+  static constexpr int MAX_BUFFER_BYTES = 1 << 20;  // 1 MiB
 
   void LiveFeed::onReadyRead() {
     if (!sock_) return;
     rbuf_ += sock_->readAll();
     // abort() trips onError(), which schedules a reconnect; the poll backstop covers the gap.
-    if (rbuf_.size() > kMaxBufferBytes && !rbuf_.contains('\n')) {
+    if (rbuf_.size() > MAX_BUFFER_BYTES && !rbuf_.contains('\n')) {
       rbuf_.clear();
       if (sock_) sock_->abort();
       onError();

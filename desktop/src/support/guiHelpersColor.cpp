@@ -28,7 +28,7 @@
 namespace stencil::gui {
 
   // The toolbar's own 32x16 chip (updateColorSwatch), as the browser's <input type="color">.
-  static const QSize kSwatchChip(32, 16);
+  static const QSize SWATCH_CHIP(32, 16);
 
   namespace {
     // A well's frame is per-widget QSS, baked in the theme live when written; each well
@@ -79,7 +79,7 @@ namespace stencil::gui {
                                            : QString());
     if (btn->styleSheet() != sheet) btn->setStyleSheet(sheet);
     // A luminance-tuned outline, so a colour close to the input's ground stays visible. Alpha honoured.
-    QPixmap pm(kSwatchChip);
+    QPixmap pm(SWATCH_CHIP);
     pm.fill(Qt::transparent);
     {
       QPainter p(&pm);
@@ -87,7 +87,7 @@ namespace stencil::gui {
       const bool lightFill = color.lightnessF() > 0.7;
       p.setPen(QPen(lightFill ? QColor(0, 0, 0, 102) : QColor(255, 255, 255, 102), 1));
       p.setBrush(color);
-      p.drawRoundedRect(QRectF(0.5, 0.5, kSwatchChip.width() - 1.0, kSwatchChip.height() - 1.0), 4, 4);
+      p.drawRoundedRect(QRectF(0.5, 0.5, SWATCH_CHIP.width() - 1.0, SWATCH_CHIP.height() - 1.0), 4, 4);
     }
     btn->setIcon(QIcon(pm));
     btn->setIconSize(pm.size());

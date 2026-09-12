@@ -101,7 +101,7 @@ namespace stencil::gui {
       auto* saveEnter = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Enter), &dlg);
       QObject::connect(saveEnter, &QShortcut::activated, &dlg, &QDialog::accept);
     }
-    dlg.setFixedWidth(kModalWidth);
+    dlg.setFixedWidth(MODAL_WIDTH);
     dlg.adjustSize();
     if (area) area->setFocus();
     else line->setFocus();
@@ -145,7 +145,7 @@ namespace stencil::gui {
     footer->addWidget(okBtn);
     QObject::connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
     QObject::connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
-    dlg.setFixedWidth(kModalWidth);
+    dlg.setFixedWidth(MODAL_WIDTH);
     dlg.adjustSize();
     select->setFocus();   // the browser focuses its select
     armFlight(dlg, spec.flight);

@@ -22,7 +22,7 @@ namespace stencil::gui {
     if (controlsPill_) {
       // ONE glyph, turned: 0° is ↑, 180° is ↓; the pill paints it in the label's left padding so the button shrink-wraps the word.
       const QColor ic = palette().color(QPalette::WindowText);
-      static_cast<ControlsPill*>(controlsPill_)->setChevron(pillChevronDeg_, ic, kPillChevron);
+      static_cast<ControlsPill*>(controlsPill_)->setChevron(pillChevronDeg_, ic, PILL_CHEVRON);
     }
     updatePanelReopenButton();
   }
@@ -37,7 +37,7 @@ namespace stencil::gui {
       return;
     }
     pillSpinAnim_ = startExtentSlide(
-        this, qRound(pillChevronDeg_), qRound(to), to > 0.0 ? kFoldOutMs : kFoldMs,
+        this, qRound(pillChevronDeg_), qRound(to), to > 0.0 ? FOLD_OUT_MS : FOLD_MS,
         [this](int v) { pillChevronDeg_ = v; positionOverlayArrows(); },
         [this] { pillSpinAnim_ = nullptr; });
   }
@@ -45,8 +45,8 @@ namespace stencil::gui {
   void MainWindow::positionPanelReopenButton() {
     if (!panelReopenBtn_) return;
     // Flush to the WINDOW's right edge at scroll_'s top: canvas and panel sit below the SAME dock stack, so the Y already matches.
-    const int y = (scroll_ ? scroll_->mapTo(this, QPoint(0, 0)).y() : 0) + kPanelToggleTop;
-    panelReopenBtn_->move(width() - panelReopenBtn_->width() - kPanelToggleInset, y);
+    const int y = (scroll_ ? scroll_->mapTo(this, QPoint(0, 0)).y() : 0) + PANEL_TOGGLE_TOP;
+    panelReopenBtn_->move(width() - panelReopenBtn_->width() - PANEL_TOGGLE_INSET, y);
   }
 
   void MainWindow::updatePanelReopenButton() {
@@ -54,10 +54,10 @@ namespace stencil::gui {
     // isHidden(), not isVisible(): called from the constructor before the window is shown, where isVisible() is false for every child.
     const bool showBtn = selPanel_ && selPanel_->isHidden() && !fs_.active;
     panelReopenBtn_->setVisible(showBtn);
-    // The WIDE margin only while the chevron floats over the canvas; kCentralSideMargin is the panel-open default.
+    // The WIDE margin only while the chevron floats over the canvas; CENTRAL_SIDE_MARGIN is the panel-open default.
     if (centralLayout_) {
       QMargins m = centralLayout_->contentsMargins();
-      const int wantRight = showBtn ? kCanvasRightMarginCollapsed : kCentralSideMargin;
+      const int wantRight = showBtn ? CANVAS_RIGHT_MARGIN_COLLAPSED : CENTRAL_SIDE_MARGIN;
       if (m.right() != wantRight) {
         m.setRight(wantRight);
         centralLayout_->setContentsMargins(m);
@@ -66,7 +66,7 @@ namespace stencil::gui {
     if (showBtn) {
       // Back to 0°.
       spinIcon(panelReopenBtn_, "chevron-left", palette().color(QPalette::WindowText),
-               kPanelToggleGlyph, 0, 0, 0);
+               PANEL_TOGGLE_GLYPH, 0, 0, 0);
       positionPanelReopenButton();
       panelReopenBtn_->raise();
     }

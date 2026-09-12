@@ -34,12 +34,12 @@
 namespace stencil::gui {
 
   // The browser's `[id^="toggle-"]` opt-out (iconMotion.json trigger.excluded).
-  inline constexpr const char* kNoIconMotionProperty = "stencilNoIconMotion";
+  inline constexpr const char* NO_ICON_MOTION_PROPERTY = "stencilNoIconMotion";
   // "active" picks iconMotion.json `variants.active`; a checkable button's checked state
   // means the same and needs no property.
-  inline constexpr const char* kIconStateProperty = "stencilIconState";
-  inline constexpr const char* kIconMotionAnimName = "stencilIconMotion";
-  inline constexpr const char* kMenuHoverWiredProperty = "stencilIcmHovered";
+  inline constexpr const char* ICON_STATE_PROPERTY = "stencilIconState";
+  inline constexpr const char* ICON_MOTION_ANIM_NAME = "stencilIconMotion";
+  inline constexpr const char* MENU_HOVER_WIRED_PROPERTY = "stencilIcmHovered";
 
   // In the glyph's own 24-unit space; absent fields are identity.
   struct IconPose {
@@ -207,7 +207,7 @@ namespace stencil::gui {
   }  // namespace icm
 
   // Application-wide; Enter/Leave are rare, so it costs nothing at rest.
-  inline constexpr const char* kIconMotionFilterName = "stencilIconMotionFilter";
+  inline constexpr const char* ICON_MOTION_FILTER_NAME = "stencilIconMotionFilter";
 
   class IconMotionFilter : public QObject {
    public:

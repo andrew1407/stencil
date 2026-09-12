@@ -13,8 +13,8 @@ class QObject;
 namespace stencil::net::fetchGuard {
 
   // serverClient.cpp bounds its own requests with the same 20s.
-  inline constexpr qint64 kMaxFetchBytes = 64 * 1024 * 1024;
-  inline constexpr int kFetchTimeoutMs = 20000;
+  inline constexpr qint64 MAX_FETCH_BYTES = 64 * 1024 * 1024;
+  inline constexpr int FETCH_TIMEOUT_MS = 20000;
 
   // Literal check only, including the alternate numeric IPv4 encodings a resolver accepts;
   // a DNS name is covered by resolvesToBlocked().
@@ -38,10 +38,10 @@ namespace stencil::net::fetchGuard {
   // NO redirects: a public first hop must not 30x-bounce to an internal host.
   QNetworkRequest request(const QUrl& url);
 
-  // Body capped at kMaxFetchBytes, the exchange bounded by `deadlineMs`; `done` fires once on
+  // Body capped at MAX_FETCH_BYTES, the exchange bounded by `deadlineMs`; `done` fires once on
   // `ctx`'s thread with the body, or an empty body and the reason.
   void get(QObject* ctx, const QUrl& url, bool strict,
            std::function<void(QByteArray body, QString error)> done,
-           int deadlineMs = kFetchTimeoutMs);
+           int deadlineMs = FETCH_TIMEOUT_MS);
 
 }  // namespace stencil::net::fetchGuard

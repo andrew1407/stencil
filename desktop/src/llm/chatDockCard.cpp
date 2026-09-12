@@ -38,7 +38,7 @@ namespace stencil::gui {
   // the margin pair keeps the total height constant. Card-parented, so a mid-flight delete severs all.
   void ChatDock::animateCardIn(QWidget* card, QVBoxLayout* lay) {
     // Claimed and zeroed NOW: ScrollReveal drives the same effect, and two writers flicker.
-    card->setProperty(ScrollReveal::kEnteringProperty, true);
+    card->setProperty(ScrollReveal::ENTERING_PROPERTY, true);
     auto* fx = new QGraphicsOpacityEffect(card);
     fx->setOpacity(0.0);
     card->setGraphicsEffect(fx);
@@ -46,7 +46,7 @@ namespace stencil::gui {
     // singleShot(0) queued AFTER this one, so one frame lets that scroll land first.
     if (support::motionReduced()) { startCardEntrance(card, lay); return; }
     QPointer<QWidget> cp(card);
-    QTimer::singleShot(kChatGatherSettleMs, card, [this, cp, lay] {
+    QTimer::singleShot(CHAT_GATHER_SETTLE_MS, card, [this, cp, lay] {
       if (cp) startCardEntrance(cp, lay);
     });
   }
@@ -57,7 +57,7 @@ namespace stencil::gui {
     const auto settle = [this, card, lay, rest] {
       if (auto* e = qobject_cast<QGraphicsOpacityEffect*>(card->graphicsEffect())) e->setOpacity(1.0);
       lay->setContentsMargins(rest);
-      card->setProperty(ScrollReveal::kEnteringProperty, false);
+      card->setProperty(ScrollReveal::ENTERING_PROPERTY, false);
       // Laid out FIRST: setContentsMargins only QUEUES the move, and ScrollReveal::apply() measures.
       lay->activate();
       if (reveal_) reveal_->apply();
@@ -66,18 +66,18 @@ namespace stencil::gui {
     // The slide starts only once the dust actually flies; the card waits fully hidden.
     const auto slide = [this, card, lay, rest] {
       auto* anim = new QVariantAnimation(card);
-      anim->setDuration(kAppearMs);
+      anim->setDuration(APPEAR_MS);
       anim->setStartValue(0.0);
       anim->setEndValue(1.0);
       anim->setEasingCurve(QEasingCurve::OutCubic);
       connect(anim, &QVariantAnimation::valueChanged, card, [lay, rest](const QVariant& v) {
-        const int off = qRound(kAppearSlidePx * (1.0 - v.toDouble()));
+        const int off = qRound(APPEAR_SLIDE_PX * (1.0 - v.toDouble()));
         lay->setContentsMargins(rest.left(), rest.top() + off, rest.right(),
                                 qMax(0, rest.bottom() - off));
       });
       anim->start(QAbstractAnimation::DeleteWhenStopped);
     };
-    gatherChatCardIn(card, transcriptLayout_, scroll_, window(), kChatScatterCols,
-                     kChatScatterRows, settle, slide);
+    gatherChatCardIn(card, transcriptLayout_, scroll_, window(), CHAT_SCATTER_COLS,
+                     CHAT_SCATTER_ROWS, settle, slide);
   }
 }  // namespace stencil::gui

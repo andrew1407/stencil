@@ -19,12 +19,12 @@ namespace store = stencil::net::connectionStore;
 
 namespace {
 
-  const auto kRowsKey = QStringLiteral("connections/servers");
+  const auto ROWS_KEY = QStringLiteral("connections/servers");
 
   // What QSettings holds right now, as one blob to search for a leaked token.
   QString settingsRows() {
     QSettings s;
-    return s.value(kRowsKey).toStringList().join(QLatin1Char('\n'));
+    return s.value(ROWS_KEY).toStringList().join(QLatin1Char('\n'));
   }
 
   SavedServer server(const char* url, const char* token, const char* kind) {
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
   {
     // What an older build wrote: "url\ttoken\tkind" (and the pre-kind "url\ttoken").
     QSettings s;
-    s.setValue(kRowsKey, QStringList{QStringLiteral("http://old.example:8090\tplain-tok\tsession"),
+    s.setValue(ROWS_KEY, QStringList{QStringLiteral("http://old.example:8090\tplain-tok\tsession"),
                                      QStringLiteral("http://older.example:8090\tolder-tok")});
     const auto migrated = store::loadSavedServers();
     check(migrated.size() == 2 && migrated[0].token == QStringLiteral("plain-tok") &&
@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
   {
     QSettings s;
     // A token containing a tab still survives: only a RECOGNISED trailing tag is a kind.
-    s.setValue(kRowsKey, QStringList{QStringLiteral("http://tab.example:8090\tto\tken")});
+    s.setValue(ROWS_KEY, QStringList{QStringLiteral("http://tab.example:8090\tto\tken")});
     const auto tabbed = store::loadSavedServers();
     check(tabbed.size() == 1 && tabbed[0].token == QStringLiteral("to\tken") &&
               tabbed[0].kind.isEmpty(),

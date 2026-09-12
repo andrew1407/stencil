@@ -17,30 +17,30 @@ namespace stencil::gui {
 
   // saveState/restoreState version — bump when the toolbar rows change, or a saved layout pins the
   // old row breaks.
-  inline constexpr int kToolbarLayoutVersion = 6;   // v6: the four tool rows folded into one wrapping run
+  inline constexpr int TOOLBAR_LAYOUT_VERSION = 6;   // v6: the four tool rows folded into one wrapping run
 
   // How long the chat takes to leave; the compact popover waits this out (chatPanel.js closeMs
   // parity).
-  inline constexpr int kChatSlideOutMs = 340;
-  inline constexpr int kWindowDismissMs = 240;
-  // Shared with selectionPanel kToggleBox/kToggleGlyph.
-  inline constexpr int kPanelToggleBox = 24;
-  inline constexpr int kPanelToggleGlyph = 15;
+  inline constexpr int CHAT_SLIDE_OUT_MS = 340;
+  inline constexpr int WINDOW_DISMISS_MS = 240;
+  // Shared with selectionPanel TOGGLE_BOX/TOGGLE_GLYPH.
+  inline constexpr int PANEL_TOGGLE_BOX = 24;
+  inline constexpr int PANEL_TOGGLE_GLYPH = 15;
   // (45 − 24) / 2 centres the box in the collapsed band (browser: the coord panel's collapsed
   // rail).
-  inline constexpr int kPanelToggleInset = 10;
-  inline constexpr int kPanelToggleTop = 5;     // and its drop below the toolbar edge
-  // Clears the floating chevron (kPanelToggleBox + kPanelToggleInset) plus the scrollbar width
+  inline constexpr int PANEL_TOGGLE_INSET = 10;
+  inline constexpr int PANEL_TOGGLE_TOP = 5;     // and its drop below the toolbar edge
+  // Clears the floating chevron (PANEL_TOGGLE_BOX + PANEL_TOGGLE_INSET) plus the scrollbar width
   // (theme.cpp) while the panel is collapsed.
-  inline constexpr int kCanvasRightMarginCollapsed = 45;
+  inline constexpr int CANVAS_RIGHT_MARGIN_COLLAPSED = 45;
   // Paced off the browser's fold (--fold-ms / --fold-out-ms, css/animations.css); collapsing is
   // the slower half.
-  inline constexpr int kFoldMs = 420;
-  inline constexpr int kFoldOutMs = 630;
-  inline constexpr int kFoldDustInMs = 450;
-  inline constexpr int kFoldDustOutMs = 585;   // browser FOLD_DUST_OUT_MS, same 1.5x ratio
+  inline constexpr int FOLD_MS = 420;
+  inline constexpr int FOLD_OUT_MS = 630;
+  inline constexpr int FOLD_DUST_IN_MS = 450;
+  inline constexpr int FOLD_DUST_OUT_MS = 585;   // browser FOLD_DUST_OUT_MS, same 1.5x ratio
   // Mirrors the browser's COMMIT_DEBOUNCE_MS (browser/js/ui/numericInput.js).
-  inline constexpr int kFormulaCommitMs = 1200;
+  inline constexpr int FORMULA_COMMIT_MS = 1200;
 
   // GET with a 10s deadline; `ctx` owns the manager — destroying it severs the reply, so `done`
   // never runs on a dangling caller.

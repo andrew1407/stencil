@@ -39,7 +39,7 @@ namespace stencil::gui {
         !static_cast<QKeyEvent*>(ev)->isAutoRepeat()) {
       const QPixmap src = hoverPreview_->property("srcPixmap").value<QPixmap>();
       if (!src.isNull()) {
-        const int edge = (ev->type() == QEvent::KeyPress) ? kHoverPreviewAltPx : kHoverPreviewPx;
+        const int edge = (ev->type() == QEvent::KeyPress) ? HOVER_PREVIEW_ALT_PX : HOVER_PREVIEW_PX;
         hoverPreview_->setPixmap(
             src.scaled(edge, edge, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         hoverPreview_->adjustSize();

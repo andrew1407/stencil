@@ -55,7 +55,7 @@ namespace stencil::gui {
     col->addWidget(label);
     auto* rowWidget = new QWidget(section);
     // One row height across every section so inputs and icons share a baseline.
-    rowWidget->setMinimumHeight(kToolRowH);
+    rowWidget->setMinimumHeight(TOOL_ROW_H);
     // A disabled widget receives no mouse events, so the row carries the browser's `cursor: not-
     // allowed` for its children (eventFilter swaps it).
     rowWidget->setMouseTracking(true);
@@ -98,7 +98,7 @@ namespace stencil::gui {
       btn->setDefaultAction(a);   // reflects the action's icon / tooltip / enabled / checked state
       btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
       btn->setAutoRaise(true);
-      btn->setIconSize(QSize(kToolIcon, kToolIcon));
+      btn->setIconSize(QSize(TOOL_ICON, TOOL_ICON));
       // A standalone QToolButton does not auto-hide with its action, so mirror visibility for the
       // gated ones.
       btn->setVisible(a->isVisible());
@@ -116,7 +116,7 @@ namespace stencil::gui {
         // "Start"/"Stop"). Width pinned later by refreshActions, once icons and padding exist.
         btn->setObjectName("drawFaceBtn");   // theme.cpp: the pair's larger word
         btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        btn->setIconSize(QSize(kToolIcon + kFaceIconGap, kToolIcon));   // see kFaceIconGap
+        btn->setIconSize(QSize(TOOL_ICON + FACE_ICON_GAP, TOOL_ICON));   // see FACE_ICON_GAP
       }
       // The event filter owns click/dblclick; right-click arrives here.
       wirePopover(btn, a);

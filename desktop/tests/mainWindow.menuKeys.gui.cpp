@@ -66,7 +66,7 @@ class MainWindowGuiTest : public QObject {
       // before aboutToHide fires, which used to leave this close with no flight).
       const auto dustSeen = [&win] {
         for (QWidget* w : win.findChildren<QWidget*>(
-                 QString::fromLatin1(stencil::gui::DisintegrateOverlay::kObjectName)))
+                 QString::fromLatin1(stencil::gui::DisintegrateOverlay::OBJECT_NAME)))
           if (static_cast<stencil::gui::DisintegrateOverlay*>(w)->surfacePicture().isValid()) return true;
         return false;
       };

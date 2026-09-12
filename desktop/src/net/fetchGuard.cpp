@@ -110,7 +110,7 @@ namespace stencil::net::fetchGuard {
     void capSize(QNetworkReply* reply) {
       QObject::connect(reply, &QNetworkReply::downloadProgress, reply,
                        [reply](qint64 got, qint64 total) {
-                         if (got > kMaxFetchBytes || total > kMaxFetchBytes) reply->abort();
+                         if (got > MAX_FETCH_BYTES || total > MAX_FETCH_BYTES) reply->abort();
                        });
     }
 
@@ -204,7 +204,7 @@ namespace stencil::net::fetchGuard {
 
   QNetworkRequest request(const QUrl& url) {
     QNetworkRequest req(url);
-    req.setTransferTimeout(kFetchTimeoutMs);
+    req.setTransferTimeout(FETCH_TIMEOUT_MS);
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                      QNetworkRequest::ManualRedirectPolicy);
     return req;

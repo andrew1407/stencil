@@ -42,7 +42,7 @@ namespace stencil::gui {
     const double s = std::min(static_cast<double>(box.width()) / std::max(1, iw_),
                               static_cast<double>(box.height()) / std::max(1, ih_));
     scale_ = s > 0 ? s : 1.0;
-    setFixedSize(qRound(iw_ * scale_) + 2 * kInset, qRound(ih_ * scale_) + 2 * kInset);
+    setFixedSize(qRound(iw_ * scale_) + 2 * INSET, qRound(ih_ * scale_) + 2 * INSET);
     update();
   }
 
@@ -55,15 +55,15 @@ namespace stencil::gui {
   }
 
   core::Point CropPreview::toImage(const QPoint& w) const {
-    return {(w.x() - kInset) / scale_, (w.y() - kInset) / scale_};
+    return {(w.x() - INSET) / scale_, (w.y() - INSET) / scale_};
   }
 
   QRect CropPreview::imageRect() const {
-    return rect().adjusted(kInset, kInset, -kInset, -kInset);
+    return rect().adjusted(INSET, INSET, -INSET, -INSET);
   }
 
   QRectF CropPreview::displayRect() const {
-    return QRectF(kInset + rect_.x * scale_, kInset + rect_.y * scale_,
+    return QRectF(INSET + rect_.x * scale_, INSET + rect_.y * scale_,
                   rect_.width * scale_, rect_.height * scale_);
   }
 
@@ -73,7 +73,7 @@ namespace stencil::gui {
                                 d.bottomLeft()};
     for (int i = 0; i < 4; ++i) {
       if (std::hypot(wp.x() - corners[i].x(), wp.y() - corners[i].y()) <=
-          kHandle + 4)
+          HANDLE + 4)
         return i;
     }
     return -1;
@@ -90,21 +90,21 @@ namespace stencil::gui {
     outside.setFillRule(Qt::OddEvenFill);
     outside.addRect(QRectF(imageRect()));
     outside.addRect(d);
-    p.fillPath(outside, QColor(0, 0, 0, kShadeAlpha));
+    p.fillPath(outside, QColor(0, 0, 0, SHADE_ALPHA));
 
     // The browser's 2px border sits INSIDE the crop box (border-box), so inset by 1.
-    QPen pen(kCropAccent);
+    QPen pen(CROP_ACCENT);
     pen.setWidth(2);
     p.setPen(pen);
     p.setBrush(Qt::NoBrush);
     p.drawRect(d.adjusted(1, 1, -1, -1));
 
     p.setRenderHint(QPainter::Antialiasing, true);
-    p.setBrush(kCropAccent);
+    p.setBrush(CROP_ACCENT);
     p.setPen(QPen(Qt::white, 2));
     const QPointF corners[4] = {d.topLeft(), d.topRight(), d.bottomRight(),
                                 d.bottomLeft()};
-    for (const auto& c : corners) p.drawEllipse(c, kHandle, kHandle);
+    for (const auto& c : corners) p.drawEllipse(c, HANDLE, HANDLE);
   }
 }
 

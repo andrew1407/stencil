@@ -155,16 +155,16 @@ namespace stencil::gui {
     const int h = img.height();
     std::uint8_t* bits = img.bits();
     // Enough rows that a slice outweighs handing it to another thread.
-    constexpr int kMinRowsPerSlice = 64;
+    constexpr int MIN_ROWS_PER_SLICE = 64;
     if (mode == core::FilterMode::Contour) {
       // Sobel reads one row OUTSIDE its range on each side, so every luma row must
       // exist before any sobel slice runs: two separate phases, never interleaved
       // per tile (core/raster/imageFilter.hpp).
       std::vector<std::uint8_t> luma(static_cast<std::size_t>(w) * h);
-      support::forEachSlice(h, kMinRowsPerSlice, [&](int y0, int y1) {
+      support::forEachSlice(h, MIN_ROWS_PER_SLICE, [&](int y0, int y1) {
         core::buildLumaRows(bits, w, h, y0, y1, luma.data());
       });
-      support::forEachSlice(h, kMinRowsPerSlice, [&](int y0, int y1) {
+      support::forEachSlice(h, MIN_ROWS_PER_SLICE, [&](int y0, int y1) {
         core::sobelRows(luma.data(), bits, w, h, y0, y1);
       });
       filteredImage_ = img;
@@ -174,7 +174,7 @@ namespace stencil::gui {
     const int tr = filterColor_.red();
     const int tg = filterColor_.green();
     const int tb = filterColor_.blue();
-    support::forEachSlice(h, kMinRowsPerSlice, [&](int y0, int y1) {
+    support::forEachSlice(h, MIN_ROWS_PER_SLICE, [&](int y0, int y1) {
       core::applyFilterRows(mode, bits, w, y0, y1, tr, tg, tb);
     });
     filteredImage_ = img;

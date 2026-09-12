@@ -49,7 +49,7 @@ namespace stencil::gui {
     }
     // Anything else LEAVES first — a compact float that has to move included; teleporting it read as "the chat vanished".
     if (chatDock_->isVisible()) {
-      const int outMs = chatDock_->isFloating() ? kWindowDismissMs : kChatSlideOutMs;
+      const int outMs = chatDock_->isFloating() ? WINDOW_DISMISS_MS : CHAT_SLIDE_OUT_MS;
       chatCompactPopover_ = false;   // it is leaving; the next open re-establishes it
       setChatShown(false, /*animate=*/true);
       QPointer<QWidget> pin(anchor);
@@ -75,9 +75,9 @@ namespace stencil::gui {
     const QSize size = chatDock_->floatingDefaultSize();
     const QRect screen = this->screen() ? this->screen()->availableGeometry()
                                         : QGuiApplication::primaryScreen()->availableGeometry();
-    constexpr int kInsetX = 220;
-    constexpr int kInsetY = 160;
-    const QPoint at(geometry().left() + kInsetX, geometry().top() + kInsetY);
+    constexpr int INSET_X = 220;
+    constexpr int INSET_Y = 160;
+    const QPoint at(geometry().left() + INSET_X, geometry().top() + INSET_Y);
     QRect r(at, size);
     if (r.right() > screen.right()) r.moveRight(screen.right());
     if (r.bottom() > screen.bottom()) r.moveBottom(screen.bottom());

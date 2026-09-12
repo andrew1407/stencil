@@ -1,6 +1,6 @@
 #include "chatDockShared.hpp"
 
-#include "../support/scrollReveal.hpp"        // kEnteringProperty — the entrance claims the effect
+#include "../support/scrollReveal.hpp"        // ENTERING_PROPERTY — the entrance claims the effect
 #include "../support/shimmerOverlay.hpp"  // the shared hover sweep on every ghost button
 
 #include <QEasingCurve>
@@ -27,7 +27,7 @@ namespace stencil::gui::chatdock {
     // effect this animation writes to freed under it, and the next frame crashed in
     // QGraphicsOpacityEffect::setOpacity. The entrance animation claims it the same
     // way (animateCardIn), which is why ScrollReveal skips those.
-    w->setProperty(ScrollReveal::kEnteringProperty, true);
+    w->setProperty(ScrollReveal::ENTERING_PROPERTY, true);
     // A card removed mid-entrance still has its appear animation running, and that
     // animation writes to the effect it installed. setGraphicsEffect() DELETES the
     // old effect, so installing a fresh one left the entrance holding a dangling
@@ -42,7 +42,7 @@ namespace stencil::gui::chatdock {
     const double from = fx->opacity();
     fx->setOpacity(from);
     auto* anim = new QVariantAnimation(w);
-    anim->setDuration(kChatLeaveMs);
+    anim->setDuration(CHAT_LEAVE_MS);
     anim->setStartValue(from);   // continue from wherever the entrance got to
     anim->setEndValue(0.0);
     anim->setEasingCurve(QEasingCurve::OutCubic);
@@ -62,8 +62,8 @@ namespace stencil::gui::chatdock {
     auto* b = new QToolButton(parent);
     b->setAutoRaise(true);
     b->setToolButtonStyle(Qt::ToolButtonIconOnly);
-    b->setIconSize(QSize(kHeaderIcon, kHeaderIcon));
-    b->setFixedSize(kButtonEdge, kButtonEdge);
+    b->setIconSize(QSize(HEADER_ICON, HEADER_ICON));
+    b->setFixedSize(BUTTON_EDGE, BUTTON_EDGE);
     b->setToolTip(tooltip);
     b->setCursor(Qt::PointingHandCursor);
     // The browser shimmers every <button>, chat controls included (layout.css

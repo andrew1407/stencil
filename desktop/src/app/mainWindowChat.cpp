@@ -46,8 +46,8 @@ namespace stencil::gui {
 
   llm::ChatImage encodeEdgeMap(const QImage& img) {
     QImage scaled = img;
-    if (std::max(img.width(), img.height()) > kChatImageMaxEdge)
-      scaled = img.scaled(kChatImageMaxEdge, kChatImageMaxEdge, Qt::KeepAspectRatio,
+    if (std::max(img.width(), img.height()) > CHAT_IMAGE_MAX_EDGE)
+      scaled = img.scaled(CHAT_IMAGE_MAX_EDGE, CHAT_IMAGE_MAX_EDGE, Qt::KeepAspectRatio,
                           Qt::SmoothTransformation);
     QImage rgba = scaled.convertToFormat(QImage::Format_RGBA8888);
     core::applyContourRGBA(rgba.bits(), rgba.width(), rgba.height());

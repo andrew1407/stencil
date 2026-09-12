@@ -90,7 +90,7 @@ namespace stencil::gui {
     h->addWidget(dot);
     h->addSpacing(4);
     auto* mark = new QLabel;
-    mark->setPixmap(themedIcon("server", kGold, 14).pixmap(14, 14));
+    mark->setPixmap(themedIcon("server", GOLD, 14).pixmap(14, 14));
     h->addWidget(mark);
     h->addSpacing(6);
     auto* urlLbl = new ElidedLabel(url);
@@ -109,13 +109,13 @@ namespace stencil::gui {
       bl->setContentsMargins(0, 0, 0, 0);
       bl->setSpacing(4);
       auto* lock = new QLabel;
-      lock->setPixmap(themedIcon("lock", kGold, 12).pixmap(12, 12));
+      lock->setPixmap(themedIcon("lock", GOLD, 12).pixmap(12, 12));
       auto* btxt = new QLabel(tr("Admin"));
       QFont bf = btxt->font();
       bf.setBold(true);
       bf.setPointSizeF(bf.pointSizeF() * 0.86);
       btxt->setFont(bf);
-      btxt->setStyleSheet(QStringLiteral("color:%1;").arg(kGold.name()));
+      btxt->setStyleSheet(QStringLiteral("color:%1;").arg(GOLD.name()));
       bl->addWidget(lock);
       bl->addWidget(btxt);
       h->addWidget(badge);
@@ -128,12 +128,12 @@ namespace stencil::gui {
     installHoverShimmerIn(row);
     auto* item = new QListWidgetItem(list_);
     item->setData(Qt::UserRole, admin);
-    item->setData(kRowUrlRole, url);
+    item->setData(ROW_URL_ROLE, url);
     list_->setItemWidget(item, row);
     // Sized AFTER parenting (the cascaded sheet is then in the hint) and capped to the viewport.
-    const int rowH = std::max(row->sizeHint().height(), kRowHeight);
+    const int rowH = std::max(row->sizeHint().height(), ROW_HEIGHT);
     item->setSizeHint(QSize(rowWidth(), rowH));
-    item->setData(kFilterFullHeightRole, rowH);
+    item->setData(FILTER_FULL_HEIGHT_ROLE, rowH);
   }
 
 }  // namespace stencil::gui

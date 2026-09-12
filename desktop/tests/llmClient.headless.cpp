@@ -30,7 +30,7 @@ using namespace stencil::llm;
 // independent copy. The §4 prose head/tail load from the SAME qrc canon
 // opRegistry reads (:/config/llm/systemPrompt.json) — no second prompt-prose
 // literal exists anywhere.
-static const char kLegacyCoreOpsBlock[] =
+static const char LEGACY_CORE_OPS_BLOCK[] =
     R"__(- {"op":"crop","spec":{"x1":"10%","x2":"-10%","aspect":"3:4"}} — move edges inward;
   tokens are numbers with optional unit % / px / cm / in; a leading "-" measures from the
   opposite side. Include only the edges you want to move. For a target aspect ratio add
@@ -70,7 +70,7 @@ static const char kLegacyCoreOpsBlock[] =
   finish each image's actions with a "save" before switching to the next: image 1, its edits,
   save, image 2, its edits, save, …)__";
 
-static const char kLegacyEditorOpsBlock[] =
+static const char LEGACY_EDITOR_OPS_BLOCK[] =
     R"__(- {"op":"theme","mode":"light"|"dark"} — switch the editor between light and dark
   ONLY; "mode" takes no other value. A COLOUR ("make the theme cyan") is the accent
   op below, never this one.
@@ -843,16 +843,16 @@ int main(int argc, char** argv) {
     check(pf.open(QIODevice::ReadOnly), "prompt canon qrc alias resolves");
     const QJsonObject prose = QJsonDocument::fromJson(pf.readAll()).object();
     QString legacy = prose.value("head").toString() +
-                     QString::fromUtf8(kLegacyCoreOpsBlock) +
+                     QString::fromUtf8(LEGACY_CORE_OPS_BLOCK) +
                      prose.value("tail").toString();
     const QString anchor = QStringLiteral("only valid when the current input is a video.");
     const int at = legacy.indexOf(anchor);
     check(at >= 0, "prompt canon head/tail parse (frame anchor found)");
     legacy.insert(at + anchor.size(),
-                  QStringLiteral("\n") + QString::fromUtf8(kLegacyEditorOpsBlock));
+                  QStringLiteral("\n") + QString::fromUtf8(LEGACY_EDITOR_OPS_BLOCK));
     check(LlmClient::systemPrompt(QString()) == legacy,
           "assembled system prompt is byte-identical to the legacy constants");
-    check(assembleEditorOpsBlock() == QString::fromUtf8(kLegacyEditorOpsBlock),
+    check(assembleEditorOpsBlock() == QString::fromUtf8(LEGACY_EDITOR_OPS_BLOCK),
           "assembled s10 editor block is byte-identical to the legacy constant");
     check(LlmClient::systemPrompt("ctx") == legacy + "\n\nctx",
           "dynamic suffix still appends after the assembled prompt");

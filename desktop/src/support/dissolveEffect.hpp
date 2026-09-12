@@ -23,10 +23,10 @@ namespace stencil::gui {
     // Browser mask-size 4/7/11px at offsets 0,0 / 2,3 / 5,1: coprime cells interfere,
     // one lattice alone reads as rectangles.
     struct Grain { int cell; double phaseX, phaseY; double decay; };
-    static constexpr Grain kGrains[] = {
+    static constexpr Grain GRAINS[] = {
         {4, 0.0, 0.0, 0.78}, {7, 2.0, 3.0, 0.95}, {11, 5.0, 1.0, 1.10}};
     // ≥ half-diagonal / cell (0.707): a full-radius dot covers its corners, so 0 is solid.
-    static constexpr double kFullRadiusFrac = 0.72;
+    static constexpr double FULL_RADIUS_FRAC = 0.72;
 
     explicit DissolveEffect(QObject* parent = nullptr) : QGraphicsEffect(parent) {}
 
@@ -91,7 +91,7 @@ namespace stencil::gui {
     // One tiled fill per grid, not hundreds of ellipse calls.
     static QBrush grainBrush(const Grain& g, double dissolve) {
       // Each grid thins at its own rate, so they drop out in sequence.
-      const double r = g.cell * kFullRadiusFrac * (1.0 - dissolve * g.decay / 0.78);
+      const double r = g.cell * FULL_RADIUS_FRAC * (1.0 - dissolve * g.decay / 0.78);
       QPixmap tile(g.cell, g.cell);
       tile.fill(Qt::transparent);
       if (r > 0.05) {
@@ -124,7 +124,7 @@ namespace stencil::gui {
     }
 
     static void fillGrain(QPainter& p, const QRectF& box, double dissolve) {
-      for (const Grain& g : kGrains) p.fillRect(box, grainBrush(g, dissolve));
+      for (const Grain& g : GRAINS) p.fillRect(box, grainBrush(g, dissolve));
     }
 
     double dissolve_ = 0.0;

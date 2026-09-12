@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
     QUrl u("stencil://open");
     QUrlQuery q;
     q.addQueryItem("layout",
-                   QString(deepLink::kBrowserLaunchPayloadMax + 1, QLatin1Char('A')));
+                   QString(deepLink::BROWSER_LAUNCH_PAYLOAD_MAX + 1, QLatin1Char('A')));
     u.setQuery(q);
     check(parseStencilUrl(u).layoutJson.isEmpty(), "over-limit inline layout is dropped");
     QUrlQuery ok;
@@ -98,7 +98,7 @@ int main(int argc, char** argv) {
     for (const Vec& v : vectors) {
       const QString got = deepLink::encodeTelegramStartPayload(v.url, v.id);
       check(got == QString::fromLatin1(v.expected), v.url);
-      check(got.size() <= deepLink::kTelegramStartLimit, "within the 64-char limit");
+      check(got.size() <= deepLink::TELEGRAM_START_LIMIT, "within the 64-char limit");
     }
     // 48 plaintext bytes → 65 payload chars → overflow → empty
     const QString host = QStringLiteral("https://h") + QString(43, QLatin1Char('o'));
@@ -133,7 +133,7 @@ int main(int argc, char** argv) {
     // Over the shared 32 MiB payload cap → empty string, never a fragment URL.
     QJsonObject payload;
     payload["dataUrl"] = QStringLiteral("data:image/png;base64,") +
-                         QString(deepLink::kBrowserLaunchPayloadMax, QLatin1Char('A'));
+                         QString(deepLink::BROWSER_LAUNCH_PAYLOAD_MAX, QLatin1Char('A'));
     check(deepLink::buildBrowserLaunchUrl("http://localhost:8080/", payload).isEmpty(),
           "over-limit launch payload yields empty url");
   }

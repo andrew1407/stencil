@@ -21,7 +21,7 @@ namespace stencil::gui {
     const QStyleOptionViewItem& o = opt;
     const QString full = o.text;
     const bool realRow = !idx.data(Qt::UserRole).isNull();
-    const bool temp = idx.data(kTempRole).toBool();
+    const bool temp = idx.data(TEMP_ROLE).toBool();
     QStyle* st = o.widget ? o.widget->style() : QApplication::style();
     if (!realRow && !temp) {
       QStyledItemDelegate::paint(p, o, idx);
@@ -36,7 +36,7 @@ namespace stencil::gui {
 
     const bool remote = !idx.data(Qt::UserRole + 1).toString().isEmpty();
     const bool fileOrigin = idx.data(Qt::UserRole + 6).toBool();
-    const bool current = idx.data(kActiveRole).toBool();
+    const bool current = idx.data(ACTIVE_ROLE).toBool();
     // Highlight = accent, Link = the accent-2 shade (--text-key) — theme.cpp buildQPalette.
     const QColor accent = o.palette.color(QPalette::Highlight);
 
@@ -44,8 +44,8 @@ namespace stencil::gui {
     // the accent-2 SHADE for the project open in THIS editor, neutral hairline otherwise.
     QColor edge;
     QColor ring;
-    if (remote) { edge = kGoldEdge; ring = edge; ring.setAlpha(140); }
-    else if (fileOrigin) { edge = kBronzeEdge; ring = edge; ring.setAlpha(140); }
+    if (remote) { edge = GOLD_EDGE; ring = edge; ring.setAlpha(140); }
+    else if (fileOrigin) { edge = BRONZE_EDGE; ring = edge; ring.setAlpha(140); }
     else if (current) { edge = o.palette.color(QPalette::Link); }
     else { edge = o.palette.color(QPalette::Dark); }
     p->save();
@@ -62,12 +62,12 @@ namespace stencil::gui {
 
     // Stacked column (browser row layout): name / meta / origin.
     const QRect base = st->subElementRect(QStyle::SE_ItemViewItemText, &o, o.widget);
-    const int colLeft = base.left() + kThumbTextGap;
+    const int colLeft = base.left() + THUMB_TEXT_GAP;
     const int colWidth = kebabZone(opt.rect).left() - 8 - colLeft;
     if (colWidth > 20) {
       const QString name = idx.data(Qt::UserRole + 3).toString();
       const QString nameStr = name.isEmpty() ? full : name;
-      QString meta = idx.data(kMetaRole).toString();
+      QString meta = idx.data(META_ROLE).toString();
       const QColor def = o.palette.color(QPalette::Text);
       QColor nameCol = idx.data(Qt::UserRole + 4).value<QColor>();
       if (!nameCol.isValid()) nameCol = def;
@@ -79,11 +79,11 @@ namespace stencil::gui {
       metaF.setPixelSize(12);
       const QFontMetrics nfm(nameF), mfm(metaF);
       // More air under the name: the inline editor otherwise sat on the "Created …" line.
-      constexpr int kLineGap = 6;
+      constexpr int LINE_GAP = 6;
       // Centred on the lines this row actually draws — the temporary row has no origin line.
       int totalH = nfm.height();
-      if (!meta.isEmpty()) totalH += kLineGap + mfm.height();
-      if (!temp) totalH += kLineGap + mfm.height();
+      if (!meta.isEmpty()) totalH += LINE_GAP + mfm.height();
+      if (!temp) totalH += LINE_GAP + mfm.height();
       int y = opt.rect.top() + (opt.rect.height() - totalH) / 2;
       p->save();
       p->setFont(nameF);
@@ -93,14 +93,14 @@ namespace stencil::gui {
                   nfm.elidedText(nameStr, Qt::ElideRight, colWidth));
       const int nameW = std::min(nfm.horizontalAdvance(nameStr), colWidth);
       nameRects_[idx.row()] = QRect(colLeft, y, nameW, nfm.height());
-      y += nfm.height() + kLineGap;
+      y += nfm.height() + LINE_GAP;
       if (!meta.isEmpty()) {
         p->setFont(metaF);
         p->setPen(o.palette.color(QPalette::PlaceholderText));
         p->drawText(QRect(colLeft, y, colWidth, mfm.height()),
                     Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine,
                     mfm.elidedText(meta, Qt::ElideRight, colWidth));
-        y += mfm.height() + kLineGap;
+        y += mfm.height() + LINE_GAP;
       }
       // Origin line: server (gold) / .stencil (bronze) / computer (grey), plus the accent "(Current)".
       // The temporary row has none, and no "⋯" either.
@@ -108,7 +108,7 @@ namespace stencil::gui {
       const QString gname = remote ? QStringLiteral("server")
                                    : (fileOrigin ? QStringLiteral("file-text")
                                                  : QStringLiteral("monitor"));
-      const QColor gcol = remote ? kGoldEdge : (fileOrigin ? kBronzeEdge : kGreyOrigin);
+      const QColor gcol = remote ? GOLD_EDGE : (fileOrigin ? BRONZE_EDGE : GREY_ORIGIN);
       const QString gtext = remote ? idx.data(Qt::UserRole + 1).toString()
                                    : (fileOrigin ? QStringLiteral(".stencil")
                                                  : QStringLiteral("computer"));

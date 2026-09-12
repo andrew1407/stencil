@@ -6,13 +6,13 @@ namespace stencil::gui {
   // `dust=false` settles any flight and sets visibility outright.
   void revealControls(QWidget* w, bool show, bool dust) {
     if (!w) return;
-    if (QObject* slide = w->property(kRevealSlideProperty).value<QObject*>())
-      if (slide->property(kRevealOpeningProperty).toBool() != show) ctl::settleReveal(w);
+    if (QObject* slide = w->property(REVEAL_SLIDE_PROPERTY).value<QObject*>())
+      if (slide->property(REVEAL_OPENING_PROPERTY).toBool() != show) ctl::settleReveal(w);
     if (w->isVisibleTo(w->parentWidget()) == show) { w->setVisible(show); return; }
     ctl::settleReveal(w);
     if (!dust) { w->setVisible(show); return; }
     QWidget* host = w->window();
-    if (w->property(kNoControlRevealProperty).toBool() || support::motionReduced()
+    if (w->property(NO_CONTROL_REVEAL_PROPERTY).toBool() || support::motionReduced()
         || !host || !host->isVisible()) {
       w->setVisible(show);
       return;
@@ -22,9 +22,9 @@ namespace stencil::gui {
       const QRect at(w->mapTo(host, QPoint(0, 0)), w->size());
       const int naturalW = w->width();
       const int savedMax = ctl::parkMaxWidth(w);
-      ctl::flyReveal(w, pm, at, /*gather=*/false, kControlRevealOutMs);
-      auto* shrink = new QPropertyAnimation(w, kMaxWidthProperty, w);
-      shrink->setDuration(kControlRevealOutMs);
+      ctl::flyReveal(w, pm, at, /*gather=*/false, CONTROL_REVEAL_OUT_MS);
+      auto* shrink = new QPropertyAnimation(w, MAX_WIDTH_PROPERTY, w);
+      shrink->setDuration(CONTROL_REVEAL_OUT_MS);
       shrink->setStartValue(naturalW);
       shrink->setEndValue(0);
       // Not InCubic: a strong ease-in barely moves for 200ms then snaps shut.
@@ -75,22 +75,22 @@ namespace stencil::gui {
       freshVeil->setOpacity(0.0);
       guard->setGraphicsEffect(freshVeil);
       QPointer<QGraphicsOpacityEffect> freshVeilGuard(freshVeil);
-      if (!ctl::flyReveal(guard, pm, at, /*gather=*/true, kControlRevealInMs)) {
+      if (!ctl::flyReveal(guard, pm, at, /*gather=*/true, CONTROL_REVEAL_IN_MS)) {
         guard->setGraphicsEffect(nullptr);
         ctl::handBackMaxWidth(guard, savedMax);
         return;
       }
       auto* fade = new QPropertyAnimation(freshVeilGuard, "opacity", freshVeilGuard);
-      fade->setDuration(kControlRevealInMs);
+      fade->setDuration(CONTROL_REVEAL_IN_MS);
       fade->setKeyValueAt(0.0, 0.0);
-      fade->setKeyValueAt(kControlRevealVeilStop, 0.0);
+      fade->setKeyValueAt(CONTROL_REVEAL_VEIL_STOP, 0.0);
       fade->setKeyValueAt(1.0, 1.0);
       QObject::connect(fade, &QPropertyAnimation::finished, guard, [guard] {
         if (guard) guard->setGraphicsEffect(nullptr);
       });
       fade->start(QAbstractAnimation::DeleteWhenStopped);
-      auto* grow = new QPropertyAnimation(guard, kMaxWidthProperty, guard);
-      grow->setDuration(kControlRevealInMs);
+      auto* grow = new QPropertyAnimation(guard, MAX_WIDTH_PROPERTY, guard);
+      grow->setDuration(CONTROL_REVEAL_IN_MS);
       grow->setStartValue(0);
       grow->setEndValue(naturalW);
       grow->setEasingCurve(QEasingCurve::OutCubic);
@@ -120,7 +120,7 @@ namespace stencil::gui {
         specks, QPixmap(), at, host,
         out ? DisintegrateOverlay::Sweep::Fall : DisintegrateOverlay::Sweep::Gather,
         cols, rows, out ? outMs : inMs, /*spread=*/1.0, /*pad=*/34,
-        QString::fromLatin1(kControlRevealObjectName));
+        QString::fromLatin1(CONTROL_REVEAL_OBJECT_NAME));
     if (cloud) ctl::trackRevealFx(w, cloud);
     if (out || !cloud) {
       fx->setOpacity(out ? 0.0 : 1.0);
@@ -130,7 +130,7 @@ namespace stencil::gui {
     auto* veil = new QPropertyAnimation(fx, "opacity", fx);
     veil->setDuration(inMs);
     veil->setKeyValueAt(0.0, 0.0);
-    veil->setKeyValueAt(kControlRevealVeilStop, 0.0);
+    veil->setKeyValueAt(CONTROL_REVEAL_VEIL_STOP, 0.0);
     veil->setKeyValueAt(1.0, 1.0);
     QPointer<QGraphicsOpacityEffect> fxGuard(fx);
     QObject::connect(veil, &QPropertyAnimation::finished, fx,

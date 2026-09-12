@@ -43,7 +43,7 @@ namespace stencil::gui {
     if (chatArea != Qt::LeftDockWidgetArea && chatArea != Qt::RightDockWidgetArea) return;
     if (dockWidgetArea(selPanel_) != chatArea) return;
     if (selPanel_->width() > 120) panelRestoreWidth_ = selPanel_->width();
-    selPanel_->setFixedWidth(panelRestoreWidth_ > 120 ? panelRestoreWidth_ : kPanelDefaultWidth);
+    selPanel_->setFixedWidth(panelRestoreWidth_ > 120 ? panelRestoreWidth_ : PANEL_DEFAULT_WIDTH);
   }
 
   // Plain addDockWidget stacks two docks VERTICALLY unless explicitly split. Idempotent.
@@ -63,7 +63,7 @@ namespace stencil::gui {
     chatClosing_ = false;
     if (chatDock_) chatDock_->setClosing(false);
     // Always released — it must never outlive an interrupted flight.
-    if (selPanel_) { selPanel_->setMinimumWidth(kPanelMinWidth); selPanel_->setMaximumWidth(QWIDGETSIZE_MAX); }
+    if (selPanel_) { selPanel_->setMinimumWidth(PANEL_MIN_WIDTH); selPanel_->setMaximumWidth(QWIDGETSIZE_MAX); }
     if (chatVeil_) {
       if (chatDock_ && chatDock_->graphicsEffect() == chatVeil_) chatDock_->setGraphicsEffect(nullptr);
       chatVeil_ = nullptr;
@@ -133,16 +133,16 @@ namespace stencil::gui {
     // Interrupting a hide: grow from where it actually is.
     const int from = show ? (wasVisible && extent() < full ? extent() : 0) : extent();
     const int to = show ? full : 0;
-    // Snapshot at FULL extent, veil built in chatSurfaceFlight. Same kChatSlideOutMs both ways (chatPanel.js closeMs).
+    // Snapshot at FULL extent, veil built in chatSurfaceFlight. Same CHAT_SLIDE_OUT_MS both ways (chatPanel.js closeMs).
     // Shown BEFORE it is measured: a HIDDEN dock contributes no space to the dock layout.
     if (show) chatDock_->show();
     QPointer<gui::DisintegrateOverlay> dustFx =
-        chatSurfaceFlight(area, /*gather=*/show, kChatSlideOutMs, pin, show ? full : from);
+        chatSurfaceFlight(area, /*gather=*/show, CHAT_SLIDE_OUT_MS, pin, show ? full : from);
     if (show) pin(from);
     // A dock mid-slide is already "away" for results: it stays isVisible() for the whole slide.
     if (!show) { chatClosing_ = true; chatDock_->setClosing(true); }
     chatAnim_ = startExtentSlide(this, from, to,
-                                 kChatSlideOutMs,  // browser: 0.34s both ways, matching the dust flight above
+                                 CHAT_SLIDE_OUT_MS,  // browser: 0.34s both ways, matching the dust flight above
                                  pinAndRaiseDust(pin, dustFx), [this, show] {
                                    stopChatAnim();  // releases the pinned constraints
                                    if (!show) chatDock_->hide();

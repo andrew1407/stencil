@@ -43,7 +43,7 @@ namespace stencil::llm {
 
     // Emission order = final prompt order: the §2 core ops, then the §10 editor
     // block spliced between the frame and image bullets.
-    constexpr OpRow kRows[] = {
+    constexpr OpRow ROWS[] = {
         {OpKind::Crop, "crop", CapNone},
         {OpKind::Rotate, "rotate", CapNone},
         {OpKind::Filter, "filter", CapNone},
@@ -88,7 +88,7 @@ namespace stencil::llm {
     static const QVector<OpDescriptor> table = [] {
       const OpSchema& schema = OpSchema::desktop();
       QVector<OpDescriptor> out;
-      for (const OpRow& r : kRows) {
+      for (const OpRow& r : ROWS) {
         OpDescriptor d{r.kind, r.name, QString(), false, false, false, r.capability};
         if (const OpEntry* e = schema.entry(QLatin1String(r.name))) {
           const OpEntry* src = e->bulletSharedWith.isEmpty() ? e : schema.entry(e->bulletSharedWith);
@@ -125,13 +125,13 @@ namespace stencil::llm {
   }
 
   QString opName(OpKind kind) {
-    for (const OpRow& r : kRows)
+    for (const OpRow& r : ROWS)
       if (r.kind == kind) return QString::fromUtf8(r.name);
     return QString();
   }
 
   bool opKindFor(const QString& name, OpKind* out) {
-    for (const OpRow& r : kRows) {
+    for (const OpRow& r : ROWS) {
       if (name != QLatin1String(r.name)) continue;
       if (out) *out = r.kind;
       return true;

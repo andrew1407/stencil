@@ -18,15 +18,15 @@
 #include "check.hpp"
 
 #if defined(Q_OS_MACOS)
-inline const char* kPlatform = "macos";
+inline const char* PLATFORM = "macos";
 #elif defined(Q_OS_WIN)
-inline const char* kPlatform = "windows";
+inline const char* PLATFORM = "windows";
 #else
-inline const char* kPlatform = "linux";
+inline const char* PLATFORM = "linux";
 #endif
 
 inline QString pinsDir() { return QStringLiteral(STENCIL_UI_PINS_DIR); }
-inline QString shotsDir() { return pinsDir() + "/" + QLatin1String(kPlatform); }
+inline QString shotsDir() { return pinsDir() + "/" + QLatin1String(PLATFORM); }
 
 inline bool updating() { return qEnvironmentVariable("STENCIL_UPDATE_UI_PINS") == QLatin1String("1"); }
 

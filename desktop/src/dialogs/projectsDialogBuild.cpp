@@ -121,7 +121,7 @@ namespace stencil::gui {
       batchBar_->setVisible(false);
       // The bar and the list share ONE zero-spacing slot; the gap under the bar is the bar's OWN bottom
       // margin, so a closing strip slides its whole footprint away (controlReveal closeBarSlot). 10px above, 10px below.
-      bh->setContentsMargins(0, 0, 0, kBodySpacing);
+      bh->setContentsMargins(0, 0, 0, BODY_SPACING);
       barSlot_ = new QVBoxLayout;
       barSlot_->setContentsMargins(0, 0, 0, 0);
       barSlot_->setSpacing(0);

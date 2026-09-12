@@ -34,7 +34,7 @@ namespace stencil::gui {
 
   void ValueSwapOverlay::cancel(QComboBox* cb) {
     const auto live =
-        cb->findChildren<QWidget*>(QString::fromLatin1(kValueSwapObjectName),
+        cb->findChildren<QWidget*>(QString::fromLatin1(VALUE_SWAP_OBJECT_NAME),
                                    Qt::FindDirectChildrenOnly);
     for (QWidget* w : live) delete w;   // a deleted animation never emits finished()
     ctl::hideComboLabel(cb, false);
@@ -43,7 +43,7 @@ namespace stencil::gui {
 
   bool ValueSwapOverlay::running(const QComboBox* cb) {
     return cb
-           && cb->findChild<QWidget*>(QString::fromLatin1(kValueSwapObjectName),
+           && cb->findChild<QWidget*>(QString::fromLatin1(VALUE_SWAP_OBJECT_NAME),
                                       Qt::FindDirectChildrenOnly) != nullptr;
   }
 
@@ -61,9 +61,9 @@ namespace stencil::gui {
     // Each cloud is composed on its own layer, or the second word's cut-outs would take
     // the first word's flying grains with them.
     renderCloud(&layerOut_, out_, &cellsOut_,
-                std::clamp(t_ / kValueSwapOutShare, 0.0, 1.0), false);
+                std::clamp(t_ / VALUE_SWAP_OUT_SHARE, 0.0, 1.0), false);
     renderCloud(&layerIn_, in_, &cellsIn_,
-                std::clamp((t_ - kValueSwapPivot) / (1.0 - kValueSwapPivot), 0.0, 1.0), true);
+                std::clamp((t_ - VALUE_SWAP_PIVOT) / (1.0 - VALUE_SWAP_PIVOT), 0.0, 1.0), true);
     p.drawImage(rect(), layerOut_);
     p.drawImage(rect(), layerIn_);
   }
@@ -82,8 +82,8 @@ namespace stencil::gui {
     if (pm.isNull() || (gather ? t <= 0.0 : t >= 1.0)) return;
     const QRectF box(clip_);
     if (box.width() < 2 || box.height() < 2) return;
-    const int cols = std::max(1, qRound(box.width() / kValueSwapCellPx));
-    const int rows = std::max(1, qRound(box.height() / kValueSwapCellPx));
+    const int cols = std::max(1, qRound(box.width() / VALUE_SWAP_CELL_PX));
+    const int rows = std::max(1, qRound(box.height() / VALUE_SWAP_CELL_PX));
     const double cw = box.width() / cols;
     const double ch = box.height() / rows;
     if (cells->width() != cols || cells->height() != rows) {
@@ -96,7 +96,7 @@ namespace stencil::gui {
     }
     QPainter p(layer);
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-    static const QEasingCurve kOut(QEasingCurve::OutQuint);
+    static const QEasingCurve OUT_CURVE(QEasingCurve::OutQuint);
     struct Grain { QPointF at; double r; QColor c; support::GrainShape shape; double heading; };
     std::vector<Grain> grains;
     std::vector<QRect> cut;
@@ -117,15 +117,15 @@ namespace stencil::gui {
           away = gather ? k < 1.0 : k > 0.0;
           if (away) {
             k = std::clamp(k, 0.0, 1.0);
-            const double e = kOut.valueForProgress(k);
+            const double e = OUT_CURVE.valueForProgress(k);
             const double far = gather ? 1.0 - e : e;
             QColor c = DisintegrateOverlay::cellColour(*cells, cx, cy);
             const double alpha = c.alphaF() * (0.78 + n * 0.22)
                 * (gather ? DisintegrateOverlay::gatherAlpha(k) : DisintegrateOverlay::scatterAlpha(k));
             if (far < 1.0 && alpha > 0.02) {
               const QPointF home(box.x() + (cx + 0.5) * cw, box.y() + (cy + 0.5) * ch);
-              const double tx = (m - 0.5) * kValueSwapThrowPx;
-              const double ty = (0.3 + n * 0.7) * kValueSwapThrowPx;
+              const double tx = (m - 0.5) * VALUE_SWAP_THROW_PX;
+              const double ty = (0.3 + n * 0.7) * VALUE_SWAP_THROW_PX;
               const double w = DisintegrateOverlay::cellNoise(cx + 13, cy + 71);
               Grain g{home + QPointF(far * tx, far * ty) + DisintegrateOverlay::swirlAt(far, tx, ty, q),
                       DisintegrateOverlay::moteRadius(cw, ch, n) * (1.0 - far * (0.6 - n * 0.25)), c,
@@ -177,7 +177,7 @@ namespace stencil::gui {
 
   ValueSwapOverlay::ValueSwapOverlay(QComboBox* cb, const QPixmap& out, const QPixmap& in,
                                      const QRect& clip) : QWidget(cb), out_(out), in_(in), clip_(clip) {
-    setObjectName(QString::fromLatin1(kValueSwapObjectName));
+    setObjectName(QString::fromLatin1(VALUE_SWAP_OBJECT_NAME));
     setAttribute(Qt::WA_TransparentForMouseEvents, true);
     setAttribute(Qt::WA_NoSystemBackground, true);
     setAttribute(Qt::WA_TranslucentBackground, true);

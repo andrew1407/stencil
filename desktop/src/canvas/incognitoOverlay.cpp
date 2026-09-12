@@ -62,7 +62,7 @@ namespace stencil::gui {
     // valueChanged into progress_, so reading it after them yields the END value (an instant snap).
     const double from = progress_;
     const double to = on ? 1.0 : 0.0;
-    const int ms = std::max(1, int(kDrawMs * std::abs(to - from)));
+    const int ms = std::max(1, int(DRAW_MS * std::abs(to - from)));
     anim_->stop();
     anim_->setDuration(ms);
     anim_->setStartValue(from);
@@ -96,11 +96,11 @@ namespace stencil::gui {
     const QColor accent = themePalette(dark_, accentKey_).accent;
 
     // Browser: outline 3px dashed, outline-offset -3px puts the OUTER edge on the box. Qt strokes
-    // centred, so the only inset is kPenPx/2 — more leaves bare canvas outside the dashes.
+    // centred, so the only inset is PEN_PX/2 — more leaves bare canvas outside the dashes.
     // The dash pattern rides ON the partial path, so dashes are REVEALED in order, not stretched.
     QPen pen(accent);
     pen.setStyle(Qt::DashLine);
-    pen.setWidth(kPenPx);
+    pen.setWidth(PEN_PX);
     pen.setCapStyle(Qt::FlatCap);
     p.setPen(pen);
     p.setBrush(Qt::NoBrush);

@@ -28,7 +28,7 @@ namespace stencil::gui {
       }
     }
     // Stroke half-width plus the wake's extra 7, the ripple's 4.2x point radius, the bow cap.
-    const double pad = line.thickness + line.pointSize * 4.2 + stroke::kBowMax + 8.0;
+    const double pad = line.thickness + line.pointSize * 4.2 + stroke::BOW_MAX + 8.0;
     return QRectF((x0 - pad) * scale_, (y0 - pad) * scale_, (x1 - x0 + 2 * pad) * scale_,
                   (y1 - y0 + 2 * pad) * scale_)
         .toAlignedRect();

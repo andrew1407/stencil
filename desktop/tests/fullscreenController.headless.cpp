@@ -34,9 +34,9 @@ int main(int argc, char** argv) {
   // ── Toolbars, while hidden: only the reveal band opens them.
   {
     FullscreenController fs;
-    const int inBand = (FullscreenController::kRevealTop + FullscreenController::kRevealBottom) / 2;
+    const int inBand = (FullscreenController::REVEAL_TOP + FullscreenController::REVEAL_BOTTOM) / 2;
     check(fs.wantBars(QPoint(600, inBand), 0), "the cursor in the top band reveals the rows");
-    check(!fs.wantBars(QPoint(600, FullscreenController::kRevealBottom + 40), 0),
+    check(!fs.wantBars(QPoint(600, FullscreenController::REVEAL_BOTTOM + 40), 0),
           "below the band, the rows stay away");
     check(!fs.wantBars(QPoint(600, 400), 0), "mid-canvas never reveals the rows");
 #ifdef Q_OS_MACOS
@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
     check(!fs.wantBars(QPoint(600, 300), 200), "clear of the rows and their grace, they close");
     check(fs.wantBars(QPoint(600, 140), 0), "unmeasurable rows still keep the 150px floor");
     // The zone a shown set keeps is never narrower than the band that opened it.
-    check(fs.wantBars(QPoint(600, FullscreenController::kRevealBottom - 1), 0),
+    check(fs.wantBars(QPoint(600, FullscreenController::REVEAL_BOTTOM - 1), 0),
           "anything inside the reveal band also keeps them open");
   }
 

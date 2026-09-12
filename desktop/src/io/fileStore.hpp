@@ -170,7 +170,7 @@ namespace stencil::gui {
                                 core::CropRect* cropOut = nullptr, int* rotOut = nullptr);
 
     // .stencil portable project file — browser/js/core/projectFile.js twin; QtCore-only (image as base64).
-    inline constexpr int kStencilFileVersion = 1;
+    inline constexpr int STENCIL_FILE_VERSION = 1;
     struct ProjectFileData {
       QString name = "Untitled";
       QString color;              // "#rrggbb" or "" (omitted from the file when empty)
@@ -194,8 +194,8 @@ namespace stencil::gui {
     bool parseProjectFile(const QByteArray& bytes, ProjectFileData& out, QString* err = nullptr);
 
     // llm-contract.md §12.1: text-only, most recent 32 turns; unknown roles/fields/versions are dropped.
-    inline constexpr int kChatDocVersion = 1;
-    inline constexpr int kChatDocMessageLimit = 32;
+    inline constexpr int CHAT_DOC_VERSION = 1;
+    inline constexpr int CHAT_DOC_MESSAGE_LIMIT = 32;
     QJsonObject buildChatDoc(const QJsonArray& messages, qint64 savedAt);
     QJsonArray parseChatDoc(const QJsonObject& doc);
 

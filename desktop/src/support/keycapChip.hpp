@@ -20,7 +20,7 @@ namespace stencil::gui {
     explicit KeycapChip(QWidget* parent = nullptr) : TipBody(parent) {
       setAttribute(Qt::WA_Hover, true);
       shake_ = new QVariantAnimation(this);
-      shake_->setDuration(AppTooltip::kShakeMs);
+      shake_->setDuration(AppTooltip::SHAKE_MS);
       shake_->setStartValue(0.0);
       shake_->setEndValue(1.0);
       QObject::connect(shake_, &QVariantAnimation::valueChanged, this,

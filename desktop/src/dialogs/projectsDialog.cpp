@@ -11,7 +11,7 @@
 #include "projectsStore.hpp"
 #include "reorderableListWidget.hpp"
 #include "../support/scrollReveal.hpp"  // revealOpacityForItem (scroll edge fade)
-#include "../app/mainWindowHelpers.hpp"   // kNameChipBox / kNameChipGlyph — the shared chip
+#include "../app/mainWindowHelpers.hpp"   // NAME_CHIP_BOX / NAME_CHIP_GLYPH — the shared chip
 #include "../support/controlReveal.hpp"       // the rename ✓/✗ form/come apart as dust
 #include "../support/flowLayout.hpp"           // the filter row + batch bar wrap, never clip
 #include "../support/disintegrateOverlay.hpp"  // deleted rows come apart
@@ -95,8 +95,8 @@ namespace stencil::gui {
     setWindowTitle("Projects");
     // The browser modal's footprint (app-modal width, min-height min(560px, 82vh))
     // — the row text elides / stacks instead of demanding width.
-    setMinimumSize(kModalWidth, 420);
-    resize(kModalWidth, 560);
+    setMinimumSize(MODAL_WIDTH, 420);
+    resize(MODAL_WIDTH, 560);
 
     // Most-recently-updated first, matching the browser store ordering.
     std::sort(projects_.begin(), projects_.end(),

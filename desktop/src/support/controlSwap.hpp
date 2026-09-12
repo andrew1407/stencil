@@ -39,29 +39,29 @@
 
 namespace stencil::gui {
 
-  inline constexpr int kCheckSwapMs = 213;   // click feedback: a fifth of a removed row's
-  inline constexpr int kCheckSwapCells = 7;  // ~2px cells over a 16px indicator
-  inline constexpr double kCheckSwapSpread = 0.30;   // share of a list row's throw
-  inline constexpr int kCheckSwapPadPx = 22;
-  inline constexpr const char* kCheckSwapObjectName = "stencilCheckSwap";
-  inline constexpr const char* kCheckSwapOwnerProperty = "stencilCheckSwapOwner";
+  inline constexpr int CHECK_SWAP_MS = 213;   // click feedback: a fifth of a removed row's
+  inline constexpr int CHECK_SWAP_CELLS = 7;  // ~2px cells over a 16px indicator
+  inline constexpr double CHECK_SWAP_SPREAD = 0.30;   // share of a list row's throw
+  inline constexpr int CHECK_SWAP_PAD_PX = 22;
+  inline constexpr const char* CHECK_SWAP_OBJECT_NAME = "stencilCheckSwap";
+  inline constexpr const char* CHECK_SWAP_OWNER_PROPERTY = "stencilCheckSwapOwner";
 
-  inline constexpr int kValueSwapCellPx = 3;
-  inline constexpr double kValueSwapThrowPx = 11.0;   // the field clips; a word must not explode
-  inline constexpr double kValueSwapPivot = 0.34;     // share of the exchange the arrival starts at
-  inline constexpr double kValueSwapOutShare = 0.7;
-  inline constexpr const char* kValueSwapObjectName = "stencilValueSwap";
+  inline constexpr int VALUE_SWAP_CELL_PX = 3;
+  inline constexpr double VALUE_SWAP_THROW_PX = 11.0;   // the field clips; a word must not explode
+  inline constexpr double VALUE_SWAP_PIVOT = 0.34;     // share of the exchange the arrival starts at
+  inline constexpr double VALUE_SWAP_OUT_SHARE = 0.7;
+  inline constexpr const char* VALUE_SWAP_OBJECT_NAME = "stencilValueSwap";
   // Set while the swap owns the combo's text colour (faceSwap's stylesheet idiom).
-  inline constexpr const char* kValueSwapProperty = "stencilValueSwapping";
-  inline constexpr const char* kValueSwapTextProperty = "stencilValueSwapText";
+  inline constexpr const char* VALUE_SWAP_PROPERTY = "stencilValueSwapping";
+  inline constexpr const char* VALUE_SWAP_TEXT_PROPERTY = "stencilValueSwapText";
   // currentTextChanged has already overwritten the cache by the time textActivated fires.
-  inline constexpr const char* kValueSwapPrevProperty = "stencilValueSwapPrev";
-  inline constexpr const char* kValueSwapCountProperty = "stencilValueSwapCount";
-  inline constexpr const char* kValueSwapSheetProperty = "stencilValueSwapBaseSheet";
+  inline constexpr const char* VALUE_SWAP_PREV_PROPERTY = "stencilValueSwapPrev";
+  inline constexpr const char* VALUE_SWAP_COUNT_PROPERTY = "stencilValueSwapCount";
+  inline constexpr const char* VALUE_SWAP_SHEET_PROPERTY = "stencilValueSwapBaseSheet";
 
-  inline constexpr const char* kNoControlSwapProperty = "stencilNoControlSwap";
-  inline constexpr const char* kControlSwapWiredProperty = "stencilControlSwapWired";
-  inline constexpr const char* kControlSwapFilterName = "stencilControlSwapFilter";
+  inline constexpr const char* NO_CONTROL_SWAP_PROPERTY = "stencilNoControlSwap";
+  inline constexpr const char* CONTROL_SWAP_WIRED_PROPERTY = "stencilControlSwapWired";
+  inline constexpr const char* CONTROL_SWAP_FILTER_NAME = "stencilControlSwapFilter";
 
   namespace ctl {
 
@@ -89,7 +89,7 @@ namespace stencil::gui {
 
     // The dropped list is a surface (menuReveal.hpp revealPopup); the flight hangs off
     // the container's own Show, the first moment its box is final.
-    inline constexpr const char* kComboPopupFilterName = "stencilComboPopupDust";
+    inline constexpr const char* COMBO_POPUP_FILTER_NAME = "stencilComboPopupDust";
     class ComboPopupDust : public QObject {
      public:
       explicit ComboPopupDust(QComboBox* cb);
@@ -111,7 +111,7 @@ namespace stencil::gui {
   class ValueSwapOverlay : public QWidget {
    public:
     static void play(QComboBox* cb, const QString& from, const QString& to,
-                     int ms = kFaceSwapMs);
+                     int ms = FACE_SWAP_MS);
 
     static void cancel(QComboBox* cb);
 

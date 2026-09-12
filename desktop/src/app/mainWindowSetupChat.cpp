@@ -71,7 +71,7 @@ namespace stencil::gui {
       if (!chatGuard->isHidden() && !chatGuard->isFloating() &&
           dockWidgetArea(chatGuard) == dockWidgetArea(panelGuard))
         return;   // still side by side — leave the split alone
-      const int w = panelRestoreWidth_ > 120 ? panelRestoreWidth_ : kPanelDefaultWidth;
+      const int w = panelRestoreWidth_ > 120 ? panelRestoreWidth_ : PANEL_DEFAULT_WIDTH;
       QTimer::singleShot(0, this, [this, panelGuard, w] {
         if (panelGuard && !panelGuard->isHidden())
           resizeDocks({panelGuard.data()}, {w}, Qt::Horizontal);

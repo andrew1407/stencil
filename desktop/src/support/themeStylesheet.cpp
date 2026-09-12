@@ -118,8 +118,8 @@ namespace stencil::gui {
     return fillTokens(stylesheetTemplate(), {
         {"%BTN_FLAT%", c(dark ? p.bgContainer.lighter(112) : p.bgContainer.darker(103))},
         // Geometry the code measures against (theme.hpp) — interpolated, never retyped.
-        {"%MENU_PAD_R%", QString::number(kMenuItemRightPadPx)},
-        {"%SEP_W%", QString::number(kDockSeparatorPx)},
+        {"%MENU_PAD_R%", QString::number(MENU_ITEM_RIGHT_PAD_PX)},
+        {"%SEP_W%", QString::number(DOCK_SEPARATOR_PX)},
         // theme.hpp onAccentInk; the indicator marks are baked PNGs, so they come as a pair.
         {"%ON_ACCENT%", c(p.onAccent)},
         {"%TICK_IMG%", darkGlyph ? ":/icons/check-dark.png" : ":/icons/check.png"},

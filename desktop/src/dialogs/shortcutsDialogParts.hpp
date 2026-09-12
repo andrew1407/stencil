@@ -9,22 +9,22 @@
 
 namespace stencil::gui {
 
-  inline constexpr int kShortcutsWidth = 620;   // browser #settings-modal: four columns
+  inline constexpr int SHORTCUTS_WIDTH = 620;   // browser #settings-modal: four columns
   // Keycap-column FLOORS: both grow to their widest chord once every row is built
   // (the browser's max-content columns). Action takes the rest, down to its own floor.
-  inline constexpr int kComboColW = 150;
-  inline constexpr int kDefaultColW = 110;
-  inline constexpr int kActionMinW = 150;
-  inline constexpr int kResetColW = 30;
-  inline constexpr int kCellPadX = 10;   // th/td padding: 7px 10px
-  inline constexpr int kCellPadY = 7;
-  inline constexpr int kSidePad = 18;    // .settings-body padding
+  inline constexpr int COMBO_COL_W = 150;
+  inline constexpr int DEFAULT_COL_W = 110;
+  inline constexpr int ACTION_MIN_W = 150;
+  inline constexpr int RESET_COL_W = 30;
+  inline constexpr int CELL_PAD_X = 10;   // th/td padding: 7px 10px
+  inline constexpr int CELL_PAD_Y = 7;
+  inline constexpr int SIDE_PAD = 18;    // .settings-body padding
   // A new combination's caps arrive as dust (browser markIn: 320ms, veiled to 62%).
-  inline constexpr int kFormMs = 320;
-  inline constexpr double kFormVeil = 0.62;
-  inline constexpr int kFormCells = 600;
+  inline constexpr int FORM_MS = 320;
+  inline constexpr double FORM_VEIL = 0.62;
+  inline constexpr int FORM_CELLS = 600;
   // Cap size against the tooltip's own — the combo and its default wear the same caps.
-  inline constexpr qreal kCapScale = 0.95;
+  inline constexpr qreal CAP_SCALE = 0.95;
 
   // Table keycaps wear no face of their own: the container fill read as a dark box
   // against a hovered row, so here a key is its outline and its glyph.

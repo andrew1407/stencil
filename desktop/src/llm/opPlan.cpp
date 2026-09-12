@@ -84,7 +84,7 @@ namespace stencil::llm {
     // model can never hand us an arbitrary file to slurp (a recorded desktop+cli
     // divergence; never a directory). Mirrors the cli's understoodPath.
     bool isOpenableFile(const QString& path) {
-      static const QStringList kExts = {
+      static const QStringList EXTS = {
           QStringLiteral("png"),  QStringLiteral("jpg"),  QStringLiteral("jpeg"),
           QStringLiteral("bmp"),  QStringLiteral("tga"),  QStringLiteral("gif"),
           QStringLiteral("webp"), QStringLiteral("mp4"),  QStringLiteral("mov"),
@@ -94,7 +94,7 @@ namespace stencil::llm {
       if (dot < 0) return false;
       const int slash = std::max(path.lastIndexOf(QLatin1Char('/')), path.lastIndexOf(QLatin1Char('\\')));
       if (dot < slash) return false;  // the dot is in a directory name
-      return kExts.contains(path.mid(dot + 1).toLower());
+      return EXTS.contains(path.mid(dot + 1).toLower());
     }
 
     // The validated + normalized action (declared keys, registry defaults, trims) →

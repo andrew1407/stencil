@@ -9,7 +9,7 @@ namespace stencil::core {
       const char* name;
       PageSize size;
     };
-    constexpr NamedSize kPageSizes[] = {
+    constexpr NamedSize PAGE_SIZES[] = {
         {"A0", {84.1, 118.9}}, {"A1", {59.4, 84.1}}, {"A2", {42.0, 59.4}},
         {"A3", {29.7, 42.0}},  {"A4", {21.0, 29.7}}, {"A5", {14.8, 21.0}},
         {"A6", {10.5, 14.8}},  {"A7", {7.4, 10.5}},  {"A8", {5.2, 7.4}},
@@ -26,7 +26,7 @@ namespace stencil::core {
   }
 
   PageSize namedPageSize(const std::string& name) {
-    for (const NamedSize& ns : kPageSizes)
+    for (const NamedSize& ns : PAGE_SIZES)
       if (name == ns.name) return ns.size;
     return {0.0, 0.0};
   }
@@ -34,7 +34,7 @@ namespace stencil::core {
   const char* pageFormatNames() {
     static const std::string names = [] {
       std::string s;
-      for (const NamedSize& ns : kPageSizes) {
+      for (const NamedSize& ns : PAGE_SIZES) {
         if (!s.empty()) s += ' ';
         s += ns.name;
       }

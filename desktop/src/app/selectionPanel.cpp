@@ -57,10 +57,10 @@ namespace stencil::gui {
     // chevron's slab.
     collapseBtn_->setObjectName("panelCollapseBtn");   // styled in theme.cpp
     // A fold chevron's angle is state, not hover feedback (iconMotion.json trigger.excluded).
-    collapseBtn_->setProperty(kNoIconMotionProperty, true);
+    collapseBtn_->setProperty(NO_ICON_MOTION_PROPERTY, true);
     collapseBtn_->setFocusPolicy(Qt::NoFocus);   // no macOS focus halo around the chevron
-    collapseBtn_->setFixedSize(kToggleBox, kToggleBox);
-    collapseBtn_->setIconSize(QSize(kToggleGlyph, kToggleGlyph));
+    collapseBtn_->setFixedSize(TOGGLE_BOX, TOGGLE_BOX);
+    collapseBtn_->setIconSize(QSize(TOGGLE_GLYPH, TOGGLE_GLYPH));
     connect(collapseBtn_, &QToolButton::clicked, this, [this] { emit collapseRequested(); });
     titleRow->addWidget(tabBar_);
     titleRow->addStretch(1);

@@ -135,7 +135,7 @@ namespace stencil::gui {
   QByteArray fileStore::buildProjectFile(const ProjectFileData& pf) {
     QJsonObject root;
     root["format"] = "stencil-project";
-    root["version"] = kStencilFileVersion;
+    root["version"] = STENCIL_FILE_VERSION;
     root["name"] = pf.name.isEmpty() ? QStringLiteral("Untitled") : pf.name;
     if (!pf.color.isEmpty()) root["color"] = pf.color;
     if (!pf.description.isEmpty()) root["description"] = pf.description;

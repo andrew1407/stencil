@@ -13,7 +13,7 @@
 namespace stencil::gui {
 
   // 1.5x brisker than a list row's 900 ms flight, off the ITEM clock: a message is read as it arrives.
-  constexpr int kChatArriveMs = DisintegrateOverlay::kItemMs * 2 / 3;
+  constexpr int CHAT_ARRIVE_MS = DisintegrateOverlay::ITEM_MS * 2 / 3;
 
   QRect scrollViewportInHost(QScrollArea* scroll, QWidget* host) {
     if (!scroll || !scroll->viewport() || !host) return host ? host->rect() : QRect();
@@ -52,7 +52,7 @@ namespace stencil::gui {
     auto at = std::make_shared<QPoint>(card->mapTo(host, QPoint(0, 0)));
     // Parented to the CARD and stopped by the overlay's own death — a raw-pointer singleShot crashed here.
     auto* timer = new QTimer(card);
-    timer->setInterval(kChatGatherSettleMs);
+    timer->setInterval(CHAT_GATHER_SETTLE_MS);
     QObject::connect(timer, &QTimer::timeout, card, [cp, op, scroll, shot, timer, settle, at] {
       if (!op || !cp) { timer->stop(); timer->deleteLater(); return; }
       if (!chatCardFullyInViewport(cp, scroll) || cp->size() != shot) {
@@ -86,7 +86,7 @@ namespace stencil::gui {
       QPointer<QVBoxLayout> lp(layout);
       QPointer<QScrollArea> sp(scroll);
       QPointer<QWidget> hp(host);
-      QTimer::singleShot(kChatGatherSettleMs, card,
+      QTimer::singleShot(CHAT_GATHER_SETTLE_MS, card,
                          [cp, lp, sp, hp, cols, rows, settle, onFlight, tries,
                           sizeNow] {
         if (cp && lp && hp)
@@ -118,7 +118,7 @@ namespace stencil::gui {
     const QRect box(card->mapTo(host, QPoint(0, 0)), card->size());
     auto* dust = DisintegrateOverlay::overSurface(
         snap, box, host, chatArrivalPoint(box, scrollViewportInHost(scroll, host)),
-        /*gather=*/true, kChatArriveMs, card->palette().color(QPalette::WindowText),
+        /*gather=*/true, CHAT_ARRIVE_MS, card->palette().color(QPalette::WindowText),
         cols * rows);
     if (!dust) { settle(); return; }
     // Confined to the transcript: the layer is drawn on the WINDOW (clipDustToScroller).
@@ -128,7 +128,7 @@ namespace stencil::gui {
     // A CUT in the frame the overlay deletes itself: a fade-up would double the arrival.
     QPointer<QWidget> cp(card);
     // The card takes over at three quarters of the flight; the last motes settle on top of it.
-    QTimer::singleShot(kChatArriveMs * 3 / 4, card, [cp, settle] { if (cp) settle(); });
+    QTimer::singleShot(CHAT_ARRIVE_MS * 3 / 4, card, [cp, settle] { if (cp) settle(); });
   }
 
   void applyMutedText(QLabel* label) {
@@ -161,19 +161,19 @@ namespace stencil::gui {
   }
 
   // Bubble tail (browser .chat-msg-user::before/::after): border copy behind, 1 px smaller fill in front.
-  static constexpr int kTailLeg = 9;
-  static constexpr int kTailFillLeg = 8;
-  static constexpr int kTailShift = 1;
-  static constexpr int kTailW = kTailShift + kTailLeg;
-  static constexpr int kTailH = kTailLeg;
+  static constexpr int TAIL_LEG = 9;
+  static constexpr int TAIL_FILL_LEG = 8;
+  static constexpr int TAIL_SHIFT = 1;
+  static constexpr int TAIL_W = TAIL_SHIFT + TAIL_LEG;
+  static constexpr int TAIL_H = TAIL_LEG;
   // Slack on every side: a path edge flush with the widget's clip is dropped or half-antialiased.
-  static constexpr int kTailPad = kTailShift;
-  static constexpr int kTailBoxW = kTailW + 2 * kTailPad;
-  static constexpr int kTailBoxH = kTailH + 2 * kTailPad;
+  static constexpr int TAIL_PAD = TAIL_SHIFT;
+  static constexpr int TAIL_BOX_W = TAIL_W + 2 * TAIL_PAD;
+  static constexpr int TAIL_BOX_H = TAIL_H + 2 * TAIL_PAD;
 
   ChatBubbleTail::ChatBubbleTail(QWidget* parent) : QWidget(parent) {
     setAttribute(Qt::WA_TransparentForMouseEvents);
-    setFixedSize(kTailBoxW, kTailBoxH);
+    setFixedSize(TAIL_BOX_W, TAIL_BOX_H);
     hide();
   }
 
@@ -192,7 +192,7 @@ namespace stencil::gui {
 
   // Right-angle vertex `shift` px diagonally out from the bubble's corner; `leg` px legs.
   static QPainterPath tailTriangle(bool right, qreal leg, qreal shift, qreal boxW) {
-    const qreal y = kTailFillLeg + shift;
+    const qreal y = TAIL_FILL_LEG + shift;
     QPainterPath path;
     if (right) {
       path.moveTo(shift, y - leg);
@@ -212,18 +212,18 @@ namespace stencil::gui {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
     p.setPen(Qt::NoPen);
-    p.translate(kTailPad, kTailPad);
+    p.translate(TAIL_PAD, TAIL_PAD);
     p.setBrush(border_);
-    p.drawPath(tailTriangle(right_, kTailLeg, kTailShift, kTailW));
+    p.drawPath(tailTriangle(right_, TAIL_LEG, TAIL_SHIFT, TAIL_W));
     p.setBrush(fill_);
-    p.drawPath(tailTriangle(right_, kTailFillLeg, 0, kTailW));
+    p.drawPath(tailTriangle(right_, TAIL_FILL_LEG, 0, TAIL_W));
   }
 
   static void placeChatBubbleTailAt(QFrame* card, ChatBubbleTail* tail) {
     const QRect g = card->geometry();
     // QRect::right() is x()+width()-1; left() is the true edge, so it needs its own +1.
-    const int left = (tail->isRight() ? g.right() : g.left() - kTailW + 1) - kTailPad;
-    tail->move(left, g.bottom() - kTailFillLeg - kTailPad);
+    const int left = (tail->isRight() ? g.right() : g.left() - TAIL_W + 1) - TAIL_PAD;
+    tail->move(left, g.bottom() - TAIL_FILL_LEG - TAIL_PAD);
   }
 
   void placeChatBubbleTail(QFrame* card, const QColor& fill, const QColor& border, bool right) {
@@ -258,9 +258,9 @@ namespace stencil::gui {
   }
 
   // Anchors to the viewport-intersected rect, so ANY visible sliver of a row keeps its menu.
-  static constexpr int kMorePad = 4;
+  static constexpr int MORE_PAD = 4;
   // browser CHAT_ROW_MENU_JUMP_GAP / extension MSG_MENU_JUMP_GAP — same number
-  static constexpr int kAvoidGap = 6;
+  static constexpr int AVOID_GAP = 6;
 
   void placeChatCardMore(QFrame* card, QToolButton* more, QScrollArea* scroll,
                          const QRect& avoidGlobal) {
@@ -274,7 +274,7 @@ namespace stencil::gui {
       if (wasShown) more->show();
     }
     // The side the card actually renders on; falls back to the unswapped rule without it.
-    const QVariant onRight = card->property(kChatOnRightProperty);
+    const QVariant onRight = card->property(CHAT_ON_RIGHT_PROPERTY);
     const bool right = onRight.isValid() ? onRight.toBool()
                                          : card->objectName() == QLatin1String("chatCardUser");
     const QRect g = card->geometry();
@@ -290,11 +290,11 @@ namespace stencil::gui {
       if (vis.isEmpty()) { more->hide(); return; }
       y = vis.bottom() - more->height() + 1;
       // The WHOLE button rect stays inside, with a hair of padding, on both sides.
-      y = qBound(vp.top() + kMorePad, y, vp.bottom() - more->height() - kMorePad);
-      x = qBound(vp.left() + kMorePad, x, vp.right() - more->width() - kMorePad);
+      y = qBound(vp.top() + MORE_PAD, y, vp.bottom() - more->height() - MORE_PAD);
+      x = qBound(vp.left() + MORE_PAD, x, vp.right() - more->width() - MORE_PAD);
       // Never straddles the NEIGHBOURING message; hysteresis (one pad to appear, a smaller one
       // to stay) keeps a row crossing the threshold mid-scroll from flickering.
-      const int pad = more->isVisible() ? kMorePad : kMorePad + 2;
+      const int pad = more->isVisible() ? MORE_PAD : MORE_PAD + 2;
       QRect want(x, y, more->width(), more->height());
       if (vis.height() < more->height() + pad) { more->hide(); return; }
       // The furniture (jump pills) wins: lift clear of it, else hide (browser/extension parity).
@@ -302,9 +302,9 @@ namespace stencil::gui {
         QRect avoid(host->mapFromGlobal(avoidGlobal.topLeft()), avoidGlobal.size());
         avoid.adjust(-4, -4, 4, 4);
         if (avoid.intersects(want)) {
-          const int liftedY = avoid.top() - more->height() - kAvoidGap;
+          const int liftedY = avoid.top() - more->height() - AVOID_GAP;
           const QRect lifted(x, liftedY, more->width(), more->height());
-          if (liftedY < vis.top() + kMorePad || avoid.intersects(lifted)) {
+          if (liftedY < vis.top() + MORE_PAD || avoid.intersects(lifted)) {
             more->hide();
             return;
           }

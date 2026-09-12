@@ -155,7 +155,7 @@ namespace stencil::gui {
     // happening twice (browser .canvas-clearing).
     if (!reduced) {
       canvas_->setIdleHintHidden(true);
-      QTimer::singleShot(DisintegrateOverlay::kMs, canvas_,
+      QTimer::singleShot(DisintegrateOverlay::DUST_MS, canvas_,
                          [this] { if (canvas_) canvas_->setIdleHintHidden(false); });
     }
     refreshActions();

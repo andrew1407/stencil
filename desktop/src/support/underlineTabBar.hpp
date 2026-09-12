@@ -19,13 +19,13 @@ namespace stencil::gui {
   class UnderlineTabBar : public QTabBar {
    public:
     // Browser .oi-tab: padding 8px 16px, 14px glyphs (15 at Qt's optical size), 6px gap, 2px underline.
-    static constexpr int kPadX = 16;
-    static constexpr int kPadY = 8;
-    static constexpr int kGlyph = 15;
-    static constexpr int kGap = 6;
-    static constexpr int kUnderline = 2;
-    static constexpr int kHoverMs = 150;
-    static constexpr int kSlideMs = 220;
+    static constexpr int PAD_X = 16;
+    static constexpr int PAD_Y = 8;
+    static constexpr int GLYPH = 15;
+    static constexpr int GAP = 6;
+    static constexpr int UNDERLINE = 2;
+    static constexpr int HOVER_MS = 150;
+    static constexpr int SLIDE_MS = 220;
 
     explicit UnderlineTabBar(QWidget* parent = nullptr);
 

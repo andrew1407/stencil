@@ -25,7 +25,7 @@ namespace stencil::support {
     // A visible dialog that may be clicked away — not a native panel, not one that opted out.
     bool dismissable(QDialog* dlg) {
       return dlg && dlg->isVisible() && !qobject_cast<QFileDialog*>(dlg)
-             && !dlg->property(kNoOutsideDismissProperty).toBool();
+             && !dlg->property(NO_OUTSIDE_DISMISS_PROPERTY).toBool();
     }
 
     void rejectSoon(QDialog* dlg) {
@@ -62,7 +62,7 @@ namespace stencil::support {
       }
     };
 
-    constexpr const char* kBackdropAttachedProp = "stencilModalBackdropAttached";
+    constexpr const char* BACKDROP_ATTACHED_PROP = "stencilModalBackdropAttached";
 
     class BackdropPress : public QObject {
      public:
@@ -92,10 +92,10 @@ namespace stencil::support {
       void attach(QDialog* dlg) {
         // Only a top-level, application-modal dialog reaches the broken AppKit path.
         if (!dlg || !dlg->isWindow() || dlg->windowModality() != Qt::ApplicationModal) return;
-        if (!dismissable(dlg) || dlg->property(kBackdropAttachedProp).toBool()) return;
+        if (!dismissable(dlg) || dlg->property(BACKDROP_ATTACHED_PROP).toBool()) return;
         // Offscreen has no real window server; the tests drive the Qt-level filter path.
         if (QGuiApplication::platformName() == QLatin1String("offscreen")) return;
-        dlg->setProperty(kBackdropAttachedProp, true);
+        dlg->setProperty(BACKDROP_ATTACHED_PROP, true);
 
         // A child of the dialog (dies with it, worksWhenModal for free); frameless, translucent,
         // never activating; spans every screen since the dialog can be dragged anywhere.

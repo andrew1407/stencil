@@ -218,8 +218,8 @@ int main(int argc, char** argv) {
      // and can be blanked in boxes of the same size — that pair of renders is how the app
      // tooltip finds where Qt laid the caps out, so it can shake them.
     const QString html = renderTip("Undo (Ctrl+Shift+Z)", pal);
-    check(html.count(QLatin1String(stencil::gui::kKeycapClass)) == 3 &&
-              html.count(QLatin1String(stencil::gui::kJoinerClass)) == 2,
+    check(html.count(QLatin1String(stencil::gui::KEYCAP_CLASS)) == 3 &&
+              html.count(QLatin1String(stencil::gui::JOINER_CLASS)) == 2,
           "each key is marked a cap and each \"+\" a joiner");
     const QString bare = stencil::gui::blankKeycaps(html);
     check(!bare.isEmpty() && bare.length() < html.length(), "the cap faces blank out");
@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
               bare.count("width=") == html.count("width="),
           "…leaving every box, and its size, exactly where it was");
     check(bare.count("alt=\"+\"") == html.count("alt=\"+\"") &&
-              bare.contains(QLatin1String(stencil::gui::kJoinerClass)),
+              bare.contains(QLatin1String(stencil::gui::JOINER_CLASS)),
           "the joiners keep their picture, so a chord's caps stay separable");
     check(stencil::gui::blankKeycaps(renderTip("Bare hover text", pal)).isEmpty(),
           "a tooltip with no caps blanks to nothing at all");

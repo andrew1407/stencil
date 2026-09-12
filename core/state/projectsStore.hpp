@@ -81,7 +81,7 @@ namespace stencil::core {
       std::string reason;  // human-readable rejection reason when !ok
     };
     // Characters. Callers that pre-trim a name clamp to this, never to a literal 80.
-    static constexpr std::size_t kMaxNameLength = 80;
+    static constexpr std::size_t MAX_NAME_LENGTH = 80;
 
     // Rejects empty / too-long / duplicate names with a reason.
     NameCheck validateName(const std::string& name, const std::string& exceptId = {}) const;

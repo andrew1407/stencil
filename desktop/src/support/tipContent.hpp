@@ -31,7 +31,7 @@ namespace stencil::gui {
   Tip parseTip(const QString& text);
 
   // Injectable so both modifier conventions (⌥⇧⌃⌘ vs spelled) are testable anywhere.
-  constexpr bool kOnMac =
+  constexpr bool ON_MAC =
 #ifdef Q_OS_MACOS
       true;
 #else
@@ -40,12 +40,12 @@ namespace stencil::gui {
 
   // Empty when there is nothing to show. `font` must be the type the tip is DRAWN with:
   // null = QToolTip::font(), wrong for AppTooltip whose body draws in the app font.
-  QString renderTip(const QString& text, const Palette& pal, bool mac = kOnMac,
+  QString renderTip(const QString& text, const Palette& pal, bool mac = ON_MAC,
                     const QFont* font = nullptr);
 
   // Marker on every painted keycap <img>; the "+" carries its own and never shakes.
-  inline constexpr const char* kKeycapClass = "stencil-tip-key";
-  inline constexpr const char* kJoinerClass = "stencil-tip-plus";
+  inline constexpr const char* KEYCAP_CLASS = "stencil-tip-key";
+  inline constexpr const char* JOINER_CLASS = "stencil-tip-plus";
   bool hasKeycaps(const QString& richText);
 
   // Same boxes with every keycap FACE blanked — diffing the two is how appTooltip finds the caps.
@@ -55,7 +55,7 @@ namespace stencil::gui {
   void setTooltipPalette(const Palette& pal);
 
   // The PLAIN tooltip, kept so the html can be rebuilt in a new palette.
-  inline constexpr const char* kPlainTipProperty = "stencilPlainTip";
+  inline constexpr const char* PLAIN_TIP_PROPERTY = "stencilPlainTip";
 
   // Empty for text that must be left as is: empty, or already rich text.
   QString enrichedToolTip(const QString& plain, const QFont* font = nullptr);
@@ -64,9 +64,9 @@ namespace stencil::gui {
   // and a "— reason" line while disabled, recomposed on every enabled/shortcut change.
   QString composeControlTitle(const QString& base, const QString& combo, bool disabled,
                               const QString& reason);
-  inline constexpr const char* kTipBaseProperty = "stencilTipBase";
-  inline constexpr const char* kTipReasonProperty = "stencilTipReason";
-  inline constexpr const char* kTipHotkeyProperty = "stencilTipHotkey";
+  inline constexpr const char* TIP_BASE_PROPERTY = "stencilTipBase";
+  inline constexpr const char* TIP_REASON_PROPERTY = "stencilTipReason";
+  inline constexpr const char* TIP_HOTKEY_PROPERTY = "stencilTipHotkey";
   // Unset, the base is read off the current tooltip (its trailing "(combo)" stripped).
   void setTipBase(QObject* target, const QString& base);
   void setTipReason(QObject* target, const QString& reason);
@@ -77,7 +77,7 @@ namespace stencil::gui {
   Palette currentPalette();
 
   // One combo as keycap chips joined by "+". `scale` shrinks the caps for table and info rows.
-  QString comboKeycapsHtml(const QString& combo, const Palette& pal, bool mac = kOnMac,
+  QString comboKeycapsHtml(const QString& combo, const Palette& pal, bool mac = ON_MAC,
                            qreal scale = 1.0);
 
 }

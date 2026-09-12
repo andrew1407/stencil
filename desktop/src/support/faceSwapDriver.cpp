@@ -6,7 +6,7 @@ namespace stencil::gui {
   bool faceSwapping(const QAbstractButton* btn) {
     if (!btn) return false;
     for (QVariantAnimation* a : btn->findChildren<QVariantAnimation*>(
-             QString::fromLatin1(kFaceSwapAnimName), Qt::FindDirectChildrenOnly))
+             QString::fromLatin1(FACE_SWAP_ANIM_NAME), Qt::FindDirectChildrenOnly))
       if (a->state() == QAbstractAnimation::Running) return true;
     return false;
   }
@@ -30,10 +30,10 @@ namespace stencil::gui {
   void swapFace(QAbstractButton* btn, const FaceSpec& to,
                 const std::function<void()>& applyState, int ms) {
     if (!btn || to.glyph.isEmpty()) return;
-    if (!btn->property(kFaceBaseSheetProperty).isValid())
-      btn->setProperty(kFaceBaseSheetProperty, btn->styleSheet());
+    if (!btn->property(FACE_BASE_SHEET_PROPERTY).isValid())
+      btn->setProperty(FACE_BASE_SHEET_PROPERTY, btn->styleSheet());
     for (QVariantAnimation* old : btn->findChildren<QVariantAnimation*>(
-             QString::fromLatin1(kFaceSwapAnimName), Qt::FindDirectChildrenOnly)) {
+             QString::fromLatin1(FACE_SWAP_ANIM_NAME), Qt::FindDirectChildrenOnly)) {
       old->stop();   // a mid-flight stop() never emits finished()
       old->deleteLater();
     }
@@ -46,7 +46,7 @@ namespace stencil::gui {
     }
     auto applied = std::make_shared<bool>(false);
     auto* anim = new QVariantAnimation(btn);
-    anim->setObjectName(QString::fromLatin1(kFaceSwapAnimName));
+    anim->setObjectName(QString::fromLatin1(FACE_SWAP_ANIM_NAME));
     anim->setDuration(ms);
     anim->setStartValue(0.0);
     anim->setEndValue(1.0);

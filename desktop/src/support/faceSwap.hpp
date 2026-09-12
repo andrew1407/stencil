@@ -26,27 +26,27 @@
 namespace stencil::gui {
 
   // Browser swapFaceOut 0.22s / swapGlyphIn 0.26s overlap; sequential here, each half halved.
-  inline constexpr int kFaceSwapOutMs = 110;
-  inline constexpr int kFaceSwapInMs = 130;
-  inline constexpr int kFaceSwapMs = kFaceSwapOutMs + kFaceSwapInMs;
-  inline constexpr double kFaceSwapPivot = double(kFaceSwapOutMs) / double(kFaceSwapMs);
+  inline constexpr int FACE_SWAP_OUT_MS = 110;
+  inline constexpr int FACE_SWAP_IN_MS = 130;
+  inline constexpr int FACE_SWAP_MS = FACE_SWAP_OUT_MS + FACE_SWAP_IN_MS;
+  inline constexpr double FACE_SWAP_PIVOT = double(FACE_SWAP_OUT_MS) / double(FACE_SWAP_MS);
   // Browser: swapGlyphIn `rotate(-115deg) scale(0.55)`.
-  inline constexpr double kFaceSwapTurnDeg = 115.0;
-  inline constexpr double kFaceSwapMinScale = 0.55;
+  inline constexpr double FACE_SWAP_TURN_DEG = 115.0;
+  inline constexpr double FACE_SWAP_MIN_SCALE = 0.55;
 
-  inline constexpr const char* kFaceSwapAnimName = "stencilFaceSwap";
+  inline constexpr const char* FACE_SWAP_ANIM_NAME = "stencilFaceSwap";
   // Set while the swap owns the button's colour (the widget stylesheet's selector).
-  inline constexpr const char* kFaceSwappingProperty = "stencilFaceSwapping";
+  inline constexpr const char* FACE_SWAPPING_PROPERTY = "stencilFaceSwapping";
   // QToolButton::setDefaultAction re-copies text and icon from the action, so neither
   // can be trusted as the outgoing face.
-  inline constexpr const char* kFaceGlyphProperty = "stencilFaceGlyph";
-  inline constexpr const char* kFaceLabelProperty = "stencilFaceLabel";
-  inline constexpr const char* kFaceGlyphColorProperty = "stencilFaceGlyphColor";
-  inline constexpr const char* kFaceTextColorProperty = "stencilFaceTextColor";
-  inline constexpr const char* kFaceIconSizeProperty = "stencilFaceIconSize";
-  inline constexpr const char* kFaceGapProperty = "stencilFaceGap";
-  inline constexpr const char* kFaceBaseSheetProperty = "stencilFaceBaseSheet";
-  inline constexpr const char* kFaceLabelColorProperty = "stencilFaceLabelColor";
+  inline constexpr const char* FACE_GLYPH_PROPERTY = "stencilFaceGlyph";
+  inline constexpr const char* FACE_LABEL_PROPERTY = "stencilFaceLabel";
+  inline constexpr const char* FACE_GLYPH_COLOR_PROPERTY = "stencilFaceGlyphColor";
+  inline constexpr const char* FACE_TEXT_COLOR_PROPERTY = "stencilFaceTextColor";
+  inline constexpr const char* FACE_ICON_SIZE_PROPERTY = "stencilFaceIconSize";
+  inline constexpr const char* FACE_GAP_PROPERTY = "stencilFaceGap";
+  inline constexpr const char* FACE_BASE_SHEET_PROPERTY = "stencilFaceBaseSheet";
+  inline constexpr const char* FACE_LABEL_COLOR_PROPERTY = "stencilFaceLabelColor";
 
   struct FaceSpec {
     QString glyph;        // iconSet name ("play" / "stop" / "line" / "rect")
@@ -99,6 +99,6 @@ namespace stencil::gui {
 
   void swapFace(QAbstractButton* btn, const FaceSpec& to,
                 const std::function<void()>& applyState = {},
-                int ms = kFaceSwapMs);
+                int ms = FACE_SWAP_MS);
 
 }  // namespace stencil::gui

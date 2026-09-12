@@ -201,7 +201,7 @@ namespace stencil::gui {
       return;
     }
     previewLabel_->setPixmap(QPixmap::fromImage(img).scaled(
-        kPreviewMaxW, kPreviewMaxH, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        PREVIEW_MAX_W, PREVIEW_MAX_H, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     previewLabel_->setVisible(true);
     setHint(hint);
   }

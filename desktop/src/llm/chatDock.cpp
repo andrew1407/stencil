@@ -114,7 +114,7 @@ namespace stencil::gui {
       b->setFixedSize(28, 28);
       b->setIconSize(QSize(14, 14));
       auto* fx = new QGraphicsOpacityEffect(b);
-      fx->setOpacity(kGhostRestOpacity);
+      fx->setOpacity(GHOST_REST_OPACITY);
       b->setGraphicsEffect(fx);
       b->installEventFilter(this);
       b->hide();
@@ -125,7 +125,7 @@ namespace stencil::gui {
     connect(scroll_->verticalScrollBar(), &QScrollBar::valueChanged, this, [this] {
       // Chat stickiness: scrolling away releases the follow pin; a jump to the end re-arms it.
       const auto* bar = scroll_->verticalScrollBar();
-      stickToBottom_ = bar->maximum() - bar->value() <= kStickyBottomPx;
+      stickToBottom_ = bar->maximum() - bar->value() <= STICKY_BOTTOM_PX;
       updateJumpButtons();
     });
     connect(scroll_->verticalScrollBar(), &QScrollBar::rangeChanged, this, [this] {
@@ -253,7 +253,7 @@ namespace stencil::gui {
     statusDot_->setObjectName("chatStatusDot");
     statusDot_->setFixedSize(7, 7);
     statusDot_->setAttribute(Qt::WA_TransparentForMouseEvents);
-    statusDot_->move(kAccentEdge - statusDot_->width() - 1, 1);
+    statusDot_->move(ACCENT_EDGE - statusDot_->width() - 1, 1);
     statusDot_->raise();
     // Disabled while a turn is in flight — the transcript can't be wiped mid-answer.
     clearBtn_ = makeChatAccentButton(btnWrap, QString());
@@ -311,7 +311,7 @@ namespace stencil::gui {
       updatePlacementState();
       if (!floating) return;
       QTimer::singleShot(0, this, [this] {
-        if (isFloating()) resize(kFloatingSize.expandedTo(minimumSize()));
+        if (isFloating()) resize(FLOATING_SIZE.expandedTo(minimumSize()));
       });
     });
     connect(this, &QDockWidget::dockLocationChanged, this,

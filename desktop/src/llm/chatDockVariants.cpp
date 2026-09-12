@@ -25,7 +25,7 @@ namespace stencil::gui {
       row->setSpacing(8);
       auto* thumb = new QLabel(card);
       const QPixmap pm = QPixmap::fromImage(
-          v.image.scaled(kThumbEdge, kThumbEdge, Qt::KeepAspectRatio,
+          v.image.scaled(THUMB_EDGE, THUMB_EDGE, Qt::KeepAspectRatio,
                          Qt::SmoothTransformation));
       thumb->setPixmap(pm);
       row->addWidget(thumb);
@@ -77,8 +77,8 @@ namespace stencil::gui {
       // Snapshot BEFORE the card leaves the layout, hosted on the WINDOW (the dock's content widget
       // paints over its children). Fall, not Rows: the same gesture as the cleared IMAGE.
       DisintegrateOverlay::over(w, window(), DisintegrateOverlay::Sweep::Fall,
-                                kChatScatterCols, kChatScatterRows,
-                                DisintegrateOverlay::kItemMs,
+                                CHAT_SCATTER_COLS, CHAT_SCATTER_ROWS,
+                                DisintegrateOverlay::ITEM_MS,
                                 w->palette().color(QPalette::WindowText));
       // Anything REMOVED means the empty state waits, even when over() declined the grab.
       wiped = true;
@@ -90,7 +90,7 @@ namespace stencil::gui {
     // Rows out first, THEN the placeholder (browser chatView.js restoreEmptyState).
     if (wiped) {
       // A hair past the scatter's duration; the overlay deletes itself on finish.
-      QTimer::singleShot(DisintegrateOverlay::kItemMs + 60, this, [this] {
+      QTimer::singleShot(DisintegrateOverlay::ITEM_MS + 60, this, [this] {
         // A turn may have started while the wipe played.
         if (transcriptHasCards()) return;
         suggest_->show();

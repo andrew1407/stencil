@@ -26,7 +26,7 @@ namespace {
   };
 
   // The blocked set, by class. Loopback is the only row that differs between the modes.
-  const HostCase kHosts[] = {
+  const HostCase HOSTS[] = {
       {"0.0.0.0", true, true, "0.0.0.0/8 this-network"},
       {"0.1.2.3", true, true, "…and the rest of 0/8"},
       {"10.0.0.5", true, true, "10/8 private"},
@@ -71,7 +71,7 @@ namespace {
 
   // Alternate numeric encodings of the SAME internal addresses — what a resolver would
   // accept but a dotted-quad-only parser misses.
-  const HostCase kEncodings[] = {
+  const HostCase ENCODINGS[] = {
       {"2852039166", true, true, "169.254.169.254 as bare decimal"},
       {"0xA9FEA9FE", true, true, "…as hex"},
       {"0xa9fea9fe", true, true, "…as lower-case hex"},
@@ -112,8 +112,8 @@ namespace {
 int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);
 
-  runHostTable(kHosts, int(std::size(kHosts)), "host classes");
-  runHostTable(kEncodings, int(std::size(kEncodings)), "alternate numeric encodings");
+  runHostTable(HOSTS, int(std::size(HOSTS)), "host classes");
+  runHostTable(ENCODINGS, int(std::size(ENCODINGS)), "alternate numeric encodings");
 
   std::printf("numeric vs name:\n");
   check(guard::isNumericHost("169.254.169.254") && guard::isNumericHost("::1") &&
@@ -153,11 +153,11 @@ int main(int argc, char** argv) {
 
   std::printf("request shape:\n");
   const QNetworkRequest req = guard::request(QUrl("https://example.com/a.png"));
-  check(req.transferTimeout() == guard::kFetchTimeoutMs, "the house transfer timeout is set");
+  check(req.transferTimeout() == guard::FETCH_TIMEOUT_MS, "the house transfer timeout is set");
   check(req.attribute(QNetworkRequest::RedirectPolicyAttribute).toInt() ==
             int(QNetworkRequest::ManualRedirectPolicy),
         "…and redirects are refused: a public first hop cannot 30x-bounce inward");
-  check(guard::kMaxFetchBytes == 64 * 1024 * 1024, "the body cap matches the CLI's 64 MiB");
+  check(guard::MAX_FETCH_BYTES == 64 * 1024 * 1024, "the body cap matches the CLI's 64 MiB");
 
   // The DNS leg, exercised on the one name every machine resolves internally.
   std::printf("resolution:\n");

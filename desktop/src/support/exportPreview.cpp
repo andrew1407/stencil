@@ -21,7 +21,7 @@
 namespace stencil::support {
 
   namespace {
-    constexpr int kPreviewMax = 220;  // px, longest edge of the rendered thumbnail
+    constexpr int PREVIEW_MAX = 220;  // px, longest edge of the rendered thumbnail
     // The preview is sand too (browser js/ui/exportPreview.js), on the shared tip clock.
 
     QWidget* tipWindow() {
@@ -81,7 +81,7 @@ namespace stencil::support {
       // NOT escapeHost: a second top-level window steals the open menu's platform grab
       // and closes it the instant Alt is pressed.
       return gui::flyTipDust(tipWindow(), dustHost(owner), origin, gather,
-                             gather ? gui::kTipDustInMs : gui::kTipDustOutMs,
+                             gather ? gui::TIP_DUST_IN_MS : gui::TIP_DUST_OUT_MS,
                              /*escapeHost=*/false, /*paintNow=*/!gather)
              != nullptr;
     }
@@ -105,7 +105,7 @@ namespace stencil::support {
     if (!sameRow) {
       auto* label = w->findChild<QLabel*>("exportPreviewLabel");
       label->setPixmap(QPixmap::fromImage(image).scaled(
-          kPreviewMax, kPreviewMax, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+          PREVIEW_MAX, PREVIEW_MAX, Qt::KeepAspectRatio, Qt::SmoothTransformation));
       w->adjustSize();
     }
 
@@ -134,7 +134,7 @@ namespace stencil::support {
     w->setWindowOpacity(0.0);
     w->show();
     if (dust(owner, ownerRect, /*gather=*/true, dustFromGlobal)) {
-      gui::holdFadeKeys(fade, gui::kTipDustInMs);
+      gui::holdFadeKeys(fade, gui::TIP_DUST_IN_MS);
       fade->start();
     } else {
       w->setWindowOpacity(1.0);
@@ -158,7 +158,7 @@ namespace stencil::support {
       return;
     }
     tipClosing = true;
-    fade->setDuration(gui::kDustHandOverMs);
+    fade->setDuration(gui::DUST_HAND_OVER_MS);
     fade->setStartValue(w->windowOpacity());
     fade->setEndValue(0.0);
     fade->start();
