@@ -2,7 +2,8 @@
 // The panel's row drag injects a 4-quadrant overlay on the target tab; a drop in one
 // quadrant comes back here and reuses the same hand-off machinery as the page relays.
 import { fetchAsDataUrl, filenameFromUrl, openEditorTab, launchEditorModal, launchCrop, getSettings, buildHandoff } from '../../lib/stencil.js';
-import { mountDropZones, unmountDropZones, mountDropChoice } from '../../lib/dropZones.js';
+import { mountDropZones, unmountDropZones } from '../../lib/dropZones.js';
+import { mountDropChoice } from '../../lib/dropChoice.js';
 import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from '../../lib/highlightColor.js';
 import { THEME_STORAGE_KEY, THEME_MODES } from '../../lib/shellTheme.js';
 import { recordOpened } from '../../lib/ledger.js';
