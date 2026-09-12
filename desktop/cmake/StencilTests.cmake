@@ -160,13 +160,15 @@ target_link_libraries(stencil_gui_objs PUBLIC stencil_core Qt6::Widgets Qt6::Net
 # path, trigger the actual Rotate/Undo/Start-Drawing QActions, and send real mouse clicks
 # to the live canvas. One binary per feature area (tests/mainWindow.<area>.gui.cpp), not
 # one binary over several TUs: ctest then runs the areas in parallel, and each area keeps
-# the single MainWindowGuiTest class name the two production headers befriend.
+# the single MainWindowGuiTest class name the two production headers befriend. The chat is
+# four of them because it is much the largest area — one binary was longer than the whole
+# rest of the suite run in parallel, so it alone set the wall.
 # STENCIL_NO_ANIM: these tests open dialogs and act on them at once, so the
 # grow-from-the-icon flight (support/modalReveal) is off here — it would resize the
 # window under the test for its first ~200 ms, which is exactly the kind of timing the
 # suite must not depend on.
-foreach(area chatDock chatTurns canvas chrome menus menuKeys motion projects theme
-             toolbar tooltips)
+foreach(area chatCards chatCompact chatDock chatPanel chatTurns canvas chrome menus
+             menuKeys motion projects theme toolbar tooltips)
   string(TOLOWER ${area} _area_lc)
   stencil_headless_test(stencil_mainwindow_${_area_lc}_gui
     SOURCES tests/mainWindow.${area}.gui.cpp

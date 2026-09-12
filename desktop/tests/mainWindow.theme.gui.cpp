@@ -49,9 +49,8 @@ class MainWindowGuiTest : public QObject {
              "fx overlay must give the glow/rays room AROUND the button");
     const qreal b0 = fx->property("pulseBeat").toReal();
     const qreal a0 = fx->property("raysAngle").toReal();
-    QTest::qWait(250);
-    QVERIFY2(fx->property("pulseBeat").toReal() != b0, "pulse beat did not advance");
-    QVERIFY2(fx->property("raysAngle").toReal() != a0, "ray rotation did not advance");
+    QTRY_VERIFY2(fx->property("pulseBeat").toReal() != b0, "pulse beat did not advance");
+    QTRY_VERIFY2(fx->property("raysAngle").toReal() != a0, "ray rotation did not advance");
     QVERIFY(!fx->grab().isNull());   // painting the fx offscreen must not crash
 
     QEvent leave(QEvent::Leave);
@@ -146,7 +145,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(30);
+    settleLayout(&win, 30);
     QToolButton* logo = win.logoBtn_;
     QVERIFY(logo);
     const QString original = win.settings_.accentColor;
@@ -165,7 +164,7 @@ class MainWindowGuiTest : public QObject {
         auto next = win.settings_;
         next.accentColor = other;
         win.applySettings(next, true);
-        QTest::qWait(30);
+        settleLayout(&win, 30);
         int marks = 0;
         for (const auto& a : presets) {
           auto* r = pop->findChild<QPushButton*>(QStringLiteral("accentRow-") + a.key);
@@ -197,7 +196,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(30);
+    settleLayout(&win, 30);
     QToolButton* logo = win.logoBtn_;
     QVERIFY(logo);
     if (QWidget* fw = QApplication::focusWidget()) fw->clearFocus();   // typingFocus gate off
@@ -252,7 +251,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(30);
+    settleLayout(&win, 30);
     QToolButton* logo = win.logoBtn_;
     QVERIFY(logo);
     const auto& presets = stencil::gui::accentPresets();
@@ -387,8 +386,7 @@ class MainWindowGuiTest : public QObject {
       // …and the nested loop really unwound: the OUTER loop is running our timers again.
       bool alive = false;
       QTimer::singleShot(0, &win, [&alive] { alive = true; });
-      QTest::qWait(60);
-      QVERIFY2(alive, qPrintable(QString("%1: the nested event loop leaked").arg(what)));
+      QTRY_VERIFY2(alive, qPrintable(QString("%1: the nested event loop leaked").arg(what)));
     };
 
     outsidePressCloses(Sticky, win.canvas_, "sticky + canvas press");
@@ -413,7 +411,7 @@ class MainWindowGuiTest : public QObject {
         QApplication::sendEvent(logo, &rel);
         stayedOpen = win.pop_.active && !win.pop_.active->isHidden();
         cycleArmed = win.logoClickTimer_->isActive();
-        QTest::qWait(320);   // past the deferred click: the cycle lands
+        settle([&] { return win.settings_.accentColor != accentBefore; }, 320);
         cycled = win.settings_.accentColor != accentBefore &&
                  std::any_of(presets.begin(), presets.end(),
                              [&](const auto& a) { return a.key == win.settings_.accentColor; });
@@ -623,7 +621,7 @@ class MainWindowGuiTest : public QObject {
     win.resize(1000, 700);
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
-    QTest::qWait(30);   // let the toolbar's own deferred layout pass settle before measuring it
+    settleLayout(&win, 30);   // let the toolbar's own deferred layout pass settle first
     QToolButton* logo = win.logoBtn_;
     QVERIFY(logo);
     const QString original = win.settings_.accentColor;   // persisted — restored below
@@ -666,7 +664,7 @@ class MainWindowGuiTest : public QObject {
         if (!row) { picksOk = false; }
         else {
           row->click();
-          QTest::qWait(50);
+          settle([&] { return win.settings_.accentColor == key; }, 50);
           picksOk = win.settings_.accentColor == key;                     // applied
           escapeClosedAfterPicks = !win.pop_.active || win.pop_.active->isHidden();  // closed
           lastPick = key;

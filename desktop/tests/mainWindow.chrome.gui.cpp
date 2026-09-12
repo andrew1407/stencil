@@ -69,7 +69,7 @@ class MainWindowGuiTest : public QObject {
     // …and opening one really puts OUR popup on screen, with the rows in it.
     QVERIFY(win.lineStyle_);
     win.lineStyle_->showPopup();
-    QTest::qWait(60);
+    QTRY_VERIFY(QApplication::activePopupWidget());
     QWidget* popup = nullptr;
     for (QWidget* w : QApplication::topLevelWidgets())
       if (w->isVisible() && w->findChild<QWidget*>("searchComboPopup")) popup = w;
@@ -82,7 +82,7 @@ class MainWindowGuiTest : public QObject {
     win.lineStyle_->hidePopup();
     // The long ISO page list keeps its search box, which is what it was built for.
     win.units_.pageSize->showPopup();
-    QTest::qWait(60);
+    QTRY_VERIFY(QApplication::activePopupWidget());
     QWidget* pagePopup = nullptr;
     for (QWidget* w : QApplication::topLevelWidgets())
       if (w->isVisible() && w->findChild<QWidget*>("searchComboPopup")) pagePopup = w;
@@ -166,8 +166,8 @@ class MainWindowGuiTest : public QObject {
     win.openPathFromOS(guiTestImage());
     QTest::qWait(120);
     QVERIFY2(fx->isVisible(), "formula inputs should survive an image load");
-    win.resize(720, 800); QTest::qWait(80);
-    win.resize(1200, 800); QTest::qWait(80);
+    win.resize(720, 800); settleLayout(&win, 80);
+    win.resize(1200, 800); settleLayout(&win, 80);
     QVERIFY2(fx->isVisible(), "formula inputs should survive window resizes");
   }
 
@@ -660,7 +660,7 @@ class MainWindowGuiTest : public QObject {
         // needed, so the first tag it is ever shown can still grow that reserve by a
         // pixel. What must never move is every toggle after that.
         win.actIncognito_->setChecked(true);
-        QTest::qWait(150);
+        settleLayout(&win, 150);
         win.actIncognito_->setChecked(false);
         const QMap<QString, QRect> before = steady();
         const int hintBefore = win.imageSizeInfo_->sizeHint().height();
@@ -744,7 +744,7 @@ class MainWindowGuiTest : public QObject {
     const QString id = win.addImageProjectEntry(img, "hover-out");
     QVERIFY(!id.isEmpty());
     QVERIFY(win.loadProjectIntoCanvas(id, false));
-    QTest::qWait(300);
+    settleLayout(&win, 300);
     const auto paintedOut = [](QWidget* w) { return w->property("stencilPaintedOut").toBool(); };
 
     QCursor::setPos(win.nameBar_.group->mapToGlobal(win.nameBar_.group->rect().center()));
@@ -779,7 +779,7 @@ class MainWindowGuiTest : public QObject {
     const QString id = win.addImageProjectEntry(img, "swap-row");
     QVERIFY(!id.isEmpty());
     QVERIFY(win.loadProjectIntoCanvas(id, false));
-    QTest::qWait(300);
+    settleLayout(&win, 300);
     win.nameBar_.hover = true;   // ✎/🎨 are hover-revealed; pin them on for the swap
     const auto held = [&win] {
       int n = 0;
@@ -823,8 +823,9 @@ class MainWindowGuiTest : public QObject {
     const QString id = win.addImageProjectEntry(img, "name-row");
     QVERIFY(!id.isEmpty());
     QVERIFY(win.loadProjectIntoCanvas(id, false));
-    QTest::qWait(300);
     QVERIFY(win.nameBar_.field && win.nameBar_.edit && win.nameBar_.colorBtn);
+    QTRY_VERIFY(win.nameBar_.colorBtn->isVisible());   // the chips slide in after the bind
+    settleLayout(&win, 300);
 
     // The chips: the browser's box, and its 4px gaps either side.
     QCOMPARE(win.nameBar_.edit->size(), QSize(stencil::gui::kNameChipBox,
@@ -903,8 +904,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(cloudsUp() > 0, "the test's own cloud never started");
 
     win.toggleFullscreen();
-    QTest::qWait(120);
-    QVERIFY2(cloudsUp() == 0, "a cloud was left flying over the fullscreen canvas");
+    QTRY_VERIFY2(cloudsUp() == 0, "a cloud was left flying over the fullscreen canvas");
     QVERIFY2(!win.logoBtn_->isVisible(), "fullscreen kept the header row");
     QVERIFY2(!fx->isVisible(), "the logo's mark stayed up with its button gone");
 
