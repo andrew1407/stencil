@@ -1163,9 +1163,9 @@ test('theme mode: the pre-paint script and the app agree on what "system" means'
   // The OS listener has to test the MODE: keyed on "nothing stored", it stopped following
   // the moment the toggle wrote a value.
   assert.match(binder, /themeMode !== 'system'/, 'the OS is followed while the mode is system');
-  const visuals = readFileSync(new URL('../js/ui/visualsModal.js', import.meta.url), 'utf8');
-  assert.match(visuals, /id="vs-appearance"/, 'and there is a control to get back to system');
-  assert.match(visuals, /setThemeMode\(appearance\.value/, 'which writes the mode');
+  const vis = (f) => readFileSync(new URL(`../js/ui/${f}`, import.meta.url), 'utf8');
+  assert.match(vis('visualsMarkup.js'), /id="vs-appearance"/, 'and there is a control to get back to system');
+  assert.match(vis('visualsModal.js'), /setThemeMode\(appearance\.value/, 'which writes the mode');
 });
 
 // ── Filtering a list (createFilterAnimator) ─────────────────────────────────

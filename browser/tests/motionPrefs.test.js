@@ -166,10 +166,11 @@ test('the mode reaches the CSS before first paint, and stops what CSS alone driv
 });
 
 test('both switches are in the Visuals modal and on the console facade', () => {
+  const markup = read('../js/ui/visualsMarkup.js');
+  assert.match(markup, /<div class="vs-section">Motion<\/div>/);
+  assert.match(markup, /id="vs-draw-anim"/);
+  assert.match(markup, /id="vs-motion-mode"/);
   const modal = read('../js/ui/visualsModal.js');
-  assert.match(modal, /<div class="vs-section">Motion<\/div>/);
-  assert.match(modal, /id="vs-draw-anim"/);
-  assert.match(modal, /id="vs-motion-mode"/);
   assert.match(modal, /app\.settings\.setMotion\('drawing', drawAnim\.checked\)/);
   assert.match(modal, /app\.settings\.setMotion\('mode', motionMode\.value\)/);
   // Reset All restores them along with the colours.
