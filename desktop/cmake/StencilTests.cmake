@@ -305,7 +305,7 @@ stencil_headless_test(stencil_connectrow_headless
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/connectRow.headless.cpp src/support/modalChrome.cpp
+    tests/connectRow.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/dialogs/connectDialog.cpp src/net/serverClient.cpp src/net/connectionStore.cpp
     src/io/fileStore.cpp          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
@@ -323,7 +323,7 @@ stencil_headless_test(stencil_connectrow_headless
 stencil_headless_test(stencil_modalchrome_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/modalChrome.headless.cpp src/support/modalChrome.cpp
+    tests/modalChrome.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/dialogs/openInDialog.cpp src/io/deepLink.cpp
     src/net/serverClient.cpp      # deepLink's origin normalisation
     src/support/iconSet.cpp
@@ -337,7 +337,7 @@ stencil_headless_test(stencil_projectmeta_headless
   SOURCES ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/projectMetaDialogs.headless.cpp src/dialogs/descriptionDialog.cpp
-    src/dialogs/keywordsDialog.cpp src/support/modalChrome.cpp src/support/iconSet.cpp
+    src/dialogs/keywordsDialog.cpp ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp
     src/support/modalReveal.cpp src/io/fileStore.cpp src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
@@ -350,7 +350,7 @@ stencil_headless_test(stencil_serverauth_headless
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/serverAuth.headless.cpp src/support/modalChrome.cpp
+    tests/serverAuth.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/dialogs/connectDialog.cpp src/net/serverClient.cpp src/net/connectionStore.cpp
     src/io/fileStore.cpp          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
@@ -374,7 +374,7 @@ stencil_headless_test(stencil_projectsbatch_headless
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_APPTOOLTIP_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/projectsBatchBar.headless.cpp src/support/modalChrome.cpp
+    tests/projectsBatchBar.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/support/tipContent.cpp    # the rows' rich tooltips (appTooltip.hpp calls into it)
     ${STENCIL_PROJECTS_DIALOG_SOURCES}
     src/dialogs/expirationDialog.cpp  # the ⋯ menu's "Expiration…" opens it in place now

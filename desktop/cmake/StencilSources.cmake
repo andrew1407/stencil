@@ -79,6 +79,14 @@ set(STENCIL_ICONMOTION_SOURCES
   src/support/iconMotionRunner.cpp
   src/support/iconMotionFilter.cpp)
 
+# The shared modal shell (support/modalChrome.hpp) is four TUs: the parts, the install
+# and confirm path, the prompt/choose dialogs and the footer.
+set(STENCIL_MODALCHROME_SOURCES
+  src/support/modalChrome.cpp
+  src/support/modalChromeInstall.cpp
+  src/support/modalChromePrompt.cpp
+  src/support/modalChromeFooter.cpp)
+
 # Motion and widget support split out of their headers: each group is several TUs
 # defining one header's members, so every target that uses the header needs the group.
 set(STENCIL_APPTOOLTIP_SOURCES
@@ -243,7 +251,7 @@ set(STENCIL_GUI_SOURCES
   src/support/guiHelpers.cpp
   src/support/menuReveal.cpp
   src/support/modalReveal.cpp
-  src/support/modalChrome.cpp
+  ${STENCIL_MODALCHROME_SOURCES}
   src/support/searchCombo.cpp
   ${STENCIL_APPTOOLTIP_SOURCES}
   ${STENCIL_CONTROLREVEAL_SOURCES}
