@@ -66,11 +66,14 @@ takes the same buffer plus its width × height and burns dark Sobel edges onto a
 white page with pinned integer-only math, so the JS fallback
 (`browser/js/core/contourFilter.js`) stays byte-identical.
 
-(`historyStack.js` and `projectsStore.js` remain available in the core; add
-wrappers to `wasmApi.cpp` the same way if the browser should consume them too.
-The multi-line hit-testers — `findLineAt` / `findNearestPoint` /
-`findNearestSegment` — are core-only: they take a whole `Lines` tree, which wants a
-handle-based ABI rather than the flat `double*` surface used here.)
+The core's **stateful** classes cross a second, handle-based ABI
+(`wasmStateApi.cpp`): `stencil_holdDraw_*` and `stencil_history_*` create an
+instance, return an opaque int, and take it back on every call, so an unknown
+handle is rejected instead of dereferenced. A `Lines` snapshot travels as the flat
+(nums, text) pair in `abi/linesCodec.hpp` — its JS twin is `js/core/linesCodec.js`.
+`projectsStore`'s registry is not a browser twin (the JS store is localStorage-backed),
+but its scalar expiry rules cross in `wasmProjectsApi.cpp`. The multi-line hit-testers
+— `findLineAt` / `findNearestPoint` / `findNearestSegment` — are still core-only.
 
 ## Testing
 
@@ -78,11 +81,12 @@ Three layers, run by the three CI jobs (`.github/workflows/ci.yml`):
 
 1. **C++ side of the ABI** — `wasmApi.cpp` is plain STL, so it is compiled
    **natively into `stencil_tests`** and every export is exercised by
-   `tests/wasmApi.test.cpp` (the `core` job). Covers the C++ marshalling (flat
+   `tests/wasmApi.test.cpp` (the `core` job) — as are the handle and project ABIs,
+   by `tests/wasmStateApi.test.cpp` and `tests/wasmProjectsApi.test.cpp`. Covers the C++ marshalling (flat
    point arrays, output pointers, filter-mode enum codes, char-code var names)
    even on a machine without `emcc`. `core/imageFilter` has its own suite in
    `tests/imageFilter.test.cpp`.
-2. **JS side of the ABI + wasm↔JS parity** — `browser/tests/wasm-parity.test.js`
+2. **JS side of the ABI + wasm↔JS parity** — `browser/tests/wasm-parity*.test.js`
    loads the real wasm module in Node and asserts each wrapper agrees with the JS
    reference, covering `js/core/stencilCore.js` (strings, char codes, in/out point
    arrays, output pointers, the RGBA pixel buffer). The module is a gitignored
