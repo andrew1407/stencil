@@ -1,15 +1,7 @@
-// ── Hover-to-highlight one page element (injected) ───────────────────────────
-// Outlines the single page element whose image/video source matches `source` and
-// scrolls it into view — driven by hovering a row in the popup / side panel /
-// DevTools panel list, so you can see where an image lives on the page. Independent
-// of the "highlight on page" toggle (lib/highlight.js): it owns its own outline attribute + style
-// so it always works, even with the toggle off. `source` falsy = clear the outline.
-// Injected via chrome.scripting.executeScript, so self-contained (no imports).
-// `color` is the outline hex (defaults to the brand violet), resolved by the caller from
-// the accent so it matches the toggle highlight.
+// Outlines the one page element whose source matches a hovered list row. Independent of
+// lib/highlight.js (its own attribute + style); the injected function is self-contained.
 
-// Inject the outline into every frame of `tabId` (the one call sites share). True when
-// some frame found and marked the element; false on a restricted page. A falsy
+// True when some frame marked the element; false on a restricted page. A falsy
 // `source` clears the outline everywhere.
 export const highlightSourceOnTab = async (tabId, source, color) => {
   try {
@@ -27,7 +19,6 @@ const highlightPageElementForSource = (source, color = '#7c3aed') => {
   const STYLE_ID = 'stencil-listhover-style';
   const ATTR = 'data-stencil-listhover';
 
-  // Always clear the previous outline first (moving between rows re-marks in one call).
   document.querySelectorAll('[' + ATTR + ']').forEach((el) => el.removeAttribute(ATTR));
   if (!source) {
     const s = document.getElementById(STYLE_ID);
@@ -57,7 +48,6 @@ const highlightPageElementForSource = (source, color = '#7c3aed') => {
     return bgUrls(el, null).includes(want) || bgUrls(el, '::before').includes(want) || bgUrls(el, '::after').includes(want);
   };
 
-  // Prefer a real media element; fall back to a background-image element.
   let target = null;
   for (const el of document.querySelectorAll('img, svg image, video')) {
     if (matches(el)) { target = el; break; }
@@ -79,8 +69,6 @@ const highlightPageElementForSource = (source, color = '#7c3aed') => {
     const { r, g, b } = toRgb(color);
     const style = document.createElement('style');
     style.id = STYLE_ID;
-    // A deliberately STRONG focus: thick outline + a wide double glow so the hovered
-    // element is unmistakable on any page, plus a brief pulse when it first appears.
     style.textContent =
       '@keyframes stencil-listhover-pulse{0%{box-shadow:0 0 0 0 rgba(' + r + ',' + g + ',' + b + ',.9),0 0 0 0 rgba(' + r + ',' + g + ',' + b + ',.35);}'
       + '100%{box-shadow:0 0 0 4px rgba(' + r + ',' + g + ',' + b + ',.85),0 0 22px 10px rgba(' + r + ',' + g + ',' + b + ',.35);}}'
@@ -91,8 +79,7 @@ const highlightPageElementForSource = (source, color = '#7c3aed') => {
     (document.head || document.documentElement).appendChild(style);
   }
   target.setAttribute(ATTR, '');
-  // Only scroll when the element isn't already visible, so sweeping the list doesn't
-  // thrash the page's scroll position.
+  // Sweeping the list must not thrash the page's scroll position.
   const r = target.getBoundingClientRect();
   const inView = r.bottom > 0 && r.right > 0 && r.top < innerHeight && r.left < innerWidth;
   if (!inView) {

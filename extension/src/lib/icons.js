@@ -1,10 +1,6 @@
-// ── Shared inline-SVG icon set (extension mirror) ───────────────
-// Same stroked, currentColor line-art as the browser app — a deliberate SUBSET of the
-// canonical browser/js/config/icons.json, plus a couple of extension-only glyphs;
-// tests/dataParity.test.js pins every shared entry byte-for-byte. Used by the popup/side
-// panel/devtools header + row action menu, the crop page, and options. Injected surfaces
-// (lib/overlay.js) inline their own SVG to stay import-free; native context-menu items
-// (lib/contextMenu.js) carry only text, so they keep their emoji.
+// A subset of the canonical browser/js/config/icons.json plus extension-only glyphs;
+// tests/dataParity.test.js pins every shared entry byte-for-byte. Injected surfaces
+// (lib/overlay.js) inline their own SVG to stay import-free.
 export const ICONS = {
   'chevron-down':  '<polyline points="6 9 12 15 18 9"/>',
   'chevron-up':    '<polyline points="18 15 12 9 6 15"/>',
@@ -28,24 +24,20 @@ export const ICONS = {
   'flag':      '<path class="ic-cloth" d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
   'pin':       '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
   'moon':      '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
-  // AI assistant chat (mirrors the browser app's sparkle/send pair)
   'image':     '<rect x="3" y="3" width="18" height="18" rx="2"/><circle class="ic-orb" cx="8.5" cy="8.5" r="1.5"/><polyline class="ic-ridge" points="21 15 16 10 5 21"/>',
   'dots':      '<circle class="ic-dot" cx="5" cy="12" r="1.6"/><circle class="ic-dot" cx="12" cy="12" r="1.6"/><circle class="ic-dot" cx="19" cy="12" r="1.6"/>',
   'trash':     '<g class="ic-lid"><polyline points="3 6 5 6 21 6"/><path d="M10 6V4a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v2"/></g><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
   'sparkle':   '<g transform="translate(0 1.5)"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><circle class="ic-dot" cx="8.5" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle class="ic-dot" cx="12" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle class="ic-dot" cx="15.5" cy="10" r="1.1" fill="currentColor" stroke="none"/></g>',
   'send':      '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
-  // Mid-turn abort: the send button becomes this while a response is in flight.
   'stop':      '<rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor" stroke="none"/>',
-  // Chat message context menu (copy mirrors the browser app's icons.js glyph)
   'copy':      '<rect class="ic-front" x="9" y="9" width="13" height="13" rx="2"/><path class="ic-back" d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
   'type':      '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>',
   'file-text': '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line class="ic-textline" x1="16" y1="13" x2="8" y2="13"/><line class="ic-textline" x1="16" y1="17" x2="8" y2="17"/>',
   'sun':       '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>',
-  // Swap message sides (assistant chat "…" menu).
   'swap':      '<g class="ic-arrow-top"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/></g><g class="ic-arrow-bot"><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></g>',
 };
 
-// Build an <svg> string for a named icon. Mirrors browser/js/ui/icons.js.
+// Mirrors browser/js/ui/icons.js.
 export function icon(name, { size = 16, cls = '', sw = 2 } = {}) {
   const inner = ICONS[name];
   if (!inner) return '';

@@ -8,7 +8,6 @@ export function wireLogoAccent(logo) {
   const wrap = logo.closest?.('.logo-wrap') || logo;
   logo.style.cursor = 'pointer';
 
-  // ── Preset menu ──
   let menu = wrap.querySelector?.('.logo-accent-menu');
   if (!menu) {
     menu = document.createElement('ul');
@@ -37,8 +36,7 @@ export function wireLogoAccent(logo) {
       li.addEventListener('pointerleave', clearHover);
       menu.appendChild(li);
     }
-    // Leaving the list reverts — but only once the flood has settled and the pointer has
-    // really gone (a synthetic mid-flood leave, or a hop between rows, must not).
+    // A synthetic mid-flood leave, or a hop between rows, must not revert.
     menu.addEventListener('pointerleave', scheduleRestore);
   };
   const menuShowing = () => !menu.hidden;
@@ -47,15 +45,13 @@ export function wireLogoAccent(logo) {
   const openMenu = () => {
     fill();
     markSel();
-    // Show the whole list when the window has room; only cap (and scroll) when it does
-    // not — the space under the logo, overriding the shared 280px .accent-dd-menu cap.
-    // Browser twin: toolbar.js openMenu sizes the logo menu the same way.
+    // The space under the logo overrides the shared 280px .accent-dd-menu cap (browser twin: toolbar.js).
     const r = wrap.getBoundingClientRect?.();
     if (r && typeof window !== 'undefined' && typeof window.innerHeight === 'number')
       menu.style.maxHeight = `${Math.max(120, window.innerHeight - r.bottom - 16)}px`;
     menu.hidden = false;
-    wrap.classList.add('logo-menu-open');   // lift the badge's stacking context over the page
-    surfaceIn(menu, centerOf(wrap));   // pours out of the logo, like every extension surface
+    wrap.classList.add('logo-menu-open');   // lifts the badge's stacking context over the page
+    surfaceIn(menu, centerOf(wrap));
     document.addEventListener('pointerdown', onDocDown, true);
     document.addEventListener('keydown', onKey);
   };
@@ -74,7 +70,6 @@ export function wireLogoAccent(logo) {
     if (e.key === 'Alt' && wrap.matches?.(':hover') && !menuShowing()) { e.preventDefault?.(); openMenu(); }
   });
 
-  // ── Click cycles; double-click opens the custom picker ──
   const cycle = () => {
     const keys = A.list.map((a) => a.key);
     const i = keys.indexOf(A.get());
@@ -83,7 +78,7 @@ export function wireLogoAccent(logo) {
   };
   let clickTimer = null;
   logo.addEventListener('click', (e) => {
-    if (e.altKey) {   // Alt+click toggles the menu instead of cycling
+    if (e.altKey) {
       if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
       menuShowing() ? closeMenu() : openMenu();
       return;
@@ -92,8 +87,7 @@ export function wireLogoAccent(logo) {
     clickTimer = setTimeout(() => { clickTimer = null; cycle(); }, 220);
   });
 
-  // A near-invisible colour input parked by the logo — the native picker needs a real,
-  // rendered element (not display:none) to open from.
+  // The native picker needs a real, rendered element (not display:none) to open from.
   const picker = document.createElement('input');
   picker.type = 'color';
   picker.setAttribute('aria-hidden', 'true');
@@ -101,15 +95,15 @@ export function wireLogoAccent(logo) {
   picker.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none;';
   logo.insertAdjacentElement('afterend', picker);
   const applyCustom = () => A.setCustom(picker.value, logo);
-  picker.addEventListener('input', applyCustom);    // live while dragging
-  picker.addEventListener('change', applyCustom);   // final commit
+  picker.addEventListener('input', applyCustom);
+  picker.addEventListener('change', applyCustom);
   logo.addEventListener('dblclick', () => {
-    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }   // cancel the pending cycle
+    if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
     const cur = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
     picker.value = /^#[0-9a-fA-F]{6}$/.test(cur) ? cur : A.hexOf(A.get());
     try { if (typeof picker.showPicker === 'function') picker.showPicker(); else picker.click(); }
     catch { picker.click(); }
   });
-  // A double-click selects nearby text; clear it so the picker isn't fighting a selection.
+  // A double-click would select nearby text.
   logo.addEventListener('mousedown', (e) => { if (e.detail > 1) e.preventDefault(); });
 }

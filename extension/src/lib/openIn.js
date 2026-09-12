@@ -1,21 +1,13 @@
-// ── "Open in…" cross-front-end deep links (extension) ───────────────────────
-// A popup/panel row can hand its image off to another Stencil front-end: the desktop
-// app via a `stencil://open?…` OS-scheme link (page images ride INLINE as data:, server
-// rows send only a reference — no token in the link), or the Telegram bot via a
-// `t.me/<bot>?start=` deep link (server rows only: a start payload can't carry bytes).
-// Ports of browser/js/core/deepLink.js + openInModal.js's size guards, unit-tested
-// against the browser's golden vectors (tests/openIn.test.js). Keep the two in sync.
+// "Open in…" deep links: `stencil://open?…` for the desktop app (server rows send a
+// reference, never a token) and `t.me/<bot>?start=` for the Telegram bot. Ports of
+// browser/js/core/deepLink.js + openInModal.js's size guards; tests/openIn.test.js pins them.
 import { isLoopbackHost, normalizeUrl } from './connections.js';
 
-// Inline hand-offs ride the OS launch machinery (LaunchServices / xdg-open argv), which
-// tolerates far less than an in-page URL. Warn on large embedded images; refuse absurd ones.
+// Inline hand-offs ride the OS launch argv, which tolerates far less than an in-page URL.
 export const INLINE_WARN_CHARS = 200_000;
 export const INLINE_MAX_CHARS = 1_000_000;
 
-// Build a `stencil://open?…` URL for the desktop app. Recognized fields:
-// server+id[+version] (open a server project), src (path/URL/data: image),
-// layout (object or JSON string, applied after the image loads), frame, incognito.
-// server+id wins over src on the receiving side; empty/absent fields are omitted.
+// server+id wins over src on the receiving side; empty fields are omitted.
 export const buildStencilSchemeUrl = ({ scheme = 'stencil', server, id, version, src, layout, frame, incognito } = {}) => {
   const params = [];
   const add = (k, v) => params.push(`${k}=${encodeURIComponent(v)}`);
@@ -35,9 +27,7 @@ export const buildStencilSchemeUrl = ({ scheme = 'stencil', server, id, version,
 // Telegram caps `?start=` payloads at 64 chars from the charset [A-Za-z0-9_-].
 export const TELEGRAM_START_LIMIT = 64;
 
-// Drop the scheme from a normalized origin when it matches what normalizeUrl would
-// infer for the bare host (https for remote hosts, http for loopback) — the decoder
-// re-normalizes, so the default scheme round-trips from just `host[:port]`.
+// The decoder re-normalizes, so the default scheme round-trips from just `host[:port]`.
 const compressOrigin = (origin) => {
   const u = new URL(origin);
   const defaultScheme = isLoopbackHost(u.hostname) ? 'http:' : 'https:';
@@ -48,10 +38,8 @@ const toBase64 = (bin) => (typeof btoa === 'function'
   ? btoa(bin)
   : Buffer.from(bin, 'binary').toString('base64'));
 
-// Encode (server origin, project id) into a t.me start payload: "1" (version prefix) +
-// base64url("host[:port]|projectId"), padding stripped; null when over the 64-char limit.
-// The identical codec exists in browser deepLink.js, desktop deepLink.cpp and the bot's
-// DeepLinkCodec.cs — keep them in sync (shared golden vectors in each suite's tests).
+// "1" + base64url("host[:port]|projectId"), unpadded; null when over the limit. The same
+// codec lives in browser deepLink.js, desktop deepLink.cpp and the bot's DeepLinkCodec.cs.
 export const encodeTelegramStartPayload = (serverUrl, projectId) => {
   const plain = `${compressOrigin(normalizeUrl(serverUrl))}|${projectId}`;
   const bytes = new TextEncoder().encode(plain);

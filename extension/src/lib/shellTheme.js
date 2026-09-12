@@ -1,40 +1,26 @@
-// ── Theme for the INJECTED in-page modal shell ──────────────────────────────
-// lib/overlay.js mounts the crop / editor modal into an arbitrary web page, so it can't
-// link lib/theme/ — it gets its palette handed to it as DATA. accent.js mirrors the
-// choice into chrome.storage.local, readable from a page OR the service worker.
-// The MODE travels unresolved ('system' included): only the target page can answer what
-// the OS prefers, so the injected shell resolves it with its own matchMedia.
+// The injected modal shell (lib/overlay.js) cannot link lib/theme/, so its palette travels
+// as data. The MODE travels unresolved: only the target page can answer what the OS prefers.
 import { ACCENT_HEX, DEFAULT_HL, ACCENT_STORAGE_KEY } from './highlightColor.js';
 
-// chrome.storage.local key the Appearance mode is mirrored under (same string as the
-// localStorage key in lib/accent.js, so the two never drift).
+// Same string as the localStorage key in lib/accent.js.
 export const THEME_STORAGE_KEY = 'stencil_theme';
 export const THEME_MODES = ['system', 'light', 'dark'];
 
-// The two palettes, lifted verbatim from lib/theme/palette.css — the shell must look like the
-// extension's own chrome, and the framed page inside it uses exactly these values.
+// Lifted verbatim from lib/theme/palette.css.
 export const SHELL_PALETTES = {
   dark: { bg: '#21242d', panel: '#2b2f3a', panel2: '#343948', line: '#3d4354', text: '#e8eaf0', muted: '#9aa0b0' },
   light: { bg: '#f4f5f7', panel: '#ffffff', panel2: '#eceef3', line: '#d4d8e2', text: '#1d2230', muted: '#6b7180' },
 };
 
-/** 'system' resolves against the target's OS preference; anything else is taken as-is. */
 export const resolveShellMode = (mode, prefersDark = false) =>
   (mode === 'dark' || mode === 'light') ? mode : (prefersDark ? 'dark' : 'light');
 
-/** The palette for a (possibly unresolved) mode. */
 export const shellPalette = (mode, prefersDark = false) => SHELL_PALETTES[resolveShellMode(mode, prefersDark)];
 
-/** Accent KEY → hex, falling back to the default accent. */
 export const shellAccent = (accentKey) => ACCENT_HEX[accentKey] || DEFAULT_HL;
 
-/**
- * The theme payload handed to mountStencilModal. Readable from a page and from the
- * service worker (chrome.storage.local), and JSON-serializable — executeScript args
- * are structured-cloned. Carries the palettes themselves so the injected shell needs
- * no copy of them, and the accent MAP so it can re-resolve a live accent change.
- * @returns {Promise<{mode: string, accent: string, palettes: object, accents: object}>}
- */
+// The payload handed to mountStencilModal — JSON-serializable, since executeScript args
+// are structured-cloned; it carries the accent map so the shell can re-resolve a live change.
 export const loadShellTheme = async () => {
   let mode = 'system';
   let accentKey = 'violet';
@@ -43,7 +29,7 @@ export const loadShellTheme = async () => {
     if (THEME_MODES.includes(s[THEME_STORAGE_KEY])) mode = s[THEME_STORAGE_KEY];
     if (typeof s[ACCENT_STORAGE_KEY] === 'string' && s[ACCENT_STORAGE_KEY]) accentKey = s[ACCENT_STORAGE_KEY];
   } catch {
-    /* never mirrored yet (fresh profile) → the defaults above */
+    /* never mirrored yet */
   }
   return { mode, accent: shellAccent(accentKey), palettes: SHELL_PALETTES, accents: ACCENT_HEX };
 };
