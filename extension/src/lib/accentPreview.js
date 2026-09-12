@@ -11,7 +11,7 @@ const swapping = () => {
   const c = document.documentElement && document.documentElement.classList;
   return !!c && (c.contains('theme-instant') || c.contains('theme-swapping'));
 };
-// The pointer's real position — a flood never fires a pointermove.
+// A flood never fires a pointermove, so the last one is the pointer's real position.
 let lastPt = null;
 let tracking = false;
 const trackPointer = () => {
@@ -28,7 +28,6 @@ const pointerIn = (el) => {
   return lastPt.x >= r.left && lastPt.x <= r.right && lastPt.y >= r.top && lastPt.y <= r.bottom;
 };
 
-// `closeMenu` is read lazily — the menu that owns this preview defines it after wiring.
 export const createAccentPreview = ({ menu, logo, accent: A, closeMenu }) => {
   trackPointer();
   let shownKey = null;        // the key currently previewed, or null = the committed accent
@@ -43,14 +42,12 @@ export const createAccentPreview = ({ menu, logo, accent: A, closeMenu }) => {
     for (const li of menu.children)
       li.setAttribute('aria-selected', li.dataset.key === key ? 'true' : 'false');
   };
-  // A live custom hex is no preset, so it marks NO row.
   const markSel = () => {
     const inline = document.documentElement.style.getPropertyValue('--accent');
     markKey(inline ? null : A.get());
   };
   const setHovered = (li) => { if (li) { markKey(li.dataset.key); latchHover(li); } };
-  // Runs once the flood about to start has finished — one beat first, so it is up before
-  // the poll looks for it.
+  // One beat first, so the flood about to start is up before the poll looks for it.
   const afterSwap = (fn) => {
     const poll = () => { if (swapping()) { setTimeout(poll, 60); return; } fn(); };
     setTimeout(poll, 60);
@@ -68,7 +65,6 @@ export const createAccentPreview = ({ menu, logo, accent: A, closeMenu }) => {
     if (root && root.classList) root.classList[on ? 'add' : 'remove']('dd-preview-cursor');
     if (on) afterSwap(() => { if (root && root.classList) root.classList.remove('dd-preview-cursor'); });
   };
-  // The row's :hover treatment LATCHED as a class, since the flood drops real :hover.
   const latchHover = (li) => {
     for (const r of menu.children) r.classList.toggle('dd-hover', r === li);
   };
@@ -128,7 +124,6 @@ export const createAccentPreview = ({ menu, logo, accent: A, closeMenu }) => {
     // Synthetic enters: the flood's, and those a list closing over its own commit drags
     // past the pointer — a hidden list sends no pointerleave, so nothing would revert.
     if (swapping() || committing) return;
-    // A real hop: lift the hold so the row plays its own hover once.
     if (!li.classList.contains('dd-hover')) holdReplays(false);
     setHovered(li);
     if (shownKey === key) return;

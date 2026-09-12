@@ -49,7 +49,6 @@
     storageKey: KEY,
     get: read,
     hexOf: hexOf,
-    // Ink for a swatch that paints its own chip, which no --on-accent var can reach.
     inkOn: onAccentInk,
     // `from` is the control that was pressed (element or id) — the options page has no
     // #theme-toggle, so without it the wipe would have to guess.
@@ -101,6 +100,6 @@
     },
   };
 
-  // Published for the scripts after this one (see accent.js).
+  // Published for the scripts after this one.
   K.apply = apply;
 })();
