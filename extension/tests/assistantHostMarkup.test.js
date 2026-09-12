@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { assistantSrc, motionSrc, popupCss } from './helpers/sources.js';
+import { animationsCss, assistantSrc, motionSrc, popupCss } from './helpers/sources.js';
 
 // The controller's own source and the popup's stylesheet set, read once — several
 // cases assert on them as text.
@@ -124,7 +124,7 @@ test('the drop target is the composer, cued by an animated icon over it', () => 
   assert.match(src, /cue\.className = 'chat-drop-cue';/);
   assert.match(src, /cueIcon\.className = 'chat-drop-cue-icon';/);
   // …and the icon animates (motion lives in lib/animations.css, reduced-motion safe).
-  const anims = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
+  const anims = animationsCss();
   assert.match(anims, /\.chat-drop-cue-icon \{ animation: chat-drop-bob/);
   assert.match(anims, /@keyframes chat-drop-bob/);
 });
@@ -171,9 +171,9 @@ test('clearing waits out the wipe before the empty state returns', () => {
   assert.match(motion, /export const scatterGridFor = \(count, index = 0\) => \{/);
   assert.match(motion, /export const SCATTER_MAX_ROWS = 12;/);
   // Opacity + transform only — an animated blur was the jank in the removal.
-  const leaveCss = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
+  const leaveCss = animationsCss();
   assert.ok(!/chatCardLeave[\s\S]*?filter: blur/.test(leaveCss), 'no blur in the leave keyframes');
-  const anims = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
+  const anims = animationsCss();
   assert.match(anims, /@keyframes chatCardLeave/);
   // The shared helper waits for the SCATTER, not the row collapse.
   assert.match(motion, /export const wipeDurationMs = \(\) => \{[\s\S]*Math\.max\(LEAVE_MS, DISINTEGRATE_MS\)/);

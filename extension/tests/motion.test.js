@@ -5,10 +5,10 @@
 import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
-import { popupCss, motionSrc } from './helpers/sources.js';
+import { animationsCss, popupCss, motionSrc } from './helpers/sources.js';
 
 // The stylesheet the CSS half of this contract lives in, read once.
-const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
+const css = animationsCss();
 
 import {
   observeReveal, flashLanding,

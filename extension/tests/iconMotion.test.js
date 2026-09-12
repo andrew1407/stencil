@@ -7,6 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { animationsCss } from './helpers/sources.js';
 
 import { ICONS } from '../src/lib/icons.js';
 
@@ -20,7 +21,7 @@ const section = (css, from, to) => {
   assert.ok(a >= 0 && b > a, `the icon-motion section is where the tests expect it (${from})`);
   return css.slice(a, b);
 };
-const EXT = section(read('../src/lib/animations.css'),
+const EXT = section(animationsCss(),
   '/* ── Icon hover: every glyph mimes its own action', '/* ── Header logo hover');
 const APP = section(read('../../browser/css/animations/iconHover.css'),
   '/* ── Icon hover: every glyph mimes its own action', '/* ── App logo hover');

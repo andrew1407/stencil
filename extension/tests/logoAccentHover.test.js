@@ -6,7 +6,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { animationsCss, themeCss } from './helpers/sources.js';
 import { wireLogoAccent } from '../src/lib/logoAccent.js';
 import { installDom, stubEl as el } from './helpers/domStub.js';
 
@@ -190,8 +190,8 @@ test('a row passing under the pointer as the list closes cannot start a new prev
 
 // ── CSS contract pins ───────────────────────────────────────────────────────
 test('the stylesheets latch the row slide and hold the hand across the flood', () => {
-  const theme = readFileSync(new URL('../src/lib/theme.css', import.meta.url), 'utf8');
-  const anims = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
+  const theme = themeCss();
+  const anims = animationsCss();
   assert.match(theme, /\.accent-dd-opt:hover, \.accent-dd-opt\.dd-hover \{[^}]*transform: translateX\(2px\)/,
     'the JS latch wears the same 2px slide as :hover — the flood drops :hover mid-preview');
   assert.match(anims, /\.accent-dd-menu\.dd-preview-hold \.accent-dd-opt::after \{ animation: none/,

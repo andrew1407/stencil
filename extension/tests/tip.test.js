@@ -5,6 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { animationsCss, themeCss } from './helpers/sources.js';
 import { setTip, tipLabel } from '../src/lib/tip.js';
 import { stubEl } from './helpers/domStub.js';
 
@@ -69,7 +70,7 @@ test('no control in the extension carries a native `title`', () => {
 });
 
 test('the custom tooltip fades and rises instead of blinking', () => {
-  const css = readFileSync(new URL('../src/lib/theme.css', import.meta.url), 'utf8');
+  const css = themeCss();
   // A TRANSITION, not keyframes: a fast sweep re-points the one shared tooltip many
   // times a second, and a transition simply re-aims from wherever it is.
   assert.match(css, /#app-tooltip \{[\s\S]*?transition: opacity 190ms cubic-bezier\(0\.55, 0, 1, 0\.45\)/);
@@ -84,7 +85,7 @@ test('the custom tooltip fades and rises instead of blinking', () => {
   // The keycap shake controlTooltip.js plays on a matching keystroke.
   assert.match(css, /@keyframes keycapShake/);
   assert.match(css, /\.tip-key\.key-shake \{[\s\S]*?animation: keycapShake/);
-  const anims = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
+  const anims = animationsCss();
   assert.match(anims, /#app-tooltip \{\s*\n\s*transition: none; transform: none; --dissolve: 0;/,
     'reduced motion lands it where it is, at full size and solid');
 });

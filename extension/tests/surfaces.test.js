@@ -6,7 +6,7 @@
 // layer itself is driven over a hand-rolled document; the CSS contract is read out of the
 // stylesheets, and the injected modal (which can link none of them) out of its own source.
 import test from 'node:test';
-import { assistantSrc, motionSrc } from './helpers/sources.js';
+import { animationsCss, assistantSrc, motionSrc, themeCss } from './helpers/sources.js';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 
@@ -19,9 +19,9 @@ import {
 import { FLIGHTS, alphaAt, PAINT_STOPS } from '../src/lib/dustCloud.js';
 
 const css = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
-const ANIMS = css('../src/lib/animations.css');
+const ANIMS = animationsCss();
 const MOTION = motionSrc();
-const THEME = css('../src/lib/theme.css');
+const THEME = themeCss();
 const OVERLAY = css('../src/lib/overlay.js');
 
 // ── The mesh ────────────────────────────────────────────────────────────────

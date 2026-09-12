@@ -6,7 +6,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { popupCss } from './helpers/sources.js';
+import { popupCss, themeCss } from './helpers/sources.js';
 import { readFileSync } from 'node:fs';
 import { scrollbarHit } from '../src/lib/scrollbarHover.js';
 
@@ -32,7 +32,7 @@ test('every page wires the document listener once', () => {
 });
 
 test('the theme paints every scrollable thin + grey, and the accent only via .sb-hover', () => {
-  const theme = read('../src/lib/theme.css');
+  const theme = themeCss();
   assert.equal((theme.match(/--sb-thumb-hover: var\(--accent\);/g) || []).length, 2, 'hover IS the accent, both palettes');
   assert.equal((theme.match(/--sb-thumb: #[0-9a-f]{6};/g) || []).length, 2, 'a rest grey per palette');
   assert.match(theme, /\n\* \{\s*scrollbar-width: thin;\s*scrollbar-color: var\(--sb-thumb\) transparent;\s*\}/);

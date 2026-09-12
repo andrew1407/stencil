@@ -5,7 +5,7 @@
 // (real clipboard / send loop) the stub DOM cannot reach.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { assistantSrc, popupCss } from './helpers/sources.js';
+import { animationsCss, assistantSrc, popupCss, themeCss } from './helpers/sources.js';
 import { readFileSync } from 'node:fs';
 import {
   msgMenuItems, appendToPrompt, clampMenuPosition, createMsgMenu,
@@ -284,8 +284,8 @@ test('the shared pop keyframe lives on .action-menu and respects reduced motion'
 });
 
 const actionMenu = readFileSync(new URL('../src/lib/actionMenu.js', import.meta.url), 'utf8');
-const theme = readFileSync(new URL('../src/lib/theme.css', import.meta.url), 'utf8');
-const anim = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
+const theme = themeCss();
+const anim = animationsCss();
 
 test('the shared action menu places via the origin helper; its Escape is armed per open', () => {
   assert.match(actionMenu, /menuEl\.style\.transformOrigin = menuTransformOrigin\(\{/);

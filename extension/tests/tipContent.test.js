@@ -7,12 +7,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { themeCss } from './helpers/sources.js';
 
 test('the tooltip controller renders the structure, and the CSS styles every part', () => {
   const js = readFileSync(new URL('../src/lib/controlTooltip.js', import.meta.url), 'utf8');
   assert.match(js, /renderTip/, 'the controller goes through the content model');
   assert.ok(!/\.textContent\s*=\s*txt/.test(js), 'and no longer prints the title flat');
-  const css = readFileSync(new URL('../src/lib/theme.css', import.meta.url), 'utf8');
+  const css = themeCss();
   for (const cls of ['.tip-head', '.tip-title', '.tip-keys', '.tip-key', '.tip-plus',
     '.tip-rows', '.tip-term', '.tip-desc', '.tip-bullets', '.tip-hint', '.tip-note']) {
     assert.ok(css.includes(cls), `${cls} is styled`);

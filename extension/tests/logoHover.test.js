@@ -7,6 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { animationsCss, docCss } from './helpers/sources.js';
 
 const HOSTS = {
   popup: 'src/popup/popup.html',
@@ -23,14 +24,14 @@ for (const [name, path] of Object.entries(HOSTS)) {
   test(`${name} (${path}) wraps its logo for the hover ray ring`, () => {
     // The wrap must open immediately before the logo element it hosts the rays for.
     assert.match(html[name], /<span class="logo-wrap">\s*<(?:svg|img)[^>]*class="logo"/,
-      `${path} must wrap its .logo in <span class="logo-wrap"> (lib/animations.css rays)`);
-    assert.ok(html[name].includes('lib/animations.css'),
-      `${path} must link lib/animations.css or the wrap does nothing`);
+      `${path} must wrap its .logo in <span class="logo-wrap"> (the ray ring hangs off it)`);
+    assert.match(docCss(path), /\.logo-wrap::before \{/,
+      `${path} must link the sheet that carries .logo-wrap::before, or the wrap does nothing`);
   });
 }
 
 test('the shared sheet carries the pulse, the rays, and the same beat as the browser app', () => {
-  const css = readFileSync(new URL('../src/lib/animations.css', import.meta.url), 'utf8');
+  const css = animationsCss();
   // Pulse + levitate + accent shine on the 1.2s beat (browser logoPulse twin).
   assert.match(css, /@keyframes logoPulse/);
   assert.match(css, /\.logo-wrap \.logo:hover \{ transform: scale\(1\.08\); animation: logoPulse 1\.2s ease-in-out infinite; \}/);
