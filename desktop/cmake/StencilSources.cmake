@@ -347,6 +347,7 @@ set(STENCIL_GUI_SOURCES
   src/dialogs/settingsDialogState.cpp
   src/dialogs/assistantSettingsDialog.cpp
   src/dialogs/llmSettingsForm.cpp
+  src/dialogs/llmSettingsFormRows.cpp
   src/dialogs/llmSettingsFormState.cpp
   ${STENCIL_PROJECTS_DIALOG_SOURCES}
   src/dialogs/expirationDialog.cpp

@@ -10,6 +10,7 @@ class QFrame;
 class QLabel;
 class QLineEdit;
 class QTimer;
+class QVBoxLayout;
 
 namespace stencil::llm {
   class LlmClient;
@@ -39,6 +40,14 @@ namespace stencil::gui {
     void focusProvider();
 
    private:
+    // The ctor's phases, in exactly this call order, and the two row helpers they share.
+    // A HideRows host draws the browser modal's section headers and hairlines; a conditional
+    // row hands its divider back so syncRows can hide the pair together.
+    QFrame* rowDivider();
+    void hugRight(QWidget* w);
+    void buildProviderRows(const Settings& current);
+    void buildChatHistoryRows(const Settings& current, QVBoxLayout* col);
+    void wireProviderFields();
     // Apply the per-provider row treatment and, on a provider switch, re-fill
     // the base URL with the new provider's default — unless the user edited it
     // (i.e. it no longer equals the PREVIOUS provider's default).
