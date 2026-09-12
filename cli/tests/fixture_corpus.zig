@@ -137,27 +137,6 @@ fn surrogateAt(bytes: []const u8, i: usize) ?u16 {
     return if (code >= 0xD800 and code <= 0xDFFF) code else null;
 }
 
-/// The sorted *.json basenames of a corpus directory (all arena-owned).
-pub fn listJson(a: std.mem.Allocator, io: std.Io, sub: []const u8) ![][]const u8 {
-    var buf: [512]u8 = undefined;
-    const path = try std.fmt.bufPrint(&buf, "{s}{s}", .{ corpus_root, sub });
-    var dir = try std.Io.Dir.cwd().openDir(io, path, .{ .iterate = true });
-    defer dir.close(io);
-    var names: std.ArrayList([]const u8) = .empty;
-    var it = dir.iterate();
-    while (try it.next(io)) |entry| {
-        if (entry.kind != .file or !std.mem.endsWith(u8, entry.name, ".json")) continue;
-        try names.append(a, try a.dupe(u8, entry.name));
-    }
-    const slice = try names.toOwnedSlice(a);
-    std.mem.sort([]const u8, slice, {}, strLess);
-    return slice;
-}
-
-fn strLess(_: void, x: []const u8, y: []const u8) bool {
-    return std.mem.order(u8, x, y) == .lt;
-}
-
 pub fn member(v: std.json.Value, key: []const u8) ?std.json.Value {
     if (v != .object) return null;
     return v.object.get(key);
