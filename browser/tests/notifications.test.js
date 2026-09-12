@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 
 import { StencilNotifications, MAX_VISIBLE } from '../js/ui/notifications.js';
 import { COMPONENTS_CSS, ANIMATIONS_CSS } from './helpers/css.js';
+import { desktopSource } from './helpers/desktopSource.js';
 
 const mkEl = () => {
   const classes = new Set();
@@ -207,7 +208,7 @@ test('the toast exit rides the shared scatter curve, on a short clock', () => {
     const stagger = Number(/const TOAST_LEAVE_STAGGER = ([0-9.]+)/.exec(js)[1]);
     assert.ok(stagger <= 0.2, `stagger ${stagger} is enough to leave stragglers`);
     // …and the desktop leaves on the same clock (its constants live in the .cpp).
-    const cpp = readFileSync(new URL('../../desktop/src/support/notifications.cpp', import.meta.url), 'utf8');
+    const cpp = desktopSource('support/notifications');
     assert.equal(Number(/constexpr int kToastOutMs = (\d+)/.exec(cpp)[1]), leave,
         'the two apps must not drift on the exit clock');
 });
