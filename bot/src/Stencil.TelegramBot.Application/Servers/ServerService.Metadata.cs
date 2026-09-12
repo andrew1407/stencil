@@ -9,10 +9,8 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Servers;
 
-// ServerService — the version-guarded single-field writes: colour, name, description, blank colour, expiry. Class doc lives in ServerService.cs.
 public sealed partial class ServerService
 {
-    /// <inheritdoc />
     public async Task<string> SetProjectColorAsync(long userId, string color, CancellationToken ct = default)
     {
         var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
@@ -28,7 +26,6 @@ public sealed partial class ServerService
         return record.Color ?? "";
     }
 
-    /// <inheritdoc />
     public async Task<string> SetProjectNameAsync(long userId, string name, CancellationToken ct = default)
     {
         var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
@@ -55,7 +52,6 @@ public sealed partial class ServerService
         return record.Name;
     }
 
-    /// <inheritdoc />
     public async Task<string> SetProjectDescriptionAsync(long userId, string description, CancellationToken ct = default)
     {
         var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
@@ -75,7 +71,6 @@ public sealed partial class ServerService
         return record.Description ?? "";
     }
 
-    /// <inheritdoc />
     public async Task<string> GetProjectBlankColorAsync(long userId, CancellationToken ct = default)
     {
         var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
@@ -84,12 +79,12 @@ public sealed partial class ServerService
         return full.Project.BlankColor ?? "";
     }
 
-    /// <inheritdoc />
     public async Task<string> SetProjectBlankColorAsync(long userId, string color, CancellationToken ct = default)
     {
         var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
-        // Only a blank project has a blank colour; recolouring a non-blank is a no-op (empty result).
+        // Only a blank project has a blank colour; recolouring a non-blank is a no-op (empty
+        // result).
         var current = await client.GetProjectAsync(projectId, ct);
         if (string.IsNullOrEmpty(current.Project.BlankColor))
         {
@@ -106,7 +101,6 @@ public sealed partial class ServerService
         return record.BlankColor ?? "";
     }
 
-    /// <inheritdoc />
     public async Task<long> SetProjectExpiryAsync(long userId, long expiresAtMs, CancellationToken ct = default)
     {
         var (session, projectId) = await RequireActiveSessionAsync(userId, ct);

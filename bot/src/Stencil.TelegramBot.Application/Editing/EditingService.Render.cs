@@ -5,18 +5,14 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Editing;
 
-// EditingService — replaying the original through the CLI, plus the layout export both the
-// /json command and a project save read. Class doc lives in EditingService.cs.
 public sealed partial class EditingService
 {
-    /// <inheritdoc />
     public async Task<RenderResult> RenderAsync(long userId, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
         return await RenderWithAsync(userId, session, session.Edits, ct);
     }
 
-    /// <inheritdoc />
     public Task<RenderResult> RenderContourAsync(long userId, string sourcePath, CancellationToken ct = default) =>
         _cli.EditAsync(new EditRequest
         {
@@ -26,14 +22,12 @@ public sealed partial class EditingService
             Overwrite = true,
         }, ct);
 
-    /// <inheritdoc />
     public async Task<RenderResult> RenderAsync(long userId, EditState edits, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
         return await RenderWithAsync(userId, session, edits, ct);
     }
 
-    /// <summary>Replay the session's original through the CLI with the given edit state.</summary>
     private async Task<RenderResult> RenderWithAsync(long userId, UserSession session, EditState edits, CancellationToken ct)
     {
         if (session.OriginalImagePath is null)
@@ -61,7 +55,6 @@ public sealed partial class EditingService
         return await _cli.EditAsync(request, ct);
     }
 
-    /// <inheritdoc />
     public StencilLayout BuildLayout(UserSession session) =>
         new()
         {
@@ -71,7 +64,6 @@ public sealed partial class EditingService
             Lines = session.Edits.Layout?.Lines ?? [],
         };
 
-    /// <inheritdoc />
     public string ExportLayoutJson(UserSession session) =>
         StencilJson.SerializeIndented(BuildLayout(session));
 

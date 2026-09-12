@@ -9,18 +9,15 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Servers;
 
-// ServerService — pushing the layout up and pulling it back, plus the §9 chat file. Class doc lives in ServerService.cs.
 public sealed partial class ServerService
 {
-    /// <inheritdoc />
     public async Task<ProjectRecord> SaveActiveProjectAsync(long userId, CancellationToken ct = default)
     {
         var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
         var render = await _editing.RenderAsync(userId, ct);
         var bytes = await File.ReadAllBytesAsync(render.Path, ct);
-        // Merge the current edit state into the project's existing layout so crop/page/formula
-        // fields survive while lines/filter/rotation are updated (see ProjectLayoutWriter).
+        // Merge into the existing layout so crop/page/formula fields survive (ProjectLayoutWriter).
         var layoutJson = ProjectLayoutWriter.BuildJson(session.ActiveProjectLayoutJson, session.Edits, render.Width, render.Height);
         var request = new UpdateProjectRequest
         {
@@ -34,14 +31,12 @@ public sealed partial class ServerService
             "This project was edited elsewhere — reload it from the server before saving again.",
             ct);
         await client.PutFileAsync(projectId, ProjectFileKind.Result, bytes, "png", render.Width, render.Height, ct);
-        // The result upload bumps the version too; re-read it so the next save isn't stale
-        // (remoteSync.js saveRemoteProject refreshes version after putFile('result')).
+        // The result upload bumps the version too; re-read it (remoteSync.js saveRemoteProject).
         var version = await CurrentVersionAsync(client, projectId, record.Version, ct);
         var updated = session with { ActiveProjectVersion = version, ActiveProjectLayoutJson = layoutJson };
         await _store.SaveAsync(updated, ct);
         return record with { Version = version };
     }
-    /// <inheritdoc />
     public async Task<long?> ActiveServerVersionAsync(long userId, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -61,7 +56,6 @@ public sealed partial class ServerService
         }
     }
 
-    /// <inheritdoc />
     public async Task<UserSession?> PullActiveAsync(long userId, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -72,18 +66,16 @@ public sealed partial class ServerService
         return await FetchAsync(userId, session.ActiveProjectId, session.ActiveServerUrl, ct);
     }
 
-    /// <inheritdoc />
     public async Task SaveChatAsync(long userId, string chatJson, CancellationToken ct = default)
     {
         var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
         var client = ClientForActive(session);
-        // Contract §9: `chat` is filestore-only — the upload does NOT bump the project version
-        // (the server only bumps for original/result), so no version re-read/save is needed.
+        // §9: chat is filestore-only — the upload does NOT bump the version, so no re-read is
+        // needed.
         await client.PutFileAsync(projectId, ProjectFileKind.Chat,
             Encoding.UTF8.GetBytes(chatJson), "json", 0, 0, ct);
     }
 
-    /// <inheritdoc />
     public async Task<string?> LoadChatAsync(long userId, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -103,7 +95,6 @@ public sealed partial class ServerService
         }
     }
 
-    /// <inheritdoc />
     public async Task DeleteChatAsync(long userId, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);

@@ -9,11 +9,8 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Editing;
 
-/// <summary>
-/// The portable <c>.stencil</c> bundle both ways: open one onto a session, or build one from
-/// the session's current state. The layout is the shared map both server projects use, so a
-/// bundle round-trips through any other surface unchanged.
-/// </summary>
+// The layout is the shared map server projects use too, so a bundle round-trips through any
+// surface.
 internal sealed class ProjectFileService
 {
     private readonly IStencilCli _cli;
@@ -25,7 +22,6 @@ internal sealed class ProjectFileService
         _editing = editing;
     }
 
-    /// <summary>Adopt a <c>.stencil</c> bundle: store its image, then rebuild the edits from its layout.</summary>
     public async Task<UserSession> OpenAsync(long userId, UserSession session, StencilProject project, CancellationToken ct)
     {
         string extension = string.IsNullOrEmpty(project.ImageExt) ? ".png" : "." + project.ImageExt;
@@ -34,14 +30,12 @@ internal sealed class ProjectFileService
         ImageSize size = await ImageDimensionReader.TryReadFileAsync(path, ct) ?? await _cli.ProbeAsync(path, ct);
         string label = string.IsNullOrEmpty(project.Name) ? "project" : project.Name;
         UserSession reset = EditSessions.ResetToImage(session, path, size, label, project.Source);
-        // Rebuild crop/rotation/filter/lines from the layout — the same map used for server projects.
         EditState edits = project.Layout is JsonElement layout
             ? ProjectLayoutMapper.ToEditState(layout, size.Width, size.Height)
             : new EditState();
         return reset with { Edits = edits, ActiveProjectLayoutJson = project.Layout?.GetRawText() };
     }
 
-    /// <summary>Build the bundle bytes for the session's current image + layout.</summary>
     public async Task<byte[]> ExportAsync(long userId, UserSession session, CancellationToken ct)
     {
         if (session.OriginalImagePath is null)

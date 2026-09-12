@@ -10,28 +10,23 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Servers;
 
-// ServerService — connect / disconnect / list: a connection is a validated token + base URL on the session. Class doc lives in ServerService.cs.
 public sealed partial class ServerService
 {
-    /// <inheritdoc />
     public async Task<ServerConnectionInfo> ConnectAsync(long userId, string url, string? token, bool verifyTls, CancellationToken ct = default)
     {
         // Invite links carry the token as a '#token=' fragment; an explicit token wins.
         (url, token) = InviteLink.Split(url, token);
-        // The bot is open to any Telegram user, so vet the target before issuing any REST call:
-        // localhost/LAN collaboration servers are intended, but link-local / cloud-metadata
-        // (169.254.169.254, fe80::/10, …) hosts are an SSRF-only target and are rejected.
+        // Open to any Telegram user: link-local / cloud-metadata hosts are rejected before any REST
+        // call.
         await RemoteImageUrl.ValidateServerUrlAsync(url, ct);
         var session = await _store.GetAsync(userId, ct);
         var normalized = _factory.NormalizeUrl(url);
-        // Reuse what an earlier connect to this origin proved about the credential, so a known
-        // admin token skips the probe that can only 401 (browser handshake parity).
+        // A known admin token skips the probe that can only 401 (browser handshake parity).
         var known = session.FindConnection(normalized)?.CredentialKind ?? CredentialKind.None;
         var client = _factory.Create(url, token, verifyTls, credential: null, known);
         var handshake = await client.ConnectAsync(token, ct);
-        // credential = what the user supplied (may be the ADMIN token): kept beside the live
-        // session token so a later stale-session re-mint survives the round-tripped record, with
-        // the kind the handshake proved it to be.
+        // credential may be the ADMIN token, kept beside the session token so a stale session can
+        // re-mint.
         var info = new ServerConnectionInfo
         {
             Url = normalized,
@@ -49,7 +44,6 @@ public sealed partial class ServerService
         return info;
     }
 
-    /// <inheritdoc />
     public async Task<bool> DisconnectAsync(long userId, string? url, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -74,7 +68,6 @@ public sealed partial class ServerService
         return true;
     }
 
-    /// <inheritdoc />
     public async Task<IReadOnlyList<ServerConnectionInfo>> ConnectionsAsync(long userId, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);

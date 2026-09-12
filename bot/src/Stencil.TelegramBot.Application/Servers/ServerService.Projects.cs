@@ -9,16 +9,13 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Servers;
 
-// ServerService — project CRUD: list, fetch onto the session, create from the current render, delete. Class doc lives in ServerService.cs.
 public sealed partial class ServerService
 {
-    /// <inheritdoc />
     public async Task<IReadOnlyList<ServerProjectInfo>> ListProjectsAsync(long userId, string? url, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
         var targets = TargetConnections(session, url);
-        // Independent servers, so ask them all at once; the answers are stitched back in
-        // connection order, not reply order.
+        // Answers are stitched back in connection order, not reply order.
         var answers = await Task.WhenAll(targets.Select(connection => ListOneAsync(connection, ct)));
         return [.. answers.SelectMany(a => a)];
     }
@@ -36,7 +33,6 @@ public sealed partial class ServerService
         }
     }
 
-    /// <inheritdoc />
     public async Task<UserSession> FetchAsync(long userId, string nameOrId, string? url, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -54,7 +50,6 @@ public sealed partial class ServerService
             }
             catch
             {
-                // Skip an unreachable/erroring server and keep looking.
                 continue;
             }
             if (match is null)
@@ -64,8 +59,8 @@ public sealed partial class ServerService
             var full = await client.GetProjectAsync(match.Id, ct);
             var bytes = await client.GetFileAsync(match.Id, ProjectFileKind.Original, ct);
             var path = await _editing.StoreOriginalBytesAsync(userId, bytes, ".png", ct);
-            // Rebuild the project's edit state (lines + filter + rotation + crop) from its layout
-            // so re-rendering the original reproduces the same result every other client shows.
+            // Rebuild the edit state from the layout so re-rendering reproduces what other clients
+            // show.
             var edits = full.Layout is JsonElement layout
                 ? ProjectLayoutMapper.ToEditState(layout, full.Project.ImageW, full.Project.ImageH)
                 : new EditState();
@@ -93,7 +88,6 @@ public sealed partial class ServerService
         throw new InvalidOperationException($"Project '{nameOrId}' not found");
     }
 
-    /// <inheritdoc />
     public async Task<ProjectRecord> CreateProjectAsync(long userId, string? name, string? url, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -105,8 +99,7 @@ public sealed partial class ServerService
         var client = ClientFor(connection);
         var render = await _editing.RenderAsync(userId, ct);
         var bytes = await File.ReadAllBytesAsync(render.Path, ct);
-        // Carry any locally-held description (set via /project-description before saving) so the
-        // new project keeps it; null when none so the server applies its default (no description).
+        // A locally-held description rides along; null lets the server apply its default.
         var description = string.IsNullOrEmpty(session.ActiveProjectDescription) ? null : session.ActiveProjectDescription;
         var request = new CreateProjectRequest
         {
@@ -118,9 +111,8 @@ public sealed partial class ServerService
         };
         var record = await client.CreateProjectAsync(request, ct);
         await client.PutFileAsync(record.Id, ProjectFileKind.Original, bytes, "png", render.Width, render.Height, ct);
-        // The original upload bumps the server-side version but the file-write response carries
-        // none, so re-read it — otherwise the session tracks a stale version and the very next
-        // version-guarded save/colour/expiry would 409 (remoteSync.js createRemoteProject).
+        // The original upload bumps the version but the file-write response carries none: re-read
+        // it or the next version-guarded write would 409 (remoteSync.js createRemoteProject).
         var version = await CurrentVersionAsync(client, record.Id, record.Version, ct);
         var updated = session with
         {
@@ -136,7 +128,6 @@ public sealed partial class ServerService
         await _store.SaveAsync(updated, ct);
         return record with { Version = version };
     }
-    /// <inheritdoc />
     public async Task<string> DeleteActiveProjectAsync(long userId, CancellationToken ct = default)
     {
         var (session, projectId) = await RequireActiveSessionAsync(userId, ct);
@@ -153,8 +144,7 @@ public sealed partial class ServerService
                 "The project is open by other clients right now — it can't be deleted until they leave.",
                 ex.Status);
         }
-        // Clear the active project (and live sync, which now has nothing to track); the working
-        // image stays so the user can re-save it as a new project elsewhere.
+        // The working image stays so the user can re-save it elsewhere.
         var updated = session with
         {
             ActiveServerUrl = null,

@@ -10,15 +10,8 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Editing;
 
-/// <summary>
-/// Default <see cref="IEditingService"/>: one base image on disk plus a re-applicable
-/// <see cref="EditState"/>, replayed through <see cref="IStencilCli"/> on render.
-/// </summary>
-/// <remarks>
-/// A mutating method folds an intent into <see cref="EditState"/>; <see cref="RenderAsync"/> maps
-/// the original plus that state to one <see cref="EditRequest"/>. Its friendly
-/// <see cref="InvalidOperationException"/> messages are meant to be surfaced verbatim.
-/// </remarks>
+// One base image on disk plus a re-applicable EditState, replayed through IStencilCli on render.
+// InvalidOperationException messages are meant to be surfaced verbatim.
 public sealed partial class EditingService : IEditingService
 {
     private readonly IStencilCli _cli;
@@ -36,7 +29,6 @@ public sealed partial class EditingService : IEditingService
         _projectFiles = new ProjectFileService(cli, this);
     }
 
-    /// <inheritdoc />
     public async Task<UserSession> SetImageFromLocalFileAsync(long userId, string sourcePath, string label, string? sourceUrl = null, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -49,11 +41,10 @@ public sealed partial class EditingService : IEditingService
         return updated;
     }
 
-    /// <inheritdoc />
     public async Task<UserSession> SetImageFromUrlAsync(long userId, string url, string label, CancellationToken ct = default)
     {
-        // The bot is open to any Telegram user, so vet the link before the CLI fetches it:
-        // reject non-http(s) schemes, bare local paths, and private/loopback/metadata hosts.
+        // Open to any Telegram user: vet the link before the CLI fetches it (schemes, local paths,
+        // private hosts).
         await RemoteImageUrl.ValidateAsync(url, ct);
         var session = await _store.GetAsync(userId, ct);
         var output = _workspace.NewFilePath(userId, ".png");
@@ -69,13 +60,12 @@ public sealed partial class EditingService : IEditingService
         return updated;
     }
 
-    /// <inheritdoc />
     public async Task<UserSession> BlankAsync(long userId, BlankSpec spec, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
-        // A stored /format becomes the default page when the spec names neither a page nor
-        // explicit dims. --blank only takes named tokens, so a stored "custom" rides as pixel dims
-        // converted from the stored cm the way the CLI console does (defaultBlankSizePx).
+        // A stored /format is the default page when the spec names neither; --blank only takes
+        // named tokens, so a stored "custom" rides as pixel dims from the stored cm, as the CLI
+        // console's defaultBlankSizePx.
         var customConverted = false;
         if (spec.Page is null && spec.Width is null && spec.Height is null
             && session.Edits.PageFormat is string stored)
@@ -100,9 +90,8 @@ public sealed partial class EditingService : IEditingService
         };
         var result = await _cli.EditAsync(request, ct);
         var updated = EditSessions.ResetToImage(session, result.Path, result.Size, "blank");
-        // Carry a page format onto the fresh canvas so a later /save writes the layout's pageSize:
-        // the page the blank was made with wins; one made from explicit pixel dims keeps the
-        // previous /format pick, mirroring the CLI console's doBlank restore order.
+        // The page the blank was made with wins; explicit pixel dims keep the previous /format
+        // pick, mirroring the CLI console's doBlank restore order.
         if (spec.Page is string page)
         {
             updated = updated with { Edits = WithPageFormat(updated.Edits, page, null, null) };
@@ -127,14 +116,13 @@ public sealed partial class EditingService : IEditingService
         return updated;
     }
 
-    /// <summary>cm → blank-canvas px like the core's <c>defaultBlankSizePx</c>: cm / 2.54 * 96.</summary>
+    // cm → px like the core's defaultBlankSizePx: cm / 2.54 * 96.
     private static int CmToBlankPx(double cm)
     {
         var px = (int)(cm / 2.54 * 96.0 + 0.5);
         return px < 1 ? 1 : px;
     }
 
-    /// <inheritdoc />
     public async Task<UserSession> SetImageFromVideoAsync(long userId, string videoSourcePath, int frame, string label, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -144,7 +132,6 @@ public sealed partial class EditingService : IEditingService
             EditSessions.ResetToImage(session, result.Path, result.Size, label) with { VideoSourcePath = storedVideo }, ct);
     }
 
-    /// <inheritdoc />
     public async Task<UserSession> ExtractFrameAsync(long userId, int frame, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -159,28 +146,23 @@ public sealed partial class EditingService : IEditingService
             EditSessions.ResetToImage(session, result.Path, result.Size, label) with { VideoSourcePath = video }, ct);
     }
 
-    /// <inheritdoc />
     public Task<string> StoreOriginalBytesAsync(long userId, byte[] data, string extension, CancellationToken ct = default) =>
         _workspace.WriteAsync(userId, data, extension, ct);
 
-    /// <inheritdoc />
     public Task<ScrapeResult> ScrapeAsync(long userId, ScrapeRequest request, CancellationToken ct = default)
     {
-        // The scrape writes a directory of downloads, so give it its own fresh sub-directory in
-        // the user's workspace (kept apart from the render/layout artifacts). The CLI creates the
-        // directory itself; /drop's Clear() wipes the whole user tree, subdir included.
+        // Its own sub-directory, apart from render artifacts; /drop's Clear() wipes the whole user
+        // tree.
         string dir = Path.Combine(_workspace.DirectoryFor(userId), "scrape-" + Guid.NewGuid().ToString("N"));
         return _cli.ScrapeAsync(request with { OutputDir = dir }, ct);
     }
 
-    /// <inheritdoc />
     public async Task<UserSession> OpenProjectFileAsync(long userId, StencilProject project, CancellationToken ct = default)
     {
         UserSession session = await _store.GetAsync(userId, ct);
         return await SaveAsync(await _projectFiles.OpenAsync(userId, session, project, ct), ct);
     }
 
-    /// <inheritdoc />
     public async Task<byte[]> ExportProjectFileAsync(long userId, CancellationToken ct = default) =>
         await _projectFiles.ExportAsync(userId, await _store.GetAsync(userId, ct), ct);
 

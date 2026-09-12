@@ -4,14 +4,12 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Application.Editing;
 
-// EditingService — the pen defaults and the drawn lines. Class doc lives in EditingService.cs.
 public sealed partial class EditingService
 {
-    /// <inheritdoc />
     public async Task<UserSession> ConfigurePenAsync(long userId, string? color, double? thickness, double? pointSize, string? style, string? fill, CancellationToken ct = default)
     {
-        // The CLI SKIPS a colour it can't parse, so a typo would silently paint the default
-        // instead of failing. Reject it here, for /color, /fill and the §10 lineStyle op alike.
+        // The CLI SKIPS a colour it can't parse, so a typo would silently paint the default: reject
+        // it here.
         RejectUnparseableColor(color, "colour");
         RejectUnparseableColor(NormalizeFill(fill), "fill");
         var session = await _store.GetAsync(userId, ct);
@@ -29,7 +27,6 @@ public sealed partial class EditingService
         return updated;
     }
 
-    /// <inheritdoc />
     public Task<UserSession> AddLineAsync(long userId, IReadOnlyList<LayoutPoint> points, bool closed, CancellationToken ct = default) =>
         ApplyEditAsync(userId, session =>
         {
@@ -65,7 +62,6 @@ public sealed partial class EditingService
             return session.Edits with { Layout = updatedLayout };
         }, ct);
 
-    /// <inheritdoc />
     public async Task<UserSession> RemoveLastLineAsync(long userId, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -81,7 +77,6 @@ public sealed partial class EditingService
         return updated;
     }
 
-    /// <inheritdoc />
     public async Task<UserSession> ClearLinesAsync(long userId, CancellationToken ct = default)
     {
         var session = await _store.GetAsync(userId, ct);
@@ -94,7 +89,6 @@ public sealed partial class EditingService
         return updated;
     }
 
-    /// <summary>A fresh empty layout carrying the working image's dimensions.</summary>
     private static StencilLayout EmptyLayout(UserSession session) =>
         new()
         {
@@ -103,7 +97,6 @@ public sealed partial class EditingService
             Lines = [],
         };
 
-    /// <summary>Throw when a caller-supplied colour is one <c>parseColor</c> would drop.</summary>
     private static void RejectUnparseableColor(string? spec, string label)
     {
         if (spec is not null && !ColorSpec.IsValid(spec))
@@ -113,7 +106,6 @@ public sealed partial class EditingService
         }
     }
 
-    /// <summary>null keeps the fill; <c>none</c>/<c>clear</c>/blank clears it; else the colour.</summary>
     private static string? NormalizeFill(string? fill)
     {
         if (fill is null)

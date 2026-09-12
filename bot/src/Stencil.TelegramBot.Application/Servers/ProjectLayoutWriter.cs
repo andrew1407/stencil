@@ -6,24 +6,13 @@ using Stencil.TelegramBot.Domain.Serialization;
 
 namespace Stencil.TelegramBot.Application.Servers;
 
-/// <summary>
-/// Builds the project layout JSON to save back to the server. The counterpart of
-/// <see cref="ProjectLayoutMapper"/>: it starts from the project's existing layout (so fields
-/// the bot doesn't model — <c>cropRect</c>, formulas — are preserved) and overwrites the
-/// fields the bot owns from the current <see cref="EditState"/>: <c>lines</c>,
-/// <c>imageFilter</c>/<c>filterColor</c>, <c>rotationQuarters</c>, and the working dimensions.
-/// <c>pageSize</c> is preserved too unless the user picked one with <c>/format</c>
-/// (<see cref="EditState.PageFormat"/>), which then overrides it.
-/// </summary>
-/// <remarks>Pure, and shaped like the browser's <c>buildLayoutPayload</c>, so a browser or
-/// desktop client reopening a bot-saved project rebuilds the same result.</remarks>
+// The counterpart of ProjectLayoutMapper: starts from the project's existing layout so fields the
+// bot doesn't model (cropRect, formulas) survive, and overwrites lines, imageFilter/filterColor,
+// rotationQuarters, the working dimensions and — only after a /format pick — pageSize.
 public static class ProjectLayoutWriter
 {
-    /// <summary>
-    /// Merge the current edit state into <paramref name="baseLayoutJson"/> (the fetched layout,
-    /// or null for a bot-created project). <paramref name="resultWidth"/>/<paramref name="resultHeight"/>
-    /// are the rendered result dimensions (the working-image size the browser records).
-    /// </summary>
+    // resultWidth/Height are the rendered result dimensions (the working-image size the browser
+    // records).
     public static JsonObject Build(string? baseLayoutJson, EditState edits, int resultWidth, int resultHeight)
     {
         JsonObject root = TryParseObject(baseLayoutJson) ?? new JsonObject();
@@ -38,7 +27,6 @@ public static class ProjectLayoutWriter
             root["filterColor"] = color;
         }
 
-        // A /format choice overrides the fetched layout's page; otherwise it is preserved as-is.
         if (edits.PageFormat is string page)
         {
             root["pageSize"] = page;
@@ -49,8 +37,7 @@ public static class ProjectLayoutWriter
             }
         }
 
-        // An LLM `formula` op overrides the fetched layout's formula for that axis; otherwise
-        // whatever the base layout carried is preserved as-is (the bot-doesn't-model default).
+        // An LLM formula op overrides that axis; otherwise the base layout's formula is preserved.
         if (edits.FormulaX is string formulaX)
         {
             root["formulaX"] = formulaX;
@@ -68,15 +55,10 @@ public static class ProjectLayoutWriter
         return root;
     }
 
-    /// <summary>Serialize <see cref="Build"/>'s result to a compact JSON string.</summary>
     public static string BuildJson(string? baseLayoutJson, EditState edits, int resultWidth, int resultHeight) =>
         Build(baseLayoutJson, edits, resultWidth, resultHeight).ToJsonString();
 
-    /// <summary>
-    /// Map the bot's filter spec to the browser's <c>imageFilter</c>/<c>filterColor</c> pair:
-    /// <c>bw</c>/<c>sepia</c>/<c>invert</c>/<c>contour</c> stay named; any colour becomes a
-    /// <c>custom</c> tint; null is <c>none</c>.
-    /// </summary>
+    // bw/sepia/invert/contour stay named; any colour becomes a custom tint; null is none.
     private static (string Mode, string? Color) FilterFields(string? filter)
     {
         if (string.IsNullOrEmpty(filter))
@@ -102,10 +84,7 @@ public static class ProjectLayoutWriter
         return ("custom", filter);
     }
 
-    /// <summary>
-    /// Rewrite a preserved legacy <c>cropRect</c> (<c>{width,height}</c>, pre-Phase-6 desktop)
-    /// to the canonical <c>{x,y,w,h}</c> keys, so the saved envelope is canonical-only.
-    /// </summary>
+    // A preserved legacy cropRect ({width,height}) is rewritten to the canonical {x,y,w,h} keys.
     private static void NormalizeCropRect(JsonObject root)
     {
         if (root["cropRect"] is not JsonObject rect)
