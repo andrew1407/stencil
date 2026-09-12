@@ -2,7 +2,7 @@
 // Choices live in localStorage — synchronous, unlike chrome.storage.sync, which would flash.
 // ACCENTS is a checked-in copy of browser/js/config/accents.json, pinned by tests/dataParity.test.js.
 (function () {
-  var ACCENTS = [
+  const ACCENTS = [
     { key: 'violet',  label: 'Violet',      hex: '#7c3aed' },
     { key: 'pink',    label: 'Pink',        hex: '#ec4899' },
     { key: 'yellow',  label: 'Yellow',      hex: '#eab308' },
@@ -16,89 +16,89 @@
     { key: 'brown',   label: 'Brown',       hex: '#a87c50' },
     { key: 'grey',    label: 'Gray',        hex: '#64748b' },
   ];
-  var KEY = 'stencil_accent';
-  var DEFAULT = 'violet';
-  var has = function (k) {
+  const KEY = 'stencil_accent';
+  const DEFAULT = 'violet';
+  const has = function (k) {
     return ACCENTS.some(function (a) { return a.key === k; });
   };
   // Private mode can throw.
-  var readPref = function (key, valid, fallback) {
+  const readPref = function (key, valid, fallback) {
     try {
-      var v = localStorage.getItem(key);
+      const v = localStorage.getItem(key);
       return valid(v) ? v : fallback;
     } catch (e) {
       return fallback;
     }
   };
-  var writePref = function (key, v) {
+  const writePref = function (key, v) {
     try { localStorage.setItem(key, v); } catch (e) { /* private mode */ }
   };
   // For contexts that cannot read this page's localStorage (service worker, page-API bridge).
-  var mirror = function (obj) {
+  const mirror = function (obj) {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local)
         chrome.storage.local.set(obj);
     } catch (e) { /* no chrome.storage on this page */ }
   };
-  var read = function () { return readPref(KEY, has, DEFAULT); };
+  const read = function () { return readPref(KEY, has, DEFAULT); };
 
   // Interface motion (browser parity: js/ui/motionPrefs.js), stamped on <html data-motion>
   // before first paint for lib/animations/motionModes.css; prefers-reduced-motion still wins.
-  var MKEY = 'stencil_motion';
-  var MOTION_DEFAULT = 'particles';
-  var MOTION_MODES = ['particles', 'water', 'fire', 'slide', 'none'];
+  const MKEY = 'stencil_motion';
+  const MOTION_DEFAULT = 'particles';
+  const MOTION_MODES = ['particles', 'water', 'fire', 'slide', 'none'];
   // The browser's MOTION_MODE_LABELS, in its order.
-  var MOTION_LABELS = [
+  const MOTION_LABELS = [
     ['particles', 'Dust'],
     ['water', 'Water'],
     ['fire', 'Fire'],
     ['slide', 'Sliding'],
     ['none', 'None'],
   ];
-  var PARTICLE_STYLE = { particles: 'dust', water: 'water', fire: 'fire' };
-  var isMotion = function (m) { return MOTION_MODES.indexOf(m) >= 0; };
-  var readMotion = function () { return readPref(MKEY, isMotion, MOTION_DEFAULT); };
-  var osReduced = function () {
+  const PARTICLE_STYLE = { particles: 'dust', water: 'water', fire: 'fire' };
+  const isMotion = function (m) { return MOTION_MODES.indexOf(m) >= 0; };
+  const readMotion = function () { return readPref(MKEY, isMotion, MOTION_DEFAULT); };
+  const osReduced = function () {
     try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; }
   };
-  var motionReduced = function () { return readMotion() === 'none' || osReduced(); };
+  const motionReduced = function () { return readMotion() === 'none' || osReduced(); };
   // null when no particles fly.
-  var particleStyle = function () {
-    var s = PARTICLE_STYLE[readMotion()];
+  const particleStyle = function () {
+    const s = PARTICLE_STYLE[readMotion()];
     return s && !osReduced() ? s : null;
   };
-  var applyMotion = function (mode) {
+  const applyMotion = function (mode) {
     document.documentElement.setAttribute('data-motion', isMotion(mode) ? mode : MOTION_DEFAULT);
   };
-  var hexOf = function (k) {
-    for (var i = 0; i < ACCENTS.length; i++) if (ACCENTS[i].key === k) return ACCENTS[i].hex;
+  const hexOf = function (k) {
+    for (let i = 0; i < ACCENTS.length; i++) if (ACCENTS[i].key === k) return ACCENTS[i].hex;
     return ACCENTS[0].hex;
   };
   // The accent picks its ink: whichever of white / near-black contrasts more
   // (<html data-accent-light> → lib/theme/palette.css --on-accent). Browser twin: accents.js.
-  var ON_ACCENT_LIGHT = '#ffffff';
-  var ON_ACCENT_DARK = '#1a1a1a';
-  var srgbToLinear = function (c) {
+  const ON_ACCENT_LIGHT = '#ffffff';
+  const ON_ACCENT_DARK = '#1a1a1a';
+  const srgbToLinear = function (c) {
     return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
   };
-  var relativeLuminance = function (hex) {
-    var h = String(hex || '').replace(/^#/, '');
+  const relativeLuminance = function (hex) {
+    const h = String(hex || '').replace(/^#/, '');
     if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
-    var r = srgbToLinear(parseInt(h.slice(0, 2), 16) / 255);
-    var g = srgbToLinear(parseInt(h.slice(2, 4), 16) / 255);
-    var b = srgbToLinear(parseInt(h.slice(4, 6), 16) / 255);
+    const r = srgbToLinear(parseInt(h.slice(0, 2), 16) / 255);
+    const g = srgbToLinear(parseInt(h.slice(2, 4), 16) / 255);
+    const b = srgbToLinear(parseInt(h.slice(4, 6), 16) / 255);
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
-  var needsDarkGlyph = function (hex) {
-    var l = relativeLuminance(hex);
+  const needsDarkGlyph = function (hex) {
+    const l = relativeLuminance(hex);
     return l != null && (l + 0.05) / 0.05 > 1.05 / (l + 0.05);
   };
-  var onAccentInk = function (hex) {
+  const onAccentInk = function (hex) {
     return needsDarkGlyph(hex) ? ON_ACCENT_DARK : ON_ACCENT_LIGHT;
   };
 
   // Mirrors browser accents.js faviconSvg (pinned by browser/tests/svgArt.test.js).
-  var faviconSvg = function (hex) {
+  const faviconSvg = function (hex) {
     return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
       '<rect x="2" y="2" width="60" height="60" rx="13" fill="#2b2f3a"/>' +
       '<rect x="2.75" y="2.75" width="58.5" height="58.5" rx="12.25" fill="none" stroke="' + hex + '" stroke-width="1.5"/>' +
@@ -109,9 +109,9 @@
       '</g></svg>';
   };
   // A static .svg cannot read our CSS var, hence a data URL. No-op until <head> exists.
-  var applyFavicon = function (k) {
+  const applyFavicon = function (k) {
     if (typeof document === 'undefined' || !document.head) return;
-    var link = document.querySelector('link[rel="icon"]');
+    let link = document.querySelector('link[rel="icon"]');
     if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
     link.type = 'image/svg+xml';
     link.href = 'data:image/svg+xml,' + encodeURIComponent(faviconSvg(hexOf(has(k) ? k : DEFAULT)));

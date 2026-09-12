@@ -1,27 +1,27 @@
 // The window.StencilTheme / window.StencilMotion facades and the cross-page storage sync.
 // Last of the pre-paint classic scripts — see accent.js.
 (function () {
-  var K = window.StencilKit;
-  var EDGE_POINTS = K.EDGE_POINTS, KEY = K.KEY, MKEY = K.MKEY, MOTION_DEFAULT = K.MOTION_DEFAULT, MOTION_LABELS = K.MOTION_LABELS;
-  var MOTION_MODES = K.MOTION_MODES, apply = K.apply, applyMotion = K.applyMotion, edgeJitter = K.edgeJitter, edgePolygon = K.edgePolygon;
-  var grainShape = K.grainShape, isMotion = K.isMotion, mirror = K.mirror, motionReduced = K.motionReduced, paletteCss = K.paletteCss;
-  var particleStyle = K.particleStyle, read = K.read, readMotion = K.readMotion, readPref = K.readPref, shapePolygon = K.shapePolygon;
-  var stopOfTint = K.stopOfTint, styleFrame = K.styleFrame, swap = K.swap, tintOf = K.tintOf, writePref = K.writePref;
+  const K = window.StencilKit;
+  const EDGE_POINTS = K.EDGE_POINTS, KEY = K.KEY, MKEY = K.MKEY, MOTION_DEFAULT = K.MOTION_DEFAULT, MOTION_LABELS = K.MOTION_LABELS;
+  const MOTION_MODES = K.MOTION_MODES, apply = K.apply, applyMotion = K.applyMotion, edgeJitter = K.edgeJitter, edgePolygon = K.edgePolygon;
+  const grainShape = K.grainShape, isMotion = K.isMotion, mirror = K.mirror, motionReduced = K.motionReduced, paletteCss = K.paletteCss;
+  const particleStyle = K.particleStyle, read = K.read, readMotion = K.readMotion, readPref = K.readPref, shapePolygon = K.shapePolygon;
+  const stopOfTint = K.stopOfTint, styleFrame = K.styleFrame, swap = K.swap, tintOf = K.tintOf, writePref = K.writePref;
   // Stores the CHOSEN mode but stamps the RESOLVED one on <html data-theme>, so
   // lib/theme/ needs a single dark palette. Mirrors browser/js/prePaintTheme.js.
-  var TKEY = 'stencil_theme';
-  var MODES = ['system', 'light', 'dark'];
-  var isMode = function (m) { return MODES.indexOf(m) >= 0; };
-  var darkQuery = function () {
+  const TKEY = 'stencil_theme';
+  const MODES = ['system', 'light', 'dark'];
+  const isMode = function (m) { return MODES.indexOf(m) >= 0; };
+  const darkQuery = function () {
     try { return window.matchMedia('(prefers-color-scheme: dark)'); } catch (e) { return null; }
   };
-  var readTheme = function () { return readPref(TKEY, isMode, 'system'); };
-  var resolveTheme = function (mode) {
+  const readTheme = function () { return readPref(TKEY, isMode, 'system'); };
+  const resolveTheme = function (mode) {
     if (mode === 'light' || mode === 'dark') return mode;
-    var q = darkQuery();
+    const q = darkQuery();
     return q && q.matches ? 'dark' : 'light';
   };
-  var applyTheme = function (mode) {
+  const applyTheme = function (mode) {
     document.documentElement.setAttribute('data-theme', resolveTheme(mode));
     mirror({ stencil_theme: mode });
   };
@@ -39,9 +39,9 @@
     resolved: function () { return resolveTheme(readTheme()); },
     // `from`: the control that was pressed (element or id) — see StencilAccent.set.
     set: function (mode, from) {
-      var next = isMode(mode) ? mode : 'system';
+      const next = isMode(mode) ? mode : 'system';
       // Two modes resolving to the same palette repaint nothing — no wipe over an unchanged screen.
-      var repaints = resolveTheme(next) !== resolveTheme(readTheme());
+      const repaints = resolveTheme(next) !== resolveTheme(readTheme());
       writePref(TKEY, next);
       if (repaints) swap(function () { applyTheme(next); }, from || 'theme-toggle');
       else applyTheme(next);
@@ -64,7 +64,7 @@
     get: readMotion,
     // No wipe: a motion change repaints nothing.
     set: function (mode) {
-      var next = isMotion(mode) ? mode : MOTION_DEFAULT;
+      const next = isMotion(mode) ? mode : MOTION_DEFAULT;
       writePref(MKEY, next);
       applyMotion(next);
       return next;
