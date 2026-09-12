@@ -54,7 +54,7 @@ text.hpp              # header-only ASCII string helpers (toLowerAscii, trim, â€
 rgba.hpp              # header-only helpers for the packed row-major RGBA8 buffers the ABI moves
 abi/                  # shared by BOTH extern "C" surfaces, never by the library itself:
   marshal.hpp         #   flat [x0,y0,x1,y1,â€¦] point arrays -> Point vectors
-  handleTable.hpp     #   opaque-int handles for the stateful classes (stale/forged -> rejected)
+  HandleTable.hpp     #   opaque-int handles for the stateful classes (stale/forged -> rejected)
   linesCodec.hpp      #   flat (nums, text) Lines snapshot codec; twin of js/core/linesCodec.js
   shared.inc          #   export bodies identical in both ABIs, emitted once per spelling
 geometry/

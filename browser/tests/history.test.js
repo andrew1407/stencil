@@ -98,9 +98,9 @@ test('reset with empty lines leaves NO redo (no stray redo step after a blank)',
 test('the depth cap is one value: constants.json, the JS twin and the core header', () => {
     assert.strictEqual(constants.LIMITS.historyMax, 64);
     assert.strictEqual(MAX_STEPS, constants.LIMITS.historyMax);
-    const hpp = readFileSync(new URL('../../core/state/historyStack.hpp', import.meta.url), 'utf8');
+    const hpp = readFileSync(new URL('../../core/state/HistoryStack.hpp', import.meta.url), 'utf8');
     const found = /MAX_STEPS\s*=\s*(\d+)/.exec(hpp);
-    assert.ok(found, 'core/state/historyStack.hpp must declare MAX_STEPS');
+    assert.ok(found, 'core/state/HistoryStack.hpp must declare MAX_STEPS');
     assert.strictEqual(Number(found[1]), constants.LIMITS.historyMax);
 });
 

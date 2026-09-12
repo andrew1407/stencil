@@ -1,6 +1,6 @@
 import { core } from './stencilCore.js';
 
-// Port of core/parse/durationParser.cpp. Grammar (1–2 whitespace tokens, case-insensitive):
+// Port of core/parse/DurationParser.cpp. Grammar (1–2 whitespace tokens, case-insensitive):
 // off|never|none → 0; a unit (day/week/fortnight/month/year, trailing 's' ok) alone means
 // one; a positive integer + a unit in either order. Fixed durations (week=7d, fortnight=14d,
 // month=30d, year=365d) match PERIOD_MS in projectsStore. Invalid spec ⇒ null.

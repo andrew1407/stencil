@@ -1,5 +1,5 @@
 #include "doctest.h"
-#include "historyStack.hpp"
+#include "HistoryStack.hpp"
 
 using namespace stencil::core;
 

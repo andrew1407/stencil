@@ -12,7 +12,7 @@
 #include "CanvasWidget.hpp"
 #include "Notifications.hpp"
 #include "fileStore.hpp"
-#include "projectsStore.hpp"
+#include "ProjectsStore.hpp"
 
 #include <QApplication>
 #include <QDateTime>

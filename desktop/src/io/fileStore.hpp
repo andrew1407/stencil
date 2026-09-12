@@ -2,7 +2,7 @@
 #include "../llm/llmSettings.hpp"
 #include "cropGeometry.hpp"
 #include "models.hpp"
-#include "projectsStore.hpp"
+#include "ProjectsStore.hpp"
 #include <QByteArray>
 #include <QHash>
 #include <QJsonArray>

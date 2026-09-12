@@ -8,7 +8,7 @@ export const MIGRATED_FLAG = 'stencil_schema_migrated';
 export const EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // one week (also the "week" preset)
 export const WARN_MS = 24 * 60 * 60 * 1000; // warn once a project is within a day of expiry
 
-// Fixed durations (month=30d, year=365d) so this and core/state/projectsStore.cpp
+// Fixed durations (month=30d, year=365d) so this and core/state/ProjectsStore.cpp
 // (ProjectsStore::periodMs) stay identical with no calendar library; PERIOD_ORDER drives
 // the modal's selector.
 const DAY_MS = 24 * 60 * 60 * 1000;

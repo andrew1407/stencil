@@ -3,7 +3,7 @@
 // truth the browser/desktop/CLI/extension clients mirror (they re-declare these
 // shapes, they do not import them).
 //
-// ProjectRecord mirrors core/state/projectsStore.hpp ProjectMeta semantics
+// ProjectRecord mirrors core/state/ProjectsStore.hpp ProjectMeta semantics
 // (epoch-millisecond timestamps, source = media URL, resource = origin page) and
 // adds the server-only storage fields. Per the Stencil parity contract, server/
 // is a protocol adapter: it re-declares this shape in Go rather than reaching

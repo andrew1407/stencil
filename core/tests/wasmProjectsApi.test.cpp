@@ -1,7 +1,7 @@
 // Native coverage for the project-rules ABI (core/wasmProjectsApi.cpp): the preset
 // durations and the expiry predicates the browser store shares with this core.
 #include "doctest.h"
-#include "projectsStore.hpp"
+#include "ProjectsStore.hpp"
 
 extern "C" {
   double stencil_projects_periodMs(const char*);

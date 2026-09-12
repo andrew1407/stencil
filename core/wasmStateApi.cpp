@@ -2,8 +2,8 @@
 // process-global, destroyed by the host. An unknown handle is a no-op returning a
 // neutral value, never a crash. Driven op-for-op by browser/tests/wasm-parity*.
 
-#include "handleTable.hpp"
-#include "historyStack.hpp"
+#include "HandleTable.hpp"
+#include "HistoryStack.hpp"
 #include "holdDraw.hpp"
 #include "linesCodec.hpp"
 #include <cstdint>

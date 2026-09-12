@@ -4,7 +4,7 @@
 #include "marshal.hpp"
 
 #include "color.hpp"
-#include "durationParser.hpp"
+#include "DurationParser.hpp"
 #include "formulaParser.hpp"
 #include "hitTest.hpp"
 #include "imageFilter.hpp"

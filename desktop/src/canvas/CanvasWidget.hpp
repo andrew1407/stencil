@@ -1,7 +1,7 @@
 #pragma once
 #include "cropGeometry.hpp"
 #include "idleCardMotion.hpp"   // the idle card's glyph motion (iconMotion.json "image")
-#include "historyStack.hpp"
+#include "HistoryStack.hpp"
 #include "holdDraw.hpp"
 #include "models.hpp"
 #include "chainEdit.hpp"

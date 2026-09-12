@@ -8,7 +8,7 @@
 #include "formulaParser.hpp"
 #include "LlmClient.hpp"
 #include "pageMetrics.hpp"
-#include "projectsStore.hpp"
+#include "ProjectsStore.hpp"
 #include "tipContent.hpp"
 #include "tooltipRows.hpp"
 #include "fileStore.hpp"

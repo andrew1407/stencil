@@ -1,4 +1,4 @@
-#include "historyStack.hpp"
+#include "HistoryStack.hpp"
 
 namespace stencil::core {
 

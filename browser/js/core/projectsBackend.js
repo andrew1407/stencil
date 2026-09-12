@@ -1,5 +1,5 @@
 // IndexedDB payload storage behind ProjectsStore's SYNC localStorage-shaped contract (it is
-// the parity twin of core/state/projectsStore.cpp): only the per-project payload keys
+// the parity twin of core/state/ProjectsStore.cpp): only the per-project payload keys
 // (stencil_project_<id>) move to IndexedDB, via an in-memory mirror hydrated once at boot
 // (initProjectsBackend, awaited by index.js) and written through asynchronously. The
 // registry / migration flag / legacy keys stay in localStorage for cross-tab reads and the

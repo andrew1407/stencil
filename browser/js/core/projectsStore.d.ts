@@ -3,7 +3,7 @@
 // default; QuotaExceededError from a write propagates so the DOM adapter can evict + retry.
 import type { CodecLine } from './linesCodec.js';
 
-/** A refresh preset; fixed durations so this and core/state/projectsStore.cpp agree. */
+/** A refresh preset; fixed durations so this and core/state/ProjectsStore.cpp agree. */
 export type RefreshPeriod = 'day' | 'week' | 'fortnight' | 'month' | '3month' | '6month' | 'year';
 
 /** One registry row. Absent fields are default-filled on read (see normalizeMeta). */

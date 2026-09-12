@@ -18,7 +18,7 @@
 #include "doctest.h"
 
 #include "benchSupport.hpp"  // time_ms / best_ms / gradient / checksum
-#include "historyStack.hpp"
+#include "HistoryStack.hpp"
 #include "imageFilter.hpp"
 #include "imageOps.hpp"
 #include "rasterize.hpp"
@@ -144,7 +144,7 @@ TEST_SUITE("bench") {
 
   // ── Editing-session history growth ─────────────────────────────────────────
   // HistoryStack keeps a full Lines snapshot per push with NO size cap (see
-  // historyStack.hpp) — memory grows with edit count. That growth is by design; what
+  // HistoryStack.hpp) — memory grows with edit count. That growth is by design; what
   // MUST stay true is that push() is O(snapshot), NOT O(history): the amortised cost of
   // pushing must not climb as the stack deepens, or a long session goes quadratic.
   TEST_CASE("bench: history push stays O(1) as the session grows" * doctest::skip()) {

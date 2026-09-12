@@ -4,7 +4,7 @@
 
 #include "colorNames.hpp"
 #include "cropSpec.hpp"
-#include "durationParser.hpp"
+#include "DurationParser.hpp"
 #include "formulaParser.hpp"
 #include "imageFilter.hpp"
 #include "imageOps.hpp"

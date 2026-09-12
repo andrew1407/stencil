@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
     coreHeaders.insert(fi.fileName());
   }
   check(coreHeaders.contains(QStringLiteral("pointMath.hpp")) &&
-            coreHeaders.contains(QStringLiteral("projectsStore.hpp")),
+            coreHeaders.contains(QStringLiteral("ProjectsStore.hpp")),
         "the core header index is populated");
 
   QSet<QString> coreAllowed, appAllowed;

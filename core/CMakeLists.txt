@@ -39,15 +39,15 @@ set(STENCIL_CORE_SOURCES
   raster/rasterize.cpp
   raster/imageFilter.cpp
   parse/formulaParser.cpp
-  parse/durationParser.cpp
+  parse/DurationParser.cpp
   parse/lengthTokens.cpp
   parse/cropSpec.cpp
   page/pageMetrics.cpp
   page/localeUnit.cpp
   format/tooltipRows.cpp
   format/hotkeyFormat.cpp
-  state/historyStack.cpp
-  state/projectsStore.cpp
+  state/HistoryStack.cpp
+  state/ProjectsStore.cpp
   state/zoomPan.cpp
   state/holdDraw.cpp
 )
@@ -104,9 +104,9 @@ if(STENCIL_CORE_BUILD_TESTS AND NOT EMSCRIPTEN)
     tests/pageMetrics.test.cpp
     tests/cropGeometry.test.cpp
     tests/formula.test.cpp
-    tests/durationParser.test.cpp
+    tests/DurationParser.test.cpp
     tests/history.test.cpp
-    tests/projectsStore.test.cpp
+    tests/ProjectsStore.test.cpp
     tests/zoomPan.test.cpp
     tests/tooltipRows.test.cpp
     tests/imageFilter.test.cpp

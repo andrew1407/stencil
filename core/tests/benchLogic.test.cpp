@@ -5,7 +5,7 @@
 #include "colorNames.hpp"
 #include "formulaParser.hpp"
 #include "luma.hpp"
-#include "projectsStore.hpp"
+#include "ProjectsStore.hpp"
 
 #include <cstdint>
 #include <string>

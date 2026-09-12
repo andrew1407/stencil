@@ -1,5 +1,5 @@
 #include "doctest.h"
-#include "projectsStore.hpp"
+#include "ProjectsStore.hpp"
 
 using namespace stencil::core;
 

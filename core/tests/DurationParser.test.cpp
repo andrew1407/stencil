@@ -1,5 +1,5 @@
 #include "doctest.h"
-#include "durationParser.hpp"
+#include "DurationParser.hpp"
 
 using namespace stencil::core;
 

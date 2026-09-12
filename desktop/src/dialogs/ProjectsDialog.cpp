@@ -8,7 +8,7 @@
 #include "iconSet.hpp"
 #include "ExpirationDialog.hpp"
 #include "ProjectDragZones.hpp"
-#include "projectsStore.hpp"
+#include "ProjectsStore.hpp"
 #include "ReorderableListWidget.hpp"
 #include "../support/scrollReveal.hpp"  // revealOpacityForItem (scroll edge fade)
 #include "../app/mainWindowHelpers.hpp"   // NAME_CHIP_BOX / NAME_CHIP_GLYPH — the shared chip

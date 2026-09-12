@@ -1,5 +1,5 @@
 #pragma once
-#include "projectMeta.hpp"
+#include "ProjectMeta.hpp"
 
 #include <cstddef>
 #include <optional>

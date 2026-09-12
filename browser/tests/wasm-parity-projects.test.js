@@ -1,4 +1,4 @@
-// Parity coverage for the project rules shared with core/state/projectsStore.cpp:
+// Parity coverage for the project rules shared with core/state/ProjectsStore.cpp:
 // the refresh presets and the expiry predicates, reached through the scalar ABI in
 // core/wasmProjectsApi.cpp. The registry itself is NOT pinned — the browser store is
 // localStorage-backed and the core one is in-memory, so they are different classes;

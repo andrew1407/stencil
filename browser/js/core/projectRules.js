@@ -1,4 +1,4 @@
-// The refresh presets and expiry arithmetic are one rule shared with core/state/projectsStore.cpp
+// The refresh presets and expiry arithmetic are one rule shared with core/state/ProjectsStore.cpp
 // (the browser's ProjectsStore stays its own localStorage-backed class); they cross as plain
 // functions with epoch milliseconds as doubles (exact well past 2^53, no BigInt).
 

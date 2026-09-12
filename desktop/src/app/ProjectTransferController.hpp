@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 #include "fileStore.hpp"      // stencil::gui::Project + Settings + fileStore::LayoutMeta
-#include "projectsStore.hpp"  // core::ProjectsStore
+#include "ProjectsStore.hpp"  // core::ProjectsStore
 
 namespace stencil::net {
   class ConnectionManager;

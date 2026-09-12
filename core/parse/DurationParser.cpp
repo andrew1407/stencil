@@ -1,4 +1,4 @@
-#include "durationParser.hpp"
+#include "DurationParser.hpp"
 
 #include "text.hpp"  // toLowerAscii
 

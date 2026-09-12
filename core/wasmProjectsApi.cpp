@@ -1,8 +1,8 @@
-// WebAssembly ABI for the pure project rules of core/state/projectsStore.cpp (the
+// WebAssembly ABI for the pure project rules of core/state/ProjectsStore.cpp (the
 // registry itself is not a twin of the browser's localStorage store). Epoch ms cross
 // as doubles — exact past 2^53, no BigInt. Pinned by browser/tests/wasm-parity-projects.
 
-#include "projectsStore.hpp"
+#include "ProjectsStore.hpp"
 
 #include <optional>
 #include <string>

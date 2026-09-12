@@ -4,7 +4,7 @@
 #include "iconSet.hpp"
 
 #include "../support/modalChrome.hpp"  // the browser modal shell + its confirm/prompt
-#include "projectsStore.hpp"
+#include "ProjectsStore.hpp"
 
 #include <QCheckBox>
 #include <QComboBox>

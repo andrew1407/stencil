@@ -1,7 +1,7 @@
 // ── window.stencil's project collections ─────────────────────────────────────
 // Project handles (project.js) over the local registry plus this tab's incognito
 // session. `openedIds` is the tab coordinator's view of what is open elsewhere.
-// The expire() help text is DurationParser's grammar (core/parse/durationParser.cpp).
+// The expire() help text is DurationParser's grammar (core/parse/DurationParser.cpp).
 import { str } from './coerce.js';
 import { DURATION_HELP } from './project.js';
 

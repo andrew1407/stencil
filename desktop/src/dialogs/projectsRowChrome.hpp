@@ -3,7 +3,7 @@
 // The projects dialog's row furniture: declarations only.
 
 #include "fileStore.hpp"
-#include "projectsStore.hpp"
+#include "ProjectsStore.hpp"
 
 #include <QColor>
 #include <QCursor>
