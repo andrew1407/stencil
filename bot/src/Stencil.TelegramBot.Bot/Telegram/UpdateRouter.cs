@@ -7,10 +7,7 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// Central inbound dispatch, and the only place AccessGate and UserGate are enforced. It owns
-// the gating alone: AlbumRouter buffers media groups, MessageRouter runs the message-shape chain
-// (command -> upload -> pending answer -> link -> chat mode -> hint), CallbackAction handles
-// taps, and ErrorGuard wraps every body.
+// The only place AccessGate and UserGate are enforced; ErrorGuard wraps every body.
 public sealed class UpdateRouter
 {
     private readonly CallbackAction _callbacks;
@@ -47,14 +44,14 @@ public sealed class UpdateRouter
         long userId = message.From?.Id ?? chatId;
         await _guard.RunAsync(chatId, async () =>
         {
-            // The allowlist comes first, ahead of the album buffer: a stranger's media group is
-            // never even collected, so no upload, CLI process or outbound fetch is spent on them.
+            // The allowlist comes before the album buffer: a stranger's media group is never even
+            // collected.
             if (!IsUngatedMessage(message) && !await _access.AllowsAsync(userId, chatId, ct))
             {
                 return;
             }
             // Album members buffer OUTSIDE the user gate: the flush acquires it itself, so waiting
-            // for sibling messages while holding it would deadlock this user's queue.
+            // inside would deadlock.
             if (message.MediaGroupId is string groupId && message.Photo is { Length: > 0 } album)
             {
                 _albums.Buffer(userId, chatId, groupId, message, album, ct);
@@ -65,7 +62,6 @@ public sealed class UpdateRouter
         }, ct);
     }
 
-    // The commands an unlisted user may still run (AccessGate).
     private static bool IsUngatedMessage(Message message) =>
         message.Text is string text && text.StartsWith('/')
             && AccessGate.IsUngated(CommandParser.Parse(text));
@@ -85,9 +81,8 @@ public sealed class UpdateRouter
             {
                 return;
             }
-            // Stop skips the USER gate on purpose: the assistant turn it cancels holds that gate
-            // for as long as it runs, so taking it here would park the tap behind the very turn it
-            // means to end. It touches no session state, so running it alongside the turn is safe.
+            // Stop skips the USER gate on purpose: the turn it cancels holds that gate; it touches
+            // no session state.
             if (query.Data == CallbackAction.StopToken)
             {
                 await _callbacks.HandleAsync(query, ct);

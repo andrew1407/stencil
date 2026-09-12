@@ -7,10 +7,7 @@ public enum DurationUnit
     Month,
 }
 
-/// <summary>
-/// A parsed expiry duration — a positive <see cref="Count"/> of a <see cref="DurationUnit"/>.
-/// Resolved against a base instant so months are calendar months (not a fixed 30 days).
-/// </summary>
+// Resolved against a base instant so months are calendar months (not a fixed 30 days).
 public sealed record ParsedDuration(DurationUnit Unit, int Count)
 {
     public DateTimeOffset From(DateTimeOffset baseTime) => Unit switch
@@ -34,23 +31,13 @@ public sealed record ParsedDuration(DurationUnit Unit, int Count)
     }
 }
 
-/// <summary>
-/// Pure parser for the free-text expiry durations the <c>/expire</c> command accepts — a unit
-/// word (singular or plural, or a short form) with an optional count that may lead or trail it:
-/// "day", "days 3", "1 week", "week 4", "2 weeks", "fortnight", "3 months", "3d", "1mo". A set of
-/// keywords ("never", "forever", …) means "clear the expiry". No Telegram types — unit-testable,
-/// like <see cref="CommandParser"/> and <see cref="DrawArguments"/>.
-/// </summary>
+// A unit word (singular, plural or short form) with an optional count that may lead or trail it:
+// "day", "days 3", "1 week", "fortnight", "3d", "1mo"; "never"/"forever" mean "clear the expiry".
 public static class DurationParser
 {
-    /// <summary>Reject absurd counts (and keep well clear of <see cref="DateTimeOffset"/> overflow).</summary>
+    // Keeps well clear of DateTimeOffset overflow.
     private const int MaxCount = 1000;
 
-    /// <summary>
-    /// Parse <paramref name="text"/>. Returns false when it isn't a recognised duration or clear
-    /// keyword. On success either <paramref name="clear"/> is true (drop the expiry, keep forever)
-    /// or <paramref name="duration"/> holds a positive unit+count.
-    /// </summary>
     public static bool TryParse(string? text, out ParsedDuration duration, out bool clear)
     {
         duration = new ParsedDuration(DurationUnit.Day, 1);
@@ -80,7 +67,7 @@ public static class DurationParser
         return true;
     }
 
-    /// <summary>Map a unit word to its unit and a count multiplier (fortnight = 2 weeks).</summary>
+    // fortnight = 2 weeks.
     private static bool TryMapUnit(string word, out DurationUnit unit, out int multiplier)
     {
         multiplier = 1;

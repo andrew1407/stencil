@@ -5,14 +5,8 @@ using Stencil.TelegramBot.Domain.Layout;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// Replies — what the working image currently is: the pen, the pending edits, page formats and
-// the per-project prompts that precede a destructive step. Class doc lives in Replies.cs.
 public static partial class Replies
 {
-    /// <summary>
-    /// The bare <c>/expire</c> / Expiration-button header: the active project's current expiry
-    /// (or "no expiry") plus a "choose one" line above the duration picker.
-    /// </summary>
     public static string ExpiryPrompt(long expiresAtMs)
     {
         string current = expiresAtMs > 0
@@ -29,20 +23,13 @@ public static partial class Replies
         return BotStrings.Reply("deleteConfirm", name, where);
     }
 
-    /// <summary>
-    /// The <c>/link</c> reply: the desktop hand-off link plus what it does and doesn't carry. A
-    /// loopback link resolves on whoever taps it, so say so rather than let it look shareable.
-    /// </summary>
+    // A loopback link resolves on whoever taps it, so say so rather than let it look shareable.
     public static string DesktopLink(string name, string url, bool loopback) =>
         BotStrings.Reply("desktopLinkHead", name, url)
         + (loopback ? BotStrings.Reply("desktopLinkLoopback", Glyph(Tone.Notice)) : "");
 
     public static string DesktopLinkUnusable() => Tag(Tone.Notice, BotStrings.Reply("desktopLinkUnusable"));
 
-    /// <summary>
-    /// All named page formats with their portrait cm sizes (canonical order), plus the custom
-    /// variant — the bare <c>/format</c> reply.
-    /// </summary>
     public static string PageFormatList()
     {
         StringBuilder sb = new();

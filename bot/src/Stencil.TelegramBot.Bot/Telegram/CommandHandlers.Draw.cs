@@ -5,8 +5,6 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// CommandHandlers — the drawing commands: /draw and the pen settings it draws with.
-// Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
     private async Task DrawAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
@@ -104,7 +102,6 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, $"Point size set to {value}.", cancellationToken: ct);
     }
 
-    /// <summary>Parse a non-negative invariant-culture number from the first argument.</summary>
     private static bool TryParseNonNegative(IReadOnlyList<string> args, out double value)
     {
         value = 0;

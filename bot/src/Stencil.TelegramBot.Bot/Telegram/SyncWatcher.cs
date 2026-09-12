@@ -7,13 +7,9 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// Background poller that gives the REST-only bot a live feel (the analogue of the CLI's
-/// <c>/sync</c> auto-pull). Every few seconds it checks each sync-enabled user's active project
-/// version on the server; when a peer's change bumps it past what the session last saw, it pulls
-/// the new layout+image and pushes the refreshed result into the chat. Hosted, so the loop
-/// starts with the app and unwinds on a graceful shutdown.
-/// </summary>
+// The REST-only analogue of the CLI's /sync auto-pull: polls each sync-enabled user's active
+// project version and, when a peer bumped it, pulls the new layout+image and pushes the refreshed
+// result into the chat.
 public sealed class SyncWatcher : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(6);
@@ -76,7 +72,7 @@ public sealed class SyncWatcher : BackgroundService
         foreach (var (userId, chatId) in _registry.Entries())
         {
             // Hold the user's gate for the whole pull so a background refresh can't interleave with
-            // (and clobber, or be clobbered by) an interactive edit the same user sends mid-tick.
+            // an interactive edit.
             using IDisposable gate = await _gate.AcquireAsync(userId, ct);
             UserSession session = await _store.GetAsync(userId, ct);
             if (!session.SyncEnabled || session.ActiveProjectId is null)

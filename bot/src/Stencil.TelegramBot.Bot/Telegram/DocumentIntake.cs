@@ -8,11 +8,8 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// What an uploaded document is, and what that means: a <c>.json</c> layout overlays the working
-/// image, a <c>.stencil</c> file opens as a whole project, an image/video document is adopted
-/// through <see cref="MediaIntake"/>, and anything else gets a hint.
-/// </summary>
+// A .json layout overlays the working image, a .stencil opens as a project, an image/video document
+// is adopted.
 public sealed class DocumentIntake
 {
     private readonly MediaIntake _media;

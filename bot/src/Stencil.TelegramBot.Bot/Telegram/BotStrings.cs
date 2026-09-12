@@ -3,12 +3,8 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// The bot's chat copy, parsed once from the embedded <c>Assets/botStrings.json</c> (same
-/// embedding pattern as <see cref="PageFormats"/>'s <c>constants.json</c>): the reply text
-/// <see cref="Replies"/> builds with, the tone glyphs, and every inline-button label with its
-/// callback token. Composition stays in code — only the wording lives in the asset.
-/// </summary>
+// The chat copy from the embedded Assets/botStrings.json; composition stays in code, only the
+// wording lives there.
 public static class BotStrings
 {
     private const string ResourceName = "Stencil.TelegramBot.Bot.Assets.botStrings.json";
@@ -26,15 +22,12 @@ public static class BotStrings
             ? text
             : throw new InvalidOperationException($"botStrings.json has no reply '{key}'");
 
-    /// <summary>One reply string with its <c>{0}</c>… placeholders filled in order.</summary>
     public static string Reply(string key, params object?[] args) => string.Format(Reply(key), args);
 
     public static string Tone(string name) => Asset.Value.Tones[name];
 
-    /// <summary>A short selection mark (an option tick, the current chat API's ✅).</summary>
     public static string Mark(string name) => Asset.Value.Marks[name];
 
-    /// <summary>An inline button by id: its label and the callback token it carries.</summary>
     public static InlineKeyboardButton Button(string id)
     {
         (string label, string token) = Asset.Value.Buttons.TryGetValue(id, out var b)

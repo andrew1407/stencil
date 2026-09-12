@@ -7,13 +7,11 @@ using Stencil.TelegramBot.Application.Llm;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// Maps an inline button's short token (see Keyboards) back to a synthetic BotCommand and runs
-// it through CommandHandlers.DispatchAsync, so a tap and the equivalent slash command share one
-// code path. A button that cannot act without an argument replies with the command to use.
+// A tap and the equivalent slash command share one code path (CommandHandlers.DispatchAsync).
 public sealed class CallbackAction
 {
-    // UpdateRouter matches on this to route the tap AROUND the per-user gate — the turn being
-    // stopped is holding it.
+    // UpdateRouter routes this token AROUND the per-user gate — the turn being stopped is holding
+    // it.
     public const string StopToken = "stop:prompt";
 
     private readonly CommandHandlers _handlers;
@@ -38,9 +36,8 @@ public sealed class CallbackAction
     // The owning user is the tapper; the chat is the message the keyboard is attached to.
     public async Task HandleAsync(CallbackQuery query, CancellationToken ct)
     {
-        // Best-effort: answering only dismisses the button's spinner. A query Telegram considers
-        // stale (its ~15 s window elapsed, e.g. a tap that waited behind a long turn) answers 400,
-        // and that must not become "something went wrong" — the tap itself is still worth running.
+        // Answering only dismisses the spinner; a stale query (past Telegram's ~15 s window)
+        // answers 400 and must not fail the tap.
         try
         {
             await _bot.AnswerCallbackQuery(query.Id, cancellationToken: ct);
@@ -55,7 +52,6 @@ public sealed class CallbackAction
         long userId = query.From.Id;
         long chatId = query.Message.Chat.Id;
         string data = query.Data ?? "";
-        // Arg-requiring or help-only buttons can't act on their own — reply with guidance.
         if (data == "connect")
         {
             await _bot.SendMessage(chatId, Replies.ConnectUsage(), cancellationToken: ct);
@@ -81,8 +77,7 @@ public sealed class CallbackAction
             await _bot.SendMessage(chatId, "Tint with a custom colour: /filter <colour>, e.g. /filter #ff5623 or /filter teal. (B&W, Sepia, Invert and Contour have their own buttons; None clears it.)", cancellationToken: ct);
             return;
         }
-        // Rename can't act on a single tap (it needs the new name), so arm the pending free-text
-        // prompt — the user's next plain message is consumed as the name (see UpdateRouter).
+        // The next plain message is consumed as the name (see UpdateRouter).
         if (data == "name:menu")
         {
             UserSession session = await _store.GetAsync(userId, ct);
@@ -99,8 +94,8 @@ public sealed class CallbackAction
             await _bot.SendMessage(chatId, $"Send the new name for '{current}'.", cancellationToken: ct);
             return;
         }
-        // Describe: same as Rename — arm the free-text prompt; the next plain message is the
-        // description (which for an unsaved image is held locally and uploaded on /create).
+        // The next plain message is the description (held locally for an unsaved image, uploaded on
+        // /create).
         if (data == "desc:menu")
         {
             UserSession session = await _store.GetAsync(userId, ct);
@@ -113,20 +108,18 @@ public sealed class CallbackAction
                 return;
             }
             await _store.SaveAsync(session with { PendingInput = PendingInputs.ProjectDescription }, ct);
-            // Echo the current description first (like Rename echoes the current name) so this
-            // doubles as "view it" — the only place the description is visible besides /status.
+            // Echoing the current description doubles as "view it" — the only place it is visible
+            // besides /status.
             string currentDesc = string.IsNullOrEmpty(session.ActiveProjectDescription)
                 ? "No description set yet."
                 : $"Current description:\n{session.ActiveProjectDescription}";
             await _bot.SendMessage(chatId, $"{currentDesc}\n\nSend a new description (or \"-\" to clear it).", cancellationToken: ct);
             return;
         }
-        // Group buttons swap the inline keyboard in place (submenu navigation), no edit performed.
-        // Returning to the main edit menu re-reads the session so the project-actions row (shown
-        // only for a server project) is restored after a submenu detour.
+        // Submenu navigation swaps the keyboard in place; the main menu re-reads the session for
+        // the project row.
         if (data.StartsWith("m:", StringComparison.Ordinal))
         {
-            // The Download submenu offers the layout JSON only when there are applied edits.
             if (data == "m:download")
             {
                 UserSession dl = await _store.GetAsync(userId, ct);
@@ -144,15 +137,14 @@ public sealed class CallbackAction
             await _bot.EditMessageReplyMarkup(chatId, query.Message.MessageId, markup, cancellationToken: ct);
             return;
         }
-        // Chat-API picker: the payload is a profile NAME the operator configured, looked up
-        // rather than trusted — an unknown one (a stale card after a config change) says so.
+        // The payload is a profile NAME, looked up rather than trusted — a stale card after a
+        // config change says so.
         if (data.StartsWith("api:", StringComparison.Ordinal))
         {
             await _handlers.SelectChatApiOrExplainAsync(userId, chatId, data["api:".Length..], ct);
             return;
         }
-        // Stop the running assistant turn. Handled before anything touches the session: this tap
-        // arrives WHILE the turn runs (that is the point), so it stays a flag flip and nothing more.
+        // Arrives WHILE the turn runs, so it stays a flag flip and nothing more.
         if (data == StopToken)
         {
             await _bot.SendMessage(
@@ -163,10 +155,7 @@ public sealed class CallbackAction
                 cancellationToken: ct);
             return;
         }
-        // Retry on an assistant turn that failed or was stopped: re-run the stored prompt through
-        // the SAME handler the slash command uses. The button outlives its message, so a prompt
-        // that has since been answered (or lost to a restart) says so rather than re-sending a
-        // mystery turn.
+        // The button outlives its message: a prompt since answered (or lost to a restart) says so.
         if (data == "retry:prompt")
         {
             UserSession session = await _store.GetAsync(userId, ct);
@@ -181,23 +170,21 @@ public sealed class CallbackAction
             await _handlers.DispatchAsync(userId, chatId, CommandParser.Prompt(pending), ct);
             return;
         }
-        // §11 choice card: a tap composes the answer, it never applies anything. Single-select
-        // sends straight away; multi-select toggles a tick and waits for Send. The labels come
-        // from the session (see UserSession.AskOptions for why).
+        // §11: a tap composes the answer, it never applies anything (labels:
+        // UserSession.AskOptions).
         if (data.StartsWith("ask:", StringComparison.Ordinal))
         {
             await _ask.HandleAsync(userId, chatId, query, data["ask:".Length..], ct);
             return;
         }
-        // Cancel on the delete confirmation just retires the prompt (the confirmation is its own
-        // message; the destructive del:confirm falls through to the /delete command below).
+        // The destructive del:confirm falls through to the /delete command below.
         if (data == "del:cancel")
         {
             await _bot.EditMessageText(chatId, query.Message.MessageId, "Removal cancelled.", cancellationToken: ct);
             return;
         }
-        // §10 clearChat: a declined confirm is a "clear canceled" note, never a failed plan;
-        // the Yes button falls through to Map, riding the same /chat clear path as the 🧹 button.
+        // §10: a declined confirm is a note, never a failed plan; Yes rides the same /chat clear
+        // path.
         if (data == "chatclear:cancel")
         {
             await _bot.EditMessageText(chatId, query.Message.MessageId, Replies.ClearChatCanceled(), cancellationToken: ct);

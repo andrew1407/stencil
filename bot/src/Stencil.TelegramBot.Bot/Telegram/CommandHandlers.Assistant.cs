@@ -8,8 +8,6 @@ using Telegram.Bot.Types.Enums;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// CommandHandlers — one assistant turn: /prompt, its retry parking and the §11 ask card.
-// Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
     private const string PromptUsage =
@@ -18,11 +16,8 @@ public sealed partial class CommandHandlers
         + "the same engine as every other command. Ask for alternatives to get several images. "
         + "/p is a shortcut; a photo captioned /prompt … works too.";
 
-    /// <summary>
-    /// Park a prompt that never delivered (it failed, or was stopped) so the 🔄 Retry button on
-    /// that message can re-run it. Re-reads the session first: the turn may have written it (chat
-    /// history, a partly-applied plan) before it ended.
-    /// </summary>
+    // Re-reads the session first: the turn may have written it (chat history, a partly-applied
+    // plan) before it ended.
     private async Task RememberForRetryAsync(long userId, string text, CancellationToken ct)
     {
         UserSession pending = await _store.GetAsync(userId, ct);
@@ -38,13 +33,11 @@ public sealed partial class CommandHandlers
             return;
         }
         UserSession session = await _store.GetAsync(userId, ct);
-        // The working image rides along as this turn's vision attachment (downscaled to the
-        // contract's ≤ 1568 px long edge when oversized); null when there is no image or its
-        // format isn't in the accepted set — the turn is then text-only.
+        // Null when there is no image or its format isn't in the accepted set — the turn is then
+        // text-only.
         LlmImage? image = await _attachments.LoadAsync(session.OriginalImagePath, ct);
-        // The model call can take minutes, so a spinning notice goes out first (Telegram's chat
-        // action alone fades after ~5 s and is easy to miss). The turn runs under its own token
-        // so the notice's Stop button can end it (see PromptCancellations).
+        // Telegram's chat action fades after ~5 s; the turn runs under its own token so the Stop
+        // button can end it.
         using PromptCancellations.Registration turn = _cancellations.Begin(userId, ct);
         ProgressNotice working = await ProgressNotice.StartAsync(
             _bot, chatId, Replies.PromptWorking(), ChatAction.Typing, ct, Keyboards.StopPrompt());
@@ -55,8 +48,7 @@ public sealed partial class CommandHandlers
         }
         catch (OperationCanceledException) when (turn.Token.IsCancellationRequested && !ct.IsCancellationRequested)
         {
-            // The user stopped it — plain info, not an error. The request never got an answer,
-            // so it keeps the same Retry button a failure gets.
+            // Stopped by the user: plain info, and it keeps the same Retry button a failure gets.
             await working.StopAsync();
             await RememberForRetryAsync(userId, text, ct);
             await _bot.SendMessage(
@@ -65,17 +57,15 @@ public sealed partial class CommandHandlers
         }
         catch (LlmException ex)
         {
-            // Transport/config errors plus the contract's truncated/refusal stop reasons —
-            // all surfaced as chat text, never parsed as plans. Deployment detail (endpoints,
-            // env vars) rides the log instead of the reply.
+            // Never parsed as plans; deployment detail (endpoints, env vars) rides the log instead
+            // of the reply.
             if (ex.OperatorDetail is string detail)
             {
                 _logger.LogError("Assistant unavailable for user {UserId}: {Detail}", userId, detail);
             }
             await working.StopAsync(); // the notice goes before the failure it was covering
-            // A failure the user can act on gets a Retry button, so recovering from a timed-out
-            // or unreachable endpoint is one tap instead of retyping the turn. A refusal is the
-            // model's answer, not a failed call — re-sending it verbatim would just repeat it.
+            // A refusal is the model's answer, not a failed call — re-sending it verbatim would
+            // just repeat it.
             bool retryable = ex.Failure != LlmFailure.Refusal;
             if (retryable)
             {
@@ -105,13 +95,12 @@ public sealed partial class CommandHandlers
                 outcome.Warnings.Select(w => Replies.Tag(Replies.Tone.Warning, w)));
         }
         await _bot.SendMessage(chatId, reply, cancellationToken: ct);
-        // A mutating plan sends its main result through the SAME render-and-send path every
-        // slash command uses — one caption/keyboard shape, and a synced project auto-uploads.
+        // The SAME render-and-send path every slash command uses, so a synced project auto-uploads.
         if (outcome.Mutated)
         {
             await RenderAndSendAsync(userId, chatId, ct);
-            // The executed plan (and a live-sync save) updated the stored session, so the tail
-            // helpers below read a fresh copy — fetched once here rather than once per helper.
+            // The executed plan updated the stored session; fetched once here rather than once per
+            // helper.
             session = await _store.GetAsync(userId, ct);
         }
         // Extra images (variant takes / extra frame picks) follow, as one album when several.
@@ -123,27 +112,24 @@ public sealed partial class CommandHandlers
         {
             await SendPromptAlbumAsync(chatId, outcome.Renders, ct);
         }
-        // §10 `export`: each action produced exactly ONE document (the same bytes /json and
-        // /project send) — delivered here, into the user's own chat, one send per action.
+        // §10 export: one document per action, into the user's own chat.
         foreach (PromptExport export in outcome.Exports)
         {
             using MemoryStream stream = new(export.Bytes);
             await _bot.SendDocument(chatId, InputFile.FromStream(stream, export.FileName),
                 caption: export.Caption, cancellationToken: ct);
         }
-        // §11: the plan may also ASK. The card goes out after the edits, as its own message with
-        // an inline keyboard; tapping composes the answer and sends it as the user's next turn.
+        // §11: the card goes out after the edits as its own message; a tap composes the user's next
+        // turn.
         if (outcome.Ask is AskCard ask)
         {
             await SendAskCardAsync(chatId, ask, session, ct);
         }
-        // Contract §12.3: with /chat save on and an active server project, mirror the (text-only,
-        // displayed-reply) conversation to the project's `chat` file kind. Best-effort — last, so
-        // a failure can never swallow the reply or the rendered results above.
+        // §12.3: best-effort and last, so a failure can never swallow the reply or the results
+        // above.
         await PersistChatAsync(userId, chatId, session, ct);
-        // §10 clearChat, deferred to the END of the turn: the confirmation goes out last, and
-        // nothing is cleared here — the Yes button rides the same /chat clear path
-        // (ClearChatHistoryAsync); Cancel just notes it.
+        // §10 clearChat, deferred to the END of the turn: nothing is cleared here, the Yes button
+        // rides /chat clear.
         if (outcome.ClearChatRequested)
         {
             await _bot.SendMessage(
@@ -154,11 +140,7 @@ public sealed partial class CommandHandlers
         }
     }
 
-    /// <summary>
-    /// Send an <c>ask</c> card (contract §11.4: an inline keyboard, one button per option, a
-    /// Send button when it takes several). Labels only — nothing here fetches on the model's
-    /// behalf — stored on the session (see <c>UserSession.AskOptions</c>).
-    /// </summary>
+    // §11.4: labels only — nothing here fetches on the model's behalf — stored on the session.
     private async Task SendAskCardAsync(long chatId, AskCard ask, UserSession session, CancellationToken ct)
     {
         IReadOnlyList<string> labels = ask.Options.Select(static o => o.Label).ToList();

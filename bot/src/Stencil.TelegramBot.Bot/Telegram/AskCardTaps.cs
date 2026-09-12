@@ -6,10 +6,8 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// Taps on an <c>ask</c> card (contract §11.3). A tap only COMPOSES the answer — it never
-/// applies anything; the composed labels go back through the ordinary prompt path.
-/// </summary>
+// A tap only COMPOSES the answer (§11.3); the composed labels go back through the ordinary prompt
+// path.
 public sealed class AskCardTaps
 {
     private readonly CommandHandlers _handlers;
@@ -23,13 +21,8 @@ public sealed class AskCardTaps
         _store = store;
     }
 
-    /// <summary>
-    /// Handle a tap on an <c>ask</c> card (contract §11.3). <c>ask:&lt;n&gt;</c> picks an option —
-    /// on a single-select card that submits at once; on a multi-select one it toggles the tick and
-    /// redraws the keyboard. <c>ask:send</c> submits the ticked labels, <c>ask:custom</c> just
-    /// invites typing. A card whose session state is gone (a restart, or an older card) says so
-    /// rather than sending a mystery answer.
-    /// </summary>
+    // ask:<n> picks (single-select submits at once, multi toggles); ask:send submits; a stale card
+    // says so.
     public async Task HandleAsync(long userId, long chatId, CallbackQuery query, string token, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
@@ -75,10 +68,8 @@ public sealed class AskCardTaps
         await SubmitAsync(userId, chatId, session, picked, ct);
     }
 
-    /// <summary>
-    /// Send the chosen labels as the user's next turn — the same prompt path typing them would
-    /// take — and retire the card so it cannot be answered twice.
-    /// </summary>
+    // The same prompt path typing them would take; the card is retired so it cannot be answered
+    // twice.
     private async Task SubmitAsync(long userId, long chatId, UserSession session, IReadOnlyList<int> picked, CancellationToken ct)
     {
         string answer = OpPlanParser.AskAnswerText(picked.Select(i => session.AskOptions[i]));

@@ -1,13 +1,9 @@
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// A one-at-a-time async lock keyed by Telegram user id. The bot's session mutations are
-// read-modify-write — load the UserSession, fold in an edit, save it back — so two updates from
-// the same user racing that sequence lose an edit. Both inbound entry points (UpdateRouter and
-// SyncWatcher's background pull) take this, which makes the sequence serial per user without a
-// lock in every service method; different users keep their own semaphore and stay concurrent.
-// Each semaphore is reference-counted and dropped once its last holder releases, so the map
-// holds the users acting now, not everyone who ever wrote. Single-instance: horizontal scaling
-// would need a distributed lock.
+// A one-at-a-time async lock per Telegram user: session mutations are read-modify-write, so two
+// updates from one user racing lose an edit. UpdateRouter and SyncWatcher both take it. Each
+// semaphore is reference-counted and dropped with its last holder. Single-instance: horizontal
+// scaling would need a distributed lock.
 public sealed class UserGate
 {
     private readonly Dictionary<long, Gate> _gates = [];
@@ -24,7 +20,6 @@ public sealed class UserGate
         }
     }
 
-    // Dispose the returned handle (via `using`) to release it.
     public async Task<IDisposable> AcquireAsync(long userId, CancellationToken ct = default)
     {
         Gate gate;
@@ -48,8 +43,8 @@ public sealed class UserGate
         return new Releaser(this, userId, gate);
     }
 
-    // The semaphore is forgotten only when no holder is left, so a caller that took it before
-    // the eviction can never be handed a replacement while it still holds this one.
+    // Forgotten only when no holder is left, so a caller can never be handed a replacement while
+    // still holding it.
     private void Drop(long userId, Gate gate)
     {
         lock (_gates)

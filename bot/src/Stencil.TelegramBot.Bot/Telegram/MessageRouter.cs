@@ -10,21 +10,15 @@ public sealed record MessageContext(long UserId, long ChatId, Message Message)
     public string? Text => Message.Text;
 }
 
-/// <summary>
-/// One link of the message-shape chain: claim the message and return true, or decline and let
-/// the next link try. Link ORDER is the precedence — see <see cref="MessageRouter.Chain"/>.
-/// </summary>
+// Claim the message and return true, or decline; link ORDER is the precedence
+// (MessageRouter.Chain).
 public interface IMessageHandler
 {
     Task<bool> TryHandleAsync(MessageContext ctx, CancellationToken ct);
 }
 
-/// <summary>
-/// The message-shape precedence, as an executable chain rather than nested ifs: a slash command
-/// short-circuits everything, then an upload (photo / video / document), then a pending
-/// free-text answer, then a pasted http(s) link, then chat mode, and finally the
-/// "send a photo" hint. Each link is a small class that owns exactly one shape.
-/// </summary>
+// Precedence: slash command, upload, pending free-text answer, pasted http(s) link, chat mode,
+// "send a photo" hint.
 public sealed class MessageRouter
 {
     private readonly IReadOnlyList<IMessageHandler> _chain;
@@ -36,7 +30,7 @@ public sealed class MessageRouter
         _chain = Chain(handlers, media, documents, store, bot);
     }
 
-    /// <summary>The chain in precedence order — the one place the order is written down.</summary>
+    // The one place the order is written down.
     private static IReadOnlyList<IMessageHandler> Chain(
         CommandHandlers handlers, MediaIntake media, DocumentIntake documents,
         ISessionStore store, ITelegramBotClient bot) =>

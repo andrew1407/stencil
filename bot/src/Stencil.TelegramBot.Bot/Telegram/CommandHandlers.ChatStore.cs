@@ -5,15 +5,10 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// CommandHandlers — the §12 chat document: pushing it to the active server project and seeding
-// the assistant's history back from it. Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
-    /// <summary>
-    /// Push the §12.1 chat document to the active server project when chat saving is on. A
-    /// failure never fails the turn: it is logged and surfaced as a short warning only once
-    /// (<see cref="UserSession.ChatSaveWarned"/>, re-armed by the next successful save).
-    /// </summary>
+    // A failure never fails the turn: logged, and warned once (ChatSaveWarned, re-armed by the next
+    // success).
     private async Task PersistChatAsync(long userId, long chatId, UserSession session, CancellationToken ct)
     {
         if (!session.SaveChats || session.ActiveProjectId is null)
@@ -43,10 +38,8 @@ public sealed partial class CommandHandlers
         }
     }
 
-    /// <summary>
-    /// Flip the persisted once-only chat-save warning flag. Re-fetches before saving: the ask
-    /// card sent earlier in the same turn may have stored state the caller's copy predates.
-    /// </summary>
+    // Re-fetches before saving: the ask card sent earlier in the turn may have stored state this
+    // copy predates.
     private async Task SetChatSaveWarnedAsync(long userId, bool warned, CancellationToken ct)
     {
         UserSession latest = await _store.GetAsync(userId, ct);
@@ -55,11 +48,7 @@ public sealed partial class CommandHandlers
 
 
 
-    /// <summary>
-    /// Pull the fetched project's persisted chat (§12.1) and seed the assistant's history from
-    /// it. Only with chat saving on; best-effort (a missing/invalid document or an unreachable
-    /// file route restores nothing). Returns the number of restored messages.
-    /// </summary>
+    // Only with chat saving on; best-effort. Returns the number of restored messages.
     private async Task<int> TryRestoreChatAsync(long userId, UserSession session, CancellationToken ct)
     {
         if (!session.SaveChats || session.ActiveProjectId is null)

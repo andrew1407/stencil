@@ -3,10 +3,7 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// A slash command — the highest-precedence shape, short-circuiting every plain-text rule. It
-/// supersedes any pending free-text prompt (e.g. the custom-expiry entry).
-/// </summary>
+// The highest-precedence shape; it supersedes any pending free-text prompt.
 public sealed class CommandLink : IMessageHandler
 {
     private readonly CommandHandlers _handlers;
@@ -28,8 +25,7 @@ public sealed class CommandLink : IMessageHandler
         }
         await MessageRouter.ClearPendingInputAsync(_store, ctx.UserId, ct);
         BotCommand command = CommandParser.Parse(text);
-        // "/prompt …" as a REPLY to a photo means "ask the AI about THAT photo": adopt it as
-        // the working image first, then let the handler attach it to the LLM turn.
+        // "/prompt …" as a REPLY to a photo means "ask the AI about THAT photo": adopt it first.
         if (command.Verb == "prompt" && ctx.Message.ReplyToMessage?.Photo is { Length: > 0 } replied)
         {
             await _media.WithDownloadedAsync(replied[^1].FileId, ".jpg",
@@ -40,10 +36,7 @@ public sealed class CommandLink : IMessageHandler
     }
 }
 
-/// <summary>
-/// A photo, a video or a document. An upload also supersedes a pending free-text prompt — only
-/// a plain-text reply answers one.
-/// </summary>
+// An upload also supersedes a pending free-text prompt — only a plain-text reply answers one.
 public sealed class UploadLink : IMessageHandler
 {
     private readonly MediaIntake _media;

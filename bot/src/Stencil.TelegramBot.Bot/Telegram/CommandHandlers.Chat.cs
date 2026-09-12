@@ -5,19 +5,10 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// CommandHandlers — /chat and /chatapi: chat mode, the profile picker and history clearing.
-// Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
-    /// <summary>
-    /// <c>/chatapi</c> — show the chat APIs this bot offers and which one the caller is on, with
-    /// a button per profile. <c>/chatapi &lt;name&gt;</c> selects one without the picker.
-    /// </summary>
-    /// <remarks>
-    /// The list is the operator's (<c>STENCIL_LLM_PROFILES</c>); a user picks from it and never
-    /// types an endpoint — see <see cref="LlmProfile"/> for why. The choice is per user and lives
-    /// in their session, so it survives restarts and shows up in /status.
-    /// </remarks>
+    // The list is the operator's; a user picks and never types an endpoint (see LlmProfile). Per
+    // user, in the session.
     private async Task ChatApiAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (_options.LlmProfiles.Count == 0)
@@ -44,10 +35,7 @@ public sealed partial class CommandHandlers
         await SelectChatApiAsync(userId, chatId, picked, ct);
     }
 
-    /// <summary>
-    /// A tap on the picker: select <paramref name="name"/>, or say it is no longer offered — a
-    /// card can outlive the configuration it was drawn from.
-    /// </summary>
+    // A card can outlive the configuration it was drawn from.
     public async Task SelectChatApiOrExplainAsync(long userId, long chatId, string name, CancellationToken ct)
     {
         if (_options.FindProfile(name) is not LlmProfile picked)
@@ -69,18 +57,15 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>
-    /// <c>/chat [on|off|clear]</c> — the same three actions the 💬 / 🚪 / 🧹 buttons ride. While
-    /// on, <see cref="UpdateRouter"/> hands each unclaimed plain message to
-    /// <see cref="PromptAsync"/>, so chatting and <c>/prompt</c> are literally the same path.
-    /// </summary>
+    // While on, UpdateRouter hands each unclaimed plain message to PromptAsync — chatting and
+    // /prompt are one path.
     private async Task ChatAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         string arg = cmd.ArgumentText.Trim().ToLowerInvariant();
         if (arg is "clear" or "reset" or "forget" or "new")
         {
-            // Never gated: someone who used the assistant before the allowlist tightened
-            // must still be able to delete what it stored.
+            // Never gated: someone who used the assistant before the allowlist tightened must still
+            // be able to delete it.
             await ClearChatHistoryAsync(userId, chatId, ct);
             return;
         }
@@ -115,11 +100,8 @@ public sealed partial class CommandHandlers
         }
     }
 
-    /// <summary>
-    /// Chat persistence toggle (contract §12.3, default OFF): <c>/chat save [on|off]</c>. The
-    /// store is the active SERVER project's <c>chat</c> file kind — no local copy. Turning it
-    /// off stops writing but does not delete an already-saved chat (<c>/chat clear</c> does).
-    /// </summary>
+    // §12.3, default OFF; the store is the active SERVER project's chat file. Off stops writing,
+    // never deletes.
     private async Task ChatSaveAsync(long userId, long chatId, string arg, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
@@ -154,11 +136,8 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>
-    /// Forget the assistant's conversation (<c>/chat clear</c>, the 🧹 button, the §10 confirm
-    /// button). Chat mode, image and edits are untouched. Per §12.2 it also removes the persisted
-    /// server copy when chat saving is on (best-effort — an unreachable server never blocks it).
-    /// </summary>
+    // Chat mode, image and edits are untouched; per §12.2 the persisted server copy goes too
+    // (best-effort).
     private async Task ClearChatHistoryAsync(long userId, long chatId, CancellationToken ct)
     {
         _prompts.ClearHistory(userId);

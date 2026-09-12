@@ -5,24 +5,15 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// The bot's global, fail-closed allowlist (<c>STENCIL_BOT_ALLOWED_USERS</c>). Every command,
-/// button tap and upload spends the operator's resources — a CLI process, disk in the data dir,
-/// an outbound fetch to a user-named host, the single LLM API key — and anyone who finds the bot
-/// can message it, so an unlisted user gets nothing but <c>/start</c> and <c>/help</c>. An empty
-/// list therefore turns the bot off for everyone; that is the intended default.
-/// </summary>
-/// <remarks>
-/// The refusal the user reads is one plain sentence. The env var, the procedure and the caller's
-/// id are operator detail and go to the log instead, once per user id.
-/// </remarks>
+// The global, fail-closed allowlist (STENCIL_BOT_ALLOWED_USERS): an unlisted user gets only /start
+// and /help, and an empty list turns the bot off for everyone. The operator detail goes to the log,
+// once per id.
 public sealed class AccessGate
 {
     private readonly IBotPolicy _options;
     private readonly ITelegramBotClient _bot;
     private readonly ILogger _logger;
-    // User ids whose refusal already carried the operator hint to the log. Capped: a flood of
-    // unknown ids must not grow it without bound, and a reset only repeats a hint.
+    // Capped: a flood of unknown ids must not grow it without bound.
     private const int MaxRefusalsLogged = 1024;
     private readonly ConcurrentDictionary<long, byte> _refusalsLogged = new();
 
@@ -33,18 +24,11 @@ public sealed class AccessGate
         _logger = logger;
     }
 
-    /// <summary>
-    /// The verbs an unlisted user may still run. <c>/start</c> only when it is the bare greeting:
-    /// with a payload it is a deep link that connects out to a server and fetches a project, which
-    /// is exactly the kind of work the gate exists to stop.
-    /// </summary>
+    // /start only when bare: with a payload it is a deep link that connects out and fetches a
+    // project.
     public static bool IsUngated(BotCommand command) =>
         command.Verb == "help" || (command.Verb == "start" && command.ArgumentText.Length == 0);
 
-    /// <summary>
-    /// Whether <paramref name="userId"/> may act. When not, the chat gets the refusal and the
-    /// operator hint goes to the log, and the caller does nothing else.
-    /// </summary>
     public async Task<bool> AllowsAsync(long userId, long chatId, CancellationToken ct)
     {
         if (_options.AllowedFor(userId))

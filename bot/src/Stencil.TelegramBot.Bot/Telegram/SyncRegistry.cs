@@ -2,8 +2,7 @@ using System.Collections.Concurrent;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// The users with live sync on, each mapped to the chat their updates go to; SyncWatcher polls
-// exactly this set. Thread-safe: the handlers and the background poller both touch it.
+// Thread-safe: the handlers and the background poller both touch it.
 public sealed class SyncRegistry
 {
     private readonly ConcurrentDictionary<long, long> _chatByUser = new();

@@ -6,8 +6,6 @@ using Stencil.TelegramBot.Bot.Telegram;
 using Stencil.TelegramBot.Infrastructure.Configuration;
 using Telegram.Bot;
 
-// Entry point for the Stencil Telegram bot: wire the services, then poll Telegram over them.
-
 LoadDotEnvFiles();
 
 BotOptions options = BotOptions.FromEnvironment();
@@ -73,7 +71,6 @@ static void LoadDotEnvFiles()
     }
 }
 
-// Walk up from the working directory to the repo layout, so a dev run anywhere finds the token.
 static IEnumerable<string> RepoBotEnvCandidates()
 {
     DirectoryInfo? dir = new(Directory.GetCurrentDirectory());

@@ -1,10 +1,7 @@
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// A write-only pass-through stream that throws once more than a byte limit has been written,
-/// used to cap how much the bot will download from Telegram into memory/disk. The inner stream is
-/// never closed by this wrapper (its owner disposes it), so partial output can still be cleaned up.
-/// </summary>
+// The inner stream is never closed by this wrapper (its owner disposes it), so partial output can
+// still be cleaned up.
 public sealed class CappingWriteStream : Stream
 {
     private readonly Stream _inner;
@@ -17,7 +14,6 @@ public sealed class CappingWriteStream : Stream
         _limit = limit;
     }
 
-    /// <summary>Account for a pending write, throwing before it lands if it would breach the cap.</summary>
     private void Account(long count)
     {
         _written += count;
@@ -79,10 +75,7 @@ public sealed class CappingWriteStream : Stream
     public override void SetLength(long value) => throw new NotSupportedException();
 }
 
-/// <summary>
-/// Raised when a Telegram download exceeds the configured byte cap. Derives from
-/// <see cref="InvalidOperationException"/> so the router's error guard surfaces its message verbatim.
-/// </summary>
+// An InvalidOperationException so the router's error guard surfaces its message verbatim.
 public sealed class DownloadTooLargeException : InvalidOperationException
 {
     public DownloadTooLargeException(long limitBytes)

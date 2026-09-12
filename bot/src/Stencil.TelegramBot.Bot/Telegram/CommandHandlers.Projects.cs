@@ -5,8 +5,6 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// CommandHandlers — the project list and what moves a project between the server and the
-// working image: /projects, /fetch, /create, /save, /sync. Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
     private async Task ProjectsAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
@@ -29,7 +27,6 @@ public sealed partial class CommandHandlers
     {
         if (cmd.ArgumentText.Length == 0)
         {
-            // Bare /fetch: list the fetchable projects (as tappable buttons) plus the usage hint.
             IReadOnlyList<ServerProjectInfo> projects = await _servers.ListProjectsAsync(userId, null, ct);
             string text = $"{Replies.ProjectsText(projects)}\n\nUsage: /fetch <project name or id>";
             await _bot.SendMessage(
@@ -40,8 +37,8 @@ public sealed partial class CommandHandlers
             return;
         }
         UserSession session = await _servers.FetchAsync(userId, cmd.ArgumentText, null, ct);
-        // Contract §12: with chat saving on, a fetched project brings its persisted chat back —
-        // the assistant's history is seeded from it (restoring never triggers a model call).
+        // §12: with chat saving on, a fetched project brings its persisted chat back (never a model
+        // call).
         int restored = await TryRestoreChatAsync(userId, session, ct);
         string loaded = Replies.Tag(Replies.Tone.Success, $"Loaded project '{session.ActiveProjectName}'.");
         if (restored > 0)

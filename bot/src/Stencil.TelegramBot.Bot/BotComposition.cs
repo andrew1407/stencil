@@ -9,11 +9,7 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot;
 
-/// <summary>
-/// The host's composition root: Infrastructure + Application, then the presentation's own
-/// singletons and the two hosted loops. Program.cs registers nothing else, so resolving this
-/// graph in a test is what proves the wiring.
-/// </summary>
+// Program.cs registers nothing else, so resolving this graph in a test is what proves the wiring.
 public static class BotComposition
 {
     public static IServiceCollection AddStencilBot(
@@ -31,7 +27,8 @@ public static class BotComposition
         services.AddSingleton<CommandHandlers>();
         services.AddSingleton<CallbackAction>();
         services.AddSingleton<UpdateRouter>();
-        // Hosted, so Ctrl+C/SIGTERM cancels and AWAITS both loops, never tearing one down mid-sweep.
+        // Hosted, so Ctrl+C/SIGTERM cancels and AWAITS both loops, never tearing one down
+        // mid-sweep.
         services.AddHostedService<SyncWatcher>();
         services.AddHostedService<WorkspaceJanitor>();
         return services;

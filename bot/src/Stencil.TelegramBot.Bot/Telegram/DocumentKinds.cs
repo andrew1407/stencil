@@ -2,10 +2,7 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// How <see cref="UpdateRouter"/> classifies an uploaded Telegram document: by MIME type, and
-/// failing that by a known file extension.
-/// </summary>
+// By MIME type, and failing that by a known file extension.
 internal static class DocumentKinds
 {
     public static bool IsImage(Document document)

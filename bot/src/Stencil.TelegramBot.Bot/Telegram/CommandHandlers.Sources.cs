@@ -8,8 +8,6 @@ using Telegram.Bot.Types.Enums;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// CommandHandlers — /url and /sourcesite: adopting a remote still, and scraping a page into a
-// batch of them. Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
     private async Task UrlAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
@@ -24,11 +22,7 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>
-    /// Scrape a web page's media into the chat: <c>/sourcesite &lt;url&gt; [count] [filters…]</c>.
-    /// Each image comes back as a photo, each video as a document, plus a one-line summary.
-    /// The URL is SSRF-vetted like /url.
-    /// </summary>
+    // Each image comes back as a photo, each video as a document. The URL is SSRF-vetted like /url.
     private async Task SourceSiteAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
@@ -42,13 +36,10 @@ public sealed partial class CommandHandlers
             await _bot.SendMessage(chatId, $"{error}\n\n{SourceSiteUsage}", cancellationToken: ct);
             return;
         }
-        // Same trust boundary as /url: the bot is open to any Telegram user, so reject
-        // loopback/private/metadata hosts before the CLI fetches the page.
+        // Same trust boundary as /url.
         await RemoteImageUrl.ValidateAsync(url, ct);
         string host = Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) ? uri.Host : url;
-        // Fetching the page and downloading its media can take a while, so post the spinning
-        // notice right away instead of leaving the chat silent — it clears itself once the
-        // results land, whether the scrape succeeded or threw.
+        // The notice clears itself once the results land, whether the scrape succeeded or threw.
         ProgressNotice progress = await ProgressNotice.StartAsync(
             _bot, chatId, $"Scraping {host}…", ChatAction.UploadPhoto, ct);
         ScrapeResult result;
@@ -88,14 +79,10 @@ public sealed partial class CommandHandlers
         + "name= is a case-insensitive regex matched on each media URL.\n"
         + "e.g. /sourcesite https://example.com 6 filter=img format=png|jpg name=cat minw=200";
 
-    /// <summary>
-    /// Parse the /sourcesite operands: a bare integer is the item count, everything else is a
-    /// <c>key=value</c> option. A malformed value yields false with a readable <paramref name="error"/>.
-    /// </summary>
+    // A bare integer is the item count, everything else a key=value option.
     private static bool TryParseScrapeArgs(string url, IReadOnlyList<string> args, out ScrapeRequest request, out string? error)
     {
         error = null;
-        // A minimal fallback the callers ignore on `false`; the success path overwrites it below.
         request = new ScrapeRequest { Url = url };
         int? count = null, group = null, minW = null, maxW = null, minH = null, maxH = null;
         string? filter = null, format = null, name = null;
@@ -105,7 +92,6 @@ public sealed partial class CommandHandlers
             int eq = token.IndexOf('=');
             if (eq < 0)
             {
-                // A bare integer is the item count (e.g. "/sourcesite <url> 6").
                 if (int.TryParse(token, out int bare) && bare >= 0)
                 {
                     count = bare;
@@ -126,7 +112,6 @@ public sealed partial class CommandHandlers
                 case "maxh" or "maxheight": if (!SetInt(ref maxH, value, key, out error)) return false; break;
                 case "filter": filter = value; break;
                 case "format": format = value; break;
-                // A regex matched against each media URL (passed through as --source-name).
                 case "name": name = value; break;
                 default:
                     error = $"Unrecognised option '{key}'.";
@@ -136,9 +121,8 @@ public sealed partial class CommandHandlers
         request = new ScrapeRequest
         {
             Url = url,
-            // A batch scrape with no explicit count defaults to 5 (a sensible chat-sized page);
-            // an explicit 0 means "all" and rides through as `--source-count 0`, which the CLI
-            // interprets as every match.
+            // No count defaults to 5 (a chat-sized page); an explicit 0 rides through as
+            // --source-count 0 = every match.
             Count = count ?? 5,
             Group = group,
             Filter = filter,

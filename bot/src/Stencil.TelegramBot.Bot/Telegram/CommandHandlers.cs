@@ -20,13 +20,8 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// One handler per slash command, plus the shared render-and-send helper. Each command folds its
-/// intent through <see cref="IEditingService"/> / <see cref="IServerService"/> — the same
-/// Application services the callback buttons use — then replies over Telegram. Split by command
-/// group into partial files: Routes (the dispatch table), Projects, Editing, Sources, and
-/// Assistant (LLM).
-/// </summary>
+// Each command folds through the same Application services the callback buttons use, then replies
+// over Telegram.
 public sealed partial class CommandHandlers
 {
     private readonly IEditingService _editing;
@@ -67,11 +62,8 @@ public sealed partial class CommandHandlers
         _logger = logger;
     }
 
-    /// <summary>
-    /// The shared send-photo tail: stream a rendered result file from disk as a "result.png"
-    /// photo with its caption (and optional keyboard). Used by <see cref="RenderAndSendAsync"/>,
-    /// <see cref="SendPromptRenderAsync"/> and the album fallback.
-    /// </summary>
+    // Streams the result file as a "result.png" photo; shared by the render, prompt-render and
+    // album paths.
     private async Task SendResultPhotoAsync(long chatId, string path, string caption,
         InlineKeyboardMarkup? keyboard, CancellationToken ct)
     {
@@ -141,15 +133,10 @@ public sealed partial class CommandHandlers
     private Task UnknownAsync(long chatId, CancellationToken ct) =>
         _bot.SendMessage(chatId, "Unknown command. Send /help for the list.", cancellationToken: ct);
 
-    /// <summary>
-    /// Replay the current edit state through the CLI and send the rendered result as a photo
-    /// with the edit menu. Shared by the mutating commands and by <see cref="UpdateRouter"/>
-    /// after a fresh upload or layout apply.
-    /// </summary>
+    // Shared by the mutating commands and by UpdateRouter after a fresh upload or layout apply.
     public async Task RenderAndSendAsync(long userId, long chatId, CancellationToken ct, bool mutating = true)
     {
         // Album batch: buffer the render for the single media-group reply instead of sending.
-        // (A fresh album adoption cleared any active project, so the auto-sync tail is moot.)
         if (_renderCaptures.TryGetValue(userId, out List<PromptRender>? captured))
         {
             RenderResult buffered = await _editing.RenderAsync(userId, ct);

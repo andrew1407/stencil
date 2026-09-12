@@ -6,14 +6,8 @@ using Stencil.TelegramBot.Domain.Configuration;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// Background sweeper that keeps each user's scratch directory from growing without bound. Every
-/// render/probe writes a fresh file, but only the current original image (and any source video)
-/// stays referenced by the session — the rest are orphans the moment a newer render supersedes
-/// them. This loop periodically deletes those orphans once they age past
-/// <see cref="IBotPolicy.WorkspaceTtl"/>, while always keeping the session-referenced files.
-/// Hosted, so it starts with the app and unwinds on a graceful shutdown.
-/// </summary>
+// Deletes scratch files no session references once they age past WorkspaceTtl; the referenced
+// originals are kept.
 public sealed class WorkspaceJanitor : BackgroundService
 {
     private readonly IUserWorkspace _workspace;
@@ -33,7 +27,7 @@ public sealed class WorkspaceJanitor : BackgroundService
         _logger = logger;
     }
 
-    /// <summary>Sweep on a cadence of half the TTL (floored at 5 minutes) until the host stops.</summary>
+    // Half the TTL, floored at 5 minutes.
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         TimeSpan interval = Max(TimeSpan.FromTicks(_options.WorkspaceTtl.Ticks / 2), TimeSpan.FromMinutes(5));
@@ -82,6 +76,5 @@ public sealed class WorkspaceJanitor : BackgroundService
         }
     }
 
-    /// <summary>The larger of two spans (no <c>TimeSpan.Max</c> in the BCL).</summary>
     private static TimeSpan Max(TimeSpan a, TimeSpan b) => a >= b ? a : b;
 }

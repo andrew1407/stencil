@@ -8,15 +8,10 @@ using Telegram.Bot.Types.Enums;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// CommandHandlers — how a prompt turn's images reach the chat: one extra render, or a whole
-// batch buffered into a media album. Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
-    /// <summary>
-    /// Send one EXTRA prompt image (a lone variant take / extra frame pick) as a photo with the
-    /// edit menu. The main result of a mutating plan goes through <see cref="RenderAndSendAsync"/>
-    /// instead, like every slash command.
-    /// </summary>
+    // One EXTRA image (a lone variant / frame pick); a mutating plan's main result goes through
+    // RenderAndSendAsync.
     private async Task SendPromptRenderAsync(long chatId, PromptRender render, UserSession session, CancellationToken ct)
     {
         await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);
@@ -27,22 +22,13 @@ public sealed partial class CommandHandlers
     private static string PromptCaption(PromptRender render) =>
         $"{render.Label} — {render.Result.Size}";
 
-    /// <summary>
-    /// The caption an album's FIRST item carries. A collapsed album shows only that one, so it
-    /// leads with the batch size: without it a three-result album reads "photo 1/3", as if the
-    /// other two had gone missing. Every item still keeps its own caption for the opened view.
-    /// </summary>
+    // A collapsed album shows only the first caption, so it leads with the batch size.
     private static string AlbumLeadCaption(IReadOnlyList<PromptRender> renders) =>
         $"{renders.Count} results\n{PromptCaption(renders[0])}";
 
-    /// <summary>Active album-batch captures: while set, a user's renders buffer instead of sending.</summary>
     private readonly ConcurrentDictionary<long, List<PromptRender>> _renderCaptures = new();
 
-    /// <summary>
-    /// Open an album-batch scope: until disposed, this user's <see cref="RenderAndSendAsync"/>
-    /// results are buffered into <paramref name="captured"/> instead of being sent — the batch
-    /// then replies as one media group via <see cref="SendRenderAlbumAsync"/>.
-    /// </summary>
+    // Until disposed, this user's RenderAndSendAsync results are buffered instead of sent.
     public IDisposable BeginRenderCapture(long userId, List<PromptRender> captured)
     {
         _renderCaptures[userId] = captured;
@@ -69,10 +55,7 @@ public sealed partial class CommandHandlers
         await SendPromptAlbumAsync(chatId, renders, ct);
     }
 
-    /// <summary>
-    /// Send multiple prompt results (variants / multi-frame picks) as one media album, falling
-    /// back to sequential photos when the album send fails (e.g. an API limit).
-    /// </summary>
+    // Falls back to sequential photos when the album send fails (e.g. an API limit).
     private async Task SendPromptAlbumAsync(long chatId, IReadOnlyList<PromptRender> renders, CancellationToken ct)
     {
         await _bot.SendChatAction(chatId, ChatAction.UploadPhoto, cancellationToken: ct);

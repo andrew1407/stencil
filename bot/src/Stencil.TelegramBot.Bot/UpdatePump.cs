@@ -3,14 +3,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Stencil.TelegramBot.Bot;
 
-/// <summary>Bounded hand-off from Telegram's polling loop to a fixed set of update workers.</summary>
-/// <remarks>
-/// Telegram.Bot awaits each handler before delivering the next update and an assistant turn runs
-/// for minutes, so awaiting one on the loop froze every other update — including the ⏹ Stop tap
-/// meant to end it, arriving past the ~15 s callback-answer window. Detaching each update instead
-/// left the task count unbounded; this queue keeps the detach but caps it. Per-user ordering is
-/// <c>UserGate</c>'s job, not this queue's.
-/// </remarks>
+// Telegram.Bot awaits each handler before the next update, and an assistant turn runs for minutes,
+// so a bounded worker pool detaches each update; per-user ordering is UserGate's job, not this
+// queue's.
 public sealed class UpdatePump : IAsyncDisposable
 {
     // Enough workers that a few minutes-long turns can't starve a Stop tap.
@@ -31,7 +26,6 @@ public sealed class UpdatePump : IAsyncDisposable
 
     public async Task EnqueueAsync(Func<Task> work) => await _queue.Writer.WriteAsync(work);
 
-    /// <summary>Stop accepting work and await whatever is still queued or in flight.</summary>
     public async ValueTask DisposeAsync()
     {
         _queue.Writer.TryComplete();

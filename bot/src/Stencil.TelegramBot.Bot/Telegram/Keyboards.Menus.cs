@@ -3,15 +3,12 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// Keyboards — the menu tree a tap walks: the main rows, the edit menu and its submenus, the
-// expiration picker and the project list. Class doc lives in Keyboards.cs.
 public static partial class Keyboards
 {
     private static List<InlineKeyboardButton[]> MainRows() =>
         new()
         {
-            // Chat mode gets its own full-width row: it's the entry point to the assistant, and
-            // the token is the same command (/chat on) the slash surface exposes.
+            // Chat mode gets its own full-width row: the entry point to the assistant.
             new[]
             {
                 BotStrings.Button("chatWithAssistant"),
@@ -38,11 +35,7 @@ public static partial class Keyboards
             },
         };
 
-    /// <summary>
-    /// The expiry-duration picker: preset spans, a custom free-text entry, and "Never" (keep
-    /// forever). Sent as its own message by the <c>/expire</c> command, so each preset just rides a
-    /// token mapped to the equivalent <c>/expire &lt;span&gt;</c> command by <see cref="CallbackAction"/>.
-    /// </summary>
+    // Each preset rides a token CallbackAction maps to the equivalent /expire <span>.
     public static InlineKeyboardMarkup ExpirationMenu() =>
         new(new[]
         {
@@ -68,11 +61,7 @@ public static partial class Keyboards
             },
         });
 
-    /// <summary>
-    /// The main per-result edit menu sent with a rendered image. Transform / Filter / Draw are
-    /// group buttons that open a submenu in place (see <see cref="EditSubmenu"/> etc.); the rest
-    /// act directly. No "Result" button — the image is already shown and /save persists it.
-    /// </summary>
+    // No "Result" button — the image is already shown and /save persists it.
     public static InlineKeyboardMarkup EditMenu(bool hasActiveProject)
     {
         List<InlineKeyboardButton[]> rows = new()
@@ -96,9 +85,8 @@ public static partial class Keyboards
                 BotStrings.Button("save"),
             },
         };
-        // The edit menu always rides a rendered image, so Rename is always available here; the
-        // server-only Link/Expiration/Remove row rides along only when it's a saved server project
-        // (the menu shown after /fetch). Same tokens as StatusMenu.
+        // The server-only Link/Expiration/Remove row rides along only for a saved server project.
+        // Same tokens as StatusMenu.
         rows.AddRange(ProjectActionsRows(hasActiveProject));
         return new InlineKeyboardMarkup(rows);
     }
@@ -169,12 +157,11 @@ public static partial class Keyboards
     private static InlineKeyboardButton[] BackRow() =>
         new[] { BotStrings.Button("back") };
 
-    /// <summary>One button per project, labelled with its name + server host, callback <c>fetch:&lt;id&gt;</c>.</summary>
     public static InlineKeyboardMarkup ProjectList(IEnumerable<ServerProjectInfo> projects)
     {
         List<InlineKeyboardButton[]> rows = new();
-        // Cap the buttons the same way ProjectsText caps its lines — Telegram rejects an oversized
-        // keyboard, and the text already tells the user how to reach the rest (/fetch, /projects url).
+        // Telegram rejects an oversized keyboard; the text already tells the user how to reach the
+        // rest.
         foreach (ServerProjectInfo p in projects.Take(Replies.MaxProjectsListed))
         {
             string dot = Replies.ColorDot(p.Record.Color);
@@ -186,7 +173,7 @@ public static partial class Keyboards
         return new InlineKeyboardMarkup(rows);
     }
 
-    /// <summary>Clamp a callback payload to Telegram's 64-byte limit.</summary>
+    // Telegram's 64-byte callback limit.
     private static string Token(string value) =>
         value.Length <= 64 ? value : value[..64];
 }

@@ -2,12 +2,8 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 
 public sealed partial class CommandHandlers
 {
-    /// <summary>
-    /// The dispatch table: one canonical verb per handler. Aliases live in the
-    /// <c>botCommands.json</c> asset (<see cref="BotCommands.Canonical"/>) alongside the "/" menu
-    /// and /help text, so the vocabulary is written once; a verb with no arm falls back to a
-    /// /help hint. ("/p" is normalised to "prompt" by <see cref="CommandParser"/>.)
-    /// </summary>
+    // Aliases live in botCommands.json (BotCommands.Canonical); a verb with no arm falls back to a
+    // /help hint.
     private static readonly Dictionary<string, Route> Routes = new(StringComparer.Ordinal)
     {
         ["start"] = (h, u, c, cmd, ct) => h.StartAsync(u, c, cmd, ct),
@@ -65,7 +61,7 @@ public sealed partial class CommandHandlers
 
     private delegate Task Route(CommandHandlers handlers, long userId, long chatId, BotCommand cmd, CancellationToken ct);
 
-    /// <summary>The canonical verbs the table answers — the drift test's view of it.</summary>
+    // The drift test's view of the table.
     public static IReadOnlyCollection<string> HandledVerbs => Routes.Keys;
 
     public Task DispatchAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct) =>

@@ -4,11 +4,9 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// The guard every inbound handler body runs under: a domain error is surfaced to the chat
-/// verbatim, a deployment fault tells the chat a sentence and the operator the whole story, and
-/// an unexpected one is logged and apologised for. Shutdown unwinds quietly.
-/// </summary>
+// A domain error is surfaced to the chat verbatim, a deployment fault tells the chat a sentence and
+// the operator the whole story, an unexpected one is logged and apologised for. Shutdown unwinds
+// quietly.
 public sealed class ErrorGuard
 {
     private readonly ITelegramBotClient _bot;
@@ -44,7 +42,6 @@ public sealed class ErrorGuard
         }
         catch (OperationCanceledException)
         {
-            // Shutdown in progress — let it unwind quietly.
         }
         catch (Exception ex)
         {
@@ -53,10 +50,7 @@ public sealed class ErrorGuard
         }
     }
 
-    /// <summary>
-    /// Best-effort error reply (a failed reply must not mask the original error). Every failure
-    /// the bot answers with wears the error glyph here.
-    /// </summary>
+    // Best-effort: a failed reply must not mask the original error.
     private async Task ReplyError(long chatId, string message, CancellationToken ct)
     {
         try

@@ -4,8 +4,6 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// CommandHandlers — a project's own fields: colour, name, description, blank colour, expiry
-// and removal. Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
     private async Task ProjectColorAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
@@ -26,7 +24,7 @@ public sealed partial class CommandHandlers
 
     private async Task ProjectNameAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
-        // Free text: the whole remainder is the name (project names may contain spaces).
+        // Project names may contain spaces.
         string name = cmd.ArgumentText.Trim();
         if (name.Length == 0)
         {
@@ -41,7 +39,7 @@ public sealed partial class CommandHandlers
             await _bot.SendMessage(chatId, $"Project renamed to: {effective}", cancellationToken: ct);
             return;
         }
-        // No server project yet — just relabel the local working image (the /create default name).
+        // No server project yet: relabel the local working image (the /create default name).
         if (!session.HasImage)
         {
             await _bot.SendMessage(chatId, "No working image to name — upload a photo or use /blank first.", cancellationToken: ct);
@@ -53,10 +51,8 @@ public sealed partial class CommandHandlers
 
     private async Task ProjectDescriptionAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
-        // Free text: the whole remainder is the description; empty clears it.
         string description = cmd.ArgumentText.Trim();
         UserSession session = await _store.GetAsync(userId, ct);
-        // A saved server project writes through to the server (version-guarded, broadcast to peers).
         if (session.ActiveProjectId is not null)
         {
             string effective = await _servers.SetProjectDescriptionAsync(userId, description, ct);
@@ -66,7 +62,7 @@ public sealed partial class CommandHandlers
                 cancellationToken: ct);
             return;
         }
-        // No server project yet — hold the description locally (uploaded when /create saves it).
+        // Held locally until /create saves it.
         if (!session.HasImage)
         {
             await _bot.SendMessage(chatId, "No working image to describe — upload a photo or use /blank first.", cancellationToken: ct);
@@ -99,11 +95,8 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>
-    /// Set the active project's expiry: <c>/expire &lt;amount|never&gt;</c>; bare shows the picker.
-    /// <c>/expire custom</c> (the Custom… button) arms a one-shot free-text prompt consumed by
-    /// <see cref="UpdateRouter"/>.
-    /// </summary>
+    // /expire custom (the Custom… button) arms a one-shot free-text prompt consumed by
+    // UpdateRouter.
     private async Task ExpireAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);
@@ -117,7 +110,6 @@ public sealed partial class CommandHandlers
             await _bot.SendMessage(chatId, Replies.ExpiryPrompt(session.ActiveProjectExpiresAt), replyMarkup: Keyboards.ExpirationMenu(), cancellationToken: ct);
             return;
         }
-        // The Custom… button arms a free-text prompt; the next plain message is parsed as a duration.
         if (cmd.ArgumentText.Equals("custom", StringComparison.OrdinalIgnoreCase))
         {
             await _store.SaveAsync(session with { PendingInput = PendingInputs.ExpiryDuration }, ct);
@@ -140,11 +132,8 @@ public sealed partial class CommandHandlers
         await _bot.SendMessage(chatId, message, cancellationToken: ct);
     }
 
-    /// <summary>
-    /// Remove the active project from its server: bare <c>/delete</c> asks for confirmation;
-    /// <c>/delete confirm</c> deletes, clears the active project and turns live sync off — never
-    /// on a single tap. The working image is kept so it can be re-saved elsewhere.
-    /// </summary>
+    // Never on a single tap: only /delete confirm deletes. The working image is kept so it can be
+    // re-saved elsewhere.
     private async Task DeleteProjectAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);

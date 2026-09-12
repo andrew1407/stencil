@@ -8,15 +8,10 @@ using Telegram.Bot.Types.Enums;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// CommandHandlers — /sourceupload: scrape a page and adopt ONE of its stills as the working
-// image. Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
-    /// <summary>
-    /// Scrape a page and load ONE of its stills as the working image: <c>/sourceupload &lt;url&gt;
-    /// [index=0] [filters…]</c> — the chat analog of the console <c>/source-upload</c>. Adopts the
-    /// still like /url does, then renders with the edit menu. The URL is SSRF-vetted like /url.
-    /// </summary>
+    // The chat analog of the console /source-upload; adopts the still like /url does. SSRF-vetted
+    // like /url.
     private async Task SourceUploadAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.Args.Count == 0)
@@ -30,19 +25,16 @@ public sealed partial class CommandHandlers
             await _bot.SendMessage(chatId, $"{error}\n\n{SourceUploadUsage}", cancellationToken: ct);
             return;
         }
-        // Same trust boundary as /url: the bot is open to any Telegram user, so reject
-        // loopback/private/metadata hosts before the CLI fetches the page.
+        // Same trust boundary as /url.
         await RemoteImageUrl.ValidateAsync(url, ct);
         string host = Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) ? uri.Host : url;
-        // The page fetch + download can take a moment; post the spinning notice and let it clear
-        // itself once the still is in (mirrors /sourcesite).
         ProgressNotice progress = await ProgressNotice.StartAsync(
             _bot, chatId, $"Scraping {host}…", ChatAction.UploadPhoto, ct);
         ScrapeResult result;
         try
         {
-            // Count = 1, Group = index isolates exactly the still at that 0-based index (the CLI's
-            // paging window is filtered[index : index+1]); an empty result means no still lives there.
+            // Count = 1, Group = index isolates the still at that 0-based index (the CLI's paging
+            // window).
             result = await _editing.ScrapeAsync(userId, request, ct);
         }
         finally
@@ -54,8 +46,8 @@ public sealed partial class CommandHandlers
             await _bot.SendMessage(chatId, $"No image at index {index}.\n\n{SourceUploadUsage}", cancellationToken: ct);
             return;
         }
-        // Replace the working image via the local-file load path (mirrors how /url adopts a
-        // source — Telegram has no modal, so there's no TTY-style confirmation).
+        // Telegram has no modal, so there's no TTY-style confirmation before replacing the working
+        // image.
         await _editing.SetImageFromLocalFileAsync(userId, result.Files[0].Path, LabelFromUrl(url), sourceUrl: url, ct: ct);
         await RenderAndSendAsync(userId, chatId, ct);
     }
@@ -67,16 +59,11 @@ public sealed partial class CommandHandlers
         + "the editable working image. name= is a case-insensitive regex on the media URL.\n"
         + "e.g. /sourceupload https://example.com 2 format=png name=cat minw=200";
 
-    /// <summary>
-    /// Parse the /sourceupload operands into a single-item <see cref="ScrapeRequest"/>: stills
-    /// only (<c>Filter = "img|background|poster"</c>), <c>Count = 1</c>, <c>Group = index</c> so
-    /// the CLI's paging window isolates one still. A malformed value yields false with an error.
-    /// </summary>
+    // Stills only, Count = 1, Group = index so the CLI's paging window isolates one still.
     private static bool TryParseSourceUploadArgs(string url, IReadOnlyList<string> args, out ScrapeRequest request, out int index, out string? error)
     {
         error = null;
         index = 0;
-        // A minimal fallback the callers ignore on `false`; the success path overwrites it below.
         request = new ScrapeRequest { Url = url };
         int? minW = null, maxW = null, minH = null, maxH = null;
         string? format = null, name = null;
@@ -86,7 +73,6 @@ public sealed partial class CommandHandlers
             int eq = token.IndexOf('=');
             if (eq < 0)
             {
-                // A bare integer is the 0-based item index (e.g. "/sourceupload <url> 2").
                 if (int.TryParse(token, out int bare) && bare >= 0)
                 {
                     index = bare;
@@ -109,7 +95,6 @@ public sealed partial class CommandHandlers
                 case "minh" or "minheight": if (!SetInt(ref minH, value, key, out error)) return false; break;
                 case "maxh" or "maxheight": if (!SetInt(ref maxH, value, key, out error)) return false; break;
                 case "format": format = value; break;
-                // A regex matched against each media URL (narrows the candidate stills).
                 case "name": name = value; break;
                 default:
                     error = $"Unrecognised option '{key}'.";
@@ -119,8 +104,6 @@ public sealed partial class CommandHandlers
         request = new ScrapeRequest
         {
             Url = url,
-            // Image-category stills only (exclude video); the single item at `index` is isolated
-            // by the CLI's paging window (Count = 1, Group = index).
             Filter = "img|background|poster",
             Format = format,
             Name = name,

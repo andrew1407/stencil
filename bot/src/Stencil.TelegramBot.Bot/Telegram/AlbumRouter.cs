@@ -6,10 +6,6 @@ using Telegram.Bot.Types;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// Telegram media groups: buffer the members through <see cref="AlbumCollector"/> and, once the
-/// group settles, run it as one batch under the user's gate and the shared error guard.
-/// </summary>
 public sealed class AlbumRouter
 {
     private readonly MediaIntake _media;
@@ -38,7 +34,6 @@ public sealed class AlbumRouter
             new AlbumPhoto(message.Id, album[^1].FileId, message.Caption),
             photos => FlushAsync(userId, chatId, photos, ct), ct);
 
-    /// <summary>A settled album's background flush: same error guard + user gate as a message.</summary>
     private Task FlushAsync(long userId, long chatId, IReadOnlyList<AlbumPhoto> photos, CancellationToken ct) =>
         _guard.RunAsync(chatId, async () =>
         {
@@ -46,12 +41,9 @@ public sealed class AlbumRouter
             await ProcessAsync(userId, chatId, photos, ct);
         }, ct);
 
-    /// <summary>
-    /// One settled album. With a caption (on whichever member carries it): adopt + run it once per
-    /// photo in album order, buffering each render so the batch replies as ONE media group; the
-    /// last photo's result stays as the working image. With no caption, only the last photo is
-    /// adopted, with a single note — captionless members are never individually echoed.
-    /// </summary>
+    // With a caption: adopt + run it once per photo in album order, buffered so the batch replies
+    // as ONE media group. With no caption only the last photo is adopted — captionless members are
+    // never individually echoed.
     private async Task ProcessAsync(long userId, long chatId, IReadOnlyList<AlbumPhoto> photos, CancellationToken ct)
     {
         List<AlbumPhoto> ordered = photos.OrderBy(p => p.MessageId).ToList();

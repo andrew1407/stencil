@@ -8,14 +8,9 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// CommandHandlers — what the whole image is: layout/blank/format, crop, frame, rotate and
-// filter. Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
-    /// <summary>
-    /// Apply a layout to the working image: <c>/layout &lt;json | http(s) url to a .json&gt;</c> —
-    /// the command-line sibling of uploading a .json document. URLs are SSRF-vetted like /url.
-    /// </summary>
+    // The command-line sibling of uploading a .json document; URLs are SSRF-vetted like /url.
     private async Task LayoutAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.ArgumentText.Length == 0)
@@ -35,8 +30,7 @@ public sealed partial class CommandHandlers
             await _bot.SendMessage(chatId, "Upload an image (or use /blank) before applying a layout.", cancellationToken: ct);
             return;
         }
-        // An optional leading `combine` keeps the lines already drawn (the editors' Combine
-        // choice); without it the layout replaces them, as before.
+        // A leading `combine` keeps the lines already drawn (the editors' Combine choice).
         bool combine = cmd.Args.Count > 1 && cmd.Args[0].Equals("combine", StringComparison.OrdinalIgnoreCase);
         IReadOnlyList<string> args = combine ? [.. cmd.Args.Skip(1)] : cmd.Args;
         string argumentText = combine
@@ -48,8 +42,7 @@ public sealed partial class CommandHandlers
             && uri.Scheme is "http" or "https";
         if (isUrl)
         {
-            // Same guard as /url: the bot is open to any Telegram user, so reject
-            // loopback/private/metadata hosts before fetching.
+            // Same guard as /url: reject loopback/private/metadata hosts before fetching.
             await RemoteImageUrl.ValidateAsync(args[0], ct);
             byte[]? fetched = await _layoutFetcher.FetchAsync(args[0], ct);
             if (fetched is null)
@@ -155,7 +148,6 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>Re-grab a frame from the loaded video: <c>/frame [n]</c> (needs ffmpeg).</summary>
     private async Task FrameAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         int frame = 0;

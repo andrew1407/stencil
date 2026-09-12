@@ -3,8 +3,6 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// CommandHandlers — walking the edit history and dropping out of it: /undo, /redo, /undoline,
-// /clear, /reset, /drop and the plain re-render. Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
     private async Task UndoAsync(long userId, long chatId, CancellationToken ct)
@@ -69,10 +67,8 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    /// <summary>
-    /// Drop the working image and active project entirely — a full "start over", so the
-    /// assistant's conversation (which talks about that image) is forgotten along with it.
-    /// </summary>
+    // A full "start over": the assistant's conversation (which talks about that image) is forgotten
+    // too.
     private async Task DropAsync(long userId, long chatId, CancellationToken ct)
     {
         await _editing.DropImageAsync(userId, ct);
@@ -84,7 +80,7 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>Re-render and send the current result (non-mutating — never triggers auto-sync).</summary>
+    // Non-mutating — never triggers auto-sync.
     private Task ImageAsync(long userId, long chatId, CancellationToken ct) =>
         RenderAndSendAsync(userId, chatId, ct, mutating: false);
 }

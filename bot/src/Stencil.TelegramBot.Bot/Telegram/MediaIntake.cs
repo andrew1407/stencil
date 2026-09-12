@@ -6,13 +6,8 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// Telegram download + adopt plumbing: stream a file id to a capped temp path, make it the
-/// working image (or a video frame), then run whatever its caption asked for. Every shape that
-/// brings pixels in — a photo, a video, an image/video document, an album member, a
-/// <c>/prompt</c> reply — funnels through <see cref="WithDownloadedAsync"/>, so the caps and the
-/// temp-file cleanup are written once.
-/// </summary>
+// Every shape that brings pixels in funnels through WithDownloadedAsync, so the caps and temp-file
+// cleanup are written once.
 public sealed class MediaIntake
 {
     private readonly CommandHandlers _handlers;
@@ -32,11 +27,8 @@ public sealed class MediaIntake
         _options = options;
     }
 
-    /// <summary>
-    /// Download a Telegram file to a fresh temp path, hand that path to <paramref name="use"/>,
-    /// and delete it afterwards whatever happens. <paramref name="maxBytes"/> defaults to the
-    /// image/video cap; a partial file from a failed download is cleaned up too.
-    /// </summary>
+    // The temp file is deleted afterwards whatever happens; maxBytes defaults to the image/video
+    // cap.
     public async Task WithDownloadedAsync(
         string fileId, string extension, Func<string, Task> use, CancellationToken ct, long? maxBytes = null)
     {
@@ -62,10 +54,6 @@ public sealed class MediaIntake
         }
     }
 
-    /// <summary>
-    /// Download a Telegram image and adopt it as the working image, then apply any caption command
-    /// (e.g. <c>/crop …</c>) or just render it.
-    /// </summary>
     public Task AdoptImageAsync(long userId, long chatId, string fileId, string extension, string label, string? caption, CancellationToken ct) =>
         WithDownloadedAsync(fileId, extension, async path =>
         {
@@ -74,10 +62,7 @@ public sealed class MediaIntake
             await ApplyCaptionOrRenderAsync(userId, chatId, caption, ct);
         }, ct);
 
-    /// <summary>
-    /// Download a Telegram video and grab a frame. A caption <c>/frame n</c> selects it; any other
-    /// caption command applies to frame 0; with no caption it grabs frame 0 and hints at the flag.
-    /// </summary>
+    // A caption /frame n selects the frame; any other caption applies to frame 0.
     public Task AdoptVideoAsync(long userId, long chatId, string fileId, string extension, string label, string? caption, CancellationToken ct) =>
         WithDownloadedAsync(fileId, extension, async path =>
         {
@@ -101,15 +86,12 @@ public sealed class MediaIntake
     public Task SetWorkingImageAsync(long userId, string path, string label, CancellationToken ct) =>
         _editing.SetImageFromLocalFileAsync(userId, path, label, ct: ct);
 
-    /// <summary>
-    /// After adopting an upload: run a recognised caption edit, else hand a plain-text caption to
-    /// the assistant when chat mode is on, else just render the adopted image.
-    /// </summary>
+    // A recognised caption edit runs; a plain-text caption goes to the assistant when chat mode is
+    // on; else render.
     public async Task ApplyCaptionOrRenderAsync(long userId, long chatId, string? caption, CancellationToken ct)
     {
         if (!HasCaptionCommand(caption))
         {
-            // Chat mode: a plain-text caption is an assistant request about the adopted image.
             if (!string.IsNullOrWhiteSpace(caption) && (await _store.GetAsync(userId, ct)).ChatMode)
             {
                 await _handlers.DispatchAsync(userId, chatId, CommandParser.Prompt(caption!), ct);
@@ -154,11 +136,8 @@ public sealed class MediaIntake
         "prompt",
     };
 
-    /// <summary>
-    /// A document (layout <c>.json</c> / <c>.stencil</c> project) as bytes. It streams to a temp
-    /// file first, so an oversized upload is refused on the way to disk rather than growing the
-    /// heap, under the far tighter non-image cap <see cref="IBotPolicy.MaxDocumentBytes"/>.
-    /// </summary>
+    // Streams to a temp file first, so an oversized upload is refused on the way to disk under the
+    // tighter non-image cap.
     public async Task<byte[]> DownloadDocumentBytesAsync(string fileId, string extension, CancellationToken ct)
     {
         byte[] bytes = [];
@@ -168,7 +147,6 @@ public sealed class MediaIntake
         return bytes;
     }
 
-    /// <summary>Delete a throwaway download, ignoring failures — a leftover temp file is harmless.</summary>
     private static void TryDelete(string path)
     {
         try

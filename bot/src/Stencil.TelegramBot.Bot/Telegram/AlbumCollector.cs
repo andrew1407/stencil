@@ -4,15 +4,11 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 
 public sealed record AlbumPhoto(int MessageId, string FileId, string? Caption);
 
-/// <summary>
-/// Buffers a Telegram media group's photos — an album arrives as separate messages sharing
-/// <c>MediaGroupId</c>, with the caption on one of them — and flushes the whole group in the
-/// background once no new member has arrived for one settle window. The wait is injectable so
-/// offline tests never sleep.
-/// </summary>
+// An album arrives as separate messages sharing MediaGroupId; the group flushes after one quiet
+// settle window.
 public sealed class AlbumCollector
 {
-    /// <summary>Album members usually land within ~a second; flush after this much quiet.</summary>
+    // Album members usually land within ~a second.
     private static readonly TimeSpan DefaultSettle = TimeSpan.FromSeconds(1);
 
     private readonly Func<CancellationToken, Task> _settle;
@@ -24,11 +20,7 @@ public sealed class AlbumCollector
         _settle = settle ?? (ct => Task.Delay(DefaultSettle, ct));
     }
 
-    /// <summary>
-    /// Buffer one album member; the group's first member starts the settle-and-flush task, which
-    /// hands the full group to <paramref name="flush"/> once it stops growing. Runs in the
-    /// background — the caller must NOT hold per-user locks the flush itself acquires.
-    /// </summary>
+    // Runs in the background — the caller must NOT hold per-user locks the flush itself acquires.
     public void Add(long userId, string groupId, AlbumPhoto photo,
         Func<IReadOnlyList<AlbumPhoto>, Task> flush, CancellationToken ct)
     {
@@ -50,7 +42,6 @@ public sealed class AlbumCollector
         }
     }
 
-    /// <summary>Completes when every started group has flushed — lets tests await, not sleep.</summary>
     public Task WhenIdleAsync() => Task.WhenAll(_inFlight.Keys);
 
     private async Task FlushWhenSettledAsync((long, string) key, Group group,

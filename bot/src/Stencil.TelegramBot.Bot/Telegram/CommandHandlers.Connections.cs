@@ -5,15 +5,10 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// CommandHandlers — reaching a server: /start deep links, /link, /connect, /disconnect and
-// /connections. Class doc lives in CommandHandlers.cs.
 public sealed partial class CommandHandlers
 {
-    /// <summary>
-    /// Greet the user — or, when the message carries a deep-link start payload (a
-    /// t.me/&lt;bot&gt;?start=&lt;payload&gt; link from the browser/desktop "Open in…"), connect to
-    /// the referenced server like a fresh client and open the project.
-    /// </summary>
+    // A t.me/<bot>?start=<payload> link from the browser/desktop "Open in…" connects and opens the
+    // project.
     private async Task StartAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct)
     {
         if (cmd.ArgumentText.Length > 0
@@ -29,11 +24,8 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    /// <summary>
-    /// Open a deep-linked server project: reuse the session's connection to that origin, else
-    /// connect tokenless (the server mints one — no token ever rides the link), then fetch and
-    /// render. Failures reply with the manual /connect + /fetch recipe.
-    /// </summary>
+    // Connect tokenless when no connection exists (no token ever rides the link); failures reply
+    // with the manual recipe.
     private async Task OpenDeepLinkedProjectAsync(long userId, long chatId, string serverUrl,
         string projectId, CancellationToken ct)
     {
@@ -63,12 +55,7 @@ public sealed partial class CommandHandlers
         }
     }
 
-    /// <summary>
-    /// Hand the active project to the desktop app: <c>/link</c> replies with an https link that
-    /// bounces through the browser app's <c>launch.html</c> to <c>stencil://open?…</c>. Server
-    /// projects only (a link carries a reference, never image bytes), and no token rides it —
-    /// the recipient connects to that server with their own credential.
-    /// </summary>
+    // Server projects only (a link carries a reference, never image bytes), and no token rides it.
     private async Task LinkAsync(long userId, long chatId, CancellationToken ct)
     {
         UserSession session = await _store.GetAsync(userId, ct);

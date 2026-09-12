@@ -4,10 +4,7 @@ using Telegram.Bot;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-/// <summary>
-/// A plain-text reply to an armed prompt (the custom-expiry entry, a project name/description).
-/// One-shot: the flag is cleared before the matching command is dispatched.
-/// </summary>
+// One-shot: the flag is cleared before the matching command is dispatched.
 public sealed class PendingInputLink : IMessageHandler
 {
     private readonly CommandHandlers _handlers;
@@ -36,9 +33,8 @@ public sealed class PendingInputLink : IMessageHandler
         string[] args = spec.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         BotCommand command = pending switch
         {
-            // The whole reply is the new name (names may contain spaces), so pass it verbatim.
             PendingInputs.ProjectName => new BotCommand("projectname", spec, args),
-            // The whole reply is the description; a lone "-" is the clear convention (→ empty).
+            // A lone "-" is the clear convention.
             PendingInputs.ProjectDescription => spec == "-"
                 ? new BotCommand("projectdescription", "", [])
                 : new BotCommand("projectdescription", spec, args),
@@ -49,11 +45,8 @@ public sealed class PendingInputLink : IMessageHandler
     }
 }
 
-/// <summary>
-/// A pasted http(s) link (no command, no attachment) is treated as <c>/url</c> — fetch it. Words
-/// AROUND the link are a request about it, so in chat mode the link loads first and the rest goes
-/// to the assistant. Without chat mode the link alone still wins.
-/// </summary>
+// A pasted link is /url; words AROUND it are a request about it, so in chat mode the rest goes to
+// the assistant.
 public sealed class UrlLink : IMessageHandler
 {
     private readonly CommandHandlers _handlers;
@@ -77,9 +70,8 @@ public sealed class UrlLink : IMessageHandler
         string around = body.Replace(url, " ", StringComparison.Ordinal).Trim();
         if (around.Length > 0 && (await _store.GetAsync(ctx.UserId, ct)).ChatMode)
         {
-            // The /url render above already answered with the edit menu, which reads as
-            // "done" — say the edit is still coming before the assistant turn runs (which
-            // posts its own spinning notice for how long it takes).
+            // The /url render already answered with the edit menu, which reads as "done" — say the
+            // edit is still coming.
             await _bot.SendMessage(ctx.ChatId, "✏️ Loaded — now editing per your request…", cancellationToken: ct);
             await _handlers.DispatchAsync(ctx.UserId, ctx.ChatId, CommandParser.Prompt(around), ct);
         }
@@ -102,10 +94,7 @@ public sealed class UrlLink : IMessageHandler
     }
 }
 
-/// <summary>
-/// Chat mode (<c>/chat</c>): anything left over — not a command, attachment, pending-prompt
-/// answer or bare image link — is handed to the assistant exactly as "/prompt &lt;text&gt;" would be.
-/// </summary>
+// Whatever is left over is handed to the assistant exactly as "/prompt <text>" would be.
 public sealed class ChatModeLink : IMessageHandler
 {
     private readonly CommandHandlers _handlers;
@@ -129,7 +118,6 @@ public sealed class ChatModeLink : IMessageHandler
     }
 }
 
-/// <summary>The chain's tail: any remaining non-blank text gets the "send a photo" hint.</summary>
 public sealed class FallbackLink : IMessageHandler
 {
     private readonly ITelegramBotClient _bot;

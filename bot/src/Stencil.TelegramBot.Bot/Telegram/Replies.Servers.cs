@@ -5,16 +5,11 @@ using Stencil.TelegramBot.Domain.Sessions;
 
 namespace Stencil.TelegramBot.Bot.Telegram;
 
-// Replies — the server tables: remembered connections, the project list, and the colour dot and
-// host/date helpers they render with. Class doc lives in Replies.cs.
 public static partial class Replies
 {
     public static string ConnectionsUsage() => BotStrings.Reply("connectionsUsage");
 
-    /// <summary>
-    /// The remembered connections (or a hint when none), narrowed by an <c>admin</c>/<c>session</c>
-    /// <paramref name="filter"/>. Admin connections are marked — never the token itself.
-    /// </summary>
+    // Admin connections are marked — never the token itself.
     public static string ConnectionsText(IReadOnlyList<ServerConnectionInfo> connections, string filter = "")
     {
         if (connections.Count == 0)
@@ -41,10 +36,8 @@ public static partial class Replies
         return sb.ToString().TrimEnd();
     }
 
-    /// <summary>
-    /// The most projects one list message / keyboard renders — Telegram caps both. The overflow
-    /// is called out, never silently dropped (narrow with <c>/projects &lt;url&gt;</c>).
-    /// </summary>
+    // Telegram caps both the message and the keyboard; the overflow is called out, never silently
+    // dropped.
     public const int MaxProjectsListed = 20;
 
     public static string ProjectsText(IReadOnlyList<ServerProjectInfo> projects)
@@ -79,10 +72,7 @@ public static partial class Replies
         return sb.ToString().TrimEnd();
     }
 
-    /// <summary>
-    /// A coloured-circle emoji for a project's accent (Telegram can't tint text): a hex maps to
-    /// the nearest palette dot, a CSS name falls back to 🎨, empty yields "".
-    /// </summary>
+    // Telegram can't tint text: a hex maps to the nearest palette dot, a CSS name falls back to 🎨.
     public static string ColorDot(string? color)
     {
         if (string.IsNullOrWhiteSpace(color))
