@@ -1,15 +1,7 @@
 #pragma once
-// Hover "glass shimmer" for context-menu rows — a thin QMenu adapter over the shared
-// ShimmerOverlay (support/shimmerOverlay.hpp, external-band mode). A QAction has no
-// Enter/Leave of its own — QMenu::hovered is the only signal, exactly the constraint
-// menuHotkeys.hpp already works around — so each row's sweep is triggered off
-// hovered(QAction*) and swept over its actionGeometry(); one overlay per menu level
-// (submenus are their own popup widgets, not children of the root menu's rect).
-//
-// Header-only, MOC-free. Construct as menuHotkeys.hpp's stack-local sibling right
-// after the menu, or heap-parented (wireMenuRowPolish passes the menu as parent).
-// Each level's overlay is a plain child QWidget of that QMenu, so it lives and dies
-// with it.
+// Shimmer for context-menu rows over the shared ShimmerOverlay (external-band mode). A
+// QAction has no Enter/Leave — QMenu::hovered is the only signal — and each level is its
+// own popup, so one overlay per QMenu, parented to it. Header-only, MOC-free.
 #include "shimmerOverlay.hpp"
 
 #include <QAction>
@@ -29,9 +21,7 @@ namespace stencil::support {
     }
 
    protected:
-    // A fast pass over many rows must not leave sweeps replay-blocked: leaving or
-    // hiding a level clears its "already swept this row" mark, so re-entering the
-    // same row sweeps again (the overlay itself cancels its animation on Leave/Hide).
+    // Leaving or hiding a level clears its "already swept" mark, so re-entering sweeps again.
     bool eventFilter(QObject* o, QEvent* e) override {
       if (e->type() == QEvent::Leave || e->type() == QEvent::Hide) current_.remove(o);
       return QObject::eventFilter(o, e);
@@ -43,8 +33,7 @@ namespace stencil::support {
       overlay->setObjectName(QStringLiteral("menuShimmerOverlay"));  // the GUI test's hook
       menu->installEventFilter(this);
       connect(menu, &QMenu::hovered, this, [this, overlay, menu](QAction* a) {
-        // hovered(QAction*) can re-fire for the row ALREADY being swept (Qt's own
-        // sloppy-hover bookkeeping) — only a genuinely new row restarts the sweep.
+        // hovered(QAction*) re-fires for the row ALREADY being swept; only a new row restarts.
         QPointer<QAction>& cur = current_[menu];
         if (a == cur) return;
         cur = a;

@@ -7,18 +7,14 @@ namespace stencil::gui {
     return u * u * u;
   }
 
-  // The browser's cubic-bezier(0.16, 1, 0.3, 1) in spirit: nearly all of the distance is
-  // covered up front, so the arriving face reads as settling rather than sliding.
+  // The browser's cubic-bezier(0.16, 1, 0.3, 1) in spirit: nearly all the distance up front.
   double faceEaseOutExpo(double u) {
     u = std::clamp(u, 0.0, 1.0);
     return u >= 1.0 ? 1.0 : 1.0 - std::pow(2.0, -10.0 * u);
   }
 
-  // Progress (0..1) → the frame to paint. Pure, and the whole shape of the motion:
-  // both ends are the face at rest (alpha 1, no turn, full size) and the pivot is
-  // invisible, so the exchange itself is never seen. The turn's SIGN flips across the
-  // pivot — the old glyph leaves at +115°, the new one comes in from -115° — which is
-  // what reads as one continuous turn rather than two.
+  // Pure. Both ends are the face at rest and the pivot is invisible; the turn's SIGN
+  // flips across the pivot (+115° out, -115° in), which reads as one continuous turn.
   FaceSwapFrame faceSwapFrame(double t) {
     t = std::clamp(t, 0.0, 1.0);
     if (t < kFaceSwapPivot) {
@@ -31,8 +27,7 @@ namespace stencil::gui {
             kFaceSwapMinScale + (1.0 - kFaceSwapMinScale) * u};
   }
 
-  // The same glyph in a wider, left-aligned box: `gap` px of transparent air on its
-  // right, which is where the label's breathing room comes from (see FaceSpec::gapPx).
+  // `gap` px of transparent air on the right (FaceSpec::gapPx).
   QIcon detail::withGap(const QIcon& base, int size, int gap) {
     if (base.isNull() || gap <= 0) return base;
     const qreal dpr = qApp ? qApp->devicePixelRatio() : qreal(1);
@@ -46,8 +41,8 @@ namespace stencil::gui {
     return QIcon(out);
   }
 
-  // The glyph turned, shrunk and faded. rotatedIcon bakes the colour into the SVG and
-  // QColor::name() drops alpha, so the fade and the scale are composited here.
+  // rotatedIcon bakes the colour into the SVG and QColor::name() drops alpha, so the
+  // fade and the scale are composited here.
   QIcon detail::faceIcon(const FaceSpec& f, const FaceSwapFrame& fr) {
     const int size = std::max(1, f.iconSize);
     const QIcon base = std::abs(fr.deg) < 0.01
@@ -79,13 +74,11 @@ namespace stencil::gui {
     w->update();
   }
 
-  // Fade the LABEL. A widget stylesheet is the only lever that beats the app-wide
-  // `QToolButton[...] { color: … }` rules; the property selector gives it their weight,
-  // and every state is listed so a hover/press mid-swap can't outrank it.
+  // A widget stylesheet is the only lever over the app-wide `QToolButton[...] { color }`
+  // rules; every state is listed so a hover/press mid-swap cannot outrank it.
   void detail::setLabelAlpha(QAbstractButton* btn, const QColor& color, double alpha) {
     if (!color.isValid()) return;
-    // Quantised, because every write re-polishes the widget and the ease flattens near
-    // both ends: a frame whose colour is already up is skipped outright.
+    // Quantised: every write re-polishes the widget.
     const double q = std::lround(std::clamp(alpha, 0.0, 1.0) * 50.0) / 50.0;
     const QString rgba = QStringLiteral("rgba(%1,%2,%3,%4)")
                              .arg(color.red())
@@ -102,13 +95,10 @@ namespace stencil::gui {
                        "QPushButton[%1=\"true\"],QPushButton[%1=\"true\"]:hover"
                        "{color:%2;}")
             .arg(QString::fromLatin1(kFaceSwappingProperty), rgba));
-    // Qt matches property selectors at POLISH time, so the frame that turns the property
-    // on has to re-polish or the whole rule is skipped (the fade would never show).
+    // Qt matches property selectors at POLISH time.
     if (!already) repolish(btn);
   }
 
-  // Hand the button its own stylesheet back — a settled face is styled by the app QSS
-  // alone, so nothing of the swap survives it.
   void detail::clearLabelAlpha(QAbstractButton* btn) {
     if (!btn->property(kFaceSwappingProperty).toBool()) return;
     btn->setProperty(kFaceSwappingProperty, false);
@@ -126,8 +116,7 @@ namespace stencil::gui {
     btn->setProperty(kFaceGapProperty, f.gapPx);
   }
 
-  // The face a previous swap left painted. `known` is false the first time, when the
-  // button has no history to leave from and the new face just goes on.
+  // `known` is false the first time, when there is no face to leave from.
   FaceSpec detail::paintedFace(const QAbstractButton* btn, bool* known) {
     FaceSpec f;
     f.glyph = btn->property(kFaceGlyphProperty).toString();

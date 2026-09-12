@@ -1,13 +1,7 @@
 #pragma once
-// Every QScrollBar in the app painted as the canvas's: a fully rounded pill in the
-// browser's thumb grey (css/theme.css --sb-thumb), thin at rest, swelling to the theme
-// accent under the pointer (--sb-thumb-hover: var(--accent), on the bar's own strip).
-// The stylesheet still SIZES the bars (theme.cpp QScrollBar rules); the painting lives
-// here because QSS on macOS draws the handle square whatever radius it is given, and its
-// `::handle:hover` never lit the dialogs' bars. One application-level filter adopts each
-// bar as Qt polishes it (dialogs opened later included), and a per-bar filter then
-// swallows its paint event — the bars themselves stay plain QScrollBars, so nothing that
-// connected to them is disturbed.
+// Every QScrollBar painted as a rounded pill (browser --sb-thumb / --sb-thumb-hover). The
+// stylesheet still SIZES the bars; painting lives here because QSS on macOS draws the
+// handle square and its `::handle:hover` never lit the dialogs' bars.
 #include "motionPrefs.hpp"   // motionReduced()
 
 #include <QApplication>
@@ -26,8 +20,7 @@ namespace stencil::gui {
     static constexpr qreal kRestThick = 6;    // thinner than the browser's 8 at rest…
     static constexpr qreal kHoverThick = 9;   // …and 1.5× under the pointer, as there
 
-    // Theme hook (MainWindow::applyTheme): the thumb's rest and hover colours, for every
-    // bar there is and every bar to come. Installs the app-wide adopter on first use.
+    // Theme hook (MainWindow::applyTheme). Installs the app-wide adopter on first use.
     static void setColors(const QColor& thumb, const QColor& hover) {
       colors().thumb = thumb;
       colors().hover = hover;
@@ -39,7 +32,7 @@ namespace stencil::gui {
         }
     }
 
-    // Idempotent: the first call parents a pill to the bar, later ones are no-ops.
+    // Idempotent.
     static void adopt(QScrollBar* bar) {
       if (!bar || bar->property(kProperty).toBool()) return;
       bar->setProperty(kProperty, true);
@@ -52,8 +45,7 @@ namespace stencil::gui {
       switch (e->type()) {
         case QEvent::Paint: return paint();
         case QEvent::Enter: swellTo(kHoverThick); break;
-        // A drag past the bar's edge keeps the thumb held (Qt withholds the Leave until
-        // release anyway); settle only once the pointer really is elsewhere.
+        // Qt withholds the Leave during a drag past the edge; settle once the pointer really left.
         case QEvent::Leave: if (!bar_->isSliderDown()) swellTo(kRestThick); break;
         case QEvent::MouseButtonRelease: if (!bar_->underMouse()) swellTo(kRestThick); break;
         default: break;
@@ -66,8 +58,7 @@ namespace stencil::gui {
     struct Colors { QColor thumb, hover; };
     static Colors& colors() { static Colors c; return c; }
 
-    // The one application filter: a QScrollBar's Polish (its first styling, before its
-    // first paint) is the moment it is adopted.
+    // A QScrollBar's Polish (before its first paint) is the moment it is adopted.
     class Adopter : public QObject {
      protected:
       bool eventFilter(QObject* o, QEvent* e) override {
@@ -95,12 +86,11 @@ namespace stencil::gui {
       bar_->installEventFilter(this);
     }
 
-    // true = painted (the bar's own painting is skipped); false = unthemed, Qt paints.
+    // true = painted here; false = unthemed, Qt paints.
     bool paint() {
       const Colors& c = colors();
       if (!c.thumb.isValid()) return false;
-      // What QScrollBar::initStyleOption fills in (it is protected), so the stylesheet
-      // style hands back the slider rect the QSS sizing rules produce.
+      // What QScrollBar::initStyleOption (protected) fills in, so the QSS sizing rules apply.
       QStyleOptionSlider opt;
       opt.initFrom(bar_);
       opt.subControls = QStyle::SC_All;
@@ -116,7 +106,6 @@ namespace stencil::gui {
       const QRect slider = bar_->style()->subControlRect(QStyle::CC_ScrollBar, &opt,
                                                          QStyle::SC_ScrollBarSlider, bar_);
       if (!slider.isValid()) return true;   // nothing to scroll: a bare, transparent slot
-      // Centred in the slot, whatever the stylesheet's box left us.
       const QRectF pill =
           opt.orientation == Qt::Vertical
               ? QRectF(slider.center().x() + 0.5 - thick_ / 2.0, slider.top(), thick_, slider.height())

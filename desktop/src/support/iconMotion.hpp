@@ -1,24 +1,10 @@
 #pragma once
-// Per-icon hover motion — every glyph mimes its OWN action. Port of
-// browser/js/config/iconMotion.json (the canonical table, qrc-embedded here) and its CSS
-// realisation in browser/css/animations.css. One generic tilt for everything is worse than
-// none — a minus that swells reads as "increase".
-//
-// QSvgRenderer has no CSS engine and cannot address a class, so a frame is produced by
-// REWRITING the glyph's markup: a `transform` (and, for draw-on marks, a stroke-dasharray/
-// dashoffset) is injected into the start tag of each element carrying the table's `ic-*`
-// hook, and the result goes down iconSet's ordinary rasterize path. Those hooks are in the
-// shared canon (browser/js/config/icons.json) and inert at rest.
-//
-// One application-wide event filter (installIconMotion()) is the trigger: a button carries
-// no glyph name, but iconSet::iconRequestForKey() traces its QIcon back to the glyph,
-// colour and size it was built from, so no call site changes. Only the icon's own pixels
-// move, so nothing reflows. Reduced motion cancels it all: the rest pose IS the end state.
-//
-// Header-only and Q_OBJECT-free (no signals or slots of its own), so it needs no MOC.
-#include "faceSwap.hpp"      // faceSwapping() — a face mid-swap owns the glyph
+// Per-icon hover motion — port of browser/js/config/iconMotion.json (qrc-embedded) and
+// its CSS in browser/css/animations.css. QSvgRenderer has no CSS engine, so a frame
+// REWRITES the markup: a transform is injected on each `ic-*` hooked element. Q_OBJECT-free.
+#include "faceSwap.hpp"
 #include "iconSet.hpp"
-#include "modalReveal.hpp"   // support::motionReduced()
+#include "modalReveal.hpp"
 
 #include <QAbstractAnimation>
 #include <QAbstractButton>
@@ -47,19 +33,15 @@
 
 namespace stencil::gui {
 
-  // Set on a control that must keep its glyph out of this: the fold chevrons, whose
-  // rotation is STATE (open/closed), not hover feedback — the browser's `[id^="toggle-"]`
-  // opt-out (iconMotion.json trigger.excluded).
+  // The browser's `[id^="toggle-"]` opt-out (iconMotion.json trigger.excluded).
   inline constexpr const char* kNoIconMotionProperty = "stencilNoIconMotion";
-  // Optional state a glyph's motion branches on — "active" picks iconMotion.json's
-  // `variants.active` (the fullscreen control that LEAVES fullscreen). A checkable
-  // button's checked state means the same thing and needs no property.
+  // "active" picks iconMotion.json `variants.active`; a checkable button's checked state
+  // means the same and needs no property.
   inline constexpr const char* kIconStateProperty = "stencilIconState";
   inline constexpr const char* kIconMotionAnimName = "stencilIconMotion";
-  // Set on a QMenu once its hovered() signal has been wired to the row motion.
   inline constexpr const char* kMenuHoverWiredProperty = "stencilIcmHovered";
 
-  // A pose in the glyph's own 24-unit space. Absent fields are identity.
+  // In the glyph's own 24-unit space; absent fields are identity.
   struct IconPose {
     double tx = 0, ty = 0;
     double rotate = 0;    // degrees, clockwise (SVG y-down)
@@ -107,8 +89,6 @@ namespace stencil::gui {
     QVector<IconMotionPart> readParts(const QJsonArray& arr, bool hold,
                                       int dfltMs, QEasingCurve::Type dfltEase);
 
-    // One start tag in the canon's inner markup: where an attribute can be injected,
-    // its class list, and the tag text itself (for the originSelf centre).
     struct Tag {
       int insertAt = 0;
       QString cls;
@@ -151,8 +131,7 @@ namespace stencil::gui {
 
   const IconMotionSpec* iconMotionFor(const QString& glyph);
 
-  // One per hovered button, parented to it. Holds the elapsed clock the parts read and
-  // repaints the button's icon from the posed markup each frame.
+  // One per hovered button, parented to it.
   class IconMotionRunner : public QObject {
    public:
     IconMotionRunner(QAbstractButton* btn, const IconRequest& req, const IconMotionSpec* spec,
@@ -183,10 +162,8 @@ namespace stencil::gui {
     double elapsed_ = 0;
   };
 
-  // The same runner for a MENU ROW: a QMenu's items are QActions, not buttons, so the
-  // hover watcher drives this one from the menu's own mouse moves instead of Enter/
-  // Leave (browser parity: a .chat-more-item / .ctx-item icon animates on row hover).
-  // No face-swap check — action glyphs never face-swap.
+  // For a menu row (browser: a .chat-more-item / .ctx-item icon animates on row hover),
+  // driven from the menu's mouse moves. No face-swap check — action glyphs never swap.
   class ActionIconMotionRunner : public QObject {
    public:
     ActionIconMotionRunner(QAction* act, const IconRequest& req, const IconMotionSpec* spec,
@@ -229,9 +206,7 @@ namespace stencil::gui {
 
   }  // namespace icm
 
-  // The one application-wide hover watcher. Enter/Leave are rare events, so this costs
-  // nothing at rest and needs no per-button installation — which is what lets every
-  // dynamically built row, menu panel and dialog get the motion for free.
+  // Application-wide; Enter/Leave are rare, so it costs nothing at rest.
   inline constexpr const char* kIconMotionFilterName = "stencilIconMotionFilter";
 
   class IconMotionFilter : public QObject {

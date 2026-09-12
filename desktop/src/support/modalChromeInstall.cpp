@@ -28,9 +28,7 @@
 namespace stencil::gui {
 
   namespace {
-    // Frameless dialogs lose the OS title bar (browser parity: no traffic lights on a
-    // modal), so the HEADER is the drag handle — press anywhere on it that is not a
-    // button and the whole dialog moves with the cursor.
+    // Frameless (browser parity), so the HEADER is the drag handle.
     class HeaderDrag : public QObject {
      public:
       HeaderDrag(QWidget* header, QDialog* dlg) : QObject(header), dlg_(dlg) {
@@ -68,9 +66,7 @@ namespace stencil::gui {
 
   ModalChrome installModalChrome(QDialog* dlg, const QString& iconName, const QString& title) {
     ModalChrome c;
-    // No OS title bar (browser parity: the modal's own header is the only chrome) and a
-    // translucent window so the shell's rounded corners actually clip. The QSS half —
-    // the transparent dialog face + the #modalShell card — lives in theme.cpp.
+    // Translucent window so the shell's rounded corners clip; the QSS half lives in theme.cpp.
     dlg->setProperty("modalChrome", true);
     dlg->setWindowFlag(Qt::FramelessWindowHint, true);
     dlg->setAttribute(Qt::WA_TranslucentBackground, true);
@@ -82,9 +78,7 @@ namespace stencil::gui {
     shell->setAttribute(Qt::WA_StyledBackground, true);
     outer->addWidget(shell);
     c.root = new QVBoxLayout(shell);
-    // The dividers must run edge to edge (browser parity), so the root carries no
-    // margins; the header/body/footer rows pad themselves instead. 1px inset keeps the
-    // children off the shell's own border.
+    // Dividers run edge to edge, so the root carries no margins; 1px inset keeps children off the border.
     c.root->setContentsMargins(1, 1, 1, 1);
     c.root->setSpacing(0);
 
@@ -122,9 +116,7 @@ namespace stencil::gui {
     c.body->setContentsMargins(kPadX, kBodyPadY, kPadX, kBodyPadY);
     c.body->setSpacing(kBodySpacing);
     c.root->addLayout(c.body, 1);
-    // Every control in the window gets the app's glass hover sweep — the browser's rule
-    // is app-wide, so a Qt window has to opt its own in. Deferred a turn, because the
-    // caller fills the body after this returns.
+    // Deferred a turn, because the caller fills the body after this returns.
     installHoverShimmerLater(dlg);
     return c;
   }
@@ -144,7 +136,7 @@ namespace stencil::gui {
     auto* cancelBtn = new QPushButton(spec.cancelLabel, &dlg);
     makeModalCta(cancelBtn, QStringLiteral("x"));
     footer->addWidget(cancelBtn);
-    // The askAlt third button sits between Cancel and Confirm (browser order).
+    // Browser order: the askAlt third button sits between Cancel and Confirm.
     bool altPicked = false;
     if (!spec.altLabel.isEmpty()) {
       auto* altBtn = new QPushButton(spec.altLabel, &dlg);
@@ -162,15 +154,13 @@ namespace stencil::gui {
     } else {
       makeModalCta(okBtn, spec.confirmIcon);
     }
-    // Enter = Confirm (the browser focuses its confirm button); Escape rejects
-    // via QDialog's own handling, same as the browser's key handler.
+    // Enter = Confirm (the browser focuses its confirm button); Escape rejects via QDialog.
     okBtn->setDefault(true);
     okBtn->setAutoDefault(true);
     footer->addWidget(okBtn);
     QObject::connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
     QObject::connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
-    // The browser confirm rides the shared .app-modal shell width, but sizes its
-    // height to the question alone.
+    // Browser: shared .app-modal width, height sized to the question alone.
     dlg.setFixedWidth(kModalWidth);
     dlg.adjustSize();
     okBtn->setFocus();

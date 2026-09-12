@@ -17,8 +17,7 @@
 
 namespace stencil::gui {
 
-  // Below the trigger, at least trigger-wide, tall enough for the visible rows
-  // up to the browser's 280px cap; flipped above when the screen runs out.
+  // Below the trigger, up to the browser's 280px cap; flipped above when the screen runs out.
   void SearchComboBox::positionPopup() {
     const int rows = proxy_->rowCount();
     const int rowH = rows > 0 ? list_->sizeHintForRow(0) : 0;
@@ -39,8 +38,7 @@ namespace stencil::gui {
     popup_->setGeometry(QRect(pos, QSize(w, h)));
   }
 
-  // Each open starts like the browser's: empty query, every row visible, the
-  // current item highlighted, focus in the search field.
+  // Each open starts like the browser's: empty query, current item highlighted, focus in the search.
   void SearchComboBox::setListDelegate(QAbstractItemDelegate* delegate) {
     delegate_ = delegate;
     if (!list_) return;
@@ -58,8 +56,7 @@ namespace stencil::gui {
       hidePopup();
       return;
     }
-    // The outside-press that closed the popup also lands on the trigger and
-    // would reopen it here — treat that press as "toggle closed" instead.
+    // The outside-press that closed the popup also lands on the trigger: treat it as "toggle closed".
     if (lastHide_.isValid() && lastHide_.elapsed() < 150) return;
     ensurePopup();
     if (search_) {
@@ -74,7 +71,7 @@ namespace stencil::gui {
     list_->setCurrentIndex(cur);
     positionPopup();
     popup_->show();
-    // 1.5x the menu clock — a select reads slower next to the browser's.
+    // 1.5x the menu clock.
     support::revealPopup(*popup_, this, support::kSelectPopupDustMs);
     if (cur.isValid()) list_->scrollTo(cur, QAbstractItemView::PositionAtCenter);
     (search_ ? static_cast<QWidget*>(search_) : static_cast<QWidget*>(list_))
@@ -82,8 +79,7 @@ namespace stencil::gui {
   }
 
   void SearchComboBox::hidePopup() {
-    // The dust plays off popup_'s own Hide event below — the one place every close path
-    // (a pick, Escape, or Qt's own Qt::Popup grab-loss on an outside click) funnels through.
+    // The dust hangs off popup_'s Hide event — where every close path funnels through.
     if (popup_) popup_->hide();
     QComboBox::hidePopup();
   }
@@ -94,9 +90,7 @@ namespace stencil::gui {
     if (watched == popup_ && event->type() == QEvent::Hide) {
       restorePreview();   // however it closed without a pick, revert to the committed value
       lastHide_.start();
-      // grab() still renders a hidden widget: an outside click hides popup_ via Qt's own
-      // grab-loss handling, which never calls hidePopup() above, so the flight has to hang
-      // off this Hide event instead.
+      // An outside click hides popup_ via Qt's grab-loss handling, which never calls hidePopup().
       support::dismissPopup(*popup_, this, support::kSelectPopupDustMs);
     }
     if ((watched == search_ || (!searchable_ && watched == list_)) &&

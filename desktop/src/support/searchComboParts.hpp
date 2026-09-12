@@ -6,14 +6,12 @@
 namespace stencil::gui {
 
 
-  // Browser parity: .accent-dd-menu caps at max-height: 280px.
+  // Browser .accent-dd-menu max-height: 280px.
   inline constexpr int kMaxPopupHeight = 280;
-  // .accent-dd-menu padding: 4px (also the search-row → list gap).
+  // .accent-dd-menu padding: 4px.
   inline constexpr int kPopupPadding = 4;
 
-  // rowMatches(label + value, query): case-insensitive substring over the
-  // display label AND the canonical item DATA ("A4"/"custom"), so "a4"
-  // matches whatever unit the label is currently rendered in.
+  // rowMatches(label + value, query): substring over the label AND the item DATA, so "a4" matches any unit.
   class LabelValueFilterProxy : public QSortFilterProxyModel {
   public:
     using QSortFilterProxyModel::QSortFilterProxyModel;

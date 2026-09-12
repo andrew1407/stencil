@@ -28,11 +28,8 @@
 namespace stencil::gui {
 
   namespace {
-    // The browser's `.settings-footer` wraps (flex-wrap): the hint keeps the buttons' row
-    // while it can hold its basis, and drops to its own line above them when it can't —
-    // left-aligned, the buttons packed RIGHT beneath it. Buttons that still don't fit wrap
-    // onto further right-packed lines, so nothing is cut off at the edge. Qt has no
-    // wrapping box, so the swaps are done by hand on every resize.
+    // Browser `.settings-footer` flex-wrap, by hand on every resize: the hint drops to
+    // its own line when it can't hold its basis; overflowing buttons wrap right-packed.
     class FooterWrap : public QObject {
      public:
       FooterWrap(QWidget* host, QVBoxLayout* stack, QHBoxLayout* actions, QLabel* hint)
@@ -40,15 +37,13 @@ namespace stencil::gui {
         host->installEventFilter(this);
       }
 
-      // Run once the caller has added its buttons — and after addModalFooter's width
-      // reservation, or the hint wraps for want of room that was about to arrive.
+      // After addModalFooter's width reservation, or the hint wraps for room about to arrive.
       void apply() {
         const QList<QWidget*> all = buttons();
         if (all.isEmpty()) return;   // the caller has not added its buttons yet
         const int avail = host_->width() - 2 - kPadX * 2;
         const int gap = actions_->spacing();
-        // Greedy lines (browser flex-wrap): the first button that would run past the
-        // edge opens the next one. Hidden buttons ride along, taking no room.
+        // Greedy lines (flex-wrap); hidden buttons ride along, taking no room.
         QList<QList<QWidget*>> lines{{}};
         int x = 0, firstLineW = 0;
         for (QWidget* w : all) {
@@ -71,7 +66,6 @@ namespace stencil::gui {
       }
 
      private:
-      // Every button in reading order: the actions row's, then the extra lines'.
       QList<QWidget*> buttons() const {
         QList<QWidget*> out;
         const auto take = [&](const QHBoxLayout* row) {
@@ -85,7 +79,6 @@ namespace stencil::gui {
         return out;
       }
 
-      // Hint beside the buttons (leading the row, growing) or on its own line above.
       void setWrapped(bool on) {
         if (on == wrapped_) return;
         wrapped_ = on;
@@ -100,8 +93,7 @@ namespace stencil::gui {
         }
       }
 
-      // Re-home the buttons over `lines`: the first line stays the actions row, each
-      // further one is a right-packed row of its own under it. A no-op when nothing moves.
+      // The first line stays the actions row; a no-op when nothing moves.
       void setLines(const QList<QList<QWidget*>>& lines) {
         QList<QList<QWidget*>> have{{}};
         for (int i = 0; i < actions_->count(); ++i)
@@ -151,9 +143,7 @@ namespace stencil::gui {
   QHBoxLayout* addModalFooter(ModalChrome& chrome, const QString& hint, bool liveHint) {
     QWidget* dlg = chrome.root ? chrome.root->parentWidget() : nullptr;
     chrome.root->addWidget(modalDivider(dlg));
-    // Hint left, buttons right, on ONE row (browser .settings-footer). The hint takes all
-    // the slack, so at a normal width it wraps at most a line or two instead of being
-    // squeezed into a tall column of two-word lines.
+    // Browser .settings-footer: the hint takes all the slack.
     auto* footer = new QHBoxLayout;
     footer->setSpacing(8);
     if (hint.isEmpty() && !liveHint) {
@@ -162,9 +152,7 @@ namespace stencil::gui {
       chrome.root->addLayout(footer);
       return footer;
     }
-    // A hint rides in a wrap-capable stack: its own line above the buttons once the row
-    // can no longer hold kFooterHintMinW beside them, the buttons right-packed under it
-    // (FooterWrap). The padding moves to the stack so every line shares it.
+    // The padding moves to the stack so every line shares it.
     auto* stack = new QVBoxLayout;
     stack->setContentsMargins(kPadX, kFooterPadY, kPadX, kFooterPadY);
     stack->setSpacing(8);
@@ -174,10 +162,8 @@ namespace stencil::gui {
     chrome.footerHint = h;
     h->setWordWrap(true);
     h->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    // …but that floor is a PREFERENCE, never a hard minimumWidth. A hard one Qt cannot
-    // go under: once the row no longer fits, the layout hands it negative space and the
-    // items overlap. Ignored lets the text yield the last pixels instead, wrapping
-    // deeper, so nothing is ever drawn over.
+    // A PREFERENCE, never a hard minimumWidth: a hard one hands the row negative space
+    // and the items overlap; Ignored lets the text yield the last pixels instead.
     QSizePolicy sp(QSizePolicy::Ignored, QSizePolicy::Preferred);
     sp.setHeightForWidth(true);   // narrower ⇒ taller, so the wrap is never cut off
     h->setSizePolicy(sp);
@@ -185,18 +171,14 @@ namespace stencil::gui {
     stack->addLayout(footer);
     chrome.root->addLayout(stack);
     auto* wrap = dlg ? new FooterWrap(dlg, stack, footer, h) : nullptr;   // `dlg` = the shell
-    // …and the WINDOW is what widens to hold the BUTTONS. An explicit setMinimumSize
-    // (every dialog sets one) stops SetDefaultConstraint from raising the minimum to what
-    // the layout needs, so a wider system font ran the row out of space and drew the hint
-    // under the first button. The hint itself needs no reservation — it wraps to its own
-    // line instead. Run once the caller has added its buttons, and only ever upwards.
+    // An explicit setMinimumSize stops SetDefaultConstraint from raising the minimum to
+    // what the layout needs, so a wider system font drew the hint under the first button.
+    // Only ever upwards.
     if (dlg) {
       QWidget* owner = dlg->parentWidget();   // the dialog the shell fills
       QTimer::singleShot(0, dlg, [dlg, owner, footer, h, wrap] {
         QWidget* win = dlg->window();
-        // …but only while the dialog IS the window. Worn as a popover it is re-parented
-        // into the main window (mainWindow execMaybePopover), whose minimum width is
-        // none of this row's business.
+        // Only while the dialog IS the window: as a popover it is re-parented into the main window.
         if (win && win == owner) {
           // The stack pads both lines; the root insets 1px a side.
           const int need = kPadX * 2 + 2 + footerButtonsWidth(footer, h);

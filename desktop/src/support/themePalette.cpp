@@ -47,12 +47,10 @@ namespace stencil::gui {
     p.bgCoordHover = themeToken("--bg-coord-hover", dark);
     p.warning = themeToken("--warning", dark);
     p.disabledText = themeToken("--disabled-text", dark);
-    // The two that are NOT theme.css tokens: constants.json DEFAULT_VISUALS, the
-    // canvas highlight styles Settings lets the user repaint (fileStore defaults).
+    // NOT theme.css tokens: constants.json DEFAULT_VISUALS, repainted via Settings.
     p.selGlow = displayColor(QColor("#ffc800"));
     p.hoverRing = displayColor(QColor("#7c3aed"));
-    // The accent-derived three. --accent / --text-key are in the canon too, but only as
-    // the violet default: the chosen accent is what the app actually wears.
+    // The canon carries only the violet default; the chosen accent is what the app wears.
     const QColor accent = accentPrimary(accentKey);
     p.accent = accent;
     p.textKey = accentShade(accent, dark);
@@ -60,15 +58,13 @@ namespace stencil::gui {
     return p;
   }
 
-  // The browser's own thumb grey (css/theme.css --sb-thumb); under the pointer it takes
-  // the theme's accent, as the browser's --sb-thumb-hover: var(--accent) does.
+  // Browser --sb-thumb / --sb-thumb-hover: var(--accent).
   QColor canvasScrollThumb(bool dark) { return themeToken("--sb-thumb", dark); }
   QColor canvasScrollThumbHover(bool dark, const QString& accentKey) {
     return themePalette(dark, accentKey).accent;
   }
 
-  // Build a QPalette from the same theme tokens the stylesheet uses, so menus,
-  // popups and other native bits match. Set on qApp in applyTheme().
+  // The same tokens as the stylesheet, so native bits match. Set on qApp in applyTheme().
   QPalette buildQPalette(bool dark, const QString& accentKey) {
     const Palette p = themePalette(dark, accentKey);
     QPalette q;
@@ -83,18 +79,14 @@ namespace stencil::gui {
     q.setColor(QPalette::ToolTipText, p.textMain);
     q.setColor(QPalette::Highlight, p.accent);
     q.setColor(QPalette::HighlightedText, QColor("#ffffff"));
-    // Link = accent-2 (browser --text-key): key-chip text + hyperlinks, readable on every theme.
+    // Link = accent-2 (browser --text-key).
     q.setColor(QPalette::Link, p.textKey);
     q.setColor(QPalette::PlaceholderText, p.textMuted);
-    // Mid = the same muted text: every `palette(mid)` stylesheet (section headers,
-    // footer hints) reads it. Unset, Qt derives a grey from Button that vanishes
-    // against the dark theme's dialogs.
+    // Mid = the muted text, read by every `palette(mid)` sheet; Qt's derived grey vanishes on dark.
     q.setColor(QPalette::Mid, p.textMuted);
-    // Dark = the browser's --border-main: the hairline every hand-painted card outline
-    // wants (projectsDialog's row cards). Mid is the muted TEXT, far too light for one.
+    // Dark = browser --border-main, the hairline hand-painted card outlines want.
     q.setColor(QPalette::Dark, p.borderMain);
-    // The DISABLED group is the browser's --disabled-text — dimmer than the muted live
-    // label, and what a rasterised disabled glyph is inked with (iconSet.cpp mutedInk).
+    // Disabled = browser --disabled-text, what a rasterised disabled glyph is inked with (iconSet.cpp mutedInk).
     q.setColor(QPalette::Disabled, QPalette::Text, p.disabledText);
     q.setColor(QPalette::Disabled, QPalette::ButtonText, p.disabledText);
     q.setColor(QPalette::Disabled, QPalette::WindowText, p.disabledText);

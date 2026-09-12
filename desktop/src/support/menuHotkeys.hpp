@@ -1,21 +1,10 @@
 #pragma once
-// Bordered keycap chips for a context menu's shortcut hints — the desktop port of the
-// browser's .ctx-hotkey .tip-key (components.css): a QMenu can't rich-render an action's
-// own text, so every hotkey-bearing row's native "\tCtrl+C" is replaced with a blank
-// "\t"-plus-spaces run measured to the SAME width (so QMenu still sizes/aligns the row
-// exactly as it would have) and a small click-through gui::TipBody is painted over the
-// blank spot instead — the exact cap-diffing/shake widget the app tooltip uses. Caps
-// shake once per row on HOVER (browser: .ctx-item:hover .tip-key), not once on open like
-// the tooltip's own appearance shake.
-//
-// Header-only and Q_OBJECT-free (lambdas only, like menuReveal.cpp's MenuReveal/
-// MenuFlight — no MOC needed). Construct ONCE, as a STACK-local variable declared right
-// AFTER the menu (`StayOpenMenu menu(this); support::MenuHotkeyChips chips(&menu); ...`),
-// so C++ destroys it before the menu itself: restoring the shared actions' real text at
-// that point is safe, whereas parenting this to the menu is not — a QAction::setText()
-// during the menu's OWN QObject::deleteChildren() teardown reenters a findChildren() over
-// the same half-destroyed tree (crashed via styleDangerToolButtons' changed() handler).
-// Never heap-allocate or parent this to the menu; it must outlive exec() but not the menu.
+// Keycap chips for a context menu's shortcut hints (browser .ctx-hotkey .tip-key): the
+// row's native "\tCtrl+C" is replaced by a blank run of the SAME width and a click-through
+// gui::TipBody is painted over it. Q_OBJECT-free. Construct ONCE as a STACK-local declared
+// right AFTER the menu, never heap-allocated or parented to it: a QAction::setText()
+// during the menu's own deleteChildren() reenters a findChildren() over the half-destroyed
+// tree (crashed via styleDangerToolButtons' changed() handler).
 #include "appTooltip.hpp"   // gui::TipBody
 #include "theme.hpp"        // gui::kMenuItemRightPadPx
 #include "tipContent.hpp"   // comboKeycapsHtml, currentPalette
@@ -65,9 +54,7 @@ namespace stencil::support {
     void shakeRow(QAction* a);
 
     std::vector<Row> rows_;
-    // Which row's shake is currently playing (or just played) — see shakeRow()'s own
-    // comment. Reset on aboutToHide (installPlacer) so a FRESH open always shakes its
-    // first-hovered row again, rather than reading it as "already current" from last time.
+    // Reset on aboutToHide so a FRESH open shakes its first-hovered row again.
     QPointer<QAction> current_;
   };
 

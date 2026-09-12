@@ -3,13 +3,8 @@
 #include <QStyle>
 #include <QWidget>
 
-// Left-to-right layout that wraps onto a new line when it runs out of width, and reports
-// a height that grows with however many lines that takes (heightForWidth) — Qt has no
-// built-in flex-wrap equivalent, so a QHBoxLayout row either overflows or clips. Standard
-// Qt Widgets "Flow Layout" example algorithm, ported in for the "Selected Line:" bar
-// (browser parity: .selection-panel-inner is a flex row that wraps). An item wider than
-// the whole row takes the row's width (and its own heightForWidth), so a wrapping group
-// inside a wrapping bar wraps in turn instead of running past the edge.
+// The Qt Widgets "Flow Layout" example, ported for the "Selected Line:" bar (browser
+// .selection-panel-inner wraps). An item wider than the row takes the row's width.
 namespace stencil::gui {
 
   class FlowLayout : public QLayout {
@@ -18,12 +13,10 @@ namespace stencil::gui {
         : QLayout(parent), hSpace_(hSpacing), vSpace_(vSpacing) {
       setContentsMargins(margin, margin, margin, margin);
     }
-    // sizeHint = the whole row on ONE line (a QHBoxLayout's), not the widest item: what
-    // a controlReveal slot measures and slides open to (browser .projects-batch-selected).
+    // sizeHint = the whole row on ONE line: what a controlReveal slot slides open to.
     void setLineSizeHint(bool on) { lineHint_ = on; }
-    // Hold one line while the owner's maximumWidth is capped — a controlReveal slot
-    // sliding open or shut animates exactly that — so the row is wiped edge-on instead of
-    // re-flowing into a column on the way out (browser .reveal-group-transition nowrap).
+    // One line while the owner's maximumWidth is capped, so a controlReveal slot wipes
+    // edge-on instead of re-flowing into a column (browser .reveal-group-transition nowrap).
     void setHoldsLineWhileCapped(bool on) { holdWhileCapped_ = on; }
     ~FlowLayout() override {
       QLayoutItem* item;
@@ -66,9 +59,7 @@ namespace stencil::gui {
     }
 
    private:
-    // Places every item left-to-right, wrapping to a new row when the next one would run
-    // past the right edge. Each row is buffered and flushed once its height is known, then
-    // vertically centered within it (browser parity: align-items: center).
+    // Rows are buffered and flushed once their height is known, then vertically centred.
     int doLayout(const QRect& rect, bool testOnly) const {
       const QMargins m = contentsMargins();
       const QRect area = rect.adjusted(m.left(), m.top(), -m.right(), -m.bottom());
@@ -85,8 +76,7 @@ namespace stencil::gui {
         if (!testOnly) {
           for (int i = 0; i < rowItems.size(); ++i) {
             const QSize sz = rowSize[i];
-            // An item asking to expand vertically takes the whole line rather than being
-            // centred in it — the browser's `align-self: stretch` (.ctrl-sep).
+            // Vertical expand takes the whole line — the browser's `align-self: stretch` (.ctrl-sep).
             const QWidget* w = rowItems[i]->widget();
             const bool stretch =
                 w && (w->sizePolicy().verticalPolicy() & QSizePolicy::ExpandFlag) != 0;
@@ -110,11 +100,8 @@ namespace stencil::gui {
           if (item->hasHeightForWidth()) sz.setHeight(item->heightForWidth(sz.width()));
         }
         int nextX = x + sz.width() + hSpace_;
-        // The item occupies [x, x + w - 1], so it FITS while its last pixel is still on
-        // area.right(). Testing `x + w > right()` wrapped a row that fitted exactly, which
-        // left sizeHint() (the sum + gaps) one pixel short of what this needs — and given
-        // exactly its own hint the layout then wrapped every item onto its own line (user
-        // report: the connections batch bar's three buttons in a column).
+        // An item occupying [x, x + w - 1] FITS while its last pixel is on area.right();
+        // `x + w > right()` wrapped a row that fitted exactly, one pixel short of sizeHint().
         if (wrap && nextX - hSpace_ - 1 > area.right() && !rowItems.isEmpty()) {
           flushRow();
           x = area.x();

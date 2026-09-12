@@ -95,8 +95,7 @@ namespace stencil::gui {
 
   void sizeModalTall(QDialog* dlg, int width) {
     if (!dlg) return;
-    // The browser's min(82vh, 760px) (components.css .app-modal): the same absolute
-    // ceiling, with the 82% share taken of the screen less a browser's own chrome.
+    // The browser's min(82vh, 760px), the 82% taken of the screen less a browser's own chrome.
     constexpr int kModalMaxH = 760;
     constexpr int kBrowserChromePx = 85;
     const QScreen* screen = dlg->screen() ? dlg->screen() : QGuiApplication::primaryScreen();
@@ -114,7 +113,6 @@ namespace stencil::gui {
     auto* bar = new QHBoxLayout;
     bar->setContentsMargins(kPadX, 12, kPadX, 6);
     bar->addWidget(search, 1);
-    // Under the header (0) and its hairline (1), above the body (2).
     chrome.root->insertLayout(2, bar);
     return search;
   }
@@ -122,8 +120,7 @@ namespace stencil::gui {
   ModalScrollBody makeModalScrollBody(ModalChrome& chrome, int topPad) {
     ModalScrollBody b;
     QWidget* shell = chrome.root ? chrome.root->parentWidget() : nullptr;
-    // The body column gives up its padding to the column inside, so the scrollbar
-    // rides the shell's own edge.
+    // The padding moves inside the column so the scrollbar rides the shell's own edge.
     chrome.body->setContentsMargins(0, 0, 0, 0);
     b.scroll = new QScrollArea(shell);
     b.scroll->setObjectName(QStringLiteral("modalScroll"));
@@ -150,10 +147,9 @@ namespace stencil::gui {
 
   void makeModalCta(QPushButton* btn, const QString& iconName) {
     if (!btn) return;
-    // A dynamic property, not an objectName: theme.cpp matches
-    // QPushButton[accentCta="true"], and the objectName stays free for tests.
+    // A dynamic property: theme.cpp matches QPushButton[accentCta="true"]; objectName stays free for tests.
     btn->setProperty("accentCta", true);
-    // labelIcon, not themedIcon: the glyph carries the browser's 6px gap to its label.
+    // labelIcon carries the browser's 6px gap to its label.
     if (!iconName.isEmpty()) btn->setIcon(labelIcon(iconName, QColor("#ffffff"), 15));
   }
 }  // namespace stencil::gui

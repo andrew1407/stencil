@@ -7,9 +7,8 @@
 
 #include "flowLayout.hpp"
 
-// A toolbar row that WRAPS instead of pushing what does not fit into QToolBar's "»", where
-// a widget action is simply gone. The row holds one expanding child on a FlowLayout
-// (browser parity: flex-wrap); QToolBarLayout ignores heightForWidth, so it pins its own.
+// A toolbar row that WRAPS (browser flex-wrap) instead of overflowing into QToolBar's
+// "»". QToolBarLayout ignores heightForWidth, so the row pins its own.
 namespace stencil::gui {
 
   class WrapRow : public QWidget {
@@ -24,10 +23,8 @@ namespace stencil::gui {
     // A hidden row gets no resize, so its pinned height is stale until asked.
     void remeasure() { sync(); }
 
-    // Both hints are the WRAPPED height, measured against the width the row is going to
-    // get. Without them the first pass hints the stacked height — one control per line —
-    // QToolBarLayout takes that as the bar's minimum, and the window is sized to fit it and
-    // never gives the height back once the row settles a beat later.
+    // Both hints are the WRAPPED height: the stacked first-pass hint becomes the bar's
+    // minimum, and the window never gives that height back.
     bool hasHeightForWidth() const override { return true; }
     int heightForWidth(int w) const override { return flow_->heightForWidth(w); }
     QSize sizeHint() const override {
@@ -40,7 +37,6 @@ namespace stencil::gui {
    protected:
     void resizeEvent(QResizeEvent* e) override { QWidget::resizeEvent(e); sync(); }
     void showEvent(QShowEvent* e) override { QWidget::showEvent(e); sync(); }
-    // A section shown or hidden re-flows the row without changing its width.
     bool event(QEvent* e) override {
       const bool r = QWidget::event(e);
       if (e->type() == QEvent::LayoutRequest) sync();
@@ -48,8 +44,7 @@ namespace stencil::gui {
     }
 
    private:
-    // A row still at its construction stub is not a layout: fall back to the WINDOW's
-    // width, which is the width the toolbar spanning it will hand over.
+    // Before layout, fall back to the WINDOW's width — what the toolbar will hand over.
     static constexpr int kLaidOut = 200;
     int measureWidth() const {
       if (width() > kLaidOut) return width();
@@ -66,8 +61,7 @@ namespace stencil::gui {
     FlowLayout* flow_ = nullptr;
   };
 
-  // The hairline between two sections, stretched to its line's height (browser .ctrl-sep
-  // align-self: stretch) — a wrapped line's height is not known until the flow places it.
+  // Browser .ctrl-sep align-self: stretch — a wrapped line's height is only known after placement.
   inline QWidget* makeWrapSeparator(QWidget* parent) {
     auto* line = new QFrame(parent);
     line->setObjectName("toolWrapSep");
@@ -78,7 +72,7 @@ namespace stencil::gui {
     return line;
   }
 
-  // The row a toolbar already has, if any — never creates one.
+  // Never creates one.
   inline WrapRow* wrapRowIn(QToolBar* tb) {
     if (!tb) return nullptr;
     for (QObject* c : tb->children())
@@ -87,7 +81,6 @@ namespace stencil::gui {
     return nullptr;
   }
 
-  // The row's wrapping host, created on first use and kept as the toolbar's only item.
   inline WrapRow* wrapRowFor(QToolBar* tb) {
     if (WrapRow* had = wrapRowIn(tb)) return had;   // no Q_OBJECT here: named, then dynamic_cast
     auto* row = new WrapRow(tb);

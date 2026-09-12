@@ -3,9 +3,7 @@
 namespace stencil::gui {
 
 
-  // Where a docked surface's dust comes from / returns to: `picture`'s centre pushed
-  // out past the edge named by `area` by `reach`x that edge's own extent — the
-  // browser's dockAwayPoint (motion.js).
+  // Browser motion.js dockAwayPoint: the centre pushed `reach`x the edge's extent past it.
   QPoint dockAwayPoint(const QRect& picture, Qt::DockWidgetArea area, double reach) {
     const bool horiz = area != Qt::TopDockWidgetArea && area != Qt::BottomDockWidgetArea;
     const int reachPx = qRound((horiz ? picture.width() : picture.height()) * reach);
@@ -18,9 +16,7 @@ namespace stencil::gui {
   }
 
 
-  // The browser surfaceForm ramp: held at 0 until kDustHold, then up to 1 — the fade
-  // every surface plays behind its own gathering dust. Works on any variant animation
-  // (windowOpacity or a QGraphicsOpacityEffect's opacity alike).
+  // Browser surfaceForm ramp: 0 until kDustHold, then up to 1.
   void holdFadeKeys(QVariantAnimation* fade, int ms) {
     fade->setKeyValues({});
     fade->setDuration(ms);
@@ -30,8 +26,6 @@ namespace stencil::gui {
   }
 
 
-  // windowOpacity flavour for a top-level surface: waits invisible behind its own
-  // gathering dust and fades up as the last motes land; never left dimmed.
   void fadeUpBehindDust(QWidget* w, int ms) {
     auto* fade = new QPropertyAnimation(w, "windowOpacity", w);
     holdFadeKeys(fade, ms);
@@ -44,17 +38,13 @@ namespace stencil::gui {
   }
 
 
-  // Deterministic per-cell jitter — the same hash the browser uses, so the two
-  // scatter alike. Returns 0..1.
+  // The browser's hash, so the two scatter alike. 0..1.
   double DisintegrateOverlay::cellNoise(int cx, int cy) {
     const double h = std::sin(cx * 127.1 + cy * 311.7) * 43758.5453;
     return h - std::floor(h);
   }
 
 
-  // The bend at `away` (0 home … 1 at the far end of the throw `tx, ty`): a push off
-  // the throw's own line, by `q`'s side and amount. Shared with the combo's word
-  // exchange (controlSwap.hpp), so the app's sand all bends alike.
   QPointF DisintegrateOverlay::swirlAt(double away, double tx, double ty, double q) {
     constexpr double kPi = 3.14159265358979323846;   // M_PI is not portable (MSVC)
     const double len = std::hypot(tx, ty);
@@ -65,8 +55,7 @@ namespace stencil::gui {
   }
 
 
-  // The waypoint of a throw `tx, ty` (browser tileWaypoint): kWaypointAlong of the way
-  // out, pushed perpendicular by `q`'s side and a capped share of the throw.
+  // Browser tileWaypoint.
   QPointF DisintegrateOverlay::waypointOf(double tx, double ty, double q) {
     const double len = std::hypot(tx, ty);
     if (len < 0.5) return {};
@@ -75,9 +64,7 @@ namespace stencil::gui {
   }
 
 
-  // A two-leg keyframe flight at time `t` (0..1): `a` to `b` over the first `split` on
-  // curve `first`, then `b` to `c` on curve `second` — what CSS does with a mid
-  // keyframe that carries its own animation-timing-function.
+  // A CSS mid keyframe with its own timing function: a→b over `split`, then b→c.
   QPointF DisintegrateOverlay::legAt(double t, double split, const support::EaseLut& first,
                                      const support::EaseLut& second, const QPointF& a,
                                      const QPointF& b, const QPointF& c) {
@@ -90,7 +77,6 @@ namespace stencil::gui {
   }
 
 
-  // …and a scalar (the grain's size) on the same two legs.
   double DisintegrateOverlay::legScalar(double t, double split, const support::EaseLut& first,
                                         const support::EaseLut& second, double a, double b,
                                         double c) {
@@ -99,9 +85,7 @@ namespace stencil::gui {
   }
 
 
-  // The browser's curves, tabulated once (css/animations.css):
-  // a surface's first leg into the bend, and its ease-out home (tileGatherSurface /
-  // tileScatterSurface: cubic-bezier(0.3,0.3,0.6,0.8) then (0.16,1,0.3,1));
+  // The browser's curves (css/animations.css tileGatherSurface / tileScatterSurface).
   const support::EaseLut& DisintegrateOverlay::surfaceLegEase() {
     static const support::EaseLut lut(0.3, 0.3, 0.6, 0.8);
     return lut;
@@ -113,8 +97,7 @@ namespace stencil::gui {
   }
 
 
-  // …and a row's (tileScatter: (0.3,0.4,0.7,0.8) into the bend at 38%, then the
-  // flight's own (0.22,0.55,0.3,1) home).
+  // tileScatter's.
   const support::EaseLut& DisintegrateOverlay::rowLegEase() {
     static const support::EaseLut lut(0.3, 0.4, 0.7, 0.8);
     return lut;
@@ -126,7 +109,6 @@ namespace stencil::gui {
   }
 
 
-  // The sideways push at progress `p` of a throw `tx, ty`, for a grain of hash `w`.
   QPointF DisintegrateOverlay::turbulenceAt(double p, double tx, double ty, double w) {
     constexpr double kPi = 3.14159265358979323846;
     const double len = std::hypot(tx, ty);
@@ -138,7 +120,6 @@ namespace stencil::gui {
   }
 
 
-  // A glint's brightness at `ms` into the flight (1 for a plain grain).
   double DisintegrateOverlay::twinkleAt(bool glint, double ms, double w) {
     constexpr double kPi = 3.14159265358979323846;
     if (!glint) return 1.0;
@@ -147,16 +128,13 @@ namespace stencil::gui {
   }
 
 
-  // A grain's radius at home, for a `cw` x `ch` cell and its hash `n`.
   double DisintegrateOverlay::moteRadius(double cw, double ch, double n) {
     return std::min({cw, ch, double(kSpeckPx)}) * (0.62 + n * 0.5) * 0.5;
   }
 
 
-  // A grain's alpha over its flight's TIME `k` (0..1) — the browser's tileScatter /
-  // tileGather keyframes evaluated by hand. On the clock, not on the eased distance:
-  // an ease-out covers most of the trip early, and a fade riding it was over before
-  // the grain had visibly gone anywhere.
+  // Browser tileScatter / tileGather alpha stops, on the CLOCK: a fade riding the eased
+  // distance was over before the grain had visibly moved.
   double DisintegrateOverlay::scatterAlpha(double k) {
     return k < 0.38 ? 1.0 - k * (0.15 / 0.38) : 0.85 * (1.0 - (k - 0.38) / 0.62);
   }
@@ -168,9 +146,7 @@ namespace stencil::gui {
   }
 
 
-  // The colour of every cell of `snap`, in one pass: the picture scaled down to the
-  // grid — Qt's smooth scale is an area average — premultiplied so transparent pixels
-  // weigh nothing. Read back with cellColour(), which lifts the coverage.
+  // Qt's smooth scale is an area average; premultiplied so transparent pixels weigh nothing.
   QImage DisintegrateOverlay::sampleCells(const QPixmap& snap, int cols, int rows) {
     return snap.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied)
         .scaled(std::max(1, cols), std::max(1, rows), Qt::IgnoreAspectRatio,
@@ -185,8 +161,7 @@ namespace stencil::gui {
   }
 
 
-  // Motes sized on SCREEN (`cellPx` each), thinned back if that would exceed the
-  // ceiling — browser motion.js reshapeGrid. Shared with controlReveal's mark grid.
+  // Browser motion.js reshapeGrid.
   void DisintegrateOverlay::dustGrid(const QSize& size, int cellPx, int maxCells, int* cols,
                                      int* rows) {
     *cols = std::max(1, qRound(double(size.width()) / cellPx));

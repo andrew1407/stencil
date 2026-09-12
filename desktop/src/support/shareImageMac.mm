@@ -1,13 +1,6 @@
-// macOS body of shareImage.hpp — NSSharingServicePicker, the same "AirDrop / Mail /
-// Notes / Messages / any installed extension" sheet the Finder's own Share button
-// shows. Objective-C++ so it can talk to AppKit directly; every other TU in the app
-// only ever sees the plain C++ declaration in shareImage.hpp.
-//
-// ARC-compiled (desktop/CMakeLists.txt sets -fobjc-arc on this one file — nothing
-// else in the app is Objective-C, so there is nothing else for that flag to touch).
-// The picker has to outlive this function (it shows asynchronously), so it is kept
-// in a static instead of a local: under ARC a plain `static … *` is already strong,
-// and reassigning it releases whatever share was showing before a new one starts.
+// macOS body of shareImage.hpp — NSSharingServicePicker. ARC-compiled (the one -fobjc-arc
+// file). The picker shows asynchronously, so it lives in a static: under ARC that is
+// already strong, and reassigning it releases the previous share.
 #include "shareImage.hpp"
 
 #include <QWidget>
@@ -19,25 +12,18 @@ namespace stencil::support {
     NSSharingServicePicker* gPicker = nil;
   }
 
-  // Every macOS the app runs on has the share sheet; the picker itself is the only
-  // thing that can fail, and showShareSheet reports that.
   bool shareSheetAvailable() { return true; }
 
   bool showShareSheet(QWidget* anchor, const QString& filePath, const QString& title) {
     if (!anchor) return false;
     NSURL* url = [NSURL fileURLWithPath:filePath.toNSString()];
     if (!url) return false;
-    // NSSharingServicePicker has no separate "subject" field of its own — the shared
-    // FILE's own name is what Mail/Messages/etc. show, which is already the browser's
-    // "<base>-drawing.png" convention. There is nothing to set `title` on here; it
-    // stays a parameter for parity with the other two platforms, which do use it.
+    // NSSharingServicePicker has no "subject": the FILE's name is what Mail shows, so
+    // `title` is unused here and kept for parity with the other two platforms.
     (void)title;
     gPicker = [[NSSharingServicePicker alloc] initWithItems:@[ url ]];
-    // Anchored to the control that was clicked, like every other popover in the app
-    // (support/modalReveal.cpp). winId() is the NSView* itself on macOS (Qt just
-    // opaques it through WId) — a __bridge cast, not reinterpret_cast, because ARC
-    // has to be told this pointer conveys no ownership: the view is already owned
-    // by the window, not by us.
+    // winId() is the NSView* on macOS; a __bridge cast, not reinterpret_cast, tells ARC
+    // the pointer conveys no ownership.
     NSView* view = (__bridge NSView*)reinterpret_cast<void*>(anchor->winId());
     if (!view) return false;
     [gPicker showRelativeToRect:view.bounds ofView:view preferredEdge:NSMinYEdge];

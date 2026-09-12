@@ -1,11 +1,7 @@
 #pragma once
 
-// Numeric fields take an expression, not just a number: "45 + 9" → 54, "* 9" on 3 → 27.
-// QAbstractSpinBox owns its line edit, so overriding validate()/valueFromText() adds
-// this while the step arrows and clamping keep working.
-//
-// Operators mirror browser/js/ui/numericInput.js and core/parse/formulaParser:
-// + - * / ** and parens, ** right-associative, unary sign outside **.
+// Numeric fields take an expression: "45 + 9" → 54, "* 9" on 3 → 27. Operators mirror
+// browser/js/ui/numericInput.js and core/parse/formulaParser (** right-associative).
 
 #include <QDoubleSpinBox>
 #include <QSpinBox>
@@ -14,13 +10,10 @@
 
 namespace stencil::gui {
 
-  /// Evaluate `text` as an arithmetic expression.
-  /// A leading `*`, `/` or `**` continues from `current` ("* 9" on 3 → 27); a leading
-  /// `+`/`-` is a SIGN, so "-5" still means negative five. Sets *ok false (and returns
-  /// 0.0) when the text isn't a valid, finite expression.
+  /// A leading `*`, `/` or `**` continues from `current`; a leading `+`/`-` is a SIGN.
+  /// Sets *ok false (and returns 0.0) for anything not a valid, finite expression.
   double evalNumericExpression(const QString& text, double current, bool* ok);
 
-  /// QSpinBox that accepts an expression in its editor.
   class ExprSpinBox : public QSpinBox {
     Q_OBJECT
    public:
@@ -31,7 +24,6 @@ namespace stencil::gui {
     int valueFromText(const QString& text) const override;
   };
 
-  /// QDoubleSpinBox that accepts an expression in its editor.
   class ExprDoubleSpinBox : public QDoubleSpinBox {
     Q_OBJECT
    public:

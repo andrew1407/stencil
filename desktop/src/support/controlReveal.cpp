@@ -3,16 +3,14 @@
 namespace stencil::gui {
 
 
-  // Motes sized on SCREEN, thinned back under the MARK budget — the shared grid math
-  // (DisintegrateOverlay::dustGrid) on this family's cell size and ceiling.
+  // DisintegrateOverlay::dustGrid on this family's cell size and ceiling.
   void ctl::revealGrid(const QSize& size, int* cols, int* rows) {
     DisintegrateOverlay::dustGrid(size, kControlRevealCellPx, kControlRevealMaxCells,
                                   cols, rows);
   }
 
 
-  // Remember `w`'s one in-flight cloud on the widget itself; the overlay self-deletes
-  // on landing, so its destroyed() clears the handle and the stored pointer never dangles.
+  // The overlay self-deletes on landing; destroyed() clears the handle, so it never dangles.
   void ctl::trackRevealFx(QWidget* w, DisintegrateOverlay* fx) {
     fx->setProperty("stencilRevealOwner", QVariant::fromValue<QObject*>(w));
     w->setProperty(kRevealFxProperty, QVariant::fromValue<QObject*>(fx));
@@ -21,8 +19,7 @@ namespace stencil::gui {
   }
 
 
-  // The cap the LAYOUT owns, parked while a slide holds maximumWidth at 0 — read back from
-  // here, or an interleaved reveal hands the 0 back as the widget's permanent width.
+  // The layout's own cap, parked while a slide holds maximumWidth at 0.
   int ctl::parkMaxWidth(QWidget* w) {
     const QVariant had = w->property(kRevealMaxWidthProperty);
     const int natural = had.isValid() ? had.toInt() : w->maximumWidth();
@@ -36,8 +33,7 @@ namespace stencil::gui {
   }
 
 
-  // `w`'s one in-flight width slide. Deleting a running animation emits no finished(),
-  // so a cancelled slide never runs its handler.
+  // Deleting a running animation emits no finished(), so a cancelled slide never runs its handler.
   void ctl::trackSlide(QWidget* w, QObject* anim, bool opening) {
     anim->setProperty(kRevealOpeningProperty, opening);
     w->setProperty(kRevealSlideProperty, QVariant::fromValue<QObject*>(anim));
@@ -46,8 +42,6 @@ namespace stencil::gui {
   }
 
 
-  // Drop whatever `w` has in flight, veil included, leaving its visibility untouched —
-  // and give the layout its width cap back, however the slide ended.
   void ctl::settleReveal(QWidget* w) {
     if (!w) return;
     delete w->property(kRevealFxProperty).value<QObject*>();  // destroyed() clears the handle
@@ -58,12 +52,8 @@ namespace stencil::gui {
   }
 
 
-  // The picture that flies is the CONTROLS, never the strip behind them. QWidget::grab()
-  // renders the window background under its children (the palette's Window brush — the
-  // page colour), so a group photographed on a toolbar flew as a dark slab over a lighter
-  // bar: the "black lines next to the inputs". Rendering only the
-  // CHILDREN onto a cleared surface leaves the gaps — a group is wider than its fields
-  // whenever the row hands it slack — genuinely empty, so nothing but the fields flies.
+  // Only the CHILDREN are rendered, onto a cleared surface: QWidget::grab() paints the
+  // window background under them, and a group photographed on a toolbar flew as a dark slab.
   QPixmap ctl::groupShot(QWidget* w) {
     if (!w || w->width() < 1 || w->height() < 1) return QPixmap();
     const qreal dpr = w->devicePixelRatioF();
@@ -93,14 +83,9 @@ namespace stencil::gui {
   }
 
 
-  // A mark's motes are never copies of its own pixels — a 26px glyph is a few thin
-  // strokes, and tiles cut from it are nearly all transparent, a flight nobody can
-  // see. The browser paints anonymous SPECKS in the control's own colours instead
-  // (motion.js speckPainter/markPaint: "Never faint: a mote you can barely see is a
-  // flight you cannot follow"). Same recipe here, as a sheet overPixmaps slices cell
-  // by cell: background lifted towards the text ink (MOTE_INK 42%), a stronger rim on
-  // the border cells (MOTE_RIM_INK 66%), each speck sized and seated by the shared
-  // per-cell hash so the field reads as sand rather than a mosaic.
+  // Anonymous SPECKS in the control's own colours (browser motion.js speckPainter /
+  // markPaint): tiles cut from a glyph are nearly all transparent. Background lifted
+  // towards the ink (MOTE_INK 42%), a stronger rim on the border cells (MOTE_RIM_INK 66%).
   QPixmap ctl::markSpecks(const QSize& size, int cols, int rows, qreal dpr, const QColor& bg,
                           const QColor& ink) {
     QPixmap sheet(qMax(1, qRound(size.width() * dpr)), qMax(1, qRound(size.height() * dpr)));

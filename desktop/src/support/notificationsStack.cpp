@@ -21,7 +21,6 @@
 namespace stencil::gui {
 
   Notifications::Notifications(QWidget* host) : QObject(host), host_(host) {
-    // Watch the host so toasts recenter when it resizes (see eventFilter).
     if (host_) host_->installEventFilter(this);
   }
 
@@ -42,9 +41,7 @@ namespace stencil::gui {
     errorBg_ = error;
   }
 
-  // Play `toast` out and delete it. Called both by its own timer and by the cap in
-  // show(); the flag makes the second call a no-op rather than a second exit animation
-  // stacked on the first.
+  // Called by its own timer AND by the cap in show(); the flag makes the second a no-op.
   void Notifications::dismiss(QLabel* toast) {
     if (!toast || toast->property(kLeavingProperty).toBool()) return;
     toast->setProperty(kLeavingProperty, true);
@@ -56,7 +53,6 @@ namespace stencil::gui {
       QTimer::singleShot(0, this, [this] { reflow(); });
       return;
     }
-    // Sand first; a decline falls back to the plain drop-away below.
     const bool dusted = dustToastOut(toast, host_, leftInset_);
     auto* fadeOut = new QPropertyAnimation(fx, "opacity", toast);
     fadeOut->setDuration(kFadeOutMs);
@@ -80,14 +76,10 @@ namespace stencil::gui {
     fadeOut->start(QAbstractAnimation::DeleteWhenStopped);
   }
 
-  // Stack every live toast in the BOTTOM-LEFT of the host (mirrors the browser's
-  // toast position), newest at the bottom, growing upward. Anchored to the bottom so
-  // an eventFilter resize keeps them pinned there.
+  // Bottom-left (browser parity), newest at the bottom, growing upward.
   void Notifications::reflow() {
     if (!host_) return;
-    // Only the standing toasts get a slot. A leaving one is being carried by its own
-    // geometry animation — restacking it would fight that animation, and holding its slot
-    // open would leave a gap (and a fourth toast's worth of space) while it faded.
+    // A leaving toast is carried by its own geometry animation; holding its slot would leave a gap.
     const auto toasts = liveToasts();
     int y = host_->height() - 12 - bottomInset_;   // bottom margin, clear of any status bar
     for (int i = toasts.size() - 1; i >= 0; --i) {
@@ -97,13 +89,10 @@ namespace stencil::gui {
                        std::max(8, y), t->width(), t->height());
       auto* rise = t->findChild<QPropertyAnimation*>("toastRise");
       if (rise && rise->state() == QAbstractAnimation::Running) {
-        // Still rising: retarget the flight rather than move()ing underneath it.
         rise->setStartValue(rest.translated(0, kSlidePx));
         rise->setEndValue(rest);
       } else {
-        // A still-flying entrance cloud was grabbed at the OLD box; drag it along by the
-        // same delta so a burst that bumps this toast to a new slot doesn't strand the
-        // motes at a stale position while the (invisible-till-they-land) widget jumps.
+        // An entrance cloud grabbed at the OLD box is dragged along by the same delta.
         const QPoint delta = rest.topLeft() - t->geometry().topLeft();
         if (QPointer<DisintegrateOverlay> overlay = entering_.value(t)) overlay->retarget(delta);
         t->move(rest.topLeft());

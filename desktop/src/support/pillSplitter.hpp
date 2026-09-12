@@ -1,10 +1,6 @@
 #pragma once
-// A QSplitter whose handle paints the browser's .chat-input-sizer pill: a SHORT
-// centred bar (44px, 68px under the cursor), hairline at rest and accent while
-// hovered or dragged, with the colour lerping as it grows. It lives here because
-// both chat composers need it — the dock's used a stylesheet handle whose only
-// width lever was a symmetric margin, so the "pill" stretched with the panel and
-// read as a fat accent band across the whole dock.
+// A QSplitter whose handle paints the browser's .chat-input-sizer pill: 44px (68px under
+// the cursor), hairline at rest and accent while hovered or dragged.
 #include <QApplication>
 #include <QColor>
 #include <QEnterEvent>
@@ -44,11 +40,7 @@ namespace stencil::gui {
       accent_ = accent;
       update();
     }
-    // Centre the pill on THIS widget instead of on the handle's full span.
-    // The handle stretches across the whole composer row — input AND the
-    // action buttons — so a pill centred on the handle sits visibly right of
-    // the input the user is actually resizing. The whole handle stays
-    // draggable; only the painted pill moves.
+    // Centre the pill on THIS widget: the handle spans input AND action buttons.
     void setPillReference(QWidget* ref) {
       ref_ = ref;
       update();
@@ -90,13 +82,11 @@ namespace stencil::gui {
       const int w = qRound(kPillW + (kPillHotW - kPillW) * hot_);
       int cx = width() / 2;
       if (ref_ && ref_->isVisible()) {
-        // width()/2, NOT rect().center(): QRect::center() rounds DOWN for even
-        // widths, which put the pill a pixel left of the input's true middle.
+        // width()/2, NOT rect().center(): QRect::center() rounds DOWN for even widths.
         cx = mapFromGlobal(ref_->mapToGlobal(QPoint(ref_->width() / 2, 0))).x();
         cx = qBound(w / 2, cx, width() - w / 2);  // never overhang the handle
       }
       QColor c = rest_;
-      // Lerp rest → accent so the colour tracks the growth.
       c.setRed(qRound(rest_.red() + (accent_.red() - rest_.red()) * hot_));
       c.setGreen(qRound(rest_.green() + (accent_.green() - rest_.green()) * hot_));
       c.setBlue(qRound(rest_.blue() + (accent_.blue() - rest_.blue()) * hot_));
@@ -107,11 +97,8 @@ namespace stencil::gui {
     }
 
    private:
-    // QSplitterHandle already sets Qt::SplitVCursor on itself, but a widget's
-    // own cursor is ignored while a QMenu holds the popup grab — the menu
-    // owns the cursor. An application override is the mechanism that does
-    // take effect, pushed/popped strictly on enter/leave of THIS handle (and
-    // on hide/destroy), so it can never leak to the rest of the menu.
+    // A widget's own cursor is ignored while a QMenu holds the popup grab; an application
+    // override does take effect, pushed/popped strictly on enter/leave of THIS handle.
     void pushCursor() {
       if (cursorPushed_) return;
       QApplication::setOverrideCursor(
@@ -150,9 +137,7 @@ namespace stencil::gui {
     void setPillColors(const QColor& rest, const QColor& accent) {
       rest_ = rest;
       accent_ = accent;
-      // Every handle comes from createHandle() below, so the cast is safe
-      // (qobject_cast would need a Q_OBJECT macro, which file-local classes
-      // in this translation unit deliberately avoid — no moc pass for them).
+      // Every handle comes from createHandle(); qobject_cast would need Q_OBJECT (no moc here).
       for (int i = 0; i < count(); ++i)
         if (QSplitterHandle* h = handle(i))
           static_cast<PillSplitterHandle*>(h)->setPillColors(rest, accent);

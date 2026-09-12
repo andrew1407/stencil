@@ -2,8 +2,7 @@
 
 namespace stencil::gui {
 
-  // Swap `cb`'s displayed value from `from` to `to`. A superseding change deletes the
-  // one in flight and starts over, so a burst of picks always ends on the last value.
+  // A superseding change deletes the one in flight, so a burst ends on the last value.
   void ValueSwapOverlay::play(QComboBox* cb, const QString& from, const QString& to, int ms) {
     if (!cb || ms <= 0) return;
     cancel(cb);
@@ -20,7 +19,6 @@ namespace stencil::gui {
     fx->ms_ = ms;
     anim->setStartValue(0.0);
     anim->setEndValue(1.0);
-    // Linear — the shaping lives in faceSwapFrame's two curves.
     connect(anim, &QVariantAnimation::valueChanged, fx, [fx](const QVariant& v) {
       fx->t_ = v.toDouble();
       fx->update();
@@ -34,7 +32,6 @@ namespace stencil::gui {
   }
 
 
-  // Drop any swap `cb` has in flight and hand it its own label back.
   void ValueSwapOverlay::cancel(QComboBox* cb) {
     const auto live =
         cb->findChildren<QWidget*>(QString::fromLatin1(kValueSwapObjectName),
@@ -44,7 +41,6 @@ namespace stencil::gui {
   }
 
 
-  // True while `cb` is mid-exchange.
   bool ValueSwapOverlay::running(const QComboBox* cb) {
     return cb
            && cb->findChild<QWidget*>(QString::fromLatin1(kValueSwapObjectName),
@@ -61,12 +57,9 @@ namespace stencil::gui {
     }
     QPainter p(this);
     p.setClipRect(clip_);   // clipped by the edit field, the way the word itself is
-    // Sequential, like the odometer this replaces: the outgoing word is most of the way
-    // out before the incoming one starts arriving, so two values are never legible at
-    // once — only, now, both are sand. Each cloud is composed on its own layer first:
-    // a word is the picture wherever its cells are at home and cut away wherever they
-    // are not, and the second word's cut-outs must not take the first word's flying
-    // grains with them.
+    // Sequential: the outgoing word is most of the way out before the incoming starts.
+    // Each cloud is composed on its own layer, or the second word's cut-outs would take
+    // the first word's flying grains with them.
     renderCloud(&layerOut_, out_, &cellsOut_,
                 std::clamp(t_ / kValueSwapOutShare, 0.0, 1.0), false);
     renderCloud(&layerIn_, in_, &cellsIn_,
@@ -76,11 +69,7 @@ namespace stencil::gui {
   }
 
 
-  // One cloud of a WORD onto `layer`: the label picture, minus the cells that have
-  // left it, plus those cells as round grains of their own ink — the twin of
-  // DisintegrateOverlay's Fall/Gather at word scale, on the same hashes and the same
-  // bend, so the app's sand all behaves alike. `t` is this cloud's own progress;
-  // `gather` reads the same journey backwards.
+  // The twin of DisintegrateOverlay's Fall/Gather at word scale, same hashes and bend.
   void ValueSwapOverlay::renderCloud(QImage* layer, const QPixmap& pm, QImage* cells, double t,
                                      bool gather) {
     const qreal dpr = devicePixelRatioF();
@@ -98,8 +87,7 @@ namespace stencil::gui {
     const double cw = box.width() / cols;
     const double ch = box.height() / rows;
     if (cells->width() != cols || cells->height() != rows) {
-      // The word's colour per cell, once: the field's slice of the label sheet (which
-      // covers the whole control, device-pixel scaled), area-averaged down to the grid.
+      // Once: the field's slice of the label sheet, area-averaged down to the grid.
       const double sx = double(pm.width()) / std::max(1, width());
       const double sy = double(pm.height()) / std::max(1, height());
       const QRect src(qRound(box.x() * sx), qRound(box.y() * sy),
@@ -122,12 +110,10 @@ namespace stencil::gui {
           const double n = DisintegrateOverlay::cellNoise(cx, cy);
           const double m = DisintegrateOverlay::cellNoise(cx + 41, cy + 17);
           const double q = DisintegrateOverlay::cellNoise(cx + 97, cy + 53);
-          // A word is READ left to right, so it comes apart that way — and gathers
-          // back the same sweep reversed, the rule every other flight here follows.
+          // A word comes apart the way it is read, left to right.
           const double along = cols > 1 ? double(cx) / (cols - 1) : 0.0;
           const double delay = (gather ? 1.0 - along : along) * 0.4 + n * 0.1;
           double k = (t - delay) / std::max(0.05, 1.0 - delay);
-          // At home — not yet left, or already landed — the cell is the word itself.
           away = gather ? k < 1.0 : k > 0.0;
           if (away) {
             k = std::clamp(k, 0.0, 1.0);
@@ -144,8 +130,6 @@ namespace stencil::gui {
               Grain g{home + QPointF(far * tx, far * ty) + DisintegrateOverlay::swirlAt(far, tx, ty, q),
                       DisintegrateOverlay::moteRadius(cw, ch, n) * (1.0 - far * (0.6 - n * 0.25)), c,
                       support::grainShape(style_, w), support::headingOf(tx, ty, gather)};
-              // Painted from the theme's palette like every cloud — the word's own ink
-              // only says how much paint the cell held.
               const support::StyleFrame sf = support::styleFrame(style_, k, far, w, std::hypot(tx, ty), t_ * ms_);
               g.at += QPointF(sf.sx, sf.sy);
               g.r *= sf.scale;
@@ -166,8 +150,7 @@ namespace stencil::gui {
         }
       }
     }
-    // The word, minus the cells that have left it — a clip on the blit, never a clear
-    // (disintegrateOverlay.hpp paintEvent explains why).
+    // A clip on the blit, never a clear (disintegrateOverlay.hpp paintEvent).
     QRegion keep(rect());
     if (!cut.empty()) {
       QRegion gone;

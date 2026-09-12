@@ -1,14 +1,6 @@
 #pragma once
-// Row hover slide — HoverSlide for an ITEM VIEW's rows (support/hoverSlide.hpp does it for
-// a widget by moving its geometry, which a delegate-painted row has none of). The desktop
-// port of the browser's `.accent-dd-opt:hover { transform: translateX(2px) }`: the row
-// under the pointer eases a couple of pixels right and back as it leaves, on the browser's
-// own clock. Pairs with installRowShimmer — a popup row gets the same two hover
-// treatments every other item in the app has; the select popups had neither.
-//
-// The offset is applied by WRAPPING whatever delegate the view already has, so a view with
-// its own painter (the motion modes' animated glyphs) keeps it.
-// Header-only and Q_OBJECT-free (no signals/slots), so it needs no MOC.
+// HoverSlide for an ITEM VIEW's rows — the browser's `.accent-dd-opt:hover
+// { transform: translateX(2px) }`. Wraps the view's delegate. Q_OBJECT-free, no MOC.
 #include "motionPrefs.hpp"   // support::motionReduced()
 
 #include <QAbstractItemView>
@@ -28,18 +20,15 @@
 
 namespace stencil::gui {
 
-  // The browser's own numbers: translateX(2px) over `transform 0.12s ease`.
+  // Browser: translateX(2px) over `transform 0.12s ease`.
   inline constexpr int kRowSlidePx = 2;
   inline constexpr int kRowSlideMs = 120;
-  // Both parts are Q_OBJECT-free, so they are found by NAME rather than by findChild<T>
-  // / qobject_cast, which need the macro.
+  // Q_OBJECT-free, so found by NAME rather than findChild<T>.
   inline constexpr const char* kRowSlideName = "stencilRowSlide";
   inline constexpr const char* kSlidingDelegateName = "stencilSlidingRows";
-  // How far the hovered row is slid right, mirrored onto the VIEW so the effect is
-  // observable (the tests read it; nothing else does).
+  // Mirrored onto the VIEW so the tests can read it.
   inline constexpr const char* kRowSlidePxProperty = "rowSlidePx";
 
-  // Tracks which row the pointer is on and how far that row has slid.
   class RowHoverSlide : public QObject {
    public:
     explicit RowHoverSlide(QAbstractItemView* view, int px = kRowSlidePx, int ms = kRowSlideMs)
@@ -58,7 +47,6 @@ namespace stencil::gui {
       view->viewport()->installEventFilter(this);
     }
 
-    // How far THIS row is slid right, in pixels (0 for every row but the hovered one).
     int offsetFor(const QModelIndex& idx) const {
       if (!row_.isValid() || QModelIndex(row_) != idx) return 0;
       return int(std::lround(px_ * at_));
@@ -85,8 +73,7 @@ namespace stencil::gui {
    private:
     void enter(const QModelIndex& idx) {
       if (row_.isValid() && QModelIndex(row_) == idx) return;
-      // The row left behind drops back at once: two rows easing at the same time reads as
-      // the whole list wobbling, and the pointer is already on the new one.
+      // The row left behind drops back at once: two rows easing reads as the list wobbling.
       row_ = idx;
       at_ = 0.0;
       anim_.stop();
@@ -112,7 +99,6 @@ namespace stencil::gui {
     QVariantAnimation anim_;
   };
 
-  // Paints through `inner` (or the default painter) with the hovered row's offset applied.
   class SlidingRowDelegate : public QStyledItemDelegate {
    public:
     SlidingRowDelegate(RowHoverSlide* slide, QAbstractItemDelegate* inner, QObject* parent)
@@ -140,9 +126,7 @@ namespace stencil::gui {
     QPointer<QAbstractItemDelegate> inner_;
   };
 
-  // Give `view`'s rows the hover slide, wrapping whatever delegate it has right now.
-  // Call again after changing the delegate. Guarded: a second call re-wraps rather than
-  // stacking, so the offset is never applied twice.
+  // Call again after changing the delegate. Guarded: a second call re-wraps rather than stacking.
   inline void installRowHoverSlide(QAbstractItemView* view) {
     if (!view) return;
     auto* slide = static_cast<RowHoverSlide*>(

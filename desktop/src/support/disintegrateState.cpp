@@ -10,46 +10,35 @@ namespace stencil::gui {
   }
 
 
-  // Keep the cloud anchored to `w` for the rest of the flight: every tick re-maps the
-  // control's top-left and shifts the cloud by however far it moved. A control revealed
-  // beside a sibling is photographed where it sits at that instant, and the sibling's
-  // slot then pushes it along the row. Browser twin: motion.js followDust (revealControls).
-  // A tile flight IS its geometry; a surface flight shifts picture and target.
+  // Browser twin: motion.js followDust. A tile flight IS its geometry; a surface flight
+  // shifts picture and target.
   void DisintegrateOverlay::setFollow(QWidget* w) {
     follow_ = w;
     followAt_ = w && parentWidget() ? w->mapTo(parentWidget(), QPoint(0, 0)) : QPoint();
   }
 
 
-  // A child widget is clipped by its parent, so a flight that leaves the host (a dialog
-  // dragged off it or taller than it, a menu past its edge) was cropped at the window
-  // border. When it needs room the host hasn't got, the layer becomes a frameless,
-  // input-transparent top-level window spanning the whole trip; `host` stays its
-  // QObject parent, and picture_/target_ stay in HOST coords via `shift_`.
+  // A child layer is clipped by the host, so a flight that needs more room becomes a
+  // frameless input-transparent top-level; `host` stays the QObject parent and
+  // picture_/target_ stay in HOST coords via `shift_`.
   void DisintegrateOverlay::placeForSurface(QWidget* host, const QRect& picture,
                                             const QPoint& target, bool escapeHost,
                                             bool alwaysEscape) {
     const QRect hostBox(host->mapToGlobal(QPoint(0, 0)), host->size());
     QRect need = surfaceLayerRect(picture.translated(hostBox.topLeft()),
                                   host->mapToGlobal(target));
-    // Nothing to escape for: it fits (unless the caller wants the top layer even
-    // then — see overSurface's alwaysEscape), the caller draws inside the host by
-    // design, or there is no desktop to escape ONTO — offscreen's virtual screen is
-    // a fixed box unrelated to any real one, so the tests keep the plain child layer.
+    // Offscreen's virtual screen is a fixed box unrelated to any real one: tests keep the child layer.
     if (!escapeHost || (hostBox.contains(need) && !alwaysEscape) || !hostBox.isValid()
         || QGuiApplication::platformName() == QLatin1String("offscreen")) {
       setGeometry(host->rect());
       return;
     }
-    // Never bigger than the desktop it can actually be seen on.
     QRect desktop;
     for (const QScreen* s : QGuiApplication::screens()) desktop |= s->geometry();
     if (desktop.isValid()) need &= desktop;
     if (need.width() < 8 || need.height() < 8) { setGeometry(host->rect()); return; }
-    // Above the host, never focusable/clickable, no shadow. Qt::ToolTip, not Qt::Window:
-    // a plain top-level window steals an open QMenu/QComboBox popup's platform grab and
-    // closes it instantly (confirmed live) — ToolTip is the same non-activating kind
-    // AppTooltip already floats over an open menu with.
+    // Qt::ToolTip, not Qt::Window: a plain top-level steals an open QMenu/QComboBox
+    // popup's platform grab and closes it instantly (confirmed live).
     setWindowFlags(Qt::ToolTip | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint
                    | Qt::WindowTransparentForInput | Qt::WindowDoesNotAcceptFocus
                    | Qt::NoDropShadowWindowHint);
@@ -59,8 +48,7 @@ namespace stencil::gui {
   }
 
 
-  // The snapshot, mixed towards `ink` — one pass over the picture, so every mote is
-  // already lifted by the time it is drawn. An invalid ink leaves it exactly as taken.
+  // One pass, so every mote is already lifted when drawn. Invalid ink = as taken.
   QPixmap DisintegrateOverlay::liftedToInk(const QPixmap& snap, const QColor& ink) {
     if (!ink.isValid() || snap.isNull()) return snap;
     QPixmap out = snap;
@@ -81,11 +69,8 @@ namespace stencil::gui {
   }
 
 
-  // The clock: a plain timer at the screen's refresh interval (dustKit.hpp
-  // frameIntervalMs) reading a wall clock, not a QVariantAnimation — Qt's animation
-  // timer ticks 60 times a second whatever the display does, and a cloud at 60 on a
-  // 120Hz screen read as the coarser thing next to the browser's. The per-cell delays
-  // own the shaping; the clock is linear.
+  // A plain timer at the screen's refresh interval, not a QVariantAnimation: Qt's
+  // animation timer ticks 60Hz whatever the display does. The clock is linear.
   void DisintegrateOverlay::start(int ms) {
     ms_ = std::max(1, ms);
     clock_.start();
@@ -105,10 +90,8 @@ namespace stencil::gui {
   }
 
 
-  // Dust motes sized on screen rather than as a share of the image, thinned back
-  // if that would exceed the per-frame ceiling.
   void DisintegrateOverlay::sizeGridForDust(const QSize& size, int maxCells, int cellPx) {
-    // Water and fire grid coarser (browser motion.js makeDustStage does the same).
+    // Water and fire grid coarser (browser motion.js makeDustStage).
     if (style_ != support::ParticleStyle::Dust) cellPx = qRound(cellPx * support::kStyledCellScale);
     dustGrid(size, cellPx, maxCells, &cols_, &rows_);
   }

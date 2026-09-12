@@ -11,9 +11,7 @@ namespace stencil::gui {
   }
 
 
-  // The indicator as the style would paint it in `checked`. RENDERED, not grabbed:
-  // photographing both states off the live widget would mean forcing a state onto it
-  // mid-signal, and a checkbox in a button group cannot be poked like that safely.
+  // RENDERED, not grabbed: forcing a state onto a live box mid-signal is unsafe.
   QPixmap ctl::indicatorPixmap(QCheckBox* box, const QRect& r, bool checked) {
     const qreal dpr = box->devicePixelRatioF();
     QPixmap pm(QSize(qRound(r.width() * dpr), qRound(r.height() * dpr)));
@@ -22,8 +20,7 @@ namespace stencil::gui {
     QStyleOptionButton opt;
     opt.initFrom(box);
     opt.rect = QRect(QPoint(0, 0), r.size());
-    // QStyleSheetStyle reads :checked off the OPTION's state, so both looks come from
-    // one live widget. Sunken is dropped — a snapshot must not be caught mid-press.
+    // QStyleSheetStyle reads :checked off the OPTION's state; Sunken must not be caught mid-press.
     opt.state &= ~(QStyle::State_On | QStyle::State_Off | QStyle::State_NoChange
                    | QStyle::State_Sunken);
     opt.state |= checked ? QStyle::State_On : QStyle::State_Off;
@@ -33,8 +30,6 @@ namespace stencil::gui {
   }
 
 
-  // Drop the scatter `box` has in flight. The real indicator is already in its true
-  // state underneath, so cancelling can never strand a stale check.
   void ctl::cancelCheckSwap(QCheckBox* box) {
     QWidget* host = box->window();
     if (!host) return;
@@ -44,10 +39,7 @@ namespace stencil::gui {
   }
 
 
-  // Play the indicator's arrival/departure. `checked` is the state the box has JUST
-  // reached, so a check GATHERS and an uncheck SCATTERS. Reduced motion, a hidden box
-  // and an indicator too small to grid (the f(x,y) pill hides its own) all do nothing —
-  // the state itself has already changed, which is the part that must never be dropped.
+  // `checked` is the state just reached: a check GATHERS, an uncheck SCATTERS.
   void swapCheckIndicator(QCheckBox* box, bool checked) {
     if (!box || box->property(kNoControlSwapProperty).toBool()) return;
     ctl::cancelCheckSwap(box);
@@ -58,8 +50,7 @@ namespace stencil::gui {
     if (r.width() < 6 || r.height() < 6) return;
     const QPixmap on = ctl::indicatorPixmap(box, r, true);
     const QPixmap off = ctl::indicatorPixmap(box, r, false);
-    // A control that says nothing with its indicator has nothing to scatter — the f(x,y)
-    // pill hides its tick and carries the state in the whole chip's fill.
+    // The f(x,y) pill hides its tick and carries the state in the chip's fill.
     if (on.toImage() == off.toImage()) return;
     const QRect at(box->mapTo(host, r.topLeft()), r.size());
     DisintegrateOverlay* fx = DisintegrateOverlay::overPixmaps(
@@ -83,7 +74,6 @@ namespace stencil::gui {
   }
 
 
-  // Where the chosen option is drawn, in the combo's own coordinates.
   QRect ctl::comboFieldRect(const QComboBox* cb) {
     QStyleOptionComboBox o = comboOption(cb, cb->currentText());
     const QRect r =
@@ -92,10 +82,7 @@ namespace stencil::gui {
   }
 
 
-  // The combo's LABEL alone, drawn by the style into a transparent, control-sized
-  // pixmap — so the word is the one the combo would paint, in the colour the theme
-  // gives it, with no palette guessing. Must run BEFORE the label is hidden: the same
-  // widget stylesheet that blanks the real text would blank this too.
+  // Must run BEFORE hideComboLabel: the stylesheet that blanks the text blanks this too.
   QPixmap ctl::comboLabelPixmap(QComboBox* cb, const QString& text) {
     const qreal dpr = cb->devicePixelRatioF();
     QPixmap pm(QSize(qRound(cb->width() * dpr), qRound(cb->height() * dpr)));
@@ -103,8 +90,7 @@ namespace stencil::gui {
     pm.fill(Qt::transparent);
     QPainter p(&pm);
     if (cb->isEditable()) {
-      // An editable combo's word lives in its QLineEdit — CE_ComboBoxLabel paints
-      // nothing for it, so draw the value by hand in the field's own font/colour.
+      // CE_ComboBoxLabel paints nothing for an editable combo (the word is its QLineEdit's).
       p.setFont(cb->font());
       p.setPen(cb->palette().color(QPalette::Text));
       p.drawText(comboFieldRect(cb).adjusted(3, 0, -2, 0),
@@ -123,11 +109,8 @@ namespace stencil::gui {
   }
 
 
-  // Blank the REAL label for the duration, so only the overlay's two words are ever on
-  // screen. A widget stylesheet is the only lever that beats the app-wide
-  // `QComboBox { color: … }`; the property selector gives it that rule's weight, and
-  // every state is listed so a hover mid-swap can't outrank it. Colour only — nothing
-  // in the box model is touched, so the control cannot change size.
+  // A widget stylesheet is the only lever over the app-wide `QComboBox { color: … }`;
+  // every state is listed so a hover mid-swap cannot outrank it. Colour only, no reflow.
   void ctl::hideComboLabel(QComboBox* cb, bool hide) {
     if (hide == cb->property(kValueSwapProperty).toBool()) return;
     if (hide) {
@@ -145,8 +128,7 @@ namespace stencil::gui {
       cb->setProperty(kValueSwapProperty, false);
       cb->setStyleSheet(cb->property(kValueSwapSheetProperty).toString());
     }
-    // Qt matches property selectors at POLISH time, so both edges have to re-polish or
-    // the rule is skipped entirely and the old word stays up under the swap.
+    // Qt matches property selectors at POLISH time.
     repolish(cb);
   }
 
@@ -161,8 +143,6 @@ namespace stencil::gui {
     if (e->type() == QEvent::Show) {
       support::revealPopup(*popup, cb_);
     } else if (e->type() == QEvent::Hide) {
-      // Same reasoning as the Show branch: Qt hides its own container, so the
-      // close has to hang off that Hide too, or it never played an exit flight.
       support::dismissPopup(*popup, cb_);
     }
     return QObject::eventFilter(o, e);
@@ -191,14 +171,11 @@ namespace stencil::gui {
   }
 
 
-  // Arm it once per combo. view()->window() is the container Qt drops; asking for the
-  // view is what creates it, which is exactly why this can be done at wire time.
+  // Asking for view() is what creates the popup container, so this works at wire time.
   void ctl::wireComboPopupDust(QComboBox* cb) {
     QAbstractItemView* view = cb->view();
     QWidget* popup = view ? view->window() : nullptr;
     if (!popup || popup == cb->window()) return;
-    // The watcher is parented to the COMBO (the popup container is Qt's, and outlives
-    // nothing of ours), so that is where the once-only guard looks.
     if (cb->findChild<QObject*>(QString::fromLatin1(kComboPopupFilterName),
                                 Qt::FindDirectChildrenOnly))
       return;

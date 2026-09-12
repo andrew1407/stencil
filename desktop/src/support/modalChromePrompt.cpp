@@ -42,8 +42,7 @@ namespace stencil::gui {
       area = new QPlainTextEdit(spec.defaultValue, &dlg);
       area->setObjectName(QStringLiteral("modalPromptText"));
       area->setTabChangesFocus(true);   // Tab leaves the field; it never types a tab here
-      // `rows` lines of the field's OWN metrics plus its frame/padding — a fixed pixel
-      // height would drift with the platform font.
+      // The field's OWN metrics: a fixed pixel height would drift with the platform font.
       const int pad = 16;
       area->setFixedHeight(area->fontMetrics().lineSpacing() * qMax(1, spec.rows) + pad);
       area->selectAll();
@@ -55,7 +54,6 @@ namespace stencil::gui {
       line->selectAll();
       chrome.body->addWidget(line);
     }
-    // The reason a value cannot be saved, under the field (hidden while it can).
     auto* reason = new QLabel(&dlg);
     reason->setObjectName(QStringLiteral("modalPromptReason"));
     reason->setWordWrap(true);
@@ -72,8 +70,7 @@ namespace stencil::gui {
     footer->addWidget(okBtn);
     QObject::connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
     QObject::connect(okBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
-    // Live validation: Save (and Enter) go dead with the reason while the text is
-    // not saveable; the cursor follows, Qt having no `:disabled { cursor }` in QSS.
+    // The cursor follows, Qt having no `:disabled { cursor }` in QSS.
     const auto revalidate = [&spec, line, area, okBtn, reason] {
       if (!spec.validate) return;
       const QString text = (area ? area->toPlainText() : line->text()).trimmed();
@@ -88,9 +85,8 @@ namespace stencil::gui {
     if (line) QObject::connect(line, &QLineEdit::textChanged, &dlg, revalidate);
     else QObject::connect(area, &QPlainTextEdit::textChanged, &dlg, revalidate);
     revalidate();
-    // A single-line field confirms on Enter (browser parity). The text AREA owns plain
-    // Enter — it types a newline — so only Ctrl/⌘+Enter saves from inside it, and the
-    // buttons stay out of Qt's default-button chain so Enter never leaks to them.
+    // The text AREA owns plain Enter, so only Ctrl/⌘+Enter saves from inside it; the
+    // buttons stay out of Qt's default-button chain.
     if (line) {
       okBtn->setDefault(true);
       okBtn->setAutoDefault(true);
@@ -125,7 +121,7 @@ namespace stencil::gui {
     msg->setWordWrap(true);
     msg->setTextInteractionFlags(Qt::NoTextInteraction);
     chrome.body->addWidget(msg);
-    // The picker row (browser .confirm-choose-row: 12px above, the select full width).
+    // Browser .confirm-choose-row.
     auto* select = new QComboBox(&dlg);
     select->setObjectName(QStringLiteral("modalChooseSelect"));
     select->setCursor(Qt::PointingHandCursor);

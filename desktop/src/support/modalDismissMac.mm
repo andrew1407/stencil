@@ -1,18 +1,7 @@
-// macOS body of installModalDismiss()'s outside-press watch (modalReveal.hpp).
-//
-// TWO cases, because Qt runs the two kinds of modal dialog through different AppKit paths:
-//
-//  • A WINDOW-modal dialog does not block the app's event stream, so the raw press behind
-//    it still reaches a QAbstractNativeEventFilter — earlier than any QEvent, which QtGui
-//    drops for a blocked window. MacModalDismiss below handles that.
-//
-//  • An APPLICATION-modal dialog (every Stencil dialog) runs under a Cocoa modal session,
-//    which DISCARDS presses aimed at other, non-worksWhenModal windows before dispatch, so
-//    neither a native filter nor a local NSEvent monitor sees them (verified). Only a
-//    window in the session does, and a child of the modal window is worksWhenModal for
-//    free — so a transparent child window under the dialog catches the press.
-//
-// Objective-C++ only to read the NSEvent and order the backdrop; the rest is plain Qt.
+// macOS body of installModalDismiss() (modalReveal.hpp). A WINDOW-modal dialog's raw
+// press still reaches a QAbstractNativeEventFilter; an APPLICATION-modal one runs under
+// a Cocoa modal session that DISCARDS presses aimed at non-worksWhenModal windows, so a
+// transparent child window under the dialog (worksWhenModal for free) catches them.
 #include "modalReveal.hpp"
 
 #include <QApplication>
@@ -33,21 +22,18 @@
 namespace stencil::support {
 
   namespace {
-    // Shared gate: a visible dialog that may be clicked away — not a native/file panel, not
-    // one that opted out (a question that must be answered).
+    // A visible dialog that may be clicked away — not a native panel, not one that opted out.
     bool dismissable(QDialog* dlg) {
       return dlg && dlg->isVisible() && !qobject_cast<QFileDialog*>(dlg)
              && !dlg->property(kNoOutsideDismissProperty).toBool();
     }
 
     void rejectSoon(QDialog* dlg) {
-      // Queued: the press is seen from inside AppKit's own send (a native filter) or a
-      // popup grab, and rejecting a dialog out from under that re-enters the event loop.
+      // Queued: rejecting a dialog from inside AppKit's own send re-enters the event loop.
       QPointer<QDialog> guard(dlg);
       QTimer::singleShot(0, dlg, [guard] { if (guard) guard->reject(); });
     }
 
-    // Window-modal case: the raw NSEvent still reaches us
     class MacModalDismiss : public QAbstractNativeEventFilter {
      public:
       bool nativeEventFilter(const QByteArray& type, void* message, qintptr*) override {
@@ -63,9 +49,7 @@ namespace stencil::support {
         NSScreen* main = NSScreen.screens.firstObject;
         const double h = main ? NSMaxY(main.frame) : 0;
         const QPoint at(int(p.x), int(h - p.y));
-        // Inside the dialog's own frame — title bar included — is not an outside press.
-        // Nor is a popup it raised: those are separate windows, so the geometry test is
-        // what tells them apart. A press on a DIFFERENT window of ours is outside.
+        // Inside the dialog's frame (title bar included) or a popup it raised is not outside.
         if (dlg->frameGeometry().contains(at)) return false;
         for (QWidget* w : QApplication::topLevelWidgets())
           if (w != dlg && w->isVisible() && w->windowFlags() & Qt::Popup
@@ -78,10 +62,8 @@ namespace stencil::support {
       }
     };
 
-    // Application-modal case: a transparent backdrop under the dialog
     constexpr const char* kBackdropAttachedProp = "stencilModalBackdropAttached";
 
-    // Rejects its dialog on any press that reaches the backdrop.
     class BackdropPress : public QObject {
      public:
       BackdropPress(QWidget* backdrop, QDialog* dlg) : QObject(backdrop), dlg_(dlg) {}
@@ -99,7 +81,6 @@ namespace stencil::support {
       QPointer<QDialog> dlg_;
     };
 
-    // Lays the backdrop under an application-modal dialog the first time it is shown.
     class BackdropWatcher : public QObject {
      protected:
       bool eventFilter(QObject* o, QEvent* e) override {
@@ -109,17 +90,15 @@ namespace stencil::support {
 
      private:
       void attach(QDialog* dlg) {
-        // Only a top-level, application-modal dialog reaches the broken AppKit path: a
-        // window-modal one goes through the native filter above, a popover is not a window.
+        // Only a top-level, application-modal dialog reaches the broken AppKit path.
         if (!dlg || !dlg->isWindow() || dlg->windowModality() != Qt::ApplicationModal) return;
         if (!dismissable(dlg) || dlg->property(kBackdropAttachedProp).toBool()) return;
         // Offscreen has no real window server; the tests drive the Qt-level filter path.
         if (QGuiApplication::platformName() == QLatin1String("offscreen")) return;
         dlg->setProperty(kBackdropAttachedProp, true);
 
-        // A child of the dialog, so it dies with it and is worksWhenModal for free;
-        // frameless, translucent and never activating, so it shows nothing and takes no
-        // focus. It spans every screen, since the dialog can be dragged to any of them.
+        // A child of the dialog (dies with it, worksWhenModal for free); frameless, translucent,
+        // never activating; spans every screen since the dialog can be dragged anywhere.
         auto* backdrop = new QWidget(dlg, Qt::Tool | Qt::FramelessWindowHint
                                               | Qt::NoDropShadowWindowHint);
         backdrop->setObjectName(QStringLiteral("stencilModalBackdrop"));
@@ -132,8 +111,7 @@ namespace stencil::support {
         backdrop->installEventFilter(new BackdropPress(backdrop, dlg));
         backdrop->show();
 
-        // BELOW the dialog, so the dialog and its popups stay interactive and only presses
-        // that miss them reach the backdrop. Deferred so both native windows exist.
+        // BELOW the dialog so it and its popups stay interactive. Deferred so both native windows exist.
         QPointer<QDialog> dlgP(dlg);
         QPointer<QWidget> bdP(backdrop);
         QTimer::singleShot(0, dlg, [dlgP, bdP] {

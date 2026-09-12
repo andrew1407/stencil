@@ -10,8 +10,7 @@ namespace stencil::gui {
 
 
   // The table writes easings as CSS cubic-beziers; these are Qt's nearest curves.
-  // `defaults.*.qtEasing` names the two mode defaults, so only the per-part overrides
-  // need mapping here.
+  // `defaults.*.qtEasing` names the two mode defaults.
   QEasingCurve::Type icm::easingFor(const QString& css, QEasingCurve::Type dflt) {
     if (css.startsWith(QLatin1String("cubic-bezier(0.16"))) return QEasingCurve::OutQuint;
     if (css.startsWith(QLatin1String("cubic-bezier(0.34"))) return QEasingCurve::OutBack;
@@ -59,8 +58,7 @@ namespace stencil::gui {
       p.easing = easingFor(o.value(QLatin1String("easing")).toString(), dfltEase);
       p.dashArray = num(o, "dashArray", 0);
       if (hold) {
-        // `qtFallback` stands in where the CSS pose needs 3-D (the folder's
-        // perspective rotateX, which QSvgRenderer has no way to draw).
+        // `qtFallback` stands in where the CSS pose needs 3-D (QSvgRenderer has no rotateX).
         const QJsonObject fb = o.value(QLatin1String("qtFallback")).toObject();
         p.to = readPose(fb.isEmpty() ? o.value(QLatin1String("to")).toObject() : fb);
       } else {
@@ -140,9 +138,8 @@ namespace stencil::gui {
   }
 
 
-  // The part's OWN centre, for the dots/handles/LEDs that scale in place. Every
-  // originSelf part in the table is a circle or a (dot-length) line, so the geometry
-  // attributes answer it directly; anything else falls back to the glyph centre.
+  // The part's OWN centre, for dots/handles/LEDs that scale in place; anything else
+  // falls back to the glyph centre.
   QPointF icm::selfCentre(const Tag& t) {
     if (t.text.startsWith(QLatin1String("<circle")))
       return QPointF(attr(t.text, "cx", 12), attr(t.text, "cy", 12));
@@ -190,10 +187,8 @@ namespace stencil::gui {
                                          .value(QLatin1String("parts"))
                                          .toArray(),
                                      spec.hold, dMs, dEase);
-        // Deliberate desktop divergence (user decision 2026-09-02): the close cross
-        // draws 1.5× faster here than the canonical table — 270ms/stroke read as
-        // sluggish in Qt. Duration and stagger scale together so the strokes still
-        // land one after the other.
+        // Deliberate desktop divergence (user decision 2026-09-02): the close cross draws
+        // 1.5x faster here — 270ms/stroke read as sluggish in Qt.
         if (it.key() == QLatin1String("x")) {
           for (auto* list : {&spec.parts, &spec.activeParts})
             for (IconMotionPart& p : *list) {

@@ -2,18 +2,14 @@
 
 namespace stencil::gui {
 
-  // Re-target every row. `wanted` says whether a row belongs to the new filtered set.
-  // A row it excludes is gone at once; the rows that are LEFT arrive — one already
-  // listed keeps its slot and re-forms in place, one being revealed opens its slot
-  // first. Reduced motion — and a row the filter has never seen, i.e. a freshly built
-  // list — jumps to the end state.
+  // An excluded row is gone at once; the rows LEFT arrive. A row the filter has never
+  // seen (a fresh list) jumps to the end state.
   void ListFilterFade::apply(const std::function<bool(QListWidgetItem*)>& wanted) {
     if (!list_) return;
-    dustBudget_ = 0;   // one shared mesh budget per filter change (browser scatterGridFor)
+    dustBudget_ = 0;
     const bool instant = support::motionReduced();
     if (beforeFrame) beforeFrame();
-    // Did the answer really change? A re-list that lands on the same set must not
-    // replay it, or every background refresh would flash the whole list.
+    // A re-list landing on the same set must not replay, or every refresh flashes the list.
     bool changed = false;
     for (int i = 0; i < list_->count() && !changed; ++i) {
       const QVariant prev = list_->item(i)->data(kFilterTargetRole);
@@ -25,9 +21,7 @@ namespace stencil::gui {
       QListWidgetItem* it = list_->item(i);
       const double target = wanted(it) ? 1.0 : 0.0;
       const bool known = it->data(kFilterPresenceRole).isValid();
-      // OUT: straight to nothing — there is no exit to watch. IN: a row already at
-      // full height keeps it (its slot must not jump under the pointer); one still
-      // closed opens from where it is.
+      // OUT: straight to nothing. IN: a row already open keeps its slot.
       const double p = (instant || !known || target <= 0.0)
                            ? target
                            : it->data(kFilterPresenceRole).toDouble();
@@ -40,14 +34,8 @@ namespace stencil::gui {
   }
 
 
-  // The sand a row that is LEFT arrives out of (browser js/ui/motion.js filterDust):
-  // the row is veiled at once (kFilterDustRole — the motes ARE the row; a delegate-
-  // painted host honours it through filterInk) and its motes gather over the rect it
-  // occupies. A row already at full height has that rect NOW; one being revealed is
-  // still opening its slot, so its flight waits out the fade and reads the settled
-  // box. Budgeted per filter change (apply() resets it): past the row ceiling the
-  // rest simply fade. `host` is the window the flight is drawn on. Wire it from
-  // onArrive on a delegate-painted list; nothing plays for a row the filter drops.
+  // Browser js/ui/motion.js filterDust: the row is veiled (kFilterDustRole, honoured by
+  // a delegate through filterInk) while its motes gather over its rect.
   void ListFilterFade::dustRowIn(QListWidgetItem* it, QWidget* host, int ms) {
     if (!it || !list_ || !host || !host->isVisible() || support::motionReduced()) return;
     if (dustBudget_ >= kFilterDustMaxRows) return;
@@ -64,8 +52,8 @@ namespace stencil::gui {
       if (!self || !hostP || !idx.isValid()) return;
       QListWidgetItem* row = list->item(idx.row());
       if (!row) return;
-      // Re-fetched from `idx`, not captured by pointer: a live re-list can delete
-      // every row in the gap, and a stale QListWidgetItem* here was a use-after-free.
+      // Re-fetched from `idx`: a live re-list can delete every row in the gap, and a
+      // captured QListWidgetItem* was a use-after-free.
       const auto unveil = [self, list, idx] {
         if (!self || !idx.isValid()) return;
         QListWidgetItem* row = list->item(idx.row());
@@ -76,12 +64,8 @@ namespace stencil::gui {
       };
       const QRect r = list->visualItemRect(row);
       if (r.width() < 8 || r.height() < 8 || !hostP->isVisible()) { unveil(); return; }
-      // The motes ARE the row, so they must be made of its picture. The row is veiled
-      // by now (a delegate-painted one draws NOTHING at ink 0), so lift the veil for
-      // the photograph alone — grab() renders into a pixmap, never to the screen, and
-      // nothing repaints in between — then put it straight back. Photographing the
-      // veiled row made the cloud out of the list's bare background: the row simply
-      // appeared, with no arrival to see.
+      // The veil is lifted for the photograph alone (grab() never reaches the screen):
+      // a veiled row photographs as bare background.
       const auto setVeil = [&](double v) {
         if (self->beforeFrame) self->beforeFrame();
         row->setData(kFilterDustRole, v);
@@ -96,18 +80,16 @@ namespace stencil::gui {
                                                QColor(), shot);
       if (!fx) { unveil(); return; }
       fx->setObjectName(QString::fromLatin1(kFilterDustObjectName));
-      // Held back until the motes have very nearly landed — the browser's markForm stop.
+      // Browser markForm stop.
       QTimer::singleShot(int(ms * kFilterDustVeilStop), self, unveil);
     };
-    // Already listed: its box is real right now, so the motes start this frame and the
-    // slot never moves. Being revealed: wait out the slot opening, then read the box.
+    // A row being revealed has no box yet: wait out the slot opening.
     if (list_->visualItemRect(it).height() >= 8) fly();
     else QTimer::singleShot(kFilterFadeMs, this, fly);
   }
 
 
-  // Jump every in-flight row to its final state (dialog teardown): correct result, no
-  // motion, nothing left half-faded behind a closing window.
+  // Dialog teardown.
   void ListFilterFade::finishNow() {
     if (!list_) return;
     if (beforeFrame) beforeFrame();
@@ -124,8 +106,7 @@ namespace stencil::gui {
   void ListFilterFade::write(QListWidgetItem* it, double p, double target) {
     it->setData(kFilterPresenceRole, p);
     it->setData(kFilterTargetRole, target);
-    // Hidden only once it is BOTH gone and staying gone: a row on its way out has to
-    // stay in the view long enough to be seen leaving.
+    // Hidden only once BOTH gone and staying gone.
     it->setHidden(p <= 0.0 && target <= 0.0);
     if (writeRow) writeRow(it, p);
   }
@@ -142,7 +123,6 @@ namespace stencil::gui {
       const double target = t.toDouble();
       double p = it->data(kFilterPresenceRole).toDouble();
       if (p == target) continue;
-      // Clamped ONTO the target, so a row always lands exactly on 0 or 1.
       p = p < target ? std::min(target, p + step) : std::max(target, p - step);
       write(it, p, target);
       if (p != target) moving = true;

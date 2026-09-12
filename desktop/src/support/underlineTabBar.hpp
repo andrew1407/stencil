@@ -1,14 +1,6 @@
 #pragma once
-// The browser's .oi-tab source-tab strip (components.css): flat tabs on a hairline —
-// 13px medium labels beside a 15px glyph, 8px/16px padding, muted at rest, accent (text
-// AND glyph) when selected with a 2px accent underline. Hover matches the browser's
-// generic button:hover: an accent-2 pill fades in UNDER the tab and the ink flips to the
-// on-accent white (accent text over the accent pill is unreadable). That fade and the
-// underline SLIDING between tabs are the two moves QSS cannot express on a QTabBar.
-// Everything is painted; no box ever changes, so the dialog cannot reflow. Colours come
-// from the palette buildQPalette() installs, so the strip tracks theme and accent free.
-//
-// Header-only and Q_OBJECT-free (no signals/slots of its own), so it needs no MOC.
+// The browser's .oi-tab strip (components.css). Everything is painted — the hover pill
+// fade and the underline SLIDE are moves QSS cannot express on a QTabBar. Q_OBJECT-free.
 #include "iconSet.hpp"
 #include "modalReveal.hpp"   // support::motionReduced()
 #include "shimmerOverlay.hpp"   // the app-wide hover sweep, per tab
@@ -26,9 +18,7 @@ namespace stencil::gui {
 
   class UnderlineTabBar : public QTabBar {
    public:
-    // Browser .oi-tab: padding 8px 16px, 14px glyphs (15 at Qt's optical size), 6px
-    // icon-text gap, a 2px underline; the colour fade and the underline slide are this
-    // widget's own clocks (QSS colours cannot animate).
+    // Browser .oi-tab: padding 8px 16px, 14px glyphs (15 at Qt's optical size), 6px gap, 2px underline.
     static constexpr int kPadX = 16;
     static constexpr int kPadY = 8;
     static constexpr int kGlyph = 15;

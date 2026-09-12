@@ -2,8 +2,7 @@
 
 namespace stencil::gui {
 
-  // Which pose set a control uses: `variants.active` on the fullscreen button that is
-  // already in fullscreen, so the corners always show where the click takes you.
+  // `variants.active` on the fullscreen button already in fullscreen.
   const QVector<IconMotionPart>* icm::partsFor(const QAbstractButton* btn,
                                                const IconMotionSpec& spec) {
     const bool active = btn->isChecked()
@@ -13,11 +12,8 @@ namespace stencil::gui {
   }
 
   bool icm::eligible(QAbstractButton* btn) {
-    // A busy spin, a face mid-swap and the fold chevrons each already own their glyph.
-    // A DISABLED control is deliberately eligible (iconMotion.json trigger.disabled):
-    // it is still hovered and still explains itself through its tooltip, and a frozen
-    // glyph read as a dead area of the toolbar rather than as a control that cannot
-    // act right now — the motion says what it WOULD do, the grey says it cannot yet.
+    // A DISABLED control is deliberately eligible (iconMotion.json trigger.disabled): the
+    // motion says what it WOULD do, the grey says it cannot yet.
     if (!btn || support::motionReduced()) return false;
     if (btn->property(kNoIconMotionProperty).toBool()) return false;
     if (faceSwapping(btn)) return false;
@@ -28,9 +24,7 @@ namespace stencil::gui {
   }
 
 
-  // Q_OBJECT-free (no MOC), so there is no metaobject to qobject_cast through: the
-  // runner is found by its unique object name and cast statically — logoHoverFx's
-  // asLogoFx() idiom.
+  // No MOC: found by unique object name and cast statically (logoHoverFx's asLogoFx idiom).
   IconMotionRunner* icm::runnerOf(QAbstractButton* btn) {
     QObject* o = btn->findChild<QObject*>(QString::fromLatin1(kIconMotionAnimName),
                                           Qt::FindDirectChildrenOnly);
@@ -44,7 +38,6 @@ namespace stencil::gui {
   }
 
 
-  // Which pose set a menu row uses — the action twin of partsFor above.
   const QVector<IconMotionPart>* icm::partsForAction(const QAction* act,
                                                      const IconMotionSpec& spec) {
     const bool active = act->isChecked()
@@ -59,8 +52,7 @@ namespace stencil::gui {
 
   bool IconMotionFilter::eventFilter(QObject* o, QEvent* e) {
     const QEvent::Type type = e->type();
-    // Keyboard navigation is a hover too (browser .ctx-kb): hovered() fires for the
-    // row the arrows land on, where no mouse move ever will. Wired once per menu.
+    // Keyboard navigation is a hover too (browser .ctx-kb): hovered() fires for the arrowed row.
     if (type == QEvent::Show) {
       if (auto* menu = qobject_cast<QMenu*>(o);
           menu && !menu->property(kMenuHoverWiredProperty).toBool()) {
@@ -70,9 +62,7 @@ namespace stencil::gui {
       }
       return QObject::eventFilter(o, e);
     }
-    // A menu's rows are QActions inside ONE widget, so their "hover" is the menu's
-    // own mouse moves — the browser's .ctx-item / .chat-more-item icons animate on
-    // row hover, and these do the same through ActionIconMotionRunner.
+    // Browser .ctx-item / .chat-more-item icons animate on row hover.
     if (type == QEvent::MouseMove || type == QEvent::Leave || type == QEvent::Hide) {
       if (auto* menu = qobject_cast<QMenu*>(o)) {
         if (type == QEvent::MouseMove)
@@ -87,8 +77,7 @@ namespace stencil::gui {
         return QObject::eventFilter(o, e);
       }
     }
-    // EnabledChange is deliberately NOT watched: a control greyed out under the pointer
-    // keeps its motion, exactly as the browser's CSS trigger does.
+    // EnabledChange is NOT watched: a control greyed out under the pointer keeps its motion.
     if (type != QEvent::Enter && type != QEvent::Leave && type != QEvent::Hide)
       return QObject::eventFilter(o, e);
     auto* btn = qobject_cast<QAbstractButton*>(o);
@@ -98,9 +87,7 @@ namespace stencil::gui {
       if (!icm::eligible(btn)) return QObject::eventFilter(o, e);
       IconMotionRunner* live = icm::runnerOf(btn);
       IconRequest req;
-      // A button carries no glyph name — only the QIcon themedIcon() handed it. A
-      // theme flip or a face swap replaces that icon, so the glyph is re-read on every
-      // hover and a runner left over from a DIFFERENT glyph is retired, not reused.
+      // A theme flip or face swap replaces the QIcon, so a runner for a DIFFERENT glyph is retired.
       if (!iconRequestForKey(btn->icon().cacheKey(), &req)) {
         if (live) live->enter();   // mid-motion re-enter: the icon is our own posed one
         return QObject::eventFilter(o, e);
@@ -123,8 +110,6 @@ namespace stencil::gui {
   }
 
 
-  // The row the pointer is on, per menu — so moving to the next row eases the
-  // previous glyph back exactly as leaving a button does.
   void IconMotionFilter::hoverMenuAction(QMenu* menu, QAction* a) {
     QPointer<QAction>& cur = menuHover_[menu];
     if (cur == a) return;
@@ -134,8 +119,7 @@ namespace stencil::gui {
     if (!a || a->isSeparator() || support::motionReduced()) return;
     if (a->property(kNoIconMotionProperty).toBool()) return;
     IconRequest req;
-    // Same re-trace as the button path: a theme flip replaces the QIcon, so the
-    // glyph is re-read on every hover and a stale runner retired, not reused.
+    // Same re-trace as the button path.
     if (!iconRequestForKey(a->icon().cacheKey(), &req)) {
       if (ActionIconMotionRunner* live = icm::runnerOfAction(a)) live->enter();
       return;
@@ -156,8 +140,7 @@ namespace stencil::gui {
   }
 
 
-  // Install the watcher on the application. Idempotent — every MainWindow calls it, and
-  // only the first one takes.
+  // Idempotent — every MainWindow calls it; only the first takes.
   void installIconMotion() {
     QCoreApplication* app = QCoreApplication::instance();
     if (!app

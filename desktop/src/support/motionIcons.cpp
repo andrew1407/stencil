@@ -10,8 +10,7 @@ namespace stencil::support {
     return ms / kMotionIconSpeedup;
   }
 
-  // Paint `mode`'s glyph into `box` (square, any size — the drawing is 16 units) in
-  // `colour`, `ms` into its hover (a big value = at rest, fully drawn).
+  // `box` is square, any size — the drawing is 16 units; a big `ms` = at rest.
   void paintMotionIcon(QPainter& p, const QRectF& box, const QString& mode,
                        const QColor& colour, double ms) {
     const double s = box.width() / 16.0;
@@ -25,13 +24,12 @@ namespace stencil::support {
     p.setBrush(Qt::NoBrush);
     if (mode == QLatin1String("none")) {
       p.drawEllipse(QPointF(8, 8), 5.6, 5.6);
-      // The line draws from its top-right end: the browser's stroke-dashoffset 11.4 → 0.
+      // Browser stroke-dashoffset 11.4 → 0.
       const double k = mmEaseOut(t);
       const QPointF a(12.05, 3.95), b(3.95, 12.05);
       if (k > 0.01) p.drawLine(a, a + (b - a) * k);
     } else if (mode == QLatin1String("slide")) {
-      // The shaft is DRAWN from its bottom-left end over the first 35% (the browser's
-      // mmShaft: stroke-dashoffset 9.9 → 0), the head fades in over the last third (mmHead).
+      // Browser mmShaft (stroke-dashoffset 9.9 → 0) over the first 35%; mmHead over the last third.
       const double ks = mmEaseOut(std::clamp(t / (0.35 / 0.45), 0.0, 1.0));
       const QPointF a(4.5, 11.5), b(11.5, 4.5);
       if (ks > 0.01) p.drawLine(a, a + (b - a) * ks);
@@ -82,8 +80,7 @@ namespace stencil::support {
       const double r[5] = {1.3, 1.0, 1.2, 1.1, 1.35};
       p.setPen(Qt::NoPen); p.setBrush(colour);
       for (int i = 0; i < 5; i++) {
-        // Speck i sets off 90ms after the one before and takes 825ms (the browser's
-        // mmDust + nth-of-type delays); `t` runs over the whole 1185ms.
+        // Browser mmDust + nth-of-type delays: 90ms apart, 825ms each, `t` over the whole 1185ms.
         const double start = i * 90 / 1185.0, span = 825 / 1185.0;
         const double k = mmOut(std::clamp((t - start) / span, 0.0, 1.0));
         p.setOpacity(k);
@@ -93,7 +90,6 @@ namespace stencil::support {
     p.restore();
   }
 
-  // The glyph `ms` into its hover, as an icon of `px` a side (a big `ms` = at rest).
   QIcon motionIconFrame(const QString& mode, const QColor& colour, double ms, int px, double dpr) {
     QPixmap pm(int(px * dpr), int(px * dpr));
     pm.setDevicePixelRatio(dpr);
@@ -120,20 +116,16 @@ namespace stencil::support {
 
   void MotionIconDelegate::paint(QPainter* p, const QStyleOptionViewItem& option,
                                  const QModelIndex& index) const {
-    // ONE glyph, in the row's own icon slot: the frame at this hover progress is handed
-    // to the style AS the row's icon, never painted beside its own (that drew two).
+    // The frame is handed to the style AS the row's icon, never painted beside it.
     QStyleOptionViewItem opt = option;
     initStyleOption(&opt, index);
     const QString mode = index.data(Qt::UserRole).toString();
     const bool hovered = index.row() == hoverRow_;
     const double ms = hovered ? double(clock_.elapsed()) : 1e9;
-    // The browser's 16px glyph, not the combo's own icon size — a Mac's PM_SmallIconSize
-    // drew them half again as big as the browser's rows.
+    // The browser's 16px, not PM_SmallIconSize (half again as big on a Mac).
     opt.decorationSize = QSize(kMotionIconPx, kMotionIconPx);
     const double dpr = p->device() ? p->device()->devicePixelRatio() : 1.0;
-    // Always the row's TEXT colour — the picked row keeps its label's ink over the soft
-    // accent wash (theme.cpp searchComboList::item:selected), so HighlightedText's white
-    // left the glyph all but invisible on it in the light theme.
+    // Always the row's TEXT colour: HighlightedText's white vanished on the light theme's accent wash.
     opt.icon = motionIconFrame(mode, opt.palette.color(QPalette::Text), ms, kMotionIconPx, dpr);
     opt.features |= QStyleOptionViewItem::HasDecoration;
     const QWidget* w = opt.widget;
@@ -168,10 +160,8 @@ namespace stencil::support {
     frame();
   }
 
-  // Every row's glyph, re-inked in the theme that just arrived. A QIcon bakes its
-  // pixels, so a flip repainted the combo but left these in the OLD theme's ink —
-  // invisible on the new one. The popup's rows are painted live by
-  // MotionIconDelegate, so only the items' own icons need this.
+  // A QIcon bakes its pixels, so a theme flip left these in the OLD ink; the popup rows
+  // are painted live by MotionIconDelegate.
   void MotionIconFace::reink() {
     const QColor ink = combo_->palette().color(QPalette::Text);
     if (ink == inked_) return;   // …and only when it really moved: setItemIcon repaints

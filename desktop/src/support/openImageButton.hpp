@@ -5,11 +5,8 @@
 #include <QIcon>
 #include <QFontMetrics>
 
-// The empty-state "Open Image" button (browser #load-image-btn). A stock
-// ToolButtonTextBesideIcon reserves a wide fixed icon slot, so the glyph sat cramped
-// against the label. This paints the icon + label itself as one centred
-// group with an explicit kGap, and sizes to just that; the style still draws the QSS fill
-// and hover, from a label-stripped option. Q_OBJECT-free, so no MOC.
+// The empty-state "Open Image" button (browser #load-image-btn), painting icon + label
+// itself: the stock ToolButtonTextBesideIcon slot cramped the glyph. Q_OBJECT-free.
 namespace stencil::gui {
 
   class OpenImageButton : public QToolButton {
@@ -30,8 +27,7 @@ namespace stencil::gui {
       QStyleOptionToolButton opt;
       initStyleOption(&opt);
       QStylePainter sp(this);
-      // Frame / background / hover / pressed only — strip the label so the base does not
-      // lay the icon+text out with its own cramped spacing.
+      // Label stripped so the base does not lay the icon+text out with its own spacing.
       QStyleOptionToolButton bg = opt;
       bg.text.clear();
       bg.icon = QIcon();
@@ -48,8 +44,7 @@ namespace stencil::gui {
       const QIcon::Mode mode = !isEnabled() ? QIcon::Disabled
                              : (opt.state & QStyle::State_MouseOver ? QIcon::Active : QIcon::Normal);
       icon().paint(&sp, iconRect, Qt::AlignCenter, mode, QIcon::Off);
-      // Always accent-filled, so the label takes the ink the stylesheet's
-      // `QToolButton[toolFill="accent"] { color: … }` put in the palette.
+      // Always accent-filled: `QToolButton[toolFill="accent"] { color: … }` put the ink in the palette.
       sp.setPen(opt.palette.buttonText().color());
       sp.setFont(font());
       sp.drawText(QRectF(x0 + iw + kGap, 0, tw, height()),

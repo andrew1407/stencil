@@ -10,9 +10,8 @@ namespace stencil::gui {
     setFocusPolicy(Qt::NoFocus);
     setCursor(Qt::PointingHandCursor);
     setAttribute(Qt::WA_Hover, true);
-    // The browser's tabs are <button>s, so they wear the shared glass shimmer on
-    // hover like every other control (css/layout.css ui-shimmer); here the sweep is
-    // driven per hovered TAB over the strip's own overlay (external-band mode).
+    // Browser tabs are <button>s and wear the shared shimmer; here the sweep runs per
+    // hovered TAB over the strip's own overlay (external-band mode).
     sweep_ = new ShimmerOverlay(this, nullptr, /*externalBands=*/true);
     slide_ = new QVariantAnimation(this);
     slide_->setDuration(kSlideMs);
@@ -24,7 +23,7 @@ namespace stencil::gui {
                      });
     QObject::connect(this, &QTabBar::currentChanged, this, [this](int idx) {
       const QRectF to = underlineRect(idx);
-      // First selection (nothing to slide from), a hidden bar, reduced motion: land.
+      // First selection, a hidden bar, reduced motion: land.
       if (underline_.isNull() || !isVisible() || support::motionReduced()) {
         slide_->stop();
         underline_ = to;
@@ -38,8 +37,7 @@ namespace stencil::gui {
     });
   }
 
-  // The iconSet glyph drawn before tab `i`'s text — named, so every state repaints
-  // it in ITS colour (the browser tints icon and label together via currentColor).
+  // Named, so every state repaints it in ITS colour (browser currentColor tinting).
   void UnderlineTabBar::setTabGlyph(int i, const QString& name) {
     glyphs_.insert(i, name);
     update();
@@ -85,9 +83,7 @@ namespace stencil::gui {
     p.setRenderHint(QPainter::Antialiasing, true);
     const QColor muted = palette().color(QPalette::Mid);
     const QColor accent = palette().color(QPalette::Highlight);
-    // Link carries the accent-2 hover shade (buildQPalette), the browser's
-    // button:hover fill; the ink over it is the on-accent white every filled
-    // button uses.
+    // Link carries the accent-2 hover shade (buildQPalette); the ink is the on-accent white.
     const QColor accent2 = palette().color(QPalette::Link);
     p.setFont(tabFont());
     for (int i = 0; i < count(); ++i) {
@@ -107,9 +103,8 @@ namespace stencil::gui {
       const QString glyph = glyphs_.value(i);
       if (!glyph.isEmpty()) {
         const int gy = r.y() + (contentH - kGlyph) / 2;
-        // Cross-fade the two endpoint rasters under painter opacity instead of
-        // rasterising a fresh intermediate shade every frame — themedIcon caches
-        // each unique colour forever, and a hover fade minted ~one per tick.
+        // Cross-fade the two endpoint rasters: themedIcon caches each colour forever, and
+        // a hover fade minted ~one per tick.
         p.drawPixmap(x, gy, themedIcon(glyph, base, kGlyph).pixmap(kGlyph, kGlyph));
         if (u > 0.001) {
           p.setOpacity(u);
@@ -123,9 +118,7 @@ namespace stencil::gui {
       p.drawText(QRect(x, r.y(), r.right() - x + 1, contentH),
                  Qt::AlignLeft | Qt::AlignVCenter, tabText(i));
     }
-    // The accent underline, wherever its slide has it right now. Rounded tips —
-    // the browser's underline is a border-bottom on a 4px-radius button, so its
-    // ends curve rather than cut off square.
+    // Rounded tips: the browser's underline is a border-bottom on a 4px-radius button.
     const QRectF u = slide_->state() == QAbstractAnimation::Running
                          ? underline_
                          : underlineRect(currentIndex());
@@ -155,8 +148,7 @@ namespace stencil::gui {
     return QRectF(r.x(), height() - kUnderline, r.width(), kUnderline);
   }
 
-  // One eased clock per tab, each pulling its colour towards hovered (1) or rest (0);
-  // moving between tabs fades the old one out while the new fades in.
+  // One eased clock per tab, towards hovered (1) or rest (0).
   void UnderlineTabBar::setHovered(int idx) {
     if (idx == hoverIdx_) return;
     animateHover(hoverIdx_, 0.0);

@@ -20,9 +20,8 @@
 #include <QProcess>
 #endif
 
-// The shared-config canon rides in app.qrc. A pre-main caller (e.g. tipContent.cpp's
-// static initializer) can reach the tables before the resource's own global
-// initializer ran, so force registration on first read. Global scope for Q_INIT_RESOURCE.
+// A pre-main caller (tipContent.cpp's static initializer) can run before the resource's
+// own global initializer, so force registration on first read.
 static void ensureAppResources() { Q_INIT_RESOURCE(app); }
 
 namespace stencil::gui {
@@ -31,8 +30,7 @@ namespace stencil::gui {
 
 #ifdef Q_OS_LINUX
   namespace {
-    // Runs a desktop-settings query and returns its trimmed stdout (empty on
-    // failure). Used as the X11/GNOME fallback when Qt can't see the scheme.
+    // Trimmed stdout, empty on failure — the X11/GNOME fallback.
     QString readCommand(const QString& program, const QStringList& args) {
       QProcess proc;
       proc.start(program, args);
@@ -45,18 +43,13 @@ namespace stencil::gui {
   }  // namespace
 #endif
 
-  // Port of the browser matchMedia('(prefers-color-scheme: dark)') check.
-  // Qt 6.5+ QStyleHints::colorScheme() often returns Unknown on X11/GNOME, so
-  // fall back to the freedesktop portal, then the GNOME setting directly.
+  // Browser matchMedia('(prefers-color-scheme: dark)'). QStyleHints::colorScheme() is
+  // Unknown (or wrongly Light) on X11/GNOME, so the portal and gsettings are asked FIRST.
   bool systemPrefersDark() {
 #ifdef Q_OS_LINUX
-    // Under xcb on GNOME, QStyleHints::colorScheme() wrongly reports Light (not
-    // Unknown), so consult the portal + gsettings FIRST and only trust Qt's hint
-    // when neither answers. Linux-only: elsewhere Qt's hint is reliable, and
-    // stray PATH gdbus/gsettings binaries don't reflect the OS appearance.
+    // Linux-only: elsewhere Qt's hint is reliable and stray gdbus/gsettings binaries mislead.
 
-    // freedesktop portal (color-scheme: 1 = prefer dark, 2 = prefer light,
-    // 0 = no preference). Returned as "(<<uint32 1>>,)".
+    // color-scheme: 1 = prefer dark, 2 = prefer light, 0 = none. Returned as "(<<uint32 1>>,)".
     const QString portal = readCommand(
         "gdbus",
         {"call", "--session", "--dest", "org.freedesktop.portal.Desktop",
@@ -66,7 +59,6 @@ namespace stencil::gui {
     if (portal.contains("uint32 1")) return true;
     if (portal.contains("uint32 2")) return false;
 
-    // GNOME setting directly (e.g. "'prefer-dark'" / "'default'").
     const QString gnome = readCommand(
         "gsettings", {"get", "org.gnome.desktop.interface", "color-scheme"});
     if (gnome.contains("dark", Qt::CaseInsensitive)) return true;
@@ -75,9 +67,7 @@ namespace stencil::gui {
       return false;
 #endif
 
-    // No desktop answer -> trust Qt's hint as a last resort. colorScheme() /
-    // Qt::ColorScheme arrived in Qt 6.5; on older Qt we have no hint to consult,
-    // so default to light.
+    // Qt::ColorScheme arrived in Qt 6.5; older Qt defaults to light.
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
 #else
@@ -85,16 +75,14 @@ namespace stencil::gui {
 #endif
   }
 
-  // Port of the browser theme toggle's tri-state resolution.
+  // Browser theme toggle's tri-state resolution.
   bool resolveDark(const QString& mode) {
     if (mode == "dark") return true;
     if (mode == "light") return false;
     return systemPrefersDark();  // "system" (default)
   }
 
-  // The selectable brand-accent presets, parsed once from the shared canon
-  // (browser/js/config/accents.json via app.qrc — same list the browser and
-  // extension read); violet is the default. --accent-2 derives from the primary below.
+  // Parsed once from the shared canon (browser/js/config/accents.json via app.qrc).
   const std::vector<AccentPreset>& accentPresets() {
     static const std::vector<AccentPreset> presets = [] {
       ensureAppResources();
@@ -114,7 +102,7 @@ namespace stencil::gui {
 
   namespace {
 
-    // sRGB transfer function: encoded 0..1 -> linear light (CSS/WCAG, not Rec.709 luma).
+    // sRGB transfer function (CSS/WCAG, not Rec.709 luma).
     double srgbToLinear(double v) {
       return v <= 0.04045 ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4);
     }
@@ -146,7 +134,6 @@ namespace stencil::gui {
   QColor accentPrimary(const QString& accentKey) {
     for (const AccentPreset& a : accentPresets())
       if (a.key == accentKey) return displayColor(QColor(a.hex));
-    // A custom accent stored as a hex string (set via the desktop logo's double-click picker).
     if (accentKey.startsWith('#')) {
       QColor c(accentKey);
       if (c.isValid()) return displayColor(c);
@@ -156,19 +143,18 @@ namespace stencil::gui {
 
   bool accentNeedsDarkGlyph(const QColor& accent) {
     if (!accent.isValid()) return false;
-    // WCAG luminance → the two contrasts; the greater wins, as in accents.js.
+    // WCAG: the greater contrast wins, as in accents.js.
     const double l = 0.2126 * srgbToLinear(accent.redF()) + 0.7152 * srgbToLinear(accent.greenF())
                      + 0.0722 * srgbToLinear(accent.blueF());
     return (l + 0.05) / 0.05 > 1.05 / (l + 0.05);
   }
 
-  // Near-black, not black: the page ink, so it matches the app's other glyphs.
+  // Near-black, so it matches the app's other glyphs.
   QColor onAccentInk(const QColor& accent) {
     return accentNeedsDarkGlyph(accent) ? QColor("#1a1a1a") : QColor(Qt::white);
   }
 
-  // The --accent-2 shade: darker in light mode, lighter in dark — the same
-  // ratios as browser/css/theme.css (86% accent + 14% black / 78% + 22% white).
+  // --accent-2: browser/css/theme.css ratios (86% accent + 14% black / 78% + 22% white).
   QColor accentShade(const QColor& primary, bool dark) {
     return dark ? mixSrgb(primary, QColor(Qt::white), 0.22)
                 : mixSrgb(primary, QColor(Qt::black), 0.14);

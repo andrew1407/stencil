@@ -1,10 +1,6 @@
 #pragma once
-// The bits every desktop cloud shares (support/disintegrateOverlay.hpp,
-// support/themeSwapOverlay.hpp): the browser's cubic-bezier easings as lookup tables,
-// a sprite cache that blits a round grain instead of rasterising one, and the clock a
-// cloud ticks on — the screen's own refresh rate, not Qt's 60Hz animation timer.
-//
-// Header-only, Q_OBJECT-free.
+// Shared by every desktop cloud: easing LUTs, the grain sprite cache, and the clock —
+// the screen's own refresh rate, not Qt's 60Hz animation timer. Q_OBJECT-free.
 #include <QColor>
 #include <QHash>
 #include <QImage>
@@ -22,10 +18,8 @@
 
 namespace stencil::support {
 
-  // Particle styles (browser dustCloud.js styleFrame — keep the numbers in step)
-  // A style is a touch laid over ANY flight, gone at both ends: an offset (px), a size
-  // multiplier, a brightness (`glow`) and `mix`, where between the main colour (0) and its
-  // shade (1) the grain is painted. Dust is the identity.
+  // Particle styles (browser dustCloud.js styleFrame — keep the numbers in step).
+  // `mix`: 0 the main colour … 1 its shade. Dust is the identity.
   struct StyleFrame {
     double sx = 0, sy = 0, scale = 1, glow = 1, mix = 0;
   };
@@ -46,19 +40,15 @@ namespace stencil::support {
     inline double wave(const double range[2], double w) { return range[0] + (range[1] - range[0]) * w; }
   }  // namespace style
   StyleFrame styleFrame(ParticleStyle s, double p, double away, double w, double len, double ms);
-  // A DUST grain's mix, fixed for its flight (browser dustCloud.js dustMix): plain grains
-  // spread from the main colour to halfway by their hash, glints wear the shade.
+  // browser dustCloud.js dustMix: plain grains to halfway by hash, glints wear the shade.
   constexpr double kDustMixSpread = 0.5;
   inline double dustMix(double w, bool glint) { return glint ? 1.0 : w * kDustMixSpread; }
   inline double fract(double v) { return v - std::floor(v); }
-  // A cloud's palette: this many even mixes from the main colour to its shade
-  // (browser paletteCss / paletteIndex — CSS color-mix in srgb is this same straight mix).
+  // browser paletteCss / paletteIndex — CSS color-mix in srgb is this same straight mix.
   constexpr int kPaletteStops = 6;
   int paletteIndex(double mix, int stops = kPaletteStops);
   QColor paletteStop(const QColor& accent, const QColor& shade, double mix, int stops = kPaletteStops);
-  // Two grains in three ride that ramp; the rest wear a TINT off their own hash — a neutral
-  // spark, two greys and two accents. Browser twin: dustCloud.js TINT_CSS / tintOf; the
-  // share and the mixes are the contract.
+  // Browser twin: dustCloud.js TINT_CSS / tintOf; the share and the mixes are the contract.
   constexpr double kTintShare = 0.34;
   constexpr int kTintStops = 5;
   constexpr double kTintAccentShare = 0.55;   // …of the accent in the pale and the deep one
@@ -70,9 +60,8 @@ namespace stencil::support {
 
   double bezierY(double t, double x1, double y1, double x2, double y2);
 
-  // A curve sampled once into 256 steps, both ends pinned exactly (the solver only
-  // bisects to within a hair of 0 and 1, and that hair leaves a spent grain a fraction
-  // lit). Thousands of grains read it per frame; solving per read was the frame.
+  // Both ends pinned exactly: the solver's hair off 1 leaves a spent grain a fraction lit.
+  // Thousands of grains read it per frame; solving per read was the frame.
   class EaseLut {
    public:
     static constexpr int kSteps = 256;
@@ -84,12 +73,10 @@ namespace stencil::support {
     std::array<double, kSteps + 1> curve_{};
   };
 
-  // Grain shapes (browser dustCloud.js grainShape / shapePolygon / addGrainPath)
-  // Dust is a round speck; water ovals and short wave lines; fire triangles and streaking
-  // sparks, each lying along its heading. Geometry in radii — keep the browser's numbers.
+  // Grain shapes (browser dustCloud.js grainShape / shapePolygon / addGrainPath), each
+  // lying along its heading. Geometry in radii — keep the browser's numbers.
   enum class GrainShape { Disc, Oval, Wave, Triangle, Streak };
-  // A styled grain is bigger and blits more pixels, so a screen-sized cloud grids at this
-  // many times the cell under water and fire (browser dustCloud.js STYLED_CELL_SCALE).
+  // browser dustCloud.js STYLED_CELL_SCALE: a styled grain blits more pixels.
   constexpr double kStyledCellScale = 1.4;
   namespace shape {
     constexpr double kWaterWaveShare = 0.3, kFireStreakShare = 0.4;
@@ -103,24 +90,17 @@ namespace stencil::support {
   double headingOf(double dx, double dy, bool fromFar);
   QPolygonF shapePolygon(GrainShape s, const QPointF& at, double r, double a);
 
-  // A grain is an antialiased disc a few pixels across, and QPainter::drawEllipse
-  // rasterises every one from scratch: ~9ms for a dialog's 4000 at 2x, which is why the
-  // desktop's clouds ticked at 60Hz and still lagged. Blitting a pre-drawn disc is ~18x
-  // cheaper (measured), so a grain is drawn once per (colour, radius, half-pixel phase)
-  // and then only copied; its alpha rides the painter's opacity. Positions land on half
-  // device pixels, which at any DPI is finer than the eye tracks a moving speck at.
+  // drawEllipse rasterises every grain from scratch (~9ms for 4000 at 2x); a blit is
+  // ~18x cheaper (measured), so a grain is drawn once per (colour, radius, half-pixel
+  // phase, heading) and copied. Positions land on half device pixels.
   class MoteSprites {
    public:
     static constexpr double kRadiusStep = 0.25;   // logical px between cached radii
     static constexpr int kMaxRadiusSteps = 63;    // 15.75px — far past any grain
-    // Bound: shapes × headings × colours × radii is unbounded in the colour axis, and a
-    // theme swap walks a gradient of them. Over the cap the whole set is dropped and
-    // refilled from what is actually on screen — an LRU's eviction scan has no business
-    // in a 60 Hz paint loop, and never evicting left every later grain on the slow path.
+    // The colour axis is unbounded (a theme swap walks a gradient). Over the cap the whole
+    // set is dropped and refilled: an LRU eviction scan has no place in the paint loop.
     static constexpr int kMaxCached = 4096;
-    // A shaped grain lies along its heading; the cache holds it at this many headings
-    // round the clock (15° apart — finer than the eye tracks a moving speck at).
-    static constexpr int kHeadingSteps = 24;
+    static constexpr int kHeadingSteps = 24;   // 15° apart
 
     void draw(QPainter& p, const QPointF& at, double radius, const QColor& colour,
               GrainShape shape = GrainShape::Disc, double a = 0.0);

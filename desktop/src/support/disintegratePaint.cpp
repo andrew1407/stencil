@@ -2,12 +2,9 @@
 
 namespace stencil::gui {
 
-  // Finish a grain: its shape, heading (`tx, ty` is its throw, `fromFar` a gather) and
-  // colour. Every grain is painted from the theme's palette by its mix and its hash,
-  // never in the cell's own colour — the cell only said how much paint there was, which
-  // `alpha` already carries. Dust twinkles; water and fire take styleFrame's touch, sized
-  // by what the grain has LEFT to reach `dest` (its flight's end) rather than by the whole
-  // throw — converging on an icon it then lands where dust lands (browser: moteFrame).
+  // Colour comes from the palette by mix and hash, never the cell's own — the cell only
+  // said how much paint there was (`alpha`). Styles size by what is LEFT to `dest`
+  // (browser moteFrame).
   void DisintegrateOverlay::finishGrain(Mote* out, double alpha, bool glint, double w, int tint,
                                         double p, double away, double tx, double ty,
                                         bool fromFar, const QPointF& dest) const {
@@ -30,9 +27,7 @@ namespace stencil::gui {
     if (snap_.isNull()) return;
     if (cells_.width() != cols_ || cells_.height() != rows_) {
       cells_ = sampleCells(snap_, cols_, rows_);
-      // Every grain's colour, once: the picture never changes under a flight, and
-      // reading a QColor back out of the cell image per grain per frame was a third
-      // of the frame at 4000 cells.
+      // Once per flight: a QColor read per grain per frame was a third of the frame.
       grains_.resize(size_t(cols_) * rows_);
       glints_.assign(size_t(cols_) * rows_, false);
       tints_.assign(size_t(cols_) * rows_, -1);
@@ -47,29 +42,22 @@ namespace stencil::gui {
     QPainter p(this);
     if (paintClip_.isValid()) p.setClipRect(paintClip_.translated(shift_));
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-    // Where the picture itself sits — the whole overlay unless `pad` widened it, or a
-    // SURFACE placed it somewhere inside a host-sized layer.
     // `shift_` is zero for a child layer; an escaped one draws host coords in its own.
     const QRectF box = picture_.isValid() ? QRectF(picture_.translated(shift_))
                                           : QRectF(rect()).adjusted(pad_, pad_, -pad_, -pad_);
     if (box.width() <= 0 || box.height() <= 0) return;
-    // Every cell still at home IS the picture: the snapshot is blitted through a clip
-    // that leaves out the cells that have left it, so the front reads as the thing
-    // grinding into grains of its own colour rather than a dot screen popping over it.
-    // A gathering picture closes the same way, cell by landed cell. A CLIP, never a
-    // clear: this is usually a child widget painting into the window's own backing
-    // store, and a Source-mode clear there punched a black hole through the window.
+    // The snapshot is blitted through a CLIP that leaves out departed cells — never a
+    // Source-mode clear, which punched a black hole through the window's backing store.
     const double cw = box.width() / cols_;
     const double ch = box.height() / rows_;
     const bool surface = sweep_ == Sweep::SurfaceIn || sweep_ == Sweep::SurfaceOut;
     motes_.clear();
     cut_.clear();
     for (int cy = 0; cy < rows_; ++cy) {
-      // Cell edges are rounded so neighbours share one; the picture's OUTER edge
-      // rounds up, or a fractional box left an uncleared hairline of it down the side.
+      // The outer edge rounds up, or a fractional box leaves an uncleared hairline.
       const int y0 = qRound(box.y() + cy * ch);
       const int y1 = cy == rows_ - 1 ? int(std::ceil(box.bottom())) : qRound(box.y() + (cy + 1) * ch);
-      int runStart = -1;   // the run of departed cells being merged into one rect
+      int runStart = -1;
       for (int cx = 0; cx <= cols_; ++cx) {
         Mote m;
         const bool away = cx < cols_
@@ -87,15 +75,10 @@ namespace stencil::gui {
         }
       }
     }
-    // The state left behind, under the particles — it shows wherever a cell has gone.
     if (!base_.isNull()) p.drawPixmap(box, base_, QRectF(base_.rect()));
     if (surface) {
-      // A SURFACE is never shown cell by cell: the browser's motes are the window
-      // until they land, and the window itself fades up behind them once they mostly
-      // have (surfaceForm: held at 0 to kDustHold, then up) — or, leaving, cuts to
-      // nothing over its first beat while the sand is still where it stood
-      // (surfaceLeave). Cut out per cell, the front was a blocky staircase of
-      // photograph that no browser surface ever shows.
+      // A surface is never cut cell by cell (a blocky staircase): it fades up behind
+      // the motes (browser surfaceForm) or cuts out over its first beat (surfaceLeave).
       const double fade = sweep_ == Sweep::SurfaceIn
           ? (t_ < kDustHold ? 0.0 : (t_ - kDustHold) / (1.0 - kDustHold))
           : std::max(0.0, 1.0 - t_ / kSurfaceScatterSplit);
@@ -118,8 +101,7 @@ namespace stencil::gui {
         p.restore();
       }
     }
-    // The grains: blitted from the sprite cache, never rasterised here — antialiasing
-    // OFF, or the raster engine leaves its 1:1 fast path (dustKit.hpp MoteSprites).
+    // Antialiasing OFF, or the raster engine leaves its 1:1 blit fast path.
     p.setRenderHint(QPainter::Antialiasing, false);
     p.setRenderHint(QPainter::SmoothPixmapTransform, false);
     for (const Mote& m : motes_) sprites_.draw(p, m.at, m.radius, m.color, m.shape, m.heading);
@@ -127,21 +109,17 @@ namespace stencil::gui {
   }
 
 
-  // A cell's grain colour, from the per-flight table paintEvent builds.
   const QColor& DisintegrateOverlay::grainColour(int cx, int cy, double) const {
     return grains_[size_t(cy) * cols_ + cx];
   }
 
 
-  // The browser speckPainter's RIM and GLINT cells: the picture's edge, and one inner
-  // cell in seven — lifted further towards the ink, and the ones that twinkle.
+  // Browser speckPainter's RIM and GLINT cells: the edge, and one inner cell in seven.
   bool DisintegrateOverlay::isGlint(int cx, int cy, double n) const {
     return cx == 0 || cy == 0 || cx == cols_ - 1 || cy == rows_ - 1 || n > kGlintHash;
   }
 
 
-  // A cell's colour, lifted further towards the ink where the browser's speckPainter
-  // paints a RIM or a GLINT.
   QColor DisintegrateOverlay::liftedGrain(int cx, int cy, double n) const {
     QColor c = cellColour(cells_, cx, cy);
     if (!ink_.isValid() || c.alphaF() <= 0.02) return c;

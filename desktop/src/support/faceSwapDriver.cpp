@@ -2,8 +2,7 @@
 
 namespace stencil::gui {
 
-  // True while `btn` is mid-exchange. A superseded animation is stopped and deleteLater'd,
-  // so it can still be a child for a turn of the loop — RUNNING is the question, not there.
+  // A superseded animation is stopped and deleteLater'd; RUNNING is the question, not there.
   bool faceSwapping(const QAbstractButton* btn) {
     if (!btn) return false;
     for (QVariantAnimation* a : btn->findChildren<QVariantAnimation*>(
@@ -12,10 +11,8 @@ namespace stencil::gui {
     return false;
   }
 
-  // Put the REMEMBERED face back on the button, unchanged — for undoing something else's
-  // meddling (a QToolButton re-copies its action's icon on every ActionChanged). It is not
-  // a transition: it never touches the state, and it keeps its hands off a running swap,
-  // which is already painting every frame.
+  // Undoes something else's meddling (a QToolButton re-copies its action's icon on every
+  // ActionChanged); never touches the state, keeps its hands off a running swap.
   void repaintFace(QAbstractButton* btn) {
     if (!btn || faceSwapping(btn)) return;
     bool known = false;
@@ -26,15 +23,10 @@ namespace stencil::gui {
     if (!painted.label.isNull()) btn->setText(painted.label);
   }
 
-  // Swap `btn`'s face to `to`, leaving from whatever a previous swap painted.
-  //
-  // `applyState` is the caller's own flip (the accent fill, a repolish) and runs ONCE, at
-  // the pivot, hidden behind the invisible frame. It must SET the state absolutely, never
-  // toggle it: a swap superseded before its pivot is dropped, and the superseding one's
-  // applyState is then what the button ends on — which is how holding the shortcut always
-  // converges on the real state instead of stranding a stale face.
-  //
-  // Reduced motion (or a first paint, or a hidden button) goes straight to `to`.
+  // `applyState` is the caller's flip (accent fill, repolish), run ONCE at the pivot,
+  // hidden behind the invisible frame. It must SET the state absolutely, never toggle:
+  // a superseded swap's applyState is what the button ends on, which is how holding a
+  // shortcut converges on the real state. Reduced motion (or first paint) goes to `to`.
   void swapFace(QAbstractButton* btn, const FaceSpec& to,
                 const std::function<void()>& applyState, int ms) {
     if (!btn || to.glyph.isEmpty()) return;

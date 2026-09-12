@@ -1,14 +1,6 @@
 #pragma once
 // Hover "glass shimmer" — the desktop port of the browser's ui-shimmer rule
-// (browser/css/layout.css): a soft left→right light sweep played once on hover
-// over interactive controls, so icons and rows feel the same across surfaces.
-// Qt style sheets cannot animate a sweep, so this is a transparent, mouse-through
-// child overlay that paints an animated diagonal highlight.
-//
-// Shared by the toolbar/dialog controls (mainWindow.cpp) and the chat surfaces
-// (chatDock.cpp + the context menu's assistant panel), so every icon button in
-// the app shimmers identically. Header-only and Q_OBJECT-free (no signals or
-// slots of its own), so it needs no MOC.
+// (browser/css/layout.css). Header-only and Q_OBJECT-free, so no MOC.
 #include "modalReveal.hpp"   // support::motionReduced()
 
 #include <QAbstractAnimation>
@@ -33,36 +25,26 @@
 
 namespace stencil::gui {
 
-  // The sweep is clipped to the control's own rounded shape — a plain band spilled across
-  // the corners of a pill. C++ cannot read a QSS border-radius back, so the
-  // common control radius (theme.cpp: buttons, combos, rows) is the default and anything
-  // rounder — the modal Close pill, the Controls pill — carries its own on this property.
+  // C++ cannot read a QSS border-radius back, so the common control radius is the default
+  // and anything rounder (the Close pill, the Controls pill) carries its own here.
   inline constexpr const char* kShimmerRadiusProperty = "_shimmerRadius";
   inline constexpr int kShimmerRadius = 7;
 
-  // Hover "glass shimmer": a left→right light sweep played on hover — the desktop match for
-  // the browser/extension CSS shimmer. Qt style sheets can't animate a sweep, so this is a
-  // transparent, mouse-through child overlay that paints an animated diagonal highlight.
-  // installHoverShimmer(w) attaches one to any button; it lives/dies with its target.
+  // A transparent, mouse-through child overlay; it lives/dies with its target.
   class ShimmerOverlay : public QWidget {
   public:
-    // Whole-widget mode: sweeps the whole target on hover-enter. View mode (view != null): sweeps
-    // the hovered ROW of an item view (points/lines panel), tracked via the viewport's mouse-move.
-    // External-band mode (externalBands): the owner drives sweeps over arbitrary bands via
-    // sweepBand() — Enter starts nothing (menuShimmer.hpp's QMenu rows).
+    // Whole-widget mode sweeps the target; view mode sweeps the hovered ROW of an item
+    // view; external-band mode lets the owner drive sweepBand() (menuShimmer.hpp).
     explicit ShimmerOverlay(QWidget* target, QAbstractItemView* view = nullptr,
                             bool externalBands = false)
         : QWidget(view ? view->viewport() : target),
           target_(view ? view->viewport() : target), view_(view),
           externalBands_(externalBands) {
-      // A child overlay that alpha-blends over the target. NO WA_TranslucentBackground (that's a
-      // top-level-window attribute and stops a child from rendering); WA_NoSystemBackground so
-      // Qt doesn't erase our area and the target shows through the un-painted (transparent) parts.
+      // NO WA_TranslucentBackground (a top-level attribute that stops a child rendering);
+      // WA_NoSystemBackground so the target shows through the unpainted parts.
       setAttribute(Qt::WA_TransparentForMouseEvents);
       setAttribute(Qt::WA_NoSystemBackground);
-      // Named + progress mirrored to a dynamic property so the GUI test can
-      // assert the band genuinely ADVANCES (regression guard: a band that
-      // pops in at one position and never animates).
+      // Progress mirrored to a dynamic property so the GUI test can assert the band ADVANCES.
       setObjectName(QStringLiteral("shimmerOverlay"));
       anim_ = new QVariantAnimation(this);
       anim_->setStartValue(0.0);
@@ -94,17 +76,14 @@ namespace stencil::gui {
             if (!view_ && !externalBands_ && target_->isEnabled()) startSweep(rect());
             break;
           case QEvent::Leave:
-            // Cancel the sweep the instant the cursor leaves, so a fast pass over many items
-            // doesn't leave a trail of animations still playing out on already-unhovered widgets.
+            // Cancel the instant the cursor leaves, or a fast pass leaves a trail of sweeps.
           case QEvent::Hide:
             cancelSweep();
             break;
           case QEvent::EnabledChange:
           case QEvent::WindowDeactivate:
-            // …and whenever the target disables / loses its window (a modal dialog
-            // opening mid-sweep): a suspended window would keep the half-painted band
-            // as a frozen streak otherwise. NOT in external-band mode — a popup menu's
-            // activation churn is not a hover-out (menuShimmer.hpp).
+            // …and on disable / window loss: a suspended window would keep a frozen streak.
+            // NOT in external-band mode — a popup menu's activation churn is not a hover-out.
             if (!externalBands_) cancelSweep();
             break;
           case QEvent::MouseMove:
@@ -129,8 +108,7 @@ namespace stencil::gui {
       return QWidget::eventFilter(o, e);
     }
     void paintEvent(QPaintEvent*) override {
-      // Paint ONLY while the sweep is actually running — a stopped animation
-      // must never leave a static mid-sweep gradient behind.
+      // Paint ONLY while running — a stopped animation must not leave a static band.
       if (progress_ < 0.0 || anim_->state() != QAbstractAnimation::Running) return;
       const QRect b = band_.isEmpty() ? rect() : band_;
       if (b.width() <= 0 || b.height() <= 0) return;
@@ -154,13 +132,11 @@ namespace stencil::gui {
     }
 
   public:
-    // External-band mode's public drive: sweep an arbitrary band / cancel outright.
     void sweepBand(const QRect& band) { startSweep(band); }
     void cancel() { cancelSweep(); }
 
   private:
-    // Reduced motion: no sweep at all. The sweep is pure feedback with no end state to
-    // reach, so skipping it loses nothing (faceSwap / filterFade rule).
+    // Reduced motion: no sweep at all — pure feedback with no end state (faceSwap / filterFade rule).
     void startSweep(const QRect& band) {
       if (support::motionReduced()) return;
       band_ = band;
@@ -199,16 +175,14 @@ namespace stencil::gui {
     }
   }
 
-  // A control opts out with this property (the toolbar's logo and the rename fields do).
+  // A control opts out with this property.
   inline constexpr const char* kNoShimmerProperty = "_noShimmer";
 
-  // Every control under `root` that the browser sweeps: its rule is app-wide (css/layout
-  // .css ui-shimmer), so a Qt window has to opt each of its own in. installHoverShimmer
-  // is guarded, so calling this twice on the same tree costs nothing.
+  // Every control under `root` that the browser sweeps. installHoverShimmer is guarded, so
+  // calling this twice on the same tree costs nothing.
   inline void installHoverShimmerIn(QWidget* root) {
     if (!root) return;
-    // ONE walk: each findChildren<T*> is its own recursive descent building its own list,
-    // and this runs per dialog and (in the connections list) per row rebuild.
+    // ONE walk: findChildren<T*> per type is its own recursive descent, and this runs per row rebuild.
     for (QWidget* w : root->findChildren<QWidget*>()) {
       if (w->property(kNoShimmerProperty).toBool()) continue;
       if (qobject_cast<QAbstractButton*>(w) || qobject_cast<QComboBox*>(w) ||
@@ -217,8 +191,7 @@ namespace stencil::gui {
     }
   }
 
-  // …deferred a turn, for a window whose content is added AFTER this is called (every
-  // dialog built on the shared modal chrome, which installs its shell first).
+  // …deferred a turn, for a window whose content is added AFTER this is called.
   inline void installHoverShimmerLater(QWidget* root) {
     if (!root) return;
     QTimer::singleShot(0, root, [root] { installHoverShimmerIn(root); });

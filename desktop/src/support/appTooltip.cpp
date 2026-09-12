@@ -14,14 +14,14 @@ namespace stencil::gui {
   }
 
 
-  // How many caps this tooltip drew, hunting for them on first ask. 0 = nothing to shake.
+  // 0 = nothing to shake.
   int TipBody::capCount() {
     if (!hunted_) { hunted_ = true; findCaps(); }
     return int(caps_.size());
   }
 
 
-  // Put the caps at `t` (0..1) along the keyframes; 0 or 1 is the resting slot.
+  // 0 or 1 is the resting slot.
   void TipBody::setShake(double t) {
     double x = 0, deg = 0;
     if (t > 0.0 && t < 1.0 && !caps_.isEmpty()) {
@@ -86,8 +86,7 @@ namespace stencil::gui {
       for (int y = y0; y <= y1; y++) if (diff[size_t(y) * w + x]) return true;
       return false;
     };
-    // Bands of rows are the tip's lines; runs of columns inside one are its caps (the
-    // untouched "+" between two caps leaves a gap, so a chord splits cap by cap).
+    // Bands of rows are the tip's lines; runs of columns inside one are its caps.
     for (int y0 = 0; y0 < h;) {
       if (!rowHas(y0)) { y0++; continue; }
       int y1 = y0;

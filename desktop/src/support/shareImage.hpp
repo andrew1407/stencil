@@ -1,32 +1,19 @@
 #pragma once
-// Native OS share sheet for the annotated image (dataExportController.cpp shareImage,
-// browser/extension parity: js/core/exportService.js shareImage() — same file name
-// "<base>-drawing.png", same title "<base> — Stencil").
-//
-// One declaration, three bodies — chosen at configure time (desktop/CMakeLists.txt) since
-// the native type behind each is only available on its own platform:
-//   shareImageMac.mm    macOS   — NSSharingServicePicker (AirDrop, Mail, Notes, …)
-//   shareImageWin.cpp   Windows — DataTransferManager (WinRT: Mail, Nearby Share, …)
-//   shareImageLinux.cpp Linux   — no OS share sheet exists across desktop environments;
-//                                 shareSheetAvailable() is false there and the Share
-//                                 action is hidden, so nothing calls into it.
+// Native OS share sheet (browser parity: js/core/exportService.js shareImage() — same
+// file name "<base>-drawing.png", same title "<base> — Stencil"). One declaration,
+// three bodies picked at configure time: shareImageMac.mm, shareImageWin.cpp,
+// shareImageLinux.cpp (no OS share sheet; shareSheetAvailable() is false there).
 #include <QString>
 
 class QWidget;
 
 namespace stencil::support {
 
-  // Whether this platform has an OS share sheet at all — true on macOS/Windows, false
-  // on Linux. The Share action is hidden where this is false, the way the browser hides
-  // its own button when navigator.canShare() refuses files (utils.js supportsShareFiles).
+  // Where false the Share action is hidden, as the browser hides its button when navigator.canShare() refuses files.
   bool shareSheetAvailable();
 
-  // Shows the OS's share UI for the file already written at `filePath` — the caller has
-  // already rendered and saved it, this only hands it off. `anchor` positions a popover
-  // on platforms that show one near a control; `title` is the share sheet's subject line
-  // where the OS displays one.
-  // Returns false only when nothing could be shown at all (a missing file, or the
-  // native picker refusing to open) — the caller reports that as "not supported here".
+  // `filePath` is already written. `anchor` positions a popover where the platform shows
+  // one. False only when nothing could be shown at all.
   bool showShareSheet(QWidget* anchor, const QString& filePath, const QString& title);
 
 }  // namespace stencil::support

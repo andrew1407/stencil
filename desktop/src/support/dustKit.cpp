@@ -3,8 +3,7 @@
 namespace stencil::support {
 
 
-  // The style's touch on one grain: `p` its progress, `away` its distance from home
-  // (0…1), `w` its hash, `len` its throw, `ms` the cloud's clock.
+  // `p` progress, `away` distance from home (0…1), `w` hash, `len` throw, `ms` the clock.
   StyleFrame styleFrame(ParticleStyle s, double p, double away, double w, double len, double ms) {
     using namespace style;
     StyleFrame out;
@@ -56,8 +55,8 @@ namespace stencil::support {
   }
 
 
-  // Tints 0 and 4 follow the theme (browser css/theme.css --dust-ink / --dust-accent-alt):
-  // a white speck cannot be seen on a pale surface, nor a deep accent one on a dark surface.
+  // browser css/theme.css --dust-ink / --dust-accent-alt: a white speck cannot be seen on
+  // a pale surface, nor a deep accent one on a dark surface.
   QColor tintColour(const QColor& accent, int tint, bool dark) {
     if (tint == 0) return dark ? QColor(255, 255, 255) : QColor(0x1f, 0x1f, 0x1f);
     if (tint == 1) return QColor(180, 180, 180);   // #b4b4b4
@@ -67,15 +66,13 @@ namespace stencil::support {
   }
 
 
-  // The colour a grain is painted, once its tint is known — fixed for its whole flight, so
-  // a caller with a per-grain cache (disintegrateOverlay.hpp tints_) passes the tint in.
+  // Fixed for its whole flight, so a caller with a per-grain cache passes the tint in.
   QColor tintedStop(const QColor& accent, const QColor& shade, double mix, int tint, bool dark) {
     return tint < 0 ? paletteStop(accent, shade, mix) : tintColour(accent, tint, dark);
   }
 
 
-  // cubic-bezier(x1, y1, x2, y2) at time t: solve x(u) = t by bisection (monotonic in
-  // x), then read y(u). The browser's bezierY (motion.js), op for op.
+  // cubic-bezier(x1,y1,x2,y2) at time t: solve x(u)=t by bisection, then read y(u). Browser bezierY.
   double bezierY(double t, double x1, double y1, double x2, double y2) {
     double lo = 0.0, hi = 1.0, u = t;
     for (int i = 0; i < 24; i++) {
@@ -92,9 +89,8 @@ namespace stencil::support {
     curve_.back() = 1.0;
   }
 
-  // Qt's animation timer ticks every 16ms whatever the screen does; a browser's motes
-  // ride the compositor at the display's own rate. A cloud ticks on this instead: one
-  // frame per refresh of the screen it is on, floored at 4ms.
+  // A browser's motes ride the compositor at the display's rate; this ticks one frame
+  // per refresh instead of Qt's fixed 16ms, floored at 4ms.
   int frameIntervalMs(const QWidget* w) {
     const QScreen* s = w ? w->screen() : nullptr;
     const double hz = s ? s->refreshRate() : 60.0;

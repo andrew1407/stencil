@@ -18,7 +18,7 @@ namespace stencil::gui {
   }
 
 
-  // Hover-enter: hold eases out to the pose, settle plays once.
+  // Hold eases out to the pose, settle plays once.
   void IconMotionRunner::enter() {
     if (spec_->hold) run(spec_->totalMs);
     else { elapsed_ = 0; run(spec_->totalMs); }
@@ -30,8 +30,7 @@ namespace stencil::gui {
     else { elapsed_ = 0; run(spec_->totalMs); }
   }
 
-  // Hover-leave: a hold eases back on the same curve, from wherever it got to; a
-  // settle is left to finish, since its end state IS the rest pose.
+  // A hold eases back on the same curve; a settle is left to finish (its end IS the rest pose).
   void IconMotionRunner::leave() {
     if (spec_->hold) run(0);
   }
@@ -41,8 +40,7 @@ namespace stencil::gui {
     if (spec_->hold) run(0);
   }
 
-  // Hand the button its rest glyph back — the cached QIcon, so the next hover can
-  // trace it to its glyph again.
+  // The cached QIcon, so the next hover can trace it to its glyph again.
   void IconMotionRunner::rest() {
     anim_->stop();
     elapsed_ = 0;
@@ -54,8 +52,8 @@ namespace stencil::gui {
     anim_->stop();
     elapsed_ = 0;
     if (!act_ || tookOver()) return;   // a theme flip already put a proper glyph there
-    // Blocked: a bound toolbar button mirrors the action's icon via changed(), and a
-    // posed/rest repaint here must never leak onto it (its own runner owns its glyph).
+    // A bound toolbar button mirrors the action's icon via changed(); a posed/rest repaint
+    // here must never leak onto it.
     const QSignalBlocker block(act_);
     act_->setIcon(themedIcon(req_.name, req_.color, req_.size, req_.dpr, req_.gap));
   }
@@ -82,8 +80,7 @@ namespace stencil::gui {
     anim_->start();
   }
 
-  // True once something else (a theme flip, a face swap) has painted its own glyph
-  // over ours: a frame WE painted is never a registered themedIcon.
+  // A frame WE painted is never a registered themedIcon.
   bool IconMotionRunner::tookOver() const {
     IconRequest now;
     return btn_ && iconRequestForKey(btn_->icon().cacheKey(), &now)
@@ -99,10 +96,10 @@ namespace stencil::gui {
   void IconMotionRunner::paint(double elapsed) {
     elapsed_ = elapsed;
     if (!btn_) return;
-    // A face mid-swap already owns this glyph — step out and leave it alone.
+    // A face mid-swap already owns this glyph — step out.
     if (faceSwapping(btn_) || tookOver()) { anim_->stop(); return; }
     const QString posed = iconMotionMarkup(req_.name, *spec_, *parts_, elapsed);
-    // A disabled control renders the icon's Disabled variant, so only then is it built.
+    // A disabled control renders the Disabled variant, so only then is it built.
     btn_->setIcon(iconFromMarkup(posed, req_.color, req_.size, req_.dpr,
                                  /*withDisabled=*/!btn_->isEnabled(), req_.gap));
   }
@@ -113,7 +110,7 @@ namespace stencil::gui {
     if (tookOver()) { anim_->stop(); return; }
     const QString posed = iconMotionMarkup(req_.name, *spec_, *parts_, elapsed);
     const QSignalBlocker block(act_);  // never let a bound toolbar button see this frame
-    // A disabled row renders the icon's Disabled variant, so only then is it built.
+    // A disabled row renders the Disabled variant, so only then is it built.
     act_->setIcon(iconFromMarkup(posed, req_.color, req_.size, req_.dpr,
                                  /*withDisabled=*/!act_->isEnabled(), req_.gap));
   }

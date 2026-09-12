@@ -23,12 +23,11 @@ namespace stencil::gui {
     setCursor(Qt::PointingHandCursor);   // browser parity: every selector is a pointer
   }
 
-  // Built lazily so the model is already filled and themed when first opened.
+  // Lazy, so the model is already filled and themed when first opened.
   void SearchComboBox::ensurePopup() {
     if (popup_) return;
 
-    // A translucent Qt::Popup shell so the styled inner frame's rounded corners
-    // don't sit on an opaque window rectangle (same trick as QMenu's theming).
+    // Translucent Qt::Popup shell so the inner frame's rounded corners clip (QMenu's trick).
     popup_ = new QWidget(this, Qt::Popup | Qt::FramelessWindowHint |
                                    Qt::NoDropShadowWindowHint);
     popup_->setAttribute(Qt::WA_TranslucentBackground);
@@ -46,9 +45,7 @@ namespace stencil::gui {
                                kPopupPadding);
     layout->setSpacing(kPopupPadding);
 
-    // Search row pinned on top, with the hairline divider the browser draws
-    // under .accent-dd-search-row. A short list has none: three rows need no filter,
-    // and a box over them would only be one more thing to dismiss.
+    // Browser .accent-dd-search-row hairline. A short list has no search row.
     if (searchable_) {
       auto* searchRow = new QWidget(frame);
       searchRow->setObjectName("searchComboSearchRow");
@@ -70,10 +67,8 @@ namespace stencil::gui {
 
     list_ = new QListView(frame);
     list_->setObjectName("searchComboList");
-    // No QFrame chrome, and no scroll-area MINIMUM: QAbstractScrollArea's
-    // minimumSizeHint (~66px each way) outranked positionPopup()'s tight
-    // geometry through the popup layout, leaving a blank band under a short
-    // list's last option (the 2-row All/Local filter popup).
+    // No scroll-area MINIMUM: QAbstractScrollArea's ~66px minimumSizeHint outranked
+    // positionPopup()'s geometry and left a blank band under a 2-row list.
     list_->setFrameShape(QFrame::NoFrame);
     list_->setMinimumSize(1, 1);
     list_->setModel(proxy_);
@@ -81,19 +76,15 @@ namespace stencil::gui {
     list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     list_->setSelectionMode(QAbstractItemView::SingleSelection);
     list_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    // Hover-highlight rows like .accent-dd-opt:hover (QSS ::item:hover needs it).
+    // QSS ::item:hover needs it.
     list_->setMouseTracking(true);
     if (delegate_) list_->setItemDelegate(delegate_);
-    // The two hover treatments every other item in the app has, which these rows were
-    // missing entirely: the glass sweep, and the 2px ease right. The slide
-    // WRAPS whatever delegate is installed, so a popup with its own painter keeps it.
+    // The slide WRAPS whatever delegate is installed, so a popup with its own painter keeps it.
     installRowShimmer(list_);
     installRowHoverSlide(list_);
     list_->setFocusPolicy(searchable_ ? Qt::NoFocus : Qt::StrongFocus);   // keys go to
     if (!searchable_) list_->installEventFilter(this);                    // whoever has focus
-    // Hover preview: resting on a row live-applies its value (repaint only); leaving the
-    // list or closing the popup puts the committed one back. It waits for the pointer to
-    // settle, so skimming down the rows does not repaint for every option passed.
+    // Hover preview (repaint only); waits for the pointer to settle so skimming does not repaint per row.
     previewTimer_.setSingleShot(true);
     previewTimer_.setInterval(280);
     connect(&previewTimer_, &QTimer::timeout, this, [this] {
@@ -119,8 +110,7 @@ namespace stencil::gui {
             [this](const QModelIndex& idx) { choose(idx.row()); });
   }
 
-  // Re-filter, keep a sensible highlight, and swap in the "no match" row when
-  // the query filters everything out (browser applySearch()).
+  // Browser applySearch().
   void SearchComboBox::applyFilter(const QString& query) {
     static_cast<LabelValueFilterProxy*>(proxy_)->setQuery(query);
     const int rows = proxy_->rowCount();
@@ -158,9 +148,8 @@ namespace stencil::gui {
     const QModelIndex src = proxy_->mapToSource(proxy_->index(proxyRow, 0));
     if (src.isValid()) {
       setCurrentIndex(src.row());   // → currentIndexChanged / currentTextChanged
-      // A user pick, as the native popup reports it — setCurrentIndex alone emits neither,
-      // so a live-applying dialog never heard a pick from this popup. Emitted BEFORE the
-      // popup leaves, so its exit plays under what was just picked.
+      // setCurrentIndex alone emits neither. Emitted BEFORE the popup leaves, so its exit
+      // plays under what was just picked.
       emit activated(src.row());
       emit textActivated(itemText(src.row()));
     }

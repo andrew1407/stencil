@@ -22,18 +22,14 @@ namespace stencil::gui {
 
   namespace {
 
-    // The key vocabulary, character for character the browser's (tipContent.js). Matching is
-    // case-SENSITIVE on purpose: "Delete every saved project" must not put a keycap on its
-    // verb, so a bare key word only counts inside a key context or a trailing "(…)".
+    // Character for character the browser's (tipContent.js). Case-SENSITIVE on purpose:
+    // "Delete every saved project" must not put a keycap on its verb.
     const QString kMod = QStringLiteral("Ctrl|Control|Cmd|Command|Meta|Win|Alt|Option|Shift");
     const QString kNamed = QStringLiteral(
         "Enter|Return|Escape|Esc|Tab|Space|Backspace|Delete|Del|Home|End|PageUp|PageDown"
         "|Arrow(?:Up|Down|Left|Right)|F\\d{1,2}");
-    // What can end a combo: named key, modifier, lower-case gesture word, single
-    // character, key glyph, or punctuation. The gesture word comes BEFORE the single
-    // character so "Alt+click" is not read as "Alt+c" plus "lick".
-    // kKeyGlyph must cover what QKeySequence::NativeText actually emits on macOS
-    // (⎋ ⇥ ↵ ⌤ ⇞ ⇟ ↖ ↘ ⌦ ⌫), or those shortcuts never become keycaps.
+    // The gesture word comes BEFORE the single character so "Alt+click" is not "Alt+c"+"lick".
+    // kKeyGlyph must cover what QKeySequence::NativeText emits on macOS (⎋ ⇥ ↵ ⌤ ⇞ ⇟ ↖ ↘ ⌦ ⌫).
     const QString kKeyGlyph = QStringLiteral(
         "[\u232B\u2326\u2191\u2193\u2190\u2192\u238B\u21E5\u21B5\u2324"
         "\u21DE\u21DF\u2196\u2198\u2423]");
@@ -41,15 +37,12 @@ namespace stencil::gui {
       return "(?:" + kNamed + "|" + kMod + "|[a-z][a-z-]{1,11}|[A-Za-z0-9]"
              "|" + kKeyGlyph + "|[-+=\\[\\]/\\\\.,;'`])";
     }
-    // Nothing may run on past the key, or half a word would end up wearing a keycap.
     const QString kEnd = QStringLiteral("(?![\\w-])");
     QString chained() { return "(?:(?:" + kMod + ")\\+)+" + atom() + kEnd; }          // Ctrl+Shift+Z
     QString glyphs() { return "[\u2303\u2325\u21E7\u2318]+" + atom() + kEnd; }        // ⇧⌘Z
     const QString kKeyProse = QStringLiteral("(?:hold|press|hit|tap|with|then|or)\\s+");
 
-    // The app's own separators: " · " lists alternatives, " — " splits a term from
-    // its description — but NOT inside parentheses, where a hint like
-    // "(Alt+O cycles · hold Alt+Shift+O to peek)" must stay one heading.
+    // " · " lists alternatives, " — " splits term from description — NOT inside parentheses.
     QStringList dotParts(const QString& line) {
       QStringList out;
       int depth = 0, start = 0;
@@ -74,13 +67,8 @@ namespace stencil::gui {
       *desc = line.mid(i + 3).trimmed();
       return true;
     }
-    // A secondary line reads as a sentence of its own: a lowercase fragment under the
-    // heading looks unfinished. Only a plain lowercase first WORD is lifted
-    // — a token carrying a dot, slash, colon, bracket or quote is a URL, a filename or a
-    // code fragment ("http://…", ".stencil file", "f(x,y) …") and means what it is written
-    // as, and a lone word is a value, not a sentence. Term/description rows read as one
-    // sentence across the dash, so they are left alone.
-    // Browser twin: tipContent.js sentenceCase — same test, same edge cases.
+    // Only a plain lowercase first WORD is lifted: a token with a dot, slash, colon,
+    // bracket or quote is a URL/filename/code fragment. Browser twin: tipContent.js sentenceCase.
     QString sentenceCase(const QString& s) {
       static const QRegularExpression ws("\\s");
       const int end = s.indexOf(ws);   // no second token: a VALUE, not a sentence
@@ -97,9 +85,7 @@ namespace stencil::gui {
       return re.match(l).hasMatch();
     }
 
-    // On a Mac a modifier is DRAWN, not spelled: a hand-written "Alt+O" must render
-    // as ⌥, mapped at render time exactly as the browser/extension ports do.
-    // Ctrl → ⌃, not ⌘ — a spelled "Ctrl" that reaches here is a literal Control key.
+    // On a Mac a modifier is DRAWN. Ctrl → ⌃, not ⌘: a spelled "Ctrl" is a literal Control key.
     QString macGlyphFor(const QString& key, bool mac) {
       if (!mac) return key;
       static const QHash<QString, QString> kMap{
@@ -109,14 +95,11 @@ namespace stencil::gui {
       return kMap.value(key, key);
     }
 
-    // One keycap, PAINTED as an <img> data URI (Qt rich text gives a span only a
-    // background — no border/radius/padding), drawn to the browser's .tip-key look.
+    // PAINTED as an <img> data URI: Qt rich text gives a span only a background.
     // `joiner` = the "+" between caps: no face, muted, same picture so it centres.
     QString capHtml(const QString& label, const Palette& pal, bool joiner = false,
                     qreal scale = 1.0) {
-      // Only a shade bigger than the tooltip's own type, like the browser's 14px cap over
-      // 12px prose — the shape is what makes it read as a key now, not the size.
-      // `scale` < 1 is a smaller cap for a table cell (comboKeycapsHtml).
+      // Browser: 14px cap over 12px prose. `scale` < 1 is a table-cell cap (comboKeycapsHtml).
       QFont f = QToolTip::font();
       f.setBold(!joiner);
       if (f.pointSizeF() > 0) f.setPointSizeF(f.pointSizeF() * 1.15 * scale);
@@ -151,8 +134,7 @@ namespace stencil::gui {
           p.setBrush(pal.borderMain);
           p.drawRoundedRect(r, radius, radius);
           p.setBrush(pal.bgContainer);  // the face, a shade off the tooltip behind it
-          // A see-through face must CLEAR the border slab under it, or the key comes
-          // out a solid box — a transparent brush would paint nothing at all.
+          // A see-through face must CLEAR the border slab — a transparent brush paints nothing.
           if (pal.bgContainer.alpha() == 0) {
             p.setCompositionMode(QPainter::CompositionMode_Clear);
             p.setBrush(Qt::black);
@@ -168,9 +150,7 @@ namespace stencil::gui {
       QBuffer buf(&png);
       buf.open(QIODevice::WriteOnly);
       img.save(&buf, "PNG");
-      // The alt text is the key itself — what tests and screen readers get.
-      // vertical-align: middle centres the cap in running prose (browser .tip-key);
-      // on the baseline the words would hang off its bottom edge.
+      // The alt text is the key itself. vertical-align: middle, else words hang off the cap's bottom.
       const QString html = QStringLiteral("<img alt=\"%1\" class=\"%2\" width=\"%3\" height=\"%4\" "
                                           "style=\"vertical-align: middle;\" "
                                           "src=\"data:image/png;base64,%5\">")
@@ -194,8 +174,7 @@ namespace stencil::gui {
         for (const QChar c : run) caps << capHtml(QString(c), pal, false, scale);
         const QString rest = s.mid(run.size());
         if (!rest.isEmpty()) caps << capHtml(rest, pal, false, scale);
-        // Apple prints ⇧⌘S with no joiner, but a tooltip is read at a glance and a run of
-        // bare glyphs looks like one symbol — so every key gets the "+" here too.
+        // Apple prints ⇧⌘S with no joiner, but a run of bare glyphs reads as one symbol.
         return caps.join(plus);
       }
       for (const QString& part : s.split('+'))
@@ -203,9 +182,8 @@ namespace stencil::gui {
       return caps.join(plus);
     }
 
-    // Escape `text` and put keycaps on the combos inside it. Combos written with "+" (or in
-    // Apple glyphs) always count; a lone "Shift"/"Enter" only when the prose says it is a key
-    // ("hold Shift", "press Esc") — otherwise the app's own verbs would wear keycaps.
+    // Combos with "+" (or Apple glyphs) always count; a lone "Shift"/"Enter" only in a key
+    // context ("hold Shift"), or the app's own verbs would wear keycaps.
     QString highlightKeys(const QString& text, const Palette& pal, bool mac) {
       const QRegularExpression re("(" + kKeyProse + ")?(" + chained() + "|" + glyphs() + "|" +
                                   kMod + "|" + kNamed + ")");
@@ -226,14 +204,12 @@ namespace stencil::gui {
       return out + text.mid(last).toHtmlEscaped();
     }
 
-    // The palette the app-wide filter renders with; replaced on every theme change.
     Palette g_pal = themePalette(false);
 
   }  // namespace
 
   bool isKeyCombo(const QString& s) {
-    // A lone key glyph counts here — "Close (⎋)" is a shortcut — but NOT in running prose,
-    // where an arrow is usually a separator (see highlightKeys).
+    // A lone key glyph counts here — "Close (⎋)" — but NOT in running prose (highlightKeys).
     const QRegularExpression re("^(?:" + chained() + "|" + glyphs() + "|" + kMod + "|" + kNamed +
                                 "|" + kKeyGlyph + ")$");
     return re.match(s.trimmed()).hasMatch();
@@ -246,9 +222,8 @@ namespace stencil::gui {
       if (!l.trimmed().isEmpty()) lines << l.trimmed();
     if (lines.isEmpty()) return tip;
 
-    // The app appends " (combo)" to the END of the base text with the "— reason"
-    // line after it, so the shortcut sits on the last non-reason line — not the
-    // heading. A line that was nothing but the combo goes away with it.
+    // The shortcut sits on the last non-reason line, not the heading (the app appends
+    // " (combo)" then the "— reason" line).
     for (int i = lines.size() - 1; i >= 0; i--) {
       if (isNoteLine(lines[i])) continue;
       static const QRegularExpression paren("\\s*\\(([^()]*)\\)\\s*$");
@@ -281,8 +256,7 @@ namespace stencil::gui {
     } else {
       tip.title = head;
     }
-    // A single trailing piece has nothing to enumerate against, so it reads as a hint
-    // instead of a bullet list of one.
+    // A single trailing piece reads as a hint, not a bullet list of one.
     if (tail.size() > 1) {
       for (const QString& t : tail) tip.blocks.push_back({TipBlock::Kind::Bullet, {}, sentenceCase(t)});
     } else if (tail.size() == 1) {
@@ -297,18 +271,14 @@ namespace stencil::gui {
         tip.blocks.push_back({TipBlock::Kind::Note, {}, sentenceCase(nm.captured(1))});
         continue;
       }
-      // A fully parenthesised line is a hint (the compare control's "(hold Alt+Shift+O …)").
       static const QRegularExpression wrapped("^\\(([^()]*)\\)$");
       const auto wm = wrapped.match(raw);
       const bool isHint = wm.hasMatch();
       const QString line = isHint ? wm.captured(1).trimmed() : raw;
-      // A bullet marker is decoration — rows are drawn as a bulleted list anyway — so strip
-      // it before deciding what the line IS.
       QString bare = line;
       static const QRegularExpression marker("^[\u2022*]\\s+");
       bare.remove(marker);
-      // A row wins over the "·" split: "Vertical split — original left, edit right" is ONE
-      // row whose description happens to list two halves, not two bullets.
+      // A row wins over the "·" split: a description may list two halves.
       if (!isHint && dashSplit(bare, &term, &desc)) {
         tip.blocks.push_back({TipBlock::Kind::Row, term, desc});
         continue;
@@ -337,8 +307,6 @@ namespace stencil::gui {
         tip.title.isEmpty() ? QString() : "<b>" + highlightKeys(tip.title, pal, mac) + "</b>";
 
     QString body;
-    // Consecutive rows share one table so their two columns line up down the list; the same
-    // for bullets in one list.
     QString open;
     auto close = [&] {
       if (open == "rows") body += "</table>";
@@ -356,16 +324,13 @@ namespace stencil::gui {
         continue;
       }
       if (b.kind == TipBlock::Kind::Bullet) {
-        // A drawn "•" in a plain line, not a <ul>: Qt indents a real list by a whole
-        // 40px step and counts it in the width even when the style drops it, marooning
-        // a lone bullet mid-tooltip. Rows already draw their own marker this way.
+        // A drawn "•", not a <ul>: Qt indents a real list by 40px and counts it in the width.
         close();
         body += "<div style=\"margin-top:2px;\">• " + highlightKeys(b.text, pal, mac) + "</div>";
         continue;
       }
       close();
-      // The disabled reason is a warning, on its own row under the heading (browser
-      // .tip-note: --warning, 5px above); a hint sits back in the muted text.
+      // Browser .tip-note: --warning, 5px above.
       const bool note = b.kind == TipBlock::Kind::Note;
       const QString colour = note                             ? pal.warning.name()
                              : b.kind == TipBlock::Kind::Hint ? pal.textMuted.name()
@@ -375,25 +340,20 @@ namespace stencil::gui {
     }
     close();
 
-    // A word-wrapped QLabel (which QToolTip is) does not lay text out to its natural
-    // width: it searches for a roughly SQUARE block. Measuring the content and pinning
-    // that width defeats the search; the cap is the browser's #app-tooltip max-width.
+    // A word-wrapped QLabel lays out to a roughly SQUARE block; pinning the measured
+    // width defeats that. The cap is the browser's #app-tooltip max-width.
     const int width = [&] {
       QTextDocument doc;
       doc.setDefaultFont(font ? *font : QToolTip::font());
-      // Margin ZERO, or the width comes back with the document's own 4px margins
-      // baked in — and the tooltip renders INSIDE a document that adds them again,
-      // so every extra pixel lands between the name and its right-pinned keycaps.
+      // Margin ZERO, or the document's 4px margins are baked in and added again at render.
       doc.setDocumentMargin(0);
       doc.setHtml(title + (caps.isEmpty() ? QString() : "&nbsp;&nbsp;" + caps) + body);
       doc.setTextWidth(-1);
       return qBound(1, qCeil(doc.idealWidth()), 380);
     }();
 
-    // The heading is a row of its own: name left, keycaps pinned right (browser
-    // .tip-head). Both cells middle-aligned: a keycap is taller than the type, so
-    // Qt's default (top) alignment makes the row read as crooked. The caps cell never
-    // breaks: a chord is one thing, and "⇧ + ⌘ +" over a lone "X" is not it.
+    // Browser .tip-head. Middle-aligned because a keycap is taller than the type; the
+    // caps cell never breaks, a chord is one thing.
     QString head = title;
     if (!caps.isEmpty())
       head = "<table width=\"100%\" cellspacing=\"0\" cellpadding=\"0\"><tr>"
@@ -406,9 +366,7 @@ namespace stencil::gui {
 
   void setTooltipPalette(const Palette& pal) {
     g_pal = pal;
-    // The rendered html carries LITERAL colours, so a tooltip built under the old
-    // palette keeps it forever. Every enriched tooltip remembers the plain text it
-    // came from, so they can all be rebuilt here.
+    // The html carries LITERAL colours, so every enriched tooltip is rebuilt from its plain text.
     for (QWidget* w : QApplication::allWidgets()) {
       if (!w) continue;
       const QVariant plain = w->property(kPlainTipProperty);
@@ -423,7 +381,6 @@ namespace stencil::gui {
   }
 
   QString blankKeycaps(const QString& richText) {
-    // Only the cap faces: the "+" joiners keep their picture, so a diff separates the caps.
     static const QRegularExpression cap("(<img alt=\"[^\"]*\" class=\"" +
                                         QString::fromLatin1(kKeycapClass) +
                                         "\"[^>]*base64,)[^\"]*(\">)");
@@ -459,9 +416,7 @@ namespace stencil::gui {
 
   namespace {
 
-    // The heading a control was given, or — for one that only ever had a plain tooltip —
-    // that tooltip with its "(combo)" and "— reason" stripped, remembered from then on
-    // (the browser reads data-title the same way).
+    // Or, for a plain-tooltip control, that tooltip stripped of "(combo)" and "— reason" (browser data-title).
     QString tipBaseOf(QObject* t) {
       const QVariant v = t->property(kTipBaseProperty);
       if (v.isValid()) return v.toString();
@@ -497,7 +452,6 @@ namespace stencil::gui {
       }
     };
 
-    // Recompose on every state change — wired once per target.
     void wireControlTip(QObject* t) {
       static constexpr const char* kWired = "stencilTipWired";
       if (t->property(kWired).toBool()) return;
@@ -530,7 +484,6 @@ namespace stencil::gui {
     tipBaseOf(target);
     target->setProperty(kTipHotkeyProperty, QVariant::fromValue<QObject*>(hotkey));
     wireControlTip(target);
-    // A rebound chord reaches the widget wearing it too.
     if (hotkey) {
       QPointer<QWidget> w(target);
       QObject::connect(hotkey, &QAction::changed, target, [w] { if (w) syncControlTip(w); });
@@ -551,8 +504,7 @@ namespace stencil::gui {
     auto* w = qobject_cast<QWidget*>(target);
     if (!w) return;
     tip = composeControlTitle(tipBaseOf(w), tipComboOf(w), !w->isEnabled(), reason);
-    // The live tooltip may already be the RENDERED form of this very text (the app's
-    // ToolTipChange filter), so compare against the plain it was rendered from.
+    // The live tooltip may already be the RENDERED form of this text; compare against the plain.
     if (w->property(kPlainTipProperty).toString() == tip || w->toolTip() == tip) return;
     w->setToolTip(tip);
   }

@@ -1,10 +1,6 @@
 #pragma once
-// Spread a run of independent work over the global thread pool — image rows, a list of
-// files to decode. core/ owns no threading policy: it exposes half-open row slices of its
-// filter/crop/rotate kernels and leaves the policy to each adapter. This is the desktop's.
-//
-// Pure QtCore: the pool is Qt's own, the tasks are leaves that never wait on each other,
-// and the calling thread takes the first slice rather than idling.
+// Spread independent work over the global thread pool. core/ owns no threading policy:
+// it exposes half-open row slices of its kernels and leaves the policy to each adapter.
 #include <QSemaphore>
 #include <QThreadPool>
 #include <algorithm>
@@ -12,10 +8,8 @@
 
 namespace stencil::support {
 
-  // Run `body(i0, i1)` over disjoint half-open slices covering [0, count) — rows of an
-  // image, or entries of a list — returning once every slice has finished, so the caller
-  // may keep buffers on its own stack. Fewer than `minPer` per slice runs inline: the
-  // handoff would cost more than the work.
+  // Returns once every slice has finished, so the caller may keep buffers on its own
+  // stack. Fewer than `minPer` per slice runs inline.
   inline void forEachSlice(int count, int minPer,
                            const std::function<void(int i0, int i1)>& body) {
     if (count <= 0) return;

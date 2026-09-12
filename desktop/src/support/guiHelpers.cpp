@@ -28,7 +28,6 @@
 
 namespace stencil::gui {
 
-  // Object name that marks (and lets us cancel) an in-flight spinIcon animation.
   static const QString kIconSpin = QStringLiteral("stencilIconSpin");
 
   QString inlineIconHtml(const QString& name, const QColor& color, int px,
@@ -38,9 +37,8 @@ namespace stencil::gui {
     QByteArray png;
     QBuffer buf(&png);
     buf.open(QIODevice::WriteOnly);
-    // The dpr-AWARE pixmap overload: pixmap(w, h) asks for device pixels and would
-    // hand back the raster scaled DOWN to px, throwing the Retina detail away. The
-    // width/height attributes below scale the px·dpr raster back to px on screen.
+    // pixmap(w, h) asks for device pixels and hands back the raster scaled DOWN to px;
+    // the width/height attributes scale the px·dpr raster back on screen (Retina).
     themedIcon(name, color, px, ratio)
         .pixmap(QSize(px, px), ratio)
         .toImage()
@@ -70,8 +68,7 @@ namespace stencil::gui {
   }
 
   bool confirmYesNo(QWidget* parent, const QString& title, const QString& text) {
-    // The browser's styled confirm (modalChrome confirmModal), not a native
-    // QMessageBox — every yes/no question in the app wears the same shell.
+    // The browser's styled confirm (modalChrome confirmModal), never a native QMessageBox.
     ConfirmSpec spec;
     spec.title = title;
     spec.message = text;
@@ -83,9 +80,8 @@ namespace stencil::gui {
     auto* box = new QDialogButtonBox(buttons, parent);
     QObject::connect(box, &QDialogButtonBox::accepted, parent, &QDialog::accept);
     QObject::connect(box, &QDialogButtonBox::rejected, parent, &QDialog::reject);
-    // Only the affirmative action (Ok/Save/Yes/Apply) gets the accent CTA look
-    // (theme.cpp QPushButton[accentCta="true"]); otherwise a Close-/Cancel-only box
-    // auto-promotes its lone button to a CTA.
+    // Only the affirmative action gets the accent CTA look (theme.cpp accentCta); a
+    // Close-/Cancel-only box promotes its lone button.
     for (QAbstractButton* btn : box->buttons()) {
       const QDialogButtonBox::ButtonRole role = box->buttonRole(btn);
       const bool primary = role == QDialogButtonBox::AcceptRole ||
@@ -95,9 +91,7 @@ namespace stencil::gui {
       if (auto* pb = qobject_cast<QPushButton*>(btn)) {
         pb->setDefault(primary);
         pb->setAutoDefault(primary);
-        // Browser parity: every confirm-style button wears its glyph — ✓ on the
-        // affirmative CTA (white on the accent fill), ✕ on Cancel/Close (the
-        // text colour; browser confirmModal / .app-modal-close do the same).
+        // Browser parity: ✓ on the affirmative CTA, ✕ on Cancel/Close (confirmModal / .app-modal-close).
         if (primary)
           pb->setIcon(labelIcon("check", QColor("#ffffff"), 14));
         else if (box->buttonRole(pb) == QDialogButtonBox::RejectRole)
@@ -117,8 +111,7 @@ namespace stencil::gui {
     auto paint = [btn, name, color, size](qreal deg) {
       btn->setIcon(rotatedIcon(name, color, size, deg));
     };
-    // Reduced motion lands on the end state at once — the angle IS the panel's state,
-    // so only the turn is dropped (faceSwap / filterFade rule).
+    // Reduced motion lands on the end state at once — the angle IS the panel's state.
     if (ms <= 0 || support::motionReduced()) { paint(toDeg); return; }
     auto* anim = new QVariantAnimation(btn);
     anim->setObjectName(kIconSpin);
@@ -150,12 +143,11 @@ namespace stencil::gui {
     const bool inches = (units == QLatin1String("in"));
     const double factor = inches ? 1.0 / 2.54 : 1.0;
     const QString unitLabel = inches ? QStringLiteral("in") : QStringLiteral("cm");
-    // ≤2 decimals, trailing zeros trimmed ("21", "29.7", "8.27") — the shared
-    // option-label contract with the browser page dropdown.
+    // ≤2 decimals, trailing zeros trimmed — the option-label contract with the browser dropdown.
     const auto num = [](double v) {
       return QString::number(std::round(v * 100.0) / 100.0);
     };
-    // Label-only re-render must never fire the callers' change handlers.
+    // A label-only re-render must never fire the callers' change handlers.
     const QSignalBlocker block(combo);
     if (combo->count() == 0) {  // first fill: items in canonical order
       if (includeCustom)

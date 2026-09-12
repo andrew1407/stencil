@@ -1,9 +1,7 @@
 #pragma once
-// Keycap chips for the shortcut and info dialogs — the tooltip's own caps (TipBody),
-// with the two behaviours those rows need on top:
-//   KeycapChip — shakes its caps once on hover (browser .hotkey-cell:hover .tip-key).
-//   ComboCell  — a chip that CAPTURES: click it and press a combination; Esc cancels.
-// Header-only and Q_OBJECT-free (callbacks, not signals), so it needs no MOC.
+// Keycap chips for the shortcut/info dialogs — the tooltip's own caps (TipBody).
+// KeycapChip shakes on hover (browser .hotkey-cell:hover .tip-key); ComboCell captures
+// a keypress on click, Esc cancels. Q_OBJECT-free (callbacks, not signals), no MOC.
 #include "appTooltip.hpp"   // TipBody — the cap-hunting, shakeable label
 #include "modalReveal.hpp"  // support::motionReduced()
 
@@ -61,9 +59,9 @@ namespace stencil::gui {
       setCursor(Qt::PointingHandCursor);
     }
 
-    // Called with the captured combination (PortableText); "" never arrives.
+    // "" never arrives.
     std::function<void(const QString&)> onCaptured;
-    // The face while nothing is being captured; a capture swaps in the placeholder.
+    // A capture swaps in the placeholder.
     void setResting(const QString& rich) {
       resting_ = rich;
       if (!capturing_) setCaps(rich);

@@ -12,9 +12,7 @@ namespace stencil::gui {
     body_ = new TipBody(this);
     body_->setTextFormat(Qt::RichText);
     body_->setObjectName(QStringLiteral("stencilAppTooltipBody"));
-    // Wraps at the browser's own tooltip ceiling (#app-tooltip max-width: 380px). Without
-    // one a long sentence rendered as a single line the width of the screen instead of a
-    // few readable ones.
+    // Browser #app-tooltip max-width: 380px.
     body_->setWordWrap(true);
     body_->setMaximumWidth(kMaxTipWidth);
     lay->addWidget(body_);
@@ -27,9 +25,7 @@ namespace stencil::gui {
     QObject::connect(fade_, &QVariantAnimation::finished, this, [this] {
       if (closing_) { closing_ = false; QFrame::hide(); }
     });
-    // Anti-stranding heartbeat: a fast pointer sweep can leave the owner without ever
-    // sending a Leave we see (it is destroyed, re-laid-out, or the cursor jumps clear).
-    // Whatever happened, the tooltip goes when the pointer is no longer on its owner.
+    // Anti-stranding heartbeat: a fast sweep can leave the owner without a Leave we see.
     auto* beat = new QTimer(this);
     beat->setInterval(200);
     QObject::connect(beat, &QTimer::timeout, this, [this] {
@@ -42,18 +38,12 @@ namespace stencil::gui {
   }
 
 
-  // Show `owner`'s tooltip near `globalPos`. Rich text is used as given; a plain string
-  // goes through the same rendering Qt's tooltip would have shown. `originGlobal` is
-  // where the tip's dust forms out of; left invalid it is the owner's centre, which is
-  // wrong for an item view, whose owner is the whole viewport.
+  // `originGlobal` invalid = the owner's centre (wrong for an item view's viewport).
   void AppTooltip::showFor(QWidget* owner, const QString& text, const QPoint& globalPos,
                            const QRect& originGlobal) {
     origin_ = originGlobal;
-    // The html pins its own width, so it is rendered HERE, in the type this body draws
-    // with. The owner's tooltip was already rendered when it was set (main.cpp's
-    // ToolTipChange filter) — measured in QToolTip's font, 11pt on macOS against the
-    // body's 13pt, which broke "Image Filter" and a ⇧⌘X chord onto two lines. Every
-    // enriched tooltip remembers the plain text it came from, so it is redone from that.
+    // Re-rendered from the plain text in THIS body's font: the owner's copy was measured
+    // in QToolTip's (11pt on macOS vs 13pt), which broke a ⇧⌘X chord onto two lines.
     body_->ensurePolished();
     const QFont font = body_->font();
     const QVariant plain = owner ? owner->property(kPlainTipProperty) : QVariant();
@@ -62,18 +52,17 @@ namespace stencil::gui {
                                                            : enrichedToolTip(text, &font);
     if (rich.isEmpty()) { hideTip(); return; }
     bool dusted = false;
-    // An APPEARANCE: a first show, one re-pointed at another control, or new content.
-    // Qt keeps re-sending ToolTip while the pointer wanders inside one control (its own
-    // label never appears, so its wake-up timer re-arms), and those must not re-shake.
+    // Qt re-sends ToolTip while the pointer wanders inside one control; only an
+    // appearance (first show, new owner, new content) may re-shake.
     const bool appearing = !isVisible() || closing_ || owner != owner_ || rich != body_->text();
-    settleShake();                   // never animate away from stale content
+    settleShake();
     owner_ = owner;
     body_->setTip(rich);
     adjustSize();
     place(globalPos);
     closing_ = false;
     fade_->stop();
-    if (support::motionReduced()) {  // no fade; the end state, at once
+    if (support::motionReduced()) {
       setWindowOpacity(1.0);
       show();
       raise();
@@ -82,16 +71,12 @@ namespace stencil::gui {
       setWindowOpacity(from);
       show();
       raise();
-      // An APPEARANCE forms out of the control it describes; a re-send inside the same
-      // control just carries on where it is.
       dusted = appearing && dust(true);
       if (dusted) {
-        // The tip waits behind its own motes and fades up as the last of them land.
         setWindowOpacity(0.0);
         holdFadeKeys(fade_, kDustInMs);
-        // …and may not MOVE meanwhile: the cloud was aimed where the tip was placed, so
-        // one tracking the cursor mid-flight would leave its own sand behind. It picks
-        // the cursor up again the moment it lands (browser controlTooltip.js).
+        // No cursor tracking mid-flight: the cloud was aimed where the tip was placed
+        // (browser controlTooltip.js).
         placeHold_.setRemainingTime(kDustInMs);
       } else {
         fade_->setKeyValues({});
@@ -101,10 +86,7 @@ namespace stencil::gui {
       }
       fade_->start();
     }
-    // The point of the whole thing: caps on screen announce themselves as they arrive —
-    // once they have ARRIVED. A nudge played while the tip is still assembling out of
-    // its own motes is a movement nobody can see, which is the whole point of it, so
-    // the dust route waits out the gather first.
+    // The keycap nudge waits for the gather — a shake behind the motes cannot be seen.
     if (appearing && hasKeycaps(rich)) {
       if (dusted) shakeDelay()->start(kDustInMs);
       else shakeKeys();
@@ -112,21 +94,17 @@ namespace stencil::gui {
   }
 
 
-  // Fade out and then hide. Idempotent, and a showFor() mid-fade takes it straight back
-  // up from wherever it got to rather than blinking.
-  // Slide an already-shown tip to a new cursor position: no re-measure, no entrance, no
-  // fade. showFor would re-run its appearance bookkeeping on every mouse move.
+  // No re-measure, no entrance: showFor would re-run its bookkeeping on every mouse move.
   void AppTooltip::moveTo(const QPoint& globalPos) {
     if (isVisible() && !closing_ && placeHold_.hasExpired()) place(globalPos);
   }
 
   void AppTooltip::hideTip() {
     if (!isVisible()) { owner_.clear(); return; }
-    settleShake();   // it fades out with its caps home, not mid-flick
+    settleShake();
     fade_->stop();
     if (support::motionReduced()) { owner_.clear(); closing_ = false; QFrame::hide(); return; }
-    // Photographed and dusted while the owner is still known — the cloud is what the
-    // tip leaves behind, so the panel itself hands over in one beat and goes.
+    // Dusted while the owner is still known.
     const bool dusted = dust(false);
     owner_.clear();
     closing_ = true;
@@ -138,12 +116,11 @@ namespace stencil::gui {
   }
 
 
-  // A brief attention shake as the tooltip appears — "and here is its shortcut". One
-  // damped left-right pass over the KEYCAPS, never a loop, settling exactly on them.
+  // One damped left-right pass over the KEYCAPS, never a loop.
   void AppTooltip::shakeKeys() {
-    if (shakeDelay_) shakeDelay_->stop();   // an explicit shake supersedes a queued one
+    if (shakeDelay_) shakeDelay_->stop();
     if (!isVisible() || support::motionReduced()) return;
-    if (body_->capCount() == 0) return;   // nothing was drawn to move
+    if (body_->capCount() == 0) return;
     if (!shake_) {
       shake_ = new QVariantAnimation(this);
       shake_->setDuration(kShakeMs);
@@ -154,20 +131,17 @@ namespace stencil::gui {
       QObject::connect(shake_, &QVariantAnimation::finished, this,
                        [this] { body_->settle(); });
     }
-    shake_->stop();    // a pointer sweep restarts it on the new caps, never stacks
+    shake_->stop();
     body_->settle();
     shake_->start();
   }
 
 
-  // Fly the tooltip's own motes out of — or back into — the control it describes.
-  // Measured in that control's window (escapeHost lets the cloud past its edge, as a
-  // tip near it goes); without one, or a box too small to grain, the fade above stands in.
+  // false (no owner, or a box too small to grain) = the plain fade stands in.
   bool AppTooltip::dust(bool gather) {
     QWidget* owner = owner_.data();
     if (!owner || !owner->isVisible()) return false;
-    // paintNow on a close: the panel hands over in one 60ms beat, and a deferred
-    // first frame was exactly the gap in which the tip blinked out mote-less.
+    // paintNow on a close: a deferred first frame was the gap the tip blinked out in.
     return flyTipDust(this, owner->window(),
                       origin_.isValid() ? origin_.center()
                                         : owner->mapToGlobal(owner->rect().center()), gather,
@@ -190,8 +164,6 @@ namespace stencil::gui {
   }
 
 
-  // Stop any shake — pending or playing — and put the caps back on their slots. A tip
-  // dismissed or re-pointed mid-flight must never shake the caps of one already gone.
   void AppTooltip::settleShake() {
     if (shakeDelay_) shakeDelay_->stop();
     if (shake_) shake_->stop();
@@ -199,7 +171,6 @@ namespace stencil::gui {
   }
 
 
-  // The one-shot that holds the nudge back until the motes have landed.
   QTimer* AppTooltip::shakeDelay() {
     if (!shakeDelay_) {
       shakeDelay_ = new QTimer(this);

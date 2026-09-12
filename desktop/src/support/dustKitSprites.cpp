@@ -10,7 +10,7 @@ namespace stencil::support {
   }
 
 
-  // The heading of a grain thrown `dx, dy` from home; a gather flies the other way.
+  // A gather flies the other way.
   double headingOf(double dx, double dy, bool fromFar) {
     return std::atan2(dy, dx) + (fromFar ? style::kPi : 0.0);
   }
@@ -41,16 +41,15 @@ namespace stencil::support {
   }
 
 
-  // Paint one grain — a disc, or any GrainShape at heading `a`. Antialiasing must be OFF
-  // on `p` (the sprite carries its own), or the raster engine leaves its 1:1 blit path.
+  // Antialiasing must be OFF on `p` (the sprite carries its own), or the raster engine
+  // leaves its 1:1 blit path.
   void MoteSprites::draw(QPainter& p, const QPointF& at, double radius, const QColor& colour,
                          GrainShape shape, double a) {
     const double alpha = colour.alphaF();
     if (radius < 0.2 || alpha <= 1.0 / 255) return;
     const double dpr = p.device()->devicePixelRatio();
     if (dpr != dpr_) { cache_.clear(); dpr_ = dpr; }
-    // A shaped grain is cached at half the radius resolution (every miss rasterises a
-    // polygon, and a quarter-pixel of size is invisible on a moving drop).
+    // Cached at half the radius resolution: a quarter-pixel of size is invisible on a moving drop.
     const bool disc = shape == GrainShape::Disc;
     const double step = disc ? kRadiusStep : kRadiusStep * 2;
     const int rb = std::min(kMaxRadiusSteps, std::max(1, int(std::lround(radius / step))));
@@ -79,8 +78,7 @@ namespace stencil::support {
   }
 
 
-  // The exact shape, drawn with the painter's current brush (the cache's fallback, and
-  // what every sprite is rasterised from).
+  // The cache's fallback, and what every sprite is rasterised from.
   void MoteSprites::drawExact(QPainter& q, GrainShape shape, const QPointF& at, double r,
                               double a) {
     if (shape == GrainShape::Disc) { q.drawEllipse(at, r, r); return; }
@@ -96,8 +94,7 @@ namespace stencil::support {
   }
 
 
-  // How far a shape reaches from its centre, in radii — the sprite is only as big as
-  // that (a blit costs by area, and a spark's tail is the longest reach).
+  // A blit costs by area, and a spark's tail is the longest reach.
   double MoteSprites::reachOf(GrainShape s) {
     using namespace shape;
     switch (s) {

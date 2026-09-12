@@ -1,18 +1,7 @@
 #pragma once
-// The app's own control tooltip — the desktop port of #app-tooltip in
-// browser/css/components.css, which fades over 90 ms instead of snapping.
-//
-// Qt's tooltip is a private QTipLabel: QSS has no transitions and there is no supported
-// hook to animate the label Qt shows, so QEvent::ToolTip is swallowed app-wide and this
-// frameless panel is shown in its place. Qt still owns the TIMING (SH_ToolTip_WakeUpDelay,
-// pinned at 200 ms in main.cpp) and the content is still tipContent's rendering: only the
-// motion changes — the fade, plus one shake of the KEYCAPS as a tip carrying them appears
-// (browser/extension: .tip-key.key-shake). The panel itself never moves.
-//
-// Only a widget with its OWN non-empty toolTip() is taken over; item views resolve
-// per-index tooltips inside viewportEvent, so those keep Qt's path untouched.
-//
-// Header-only and Q_OBJECT-free (no signals/slots of its own), so it needs no MOC.
+// The app's own tooltip — port of #app-tooltip in browser/css/components.css. Qt's
+// QTipLabel cannot be animated, so QEvent::ToolTip is swallowed app-wide; Qt keeps the
+// timing (SH_ToolTip_WakeUpDelay in main.cpp). Item views keep Qt's path. Q_OBJECT-free.
 #include <QApplication>
 #include <QCursor>
 #include <QEasingCurve>
@@ -38,20 +27,15 @@
 
 #include <vector>
 
-#include "disintegrateOverlay.hpp"   // the shared surface dust
-#include "modalReveal.hpp"   // support::motionReduced()
-#include "tipContent.hpp"    // enrichedToolTip(), hasKeycaps(), blankKeycaps()
+#include "disintegrateOverlay.hpp"
+#include "modalReveal.hpp"
+#include "tipContent.hpp"
 
 namespace stencil::gui {
 
-  // The tooltip's body — the rendered rich text, and the keycaps' shake.
-  //
-  // The caps are painted PNGs inline in that ONE rich-text label (tipContent), not widgets,
-  // so no layout can move them. They are LOCATED instead: the label is rendered twice, as
-  // it is and with the cap faces blanked in boxes of the same size, and the pixels that
-  // differ are the caps — wherever Qt's layout put them, caps mid-prose included. Each is
-  // then blitted back at an offset with its resting slot clipped out. At rest the paint is
-  // QLabel's own, untouched, so the settled tooltip renders exactly as it always did.
+  // The keycaps are inline PNGs in one rich-text label, so they are LOCATED by rendering
+  // twice (as is, and with the faces blanked) and diffing; each is blitted back offset.
+  // At rest the paint is QLabel's own.
   class TipBody : public QLabel {
    public:
     // browser: @keyframes keycapShake (css/components.css) — one damped left/right flick.
@@ -65,7 +49,7 @@ namespace stencil::gui {
     void setTip(const QString& rich);
 
     int capCount();
-    // Where the caps are along the flick, 0 at rest — what the tests watch.
+    // 0 at rest — what the tests watch.
     int capOffset() const { return dx_; }
 
     void setShake(double t);
@@ -88,9 +72,9 @@ namespace stencil::gui {
     QPixmap cut(const QRect& r, qreal dpr) const;
 
     QString tip_;
-    QList<QRect> caps_;      // the caps' resting slots
-    QList<QPixmap> pieces_;  // each cap, cut out of the settled render
-    QPixmap flat_;           // the whole settled render
+    QList<QRect> caps_;
+    QList<QPixmap> pieces_;
+    QPixmap flat_;
     bool hunted_ = false;
     int dx_ = 0;
     double deg_ = 0;
@@ -101,11 +85,7 @@ namespace stencil::gui {
     static constexpr int kFadeMs = 90;      // browser: #app-tooltip transition (the fallback)
     static constexpr int kMaxTipWidth = 380;   // browser: #app-tooltip max-width
     static constexpr int kShakeMs = 320;    // browser: keycapShake 0.32s, one per appearance
-                                            // (TipBody holds its steps — the CAPS move, not this)
-    // The tooltip is sand too (browser js/ui/controlTooltip.js)
-    // It forms from motes streaming out of the control it describes and comes apart into
-    // motes pouring back into it — on the shared tip clock (disintegrateOverlay.hpp):
-    // short, so a flight is over before a toolbar sweep reaches the next control.
+    // The tooltip is sand too (browser js/ui/controlTooltip.js), on the shared tip clock.
     static constexpr int kDustInMs = kTipDustInMs;
     static constexpr int kDustOutMs = kTipDustOutMs;
     static constexpr int kDustHandOverMs = gui::kDustHandOverMs;
@@ -125,11 +105,9 @@ namespace stencil::gui {
 
     void shakeKeys();
 
-    // The offset the caps are at, for tests: 0 when settled. The panel never moves.
     int shakeOffset() const { return body_->capOffset(); }
     int keycapsShown() const { return body_->capCount(); }
     bool shaking() const { return shake_ && shake_->state() == QAbstractAnimation::Running; }
-    // Queued, but holding until the tip's own motes have landed — see showFor().
     bool shakePending() const { return shakeDelay_ && shakeDelay_->isActive(); }
     bool fadingOut() const { return closing_; }
 
@@ -148,11 +126,9 @@ namespace stencil::gui {
     QPointer<QWidget> owner_;
     bool closing_ = false;
     QDeadlineTimer placeHold_{0};   // moveTo is refused until this lapses (the gather)
-    QRect origin_;   // where the dust forms out of (global); invalid = the owner's centre
+    QRect origin_;   // global; invalid = the owner's centre
   };
 
-  // The app-wide filter that hands QEvent::ToolTip to AppTooltip. Q_OBJECT-free for the
-  // same reason as the panel: it only overrides eventFilter.
   class AppTooltipFilter : public QObject {
    public:
     explicit AppTooltipFilter(QObject* parent = nullptr) : QObject(parent) {}
@@ -166,7 +142,7 @@ namespace stencil::gui {
     void dismiss();
 
     AppTooltip* tip_ = nullptr;
-    QPointer<QWidget> tracked_;   // the one widget this tip switched tracking on for
+    QPointer<QWidget> tracked_;   // the widget this tip switched mouse tracking on for
   };
 
   AppTooltipFilter* installAppTooltips();

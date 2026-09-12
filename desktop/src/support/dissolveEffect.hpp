@@ -1,15 +1,7 @@
 #pragma once
-// Grain dissolve — the desktop port of the .reveal-item mask in browser/css/animations.css.
-//
-// The browser masks a row with two layers UNIONed: a tiled dot grain whose dots shrink,
-// plus a bottom→top wipe marking the region still fully intact. Qt has no CSS masks, so
-// the same two layers are painted into an alpha mask here and composited with
-// DestinationIn. Union, not intersect — intersect would punch dot-holes through a settled
-// row. `dissolve` is 0 (whole) to 1 (gone); at 0 it short-circuits to a plain drawSource,
-// so a settled row costs nothing.
-//
-// Header-only and Q_OBJECT-free (no signals/slots), so it needs no MOC. Callers reach
-// it with dynamic_cast, since qobject_cast needs the metaobject a Q_OBJECT would add.
+// Grain dissolve — port of the .reveal-item mask in browser/css/animations.css: a dot
+// grain UNIONed with a bottom→top wipe (intersect would punch holes through a settled
+// row), composited DestinationIn. Q_OBJECT-free: reach it with dynamic_cast.
 #include <QBrush>
 #include <QGraphicsEffect>
 #include <QImage>
@@ -28,21 +20,18 @@ namespace stencil::gui {
 
   class DissolveEffect : public QGraphicsEffect {
    public:
-    // THREE grain grids at different cell sizes and phases (browser: mask-size
-    // 4/7/11px at offsets 0,0 / 2,3 / 5,1). One grid alone is a regular lattice — its
-    // dots line up and merge into joining rectangles instead of reading as sand.
-    // Coprime cells at different phases interfere, so the specks land irregularly.
+    // Browser mask-size 4/7/11px at offsets 0,0 / 2,3 / 5,1: coprime cells interfere,
+    // one lattice alone reads as rectangles.
     struct Grain { int cell; double phaseX, phaseY; double decay; };
     static constexpr Grain kGrains[] = {
         {4, 0.0, 0.0, 0.78}, {7, 2.0, 3.0, 0.95}, {11, 5.0, 1.0, 1.10}};
-    // A circle of this share of a cell covers its corners (half-diagonal / cell ≈ 0.707),
-    // so at dissolve 0 every grain layer is fully opaque and the row is solid.
+    // ≥ half-diagonal / cell (0.707): a full-radius dot covers its corners, so 0 is solid.
     static constexpr double kFullRadiusFrac = 0.72;
 
     explicit DissolveEffect(QObject* parent = nullptr) : QGraphicsEffect(parent) {}
 
     double dissolve() const { return dissolve_; }
-    // The still-visible span of the widget, as a 0..1 share of its own height.
+    // 0..1 shares of the widget's own height.
     void setVisibleSpan(double start, double end) {
       if (qFuzzyCompare(visStart_ + 1.0, start + 1.0) && qFuzzyCompare(visEnd_ + 1.0, end + 1.0)) return;
       visStart_ = start;
@@ -56,9 +45,7 @@ namespace stencil::gui {
       update();
     }
 
-    // The mask on its own, for callers that have no widget to hang an effect on —
-    // an item-view delegate paints its rows, so it renders to a scratch pixmap and
-    // composites this itself. Same two layers, same union.
+    // For a delegate with no widget to hang an effect on.
     static QImage maskFor(const QSize& size, double dissolve, qreal dpr = 1.0,
                           double visStart = 0.0, double visEnd = 1.0) {
       QImage mask(size * dpr, QImage::Format_ARGB32_Premultiplied);
@@ -74,12 +61,12 @@ namespace stencil::gui {
 
    protected:
     void draw(QPainter* painter) override {
-      if (dissolve_ <= 0.001) { drawSource(painter); return; }   // whole — nothing to mask
+      if (dissolve_ <= 0.001) { drawSource(painter); return; }
 
       QPoint offset;
       const QPixmap src = sourcePixmap(Qt::LogicalCoordinates, &offset);
       if (src.isNull()) { drawSource(painter); return; }
-      if (dissolve_ >= 0.999) return;                            // gone — draw nothing
+      if (dissolve_ >= 0.999) return;
 
       QImage out = src.toImage().convertToFormat(QImage::Format_ARGB32_Premultiplied);
       QImage mask(out.size(), QImage::Format_ARGB32_Premultiplied);
@@ -90,9 +77,7 @@ namespace stencil::gui {
         mp.setRenderHint(QPainter::Antialiasing, true);
         const QRectF box(0, 0, mask.width() / mask.devicePixelRatio(),
                          mask.height() / mask.devicePixelRatio());
-        // 1) the grain, as ONE tiled fill rather than a few hundred ellipse calls.
         fillGrain(mp, box, dissolve_);
-        // 2) the still-intact region, unioned on top (both painted = opaque where either).
         applyWipe(mp, box, visStart_, visEnd_);
       }
       QPainter op(&out);
@@ -103,12 +88,9 @@ namespace stencil::gui {
     }
 
    private:
-    // A cell-sized tile holding one black dot, used as a repeating brush. The dot
-    // shrinks to nothing as the dissolve completes — that is what turns the edge into
-    // speckle instead of a clean line.
+    // One tiled fill per grid, not hundreds of ellipse calls.
     static QBrush grainBrush(const Grain& g, double dissolve) {
-      // Each grid thins at its own rate, so they drop out in sequence rather than all
-      // vanishing at once — which is what leaves a trailing haze of fine specks.
+      // Each grid thins at its own rate, so they drop out in sequence.
       const double r = g.cell * kFullRadiusFrac * (1.0 - dissolve * g.decay / 0.78);
       QPixmap tile(g.cell, g.cell);
       tile.fill(Qt::transparent);
@@ -124,17 +106,10 @@ namespace stencil::gui {
       return b;
     }
 
-    // The bottom→top wipe: the region still fully intact, its edge climbing as the
-    // dissolve rises (browser: linear-gradient(to top, transparent d*150%, #000
-    // d*150% + 45%)). CSS lets gradient stops sit outside the box; QGradient clamps
-    // every position to 0..1, so the out-of-range cases have to be handled by hand —
-    // clamping alone let a stop at 1.0 overwrite the transparent one and left a
-    // near-solid card at high dissolve.
+    // The still-visible span, kept solid (browser --vis-start/--vis-end wipe). QGradient
+    // clamps stops to 0..1, unlike CSS — a stop at 1.0 overwrote the transparent one.
     static void applyWipe(QPainter& p, const QRectF& box, double visStart, double visEnd) {
-      // The STILL-VISIBLE span of the widget, kept solid. The grain only ever shows
-      // outside it, so the part you can read is never sanded — only the edge the
-      // viewport is already cutting off. (Browser: the --vis-start/--vis-end wipe.)
-      if (visEnd <= visStart) return;            // nothing of it is on screen
+      if (visEnd <= visStart) return;
       QLinearGradient wipe(box.topLeft(), box.bottomLeft());
       const double feather = 0.10;
       const double a = std::min(1.0, visStart + feather);
@@ -148,7 +123,6 @@ namespace stencil::gui {
       p.fillRect(box, wipe);
     }
 
-    // Paint all three grids, unioned, into the current painter.
     static void fillGrain(QPainter& p, const QRectF& box, double dissolve) {
       for (const Grain& g : kGrains) p.fillRect(box, grainBrush(g, dissolve));
     }
