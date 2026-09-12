@@ -35,7 +35,7 @@ public sealed class ImageAdoptionTests : IDisposable
     }
 
     [Fact]
-    public async Task APngHeaderIsReadInsteadOfSpawningAProbe()
+    public async Task Should_Read_A_Png_Header_Instead_Of_Spawning_A_Probe()
     {
         string source = Path.Combine(_root, "in.png");
         await File.WriteAllBytesAsync(source, ImageDimensionReaderTests.Png(1024, 768));
@@ -48,7 +48,7 @@ public sealed class ImageAdoptionTests : IDisposable
     }
 
     [Fact]
-    public async Task AHeaderTheReaderCannotParseStillProbes()
+    public async Task Should_Still_Probe_For_A_Header_The_Reader_Cannot_Parse()
     {
         string source = Path.Combine(_root, "in.tif");
         await File.WriteAllBytesAsync(source, "II*\0 not a format the sniffer knows"u8.ToArray());

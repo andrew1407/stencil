@@ -27,7 +27,7 @@ public sealed class DurationParserTests
     [InlineData("3 months", DurationUnit.MONTH, 3)]
     [InlineData("1mo", DurationUnit.MONTH, 1)]
     [InlineData("  1   MONTH  ", DurationUnit.MONTH, 1)] // case-insensitive, whitespace-tolerant
-    public void ParsesUnitAndCount(string input, DurationUnit unit, int count)
+    public void Should_Parse_Unit_And_Count(string input, DurationUnit unit, int count)
     {
         bool ok = DurationParser.TryParse(input, out ParsedDuration duration, out bool clear);
         Assert.True(ok);
@@ -43,7 +43,7 @@ public sealed class DurationParserTests
     [InlineData("clear")]
     [InlineData("off")]
     [InlineData("0")]
-    public void RecognisesClearKeywords(string input)
+    public void Should_Recognise_Clear_Keywords(string input)
     {
         bool ok = DurationParser.TryParse(input, out _, out bool clear);
         Assert.True(ok);
@@ -59,7 +59,7 @@ public sealed class DurationParserTests
     [InlineData("-3 days")]     // the minus isn't a digit run → count 3? no: leading '-' ignored, "3" parsed
     [InlineData("custom")]      // handled by the command, not a duration
     [InlineData("99999 days")]  // absurd count
-    public void RejectsJunk(string input)
+    public void Should_Reject_Junk(string input)
     {
         // "-3 days" deliberately parses to 3 days (the sign isn't part of the digit run); assert the
         // rest reject. Keep it explicit so the intent of each case is documented.
@@ -73,7 +73,7 @@ public sealed class DurationParserTests
     }
 
     [Fact]
-    public void ResolvesDaysWeeksAndMonthsFromABase()
+    public void Should_Resolve_Days_Weeks_And_Months_From_A_Base()
     {
         DateTimeOffset baseTime = new(2026, 1, 15, 0, 0, 0, TimeSpan.Zero);
         Assert.Equal(new DateTimeOffset(2026, 1, 18, 0, 0, 0, TimeSpan.Zero), new ParsedDuration(DurationUnit.DAY, 3).From(baseTime));

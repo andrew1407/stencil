@@ -54,7 +54,7 @@ public sealed class LinkHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task SendsTheBouncedSchemeUrlForTheActiveProject()
+    public async Task Should_Send_The_Bounced_Scheme_Url_For_The_Active_Project()
     {
         await seedActiveProject();
 
@@ -72,7 +72,7 @@ public sealed class LinkHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task WithoutAServerProjectAsksForOne()
+    public async Task Should_Ask_For_A_Server_Project_When_There_Is_None()
     {
         await dispatch("https://stencil.example/app");
 
@@ -82,7 +82,7 @@ public sealed class LinkHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task UnconfiguredFallsBackToTheDevServerAndFlagsItAsLocalOnly()
+    public async Task Should_Fall_Back_To_The_Dev_Server_And_Flag_It_As_Local_Only_When_Unconfigured()
     {
         await seedActiveProject();
 
@@ -95,7 +95,7 @@ public sealed class LinkHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task ARemoteBrowserAppCarriesNoLocalOnlyCaveat()
+    public async Task Should_Carry_No_Local_Only_Caveat_For_A_Remote_Browser_App()
     {
         await seedActiveProject();
 
@@ -106,7 +106,7 @@ public sealed class LinkHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task AnUnusableConfiguredBaseSaysSoInsteadOfSendingABrokenLink()
+    public async Task Should_Say_So_Instead_Of_Sending_A_Broken_Link_For_An_Unusable_Configured_Base()
     {
         await seedActiveProject();
 
@@ -118,7 +118,7 @@ public sealed class LinkHandlerTests : IDisposable
     }
 
     [Fact]
-    public async Task TheAliasesAndTheKeyboardTokenReachTheSameHandler()
+    public async Task Should_Reach_The_Same_Handler_From_The_Aliases_And_The_Keyboard_Token()
     {
         await seedActiveProject();
 

@@ -20,7 +20,7 @@ public sealed class OpPlanFixtureWalkerTests
     public static TheoryData<string> BotFixtures() => SharedFixtures.TheoryNames(OpPlanCorpus.BotFileNames);
 
     [Fact]
-    public void TheCorpusIsBigEnoughToBeReal()
+    public void Should_Have_A_Corpus_Big_Enough_To_Be_Real()
     {
         // Floors per bundle, not on the total: the generated cases alone clear a combined
         // floor, so a vanished cases.json would otherwise walk green.
@@ -32,7 +32,7 @@ public sealed class OpPlanFixtureWalkerTests
 
     [Theory]
     [MemberData(nameof(AllFixtures))]
-    public void FixtureIsWellFormed(string file)
+    public void Should_Be_Well_Formed_For_Each_Fixture(string file)
     {
         // Port of the reference walker's corpus-shape check.
         OpPlanFixture fx = OpPlanCorpus.ByFile(file);
@@ -77,7 +77,7 @@ public sealed class OpPlanFixtureWalkerTests
 
     [Theory]
     [MemberData(nameof(BotFixtures))]
-    public void BotFixtureGetsItsVerdict(string file)
+    public void Should_Give_Each_Bot_Fixture_Its_Verdict(string file)
     {
         OpPlanFixture fx = OpPlanCorpus.ByFile(file);
         // Verdict precedence: local override ?? knownDivergence.bot ?? expect.

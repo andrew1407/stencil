@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class InMemorySessionStoreTests
 {
     [Fact]
-    public async Task GetReturnsFreshSessionForUnknownUser()
+    public async Task Should_Return_A_Fresh_Session_On_Get_For_An_Unknown_User()
     {
         InMemorySessionStore store = new();
         UserSession session = await store.GetAsync(42);
@@ -22,7 +22,7 @@ public sealed class InMemorySessionStoreTests
     }
 
     [Fact]
-    public async Task SaveThenGetRoundTrips()
+    public async Task Should_Round_Trip_On_Save_Then_Get()
     {
         InMemorySessionStore store = new();
         UserSession session = new()
@@ -45,7 +45,7 @@ public sealed class InMemorySessionStoreTests
     }
 
     [Fact]
-    public async Task ResetClearsStoredSession()
+    public async Task Should_Clear_The_Stored_Session_On_Reset()
     {
         InMemorySessionStore store = new();
         UserSession session = new()

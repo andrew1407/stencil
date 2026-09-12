@@ -14,7 +14,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class HttpLlmServerTests
 {
     [Fact]
-    public async Task StencilServerPostsLlmChatWithTheSessionBearerAndProtocolShapes()
+    public async Task Should_Post_Llm_Chat_With_The_Session_Bearer_And_Protocol_Shapes_For_Stencil_Server()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json("""{"model":"claude-opus-5","text":"proxied","stopReason":"end_turn"}"""));
@@ -50,7 +50,7 @@ public sealed class HttpLlmServerTests
     [Theory]
     [InlineData("max_tokens", LlmFailure.TRUNCATED)]
     [InlineData("refusal", LlmFailure.REFUSAL)]
-    public async Task StencilServerStopReasonsBecomeFailuresNeverPlans(string stopReason, LlmFailure expected)
+    public async Task Should_Turn_Stencil_Server_Stop_Reasons_Into_Failures_Never_Plans(string stopReason, LlmFailure expected)
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json($$"""{"model":"m","text":"nope","stopReason":"{{stopReason}}"}"""));
@@ -62,7 +62,7 @@ public sealed class HttpLlmServerTests
     }
 
     [Fact]
-    public async Task StencilServerLlmDisabledSurfacesTheServersMessage()
+    public async Task Should_Surface_The_Servers_Message_When_Stencil_Server_Llm_Is_Disabled()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json(
@@ -77,7 +77,7 @@ public sealed class HttpLlmServerTests
     }
 
     [Fact]
-    public async Task StencilServerWithoutAResolvedUrlThrows()
+    public async Task Should_Throw_For_Stencil_Server_Without_A_Resolved_Url()
     {
         HttpLlmClient client = Client(
             new CannedHttpMessageHandler((_, _) => CannedHttpMessageHandler.Json("{}")),
@@ -93,7 +93,7 @@ public sealed class HttpLlmServerTests
     // An unreachable/slow endpoint is the operator's URL, never one the user typed: the chat
     // hears only that the service is down, the log gets the endpoint and the transport error.
     [Fact]
-    public async Task AnUnreachableEndpointKeepsItsUrlOutOfTheMessage()
+    public async Task Should_Keep_The_Url_Out_Of_The_Message_For_An_Unreachable_Endpoint()
     {
         HttpLlmClient client = Client(
             new CannedHttpMessageHandler((_, _) => throw new HttpRequestException("connection refused")),

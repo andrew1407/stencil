@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class OpPlanConnectionTests
 {
     [Fact]
-    public void ConnectAndDisconnectParseWithANonEmptyServerAndNothingElse()
+    public void Should_Parse_Connect_And_Disconnect_With_A_Non_Empty_Server_And_Nothing_Else()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """
@@ -32,7 +32,7 @@ public sealed class OpPlanConnectionTests
     [InlineData("""{"op":"connect","server":"srv","token":"t"}""")] // plans never carry tokens
     [InlineData("""{"op":"disconnect","server":""}""")]
     [InlineData("""{"op":"disconnect","server":"srv","url":"http://srv"}""")]
-    public void ConnectionOpsRejectABadServerAndAnyExtraFieldOutright(string action)
+    public void Should_Reject_A_Bad_Server_And_Any_Extra_Field_Outright_For_Connection_Ops(string action)
     {
         OpPlanParseResult result = OpPlanParser.Parse($$"""{"reply":"x","actions":[{{action}}]}""");
         Assert.Null(result.Plan);
@@ -42,7 +42,7 @@ public sealed class OpPlanConnectionTests
     [Theory]
     [InlineData("connect")]
     [InlineData("disconnect")]
-    public void ConnectionOpsInsideAVariantDropThatVariant(string op)
+    public void Should_Drop_The_Variant_For_Connection_Ops_Inside_It(string op)
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             $$"""{"reply":"x","variants":[{"label":"v","actions":[{"op":"{{op}}","server":"srv"}]}]}""");
@@ -56,7 +56,7 @@ public sealed class OpPlanConnectionTests
     // ── §2 undo / redo / reset ──
 
     [Fact]
-    public void UndoAndRedoTakeAnOptionalBoundedStepsCount()
+    public void Should_Take_An_Optional_Bounded_Steps_Count_For_Undo_And_Redo()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"undo"},{"op":"redo","steps":5},{"op":"undo","steps":20}]}""");
@@ -73,7 +73,7 @@ public sealed class OpPlanConnectionTests
     [InlineData("""{"op":"redo","steps":1.5}""")]
     [InlineData("""{"op":"redo","steps":"2"}""")]
     [InlineData("""{"op":"undo","count":2}""")]
-    public void UndoRedoRejectBadSteps(string action)
+    public void Should_Reject_Bad_Steps_For_Undo_And_Redo(string action)
     {
         OpPlanParseResult result = OpPlanParser.Parse($$"""{"reply":"x","actions":[{{action}}]}""");
         Assert.Null(result.Plan);
@@ -81,7 +81,7 @@ public sealed class OpPlanConnectionTests
     }
 
     [Fact]
-    public void ResetClearAndClearChatTakeNoFieldsAtAll()
+    public void Should_Take_No_Fields_At_All_For_Reset_Clear_And_Clear_Chat()
     {
         OpPlanParseResult ok = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"reset"},{"op":"clear"},{"op":"clearChat"}]}""");

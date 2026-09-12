@@ -14,7 +14,7 @@ public sealed class OpPlanCropTests
     [InlineData("""{"x1":"10%","x2":"-10%","y1":"0","y2":"4cm"}""", "x1=10% x2=-10% y1=0 y2=4cm")]
     [InlineData("""{"y2":"12.5px"}""", "y2=12.5px")]
     [InlineData("""{"x1":"3in"}""", "x1=3in")]
-    public void CropJoinsValidatedTokensWithSpaces(string spec, string expected)
+    public void Should_Join_Validated_Tokens_With_Spaces_For_Crop(string spec, string expected)
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             $$"""{"reply":"ok","actions":[{"op":"crop","spec":{{spec}}}]}""");
@@ -30,7 +30,7 @@ public sealed class OpPlanCropTests
     [InlineData("""{"x1":"10 %"}""")]    // inner space
     [InlineData("""{"x1":"10km"}""")]    // unknown unit
     [InlineData("""{"x1":10}""")]        // not a string
-    public void CropRejectsBadSpecs(string spec)
+    public void Should_Reject_Bad_Specs_For_Crop(string spec)
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             $$"""{"reply":"ok","actions":[{"op":"crop","spec":{{spec}}}]}""");
@@ -39,7 +39,7 @@ public sealed class OpPlanCropTests
     }
 
     [Fact]
-    public void CropAcceptsAnAspectKeyAndKeepsItsValue()
+    public void Should_Accept_An_Aspect_Key_And_Keep_Its_Value_For_Crop()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"crop","spec":{"x1":"10%","aspect":"4:3"}}]}""");
@@ -49,7 +49,7 @@ public sealed class OpPlanCropTests
     }
 
     [Fact]
-    public void CropAcceptsAnAspectOnlySpec()
+    public void Should_Accept_An_Aspect_Only_Spec_For_Crop()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"crop","spec":{"aspect":"16:9"}}]}""");
@@ -71,7 +71,7 @@ public sealed class OpPlanCropTests
     [InlineData("4.5:3")]    // not integers
     [InlineData("1e2:3")]    // exponent
     [InlineData("")]         // empty
-    public void CropRejectsMalformedAspects(string aspect)
+    public void Should_Reject_Malformed_Aspects_For_Crop(string aspect)
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             $$$"""{"reply":"ok","actions":[{"op":"crop","spec":{"x1":"10%","aspect":"{{{aspect}}}"}}]}""");
@@ -80,7 +80,7 @@ public sealed class OpPlanCropTests
     }
 
     [Fact]
-    public void CropAspectBesideTheSpecIsFoldedIn()
+    public void Should_Fold_In_A_Crop_Aspect_Beside_The_Spec()
     {
         // §1 tolerance: models sometimes emit "aspect" beside "spec" — same validation, folded.
         OpPlanParseResult result = OpPlanParser.Parse(
@@ -96,7 +96,7 @@ public sealed class OpPlanCropTests
     }
 
     [Fact]
-    public void CropAspectIdenticalDuplicateIsToleratedButAConflictFails()
+    public void Should_Tolerate_An_Identical_Duplicate_Crop_Aspect_But_Fail_A_Conflict()
     {
         OpPlanParseResult duplicate = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"crop","spec":{"aspect":"4:3"},"aspect":"4:3"}]}""");
@@ -113,7 +113,7 @@ public sealed class OpPlanCropTests
     [InlineData("\"1.5:2\"")]   // not integers
     [InlineData("\"4:\"")]      // missing part
     [InlineData("43")]          // not a string
-    public void CropRejectsMalformedAspectsBesideTheSpec(string aspect)
+    public void Should_Reject_Malformed_Aspects_Beside_The_Spec_For_Crop(string aspect)
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             $$"""{"reply":"ok","actions":[{"op":"crop","spec":{"x1":"10%"},"aspect":{{aspect}}}]}""");

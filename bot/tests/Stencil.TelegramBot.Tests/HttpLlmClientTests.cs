@@ -13,7 +13,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class HttpLlmClientTests
 {
     [Fact]
-    public async Task NonSuccessWithAnOpenAiStyleErrorBodyIsSurfaced()
+    public async Task Should_Surface_A_Non_Success_With_An_Open_Ai_Style_Error_Body()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json("""{"error":{"message":"model not found"}}""", HttpStatusCode.NotFound));
@@ -26,7 +26,7 @@ public sealed class HttpLlmClientTests
     }
 
     [Fact]
-    public async Task AnUpstreamReasonIsSentAsItself()
+    public async Task Should_Send_An_Upstream_Reason_As_Itself()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json(
@@ -40,7 +40,7 @@ public sealed class HttpLlmClientTests
     }
 
     [Fact]
-    public async Task AnErrorBodyThatSaysNothingFallsBackToTheStatus()
+    public async Task Should_Fall_Back_To_The_Status_For_An_Error_Body_That_Says_Nothing()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json("""{"nothing":"useful"}""", HttpStatusCode.BadGateway));
@@ -54,13 +54,13 @@ public sealed class HttpLlmClientTests
     [InlineData("model\nnot\tfound", "model not found")]
     [InlineData("Incorrect API key provided: sk-abcdef1234567890", "Incorrect API key provided: [redacted]")]
     [InlineData("failed to reach http://10.0.0.5:11434/api/chat now", "failed to reach [redacted] now")]
-    public void ProviderProseIsControlFreeAndNeverEchoesAKeyOrUrl(string raw, string expected)
+    public void Should_Keep_Provider_Prose_Control_Free_And_Never_Echo_A_Key_Or_Url(string raw, string expected)
     {
         Assert.Equal(expected, HttpLlmClient.SanitizeProviderText(raw));
     }
 
     [Fact]
-    public void ProviderProseIsHardTruncated()
+    public void Should_Hard_Truncate_Provider_Prose()
     {
         string cut = HttpLlmClient.SanitizeProviderText(string.Concat(Enumerable.Repeat("the model is very busy right now. ", 30)));
         Assert.True(cut.Length <= HttpLlmClient.MAX_PROVIDER_DETAIL);
@@ -68,7 +68,7 @@ public sealed class HttpLlmClientTests
     }
 
     [Fact]
-    public async Task UnknownProviderThrowsAConfigurationError()
+    public async Task Should_Throw_A_Configuration_Error_For_An_Unknown_Provider()
     {
         HttpLlmClient client = Client(
             new CannedHttpMessageHandler((_, _) => CannedHttpMessageHandler.Json("{}")),

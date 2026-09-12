@@ -16,7 +16,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class HttpStencilServerClientTests
 {
     [Fact]
-    public async Task BearerHeaderIsPresentOnAListedCall()
+    public async Task Should_Send_The_Bearer_Header_On_A_Listed_Call()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json("{\"projects\":[]}"));
@@ -30,7 +30,7 @@ public sealed class HttpStencilServerClientTests
     }
 
     [Fact]
-    public async Task ListProjectsParsesArray()
+    public async Task Should_Parse_The_Array_On_List_Projects()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json(
@@ -49,7 +49,7 @@ public sealed class HttpStencilServerClientTests
     }
 
     [Fact]
-    public async Task PutFileSendsQueryAndOctetStreamBody()
+    public async Task Should_Send_Query_And_Octet_Stream_Body_On_Put_File()
     {
         byte[] payload = Encoding.UTF8.GetBytes("PIXELS");
         CannedHttpMessageHandler handler = new((_, _) =>
@@ -72,7 +72,7 @@ public sealed class HttpStencilServerClientTests
     }
 
     [Fact]
-    public async Task DeleteFileSendsDeleteToTheFileRouteAndAcceptsNoContent()
+    public async Task Should_Send_Delete_To_The_File_Route_And_Accept_No_Content_On_Delete_File()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Empty(HttpStatusCode.NoContent));
@@ -86,7 +86,7 @@ public sealed class HttpStencilServerClientTests
     }
 
     [Fact]
-    public async Task NonSuccessBodyThrowsServerExceptionWithCodeAndStatus()
+    public async Task Should_Throw_Server_Exception_With_Code_And_Status_For_A_Non_Success_Body()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json(
@@ -101,7 +101,7 @@ public sealed class HttpStencilServerClientTests
     }
 
     [Fact]
-    public async Task ConflictResponseYieldsIsConflict()
+    public async Task Should_Yield_Is_Conflict_For_A_Conflict_Response()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json(

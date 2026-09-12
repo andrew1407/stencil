@@ -14,7 +14,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class HttpLlmProviderTests
 {
     [Fact]
-    public async Task OllamaPostsNativeChatWithSystemFirstAndBareBase64Images()
+    public async Task Should_Post_Native_Chat_With_System_First_And_Bare_Base64_Images_For_Ollama()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json("""{"message":{"role":"assistant","content":"the reply"},"done":true}"""));
@@ -42,7 +42,7 @@ public sealed class HttpLlmProviderTests
     }
 
     [Fact]
-    public async Task OllamaLengthDoneReasonThrowsTruncated()
+    public async Task Should_Throw_Truncated_On_Ollama_Length_Done_Reason()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json("""{"message":{"content":"partial"},"done_reason":"length"}"""));
@@ -55,7 +55,7 @@ public sealed class HttpLlmProviderTests
     // ── openai-compat (§6.2) ──
 
     [Fact]
-    public async Task OpenAiCompatPostsChatCompletionsWithBearerAndDataUrlImageParts()
+    public async Task Should_Post_Chat_Completions_With_Bearer_And_Data_Url_Image_Parts_For_Open_Ai_Compat()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json("""{"choices":[{"message":{"content":"lm reply"},"finish_reason":"stop"}]}"""));
@@ -88,7 +88,7 @@ public sealed class HttpLlmProviderTests
     }
 
     [Fact]
-    public async Task OpenAiCompatWithoutAnApiKeySendsNoAuthorizationHeader()
+    public async Task Should_Send_No_Authorization_Header_For_Open_Ai_Compat_Without_An_Api_Key()
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json("""{"choices":[{"message":{"content":"x"}}]}"""));
@@ -102,7 +102,7 @@ public sealed class HttpLlmProviderTests
     [Theory]
     [InlineData("length", LlmFailure.TRUNCATED)]
     [InlineData("content_filter", LlmFailure.REFUSAL)]
-    public async Task OpenAiCompatMapsFinishReasonsToFailures(string finishReason, LlmFailure expected)
+    public async Task Should_Map_Finish_Reasons_To_Failures_For_Open_Ai_Compat(string finishReason, LlmFailure expected)
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json(

@@ -34,7 +34,7 @@ public sealed class DocumentDownloadTests : IDisposable
     }
 
     [Fact]
-    public void TheDocumentCapIsFarTighterThanThePhotoCap()
+    public void Should_Keep_The_Document_Cap_Far_Tighter_Than_The_Photo_Cap()
     {
         BotOptions options = new();
 
@@ -44,7 +44,7 @@ public sealed class DocumentDownloadTests : IDisposable
 
     // A smaller operator limit still wins — the document cap only ever tightens.
     [Fact]
-    public void ASmallerConfiguredLimitStillWins()
+    public void Should_Let_A_Smaller_Configured_Limit_Win()
     {
         BotOptions options = new() { MaxDownloadBytes = _megabyte };
 
@@ -52,7 +52,7 @@ public sealed class DocumentDownloadTests : IDisposable
     }
 
     [Fact]
-    public async Task AnOversizedLayoutJsonIsRefused()
+    public async Task Should_Refuse_An_Oversized_Layout_Json()
     {
         _bot.FileBytes = 5 * _megabyte;
         UpdateRouter router = makeRouter();
@@ -65,7 +65,7 @@ public sealed class DocumentDownloadTests : IDisposable
     }
 
     [Fact]
-    public async Task AnOversizedProjectFileIsRefused()
+    public async Task Should_Refuse_An_Oversized_Project_File()
     {
         _bot.FileBytes = 5 * _megabyte;
         UpdateRouter router = makeRouter();
@@ -78,7 +78,7 @@ public sealed class DocumentDownloadTests : IDisposable
 
     // The cap streams to disk, so the refused download leaves no partial file behind either.
     [Fact]
-    public async Task AnOversizedDocumentLeavesNoTempFile()
+    public async Task Should_Leave_No_Temp_File_For_An_Oversized_Document()
     {
         _bot.FileBytes = 5 * _megabyte;
         UpdateRouter router = makeRouter();
@@ -90,7 +90,7 @@ public sealed class DocumentDownloadTests : IDisposable
     }
 
     [Fact]
-    public async Task ASmallLayoutJsonStillApplies()
+    public async Task Should_Apply_A_Small_Layout_Json()
     {
         _bot.Payload = """{"imageWidth":640,"imageHeight":480,"lines":[{"points":[{"x":1,"y":2},{"x":3,"y":4}]}]}"""u8.ToArray();
         UpdateRouter router = makeRouter();
@@ -104,7 +104,7 @@ public sealed class DocumentDownloadTests : IDisposable
 
     // Photos are untouched by the tighter cap: one well past it still becomes the working image.
     [Fact]
-    public async Task APhotoPastTheDocumentCapStillLoads()
+    public async Task Should_Load_A_Photo_Past_The_Document_Cap()
     {
         _bot.FileBytes = 5 * _megabyte;
         UpdateRouter router = makeRouter();

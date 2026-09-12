@@ -61,7 +61,7 @@ public sealed partial class LayerBoundaryTests
 
     [Theory]
     [MemberData(nameof(RingNames))]
-    public void ProjectReferencesPointInward(string ring)
+    public void Should_Point_Project_References_Inward(string ring)
     {
         string[] allowed = _allowedInternal[ring];
         string[] offending = projectReference().Matches(csprojText(ring))
@@ -75,7 +75,7 @@ public sealed partial class LayerBoundaryTests
 
     [Theory]
     [MemberData(nameof(RingNames))]
-    public void UsingLinesPointInward(string ring)
+    public void Should_Point_Using_Lines_Inward(string ring)
     {
         string[] allowed = _allowedInternal[ring];
         List<string> offending = [];
@@ -99,7 +99,7 @@ public sealed partial class LayerBoundaryTests
     }
 
     [Fact]
-    public void DomainNamesNoAdapterNamespace()
+    public void Should_Name_No_Adapter_Namespace_In_Domain()
     {
         List<string> offending = [];
         foreach (string file in sourceFiles("Domain"))
@@ -120,7 +120,7 @@ public sealed partial class LayerBoundaryTests
     }
 
     [Fact]
-    public void DomainReferencesNoAdapterPackage()
+    public void Should_Reference_No_Adapter_Package_In_Domain()
     {
         string[] packages = packageReference().Matches(csprojText("Domain"))
             .Select(m => m.Groups[1].Value)
@@ -130,7 +130,7 @@ public sealed partial class LayerBoundaryTests
     }
 
     [Fact]
-    public void EveryAllowanceStillNamesAFile()
+    public void Should_Name_A_File_For_Every_Allowance()
     {
         string[] stale = _allowances.Keys
             .Where(rel => !File.Exists(SharedFixtures.PathOf(rel.Split('/'))))
@@ -139,7 +139,7 @@ public sealed partial class LayerBoundaryTests
     }
 
     [Fact]
-    public void EveryRingHasSources()
+    public void Should_Have_Sources_For_Every_Ring()
     {
         foreach (string ring in _rings)
         {

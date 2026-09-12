@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class OpPlanLimitsAndFormsTests
 {
     [Fact]
-    public void MoreThan16ActionsFailsThePlan()
+    public void Should_Fail_The_Plan_For_More_Than_16_Actions()
     {
         string actions = string.Join(',', Enumerable.Repeat("""{"op":"rotate","dir":"left"}""", 17));
         OpPlanParseResult result = OpPlanParser.Parse($$"""{"reply":"ok","actions":[{{actions}}]}""");
@@ -20,7 +20,7 @@ public sealed class OpPlanLimitsAndFormsTests
     }
 
     [Fact]
-    public void MoreThan8VariantsFailsThePlan()
+    public void Should_Fail_The_Plan_For_More_Than_8_Variants()
     {
         string variants = string.Join(',', Enumerable.Repeat("""{"label":"v","actions":[]}""", 9));
         OpPlanParseResult result = OpPlanParser.Parse($$"""{"reply":"ok","variants":[{{variants}}]}""");
@@ -29,7 +29,7 @@ public sealed class OpPlanLimitsAndFormsTests
     }
 
     [Fact]
-    public void MoreThan16ActionsInsideAVariantFailsThePlan()
+    public void Should_Fail_The_Plan_For_More_Than_16_Actions_Inside_A_Variant()
     {
         string actions = string.Join(',', Enumerable.Repeat("""{"op":"rotate","dir":"left"}""", 17));
         OpPlanParseResult result = OpPlanParser.Parse(
@@ -41,7 +41,7 @@ public sealed class OpPlanLimitsAndFormsTests
     // ── §2.1 multi-image ops: `image` switches to a turn attachment, `save` persists ──
 
     [Fact]
-    public void PageTakesAFormatOrCustomCmDimsButNeverBoth()
+    public void Should_Take_A_Format_Or_Custom_Cm_Dims_But_Never_Both_For_Page()
     {
         OpPlanParseResult custom = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"page","width":20,"height":30}]}""");
@@ -63,7 +63,7 @@ public sealed class OpPlanLimitsAndFormsTests
     }
 
     [Fact]
-    public void BlankTakesOptionalCmDimsBothOrNeither()
+    public void Should_Take_Optional_Cm_Dims_Both_Or_Neither_For_Blank()
     {
         OpPlanParseResult ok = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"blank","color":"#ffffff","width":10,"height":15}]}""");
@@ -79,7 +79,7 @@ public sealed class OpPlanLimitsAndFormsTests
     }
 
     [Fact]
-    public void FormulaEnabledRidesAloneAndEmptyExprIsAllowed()
+    public void Should_Let_Formula_Enabled_Ride_Alone_And_Allow_An_Empty_Expr()
     {
         OpPlanParseResult off = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"formula","enabled":false}]}""");

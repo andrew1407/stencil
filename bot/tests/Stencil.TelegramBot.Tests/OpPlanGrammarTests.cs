@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class OpPlanGrammarTests
 {
     [Fact]
-    public void FilterCustomRequiresATintAndOthersForbidIt()
+    public void Should_Require_A_Tint_For_Filter_Custom_And_Forbid_It_For_Others()
     {
         Assert.NotNull(OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"filter","mode":"custom"}]}""").Error);
@@ -29,7 +29,7 @@ public sealed class OpPlanGrammarTests
     // ── layout ──
 
     [Fact]
-    public void LayoutLinesGetTheSharedDefaultsForOmittedFields()
+    public void Should_Give_Layout_Lines_The_Shared_Defaults_For_Omitted_Fields()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"layout","lines":[{"points":[{"x":1,"y":2},{"x":3,"y":4}]}]}]}""");
@@ -45,7 +45,7 @@ public sealed class OpPlanGrammarTests
     }
 
     [Fact]
-    public void LayoutRejectsBadLines()
+    public void Should_Reject_Bad_Lines_For_Layout()
     {
         // Unknown line field.
         Assert.NotNull(OpPlanParser.Parse(
@@ -59,7 +59,7 @@ public sealed class OpPlanGrammarTests
     }
 
     [Fact]
-    public void LayoutRejectsMoreThan200Lines()
+    public void Should_Reject_More_Than_200_Lines_For_Layout()
     {
         string lines = string.Join(',', Enumerable.Repeat("""{"points":[{"x":0,"y":0}]}""", 201));
         OpPlanParseResult result = OpPlanParser.Parse(
@@ -71,7 +71,7 @@ public sealed class OpPlanGrammarTests
     // ── formula ──
 
     [Fact]
-    public void FormulaEnforcesCharsetAndTheAxisVariable()
+    public void Should_Enforce_Charset_And_The_Axis_Variable_For_Formula()
     {
         Assert.Null(OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"formula","axis":"x","expr":"x*2 + (10 / 4) ** 2"}]}""").Error);
@@ -84,7 +84,7 @@ public sealed class OpPlanGrammarTests
     }
 
     [Fact]
-    public void FormulaLongerThan5000CharsFailsThePlan()
+    public void Should_Fail_The_Plan_For_A_Formula_Longer_Than_5000_Chars()
     {
         string expr = new('1', 5001);
         OpPlanParseResult result = OpPlanParser.Parse(
@@ -102,7 +102,7 @@ public sealed class OpPlanGrammarTests
     [InlineData("a11", false)]
     [InlineData("A4", false)]  // lowercase only
     [InlineData("d4", false)]
-    public void PageValidatesTheIsoFormatName(string format, bool ok)
+    public void Should_Validate_The_Iso_Format_Name_For_Page(string format, bool ok)
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             $$"""{"reply":"ok","actions":[{"op":"page","format":"{{format}}"}]}""");
@@ -110,7 +110,7 @@ public sealed class OpPlanGrammarTests
     }
 
     [Fact]
-    public void BlankTakesHexOrCssNameColoursAndAnOptionalFormat()
+    public void Should_Take_Hex_Or_Css_Name_Colours_And_An_Optional_Format_For_Blank()
     {
         OpPlanParseResult hex = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"blank","color":"#ffffff","format":"a4"}]}""");
@@ -129,7 +129,7 @@ public sealed class OpPlanGrammarTests
     // ── frame ──
 
     [Fact]
-    public void FrameTakesExactlyOneOfIndexOrIndices()
+    public void Should_Take_Exactly_One_Of_Index_Or_Indices_For_Frame()
     {
         OpPlanParseResult single = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"frame","index":3}]}""");
@@ -150,7 +150,7 @@ public sealed class OpPlanGrammarTests
     }
 
     [Fact]
-    public void FrameRejectsMoreThan32Indices()
+    public void Should_Reject_More_Than_32_Indices_For_Frame()
     {
         string indices = string.Join(',', Enumerable.Range(0, 33));
         OpPlanParseResult result = OpPlanParser.Parse(

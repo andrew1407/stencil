@@ -12,7 +12,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class EditingServiceTests : EditingServiceTestBase
 {
     [Fact]
-    public async Task BlankSetsTheOriginal()
+    public async Task Should_Set_The_Original_On_Blank()
     {
         _cli.CannedSize = new ImageSize(595, 842);
         UserSession session = await _service.BlankAsync(UserId, new BlankSpec());
@@ -25,7 +25,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task CropRotateFilterAccumulateAndPersist()
+    public async Task Should_Accumulate_And_Persist_Crop_Rotate_Filter()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         await _service.SetCropAsync(UserId, "x1=10% x2=90%", album: true);
@@ -40,7 +40,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task RotateWrapsModuloFour()
+    public async Task Should_Wrap_Rotate_Modulo_Four()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         await _service.RotateAsync(UserId, 3);
@@ -49,7 +49,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task PageFormatAccumulatesOnTheEditState()
+    public async Task Should_Accumulate_Page_Format_On_The_Edit_State()
     {
         await _service.SetPageFormatAsync(UserId, "B5");
         UserSession named = await _store.GetAsync(UserId);
@@ -70,7 +70,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task StoredFormatIsTheBlankDefaultPageAndSurvivesTheReset()
+    public async Task Should_Use_The_Stored_Format_As_The_Blank_Default_Page_And_Keep_It_Across_The_Reset()
     {
         await _service.SetPageFormatAsync(UserId, "B5");
         UserSession session = await _service.BlankAsync(UserId, new BlankSpec());
@@ -80,7 +80,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task ExplicitBlankPageWinsOverTheStoredFormat()
+    public async Task Should_Let_An_Explicit_Blank_Page_Win_Over_The_Stored_Format()
     {
         await _service.SetPageFormatAsync(UserId, "B5");
         UserSession session = await _service.BlankAsync(UserId, new BlankSpec(Page: "A5"));
@@ -90,7 +90,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task CustomFormatRidesTheBlankFlagAsPixelDims()
+    public async Task Should_Ride_A_Custom_Format_On_The_Blank_Flag_As_Pixel_Dims()
     {
         await _service.SetPageFormatAsync(UserId, "custom", 10, 15);
         UserSession session = await _service.BlankAsync(UserId, new BlankSpec());
@@ -106,7 +106,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task CustomFormatWithoutDimsIsNotCarriedOntoTheDefaultBlank()
+    public async Task Should_Not_Carry_A_Custom_Format_Without_Dims_Onto_The_Default_Blank()
     {
         // A "custom" format missing its cm dims can't drive the raster, so the blank falls
         // back to the CLI's default page and must not be mislabeled custom in the layout.
@@ -120,7 +120,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task ExplicitBlankPageWinsOverTheStoredCustomFormat()
+    public async Task Should_Let_An_Explicit_Blank_Page_Win_Over_The_Stored_Custom_Format()
     {
         await _service.SetPageFormatAsync(UserId, "custom", 10, 15);
         UserSession session = await _service.BlankAsync(UserId, new BlankSpec(Page: "A5"));
@@ -132,7 +132,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task ExplicitBlankDimensionsKeepTheStoredFormat()
+    public async Task Should_Keep_The_Stored_Format_For_Explicit_Blank_Dimensions()
     {
         await _service.SetPageFormatAsync(UserId, "B5");
         UserSession session = await _service.BlankAsync(UserId, new BlankSpec(800, 600));
@@ -145,7 +145,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task FilterNoneClearsTheFilter()
+    public async Task Should_Clear_The_Filter_On_Filter_None()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         await _service.SetFilterAsync(UserId, "bw");
@@ -161,7 +161,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     };
 
     [Fact]
-    public async Task ApplyLayoutReplacesTheCurrentLinesByDefault()
+    public async Task Should_Replace_The_Current_Lines_On_Apply_Layout_By_Default()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         await _service.ApplyLayoutAsync(UserId, layoutWith(1));
@@ -172,7 +172,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task ApplyLayoutCombineKeepsTheExistingLinesAndAddsTheNewOnTop()
+    public async Task Should_Keep_The_Existing_Lines_And_Add_The_New_On_Top_On_Apply_Layout_Combine()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         await _service.ApplyLayoutAsync(UserId, layoutWith(1));
@@ -184,7 +184,7 @@ public sealed class EditingServiceTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task ApplyLayoutCombineOnAnEmptyDrawingJustAdoptsTheLayout()
+    public async Task Should_Just_Adopt_The_Layout_On_Apply_Layout_Combine_Over_An_Empty_Drawing()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         UserSession session = await _service.ApplyLayoutAsync(UserId, layoutWith(3), combine: true);

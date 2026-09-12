@@ -36,7 +36,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     }
 
     [Fact]
-    public async Task NothingAttachableYieldsNull()
+    public async Task Should_Yield_Null_When_Nothing_Is_Attachable()
     {
         Assert.Null(await _loader.LoadAsync(null));
         Assert.Null(await _loader.LoadAsync(Path.Combine(_dir, "missing.png")));
@@ -46,7 +46,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     }
 
     [Fact]
-    public async Task SmallImageAttachesTheOriginalBytesWithoutDownscaling()
+    public async Task Should_Attach_The_Original_Bytes_Without_Downscaling_For_A_Small_Image()
     {
         byte[] bytes = ImageDimensionReaderTests.Png(1568, 480);
         string path = write("small.png", bytes);
@@ -59,7 +59,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     }
 
     [Fact]
-    public async Task SmallWebpKeepsItsOwnMediaType()
+    public async Task Should_Keep_Its_Own_Media_Type_For_A_Small_Webp()
     {
         byte[] bytes = ImageDimensionReaderTests.WebpLossy(800, 600);
         LlmImage? image = await _loader.LoadAsync(write("small.webp", bytes));
@@ -69,7 +69,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     }
 
     [Fact]
-    public async Task OversizedImageIsDownscaledAndBecomesPng()
+    public async Task Should_Downscale_An_Oversized_Image_To_Png()
     {
         _downscaler.Result = [9, 9, 9];
         string path = write("big.jpg", ImageDimensionReaderTests.Jpeg(4000, 500));
@@ -85,7 +85,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     }
 
     [Fact]
-    public async Task FailedDownscaleFallsBackToTheOriginalBytes()
+    public async Task Should_Fall_Back_To_The_Original_Bytes_On_A_Failed_Downscale()
     {
         _downscaler.Result = null; // ffmpeg unavailable / failed
         byte[] bytes = ImageDimensionReaderTests.Jpeg(4000, 3000);
@@ -99,7 +99,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     }
 
     [Fact]
-    public async Task UnchangedFileIsMemoizedAcrossLoads()
+    public async Task Should_Memoize_An_Unchanged_File_Across_Loads()
     {
         _downscaler.Result = [9, 9, 9];
         string path = write("big.jpg", ImageDimensionReaderTests.Jpeg(4000, 500));
@@ -113,7 +113,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     }
 
     [Fact]
-    public async Task ARewrittenFileInvalidatesTheMemoizedAttachment()
+    public async Task Should_Invalidate_The_Memoized_Attachment_For_A_Rewritten_File()
     {
         _downscaler.Result = [9, 9, 9];
         string path = write("big.jpg", ImageDimensionReaderTests.Jpeg(4000, 500));
@@ -129,7 +129,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     // The fallback used to send the original at any size, bounded only by the 50 MB download
     // cap. Past the cli/mcp threshold the turn goes text-only instead.
     [Fact]
-    public async Task AnOversizedImageThatCannotBeScaledIsSkippedNotSentWhole()
+    public async Task Should_Skip_Not_Send_Whole_An_Oversized_Image_That_Cannot_Be_Scaled()
     {
         _downscaler.Result = null;   // no ffmpeg
         byte[] header = ImageDimensionReaderTests.Jpeg(4000, 3000);
@@ -141,7 +141,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     }
 
     [Fact]
-    public async Task AnOversizedImageThatScalesDownIsStillAttached()
+    public async Task Should_Still_Attach_An_Oversized_Image_That_Scales_Down()
     {
         _downscaler.Result = [1, 2, 3];
         byte[] header = ImageDimensionReaderTests.Jpeg(4000, 3000);
@@ -154,7 +154,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
     }
 
     [Fact]
-    public async Task UnreadableHeaderTriesTheShrinkOnlyDownscale()
+    public async Task Should_Try_The_Shrink_Only_Downscale_For_An_Unreadable_Header()
     {
         // Dimensions unknown — a shrink-only pass is attempted; here it "fails" (no ffmpeg),
         // so the original bytes attach unchanged.

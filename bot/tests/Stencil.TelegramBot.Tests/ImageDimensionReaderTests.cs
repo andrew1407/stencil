@@ -75,7 +75,7 @@ public sealed class ImageDimensionReaderTests
     }
 
     [Fact]
-    public void ReadsEveryAcceptedFormatsHeader()
+    public void Should_Read_Every_Accepted_Formats_Header()
     {
         foreach ((byte[] bytes, int w, int h) in new (byte[], int, int)[]
         {
@@ -94,7 +94,7 @@ public sealed class ImageDimensionReaderTests
     }
 
     [Fact]
-    public void RefusesTruncatedOrForeignBytes()
+    public void Should_Refuse_Truncated_Or_Foreign_Bytes()
     {
         Assert.False(ImageDimensionReader.TryRead([], out _, out _));
         Assert.False(ImageDimensionReader.TryRead(Png(640, 480).AsSpan(0, 20), out _, out _));
@@ -109,7 +109,7 @@ public sealed class ImageDimensionReaderTests
     }
 
     [Fact]
-    public void RefusesZeroDimensions()
+    public void Should_Refuse_Zero_Dimensions()
     {
         Assert.False(ImageDimensionReader.TryRead(Png(0, 480), out _, out _));
         Assert.False(ImageDimensionReader.TryRead(Gif(320, 0), out _, out _));

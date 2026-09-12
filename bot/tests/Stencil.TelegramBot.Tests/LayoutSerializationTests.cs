@@ -15,7 +15,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class LayoutSerializationTests
 {
     [Fact]
-    public void LayoutRoundTripsAndUsesCamelCaseKeys()
+    public void Should_Round_Trip_A_Layout_And_Use_Camel_Case_Keys()
     {
         StencilLayout layout = new()
         {
@@ -57,7 +57,7 @@ public sealed class LayoutSerializationTests
     }
 
     [Fact]
-    public void FilterReadsBothKeysCanonicalWins()
+    public void Should_Read_Both_Filter_Keys_With_Canonical_Winning()
     {
         StencilLayout? canonical = JsonSerializer.Deserialize<StencilLayout>(
             "{\"imageFilter\":\"bw\",\"lines\":[]}", StencilJson.Options);
@@ -77,7 +77,7 @@ public sealed class LayoutSerializationTests
     }
 
     [Fact]
-    public void ProjectRecordSerializesCamelCase()
+    public void Should_Serialize_A_Project_Record_In_Camel_Case()
     {
         ProjectRecord record = new()
         {
@@ -105,7 +105,7 @@ public sealed class LayoutSerializationTests
     }
 
     [Fact]
-    public void ProjectRecordDeserializesFromCamelCaseJson()
+    public void Should_Deserialize_A_Project_Record_From_Camel_Case_Json()
     {
         string wire = "{\"id\":\"p_9\",\"name\":\"A\",\"createdAt\":5,\"updatedAt\":6,\"hasImage\":true,\"imageW\":3,\"imageH\":4,\"version\":2}";
         ProjectRecord? record = JsonSerializer.Deserialize<ProjectRecord>(wire, StencilJson.Options);
@@ -117,7 +117,7 @@ public sealed class LayoutSerializationTests
     }
 
     [Fact]
-    public void ParserReadsAValidLayoutFromBytes()
+    public void Should_Read_A_Valid_Layout_From_Bytes_In_The_Parser()
     {
         const string json = """
             {"imageWidth":800,"imageHeight":600,"lines":[
@@ -135,7 +135,7 @@ public sealed class LayoutSerializationTests
     [InlineData("not json at all")]
     [InlineData("{\"imageWidth\":")]
     [InlineData("")]
-    public void ParserYieldsNullOnMalformedJsonRatherThanThrowing(string body)
+    public void Should_Yield_Null_Rather_Than_Throw_On_Malformed_Json_In_The_Parser(string body)
     {
         Assert.Null(StencilLayoutParser.Parse(Encoding.UTF8.GetBytes(body)));
     }

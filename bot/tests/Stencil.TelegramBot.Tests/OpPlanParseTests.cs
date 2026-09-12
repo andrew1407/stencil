@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class OpPlanParseTests
 {
     [Fact]
-    public void ParsesAWellFormedPlanWithActionsAndVariants()
+    public void Should_Parse_A_Well_Formed_Plan_With_Actions_And_Variants()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """
@@ -34,7 +34,7 @@ public sealed class OpPlanParseTests
     }
 
     [Fact]
-    public void StripsMarkdownFencesAroundThePlan()
+    public void Should_Strip_Markdown_Fences_Around_The_Plan()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             "```json\n{\"reply\":\"ok\",\"actions\":[{\"op\":\"filter\",\"mode\":\"bw\"}]}\n```");
@@ -45,7 +45,7 @@ public sealed class OpPlanParseTests
     }
 
     [Fact]
-    public void TakesTheFirstBalancedObjectOutOfSurroundingProse()
+    public void Should_Take_The_First_Balanced_Object_Out_Of_Surrounding_Prose()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             "Sure — here is the plan:\n{\"reply\":\"cropped\",\"actions\":[{\"op\":\"crop\",\"spec\":{\"x1\":\"10%\"}}]}\nHope that helps!");
@@ -57,7 +57,7 @@ public sealed class OpPlanParseTests
     }
 
     [Fact]
-    public void NoJsonObjectAtAllIsAChatOnlyTurnNotAnError()
+    public void Should_Treat_No_Json_Object_At_All_As_A_Chat_Only_Turn_Not_An_Error()
     {
         OpPlanParseResult result = OpPlanParser.Parse("Just chatting — no edits needed.");
 
@@ -69,7 +69,7 @@ public sealed class OpPlanParseTests
     }
 
     [Fact]
-    public void UnknownOpIsSkippedWithAWarningWhileKnownOpsSurvive()
+    public void Should_Skip_An_Unknown_Op_With_A_Warning_While_Known_Ops_Survive()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"zoom","level":2},{"op":"rotate","dir":"left"}]}""");
@@ -82,7 +82,7 @@ public sealed class OpPlanParseTests
     }
 
     [Fact]
-    public void CopyOpIsUnknownHereAndSkippedWithAWarningNotAFailedPlan()
+    public void Should_Skip_The_Copy_Op_As_Unknown_Here_With_A_Warning_Not_A_Failed_Plan()
     {
         // §10 `copy` targets a clipboard; a chat surface has none, so the bot keeps it an
         // UNKNOWN op — dropped with the §1 warning while the rest of the plan runs.
@@ -97,7 +97,7 @@ public sealed class OpPlanParseTests
     }
 
     [Fact]
-    public void KnownOpWithInvalidParamsFailsTheWholePlan()
+    public void Should_Fail_The_Whole_Plan_For_A_Known_Op_With_Invalid_Params()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"filter","mode":"bw"},{"op":"rotate","dir":"right","times":7}]}""");
@@ -107,7 +107,7 @@ public sealed class OpPlanParseTests
     }
 
     [Fact]
-    public void UnexpectedFieldOnAKnownOpFailsThePlan()
+    public void Should_Fail_The_Plan_For_An_Unexpected_Field_On_A_Known_Op()
     {
         OpPlanParseResult result = OpPlanParser.Parse(
             """{"reply":"ok","actions":[{"op":"rotate","dir":"left","angle":45}]}""");
@@ -117,7 +117,7 @@ public sealed class OpPlanParseTests
     }
 
     [Fact]
-    public void MissingOrEmptyReplyIsToleratedWithAWarning()
+    public void Should_Tolerate_A_Missing_Or_Empty_Reply_With_A_Warning()
     {
         // §1 reply tolerance: "Done." + a warning, the plan itself survives.
         OpPlanParseResult missing = OpPlanParser.Parse("""{"actions":[{"op":"rotate","dir":"left"}]}""");
@@ -135,7 +135,7 @@ public sealed class OpPlanParseTests
     }
 
     [Fact]
-    public void VersionOtherThanOneIsAcceptedAndIgnored()
+    public void Should_Accept_And_Ignore_A_Version_Other_Than_One()
     {
         OpPlanParseResult result = OpPlanParser.Parse("""{"version":7,"reply":"ok","actions":[]}""");
         Assert.Null(result.Error);

@@ -13,7 +13,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class EditingRenderTests : EditingServiceTestBase
 {
     [Fact]
-    public async Task RenderBuildsRequestCarryingEditsAndLayoutPath()
+    public async Task Should_Build_A_Request_Carrying_Edits_And_Layout_Path_On_Render()
     {
         UserSession seeded = await _service.BlankAsync(UserId, new BlankSpec());
         await _service.SetCropAsync(UserId, "x1=5% x2=95%", album: false);
@@ -38,13 +38,13 @@ public sealed class EditingRenderTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task RenderWithNoImageThrows()
+    public async Task Should_Throw_On_Render_With_No_Image()
     {
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.RenderAsync(UserId));
     }
 
     [Fact]
-    public async Task DrawingAppendsLinesStyledWithThePen()
+    public async Task Should_Append_Lines_Styled_With_The_Pen_When_Drawing()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         await _service.ConfigurePenAsync(UserId, color: "#ff0000", thickness: 5, pointSize: 0, style: "dashed", fill: "#00ff00");
@@ -68,7 +68,7 @@ public sealed class EditingRenderTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task UndoStepsBackThroughEdits()
+    public async Task Should_Step_Back_Through_Edits_On_Undo()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         await _service.SetCropAsync(UserId, "x1=10%", album: false);
@@ -86,7 +86,7 @@ public sealed class EditingRenderTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task RedoReappliesUndoneEditsUntilANewEditClearsIt()
+    public async Task Should_Reapply_Undone_Edits_On_Redo_Until_A_New_Edit_Clears_It()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         await _service.SetFilterAsync(UserId, "bw");
@@ -102,7 +102,7 @@ public sealed class EditingRenderTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task RemoveLastLineThenClearLines()
+    public async Task Should_Remove_The_Last_Line_Then_Clear_Lines()
     {
         await _service.BlankAsync(UserId, new BlankSpec());
         await _service.AddLineAsync(UserId, [new LayoutPoint(0, 0), new LayoutPoint(1, 1)], closed: false);
@@ -117,7 +117,7 @@ public sealed class EditingRenderTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task VideoFrameExtractionRemembersTheSource()
+    public async Task Should_Remember_The_Source_On_Video_Frame_Extraction()
     {
         string video = Path.Combine(_root, "clip.mp4");
         Directory.CreateDirectory(_root);
@@ -136,7 +136,7 @@ public sealed class EditingRenderTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task ExtractFrameWithoutAVideoThrows()
+    public async Task Should_Throw_On_Extract_Frame_Without_A_Video()
     {
         await _service.BlankAsync(UserId, new BlankSpec()); // an image, not a video
         await Assert.ThrowsAsync<InvalidOperationException>(() => _service.ExtractFrameAsync(UserId, 0));
@@ -146,7 +146,7 @@ public sealed class EditingRenderTests : EditingServiceTestBase
     [InlineData("http://127.0.0.1/secret.png")] // SSRF to loopback
     [InlineData("ftp://example.com/a.png")]      // non-http scheme
     [InlineData("/etc/passwd.png")]              // bare local path (LFI)
-    public async Task SetImageFromUrlRejectsUnsafeSourcesWithoutInvokingTheCli(string url)
+    public async Task Should_Reject_Unsafe_Sources_Without_Invoking_The_Cli_On_Set_Image_From_Url(string url)
     {
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => _service.SetImageFromUrlAsync(UserId, url, "img"));
@@ -154,7 +154,7 @@ public sealed class EditingRenderTests : EditingServiceTestBase
     }
 
     [Fact]
-    public async Task ExportLayoutJsonEmitsExpectedFields()
+    public async Task Should_Emit_Expected_Fields_On_Export_Layout_Json()
     {
         UserSession session = new()
         {

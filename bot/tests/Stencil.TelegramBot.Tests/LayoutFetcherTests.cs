@@ -20,7 +20,7 @@ public sealed class LayoutFetcherTests
     }
 
     [Fact]
-    public async Task FetchReturnsTheBody()
+    public async Task Should_Return_The_Body_On_Fetch()
     {
         const string json = "{\"imageWidth\":1,\"imageHeight\":2,\"lines\":[]}";
         using LayoutFetcher fetcher = make((_, _) => CannedHttpMessageHandler.Json(json));
@@ -29,14 +29,14 @@ public sealed class LayoutFetcherTests
     }
 
     [Fact]
-    public async Task FetchReturnsNullOnANonSuccessStatus()
+    public async Task Should_Return_Null_On_Fetch_With_A_Non_Success_Status()
     {
         using LayoutFetcher fetcher = make((_, _) => CannedHttpMessageHandler.Empty(HttpStatusCode.NotFound));
         Assert.Null(await fetcher.FetchAsync("https://layouts.example/missing.json"));
     }
 
     [Fact]
-    public async Task FetchRefusesRedirects()
+    public async Task Should_Refuse_Redirects_On_Fetch()
     {
         // The URL is SSRF-vetted before the fetch; a redirect could bounce the request to
         // a private/metadata host the guard would have rejected, so 3xx yields null.
@@ -50,7 +50,7 @@ public sealed class LayoutFetcherTests
     }
 
     [Fact]
-    public async Task FetchThrowsPastTheByteCap()
+    public async Task Should_Throw_On_Fetch_Past_The_Byte_Cap()
     {
         string big = new('x', 64);
         using LayoutFetcher fetcher = make((_, _) => CannedHttpMessageHandler.Json(big), maxBytes: 16);
@@ -59,7 +59,7 @@ public sealed class LayoutFetcherTests
     }
 
     [Fact]
-    public async Task FetchRejectsAnAddressTheConnectGuardBlocks()
+    public async Task Should_Reject_An_Address_The_Connect_Guard_Blocks_On_Fetch()
     {
         // No canned handler → the real connect-time guard runs. A literal-IP host needs no
         // DNS, so the always-block predicate rejects it before any socket connect.
