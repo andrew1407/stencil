@@ -416,206 +416,31 @@ mutation routes through the **same shared core methods the toolbar uses**
 console and clicking the UI stay in sync. Most calls return the facade (or a
 `Project`/`Line`/`Point`) for chaining.
 
+**The full surface is written down once, as types: [`js/console/stencilApi.d.ts`](js/console/stencilApi.d.ts)**
+(the `Stencil` interface, plus `StencilSettings`, `Project`, `Line`, `Point`, `LlmFacade`,
+`ChatFacade` and the option bags). `tests/dts.test.js` keeps it in step with the module,
+and `e2e/helpers/boot.js` drives the app through it. Orientation:
+
+- **Settings** are get/set properties — `stencil.lineColor = 'red'`, `stencil.pageSize = 'a3'`
+  — and every key works both on the facade and under `stencil.settings`; `apply({...})`
+  sets many at once and chains: `stencil.apply({ page: 'a4', pointSize: 6 }).rotateLeft().crop({ x2: '-2cm' })`.
+- **Session**: `await stencil.load(url, { frame, address, incognito })`, `await stencil.blank(color, { size })`,
+  `newEditor()`, `save()`; **image**: `rotateLeft/Right()`, `crop({ x1, y1, x2, y2 } | { scale })`,
+  `zoom()`, `undo()/redo()`, `clearLines()`; **export**: `downloadImage()`, `copyImage()`,
+  `layout` (get/set), `applyLayout()`, `setLines()`, `saveProjectFile()` / `openProjectFile()`.
+- **Projects**: `stencil.current`, `openedProjects`, `getProjectByName()` → a `Project`
+  with `name`, `color`, `keywords`, `expire()`, `open()`, `close()`, `moveToServer()`.
+- **Lines & points**: `stencil.lines[i]` → a `Line` (`apply()`, `move()`, `rotate()`, `add()`,
+  `join()`); `line.points[j]` → a `Point` (`x`/`y` settable, `move()`, `remove()`).
+- **Servers**: `connect()`, `disconnect()`, `serverProjects()`, `publishIncognito()`;
+  **windows**: `openWindow('Projects')` or the named `open*Window()` openers, `closeWindow()`.
+- **Assistant** (llm-contract.md): `stencil.llm` (the §5 settings, get/set), `await stencil.prompt(text, { images })`
+  through the panel's own pipeline, and `stencil.chat` for the panel (`open()`, `dock()`, `history`, `abort()`, `clear()`).
+
 The whole object is a **hard-guarded, frozen facade**: settings, lines, points, and
 projects all reject reassigning a method or read-only field (`stencil.load = 0` throws),
-so only the documented setters below mutate anything. `console.log(stencil)` reads as a
-clean `{}` (members are non-enumerable) — access and autocomplete still work.
-
-```js
-// ── Settings (each is get/set; every key works BOTH on the facade and under .settings,
-//    and mirrors a top-menu control — changes reflect in the toolbar live) ──
-stencil.lineColor        = 'red';      // current/last-used line color — any CSS color (named / rgb()/hsl() → normalized to hex)
-stencil.thickness        = 3;          // line thickness (px)
-stencil.pointSize        = 9;          // point size (px)
-stencil.lineStyle        = 'dashed';   // 'solid' | 'dashed' | 'dotted'
-stencil.pointStyle       = true;       // points visible? (alias: showPoints)
-stencil.showPoints       = true;       // show points
-stencil.showLines        = true;       // show connecting lines
-stencil.filter           = 'sepia';    // image filter: 'none' | 'bw' | 'sepia' | 'invert' | 'contour' | 'custom'
-stencil.filterColor      = '#7c3aed';  // tint color when filter === 'custom'
-stencil.unit             = 'in';       // page unit: 'cm' | 'mm' | 'in'
-stencil.pageSize         = 'b5';       // case-insensitive: any ISO A/B/C name ('a3', 'B5', 'c10') or 'custom'
-stencil.pageWidth        = 30;         // cm; applies when pageSize === 'custom'
-stencil.pageHeight       = 40;         // cm; applies when pageSize === 'custom'
-stencil.darkTheme        = true;       // dark mode on/off (true = dark, false = light)
-stencil.mainTheme        = 'green';    // brand accent: a preset key (see .mainThemes) — persists + syncs across tabs
-stencil.mainTheme        = '#ff5623';  // …or any hex → a custom accent for THIS page only (not saved, not synced)
-stencil.projectColor     = '#ec4899';  // active project's accent colour: paints its NAME everywhere ('' = neutral grey)
-stencil.description      = 'Site plan, north wing';   // active project's free-text description ('' clears; shown in the projects list)
-stencil.keywords         = ['plan', 'north'];         // active project's search keywords — an array or a 'comma, space separated' string
-stencil.drawMode         = 'rect';     // 'line' | 'rect'
-stencil.holdDrawDelay    = 500;        // hold-to-draw hold/dwell delay, ms (clamped 100–3000)
-stencil.voiceSilenceMs   = 1000;       // voice input: the pause that ends an utterance, ms (clamped 500–10000) —
-                                       // voice chat sends it; the composer stops dictating and keeps the words
-stencil.voiceInputLanguage = 'default'; // voice input language: 'default' (English) or a BCP-47 tag ('de-DE', 'uk-UA', …)
-stencil.allowFormulas    = true;       // enable the f(x,y) coordinate transforms
-stencil.formulaX         = 'x*2';      // x transform (also formulaY)
-stencil.formulaY         = 'y+10';
-stencil.drawingAnimations = false;     // canvas stroke motion: a new vertex flies to where it was put,
-                                       // pops and ripples as it lands (true by default)
-stencil.motionMode       = 'slide';    // how the INTERFACE moves: 'particles' (windows, menus, marks and
-                                       // the canvas form out of dust — the default), 'water' / 'fire' (the
-                                       // same particles as drops / embers, in the accent and its shade),
-                                       // 'slide' (no particles: each surface plays its own plain entrance)
-                                       // or 'none' (nothing moves).
-                                       // prefers-reduced-motion still wins on its own. See .motionModes
-stencil.fillColor        = '#3399ff';  // default rect/area fill
-stencil.selectionGlow    = '#ffd400';  // visuals: selection glow color
-stencil.hoverRing        = '#22c55e';  // visuals: hover ring color
-stencil.focusRing        = '#7c3aed';  // visuals: focus ring color
-stencil.settings.lineColor = '#f00';   // …or namespace them all under stencil.settings.<key>
-
-// ── Modes & view ──
-stencil.fullscreen = true;             // get/set fullscreen editor mode
-stencil.incognito  = true;             // get/set (only on a blank editor; edits won't be saved)
-stencil.imageSize;                     // { width, height } of the loaded image (or undefined)
-stencil.tooltip.enabled = true;        // tooltip sections (get/set): enabled / page / screen / coords
-stencil.tooltip.page = false;
-stencil.zoomLevel = 150;               // absolute zoom % (get/set)
-stencil.zoom(0.25);                    // relative zoom step (+ in / − out) → facade
-stencil.zoom(1, { x: 100, y: 80 });    // …keeping image point (100,80) fixed on screen
-stencil.zoomFit();                     // fit image to window → facade
-
-// ── Image actions (each returns the facade for chaining) ──
-stencil.rotateLeft();  stencil.rotateRight();
-stencil.undo();        stencil.redo();
-stencil.startDrawing();  stencil.stopDrawing();   // enter / leave point-adding mode
-stencil.drawing = true;                // …or toggle it (get/set; needs a loaded image)
-stencil.voiceChat = true;              // hands-free voice chat (get/set; the toolbar mic / Alt+M): listens even with the
-                                       // chat closed and sends every utterance as a turn — toasts show what was sent and
-                                       // answered; ends on a pause (voiceSilenceMs) or a spoken "send" / "execute";
-                                       // throws where the browser has no speech recognition
-stencil.clearLines();                  // remove all lines
-stencil.newEditor();                   // clear to a fresh blank (unsaved) editor
-await stencil.blank('red', { size: { width: 800, height: 600 } });  // blank image to draw on
-await stencil.blank();                 // white, sized to the current page (any CSS color)
-stencil.crop({ x1: '10%', y1: '10%', x2: '-10%', y2: '-10%' });  // %, '3cm'/'-4in', px; '-' = from end
-stencil.crop({ scale: 1.2 });          // grow (>1) / shrink (<1) the crop about its centre (aspect kept)
-stencil.move({ x: 10, y: -5 });        // pan the view by px
-stencil.downloadImage();               // download image + lines (PNG) — 'current' (during a split compare
-                                        // view, downloads the split composite shown instead, divider baked in)
-stencil.downloadImage('original');     // …or 'tint', or 'split' explicitly (split-compare view only)
-stencil.copyImage();                   // copy the rendered image to the clipboard — 'current' (during a split
-                                        // compare view, copies the split composite shown, with no divider)
-stencil.copyImage('original');         // …or 'tint', or 'split' explicitly (split-compare view only)
-stencil.copyLayout();                  // copy the layout JSON to the clipboard
-stencil.downloadLayout();              // download the layout JSON
-stencil.layout;                        // get the current layout object
-stencil.layout = layoutObject;         // apply (import) a layout object
-
-// Bulk-apply + chain (apply() takes any settings key plus tooltip/zoom/crop/move/layout):
-stencil
-  .apply({ page: 'a4', pointSize: 6, lineColor: 'aqua', tooltip: { screen: true } })
-  .rotateLeft()
-  .crop({ x2: '-2cm' });
-
-// ── Load an image — or a video frame — by URL (resolves to the facade) ──
-(await stencil.load('https://example.com/pic.png', { source: 'https://example.com/pic.png' }))
-  .crop({ x2: '-2cm' })
-  .apply({ lineColor: '#123456' });
-await stencil.load('https://example.com/clip.webm', { frame: 1.5 });   // grab the frame at 1.5s
-// The "Open Another Image" toolbar modal also accepts a local video file: pick one,
-// choose the frame time, and (with a server connected) the "Save to" target creates
-// the captured frame as a project on that server — the UI peer of load(url,{address}).
-
-// ── Coordinate conversion ──
-stencil.px2Page({ x: 100, y: 100 });   // → { x, y } in page cm (formulas applied)
-stencil.page2Px({ x: 5, y: 5 });       // → { x, y } in pixels
-
-// ── Projects ──
-stencil.current;                       // the active Project (or null on a blank editor)
-stencil.openedProjects;                // open in some tab/window (incl. this tab's incognito)
-stencil.archivedProjects;              // saved but not open anywhere
-stencil.incognitoProjects;             // this tab's incognito project, if any
-stencil.getProjects({ archived: true, incognito: true });   // filtered list
-const p = stencil.getProjectByName('Floor plan');
-p.id; p.incognito; p.isOpened; p.isExpired; p.expiresAt; p.layout;   // getters
-p.size;                                // { image: { width, height } }
-p.name = 'Floor plan v2';              // get/set; throws on a duplicate name
-p.color = '#ec4899';                   // get/set the project's accent colour ('' clears → neutral grey)
-p.imageName = 'plan.png';              // get/set (active project only)
-p.source = 'https://example.com/x.png';   // get/set provenance link (updates live)
-p.resource = 'https://example.com/page';  // get/set the page the image came from
-p.renew();                             // restart the 7-day expiry
-p.open();                              // switch this tab to the project
-p.close({ fully: false });             // drop the editor (fully:true also closes the tab)
-
-// ── Lines & points (the current line's points are stencil.points) ──
-stencil.lines;                         // array of Line wrappers
-const line = stencil.lines[0];
-line.idx; line.points;                 // getters
-line.color = '#f00'; line.thickness = 4; line.pointSize = 8;   // get/set
-line.style = 'dotted'; line.fillColor = '#3399ff';              // get/set
-line.apply({ style: 'dashed', pointSize: 8 }).move({ x: 10 }).rotate(15, { x: 0, y: 0 });
-line.add({ x: 120, y: 40 }, { neighbour: 0, after: true });     // insert a point
-line.remove(2);                        // remove by index or point ref
-line.join(stencil.lines[1]);           // append another line's points and drop it
-const pt = line.points[0];
-pt.lineIdx; pt.ptIdx; pt.x; pt.y;      // getters (x/y also settable)
-pt.x = 50; pt.y = 60;                  // absolute set (px)
-pt.apply({ x: 50, y: 60, size: 7 }).move({ x: 5, y: -3 });
-pt.remove();                           // drop this point (empties the line → line is dropped)
-
-// ── Shortcuts ──
-stencil.shortcuts;                     // { undo: 'Ctrl+Z', … }
-stencil.changeShortcut('Ctrl+Z', 'Ctrl+Alt+U');   // by current combo or action id
-
-// ── Windows (the toolbar windows, by title) ──
-stencil.windows;                       // every title: 'Projects', 'Servers', 'Image links', 'Project description',
-                                       // 'Project keywords', 'Assistant' (the AI settings), 'Keyboard Shortcuts',
-                                       // 'Visuals & Settings', 'Controls & Shortcuts Info', 'Open Image', 'Open In…', 'Crop Image'
-stencil.openWindow('Projects');        // by title — case/punctuation-free ('visuals', 'open in'), a hotkey id works too
-stencil.openProjectsWindow();          // …and one named opener per window: openServersWindow() (alias
-stencil.openConnectionsWindow();       // openConnectionsWindow()), openLinksWindow(), openDescriptionWindow(),
-stencil.openAssistantSettingsWindow(); // openKeywordsWindow(), openShortcutsWindow(), openVisualsWindow(),
-                                       // openHelpWindow(), openImageWindow(), openCropWindow()
-                                       // Each opens through the window's own shell, flying out of its toolbar
-                                       // control; a disabled control (keywords before the project is saved, crop
-                                       // with no image) throws with the button's own reason. Already open ⇒ no-op.
-stencil.openedWindow;                  // the showing window's title, or null
-stencil.closeWindow();                 // dismiss whatever window is up
-
-// ── AI assistant (llm-contract.md; the scripting peer of the chat panel) ──
-stencil.llm;                           // current provider config (§5 shape); each key is get/set
-stencil.llm.provider = 'ollama';       // 'ollama' | 'openai-compat' | 'stencil-server' (validated)
-stencil.llm.baseUrl  = 'http://localhost:11434';   // http(s) only; switching provider refills its default
-stencil.llm.model    = 'llama3.2-vision';
-stencil.llm.apiKey   = 'sk-…';         // openai-compat only; reads back as-is (same trust stance as tokens)
-stencil.llm.serverUrl = 'https://srv:8090';        // stencil-server only (a configured connection)
-stencil.llm.setup({ provider: 'openai-compat', model: 'qwen-vl' });   // partial update in one call
-// One chat turn through the SAME pipeline as the panel and the context-menu chat
-// (one controller ⇒ one continuous history, whichever surface you use; the exchange
-// renders in the panel's transcript). Resolves { reply, warnings, results } where
-// results = [{ label, dataUrl }] (one per requested variant / extracted frame).
-await stencil.prompt('rotate left and give me a sepia variant');
-await stencil.prompt('extract the lines', { images: ['data:image/png;base64,…'] });
-// Panel control — the same code paths as the panel's own buttons.
-stencil.chat.open(); stencil.chat.close(); stencil.chat.isOpen;
-stencil.chat.dock('left');             // 'left' | 'right' | 'top' | 'bottom' | 'float'
-stencil.chat.history;                  // settled transcript: [{ role, text }] copies —
-                                       // no raw model JSON, no error cards, no in-flight row
-stencil.chat.abort();                  // stop the in-flight turn (the Stop button's path);
-                                       // true when a turn was actually running
-stencil.chat.clear();                  // fresh conversation — the trash button's exact path
-                                       // (history, queued attachments, transcript, and the
-                                       // persisted per-project copy); throws mid-turn
-stencil.chat.isSending;                // a turn is in flight right now
-stencil.chat.voiceInput = true;        // dictate into the panel's composer (the mic face: the "…" item, a double-click
-                                       // or a hold on Send) — sends ONLY on a spoken "send" / "execute", which ends the
-                                       // dictation with it; a pause (voiceSilenceMs) ends it too and leaves the words in
-                                       // the box. Either way the button keeps its (paused) mic face — a click resumes.
-                                       // One voice mode at a time, so this turns voiceChat off and vice versa
-
-// ── Browser extension (the Chrome extension's editor-page API, when it's there) ──
-stencil.extension;                     // null unless the extension is installed AND its
-                                       // editor-page API setting is on — always check first
-await stencil.extension.editors();     // every open editor tab: project, image size, preview
-await stencil.extension.focus(tabId);  // raise one of them
-await stencil.extension.tabs();        // the other open pages an image can be pulled from
-await stencil.extension.images(tabId); // scan one of those pages (the popup's own scanner)
-await stencil.extension.open(0);       // import a scanned image into THIS tab (no new tab)
-await stencil.extension.current;       // what the extension sees in this tab
-```
+so only the declared setters mutate anything. `console.log(stencil)` reads as a clean
+`{}` (members are non-enumerable) — access and autocomplete still work.
 
 `stencil.extension` is installed by the extension, not by this app: the facade only
 re-exports what its content script put on the page, so the extension owns the method list —
@@ -623,9 +448,6 @@ see `extension/README.md` ("Editor mode") for the full surface and the Options t
 gates it. The editor side of that conversation is `js/core/extensionBridge.js`, which answers
 the extension's state/import/switch requests through the same core methods everything else
 uses (`loadImageFromFile` / `replaceProjectImage` / `switchToProject`).
-
-> An extension-side `window.stencil` (opt-in, for scanning/opening images on any
-> page) is planned as a separate, default-off feature — see `extension/`.
 
 ## Tests
 
