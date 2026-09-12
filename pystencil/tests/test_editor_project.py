@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from tests.editorcase import EditorCase
+from tests.nativecase import NativeCase
 
 from pystencil.editor import Editor
 
@@ -43,7 +44,7 @@ class EditorProjectColorTests(EditorCase):
         self.assertEqual(ed.project_color, "")
 
 
-class DrawCombineTests(unittest.TestCase):
+class DrawCombineTests(NativeCase):
     """`draw(..., combine=)` — append the incoming lines or replace the current ones.
 
     The parameter form of the same choice the GUI editors put in a Combine/Replace

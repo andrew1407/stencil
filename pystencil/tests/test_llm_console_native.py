@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import unittest
+from tests.nativecase import NativeCase
 
 from pystencil.editor import Editor
 from pystencil.layout import Line, Point
@@ -10,17 +10,8 @@ from pystencil.llm import execute_op_plan, parse_op_plan
 from tests.stubs import _plan_json
 
 
-class ConsoleOpNativeTest(unittest.TestCase):
+class ConsoleOpNativeTest(NativeCase):
     """The new §2 forms against the REAL editor + core."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        try:
-            from pystencil.core import get_core
-
-            get_core()
-        except Exception as exc:  # noqa: BLE001 - any failure means "no native lib"
-            raise unittest.SkipTest("native core unavailable: %s" % exc)
 
     def _run(self, editor, actions):
         plan = parse_op_plan(_plan_json(actions=actions))

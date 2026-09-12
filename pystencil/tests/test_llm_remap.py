@@ -2,26 +2,17 @@
 
 from __future__ import annotations
 
-import unittest
+from tests.nativecase import NativeCase
 
 from pystencil.editor import Editor
 from pystencil.llm import execute_op_plan, parse_op_plan
 from tests.stubs import _plan_json
 
 
-class CoordinateRemapTest(unittest.TestCase):
+class CoordinateRemapTest(NativeCase):
     """Contract §1 executor-side coordinate re-mapping against a REAL Editor:
     plan coordinates are in the pre-plan frame; the executor re-maps layout
     points through the plan's own crops/rotates and clamps them into bounds."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        try:
-            from pystencil.core import get_core
-
-            get_core()
-        except Exception as exc:  # noqa: BLE001 - any failure means "no native lib"
-            raise unittest.SkipTest("native core unavailable: %s" % exc)
 
     @staticmethod
     def _drawn_points(editor):

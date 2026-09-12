@@ -12,18 +12,10 @@ import os
 import tempfile
 import unittest
 
+from tests.nativecase import require_core
+
 from pystencil import cli
 from pystencil.llm import LlmConfig
-
-
-def _require_core() -> None:
-    """Skip the calling suite when the shared library cannot be loaded."""
-    try:
-        from pystencil.core import get_core
-
-        get_core()
-    except Exception as e:  # pragma: no cover - environment-dependent
-        raise unittest.SkipTest("native core unavailable: %s" % e)
 
 
 class _MockLlmClient:
@@ -83,7 +75,7 @@ class _PipelineCase(unittest.TestCase):
     def setUpClass(cls) -> None:
         # The one-shot pipeline always touches the core (blank/crop/filter), so
         # skip the whole suite if the shared library is unavailable.
-        _require_core()
+        require_core()
 
     def setUp(self) -> None:
         self._dir = tempfile.TemporaryDirectory()
@@ -130,4 +122,4 @@ class _NativeReplCase(_CwdCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        _require_core()
+        require_core()

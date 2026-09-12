@@ -6,19 +6,13 @@ core; without it the case self-skips.
 
 from __future__ import annotations
 
-import unittest
-
-from tests.clicase import _require_core
+from tests.nativecase import NativeCase
 
 from pystencil.editor import Editor
 
 
-class ProjectFileCase(unittest.TestCase):
+class ProjectFileCase(NativeCase):
     """A project-file case over one authored editor state."""
-
-    @classmethod
-    def setUpClass(cls):
-        _require_core()
 
     def _authored(self) -> Editor:
         """A blue blank with a name/colour/provenance, one quarter-turn, and a drawn line."""

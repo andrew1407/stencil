@@ -8,9 +8,7 @@ over the core ABI, so there is nothing meaningful to test.
 
 from __future__ import annotations
 
-import unittest
-
-from tests.clicase import _require_core
+from tests.nativecase import NativeCase
 
 from pystencil.editor import Editor
 
@@ -24,12 +22,8 @@ def _grayscale_pixels(data, count):
     return True
 
 
-class EditorCase(unittest.TestCase):
+class EditorCase(NativeCase):
     """A native-core-backed editor case with the 32x48 blank most tests start from."""
-
-    @classmethod
-    def setUpClass(cls):
-        _require_core()
 
     def _blank(self):
         """A fresh 32x48 blank editor used by most cases."""

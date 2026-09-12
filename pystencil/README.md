@@ -476,4 +476,9 @@ normalization, request building and error parsing — no network), the LLM modul
 request shapes, op-plan acceptance/rejection tables, plan execution, chat history — all
 offline via the same `_open` seam), and the CLI's argument + `/layout` path handling. The whole suite is hermetic: no running server is ever required.
 Tests that need the native library build it on demand via `build.py`, so a C++17 compiler
-must be on `PATH`.
+must be on `PATH` — or set `STENCIL_SKIP_NATIVE=1` to skip every native-backed case and run
+the suite with no compiler at all.
+
+```bash
+STENCIL_SKIP_NATIVE=1 python3 -m unittest discover -s tests   # no C++ compiler needed
+```

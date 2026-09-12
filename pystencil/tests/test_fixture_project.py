@@ -13,6 +13,7 @@ import struct
 import unittest
 import zlib
 
+from tests.nativecase import require_core
 from tests.fixturebase import _FIXTURES, _OVERRIDES, _filled_line_dict, _load, _norm
 
 from pystencil.editor import Editor
@@ -60,6 +61,7 @@ def _fill_line(sparse: dict) -> dict:
 
 class TestStencilProjectFixtures(unittest.TestCase):
     def test_valid(self):
+        require_core()  # this walk decodes the embedded PNG bytes
         # pystencil's reader decodes pixels (unlike the browser's format-only
         # parser), so the stub payload is swapped for a real 1x1 PNG; the file's
         # format-level content is untouched. Input is fed as bytes so a JSON

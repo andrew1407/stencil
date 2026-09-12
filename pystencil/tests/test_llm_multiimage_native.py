@@ -5,25 +5,16 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
-import unittest
+from tests.nativecase import NativeCase
 
 from pystencil.editor import Editor
 from pystencil.llm import execute_op_plan, parse_op_plan
 from tests.stubs import _plan_json
 
 
-class MultiImageNativeTest(unittest.TestCase):
+class MultiImageNativeTest(NativeCase):
     """The `image` op against a REAL Editor: the attachment becomes the working image
     and the §1 coordinate re-mapping resets with it (ExecuteOpPlanNativeTest pattern)."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        try:
-            from pystencil.core import get_core
-
-            get_core()
-        except Exception as exc:  # noqa: BLE001 - any failure means "no native lib"
-            raise unittest.SkipTest("native core unavailable: %s" % exc)
 
     def setUp(self) -> None:
         self.tmp = tempfile.mkdtemp(prefix="stencil_save_native_")

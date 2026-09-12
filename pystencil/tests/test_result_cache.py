@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import unittest
 
+from tests.nativecase import NativeCase
+
 from pystencil.editor import Editor
 from pystencil.layout import Layout, Line, Point
 
@@ -47,19 +49,10 @@ def _layout():
     return Layout(image_width=20, image_height=20, lines=[line])
 
 
-class ResultCacheTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        try:
-            from pystencil.core import get_core
-
-            cls.real = get_core()
-        except Exception as exc:  # noqa: BLE001 - any failure means "no native lib"
-            raise unittest.SkipTest("native core unavailable: %s" % exc)
-
+class ResultCacheTests(NativeCase):
     def _editor(self):
         """A blank editor with a rotate + crop + filter + line already applied."""
-        spy = _SpyCore(self.real)
+        spy = _SpyCore(self.core)
         ed = Editor(core=spy)
         ed.blank(40, 30)
         ed.rotate(1).crop(x1=0, y1=0, x2=20, y2=20).set_filter("bw")
@@ -123,20 +116,11 @@ class ResultCacheTests(unittest.TestCase):
         self.assertEqual((again.width, again.height), (11, 7))
 
 
-class LayoutDoesNotRenderTests(unittest.TestCase):
+class LayoutDoesNotRenderTests(NativeCase):
     """``layout()`` needs the view's DIMENSIONS, not its pixels."""
 
-    @classmethod
-    def setUpClass(cls):
-        try:
-            from pystencil.core import get_core
-
-            cls.real = get_core()
-        except Exception as exc:  # noqa: BLE001
-            raise unittest.SkipTest("native core unavailable: %s" % exc)
-
     def test_layout_reports_result_dims_without_rasterizing(self):
-        spy = _SpyCore(self.real)
+        spy = _SpyCore(self.core)
         ed = Editor(core=spy)
         ed.blank(40, 30).rotate(1).crop(x1=0, y1=0, x2=20, y2=25)
         ed.draw(_layout())
@@ -150,7 +134,7 @@ class LayoutDoesNotRenderTests(unittest.TestCase):
 
     def test_layout_without_an_image_still_raises(self):
         with self.assertRaises(RuntimeError):
-            Editor(core=_SpyCore(self.real)).layout()
+            Editor(core=_SpyCore(self.core)).layout()
 
 
 if __name__ == "__main__":

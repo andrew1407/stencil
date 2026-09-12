@@ -2,28 +2,19 @@
 
 from __future__ import annotations
 
-import unittest
+from tests.nativecase import NativeCase
 
 from pystencil.editor import Editor
 from pystencil.llm import execute_op_plan, parse_op_plan
 from tests.stubs import _StubClient, _plan_json
 
 
-class ExecuteOpPlanNativeTest(unittest.TestCase):
+class ExecuteOpPlanNativeTest(NativeCase):
     """Integration: a validated plan drives a REAL Editor over the native core.
 
     Builds the shared library on demand (build.py, via get_core) and self-skips
     when no C++ compiler is available — the test_core.py pattern.
     """
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        try:
-            from pystencil.core import get_core
-
-            get_core()
-        except Exception as exc:  # noqa: BLE001 - any failure means "no native lib"
-            raise unittest.SkipTest("native core unavailable: %s" % exc)
 
     def test_plan_executes_end_to_end(self) -> None:
         editor = Editor().blank(32, 48, color="#3060c0")

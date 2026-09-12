@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 
+from tests.nativecase import NativeCase
 import pystencil.llm as llm_module
 from pystencil.editor import Editor
 from pystencil.llm import LlmPlanError, MAX_ATTACHMENTS, execute_op_plan, parse_op_plan
@@ -35,7 +36,7 @@ class EditorPromptOfflineTest(unittest.TestCase):
             Editor().prompt("rotate", llm=client, execute=False)
 
 
-class EditorPromptCapTests(unittest.TestCase):
+class EditorPromptCapTests(NativeCase):
     """The single-turn Editor.prompt() path talks to the client directly, so it needs
     the §7 cap of its own — otherwise it is a way around Chat's."""
 
@@ -57,18 +58,9 @@ class EditorPromptCapTests(unittest.TestCase):
         self.assertEqual(reply, "ok")
 
 
-class SingleModelRoundTest(unittest.TestCase):
+class SingleModelRoundTest(NativeCase):
     """§3.0: a turn is ONE model round. A plan that draws a layout executes and the
     turn ends — nothing is sent afterwards and no note is appended to the reply."""
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        try:
-            from pystencil.core import get_core
-
-            get_core()
-        except Exception as exc:  # noqa: BLE001 - any failure means "no native lib"
-            raise unittest.SkipTest("native core unavailable: %s" % exc)
 
     @staticmethod
     def _layout_plan_json():
