@@ -53,7 +53,7 @@ test('%1 is the only placeholder, and it is the accent-stroked panel outline', (
 // source text: what must never drift is the art.
 test('the extension paints the same favicon (src/lib/prefs.js)', () => {
   const src = read('../extension/src/lib/prefs.js');
-  const body = src.slice(src.indexOf('var faviconSvg ='), src.indexOf('var applyFavicon'));
+  const body = src.slice(src.indexOf('const faviconSvg ='), src.indexOf('const applyFavicon'));
   const copy = [...body.matchAll(/'([^']*)'/g)].map((m) => m[1]).join('');
   assert.ok(copy.includes('<svg'), 'failed to read the extension copy');
   assert.deepEqual(elements(copy), elements(ART.favicon.replace('%1', '')),

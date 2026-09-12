@@ -33,9 +33,9 @@ test('the open menu owns the arrow keys in the capture phase, so the pan never s
   // → on a parent row reveals its flyout the first time and ENTERS it the second (the
   // chat's text box, else the first control, else the first row); ← folds the deepest
   // flyout back onto its parent row; Enter does the same on a parent, picks elsewhere.
-  assert.ok(block.includes("case 'ArrowRight': if (kbItem && idx >= 0) openOrEnter(); break;"));
+  assert.ok(block.includes("ArrowRight: () => { if (kbItem && idx >= 0) openOrEnter(); },"));
   assert.ok(block.includes("if (sub.classList.contains('ctx-sub-visible')) kbEnterSub(sub);\n        else kbOpenSub(kbItem);"));
-  assert.ok(block.includes("case 'ArrowLeft': kbCloseSub(); break;"));
+  assert.ok(block.includes("ArrowLeft: () => kbCloseSub(),"));
   assert.ok(block.includes('if (!openOrEnter()) kbItem.click();'));
   assert.ok(src.includes("return controls.find((el) => el.tagName === 'TEXTAREA') || controls[0] || null;"), 'the chat lands in its text box');
   assert.ok(src.includes('setKbItem(item);   // revealed only'), 'the first → keeps the highlight on the parent row');
@@ -62,7 +62,7 @@ test('Tab walks the open flyout\'s own controls, wrapping, and only falls back t
   const typing = src.indexOf('if (isTypingTarget(e.target) && menu.contains(e.target)) return;');
   assert.ok(tab > 0 && tab < typing, 'the Tab walk runs before the typing-target exemption');
   assert.ok(src.includes("controls[ctxKeyStep(controls.length, at, e.shiftKey ? -1 : 1)].focus();"), 'wraps via ctxKeyStep');
-  assert.ok(src.includes("case 'Tab': step(e.shiftKey ? -1 : 1); break;"), 'no controls ⇒ Tab walks the rows');
+  assert.ok(src.includes("Tab: () => step(e.shiftKey ? -1 : 1),"), 'no controls ⇒ Tab walks the rows');
   // The control list is the flyout's live form controls: hidden ones are skipped.
   const level = {
     querySelectorAll: () => [

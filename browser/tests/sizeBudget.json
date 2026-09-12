@@ -20,7 +20,7 @@
     "browser/js/llm/chatSession.js": 294,
     "browser/js/llm/llmClient.js": 274,
     "browser/js/llm/opPlan.js": 114,
-    "browser/js/llm/opSchema.js": 256,
+    "browser/js/llm/opSchema.js": 252,
     "browser/js/llm/voiceModes.js": 240,
     "browser/js/net/connectionManager.js": 178,
     "browser/js/ui/accentPicker.js": 254,

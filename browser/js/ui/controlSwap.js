@@ -5,7 +5,7 @@ import { markIn, markOut } from './motion.js';
 // like the desktop's application-wide filter (support/controlSwap.hpp); programmatic
 // changes fire no `change`, so the settings mirror calls setChecked() instead.
 
-// The desktop's kNoControlSwapProperty.
+// The desktop's NO_CONTROL_SWAP_PROPERTY.
 const NO_SWAP_ATTR = 'data-no-mark-dust';
 
 // What the checked state paints, read off the live element and cached: an unchecked box

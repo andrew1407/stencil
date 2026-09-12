@@ -2,7 +2,7 @@ import constants from '../config/constants.json' with { type: 'json' };
 
 // Line-snapshot history: deep-copy on push/undo/redo, "step 0 → empty lines, step -1" on undo.
 
-// Depth cap shared with core/state/historyStack.hpp's kMaxSteps (drift-tested in
+// Depth cap shared with core/state/historyStack.hpp's MAX_STEPS (drift-tested in
 // tests/history.test.js); cli's max_states and pystencil's _MAX_STATES carry the same 64.
 export const MAX_STEPS = constants.LIMITS.historyMax;
 

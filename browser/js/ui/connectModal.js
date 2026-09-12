@@ -134,7 +134,7 @@ export class StencilConnectModal extends StencilElement {
     };
     const updateSelectAll = () => setSelectAllFace(selectAllBtn, allSelected());
     // The controls fly on the control clock (motion.js REVEAL_GROUP_OUT_MS, the desktop's
-    // kControlRevealOutMs), never the row's box collapse; they still set off with the row.
+    // CONTROL_REVEAL_OUT_MS), never the row's box collapse; they still set off with the row.
     const updateBatchBar = () => {
       // The projects bar's shape: the bar stays while the list has rows, the count and the
       // selection actions come and go (revealControls); the bar closes only once they have

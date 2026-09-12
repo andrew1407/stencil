@@ -3,7 +3,7 @@ import { core } from './stencilCore.js';
 // Port of core/parse/formulaParser.cpp: a recursive-descent evaluator (never `new
 // Function`/`eval`) over `+ - * / ** ( )` and one variable, so server-supplied formulas stay
 // inert. Syntax error ⇒ invalid (→ identity). MAX_DEPTH caps recursion against adversarial
-// nesting and must equal the core parser's kMaxDepth so wasm and this fallback agree.
+// nesting and must equal the core parser's MAX_DEPTH so wasm and this fallback agree.
 const MAX_DEPTH = 256;
 
 class Evaluator {

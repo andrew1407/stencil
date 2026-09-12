@@ -1,6 +1,6 @@
 import type { StencilElement } from './base.js';
 
-/** Desktop parity: Notifications::kMaxVisible. */
+/** Desktop parity: Notifications::MAX_VISIBLE. */
 export declare const MAX_VISIBLE: number;
 /** A whitespace-free run longer than `max` gets a middle ellipsis. */
 export declare const squeezeLongTokens: (msg: unknown, max?: number) => string;

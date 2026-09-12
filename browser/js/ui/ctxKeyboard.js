@@ -125,18 +125,20 @@ export const wireCtxKeyboard = ({ menu, menuIsOpen, chatRowMenuOpen, closeSub, p
         else kbOpenSub(kbItem);
         return true;
       };
-      switch (e.key) {
-        case 'ArrowDown': step(1); break;
-        case 'ArrowUp': step(-1); break;
-        case 'Tab': step(e.shiftKey ? -1 : 1); break;
-        case 'Home': if (rows.length) { setKbItem(rows[0]); closeSubsOutside(rows[0]); } break;
-        case 'End': if (rows.length) { setKbItem(rows.at(-1)); closeSubsOutside(rows.at(-1)); } break;
-        case 'ArrowRight': if (kbItem && idx >= 0) openOrEnter(); break;
-        case 'ArrowLeft': kbCloseSub(); break;
-        default:   // Enter / Space
-          if (!kbItem || idx < 0) break;
-          if (!openOrEnter()) kbItem.click();
-      }
+      const activate = () => {   // Enter / Space
+        if (!kbItem || idx < 0) return;
+        if (!openOrEnter()) kbItem.click();
+      };
+      const keys = {
+        ArrowDown: () => step(1),
+        ArrowUp: () => step(-1),
+        Tab: () => step(e.shiftKey ? -1 : 1),
+        Home: () => { if (rows.length) { setKbItem(rows[0]); closeSubsOutside(rows[0]); } },
+        End: () => { if (rows.length) { setKbItem(rows.at(-1)); closeSubsOutside(rows.at(-1)); } },
+        ArrowRight: () => { if (kbItem && idx >= 0) openOrEnter(); },
+        ArrowLeft: () => kbCloseSub(),
+      };
+      (Object.hasOwn(keys, e.key) ? keys[e.key] : activate)();
     }, true);
 
   return { setKbItem };

@@ -92,15 +92,17 @@ const openCropDialog = (app) => {
   return identity(app);
 };
 
+const HANDLERS = Object.freeze({
+  state: editorState,
+  import: runImport,
+  switch: switchProject,
+  crop: (app) => openCropDialog(app),
+});
 const handleRequest = (app, request, payload) => {
-  switch (request) {
-    case 'state': return editorState(app, payload);
-    case 'import': return runImport(app, payload);
-    case 'switch': return switchProject(app, payload);
-    case 'crop': return openCropDialog(app);
+  const handler = Object.hasOwn(HANDLERS, request) ? HANDLERS[request] : null;
 // Answered, not dropped: a newer extension on an older editor reads this, not a timeout.
-    default: throw new Error('unknown request');
-  }
+  if (!handler) throw new Error('unknown request');
+  return handler(app, payload);
 };
 
 // Same-window messages only; replies are id-correlated (the panel keeps several in flight).

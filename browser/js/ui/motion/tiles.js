@@ -20,14 +20,14 @@ export const scatterGridFor = (count, index = 0, fine = { cols: CHAT_DISINTEGRAT
 // Motes fly in a FIXED layer over the page (the row collapsing under them would clip
 // them). Desktop twin: disintegrateOverlay.hpp; a quarter longer than the desktop's.
 export const DISINTEGRATE_MS = TUNE.DISINTEGRATE_MS;
-// Fine grid: small cells read as ash, not a broken window (desktop: kDustCellPx).
+// Fine grid: small cells read as ash, not a broken window (desktop: DUST_CELL_PX).
 export const DISINTEGRATE_COLS = TUNE.DISINTEGRATE_COLS;
 export const DISINTEGRATE_ROWS = TUNE.DISINTEGRATE_ROWS;
 // Floor on a late mote's flight, so a short flight's last grains are not a blink.
 export const MIN_TILE_MS = TUNE.MIN_TILE_MS;
-// The list-item clock, named apart from the row clock (desktop twin: kItemMs).
+// The list-item clock, named apart from the row clock (desktop twin: ITEM_MS).
 export const ITEM_DUST_MS = DISINTEGRATE_MS;
-// Connections rows come and go half again as briskly (desktop twin: kConnMs).
+// Connections rows come and go half again as briskly (desktop twin: CONN_MS).
 export const CONN_DUST_MS = Math.round(DISINTEGRATE_MS / 1.5);
 // Throw as a share of the row default — the desktop's row ratio.
 const ROW_DUST_DRIFT = TUNE.ROW_DUST_DRIFT;
@@ -68,7 +68,7 @@ export const tileWaypoint = (dx, dy, q) => {
 };
 
 // `reverse` inverts only the sweep (the gather): first out is last home. `drift` scales
-// the throw (desktop: controlSwap.hpp kCheckSwapSpread); `span` is the flight's own
+// the throw (desktop: controlSwap.hpp CHECK_SWAP_SPREAD); `span` is the flight's own
 // length — the sweep and jitter are shares of it.
 export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE_ROWS, reverse = false, drift = 1,
                            span = DISINTEGRATE_MS) => {
@@ -92,7 +92,7 @@ export const tileMotion = (cx, cy, cols = DISINTEGRATE_COLS, rows = DISINTEGRATE
 };
 
 // Motes sized in pixels: aim for MOTE_PX, the quoted grid's cell count is the ceiling
-// (desktop: kDustCellPx).
+// (desktop: DUST_CELL_PX).
 export const MOTE_PX = TUNE.MOTE_PX;
 export const reshapeGrid = (cols, rows, w, h, px = MOTE_PX) => {
   const budget = Math.max(1, cols * rows);

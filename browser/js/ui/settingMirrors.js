@@ -11,18 +11,19 @@ const el = (id) => document.getElementById(id);
 
 // One bound element per {id, kind}. 'valueSkipFocus' leaves the element alone while the
 // user is typing in it (the ctx-* number twins); 'radio' addresses a GROUP by input[name].
+const PAINTERS = Object.freeze({
+  value: (node, value) => { node.value = value; },
+  valueSkipFocus: (node, value) => { if (document.activeElement !== node) node.value = value; },
+  // Both marks come and go as sand (ui/controlSwap.js): a programmatic change — Alt+P,
+  // the context-menu twin, a restored project — animates exactly as a click does.
+  checked: (node, value) => setChecked(node, value),
+  checkIcon: (node, value) => swapCheckGlyph(node, value ? icon('check', { size: 14 }) : ''),
+});
 export const applyMirror = ({ id, kind }, value) => {
   if (kind === 'radio') { setRadioGroup(id, value); return; }
   const node = el(id);
   if (!node) return;
-  switch (kind) {
-    case 'value': node.value = value; break;
-    case 'valueSkipFocus': if (document.activeElement !== node) node.value = value; break;
-    // Both marks come and go as sand (ui/controlSwap.js): a programmatic change — Alt+P,
-    // the context-menu twin, a restored project — animates exactly as a click does.
-    case 'checked': setChecked(node, value); break;
-    case 'checkIcon': swapCheckGlyph(node, value ? icon('check', { size: 14 }) : ''); break;
-  }
+  PAINTERS[kind]?.(node, value);
 };
 
 // The tint picker and the context menu's tint row follow the 'custom' filter.

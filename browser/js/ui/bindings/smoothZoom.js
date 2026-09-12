@@ -90,7 +90,7 @@ export function wireSmoothZoom(app) {
     const delta = Math.max(-cap, Math.min(cap, -px * factor));
     const sz = smoothZoom;
 
-    // Accumulate target scale (clampScale = the shared [0.05, kZoomMax] zoom bound)
+    // Accumulate target scale (clampScale = the shared [0.05, ZOOM_MAX] zoom bound)
     const base = sz.target !== null ? sz.target : app.scale;
     sz.target = app.zoomPan.clampScale(base + delta);
 

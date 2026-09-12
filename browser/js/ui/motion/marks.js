@@ -9,7 +9,7 @@ import { TUNE } from './tune.js';
 export const MARK_IN_MS = TUNE.MARK_IN_MS;
 export const MARK_OUT_MS = TUNE.MARK_OUT_MS;
 export const MARK_MOTE_PX = TUNE.MARK_MOTE_PX;
-export const MARK_DRIFT = TUNE.MARK_DRIFT;        // desktop kCheckSwapSpread
+export const MARK_DRIFT = TUNE.MARK_DRIFT;        // desktop CHECK_SWAP_SPREAD
 // A ceiling well below a window's: a 380px row gridded at 3px would be 1300 motes for a
 // 320ms decoration; past it the cell and the speck grow together.
 export const MARK_COLS = TUNE.MARK_COLS;

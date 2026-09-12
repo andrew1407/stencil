@@ -2,7 +2,7 @@ import { edgeJitter, edgeBaseOf } from '../dustCloud.js';
 import { TUNE, styleCode } from './tune.js';
 // The new palette floods out of the control that changed it: View Transitions where they
 // exist, a cross-fade elsewhere; `apply` runs exactly once, synchronously. One length across
-// all three surfaces (extension accent.js SWAP_MS, desktop themeSwapOverlay.hpp kSwapMs).
+// all three surfaces (extension accent.js SWAP_MS, desktop themeSwapOverlay.hpp SWAP_MS).
 export const THEME_SWAP_MS = TUNE.THEME_SWAP_MS;
 export const THEME_SWAP_CLASS = 'theme-swapping';
 // Held on <html> while the view transition captures, so the snapshot is the FINAL palette.

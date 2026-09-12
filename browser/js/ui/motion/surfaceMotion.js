@@ -8,7 +8,7 @@ export const SURFACE_OUT_MS = TUNE.SURFACE_OUT_MS;   // ui/base.js CLOSE_MS ride
 export const SURFACE_MENU_IN_MS = TUNE.SURFACE_MENU_IN_MS;
 export const SURFACE_MENU_OUT_MS = TUNE.SURFACE_MENU_OUT_MS;
 // The grain a mote aims for, and the mote ceiling — matching the extension's and the
-// desktop's (kSurfaceMaxCells). The speck is sized separately: air between grains is sand.
+// desktop's (SURFACE_MAX_CELLS). The speck is sized separately: air between grains is sand.
 export const SURFACE_MOTE_PX = TUNE.SURFACE_MOTE_PX;
 export const SURFACE_COLS = TUNE.SURFACE_COLS;
 export const SURFACE_ROWS = TUNE.SURFACE_ROWS;      // 1380 motes
