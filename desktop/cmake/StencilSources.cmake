@@ -325,13 +325,16 @@ set(STENCIL_GUI_SOURCES
   src/dialogs/llmSettingsFormState.cpp
   ${STENCIL_PROJECTS_DIALOG_SOURCES}
   src/dialogs/expirationDialog.cpp
+  src/dialogs/expirationDialogCalendar.cpp
   ${STENCIL_OPENIMAGE_SOURCES}
   ${STENCIL_LINKSDIALOG_SOURCES}
   src/dialogs/descriptionDialog.cpp
   src/dialogs/keywordsDialog.cpp
   src/dialogs/cropDialog.cpp
+  src/dialogs/cropDialogDrag.cpp
   src/dialogs/infoDialog.cpp
   src/dialogs/shortcutsDialog.cpp
+  src/dialogs/shortcutsDialogRows.cpp
   ${STENCIL_CONNECTDIALOG_SOURCES}
   src/dialogs/openInDialog.cpp
   ${STENCIL_SERVERCLIENT_SOURCES}

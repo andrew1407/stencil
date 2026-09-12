@@ -377,7 +377,7 @@ stencil_headless_test(stencil_projectsbatch_headless
     tests/projectsBatchBar.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/support/tipContent.cpp    # the rows' rich tooltips (appTooltip.hpp calls into it)
     ${STENCIL_PROJECTS_DIALOG_SOURCES}
-    src/dialogs/expirationDialog.cpp  # the ⋯ menu's "Expiration…" opens it in place now
+    src/dialogs/expirationDialog.cpp src/dialogs/expirationDialogCalendar.cpp  # the ⋯ menu's "Expiration…" opens it in place now
     ${STENCIL_SERVERCLIENT_SOURCES} src/net/fetchGuard.cpp        # the row thumbnails' SSRF guard
     ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp src/support/guiHelpers.cpp src/support/guiHelpersColor.cpp
     ${STENCIL_THEME_SOURCES}         # …and its colour wells take the theme's input chrome

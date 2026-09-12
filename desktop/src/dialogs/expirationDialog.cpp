@@ -1,4 +1,5 @@
 #include "../support/searchCombo.hpp"
+#include "expirationDialogParts.hpp"
 #include "expirationDialog.hpp"
 #include "iconSet.hpp"
 
@@ -21,66 +22,6 @@
 
 namespace stencil::gui {
 
-  namespace {
-    constexpr long long DAY_MS = 24LL * 60 * 60 * 1000;
-    // The browser modal is narrower than the shared 560px shell (.exp-modal: 400px):
-    // the widest thing in it is the calendar, and at full width it sat in a band of
-    // dead space either side.
-    constexpr int kExpWidth = 400;
-    constexpr int kCellMinH = 26;   // .exp-cal-cell min-height
-
-    // Period presets, mirroring browser projectsStore.js PERIOD_ORDER + labels.
-    struct Preset { const char* key; const char* label; };
-    const Preset kPresets[] = {
-        {"day", "1 day"},
-        {"week", "1 week"},
-        {"fortnight", "2 weeks (fortnight)"},
-        {"month", "1 month"},
-        {"3month", "3 months"},
-        {"6month", "6 months"},
-        {"year", "1 year"},
-    };
-    const char* const kWeekdays[] = {"Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"};
-    const char* const kMonths[] = {"January", "February", "March", "April", "May", "June",
-                                   "July", "August", "September", "October", "November",
-                                   "December"};
-
-    QDate dateFromMs(long long ms) {
-      return QDateTime::fromMSecsSinceEpoch(ms).date();
-    }
-    // Expires through the whole picked day (local 23:59:59.999).
-    long long msEndOfDay(const QDate& d) {
-      return d.startOfDay().toMSecsSinceEpoch() + DAY_MS - 1;
-    }
-    QString fmtDate(const QDate& d) {
-      return QLocale().toString(d, QLocale::ShortFormat);
-    }
-
-    // One browser .vs-row: a hairline-underlined form row. The QSS half ([vsRow]) lives
-    // in theme.cpp; the row's contents differ per caller, so it takes a laid-out widget.
-    QWidget* vsRow(QWidget* parent, QLayout* content) {
-      content->setSpacing(12);   // the row's own gap, between its children too
-      return modalRow(parent, QString(), content);
-    }
-
-    // One .exp-legend-item: a 12px outlined chip beside "<caption>: <b>value</b>".
-    QWidget* legendItem(QWidget* parent, const QString& swatchId, QLabel** out) {
-      auto* w = new QWidget(parent);
-      auto* h = new QHBoxLayout(w);
-      h->setContentsMargins(0, 0, 0, 0);
-      h->setSpacing(6);
-      auto* chip = new QFrame(w);
-      chip->setObjectName(swatchId);
-      chip->setFixedSize(12, 12);
-      h->addWidget(chip);
-      auto* text = new QLabel(w);
-      text->setObjectName(QStringLiteral("expLegend"));
-      text->setTextFormat(Qt::RichText);
-      h->addWidget(text);
-      *out = text;
-      return w;
-    }
-  }  // namespace
 
   ExpirationDialog::ExpirationDialog(const QString& projectName, long long expiresAt,
                                      const QString& refreshPeriod, bool autoRefresh,
@@ -243,68 +184,5 @@ namespace stencil::gui {
     }
     renderAll();
   }
-
-  void ExpirationDialog::renderControls() {
-    periodRow_->setEnabled(!keep());   // takes the select + Refresh with it
-    calendar_->setEnabled(!keep());
-    today_->setText(tr("Today: <b>%1</b>").arg(fmtDate(dateFromMs(nowMs_))));
-    when_->setText(keep() ? tr("Expires: <b>never (kept forever)</b>")
-                         : tr("Expires: <b>%1</b>").arg(fmtDate(dateFromMs(expiresAt_))));
-  }
-
-  void ExpirationDialog::renderCalendar() {
-    calTitle_->setText(QString("%1 %2").arg(kMonths[viewM_]).arg(viewY_));
-    prev_->setEnabled(!atFloor());   // no navigating into fully-past months
-
-    // Rebuilt whole, like the browser rebuilds the grid's innerHTML: the day states are
-    // QSS property selectors, and re-polishing 42 live buttons is the longer road.
-    while (QLayoutItem* item = calGrid_->takeAt(0)) {
-      if (QWidget* w = item->widget()) w->deleteLater();
-      delete item;
-    }
-    for (int i = 0; i < 7; ++i) {
-      auto* h = new QLabel(kWeekdays[i], calendar_);
-      h->setObjectName(QStringLiteral("expCalWeekday"));
-      h->setAlignment(Qt::AlignCenter);
-      calGrid_->addWidget(h, 0, i);
-    }
-
-    const QDate today = dateFromMs(nowMs_);
-    const QDate first(viewY_, viewM_ + 1, 1);
-    const int lead = first.dayOfWeek() - 1;   // Monday-first, like the browser grid
-    const int days = first.daysInMonth();
-    const QDate expiry = (!keep() && expiresAt_) ? dateFromMs(expiresAt_) : QDate();
-    for (int d = 1; d <= days; ++d) {
-      const QDate cellDate(viewY_, viewM_ + 1, d);
-      const int slot = lead + d - 1;
-      auto* cell = new QToolButton(calendar_);
-      cell->setObjectName(QStringLiteral("expCalDay"));
-      cell->setText(QString::number(d));
-      cell->setCursor(Qt::PointingHandCursor);
-      cell->setMinimumHeight(kCellMinH);
-      cell->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-      if (cellDate == expiry) cell->setProperty("expDay", "expiry");
-      else if (cellDate == today) cell->setProperty("expDay", "today");
-      if (cellDate < today) {
-        cell->setEnabled(false);
-        cell->setCursor(Qt::ArrowCursor);
-      } else {
-        connect(cell, &QToolButton::clicked, this, [this, cellDate] {
-          if (keep()) return;
-          expiresAt_ = msEndOfDay(cellDate);
-          renderAll();
-        });
-      }
-      calGrid_->addWidget(cell, 1 + slot / 7, slot % 7);
-    }
-  }
-
-  bool ExpirationDialog::keep() const { return keepBox_ && keepBox_->isChecked(); }
-
-  long long ExpirationDialog::expiresAtMs() const { return keep() ? 0 : expiresAt_; }
-  QString ExpirationDialog::refreshPeriod() const {
-    return period_->currentData().toString();
-  }
-  bool ExpirationDialog::autoRefresh() const { return auto_->isChecked(); }
-
 }
+

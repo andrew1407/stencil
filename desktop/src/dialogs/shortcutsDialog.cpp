@@ -1,4 +1,5 @@
 #include "shortcutsDialog.hpp"
+#include "shortcutsDialogParts.hpp"
 #include "../support/disintegrateOverlay.hpp"   // the dust a new combination forms from
 #include "../support/filterFade.hpp"  // rows fade in/out with the search, never blink
 #include "../support/keycapChip.hpp"  // the combo as keycaps: shake on hover, capture on click
@@ -22,42 +23,6 @@
 
 namespace stencil::gui {
 
-  namespace {
-    constexpr int kShortcutsWidth = 620;   // browser #settings-modal: four columns
-    // Keycap-column FLOORS: both grow to their widest chord once every row is built
-    // (the browser's max-content columns). Action takes the rest, down to its own floor.
-    constexpr int kComboColW = 150;
-    constexpr int kDefaultColW = 110;
-    constexpr int kActionMinW = 150;
-    constexpr int kResetColW = 30;
-    constexpr int kCellPadX = 10;   // th/td padding: 7px 10px
-    constexpr int kCellPadY = 7;
-    constexpr int kSidePad = 18;    // .settings-body padding
-    // A new combination's caps arrive as dust (browser markIn: 320ms, veiled to 62%).
-    constexpr int kFormMs = 320;
-    constexpr double kFormVeil = 0.62;
-    constexpr int kFormCells = 600;
-    // Cap size against the tooltip's own — the combo and its default wear the same caps.
-    constexpr qreal kCapScale = 0.95;
-
-    // Table keycaps wear no face of their own: the container fill read as a dark box
-    // against a hovered row, so here a key is its outline and its glyph.
-    Palette tableCaps() {
-      Palette pal = currentPalette();
-      pal.bgContainer = QColor(0, 0, 0, 0);
-      return pal;
-    }
-
-    QString portable(const QKeySequence& k) { return k.toString(QKeySequence::PortableText); }
-    // The muted mono line a cell shows with no caps to draw (browser .hotkey-unset).
-    QString mutedHtml(const QString& text) {
-      return QString("<span style=\"color:%1;font-family:Menlo,Consolas,monospace;font-size:12px;\">%2</span>")
-          .arg(currentPalette().textMuted.name(), text.toHtmlEscaped());
-    }
-    QString native(const QString& seq) {
-      return QKeySequence(seq).toString(QKeySequence::NativeText);
-    }
-  }
 
   ShortcutsDialog::ShortcutsDialog(const QVector<Entry>& entries, QWidget* parent)
       : QDialog(parent) {
@@ -232,84 +197,5 @@ namespace stencil::gui {
     if (shown.isEmpty()) return mutedHtml(tr("(unset)"));
     return comboKeycapsHtml(shown, tableCaps(), kOnMac, scale);
   }
-
-  void ShortcutsDialog::setRowSeq(Row& row, const QString& seq, bool formed) {
-    row.lastSeq = portable(QKeySequence(seq));
-    row.cell->setResting(capsHtml(row.lastSeq, kCapScale));
-    row.reset->setVisible(row.lastSeq != row.defaultSeq);
-    if (!formed || support::motionReduced() || !isVisible()) return;
-    // The new caps form out of dust gathered over the cell (browser markIn), the cell
-    // veiled until the motes have very nearly landed.
-    QWidget* host = window();
-    ComboCell* cell = row.cell;
-    QTimer::singleShot(0, cell, [cell, host] {
-      if (!cell->isVisible()) return;
-      auto* fx = DisintegrateOverlay::overRect(cell, cell->rect(), host,
-                                               DisintegrateOverlay::Sweep::Gather,
-                                               /*dust=*/true, kFormCells, kFormMs);
-      if (!fx) return;
-      auto* veil = new QGraphicsOpacityEffect(cell);
-      veil->setOpacity(0.0);
-      cell->setGraphicsEffect(veil);
-      QTimer::singleShot(int(kFormMs * kFormVeil), cell, [cell] { cell->setGraphicsEffect(nullptr); });
-    });
-  }
-
-  void ShortcutsDialog::captured(int rowIndex, const QString& seq) {
-    Row& row = rows_[rowIndex];
-    if (seq == row.lastSeq) return;
-    if (!seq.isEmpty()) {
-      // A combo another action owns is refused — the other is never silently unbound.
-      for (int i = 0; i < rows_.size(); ++i) {
-        if (i == rowIndex || rows_[i].lastSeq != seq) continue;
-        emit conflict(tr("\"%1\" is already used by \"%2\" — the old shortcut was kept")
-                          .arg(native(seq), rows_[i].label));
-        return;
-      }
-    }
-    setRowSeq(row, seq, /*formed=*/true);
-    emit overridesChanged();
-  }
-
-  void ShortcutsDialog::resetAll() {
-    ConfirmSpec spec;
-    spec.title = tr("Reset shortcuts");
-    spec.message = tr("Reset ALL keyboard shortcuts to their defaults?");
-    spec.confirmIcon = QStringLiteral("refresh");
-    spec.danger = true;
-    if (!confirmModal(this, spec)) return;
-    // Only rows that actually change form again, and past the mark budget the rest
-    // simply appear: one gesture, not thirty clouds.
-    int formed = 0;
-    for (Row& r : rows_) {
-      const bool changes = r.lastSeq != r.defaultSeq;
-      setRowSeq(r, r.defaultSeq, /*formed=*/changes && formed < 8);
-      if (changes) ++formed;
-    }
-    emit overridesChanged();
-    emit allReset();
-  }
-
-  void ShortcutsDialog::applyFilter(const QString& query) {
-    const QString q = query.trimmed().toLower();
-    bool any = false;
-    for (const Row& row : rows_) {
-      const bool match = q.isEmpty() || row.label.toLower().contains(q) ||
-                         native(row.lastSeq).toLower().contains(q) ||
-                         native(row.defaultSeq).toLower().contains(q);
-      fadeFiltered(row.widget, match);
-      any = any || match;
-    }
-    empty_->setVisible(!any);
-  }
-
-  QHash<QString, QString> ShortcutsDialog::overrides() const {
-    QHash<QString, QString> out;
-    for (const auto& row : rows_) {
-      // Only persist an override when it differs from the config default.
-      if (row.lastSeq != row.defaultSeq) out.insert(row.id, row.lastSeq);
-    }
-    return out;
-  }
-
 }
+
