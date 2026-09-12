@@ -9,19 +9,15 @@ namespace stencil::core {
   // Port of browser/js/utils/geometry.js `distToSegment`.
   double distToSegment(double px, double py, const Point& a, const Point& b);
 
-  // Rotate `points` in place about pivot (cx, cy) by `angle` radians, using the
-  // standard 2D rotation matrix. Port of lineTransforms.js rotatePointsAbout.
+  // In place about (cx, cy), `angle` in radians. Port of lineTransforms.js rotatePointsAbout.
   void rotatePoints(std::vector<Point>& points, double cx, double cy,
                     double angle);
 
-  // Mirror `points` in place about pivot (cx, cy): horizontal reflects each x
-  // (x' = 2*cx - x), else reflects each y (y' = 2*cy - y). Port of
-  // lineTransforms.js flipPointsAbout.
+  // In place about (cx, cy); horizontal reflects x, else y. Port of flipPointsAbout.
   void flipPoints(std::vector<Point>& points, bool horizontal, double cx,
                   double cy);
 
-  // Center of the axis-aligned bounding box of `points`. Port of
-  // lineTransforms.js bboxCenterOf. Returns {0,0} for an empty list.
+  // Port of lineTransforms.js bboxCenterOf; {0,0} for an empty list.
   Point boundingBoxCenter(const std::vector<Point>& points);
 
 }

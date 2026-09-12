@@ -4,9 +4,7 @@
 
 namespace stencil::core {
 
-  // Clamps the projection parameter t to [0, 1] so the result is distance to the
-  // segment, not the infinite line. A zero-length segment degenerates to point
-  // distance.
+  // t clamped to [0, 1]: distance to the segment, not the infinite line.
   double distToSegment(double px, double py, const Point& a, const Point& b) {
     const double dx = b.x - a.x;
     const double dy = b.y - a.y;

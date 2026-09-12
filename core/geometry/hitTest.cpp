@@ -13,18 +13,14 @@ namespace stencil::core {
     return d <= pointSize + 8.0;
   }
 
-  // Reverse iteration so the topmost (last-drawn) line wins on overlap. Per line
-  // we test every point at radius `threshold + 4`, then every segment at
-  // `threshold`.
   int findLineAt(const Lines& lines, double x, double y, double threshold) {
     const double margin = threshold + 4.0;  // the wider of the two radii
     for (std::size_t i = lines.size(); i-- > 0;) {
       const std::vector<Point>& pts = lines[i].points;
       if (pts.empty()) continue;
 
-      // Bounding-box reject before the per-point scan: every candidate lies inside the
-      // bbox, so a hit implies (x, y) is within `margin` of it — a rejected line cannot
-      // match and topmost-first is untouched. (Non-finite coords fail these compares.)
+      // Bbox reject: a hit implies (x, y) within `margin` of the bbox, so a rejected line
+      // cannot match and topmost-first is untouched. Non-finite coords fail the compares.
       double minX = pts[0].x, maxX = minX, minY = pts[0].y, maxY = minY;
       for (const Point& p : pts) {
         minX = std::min(minX, p.x);
@@ -59,8 +55,6 @@ namespace stencil::core {
     return std::nullopt;
   }
 
-  // First point in a single line within `threshold` (strict `<`) of (x, y).
-  // Used for the in-progress currentLine_ cursor scans in canvasWidget.
   std::optional<int> nearestPointInLine(const std::vector<Point>& points,
                                         double x, double y, double threshold) {
     for (std::size_t i = 0; i < points.size(); ++i) {
@@ -88,8 +82,6 @@ namespace stencil::core {
     return best;
   }
 
-  // Point hit wins over a segment hit; both reuse the same finders the
-  // click/drag paths use.
   HoldTarget holdDrawTarget(const Lines& lines, double x, double y,
                             double pointThreshold, double segThreshold) {
     if (auto p = findNearestPoint(lines, x, y, pointThreshold))
