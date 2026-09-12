@@ -183,6 +183,13 @@ set(STENCIL_GUI_SOURCES
   src/app/mainWindowThemeButtons.cpp
   src/app/stencilFileSync.cpp
   src/app/mainWindowChat.cpp
+  src/app/mainWindowChatClient.cpp
+  src/app/mainWindowChatSend.cpp
+  src/app/mainWindowChatNotices.cpp
+  src/app/mainWindowChatState.cpp
+  src/app/mainWindowChatPersist.cpp
+  src/app/mainWindowChatMedia.cpp
+  src/app/mainWindowChatSave.cpp
   src/app/mainWindowEvents.cpp
   src/app/mainWindowAccent.cpp
   src/app/mainWindowBlank.cpp

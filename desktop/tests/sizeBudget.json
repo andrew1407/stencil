@@ -7,7 +7,7 @@
     "desktop/src/app/mainWindow.cpp": 1616,
     "desktop/src/app/mainWindow.hpp": 1658,
     "desktop/src/app/mainWindowActions.cpp": 1081,
-    "desktop/src/app/mainWindowChat.cpp": 1416,
+    "desktop/src/app/mainWindowChat.cpp": 291,
     "desktop/src/app/mainWindowEvents.cpp": 553,
     "desktop/src/app/mainWindowTheme.cpp": 202,
     "desktop/src/app/mainWindowToolbar.cpp": 385,
