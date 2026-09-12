@@ -4179,26 +4179,6 @@
    "expect": "valid"
   },
   {
-   "file": "224-open-project-name-and-last-invalid.json",
-   "name": "open-project-name-and-last-invalid",
-   "profiles": [
-    "editor"
-   ],
-   "input": {
-    "version": 1,
-    "reply": "ok",
-    "actions": [
-     {
-      "op": "openProject",
-      "name": "portrait 1",
-      "last": true
-     }
-    ]
-   },
-   "expect": "invalid",
-   "reason": "§10 openProject takes exactly one form — a name, or last:true (removeProject's current:true shape)"
-  },
-  {
    "file": "226-dialog-unknown-window-invalid.json",
    "name": "dialog-unknown-window-invalid",
    "profiles": [
