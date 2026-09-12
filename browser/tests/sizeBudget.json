@@ -92,7 +92,7 @@
     "browser/js/net": 23,
     "browser/js/ui": 23,
     "browser/js/ui/bindings": 23,
-    "browser/js/ui/motion": 32,
+    "browser/js/ui/motion": 15,
     "browser/js/ui/projects": 14,
     "browser/js/utils": 25,
     "browser/js/worker": 16,

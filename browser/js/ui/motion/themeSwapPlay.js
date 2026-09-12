@@ -7,9 +7,8 @@ export function themeSwap(apply, origin = null) {
   const reduced = motionReduced();
 
   if (reduced || typeof document.startViewTransition !== 'function') {
-    // No snapshot to wipe: one beat of colour transition instead (a no-op under reduced
-    // motion). A document without a classList is a test stub — the palette write still
-    // happens; only the decoration is skipped.
+// No snapshot to wipe: one beat of colour transition. A document without a classList is
+// a test stub — the palette write still happens.
     if (!root?.classList) { apply(); return; }
     root.classList.add(THEME_SWAP_CLASS);
     clearTimeout(root._themeSwapTimer);
@@ -18,11 +17,8 @@ export function themeSwap(apply, origin = null) {
     return;
   }
 
-  // `origin` may be a POINT or a function that resolves one. A function is re-asked after
-  // the palette is written: the control can move between the two (label width changes,
-  // toolbar reflow, scroll), and the circle is painted against the NEW page.
-  // `last` keeps the same answer in PIXELS — the dust is seeded off wherever the circle
-  // was really painted from, so the wake and the ring can never disagree.
+// A function `origin` is re-asked after the palette is written (the control can move);
+// `last` keeps the answer in PIXELS so the dust is seeded off where the circle was painted.
   let last = null;
   const at = () => {
     const w = window.innerWidth, h = window.innerHeight;
@@ -30,13 +26,10 @@ export function themeSwap(apply, origin = null) {
     last = { x: p.x, y: p.y, w, h };
     return swapPercent(p.x, p.y, w, h);
   };
-  // The OLD palette, read before `apply` flips it — the wake is the paint coming off.
   const paint = swapDustPaint();
-  // Handed to the DECLARATIVE keyframes in animations/themeSwap.css. Scripting it from
-  // ready.then() instead races the transition's own teardown — it ends as soon as its
-  // pseudo-elements have no animations, so the wipe stopped half way.
-  // --swap-x/y/r stay the wipe's authoritative geometry record (and the keyframes'
-  // circle fallback); the clip the reveal actually plays is the ragged polygon pair.
+// Handed to the declarative keyframes in animations/themeSwap.css: scripting from
+// ready.then() races the transition's teardown. --swap-x/y/r stay the geometry record
+// (and the circle fallback); the clip actually played is the polygon pair.
   const write = ({ x, y, r }) => {
     root.style.setProperty('--swap-x', `${x}%`);
     root.style.setProperty('--swap-y', `${y}%`);
@@ -49,30 +42,23 @@ export function themeSwap(apply, origin = null) {
     }
   };
   write(at());
-  // Raised BEFORE startViewTransition: the browser drops :hover (synthetic
-  // pointerleaves) the moment the transition starts, and hover-latches (ui/toolbar.js
-  // logo) tell that synthetic leave from a real one by this class.
+// Raised BEFORE startViewTransition: the browser drops :hover as the transition starts,
+// and hover-latches (ui/toolbar.js logo) tell that synthetic leave from a real one by this.
   root.classList.add(THEME_INSTANT_CLASS);
   const settle = () => root.classList.remove(THEME_INSTANT_CLASS);
   let t;
   try {
-    // The re-ask rides INSIDE the update callback: it is the one place that runs after the
-    // palette is written and before the new state is captured, so a control that moved is
-    // measured where the wipe will actually be seen.
+// The re-ask rides inside the update callback: after the palette is written, before capture.
     t = document.startViewTransition(() => { apply(); write(at()); });
   } catch {
     settle(); apply(); return;   // a sync throw never ran the callback — the write still must happen
   }
   t.finished.then(settle, settle);   // also on a skipped/failed transition
-  // Dust rides in only once the wipe's own animation is running (ready), so a mote's
-  // delay and the ring's clock start on the same frame. An engine without `ready`
-  // (or a skipped transition) simply gets no dust — the wipe never depends on it.
+// Dust only once the wipe's animation is running (ready), so both clocks start on one frame.
   t.ready?.then?.(() => spawnSwapDust(last, paint), () => {});
 }
 
-// Resolve an id to a swap origin, preferring the element that is actually ON SCREEN:
-// the fullscreen layer CLONES the whole toolbar, duplicate ids and all, so
-// getElementById can hand back a hidden copy.
+// Prefer the element actually ON SCREEN: the fullscreen layer clones the toolbar, ids and all.
 export function originOfId(id) {
   if (typeof document?.querySelectorAll !== 'function') return null;
   for (const el of document.querySelectorAll(`[id="${id}"]`)) {
@@ -82,9 +68,7 @@ export function originOfId(id) {
   return null;
 }
 
-// Clipped out of sight by an ANCESTOR? checkVisibility below cannot see that: a control
-// inside a collapsed panel keeps a perfectly good rect and its own `visibility: visible`;
-// it is the ancestor's `overflow: hidden` that hides it.
+// Clipped by an ancestor's `overflow: hidden`? checkVisibility cannot see that.
 function clippedAway(el, r) {
   if (typeof getComputedStyle !== 'function') return false;   // a stub (tests): nothing to clip
   for (let p = el.parentElement; p; p = p.parentElement) {
@@ -100,9 +84,8 @@ export function originOf(el) {
   const r = el?.getBoundingClientRect?.();
   if (!r || (!r.width && !r.height)) return null;
   if (el.parentElement && clippedAway(el, r)) return null;
-  // `visibility: hidden` and `opacity: 0` both leave a perfectly good rect behind, and
-  // an off-screen clone keeps its size too — never bloom from one. checkVisibility is
-  // Chromium/WebKit-only, so it stays a bonus check.
+// `visibility: hidden` and `opacity: 0` leave a good rect behind; checkVisibility is
+// Chromium/WebKit-only, so it stays a bonus check.
   if (typeof el.checkVisibility === 'function' &&
       !el.checkVisibility({ visibilityProperty: true, opacityProperty: true, contentVisibilityAuto: true }))
     return null;

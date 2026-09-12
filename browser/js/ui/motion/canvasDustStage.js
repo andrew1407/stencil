@@ -11,16 +11,13 @@ export const pinDustStage = (stage, host, baseLeft = 0, baseTop = 0) => {
   return () => host.removeEventListener?.('scroll', onScroll);
 };
 
-// One dust stage over a canvas' visible slice, shared by ghostOut/ghostIn: the pixel
-// snapshot, the DPR-scaled stage canvas pinned to its scrolling host, the snapshot↔
-// screen mapping, and the per-frame clear/step/teardown loop. Null when there is
-// nothing to play over.
+// One dust stage over a canvas' visible slice, shared by ghostOut/ghostIn.
 export const makeDustStage = (canvas) => {
   const field = dustField(canvas);
   if (!field) return null;
   const { r, vis } = field;
   const { cols, rows } = dustGrid(vis.width, vis.height, DUST_CELL_PX * (styleCode() ? STYLED_CELL_SCALE : 1));
-  // The source is snapshotted once — ghostOut clears the real canvas moments later.
+// Snapshotted once: ghostOut clears the real canvas moments later.
   const snap = document.createElement('canvas');
   snap.width = canvas.width;
   snap.height = canvas.height;
@@ -41,16 +38,14 @@ export const makeDustStage = (canvas) => {
   const finish = () => { unpin(); stage.remove(); };
   const ctx = stage.getContext('2d');
   ctx.scale(dpr, dpr);
-  // Map the visible slice back into the snapshot: sources are bitmap pixels, the
-  // visible box is screen pixels — at zoom the two differ by the zoom factor.
+// Sources are bitmap pixels, the visible box screen pixels: at zoom they differ.
   const kx = snap.width / r.width, ky = snap.height / r.height;
   return {
     snap, snapCtx, ctx, finish, cols, rows,
     sw: (vis.width / cols) * kx, sh: (vis.height / rows) * ky,
     sox: (vis.left - r.left) * kx, soy: (vis.top - r.top) * ky,
     dw: vis.width / cols, dh: vis.height / rows,
-    // Run `draw(t)` per rAF frame over `ms`, clearing the stage first each frame;
-    // the timeout is belt and braces in case rAF is throttled.
+// `draw(t)` per rAF frame over `ms`; the timeout covers a throttled rAF.
     run(ms, draw) {
       const started = performance.now();
       const step = (now) => {
@@ -66,10 +61,8 @@ export const makeDustStage = (canvas) => {
   };
 };
 
-// The colour of every cell, in ONE read: the visible slice is drawn down to a
-// cols×rows canvas (the engine's own box filter) and read back once. A cell that holds
-// no paint (alpha ~0 — the transparent margin of a page) flies nothing. Pure over its
-// inputs, apart from the canvas it needs to sample with.
+// Every cell's colour in ONE read: the slice is drawn down to a cols×rows canvas and read
+// back once. A cell with no paint (the transparent page margin) flies nothing.
 const sampleDustColours = (st) => {
   const { snap, cols, rows, sw, sh, sox, soy } = st;
   const probe = document.createElement('canvas');
@@ -82,15 +75,11 @@ const sampleDustColours = (st) => {
   return pc.getImageData(0, 0, cols, rows).data;
 };
 
-// How many alpha steps a fading grain is drawn in. The stage batches every grain of one
-// colour AND one alpha step into a single fill — thousands of tiny fills a frame was the
-// cost, not the arcs — and eight steps on a 3px grain are below what the eye resolves.
+// Grains of one colour AND one alpha step batch into a single fill; eight steps on a 3px
+// grain are below what the eye resolves.
 export const DUST_ALPHA_LEVELS = TUNE.DUST_ALPHA_LEVELS;
 
-// Every grain of a flight. `gather` picks the arrival's sweep and throw; the fall is
-// shared, the sideways fan differs (the arrival fans less). Grains are small source cells
-// turned into discs: home cell, clear box, radius, coverage, throw and swirl. Painted from
-// the accent palette like every cloud, not in the picture's own pixels.
+// Painted from the accent palette, not the picture's own pixels.
 export const dustParts = (st, gather) => {
   const { cols, rows, dw, dh } = st;
   const px = sampleDustColours(st);
@@ -98,8 +87,7 @@ export const dustParts = (st, gather) => {
   for (let cy = 0; cy < rows; cy++) {
     for (let cx = 0; cx < cols; cx++) {
       const n = tileNoise(cx, cy);
-      // Decorrelated from `n`: one hash driving fall AND drift slid the picture apart
-      // in diagonal sheets; a separate hash for the x-axis is what makes it scatter.
+// Decorrelated from `n`: one hash for fall and drift slid the picture apart in sheets.
       const m = tileNoise(cx + 41, cy + 17);
       const q = tileNoise(cx + 97, cy + 53);
       const i = (cy * cols + cx) * 4;
@@ -108,9 +96,8 @@ export const dustParts = (st, gather) => {
       const dy = 26 + n * 46;
       const len = Math.hypot(dx, dy);
       const amp = (q - 0.5) * 2 * Math.min(len * SWIRL_SHARE, SWIRL_MAX_PX);
-      // Cell bounds are rounded so neighbours share an edge — but the picture is blitted
-      // at its fractional size, so the OUTER edge rounds up: rounding it down left a
-      // sliver of picture along the right/bottom that no clear ever reached (a hairline).
+// Cell bounds round so neighbours share an edge, but the OUTER edge rounds up: the picture
+// is blitted at its fractional size, and rounding down left a hairline no clear reached.
       parts.push({
         x0: Math.round(cx * dw), y0: Math.round(cy * dh),
         x1: cx === cols - 1 ? Math.ceil(cols * dw) : Math.round((cx + 1) * dw),

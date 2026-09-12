@@ -2,25 +2,15 @@ import { motionReduced } from '../motionPrefs.js';
 import { MARK_IN_MS, MARK_LEAVING_CLASS, MARK_OUT_MS, markIn, markOut } from './marks.js';
 import { groupPainter } from './painters.js';
 import { TUNE } from './tune.js';
-// clock, so it gets its own longer one — handed to the dust too, so the two land together.
+// A group's clock is longer than a mark's; the dust rides it too, so both land together.
 export const REVEAL_GROUP_IN_MS = TUNE.REVEAL_GROUP_IN_MS;
 export const REVEAL_GROUP_OUT_MS = TUNE.REVEAL_GROUP_OUT_MS;
 
-// A BAR holding revealed controls (the selection strips): the BAR ITSELF never flies —
-// only its controls do, so this is a display flip, deferred on the way OUT by their
-// flight (the desktop's ProjectsDialog / ConnectDialog::updateBatchBar). Sliding its own
-// slot was tried and read wrong both ways: opening it clipped the button forming inside
-// it, closing it left the border and padding as a bare grey line (user report).
-// `want()` is the single source of whether the bar belongs — asked now, and again on
-// arrival, so a selection made mid-flight keeps it. Timer injectable — unit-tested.
-// The class a leaving bar wears while its SLOT closes: height, padding and the divider
-// under it all go together, or whatever is left of its footprint drops the list below it
-// in one frame at the end.
+// A bar holding revealed controls never flies itself — its controls do — so this is a
+// display flip, deferred on the way out by their flight (desktop: updateBatchBar).
+// `want()` is asked now and again on arrival, so a selection made mid-flight keeps it.
 export const BAR_CLOSING_CLASS = 'bar-closing';
-// …and the freeze it wears first. Its controls fly out before the slot closes, and the
-// last one being hidden takes the strip's content height with it — that collapse IS the
-// jump, before any slide could start (user report: the pinned row jumped when Select all
-// left). Held at its measured height, the strip keeps its shape while they leave.
+// Worn first: held at its measured height so the controls leaving cannot collapse it early.
 export const BAR_HELD_CLASS = 'bar-held';
 
 const releaseBarSlot = (el) => {
@@ -29,7 +19,6 @@ const releaseBarSlot = (el) => {
   el.style.removeProperty?.('--reveal-ms');
 };
 
-// Close the bar's slot from the height it is holding, then take it out of the flow.
 export const closeBarSlot = (el, ms, { setTimer = setTimeout } = {}) => {
   const h = parseFloat(el.style.getPropertyValue?.('--bar-h'))
     || el.getBoundingClientRect?.().height || 0;
@@ -63,16 +52,11 @@ export const revealBar = (el, want, { display = 'flex', ms = 0, setTimer = setTi
   }, out);
   return false;
 };
-// A transition, not @keyframes: markIn/markOut may also add `.mark-forming`
-// (an animation), and two `animation` rules on one element would fight over a winner.
 const REVEAL_GROUP_TRANSITION_CLASS = 'reveal-group-transition';
 
-// One slide of the space a revealed group reserves: commit `from` as the transition's
-// start, apply `to`, clean up after `ms` (+`slack`). `defer` waits two painted frames
-// before `to` — set in the same busy turn, the box leapt to wherever the curve already was.
-// `ease` is the slot's own curve: the app's usual cubic-bezier(0.16, 1, .3, 1) is half done
-// in 30ms, which makes a whole group's slot jump open and then crawl. Opening rides
-// easeOutCubic, closing the gentle S the modal flight closes on.
+// One slide of a revealed group's slot. `defer` waits two painted frames before `to`.
+// `ease` is the slot's own curve: the app's usual bezier is half done in 30ms, which makes
+// a whole slot jump open and crawl; opening rides easeOutCubic, closing the modal's S.
 const REVEAL_EASE_IN = TUNE.REVEAL_EASE_IN;
 const REVEAL_EASE_OUT = TUNE.REVEAL_EASE_OUT;
 const slideRevealSize = (el, sizeProp, from, to, ms, { defer = false, slack = 0, cleanup = null, ease = REVEAL_EASE_IN } = {}) => {
@@ -98,12 +82,9 @@ const slideRevealSize = (el, sizeProp, from, to, ms, { defer = false, slack = 0,
   raf(() => raf(go));
 };
 
-// Keep a group's cloud anchored to the group for the length of its flight — the desktop's
-// DisintegrateOverlay::setFollow. A control revealed beside a sibling is photographed
-// where it sits, and the sibling's slot then pushes it along the row: the motes gathered
-// where the group first stood and jumped over on landing (user report). Left/top only —
-// the box they fly at is the natural one while the slot itself is mid-slide. Stops with
-// the host, or on display:none (an all-zero rect).
+// Keep a group's cloud anchored to the group for its flight (desktop:
+// DisintegrateOverlay::setFollow): a sibling's slot pushes it along the row meanwhile.
+// Left/top only; stops with the host or on display:none.
 const followDust = (el, ms) => {
   if (typeof requestAnimationFrame !== 'function' || !el.getBoundingClientRect) return;
   const started = Date.now();
@@ -119,11 +100,9 @@ const followDust = (el, ms) => {
   requestAnimationFrame(step);
 };
 
-// `dust: false` slides the slot without a cloud — for a wide, mostly EMPTY element,
-// whose motes are a grey band the width of the window rather than anything the eye can
-// follow (user report). Its CONTENTS still dust. Desktop twin: revealControls' `dust`.
-// `ms` overrides the slot's own clock, for a group that must land together with something
-// else — the connections bar leaves beside the row that emptied it.
+// `dust: false` slides the slot without a cloud (a wide, mostly empty element; desktop
+// twin: revealControls' `dust`). `ms` overrides the slot's clock so a group can land
+// together with something else.
 export function revealControls(el, show, display = 'inline-flex',
                                { vertical: axis = null, dust = true, ms = 0 } = {}) {
   const inMs = ms || REVEAL_GROUP_IN_MS;
@@ -131,24 +110,21 @@ export function revealControls(el, show, display = 'inline-flex',
   if (!el?.style) return false;
   const wasShown = el.style.display !== 'none';
   if (wasShown === !!show) return false;   // already there: nothing comes or goes
-  // Which way the slot closes: a block collapses its height, an inline group its width.
-  // Right for every caller but a full-width bar, which is a flex row that must still open
-  // downward — hence the explicit override (connectModal.js's selection bar).
+// A block collapses its height, an inline group its width; a full-width flex bar must
+// still open downward, hence the override (connectModal.js's selection bar).
   const vertical = axis === null ? display === 'block' : !!axis;
   const sizeProp = vertical ? 'maxHeight' : 'maxWidth';
   if (show) {
     el.style.display = display;
     const r = el.getBoundingClientRect();   // now laid out at its natural size
     const size = vertical ? r.height : r.width;
-    // grid sized off that same natural box, painted in the group's own colours
     const played = dust ? markIn(el, { ms: inMs, painter: groupPainter(el) }) : !motionReduced();
     if (size && played)
       slideRevealSize(el, sizeProp, '0px', `${size}px`, inMs, { defer: true, slack: 40 });
     if (dust && played) followDust(el, inMs);
     return played;
   }
-  // Measured while it is still laid out, so both the dust and the collapse start
-  // from the true box.
+// Measured while still laid out, so the dust and the collapse start from the true box.
   const r = el.getBoundingClientRect();
   const size = vertical ? r.height : r.width;
   const played = dust
@@ -164,13 +140,11 @@ export function revealControls(el, show, display = 'inline-flex',
   return played;
 }
 
-// Swap the TEXT a control displays, the mark coming apart and the new one forming out
-// of the motes. `apply` writes the new value; it runs between the two flights, so the
-// element is never blank and the DOM is never behind the state.
+// Swap a control's text: the mark comes apart and the new one forms out of the motes.
+// `apply` runs between the two flights, so the DOM is never behind the state.
 export function markSwap(el, apply, { ms = MARK_IN_MS, outMs = MARK_OUT_MS, paint = null } = {}) {
   if (typeof apply !== 'function') return false;
-  // The outgoing cloud is deliberately UNOWNED: the arrival below is the flight this
-  // element owns, and claiming both would have the second cancel the first.
+// Unowned: the arrival below is the flight this element owns.
   const left = markOut(el, { ms: outMs, paint, own: false });
   apply();
   return markIn(el, { ms, paint }) || left;
