@@ -157,16 +157,29 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.core == 'true'
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 300M
     steps:
       - uses: actions/checkout@v5
       - name: Install toolchain (g++, cmake)
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++ cmake ninja-build
+          sudo apt-get install -y g++ cmake ninja-build ccache
+      # Restored by prefix, so a push recompiles only what it changed. Ninja honours the
+      # CMake compiler launchers below (the Visual Studio generator would not).
+      - name: Restore the compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-ci-core-${{ github.sha }}
+          restore-keys: ccache-ci-core-
       - name: Configure
-        run: cmake -S core -B core/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S core -B core/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build (library + tests)
-        run: cmake --build core/build -j
+        run: ccache --zero-stats && cmake --build core/build -j
+      - name: Compiler cache hit rate
+        run: ccache --show-stats
       - name: Run C++ tests
         run: ctest --test-dir core/build --output-on-failure
 
@@ -176,18 +189,31 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.desktop == 'true'
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 800M
     steps:
       - uses: actions/checkout@v5
       - name: Install toolchain (g++, cmake, Qt6)
         run: |
           sudo apt-get update
-          sudo apt-get install -y g++ cmake ninja-build qt6-base-dev qt6-multimedia-dev
+          sudo apt-get install -y g++ cmake ninja-build ccache qt6-base-dev qt6-multimedia-dev
+      # The heaviest job in this workflow: the app plus 66 test binaries over the core.
+      # A bigger cache than the core job's, since it holds all of that.
+      - name: Restore the compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-ci-desktop-${{ github.sha }}
+          restore-keys: ccache-ci-desktop-
       - name: Configure
         working-directory: desktop
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
       - name: Build (core + GUI)
         working-directory: desktop
-        run: cmake --build build -j
+        run: ccache --zero-stats && cmake --build build -j
+      - name: Compiler cache hit rate
+        run: ccache --show-stats
       - name: Run C++ tests
         working-directory: desktop
         run: ctest --test-dir build --output-on-failure
