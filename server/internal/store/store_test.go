@@ -10,7 +10,7 @@ import (
 // the test when no database is configured/reachable. Mirrors the self-skipping
 // e2e convention used by mcp/. Deliberately NOT DATABASE_URL: the truncate below
 // wipes the named database, and that variable points at the LIVE server's.
-func requireStore(t *testing.T) *Store {
+func requireStore(t testing.TB) *Store {
 	t.Helper()
 	url := os.Getenv("TEST_DATABASE_URL")
 	if url == "" {

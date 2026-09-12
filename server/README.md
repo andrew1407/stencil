@@ -332,3 +332,39 @@ export TEST_DATABASE_URL='postgres://...stencil_test?sslmode=disable'
 export REDIS_URL='redis://localhost:6379/15'
 go test ./...
 ```
+
+### Benchmarks
+
+Opt-in and out of CI: `go test ./...` never passes `-bench`, so the `Benchmark*`
+functions only compile there. Run them by package:
+
+```bash
+go test -run XXX -bench . ./internal/hub/ ./internal/filestore/ ./internal/validate/
+TEST_DATABASE_URL='postgres://...stencil_test?sslmode=disable' \
+  go test -run XXX -bench . ./internal/store/     # skips without the URL
+```
+
+Baselines, Apple M4 Max (darwin/arm64), Go 1.26, 2026-09-12. Numbers are for
+comparison on one machine across one change — never a pass/fail threshold.
+
+| Benchmark | ns/op | B/op | allocs/op |
+|---|---|---|---|
+| `SessionFanout/peers=1` | 25 | 0 | 0 |
+| `SessionFanout/peers=10` | 477 | 0 | 0 |
+| `SessionFanout/peers=50` | 2,602 | 0 | 0 |
+| `LLMChat/images=none` | 44 | 0 | 0 |
+| `LLMChat/images=max` | 270,299 | 21,018 | 30 |
+| `Put/size=4KiB` | 9,708,093 | 8,206 | 74 |
+| `Put/size=256KiB` | 9,115,384 | 10,038 | 74 |
+| `Put/size=4096KiB` | 10,789,722 | 50,998 | 74 |
+| `PutStream` (256 KiB) | 8,433,981 | 10,207 | 74 |
+| `ListProjects/whole` (500 rows) | 462,376 | 911,797 | 5,520 |
+| `ListProjects/page=50` | 116,211 | 99,185 | 569 |
+
+What they say: fan-out is allocation-free and linear in peers, because the bus
+envelope carries the routing fields and the frame is never re-parsed. `Put` is
+~9 ms regardless of size — that is the `fsync` before the rename, the price of
+never leaving a renamed-but-empty file; only the 4 MiB case is bandwidth-bound.
+Chat validation is free unless attachments are present, where the base64 scan
+dominates. One keyset page costs ~¼ of the whole list at 500 projects, and the
+listing carries no `original_content`/`layout` at any size.
