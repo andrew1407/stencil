@@ -39,18 +39,24 @@ internal sealed class KeySpecChecker
     private string describeRegex(string name) =>
         _describe.TryGetProperty(name, out JsonElement d) ? d.GetString()! : name;
 
+    private static readonly Dictionary<string, Action<KeySpecChecker, JsonElement, JsonElement, SchemaPath, JsonElement?>> _checksByType =
+        new(StringComparer.Ordinal)
+        {
+            ["string"] = static (c, v, spec, path, parent) => c.checkString(v, spec, path, parent),
+            ["integer"] = static (_, v, spec, path, _) => checkNumber(v, spec, path),
+            ["number"] = static (_, v, spec, path, _) => checkNumber(v, spec, path),
+            ["boolean"] = static (_, v, spec, path, _) => checkBoolean(v, spec, path),
+            ["array"] = static (c, v, spec, path, _) => c.checkArray(v, spec, path),
+            ["object"] = static (c, v, spec, path, _) => c.checkObject(v, spec, path),
+        };
+
     public void CheckValue(JsonElement v, JsonElement spec, SchemaPath path, JsonElement? parent)
     {
-        switch (spec.GetProperty("type").GetString())
+        if (!_checksByType.TryGetValue(spec.GetProperty("type").GetString() ?? "", out var check))
         {
-            case "string": checkString(v, spec, path, parent); break;
-            case "integer":
-            case "number": checkNumber(v, spec, path); break;
-            case "boolean": checkBoolean(v, spec, path); break;
-            case "array": checkArray(v, spec, path); break;
-            case "object": checkObject(v, spec, path); break;
-            default: throw new InvalidOperationException($"opRegistry: unknown type \"{spec.GetProperty("type")}\"");
+            throw new InvalidOperationException($"opRegistry: unknown type \"{spec.GetProperty("type")}\"");
         }
+        check(this, v, spec, path, parent);
     }
 
     private void checkString(JsonElement v, JsonElement spec, SchemaPath path, JsonElement? parent)

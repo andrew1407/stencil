@@ -18,15 +18,14 @@ public sealed record ParsedDuration(DurationUnit Unit, int Count)
         _ => baseTime,
     };
 
+    private static readonly Dictionary<DurationUnit, string> _unitNames = new()
+    {
+        [DurationUnit.DAY] = "day", [DurationUnit.WEEK] = "week", [DurationUnit.MONTH] = "month",
+    };
+
     public override string ToString()
     {
-        string unit = Unit switch
-        {
-            DurationUnit.DAY => "day",
-            DurationUnit.WEEK => "week",
-            DurationUnit.MONTH => "month",
-            _ => "",
-        };
+        string unit = _unitNames.GetValueOrDefault(Unit, "");
         return $"{Count} {unit}{(Count == 1 ? "" : "s")}";
     }
 }
@@ -68,28 +67,21 @@ public static class DurationParser
     }
 
     // fortnight = 2 weeks.
+    private static readonly Dictionary<string, (DurationUnit Unit, int Multiplier)> _units = new(StringComparer.Ordinal)
+    {
+        ["d"] = (DurationUnit.DAY, 1), ["day"] = (DurationUnit.DAY, 1), ["days"] = (DurationUnit.DAY, 1),
+        ["w"] = (DurationUnit.WEEK, 1), ["wk"] = (DurationUnit.WEEK, 1), ["wks"] = (DurationUnit.WEEK, 1),
+        ["week"] = (DurationUnit.WEEK, 1), ["weeks"] = (DurationUnit.WEEK, 1),
+        ["fortnight"] = (DurationUnit.WEEK, 2), ["fortnights"] = (DurationUnit.WEEK, 2),
+        ["mo"] = (DurationUnit.MONTH, 1), ["mon"] = (DurationUnit.MONTH, 1), ["mth"] = (DurationUnit.MONTH, 1),
+        ["mths"] = (DurationUnit.MONTH, 1), ["month"] = (DurationUnit.MONTH, 1), ["months"] = (DurationUnit.MONTH, 1),
+    };
+
     private static bool tryMapUnit(string word, out DurationUnit unit, out int multiplier)
     {
-        multiplier = 1;
-        switch (word)
-        {
-            case "d" or "day" or "days":
-                unit = DurationUnit.DAY;
-                return true;
-            case "w" or "wk" or "wks" or "week" or "weeks":
-                unit = DurationUnit.WEEK;
-                return true;
-            case "fortnight" or "fortnights":
-                unit = DurationUnit.WEEK;
-                multiplier = 2;
-                return true;
-            case "mo" or "mon" or "mth" or "mths" or "month" or "months":
-                unit = DurationUnit.MONTH;
-                return true;
-            default:
-                unit = DurationUnit.DAY;
-                return false;
-        }
+        bool known = _units.TryGetValue(word, out (DurationUnit Unit, int Multiplier) mapped);
+        (unit, multiplier) = known ? mapped : (DurationUnit.DAY, 1);
+        return known;
     }
 
     private static string firstRun(string s, Func<char, bool> pred)

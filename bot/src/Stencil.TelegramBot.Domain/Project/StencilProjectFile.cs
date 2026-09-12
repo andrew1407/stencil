@@ -25,15 +25,14 @@ public static class StencilProjectFile
     public const string FORMAT = "stencil-project";
     public const int VERSION = 1;
 
-    private static string mimeForExt(string ext) => ext.ToLowerInvariant() switch
+    private static readonly Dictionary<string, string> _mimeByExt = new(StringComparer.Ordinal)
     {
-        "png" => "image/png",
-        "jpg" or "jpeg" => "image/jpeg",
-        "bmp" => "image/bmp",
-        "webp" => "image/webp",
-        "gif" => "image/gif",
-        _ => "application/octet-stream",
+        ["png"] = "image/png", ["jpg"] = "image/jpeg", ["jpeg"] = "image/jpeg",
+        ["bmp"] = "image/bmp", ["webp"] = "image/webp", ["gif"] = "image/gif",
     };
+
+    private static string mimeForExt(string ext) =>
+        _mimeByExt.GetValueOrDefault(ext.ToLowerInvariant(), "application/octet-stream");
 
     private static Dictionary<string, object?> buildRoot(StencilProject project)
     {
