@@ -1,9 +1,6 @@
-// ── Project rules over the wasm core ────────────────────────────
-// The browser's ProjectsStore stays its own class — it is localStorage-backed, while
-// core/state/projectsStore.cpp is an in-memory registry — but the refresh presets and
-// the expiry arithmetic are one shared rule that must not drift, and they read nothing
-// but scalars. So they cross as plain functions rather than a handle, with epoch
-// milliseconds as doubles (exact well past 2^53, no BigInt).
+// The refresh presets and expiry arithmetic are one rule shared with core/state/projectsStore.cpp
+// (the browser's ProjectsStore stays its own localStorage-backed class); they cross as plain
+// functions with epoch milliseconds as doubles (exact well past 2^53, no BigInt).
 
 export const projectRuleExports = [
   'stencil_projects_periodMs', 'stencil_projects_addPeriod', 'stencil_projects_shouldPersist',

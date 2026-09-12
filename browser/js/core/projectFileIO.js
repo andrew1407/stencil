@@ -1,13 +1,9 @@
-// ── Reading + writing the session as a .stencil project file ────
-// Extracted from drawingApp.js. The pure (de)serializer is projectFile.js; this is the
-// session side of it — gather the state, apply a parsed file, prompt on a live-sync
-// conflict, and paint the live-sync button.
+// The session side of the .stencil file (projectFile.js is the pure (de)serializer): gather
+// the state, apply a parsed file, prompt on a live-sync conflict, paint the live-sync button.
 import { validateLayout, mergeLines } from './layout.js';
 import { isAccent } from './accents.js';
 
-// ── .stencil project files (portable single-file projects) ──────────────
-// Gather this session into the shape projectFile.buildProjectFile wants (ORIGINAL image +
-// export layout + metadata + opt-in theme); JSON/IO live in ExportService + projectFile.js.
+// The shape projectFile.buildProjectFile wants; JSON/IO live in ExportService + projectFile.js.
 export const projectFileState = (app, { includeTheme = true } = {}) => {
   const meta = (app.activeProjectId != null && app.storage.store.getMeta(app.activeProjectId)) || {};
   const state = {
@@ -32,16 +28,15 @@ export const projectFileState = (app, { includeTheme = true } = {}) => {
   return state;
 };
 
-// Apply a parsed .stencil as a NEW local project (flush → reset → load ORIGINAL image + adopt
-// its layout/metadata via the server-reopen path, then the theme only if the file carried one).
-// Returns the project name.
+// Apply a parsed .stencil as a NEW local project via the server-reopen path; the theme only
+// if the file carried one. Returns the project name.
 export const applyProjectFile = async (app, project) => {
   if (!project || !project.image || !project.image.dataUrl) throw new Error('Project file has no image');
   const name = project.name || 'Untitled';
   const blob = await (await fetch(project.image.dataUrl)).blob();
   const ext = project.image.ext || 'png';
   const file = new File([blob], `${name}.${ext}`, { type: blob.type || 'image/png' });
-  // Open as a distinct project (mirror openImageHere: flush current, reset, then load).
+  // Mirror openImageHere: flush current, reset, then load.
   if (!app.storage.incognito) app.storage.save();
   app.newEditor();
   app.loadImageFromFile(file, {
@@ -55,8 +50,7 @@ export const applyProjectFile = async (app, project) => {
     blankColor: project.blank ? (project.blankColor || '') : undefined,
     fromFile: true,   // mark provenance so the projects list shows a bronze .stencil outline
   });
-  // Theme is a global setting; apply it ONLY when the file opted to carry one, so opening a
-  // themeless project never changes the user's current theme.
+  // Theme is a global setting: only a file that carries one may change it.
   const t = project.theme;
   if (t) {
     if (t.mode) app.setTheme(t.mode);
@@ -65,8 +59,8 @@ export const applyProjectFile = async (app, project) => {
   return name;
 };
 
-// Update the CURRENT project's layout in place from a parsed .stencil (live file sync, no new
-// editor) via the server-co-edit adopt path, optionally union-merging lines on a conflict.
+// Live file sync: update the CURRENT project's layout in place via the co-edit adopt path,
+// optionally union-merging lines on a conflict.
 export const applyProjectFileInPlace = (app, project, opts = {}) => {
   if (!project || !app.image) return;
   const layout = project.layout || {};
@@ -92,8 +86,7 @@ export const applyProjectFileInPlace = (app, project, opts = {}) => {
   app.storage.save();
 };
 
-// A 3-way conflict prompt for live file sync (the file changed AND you have un-synced edits),
-// built from two confirms so it reuses the existing modal: → 'theirs' | 'merge' | 'mine'.
+// 3-way live-sync conflict prompt, two confirms so it reuses the existing modal → 'theirs' | 'merge' | 'mine'.
 export const chooseFileConflict = async (app, name = '.stencil') => {
   if (await app.confirm(
     `“${name}” was changed outside the app and conflicts with your unsaved edits. Reload the file’s version (discard yours)?`,
@@ -106,7 +99,6 @@ export const chooseFileConflict = async (app, name = '.stencil') => {
     ? 'merge' : 'mine';
 };
 
-// Reflect the live-sync button state (label/enabled/active). Called on link/unlink/toggle.
 export const updateStencilSyncUI = (app) => {
   const btn = document.getElementById('live-sync-btn');
   if (!btn) return;
@@ -114,15 +106,14 @@ export const updateStencilSyncUI = (app) => {
   const on = s.supported && s.linked && s.liveSync;
   btn.classList.toggle('active', on);
   btn.disabled = !(s.supported && s.linked);
-  // The greyed-out tooltip line (controlTooltip's data-disabled-reason), like the delete
-  // button's: the markup default is the "not linked" case, unsupported browsers differ.
+  // controlTooltip's data-disabled-reason: the markup default is the "not linked" case.
   btn.dataset.disabledReason = s.supported ? 'Open or save a .stencil file first'
     : 'Live file sync needs a Chromium browser (File System Access API)';
   btn.dataset.title = !s.supported ? 'Live file sync needs a Chromium browser (File System Access API)'
     : !s.linked ? 'Open or save a .stencil file first to enable live sync'
       : on ? `Live sync ON — auto-saving to ${s.name} and watching it for changes`
         : `Live sync OFF — click to auto-save to ${s.name} and watch it for changes`;
-  // Delete is only meaningful for a file-linked project (there's a retained handle to remove).
+  // Delete needs a retained file handle.
   const del = document.getElementById('delete-project-btn');
   if (del) {
     del.disabled = !s.linked;

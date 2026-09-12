@@ -1,26 +1,20 @@
-// ── Which lines are selected ────────────────────────────────────
-// Split out of DrawingApp: the single/multi selection set and the two ways to change it
-// (⌘/Ctrl+Shift+click on the canvas, a click in the Lines tab). Reached through the
-// same-named methods on the app.
+// The single/multi selection set and the two ways to change it (⌘/Ctrl+Shift+click on the
+// canvas, a click in the Lines tab).
 
-// The set of currently-selected line indices. In ordinary single-select mode `selectedLines`
-// is empty and this returns [selectedLineIdx] (or []) — so nothing else changes; in multi-select
-// mode it returns the explicit set. Always filtered to valid, in-range indices.
+// Single-select: `selectedLines` is empty and this is [selectedLineIdx]. Always in range.
 export const selectedIndices = (app) => {
   const src = app.selectedLines.length ? app.selectedLines : (app.selectedLineIdx >= 0 ? [app.selectedLineIdx] : []);
   return src.filter((i) => i >= 0 && i < app.lines.length);
 };
 
-// True while `i` is part of the current selection (single or multi) — drives the renderer glow.
 export const isLineSelected = (app, i) => {
   return app.selectedLines.length ? app.selectedLines.includes(i) : i === app.selectedLineIdx;
 };
 
-// Ctrl/⌘+Shift+click: add/remove `idx` from the multi-select set. Clicking a line already in the
-// set removes it. With exactly one line left, we drop back to normal single-select (its editor
-// reappears); with 2+, the single-line editor is hidden (ambiguous which line to edit).
+// Ctrl/⌘+Shift+click toggles `idx`; exactly one left drops back to single-select (editor
+// reappears), 2+ hides the single-line editor.
 export const toggleLineSelection = (app, idx) => {
-  // Seed the set from the current single selection the first time you Ctrl+Shift+click.
+// Seed the set from the current single selection.
   if (!app.selectedLines.length && app.selectedLineIdx >= 0 && app.selectedLineIdx !== idx)
     app.selectedLines = [app.selectedLineIdx];
   const at = app.selectedLines.indexOf(idx);
@@ -28,7 +22,6 @@ export const toggleLineSelection = (app, idx) => {
   else app.selectedLines.push(idx);
 
   if (app.selectedLines.length === 1) {
-    // Back to a single selection — restore its editor + coord table.
     app.selectedLineIdx = app.selectedLines[0];
     app.selectedLines = [];
     app.showSelectionPanel(app.lines[app.selectedLineIdx]);
@@ -36,7 +29,6 @@ export const toggleLineSelection = (app, idx) => {
     app.focusedPtIdx = -1;
     app.coordTable.update(app.lines[app.selectedLineIdx].points, app.selectedLineIdx);
   } else {
-    // 0 or 2+ selected: no single-line editor.
     app.selectedLineIdx = -1;
     app.hideSelectionPanels();
   }
@@ -44,8 +36,7 @@ export const toggleLineSelection = (app, idx) => {
   app.renderer.redraw();
 };
 
-// Show a brief "N lines selected" note in the status line while multi-selecting (2+); clear it
-// otherwise. Mirrors the desktop status bar.
+// "N lines selected" in the status line while multi-selecting (2+). Mirrors the desktop status bar.
 export const updateMultiSelectStatus = (app) => {
   const el = document.getElementById('coord-status');
   if (!el) return;
@@ -56,10 +47,8 @@ export const updateMultiSelectStatus = (app) => {
   app.renderLinesList();
 };
 
-// Select a single line from the "Lines" tab list (or console) — mirrors the canvas
-// "click on a segment" path (canvasClick priority 2), but keyed by index so the list
-// and the canvas stay in sync. Clears any multi-selection first. `ctrlShift` toggles it
-// into/out of the multi-select set instead (so the list mirrors ⌘/Ctrl+Shift+click).
+// Select from the Lines tab (or console), keyed by index; clears any multi-selection.
+// `ctrlShift` toggles the multi-select set instead.
 export const selectLineFromList = (app, idx, ctrlShift = false) => {
   if (idx < 0 || idx >= app.lines.length) return this;
   if (ctrlShift) { toggleLineSelection(app, idx); return this; }

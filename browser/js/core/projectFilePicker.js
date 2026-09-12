@@ -1,12 +1,9 @@
-// ── The .stencil project file: save, open, pick and delete ─────────────────
-// Uses the File System Access pickers where they exist (and keeps the handle, so the
-// project can live-sync to that file), falling back to a download / transient <input>.
+// The .stencil project file: save, open, pick and delete. File System Access pickers where
+// they exist (keeping the handle for live sync), else a download / transient <input>.
 import { notify, shortName } from '../utils.js';
 import { arriveFrom } from '../ui/motion.js';
 import { serializeProjectFile, parseProjectFile } from './projectFile.js';
 
-// ── .stencil project file: whole-project save/open (image + layout + metadata + optional theme) ──
-// Saves via the File System Access Save-As dialog when supported, else the download-blob fallback.
 export const saveProjectFile = async (svc, { includeTheme = true } = {}) => {
   const app = svc.app;
   if (!app.image || !app.imageDataUrl) { notify('Open an image first', 'fail'); return; }
@@ -23,7 +20,7 @@ export const saveProjectFile = async (svc, { includeTheme = true } = {}) => {
       const writable = await handle.createWritable();
       await writable.write(text);
       await writable.close();
-      // Keep the handle so the project can live-sync to this file (auto-save + watch).
+      // The handle lets the project live-sync to this file (auto-save + watch).
       await app.stencilSync.link(handle, handle.name || filename);
     } else {
       svc.downloadBlob(new Blob([text], { type: 'application/x-stencil' }), filename);
@@ -35,8 +32,7 @@ export const saveProjectFile = async (svc, { includeTheme = true } = {}) => {
   }
 };
 
-// Open a .stencil project from a File (file input / drag-drop) or raw JSON text. Validates,
-// then hands off to DrawingApp.applyProjectFile (which loads it as a fresh local project).
+// From a File (input / drag-drop) or raw JSON text.
 export const openProjectFile = async (svc, input, { from = null } = {}) => {
   const app = svc.app;
   let text;
@@ -46,8 +42,7 @@ export const openProjectFile = async (svc, input, { from = null } = {}) => {
   if (!res.ok) { notify('Invalid .stencil file: ' + res.error, 'fail'); return; }
   try {
     const name = await app.applyProjectFile(res.project);
-    // Dropped in: the canvas flies out of the drop point (a project opened from the
-    // picker has no point and gets the plain landing).
+    // A project from the picker has no drop point and gets the plain landing.
     arriveFrom(document.getElementById('canvas-container'), from);
     notify(`Opened project “${shortName(name)}”`, 'ok');
   } catch (err) {
@@ -55,7 +50,6 @@ export const openProjectFile = async (svc, input, { from = null } = {}) => {
   }
 };
 
-// Prompt for a .stencil file (FS Access open picker when available, else a transient <input>).
 export const pickAndOpenProjectFile = async (svc) => {
   if (window.showOpenFilePicker) {
     try {
@@ -65,7 +59,6 @@ export const pickAndOpenProjectFile = async (svc) => {
       });
       const file = await handle.getFile();
       await openProjectFile(svc, file);
-      // Keep the handle so this project can live-sync to the file it was opened from.
       await svc.app.stencilSync.link(handle, file.name);
     } catch (err) {
       if (err && err.name === 'AbortError') return;
@@ -80,9 +73,8 @@ export const pickAndOpenProjectFile = async (svc) => {
   inp.click();
 };
 
-// Delete the linked .stencil file from disk (Chromium FileSystemHandle.remove()) after a confirm,
-// then drop the link so live-sync stops. Needs a retained handle, so only a file-linked project
-// (saved/opened via the picker) can — the project stays open; only the on-disk file is removed.
+// Chromium FileSystemHandle.remove() after a confirm, then unlink so live-sync stops; the
+// project stays open.
 export const deleteProjectFile = async (svc) => {
   const app = svc.app;
   const sync = app.stencilSync;
@@ -101,7 +93,7 @@ export const deleteProjectFile = async (svc) => {
   }
   try {
     await handle.remove();
-    sync.unlink();               // stop auto-save/watch — there's no file to sync to anymore
+    sync.unlink();
     notify(`Deleted “${shortName(name)}”`, 'ok');
   } catch (err) {
     if (err && err.name === 'AbortError') return;   // some impls surface a cancelled perm prompt as AbortError

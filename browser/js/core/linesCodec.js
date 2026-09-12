@@ -1,11 +1,8 @@
-// ── Flat Lines-snapshot codec ───────────────────────────────────
-// The twin of core/abi/linesCodec.hpp, byte layout and all: a snapshot crosses the
-// core ABI as two buffers, so neither side needs a packed struct or a DataView.
+// Twin of core/abi/linesCodec.hpp, byte layout and all: a snapshot crosses the core ABI as
 //   nums: [lineCount, then per line: pointCount, thickness, pointSize, locked,
 //          byte lengths of color/style/fillColor/pointColor, then x0,y0,x1,y1,…]
 //   text: those four strings per line, concatenated UTF-8, in that field order.
-// Every field is explicit, so a line missing one encodes as the core's default for
-// it (core/models.hpp) and decodes back complete.
+// A line missing a field encodes as the core's default for it (core/models.hpp).
 
 const utf8 = new TextEncoder();
 const utf8Decode = new TextDecoder();
@@ -14,10 +11,8 @@ const DEFAULTS = {
   color: '#FFFF00', thickness: 2, pointSize: 4, style: 'solid',
   locked: false, fillColor: 'transparent', pointColor: '',
 };
-// The four string fields, in the order they occupy the text buffer.
 const TEXT_FIELDS = ['color', 'style', 'fillColor', 'pointColor'];
 
-// Encode `lines` into { nums: Float64Array, text: Uint8Array }.
 export const encodeLines = (lines) => {
   const rows = (Array.isArray(lines) ? lines : []).map((line) => ({
     line: line || {},
@@ -42,8 +37,7 @@ export const encodeLines = (lines) => {
   return { nums, text };
 };
 
-// Decode what the buffers actually hold — lengths are honoured, never trusted, so a
-// truncated snapshot stops at the last complete line (as the C++ decoder does).
+// Lengths are honoured, never trusted: a truncated snapshot stops at the last complete line.
 export const decodeLines = (nums, text) => {
   const out = [];
   if (!nums || nums.length < 1) return out;

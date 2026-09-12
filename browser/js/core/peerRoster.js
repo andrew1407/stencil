@@ -1,7 +1,5 @@
-// ── PeerRoster: who else has this app open, from the cross-tab roll-call ──
-// The peer bookkeeping behind tabsCoordinator.js's BroadcastChannel transport: which peer
-// ids answered HELLO/HERE, what each one has open, and which are incognito sessions.
-// DOM-free and transport-free — it only holds the three collections and derives from them.
+// The peer bookkeeping behind tabsCoordinator.js's BroadcastChannel transport; DOM-free and
+// transport-free.
 export class PeerRoster {
   #seen = new Set();           // peer ids that answered the roll-call (this tab included)
   #active = new Map();         // peerId -> activeId
@@ -9,7 +7,6 @@ export class PeerRoster {
 
   see(peerId) { this.#seen.add(peerId); }
 
-  // A peer said goodbye: it leaves every map at once.
   forget(peerId) {
     this.#seen.delete(peerId);
     this.#active.delete(peerId);
@@ -27,7 +24,6 @@ export class PeerRoster {
     else this.#incognito.delete(peerId);
   }
 
-  // Best-effort tab count: every id that has answered so far.
   tabCount() {
     const count = this.#seen.size;
     return { count, youAreOnly: count <= 1 };

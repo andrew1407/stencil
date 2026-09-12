@@ -1,16 +1,12 @@
-// Pure row-open gesture logic lifted out of ui/projectsModal.js — no DOM here.
+// Pure row-open gesture logic — no DOM here.
 import { isTouchLike } from '../utils.js';
 
-// ── Opening a project row: gesture → intent ─────────────────────────────────
 // MOUSE   click            → confirm, this tab      dblclick        → open now, this tab
 //         ⌘/Ctrl+click     → confirm, NEW TAB       ⌘/Ctrl+dblclick → open now, NEW TAB
-//         Enter / Space    → confirm, this tab (⌘/Ctrl held → new tab), like a single click
+//         Enter / Space    → confirm, this tab (⌘/Ctrl held → new tab)
 // TOUCH   tap              → confirm, this tab      new tab → the row's ⋯ menu
-//
-// Touch deliberately has NO hold gesture: press-and-hold is the list's drag-to-reorder
-// pickup (touchDrag.js), so the ⋯ menu is the touch route to a new tab. Movement always
-// wins: past the slop the gesture belongs to the drag/scroll and any pending open is
-// dropped. Pure — unit-tested.
+// Touch has NO hold gesture: press-and-hold is the drag-to-reorder pickup (touchDrag.js).
+// Past the slop the gesture belongs to the drag/scroll and any pending open is dropped.
 export const DOUBLE_CLICK_MS = 250;    // single-click actions wait this long for a dblclick
 export const DRAG_SLOP_PX = 10;        // travel that means "this is a drag/scroll, not a tap"
 export const rowOpenIntent = ({ type, ctrlKey, metaKey } = {}) => {
@@ -19,9 +15,8 @@ export const rowOpenIntent = ({ type, ctrlKey, metaKey } = {}) => {
   return { confirm: type !== 'dblclick', target };
 };
 
-// The gesture machine behind a row. The crux is the DEFERRED single click: a plain click
-// waits one double-click interval and a dblclick cancels it, so the confirmation modal
-// never flashes open and shut. Timers and the touch test are injected for DOM-free tests.
+// A plain click waits one double-click interval and a dblclick cancels it, so the
+// confirmation modal never flashes open and shut. Timers and the touch test are injected.
 export const createOpenGesture = ({
   run,
   touch = () => isTouchLike(),
@@ -54,10 +49,8 @@ export const createOpenGesture = ({
       cancelClick();
       run(rowOpenIntent({ type: 'key', ctrlKey: e.ctrlKey, metaKey: e.metaKey }));
     },
-    // ── Pointer travel: MOVEMENT WINS ──
-    // Past the slop the gesture belongs to the drag/scroll: the pending open is dropped
-    // and the click that may follow the release is swallowed. Nothing here ever OPENS
-    // anything — the hold is the list's reorder pickup, not ours.
+    // Movement wins: past the slop the pending open is dropped and the click that may
+    // follow the release is swallowed. Nothing here ever OPENS anything.
     pressStart(pt = {}) {
       swallowNextClick = false;
       press = { x: pt.x || 0, y: pt.y || 0, moved: false };
@@ -79,8 +72,7 @@ export const createOpenGesture = ({
   };
 };
 
-// Whether an out-of-band change (server event, peers echo, another tab) may rebuild the
-// list RIGHT NOW: never mid-drag (the rebuild destroys the dragged row) and never while a
-// removal wipe plays — those wait for beginRemoval's settle render. Pure — unit-tested.
+// May an out-of-band change rebuild the list RIGHT NOW? Never mid-drag (the rebuild destroys
+// the dragged row) and never while a removal wipe plays.
 export const canRefreshList = ({ open = true, dragging = false, removing = false } = {}) =>
   !!open && !dragging && !removing;

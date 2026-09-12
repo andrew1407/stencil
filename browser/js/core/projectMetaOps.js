@@ -1,44 +1,36 @@
-// Ported from js/core/projectTransferController.js: the project-meta writes (rename, colour,
-// keywords, description, blank colour) and the version-guarded single-field server push they
-// all ride. `c` is the ProjectTransferController — these read its storage/tabs/host deps.
+// The project-meta writes (rename, colour, keywords, description, blank colour) and the
+// version-guarded single-field server push they all ride. `c` is the ProjectTransferController.
 import { notify } from '../utils.js';
 import { PROJECT_ACTION } from '../worker/messages.js';
 import { normalizeHex } from './accents.js';
 import { requireConnection } from '../net/remoteSync.js';
 import { getSyncToServer } from '../net/connectionStore.js';
 
-// Rename a project. Registry meta is the source of truth for the projects list, and
-// save()'s name fallback prefers it over imageBaseName, so an active-project rename
-// survives saves. Notifies peers to re-render. Returns updated meta (null for unknown id).
+// Registry meta is the source of truth for the name, and save() prefers it over
+// imageBaseName. Returns updated meta (null for unknown id).
 export function renameProject(c, id, name) {
   const clean = String(name || '').trim();
   if (!clean) return null;
-  // Names must be unique across projects. The UI surfaces null as "kept old name";
-  // the console's Project.name setter checks store.nameExists() first to throw.
+  // Names are unique; null reads as "kept old name" in the UI (the console checks nameExists first).
   if (c.storage.store.nameExists(clean, id)) {
     notify(`A project named “${clean}” already exists`, 'fail');
     return null;
   }
   const meta = c.storage.store.rename(id, clean);
   if (meta) {
-    // The project name is THE name: keep the working/download name (imageBaseName)
-    // in lockstep for the active project, no matter which surface renamed it
-    // (topbar, projects list, links modal, console). No separate image name to track.
+    // imageBaseName (the working/download name) follows the project name for the active project.
     if (id === c.host.activeProjectId) {
       c.host.imageBaseName = clean;
-      c.host.updateProjectTitle();   // refresh tab title + topbar field
+      c.host.updateProjectTitle();
     }
     c.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
-    // Push the rename to the server immediately (like setProjectColor), so peers see it live.
     pushProjectFieldToServer(c, id, { name: clean }, 'Could not rename the project on the server');
   }
   return meta;
 }
 
-// Push a single field change (rename / colour) to the collaboration server for a
-// server-linked project. The active project uses its live remoteLink (and adopts the bumped
-// version); a non-active linked project uses its stored meta. Version-guarded + best-effort
-// (no-op when not linked / sync off) — a failure only notifies with `failMsg`.
+// Version-guarded, best-effort (no-op when not linked / sync off; a failure only notifies
+// with `failMsg`). The active project uses its live remoteLink and adopts the bumped version.
 export async function pushProjectFieldToServer(c, id, fields, failMsg) {
   if (!getSyncToServer()) return;
   const host = c.host;
@@ -54,17 +46,13 @@ export async function pushProjectFieldToServer(c, id, fields, failMsg) {
     notify(err.message, 'fail');
     return;
   }
-  // Version-guarded write with a bounded conflict retry (mirrors the CLI's
-  // putProjectField). A stale cached version — a concurrent field push / layout
-  // save from THIS client racing on remoteLink.version, or a peer's edit — 409s;
-  // re-read the server's current version and retry so the change isn't silently
-  // lost. Single-field sets are idempotent, so last-writer-wins is correct here.
+  // Bounded conflict retry (mirrors the CLI's putProjectField): a stale cached version 409s,
+  // so re-read and retry. Single-field sets are idempotent, so last-writer-wins is correct.
   let version = active ? host.remoteLink.version : (meta.remoteVersion || 0);
   for (let attempt = 0; attempt < 4; attempt++) {
     try {
       const rec = await conn.updateProject(remoteId, { ...fields, version });
-      // Adopt the bumped version only if remoteLink still points at this same
-      // project (the user may have switched projects during the await).
+      // Only if remoteLink still points at this project (the user may have switched during the await).
       if (rec && rec.version != null && host.activeProjectId === id
           && host.remoteLink && host.remoteLink.remoteId === remoteId) {
         host.remoteLink = { ...host.remoteLink, version: rec.version };
@@ -81,8 +69,7 @@ export async function pushProjectFieldToServer(c, id, fields, failMsg) {
   }
 }
 
-// Re-read a linked project's current server version (after a 409 or a file write
-// that bumps it without returning it), falling back to `fallback` on any error.
+// After a 409 or a file write that bumps the version without returning it.
 export async function currentRemoteVersion(c, conn, remoteId, fallback) {
   try {
     const full = await conn.getProject(remoteId);
@@ -93,14 +80,11 @@ export async function currentRemoteVersion(c, conn, remoteId, fallback) {
   }
 }
 
-// Set (or clear) a project's accent colour — the custom colour its NAME is painted in
-// wherever it appears. An empty/whitespace `color` clears it (back to the theme accent);
-// a valid hex is normalised to "#rrggbb". Invalid hex is rejected (keeps the old colour).
-// Persists to the registry, repaints the active-project UI, notifies peers, and pushes the
-// colour to the server for a server-linked project. Returns updated meta (null for unknown id).
+// The custom colour the project's NAME is painted in. Empty clears it (theme accent);
+// invalid hex is rejected. Returns updated meta (null for unknown id).
 export function setProjectColor(c, id, color) {
   const raw = String(color == null ? '' : color).trim();
-  let next = '';   // empty → explicit clear (theme fallback)
+  let next = '';
   if (raw) {
     next = normalizeHex(raw);
     if (!next) {
@@ -112,14 +96,11 @@ export function setProjectColor(c, id, color) {
   if (!meta) return null;
   if (id === c.host.activeProjectId) c.host.updateProjectTitle();
   c.tabs.projectsChanged({ id, action: PROJECT_ACTION.UPDATED });
-  // Best-effort server push for a server-linked project (no-op when not linked).
   pushProjectFieldToServer(c, id, { color: next }, 'Could not set project color on the server');
   return meta;
 }
 
-// Set a project's search keywords (normalized by the store). Mirrors setProjectColor:
-// writes local meta, broadcasts to peer tabs, and best-effort pushes to the server for a
-// server-linked project. Returns the stored meta, or null on unknown id.
+// Keywords are normalized by the store. Null on unknown id.
 export function setProjectKeywords(c, id, keywords) {
   const meta = c.storage.store.setKeywords(id, keywords);
   if (!meta) return null;
@@ -128,8 +109,7 @@ export function setProjectKeywords(c, id, keywords) {
   return meta;
 }
 
-// Set a project's free-text description (trimmed by the store; '' clears). Same shape as
-// setProjectKeywords: local meta, peer tabs, best-effort server push. Null on unknown id.
+// Trimmed by the store; '' clears. Null on unknown id.
 export function setProjectDescription(c, id, description) {
   const meta = c.storage.store.setDescription(id, description);
   if (!meta) return null;
@@ -138,10 +118,8 @@ export function setProjectDescription(c, id, description) {
   return meta;
 }
 
-// Set a project's blank-fill colour by id. No-op (null) for a non-blank project (only blanks have
-// a blank colour). When `id` is the ACTIVE project, recolours the visible background in place
-// (setBlankColor); otherwise updates the stored meta + peers + server. `color` is any normalizeHex
-// form. Returns the stored meta, or null.
+// Null for a non-blank project. The ACTIVE project recolours in place (setBlankColor);
+// otherwise stored meta + peers + server.
 export function setProjectBlankColor(c, id, color) {
   const cur = c.storage.store.getMeta(id);
   if (!cur || !cur.blank) return null;
