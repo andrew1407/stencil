@@ -40,20 +40,26 @@ jobs:
     name: Package (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     env:
-      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      # One directory for whichever cache tool the OS uses, so a single cache step covers all
+      # three. Both tools read their own variable and ignore the other's.
+      CCACHE_DIR: ${{ github.workspace }}/.compilercache
       CCACHE_MAXSIZE: 500M
+      SCCACHE_DIR: ${{ github.workspace }}/.compilercache
+      SCCACHE_CACHE_SIZE: 500M
     strategy:
       fail-fast: false
       matrix:
-        # `launcher` carries the ccache wiring, and empty means "no compiler cache here":
-        # the Windows build uses the Visual Studio generator, which ignores CMake's
-        # compiler launchers (ci.yml builds with Ninja, where they would work).
+        # `parallel` is the runner's core count — 3 on the small macOS box, 4 elsewhere.
+        # Windows needs Ninja: the Visual Studio generator ignores CMake's compiler
+        # launchers, so it is the one generator that cannot be cached. MSVC is also why it
+        # uses sccache rather than ccache.
         include:
-          - { os: macos-latest,   name: macOS,   ext: dmg,
-              launcher: '-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache' }
-          - { os: windows-latest, name: Windows, ext: zip,    launcher: '' }
-          - { os: ubuntu-latest,  name: Linux,   ext: tar.gz,
-              launcher: '-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache' }
+          - { os: macos-latest,   name: macOS,   ext: dmg,    parallel: 3,
+              cachetool: ccache,  generator: '' }
+          - { os: windows-latest, name: Windows, ext: zip,    parallel: 4,
+              cachetool: sccache, generator: '-G Ninja' }
+          - { os: ubuntu-latest,  name: Linux,   ext: tar.gz, parallel: 4,
+              cachetool: ccache,  generator: '-G Ninja' }
     steps:
       - uses: actions/checkout@v5
 
@@ -70,41 +76,48 @@ jobs:
       # thing cached between runs, so every push recompiled all of it. The cache is
       # restored by prefix — a new commit starts from the previous build's objects and
       # only recompiles what changed.
-      - name: Install ccache
-        if: matrix.launcher != ''
-        run: ${{ runner.os == 'macOS' && 'brew install ccache' || 'sudo apt-get update && sudo apt-get install -y ccache' }}
+      - name: Install ccache (+ Ninja on Linux)
+        if: matrix.cachetool == 'ccache'
+        run: ${{ runner.os == 'macOS' && 'brew install ccache' || 'sudo apt-get update && sudo apt-get install -y ccache ninja-build' }}
+
+      # MSVC cannot be cached through the Visual Studio generator, so Windows builds with
+      # Ninja inside a developer environment — the same shape ci.yml's Linux builds use.
+      - name: Install sccache + Ninja (Windows)
+        if: matrix.cachetool == 'sccache'
+        run: choco install sccache ninja -y --no-progress
+
+      - name: MSVC developer environment (Windows)
+        if: matrix.cachetool == 'sccache'
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Restore the compiler cache
-        if: matrix.launcher != ''
         uses: actions/cache@v4
         with:
-          path: ${{ github.workspace }}/.ccache
+          path: ${{ github.workspace }}/.compilercache
           key: ccache-desktop-${{ matrix.os }}-${{ github.sha }}
           restore-keys: ccache-desktop-${{ matrix.os }}-
 
       - name: Reset the cache counters
-        if: matrix.launcher != ''
-        run: ccache --zero-stats
+        run: ${{ matrix.cachetool }} --zero-stats
 
       # STENCIL_REQUIRE_QT fails loudly if Qt is missing (rather than skipping the GUI +
       # CPack config and erroring later in cpack); CMAKE_PREFIX_PATH points at the Qt above.
       - name: Configure (portable build — no repo-local state dir)
         working-directory: desktop
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTENCIL_DEV_STATE_DIR=OFF -DSTENCIL_REQUIRE_QT=ON -DSTENCIL_BUILD_TESTS=OFF ${{ matrix.launcher }} -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}"
+        run: cmake -S . -B build ${{ matrix.generator }} -DCMAKE_BUILD_TYPE=Release -DSTENCIL_DEV_STATE_DIR=OFF -DSTENCIL_REQUIRE_QT=ON -DSTENCIL_BUILD_TESTS=OFF -DCMAKE_C_COMPILER_LAUNCHER=${{ matrix.cachetool }} -DCMAKE_CXX_COMPILER_LAUNCHER=${{ matrix.cachetool }} -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}"
 
       # Build only the shipped app, not the 66 Qt test binaries (ci.yml builds + runs those).
       # STENCIL_BUILD_TESTS=OFF above is what keeps them out: cpack runs the `preinstall`
       # target, which builds `all`, so merely limiting THIS step to --target stencil does not.
-      # --parallel 3 caps concurrent links so they can't thrash the small macOS runner.
+      # --parallel is the runner's core count; the macOS box has fewer than the others.
       - name: Build
         working-directory: desktop
-        run: cmake --build build --config Release --target stencil --parallel 3
+        run: cmake --build build --config Release --target stencil --parallel ${{ matrix.parallel }}
 
       # Prints the hit rate, so a cache that silently stops working is visible in the log
       # rather than just showing up as a slow job.
       - name: Compiler cache hit rate
-        if: matrix.launcher != ''
-        run: ccache --show-stats
+        run: ${{ matrix.cachetool }} --show-stats
 
       - name: Package (deploy Qt + cpack)
         working-directory: desktop
