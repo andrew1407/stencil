@@ -14,62 +14,47 @@ import (
 	"stencil/server/internal/testutil"
 )
 
-// TestFileUploadOnSweptProjectCleansUpBytes covers the sweep-vs-upload race: if the
-// project row is deleted (expired + swept) between the upload handler's existence
-// check and its SetFile write, the handler must drop the just-written bytes (not
-// orphan them in the filestore) and report 404.
-func TestFileUploadOnSweptProjectCleansUpBytes(t *testing.T) {
-	fs, err := filestore.New(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
+// An upload whose project row is swept mid-flight must answer 404 and leave no
+// bytes behind. The two write paths notice at different points: original/result
+// through the failing SetFile, a filestore-only kind through the re-check the
+// handler does after writing (it never calls SetFile at all).
+func TestUploadOnSweptProjectCleansUpBytes(t *testing.T) {
+	cases := []struct {
+		name, kind, ext, query string
+		body                   []byte
+		sweep                  func(*testutil.MemStore, string)
+	}{
+		{name: "original: SetFile reports the row gone", kind: "original", ext: "png",
+			query: "&w=2&h=2", body: []byte{0x89, 0x50, 1, 2},
+			sweep: func(st *testutil.MemStore, id string) { st.SweepOnWrite(id) }},
+		{name: "video: the post-write re-check finds it gone", kind: "video", ext: "mp4",
+			body:  []byte("stub mp4"),
+			sweep: func(st *testutil.MemStore, id string) { st.GoneAfterGets(id, 1) }},
 	}
-	st := testutil.NewMemStore()
-	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), AdminToken: testAdmin})
-	tok := issueToken(t, api, "")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fs, err := filestore.New(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			st := testutil.NewMemStore()
+			api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), AdminToken: testAdmin})
+			tok := issueToken(t, api, "")
 
-	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"doomed","hasImage":true}`))
-	var p protocol.ProjectRecord
-	json.Unmarshal(rec.Body.Bytes(), &p)
+			rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"doomed","hasImage":true}`))
+			var p protocol.ProjectRecord
+			json.Unmarshal(rec.Body.Bytes(), &p)
+			tc.sweep(st, p.ID)
 
-	// Simulate the sweep deleting the row right after the handler's GetProject check.
-	st.SweepOnWrite(p.ID)
-
-	up := do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/original?ext=png&w=2&h=2", tok, []byte{0x89, 0x50, 1, 2})
-	if up.Code != http.StatusNotFound {
-		t.Fatalf("swept-mid-upload should 404, got %d", up.Code)
-	}
-	// The bytes written before SetFile failed must have been cleaned up, not orphaned.
-	if _, err := fs.Get(p.ID, "original", "png"); err == nil {
-		t.Fatal("orphaned bytes: the file should have been removed on the swept-write path")
-	}
-}
-
-// TestVideoUploadOnSweptProjectCleansUpBytes is the filestore-only-kind twin of
-// the test above: video/variantN uploads never call SetFile, so the handler
-// re-checks project existence after writing and must drop the bytes when the
-// sweep deleted the row mid-upload.
-func TestVideoUploadOnSweptProjectCleansUpBytes(t *testing.T) {
-	fs, err := filestore.New(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	st := testutil.NewMemStore()
-	api := New(Deps{Projects: st, Sessions: st, Files: fs, Bus: bus.NewInProc(), AdminToken: testAdmin})
-	tok := issueToken(t, api, "")
-
-	rec := do(t, api, http.MethodPost, "/projects", tok, []byte(`{"name":"doomed","hasImage":true}`))
-	var p protocol.ProjectRecord
-	json.Unmarshal(rec.Body.Bytes(), &p)
-
-	// Let the handler's pre-check pass, then report the row gone on the re-check.
-	st.GoneAfterGets(p.ID, 1)
-
-	up := do(t, api, http.MethodPost, "/projects/"+p.ID+"/files/video?ext=mp4", tok, []byte("stub mp4"))
-	if up.Code != http.StatusNotFound {
-		t.Fatalf("swept-mid-upload should 404, got %d", up.Code)
-	}
-	if _, err := fs.Get(p.ID, "video", "mp4"); err == nil {
-		t.Fatal("orphaned bytes: the video should have been removed on the swept-write path")
+			up := do(t, api, http.MethodPost,
+				"/projects/"+p.ID+"/files/"+tc.kind+"?ext="+tc.ext+tc.query, tok, tc.body)
+			if up.Code != http.StatusNotFound {
+				t.Fatalf("swept-mid-upload should 404, got %d", up.Code)
+			}
+			if _, err := fs.Get(p.ID, tc.kind, tc.ext); err == nil {
+				t.Fatal("orphaned bytes: the file should have been removed on the swept-write path")
+			}
+		})
 	}
 }
 
