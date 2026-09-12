@@ -62,10 +62,12 @@ jobs:
       # CPack config and erroring later in cpack); CMAKE_PREFIX_PATH points at the Qt above.
       - name: Configure (portable build — no repo-local state dir)
         working-directory: desktop
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTENCIL_DEV_STATE_DIR=OFF -DSTENCIL_REQUIRE_QT=ON -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}"
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTENCIL_DEV_STATE_DIR=OFF -DSTENCIL_REQUIRE_QT=ON -DSTENCIL_BUILD_TESTS=OFF -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}"
 
-      # Build only the shipped app, not the ~dozen Qt test binaries (ci.yml builds + runs
-      # those). --parallel 3 caps concurrent links so they can't thrash the small macOS runner.
+      # Build only the shipped app, not the 66 Qt test binaries (ci.yml builds + runs those).
+      # STENCIL_BUILD_TESTS=OFF above is what keeps them out: cpack runs the `preinstall`
+      # target, which builds `all`, so merely limiting THIS step to --target stencil does not.
+      # --parallel 3 caps concurrent links so they can't thrash the small macOS runner.
       - name: Build
         working-directory: desktop
         run: cmake --build build --config Release --target stencil --parallel 3
