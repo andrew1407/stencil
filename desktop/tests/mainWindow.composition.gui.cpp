@@ -142,6 +142,64 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(win.acceptDrops());
     QCOMPARE(win.windowTitle(), QStringLiteral("Stencil"));
   }
+
+  // eventFilter is a chain of concern-sized handlers run top to bottom, and most of them
+  // deliberately do NOT consume: the verdict per (object, event) and the fall-through are the
+  // contract. These cases pin both — a handler that starts consuming, or one moved ahead of
+  // another, fails here rather than in a gesture nobody re-tests.
+  void eventFilterVerdictsArePinned() {
+    MainWindow win(nullptr, false);
+    win.resize(1000, 760);
+    win.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&win));
+    auto* bar = win.canvasScrollBar(Qt::Vertical);
+    QVERIFY(bar);
+
+    // An Enter on a canvas scrollbar is observed (it pins the bar visible) and passed on —
+    // the blocked-cursor handler after it sees the very same event.
+    QEnterEvent enter(QPointF(1, 1), QPointF(1, 1), QPointF(1, 1));
+    QCOMPARE(win.eventFilter(bar, &enter), false);
+    QVERIFY(win.scrollbarHovered_);
+    QEvent leave(QEvent::Leave);
+    QCOMPARE(win.eventFilter(bar, &leave), false);
+    QVERIFY(!win.scrollbarHovered_);
+
+    // A text box owns the standard editing chords: ShortcutOverride is CLAIMED there, so the
+    // canvas action sharing the chord never fires. The same key elsewhere is left alone.
+    auto* box = win.findChild<QPlainTextEdit*>("chatInput");
+    QVERIFY(box);
+    QKeyEvent selectAll(QEvent::ShortcutOverride, Qt::Key_A, Qt::ControlModifier, "a");
+    QCOMPARE(win.eventFilter(box, &selectAll), true);
+    QKeyEvent selectAllElsewhere(QEvent::ShortcutOverride, Qt::Key_A, Qt::ControlModifier, "a");
+    QCOMPARE(win.eventFilter(&win, &selectAllElsewhere), false);
+
+    // Escape with no popover open and not in fullscreen is nobody's: it travels on.
+    QKeyEvent esc(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+    QCOMPARE(win.eventFilter(&win, &esc), false);
+
+    // The zoom field opens its preset list on a keyboard focus, and never consumes — its
+    // caret and typing must behave like any line edit's.
+    QFocusEvent tabIn(QEvent::FocusIn, Qt::TabFocusReason);
+    QCOMPARE(win.eventFilter(win.zoom_->lineEdit(), &tabIn), false);
+
+    // A left press on the empty viewport margin is left alone while nothing is selected…
+    QWidget* viewport = win.findChild<QScrollArea*>("canvasViewport")->viewport();
+    QMouseEvent press(QEvent::MouseButtonPress, QPointF(4, 4), QPointF(4, 4), Qt::LeftButton,
+                      Qt::LeftButton, Qt::NoModifier);
+    QCOMPARE(win.eventFilter(viewport, &press), false);
+    // …and a plain wheel over it scrolls rather than zooming (only Ctrl+wheel zooms).
+    QWheelEvent wheel(QPointF(4, 4), QPointF(4, 4), QPoint(), QPoint(0, 120), Qt::NoButton,
+                      Qt::NoModifier, Qt::NoScrollPhase, false);
+    QCOMPARE(win.eventFilter(viewport, &wheel), false);
+
+    // A double-click on the read-only project name enters the inline edit and is consumed.
+    QVERIFY(win.nameBar_.field);
+    QMouseEvent dbl(QEvent::MouseButtonDblClick, QPointF(2, 2), QPointF(2, 2), Qt::LeftButton,
+                    Qt::LeftButton, Qt::NoModifier);
+    const bool wasEditing = win.nameBar_.editing;
+    QCOMPARE(win.eventFilter(win.nameBar_.field, &dbl), !wasEditing);
+    if (!wasEditing) win.cancelProjectName();
+  }
 };
 
 QTEST_MAIN(MainWindowGuiTest)
