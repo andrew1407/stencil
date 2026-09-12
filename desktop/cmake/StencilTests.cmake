@@ -387,6 +387,27 @@ stencil_headless_test(stencil_projectsbatch_headless
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
+# The same dialog's composition + row-data pin: what the constructor builds, in which order,
+# and exactly what refresh() writes onto every row. Same source set as the batch suite.
+stencil_headless_test(stencil_projectsdialogrows_headless
+  SOURCES ${STENCIL_DUSTKIT_SOURCES}
+    ${STENCIL_CONTROLREVEAL_SOURCES}
+    ${STENCIL_FILTERFADE_SOURCES}
+    ${STENCIL_APPTOOLTIP_SOURCES}
+    ${STENCIL_DISINTEGRATE_SOURCES}
+    tests/projectsDialogRows.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
+    src/support/tipContent.cpp    # the rows' rich tooltips (appTooltip.hpp calls into it)
+    ${STENCIL_PROJECTS_DIALOG_SOURCES}
+    src/dialogs/expirationDialog.cpp src/dialogs/expirationDialogCalendar.cpp  # the ⋯ menu's "Expiration…" opens it in place now
+    ${STENCIL_SERVERCLIENT_SOURCES} src/net/fetchGuard.cpp        # the row thumbnails' SSRF guard
+    ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp src/support/guiHelpers.cpp src/support/guiHelpersColor.cpp
+    ${STENCIL_THEME_SOURCES}         # …and its colour wells take the theme's input chrome
+    src/support/iconSet.cpp src/support/modalReveal.cpp
+    src/support/menuReveal.cpp    # searchCombo's popup plays this dust
+    src/support/searchCombo.cpp src/support/searchComboPopup.cpp   # the dialog's filter/sort/mode pickers are these now
+    resources/app.qrc
+  LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
+
 # Server-connected co-edit smoke test: drives the async open/load + guarded-write-merge
 # primitives that MainWindow::openServerProject/saveToServer are built on, with two
 # connections as two editors (self-skips when no server is reachable — point it at one
