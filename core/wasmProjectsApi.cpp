@@ -1,11 +1,6 @@
-// WebAssembly ABI for the pure project rules in core/state/projectsStore.cpp.
-//
-// The registry itself is not a twin of the browser's store (the JS class is
-// localStorage-backed; this one is in-memory), but the expiry arithmetic and the
-// refresh presets are the same rule on both sides and must not drift. They read only
-// scalars, so they cross as plain functions — no handle, no snapshot codec.
-// Epoch milliseconds cross as doubles: exact well past 2^53, and no BigInt in the
-// browser wrapper. Pinned by browser/tests/wasm-parity-projects.test.js.
+// WebAssembly ABI for the pure project rules of core/state/projectsStore.cpp (the
+// registry itself is not a twin of the browser's localStorage store). Epoch ms cross
+// as doubles — exact past 2^53, no BigInt. Pinned by browser/tests/wasm-parity-projects.
 
 #include "projectsStore.hpp"
 
@@ -16,7 +11,6 @@ using namespace stencil::core;
 
 namespace {
 
-  // The rules read nothing but expiresAt, so a meta carrying it is the whole input.
   ProjectMeta withExpiry(double expiresAt) {
     ProjectMeta m;
     m.expiresAt = static_cast<long long>(expiresAt);
@@ -32,7 +26,6 @@ namespace {
 
 extern "C" {
 
-  // Milliseconds for a refresh preset; unknown or empty is one week.
   double stencil_projects_periodMs(const char* period) {
     return static_cast<double>(ProjectsStore::periodMs(period ? period : ""));
   }
@@ -49,7 +42,6 @@ extern "C" {
     return ProjectsStore::shouldPersist(activeId, temporary != 0) ? 1 : 0;
   }
 
-  // expiresAt of 0 is "keep forever" on both sides.
   int stencil_projects_isExpired(double expiresAt, double now) {
     return rules().isExpired(withExpiry(expiresAt), static_cast<long long>(now)) ? 1 : 0;
   }

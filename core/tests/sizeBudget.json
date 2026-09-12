@@ -5,7 +5,7 @@
     "core/raster/rasterize.cpp": 247
   },
   "commentPct": {
-    "core": 23,
+    "core": 11,
     "core/abi": 15,
     "core/color": 11,
     "core/format": 21,
@@ -17,7 +17,7 @@
     "core/tests": 7
   },
   "exceptions": {
-    "core": "regroup artifact: 5 shared export bodies left cliApi/wasmApi for core/abi, so the ABI contract prose in cliApi.h is a larger share of what is left",
+    "core": "the ABI contract prose at the top of cliApi.h is pinned by core/tests/cliApi.test.cpp and stays",
     "core/format": "regroup artifact: the comment-dense tooltipRows/hotkeyFormat left core/page (20 -> 18) for their own dir",
     "core/geometry": "regroup artifact: the comment-light imageOps/rasterize left for core/raster; no comment was added",
     "core/raster": "regroup artifact: imageFilter arrived from core/color (19 -> 11); no comment was added"

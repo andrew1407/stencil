@@ -20,8 +20,6 @@
 using namespace stencil::core;
 
 namespace {
-  // The one string -> FilterMode conversion for this ABI; both filter entry points
-  // take the browser's mode word, so neither re-derives the mapping.
   FilterMode modeOf(const char* mode) {
     return filterModeFromString(mode ? std::string(mode) : std::string());
   }
@@ -145,9 +143,7 @@ extern "C" {
     sobelRows(luma, data, width, height, y0, y1);
   }
 
-  // `pointColor` is the point colour, appended LAST so the parameter order of every
-  // earlier argument is unchanged. NULL or "" means "inherit the stroke colour", which is
-  // what a caller that does not know about the field passes — see Line::pointColor.
+  // `pointColor` NULL or "" inherits the stroke colour — see Line::pointColor.
   void stencil_cli_rasterizeLine(uint8_t* buf, int w, int h,
                                  const double* pts, int nPts,
                                  const char* color, double thickness, double pointSize,
@@ -180,8 +176,7 @@ extern "C" {
 
   const char* stencil_cli_durationOffAliases(void) { return DurationParser::offAliases(); }
 
-  // Five more exports are emitted here from abi/shared.inc, shared verbatim
-  // with the other ABI.
+  // Five more exports come from abi/shared.inc, verbatim with the wasm ABI.
 #define STENCIL_ABI(wasmName, cliName) stencil_cli_##cliName
 #include "shared.inc"
 #undef STENCIL_ABI

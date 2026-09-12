@@ -1,12 +1,6 @@
-// Handle-based WebAssembly ABI for the core's STATEFUL classes.
-//
-// wasmApi.cpp exports pure functions; the classes in core/state/ own state, so
-// they cross the boundary as an opaque int handle from a create/destroy pair plus
-// operations that take it. Nothing but ints and doubles crosses, so the browser's
-// JS twin can be driven op-for-op against the C++ one (browser/tests/wasm-parity*).
-//
-// Handles are process-global and the host must destroy what it creates. An unknown
-// handle is a no-op returning a neutral value, never a crash.
+// Handle-based WebAssembly ABI for core/state/: an opaque int from create/destroy,
+// process-global, destroyed by the host. An unknown handle is a no-op returning a
+// neutral value, never a crash. Driven op-for-op by browser/tests/wasm-parity*.
 
 #include "handleTable.hpp"
 #include "historyStack.hpp"
@@ -18,8 +12,7 @@ using namespace stencil::core;
 
 namespace {
 
-  // A stack plus the snapshot its last undo/redo produced: the host reads the result
-  // out in a second call, once it knows how big the two buffers have to be.
+  // `result` holds the last undo/redo snapshot until the host reads it out.
   struct HistorySlot {
     HistoryStack stack;
     Lines result;
@@ -35,7 +28,6 @@ namespace {
     return table;
   }
 
-  // Write the event's coordinates to out[0..1] and return its HoldAction code.
   int emit(const HoldEvent& ev, double* out) {
     if (out != nullptr) {
       out[0] = ev.x;
@@ -48,8 +40,7 @@ namespace {
 
 extern "C" {
 
-  // ── hold-to-draw gesture machine (browser/js/core/holdDraw.js) ──
-  // Returns a handle > 0. Times are monotonic ms, coordinates host screen space.
+  // Times are monotonic ms, coordinates host screen space.
   int stencil_holdDraw_create(double holdDelay, double moveTolerance,
                               double rearmDistance) {
     return holdDraws().create(holdDelay, moveTolerance, rearmDistance);
@@ -78,8 +69,7 @@ extern "C" {
     if (c != nullptr) c->cancel();
   }
 
-  // The four drivers all return a HoldAction code (0 None … 6 Commit) and write the
-  // action's coordinates to out[0..1]; an unknown handle yields None.
+  // The four drivers return a HoldAction code (0 None … 6 Commit), coords in out[0..1].
   int stencil_holdDraw_pointerDown(int handle, double x, double y, double t,
                                    double* out) {
     HoldDrawController* c = holdDraws().get(handle);
@@ -102,9 +92,7 @@ extern "C" {
     return c == nullptr ? 0 : emit(c->pointerUp(t), out);
   }
 
-  // ── line-snapshot history (browser/js/core/historyStack.js) ──
-  // Snapshots cross as the flat (nums, text) pair from abi/linesCodec.hpp, both
-  // directions. Getters answer 0 / -1 for an unknown handle.
+  // Snapshots cross as the flat (nums, text) pair of abi/linesCodec.hpp, both ways.
   int stencil_history_create(void) { return histories().create(); }
 
   void stencil_history_destroy(int handle) { histories().destroy(handle); }
@@ -145,9 +133,8 @@ extern "C" {
     return h == nullptr ? 0 : static_cast<int>(h->stack.size());
   }
 
-  // Undo / redo: 1 when a snapshot is ready and its buffer lengths are written to
-  // outSizes[0..1], 0 for the JS null (nothing to undo / redo). The snapshot itself
-  // is read with stencil_history_readResult before the next call on this handle.
+  // Undo / redo: 1 with the buffer lengths in outSizes[0..1], 0 for the JS null. The
+  // snapshot is read with stencil_history_readResult before the next call on the handle.
   int stencil_history_undo(int handle, int* outSizes) {
     HistorySlot* h = histories().get(handle);
     if (h == nullptr) return 0;

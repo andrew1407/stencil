@@ -1,14 +1,11 @@
-// WebAssembly API surface: the crop-geometry exports.
-//
-// Split out of wasmApi.cpp on size; the same extern "C" contract applies (plain C
-// over doubles and output pointers, ccall/cwrap from the browser). Wiring: core/WASM.md.
+// WebAssembly ABI: the crop-geometry exports (same contract as wasmApi.cpp). Each
+// CropRect result is written to out[0..3] = {x, y, width, height}.
 
 #include "cropGeometry.hpp"
 
 using namespace stencil::core;
 
 namespace {
-  // Write a CropRect to out[0..3] = {x, y, width, height}.
   void writeRect(const CropRect& r, double* out) {
     out[0] = r.x;
     out[1] = r.y;
@@ -19,8 +16,6 @@ namespace {
 
 extern "C" {
 
-  // ── crop geometry (cropGeometry.js; shared with the Qt crop dialog) ──
-  // Each CropRect result is written to out[0..3] = {x, y, width, height}.
   int stencil_isAlbumOrientation(double width, double height) {
     return isAlbumOrientation(width, height) ? 1 : 0;
   }
@@ -64,10 +59,7 @@ extern "C" {
     return cropResizeScale(oldWidth, newWidth);
   }
 
-  // Rotate a crop rect one quarter turn (clockwise != 0 = right) within an image
-  // of imageW x imageH -> out[0..3] = {x, y, width, height}. Crop-local line
-  // points ride along via the plain rotateLinePointsQuarter core call (the
-  // browser runs that one in JS, like scaleLinePoints), so it needs no export.
+  // rotateLinePointsQuarter has no export: the browser runs it in JS, like scaleLinePoints.
   void stencil_rotateCropRectQuarter(double x, double y, double w, double h,
                                      double imageW, double imageH, int clockwise,
                                      double* out) {
