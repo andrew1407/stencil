@@ -5,6 +5,7 @@ pub mod cli;
 pub mod e2e;
 pub mod args;
 pub mod llm;
+pub mod walk;
 pub mod wire;
 
 use std::sync::LazyLock;

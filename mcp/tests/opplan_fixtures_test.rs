@@ -1,5 +1,6 @@
 //! Walk the shared op-plan conformance corpus (`browser/js/config/llm/fixtures/opPlan/`)
-//! through the REAL mcp validator (`opplan::parse_op_plan`). Port of the reference walker
+//! through the REAL mcp validator (`opplan::parse_op_plan`), one reported case per fixture.
+//! Port of the reference walker
 //! `browser/tests/opPlanFixtures.test.js` for the `mcp` profile — this PINS current
 //! behavior; measured disagreements live in `tests/fixture_overrides.json`, never as
 //! edits to the shared fixtures or to production code.
@@ -10,6 +11,7 @@ use serde_json::Value;
 use stencil_mcp::opplan::parse_op_plan;
 
 mod common;
+use common::walk::Walk;
 
 const FIXTURES_DIR: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/../browser/js/config/llm/fixtures/opPlan");
@@ -51,8 +53,7 @@ fn load_corpus() -> Vec<(String, Value)> {
     corpus
 }
 
-/// Port of the reference walker's corpus-shape check.
-#[test]
+/// The corpus-shape check: one case, and a malformed fixture names itself.
 fn corpus_is_well_formed() {
     let corpus = &*CORPUS;
     assert!(
@@ -109,44 +110,38 @@ fn corpus_is_well_formed() {
     }
 }
 
-/// Walk every fixture whose profiles include `mcp` or `all` through `parse_op_plan`.
+fn applies(fx: &Value) -> bool {
+    fx["profiles"]
+        .as_array()
+        .is_some_and(|p| p.iter().any(|p| matches!(p.as_str(), Some("mcp" | "all"))))
+}
+
 /// Verdict precedence: local override > knownDivergence.mcp > expect.
-#[test]
-fn mcp_verdicts_match_the_corpus() {
-    let overrides = common::overrides("opPlan");
-    let mut walked = 0usize;
-    let mut failures: Vec<String> = Vec::new();
-    for (file, fx) in &*CORPUS {
-        let applies = fx["profiles"]
-            .as_array()
-            .is_some_and(|p| p.iter().any(|p| matches!(p.as_str(), Some("mcp" | "all"))));
-        if !applies {
-            continue;
-        }
-        walked += 1;
-        let name = fx["name"].as_str().unwrap_or_default();
-        let want = overrides[name]["verdict"]
-            .as_str()
-            .or_else(|| fx["knownDivergence"]["mcp"].as_str())
-            .or_else(|| fx["expect"].as_str())
-            .unwrap();
-        // String input verbatim; object input serialized, as a model reply would arrive.
-        let text = match &fx["input"] {
-            Value::String(s) => s.clone(),
-            other => serde_json::to_string(other).unwrap(),
-        };
-        let got = match parse_op_plan(&text) {
-            Ok(_) => "valid",
-            Err(_) => "invalid",
-        };
-        if got != want {
-            failures.push(format!("{file}: expected {want}, mcp says {got}"));
-        }
+fn check_verdict(fx: &Value) {
+    let name = fx["name"].as_str().unwrap_or_default();
+    let want = common::overrides("opPlan")[name]["verdict"]
+        .as_str()
+        .or_else(|| fx["knownDivergence"]["mcp"].as_str())
+        .or_else(|| fx["expect"].as_str())
+        .expect("a verdict");
+    // String input verbatim; object input serialized, as a model reply would arrive.
+    let text = match &fx["input"] {
+        Value::String(s) => s.clone(),
+        other => serde_json::to_string(other).unwrap(),
+    };
+    let got = if parse_op_plan(&text).is_ok() { "valid" } else { "invalid" };
+    assert_eq!(got, want, "expected {want}, mcp says {got}");
+}
+
+fn main() {
+    let mut walk = Walk::new();
+    walk.case("corpus_is_well_formed", corpus_is_well_formed);
+    let walked = CORPUS.iter().filter(|(_, fx)| applies(fx)).count();
+    walk.case("every_mcp_profile_fixture_is_walked", move || {
+        assert!(walked >= 80, "expected many mcp-profile fixtures, walked {walked}");
+    });
+    for (file, fx) in CORPUS.iter().filter(|(_, fx)| applies(fx)) {
+        walk.case(format!("mcp/{file}"), || check_verdict(fx));
     }
-    assert!(walked >= 80, "expected many mcp-profile fixtures, walked {walked}");
-    assert!(
-        failures.is_empty(),
-        "op-plan verdict mismatches:\n{}",
-        failures.join("\n")
-    );
+    walk.run()
 }
