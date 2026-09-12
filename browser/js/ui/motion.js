@@ -1,13 +1,6 @@
-// ── Shared UI motion helpers ────────────────────────────────────
-// Pure decoration: a missing IntersectionObserver/MutationObserver (node tests,
-// old engines) simply means no animation — never a broken or hidden view. CSS
-// owns the actual keyframes (css/animations/); this file only toggles classes.
-// The sections live one per file under motion/; this is the single import point.
-//
-// The two gates every helper asks: `motionReduced()` is "nothing may move"
-// (the OS preference, or the user's own 'none'), `dustEnabled()` is "and it may be made
-// of particles" — false in 'slide', where each surface keeps its own plain CSS entrance.
-// Re-exported so a caller needs one import, not two.
+// Shared UI motion helpers: pure decoration, CSS owns the keyframes (css/animations/). The
+// sections live one per file under motion/; this is the single import point.
+// `motionReduced()` is "nothing may move", `dustEnabled()` is "and it may be particles".
 export { dustEnabled, motionReduced } from './motionPrefs.js';
 export * from './motion/reveal.js';
 export * from './motion/flip.js';

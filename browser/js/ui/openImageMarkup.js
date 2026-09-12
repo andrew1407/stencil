@@ -1,6 +1,5 @@
-// ── Markup: the unified "Open Image" dialog ─────────────────────────────────
-// Three tabs (Local file / URL link / Blank) over one footer. Built ONCE and reused, so
-// the component's onOpen resets every field rather than the markup being re-rendered.
+// Three tabs (Local file / URL link / Blank) over one footer. Built once and reused, so the
+// component's onOpen resets every field.
 import { icon } from './icons.js';
 import MEDIA_TYPES from '../config/mediaTypes.json' with { type: 'json' };
 

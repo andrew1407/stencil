@@ -1,8 +1,4 @@
-// ── Window-level pointer tracking + the composer size strip ─────
-// Shared by every drag gesture in the chat surfaces (panel resize, dock drag, input sizer).
-
-
-// Window-level pointer tracking for a drag gesture: move handler + one-shot up/cancel.
+// Window-level pointer tracking + the composer size strip, shared by every chat drag gesture.
 export const trackPointer = (onMove, onUp) => {
   const up = (ev) => {
     window.removeEventListener('pointermove', onMove);
@@ -15,9 +11,8 @@ export const trackPointer = (onMove, onUp) => {
   window.addEventListener('pointercancel', up);
 };
 
-// The slider-style strip ABOVE a composer resizes the textarea (the native grip is
-// off — the input is bottom-anchored, only its top edge can move). `onDrag` lets the
-// flyout re-place itself; `hold` keeps the gesture from reading as "the pointer left".
+// The strip above a composer resizes the textarea (the native grip is off — only the top
+// edge can move). `onDrag` lets the flyout re-place itself; `hold` keeps the gesture alive.
 export const wireInputSizer = (sizer, input, { host, onDrag, hold } = {}) => {
   sizer.addEventListener('pointerdown', (e) => {
     e.preventDefault();

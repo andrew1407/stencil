@@ -1,4 +1,3 @@
-// ── Markup: the assistant (LLM) settings modal ──────────────────────────────
 // Provider + endpoint fields (llm-contract.md §5) plus the voice rows. Every endpoint is
 // explicit user configuration — nothing here is ever filled from fetched content.
 import { icon } from './icons.js';

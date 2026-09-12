@@ -9,10 +9,8 @@ import { enhanceSelect } from './customSelect.js';
 import { loadVoiceSettings, saveVoiceSettings } from '../llm/voiceSettings.js';
 import { publish, EVENTS } from '../bus/appBus.js';
 
-// ── Component: assistant (LLM) settings modal ───────────────────
-// Provider + endpoint configuration for the chat panel (llm-contract.md §5), persisted as
-// drawingApp_llmSettings, on connectModal's settings-modal pattern. Endpoints come ONLY
-// from here (explicit user configuration) — never from fetched or scanned content.
+// Provider + endpoint configuration (llm-contract.md §5), persisted as drawingApp_llmSettings.
+// Endpoints come only from here — never from fetched or scanned content.
 export class StencilLlmSettingsModal extends StencilElement {
   static inner() { return llmSettingsModalInner(); }
   static template() { return hostTag('stencil-llm-settings-modal', 'id="chat-settings-overlay" class="app-modal-overlay"', StencilLlmSettingsModal.inner()); }
@@ -35,22 +33,18 @@ export class StencilLlmSettingsModal extends StencilElement {
     const saveChatsEl = $('chat-save-chats');
     const voiceSilenceEl = $('chat-voice-silence');
     const voiceLangEl = $('chat-voice-lang');
-    // Our own list, not the OS's (ui/customSelect.js) — like the Visuals dialog's menus.
+    // Our own list, not the OS's (ui/customSelect.js).
     enhanceSelect(voiceLangEl);
 
-    // The WORKING copy: edits live here (so the status row probes what you are
-    // typing) and reach storage only on Save — the desktop dialog's
-    // commit/discard model. Closing by any means (Cancel, ×, Escape,
-    // click-outside) discards, since onOpen reloads from storage.
+// The working copy: edits live here and reach storage only on Save; every close discards,
+// since onOpen reloads from storage (the desktop dialog's commit/discard model).
     let settings = loadLlmSettings();
-    let voice = loadVoiceSettings();   // its own store (drawingApp_voiceSettings), same commit model
-    // Persist AND tell the chat panel so it re-probes the provider status live.
+    let voice = loadVoiceSettings();
     const persist = () => {
       saveLlmSettings(settings);
       publish(EVENTS.llmSettingsChanged);
     };
 
-    // Server dropdown: live connections first, then saved-but-closed servers.
     const serverUrls = () => {
       const urls = [];
       for (const u of app.connections?.urls || []) urls.push(u);
@@ -58,10 +52,8 @@ export class StencilLlmSettingsModal extends StencilElement {
       return urls;
     };
 
-    // Live reachability of the EDITED settings — the same probeProvider behind
-    // the composer gear's dot, so misconfiguration shows inside the modal too
-    // (desktop LlmSettingsForm status-row parity). A generation counter drops
-    // stale async results so rapid edits never paint an older probe.
+// The same probeProvider behind the composer gear's dot (desktop LlmSettingsForm parity).
+// The generation counter drops stale async results.
     let statusReq = 0;
     const setStatus = (state, text) => {
       statusDot.className = `conn-status conn-status-${state}`;
@@ -96,7 +88,7 @@ export class StencilLlmSettingsModal extends StencilElement {
       apiKeyEl.value = settings.apiKey;
       saveChatsEl.checked = settings.saveChats === true;
       voiceSilenceEl.value = voice.silenceMs;
-      voiceLangEl.value = voice.language;   // the themed dropdown mirrors the wrapped setter
+      voiceLangEl.value = voice.language;
       const isServer = settings.provider === 'stencil-server';
       const isOff = settings.provider === 'none';
       baseUrlRow.style.display = isServer || isOff ? 'none' : '';
@@ -126,8 +118,7 @@ export class StencilLlmSettingsModal extends StencilElement {
       refreshModels();
     };
 
-    // Model suggestions: the provider's own model list feeds the datalist (ollama
-    // tags / openai-compat models / the server's default) — typing stays free-form.
+// The provider's own model list feeds the datalist; typing stays free-form.
     const modelList = $('chat-model-list');
     let modelReq = 0;
     const refreshModels = async () => {
@@ -143,8 +134,7 @@ export class StencilLlmSettingsModal extends StencilElement {
     };
 
     providerEl.addEventListener('change', () => {
-      // Pre-fill the provider's default base URL on switch — unless the user has
-      // overridden it (withProvider, the rule shared with stencil.llm()).
+// The provider's default base URL, unless the user overrode it (withProvider).
       settings = withProvider(settings, providerEl.value);
       render();
     });
@@ -152,8 +142,7 @@ export class StencilLlmSettingsModal extends StencilElement {
     modelEl.addEventListener('change', () => { settings.model = modelEl.value.trim();  });
     apiKeyEl.addEventListener('change', () => { settings.apiKey = apiKeyEl.value.trim(); renderStatus(); refreshModels(); });
     serverEl.addEventListener('change', () => { settings.serverUrl = serverEl.value; renderStatus(); refreshModels(); });
-    // Re-probe once typing settles — no request per keystroke (desktop's 600ms
-    // debounce), reading the LIVE field values so the check runs pre-persist.
+// Re-probe once typing settles (desktop's 600ms debounce), pre-persist.
     let typeTimer = null;
     const typeProbe = () => {
       clearTimeout(typeTimer);
@@ -165,28 +154,24 @@ export class StencilLlmSettingsModal extends StencilElement {
     };
     baseUrlEl.addEventListener('input', typeProbe);
     apiKeyEl.addEventListener('input', typeProbe);
-    // §12 opt-in: enabling starts persisting from the next turn; disabling stops
-    // writing but deletes nothing (clear/remove are the deletion paths).
+// §12 opt-in: disabling stops writing but deletes nothing.
     saveChatsEl.addEventListener('change', () => { settings.saveChats = saveChatsEl.checked;  });
 
     const shell = wireModalShell(overlay, $('chat-settings-btn'), $('chat-settings-close'), {
-      // Reopening always starts from what is STORED — that is what makes every
-      // close (Cancel, ×, Escape, click-outside) a discard.
+// Reopening from what is stored is what makes every close a discard.
       onOpen: () => { settings = loadLlmSettings(); voice = loadVoiceSettings(); render(); },
-      // The gear sits inside the composer's "…" menu, which closes as it is clicked —
-      // so the window flies to and from the "…" itself, and from above when no chat
-      // surface is on screen to hold one.
+// The gear sits inside the composer's "…" menu, which closes as it is clicked.
       originEl: () => visibleChatMoreBtn(),
     });
-    // Commit: the only path that writes storage and tells the panel to re-probe.
+    // The only path that writes storage.
     $('chat-settings-save').addEventListener('click', () => {
-      // The composer/model fields may hold text the user never blurred.
+      // Fields may hold text the user never blurred.
       settings.baseUrl = baseUrlEl.value.trim();
       settings.model = modelEl.value.trim();
       settings.apiKey = apiKeyEl.value.trim();
       settings.saveChats = saveChatsEl.checked;
       persist();
-      saveVoiceSettings({ silenceMs: voiceSilenceEl.value, language: voiceLangEl.value });   // dispatches its own event
+      saveVoiceSettings({ silenceMs: voiceSilenceEl.value, language: voiceLangEl.value });
       shell.close();
     });
     $('chat-settings-cancel').addEventListener('click', () => shell.close());

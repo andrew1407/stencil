@@ -1,33 +1,24 @@
 import { StencilElement, hostTag, define } from './base.js';
 import { icon } from './icons.js';
 import { surfaceIn, surfaceOut, dockAwayPoint, retargetDust, SURFACE_MENU_IN_MS } from './motion.js';
-// ── Component: bottom-left notification stack ───────────────────
-// Owns the show/auto-hide logic; utils.js `notify()` delegates to this.
-// #notify-balloon is the STACK, not a toast: each message gets its own .notify-toast
-// child, newest at the bottom, growing upward — a burst shows every message.
+// The bottom-left notification stack; utils.js `notify()` delegates here. Each message is
+// its own .notify-toast child, newest at the bottom.
 
-// Auto-hide delays: failures linger a bit longer so they're not missed; clickable
-// toasts (an action rides on them) linger longer still.
+// Failures linger longer; clickable toasts (an action rides on them) longer still.
 const FAIL_HIDE_MS = 3200;
 const OK_HIDE_MS = 2400;
 const CLICKABLE_HIDE_MS = 6000;
-// How long .notify-leaving stays on — matches notifyLeave in css/animations/overlays.css.
+// Matches notifyLeave in css/animations/overlays.css.
 const LEAVE_ANIM_MS = 260;
-// Toast dust, 2x the shared menu clock's length — a passing notice can afford to drift
-// rather than snap.
+// 2x the shared menu clock: a passing notice can afford to drift.
 const ENTER_DUST_MS = SURFACE_MENU_IN_MS * 2;   // 680
-// The exit is SHORTER than the entrance, not longer: an arrival can afford to drift, a
-// departure has nothing left to look at. At 1040ms the last stretch crawled — the toast
-// was long gone and its final grains were still inching along (user report).
+// Shorter than the entrance: a departure has nothing left to look at, and a longer one
+// left the final grains crawling after the toast was gone.
 const LEAVE_DUST_MS = 420;
-// The stack never grows past this (desktop parity: Notifications::kMaxVisible in
-// desktop/src/support/notifications.cpp). Past three the column starts walling off the
-// side of the canvas, and the oldest message is the one nobody is still reading.
+// Desktop parity: Notifications::kMaxVisible in desktop/src/support/notifications.cpp.
 export const MAX_VISIBLE = 3;
 
-// Squeeze any whitespace-free run (a filename, a URL) longer than `max` with a middle
-// ellipsis, so a toast stays a small balloon instead of a wall — full names belong in
-// tooltips and lists, not transient messages. Pure — unit-tested.
+// A whitespace-free run (a filename, a URL) longer than `max` gets a middle ellipsis.
 export const squeezeLongTokens = (msg, max = 48) =>
   String(msg ?? '').split(/(\s+)/).map((tok) => {
     if (/\s/.test(tok) || tok.length <= max) return tok;
@@ -35,36 +26,28 @@ export const squeezeLongTokens = (msg, max = 48) =>
     return tok.slice(0, keep) + '…' + tok.slice(-keep);
   }).join('');
 
-// Where the free area begins: a left-docked chat owns everything left of --chat-inset-left
-// (chatPanel.js updateNotifyInset), and the stack already sits beside it. 0 = the viewport.
+// A left-docked chat owns everything left of --chat-inset-left (chatPanel.js updateNotifyInset).
 const freeLeft = () => {
   try { return parseFloat(getComputedStyle(document.body).getPropertyValue('--chat-inset-left')) || 0; }
   catch { return 0; }
 };
 
-// The dust's origin/target: past the free area's left edge, at the toast's own
-// (bottom-of-stack) height. Only 0.15 toast-widths past it, not dockAwayPoint's 1.2: the
-// stack already sits at that edge, so a farther point had every grain off screen within
-// the exit's first beat and the leave read as a cut (desktop notifications.cpp twin).
+// Past the free area's left edge at the toast's own height; only 0.15 toast-widths past
+// it (not dockAwayPoint's 1.2), or every grain is off screen within the exit's first beat
+// (desktop notifications.cpp twin).
 const TOAST_REACH = 0.15;
 const toastDustPoint = (toast) => {
   const r = toast.getBoundingClientRect?.();
   if (!r || !(r.width > 0)) return dockAwayPoint(r, 'left');
   return { x: freeLeft() - r.width * TOAST_REACH, y: r.top + r.height / 2 };
 };
-// …on the app's own scatter curve, with no override: one timing function drives both the
-// mote's travel and its alpha, and tileScatterSurface holds alpha near 1 until 55%, so
-// linear and ease-in both left the cloud sitting at full opacity and snapping out.
-// Ease-out covers the distance early and fades with it — the only shape with no tail.
-// …and the whole cloud goes at once. The default per-mote stagger makes a window come
-// apart in a wave, but at toast size it just leaves a few stragglers fading over their own
-// full clock. Near-zero stagger: they leave together, so the cloud ends with the flight.
+// No curve override: one timing function drives travel and alpha, and the default
+// ease-out is the only shape with no tail. Near-zero stagger: at toast size a wave just
+// leaves stragglers, so the cloud ends with the flight.
 const TOAST_LEAVE_STAGGER = 0.12;
 
-// …and the cloud stays on the free side of that edge: the point it flies to/from is behind
-// the panel, so without this the motes streamed across the composer and the toast read as
-// jumping out of the chat. Clipped at the edge, they pour out from BEHIND it instead. The
-// clip is relative to the host's own box, so it is re-applied whenever the host is moved.
+// The cloud stays on the free side of the edge: clipped there, motes pour out from behind
+// the panel instead of across the composer. Relative to the host's box, so re-applied on move.
 const clipDustToFree = (toast) => {
   const host = toast?.__dustHost;
   const edge = freeLeft();
@@ -74,18 +57,14 @@ const clipDustToFree = (toast) => {
 };
 
 export class StencilNotifications extends StencilElement {
-  // The stack starts empty; every toast is created by notify().
   static inner() { return ''; }
   static template() { return hostTag('stencil-notifications', 'id="notify-balloon"', StencilNotifications.inner()); }
 
-  // `onClick` makes the toast an affordance (longer linger): clicking runs it and
-  // dismisses. `key` marks a running STATUS rather than an event: a new one with the
-  // same key replaces its predecessor instead of stacking under it.
+  // `onClick` makes the toast an affordance (longer linger). `key` marks a running status: a
+  // new one with the same key replaces its predecessor instead of stacking.
   notify(msg, type = 'ok', { onClick = null, key = null } = {}) {
     msg = squeezeLongTokens(msg);
-    // Coalesce FIRST: an identical clickless message already standing never stacks —
-    // its hide timer restarts and the entrance is NOT replayed (the element stays
-    // put), turning a zoom burst's per-step "Saved" chatter into one calm toast.
+    // Coalesce first: an identical clickless message restarts its timer, no replayed entrance.
     if (!onClick) {
       const dup = this.#live().find((el) =>
         el.classList.contains(`notify-${type}`)
@@ -98,17 +77,13 @@ export class StencilNotifications extends StencilElement {
         return;
       }
     }
-    // Replaced OUTRIGHT, not dismissed: the exit animation would keep the old toast
-    // beside the new one for its whole 260ms. (Same key + same text coalesced above;
-    // this replace is for a keyed status whose MESSAGE changed.)
+    // Replaced outright: the exit animation would keep the old toast beside the new one.
     if (key) for (const el of this.#live()) {
       if (el.dataset.notifyKey !== key) continue;
       clearTimeout(el._hideTimer);
       el.remove();
     }
-    // Cap BEFORE adding, so the stack is never over the limit even for a frame. Oldest
-    // first, and only toasts still standing count — one already playing its exit is on
-    // its way out and must not push a live one off the stack.
+    // Cap before adding; only toasts still standing count.
     const live = this.#live();
     for (let i = 0; i < live.length + 1 - MAX_VISIBLE; i++) this.#dismiss(live[i]);
 
@@ -127,11 +102,8 @@ export class StencilNotifications extends StencilElement {
         onClick();
       }, { once: true });
     }
-    // Appended last → bottom of the column, which is where the eye already is.
     this.appendChild(toast);
-    // Adding a row to the flex column bumps every sibling already flying (a burst
-    // firing on one tick, before either finished its own entrance) — drag their clouds
-    // along rather than leaving them stranded at the box they were grabbed at.
+    // A new row bumps every sibling still flying; drag their clouds along.
     for (const el of this.children) if (el !== toast) { retargetDust(el); clipDustToFree(el); }
     surfaceIn(toast, toastDustPoint(toast), { ms: ENTER_DUST_MS });
     clipDustToFree(toast);
@@ -139,26 +111,23 @@ export class StencilNotifications extends StencilElement {
       onClick ? CLICKABLE_HIDE_MS : (type === 'fail' ? FAIL_HIDE_MS : OK_HIDE_MS));
   }
 
-  // Toasts on screen, oldest first. DOM order is insertion order here — nothing
-  // reorders these children — and the ones already leaving are filtered out.
+  // Oldest first (DOM order is insertion order); the ones already leaving are filtered out.
   #live() {
     return [...this.children].filter((el) => !el.classList.contains('notify-leaving'));
   }
 
-  // Play a toast out and remove it. Idempotent: a toast retired early by the cap still
-  // has its own auto-hide timer pending, and that must not restage the exit.
+  // Idempotent: a toast retired early by the cap still has its auto-hide timer pending.
   #dismiss(toast) {
     if (!toast?.classList || toast.classList.contains('notify-leaving')) return;
     clearTimeout(toast._hideTimer);
-    // .notify-leaving gives the exit its own motion (drop away + shrink) instead of
-    // replaying the springy entrance backwards.
+    // .notify-leaving gives the exit its own motion instead of the entrance backwards.
     toast.classList.add('notify-leaving');
     toast.classList.remove('notify-clickable');
     surfaceOut(toast, toastDustPoint(toast), { ms: LEAVE_DUST_MS, delayScale: TOAST_LEAVE_STAGGER });
     clipDustToFree(toast);
     setTimeout(() => {
       toast.remove();
-      // Removing a row shrinks the column too — the same retarget, the other direction.
+      // Removing a row shrinks the column too.
       for (const el of this.children) { retargetDust(el); clipDustToFree(el); }
     }, LEAVE_ANIM_MS);
   }
