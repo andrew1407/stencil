@@ -107,7 +107,7 @@ namespace stencil::gui {
   }
 
   // Content-gated: an auto-focused empty search field must not pin its window open.
-  inline bool typedContentInside(QWidget* w) {
+  inline bool hasTypedContentInside(QWidget* w) {
     QWidget* f = QApplication::focusWidget();
     if (!f || !w || !w->isAncestorOf(f)) return false;
     if (auto* le = qobject_cast<QLineEdit*>(f)) return !le->text().trimmed().isEmpty();

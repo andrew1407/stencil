@@ -16,7 +16,7 @@
 #include "pillScrollBars.hpp"
 #include "tipContent.hpp"
 #include "../support/faceSwap.hpp"
-#include "../support/motionPrefs.hpp"   // support::dustAllowed()
+#include "../support/motionPrefs.hpp"   // support::isDustAllowed()
 #include "../support/themeSwapOverlay.hpp"
 
 #include <QApplication>

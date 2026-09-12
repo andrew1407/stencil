@@ -43,7 +43,7 @@ namespace stencil::gui {
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(w->graphicsEffect());
     // Same state again: touch nothing, or an unrelated refresh snaps a forming veil to its end value.
     if (!changed && fx) return;
-    if (!prev.isValid() || !changed || !support::dustMotionOk() || !w->isVisible()
+    if (!prev.isValid() || !changed || !support::isDustMotionOk() || !w->isVisible()
         || w->width() < 8 || w->height() < 8) {
       if (!fx) {
         fx = new QGraphicsOpacityEffect(w);

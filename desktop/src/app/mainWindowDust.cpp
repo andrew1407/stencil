@@ -52,7 +52,7 @@ namespace stencil::gui {
       Qt::DockWidgetArea area, bool gather, int ms, const std::function<void(int)>& pin, int full) {
     if (!chatDock_) return nullptr;
     QWidget* dustHost = chatDock_->window();
-    if (!dustHost || !support::dustMotionOk()) return nullptr;
+    if (!dustHost || !support::isDustMotionOk()) return nullptr;
     pin(full);
     const QPixmap snap = chatDock_->grab();
     const QRect picture(chatDock_->mapTo(dustHost, QPoint(0, 0)), chatDock_->size());
@@ -74,7 +74,7 @@ namespace stencil::gui {
   QPointer<gui::DisintegrateOverlay> MainWindow::panelSurfaceFlight(bool gather, int ms, int full) {
     if (!selPanel_) return nullptr;
     QWidget* dustHost = selPanel_->window();
-    if (!dustHost || !support::dustMotionOk()) return nullptr;
+    if (!dustHost || !support::isDustMotionOk()) return nullptr;
     selPanel_->setFixedWidth(full);
     if (QLayout* l = layout()) l->activate();   // the grab must see the open panel, not the rail
     const QPixmap snap = selPanel_->grab();
@@ -96,7 +96,7 @@ namespace stencil::gui {
   // The tool rows collapse as ONE block: their union rect is the picture and the motes stream past the top edge (browser dockAwayPoint(box, 'top')).
   QPointer<gui::DisintegrateOverlay> MainWindow::barsSurfaceFlight(
       const QList<QToolBar*>& bars, bool gather, int ms) {
-    if (!support::dustMotionOk()) return nullptr;
+    if (!support::isDustMotionOk()) return nullptr;
     QRect picture;
     for (QToolBar* b : bars) {
       if (!b->isVisible() || b->width() < 8 || b->height() < 8) continue;
@@ -134,7 +134,7 @@ namespace stencil::gui {
   // Entrance (browser selectionPanel.js surfaceIn). Call AFTER setVisible(true) + layout()->activate(), so the grab sees the populated bar.
   void MainWindow::dustSelectedLineBarIn() {
     if (!selectedLineBar_) return;
-    if (!support::dustMotionOk()) return;
+    if (!support::isDustMotionOk()) return;
     const QPixmap snap = selectedLineBar_->grab();
     const QRect picture(selectedLineBar_->mapTo(this, QPoint(0, 0)), selectedLineBar_->size());
     auto* fx = gui::DisintegrateOverlay::overSurface(
@@ -155,7 +155,7 @@ namespace stencil::gui {
   // Exit (surfaceOut). Call BEFORE setVisible(false), so the snapshot still shows the real bar.
   void MainWindow::dustSelectedLineBarOut() {
     if (!selectedLineBar_) return;
-    if (!support::dustMotionOk()) return;
+    if (!support::isDustMotionOk()) return;
     const QPixmap snap = selectedLineBar_->grab();
     const QRect picture(selectedLineBar_->mapTo(this, QPoint(0, 0)), selectedLineBar_->size());
     gui::DisintegrateOverlay::overSurface(

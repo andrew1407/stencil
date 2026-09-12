@@ -131,7 +131,7 @@ namespace stencil::gui {
     QRect clip_;
     double t_ = 0.0;
     int ms_ = 1;
-    bool dark_ = support::particleDark();
+    bool dark_ = support::isParticleDark();
     support::MoteSprites sprites_;   // shaped grains only — discs draw direct, antialiased
     // Read at the FIRST FRAME, not build time: the motion-mode combo swaps its face in
     // the same call that applies the new mode.

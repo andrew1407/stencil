@@ -5,7 +5,7 @@
 #include <QRect>
 #include <QString>
 
-#include "motionPrefs.hpp"   // motionReduced() / dustAllowed() / dustMotionOk()
+#include "motionPrefs.hpp"   // motionReduced() / isDustAllowed() / isDustMotionOk()
 
 class QDialog;
 class QWidget;

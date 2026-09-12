@@ -71,7 +71,7 @@ namespace stencil::support {
   }
   inline QColor particleAccent() { return detail::particleAccentState(); }
   inline QColor particleShade() { return detail::particleShadeState(); }
-  inline bool particleDark() { return detail::particleDarkState(); }
+  inline bool isParticleDark() { return detail::particleDarkState(); }
 
   // The canvas stroke motion (canvas/strokeGrowth.hpp), switchable on its own.
   inline bool drawingAnimations() { return detail::drawingAnimationsState(); }
@@ -83,15 +83,15 @@ namespace stencil::support {
            || !qEnvironmentVariableIsEmpty("STENCIL_NO_ANIM");
   }
 
-  inline bool drawingMotionOk() { return drawingAnimations() && !motionReduced(); }
+  inline bool isDrawingMotionOk() { return drawingAnimations() && !motionReduced(); }
 
   // Checked inside the DisintegrateOverlay factories, so every cloud is behind it.
-  inline bool dustAllowed() {
+  inline bool isDustAllowed() {
     const MotionMode m = motionMode();
     return m != MotionMode::SLIDE && m != MotionMode::NONE && !motionReduced();
   }
 
-  // Dust for any mode that flies none — callers ask dustAllowed() first.
+  // Dust for any mode that flies none — callers ask isDustAllowed() first.
   inline ParticleStyle particleStyle() {
     switch (motionMode()) {
       case MotionMode::WATER: return ParticleStyle::WATER;
@@ -100,9 +100,9 @@ namespace stencil::support {
     }
   }
 
-  // dustAllowed() plus the offscreen platform (no compositor; the gui tests run there).
-  inline bool dustMotionOk() {
-    return dustAllowed() && QGuiApplication::platformName() != QLatin1String("offscreen");
+  // isDustAllowed() plus the offscreen platform (no compositor; the gui tests run there).
+  inline bool isDustMotionOk() {
+    return isDustAllowed() && QGuiApplication::platformName() != QLatin1String("offscreen");
   }
 
 }  // namespace stencil::support

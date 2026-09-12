@@ -7,7 +7,7 @@ class QWidget;
 
 namespace stencil::support {
 
-  bool shareSheetAvailable() { return false; }
+  bool isShareSheetAvailable() { return false; }
 
   bool showShareSheet(QWidget* anchor, const QString& filePath, const QString& title) {
     (void)anchor;

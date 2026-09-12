@@ -61,7 +61,7 @@ namespace stencil::gui {
   // Reposition only; called after applyChatBubbleWidths moves the cards.
   void repositionChatBubbleTails(QWidget* transcript);
 
-  // A card's resolved chatBubbleOnRight() (bool QVariant); objectName() alone stopped answering it
+  // A card's resolved isChatBubbleOnRight() (bool QVariant); objectName() alone stopped answering it
   // once "Swap message sides" could put either role on either side.
   inline constexpr const char* CHAT_ON_RIGHT_PROPERTY = "chatOnRight";
 

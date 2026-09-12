@@ -48,14 +48,14 @@ int main(int argc, char** argv) {
   {
     using support::ParticleStyle;
     support::setMotionMode(MotionMode::PARTICLES);
-    check(support::dustAllowed() && support::particleStyle() == ParticleStyle::DUST, "particles: dust");
+    check(support::isDustAllowed() && support::particleStyle() == ParticleStyle::DUST, "particles: dust");
     support::setMotionMode(MotionMode::WATER);
-    check(support::dustAllowed() && !support::motionReduced() && support::particleStyle() == ParticleStyle::WATER,
+    check(support::isDustAllowed() && !support::motionReduced() && support::particleStyle() == ParticleStyle::WATER,
           "water: the clouds still fly, as drops");
     support::setMotionMode(MotionMode::FIRE);
-    check(support::dustAllowed() && support::particleStyle() == ParticleStyle::FIRE, "fire: …as embers");
+    check(support::isDustAllowed() && support::particleStyle() == ParticleStyle::FIRE, "fire: …as embers");
     support::setMotionMode(MotionMode::SLIDE);
-    check(!support::dustAllowed(), "slide: no particles of any style");
+    check(!support::isDustAllowed(), "slide: no particles of any style");
     support::setMotionMode(MotionMode::PARTICLES);
 
     // The palette: the theme's accent and its shade, violet until the theme speaks.
@@ -102,9 +102,9 @@ int main(int argc, char** argv) {
               && support::tintedStop(violet, shade, 0.0, support::tintOf(0.043), true) == QColor(255, 255, 255),
           "…a tinted one wears its tint whatever its mix says");
     support::setParticlePalette(violet, shade, true);
-    check(support::particleDark(), "the theme rides along with the palette the overlays read");
+    check(support::isParticleDark(), "the theme rides along with the palette the overlays read");
     support::setParticlePalette(violet, shade, false);
-    check(!support::particleDark(), "…and flips back");
+    check(!support::isParticleDark(), "…and flips back");
 
     // styleFrame — the browser's dustCloud.js styleFrame, op for op (the sample values
     // below are that module's, printed from node).
@@ -161,32 +161,32 @@ int main(int argc, char** argv) {
   {
     support::setMotionMode(MotionMode::PARTICLES);
     support::setDrawingAnimations(true);
-    check(!support::motionReduced() && support::dustAllowed() && support::drawingMotionOk(),
+    check(!support::motionReduced() && support::isDustAllowed() && support::isDrawingMotionOk(),
           "particles: everything plays");
     support::setMotionMode(MotionMode::SLIDE);
     check(!support::motionReduced(), "slide still moves — each surface keeps its own flight");
-    check(!support::dustAllowed(), "…just never out of dust");
-    check(support::drawingMotionOk(), "…and the canvas is untouched by it");
+    check(!support::isDustAllowed(), "…just never out of dust");
+    check(support::isDrawingMotionOk(), "…and the canvas is untouched by it");
     support::setMotionMode(MotionMode::NONE);
-    check(support::motionReduced() && !support::dustAllowed() && !support::drawingMotionOk(),
+    check(support::motionReduced() && !support::isDustAllowed() && !support::isDrawingMotionOk(),
           "none: nothing moves, the stroke included");
 
     // The drawing switch is independent of the mode.
     support::setMotionMode(MotionMode::PARTICLES);
     support::setDrawingAnimations(false);
-    check(!support::drawingMotionOk(), "the canvas is still…");
-    check(support::dustAllowed(), "…while the windows still form out of dust");
+    check(!support::isDrawingMotionOk(), "the canvas is still…");
+    check(support::isDustAllowed(), "…while the windows still form out of dust");
     support::setDrawingAnimations(true);
 
     // STENCIL_NO_ANIM still overrides the preference, as it always has.
     qputenv("STENCIL_NO_ANIM", "1");
-    check(support::motionReduced() && !support::dustAllowed() && !support::drawingMotionOk(),
+    check(support::motionReduced() && !support::isDustAllowed() && !support::isDrawingMotionOk(),
           "the env opt-out wins over any stored mode");
     qunsetenv("STENCIL_NO_ANIM");
-    check(support::dustAllowed(), "…and lets go again");
+    check(support::isDustAllowed(), "…and lets go again");
     // Offscreen (where these tests run) has no compositor: the mode may allow particles,
     // the platform still does not.
-    check(!support::dustMotionOk(), "dustMotionOk is dustAllowed plus a real platform");
+    check(!support::isDustMotionOk(), "isDustMotionOk is isDustAllowed plus a real platform");
   }
 
   // ── The gate is inside the factories, so no cloud can slip past it ──

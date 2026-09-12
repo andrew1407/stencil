@@ -150,7 +150,7 @@ namespace stencil::gui {
    private:
     void run(double target);
 
-    bool tookOver() const;
+    bool hasTakenOver() const;
 
     void paint(double elapsed);
 
@@ -178,7 +178,7 @@ namespace stencil::gui {
    private:
     void run(double target);
 
-    bool tookOver() const;
+    bool hasTakenOver() const;
 
     void paint(double elapsed);
 

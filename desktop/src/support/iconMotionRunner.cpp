@@ -44,14 +44,14 @@ namespace stencil::gui {
   void IconMotionRunner::rest() {
     anim_->stop();
     elapsed_ = 0;
-    if (!btn_ || tookOver()) return;   // a theme flip already put a proper glyph there
+    if (!btn_ || hasTakenOver()) return;   // a theme flip already put a proper glyph there
     btn_->setIcon(themedIcon(req_.name, req_.color, req_.size, req_.dpr, req_.gap));
   }
 
   void ActionIconMotionRunner::rest() {
     anim_->stop();
     elapsed_ = 0;
-    if (!act_ || tookOver()) return;   // a theme flip already put a proper glyph there
+    if (!act_ || hasTakenOver()) return;   // a theme flip already put a proper glyph there
     // A bound toolbar button mirrors the action's icon via changed(); a posed/rest repaint
     // here must never leak onto it.
     const QSignalBlocker block(act_);
@@ -81,13 +81,13 @@ namespace stencil::gui {
   }
 
   // A frame WE painted is never a registered themedIcon.
-  bool IconMotionRunner::tookOver() const {
+  bool IconMotionRunner::hasTakenOver() const {
     IconRequest now;
     return btn_ && iconRequestForKey(btn_->icon().cacheKey(), &now)
            && (now.name != req_.name || now.color != req_.color || now.size != req_.size);
   }
 
-  bool ActionIconMotionRunner::tookOver() const {
+  bool ActionIconMotionRunner::hasTakenOver() const {
     IconRequest now;
     return act_ && iconRequestForKey(act_->icon().cacheKey(), &now)
            && (now.name != req_.name || now.color != req_.color || now.size != req_.size);
@@ -97,7 +97,7 @@ namespace stencil::gui {
     elapsed_ = elapsed;
     if (!btn_) return;
     // A face mid-swap already owns this glyph — step out.
-    if (faceSwapping(btn_) || tookOver()) { anim_->stop(); return; }
+    if (faceSwapping(btn_) || hasTakenOver()) { anim_->stop(); return; }
     const QString posed = iconMotionMarkup(req_.name, *spec_, *parts_, elapsed);
     // A disabled control renders the Disabled variant, so only then is it built.
     btn_->setIcon(iconFromMarkup(posed, req_.color, req_.size, req_.dpr,
@@ -107,7 +107,7 @@ namespace stencil::gui {
   void ActionIconMotionRunner::paint(double elapsed) {
     elapsed_ = elapsed;
     if (!act_) return;
-    if (tookOver()) { anim_->stop(); return; }
+    if (hasTakenOver()) { anim_->stop(); return; }
     const QString posed = iconMotionMarkup(req_.name, *spec_, *parts_, elapsed);
     const QSignalBlocker block(act_);  // never let a bound toolbar button see this frame
     // A disabled row renders the Disabled variant, so only then is it built.

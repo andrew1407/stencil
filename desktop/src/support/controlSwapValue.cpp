@@ -53,7 +53,7 @@ namespace stencil::gui {
       style_ = support::particleStyle();
       accent_ = support::particleAccent();
       shade_ = support::particleShade();
-      dark_ = support::particleDark();
+      dark_ = support::isParticleDark();
     }
     QPainter p(this);
     p.setClipRect(clip_);   // clipped by the edit field, the way the word itself is

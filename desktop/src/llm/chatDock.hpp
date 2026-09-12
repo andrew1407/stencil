@@ -53,7 +53,7 @@ namespace stencil::gui {
   QLabel* fillChatCard(QFrame* card, QVBoxLayout* lay, const QString& role,
                        const QString& text, ChatCardKind kind, const QColor& danger);
   // Pure: `swapped` flips the side, `user` alone decides it at rest.
-  inline bool chatBubbleOnRight(bool user, bool swapped) { return swapped ? !user : user; }
+  inline bool isChatBubbleOnRight(bool user, bool swapped) { return swapped ? !user : user; }
   // OPAQUE, flattened over `pageBg` (the surface the cards sit ON, not `chip`); false ⇒ no tail.
   bool chatBubbleColorsFor(const QString& objectName, const QColor& accent, const QColor& chip,
                            const QColor& border, const QColor& danger, const QColor& pageBg,

@@ -23,7 +23,7 @@
 #include <QWidget>
 
 #include "dustKit.hpp"       // support::EaseLut / MoteSprites / frameIntervalMs
-#include "motionPrefs.hpp"   // support::dustAllowed()
+#include "motionPrefs.hpp"   // support::isDustAllowed()
 
 #include <algorithm>
 #include <cmath>
@@ -235,7 +235,7 @@ namespace stencil::gui {
     support::ParticleStyle style_ = support::particleStyle();
     QColor accent_ = support::particleAccent();
     QColor shade_ = support::particleShade();
-    bool dark_ = support::particleDark();
+    bool dark_ = support::isParticleDark();
     support::MoteSprites sprites_;
     QElapsedTimer clock_;
     int ms_ = DUST_MS;

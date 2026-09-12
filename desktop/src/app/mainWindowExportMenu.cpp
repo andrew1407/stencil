@@ -11,7 +11,7 @@
 #include "menuReveal.hpp"
 #include "menuRowPolish.hpp"
 #include "../support/modalChrome.hpp"   // confirmModal — the browser-styled question
-#include "../support/shareImage.hpp"    // shareSheetAvailable — no Share button on Linux
+#include "../support/shareImage.hpp"    // isShareSheetAvailable — no Share button on Linux
 
 #include <QAbstractSpinBox>
 #include <QCheckBox>

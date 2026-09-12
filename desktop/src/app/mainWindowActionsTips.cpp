@@ -4,7 +4,7 @@
 #include "canvasTooltip.hpp"
 #include "incognitoOverlay.hpp"
 #include "notifications.hpp"
-#include "../support/shareImage.hpp"   // shareSheetAvailable — no Share tooltip on Linux
+#include "../support/shareImage.hpp"   // isShareSheetAvailable — no Share tooltip on Linux
 #include <QAction>
 
 namespace stencil::gui {

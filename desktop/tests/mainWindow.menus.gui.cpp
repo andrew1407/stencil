@@ -484,7 +484,7 @@ class MainWindowGuiTest : public QObject {
   // A context submenu hover-opens, SubmenuCloseGuard closes it again on a hover-away, and
   // on a real display it dusts on every open — including the second open of the same QMenu
   // instance, which is what MenuReveal's re-arming fixed. The dust half cannot run here:
-  // dustMotionOk() refuses on the `offscreen` platform, which nothing can lift, so only the
+  // isDustMotionOk() refuses on the `offscreen` platform, which nothing can lift, so only the
   // open/close half is asserted and the case reports itself SKIPPED.
   void ctxSubmenuDustReplayProbe() {
     const auto motion = withMotion();
@@ -562,8 +562,8 @@ class MainWindowGuiTest : public QObject {
     // Correctness first, and it holds on every platform: our guard really does close a
     // hovered-away submenu (Qt itself leaves it up).
     QVERIFY2(closed, "the submenu never closed");
-    if (!stencil::support::dustMotionOk())
-      QSKIP("dust is gated off on the offscreen platform (dustMotionOk) — "
+    if (!stencil::support::isDustMotionOk())
+      QSKIP("dust is gated off on the offscreen platform (isDustMotionOk) — "
             "run this binary on a real display to exercise the flights");
     QVERIFY2(dustOnFirstOpen, "no dust on the first open");
     QVERIFY2(dustOnClose, "no dust while our own guard closed the submenu");

@@ -45,7 +45,7 @@ namespace stencil::support {
     }
   }  // namespace
 
-  bool shareSheetAvailable() { return true; }
+  bool isShareSheetAvailable() { return true; }
 
   bool showShareSheet(QWidget* anchor, const QString& filePath, const QString& title) {
     if (!anchor) return false;

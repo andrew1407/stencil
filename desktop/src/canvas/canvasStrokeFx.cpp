@@ -135,14 +135,14 @@ namespace stencil::gui {
   // any other are still moving.
   void CanvasWidget::flyInPoint(int lineIdx, const core::Line& line, int ptIdx,
                                 const QPointF* from) {
-    if (!support::drawingMotionOk()) return;   // "Drawing animation" off, or nothing may move
+    if (!support::isDrawingMotionOk()) return;   // "Drawing animation" off, or nothing may move
     strokeFx_.flyIn(lineIdx, line, ptIdx, fxNow(), from);
     if (strokeFx_.active() && !fxTimer_.isActive()) fxTimer_.start();
   }
 
   void CanvasWidget::flyInPoints(int lineIdx, const core::Line& line, int startIdx,
                                  int count) {
-    if (!support::drawingMotionOk()) return;
+    if (!support::isDrawingMotionOk()) return;
     strokeFx_.flyInRange(lineIdx, line, startIdx, count, fxNow());
     if (strokeFx_.active() && !fxTimer_.isActive()) fxTimer_.start();
   }

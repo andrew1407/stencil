@@ -104,7 +104,7 @@ namespace stencil::gui {
     if (!transcript) return;
     for (QFrame* card : transcript->findChildren<QFrame*>(QString(), Qt::FindDirectChildrenOnly)) {
       const bool user = card->objectName() == QLatin1String("chatCardUser");
-      applyChatBubbleSide(card, layout, chatBubbleOnRight(user, swapped), accent, chip,
+      applyChatBubbleSide(card, layout, isChatBubbleOnRight(user, swapped), accent, chip,
                           border, danger, pageBg);
     }
   }
@@ -119,7 +119,7 @@ namespace stencil::gui {
                                            : ChatCardKind::BUBBLE,
                  dangerCache_);
     // pageBg is the transcript's REAL backdrop (bgControls), not chipCache_ — else the tail is a shade off.
-    applyChatBubbleSide(card, transcriptLayout_, chatBubbleOnRight(user, chatSwapSides_),
+    applyChatBubbleSide(card, transcriptLayout_, isChatBubbleOnRight(user, chatSwapSides_),
                         accentCache_, chipCache_, borderCache_, dangerCache_,
                         paletteCache_.bgControls);
     installCardMenu(card);

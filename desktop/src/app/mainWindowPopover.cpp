@@ -79,7 +79,7 @@ namespace stencil::gui {
         if (!w) { pop_.lingerPoll->stop(); return; }
         const QRect box = pop_.active ? popoverRectGlobal() : w->frameGeometry();
         if (box.contains(QCursor::pos())) return;
-        if (typedContentInside(w)) return;
+        if (hasTypedContentInside(w)) return;
         if (w == chatDock_ && chatDock_->hasComposerText()) return;
         pop_.lingerPoll->stop();
         if (pop_.active) dismissPopover();

@@ -1,6 +1,6 @@
 // eventFilter chain, the popover gestures. Order and verdicts: mainWindowEvents.cpp.
 #include "mainWindow.hpp"
-#include "mainWindowHelpers.hpp"   // typedContentInside
+#include "mainWindowHelpers.hpp"   // hasTypedContentInside
 #include "chatDock.hpp"
 #include <QAbstractSpinBox>
 #include <QApplication>
@@ -102,7 +102,7 @@ namespace stencil::gui {
         pop_.peekAction.clear();
         if (pop_.active) {
           if (popoverRectGlobal().contains(QCursor::pos()) ||
-              typedContentInside(pop_.active))
+              hasTypedContentInside(pop_.active))
             startLingerPoll();
           else
             dismissPopover();
@@ -128,7 +128,7 @@ namespace stencil::gui {
           nested = true;
           break;
         }
-      if (!nested && !typedContentInside(pop_.active)) {
+      if (!nested && !hasTypedContentInside(pop_.active)) {
         pop_.peekAction.clear();
         dismissPopover();
       }

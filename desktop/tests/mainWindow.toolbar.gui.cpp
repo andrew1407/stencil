@@ -23,7 +23,7 @@ class MainWindowGuiTest : public QObject {
     win.loadImageWithLayout(img, QJsonObject());   // the IMAGE cluster shows its icons
     settleLayout(&win, 120);
 
-    const bool shares = stencil::support::shareSheetAvailable();
+    const bool shares = stencil::support::isShareSheetAvailable();
     QCOMPARE(win.actShareImage_->isVisible(), shares);
     QToolButton* btn = nullptr;
     for (QToolButton* b : win.findChildren<QToolButton*>())

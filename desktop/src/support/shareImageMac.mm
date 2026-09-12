@@ -12,7 +12,7 @@ namespace stencil::support {
     NSSharingServicePicker* gPicker = nil;
   }
 
-  bool shareSheetAvailable() { return true; }
+  bool isShareSheetAvailable() { return true; }
 
   bool showShareSheet(QWidget* anchor, const QString& filePath, const QString& title) {
     if (!anchor) return false;

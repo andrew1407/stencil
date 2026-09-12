@@ -7,7 +7,7 @@ namespace stencil::gui {
   // colour (a picture passes none — its grains are its own pixels).
   DisintegrateOverlay* DisintegrateOverlay::over(QWidget* victim, QWidget* host, Sweep sweep,
                                                  int cols, int rows, int ms, const QColor& ink) {
-    if (!support::dustAllowed()) return nullptr;
+    if (!support::isDustAllowed()) return nullptr;
     if (!victim || !host || !victim->isVisible()) return nullptr;
     if (victim->width() < 8 || victim->height() < 8) return nullptr;
     const QPixmap snap = victim->grab();
@@ -37,7 +37,7 @@ namespace stencil::gui {
                                                      QWidget* host, Sweep sweep, bool dust,
                                                      int dustCells, int ms, const QColor& ink,
                                                      const QPixmap& shot) {
-    if (!support::dustAllowed()) return nullptr;
+    if (!support::isDustAllowed()) return nullptr;
     if (!source || !host || !source->isVisible()) return nullptr;
     if (rect.width() < 8 || rect.height() < 8) return nullptr;
     const QPixmap snap = shot.isNull() ? source->grab(rect) : shot;
@@ -64,7 +64,7 @@ namespace stencil::gui {
                                                         QWidget* host, Sweep sweep, int cols,
                                                         int rows, int ms, double spread,
                                                         int pad, const QString& name) {
-    if (!support::dustAllowed()) return nullptr;
+    if (!support::isDustAllowed()) return nullptr;
     if (!host || particles.isNull() || at.width() < 2 || at.height() < 2) return nullptr;
     auto* fx = new DisintegrateOverlay(host, particles);
     if (!name.isEmpty()) fx->setObjectName(name);
@@ -100,7 +100,7 @@ namespace stencil::gui {
                                                         const QPoint& target, bool gather,
                                                         int ms, const QColor& ink, int maxCells,
                                                         bool escapeHost, bool alwaysEscape) {
-    if (!support::dustAllowed()) return nullptr;
+    if (!support::isDustAllowed()) return nullptr;
     if (!host || snap.isNull() || picture.width() < 8 || picture.height() < 8) return nullptr;
     // NOT liftedToInk(): the snapshot is the cross-fade the window forms out of, and a
     // lifted one flashed the wrong tone at the hand-off.

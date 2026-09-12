@@ -20,7 +20,7 @@
 #include "fileStore.hpp"
 #include "connectDialog.hpp"
 #include "../src/support/appTooltip.hpp"
-#include "../src/support/shareImage.hpp"   // shareSheetAvailable — the Share button's gate
+#include "../src/support/shareImage.hpp"   // isShareSheetAvailable — the Share button's gate
 #include "serverClient.hpp"
 #include "llmSettingsForm.hpp"
 #include "../src/app/chatPlanTarget.hpp"   // §10 chatPanel: the plan target that places the dock

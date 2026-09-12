@@ -47,7 +47,7 @@ class MainWindowGuiTest : public QObject {
       QMenu* layoutMenu = layoutAct->menu();
       // Veiled from its very first frame when the dust reveal is on: a flyout that
       // paints solid for a frame and THEN plays its reveal reads as a flash.
-      noFlash = !stencil::support::dustMotionOk() || !layoutMenu->isVisible() ||
+      noFlash = !stencil::support::isDustMotionOk() || !layoutMenu->isVisible() ||
                 layoutMenu->windowOpacity() < 1.0;
       settle([&] { return layoutMenu->isVisible(); }, 1000);
       opened = layoutMenu->isVisible();
@@ -113,7 +113,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(enteredRow, "the second Right did not land on Copy Image (the first real row)");
     QVERIFY2(walkedInside, "Down from Copy Image did not reach Paste Image");
     QVERIFY2(leftClosed, "Left did not close the flyout back onto its parent row");
-    QVERIFY2(!stencil::support::dustMotionOk() || leftDusted, "Left closed the flyout with no dust flight");
+    QVERIFY2(!stencil::support::isDustMotionOk() || leftDusted, "Left closed the flyout with no dust flight");
     QVERIFY2(reopened, "Right did not reopen the flyout");
     QVERIFY2(closedByPointer, "hovering the pointer onto another row no longer closes it");
     QVERIFY2(reachedPoints, "the keyboard walk never reached Show Points");

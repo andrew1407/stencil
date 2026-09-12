@@ -3,7 +3,7 @@
 #include "canvasWidget.hpp"
 #include "dataExportController.hpp"
 #include "notifications.hpp"
-#include "../support/shareImage.hpp"    // shareSheetAvailable — no Share button on Linux
+#include "../support/shareImage.hpp"    // isShareSheetAvailable — no Share button on Linux
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
@@ -77,7 +77,7 @@ namespace stencil::gui {
     actCopyImageCurrentRow_->setVisible(false);
     actShareImage_ = newAction("Share Image…", hotkey("shareImage", "Ctrl+Alt+S"));
     // Hidden where the OS has no share sheet (Linux); browser: utils.js supportsShareFiles().
-    actShareImage_->setVisible(support::shareSheetAvailable());
+    actShareImage_->setVisible(support::isShareSheetAvailable());
     // Ctrl+V: image over layout JSON text (drawingApp.js :563-591); pasteImage() dispatches.
     actPasteImage_ = newAction("Paste (Image or Layout)", hotkey("paste", "Ctrl+V"));
 

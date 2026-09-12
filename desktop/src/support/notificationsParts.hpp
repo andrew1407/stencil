@@ -51,7 +51,7 @@ namespace stencil::gui {
   // Returns the flying cloud for reflow()'s retarget, or null when declined.
   inline stencil::gui::DisintegrateOverlay* dustToastIn(QLabel* toast, QGraphicsOpacityEffect* fx,
                                                  QWidget* host, const QRect& rest, int freeLeft) {
-    if (!stencil::support::dustMotionOk()) return nullptr;
+    if (!stencil::support::isDustMotionOk()) return nullptr;
     const QPixmap shot = toast->grab();
     if (shot.isNull()) return nullptr;
     auto* overlay = stencil::gui::DisintegrateOverlay::overSurface(
@@ -68,7 +68,7 @@ namespace stencil::gui {
 
   // A snapshot with a life of its own, so it can run before the label's own fade/deletion.
   inline bool dustToastOut(QLabel* toast, QWidget* host, int freeLeft) {
-    if (!stencil::support::dustMotionOk()) return false;
+    if (!stencil::support::isDustMotionOk()) return false;
     // grab() renders THROUGH the graphics effect, whose cached source can be blank right
     // now — off for the photograph, back on before the fade animates it.
     auto* fx = qobject_cast<QGraphicsOpacityEffect*>(toast->graphicsEffect());

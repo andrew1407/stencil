@@ -261,14 +261,14 @@ namespace stencil::support {
   }  // namespace
 
   bool revealPopup(QWidget& popup, QWidget* anchor, int ms) {
-    if (!dustMotionOk()) return false;
+    if (!isDustMotionOk()) return false;
     if (!anchor || !anchor->isVisible()) return false;
     QWidget* host = anchor->window();
     return dustPopupIn(&popup, host, popupOriginGlobal(anchor), ms);
   }
 
   bool dismissPopup(QWidget& popup, QWidget* anchor, int ms) {
-    if (!dustMotionOk()) return false;
+    if (!isDustMotionOk()) return false;
     if (!anchor || !anchor->isVisible()) return false;
     // No isVisible() gate: a Qt::Popup Qt closed itself is already hidden by its Hide event.
     return dustPopupOut(&popup, anchor->window(), popupOriginGlobal(anchor), ms);
@@ -276,13 +276,13 @@ namespace stencil::support {
 
   void revealMenu(QMenu& menu, const QPoint& origin) {
     // Offscreen has no compositor for windowOpacity.
-    if (!dustMotionOk()) return;
+    if (!isDustMotionOk()) return;
     new MenuReveal(&menu, [origin] { return origin; });  // owned by the menu
   }
 
   void revealSubmenu(QMenu& sub, QMenu& parent, QAction& parentAction) {
     new SubmenuCloseGuard(&sub, &parent, &parentAction);   // owned by sub
-    if (!dustMotionOk()) return;
+    if (!isDustMotionOk()) return;
     QPointer<QMenu> parentGuard(&parent);
     QPointer<QAction> actionGuard(&parentAction);
     // The row's ▸ caret at its RIGHT edge (browser contextMenu.js subPoint parity).
@@ -295,7 +295,7 @@ namespace stencil::support {
   }
 
   void revealMenuBarMenu(QMenu& menu, QMenuBar& bar) {
-    if (!dustMotionOk()) return;
+    if (!isDustMotionOk()) return;
     // Natively drawn (macOS global bar, GNOME appmenu): nothing Qt-rendered to grab.
     if (bar.isNativeMenuBar()) return;
     QPointer<QMenuBar> barGuard(&bar);

@@ -190,7 +190,7 @@ namespace stencil::gui {
     const bool user = role == QLatin1String("You");
     // pageBg=chip_: this panel sits straight on the QMenu background, with no
     // separate #chatBody surface under it, so the fill colour IS the flatten base.
-    applyChatBubbleSide(card, rows_, chatBubbleOnRight(user, chatSwapSides_), accent_, chip_,
+    applyChatBubbleSide(card, rows_, isChatBubbleOnRight(user, chatSwapSides_), accent_, chip_,
                         border_, danger_, chip_);
     // Every SETTLED row carries the menu (browser chatRowMenuItems excludes
     // only the pending one).

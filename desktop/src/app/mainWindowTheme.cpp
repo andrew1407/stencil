@@ -16,7 +16,7 @@
 #include "pillScrollBars.hpp"
 #include "tipContent.hpp"
 #include "../support/faceSwap.hpp"
-#include "../support/motionPrefs.hpp"   // support::dustAllowed()
+#include "../support/motionPrefs.hpp"   // support::isDustAllowed()
 #include "../support/themeSwapOverlay.hpp"
 
 #include <QApplication>
@@ -67,7 +67,7 @@ namespace stencil::gui {
       wipe = ThemeSwapOverlay::capture(this, origin);
       // Wake particles take the accent and shade being erased, read before the restyle moves them;
       // 'slide' drops the grain (browser parity).
-      if (wipe && support::dustAllowed()) {
+      if (wipe && support::isDustAllowed()) {
         const Palette old = themePalette(paintedDark_, paintedAccent_);
         wipe->seedDust(old.accent, old.textKey, paintedDark_);
       }
