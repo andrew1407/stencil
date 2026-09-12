@@ -1,7 +1,7 @@
 // The context menu's style, filter, view and tooltip rows.
 export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
   document.getElementById('ctx-point-size').addEventListener('input', e => {
-    const v = parseInt(e.target.value);
+    const v = parseInt(e.target.value, 10);
     if (!isNaN(v) && v >= 1 && v <= 30) {
       app.pointSize = v;
       const inp = document.getElementById('point-size');
@@ -10,7 +10,7 @@ export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
     }
   });
   document.getElementById('ctx-point-size').addEventListener('change', e => {
-    const v = Math.max(1, Math.min(30, parseInt(e.target.value) || app.pointSize));
+    const v = Math.max(1, Math.min(30, parseInt(e.target.value, 10) || app.pointSize));
     e.target.value = v; app.pointSize = v;
     const inp = document.getElementById('point-size');
     if (inp) inp.value = v;
@@ -18,7 +18,7 @@ export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
   });
 
   document.getElementById('ctx-thickness').addEventListener('input', e => {
-    const v = parseInt(e.target.value);
+    const v = parseInt(e.target.value, 10);
     if (!isNaN(v) && v >= 1 && v <= 20) {
       app.thickness = v;
       const inp = document.getElementById('line-thickness');
@@ -27,7 +27,7 @@ export const wireCtxStyleActions = (app, { menu, closeMenu }) => {
     }
   });
   document.getElementById('ctx-thickness').addEventListener('change', e => {
-    const v = Math.max(1, Math.min(20, parseInt(e.target.value) || app.thickness));
+    const v = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || app.thickness));
     e.target.value = v; app.thickness = v;
     const inp = document.getElementById('line-thickness');
     if (inp) inp.value = v;

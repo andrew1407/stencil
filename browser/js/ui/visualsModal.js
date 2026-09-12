@@ -155,13 +155,13 @@ export class StencilVisualsModal extends StencilElement {
       app.storage.save();
     });
     els.thickness.addEventListener('change', e => {
-      app.thickness = Math.max(1, Math.min(20, parseInt(e.target.value) || app.thickness));
+      app.thickness = Math.max(1, Math.min(20, parseInt(e.target.value, 10) || app.thickness));
       e.target.value = app.thickness;
       setVal('line-thickness', app.thickness);
       app.storage.save();
     });
     els.point.addEventListener('change', e => {
-      app.pointSize = Math.max(1, Math.min(30, parseInt(e.target.value) || app.pointSize));
+      app.pointSize = Math.max(1, Math.min(30, parseInt(e.target.value, 10) || app.pointSize));
       e.target.value = app.pointSize;
       setVal('point-size', app.pointSize);
       app.renderer.redraw(); app.storage.save();

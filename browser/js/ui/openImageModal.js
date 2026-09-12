@@ -394,7 +394,7 @@ export class StencilOpenImageModal extends StencilElement {
     });
 
     createBtn.addEventListener('click', async () => {
-      const w = parseInt(widthEl.value), h = parseInt(heightEl.value);
+      const w = parseInt(widthEl.value, 10), h = parseInt(heightEl.value, 10);
       if (!(w >= 1 && w <= 8192) || !(h >= 1 && h <= 8192)) {
         notify('Width and height must be 1–8192 px', 'fail');
         return;

@@ -9,8 +9,8 @@ export function wireSelectionPanelControls(app) {
   };
   wireColorPair('sel-color', 'sel-alpha', 'color');
   wireColorPair('sel-point-color', 'sel-point-alpha', 'pointColor');
-  document.getElementById('sel-thickness').addEventListener('change', e => app.applySelectionChange('thickness', parseInt(e.target.value)));
-  document.getElementById('sel-point-size').addEventListener('change', e => app.applySelectionChange('point-size', parseInt(e.target.value)));
+  document.getElementById('sel-thickness').addEventListener('change', e => app.applySelectionChange('thickness', parseInt(e.target.value, 10)));
+  document.getElementById('sel-point-size').addEventListener('change', e => app.applySelectionChange('point-size', parseInt(e.target.value, 10)));
   document.getElementById('sel-style').addEventListener('change', e => app.applySelectionChange('style', e.target.value));
   // No on/off tick: the fill IS the swatch plus its alpha, and 0 alpha is "none".
   // Picking a colour on an unfilled area therefore also has to raise the alpha off 0,

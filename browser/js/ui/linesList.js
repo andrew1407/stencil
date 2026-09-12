@@ -8,7 +8,7 @@ export const applyLinesListHover = (app) => {
   const el = document.getElementById('lines-list');
   if (!el) return;
   el.querySelectorAll('.lines-row').forEach(r => {
-    r.classList.toggle('lines-row-hover', parseInt(r.dataset.idx) === app.hoverLineIdx);
+    r.classList.toggle('lines-row-hover', parseInt(r.dataset.idx, 10) === app.hoverLineIdx);
   });
 };
 

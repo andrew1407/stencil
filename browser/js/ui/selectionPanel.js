@@ -197,11 +197,11 @@ export function syncFsSelectionPanel(app, line) {
     document.getElementById('sel-point-color').value = e.target.value;
   });
   fsPanel.querySelector('#fs-sel-thickness').addEventListener('change', e => {
-    app.applySelectionChange('thickness', parseInt(e.target.value));
+    app.applySelectionChange('thickness', parseInt(e.target.value, 10));
     document.getElementById('sel-thickness').value = e.target.value;
   });
   fsPanel.querySelector('#fs-sel-point-size').addEventListener('change', e => {
-    app.applySelectionChange('point-size', parseInt(e.target.value));
+    app.applySelectionChange('point-size', parseInt(e.target.value, 10));
     document.getElementById('sel-point-size').value = e.target.value;
   });
   fsPanel.querySelector('#fs-sel-style').addEventListener('change', e => {

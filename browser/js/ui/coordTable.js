@@ -141,7 +141,7 @@ export class CoordTable {
   applyRowHighlight() {
     const rows = this.app.coordinatesBody.querySelectorAll('tr[data-pt-idx]');
     rows.forEach(r => {
-      const i = parseInt(r.dataset.ptIdx);
+      const i = parseInt(r.dataset.ptIdx, 10);
       r.classList.toggle('row-focused', i === this.app.focusedPtIdx);
       r.classList.toggle('row-highlighted', i === this.app.hoveredPtIdx && i !== this.app.focusedPtIdx);
     });
