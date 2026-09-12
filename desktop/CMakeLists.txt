@@ -55,6 +55,11 @@ enable_testing()
 # later at `cpack` with "Cannot find CPack config file" (CPackConfig.cmake is emitted
 # by include(CPack) below, which lives in this Qt6_FOUND block).
 option(STENCIL_REQUIRE_QT "Fail configuration if Qt6 is missing (release packaging)" OFF)
+
+# CPack runs the `preinstall` target, which builds `all` — so with the ctest targets
+# configured, packaging compiles the whole test suite before it can produce a package.
+# Release packaging turns this OFF and builds only the app.
+option(STENCIL_BUILD_TESTS "Configure the ctest targets (OFF for release packaging)" ON)
 # Svg is needed by support/iconSet.cpp, which rasterizes the shared SVG icon set
 # (the qrc-embedded browser/js/config/icons.json canon) into themed toolbar/menu QIcons. qt6-qtsvg
 # is already an effective dependency — the window/taskbar icon (appicon.svg) is
@@ -90,7 +95,9 @@ if(Qt6_FOUND)
   message(STATUS "Qt6 found — building stencil (${Qt6_VERSION})")
 
   include(cmake/StencilPackaging.cmake)  # app icon, bundle shape, install + CPack
-  include(cmake/StencilTests.cmake)      # every ctest target
+  if(STENCIL_BUILD_TESTS)
+    include(cmake/StencilTests.cmake)    # every ctest target
+  endif()
 else()
   message(STATUS "Qt6 not found — skipping stencil (core builds via ../core)")
 endif()

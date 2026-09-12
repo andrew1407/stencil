@@ -6,12 +6,19 @@
 // or a stylesheet split that changes the rendered result names itself.
 //
 // UPDATE_PINS=1 rewrites the baseline instead of asserting.
-import { expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const PINS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../pins');
+// Baselines are PER PLATFORM, like the desktop suite's image pins: font metrics differ by
+// OS, text that wraps one line later changes a height, and a native scrollbar takes 10px
+// off the content width — so a pin recorded on one OS never matches another.
+export const PIN_PLATFORM = process.platform === 'darwin' ? 'macos'
+  : process.platform === 'win32' ? 'windows' : 'linux';
+
+export const PINS_DIR = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)), '../pins', PIN_PLATFORM);
 
 // The properties a pin records. Layout box, colour, type and the flex/stack geometry —
 // enough that any visible change lands in one of them, few enough to stay readable.
@@ -121,7 +128,11 @@ export async function expectPin(page, { name, root, props = PIN_PROPS }) {
     fs.writeFileSync(file, `${JSON.stringify(pin, null, 2)}\n`);
     return pin;
   }
-  if (!fs.existsSync(file)) throw new Error(`No baseline for "${name}" — record it with UPDATE_PINS=1`);
+  // A platform nobody has baselined skips rather than fails; a pin missing from a platform
+  // that HAS baselines is a real error (it was deleted or renamed).
+  test.skip(!fs.existsSync(PINS_DIR),
+    `no ${PIN_PLATFORM} UI-pin baselines — record them on ${PIN_PLATFORM} with UPDATE_PINS=1`);
+  if (!fs.existsSync(file)) throw new Error(`No ${PIN_PLATFORM} baseline for "${name}" — record it with UPDATE_PINS=1`);
   const baseline = JSON.parse(fs.readFileSync(file, 'utf8'));
   const diffs = diffPins(baseline, pin);
   const shown = diffs.slice(0, MAX_DIFFS);

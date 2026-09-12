@@ -70,10 +70,11 @@ helpers/
   serverApi.js       REST helpers (token issuance, project CRUD) over Playwright's request
   wire.js            WS (ws lib) + raw-TCP (net) clients for the live-edit protocol
   uiPin.js           UI regression pins: capture a subtree's computed styles + DOM shape
-                     and deep-equal it against pins/<name>.json (UPDATE_PINS=1 re-records)
+                     and deep-equal it against pins/<platform>/<name>.json (UPDATE_PINS=1 re-records)
   llm-stub.js        scriptable stub LLM server (openai-compat / ollama / Anthropic
                      Messages wire shapes) — ALL model traffic in the suite ends here
-pins/                21 recorded UI-pin baselines (one JSON per pinned state)
+pins/<platform>/     21 recorded UI-pin baselines per OS (one JSON per pinned state);
+                     only macos/ is recorded, so other platforms SKIP these specs
 fixtures/            host pages (+ pixel.png / site.webmanifest) the extension scanner loads over http
                      (page-with-image.html · all-image-sources.html — one of every image reference),
                      plus project.stencil and cli-layout.json, opened by BOTH the browser and
@@ -242,7 +243,7 @@ E2E_STACK=1 E2E_SKIP_COMPOSE=1 npm test   # uses whatever is on SERVER_URL (defa
   stub provider is configured, so the fullstack llm-proxy spec runs instead of self-skipping.
 - **UI pins.** `tests/browser/ui-pins.spec.js` + `tests/extension/ui-pins.spec.js` record
   each UI state's computed styles and DOM shape (`helpers/uiPin.js`) and deep-equal them
-  against `pins/<name>.json` — no screenshots; a failure names the element path and the
+  against `pins/<platform>/<name>.json` — no screenshots; a failure names the element path and the
   property that moved. They freeze the app's own motion (`motionMode 'none'` /
   `StencilMotion.set('none')` + emulated `prefers-reduced-motion`) and pin the light theme.
   After an INTENDED visual change, re-record: `UPDATE_PINS=1 npm run test:ui`.
