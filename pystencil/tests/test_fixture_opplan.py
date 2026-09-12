@@ -21,18 +21,23 @@ _SURFACES = {"browser", "desktop", "cli", "pystencil", "bot", "mcp", "extension"
 _MY_PROFILES = ("console", "all")
 
 
-# Parsed once per module. The registry-generated bundle
-# (browser/tools/genOpPlanFixtures.mjs) contributes one pseudo-file per case.
-_FIXTURE_FILES = [(p.name, _load(p)) for p in sorted(_OPPLAN_DIR.glob("*.json"))] + [
-    (fx["name"] + ".json", fx)
-    for fx in _load(_OPPLAN_DIR / "generated" / "cases.json")["cases"]
+# Parsed once per module: the hand-written bundle (each case carrying its stable "file"
+# label) and the registry-generated one (browser/tools/genOpPlanFixtures.mjs), whose
+# cases walk as "<name>.json".
+_HAND = _load(_OPPLAN_DIR / "cases.json")["cases"]
+_GENERATED = _load(_OPPLAN_DIR / "generated" / "cases.json")["cases"]
+_FIXTURE_FILES = [(fx["file"], fx) for fx in _HAND] + [
+    (fx["name"] + ".json", fx) for fx in _GENERATED
 ]
 
 
 class TestOpPlanFixtures(unittest.TestCase):
     def test_corpus_is_well_formed(self):
         # Port of the reference walker's corpus-shape check (opPlanFixtures.test.js).
-        self.assertGreaterEqual(len(_FIXTURE_FILES), 80, "expected a real corpus")
+        # Floors per bundle, not on the total: the generated cases alone clear a
+        # combined floor, so a vanished cases.json would otherwise walk green.
+        self.assertGreaterEqual(len(_HAND), 180, "hand-written cases.json collapsed")
+        self.assertGreaterEqual(len(_GENERATED), 400, "generated/cases.json collapsed")
         for fname, fx in _FIXTURE_FILES:
             with self.subTest(fixture=fname):
                 self.assertEqual(fx["name"] + ".json", re.sub(r"^\d+-", "", fname))

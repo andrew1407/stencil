@@ -5,6 +5,7 @@ namespace Stencil.TelegramBot.Tests;
 /// <summary>One op-plan fixture, flattened at load so the walker holds no JsonDocument.</summary>
 internal sealed record OpPlanFixture(
     string File,
+    bool Generated,
     string Name,
     bool ProfilesWellFormed,
     IReadOnlyList<string?> Profiles,
@@ -19,9 +20,9 @@ internal sealed record OpPlanFixture(
 
 /// <summary>
 /// The shared op-plan conformance corpus (<c>browser/js/config/llm/fixtures/opPlan/</c>),
-/// read once: the hand-written files plus the registry-generated bundle
-/// (<c>browser/tools/genOpPlanFixtures.mjs</c>), each bundle case a pseudo-file. Keyed by
-/// file name so <c>[MemberData]</c> carries one short string per test.
+/// read once: the hand-written bundle (each case carrying its stable <c>file</c> label) plus
+/// the registry-generated one (<c>browser/tools/genOpPlanFixtures.mjs</c>), whose cases walk
+/// as <c>&lt;name&gt;.json</c>. Keyed by label so <c>[MemberData]</c> carries one short string.
 /// </summary>
 internal static class OpPlanCorpus
 {
@@ -30,6 +31,11 @@ internal static class OpPlanCorpus
         new(() => Loaded.Value.ToDictionary(f => f.File, StringComparer.Ordinal));
 
     public static IReadOnlyList<OpPlanFixture> All => Loaded.Value;
+
+    /// <summary>Each bundle's own case count, so a walker can floor them separately.</summary>
+    public static int HandCount => All.Count(f => f.Generated is false);
+
+    public static int GeneratedCount => All.Count(f => f.Generated);
 
     public static OpPlanFixture ByFile(string file) => Index.Value[file];
 
@@ -41,20 +47,20 @@ internal static class OpPlanCorpus
     {
         string dir = SharedFixtures.LlmFixtureDir("opPlan");
         List<OpPlanFixture> fixtures = [];
-        foreach (string path in Directory.GetFiles(dir, "*.json").OrderBy(static p => p, StringComparer.Ordinal))
+        using JsonDocument hand = SharedFixtures.Load(Path.Combine(dir, "cases.json"));
+        foreach (JsonElement fx in hand.RootElement.GetProperty("cases").EnumerateArray())
         {
-            using JsonDocument doc = SharedFixtures.Load(path);
-            fixtures.Add(Read(Path.GetFileName(path), doc.RootElement));
+            fixtures.Add(Read(fx.GetProperty("file").GetString()!, fx, generated: false));
         }
         using JsonDocument bundle = SharedFixtures.Load(Path.Combine(dir, "generated", "cases.json"));
         foreach (JsonElement fx in bundle.RootElement.GetProperty("cases").EnumerateArray())
         {
-            fixtures.Add(Read($"{fx.GetProperty("name").GetString()}.json", fx));
+            fixtures.Add(Read($"{fx.GetProperty("name").GetString()}.json", fx, generated: true));
         }
         return fixtures;
     }
 
-    private static OpPlanFixture Read(string file, JsonElement fx)
+    private static OpPlanFixture Read(string file, JsonElement fx, bool generated)
     {
         bool profilesOk = fx.TryGetProperty("profiles", out JsonElement profiles)
             && profiles.ValueKind == JsonValueKind.Array && profiles.GetArrayLength() > 0;
@@ -72,6 +78,7 @@ internal static class OpPlanCorpus
         bool hasInput = fx.TryGetProperty("input", out JsonElement input) && input.ValueKind != JsonValueKind.Null;
         return new OpPlanFixture(
             file,
+            generated,
             fx.TryGetProperty("name", out JsonElement n) ? n.GetString() ?? "" : "",
             profilesOk,
             names,

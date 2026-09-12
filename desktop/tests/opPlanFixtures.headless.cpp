@@ -10,7 +10,6 @@
 #include "opPlan.hpp"
 
 #include <QCoreApplication>
-#include <QDir>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -29,19 +28,23 @@ int main(int argc, char** argv) {
   QCoreApplication app(argc, argv);
 
   const QString dir = corpusPath("llm/fixtures/opPlan");
-  QStringList files = QDir(dir).entryList({"*.json"}, QDir::Files, QDir::Name);
-  // The hand-written files plus the registry-generated bundle (generated/cases.json,
-  // browser/tools/genOpPlanFixtures.mjs), each generated case walking as "<name>.json".
+  // The hand-written bundle (each case carrying its stable "file" label) plus the
+  // registry-generated one (generated/cases.json, browser/tools/genOpPlanFixtures.mjs),
+  // whose cases walk as "<name>.json".
+  const QJsonArray hand = readJsonFile(dir + "/cases.json").object().value("cases").toArray();
+  const QJsonArray generated =
+      readJsonFile(dir + "/generated/cases.json").object().value("cases").toArray();
   std::vector<std::pair<QString, QJsonObject>> corpus;
-  for (const QString& file : files) {
-    bool jsonOk = false;
-    const QJsonObject fx = readJsonFile(dir + "/" + file, &jsonOk).object();
-    corpus.emplace_back(file, jsonOk ? fx : QJsonObject());
-  }
-  for (const QJsonValue& c : readJsonFile(dir + "/generated/cases.json").object().value("cases").toArray())
+  for (const QJsonValue& c : hand)
+    corpus.emplace_back(c.toObject().value("file").toString(), c.toObject());
+  for (const QJsonValue& c : generated)
     corpus.emplace_back(c.toObject().value("name").toString() + ".json", c.toObject());
-  check(corpus.size() >= 300,
-        qPrintable(QStringLiteral("a real corpus is present (%1 fixtures)").arg(corpus.size())));
+  // Floors per bundle, not on the total: the generated cases alone clear a combined floor,
+  // so a vanished cases.json would otherwise walk green.
+  check(hand.size() >= 180,
+        qPrintable(QStringLiteral("hand-written cases.json holds %1 cases").arg(hand.size())));
+  check(generated.size() >= 400,
+        qPrintable(QStringLiteral("generated/cases.json holds %1 cases").arg(generated.size())));
 
   static const QSet<QString> kProfiles = {"editor", "console", "bot", "mcp", "extension", "all"};
   static const QSet<QString> kSurfaces = {"browser", "desktop", "cli", "pystencil",
@@ -57,7 +60,7 @@ int main(int argc, char** argv) {
     }
   };
   for (const auto& [file, fx] : corpus) {
-    shape(!fx.isEmpty(), file + ": parses as a JSON object");
+    shape(!fx.isEmpty() && !file.isEmpty(), file + ": a non-empty case under a label");
     QString slug = file;
     slug.remove(QRegularExpression("^\\d+-"));
     shape(fx.value("name").toString() + ".json" == slug,

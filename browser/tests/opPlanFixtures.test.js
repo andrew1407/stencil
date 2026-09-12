@@ -11,9 +11,10 @@
 // override where a cross-surface disagreement has been measured and pinned.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { renderFreshness } from '../tools/genOpPlanFixtures.mjs';
 import { parseOpPlan } from '../js/llm/opPlan.js';
 
 const FIXTURES_DIR = path.join(
@@ -23,24 +24,33 @@ const PROFILES = new Set(['editor', 'console', 'bot', 'mcp', 'extension', 'all']
 const SURFACES = new Set(['browser', 'desktop', 'cli', 'pystencil', 'bot', 'mcp', 'extension']);
 const BROWSER_PROFILES = ['editor', 'all'];
 
-const files = readdirSync(FIXTURES_DIR).filter((f) => f.endsWith('.json')).sort();
-// The hand-written cases, plus the registry-generated bundle (generated/cases.json —
-// tools/genOpPlanFixtures.mjs), each generated case walking as `<name>.json`.
-const GENERATED = path.join(FIXTURES_DIR, 'generated', 'cases.json');
+const read = (...rel) => readFileSync(path.join(FIXTURES_DIR, ...rel), 'utf8');
+// Two bundles: the hand-written cases (cases.json, each carrying its stable `file` label)
+// and the registry-generated ones (generated/cases.json — tools/genOpPlanFixtures.mjs),
+// which walk as `<name>.json`.
+const hand = JSON.parse(read('cases.json')).cases;
+const generated = JSON.parse(read('generated', 'cases.json')).cases;
 const fixtures = [
-  ...files.map((file) => ({ file, fx: JSON.parse(readFileSync(path.join(FIXTURES_DIR, file), 'utf8')) })),
-  ...JSON.parse(readFileSync(GENERATED, 'utf8')).cases.map((fx) => ({ file: `${fx.name}.json`, fx })),
+  ...hand.map((fx) => ({ file: fx.file, fx })),
+  ...generated.map((fx) => ({ file: `${fx.name}.json`, fx })),
 ];
 
-test('the generated bundle is fresh against the registry (npm run gen-fixtures)', async () => {
-  const { generate, render } = await import('../tools/genOpPlanFixtures.mjs');
-  const registry = JSON.parse(readFileSync(path.join(FIXTURES_DIR, '..', '..', 'opRegistry.json'), 'utf8'));
-  assert.equal(readFileSync(GENERATED, 'utf8'), render(generate(registry)), 'generated/cases.json is stale — run `npm run gen-fixtures`');
+// Two digests instead of re-deriving the 211 KB bundle on every run (~10 ms → ~0.5 ms);
+// generated/freshness.json is written by `npm run gen-fixtures`.
+test('the generated bundle is fresh against the registry (npm run gen-fixtures)', () => {
+  const registryBytes = readFileSync(path.join(FIXTURES_DIR, '..', '..', 'opRegistry.json'));
+  assert.equal(read('generated', 'freshness.json'),
+    renderFreshness(registryBytes, read('generated', 'cases.json')),
+    'generated/ is stale against opRegistry.json — run `npm run gen-fixtures`');
 });
 
+// Floors per bundle, not on the total: the 444 generated cases alone clear any combined
+// floor, so a vanished cases.json would otherwise walk green.
 test('the corpus exists and is well-formed', () => {
-  assert.ok(fixtures.length >= 300, `expected a real corpus, found ${fixtures.length} fixtures`);
+  assert.ok(hand.length >= 180, `hand-written cases.json collapsed to ${hand.length}`);
+  assert.ok(generated.length >= 400, `generated/cases.json collapsed to ${generated.length}`);
   for (const { file, fx } of fixtures) {
+    assert.equal(typeof file, 'string', `${fx.name}: every case carries a label`);
     assert.equal(`${fx.name}.json`, file.replace(/^\d+-/, ''), `${file}: "name" must match the filename slug`);
     assert.ok(Array.isArray(fx.profiles) && fx.profiles.length, `${file}: "profiles" must be a non-empty array`);
     for (const p of fx.profiles) assert.ok(PROFILES.has(p), `${file}: unknown profile "${p}"`);

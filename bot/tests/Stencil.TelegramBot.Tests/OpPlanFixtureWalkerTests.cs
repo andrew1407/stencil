@@ -22,7 +22,10 @@ public sealed class OpPlanFixtureWalkerTests
     [Fact]
     public void TheCorpusIsBigEnoughToBeReal()
     {
-        Assert.True(OpPlanCorpus.All.Count >= 80, $"expected a real corpus, found {OpPlanCorpus.All.Count} fixtures");
+        // Floors per bundle, not on the total: the generated cases alone clear a combined
+        // floor, so a vanished cases.json would otherwise walk green.
+        Assert.True(OpPlanCorpus.HandCount >= 180, $"hand-written cases.json collapsed to {OpPlanCorpus.HandCount}");
+        Assert.True(OpPlanCorpus.GeneratedCount >= 400, $"generated/cases.json collapsed to {OpPlanCorpus.GeneratedCount}");
         int bot = OpPlanCorpus.BotFileNames.Count();
         Assert.True(bot > 100, $"suspiciously few bot fixtures ({bot})");
     }

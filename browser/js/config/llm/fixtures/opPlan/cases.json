@@ -1,0 +1,4265 @@
+{
+ "$schema": "the hand-written op-plan cases, one entry per case in the shape of ./_schema.md; `file` is the case's stable label (historically its NNN- filename)",
+ "cases": [
+  {
+   "file": "001-crop-basic.json",
+   "name": "crop-basic",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "x1": "10%",
+       "x2": "-10%"
+      }
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "002-crop-aspect-only.json",
+   "name": "crop-aspect-only",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "aspect": "3:4"
+      }
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "003-rotate-left-twice.json",
+   "name": "rotate-left-twice",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "rotate",
+      "dir": "left",
+      "times": 2
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "004-rotate-default-times.json",
+   "name": "rotate-default-times",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "rotate",
+      "dir": "right"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "times defaults to 1"
+  },
+  {
+   "file": "005-filter-sepia.json",
+   "name": "filter-sepia",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "filter",
+      "mode": "sepia"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "NOTE: the extension registers a DIFFERENT op under the same name \"filter\" (its panel list filter) — this core shape is invalid there (unknown field \"mode\"); see filter-core-shape-in-extension"
+  },
+  {
+   "file": "006-filter-custom-tint.json",
+   "name": "filter-custom-tint",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "filter",
+      "mode": "custom",
+      "tint": "#AbCdEf"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "mixed-case hex is accepted"
+  },
+  {
+   "file": "007-layout-single-line.json",
+   "name": "layout-single-line",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "layout",
+      "lines": [
+       {
+        "points": [
+         {
+          "x": 0,
+          "y": 0
+         },
+         {
+          "x": 10,
+          "y": 20
+         }
+        ],
+        "color": "#FFFF00",
+        "thickness": 2,
+        "pointSize": 4,
+        "style": "dashed",
+        "locked": false,
+        "fillColor": "transparent"
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "008-layout-empty-lines-clears.json",
+   "name": "layout-empty-lines-clears",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "layout",
+      "lines": []
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "empty lines array removes every drawn line (contract §2); mcp prompt omits that sentence but the shape is valid there too"
+  },
+  {
+   "file": "009-formula-x.json",
+   "name": "formula-x",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "formula",
+      "axis": "x",
+      "expr": "x*2+10"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "010-formula-power.json",
+   "name": "formula-power",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "formula",
+      "axis": "y",
+      "expr": "y**2"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "** is two chars of the allowed charset"
+  },
+  {
+   "file": "011-formula-enabled-false-alone.json",
+   "name": "formula-enabled-false-alone",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "formula",
+      "enabled": false
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "012-formula-empty-expr-clears.json",
+   "name": "formula-empty-expr-clears",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "formula",
+      "axis": "y",
+      "expr": ""
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "014-page-custom-dims.json",
+   "name": "page-custom-dims",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "page",
+      "width": 20,
+      "height": 30
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "015-blank-hex-format.json",
+   "name": "blank-hex-format",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "blank",
+      "color": "#ffffff",
+      "format": "a4"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "016-blank-css-name-dims.json",
+   "name": "blank-css-name-dims",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "blank",
+      "color": "white",
+      "width": 10,
+      "height": 15
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "018-redo-steps.json",
+   "name": "redo-steps",
+   "profiles": [
+    "editor",
+    "console",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "redo",
+      "steps": 3
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "020-frame-indices.json",
+   "name": "frame-indices",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "frame",
+      "indices": [
+       0,
+       30,
+       60
+      ]
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "022-save-name.json",
+   "name": "save-name",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "save",
+      "name": "portrait 1"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "024-save-with-path.json",
+   "name": "save-with-path",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "save",
+      "name": "p",
+      "path": "~/Downloads"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "contract §2 gives save an optional \"path\" (string ≤ 1024 chars, never a URL); every surface carrying save accepts it — desktop and cli honour it under the user-echo guard, mcp honours it relative to the run's output_dir (traversal-guarded), browser, pystencil and bot accept it and note+skip the destination"
+  },
+  {
+   "file": "025-theme-dark.json",
+   "name": "theme-dark",
+   "profiles": [
+    "editor",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "theme",
+      "mode": "dark"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "026-accent-color.json",
+   "name": "accent-color",
+   "profiles": [
+    "editor",
+    "console",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "accent",
+      "color": "#7c3aed"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "pystencil does not register accent (no theme) — unknown-op skip there, same verdict"
+  },
+  {
+   "file": "027-accent-preset.json",
+   "name": "accent-preset",
+   "profiles": [
+    "editor",
+    "console"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "accent",
+      "preset": "green"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "preset form: browser/desktop/cli; the extension accent takes only \"color\" — excluded from its profile"
+  },
+  {
+   "file": "028-linestyle-subset.json",
+   "name": "linestyle-subset",
+   "profiles": [
+    "editor",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "lineStyle",
+      "color": "#00ff00",
+      "thickness": 3
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "029-linestyle-pointcolor-empty.json",
+   "name": "linestyle-pointcolor-empty",
+   "profiles": [
+    "editor",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "lineStyle",
+      "pointColor": ""
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "\"\" = follow the stroke colour"
+  },
+  {
+   "file": "031-view-toggle.json",
+   "name": "view-toggle",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "view",
+      "points": true,
+      "lines": false
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "033-openurl-https.json",
+   "name": "openurl-https",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "openUrl",
+      "url": "https://example.com/cat.jpg"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "034-openurl-incognito.json",
+   "name": "openurl-incognito",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "openUrl",
+      "url": "https://example.com/cat.jpg",
+      "incognito": true
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "035-connect-server.json",
+   "name": "connect-server",
+   "profiles": [
+    "editor",
+    "console",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "connect",
+      "server": "https://stencil.example.com"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "036-disconnect-server.json",
+   "name": "disconnect-server",
+   "profiles": [
+    "editor",
+    "console",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "disconnect",
+      "server": "stencil.example.com"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "038-copy-what-layout.json",
+   "name": "copy-what-layout",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "copy",
+      "what": "layout"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "the cli console copy bullet says \"Takes no fields\" — the \"what\" widening is editor-only"
+  },
+  {
+   "file": "039-removeproject-name.json",
+   "name": "removeproject-name",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "removeProject",
+      "name": "portrait 1"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "the bot lists removeProject among its FORBIDDEN ops (server-side destruction) — editor-only here"
+  },
+  {
+   "file": "040-removeproject-current.json",
+   "name": "removeproject-current",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "removeProject",
+      "current": true
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "042-compare-vertical-split.json",
+   "name": "compare-vertical-split",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "compare",
+      "mode": "vertical",
+      "split": 0.3
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "043-zoom-percent.json",
+   "name": "zoom-percent",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "zoom",
+      "percent": 150
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "044-zoom-fit.json",
+   "name": "zoom-fit",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "zoom",
+      "fit": true
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "045-renameproject.json",
+   "name": "renameproject",
+   "profiles": [
+    "editor",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "renameProject",
+      "name": "new name"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "046-projectcolor-hex.json",
+   "name": "projectcolor-hex",
+   "profiles": [
+    "editor",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "projectColor",
+      "color": "#ec4899"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "047-projectcolor-clear.json",
+   "name": "projectcolor-clear",
+   "profiles": [
+    "editor",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "projectColor",
+      "color": ""
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "\"\" restores the theme accent"
+  },
+  {
+   "file": "048-blankcolor-hex.json",
+   "name": "blankcolor-hex",
+   "profiles": [
+    "editor",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "blankColor",
+      "color": "#dbeafe"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "049-openproject-name.json",
+   "name": "openproject-name",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "openProject",
+      "name": "portrait 1"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "052-openfile-path.json",
+   "name": "openfile-path",
+   "profiles": [
+    "editor",
+    "console"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "openFile",
+      "path": "~/Pictures/cat.png"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "openFile is desktop + cli only (contract §8); browser and pystencil skip it as unknown — same verdict, different effect"
+  },
+  {
+   "file": "054-reset-unknown-in-editor.json",
+   "name": "reset-unknown-in-editor",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "reset"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "editors have no single reset control — unknown-op skip with a warning per contract §2"
+  },
+  {
+   "file": "055-reconnect-server.json",
+   "name": "reconnect-server",
+   "profiles": [
+    "console"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "reconnect",
+      "server": "stencil.example.com"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "cli-only console op; pystencil skips it as unknown"
+  },
+  {
+   "file": "056-delete-local-project-file.json",
+   "name": "delete-local-project-file",
+   "profiles": [
+    "console"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "delete",
+      "path": "old.stencil"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "cli + pystencil console op; NOTE the bot lists \"delete\" among its FORBIDDEN ops — never widen this profile to bot"
+  },
+  {
+   "file": "057-describe-text.json",
+   "name": "describe-text",
+   "profiles": [
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "describe",
+      "text": "a portrait"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "059-ext-focus.json",
+   "name": "ext-focus",
+   "profiles": [
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "focus",
+      "image": 3
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "060-ext-open-with-actions.json",
+   "name": "ext-open-with-actions",
+   "profiles": [
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "open",
+      "image": 0,
+      "mode": "copy",
+      "actions": [
+       {
+        "op": "crop",
+        "spec": {
+         "x1": "10%"
+        }
+       },
+       {
+        "op": "filter",
+        "mode": "sepia"
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "core ops are legal only NESTED under open.actions in the extension profile"
+  },
+  {
+   "file": "061-ext-attach-images.json",
+   "name": "ext-attach-images",
+   "profiles": [
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "attach",
+      "images": [
+       0,
+       1
+      ]
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "062-ext-pin.json",
+   "name": "ext-pin",
+   "profiles": [
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "pin",
+      "image": 1
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "063-ext-unpin.json",
+   "name": "ext-unpin",
+   "profiles": [
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "unpin",
+      "image": 1
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "064-ext-scantab.json",
+   "name": "ext-scantab",
+   "profiles": [
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "scanTab",
+      "tab": 1
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "assumes the shared-tabs listing is on and holds the index; with shareTabs off the op fails for want of indices"
+  },
+  {
+   "file": "066-ext-theme-system.json",
+   "name": "ext-theme-system",
+   "profiles": [
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "theme",
+      "mode": "system"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "the extension theme adds a third \"system\" mode the editors reject"
+  },
+  {
+   "file": "067-ext-filter-panel.json",
+   "name": "ext-filter-panel",
+   "profiles": [
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "filter",
+      "search": "cat",
+      "kinds": [
+       "images"
+      ],
+      "minWidth": 200
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "the extension \"filter\" op is the panel list filter — same name as the core pixel filter, different grammar"
+  },
+  {
+   "file": "068-ext-variants-dropped.json",
+   "name": "ext-variants-dropped",
+   "profiles": [
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "focus",
+      "image": 0
+     }
+    ],
+    "variants": [
+     {
+      "label": "v",
+      "actions": [
+       {
+        "op": "focus",
+        "image": 1
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "extension plans must not use variants (§8) — implementation drops them all with a warning rather than failing"
+  },
+  {
+   "file": "069-filter-core-shape-in-extension.json",
+   "name": "filter-core-shape-in-extension",
+   "profiles": [
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "filter",
+      "mode": "sepia"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "name collision: \"filter\" exists in the extension as the panel filter, so the core shape hits a KNOWN op with unknown field \"mode\" and fails the plan instead of skip-as-unknown"
+  },
+  {
+   "file": "070-theme-mode-system-in-editor.json",
+   "name": "theme-mode-system-in-editor",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "theme",
+      "mode": "system"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "editor theme mode is strictly light|dark; only the extension adds \"system\""
+  },
+  {
+   "file": "073-variants-8-max-ok.json",
+   "name": "variants-8-max-ok",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+     {
+      "label": "v0",
+      "actions": [
+       {
+        "op": "rotate",
+        "dir": "left"
+       }
+      ]
+     },
+     {
+      "label": "v1",
+      "actions": [
+       {
+        "op": "rotate",
+        "dir": "left"
+       }
+      ]
+     },
+     {
+      "label": "v2",
+      "actions": [
+       {
+        "op": "rotate",
+        "dir": "left"
+       }
+      ]
+     },
+     {
+      "label": "v3",
+      "actions": [
+       {
+        "op": "rotate",
+        "dir": "left"
+       }
+      ]
+     },
+     {
+      "label": "v4",
+      "actions": [
+       {
+        "op": "rotate",
+        "dir": "left"
+       }
+      ]
+     },
+     {
+      "label": "v5",
+      "actions": [
+       {
+        "op": "rotate",
+        "dir": "left"
+       }
+      ]
+     },
+     {
+      "label": "v6",
+      "actions": [
+       {
+        "op": "rotate",
+        "dir": "left"
+       }
+      ]
+     },
+     {
+      "label": "v7",
+      "actions": [
+       {
+        "op": "rotate",
+        "dir": "left"
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "074-variants-9-invalid.json",
+   "name": "variants-9-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+     {
+      "label": "v0",
+      "actions": []
+     },
+     {
+      "label": "v1",
+      "actions": []
+     },
+     {
+      "label": "v2",
+      "actions": []
+     },
+     {
+      "label": "v3",
+      "actions": []
+     },
+     {
+      "label": "v4",
+      "actions": []
+     },
+     {
+      "label": "v5",
+      "actions": []
+     },
+     {
+      "label": "v6",
+      "actions": []
+     },
+     {
+      "label": "v7",
+      "actions": []
+     },
+     {
+      "label": "v8",
+      "actions": []
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "more than 8 variants"
+  },
+  {
+   "file": "078-frame-indices-32-ok.json",
+   "name": "frame-indices-32-ok",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "frame",
+      "indices": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17,
+       18,
+       19,
+       20,
+       21,
+       22,
+       23,
+       24,
+       25,
+       26,
+       27,
+       28,
+       29,
+       30,
+       31
+      ]
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "079-frame-indices-33-invalid.json",
+   "name": "frame-indices-33-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "frame",
+      "indices": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17,
+       18,
+       19,
+       20,
+       21,
+       22,
+       23,
+       24,
+       25,
+       26,
+       27,
+       28,
+       29,
+       30,
+       31,
+       32
+      ]
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "more than 32 frame indices"
+  },
+  {
+   "file": "080-formula-expr-5000-ok.json",
+   "name": "formula-expr-5000-ok",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "formula",
+      "axis": "x",
+      "expr": "11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "MAX_STRING_CHARS boundary"
+  },
+  {
+   "file": "081-formula-expr-5001-invalid.json",
+   "name": "formula-expr-5001-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "formula",
+      "axis": "x",
+      "expr": "111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "string field longer than 5000 chars"
+  },
+  {
+   "file": "082-save-name-120-ok.json",
+   "name": "save-name-120-ok",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "save",
+      "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "083-save-name-121-invalid.json",
+   "name": "save-name-121-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "save",
+      "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "save name longer than 120 chars"
+  },
+  {
+   "file": "084-renameproject-name-80-ok.json",
+   "name": "renameproject-name-80-ok",
+   "profiles": [
+    "editor",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "renameProject",
+      "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "renameProject caps at 80 — a DIFFERENT cap than save's 120"
+  },
+  {
+   "file": "085-renameproject-name-81-invalid.json",
+   "name": "renameproject-name-81-invalid",
+   "profiles": [
+    "editor",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "renameProject",
+      "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "renameProject name longer than 80 chars"
+  },
+  {
+   "file": "088-ask-two-options-ok.json",
+   "name": "ask-two-options-ok",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "choice 1"
+      },
+      {
+       "label": "choice 2"
+      }
+     ]
+    }
+   },
+   "expect": "valid",
+   "reason": "minimum option count"
+  },
+  {
+   "file": "089-ask-five-options-ok.json",
+   "name": "ask-five-options-ok",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "choice 1"
+      },
+      {
+       "label": "choice 2"
+      },
+      {
+       "label": "choice 3"
+      },
+      {
+       "label": "choice 4"
+      },
+      {
+       "label": "choice 5"
+      }
+     ]
+    }
+   },
+   "expect": "valid",
+   "reason": "maximum option count"
+  },
+  {
+   "file": "090-ask-one-option-invalid.json",
+   "name": "ask-one-option-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "choice 1"
+      }
+     ]
+    }
+   },
+   "expect": "invalid",
+   "reason": "fewer than 2 options"
+  },
+  {
+   "file": "091-ask-six-options-invalid.json",
+   "name": "ask-six-options-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "choice 1"
+      },
+      {
+       "label": "choice 2"
+      },
+      {
+       "label": "choice 3"
+      },
+      {
+       "label": "choice 4"
+      },
+      {
+       "label": "choice 5"
+      },
+      {
+       "label": "choice 6"
+      }
+     ]
+    }
+   },
+   "expect": "invalid",
+   "reason": "more than 5 options"
+  },
+  {
+   "file": "092-ask-question-300-ok.json",
+   "name": "ask-question-300-ok",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+     "options": [
+      {
+       "label": "choice 1"
+      },
+      {
+       "label": "choice 2"
+      }
+     ]
+    }
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "093-ask-question-301-invalid.json",
+   "name": "ask-question-301-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",
+     "options": [
+      {
+       "label": "choice 1"
+      },
+      {
+       "label": "choice 2"
+      }
+     ]
+    }
+   },
+   "expect": "invalid",
+   "reason": "question longer than 300 chars"
+  },
+  {
+   "file": "094-ask-label-80-ok.json",
+   "name": "ask-label-80-ok",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll"
+      },
+      {
+       "label": "b"
+      }
+     ]
+    }
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "095-ask-label-81-invalid.json",
+   "name": "ask-label-81-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "lllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll"
+      },
+      {
+       "label": "b"
+      }
+     ]
+    }
+   },
+   "expect": "invalid",
+   "reason": "option label longer than 80 chars"
+  },
+  {
+   "file": "096-ask-customlabel-81-invalid.json",
+   "name": "ask-customlabel-81-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "choice 1"
+      },
+      {
+       "label": "choice 2"
+      }
+     ],
+     "allowCustom": true,
+     "customLabel": "ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+   },
+   "expect": "invalid",
+   "reason": "customLabel longer than 80 chars"
+  },
+  {
+   "file": "097-ask-mode-multi-allowcustom.json",
+   "name": "ask-mode-multi-allowcustom",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "choice 1"
+      },
+      {
+       "label": "choice 2"
+      },
+      {
+       "label": "choice 3"
+      }
+     ],
+     "mode": "multi",
+     "allowCustom": true
+    }
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "098-ask-mode-bogus-invalid.json",
+   "name": "ask-mode-bogus-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "choice 1"
+      },
+      {
+       "label": "choice 2"
+      }
+     ],
+     "mode": "radio"
+    }
+   },
+   "expect": "invalid",
+   "reason": "mode must be \"single\" or \"multi\""
+  },
+  {
+   "file": "099-ask-unknown-field-invalid.json",
+   "name": "ask-unknown-field-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "choice 1"
+      },
+      {
+       "label": "choice 2"
+      }
+     ],
+     "placeholder": "x"
+    }
+   },
+   "expect": "invalid",
+   "reason": "unknown field on ask fails the plan (§11.1)"
+  },
+  {
+   "file": "100-ask-option-unknown-field-invalid.json",
+   "name": "ask-option-unknown-field-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "a",
+       "hint": "x"
+      },
+      {
+       "label": "b"
+      }
+     ]
+    }
+   },
+   "expect": "invalid",
+   "reason": "unknown field on an option fails the plan (§11.1)"
+  },
+  {
+   "file": "101-ask-option-actions-and-image-invalid.json",
+   "name": "ask-option-actions-and-image-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "a",
+       "actions": [
+        {
+         "op": "filter",
+         "mode": "bw"
+        }
+       ],
+       "image": {
+        "url": "https://x.example/a.jpg"
+       }
+      },
+      {
+       "label": "b"
+      }
+     ]
+    }
+   },
+   "expect": "invalid",
+   "reason": "an option previews a render OR names an image, never both"
+  },
+  {
+   "file": "102-ask-option-preview-actions.json",
+   "name": "ask-option-preview-actions",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "Sepia",
+       "actions": [
+        {
+         "op": "filter",
+         "mode": "sepia"
+        }
+       ]
+      },
+      {
+       "label": "B&W",
+       "actions": [
+        {
+         "op": "filter",
+         "mode": "bw"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "103-ask-image-two-refs-invalid.json",
+   "name": "ask-image-two-refs-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "a",
+       "image": {
+        "url": "https://x.example/a.jpg",
+        "projectId": "p_1"
+       }
+      },
+      {
+       "label": "b"
+      }
+     ]
+    }
+   },
+   "expect": "invalid",
+   "reason": "image reference needs exactly one of url / projectId / scanIndex (§11.1) — uniform on every surface since the table-driven validators (the consoles validate option images even though they render no preview)"
+  },
+  {
+   "file": "104-ask-image-url-not-http-invalid.json",
+   "name": "ask-image-url-not-http-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "a",
+       "image": {
+        "url": "data:image/png;base64,AAAA"
+       }
+      },
+      {
+       "label": "b"
+      }
+     ]
+    }
+   },
+   "expect": "invalid",
+   "reason": "only http(s) image.url is accepted — data:/file:/javascript: never; uniform on every surface since the table-driven validators (surfaces that fetch nothing still validate the reference, then drop the picture)"
+  },
+  {
+   "file": "105-ask-image-scanindex-in-editor.json",
+   "name": "ask-image-scanindex-in-editor",
+   "profiles": [
+    "editor",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "a",
+       "image": {
+        "scanIndex": 2
+       }
+      },
+      {
+       "label": "b"
+      }
+     ]
+    }
+   },
+   "expect": "valid",
+   "reason": "SUSPECTED SPEC MISMATCH: contract §11.1 marks scanIndex \"extension profile only\", but the browser validator accepts it anywhere (it just never resolves)"
+  },
+  {
+   "file": "106-ask-option-settings-op-preview-dropped.json",
+   "name": "ask-option-settings-op-preview-dropped",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "ask": {
+     "question": "Which?",
+     "options": [
+      {
+       "label": "a",
+       "actions": [
+        {
+         "op": "zoom",
+         "percent": 200
+        }
+       ]
+      },
+      {
+       "label": "b"
+      }
+     ]
+    }
+   },
+   "expect": "valid",
+   "reason": "a settings op in an option preview costs the option its PICTURE (warning), never the plan (§1 leniency)"
+  },
+  {
+   "file": "107-crop-token-bare-number.json",
+   "name": "crop-token-bare-number",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "x1": "42"
+      }
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "bare number = px"
+  },
+  {
+   "file": "108-crop-token-decimal-unit.json",
+   "name": "crop-token-decimal-unit",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "y2": ".5cm"
+      }
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "109-crop-token-inner-space-invalid.json",
+   "name": "crop-token-inner-space-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "x1": "10 %"
+      }
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "space between number and unit"
+  },
+  {
+   "file": "110-crop-token-unit-pt-invalid.json",
+   "name": "crop-token-unit-pt-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "x1": "10pt"
+      }
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "only % / px / cm / in units"
+  },
+  {
+   "file": "111-crop-token-plus-sign-invalid.json",
+   "name": "crop-token-plus-sign-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "x1": "+5"
+      }
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "only a leading \"-\" is allowed"
+  },
+  {
+   "file": "112-crop-token-number-type-invalid.json",
+   "name": "crop-token-number-type-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "x1": 10
+      }
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "tokens are strings, never JSON numbers"
+  },
+  {
+   "file": "113-crop-aspect-zero-invalid.json",
+   "name": "crop-aspect-zero-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "aspect": "0:4"
+      }
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "both aspect terms must be positive"
+  },
+  {
+   "file": "114-crop-aspect-decimal-invalid.json",
+   "name": "crop-aspect-decimal-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "aspect": "3.5:4"
+      }
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "aspect terms are integers"
+  },
+  {
+   "file": "115-crop-aspect-leading-zero-ok.json",
+   "name": "crop-aspect-leading-zero-ok",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "aspect": "04:3"
+      }
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "SUSPICIOUS: a leading zero passes the digits-only regex (\"04\" parses as 4) while \"0:4\" fails — pinned as implemented"
+  },
+  {
+   "file": "116-crop-aspect-beside-spec-folded.json",
+   "name": "crop-aspect-beside-spec-folded",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "x1": "5%"
+      },
+      "aspect": "1:1"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "§3.2 tolerance: \"aspect\" beside \"spec\" is folded in when the spec lacks one"
+  },
+  {
+   "file": "117-crop-aspect-conflict-invalid.json",
+   "name": "crop-aspect-conflict-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "aspect": "3:4"
+      },
+      "aspect": "1:1"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "aspect both beside and inside spec with different values"
+  },
+  {
+   "file": "118-crop-spec-empty-invalid.json",
+   "name": "crop-spec-empty-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {}
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "spec needs at least one key"
+  },
+  {
+   "file": "119-crop-spec-unknown-key-invalid.json",
+   "name": "crop-spec-unknown-key-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "crop",
+      "spec": {
+       "left": "10%"
+      }
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "only x1/x2/y1/y2/aspect"
+  },
+  {
+   "file": "120-page-format-a0-ok.json",
+   "name": "page-format-a0-ok",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "page",
+      "format": "a0"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "121-page-format-a10-ok.json",
+   "name": "page-format-a10-ok",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "page",
+      "format": "a10"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "122-page-format-c10-ok.json",
+   "name": "page-format-c10-ok",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "page",
+      "format": "c10"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "123-page-format-a11-invalid.json",
+   "name": "page-format-a11-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "page",
+      "format": "a11"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "ISO names stop at 10"
+  },
+  {
+   "file": "124-page-format-d4-invalid.json",
+   "name": "page-format-d4-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "page",
+      "format": "d4"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "only a/b/c series"
+  },
+  {
+   "file": "125-page-format-uppercase-invalid.json",
+   "name": "page-format-uppercase-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "page",
+      "format": "A4"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "lowercase ISO names only"
+  },
+  {
+   "file": "126-page-both-forms-invalid.json",
+   "name": "page-both-forms-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "page",
+      "format": "a4",
+      "width": 20,
+      "height": 30
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "exactly one of format / width+height"
+  },
+  {
+   "file": "128-page-width-only-invalid.json",
+   "name": "page-width-only-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "page",
+      "width": 20
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "custom dims ride together"
+  },
+  {
+   "file": "130-page-width-out-of-range-invalid.json",
+   "name": "page-width-out-of-range-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "page",
+      "width": 500.1,
+      "height": 30
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "cm dims above 500"
+  },
+  {
+   "file": "131-filter-hex-3-digit-invalid.json",
+   "name": "filter-hex-3-digit-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "filter",
+      "mode": "custom",
+      "tint": "#fff"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "hex is exactly # + 6 hex digits — the 3-digit CSS shorthand is rejected"
+  },
+  {
+   "file": "132-filter-hex-nonhex-invalid.json",
+   "name": "filter-hex-nonhex-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "filter",
+      "mode": "custom",
+      "tint": "#GGGGGG"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "non-hex digits"
+  },
+  {
+   "file": "133-filter-hex-no-hash-invalid.json",
+   "name": "filter-hex-no-hash-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "filter",
+      "mode": "custom",
+      "tint": "ff0000"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "missing leading #"
+  },
+  {
+   "file": "135-filter-tint-on-sepia-invalid.json",
+   "name": "filter-tint-on-sepia-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "filter",
+      "mode": "sepia",
+      "tint": "#112233"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "tint only rides with mode custom"
+  },
+  {
+   "file": "136-filter-mode-grayscale-invalid.json",
+   "name": "filter-mode-grayscale-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "filter",
+      "mode": "grayscale"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "unknown filter mode"
+  },
+  {
+   "file": "137-blank-color-bogus-name-valid.json",
+   "name": "blank-color-bogus-name-valid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "blank",
+      "color": "notacolour"
+     }
+    ]
+   },
+   "expect": "valid",
+   "knownDivergence": {
+    "desktop": "invalid"
+   },
+   "reason": "SUSPICIOUS: the CSS-name check is any-letters (/^[a-zA-Z]+$/) — an arbitrary alphabetic word passes validation and fails only at render; pinned as implemented. MEASURED DIVERGENCE: desktop validates blank color via core::parseColor (a real CSS-name table, opPlan.cpp isColorNameOrHex), so \"notacolour\" is rejected there"
+  },
+  {
+   "file": "138-blank-color-with-space-invalid.json",
+   "name": "blank-color-with-space-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "blank",
+      "color": "light blue"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "not hex and not a single alphabetic word"
+  },
+  {
+   "file": "139-blank-width-without-height-invalid.json",
+   "name": "blank-width-without-height-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "blank",
+      "color": "#ffffff",
+      "width": 10
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "width and height ride together"
+  },
+  {
+   "file": "140-blank-missing-color-invalid.json",
+   "name": "blank-missing-color-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "blank",
+      "format": "a4"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "color is required"
+  },
+  {
+   "file": "141-formula-wrong-variable-invalid.json",
+   "name": "formula-wrong-variable-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "formula",
+      "axis": "x",
+      "expr": "y+1"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "the single variable must match the axis"
+  },
+  {
+   "file": "142-formula-caret-invalid.json",
+   "name": "formula-caret-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "formula",
+      "axis": "x",
+      "expr": "x^2"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "^ is outside the charset — power is **"
+  },
+  {
+   "file": "143-formula-enabled-plus-axis-invalid.json",
+   "name": "formula-enabled-plus-axis-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "formula",
+      "enabled": true,
+      "axis": "x",
+      "expr": "x"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "\"enabled\" rides alone"
+  },
+  {
+   "file": "146-rotate-times-string-invalid.json",
+   "name": "rotate-times-string-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "rotate",
+      "dir": "left",
+      "times": "1"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "times must be a JSON integer"
+  },
+  {
+   "file": "147-rotate-dir-up-invalid.json",
+   "name": "rotate-dir-up-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "rotate",
+      "dir": "up"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "dir is left|right"
+  },
+  {
+   "file": "148-frame-both-forms-invalid.json",
+   "name": "frame-both-forms-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "frame",
+      "index": 1,
+      "indices": [
+       2
+      ]
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "exactly one of index / indices"
+  },
+  {
+   "file": "151-frame-index-fractional-invalid.json",
+   "name": "frame-index-fractional-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "frame",
+      "index": 1.5
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "index must be an integer"
+  },
+  {
+   "file": "154-openurl-ftp-invalid.json",
+   "name": "openurl-ftp-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "extension"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "openUrl",
+      "url": "ftp://example.com/cat.jpg"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "only http(s) URLs"
+  },
+  {
+   "file": "157-zoom-percent-and-fit-invalid.json",
+   "name": "zoom-percent-and-fit-invalid",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "zoom",
+      "percent": 100,
+      "fit": true
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "exactly one of percent / fit"
+  },
+  {
+   "file": "159-compare-split-out-of-range-invalid.json",
+   "name": "compare-split-out-of-range-invalid",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "compare",
+      "mode": "vertical",
+      "split": 0.01
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "split is 0.02..0.98"
+  },
+  {
+   "file": "160-compare-split-on-mode-none-invalid.json",
+   "name": "compare-split-on-mode-none-invalid",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "compare",
+      "mode": "none",
+      "split": 0.5
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "split only applies to the split modes (registry onlyWith); the desktop converged on the table-driven rule"
+  },
+  {
+   "file": "165-accent-both-forms-invalid.json",
+   "name": "accent-both-forms-invalid",
+   "profiles": [
+    "editor",
+    "console"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "accent",
+      "color": "#112233",
+      "preset": "green"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "knownDivergence": {
+    "pystencil": "valid"
+   },
+   "reason": "exactly one of color / preset; pystencil has no accent op — unknown-op skip makes the plan valid there"
+  },
+  {
+   "file": "167-accent-bad-hex-invalid.json",
+   "name": "accent-bad-hex-invalid",
+   "profiles": [
+    "editor",
+    "console"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "accent",
+      "color": "cyan"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "accent color must be #rrggbb — names go through preset",
+   "knownDivergence": {
+    "pystencil": "valid"
+   }
+  },
+  {
+   "file": "170-connect-empty-server-invalid.json",
+   "name": "connect-empty-server-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "connect",
+      "server": "  "
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "server must be non-empty"
+  },
+  {
+   "file": "171-clear-extra-field-invalid.json",
+   "name": "clear-extra-field-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "clear",
+      "hard": true
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "clear takes no fields"
+  },
+  {
+   "file": "172-incognito-string-invalid.json",
+   "name": "incognito-string-invalid",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "incognito",
+      "on": "yes"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "on must be a boolean"
+  },
+  {
+   "file": "173-projectcolor-css-name-invalid.json",
+   "name": "projectcolor-css-name-invalid",
+   "profiles": [
+    "editor",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "projectColor",
+      "color": "red"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "projectColor takes #rrggbb or \"\" only — unlike blankColor, which also takes CSS names"
+  },
+  {
+   "file": "174-blankcolor-css-name-valid.json",
+   "name": "blankcolor-css-name-valid",
+   "profiles": [
+    "editor",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "blankColor",
+      "color": "red"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "blankColor accepts CSS color names (contrast with projectColor)"
+  },
+  {
+   "file": "175-copy-what-bogus-invalid.json",
+   "name": "copy-what-bogus-invalid",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "copy",
+      "what": "files"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "what is image|layout"
+  },
+  {
+   "file": "176-openproject-name-121-invalid.json",
+   "name": "openproject-name-121-invalid",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "openProject",
+      "name": "nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "openProject name caps at 120"
+  },
+  {
+   "file": "177-fenced-json-block.json",
+   "name": "fenced-json-block",
+   "profiles": [
+    "all"
+   ],
+   "input": "```json\n{\"version\":1,\"reply\":\"ok\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\"}]}\n```",
+   "expect": "valid",
+   "reason": "markdown fences are stripped before extraction (§1)"
+  },
+  {
+   "file": "178-prose-then-json.json",
+   "name": "prose-then-json",
+   "profiles": [
+    "all"
+   ],
+   "input": "Sure! Here is the plan:\n{\"version\":1,\"reply\":\"ok\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\"}]}",
+   "expect": "valid",
+   "reason": "first balanced JSON object wins"
+  },
+  {
+   "file": "179-json-then-trailing-prose.json",
+   "name": "json-then-trailing-prose",
+   "profiles": [
+    "all"
+   ],
+   "input": "{\"version\":1,\"reply\":\"ok\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\"}]}\nHope that helps!",
+   "expect": "valid"
+  },
+  {
+   "file": "180-prose-only-chat-only.json",
+   "name": "prose-only-chat-only",
+   "profiles": [
+    "all"
+   ],
+   "input": "Just chatting, no JSON here.",
+   "expect": "valid",
+   "reason": "no JSON object at all = chat-only turn, raw text becomes the reply (§1) — not an error"
+  },
+  {
+   "file": "181-unparseable-braces-chat-only.json",
+   "name": "unparseable-braces-chat-only",
+   "profiles": [
+    "all"
+   ],
+   "input": "{this is not json at all}",
+   "expect": "valid",
+   "reason": "SUSPECTED DIVERGENCE: §1 only defines \"no JSON object\" as chat-only; the browser also treats a brace-blob that fails JSON.parse as chat-only rather than erroring — other surfaces may differ"
+  },
+  {
+   "file": "182-top-level-array-degrades.json",
+   "name": "top-level-array-degrades",
+   "profiles": [
+    "all"
+   ],
+   "input": "[{\"op\":\"rotate\",\"dir\":\"left\"},{\"op\":\"filter\",\"mode\":\"bw\"}]",
+   "expect": "valid",
+   "reason": "SUSPICIOUS: a top-level ARRAY plan is not rejected — the browser extracts the first balanced {…} (the first ACTION object), sees no \"actions\" key, and yields an empty plan"
+  },
+  {
+   "file": "183-unknown-top-level-key-ignored.json",
+   "name": "unknown-top-level-key-ignored",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "rotate",
+      "dir": "left"
+     }
+    ],
+    "confidence": 0.9
+   },
+   "expect": "valid",
+   "reason": "unknown TOP-LEVEL keys are ignored (only unknown fields on a known op fail) — §1 leaves this implicit"
+  },
+  {
+   "file": "184-unknown-op-skipped.json",
+   "name": "unknown-op-skipped",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "sharpen",
+      "amount": 5
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "unknown op = skip with warning, forward compatibility (§1)"
+  },
+  {
+   "file": "185-op-missing-invalid.json",
+   "name": "op-missing-invalid",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "dir": "left"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "every action needs a string \"op\""
+  },
+  {
+   "file": "186-op-not-string-invalid.json",
+   "name": "op-not-string-invalid",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": 5
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "op must be a string"
+  },
+  {
+   "file": "187-action-not-object-invalid.json",
+   "name": "action-not-object-invalid",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     3
+    ]
+   },
+   "expect": "invalid",
+   "reason": "actions hold objects"
+  },
+  {
+   "file": "188-actions-not-array-invalid.json",
+   "name": "actions-not-array-invalid",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": {}
+   },
+   "expect": "invalid",
+   "reason": "actions must be an array"
+  },
+  {
+   "file": "189-missing-version-ok.json",
+   "name": "missing-version-ok",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "rotate",
+      "dir": "left"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "version absent is accepted and ignored (§1)"
+  },
+  {
+   "file": "190-version-2-ok.json",
+   "name": "version-2-ok",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 2,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "rotate",
+      "dir": "left"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "version other than 1 is accepted but ignored (§1)"
+  },
+  {
+   "file": "191-version-string-ok.json",
+   "name": "version-string-ok",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": "1",
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "rotate",
+      "dir": "left"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "192-empty-plan-object.json",
+   "name": "empty-plan-object",
+   "profiles": [
+    "all"
+   ],
+   "input": {},
+   "expect": "valid",
+   "reason": "an empty {} is a valid empty plan; the client substitutes the explicit empty-plan reply"
+  },
+  {
+   "file": "193-reply-missing-with-actions-ok.json",
+   "name": "reply-missing-with-actions-ok",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "actions": [
+     {
+      "op": "rotate",
+      "dir": "left"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "missing reply is tolerated — \"Done.\" substituted with a warning (§1)"
+  },
+  {
+   "file": "194-reply-number-tolerated.json",
+   "name": "reply-number-tolerated",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": 42,
+    "actions": [
+     {
+      "op": "rotate",
+      "dir": "left"
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "a non-string reply is treated as omitted (§1)"
+  },
+  {
+   "file": "195-null-actions-ok.json",
+   "name": "null-actions-ok",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": null
+   },
+   "expect": "valid",
+   "reason": "null actions = no actions"
+  },
+  {
+   "file": "196-null-variants-ok.json",
+   "name": "null-variants-ok",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": null
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "197-variants-not-array-invalid.json",
+   "name": "variants-not-array-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": {}
+   },
+   "expect": "invalid",
+   "reason": "variants must be an array"
+  },
+  {
+   "file": "198-variant-not-object-invalid.json",
+   "name": "variant-not-object-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+     3
+    ]
+   },
+   "expect": "invalid",
+   "reason": "every variant must be an object"
+  },
+  {
+   "file": "199-variant-label-number-invalid.json",
+   "name": "variant-label-number-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+     {
+      "label": 7,
+      "actions": []
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "variant label must be a string (registry envelope); desktop, pystencil and the bot converged on the table-driven envelope check instead of coercing"
+  },
+  {
+   "file": "200-variant-with-settings-op-dropped.json",
+   "name": "variant-with-settings-op-dropped",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "filter",
+      "mode": "bw"
+     }
+    ],
+    "variants": [
+     {
+      "label": "zoomed",
+      "actions": [
+       {
+        "op": "zoom",
+        "percent": 200
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "§1 leniency: a settings op inside a variant drops that VARIANT with a warning; the rest of the plan stands"
+  },
+  {
+   "file": "201-variant-with-undo-dropped.json",
+   "name": "variant-with-undo-dropped",
+   "profiles": [
+    "editor",
+    "console",
+    "bot"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+     {
+      "label": "back",
+      "actions": [
+       {
+        "op": "undo"
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "undo/redo are top-level only — the variant is dropped with a warning, not the plan"
+  },
+  {
+   "file": "202-variant-with-image-op-dropped.json",
+   "name": "variant-with-image-op-dropped",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+     {
+      "label": "sw",
+      "actions": [
+       {
+        "op": "image",
+        "index": 1
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "§2.1 image is top-level only — variant dropped with a warning"
+  },
+  {
+   "file": "203-variant-with-invalid-params-fails-plan.json",
+   "name": "variant-with-invalid-params-fails-plan",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+     {
+      "label": "bad",
+      "actions": [
+       {
+        "op": "rotate",
+        "dir": "up"
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "the drop-leniency covers MISPLACED ops only; a known op with invalid params inside a variant still fails the whole plan"
+  },
+  {
+   "file": "204-duplicate-key-last-wins.json",
+   "name": "duplicate-key-last-wins",
+   "profiles": [
+    "all"
+   ],
+   "input": "{\"version\":1,\"reply\":\"ok\",\"actions\":[{\"op\":\"rotate\",\"dir\":\"left\",\"dir\":\"right\"}]}",
+   "expect": "valid",
+   "reason": "PARSER-DEPENDENT: JS JSON.parse keeps the LAST duplicate key (dir right). Surfaces whose JSON parser rejects duplicates would fail this plan — worth measuring"
+  },
+  {
+   "file": "205-unknown-field-on-known-op-invalid.json",
+   "name": "unknown-field-on-known-op-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "rotate",
+      "dir": "left",
+      "angle": 90
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "unknown field on a KNOWN op fails the plan (§1) — contrast with unknown-op-skipped"
+  },
+  {
+   "file": "206-deep-nested-junk-invalid.json",
+   "name": "deep-nested-junk-invalid",
+   "profiles": [
+    "editor",
+    "console",
+    "bot",
+    "mcp"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "rotate",
+      "dir": "left",
+      "meta": {
+       "a": [
+        {
+         "b": {
+          "c": 1
+         }
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "unknown field, however deep its value"
+  },
+  {
+   "file": "207-forbidden-op-llm.json",
+   "name": "forbidden-op-llm",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "llm",
+      "model": "x"
+     }
+    ]
+   },
+   "expect": "valid",
+   "knownDivergence": {
+    "cli": "invalid",
+    "mcp": "invalid"
+   },
+   "reason": "§13 forbidden op: the parser is not where every surface enforces it — browser/desktop/pystencil/bot/extension skip it as unknown at parse (valid plan, warning) and refuse at the EXECUTOR; cli and mcp hard-fail at parse where their lists carry the name. On every list."
+  },
+  {
+   "file": "208-forbidden-op-provider.json",
+   "name": "forbidden-op-provider",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "provider",
+      "name": "x"
+     }
+    ]
+   },
+   "expect": "valid",
+   "knownDivergence": {
+    "cli": "invalid",
+    "mcp": "invalid"
+   },
+   "reason": "§13 forbidden op: the parser is not where every surface enforces it — browser/desktop/pystencil/bot/extension skip it as unknown at parse (valid plan, warning) and refuse at the EXECUTOR; cli and mcp hard-fail at parse where their lists carry the name. On every list."
+  },
+  {
+   "file": "209-forbidden-op-apikey.json",
+   "name": "forbidden-op-apikey",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "apiKey",
+      "value": "x"
+     }
+    ]
+   },
+   "expect": "valid",
+   "knownDivergence": {
+    "cli": "invalid",
+    "mcp": "invalid"
+   },
+   "reason": "§13 forbidden op: the parser is not where every surface enforces it — browser/desktop/pystencil/bot/extension skip it as unknown at parse (valid plan, warning) and refuse at the EXECUTOR; cli and mcp hard-fail at parse where their lists carry the name. On every list."
+  },
+  {
+   "file": "210-forbidden-op-paste.json",
+   "name": "forbidden-op-paste",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "paste"
+     }
+    ]
+   },
+   "expect": "valid",
+   "knownDivergence": {
+    "cli": "invalid",
+    "mcp": "invalid"
+   },
+   "reason": "§13 forbidden op: the parser is not where every surface enforces it — browser/desktop/pystencil/bot/extension skip it as unknown at parse (valid plan, warning) and refuse at the EXECUTOR; cli and mcp hard-fail at parse where their lists carry the name. On every list."
+  },
+  {
+   "file": "211-forbidden-op-quit.json",
+   "name": "forbidden-op-quit",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "quit"
+     }
+    ]
+   },
+   "expect": "valid",
+   "knownDivergence": {
+    "cli": "invalid",
+    "mcp": "invalid"
+   },
+   "reason": "§13 forbidden op: the parser is not where every surface enforces it — browser/desktop/pystencil/bot/extension skip it as unknown at parse (valid plan, warning) and refuse at the EXECUTOR; cli and mcp hard-fail at parse where their lists carry the name. On every list."
+  },
+  {
+   "file": "212-forbidden-op-exit.json",
+   "name": "forbidden-op-exit",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "exit"
+     }
+    ]
+   },
+   "expect": "valid",
+   "knownDivergence": {
+    "cli": "invalid",
+    "mcp": "invalid"
+   },
+   "reason": "§13 forbidden op: the parser is not where every surface enforces it — browser/desktop/pystencil/bot/extension skip it as unknown at parse (valid plan, warning) and refuse at the EXECUTOR; cli and mcp hard-fail at parse where their lists carry the name. On every list."
+  },
+  {
+   "file": "213-forbidden-op-hotkey.json",
+   "name": "forbidden-op-hotkey",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "hotkey",
+      "key": "q"
+     }
+    ]
+   },
+   "expect": "valid",
+   "knownDivergence": {
+    "cli": "invalid",
+    "mcp": "invalid"
+   },
+   "reason": "§13 forbidden op: the parser is not where every surface enforces it — browser/desktop/pystencil/bot/extension skip it as unknown at parse (valid plan, warning) and refuse at the EXECUTOR; cli and mcp hard-fail at parse where their lists carry the name. On every list."
+  },
+  {
+   "file": "214-forbidden-op-endpoint.json",
+   "name": "forbidden-op-endpoint",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "endpoint",
+      "url": "https://x"
+     }
+    ]
+   },
+   "expect": "valid",
+   "knownDivergence": {
+    "cli": "invalid"
+   },
+   "reason": "§13 forbidden op: the parser is not where every surface enforces it — browser/desktop/pystencil/bot/extension skip it as unknown at parse (valid plan, warning) and refuse at the EXECUTOR; cli and mcp hard-fail at parse where their lists carry the name. DRIFT: \"endpoint\" is only on the cli list — everywhere else it is a plain unknown op."
+  },
+  {
+   "file": "215-forbidden-op-chat.json",
+   "name": "forbidden-op-chat",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "chat",
+      "persist": true
+     }
+    ]
+   },
+   "expect": "valid",
+   "knownDivergence": {
+    "mcp": "invalid"
+   },
+   "reason": "§13 forbidden op: the parser is not where every surface enforces it — browser/desktop/pystencil/bot/extension skip it as unknown at parse (valid plan, warning) and refuse at the EXECUTOR; cli and mcp hard-fail at parse where their lists carry the name. DRIFT: \"chat\" is forbidden on browser/desktop/bot/mcp lists but NOT on cli (which uses chatPersist/consent) — only mcp rejects at parse."
+  },
+  {
+   "file": "216-forbidden-op-sharetabs.json",
+   "name": "forbidden-op-sharetabs",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "shareTabs",
+      "on": true
+     }
+    ]
+   },
+   "expect": "valid",
+   "knownDivergence": {
+    "mcp": "invalid"
+   },
+   "reason": "§13 forbidden op: the parser is not where every surface enforces it — browser/desktop/pystencil/bot/extension skip it as unknown at parse (valid plan, warning) and refuse at the EXECUTOR; cli and mcp hard-fail at parse where their lists carry the name. DRIFT: on browser/bot/mcp/extension lists, absent from cli — only mcp rejects at parse."
+  },
+  {
+   "file": "217-forbidden-op-in-variant.json",
+   "name": "forbidden-op-in-variant",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+     {
+      "label": "v",
+      "actions": [
+       {
+        "op": "llm",
+        "model": "x"
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "valid",
+   "knownDivergence": {
+    "cli": "invalid",
+    "mcp": "invalid"
+   },
+   "reason": "forbidden name inside a variant: unknown-op skip on the executor-gated surfaces; cli/mcp reject wherever it appears"
+  },
+  {
+   "file": "218-voice-chat-off.json",
+   "name": "voice-chat-off",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "voiceChat",
+      "on": false
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "219-voice-chat-string-invalid.json",
+   "name": "voice-chat-string-invalid",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "voiceChat",
+      "on": "off"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "knownDivergence": {
+    "desktop": "valid"
+   },
+   "reason": "on must be a boolean; the desktop does not register voiceChat, so there the op is an unknown-op skip and the plan is valid"
+  },
+  {
+   "file": "220-chat-panel-dock-right.json",
+   "name": "chat-panel-dock-right",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "chatPanel",
+      "open": true,
+      "dock": "right"
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "222-chat-panel-dock-unknown-invalid.json",
+   "name": "chat-panel-dock-unknown-invalid",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "chatPanel",
+      "dock": "middle"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "§10 chatPanel \"dock\" is one of left|right|top|bottom|float"
+  },
+  {
+   "file": "223-open-project-last.json",
+   "name": "open-project-last",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "openProject",
+      "last": true
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "224-open-project-name-and-last-invalid.json",
+   "name": "open-project-name-and-last-invalid",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "openProject",
+      "name": "portrait 1",
+      "last": true
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "§10 openProject takes exactly one form — a name, or last:true (removeProject's current:true shape)"
+  },
+  {
+   "file": "226-dialog-unknown-window-invalid.json",
+   "name": "dialog-unknown-window-invalid",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "dialog",
+      "name": "llm"
+     }
+    ]
+   },
+   "expect": "invalid",
+   "reason": "§10 dialog opens the editor's own navigation windows only (projects|servers|shortcuts|visuals|help) — the assistant's provider settings are §13-forbidden"
+  },
+  {
+   "file": "227-clear-projects-keep-current.json",
+   "name": "clear-projects-keep-current",
+   "profiles": [
+    "editor"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [
+     {
+      "op": "clearProjects",
+      "keepCurrent": true
+     }
+    ]
+   },
+   "expect": "valid"
+  },
+  {
+   "file": "229-variant-unknown-key-ignored.json",
+   "name": "variant-unknown-key-ignored",
+   "profiles": [
+    "all"
+   ],
+   "input": {
+    "version": 1,
+    "reply": "ok",
+    "actions": [],
+    "variants": [
+     {
+      "label": "sepia",
+      "note": "extra key on the variant object, not on an op",
+      "actions": [
+       {
+        "op": "filter",
+        "mode": "sepia"
+       }
+      ]
+     }
+    ]
+   },
+   "expect": "valid",
+   "reason": "a variant object tolerates undeclared keys (registry envelope allowUnknown) — only ops are strict about unknown fields; the extension drops variants with a warning, which is also valid"
+  }
+ ]
+}

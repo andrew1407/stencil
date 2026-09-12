@@ -16,16 +16,16 @@ const cli_profiles = [_][]const u8{ "console", "all" };
 
 const Entry = struct { file: []const u8, value: std.json.Value };
 
-// The hand-written files plus the registry-generated bundle (generated/cases.json,
-// browser/tools/genOpPlanFixtures.mjs), each generated case walking as "<name>.json".
+// The hand-written bundle (each case carrying its stable "file" label) plus the
+// registry-generated one (generated/cases.json, browser/tools/genOpPlanFixtures.mjs),
+// whose cases walk as "<name>.json".
 fn loadCorpus(w: *fx.Walk) ![]Entry {
     const a = w.alloc();
     const io = w.io();
     var out: std.ArrayList(Entry) = .empty;
-    for (try fx.listJson(a, io, opplan_dir)) |file| {
-        if (std.mem.eql(u8, file, "_schema.md")) continue;
-        const sub = try std.fmt.allocPrint(a, "{s}{s}", .{ opplan_dir, file });
-        try out.append(a, .{ .file = file, .value = try fx.loadJson(a, io, sub) });
+    const hand = try fx.loadJson(a, io, opplan_dir ++ "cases.json");
+    for (fx.member(hand, "cases").?.array.items) |c| {
+        try out.append(a, .{ .file = fx.memberStr(c, "file").?, .value = c });
     }
     const bundle = try fx.loadJson(a, io, opplan_dir ++ "generated/cases.json");
     for (fx.member(bundle, "cases").?.array.items) |c| {
@@ -47,6 +47,13 @@ test "opPlan corpus: exists and is well-formed (the reference walker's shape che
     defer w.stop();
 
     const entries = try loadCorpus(&w);
+    // Floors per bundle, not on the total: the generated cases alone clear a combined
+    // floor, so a vanished cases.json would otherwise walk green.
+    const a0 = w.alloc();
+    const hand = fx.member(try fx.loadJson(a0, w.io(), opplan_dir ++ "cases.json"), "cases").?;
+    const generated = fx.member(try fx.loadJson(a0, w.io(), opplan_dir ++ "generated/cases.json"), "cases").?;
+    try testing.expect(hand.array.items.len >= 180);
+    try testing.expect(generated.array.items.len >= 400);
     try testing.expect(entries.len >= 300); // a real corpus
 
     for (entries) |ent| {

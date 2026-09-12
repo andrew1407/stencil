@@ -38,17 +38,22 @@ const PROFILES = new Set(['editor', 'console', 'bot', 'mcp', 'extension', 'all']
 const SURFACES = new Set(['browser', 'desktop', 'cli', 'pystencil', 'bot', 'mcp', 'extension']);
 
 const OP_PLAN_DIR = path.join(LLM_FIXTURES, 'opPlan');
+const opPlanBundle = (...rel) => JSON.parse(readFileSync(path.join(OP_PLAN_DIR, ...rel), 'utf8')).cases;
+// The hand-written bundle (each case carrying its stable `file` label) plus the
+// registry-generated one (browser/tools/genOpPlanFixtures.mjs), which walks as `<name>.json`.
+const opPlanHand = opPlanBundle('cases.json');
+const opPlanGenerated = opPlanBundle('generated', 'cases.json');
 const opPlanFixtures = [
-  ...readdirSync(OP_PLAN_DIR).filter((f) => f.endsWith('.json')).sort()
-    .map((file) => ({ file, fx: JSON.parse(readFileSync(path.join(OP_PLAN_DIR, file), 'utf8')) })),
-  // The registry-generated bundle (browser/tools/genOpPlanFixtures.mjs), one pseudo-file per case.
-  ...JSON.parse(readFileSync(path.join(OP_PLAN_DIR, 'generated', 'cases.json'), 'utf8')).cases
-    .map((fx) => ({ file: `${fx.name}.json`, fx })),
+  ...opPlanHand.map((fx) => ({ file: fx.file, fx })),
+  ...opPlanGenerated.map((fx) => ({ file: `${fx.name}.json`, fx })),
 ];
 
 // Corpus-shape check, ported from browser/tests/opPlanFixtures.test.js.
+// Floors per bundle, not on the total: the 444 generated cases alone clear any combined
+// floor, so a vanished cases.json would otherwise walk green.
 test('opPlan: the corpus exists and is well-formed', () => {
-  assert.ok(opPlanFixtures.length >= 80, `expected a real corpus, found ${opPlanFixtures.length} fixtures`);
+  assert.ok(opPlanHand.length >= 180, `hand-written cases.json collapsed to ${opPlanHand.length}`);
+  assert.ok(opPlanGenerated.length >= 400, `generated/cases.json collapsed to ${opPlanGenerated.length}`);
   for (const { file, fx } of opPlanFixtures) {
     assert.equal(`${fx.name}.json`, file.replace(/^\d+-/, ''), `${file}: "name" must match the filename slug`);
     assert.ok(Array.isArray(fx.profiles) && fx.profiles.length, `${file}: "profiles" must be a non-empty array`);
@@ -85,7 +90,13 @@ for (const { file, fx } of opPlanFixtures) {
 }
 
 // ── shared family loader (providerWire/sanitizer array-of-cases files) ───────
+const familyCache = new Map();
 const loadFamily = (dir) => {
+  if (!familyCache.has(dir)) familyCache.set(dir, readFamily(dir));
+  return familyCache.get(dir);
+};
+
+const readFamily = (dir) => {
   const files = readdirSync(dir).filter((f) => f.endsWith('.json')).sort();
   assert.ok(files.length > 0, `${dir}: no fixture files`);
   const cases = [];

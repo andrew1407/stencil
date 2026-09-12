@@ -19,36 +19,27 @@ const FIXTURES_DIR: &str =
 const PROFILES: [&str; 6] = ["editor", "console", "bot", "mcp", "extension", "all"];
 const SURFACES: [&str; 7] = ["browser", "desktop", "cli", "pystencil", "bot", "mcp", "extension"];
 
-/// The corpus as (file name, fixture) pairs, sorted. ~190 files plus a 212 KB generated
-/// bundle — read once per test binary, not once per test function.
+/// Both bundles as (label, fixture) pairs, read once per test binary.
 static CORPUS: LazyLock<Vec<(String, Value)>> = LazyLock::new(load_corpus);
 
+fn bundle_cases(rel: &str) -> Vec<Value> {
+    let path = format!("{FIXTURES_DIR}/{rel}");
+    let raw = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("cannot read {path}: {e}"));
+    let doc: Value = serde_json::from_str(&raw).unwrap_or_else(|e| panic!("{path}: {e}"));
+    doc["cases"].as_array().unwrap_or_else(|| panic!("{path} has no cases array")).clone()
+}
+
 fn load_corpus() -> Vec<(String, Value)> {
-    let mut files: Vec<String> = std::fs::read_dir(FIXTURES_DIR)
-        .unwrap_or_else(|e| panic!("cannot read the opPlan corpus at {FIXTURES_DIR}: {e}"))
-        .filter_map(|entry| {
-            let name = entry.ok()?.file_name().into_string().ok()?;
-            name.ends_with(".json").then_some(name)
-        })
-        .collect();
-    files.sort();
-    let mut corpus: Vec<(String, Value)> = files
+    // Hand-written cases keep their "file" label; generated ones walk as "<name>.json".
+    let hand = bundle_cases("cases.json");
+    let generated = bundle_cases("generated/cases.json");
+    let mut corpus: Vec<(String, Value)> = hand
         .into_iter()
-        .map(|file| {
-            let raw = std::fs::read_to_string(format!("{FIXTURES_DIR}/{file}"))
-                .unwrap_or_else(|e| panic!("cannot read {file}: {e}"));
-            let fx: Value = serde_json::from_str(&raw)
-                .unwrap_or_else(|e| panic!("{file} is not valid JSON: {e}"));
-            (file, fx)
-        })
+        .map(|fx| (fx["file"].as_str().expect("a case label").to_owned(), fx))
         .collect();
-    // The registry-generated bundle (browser/tools/genOpPlanFixtures.mjs): one pseudo-file per case.
-    let bundle = format!("{FIXTURES_DIR}/generated/cases.json");
-    let raw = std::fs::read_to_string(&bundle).unwrap_or_else(|e| panic!("cannot read {bundle}: {e}"));
-    let generated: Value = serde_json::from_str(&raw).expect("generated/cases.json parses");
-    for fx in generated["cases"].as_array().expect("cases array") {
-        let name = fx["name"].as_str().expect("generated case name");
-        corpus.push((format!("{name}.json"), fx.clone()));
+    for fx in generated {
+        let name = fx["name"].as_str().expect("generated case name").to_owned();
+        corpus.push((format!("{name}.json"), fx));
     }
     corpus
 }
@@ -56,11 +47,11 @@ fn load_corpus() -> Vec<(String, Value)> {
 /// The corpus-shape check: one case, and a malformed fixture names itself.
 fn corpus_is_well_formed() {
     let corpus = &*CORPUS;
-    assert!(
-        corpus.len() >= 80,
-        "expected a real corpus, found {} fixtures",
-        corpus.len()
-    );
+    // Floored per bundle: the generated cases alone would clear a combined floor.
+    let hand = bundle_cases("cases.json").len();
+    let generated = bundle_cases("generated/cases.json").len();
+    assert!(hand >= 180, "hand-written cases.json collapsed to {hand}");
+    assert!(generated >= 400, "generated/cases.json collapsed to {generated}");
     for (file, fx) in corpus {
         // Strip the NNN- prefix of a hand-written file; generated cases carry none.
         let slug = match file.split_once('-') {
