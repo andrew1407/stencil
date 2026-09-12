@@ -284,7 +284,7 @@ link is gated like everything else, because it connects out and fetches a projec
 ```bash
 # from bot/
 dotnet build Stencil.TelegramBot.slnx          # build all five projects
-dotnet test  Stencil.TelegramBot.slnx          # 2129 offline tests — no token/server/CLI/LLM/Redis needed
+dotnet test  Stencil.TelegramBot.slnx          # 2141 offline tests — no token/server/CLI/LLM/Redis needed
 dotnet test  Stencil.TelegramBot.slnx --filter Category=Bench   # the opt-in timing tripwires
 dotnet run --project src/Stencil.TelegramBot.Bot   # run the bot (needs TELEGRAM_BOT_TOKEN + the CLI)
 ```
