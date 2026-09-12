@@ -2,30 +2,23 @@ import { HoldDrawController, holdDrawTarget } from './holdDraw.js';
 import { classifyEnd, midpoint, touchDist, TOUCH_DEFAULTS } from './touchGestures.js';
 import { canvasOrigin } from './zoomPan.js';
 
-// ── InputController: touchscreen + hold-to-draw alternative input ───
-// Owns the two alternative input flows — hold-to-draw (a near-stationary press
-// auto-enters drawing) and touchscreen (direct-manipulation drag + two-finger pan/pinch).
-// The mouse pointer/drag path stays in DrawingApp's #wirePanDrag; both reuse the same
-// drag helpers and drag-state fields DrawingApp exposes publicly.
-// Which press may become a hold-to-draw stroke: an image to draw on, drawing mode off,
-// no other gesture running, and not the rect tool (a hold there would seed a freehand
-// line while the picked tool draws areas). Desktop twin: mousePressEvent's eligibleHold.
+// The two alternative input flows: hold-to-draw and touchscreen. The mouse drag path stays
+// in DrawingApp; both reuse the same drag helpers and drag-state fields.
+// A hold needs an image, drawing mode off, no other gesture, and not the rect tool (a hold
+// there would seed a freehand line). Desktop twin: mousePressEvent's eligibleHold.
 export const holdDrawEligible = (app) =>
   !!app?.image && !app.isDrawing && app.drawMode !== 'rect' &&
   !(app.isPanning || app.isDraggingPoint || app.isDraggingSegment ||
     app.isDraggingLine || app.isZoomRectDragging || app.isRectDrawDragging);
 
 export class InputController {
-  // Hold-to-draw gesture state.
   #holdDraw = null;
-  // Set when a dwell CLOSED the shape: the stroke is over, but the button is still down.
-  // The release still has to swallow its own trailing click (see #suppressTrailingClick).
+// A dwell CLOSED the shape while the button is still down; the release must still swallow its click.
   #holdClosedShape = false;
   #holdTickTimer = null;
   #holdAutoEnabled = false;
-  // True while a hold stroke extends a line BACKWARD from its first point (points prepended).
+// A hold stroke extending a line BACKWARD from its first point (points prepended).
   #holdPrepend = false;
-  // Live touch gesture state (single/two-finger), null between gestures; long-press timer.
   #touch = null;
   #longPressTimer = null;
 
@@ -33,21 +26,18 @@ export class InputController {
     this.app = app;
   }
 
-  // True while press-and-hold is armed or already drawing (mouse or touch) — used by
-  // canvasMouseMove's drag guard to keep the tooltip off a mid-hold ghost line.
+// Keeps the tooltip off a mid-hold ghost line (canvasMouseMove's drag guard).
   get holdEngaged() { return !!this.#holdDraw && this.#holdDraw.engaged; }
 
-  // ── Hold-to-draw: an alternative drawing flow ──────────────────
-  // Press-and-hold drops the first point; dwelling drops more; releasing commits and
-  // exits drawing. The pure HoldDrawController (./holdDraw.js) decides timing/transitions;
-  // this wiring owns the DOM timers, coordinate conversion and rendering.
+// HoldDrawController (./holdDraw.js) decides timing/transitions; this wiring owns the DOM
+// timers, coordinate conversion and rendering.
   wireHoldDraw() {
     const app = this.app;
     const ctrl = this.#holdDraw = new HoldDrawController({ holdDelay: app.holdDrawDelay });
 
     const onDown = e => {
       if (e.button !== 0 || e.altKey || e.shiftKey || e.ctrlKey || e.metaKey) return;
-      if (app.compareReadOnly()) return;   // compare view is read-only — no hold-to-draw
+      if (app.compareReadOnly()) return;
       this.#holdTryDown(e.clientX, e.clientY);
     };
     app.canvas.addEventListener('mousedown', onDown);
@@ -69,17 +59,14 @@ export class InputController {
       else this.#holdClearPreview();
     });
 
-    // Drop the gesture if focus leaves the window mid-hold.
     window.addEventListener('blur', () => { this.#stopHoldTicks(); ctrl.cancel(); this.#holdClearPreview(); });
   }
 
-  // Monotonic clock for gesture timing (falls back to Date in old environments).
   #now() { return (typeof performance !== 'undefined' ? performance.now() : Date.now()); }
   #stopHoldTicks() { if (this.#holdTickTimer) { clearInterval(this.#holdTickTimer); this.#holdTickTimer = null; } }
   #startHoldTicks() { if (!this.#holdTickTimer) this.#holdTickTimer = setInterval(() => this.#holdTick(this.#now()), 40); }
 
-  // Arm hold-to-draw at a press point, if eligible. Shared by mouse (wireHoldDraw) and touch
-  // (wireTouch); the caller has already filtered out modified presses. Returns true if armed.
+// Shared by mouse and touch; the caller has filtered out modified presses. True if armed.
   #holdTryDown(clientX, clientY) {
     const app = this.app;
     if (!holdDrawEligible(app)) return false;
@@ -89,14 +76,9 @@ export class InputController {
     return true;
   }
 
-  // ── Touchscreen input (direct manipulation + two-finger) ───────
-  // Touch-only layer; preventDefault() suppresses the synthetic mouse/click so it can't collide
-  // with the mouse handlers. Gesture map:
-  //   1 finger on a point   → drag that point      (no Alt needed)
-  //   1 finger on a segment → drag that segment
-  //   1 finger held still on geometry → context menu (mirrors right-click there)
-  //   1 finger on empty: tap → place a point; press-and-hold → hold-to-draw
-  //   2 fingers → pan + pinch-zoom (focal = the midpoint between the fingers)
+// preventDefault() suppresses the synthetic mouse/click. 1 finger on geometry drags it (no
+// Alt), held still opens the context menu; on empty a tap places a point and a press-and-hold
+// draws; 2 fingers pan + pinch-zoom about their midpoint.
   wireTouch() {
     const app = this.app;
     const viewport = document.getElementById('canvas-viewport');
@@ -106,8 +88,7 @@ export class InputController {
       for (let i = 0; i < touches.length; i++) if (touches[i].identifier === id) return touches[i];
       return null;
     };
-    // Pinch DOM writes are coalesced into one rAF (like #wireSmoothZoom) so a flood of
-    // touchmoves doesn't thrash layout: onMove just stashes the latest scale+midpoint.
+// Pinch DOM writes are coalesced into one rAF; onMove just stashes the latest scale+midpoint.
     const applyPinch = () => {
       const st = this.#touch;
       if (!st || st.mode !== 'pinch' || !st.pending) { if (st) st.raf = null; return; }
@@ -118,8 +99,7 @@ export class InputController {
       app.canvas.style.width = (app.canvas.width * scale) + 'px';
       app.canvas.style.height = (app.canvas.height * scale) + 'px';
       app.zoomPan.setZoomInputValue(Math.round(scale * 100));
-      // Keep the pinched-down image point pinned under the (moving) midpoint — pan + zoom
-      // together. vpLeft/vpTop are cached at pinch start (the viewport can't move mid-gesture).
+// Keep the pinched image point under the moving midpoint; vpLeft/vpTop are cached at pinch start.
       viewport.scrollLeft = st.imgX * scale - (midX - st.vpLeft);
       viewport.scrollTop = st.imgY * scale - (midY - st.vpTop);
     };
@@ -127,7 +107,6 @@ export class InputController {
     const clearLongPress = () => {
       if (this.#longPressTimer) { clearTimeout(this.#longPressTimer); this.#longPressTimer = null; }
     };
-    // Abandon every single-finger gesture (used when a 2nd finger lands or on cancel).
     const dropSingle = () => {
       clearLongPress();
       this.#stopHoldTicks();
@@ -136,9 +115,7 @@ export class InputController {
       app.isDraggingPoint = false; app.draggingPoint = null;
       app.isDraggingSegment = false; app.draggingSegment = null;
     };
-    // A stationary tap behaves exactly like a left mouse click: drops a point in empty space, or
-    // selects the line/point under the finger and opens its style panel (canvasClick handles
-    // both). Synthesise a modifier-free MouseEvent.
+// A stationary tap is a modifier-free left click (canvasClick handles both cases).
     const tapClick = (e, st) => {
       const ct = (e.changedTouches && e.changedTouches[0]) || st;
       app.canvasClick({
@@ -147,8 +124,7 @@ export class InputController {
       });
     };
 
-    // Long-press on grabbed geometry that never moved → open the context menu instead of leaving
-    // a no-op drag (empty-space holds belong to hold-to-draw).
+// Empty-space holds belong to hold-to-draw.
     const armGeometryLongPress = (t) => {
       this.#longPressTimer = setTimeout(() => {
         this.#longPressTimer = null;
@@ -163,15 +139,14 @@ export class InputController {
     const onStart = e => {
       if (!app.image) return;
 
-      // Two fingers → pan + pinch. Abandon any in-flight single-finger gesture.
+// Two fingers abandon any in-flight single-finger gesture.
       if (e.touches.length >= 2) {
         e.preventDefault();
         dropSingle();
         const [a, b] = [e.touches[0], e.touches[1]];
         const mid = midpoint(a, b);
         const vpRect = viewport.getBoundingClientRect();
-        // Minus the centring margins: a picture smaller than the frame does not start at
-        // the scroll origin (canvasOrigin), so the pinched pixel would be the wrong one.
+// Minus the centring margins: a picture smaller than the frame does not start at the scroll origin.
         const org = canvasOrigin();
         const contentX = mid.x - vpRect.left + viewport.scrollLeft - org.x;
         const contentY = mid.y - vpRect.top + viewport.scrollTop - org.y;
@@ -182,8 +157,8 @@ export class InputController {
           startScale: app.scale,
           imgX: contentX / app.scale,
           imgY: contentY / app.scale,
-          vpLeft: vpRect.left, vpTop: vpRect.top,   // viewport screen pos, fixed for the gesture
-          pending: null, raf: null,                 // latest frame awaiting applyPinch
+          vpLeft: vpRect.left, vpTop: vpRect.top,
+          pending: null, raf: null,
         };
         return;
       }
@@ -192,7 +167,7 @@ export class InputController {
       const t = e.touches[0];
       const { x, y } = app.canvasCoords(t.clientX, t.clientY);
 
-      // Direct manipulation: a finger landing on a point/segment grabs it.
+// A finger landing on a point/segment grabs it.
       const nearPt = app.findNearestPointWithIdx(x, y);
       if (nearPt) {
         app.isDraggingPoint = true;
@@ -209,7 +184,6 @@ export class InputController {
         return;
       }
 
-      // Empty space: tap places a point, press-and-hold draws (hold-to-draw).
       this.#touch = { mode: 'tap', id: t.identifier, startX: t.clientX, startY: t.clientY, startT: this.#now() };
       this.#holdTryDown(t.clientX, t.clientY);
     };
@@ -224,7 +198,7 @@ export class InputController {
         const [a, b] = [e.touches[0], e.touches[1]];
         const mid = midpoint(a, b);
         const factor = touchDist(a, b) / st.startDist;
-        const newScale = this.app.zoomPan.clampScale(st.startScale * factor);   // shared [0.05, kZoomMax] bound
+        const newScale = this.app.zoomPan.clampScale(st.startScale * factor);
         st.pending = { scale: newScale, midX: mid.x, midY: mid.y };
         if (!st.raf) st.raf = requestAnimationFrame(applyPinch);
         return;
@@ -236,7 +210,7 @@ export class InputController {
       const moved = Math.hypot(t.clientX - st.startX, t.clientY - st.startY);
 
       if (st.mode === 'point') {
-        if (moved <= moveTol) return; // below threshold → still a tap; leave room for long-press
+        if (moved <= moveTol) return;
         clearLongPress();
         st.dragged = true;
         const { x, y } = app.canvasCoords(t.clientX, t.clientY);
@@ -265,24 +239,22 @@ export class InputController {
       if (!st) return;
 
       if (st.mode === 'pinch') {
-        // A finger lifted: settle the zoom; ignore the lone remaining finger until all fingers
-        // are up, so lifting one doesn't kick off a stray drag.
+// Ignore the lone remaining finger until all are up, so lifting one doesn't start a stray drag.
         if (st.raf) { cancelAnimationFrame(st.raf); st.raf = null; }
-        if (st.pending) applyPinch();   // flush the last frame so we settle at the real pinch end
+        if (st.pending) applyPinch();
         app.canvas.classList.remove('zoom-no-transition');
         app.zoomPan.setZoom(app.scale, true);
         this.#touch = e.touches.length === 0 ? null : { mode: 'done', id: -1 };
         return;
       }
 
-      if (e.touches.length > 0) return; // wait until the last finger lifts
+      if (e.touches.length > 0) return;
       clearLongPress();
 
       if (st.mode === 'point') {
         if (st.dragged) {
           app.endPointDrag(app.draggingPoint, false);
         } else {
-          // Tap (no drag) on a point → select its line + focus the point + open the style panel.
           app.isDraggingPoint = false;
           app.draggingPoint = null;
           tapClick(e, st);
@@ -291,7 +263,6 @@ export class InputController {
         if (st.dragged) {
           app.endSegmentDrag(false);
         } else {
-          // Tap (no drag) on a line → select it + open the style panel.
           app.isDraggingSegment = false;
           app.draggingSegment = null;
           tapClick(e, st);
@@ -304,7 +275,6 @@ export class InputController {
           this.#holdCommit();
         } else {
           this.#holdClearPreview();
-          // Not a hold stroke → a plain tap drops a point (like a left click).
           const kind = classifyEnd({ moved: st.moved || 0, elapsed: this.#now() - st.startT });
           if (kind === 'tap') tapClick(e, st);
         }
@@ -331,9 +301,8 @@ export class InputController {
     else if (r.type === 'drop') this.#holdDrop(r.x, r.y);
   }
 
-  // Hold completed → auto-enable drawing and seed the stroke. The target under the press point
-  // decides: existing point → continue that line from it; line body → insert a point on it then
-  // continue; empty → fresh line.
+// The target under the press decides: a point continues that line, a body inserts a point then
+// continues, empty starts fresh.
   #holdStart(clientX, clientY) {
     const app = this.app;
     const { x, y } = app.canvasCoords(clientX, clientY);
@@ -345,10 +314,9 @@ export class InputController {
       app.coordLineIdx = target.lineIdx;
       app.focusedPtIdx = target.ptIdx;
       app.startDrawingMode({ connect: true });
-      // Holding the FIRST point extends the line backward: prepend new points before it (index 0).
+// Holding the FIRST point extends the line backward.
       if (target.ptIdx === 0) { this.#holdPrepend = true; app.continueInsertIdx = 0; }
     } else if (target.kind === 'segment') {
-      // Insert the seed point on the existing line, then extend from it.
       app.insertPointOnSegment(target.lineIdx, target.ptIdx2, x, y);
       app.startDrawingMode({ connect: true });
     } else {
@@ -362,18 +330,15 @@ export class InputController {
     app.updateButtons();
   }
 
-  // Dwell completed → drop a point (extends the in-progress / continued line).
   #holdDrop(clientX, clientY) {
     const app = this.app;
     const { x, y } = app.canvasCoords(clientX, clientY);
-    // Resting on the stroke's first point closes it into a locked area, as clicking
-    // there does. The shape is committed, so end the gesture rather than dropping more
-    // points into a stroke that no longer exists.
+// Resting on the first point closes the shape, as clicking does; end the gesture.
     if (app.tryCloseShapeAt(x, y)) {
       this.#stopHoldTicks();
-      this.#holdDraw.cancel();       // no more dwells drop into a stroke that is gone
+      this.#holdDraw.cancel();
       this.#holdClearPreview();
-      this.#holdClosedShape = true;  // …but the release still owes us a swallowed click
+      this.#holdClosedShape = true;
       app.updateButtons();
       return;
     }
@@ -382,8 +347,7 @@ export class InputController {
       line.points.splice(app.continueInsertIdx, 0, { x, y });
       app.strokeFx.flyIn(line, app.continueInsertIdx);
       app.focusedPtIdx = app.continueInsertIdx;
-      // Prepend mode keeps inserting at index 0 (each new point becomes the new head); forward
-      // mode advances the insert point so points keep appending.
+// Prepend mode keeps inserting at index 0; forward mode advances the insert point.
       if (!this.#holdPrepend) app.continueInsertIdx++;
       app.coordTable.update(line.points, app.continueLineIdx);
     } else if (app.currentLine) {
@@ -394,17 +358,15 @@ export class InputController {
     app.updateButtons();
   }
 
-  // A finished press leaves a synthetic click behind; swallow it. Armed on the RELEASE:
-  // a gesture can end well before the button comes up (a dwell that closes the shape),
-  // and a guard armed back then has expired by the time the click arrives.
+// Armed on the RELEASE: a guard armed when a dwell closed the shape has expired by the time
+// the synthetic click arrives.
   #suppressTrailingClick() {
     const app = this.app;
     app.dragJustEnded = true;
     setTimeout(() => { app.dragJustEnded = false; }, 50);
   }
 
-  // Release after a hold stroke → commit the line and disable drawing mode, then suppress the
-  // trailing synthetic click so it isn't read as a point/select.
+// Commit the line, leave drawing mode, swallow the trailing click.
   #holdCommit() {
     const app = this.app;
     this.#holdClearPreview();
@@ -414,9 +376,8 @@ export class InputController {
     this.#suppressTrailingClick();
   }
 
-  // The release after a dwell-closed shape: nothing left to commit, but the trailing
-  // click still must be swallowed — selecting the area opens the bar, which pushes the
-  // canvas down, so the click would land elsewhere and deselect the new shape.
+// Nothing left to commit, but selecting the area opens the bar, which pushes the canvas
+// down, so an unswallowed click would land elsewhere and deselect the new shape.
   #holdReleaseAfterClose() {
     this.#holdClosedShape = false;
     this.#holdClearPreview();
@@ -437,23 +398,21 @@ export class InputController {
     if (this.app.holdPreview) { this.app.holdPreview = null; this.app.renderer.redraw(); }
   }
 
-  // The point a hold-draw preview line should emanate from: the last point of the in-progress
-  // line, or the current tail of the line being extended. null = none.
+// The last point of the in-progress line, or the current tail of the line being extended.
   holdAnchorPoint() {
     const app = this.app;
     if (app.currentLine && app.currentLine.points.length)
       return app.currentLine.points[app.currentLine.points.length - 1];
     if (app.continueLineIdx >= 0 && app.lines[app.continueLineIdx]) {
       const pts = app.lines[app.continueLineIdx].points;
-      // Prepend: the next point connects to the current head (index 0); forward: it connects to
-      // the point just before the insertion tail.
+// Prepend: the current head; forward: the point just before the insertion tail.
       if (this.#holdPrepend) return pts[app.continueInsertIdx] ?? pts[0] ?? null;
       return pts[app.continueInsertIdx - 1] ?? pts[pts.length - 1] ?? null;
     }
     return null;
   }
 
-  // Set the hold-to-draw dwell/hold delay (ms). Clamped to a sane range; persisted.
+// Clamped; persisted.
   setHoldDrawDelay(ms, { persist = true } = {}) {
     const app = this.app;
     const n = Number(ms);

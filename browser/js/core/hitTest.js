@@ -1,16 +1,9 @@
 import { distToSegment } from '../utils.js';
 
-// ── Pure hit-testing over the editor's line model ─────────────────────
-// Extracted from drawingApp.js; DrawingApp keeps thin delegators that supply its
-// lines/currentLine and the zoom-aware default thresholds (base screen-px radius divided
-// by the zoom, so hits stay constant ON SCREEN at any zoom).
-//
-// Every scan below runs 2-3x per mouse-move over EVERY point in the document, so each one
-// is allocation-free and takes the same bounding-box early reject the C++ twin does
-// (core/geometry/hitTest.cpp findLineAt): a candidate lies inside its line's bbox, so a
-// line whose bbox is further than `margin` away cannot hold one. Results — and
-// topmost-first order — are unchanged. Non-finite coords fail these compares, which only
-// costs the full scan they would have had.
+// Pure hit-testing over the line model; DrawingApp supplies lines/currentLine and the
+// zoom-aware thresholds (screen-px radius / zoom, so hits stay constant on screen).
+// Every scan runs 2-3x per mouse-move over every point, so each is allocation-free and
+// takes the same bbox early reject as core/geometry/hitTest.cpp findLineAt.
 const farFromBox = (pts, x, y, margin) => {
   let minX = pts[0].x, maxX = minX, minY = pts[0].y, maxY = minY;
   for (let i = 1; i < pts.length; i++) {
@@ -21,10 +14,9 @@ const farFromBox = (pts, x, y, margin) => {
   return x < minX - margin || x > maxX + margin || y < minY - margin || y > maxY + margin;
 };
 
-// Index of the topmost line within `threshold` of (x, y) — by point (padded +4) or by
-// segment — or -1.
+// Topmost line within `threshold` — by point (padded +4) or by segment — or -1.
 export function findLineAt(lines, x, y, threshold) {
-  const margin = threshold + 4;   // the wider of the two radii
+  const margin = threshold + 4;
   for (let i = lines.length - 1; i >= 0; i--) {
     const pts = lines[i].points;
     if (!pts.length || farFromBox(pts, x, y, margin)) continue;
@@ -38,8 +30,7 @@ export function findLineAt(lines, x, y, threshold) {
   return -1;
 }
 
-// First point within `threshold` of (x, y) across committed lines then the in-progress
-// line, or null.
+// Committed lines first, then the in-progress line; or null.
 export function findNearestPoint(lines, currentLine, x, y, threshold) {
   const near = (pts) => {
     if (!pts.length || farFromBox(pts, x, y, threshold)) return null;
@@ -56,8 +47,7 @@ export function findNearestPoint(lines, currentLine, x, y, threshold) {
   return currentLine ? near(currentLine.points) : null;
 }
 
-// Nearest point as { lineIdx, ptIdx, point } (lineIdx -1 = the in-progress line, which is
-// checked first; committed lines are scanned topmost-first), or null.
+// { lineIdx, ptIdx, point }; lineIdx -1 = the in-progress line, checked first, then topmost-first.
 export function findNearestPointWithIdx(lines, currentLine, x, y, threshold) {
   const near = (pts, lineIdx) => {
     if (!pts.length || farFromBox(pts, x, y, threshold)) return null;
@@ -78,7 +68,7 @@ export function findNearestPointWithIdx(lines, currentLine, x, y, threshold) {
   return null;
 }
 
-// Nearest segment among completed lines as { lineIdx, ptIdx1, ptIdx2 }, or null.
+// { lineIdx, ptIdx1, ptIdx2 } among completed lines, or null.
 export function findNearestSegmentWithIdx(lines, x, y, threshold) {
   let bestDist = Infinity;
   let best = null;

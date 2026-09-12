@@ -1,16 +1,9 @@
 import { core } from './stencilCore.js';
 
-// ── Formula transforms (pure logic) ─────────────────────────────
-// Port of `core/parse/formulaParser.cpp`: a recursive-descent evaluator (NOT `new Function`/
-// `eval`) understanding only `+ - * / ** ( )` over one variable, so server-supplied formulas
-// stay inert. JS reference + fallback; wasm delegates to the same parser when loaded.
-// Grammar: expr = term (('+'|'-') term)*; term = unary (('*'|'/') unary)*;
-// unary = ('+'|'-') unary | power; power = primary ('**' unary)? (right-assoc);
-// primary = '(' expr ')' | number | the bound variable. Syntax error ⇒ ok=false (invalid).
-// Cap recursion depth so an adversarial deeply-nested input (thousands of '(' or unary signs
-// from untrusted layout JSON / console / co-edit) can't overflow the stack; past the cap the
-// parse is invalid (→ identity). Must equal the core parser's kMaxDepth
-// (core/parse/formulaParser.cpp) so wasm and this JS fallback agree op-for-op.
+// Port of core/parse/formulaParser.cpp: a recursive-descent evaluator (never `new
+// Function`/`eval`) over `+ - * / ** ( )` and one variable, so server-supplied formulas stay
+// inert. Syntax error ⇒ invalid (→ identity). MAX_DEPTH caps recursion against adversarial
+// nesting and must equal the core parser's kMaxDepth so wasm and this fallback agree.
 const MAX_DEPTH = 256;
 
 class Evaluator {
@@ -23,7 +16,7 @@ class Evaluator {
     this.depth = 0;
   }
 
-  // Parse a full expression and require that all input was consumed.
+// Requires that all input was consumed.
   run() {
     const v = this.parseExpr();
     this.skipSpaces();
@@ -42,7 +35,6 @@ class Evaluator {
     return this.pos < this.src.length ? this.src[this.pos] : '\0';
   }
 
-  // Match a two-char operator like `**`.
   match2(a, b) {
     this.skipSpaces();
     if (this.pos + 1 < this.src.length && this.src[this.pos] === a && this.src[this.pos + 1] === b) {
@@ -74,8 +66,7 @@ class Evaluator {
   }
 
   parseTerm() {
-    // '**' is consumed inside parsePower (reached via parseUnary), so the cursor never sits
-    // on '**' when this loop tests for '*'.
+// '**' is consumed inside parsePower, so the cursor never sits on '**' here.
     let v = this.parseUnary();
     while (this.ok) {
       if (this.match('*')) v *= this.parseUnary();
@@ -99,7 +90,7 @@ class Evaluator {
   parsePower() {
     const base = this.parsePrimary();
     if (this.match2('*', '*')) {
-      const exp = this.parseUnary(); // right-associative: 2 ** 3 ** 2
+      const exp = this.parseUnary();
       return Math.pow(base, exp);
     }
     return base;
@@ -128,7 +119,6 @@ class Evaluator {
     while (this.pos < this.src.length && ((this.src[this.pos] >= '0' && this.src[this.pos] <= '9') || this.src[this.pos] === '.')) {
       this.pos += 1;
     }
-    // optional exponent: e / E [+/-] digits
     if (this.pos < this.src.length && (this.src[this.pos] === 'e' || this.src[this.pos] === 'E')) {
       const save = this.pos;
       this.pos += 1;
@@ -140,12 +130,12 @@ class Evaluator {
           this.pos += 1;
         }
       } else {
-        this.pos = save; // not an exponent after all
+        this.pos = save;
       }
     }
     const text = this.src.slice(start, this.pos);
-    // parseFloat mirrors C++ std::stod: it reads the longest numeric prefix (so "1.2.3" → 1.2,
-    // matching the core) and yields NaN only when no number could be parsed at all.
+// parseFloat mirrors C++ std::stod: the longest numeric prefix ("1.2.3" → 1.2), NaN only
+// when nothing parsed.
     const value = parseFloat(text);
     if (!Number.isFinite(value)) {
       this.ok = false;
@@ -161,8 +151,7 @@ class Evaluator {
       this.pos += 1;
     }
     const ident = this.src.slice(start, this.pos);
-    // Only the single bound variable is allowed; any other name (a function such as `foo`,
-    // or a stray identifier) is a parse error.
+// Only the single bound variable; any other name is a parse error.
     if (ident.length === 1 && ident === this.varName) return this.varValue;
     this.ok = false;
     return 0;
@@ -177,7 +166,7 @@ function isBlank(s) {
   return !s || !s.trim();
 }
 
-// Evaluate `expr` with the single variable bound to `value`. Returns a finite number or null.
+// A finite number or null.
 function evaluate(expr, varName, value) {
   const result = new Evaluator(expr, varName, value).run();
   if (result === null || !Number.isFinite(result)) return null;
@@ -185,15 +174,13 @@ function evaluate(expr, varName, value) {
 }
 
 export class FormulaEngine {
-  // Validate a formula string — try evaluating it with the variable = 1.
-  // Empty = valid (identity).
+// Empty = valid (identity).
   validate = core.bind('formulaValidate', (expr, varName) => {
     if (isBlank(expr)) return true;
     return evaluate(expr, varName, 1) !== null;
   });
 
-  // Apply formula transform to a coordinate value; returns original if
-  // formulas are disabled, the expression is empty, or evaluation fails.
+// Returns the original when formulas are off, the expression is empty, or evaluation fails.
   apply = core.bind('formulaApply', (expr, varName, val, allowFormulas) => {
     if (!allowFormulas || isBlank(expr)) return val;
     const result = evaluate(expr, varName, val);
