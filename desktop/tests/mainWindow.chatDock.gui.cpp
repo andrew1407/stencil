@@ -24,7 +24,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     QVERIFY(win.chatDock_);
     win.chatDock_->show();
-    QTest::qWait(120);
+    settleLayout(&win, 120);
     auto* edge = win.chatEdge_;
     QVERIFY(edge);
     const struct { Qt::DockWidgetArea area; Qt::Orientation split; const char* name; } kAreas[] = {
@@ -35,7 +35,7 @@ class MainWindowGuiTest : public QObject {
     };
     for (const auto& a : kAreas) {
       win.addDockWidget(a.area, win.chatDock_, a.split);
-      QTest::qWait(120);
+      settleLayout(&win, 120);
       const QRect dock = win.chatDock_->geometry();
       const QRect hit = win.chatEdgeHit_;
       const QRect band = edge->geometry();
@@ -54,8 +54,7 @@ class MainWindowGuiTest : public QObject {
     }
     // Nothing to grab while it floats — the window frame owns that resize.
     win.chatDock_->setFloating(true);
-    QTest::qWait(120);
-    QVERIFY(!edge->isVisible());
+    QTRY_VERIFY(!edge->isVisible());
   }
 
   // The assistant's settings (the chat's … ▸ Settings) have a chord of their own, from the
@@ -360,7 +359,9 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(win.chatDock_->isVisible());
     win.chatDock_->appendUser(QStringLiteral("hi"), {});
     win.chatDock_->appendAssistant(QStringLiteral("hello"));
-    QTest::qWait(250);   // past kAppearMs (140ms) — the entrance slide must have finished
+    // The entrance holds each card's opacity effect and drops the claim when it lands
+    // (kEnteringProperty), so that IS the slide's own completion flag.
+    QTRY_VERIFY(noneEntering(win.chatDock_));
     // A short bubble's width can still settle over a couple of extra layout
     // passes after the wait above (viewport/scrollbar interplay in
     // applyChatBubbleWidths) — one more explicit re-sync makes the geometry
@@ -442,7 +443,7 @@ class MainWindowGuiTest : public QObject {
     // not the pre-flip default.
     win.ensureChatMenuPanel();
     win.chatMirror(QStringLiteral("Assistant"), QStringLiteral("mirrored"), false);
-    QTest::qWait(20);
+    QTRY_VERIFY(win.chatMenuPanel_->findChild<QFrame*>("chatCardAssistant"));
     QFrame* mirroredAsst = nullptr;
     for (QFrame* f : win.chatMenuPanel_->findChildren<QFrame*>("chatCardAssistant"))
       mirroredAsst = f;
@@ -537,8 +538,7 @@ class MainWindowGuiTest : public QObject {
 
     // The gesture while ALREADY open re-pins compact — it never hides.
     doubleClick();
-    QTest::qWait(50);
-    QVERIFY(dock->isVisible());
+    QTRY_VERIFY(dock->isVisible());
     QVERIFY(dock->isFloating());
     QVERIFY(chat->isChecked());
 
@@ -1083,7 +1083,7 @@ class MainWindowGuiTest : public QObject {
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.chatDock_->setVisible(true);
     QTRY_VERIFY(win.chatDock_->isVisible());
-    QTest::qWait(150);
+    settleLayout(&win, 150);
     // ctest runs with STENCIL_NO_ANIM=1 and every flight is a no-op under it; this test
     // is about the flight itself, so turn it back on for the duration.
     const QByteArray noAnim = qgetenv("STENCIL_NO_ANIM");
@@ -1110,7 +1110,7 @@ class MainWindowGuiTest : public QObject {
     // the right edge. compactIconMenu hugs the longest label instead.
     menu->popup(moreBtn->mapToGlobal(moreBtn->rect().bottomLeft()));
     QVERIFY(QTest::qWaitForWindowExposed(menu));
-    QTest::qWait(30);
+    settleLayout(menu, 30);
     int widest = 0;
     for (QAction* a : menu->actions())
       widest = std::max(widest, menu->fontMetrics().horizontalAdvance(a->text()));
@@ -1121,16 +1121,16 @@ class MainWindowGuiTest : public QObject {
              qPrintable(QString("menu is %1 wide for a %2 label — %3px of slack")
                             .arg(menu->width()).arg(widest).arg(slack)));
     menu->hide();
-    QTest::qWait(30);
+    QTRY_VERIFY(!menu->isVisible());
     // Popping it twice must not stack a second filter — nor go quiet on the second show.
     menu->popup(moreBtn->mapToGlobal(moreBtn->rect().bottomLeft()));
     QVERIFY(QTest::qWaitForWindowExposed(menu));
     menu->hide();
-    QTest::qWait(30);
+    QTRY_VERIFY(!menu->isVisible());
     menu->popup(moreBtn->mapToGlobal(moreBtn->rect().bottomLeft()));
-    QTest::qWait(30);
+    QTRY_VERIFY(menu->isVisible());
     menu->hide();
-    QTest::qWait(30);
+    QTRY_VERIFY(!menu->isVisible());
     QCOMPARE(menu->findChildren<QObject*>(QStringLiteral("stencilMenuFlight"),
                                           Qt::FindDirectChildrenOnly).size(), 1);
 
@@ -1140,10 +1140,9 @@ class MainWindowGuiTest : public QObject {
     dlg.resize(320, 240);
     stencil::support::revealDialog(dlg, moreBtn);
     dlg.show();
-    QTest::qWait(50);
-    QCOMPARE(surfaceFlightTarget(&win), want);
+    QTRY_COMPARE(surfaceFlightTarget(&win), want);
     dlg.close();
-    QTest::qWait(50);
+    awaitFlights(&win);
 
     // A shut dock leaves nothing on screen to own the window: it falls from above
     // instead of out of the trigger's stale last position.
@@ -1153,7 +1152,7 @@ class MainWindowGuiTest : public QObject {
     orphan.resize(320, 240);
     stencil::support::revealDialog(orphan, moreBtn);
     orphan.show();
-    QTest::qWait(50);
+    settle([&] { return surfaceFlightTarget(&win) != QPoint(-1, -1); }, 50);
     const QPoint above = surfaceFlightTarget(&win);
     if (above != QPoint(-1, -1))
       QVERIFY2(above != want, "a hidden trigger must not keep claiming the flight");
@@ -1429,14 +1428,14 @@ class MainWindowGuiTest : public QObject {
     // that icon: gathering out of it on the way in, scattering back into it on the way
     // out. Both are the icon — the DIRECTION is what tells the two apart.
     win.actChat_->setChecked(false);          // close: the window comes apart into the icon
-    QTest::qWait(60);
+    QTRY_VERIFY(surfaceFlight(&win));
     auto* closing = surfaceFlight(&win);
     QVERIFY2(closing, "closing a floating chat did not animate");
     QCOMPARE(closing->surfaceTarget(), iconPoint);
     QVERIFY2(!closing->gathering(), "the close flight scatters INTO the icon, it does not gather");
     awaitAnim(win.chatAnim_);
     win.actChat_->setChecked(true);           // open: it forms out of the icon
-    QTest::qWait(60);
+    QTRY_VERIFY(surfaceFlight(&win));
     auto* opening = surfaceFlight(&win);
     QVERIFY2(opening, "opening a floating chat did not animate");
     QCOMPARE(opening->surfaceTarget(), iconPoint);
@@ -1652,11 +1651,9 @@ class MainWindowGuiTest : public QObject {
     win.ensureChatMenuPanel();
     win.chatMenuPanel_->setGeometry(20, 20, 340, 620);
     win.chatMenuPanel_->show();
-    QTest::qWait(80);
-    QVERIFY2(!win.chatSurfaceHidden(), "a visible menu panel must count as a surface");
+    QTRY_VERIFY2(!win.chatSurfaceHidden(), "a visible menu panel must count as a surface");
     win.chatMenuPanel_->hide();
-    QTest::qWait(80);
-    QVERIFY2(win.chatSurfaceHidden(), "a dismissed menu panel leaves nothing to look at");
+    QTRY_VERIFY2(win.chatSurfaceHidden(), "a dismissed menu panel leaves nothing to look at");
 
     // ITEM B — §3.0: settling a turn is not itself an event. Nothing runs after
     // the reply, so the terminal has no news of its own to toast.
@@ -1925,7 +1922,7 @@ class MainWindowGuiTest : public QObject {
     }
     win.chatMenuPanel_->setGeometry(20, 20, 340, 640);
     win.chatMenuPanel_->show();
-    QTest::qWait(300);
+    settleLayout(win.chatMenuPanel_, 300);
 
     auto* scroll = win.chatMenuPanel_->findChild<QScrollArea*>("chatMenuTranscript");
     QVERIFY(scroll);
@@ -1945,10 +1942,10 @@ class MainWindowGuiTest : public QObject {
 
     // …and the pending row animates: the shared dots widget, with its own timer.
     win.chatMirrorPending(true);
-    QTest::qWait(120);
+    QTRY_VERIFY2(win.chatMenuPanel_->findChild<QWidget*>(QStringLiteral("chatTypingDots")),
+                 "the panel's pending row has no typing dots");
     QWidget* dots = win.chatMenuPanel_->findChild<QWidget*>(QStringLiteral("chatTypingDots"));
-    QVERIFY2(dots, "the panel's pending row has no typing dots");
-    QVERIFY2(dots->isVisible(), "the typing dots are not on screen");
+    QTRY_VERIFY2(dots->isVisible(), "the typing dots are not on screen");
     // It really MOVES: sample the painted frame twice.
     const QImage a = dots->grab().toImage();
     QTest::qWait(160);
@@ -1956,9 +1953,8 @@ class MainWindowGuiTest : public QObject {
     QVERIFY2(a != b, "the typing dots are static");
     // Stopping swaps them for the text, as in the dock.
     win.chatMirrorStopped(QStringLiteral("retry me"));
-    QTest::qWait(80);
-    QVERIFY2(!win.chatMenuPanel_->findChild<QWidget*>(QStringLiteral("chatTypingDots")),
-             "the dots outlived the turn");
+    QTRY_VERIFY2(!win.chatMenuPanel_->findChild<QWidget*>(QStringLiteral("chatTypingDots")),
+                 "the dots outlived the turn");
     beat();
   }
 
@@ -2067,7 +2063,7 @@ class MainWindowGuiTest : public QObject {
     QTRY_VERIFY(dock->isFloating());
     QWidget* title = dock->titleBarWidget();
     QVERIFY(title);
-    QTest::qWait(60);
+    settleLayout(&win, 60);
 
     const QRect central(win.centralWidget()->mapTo(&win, QPoint(0, 0)),
                         win.centralWidget()->size());
@@ -2081,7 +2077,7 @@ class MainWindowGuiTest : public QObject {
     const QPoint start = title->mapToGlobal(QPoint(30, 8));
     sendMouse(QEvent::MouseButtonPress, start);
     sendMouse(QEvent::MouseMove, start + QPoint(40, 40));   // past the threshold
-    QTest::qWait(30);
+    QTRY_VERIFY2(win.findChild<QWidget*>("chatDockZones"), "a real drag never showed the zones");
     QWidget* zones = win.findChild<QWidget*>("chatDockZones");
     QVERIFY2(zones && zones->isVisible(), "zones show for a real (event-driven) drag");
 
@@ -2199,7 +2195,7 @@ class MainWindowGuiTest : public QObject {
     QWidget* title = dock->titleBarWidget();
     QVERIFY(title);
 
-    QTest::qWait(60);  // let the layout reclaim the floated dock's slot
+    settleLayout(&win, 60);   // let the layout reclaim the floated dock's slot
     const QRect central(win.centralWidget()->mapTo(&win, QPoint(0, 0)),
                         win.centralWidget()->size());
     // Offscreen has no movable cursor / synthetic global button state, so the
@@ -2230,7 +2226,7 @@ class MainWindowGuiTest : public QObject {
     // window width, below the toolbars, above the status bar — NOT the central
     // widget (which shrinks by whatever is docked, drifting the bands inward).
     dragTo(win.mapToGlobal(central.center()));
-    QTest::qWait(50);
+    QTRY_VERIFY(win.findChild<QWidget*>("chatDockZones"));
     auto* zones = win.findChild<QWidget*>("chatDockZones");
     QVERIFY(zones);
     QTRY_VERIFY(zones->isVisible());
@@ -2313,7 +2309,7 @@ class MainWindowGuiTest : public QObject {
     win.chatMenuPanel_->setGeometry(20, 20, 340, 640);
     win.chatMenuPanel_->show();
     win.chatMirror(QStringLiteral("You"), QStringLiteral("shimmer me too"), false);
-    QTest::qWait(200);
+    settleLayout(win.chatMenuPanel_, 200);
 
     const auto overlayOf = [](QWidget* w) {
       return w ? w->findChild<QWidget*>("shimmerOverlay") : nullptr;

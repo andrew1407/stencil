@@ -310,7 +310,7 @@ class MainWindowGuiTest : public QObject {
       QCOMPARE(claimed, fading);
       for (int i = 0; i < 12; i++) {      // …while the transcript relayouts under them
         dock->resize(dock->width(), 300 + (i % 3) * 60);
-        QTest::qWait(30);                 // each wait lets the animation driver tick
+        QTest::qWait(16);                 // one driver frame per relayout, no more
       }
       QTRY_VERIFY_WITH_TIMEOUT(cardCount() == 0,
                                stencil::gui::DisintegrateOverlay::kMs + 3000);
@@ -327,7 +327,10 @@ class MainWindowGuiTest : public QObject {
                          "variants are rotated, tinted and cropped. I couldn't open an "
                          "incognito tab: that needs a URL you gave me in this conversation.");
       dock->appendAssistant(essay);
-      QTest::qWait(250);   // past the appear animation, which offsets the card's margins
+      // The appear animation offsets the card's margins; it drops its own claim when it
+      // lands (kEnteringProperty), and the reserved wrap height follows one relayout later.
+      QTRY_VERIFY(noneEntering(transcript));
+      settleLayout(transcript, 250);
       QLabel* body = nullptr;
       for (QLabel* l : transcript->findChildren<QLabel*>())
         if (l->text() == essay) body = l;
@@ -640,8 +643,8 @@ class MainWindowGuiTest : public QObject {
         "Your session on localhost:8090 has expired — reconnect to that server, then "
         "send this again.");
     win.onChatReply(expired);
-    QTest::qWait(150);
-
+    QTRY_VERIFY2(win.chatDock_->findChild<QFrame*>("chatCardError"),
+                 "no error card for the expired session");
     QFrame* card = nullptr;
     for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardError")) card = f;
     QVERIFY2(card, "no error card for the expired session");
@@ -670,8 +673,7 @@ class MainWindowGuiTest : public QObject {
       }
     });
     cta->click();
-    QTest::qWait(60);
-    QVERIFY2(opened, "the CTA did not open Connections");
+    QTRY_VERIFY2(opened, "the CTA did not open Connections");
 
     // …and an ordinary failure keeps the plain card (no CTA).
     stencil::llm::LlmReply plain;
@@ -679,7 +681,7 @@ class MainWindowGuiTest : public QObject {
     plain.failure = stencil::llm::LlmFailure::Http;
     plain.error = QStringLiteral("localhost:11434 answered: HTTP 401");
     win.onChatReply(plain);
-    QTest::qWait(120);
+    QTRY_COMPARE(win.chatDock_->findChildren<QFrame*>("chatCardError").size(), 2);
     QFrame* last = nullptr;
     for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardError")) last = f;
     QVERIFY(last);
@@ -1032,7 +1034,7 @@ class MainWindowGuiTest : public QObject {
     win.chatDock_->appendUser(QStringLiteral("resized mid-flight"), {});
     QTRY_VERIFY_WITH_TIMEOUT(win.findChild<QWidget*>(kDust) != nullptr, 3000);
     win.chatDock_->resize(win.chatDock_->width() - 90, win.chatDock_->height());
-    QTest::qWait(120);
+    settleLayout(win.chatDock_, 120);
     QFrame* resized = nullptr;
     for (QFrame* c : win.chatDock_->findChildren<QFrame*>("chatCardUser")) resized = c;
     QVERIFY(resized);
@@ -1365,7 +1367,7 @@ class MainWindowGuiTest : public QObject {
       const QPoint p = on->rect().center();
       QContextMenuEvent ev(QContextMenuEvent::Mouse, p, on->mapToGlobal(p));
       QApplication::sendEvent(on, &ev);
-      QTest::qWait(40);
+      settle([] { return QApplication::activePopupWidget() == nullptr; }, 40);
     };
 
     // (a) a turn IN FLIGHT, with the transcript repainting under the menu.
@@ -1413,7 +1415,7 @@ class MainWindowGuiTest : public QObject {
     // (c) the card is DELETED while its own menu is up — nothing may touch it
     // after exec() returns.
     dock->appendUser(QStringLiteral("doomed row"));
-    QTest::qWait(250);   // let it lay out, or it is not visible enough to pop on
+    QTRY_VERIFY(cardWithBody(QStringLiteral("doomed row")));
     QFrame* doomed = cardWithBody(QStringLiteral("doomed row"));
     QVERIFY(doomed);
     QTRY_VERIFY(doomed->isVisible());
@@ -1426,8 +1428,7 @@ class MainWindowGuiTest : public QObject {
       delete gone.data();   // the transcript settling mid-menu, at its worst
     });
     QVERIFY2(!gone, "the card should be gone");
-    QTest::qWait(100);
-    QVERIFY2(!dock->isBusy(), "the dock survived the churn");
+    QTRY_VERIFY2(!dock->isBusy(), "the dock survived the churn");
 
     // …and a right-click on the now-dangling label's siblings still does nothing bad.
     QFrame* survivor = cardWithBody(QStringLiteral("late note while the menu is open"));
@@ -1466,7 +1467,7 @@ class MainWindowGuiTest : public QObject {
                          "taller than a line and gets clipped by the viewport edge "
                          "while scrolling (%1).").arg(i));
     }
-    QTest::qWait(300);
+    settleLayout(win.chatDock_, 300);
 
     const auto globalRect = [](QWidget* w) {
       return QRect(w->mapToGlobal(QPoint(0, 0)), w->size());
@@ -1654,19 +1655,19 @@ class MainWindowGuiTest : public QObject {
     checkSliver(win.chatDock_, dockScroll, "docked");
     win.chatDock_->setMinimumWidth(0);
     win.resizeDocks({win.chatDock_}, {230}, Qt::Horizontal);   // squeeze it
-    QTest::qWait(300);
+    settleLayout(win.chatDock_, 300);
     checkNarrow(win.chatDock_, dockScroll, "docked narrow");
 
     // The floating/compact shape uses the same transcript widget.
     win.chatDock_->setFloating(true);
     win.chatDock_->resize(360, 460);
-    QTest::qWait(300);
+    settleLayout(win.chatDock_, 300);
     checkSurface(win.chatDock_, dockScroll, "floating");
     win.chatDock_->resize(240, 460);   // narrow float: bubbles at both edges
-    QTest::qWait(300);
+    settleLayout(win.chatDock_, 300);
     checkNarrow(win.chatDock_, dockScroll, "floating narrow");
     win.chatDock_->setFloating(false);
-    QTest::qWait(200);
+    settleLayout(win.chatDock_, 200);
 
     // …and so does the context menu's panel.
     win.ensureChatMenuPanel();
@@ -1688,7 +1689,7 @@ class MainWindowGuiTest : public QObject {
                                     "the viewport edge while scrolling (%1).").arg(i),
                      false);
     }
-    QTest::qWait(200);
+    settleLayout(win.chatMenuPanel_, 200);
     checkSurface(win.chatMenuPanel_,
                  win.chatMenuPanel_->findChild<QScrollArea*>("chatMenuTranscript"), "menu panel");
     beat();
@@ -1719,7 +1720,7 @@ class MainWindowGuiTest : public QObject {
     QScrollBar* bar = scroll->verticalScrollBar();
     QTRY_VERIFY(bar->maximum() > 24);
     bar->setValue(bar->maximum() / 2);   // mid-log: both pills want to show
-    QTest::qWait(200);
+    settleLayout(win.chatDock_, 200);
     const auto jumps = win.chatDock_->findChildren<QToolButton*>(QStringLiteral("chatJumpBtn"));
     QCOMPARE(jumps.size(), 2);
     // Precondition: no row menu on screen, so the pills' own rule lets them show
@@ -1807,7 +1808,7 @@ class MainWindowGuiTest : public QObject {
     win.chatMirrorPending(true);
     win.chatDock_->markPendingStopped(QStringLiteral("remove this project"));
     win.chatMirrorStopped(QStringLiteral("remove this project"));
-    QTest::qWait(200);
+    settleLayout(win.chatDock_, 200);
 
     const auto menuItems = [](QWidget* w) {
       QStringList names;
@@ -1824,7 +1825,7 @@ class MainWindowGuiTest : public QObject {
       const QPoint pos = w->rect().center();
       QContextMenuEvent ev(QContextMenuEvent::Mouse, pos, w->mapToGlobal(pos));
       QApplication::sendEvent(w, &ev);
-      QTest::qWait(20);
+      settle([&names] { return !names.isEmpty(); }, 20);
       return names;
     };
 
@@ -1856,7 +1857,7 @@ class MainWindowGuiTest : public QObject {
     // the row menu rightly refuses to pop into an invisible surface.
     win.chatMenuPanel_->setGeometry(20, 20, 340, 620);
     win.chatMenuPanel_->show();
-    QTest::qWait(150);
+    settleLayout(win.chatMenuPanel_, 150);
     QList<QFrame*> panelErrors = win.chatMenuPanel_->findChildren<QFrame*>("chatCardError");
     QVERIFY2(!panelErrors.isEmpty(), "the panel mirrored no error card");
     bool sawRetry = false;
@@ -1927,7 +1928,7 @@ class MainWindowGuiTest : public QObject {
       const QPoint pos = w->rect().center();
       QContextMenuEvent ev(QContextMenuEvent::Mouse, pos, w->mapToGlobal(pos));
       QApplication::sendEvent(w, &ev);
-      QTest::qWait(20);
+      settle([&found] { return found; }, 20);
       return found;
     };
 
@@ -2029,8 +2030,7 @@ class MainWindowGuiTest : public QObject {
     const QPoint pos = noteCard->rect().center();
     QContextMenuEvent ev(QContextMenuEvent::Mouse, pos, noteCard->mapToGlobal(pos));
     QApplication::sendEvent(noteCard, &ev);   // blocks in exec() until Escape lands
-    QTest::qWait(20);
-    QVERIFY2(sawMenu, "the card menu never opened");
+    QTRY_VERIFY2(sawMenu, "the card menu never opened");
     QTRY_VERIFY(QApplication::activePopupWidget() == nullptr);   // grab released
     // exec() returned nullptr: no action ran, the sentinel clipboard survives.
     QCOMPARE(QGuiApplication::clipboard()->text(), QStringLiteral("sentinel"));
@@ -2058,7 +2058,7 @@ class MainWindowGuiTest : public QObject {
     dock->show();   // visibility checks below need visible ancestors
     win.onChatSend("highlight the cat");
     QTRY_VERIFY(!dock->isBusy());
-    QTest::qWait(20);   // let the transcript layout activate (shows the cards)
+    settleLayout(dock, 20);   // let the transcript layout activate (shows the cards)
 
     QFrame* userCard = nullptr;
     for (QFrame* f : dock->findChildren<QFrame*>("chatCardUser")) userCard = f;
@@ -2121,8 +2121,7 @@ class MainWindowGuiTest : public QObject {
       m->close();
     });
     userMore->click();   // blocking until the menu picks/closes
-    QTest::qWait(20);
-    QVERIFY2(sawMenu, "the hover button did not open the card menu");
+    QTRY_VERIFY2(sawMenu, "the hover button did not open the card menu");
     QCOMPARE(QGuiApplication::clipboard()->text(), QStringLiteral("highlight the cat"));
     // The menu is gone, so a Leave hides the button again (after the grace).
     QApplication::sendEvent(userCard, &leave);
@@ -2871,7 +2870,7 @@ class MainWindowGuiTest : public QObject {
     win.chatDock_->appendUser(QStringLiteral("Give me 3 variants"), {});
     win.chatHistory_.append({QStringLiteral("user"), QStringLiteral("Give me 3 variants"), {}});
     win.chatError(QStringLiteral("not connected to http://localhost:8090 (no token)"), QString());
-    QTest::qWait(150);
+    QTRY_VERIFY(win.chatDock_->findChild<QFrame*>("chatCardError"));
     QFrame* errCard = nullptr;
     for (QFrame* f : win.chatDock_->findChildren<QFrame*>("chatCardError")) errCard = f;
     QFrame* userCard = nullptr;
@@ -2912,13 +2911,14 @@ class MainWindowGuiTest : public QObject {
     QScrollArea* scroll = openTranscript(win);
     fillUntilScrollable(win, scroll);
     QVERIFY(scroll->verticalScrollBar()->maximum() > 0);
-    QTest::qWait(50);
+    settleLayout(win.chatDock_, 50);
     const QString text = QStringLiteral(
         "This reply is deliberately long enough to wrap across several transcript lines, "
         "so a height reserved at the wrong measurement width visibly disagrees with the "
         "height the rendered text actually needs — the regression this test guards.");
     win.chatDock_->appendAssistant(text);
-    QTest::qWait(120);   // entrance animation + deferred layout settle
+    QTRY_VERIFY(noneEntering(scroll->widget()));   // the entrance drops its own claim
+    settleLayout(win.chatDock_, 120);              // …and the deferred relayout follows
     QLabel* body = nullptr;
     for (QLabel* l : win.chatDock_->findChildren<QLabel*>())
       if (l->property("chatBody").toString() == text) body = l;
@@ -2951,7 +2951,7 @@ class MainWindowGuiTest : public QObject {
     win.show();
     QVERIFY(QTest::qWaitForWindowExposed(&win));
     win.chatDock_->show();
-    QTest::qWait(30);
+    settleLayout(win.chatDock_, 30);
     auto* scroll = win.chatDock_->findChild<QScrollArea*>();
     QVERIFY(scroll);
     auto* bar = scroll->verticalScrollBar();
