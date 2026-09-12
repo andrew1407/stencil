@@ -50,7 +50,7 @@ public sealed class StencilCliLocatorTests
     {
         string missing = Path.Combine(Path.GetTempPath(), "stencil-missing-" + Guid.NewGuid().ToString("N"));
         StencilCliException ex = Assert.Throws<StencilCliException>(() => StencilCliLocator.FindCli(missing));
-        Assert.Equal(StencilCliLocator.UnavailableMessage, ex.Message);
+        Assert.Equal(StencilCliLocator.UNAVAILABLE_MESSAGE, ex.Message);
         Assert.DoesNotContain("STENCIL_", ex.Message);
         Assert.DoesNotContain(missing, ex.Message);
         Assert.Contains("not a file", ex.OperatorDetail);
@@ -60,16 +60,16 @@ public sealed class StencilCliLocatorTests
     [Fact]
     public void UnavailableMessageNamesNoDeploymentDetail()
     {
-        Assert.DoesNotContain("STENCIL_", StencilCliLocator.UnavailableMessage);
-        Assert.DoesNotContain("zig", StencilCliLocator.UnavailableMessage);
-        Assert.DoesNotContain("/", StencilCliLocator.UnavailableMessage);
+        Assert.DoesNotContain("STENCIL_", StencilCliLocator.UNAVAILABLE_MESSAGE);
+        Assert.DoesNotContain("zig", StencilCliLocator.UNAVAILABLE_MESSAGE);
+        Assert.DoesNotContain("/", StencilCliLocator.UNAVAILABLE_MESSAGE);
     }
 
     [Fact]
     public void MissingMessageShape()
     {
-        Assert.Contains("could not find the `stencil` CLI", StencilCliLocator.MissingMessage);
-        Assert.Contains("STENCIL_CLI", StencilCliLocator.MissingMessage);
-        Assert.Contains("zig build", StencilCliLocator.MissingMessage);
+        Assert.Contains("could not find the `stencil` CLI", StencilCliLocator.MISSING_MESSAGE);
+        Assert.Contains("STENCIL_CLI", StencilCliLocator.MISSING_MESSAGE);
+        Assert.Contains("zig build", StencilCliLocator.MISSING_MESSAGE);
     }
 }

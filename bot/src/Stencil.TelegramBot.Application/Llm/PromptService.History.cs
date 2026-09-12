@@ -26,7 +26,7 @@ public sealed partial class PromptService
         List<LlmMessage> displayed = new(history.Count);
         foreach (LlmMessage message in history)
         {
-            displayed.Add(message.Role == LlmMessage.RoleAssistant
+            displayed.Add(message.Role == LlmMessage.ROLE_ASSISTANT
                 ? message with { Text = displayedReply(message.Text) }
                 : message);
         }
@@ -90,11 +90,11 @@ public sealed partial class PromptService
                     }
                 }
             }
-            list.Add(new LlmMessage(LlmMessage.RoleUser, text, image is null ? [] : [image]));
-            list.Add(new LlmMessage(LlmMessage.RoleAssistant, assistantText));
-            if (list.Count > MaxHistoryMessages)
+            list.Add(new LlmMessage(LlmMessage.ROLE_USER, text, image is null ? [] : [image]));
+            list.Add(new LlmMessage(LlmMessage.ROLE_ASSISTANT, assistantText));
+            if (list.Count > MAX_HISTORY_MESSAGES)
             {
-                list.RemoveRange(0, list.Count - MaxHistoryMessages);
+                list.RemoveRange(0, list.Count - MAX_HISTORY_MESSAGES);
             }
         }
         evictIdleUsers(keep: userId);
@@ -103,7 +103,7 @@ public sealed partial class PromptService
     // Drops the least-recently-touched conversation, never the user being served.
     private void evictIdleUsers(long keep)
     {
-        while (_history.Count > MaxTrackedUsers)
+        while (_history.Count > MAX_TRACKED_USERS)
         {
             long oldestId = 0;
             long oldestTouch = long.MaxValue;

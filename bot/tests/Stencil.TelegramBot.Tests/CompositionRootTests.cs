@@ -27,7 +27,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class CompositionRootTests : IDisposable
 {
     // Well-formed but fake: TelegramBotClient parses "<id>:<hash>" and talks to nobody until used.
-    private const string FakeToken = "123456:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    private const string _fakeToken = "123456:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
     private readonly string _dataDir =
         Path.Combine(Path.GetTempPath(), "stencil-bot-di-" + Guid.NewGuid().ToString("N"));
@@ -38,13 +38,13 @@ public sealed class CompositionRootTests : IDisposable
     }
 
     private BotOptions makeOptions(string redisUrl = "") =>
-        new() { DataDir = _dataDir, BotToken = FakeToken, RedisUrl = redisUrl };
+        new() { DataDir = _dataDir, BotToken = _fakeToken, RedisUrl = redisUrl };
 
     private ServiceCollection wired(BotOptions? options = null)
     {
         ServiceCollection services = new();
         services.AddLogging();
-        services.AddStencilBot(options ?? makeOptions(), new TelegramBotClient(FakeToken));
+        services.AddStencilBot(options ?? makeOptions(), new TelegramBotClient(_fakeToken));
         return services;
     }
 

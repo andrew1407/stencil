@@ -19,8 +19,8 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class ReplyTonesTests : IDisposable
 {
-    private const long UserId = 71;
-    private const long ChatId = 72;
+    private const long _userId = 71;
+    private const long _chatId = 72;
 
     private readonly string _dataDir;
     private readonly MockStencilCli _cli = new();
@@ -56,11 +56,11 @@ public sealed class ReplyTonesTests : IDisposable
     /// <summary>Route a plain Telegram text message exactly as the poller would.</summary>
     private Task send(string text) =>
         _router.HandleMessageAsync(
-            new Message { Chat = new Chat { Id = ChatId }, From = new User { Id = UserId }, Text = text },
+            new Message { Chat = new Chat { Id = _chatId }, From = new User { Id = _userId }, Text = text },
             CancellationToken.None);
 
     private Task dispatch(string text) =>
-        _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
+        _handlers.DispatchAsync(_userId, _chatId, CommandParser.Parse(text), CancellationToken.None);
 
     private string lastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
 

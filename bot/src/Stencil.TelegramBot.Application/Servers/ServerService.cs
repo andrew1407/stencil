@@ -15,7 +15,7 @@ namespace Stencil.TelegramBot.Application.Servers;
 public sealed partial class ServerService : IServerService
 {
     // A port of pystencil's _FIELD_WRITE_RETRIES / the CLI's putProjectField loop.
-    private const int FieldWriteRetries = 4;
+    private const int _fieldWriteRetries = 4;
 
     private readonly IStencilServerClientFactory _factory;
     private readonly ISessionStore _store;
@@ -100,7 +100,7 @@ public sealed partial class ServerService : IServerService
         IStencilServerClient client, string id, Func<long, UpdateProjectRequest> build, string conflictMessage, CancellationToken ct)
     {
         ServerException? last = null;
-        for (int attempt = 0; attempt < FieldWriteRetries; attempt++)
+        for (int attempt = 0; attempt < _fieldWriteRetries; attempt++)
         {
             long version = await currentVersionAsync(client, id, 0, ct);
             try

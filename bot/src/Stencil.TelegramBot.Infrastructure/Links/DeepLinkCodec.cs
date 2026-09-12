@@ -10,7 +10,7 @@ namespace Stencil.TelegramBot.Infrastructure.Links;
 public static class DeepLinkCodec
 {
     // Telegram's cap, charset [A-Za-z0-9_-].
-    public const int TelegramStartLimit = 64;
+    public const int TELEGRAM_START_LIMIT = 64;
 
     // Null when over the 64-char limit — callers then fall back to copyable /connect + /fetch
     // commands.
@@ -22,7 +22,7 @@ public static class DeepLinkCodec
             .Replace('+', '-')
             .Replace('/', '_')
             .TrimEnd('=');
-        return payload.Length <= TelegramStartLimit ? payload : null;
+        return payload.Length <= TELEGRAM_START_LIMIT ? payload : null;
     }
 
     // False for anything but a well-formed version-1 payload — a plain /start greeting then
@@ -32,7 +32,7 @@ public static class DeepLinkCodec
         serverUrl = "";
         projectId = "";
         string p = (payload ?? "").Trim();
-        if (p.Length < 2 || p[0] != '1' || p.Length > TelegramStartLimit
+        if (p.Length < 2 || p[0] != '1' || p.Length > TELEGRAM_START_LIMIT
             || p.Skip(1).Any(c => !isBase64UrlChar(c)))
         {
             return false;

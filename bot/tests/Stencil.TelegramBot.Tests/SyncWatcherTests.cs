@@ -20,8 +20,8 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class SyncWatcherTests : IDisposable
 {
-    private const long UserId = 71;
-    private const long ChatId = 72;
+    private const long _userId = 71;
+    private const long _chatId = 72;
 
     private readonly string _dataDir =
         Path.Combine(Path.GetTempPath(), "stencil-bot-sync-" + Guid.NewGuid().ToString("N"));
@@ -50,8 +50,8 @@ public sealed class SyncWatcherTests : IDisposable
     /// <summary>A synced session on an active project, with a working image to re-render.</summary>
     private async Task seedSyncedUser(long lastSeenVersion)
     {
-        await _editing.BlankAsync(UserId, new BlankSpec(null, null, null, null));
-        await _store.SaveAsync(await _store.GetAsync(UserId) with
+        await _editing.BlankAsync(_userId, new BlankSpec(null, null, null, null));
+        await _store.SaveAsync(await _store.GetAsync(_userId) with
         {
             SyncEnabled = true,
             ActiveServerUrl = "http://localhost:8090",
@@ -59,7 +59,7 @@ public sealed class SyncWatcherTests : IDisposable
             ActiveProjectName = "cat",
             ActiveProjectVersion = lastSeenVersion,
         });
-        _registry.Enable(UserId, ChatId);
+        _registry.Enable(_userId, _chatId);
     }
 
     /// <summary>Run ticks until <paramref name="done"/>, then stop the service.</summary>
@@ -89,7 +89,7 @@ public sealed class SyncWatcherTests : IDisposable
             m => m.Text.Contains("a peer changed this project"));
         // The re-render goes to the registered chat, and is NOT re-uploaded as our own edit.
         SendPhotoRequest photo = _bot.Requests.OfType<SendPhotoRequest>().First();
-        Assert.Equal(ChatId, photo.ChatId);
+        Assert.Equal(_chatId, photo.ChatId);
         Assert.Empty(_servers.Saves);
     }
 
@@ -123,7 +123,7 @@ public sealed class SyncWatcherTests : IDisposable
     public async Task SyncTurnedOffDropsTheRegistryEntry()
     {
         await seedSyncedUser(lastSeenVersion: 1);
-        await _store.SaveAsync(await _store.GetAsync(UserId) with { SyncEnabled = false });
+        await _store.SaveAsync(await _store.GetAsync(_userId) with { SyncEnabled = false });
 
         await watchUntil(() => _registry.Entries().Count == 0);
 
@@ -135,7 +135,7 @@ public sealed class SyncWatcherTests : IDisposable
     public async Task ADroppedProjectDropsTheRegistryEntryToo()
     {
         await seedSyncedUser(lastSeenVersion: 1);
-        await _store.SaveAsync(await _store.GetAsync(UserId) with { ActiveProjectId = null });
+        await _store.SaveAsync(await _store.GetAsync(_userId) with { ActiveProjectId = null });
 
         await watchUntil(() => _registry.Entries().Count == 0);
 

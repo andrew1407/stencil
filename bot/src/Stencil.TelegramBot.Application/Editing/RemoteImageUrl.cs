@@ -9,7 +9,7 @@ namespace Stencil.TelegramBot.Application.Editing;
 // guard and ffmpeg allow-list.
 public static class RemoteImageUrl
 {
-    private static readonly TimeSpan DefaultResolveTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan _defaultResolveTimeout = TimeSpan.FromSeconds(5);
 
     // Throws InvalidOperationException (surfaced verbatim), which also rejects bare local paths and
     // other schemes.
@@ -35,7 +35,7 @@ public static class RemoteImageUrl
         }
         else
         {
-            addresses = await resolveAsync(uri.Host, resolveTimeout ?? DefaultResolveTimeout, ct);
+            addresses = await resolveAsync(uri.Host, resolveTimeout ?? _defaultResolveTimeout, ct);
         }
         if (addresses.Count == 0 || addresses.Any(IsBlockedAddress))
         {
@@ -73,7 +73,7 @@ public static class RemoteImageUrl
         {
             try
             {
-                addresses = await resolveAsync(uri.Host, resolveTimeout ?? DefaultResolveTimeout, ct);
+                addresses = await resolveAsync(uri.Host, resolveTimeout ?? _defaultResolveTimeout, ct);
             }
             catch (InvalidOperationException)
             {

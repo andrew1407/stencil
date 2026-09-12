@@ -16,13 +16,13 @@ public sealed partial class CommandHandlers
     {
         if (cmd.Args.Count == 0)
         {
-            await _bot.SendMessage(chatId, SourceUploadUsage, cancellationToken: ct);
+            await _bot.SendMessage(chatId, _sourceUploadUsage, cancellationToken: ct);
             return;
         }
         string url = cmd.Args[0];
         if (!tryParseSourceUploadArgs(url, cmd.Args, out ScrapeRequest request, out int index, out string? error))
         {
-            await _bot.SendMessage(chatId, $"{error}\n\n{SourceUploadUsage}", cancellationToken: ct);
+            await _bot.SendMessage(chatId, $"{error}\n\n{_sourceUploadUsage}", cancellationToken: ct);
             return;
         }
         // Same trust boundary as /url.
@@ -43,7 +43,7 @@ public sealed partial class CommandHandlers
         }
         if (result.Files.Count == 0)
         {
-            await _bot.SendMessage(chatId, $"No image at index {index}.\n\n{SourceUploadUsage}", cancellationToken: ct);
+            await _bot.SendMessage(chatId, $"No image at index {index}.\n\n{_sourceUploadUsage}", cancellationToken: ct);
             return;
         }
         // Telegram has no modal, so there's no TTY-style confirmation before replacing the working
@@ -52,7 +52,7 @@ public sealed partial class CommandHandlers
         await RenderAndSendAsync(userId, chatId, ct);
     }
 
-    private const string SourceUploadUsage =
+    private const string _sourceUploadUsage =
         "Usage: /sourceupload <http(s) link> [index=0] [format=png|jpg|…] [name=<regex>] "
         + "[minw=…] [maxw=…] [minh=…] [maxh=…]\n"
         + "Scrapes the page and loads its index-th still (img/background/poster — not video) as "

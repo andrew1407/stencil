@@ -13,8 +13,8 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class BotAssetTests
 {
-    private const string ReadmeOpen = "<!-- generated from src/Stencil.TelegramBot.Bot/Assets/botCommands.json";
-    private const string ReadmeClose = "<!-- /generated -->";
+    private const string _readmeOpen = "<!-- generated from src/Stencil.TelegramBot.Bot/Assets/botCommands.json";
+    private const string _readmeClose = "<!-- /generated -->";
 
     private static JsonElement readAsset(string name) =>
         JsonDocument.Parse(File.ReadAllText(SharedFixtures.PathOf(
@@ -128,10 +128,10 @@ public sealed class BotAssetTests
         string wanted = sb.ToString();
         string path = SharedFixtures.PathOf("bot", "README.md");
         string readme = File.ReadAllText(path);
-        int open = readme.IndexOf(ReadmeOpen, StringComparison.Ordinal);
+        int open = readme.IndexOf(_readmeOpen, StringComparison.Ordinal);
         Assert.True(open >= 0, "bot/README.md lost its generated-block marker");
         int body = readme.IndexOf('\n', open) + 1;
-        int close = readme.IndexOf(ReadmeClose, body, StringComparison.Ordinal);
+        int close = readme.IndexOf(_readmeClose, body, StringComparison.Ordinal);
         Assert.True(close > body, "bot/README.md lost its <!-- /generated --> marker");
         if (readme[body..close] == wanted)
         {

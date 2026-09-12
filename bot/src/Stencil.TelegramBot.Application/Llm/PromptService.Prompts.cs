@@ -18,11 +18,11 @@ public sealed partial class PromptService
     // block missing.
     public static readonly string ChatSystemPrompt = buildChatSystemPrompt();
 
-    private const string BotOpsSpliceAnchor = "\n\nWhen a choice is genuinely";
+    private const string _botOpsSpliceAnchor = "\n\nWhen a choice is genuinely";
 
     private static string buildChatSystemPrompt()
     {
-        int at = SystemPrompt.IndexOf(BotOpsSpliceAnchor, StringComparison.Ordinal);
+        int at = SystemPrompt.IndexOf(_botOpsSpliceAnchor, StringComparison.Ordinal);
         return at >= 0
             ? SystemPrompt.Insert(at, "\n" + BotOpsPrompt)
             : throw new InvalidOperationException("SystemPrompt no longer contains the bot-ops splice anchor");

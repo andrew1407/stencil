@@ -26,18 +26,18 @@ internal sealed record OpPlanFixture(
 /// </summary>
 internal static class OpPlanCorpus
 {
-    private static readonly Lazy<IReadOnlyList<OpPlanFixture>> Loaded = new(load);
-    private static readonly Lazy<IReadOnlyDictionary<string, OpPlanFixture>> Index =
-        new(() => Loaded.Value.ToDictionary(f => f.File, StringComparer.Ordinal));
+    private static readonly Lazy<IReadOnlyList<OpPlanFixture>> _loaded = new(load);
+    private static readonly Lazy<IReadOnlyDictionary<string, OpPlanFixture>> _index =
+        new(() => _loaded.Value.ToDictionary(f => f.File, StringComparer.Ordinal));
 
-    public static IReadOnlyList<OpPlanFixture> All => Loaded.Value;
+    public static IReadOnlyList<OpPlanFixture> All => _loaded.Value;
 
     /// <summary>Each bundle's own case count, so a walker can floor them separately.</summary>
     public static int HandCount => All.Count(f => f.Generated is false);
 
     public static int GeneratedCount => All.Count(f => f.Generated);
 
-    public static OpPlanFixture ByFile(string file) => Index.Value[file];
+    public static OpPlanFixture ByFile(string file) => _index.Value[file];
 
     public static IEnumerable<string> FileNames => All.Select(f => f.File);
 

@@ -13,7 +13,7 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class UserWorkspaceSecurityTests : IDisposable
 {
-    private const long UserId = 7;
+    private const long _userId = 7;
     private readonly string _root;
     private readonly IUserWorkspace _workspace;
 
@@ -51,9 +51,9 @@ public sealed class UserWorkspaceSecurityTests : IDisposable
         // its extension. The name itself is discarded; a GUID becomes the real filename.
         string extension = Path.GetExtension(hostileFileName);
 
-        string stored = _workspace.NewFilePath(UserId, extension);
+        string stored = _workspace.NewFilePath(_userId, extension);
 
-        string userDir = Path.GetFullPath(_workspace.DirectoryFor(UserId));
+        string userDir = Path.GetFullPath(_workspace.DirectoryFor(_userId));
         string storedFull = Path.GetFullPath(stored);
 
         // The stored file sits directly inside the user's own directory — no traversal.

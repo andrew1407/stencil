@@ -78,7 +78,7 @@ public sealed class PromptContextTests : PromptServiceTestBase
         });
         PromptService service = new(_llm, _editing, _store, new LlmOptions
         {
-            Provider = LlmOptions.ProviderStencilServer,
+            Provider = LlmOptions.PROVIDER_STENCIL_SERVER,
             // A bare host, as an env var would plausibly carry it.
             ServerUrl = "localhost:8090",
         }, new MockServerClientFactory());

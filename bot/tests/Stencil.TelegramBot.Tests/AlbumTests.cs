@@ -20,8 +20,8 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class AlbumTests : IDisposable
 {
-    private const long UserId = 71;
-    private const long ChatId = 72;
+    private const long _userId = 71;
+    private const long _chatId = 72;
 
     private readonly string _dataDir;
     private readonly MockStencilCli _cli = new();
@@ -63,8 +63,8 @@ public sealed class AlbumTests : IDisposable
             new Message
             {
                 Id = messageId,
-                Chat = new Chat { Id = ChatId },
-                From = new User { Id = UserId },
+                Chat = new Chat { Id = _chatId },
+                From = new User { Id = _userId },
                 Photo = [new PhotoSize { FileId = fileId, FileUniqueId = fileId, Width = 90, Height = 90 }],
                 MediaGroupId = group,
                 Caption = caption,
@@ -75,8 +75,8 @@ public sealed class AlbumTests : IDisposable
         _router.HandleMessageAsync(
             new Message
             {
-                Chat = new Chat { Id = ChatId },
-                From = new User { Id = UserId },
+                Chat = new Chat { Id = _chatId },
+                From = new User { Id = _userId },
                 Text = text,
             },
             CancellationToken.None);
@@ -110,7 +110,7 @@ public sealed class AlbumTests : IDisposable
         Assert.Equal(["photo 2/3", "photo 3/3"], captions.Skip(1).Select(c => c[..9]));
         Assert.Empty(_bot.Requests.OfType<SendPhotoRequest>());
         // The working image ends as the LAST photo's edited result.
-        UserSession session = await _store.GetAsync(UserId);
+        UserSession session = await _store.GetAsync(_userId);
         Assert.Equal("photo 3/3", session.ImageLabel);
         Assert.Equal("bw", session.Edits.Filter);
     }
@@ -154,7 +154,7 @@ public sealed class AlbumTests : IDisposable
         SendMediaGroupRequest album = Assert.Single(_bot.Requests.OfType<SendMediaGroupRequest>());
         Assert.Equal(3, album.Media.Count());
         Assert.Empty(_bot.Requests.OfType<SendPhotoRequest>());
-        UserSession session = await _store.GetAsync(UserId);
+        UserSession session = await _store.GetAsync(_userId);
         Assert.Equal("photo 3/3", session.ImageLabel);
         Assert.Equal("bw", session.Edits.Filter);
     }
@@ -173,7 +173,7 @@ public sealed class AlbumTests : IDisposable
         Assert.Contains("only one can be the working image", note.Text);
         Assert.Single(_bot.Requests.OfType<SendPhotoRequest>());
         Assert.Empty(_bot.Requests.OfType<SendMediaGroupRequest>());
-        Assert.True((await _store.GetAsync(UserId)).HasImage);
+        Assert.True((await _store.GetAsync(_userId)).HasImage);
     }
 
     [Fact]
@@ -187,8 +187,8 @@ public sealed class AlbumTests : IDisposable
             new Message
             {
                 Id = 9,
-                Chat = new Chat { Id = ChatId },
-                From = new User { Id = UserId },
+                Chat = new Chat { Id = _chatId },
+                From = new User { Id = _userId },
                 Photo = [new PhotoSize { FileId = "solo", FileUniqueId = "solo", Width = 90, Height = 90 }],
                 Caption = "make it sepia",
             },
@@ -196,7 +196,7 @@ public sealed class AlbumTests : IDisposable
 
         LlmChatRequest turn = Assert.Single(_llm.Requests);
         Assert.Equal("make it sepia", turn.Messages[^1].Text);
-        Assert.Equal("sepia", (await _store.GetAsync(UserId)).Edits.Filter);
+        Assert.Equal("sepia", (await _store.GetAsync(_userId)).Edits.Filter);
         Assert.Single(_bot.Requests.OfType<SendPhotoRequest>());
     }
 }

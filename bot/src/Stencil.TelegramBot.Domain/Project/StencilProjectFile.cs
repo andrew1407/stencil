@@ -22,8 +22,8 @@ public sealed record StencilProject
 // Mirrors projectFile.js and the CLI's project.zig.
 public static class StencilProjectFile
 {
-    public const string Format = "stencil-project";
-    public const int Version = 1;
+    public const string FORMAT = "stencil-project";
+    public const int VERSION = 1;
 
     private static string mimeForExt(string ext) => ext.ToLowerInvariant() switch
     {
@@ -46,8 +46,8 @@ public static class StencilProjectFile
         };
         var root = new Dictionary<string, object?>
         {
-            ["format"] = Format,
-            ["version"] = Version,
+            ["format"] = FORMAT,
+            ["version"] = VERSION,
             ["name"] = string.IsNullOrEmpty(project.Name) ? "Untitled" : project.Name,
         };
         if (!string.IsNullOrEmpty(project.Color)) root["color"] = project.Color;
@@ -77,9 +77,9 @@ public static class StencilProjectFile
             using JsonDocument doc = JsonDocument.Parse(bytes);
             JsonElement root = doc.RootElement;
             if (root.ValueKind != JsonValueKind.Object) return null;
-            if (!root.TryGetProperty("format", out JsonElement fmt) || fmt.GetString() != Format) return null;
+            if (!root.TryGetProperty("format", out JsonElement fmt) || fmt.GetString() != FORMAT) return null;
             int version = root.TryGetProperty("version", out JsonElement ver) && ver.TryGetInt32(out int v) ? v : 0;
-            if (version < 1 || version > Version) return null;
+            if (version < 1 || version > VERSION) return null;
 
             if (!root.TryGetProperty("image", out JsonElement img) || img.ValueKind != JsonValueKind.Object) return null;
             string dataUrl = img.TryGetProperty("dataUrl", out JsonElement du) ? du.GetString() ?? "" : "";

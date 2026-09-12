@@ -16,7 +16,7 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class BenchTests
 {
     /// <summary>Reps per measurement: the best (fastest) one is kept, which drops scheduler noise.</summary>
-    private const int Reps = 5;
+    private const int _reps = 5;
 
     private readonly ITestOutputHelper _output;
 
@@ -30,7 +30,7 @@ public sealed class BenchTests
             body();
         }
         double best = double.MaxValue;
-        for (int rep = 0; rep < Reps; rep++)
+        for (int rep = 0; rep < _reps; rep++)
         {
             Stopwatch watch = Stopwatch.StartNew();
             for (int i = 0; i < iterations; i++)
@@ -40,7 +40,7 @@ public sealed class BenchTests
             watch.Stop();
             best = Math.Min(best, watch.Elapsed.TotalMicroseconds / iterations);
         }
-        _output.WriteLine($"{label}: {best:F3} µs/op (best of {Reps} x {iterations})");
+        _output.WriteLine($"{label}: {best:F3} µs/op (best of {_reps} x {iterations})");
         return best;
     }
 

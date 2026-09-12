@@ -11,24 +11,24 @@ public sealed record OpPlanParseResult(OpPlan? Plan, IReadOnlyList<string> Warni
 // variant/preview leniency.
 public static partial class OpPlanParser
 {
-    private static readonly OpSchema Schema = OpSchema.Bot;
+    private static readonly OpSchema _schema = OpSchema.Bot;
 
     // §11 interactive replies — the registry's numbers, the same in every client.
-    public static readonly int MaxAskOptions = Schema.Limit("ask.maxOptions");
-    public static readonly int MaxAskAnswer = Schema.Limit("ask.answer");
-    public static readonly string DefaultCustomLabel = Schema.DefaultCustomLabel;
+    public static readonly int MaxAskOptions = _schema.Limit("ask.maxOptions");
+    public static readonly int MaxAskAnswer = _schema.Limit("ask.answer");
+    public static readonly string DefaultCustomLabel = _schema.DefaultCustomLabel;
 
-    private const int MaxEchoedChars = 40;
+    private const int _maxEchoedChars = 40;
 
     // Banned inside variants AND ask previews (§13: registry-derived).
-    private static readonly string[] TopLevelOnlyOps = OpRegistry.TopLevelOnlyNames;
+    private static readonly string[] _topLevelOnlyOps = OpRegistry.TopLevelOnlyNames;
 
     // §10 settings ops: not image edits, banned inside variants and ask previews.
-    private static readonly string[] SettingsOps = OpRegistry.SettingsNames;
+    private static readonly string[] _settingsOps = OpRegistry.SettingsNames;
 
     // Tests cross-check this against OpRegistry.Names and the dispatch.
     public static readonly IReadOnlyList<string> KnownOps =
-        Schema.Entries.Select(static e => e.Name).ToArray();
+        _schema.Entries.Select(static e => e.Name).ToArray();
 
     private sealed class PlanException : Exception
     {
@@ -84,12 +84,12 @@ public static partial class OpPlanParser
         if (root.TryGetProperty("variants", out JsonElement variantsElement)
             && variantsElement.ValueKind != JsonValueKind.Null)
         {
-            Schema.CheckEnvelope(variantsElement, "variants");
+            _schema.CheckEnvelope(variantsElement, "variants");
             int number = 0;
             foreach (JsonElement variantElement in variantsElement.EnumerateArray())
             {
                 number++;
-                string label = optionalString(variantElement, Schema.VariantKeys, "label") ?? "";
+                string label = optionalString(variantElement, _schema.VariantKeys, "label") ?? "";
                 // §1's one leniency: a misplaced op costs THIS variant its place, warnings
                 // included.
                 List<string> variantWarnings = new();

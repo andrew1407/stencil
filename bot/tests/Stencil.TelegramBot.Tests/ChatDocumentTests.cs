@@ -16,8 +16,8 @@ public sealed class ChatDocumentTests
         LlmImage image = new("image/png", "aGVsbG8=");
         ChatDocument doc = ChatDocument.Build(
             [
-                new LlmMessage(LlmMessage.RoleUser, "crop it", [image]),
-                new LlmMessage(LlmMessage.RoleAssistant, "Done — anything else?"),
+                new LlmMessage(LlmMessage.ROLE_USER, "crop it", [image]),
+                new LlmMessage(LlmMessage.ROLE_ASSISTANT, "Done — anything else?"),
             ],
             savedAtMs: 1753900000000);
 
@@ -38,12 +38,12 @@ public sealed class ChatDocumentTests
         List<LlmMessage> messages = [new LlmMessage("system", "not persisted")];
         for (int i = 0; i < 40; i++)
         {
-            messages.Add(new LlmMessage(LlmMessage.RoleUser, $"m{i}"));
+            messages.Add(new LlmMessage(LlmMessage.ROLE_USER, $"m{i}"));
         }
 
         ChatDocument doc = ChatDocument.Build(messages, savedAtMs: 1);
 
-        Assert.Equal(ChatDocument.MaxMessages, doc.Messages.Count);
+        Assert.Equal(ChatDocument.MAX_MESSAGES, doc.Messages.Count);
         Assert.Equal("m8", doc.Messages[0].Text);   // the oldest ones fell off the front
         Assert.Equal("m39", doc.Messages[^1].Text);
         Assert.DoesNotContain(doc.Messages, m => m.Role == "system");
@@ -53,7 +53,7 @@ public sealed class ChatDocumentTests
     public void ToJsonMatchesTheContractShapeAndRoundTrips()
     {
         ChatDocument doc = ChatDocument.Build(
-            [new LlmMessage(LlmMessage.RoleUser, "hi"), new LlmMessage(LlmMessage.RoleAssistant, "hello")],
+            [new LlmMessage(LlmMessage.ROLE_USER, "hi"), new LlmMessage(LlmMessage.ROLE_ASSISTANT, "hello")],
             savedAtMs: 42);
 
         string json = doc.ToJson();
@@ -120,7 +120,7 @@ public sealed class ChatDocumentTests
         ChatDocument? doc = ChatDocument.TryParse($"{{\"version\":1,\"messages\":[{messages}]}}");
 
         Assert.NotNull(doc);
-        Assert.Equal(ChatDocument.MaxMessages, doc.Messages.Count);
+        Assert.Equal(ChatDocument.MAX_MESSAGES, doc.Messages.Count);
         Assert.Equal("m18", doc.Messages[0].Text);
         Assert.Equal("m49", doc.Messages[^1].Text);
     }
@@ -143,11 +143,11 @@ public sealed class ChatDocumentTests
         // assistant's turn (§12.1) — though a user pasting JSON still sees their own text.
         ChatDocument doc = ChatDocument.Build(
             [
-                new LlmMessage(LlmMessage.RoleUser, "blank a4, then crop it"),
-                new LlmMessage(LlmMessage.RoleAssistant, "made it"),
-                new LlmMessage(LlmMessage.RoleUser, "blank a4, then crop it\n\n" + ChatDocument.ContinuationNote),
-                new LlmMessage(LlmMessage.RoleAssistant, """{"version":1,"reply":"cropped it","actions":[]}"""),
-                new LlmMessage(LlmMessage.RoleUser, """{"version":1,"actions":[]}"""),
+                new LlmMessage(LlmMessage.ROLE_USER, "blank a4, then crop it"),
+                new LlmMessage(LlmMessage.ROLE_ASSISTANT, "made it"),
+                new LlmMessage(LlmMessage.ROLE_USER, "blank a4, then crop it\n\n" + ChatDocument.CONTINUATION_NOTE),
+                new LlmMessage(LlmMessage.ROLE_ASSISTANT, """{"version":1,"reply":"cropped it","actions":[]}"""),
+                new LlmMessage(LlmMessage.ROLE_USER, """{"version":1,"actions":[]}"""),
             ],
             savedAtMs: 1);
 
@@ -173,7 +173,7 @@ public sealed class ChatDocumentTests
               "version": 1,
               "messages": [
                 {"role": "user", "text": "[The working image is now the frame you extracted — carry on.]"},
-                {"role": "user", "text": "crop it\n\n{{ChatDocument.ContinuationNote}}"},
+                {"role": "user", "text": "crop it\n\n{{ChatDocument.CONTINUATION_NOTE}}"},
                 {"role": "assistant", "text": "{\"version\": 1, \"reply\": \"Cropped.\", \"actions\": []}"},
                 {"role": "assistant", "text": "Cropped."}
               ]
@@ -193,8 +193,8 @@ public sealed class ChatDocumentTests
     {
         ChatDocument built = ChatDocument.Build(
             [
-                new LlmMessage(LlmMessage.RoleUser, "crop 10% off the left"),
-                new LlmMessage(LlmMessage.RoleAssistant, "Done — anything else?"),
+                new LlmMessage(LlmMessage.ROLE_USER, "crop 10% off the left"),
+                new LlmMessage(LlmMessage.ROLE_ASSISTANT, "Done — anything else?"),
             ],
             savedAtMs: 1753900000000);
 

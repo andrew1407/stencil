@@ -9,13 +9,13 @@ namespace Stencil.TelegramBot.Infrastructure.Cli;
 public static partial class CliOutcomeParser
 {
     // The exact stderr prefixes the CLI emits — the peer of mcp's PREFIX_* consts.
-    private const string PrefixWrote = "wrote ";
-    private const string PrefixUpdated = "updated server result for project ";
-    private const string PrefixCreated = "created server project ";
-    private const string PrefixError = "error:";
-    private const string SuffixProject = " (project)";
-    private const string PrefixScraped = "scraped ";
-    private const string IntoToken = " into ";
+    private const string _prefixWrote = "wrote ";
+    private const string _prefixUpdated = "updated server result for project ";
+    private const string _prefixCreated = "created server project ";
+    private const string _prefixError = "error:";
+    private const string _suffixProject = " (project)";
+    private const string _prefixScraped = "scraped ";
+    private const string _intoToken = " into ";
 
     // Reverse-searches " (" so a path containing it still parses; mirrors mcp's parse_wrote.
     public static RenderResult? ParseWrote(string stderr)
@@ -23,11 +23,11 @@ public static partial class CliOutcomeParser
         foreach (string rawLine in splitLines(stderr))
         {
             string line = rawLine.Trim();
-            if (!line.StartsWith(PrefixWrote, StringComparison.Ordinal))
+            if (!line.StartsWith(_prefixWrote, StringComparison.Ordinal))
             {
                 continue;
             }
-            string rest = line[PrefixWrote.Length..];
+            string rest = line[_prefixWrote.Length..];
             int open = rest.LastIndexOf(" (", StringComparison.Ordinal);
             if (open < 0)
             {
@@ -60,10 +60,10 @@ public static partial class CliOutcomeParser
         foreach (string rawLine in splitLines(stderr))
         {
             string line = rawLine.Trim();
-            if (line.StartsWith(PrefixWrote, StringComparison.Ordinal)
-                && line.EndsWith(SuffixProject, StringComparison.Ordinal))
+            if (line.StartsWith(_prefixWrote, StringComparison.Ordinal)
+                && line.EndsWith(_suffixProject, StringComparison.Ordinal))
             {
-                return line[PrefixWrote.Length..^SuffixProject.Length];
+                return line[_prefixWrote.Length..^_suffixProject.Length];
             }
         }
         return null;
@@ -76,10 +76,10 @@ public static partial class CliOutcomeParser
         foreach (string rawLine in splitLines(stderr))
         {
             string line = rawLine.Trim();
-            if (line.StartsWith(PrefixUpdated, StringComparison.Ordinal))
+            if (line.StartsWith(_prefixUpdated, StringComparison.Ordinal))
             {
                 // `{id} ({w}x{h})` — rfind " (" so an id can't be confused with the dims.
-                string rest = line[PrefixUpdated.Length..];
+                string rest = line[_prefixUpdated.Length..];
                 int open = rest.LastIndexOf(" (", StringComparison.Ordinal);
                 if (open < 0)
                 {
@@ -97,10 +97,10 @@ public static partial class CliOutcomeParser
                     result.Add(new RemoteDelivery.Updated(id, width, height));
                 }
             }
-            else if (line.StartsWith(PrefixCreated, StringComparison.Ordinal))
+            else if (line.StartsWith(_prefixCreated, StringComparison.Ordinal))
             {
                 // `"{name}" ({id})` — the id is the parenthesised tail; the name is quoted.
-                string rest = line[PrefixCreated.Length..];
+                string rest = line[_prefixCreated.Length..];
                 int open = rest.LastIndexOf(" (", StringComparison.Ordinal);
                 if (open < 0)
                 {
@@ -126,7 +126,7 @@ public static partial class CliOutcomeParser
         foreach (string rawLine in splitLines(stderr))
         {
             string line = rawLine.Trim();
-            if (line.StartsWith(PrefixError, StringComparison.Ordinal))
+            if (line.StartsWith(_prefixError, StringComparison.Ordinal))
             {
                 errors.Add(line);
             }

@@ -30,10 +30,10 @@ public sealed class PromptHistoryTests : PromptServiceTestBase
 
         // Each turn adds 2 history messages; the request replays at most 32 + the current one.
         LlmChatRequest last = _llm.Requests[^1];
-        Assert.Equal(PromptService.MaxHistoryMessages + 1, last.Messages.Count);
+        Assert.Equal(PromptService.MAX_HISTORY_MESSAGES + 1, last.Messages.Count);
         // The oldest turns fell off the front; the newest user message is the current turn.
         Assert.Equal("turn 24", last.Messages[^1].Text);
-        Assert.Equal(LlmMessage.RoleUser, last.Messages[^1].Role);
+        Assert.Equal(LlmMessage.ROLE_USER, last.Messages[^1].Role);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public sealed class PromptHistoryTests : PromptServiceTestBase
     public async Task IdleUsersHistoriesAreEvictedBeyondTheTrackedBound()
     {
         // Fill the registry past the cap: user 0 first, then MaxTrackedUsers more.
-        for (long id = 0; id <= PromptService.MaxTrackedUsers; id++)
+        for (long id = 0; id <= PromptService.MAX_TRACKED_USERS; id++)
         {
             Reply("chat");
             await _service.PromptAsync(id, "hi", null, CancellationToken.None);
@@ -73,7 +73,7 @@ public sealed class PromptHistoryTests : PromptServiceTestBase
         Assert.Single(_llm.Requests[^1].Messages);
         // …while a recently-active user still replays their conversation (2 history + current).
         Reply("chat");
-        await _service.PromptAsync(PromptService.MaxTrackedUsers, "again", null, CancellationToken.None);
+        await _service.PromptAsync(PromptService.MAX_TRACKED_USERS, "again", null, CancellationToken.None);
         Assert.Equal(3, _llm.Requests[^1].Messages.Count);
     }
 

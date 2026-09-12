@@ -78,7 +78,7 @@ public sealed class LlmAttachmentLoaderTests : IDisposable
 
         (string calledPath, int maxLongEdge) = Assert.Single(_downscaler.Calls);
         Assert.Equal(path, calledPath);
-        Assert.Equal(LlmImage.MaxLongEdgePixels, maxLongEdge); // the contract's 1568
+        Assert.Equal(LlmImage.MAX_LONG_EDGE_PIXELS, maxLongEdge); // the contract's 1568
         Assert.Equal(1568, maxLongEdge);
         Assert.Equal("image/png", image!.MediaType); // re-encoded, whatever the source was
         Assert.Equal(Convert.ToBase64String(new byte[] { 9, 9, 9 }), image.Base64Data);

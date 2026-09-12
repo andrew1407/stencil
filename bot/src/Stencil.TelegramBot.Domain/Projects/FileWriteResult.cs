@@ -7,9 +7,9 @@ public sealed record FileWriteResult(string Path, int W, int H);
 public static class ProjectFileKind
 {
     // Part of the project record: an upload bumps the version.
-    public const string Original = "original";
-    public const string Result = "result";
+    public const string ORIGINAL = "original";
+    public const string RESULT = "result";
 
     // The §12 chat JSON (ext=json). Filestore-only: uploads and deletes never bump the version.
-    public const string Chat = "chat";
+    public const string CHAT = "chat";
 }

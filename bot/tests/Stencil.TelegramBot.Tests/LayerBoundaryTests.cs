@@ -6,26 +6,26 @@ namespace Stencil.TelegramBot.Tests;
 // ProjectReferences and every source file's using lines. Dependencies point inward only.
 public sealed partial class LayerBoundaryTests
 {
-    private const string Prefix = "Stencil.TelegramBot.";
+    private const string _prefix = "Stencil.TelegramBot.";
 
-    private static readonly string[] Rings = ["Domain", "Application", "Infrastructure", "Bot"];
+    private static readonly string[] _rings = ["Domain", "Application", "Infrastructure", "Bot"];
 
-    private static readonly IReadOnlyDictionary<string, string[]> AllowedInternal = new Dictionary<string, string[]>
+    private static readonly IReadOnlyDictionary<string, string[]> _allowedInternal = new Dictionary<string, string[]>
     {
         ["Domain"] = [],
         ["Application"] = ["Domain"],
         ["Infrastructure"] = ["Domain", "Application"],
-        ["Bot"] = Rings,
+        ["Bot"] = _rings,
     };
 
     // Namespaces the Domain may never name: Telegram, HTTP, child processes and Redis belong to the adapters.
-    private static readonly string[] DomainForbiddenNamespaces =
+    private static readonly string[] _domainForbiddenNamespaces =
         ["Telegram.Bot", "System.Net.Http", "System.Diagnostics.Process", "StackExchange.Redis"];
 
-    private static readonly string[] DomainForbiddenPackages = ["Telegram.Bot", "StackExchange.Redis"];
+    private static readonly string[] _domainForbiddenPackages = ["Telegram.Bot", "StackExchange.Redis"];
 
     // Frozen violations, one reason each; empty means the tree honours every rule.
-    private static readonly IReadOnlyDictionary<string, string> Allowances = new Dictionary<string, string>();
+    private static readonly IReadOnlyDictionary<string, string> _allowances = new Dictionary<string, string>();
 
     [GeneratedRegex(@"^\s*(?:global\s+)?using\s+(?:static\s+)?(?:[\w.]+\s*=\s*)?([\w.]+)\s*;")]
     private static partial Regex usingLine();
@@ -37,10 +37,10 @@ public sealed partial class LayerBoundaryTests
     private static partial Regex packageReference();
 
     private static string projectDir(string ring) =>
-        SharedFixtures.PathOf("bot", "src", Prefix + ring);
+        SharedFixtures.PathOf("bot", "src", _prefix + ring);
 
     private static string csprojText(string ring) =>
-        File.ReadAllText(Path.Combine(projectDir(ring), Prefix + ring + ".csproj"));
+        File.ReadAllText(Path.Combine(projectDir(ring), _prefix + ring + ".csproj"));
 
     private static IEnumerable<string> sourceFiles(string ring) =>
         Directory.EnumerateFiles(projectDir(ring), "*.cs", SearchOption.AllDirectories)
@@ -48,25 +48,25 @@ public sealed partial class LayerBoundaryTests
                      && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"));
 
     private static string? ringOf(string ns) =>
-        ns.StartsWith(Prefix, StringComparison.Ordinal)
-            ? Rings.FirstOrDefault(r => ns == Prefix + r || ns.StartsWith(Prefix + r + ".", StringComparison.Ordinal))
+        ns.StartsWith(_prefix, StringComparison.Ordinal)
+            ? _rings.FirstOrDefault(r => ns == _prefix + r || ns.StartsWith(_prefix + r + ".", StringComparison.Ordinal))
             : null;
 
     private static string toRel(string path) =>
         Path.GetRelativePath(SharedFixtures.RepoRoot, path).Replace('\\', '/');
 
-    private static bool isAllowed(string relPath) => Allowances.ContainsKey(relPath);
+    private static bool isAllowed(string relPath) => _allowances.ContainsKey(relPath);
 
-    public static IEnumerable<object[]> RingNames() => Rings.Select(r => new object[] { r });
+    public static IEnumerable<object[]> RingNames() => _rings.Select(r => new object[] { r });
 
     [Theory]
     [MemberData(nameof(RingNames))]
     public void ProjectReferencesPointInward(string ring)
     {
-        string[] allowed = AllowedInternal[ring];
+        string[] allowed = _allowedInternal[ring];
         string[] offending = projectReference().Matches(csprojText(ring))
             .Select(m => Path.GetFileNameWithoutExtension(m.Groups[1].Value.Replace('\\', '/')))
-            .Select(name => name[Prefix.Length..])
+            .Select(name => name[_prefix.Length..])
             .Where(target => target != ring && !allowed.Contains(target))
             .ToArray();
         Assert.True(offending.Length == 0,
@@ -77,7 +77,7 @@ public sealed partial class LayerBoundaryTests
     [MemberData(nameof(RingNames))]
     public void UsingLinesPointInward(string ring)
     {
-        string[] allowed = AllowedInternal[ring];
+        string[] allowed = _allowedInternal[ring];
         List<string> offending = [];
         foreach (string file in sourceFiles(ring))
         {
@@ -110,7 +110,7 @@ public sealed partial class LayerBoundaryTests
             }
             foreach (string ns in usings(file))
             {
-                if (DomainForbiddenNamespaces.Any(f => ns == f || ns.StartsWith(f + ".", StringComparison.Ordinal)))
+                if (_domainForbiddenNamespaces.Any(f => ns == f || ns.StartsWith(f + ".", StringComparison.Ordinal)))
                 {
                     offending.Add($"{toRel(file)}: using {ns}");
                 }
@@ -124,7 +124,7 @@ public sealed partial class LayerBoundaryTests
     {
         string[] packages = packageReference().Matches(csprojText("Domain"))
             .Select(m => m.Groups[1].Value)
-            .Where(p => DomainForbiddenPackages.Any(f => p.Equals(f, StringComparison.OrdinalIgnoreCase)))
+            .Where(p => _domainForbiddenPackages.Any(f => p.Equals(f, StringComparison.OrdinalIgnoreCase)))
             .ToArray();
         Assert.True(packages.Length == 0, "Domain references an adapter package: " + string.Join(", ", packages));
     }
@@ -132,7 +132,7 @@ public sealed partial class LayerBoundaryTests
     [Fact]
     public void EveryAllowanceStillNamesAFile()
     {
-        string[] stale = Allowances.Keys
+        string[] stale = _allowances.Keys
             .Where(rel => !File.Exists(SharedFixtures.PathOf(rel.Split('/'))))
             .ToArray();
         Assert.True(stale.Length == 0, "allowance for a file that no longer exists: " + string.Join(", ", stale));
@@ -141,7 +141,7 @@ public sealed partial class LayerBoundaryTests
     [Fact]
     public void EveryRingHasSources()
     {
-        foreach (string ring in Rings)
+        foreach (string ring in _rings)
         {
             Assert.True(sourceFiles(ring).Any(), $"no sources found for {ring}");
         }

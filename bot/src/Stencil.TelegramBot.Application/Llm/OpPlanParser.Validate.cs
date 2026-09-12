@@ -13,7 +13,7 @@ public static partial class OpPlanParser
         {
             return [];
         }
-        Schema.CheckEnvelope(array, "actions");
+        _schema.CheckEnvelope(array, "actions");
         List<PlanAction> actions = new();
         foreach (JsonElement element in array.EnumerateArray())
         {
@@ -41,16 +41,16 @@ public static partial class OpPlanParser
         }
         // §2.1: a variant exists to yield one more take OF the working image, never to switch,
         // persist or rewind.
-        if (inVariant && Array.IndexOf(TopLevelOnlyOps, op) >= 0)
+        if (inVariant && Array.IndexOf(_topLevelOnlyOps, op) >= 0)
         {
             throw new MisplacedOpException($"\"{op}\" is a top-level action only (§2.1)");
         }
         // §10: settings/connection ops are not image edits — they cost the variant its place.
-        if (inVariant && Array.IndexOf(SettingsOps, op) >= 0)
+        if (inVariant && Array.IndexOf(_settingsOps, op) >= 0)
         {
             throw new MisplacedOpException($"\"{op}\" is not an image edit (§10)");
         }
-        if (!Schema.Ops.TryGetValue(op, out OpEntry? entry))
+        if (!_schema.Ops.TryGetValue(op, out OpEntry? entry))
         {
             // Forward compatibility (§1): an unknown op is dropped, not fatal; a §13 forbidden name
             // lands here too.
@@ -59,7 +59,7 @@ public static partial class OpPlanParser
         }
         try
         {
-            return normalize(Schema.ValidateAction(element, entry), entry);
+            return normalize(_schema.ValidateAction(element, entry), entry);
         }
         catch (PlanException ex)
         {
@@ -74,5 +74,5 @@ public static partial class OpPlanParser
         label.Trim() is { Length: > 0 } name ? $" (\"{truncate(name)}\")" : "";
 
     private static string truncate(string value) =>
-        value.Length <= MaxEchoedChars ? value : value[..MaxEchoedChars] + "…";
+        value.Length <= _maxEchoedChars ? value : value[.._maxEchoedChars] + "…";
 }

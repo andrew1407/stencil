@@ -4,5 +4,5 @@ namespace Stencil.TelegramBot.Domain.Llm;
 public sealed record LlmImage(string MediaType, string Base64Data)
 {
     // §7: the long edge an attachment is downscaled to before base64-encoding.
-    public const int MaxLongEdgePixels = 1568;
+    public const int MAX_LONG_EDGE_PIXELS = 1568;
 }

@@ -14,8 +14,8 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class ConnectionsHandlerTests : IDisposable
 {
-    private const long UserId = 91;
-    private const long ChatId = 92;
+    private const long _userId = 91;
+    private const long _chatId = 92;
 
     private readonly string _dataDir;
     private readonly MockBotClient _bot = new();
@@ -53,7 +53,7 @@ public sealed class ConnectionsHandlerTests : IDisposable
     }
 
     private Task dispatch(string text) =>
-        _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
+        _handlers.DispatchAsync(_userId, _chatId, CommandParser.Parse(text), CancellationToken.None);
 
     private string lastText() => _bot.Requests.OfType<SendMessageRequest>().Last().Text;
 

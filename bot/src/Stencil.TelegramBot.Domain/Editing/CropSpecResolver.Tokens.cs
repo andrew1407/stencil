@@ -184,7 +184,7 @@ public static partial class CropSpecResolver
             "%" => new LengthToken(LengthKind.Percent, value, fromEnd),
             "cm" => new LengthToken(LengthKind.Cm, value, fromEnd),
             "mm" => new LengthToken(LengthKind.Cm, value / 10.0, fromEnd),
-            "in" => new LengthToken(LengthKind.Cm, value * CmPerInch, fromEnd),
+            "in" => new LengthToken(LengthKind.Cm, value * _cmPerInch, fromEnd),
             "px" => new LengthToken(LengthKind.Px, value, fromEnd),
             "" => new LengthToken(LengthKind.Delta, fromEnd ? -value : value, false),
             _ => null,   // unknown unit suffix

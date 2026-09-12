@@ -47,11 +47,11 @@ public sealed class LayoutSerializationTests
         Assert.Equal("sepia", round.Filter);
         LayoutLine line = Assert.Single(round.Lines);
         // Per-line defaults survive the round trip.
-        Assert.Equal(LayoutLine.DefaultThickness, line.Thickness);
-        Assert.Equal(LayoutLine.DefaultPointSize, line.PointSize);
-        Assert.Equal(LayoutLine.DefaultStyle, line.Style);
-        Assert.Equal(LayoutLine.DefaultFillColor, line.FillColor);
-        Assert.Equal(LayoutLine.DefaultLocked, line.Locked);
+        Assert.Equal(LayoutLine.DEFAULT_THICKNESS, line.Thickness);
+        Assert.Equal(LayoutLine.DEFAULT_POINT_SIZE, line.PointSize);
+        Assert.Equal(LayoutLine.DEFAULT_STYLE, line.Style);
+        Assert.Equal(LayoutLine.DEFAULT_FILL_COLOR, line.FillColor);
+        Assert.Equal(LayoutLine.DEFAULT_LOCKED, line.Locked);
         Assert.Equal(2, line.Points.Count);
         Assert.Equal(3, line.Points[1].X);
     }

@@ -112,7 +112,7 @@ public sealed partial class CommandHandlers
         }
         if (cmd.ArgumentText.Equals("custom", StringComparison.OrdinalIgnoreCase))
         {
-            await _store.SaveAsync(session with { PendingInput = PendingInputs.ExpiryDuration }, ct);
+            await _store.SaveAsync(session with { PendingInput = PendingInputs.EXPIRY_DURATION }, ct);
             await _bot.SendMessage(
                 chatId,
                 "Send a custom expiry, e.g. \"3 days\", \"week\", \"2 weeks\", \"1 month\", or \"week 4\".",

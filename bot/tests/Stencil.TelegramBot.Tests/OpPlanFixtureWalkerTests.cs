@@ -12,8 +12,8 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class OpPlanFixtureWalkerTests
 {
-    private static readonly string[] Profiles = ["editor", "console", "bot", "mcp", "extension", "all"];
-    private static readonly string[] Surfaces = ["browser", "desktop", "cli", "pystencil", "bot", "mcp", "extension"];
+    private static readonly string[] _profiles = ["editor", "console", "bot", "mcp", "extension", "all"];
+    private static readonly string[] _surfaces = ["browser", "desktop", "cli", "pystencil", "bot", "mcp", "extension"];
 
     public static TheoryData<string> AllFixtures() => SharedFixtures.TheoryNames(OpPlanCorpus.FileNames);
 
@@ -45,7 +45,7 @@ public sealed class OpPlanFixtureWalkerTests
         {
             problems.Add("\"profiles\" must be a non-empty array");
         }
-        foreach (string? profile in fx.Profiles.Where(p => !Profiles.Contains(p)))
+        foreach (string? profile in fx.Profiles.Where(p => !_profiles.Contains(p)))
         {
             problems.Add($"unknown profile \"{profile}\"");
         }
@@ -63,7 +63,7 @@ public sealed class OpPlanFixtureWalkerTests
         }
         foreach ((string surface, string? verdict) in fx.KnownDivergence)
         {
-            if (!Surfaces.Contains(surface))
+            if (!_surfaces.Contains(surface))
             {
                 problems.Add($"unknown knownDivergence surface \"{surface}\"");
             }

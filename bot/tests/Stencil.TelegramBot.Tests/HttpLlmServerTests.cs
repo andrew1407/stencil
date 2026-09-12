@@ -20,7 +20,7 @@ public sealed class HttpLlmServerTests
             CannedHttpMessageHandler.Json("""{"model":"claude-opus-5","text":"proxied","stopReason":"end_turn"}"""));
         HttpLlmClient client = Client(handler, new LlmOptions
         {
-            Provider = LlmOptions.ProviderStencilServer,
+            Provider = LlmOptions.PROVIDER_STENCIL_SERVER,
             Model = "claude-opus-5",
         });
 
@@ -54,7 +54,7 @@ public sealed class HttpLlmServerTests
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json($$"""{"model":"m","text":"nope","stopReason":"{{stopReason}}"}"""));
-        HttpLlmClient client = Client(handler, new LlmOptions { Provider = LlmOptions.ProviderStencilServer });
+        HttpLlmClient client = Client(handler, new LlmOptions { Provider = LlmOptions.PROVIDER_STENCIL_SERVER });
 
         LlmException ex = await Assert.ThrowsAsync<LlmException>(() =>
             client.ChatAsync(Request(serverUrl: "http://h:8090", serverToken: "t")));
@@ -68,7 +68,7 @@ public sealed class HttpLlmServerTests
             CannedHttpMessageHandler.Json(
                 """{"code":"llmDisabled","message":"LLM support is not configured on this server"}""",
                 HttpStatusCode.ServiceUnavailable));
-        HttpLlmClient client = Client(handler, new LlmOptions { Provider = LlmOptions.ProviderStencilServer });
+        HttpLlmClient client = Client(handler, new LlmOptions { Provider = LlmOptions.PROVIDER_STENCIL_SERVER });
 
         LlmException ex = await Assert.ThrowsAsync<LlmException>(() =>
             client.ChatAsync(Request(serverUrl: "http://h:8090", serverToken: "t")));
@@ -81,7 +81,7 @@ public sealed class HttpLlmServerTests
     {
         HttpLlmClient client = Client(
             new CannedHttpMessageHandler((_, _) => CannedHttpMessageHandler.Json("{}")),
-            new LlmOptions { Provider = LlmOptions.ProviderStencilServer });
+            new LlmOptions { Provider = LlmOptions.PROVIDER_STENCIL_SERVER });
 
         LlmException ex = await Assert.ThrowsAsync<LlmException>(() => client.ChatAsync(Request()));
         // The user is told the one step they can take; the env var is operator detail.

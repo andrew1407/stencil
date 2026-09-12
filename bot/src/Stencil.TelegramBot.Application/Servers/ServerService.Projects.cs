@@ -57,7 +57,7 @@ public sealed partial class ServerService
                 continue;
             }
             var full = await client.GetProjectAsync(match.Id, ct);
-            var bytes = await client.GetFileAsync(match.Id, ProjectFileKind.Original, ct);
+            var bytes = await client.GetFileAsync(match.Id, ProjectFileKind.ORIGINAL, ct);
             var path = await _editing.StoreOriginalBytesAsync(userId, bytes, ".png", ct);
             // Rebuild the edit state from the layout so re-rendering reproduces what other clients
             // show.
@@ -110,7 +110,7 @@ public sealed partial class ServerService
             ImageH = render.Height,
         };
         var record = await client.CreateProjectAsync(request, ct);
-        await client.PutFileAsync(record.Id, ProjectFileKind.Original, bytes, "png", render.Width, render.Height, ct);
+        await client.PutFileAsync(record.Id, ProjectFileKind.ORIGINAL, bytes, "png", render.Width, render.Height, ct);
         // The original upload bumps the version but the file-write response carries none: re-read
         // it or the next version-guarded write would 409 (remoteSync.js createRemoteProject).
         var version = await currentVersionAsync(client, record.Id, record.Version, ct);

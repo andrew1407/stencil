@@ -97,7 +97,7 @@ public sealed partial class PromptService
             {
                 sb.Append(c);
             }
-            if (sb.Length >= MaxLabelChars)
+            if (sb.Length >= _maxLabelChars)
             {
                 break;
             }

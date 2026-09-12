@@ -18,7 +18,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
 {
     public PromptLayoutTests(PromptServiceFixture fixture) : base(fixture) { }
 
-    private const string LayoutPlan =
+    private const string _layoutPlan =
         """
         {"reply":"outlined","actions":[{"op":"layout","lines":[
           {"points":[{"x":1,"y":2},{"x":3,"y":4},{"x":1,"y":2}],"color":"#112233","thickness":5}]}]}
@@ -33,7 +33,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
     {
         await SeedImage();
         PromptService service = WithAttachments();
-        Reply(LayoutPlan);
+        Reply(_layoutPlan);
 
         PromptOutcome outcome = await service.PromptAsync(UserId, "outline the cat", null, CancellationToken.None);
 
@@ -53,7 +53,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
     }
 
     /// <summary>A plan whose two lines have DISJOINT bounding boxes — the old §3.2 suspect shape.</summary>
-    private const string DisjointLayoutPlan =
+    private const string _disjointLayoutPlan =
         """
         {"reply":"outlined","actions":[{"op":"layout","lines":[
           {"points":[{"x":1,"y":2},{"x":3,"y":4}],"color":"#112233"},
@@ -65,7 +65,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
     {
         await SeedImage();
         PromptService service = WithAttachments();
-        Reply(DisjointLayoutPlan);
+        Reply(_disjointLayoutPlan);
 
         PromptOutcome outcome = await service.PromptAsync(UserId, "outline both", null, CancellationToken.None);
 
@@ -81,7 +81,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
     {
         await SeedImage();
         PromptService service = WithAttachments();
-        Reply(LayoutPlan);
+        Reply(_layoutPlan);
 
         PromptOutcome outcome = await service.PromptAsync(UserId, "outline the cat", null, CancellationToken.None);
 
@@ -99,7 +99,7 @@ public sealed class PromptLayoutTests : PromptServiceTestBase
         await SeedImage();
         PromptService service = WithAttachments();
         int baseline = _cli.EditCalls;
-        Reply(LayoutPlan);
+        Reply(_layoutPlan);
 
         // A text-only turn: no §7 attachment, so the only CLI work is the layout apply itself —
         // never a rendered-with-lines shot or a line-less contour for a follow-up round.

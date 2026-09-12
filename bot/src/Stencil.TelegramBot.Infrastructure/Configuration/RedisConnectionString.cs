@@ -9,17 +9,17 @@ namespace Stencil.TelegramBot.Infrastructure.Configuration;
 // holding , or = survives; userinfo is percent-decoded.
 public static class RedisConnectionString
 {
-    public const int DefaultPort = 6379;
+    public const int DEFAULT_PORT = 6379;
 
-    private const string PlainScheme = "redis://";
-    private const string TlsScheme = "rediss://";
+    private const string _plainScheme = "redis://";
+    private const string _tlsScheme = "rediss://";
 
     // The ArgumentException message never quotes the value — it may carry a password.
     public static ConfigurationOptions Parse(string value)
     {
         string raw = value.Trim();
-        bool tls = raw.StartsWith(TlsScheme, StringComparison.OrdinalIgnoreCase);
-        if (!tls && !raw.StartsWith(PlainScheme, StringComparison.OrdinalIgnoreCase))
+        bool tls = raw.StartsWith(_tlsScheme, StringComparison.OrdinalIgnoreCase);
+        if (!tls && !raw.StartsWith(_plainScheme, StringComparison.OrdinalIgnoreCase))
         {
             return native(raw);
         }
@@ -28,7 +28,7 @@ public static class RedisConnectionString
             throw invalid();
         }
         ConfigurationOptions options = new() { Ssl = tls };
-        options.EndPoints.Add(uri.Host, uri.Port > 0 ? uri.Port : DefaultPort);
+        options.EndPoints.Add(uri.Host, uri.Port > 0 ? uri.Port : DEFAULT_PORT);
         applyUserInfo(options, uri.UserInfo);
         // The path is the database index ("/0"); an empty or non-numeric one leaves the default.
         string db = uri.AbsolutePath.Trim('/');

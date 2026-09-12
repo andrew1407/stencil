@@ -13,23 +13,23 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class StencilProjectFixtureWalkerTests
 {
-    private static readonly string[] Files = ["valid.json", "invalid.json"];
+    private static readonly string[] _files = ["valid.json", "invalid.json"];
 
     private static string pathFor(string file) =>
         Path.Combine(SharedFixtures.ConfigFixtureDir("stencilProject"), file);
 
     public static TheoryData<string> Vectors() =>
-        SharedFixtures.TheoryNames(Files.SelectMany(f => SharedFixtures.CaseNames(pathFor(f))));
+        SharedFixtures.TheoryNames(_files.SelectMany(f => SharedFixtures.CaseNames(pathFor(f))));
 
     [Fact]
     public void TheCorpusHasEveryVector() =>
-        Assert.Equal(21, Files.Sum(f => SharedFixtures.Cases(pathFor(f)).Count));
+        Assert.Equal(21, _files.Sum(f => SharedFixtures.Cases(pathFor(f)).Count));
 
     [Theory]
     [MemberData(nameof(Vectors))]
     public void VectorGetsItsVerdict(string name)
     {
-        string file = Files.First(f => SharedFixtures.CaseNames(pathFor(f)).Contains(name));
+        string file = _files.First(f => SharedFixtures.CaseNames(pathFor(f)).Contains(name));
         using JsonDocument doc = SharedFixtures.Case(pathFor(file), name);
         JsonElement fx = doc.RootElement;
         string want = SharedFixtures.OverrideFor("stencilProject", name) is JsonElement ov

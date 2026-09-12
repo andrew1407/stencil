@@ -15,13 +15,13 @@ public sealed class SizeBudgetTests
 
     private readonly record struct Measured(string Path, int Lines, int CommentLines);
 
-    private static readonly Lazy<Measured[]> Sources = new(measureAll);
+    private static readonly Lazy<Measured[]> _sources = new(measureAll);
 
-    private static readonly Lazy<JsonDocument> Budget = new(() =>
+    private static readonly Lazy<JsonDocument> _budget = new(() =>
         JsonDocument.Parse(File.ReadAllText(SharedFixtures.PathOf(
             "bot", "tests", "Stencil.TelegramBot.Tests", "SizeBudget.json"))));
 
-    private static JsonElement Root => Budget.Value.RootElement;
+    private static JsonElement Root => _budget.Value.RootElement;
 
     private static int MaxNewFileLines => Root.GetProperty("maxNewFileLines").GetInt32();
 
@@ -32,7 +32,7 @@ public sealed class SizeBudgetTests
     public void EveryOversizedFileIsListedInTheBudget()
     {
         JsonElement files = Root.GetProperty("files");
-        string[] unlisted = Sources.Value
+        string[] unlisted = _sources.Value
             .Where(f => f.Lines > MaxNewFileLines && !isException(f.Path))
             .Where(f => !files.TryGetProperty(f.Path, out _))
             .Select(f => $"{f.Path} ({f.Lines} lines)")
@@ -47,7 +47,7 @@ public sealed class SizeBudgetTests
     {
         JsonElement files = Root.GetProperty("files");
         List<string> grew = [];
-        foreach (Measured file in Sources.Value)
+        foreach (Measured file in _sources.Value)
         {
             if (isException(file.Path) || !files.TryGetProperty(file.Path, out JsonElement budget))
             {
@@ -70,7 +70,7 @@ public sealed class SizeBudgetTests
     public void UnlistedFilesStayUnderTheCap()
     {
         JsonElement files = Root.GetProperty("files");
-        string[] over = Sources.Value
+        string[] over = _sources.Value
             .Where(f => !isException(f.Path) && !files.TryGetProperty(f.Path, out _))
             .Where(f => f.Lines > MaxNewFileLines)
             .Select(f => $"{f.Path} ({f.Lines} lines)")
@@ -85,7 +85,7 @@ public sealed class SizeBudgetTests
         List<string> risen = [];
         foreach (JsonProperty dir in Root.GetProperty("commentPct").EnumerateObject())
         {
-            Measured[] inDir = Sources.Value.Where(f => dirOf(f.Path) == dir.Name).ToArray();
+            Measured[] inDir = _sources.Value.Where(f => dirOf(f.Path) == dir.Name).ToArray();
             if (inDir.Length == 0)
             {
                 continue;

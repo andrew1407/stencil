@@ -59,7 +59,7 @@ public sealed class ChatClearTests : ChatModeTestBase
 
         LlmChatRequest fresh = _llm.Requests[^1];
         LlmMessage only = Assert.Single(fresh.Messages);
-        Assert.Equal(LlmMessage.RoleUser, only.Role);
+        Assert.Equal(LlmMessage.ROLE_USER, only.Role);
         Assert.Equal("third question", only.Text);
     }
 

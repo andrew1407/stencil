@@ -15,8 +15,8 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class ProjectNameHandlerTests : IDisposable
 {
-    private const long UserId = 77;
-    private const long ChatId = 88;
+    private const long _userId = 77;
+    private const long _chatId = 88;
 
     private readonly string _dataDir;
     private readonly MockStencilCli _cli = new();
@@ -37,7 +37,7 @@ public sealed class ProjectNameHandlerTests : IDisposable
     }
 
     private Task dispatch(string text) =>
-        _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
+        _handlers.DispatchAsync(_userId, _chatId, CommandParser.Parse(text), CancellationToken.None);
 
     [Fact]
     public async Task RelabelsTheLocalWorkingImageWithoutTouchingTheServer()
@@ -45,7 +45,7 @@ public sealed class ProjectNameHandlerTests : IDisposable
         await dispatch("/blank");
         await dispatch("/project-name Poster draft");
 
-        UserSession session = await _store.GetAsync(UserId);
+        UserSession session = await _store.GetAsync(_userId);
         Assert.Equal("Poster draft", session.ImageLabel);
         SendMessageRequest confirm = _bot.Requests.OfType<SendMessageRequest>().Last();
         Assert.Contains("Working image renamed to: Poster draft", confirm.Text);
@@ -58,7 +58,7 @@ public sealed class ProjectNameHandlerTests : IDisposable
 
         SendMessageRequest reply = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
         Assert.Contains("No working image", reply.Text);
-        UserSession session = await _store.GetAsync(UserId);
+        UserSession session = await _store.GetAsync(_userId);
         Assert.False(session.HasImage);
     }
 
@@ -66,13 +66,13 @@ public sealed class ProjectNameHandlerTests : IDisposable
     public async Task BlankArgumentSendsUsageAndKeepsTheLabel()
     {
         await dispatch("/blank");
-        UserSession before = await _store.GetAsync(UserId);
+        UserSession before = await _store.GetAsync(_userId);
 
         await dispatch("/project-name    ");
 
         SendMessageRequest usage = _bot.Requests.OfType<SendMessageRequest>().Last();
         Assert.Contains("Usage: /project-name", usage.Text);
-        UserSession after = await _store.GetAsync(UserId);
+        UserSession after = await _store.GetAsync(_userId);
         Assert.Equal(before.ImageLabel, after.ImageLabel); // unchanged ("blank")
     }
 
@@ -82,7 +82,7 @@ public sealed class ProjectNameHandlerTests : IDisposable
         await dispatch("/blank");
         await dispatch("/project-description A red study");
 
-        UserSession session = await _store.GetAsync(UserId);
+        UserSession session = await _store.GetAsync(_userId);
         Assert.Equal("A red study", session.ActiveProjectDescription);
         Assert.Contains("description: A red study", Replies.StatusText(session));
     }
@@ -94,7 +94,7 @@ public sealed class ProjectNameHandlerTests : IDisposable
         await dispatch("/project-description Something");
         await dispatch("/project-description");
 
-        UserSession session = await _store.GetAsync(UserId);
+        UserSession session = await _store.GetAsync(_userId);
         Assert.Equal("", session.ActiveProjectDescription);
         Assert.DoesNotContain("description:", Replies.StatusText(session));
     }

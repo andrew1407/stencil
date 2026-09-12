@@ -63,19 +63,19 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     // ── §10 openUrl (the /url path: SSRF vetting + user-echo guard + awaited load) ──
 
     /// <summary>A public TEST-NET IP literal: the SSRF guard passes it without touching DNS.</summary>
-    private const string EchoUrl = "http://203.0.113.9/cat.png";
+    private const string _echoUrl = "http://203.0.113.9/cat.png";
 
     [Fact]
     public async Task OpenUrlLoadsTheLinkTheUserWroteAndLaterActionsActOnTheFetchedImage()
     {
-        Reply($$"""{"reply":"loaded","actions":[{"op":"openUrl","url":"{{EchoUrl}}"},{"op":"filter","mode":"bw"}]}""");
+        Reply($$"""{"reply":"loaded","actions":[{"op":"openUrl","url":"{{_echoUrl}}"},{"op":"filter","mode":"bw"}]}""");
 
-        PromptOutcome outcome = await Prompt($"load {EchoUrl} and make it b&w");
+        PromptOutcome outcome = await Prompt($"load {_echoUrl} and make it b&w");
 
         Assert.Empty(outcome.Warnings);
         Assert.True(outcome.Mutated);
         // The load was AWAITED before the filter ran: the fetch went through the CLI…
-        Assert.Equal(EchoUrl, _cli.LastRequest!.Input);
+        Assert.Equal(_echoUrl, _cli.LastRequest!.Input);
         UserSession session = await _store.GetAsync(UserId);
         Assert.True(session.HasImage);
         // …and the filter survived, proving it was folded AFTER the load's edit reset —
@@ -89,7 +89,7 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     {
         await SeedImage();
         int baseline = _cli.EditCalls;
-        Reply($$"""{"reply":"loading","actions":[{"op":"openUrl","url":"{{EchoUrl}}"},{"op":"filter","mode":"bw"}]}""");
+        Reply($$"""{"reply":"loading","actions":[{"op":"openUrl","url":"{{_echoUrl}}"},{"op":"filter","mode":"bw"}]}""");
 
         PromptOutcome outcome = await Prompt("make it black and white"); // the URL appears nowhere
 
@@ -106,13 +106,13 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     public async Task OpenUrlEchoedInAnEarlierTurnStillCounts()
     {
         Reply("chat");
-        await Prompt($"remember this link: {EchoUrl}");
-        Reply($$"""{"reply":"loaded","actions":[{"op":"openUrl","url":"{{EchoUrl}}"}]}""");
+        await Prompt($"remember this link: {_echoUrl}");
+        Reply($$"""{"reply":"loaded","actions":[{"op":"openUrl","url":"{{_echoUrl}}"}]}""");
 
         PromptOutcome outcome = await Prompt("now load that image");
 
         Assert.Empty(outcome.Warnings);
-        Assert.Equal(EchoUrl, _cli.LastRequest!.Input);
+        Assert.Equal(_echoUrl, _cli.LastRequest!.Input);
         Assert.True(outcome.Mutated);
     }
 
@@ -135,9 +135,9 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     [Fact]
     public async Task OpenUrlIncognitoIsIgnoredWithANote()
     {
-        Reply($$"""{"reply":"loaded","actions":[{"op":"openUrl","url":"{{EchoUrl}}","incognito":true}]}""");
+        Reply($$"""{"reply":"loaded","actions":[{"op":"openUrl","url":"{{_echoUrl}}","incognito":true}]}""");
 
-        PromptOutcome outcome = await Prompt($"open {EchoUrl} privately");
+        PromptOutcome outcome = await Prompt($"open {_echoUrl} privately");
 
         Assert.Contains(outcome.Warnings, w => w.Contains("incognito"));
         UserSession session = await _store.GetAsync(UserId);
@@ -148,11 +148,11 @@ public sealed class PromptPenAndUrlTests : PromptServiceTestBase
     public async Task OpenUrlPlanContinuesOnceWithTheFetchedImage()
     {
         PromptService service = WithAttachments();
-        Reply($$"""{"reply":"loaded","actions":[{"op":"openUrl","url":"{{EchoUrl}}"}]}""");
+        Reply($$"""{"reply":"loaded","actions":[{"op":"openUrl","url":"{{_echoUrl}}"}]}""");
         Reply("""{"reply":"outlined","actions":[]}""");
 
         PromptOutcome outcome = await service.PromptAsync(
-            UserId, $"load {EchoUrl} and tell me what's in it", null, CancellationToken.None);
+            UserId, $"load {_echoUrl} and tell me what's in it", null, CancellationToken.None);
 
         // §7 auto-continuation: openUrl loaded a picture the model never saw.
         Assert.Equal(2, _llm.Requests.Count);

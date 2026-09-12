@@ -10,14 +10,14 @@ public sealed record ChatDocumentMessage(string Role, string Text);
 public sealed record ChatDocument
 {
     // §12.1 (and the §7 history bound): the most recent 32 survive.
-    public const int MaxMessages = 32;
+    public const int MAX_MESSAGES = 32;
 
     // §7's auto-continuation note, appended to the RESTATED request after a plan made a new
     // picture.
-    public const string ContinuationNote =
+    public const string CONTINUATION_NOTE =
         "[The working image is now the picture those actions just made — continue with it, using its real pixel size.]";
 
-    private const string ContinuationOpen = "[The working image is now";
+    private const string _continuationOpen = "[The working image is now";
 
     // Applied on BOTH Build and TryParse so another surface's internals never replay as the user's
     // words: §7's continuation note is stripped, a raw op-plan is refused (assistant turns only).
@@ -26,7 +26,7 @@ public sealed record ChatDocument
         string t = (text ?? string.Empty).Trim();
         if (t.EndsWith(']'))
         {
-            int at = t.LastIndexOf(ContinuationOpen, StringComparison.Ordinal);
+            int at = t.LastIndexOf(_continuationOpen, StringComparison.Ordinal);
             if (at >= 0)
             {
                 t = t[..at].TrimEnd();
@@ -36,7 +36,7 @@ public sealed record ChatDocument
         {
             return null;
         }
-        return role == LlmMessage.RoleAssistant && looksLikeRawPlan(t) ? null : t;
+        return role == LlmMessage.ROLE_ASSISTANT && looksLikeRawPlan(t) ? null : t;
     }
 
     private static bool looksLikeRawPlan(string t) =>
@@ -76,15 +76,15 @@ public sealed record ChatDocument
         List<ChatDocumentMessage> kept = new();
         foreach (LlmMessage message in messages)
         {
-            if (message.Role is LlmMessage.RoleUser or LlmMessage.RoleAssistant
+            if (message.Role is LlmMessage.ROLE_USER or LlmMessage.ROLE_ASSISTANT
                 && DisplayText(message.Role, message.Text) is string shown)
             {
                 kept.Add(new ChatDocumentMessage(message.Role, shown));
             }
         }
-        if (kept.Count > MaxMessages)
+        if (kept.Count > MAX_MESSAGES)
         {
-            kept.RemoveRange(0, kept.Count - MaxMessages);
+            kept.RemoveRange(0, kept.Count - MAX_MESSAGES);
         }
         return new ChatDocument { SavedAt = savedAtMs, Messages = kept };
     }
@@ -131,7 +131,7 @@ public sealed record ChatDocument
                     string? text = item.TryGetProperty("text", out JsonElement t) && t.ValueKind == JsonValueKind.String
                         ? t.GetString()
                         : null;
-                    if (role is not (LlmMessage.RoleUser or LlmMessage.RoleAssistant) || text is null)
+                    if (role is not (LlmMessage.ROLE_USER or LlmMessage.ROLE_ASSISTANT) || text is null)
                     {
                         continue;
                     }
@@ -142,9 +142,9 @@ public sealed record ChatDocument
                     messages.Add(new ChatDocumentMessage(role, shown));
                 }
             }
-            if (messages.Count > MaxMessages)
+            if (messages.Count > MAX_MESSAGES)
             {
-                messages.RemoveRange(0, messages.Count - MaxMessages);
+                messages.RemoveRange(0, messages.Count - MAX_MESSAGES);
             }
             return new ChatDocument { SavedAt = savedAt, Messages = messages };
         }

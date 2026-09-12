@@ -9,9 +9,9 @@ public sealed record CropRect(int X, int Y, int Width, int Height);
 // metrics are A4 oriented to the image, mirroring the CLI's pipeline.namedPageForImage.
 public static partial class CropSpecResolver
 {
-    private const double CmPerInch = 2.54;
-    private const double A4ShortCm = 21.0;
-    private const double A4LongCm = 29.7;
+    private const double _cmPerInch = 2.54;
+    private const double _a4ShortCm = 21.0;
+    private const double _a4LongCm = 29.7;
 
     private enum LengthKind { Px, Cm, Percent, Delta }
 
@@ -28,8 +28,8 @@ public static partial class CropSpecResolver
         {
             return null;
         }
-        double pageW = imageW > imageH ? A4LongCm : A4ShortCm;
-        double pageH = imageW > imageH ? A4ShortCm : A4LongCm;
+        double pageW = imageW > imageH ? _a4LongCm : _a4ShortCm;
+        double pageH = imageW > imageH ? _a4ShortCm : _a4LongCm;
         double pxPerCmX = imageW / pageW;
         double pxPerCmY = imageH / pageH;
 

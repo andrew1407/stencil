@@ -9,16 +9,16 @@ namespace Stencil.TelegramBot.Bot;
 public sealed class UpdatePump : IAsyncDisposable
 {
     // Enough workers that a few minutes-long turns can't starve a Stop tap.
-    private const int Workers = 32;
-    private const int Capacity = 256;
-    private static readonly TimeSpan DrainTimeout = TimeSpan.FromSeconds(10);
+    private const int _workerCount = 32;
+    private const int _capacity = 256;
+    private static readonly TimeSpan _drainTimeout = TimeSpan.FromSeconds(10);
 
     private readonly Channel<Func<Task>> _queue = Channel.CreateBounded<Func<Task>>(
-        new BoundedChannelOptions(Capacity) { FullMode = BoundedChannelFullMode.Wait });
+        new BoundedChannelOptions(_capacity) { FullMode = BoundedChannelFullMode.Wait });
     private readonly Task[] _workers;
     private readonly ILogger _logger;
 
-    public UpdatePump(ILogger logger, int workers = Workers)
+    public UpdatePump(ILogger logger, int workers = _workerCount)
     {
         _logger = logger;
         _workers = [.. Enumerable.Range(0, workers).Select(_ => Task.Run(workAsync))];
@@ -30,7 +30,7 @@ public sealed class UpdatePump : IAsyncDisposable
     {
         _queue.Writer.TryComplete();
         // Bounded: shutdown already cancelled the handlers, so none can hold the process open.
-        await Task.WhenAny(Task.WhenAll(_workers), Task.Delay(DrainTimeout));
+        await Task.WhenAny(Task.WhenAll(_workers), Task.Delay(_drainTimeout));
     }
 
     private async Task workAsync()

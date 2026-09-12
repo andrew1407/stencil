@@ -8,7 +8,7 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class BotOptionsTests
 {
-    private const string MaxConcurrentCliVar = "STENCIL_BOT_MAX_CONCURRENT_CLI";
+    private const string _maxConcurrentCliVar = "STENCIL_BOT_MAX_CONCURRENT_CLI";
 
     [Fact]
     public void MaxConcurrentCliDefaultsToProcessorCount()
@@ -90,16 +90,16 @@ public sealed class BotOptionsTests
     [InlineData("", null)]      // unset/blank → default
     public void FromEnvironmentParsesMaxConcurrentCli(string value, int? expected)
     {
-        string? original = Environment.GetEnvironmentVariable(MaxConcurrentCliVar);
+        string? original = Environment.GetEnvironmentVariable(_maxConcurrentCliVar);
         try
         {
-            Environment.SetEnvironmentVariable(MaxConcurrentCliVar, value);
+            Environment.SetEnvironmentVariable(_maxConcurrentCliVar, value);
             int want = expected ?? Math.Max(1, Environment.ProcessorCount);
             Assert.Equal(want, BotOptions.FromEnvironment().MaxConcurrentCli);
         }
         finally
         {
-            Environment.SetEnvironmentVariable(MaxConcurrentCliVar, original);
+            Environment.SetEnvironmentVariable(_maxConcurrentCliVar, original);
         }
     }
 

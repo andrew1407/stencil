@@ -17,9 +17,9 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class SourceHandlerTests : IDisposable
 {
-    private const long UserId = 42;
-    private const long ChatId = 99;
-    private const string PublicUrl = "https://93.184.216.34/gallery";
+    private const long _userId = 42;
+    private const long _chatId = 99;
+    private const string _publicUrl = "https://93.184.216.34/gallery";
 
     private readonly string _dataDir;
     private readonly MockStencilCli _cli = new();
@@ -39,7 +39,7 @@ public sealed class SourceHandlerTests : IDisposable
     }
 
     private Task dispatch(string text) =>
-        _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
+        _handlers.DispatchAsync(_userId, _chatId, CommandParser.Parse(text), CancellationToken.None);
 
     // ── shared by both commands ──
 
@@ -60,7 +60,7 @@ public sealed class SourceHandlerTests : IDisposable
     [InlineData("/sourceupload")]
     public async Task ABadOptionRepliesWithTheUsageHintAndDoesNotScrape(string command)
     {
-        await dispatch($"{command} {PublicUrl} minw=wide");
+        await dispatch($"{command} {_publicUrl} minw=wide");
 
         SendMessageRequest reply = Assert.Single(_bot.Requests.OfType<SendMessageRequest>());
         Assert.Contains("minw", reply.Text);
@@ -73,7 +73,7 @@ public sealed class SourceHandlerTests : IDisposable
     [Fact]
     public async Task SiteSendsEachScrapedFileAndASummary()
     {
-        await dispatch($"/sourcesite {PublicUrl}");
+        await dispatch($"/sourcesite {_publicUrl}");
 
         // The image stub goes out as a photo (with its measured dimensions in the caption)…
         SendPhotoRequest photo = Assert.Single(_bot.Requests.OfType<SendPhotoRequest>());
@@ -92,10 +92,10 @@ public sealed class SourceHandlerTests : IDisposable
     [Fact]
     public async Task SitePassesParsedFiltersAndAServiceOwnedOutputDirToTheCli()
     {
-        await dispatch($"/sourcesite {PublicUrl} 6 filter=img format=png|jpg name=cat.*\\.jpg minw=200 group=1");
+        await dispatch($"/sourcesite {_publicUrl} 6 filter=img format=png|jpg name=cat.*\\.jpg minw=200 group=1");
 
         ScrapeRequest req = lastScrape();
-        Assert.Equal(PublicUrl, req.Url);
+        Assert.Equal(_publicUrl, req.Url);
         Assert.Equal(6, req.Count);
         Assert.Equal(1, req.Group);
         Assert.Equal("img", req.Filter);
@@ -110,7 +110,7 @@ public sealed class SourceHandlerTests : IDisposable
     [Fact]
     public async Task SiteNoCountDefaultsToFive()
     {
-        await dispatch($"/sourcesite {PublicUrl}");
+        await dispatch($"/sourcesite {_publicUrl}");
 
         Assert.Equal(5, lastScrape().Count);
     }
@@ -120,7 +120,7 @@ public sealed class SourceHandlerTests : IDisposable
     {
         // An explicit 0 means "all" — it is NOT re-defaulted to 5, and passes straight through
         // (the CLI reads `--source-count 0` as every match).
-        await dispatch($"/sourcesite {PublicUrl} 0");
+        await dispatch($"/sourcesite {_publicUrl} 0");
 
         Assert.Equal(0, lastScrape().Count);
     }
@@ -130,21 +130,21 @@ public sealed class SourceHandlerTests : IDisposable
     [Fact]
     public async Task UploadLoadsTheScrapedStillAsTheWorkingImageAndSendsAPhoto()
     {
-        await dispatch($"/sourceupload {PublicUrl}");
+        await dispatch($"/sourceupload {_publicUrl}");
 
         // The scrape isolates exactly one still: image-category only, Count=1, Group=index(0).
         ScrapeRequest req = lastScrape();
-        Assert.Equal(PublicUrl, req.Url);
+        Assert.Equal(_publicUrl, req.Url);
         Assert.Equal("img|background|poster", req.Filter);
         Assert.Equal(1, req.Count);
         Assert.Equal(0, req.Group);
 
         // The session now carries an editable working image, labelled from the URL, and remembers
         // the scraped page as its source (shown in /status + the caption).
-        UserSession session = await _store.GetAsync(UserId, CancellationToken.None);
+        UserSession session = await _store.GetAsync(_userId, CancellationToken.None);
         Assert.True(session.HasImage);
         Assert.Equal("gallery", session.ImageLabel);
-        Assert.Equal(PublicUrl, session.SourceUrl);
+        Assert.Equal(_publicUrl, session.SourceUrl);
 
         // …and the rendered result went out as a photo with the edit menu.
         Assert.Single(_bot.Requests.OfType<SendPhotoRequest>());
@@ -153,7 +153,7 @@ public sealed class SourceHandlerTests : IDisposable
     [Fact]
     public async Task UploadIndexAndBoundOptionsRideIntoTheScrapeRequest()
     {
-        await dispatch($"/sourceupload {PublicUrl} index=0 format=png minw=200 maxh=1000");
+        await dispatch($"/sourceupload {_publicUrl} index=0 format=png minw=200 maxh=1000");
 
         ScrapeRequest req = lastScrape();
         Assert.Equal(0, req.Group);       // index → Group
@@ -168,7 +168,7 @@ public sealed class SourceHandlerTests : IDisposable
     public async Task UploadOutOfRangeIndexRepliesWithTheNoImageHintAndSendsNoPhoto()
     {
         // Only two stubs exist, so index 999 isolates nothing — the handler replies, not renders.
-        await dispatch($"/sourceupload {PublicUrl} 999");
+        await dispatch($"/sourceupload {_publicUrl} 999");
 
         // The last message is the "no image" reply (the first is the interim "Scraping…" notice,
         // which the mock records as a SendMessage but never deletes — its Message return is null).
@@ -177,7 +177,7 @@ public sealed class SourceHandlerTests : IDisposable
         Assert.Contains("Usage: /sourceupload", reply.Text);
         Assert.Empty(_bot.Requests.OfType<SendPhotoRequest>());
 
-        UserSession session = await _store.GetAsync(UserId, CancellationToken.None);
+        UserSession session = await _store.GetAsync(_userId, CancellationToken.None);
         Assert.False(session.HasImage);
     }
 

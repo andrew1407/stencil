@@ -9,7 +9,7 @@ internal static class LlmProfileOptions
     // overridden.
     public static LlmOptions FromEnvironment()
     {
-        string provider = EnvRead.Var("STENCIL_LLM_PROVIDER")?.Trim().ToLowerInvariant() ?? LlmOptions.DefaultProvider;
+        string provider = EnvRead.Var("STENCIL_LLM_PROVIDER")?.Trim().ToLowerInvariant() ?? LlmOptions.DEFAULT_PROVIDER;
         return new LlmOptions
         {
             Provider = provider,

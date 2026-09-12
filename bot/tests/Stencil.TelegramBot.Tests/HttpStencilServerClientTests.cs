@@ -56,7 +56,7 @@ public sealed class HttpStencilServerClientTests
             CannedHttpMessageHandler.Json("{\"path\":\"/store/p1/original.png\",\"w\":800,\"h\":600}"));
         HttpStencilServerClient client = Client(handler, token: "t");
 
-        FileWriteResult result = await client.PutFileAsync("p1", ProjectFileKind.Original, payload, "png", 800, 600);
+        FileWriteResult result = await client.PutFileAsync("p1", ProjectFileKind.ORIGINAL, payload, "png", 800, 600);
 
         Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
         Assert.Equal("/projects/p1/files/original", handler.LastRequest.RequestUri!.AbsolutePath);
@@ -78,7 +78,7 @@ public sealed class HttpStencilServerClientTests
             CannedHttpMessageHandler.Empty(HttpStatusCode.NoContent));
         HttpStencilServerClient client = Client(handler, token: "t");
 
-        await client.DeleteFileAsync("p1", ProjectFileKind.Chat);
+        await client.DeleteFileAsync("p1", ProjectFileKind.CHAT);
 
         Assert.Equal(HttpMethod.Delete, handler.LastRequest!.Method);
         Assert.Equal("/projects/p1/files/chat", handler.LastRequest.RequestUri!.AbsolutePath);

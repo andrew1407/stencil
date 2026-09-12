@@ -181,7 +181,7 @@ public sealed class MockStencilServerClient : IStencilServerClient
         {
             return Task.FromResult(stored);
         }
-        if (kind is ProjectFileKind.Original or ProjectFileKind.Result)
+        if (kind is ProjectFileKind.ORIGINAL or ProjectFileKind.RESULT)
         {
             return Task.FromResult(FileBytes);
         }
@@ -201,7 +201,7 @@ public sealed class MockStencilServerClient : IStencilServerClient
         // The real server's SetFile bumps version/updated_at (store.go) but the response carries
         // no version — model that so clients that don't re-read the version afterwards are caught.
         // Filestore-only kinds (chat/video/variantN) never bump it (httpapi/files.go, contract §9).
-        if (kind is ProjectFileKind.Original or ProjectFileKind.Result
+        if (kind is ProjectFileKind.ORIGINAL or ProjectFileKind.RESULT
             && _projects.TryGetValue(id, out ProjectRecord? existing))
         {
             _projects[id] = existing with { Version = existing.Version + 1 };

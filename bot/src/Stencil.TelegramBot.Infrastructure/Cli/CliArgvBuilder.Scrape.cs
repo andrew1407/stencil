@@ -6,16 +6,16 @@ namespace Stencil.TelegramBot.Infrastructure.Cli;
 public static partial class CliArgvBuilder
 {
     // Source-site scrape flags (source-site contract §1), single-sourced beside the edit flags.
-    private const string FlagSourceSite = "--source-site";
-    private const string FlagSourceCount = "--source-count";
-    private const string FlagSourceGroup = "--group";
-    private const string FlagSourceFilter = "--source-filter";
-    private const string FlagSourceFormat = "--source-format";
-    private const string FlagSourceName = "--source-name";
-    private const string FlagSourceMinWidth = "--source-min-width";
-    private const string FlagSourceMaxWidth = "--source-max-width";
-    private const string FlagSourceMinHeight = "--source-min-height";
-    private const string FlagSourceMaxHeight = "--source-max-height";
+    private const string _flagSourceSite = "--source-site";
+    private const string _flagSourceCount = "--source-count";
+    private const string _flagSourceGroup = "--group";
+    private const string _flagSourceFilter = "--source-filter";
+    private const string _flagSourceFormat = "--source-format";
+    private const string _flagSourceName = "--source-name";
+    private const string _flagSourceMinWidth = "--source-min-width";
+    private const string _flagSourceMaxWidth = "--source-max-width";
+    private const string _flagSourceMinHeight = "--source-min-height";
+    private const string _flagSourceMaxHeight = "--source-max-height";
 
     // Emits only the flags the request sets, matching the CLI's "0 = unset" / "count absent = all"
     // (§1).
@@ -40,41 +40,41 @@ public static partial class CliArgvBuilder
 
         List<string> argv = new()
         {
-            FlagSourceSite,
+            _flagSourceSite,
             req.Url,
         };
 
         if (req.Count is int count)
         {
-            argv.Add(FlagSourceCount);
+            argv.Add(_flagSourceCount);
             argv.Add(count.ToString());
         }
         if (req.Group is int group)
         {
-            argv.Add(FlagSourceGroup);
+            argv.Add(_flagSourceGroup);
             argv.Add(group.ToString());
         }
         if (!string.IsNullOrWhiteSpace(req.Filter))
         {
-            argv.Add(FlagSourceFilter);
+            argv.Add(_flagSourceFilter);
             argv.Add(req.Filter);
         }
         if (!string.IsNullOrWhiteSpace(req.Format))
         {
-            argv.Add(FlagSourceFormat);
+            argv.Add(_flagSourceFormat);
             argv.Add(req.Format);
         }
         if (!string.IsNullOrWhiteSpace(req.Name))
         {
-            argv.Add(FlagSourceName);
+            argv.Add(_flagSourceName);
             argv.Add(req.Name);
         }
-        addBound(argv, FlagSourceMinWidth, req.MinWidth);
-        addBound(argv, FlagSourceMaxWidth, req.MaxWidth);
-        addBound(argv, FlagSourceMinHeight, req.MinHeight);
-        addBound(argv, FlagSourceMaxHeight, req.MaxHeight);
+        addBound(argv, _flagSourceMinWidth, req.MinWidth);
+        addBound(argv, _flagSourceMaxWidth, req.MaxWidth);
+        addBound(argv, _flagSourceMinHeight, req.MinHeight);
+        addBound(argv, _flagSourceMaxHeight, req.MaxHeight);
 
-        argv.Add(FlagConfineOutput);
+        argv.Add(_flagConfineOutput);
         argv.Add(req.OutputDir);
         return argv;
     }

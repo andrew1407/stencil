@@ -36,10 +36,10 @@ public sealed class OpPlanGrammarTests
 
         Assert.Null(result.Error);
         LayoutLine line = Assert.Single(Assert.IsType<LayoutAction>(result.Plan!.Actions[0]).Lines);
-        Assert.Equal(LayoutLine.DefaultColor, line.Color);
-        Assert.Equal(LayoutLine.DefaultThickness, line.Thickness);
-        Assert.Equal(LayoutLine.DefaultStyle, line.Style);
-        Assert.Equal(LayoutLine.DefaultFillColor, line.FillColor);
+        Assert.Equal(LayoutLine.DEFAULT_COLOR, line.Color);
+        Assert.Equal(LayoutLine.DEFAULT_THICKNESS, line.Thickness);
+        Assert.Equal(LayoutLine.DEFAULT_STYLE, line.Style);
+        Assert.Equal(LayoutLine.DEFAULT_FILL_COLOR, line.FillColor);
         Assert.Equal(2, line.Points.Count);
         Assert.Equal(3, line.Points[1].X);
     }

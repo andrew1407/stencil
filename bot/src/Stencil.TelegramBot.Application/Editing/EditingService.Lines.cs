@@ -49,7 +49,7 @@ public sealed partial class EditingService
                 PointSize = pen.PointSize,
                 Style = pen.Style,
                 Locked = closed,
-                FillColor = closed ? pen.FillColor : LayoutLine.DefaultFillColor,
+                FillColor = closed ? pen.FillColor : LayoutLine.DEFAULT_FILL_COLOR,
             };
             var layout = session.Edits.Layout ?? emptyLayout(session);
             var lines = layout.Lines.Append(line).ToList();
@@ -114,7 +114,7 @@ public sealed partial class EditingService
         }
         if (string.IsNullOrWhiteSpace(fill) || fill is "none" or "clear" or "transparent")
         {
-            return LayoutLine.DefaultFillColor;
+            return LayoutLine.DEFAULT_FILL_COLOR;
         }
         return fill;
     }

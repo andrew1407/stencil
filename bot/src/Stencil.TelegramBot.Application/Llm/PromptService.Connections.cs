@@ -95,6 +95,6 @@ public sealed partial class PromptService
     private static string showServer(string server)
     {
         string s = server.Trim();
-        return s.Length <= MaxLabelChars ? s : s[..MaxLabelChars] + "…";
+        return s.Length <= _maxLabelChars ? s : s[.._maxLabelChars] + "…";
     }
 }

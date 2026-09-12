@@ -52,15 +52,15 @@ public static partial class OpPlanParser
     {
         Points = line.GetProperty("points").EnumerateArray()
             .Select(static p => new LayoutPoint(p.GetProperty("x").GetDouble(), p.GetProperty("y").GetDouble())).ToList(),
-        Color = optionalString(line, EmptyKeys, "color") ?? LayoutLine.DefaultColor,
-        Thickness = optionalNumber(line, "thickness") ?? LayoutLine.DefaultThickness,
-        PointSize = optionalNumber(line, "pointSize") ?? LayoutLine.DefaultPointSize,
-        Style = optionalString(line, EmptyKeys, "style") ?? LayoutLine.DefaultStyle,
-        Locked = optionalBool(line, "locked") ?? LayoutLine.DefaultLocked,
-        FillColor = optionalString(line, EmptyKeys, "fillColor") ?? LayoutLine.DefaultFillColor,
+        Color = optionalString(line, _emptyKeys, "color") ?? LayoutLine.DEFAULT_COLOR,
+        Thickness = optionalNumber(line, "thickness") ?? LayoutLine.DEFAULT_THICKNESS,
+        PointSize = optionalNumber(line, "pointSize") ?? LayoutLine.DEFAULT_POINT_SIZE,
+        Style = optionalString(line, _emptyKeys, "style") ?? LayoutLine.DEFAULT_STYLE,
+        Locked = optionalBool(line, "locked") ?? LayoutLine.DEFAULT_LOCKED,
+        FillColor = optionalString(line, _emptyKeys, "fillColor") ?? LayoutLine.DEFAULT_FILL_COLOR,
     };
 
-    private static readonly JsonElement EmptyKeys = JsonDocument.Parse("{}").RootElement.Clone();
+    private static readonly JsonElement _emptyKeys = JsonDocument.Parse("{}").RootElement.Clone();
 
     private static string? str(JsonElement v, OpEntry entry, string key) => optionalString(v, entry.Keys, key);
 

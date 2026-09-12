@@ -14,9 +14,9 @@ public static partial class CliOutcomeParser
         foreach (string rawLine in splitLines(stderr))
         {
             string line = rawLine.Trim();
-            if (line.StartsWith(PrefixWrote, StringComparison.Ordinal))
+            if (line.StartsWith(_prefixWrote, StringComparison.Ordinal))
             {
-                string rest = line[PrefixWrote.Length..];
+                string rest = line[_prefixWrote.Length..];
                 // rfind " (" so a path containing " (" (e.g. "img (1)") still parses.
                 int open = rest.LastIndexOf(" (", StringComparison.Ordinal);
                 if (open < 0)
@@ -41,14 +41,14 @@ public static partial class CliOutcomeParser
                     files.Add(new ScrapedFile(path, null, null));
                 }
             }
-            else if (line.StartsWith(PrefixScraped, StringComparison.Ordinal))
+            else if (line.StartsWith(_prefixScraped, StringComparison.Ordinal))
             {
                 // `scraped {n} file(s) from {host} into {dir}` — rfind, a path may contain " into
                 // ".
-                int into = line.LastIndexOf(IntoToken, StringComparison.Ordinal);
+                int into = line.LastIndexOf(_intoToken, StringComparison.Ordinal);
                 if (into >= 0)
                 {
-                    directory = line[(into + IntoToken.Length)..].Trim();
+                    directory = line[(into + _intoToken.Length)..].Trim();
                 }
             }
         }

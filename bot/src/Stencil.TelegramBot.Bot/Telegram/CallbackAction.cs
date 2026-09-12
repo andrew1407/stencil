@@ -12,7 +12,7 @@ public sealed class CallbackAction
 {
     // UpdateRouter routes this token AROUND the per-user gate — the turn being stopped is holding
     // it.
-    public const string StopToken = "stop:prompt";
+    public const string STOP_TOKEN = "stop:prompt";
 
     private readonly CommandHandlers _handlers;
     private readonly ITelegramBotClient _bot;
@@ -89,7 +89,7 @@ public sealed class CallbackAction
                     cancellationToken: ct);
                 return;
             }
-            await _store.SaveAsync(session with { PendingInput = PendingInputs.ProjectName }, ct);
+            await _store.SaveAsync(session with { PendingInput = PendingInputs.PROJECT_NAME }, ct);
             string current = session.ActiveProjectName ?? session.ImageLabel ?? "this image";
             await _bot.SendMessage(chatId, $"Send the new name for '{current}'.", cancellationToken: ct);
             return;
@@ -107,7 +107,7 @@ public sealed class CallbackAction
                     cancellationToken: ct);
                 return;
             }
-            await _store.SaveAsync(session with { PendingInput = PendingInputs.ProjectDescription }, ct);
+            await _store.SaveAsync(session with { PendingInput = PendingInputs.PROJECT_DESCRIPTION }, ct);
             // Echoing the current description doubles as "view it" — the only place it is visible
             // besides /status.
             string currentDesc = string.IsNullOrEmpty(session.ActiveProjectDescription)
@@ -145,7 +145,7 @@ public sealed class CallbackAction
             return;
         }
         // Arrives WHILE the turn runs, so it stays a flag flip and nothing more.
-        if (data == StopToken)
+        if (data == STOP_TOKEN)
         {
             await _bot.SendMessage(
                 chatId,

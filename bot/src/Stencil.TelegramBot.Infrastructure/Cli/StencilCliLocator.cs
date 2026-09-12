@@ -7,18 +7,18 @@ namespace Stencil.TelegramBot.Infrastructure.Cli;
 // then PATH.
 public static class StencilCliLocator
 {
-    private const string BinaryName = "stencil";
+    private const string _binaryName = "stencil";
 
-    private const string RepoBinary = "cli/zig-out/bin/stencil";
+    private const string _repoBinary = "cli/zig-out/bin/stencil";
 
-    private const string RepoSentinel = "cli/build.zig";
+    private const string _repoSentinel = "cli/build.zig";
 
-    public const string MissingMessage =
+    public const string MISSING_MESSAGE =
         "could not find the `stencil` CLI. Build it with `zig build` in `cli/`, " +
         "set the STENCIL_CLI env var to its path, or run the Docker image.";
 
     // The fix is the operator's, not the user's.
-    public const string UnavailableMessage = "The image engine isn't available on this bot right now.";
+    public const string UNAVAILABLE_MESSAGE = "The image engine isn't available on this bot right now.";
 
     public static string FindCli(string? overridePath)
     {
@@ -32,7 +32,7 @@ public static class StencilCliLocator
                 return envOverride;
             }
             throw StencilCliException.Deployment(
-                UnavailableMessage, $"STENCIL_CLI is set to '{envOverride}', which is not a file");
+                UNAVAILABLE_MESSAGE, $"STENCIL_CLI is set to '{envOverride}', which is not a file");
         }
 
         string? inRepo = findInRepo();
@@ -47,7 +47,7 @@ public static class StencilCliLocator
             return onPath;
         }
 
-        throw StencilCliException.Deployment(UnavailableMessage, MissingMessage);
+        throw StencilCliException.Deployment(UNAVAILABLE_MESSAGE, MISSING_MESSAGE);
     }
 
     public static string? RepoRoot()
@@ -88,7 +88,7 @@ public static class StencilCliLocator
             {
                 continue;
             }
-            string candidate = Path.Combine(root, RepoBinary);
+            string candidate = Path.Combine(root, _repoBinary);
             if (File.Exists(candidate))
             {
                 return candidate;
@@ -102,7 +102,7 @@ public static class StencilCliLocator
         DirectoryInfo? dir = new(start);
         while (dir is not null)
         {
-            string sentinel = Path.Combine(dir.FullName, RepoSentinel);
+            string sentinel = Path.Combine(dir.FullName, _repoSentinel);
             if (File.Exists(sentinel))
             {
                 return dir.FullName;
@@ -125,7 +125,7 @@ public static class StencilCliLocator
             {
                 continue;
             }
-            string candidate = Path.Combine(dir, BinaryName);
+            string candidate = Path.Combine(dir, _binaryName);
             if (File.Exists(candidate))
             {
                 return candidate;

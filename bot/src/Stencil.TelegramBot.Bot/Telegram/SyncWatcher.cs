@@ -12,7 +12,7 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 // result into the chat.
 public sealed class SyncWatcher : BackgroundService
 {
-    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(6);
+    private static readonly TimeSpan _interval = TimeSpan.FromSeconds(6);
 
     private readonly SyncRegistry _registry;
     private readonly IServerService _servers;
@@ -58,7 +58,7 @@ public sealed class SyncWatcher : BackgroundService
             }
             try
             {
-                await Task.Delay(Interval, ct);
+                await Task.Delay(_interval, ct);
             }
             catch (OperationCanceledException)
             {

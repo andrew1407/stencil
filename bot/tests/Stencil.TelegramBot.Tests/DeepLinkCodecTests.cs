@@ -31,7 +31,7 @@ public class DeepLinkCodecTests
     {
         string? payload = DeepLinkCodec.Encode(url, id);
         Assert.Equal(expected, payload);
-        Assert.True(payload!.Length <= DeepLinkCodec.TelegramStartLimit);
+        Assert.True(payload!.Length <= DeepLinkCodec.TELEGRAM_START_LIMIT);
         Assert.Matches("^1[A-Za-z0-9_-]+$", payload);
     }
 
@@ -70,7 +70,7 @@ public class DeepLinkCodecTests
     [Fact]
     public void Decode_RejectsOverlongPayloads()
     {
-        string tooLong = "1" + new string('A', DeepLinkCodec.TelegramStartLimit);
+        string tooLong = "1" + new string('A', DeepLinkCodec.TELEGRAM_START_LIMIT);
         Assert.False(DeepLinkCodec.TryDecode(tooLong, out _, out _));
     }
 

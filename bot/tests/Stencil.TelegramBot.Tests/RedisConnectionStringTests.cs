@@ -28,7 +28,7 @@ public sealed class RedisConnectionStringTests
     [Fact]
     public void AUrlWithoutAPortGetsRedisDefault()
     {
-        Assert.Equal(RedisConnectionString.DefaultPort, endpointOf(RedisConnectionString.Parse("redis://cache.internal")).Port);
+        Assert.Equal(RedisConnectionString.DEFAULT_PORT, endpointOf(RedisConnectionString.Parse("redis://cache.internal")).Port);
     }
 
     [Fact]

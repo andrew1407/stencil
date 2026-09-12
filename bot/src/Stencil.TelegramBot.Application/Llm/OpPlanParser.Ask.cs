@@ -12,8 +12,8 @@ public static partial class OpPlanParser
         {
             return null;
         }
-        Schema.ValidateAsk(ask);
-        JsonElement keys = Schema.AskKeys;
+        _schema.ValidateAsk(ask);
+        JsonElement keys = _schema.AskKeys;
         string question = optionalString(ask, keys, "question")!;
         bool multi = optionalString(ask, keys, "mode") == "multi";
         bool allowCustom = optionalBool(ask, "allowCustom") ?? false;

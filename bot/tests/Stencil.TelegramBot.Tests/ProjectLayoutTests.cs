@@ -15,7 +15,7 @@ public sealed class ProjectLayoutTests
 {
     // The actual "cat" project: original 500x330, rotated one quarter, cropped in that
     // rotated space to 330x467, one yellow line, no filter.
-    private const string CatLayout = """
+    private const string _catLayout = """
     {
       "imageWidth": 330, "imageHeight": 467,
       "imageFilter": "none", "filterColor": "#7c3aed",
@@ -38,7 +38,7 @@ public sealed class ProjectLayoutTests
     [Fact]
     public void MapsRealRotatedAndCroppedProject()
     {
-        EditState edits = ProjectLayoutMapper.ToEditState(parse(CatLayout), 500, 330);
+        EditState edits = ProjectLayoutMapper.ToEditState(parse(_catLayout), 500, 330);
 
         Assert.Equal(1, edits.Rotate);
         Assert.Null(edits.Filter);                                  // imageFilter "none"
@@ -174,8 +174,8 @@ public sealed class ProjectLayoutTests
     {
         // Map the fetched project, write it straight back, and map it again: the fields the bot
         // owns (rotation, filter, crop, lines) must survive the round trip unchanged.
-        EditState first = ProjectLayoutMapper.ToEditState(parse(CatLayout), 500, 330);
-        JsonElement written = built(CatLayout, first, 330, 467);
+        EditState first = ProjectLayoutMapper.ToEditState(parse(_catLayout), 500, 330);
+        JsonElement written = built(_catLayout, first, 330, 467);
         EditState second = ProjectLayoutMapper.ToEditState(written, 500, 330);
 
         Assert.Equal(first.Rotate, second.Rotate);

@@ -114,7 +114,7 @@ public sealed class ChatPersistenceTests : ChatPersistenceTestBase
 
         await Send("/chat clear");
 
-        Assert.Contains((ProjectId, ProjectFileKind.Chat), ServerClient.FileDeletes);
+        Assert.Contains((ProjectId, ProjectFileKind.CHAT), ServerClient.FileDeletes);
         Assert.Contains("Conversation cleared", Messages.Last().Text);
     }
 }

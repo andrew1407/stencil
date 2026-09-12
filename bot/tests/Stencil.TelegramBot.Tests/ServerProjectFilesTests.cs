@@ -22,7 +22,7 @@ public sealed class ServerProjectFilesTests : ServerServiceTestBase
         MockStencilServerClient client = _factory.ClientFor(ServerA);
         (string Id, string Kind, byte[] Data, string Ext, int W, int H) put = Assert.Single(client.Puts);
         Assert.Equal(record.Id, put.Id);
-        Assert.Equal(ProjectFileKind.Original, put.Kind);
+        Assert.Equal(ProjectFileKind.ORIGINAL, put.Kind);
 
         UserSession session = await _store.GetAsync(UserId);
         Assert.Equal(record.Id, session.ActiveProjectId);
@@ -60,7 +60,7 @@ public sealed class ServerProjectFilesTests : ServerServiceTestBase
         UserSession session = await _store.GetAsync(UserId);
         Assert.Equal(saved.Version, session.ActiveProjectVersion);
         MockStencilServerClient client = _factory.ClientFor(ServerA);
-        Assert.Contains(client.Puts, p => p.Kind == ProjectFileKind.Result);
+        Assert.Contains(client.Puts, p => p.Kind == ProjectFileKind.RESULT);
     }
 
     [Fact]

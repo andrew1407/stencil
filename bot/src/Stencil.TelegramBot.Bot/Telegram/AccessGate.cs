@@ -14,7 +14,7 @@ public sealed class AccessGate
     private readonly ITelegramBotClient _bot;
     private readonly ILogger _logger;
     // Capped: a flood of unknown ids must not grow it without bound.
-    private const int MaxRefusalsLogged = 1024;
+    private const int _maxRefusalsLogged = 1024;
     private readonly ConcurrentDictionary<long, byte> _refusalsLogged = new();
 
     public AccessGate(IBotPolicy options, ITelegramBotClient bot, ILogger logger)
@@ -35,7 +35,7 @@ public sealed class AccessGate
         {
             return true;
         }
-        if (_refusalsLogged.Count >= MaxRefusalsLogged)
+        if (_refusalsLogged.Count >= _maxRefusalsLogged)
         {
             _refusalsLogged.Clear();
         }

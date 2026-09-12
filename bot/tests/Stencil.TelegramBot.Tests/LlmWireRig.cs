@@ -22,9 +22,9 @@ internal static class LlmWireRig
             System = "SYSTEM PROMPT",
             Messages =
             [
-                new LlmMessage(LlmMessage.RoleUser, "hello", image is null ? [] : [image]),
-                new LlmMessage(LlmMessage.RoleAssistant, "prior reply"),
-                new LlmMessage(LlmMessage.RoleUser, "again"),
+                new LlmMessage(LlmMessage.ROLE_USER, "hello", image is null ? [] : [image]),
+                new LlmMessage(LlmMessage.ROLE_ASSISTANT, "prior reply"),
+                new LlmMessage(LlmMessage.ROLE_USER, "again"),
             ],
             ServerUrl = serverUrl,
             ServerToken = serverToken,

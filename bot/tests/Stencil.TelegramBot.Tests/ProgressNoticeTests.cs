@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class ProgressNoticeTests
 {
-    private const long ChatId = 42;
+    private const long _chatId = 42;
 
     [Fact]
     public async Task StartPostsTheFirstFrameImmediatelyAndStopRemovesIt()
@@ -19,7 +19,7 @@ public sealed class ProgressNoticeTests
         MockBotClient bot = new();
 
         ProgressNotice notice = await ProgressNotice.StartAsync(
-            bot, ChatId, "Working on your request…", ChatAction.Typing, CancellationToken.None);
+            bot, _chatId, "Working on your request…", ChatAction.Typing, CancellationToken.None);
 
         SendMessageRequest sent = Assert.Single(bot.Requests.OfType<SendMessageRequest>());
         Assert.Equal("◐ Working on your request…", sent.Text);
@@ -36,7 +36,7 @@ public sealed class ProgressNoticeTests
     {
         MockBotClient bot = new();
         ProgressNotice notice = await ProgressNotice.StartAsync(
-            bot, ChatId, "Working…", ChatAction.Typing, CancellationToken.None);
+            bot, _chatId, "Working…", ChatAction.Typing, CancellationToken.None);
 
         await notice.StopAsync();
         await notice.StopAsync(); // a catch path may stop it before the finally does
@@ -50,7 +50,7 @@ public sealed class ProgressNoticeTests
         ThrowingBotClient bot = new();
 
         ProgressNotice notice = await ProgressNotice.StartAsync(
-            bot, ChatId, "Working…", ChatAction.Typing, CancellationToken.None);
+            bot, _chatId, "Working…", ChatAction.Typing, CancellationToken.None);
         await notice.StopAsync();
 
         Assert.Empty(bot.Requests.OfType<DeleteMessageRequest>());

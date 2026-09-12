@@ -61,7 +61,7 @@ public sealed class HttpLlmProviderTests
             CannedHttpMessageHandler.Json("""{"choices":[{"message":{"content":"lm reply"},"finish_reason":"stop"}]}"""));
         HttpLlmClient client = Client(handler, new LlmOptions
         {
-            Provider = LlmOptions.ProviderOpenAiCompat,
+            Provider = LlmOptions.PROVIDER_OPEN_AI_COMPAT,
             BaseUrl = LlmOptions.DefaultOpenAiCompatBaseUrl,
             ApiKey = "sk-test",
         });
@@ -92,7 +92,7 @@ public sealed class HttpLlmProviderTests
     {
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json("""{"choices":[{"message":{"content":"x"}}]}"""));
-        HttpLlmClient client = Client(handler, new LlmOptions { Provider = LlmOptions.ProviderOpenAiCompat });
+        HttpLlmClient client = Client(handler, new LlmOptions { Provider = LlmOptions.PROVIDER_OPEN_AI_COMPAT });
 
         await client.ChatAsync(Request());
 
@@ -107,7 +107,7 @@ public sealed class HttpLlmProviderTests
         CannedHttpMessageHandler handler = new((_, _) =>
             CannedHttpMessageHandler.Json(
                 $$"""{"choices":[{"message":{"content":"partial"},"finish_reason":"{{finishReason}}"}]}"""));
-        HttpLlmClient client = Client(handler, new LlmOptions { Provider = LlmOptions.ProviderOpenAiCompat });
+        HttpLlmClient client = Client(handler, new LlmOptions { Provider = LlmOptions.PROVIDER_OPEN_AI_COMPAT });
 
         LlmException ex = await Assert.ThrowsAsync<LlmException>(() => client.ChatAsync(Request()));
         Assert.Equal(expected, ex.Failure);

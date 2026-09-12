@@ -67,7 +67,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
         BotOptions options = new() { DataDir = _dataDir };
         EditingService editing = new(_cli, new UserWorkspace(options), store);
         PromptService service = new(_llm, editing, store,
-            new LlmOptions { Provider = LlmOptions.ProviderStencilServer },
+            new LlmOptions { Provider = LlmOptions.PROVIDER_STENCIL_SERVER },
             new MockServerClientFactory());
         UserSession session = await store.GetAsync(UserId);
         await store.SaveAsync(session with
@@ -87,7 +87,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     public async Task StencilServerProviderWithoutAnyConnectionAsksToConnect()
     {
         PromptService service = new(_llm, _editing, _store,
-            new LlmOptions { Provider = LlmOptions.ProviderStencilServer },
+            new LlmOptions { Provider = LlmOptions.PROVIDER_STENCIL_SERVER },
             new MockServerClientFactory());
 
         InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -109,7 +109,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
         });
         PromptService service = new(_llm, _editing, _store, new LlmOptions
         {
-            Provider = LlmOptions.ProviderStencilServer,
+            Provider = LlmOptions.PROVIDER_STENCIL_SERVER,
             ServerUrl = "http://mine:8090/",
         }, new MockServerClientFactory());
         _llm.CannedReplies.Enqueue(new LlmReply("hello"));
@@ -126,7 +126,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     {
         PromptService service = new(_llm, _editing, _store, new LlmOptions
         {
-            Provider = LlmOptions.ProviderStencilServer,
+            Provider = LlmOptions.PROVIDER_STENCIL_SERVER,
             ServerUrl = "http://proxy:8090",
             ServerToken = "operator-tok",
         }, new MockServerClientFactory());
@@ -149,7 +149,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
         });
         PromptService service = new(_llm, _editing, _store, new LlmOptions
         {
-            Provider = LlmOptions.ProviderStencilServer,
+            Provider = LlmOptions.PROVIDER_STENCIL_SERVER,
             ServerUrl = "http://proxy:8090",
             ServerToken = "operator-tok",
         }, new MockServerClientFactory());
@@ -165,7 +165,7 @@ public sealed class PromptProviderTests : PromptServiceTestBase
     {
         PromptService service = new(_llm, _editing, _store, new LlmOptions
         {
-            Provider = LlmOptions.ProviderStencilServer,
+            Provider = LlmOptions.PROVIDER_STENCIL_SERVER,
             ServerUrl = "http://proxy:8090",
         }, new MockServerClientFactory());
 

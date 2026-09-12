@@ -7,7 +7,7 @@ namespace Stencil.TelegramBot.Application.Llm;
 // Resolves the embedded opRegistry.json FOR ONE SURFACE; pure loading, no validation lives here.
 internal sealed class SchemaLoader
 {
-    private const string ResourceName = "Stencil.TelegramBot.Application.Assets.opRegistry.json";
+    private const string _resourceName = "Stencil.TelegramBot.Application.Assets.opRegistry.json";
 
     public JsonElement Registry { get; }
     public string Surface { get; }
@@ -21,8 +21,8 @@ internal sealed class SchemaLoader
 
     public static JsonElement LoadRegistry()
     {
-        using Stream stream = typeof(SchemaLoader).Assembly.GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidOperationException($"embedded resource {ResourceName} is missing");
+        using Stream stream = typeof(SchemaLoader).Assembly.GetManifestResourceStream(_resourceName)
+            ?? throw new InvalidOperationException($"embedded resource {_resourceName} is missing");
         using JsonDocument doc = JsonDocument.Parse(stream);
         return doc.RootElement.Clone();
     }

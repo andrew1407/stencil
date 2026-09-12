@@ -5,7 +5,7 @@ namespace Stencil.TelegramBot.Domain.Editing;
 public readonly record struct HistoryStack<T>(IReadOnlyList<T> Done, IReadOnlyList<T> Undone)
 {
     // Per side; older ones are dropped.
-    public const int MaxEntries = 25;
+    public const int MAX_ENTRIES = 25;
 
     public bool CanUndo => Done.Count > 0;
 
@@ -25,6 +25,6 @@ public readonly record struct HistoryStack<T>(IReadOnlyList<T> Done, IReadOnlyLi
     private static List<T> bounded(IEnumerable<T> stack)
     {
         List<T> list = stack.ToList();
-        return list.Count > MaxEntries ? list.Skip(list.Count - MaxEntries).ToList() : list;
+        return list.Count > MAX_ENTRIES ? list.Skip(list.Count - MAX_ENTRIES).ToList() : list;
     }
 }

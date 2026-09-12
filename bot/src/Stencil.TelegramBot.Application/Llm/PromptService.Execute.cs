@@ -92,7 +92,7 @@ public sealed partial class PromptService
     {
         foreach (LlmMessage message in snapshotHistory(userId))
         {
-            if (message.Role == LlmMessage.RoleUser && message.Text.Contains(url, StringComparison.Ordinal))
+            if (message.Role == LlmMessage.ROLE_USER && message.Text.Contains(url, StringComparison.Ordinal))
             {
                 return true;
             }

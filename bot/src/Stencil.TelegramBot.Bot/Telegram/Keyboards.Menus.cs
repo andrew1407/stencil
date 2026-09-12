@@ -162,7 +162,7 @@ public static partial class Keyboards
         List<InlineKeyboardButton[]> rows = new();
         // Telegram rejects an oversized keyboard; the text already tells the user how to reach the
         // rest.
-        foreach (ServerProjectInfo p in projects.Take(Replies.MaxProjectsListed))
+        foreach (ServerProjectInfo p in projects.Take(Replies.MAX_PROJECTS_LISTED))
         {
             string dot = Replies.ColorDot(p.Record.Color);
             string prefix = dot.Length == 0 ? "" : dot + " ";

@@ -14,8 +14,8 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class LinkHandlerTests : IDisposable
 {
-    private const long UserId = 91;
-    private const long ChatId = 92;
+    private const long _userId = 91;
+    private const long _chatId = 92;
 
     private readonly string _dataDir;
     private readonly MockBotClient _bot = new();
@@ -39,11 +39,11 @@ public sealed class LinkHandlerTests : IDisposable
             _store, new MockStencilCli(), _bot);
 
     private Task dispatch(string? browserAppUrl, string text = "/link") =>
-        handlers(browserAppUrl).DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
+        handlers(browserAppUrl).DispatchAsync(_userId, _chatId, CommandParser.Parse(text), CancellationToken.None);
 
     private async Task seedActiveProject()
     {
-        UserSession session = await _store.GetAsync(UserId);
+        UserSession session = await _store.GetAsync(_userId);
         await _store.SaveAsync(session with
         {
             ActiveServerUrl = "http://localhost:8090",

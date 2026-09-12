@@ -17,12 +17,12 @@ public sealed class HttpLlmClient : ILlmClient
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(ProvidersAsset.ChatTimeoutSeconds);
 
     // The §6 table; a new provider is an entry plus a file.
-    private static readonly IReadOnlyDictionary<string, IProviderMapping> Mappings =
+    private static readonly IReadOnlyDictionary<string, IProviderMapping> _mappings =
         new Dictionary<string, IProviderMapping>(StringComparer.Ordinal)
         {
-            [LlmOptions.ProviderOllama] = new OllamaMapping(),
-            [LlmOptions.ProviderOpenAiCompat] = new OpenAiMapping(),
-            [LlmOptions.ProviderStencilServer] = new StencilServerMapping(),
+            [LlmOptions.PROVIDER_OLLAMA] = new OllamaMapping(),
+            [LlmOptions.PROVIDER_OPEN_AI_COMPAT] = new OpenAiMapping(),
+            [LlmOptions.PROVIDER_STENCIL_SERVER] = new StencilServerMapping(),
         };
 
     private readonly HttpClient _http;
@@ -37,7 +37,7 @@ public sealed class HttpLlmClient : ILlmClient
     public async Task<LlmReply> ChatAsync(LlmChatRequest request, CancellationToken ct = default)
     {
         LlmOptions options = request.Options ?? _options;
-        if (!Mappings.TryGetValue(options.Provider, out IProviderMapping? mapping))
+        if (!_mappings.TryGetValue(options.Provider, out IProviderMapping? mapping))
         {
             throw LlmException.Deployment(
                 "The AI assistant isn't configured on this bot.",
@@ -119,11 +119,11 @@ public sealed class HttpLlmClient : ILlmClient
             disabled ? LlmFailure.Disabled : LlmFailure.Error);
     }
 
-    public const int MaxProviderDetail = 200;
+    public const int MAX_PROVIDER_DETAIL = 200;
 
-    private static readonly Regex Controlish = new(@"[\p{Cc}\p{Cf}]", RegexOptions.Compiled);
-    private static readonly Regex Urlish = new(@"[a-z][a-z0-9+.-]*://\S+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex Secretish = new(
+    private static readonly Regex _controlish = new(@"[\p{Cc}\p{Cf}]", RegexOptions.Compiled);
+    private static readonly Regex _urlish = new(@"[a-z][a-z0-9+.-]*://\S+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex _secretish = new(
         @"(?:bearer|basic) +[A-Za-z0-9._~+/=-]{8,}"
         + @"|\b(?:sk|pk|api[-_]?key|key|token|secret)[-_=:][A-Za-z0-9._-]{6,}"
         + @"|[A-Za-z0-9_-]{24,}",
@@ -138,11 +138,11 @@ public sealed class HttpLlmClient : ILlmClient
         {
             return "";
         }
-        string t = text.Length > 4 * MaxProviderDetail ? text[..(4 * MaxProviderDetail)] : text;
-        t = Controlish.Replace(t, " ");
-        t = Secretish.Replace(Urlish.Replace(t, "[redacted]"), "[redacted]");
+        string t = text.Length > 4 * MAX_PROVIDER_DETAIL ? text[..(4 * MAX_PROVIDER_DETAIL)] : text;
+        t = _controlish.Replace(t, " ");
+        t = _secretish.Replace(_urlish.Replace(t, "[redacted]"), "[redacted]");
         t = string.Join(' ', t.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-        return t.Length <= MaxProviderDetail ? t : t[..(MaxProviderDetail - 1)].TrimEnd() + "…";
+        return t.Length <= MAX_PROVIDER_DETAIL ? t : t[..(MAX_PROVIDER_DETAIL - 1)].TrimEnd() + "…";
     }
 
     private sealed class JsonNodeContent : HttpContent

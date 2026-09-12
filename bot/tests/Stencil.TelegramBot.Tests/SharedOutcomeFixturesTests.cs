@@ -26,11 +26,11 @@ public sealed class SharedOutcomeFixturesTests
             Path.Combine(dir, "..", "..", "..", "cli", "testdata", "outcome_fixtures.json"));
     }
 
-    private static readonly Lazy<JsonDocument> Corpus =
+    private static readonly Lazy<JsonDocument> _corpus =
         new(() => JsonDocument.Parse(File.ReadAllText(fixturesPath())));
 
     private static IEnumerable<JsonElement> sectionOf(string name) =>
-        Corpus.Value.RootElement.GetProperty(name).EnumerateArray();
+        _corpus.Value.RootElement.GetProperty(name).EnumerateArray();
 
     private static string nameOf(JsonElement c) =>
         c.TryGetProperty("name", out JsonElement n) ? n.GetString() ?? "<unnamed>" : "<unnamed>";

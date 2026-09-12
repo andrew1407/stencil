@@ -146,7 +146,7 @@ public sealed class RepliesTests
     {
         // A server with far more projects than the cap must not overflow Telegram's 4096-char
         // message limit; the extra ones are called out, not silently dropped.
-        int total = Replies.MaxProjectsListed + 12;
+        int total = Replies.MAX_PROJECTS_LISTED + 12;
         List<ServerProjectInfo> projects = new();
         for (int i = 0; i < total; i++)
         {
@@ -159,7 +159,7 @@ public sealed class RepliesTests
 
         Assert.True(text.Length <= 4096, $"message length {text.Length} exceeds Telegram's limit");
         Assert.Contains($"Projects ({total})", text);          // the true total is shown
-        Assert.Contains($"and {total - Replies.MaxProjectsListed} more", text); // overflow called out
+        Assert.Contains($"and {total - Replies.MAX_PROJECTS_LISTED} more", text); // overflow called out
         Assert.Contains("Project 0", text);
         Assert.DoesNotContain($"Project {total - 1} ", text);  // the last (over the cap) is not
     }

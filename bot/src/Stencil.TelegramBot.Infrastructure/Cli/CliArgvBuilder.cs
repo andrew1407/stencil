@@ -9,19 +9,19 @@ public static partial class CliArgvBuilder
 {
     // The exact option strings of cli/src/args.zig (cli/CONTRACT.md §1) — the peer of mcp's FLAG_*
     // consts.
-    private const string FlagServer = "--server";
-    private const string FlagInput = "-i";
-    private const string FlagBlank = "--blank";
-    private const string FlagFrame = "-f";
-    private const string FlagCrop = "-c";
-    private const string FlagAlbum = "--album";
-    private const string FlagRotate = "-r";
-    private const string FlagLayout = "-l";
-    private const string FlagFilter = "--filter";
-    private const string FlagConfineOutput = "--confine-output";
-    private const string FlagRemoteUpdate = "--remote-update";
-    private const string FlagRemote = "--remote";
-    private const string FlagRemoteName = "--remote-name";
+    private const string _flagServer = "--server";
+    private const string _flagInput = "-i";
+    private const string _flagBlank = "--blank";
+    private const string _flagFrame = "-f";
+    private const string _flagCrop = "-c";
+    private const string _flagAlbum = "--album";
+    private const string _flagRotate = "-r";
+    private const string _flagLayout = "-l";
+    private const string _flagFilter = "--filter";
+    private const string _flagConfineOutput = "--confine-output";
+    private const string _flagRemoteUpdate = "--remote-update";
+    private const string _flagRemote = "--remote";
+    private const string _flagRemoteName = "--remote-name";
     public static IReadOnlyList<string> BuildArgv(EditRequest req)
     {
         bool hasInput = req.Input is not null;
@@ -78,19 +78,19 @@ public static partial class CliArgvBuilder
         // --server changes what -i means; the CLI parses order-independently.
         if (req.Server is not null)
         {
-            argv.Add(FlagServer);
+            argv.Add(_flagServer);
             argv.Add(req.Server);
         }
 
         if (req.Input is not null)
         {
-            argv.Add(FlagInput);
+            argv.Add(_flagInput);
             argv.Add(req.Input);
         }
 
         if (req.Blank is BlankSpec blank)
         {
-            argv.Add(FlagBlank);
+            argv.Add(_flagBlank);
             bool hasWidth = blank.Width is not null;
             bool hasHeight = blank.Height is not null;
             if (blank.Page is not null && (hasWidth || hasHeight))
@@ -129,7 +129,7 @@ public static partial class CliArgvBuilder
 
         if (req.Frame is int frame)
         {
-            argv.Add(FlagFrame);
+            argv.Add(_flagFrame);
             argv.Add(frame.ToString());
         }
 
@@ -138,55 +138,55 @@ public static partial class CliArgvBuilder
             string spec = req.CropSpec.Trim();
             if (spec.Length != 0)
             {
-                argv.Add(FlagCrop);
+                argv.Add(_flagCrop);
                 argv.Add(spec);
             }
         }
 
         if (req.Album)
         {
-            argv.Add(FlagAlbum);
+            argv.Add(_flagAlbum);
         }
 
         if (req.Rotate is int rotate)
         {
-            argv.Add(FlagRotate);
+            argv.Add(_flagRotate);
             argv.Add(rotate.ToString());
         }
 
         if (req.LayoutPath is not null)
         {
-            argv.Add(FlagLayout);
+            argv.Add(_flagLayout);
             argv.Add(req.LayoutPath);
         }
 
         if (req.Filter is not null)
         {
-            argv.Add(FlagFilter);
+            argv.Add(_flagFilter);
             argv.Add(req.Filter);
         }
 
         // The result is always saved locally too (the positional output below).
         if (req.RemoteUpdate)
         {
-            argv.Add(FlagRemoteUpdate);
+            argv.Add(_flagRemoteUpdate);
         }
 
         if (req.Remote is not null)
         {
-            argv.Add(FlagRemote);
+            argv.Add(_flagRemote);
             argv.Add(req.Remote);
         }
 
         if (req.RemoteName is not null)
         {
-            argv.Add(FlagRemoteName);
+            argv.Add(_flagRemoteName);
             argv.Add(req.RemoteName);
         }
 
         // The adapter forwards paths it did not author; ProcessStencilCli picks the working
         // directory and passes the leaf.
-        argv.Add(FlagConfineOutput);
+        argv.Add(_flagConfineOutput);
         argv.Add(req.Output);
         return argv;
     }

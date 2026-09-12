@@ -38,7 +38,7 @@ public static partial class Replies
 
     // Telegram caps both the message and the keyboard; the overflow is called out, never silently
     // dropped.
-    public const int MaxProjectsListed = 20;
+    public const int MAX_PROJECTS_LISTED = 20;
 
     public static string ProjectsText(IReadOnlyList<ServerProjectInfo> projects)
     {
@@ -46,7 +46,7 @@ public static partial class Replies
         {
             return BotStrings.Reply("projectsEmpty");
         }
-        int shown = Math.Min(projects.Count, MaxProjectsListed);
+        int shown = Math.Min(projects.Count, MAX_PROJECTS_LISTED);
         StringBuilder sb = new();
         sb.AppendLine(BotStrings.Reply("projectsHeader", projects.Count));
         for (int i = 0; i < shown; i++)

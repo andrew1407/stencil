@@ -51,9 +51,9 @@ public static partial class OpRegistry
     ];
 
     public static OpHandler? HandlerFor(string op) =>
-        ByName.TryGetValue(op, out OpDescriptor? entry) ? entry.Handler : null;
+        _byName.TryGetValue(op, out OpDescriptor? entry) ? entry.Handler : null;
 
-    private static readonly IReadOnlyDictionary<string, OpDescriptor> ByName =
+    private static readonly IReadOnlyDictionary<string, OpDescriptor> _byName =
         Ops.SelectMany(static o => o.Names.Select(n => (Name: n, Entry: o)))
             .ToDictionary(static x => x.Name, static x => x.Entry, StringComparer.Ordinal);
 
@@ -62,14 +62,14 @@ public static partial class OpRegistry
     static OpRegistry()
     {
         string[] unbound = [.. OpSchema.Bot.Ops.Keys
-            .Where(name => !ByName.TryGetValue(name, out OpDescriptor? e) || e.Handler is null)
+            .Where(name => !_byName.TryGetValue(name, out OpDescriptor? e) || e.Handler is null)
             .Order(StringComparer.Ordinal)];
         if (unbound.Length > 0)
         {
             throw new InvalidOperationException(
                 $"opRegistry.json registers {string.Join(", ", unbound)} for the bot, but nothing here executes them");
         }
-        string[] forbidden = [.. ByName.Keys.Where(ForbiddenOps.Contains).Order(StringComparer.Ordinal)];
+        string[] forbidden = [.. _byName.Keys.Where(ForbiddenOps.Contains).Order(StringComparer.Ordinal)];
         if (forbidden.Length > 0)
         {
             throw new InvalidOperationException(

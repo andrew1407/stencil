@@ -14,7 +14,7 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public class StencilProjectFileTests
 {
-    private static readonly byte[] ImageBytes = [0xDE, 0xAD, 0xBE, 0xEF];
+    private static readonly byte[] _imageBytes = [0xDE, 0xAD, 0xBE, 0xEF];
 
     private static JsonElement layout() => StencilJson.ToElement(new
     {
@@ -34,7 +34,7 @@ public class StencilProjectFileTests
             Color = "#7c3aed",
             Keywords = ["road", "sign"],
             Source = "https://example.com/a.png",
-            ImageBytes = ImageBytes,
+            ImageBytes = _imageBytes,
             ImageExt = "png",
             ImageWidth = 4,
             ImageHeight = 2,
@@ -49,7 +49,7 @@ public class StencilProjectFileTests
         Assert.Equal("#7c3aed", parsed.Color);
         Assert.Equal(new[] { "road", "sign" }, parsed.Keywords);
         Assert.Equal("https://example.com/a.png", parsed.Source);
-        Assert.Equal(ImageBytes, parsed.ImageBytes);
+        Assert.Equal(_imageBytes, parsed.ImageBytes);
         Assert.Equal(4, parsed.ImageWidth);
         Assert.Equal("png", parsed.ImageExt);
         Assert.NotNull(parsed.Layout);
@@ -63,7 +63,7 @@ public class StencilProjectFileTests
         string json = StencilProjectFile.Build(new StencilProject
         {
             Name = "Bare",
-            ImageBytes = ImageBytes,
+            ImageBytes = _imageBytes,
             ImageWidth = 1,
             ImageHeight = 1,
         });

@@ -15,7 +15,7 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class ImageAdoptionTests : IDisposable
 {
-    private const long UserId = 5;
+    private const long _userId = 5;
 
     private readonly string _root;
     private readonly MockStencilCli _cli = new();
@@ -40,7 +40,7 @@ public sealed class ImageAdoptionTests : IDisposable
         string source = Path.Combine(_root, "in.png");
         await File.WriteAllBytesAsync(source, ImageDimensionReaderTests.Png(1024, 768));
 
-        UserSession session = await _service.SetImageFromLocalFileAsync(UserId, source, "photo");
+        UserSession session = await _service.SetImageFromLocalFileAsync(_userId, source, "photo");
 
         Assert.Equal(1024, session.OriginalWidth);
         Assert.Equal(768, session.OriginalHeight);
@@ -54,7 +54,7 @@ public sealed class ImageAdoptionTests : IDisposable
         await File.WriteAllBytesAsync(source, "II*\0 not a format the sniffer knows"u8.ToArray());
         _cli.CannedSize = new ImageSize(300, 200);
 
-        UserSession session = await _service.SetImageFromLocalFileAsync(UserId, source, "photo");
+        UserSession session = await _service.SetImageFromLocalFileAsync(_userId, source, "photo");
 
         Assert.Equal(300, session.OriginalWidth);
         Assert.Equal(1, _cli.ProbeCalls);

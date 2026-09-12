@@ -148,7 +148,7 @@ public sealed class PromptVisionTests : PromptServiceTestBase
             Messages =
             [
                 new ChatDocumentMessage("user", "[The working image is now the frame — carry on.]"),
-                new ChatDocumentMessage("user", "crop it\n\n" + ChatDocument.ContinuationNote),
+                new ChatDocumentMessage("user", "crop it\n\n" + ChatDocument.CONTINUATION_NOTE),
                 new ChatDocumentMessage("assistant", """{"version":1,"reply":"Cropped.","actions":[]}"""),
                 new ChatDocumentMessage("assistant", "Cropped."),
             ],

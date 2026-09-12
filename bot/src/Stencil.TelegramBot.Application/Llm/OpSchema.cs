@@ -26,37 +26,37 @@ public sealed record OpEntry(
 // The work splits into SchemaLoader, KeySpecChecker, PresenceRules and NativeRules.
 public sealed class OpSchema
 {
-    private static readonly Lazy<OpSchema> BotSchema = new(() => new OpSchema(SchemaLoader.LoadRegistry(), "bot"));
+    private static readonly Lazy<OpSchema> _botSchema = new(() => new OpSchema(SchemaLoader.LoadRegistry(), "bot"));
 
-    public static OpSchema Bot => BotSchema.Value;
+    public static OpSchema Bot => _botSchema.Value;
 
-    private readonly SchemaLoader loader;
-    private readonly KeySpecChecker checker;
+    private readonly SchemaLoader _loader;
+    private readonly KeySpecChecker _checker;
 
-    public string Surface => loader.Surface;
-    public string Profile => loader.Profile;
+    public string Surface => _loader.Surface;
+    public string Profile => _loader.Profile;
 
-    public IReadOnlyList<OpEntry> Entries => loader.Entries;
+    public IReadOnlyList<OpEntry> Entries => _loader.Entries;
     public IReadOnlyDictionary<string, OpEntry> Ops { get; }
-    public IReadOnlySet<string> Forbidden => loader.Forbidden;
-    public string DefaultCustomLabel => loader.DefaultCustomLabel;
+    public IReadOnlySet<string> Forbidden => _loader.Forbidden;
+    public string DefaultCustomLabel => _loader.DefaultCustomLabel;
 
-    public JsonElement AskKeys => loader.Registry.GetProperty("ask").GetProperty("schema").GetProperty("keys");
+    public JsonElement AskKeys => _loader.Registry.GetProperty("ask").GetProperty("schema").GetProperty("keys");
 
-    public JsonElement VariantKeys => loader.Registry.GetProperty("envelope").GetProperty("variants").GetProperty("items").GetProperty("fields");
+    public JsonElement VariantKeys => _loader.Registry.GetProperty("envelope").GetProperty("variants").GetProperty("items").GetProperty("fields");
 
     public static JsonElement LoadRegistry() => SchemaLoader.LoadRegistry();
 
     public OpSchema(JsonElement registry, string surface)
     {
-        loader = new SchemaLoader(registry, surface);
-        checker = new KeySpecChecker(loader);
-        Ops = loader.Entries.ToDictionary(static e => e.Name, StringComparer.Ordinal);
+        _loader = new SchemaLoader(registry, surface);
+        _checker = new KeySpecChecker(_loader);
+        Ops = _loader.Entries.ToDictionary(static e => e.Name, StringComparer.Ordinal);
     }
 
-    public int Limit(JsonElement v) => checker.Limit(v);
+    public int Limit(JsonElement v) => _checker.Limit(v);
 
-    public int Limit(string name) => checker.Limit(name);
+    public int Limit(string name) => _checker.Limit(name);
 
     // Returns the action as validated (post-fold) — the normalizer reads that one.
     public JsonElement ValidateAction(JsonElement action, OpEntry entry)
@@ -68,7 +68,7 @@ public sealed class OpSchema
             {
                 v = NativeRules.Run(rule, v);
             }
-            PresenceRules.CheckFields(checker, v, entry.Keys, entry.Holder, null, ["op"]);
+            PresenceRules.CheckFields(_checker, v, entry.Keys, entry.Holder, null, ["op"]);
             return v;
         }
         catch (SchemaError err)
@@ -86,8 +86,8 @@ public sealed class OpSchema
             {
                 throw SchemaError.Bad("\"ask\" must be an object");
             }
-            JsonElement schema = loader.Registry.GetProperty("ask").GetProperty("schema");
-            PresenceRules.CheckFields(checker, ask, schema.GetProperty("keys"), schema, new SchemaPath("ask.", "", null), []);
+            JsonElement schema = _loader.Registry.GetProperty("ask").GetProperty("schema");
+            PresenceRules.CheckFields(_checker, ask, schema.GetProperty("keys"), schema, new SchemaPath("ask.", "", null), []);
         }
         catch (SchemaError err)
         {
@@ -99,7 +99,7 @@ public sealed class OpSchema
     {
         try
         {
-            checker.CheckValue(v, loader.Registry.GetProperty("envelope").GetProperty(key), new SchemaPath("", key, null), null);
+            _checker.CheckValue(v, _loader.Registry.GetProperty("envelope").GetProperty(key), new SchemaPath("", key, null), null);
         }
         catch (SchemaError err)
         {
@@ -111,7 +111,7 @@ public sealed class OpSchema
     public OpEntry? OpsetEntry(string opset, string op, out bool fail)
     {
         fail = false;
-        JsonElement os = loader.Registry.GetProperty("opsets").TryGetProperty(opset, out JsonElement o)
+        JsonElement os = _loader.Registry.GetProperty("opsets").TryGetProperty(opset, out JsonElement o)
             ? o
             : throw new InvalidOperationException($"opRegistry: unknown opset \"{opset}\"");
         if (os.TryGetProperty("overrides", out JsonElement ov) && ov.TryGetProperty(op, out JsonElement over))
@@ -120,8 +120,8 @@ public sealed class OpSchema
         }
         if (SchemaLoader.Has(os, "ops", op))
         {
-            JsonElement core = loader.Registry.GetProperty("ops").EnumerateArray().FirstOrDefault(e => e.GetProperty("id").GetString() == op);
-            return core.ValueKind == JsonValueKind.Object ? loader.Resolve(core) : null;
+            JsonElement core = _loader.Registry.GetProperty("ops").EnumerateArray().FirstOrDefault(e => e.GetProperty("id").GetString() == op);
+            return core.ValueKind == JsonValueKind.Object ? _loader.Resolve(core) : null;
         }
         fail = SchemaLoader.Has(os, "failOps", op);
         return null;

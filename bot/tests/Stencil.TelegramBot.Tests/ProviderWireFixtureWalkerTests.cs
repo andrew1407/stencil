@@ -17,23 +17,23 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class ProviderWireFixtureWalkerTests
 {
-    private static readonly string[] Files = ["ollama.json", "openai.json", "server.json", "httpErrors.json"];
+    private static readonly string[] _files = ["ollama.json", "openai.json", "server.json", "httpErrors.json"];
 
     private static string pathFor(string file) =>
         Path.Combine(SharedFixtures.LlmFixtureDir("providerWire"), file);
 
     public static TheoryData<string> Vectors() =>
-        SharedFixtures.TheoryNames(Files.SelectMany(f => SharedFixtures.CaseNames(pathFor(f))));
+        SharedFixtures.TheoryNames(_files.SelectMany(f => SharedFixtures.CaseNames(pathFor(f))));
 
     [Fact]
     public void TheCorpusHasEveryVector() =>
-        Assert.Equal(26, Files.Sum(f => SharedFixtures.Cases(pathFor(f)).Count));
+        Assert.Equal(26, _files.Sum(f => SharedFixtures.Cases(pathFor(f)).Count));
 
     [Theory]
     [MemberData(nameof(Vectors))]
     public async Task VectorMatches(string name)
     {
-        string file = Files.First(f => SharedFixtures.CaseNames(pathFor(f)).Contains(name));
+        string file = _files.First(f => SharedFixtures.CaseNames(pathFor(f)).Contains(name));
         using JsonDocument doc = SharedFixtures.Case(pathFor(file), name);
         List<string> failures = new();
         try
@@ -55,9 +55,9 @@ public sealed class ProviderWireFixtureWalkerTests
         {
             Provider = provider switch
             {
-                "ollama" => LlmOptions.ProviderOllama,
-                "openai" => LlmOptions.ProviderOpenAiCompat,
-                "server" => LlmOptions.ProviderStencilServer,
+                "ollama" => LlmOptions.PROVIDER_OLLAMA,
+                "openai" => LlmOptions.PROVIDER_OPEN_AI_COMPAT,
+                "server" => LlmOptions.PROVIDER_STENCIL_SERVER,
                 _ => throw new InvalidOperationException($"unknown provider {provider}"),
             },
             BaseUrl = readString(settings, "baseUrl") ?? "",

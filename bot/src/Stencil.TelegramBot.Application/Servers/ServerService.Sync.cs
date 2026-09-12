@@ -30,7 +30,7 @@ public sealed partial class ServerService
             request,
             "This project was edited elsewhere — reload it from the server before saving again.",
             ct);
-        await client.PutFileAsync(projectId, ProjectFileKind.Result, bytes, "png", render.Width, render.Height, ct);
+        await client.PutFileAsync(projectId, ProjectFileKind.RESULT, bytes, "png", render.Width, render.Height, ct);
         // The result upload bumps the version too; re-read it (remoteSync.js saveRemoteProject).
         var version = await currentVersionAsync(client, projectId, record.Version, ct);
         var updated = session with { ActiveProjectVersion = version, ActiveProjectLayoutJson = layoutJson };
@@ -72,7 +72,7 @@ public sealed partial class ServerService
         var client = clientForActive(session);
         // §9: chat is filestore-only — the upload does NOT bump the version, so no re-read is
         // needed.
-        await client.PutFileAsync(projectId, ProjectFileKind.Chat,
+        await client.PutFileAsync(projectId, ProjectFileKind.CHAT,
             Encoding.UTF8.GetBytes(chatJson), "json", 0, 0, ct);
     }
 
@@ -86,7 +86,7 @@ public sealed partial class ServerService
         var client = clientForActive(session);
         try
         {
-            var bytes = await client.GetFileAsync(session.ActiveProjectId, ProjectFileKind.Chat, ct);
+            var bytes = await client.GetFileAsync(session.ActiveProjectId, ProjectFileKind.CHAT, ct);
             return Encoding.UTF8.GetString(bytes);
         }
         catch (ServerException ex) when (ex.Status == 404)
@@ -104,6 +104,6 @@ public sealed partial class ServerService
         }
         var client = clientForActive(session);
         // Idempotent per §9 (an absent chat still answers 204); never bumps the version.
-        await client.DeleteFileAsync(session.ActiveProjectId, ProjectFileKind.Chat, ct);
+        await client.DeleteFileAsync(session.ActiveProjectId, ProjectFileKind.CHAT, ct);
     }
 }

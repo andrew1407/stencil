@@ -29,7 +29,7 @@ public sealed partial class PromptService
                 : message with { Images = [] });
         }
         List<LlmImage> images = image is null ? [] : edgeMap is null ? [image] : [image, edgeMap];
-        messages.Add(new LlmMessage(LlmMessage.RoleUser, text, images));
+        messages.Add(new LlmMessage(LlmMessage.ROLE_USER, text, images));
         LlmOptions options = optionsFor(session);
         (string? serverUrl, string? serverToken) = resolveServer(session, options);
         string system = ChatSystemPrompt + contextSuffix(session, projects);
@@ -70,7 +70,7 @@ public sealed partial class PromptService
     // connected server.
     private (string? Url, string? Token) resolveServer(UserSession session, LlmOptions options)
     {
-        if (options.Provider != LlmOptions.ProviderStencilServer)
+        if (options.Provider != LlmOptions.PROVIDER_STENCIL_SERVER)
         {
             return (null, null);
         }
@@ -101,7 +101,7 @@ public sealed partial class PromptService
     }
 
     // The cli console's cap.
-    public const int MaxContextProjects = 20;
+    public const int MAX_CONTEXT_PROJECTS = 20;
 
     // Best-effort: null omits the line (the cli's unreachable rule); a turn must never fail on
     // this.
@@ -172,7 +172,7 @@ public sealed partial class PromptService
         {
             List<string> names = server.Select(static p => p.Record.Name).ToList();
             sb.Append($"\nProjects on {server.Key}: ");
-            int shown = Math.Min(names.Count, MaxContextProjects);
+            int shown = Math.Min(names.Count, MAX_CONTEXT_PROJECTS);
             sb.Append(string.Join(", ", names.Take(shown)));
             if (names.Count > shown)
             {

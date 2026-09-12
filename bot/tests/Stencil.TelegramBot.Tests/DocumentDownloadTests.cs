@@ -16,9 +16,9 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class DocumentDownloadTests : IDisposable
 {
-    private const long UserId = 55;
-    private const long ChatId = 66;
-    private const int Megabyte = 1024 * 1024;
+    private const long _userId = 55;
+    private const long _chatId = 66;
+    private const int _megabyte = 1024 * 1024;
 
     private readonly string _dataDir;
     private readonly MockStencilCli _cli = new();
@@ -38,7 +38,7 @@ public sealed class DocumentDownloadTests : IDisposable
     {
         BotOptions options = new();
 
-        Assert.Equal(4L * Megabyte, options.MaxDocumentBytes);
+        Assert.Equal(4L * _megabyte, options.MaxDocumentBytes);
         Assert.True(options.MaxDocumentBytes < options.MaxDownloadBytes);
     }
 
@@ -46,41 +46,41 @@ public sealed class DocumentDownloadTests : IDisposable
     [Fact]
     public void ASmallerConfiguredLimitStillWins()
     {
-        BotOptions options = new() { MaxDownloadBytes = Megabyte };
+        BotOptions options = new() { MaxDownloadBytes = _megabyte };
 
-        Assert.Equal(Megabyte, options.MaxDocumentBytes);
+        Assert.Equal(_megabyte, options.MaxDocumentBytes);
     }
 
     [Fact]
     public async Task AnOversizedLayoutJsonIsRefused()
     {
-        _bot.FileBytes = 5 * Megabyte;
+        _bot.FileBytes = 5 * _megabyte;
         UpdateRouter router = makeRouter();
 
         await router.HandleMessageAsync(documentFrom("layout.json", "/apply"), CancellationToken.None);
 
         Assert.Contains("too large", lastText());
         Assert.Contains("4 MB", lastText()); // the document cap, not the 50 MB photo one
-        Assert.Equal(0, (await _store.GetAsync(UserId, CancellationToken.None)).Edits.LineCount);
+        Assert.Equal(0, (await _store.GetAsync(_userId, CancellationToken.None)).Edits.LineCount);
     }
 
     [Fact]
     public async Task AnOversizedProjectFileIsRefused()
     {
-        _bot.FileBytes = 5 * Megabyte;
+        _bot.FileBytes = 5 * _megabyte;
         UpdateRouter router = makeRouter();
 
         await router.HandleMessageAsync(documentFrom("board.stencil", null), CancellationToken.None);
 
         Assert.Contains("too large", lastText());
-        Assert.False((await _store.GetAsync(UserId, CancellationToken.None)).HasImage);
+        Assert.False((await _store.GetAsync(_userId, CancellationToken.None)).HasImage);
     }
 
     // The cap streams to disk, so the refused download leaves no partial file behind either.
     [Fact]
     public async Task AnOversizedDocumentLeavesNoTempFile()
     {
-        _bot.FileBytes = 5 * Megabyte;
+        _bot.FileBytes = 5 * _megabyte;
         UpdateRouter router = makeRouter();
         HashSet<string> before = [.. Directory.GetFiles(Path.GetTempPath(), "stencil-bot-*.json")];
 
@@ -99,25 +99,25 @@ public sealed class DocumentDownloadTests : IDisposable
         await router.HandleMessageAsync(documentFrom("layout.json", "/apply"), CancellationToken.None);
 
         Assert.DoesNotContain(_bot.Requests.OfType<SendMessageRequest>(), m => m.Text.Contains("too large"));
-        Assert.True((await _store.GetAsync(UserId, CancellationToken.None)).Edits.LineCount > 0);
+        Assert.True((await _store.GetAsync(_userId, CancellationToken.None)).Edits.LineCount > 0);
     }
 
     // Photos are untouched by the tighter cap: one well past it still becomes the working image.
     [Fact]
     public async Task APhotoPastTheDocumentCapStillLoads()
     {
-        _bot.FileBytes = 5 * Megabyte;
+        _bot.FileBytes = 5 * _megabyte;
         UpdateRouter router = makeRouter();
 
         await router.HandleMessageAsync(photoMessage(), CancellationToken.None);
 
         Assert.DoesNotContain(_bot.Requests.OfType<SendMessageRequest>(), m => m.Text.Contains("too large"));
-        Assert.True((await _store.GetAsync(UserId, CancellationToken.None)).HasImage);
+        Assert.True((await _store.GetAsync(_userId, CancellationToken.None)).HasImage);
     }
 
     private UpdateRouter makeRouter()
     {
-        BotOptions options = new() { DataDir = _dataDir, AllowedUsers = new HashSet<long> { UserId } };
+        BotOptions options = new() { DataDir = _dataDir, AllowedUsers = new HashSet<long> { _userId } };
         EditingService editing = new(_cli, new UserWorkspace(options), _store);
         CommandHandlers handlers = TestHandlers.Create(options, _store, _cli, _bot, editing: editing);
         return new UpdateRouter(
@@ -139,8 +139,8 @@ public sealed class DocumentDownloadTests : IDisposable
         new()
         {
             Id = 1,
-            Chat = new Chat { Id = ChatId },
-            From = new User { Id = UserId },
+            Chat = new Chat { Id = _chatId },
+            From = new User { Id = _userId },
             Caption = caption,
             Document = new Document { FileId = "d1", FileUniqueId = "d1", FileName = fileName },
         };
@@ -149,8 +149,8 @@ public sealed class DocumentDownloadTests : IDisposable
         new()
         {
             Id = 2,
-            Chat = new Chat { Id = ChatId },
-            From = new User { Id = UserId },
+            Chat = new Chat { Id = _chatId },
+            From = new User { Id = _userId },
             Photo = [new PhotoSize { FileId = "p1", FileUniqueId = "p1", Width = 90, Height = 90 }],
         };
 

@@ -11,7 +11,7 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class PromptVariantsTests(PromptServiceFixture fixture) : PromptServiceTestBase(fixture)
 {
-    private const string ThreeVariants =
+    private const string _threeVariants =
         """
         {"reply":"three takes","actions":[],"variants":[
           {"label":"one","actions":[{"op":"rotate","dir":"left","times":1}]},
@@ -30,7 +30,7 @@ public sealed class PromptVariantsTests(PromptServiceFixture fixture) : PromptSe
             started.Release();
             await release.Task;
         };
-        _llm.CannedReplies.Enqueue(new LlmReply(ThreeVariants));
+        _llm.CannedReplies.Enqueue(new LlmReply(_threeVariants));
 
         Task<PromptOutcome> turn = _service.PromptAsync(UserId, "three takes", null, CancellationToken.None);
         // Sequential rendering would never reach the second call while the first is held open.
@@ -56,7 +56,7 @@ public sealed class PromptVariantsTests(PromptServiceFixture fixture) : PromptSe
             2 => 60,
             _ => 0,
         }));
-        _llm.CannedReplies.Enqueue(new LlmReply(ThreeVariants));
+        _llm.CannedReplies.Enqueue(new LlmReply(_threeVariants));
 
         PromptOutcome outcome = await _service.PromptAsync(UserId, "three takes", null, CancellationToken.None);
 

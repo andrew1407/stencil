@@ -15,28 +15,28 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class ChatApiTests : IDisposable
 {
-    private const long UserId = 91;
-    private const long ChatId = 92;
+    private const long _userId = 91;
+    private const long _chatId = 92;
 
-    private static readonly LlmProfile Local = new()
+    private static readonly LlmProfile _local = new()
     {
         Name = "llama",
         Label = "Llama (local)",
         Options = new LlmOptions
         {
-            Provider = LlmOptions.ProviderOllama,
+            Provider = LlmOptions.PROVIDER_OLLAMA,
             BaseUrl = "http://192.168.1.9:11434",
             Model = "llama3.2-vision",
         },
     };
 
-    private static readonly LlmProfile Studio = new()
+    private static readonly LlmProfile _studio = new()
     {
         Name = "lmstudio",
         Label = "LM Studio",
         Options = new LlmOptions
         {
-            Provider = LlmOptions.ProviderOpenAiCompat,
+            Provider = LlmOptions.PROVIDER_OPEN_AI_COMPAT,
             BaseUrl = "http://localhost:1234/v1",
         },
     };
@@ -52,8 +52,8 @@ public sealed class ChatApiTests : IDisposable
     public ChatApiTests()
     {
         _dataDir = Path.Combine(Path.GetTempPath(), "stencil-bot-chatapi-" + Guid.NewGuid().ToString("N"));
-        BotOptions options = new() { DataDir = _dataDir, LlmProfiles = [Local, Studio] };
-        _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, profiles: [Local, Studio]);
+        BotOptions options = new() { DataDir = _dataDir, LlmProfiles = [_local, _studio] };
+        _handlers = TestHandlers.Create(options, _store, _cli, _bot, _llm, profiles: [_local, _studio]);
         _callbacks = new CallbackAction(_handlers, _bot, _store);
     }
 
@@ -63,15 +63,15 @@ public sealed class ChatApiTests : IDisposable
     }
 
     private Task dispatch(string text) =>
-        _handlers.DispatchAsync(UserId, ChatId, CommandParser.Parse(text), CancellationToken.None);
+        _handlers.DispatchAsync(_userId, _chatId, CommandParser.Parse(text), CancellationToken.None);
 
     private Task tap(string data) =>
         _callbacks.HandleAsync(
             new CallbackQuery
             {
                 Id = "cb",
-                From = new User { Id = UserId },
-                Message = new Message { Chat = new Chat { Id = ChatId } },
+                From = new User { Id = _userId },
+                Message = new Message { Chat = new Chat { Id = _chatId } },
                 Data = data,
             },
             CancellationToken.None);
@@ -100,7 +100,7 @@ public sealed class ChatApiTests : IDisposable
     {
         await tap("api:llama");
 
-        Assert.Equal("llama", (await _store.GetAsync(UserId)).LlmProfile);
+        Assert.Equal("llama", (await _store.GetAsync(_userId)).LlmProfile);
         Assert.Contains("Llama (local)", Messages.Last().Text);
 
         await dispatch("/blank");
@@ -108,7 +108,7 @@ public sealed class ChatApiTests : IDisposable
 
         // The turn ran against the picked profile, not the bot's default.
         LlmOptions used = Assert.Single(_llm.Requests).Options!;
-        Assert.Equal(LlmOptions.ProviderOllama, used.Provider);
+        Assert.Equal(LlmOptions.PROVIDER_OLLAMA, used.Provider);
         Assert.Equal("http://192.168.1.9:11434", used.BaseUrl);
         Assert.Equal("llama3.2-vision", used.Model);
     }
@@ -117,7 +117,7 @@ public sealed class ChatApiTests : IDisposable
     public async Task TheCurrentApiIsTickedAndSelectableByName()
     {
         await dispatch("/chatapi lmstudio");
-        Assert.Equal("lmstudio", (await _store.GetAsync(UserId)).LlmProfile);
+        Assert.Equal("lmstudio", (await _store.GetAsync(_userId)).LlmProfile);
 
         await dispatch("/chatapi");
 
@@ -136,7 +136,7 @@ public sealed class ChatApiTests : IDisposable
         Assert.Contains("No chat API called", reply.Text);
         Assert.Contains("llama", reply.Text);
         Assert.Contains("lmstudio", reply.Text);
-        Assert.Null((await _store.GetAsync(UserId)).LlmProfile);
+        Assert.Null((await _store.GetAsync(_userId)).LlmProfile);
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public sealed class ChatApiTests : IDisposable
     {
         // A session left pointing at a profile that is no longer configured (an env change
         // between restarts) must still get a working turn.
-        await _store.SaveAsync((await _store.GetAsync(UserId)) with { LlmProfile = "gone" });
+        await _store.SaveAsync((await _store.GetAsync(_userId)) with { LlmProfile = "gone" });
 
         await dispatch("/blank");
         await dispatch("/prompt make it sepia");

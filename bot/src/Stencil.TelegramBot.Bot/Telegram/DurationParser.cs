@@ -36,7 +36,7 @@ public sealed record ParsedDuration(DurationUnit Unit, int Count)
 public static class DurationParser
 {
     // Keeps well clear of DateTimeOffset overflow.
-    private const int MaxCount = 1000;
+    private const int _maxCount = 1000;
 
     public static bool TryParse(string? text, out ParsedDuration duration, out bool clear)
     {
@@ -59,7 +59,7 @@ public static class DurationParser
         }
         string digits = firstRun(s, char.IsDigit);
         int count = 1;
-        if (digits.Length != 0 && (!int.TryParse(digits, out count) || count <= 0 || count > MaxCount))
+        if (digits.Length != 0 && (!int.TryParse(digits, out count) || count <= 0 || count > _maxCount))
         {
             return false;
         }

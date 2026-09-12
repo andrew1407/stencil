@@ -8,17 +8,17 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 // B5-style; canonical order is the JSON's own.
 public static class PageFormats
 {
-    private const string ResourceName = "Stencil.TelegramBot.Bot.Assets.constants.json";
+    private const string _resourceName = "Stencil.TelegramBot.Bot.Assets.constants.json";
 
-    private static readonly Lazy<IReadOnlyList<(string Name, double WidthCm, double HeightCm)>> Table =
+    private static readonly Lazy<IReadOnlyList<(string Name, double WidthCm, double HeightCm)>> _table =
         new(loadTable);
 
-    public static IReadOnlyList<(string Name, double WidthCm, double HeightCm)> All => Table.Value;
+    public static IReadOnlyList<(string Name, double WidthCm, double HeightCm)> All => _table.Value;
 
     private static IReadOnlyList<(string, double, double)> loadTable()
     {
-        using Stream stream = typeof(PageFormats).Assembly.GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidOperationException($"embedded resource {ResourceName} is missing");
+        using Stream stream = typeof(PageFormats).Assembly.GetManifestResourceStream(_resourceName)
+            ?? throw new InvalidOperationException($"embedded resource {_resourceName} is missing");
         using JsonDocument doc = JsonDocument.Parse(stream);
         var table = new List<(string, double, double)>();
         foreach (JsonProperty size in doc.RootElement.GetProperty("PAGE_SIZES").EnumerateObject())

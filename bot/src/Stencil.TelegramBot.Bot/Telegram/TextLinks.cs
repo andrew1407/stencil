@@ -24,7 +24,7 @@ public sealed class PendingInputLink : IMessageHandler
         }
         UserSession session = await _store.GetAsync(ctx.UserId, ct);
         string? pending = session.PendingInput;
-        if (pending is not (PendingInputs.ExpiryDuration or PendingInputs.ProjectName or PendingInputs.ProjectDescription))
+        if (pending is not (PendingInputs.EXPIRY_DURATION or PendingInputs.PROJECT_NAME or PendingInputs.PROJECT_DESCRIPTION))
         {
             return false;
         }
@@ -33,9 +33,9 @@ public sealed class PendingInputLink : IMessageHandler
         string[] args = spec.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         BotCommand command = pending switch
         {
-            PendingInputs.ProjectName => new BotCommand("projectname", spec, args),
+            PendingInputs.PROJECT_NAME => new BotCommand("projectname", spec, args),
             // A lone "-" is the clear convention.
-            PendingInputs.ProjectDescription => spec == "-"
+            PendingInputs.PROJECT_DESCRIPTION => spec == "-"
                 ? new BotCommand("projectdescription", "", [])
                 : new BotCommand("projectdescription", spec, args),
             _ => new BotCommand("expire", spec, args),

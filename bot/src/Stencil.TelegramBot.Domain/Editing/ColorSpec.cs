@@ -8,11 +8,11 @@ namespace Stencil.TelegramBot.Domain.Editing;
 // rejected before argv.
 public static class ColorSpec
 {
-    private const string ResourceName = "Stencil.TelegramBot.Domain.Assets.colorNames.json";
+    private const string _resourceName = "Stencil.TelegramBot.Domain.Assets.colorNames.json";
 
-    private static readonly Lazy<IReadOnlySet<string>> Names = new(loadNames);
+    private static readonly Lazy<IReadOnlySet<string>> _names = new(loadNames);
 
-    public static IReadOnlySet<string> KnownNames => Names.Value;
+    public static IReadOnlySet<string> KnownNames => _names.Value;
 
     public static bool IsValid(string? spec)
     {
@@ -30,13 +30,13 @@ public static class ColorSpec
             string hex = s[1..];
             return hex.Length is 3 or 4 or 6 or 8 && hex.All(Uri.IsHexDigit);
         }
-        return Names.Value.Contains(s);
+        return _names.Value.Contains(s);
     }
 
     private static IReadOnlySet<string> loadNames()
     {
-        using Stream stream = typeof(ColorSpec).Assembly.GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidOperationException($"embedded resource {ResourceName} is missing");
+        using Stream stream = typeof(ColorSpec).Assembly.GetManifestResourceStream(_resourceName)
+            ?? throw new InvalidOperationException($"embedded resource {_resourceName} is missing");
         using JsonDocument doc = JsonDocument.Parse(stream);
         HashSet<string> names = new(StringComparer.Ordinal);
         foreach (JsonProperty entry in doc.RootElement.EnumerateObject())

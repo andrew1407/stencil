@@ -16,8 +16,8 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class PromptLlmGateTests : IDisposable
 {
-    private const long UserId = 7;
-    private static readonly TimeSpan WaitBudget = TimeSpan.FromSeconds(10);
+    private const long _userId = 7;
+    private static readonly TimeSpan _waitBudget = TimeSpan.FromSeconds(10);
 
     private readonly string _dataDir;
     private readonly MockStencilCli _cli = new();
@@ -54,13 +54,13 @@ public sealed class PromptLlmGateTests : IDisposable
     {
         PromptService service = makeService(maxConcurrent: 1);
         TaskCompletionSource hold = holdModel();
-        Task<PromptOutcome> first = service.PromptAsync(UserId, "one", null);
-        Assert.True(await _llm.Entered.WaitAsync(WaitBudget)); // the slot is really held
+        Task<PromptOutcome> first = service.PromptAsync(_userId, "one", null);
+        Assert.True(await _llm.Entered.WaitAsync(_waitBudget)); // the slot is really held
 
         LlmException busy = await Assert.ThrowsAsync<LlmException>(
-            () => service.PromptAsync(UserId + 1, "two", null));
+            () => service.PromptAsync(_userId + 1, "two", null));
 
-        Assert.Equal(PromptService.BusyReply, busy.Message);
+        Assert.Equal(PromptService.BUSY_REPLY, busy.Message);
         Assert.Equal(LlmFailure.Error, busy.Failure); // not a refusal ⇒ the caller offers Retry
         Assert.Single(_llm.Requests);                 // the busy turn never reached the model
         hold.SetResult();
@@ -72,13 +72,13 @@ public sealed class PromptLlmGateTests : IDisposable
     {
         PromptService service = makeService(maxConcurrent: 1);
         TaskCompletionSource hold = holdModel();
-        Task<PromptOutcome> first = service.PromptAsync(UserId, "one", null);
-        Assert.True(await _llm.Entered.WaitAsync(WaitBudget));
+        Task<PromptOutcome> first = service.PromptAsync(_userId, "one", null);
+        Assert.True(await _llm.Entered.WaitAsync(_waitBudget));
         hold.SetResult();
         await first;
         _llm.Hold = null;
 
-        PromptOutcome next = await service.PromptAsync(UserId + 1, "two", null);
+        PromptOutcome next = await service.PromptAsync(_userId + 1, "two", null);
 
         Assert.Equal("ok", next.Reply);
         Assert.Equal(2, _llm.Requests.Count);
@@ -89,11 +89,11 @@ public sealed class PromptLlmGateTests : IDisposable
     {
         PromptService service = makeService(maxConcurrent: 0);
         TaskCompletionSource hold = holdModel();
-        Task<PromptOutcome> first = service.PromptAsync(UserId, "one", null);
-        Task<PromptOutcome> second = service.PromptAsync(UserId + 1, "two", null);
+        Task<PromptOutcome> first = service.PromptAsync(_userId, "one", null);
+        Task<PromptOutcome> second = service.PromptAsync(_userId + 1, "two", null);
         // Both calls reach the model while neither has answered — nothing was gated out.
-        Assert.True(await _llm.Entered.WaitAsync(WaitBudget));
-        Assert.True(await _llm.Entered.WaitAsync(WaitBudget));
+        Assert.True(await _llm.Entered.WaitAsync(_waitBudget));
+        Assert.True(await _llm.Entered.WaitAsync(_waitBudget));
         Assert.Equal(2, _llm.Requests.Count);
 
         hold.SetResult();

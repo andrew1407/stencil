@@ -35,12 +35,12 @@ public sealed record PromptOutcome(
 public sealed partial class PromptService
 {
     // The contract's §7 history bound.
-    public const int MaxHistoryMessages = 32;
+    public const int MAX_HISTORY_MESSAGES = 32;
 
-    private const int MaxLabelChars = 40;
+    private const int _maxLabelChars = 40;
 
     // Beyond it the least-recently-active conversation is forgotten.
-    public const int MaxTrackedUsers = 256;
+    public const int MAX_TRACKED_USERS = 256;
 
     private sealed class UserHistory
     {
@@ -94,7 +94,7 @@ public sealed partial class PromptService
             : _profiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))?.Options
                 ?? _options;
 
-    public const string BusyReply = "The assistant is busy right now — please try again in a moment.";
+    public const string BUSY_REPLY = "The assistant is busy right now — please try again in a moment.";
 
     // LlmExceptions bubble up — a truncated/refused reply is never parsed.
     public async Task<PromptOutcome> PromptAsync(long userId, string text, LlmImage? image, CancellationToken ct = default)
@@ -103,7 +103,7 @@ public sealed partial class PromptService
         // round included.
         if (!_gate.TryEnter())
         {
-            throw new LlmException(BusyReply);
+            throw new LlmException(BUSY_REPLY);
         }
         try
         {
@@ -124,9 +124,9 @@ public sealed partial class PromptService
         if (plan is null || !continuablePlan(plan)) return outcome;
         LlmImage? fresh = await renderForVisionAsync(userId, ct);
         if (fresh is null) return outcome;
-        // ChatDocument.ContinuationNote, so this writer and the §12.1 gate that refuses it can
+        // ChatDocument.CONTINUATION_NOTE, so this writer and the §12.1 gate that refuses it can
         // never drift apart.
-        string note = text + "\n\n" + ChatDocument.ContinuationNote;
+        string note = text + "\n\n" + ChatDocument.CONTINUATION_NOTE;
         (PromptOutcome next, _) = await roundAsync(userId, note, fresh, ct);
         return next with
         {

@@ -11,12 +11,12 @@ namespace Stencil.TelegramBot.Infrastructure.Links;
 public static class DesktopLinkBuilder
 {
     // The browser's desktopScheme.
-    public const string DefaultScheme = "stencil";
+    public const string DEFAULT_SCHEME = "stencil";
 
     // No token ever rides it: the receiving client connects with its own credential for that
     // origin.
     public static string SchemeUrl(string serverUrl, string projectId, long version = 0,
-        bool incognito = false, string scheme = DefaultScheme)
+        bool incognito = false, string scheme = DEFAULT_SCHEME)
     {
         StringBuilder query = new();
         query.Append("server=").Append(encodeComponent(serverUrl));

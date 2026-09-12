@@ -83,7 +83,7 @@ public sealed class UpdateRouter
             }
             // Stop skips the USER gate on purpose: the turn it cancels holds that gate; it touches
             // no session state.
-            if (query.Data == CallbackAction.StopToken)
+            if (query.Data == CallbackAction.STOP_TOKEN)
             {
                 await _callbacks.HandleAsync(query, ct);
                 return;

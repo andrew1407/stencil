@@ -12,12 +12,12 @@ namespace Stencil.TelegramBot.Tests;
 public sealed class OpRegistryTests
 {
     /// <summary>The §2 core ops of the bot's §4 "Available ops" list, per the contract.</summary>
-    private static readonly string[] ContractCoreOps =
+    private static readonly string[] _contractCoreOps =
         ["crop", "rotate", "filter", "layout", "formula", "page", "blank",
          "undo", "redo", "frame", "image", "save"];
 
     /// <summary>The §10 bot profile ops (§13 pin (a)): connect/disconnect plus the bot's carried set.</summary>
-    private static readonly string[] ContractBotProfileOps =
+    private static readonly string[] _contractBotProfileOps =
         ["connect", "disconnect", "reset", "clear", "lineStyle", "openUrl",
          "renameProject", "describe", "blankColor", "projectColor", "export", "clearChat"];
 
@@ -26,8 +26,8 @@ public sealed class OpRegistryTests
     {
         string[] core = OpRegistry.Ops.Where(o => !o.Profile).SelectMany(o => o.Names).ToArray();
         string[] profile = OpRegistry.Ops.Where(o => o.Profile).SelectMany(o => o.Names).ToArray();
-        Assert.Equal(ContractCoreOps.Order(), core.Order());
-        Assert.Equal(ContractBotProfileOps.Order(), profile.Order());
+        Assert.Equal(_contractCoreOps.Order(), core.Order());
+        Assert.Equal(_contractBotProfileOps.Order(), profile.Order());
         // No op is registered twice.
         Assert.Equal(OpRegistry.Names.Count, OpRegistry.Names.Distinct(StringComparer.Ordinal).Count());
     }
@@ -40,7 +40,7 @@ public sealed class OpRegistryTests
         // as top-level-only, not as settings ops.
         Assert.Equal((string[])["clearChat", "image", "redo", "reset", "save", "undo"],
             OpRegistry.TopLevelOnlyNames.Order().ToArray());
-        Assert.Equal(ContractBotProfileOps.Where(o => o is not ("reset" or "clearChat")).Order(),
+        Assert.Equal(_contractBotProfileOps.Where(o => o is not ("reset" or "clearChat")).Order(),
             OpRegistry.SettingsNames.Order());
     }
 

@@ -101,7 +101,7 @@ public sealed class MediaIntake
             return;
         }
         BotCommand command = CommandParser.Parse(caption!);
-        if (CaptionEditVerbs.Contains(command.Verb))
+        if (_captionEditVerbs.Contains(command.Verb))
         {
             await _handlers.DispatchAsync(userId, chatId, command, ct);
         }
@@ -128,7 +128,7 @@ public sealed class MediaIntake
         return (0, false);
     }
 
-    private static readonly HashSet<string> CaptionEditVerbs = new(StringComparer.Ordinal)
+    private static readonly HashSet<string> _captionEditVerbs = new(StringComparer.Ordinal)
     {
         "crop", "rotate", "filter",
         "draw", "line", "polyline", "rect", "rectangle", "poly", "polygon",

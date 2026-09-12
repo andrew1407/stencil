@@ -12,8 +12,8 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class SanitizerFixtureWalkerTests
 {
-    private static readonly Regex Urlish = new(@"[a-z][a-z0-9+.-]*://\S+", RegexOptions.IgnoreCase);
-    private static readonly Regex BareTokenRun = new("[A-Za-z0-9_-]{24,}");
+    private static readonly Regex _urlish = new(@"[a-z][a-z0-9+.-]*://\S+", RegexOptions.IgnoreCase);
+    private static readonly Regex _bareTokenRun = new("[A-Za-z0-9_-]{24,}");
 
     private static string Corpus => Path.Combine(SharedFixtures.LlmFixtureDir("sanitizer"), "cases.json");
 
@@ -42,11 +42,11 @@ public sealed class SanitizerFixtureWalkerTests
         }
         // Recomputed invariants, independent of the literal: bounded, no URL, and no bare
         // token-shaped run outside the redaction marker itself.
-        Assert.True(got.Length <= HttpLlmClient.MaxProviderDetail,
-            $"output exceeds {HttpLlmClient.MaxProviderDetail} UTF-16 units ({got.Length})");
+        Assert.True(got.Length <= HttpLlmClient.MAX_PROVIDER_DETAIL,
+            $"output exceeds {HttpLlmClient.MAX_PROVIDER_DETAIL} UTF-16 units ({got.Length})");
         string unredacted = got.Replace("[redacted]", "");
-        Assert.False(Urlish.IsMatch(unredacted), "a URL survived sanitization");
-        Assert.False(BareTokenRun.IsMatch(unredacted), "a token-shaped run survived sanitization");
+        Assert.False(_urlish.IsMatch(unredacted), "a URL survived sanitization");
+        Assert.False(_bareTokenRun.IsMatch(unredacted), "a token-shaped run survived sanitization");
     }
 
     /// <summary>

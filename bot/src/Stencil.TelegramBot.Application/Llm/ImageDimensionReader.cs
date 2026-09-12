@@ -7,10 +7,10 @@ namespace Stencil.TelegramBot.Application.Llm;
 // an image needs no CLI probe.
 public static class ImageDimensionReader
 {
-    private static readonly byte[] PngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    private static readonly byte[] _pngSignature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
     // A JPEG's frame header sits past any EXIF/ICC segments, so sniff a generous prefix.
-    private const int PrefixBytes = 64 * 1024;
+    private const int _prefixBytes = 64 * 1024;
 
     public static async Task<ImageSize?> TryReadFileAsync(string path, CancellationToken ct = default)
     {
@@ -19,7 +19,7 @@ public static class ImageDimensionReader
             return null;
         }
         await using FileStream stream = File.OpenRead(path);
-        byte[] head = new byte[(int)Math.Min(stream.Length, PrefixBytes)];
+        byte[] head = new byte[(int)Math.Min(stream.Length, _prefixBytes)];
         int read = await stream.ReadAtLeastAsync(head, head.Length, throwOnEndOfStream: false, ct);
         return TryRead(head.AsSpan(0, read), out int width, out int height) ? new ImageSize(width, height) : null;
     }
@@ -33,7 +33,7 @@ public static class ImageDimensionReader
     private static bool tryReadPng(ReadOnlySpan<byte> d, out int width, out int height)
     {
         width = height = 0;
-        if (d.Length < 24 || !d[..8].SequenceEqual(PngSignature)
+        if (d.Length < 24 || !d[..8].SequenceEqual(_pngSignature)
             || d[12] != 'I' || d[13] != 'H' || d[14] != 'D' || d[15] != 'R')
         {
             return false;

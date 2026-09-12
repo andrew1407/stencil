@@ -56,7 +56,7 @@ public sealed class EditingRenderTests : EditingServiceTestBase
         Assert.Equal(5, open.Thickness);
         Assert.Equal("dashed", open.Style);
         Assert.False(open.Locked);
-        Assert.Equal(LayoutLine.DefaultFillColor, open.FillColor); // open lines are never filled
+        Assert.Equal(LayoutLine.DEFAULT_FILL_COLOR, open.FillColor); // open lines are never filled
 
         await _service.AddLineAsync(UserId, [new LayoutPoint(0, 0), new LayoutPoint(10, 0), new LayoutPoint(10, 10)], closed: true);
         UserSession afterClosed = await _store.GetAsync(UserId);

@@ -27,13 +27,13 @@ public sealed partial class CommandHandlers
     {
         if (cmd.Args.Count == 0)
         {
-            await _bot.SendMessage(chatId, SourceSiteUsage, cancellationToken: ct);
+            await _bot.SendMessage(chatId, _sourceSiteUsage, cancellationToken: ct);
             return;
         }
         string url = cmd.Args[0];
         if (!tryParseScrapeArgs(url, cmd.Args, out ScrapeRequest request, out string? error))
         {
-            await _bot.SendMessage(chatId, $"{error}\n\n{SourceSiteUsage}", cancellationToken: ct);
+            await _bot.SendMessage(chatId, $"{error}\n\n{_sourceSiteUsage}", cancellationToken: ct);
             return;
         }
         // Same trust boundary as /url.
@@ -72,7 +72,7 @@ public sealed partial class CommandHandlers
             cancellationToken: ct);
     }
 
-    private const string SourceSiteUsage =
+    private const string _sourceSiteUsage =
         "Usage: /sourcesite <http(s) link> [count (default 5, 0 = all)] "
         + "[filter=img|video|background|poster] "
         + "[format=png|jpg|…] [name=<regex>] [minw=…] [maxw=…] [minh=…] [maxh=…] [group=N]\n"

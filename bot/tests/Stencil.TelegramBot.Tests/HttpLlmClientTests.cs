@@ -32,7 +32,7 @@ public sealed class HttpLlmClientTests
             CannedHttpMessageHandler.Json(
                 """{"code":"llmUpstream","message":"the LLM provider is out of credits or has no active billing"}""",
                 HttpStatusCode.BadGateway));
-        HttpLlmClient client = Client(handler, new LlmOptions { Provider = LlmOptions.ProviderStencilServer });
+        HttpLlmClient client = Client(handler, new LlmOptions { Provider = LlmOptions.PROVIDER_STENCIL_SERVER });
 
         LlmException ex = await Assert.ThrowsAsync<LlmException>(() =>
             client.ChatAsync(Request(serverUrl: "http://h:8090", serverToken: "t")));
@@ -63,7 +63,7 @@ public sealed class HttpLlmClientTests
     public void ProviderProseIsHardTruncated()
     {
         string cut = HttpLlmClient.SanitizeProviderText(string.Concat(Enumerable.Repeat("the model is very busy right now. ", 30)));
-        Assert.True(cut.Length <= HttpLlmClient.MaxProviderDetail);
+        Assert.True(cut.Length <= HttpLlmClient.MAX_PROVIDER_DETAIL);
         Assert.EndsWith("…", cut);
     }
 

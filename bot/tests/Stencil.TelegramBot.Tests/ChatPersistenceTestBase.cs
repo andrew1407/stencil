@@ -105,6 +105,6 @@ public abstract class ChatPersistenceTestBase : IDisposable
     }
 
     protected IEnumerable<(string Id, string Kind, byte[] Data, string Ext, int W, int H)> ChatPuts =>
-        ServerClient.Puts.Where(p => p.Kind == ProjectFileKind.Chat);
+        ServerClient.Puts.Where(p => p.Kind == ProjectFileKind.CHAT);
 
 }

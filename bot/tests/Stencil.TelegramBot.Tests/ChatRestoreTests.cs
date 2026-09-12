@@ -18,7 +18,7 @@ public sealed class ChatRestoreTests : ChatPersistenceTestBase
     [Fact]
     public async Task FetchWithSavingOnSeedsTheHistoryFromTheStoredDocument()
     {
-        ServerClient.Files[(ProjectId, ProjectFileKind.Chat)] = Encoding.UTF8.GetBytes(
+        ServerClient.Files[(ProjectId, ProjectFileKind.CHAT)] = Encoding.UTF8.GetBytes(
             """
             {"version":1,"savedAt":1753900000000,"messages":[
               {"role":"user","text":"crop 10% off the left"},
@@ -34,9 +34,9 @@ public sealed class ChatRestoreTests : ChatPersistenceTestBase
 
         LlmChatRequest request = _llm.Requests[^1];
         Assert.Equal(3, request.Messages.Count);
-        Assert.Equal(LlmMessage.RoleUser, request.Messages[0].Role);
+        Assert.Equal(LlmMessage.ROLE_USER, request.Messages[0].Role);
         Assert.Equal("crop 10% off the left", request.Messages[0].Text);
-        Assert.Equal(LlmMessage.RoleAssistant, request.Messages[1].Role);
+        Assert.Equal(LlmMessage.ROLE_ASSISTANT, request.Messages[1].Role);
         Assert.Equal("Done — anything else?", request.Messages[1].Text);
         Assert.Equal("what did we do so far?", request.Messages[2].Text);
     }
@@ -55,7 +55,7 @@ public sealed class ChatRestoreTests : ChatPersistenceTestBase
     [Fact]
     public async Task WithSavingOffNoServerFileCallEverHappens()
     {
-        ServerClient.Files[(ProjectId, ProjectFileKind.Chat)] = Encoding.UTF8.GetBytes(
+        ServerClient.Files[(ProjectId, ProjectFileKind.CHAT)] = Encoding.UTF8.GetBytes(
             """{"version":1,"messages":[{"role":"user","text":"old"}]}""");
 
         await OpenProjectAsync();               // SaveChats defaults off
@@ -68,7 +68,7 @@ public sealed class ChatRestoreTests : ChatPersistenceTestBase
         Assert.Empty(ServerClient.FileDeletes);
         // The stored chat was not loaded either: the next turn starts fresh.
         await Send("/prompt hi");
-        Assert.Single(_llm.Requests[^1].Messages, m => m.Role == LlmMessage.RoleUser && m.Text == "hi");
+        Assert.Single(_llm.Requests[^1].Messages, m => m.Role == LlmMessage.ROLE_USER && m.Text == "hi");
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public sealed class ChatRestoreTests : ChatPersistenceTestBase
     {
         await OpenProjectAsync();
         await Send("/chat save on");
-        ServerClient.ThrowOnPutKind = ProjectFileKind.Chat;
+        ServerClient.ThrowOnPutKind = ProjectFileKind.CHAT;
 
         await Send("/prompt one");
         await Send("/prompt two");

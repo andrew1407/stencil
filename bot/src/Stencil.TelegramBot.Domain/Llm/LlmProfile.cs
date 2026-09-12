@@ -14,7 +14,7 @@ public sealed record LlmProfile
     public string Summary()
     {
         string model = Options.Model.Length > 0 ? Options.Model : "default model";
-        string where = Options.Provider == LlmOptions.ProviderStencilServer
+        string where = Options.Provider == LlmOptions.PROVIDER_STENCIL_SERVER
             ? Options.ServerUrl ?? "your connected server"
             : Options.BaseUrl;
         return $"{Options.Provider} · {model} · {where}";

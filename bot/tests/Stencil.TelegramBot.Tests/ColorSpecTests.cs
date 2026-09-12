@@ -18,7 +18,7 @@ namespace Stencil.TelegramBot.Tests;
 /// </summary>
 public sealed class ColorSpecTests : IDisposable
 {
-    private const long UserId = 31;
+    private const long _userId = 31;
 
     private readonly string _dataDir;
     private readonly MockStencilCli _cli = new();
@@ -86,22 +86,22 @@ public sealed class ColorSpecTests : IDisposable
     public async Task PenColourRefusesAnUnknownColour()
     {
         InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _editing.ConfigurePenAsync(UserId, color: "puce", thickness: null, pointSize: null, style: null, fill: null));
+            _editing.ConfigurePenAsync(_userId, color: "puce", thickness: null, pointSize: null, style: null, fill: null));
 
         Assert.Contains("puce", ex.Message);
-        Assert.Equal(LayoutLine.DefaultColor, (await _store.GetAsync(UserId, CancellationToken.None)).Edits.Pen.Color);
+        Assert.Equal(LayoutLine.DEFAULT_COLOR, (await _store.GetAsync(_userId, CancellationToken.None)).Edits.Pen.Color);
     }
 
     [Fact]
     public async Task PenFillRefusesAnUnknownColour() =>
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            _editing.ConfigurePenAsync(UserId, color: null, thickness: null, pointSize: null, style: null, fill: "puce"));
+            _editing.ConfigurePenAsync(_userId, color: null, thickness: null, pointSize: null, style: null, fill: "puce"));
 
     [Fact]
     public async Task PenFillStillClearsWithNone()
     {
-        await _editing.ConfigurePenAsync(UserId, color: "#00ff00", thickness: null, pointSize: null, style: null, fill: "none");
+        await _editing.ConfigurePenAsync(_userId, color: "#00ff00", thickness: null, pointSize: null, style: null, fill: "none");
 
-        Assert.Equal("transparent", (await _store.GetAsync(UserId, CancellationToken.None)).Edits.Pen.FillColor);
+        Assert.Equal("transparent", (await _store.GetAsync(_userId, CancellationToken.None)).Edits.Pen.FillColor);
     }
 }

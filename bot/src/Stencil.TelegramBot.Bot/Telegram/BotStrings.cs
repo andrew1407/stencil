@@ -7,9 +7,9 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 // wording lives there.
 public static class BotStrings
 {
-    private const string ResourceName = "Stencil.TelegramBot.Bot.Assets.botStrings.json";
+    private const string _resourceName = "Stencil.TelegramBot.Bot.Assets.botStrings.json";
 
-    private static readonly Lazy<Loaded> Asset = new(load);
+    private static readonly Lazy<Loaded> _asset = new(load);
 
     private sealed record Loaded(
         IReadOnlyDictionary<string, string> Replies,
@@ -18,19 +18,19 @@ public static class BotStrings
         IReadOnlyDictionary<string, (string Label, string Token)> Buttons);
 
     public static string Reply(string key) =>
-        Asset.Value.Replies.TryGetValue(key, out string? text)
+        _asset.Value.Replies.TryGetValue(key, out string? text)
             ? text
             : throw new InvalidOperationException($"botStrings.json has no reply '{key}'");
 
     public static string Reply(string key, params object?[] args) => string.Format(Reply(key), args);
 
-    public static string Tone(string name) => Asset.Value.Tones[name];
+    public static string Tone(string name) => _asset.Value.Tones[name];
 
-    public static string Mark(string name) => Asset.Value.Marks[name];
+    public static string Mark(string name) => _asset.Value.Marks[name];
 
     public static InlineKeyboardButton Button(string id)
     {
-        (string label, string token) = Asset.Value.Buttons.TryGetValue(id, out var b)
+        (string label, string token) = _asset.Value.Buttons.TryGetValue(id, out var b)
             ? b
             : throw new InvalidOperationException($"botStrings.json has no button '{id}'");
         return InlineKeyboardButton.WithCallbackData(label, token);
@@ -38,8 +38,8 @@ public static class BotStrings
 
     private static Loaded load()
     {
-        using Stream stream = typeof(BotStrings).Assembly.GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidOperationException($"embedded resource {ResourceName} is missing");
+        using Stream stream = typeof(BotStrings).Assembly.GetManifestResourceStream(_resourceName)
+            ?? throw new InvalidOperationException($"embedded resource {_resourceName} is missing");
         using JsonDocument doc = JsonDocument.Parse(stream);
         Dictionary<string, (string, string)> buttons = new(StringComparer.Ordinal);
         foreach (JsonProperty entry in doc.RootElement.GetProperty("buttons").EnumerateObject())

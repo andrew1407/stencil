@@ -4,13 +4,13 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Application.Llm;
 
-// §7 attachments: accepted media types only; anything over LlmImage.MaxLongEdgePixels is downscaled
+// §7 attachments: accepted media types only; anything over LlmImage.MAX_LONG_EDGE_PIXELS is downscaled
 // (shrink-only PNG) via IImageDownscaler, and a failed downscale degrades to the original up to
 // MaxOriginalBytes. Attachments are memoised per path on (mtime, length): chat mode re-attaches the
 // same image every turn.
 public sealed class LlmAttachmentLoader
 {
-    private static readonly Dictionary<string, string> MediaTypes = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> _mediaTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         [".png"] = "image/png",
         [".jpg"] = "image/jpeg",
@@ -20,13 +20,13 @@ public sealed class LlmAttachmentLoader
     };
 
     // A JPEG SOF can trail sizeable EXIF/ICC segments; 64 KB covers every §7 format.
-    private const int SniffPrefixBytes = 64 * 1024;
+    private const int _sniffPrefixBytes = 64 * 1024;
 
     // Base64 payloads are big, so the cache is simply cleared when full.
-    private const int MaxCachedImages = 16;
+    private const int _maxCachedImages = 16;
 
     /// <summary>Ceiling on an attachment sent WITHOUT downscaling, matching cli/mcp's threshold.</summary>
-    private const long MaxOriginalBytes = 8L * 1024 * 1024;
+    private const long _maxOriginalBytes = 8L * 1024 * 1024;
 
     private sealed record CachedImage(long LastWriteTicks, long Length, LlmImage Image);
 
@@ -40,7 +40,7 @@ public sealed class LlmAttachmentLoader
 
     public async Task<LlmImage?> LoadAsync(string? path, CancellationToken ct = default)
     {
-        if (path is null || !MediaTypes.TryGetValue(Path.GetExtension(path), out string? mediaType))
+        if (path is null || !_mediaTypes.TryGetValue(Path.GetExtension(path), out string? mediaType))
         {
             return null;
         }
@@ -61,7 +61,7 @@ public sealed class LlmAttachmentLoader
         {
             return null;   // too large to send as-is; not cached, so a retry re-tries the scaler
         }
-        if (_cache.Count >= MaxCachedImages)
+        if (_cache.Count >= _maxCachedImages)
         {
             _cache.Clear();
         }
@@ -71,9 +71,9 @@ public sealed class LlmAttachmentLoader
 
     private async Task<LlmImage?> buildAsync(string path, string mediaType, long length, CancellationToken ct)
     {
-        byte[] prefix = await readPrefixAsync(path, (int)Math.Min(length, SniffPrefixBytes), ct);
+        byte[] prefix = await readPrefixAsync(path, (int)Math.Min(length, _sniffPrefixBytes), ct);
         if (ImageDimensionReader.TryRead(prefix, out int width, out int height)
-            && Math.Max(width, height) <= LlmImage.MaxLongEdgePixels)
+            && Math.Max(width, height) <= LlmImage.MAX_LONG_EDGE_PIXELS)
         {
             byte[] bytes = prefix.LongLength == length
                 ? prefix
@@ -81,14 +81,14 @@ public sealed class LlmAttachmentLoader
             return new LlmImage(mediaType, Convert.ToBase64String(bytes));
         }
         // Oversized, or a header we couldn't read (a shrink-only pass is a no-op at worst).
-        byte[]? scaled = await _downscaler.DownscaleToPngAsync(path, LlmImage.MaxLongEdgePixels, ct);
+        byte[]? scaled = await _downscaler.DownscaleToPngAsync(path, LlmImage.MAX_LONG_EDGE_PIXELS, ct);
         if (scaled is not null)
         {
             return new LlmImage("image/png", Convert.ToBase64String(scaled));
         }
         // Past MaxOriginalBytes (base64 inflates by a third) a text-only turn beats uploading
         // megabytes.
-        if (length > MaxOriginalBytes)
+        if (length > _maxOriginalBytes)
         {
             return null;
         }

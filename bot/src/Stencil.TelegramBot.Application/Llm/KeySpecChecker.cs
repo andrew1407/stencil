@@ -9,15 +9,15 @@ namespace Stencil.TelegramBot.Application.Llm;
 // The per-VALUE half of the registry's rules; cross-field presence is PresenceRules' job.
 internal sealed class KeySpecChecker
 {
-    private readonly JsonElement limits;
-    private readonly JsonElement describe;
-    private readonly IReadOnlyDictionary<string, Regex> regexes;
+    private readonly JsonElement _limits;
+    private readonly JsonElement _describe;
+    private readonly IReadOnlyDictionary<string, Regex> _regexes;
 
     public KeySpecChecker(SchemaLoader loader)
     {
-        limits = loader.Limits;
-        describe = loader.Describe;
-        regexes = loader.Regexes;
+        _limits = loader.Limits;
+        _describe = loader.Describe;
+        _regexes = loader.Regexes;
     }
 
     public int Limit(JsonElement v) =>
@@ -25,7 +25,7 @@ internal sealed class KeySpecChecker
 
     public int Limit(string name)
     {
-        JsonElement at = limits;
+        JsonElement at = _limits;
         foreach (string part in name.Split('.'))
         {
             if (at.ValueKind != JsonValueKind.Object || !at.TryGetProperty(part, out at))
@@ -37,7 +37,7 @@ internal sealed class KeySpecChecker
     }
 
     private string describeRegex(string name) =>
-        describe.TryGetProperty(name, out JsonElement d) ? d.GetString()! : name;
+        _describe.TryGetProperty(name, out JsonElement d) ? d.GetString()! : name;
 
     public void CheckValue(JsonElement v, JsonElement spec, SchemaPath path, JsonElement? parent)
     {
@@ -97,11 +97,11 @@ internal sealed class KeySpecChecker
                 names.Add(mapped.GetString()!);
             }
         }
-        if (names.Count > 0 && !names.Any(n => regexes[n].IsMatch(s)))
+        if (names.Count > 0 && !names.Any(n => _regexes[n].IsMatch(s)))
         {
             throw Bad($"{Label(path)} must be {string.Join(" or ", names.Select(describeRegex))}");
         }
-        if (spec.TryGetProperty("regexNot", out JsonElement not) && regexes[not.GetString()!].IsMatch(s))
+        if (spec.TryGetProperty("regexNot", out JsonElement not) && _regexes[not.GetString()!].IsMatch(s))
         {
             throw Bad($"{Label(path)} must be a local value, not {describeRegex(not.GetString()!)}");
         }

@@ -4,7 +4,7 @@ public sealed partial class CommandHandlers
 {
     // Aliases live in botCommands.json (BotCommands.Canonical); a verb with no arm falls back to a
     // /help hint.
-    private static readonly Dictionary<string, Route> Routes = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, Route> _routes = new(StringComparer.Ordinal)
     {
         ["start"] = (h, u, c, cmd, ct) => h.startAsync(u, c, cmd, ct),
         ["help"] = (h, u, c, cmd, ct) => h.helpAsync(c, ct),
@@ -62,10 +62,10 @@ public sealed partial class CommandHandlers
     private delegate Task Route(CommandHandlers handlers, long userId, long chatId, BotCommand cmd, CancellationToken ct);
 
     // The drift test's view of the table.
-    public static IReadOnlyCollection<string> HandledVerbs => Routes.Keys;
+    public static IReadOnlyCollection<string> HandledVerbs => _routes.Keys;
 
     public Task DispatchAsync(long userId, long chatId, BotCommand cmd, CancellationToken ct) =>
-        Routes.TryGetValue(BotCommands.Canonical(cmd.Verb), out Route? route)
+        _routes.TryGetValue(BotCommands.Canonical(cmd.Verb), out Route? route)
             ? route(this, userId, chatId, cmd, ct)
             : unknownAsync(chatId, ct);
 }

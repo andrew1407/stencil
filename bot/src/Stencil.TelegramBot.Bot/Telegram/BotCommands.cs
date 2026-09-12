@@ -9,27 +9,27 @@ public sealed record CommandDescriptor(string Verb, string? Menu, IReadOnlyList<
 // tables.
 public static class BotCommands
 {
-    private const string ResourceName = "Stencil.TelegramBot.Bot.Assets.botCommands.json";
+    private const string _resourceName = "Stencil.TelegramBot.Bot.Assets.botCommands.json";
 
-    private static readonly Lazy<Loaded> Asset = new(load);
+    private static readonly Lazy<Loaded> _asset = new(load);
 
     private sealed record Loaded(
         IReadOnlyList<CommandDescriptor> Commands,
         IReadOnlyDictionary<string, string> Canonical,
         string Help);
 
-    public static IReadOnlyList<CommandDescriptor> All => Asset.Value.Commands;
+    public static IReadOnlyList<CommandDescriptor> All => _asset.Value.Commands;
 
-    public static string HelpText => Asset.Value.Help;
+    public static string HelpText => _asset.Value.Help;
 
     // Empty when nothing owns the verb — which the dispatch switch answers with /help.
     public static string Canonical(string verb) =>
-        Asset.Value.Canonical.TryGetValue(verb, out string? canonical) ? canonical : "";
+        _asset.Value.Canonical.TryGetValue(verb, out string? canonical) ? canonical : "";
 
     private static Loaded load()
     {
-        using Stream stream = typeof(BotCommands).Assembly.GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidOperationException($"embedded resource {ResourceName} is missing");
+        using Stream stream = typeof(BotCommands).Assembly.GetManifestResourceStream(_resourceName)
+            ?? throw new InvalidOperationException($"embedded resource {_resourceName} is missing");
         using JsonDocument doc = JsonDocument.Parse(stream);
         List<CommandDescriptor> commands = [];
         Dictionary<string, string> canonical = new(StringComparer.Ordinal);

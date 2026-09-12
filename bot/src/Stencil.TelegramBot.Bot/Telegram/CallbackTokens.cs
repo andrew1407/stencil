@@ -4,7 +4,7 @@ namespace Stencil.TelegramBot.Bot.Telegram;
 // verbs.
 internal static class CallbackTokens
 {
-    private static readonly IReadOnlyDictionary<string, (string Verb, string Args)> Table =
+    private static readonly IReadOnlyDictionary<string, (string Verb, string Args)> _table =
         new Dictionary<string, (string, string)>(StringComparer.Ordinal)
         {
             ["rot90"] = ("rotate", "1"),
@@ -37,12 +37,12 @@ internal static class CallbackTokens
             ["del:confirm"] = ("delete", "confirm"),
         };
 
-    private const string FetchPrefix = "fetch:";
+    private const string _fetchPrefix = "fetch:";
 
     // A verb the table names must exist in the command asset — a typo fails at startup.
     static CallbackTokens()
     {
-        string[] unknown = [.. Table.Values.Select(static v => v.Verb).Append("fetch")
+        string[] unknown = [.. _table.Values.Select(static v => v.Verb).Append("fetch")
             .Where(static verb => BotCommands.Canonical(verb).Length == 0)
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
         if (unknown.Length > 0)
@@ -54,12 +54,12 @@ internal static class CallbackTokens
 
     public static BotCommand Map(string data)
     {
-        if (data.StartsWith(FetchPrefix, StringComparison.Ordinal))
+        if (data.StartsWith(_fetchPrefix, StringComparison.Ordinal))
         {
-            string id = data[FetchPrefix.Length..];
+            string id = data[_fetchPrefix.Length..];
             return new BotCommand("fetch", id, [id]);
         }
-        (string Verb, string Args) mapped = Table.TryGetValue(data, out (string, string) hit) ? hit : (data, "");
+        (string Verb, string Args) mapped = _table.TryGetValue(data, out (string, string) hit) ? hit : (data, "");
         return new BotCommand(
             mapped.Verb, mapped.Args, mapped.Args.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }

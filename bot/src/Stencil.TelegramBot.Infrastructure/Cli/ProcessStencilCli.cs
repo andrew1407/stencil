@@ -113,13 +113,13 @@ public sealed class ProcessStencilCli : IStencilCli
         {
             string bin = StencilCliLocator.FindCli(_options.CliPath);
             ProcessOutcome outcome = await ProcessRunner
-                .RunAsync(bin, argv, _options.CliTimeout, ct, NoColor, workingDirectory)
+                .RunAsync(bin, argv, _options.CliTimeout, ct, _noColor, workingDirectory)
                 .ConfigureAwait(false);
             return outcome switch
             {
                 ProcessCompleted completed => new CliOutput(completed.ExitCode == 0, completed.Stderr),
                 ProcessStartFailed failed => throw StencilCliException.Deployment(
-                    StencilCliLocator.UnavailableMessage,
+                    StencilCliLocator.UNAVAILABLE_MESSAGE,
                     $"failed to run the stencil CLI ({bin}): {failed.Message}"),
                 _ => throw new StencilCliException(
                     $"the stencil CLI timed out after {_options.CliTimeout.TotalSeconds:0}s and was terminated"),
@@ -132,7 +132,7 @@ public sealed class ProcessStencilCli : IStencilCli
     }
 
     // The CLI prints ANSI-coloured errors unless told not to.
-    private static readonly IReadOnlyDictionary<string, string> NoColor =
+    private static readonly IReadOnlyDictionary<string, string> _noColor =
         new Dictionary<string, string> { ["NO_COLOR"] = "1" };
 
     private readonly record struct CliOutput(bool Success, string Stderr);
