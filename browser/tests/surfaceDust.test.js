@@ -36,7 +36,6 @@ const baseJs = modalShellSource();
 const chatPanelJs = read('../js/ui/chatPanel.js');
 const confirmJs = read('../js/ui/confirmModal.js');
 const ctxJs = contextMenuSource();
-const projectsJs = read('../js/ui/projectsModal.js');
 const rowMenuJs = read('../js/ui/projectRowMenu.js');
 const chatViewJs = chatViewSource();
 const llmSettingsJs = read('../js/ui/llmSettingsModal.js');
