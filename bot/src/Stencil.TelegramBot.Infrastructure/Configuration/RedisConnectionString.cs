@@ -3,33 +3,18 @@ using StackExchange.Redis;
 
 namespace Stencil.TelegramBot.Infrastructure.Configuration;
 
-/// <summary>
-/// Turns whatever <c>REDIS_URL</c> holds into StackExchange.Redis options.
-/// </summary>
-/// <remarks>
-/// Two forms are accepted: the <c>redis://[user:password@]host[:port][/db]</c> URL that
-/// <c>bot/.env.example</c> documents (and that the Go server, pystencil and every hosted Redis
-/// hand out), and StackExchange's own <c>host:port,option=value</c> configuration string.
-/// Only the second is native — passing a URL straight to <c>ConnectionMultiplexer.Connect</c>
-/// throws at startup, so the documented URL form has to be translated here.
-/// <para>
-/// The URL's parts are set on the options object rather than spliced into a configuration
-/// string, so a password containing a <c>,</c> or <c>=</c> survives intact. Percent-escapes in
-/// the userinfo are decoded (that is how such a password must be written in a URL).
-/// </para>
-/// </remarks>
+// Accepts the redis://[user:password@]host[:port][/db] URL that .env.example documents and
+// StackExchange's own host:port,option=value string; only the second is native, so the URL is
+// translated here. Parts are set on the options object, not spliced into a string, so a password
+// holding , or = survives; userinfo is percent-decoded.
 public static class RedisConnectionString
 {
-    /// <summary>Redis's default port, used when the URL names none.</summary>
     public const int DefaultPort = 6379;
 
     private const string PlainScheme = "redis://";
     private const string TlsScheme = "rediss://";
 
-    /// <exception cref="ArgumentException">
-    /// The value is neither a valid <c>redis(s)://</c> URL nor a valid configuration string. The
-    /// message never quotes the value — it may carry a password.
-    /// </exception>
+    // The ArgumentException message never quotes the value — it may carry a password.
     public static ConfigurationOptions Parse(string value)
     {
         string raw = value.Trim();
@@ -54,7 +39,6 @@ public static class RedisConnectionString
         return options;
     }
 
-    /// <summary>StackExchange's own syntax, with its parse failure reported like ours.</summary>
     private static ConfigurationOptions Native(string raw)
     {
         try
@@ -67,7 +51,6 @@ public static class RedisConnectionString
         }
     }
 
-    /// <summary>Split <c>user:password</c> (either half may be empty) onto the options.</summary>
     private static void ApplyUserInfo(ConfigurationOptions options, string userInfo)
     {
         if (userInfo.Length == 0)

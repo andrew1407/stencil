@@ -3,11 +3,7 @@ using Stencil.TelegramBot.Infrastructure.Configuration;
 
 namespace Stencil.TelegramBot.Infrastructure.Workspace;
 
-/// <summary>
-/// Owns the on-disk scratch area for each user's working images, under the configured
-/// <see cref="BotOptions.DataDir"/>. Each user gets a sub-directory <c>&lt;DataDir&gt;/&lt;userId&gt;</c>;
-/// files are named with a fresh GUID so writes never collide.
-/// </summary>
+// <DataDir>/<userId>, files named with a fresh GUID so writes never collide.
 public sealed class UserWorkspace : IUserWorkspace
 {
     private readonly BotOptions _options;
@@ -17,7 +13,6 @@ public sealed class UserWorkspace : IUserWorkspace
         _options = options;
     }
 
-    /// <summary>The directory that holds this user's files, created on demand.</summary>
     public string DirectoryFor(long userId)
     {
         string dir = Path.Combine(_options.DataDir, userId.ToString());
@@ -51,11 +46,9 @@ public sealed class UserWorkspace : IUserWorkspace
         }
         catch (DirectoryNotFoundException)
         {
-            // Already gone — nothing to clear.
         }
     }
 
-    /// <inheritdoc />
     public IEnumerable<long> ActiveUserIds()
     {
         if (!Directory.Exists(_options.DataDir))
@@ -71,7 +64,6 @@ public sealed class UserWorkspace : IUserWorkspace
         }
     }
 
-    /// <inheritdoc />
     public int PruneStale(long userId, IReadOnlyCollection<string> keep, DateTime cutoffUtc)
     {
         string dir = Path.Combine(_options.DataDir, userId.ToString());
@@ -81,8 +73,8 @@ public sealed class UserWorkspace : IUserWorkspace
         }
         HashSet<string> kept = new(keep.Select(NormalizePath), StringComparer.Ordinal);
         int deleted = 0;
-        // Recurse: scrape mode writes into a nested `scrape-<guid>/` subdir, so a top-level-only
-        // sweep would never reap it and it would grow without bound (disk exhaustion).
+        // Recurse: scrape mode writes into a nested scrape-<guid>/ subdir that a top-level sweep
+        // would never reap.
         foreach (string file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
         {
             if (kept.Contains(NormalizePath(file)))
@@ -100,7 +92,7 @@ public sealed class UserWorkspace : IUserWorkspace
             }
             catch
             {
-                // Best effort — a file we couldn't delete this pass is retried next sweep.
+                // Retried next sweep.
             }
         }
         RemoveEmptyDescendants(dir);
@@ -108,13 +100,11 @@ public sealed class UserWorkspace : IUserWorkspace
         return deleted;
     }
 
-    /// <summary>Remove now-empty nested sub-directories (deepest first) left behind after a
-    /// sweep — e.g. an emptied <c>scrape-&lt;guid&gt;/</c> — so they don't keep the user dir alive.</summary>
+    // Deepest first, so an emptied scrape-<guid>/ doesn't keep the user dir alive.
     private static void RemoveEmptyDescendants(string root)
     {
         try
         {
-            // Deepest paths first so a child is gone before we test its parent for emptiness.
             foreach (string sub in Directory
                          .EnumerateDirectories(root, "*", SearchOption.AllDirectories)
                          .OrderByDescending(p => p.Length))
@@ -124,14 +114,11 @@ public sealed class UserWorkspace : IUserWorkspace
         }
         catch
         {
-            // Best effort — retried next sweep.
         }
     }
 
-    /// <summary>Canonicalise a path for reference comparison (absolute, OS-native separators).</summary>
     private static string NormalizePath(string path) => Path.GetFullPath(path);
 
-    /// <summary>Remove a now-empty user directory so abandoned users leave nothing behind.</summary>
     private static void TryRemoveIfEmpty(string dir)
     {
         try
@@ -143,11 +130,9 @@ public sealed class UserWorkspace : IUserWorkspace
         }
         catch
         {
-            // Harmless — a directory we couldn't remove is retried next sweep.
         }
     }
 
-    /// <summary>Normalise an extension to a leading-dot form (<c>png</c> → <c>.png</c>); blank ⇒ none.</summary>
     private static string NormalizeExtension(string extension)
     {
         if (string.IsNullOrWhiteSpace(extension))

@@ -3,9 +3,8 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Infrastructure.Configuration;
 
-// Process-wide configuration read from the environment, like the other adapters (mcp's
-// STENCIL_CLI override, pystencil's server/TLS knobs). Plain data: injected as a singleton.
-// FromEnvironment at the bottom is the property -> env key map.
+// Read from the environment like the other adapters; FromEnvironment at the bottom is the property
+// -> env key map.
 public sealed record BotOptions : IBotPolicy
 {
     public string BotToken { get; init; } = "";
@@ -20,25 +19,22 @@ public sealed record BotOptions : IBotPolicy
 
     public bool TlsInsecure { get; init; }
 
-    // What /link builds hand-off links from, through launch.html. A bot link is tapped on
-    // someone ELSE's machine, so an operator normally wants a public address here.
+    // A bot link is tapped on someone ELSE's machine, so an operator normally wants a public
+    // address.
     public string BrowserAppUrl { get; init; } = DefaultBrowserAppUrl;
 
     // Each edit/probe is its own OS process. Values below 1 clamp up to 1.
     public int MaxConcurrentCli { get; init; } = DefaultMaxConcurrentCli;
 
-    // Each call can run for minutes holding image payloads, so a full gate answers "busy"
-    // rather than queueing. 0 = unlimited.
+    // A full gate answers "busy" rather than queueing (calls run for minutes holding images). 0 =
+    // unlimited.
     public int MaxConcurrentLlm { get; init; } = DefaultMaxConcurrentLlm;
 
-    // Bounds how long a hung server blocks a handler.
     public TimeSpan ServerHttpTimeout { get; init; } = TimeSpan.FromSeconds(DefaultHttpTimeoutSeconds);
 
-    // Bounds memory/disk against a file downloaded from Telegram.
     public long MaxDownloadBytes { get; init; } = (long)DefaultMaxDownloadMb * 1024 * 1024;
 
-    // A NON-image upload (a layout .json / .stencil project) is parsed WHOLE, hence the far
-    // tighter cap — or MaxDownloadBytes when that is smaller.
+    // A NON-image upload is parsed WHOLE, hence the far tighter cap.
     public long MaxDocumentBytes => Math.Min(MaxDownloadBytes, (long)DefaultMaxDocumentMb * 1024 * 1024);
 
     // Without it a slow host could pin a scarce MaxConcurrentCli slot forever.
@@ -60,8 +56,7 @@ public sealed record BotOptions : IBotPolicy
     public LlmProfile? FindProfile(string? name) =>
         name is null ? null : LlmProfiles.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
 
-    // A comma/space-separated list. Empty = OFF for everyone: every command spends the
-    // operator's resources, so the bot fails closed and a stranger gets only /start and /help.
+    // Empty = OFF for everyone: the bot fails closed and a stranger gets only /start and /help.
     public IReadOnlySet<long> AllowedUsers { get; init; } = new HashSet<long>();
 
     public bool AllowedFor(long userId) => AllowedUsers.Contains(userId);

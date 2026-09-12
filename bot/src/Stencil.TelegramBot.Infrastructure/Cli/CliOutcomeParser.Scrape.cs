@@ -2,17 +2,11 @@ using Stencil.TelegramBot.Domain.Editing;
 
 namespace Stencil.TelegramBot.Infrastructure.Cli;
 
-// CliOutcomeParser — the `--source-site` scrape run's stderr. Class doc lives in
-// CliOutcomeParser.cs.
 public static partial class CliOutcomeParser
 {
-    /// <summary>
-    /// The multi-file stderr of a source-site scrape (DESIGN source-site contract §3): each
-    /// <c>wrote …</c> line is one downloaded file (dims null when the leading token isn't WxH — a
-    /// video/unmeasured line), and the trailing <c>scraped … into {dir}</c> line gives the
-    /// destination. Pinned by <c>cli/testdata/scrape_fixtures.json</c>, op-for-op with mcp's
-    /// <c>parse_scraped</c>.
-    /// </summary>
+    // Source-site contract §3: each `wrote …` line is one file (dims null when the leading token
+    // isn't WxH), the trailing `scraped … into {dir}` line the destination. Pinned by
+    // cli/testdata/scrape_fixtures.json, like mcp's parse_scraped.
     public static ScrapeResult ParseScraped(string stderr)
     {
         List<ScrapedFile> files = new();
@@ -49,7 +43,8 @@ public static partial class CliOutcomeParser
             }
             else if (line.StartsWith(PrefixScraped, StringComparison.Ordinal))
             {
-                // `scraped {n} file(s) from {host} into {dir}` — rfind, a path may contain " into ".
+                // `scraped {n} file(s) from {host} into {dir}` — rfind, a path may contain " into
+                // ".
                 int into = line.LastIndexOf(IntoToken, StringComparison.Ordinal);
                 if (into >= 0)
                 {

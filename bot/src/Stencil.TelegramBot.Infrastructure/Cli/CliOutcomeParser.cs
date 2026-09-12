@@ -2,21 +2,13 @@ using Stencil.TelegramBot.Domain.Editing;
 
 namespace Stencil.TelegramBot.Infrastructure.Cli;
 
-/// <summary>
-/// Parse the CLI's human-readable stderr into structured results. A faithful port of
-/// <c>mcp/src/outcome.rs</c> (the output contract in <c>cli/CONTRACT.md</c> §2), op-for-op, so the
-/// shared fixtures (<c>cli/testdata/outcome_fixtures.json</c>) pass identically on both sides.
-/// </summary>
-/// <remarks>
-/// The CLI writes everything to <b>stderr</b> (stdout stays empty; the result is a written file):
-/// on success one <c>wrote {path} ({w}x{h} px · {page})</c> line — or <c>wrote {path} (project)</c>
-/// for a <c>.stencil</c> bundle — on failure one or more <c>error: …</c> lines, plus the
-/// server-delivery lines. The child runs with <c>NO_COLOR=1</c>, so the text carries no ANSI.
-/// </remarks>
+// A port of mcp/src/outcome.rs over the cli/CONTRACT.md §2 stderr contract, op-for-op, so the
+// shared cli/testdata/outcome_fixtures.json pass identically. Stdout stays empty; success is one
+// `wrote {path} ({w}x{h} px · {page})` (or `(project)`) line, failure `error: …` lines. NO_COLOR=1
+// keeps ANSI out.
 public static partial class CliOutcomeParser
 {
-    // ── CLI output line prefixes ──
-    // The exact stderr prefixes the CLI emits — the .NET peer of mcp's PREFIX_* consts.
+    // The exact stderr prefixes the CLI emits — the peer of mcp's PREFIX_* consts.
     private const string PrefixWrote = "wrote ";
     private const string PrefixUpdated = "updated server result for project ";
     private const string PrefixCreated = "created server project ";
@@ -25,10 +17,7 @@ public static partial class CliOutcomeParser
     private const string PrefixScraped = "scraped ";
     private const string IntoToken = " into ";
 
-    /// <summary>
-    /// The <c>wrote {path} ({w}x{h} …)</c> line, or null. Reverse-searches <c>" ("</c> so a path
-    /// containing it still parses; mirrors <c>parse_wrote</c> in <c>mcp/src/outcome.rs</c>.
-    /// </summary>
+    // Reverse-searches " (" so a path containing it still parses; mirrors mcp's parse_wrote.
     public static RenderResult? ParseWrote(string stderr)
     {
         foreach (string rawLine in SplitLines(stderr))
@@ -39,7 +28,6 @@ public static partial class CliOutcomeParser
                 continue;
             }
             string rest = line[PrefixWrote.Length..];
-            // Split off the trailing " (WxH …)" — rfind so paths containing " (" still work.
             int open = rest.LastIndexOf(" (", StringComparison.Ordinal);
             if (open < 0)
             {
@@ -66,11 +54,7 @@ public static partial class CliOutcomeParser
         return null;
     }
 
-    /// <summary>
-    /// The <c>wrote {path} (project)</c> line a <c>.stencil</c> bundle write prints (contract §2.1
-    /// <c>save</c>), or null. A project is a document, so the CLI reports no dimensions — which is
-    /// why <see cref="ParseWrote"/> skips it. Mirrors <c>parse_wrote_project</c> in mcp.
-    /// </summary>
+    // A project is a document, so the CLI reports no dimensions (which is why ParseWrote skips it).
     public static string? ParseWroteProject(string stderr)
     {
         foreach (string rawLine in SplitLines(stderr))
@@ -85,10 +69,7 @@ public static partial class CliOutcomeParser
         return null;
     }
 
-    /// <summary>
-    /// Every collaboration-server delivery line the CLI prints after a write, in order (one call
-    /// can both update and create) — mirroring <c>parse_remotes</c> in <c>mcp/src/outcome.rs</c>.
-    /// </summary>
+    // In order — one call can both update and create; mirrors mcp's parse_remotes.
     public static IReadOnlyList<RemoteDelivery> ParseRemotes(string stderr)
     {
         List<RemoteDelivery> result = new();
@@ -138,10 +119,7 @@ public static partial class CliOutcomeParser
         return result;
     }
 
-    /// <summary>
-    /// The <c>error: …</c> line(s), else the whole trimmed stderr, else a generic message —
-    /// mirroring <c>extract_errors</c> in <c>mcp/src/outcome.rs</c>.
-    /// </summary>
+    // Mirrors mcp's extract_errors.
     public static string ExtractErrors(string stderr)
     {
         List<string> errors = new();
@@ -165,7 +143,7 @@ public static partial class CliOutcomeParser
         return string.Join("\n", errors);
     }
 
-    /// <summary>Parse <c>{w}x{h}</c>, splitting on the first ASCII <c>'x'</c> (cm uses '×').</summary>
+    // Splits on the first ASCII 'x' (cm uses '×').
     private static bool TryParseWxH(string dims, out int width, out int height)
     {
         width = height = 0;
@@ -175,14 +153,12 @@ public static partial class CliOutcomeParser
             && int.TryParse(dims[(x + 1)..].Trim(), out height);
     }
 
-    /// <summary>The first whitespace-delimited token, or null — Rust's <c>split_whitespace().next()</c>.</summary>
     private static string? FirstWhitespaceToken(string text)
     {
         string[] tokens = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         return tokens.Length == 0 ? null : tokens[0];
     }
 
-    /// <summary>Split on any newline convention, mirroring Rust's <c>str::lines</c>.</summary>
     private static IEnumerable<string> SplitLines(string text) =>
         text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
 }

@@ -3,12 +3,9 @@ using Stencil.TelegramBot.Domain.Exceptions;
 
 namespace Stencil.TelegramBot.Infrastructure.Cli;
 
-// CliArgvBuilder — the source-site scrape argv and the flags only it uses. Class doc lives in
-// CliArgvBuilder.cs.
 public static partial class CliArgvBuilder
 {
-    // ── Source-site scrape flags (DESIGN source-site contract §1) ──
-    // Kept next to the edit flags so the whole CLI flag contract is single-sourced here.
+    // Source-site scrape flags (source-site contract §1), single-sourced beside the edit flags.
     private const string FlagSourceSite = "--source-site";
     private const string FlagSourceCount = "--source-count";
     private const string FlagSourceGroup = "--group";
@@ -20,8 +17,8 @@ public static partial class CliArgvBuilder
     private const string FlagSourceMinHeight = "--source-min-height";
     private const string FlagSourceMaxHeight = "--source-max-height";
 
-    // `--source-site <url> [filters] <output-dir>`. Emits only the flags the request actually
-    // sets, matching the CLI's "0 = unset" / "count absent = all" semantics (source-site §1).
+    // Emits only the flags the request sets, matching the CLI's "0 = unset" / "count absent = all"
+    // (§1).
     public static IReadOnlyList<string> BuildScrapeArgv(ScrapeRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.Url))
@@ -32,9 +29,8 @@ public static partial class CliArgvBuilder
         {
             throw new StencilCliException("`output` directory must not be empty");
         }
-        // The output directory is the positional operand appended last, and the CLI has no `--`
-        // end-of-options terminator, so a dash-leading value would be parsed as a flag. Reject
-        // it up front, exactly like BuildArgv guards the edit output.
+        // The CLI has no `--` terminator, so a dash-leading positional would parse as a flag — like
+        // BuildArgv.
         if (req.OutputDir.StartsWith('-'))
         {
             throw new StencilCliException(

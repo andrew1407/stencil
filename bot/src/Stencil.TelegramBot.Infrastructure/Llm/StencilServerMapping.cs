@@ -57,7 +57,6 @@ internal sealed class StencilServerMapping : IProviderMapping
 
     public LlmReply Read(JsonElement root)
     {
-        // Null when the text field is absent/not a string — "" stays a (blank) reply.
         string? text = root.TryGetProperty("text", out JsonElement t) && t.ValueKind == JsonValueKind.String
             ? t.GetString() ?? ""
             : null;

@@ -8,23 +8,15 @@ using Stencil.TelegramBot.Domain.Serialization;
 
 namespace Stencil.TelegramBot.Infrastructure.Llm;
 
-/// <summary>
-/// The provider adapter for the three wire mappings of <c>llm-contract.md</c> §6. The shapes
-/// themselves live one per <see cref="IProviderMapping"/>; this class is the transport —
-/// POST, bearer, status/JSON handling — that every provider shares.
-/// </summary>
-/// <remarks>
-/// The <see cref="HttpClient"/> is the caller's, so tests inject a stub handler. Non-2xx
-/// responses, unreachable endpoints and unparseable payloads become
-/// <see cref="LlmException"/>s, and a truncated or refused reply is typed rather than parsed
-/// as a plan.
-/// </remarks>
+// The transport every §6 provider shares — POST, bearer, status/JSON handling; the wire shapes live
+// one per IProviderMapping. Non-2xx, unreachable and unparseable become LlmExceptions;
+// truncation/refusal are typed.
 public sealed class HttpLlmClient : ILlmClient
 {
-    /// <summary>LLM calls are slow — the canonical <c>providers.json</c> <c>timeouts.chatSeconds</c>.</summary>
+    // LLM calls are slow: the canonical providers.json timeouts.chatSeconds.
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(ProvidersAsset.ChatTimeoutSeconds);
 
-    /// <summary>The §6 table: one mapping per provider id. A new provider is an entry plus a file.</summary>
+    // The §6 table; a new provider is an entry plus a file.
     private static readonly IReadOnlyDictionary<string, IProviderMapping> Mappings =
         new Dictionary<string, IProviderMapping>(StringComparer.Ordinal)
         {
@@ -42,10 +34,8 @@ public sealed class HttpLlmClient : ILlmClient
         _options = options;
     }
 
-    /// <inheritdoc />
     public async Task<LlmReply> ChatAsync(LlmChatRequest request, CancellationToken ct = default)
     {
-        // The call's own config when the user picked a profile (/chatapi), else the operator's.
         LlmOptions options = request.Options ?? _options;
         if (!Mappings.TryGetValue(options.Provider, out IProviderMapping? mapping))
         {
@@ -62,8 +52,8 @@ public sealed class HttpLlmClient : ILlmClient
 
     private async Task<JsonDocument> PostAsync(string url, JsonObject body, string? bearer, CancellationToken ct)
     {
-        // The body is streamed straight onto the request (JsonNodeContent) — with multi-MB
-        // base64 images an intermediate ToJsonString() would put whole copies on the LOH.
+        // Streamed straight onto the request: with multi-MB base64 images a ToJsonString() copy
+        // would land on the LOH.
         using HttpRequestMessage message = new(HttpMethod.Post, url)
         {
             Content = new JsonNodeContent(body),
@@ -106,12 +96,8 @@ public sealed class HttpLlmClient : ILlmClient
         }
     }
 
-    /// <summary>
-    /// The typed failure for a non-2xx response: the error body's own line (the shared
-    /// <see cref="JsonRead.ErrorDetail"/> shapes), else the bare status; <c>llmDisabled</c>
-    /// types as <see cref="LlmFailure.Disabled"/>. The reason is said ONCE (§6.3) — a provider
-    /// that explains itself is quoted as-is, with no preamble and no status restating it.
-    /// </summary>
+    // The reason is said ONCE (§6.3): a provider that explains itself is quoted as-is, no status
+    // restating it.
     private static LlmException ErrorFor(int status, byte[] body)
     {
         string detail = "";
@@ -126,7 +112,6 @@ public sealed class HttpLlmClient : ILlmClient
             }
             catch (JsonException)
             {
-                // Non-JSON error body — keep the bare status message.
             }
         }
         return new LlmException(
@@ -134,7 +119,6 @@ public sealed class HttpLlmClient : ILlmClient
             disabled ? LlmFailure.Disabled : LlmFailure.Error);
     }
 
-    /// <summary>How much of a provider's own prose an error may quote.</summary>
     public const int MaxProviderDetail = 200;
 
     private static readonly Regex Controlish = new(@"[\p{Cc}\p{Cf}]", RegexOptions.Compiled);
@@ -145,10 +129,8 @@ public sealed class HttpLlmClient : ILlmClient
         + @"|[A-Za-z0-9_-]{24,}",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    /// <summary>
-    /// Untrusted provider prose made safe for a chat: control characters out, URLs and
-    /// token-shaped runs redacted (an endpoint may echo the key back), whitespace collapsed,
-    /// hard-truncated. Port of the server's <c>sanitizeUpstreamText</c>.
+    // Control characters out, URLs and token-shaped runs redacted (an endpoint may echo the key);
+    // port of the server's sanitizeUpstreamText.
     /// </summary>
     public static string SanitizeProviderText(string text)
     {
@@ -163,8 +145,6 @@ public sealed class HttpLlmClient : ILlmClient
         return t.Length <= MaxProviderDetail ? t : t[..(MaxProviderDetail - 1)].TrimEnd() + "…";
     }
 
-    /// <summary>An <c>application/json</c> body streamed straight to the request via
-    /// <see cref="Utf8JsonWriter"/> — no intermediate string.</summary>
     private sealed class JsonNodeContent : HttpContent
     {
         private readonly JsonObject _body;

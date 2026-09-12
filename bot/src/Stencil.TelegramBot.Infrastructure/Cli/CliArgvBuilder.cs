@@ -3,14 +3,12 @@ using Stencil.TelegramBot.Domain.Exceptions;
 
 namespace Stencil.TelegramBot.Infrastructure.Cli;
 
-// Maps an EditRequest to the exact `stencil [options] <output>` argv — a port of mcp's
-// build_argv, with the same validation invariants the CLI would otherwise reject tersely or,
-// worse, silently skip. The pipeline order is the CLI's own, so argv order here is cosmetic.
+// A port of mcp's build_argv, with the same validation invariants; argv order is cosmetic, the
+// pipeline order is the CLI's own.
 public static partial class CliArgvBuilder
 {
-    // ── CLI flag names ──
-    // The exact option strings the Zig CLI understands (cli/src/args.zig, cli/CONTRACT.md §1) —
-    // the .NET peer of mcp's FLAG_* consts.
+    // The exact option strings of cli/src/args.zig (cli/CONTRACT.md §1) — the peer of mcp's FLAG_*
+    // consts.
     private const string FlagServer = "--server";
     private const string FlagInput = "-i";
     private const string FlagBlank = "--blank";
@@ -41,9 +39,8 @@ public static partial class CliArgvBuilder
         {
             throw new StencilCliException("`output` must not be empty");
         }
-        // Flag-injection guard, mirroring build_argv in mcp/src/args.rs: the output is a
-        // positional operand and the CLI has no `--` end-of-options terminator, so an output like
-        // `--album` would be parsed as a flag. A real output path never starts with a dash.
+        // Flag-injection guard (mcp build_argv): no `--` terminator, so an output like `--album`
+        // would parse as a flag.
         if (req.Output.StartsWith('-'))
         {
             throw new StencilCliException(
@@ -51,8 +48,7 @@ public static partial class CliArgvBuilder
                 "would be parsed as a CLI flag, not the output path");
         }
 
-        // Collaboration-server invariants, mirroring the CLI's own checks (cli/src/pipeline.zig)
-        // and mcp/src/args.rs (Source::try_from).
+        // Server invariants, mirroring cli/src/pipeline.zig and mcp's Source::try_from.
         if (req.Server is not null)
         {
             if (hasBlank)
@@ -79,8 +75,7 @@ public static partial class CliArgvBuilder
 
         List<string> argv = new();
 
-        // Source: `--server <url> -i <name>`, `-i <input>`, or the `--blank …` series. --server
-        // conceptually precedes -i (it changes what -i means); the CLI parses order-independently.
+        // --server changes what -i means; the CLI parses order-independently.
         if (req.Server is not null)
         {
             argv.Add(FlagServer);
@@ -120,8 +115,8 @@ public static partial class CliArgvBuilder
             }
             if (blank.Color is not null)
             {
-                // The CLI SKIPS a colour it can't parse — the blank would come out white with no
-                // error — so reject it here, exactly as mcp/src/args.rs does.
+                // The CLI SKIPS a colour it can't parse (the blank would come out white), so reject
+                // it here like mcp does.
                 if (!ColorSpec.IsValid(blank.Color))
                 {
                     throw new StencilCliException(
@@ -171,8 +166,7 @@ public static partial class CliArgvBuilder
             argv.Add(req.Filter);
         }
 
-        // Server delivery: write the result back into the fetched project, and/or push it as a
-        // new project. The result is always saved locally too (the positional output below).
+        // The result is always saved locally too (the positional output below).
         if (req.RemoteUpdate)
         {
             argv.Add(FlagRemoteUpdate);
@@ -190,8 +184,8 @@ public static partial class CliArgvBuilder
             argv.Add(req.RemoteName);
         }
 
-        // The adapter forwards paths it did not author, so the CLI refuses anything outside its
-        // working directory — ProcessStencilCli picks that directory and passes the leaf here.
+        // The adapter forwards paths it did not author; ProcessStencilCli picks the working
+        // directory and passes the leaf.
         argv.Add(FlagConfineOutput);
         argv.Add(req.Output);
         return argv;

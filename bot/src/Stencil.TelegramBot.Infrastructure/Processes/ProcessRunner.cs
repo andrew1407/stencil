@@ -4,31 +4,18 @@ namespace Stencil.TelegramBot.Infrastructure.Processes;
 
 public abstract record ProcessOutcome;
 
-/// <summary>The process ran to completion (any exit code), with stderr fully captured.</summary>
 public sealed record ProcessCompleted(int ExitCode, string Stderr) : ProcessOutcome;
 
-/// <summary>The executable would not start (missing / not runnable).</summary>
 public sealed record ProcessStartFailed(string Message) : ProcessOutcome;
 
-/// <summary>The per-invocation deadline elapsed and the process tree was killed.</summary>
 public sealed record ProcessTimedOut : ProcessOutcome;
 
-/// <summary>
-/// The one bounded external-process scaffold shared by every adapter that shells out (the
-/// stencil CLI, ffmpeg): spawn with an argv + optional environment, drain stdout/stderr, wait
-/// under the caller's token linked with a per-invocation deadline, and kill the whole process
-/// tree when either fires. What each outcome MEANS (exception vs. graceful degradation) stays
-/// at the call sites.
-/// </summary>
+// The one bounded external-process scaffold (stencil CLI, ffmpeg); what each outcome MEANS stays at
+// the call sites.
 public static class ProcessRunner
 {
-    /// <summary>
-    /// Run <paramref name="fileName"/> with <paramref name="argv"/> in
-    /// <paramref name="workingDirectory"/> (the caller's own when null) and capture stderr.
-    /// Returns <see cref="ProcessCompleted"/> / <see cref="ProcessStartFailed"/> /
-    /// <see cref="ProcessTimedOut"/>; caller cancellation propagates as
-    /// <see cref="OperationCanceledException"/> like every other async path.
-    /// </summary>
+    // Caller cancellation propagates as OperationCanceledException; a timeout is a ProcessTimedOut
+    // outcome.
     public static async Task<ProcessOutcome> RunAsync(
         string fileName,
         IReadOnlyList<string> argv,
@@ -67,8 +54,8 @@ public static class ProcessRunner
             return new ProcessStartFailed(e.Message);
         }
 
-        // Link the caller's token with the per-invocation deadline: whichever fires first (caller
-        // cancel or timeout) trips the same token, and the process tree is killed below.
+        // Whichever fires first (caller cancel or deadline) trips the same token, and the tree is
+        // killed below.
         using var timeoutCts = new CancellationTokenSource(timeout);
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
         try
@@ -82,8 +69,8 @@ public static class ProcessRunner
         }
         catch (OperationCanceledException)
         {
-            // Cancel or timeout: kill the whole tree so the process (and any child it spawned)
-            // doesn't linger and keep fetching/writing after we've given up.
+            // Kill the whole tree so a child the process spawned doesn't keep fetching/writing
+            // after we've given up.
             KillTree(process);
             if (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
             {
@@ -93,7 +80,6 @@ public static class ProcessRunner
         }
     }
 
-    /// <summary>Terminate a process and its descendants, ignoring the races where it already exited.</summary>
     private static void KillTree(Process process)
     {
         try
@@ -105,7 +91,6 @@ public static class ProcessRunner
         }
         catch
         {
-            // Already exited / not started / permission — nothing more we can do.
         }
     }
 }

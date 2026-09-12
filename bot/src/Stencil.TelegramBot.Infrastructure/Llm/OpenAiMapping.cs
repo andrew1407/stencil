@@ -30,7 +30,6 @@ internal sealed class OpenAiMapping : IProviderMapping
         };
     }
 
-    /// <summary>Plain string for a text-only message; the text + image_url parts array otherwise.</summary>
     private static JsonNode Content(LlmMessage message)
     {
         if (message.Images.Count == 0)

@@ -2,17 +2,11 @@ using Stencil.TelegramBot.Domain.Llm;
 
 namespace Stencil.TelegramBot.Infrastructure.Configuration;
 
-/// <summary>
-/// The <c>STENCIL_LLM_*</c> half of the bot's configuration (<c>llm-contract.md</c> §5): the one
-/// configured provider, plus the optional named profiles <c>/chatapi</c> offers.
-/// </summary>
+// The STENCIL_LLM_* half of the configuration (llm-contract.md §5).
 internal static class LlmProfileOptions
 {
-    /// <summary>
-    /// Read the <c>STENCIL_LLM_*</c> keys with the contract's defaults: provider
-    /// <c>ollama</c>, and a base URL that follows the chosen provider when not overridden
-    /// (ollama <c>http://localhost:11434</c>, openai-compat <c>http://localhost:1234/v1</c>).
-    /// </summary>
+    // The contract's defaults: provider ollama, base URL following the chosen provider when not
+    // overridden.
     public static LlmOptions FromEnvironment()
     {
         string provider = EnvRead.Var("STENCIL_LLM_PROVIDER")?.Trim().ToLowerInvariant() ?? LlmOptions.DefaultProvider;
@@ -27,14 +21,9 @@ internal static class LlmProfileOptions
         };
     }
 
-    /// <summary>
-    /// The selectable chat APIs, from <c>STENCIL_LLM_PROFILES</c> (a comma-separated list of
-    /// names) plus one <c>STENCIL_LLM_PROFILE_&lt;NAME&gt;_*</c> group each — <c>LABEL</c>,
-    /// <c>PROVIDER</c>, <c>BASE_URL</c>, <c>MODEL</c>, <c>API_KEY</c>, <c>SERVER_URL</c>,
-    /// <c>SERVER_TOKEN</c>. Anything a group leaves out falls back to the plain
-    /// <c>STENCIL_LLM_*</c> value, so a profile that only changes the model is three lines.
-    /// Empty (the default) = no picker; the bot has exactly the one configured provider.
-    /// </summary>
+    // STENCIL_LLM_PROFILES names the profiles; each STENCIL_LLM_PROFILE_<NAME>_* group (LABEL,
+    // PROVIDER, BASE_URL, MODEL, API_KEY, SERVER_URL, SERVER_TOKEN) falls back per key to the plain
+    // STENCIL_LLM_* value.
     public static IReadOnlyList<LlmProfile> ProfilesFromEnvironment()
     {
         string? names = EnvRead.Var("STENCIL_LLM_PROFILES");
@@ -49,8 +38,8 @@ internal static class LlmProfileOptions
             string name = raw.ToLowerInvariant();
             string key = $"STENCIL_LLM_PROFILE_{name.ToUpperInvariant().Replace('-', '_')}_";
             string? provider = EnvRead.Var(key + "PROVIDER")?.Trim().ToLowerInvariant();
-            // A named profile with no group behind it is a typo in the list, not a silent
-            // duplicate of the default — skip it rather than offer a button that changes nothing.
+            // A named profile with no group behind it is a typo, not a silent duplicate of the
+            // default: skip it.
             if (provider is null)
             {
                 continue;

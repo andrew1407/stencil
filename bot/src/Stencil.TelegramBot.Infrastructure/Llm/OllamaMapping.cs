@@ -45,7 +45,6 @@ internal sealed class OllamaMapping : IProviderMapping
         {
             throw ProviderReply.Truncated();
         }
-        // A 2xx body without a reply string is a typed bad-reply error, never "".
         return new LlmReply(ProviderReply.MessageContent(root)
             ?? throw new LlmException("malformed ollama response (no message.content)"));
     }
