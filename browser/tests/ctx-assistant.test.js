@@ -864,12 +864,12 @@ test('contextMenu.js keeps the menu open while chatting', () => {
     'typing, resizing the composer, an open row menu, or a running turn all count as engaged');
   assert.match(src, /const keepSubOpen = \(sub\) => !!sub\._keepOpen\?\.\(\);/);
   assert.ok(src.includes('if (keepSubOpen(sub)) return;'), 'hideSub honours the engaged flyout');
-  // The ONLY closeMenu() uses in the assistant wiring are the four that open something
+  // The only closeMenu() calls in ctxAssistantChat.js are the four that open something
   // else on top: the settings gear, the Configure-provider CTA in an error card, the
   // Reconnect CTA on an expired-session card, and the phone hand-over to the panel.
   // Chatting itself never closes it.
-  const assist = src.slice(src.indexOf('export const wireCtxAssistantChat ='));
-  assert.strictEqual(assist.split('closeMenu').length - 1, 4,
+  const assist = readFileSync(new URL('../js/ui/ctxAssistantChat.js', import.meta.url), 'utf8');
+  assert.strictEqual((assist.match(/host\.closeMenu/g) || []).length, 4,
     'gear + settings CTA + reconnect CTA + phone hand-over only');
 });
 
