@@ -53,25 +53,27 @@
 
 namespace stencil::gui {
 
-  // A FIRST-CLASS popover dialog (not a QMenu), so the popover system's Alt-peek/glide/linger rules apply. Presets from theme.cpp accentPresets.
-  // The Settings dropdown's swatch recipe; the CURRENT accent's ✓ is baked into its chip in the chip's OWN ink (browser accentPicker.js).
-  static QIcon accentSwatchIcon(const QColor& c, bool current) {
-    QPixmap pm(16, 16);
-    pm.fill(Qt::transparent);
-    QPainter p(&pm);
-    p.setRenderHint(QPainter::Antialiasing);
-    p.setPen(QPen(QColor(0, 0, 0, 70), 1));
-    p.setBrush(c);
-    p.drawRoundedRect(1, 1, 13, 13, 3, 3);
-    if (current) {
-      p.setBrush(Qt::NoBrush);
-      const QPointF pts[3] = {{4.4, 8.3}, {6.9, 10.7}, {11.4, 5.3}};
-      p.setPen(QPen(onAccentInk(c), 1.9, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-      p.drawPolyline(pts, 3);
+  namespace {
+    // A FIRST-CLASS popover dialog (not a QMenu), so the popover system's Alt-peek/glide/linger rules apply. Presets from theme.cpp accentPresets.
+    // The Settings dropdown's swatch recipe; the CURRENT accent's ✓ is baked into its chip in the chip's OWN ink (browser accentPicker.js).
+    QIcon accentSwatchIcon(const QColor& c, bool current) {
+      QPixmap pm(16, 16);
+      pm.fill(Qt::transparent);
+      QPainter p(&pm);
+      p.setRenderHint(QPainter::Antialiasing);
+      p.setPen(QPen(QColor(0, 0, 0, 70), 1));
+      p.setBrush(c);
+      p.drawRoundedRect(1, 1, 13, 13, 3, 3);
+      if (current) {
+        p.setBrush(Qt::NoBrush);
+        const QPointF pts[3] = {{4.4, 8.3}, {6.9, 10.7}, {11.4, 5.3}};
+        p.setPen(QPen(onAccentInk(c), 1.9, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        p.drawPolyline(pts, 3);
+      }
+      p.end();
+      return QIcon(pm);
     }
-    p.end();
-    return QIcon(pm);
-  }
+  }  // namespace
 
   // Move the ✓ in an OPEN popover to the accent settings now hold (browser toolbar.js onAccentMoved twin). Touches only the row icons.
   void MainWindow::remarkAccentPopover() {

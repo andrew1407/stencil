@@ -19,16 +19,18 @@
 
 namespace stencil::gui {
 
-  // Spin boxes and editable combos are their line edit's FOCUS PROXY, so the container reports.
-  static bool typingFocus() {
-    QWidget* f = QApplication::focusWidget();
-    if (!f) return false;
-    if (qobject_cast<QLineEdit*>(f) || qobject_cast<QTextEdit*>(f) ||
-        qobject_cast<QPlainTextEdit*>(f) || qobject_cast<QAbstractSpinBox*>(f))
-      return true;
-    auto* combo = qobject_cast<QComboBox*>(f);
-    return combo && combo->isEditable();
-  }
+  namespace {
+    // Spin boxes and editable combos are their line edit's FOCUS PROXY, so the container reports.
+    bool typingFocus() {
+      QWidget* f = QApplication::focusWidget();
+      if (!f) return false;
+      if (qobject_cast<QLineEdit*>(f) || qobject_cast<QTextEdit*>(f) ||
+          qobject_cast<QPlainTextEdit*>(f) || qobject_cast<QAbstractSpinBox*>(f))
+        return true;
+      auto* combo = qobject_cast<QComboBox*>(f);
+      return combo && combo->isEditable();
+    }
+  }  // namespace
 
   std::optional<bool> MainWindow::filterPopoverGestures(QObject* obj, QEvent* event) {
     // A press back on this window dismisses the popover (its exec() is modal, so the press would be discarded);

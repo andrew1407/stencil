@@ -70,18 +70,20 @@ namespace stencil::net {
     return CredentialKind::NONE;
   }
 
-  // Browser parity (net/connectionManager.js _req): "<METHOD> <path>: <why>", <why> = the server's JSON
-  // `message` or "HTTP <status>"; a request that never reached the server shows the transport's message, never "HTTP 0".
-  static QString restError(const QByteArray& method, const QString& path, int status,
-                           const QByteArray& body, const QString& transport) {
-    if (status == 0)
-      return transport.isEmpty() ? QStringLiteral("the request never reached the server")
-                                 : transport;
-    QString why = QJsonDocument::fromJson(body).object().value("message").toString();
-    if (why.isEmpty()) why = QStringLiteral("HTTP %1").arg(status);
-    const int q = path.indexOf('?');   // the browser reports the path, never its query
-    return QString("%1 %2: %3").arg(QLatin1String(method), q < 0 ? path : path.left(q), why);
-  }
+  namespace {
+    // Browser parity (net/connectionManager.js _req): "<METHOD> <path>: <why>", <why> = the server's JSON
+    // `message` or "HTTP <status>"; a request that never reached the server shows the transport's message, never "HTTP 0".
+    QString restError(const QByteArray& method, const QString& path, int status,
+                             const QByteArray& body, const QString& transport) {
+      if (status == 0)
+        return transport.isEmpty() ? QStringLiteral("the request never reached the server")
+                                   : transport;
+      QString why = QJsonDocument::fromJson(body).object().value("message").toString();
+      if (why.isEmpty()) why = QStringLiteral("HTTP %1").arg(status);
+      const int q = path.indexOf('?');   // the browser reports the path, never its query
+      return QString("%1 %2: %3").arg(QLatin1String(method), q < 0 ? path : path.left(q), why);
+    }
+  }  // namespace
 
   QNetworkRequest ServerClient::buildRequest(const QString& path,
                                              const QString& contentType,

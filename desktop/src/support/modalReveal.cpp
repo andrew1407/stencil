@@ -33,10 +33,9 @@ namespace stencil::support {
   static_assert(DIALOG_DUST_MAX_CELLS == gui::DisintegrateOverlay::SURFACE_MAX_CELLS,
                 "a dialog's mote budget is the shared surface ceiling");
 
-  // Set once a call site or the watcher owns the dialog's flight.
-  static constexpr const char* REVEALED_PROPERTY = "stencilDialogRevealed";
-
   namespace {
+    // Set once a call site or the watcher owns the dialog's flight.
+    constexpr const char* REVEALED_PROPERTY = "stencilDialogRevealed";
     // Dialog clocks run 1.5x the shared surface clock; the close another 1.5x on top.
     constexpr int OPEN_MS = 450;
     constexpr int CLOSE_MS = 360 * 3 / 2;
@@ -239,6 +238,41 @@ namespace stencil::support {
       std::shared_ptr<QPixmap> shot_;
       bool flown_ = false;
     };
+
+    // Split from the public entry point so the watcher can play it WITHOUT claiming the dialog.
+    void flyDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect,
+                   const QRect& closeRect = QRect()) {
+      QPointer<QDialog> guard(&dlg);
+      QPointer<QWidget> anchorGuard(anchor);
+      auto shotWhileOpen = std::make_shared<QPixmap>();
+
+      if (!motionReduced()) {
+        // Transparent BEFORE exec() maps it, else the real window flashes at full size first.
+        dlg.setWindowOpacity(0.0);
+        const auto restore = [guard] { if (guard) guard->setWindowOpacity(1.0); };
+
+        // 0-timer: geometry() is not the final box until exec() has laid the dialog out.
+        QTimer::singleShot(0, &dlg, [guard, anchorGuard, anchorRect, restore, shotWhileOpen] {
+          if (!guard || !guard->isVisible()) { restore(); return; }
+          const QRect target(guard->mapToGlobal(QPoint(0, 0)), guard->size());
+          QWidget* host = hostFor(*guard);
+          settleLayout(*guard);   // the scrollbar in, before the photograph
+          const QPixmap shot = guard->grab();
+          *shotWhileOpen = shot;
+          if (!host || !target.isValid() || shot.isNull()) { restore(); return; }
+          const QRect from = originRect(anchorGuard.data(), target, anchorRect);
+          if (from == target) { restore(); return; }
+          if (flySurfaceDust(host, shot, target, from, true, inkOf(*guard))) { fadeUpBehindDust(guard); return; }
+          QLabel* ghost = makeGhost(host, shot, from);
+          flyGhost(ghost, host, from, target, OPEN_MS, 0.0, 1.0, 0.18,
+                   QEasingCurve::OutCubic, restore);
+        });
+      }
+
+      // Driven off the dialog's own Hide, NOT QDialog::finished: done() hides first and
+      // emits a beat later, and in that gap the window server has already unmapped it.
+      dlg.installEventFilter(new CloseFlight(&dlg, anchorGuard, anchorRect, shotWhileOpen, closeRect));
+    }
   }  // namespace
 
   QColor pickColorAnimated(const QColor& initial, QWidget* parent, const QString& title,
@@ -273,41 +307,6 @@ namespace stencil::support {
     QPointer<QWidget> guard(&w);
     flyWindow(w, anchor, false, nullptr);
     w.hide();
-  }
-
-  // Split from the public entry point so the watcher can play it WITHOUT claiming the dialog.
-  static void flyDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect,
-                        const QRect& closeRect = QRect()) {
-    QPointer<QDialog> guard(&dlg);
-    QPointer<QWidget> anchorGuard(anchor);
-    auto shotWhileOpen = std::make_shared<QPixmap>();
-
-    if (!motionReduced()) {
-      // Transparent BEFORE exec() maps it, else the real window flashes at full size first.
-      dlg.setWindowOpacity(0.0);
-      const auto restore = [guard] { if (guard) guard->setWindowOpacity(1.0); };
-
-      // 0-timer: geometry() is not the final box until exec() has laid the dialog out.
-      QTimer::singleShot(0, &dlg, [guard, anchorGuard, anchorRect, restore, shotWhileOpen] {
-        if (!guard || !guard->isVisible()) { restore(); return; }
-        const QRect target(guard->mapToGlobal(QPoint(0, 0)), guard->size());
-        QWidget* host = hostFor(*guard);
-        settleLayout(*guard);   // the scrollbar in, before the photograph
-        const QPixmap shot = guard->grab();
-        *shotWhileOpen = shot;
-        if (!host || !target.isValid() || shot.isNull()) { restore(); return; }
-        const QRect from = originRect(anchorGuard.data(), target, anchorRect);
-        if (from == target) { restore(); return; }
-        if (flySurfaceDust(host, shot, target, from, true, inkOf(*guard))) { fadeUpBehindDust(guard); return; }
-        QLabel* ghost = makeGhost(host, shot, from);
-        flyGhost(ghost, host, from, target, OPEN_MS, 0.0, 1.0, 0.18,
-                 QEasingCurve::OutCubic, restore);
-      });
-    }
-
-    // Driven off the dialog's own Hide, NOT QDialog::finished: done() hides first and
-    // emits a beat later, and in that gap the window server has already unmapped it.
-    dlg.installEventFilter(new CloseFlight(&dlg, anchorGuard, anchorRect, shotWhileOpen, closeRect));
   }
 
   void revealDialog(QDialog& dlg, QWidget* anchor, const QRect& anchorRect) {

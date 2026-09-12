@@ -23,62 +23,64 @@
 namespace stencil::gui {
 
   using namespace chatdock;
-  // Browser chatView.js chatRowMenuItems. Popping a menu is a NESTED EVENT LOOP: the card or its
-  // window can be gone after exec(), so every widget is a QPointer and the menu refuses to pop
-  // without a live, mapped window (a QMenu against a destroyed window crashed in QCocoaWindow).
-  static void showChatCardMenu(QPointer<QFrame> card, const QPoint& globalPos,
-                               const ChatCardMenuHooks& hooks) {
-    if (!card) return;
-    QPointer<QWidget> owner(hooks.owner);
-    // windowHandle() is null before the window is mapped, and for a surface being torn down.
-    QWidget* top = card->window();
-    if (!top || !top->isVisible() || !top->windowHandle()) return;
-    if (hooks.leaving && hooks.leaving()) return;
-    // The properties carry the plain text, never the markup.
-    QStringList parts;
-    QPointer<QLabel> body;
-    for (QLabel* l : card->findChildren<QLabel*>()) {
-      const QString b = l->property("chatBody").toString();
-      const QString n = l->property("chatNote").toString();
-      if (!b.isEmpty() && !body) body = l;
-      if (!b.isEmpty()) parts << b;
-      else if (!n.isEmpty()) parts << n;
-    }
-    const QString text = parts.join(QLatin1Char('\n'));
-    if (text.isEmpty()) return;
+  namespace {
+    // Browser chatView.js chatRowMenuItems. Popping a menu is a NESTED EVENT LOOP: the card or its
+    // window can be gone after exec(), so every widget is a QPointer and the menu refuses to pop
+    // without a live, mapped window (a QMenu against a destroyed window crashed in QCocoaWindow).
+    void showChatCardMenu(QPointer<QFrame> card, const QPoint& globalPos,
+                                 const ChatCardMenuHooks& hooks) {
+      if (!card) return;
+      QPointer<QWidget> owner(hooks.owner);
+      // windowHandle() is null before the window is mapped, and for a surface being torn down.
+      QWidget* top = card->window();
+      if (!top || !top->isVisible() || !top->windowHandle()) return;
+      if (hooks.leaving && hooks.leaving()) return;
+      // The properties carry the plain text, never the markup.
+      QStringList parts;
+      QPointer<QLabel> body;
+      for (QLabel* l : card->findChildren<QLabel*>()) {
+        const QString b = l->property("chatBody").toString();
+        const QString n = l->property("chatNote").toString();
+        if (!b.isEmpty() && !body) body = l;
+        if (!b.isEmpty()) parts << b;
+        else if (!n.isEmpty()) parts << n;
+      }
+      const QString text = parts.join(QLatin1Char('\n'));
+      if (text.isEmpty()) return;
 
-    // Parented to the card's OWN top level, never to an owner inside a popup that may be going away.
-    QMenu menu(top);
-    QAction* copy =
-        menu.addAction(themedIcon("copy", hooks.text, 16), QStringLiteral("Copy message"));
-    QAction* insert =
-        menu.addAction(themedIcon("pencil", hooks.text, 16), QStringLiteral("Insert into prompt"));
-    QAction* resend = nullptr;
-    if (hooks.resend && card->objectName() == QLatin1String("chatCardUser")) {
-      resend = menu.addAction(themedIcon("send", hooks.text, 16), QStringLiteral("Resend"));
-      resend->setEnabled(!(hooks.busy && hooks.busy()));
+      // Parented to the card's OWN top level, never to an owner inside a popup that may be going away.
+      QMenu menu(top);
+      QAction* copy =
+          menu.addAction(themedIcon("copy", hooks.text, 16), QStringLiteral("Copy message"));
+      QAction* insert =
+          menu.addAction(themedIcon("pencil", hooks.text, 16), QStringLiteral("Insert into prompt"));
+      QAction* resend = nullptr;
+      if (hooks.resend && card->objectName() == QLatin1String("chatCardUser")) {
+        resend = menu.addAction(themedIcon("send", hooks.text, 16), QStringLiteral("Resend"));
+        resend->setEnabled(!(hooks.busy && hooks.busy()));
+      }
+      support::MenuShimmer shimmer(&menu);
+      compactIconMenu(menu);
+      card->setProperty("chatMenuOpen", true);
+      support::revealMenu(menu, globalPos);
+      QAction* picked = menu.exec(globalPos);
+      // AFTER the nested loop: re-check every pointer
+      if (card) {
+        card->setProperty("chatMenuOpen", false);
+        if (auto* more = qobject_cast<QToolButton*>(
+                card->property("chatMoreBtn").value<QObject*>()))
+          more->setVisible(card->underMouse() || more->underMouse());
+      }
+      if (!picked) return;
+      if (picked == copy) {
+        QGuiApplication::clipboard()->setText(text);
+      } else if (picked == insert) {
+        if (owner && hooks.insertIntoPrompt) hooks.insertIntoPrompt(text);
+      } else if (resend && picked == resend && owner && card) {
+        hooks.resend(card, body ? body->property("chatBody").toString() : text);
+      }
     }
-    support::MenuShimmer shimmer(&menu);
-    compactIconMenu(menu);
-    card->setProperty("chatMenuOpen", true);
-    support::revealMenu(menu, globalPos);
-    QAction* picked = menu.exec(globalPos);
-    // AFTER the nested loop: re-check every pointer
-    if (card) {
-      card->setProperty("chatMenuOpen", false);
-      if (auto* more = qobject_cast<QToolButton*>(
-              card->property("chatMoreBtn").value<QObject*>()))
-        more->setVisible(card->underMouse() || more->underMouse());
-    }
-    if (!picked) return;
-    if (picked == copy) {
-      QGuiApplication::clipboard()->setText(text);
-    } else if (picked == insert) {
-      if (owner && hooks.insertIntoPrompt) hooks.insertIntoPrompt(text);
-    } else if (resend && picked == resend && owner && card) {
-      hooks.resend(card, body ? body->property("chatBody").toString() : text);
-    }
-  }
+  }  // namespace
 
   void installChatCardMenu(QFrame* card, const ChatCardMenuHooks& hooks) {
     if (!card) return;

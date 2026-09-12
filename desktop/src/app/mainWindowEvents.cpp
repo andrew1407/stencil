@@ -38,10 +38,12 @@
 
 namespace stencil::gui {
 
-  static bool isTextEntry(QObject* obj) {
-    return qobject_cast<QLineEdit*>(obj) || qobject_cast<QPlainTextEdit*>(obj) ||
-           qobject_cast<QTextEdit*>(obj);
-  }
+  namespace {
+    bool isTextEntry(QObject* obj) {
+      return qobject_cast<QLineEdit*>(obj) || qobject_cast<QPlainTextEdit*>(obj) ||
+             qobject_cast<QTextEdit*>(obj);
+    }
+  }  // namespace
 
   // A chain of handlers in THIS order: void ones observe, an optional-returning one that answers ends the chain.
   // tests/mainWindow.composition.gui.cpp pins the verdicts.

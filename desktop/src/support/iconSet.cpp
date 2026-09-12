@@ -80,11 +80,13 @@ namespace stencil::gui {
     return true;
   }
 
-  // The theme's --disabled-text, so icon and label grey out together as in the browser.
-  static QColor mutedInk() {
-    const QColor c = QGuiApplication::palette().color(QPalette::Disabled, QPalette::WindowText);
-    return c.isValid() ? c : QColor("#8a8f98");
-  }
+  namespace {
+    // The theme's --disabled-text, so icon and label grey out together as in the browser.
+    QColor mutedInk() {
+      const QColor c = QGuiApplication::palette().color(QPalette::Disabled, QPalette::WindowText);
+      return c.isValid() ? c : QColor("#8a8f98");
+    }
+  }  // namespace
 
   QIcon iconFromMarkup(const QString& inner, const QColor& color, int size,
                        qreal dprIn, bool withDisabled, int gap) {

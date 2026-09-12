@@ -19,7 +19,7 @@
     "desktop/src/support/disintegrateOverlay.hpp": 251,
     "desktop/src/support/iconMotion.hpp": 252,
     "desktop/src/support/menuReveal.cpp": 315,
-    "desktop/src/support/modalReveal.cpp": 425,
+    "desktop/src/support/modalReveal.cpp": 424,
     "desktop/src/support/tipContent.cpp": 569,
     "desktop/tests/coEdit.headless.cpp": 268,
     "desktop/tests/connectRow.headless.cpp": 601,

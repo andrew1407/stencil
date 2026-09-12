@@ -20,19 +20,21 @@
 
 namespace stencil::gui {
 
-  // Middle-ellipsize any whitespace-free run longer than 48 chars (browser squeezeLongTokens parity).
-  static QString squeezeLongTokens(const QString& text) {
-    constexpr int MAX_TOKEN_CHARS = 48;
-    const QStringList parts = text.split(QLatin1Char(' '));
-    QStringList out;
-    out.reserve(parts.size());
-    for (const QString& tok : parts) {
-      if (tok.size() <= MAX_TOKEN_CHARS) { out << tok; continue; }
-      const int keep = (MAX_TOKEN_CHARS - 1) / 2;
-      out << tok.left(keep) + QChar(0x2026) + tok.right(keep);
+  namespace {
+    // Middle-ellipsize any whitespace-free run longer than 48 chars (browser squeezeLongTokens parity).
+    QString squeezeLongTokens(const QString& text) {
+      constexpr int MAX_TOKEN_CHARS = 48;
+      const QStringList parts = text.split(QLatin1Char(' '));
+      QStringList out;
+      out.reserve(parts.size());
+      for (const QString& tok : parts) {
+        if (tok.size() <= MAX_TOKEN_CHARS) { out << tok; continue; }
+        const int keep = (MAX_TOKEN_CHARS - 1) / 2;
+        out << tok.left(keep) + QChar(0x2026) + tok.right(keep);
+      }
+      return out.join(QLatin1Char(' '));
     }
-    return out.join(QLatin1Char(' '));
-  }
+  }  // namespace
 
   void Notifications::show(const QString& rawText, Level level, int msec) {
     if (!host_) return;

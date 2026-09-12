@@ -27,10 +27,9 @@
 
 namespace stencil::gui {
 
-  // The toolbar's own 32x16 chip (updateColorSwatch), as the browser's <input type="color">.
-  static const QSize SWATCH_CHIP(32, 16);
-
   namespace {
+    // The toolbar's own 32x16 chip (updateColorSwatch), as the browser's <input type="color">.
+    const QSize SWATCH_CHIP(32, 16);
     // A well's frame is per-widget QSS, baked in the theme live when written; each well
     // re-swatches itself off the application palette change.
     class SwatchRestyler : public QObject {

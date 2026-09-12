@@ -15,26 +15,28 @@
 
 namespace stencil::gui {
 
-  // Ctrl/⌘C belongs to the text selection under the focus first (browser parity); true when it copied text.
-  static bool copyFocusedSelection() {
-    QWidget* f = QApplication::focusWidget();
-    if (!f) return false;
-    QString text;
-    if (auto* label = qobject_cast<QLabel*>(f)) {
-      if (label->hasSelectedText()) text = label->selectedText();
-    } else if (auto* edit = qobject_cast<QLineEdit*>(f)) {
-      if (edit->hasSelectedText()) text = edit->selectedText();
-    } else if (auto* plain = qobject_cast<QPlainTextEdit*>(f)) {
-      if (plain->textCursor().hasSelection()) text = plain->textCursor().selectedText();
-    } else if (auto* rich = qobject_cast<QTextEdit*>(f)) {
-      if (rich->textCursor().hasSelection()) text = rich->textCursor().selectedText();
+  namespace {
+    // Ctrl/⌘C belongs to the text selection under the focus first (browser parity); true when it copied text.
+    bool copyFocusedSelection() {
+      QWidget* f = QApplication::focusWidget();
+      if (!f) return false;
+      QString text;
+      if (auto* label = qobject_cast<QLabel*>(f)) {
+        if (label->hasSelectedText()) text = label->selectedText();
+      } else if (auto* edit = qobject_cast<QLineEdit*>(f)) {
+        if (edit->hasSelectedText()) text = edit->selectedText();
+      } else if (auto* plain = qobject_cast<QPlainTextEdit*>(f)) {
+        if (plain->textCursor().hasSelection()) text = plain->textCursor().selectedText();
+      } else if (auto* rich = qobject_cast<QTextEdit*>(f)) {
+        if (rich->textCursor().hasSelection()) text = rich->textCursor().selectedText();
+      }
+      if (text.isEmpty()) return false;
+      // Qt reports paragraph breaks as U+2029.
+      text.replace(QChar(0x2029), QLatin1Char('\n'));
+      QApplication::clipboard()->setText(text);
+      return true;
     }
-    if (text.isEmpty()) return false;
-    // Qt reports paragraph breaks as U+2029.
-    text.replace(QChar(0x2029), QLatin1Char('\n'));
-    QApplication::clipboard()->setText(text);
-    return true;
-  }
+  }  // namespace
 
   void MainWindow::createDataActions() {
     // Clipboard hotkeys come from hotkeysConfig.json so a rebind re-applies live; the file export/import are menu-only.

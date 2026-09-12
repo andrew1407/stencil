@@ -17,17 +17,19 @@ namespace stencil::gui::deepLink {
            QString::fromLatin1(QUrl::toPercentEncoding(QString::fromUtf8(json)));
   }
 
-  // Drop the scheme from a normalized origin when it matches what normalizeBase
-  // would infer for the bare host (mirrors browser deepLink.js compressOrigin).
-  static QString compressOrigin(const QString& origin) {
-    const QUrl u(origin);
-    const QString defaultScheme =
-        net::ServerClient::isLoopbackHost(u.host()) ? QStringLiteral("http")
-                                                    : QStringLiteral("https");
-    if (u.scheme() != defaultScheme) return origin;
-    return u.port() != -1 ? QStringLiteral("%1:%2").arg(u.host()).arg(u.port())
-                          : u.host();
-  }
+  namespace {
+    // Drop the scheme from a normalized origin when it matches what normalizeBase
+    // would infer for the bare host (mirrors browser deepLink.js compressOrigin).
+    QString compressOrigin(const QString& origin) {
+      const QUrl u(origin);
+      const QString defaultScheme =
+          net::ServerClient::isLoopbackHost(u.host()) ? QStringLiteral("http")
+                                                      : QStringLiteral("https");
+      if (u.scheme() != defaultScheme) return origin;
+      return u.port() != -1 ? QStringLiteral("%1:%2").arg(u.host()).arg(u.port())
+                            : u.host();
+    }
+  }  // namespace
 
   QString encodeTelegramStartPayload(const QString& serverUrl, const QString& projectId) {
     const QString origin = net::ServerClient::normalizeBase(serverUrl);

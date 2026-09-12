@@ -78,8 +78,10 @@ namespace stencil::net {
     sock_->write(QJsonDocument(hello).toJson(QJsonDocument::Compact) + '\n');
   }
 
-  // A frame is tiny (id + version); a longer newline-less stream is a hostile peer.
-  static constexpr int MAX_BUFFER_BYTES = 1 << 20;  // 1 MiB
+  namespace {
+    // A frame is tiny (id + version); a longer newline-less stream is a hostile peer.
+    constexpr int MAX_BUFFER_BYTES = 1 << 20;  // 1 MiB
+  }  // namespace
 
   void LiveFeed::onReadyRead() {
     if (!sock_) return;

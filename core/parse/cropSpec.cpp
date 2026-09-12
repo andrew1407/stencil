@@ -51,21 +51,23 @@ namespace stencil::core {
     return out;
   }
 
-  // "W:H" with positive integers -> W/H; 0.0 for anything else (zero, sign, junk).
-  static double parseAspectRatio(const std::string& s) {
-    const std::size_t colon = s.find(':');
-    if (colon == 0 || colon == std::string::npos || colon + 1 >= s.size()) return 0.0;
-    const std::string parts[2] = {s.substr(0, colon), s.substr(colon + 1)};
-    double vals[2] = {0.0, 0.0};
-    for (int i = 0; i < 2; ++i) {
-      for (char c : parts[i]) {
-        if (c < '0' || c > '9') return 0.0;
-        vals[i] = vals[i] * 10.0 + (c - '0');
+  namespace {
+    // "W:H" with positive integers -> W/H; 0.0 for anything else (zero, sign, junk).
+    double parseAspectRatio(const std::string& s) {
+      const std::size_t colon = s.find(':');
+      if (colon == 0 || colon == std::string::npos || colon + 1 >= s.size()) return 0.0;
+      const std::string parts[2] = {s.substr(0, colon), s.substr(colon + 1)};
+      double vals[2] = {0.0, 0.0};
+      for (int i = 0; i < 2; ++i) {
+        for (char c : parts[i]) {
+          if (c < '0' || c > '9') return 0.0;
+          vals[i] = vals[i] * 10.0 + (c - '0');
+        }
+        if (vals[i] <= 0.0) return 0.0;
       }
-      if (vals[i] <= 0.0) return 0.0;
+      return vals[0] / vals[1];
     }
-    return vals[0] / vals[1];
-  }
+  }  // namespace
 
   std::optional<CropRect> resolveCropRect(const CropSpec& spec,
                                           const CropResolveParams& p, bool album) {

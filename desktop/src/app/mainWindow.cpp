@@ -521,21 +521,25 @@ namespace stencil::gui {
     dataExport_->pasteLayout();
   }
 
-  // A modal dialog runs its own event loop, so the main window's QActions never fire there: the dialog carries copies
-  // of those chords while showing and the originals are parked (a live twin with the same chord would be ambiguous).
-  template <typename Actions>
-  static void wireWindowSwitching(QDialog& dlg, const Actions& actions, QAction* opener) {
-    for (QAction* a : actions) {
-      if (!a || a->shortcut().isEmpty()) continue;
-      auto* sc = new QShortcut(a->shortcut(), &dlg);
-      sc->setContext(Qt::WidgetWithChildrenShortcut);
-      QObject::connect(sc, &QShortcut::activated, &dlg, [&dlg, a, opener] {
-        // A different window's chord: close, then open that one once this dialog's loop has unwound.
-        if (a != opener) QTimer::singleShot(0, a, &QAction::trigger);
-        dlg.reject();
-      });
+  namespace {
+    // A modal dialog runs its own event loop, so the main window's QActions never fire there: the dialog carries copies
+    // of those chords while showing and the originals are parked (a live twin with the same chord would be ambiguous).
+    template <typename Actions>
+    void wireWindowSwitching(QDialog& dlg, const Actions& actions, QAction* opener) {
+      for (QAction* a : actions) {
+        if (!a || a->shortcut().isEmpty()) continue;
+        auto* sc = new QShortcut(a->shortcut(), &dlg);
+        sc->setContext(Qt::WidgetWithChildrenShortcut);
+        QObject::connect(sc, &QShortcut::activated, &dlg, [&dlg, a, opener] {
+          // A different window's chord: close, then open that one once this dialog's loop has unwound.
+          if (a != opener) QTimer::singleShot(0, a, &QAction::trigger);
+          dlg.reject();
+        });
+      }
     }
-  }
+    // The popover's motion: the dialog reveal (modalReveal.cpp) ×1.5.
+    constexpr int POPOVER_OPEN_MS = 450, POPOVER_CLOSE_MS = 360;
+  }  // namespace
 
   // llm-contract.md §5; browser twin llmSettingsModal.js.
   void MainWindow::openAssistantSettings() {
@@ -563,10 +567,6 @@ namespace stencil::gui {
     if (fileStore::settingsToJson(dlg.result()) != fileStore::settingsToJson(settings_))
       applySettings(dlg.result(), true);
   }
-
-  // The popover's motion: the dialog reveal (modalReveal.cpp) ×1.5.
-  static constexpr int POPOVER_OPEN_MS = 450;
-  static constexpr int POPOVER_CLOSE_MS = 360;
 
   int MainWindow::execMaybePopover(QDialog& dlg, QAction* opener) {
     wireWindowSwitching(dlg, pop_.dialogActions, opener);

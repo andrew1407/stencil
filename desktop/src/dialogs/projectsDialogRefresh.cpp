@@ -13,14 +13,16 @@
 #include "../support/filterFade.hpp"
 namespace stencil::gui {
 
-  // Identity across a rebuild: server url + id, "temp" for the pinned row; placeholders have none.
-  static QString rebuildKeyOf(const QListWidgetItem* it) {
-    if (!it) return QString();
-    if (it->data(TEMP_ROLE).toBool()) return QStringLiteral("temp");
-    const QVariant id = it->data(Qt::UserRole);
-    if (id.isNull()) return QString();
-    return it->data(Qt::UserRole + 1).toString() + "|" + id.toString();
-  }
+  namespace {
+    // Identity across a rebuild: server url + id, "temp" for the pinned row; placeholders have none.
+    QString rebuildKeyOf(const QListWidgetItem* it) {
+      if (!it) return QString();
+      if (it->data(TEMP_ROLE).toBool()) return QStringLiteral("temp");
+      const QVariant id = it->data(Qt::UserRole);
+      if (id.isNull()) return QString();
+      return it->data(Qt::UserRole + 1).toString() + "|" + id.toString();
+    }
+  }  // namespace
 
   void ProjectsDialog::refresh() {
     const int prevRow = list_->currentRow();

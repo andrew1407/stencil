@@ -28,7 +28,9 @@
 
 namespace stencil::gui {
 
-  static const QString ICON_SPIN = QStringLiteral("stencilIconSpin");
+  namespace {
+    const QString ICON_SPIN = QStringLiteral("stencilIconSpin");
+  }  // namespace
 
   QString inlineIconHtml(const QString& name, const QColor& color, int px,
                          const QString& style, qreal dpr) {
