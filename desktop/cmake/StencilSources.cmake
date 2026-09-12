@@ -217,6 +217,9 @@ set(STENCIL_GUI_SOURCES
   src/app/mainWindowChatMedia.cpp
   src/app/mainWindowChatSave.cpp
   src/app/mainWindowEvents.cpp
+  src/app/mainWindowEventsCanvas.cpp
+  src/app/mainWindowEventsChrome.cpp
+  src/app/mainWindowEventsPopover.cpp
   src/app/mainWindowAccent.cpp
   src/app/mainWindowBlank.cpp
   src/app/mainWindowBlankColor.cpp

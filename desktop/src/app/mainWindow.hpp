@@ -117,8 +117,7 @@ namespace stencil::gui {
     // a local file, a web URL, or a new blank. newBlankImage opens it in blank mode.
     void openImage();
     void newBlankImage();
-    // Browser cropModal.js. Confirms before discarding lines when the orientation flips;
-    // the original image is never replaced.
+    // Browser cropModal.js. Confirms before discarding lines when the orientation flips.
     void openCropDialog();
     void onHovered(double imageX, double imageY);
     void refreshActions();
@@ -126,14 +125,11 @@ namespace stencil::gui {
     void onSelectionChanged();
     void onPageSizeChanged();
     void validateAndApplyFormulas();
-    // Push the toolbar row's default visuals to the canvas and persist them. Browser twin:
-    // drawingApp.js lineColor/lineThickness/pointSize/lineStyle handlers.
+    // Browser twin: drawingApp.js lineColor/lineThickness/pointSize/lineStyle handlers.
     void onLineStyleControlChanged();
-    // Single source of truth for the filter controls living in BOTH the toolbar and the
-    // context menu: apply + persist + keep the two in sync.
+    // The single source of truth for the filter controls in BOTH the toolbar and context menu.
     void applyImageFilter(const QString& mode);
-    // Transient: applies to the canvas, then syncs the toolbar combo and the
-    // View ▸ Compare radio set.
+    // Transient: the canvas, then the toolbar combo and the View ▸ Compare radio set.
     void setCompareModeUi(const QString& mode);
     void applyTintColor(const QColor& color);
     void applyLineStyle(const QString& style);
@@ -159,8 +155,18 @@ namespace stencil::gui {
     void pasteImage();
 
    private:
-    // Catches Escape + focus-out on the project-name field so the user can always leave the edit.
+    // The app-wide filter and its chain, run in THIS order. The void handlers only observe, so
+    // every later one still sees the event; an optional-returning one that answers ends the
+    // chain with that verdict. tests/mainWindow.composition.gui.cpp pins the verdicts.
     bool eventFilter(QObject* obj, QEvent* event) override;
+    void filterPointerChrome(QObject* obj, QEvent* event);   // scrollbar hover, blocked cursor
+    void filterDockChrome(QObject* obj, QEvent* event);      // panel grip + chat resize edge
+    std::optional<bool> filterKeyClaims(QObject* obj, QEvent* event);
+    std::optional<bool> filterPopoverGestures(QObject* obj, QEvent* event);
+    std::optional<bool> filterPopoverButton(QObject* obj, QEvent* event);
+    std::optional<bool> filterZoomAndLogo(QObject* obj, QEvent* event);
+    std::optional<bool> filterCanvasViewport(QObject* obj, QEvent* event);
+    std::optional<bool> filterProjectNameBar(QObject* obj, QEvent* event);
     // One action: its shortcut, the tooltip carrying it, the window registration that makes it
     // fire, and the anchor its dialog flies from.
     QAction* newAction(const QString& text, const QString& seq);
@@ -184,21 +190,18 @@ namespace stencil::gui {
     QHBoxLayout* makeContextMenuRow(QWidgetAction*& act, int topM = 4, int botM = 4);
     void addContextCheckRow(const QString& text, bool checked, QCheckBox*& box,
                             QWidgetAction*& act);
-    // The two toolbar buttons' export-options popups. Called once right after
-    // buildToolbar() — it needs the buttons, resolved via buttonForAction.
+    // Called once right after buildToolbar() — it needs the buttons (buttonForAction).
     void wireExportOptionsPopups();
     // Alt+hover live preview (support/exportPreview.hpp) on one export-variant menu.
     void wireExportPreviewHover(QMenu* menu);
-    // The ONE row order every surface shows (context menu, Data menu, toolbar popups):
-    // split · current-row · the two fixed variants.
+    // The ONE row order every surface shows: split · current-row · the two fixed variants.
     void populateExportVariantMenu(QMenu* menu, bool copy);
     // Export enable/visibility gating + the split-shortcut swap, from live canvas state.
     void syncExportActions();
     // Null when `act` is not one of the export-variant actions.
     QImage exportVariantPreviewImage(QAction* act) const;
     void buildMenus();
-    // Qt reads settings_.nativeMenuBar only when the bar is (re)created, so switching it
-    // at runtime rebuilds the menus.
+    // Qt reads settings_.nativeMenuBar only on (re)creation, so a runtime switch rebuilds.
     void applyMenuBarPlacement();
     void buildToolbar();
     // The ctor's phases, in exactly this call order: construction order is observable (tab
@@ -264,8 +267,7 @@ namespace stencil::gui {
     core::Point pageCoords(double imageX, double imageY) const;
     // From settings_.units: cm by default, else inches.
     core::UnitFormat unitFormat() const;
-    // Centimetres, per-axis px→cm scale, formula- and unit-independent; 0 when nothing is
-    // measurable. Browser twin: units.js layoutLineLengthCm.
+    // Per-axis px→cm, formula- and unit-independent; browser twin units.js layoutLineLengthCm.
     double currentLineLengthCm() const;
     // Display-only canvas-derived meta (image px dims + line length in cm) from live editor
     // state. Called wherever the active project entry is captured, so they cannot diverge.
@@ -305,8 +307,8 @@ namespace stencil::gui {
     // past the window's top edge. No veil — animateBarsHeight stays a pure geometry slide.
     QPointer<gui::DisintegrateOverlay> barsSurfaceFlight(const QList<class QToolBar*>& bars,
                                                          bool gather, int ms);
-    // Browser selectionPanel.js surfaceIn/Out, from onSelectionChanged() only on the
-    // hidden↔visible edge. In grabs the bar after the dock is shown, Out before it hides.
+    // Browser selectionPanel.js surfaceIn/Out, only on the hidden↔visible edge: In grabs the
+    // bar after the dock is shown, Out before it hides.
     void dustSelectedLineBarIn();
     void dustSelectedLineBarOut();
     // `barPicture`'s centre for x, just under the "Image Size:" row for y; falls back to
@@ -321,8 +323,7 @@ namespace stencil::gui {
     // Only when the panel is visible: splitting against a hidden dock can park it
     // off-screen. Called from wherever either dock's visibility changes. Idempotent.
     void ensurePanelChatSplit();
-    // Title-bar buttons, a drag dropped on a dock zone, or toggleChatFloat's float→dock
-    // leg; animated via chatSurfaceFlight below.
+    // Title-bar buttons, a dock-zone drop, or toggleChatFloat's float→dock leg.
     void dockChatTo(Qt::DockWidgetArea area);
     // Motes stream out of (or into) the far side of `area`; `gather` true for an arrival. `pin`
     // is the caller's extent setter, and the snapshot is taken at the settled `full` extent
@@ -445,16 +446,14 @@ namespace stencil::gui {
     void openConnections();
     // Wires changed() to persist the live server set (connectionStore) across relaunch.
     stencil::net::ConnectionManager* ensureConnections();
-    // Best-effort, and only when the preference is on. Gated to the primary restored window
-    // so spawned windows do not each reconnect.
+    // Best-effort, preference-gated, and only for the primary restored window.
     void autoConnectServers();
     // Plaintext http to a remote host sends the bearer token + image bytes in the clear.
     void warnInsecureConnections();
     // Browser switchToProject(): page size, image + lines + crop, marked active. animate=false
     // for a REBIND, where the same image stays put and a dust arrival would be a lie.
     bool loadProjectIntoCanvas(const QString& id, bool animate = true);
-    // Browser "open in new tab". The new window owns itself (WA_DeleteOnClose) and reads
-    // projects from disk.
+    // Browser "open in new tab": it owns itself (WA_DeleteOnClose) and reads from disk.
     void openProjectInNewWindow(const QString& id);
     // Local↔server transfer lives in ProjectTransferController. This blocks removing or moving
     // a project open elsewhere — the browser's "open in another tab" guard.
@@ -467,8 +466,7 @@ namespace stencil::gui {
     // NewWindow: a fresh window via applyLaunchOptions (--src/--incognito), this one untouched.
     void openImageHere(const QString& path, bool incognito);
     void openImageInNewWindow(const QString& path, bool incognito);
-    // The same two outcomes for a URL / video source, which resolves asynchronously via
-    // MediaLoader rather than a synchronous local-image load.
+    // The same two outcomes for a URL / video source, resolved asynchronously by MediaLoader.
     void openSourceHere(const QString& src, int frame, bool incognito);
     // `crop*` carry the Open-Image dialog's quick-crop into the fresh window, which
     // re-resolves the same source (identical pixels) and re-applies it.
