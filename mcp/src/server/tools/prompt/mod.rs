@@ -2,6 +2,7 @@
 //! pipeline, wrapped in the contract-§7 auto-continuation loop.
 
 mod execute;
+mod merge;
 mod response;
 
 use rmcp::model::CallToolResult;
@@ -15,7 +16,8 @@ use crate::opplan;
 use crate::server::tools::err_result;
 
 use execute::{attach, chat_once, execute_concurrently, prepare_outputs};
-use response::{kept_or_error, merged_response, PromptResult};
+use merge::{kept_or_error, merged_response};
+use response::PromptResult;
 
 /// The tool's whole body: the real plain-http transport, then the flow below.
 pub async fn run(config: &Config, params: PromptParams) -> Result<CallToolResult, McpError> {
