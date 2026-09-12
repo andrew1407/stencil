@@ -306,7 +306,7 @@ stencil_headless_test(stencil_connectrow_headless
     ${STENCIL_CONTROLREVEAL_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/connectRow.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
-    src/dialogs/connectDialog.cpp ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
+    ${STENCIL_CONNECTDIALOG_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
@@ -351,7 +351,7 @@ stencil_headless_test(stencil_serverauth_headless
     ${STENCIL_FILTERFADE_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/serverAuth.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
-    src/dialogs/connectDialog.cpp ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
+    ${STENCIL_CONNECTDIALOG_SOURCES} ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
     ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts

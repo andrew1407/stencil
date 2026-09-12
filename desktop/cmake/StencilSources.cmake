@@ -79,6 +79,14 @@ set(STENCIL_ICONMOTION_SOURCES
   src/support/iconMotionRunner.cpp
   src/support/iconMotionFilter.cpp)
 
+# The connect list (dialogs/connectDialog.hpp) is four TUs behind a private parts header:
+# the build and row rebuild, the filter and row QSS, the row actions and the re-auth.
+set(STENCIL_CONNECTDIALOG_SOURCES
+  src/dialogs/connectDialog.cpp
+  src/dialogs/connectDialogFilter.cpp
+  src/dialogs/connectDialogActions.cpp
+  src/dialogs/connectDialogAuth.cpp)
+
 # The links dialog (dialogs/linksDialog.hpp) is three TUs behind a private parts header:
 # the build, the preview/scrub player and the show path.
 set(STENCIL_LINKSDIALOG_SOURCES
@@ -269,7 +277,7 @@ set(STENCIL_GUI_SOURCES
   src/dialogs/cropDialog.cpp
   src/dialogs/infoDialog.cpp
   src/dialogs/shortcutsDialog.cpp
-  src/dialogs/connectDialog.cpp
+  ${STENCIL_CONNECTDIALOG_SOURCES}
   src/dialogs/openInDialog.cpp
   ${STENCIL_SERVERCLIENT_SOURCES}
   src/net/liveFeed.cpp
