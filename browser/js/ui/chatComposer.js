@@ -1,6 +1,5 @@
-// ── The shared chat composer ────────────────────────────────────
-// The action row, its "…" menu, the send/Stop swap and the send gesture — identical in the
-// panel and the context-menu flyout. Model output is DATA: every string lands via textContent.
+// The shared chat composer, identical in the panel and the context-menu flyout. Model
+// output is data: every string lands via textContent.
 import MEDIA_TYPES from '../config/mediaTypes.json' with { type: 'json' };
 import UI_STRINGS from '../config/uiStrings.json' with { type: 'json' };
 import { DOUBLE_CLICK_MS, LONG_PRESS_MS, PRESS_SLOP_PX } from './popover.js';
@@ -9,12 +8,8 @@ import { announcePopup, openComposerMenus } from './chatRowMenu.js';
 import { applyChatSide, toggleChatSide } from './chatLayoutPrefs.js';
 import { icon } from './icons.js';
 
-// The composer's action row, shared by the panel and the context-menu flyout (each
-// surface keeps its own `${prefix}-…` ids). Only SEND stays inline; attach / clear /
-// settings live behind the "…" trigger carrying the provider-status dot — the real
-// controls stay in the DOM inside the menu, so existing ids and listeners keep working.
-// The send button's tooltips: one per face. `·` reads as bullets (tipContent.js); no
-// "(Enter)" keycap any more — the Enter convention lives in the textarea placeholder.
+// Only Send stays inline; attach / clear / settings live behind the "…" trigger, in the
+// DOM, so existing ids and listeners keep working. `·` in a title reads as bullets (tipContent.js).
 export const { sendTitle: SEND_TITLE, sendTitlePlain: SEND_TITLE_PLAIN,
   voiceTitleListening: VOICE_TITLE_LISTENING, voiceTitlePaused: VOICE_TITLE_PAUSED } = UI_STRINGS.chat;
 
@@ -33,36 +28,28 @@ export const chatComposerActionsHtml = ({ prefix, actionsClass, gearClass, trail
                 <input type="file" id="${prefix}-attach-input" accept="${MEDIA_TYPES.accept.imageOrVideo}" multiple style="display:none;">${trailingHtml}
             </span>`;
 
-// The "…" the user last opened, so a window raised from inside it knows which composer
-// it belongs to when both surfaces are up (visibleChatMoreBtn below).
+// The "…" last opened, so a window raised from it knows which composer it belongs to.
 let lastMoreBtn = null;
 const shownBtn = (el) => {
   const r = el?.getBoundingClientRect?.();
   return r && r.width > 0 && r.height > 0 ? el : null;
 };
-// The "…" trigger a settings window opened from this menu should fly to. The gear item
-// itself is already hidden by then, so its rect is useless — the trigger owns the flight.
-// Nothing on screen ⇒ null, and the window falls from above instead (ui/base.js).
+// The trigger owns the flight: the gear item is hidden by then. Null ⇒ the window falls from above.
 export const visibleChatMoreBtn = (doc = document) =>
   shownBtn(lastMoreBtn)
   || shownBtn(doc.getElementById('chat-more-btn'))
   || shownBtn(doc.getElementById('ctx-assist-more-btn'))
   || null;
 
-// Wire one composer's "…" menu: toggle on click, close on outside click, on
-// Escape, and after any item runs (the item's own listener still does the work).
 export const wireChatMoreMenu = (prefix, doc = document, { onOpen } = {}) => {
   const btn = doc.getElementById(`${prefix}-more-btn`);
   const menu = doc.getElementById(`${prefix}-more-menu`);
   if (!btn || !menu) return;
-  // The motes stream out of / pour back into the "…" itself.
   const dustPoint = () => rectCenter(btn);
-  // Both edges go through setOpen, so the popup accounting (and the pills that stand
-  // down for it) can never disagree with what is on screen.
+// Both edges go through setOpen so the popup accounting matches the screen.
   const setOpen = (on) => {
-    // Only a real change flies, and the flight is played while the menu is still up:
-    // `hidden` is display:none, and the cloud is a copy on <body> with its own life,
-    // so the end state never waits for it (same contract as ui/dropdownMenu.js).
+// The flight plays while the menu is still up; the cloud is a copy on <body> (same
+// contract as ui/dropdownMenu.js).
     const changed = on === menu.hidden;
     if (on) { menu.hidden = false; lastMoreBtn = btn; }
     if (changed) {
@@ -77,7 +64,7 @@ export const wireChatMoreMenu = (prefix, doc = document, { onOpen } = {}) => {
   const close = () => setOpen(false);
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (menu.hidden) onOpen?.();   // refresh item enabled-states as the menu appears
+    if (menu.hidden) onOpen?.();
     setOpen(menu.hidden);
   });
   for (const item of menu.querySelectorAll('.chat-more-item')) item.addEventListener('click', close);
@@ -85,9 +72,7 @@ export const wireChatMoreMenu = (prefix, doc = document, { onOpen } = {}) => {
   doc.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !menu.hidden) close(); });
 };
 
-// Wire one surface's "Swap message sides" item: apply the persisted side to its own
-// `transcript` on mount, flip it on click. Both surfaces share the one preference
-// (chatLayoutPrefs.js), so whichever opens later picks up the other's last setting.
+// Both surfaces share the one preference (chatLayoutPrefs.js).
 export const wireChatSideToggle = (prefix, transcript, doc = document) => {
   if (!transcript) return;
   applyChatSide(transcript);
@@ -95,12 +80,9 @@ export const wireChatSideToggle = (prefix, transcript, doc = document) => {
     ?.addEventListener('click', () => applyChatSide(transcript, toggleChatSide()));
 };
 
-// The send button's three faces, shared by both composers: Stop while a turn is in
-// flight (attaching pauses too); the MIC while the composer is in voice mode
-// (wireComposerVoice — `voice` = { on, listening }); otherwise Send. With voice input
-// available the empty-box Send is only LOOK-disabled (aria-disabled + .chat-send-idle):
-// a really disabled button hears no double-click / hold, and that gesture is how an
-// empty composer switches to dictation. send() itself already ignores an empty box.
+// Three faces: Stop while a turn is in flight, the mic in voice mode, otherwise Send. With
+// voice available the empty-box Send is only look-disabled (aria-disabled): a disabled
+// button hears no double-click / hold, which is how an empty composer switches to dictation.
 export const syncComposerControls = ({ sendBtn, attachBtn, input }, sending,
   { attachFull = false, voice = null, voiceSupported = false } = {}) => {
   const hasText = !!input.value.trim();
@@ -120,24 +102,20 @@ export const syncComposerControls = ({ sendBtn, attachBtn, input }, sending,
     sendBtn.disabled = voiceSupported ? false : !hasText;
     sendBtn.dataset.title = voiceSupported ? SEND_TITLE : SEND_TITLE_PLAIN;
   }
-  // The face turns in place with the Draw toggles' shared swap (motion.js): the new
-  // glyph turns in while the old one leaves as a ghost. An unchanged face is a no-op,
-  // so typing never rewrites the button.
-  swapContent(sendBtn, icon(face, { size: face === 'mic' ? 18 : 14 }), { key: face });   // the mic reads best a size up
+// Same in-place swap as the Draw toggles (motion.js); an unchanged face is a no-op.
+  swapContent(sendBtn, icon(face, { size: face === 'mic' ? 18 : 14 }), { key: face });
   sendBtn.classList.toggle('chat-send-idle', idle && voiceSupported);
   sendBtn.setAttribute('aria-disabled', String(idle));
   const listening = mic && !!voice.listening;
   const wasListening = sendBtn.classList.contains('chat-voice-listening');
   sendBtn.classList.toggle('chat-voice-on', mic);
   sendBtn.classList.toggle('chat-voice-listening', listening);
-  if (listening !== wasListening) replayWaves(sendBtn, listening);   // the waves swell in / fly out
-  attachBtn.disabled = sending || attachFull;   // full = MAX_ATTACHMENTS already queued
+  if (listening !== wasListening) replayWaves(sendBtn, listening);
+  attachBtn.disabled = sending || attachFull;
 };
 
-// The send button's gesture: a plain click acts one double-click interval later (so a
-// double-click never also sends), a double-click or a HOLD — any pointer, not only
-// touch — switches the composer between typing and dictation. Timers injected for
-// tests; the DOM wiring is in wireChatComposer.
+// A plain click acts one double-click interval later; a double-click or a hold (any
+// pointer) switches between typing and dictation. Timers injected for tests.
 export const createSendGesture = ({
   onClick, onSwitch, delay = DOUBLE_CLICK_MS, holdMs = LONG_PRESS_MS, slop = PRESS_SLOP_PX,
   setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (id) => clearTimeout(id),
@@ -145,7 +123,7 @@ export const createSendGesture = ({
   let clickTimer = null;
   let holdTimer = null;
   let press = null;
-  let swallow = false;   // a hold already acted — the click on release is not a send
+  let swallow = false;
   const cancelClick = () => { if (clickTimer !== null) { clearTimer(clickTimer); clickTimer = null; } };
   const cancelHold = () => { if (holdTimer !== null) { clearTimer(holdTimer); holdTimer = null; } };
   return {
@@ -168,16 +146,9 @@ export const createSendGesture = ({
   };
 };
 
-// Wire one composer: Enter sends / Shift+Enter newline, send doubles as Stop, and
-// the attach button drives the hidden file input. Hooks keep each surface's deltas:
-//   isSending()      turn in flight?
-//   abort()          the Stop action
-//   submit(text)     run the (already-dequeued) turn — surface owns control sync
-//   attachFiles(fs)  queue picked Files on the shared controller
-//   onInput()        control sync (and any surface extras) on typing
-//   voice            optional { isOn, isListening, toggleMode, toggleListening } from
-//                    wireComposerVoice — the mic face's click and the switch gesture
-// Returns `send` so the voice wiring can submit through the very same path.
+// Enter sends / Shift+Enter newline, send doubles as Stop, attach drives the hidden file
+// input. `voice` = { isOn, isListening, toggleMode, toggleListening } from wireComposerVoice.
+// Returns `send` so the voice wiring submits through the same path.
 export const wireChatComposer = ({ input, sendBtn, attachBtn, attachInput }, { isSending, abort, submit, attachFiles, onInput, voice = null }) => {
   const send = () => {
     const text = input.value.trim();
@@ -188,7 +159,6 @@ export const wireChatComposer = ({ input, sendBtn, attachBtn, attachInput }, { i
   input.addEventListener('input', () => onInput?.());
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); return; }
-    // Escape pauses dictation first; a second Escape reaches the surface's own closer.
     if (e.key === 'Escape' && voice?.isListening()) { e.preventDefault(); e.stopPropagation(); voice.toggleListening(); }
   });
   const gesture = createSendGesture({
@@ -201,7 +171,7 @@ export const wireChatComposer = ({ input, sendBtn, attachBtn, attachInput }, { i
   sendBtn.addEventListener('pointermove', (e) => gesture.pressMove({ x: e.clientX, y: e.clientY }));
   sendBtn.addEventListener('pointerup', () => gesture.pressEnd());
   sendBtn.addEventListener('pointercancel', () => gesture.pressEnd());
-  sendBtn.addEventListener('contextmenu', (e) => { if (voice) e.preventDefault(); });   // a hold must not open the browser menu
+  sendBtn.addEventListener('contextmenu', (e) => { if (voice) e.preventDefault(); });
   attachBtn.addEventListener('click', () => attachInput.click());
   attachInput.addEventListener('change', async (e) => {
     const files = [...(e.target.files || [])];

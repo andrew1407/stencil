@@ -1,5 +1,4 @@
-// ── Chat cards: attachments, results, the §11 choice card ───────
-// Every card is built from DOM nodes with textContent — model output is data, never markup.
+// Chat cards. Every card is built from DOM nodes with textContent — model output is data, never markup.
 import { askAnswerText, sanitizeLabel } from '../llm/opPlan.js';
 import { escapeHtml } from './base.js';
 import { icon } from './icons.js';
@@ -12,14 +11,11 @@ export const chatAttachmentStrip = (attachments) => {
   for (const a of attachments) {
     const fig = document.createElement('span');
     fig.className = 'chat-attached-item';
-    // No native title here: the hover preview below already shows the name WITH the
-    // big image, and the two tooltips doubled up.
+// No native title: the hover preview already shows the name.
     const img = document.createElement('img');
     img.className = 'chat-attached-thumb';
     img.src = a.dataUrl;
     img.alt = a.name;
-    // Small on purpose — hovering shows it big (the thumbnail alone is too small to
-    // tell two screenshots apart).
     wireThumbPreview(img, a.kind === 'video' ? `${a.name} (first frame)` : a.name);
     fig.appendChild(img);
     if (a.kind === 'video') {
@@ -33,7 +29,6 @@ export const chatAttachmentStrip = (attachments) => {
   return strip;
 };
 
-// One result card: thumbnail + label + download + open-as-the-working-image.
 export const chatResultCard = (r) => {
   const card = document.createElement('div');
   card.className = 'chat-result';
@@ -63,11 +58,8 @@ export const chatResultCard = (r) => {
   return card;
 };
 
-// ── §11 choice card ─────────────────────────────────────────────────────────
-// The model's `ask` rendered under its reply: radios/checkboxes per mode, per-option
-// previews, optional free-text, Submit disabled until something is chosen. Submitting
-// sends the answer as the user's NEXT turn (§11.3); nothing here applies an edit. Every
-// string is model output → textContent. Once answered the card locks — no re-firing.
+// The model's `ask` (§11) under its reply; submitting sends the answer as the user's next
+// turn (§11.3). Every string is model output → textContent. Answered once, then locked.
 export const chatAskCard = (ask, { onSubmit, previews = [] } = {}) => {
   const byIndex = new Map(previews.map((p) => [p.index, p.dataUrl]));
   const wrap = document.createElement('div');
@@ -78,7 +70,7 @@ export const chatAskCard = (ask, { onSubmit, previews = [] } = {}) => {
   q.textContent = ask.question;
   wrap.appendChild(q);
 
-  const name = `ask-${Math.random().toString(36).slice(2)}`;   // groups the radios
+  const name = `ask-${Math.random().toString(36).slice(2)}`;
   const multi = ask.mode === 'multi';
   const list = document.createElement('div');
   list.className = 'chat-ask-options';
@@ -92,9 +84,8 @@ export const chatAskCard = (ask, { onSubmit, previews = [] } = {}) => {
     box.value = String(i);
     inputs.push(box);
     row.appendChild(box);
-    // ONLY from `previews` — data: URLs this app rendered. An option's model-written
-    // `image.url` must never reach an <img src>: that fires a request to a host the
-    // MODEL chose, on render, before the user has read the card.
+// Only from `previews` (data: URLs this app rendered): a model-written `image.url` must
+// never reach an <img src>.
     const pic = byIndex.get(i);
     if (pic) {
       const img = document.createElement('img');
@@ -111,8 +102,7 @@ export const chatAskCard = (ask, { onSubmit, previews = [] } = {}) => {
   });
   wrap.appendChild(list);
 
-  // The custom row: picking it is what makes its input meaningful, and typing in it picks
-  // it — so the two can't disagree about what will be sent.
+// Picking the custom row makes its input meaningful, and typing in it picks it.
   let customBox = null;
   let customText = null;
   if (ask.allowCustom) {
@@ -149,20 +139,17 @@ export const chatAskCard = (ask, { onSubmit, previews = [] } = {}) => {
 
   let answered = false;
   submit.addEventListener('click', () => {
-    // Removing the button below detaches it but does NOT disarm this listener — a retained
-    // reference (or assistive tech) could click it again and re-send the turn. The flag is
-    // what makes "answered once" true, not the DOM.
+// Removing the button does not disarm this listener; the flag is what makes "answered once" true.
     if (answered) return;
     const answer = askAnswerText(ask, { picked: chosen(), custom: typed() });
     if (!answer) return;
     answered = true;
-    // Lock it: the card becomes a record of what was sent, not a control.
     for (const b of inputs) b.disabled = true;
     if (customText) customText.disabled = true;
     submit.remove();
     const sent = document.createElement('div');
     sent.className = 'chat-ask-sent';
-    sent.textContent = answer;                    // the user's own words / picked labels
+    sent.textContent = answer;
     actions.appendChild(sent);
     wrap.classList.add('chat-ask-answered');
     onSubmit?.(answer);
@@ -170,13 +157,7 @@ export const chatAskCard = (ask, { onSubmit, previews = [] } = {}) => {
   return wrap;
 };
 
-// Both chat surfaces read the SAME controller, so a queue change on one must repaint
-// the other: whoever mutates attachments fires this. The name lives with the
-// controller (chatController.js), which also fires it when a send drains the queue.
-
-// The "Reconnect" call-to-action under an EXPIRED-session message: opens the
-// connections modal, where that server's row offers the sign-in again. The URL rides
-// the label so a multi-server user knows which session died.
+// Under an expired-session message: opens the connections modal for that server.
 export const chatReconnectButton = (serverUrl, onReconnect) => {
   const b = document.createElement('button');
   b.className = 'btn-icon-text chat-reconnect-cta';
@@ -186,22 +167,16 @@ export const chatReconnectButton = (serverUrl, onReconnect) => {
   return b;
 };
 
-// The "Configure provider" call-to-action shown under an unreachable-provider
-// message: opens the LLM settings modal. Unlike the gear (which lives inside the
-// composer's "…" menu and so flies from THAT trigger, per llmSettingsModal's
-// originEl), this button opens itself directly, through the modal's own API, so
-// the window grows out of (and gathers back into) the CTA itself — in the panel,
-// where it sits right in the transcript and stays on screen through the click,
-// AND in the context-menu flyout, where onBeforeOpen closes that popup first
-// (a modal can't show under the menu's own grab): its rect is captured BEFORE
-// that close and passed as the plain rect the shell's open() accepts.
+// Under an unreachable-provider message: opens the LLM settings modal through the modal's
+// own API, so the window flies from the CTA; the rect is captured before onBeforeOpen
+// closes the context-menu flyout.
 export const chatConfigureButton = (onBeforeOpen) => {
   const cfg = document.createElement('button');
   cfg.className = 'btn-icon-text chat-config-cta';
   cfg.innerHTML = icon('gear', { size: 13 }) + '<span>Configure provider</span>';
   cfg.addEventListener('click', () => {
-    const rect = cfg.getBoundingClientRect();   // captured before onBeforeOpen hides it
-    onBeforeOpen?.();   // e.g. the context-menu chat closing its own popup first
+    const rect = cfg.getBoundingClientRect();
+    onBeforeOpen?.();
     document.getElementById('chat-settings-overlay')?.__stencilModal?.open(rect);
   });
   return cfg;
