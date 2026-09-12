@@ -1,20 +1,18 @@
 import { normalizeUrl } from './connectionManager.js';
 import { loadSavedServers } from './connectionStore.js';
-// ── Remote project sync helpers (browser ↔ collaboration server) ─────────────
-// Create-on-server after a local create + version-guarded save-back on save. Used by
-// the modals and the window.stencil facade alike; each takes a resolved ServerConnection.
+// Create-on-server after a local create + version-guarded save-back; each takes a
+// resolved ServerConnection.
 
 // Shown when a save-back loses the last-writer-wins race (HTTP 409).
 export const CONFLICT_MESSAGE =
   'This project was edited elsewhere — reload it from the server before saving again.';
 
-// Live co-edit: should a server `project-event` reload the active editor? True only for an
-// "updated" event for THIS linked project/server with a newer version, when not mid-stroke
-// and outside our own save's echo window. Pure + unit-tested; shared by browser feed + desktop poll.
+// Should a server `project-event` reload the active editor? Only an "updated" event for
+// THIS linked project with a newer version, not mid-stroke, outside our own save's echo
+// window. Shared by the browser feed and the desktop poll.
 export const shouldReloadFromEvent = (msg, link, opts = {}) => {
-  // version<=link.version is the real self-echo guard (our save advances link.version);
-  // echoWindowMs is a SHORT extra guard for the brief save-echo race, kept short so a
-  // peer's change right after our save isn't mistaken for our echo.
+  // version<=link.version is the real self-echo guard; echoWindowMs covers the brief race,
+  // kept short so a peer's change right after our save is not mistaken for our echo.
   const { now = Date.now(), lastLocalSaveAt = 0, isDrawing = false, connUrl = null,
           echoWindowMs = 150 } = opts;
   if (!link || !msg || msg.type !== 'project-event' || msg.event !== 'updated') return false;
@@ -28,9 +26,8 @@ export const shouldReloadFromEvent = (msg, link, opts = {}) => {
   return true;
 };
 
-// Delete a server project even when this tab's live connection object is gone (dropped
-// feed, listing served from cache): fall back to a direct authenticated DELETE with the
-// token saved for that server. Lives here, not in a view — it speaks the wire.
+// Falls back to a direct authenticated DELETE with the saved token when this tab's live
+// connection object is gone (dropped feed, cached listing).
 export const deleteRemoteProject = async (connMgr, serverUrl, id) => {
   const conn = connMgr?.get(serverUrl);
   if (conn) { await conn.deleteProject(id); return; }
@@ -48,8 +45,7 @@ export const deleteRemoteProject = async (connMgr, serverUrl, id) => {
   }
 };
 
-// Resolve + validate the connection for `address` from a ConnectionManager.
-// Throws a clear error when there is no live connection to that server.
+// Throws when there is no live connection to that server.
 export const requireConnection = (connMgr, address) => {
   if (!connMgr) throw new Error('No server connections — connect a server first');
   const conn = connMgr.get(address);
@@ -69,7 +65,6 @@ const currentVersion = async (conn, id, fallback) => {
   }
 };
 
-// Create a project on `conn` and (when image bytes are given) upload the original.
 // Returns the session link { address, remoteId, version } to persist on the editor.
 export const createRemoteProject = async (conn, { name, source, resource, color, bytes, ext, w, h } = {}) => {
   const rec = await conn.createProject({
@@ -87,8 +82,7 @@ export const createRemoteProject = async (conn, { name, source, resource, color,
   return { address: conn.url, remoteId: rec.id, version };
 };
 
-// Save a linked project back (version-guarded layout/name + result upload), returning
-// the refreshed link. A 409 (lost LWW race) is rethrown flagged (err.conflict === true).
+// A 409 (lost LWW race) is rethrown with err.conflict === true.
 export const saveRemoteProject = async (conn, link, { name, layout, bytes, ext, w, h } = {}) => {
   let rec;
   try {

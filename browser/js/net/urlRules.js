@@ -1,14 +1,10 @@
-// ── Server URL rules, invite links and credential statuses ──────────────────
-// The pure half of the connection layer: everything a URL or an HTTP status answers on
-// its own, with no socket and no fetch behind it. Shared by ServerConnection, the
-// manager, and the connect UI.
+// The pure half of the connection layer: what a URL or an HTTP status answers on its own.
 
-// Remote project ids are namespaced so they never collide with local base36 ids;
-// each remote meta carries `serverUrl` with `remote: true` (golden outline in the UI).
+// Remote project ids are namespaced so they never collide with local base36 ids; each
+// remote meta carries `serverUrl` with `remote: true`.
 export const REMOTE_FLAG = 'remote';
 
-// True for a loopback host (localhost, *.localhost, 127.0.0.0/8, ::1), where plaintext
-// http is safe because the bytes never leave the machine.
+// Plaintext http is safe on loopback: the bytes never leave the machine.
 export const isLoopbackHost = (host) => {
   if (!host) return false;
   const h = host.toLowerCase().replace(/^\[|\]$/g, ''); // strip any IPv6 brackets
@@ -17,9 +13,8 @@ export const isLoopbackHost = (host) => {
   return /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(h);
 };
 
-// normalizeUrl turns 'host:8090' / 'http://host:8090/' into a clean origin. Secure by
-// default: a bare REMOTE host gets https; loopback keeps http (dev servers run plaintext
-// on localhost). An explicit scheme is preserved — the user opts into cleartext.
+// 'host:8090' → a clean origin. A bare REMOTE host gets https, loopback keeps http; an
+// explicit scheme is preserved — the user opts into cleartext.
 export const normalizeUrl = (raw) => {
   let s = String(raw == null ? '' : raw).trim();
   if (!s) throw new Error('Server URL is required');
@@ -31,9 +26,7 @@ export const normalizeUrl = (raw) => {
   return u.origin;
 };
 
-// An invite link is a server URL carrying a session token in its FRAGMENT:
-// `<url>#token=<value>` (the fragment never goes over the wire). Split it before
-// normalizeUrl; any other fragment passes through untouched (origin drops it anyway).
+// `<url>#token=<value>`: the fragment never goes over the wire. Split before normalizeUrl.
 export const parseInviteUrl = (raw) => {
   const s = String(raw == null ? '' : raw);
   const at = s.indexOf('#');
@@ -44,12 +37,10 @@ export const parseInviteUrl = (raw) => {
   return { url: s.slice(0, at), token };
 };
 
-// The inverse: build `<normalized-url>#token=<token>` for sharing.
 export const buildInviteUrl = (url, token) =>
   `${normalizeUrl(url)}#token=${encodeURIComponent(token)}`;
 
-// True when `origin` would send the bearer token + image bytes in CLEARTEXT to a remote
-// host (http scheme, not loopback) — the UI warns on these.
+// Cleartext bearer token + image bytes to a remote host — the UI warns on these.
 export const isInsecureRemote = (origin) => {
   try {
     const u = new URL(origin);
@@ -57,12 +48,9 @@ export const isInsecureRemote = (origin) => {
   } catch { return false; }
 };
 
-// wsUrl derives the WebSocket endpoint for an http(s) origin.
 export const wsUrl = (origin) => origin.replace(/^http/i, 'ws') + '/ws';
 
-// The two statuses that mean "your credential was refused" rather than "the server is
-// not there": a saved token the server has forgotten (restart, expiry, revocation).
+// "Your credential was refused", not "the server is not there".
 export const isAuthStatus = (status) => status === 401 || status === 403;
-// …and the same question asked of a thrown REST error, wherever one surfaces (the chat
-// provider hits it on /llm/chat exactly as the projects list does on /projects).
+// The same question of a thrown REST error (the chat provider hits it on /llm/chat too).
 export const isExpiredSession = (err) => !!err && (err.expired === true || isAuthStatus(err.status));
