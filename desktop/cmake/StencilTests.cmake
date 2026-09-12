@@ -232,27 +232,27 @@ stencil_headless_test(stencil_image_headless
 # Layout-envelope test: the page format + x/y formulas round-trip through
 # fileStore::buildLayoutJson <-> parseLayoutMeta (server save/load parity with browser + CLI).
 stencil_headless_test(stencil_layout_headless
-  SOURCES tests/layoutMeta.headless.cpp src/io/fileStore.cpp src/io/deferredWrite.cpp
+  SOURCES tests/layoutMeta.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
 # fileStore::projectToJson <-> projectFromJson per-project `color` round-trip
 # (browser/server colour-persistence parity).
 stencil_headless_test(stencil_projectcolor_headless
-  SOURCES tests/projectColor.headless.cpp src/io/fileStore.cpp src/io/deferredWrite.cpp
+  SOURCES tests/projectColor.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
 # Per-project keywords persistence round-trip (browser/server keywords parity).
 stencil_headless_test(stencil_projectkeywords_headless
-  SOURCES tests/projectKeywords.headless.cpp src/io/fileStore.cpp src/io/deferredWrite.cpp
+  SOURCES tests/projectKeywords.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
 # .stencil portable project file round-trip (fileStore::buildProjectFile <-> parseProjectFile):
 # image + layout + metadata + optional theme, cross-surface parity with browser projectFile.js.
 stencil_headless_test(stencil_projectfile_headless
-  SOURCES tests/projectFile.headless.cpp src/io/fileStore.cpp src/io/deferredWrite.cpp
+  SOURCES tests/projectFile.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
@@ -266,7 +266,7 @@ stencil_headless_test(stencil_projecttransfer_headless
     ${STENCIL_SERVERCLIENT_SOURCES} ${STENCIL_CANVAS_SOURCES} src/canvas/idleCard.cpp
     src/support/theme.cpp src/support/notifications.cpp src/support/iconSet.cpp
     src/support/modalReveal.cpp   # notifications' toast dust needs motionReduced()
-    src/io/fileStore.cpp src/io/deferredWrite.cpp resources/app.qrc
+    ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Network Qt6::Svg)
 
 # Deep-link check: the stencil:// URL grammar (parseStencilUrl) + the Telegram
@@ -307,7 +307,7 @@ stencil_headless_test(stencil_connectrow_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/connectRow.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/dialogs/connectDialog.cpp ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
-    src/io/fileStore.cpp          # …whose tokens live in its owner-only store
+    ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
     src/support/theme.cpp         # …and its colour wells take the theme's input chrome
@@ -338,7 +338,7 @@ stencil_headless_test(stencil_projectmeta_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/projectMetaDialogs.headless.cpp src/dialogs/descriptionDialog.cpp
     src/dialogs/keywordsDialog.cpp ${STENCIL_MODALCHROME_SOURCES} src/support/iconSet.cpp
-    src/support/modalReveal.cpp src/io/fileStore.cpp src/io/deferredWrite.cpp
+    src/support/modalReveal.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
@@ -352,7 +352,7 @@ stencil_headless_test(stencil_serverauth_headless
     ${STENCIL_DISINTEGRATE_SOURCES}
     tests/serverAuth.headless.cpp ${STENCIL_MODALCHROME_SOURCES}
     src/dialogs/connectDialog.cpp ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
-    src/io/fileStore.cpp          # …whose tokens live in its owner-only store
+    ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp
     src/support/guiHelpers.cpp    # confirmYesNo() backs the disconnect prompts
     src/support/theme.cpp         # …and its colour wells take the theme's input chrome
@@ -379,7 +379,7 @@ stencil_headless_test(stencil_projectsbatch_headless
     ${STENCIL_PROJECTS_DIALOG_SOURCES}
     src/dialogs/expirationDialog.cpp  # the ⋯ menu's "Expiration…" opens it in place now
     ${STENCIL_SERVERCLIENT_SOURCES} src/net/fetchGuard.cpp        # the row thumbnails' SSRF guard
-    src/io/fileStore.cpp src/io/deferredWrite.cpp src/support/guiHelpers.cpp
+    ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp src/support/guiHelpers.cpp
     src/support/theme.cpp         # …and its colour wells take the theme's input chrome
     src/support/iconSet.cpp src/support/modalReveal.cpp
     src/support/menuReveal.cpp    # searchCombo's popup plays this dust
@@ -423,7 +423,7 @@ stencil_headless_test(stencil_opplanfixtures_headless
 stencil_headless_test(stencil_llmwirefixtures_headless
   SOURCES tests/llmWireFixtures.headless.cpp src/llm/opPlan.cpp src/llm/opRegistry.cpp
     src/llm/opSchema.cpp ${STENCIL_SERVERCLIENT_SOURCES} src/net/connectionStore.cpp
-    src/io/fileStore.cpp          # …whose tokens live in its owner-only store
+    ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp resources/app.qrc
   DEFS ${STENCIL_FIXTURE_WALKER_DEFS}
   LIBS stencil_core Qt6::Network)
@@ -434,14 +434,14 @@ stencil_headless_test(stencil_llmclient_headless
   SOURCES tests/llmClient.headless.cpp src/llm/llmClient.cpp src/llm/opPlan.cpp
     src/llm/opRegistry.cpp src/llm/opSchema.cpp ${STENCIL_SERVERCLIENT_SOURCES}
     src/net/connectionStore.cpp
-    src/io/fileStore.cpp          # …whose tokens live in its owner-only store
+    ${STENCIL_FILESTORE_SOURCES}          # …whose tokens live in its owner-only store
     src/io/deferredWrite.cpp resources/app.qrc
   LIBS stencil_core Qt6::Network)
 
 # Persistence-corpus walker: the shared chatDoc / layout / stencilProject
 # fixtures through the real io/fileStore serializers and parsers.
 stencil_headless_test(stencil_storefixtures_headless
-  SOURCES tests/storeFixtures.headless.cpp src/io/fileStore.cpp src/io/deferredWrite.cpp
+  SOURCES tests/storeFixtures.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   DEFS ${STENCIL_FIXTURE_WALKER_DEFS}
   LIBS stencil_core Qt6::Widgets)
@@ -468,7 +468,7 @@ stencil_headless_test(stencil_llmexecutor_headless
 # LLM settings defaults + fileStore Settings JSON round-trip of the contract
 # §5 llm* keys (and the windowState dock blob).
 stencil_headless_test(stencil_llmsettings_headless
-  SOURCES tests/llmSettings.headless.cpp src/io/fileStore.cpp src/io/deferredWrite.cpp
+  SOURCES tests/llmSettings.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
@@ -479,7 +479,7 @@ stencil_headless_test(stencil_motionprefs_headless
   SOURCES src/support/motionIcons.cpp
     ${STENCIL_DUSTKIT_SOURCES}
     ${STENCIL_DISINTEGRATE_SOURCES}
-    tests/motionPrefs.headless.cpp src/io/fileStore.cpp src/io/deferredWrite.cpp
+    tests/motionPrefs.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     resources/app.qrc
   LIBS stencil_core Qt6::Widgets)
 
@@ -487,7 +487,7 @@ stencil_headless_test(stencil_motionprefs_headless
 # layoutFields) parses and matches what theme.cpp / iconSet.cpp / fileStore
 # consume — a broken app.qrc alias fails here fast.
 stencil_headless_test(stencil_configcanon_headless
-  SOURCES tests/configCanon.headless.cpp src/io/fileStore.cpp src/io/deferredWrite.cpp
+  SOURCES tests/configCanon.headless.cpp ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp
     src/support/iconSet.cpp src/support/theme.cpp resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
 
@@ -495,7 +495,7 @@ stencil_headless_test(stencil_configcanon_headless
 # against the Palette, resources/app.qss against buildStylesheet's token map,
 # mediaTypes.json against the suffix sniffers, and the prompt canon's context suffixes.
 stencil_headless_test(stencil_canonassets_headless
-  SOURCES tests/canonAssets.headless.cpp src/app/launchOptions.cpp src/io/fileStore.cpp
+  SOURCES tests/canonAssets.headless.cpp src/app/launchOptions.cpp ${STENCIL_FILESTORE_SOURCES}
     src/io/deferredWrite.cpp src/io/mediaTypes.cpp src/llm/opRegistry.cpp src/llm/opSchema.cpp
     src/support/theme.cpp resources/app.qrc
   LIBS stencil_core Qt6::Widgets Qt6::Svg)
@@ -505,7 +505,7 @@ stencil_headless_test(stencil_canonassets_headless
 # stored shape still round-trips.
 stencil_headless_test(stencil_connectionsecrets_headless
   SOURCES tests/connectionSecrets.headless.cpp src/net/connectionStore.cpp
-    src/io/fileStore.cpp src/io/deferredWrite.cpp resources/app.qrc
+    ${STENCIL_FILESTORE_SOURCES} src/io/deferredWrite.cpp resources/app.qrc
   LIBS stencil_core Qt6::Core)
 
 # Untrusted-fetch SSRF guard (net/fetchGuard) — the port of cli/src/net.zig: the

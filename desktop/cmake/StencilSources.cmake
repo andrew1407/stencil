@@ -79,6 +79,14 @@ set(STENCIL_ICONMOTION_SOURCES
   src/support/iconMotionRunner.cpp
   src/support/iconMotionFilter.cpp)
 
+# Local persistence (io/fileStore.hpp) is four TUs behind a private io header: the layout
+# JSON, the project file and chat doc, the settings, and the session/projects/hotkeys.
+set(STENCIL_FILESTORE_SOURCES
+  src/io/fileStore.cpp
+  src/io/fileStoreProject.cpp
+  src/io/fileStoreSettings.cpp
+  src/io/fileStoreSession.cpp)
+
 # The REST client and connection manager (net/serverClient.hpp) are five TUs: the request
 # plumbing, the project calls, the file calls, the guarded writes and invites, and the
 # ConnectionManager.
@@ -252,7 +260,7 @@ set(STENCIL_GUI_SOURCES
   src/net/liveFeed.cpp
   src/net/connectionStore.cpp
   src/net/fetchGuard.cpp
-  src/io/fileStore.cpp
+  ${STENCIL_FILESTORE_SOURCES}
   src/io/deferredWrite.cpp
   src/io/mediaLoader.cpp
   src/io/mediaTypes.cpp

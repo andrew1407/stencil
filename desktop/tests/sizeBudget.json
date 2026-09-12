@@ -28,7 +28,6 @@
     "desktop/src/dialogs/projectsDialog.hpp": 380,
     "desktop/src/dialogs/settingsDialog.cpp": 425,
     "desktop/src/dialogs/shortcutsDialog.cpp": 316,
-    "desktop/src/io/fileStore.cpp": 650,
     "desktop/src/io/fileStore.hpp": 284,
     "desktop/src/io/mediaLoader.cpp": 269,
     "desktop/src/llm/chatDock.cpp": 542,
