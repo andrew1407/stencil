@@ -64,7 +64,9 @@ func newSnapshotWorker(ctx context.Context, st Store, projectID string, timeout 
 	}
 }
 
-// run is the worker goroutine. It exits when the session tears down.
+// run is the worker goroutine. Exactly one runs per session, and that is the
+// version-ordering guarantee: jobs complete in dispatch order, so a save cannot
+// overtake the first load (pinned in persist_test.go). It exits on teardown.
 func (w *snapshotWorker) run() {
 	for {
 		select {
