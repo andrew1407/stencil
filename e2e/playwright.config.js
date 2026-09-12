@@ -16,9 +16,10 @@ import { APP_URL } from './helpers/config.js';
 export default defineConfig({
   testDir: './tests',
   fullyParallel: false,        // per-project: the UI projects opt in, the stack ones stay serial
-  // Total cap. Each UI project asks for 4, so a local run overlaps two of them; CI's
-  // smaller runner keeps to one project at a time.
-  workers: process.env.CI ? 4 : 8,
+  // Total cap: the UI projects ask for 4 each, so a run overlaps two of them. A STACK run
+  // stays single-file — `fullstack` and `server-protocol` share one server, and both point
+  // it at one fixed LLM-stub port (helpers/llm-stub.js), so they must never overlap.
+  workers: process.env.E2E_STACK === '1' ? 1 : 8,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],

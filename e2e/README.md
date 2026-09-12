@@ -49,7 +49,11 @@ helpers/
   compose.js         globalSetup: docker compose up db+redis+server (only when E2E_STACK=1)
   compose.llm.yml    compose override applied by compose.js: server LLM env (stub key/model
                      + LLM_BASE_URL at the host's llm-stub) for the fullstack llm-proxy spec
-  boot.js            gotoApp(page): navigate, clear state, await window.stencil
+  boot.js            gotoApp(page): navigate, clear state, await window.stencil; pass
+                     { motion: 'none' } to seed the app's motion switch before first paint
+  chat.js            shared LLM wire-shape readers (§4 system prompt, §5 settings, message
+                     text/images) + the browser chat panel and Assistant-flyout gestures
+  drag.js            real-finger CDP touch driver, the drag-ghost box, drag-image spy
   serverApi.js       REST helpers (token issuance, project CRUD) over Playwright's request
   wire.js            WS (ws lib) + raw-TCP (net) clients for the live-edit protocol
   uiPin.js           UI regression pins: capture a subtree's computed styles + DOM shape
@@ -71,6 +75,10 @@ tests/
                              (toolbar, modals, chat placements, fullscreen strip, toast)
              canvas-scrollbar — the canvas thumb is grey, and takes the accent only with the real
                              pointer on the bar's own strip (not on any hover of the canvas)
+             modal-layout  — the Projects + Settings dialogs at phone width (nothing clipped or
+                             parked aside, filters/footer/hotkey columns) and the 680px breakpoint
+             drag          — projects reorder + drag-out zones, and the drag ghost on mouse
+                             and finger (row-sized, anchored, cleaned up)
   extension/ handoff.smoke — scan images+CSS bg, new-tab AND in-page-modal hand-off, pin/unpin
              popup.smoke   — popup + side-panel UI: filter accordion, ⋯ menu + on-screen flyout, side-panel re-scan
              scan-sources  — every HTML/CSS image reference (img/srcset/input/svg/icons/meta + CSS) is scanned
@@ -124,6 +132,12 @@ tests/
 | `server-protocol` | **yes** | REST + WS + TCP against the running server binary |
 | `cli` | no | The Zig CLI binary (self-skips unless built / `STENCIL_CLI` set) |
 
+`browser-app`, `extension` and `cli` run `fullyParallel` with `workers: 4`; the two stack
+projects stay serial (`workers: 1`) because they share one server's state. The total cap is
+8, so two projects overlap — except under `E2E_STACK=1`, where the whole run goes
+single-file: `fullstack`'s llm-proxy spec and `server-protocol`'s llm-rate-limit spec both
+bind the one fixed stub port the server was started pointing at, so they cannot coexist.
+
 The stack-dependent projects **self-skip** unless `E2E_STACK=1` is set. The `cli` project
 needs the built binary — `(cd cli && zig build)` or point `STENCIL_CLI` at one.
 
@@ -167,6 +181,13 @@ E2E_STACK=1 E2E_SKIP_COMPOSE=1 npm test   # uses whatever is on SERVER_URL (defa
   behaviorally identical for these flows (the committed wasm artifact is used if present).
 - **State isolation.** `boot.js` clears `localStorage` per navigation and the config blocks
   the app service worker, so runs don't leak projects/servers between tests.
+- **Motion off for geometry.** `gotoApp(page, { motion: 'none' })` seeds the app's own
+  interface-motion switch (`drawingApp_motion`, read by `prePaintTheme.js` in `<head>`), so
+  no entrance ever starts and `settleModalAnimations` returns at once — worth ~2s a test on
+  the layout/gesture specs. Specs that ASSERT on motion (ui-pins, canvas-scrollbar,
+  modal-popover, ctx-keyboard, chat) boot normally.
+- **Wall times** (16-core macOS, no Docker): `npm run test:ui` ≈ 26s for 78 tests, the whole
+  non-stack `npm test` ≈ 26s for 91 (29 stack cases skip). A serial run is ~6× that.
 - **Server auth.** Token issuance is always admin-gated (an unset `ADMIN_TOKEN` makes the
   server generate a per-boot token, printed once). The harness starts compose with
   `ADMIN_TOKEN` (default `e2e-admin`; override via env) and `helpers/serverApi.js` sends it
