@@ -10,19 +10,23 @@ with the browser app. For the project overview see the
 graph TD
     CORE["<b>core/</b> — shared C++ logic<br/><i>add_subdirectory(../core), STL-only</i>"]
     subgraph APP["desktop/ — C++17 + Qt 6"]
-      MAIN["app/ — main · MainWindow · launchOptions · selectionPanel"]
+      MAIN["app/ — main · MainWindow (one header, many TUs) · controllers · launchOptions"]
       CANVAS["canvas/ — CanvasWidget (QPainter) + tooltip"]
-      DLG["dialogs/ — settings · projects · blank · crop · connect · …"]
+      DLG["dialogs/ — settings · projects · blank · crop · connect · links · …"]
+      LLM["llm/ — chat dock · llmClient · opPlan/opSchema · planExecutor"]
       IO["io/ — fileStore (persistence) · mediaLoader"]
-      NET["net/ — serverClient (REST)"]
-      SUP["support/ — theme · notifications · guiHelpers"]
+      NET["net/ — serverClient (REST) + fetchGuard"]
+      SUP["support/ — theme · motion · widgets · platform helpers"]
     end
     SRV["Collaboration server"]
 
     CORE -->|"linked static lib · pixel / geometry / page math"| CANVAS
     CORE --> DLG
+    CORE --> LLM
     MAIN --> CANVAS
     MAIN --> DLG
+    MAIN --> LLM
+    LLM -.->|"Ollama / OpenAI-compatible, or proxied by the server"| SRV
     NET -.->|"connect · REST only (QNetworkAccessManager, no WS)"| SRV
 ```
 
@@ -59,17 +63,31 @@ The shared logic lives in the sibling [`../core/`](../core/) library (see its
 only the Qt GUI and its integration test:
 
 ```
-src/                  # Qt GUI, grouped by role (headers included bare across groups)
-  app/                # main.cpp, mainWindow, launchOptions, selectionPanel
+src/                  # Qt GUI, grouped by role (headers included bare across groups);
+                      #   no logic file over 230 lines except the list in
+                      #   tests/sizeBudget.json, which may not grow
+  app/                # main.cpp, launchOptions, the controllers, and MainWindow:
+                      #   ONE mainWindow.hpp (moc runs on the header) with its method
+                      #   groups spread over mainWindow*.cpp TUs
   canvas/             # canvasWidget (QPainter rendering) + canvasTooltip
-  dialogs/            # settings / projects / blank / links / crop / info / shortcuts / connect
+  dialogs/            # settings / projects / blank / links / crop / info / shortcuts /
+                      #   connect / expiration / assistantSettings
+  llm/                # the AI assistant: chat dock + widgets, llmClient,
+                      #   opPlan/opRegistry/opSchema, planExecutor, qtLlmTransport
   io/                 # fileStore (persistence) + mediaLoader (image/video --src)
-  net/                # serverClient: REST + connection manager for the collaboration server
-  support/            # theme, notifications, guiHelpers
-tests/                # Qt headless integration tests (crop + image fixture)
+  net/                # serverClient: REST + connection manager for the collaboration
+                      #   server, and fetchGuard (the surface's one SSRF guard)
+  support/            # theme + the motion, widget and platform helpers
+tests/                # 66 ctest targets: headless Qt suites per concern, 15 QtTest GUI
+                      #   binaries (mainWindow.<area>.gui.cpp, one object library), the
+                      #   layer-boundary lint, the size/comment ratchet and the UI pins
+  pins/               # 24 PNG renders at @1x+@2x (pins/macos/) + stylesheets.txt —
+                      #   the desktop half of the UI freeze; re-record only deliberately
   fixtures/           # sample.png used by the image test
+  support/            # shared check.hpp + the GUI harness headers
 resources/            # app.qrc: app.qss (the whole stylesheet) + the browser's shared config JSON
 packaging/
+cmake/                # StencilSources · StencilTests (stencil_headless_test) · StencilPackaging
 CMakeLists.txt        # builds stencil; pulls the core via add_subdirectory(../core)
 ```
 
@@ -104,7 +122,7 @@ edit transport is **not** implemented on the desktop.
 > [root README → AI assistant](../README.md#ai-assistant--setting-up-a-model).
 
 The **✦ Assistant** toolbar button (also **View ▸ Assistant**, `Alt+G`) toggles a chat
-dock (`app/chatDock`) that — unlike the fixed selection panel — is fully movable: dock it on
+dock (`llm/chatDock`) that — unlike the fixed selection panel — is fully movable: dock it on
 any of the four window edges or float it as a free window (drag to move, resize normally);
 the placement persists via `QMainWindow::saveState()` in the settings file. Docked, it slides
 in and out from its edge (`MainWindow::setChatShown`, ~0.34 s in / 0.26 s out, browser panel
@@ -148,7 +166,7 @@ and the gear dismiss the menu first (a modal dialog can't live under a popup gra
 into the same attachment state; variant results are announced there but rendered with
 thumbnails in the dock. New
 transcript cards fade and slide in (~140 ms), matching the browser's motion, and cards
-dissolve toward the transcript's edges as it scrolls (`src/app/scrollReveal.hpp`, the
+dissolve toward the transcript's edges as it scrolls (`src/support/scrollReveal.hpp`, the
 desktop port of the browser's `.reveal-item`; the projects list rows fade the same way
 through `ProjectRowDelegate`). Nothing is dimmed when there is nothing to scroll.
 
