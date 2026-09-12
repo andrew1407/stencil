@@ -4,7 +4,7 @@
   "files": {
     "browser/js/console/stencilApi.js": 208,
     "browser/js/core/drawingApp.js": 1136,
-    "browser/js/core/exportService.js": 436,
+    "browser/js/core/exportService.js": 170,
     "browser/js/core/inputController.js": 465,
     "browser/js/core/pointerController.js": 330,
     "browser/js/core/projectTransferController.js": 510,
