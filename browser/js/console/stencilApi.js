@@ -101,14 +101,6 @@ export const createStencil = (app) => {
     deleteProperty(target, prop) { throw new TypeError(`stencil: "${String(prop)}" cannot be deleted`); },
   });
 
-  // Dismiss any open editor modal (projects, shortcuts/info, links, visuals, …) so a
-  // console-driven load isn't hidden behind one. Toggles the shared .modal-open class;
-  // each modal's onClose cleanup is idempotent and re-runs on next open.
-  const closeModals = () => {
-    try { document.querySelectorAll('.app-modal-overlay.modal-open').forEach((o) => o.classList.remove('modal-open')); }
-    catch { /* no DOM (node tests) */ }
-  };
-
   // The Line / Point / Project wrappers and the settings namespace are their own modules
   // beside this one (lineAndPoint.js / project.js / settingsFacade.js).
   const { makePoint, makeLine, setFacade } = createLineWrappers({ app, guard });
