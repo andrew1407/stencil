@@ -1,5 +1,5 @@
 // ── Rewrite patterns for the single-file build ──────────────────
-// vite.config.js edits four sources on its way to one self-contained HTML: the app shell
+// vite.config.js edits five sources on its way to one self-contained HTML: the app shell
 // (inline the pre-paint script + icons, drop the PWA manifest and the <meta> CSP an all-inline
 // file off disk can't obey) and the three loaders that address a sibling file by URL. Each
 // pattern lives here, dependency-free, so tests/singleFileBuild.test.js can assert they all
@@ -10,6 +10,7 @@ export const PRE_PAINT_TAG = /<script src="js\/prePaintTheme\.js"><\/script>/;
 export const MANIFEST_LINK = /^.*<link rel="manifest".*\n/m;
 export const FAVICON_HREF = /href="favicon\.svg"/g;
 export const PROJECTS_WORKER_URL = /new URL\((['"])\.\.\/worker\/projectsWorker\.js\1,\s*import\.meta\.url\)/;
+export const IMAGE_WORKER_URL = /new URL\((['"])\.\/imageWorker\.js\1,\s*import\.meta\.url\)/;
 export const WASM_IMPORT = /import\(WASM_MODULE_PATH\)/;
 export const OPEN_IN_CONFIG_URL = /new URL\((['"])\.\/openInConfig\.json\1,\s*import\.meta\.url\)/;
 
@@ -17,6 +18,7 @@ export const OPEN_IN_CONFIG_URL = /new URL\((['"])\.\/openInConfig\.json\1,\s*im
 export const REWRITES = Object.freeze({
   'index.html': [CSP_META, PRE_PAINT_TAG, MANIFEST_LINK, FAVICON_HREF],
   'js/core/tabsCoordinator.js': [PROJECTS_WORKER_URL],
+  'js/worker/imageTasks.js': [IMAGE_WORKER_URL],
   'js/core/stencilCore.js': [WASM_IMPORT],
   'js/config/openInConfig.js': [OPEN_IN_CONFIG_URL],
 });

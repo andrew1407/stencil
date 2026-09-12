@@ -6,10 +6,8 @@ import { EDITOR_SYSTEM_PROMPT, parseOpPlan, executeOpPlan, renderAskPreviews } f
 import { CONTINUATION_NOTE } from './chatStore.js';
 import PROMPT_ASSET from '../config/llm/systemPrompt.json' with { type: 'json' };
 import { isVideoFile } from '../core/videoFrame.js';
-import { core } from '../core/stencilCore.js';
-import { applyContourRGBA } from '../core/contourFilter.js';
 import { loadSavedServers } from '../net/connectionStore.js';
-import { scaledDataUrl } from '../utils.js';
+import { downscaleToDataUrl, contourToDataUrl } from '../worker/imageTasks.js';
 import EVENTS from '../config/events.json' with { type: 'json' };
 
 export const HISTORY_LIMIT = 32;
@@ -47,12 +45,14 @@ export const splitDataUrl = (u) => {
 };
 
 // Downscale an image blob/File to ≤ maxEdge px on the long edge and re-encode as
-// PNG (contract §7). Browser-only default for the injected prepareAttachment.
+// PNG (contract §7) — in the image worker. Browser-only default for prepareAttachment.
 export const downscaleImageToDataUrl = async (blob, maxEdge = MAX_IMAGE_EDGE) => {
   const bmp = await createImageBitmap(blob);
-  const url = scaledDataUrl(bmp, bmp.width, bmp.height, maxEdge, 'image/png');
-  bmp.close?.();
-  return url;
+  try {
+    return await downscaleToDataUrl(bmp, bmp.width, bmp.height, { maxEdge, type: 'image/png' });
+  } finally {
+    bmp.close?.();
+  }
 };
 
 // Re-encode a data URL at thumbnail size (browser default for the injected
@@ -62,18 +62,15 @@ const thumbnailDataUrl = async (dataUrl, maxEdge = ASK_PREVIEW_MAX_EDGE) => {
     const img = new Image();
     img.src = dataUrl;
     await img.decode();
-    return scaledDataUrl(img, img.naturalWidth, img.naturalHeight, maxEdge, 'image/jpeg', 0.85);
+    return await downscaleToDataUrl(img, img.naturalWidth, img.naturalHeight, { maxEdge, type: 'image/jpeg', quality: 0.85 });
   } catch {
     return dataUrl;
   }
 };
 
-// The core contour pass in place over RGBA8 pixels — wasm stencil_applyContourRGBA
-// when loaded, else the JS reference. Shared with chatSession's crop-edge wiring.
-const contourInPlace = (data, w, h) => (core.op('applyContourRGBA') || applyContourRGBA)(data, w, h);
-
 // Re-render a snapshot data URL with the core `contour` filter — the exact path the
-// user-facing "contour" filter mode uses. Browser-only default for the injected edgeMap.
+// user-facing "contour" filter mode uses (the Sobel pass runs in the image worker).
+// Browser-only default for the injected edgeMap.
 export const contourDataUrl = async (dataUrl) => {
   const img = new Image();
   img.src = dataUrl;
@@ -83,10 +80,7 @@ export const contourDataUrl = async (dataUrl) => {
   canvas.height = img.naturalHeight;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(img, 0, 0);
-  const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  contourInPlace(d.data, canvas.width, canvas.height);
-  ctx.putImageData(d, 0, 0);
-  return canvas.toDataURL('image/png');
+  return contourToDataUrl(() => ctx.getImageData(0, 0, canvas.width, canvas.height));
 };
 
 // A provider/model that has no vision, answering the auto-attached working image.

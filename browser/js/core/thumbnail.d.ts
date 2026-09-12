@@ -2,5 +2,7 @@
 // sized for its largest consumer (the hover zoom), since it lives in the localStorage registry.
 import type { DrawingApp } from './drawingApp.js';
 
-/** null with no image or when the canvas refuses (tainted). */
+/** Synchronous, inline render. null with no image or when the canvas refuses (tainted). */
 export declare const makeThumbnail: (app: DrawingApp) => string | null;
+/** The same render through the image worker (inline when it is unavailable). */
+export declare const renderThumbnail: (app: DrawingApp) => Promise<string | null>;

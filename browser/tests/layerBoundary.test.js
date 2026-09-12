@@ -103,7 +103,7 @@ const CORE_DOM_ALLOWANCE = {
   'core/lineSelection.js': 1, 'core/pointerController.js': 6, 'core/projectFileIO.js': 2,
   'core/projectFilePicker.js': 6, 'core/projectMeta.js': 1, 'core/projectServerTransfer.js': 1, 'core/projectTransferController.js': 3,
   'core/quotaWriter.js': 1, 'core/stencilSync.js': 2, 'core/storage.js': 1,
-  'core/tabsCoordinator.js': 3, 'core/thumbnail.js': 2, 'core/videoFrame.js': 1,
+  'core/tabsCoordinator.js': 3, 'core/videoFrame.js': 1,
   'core/viewportSync.js': 6, 'core/zoomAnimation.js': 2, 'core/zoomPan.js': 1,
 };
 

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import {
   CSP_META, PRE_PAINT_TAG, MANIFEST_LINK, FAVICON_HREF,
-  PROJECTS_WORKER_URL, WASM_IMPORT, OPEN_IN_CONFIG_URL, NO_SIBLINGS,
+  PROJECTS_WORKER_URL, IMAGE_WORKER_URL, WASM_IMPORT, OPEN_IN_CONFIG_URL, NO_SIBLINGS,
 } from './tools/singleFilePatterns.js';
 
 // ── Single-file build ───────────────────────────────────────────
@@ -46,13 +46,15 @@ const prepareHtml = () => ({
   },
 });
 
-// Three sibling files can't come along, so their loaders are made to fail fast into the
+// Four sibling files can't come along, so their loaders are made to fail fast into the
 // fallbacks the app already has — rather than firing a doomed request that a file:// page
 // reports as a CORS error.
 //   • projectsWorker.js — a SharedWorker is addressed by URL, and a blob: URL is unique
 //     per tab, so inlining it would silently stop it being *shared*. Throwing drops
 //     tabsCoordinator onto its BroadcastChannel path (its route on any browser without
 //     SharedWorker).
+//   • imageWorker.js — vite would emit the module Worker as a second file. Throwing drops
+//     imageTasks onto its inline path (the same imageRaster.js sequence, on the main thread).
 //   • wasm/stencilCore.js — the generated wasm core (gitignored, often absent). The app
 //     already degrades to the JS reference implementations the wasm build is parity-tested
 //     against, so a single file simply always uses them.
@@ -67,6 +69,12 @@ const useFallbackPaths = () => ({
     if (id.endsWith('core/tabsCoordinator.js')) {
       return code.replace(
         PROJECTS_WORKER_URL,
+        "(() => { throw new Error('single-file build: no module worker'); })()"
+      );
+    }
+    if (id.endsWith('worker/imageTasks.js')) {
+      return code.replace(
+        IMAGE_WORKER_URL,
         "(() => { throw new Error('single-file build: no module worker'); })()"
       );
     }
