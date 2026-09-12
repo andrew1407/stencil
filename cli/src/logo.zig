@@ -284,7 +284,7 @@ const presentation = [_][]const u8{
     "args.zig",        "brand.zig",     "messages.zig", "theme.zig",
     "project_cli.zig", "line_edit.zig", "console.zig",
 };
-const presentation_dirs = [_][]const u8{ "console/", "line_edit/", "logo/", "params/" };
+const presentation_dirs = [_][]const u8{ "bench/", "console/", "line_edit/", "logo/", "params/" };
 
 fn isPresentation(rel: []const u8) bool {
     for (presentation) |p| if (std.mem.eql(u8, rel, p)) return true;
